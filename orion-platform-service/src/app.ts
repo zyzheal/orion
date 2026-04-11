@@ -13,6 +13,7 @@ import { RedisCache } from './services/redis-cache';
 import { DatabasePool } from './services/database';
 import { EventBusService } from './services/event-bus-service';
 import { NatsServiceRegistry } from './services/nats-registry';
+import { createApiRouter } from './api/routes';
 
 const logger = pino({
   level: process.env.LOG_LEVEL || 'info',
@@ -147,6 +148,10 @@ export async function createApp(options: PlatformAppOptions = {}): Promise<{
   });
 
   // ==================== API 路由 ====================
+
+  // 注册 Pipeline API
+  const apiRouter = createApiRouter({ eventBus: options.eventBus });
+  app.use('/api/v1', apiRouter);
 
   // 基础 API 路由
   app.get('/api/v1/info', (req: Request, res: Response) => {
