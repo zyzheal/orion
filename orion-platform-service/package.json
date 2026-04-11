@@ -1,0 +1,46 @@
+{
+  "name": "@orion/platform-service",
+  "version": "1.0.0",
+  "description": "Orion Platform Core Service - 平台核心服务",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "test": "jest",
+    "test:coverage": "jest --coverage",
+    "lint": "eslint src --ext .ts",
+    "lint:fix": "eslint src --ext .ts --fix",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@fastify/cors": "^8.5.0",
+    "@orion/event-bus": "file:./packages/event-bus",
+    "@types/cors": "^2.8.19",
+    "cors": "^2.8.6",
+    "express": "^4.18.2",
+    "ioredis": "^5.3.2",
+    "nats": "^2.17.0",
+    "pino": "^8.17.2",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/jest": "^29.5.0",
+    "@types/node": "^20.10.0",
+    "@types/uuid": "^9.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.14.0",
+    "@typescript-eslint/parser": "^6.14.0",
+    "eslint": "^8.56.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "author": "Orion Platform Team",
+  "license": "Apache-2.0"
+}
