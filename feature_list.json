@@ -1,0 +1,11 @@
+{
+  "category": "setup",
+  "description": "Project initialization with dev-enegine configuration",
+  "steps": [
+    "Create .dev-enegine directory",
+    "Create .lra-config.json configuration file",
+    "Create requirements directory structure",
+    "Initialize git repository and make initial commit"
+  ],
+  "passes": true
+}

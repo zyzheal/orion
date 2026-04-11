@@ -1,0 +1,33 @@
+{
+  "projectName": "orion-design",
+  "version": "1.0.0",
+  "description": "Orion Design Project - Initial Setup",
+  "devEngine": {
+    "enabled": true,
+    "workingDirs": [
+      ".",
+      "frontend",
+      "backend",
+      "tools",
+      "docs"
+    ],
+    "excludeDirs": [
+      "node_modules",
+      ".git",
+      "archive",
+      ".DS_Store",
+      "reports"
+    ]
+  },
+  "features": {
+    "autoCommit": true,
+    "progressTracking": true,
+    "requirementManagement": true
+  },
+  "paths": {
+    "requirements": "./requirements",
+    "documentation": "./docs",
+    "reports": "./reports"
+  },
+  "initializedAt": "2026-04-11T18:59:00+08:00"
+}
