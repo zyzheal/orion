@@ -25,6 +25,12 @@ export enum ErrorCodes {
   // 配置模块 (03)
   CONFIG_INVALID = '10301',
 
+  // API 版本模块 (06)
+  VERSION_RETIRED = '10601',
+  VERSION_REQUIRED = '10602',
+  VERSION_ERROR = '10603',
+  VERSION_UNSUPPORTED = '10604',
+
   // ==================== 认证错误 (2XXZZ) ====================
   // JWT 模块 (01)
   TOKEN_EXPIRED = '20101',
@@ -110,6 +116,10 @@ export const ERROR_STATUS_MAP: Record<string, number> = {
   '10103': 405,
   '10201': 429,
   '10301': 500,
+  '10601': 410,
+  '10602': 400,
+  '10603': 500,
+  '10604': 400,
 
   // 认证错误
   '20101': 401,
@@ -169,6 +179,10 @@ export const ERROR_MESSAGE_MAP: Record<string, string> = {
   '10103': 'HTTP method not allowed',
   '10201': 'Rate limit exceeded',
   '10301': 'Invalid configuration',
+  '10601': 'API version has been retired',
+  '10602': 'API version is required',
+  '10603': 'Failed to process API version',
+  '10604': 'Unsupported API version',
 
   // 认证错误
   '20101': 'Token has expired',
