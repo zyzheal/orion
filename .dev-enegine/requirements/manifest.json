@@ -11,7 +11,7 @@
       "id": "orion-mvp-dev",
       "name": "Orion MVP 开发",
       "description": "基于 wujie 微前端的完整平台实现",
-      "status": "developing",
+      "status": "completed",
       "dir": "orion-mvp-dev"
     }
   ]
