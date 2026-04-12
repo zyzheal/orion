@@ -9,7 +9,7 @@
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { TokenService, TokenPayload } from '../services/token.service';
+import { TokenService, TokenPayload, TokenRefreshOptions } from '../services/token.service';
 import { rbacService } from '../services/rbac.service';
 import { getConfig } from '../config';
 
@@ -230,16 +230,29 @@ export class AuthRoutes {
           // 5. 获取用户权限
           const permissions = rbacService.getUserPermissions(user.id);
 
-          // 6. 生成 Token 对
+          // 6. 提取设备信息
+          const userAgent = request.headers['user-agent'] || '';
+          const ip =
+            request.headers['x-forwarded-for'] ||
+            request.headers['x-real-ip'] ||
+            (request.socket?.remoteAddress as string) ||
+            '';
+
+          const deviceOptions: TokenRefreshOptions = {
+            userAgent: userAgent as string,
+            ip: ip as string,
+            deviceId,
+          };
+
+          // 7. 生成 Token 对
           const tokenPair = await this.tokenService.generateTokenPair({
             userId: user.id,
             email: user.email,
             roles: user.roles,
             permissions: permissions.map((p) => p.id),
-            deviceId,
-          });
+          }, deviceOptions);
 
-          // 7. 更新最后登录时间
+          // 8. 更新最后登录时间
           user.lastLoginAt = new Date();
 
           this.app.log.info(`User login: ${user.username} from ${request.ip}`);
@@ -330,10 +343,20 @@ export class AuthRoutes {
           }
 
           // 提取设备指纹
-          const deviceId = this.extractDeviceFingerprint(request);
+          const userAgent = request.headers['user-agent'] || '';
+          const ip =
+            request.headers['x-forwarded-for'] ||
+            request.headers['x-real-ip'] ||
+            (request.socket?.remoteAddress as string) ||
+            '';
+
+          const deviceOptions: TokenRefreshOptions = {
+            userAgent: userAgent as string,
+            ip: ip as string,
+          };
 
           // 使用 Token 服务刷新
-          const tokenPair = await this.tokenService.refreshTokens(refreshToken, deviceId);
+          const tokenPair = await this.tokenService.refreshTokens(refreshToken, deviceOptions);
 
           if (!tokenPair) {
             return reply.code(401).send({

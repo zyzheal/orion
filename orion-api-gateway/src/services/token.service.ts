@@ -282,12 +282,13 @@ export class TokenService {
       );
 
       if (!isNewDevice && deviceOptions?.ip) {
-        // 如果不是新设备，检查是否有异地登录
-        anomalousLogin = await this.deviceFingerprintService.detectAnomalousLogin(
+        // If not a new device, check for anomalous login
+        const event = await this.deviceFingerprintService.detectAnomalousLogin(
           payload.userId,
           fingerprint,
           deviceOptions.ip
         );
+        anomalousLogin = event || undefined;
       }
     }
 
