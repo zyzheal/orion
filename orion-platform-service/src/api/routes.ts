@@ -29,6 +29,7 @@ import monitoringRoutes from './monitoring-routes';
 import ticketingRoutes from './ticketing-routes';
 import selfHealingRoutes from './self-healing-routes';
 import backupRoutes from './backup-routes';
+import pluginSpiRoutes from './plugin-spi-routes';
 
 export interface ApiRoutesOptions {
   eventBus?: EventBusService;
@@ -205,4 +206,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // 注册备份恢复 API 路由 (TASK-704)
   await app.register(backupRoutes, { prefix: '/backup' });
+
+  // 注册 Plugin SPI API 路由 (TASK-104)
+  await app.register(pluginSpiRoutes, { prefix: '/plugins-spi' });
 }
