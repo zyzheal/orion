@@ -1,8 +1,8 @@
 /**
- * Task Controller - Task 管理 API
+ * Task Controller - Task 管理 API (Fastify 版本)
  */
 
-import { Request, Response } from 'express';
+import { FastifyRequest, FastifyReply } from 'fastify';
 import { PipelineRunService } from '../../services/pipeline/PipelineRunService';
 import { TaskStatus } from '../../models/Task';
 
@@ -17,21 +17,23 @@ export class TaskController {
    * 获取 Task 详情
    * GET /api/v1/tasks/:id
    */
-  async getById(req: Request, res: Response): Promise<void> {
+  async getById(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const { id } = req.params;
+      const params = request.params as any;
+      const { id } = params;
 
       const task = await this.runService.getTask(id);
 
       if (!task) {
-        res.status(404).json({
+        await reply.status(404).send({
           error: 'NOT_FOUND',
+          code: '30201',
           message: `Task '${id}' not found`,
         });
         return;
       }
 
-      res.json({
+      await reply.send({
         id: task.id,
         stageId: task.stageId,
         name: task.name,
@@ -53,8 +55,9 @@ export class TaskController {
         createdAt: task.createdAt,
       });
     } catch (error) {
-      res.status(500).json({
+      await reply.status(500).send({
         error: 'INTERNAL_ERROR',
+        code: '50000',
         message: error instanceof Error ? error.message : 'Failed to get task',
       });
     }
@@ -64,27 +67,30 @@ export class TaskController {
    * 获取 Task 日志
    * GET /api/v1/tasks/:id/log
    */
-  async getLog(req: Request, res: Response): Promise<void> {
+  async getLog(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const { id } = req.params;
+      const params = request.params as any;
+      const { id } = params;
 
       const task = await this.runService.getTask(id);
 
       if (!task) {
-        res.status(404).json({
+        await reply.status(404).send({
           error: 'NOT_FOUND',
+          code: '30201',
           message: `Task '${id}' not found`,
         });
         return;
       }
 
-      res.json({
+      await reply.send({
         taskId: task.id,
         log: task.log || '',
       });
     } catch (error) {
-      res.status(500).json({
+      await reply.status(500).send({
         error: 'INTERNAL_ERROR',
+        code: '50000',
         message: error instanceof Error ? error.message : 'Failed to get task log',
       });
     }
@@ -94,30 +100,34 @@ export class TaskController {
    * 重试 Task
    * POST /api/v1/tasks/:id/retry
    */
-  async retry(req: Request, res: Response): Promise<void> {
+  async retry(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const { id } = req.params;
+      const params = request.params as any;
+      const { id } = params;
 
       const task = await this.runService.getTask(id);
       if (!task) {
-        res.status(404).json({
+        await reply.status(404).send({
           error: 'NOT_FOUND',
+          code: '30201',
           message: `Task '${id}' not found`,
         });
         return;
       }
 
       if (task.status !== 'failed') {
-        res.status(400).json({
+        await reply.status(400).send({
           error: 'INVALID_STATE',
+          code: '30301',
           message: `Cannot retry task with status '${task.status}'`,
         });
         return;
       }
 
       if (task.retryCount >= task.maxRetries) {
-        res.status(400).json({
+        await reply.status(400).send({
           error: 'MAX_RETRIES_EXCEEDED',
+          code: '30501',
           message: `Task has reached maximum retry count (${task.maxRetries})`,
         });
         return;
@@ -138,14 +148,15 @@ export class TaskController {
 
       await this.runService.updateTask(retriedTask as any);
 
-      res.json({
+      await reply.send({
         id: retriedTask.id,
         status: retriedTask.status,
         retryCount: retriedTask.retryCount,
       });
     } catch (error) {
-      res.status(500).json({
+      await reply.status(500).send({
         error: 'INTERNAL_ERROR',
+        code: '50000',
         message: error instanceof Error ? error.message : 'Failed to retry task',
       });
     }

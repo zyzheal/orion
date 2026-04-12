@@ -1,7 +1,7 @@
 import React from 'react';
 import { Form, Input, Button, Card, message, Typography } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 
 const { Title } = Typography;
@@ -13,15 +13,27 @@ interface LoginFormData {
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { login, isLoading } = useAuth();
   const [form] = Form.useForm<LoginFormData>();
 
   const handleSubmit = async (values: LoginFormData) => {
+    console.log('[Login] Submitting login form');
     const result = await login(values);
+
     if (result.success) {
+      console.log('[Login] Login successful, navigating to dashboard');
       message.success('登录成功');
-      navigate('/dashboard', { replace: true });
+
+      // 获取来源页面
+      const from = location.state?.from?.pathname || '/dashboard';
+
+      // 强制刷新以确保状态同步
+      setTimeout(() => {
+        window.location.href = from;
+      }, 100);
     } else {
+      console.error('[Login] Login failed:', result.error);
       message.error('登录失败，请检查用户名和密码');
     }
   };

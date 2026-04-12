@@ -1,9 +1,10 @@
 /**
- * Orion Platform Service - Express 应用配置
+ * Orion Platform Service - Fastify 应用配置
  */
 
-import express, { Express, Request, Response, NextFunction } from 'express';
-import cors from 'cors';
+import Fastify, { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import fastifyCors from '@fastify/cors';
+import fastifyHelmet from '@fastify/helmet';
 import { v4 as uuidv4 } from 'uuid';
 import pino from 'pino';
 
@@ -13,7 +14,8 @@ import { RedisCache } from './services/redis-cache';
 import { DatabasePool } from './services/database';
 import { EventBusService } from './services/event-bus-service';
 import { NatsServiceRegistry } from './services/nats-registry';
-import { createApiRouter } from './api/routes';
+import { registerApiRoutes } from './api/routes';
+import { registerAuthRoutes } from './api/routes-auth';
 
 const logger = pino({
   level: process.env.LOG_LEVEL || 'info',
@@ -30,62 +32,47 @@ export interface PlatformAppOptions {
 }
 
 export async function createApp(options: PlatformAppOptions = {}): Promise<{
-  app: Express;
+  app: FastifyInstance;
   healthChecker: HealthChecker;
   redis?: RedisCache;
   database?: DatabasePool;
   eventBus?: EventBusService;
 }> {
   const config = getConfig();
-  const app = express();
 
-  // ==================== 基础中间件 ====================
+  // 创建 Fastify 实例
+  const app = Fastify({
+    logger: {
+      level: config.logLevel || 'info',
+      serializers: {
+        req: (req) => ({
+          method: req.method,
+          url: req.url,
+          headers: req.headers,
+        }),
+        res: (res) => ({
+          statusCode: res.statusCode,
+        }),
+      },
+    },
+    requestIdHeader: 'x-request-id',
+    genReqId: () => uuidv4(),
+  });
 
-  // JSON 解析
-  app.use(express.json({ limit: '10mb' }));
-  app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+  // ==================== 注册插件 ====================
 
-  // CORS
-  app.use(cors({
+  // 1. CORS 配置
+  await app.register(fastifyCors, {
     origin: true,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key', 'X-Request-ID'],
-  }));
-
-  // 请求 ID 中间件
-  app.use((req: Request, res: Response, next: NextFunction) => {
-    const requestId = req.headers['x-request-id'] as string || uuidv4();
-    res.setHeader('x-request-id', requestId);
-    (req as any).requestId = requestId;
-    next();
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key', 'X-Request-ID', 'X-Tenant-ID', 'X-User-ID'],
   });
 
-  // 日志中间件
-  app.use((req: Request, res: Response, next: NextFunction) => {
-    const startTime = Date.now();
-    const requestId = (req as any).requestId;
-
-    logger.info({
-      type: 'request',
-      method: req.method,
-      url: req.url,
-      requestId,
-    }, 'Incoming request');
-
-    res.on('finish', () => {
-      const duration = Date.now() - startTime;
-      logger.info({
-        type: 'response',
-        method: req.method,
-        url: req.url,
-        status: res.statusCode,
-        duration,
-        requestId,
-      }, 'Request completed');
-    });
-
-    next();
+  // 2. Helmet 安全头部
+  await app.register(fastifyHelmet, {
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false,
   });
 
   // ==================== 健康检查 ====================
@@ -118,19 +105,19 @@ export async function createApp(options: PlatformAppOptions = {}): Promise<{
   }
 
   // 健康检查端点
-  app.get('/healthz', async (req: Request, res: Response) => {
+  app.get('/healthz', async (request: FastifyRequest, reply: FastifyReply) => {
     const health = await healthChecker.check();
     const statusCode = health.status === 'healthy' ? 200 :
                        health.status === 'degraded' ? 200 : 503;
-    res.status(statusCode).json(health);
+    return reply.status(statusCode).send(health);
   });
 
   // 就绪检查端点
-  app.get('/readyz', async (req: Request, res: Response) => {
+  app.get('/readyz', async (request: FastifyRequest, reply: FastifyReply) => {
     const health = await healthChecker.check();
     const isReady = health.status !== 'unhealthy';
 
-    res.status(isReady ? 200 : 503).json({
+    return reply.status(isReady ? 200 : 503).send({
       status: isReady ? 'ready' : 'not_ready',
       timestamp: new Date().toISOString(),
       service: config.serviceName,
@@ -138,8 +125,8 @@ export async function createApp(options: PlatformAppOptions = {}): Promise<{
   });
 
   // 版本信息端点
-  app.get('/version', (req: Request, res: Response) => {
-    res.json({
+  app.get('/version', async (request: FastifyRequest, reply: FastifyReply) => {
+    return reply.send({
       name: '@orion/platform-service',
       version: process.env.VERSION || '1.0.0',
       buildTime: process.env.BUILD_TIME,
@@ -149,13 +136,15 @@ export async function createApp(options: PlatformAppOptions = {}): Promise<{
 
   // ==================== API 路由 ====================
 
+  // 注册认证 API 路由
+  await app.register(registerAuthRoutes, { prefix: '/api/v1/auth' });
+
   // 注册 Pipeline API
-  const apiRouter = createApiRouter({ eventBus: options.eventBus });
-  app.use('/api/v1', apiRouter);
+  await app.register(registerApiRoutes, { prefix: '/api/v1', eventBus: options.eventBus });
 
   // 基础 API 路由
-  app.get('/api/v1/info', (req: Request, res: Response) => {
-    res.json({
+  app.get('/api/v1/info', async (request: FastifyRequest, reply: FastifyReply) => {
+    return reply.send({
       service: config.serviceName,
       version: '1.0.0',
       status: 'running',
@@ -163,27 +152,30 @@ export async function createApp(options: PlatformAppOptions = {}): Promise<{
     });
   });
 
-  // 404 处理
-  app.use((req: Request, res: Response) => {
-    res.status(404).json({
-      error: 'NOT_FOUND',
-      message: `Cannot ${req.method} ${req.url}`,
+  // ==================== 错误处理 ====================
+
+  app.setErrorHandler((error: Error, request, reply) => {
+    app.log.error({
+      error: error.message,
+      stack: error.stack,
+      url: request.url,
+      method: request.method,
+    }, 'Unhandled error');
+
+    return reply.status(500).send({
+      error: 'INTERNAL_ERROR',
+      code: '50000',
+      message: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error',
       timestamp: new Date().toISOString(),
     });
   });
 
-  // 错误处理
-  app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
-    logger.error({
-      error: err.message,
-      stack: err.stack,
-      url: req.url,
-      method: req.method,
-    }, 'Unhandled error');
-
-    res.status(500).json({
-      error: 'INTERNAL_ERROR',
-      message: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error',
+  // 404 处理
+  app.setNotFoundHandler((request, reply) => {
+    return reply.status(404).send({
+      error: 'NOT_FOUND',
+      code: '10102',
+      message: `Cannot ${request.method} ${request.url}`,
       timestamp: new Date().toISOString(),
     });
   });

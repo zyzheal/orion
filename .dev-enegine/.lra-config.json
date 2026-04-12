@@ -1,0 +1,6 @@
+{
+  "control_level": "medium",
+  "max_test_retry": 3,
+  "parallel_features": true,
+  "auto_commit": true
+}

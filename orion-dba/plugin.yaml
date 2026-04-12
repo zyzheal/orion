@@ -1,0 +1,106 @@
+apiVersion: plugin.orion.dev/v1alpha1
+kind: Plugin
+metadata:
+  name: orion-dba
+  version: 1.0.0
+  displayName: "SQL 审核"
+  description: "MySQL SQL 审核/查询/管理平台"
+  icon: "/plugins/orion-dba/icon.svg"
+  author: "Orion Team"
+  
+spec:
+  # 服务配置
+  services:
+    backend:
+      image: registry.company.com/orion/orion-dba-service:1.0.0
+      port: 8090
+      replicas: 2
+      resources:
+        cpu: "2"
+        memory: "4Gi"
+      
+    frontend:
+      image: registry.company.com/orion/orion-dba-app:1.0.0
+      port: 3010
+      entry: "http://{host}/plugins/orion-dba/app.js"
+  
+  # 路由配置
+  routes:
+    - path: "/dba"
+      name: "SQL 审核"
+      icon: "Database"
+      permission: "dba:access"
+      children:
+        - path: "/dba/audit"
+          name: "SQL 审核"
+          permission: "dba:audit"
+        - path: "/dba/query"
+          name: "SQL 查询"
+          permission: "dba:query"
+        - path: "/dba/ticket"
+          name: "SQL 工单"
+          permission: "dba:ticket"
+        - path: "/dba/source"
+          name: "数据源"
+          permission: "dba:source"
+        - path: "/dba/rule"
+          name: "审核规则"
+          permission: "dba:rule"
+  
+  # 依赖配置
+  dependencies:
+    services:
+      - name: orion-api-gateway
+        version: ">=1.0.0"
+      - name: orion-platform-service
+        version: ">=1.0.0"
+    databases:
+      - name: mysql
+        version: ">=8.0"
+    external:
+      - name: inception
+        version: ">=2.3"
+  
+  # 权限配置
+  permissions:
+    - resource: "dba"
+      actions: ["access", "audit", "query", "ticket", "source", "rule"]
+      description: "SQL 审核管理权限"
+  
+  # API 网关配置
+  api_gateway:
+    routes:
+      - path: "/api/v1/db/"
+        service: "orion-dba-service"
+        strip_prefix: true
+        auth: true
+  
+  # 配置项
+  config:
+    - name: inception.host
+      type: string
+      required: true
+      description: "Inception 服务地址"
+    - name: audit.auto_ai_review
+      type: boolean
+      default: false
+      description: "启用 AI 辅助审核"
+    - name: query.export_limit
+      type: integer
+      default: 5000
+      description: "查询导出行数限制"
+  
+  # 生命周期钩子
+  hooks:
+    pre_install:
+      - script: "scripts/pre-install.sh"
+        description: "创建数据库表"
+    post_install:
+      - script: "scripts/post-install.sh"
+        description: "初始化默认规则"
+    pre_uninstall:
+      - script: "scripts/pre-uninstall.sh"
+        description: "备份数据"
+    post_uninstall:
+      - script: "scripts/post-uninstall.sh"
+        description: "清理资源"

@@ -1,0 +1,9 @@
+[2026-04-11 20:00] Requirement started: Orion MVP 开发
+[2026-04-11 20:10] Feature completed: F001 - NATS JetStream 事件总线部署
+[2026-04-11 20:15] Feature started: F002 - 服务骨架搭建
+[2026-04-11 20:55:53] F001, F002, F003, F301, F302 completed
+[2026-04-11 22:59:53] 子应用改造完成：F201-F205 完成，orion-dba 验证通过，orion-knowledge 采用独立部署方案，orion-visor 代码改造完成
+[2026-04-12 07:19:35] F101, F102, F103, F201, F202, F203, F204, F205 completed
+[2026-04-12 08:45:00] F104 WebSocket 认证与心跳 completed - authStore 增强，useWebSocket Hook，webSocketStore 新建
+[2026-04-12 08:48:21] F402 CMDB 集成接口 completed - Read API (主机/K8s/CI-CD/拓扑), K8s 同步双机制，脚本执行能力
+[2026-04-12 10:02:35] F401 completed - CMDB 核心服务实现完成（CI 管理、K8s 资源、CI/CD 资源、拓扑关系）

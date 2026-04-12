@@ -1,0 +1,114 @@
+{
+  "timestamp": "2026-04-11T08:33:43.824509",
+  "documents": {
+    "total": 135,
+    "approved": 0,
+    "by_domain": {
+      "non-functional": {
+        "total": 1,
+        "approved": 0
+      },
+      "ui": {
+        "total": 2,
+        "approved": 0
+      },
+      "collaboration": {
+        "total": 5,
+        "approved": 0
+      },
+      "adr": {
+        "total": 8,
+        "approved": 0
+      },
+      "cache": {
+        "total": 3,
+        "approved": 0
+      },
+      "frontend": {
+        "total": 12,
+        "approved": 0
+      },
+      "efficiency": {
+        "total": 4,
+        "approved": 0
+      },
+      "security": {
+        "total": 8,
+        "approved": 0
+      },
+      "integration": {
+        "total": 5,
+        "approved": 0
+      },
+      "qa": {
+        "total": 1,
+        "approved": 0
+      },
+      "requirements": {
+        "total": 5,
+        "approved": 0
+      },
+      "cicd": {
+        "total": 1,
+        "approved": 0
+      },
+      "architecture": {
+        "total": 27,
+        "approved": 0
+      },
+      "iac": {
+        "total": 1,
+        "approved": 0
+      },
+      "knowledge": {
+        "total": 4,
+        "approved": 0
+      },
+      "ai": {
+        "total": 19,
+        "approved": 0
+      },
+      "review": {
+        "total": 2,
+        "approved": 0
+      },
+      "db": {
+        "total": 7,
+        "approved": 0
+      },
+      "api": {
+        "total": 3,
+        "approved": 0
+      },
+      "artifact": {
+        "total": 3,
+        "approved": 0
+      },
+      "event-bus": {
+        "total": 3,
+        "approved": 0
+      },
+      "migration": {
+        "total": 1,
+        "approved": 0
+      },
+      "cmdb": {
+        "total": 3,
+        "approved": 0
+      },
+      "sre": {
+        "total": 7,
+        "approved": 0
+      }
+    }
+  },
+  "code": {
+    "total": 1978,
+    "tests": 3
+  },
+  "completeness": {
+    "documents": 0.0,
+    "code": 0.15166835187057634,
+    "overall": 0.07583417593528817
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "requirements": [
+    {
+      "id": "orion-design-v5",
+      "name": "Orion Design v5.0",
+      "description": "文档索引与任务分发 - 44 个问题完成",
+      "status": "completed",
+      "dir": "orion-design-v5"
+    },
+    {
+      "id": "orion-mvp-dev",
+      "name": "Orion MVP 开发",
+      "description": "基于 wujie 微前端的完整平台实现",
+      "status": "developing",
+      "dir": "orion-mvp-dev"
+    }
+  ]
+}

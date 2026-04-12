@@ -83,15 +83,11 @@ async function main() {
     }
 
     // 4. 创建应用
-    console.log('📦 Creating Express application...');
+    console.log('📦 Creating Fastify application...');
     const { app, healthChecker } = await createApp({ redis, database, eventBus });
 
     // 5. 启动服务器
-    await new Promise<void>((resolve) => {
-      app.listen(config.port, config.host, () => {
-        resolve();
-      });
-    });
+    await app.listen({ port: config.port, host: config.host });
 
     console.log(`
 ╔═══════════════════════════════════════════════════════════╗
@@ -117,6 +113,7 @@ async function main() {
       console.log(`\n Received ${signal}, shutting down gracefully...`);
 
       try {
+        await app.close();
         if (eventBus) await eventBus.close();
         if (database) await database.close();
         if (redis) await redis.close();

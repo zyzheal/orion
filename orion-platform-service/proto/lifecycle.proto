@@ -1,0 +1,182 @@
+syntax = "proto3";
+
+package orion.plugin.v1;
+
+// Plugin Lifecycle Management Service
+// 用于管理插件的生命周期（安装、激活、配置、卸载等）
+service PluginLifecycleService {
+  // 列出可用插件
+  rpc ListAvailablePlugins(ListAvailablePluginsRequest) returns (ListAvailablePluginsResponse);
+
+  // 安装插件
+  rpc InstallPlugin(InstallPluginRequest) returns (InstallPluginResponse);
+
+  // 卸载插件
+  rpc UninstallPlugin(UninstallPluginRequest) returns (UninstallPluginResponse);
+
+  // 激活插件
+  rpc ActivatePlugin(ActivatePluginRequest) returns (ActivatePluginResponse);
+
+  // 停用插件
+  rpc DeactivatePlugin(DeactivatePluginRequest) returns (DeactivatePluginResponse);
+
+  // 配置插件
+  rpc ConfigurePlugin(ConfigurePluginRequest) returns (ConfigurePluginResponse);
+
+  // 获取插件详情
+  rpc GetPluginDetails(GetPluginDetailsRequest) returns (GetPluginDetailsResponse);
+
+  // 列出已安装插件
+  rpc ListInstalledPlugins(ListInstalledPluginsRequest) returns (ListInstalledPluginsResponse);
+}
+
+// ==================== 插件信息 ====================
+
+message PluginInfo {
+  string id = 1;                 // 插件唯一标识
+  string name = 2;               // 插件名称
+  string version = 3;            // 版本号
+  string description = 4;        // 描述
+  string author = 5;             // 作者
+  repeated string tags = 6;      // 标签
+  PluginType type = 7;           // 插件类型
+  SecurityLevel security_level = 8; // 安全等级
+  PluginState state = 9;         // 当前状态
+  string download_url = 10;      // 下载地址
+  int64 installed_at = 11;       // 安装时间戳
+  int64 updated_at = 12;         // 更新时间戳
+}
+
+enum PluginType {
+  PLUGIN_TYPE_UNSPECIFIED = 0;
+  PLUGIN_TYPE_CUSTOM_TASK = 1;
+  PLUGIN_TYPE_WEBHOOK_HANDLER = 2;
+  PLUGIN_TYPE_AI_SKILL = 3;
+  PLUGIN_TYPE_APPROVAL_PROVIDER = 4;
+  PLUGIN_TYPE_NOTIFICATION_CHANNEL = 5;
+  PLUGIN_TYPE_DEPLOYMENT_STRATEGY = 6;
+}
+
+enum SecurityLevel {
+  SECURITY_LEVEL_UNSPECIFIED = 0;
+  SECURITY_LEVEL_HIGH = 1;     // WASM 沙箱
+  SECURITY_LEVEL_MEDIUM = 2;   // 容器隔离
+  SECURITY_LEVEL_LOW = 3;      // 独立进程
+}
+
+enum PluginState {
+  PLUGIN_STATE_UNSPECIFIED = 0;
+  PLUGIN_STATE_AVAILABLE = 1;
+  PLUGIN_STATE_DOWNLOADED = 2;
+  PLUGIN_STATE_INSTALLED = 3;
+  PLUGIN_STATE_ACTIVE = 4;
+  PLUGIN_STATE_CONFIGURED = 5;
+  PLUGIN_STATE_INACTIVE = 6;
+  PLUGIN_STATE_UNINSTALLED = 7;
+}
+
+// ==================== 请求/响应 ====================
+
+message ListAvailablePluginsRequest {
+  PluginType type_filter = 1;  // 按类型过滤
+  repeated string tags_filter = 2; // 按标签过滤
+}
+
+message ListAvailablePluginsResponse {
+  repeated PluginInfo plugins = 1;
+  int32 total = 2;
+}
+
+message InstallPluginRequest {
+  string plugin_id = 1;
+  string version = 2;
+  map<string, string> config = 3;
+}
+
+message InstallPluginResponse {
+  string plugin_id = 1;
+  PluginState state = 2;
+  string message = 3;
+}
+
+message UninstallPluginRequest {
+  string plugin_id = 1;
+}
+
+message UninstallPluginResponse {
+  string plugin_id = 1;
+  PluginState state = 2;
+  string message = 3;
+}
+
+message ActivatePluginRequest {
+  string plugin_id = 1;
+}
+
+message ActivatePluginResponse {
+  string plugin_id = 1;
+  PluginState state = 2;
+  string message = 3;
+}
+
+message DeactivatePluginRequest {
+  string plugin_id = 1;
+}
+
+message DeactivatePluginResponse {
+  string plugin_id = 1;
+  PluginState state = 2;
+  string message = 3;
+}
+
+message ConfigurePluginRequest {
+  string plugin_id = 1;
+  map<string, string> config = 2;
+}
+
+message ConfigurePluginResponse {
+  string plugin_id = 1;
+  PluginState state = 2;
+  string message = 3;
+}
+
+message GetPluginDetailsRequest {
+  string plugin_id = 1;
+}
+
+message GetPluginDetailsResponse {
+  PluginInfo plugin = 1;
+  PluginRuntimeInfo runtime_info = 2;
+}
+
+message PluginRuntimeInfo {
+  string process_id = 1;        // 进程 ID（如适用）
+  string container_id = 2;      // 容器 ID（如适用）
+  ResourceUsage resource_usage = 3;
+  repeated HealthCheckStatus health_checks = 4;
+}
+
+message ResourceUsage {
+  float cpu_percent = 1;        // CPU 使用率
+  int64 memory_bytes = 2;       // 内存使用量（字节）
+  int64 disk_bytes = 3;         // 磁盘使用量（字节）
+  int64 network_rx_bytes = 4;   // 网络接收
+  int64 network_tx_bytes = 5;   // 网络发送
+}
+
+message HealthCheckStatus {
+  string check_name = 1;
+  bool healthy = 2;
+  string message = 3;
+  int64 last_checked_at = 4;
+}
+
+message ListInstalledPluginsRequest {
+  PluginType type_filter = 1;
+  PluginState state_filter = 2;
+}
+
+message ListInstalledPluginsResponse {
+  repeated PluginInfo plugins = 1;
+  int32 total = 2;
+}

@@ -14,6 +14,12 @@ export interface AppConfig {
   corsOrigins: string[];
   jwtSecret: string;
   jwtExpiresIn: string;
+  redis?: {
+    host: string;
+    port: number;
+    password?: string;
+    db?: number;
+  };
   rateLimit: {
     max: number;
     timeWindow: number;
@@ -38,6 +44,12 @@ const defaultConfig: AppConfig = {
   corsOrigins: (process.env.CORS_ORIGINS || '*').split(','),
   jwtSecret: process.env.JWT_SECRET || 'orion-default-jwt-secret-change-in-production',
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '24h',
+  redis: {
+    host: process.env.REDIS_HOST || 'localhost',
+    port: parseInt(process.env.REDIS_PORT || '6379', 10),
+    password: process.env.REDIS_PASSWORD,
+    db: parseInt(process.env.REDIS_DB || '0', 10),
+  },
   rateLimit: {
     max: parseInt(process.env.RATE_LIMIT_MAX || '100', 10),
     timeWindow: parseInt(process.env.RATE_LIMIT_WINDOW || '60000', 10),
@@ -70,6 +82,12 @@ export function reloadConfig(): AppConfig {
     corsOrigins: (process.env.CORS_ORIGINS || '*').split(','),
     jwtSecret: process.env.JWT_SECRET || 'orion-default-jwt-secret-change-in-production',
     jwtExpiresIn: process.env.JWT_EXPIRES_IN || '24h',
+    redis: {
+      host: process.env.REDIS_HOST || 'localhost',
+      port: parseInt(process.env.REDIS_PORT || '6379', 10),
+      password: process.env.REDIS_PASSWORD,
+      db: parseInt(process.env.REDIS_DB || '0', 10),
+    },
     rateLimit: {
       max: parseInt(process.env.RATE_LIMIT_MAX || '100', 10),
       timeWindow: parseInt(process.env.RATE_LIMIT_WINDOW || '60000', 10),

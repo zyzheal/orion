@@ -1,0 +1,47 @@
+{
+  "name": "@orion-knowledge",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "preinstall": "npx only-allow pnpm",
+    "icon": "pnpm --filter @orion-knowledge/icons icon",
+    "prepare": "cd ../ && husky web/.husky",
+    "build": "pnpm --parallel --filter orion-knowledge-admin --filter orion-knowledge-app build",
+    "dev": "pnpm --parallel --filter orion-knowledge-admin --filter orion-knowledge-app dev"
+  },
+  "lint-staged": {
+    "**/*.{js,jsx,ts,tsx,css,scss,md,mdx,json,yml,yaml,mjs,cjs}": "prettier --write --ignore-path .prettierignore"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.12.1",
+  "dependencies": {
+    "@ctzhian/tiptap": "3.0.4",
+    "@ctzhian/ui": "^7.1.3",
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@mui/icons-material": "^7.3.2",
+    "@mui/material": "^7.3.2",
+    "dayjs": "^1.11.18",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "react-hook-form": "^7.62.0",
+    "@orion-knowledge/icons": "workspace:*",
+    "@orion-knowledge/themes": "workspace:*",
+    "@orion-knowledge/ui": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.1",
+    "@types/react": "^19.2.3",
+    "@types/react-dom": "^19.2.3",
+    "dotenv": "^17.2.2",
+    "eslint": "^9.35.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.1.6",
+    "prettier": "^3.6.2",
+    "typescript": "^5.9.2"
+  }
+}

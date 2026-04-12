@@ -1,8 +1,8 @@
 /**
- * Stage Controller - Stage 管理 API
+ * Stage Controller - Stage 管理 API (Fastify 版本)
  */
 
-import { Request, Response } from 'express';
+import { FastifyRequest, FastifyReply } from 'fastify';
 import { PipelineRunService } from '../../services/pipeline/PipelineRunService';
 import { StageExecutor } from '../../engine/StageExecutor';
 import { StageStatus } from '../../models/Stage';
@@ -21,21 +21,23 @@ export class StageController {
    * 获取 Stage 详情
    * GET /api/v1/stages/:id
    */
-  async getById(req: Request, res: Response): Promise<void> {
+  async getById(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const { id } = req.params;
+      const params = request.params as any;
+      const { id } = params;
 
       const stage = await this.runService.getStage(id);
 
       if (!stage) {
-        res.status(404).json({
+        await reply.status(404).send({
           error: 'NOT_FOUND',
+          code: '30201',
           message: `Stage '${id}' not found`,
         });
         return;
       }
 
-      res.json({
+      await reply.send({
         id: stage.id,
         runId: stage.runId,
         name: stage.name,
@@ -54,8 +56,9 @@ export class StageController {
         createdAt: stage.createdAt,
       });
     } catch (error) {
-      res.status(500).json({
+      await reply.status(500).send({
         error: 'INTERNAL_ERROR',
+        code: '50000',
         message: error instanceof Error ? error.message : 'Failed to get stage',
       });
     }
@@ -65,14 +68,16 @@ export class StageController {
    * 获取 Stage 下的 Tasks
    * GET /api/v1/stages/:id/tasks
    */
-  async getTasks(req: Request, res: Response): Promise<void> {
+  async getTasks(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const { id } = req.params;
+      const params = request.params as any;
+      const { id } = params;
 
       const stage = await this.runService.getStage(id);
       if (!stage) {
-        res.status(404).json({
+        await reply.status(404).send({
           error: 'NOT_FOUND',
+          code: '30201',
           message: `Stage '${id}' not found`,
         });
         return;
@@ -80,7 +85,7 @@ export class StageController {
 
       const tasks = await this.runService.getTasks(stage.id);
 
-      res.json({
+      await reply.send({
         data: tasks.map(t => ({
           id: t.id,
           stageId: t.stageId,
@@ -103,8 +108,9 @@ export class StageController {
         total: tasks.length,
       });
     } catch (error) {
-      res.status(500).json({
+      await reply.status(500).send({
         error: 'INTERNAL_ERROR',
+        code: '50000',
         message: error instanceof Error ? error.message : 'Failed to get stage tasks',
       });
     }
@@ -114,30 +120,34 @@ export class StageController {
    * 重试 Stage
    * POST /api/v1/stages/:id/retry
    */
-  async retry(req: Request, res: Response): Promise<void> {
+  async retry(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const { id } = req.params;
+      const params = request.params as any;
+      const { id } = params;
 
       const stage = await this.runService.getStage(id);
       if (!stage) {
-        res.status(404).json({
+        await reply.status(404).send({
           error: 'NOT_FOUND',
+          code: '30201',
           message: `Stage '${id}' not found`,
         });
         return;
       }
 
       if (stage.status !== 'failed') {
-        res.status(400).json({
+        await reply.status(400).send({
           error: 'INVALID_STATE',
+          code: '30301',
           message: `Cannot retry stage with status '${stage.status}'`,
         });
         return;
       }
 
       if (stage.retryCount >= stage.maxRetries) {
-        res.status(400).json({
+        await reply.status(400).send({
           error: 'MAX_RETRIES_EXCEEDED',
+          code: '30501',
           message: `Stage has reached maximum retry count (${stage.maxRetries})`,
         });
         return;
@@ -176,14 +186,15 @@ export class StageController {
         }
       }
 
-      res.json({
+      await reply.send({
         id: retriedStage.id,
         status: retriedStage.status,
         retryCount: retriedStage.retryCount,
       });
     } catch (error) {
-      res.status(500).json({
+      await reply.status(500).send({
         error: 'INTERNAL_ERROR',
+        code: '50000',
         message: error instanceof Error ? error.message : 'Failed to retry stage',
       });
     }

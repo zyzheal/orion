@@ -1,0 +1,68 @@
+/* Layout 组件样式 */
+.app-layout {
+  height: 100vh;
+}
+
+.app-sider {
+  overflow: auto;
+  height: 100vh;
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  z-index: var(--z-sticky, 1020);
+}
+
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky, 1020);
+  box-shadow: var(--shadow-card);
+}
+
+.app-content {
+  min-height: calc(100vh - 184px);
+  overflow: auto;
+}
+
+.logo {
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-primary-500);
+  font-weight: var(--font-weight-bold, 700);
+  font-size: 18px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.trigger {
+  font-size: 18px;
+  cursor: pointer;
+  transition: color var(--duration-fast, 200ms);
+}
+
+.trigger:hover {
+  color: var(--color-primary-500);
+}
+
+/* 子应用容器样式 */
+.sub-app-container {
+  height: 100%;
+  width: 100%;
+}
+
+/* 微前端沙箱样式 */
+[wujie] {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Keep-Alive 容器 */
+.keep-alive-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}

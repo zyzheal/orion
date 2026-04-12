@@ -1,5 +1,10 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useAuthStore } from '@/stores/authStore';
+
+// Mock refreshAuthToken API
+vi.mock('@/api/auth', () => ({
+  refreshAuthToken: vi.fn(),
+}));
 
 describe('authStore', () => {
   beforeEach(() => {
@@ -8,7 +13,11 @@ describe('authStore', () => {
       user: null,
       isAuthenticated: false,
       isLoading: true,
+      accessToken: null,
+      refreshToken: null,
+      tokenExpiresAt: null,
     });
+    localStorage.clear();
   });
 
   it('should initialize with default state', () => {
@@ -46,20 +55,63 @@ describe('authStore', () => {
     expect(useAuthStore.getState().isLoading).toBe(false);
   });
 
-  it('should logout', () => {
-    const mockUser = {
-      id: '1',
-      username: 'admin',
-      email: 'admin@test.com',
-      role: 'admin',
-    };
+  it('should set tokens and persist to localStorage', () => {
+    const mockToken = 'test-access-token';
+    const mockRefreshToken = 'test-refresh-token';
+    const expiresAt = Date.now() + 3600000; // 1 hour
 
-    useAuthStore.getState().setUser(mockUser);
-    useAuthStore.getState().setAuthenticated(true);
+    useAuthStore.getState().setTokens(mockToken, mockRefreshToken, expiresAt);
+
+    const state = useAuthStore.getState();
+    expect(state.accessToken).toBe(mockToken);
+    expect(state.refreshToken).toBe(mockRefreshToken);
+    expect(state.tokenExpiresAt).toBe(expiresAt);
+
+    // Verify localStorage persistence
+    expect(localStorage.getItem('access_token')).toBe(mockToken);
+    expect(localStorage.getItem('refresh_token')).toBe(mockRefreshToken);
+    expect(localStorage.getItem('token_expires_at')).toBe(String(expiresAt));
+  });
+
+  it('should get token if not expired', async () => {
+    const mockToken = 'test-access-token';
+    const expiresAt = Date.now() + 3600000;
+
+    useAuthStore.getState().setTokens(mockToken, 'refresh-token', expiresAt);
+
+    const token = await useAuthStore.getState().getToken();
+    expect(token).toBe(mockToken);
+  });
+
+  it('should return null if no token available', async () => {
+    const token = await useAuthStore.getState().getToken();
+    expect(token).toBeNull();
+  });
+
+  it('should detect expiring token', () => {
+    const notExpiringAt = Date.now() + 3600000; // 1 hour
+    const expiringAt = Date.now() + 60000; // 1 minute
+
+    useAuthStore.getState().setTokens('token1', 'refresh1', notExpiringAt);
+    expect(useAuthStore.getState().isTokenExpiring()).toBe(false);
+
+    useAuthStore.getState().setTokens('token2', 'refresh2', expiringAt);
+    expect(useAuthStore.getState().isTokenExpiring()).toBe(true);
+  });
+
+  it('should logout and clear tokens from localStorage', () => {
+    useAuthStore.getState().setTokens('test-token', 'test-refresh', Date.now() + 3600000);
 
     useAuthStore.getState().logout();
 
-    expect(useAuthStore.getState().user).toBeNull();
-    expect(useAuthStore.getState().isAuthenticated).toBe(false);
+    const state = useAuthStore.getState();
+    expect(state.user).toBeNull();
+    expect(state.isAuthenticated).toBe(false);
+    expect(state.accessToken).toBeNull();
+    expect(state.refreshToken).toBeNull();
+
+    expect(localStorage.getItem('access_token')).toBeNull();
+    expect(localStorage.getItem('refresh_token')).toBeNull();
+    expect(localStorage.getItem('token_expires_at')).toBeNull();
   });
 });

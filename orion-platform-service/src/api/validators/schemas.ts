@@ -2,6 +2,8 @@
  * JSON Schema 定义用于 Pipeline 验证
  */
 
+import { FastifyRequest } from 'fastify';
+
 export const pipelineSchema = {
   type: 'object',
   required: ['apiVersion', 'kind', 'metadata', 'spec'],
@@ -130,3 +132,29 @@ export const pipelineSchema = {
     },
   },
 };
+
+/**
+ * 验证并获取 tenantId
+ */
+export function validateTenantId(request: FastifyRequest): bigint {
+  const tenantId = request.headers['x-orion-tenant-id'] as string;
+  if (!tenantId) {
+    throw new Error('Missing required header: x-orion-tenant-id');
+  }
+  try {
+    return BigInt(tenantId);
+  } catch {
+    throw new Error('Invalid tenantId format, must be a valid bigint string');
+  }
+}
+
+/**
+ * 验证并获取 userId
+ */
+export function validateUserId(request: FastifyRequest): string {
+  const userId = request.headers['x-orion-user-id'] as string;
+  if (!userId) {
+    throw new Error('Missing required header: x-orion-user-id');
+  }
+  return userId;
+}

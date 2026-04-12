@@ -16,7 +16,13 @@ export interface AppRoute {
 
 // 路由配置
 export const routes: AppRoute[] = [
-  // 公共路由
+  // 根路径重定向
+  {
+    path: '/',
+    element: React.lazy(() => import('@/pages/RootRedirect')),
+    protected: false,
+  },
+  // 公开路由
   {
     path: '/login',
     element: React.lazy(() => import('@/pages/Login')),
@@ -36,6 +42,22 @@ export const routes: AppRoute[] = [
   {
     path: '/settings',
     element: React.lazy(() => import('@/pages/Dashboard')),
+    protected: true,
+  },
+  // 微前端子应用路由
+  {
+    path: '/dba/*',
+    element: React.lazy(() => import('@/components/SubAppRoute')),
+    protected: true,
+  },
+  {
+    path: '/knowledge/*',
+    element: React.lazy(() => import('@/components/SubAppRoute')),
+    protected: true,
+  },
+  {
+    path: '/visor/*',
+    element: React.lazy(() => import('@/components/SubAppRoute')),
     protected: true,
   },
   // 404 页面

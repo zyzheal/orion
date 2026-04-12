@@ -5,48 +5,20 @@
  */
 
 import { FastifyError, FastifyReply, FastifyRequest } from 'fastify';
+import { BaseError, ErrorCategory } from '../errors/base-error';
+import { ErrorCodes, ERROR_STATUS_MAP, ERROR_MESSAGE_MAP, AppError } from '../errors/error-codes';
 
 export interface ErrorResponse {
   error: string;
   message: string;
-  code?: string;
+  code: string;
   details?: any;
   requestId?: string;
   timestamp: string;
+  category?: ErrorCategory;
 }
 
-export enum ErrorCode {
-  // 通用错误
-  INTERNAL_ERROR = 'INTERNAL_ERROR',
-  BAD_REQUEST = 'BAD_REQUEST',
-  NOT_FOUND = 'NOT_FOUND',
-  UNAUTHORIZED = 'UNAUTHORIZED',
-  FORBIDDEN = 'FORBIDDEN',
-  CONFLICT = 'CONFLICT',
-
-  // 业务错误
-  VALIDATION_ERROR = 'VALIDATION_ERROR',
-  DUPLICATE_RESOURCE = 'DUPLICATE_RESOURCE',
-  RESOURCE_NOT_FOUND = 'RESOURCE_NOT_FOUND',
-  INVALID_STATE = 'INVALID_STATE',
-
-  // 外部服务错误
-  SERVICE_UNAVAILABLE = 'SERVICE_UNAVAILABLE',
-  TIMEOUT = 'TIMEOUT',
-  EXTERNAL_SERVICE_ERROR = 'EXTERNAL_SERVICE_ERROR',
-}
-
-export class AppError extends Error {
-  constructor(
-    public code: ErrorCode,
-    message: string,
-    public statusCode: number = 500,
-    public details?: any
-  ) {
-    super(message);
-    this.name = 'AppError';
-  }
-}
+export { ErrorCodes, ERROR_STATUS_MAP, ERROR_MESSAGE_MAP, AppError };
 
 export class ErrorMiddleware {
   /**
@@ -55,9 +27,10 @@ export class ErrorMiddleware {
   createErrorResponse(
     error: string,
     message: string,
-    code?: string,
+    code: string,
     details?: any,
-    requestId?: string
+    requestId?: string,
+    category?: ErrorCategory
   ): ErrorResponse {
     return {
       error,
@@ -66,6 +39,7 @@ export class ErrorMiddleware {
       details,
       requestId,
       timestamp: new Date().toISOString(),
+      category,
     };
   }
 
@@ -75,10 +49,25 @@ export class ErrorMiddleware {
   async handler(error: FastifyError, request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const requestId = request.headers['x-request-id'] as string | undefined;
 
-    // 处理自定义应用错误
+    // 处理自定义应用错误（新的 BaseError）
+    if (error instanceof BaseError) {
+      reply.code(error.statusCode).send(
+        this.createErrorResponse(
+          error.name,
+          error.message,
+          error.code,
+          error.details,
+          requestId,
+          error.category
+        )
+      );
+      return;
+    }
+
+    // 处理旧的 AppError（兼容）
     if (error instanceof AppError) {
       reply.code(error.statusCode).send(
-        this.createErrorResponse(error.code, error.message, error.code, error.details, requestId)
+        this.createErrorResponse(error.name, error.message, error.code, error.details, requestId)
       );
       return;
     }
@@ -87,11 +76,12 @@ export class ErrorMiddleware {
     if (error.validation) {
       reply.code(400).send(
         this.createErrorResponse(
-          ErrorCode.VALIDATION_ERROR,
+          'ValidationError',
           'Validation failed',
-          ErrorCode.VALIDATION_ERROR,
+          ErrorCodes.VALIDATION_ERROR,
           error.validation,
-          requestId
+          requestId,
+          ErrorCategory.BUSINESS
         )
       );
       return;
@@ -101,11 +91,12 @@ export class ErrorMiddleware {
     if (reply.statusCode === 404) {
       reply.code(404).send(
         this.createErrorResponse(
-          ErrorCode.NOT_FOUND,
+          'NotFoundError',
           'Resource not found',
-          ErrorCode.NOT_FOUND,
+          ErrorCodes.RESOURCE_NOT_FOUND,
           undefined,
-          requestId
+          requestId,
+          ErrorCategory.BUSINESS
         )
       );
       return;
@@ -115,11 +106,12 @@ export class ErrorMiddleware {
     const statusCode = (error as any).statusCode || 500;
     reply.code(statusCode).send(
       this.createErrorResponse(
-        ErrorCode.INTERNAL_ERROR,
+        'InternalError',
         statusCode === 500 ? 'Internal server error' : error.message,
-        ErrorCode.INTERNAL_ERROR,
+        '10301',
         process.env.NODE_ENV === 'development' ? { stack: error.stack } : undefined,
-        requestId
+        requestId,
+        ErrorCategory.PLATFORM
       )
     );
   }
@@ -127,27 +119,27 @@ export class ErrorMiddleware {
 
 export const errorMiddleware = new ErrorMiddleware();
 
-// 快捷错误创建函数
-export function createError(code: ErrorCode, message: string, statusCode?: number, details?: any): AppError {
-  return new AppError(code, message, statusCode, details);
+// 快捷错误创建函数（兼容旧的 API）
+export function createError(code: string, message: string, statusCode?: number, details?: any): AppError {
+  return new AppError(code, message, statusCode || 500, details);
 }
 
 export function badRequest(message: string, details?: any): AppError {
-  return new AppError(ErrorCode.BAD_REQUEST, message, 400, details);
+  return new AppError(ErrorCodes.VALIDATION_ERROR, message, 400, details);
 }
 
 export function notFound(message: string = 'Resource not found'): AppError {
-  return new AppError(ErrorCode.NOT_FOUND, message, 404);
+  return new AppError(ErrorCodes.RESOURCE_NOT_FOUND, message, 404);
 }
 
 export function unauthorized(message: string = 'Authentication required'): AppError {
-  return new AppError(ErrorCode.UNAUTHORIZED, message, 401);
+  return new AppError(ErrorCodes.TOKEN_MISSING, message, 401);
 }
 
 export function forbidden(message: string = 'Insufficient permissions'): AppError {
-  return new AppError(ErrorCode.FORBIDDEN, message, 403);
+  return new AppError(ErrorCodes.PERMISSION_DENIED, message, 403);
 }
 
 export function internalError(message: string = 'Internal server error'): AppError {
-  return new AppError(ErrorCode.INTERNAL_ERROR, message, 500);
+  return new AppError(ErrorCodes.DATABASE_ERROR, message, 500);
 }

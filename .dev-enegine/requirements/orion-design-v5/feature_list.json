@@ -1,0 +1,31 @@
+{
+  "category": "design",
+  "description": "Orion 平台设计文档 - 44 个 P0/P1/P2 问题全部完成",
+  "features": [
+    {
+      "id": "P0-issues",
+      "name": "P0 问题修复 (15 个)",
+      "passes": true
+    },
+    {
+      "id": "P1-issues",
+      "name": "P1 问题修复 (15 个)",
+      "passes": true
+    },
+    {
+      "id": "P2-issues",
+      "name": "P2 问题修复 (14 个)",
+      "passes": true
+    },
+    {
+      "id": "documentation",
+      "name": "文档体系 (60+ 份)",
+      "passes": true
+    },
+    {
+      "id": "architecture",
+      "name": "架构设计完成",
+      "passes": true
+    }
+  ]
+}

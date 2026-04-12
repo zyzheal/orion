@@ -1,0 +1,330 @@
+{
+  "summary": {
+    "total_modules": 28,
+    "total_docs": 103,
+    "total_code_files": 2502,
+    "total_test_files": 5,
+    "overall_completeness": 5.7244470482622
+  },
+  "domains": {
+    "security": {
+      "total_docs": 8,
+      "approved_docs": 0,
+      "doc_completeness": 0.0
+    },
+    "collaboration": {
+      "total_docs": 5,
+      "approved_docs": 0,
+      "doc_completeness": 0.0
+    },
+    "event-bus": {
+      "total_docs": 3,
+      "approved_docs": 0,
+      "doc_completeness": 0.0
+    },
+    "sre": {
+      "total_docs": 7,
+      "approved_docs": 0,
+      "doc_completeness": 0.0
+    },
+    "integration": {
+      "total_docs": 5,
+      "approved_docs": 0,
+      "doc_completeness": 0.0
+    },
+    "knowledge": {
+      "total_docs": 4,
+      "approved_docs": 0,
+      "doc_completeness": 0.0
+    },
+    "architecture": {
+      "total_docs": 27,
+      "approved_docs": 0,
+      "doc_completeness": 0.0
+    },
+    "frontend": {
+      "total_docs": 12,
+      "approved_docs": 0,
+      "doc_completeness": 0.0
+    },
+    "db": {
+      "total_docs": 7,
+      "approved_docs": 0,
+      "doc_completeness": 0.0
+    },
+    "cicd": {
+      "total_docs": 1,
+      "approved_docs": 0,
+      "doc_completeness": 0.0
+    },
+    "efficiency": {
+      "total_docs": 4,
+      "approved_docs": 0,
+      "doc_completeness": 0.0
+    },
+    "ai": {
+      "total_docs": 19,
+      "approved_docs": 0,
+      "doc_completeness": 0.0
+    },
+    "iac": {
+      "total_docs": 1,
+      "approved_docs": 0,
+      "doc_completeness": 0.0
+    }
+  },
+  "modules": {
+    "M1": {
+      "name": "效能看板",
+      "domain": "efficiency",
+      "doc_score": 0.0,
+      "code_score": 0.0,
+      "test_score": 0.0,
+      "total_score": 0.0,
+      "status": "🔴"
+    },
+    "M2": {
+      "name": "流水线可视化",
+      "domain": "frontend",
+      "doc_score": 0.0,
+      "code_score": 40.0,
+      "test_score": 0.010917030567685589,
+      "total_score": 40.01091703056768,
+      "status": "🔴"
+    },
+    "M3": {
+      "name": "审批工作台",
+      "domain": "frontend",
+      "doc_score": 0.0,
+      "code_score": 40.0,
+      "test_score": 0.010917030567685589,
+      "total_score": 40.01091703056768,
+      "status": "🔴"
+    },
+    "M4": {
+      "name": "安全审计中心",
+      "domain": "security",
+      "doc_score": 0.0,
+      "code_score": 0.0,
+      "test_score": 0.0,
+      "total_score": 0.0,
+      "status": "🔴"
+    },
+    "M5": {
+      "name": "Pipeline 引擎",
+      "domain": "cicd",
+      "doc_score": 0.0,
+      "code_score": 0.0,
+      "test_score": 0.0,
+      "total_score": 0.0,
+      "status": "🔴"
+    },
+    "M6": {
+      "name": "多分支产品线",
+      "domain": "architecture",
+      "doc_score": 0.0,
+      "code_score": 0.0,
+      "test_score": 0.0,
+      "total_score": 0.0,
+      "status": "🔴"
+    },
+    "M7": {
+      "name": "配置管理 GitOps",
+      "domain": "architecture",
+      "doc_score": 0.0,
+      "code_score": 0.0,
+      "test_score": 0.0,
+      "total_score": 0.0,
+      "status": "🔴"
+    },
+    "M8": {
+      "name": "通知协作",
+      "domain": "collaboration",
+      "doc_score": 0.0,
+      "code_score": 0.0,
+      "test_score": 0.0,
+      "total_score": 0.0,
+      "status": "🔴"
+    },
+    "M9": {
+      "name": "AI 算法引擎",
+      "domain": "ai",
+      "doc_score": 0.0,
+      "code_score": 0.0,
+      "test_score": 0.0,
+      "total_score": 0.0,
+      "status": "🔴"
+    },
+    "M10": {
+      "name": "LLM 推理层",
+      "domain": "ai",
+      "doc_score": 0.0,
+      "code_score": 0.0,
+      "test_score": 0.0,
+      "total_score": 0.0,
+      "status": "🔴"
+    },
+    "M11": {
+      "name": "AI 增强层",
+      "domain": "ai",
+      "doc_score": 0.0,
+      "code_score": 0.0,
+      "test_score": 0.0,
+      "total_score": 0.0,
+      "status": "🔴"
+    },
+    "M12": {
+      "name": "Skill 管理",
+      "domain": "ai",
+      "doc_score": 0.0,
+      "code_score": 0.0,
+      "test_score": 0.0,
+      "total_score": 0.0,
+      "status": "🔴"
+    },
+    "M13": {
+      "name": "代码管理",
+      "domain": "integration",
+      "doc_score": 0.0,
+      "code_score": 0.0,
+      "test_score": 0.0,
+      "total_score": 0.0,
+      "status": "🔴"
+    },
+    "M14": {
+      "name": "构建环境",
+      "domain": "cicd",
+      "doc_score": 0.0,
+      "code_score": 0.0,
+      "test_score": 0.0,
+      "total_score": 0.0,
+      "status": "🔴"
+    },
+    "M15": {
+      "name": "多工具链",
+      "domain": "architecture",
+      "doc_score": 0.0,
+      "code_score": 0.0,
+      "test_score": 0.0,
+      "total_score": 0.0,
+      "status": "🔴"
+    },
+    "M16": {
+      "name": "智能部署",
+      "domain": "architecture",
+      "doc_score": 0.0,
+      "code_score": 0.0,
+      "test_score": 0.0,
+      "total_score": 0.0,
+      "status": "🔴"
+    },
+    "M17": {
+      "name": "自愈引擎",
+      "domain": "sre",
+      "doc_score": 0.0,
+      "code_score": 0.0,
+      "test_score": 0.0,
+      "total_score": 0.0,
+      "status": "🔴"
+    },
+    "M18": {
+      "name": "安全合规",
+      "domain": "security",
+      "doc_score": 0.0,
+      "code_score": 0.0,
+      "test_score": 0.0,
+      "total_score": 0.0,
+      "status": "🔴"
+    },
+    "M19": {
+      "name": "多租户",
+      "domain": "architecture",
+      "doc_score": 0.0,
+      "code_score": 0.0,
+      "test_score": 0.0,
+      "total_score": 0.0,
+      "status": "🔴"
+    },
+    "M20": {
+      "name": "IaC 管理",
+      "domain": "iac",
+      "doc_score": 0.0,
+      "code_score": 0.0,
+      "test_score": 0.0,
+      "total_score": 0.0,
+      "status": "🔴"
+    },
+    "M21": {
+      "name": "审计中心",
+      "domain": "security",
+      "doc_score": 0.0,
+      "code_score": 0.0,
+      "test_score": 0.0,
+      "total_score": 0.0,
+      "status": "🔴"
+    },
+    "M22": {
+      "name": "FinOps 成本",
+      "domain": "efficiency",
+      "doc_score": 0.0,
+      "code_score": 0.0,
+      "test_score": 0.0,
+      "total_score": 0.0,
+      "status": "🔴"
+    },
+    "M23": {
+      "name": "SSO/RBAC",
+      "domain": "security",
+      "doc_score": 0.0,
+      "code_score": 0.0,
+      "test_score": 0.0,
+      "total_score": 0.0,
+      "status": "🔴"
+    },
+    "M24": {
+      "name": "事件总线",
+      "domain": "event-bus",
+      "doc_score": 0.0,
+      "code_score": 0.0,
+      "test_score": 0.0,
+      "total_score": 0.0,
+      "status": "🔴"
+    },
+    "M25": {
+      "name": "数据存储",
+      "domain": "db",
+      "doc_score": 0.0,
+      "code_score": 40.0,
+      "test_score": 0.17094017094017097,
+      "total_score": 40.17094017094017,
+      "status": "🔴"
+    },
+    "M26": {
+      "name": "可观测性",
+      "domain": "sre",
+      "doc_score": 0.0,
+      "code_score": 0.0,
+      "test_score": 0.0,
+      "total_score": 0.0,
+      "status": "🔴"
+    },
+    "M27": {
+      "name": "插件扩展",
+      "domain": "architecture",
+      "doc_score": 0.0,
+      "code_score": 0.0,
+      "test_score": 0.0,
+      "total_score": 0.0,
+      "status": "🔴"
+    },
+    "M28": {
+      "name": "Orion-Knowledge",
+      "domain": "knowledge",
+      "doc_score": 0.0,
+      "code_score": 40.0,
+      "test_score": 0.09174311926605505,
+      "total_score": 40.091743119266056,
+      "status": "🔴"
+    }
+  }
+}

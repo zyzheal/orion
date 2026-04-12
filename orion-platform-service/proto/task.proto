@@ -1,0 +1,99 @@
+syntax = "proto3";
+
+package orion.plugin.task.v1;
+
+// Custom Task Plugin 服务定义
+// 用于在 Pipeline 中执行自定义任务（如代码扫描、质量检查、安全检测等）
+service CustomTaskService {
+  // 获取插件元数据
+  rpc GetMetadata(GetMetadataRequest) returns (GetMetadataResponse);
+
+  // 执行任务
+  rpc ExecuteTask(ExecuteTaskRequest) returns (ExecuteTaskResponse);
+
+  // 流式输出日志
+  rpc StreamLogs(LogStreamRequest) returns (stream LogStreamResponse);
+}
+
+// ==================== 元数据 ====================
+
+message GetMetadataRequest {}
+
+message GetMetadataResponse {
+  string name = 1;           // 插件名称（如：security-scan）
+  string version = 2;        // 语义化版本号
+  string description = 3;    // 插件描述
+  string author = 4;         // 作者信息
+  repeated string tags = 5;  // 标签列表
+  PluginConfigSchema config_schema = 6; // 配置 Schema
+}
+
+message PluginConfigSchema {
+  map<string, ConfigField> fields = 1;
+}
+
+message ConfigField {
+  string type = 1;           // string/number/boolean/array/object
+  string description = 2;    // 字段描述
+  bool required = 3;         // 是否必填
+  string default = 4;        // 默认值
+  repeated string enum_values = 5; // 枚举值（可选）
+}
+
+// ==================== 任务执行 ====================
+
+message ExecuteTaskRequest {
+  string task_id = 1;        // 任务 ID
+  string pipeline_run_id = 2; // Pipeline Run ID
+  string stage_id = 3;       // Stage ID
+  map<string, string> config = 4; // 任务配置
+  Workspace workspace = 5;   // 工作区信息
+  map<string, string> env = 6; // 环境变量
+}
+
+message Workspace {
+  string root_path = 1;      // 工作区根路径
+  map<string, string> files = 2; // 文件内容（用于沙箱环境）
+}
+
+message ExecuteTaskResponse {
+  string task_id = 1;
+  TaskStatus status = 2;
+  int32 exit_code = 3;
+  string stdout = 4;
+  string stderr = 5;
+  int64 duration_ms = 6;
+  map<string, string> outputs = 7; // 任务输出
+  string error_message = 8;
+}
+
+enum TaskStatus {
+  TASK_STATUS_UNSPECIFIED = 0;
+  TASK_STATUS_PENDING = 1;
+  TASK_STATUS_RUNNING = 2;
+  TASK_STATUS_SUCCESS = 3;
+  TASK_STATUS_FAILED = 4;
+  TASK_STATUS_TIMEOUT = 5;
+  TASK_STATUS_CANCELLED = 6;
+}
+
+// ==================== 日志流 ====================
+
+message LogStreamRequest {
+  string task_id = 1;
+}
+
+message LogStreamResponse {
+  string task_id = 1;
+  int64 timestamp_ms = 2;
+  LogLevel level = 3;
+  string message = 4;
+}
+
+enum LogLevel {
+  LOG_LEVEL_UNSPECIFIED = 0;
+  LOG_LEVEL_DEBUG = 1;
+  LOG_LEVEL_INFO = 2;
+  LOG_LEVEL_WARN = 3;
+  LOG_LEVEL_ERROR = 4;
+}

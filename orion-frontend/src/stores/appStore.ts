@@ -18,6 +18,10 @@ interface AppState {
   addTab: (key: string, title: string, path: string) => void;
   removeTab: (key: string) => void;
   setActiveTab: (key: string) => void;
+
+  // 认证 Token
+  token: string | null;
+  setToken: (token: string | null) => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -68,4 +72,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       })),
     });
   },
+
+  token: null,
+  setToken: (token) => set({ token }),
 }));

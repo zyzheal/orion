@@ -1,8 +1,8 @@
 /**
- * PipelineRun Controller - PipelineRun 执行 API
+ * PipelineRun Controller - PipelineRun 执行 API (Fastify 版本)
  */
 
-import { Request, Response } from 'express';
+import { FastifyRequest, FastifyReply } from 'fastify';
 import { PipelineRunService } from '../../services/pipeline/PipelineRunService';
 import { PipelineEngine } from '../../engine/PipelineEngine';
 import { PipelineRunStatus, TriggerType } from '../../models/PipelineRun';
@@ -20,10 +20,12 @@ export class PipelineRunController {
    * 触发 Pipeline 执行
    * POST /api/v1/pipelines/:id/runs
    */
-  async trigger(req: Request, res: Response): Promise<void> {
+  async trigger(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const { id: pipelineId } = req.params;
-      const { triggerType, triggerBy, context } = req.body;
+      const params = request.params as any;
+      const body = request.body as any || {};
+      const { id: pipelineId } = params;
+      const { triggerType, triggerBy, context } = body;
 
       const type = (triggerType as TriggerType) || TriggerType.MANUAL;
 
@@ -35,14 +37,15 @@ export class PipelineRunController {
       );
 
       if (!run) {
-        res.status(404).json({
+        await reply.status(404).send({
           error: 'NOT_FOUND',
+          code: '30201',
           message: `Pipeline '${pipelineId}' not found`,
         });
         return;
       }
 
-      res.status(201).json({
+      await reply.status(201).send({
         id: run.id,
         pipelineId: run.pipelineId,
         pipelineVersion: run.pipelineVersion,
@@ -54,15 +57,17 @@ export class PipelineRunController {
     } catch (error) {
       if (error instanceof Error) {
         if (error.message.includes('not found')) {
-          res.status(404).json({
+          await reply.status(404).send({
             error: 'NOT_FOUND',
+            code: '30201',
             message: error.message,
           });
           return;
         }
       }
-      res.status(500).json({
+      await reply.status(500).send({
         error: 'INTERNAL_ERROR',
+        code: '50000',
         message: error instanceof Error ? error.message : 'Failed to trigger pipeline',
       });
     }
@@ -72,19 +77,20 @@ export class PipelineRunController {
    * 获取 PipelineRun 列表
    * GET /api/v1/pipeline-runs
    */
-  async list(req: Request, res: Response): Promise<void> {
+  async list(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const { pipelineId, status, triggerType, limit, offset } = req.query;
+      const query = request.query as any;
+      const { pipelineId, status, triggerType, limit, offset } = query;
 
       const runs = await this.runService.listRuns({
         pipelineId: pipelineId as string,
-        status: status as PipelineRunStatus | PipelineRunStatus[],
-        triggerType: triggerType as TriggerType,
+        status: status as PipelineRunStatus | PipelineRunStatus[] | undefined,
+        triggerType: triggerType as TriggerType | undefined,
         limit: limit ? parseInt(limit as string) : undefined,
         offset: offset ? parseInt(offset as string) : undefined,
       });
 
-      res.json({
+      await reply.send({
         data: runs.map(r => ({
           id: r.id,
           pipelineId: r.pipelineId,
@@ -100,8 +106,9 @@ export class PipelineRunController {
         total: runs.length,
       });
     } catch (error) {
-      res.status(500).json({
+      await reply.status(500).send({
         error: 'INTERNAL_ERROR',
+        code: '50000',
         message: error instanceof Error ? error.message : 'Failed to list pipeline runs',
       });
     }
@@ -111,21 +118,23 @@ export class PipelineRunController {
    * 获取 PipelineRun 详情
    * GET /api/v1/pipeline-runs/:id
    */
-  async getById(req: Request, res: Response): Promise<void> {
+  async getById(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const { id } = req.params;
+      const params = request.params as any;
+      const { id } = params;
 
       const detail = await this.runService.getRunDetail(id);
 
       if (!detail) {
-        res.status(404).json({
+        await reply.status(404).send({
           error: 'NOT_FOUND',
+          code: '30201',
           message: `PipelineRun '${id}' not found`,
         });
         return;
       }
 
-      res.json({
+      await reply.send({
         run: {
           id: detail.run!.id,
           pipelineId: detail.run!.pipelineId,
@@ -166,8 +175,9 @@ export class PipelineRunController {
         })),
       });
     } catch (error) {
-      res.status(500).json({
+      await reply.status(500).send({
         error: 'INTERNAL_ERROR',
+        code: '50000',
         message: error instanceof Error ? error.message : 'Failed to get pipeline run',
       });
     }
@@ -177,28 +187,31 @@ export class PipelineRunController {
    * 取消 PipelineRun
    * POST /api/v1/pipeline-runs/:id/cancel
    */
-  async cancel(req: Request, res: Response): Promise<void> {
+  async cancel(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const { id } = req.params;
+      const params = request.params as any;
+      const { id } = params;
 
       const run = await this.runService.cancelRun(id);
 
       if (!run) {
-        res.status(404).json({
+        await reply.status(404).send({
           error: 'NOT_FOUND',
+          code: '30201',
           message: `PipelineRun '${id}' not found`,
         });
         return;
       }
 
-      res.json({
+      await reply.send({
         id: run.id,
         status: run.status,
         cancelledAt: run.completedAt,
       });
     } catch (error) {
-      res.status(500).json({
+      await reply.status(500).send({
         error: 'INTERNAL_ERROR',
+        code: '50000',
         message: error instanceof Error ? error.message : 'Failed to cancel pipeline run',
       });
     }
@@ -208,14 +221,16 @@ export class PipelineRunController {
    * 获取 PipelineRun 的 Stages
    * GET /api/v1/pipeline-runs/:id/stages
    */
-  async getStages(req: Request, res: Response): Promise<void> {
+  async getStages(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const { id } = req.params;
+      const params = request.params as any;
+      const { id } = params;
 
       const run = await this.runService.getRun(id);
       if (!run) {
-        res.status(404).json({
+        await reply.status(404).send({
           error: 'NOT_FOUND',
+          code: '30201',
           message: `PipelineRun '${id}' not found`,
         });
         return;
@@ -223,7 +238,7 @@ export class PipelineRunController {
 
       const stages = await this.runService.getStages(id);
 
-      res.json({
+      await reply.send({
         data: stages.map(s => ({
           id: s.id,
           name: s.name,
@@ -239,8 +254,9 @@ export class PipelineRunController {
         total: stages.length,
       });
     } catch (error) {
-      res.status(500).json({
+      await reply.status(500).send({
         error: 'INTERNAL_ERROR',
+        code: '50000',
         message: error instanceof Error ? error.message : 'Failed to get stages',
       });
     }
@@ -250,14 +266,16 @@ export class PipelineRunController {
    * 获取 PipelineRun 的 Tasks
    * GET /api/v1/pipeline-runs/:id/tasks
    */
-  async getTasks(req: Request, res: Response): Promise<void> {
+  async getTasks(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const { id } = req.params;
+      const params = request.params as any;
+      const { id } = params;
 
       const run = await this.runService.getRun(id);
       if (!run) {
-        res.status(404).json({
+        await reply.status(404).send({
           error: 'NOT_FOUND',
+          code: '30201',
           message: `PipelineRun '${id}' not found`,
         });
         return;
@@ -285,13 +303,14 @@ export class PipelineRunController {
         );
       }
 
-      res.json({
+      await reply.send({
         data: allTasks,
         total: allTasks.length,
       });
     } catch (error) {
-      res.status(500).json({
+      await reply.status(500).send({
         error: 'INTERNAL_ERROR',
+        code: '50000',
         message: error instanceof Error ? error.message : 'Failed to get tasks',
       });
     }

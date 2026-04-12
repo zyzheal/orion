@@ -1,8 +1,8 @@
 /**
- * Pipeline Controller - Pipeline CRUD API
+ * Pipeline Controller - Pipeline CRUD API (Fastify 版本)
  */
 
-import { Request, Response } from 'express';
+import { FastifyRequest, FastifyReply } from 'fastify';
 import { PipelineService } from '../../services/pipeline/PipelineService';
 import { PipelineStatus } from '../../models/Pipeline';
 
@@ -17,13 +17,15 @@ export class PipelineController {
    * 创建 Pipeline
    * POST /api/v1/pipelines
    */
-  async create(req: Request, res: Response): Promise<void> {
+  async create(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const { name, version, description, yamlDefinition, createdBy } = req.body;
+      const body = request.body as any || {};
+      const { name, version, description, yamlDefinition, createdBy } = body;
 
       if (!name || !version || !yamlDefinition) {
-        res.status(400).json({
+        await reply.status(400).send({
           error: 'VALIDATION_ERROR',
+          code: '30101',
           message: 'Missing required fields: name, version, yamlDefinition',
         });
         return;
@@ -37,7 +39,7 @@ export class PipelineController {
         createdBy,
       });
 
-      res.status(201).json({
+      await reply.status(201).send({
         id: pipeline.id,
         name: pipeline.name,
         version: pipeline.version,
@@ -48,22 +50,25 @@ export class PipelineController {
     } catch (error) {
       if (error instanceof Error) {
         if (error.message.includes('already exists')) {
-          res.status(409).json({
+          await reply.status(409).send({
             error: 'CONFLICT',
+            code: '30202',
             message: error.message,
           });
           return;
         }
         if (error.message.includes('validation')) {
-          res.status(400).json({
+          await reply.status(400).send({
             error: 'VALIDATION_ERROR',
+            code: '30101',
             message: error.message,
           });
           return;
         }
       }
-      res.status(500).json({
+      await reply.status(500).send({
         error: 'INTERNAL_ERROR',
+        code: '50000',
         message: error instanceof Error ? error.message : 'Failed to create pipeline',
       });
     }
@@ -73,18 +78,19 @@ export class PipelineController {
    * 获取 Pipeline 列表
    * GET /api/v1/pipelines
    */
-  async list(req: Request, res: Response): Promise<void> {
+  async list(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const { name, status, limit, offset } = req.query;
+      const query = request.query as any;
+      const { name, status, limit, offset } = query;
 
       const pipelines = await this.pipelineService.list({
         name: name as string,
-        status: status as PipelineStatus,
+        status: status as PipelineStatus | undefined,
         limit: limit ? parseInt(limit as string) : undefined,
         offset: offset ? parseInt(offset as string) : undefined,
       });
 
-      res.json({
+      await reply.send({
         data: pipelines.map(p => ({
           id: p.id,
           name: p.name,
@@ -96,8 +102,9 @@ export class PipelineController {
         total: pipelines.length,
       });
     } catch (error) {
-      res.status(500).json({
+      await reply.status(500).send({
         error: 'INTERNAL_ERROR',
+        code: '50000',
         message: error instanceof Error ? error.message : 'Failed to list pipelines',
       });
     }
@@ -107,20 +114,22 @@ export class PipelineController {
    * 获取 Pipeline 详情
    * GET /api/v1/pipelines/:id
    */
-  async getById(req: Request, res: Response): Promise<void> {
+  async getById(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const { id } = req.params;
+      const params = request.params as any;
+      const { id } = params;
       const pipeline = await this.pipelineService.getById(id);
 
       if (!pipeline) {
-        res.status(404).json({
+        await reply.status(404).send({
           error: 'NOT_FOUND',
+          code: '30201',
           message: `Pipeline '${id}' not found`,
         });
         return;
       }
 
-      res.json({
+      await reply.send({
         id: pipeline.id,
         name: pipeline.name,
         version: pipeline.version,
@@ -133,8 +142,9 @@ export class PipelineController {
         updatedAt: pipeline.updatedAt,
       });
     } catch (error) {
-      res.status(500).json({
+      await reply.status(500).send({
         error: 'INTERNAL_ERROR',
+        code: '50000',
         message: error instanceof Error ? error.message : 'Failed to get pipeline',
       });
     }
@@ -144,14 +154,16 @@ export class PipelineController {
    * 获取 Pipeline 所有版本
    * GET /api/v1/pipelines/:id/versions
    */
-  async getVersions(req: Request, res: Response): Promise<void> {
+  async getVersions(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const { id } = req.params;
+      const params = request.params as any;
+      const { id } = params;
       const pipeline = await this.pipelineService.getById(id);
 
       if (!pipeline) {
-        res.status(404).json({
+        await reply.status(404).send({
           error: 'NOT_FOUND',
+          code: '30201',
           message: `Pipeline '${id}' not found`,
         });
         return;
@@ -159,7 +171,7 @@ export class PipelineController {
 
       const versions = await this.pipelineService.getVersions(pipeline.name);
 
-      res.json({
+      await reply.send({
         data: versions.map(v => ({
           id: v.id,
           name: v.name,
@@ -171,8 +183,9 @@ export class PipelineController {
         total: versions.length,
       });
     } catch (error) {
-      res.status(500).json({
+      await reply.status(500).send({
         error: 'INTERNAL_ERROR',
+        code: '50000',
         message: error instanceof Error ? error.message : 'Failed to get pipeline versions',
       });
     }
@@ -182,26 +195,29 @@ export class PipelineController {
    * 更新 Pipeline
    * PUT /api/v1/pipelines/:id
    */
-  async update(req: Request, res: Response): Promise<void> {
+  async update(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const { id } = req.params;
-      const { description, yamlDefinition, status } = req.body;
+      const params = request.params as any;
+      const body = request.body as any || {};
+      const { id } = params;
+      const { description, yamlDefinition, status } = body;
 
       const pipeline = await this.pipelineService.update(id, {
         description,
         yamlDefinition,
-        status,
+        status: status as PipelineStatus | undefined,
       });
 
       if (!pipeline) {
-        res.status(404).json({
+        await reply.status(404).send({
           error: 'NOT_FOUND',
+          code: '30201',
           message: `Pipeline '${id}' not found`,
         });
         return;
       }
 
-      res.json({
+      await reply.send({
         id: pipeline.id,
         name: pipeline.name,
         version: pipeline.version,
@@ -212,14 +228,16 @@ export class PipelineController {
       });
     } catch (error) {
       if (error instanceof Error && error.message.includes('validation')) {
-        res.status(400).json({
+        await reply.status(400).send({
           error: 'VALIDATION_ERROR',
+          code: '30101',
           message: error.message,
         });
         return;
       }
-      res.status(500).json({
+      await reply.status(500).send({
         error: 'INTERNAL_ERROR',
+        code: '50000',
         message: error instanceof Error ? error.message : 'Failed to update pipeline',
       });
     }
@@ -229,23 +247,26 @@ export class PipelineController {
    * 删除 Pipeline
    * DELETE /api/v1/pipelines/:id
    */
-  async delete(req: Request, res: Response): Promise<void> {
+  async delete(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const { id } = req.params;
+      const params = request.params as any;
+      const { id } = params;
       const deleted = await this.pipelineService.delete(id);
 
       if (!deleted) {
-        res.status(404).json({
+        await reply.status(404).send({
           error: 'NOT_FOUND',
+          code: '30201',
           message: `Pipeline '${id}' not found`,
         });
         return;
       }
 
-      res.status(204).send();
+      await reply.status(204).send();
     } catch (error) {
-      res.status(500).json({
+      await reply.status(500).send({
         error: 'INTERNAL_ERROR',
+        code: '50000',
         message: error instanceof Error ? error.message : 'Failed to delete pipeline',
       });
     }
@@ -255,13 +276,15 @@ export class PipelineController {
    * 验证 Pipeline YAML
    * POST /api/v1/pipelines/validate
    */
-  async validate(req: Request, res: Response): Promise<void> {
+  async validate(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const { yamlDefinition } = req.body;
+      const body = request.body as any || {};
+      const { yamlDefinition } = body;
 
       if (!yamlDefinition) {
-        res.status(400).json({
+        await reply.status(400).send({
           error: 'VALIDATION_ERROR',
+          code: '30101',
           message: 'Missing yamlDefinition',
         });
         return;
@@ -269,13 +292,14 @@ export class PipelineController {
 
       const result = await this.pipelineService.validate(yamlDefinition);
 
-      res.json({
+      await reply.send({
         valid: result.valid,
         errors: result.errors,
       });
     } catch (error) {
-      res.status(500).json({
+      await reply.status(500).send({
         error: 'INTERNAL_ERROR',
+        code: '50000',
         message: error instanceof Error ? error.message : 'Failed to validate pipeline',
       });
     }

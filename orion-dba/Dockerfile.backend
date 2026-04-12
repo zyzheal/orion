@@ -1,0 +1,29 @@
+FROM golang:1.23-alpine AS builder
+
+WORKDIR /app
+
+# 复制依赖文件
+COPY backend/go.mod backend/go.sum ./
+RUN go mod download
+
+# 复制源代码
+COPY backend/ .
+
+# 构建
+RUN CGO_ENABLED=0 GOOS=linux go build -o orion-dba-service cmd/main.go
+
+# 运行阶段
+FROM alpine:3.19
+
+RUN apk --no-cache add ca-certificates
+
+WORKDIR /root/
+
+# 复制二进制
+COPY --from=builder /app/orion-dba-service .
+
+# 暴露端口
+EXPOSE 8090
+
+# 运行
+CMD ["./orion-dba-service"]

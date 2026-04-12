@@ -4,31 +4,38 @@ import { login as loginApi, logout as logoutApi } from '@/api/auth';
 import type { LoginRequest } from '@/api/types';
 
 export const useAuth = () => {
-  const { user, isAuthenticated, isLoading, setUser, setAuthenticated, setLoading } =
+  const { user, isAuthenticated, isLoading, setUser, setAuthenticated, setLoading, setTokens } =
     useAuthStore();
 
   const login = useCallback(
     async (data: LoginRequest) => {
       setLoading(true);
+      console.log('[Auth] Attempting login with:', { username: data.username });
       try {
         const response = await loginApi(data);
-        const { accessToken, refreshToken, user } = response;
+        const { accessToken, refreshToken, user: userData, expiresAt } = response;
 
-        localStorage.setItem('access_token', accessToken);
-        localStorage.setItem('refresh_token', refreshToken);
+        console.log('[Auth] Login successful, token received:', {
+          accessToken: accessToken ? 'yes' : 'no',
+          expiresAt,
+          user: userData?.username
+        });
 
-        setUser(user);
-        setAuthenticated(true);
+        // 保存 token 到 store 和 localStorage
+        setTokens(accessToken, refreshToken, expiresAt);
+        setUser(userData);
+
+        console.log('[Auth] Tokens saved to store and localStorage');
 
         return { success: true };
       } catch (error) {
-        console.error('Login failed:', error);
+        console.error('[Auth] Login failed:', error);
         return { success: false, error };
       } finally {
         setLoading(false);
       }
     },
-    [setUser, setAuthenticated, setLoading]
+    [setUser, setAuthenticated, setLoading, setTokens]
   );
 
   const logout = useCallback(async () => {

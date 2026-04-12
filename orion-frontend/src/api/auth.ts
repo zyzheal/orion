@@ -12,7 +12,8 @@ import type {
  */
 export const login = async (data: LoginRequest): Promise<LoginResponse> => {
   const response = await api.post<LoginResponse>('/auth/login', data);
-  return response.data.data;
+  // 响应格式：{ success: true, data: { accessToken, ... } }
+  return response.data.data as LoginResponse;
 };
 
 /**
@@ -25,9 +26,25 @@ export const logout = async (): Promise<void> => {
 /**
  * 刷新 Token
  */
-export const refreshToken = async (data: RefreshTokenRequest): Promise<RefreshTokenResponse> => {
-  const response = await api.post<RefreshTokenResponse>('/auth/refresh', data);
+export const refreshToken = async (refreshToken: string): Promise<RefreshTokenResponse> => {
+  const response = await api.post<RefreshTokenResponse>('/auth/refresh', { refreshToken });
   return response.data.data;
+};
+
+/**
+ * 刷新 Token 的简化调用
+ */
+export const refreshAuthToken = async (refreshToken: string): Promise<{
+  accessToken: string;
+  refreshToken?: string;
+  expiresAt: number;
+}> => {
+  const response = await refreshToken(refreshToken);
+  return {
+    accessToken: response.accessToken,
+    refreshToken: response.refreshToken,
+    expiresAt: response.expiresAt || Date.now() + 24 * 60 * 60 * 1000,
+  };
 };
 
 /**
