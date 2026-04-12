@@ -6,6 +6,8 @@ module.exports = {
   transform: {
     '^.+\\.tsx?$': ['ts-jest', { isolatedModules: true }],
   },
+  // Transform ES modules from @kubernetes/client-node
+  transformIgnorePatterns: ['node_modules/(?!@kubernetes/client-node)'],
   collectCoverageFrom: [
     'src/**/*.ts',
     '!src/**/*.d.ts',

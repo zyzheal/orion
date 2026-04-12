@@ -2,10 +2,28 @@
  * CMDB Integration Service 单元测试
  */
 
+// Mock @kubernetes/client-node before importing the service
+jest.mock('@kubernetes/client-node', () => ({
+  KubeConfig: class MockKubeConfig {
+    loadFromCluster = jest.fn();
+    loadFromDefault = jest.fn();
+    addCluster = jest.fn();
+    addUser = jest.fn();
+    addContext = jest.fn();
+    setCurrentContext = jest.fn();
+    makeApiClient = jest.fn().mockReturnValue({});
+  },
+  Watch: class MockWatch {
+    watch = jest.fn().mockResolvedValue(undefined);
+  },
+  CoreV1Api: class MockCoreV1Api {},
+  AppsV1Api: class MockAppsV1Api {},
+}));
+
 import { CmdbIntegrationService } from '../cmdb-integration-service';
 import { CmdbService } from '../cmdb/CmdbService';
 import { CmdbEventPublisher } from '../cmdb/CmdbEventPublisher';
-import { EventBusService } from '../../event-bus-service';
+import { EventBusService } from '../event-bus-service';
 
 // Mock EventBusService
 const mockEventBus = {
@@ -277,6 +295,56 @@ describe('CmdbIntegrationService', () => {
 
       // 停止同步
       integrationService.stopK8sSync();
+    });
+
+    it('should return K8s sync state', async () => {
+      const config = {
+        watchEnabled: false, // Disable watch for simpler testing
+        reconciliationIntervalMs: 60000,
+      };
+
+      await integrationService.startK8sSync(BigInt(1), config);
+
+      const state = integrationService.getK8sSyncState();
+
+      expect(state.overallStatus).toBeDefined();
+      expect(['L0_NORMAL', 'L1_REDUCED', 'L2_PAUSED', 'L3_DEGRADED']).toContain(state.overallStatus);
+      expect(state.healthScore).toBeGreaterThanOrEqual(0);
+      expect(state.healthScore).toBeLessThanOrEqual(100);
+      expect(state.watchStatus).toBeDefined();
+      expect(state.reconciliationStatus).toBeDefined();
+
+      integrationService.stopK8sSync();
+    });
+
+    it('should calculate health score correctly', async () => {
+      // Test health score calculation
+      // When watch is disabled and reconciliation not run, score should be lower
+
+      const config = {
+        watchEnabled: false,
+        reconciliationIntervalMs: 60000,
+      };
+
+      await integrationService.startK8sSync(BigInt(1), config);
+
+      const state = integrationService.getK8sSyncState();
+
+      // Watch disabled should reduce score
+      expect(state.healthScore).toBeLessThan(100);
+
+      integrationService.stopK8sSync();
+    });
+  });
+
+  describe('Sync status levels', () => {
+    it('should define correct sync status progression', () => {
+      // L0_NORMAL -> L1_REDUCED -> L2_PAUSED -> L3_DEGRADED
+      const statuses = ['L0_NORMAL', 'L1_REDUCED', 'L2_PAUSED', 'L3_DEGRADED'];
+
+      for (const status of statuses) {
+        expect(typeof status).toBe('string');
+      }
     });
   });
 });

@@ -3,12 +3,15 @@
  *
  * 提供主机/K8s/CI-CD/拓扑的 Read API
  * 支持 K8s 同步双机制（Watch + 定时对账）
+ * 同步状态管理（L0正常→L1降频→L2暂停→L3降级）
  * 脚本执行能力
  */
 
 import pino from 'pino';
 import { EventBusService } from './event-bus-service';
 import { CmdbService } from './cmdb/CmdbService';
+import { K8sWatchClient, SyncStatus, WatchEvent, K8sResourceKind } from './cmdb/K8sWatchClient';
+import { K8sReconciliationService, ReconciliationResult } from './cmdb/K8sReconciliationService';
 import type { CI, CiType, CreateCIInput } from './cmdb/CmdbTypes';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
@@ -91,11 +94,34 @@ export interface TopologyResponse {
  * K8s 同步配置
  */
 export interface K8sSyncConfig {
-  apiServerUrl: string;
-  token: string;
+  apiServerUrl?: string;
+  token?: string;
   caCert?: string;
+  useClusterConfig?: boolean;
   watchEnabled: boolean;
   reconciliationIntervalMs: number; // 对账间隔（默认 5 分钟）
+  namespaces?: string[];
+  resourceKinds?: K8sResourceKind[];
+}
+
+/**
+ * K8s 同步状态
+ */
+export interface K8sSyncState {
+  overallStatus: SyncStatus;
+  watchStatus: {
+    connected: boolean;
+    reconnectAttempts: number;
+    lastConnectedAt?: Date;
+    lastError?: string;
+    resourcesWatched: K8sResourceKind[];
+  };
+  reconciliationStatus: {
+    lastResult?: ReconciliationResult;
+    isRunning: boolean;
+    lastRunAt?: Date;
+  };
+  healthScore: number; // 0-100
 }
 
 /**
@@ -129,9 +155,11 @@ export interface ScriptExecutionResult {
 export class CmdbIntegrationService {
   private cmdbService: CmdbService;
   private eventBus?: EventBusService;
-  private k8sWatchAbortController: AbortController | null = null;
-  private reconciliationTimer: NodeJS.Timeout | null = null;
+  private k8sWatchClient: K8sWatchClient | null = null;
+  private k8sReconciliationService: K8sReconciliationService | null = null;
   private k8sConfig: K8sSyncConfig | null = null;
+  private tenantId: bigint = BigInt(0);
+  private syncHealthCheckTimer: NodeJS.Timeout | null = null;
 
   constructor(options: {
     cmdbService?: CmdbService;
@@ -349,22 +377,74 @@ export class CmdbIntegrationService {
     tenantId: bigint,
     config: K8sSyncConfig
   ): Promise<void> {
-    logger.info({ config }, 'Starting K8s sync');
+    logger.info({ config, tenantId }, 'Starting K8s sync');
 
+    this.tenantId = tenantId;
     this.k8sConfig = config;
 
-    // 立即执行一次全量同步
-    await this.fullReconciliation(tenantId);
-
-    // 启动 Watch
+    // 初始化 Watch Client
     if (config.watchEnabled) {
-      this.startK8sWatch(tenantId, config).catch((err) => {
-        logger.error({ err }, 'K8s watch failed');
+      this.k8sWatchClient = new K8sWatchClient({
+        apiServerUrl: config.apiServerUrl,
+        token: config.token,
+        caCert: config.caCert,
+        useClusterConfig: config.useClusterConfig,
+        namespace: config.namespaces?.join(','),
+        reconnect: {
+          initialDelayMs: 1000,
+          maxDelayMs: 30000,
+          maxRetries: 0, // 无限重试
+        },
       });
+
+      // 注册资源处理器
+      const resourceKinds = config.resourceKinds || ['Deployment', 'Pod'];
+      for (const kind of resourceKinds) {
+        this.k8sWatchClient.registerHandler(kind, (event) =>
+          this.handleWatchEvent(event, kind)
+        );
+      }
+
+      // 启动 Watch
+      await this.k8sWatchClient.start();
     }
 
-    // 启动定时对账
-    this.startReconciliationTimer(tenantId, config.reconciliationIntervalMs);
+    // 初始化对账服务
+    this.k8sReconciliationService = new K8sReconciliationService(
+      this.cmdbService,
+      {
+        apiServerUrl: config.apiServerUrl,
+        token: config.token,
+        caCert: config.caCert,
+        useClusterConfig: config.useClusterConfig,
+        intervalMs: config.reconciliationIntervalMs,
+        namespaces: config.namespaces,
+        resourceKinds: config.resourceKinds?.map((k) =>
+          k === 'Namespace' ? 'Namespace' : k === 'Deployment' ? 'Deployment' : k === 'Pod' ? 'Pod' : 'Service'
+        ) as any,
+      }
+    );
+    this.k8sReconciliationService.setTenantId(tenantId);
+    this.k8sReconciliationService.start(tenantId);
+
+    // 启动健康检查定时器
+    this.startHealthCheckTimer();
+
+    // 发布同步启动事件
+    if (this.eventBus) {
+      await this.eventBus.publish(
+        'cmdb.k8s.sync.started',
+        {
+          tenantId: String(tenantId),
+          watchEnabled: config.watchEnabled,
+          reconciliationIntervalMs: config.reconciliationIntervalMs,
+          startedAt: new Date().toISOString(),
+        },
+        { source: 'cmdb-service' }
+      );
+    }
+
+    logger.info({ tenantId }, 'K8s sync started');
   }
 
   /**
@@ -373,83 +453,379 @@ export class CmdbIntegrationService {
   stopK8sSync(): void {
     logger.info('Stopping K8s sync');
 
-    if (this.k8sWatchAbortController) {
-      this.k8sWatchAbortController.abort();
-      this.k8sWatchAbortController = null;
+    if (this.k8sWatchClient) {
+      this.k8sWatchClient.stop();
+      this.k8sWatchClient = null;
     }
 
-    if (this.reconciliationTimer) {
-      clearInterval(this.reconciliationTimer);
-      this.reconciliationTimer = null;
+    if (this.k8sReconciliationService) {
+      this.k8sReconciliationService.stop();
+      this.k8sReconciliationService = null;
+    }
+
+    if (this.syncHealthCheckTimer) {
+      clearInterval(this.syncHealthCheckTimer);
+      this.syncHealthCheckTimer = null;
     }
 
     this.k8sConfig = null;
+
+    logger.info('K8s sync stopped');
   }
 
   /**
-   * 启动 K8s Watch
+   * 获取 K8s 同步状态
    */
-  private async startK8sWatch(
-    tenantId: bigint,
-    config: K8sSyncConfig
-  ): Promise<void> {
-    logger.info({ tenantId }, 'Starting K8s watch');
+  getK8sSyncState(): K8sSyncState {
+    const watchStatus = this.k8sWatchClient?.getStatus() || {
+      connected: false,
+      reconnectAttempts: 0,
+      resourcesWatched: [],
+      syncStatus: 'L2_PAUSED' as SyncStatus,
+    };
 
-    this.k8sWatchAbortController = new AbortController();
+    const reconciliationStatus = {
+      lastResult: this.k8sReconciliationService?.getLastResult(),
+      isRunning: this.k8sReconciliationService?.isRunningState() || false,
+      lastRunAt: this.k8sReconciliationService?.getLastResult()?.endedAt,
+    };
 
-    // 实际场景中，这里会连接 K8s API Server 的 Watch 端点
-    // 由于是模拟实现，我们仅记录日志
-    logger.info(
-      { url: config.apiServerUrl },
-      'K8s Watch connected (simulated)'
+    // 计算整体状态和健康分数
+    const overallStatus = this.calculateOverallSyncStatus(
+      watchStatus.syncStatus,
+      reconciliationStatus.lastResult?.status
     );
 
-    // 模拟接收 Watch 事件
-    // 实际实现中需要通过 https + token 连接 K8s API Server
+    const healthScore = this.calculateHealthScore(
+      watchStatus,
+      reconciliationStatus
+    );
+
+    return {
+      overallStatus,
+      watchStatus,
+      reconciliationStatus,
+      healthScore,
+    };
   }
 
   /**
-   * 启动定时对账
+   * 计算整体同步状态
    */
-  private startReconciliationTimer(
-    tenantId: bigint,
-    intervalMs: number
-  ): void {
-    logger.info({ intervalMs }, 'Starting reconciliation timer');
+  private calculateOverallSyncStatus(
+    watchStatus: SyncStatus,
+    reconciliationStatus?: 'SUCCESS' | 'PARTIAL' | 'FAILED'
+  ): SyncStatus {
+    // Watch 状态优先级更高（实时）
+    if (watchStatus === 'L3_DEGRADED') {
+      return 'L3_DEGRADED';
+    }
 
-    this.reconciliationTimer = setInterval(async () => {
-      try {
-        await this.fullReconciliation(tenantId);
-      } catch (err) {
-        logger.error({ err }, 'Reconciliation failed');
+    if (watchStatus === 'L2_PAUSED') {
+      // 如果对账成功，可以维持 L1
+      if (reconciliationStatus === 'SUCCESS') {
+        return 'L1_REDUCED';
       }
-    }, intervalMs);
+      return 'L2_PAUSED';
+    }
+
+    if (watchStatus === 'L1_REDUCED') {
+      return 'L1_REDUCED';
+    }
+
+    // Watch 正常，检查对账状态
+    if (reconciliationStatus === 'FAILED') {
+      return 'L1_REDUCED';
+    }
+
+    return 'L0_NORMAL';
   }
 
   /**
-   * 全量对账
+   * 计算健康分数（0-100）
    */
-  private async fullReconciliation(tenantId: bigint): Promise<void> {
-    logger.info({ tenantId }, 'Running full reconciliation');
+  private calculateHealthScore(
+    watchStatus: any,
+    reconciliationStatus: any
+  ): number {
+    let score = 100;
 
-    // 实际场景中：
-    // 1. 从 K8s API Server 获取当前资源列表
-    // 2. 与 CMDB 中的资源对比
-    // 3. 创建/更新/删除 CI
+    // Watch 连接健康度
+    if (!watchStatus.connected) {
+      score -= 30;
+    }
+    if (watchStatus.reconnectAttempts > 0) {
+      score -= Math.min(watchStatus.reconnectAttempts * 5, 20);
+    }
 
-    // 发布对账完成事件
+    // 对账健康度
+    if (!reconciliationStatus.isRunning) {
+      score -= 20;
+    }
+    if (reconciliationStatus.lastResult?.status === 'PARTIAL') {
+      score -= 10;
+    }
+    if (reconciliationStatus.lastResult?.status === 'FAILED') {
+      score -= 30;
+    }
+    if (reconciliationStatus.lastResult?.errors?.length > 0) {
+      score -= reconciliationStatus.lastResult.errors.length * 2;
+    }
+
+    return Math.max(0, score);
+  }
+
+  /**
+   * 启动健康检查定时器
+   */
+  private startHealthCheckTimer(): void {
+    // 每 30 秒检查一次健康状态
+    this.syncHealthCheckTimer = setInterval(() => {
+      this.performHealthCheck();
+    }, 30000);
+  }
+
+  /**
+   * 执行健康检查
+   */
+  private async performHealthCheck(): Promise<void> {
+    const state = this.getK8sSyncState();
+
+    logger.info(
+      {
+        overallStatus: state.overallStatus,
+        healthScore: state.healthScore,
+        watchConnected: state.watchStatus.connected,
+      },
+      'K8s sync health check'
+    );
+
+    // 状态降级处理
+    if (state.overallStatus === 'L3_DEGRADED') {
+      // 严重降级，尝试重启
+      logger.error('Sync severely degraded, attempting restart');
+      if (this.k8sWatchClient) {
+        await this.k8sWatchClient.reconnect();
+      }
+    }
+
+    // 发布健康检查事件
     if (this.eventBus) {
       await this.eventBus.publish(
-        'cmdb.k8s.reconciliation.completed',
+        'cmdb.k8s.sync.health',
         {
-          tenantId: String(tenantId),
-          reconciledAt: new Date().toISOString(),
+          tenantId: String(this.tenantId),
+          overallStatus: state.overallStatus,
+          healthScore: state.healthScore,
+          watchStatus: state.watchStatus,
+          reconciliationStatus: state.reconciliationStatus,
+          checkedAt: new Date().toISOString(),
         },
         { source: 'cmdb-service' }
       );
     }
+  }
 
-    logger.info({ tenantId }, 'Reconciliation completed');
+  /**
+   * 处理 Watch 事件
+   */
+  private async handleWatchEvent(
+    event: WatchEvent,
+    kind: K8sResourceKind
+  ): Promise<void> {
+    logger.info(
+      { type: event.type, kind, name: event.object?.metadata?.name },
+      'Received K8s watch event'
+    );
+
+    try {
+      switch (event.type) {
+        case 'ADDED':
+          await this.handleResourceAdded(event.object, kind);
+          break;
+        case 'MODIFIED':
+          await this.handleResourceModified(event.object, kind);
+          break;
+        case 'DELETED':
+          await this.handleResourceDeleted(event.object, kind);
+          break;
+        case 'ERROR':
+          logger.error({ event }, 'Watch error event received');
+          break;
+      }
+
+      // 发布事件
+      if (this.eventBus) {
+        await this.eventBus.publish(
+          `cmdb.k8s.resource.${event.type.toLowerCase()}`,
+          {
+            tenantId: String(this.tenantId),
+            kind,
+            name: event.object?.metadata?.name,
+            namespace: event.object?.metadata?.namespace,
+            uid: event.object?.metadata?.uid,
+            resourceVersion: event.object?.metadata?.resourceVersion,
+            occurredAt: new Date().toISOString(),
+          },
+          { source: 'cmdb-service' }
+        );
+      }
+    } catch (err) {
+      logger.error({ event, err }, 'Failed to handle watch event');
+    }
+  }
+
+  /**
+   * 处理资源新增
+   */
+  private async handleResourceAdded(obj: any, kind: K8sResourceKind): Promise<void> {
+    const ciId = this.generateCiId(kind, obj.metadata.namespace, obj.metadata.name);
+
+    // 检查是否已存在
+    const existing = await this.cmdbService.getCIByCiId(ciId);
+    if (existing) {
+      logger.debug({ ciId }, 'CI already exists, updating instead');
+      await this.handleResourceModified(obj, kind);
+      return;
+    }
+
+    const ciTypeMap: Record<K8sResourceKind, CiType> = {
+      'Namespace': 'K8S_CLUSTER',
+      'Deployment': 'K8S_DEPLOYMENT',
+      'Pod': 'K8S_POD',
+      'Service': 'SERVICE',
+      'ConfigMap': 'MIDDLEWARE',
+      'Secret': 'MIDDLEWARE',
+      'Cluster': 'K8S_CLUSTER',
+    };
+
+    const input: CreateCIInput = {
+      ciId,
+      tenantId: this.tenantId,
+      ciType: ciTypeMap[kind] || 'SERVICE',
+      name: obj.metadata.name,
+      description: `K8s ${kind} synced via Watch`,
+      status: 'ACTIVE',
+      environment: this.detectEnvironment(obj.metadata.labels),
+      tags: this.extractTags(obj.metadata.labels),
+      attributes: {
+        namespace: obj.metadata.namespace,
+        uid: obj.metadata.uid,
+        resourceVersion: obj.metadata.resourceVersion,
+        labels: obj.metadata.labels,
+        annotations: obj.metadata.annotations,
+        spec: obj.spec,
+        status: obj.status,
+        kind,
+        syncSource: 'k8s-watch',
+        lastSyncAt: new Date().toISOString(),
+      },
+      createdBy: 'k8s-watch-client',
+    };
+
+    await this.cmdbService.createCI(input);
+    logger.info({ ciId, kind }, 'Created CI from Watch event');
+  }
+
+  /**
+   * 处理资源修改
+   */
+  private async handleResourceModified(obj: any, kind: K8sResourceKind): Promise<void> {
+    const ciId = this.generateCiId(kind, obj.metadata.namespace, obj.metadata.name);
+
+    const existing = await this.cmdbService.getCIByCiId(ciId);
+    if (!existing) {
+      logger.warn({ ciId }, 'CI not found for modification, creating instead');
+      await this.handleResourceAdded(obj, kind);
+      return;
+    }
+
+    // 合并更新：K8s原生属性以K8s为准，CMDB扩展属性保持不变
+    const mergedAttributes = {
+      ...existing.attributes,
+      // K8s 原生属性更新
+      resourceVersion: obj.metadata.resourceVersion,
+      labels: obj.metadata.labels,
+      annotations: obj.metadata.annotations,
+      spec: obj.spec,
+      status: obj.status,
+      lastSyncAt: new Date().toISOString(),
+      syncSource: 'k8s-watch',
+    };
+
+    await this.cmdbService.updateCI(
+      existing.id,
+      { attributes: mergedAttributes },
+      'k8s-watch-client'
+    );
+
+    logger.info({ ciId, kind, resourceVersion: obj.metadata.resourceVersion }, 'Updated CI from Watch event');
+  }
+
+  /**
+   * 处理资源删除
+   */
+  private async handleResourceDeleted(obj: any, kind: K8sResourceKind): Promise<void> {
+    const ciId = this.generateCiId(kind, obj.metadata.namespace, obj.metadata.name);
+
+    const existing = await this.cmdbService.getCIByCiId(ciId);
+    if (!existing) {
+      logger.debug({ ciId }, 'CI not found, already deleted');
+      return;
+    }
+
+    // 软删除
+    await this.cmdbService.updateCI(
+      existing.id,
+      {
+        status: 'DECOMMISSIONED',
+        attributes: {
+          ...existing.attributes,
+          deletedFromK8s: true,
+          deletedAt: new Date().toISOString(),
+        },
+      },
+      'k8s-watch-client'
+    );
+
+    logger.info({ ciId, kind }, 'Marked CI as decommissioned from Watch event');
+  }
+
+  /**
+   * 生成 CI ID
+   */
+  private generateCiId(kind: string, namespace: string, name: string): string {
+    return `k8s-${kind.toLowerCase()}-${namespace}-${name}`;
+  }
+
+  /**
+   * 根据 labels 推断环境
+   */
+  private detectEnvironment(labels: Record<string, string>): string {
+    const envLabels = ['env', 'environment', 'stage'];
+    for (const label of envLabels) {
+      if (labels?.[label]) {
+        return labels[label];
+      }
+    }
+    return 'unknown';
+  }
+
+  /**
+   * 从 labels 提取 tags
+   */
+  private extractTags(labels: Record<string, string>): string[] {
+    if (!labels) return [];
+    const tagLabels = ['app', 'component', 'tier', 'team', 'version'];
+    const tags: string[] = [];
+
+    for (const label of tagLabels) {
+      if (labels[label]) {
+        tags.push(`${label}:${labels[label]}`);
+      }
+    }
+
+    return tags;
   }
 
   // ==================== 脚本执行 ====================
