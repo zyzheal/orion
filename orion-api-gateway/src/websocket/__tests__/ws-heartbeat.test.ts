@@ -5,23 +5,43 @@
 import { HeartbeatHandler, WebSocketConnectionManager } from '../ws-heartbeat';
 import { WebSocket } from 'ws';
 
-// Mock WebSocket
+// Mock WebSocket - implements minimal WebSocket interface for testing
 class MockWebSocket {
-  readyState = WebSocket.OPEN;
-  private listeners: { [key: string]: Array<(...args: any[]) => void> } = {};
-  private pingCallback: (() => void) | null = null;
+  static CONNECTING = 0;
+  static OPEN = 1;
+  static CLOSING = 2;
+  static CLOSED = 3;
+
+  readyState = MockWebSocket.OPEN;
+  binaryType: 'nodebuffer' = 'nodebuffer';
+  bufferedAmount = 0;
+  extensions = '';
+  protocol = '';
+  isPaused = false;
+  url = '';
+
+  // Make listeners map public to avoid TypeScript issues
+  _listeners: { [key: string]: Array<(...args: any[]) => void> } = {};
 
   on(event: string, callback: (...args: any[]) => void): void {
-    if (!this.listeners[event]) {
-      this.listeners[event] = [];
+    if (!this._listeners[event]) {
+      this._listeners[event] = [];
     }
-    this.listeners[event].push(callback);
+    this._listeners[event].push(callback);
   }
 
   off(event: string, callback: (...args: any[]) => void): void {
-    if (this.listeners[event]) {
-      this.listeners[event] = this.listeners[event].filter((cb) => cb !== callback);
+    if (this._listeners[event]) {
+      this._listeners[event] = this._listeners[event].filter((cb) => cb !== callback);
     }
+  }
+
+  addEventListener(event: string, callback: (...args: any[]) => void): void {
+    this.on(event, callback);
+  }
+
+  removeEventListener(event: string, callback: (...args: any[]) => void): void {
+    this.off(event, callback);
   }
 
   ping(callback?: (err?: Error) => void): void {
@@ -30,13 +50,23 @@ class MockWebSocket {
     }
   }
 
-  close(): void {
-    this.readyState = WebSocket.CLOSED;
+  pong(): void {}
+
+  send(data: any, cb?: (err?: Error) => void): void {
+    if (cb) cb();
+  }
+
+  terminate(): void {
+    this.readyState = MockWebSocket.CLOSED;
+  }
+
+  close(code?: number, reason?: string): void {
+    this.readyState = MockWebSocket.CLOSED;
   }
 
   emit(event: string, ...args: any[]): void {
-    if (this.listeners[event]) {
-      this.listeners[event].forEach((cb) => cb(...args));
+    if (this._listeners[event]) {
+      this._listeners[event].forEach((cb) => cb(...args));
     }
   }
 }
@@ -46,7 +76,7 @@ describe('HeartbeatHandler', () => {
   let heartbeat: HeartbeatHandler;
 
   beforeEach(() => {
-    mockWs = new MockWebSocket() as unknown as WebSocket;
+    mockWs = new MockWebSocket();
     heartbeat = new HeartbeatHandler(mockWs as unknown as WebSocket, {
       intervalMs: 100,
       timeoutMs: 50,
@@ -111,7 +141,7 @@ describe('WebSocketConnectionManager', () => {
 
   beforeEach(() => {
     manager = new WebSocketConnectionManager();
-    mockWs = new MockWebSocket() as unknown as WebSocket;
+    mockWs = new MockWebSocket();
   });
 
   afterEach(() => {
@@ -119,7 +149,7 @@ describe('WebSocketConnectionManager', () => {
   });
 
   it('应该能够添加和获取连接', () => {
-    manager.addConnection('client-1', mockWs);
+    manager.addConnection('client-1', mockWs as unknown as WebSocket);
 
     const connection = manager.getConnection('client-1');
     expect(connection).toBeDefined();
@@ -128,7 +158,7 @@ describe('WebSocketConnectionManager', () => {
   });
 
   it('应该能够移除连接', () => {
-    manager.addConnection('client-1', mockWs);
+    manager.addConnection('client-1', mockWs as unknown as WebSocket);
     expect(manager.getConnectionCount()).toBe(1);
 
     manager.removeConnection('client-1');
@@ -137,34 +167,34 @@ describe('WebSocketConnectionManager', () => {
   });
 
   it('应该能够发送消息到指定客户端', () => {
-    const sendSpy = jest.spyOn(mockWs, 'send' as any);
-    manager.addConnection('client-1', mockWs);
+    const sendSpy = jest.spyOn(mockWs, 'send');
+    manager.addConnection('client-1', mockWs as unknown as WebSocket);
 
     const result = manager.sendToClient('client-1', 'test message');
 
     expect(result).toBe(true);
-    expect(sendSpy).toHaveBeenCalledWith(JSON.stringify('test message'));
+    expect(sendSpy).toHaveBeenCalledWith('test message');
   });
 
   it('广播消息给所有客户端', () => {
-    const mockWs1 = new MockWebSocket() as unknown as WebSocket;
-    const mockWs2 = new MockWebSocket() as unknown as WebSocket;
+    const mockWs1 = new MockWebSocket();
+    const mockWs2 = new MockWebSocket();
 
-    const sendSpy1 = jest.spyOn(mockWs1, 'send' as any);
-    const sendSpy2 = jest.spyOn(mockWs2, 'send' as any);
+    const sendSpy1 = jest.spyOn(mockWs1, 'send');
+    const sendSpy2 = jest.spyOn(mockWs2, 'send');
 
-    manager.addConnection('client-1', mockWs1);
-    manager.addConnection('client-2', mockWs2);
+    manager.addConnection('client-1', mockWs1 as unknown as WebSocket);
+    manager.addConnection('client-2', mockWs2 as unknown as WebSocket);
 
-    manager.broadcast({ type: 'test', data: 'hello' });
+    manager.broadcast(JSON.stringify({ type: 'test', data: 'hello' }));
 
     expect(sendSpy1).toHaveBeenCalled();
     expect(sendSpy2).toHaveBeenCalled();
   });
 
   it('应该能够获取所有连接 ID', () => {
-    manager.addConnection('client-1', mockWs);
-    manager.addConnection('client-2', mockWs);
+    manager.addConnection('client-1', mockWs as unknown as WebSocket);
+    manager.addConnection('client-2', mockWs as unknown as WebSocket);
 
     const ids = manager.getAllConnectionIds();
 

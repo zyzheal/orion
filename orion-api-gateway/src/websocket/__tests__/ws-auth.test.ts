@@ -83,7 +83,7 @@ describe('WsAuthHandler', () => {
         roles: ['user'],
       };
 
-      (mockApp.jwt.verify as jest.Mock).mockResolvedValue(mockPayload);
+      (mockApp.jwt!.verify as jest.Mock).mockResolvedValue(mockPayload);
 
       const mockRequest = {
         url: '/ws?token=valid-token',
@@ -98,7 +98,7 @@ describe('WsAuthHandler', () => {
     });
 
     it('认证失败时返回错误', async () => {
-      (mockApp.jwt.verify as jest.Mock).mockRejectedValue(new Error('Token expired'));
+      (mockApp.jwt!.verify as jest.Mock).mockRejectedValue(new Error('Token expired'));
 
       const mockRequest = {
         url: '/ws?token=invalid-token',

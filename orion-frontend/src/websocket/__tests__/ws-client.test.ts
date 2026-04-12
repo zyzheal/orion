@@ -54,17 +54,13 @@ class MockWebSocket {
   }
 }
 
-// 替换全局 WebSocket
-const originalWebSocket = global.WebSocket;
-
 describe('OrionWebSocketClient', () => {
   beforeEach(() => {
-    // @ts-ignore
-    global.WebSocket = MockWebSocket;
+    vi.stubGlobal('WebSocket', MockWebSocket);
   });
 
   afterEach(() => {
-    global.WebSocket = originalWebSocket;
+    vi.unstubAllGlobals();
   });
 
   it('应该能够创建客户端实例', () => {
@@ -194,13 +190,12 @@ describe('OrionWebSocketClient', () => {
 
 describe('OrionWebSocketClient - 重连', () => {
   beforeEach(() => {
-    // @ts-ignore
-    global.WebSocket = MockWebSocket;
+    vi.stubGlobal('WebSocket', MockWebSocket);
     vi.useFakeTimers();
   });
 
   afterEach(() => {
-    global.WebSocket = originalWebSocket;
+    vi.unstubAllGlobals();
     vi.useRealTimers();
   });
 

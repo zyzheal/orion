@@ -126,7 +126,7 @@ export class OrionWebSocketClient {
       }, 10000); // 10 秒超时
 
       this.ws.onopen = () => this.handleOpen();
-      this.ws.onclose = (event) => this handleClose(event);
+      this.ws.onclose = (event) => this.handleClose(event);
       this.ws.onerror = (error) => this.handleError(error);
       this.ws.onmessage = (event) => this.handleMessage(event);
     } catch (error) {
