@@ -1,0 +1,182 @@
+# Orion AI Service - Kubernetes 部署配置
+#
+# 包含 GPU 资源分配、NATS 连接配置、健康检查等。
+# 此文件包含 Deployment 和 Service 两个资源定义。
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orion-ai-service
+  namespace: orion
+  labels:
+    app: orion-ai-service
+    domain: ai
+    version: "0.1.0"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: orion-ai-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: orion-ai-service
+        domain: ai
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/api/v1/ai/healthz"
+    spec:
+      # GPU 节点容忍
+      tolerations:
+        - key: "nvidia.com/gpu"
+          operator: "Exists"
+          effect: "NoSchedule"
+
+      # 节点选择：优先选择 GPU 节点
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: nvidia.com/gpu
+                    operator: Exists
+
+      containers:
+        - name: orion-ai-service
+          image: orion-registry/orion-ai-service:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+              name: http
+              protocol: TCP
+
+          # 环境变量
+          env:
+            - name: ORION_AI_NATS_SERVERS
+              value: "nats://nats.orion.svc.cluster.local:4222"
+            - name: ORION_AI_LOG_LEVEL
+              value: "INFO"
+            - name: ORION_AI_SUBSCRIBED_TOPICS
+              value: "pipeline.run.completed,code.pr.opened"
+            - name: ORION_AI_AI_MODEL_ENDPOINT
+              valueFrom:
+                configMapKeyRef:
+                  name: orion-ai-config
+                  key: model-endpoint
+                  optional: true
+            - name: ORION_AI_AI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: orion-ai-secret
+                  key: api-key
+                  optional: true
+
+          # 资源限制（GPU 独立扩展）
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+              nvidia.com/gpu: "1"
+            limits:
+              cpu: "2"
+              memory: "2Gi"
+              nvidia.com/gpu: "1"
+
+          # 健康检查
+          livenessProbe:
+            httpGet:
+              path: /api/v1/ai/healthz
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+          readinessProbe:
+            httpGet:
+              path: /api/v1/ai/healthz
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+          # 优雅关闭
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sleep", "10"]
+
+          terminationGracePeriodSeconds: 30
+
+      # 镜像拉取密钥
+      imagePullSecrets:
+        - name: orion-registry-secret
+
+---
+# Service - 内部访问
+apiVersion: v1
+kind: Service
+metadata:
+  name: orion-ai-service
+  namespace: orion
+  labels:
+    app: orion-ai-service
+    domain: ai
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8000
+      targetPort: 8000
+      protocol: TCP
+      name: http
+  selector:
+    app: orion-ai-service
+
+---
+# HPA - 自动扩缩容
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: orion-ai-service-hpa
+  namespace: orion
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: orion-ai-service
+  minReplicas: 1
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 120

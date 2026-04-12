@@ -1,0 +1,20 @@
+# Orion AI Service - ConfigMap
+#
+# 非敏感配置项
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: orion-ai-config
+  namespace: orion
+  labels:
+    app: orion-ai-service
+data:
+  # AI 模型端点地址（TASK-302 配置）
+  model-endpoint: ""
+  # 日志级别
+  log-level: "INFO"
+  # 订阅主题
+  subscribed-topics: "pipeline.run.completed,code.pr.opened"
+  # NATS 服务地址
+  nats-servers: "nats://nats.orion.svc.cluster.local:4222"

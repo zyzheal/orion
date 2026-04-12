@@ -1,0 +1,52 @@
+# Orion AI Service - 本地开发环境
+#
+# 用法:
+#   docker compose up -d
+#   docker compose logs -f orion-ai-service
+
+services:
+  orion-ai-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: orion-ai-service
+    ports:
+      - "8000:8000"
+    environment:
+      - ORION_AI_NATS_SERVERS=nats://nats:4222
+      - ORION_AI_LOG_LEVEL=DEBUG
+      - ORION_AI_SUBSCRIBED_TOPICS=pipeline.run.completed,code.pr.opened
+    depends_on:
+      - nats
+    networks:
+      - orion-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/ai/healthz')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # NATS JetStream (开发用单节点)
+  nats:
+    image: nats:2.10-alpine
+    container_name: orion-nats-dev
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    command:
+      - --jetstream
+      - --store_dir=/data
+    volumes:
+      - nats-data:/data
+    networks:
+      - orion-network
+    restart: unless-stopped
+
+networks:
+  orion-network:
+    driver: bridge
+
+volumes:
+  nats-data:
+    driver: local
