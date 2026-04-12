@@ -277,4 +277,105 @@ export default async function ticketingRoutes(app: FastifyInstance): Promise<voi
   app.get('/dispatch/weights', async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.getDispatchWeights(request, reply);
   });
+
+  // ==================== TASK-TICKET-XFER: Transfer Endpoints ====================
+
+  // POST /transfer/:ticketId - Transfer a ticket
+  app.post('/transfer/:ticketId', async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.transferTicket(request, reply);
+  });
+
+  // GET /transfer/:ticketId/history - Get transfer history
+  app.get('/transfer/:ticketId/history', async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.getTransferHistory(request, reply);
+  });
+
+  // GET /transfer/stats - Get transfer statistics
+  app.get('/transfer/stats', async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.getTransferStats(request, reply);
+  });
+
+  // ==================== TASK-TICKET-XFER: Suspend Endpoints ====================
+
+  // POST /suspend - Create a suspension
+  app.post('/suspend', async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.createSuspend(request, reply);
+  });
+
+  // POST /suspend/:id/activate - Activate a suspension
+  app.post('/suspend/:id/activate', async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.activateSuspend(request, reply);
+  });
+
+  // POST /suspend/:id/end - End a suspension
+  app.post('/suspend/:id/end', async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.endSuspend(request, reply);
+  });
+
+  // POST /suspend/:id/cancel - Cancel a suspension
+  app.post('/suspend/:id/cancel', async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.cancelSuspend(request, reply);
+  });
+
+  // GET /suspend - List suspensions
+  app.get('/suspend', async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.listSuspensions(request, reply);
+  });
+
+  // GET /suspend/:id - Get suspension by ID
+  app.get('/suspend/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.getSuspend(request, reply);
+  });
+
+  // GET /suspend/engineer/:engineerId - Get suspensions for an engineer
+  app.get('/suspend/engineer/:engineerId', async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.getEngineerSuspensions(request, reply);
+  });
+
+  // GET /suspend/engineer/:engineerId/impact - Get suspension impact
+  app.get('/suspend/engineer/:engineerId/impact', async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.getEngineerSuspendImpact(request, reply);
+  });
+
+  // ==================== TASK-TICKET-BI: BI Analytics Endpoints ====================
+
+  // GET /bi/dashboard/executive - Executive dashboard
+  app.get('/bi/dashboard/executive', async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.getExecutiveDashboard(request, reply);
+  });
+
+  // GET /bi/dashboard/manager - Manager dashboard
+  app.get('/bi/dashboard/manager', async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.getManagerDashboard(request, reply);
+  });
+
+  // GET /bi/dashboard/engineer/:engineerId - Engineer dashboard
+  app.get('/bi/dashboard/engineer/:engineerId', async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.getEngineerDashboard(request, reply);
+  });
+
+  // GET /bi/efficiency/:engineerId - Engineer efficiency metrics
+  app.get('/bi/efficiency/:engineerId', async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.getEngineerEfficiency(request, reply);
+  });
+
+  // GET /bi/score/:engineerId - Engineer efficiency score
+  app.get('/bi/score/:engineerId', async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.getEfficiencyScore(request, reply);
+  });
+
+  // GET /bi/compare - Compare periods
+  app.get('/bi/compare', async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.comparePeriods(request, reply);
+  });
+
+  // POST /bi/export - Export BI data
+  app.post('/bi/export', async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.exportBIData(request, reply);
+  });
+
+  // GET /bi/trend - Time trend
+  app.get('/bi/trend', async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.getTimeTrend(request, reply);
+  });
 }

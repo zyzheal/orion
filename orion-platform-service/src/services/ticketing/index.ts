@@ -21,5 +21,13 @@ export { DispatchQueueManager } from './DispatchQueueManager';
 export { LoadBalancer } from './LoadBalancer';
 export { DispatchAnalytics } from './DispatchAnalytics';
 
+// TASK-TICKET-XFER: Transfer and Suspend services
+export { TicketTransferService } from './TicketTransferService';
+export { EngineerSuspendService } from './EngineerSuspendService';
+
+// TASK-TICKET-BI: BI Analytics services
+export { TicketBIService } from './TicketBIService';
+export type { TransferRecord, CommentRecord, DashboardOptions } from './TicketBIService';
+
 // Event types
 export type { TicketingEventType } from './TicketService';

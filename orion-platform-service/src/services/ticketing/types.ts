@@ -392,6 +392,250 @@ export interface TicketingConfig {
   maxTicketsInMemory: number;
 }
 
+// ==================== BI & Analytics Types (TASK-TICKET-BI) ====================
+
+/**
+ * Time granularity for BI aggregation
+ */
+export type TimeGranularity = 'hour' | 'day' | 'week' | 'month' | 'quarter' | 'year';
+
+/**
+ * Engineer efficiency metrics for a time period
+ */
+export interface EngineerEfficiencyMetrics {
+  /** Engineer user ID */
+  engineerId: string;
+  /** Engineer display name */
+  engineerName: string;
+  /** Period label (e.g., "2024-01") */
+  period: string;
+  /** Workload metrics */
+  workload: {
+    totalAssigned: number;
+    totalResolved: number;
+    totalTransferred: number;
+    avgActiveTickets: number;
+    peakConcurrent: number;
+  };
+  /** Efficiency metrics (time-based) */
+  efficiency: {
+    avgResolutionTimeMs: number;
+    medianResolutionTimeMs: number;
+    p95ResolutionTimeMs: number;
+    avgFirstResponseTimeMs: number;
+    avgTransferHoldTimeMs: number;
+    ticketsPerDay: number;
+  };
+  /** Quality metrics */
+  quality: {
+    slaComplianceRate: number;
+    firstTimeResolveRate: number;
+    escalationRate: number;
+    reopenRate: number;
+    customerSatisfactionScore: number;
+  };
+  /** Collaboration metrics */
+  collaboration: {
+    transfersReceived: number;
+    transfersGiven: number;
+    backupCoverageCount: number;
+    commentsCount: number;
+  };
+  /** Composite efficiency score (0-100) */
+  compositeScore: number;
+  /** Performance grade */
+  performanceGrade: 'A+' | 'A' | 'B+' | 'B' | 'C' | 'D' | 'F';
+  /** Trend direction */
+  trend: 'improving' | 'stable' | 'declining';
+}
+
+/**
+ * Executive dashboard (boss view)
+ */
+export interface ExecutiveDashboard {
+  /** Overview KPIs */
+  overview: {
+    totalTickets: number;
+    resolvedTickets: number;
+    openTickets: number;
+    overallResolutionRate: number;
+    avgResolutionTimeHours: number;
+    slaComplianceRate: number;
+    totalEngineers: number;
+    activeEngineers: number;
+  };
+  /** Trend data */
+  trends: {
+    ticketVolumeTrend: { period: string; created: number; resolved: number; open: number }[];
+    resolutionTimeTrend: { period: string; avgHours: number; medianHours: number }[];
+    slaComplianceTrend: { period: string; rate: number }[];
+    teamLoadTrend: { period: string; load: number }[];
+  };
+  /** Team ranking */
+  teamRanking: {
+    topPerformers: { engineerId: string; name: string; score: number; resolved: number }[];
+    bottomPerformers: { engineerId: string; name: string; score: number; needsAttention: string }[];
+  };
+  /** Alerts requiring attention */
+  alerts: {
+    slaBreachedCount: number;
+    overdueTicketsCount: number;
+    overloadedEngineers: number;
+    unassignedOlderThan24h: number;
+  };
+  /** Distribution breakdowns */
+  distribution: {
+    byCategory: Record<string, { count: number; avgResolutionHours: number }>;
+    byPriority: Record<string, { count: number; resolved: number }>;
+    bySource: Record<string, number>;
+  };
+  /** Period start */
+  periodStart: Date;
+  /** Period end */
+  periodEnd: Date;
+}
+
+/**
+ * Manager dashboard
+ */
+export interface ManagerDashboard {
+  /** Team overview */
+  teamOverview: {
+    totalTickets: number;
+    resolvedCount: number;
+    avgResolutionTimeHours: number;
+    slaComplianceRate: number;
+    teamLoadPercentage: number;
+  };
+  /** Individual member metrics */
+  memberMetrics: EngineerEfficiencyMetrics[];
+  /** Heatmap data: dayOfWeek (0=Sun) x hourOfDay (0-23) */
+  heatmap: { dayOfWeek: number; hourOfDay: number; ticketCount: number }[];
+  /** Week-over-week changes */
+  weekOverWeek: {
+    ticketsCreatedChange: number;
+    resolvedChange: number;
+    avgResolutionTimeChange: number;
+    slaComplianceChange: number;
+  };
+  /** Transfer analysis */
+  transferAnalysis: {
+    totalTransfers: number;
+    avgTransfersPerTicket: number;
+    topTransferReasons: { reason: string; count: number }[];
+    mostTransferredTickets: { ticketId: string; title: string; transferCount: number }[];
+  };
+  /** Period start */
+  periodStart: Date;
+  /** Period end */
+  periodEnd: Date;
+}
+
+/**
+ * Engineer personal dashboard
+ */
+export interface EngineerDashboard {
+  /** Personal overview */
+  personalOverview: {
+    engineerId: string;
+    engineerName: string;
+    currentLoad: number;
+    totalResolved: number;
+    avgResolutionTimeHours: number;
+    slaComplianceRate: number;
+    performanceGrade: string;
+    rank: number;
+    totalInTeam: number;
+  };
+  /** Personal trend data */
+  personalTrend: {
+    period: string;
+    resolved: number;
+    avgResolutionHours: number;
+    slaCompliant: number;
+    received: number;
+  }[];
+  /** Strengths by category */
+  strengths: {
+    category: string;
+    resolvedCount: number;
+    avgResolutionHours: number;
+    slaComplianceRate: number;
+    proficiencyScore: number;
+  }[];
+  /** Weaknesses by category */
+  weaknesses: {
+    category: string;
+    resolvedCount: number;
+    avgResolutionHours: number;
+    slaComplianceRate: number;
+    suggestion: string;
+  }[];
+  /** Active tickets needing attention */
+  activeTickets: {
+    ticketId: string;
+    title: string;
+    priority: string;
+    category: string;
+    status: string;
+    assignedAt: Date;
+    elapsedHours: number;
+    slaRemainingHours: number;
+    isOverdue: boolean;
+  }[];
+}
+
+/**
+ * BI export data for external tools
+ */
+export interface BIExportData {
+  /** Dataset name */
+  dataset: string;
+  /** Time granularity */
+  granularity: TimeGranularity;
+  /** Period start */
+  periodStart: Date;
+  /** Period end */
+  periodEnd: Date;
+  /** Data rows */
+  rows: Record<string, any>[];
+  /** Column definitions */
+  columns: { name: string; type: string; label: string }[];
+  /** Generation timestamp */
+  generatedAt: Date;
+}
+
+/**
+ * Engineer efficiency score breakdown
+ */
+export interface EfficiencyScore {
+  /** Overall composite score (0-100) */
+  score: number;
+  /** Dimension breakdown */
+  breakdown: {
+    /** Workload dimension (25% weight) */
+    workloadScore: number;
+    /** Efficiency dimension (30% weight) */
+    efficiencyScore: number;
+    /** Quality dimension (30% weight) */
+    qualityScore: number;
+    /** Teamwork dimension (15% weight) */
+    teamworkScore: number;
+  };
+}
+
+/**
+ * Period comparison result
+ */
+export interface PeriodComparison {
+  /** Current period data */
+  current: { period: string; metrics: Record<string, number> };
+  /** Previous period data */
+  previous: { period: string; metrics: Record<string, number> };
+  /** Change analysis */
+  changes: { metric: string; changePercent: number; direction: 'up' | 'down' | 'same' }[];
+}
+
 // ==================== Dispatch Types (TASK-802) ====================
 
 /**
@@ -647,4 +891,134 @@ export interface ReassignmentSuggestion {
   reason: string;
   /** Expected improvement in balance */
   expectedImprovement: number;
+}
+
+// ==================== Transfer Types (TASK-TICKET-XFER) ====================
+
+/**
+ * Transfer type
+ */
+export type TransferType = 'manual' | 'auto-timeout' | 'escalation' | 'backup';
+
+/**
+ * Ticket transfer record
+ */
+export interface TicketTransfer {
+  /** Transfer ID */
+  id: string;
+  /** Ticket being transferred */
+  ticketId: string;
+  /** Previous assignee */
+  fromEngineer: string;
+  /** New assignee */
+  toEngineer: string;
+  /** Transfer type */
+  transferType: TransferType;
+  /** Reason for transfer */
+  reason: string;
+  /** Who initiated the transfer */
+  initiatedBy: string;
+  /** When the transfer occurred */
+  transferredAt: Date;
+  /** How long the previous engineer held the ticket */
+  holdDurationMs?: number;
+  /** Whether the transfer was accepted */
+  accepted: boolean;
+}
+
+/**
+ * Auto transfer rules configuration
+ */
+export interface AutoTransferConfig {
+  /** Not-started timeout by priority (ms) */
+  notStartedTimeout: Record<string, number>;
+  /** In-progress timeout by priority (ms) */
+  inProgressTimeout: Record<string, number>;
+  /** Maximum transfers per ticket */
+  maxTransferCount: number;
+  /** Exclude engineers from auto-transfer (IDs) */
+  excludedEngineers?: string[];
+  /** Enable auto-transfer */
+  enabled: boolean;
+  /** Check interval (ms) */
+  checkIntervalMs: number;
+}
+
+/**
+ * Transfer statistics
+ */
+export interface TransferStats {
+  /** Total transfers */
+  totalTransfers: number;
+  /** Transfers by type */
+  byType: Record<TransferType, number>;
+  /** Most transferred engineers */
+  mostTransferred: { engineerId: string; count: number }[];
+  /** Most common reasons */
+  topReasons: { reason: string; count: number }[];
+  /** Avg hold time before transfer */
+  avgHoldTimeMs: number;
+  /** Max transfers for any single ticket */
+  maxTransfersPerTicket: number;
+}
+
+// ==================== Suspend Types (TASK-TICKET-XFER) ====================
+
+/**
+ * Suspend status
+ */
+export type SuspendStatus = 'scheduled' | 'active' | 'completed' | 'cancelled';
+
+/**
+ * Suspend reason
+ */
+export type SuspendReason = 'leave' | 'sick' | 'training' | 'offline' | 'other';
+
+/**
+ * Engineer suspend/leave record
+ */
+export interface EngineerSuspend {
+  /** Suspend ID */
+  id: string;
+  /** Engineer being suspended */
+  engineerId: string;
+  /** Reason for suspension */
+  reason: SuspendReason;
+  /** Suspend status */
+  status: SuspendStatus;
+  /** Start time of suspension */
+  startTime: Date;
+  /** Expected end time */
+  endTime: Date;
+  /** Actual end time */
+  actualEndTime?: Date;
+  /** Backup engineer who covers during suspension */
+  backupEngineerId?: string;
+  /** Auto-reassign tickets that were assigned but not started */
+  autoReassignPending: boolean;
+  /** Pause SLA for pending tickets during suspension */
+  pauseSLAForPending: boolean;
+  /** Notes */
+  notes?: string;
+  /** Who created the suspension */
+  createdBy: string;
+  /** When created */
+  createdAt: Date;
+  /** Number of tickets reassigned due to this suspension */
+  ticketsReassigned: number;
+}
+
+/**
+ * Suspension with ticket impact
+ */
+export interface SuspensionImpact {
+  suspend: EngineerSuspend;
+  affectedTickets: {
+    ticketId: string;
+    title: string;
+    currentStatus: string;
+    reassignedTo?: string;
+    wasReassigned: boolean;
+  }[];
+  totalAffected: number;
 }

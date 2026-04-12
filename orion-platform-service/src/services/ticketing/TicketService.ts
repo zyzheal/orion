@@ -12,10 +12,13 @@ import { TicketGenerator } from './TicketGenerator';
 import { TicketWorkflowService } from './TicketWorkflowService';
 import { TicketRelationAnalyzer } from './TicketRelationAnalyzer';
 import { TicketReportService } from './TicketReportService';
+import { TicketBIService, TransferRecord, CommentRecord, DashboardOptions } from './TicketBIService';
 import { DispatchEngine } from './DispatchEngine';
 import { DispatchQueueManager } from './DispatchQueueManager';
 import { LoadBalancer } from './LoadBalancer';
 import { DispatchAnalytics } from './DispatchAnalytics';
+import { TicketTransferService } from './TicketTransferService';
+import { EngineerSuspendService } from './EngineerSuspendService';
 import {
   Ticket,
   TicketStatus,
@@ -39,6 +42,20 @@ import {
   LoadBalancingReport,
   ReassignmentSuggestion,
   DispatchRule,
+  TicketTransfer,
+  TransferStats,
+  AutoTransferConfig,
+  SuspendReason,
+  SuspensionImpact,
+  EngineerSuspend,
+  TimeGranularity,
+  ExecutiveDashboard,
+  ManagerDashboard,
+  EngineerDashboard,
+  EngineerEfficiencyMetrics,
+  EfficiencyScore,
+  PeriodComparison,
+  BIExportData,
 } from './types';
 import type { DispatchMetrics, AssignmentSuccessMetrics, TimeToAssignmentStats, EngineerPerformance } from './DispatchAnalytics';
 
@@ -108,6 +125,15 @@ export class TicketService extends EventEmitter {
   /** TASK-802: Dispatch analytics */
   public dispatchAnalytics: DispatchAnalytics;
 
+  /** TASK-TICKET-XFER: Ticket transfer service */
+  public transfer: TicketTransferService;
+
+  /** TASK-TICKET-XFER: Engineer suspend service */
+  public suspend: EngineerSuspendService;
+
+  /** TASK-TICKET-BI: BI analytics service */
+  public bi: TicketBIService;
+
   /** Running state */
   private isRunning: boolean = false;
 
@@ -134,9 +160,39 @@ export class TicketService extends EventEmitter {
     this.loadBalancer = new LoadBalancer();
     this.dispatchAnalytics = new DispatchAnalytics();
 
+    // TASK-TICKET-XFER: Initialize transfer and suspend services
+    this.transfer = new TicketTransferService();
+    this.suspend = new EngineerSuspendService();
+
+    // TASK-TICKET-BI: Initialize BI analytics service
+    this.bi = new TicketBIService();
+
     // Wire up dispatch queue callback
     this.dispatchQueue.setDispatchCallback((entry) => {
       this.attemptAutoDispatch(entry.ticket.id);
+    });
+
+    // Wire up transfer callback to update ticket assignee
+    this.transfer.setTransferCallback((transfer, ticket) => {
+      this.workflow.assignTicket(
+        ticket.id,
+        transfer.toEngineer,
+        transfer.initiatedBy,
+        `Transferred: ${transfer.reason}`
+      );
+    });
+
+    // Wire up suspend callbacks to mark engineers in dispatch engine
+    this.suspend.setOnActivateCallback((suspend) => {
+      this.dispatchEngine.markEngineerSuspended(suspend.engineerId);
+      // Reassign pending tickets if configured
+      if (suspend.autoReassignPending) {
+        this.reassignTicketsForSuspend(suspend);
+      }
+    });
+
+    this.suspend.setOnEndCallback((suspend) => {
+      this.dispatchEngine.markEngineerActive(suspend.engineerId);
     });
   }
 
@@ -802,6 +858,327 @@ export class TicketService extends EventEmitter {
     }
   }
 
+  // ==================== TASK-TICKET-XFER: Transfer & Suspend ====================
+
+  /**
+   * Transfer a ticket to another engineer
+   */
+  transferTicket(
+    ticketId: string,
+    toEngineer: string,
+    initiatedBy: string,
+    reason: string
+  ): { transfer: TicketTransfer; holdDurationMs: number } | { error: string } {
+    const ticket = this.workflow.getTicket(ticketId);
+    if (!ticket) {
+      return { error: `Ticket ${ticketId} not found` };
+    }
+    if (!ticket.assignee) {
+      return { error: `Ticket ${ticketId} is not assigned` };
+    }
+    return this.transfer.transferTicket(ticket, ticket.assignee, toEngineer, initiatedBy, reason);
+  }
+
+  /**
+   * Get transfer history for a ticket
+   */
+  getTransferHistory(ticketId: string): TicketTransfer[] {
+    return this.transfer.getTransferHistory(ticketId);
+  }
+
+  /**
+   * Get transfer statistics
+   */
+  getTransferStats(periodStart?: Date, periodEnd?: Date): TransferStats {
+    return this.transfer.getTransferStats(periodStart, periodEnd);
+  }
+
+  /**
+   * Get most transferred tickets
+   */
+  getMostTransferredTickets(limit?: number): { ticketId: string; count: number }[] {
+    return this.transfer.getMostTransferredTickets(limit);
+  }
+
+  /**
+   * Update auto transfer config
+   */
+  updateTransferConfig(config: Partial<AutoTransferConfig>): void {
+    this.transfer.updateConfig(config);
+  }
+
+  /**
+   * Get current transfer config
+   */
+  getTransferConfig(): AutoTransferConfig {
+    return this.transfer.getConfig();
+  }
+
+  /**
+   * Reassign tickets for a suspended engineer (internal helper)
+   */
+  private reassignTicketsForSuspend(suspend: EngineerSuspend): void {
+    const tickets = this.workflow.listTickets({ assignee: suspend.engineerId });
+    let reassigned = 0;
+
+    for (const ticket of tickets) {
+      // Only reassign tickets that haven't been started (assigned status)
+      if (ticket.status !== 'assigned') continue;
+
+      if (suspend.backupEngineerId) {
+        // Transfer to backup engineer
+        const result = this.transfer.transferDueToSuspend(ticket, suspend.backupEngineerId, suspend.createdBy);
+        if ('transfer' in result) {
+          reassigned++;
+        }
+      } else {
+        // Try to find a new engineer via dispatch
+        const dispatchResult = this.autoDispatch(ticket.id, {
+          assignedBy: suspend.createdBy,
+          forceDispatch: true,
+        });
+        if (dispatchResult) {
+          reassigned++;
+        }
+      }
+    }
+
+    // Update the suspend record
+    const updated = this.suspend.getSuspend(suspend.id);
+    if (updated) {
+      (updated as any).ticketsReassigned = reassigned;
+    }
+  }
+
+  /**
+   * Create a new engineer suspension
+   */
+  createSuspend(input: {
+    engineerId: string;
+    reason: SuspendReason;
+    startTime: Date;
+    endTime: Date;
+    backupEngineerId?: string;
+    autoReassignPending?: boolean;
+    pauseSLAForPending?: boolean;
+    notes?: string;
+    createdBy: string;
+  }): EngineerSuspend {
+    return this.suspend.createSuspend(input);
+  }
+
+  /**
+   * Activate a suspension
+   */
+  activateSuspend(suspendId: string): EngineerSuspend | null {
+    return this.suspend.activateSuspend(suspendId);
+  }
+
+  /**
+   * End a suspension
+   */
+  endSuspend(suspendId: string): EngineerSuspend | null {
+    return this.suspend.endSuspend(suspendId);
+  }
+
+  /**
+   * Cancel a scheduled suspension
+   */
+  cancelSuspend(suspendId: string): EngineerSuspend | null {
+    return this.suspend.cancelSuspend(suspendId);
+  }
+
+  /**
+   * Check if an engineer is currently suspended
+   */
+  isEngineerSuspended(engineerId: string): boolean {
+    return this.suspend.isSuspended(engineerId);
+  }
+
+  /**
+   * Get active suspensions
+   */
+  getActiveSuspensions(): EngineerSuspend[] {
+    return this.suspend.getActiveSuspensions();
+  }
+
+  /**
+   * Get scheduled suspensions
+   */
+  getScheduledSuspensions(): EngineerSuspend[] {
+    return this.suspend.getScheduledSuspensions();
+  }
+
+  /**
+   * Get suspension by ID
+   */
+  getSuspend(suspendId: string): EngineerSuspend | null {
+    return this.suspend.getSuspend(suspendId);
+  }
+
+  /**
+   * Get suspensions for an engineer
+   */
+  getEngineerSuspensions(engineerId: string): EngineerSuspend[] {
+    return this.suspend.getEngineerSuspensions(engineerId);
+  }
+
+  /**
+   * Analyze suspension impact on tickets
+   */
+  analyzeSuspendImpact(suspendId: string): SuspensionImpact {
+    const tickets = this.workflow.listTickets();
+    return this.suspend.analyzeImpact(suspendId, tickets);
+  }
+
+  /**
+   * Check and auto-activate scheduled suspensions
+   */
+  checkAutoActivateSuspensions(): EngineerSuspend[] {
+    return this.suspend.checkAutoActivate();
+  }
+
+  /**
+   * Check and auto-end expired suspensions
+   */
+  checkAutoEndSuspensions(): EngineerSuspend[] {
+    return this.suspend.checkAutoEnd();
+  }
+
+  /**
+   * Start auto checks for suspensions
+   */
+  startSuspendAutoChecks(intervalMs?: number): void {
+    this.suspend.startAutoChecks(intervalMs);
+  }
+
+  /**
+   * Stop auto checks for suspensions
+   */
+  stopSuspendAutoChecks(): void {
+    this.suspend.stopAutoChecks();
+  }
+
+  // ==================== TASK-TICKET-BI: BI Analytics ====================
+
+  /**
+   * Load data into BI service for analysis
+   */
+  loadBIData(data: {
+    tickets?: Ticket[];
+    slaRecords?: any[];
+    dispatchResults?: DispatchResult[];
+    transferRecords?: TransferRecord[];
+    commentRecords?: CommentRecord[];
+    engineerProfiles?: EngineerProfile[];
+  }): void {
+    this.bi.loadData({
+      tickets: data.tickets || this.workflow.listTickets(),
+      slaRecords: data.slaRecords || this.workflow.getAllSLARecords(),
+      dispatchResults: data.dispatchResults,
+      transferRecords: data.transferRecords,
+      commentRecords: data.commentRecords,
+      engineerProfiles: data.engineerProfiles || Array.from(this.dispatchEngine.listEngineers()),
+    });
+  }
+
+  /**
+   * Get executive dashboard (boss view)
+   */
+  getExecutiveDashboard(options?: DashboardOptions): ExecutiveDashboard {
+    this.syncBIData();
+    return this.bi.getExecutiveDashboard(options);
+  }
+
+  /**
+   * Get manager dashboard (team view)
+   */
+  getManagerDashboard(options?: DashboardOptions): ManagerDashboard {
+    this.syncBIData();
+    return this.bi.getManagerDashboard(options);
+  }
+
+  /**
+   * Get engineer personal dashboard
+   */
+  getEngineerDashboard(engineerId: string, options?: DashboardOptions): EngineerDashboard | null {
+    this.syncBIData();
+    return this.bi.getEngineerDashboard(engineerId, options);
+  }
+
+  /**
+   * Get engineer efficiency metrics
+   */
+  getEngineerEfficiency(
+    engineerId: string,
+    granularity: TimeGranularity = 'day',
+    start?: Date,
+    end?: Date
+  ): EngineerEfficiencyMetrics {
+    this.syncBIData();
+    return this.bi.getEngineerEfficiency(engineerId, granularity, start, end);
+  }
+
+  /**
+   * Get engineer efficiency score with 4-dimensional breakdown
+   */
+  getEfficiencyScore(engineerId: string, start?: Date, end?: Date): EfficiencyScore {
+    this.syncBIData();
+    return this.bi.getEfficiencyScore(engineerId, start, end);
+  }
+
+  /**
+   * Compare metrics between two periods
+   */
+  comparePeriods(
+    currentStart: Date,
+    currentEnd: Date,
+    previousStart: Date,
+    previousEnd: Date
+  ): PeriodComparison {
+    this.syncBIData();
+    return this.bi.comparePeriods(currentStart, currentEnd, previousStart, previousEnd);
+  }
+
+  /**
+   * Export data for external BI tools
+   */
+  exportBIData(options: {
+    dataset: 'tickets' | 'sla' | 'dispatch' | 'efficiency';
+    granularity?: TimeGranularity;
+    periodStart?: Date;
+    periodEnd?: Date;
+  }): BIExportData {
+    this.syncBIData();
+    return this.bi.exportBIData(options);
+  }
+
+  /**
+   * Get time trend data
+   */
+  getBITimeTrend(options?: {
+    metric?: 'volume' | 'resolution' | 'sla' | 'load';
+    start?: Date;
+    end?: Date;
+    granularity?: TimeGranularity;
+  }) {
+    this.syncBIData();
+    return this.bi.getTimeTrend(options);
+  }
+
+  /**
+   * Sync current service data into BI service
+   */
+  private syncBIData(): void {
+    this.bi.loadData({
+      tickets: this.workflow.listTickets(),
+      slaRecords: this.workflow.getAllSLARecords(),
+      engineerProfiles: this.dispatchEngine.listEngineers(),
+    });
+  }
+
+  // ==================== NATS Integration ====================
+
   // ==================== Relations ====================
 
   /**
@@ -1079,6 +1456,9 @@ export class TicketService extends EventEmitter {
     this.dispatchQueue.clearAll();
     this.loadBalancer.clearAll();
     this.dispatchAnalytics.clearAll();
+    this.transfer.clearAll();
+    this.suspend.clearAll();
+    this.bi.clearAll();
   }
 
   private stopEscalationChecks(): void {

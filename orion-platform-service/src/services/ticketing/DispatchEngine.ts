@@ -76,6 +76,9 @@ export class DispatchEngine {
   /** Dispatch history */
   private dispatchHistory: DispatchResult[] = [];
 
+  /** Set of suspended engineer IDs (managed externally) */
+  private suspendedEngineers: Set<string> = new Set();
+
   constructor(weights?: Partial<DispatchWeights>) {
     this.weights = { ...DEFAULT_WEIGHTS, ...weights };
   }
@@ -122,12 +125,33 @@ export class DispatchEngine {
   }
 
   /**
-   * Get available engineers (not offline/away)
+   * Get available engineers (not offline/away/suspended)
    */
   getAvailableEngineers(): EngineerProfile[] {
     return Array.from(this.engineers.values()).filter(
-      (e) => e.availability !== 'offline' && e.availability !== 'away'
+      (e) => e.availability !== 'offline' && e.availability !== 'away' && !this.suspendedEngineers.has(e.id)
     );
+  }
+
+  /**
+   * Mark an engineer as suspended (won't receive dispatches)
+   */
+  markEngineerSuspended(engineerId: string): void {
+    this.suspendedEngineers.add(engineerId);
+  }
+
+  /**
+   * Unmark an engineer as suspended
+   */
+  markEngineerActive(engineerId: string): void {
+    this.suspendedEngineers.delete(engineerId);
+  }
+
+  /**
+   * Get suspended engineers
+   */
+  getSuspendedEngineers(): string[] {
+    return Array.from(this.suspendedEngineers);
   }
 
   // ==================== Dispatch Rules ====================
@@ -617,5 +641,6 @@ export class DispatchEngine {
     this.engineers.clear();
     this.rules = [];
     this.dispatchHistory = [];
+    this.suspendedEngineers.clear();
   }
 }

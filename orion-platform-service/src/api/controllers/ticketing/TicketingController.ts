@@ -17,6 +17,7 @@ import {
   EngineerProfile,
   DispatchWeights,
   DispatchRule,
+  SuspendReason,
 } from '../../../services/ticketing/types';
 
 const VALID_STATUSES: TicketStatus[] = ['open', 'assigned', 'in-progress', 'resolved', 'closed'];
@@ -1301,5 +1302,547 @@ export class TicketingController {
       success: true,
       data: { weights },
     });
+  }
+
+  // ==================== TASK-TICKET-XFER: Transfer Endpoints ====================
+
+  /**
+   * Transfer a ticket to another engineer
+   * POST /api/v1/tickets/transfer/:ticketId
+   */
+  async transferTicket(request: FastifyRequest, reply: FastifyReply) {
+    const params = request.params as any;
+    const body = request.body as any || {};
+    const { toEngineer, initiatedBy, reason } = body;
+
+    if (!toEngineer || !initiatedBy || !reason) {
+      await reply.status(400).send({
+        error: 'VALIDATION_ERROR',
+        message: 'Missing required fields: toEngineer, initiatedBy, reason',
+      });
+      return;
+    }
+
+    const result = this.ticketService.transferTicket(
+      params.ticketId,
+      toEngineer,
+      initiatedBy,
+      reason
+    );
+
+    if ('error' in result) {
+      await reply.status(400).send({
+        error: 'TRANSFER_ERROR',
+        message: result.error,
+      });
+      return;
+    }
+
+    await reply.status(200).send({
+      success: true,
+      data: { transfer: result.transfer, holdDurationMs: result.holdDurationMs },
+    });
+  }
+
+  /**
+   * Get transfer history for a ticket
+   * GET /api/v1/tickets/transfer/:ticketId/history
+   */
+  async getTransferHistory(request: FastifyRequest, reply: FastifyReply) {
+    const params = request.params as any;
+    const history = this.ticketService.getTransferHistory(params.ticketId);
+
+    await reply.status(200).send({
+      success: true,
+      data: { history, count: history.length },
+    });
+  }
+
+  /**
+   * Get transfer statistics
+   * GET /api/v1/tickets/transfer/stats
+   */
+  async getTransferStats(request: FastifyRequest, reply: FastifyReply) {
+    const query = request.query as any;
+    const stats = this.ticketService.getTransferStats(
+      query.periodStart ? new Date(query.periodStart) : undefined,
+      query.periodEnd ? new Date(query.periodEnd) : undefined
+    );
+
+    await reply.status(200).send({
+      success: true,
+      data: { stats },
+    });
+  }
+
+  // ==================== TASK-TICKET-XFER: Suspend Endpoints ====================
+
+  /**
+   * Create a suspension
+   * POST /api/v1/tickets/suspend
+   */
+  async createSuspend(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const body = request.body as any || {};
+      const {
+        engineerId,
+        reason,
+        startTime,
+        endTime,
+        backupEngineerId,
+        autoReassignPending,
+        pauseSLAForPending,
+        notes,
+        createdBy,
+      } = body;
+
+      if (!engineerId || !reason || !startTime || !endTime || !createdBy) {
+        await reply.status(400).send({
+          error: 'VALIDATION_ERROR',
+          message: 'Missing required fields: engineerId, reason, startTime, endTime, createdBy',
+        });
+        return;
+      }
+
+      const validReasons: SuspendReason[] = ['leave', 'sick', 'training', 'offline', 'other'];
+      if (!validReasons.includes(reason)) {
+        await reply.status(400).send({
+          error: 'VALIDATION_ERROR',
+          message: `Invalid reason. Must be one of: ${validReasons.join(', ')}`,
+        });
+        return;
+      }
+
+      const suspend = this.ticketService.createSuspend({
+        engineerId,
+        reason,
+        startTime: new Date(startTime),
+        endTime: new Date(endTime),
+        backupEngineerId,
+        autoReassignPending,
+        pauseSLAForPending,
+        notes,
+        createdBy,
+      });
+
+      await reply.status(201).send({
+        success: true,
+        data: { suspend },
+      });
+    } catch (error: any) {
+      await reply.status(500).send({
+        error: 'SUSPEND_ERROR',
+        message: error.message,
+      });
+    }
+  }
+
+  /**
+   * Activate a suspension
+   * POST /api/v1/tickets/suspend/:id/activate
+   */
+  async activateSuspend(request: FastifyRequest, reply: FastifyReply) {
+    const params = request.params as any;
+    const result = this.ticketService.activateSuspend(params.id);
+
+    if (!result) {
+      await reply.status(404).send({
+        error: 'NOT_FOUND',
+        message: `Suspend ${params.id} not found`,
+      });
+      return;
+    }
+
+    await reply.status(200).send({
+      success: true,
+      data: { suspend: result },
+    });
+  }
+
+  /**
+   * End a suspension
+   * POST /api/v1/tickets/suspend/:id/end
+   */
+  async endSuspend(request: FastifyRequest, reply: FastifyReply) {
+    const params = request.params as any;
+    const result = this.ticketService.endSuspend(params.id);
+
+    if (!result) {
+      await reply.status(400).send({
+        error: 'SUSPEND_ERROR',
+        message: `Cannot end suspend ${params.id}. It may not be active or not found.`,
+      });
+      return;
+    }
+
+    await reply.status(200).send({
+      success: true,
+      data: { suspend: result },
+    });
+  }
+
+  /**
+   * Cancel a suspension
+   * POST /api/v1/tickets/suspend/:id/cancel
+   */
+  async cancelSuspend(request: FastifyRequest, reply: FastifyReply) {
+    const params = request.params as any;
+    const result = this.ticketService.cancelSuspend(params.id);
+
+    if (!result) {
+      await reply.status(400).send({
+        error: 'SUSPEND_ERROR',
+        message: `Cannot cancel suspend ${params.id}. It may not be scheduled or not found.`,
+      });
+      return;
+    }
+
+    await reply.status(200).send({
+      success: true,
+      data: { suspend: result },
+    });
+  }
+
+  /**
+   * List suspensions
+   * GET /api/v1/tickets/suspend
+   */
+  async listSuspensions(request: FastifyRequest, reply: FastifyReply) {
+    const query = request.query as any;
+    const status = query.status;
+
+    let suspensions;
+    if (status === 'active') {
+      suspensions = this.ticketService.getActiveSuspensions();
+    } else if (status === 'scheduled') {
+      suspensions = this.ticketService.getScheduledSuspensions();
+    } else {
+      // Return all: combine active + scheduled + completed + cancelled
+      const active = this.ticketService.getActiveSuspensions();
+      const scheduled = this.ticketService.getScheduledSuspensions();
+      suspensions = [...active, ...scheduled];
+    }
+
+    await reply.status(200).send({
+      success: true,
+      data: { suspensions, count: suspensions.length },
+    });
+  }
+
+  /**
+   * Get suspension by ID
+   * GET /api/v1/tickets/suspend/:id
+   */
+  async getSuspend(request: FastifyRequest, reply: FastifyReply) {
+    const params = request.params as any;
+    const suspend = this.ticketService.getSuspend(params.id);
+
+    if (!suspend) {
+      await reply.status(404).send({
+        error: 'NOT_FOUND',
+        message: `Suspend ${params.id} not found`,
+      });
+      return;
+    }
+
+    await reply.status(200).send({
+      success: true,
+      data: { suspend },
+    });
+  }
+
+  /**
+   * Get suspensions for an engineer
+   * GET /api/v1/tickets/suspend/engineer/:engineerId
+   */
+  async getEngineerSuspensions(request: FastifyRequest, reply: FastifyReply) {
+    const params = request.params as any;
+    const suspensions = this.ticketService.getEngineerSuspensions(params.engineerId);
+
+    await reply.status(200).send({
+      success: true,
+      data: { suspensions, count: suspensions.length },
+    });
+  }
+
+  /**
+   * Get suspension impact for an engineer
+   * GET /api/v1/tickets/suspend/engineer/:engineerId/impact
+   */
+  async getEngineerSuspendImpact(request: FastifyRequest, reply: FastifyReply) {
+    const params = request.params as any;
+    const query = request.query as any;
+    const suspendId = query.suspendId;
+
+    if (!suspendId) {
+      await reply.status(400).send({
+        error: 'VALIDATION_ERROR',
+        message: 'Missing required query param: suspendId',
+      });
+      return;
+    }
+
+    try {
+      const impact = this.ticketService.analyzeSuspendImpact(suspendId);
+
+      await reply.status(200).send({
+        success: true,
+        data: { impact },
+      });
+    } catch (error: any) {
+      await reply.status(404).send({
+        error: 'NOT_FOUND',
+        message: error.message,
+      });
+    }
+  }
+
+  // ==================== TASK-TICKET-BI: BI Analytics Endpoints ====================
+
+  /**
+   * Get executive dashboard
+   * GET /api/v1/tickets/bi/dashboard/executive
+   */
+  async getExecutiveDashboard(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const query = request.query as any;
+      const dashboard = this.ticketService.getExecutiveDashboard({
+        periodStart: query.periodStart ? new Date(query.periodStart) : undefined,
+        periodEnd: query.periodEnd ? new Date(query.periodEnd) : undefined,
+        granularity: query.granularity,
+      });
+
+      await reply.status(200).send({
+        success: true,
+        data: { dashboard },
+      });
+    } catch (error: any) {
+      await reply.status(500).send({
+        error: 'BI_ERROR',
+        message: error.message,
+      });
+    }
+  }
+
+  /**
+   * Get manager dashboard
+   * GET /api/v1/tickets/bi/dashboard/manager
+   */
+  async getManagerDashboard(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const query = request.query as any;
+      const dashboard = this.ticketService.getManagerDashboard({
+        periodStart: query.periodStart ? new Date(query.periodStart) : undefined,
+        periodEnd: query.periodEnd ? new Date(query.periodEnd) : undefined,
+        granularity: query.granularity,
+      });
+
+      await reply.status(200).send({
+        success: true,
+        data: { dashboard },
+      });
+    } catch (error: any) {
+      await reply.status(500).send({
+        error: 'BI_ERROR',
+        message: error.message,
+      });
+    }
+  }
+
+  /**
+   * Get engineer personal dashboard
+   * GET /api/v1/tickets/bi/dashboard/engineer/:engineerId
+   */
+  async getEngineerDashboard(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const params = request.params as any;
+      const query = request.query as any;
+
+      const dashboard = this.ticketService.getEngineerDashboard(params.engineerId, {
+        periodStart: query.periodStart ? new Date(query.periodStart) : undefined,
+        periodEnd: query.periodEnd ? new Date(query.periodEnd) : undefined,
+        granularity: query.granularity,
+      });
+
+      if (!dashboard) {
+        await reply.status(404).send({
+          error: 'NOT_FOUND',
+          message: `Engineer ${params.engineerId} not found`,
+        });
+        return;
+      }
+
+      await reply.status(200).send({
+        success: true,
+        data: { dashboard },
+      });
+    } catch (error: any) {
+      await reply.status(500).send({
+        error: 'BI_ERROR',
+        message: error.message,
+      });
+    }
+  }
+
+  /**
+   * Get engineer efficiency metrics
+   * GET /api/v1/tickets/bi/efficiency/:engineerId
+   */
+  async getEngineerEfficiency(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const params = request.params as any;
+      const query = request.query as any;
+
+      const metrics = this.ticketService.getEngineerEfficiency(
+        params.engineerId,
+        query.granularity || 'day',
+        query.periodStart ? new Date(query.periodStart) : undefined,
+        query.periodEnd ? new Date(query.periodEnd) : undefined
+      );
+
+      await reply.status(200).send({
+        success: true,
+        data: { metrics },
+      });
+    } catch (error: any) {
+      await reply.status(500).send({
+        error: 'BI_ERROR',
+        message: error.message,
+      });
+    }
+  }
+
+  /**
+   * Get engineer efficiency score
+   * GET /api/v1/tickets/bi/score/:engineerId
+   */
+  async getEfficiencyScore(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const params = request.params as any;
+      const query = request.query as any;
+
+      const score = this.ticketService.getEfficiencyScore(
+        params.engineerId,
+        query.periodStart ? new Date(query.periodStart) : undefined,
+        query.periodEnd ? new Date(query.periodEnd) : undefined
+      );
+
+      await reply.status(200).send({
+        success: true,
+        data: { score },
+      });
+    } catch (error: any) {
+      await reply.status(500).send({
+        error: 'BI_ERROR',
+        message: error.message,
+      });
+    }
+  }
+
+  /**
+   * Compare periods
+   * GET /api/v1/tickets/bi/compare
+   */
+  async comparePeriods(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const query = request.query as any;
+
+      if (!query.currentStart || !query.currentEnd || !query.previousStart || !query.previousEnd) {
+        await reply.status(400).send({
+          error: 'VALIDATION_ERROR',
+          message: 'Missing required query params: currentStart, currentEnd, previousStart, previousEnd',
+        });
+        return;
+      }
+
+      const comparison = this.ticketService.comparePeriods(
+        new Date(query.currentStart),
+        new Date(query.currentEnd),
+        new Date(query.previousStart),
+        new Date(query.previousEnd)
+      );
+
+      await reply.status(200).send({
+        success: true,
+        data: { comparison },
+      });
+    } catch (error: any) {
+      await reply.status(500).send({
+        error: 'BI_ERROR',
+        message: error.message,
+      });
+    }
+  }
+
+  /**
+   * Export BI data
+   * POST /api/v1/tickets/bi/export
+   */
+  async exportBIData(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const body = request.body as any || {};
+      const { dataset, granularity, periodStart, periodEnd } = body;
+
+      if (!dataset) {
+        await reply.status(400).send({
+          error: 'VALIDATION_ERROR',
+          message: 'Missing required field: dataset',
+        });
+        return;
+      }
+
+      const validDatasets = ['tickets', 'sla', 'dispatch', 'efficiency'];
+      if (!validDatasets.includes(dataset)) {
+        await reply.status(400).send({
+          error: 'VALIDATION_ERROR',
+          message: `Invalid dataset. Must be one of: ${validDatasets.join(', ')}`,
+        });
+        return;
+      }
+
+      const exported = this.ticketService.exportBIData({
+        dataset,
+        granularity: granularity || 'day',
+        periodStart: periodStart ? new Date(periodStart) : undefined,
+        periodEnd: periodEnd ? new Date(periodEnd) : undefined,
+      });
+
+      await reply.status(200).send({
+        success: true,
+        data: { export: exported },
+      });
+    } catch (error: any) {
+      await reply.status(500).send({
+        error: 'BI_EXPORT_ERROR',
+        message: error.message,
+      });
+    }
+  }
+
+  /**
+   * Get time trend
+   * GET /api/v1/tickets/bi/trend
+   */
+  async getTimeTrend(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const query = request.query as any;
+
+      const trend = this.ticketService.getBITimeTrend({
+        metric: query.metric || 'volume',
+        start: query.start ? new Date(query.start) : undefined,
+        end: query.end ? new Date(query.end) : undefined,
+        granularity: query.granularity || 'day',
+      });
+
+      await reply.status(200).send({
+        success: true,
+        data: { trend },
+      });
+    } catch (error: any) {
+      await reply.status(500).send({
+        error: 'BI_ERROR',
+        message: error.message,
+      });
+    }
   }
 }
