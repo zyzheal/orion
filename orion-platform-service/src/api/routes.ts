@@ -16,6 +16,7 @@ import { PipelineEventPublisher } from '../events/PipelineEventPublisher';
 import { EventBusService } from '../services/event-bus-service';
 import cmdbRoutes from '../routes-cmdb';
 import buildRoutes from './build-routes';
+import codeRepoRoutes from './code-repo-routes';
 
 export interface ApiRoutesOptions {
   eventBus?: EventBusService;
@@ -153,4 +154,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // 注册 Build Environment API 路由
   await app.register(buildRoutes, { prefix: '/build' });
+
+  // 注册 Code Repository Integration API 路由
+  await app.register(codeRepoRoutes, { prefix: '/code-repo' });
 }
