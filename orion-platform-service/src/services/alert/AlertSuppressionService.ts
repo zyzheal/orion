@@ -30,6 +30,24 @@ import { AlertCorrelationService } from './AlertCorrelationService';
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
 /**
+ * 告警严重程度优先级（数值越小越严重）
+ */
+const SEVERITY_PRIORITY: Record<AlertSeverity, number> = {
+  [AlertSeverity.CRITICAL]: 1,
+  [AlertSeverity.HIGH]: 2,
+  [AlertSeverity.MEDIUM]: 3,
+  [AlertSeverity.LOW]: 4,
+  [AlertSeverity.INFO]: 5,
+};
+
+/**
+ * 比较严重程度：返回 true 如果 severity >= threshold（即 severity 不比 threshold 严重）
+ */
+function isSeverityAtLeast(severity: AlertSeverity, threshold: AlertSeverity): boolean {
+  return SEVERITY_PRIORITY[severity] <= SEVERITY_PRIORITY[threshold];
+}
+
+/**
  * 告警抑制配置
  */
 export interface AlertSuppressionConfig {
@@ -118,9 +136,6 @@ export class AlertSuppressionService {
   processAlert(alert: Alert): SuppressionResult {
     logger.info({ alertId: alert.id, name: alert.name }, 'Processing alert for suppression');
 
-    // 保存活跃告警
-    this.activeAlerts.set(alert.id, alert);
-
     // 应用抑制规则（按优先级顺序）
 
     // 1. 维护窗口静默
@@ -184,7 +199,9 @@ export class AlertSuppressionService {
       }
     }
 
-    // 未被抑制
+    // 未被抑制，保存到活跃告警列表
+    this.activeAlerts.set(alert.id, alert);
+
     return {
       suppressed: false,
     };
@@ -234,7 +251,7 @@ export class AlertSuppressionService {
       processed: alerts.length,
       suppressed,
       unsuppressed,
-      rootCauseAnalysis,
+      rootCauseAnalysis: rootCauseAnalysis ?? undefined,
       results,
     };
   }
@@ -275,25 +292,33 @@ export class AlertSuppressionService {
 
   /**
    * 检查告警是否匹配维护窗口范围
+   * 空范围（无 sourceTypes/sourceIds/labelSelectors）表示不匹配任何告警
    */
   private matchesMaintenanceScope(alert: Alert, window: MaintenanceWindow): boolean {
+    const scope = window.scope;
+
+    // 如果没有任何范围定义，则不匹配任何告警
+    if (!scope.sourceTypes && !scope.sourceIds && !scope.labelSelectors) {
+      return false;
+    }
+
     // 检查来源类型
-    if (window.scope.sourceTypes) {
-      if (!window.scope.sourceTypes.includes(alert.sourceType)) {
+    if (scope.sourceTypes) {
+      if (!scope.sourceTypes.includes(alert.sourceType)) {
         return false;
       }
     }
 
     // 检查来源 ID
-    if (window.scope.sourceIds) {
-      if (!window.scope.sourceIds.includes(alert.sourceId)) {
+    if (scope.sourceIds) {
+      if (!scope.sourceIds.includes(alert.sourceId)) {
         return false;
       }
     }
 
     // 检查标签选择器
-    if (window.scope.labelSelectors) {
-      for (const [key, value] of Object.entries(window.scope.labelSelectors)) {
+    if (scope.labelSelectors) {
+      for (const [key, value] of Object.entries(scope.labelSelectors)) {
         if (alert.labels[key] !== value) {
           return false;
         }
@@ -478,7 +503,7 @@ export class AlertSuppressionService {
       if (
         activeAlert.sourceType === AlertSourceType.DATABASE &&
         activeAlert.status === AlertStatus.FIRING &&
-        activeAlert.severity >= AlertSeverity.HIGH
+        isSeverityAtLeast(activeAlert.severity, AlertSeverity.HIGH)
       ) {
         // 检查是否依赖此数据库
         const deps = this.correlation.getDependencies(alert.sourceId);
@@ -515,7 +540,7 @@ export class AlertSuppressionService {
       if (
         activeAlert.sourceType === AlertSourceType.NETWORK &&
         activeAlert.status === AlertStatus.FIRING &&
-        activeAlert.severity >= AlertSeverity.HIGH
+        isSeverityAtLeast(activeAlert.severity, AlertSeverity.HIGH)
       ) {
         // 检查是否在网络故障的下游
         const deps = this.correlation.getDependencies(alert.sourceId);

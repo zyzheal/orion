@@ -67,6 +67,7 @@ export class AlertCorrelationService {
 
   /**
    * 构建依赖缓存（上游依赖）
+   * Edge source -> target 表示 source 依赖于 target
    */
   private buildDependencyCache(): void {
     this.dependencyCache.clear();
@@ -74,10 +75,10 @@ export class AlertCorrelationService {
     for (const node of this.topology.nodes) {
       const dependencies: string[] = [];
 
-      // 查找该节点的所有上游依赖
+      // 查找该节点的所有上游依赖：node 是 source 时，target 是其依赖
       for (const edge of this.topology.edges) {
-        if (edge.target === node.id) {
-          dependencies.push(edge.source);
+        if (edge.source === node.id) {
+          dependencies.push(edge.target);
         }
       }
 
@@ -92,6 +93,7 @@ export class AlertCorrelationService {
 
   /**
    * 构建影响缓存（下游影响）
+   * Edge source -> target 表示 target 受 source 影响
    */
   private buildImpactCache(): void {
     this.impactCache.clear();
@@ -99,10 +101,10 @@ export class AlertCorrelationService {
     for (const node of this.topology.nodes) {
       const impacted: string[] = [];
 
-      // 查找该节点的所有下游节点
+      // 查找该节点的所有下游节点：node 是 target 时，source 受其影响
       for (const edge of this.topology.edges) {
-        if (edge.source === node.id) {
-          impacted.push(edge.target);
+        if (edge.target === node.id) {
+          impacted.push(edge.source);
         }
       }
 
