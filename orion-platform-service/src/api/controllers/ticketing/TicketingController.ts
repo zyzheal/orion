@@ -6,7 +6,7 @@
  */
 
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { TicketService } from '../../services/ticketing/TicketService';
+import { TicketService } from '../../../services/ticketing/TicketService';
 import {
   TicketStatus,
   TicketPriority,
@@ -14,7 +14,10 @@ import {
   TicketRelationType,
   SLATarget,
   AssignmentRule,
-} from '../../services/ticketing/types';
+  EngineerProfile,
+  DispatchWeights,
+  DispatchRule,
+} from '../../../services/ticketing/types';
 
 const VALID_STATUSES: TicketStatus[] = ['open', 'assigned', 'in-progress', 'resolved', 'closed'];
 const VALID_PRIORITIES: TicketPriority[] = ['critical', 'high', 'medium', 'low'];
@@ -822,6 +825,481 @@ export class TicketingController {
     await reply.status(200).send({
       success: true,
       data: { stats },
+    });
+  }
+
+  // ==================== TASK-802: Dispatch Endpoints ====================
+
+  /**
+   * Register an engineer
+   * POST /api/v1/tickets/dispatch/engineers
+   */
+  async registerEngineer(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const body = request.body as any || {};
+      const {
+        id,
+        name,
+        expertise,
+        currentLoad,
+        maxCapacity,
+        availability,
+        resolutionStats,
+        skills,
+        team,
+        onCall,
+      } = body;
+
+      if (!id || !name || !expertise || maxCapacity === undefined) {
+        await reply.status(400).send({
+          error: 'VALIDATION_ERROR',
+          message: 'Missing required fields: id, name, expertise, maxCapacity',
+        });
+        return;
+      }
+
+      const profile: EngineerProfile = {
+        id,
+        name,
+        expertise,
+        currentLoad: currentLoad ?? 0,
+        maxCapacity,
+        availability: availability || 'available',
+        resolutionStats: resolutionStats || {
+          totalResolved: 0,
+          avgResolutionTimeMs: 0,
+          slaComplianceRate: 0,
+          resolutionByCategory: {} as any,
+          resolutionByPriority: {} as any,
+          escalationCount: 0,
+        },
+        skills,
+        team,
+        onCall,
+      };
+
+      this.ticketService.registerEngineer(profile);
+
+      await reply.status(201).send({
+        success: true,
+        data: { engineer: profile },
+      });
+    } catch (error: any) {
+      await reply.status(500).send({
+        error: 'REGISTER_ERROR',
+        message: error.message,
+      });
+    }
+  }
+
+  /**
+   * List engineers
+   * GET /api/v1/tickets/dispatch/engineers
+   */
+  async listEngineers(request: FastifyRequest, reply: FastifyReply) {
+    const engineers = this.ticketService.dispatchEngine.listEngineers();
+
+    await reply.status(200).send({
+      success: true,
+      data: { engineers, count: engineers.length },
+    });
+  }
+
+  /**
+   * Get engineer detail
+   * GET /api/v1/tickets/dispatch/engineers/:id
+   */
+  async getEngineer(request: FastifyRequest, reply: FastifyReply) {
+    const params = request.params as any;
+    const engineer = this.ticketService.dispatchEngine.getEngineer(params.id);
+
+    if (!engineer) {
+      await reply.status(404).send({
+        error: 'NOT_FOUND',
+        message: `Engineer ${params.id} not found`,
+      });
+      return;
+    }
+
+    await reply.status(200).send({
+      success: true,
+      data: { engineer },
+    });
+  }
+
+  /**
+   * Auto-dispatch a ticket
+   * POST /api/v1/tickets/dispatch/auto/:ticketId
+   */
+  async autoDispatch(request: FastifyRequest, reply: FastifyReply) {
+    const params = request.params as any;
+    const body = request.body as any || {};
+
+    const result = this.ticketService.autoDispatch(params.ticketId, {
+      assignedBy: body.assignedBy,
+      weights: body.weights,
+      forceDispatch: body.forceDispatch,
+    });
+
+    if (!result) {
+      await reply.status(400).send({
+        error: 'DISPATCH_ERROR',
+        message: `No suitable engineer found for ticket ${params.ticketId}`,
+      });
+      return;
+    }
+
+    await reply.status(200).send({
+      success: true,
+      data: { dispatch: result },
+    });
+  }
+
+  /**
+   * Manual dispatch
+   * POST /api/v1/tickets/dispatch/manual/:ticketId
+   */
+  async manualDispatch(request: FastifyRequest, reply: FastifyReply) {
+    const params = request.params as any;
+    const body = request.body as any || {};
+    const { engineerId, assignedBy, reason } = body;
+
+    if (!engineerId || !assignedBy) {
+      await reply.status(400).send({
+        error: 'VALIDATION_ERROR',
+        message: 'Missing required fields: engineerId, assignedBy',
+      });
+      return;
+    }
+
+    const result = this.ticketService.manualDispatch(
+      params.ticketId,
+      engineerId,
+      assignedBy,
+      reason
+    );
+
+    if (!result) {
+      await reply.status(400).send({
+        error: 'DISPATCH_ERROR',
+        message: `Failed to dispatch ticket ${params.ticketId} to ${engineerId}`,
+      });
+      return;
+    }
+
+    await reply.status(200).send({
+      success: true,
+      data: { dispatch: result },
+    });
+  }
+
+  /**
+   * Find best engineer for a ticket
+   * GET /api/v1/tickets/dispatch/best-match/:ticketId
+   */
+  async findBestMatch(request: FastifyRequest, reply: FastifyReply) {
+    const params = request.params as any;
+    const result = this.ticketService.findBestEngineerForTicket(params.ticketId);
+
+    if (!result) {
+      await reply.status(404).send({
+        error: 'NOT_FOUND',
+        message: `No matching engineer found for ticket ${params.ticketId}`,
+      });
+      return;
+    }
+
+    await reply.status(200).send({
+      success: true,
+      data: {
+        engineer: result.engineer,
+        score: result.score,
+        breakdown: result.breakdown,
+      },
+    });
+  }
+
+  /**
+   * Calculate dispatch score
+   * POST /api/v1/tickets/dispatch/score
+   */
+  async calculateDispatchScore(request: FastifyRequest, reply: FastifyReply) {
+    const body = request.body as any || {};
+    const { ticketId, engineerId } = body;
+
+    if (!ticketId || !engineerId) {
+      await reply.status(400).send({
+        error: 'VALIDATION_ERROR',
+        message: 'Missing required fields: ticketId, engineerId',
+      });
+      return;
+    }
+
+    const result = this.ticketService.calculateDispatchScore(ticketId, engineerId);
+
+    if (!result) {
+      await reply.status(404).send({
+        error: 'NOT_FOUND',
+        message: 'Ticket or engineer not found',
+      });
+      return;
+    }
+
+    await reply.status(200).send({
+      success: true,
+      data: result,
+    });
+  }
+
+  /**
+   * Get dispatch queue status
+   * GET /api/v1/tickets/dispatch/queue/status
+   */
+  async getDispatchQueueStatus(request: FastifyRequest, reply: FastifyReply) {
+    const status = this.ticketService.getDispatchQueueStatus();
+
+    await reply.status(200).send({
+      success: true,
+      data: { queue: status },
+    });
+  }
+
+  /**
+   * Get dispatch queue entries
+   * GET /api/v1/tickets/dispatch/queue/entries
+   */
+  async getDispatchQueueEntries(request: FastifyRequest, reply: FastifyReply) {
+    const entries = this.ticketService.getDispatchQueueEntries();
+
+    await reply.status(200).send({
+      success: true,
+      data: { entries, count: entries.length },
+    });
+  }
+
+  /**
+   * Get SLA alerts
+   * GET /api/v1/tickets/dispatch/sla-alerts
+   */
+  async getSLAAlerts(request: FastifyRequest, reply: FastifyReply) {
+    const query = request.query as any;
+    const alerts = this.ticketService.getDispatchSLAAlerts({
+      type: query.type,
+      limit: query.limit ? parseInt(query.limit) : undefined,
+    });
+
+    await reply.status(200).send({
+      success: true,
+      data: { alerts, count: alerts.length },
+    });
+  }
+
+  /**
+   * Add dispatch rule
+   * POST /api/v1/tickets/dispatch/rules
+   */
+  async addDispatchRule(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const body = request.body as any || {};
+      const { id, name, conditions, assignee, priority, enabled } = body;
+
+      if (!name || !conditions || !assignee) {
+        await reply.status(400).send({
+          error: 'VALIDATION_ERROR',
+          message: 'Missing required fields: name, conditions, assignee',
+        });
+        return;
+      }
+
+      const rule: DispatchRule = {
+        id: id || `dispatch-rule-${Date.now()}`,
+        name,
+        conditions,
+        assignee,
+        priority: priority ?? 0,
+        enabled: enabled !== false,
+      };
+
+      this.ticketService.addDispatchRule(rule);
+
+      await reply.status(201).send({
+        success: true,
+        data: { rule },
+      });
+    } catch (error: any) {
+      await reply.status(500).send({
+        error: 'RULE_ERROR',
+        message: error.message,
+      });
+    }
+  }
+
+  /**
+   * Get dispatch rules
+   * GET /api/v1/tickets/dispatch/rules
+   */
+  async getDispatchRules(request: FastifyRequest, reply: FastifyReply) {
+    const rules = this.ticketService.getDispatchRules();
+
+    await reply.status(200).send({
+      success: true,
+      data: { rules },
+    });
+  }
+
+  /**
+   * Get load balancing report
+   * GET /api/v1/tickets/dispatch/load-balance/report
+   */
+  async getLoadBalanceReport(request: FastifyRequest, reply: FastifyReply) {
+    const report = this.ticketService.getLoadBalancingReport();
+
+    await reply.status(200).send({
+      success: true,
+      data: { report },
+    });
+  }
+
+  /**
+   * Get reassignment suggestions
+   * GET /api/v1/tickets/dispatch/load-balance/suggestions
+   */
+  async getReassignmentSuggestions(request: FastifyRequest, reply: FastifyReply) {
+    const suggestions = this.ticketService.getSuggestedReassignments();
+
+    await reply.status(200).send({
+      success: true,
+      data: { suggestions },
+    });
+  }
+
+  /**
+   * Get dispatch metrics
+   * GET /api/v1/tickets/dispatch/reports/metrics
+   */
+  async getDispatchMetrics(request: FastifyRequest, reply: FastifyReply) {
+    const query = request.query as any;
+    const metrics = this.ticketService.getDispatchMetrics({
+      periodStart: query.periodStart ? new Date(query.periodStart) : undefined,
+      periodEnd: query.periodEnd ? new Date(query.periodEnd) : undefined,
+    });
+
+    await reply.status(200).send({
+      success: true,
+      data: { metrics },
+    });
+  }
+
+  /**
+   * Get assignment success metrics
+   * GET /api/v1/tickets/dispatch/reports/assignment-success
+   */
+  async getAssignmentSuccessMetrics(request: FastifyRequest, reply: FastifyReply) {
+    const query = request.query as any;
+    const metrics = this.ticketService.getAssignmentSuccessMetrics({
+      periodStart: query.periodStart ? new Date(query.periodStart) : undefined,
+      periodEnd: query.periodEnd ? new Date(query.periodEnd) : undefined,
+    });
+
+    await reply.status(200).send({
+      success: true,
+      data: { metrics },
+    });
+  }
+
+  /**
+   * Get time-to-assignment stats
+   * GET /api/v1/tickets/dispatch/reports/time-to-assignment
+   */
+  async getTimeToAssignmentStats(request: FastifyRequest, reply: FastifyReply) {
+    const query = request.query as any;
+    const stats = this.ticketService.getTimeToAssignmentStats({
+      periodStart: query.periodStart ? new Date(query.periodStart) : undefined,
+      periodEnd: query.periodEnd ? new Date(query.periodEnd) : undefined,
+    });
+
+    await reply.status(200).send({
+      success: true,
+      data: { stats },
+    });
+  }
+
+  /**
+   * Get engineer performance
+   * GET /api/v1/tickets/dispatch/reports/performance/:engineerId
+   */
+  async getEngineerPerformance(request: FastifyRequest, reply: FastifyReply) {
+    const params = request.params as any;
+    const performance = this.ticketService.getEngineerPerformance(params.engineerId);
+
+    if (!performance) {
+      await reply.status(404).send({
+        error: 'NOT_FOUND',
+        message: `Performance data for engineer ${params.engineerId} not found`,
+      });
+      return;
+    }
+
+    await reply.status(200).send({
+      success: true,
+      data: { performance },
+    });
+  }
+
+  /**
+   * Get all engineer performances
+   * GET /api/v1/tickets/dispatch/reports/performance
+   */
+  async getAllEngineerPerformances(request: FastifyRequest, reply: FastifyReply) {
+    const performances = this.ticketService.getAllEngineerPerformances();
+
+    await reply.status(200).send({
+      success: true,
+      data: { performances },
+    });
+  }
+
+  /**
+   * Update dispatch weights
+   * PUT /api/v1/tickets/dispatch/weights
+   */
+  async updateDispatchWeights(request: FastifyRequest, reply: FastifyReply) {
+    const body = request.body as any || {};
+    const { expertise, workload, availability, successRate, slaUrgency } = body;
+
+    const weights: Partial<DispatchWeights> = {};
+    if (expertise !== undefined) weights.expertise = expertise;
+    if (workload !== undefined) weights.workload = workload;
+    if (availability !== undefined) weights.availability = availability;
+    if (successRate !== undefined) weights.successRate = successRate;
+    if (slaUrgency !== undefined) weights.slaUrgency = slaUrgency;
+
+    if (Object.keys(weights).length === 0) {
+      await reply.status(400).send({
+        error: 'VALIDATION_ERROR',
+        message: 'No valid weights provided',
+      });
+      return;
+    }
+
+    this.ticketService.updateDispatchWeights(weights);
+
+    await reply.status(200).send({
+      success: true,
+      data: { weights: this.ticketService.getDispatchWeights() },
+    });
+  }
+
+  /**
+   * Get dispatch weights
+   * GET /api/v1/tickets/dispatch/weights
+   */
+  async getDispatchWeights(request: FastifyRequest, reply: FastifyReply) {
+    const weights = this.ticketService.getDispatchWeights();
+
+    await reply.status(200).send({
+      success: true,
+      data: { weights },
     });
   }
 }

@@ -170,4 +170,111 @@ export default async function ticketingRoutes(app: FastifyInstance): Promise<voi
   app.get('/reports/statistics', async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.getStatistics(request, reply);
   });
+
+  // ==================== TASK-802: Dispatch Endpoints ====================
+
+  // POST /dispatch/engineers - Register engineer
+  app.post('/dispatch/engineers', async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.registerEngineer(request, reply);
+  });
+
+  // GET /dispatch/engineers - List engineers
+  app.get('/dispatch/engineers', async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.listEngineers(request, reply);
+  });
+
+  // GET /dispatch/engineers/:id - Get engineer
+  app.get('/dispatch/engineers/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.getEngineer(request, reply);
+  });
+
+  // POST /dispatch/auto/:ticketId - Auto-dispatch
+  app.post('/dispatch/auto/:ticketId', async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.autoDispatch(request, reply);
+  });
+
+  // POST /dispatch/manual/:ticketId - Manual dispatch
+  app.post('/dispatch/manual/:ticketId', async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.manualDispatch(request, reply);
+  });
+
+  // GET /dispatch/best-match/:ticketId - Find best engineer
+  app.get('/dispatch/best-match/:ticketId', async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.findBestMatch(request, reply);
+  });
+
+  // POST /dispatch/score - Calculate dispatch score
+  app.post('/dispatch/score', async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.calculateDispatchScore(request, reply);
+  });
+
+  // GET /dispatch/queue/status - Queue status
+  app.get('/dispatch/queue/status', async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.getDispatchQueueStatus(request, reply);
+  });
+
+  // GET /dispatch/queue/entries - Queue entries
+  app.get('/dispatch/queue/entries', async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.getDispatchQueueEntries(request, reply);
+  });
+
+  // GET /dispatch/sla-alerts - SLA alerts
+  app.get('/dispatch/sla-alerts', async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.getSLAAlerts(request, reply);
+  });
+
+  // POST /dispatch/rules - Add dispatch rule
+  app.post('/dispatch/rules', async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.addDispatchRule(request, reply);
+  });
+
+  // GET /dispatch/rules - Get dispatch rules
+  app.get('/dispatch/rules', async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.getDispatchRules(request, reply);
+  });
+
+  // GET /dispatch/load-balance/report - Load balance report
+  app.get('/dispatch/load-balance/report', async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.getLoadBalanceReport(request, reply);
+  });
+
+  // GET /dispatch/load-balance/suggestions - Reassignment suggestions
+  app.get('/dispatch/load-balance/suggestions', async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.getReassignmentSuggestions(request, reply);
+  });
+
+  // GET /dispatch/reports/metrics - Dispatch metrics
+  app.get('/dispatch/reports/metrics', async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.getDispatchMetrics(request, reply);
+  });
+
+  // GET /dispatch/reports/assignment-success - Assignment success
+  app.get('/dispatch/reports/assignment-success', async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.getAssignmentSuccessMetrics(request, reply);
+  });
+
+  // GET /dispatch/reports/time-to-assignment - Time to assignment
+  app.get('/dispatch/reports/time-to-assignment', async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.getTimeToAssignmentStats(request, reply);
+  });
+
+  // GET /dispatch/reports/performance - All performances
+  app.get('/dispatch/reports/performance', async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.getAllEngineerPerformances(request, reply);
+  });
+
+  // GET /dispatch/reports/performance/:engineerId - Engineer performance
+  app.get('/dispatch/reports/performance/:engineerId', async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.getEngineerPerformance(request, reply);
+  });
+
+  // PUT /dispatch/weights - Update dispatch weights
+  app.put('/dispatch/weights', async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.updateDispatchWeights(request, reply);
+  });
+
+  // GET /dispatch/weights - Get dispatch weights
+  app.get('/dispatch/weights', async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.getDispatchWeights(request, reply);
+  });
 }

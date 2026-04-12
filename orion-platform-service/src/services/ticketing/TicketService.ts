@@ -12,6 +12,10 @@ import { TicketGenerator } from './TicketGenerator';
 import { TicketWorkflowService } from './TicketWorkflowService';
 import { TicketRelationAnalyzer } from './TicketRelationAnalyzer';
 import { TicketReportService } from './TicketReportService';
+import { DispatchEngine } from './DispatchEngine';
+import { DispatchQueueManager } from './DispatchQueueManager';
+import { LoadBalancer } from './LoadBalancer';
+import { DispatchAnalytics } from './DispatchAnalytics';
 import {
   Ticket,
   TicketStatus,
@@ -27,7 +31,16 @@ import {
   ResolutionStats,
   BacklogAnalysis,
   TrendReport,
+  EngineerProfile,
+  DispatchResult,
+  DispatchWeights,
+  DispatchQueueStatus,
+  SLAAlert,
+  LoadBalancingReport,
+  ReassignmentSuggestion,
+  DispatchRule,
 } from './types';
+import type { DispatchMetrics, AssignmentSuccessMetrics, TimeToAssignmentStats, EngineerPerformance } from './DispatchAnalytics';
 
 /**
  * Default ticketing configuration
@@ -65,6 +78,7 @@ export type TicketingEventType =
  * - Ticket relation analysis
  * - Reporting and statistics
  * - NATS event subscription for auto-creation
+ * - Smart dispatch (TASK-802)
  */
 export class TicketService extends EventEmitter {
   /** Service configuration */
@@ -81,6 +95,18 @@ export class TicketService extends EventEmitter {
 
   /** Report service */
   public reporter: TicketReportService;
+
+  /** TASK-802: Smart dispatch engine */
+  public dispatchEngine: DispatchEngine;
+
+  /** TASK-802: Dispatch queue manager */
+  public dispatchQueue: DispatchQueueManager;
+
+  /** TASK-802: Load balancer */
+  public loadBalancer: LoadBalancer;
+
+  /** TASK-802: Dispatch analytics */
+  public dispatchAnalytics: DispatchAnalytics;
 
   /** Running state */
   private isRunning: boolean = false;
@@ -101,6 +127,17 @@ export class TicketService extends EventEmitter {
     this.workflow = new TicketWorkflowService();
     this.analyzer = new TicketRelationAnalyzer();
     this.reporter = new TicketReportService();
+
+    // TASK-802: Initialize dispatch components
+    this.dispatchEngine = new DispatchEngine();
+    this.dispatchQueue = new DispatchQueueManager();
+    this.loadBalancer = new LoadBalancer();
+    this.dispatchAnalytics = new DispatchAnalytics();
+
+    // Wire up dispatch queue callback
+    this.dispatchQueue.setDispatchCallback((entry) => {
+      this.attemptAutoDispatch(entry.ticket.id);
+    });
   }
 
   // ==================== Lifecycle ====================
@@ -122,6 +159,9 @@ export class TicketService extends EventEmitter {
       this.workflow.startEscalationChecks(this.config.escalationCheckIntervalMs);
     }
 
+    // TASK-802: Start dispatch queue auto-reprioritization
+    this.dispatchQueue.startAutoReprioritize();
+
     // Connect to NATS
     await this.connectNats();
 
@@ -140,6 +180,9 @@ export class TicketService extends EventEmitter {
 
     // Stop escalation checks
     this.workflow.stopEscalationChecks();
+
+    // TASK-802: Stop dispatch queue auto-reprioritization
+    this.dispatchQueue.stopAutoReprioritize();
 
     // Disconnect NATS
     if (this.natsConnection) {
@@ -202,10 +245,13 @@ export class TicketService extends EventEmitter {
     const created = this.workflow.createTicket(ticket);
     this.analyzer.registerTicket(created);
 
+    // TASK-802: Record for dispatch analytics
+    this.dispatchAnalytics.recordTicketCreated(created);
+
     this.emit('ticket:created', created);
     this.publishNatsEvent('ticket.created', { ticketId: created.id, title: created.title });
 
-    // Try auto-assignment
+    // Try auto-assignment (TASK-801: rule-based)
     if (this.config.enableAutoAssignment) {
       const result = this.workflow.autoAssignTicket(created.id);
       if (result && 'assignment' in result) {
@@ -214,7 +260,20 @@ export class TicketService extends EventEmitter {
           ticketId: result.ticket.id,
           assignee: result.assignment.assignee,
         });
+
+        // TASK-802: Record dispatch
+        this.recordDispatchForTicket(result.ticket, 'rule');
+      } else {
+        // TASK-802: Enqueue for dispatch if not assigned
+        if (!result) {
+          const slaTarget = this.workflow.getSLATarget(created.priority);
+          this.dispatchQueue.enqueue(created, slaTarget);
+        }
       }
+    } else {
+      // TASK-802: Even if auto-assignment disabled, queue for dispatch
+      const slaTarget = this.workflow.getSLATarget(created.priority);
+      this.dispatchQueue.enqueue(created, slaTarget);
     }
 
     return created;
@@ -426,6 +485,321 @@ export class TicketService extends EventEmitter {
    */
   removeAssignmentRule(ruleId: string): boolean {
     return this.workflow.removeAssignmentRule(ruleId);
+  }
+
+  // ==================== TASK-802: Smart Dispatch ====================
+
+  /**
+   * Register an engineer for dispatch
+   */
+  registerEngineer(profile: EngineerProfile): void {
+    this.dispatchEngine.registerEngineer(profile);
+    this.loadBalancer.registerEngineer(profile);
+    this.dispatchAnalytics.registerEngineer(profile);
+  }
+
+  /**
+   * Update an engineer profile
+   */
+  updateEngineer(id: string, updates: Partial<EngineerProfile>): boolean {
+    return this.dispatchEngine.updateEngineer(id, updates) &&
+      this.loadBalancer.updateEngineer(id, updates);
+  }
+
+  /**
+   * Auto-dispatch a ticket to the best engineer
+   */
+  autoDispatch(
+    ticketId: string,
+    options?: {
+      assignedBy?: string;
+      weights?: Partial<DispatchWeights>;
+      forceDispatch?: boolean;
+    }
+  ): DispatchResult | null {
+    const ticket = this.workflow.getTicket(ticketId);
+    if (!ticket) return null;
+
+    if (ticket.assignee && ticket.status !== 'open') {
+      return null; // Already assigned
+    }
+
+    // Mark dispatch attempt
+    this.dispatchQueue.recordDispatchAttempt(ticketId);
+
+    // Use dispatch engine to find best engineer
+    const result = this.dispatchEngine.dispatchTicket(ticket, {
+      assignedBy: options?.assignedBy,
+      weights: options?.weights,
+      forceDispatch: options?.forceDispatch,
+    });
+
+    if (!result) return null;
+
+    // Assign the ticket
+    const assignResult = this.workflow.assignTicket(
+      ticketId,
+      result.assignee,
+      options?.assignedBy || 'dispatch-engine',
+      result.reason
+    );
+
+    if ('ticket' in assignResult) {
+      // Record in load balancer
+      this.loadBalancer.recordAssignment({
+        ticketId,
+        engineerId: result.assignee,
+        category: ticket.category,
+      });
+
+      // Record in analytics
+      this.dispatchAnalytics.recordDispatch(result);
+
+      // Mark dispatched in queue
+      this.dispatchQueue.markDispatched(ticketId);
+
+      this.emit('ticket:auto-dispatched', { ticket: assignResult.ticket, dispatch: result });
+      this.publishNatsEvent('ticket.assigned', {
+        ticketId,
+        assignee: result.assignee,
+        dispatchType: 'auto',
+        score: result.score,
+      });
+    }
+
+    return result;
+  }
+
+  /**
+   * Attempt auto-dispatch for a ticket (internal)
+   */
+  private attemptAutoDispatch(ticketId: string): void {
+    const result = this.autoDispatch(ticketId);
+    if (result) {
+      console.log(`[TicketService] Auto-dispatched ticket ${ticketId} to ${result.assignee} (score: ${result.score})`);
+    }
+  }
+
+  /**
+   * Manually dispatch a ticket to a specific engineer
+   */
+  manualDispatch(
+    ticketId: string,
+    engineerId: string,
+    assignedBy: string,
+    reason?: string
+  ): DispatchResult | null {
+    const ticket = this.workflow.getTicket(ticketId);
+    if (!ticket) return null;
+
+    const engineer = this.dispatchEngine.getEngineer(engineerId);
+    if (!engineer) return null;
+
+    const dispatchResult: DispatchResult = {
+      id: `DISP-${ticketId}`,
+      ticketId,
+      assignee: engineerId,
+      reason: reason || `Manual dispatch by ${assignedBy}`,
+      score: 100,
+      dispatchedAt: new Date(),
+      dispatchType: 'manual',
+      accepted: true,
+    };
+
+    this.dispatchEngine['dispatchHistory'].push(dispatchResult);
+    this.loadBalancer.recordAssignment({
+      ticketId,
+      engineerId,
+      category: ticket.category,
+    });
+    this.dispatchAnalytics.recordDispatch(dispatchResult);
+    this.dispatchQueue.markDispatched(ticketId);
+
+    const assignResult = this.workflow.assignTicket(
+      ticketId,
+      engineerId,
+      assignedBy,
+      reason || `Manual dispatch by ${assignedBy}`
+    );
+
+    return dispatchResult;
+  }
+
+  /**
+   * Get the dispatch queue status
+   */
+  getDispatchQueueStatus(): DispatchQueueStatus {
+    return this.dispatchQueue.getQueueStatus();
+  }
+
+  /**
+   * Get dispatch queue entries
+   */
+  getDispatchQueueEntries(): {
+    id: string;
+    ticket: Ticket;
+    priority: number;
+    enqueuedAt: Date;
+    slaDeadline?: Date;
+    attempts: number;
+  }[] {
+    return this.dispatchQueue.getEntries().map((e) => ({
+      id: e.id,
+      ticket: e.ticket,
+      priority: e.dispatchPriority,
+      enqueuedAt: e.enqueuedAt,
+      slaDeadline: e.slaDeadline,
+      attempts: e.dispatchAttemptCount,
+    }));
+  }
+
+  /**
+   * Get SLA alerts from the dispatch queue
+   */
+  getDispatchSLAAlerts(options?: {
+    type?: 'sla-warning' | 'sla-critical' | 'sla-breach';
+    limit?: number;
+  }): SLAAlert[] {
+    return this.dispatchQueue.getSLAAlerts(options);
+  }
+
+  /**
+   * Add a dispatch rule
+   */
+  addDispatchRule(rule: DispatchRule): void {
+    this.dispatchEngine.addRule(rule);
+  }
+
+  /**
+   * Get dispatch rules
+   */
+  getDispatchRules(): DispatchRule[] {
+    return this.dispatchEngine.getRules();
+  }
+
+  /**
+   * Remove a dispatch rule
+   */
+  removeDispatchRule(ruleId: string): boolean {
+    return this.dispatchEngine.removeRule(ruleId);
+  }
+
+  /**
+   * Find the best engineer for a ticket (without assigning)
+   */
+  findBestEngineerForTicket(ticketId: string) {
+    const ticket = this.workflow.getTicket(ticketId);
+    if (!ticket) return null;
+    return this.dispatchEngine.findBestEngineer(ticket);
+  }
+
+  /**
+   * Calculate dispatch score for a ticket-engineer pair
+   */
+  calculateDispatchScore(ticketId: string, engineerId: string) {
+    const ticket = this.workflow.getTicket(ticketId);
+    if (!ticket) return null;
+    const engineer = this.dispatchEngine.getEngineer(engineerId);
+    if (!engineer) return null;
+    return this.dispatchEngine.calculateDispatchScore(ticket, engineer);
+  }
+
+  /**
+   * Get load balancing report
+   */
+  getLoadBalancingReport(): LoadBalancingReport {
+    return this.loadBalancer.getBalancingReport();
+  }
+
+  /**
+   * Get reassignment suggestions
+   */
+  getSuggestedReassignments(): ReassignmentSuggestion[] {
+    return this.loadBalancer.suggestReassignments();
+  }
+
+  /**
+   * Get dispatch analytics metrics
+   */
+  getDispatchMetrics(options?: {
+    periodStart?: Date;
+    periodEnd?: Date;
+  }): DispatchMetrics {
+    return this.dispatchAnalytics.getDispatchMetrics(options);
+  }
+
+  /**
+   * Get assignment success metrics
+   */
+  getAssignmentSuccessMetrics(options?: {
+    periodStart?: Date;
+    periodEnd?: Date;
+  }): AssignmentSuccessMetrics {
+    return this.dispatchAnalytics.getAssignmentSuccess(options);
+  }
+
+  /**
+   * Get time-to-assignment statistics
+   */
+  getTimeToAssignmentStats(options?: {
+    periodStart?: Date;
+    periodEnd?: Date;
+  }): TimeToAssignmentStats {
+    return this.dispatchAnalytics.getTimeToAssignment(options);
+  }
+
+  /**
+   * Get engineer performance
+   */
+  getEngineerPerformance(engineerId: string): EngineerPerformance | null {
+    return this.dispatchAnalytics.getEngineerPerformance(engineerId);
+  }
+
+  /**
+   * Get all engineer performances
+   */
+  getAllEngineerPerformances(): EngineerPerformance[] {
+    return this.dispatchAnalytics.getAllEngineerPerformances();
+  }
+
+  /**
+   * Get dispatch weights
+   */
+  getDispatchWeights(): DispatchWeights {
+    return this.dispatchEngine.getWeights();
+  }
+
+  /**
+   * Update dispatch weights
+   */
+  updateDispatchWeights(weights: Partial<DispatchWeights>): void {
+    this.dispatchEngine.updateWeights(weights);
+  }
+
+  /**
+   * Record dispatch for a ticket (internal helper)
+   */
+  private recordDispatchForTicket(ticket: Ticket, type: 'rule' | 'auto' | 'manual'): void {
+    const result: DispatchResult = {
+      id: `DISP-${ticket.id}-${Date.now()}`,
+      ticketId: ticket.id,
+      assignee: ticket.assignee || 'unknown',
+      reason: `${type}-assigned`,
+      score: type === 'rule' ? 100 : 75,
+      dispatchedAt: new Date(),
+      dispatchType: type,
+      accepted: true,
+    };
+
+    this.dispatchAnalytics.recordDispatch(result);
+
+    if (ticket.assignee) {
+      this.loadBalancer.recordAssignment({
+        ticketId: ticket.id,
+        engineerId: ticket.assignee,
+        category: ticket.category,
+      });
+    }
   }
 
   // ==================== Relations ====================
@@ -701,6 +1075,10 @@ export class TicketService extends EventEmitter {
     this.workflow.clearAll();
     this.analyzer.clearAll();
     this.stopEscalationChecks();
+    this.dispatchEngine.clearAll();
+    this.dispatchQueue.clearAll();
+    this.loadBalancer.clearAll();
+    this.dispatchAnalytics.clearAll();
   }
 
   private stopEscalationChecks(): void {

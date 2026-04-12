@@ -391,3 +391,260 @@ export interface TicketingConfig {
   /** Max tickets in memory */
   maxTicketsInMemory: number;
 }
+
+// ==================== Dispatch Types (TASK-802) ====================
+
+/**
+ * Dispatch rule for automatic ticket assignment
+ */
+export interface DispatchRule {
+  /** Rule ID */
+  id: string;
+  /** Conditions that trigger this rule */
+  conditions: DispatchRuleConditions;
+  /** Target assignee (user ID or 'best-match' for scoring) */
+  assignee: string;
+  /** Rule priority (lower = higher priority) */
+  priority: number;
+  /** Whether the rule is active */
+  enabled: boolean;
+  /** Rule name for display */
+  name: string;
+}
+
+/**
+ * Conditions that trigger a dispatch rule
+ */
+export interface DispatchRuleConditions {
+  /** Applicable categories */
+  categories?: TicketCategory[];
+  /** Applicable priorities */
+  priorities?: TicketPriority[];
+  /** Applicable sources */
+  sources?: TicketSource[];
+  /** Tag-based matching */
+  tagMatches?: Record<string, string>;
+  /** Minimum escalation level */
+  minEscalationLevel?: number;
+}
+
+/**
+ * Result of a dispatch operation
+ */
+export interface DispatchResult {
+  /** Dispatch record ID */
+  id: string;
+  /** Ticket that was dispatched */
+  ticketId: string;
+  /** Assigned engineer */
+  assignee: string;
+  /** Reason for assignment */
+  reason: string;
+  /** Dispatch score (0-100) */
+  score: number;
+  /** When the dispatch occurred */
+  dispatchedAt: Date;
+  /** Whether dispatch was manual or automatic */
+  dispatchType: 'auto' | 'manual' | 'rule';
+  /** Scoring breakdown (for auto dispatch) */
+  scoreBreakdown?: DispatchScoreBreakdown;
+  /** Whether the assignment was accepted */
+  accepted: boolean;
+  /** Time from dispatch to acceptance */
+  timeToAcceptanceMs?: number;
+}
+
+/**
+ * Breakdown of dispatch scoring components
+ */
+export interface DispatchScoreBreakdown {
+  /** Expertise match score (0-100) */
+  expertiseScore: number;
+  /** Workload balance score (0-100, higher = less loaded) */
+  workloadScore: number;
+  /** Availability score (0-100) */
+  availabilityScore: number;
+  /** Historical success rate score (0-100) */
+  successRateScore: number;
+  /** SLA urgency score (0-100, higher = more urgent) */
+  slaUrgencyScore: number;
+  /** Weights used for scoring */
+  weights: DispatchWeights;
+}
+
+/**
+ * Configurable weights for dispatch scoring
+ */
+export interface DispatchWeights {
+  /** Weight for expertise matching */
+  expertise: number;
+  /** Weight for workload balance */
+  workload: number;
+  /** Weight for availability */
+  availability: number;
+  /** Weight for historical success rate */
+  successRate: number;
+  /** Weight for SLA urgency */
+  slaUrgency: number;
+}
+
+/**
+ * Engineer profile for dispatch matching
+ */
+export interface EngineerProfile {
+  /** Engineer user ID */
+  id: string;
+  /** Display name */
+  name: string;
+  /** Areas of expertise (categories they handle well) */
+  expertise: TicketCategory[];
+  /** Current number of assigned tickets */
+  currentLoad: number;
+  /** Maximum capacity before overload */
+  maxCapacity: number;
+  /** Current availability status */
+  availability: EngineerAvailability;
+  /** Historical resolution statistics */
+  resolutionStats: EngineerResolutionStats;
+  /** Skills proficiency levels (0-100) */
+  skills?: Record<string, number>;
+  /** Team assignment */
+  team?: string;
+  /** On-call status */
+  onCall?: boolean;
+}
+
+/**
+ * Engineer availability status
+ */
+export type EngineerAvailability = 'available' | 'busy' | 'away' | 'offline' | 'on-call';
+
+/**
+ * Resolution statistics for an engineer
+ */
+export interface EngineerResolutionStats {
+  /** Total tickets resolved */
+  totalResolved: number;
+  /** Average resolution time in milliseconds */
+  avgResolutionTimeMs: number;
+  /** SLA compliance rate (0-1) */
+  slaComplianceRate: number;
+  /** Resolution rate by category */
+  resolutionByCategory: Record<TicketCategory, number>;
+  /** Resolution rate by priority */
+  resolutionByPriority: Record<TicketPriority, number>;
+  /** Number of escalations received */
+  escalationCount: number;
+  /** Customer satisfaction score (0-100) */
+  satisfactionScore?: number;
+}
+
+/**
+ * Dispatch queue entry
+ */
+export interface DispatchQueueEntry {
+  /** Queue entry ID */
+  id: string;
+  /** Ticket in queue */
+  ticket: Ticket;
+  /** Effective dispatch priority (computed) */
+  dispatchPriority: number;
+  /** When the ticket entered the queue */
+  enqueuedAt: Date;
+  /** SLA deadline */
+  slaDeadline?: Date;
+  /** Number of reprioritizations */
+  reprioritizeCount: number;
+  /** Last dispatch attempt */
+  lastDispatchAttempt?: Date;
+  /** Dispatch attempt count */
+  dispatchAttemptCount: number;
+}
+
+/**
+ * Dispatch queue status summary
+ */
+export interface DispatchQueueStatus {
+  /** Total tickets in queue */
+  totalInQueue: number;
+  /** Breakdown by priority */
+  byPriority: Record<TicketPriority, number>;
+  /** Tickets approaching SLA breach */
+  slaAtRisk: number;
+  /** Tickets past SLA breach */
+  slaBreached: number;
+  /** Average wait time in queue (ms) */
+  avgWaitTimeMs: number;
+  /** Oldest ticket wait time (ms) */
+  oldestWaitTimeMs: number;
+}
+
+/**
+ * SLA alert for dispatch queue
+ */
+export interface SLAAlert {
+  /** Alert ID */
+  id: string;
+  /** Queue entry */
+  queueEntryId: string;
+  /** Ticket ID */
+  ticketId: string;
+  /** Alert type */
+  alertType: 'sla-warning' | 'sla-critical' | 'sla-breach';
+  /** Time remaining until SLA breach (negative if breached) */
+  timeRemainingMs: number;
+  /** Generated at */
+  generatedAt: Date;
+  /** Message */
+  message: string;
+}
+
+/**
+ * Load balancer report
+ */
+export interface LoadBalancingReport {
+  /** Current engineer loads */
+  engineerLoads: EngineerLoadInfo[];
+  /** Overall balance score (0-1, 1 = perfectly balanced) */
+  balanceScore: number;
+  /** Overloaded engineers */
+  overloadedEngineers: string[];
+  /** Underutilized engineers */
+  underutilizedEngineers: string[];
+  /** Reassignment suggestions */
+  reassignmentSuggestions: ReassignmentSuggestion[];
+}
+
+/**
+ * Engineer load information
+ */
+export interface EngineerLoadInfo {
+  /** Engineer ID */
+  engineerId: string;
+  /** Engineer name */
+  engineerName: string;
+  /** Current load */
+  currentLoad: number;
+  /** Max capacity */
+  maxCapacity: number;
+  /** Utilization percentage (0-100) */
+  utilizationPercent: number;
+  /** Is overloaded */
+  isOverloaded: boolean;
+}
+
+/**
+ * Reassignment suggestion
+ */
+export interface ReassignmentSuggestion {
+  /** Ticket ID to reassign */
+  ticketId: string;
+  /** Current assignee */
+  fromEngineer: string;
+  /** Suggested new assignee */
+  toEngineer: string;
+  /** Reason for reassignment */
+  reason: string;
+  /** Expected improvement in balance */
+  expectedImprovement: number;
+}
