@@ -1,74 +1,97 @@
 /**
- * CMDB Controller 单元测试
+ * CMDB Controller 单元测试 - Fastify 版本
  */
 
-import request from 'supertest';
-import express from 'express';
+import Fastify from 'fastify';
 import { CmdbController } from '../CmdbController';
 import { CmdbService } from '../../../services/cmdb/CmdbService';
 
-// 创建测试用的 Express 应用
-function createTestApp(cmdbService: CmdbService) {
-  const app = express();
-  app.use(express.json());
+// 创建测试用的 Fastify 应用
+async function createTestApp(cmdbService: CmdbService) {
+  const app = Fastify();
 
   const controller = new CmdbController(cmdbService);
 
-  app.post('/api/v1/cmdb/cis', (req, res) => controller.createCI(req, res));
-  app.get('/api/v1/cmdb/cis/:id', (req, res) => controller.getCI(req, res));
-  app.put('/api/v1/cmdb/cis/:id', (req, res) => controller.updateCI(req, res));
-  app.delete('/api/v1/cmdb/cis/:id', (req, res) => controller.deleteCI(req, res));
-  app.get('/api/v1/cmdb/cis', (req, res) => controller.listCIs(req, res));
-  app.get('/api/v1/cmdb/cis/:id/relations', (req, res) => controller.getCIRelations(req, res));
-  app.get('/api/v1/cmdb/cis/:id/versions', (req, res) => controller.getVersions(req, res));
-  app.post('/api/v1/cmdb/relations', (req, res) => controller.createRelation(req, res));
-  app.delete('/api/v1/cmdb/relations/:id', (req, res) => controller.deleteRelation(req, res));
+  app.post('/api/v1/cmdb/cis', async (request, reply) => controller.createCI(request, reply));
+  app.get('/api/v1/cmdb/cis/:id', async (request, reply) => controller.getCI(request, reply));
+  app.put('/api/v1/cmdb/cis/:id', async (request, reply) => controller.updateCI(request, reply));
+  app.delete('/api/v1/cmdb/cis/:id', async (request, reply) => controller.deleteCI(request, reply));
+  app.get('/api/v1/cmdb/cis', async (request, reply) => controller.listCIs(request, reply));
+  app.get('/api/v1/cmdb/cis/:id/relations', async (request, reply) => controller.getCIRelations(request, reply));
+  app.get('/api/v1/cmdb/cis/:id/versions', async (request, reply) => controller.getVersions(request, reply));
+  app.post('/api/v1/cmdb/relations', async (request, reply) => controller.createRelation(request, reply));
+  app.delete('/api/v1/cmdb/relations/:id', async (request, reply) => controller.deleteRelation(request, reply));
 
   return app;
 }
 
+// Helper function to inject requests
+async function inject(app: Awaited<ReturnType<typeof createTestApp>>, options: {
+  method: string;
+  url: string;
+  headers?: Record<string, string>;
+  payload?: any;
+}) {
+  return app.inject({
+    method: options.method,
+    url: options.url,
+    headers: options.headers,
+    payload: options.payload,
+  });
+}
+
 describe('CmdbController', () => {
-  let app: ReturnType<typeof createTestApp>;
+  let app: Awaited<ReturnType<typeof createTestApp>>;
   let cmdbService: CmdbService;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     // 清空内存存储
     CmdbService.clearAll();
     cmdbService = new CmdbService();
-    app = createTestApp(cmdbService);
+    app = await createTestApp(cmdbService);
+  });
+
+  afterEach(async () => {
+    await app.close();
   });
 
   describe('POST /api/v1/cmdb/cis', () => {
     it('should create CI successfully', async () => {
-      const response = await request(app)
-        .post('/api/v1/cmdb/cis')
-        .set('x-tenant-id', '1')
-        .set('x-user-id', 'user-001')
-        .send({
+      const response = await inject(app, {
+        method: 'POST',
+        url: '/api/v1/cmdb/cis',
+        headers: {
+          'x-tenant-id': '1',
+          'x-user-id': 'user-001',
+        },
+        payload: {
           ciId: 'test-app-001',
           ciType: 'APPLICATION',
           name: 'Test Application',
           description: 'Test Description',
           environment: 'dev',
           tags: ['test'],
-        });
+        },
+      });
 
-      expect(response.status).toBe(201);
-      expect(response.body.ciId).toBe('test-app-001');
-      expect(response.body.ciType).toBe('APPLICATION');
-      expect(response.body.name).toBe('Test Application');
+      expect(response.statusCode).toBe(201);
+      const body = JSON.parse(response.body);
+      expect(body.ciId).toBe('test-app-001');
+      expect(body.ciType).toBe('APPLICATION');
+      expect(body.name).toBe('Test Application');
     });
 
     it('should return 400 for missing required fields', async () => {
-      const response = await request(app)
-        .post('/api/v1/cmdb/cis')
-        .set('x-tenant-id', '1')
-        .send({
-          name: 'Test Application',
-        });
+      const response = await inject(app, {
+        method: 'POST',
+        url: '/api/v1/cmdb/cis',
+        headers: { 'x-tenant-id': '1' },
+        payload: { name: 'Test Application' },
+      });
 
-      expect(response.status).toBe(400);
-      expect(response.body.error).toBe('VALIDATION_ERROR');
+      expect(response.statusCode).toBe(400);
+      const body = JSON.parse(response.body);
+      expect(body.error).toBe('VALIDATION_ERROR');
     });
 
     it('should return 409 for duplicate CI', async () => {
@@ -78,309 +101,379 @@ describe('CmdbController', () => {
         name: 'Duplicate App',
       };
 
-      await request(app)
-        .post('/api/v1/cmdb/cis')
-        .set('x-tenant-id', '1')
-        .send(payload);
+      await inject(app, {
+        method: 'POST',
+        url: '/api/v1/cmdb/cis',
+        headers: { 'x-tenant-id': '1' },
+        payload,
+      });
 
-      const response = await request(app)
-        .post('/api/v1/cmdb/cis')
-        .set('x-tenant-id', '1')
-        .send(payload);
+      const response = await inject(app, {
+        method: 'POST',
+        url: '/api/v1/cmdb/cis',
+        headers: { 'x-tenant-id': '1' },
+        payload,
+      });
 
-      expect(response.status).toBe(409);
-      expect(response.body.error).toBe('CONFLICT');
+      expect(response.statusCode).toBe(409);
+      const body = JSON.parse(response.body);
+      expect(body.error).toBe('CONFLICT');
     });
 
     it('should return 400 for invalid ciType', async () => {
-      const response = await request(app)
-        .post('/api/v1/cmdb/cis')
-        .set('x-tenant-id', '1')
-        .send({
+      const response = await inject(app, {
+        method: 'POST',
+        url: '/api/v1/cmdb/cis',
+        headers: { 'x-tenant-id': '1' },
+        payload: {
           ciId: 'test-app',
           ciType: 'INVALID_TYPE',
           name: 'Test App',
-        });
+        },
+      });
 
-      expect(response.status).toBe(400);
-      expect(response.body.error).toBe('VALIDATION_ERROR');
+      expect(response.statusCode).toBe(400);
+      const body = JSON.parse(response.body);
+      expect(body.error).toBe('VALIDATION_ERROR');
     });
   });
 
   describe('GET /api/v1/cmdb/cis/:id', () => {
     it('should get CI by id', async () => {
-      const createResponse = await request(app)
-        .post('/api/v1/cmdb/cis')
-        .set('x-tenant-id', '1')
-        .set('x-user-id', 'user-001')
-        .send({
+      const createResponse = await inject(app, {
+        method: 'POST',
+        url: '/api/v1/cmdb/cis',
+        headers: { 'x-tenant-id': '1', 'x-user-id': 'user-001' },
+        payload: {
           ciId: 'test-get-app',
           ciType: 'APPLICATION',
           name: 'Get Test App',
-        });
+        },
+      });
+      const createBody = JSON.parse(createResponse.body);
 
-      const response = await request(app)
-        .get(`/api/v1/cmdb/cis/${createResponse.body.id}`)
-        .set('x-tenant-id', '1');
+      const response = await inject(app, {
+        method: 'GET',
+        url: `/api/v1/cmdb/cis/${createBody.id}`,
+        headers: { 'x-tenant-id': '1' },
+      });
 
-      expect(response.status).toBe(200);
-      expect(response.body.ciId).toBe('test-get-app');
-      expect(response.body.name).toBe('Get Test App');
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body);
+      expect(body.ciId).toBe('test-get-app');
+      expect(body.name).toBe('Get Test App');
     });
 
     it('should return 404 for non-existent CI', async () => {
-      const response = await request(app)
-        .get('/api/v1/cmdb/cis/non-existent-id')
-        .set('x-tenant-id', '1');
+      const response = await inject(app, {
+        method: 'GET',
+        url: '/api/v1/cmdb/cis/non-existent-id',
+        headers: { 'x-tenant-id': '1' },
+      });
 
-      expect(response.status).toBe(404);
-      expect(response.body.error).toBe('NOT_FOUND');
+      expect(response.statusCode).toBe(404);
+      const body = JSON.parse(response.body);
+      expect(body.error).toBe('NOT_FOUND');
     });
   });
 
   describe('PUT /api/v1/cmdb/cis/:id', () => {
     it('should update CI successfully', async () => {
-      const createResponse = await request(app)
-        .post('/api/v1/cmdb/cis')
-        .set('x-tenant-id', '1')
-        .set('x-user-id', 'user-001')
-        .send({
+      const createResponse = await inject(app, {
+        method: 'POST',
+        url: '/api/v1/cmdb/cis',
+        headers: { 'x-tenant-id': '1', 'x-user-id': 'user-001' },
+        payload: {
           ciId: 'test-update-app',
           ciType: 'APPLICATION',
           name: 'Update Test App',
           description: 'Original Description',
-        });
+        },
+      });
+      const createBody = JSON.parse(createResponse.body);
 
-      const response = await request(app)
-        .put(`/api/v1/cmdb/cis/${createResponse.body.id}`)
-        .set('x-tenant-id', '1')
-        .set('x-user-id', 'user-002')
-        .send({
+      const response = await inject(app, {
+        method: 'PUT',
+        url: `/api/v1/cmdb/cis/${createBody.id}`,
+        headers: { 'x-tenant-id': '1', 'x-user-id': 'user-002' },
+        payload: {
           description: 'Updated Description',
           status: 'INACTIVE',
-        });
+        },
+      });
 
-      expect(response.status).toBe(200);
-      expect(response.body.description).toBe('Updated Description');
-      expect(response.body.status).toBe('INACTIVE');
-      expect(response.body.version).toBe(2);
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body);
+      expect(body.description).toBe('Updated Description');
+      expect(body.status).toBe('INACTIVE');
+      expect(body.version).toBe(2);
     });
 
     it('should return 404 for non-existent CI', async () => {
-      const response = await request(app)
-        .put('/api/v1/cmdb/cis/non-existent-id')
-        .set('x-tenant-id', '1')
-        .send({ description: 'Test' });
+      const response = await inject(app, {
+        method: 'PUT',
+        url: '/api/v1/cmdb/cis/non-existent-id',
+        headers: { 'x-tenant-id': '1' },
+        payload: { description: 'Test' },
+      });
 
-      expect(response.status).toBe(404);
-      expect(response.body.error).toBe('NOT_FOUND');
+      expect(response.statusCode).toBe(404);
+      const body = JSON.parse(response.body);
+      expect(body.error).toBe('NOT_FOUND');
     });
   });
 
   describe('DELETE /api/v1/cmdb/cis/:id', () => {
     it('should delete CI successfully', async () => {
-      const createResponse = await request(app)
-        .post('/api/v1/cmdb/cis')
-        .set('x-tenant-id', '1')
-        .set('x-user-id', 'user-001')
-        .send({
+      const createResponse = await inject(app, {
+        method: 'POST',
+        url: '/api/v1/cmdb/cis',
+        headers: { 'x-tenant-id': '1', 'x-user-id': 'user-001' },
+        payload: {
           ciId: 'test-delete-app',
           ciType: 'APPLICATION',
           name: 'Delete Test App',
-        });
+        },
+      });
+      const createBody = JSON.parse(createResponse.body);
 
-      const response = await request(app)
-        .delete(`/api/v1/cmdb/cis/${createResponse.body.id}`)
-        .set('x-tenant-id', '1');
+      const response = await inject(app, {
+        method: 'DELETE',
+        url: `/api/v1/cmdb/cis/${createBody.id}`,
+        headers: { 'x-tenant-id': '1' },
+      });
 
-      expect(response.status).toBe(204);
+      expect(response.statusCode).toBe(204);
     });
 
     it('should return 404 for non-existent CI', async () => {
-      const response = await request(app)
-        .delete('/api/v1/cmdb/cis/non-existent-id')
-        .set('x-tenant-id', '1');
+      const response = await inject(app, {
+        method: 'DELETE',
+        url: '/api/v1/cmdb/cis/non-existent-id',
+        headers: { 'x-tenant-id': '1' },
+      });
 
-      expect(response.status).toBe(404);
-      expect(response.body.error).toBe('NOT_FOUND');
+      expect(response.statusCode).toBe(404);
+      const body = JSON.parse(response.body);
+      expect(body.error).toBe('NOT_FOUND');
     });
   });
 
   describe('GET /api/v1/cmdb/cis', () => {
     it('should list CIs with filters', async () => {
-      await request(app)
-        .post('/api/v1/cmdb/cis')
-        .set('x-tenant-id', '1')
-        .send({
+      await inject(app, {
+        method: 'POST',
+        url: '/api/v1/cmdb/cis',
+        headers: { 'x-tenant-id': '1' },
+        payload: {
           ciId: 'list-app-1',
           ciType: 'APPLICATION',
           name: 'List App 1',
           environment: 'dev',
-        });
+        },
+      });
 
-      await request(app)
-        .post('/api/v1/cmdb/cis')
-        .set('x-tenant-id', '1')
-        .send({
+      await inject(app, {
+        method: 'POST',
+        url: '/api/v1/cmdb/cis',
+        headers: { 'x-tenant-id': '1' },
+        payload: {
           ciId: 'list-app-2',
           ciType: 'APPLICATION',
           name: 'List App 2',
           environment: 'prod',
-        });
+        },
+      });
 
-      const response = await request(app)
-        .get('/api/v1/cmdb/cis?environment=dev')
-        .set('x-tenant-id', '1');
+      const response = await inject(app, {
+        method: 'GET',
+        url: '/api/v1/cmdb/cis?environment=dev',
+        headers: { 'x-tenant-id': '1' },
+      });
 
-      expect(response.status).toBe(200);
-      expect(response.body.data).toHaveLength(1);
-      expect(response.body.data[0].ciId).toBe('list-app-1');
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body);
+      expect(body.data).toHaveLength(1);
+      expect(body.data[0].ciId).toBe('list-app-1');
     });
 
     it('should support pagination', async () => {
       for (let i = 0; i < 5; i++) {
-        await request(app)
-          .post('/api/v1/cmdb/cis')
-          .set('x-tenant-id', '1')
-          .send({
+        await inject(app, {
+          method: 'POST',
+          url: '/api/v1/cmdb/cis',
+          headers: { 'x-tenant-id': '1' },
+          payload: {
             ciId: `list-pag-${i}`,
             ciType: 'APPLICATION',
             name: `List App ${i}`,
-          });
+          },
+        });
       }
 
-      const response = await request(app)
-        .get('/api/v1/cmdb/cis?limit=2&offset=0')
-        .set('x-tenant-id', '1');
+      const response = await inject(app, {
+        method: 'GET',
+        url: '/api/v1/cmdb/cis?limit=2&offset=0',
+        headers: { 'x-tenant-id': '1' },
+      });
 
-      expect(response.status).toBe(200);
-      expect(response.body.data).toHaveLength(2);
-      expect(response.body.total).toBeGreaterThanOrEqual(5);
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body);
+      expect(body.data).toHaveLength(2);
+      expect(body.total).toBeGreaterThanOrEqual(5);
     });
   });
 
   describe('GET /api/v1/cmdb/cis/:id/versions', () => {
     it('should get CI versions', async () => {
-      const createResponse = await request(app)
-        .post('/api/v1/cmdb/cis')
-        .set('x-tenant-id', '1')
-        .send({
+      const createResponse = await inject(app, {
+        method: 'POST',
+        url: '/api/v1/cmdb/cis',
+        headers: { 'x-tenant-id': '1' },
+        payload: {
           ciId: 'version-app',
           ciType: 'APPLICATION',
           name: 'Version App',
-        });
+        },
+      });
+      const createBody = JSON.parse(createResponse.body);
 
-      await request(app)
-        .put(`/api/v1/cmdb/cis/${createResponse.body.id}`)
-        .set('x-tenant-id', '1')
-        .send({ description: 'v2' });
+      await inject(app, {
+        method: 'PUT',
+        url: `/api/v1/cmdb/cis/${createBody.id}`,
+        headers: { 'x-tenant-id': '1' },
+        payload: { description: 'v2' },
+      });
 
-      const response = await request(app)
-        .get(`/api/v1/cmdb/cis/${createResponse.body.id}/versions`)
-        .set('x-tenant-id', '1');
+      const response = await inject(app, {
+        method: 'GET',
+        url: `/api/v1/cmdb/cis/${createBody.id}/versions`,
+        headers: { 'x-tenant-id': '1' },
+      });
 
-      expect(response.status).toBe(200);
-      expect(response.body.data).toHaveLength(2);
-      expect(response.body.data[0].version).toBe(2);
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body);
+      expect(body.data).toHaveLength(2);
+      expect(body.data[0].version).toBe(2);
     });
   });
 
   describe('POST /api/v1/cmdb/relations', () => {
     it('should create relation successfully', async () => {
-      const fromCI = await request(app)
-        .post('/api/v1/cmdb/cis')
-        .set('x-tenant-id', '1')
-        .send({
+      await inject(app, {
+        method: 'POST',
+        url: '/api/v1/cmdb/cis',
+        headers: { 'x-tenant-id': '1' },
+        payload: {
           ciId: 'from-app',
           ciType: 'APPLICATION',
           name: 'From App',
-        });
+        },
+      });
 
-      const toCI = await request(app)
-        .post('/api/v1/cmdb/cis')
-        .set('x-tenant-id', '1')
-        .send({
+      await inject(app, {
+        method: 'POST',
+        url: '/api/v1/cmdb/cis',
+        headers: { 'x-tenant-id': '1' },
+        payload: {
           ciId: 'to-db',
           ciType: 'DATABASE',
           name: 'To DB',
-        });
+        },
+      });
 
-      const response = await request(app)
-        .post('/api/v1/cmdb/relations')
-        .set('x-tenant-id', '1')
-        .send({
+      const response = await inject(app, {
+        method: 'POST',
+        url: '/api/v1/cmdb/relations',
+        headers: { 'x-tenant-id': '1' },
+        payload: {
           fromCiId: 'from-app',
           toCiId: 'to-db',
           relationType: 'DEPENDS_ON',
-        });
+        },
+      });
 
-      expect(response.status).toBe(201);
-      expect(response.body.fromCiId).toBe('from-app');
-      expect(response.body.toCiId).toBe('to-db');
-      expect(response.body.relationType).toBe('DEPENDS_ON');
+      expect(response.statusCode).toBe(201);
+      const body = JSON.parse(response.body);
+      expect(body.fromCiId).toBe('from-app');
+      expect(body.toCiId).toBe('to-db');
+      expect(body.relationType).toBe('DEPENDS_ON');
     });
 
     it('should return 400 for missing required fields', async () => {
-      const response = await request(app)
-        .post('/api/v1/cmdb/relations')
-        .set('x-tenant-id', '1')
-        .send({
-          fromCiId: 'from-app',
-        });
+      const response = await inject(app, {
+        method: 'POST',
+        url: '/api/v1/cmdb/relations',
+        headers: { 'x-tenant-id': '1' },
+        payload: { fromCiId: 'from-app' },
+      });
 
-      expect(response.status).toBe(400);
-      expect(response.body.error).toBe('VALIDATION_ERROR');
+      expect(response.statusCode).toBe(400);
+      const body = JSON.parse(response.body);
+      expect(body.error).toBe('VALIDATION_ERROR');
     });
 
     it('should return 404 for non-existent CI', async () => {
-      const response = await request(app)
-        .post('/api/v1/cmdb/relations')
-        .set('x-tenant-id', '1')
-        .send({
+      const response = await inject(app, {
+        method: 'POST',
+        url: '/api/v1/cmdb/relations',
+        headers: { 'x-tenant-id': '1' },
+        payload: {
           fromCiId: 'non-existent',
           toCiId: 'to-db',
           relationType: 'DEPENDS_ON',
-        });
+        },
+      });
 
-      expect(response.status).toBe(404);
-      expect(response.body.error).toBe('NOT_FOUND');
+      expect(response.statusCode).toBe(404);
+      const body = JSON.parse(response.body);
+      expect(body.error).toBe('NOT_FOUND');
     });
   });
 
   describe('DELETE /api/v1/cmdb/relations/:id', () => {
     it('should delete relation successfully', async () => {
-      const fromCI = await request(app)
-        .post('/api/v1/cmdb/cis')
-        .set('x-tenant-id', '1')
-        .send({
+      await inject(app, {
+        method: 'POST',
+        url: '/api/v1/cmdb/cis',
+        headers: { 'x-tenant-id': '1' },
+        payload: {
           ciId: 'del-from-app',
           ciType: 'APPLICATION',
           name: 'From App',
-        });
+        },
+      });
 
-      const toCI = await request(app)
-        .post('/api/v1/cmdb/cis')
-        .set('x-tenant-id', '1')
-        .send({
+      await inject(app, {
+        method: 'POST',
+        url: '/api/v1/cmdb/cis',
+        headers: { 'x-tenant-id': '1' },
+        payload: {
           ciId: 'del-to-db',
           ciType: 'DATABASE',
           name: 'To DB',
-        });
+        },
+      });
 
-      const createResponse = await request(app)
-        .post('/api/v1/cmdb/relations')
-        .set('x-tenant-id', '1')
-        .send({
+      const createResponse = await inject(app, {
+        method: 'POST',
+        url: '/api/v1/cmdb/relations',
+        headers: { 'x-tenant-id': '1' },
+        payload: {
           fromCiId: 'del-from-app',
           toCiId: 'del-to-db',
           relationType: 'DEPENDS_ON',
-        });
+        },
+      });
+      const createBody = JSON.parse(createResponse.body);
 
-      const response = await request(app)
-        .delete(`/api/v1/cmdb/relations/${createResponse.body.id}`)
-        .set('x-tenant-id', '1');
+      const response = await inject(app, {
+        method: 'DELETE',
+        url: `/api/v1/cmdb/relations/${createBody.id}`,
+        headers: { 'x-tenant-id': '1' },
+      });
 
-      expect(response.status).toBe(204);
+      expect(response.statusCode).toBe(204);
     });
   });
 });

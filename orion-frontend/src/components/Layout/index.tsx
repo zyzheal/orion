@@ -1,8 +1,13 @@
+/**
+ * 新版 Layout - 固定顶部导航栏设计
+ * - 去掉左侧边栏
+ * - 固定顶部导航
+ * - 左上角：子系统启动器 + 系统名称 (可点击返回首页)
+ * - 右上角：主题切换 + 控制台 (管理员) + 用户菜单
+ */
 import React, { useState } from 'react';
-import { Layout as AntLayout, Menu, Avatar, Dropdown, Space, Breadcrumb } from 'antd';
+import { Layout as AntLayout, Menu, Avatar, Dropdown, Space, Breadcrumb, Button } from 'antd';
 import {
-  MenuFoldOutlined,
-  MenuUnfoldOutlined,
   DashboardOutlined,
   ProjectOutlined,
   SettingOutlined,
@@ -11,80 +16,75 @@ import {
   MoonOutlined,
   SunOutlined,
   HomeOutlined,
+  AppstoreOutlined,
+  ControlOutlined,
 } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
 import type { GetProp } from 'antd';
 import { useAppStore } from '@/stores/appStore';
 import { useAuth } from '@/hooks/useAuth';
+import SubAppLauncher from '@/components/SubAppLauncher';
+import { useNavigate } from 'react-router-dom';
 
 type ItemType = GetProp<MenuProps, 'items'>[number];
 
-const { Header, Sider, Content, Footer } = AntLayout;
+const { Header, Content, Footer } = AntLayout;
 
 interface LayoutProps {
   children: React.ReactNode;
 }
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
-  const [collapsed, setCollapsed] = useState(false);
-  const { theme, setTheme, setSidebarCollapsed, setBreadcrumbs } = useAppStore();
+  const navigate = useNavigate();
+  const { theme, setTheme, setBreadcrumbs } = useAppStore();
   const { user, logout } = useAuth();
+  const isAdmin = user?.role === 'admin';
 
-  const menuItems: ItemType[] = [
+  // 顶部导航菜单
+  const navMenuItems: ItemType[] = [
     {
       key: '/dashboard',
       icon: <DashboardOutlined />,
       label: '工作台',
     },
     {
-      type: 'divider',
+      key: '/subapps',
+      icon: <AppstoreOutlined />,
+      label: '子系统',
+      children: [
+        {
+          key: '/dba',
+          label: '数据库管理',
+        },
+        {
+          key: '/knowledge',
+          label: '知识库',
+        },
+        {
+          key: '/visor',
+          label: '监控中心',
+        },
+      ],
     },
     {
-      key: 'projects',
+      key: '/projects',
       icon: <ProjectOutlined />,
-      label: '项目管理',
-      children: [
-        {
-          key: '/projects',
-          label: '项目列表',
-        },
-        {
-          key: '/projects/create',
-          label: '创建项目',
-        },
-      ],
-    },
-    {
-      type: 'divider',
-    },
-    {
-      key: 'settings',
-      icon: <SettingOutlined />,
-      label: '系统设置',
-      children: [
-        {
-          key: '/settings/general',
-          label: '通用设置',
-        },
-        {
-          key: '/settings/user',
-          label: '用户管理',
-        },
-      ],
+      label: '项目',
     },
   ];
 
   const handleMenuClick: MenuProps['onClick'] = (e) => {
-    // 处理菜单点击，更新面包屑
-    const selectedMenu = menuItems.find((item) => item && 'key' in item && item.key === e.key);
-    if (selectedMenu && 'label' in selectedMenu) {
+    navigate(e.key);
+    const menuItem = navMenuItems.find((item) => item && 'key' in item && item.key === e.key);
+    if (menuItem && 'label' in menuItem) {
       setBreadcrumbs([
         { title: '首页', path: '/' },
-        { title: String(selectedMenu.label), path: e.key },
+        { title: String(menuItem.label), path: e.key },
       ]);
     }
   };
 
+  // 用户菜单
   const userMenuItems: ItemType[] = [
     {
       key: 'profile',
@@ -107,98 +107,183 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     },
   ];
 
+  // 控制台菜单（仅管理员）
+  const consoleMenuItems: ItemType[] = [
+    {
+      key: '/console/plugins',
+      icon: <AppstoreOutlined />,
+      label: '插件管理',
+    },
+    {
+      key: '/console/settings',
+      icon: <SettingOutlined />,
+      label: '系统配置',
+    },
+    {
+      key: '/console/users',
+      icon: <UserOutlined />,
+      label: '用户管理',
+    },
+  ];
+
+  const handleConsoleMenuClick: MenuProps['onClick'] = (e) => {
+    navigate(e.key);
+  };
+
   const toggleTheme = () => {
     setTheme(theme === 'light' ? 'dark' : 'light');
   };
 
   return (
     <AntLayout style={{ minHeight: '100vh' }}>
-      <Sider
-        trigger={null}
-        collapsible
-        collapsed={collapsed}
-        theme={theme === 'dark' ? 'dark' : 'light'}
+      {/* 固定顶部导航栏 */}
+      <Header
         style={{
-          overflow: 'auto',
-          height: '100vh',
-          position: 'fixed',
-          left: 0,
+          padding: '0 24px',
+          background: theme === 'dark' ? '#001529' : '#fff',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          position: 'sticky',
           top: 0,
-          bottom: 0,
-          zIndex: 100,
+          zIndex: 1000,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+          height: 64,
+          overflow: 'visible',
         }}
       >
-        <div
-          style={{
-            height: 64,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: theme === 'dark' ? '#fff' : '#001529',
-            fontWeight: 'bold',
-            fontSize: collapsed ? 0 : 18,
-            overflow: 'hidden',
-          }}
-        >
-          <span style={{ whiteSpace: 'nowrap' }}>Orion Platform</span>
+        {/* 左侧区域：启动器 + 系统名 + 导航菜单 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          {/* 子系统启动器 + 系统名称 */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              cursor: 'pointer',
+              padding: '8px 12px',
+              borderRadius: 8,
+              transition: 'all 0.3s',
+              flexShrink: 0,
+            }}
+            onClick={() => navigate('/dashboard')}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.04)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'transparent';
+            }}
+          >
+            <SubAppLauncher />
+            <span
+              style={{
+                fontSize: 16,
+                fontWeight: 'bold',
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              Orion Platform
+            </span>
+          </div>
+
+          {/* 顶部导航菜单 */}
+          <Menu
+            mode="horizontal"
+            selectedKeys={['/dashboard']}
+            items={navMenuItems}
+            onClick={handleMenuClick}
+            style={{
+              border: 'none',
+              background: 'transparent',
+              overflow: 'visible',
+            }}
+            theme={theme === 'dark' ? 'dark' : 'light'}
+            overflowedIndicator={null}
+          />
         </div>
-        <Menu
-          theme={theme === 'dark' ? 'dark' : 'light'}
-          mode="inline"
-          selectedKeys={['/dashboard']}
-          items={menuItems}
-          onClick={handleMenuClick}
-        />
-      </Sider>
-      <AntLayout style={{ marginLeft: collapsed ? 80 : 200, transition: 'all 0.2s' }}>
-        <Header
-          style={{
-            padding: '0 24px',
-            background: theme === 'dark' ? '#001529' : '#fff',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            position: 'sticky',
-            top: 0,
-            zIndex: 99,
-          }}
-        >
-          <Space>
-            {React.createElement(collapsed ? MenuUnfoldOutlined : MenuFoldOutlined, {
-              className: 'trigger',
-              onClick: () => {
-                setCollapsed(!collapsed);
-                setSidebarCollapsed(!collapsed);
-              },
-              style: {
-                fontSize: 18,
-                cursor: 'pointer',
-              },
-            })}
-          </Space>
 
-          <Space>
-            {React.createElement(theme === 'dark' ? SunOutlined : MoonOutlined, {
-              onClick: toggleTheme,
-              style: {
-                fontSize: 18,
-                cursor: 'pointer',
-              },
-            })}
-
-            <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
-              <Space style={{ cursor: 'pointer' }}>
-                <Avatar icon={<UserOutlined />} src={user?.avatar} />
-                {!collapsed && <span>{user?.username || '用户'}</span>}
-              </Space>
+        {/* 右侧区域：控制台 + 主题 + 用户 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {/* 控制台入口（仅管理员） */}
+          {isAdmin && (
+            <Dropdown
+              menu={{ items: consoleMenuItems, onClick: handleConsoleMenuClick }}
+              placement="bottomRight"
+              trigger={['click']}
+            >
+              <Button
+                icon={<ControlOutlined />}
+                type="text"
+                size="large"
+                style={{
+                  fontSize: 18,
+                  color: theme === 'dark' ? '#fff' : '#666',
+                }}
+                title="控制台"
+              />
             </Dropdown>
-          </Space>
-        </Header>
+          )}
 
+          {/* 主题切换 */}
+          <Button
+            icon={theme === 'dark' ? <SunOutlined /> : <MoonOutlined />}
+            type="text"
+            size="large"
+            onClick={toggleTheme}
+            style={{
+              fontSize: 18,
+              color: theme === 'dark' ? '#fff' : '#666',
+            }}
+            title={theme === 'dark' ? '切换到浅色模式' : '切换到深色模式'}
+          />
+
+          {/* 用户菜单 */}
+          <Dropdown menu={{ items: userMenuItems }} placement="bottomRight" trigger={['click']}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                cursor: 'pointer',
+                padding: '4px 8px',
+                borderRadius: 8,
+                transition: 'all 0.3s',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.04)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent';
+              }}
+            >
+              <Avatar
+                icon={<UserOutlined />}
+                src={user?.avatar}
+                size="default"
+                style={{
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                }}
+              />
+              <span style={{ fontSize: 14, fontWeight: 500, whiteSpace: 'nowrap' }}>
+                {user?.username || '用户'}
+              </span>
+            </div>
+          </Dropdown>
+        </div>
+      </Header>
+
+      {/* 面包屑导航 */}
+      <div
+        style={{
+          background: theme === 'dark' ? '#141414' : '#f0f2f5',
+          padding: '12px 24px',
+        }}
+      >
         <Breadcrumb
-          style={{
-            margin: '16px 24px',
-          }}
           separator=">"
           items={[
             {
@@ -212,23 +297,32 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             ...(useAppStore.getState().breadcrumbs || []),
           ]}
         />
+      </div>
 
-        <Content
-          style={{
-            margin: '0 24px',
-            background: theme === 'dark' ? '#141414' : '#f0f2f5',
-            borderRadius: 8,
-            padding: 24,
-            minHeight: 'calc(100vh - 184px)',
-          }}
-        >
-          {children}
-        </Content>
+      {/* 内容区域 */}
+      <Content
+        style={{
+          margin: '16px 24px',
+          background: theme === 'dark' ? '#141414' : '#fff',
+          borderRadius: 12,
+          padding: 24,
+          minHeight: 'calc(100vh - 180px)',
+          boxShadow: theme === 'dark'
+            ? '0 2px 8px rgba(0,0,0,0.3)'
+            : '0 2px 8px rgba(0,0,0,0.08)',
+        }}
+      >
+        {children}
+      </Content>
 
-        <Footer style={{ textAlign: 'center', background: 'transparent' }}>
-          Orion Platform ©{new Date().getFullYear()} Created by Orion Team
-        </Footer>
-      </AntLayout>
+      {/* 页脚 */}
+      <Footer style={{
+        textAlign: 'center',
+        background: 'transparent',
+        color: theme === 'dark' ? '#666' : '#999',
+      }}>
+        Orion Platform ©{new Date().getFullYear()} Created by Orion Team
+      </Footer>
     </AntLayout>
   );
 };

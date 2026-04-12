@@ -14,8 +14,8 @@ import { RedisCache } from './services/redis-cache';
 import { DatabasePool } from './services/database';
 import { EventBusService } from './services/event-bus-service';
 import { NatsServiceRegistry } from './services/nats-registry';
-import { registerApiRoutes } from './api/routes';
-import { registerAuthRoutes } from './api/routes-auth';
+import apiRoutes from './api/routes';
+import authRoutes from './api/routes-auth';
 
 const logger = pino({
   level: process.env.LOG_LEVEL || 'info',
@@ -137,10 +137,10 @@ export async function createApp(options: PlatformAppOptions = {}): Promise<{
   // ==================== API 路由 ====================
 
   // 注册认证 API 路由
-  await app.register(registerAuthRoutes, { prefix: '/api/v1/auth' });
+  await app.register(authRoutes, { prefix: '/api/v1/auth' });
 
   // 注册 Pipeline API
-  await app.register(registerApiRoutes, { prefix: '/api/v1', eventBus: options.eventBus });
+  await app.register(apiRoutes, { prefix: '/api/v1', eventBus: options.eventBus });
 
   // 基础 API 路由
   app.get('/api/v1/info', async (request: FastifyRequest, reply: FastifyReply) => {

@@ -1,8 +1,8 @@
 import React, { useEffect } from 'react';
 import { Typography, Card, Row, Col, Statistic } from 'antd';
 import {
-  PipelineOutlined,
-  CloudUploadOutlined,
+  AppstoreOutlined,
+  CloudServerOutlined,
   SettingOutlined,
   CheckCircleOutlined,
 } from '@ant-design/icons';
@@ -24,7 +24,7 @@ const Dashboard: React.FC = () => {
             <Statistic
               title="Pipeline 数量"
               value={12}
-              prefix={<PipelineOutlined />}
+              prefix={<AppstoreOutlined />}
               valueStyle={{ color: '#1890ff' }}
             />
           </Card>
@@ -34,7 +34,7 @@ const Dashboard: React.FC = () => {
             <Statistic
               title="运行中"
               value={3}
-              prefix={<CloudUploadOutlined />}
+              prefix={<CloudServerOutlined />}
               valueStyle={{ color: '#52c41a' }}
             />
           </Card>
@@ -60,7 +60,7 @@ const Dashboard: React.FC = () => {
         <Row gutter={16} style={{ marginTop: 16 }}>
           <Col span={8}>
             <Card hoverable>
-              <PipelineOutlined style={{ fontSize: 48, color: '#1890ff' }} />
+              <AppstoreOutlined style={{ fontSize: 48, color: '#1890ff' }} />
               <Title level={5}>Pipeline 管理</Title>
               <Typography.Text type="secondary">
                 创建和管理 CI/CD 流水线
@@ -69,7 +69,7 @@ const Dashboard: React.FC = () => {
           </Col>
           <Col span={8}>
             <Card hoverable>
-              <CloudUploadOutlined style={{ fontSize: 48, color: '#52c41a' }} />
+              <CloudServerOutlined style={{ fontSize: 48, color: '#52c41a' }} />
               <Title level={5}>运行监控</Title>
               <Typography.Text type="secondary">
                 实时监控流水线执行状态

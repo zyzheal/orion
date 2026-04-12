@@ -70,14 +70,21 @@ test.describe('Login Flow', () => {
   });
 
   test('should validate empty fields', async ({ page }) => {
-    // 1. 直接提交空表单
+    // 1. 清空表单（Ant Design 表单有默认值）
+    const usernameInput = page.locator('input[placeholder="用户名"]');
+    const passwordInput = page.locator('input[placeholder="密码"]');
+
+    await usernameInput.clear();
+    await passwordInput.clear();
+
+    // 2. 点击提交按钮
     const submitButton = page.locator('button[type="submit"]');
     await submitButton.click();
 
-    // 2. 等待片刻
+    // 3. 等待验证错误出现
     await page.waitForTimeout(500);
 
-    // 3. 验证 - 应该还在登录页（没有提交成功）
+    // 4. 验证 - 应该还在登录页（没有提交成功）
     expect(page.url()).toContain('/login');
   });
 });

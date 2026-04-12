@@ -28,10 +28,36 @@ export const routes: AppRoute[] = [
     element: React.lazy(() => import('@/pages/Login')),
     protected: false,
   },
+  // 子系统导航页
+  {
+    path: '/subapps',
+    element: React.lazy(() => import('@/pages/SubApps')),
+    protected: true,
+  },
   // 受保护的路由
   {
     path: '/dashboard',
-    element: React.lazy(() => import('@/pages/Dashboard')),
+    element: React.lazy(() => import('@/pages/DashboardNew')),
+    protected: true,
+  },
+  {
+    path: '/console',
+    element: React.lazy(() => import('@/pages/Console')),
+    protected: true,
+  },
+  {
+    path: '/console/plugins',
+    element: React.lazy(() => import('@/pages/Console')),
+    protected: true,
+  },
+  {
+    path: '/console/settings',
+    element: React.lazy(() => import('@/pages/Console')),
+    protected: true,
+  },
+  {
+    path: '/console/users',
+    element: React.lazy(() => import('@/pages/Console')),
     protected: true,
   },
   {

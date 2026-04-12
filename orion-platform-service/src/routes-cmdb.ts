@@ -1,9 +1,8 @@
 /**
- * CMDB API 路由 - Fastify 插件版本
+ * CMDB API 路由 - Fastify 版本（不使用 fp 以支持 prefix）
  */
 
-import { FastifyInstance, FastifyRequest, FastifyReply, FastifyPluginAsync } from 'fastify';
-import fp from 'fastify-plugin';
+import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { CmdbController } from './api/controllers/CmdbController';
 import { CmdbIntegrationController } from './api/controllers/CmdbIntegrationController';
 import { CmdbService } from './services/cmdb/CmdbService';
@@ -15,7 +14,7 @@ export interface CmdbRoutesOptions {
   eventBus?: EventBusService;
 }
 
-const cmdbRoutesPlugin: FastifyPluginAsync<CmdbRoutesOptions> = async (app: FastifyInstance, options: CmdbRoutesOptions) => {
+export default async function cmdbRoutes(app: FastifyInstance, options: CmdbRoutesOptions): Promise<void> {
   // 初始化服务
   const eventPublisher = options?.eventBus
     ? new CmdbEventPublisher(options.eventBus)
@@ -124,8 +123,4 @@ const cmdbRoutesPlugin: FastifyPluginAsync<CmdbRoutesOptions> = async (app: Fast
   app.post('/execute', async (request: FastifyRequest, reply: FastifyReply) => {
     return integrationController.executeScript(request, reply);
   });
-};
-
-export const registerCmdbRoutes = fp(cmdbRoutesPlugin, {
-  name: 'orion-cmdb-routes',
-});
+}

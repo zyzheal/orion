@@ -5,12 +5,21 @@
  * - Access Token: 24 小时有效期
  * - Refresh Token: 7 天有效期
  * - 使用 Redis 存储 Refresh Token，支持并发刷新保护
+ * - 设备指纹绑定
+ * - 异地登录检测
  */
 
 import { FastifyInstance } from 'fastify';
 import { getConfig } from '../config';
 import { generateId } from '../utils';
 import { createHash } from 'crypto';
+import {
+  DeviceFingerprintService,
+  DeviceInfo,
+  AnomalousLoginEvent,
+  TokenRefreshGuard,
+  RefreshResult,
+} from './auth';
 
 export interface TokenPayload {
   sub: string; // 用户 ID
@@ -27,20 +36,32 @@ export interface TokenPair {
   refreshToken: string;
   expiresIn: number;
   refreshTokenExpiresIn: number;
+  anomalousLogin?: AnomalousLoginEvent; // 异地登录告警
 }
 
 export interface RefreshTokenData {
   userId: string;
   deviceId?: string;
+  fingerprint?: string;
   jti: string; // Token ID，用于防止重放攻击
   exp: number;
 }
 
+export interface TokenRefreshOptions {
+  ip?: string;
+  userAgent?: string;
+  deviceId?: string;
+}
+
 export class TokenService {
   private redisClient: any;
+  private deviceFingerprintService: DeviceFingerprintService;
+  private tokenRefreshGuard: TokenRefreshGuard;
 
   constructor(private app: FastifyInstance) {
     this.redisClient = null;
+    this.deviceFingerprintService = new DeviceFingerprintService(app);
+    this.tokenRefreshGuard = new TokenRefreshGuard(app);
   }
 
   /**
@@ -48,14 +69,22 @@ export class TokenService {
    */
   setRedisClient(client: any): void {
     this.redisClient = client;
+    this.deviceFingerprintService.setRedisClient(client);
+    this.tokenRefreshGuard.setRedisClient(client);
+    this.tokenRefreshGuard.setDeviceFingerprintService(this.deviceFingerprintService);
   }
 
   /**
-   * 生成设备指纹（基于 User-Agent + IP）
+   * 生成设备指纹（基于 User-Agent + IP/24 + DeviceID）
+   * 使用 DeviceFingerprintService 进行增强
    */
-  generateDeviceFingerprint(userAgent?: string, ip?: string): string {
-    const data = `${userAgent || 'unknown'}:${ip || 'unknown'}:${generateId()}`;
-    return createHash('sha256').update(data).digest('hex').substring(0, 32);
+  generateDeviceFingerprint(userAgent?: string, ip?: string, deviceId?: string): string {
+    const deviceInfo: DeviceInfo = {
+      userAgent: userAgent || 'unknown',
+      ip: ip || 'unknown',
+      deviceId,
+    };
+    return this.deviceFingerprintService.generateFingerprint(deviceInfo);
   }
 
   /**
@@ -79,6 +108,7 @@ export class TokenService {
   async generateRefreshToken(payload: {
     userId: string;
     deviceId?: string;
+    fingerprint?: string;
   }): Promise<{ refreshToken: string; jti: string; expiresAt: number }> {
     const jti = generateId();
     const refreshToken = generateId() + generateId(); // 更长的随机字符串
@@ -89,6 +119,7 @@ export class TokenService {
     const tokenData: RefreshTokenData = {
       userId: payload.userId,
       deviceId: payload.deviceId,
+      fingerprint: payload.fingerprint,
       jti,
       exp: expiresAt,
     };
@@ -115,117 +146,157 @@ export class TokenService {
   }
 
   /**
-   * 验证并刷新 Token（使用 Lua 脚本保证原子性）
+   * 验证并刷新 Token（使用 TokenRefreshGuard 进行保护）
    */
-  async refreshTokens(refreshToken: string, deviceId?: string): Promise<TokenPair | null> {
+  async refreshTokens(
+    refreshToken: string,
+    options: TokenRefreshOptions = {}
+  ): Promise<TokenPair | null> {
     if (!this.redisClient) {
       // 没有 Redis，直接返回 null
       return null;
     }
 
-    // 使用 Lua 脚本进行原子操作
-    const luaScript = `
-      local refreshTokenKey = KEYS[1]
-      local usedJtiKey = KEYS[2]
-      local deviceId = ARGV[1]
-
-      -- 1. 获取 Refresh Token 数据
-      local tokenData = redis.call('GET', refreshTokenKey)
-      if not tokenData then
-        return nil
-      end
-
-      local data = cjson.decode(tokenData)
-
-      -- 2. 检查设备指纹是否匹配
-      if deviceId and data.deviceId and data.deviceId ~= deviceId then
-        return nil
-      end
-
-      -- 3. 检查 JTI 是否已被使用（防止重放攻击）
-      local jtiUsed = redis.call('GET', usedJtiKey)
-      if jtiUsed then
-        -- Token 已被使用，删除旧 token
-        redis.call('DEL', refreshTokenKey)
-        return nil
-      end
-
-      -- 4. 标记 JTI 为已使用
-      redis.call('SET', usedJtiKey, '1', 'PX', 604800000)
-
-      -- 5. 删除旧的 Refresh Token
-      redis.call('DEL', refreshTokenKey)
-
-      -- 6. 返回用户信息
-      return cjson.encode({ userId = data.userId, deviceId = data.deviceId })
-    `;
-
-    try {
-      const result = await this.redisClient.eval(
-        luaScript,
-        2,
-        `refresh_token:${refreshToken}`,
-        `used_jti:${refreshToken}`,
-        deviceId || ''
-      );
-
-      if (!result) {
-        return null;
-      }
-
-      const data = typeof result === 'string' ? JSON.parse(result) : result;
-
-      // 生成新的 Token 对
-      const newRefreshResult = await this.generateRefreshToken({
-        userId: data.userId,
-        deviceId: data.deviceId,
-      });
-
-      const accessToken = await this.generateAccessToken({
-        sub: data.userId,
-        deviceId: data.deviceId,
-      });
-
-      return {
-        accessToken,
-        refreshToken: newRefreshResult.refreshToken,
-        expiresIn: 24 * 60 * 60, // 24 小时
-        refreshTokenExpiresIn: 7 * 24 * 60 * 60, // 7 天
-      };
-    } catch (error) {
-      this.app.log.error({ err: error instanceof Error ? error.message : String(error) }, 'Token refresh failed');
+    // 先检查黑名单
+    const isBlacklisted = await this.tokenRefreshGuard.isTokenBlacklisted(refreshToken);
+    if (isBlacklisted) {
+      this.app.log.warn({ refreshToken: refreshToken.substring(0, 8) }, 'Token is blacklisted');
       return null;
     }
+
+    // 获取当前 token 数据
+    const tokenDataStr = await this.redisClient.get(`refresh_token:${refreshToken}`);
+    if (!tokenDataStr) {
+      return null;
+    }
+
+    const tokenData: RefreshTokenData = JSON.parse(tokenDataStr);
+
+    // 生成新的设备指纹
+    const fingerprint = this.generateDeviceFingerprint(
+      options.userAgent,
+      options.ip,
+      options.deviceId
+    );
+
+    // 使用 TokenRefreshGuard 处理刷新
+    const result = await this.tokenRefreshGuard.handleRefresh(
+      {
+        refreshToken,
+        userId: tokenData.userId,
+        deviceId: options.deviceId || tokenData.deviceId,
+        fingerprint,
+        ip: options.ip || 'unknown',
+        userAgent: options.userAgent,
+      },
+      async () => {
+        // 生成新的 token 对
+        const newRefreshResult = await this.generateRefreshToken({
+          userId: tokenData.userId,
+          deviceId: options.deviceId || tokenData.deviceId,
+          fingerprint,
+        });
+
+        const accessToken = await this.generateAccessToken({
+          sub: tokenData.userId,
+          deviceId: options.deviceId || tokenData.deviceId,
+        });
+
+        return {
+          accessToken,
+          refreshToken: newRefreshResult.refreshToken,
+          jti: newRefreshResult.jti,
+        };
+      }
+    );
+
+    if (!result.success) {
+      this.app.log.warn(
+        { refreshToken: refreshToken.substring(0, 8), revoked: result.revoked },
+        'Token refresh failed'
+      );
+      return null;
+    }
+
+    return {
+      accessToken: result.accessToken!,
+      refreshToken: result.refreshToken!,
+      expiresIn: result.expiresIn!,
+      refreshTokenExpiresIn: result.refreshTokenExpiresIn!,
+      anomalousLogin: result.anomalousLogin,
+    };
   }
 
   /**
    * 生成完整的 Token 对
    */
-  async generateTokenPair(payload: {
-    userId: string;
-    email?: string;
-    roles?: string[];
-    permissions?: string[];
-    deviceId?: string;
-  }): Promise<TokenPair> {
+  async generateTokenPair(
+    payload: {
+      userId: string;
+      email?: string;
+      roles?: string[];
+      permissions?: string[];
+    },
+    deviceOptions?: TokenRefreshOptions
+  ): Promise<TokenPair> {
+    // 生成设备指纹
+    const fingerprint = this.generateDeviceFingerprint(
+      deviceOptions?.userAgent,
+      deviceOptions?.ip,
+      deviceOptions?.deviceId
+    );
+
     const accessToken = await this.generateAccessToken({
       sub: payload.userId,
       email: payload.email,
       roles: payload.roles,
       permissions: payload.permissions,
-      deviceId: payload.deviceId,
+      deviceId: deviceOptions?.deviceId,
     });
 
     const refreshResult = await this.generateRefreshToken({
       userId: payload.userId,
-      deviceId: payload.deviceId,
+      deviceId: deviceOptions?.deviceId,
+      fingerprint,
     });
+
+    // 存储设备指纹
+    if (this.redisClient && fingerprint) {
+      await this.deviceFingerprintService.storeFingerprint(
+        payload.userId,
+        fingerprint,
+        {
+          userAgent: deviceOptions?.userAgent || 'unknown',
+          ip: deviceOptions?.ip || 'unknown',
+          deviceId: deviceOptions?.deviceId,
+        }
+      );
+    }
+
+    // 检测是否为新设备
+    let anomalousLogin: AnomalousLoginEvent | undefined;
+    if (this.redisClient && fingerprint) {
+      const isNewDevice = await this.deviceFingerprintService.isNewDevice(
+        payload.userId,
+        fingerprint
+      );
+
+      if (!isNewDevice && deviceOptions?.ip) {
+        // 如果不是新设备，检查是否有异地登录
+        anomalousLogin = await this.deviceFingerprintService.detectAnomalousLogin(
+          payload.userId,
+          fingerprint,
+          deviceOptions.ip
+        );
+      }
+    }
 
     return {
       accessToken,
       refreshToken: refreshResult.refreshToken,
       expiresIn: 24 * 60 * 60, // 24 小时（秒）
       refreshTokenExpiresIn: 7 * 24 * 60 * 60, // 7 天（秒）
+      anomalousLogin,
     };
   }
 
@@ -234,6 +305,12 @@ export class TokenService {
    */
   async validateRefreshToken(refreshToken: string): Promise<RefreshTokenData | null> {
     if (!this.redisClient) {
+      return null;
+    }
+
+    // 先检查黑名单
+    const isBlacklisted = await this.tokenRefreshGuard.isTokenBlacklisted(refreshToken);
+    if (isBlacklisted) {
       return null;
     }
 
@@ -263,6 +340,8 @@ export class TokenService {
         const tokenData: RefreshTokenData = JSON.parse(data);
         // 同时删除 JTI 记录
         await this.redisClient.del(`used_jti:${tokenData.jti}`);
+        // 添加到黑名单
+        await this.tokenRefreshGuard.blacklistToken(refreshToken, tokenData.exp);
       }
       await this.redisClient.del(`refresh_token:${refreshToken}`);
     }
@@ -276,17 +355,45 @@ export class TokenService {
       return;
     }
 
-    // 查找所有属于该用户的 Refresh Token
-    const keys = await this.redisClient.keys(`refresh_token:*`);
-    for (const key of keys) {
-      const data = await this.redisClient.get(key);
-      if (data) {
-        const tokenData: RefreshTokenData = JSON.parse(data);
-        if (tokenData.userId === userId) {
-          const refreshToken = key.replace('refresh_token:', '');
-          await this.revokeToken(refreshToken);
-        }
-      }
-    }
+    // 使用 TokenRefreshGuard 的撤销方法
+    await this.tokenRefreshGuard.revokeAllUserTokens(userId);
+
+    // 同时移除所有设备指纹
+    await this.deviceFingerprintService.removeAllDevices(userId);
+  }
+
+  /**
+   * 验证设备指纹
+   */
+  async validateDeviceFingerprint(userId: string, fingerprint: string): Promise<boolean> {
+    return this.deviceFingerprintService.validateFingerprint(userId, fingerprint);
+  }
+
+  /**
+   * 获取用户所有设备
+   */
+  async getUserDevices(userId: string) {
+    return this.deviceFingerprintService.getUserDevices(userId);
+  }
+
+  /**
+   * 移除设备（设备解绑）
+   */
+  async removeDevice(userId: string, fingerprint: string): Promise<void> {
+    await this.deviceFingerprintService.removeFingerprint(userId, fingerprint);
+  }
+
+  /**
+   * 获取刷新审计日志
+   */
+  async getRefreshAuditLog(userId: string, limit?: number) {
+    return this.tokenRefreshGuard.getRefreshAuditLog(userId, limit);
+  }
+
+  /**
+   * 检查 Token 是否在黑名单中
+   */
+  async isTokenBlacklisted(token: string): Promise<boolean> {
+    return this.tokenRefreshGuard.isTokenBlacklisted(token);
   }
 }

@@ -1,10 +1,9 @@
 /**
- * 认证路由 - Fastify 插件版本
+ * 认证路由 - Fastify 版本（不使用 fp 以支持 prefix）
  * 处理用户登录、登出、Token 刷新等
  */
 
-import { FastifyInstance, FastifyRequest, FastifyReply, FastifyPluginAsync } from 'fastify';
-import fp from 'fastify-plugin';
+import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 
@@ -17,7 +16,7 @@ const MOCK_USERS = [
   { id: '2', username: 'user', password: 'user123', email: 'user@orion.com', role: 'user' },
 ];
 
-const authRoutesPlugin: FastifyPluginAsync = async (app: FastifyInstance) => {
+export default async function authRoutes(app: FastifyInstance): Promise<void> {
   /**
    * POST /api/v1/auth/login - 用户登录
    */
@@ -166,8 +165,4 @@ const authRoutesPlugin: FastifyPluginAsync = async (app: FastifyInstance) => {
       });
     }
   });
-};
-
-export const registerAuthRoutes = fp(authRoutesPlugin, {
-  name: 'orion-auth-routes',
-});
+}
