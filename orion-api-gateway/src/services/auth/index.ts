@@ -13,3 +13,13 @@ export type {
   TokenRefreshAttempt,
   RefreshAuditLog,
 } from './TokenRefreshGuard';
+
+export { AbacPolicyEngine, abacPolicyEngine, SYSTEM_ABAC_POLICIES } from './AbacPolicyEngine';
+export type {
+  AbacContext,
+  Condition,
+  ConditionOperator,
+  ConditionRule,
+  AbacPolicy,
+  PolicyEvaluationResult,
+} from './AbacPolicyEngine';

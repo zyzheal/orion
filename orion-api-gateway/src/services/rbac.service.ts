@@ -4,7 +4,11 @@
  * 实现基于角色的访问控制（Role-Based Access Control）
  * - 定义角色和权限数据结构
  * - 实现角色权限检查方法
+ * - 支持权限缓存
+ * - 支持与 ABAC 组合检查
  */
+
+import { EventEmitter } from 'events';
 
 export interface Permission {
   id: string;
@@ -328,16 +332,27 @@ export const SYSTEM_PERMISSIONS: Record<string, Permission> = {
 
 /**
  * RBAC 服务类
+ * 支持缓存、事件通知和 ABAC 组合检查
  */
-export class RbacService {
+export class RbacService extends EventEmitter {
   private roles: Map<string, Role> = new Map();
   private permissions: Map<string, Permission> = new Map();
   private userRoles: Map<string, UserRole[]> = new Map();
 
+  // 权限缓存
+  private permissionCache: Map<string, { permissions: Permission[]; expiresAt: number }> = new Map();
+  private cacheEnabled: boolean = true;
+  private cacheTTL: number = 60000; // 1 分钟
+
+  // 权限矩阵（角色-权限映射）
+  private permissionMatrix: Map<string, Set<string>> = new Map();
+
   constructor() {
+    super();
     // 初始化系统角色和权限
     this.initSystemRoles();
     this.initSystemPermissions();
+    this.buildPermissionMatrix();
   }
 
   /**
@@ -359,10 +374,48 @@ export class RbacService {
   }
 
   /**
+   * 构建权限矩阵（用于快速查找）
+   */
+  private buildPermissionMatrix(): void {
+    this.roles.forEach((role) => {
+      const permSet = new Set<string>();
+      role.permissions.forEach((perm) => permSet.add(perm));
+
+      // 处理继承
+      if (role.inheritedFrom) {
+        role.inheritedFrom.forEach((inheritedId) => {
+          const inheritedRole = this.roles.get(inheritedId);
+          if (inheritedRole) {
+            inheritedRole.permissions.forEach((perm) => permSet.add(perm));
+          }
+        });
+      }
+
+      this.permissionMatrix.set(role.id, permSet);
+    });
+  }
+
+  /**
    * 注册自定义角色
    */
   registerRole(role: Role): void {
     this.roles.set(role.id, role);
+    // 更新权限矩阵
+    const permSet = new Set<string>();
+    role.permissions.forEach((perm) => permSet.add(perm));
+    if (role.inheritedFrom) {
+      role.inheritedFrom.forEach((inheritedId) => {
+        const inheritedRole = this.roles.get(inheritedId);
+        if (inheritedRole) {
+          inheritedRole.permissions.forEach((perm) => permSet.add(perm));
+        }
+      });
+    }
+    this.permissionMatrix.set(role.id, permSet);
+    // 清除缓存
+    this.invalidateCache();
+    // 发送事件
+    this.emit('roleRegistered', { roleId: role.id });
   }
 
   /**
@@ -370,6 +423,8 @@ export class RbacService {
    */
   registerPermission(permission: Permission): void {
     this.permissions.set(permission.id, permission);
+    // 发送事件
+    this.emit('permissionRegistered', { permissionId: permission.id });
   }
 
   /**
@@ -410,14 +465,26 @@ export class RbacService {
     }
 
     const userRoles = this.userRoles.get(userId) || [];
-    userRoles.push({
-      userId,
-      roleId,
-      grantedAt: new Date(),
-      grantedBy,
-      expiresAt,
-    });
+    // 检查是否已有该角色
+    const existing = userRoles.find((ur) => ur.roleId === roleId);
+    if (existing) {
+      // 更新过期时间
+      existing.expiresAt = expiresAt;
+      existing.grantedAt = new Date();
+    } else {
+      userRoles.push({
+        userId,
+        roleId,
+        grantedAt: new Date(),
+        grantedBy,
+        expiresAt,
+      });
+    }
     this.userRoles.set(userId, userRoles);
+    // 清除用户权限缓存
+    this.invalidateUserCache(userId);
+    // 发送事件
+    this.emit('roleAssigned', { userId, roleId, grantedBy });
   }
 
   /**
@@ -427,6 +494,10 @@ export class RbacService {
     const userRoles = this.userRoles.get(userId) || [];
     const filtered = userRoles.filter((ur) => ur.roleId !== roleId);
     this.userRoles.set(userId, filtered);
+    // 清除用户权限缓存
+    this.invalidateUserCache(userId);
+    // 发送事件
+    this.emit('roleRevoked', { userId, roleId });
   }
 
   /**
@@ -445,52 +516,73 @@ export class RbacService {
   }
 
   /**
-   * 获取用户的所有权限
+   * 获取用户的所有权限（带缓存）
    */
   getUserPermissions(userId: string): Permission[] {
+    // 检查缓存
+    if (this.cacheEnabled) {
+      const cached = this.permissionCache.get(userId);
+      if (cached && cached.expiresAt > Date.now()) {
+        return cached.permissions;
+      }
+    }
+
     const roles = this.getUserRoles(userId);
     const permissionSet = new Set<string>();
 
-    // 收集所有权限 ID
+    // 使用权限矩阵快速查找
     roles.forEach((role) => {
-      if (role.permissions.includes('*')) {
-        // 拥有所有权限
-        permissionSet.add('*');
-        return;
-      }
-
-      role.permissions.forEach((permId) => {
-        permissionSet.add(permId);
-      });
-
-      // 处理继承角色
-      if (role.inheritedFrom) {
-        role.inheritedFrom.forEach((inheritedRoleId) => {
-          const inheritedRole = this.roles.get(inheritedRoleId);
-          if (inheritedRole) {
-            inheritedRole.permissions.forEach((permId) => {
-              permissionSet.add(permId);
-            });
-          }
-        });
+      const rolePerms = this.permissionMatrix.get(role.id);
+      if (rolePerms) {
+        if (rolePerms.has('*')) {
+          permissionSet.add('*');
+          return;
+        }
+        rolePerms.forEach((perm) => permissionSet.add(perm));
       }
     });
 
     // 转换为 Permission 对象
-    const permissions: Permission[] = [];
+    let permissions: Permission[];
     if (permissionSet.has('*')) {
-      // 返回所有权限
-      return Array.from(this.permissions.values());
+      permissions = Array.from(this.permissions.values());
+    } else {
+      permissions = [];
+      permissionSet.forEach((permId) => {
+        const perm = this.permissions.get(permId);
+        if (perm) {
+          permissions.push(perm);
+        }
+      });
     }
 
-    permissionSet.forEach((permId) => {
-      const perm = this.permissions.get(permId);
-      if (perm) {
-        permissions.push(perm);
+    // 缓存结果
+    if (this.cacheEnabled) {
+      this.permissionCache.set(userId, {
+        permissions,
+        expiresAt: Date.now() + this.cacheTTL,
+      });
+    }
+
+    return permissions;
+  }
+
+  /**
+   * 快速获取用户权限 ID 集合（不转换为 Permission 对象）
+   */
+  getUserPermissionIds(userId: string): Set<string> {
+    const roles = this.getUserRoles(userId);
+    const permissionSet = new Set<string>();
+
+    // 直接从权限矩阵获取，不依赖缓存（缓存的是展开后的权限）
+    roles.forEach((role) => {
+      const rolePerms = this.permissionMatrix.get(role.id);
+      if (rolePerms) {
+        rolePerms.forEach((perm) => permissionSet.add(perm));
       }
     });
 
-    return permissions;
+    return permissionSet;
   }
 
   /**
@@ -505,14 +597,15 @@ export class RbacService {
    * 检查用户是否拥有指定权限
    */
   hasPermission(userId: string, permissionId: string): boolean {
-    const permissions = this.getUserPermissions(userId);
+    // 使用权限 ID 集合检查（包含通配符）
+    const permIds = this.getUserPermissionIds(userId);
 
     // 检查是否拥有所有权限
-    if (permissions.some((p) => p.id === '*')) {
+    if (permIds.has('*')) {
       return true;
     }
 
-    return permissions.some((p) => p.id === permissionId);
+    return permIds.has(permissionId);
   }
 
   /**
@@ -544,6 +637,191 @@ export class RbacService {
   ): boolean {
     const permissionId = `${resource}:${action}`;
     return this.hasPermission(userId, permissionId);
+  }
+
+  // ==================== 缓存管理 ====================
+
+  /**
+   * 清除所有缓存
+   */
+  invalidateCache(): void {
+    this.permissionCache.clear();
+    this.emit('cacheInvalidated');
+  }
+
+  /**
+   * 清除特定用户的缓存
+   */
+  invalidateUserCache(userId: string): void {
+    this.permissionCache.delete(userId);
+    this.emit('userCacheInvalidated', { userId });
+  }
+
+  /**
+   * 设置缓存配置
+   */
+  setCacheConfig(enabled: boolean, ttl?: number): void {
+    this.cacheEnabled = enabled;
+    if (ttl !== undefined) {
+      this.cacheTTL = ttl;
+    }
+    if (!enabled) {
+      this.permissionCache.clear();
+    }
+  }
+
+  /**
+   * 获取缓存统计信息
+   */
+  getCacheStats(): {
+    enabled: boolean;
+    ttl: number;
+    size: number;
+    entries: string[];
+  } {
+    return {
+      enabled: this.cacheEnabled,
+      ttl: this.cacheTTL,
+      size: this.permissionCache.size,
+      entries: Array.from(this.permissionCache.keys()),
+    };
+  }
+
+  // ==================== 权限矩阵查询 ====================
+
+  /**
+   * 获取角色的权限集合
+   */
+  getRolePermissions(roleId: string): Set<string> | undefined {
+    return this.permissionMatrix.get(roleId);
+  }
+
+  /**
+   * 检查角色是否有特定权限
+   */
+  roleHasPermission(roleId: string, permissionId: string): boolean {
+    const perms = this.permissionMatrix.get(roleId);
+    if (!perms) return false;
+    return perms.has('*') || perms.has(permissionId);
+  }
+
+  /**
+   * 获取权限所属的所有角色
+   */
+  getPermissionRoles(permissionId: string): Role[] {
+    const roles: Role[] = [];
+    this.permissionMatrix.forEach((perms, roleId) => {
+      if (perms.has('*') || perms.has(permissionId)) {
+        const role = this.roles.get(roleId);
+        if (role) roles.push(role);
+      }
+    });
+    return roles;
+  }
+
+  // ==================== 权限变更订阅 ====================
+
+  /**
+   * 订阅角色分配事件
+   */
+  onRoleAssigned(callback: (data: { userId: string; roleId: string; grantedBy?: string }) => void): void {
+    this.on('roleAssigned', callback);
+  }
+
+  /**
+   * 订阅角色撤销事件
+   */
+  onRoleRevoked(callback: (data: { userId: string; roleId: string }) => void): void {
+    this.on('roleRevoked', callback);
+  }
+
+  /**
+   * 订阅权限变更事件
+   */
+  onPermissionChange(callback: (data: { type: string; userId?: string; roleId?: string }) => void): void {
+    this.on('roleAssigned', (data) => callback({ type: 'assign', ...data }));
+    this.on('roleRevoked', (data) => callback({ type: 'revoke', ...data }));
+    this.on('cacheInvalidated', () => callback({ type: 'invalidate' }));
+  }
+
+  // ==================== 安全增强 ====================
+
+  /**
+   * 检查权限绕过风险
+   * 确保所有敏感操作都有权限检查
+   */
+  checkBypassRisk(userId: string, resource: string, action: string): {
+    safe: boolean;
+    warnings: string[];
+  } {
+    const warnings: string[] = [];
+    const permissionId = `${resource}:${action}`;
+
+    // 检查是否有通配符权限（可能绕过细粒度控制）
+    const userPerms = this.getUserPermissionIds(userId);
+    if (userPerms.has('*')) {
+      warnings.push('User has wildcard permission (*) which bypasses granular control');
+    }
+
+    // 检查是否有 admin 角色（可能有过多权限）
+    const roles = this.getUserRoles(userId);
+    if (roles.some((r) => r.id === 'admin')) {
+      warnings.push('User has admin role with full permissions');
+    }
+
+    // 检查是否有明确的权限
+    const hasExplicit = userPerms.has(permissionId);
+    if (!hasExplicit && !userPerms.has('*')) {
+      warnings.push(`User lacks explicit permission '${permissionId}'`);
+    }
+
+    return {
+      safe: warnings.length === 0,
+      warnings,
+    };
+  }
+
+  /**
+   * 获取用户权限审计报告
+   */
+  getPermissionAudit(userId: string): {
+    userId: string;
+    roles: Role[];
+    permissions: Permission[];
+    riskLevel: 'low' | 'medium' | 'high';
+    warnings: string[];
+  } {
+    const roles = this.getUserRoles(userId);
+    const permissions = this.getUserPermissions(userId);
+    const warnings: string[] = [];
+
+    // 使用权限 ID 集合检查（包含通配符）
+    const userPermIds = this.getUserPermissionIds(userId);
+
+    // 检查高风险权限
+    const highRiskPerms = ['user:delete', 'role:assign', 'tenant:delete', '*'];
+
+    for (const riskPerm of highRiskPerms) {
+      if (userPermIds.has(riskPerm)) {
+        warnings.push(`Has high-risk permission: ${riskPerm}`);
+      }
+    }
+
+    // 确定风险级别
+    let riskLevel: 'low' | 'medium' | 'high' = 'low';
+    if (userPermIds.has('*')) {
+      riskLevel = 'high';
+    } else if (warnings.length > 0) {
+      riskLevel = 'medium';
+    }
+
+    return {
+      userId,
+      roles,
+      permissions,
+      riskLevel,
+      warnings,
+    };
   }
 }
 
