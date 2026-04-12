@@ -11,6 +11,7 @@ import {
   AlertRule,
   Alert,
   AlertStatus,
+  AlertSeverity,
   AlertCondition,
 } from './types';
 import { MetricCollector } from './MetricCollector';
@@ -288,7 +289,7 @@ export class AlertRuleEngine {
    */
   getAlerts(filter?: {
     status?: AlertStatus;
-    severity?: AlertStatus;
+    severity?: AlertSeverity;
     ruleId?: string;
     metric?: string;
   }): Alert[] {

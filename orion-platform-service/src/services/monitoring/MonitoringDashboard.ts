@@ -281,7 +281,7 @@ export class MonitoringDashboard {
   /**
    * Detect anomalies across all registered metrics
    */
-  private detectAllAnomalies(): AnomalyResult[] {
+  detectAllAnomalies(): AnomalyResult[] {
     const allAnomalies: AnomalyResult[] = [];
     const registeredMetrics = this.metricCollector.getRegisteredMetrics();
 

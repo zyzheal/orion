@@ -392,7 +392,7 @@ export class MonitoringService extends EventEmitter {
     if (metricName) {
       return this.dashboard.detectAnomalies(metricName, timeWindow as any);
     }
-    return this.dashboard.detectAllAnomalies ? this.dashboard.detectAllAnomalies() : [];
+    return this.dashboard.detectAllAnomalies();
   }
 
   // ==================== NATS Integration ====================
