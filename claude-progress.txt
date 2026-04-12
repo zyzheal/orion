@@ -204,3 +204,68 @@
   - Implemented K8s deployment with GPU resource allocation
   - Created 33 unit tests (all passing)
   - Service verified to start successfully with health check endpoints
+
+## TASK-401 - 效能数据聚合服务 (COMPLETED)
+
+### 已完成的工作
+
+1. **效能数据模型** (`src/services/efficiency/types.ts`)
+   - TimeWindow 类型: day/week/month/quarter
+   - DORA 四项指标接口定义:
+     - DeploymentFrequency (部署频率 + 等级评估)
+     - LeadTimeForChanges (变更前置时间 + P50/P90/P99)
+     - ChangeFailureRate (变更失败率 + 失败详情)
+     - MeanTimeToRecovery (平均恢复时间 + P50/P90)
+   - DoraMetricsReport 综合报告
+   - PipelineCompletionRecord / DeploymentRecord 本地存储记录
+   - EfficiencyMetricsRow / EfficiencyEventRow ClickHouse 表结构
+   - ClickHouseSyncStatus 同步状态
+
+2. **DORA 指标计算服务** (`src/services/efficiency/DoraMetricsService.ts`)
+   - buildTimeWindow(): 支持日/周/月/季度窗口
+   - calculateDeploymentFrequency(): 部署频率计算 + 等级评估
+   - calculateLeadTimeForChanges(): 变更前置时间 (均值/中位数/P90/P99)
+   - calculateChangeFailureRate(): 变更失败率 + 失败详情
+   - calculateMeanTimeToRecovery(): 平均恢复时间 (均值/中位数/P90)
+   - generateReport(): 生成完整 DORA 指标报告
+   - DORA 等级评估: elite/high/medium/low
+
+3. **效能事件处理器** (`src/services/efficiency/EventHandler.ts`)
+   - 订阅 pipeline.run.completed / pipeline.run.failed 事件
+   - 订阅 deployment.completed / deployment.failed / deployment.rolled_back 事件
+   - 事件记录到本地存储 (InMemoryLocalStorage)
+   - 自动触发 ClickHouse 同步
+   - 发布 efficiency.metrics.updated 事件
+   - 支持自定义 LocalStorage 实现
+   - 自动同步定时器支持
+
+4. **ClickHouse 同步服务** (`src/services/efficiency/ClickHouseSync.ts`)
+   - 连接管理: connect() / close()
+   - DDL 表创建: efficiency_metrics, efficiency_events, pipeline_completions, deployment_records
+   - 批量数据同步: syncPipelineRecords, syncDeploymentRecords, syncMetrics
+   - 同步失败重试: consecutiveFailures 追踪
+   - 降级机制: 连接失败时写入本地待同步队列
+   - flushPendingRecords(): 连接恢复后批量刷新
+
+5. **单元测试** (66 个测试全部通过)
+   - DoraMetricsService: 22 个测试
+   - ClickHouseSync: 19 个测试
+   - EventHandler: 25 个测试
+
+### 验收标准检查
+- [x] 订阅 pipeline.run.completed 事件 - 通过 NATS EventBus
+- [x] 订阅 deployment.* 事件 - completed/failed/rolled_back
+- [x] DORA 指标计算 - 4 项指标全部实现
+- [x] ClickHouse 数据同步 (CDC) - 4 张表 DDL + 批量同步
+- [x] 4 个核心模块实现 - types/DoraMetricsService/EventHandler/ClickHouseSync
+- [x] DORA 4 项指标可计算 - 部署频率/变更前置时间/变更失败率/恢复时间
+- [x] ClickHouse 同步正常工作 - 支持降级到本地存储
+- [x] 单元测试覆盖 - 66 个测试全部通过
+- [x] 完成后创建 completion report
+
+### 技术细节
+- 复用现有 EventBus 订阅机制 (@orion/event-bus)
+- 使用 @clickhouse/client 作为 ClickHouse 客户端
+- ClickHouse 连接失败时自动降级到本地存储 (InMemoryLocalStorage)
+- 支持按日/周/月/季度聚合
+- DORA 等级评估基于官方标准阈值
