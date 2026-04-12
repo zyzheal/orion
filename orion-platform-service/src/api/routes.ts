@@ -26,6 +26,9 @@ import diagnosticRoutes from './diagnostic-routes';
 import testSelectorRoutes from './test-selector-routes';
 import deployRoutes from './deploy-routes';
 import monitoringRoutes from './monitoring-routes';
+import ticketingRoutes from './ticketing-routes';
+import selfHealingRoutes from './self-healing-routes';
+import backupRoutes from './backup-routes';
 
 export interface ApiRoutesOptions {
   eventBus?: EventBusService;
@@ -193,4 +196,13 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // 注册监控告警 API 路由 (TASK-703)
   await app.register(monitoringRoutes, { prefix: '/monitoring' });
+
+  // 注册智能工单 API 路由 (TASK-801)
+  await app.register(ticketingRoutes, { prefix: '/tickets' });
+
+  // 注册自愈引擎 API 路由 (TASK-702)
+  await app.register(selfHealingRoutes, { prefix: '/self-healing' });
+
+  // 注册备份恢复 API 路由 (TASK-704)
+  await app.register(backupRoutes, { prefix: '/backup' });
 }
