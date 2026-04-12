@@ -17,6 +17,9 @@ import { EventBusService } from '../services/event-bus-service';
 import cmdbRoutes from '../routes-cmdb';
 import buildRoutes from './build-routes';
 import codeRepoRoutes from './code-repo-routes';
+import costRoutes from './cost-routes';
+import configRoutes from './config-routes';
+import riskRoutes from './risk-routes';
 
 export interface ApiRoutesOptions {
   eventBus?: EventBusService;
@@ -157,4 +160,13 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // 注册 Code Repository Integration API 路由
   await app.register(codeRepoRoutes, { prefix: '/code-repo' });
+
+  // 注册 Configuration Management API 路由
+  await app.register(configRoutes, { prefix: '/config' });
+
+  // 注册 FinOps 成本管理 API 路由
+  await app.register(costRoutes, { prefix: '/cost' });
+
+  // 注册风险评估 API 路由
+  await app.register(riskRoutes, { prefix: '/risk' });
 }
