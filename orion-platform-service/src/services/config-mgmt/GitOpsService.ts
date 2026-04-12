@@ -226,11 +226,12 @@ export class GitOpsService {
         // Read and parse config files
         const parsedConfigs = await this.readGitConfigFiles(gitConfig);
 
-        // Detect drift before applying
+        // Detect drift before applying (only for existing configs, not new ones being imported)
         const driftItems = await this.detectDriftInternal(parsedConfigs);
-        if (driftItems.length > 0) {
+        const existingDriftItems = driftItems.filter((d) => d.changeType !== 'added');
+        if (existingDriftItems.length > 0) {
           syncStatus.driftDetected = true;
-          syncStatus.driftItems = driftItems;
+          syncStatus.driftItems = existingDriftItems;
         }
 
         // Apply configs if auto-apply is enabled
@@ -474,8 +475,13 @@ export class GitOpsService {
       );
 
       if (!platformConfig) {
-        // Config exists in Git but not in platform - not drift on first sync
-        continue;
+        // Config exists in Git but not in platform
+        driftItems.push({
+          key: gc.key,
+          environment: env,
+          newValue: gc.value,
+          changeType: 'added',
+        });
       } else if (platformConfig.value !== gc.value) {
         // Value mismatch
         driftItems.push({
