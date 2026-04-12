@@ -18,7 +18,7 @@ describe('PluginSandbox', () => {
     pipelineRunId: 'pipeline-1',
     stageId: 'stage-1',
     startedAt: new Date(),
-    quota: DEFAULT_QUOTA,
+    quota: { ...DEFAULT_QUOTA }, // 使用副本避免修改影响其他测试
   });
 
   beforeEach(() => {

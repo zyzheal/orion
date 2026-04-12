@@ -10,15 +10,12 @@
 
 import pino from 'pino';
 import { EventEmitter } from 'events';
-import { v4 as uuidv4 } from 'uuid';
 import {
-  ResourceQuota,
   ExecutionContext,
   ValidationResult,
   ValidationError,
   DLPDetectionResult,
   SandboxExecutionResult,
-  SecurityEventType,
 } from './types';
 import { PluginResourceManager } from './PluginResourceManager';
 import { PluginAuditLogger } from './PluginAuditLogger';
@@ -200,7 +197,7 @@ export class PluginSandbox extends EventEmitter {
     });
 
     // 记录执行开始
-    const logId = this.auditLogger.logExecutionStart(context);
+    this.auditLogger.logExecutionStart(context);
 
     // 启动资源监控
     const monitorInterval = this.config.enableResourceMonitoring
@@ -251,7 +248,7 @@ export class PluginSandbox extends EventEmitter {
         success: true,
         exitCode: 0,
         durationMs,
-        outputs: typeof result === 'object' ? result : { result: String(result) },
+        outputs: this.convertResultToOutputs(result),
       };
     } catch (error) {
       // 清理
@@ -436,7 +433,7 @@ export class PluginSandbox extends EventEmitter {
         }
         break;
 
-      case 'size':
+      case 'size': {
         const size = typeof input === 'string' ? input.length : JSON.stringify(input).length;
         if (rule.constraint.maxSize && size > rule.constraint.maxSize) {
           return {
@@ -446,8 +443,9 @@ export class PluginSandbox extends EventEmitter {
           };
         }
         break;
+      }
 
-      case 'format':
+      case 'format': {
         if (rule.field && input[rule.field]) {
           const regex = new RegExp(rule.constraint.pattern);
           if (!regex.test(input[rule.field])) {
@@ -459,8 +457,9 @@ export class PluginSandbox extends EventEmitter {
           }
         }
         break;
+      }
 
-      case 'custom':
+      case 'custom': {
         if (typeof rule.constraint === 'function') {
           const result = rule.constraint(input);
           if (!result.valid) {
@@ -472,6 +471,7 @@ export class PluginSandbox extends EventEmitter {
           }
         }
         break;
+      }
     }
 
     return null;
@@ -610,6 +610,36 @@ export class PluginSandbox extends EventEmitter {
         }
       }
     }, this.config.resourceMonitorIntervalMs);
+  }
+
+  /**
+   * 将执行结果转换为 outputs 格式
+   */
+  private convertResultToOutputs(result: unknown): Record<string, string> | undefined {
+    if (result === null || result === undefined) {
+      return undefined;
+    }
+
+    if (typeof result === 'string') {
+      return { result };
+    }
+
+    if (typeof result === 'object' && result !== null) {
+      const outputs: Record<string, string> = {};
+      const obj = result as Record<string, unknown>;
+
+      for (const [key, value] of Object.entries(obj)) {
+        if (typeof value === 'string') {
+          outputs[key] = value;
+        } else if (value !== null && value !== undefined) {
+          outputs[key] = JSON.stringify(value);
+        }
+      }
+
+      return outputs;
+    }
+
+    return { result: String(result) };
   }
 
   /**

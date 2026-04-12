@@ -490,9 +490,10 @@ export class PluginAuditLogger extends EventEmitter {
         return text.slice(0, 8) + '***' + text.slice(-4);
       case 'PASSWORD':
         return '"password": "***REDACTED***"';
-      case 'EMAIL':
+      case 'EMAIL': {
         const [local, domain] = text.split('@');
         return local.slice(0, 2) + '***@' + domain;
+      }
       case 'PHONE':
         return '***-***-' + text.slice(-4);
       case 'IP_ADDRESS':
@@ -513,9 +514,10 @@ export class PluginAuditLogger extends EventEmitter {
         return this.luhnCheck(matchedText) ? 0.95 : 0.7;
       case 'EMAIL':
         return matchedText.includes('@') && matchedText.includes('.') ? 0.95 : 0.6;
-      case 'IP_ADDRESS':
+      case 'IP_ADDRESS': {
         const parts = matchedText.split('.');
         return parts.length === 4 ? 0.8 : 0.5;
+      }
       default:
         return 0.8;
     }

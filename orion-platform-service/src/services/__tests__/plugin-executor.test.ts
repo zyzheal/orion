@@ -52,16 +52,18 @@ describe('PluginExecutorService', () => {
     });
 
     it('should throw error if plugin not active', async () => {
-      await expect(
-        pluginExecutor.executeTask({
-          taskId: 'test-task-002',
-          pipelineRunId: 'run-001',
-          stageId: 'stage-001',
-          pluginId: 'non-existent-plugin',
-          config: {},
-          workspace: { rootPath: '/tmp/workspace' },
-        })
-      ).rejects.toThrow();
+      const result = await pluginExecutor.executeTask({
+        taskId: 'test-task-002',
+        pipelineRunId: 'run-001',
+        stageId: 'stage-001',
+        pluginId: 'non-existent-plugin',
+        config: {},
+        workspace: { rootPath: '/tmp/workspace' },
+      });
+
+      // 新实现返回失败状态而不是抛出错误
+      expect(result.status).toBe(TaskStatus.FAILED);
+      expect(result.errorMessage).toContain('not found');
     });
 
     it('should publish task started event', async () => {
@@ -133,7 +135,7 @@ describe('PluginExecutorService', () => {
       });
 
       expect(result.status).toBe(TaskStatus.SUCCESS);
-      expect(result.stdout).toContain('Process');
+      expect(result.outputs?.stdout).toContain('Process');
     });
 
     it('should execute MEDIUM security plugin via container', async () => {
@@ -147,7 +149,7 @@ describe('PluginExecutorService', () => {
       });
 
       expect(result.status).toBe(TaskStatus.SUCCESS);
-      expect(result.stdout).toContain('Container');
+      expect(result.outputs?.stdout).toContain('Container');
     });
   });
 });
