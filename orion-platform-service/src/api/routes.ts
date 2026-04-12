@@ -20,6 +20,10 @@ import codeRepoRoutes from './code-repo-routes';
 import costRoutes from './cost-routes';
 import configRoutes from './config-routes';
 import riskRoutes from './risk-routes';
+import finopsV2Routes from './finops-v2-routes';
+import aiReviewRoutes from './ai-review-routes';
+import diagnosticRoutes from './diagnostic-routes';
+import testSelectorRoutes from './test-selector-routes';
 
 export interface ApiRoutesOptions {
   eventBus?: EventBusService;
@@ -169,4 +173,16 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // 注册风险评估 API 路由
   await app.register(riskRoutes, { prefix: '/risk' });
+
+  // 注册 FinOps 成本追踪与 ROI API 路由 (TASK-502)
+  await app.register(finopsV2Routes, { prefix: '/finops' });
+
+  // 注册 AI Code Review API 路由 (TASK-302)
+  await app.register(aiReviewRoutes, { prefix: '/ai-review' });
+
+  // 注册诊断 Agent API 路由 (TASK-305)
+  await app.register(diagnosticRoutes, { prefix: '/diagnostic' });
+
+  // 注册智能测试选择器 API 路由 (TASK-303)
+  await app.register(testSelectorRoutes, { prefix: '/test-selector' });
 }

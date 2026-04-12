@@ -304,3 +304,230 @@ export interface CostCollectionSchedule {
   /** 上次采集状态 */
   lastStatus?: 'success' | 'failed';
 }
+
+// ==================== TASK-502: 成本追踪与 ROI ====================
+
+/**
+ * 实体类型（用于成本追踪）
+ */
+export type CostEntityType = 'project' | 'tenant' | 'team';
+
+/**
+ * 成本预算
+ *
+ * 按项目/租户/团队配置预算，用于成本追踪和告警
+ */
+export interface CostBudget {
+  /** 预算 ID */
+  id: string;
+  /** 实体类型 */
+  entityType: CostEntityType;
+  /** 实体 ID（项目 ID、租户 ID、团队 ID） */
+  entityId: string;
+  /** 预算金额 */
+  amount: number;
+  /** 预算周期 */
+  period: CostPeriod;
+  /** 货币单位 */
+  currency: string;
+  /** 告警阈值配置（百分比） */
+  alerts: BudgetThreshold[];
+  /** 创建时间 */
+  createdAt: Date;
+  /** 更新时间 */
+  updatedAt?: Date;
+  /** 所属环境 */
+  environment?: string;
+  /** 描述 */
+  description?: string;
+}
+
+/**
+ * 预算阈值配置
+ */
+export interface BudgetThreshold {
+  /** 阈值 ID */
+  id: string;
+  /** 阈值百分比（如 80 表示 80%） */
+  percentage: number;
+  /** 是否已触发 */
+  triggered: boolean;
+  /** 触发时间 */
+  triggeredAt?: Date;
+}
+
+/**
+ * 预算告警触发记录
+ */
+export interface BudgetAlertTrigger {
+  /** 告警 ID */
+  id: string;
+  /** 关联预算 ID */
+  budgetId: string;
+  /** 阈值百分比 */
+  threshold: number;
+  /** 实际花费 */
+  actual: number;
+  /** 使用率百分比 */
+  percentage: number;
+  /** 触发时间 */
+  triggeredAt: Date;
+  /** 实体类型 */
+  entityType: CostEntityType;
+  /** 实体 ID */
+  entityId: string;
+}
+
+/**
+ * ROI 分析结果
+ *
+ * 用于评估基础设施投资、自动化节省等
+ */
+export interface ROIAnalysis {
+  /** 分析 ID */
+  id: string;
+  /** 投资类型 */
+  investmentType: ROIInvestmentType;
+  /** 投资名称 */
+  name: string;
+  /** 投资成本 */
+  cost: number;
+  /** 节省金额 */
+  savings: number;
+  /** 分析周期 */
+  period: CostPeriod;
+  /** ROI 百分比 */
+  roiPercentage: number;
+  /** 回本周期（月） */
+  paybackMonths: number;
+  /** 分析时间 */
+  analyzedAt: Date;
+  /** 描述 */
+  description?: string;
+  /** 详细数据 */
+  details?: Record<string, any>;
+}
+
+/**
+ * 投资类型
+ */
+export type ROIInvestmentType = 'infrastructure' | 'automation' | 'tooling' | 'training' | 'migration';
+
+/**
+ * 前后成本对比
+ */
+export interface CostComparison {
+  /** 对比 ID */
+  id: string;
+  /** 描述 */
+  description: string;
+  /** 自动化/变更前成本 */
+  beforeCost: number;
+  /** 自动化/变更后成本 */
+  afterCost: number;
+  /** 节省金额 */
+  savings: number;
+  /** 节省百分比 */
+  savingsPercent: number;
+  /** 时间节省（小时/月） */
+  timeSavingsHours?: number;
+  /** 分析周期 */
+  period: CostPeriod;
+}
+
+/**
+ * 成本优化建议
+ */
+export interface CostOptimization {
+  /** 建议 ID */
+  id: string;
+  /** 优化类别 */
+  category: OptimizationCategory;
+  /** 描述 */
+  description: string;
+  /** 预估节省金额（月） */
+  estimatedSavings: number;
+  /** 实施工作量（人天） */
+  effort: number;
+  /** 优先级 */
+  priority: OptimizationPriority;
+  /** 状态 */
+  status: OptimizationStatus;
+  /** 关联资源 ID */
+  resourceIds?: string[];
+  /** 关联租户/项目 */
+  entityId?: string;
+  /** 实体类型 */
+  entityType?: CostEntityType;
+  /** 创建时间 */
+  createdAt: Date;
+  /** 更新时间 */
+  updatedAt?: Date;
+  /** 额外说明 */
+  notes?: string;
+}
+
+/**
+ * 优化类别
+ */
+export type OptimizationCategory = 'right-sizing' | 'unused-resources' | 'reserved-instances' | 'storage-optimization' | 'network-optimization' | 'scheduling' | 'architecture';
+
+/**
+ * 优化优先级
+ */
+export type OptimizationPriority = 'critical' | 'high' | 'medium' | 'low';
+
+/**
+ * 优化状态
+ */
+export type OptimizationStatus = 'identified' | 'reviewing' | 'approved' | 'in-progress' | 'completed' | 'rejected';
+
+/**
+ * 资源利用率
+ */
+export interface ResourceUtilization {
+  /** 资源 ID */
+  resourceId: string;
+  /** 资源类型 */
+  resourceType: string;
+  /** 资源名称 */
+  resourceName: string;
+  /** CPU 使用率（百分比） */
+  cpuUtilization: number;
+  /** 内存使用率（百分比） */
+  memoryUtilization: number;
+  /** 存储使用率（百分比） */
+  storageUtilization: number;
+  /** 当前月成本 */
+  monthlyCost: number;
+  /** 所属租户 */
+  tenantId?: string;
+  /** 所属环境 */
+  environment?: string;
+}
+
+/**
+ * 资源调整大小建议
+ */
+export interface RightSizingRecommendation {
+  /** 建议 ID */
+  id: string;
+  /** 资源 ID */
+  resourceId: string;
+  /** 资源类型 */
+  resourceType: string;
+  /** 当前配置 */
+  currentSpec: Record<string, any>;
+  /** 推荐配置 */
+  recommendedSpec: Record<string, any>;
+  /** 当前月成本 */
+  currentCost: number;
+  /** 预估月成本 */
+  estimatedCost: number;
+  /** 预估月节省 */
+  estimatedSavings: number;
+  /** 理由 */
+  reason: string;
+  /** 所属租户 */
+  tenantId?: string;
+}
