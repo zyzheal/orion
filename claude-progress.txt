@@ -124,6 +124,68 @@
 1. 提交代码 (已完成)
 2. 继续下一个 Phase 2 任务
 
+## TASK-301 - AI 服务基础框架 (COMPLETED)
+
+### 已完成的工作
+
+1. **项目结构** (`orion-ai-service/`)
+   - Python 3.11+ FastAPI 微服务
+   - 完整的项目结构: src/, tests/, infra/k8s/
+
+2. **FastAPI 服务** (`src/main.py`)
+   - 应用入口，生命周期管理
+   - 健康检查端点 `/api/v1/ai/healthz`
+   - 服务状态端点 `/api/v1/ai/status`
+   - NATS 未连接时服务可降级启动
+
+3. **配置管理** (`src/config.py`)
+   - Pydantic Settings + 环境变量支持
+   - ORION_AI_ 前缀
+   - NATS 服务器列表解析
+   - 订阅主题解析
+
+4. **NATS 事件订阅** (`src/events/`)
+   - `subscriber.py`: NATS 连接管理，主题订阅，消息分发
+   - `pipeline_handler.py`: pipeline.run.completed 事件处理
+   - `code_review_handler.py`: code.pr.opened 事件处理
+   - 连接超时保护 (15秒)，服务降级启动
+
+5. **数据模型** (`src/models/`)
+   - CloudEvent (CloudEvents 1.0 格式)
+   - PipelineRunCompletedEvent
+   - CodePROpenedEvent
+   - HealthCheckResponse
+   - AIAnalysisResult
+
+6. **AI 服务基类** (`src/services/ai_service.py`)
+   - AIServiceBase 抽象类
+   - AIServicePlaceholder 占位实现
+   - analyze_pipeline() / analyze_code_review() 预留接口
+
+7. **Kubernetes 部署** (`infra/k8s/`)
+   - deployment.yaml: GPU 资源配置 (nvidia.com/gpu: "1")
+   - tolerations for GPU nodes
+   - HPA 自动扩缩容
+   - configmap.yaml: 非敏感配置
+
+8. **Docker 配置**
+   - Dockerfile: 多阶段构建，非 root 用户
+   - docker-compose.yml: 本地开发 (含 NATS)
+
+9. **测试** (33 个测试全部通过)
+   - test_config.py: 7 个测试
+   - test_models.py: 9 个测试
+   - test_api_routes.py: 5 个测试
+   - test_events.py: 6 个测试
+   - test_ai_service.py: 4 个测试
+
+### 验证
+- 服务可启动 (uvicorn src.main:app)
+- 健康检查端点正常 (200 OK)
+- NATS 未连接时服务降级启动
+- 33 个单元测试全部通过
+- Dockerfile 可构建
+
 ## Session Log
 - 2026-04-12: TASK-201 代码管理集成功能实现完成
   - Created unified ICodeRepoAdapter interface with 30+ type definitions
@@ -136,3 +198,9 @@
   - Registered routes under /api/v1/code-repo prefix
   - Created 4 test files with 93 passing tests
   - TypeScript type check passed for all new files
+- 2026-04-12: TASK-301 AI 服务基础框架实现完成
+  - Created Python FastAPI microservice orion-ai-service
+  - Implemented NATS event subscriber with pipeline.run.completed and code.pr.opened handlers
+  - Implemented K8s deployment with GPU resource allocation
+  - Created 33 unit tests (all passing)
+  - Service verified to start successfully with health check endpoints
