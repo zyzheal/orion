@@ -13,9 +13,15 @@ import fastifyRateLimit from '@fastify/rate-limit';
 import { getConfig } from './config';
 import { AuthMiddleware } from './middleware/auth';
 import { LoggingMiddleware } from './middleware/logging';
+import { TenantMiddleware } from './middleware/tenant';
 import { errorMiddleware } from './middleware/error';
 import { registerRoutes } from './routes';
 import { serviceRegistry } from './services/service-registry';
+import { TokenService } from './services/token.service';
+import { redisClient } from './utils/redis';
+import { AuthRoutes } from './routes/auth.routes';
+import { TenantRoutes } from './routes/tenant.routes';
+import type { WebSocketServerManager } from './websocket/ws-server';
 
 export interface AppOptions {
   logger?: boolean;
@@ -25,6 +31,11 @@ export async function createApp(options: AppOptions = {}): Promise<{
   app: FastifyInstance;
   authMiddleware: AuthMiddleware;
   loggingMiddleware: LoggingMiddleware;
+  tenantMiddleware: TenantMiddleware;
+  tokenService: TokenService;
+  authRoutes: AuthRoutes;
+  tenantRoutes: TenantRoutes;
+  wsServer: WebSocketServerManager;
 }> {
   const config = getConfig();
 
@@ -65,6 +76,36 @@ export async function createApp(options: AppOptions = {}): Promise<{
     allowList: ['127.0.0.1', '::1'], // 本地地址不限流
   });
 
+  // ==================== 初始化 Redis 和 Token 服务 ====================
+
+  // 初始化 Redis 客户端
+  const { RedisClient } = await import('./utils/redis');
+  const redis = new RedisClient();
+  try {
+    await redis.connect();
+    app.log.info('Redis connected');
+  } catch (error) {
+    app.log.warn({ err: error instanceof Error ? error.message : String(error) }, 'Redis connection failed, some features may be limited');
+  }
+
+  // 初始化 Token 服务
+  const tokenService = new TokenService(app);
+  const redisClientInstance = redis.getClient();
+  if (redisClientInstance) {
+    tokenService.setRedisClient(redisClientInstance);
+  }
+
+  // ==================== 初始化 WebSocket 服务器 ====================
+
+  // 初始化 WebSocket 服务器
+  const { WebSocketServerManager } = await import('./websocket/ws-server');
+  const wsServer = new WebSocketServerManager(app, {
+    path: '/ws',
+    heartbeatInterval: 30000,
+    heartbeatTimeout: 15000,
+  });
+  await wsServer.initialize();
+
   // ==================== 注册中间件 ====================
 
   // 日志中间件
@@ -74,6 +115,20 @@ export async function createApp(options: AppOptions = {}): Promise<{
   // 认证中间件
   const authMiddleware = new AuthMiddleware(app);
   app.addHook('onRequest', authMiddleware.handler.bind(authMiddleware));
+
+  // 租户解析中间件（在认证之后）
+  const tenantMiddleware = new TenantMiddleware(app);
+  app.addHook('onRequest', tenantMiddleware.handler.bind(tenantMiddleware));
+
+  // ==================== 注册认证路由 ====================
+
+  // 注册认证路由（在 registerRoutes 之前，因为需要公开 /api/v1/auth/*路径）
+  const authRoutes = new AuthRoutes(app, tokenService);
+
+  // ==================== 注册租户管理路由 ====================
+
+  const tenantRoutes = new TenantRoutes(app);
+  tenantRoutes.register();
 
   // ==================== 错误处理 ====================
 
@@ -100,6 +155,9 @@ export async function createApp(options: AppOptions = {}): Promise<{
   const gracefulShutdown = async () => {
     app.log.info('Received shutdown signal, shutting down gracefully...');
 
+    // 关闭 WebSocket 服务器
+    await wsServer.shutdown();
+
     // 注销服务
     serviceRegistry.unregister('api-gateway');
 
@@ -115,5 +173,5 @@ export async function createApp(options: AppOptions = {}): Promise<{
   process.on('SIGTERM', gracefulShutdown);
   process.on('SIGINT', gracefulShutdown);
 
-  return { app, authMiddleware, loggingMiddleware };
+  return { app, authMiddleware, loggingMiddleware, tenantMiddleware, tokenService, authRoutes, tenantRoutes, wsServer };
 }

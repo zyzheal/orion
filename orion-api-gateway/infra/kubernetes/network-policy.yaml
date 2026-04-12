@@ -1,0 +1,156 @@
+# ============================================================
+# Orion Platform - NetworkPolicy 配置
+# ============================================================
+# 描述：租户池网络隔离策略
+# 功能：
+#   - 默认拒绝所有入站流量
+#   - 允许同租户 Pod 互访
+#   - 允许 API Gateway 入站
+#   - 允许访问数据层（PostgreSQL/Redis/VectorDB）
+#   - 默认拒绝跨 Namespace 流量
+# ============================================================
+
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: orion-tenant-pool-001
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+---
+# 允许 API Gateway 入站
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-from-gateway
+  namespace: orion-tenant-pool-001
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              orion.io/type: api-gateway
+      ports:
+        - protocol: TCP
+          port: 8080
+---
+# 允许同租户 Pod 互访（通过 tenant-id 标签匹配）
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-same-tenant
+  namespace: orion-tenant-pool-001
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              orion.io/tenant-id: same-tenant
+      ports:
+        - protocol: TCP
+          port: 8080
+---
+# 允许访问 PostgreSQL
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-to-postgresql
+  namespace: orion-tenant-pool-001
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              orion.io/type: data-layer
+          podSelector:
+            matchLabels:
+              app: postgresql
+      ports:
+        - protocol: TCP
+          port: 5432
+---
+# 允许访问 Redis
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-to-redis
+  namespace: orion-tenant-pool-001
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              orion.io/type: data-layer
+          podSelector:
+            matchLabels:
+              app: redis
+      ports:
+        - protocol: TCP
+          port: 6379
+---
+# 允许访问向量数据库
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-to-vector-db
+  namespace: orion-tenant-pool-001
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              orion.io/type: data-layer
+          podSelector:
+            matchLabels:
+              app: vector-db
+      ports:
+        - protocol: TCP
+          port: 19530
+---
+# 允许 DNS 解析
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns
+  namespace: orion-tenant-pool-001
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+---
+# 默认拒绝所有出站流量（除上述允许的）
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-egress
+  namespace: orion-tenant-pool-001
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress

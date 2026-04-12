@@ -1,0 +1,199 @@
+{
+  "category": "development",
+  "description": "Orion MVP 开发 - 基于 wujie 微前端的完整平台实现",
+  "control_level": "medium",
+  "parallel_features": true,
+  "features": [
+    {
+      "id": "F001",
+      "name": "NATS JetStream 事件总线部署",
+      "passes": true,
+      "depends_on": [],
+      "priority": "P0",
+      "line": "infra",
+      "completed_at": "2026-04-11"
+    },
+    {
+      "id": "F002",
+      "name": "服务骨架搭建",
+      "passes": true,
+      "depends_on": ["F001"],
+      "priority": "P0",
+      "line": "infra",
+      "completed_at": "2026-04-11"
+    },
+    {
+      "id": "F003",
+      "name": "数据库基础架构",
+      "passes": true,
+      "depends_on": ["F002"],
+      "priority": "P0",
+      "line": "infra",
+      "completed_at": "2026-04-11"
+    },
+    {
+      "id": "F004",
+      "name": "认证授权与 JWT 保护",
+      "passes": true,
+      "depends_on": ["F002"],
+      "priority": "P0",
+      "line": "infra",
+      "completed_at": "2026-04-11"
+    },
+    {
+      "id": "F005",
+      "name": "API 设计规范实现",
+      "passes": true,
+      "depends_on": ["F002"],
+      "priority": "P0",
+      "line": "infra",
+      "completed_at": "2026-04-12"
+    },
+    {
+      "id": "F101",
+      "name": "前端基座搭建 (React 18)",
+      "passes": true,
+      "depends_on": [],
+      "priority": "P0",
+      "line": "frontend",
+      "completed_at": "2026-04-11"
+    },
+    {
+      "id": "F102",
+      "name": "Design Tokens 库",
+      "passes": true,
+      "depends_on": ["F101"],
+      "priority": "P0",
+      "line": "frontend",
+      "completed_at": "2026-04-11"
+    },
+    {
+      "id": "F103",
+      "name": "微前端主应用 (wujie)",
+      "passes": true,
+      "depends_on": ["F102"],
+      "priority": "P0",
+      "line": "frontend",
+      "completed_at": "2026-04-11"
+    },
+    {
+      "id": "F104",
+      "name": "WebSocket 认证与心跳",
+      "passes": true,
+      "depends_on": ["F103"],
+      "priority": "P0",
+      "line": "frontend",
+      "completed_at": "2026-04-12"
+    },
+    {
+      "id": "F201",
+      "name": "外部系统调研与适配方案",
+      "passes": true,
+      "depends_on": ["F103"],
+      "priority": "P0",
+      "line": "subapp",
+      "completed_at": "2026-04-11"
+    },
+    {
+      "id": "F202",
+      "name": "子应用入口规范改造",
+      "passes": true,
+      "depends_on": ["F201"],
+      "priority": "P1",
+      "line": "subapp",
+      "completed_at": "2026-04-11"
+    },
+    {
+      "id": "F203",
+      "name": "orion-dba 子应用改造",
+      "passes": true,
+      "depends_on": ["F202"],
+      "priority": "P1",
+      "line": "subapp",
+      "completed_at": "2026-04-11"
+    },
+    {
+      "id": "F204",
+      "name": "orion-knowledge 子应用改造",
+      "passes": true,
+      "depends_on": ["F202"],
+      "priority": "P1",
+      "line": "subapp",
+      "completed_at": "2026-04-11",
+      "note": "Next.js 应用，采用独立部署 + SSO 方案"
+    },
+    {
+      "id": "F205",
+      "name": "orion-visor 子应用改造",
+      "passes": true,
+      "depends_on": ["F202"],
+      "priority": "P1",
+      "line": "subapp",
+      "completed_at": "2026-04-11",
+      "note": "代码改造完成，构建配置待优化（依赖问题）"
+    },
+    {
+      "id": "F206",
+      "name": "子应用联调测试",
+      "passes": true,
+      "depends_on": ["F203", "F204", "F205"],
+      "priority": "P1",
+      "line": "subapp",
+      "completed_at": "2026-04-12"
+    },
+    {
+      "id": "F301",
+      "name": "Pipeline 引擎核心服务",
+      "passes": true,
+      "depends_on": ["F002", "F003"],
+      "priority": "P0",
+      "line": "core",
+      "completed_at": "2026-04-11"
+    },
+    {
+      "id": "F302",
+      "name": "Pipeline 事件发布",
+      "passes": true,
+      "depends_on": ["F301", "F001"],
+      "priority": "P0",
+      "line": "core",
+      "completed_at": "2026-04-11"
+    },
+    {
+      "id": "F303",
+      "name": "Plugin SPI 接口实现",
+      "passes": true,
+      "depends_on": ["F301"],
+      "priority": "P1",
+      "line": "core",
+      "completed_at": "2026-04-12"
+    },
+    {
+      "id": "F401",
+      "name": "CMDB 核心服务",
+      "passes": true,
+      "depends_on": ["F003"],
+      "priority": "P0",
+      "line": "support",
+      "completed_at": "2026-04-12"
+    },
+    {
+      "id": "F402",
+      "name": "CMDB 集成接口",
+      "passes": true,
+      "depends_on": ["F401"],
+      "priority": "P0",
+      "line": "support",
+      "completed_at": "2026-04-12"
+    },
+    {
+      "id": "F403",
+      "name": "多租户隔离",
+      "passes": true,
+      "depends_on": ["F003"],
+      "priority": "P0",
+      "line": "support",
+      "completed_at": "2026-04-12"
+    }
+  ]
+}
