@@ -24,6 +24,8 @@ import finopsV2Routes from './finops-v2-routes';
 import aiReviewRoutes from './ai-review-routes';
 import diagnosticRoutes from './diagnostic-routes';
 import testSelectorRoutes from './test-selector-routes';
+import deployRoutes from './deploy-routes';
+import monitoringRoutes from './monitoring-routes';
 
 export interface ApiRoutesOptions {
   eventBus?: EventBusService;
@@ -185,4 +187,10 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // 注册智能测试选择器 API 路由 (TASK-303)
   await app.register(testSelectorRoutes, { prefix: '/test-selector' });
+
+  // 注册智能部署 API 路由 (TASK-701)
+  await app.register(deployRoutes, { prefix: '/deploy' });
+
+  // 注册监控告警 API 路由 (TASK-703)
+  await app.register(monitoringRoutes, { prefix: '/monitoring' });
 }
