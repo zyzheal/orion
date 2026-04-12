@@ -4,7 +4,7 @@
 - **Name**: orion-design
 - **Root**: /Users/heal/orion-design
 - **Initialized**: 2026-04-11
-- **Current Phase**: TASK-201 代码管理集成 (完成)
+- **Current Phase**: TASK-202 Configuration Management & GitOps (完成)
 
 ## Current Status (2026-04-12)
 
@@ -269,3 +269,99 @@
 - ClickHouse 连接失败时自动降级到本地存储 (InMemoryLocalStorage)
 - 支持按日/周/月/季度聚合
 - DORA 等级评估基于官方标准阈值
+
+## TASK-501 - FinOps 成本数据采集 (COMPLETED)
+
+### 已完成的工作
+
+1. **云资源成本采集** (`src/services/finops/CloudCostCollector.ts`)
+   - 多云适配器模式: AWS/AliCloud/Tencent Cloud
+   - 成本标准化和货币转换 (统一 USD)
+   - 按资源类型/租户分组统计
+   - 采集调度配置
+
+2. **K8s 成本分摊** (`src/services/finops/K8sCostAllocator.ts`)
+   - 集群成本按 Pod 资源使用比例分摊
+   - Namespace/Deployment/Pod 级别成本查询
+   - 多租户成本归因
+   - 部署级别成本汇总
+
+3. **SaaS 工具成本** (`src/services/finops/SaaSCostTracker.ts`)
+   - 订阅 CRUD 管理
+   - 成本摊销 (月/季/年)
+   - 许可证使用率分析
+   - 年度成本预测
+
+4. **成本事件发布** (`src/services/finops/CostEventPublisher.ts`)
+   - 发布 cost.collected 事件
+   - 发布 cost.anomaly_detected 事件
+   - 花费突增自动检测
+   - NATS EventBus 集成
+
+5. **成本聚合服务** (`src/services/finops/CostService.ts`)
+   - 成本汇总 (compute/storage/network/saas)
+   - 多维度成本分解 (category/tenant/environment/provider/namespace)
+   - 成本趋势分析 (变化率/最大/最小/平均)
+   - 预算告警配置与触发
+
+6. **API 路由** (`src/api/cost-routes.ts`)
+   - 前缀: `/api/v1/cost`
+   - 24 REST 端点
+   - 已注册到主路由
+
+7. **单元测试** (121 个测试全部通过)
+   - CloudCostCollector: 22 个测试
+   - K8sCostAllocator: 22 个测试
+   - SaaSCostTracker: 24 个测试
+   - CostEventPublisher: 16 个测试
+   - CostService: 37 个测试
+
+### 验收标准检查
+- [x] 云资源成本采集 - AWS/AliCloud/Tencent 适配器
+- [x] K8s 成本分摊 - namespace/deployment/pod/tenant
+- [x] SaaS 工具成本 - 订阅管理/成本摊销/许可证使用率
+- [x] 成本事件发布 - cost.collected / cost.anomaly_detected via NATS
+- [x] API 路由 - 24 REST 端点
+- [x] 单元测试覆盖 - 121 个测试全部通过
+- [x] 完成后创建 completion report
+
+## TASK-202 - Configuration Management & GitOps (COMPLETED)
+
+### Completed Work
+
+1. **ConfigService** (`src/services/config-mgmt/ConfigService.ts`)
+   - CRUD operations for config items
+   - Environment-specific config (dev/staging/prod)
+   - Automatic versioning on every change
+   - Config rollback to any previous version
+   - Clone config between environments
+   - Batch import for GitOps sync
+
+2. **GitOpsService** (`src/services/config-mgmt/GitOpsService.ts`)
+   - Enable/disable GitOps synchronization
+   - Pull configs from Git (YAML/JSON parsing)
+   - Drift detection (Git vs platform state)
+   - Auto-sync with configurable interval
+   - Sync status tracking and history
+
+3. **ConfigApprovalService** (`src/services/config-mgmt/ConfigApprovalService.ts`)
+   - Multi-level approval workflow
+   - Auto-apply on full approval
+   - Full audit trail per config
+   - Duplicate approver prevention
+
+4. **ConfigDiffService** (`src/services/config-mgmt/ConfigDiffService.ts`)
+   - Environment comparison (dev vs staging vs prod)
+   - Version-to-version diff
+   - Comprehensive diff reports
+
+5. **ConfigController** + **Routes** (20+ REST endpoints)
+   - Prefix: /api/v1/config
+
+6. **Tests**: 106 unit tests all passing
+
+### Acceptance Criteria
+- [x] 配置中心化管理 - CRUD + versioning + environment-specific
+- [x] GitOps 同步机制 - Sync from Git, drift detection, auto-sync
+- [x] 配置变更审批流 - Multi-level approval, audit trail
+- [x] 配置 diff 与回滚 - Environment comparison, version diff, rollback
