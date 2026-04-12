@@ -1,9 +1,8 @@
 /**
- * API 路由注册 - Fastify 插件版本
+ * API 路由注册 - Fastify 版本（不使用 fp 以支持 prefix）
  */
 
-import { FastifyInstance, FastifyRequest, FastifyReply, FastifyPluginAsync } from 'fastify';
-import fp from 'fastify-plugin';
+import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { PipelineController } from './controllers/PipelineController';
 import { PipelineRunController } from './controllers/PipelineRunController';
 import { StageController } from './controllers/StageController';
@@ -15,13 +14,14 @@ import { StageExecutor } from '../engine/StageExecutor';
 import { TaskRunner } from '../engine/TaskRunner';
 import { PipelineEventPublisher } from '../events/PipelineEventPublisher';
 import { EventBusService } from '../services/event-bus-service';
-import { registerCmdbRoutes } from '../routes-cmdb';
+import cmdbRoutes from '../routes-cmdb';
+import buildRoutes from './build-routes';
 
 export interface ApiRoutesOptions {
   eventBus?: EventBusService;
 }
 
-const apiRoutesPlugin: FastifyPluginAsync<ApiRoutesOptions> = async (app: FastifyInstance, options: ApiRoutesOptions) => {
+export default async function apiRoutes(app: FastifyInstance, options: ApiRoutesOptions): Promise<void> {
   // 初始化服务
   const eventPublisher = new PipelineEventPublisher(options.eventBus ? {
     eventBus: {
@@ -147,9 +147,10 @@ const apiRoutesPlugin: FastifyPluginAsync<ApiRoutesOptions> = async (app: Fastif
   // ==================== CMDB 路由 ====================
 
   // 注册 CMDB API 路由
-  await app.register(registerCmdbRoutes, { prefix: '/cmdb' });
-};
+  await app.register(cmdbRoutes, { prefix: '/cmdb' });
 
-export const registerApiRoutes = fp(apiRoutesPlugin, {
-  name: 'orion-api-routes',
-});
+  // ==================== 构建环境管理路由 ====================
+
+  // 注册 Build Environment API 路由
+  await app.register(buildRoutes, { prefix: '/build' });
+}

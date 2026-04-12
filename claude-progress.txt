@@ -4,79 +4,111 @@
 - **Name**: orion-design
 - **Root**: /Users/heal/orion-design
 - **Initialized**: 2026-04-11
-- **Current Phase**: F403 多租户隔离功能实现
+- **Current Phase**: TASK-103 构建环境管理
 
 ## Current Status (2026-04-12)
 
-### F403 - 多租户隔离功能完成
+### TASK-103 - 构建环境管理功能完成
 
 #### 已完成的工作
 
-1. **Namespace Pool 管理服务** (`orion-api-gateway/src/services/namespace-pool.service.ts`)
-   - 实现租户到 Namespace 池的分配算法（100 个池，每池 10 租户）
-   - 支持自动分配、查询、回收
-   - 追踪池资源使用率
-   - 单元测试覆盖率 > 90%
+1. **数据模型** (4个)
+   - `src/models/BuilderImage.ts` - Builder 镜像模型（支持预置/自定义镜像、版本管理、拉取策略）
+   - `src/models/BuildCache.ts` - 构建缓存模型（三级缓存、缓存键生成、清理策略）
+   - `src/models/BuildPod.ts` - K8s 构建 Pod 模型（资源限制、缓存挂载、状态追踪）
+   - `src/models/BuildLog.ts` - 构建日志模型（日志条目、SSE 流、订阅推送）
 
-2. **租户管理 API 路由** (`orion-api-gateway/src/routes/tenant.routes.ts`)
-   - `POST /api/v1/tenants` - 创建租户
-   - `GET /api/v1/tenants/:id` - 查询租户
-   - `PUT /api/v1/tenants/:id` - 更新租户
-   - `DELETE /api/v1/tenants/:id` - 删除租户
-   - `GET /api/v1/tenants` - 查询租户列表
-   - `POST /api/v1/tenants/:id/quota` - 调整配额
-   - `POST /api/v1/tenants/:id/suspend` - 暂停租户
-   - `POST /api/v1/tenants/:id/activate` - 激活租户
-   - 单元测试覆盖率 > 85%
+2. **核心服务** (4个)
+   - `src/services/build/BuilderImageService.ts` - Builder 镜像管理服务
+     - 预置 10 种常用构建镜像（Node.js 18/20、Python 3.11/3.12、Go 1.21/1.22、Java 17/21、.NET 8、Rust 1.77）
+     - 自定义镜像注册/更新/删除
+     - 镜像版本管理和拉取策略（Always/IfNotPresent/Never）
+     - 镜像状态管理（Active/Deprecated/Disabled）
+   - `src/services/build/BuildCacheService.ts` - 构建缓存管理服务
+     - 三级缓存开关：全局 -> 流水线 -> 任务（级联优先级）
+     - 缓存键生成（基于依赖文件 hash）
+     - 缓存存储支持（本地卷/S3/NFS）
+     - 缓存清理策略（LRU/TTL/手动）
+   - `src/services/build/K8sBuildExecutor.ts` - K8s 构建执行服务
+     - 创建 Build Pod（含资源限制、缓存挂载）
+     - Pod 状态监控和更新
+     - Pod 日志获取
+     - 构建取消和清理
+     - 可插拔 K8s 客户端接口（当前使用 Mock 实现）
+   - `src/services/build/BuildLogService.ts` - 构建日志管理服务
+     - 日志条目追加（单条/批量/原始文本导入）
+     - WebSocket/SSE 日志流推送
+     - 订阅/取消订阅机制
+     - 日志持久化和清理
 
-3. **NetworkPolicy 配置模板**
-   - `infra/kubernetes/namespace-pool-base.yaml` - Namespace 基础配置
-   - `infra/kubernetes/network-policy.yaml` - 网络隔离策略
-   - 包含默认拒绝、同租户互访、数据层访问等规则
+3. **API 控制器** (4个)
+   - `src/api/controllers/build/BuilderImageController.ts`
+   - `src/api/controllers/build/BuildCacheController.ts`
+   - `src/api/controllers/build/K8sBuildController.ts`
+   - `src/api/controllers/build/BuildLogController.ts`
 
-4. **数据库 RLS 迁移脚本** (已存在)
-   - `migrations/001-tenant-isolation-rls.sql`
-   - 为所有业务表添加 tenant_id 列
-   - 创建 RLS 策略实现行级隔离
-   - 支持跨租户共享
+4. **API 路由**
+   - `src/api/build-routes.ts` - 构建环境路由注册（32 个端点）
+   - 已集成到 `src/api/routes.ts`，前缀 `/api/v1/build`
 
-5. **租户解析中间件** (已存在，已完善)
-   - `src/middleware/tenant.ts`
-   - 从 JWT/Header/子域名提取 tenant_id
-   - 租户合法性验证
-   - 配额检查
-   - 单元测试通过率 100%
-
-6. **应用集成**
-   - 更新 `app.ts` 注册租户中间件和路由
-   - 更新 `PUBLIC_PATHS` 配置
+5. **路由端点清单**:
+   - `POST /api/v1/build/build-images` - 注册新镜像
+   - `GET /api/v1/build/build-images` - 镜像列表
+   - `GET /api/v1/build/build-images/presets` - 预置镜像
+   - `GET /api/v1/build/build-images/available` - 可用镜像
+   - `GET /api/v1/build/build-images/type/:type` - 按类型获取
+   - `GET /api/v1/build/build-images/:id` - 镜像详情
+   - `PUT /api/v1/build/build-images/:id` - 更新镜像
+   - `POST /api/v1/build/build-images/:id/deprecate` - 弃用
+   - `POST /api/v1/build/build-images/:id/restore` - 恢复
+   - `DELETE /api/v1/build/build-images/:id` - 删除
+   - `POST /api/v1/build/build-cache/configs` - 创建缓存配置
+   - `GET /api/v1/build/build-cache/configs` - 配置列表
+   - `GET /api/v1/build/build-cache/configs/:id` - 配置详情
+   - `PUT /api/v1/build/build-cache/configs/:id` - 更新配置
+   - `DELETE /api/v1/build/build-cache/configs/:id` - 删除配置
+   - `GET /api/v1/build/build-cache/effective` - 生效配置（三级级联）
+   - `GET /api/v1/build/build-cache/enabled` - 检查是否启用
+   - `POST /api/v1/build/build-cache/entries` - 创建缓存条目
+   - `GET /api/v1/build/build-cache/entries` - 条目列表
+   - `DELETE /api/v1/build/build-cache/entries/:id` - 删除条目
+   - `POST /api/v1/build/build-cache/cleanup/expired` - 清理过期
+   - `POST /api/v1/build/build-cache/cleanup/lru` - LRU 清理
+   - `POST /api/v1/build/build-cache/clear/:configId` - 清空配置缓存
+   - `POST /api/v1/build/build-pods` - 创建构建 Pod
+   - `GET /api/v1/build/build-pods` - Pod 列表
+   - `GET /api/v1/build/build-pods/:id` - Pod 状态
+   - `GET /api/v1/build/build-pods/:id/logs` - Pod 日志
+   - `POST /api/v1/build/build-pods/:id/cancel` - 取消构建
+   - `POST /api/v1/build/build-pods/cleanup` - 清理完成 Pod
+   - `POST /api/v1/build/build-logs` - 创建日志
+   - `GET /api/v1/build/build-logs` - 查询日志
+   - `GET /api/v1/build/build-logs/:id/stream` - SSE 日志流
 
 #### 测试状态
-- Namespace Pool 服务测试：15 个测试全部通过
-- 租户管理路由测试：12 个测试全部通过
-- 租户中间件测试：22 个测试全部通过
-- 总测试覆盖率 > 80%
+- BuilderImageService: 20 个测试全部通过
+- BuildCacheService: 24 个测试全部通过
+- K8sBuildExecutor: 12 个测试全部通过
+- BuildLogService: 32 个测试全部通过
+- 总计: 88 个测试全部通过
 
 #### 验收标准检查
-- [x] 租户解析中间件正常工作，能从 JWT 和 header 提取 tenant_id
-- [x] RLS 策略测试通过（SQL 脚本已提供）
-- [x] Namespace 分配算法正确，100 个池每池 10 租户
-- [x] 单元测试覆盖率 > 80%
+- [x] Builder 镜像管理 - 预置镜像、自定义注册、版本管理、拉取策略
+- [x] 构建缓存配置 - 全局/流水线/任务三级开关、缓存键生成、存储类型、清理策略
+- [x] K8s 容器化构建执行 - Pod 创建、资源限制、缓存挂载、状态监控、清理
+- [x] 构建日志 streaming - 实时读取、SSE 推送、订阅机制、日志持久化
+- [x] 单元测试覆盖 - 88 个测试全部通过
 
 ## Next Steps
-1. 更新 feature_list.json 标记 F403 为 completed
-2. 提交代码
+1. 提交代码
+2. 更新 feature_list.json 标记 TASK-103 为 completed
 
 ## Session Log
-- 2026-04-12: F403 多租户隔离功能实现完成
-  - Created namespace-pool.service.ts
-  - Created tenant.routes.ts
-  - Created namespace-pool-base.yaml
-  - Created network-policy.yaml
-  - Created namespace-pool.test.ts
-  - Created tenant.routes.test.ts
-  - Updated app.ts
-  - Updated tenant.ts
-  - Fixed tenant.test.ts import paths
-  - Build successful
-  - All new tests passing
+- 2026-04-12: TASK-103 构建环境管理功能实现完成
+  - Created 4 data models (BuilderImage, BuildCache, BuildPod, BuildLog)
+  - Created 4 core services (BuilderImageService, BuildCacheService, K8sBuildExecutor, BuildLogService)
+  - Created 4 API controllers
+  - Created build routes with 32 endpoints
+  - Integrated with existing API routes
+  - Created 4 test files with 88 passing tests
+  - TypeScript type check passed for all new files
