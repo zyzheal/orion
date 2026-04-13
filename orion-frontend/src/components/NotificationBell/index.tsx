@@ -13,7 +13,7 @@ import {
   ArrowUpOutlined,
   WarningOutlined,
   ExclamationCircleOutlined,
-  AtCircleOutlined,
+  MessageOutlined,
   SwapOutlined,
   AlertOutlined,
   UserAddOutlined,
@@ -36,7 +36,7 @@ const typeIconMap: Record<string, React.ReactElement> = {
   sla_warning: <WarningOutlined style={{ color: '#faad14' }} />,
   sla_breached: <ExclamationCircleOutlined style={{ color: '#f5222d' }} />,
   pipeline_completed: <CheckCircleOutlined style={{ color: '#52c41a' }} />,
-  comment_mention: <AtCircleOutlined style={{ color: '#722ed1' }} />,
+  comment_mention: <MessageOutlined style={{ color: '#722ed1' }} />,
   transfer_request: <SwapOutlined style={{ color: '#13c2c2' }} />,
   system_alert: <AlertOutlined style={{ color: '#f5222d' }} />,
 };
