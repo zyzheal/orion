@@ -18,6 +18,12 @@ import {
   HomeOutlined,
   AppstoreOutlined,
   ControlOutlined,
+  RocketOutlined,
+  CloudServerOutlined,
+  AlertOutlined,
+  BarChartOutlined,
+  TeamOutlined,
+  UserSwitchOutlined,
 } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
 import type { GetProp } from 'antd';
@@ -48,6 +54,50 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       label: '工作台',
     },
     {
+      key: '/ops',
+      icon: <CloudServerOutlined />,
+      label: '运维中心',
+      children: [
+        {
+          key: '/pipelines',
+          icon: <RocketOutlined />,
+          label: '流水线',
+        },
+        {
+          key: '/deployments',
+          icon: <CloudServerOutlined />,
+          label: '部署',
+        },
+        {
+          key: '/alerts',
+          icon: <AlertOutlined />,
+          label: '告警',
+        },
+      ],
+    },
+    {
+      key: '/bi',
+      icon: <BarChartOutlined />,
+      label: '效能看板',
+      children: [
+        {
+          key: '/dashboard/executive',
+          icon: <DashboardOutlined />,
+          label: '总览看板',
+        },
+        {
+          key: '/dashboard/manager',
+          icon: <TeamOutlined />,
+          label: '经理看板',
+        },
+        {
+          key: '/dashboard/engineer',
+          icon: <UserSwitchOutlined />,
+          label: '个人看板',
+        },
+      ],
+    },
+    {
       key: '/subapps',
       icon: <AppstoreOutlined />,
       label: '子系统',
@@ -75,11 +125,27 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const handleMenuClick: MenuProps['onClick'] = (e) => {
     navigate(e.key);
-    const menuItem = navMenuItems.find((item) => item && 'key' in item && item.key === e.key);
-    if (menuItem && 'label' in menuItem) {
+    // Find menu item (including nested children)
+    let foundLabel: string | undefined;
+    for (const item of navMenuItems) {
+      if (!item || !('key' in item)) continue;
+      if (item.key === e.key) {
+        foundLabel = 'label' in item ? String(item.label) : undefined;
+        break;
+      }
+      // Check children
+      if ('children' in item && item.children) {
+        const child = item.children.find((c) => c && 'key' in c && c.key === e.key);
+        if (child && 'label' in child) {
+          foundLabel = String(child.label);
+          break;
+        }
+      }
+    }
+    if (foundLabel) {
       setBreadcrumbs([
         { title: '首页', path: '/' },
-        { title: String(menuItem.label), path: e.key },
+        { title: foundLabel, path: e.key },
       ]);
     }
   };

@@ -14,7 +14,14 @@ import {
   PlayCircleOutlined,
   CodeOutlined,
   ThunderboltOutlined,
+  BarChartOutlined,
+  DashboardOutlined,
+  TeamOutlined,
+  UserSwitchOutlined,
+  CloudServerOutlined,
+  AlertOutlined,
 } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -58,6 +65,13 @@ const quickActions = [
   { name: '历史记录', icon: <HistoryOutlined />, color: '#faad14', path: '/history' },
 ];
 
+const dashboardLinks = [
+  { name: '总览看板', icon: <DashboardOutlined />, color: '#1890ff', path: '/dashboard/executive', desc: '全局 KPI、趋势、排行' },
+  { name: '经理看板', icon: <TeamOutlined />, color: '#722ed1', path: '/dashboard/manager', desc: '团队明细、周环比' },
+  { name: '个人看板', icon: <UserSwitchOutlined />, color: '#52c41a', path: '/dashboard/engineer', desc: '个人效能、在手工单' },
+  { name: '告警中心', icon: <AlertOutlined />, color: '#ff4d4f', path: '/alerts', desc: '告警列表、确认处理' },
+];
+
 const statusColors: Record<string, string> = {
   running: 'processing',
   success: 'success',
@@ -75,6 +89,8 @@ const priorityColors: Record<string, string> = {
 };
 
 const DashboardNew: React.FC = () => {
+  const navigate = useNavigate();
+
   // 任务统计
   const taskStats = {
     total: tasks.length,
@@ -264,6 +280,42 @@ const DashboardNew: React.FC = () => {
 
         {/* 右侧 - 系统状态和快速操作 */}
         <Col xs={24} xl={8}>
+          {/* 效能看板入口 */}
+          <Card
+            title={<Space><BarChartOutlined />效能看板</Space>}
+            extra={<Button type="link" size="small" onClick={() => navigate('/dashboard/executive')}>查看全部</Button>}
+            style={{ marginBottom: 16 }}
+          >
+            <Row gutter={[12, 12]}>
+              {dashboardLinks.map((link) => (
+                <Col span={12} key={link.name}>
+                  <Card
+                    hoverable
+                    size="small"
+                    onClick={() => navigate(link.path)}
+                    style={{
+                      textAlign: 'center',
+                      cursor: 'pointer',
+                      height: 110,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      border: '1px solid #f0f0f0',
+                      transition: 'all 0.3s',
+                    }}
+                  >
+                    <div style={{ fontSize: 24, color: link.color, marginBottom: 6 }}>
+                      {link.icon}
+                    </div>
+                    <Text strong style={{ fontSize: 13 }}>{link.name}</Text>
+                    <Text type="secondary" style={{ fontSize: 11, marginTop: 2 }}>{link.desc}</Text>
+                  </Card>
+                </Col>
+              ))}
+            </Row>
+          </Card>
+
           {/* 系统健康状态 */}
           <Card
             title="系统健康状态"
