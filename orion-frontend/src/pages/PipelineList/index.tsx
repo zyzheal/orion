@@ -236,7 +236,7 @@ const PipelineList: React.FC = () => {
           <Button icon={<ReloadOutlined />} onClick={handleRefresh} loading={loading}>
             刷新
           </Button>
-          <Button type="primary" icon={<PlusOutlined />}>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/pipelines/new')}>
             创建 Pipeline
           </Button>
         </Space>

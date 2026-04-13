@@ -108,6 +108,16 @@ export const routes: AppRoute[] = [
     protected: true,
   },
   {
+    path: '/pipelines/new',
+    element: React.lazy(() => import('@/pages/PipelineEditor')),
+    protected: true,
+  },
+  {
+    path: '/pipelines/edit/:id',
+    element: React.lazy(() => import('@/pages/PipelineEditor')),
+    protected: true,
+  },
+  {
     path: '/deployments',
     element: React.lazy(() => import('@/pages/DeploymentList')),
     protected: true,
