@@ -47,7 +47,12 @@ export const routes: AppRoute[] = [
   },
   {
     path: '/console/plugins',
-    element: React.lazy(() => import('@/pages/Console')),
+    element: React.lazy(() => import('@/pages/PluginManagement')),
+    protected: true,
+  },
+  {
+    path: '/console/plugins/:id',
+    element: React.lazy(() => import('@/pages/PluginManagement')),
     protected: true,
   },
   {
@@ -117,6 +122,12 @@ export const routes: AppRoute[] = [
     element: React.lazy(() => import('@/pages/AlertList')),
     protected: true,
   },
+  // Notification Center
+  {
+    path: '/notifications',
+    element: React.lazy(() => import('@/pages/NotificationCenter')),
+    protected: true,
+  },
   // Ticketing Routes
   {
     path: '/tickets',
@@ -142,6 +153,12 @@ export const routes: AppRoute[] = [
   {
     path: '/dashboard/engineer/:engineerId?',
     element: React.lazy(() => import('@/pages/EngineerDashboard')),
+    protected: true,
+  },
+  // FinOps
+  {
+    path: '/finops',
+    element: React.lazy(() => import('@/pages/FinOpsDashboard')),
     protected: true,
   },
   // 404 页面
