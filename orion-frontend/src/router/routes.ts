@@ -117,6 +117,17 @@ export const routes: AppRoute[] = [
     element: React.lazy(() => import('@/pages/AlertList')),
     protected: true,
   },
+  // Ticketing Routes
+  {
+    path: '/tickets',
+    element: React.lazy(() => import('@/pages/TicketList')),
+    protected: true,
+  },
+  {
+    path: '/tickets/:id',
+    element: React.lazy(() => import('@/pages/TicketDetail')),
+    protected: true,
+  },
   // BI Dashboard Routes
   {
     path: '/dashboard/executive',

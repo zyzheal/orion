@@ -24,6 +24,7 @@ import {
   BarChartOutlined,
   TeamOutlined,
   UserSwitchOutlined,
+  UnorderedListOutlined,
 } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
 import type { GetProp } from 'antd';
@@ -74,6 +75,11 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           label: '告警',
         },
       ],
+    },
+    {
+      key: '/tickets',
+      icon: <UnorderedListOutlined />,
+      label: '工单',
     },
     {
       key: '/bi',
