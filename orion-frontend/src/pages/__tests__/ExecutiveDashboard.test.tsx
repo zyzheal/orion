@@ -1,0 +1,115 @@
+/**
+ * Tests for ExecutiveDashboard page
+ */
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import { BrowserRouter } from 'react-router-dom';
+import ExecutiveDashboard from '@/pages/ExecutiveDashboard';
+
+// Mock dayjs
+vi.mock('dayjs', async () => {
+  const actual = await vi.importActual('dayjs');
+  return {
+    ...(actual as Record<string, unknown>),
+    extend: vi.fn(() => ({ format: () => '2026-04-13 10:00' })),
+  };
+});
+
+vi.mock('dayjs/plugin/relativeTime', () => ({}));
+
+const renderWithRouter = (ui: React.ReactElement) => {
+  return render(<BrowserRouter>{ui}</BrowserRouter>);
+};
+
+describe('ExecutiveDashboard', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('should render without crashing and show page title', () => {
+    renderWithRouter(<ExecutiveDashboard />);
+    expect(screen.getByText('总览看板')).toBeInTheDocument();
+  });
+
+  it('should display all 8 KPI metric cards', () => {
+    renderWithRouter(<ExecutiveDashboard />);
+    expect(screen.getByText('总工单数')).toBeInTheDocument();
+    expect(screen.getByText('已解决')).toBeInTheDocument();
+    expect(screen.getByText('待处理')).toBeInTheDocument();
+    expect(screen.getByText('解决率')).toBeInTheDocument();
+    expect(screen.getByText('平均解决时间')).toBeInTheDocument();
+    expect(screen.getByText('SLA合规率')).toBeInTheDocument();
+    expect(screen.getByText('工程师总数')).toBeInTheDocument();
+    expect(screen.getByText('活跃工程师')).toBeInTheDocument();
+  });
+
+  it('should display correct total tickets value', () => {
+    renderWithRouter(<ExecutiveDashboard />);
+    expect(screen.getByText('487')).toBeInTheDocument();
+  });
+
+  it('should display correct resolved tickets value', () => {
+    renderWithRouter(<ExecutiveDashboard />);
+    expect(screen.getByText('412')).toBeInTheDocument();
+  });
+
+  it('should display correct SLA compliance rate value', () => {
+    renderWithRouter(<ExecutiveDashboard />);
+    expect(screen.getByText('92.1%')).toBeInTheDocument();
+  });
+
+  it('should display ticket volume trend section', () => {
+    renderWithRouter(<ExecutiveDashboard />);
+    expect(screen.getByText('工单量趋势（近14天）')).toBeInTheDocument();
+  });
+
+  it('should display SLA compliance trend section', () => {
+    renderWithRouter(<ExecutiveDashboard />);
+    expect(screen.getByText('SLA合规率趋势（近14天）')).toBeInTheDocument();
+  });
+
+  it('should display team ranking section with top performers', () => {
+    renderWithRouter(<ExecutiveDashboard />);
+    expect(screen.getByText('团队排名 - 优秀工程师')).toBeInTheDocument();
+    expect(screen.getByText('张伟')).toBeInTheDocument();
+    expect(screen.getByText('李娜')).toBeInTheDocument();
+    expect(screen.getByText('王强')).toBeInTheDocument();
+  });
+
+  it('should display bottom performers needing attention', () => {
+    renderWithRouter(<ExecutiveDashboard />);
+    expect(screen.getByText('需关注工程师')).toBeInTheDocument();
+    expect(screen.getByText('孙磊')).toBeInTheDocument();
+    expect(screen.getByText('SLA合规率偏低 (72%)')).toBeInTheDocument();
+  });
+
+  it('should display alert cards section', () => {
+    renderWithRouter(<ExecutiveDashboard />);
+    expect(screen.getByText('告警中心')).toBeInTheDocument();
+    expect(screen.getByText('SLA违规')).toBeInTheDocument();
+    expect(screen.getByText('超期工单')).toBeInTheDocument();
+    expect(screen.getByText('过载工程师')).toBeInTheDocument();
+    expect(screen.getByText('24h+未分配')).toBeInTheDocument();
+  });
+
+  it('should display correct SLA breached count', () => {
+    renderWithRouter(<ExecutiveDashboard />);
+    expect(screen.getByText('8')).toBeInTheDocument();
+  });
+
+  it('should display category distribution section', () => {
+    renderWithRouter(<ExecutiveDashboard />);
+    expect(screen.getByText('工单分类分布')).toBeInTheDocument();
+    expect(screen.getByText('基础设施')).toBeInTheDocument();
+    expect(screen.getByText('应用')).toBeInTheDocument();
+  });
+
+  it('should display priority distribution section', () => {
+    renderWithRouter(<ExecutiveDashboard />);
+    expect(screen.getByText('优先级分布')).toBeInTheDocument();
+    expect(screen.getByText('紧急')).toBeInTheDocument();
+    expect(screen.getByText('高')).toBeInTheDocument();
+    expect(screen.getByText('中')).toBeInTheDocument();
+    expect(screen.getByText('低')).toBeInTheDocument();
+  });
+});

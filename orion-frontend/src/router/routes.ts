@@ -86,6 +86,53 @@ export const routes: AppRoute[] = [
     element: React.lazy(() => import('@/components/SubAppRoute')),
     protected: true,
   },
+  // Core Pages (TASK-905)
+  {
+    path: '/dashboard-core',
+    element: React.lazy(() => import('@/pages/DashboardCore')),
+    protected: true,
+  },
+  {
+    path: '/pipelines',
+    element: React.lazy(() => import('@/pages/PipelineList')),
+    protected: true,
+  },
+  {
+    path: '/pipelines/:id',
+    element: React.lazy(() => import('@/pages/PipelineDetail')),
+    protected: true,
+  },
+  {
+    path: '/deployments',
+    element: React.lazy(() => import('@/pages/DeploymentList')),
+    protected: true,
+  },
+  {
+    path: '/deployments/:id',
+    element: React.lazy(() => import('@/pages/DeploymentDetail')),
+    protected: true,
+  },
+  {
+    path: '/alerts',
+    element: React.lazy(() => import('@/pages/AlertList')),
+    protected: true,
+  },
+  // BI Dashboard Routes
+  {
+    path: '/dashboard/executive',
+    element: React.lazy(() => import('@/pages/ExecutiveDashboard')),
+    protected: true,
+  },
+  {
+    path: '/dashboard/manager',
+    element: React.lazy(() => import('@/pages/ManagerDashboard')),
+    protected: true,
+  },
+  {
+    path: '/dashboard/engineer/:engineerId?',
+    element: React.lazy(() => import('@/pages/EngineerDashboard')),
+    protected: true,
+  },
   // 404 页面
   {
     path: '*',
