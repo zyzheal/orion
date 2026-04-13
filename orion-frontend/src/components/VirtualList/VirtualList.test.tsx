@@ -41,13 +41,14 @@ describe('VirtualList', () => {
   });
 
   it('should show loading state', () => {
-    render(<VirtualList items={mockItems} renderItem={renderMock} loading={true} />);
-    expect(screen.getByText('加载中...')).toBeInTheDocument();
+    const { container } = render(<VirtualList items={mockItems} renderItem={renderMock} loading={true} />);
+    // Spin component renders an ant-spin container
+    expect(container.querySelector('.ant-spin')).toBeInTheDocument();
   });
 
   it('should call onScroll when scrolling', () => {
     const onScrollMock = vi.fn();
-    render(
+    const { container } = render(
       <VirtualList
         items={mockItems}
         renderItem={renderMock}
@@ -55,8 +56,9 @@ describe('VirtualList', () => {
         onScroll={onScrollMock}
       />
     );
-    const container = screen.getByRole('document').querySelector('.ant-spin-container') || document;
-    fireEvent.scroll(container, { target: { scrollTop: 100 } });
+    const scrollContainer = container.firstChild as HTMLElement;
+    fireEvent.scroll(scrollContainer, { target: { scrollTop: 100 } });
+    expect(onScrollMock).toHaveBeenCalledWith(100);
   });
 
   it('should use custom item height when provided', () => {
