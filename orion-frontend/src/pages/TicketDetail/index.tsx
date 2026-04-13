@@ -50,6 +50,7 @@ import {
   mockTransferHistory,
   type MockTicket,
 } from '@/pages/__mocks__/mockTicketData';
+import TicketComments from './TicketComments';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -417,6 +418,9 @@ const TicketDetail: React.FC = () => {
               </Descriptions>
             </Card>
           )}
+
+          {/* Comments and Notes */}
+          <TicketComments ticketId={ticket.id} />
 
           {/* Relations */}
           {relations.length > 0 && (

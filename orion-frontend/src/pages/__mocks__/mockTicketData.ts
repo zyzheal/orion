@@ -279,3 +279,82 @@ export interface MockTransferEntry {
 export const mockTransferHistory: MockTransferEntry[] = [
   { id: 'tr1', ticketId: 'TKT-001', fromEngineer: '李娜', toEngineer: '张伟', reason: '需要数据库专业知识', initiatedBy: '李娜', timestamp: '2026-04-13T08:35:00Z' },
 ];
+
+// ============================================================================
+// Ticket Comments Mock Data
+// ============================================================================
+
+export const mockTicketComments: Record<string, Array<{
+  id: string;
+  ticketId: string;
+  author: string;
+  content: string;
+  type: 'comment' | 'internal-note';
+  createdAt: string;
+  mentions: string[];
+  attachments?: string[];
+}>> = {
+  'TKT-001': [
+    {
+      id: 'C001',
+      ticketId: 'TKT-001',
+      author: '张伟',
+      content: '正在排查，初步判断是慢查询导致 CPU 飙升，正在优化索引。',
+      type: 'comment',
+      createdAt: '2026-04-13T09:00:00Z',
+      mentions: ['李娜'],
+    },
+    {
+      id: 'C002',
+      ticketId: 'TKT-001',
+      author: '李娜',
+      content: '建议先加索引到 orders 表的 created_at 字段，同时排查一下最近的慢查询日志。',
+      type: 'internal-note',
+      createdAt: '2026-04-13T09:30:00Z',
+      mentions: [],
+    },
+    {
+      id: 'C003',
+      ticketId: 'TKT-001',
+      author: '张伟',
+      content: '索引已添加，CPU 使用率下降到 40%，继续观察。@王磊 帮忙确认一下监控是否正常。',
+      type: 'comment',
+      createdAt: '2026-04-13T10:00:00Z',
+      mentions: ['王磊'],
+    },
+  ],
+  'TKT-002': [
+    {
+      id: 'C004',
+      ticketId: 'TKT-002',
+      author: '王磊',
+      content: '上游服务 health-check 超时，疑似网络问题，正在排查网关配置。',
+      type: 'comment',
+      createdAt: '2026-04-13T09:15:00Z',
+      mentions: [],
+    },
+  ],
+};
+
+// ============================================================================
+// Ticket Attachments Mock Data
+// ============================================================================
+
+export const mockTicketAttachments: Record<string, Array<{
+  id: string;
+  ticketId: string;
+  name: string;
+  size: string;
+  type: string;
+  uploadedBy: string;
+  uploadedAt: string;
+  url: string;
+}>> = {
+  'TKT-001': [
+    { id: 'A001', ticketId: 'TKT-001', name: 'cpu-graph.png', size: '2.3 MB', type: 'image/png', uploadedBy: '张伟', uploadedAt: '2026-04-13T09:05:00Z', url: '#' },
+    { id: 'A002', ticketId: 'TKT-001', name: 'slow-query.log', size: '156 KB', type: 'text/plain', uploadedBy: '张伟', uploadedAt: '2026-04-13T09:10:00Z', url: '#' },
+  ],
+  'TKT-002': [
+    { id: 'A003', ticketId: 'TKT-002', name: 'error-trace.log', size: '89 KB', type: 'text/plain', uploadedBy: '王磊', uploadedAt: '2026-04-13T09:20:00Z', url: '#' },
+  ],
+};

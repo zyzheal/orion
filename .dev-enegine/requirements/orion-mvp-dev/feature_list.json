@@ -129,8 +129,8 @@
       "depends_on": ["F202"],
       "priority": "P1",
       "line": "subapp",
-      "completed_at": "2026-04-11",
-      "note": "代码改造完成，构建配置待优化（依赖问题）"
+      "completed_at": "2026-04-13",
+      "note": "代码改造完成，构建验证通过 (3.15MB)"
     },
     {
       "id": "F206",

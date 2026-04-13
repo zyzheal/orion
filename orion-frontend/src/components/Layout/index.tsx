@@ -20,6 +20,7 @@ import {
   ControlOutlined,
   RocketOutlined,
   CloudServerOutlined,
+  DollarCircleOutlined,
   AlertOutlined,
   BarChartOutlined,
   TeamOutlined,
@@ -32,6 +33,7 @@ import { useAppStore } from '@/stores/appStore';
 import { useAuth } from '@/hooks/useAuth';
 import SubAppLauncher from '@/components/SubAppLauncher';
 import { useNavigate } from 'react-router-dom';
+import { NotificationBell } from '@/components/NotificationBell';
 
 type ItemType = GetProp<MenuProps, 'items'>[number];
 
@@ -73,6 +75,11 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           key: '/alerts',
           icon: <AlertOutlined />,
           label: '告警',
+        },
+        {
+          key: '/finops',
+          icon: <DollarCircleOutlined />,
+          label: '成本分析',
         },
       ],
     },
@@ -312,6 +319,9 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             }}
             title={theme === 'dark' ? '切换到浅色模式' : '切换到深色模式'}
           />
+
+          {/* 通知铃铛 */}
+          <NotificationBell />
 
           {/* 用户菜单 */}
           <Dropdown menu={{ items: userMenuItems }} placement="bottomRight" trigger={['click']}>

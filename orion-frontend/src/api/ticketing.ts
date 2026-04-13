@@ -155,3 +155,22 @@ export function getBacklogAnalysis() {
 export function getTrendReport(params?: { days?: number; granularity?: string }) {
   return api.get('/v1/ticketing/reports/trend', { params });
 }
+
+// ---- Comments ----
+
+export function getComments(ticketId: string) {
+  return api.get(`/v1/ticketing/tickets/${ticketId}/comments`);
+}
+
+export function addComment(
+  ticketId: string,
+  data: { content: string; type: 'comment' | 'internal-note'; mentions?: string[] }
+) {
+  return api.post(`/v1/ticketing/tickets/${ticketId}/comments`, data);
+}
+
+// ---- Attachments ----
+
+export function getAttachments(ticketId: string) {
+  return api.get(`/v1/ticketing/tickets/${ticketId}/attachments`);
+}
