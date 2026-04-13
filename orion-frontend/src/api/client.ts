@@ -93,6 +93,14 @@ export const api = {
   ): Promise<AxiosResponse<ApiResponse<T>>> {
     return apiClient.delete(url, config) as Promise<AxiosResponse<ApiResponse<T>>>;
   },
+
+  patch<T = unknown>(
+    url: string,
+    data?: unknown,
+    config?: AxiosRequestConfig
+  ): Promise<AxiosResponse<ApiResponse<T>>> {
+    return apiClient.patch(url, data, config) as Promise<AxiosResponse<ApiResponse<T>>>;
+  },
 };
 
 export default apiClient;

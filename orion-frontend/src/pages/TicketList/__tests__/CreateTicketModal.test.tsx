@@ -5,7 +5,7 @@
  * - Duplicate preview tests
  * - Conditional field tests
  */
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import CreateTicketModal from '../CreateTicketModal';
 
@@ -21,24 +21,32 @@ vi.mock('antd', async () => {
   };
 });
 
-const defaultProps = {
+const createDefaultProps = () => ({
   open: true,
   onCancel: vi.fn(),
   onSuccess: vi.fn(),
-};
+});
 
-function renderModal(props = defaultProps) {
+function renderModal(props = createDefaultProps()) {
   return render(<CreateTicketModal {...props} />);
 }
 
 describe('CreateTicketModal', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('should render the modal when open is true', () => {
+    renderModal();
+    expect(screen.getByText('创建工单')).toBeInTheDocument();
+  });
   it('should render the modal when open is true', () => {
     renderModal();
     expect(screen.getByText('创建工单')).toBeInTheDocument();
   });
 
   it('should not render the modal when open is false', () => {
-    renderModal({ ...defaultProps, open: false });
+    renderModal({ ...createDefaultProps(), open: false });
     expect(screen.queryByText('创建工单')).not.toBeInTheDocument();
   });
 
@@ -53,7 +61,8 @@ describe('CreateTicketModal', () => {
   });
 
   it('should show validation error for short title', async () => {
-    renderModal();
+    const props = createDefaultProps();
+    renderModal(props);
     const titleInput = screen.getByTestId('create-ticket-title');
     fireEvent.change(titleInput, { target: { value: 'ab' } });
     const submitButton = screen.getByTestId('create-ticket-submit');
@@ -61,19 +70,20 @@ describe('CreateTicketModal', () => {
 
     // Validation should prevent submission - onSuccess should NOT be called
     await waitFor(() => {
-      expect(defaultProps.onSuccess).not.toHaveBeenCalled();
+      expect(props.onSuccess).not.toHaveBeenCalled();
     }, { timeout: 2000 });
   });
 
   it('should show validation error for short description', async () => {
-    renderModal();
+    const props = createDefaultProps();
+    renderModal(props);
     const descInput = screen.getByTestId('create-ticket-description');
     fireEvent.change(descInput, { target: { value: '短描述' } });
     const submitButton = screen.getByTestId('create-ticket-submit');
     fireEvent.click(submitButton);
 
     await waitFor(() => {
-      expect(defaultProps.onSuccess).not.toHaveBeenCalled();
+      expect(props.onSuccess).not.toHaveBeenCalled();
     }, { timeout: 2000 });
   });
 
@@ -95,8 +105,9 @@ describe('CreateTicketModal', () => {
   });
 
   it('should reset form when modal is closed', () => {
-    const { rerender } = renderModal();
-    rerender(<CreateTicketModal {...defaultProps} open={false} />);
+    const props = createDefaultProps();
+    const { rerender } = renderModal(props);
+    rerender(<CreateTicketModal {...createDefaultProps()} open={false} />);
     expect(screen.queryByText('工单标题')).not.toBeInTheDocument();
   });
 });
