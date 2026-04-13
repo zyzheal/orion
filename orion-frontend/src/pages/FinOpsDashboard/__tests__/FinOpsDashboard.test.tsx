@@ -77,9 +77,13 @@ describe('FinOpsDashboard', () => {
   it('should show cost by service table', () => {
     renderWithRouter(<FinOpsDashboard />);
     expect(screen.getByText('各服务成本明细')).toBeInTheDocument();
-    expect(screen.getByText('云服务器 ECS')).toBeInTheDocument();
-    expect(screen.getByText('数据库 RDS')).toBeInTheDocument();
-    expect(screen.getByText('对象存储 OSS')).toBeInTheDocument();
+    // "云服务器 ECS" appears in multiple places
+    const ecsElements = screen.getAllByText('云服务器 ECS');
+    expect(ecsElements.length).toBeGreaterThanOrEqual(1);
+    const rdsElements = screen.getAllByText('数据库 RDS');
+    expect(rdsElements.length).toBeGreaterThanOrEqual(1);
+    const ossElements = screen.getAllByText('对象存储 OSS');
+    expect(ossElements.length).toBeGreaterThanOrEqual(1);
   });
 
   it('should display optimization recommendations', () => {
@@ -96,7 +100,9 @@ describe('FinOpsDashboard', () => {
     // "云服务器 ECS" appears in both cost table and budget alerts
     const ecsElements = screen.getAllByText('云服务器 ECS');
     expect(ecsElements.length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText('已超支')).toBeInTheDocument();
+    // "已超支" appears multiple times in budget alerts section
+    const overBudgetElements = screen.getAllByText('已超支');
+    expect(overBudgetElements.length).toBeGreaterThanOrEqual(1);
   });
 
   it('should have export report button', () => {
