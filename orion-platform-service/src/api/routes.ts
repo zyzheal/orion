@@ -31,6 +31,12 @@ import selfHealingRoutes from './self-healing-routes';
 import backupRoutes from './backup-routes';
 import pluginSpiRoutes from './plugin-spi-routes';
 import aiSecurityRoutes from './ai-security-routes';
+import pluginRoutes from '../routes-plugin';
+import aiGatewayRoutes from './ai-gateway-routes';
+import alertRoutes from './alert-routes';
+import auditRoutes from './audit-routes';
+import tenantRoutes from './tenant-routes';
+import efficiencyRoutes from './efficiency-routes';
 
 export interface ApiRoutesOptions {
   eventBus?: EventBusService;
@@ -211,6 +217,24 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // 注册 Plugin SPI API 路由 (TASK-104)
   await app.register(pluginSpiRoutes, { prefix: '/plugins-spi' });
 
+  // 注册 Plugin Management API 路由
+  await app.register(pluginRoutes, { prefix: '/plugins' });
+
   // 注册 AI 安全加固 API 路由 (TASK-1004)
   await app.register(aiSecurityRoutes, { prefix: '/ai-security' });
+
+  // 注册 AI 网关 API 路由
+  await app.register(aiGatewayRoutes, { prefix: '/ai-gateway' });
+
+  // 注册告警管理 API 路由
+  await app.register(alertRoutes, { prefix: '/alert' });
+
+  // 注册审计 API 路由
+  await app.register(auditRoutes, { prefix: '/audit' });
+
+  // 注册租户管理 API 路由
+  await app.register(tenantRoutes, { prefix: '/tenant' });
+
+  // 注册效能分析 API 路由
+  await app.register(efficiencyRoutes, { prefix: '/efficiency' });
 }
