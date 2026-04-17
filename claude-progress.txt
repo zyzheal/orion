@@ -366,6 +366,33 @@
 - [x] 配置变更审批流 - Multi-level approval, audit trail
 - [x] 配置 diff 与回滚 - Environment comparison, version diff, rollback
 
+## Session Progress Store (COMPLETED)
+
+### Completed Work (2026-04-17)
+
+1. **Session Store** (`orion-frontend/src/stores/sessionStore.ts`)
+   - SessionProgress type: id, type (agent/pipeline/deployment/build), name, progress (0-100), status, startedAt, message
+   - SessionState interface with: addSession, updateSession, removeSession, clearCompleted, getActiveSessions
+   - Auto-generates UUIDs via timestamp + random string
+   - getActiveSessions returns only 'running' or 'paused' sessions
+   - clearCompleted removes both 'completed' and 'failed' sessions
+
+2. **Session Progress Hook** (`orion-frontend/src/hooks/useSessionProgress.ts`)
+   - Consumes useSessionStore for active sessions
+   - Provides sessions (active only), totalActive count
+   - simulateSession() adds random demo sessions for testing
+   - Auto-simulates progress updates every 2 seconds (increments 5-19%)
+   - Sessions complete or fail at 100% progress (90% success rate)
+   - Proper cleanup on unmount via useEffect return
+
+3. **Store Index** (`orion-frontend/src/stores/index.ts`)
+   - Added useSessionStore and SessionProgress/SessionState type exports
+
+### Verification
+- TypeScript type-check passed (no errors in new files)
+- Follows zustand create pattern from appStore.ts
+- No `any` types, no unused imports
+
 ## M12 - Skill Management + M36 - AI Cost Optimization (COMPLETED)
 
 ### Completed Work (2026-04-17)
