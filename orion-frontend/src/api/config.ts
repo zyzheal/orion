@@ -1,0 +1,176 @@
+/**
+ * Configuration Management API Service
+ * GitOps, config approval, and diff analysis
+ */
+import { api } from './client';
+
+export interface ConfigItem {
+  id: string;
+  key: string;
+  value: any;
+  version: number;
+  environment: string;
+  category: string;
+  description?: string;
+  sensitive: boolean;
+  encrypted: boolean;
+  status: 'draft' | 'pending_approval' | 'approved' | 'rejected' | 'active';
+  createdBy: string;
+  updatedBy: string;
+  createdAt: string;
+  updatedAt: string;
+  approvedAt?: string;
+  approvedBy?: string;
+}
+
+export interface ConfigVersion {
+  version: number;
+  value: any;
+  changedBy: string;
+  changedAt: string;
+  changeReason?: string;
+}
+
+export interface GitOpsConfig {
+  enabled: boolean;
+  repository: string;
+  branch: string;
+  basePath: string;
+  lastSyncAt?: string;
+  syncStatus: 'idle' | 'syncing' | 'success' | 'failed';
+}
+
+export interface ApprovalWorkflow {
+  id: string;
+  configId: string;
+  status: 'pending' | 'approved' | 'rejected';
+  reviewers: string[];
+  approvals: Approval[];
+  createdAt: string;
+  completedAt?: string;
+}
+
+export interface Approval {
+  reviewer: string;
+  decision: 'approved' | 'rejected';
+  comment?: string;
+  decidedAt: string;
+}
+
+export interface ConfigDiff {
+  oldValue: any;
+  newValue: any;
+  changes: ConfigChange[];
+}
+
+export interface ConfigChange {
+  path: string;
+  operation: 'add' | 'remove' | 'update';
+  oldValue?: any;
+  newValue?: any;
+}
+
+export interface ConfigFilters {
+  environment?: string;
+  category?: string;
+  status?: string;
+  search?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+// ==================== Config CRUD ====================
+
+export function getConfigs(filters?: ConfigFilters) {
+  return api.get<{ configs: ConfigItem[]; total: number }>('/v1/config/configs', { params: filters });
+}
+
+export function getConfig(id: string) {
+  return api.get<ConfigItem>(`/v1/config/configs/${id}`);
+}
+
+export function createConfig(data: {
+  key: string;
+  value: any;
+  environment: string;
+  category: string;
+  description?: string;
+  sensitive?: boolean;
+}) {
+  return api.post<ConfigItem>('/v1/config/configs', data);
+}
+
+export function updateConfig(id: string, data: { value: any; changeReason?: string }) {
+  return api.put<ConfigItem>(`/v1/config/configs/${id}`, data);
+}
+
+export function deleteConfig(id: string) {
+  return api.delete(`/v1/config/configs/${id}`);
+}
+
+export function getConfigVersions(id: string) {
+  return api.get<{ versions: ConfigVersion[] }>(`/v1/config/configs/${id}/versions`);
+}
+
+export function rollbackConfig(id: string, version: number) {
+  return api.post<ConfigItem>(`/v1/config/configs/${id}/rollback`, { version });
+}
+
+// ==================== GitOps ====================
+
+export function getGitOpsConfig() {
+  return api.get<GitOpsConfig>('/v1/config/gitops');
+}
+
+export function updateGitOpsConfig(config: Partial<GitOpsConfig>) {
+  return api.put<GitOpsConfig>('/v1/config/gitops', config);
+}
+
+export function syncFromGit() {
+  return api.post<{ status: string; syncedAt: string }>('/v1/config/gitops/sync');
+}
+
+export function getGitOpsStatus() {
+  return api.get<GitOpsConfig>('/v1/config/gitops/status');
+}
+
+// ==================== Approval Workflow ====================
+
+export function submitForApproval(id: string, reviewers: string[]) {
+  return api.post<ApprovalWorkflow>(`/v1/config/configs/${id}/approve`, { reviewers });
+}
+
+export function approveConfig(id: string, comment?: string) {
+  return api.post<ApprovalWorkflow>(`/v1/config/configs/${id}/approval/approve`, { comment });
+}
+
+export function rejectConfig(id: string, comment: string) {
+  return api.post<ApprovalWorkflow>(`/v1/config/configs/${id}/approval/reject`, { comment });
+}
+
+export function getApprovalWorkflow(id: string) {
+  return api.get<ApprovalWorkflow>(`/v1/config/configs/${id}/approval`);
+}
+
+// ==================== Config Diff ====================
+
+export function compareConfigs(id: string, version1: number, version2: number) {
+  return api.get<ConfigDiff>(`/v1/config/configs/${id}/compare`, {
+    params: { version1, version2 },
+  });
+}
+
+export function diffConfigWithCurrent(id: string, newValue: any) {
+  return api.post<ConfigDiff>(`/v1/config/configs/${id}/diff`, { newValue });
+}
+
+// ==================== Statistics ====================
+
+export function getConfigStats() {
+  return api.get<{
+    total: number;
+    byEnvironment: Record<string, number>;
+    byCategory: Record<string, number>;
+    byStatus: Record<string, number>;
+  }>('/v1/config/stats');
+}
