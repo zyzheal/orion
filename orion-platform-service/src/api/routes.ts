@@ -263,4 +263,10 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // 注册 AI Cost Optimization API 路由 (M36)
   await app.register(aiCostRoutes, { prefix: '/ai-cost' });
+
+  // 注册 IaC Management API 路由 (M20)
+  await app.register(iacRoutes, { prefix: '/iac', eventBus: options.eventBus });
+
+  // 注册 ChatOps API 路由 (M35)
+  await app.register(chatopsRoutes, { prefix: '/chatops', eventBus: options.eventBus });
 }
