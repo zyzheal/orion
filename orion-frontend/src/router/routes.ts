@@ -207,6 +207,35 @@ export const routes: AppRoute[] = [
     element: React.lazy(() => import('@/pages/FinOpsDashboard')),
     protected: true,
   },
+  // SBOM Attestation
+  {
+    path: '/sbom',
+    element: React.lazy(() => import('@/pages/SbomDashboard')),
+    protected: true,
+  },
+  {
+    path: '/sbom/:id',
+    element: React.lazy(() => import('@/pages/SbomDetail')),
+    protected: true,
+  },
+  // Policy Management
+  {
+    path: '/policies',
+    element: React.lazy(() => import('@/pages/PolicyManagement')),
+    protected: true,
+  },
+  // Change Intelligence
+  {
+    path: '/change-intelligence',
+    element: React.lazy(() => import('@/pages/ChangeIntelligence')),
+    protected: true,
+  },
+  // Canary Analysis
+  {
+    path: '/canary-analysis',
+    element: React.lazy(() => import('@/pages/CanaryAnalysis')),
+    protected: true,
+  },
   // ==================== New Modules (Frontend Gap Implementation) ====================
 
   // Build Environment Management
