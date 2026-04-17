@@ -5,8 +5,8 @@
  * - 左上角：子系统启动器 + 系统名称 (可点击返回首页)
  * - 右上角：主题切换 + 控制台 (管理员) + 用户菜单
  */
-import React, { useState } from 'react';
-import { Layout as AntLayout, Menu, Avatar, Dropdown, Space, Breadcrumb, Button } from 'antd';
+import React from 'react';
+import { Layout as AntLayout, Menu, Avatar, Dropdown, Breadcrumb, Button } from 'antd';
 import {
   DashboardOutlined,
   ProjectOutlined,
@@ -34,10 +34,11 @@ import { useAuth } from '@/hooks/useAuth';
 import SubAppLauncher from '@/components/SubAppLauncher';
 import { useNavigate } from 'react-router-dom';
 import { NotificationBell } from '@/components/NotificationBell';
+import FooterProgressBar from '@/components/FooterProgressBar';
 
 type ItemType = GetProp<MenuProps, 'items'>[number];
 
-const { Header, Content, Footer } = AntLayout;
+const { Header, Content } = AntLayout;
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -398,13 +399,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       </Content>
 
       {/* 页脚 */}
-      <Footer style={{
-        textAlign: 'center',
-        background: 'transparent',
-        color: theme === 'dark' ? '#666' : '#999',
-      }}>
-        Orion Platform ©{new Date().getFullYear()} Created by Orion Team
-      </Footer>
+      <FooterProgressBar />
     </AntLayout>
   );
 };
