@@ -290,6 +290,28 @@ export const routes: AppRoute[] = [
       { path: '/console/diagnostic/trigger', element: React.lazy(() => import('@/pages/Diagnostic/Trigger')), protected: true },
     ],
   },
+  // AI Agent Orchestration
+  {
+    path: '/agents',
+    element: React.lazy(() => import('@/pages/AgentDashboard')),
+    protected: true,
+  },
+  {
+    path: '/agent-runs/:id',
+    element: React.lazy(() => import('@/pages/AgentRunDetail')),
+    protected: true,
+  },
+  // Ephemeral Dev Environments
+  {
+    path: '/ephemeral-envs',
+    element: React.lazy(() => import('@/pages/EphemeralEnvList')),
+    protected: true,
+  },
+  {
+    path: '/ephemeral-envs/:id',
+    element: React.lazy(() => import('@/pages/EphemeralEnvDetail')),
+    protected: true,
+  },
   // 404 页面
   {
     path: '*',
