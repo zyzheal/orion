@@ -238,6 +238,81 @@ export const routes: AppRoute[] = [
   },
   // ==================== New Modules (Frontend Gap Implementation) ====================
 
+  // Skill Management (M12)
+  {
+    path: '/skills',
+    element: React.lazy(() => import('@/pages/SkillManagement')),
+    protected: true,
+    children: [
+      { path: '/skills/marketplace', element: React.lazy(() => import('@/pages/SkillManagement/Marketplace')), protected: true },
+      { path: '/skills/my', element: React.lazy(() => import('@/pages/SkillManagement/MySkills')), protected: true },
+      { path: '/skills/submit', element: React.lazy(() => import('@/pages/SkillManagement/SkillSubmission')), protected: true },
+    ],
+  },
+  // IaC Management (M20)
+  {
+    path: '/console/iac',
+    element: React.lazy(() => import('@/pages/IacManagement')),
+    protected: true,
+    children: [
+      { path: '/console/iac/workspaces', element: React.lazy(() => import('@/pages/IacManagement/WorkspaceList')), protected: true },
+      { path: '/console/iac/plans', element: React.lazy(() => import('@/pages/IacManagement/PlanViewer')), protected: true },
+      { path: '/console/iac/state', element: React.lazy(() => import('@/pages/IacManagement/StateBrowser')), protected: true },
+      { path: '/console/iac/modules', element: React.lazy(() => import('@/pages/IacManagement/ModuleRegistry')), protected: true },
+    ],
+  },
+  // Manual Confirmation (M34)
+  {
+    path: '/console/confirmations',
+    element: React.lazy(() => import('@/pages/ConfirmationWorkbench')),
+    protected: true,
+    children: [
+      { path: '/console/confirmations/pending', element: React.lazy(() => import('@/pages/ConfirmationWorkbench/PendingList')), protected: true },
+      { path: '/console/confirmations/:id', element: React.lazy(() => import('@/pages/ConfirmationWorkbench/ConfirmationDetail')), protected: true },
+      { path: '/console/confirmations/batch', element: React.lazy(() => import('@/pages/ConfirmationWorkbench/BatchConfirmation')), protected: true },
+      { path: '/console/confirmations/notifications', element: React.lazy(() => import('@/pages/ConfirmationWorkbench/NotificationSettings')), protected: true },
+      { path: '/console/confirmations/audit', element: React.lazy(() => import('@/pages/ConfirmationWorkbench/PendingList')), protected: true },
+    ],
+  },
+  // ChatOps (M35)
+  {
+    path: '/console/chatops',
+    element: React.lazy(() => import('@/pages/ChatOps')),
+    protected: true,
+    children: [
+      { path: '/console/chatops/commands', element: React.lazy(() => import('@/pages/ChatOps/CommandBrowser')), protected: true },
+      { path: '/console/chatops/executions', element: React.lazy(() => import('@/pages/ChatOps/ExecutionDashboard')), protected: true },
+      { path: '/console/chatops/audit', element: React.lazy(() => import('@/pages/ChatOps/AuditLogViewer')), protected: true },
+      { path: '/console/chatops/settings', element: React.lazy(() => import('@/pages/ChatOps/ChatOpsSettings')), protected: true },
+    ],
+  },
+  // AI Cost Dashboard (M36)
+  {
+    path: '/console/ai-cost',
+    element: React.lazy(() => import('@/pages/AICostDashboard')),
+    protected: true,
+    children: [
+      { path: '/console/ai-cost/overview', element: React.lazy(() => import('@/pages/AICostDashboard/CostOverview')), protected: true },
+      { path: '/console/ai-cost/budgets', element: React.lazy(() => import('@/pages/AICostDashboard/BudgetManagement')), protected: true },
+      { path: '/console/ai-cost/details', element: React.lazy(() => import('@/pages/AICostDashboard/CostDetail')), protected: true },
+      { path: '/console/ai-cost/roi', element: React.lazy(() => import('@/pages/AICostDashboard/ROIReport')), protected: true },
+      { path: '/console/ai-cost/alerts', element: React.lazy(() => import('@/pages/AICostDashboard/AlertConfig')), protected: true },
+    ],
+  },
+  // AI Doc Management (M37)
+  {
+    path: '/console/ai-docs',
+    element: React.lazy(() => import('@/pages/AIDocManagement')),
+    protected: true,
+    children: [
+      { path: '/console/ai-docs/spaces', element: React.lazy(() => import('@/pages/AIDocManagement/SpaceList')), protected: true },
+      { path: '/console/ai-docs/documents', element: React.lazy(() => import('@/pages/AIDocManagement/DocumentList')), protected: true },
+      { path: '/console/ai-docs/editor/:id?', element: React.lazy(() => import('@/pages/AIDocManagement/DocumentEditor')), protected: true },
+      { path: '/console/ai-docs/rag', element: React.lazy(() => import('@/pages/AIDocManagement/RAGQuery')), protected: true },
+      { path: '/console/ai-docs/graph', element: React.lazy(() => import('@/pages/AIDocManagement/SpaceList')), protected: true },
+    ],
+  },
+
   // Build Environment Management
   {
     path: '/console/build-env',

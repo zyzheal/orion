@@ -1,0 +1,29 @@
+import React from 'react';
+import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { Layout, Menu } from 'antd';
+import { BarChartOutlined, WalletOutlined, UnorderedListOutlined, FundOutlined, BellOutlined } from '@ant-design/icons';
+
+const { Sider, Content } = Layout;
+
+const menuItems = [
+  { key: '/console/ai-cost/overview', icon: <BarChartOutlined />, label: '成本总览' },
+  { key: '/console/ai-cost/budgets', icon: <WalletOutlined />, label: '预算管理' },
+  { key: '/console/ai-cost/details', icon: <UnorderedListOutlined />, label: '成本明细' },
+  { key: '/console/ai-cost/roi', icon: <FundOutlined />, label: 'ROI 报告' },
+  { key: '/console/ai-cost/alerts', icon: <BellOutlined />, label: '告警设置' },
+];
+
+const AICostDashboardLayout: React.FC = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  return (
+    <Layout style={{ minHeight: '100%' }}>
+      <Sider width={200} theme="light" style={{ borderRight: '1px solid #f0f0f0' }}>
+        <Menu mode="inline" selectedKeys={[location.pathname]} items={menuItems} onClick={({ key }) => navigate(key)} />
+      </Sider>
+      <Content style={{ padding: 24, background: '#fff' }}><Outlet /></Content>
+    </Layout>
+  );
+};
+
+export default AICostDashboardLayout;
