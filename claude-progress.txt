@@ -365,3 +365,53 @@
 - [x] GitOps 同步机制 - Sync from Git, drift detection, auto-sync
 - [x] 配置变更审批流 - Multi-level approval, audit trail
 - [x] 配置 diff 与回滚 - Environment comparison, version diff, rollback
+
+## M12 - Skill Management + M36 - AI Cost Optimization (COMPLETED)
+
+### Completed Work (2026-04-17)
+
+1. **Module 1: Skill Management (M12)**
+   - Model: SkillPackage, SkillVersion, SkillReview with factory functions
+     (`orion-platform-service/src/models/SkillPackage.ts`)
+   - SkillService: CRUD, search/filter (q, category, tag, status), version management,
+     install/uninstall tracking, rating with average calculation
+     (`orion-platform-service/src/services/skill/SkillService.ts`)
+   - SkillController: Full REST handlers with input validation
+     (`orion-platform-service/src/api/controllers/SkillController.ts`)
+   - Routes: 10 endpoints under /api/v1/skills
+     (`orion-platform-service/src/api/skill-routes.ts`)
+   - Migration: 030_create_skill_tables.sql + 030_rollback_skill_tables.sql
+
+2. **Module 2: AI Cost Optimization (M36)**
+   - Model: Budget, CostRecord, AlertRule, ModelPricing with factory functions
+     (`orion-platform-service/src/models/CostRecord.ts`)
+   - BudgetService: Budget CRUD, cost recording with auto-budget tracking,
+     cost queries with multi-filter, cost summary/aggregation by model/provider/tenant/module,
+     alert rules, model pricing, real-time dashboard data
+     (`orion-platform-service/src/services/cost/BudgetService.ts`)
+   - CostCalculator: Cost estimation from pricing, batch estimation, ROI analysis,
+     trend computation (daily/weekly/monthly), cost forecasting with confidence
+     (`orion-platform-service/src/services/cost/CostCalculator.ts`)
+   - CostController: Full REST handlers with input validation
+     (`orion-platform-service/src/api/controllers/CostController.ts`)
+   - Routes: 11 endpoints under /api/v1/ai-cost
+     (`orion-platform-service/src/api/ai-cost-routes.ts`)
+   - Migration: 031_create_cost_tables.sql + 031_rollback_cost_tables.sql
+
+3. **Route Registration**
+   - Both modules registered in `orion-platform-service/src/api/routes.ts`
+
+### Acceptance Criteria
+- [x] Skill CRUD - create/read/update/delete with search and filters
+- [x] Skill version management - add version, list versions, auto-set latest
+- [x] Install/uninstall tracking - increment/decrement install count
+- [x] Rating system - add rating, auto-calculate average, update existing
+- [x] Budget management - CRUD with threshold configuration
+- [x] Cost tracking - record costs, auto-update budget spent, multi-filter queries
+- [x] Cost summary - aggregation by model/provider/tenant/module
+- [x] Dashboard - real-time data with budget health, top models, recent costs
+- [x] Alert rules - CRUD for cost alert rules
+- [x] Model pricing - pricing table management
+- [x] Cost calculator - estimation, ROI, trend, forecast
+- [x] SQL migrations - proper types, indexes, comments, rollback
+- [x] TypeScript strict mode - no errors in new files (pre-existing errors in other files)
