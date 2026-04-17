@@ -6,7 +6,7 @@
  * - Plugin detail drawer (metadata, config form, permissions, health status)
  * - Install plugin modal (name, version, source, install button)
  */
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Typography,
   Button,
@@ -24,6 +24,7 @@ import {
   Divider,
 } from 'antd';
 import {
+  PlayCircleOutlined,
   PlusOutlined,
   ReloadOutlined,
   SettingOutlined,
@@ -34,20 +35,38 @@ import {
   CloseCircleOutlined,
   AppstoreOutlined,
   ClockCircleOutlined,
-  SearchOutlined,
 } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import MetricCard from '@/components/MetricCard';
 import {
-  mockPlugins,
-  categoryLabels,
-  healthStatusLabels,
-  type MockPlugin,
-} from '@/pages/__mocks__/mockPluginData';
+  getInstalledPlugins,
+  getPlugin,
+  getAvailablePlugins,
+  installPlugin,
+  uninstallPlugin,
+  activatePlugin,
+  deactivatePlugin,
+  configurePlugin,
+  executePlugin,
+  type Plugin,
+  type PluginType,
+  type PluginHealthStatus,
+  type PluginCategory,
+} from '@/api/plugins';
+import { categoryLabels, healthStatusLabels } from '@/pages/__mocks__/mockPluginData';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
+
+// ============================================================================
+// Type aliases for UI compatibility
+// ============================================================================
+
+type ApiPlugin = Plugin & {
+  category?: 'core' | 'extension' | 'security' | 'monitoring';
+  status?: 'enabled' | 'disabled';
+};
 
 // ============================================================================
 // Health status config
@@ -73,21 +92,35 @@ const healthConfig: Record<string, { color: string; icon: React.ReactNode }> = {
 // ============================================================================
 
 interface PluginDetailDrawerProps {
-  plugin: MockPlugin | null;
+  plugin: ApiPlugin | null;
   open: boolean;
   onClose: () => void;
+  onSaveConfig?: (config: Record<string, any>) => Promise<void>;
 }
 
 const PluginDetailDrawer: React.FC<PluginDetailDrawerProps> = ({
   plugin,
   open,
   onClose,
+  onSaveConfig,
 }) => {
   const [form] = Form.useForm();
+  const [saving, setSaving] = useState(false);
 
   if (!plugin) return null;
 
-  const health = healthConfig[plugin.healthStatus] || healthConfig.healthy;
+  const health = healthConfig[plugin.healthStatus || 'healthy'] || healthConfig.healthy;
+
+  const handleSaveConfig = async () => {
+    try {
+      const values = await form.validateFields();
+      setSaving(true);
+      await onSaveConfig?.(values);
+      setSaving(false);
+    } catch (err) {
+      setSaving(false);
+    }
+  };
 
   return (
     <Drawer
@@ -121,18 +154,24 @@ const PluginDetailDrawer: React.FC<PluginDetailDrawerProps> = ({
         <Descriptions.Item label="描述">{plugin.description}</Descriptions.Item>
         <Descriptions.Item label="作者">{plugin.author}</Descriptions.Item>
         <Descriptions.Item label="分类">
-          <Tag color="cyan">{categoryLabels[plugin.category]}</Tag>
+          <Tag color="cyan">{plugin.category ? categoryLabels[plugin.category] : plugin.type}</Tag>
         </Descriptions.Item>
         <Descriptions.Item label="安装时间">
-          {dayjs(plugin.installedAt).format('YYYY-MM-DD HH:mm')}
+          {plugin.installedAt ? dayjs(plugin.installedAt).format('YYYY-MM-DD HH:mm') : '-'}
         </Descriptions.Item>
         <Descriptions.Item label="健康状态">
           <Space>
             <span style={{ color: health.color }}>{health.icon}</span>
             <Text style={{ color: health.color }}>
-              {healthStatusLabels[plugin.healthStatus]}
+              {plugin.healthStatus ? healthStatusLabels[plugin.healthStatus] : '未知'}
             </Text>
           </Space>
+        </Descriptions.Item>
+        <Descriptions.Item label="状态">
+          <Badge
+            status={plugin.state === 'ACTIVE' ? 'success' : 'default'}
+            text={plugin.state === 'ACTIVE' ? '运行中' : plugin.state}
+          />
         </Descriptions.Item>
       </Descriptions>
 
@@ -143,20 +182,35 @@ const PluginDetailDrawer: React.FC<PluginDetailDrawerProps> = ({
       <Form
         form={form}
         layout="vertical"
-        initialValues={plugin.config}
+        initialValues={plugin.config || {}}
         style={{ marginBottom: 24 }}
       >
-        {Object.entries(plugin.config).map(([key, value]) => (
-          <Form.Item key={key} label={key} name={key}>
-            <Input placeholder={`输入 ${key} 的值`} />
+        {plugin.configSchema && Object.entries(plugin.configSchema).map(([key, field]) => (
+          <Form.Item
+            key={key}
+            label={field.description || key}
+            name={key}
+            rules={[{ required: field.required }]}
+            initialValue={field.default}
+          >
+            {field.type === 'boolean' ? (
+              <Switch />
+            ) : field.enum ? (
+              <Select>
+                {field.enum.map((val) => (
+                  <Select.Option key={val} value={val}>{val}</Select.Option>
+                ))}
+              </Select>
+            ) : (
+              <Input placeholder={`输入 ${key} 的值`} />
+            )}
           </Form.Item>
         ))}
         <Form.Item>
           <Button
             type="primary"
-            onClick={() => {
-              message.success('配置保存成功');
-            }}
+            onClick={handleSaveConfig}
+            loading={saving}
           >
             保存配置
           </Button>
@@ -166,17 +220,143 @@ const PluginDetailDrawer: React.FC<PluginDetailDrawerProps> = ({
       <Divider />
 
       {/* Permissions list */}
-      <Title level={5}>权限列表</Title>
-      <div style={{ marginBottom: 16 }}>
-        <Space wrap>
-          {plugin.permissions.map((perm) => (
-            <Tag key={perm} color="geekblue">
-              {perm}
-            </Tag>
-          ))}
-        </Space>
-      </div>
+      {plugin.permissions && plugin.permissions.length > 0 && (
+        <>
+          <Title level={5}>权限列表</Title>
+          <div style={{ marginBottom: 16 }}>
+            <Space wrap>
+              {plugin.permissions.map((perm) => (
+                <Tag key={perm} color="geekblue">
+                  {perm}
+                </Tag>
+              ))}
+            </Space>
+          </div>
+        </>
+      )}
     </Drawer>
+  );
+};
+
+// ============================================================================
+// Execute Plugin Task Modal Component
+// ============================================================================
+
+interface ExecutePluginTaskModalProps {
+  open: boolean;
+  onCancel: () => void;
+  onSuccess: (result: any) => void;
+  plugin: ApiPlugin | null;
+}
+
+const ExecutePluginTaskModal: React.FC<ExecutePluginTaskModalProps> = ({
+  open,
+  onCancel,
+  onSuccess,
+  plugin,
+}) => {
+  const [form] = Form.useForm();
+  const [executing, setExecuting] = useState(false);
+
+  const handleExecute = async () => {
+    try {
+      const values = await form.validateFields();
+      setExecuting(true);
+
+      const response = await executePlugin(plugin!.id, {
+        taskId: values.taskId,
+        pipelineRunId: values.pipelineRunId,
+        stageId: values.stageId,
+        config: values.config ? JSON.parse(values.config) : undefined,
+        env: values.env ? JSON.parse(values.env) : undefined,
+        timeout: values.timeout ? parseInt(values.timeout, 10) : undefined,
+      });
+
+      message.success(`任务执行成功`);
+      form.resetFields();
+      setExecuting(false);
+      onSuccess(response.data);
+    } catch (err: any) {
+      setExecuting(false);
+      if (err.response?.status) {
+        message.error(`执行失败：${err.message}`);
+      }
+    }
+  };
+
+  return (
+    <Modal
+      title={
+        <Space>
+          <PlayCircleOutlined />
+          执行插件任务 - {plugin?.name}
+        </Space>
+      }
+      open={open}
+      onCancel={onCancel}
+      onOk={handleExecute}
+      confirmLoading={executing}
+      okText="执行"
+      cancelText="取消"
+      width={700}
+      data-testid="execute-plugin-modal"
+    >
+      <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
+        <Form.Item
+          label="任务 ID"
+          name="taskId"
+          rules={[{ required: true, message: '请输入任务 ID' }]}
+        >
+          <Input placeholder="例如：task-001" />
+        </Form.Item>
+
+        <Form.Item
+          label="流水线运行 ID"
+          name="pipelineRunId"
+          rules={[{ required: false }]}
+        >
+          <Input placeholder="可选，例如：run-123" />
+        </Form.Item>
+
+        <Form.Item
+          label="阶段 ID"
+          name="stageId"
+          rules={[{ required: false }]}
+        >
+          <Input placeholder="可选，例如：stage-456" />
+        </Form.Item>
+
+        <Form.Item
+          label="超时时间 (ms)"
+          name="timeout"
+          rules={[{ required: false }]}
+        >
+          <Input placeholder="默认 60000ms" type="number" />
+        </Form.Item>
+
+        <Form.Item
+          label="配置 (JSON)"
+          name="config"
+          rules={[{ required: false }]}
+        >
+          <Input.TextArea
+            rows={4}
+            placeholder='{"key": "value"}'
+          />
+        </Form.Item>
+
+        <Form.Item
+          label="环境变量 (JSON)"
+          name="env"
+          rules={[{ required: false }]}
+        >
+          <Input.TextArea
+            rows={4}
+            placeholder='{"ENV": "production"}'
+          />
+        </Form.Item>
+      </Form>
+    </Modal>
   );
 };
 
@@ -197,21 +377,39 @@ const InstallPluginModal: React.FC<InstallPluginModalProps> = ({
 }) => {
   const [form] = Form.useForm();
   const [installing, setInstalling] = useState(false);
+  const [availablePlugins, setAvailablePlugins] = useState<Plugin[]>([]);
+
+  // Load available plugins when modal opens
+  useEffect(() => {
+    if (open) {
+      getAvailablePlugins({})
+        .then((res: any) => {
+          setAvailablePlugins(res.data.data || []);
+        })
+        .catch((err: any) => {
+          console.error('Failed to load available plugins:', err);
+        });
+    }
+  }, [open]);
 
   const handleInstall = async () => {
     try {
       const values = await form.validateFields();
       setInstalling(true);
 
-      // Simulate installation delay
-      setTimeout(() => {
-        setInstalling(false);
-        message.success(`插件 ${values.name} 安装成功`);
-        form.resetFields();
-        onSuccess();
-      }, 1500);
-    } catch {
-      // Validation failed, do nothing
+      await installPlugin(values.pluginId, {
+        version: values.version !== 'latest' ? values.version : undefined,
+      });
+
+      message.success(`插件 ${values.pluginId} 安装成功`);
+      form.resetFields();
+      setInstalling(false);
+      onSuccess();
+    } catch (err: any) {
+      setInstalling(false);
+      if (err.response?.status !== 400) {
+        message.error(`安装失败：${err.message}`);
+      }
     }
   };
 
@@ -233,15 +431,20 @@ const InstallPluginModal: React.FC<InstallPluginModalProps> = ({
     >
       <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
         <Form.Item
-          label="插件名称"
-          name="name"
-          rules={[{ required: true, message: '请输入插件名称' }]}
+          label="选择插件"
+          name="pluginId"
+          rules={[{ required: true, message: '请选择插件' }]}
         >
-          <Input
-            placeholder="例如：数据库迁移助手"
-            prefix={<SearchOutlined />}
-            data-testid="plugin-name-input"
-          />
+          <Select
+            placeholder="选择要安装的插件"
+            data-testid="plugin-select"
+          >
+            {availablePlugins.map((plugin) => (
+              <Select.Option key={plugin.id} value={plugin.id}>
+                {plugin.name} ({plugin.version})
+              </Select.Option>
+            ))}
+          </Select>
         </Form.Item>
 
         <Form.Item
@@ -254,18 +457,6 @@ const InstallPluginModal: React.FC<InstallPluginModalProps> = ({
             <Select.Option value="latest">最新版本</Select.Option>
             <Select.Option value="stable">稳定版本</Select.Option>
             <Select.Option value="beta">测试版本</Select.Option>
-          </Select>
-        </Form.Item>
-
-        <Form.Item
-          label="来源"
-          name="source"
-          rules={[{ required: true, message: '请选择来源' }]}
-          initialValue="marketplace"
-        >
-          <Select data-testid="plugin-source-select">
-            <Select.Option value="marketplace">插件市场</Select.Option>
-            <Select.Option value="local">本地上传</Select.Option>
           </Select>
         </Form.Item>
       </Form>
@@ -283,11 +474,50 @@ const PluginManagement: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [installModalOpen, setInstallModalOpen] = useState(false);
   const [detailDrawerOpen, setDetailDrawerOpen] = useState(false);
-  const [selectedPlugin, setSelectedPlugin] = useState<MockPlugin | null>(null);
+  const [executeModalOpen, setExecuteModalOpen] = useState(false);
+  const [selectedPlugin, setSelectedPlugin] = useState<ApiPlugin | null>(null);
+  const [plugins, setPlugins] = useState<ApiPlugin[]>([]);
+
+  // Load plugins on mount
+  useEffect(() => {
+    loadPlugins();
+  }, []);
+
+  const loadPlugins = async () => {
+    setLoading(true);
+    try {
+      const response = await getInstalledPlugins({});
+      setPlugins(response.data.data || []);
+    } catch (err: any) {
+      console.error('Failed to load plugins:', err);
+      message.error('加载插件列表失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Map plugin type to category for filtering
+  const mapPluginTypeToCategory = (type: PluginType): PluginCategory => {
+    switch (type) {
+      case 'CUSTOM_TASK':
+      case 'WEBHOOK_HANDLER':
+        return 'extension';
+      case 'AI_SKILL':
+        return 'core';
+      case 'APPROVAL_PROVIDER':
+        return 'security';
+      case 'NOTIFICATION_CHANNEL':
+        return 'monitoring';
+      case 'DEPLOYMENT_STRATEGY':
+        return 'core';
+      default:
+        return 'extension';
+    }
+  };
 
   // Filter plugins based on search and filters
   const filteredPlugins = useMemo(() => {
-    return mockPlugins.filter((plugin) => {
+    return plugins.filter((plugin) => {
       // Search filter
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
@@ -295,6 +525,7 @@ const PluginManagement: React.FC = () => {
           plugin.name,
           plugin.description,
           plugin.author,
+          plugin.type,
           plugin.category,
         ].join(' ').toLowerCase();
         if (!searchable.includes(query)) return false;
@@ -302,25 +533,28 @@ const PluginManagement: React.FC = () => {
 
       // Category filter
       const categoryFilter = filters.category;
-      if (categoryFilter && categoryFilter !== 'all' && plugin.category !== categoryFilter) {
-        return false;
+      if (categoryFilter && categoryFilter !== 'all') {
+        const pluginCategory = plugin.category || mapPluginTypeToCategory(plugin.type);
+        if (pluginCategory !== categoryFilter) return false;
       }
 
       // Status filter
       const statusFilter = filters.status;
-      if (statusFilter && statusFilter !== 'all' && plugin.status !== statusFilter) {
-        return false;
+      if (statusFilter && statusFilter !== 'all') {
+        const pluginStatus = plugin.state === 'ACTIVE' ? 'enabled' :
+                            plugin.state === 'INACTIVE' ? 'disabled' : 'disabled';
+        if (pluginStatus !== statusFilter) return false;
       }
 
       return true;
     });
-  }, [searchQuery, filters]);
+  }, [searchQuery, filters, plugins]);
 
   // Summary metrics
-  const totalCount = mockPlugins.length;
-  const enabledCount = mockPlugins.filter((p) => p.status === 'enabled').length;
-  const disabledCount = mockPlugins.filter((p) => p.status === 'disabled').length;
-  const updatesAvailableCount = mockPlugins.filter((p) => p.latestVersion).length;
+  const totalCount = plugins.length;
+  const enabledCount = plugins.filter((p) => p.state === 'ACTIVE').length;
+  const disabledCount = plugins.filter((p) => p.state !== 'ACTIVE').length;
+  const updatesAvailableCount = plugins.filter((p) => p.latestVersion).length;
 
   // Filter definitions
   const filterDefs: FilterDefinition[] = [
@@ -344,71 +578,132 @@ const PluginManagement: React.FC = () => {
   ];
 
   // Handle toggle plugin status
-  const handleToggleStatus = (plugin: MockPlugin) => {
-    const action = plugin.status === 'enabled' ? '禁用' : '启用';
+  const handleToggleStatus = async (plugin: ApiPlugin) => {
+    const isEnable = plugin.state !== 'ACTIVE';
+    const action = isEnable ? '启用' : '禁用';
+
     Modal.confirm({
       title: `${action}插件`,
       content: `确定要${action}插件 "${plugin.name}" 吗？`,
       okText: '确认',
       cancelText: '取消',
-      onOk: () => {
-        message.success(`插件 ${plugin.name} 已${action}`);
+      onOk: async () => {
+        try {
+          if (isEnable) {
+            await activatePlugin(plugin.id);
+            message.success(`插件 ${plugin.name} 已启用`);
+          } else {
+            await deactivatePlugin(plugin.id);
+            message.success(`插件 ${plugin.name} 已禁用`);
+          }
+          await loadPlugins();
+        } catch (err: any) {
+          message.error(`${action}失败：${err.message}`);
+        }
       },
     });
   };
 
   // Handle open plugin detail drawer
-  const handleConfigure = (plugin: MockPlugin) => {
+  const handleConfigure = async (plugin: ApiPlugin) => {
     setSelectedPlugin(plugin);
     setDetailDrawerOpen(true);
+
+    // Refresh plugin details
+    try {
+      const response = await getPlugin(plugin.id);
+      setSelectedPlugin(response.data.data as ApiPlugin);
+    } catch (err) {
+      console.error('Failed to load plugin details:', err);
+    }
+  };
+
+  // Handle open execute task modal
+  const handleExecuteTask = (plugin: ApiPlugin) => {
+    setSelectedPlugin(plugin);
+    setExecuteModalOpen(true);
+  };
+
+  // Handle execute task success
+  const handleExecuteSuccess = (result: any) => {
+    setExecuteModalOpen(false);
+    setSelectedPlugin(null);
+    message.success(`任务执行完成：${result.status}`);
+  };
+
+  // Handle save plugin config
+  const handleSaveConfig = async (config: Record<string, any>) => {
+    if (!selectedPlugin) return;
+
+    try {
+      await configurePlugin(selectedPlugin.id, { config });
+      message.success('配置保存成功');
+      // Refresh plugin details
+      const response = await getPlugin(selectedPlugin.id);
+      setSelectedPlugin(response.data.data as ApiPlugin);
+    } catch (err: any) {
+      message.error(`保存配置失败：${err.message}`);
+    }
   };
 
   // Handle update plugin
-  const handleUpdate = (plugin: MockPlugin) => {
+  const handleUpdate = async (plugin: ApiPlugin) => {
     Modal.confirm({
       title: '更新插件',
       content: `确定要将 "${plugin.name}" 从 v${plugin.version} 更新到 v${plugin.latestVersion} 吗？`,
       okText: '确认更新',
       cancelText: '取消',
-      onOk: () => {
-        message.success(`插件 ${plugin.name} 更新成功`);
+      onOk: async () => {
+        try {
+          await installPlugin(plugin.id, { version: plugin.latestVersion });
+          message.success(`插件 ${plugin.name} 更新成功`);
+          await loadPlugins();
+        } catch (err: any) {
+          message.error(`更新失败：${err.message}`);
+        }
       },
     });
   };
 
   // Handle delete plugin
-  const handleDelete = (plugin: MockPlugin) => {
+  const handleDelete = async (plugin: ApiPlugin) => {
     Modal.confirm({
       title: '删除插件',
       content: `确定要删除插件 "${plugin.name}" 吗？此操作不可撤销。`,
       okText: '删除',
       okButtonProps: { danger: true },
       cancelText: '取消',
-      onOk: () => {
-        message.success(`插件 ${plugin.name} 已删除`);
+      onOk: async () => {
+        try {
+          await uninstallPlugin(plugin.id);
+          message.success(`插件 ${plugin.name} 已删除`);
+          await loadPlugins();
+        } catch (err: any) {
+          message.error(`删除失败：${err.message}`);
+        }
       },
     });
   };
 
   // Handle refresh
   const handleRefresh = () => {
-    setLoading(true);
-    setTimeout(() => setLoading(false), 800);
+    loadPlugins();
   };
 
   // Handle install success
   const handleInstallSuccess = () => {
     setInstallModalOpen(false);
+    loadPlugins();
   };
 
   // Table columns
-  const columns: TableColumn<MockPlugin>[] = [
+  const columns: TableColumn<ApiPlugin>[] = [
     {
       key: 'name',
       title: '插件名称',
       dataIndex: 'name',
       width: 200,
-      render: (value: unknown, record: MockPlugin) => (
+      render: (value: unknown) => (
         <Space>
           <AppstoreOutlined style={{ color: '#1890ff' }} />
           <Text strong>{String(value)}</Text>
@@ -420,7 +715,7 @@ const PluginManagement: React.FC = () => {
       title: '版本',
       dataIndex: 'version',
       width: 140,
-      render: (value: unknown, record: MockPlugin) => (
+      render: (value: unknown, record: ApiPlugin) => (
         <Space>
           <Tag>v{String(value)}</Tag>
           {record.latestVersion && (
@@ -432,14 +727,14 @@ const PluginManagement: React.FC = () => {
     {
       key: 'status',
       title: '状态',
-      dataIndex: 'status',
+      dataIndex: 'state',
       width: 100,
       render: (value: unknown) => {
-        const isEnabled = value === 'enabled';
+        const isActive = value === 'ACTIVE';
         return (
           <Badge
-            status={isEnabled ? 'success' : 'default'}
-            text={isEnabled ? '已启用' : '已禁用'}
+            status={isActive ? 'success' : 'default'}
+            text={isActive ? '已启用' : '已禁用'}
           />
         );
       },
@@ -449,11 +744,14 @@ const PluginManagement: React.FC = () => {
       title: '分类',
       dataIndex: 'category',
       width: 100,
-      render: (value: unknown) => (
-        <Tag color="cyan" style={{ margin: 0 }}>
-          {categoryLabels[String(value)] || String(value)}
-        </Tag>
-      ),
+      render: (value: unknown, record: ApiPlugin) => {
+        const category = value as PluginCategory || mapPluginTypeToCategory(record.type);
+        return (
+          <Tag color="cyan" style={{ margin: 0 }}>
+            {categoryLabels[String(category)] || record.type}
+          </Tag>
+        );
+      },
     },
     {
       key: 'author',
@@ -467,11 +765,11 @@ const PluginManagement: React.FC = () => {
       title: '安装时间',
       dataIndex: 'installedAt',
       width: 140,
-      render: (value: unknown) => (
+      render: (value: unknown, _record: ApiPlugin) => (
         <Space>
           <ClockCircleOutlined style={{ color: '#8c8c8c' }} />
           <Text type="secondary" style={{ fontSize: 12 }}>
-            {dayjs(String(value)).format('YYYY-MM-DD')}
+            {value ? dayjs(String(value)).format('YYYY-MM-DD') : '-'}
           </Text>
         </Space>
       ),
@@ -482,7 +780,7 @@ const PluginManagement: React.FC = () => {
       dataIndex: 'healthStatus',
       width: 100,
       render: (value: unknown) => {
-        const status = String(value) as 'healthy' | 'warning' | 'error';
+        const status = (String(value) as PluginHealthStatus) || 'healthy';
         const config = healthConfig[status] || healthConfig.healthy;
         return (
           <Space>
@@ -497,33 +795,42 @@ const PluginManagement: React.FC = () => {
     {
       key: 'actions',
       title: '操作',
-      width: 220,
-      render: (_: unknown, record: MockPlugin) => (
-        <Space size="small">
+      width: 280,
+      render: (_: unknown, _record: ApiPlugin) => (
+        <Space size="small" wrap>
           <Button
             type="link"
             size="small"
-            onClick={() => handleToggleStatus(record)}
-            data-testid={`toggle-plugin-${record.id}`}
+            onClick={() => handleToggleStatus(_record)}
+            data-testid={`toggle-plugin-${_record.id}`}
           >
-            {record.status === 'enabled' ? '禁用' : '启用'}
+            {_record.state === 'ACTIVE' ? '禁用' : '启用'}
           </Button>
           <Button
             type="link"
             size="small"
             icon={<SettingOutlined />}
-            onClick={() => handleConfigure(record)}
-            data-testid={`configure-plugin-${record.id}`}
+            onClick={() => handleConfigure(_record)}
+            data-testid={`configure-plugin-${_record.id}`}
           >
             配置
           </Button>
-          {record.latestVersion && (
+          <Button
+            type="link"
+            size="small"
+            icon={<PlayCircleOutlined />}
+            onClick={() => handleExecuteTask(_record)}
+            data-testid={`execute-plugin-${_record.id}`}
+          >
+            执行
+          </Button>
+          {_record.latestVersion && (
             <Button
               type="link"
               size="small"
               icon={<CloudDownloadOutlined />}
-              onClick={() => handleUpdate(record)}
-              data-testid={`update-plugin-${record.id}`}
+              onClick={() => handleUpdate(_record)}
+              data-testid={`update-plugin-${_record.id}`}
             >
               更新
             </Button>
@@ -533,8 +840,8 @@ const PluginManagement: React.FC = () => {
             size="small"
             danger
             icon={<DeleteOutlined />}
-            onClick={() => handleDelete(record)}
-            data-testid={`delete-plugin-${record.id}`}
+            onClick={() => handleDelete(_record)}
+            data-testid={`delete-plugin-${_record.id}`}
           >
             删除
           </Button>
@@ -653,6 +960,18 @@ const PluginManagement: React.FC = () => {
           setDetailDrawerOpen(false);
           setSelectedPlugin(null);
         }}
+        onSaveConfig={handleSaveConfig}
+      />
+
+      {/* Execute plugin task modal */}
+      <ExecutePluginTaskModal
+        open={executeModalOpen}
+        onCancel={() => {
+          setExecuteModalOpen(false);
+          setSelectedPlugin(null);
+        }}
+        onSuccess={handleExecuteSuccess}
+        plugin={selectedPlugin}
       />
     </div>
   );

@@ -8,13 +8,13 @@
  * - StatusBadge for pipeline states
  * - Pagination support
  */
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Typography, Button, Space, Tag } from 'antd';
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
-import { mockPipelines } from '@/pages/__mocks__/mockData';
+import { getPipelineRuns } from '@/api/pipelines';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import duration from 'dayjs/plugin/duration';
@@ -30,10 +30,29 @@ const PipelineList: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<Record<string, string | string[] | undefined>>({});
   const [loading, setLoading] = useState(false);
+  const [pipelines, setPipelines] = useState<any[]>([]);
+
+  // Load pipelines from API
+  const loadPipelines = async () => {
+    setLoading(true);
+    try {
+      const response = await getPipelineRuns();
+      const apiData = response.data.data;
+      setPipelines(Array.isArray(apiData) ? apiData : (apiData as any).items || []);
+    } catch (error) {
+      console.error('Failed to load pipelines:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadPipelines();
+  }, []);
 
   // Filter pipelines based on search and filters
   const filteredPipelines = useMemo(() => {
-    return mockPipelines.filter((pipeline) => {
+    return pipelines.filter((pipeline) => {
       // Search filter
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
@@ -209,8 +228,7 @@ const PipelineList: React.FC = () => {
   ];
 
   const handleRefresh = () => {
-    setLoading(true);
-    setTimeout(() => setLoading(false), 1000);
+    loadPipelines();
   };
 
   return (

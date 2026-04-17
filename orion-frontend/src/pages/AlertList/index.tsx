@@ -8,7 +8,7 @@
  * - Acknowledge/resolve action buttons
  * - Status filtering
  */
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Typography, Button, Space, Tag, Modal, message } from 'antd';
 import {
   ReloadOutlined,
@@ -18,7 +18,7 @@ import {
 } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
-import { mockAlerts } from '@/pages/__mocks__/mockData';
+import { getAlerts, acknowledgeAlert as apiAcknowledgeAlert, resolveAlert as apiResolveAlert } from '@/api/alerts';
 import type { Alert, AlertSeverity, AlertStatus } from '@/types/pages';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -46,9 +46,28 @@ const AlertList: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<Record<string, string | string[] | undefined>>({});
   const [loading, setLoading] = useState(false);
-  const [alerts, setAlerts] = useState<Alert[]>(mockAlerts);
+  const [alerts, setAlerts] = useState<Alert[]>([]);
   const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
+
+  // Load alerts from API
+  const loadAlerts = async () => {
+    setLoading(true);
+    try {
+      const response = await getAlerts();
+      const apiData = response.data.data;
+      setAlerts(Array.isArray(apiData) ? apiData : (apiData as any).items || []);
+    } catch (error) {
+      message.error('加载告警列表失败');
+      console.error('Failed to load alerts:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadAlerts();
+  }, []);
 
   // Filter alerts based on search and filters
   const filteredAlerts = useMemo(() => {
@@ -116,46 +135,54 @@ const AlertList: React.FC = () => {
   }, [alerts]);
 
   // Handle acknowledge
-  const handleAcknowledge = (alertId: string) => {
-    setAlerts((prev) =>
-      prev.map((alert) =>
-        alert.id === alertId
-          ? {
-              ...alert,
-              status: 'acknowledged' as AlertStatus,
-              acknowledgedBy: 'heal',
-              acknowledgedAt: new Date().toISOString(),
-            }
-          : alert
-      )
-    );
-    message.success('告警已确认');
+  const handleAcknowledge = async (alertId: string) => {
+    try {
+      await apiAcknowledgeAlert(alertId);
+      setAlerts((prev) =>
+        prev.map((alert) =>
+          alert.id === alertId
+            ? {
+                ...alert,
+                status: 'acknowledged' as AlertStatus,
+                acknowledgedBy: 'heal',
+                acknowledgedAt: new Date().toISOString(),
+              }
+            : alert
+        )
+      );
+      message.success('告警已确认');
+    } catch (error) {
+      message.error('确认告警失败');
+      console.error('Failed to acknowledge alert:', error);
+    }
   };
 
   // Handle resolve
-  const handleResolve = (alertId: string) => {
-    setAlerts((prev) =>
-      prev.map((alert) =>
-        alert.id === alertId
-          ? {
-              ...alert,
-              status: 'resolved' as AlertStatus,
-              resolvedBy: 'heal',
-              resolvedAt: new Date().toISOString(),
-            }
-          : alert
-      )
-    );
-    message.success('告警已解决');
+  const handleResolve = async (alertId: string) => {
+    try {
+      await apiResolveAlert(alertId);
+      setAlerts((prev) =>
+        prev.map((alert) =>
+          alert.id === alertId
+            ? {
+                ...alert,
+                status: 'resolved' as AlertStatus,
+                resolvedBy: 'heal',
+                resolvedAt: new Date().toISOString(),
+              }
+            : alert
+        )
+      );
+      message.success('告警已解决');
+    } catch (error) {
+      message.error('解决告警失败');
+      console.error('Failed to resolve alert:', error);
+    }
   };
 
   // Handle refresh
   const handleRefresh = () => {
-    setLoading(true);
-    setTimeout(() => {
-      setAlerts(mockAlerts);
-      setLoading(false);
-    }, 1000);
+    loadAlerts();
   };
 
   // Show alert detail modal

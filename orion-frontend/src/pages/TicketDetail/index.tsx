@@ -7,7 +7,7 @@
  * - Uses mock data from mockTicketData.ts
  * - Ant Design: Card, Timeline, Tag, Badge, Button, Space, Descriptions, Progress, Modal, Form
  */
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Typography,
   Button,
@@ -43,13 +43,14 @@ import {
 import { useNavigate, useParams } from 'react-router-dom';
 import dayjs from 'dayjs';
 import {
-  mockTickets,
-  mockEngineers,
-  mockTicketHistory,
-  mockTicketRelations,
-  mockTransferHistory,
-  type MockTicket,
-} from '@/pages/__mocks__/mockTicketData';
+  getTicket,
+  assignTicket,
+  resolveTicket,
+  closeTicket,
+  transitionTicket,
+  type Ticket,
+} from '@/api/ticketing';
+import { mockEngineers, mockTicketHistory, mockTicketRelations, mockTransferHistory } from '@/pages/__mocks__/mockTicketData';
 import TicketComments from './TicketComments';
 
 const { Title, Text, Paragraph } = Typography;
@@ -107,7 +108,7 @@ const relationTypeColors: Record<string, string> = {
   blocks: 'orange',
 };
 
-function calculateSLA(ticket: MockTicket): {
+function calculateSLA(ticket: Ticket): {
   percent: number;
   elapsed: string;
   total: string;
@@ -175,10 +176,26 @@ const TicketDetail: React.FC = () => {
   const [resolveForm] = Form.useForm();
   const [transferForm] = Form.useForm();
 
-  const ticket = useMemo(
-    () => mockTickets.find((t) => t.id === id),
-    [id]
-  );
+  const [ticket, setTicket] = useState<Ticket | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  // Load ticket from API
+  useEffect(() => {
+    if (id) loadTicket();
+  }, [id]);
+
+  const loadTicket = async () => {
+    setLoading(true);
+    try {
+      const response = await getTicket(id);
+      setTicket(response.data.data);
+    } catch (err) {
+      message.error('加载工单详情失败');
+      console.error('Failed to load ticket detail:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const history = useMemo(
     () => (id ? mockTicketHistory[id] || [] : []),
@@ -227,11 +244,16 @@ const TicketDetail: React.FC = () => {
   const handleAssign = async () => {
     try {
       const values = await assignForm.validateFields();
+      await assignTicket(ticket!.id, { assignee: values.assignee, reason: values.reason });
       message.success(`工单已分配给 ${values.assignee}`);
       setAssignModalOpen(false);
       assignForm.resetFields();
-    } catch {
-      // validation error
+      loadTicket();
+    } catch (error) {
+      if (error !== true) {
+        message.error('分配失败');
+        console.error('Failed to assign ticket:', error);
+      }
     }
   };
 
@@ -241,30 +263,57 @@ const TicketDetail: React.FC = () => {
       message.success(`工单已升级: ${values.reason || '无理由'}`);
       setEscalateModalOpen(false);
       escalateForm.resetFields();
-    } catch {
-      // validation error
+    } catch (error) {
+      if (error !== true) {
+        message.error('升级失败');
+      }
     }
   };
 
   const handleResolve = async () => {
     try {
-      await resolveForm.validateFields();
+      const values = await resolveForm.validateFields();
+      await resolveTicket(ticket!.id, {
+        resolvedBy: 'current-user',
+        resolutionNote: values.resolutionNote,
+      });
       message.success('工单已标记为已解决');
       setResolveModalOpen(false);
       resolveForm.resetFields();
-    } catch {
-      // validation error
+      loadTicket();
+    } catch (error) {
+      if (error !== true) {
+        message.error('解决失败');
+      }
     }
   };
 
   const handleTransfer = async () => {
     try {
       const values = await transferForm.validateFields();
+      await assignTicket(ticket!.id, {
+        assignee: values.toEngineer,
+        reason: values.reason,
+      });
       message.success(`工单已转交给 ${values.toEngineer}`);
       setTransferModalOpen(false);
       transferForm.resetFields();
-    } catch {
-      // validation error
+      loadTicket();
+    } catch (error) {
+      if (error !== true) {
+        message.error('转交失败');
+      }
+    }
+  };
+
+  const handleClose = async () => {
+    try {
+      await closeTicket(ticket!.id, { closedBy: 'current-user' });
+      message.success('工单已关闭');
+      loadTicket();
+    } catch (error) {
+      message.error('关闭失败');
+      console.error('Failed to close ticket:', error);
     }
   };
 
@@ -339,7 +388,7 @@ const TicketDetail: React.FC = () => {
           {canClose && (
             <Button
               icon={<CloseCircleOutlined />}
-              onClick={() => message.success('工单已关闭')}
+              onClick={handleClose}
               data-testid="action-close"
             >
               关闭

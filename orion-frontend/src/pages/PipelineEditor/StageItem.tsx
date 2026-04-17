@@ -12,6 +12,8 @@ import {
   LinkOutlined,
   ClockCircleOutlined,
   ReloadOutlined,
+  SaveOutlined,
+  FileTextOutlined,
 } from '@ant-design/icons';
 import type { StageConfig } from './index';
 
@@ -41,7 +43,7 @@ const StageItem: React.FC<StageItemProps> = ({
   index,
   onEdit,
   onDelete,
-  availableDependencies,
+  // availableDependencies 保留用于未来扩展
 }) => {
   const {
     attributes,
@@ -110,7 +112,7 @@ const StageItem: React.FC<StageItemProps> = ({
                 </Text>
                 <Tag color="blue">{stage.type}</Tag>
               </div>
-              <Space size={12}>
+              <Space size={12} wrap>
                 {stage.timeout && (
                   <Text type="secondary" style={{ fontSize: 12 }}>
                     <ClockCircleOutlined /> 超时：{stage.timeout}s
@@ -124,6 +126,16 @@ const StageItem: React.FC<StageItemProps> = ({
                 {stage.dependsOn && stage.dependsOn.length > 0 && (
                   <Text type="secondary" style={{ fontSize: 12 }}>
                     <LinkOutlined /> 依赖：{stage.dependsOn.join(', ')}
+                  </Text>
+                )}
+                {stage.cache?.enabled && (
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    <SaveOutlined /> 缓存：{stage.cache.key}
+                  </Text>
+                )}
+                {stage.artifacts?.upload && stage.artifacts.upload.length > 0 && (
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    <FileTextOutlined /> 产物：{stage.artifacts.upload.length} 个路径
                   </Text>
                 )}
               </Space>

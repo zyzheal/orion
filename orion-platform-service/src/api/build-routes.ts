@@ -6,6 +6,7 @@
  * - /build-cache        - 构建缓存管理
  * - /build-pods         - K8s 构建执行
  * - /build-logs         - 构建日志管理
+ * - /artifacts          - 构建产物管理
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
@@ -13,10 +14,13 @@ import { BuilderImageService } from '../services/build/BuilderImageService';
 import { BuildCacheService } from '../services/build/BuildCacheService';
 import { K8sBuildExecutor } from '../services/build/K8sBuildExecutor';
 import { BuildLogService } from '../services/build/BuildLogService';
+import { ArtifactService } from '../services/build/ArtifactService';
 import { BuilderImageController } from './controllers/build/BuilderImageController';
 import { BuildCacheController } from './controllers/build/BuildCacheController';
 import { K8sBuildController } from './controllers/build/K8sBuildController';
 import { BuildLogController } from './controllers/build/BuildLogController';
+import { ArtifactController } from './controllers/build/ArtifactController';
+import { StageCacheController } from './controllers/build/StageCacheController';
 
 export default async function buildRoutes(app: FastifyInstance): Promise<void> {
   // 初始化服务
@@ -28,12 +32,15 @@ export default async function buildRoutes(app: FastifyInstance): Promise<void> {
     builderImageService
   );
   const buildLogService = new BuildLogService();
+  const artifactService = new ArtifactService();
 
   // 初始化控制器
   const builderImageController = new BuilderImageController(builderImageService);
   const buildCacheController = new BuildCacheController(buildCacheService);
   const k8sBuildController = new K8sBuildController(k8sBuildExecutor);
   const buildLogController = new BuildLogController(buildLogService);
+  const artifactController = new ArtifactController(artifactService);
+  const stageCacheController = new StageCacheController(buildCacheService, artifactService);
 
   // ==================== Builder 镜像路由 ====================
 
@@ -231,5 +238,59 @@ export default async function buildRoutes(app: FastifyInstance): Promise<void> {
   // GET /build-logs/:id/stream - SSE 日志流
   app.get('/build-logs/:id/stream', async (request: FastifyRequest, reply: FastifyReply) => {
     return buildLogController.streamLogs(request, reply);
+  });
+
+  // ==================== Artifact 管理路由 ====================
+
+  // POST /api/v1/artifacts - 创建 Artifact（上传）
+  app.post('/api/v1/artifacts', async (request: FastifyRequest, reply: FastifyReply) => {
+    return artifactController.create(request, reply);
+  });
+
+  // GET /api/v1/artifacts - 查询 Artifact 列表
+  app.get('/api/v1/artifacts', async (request: FastifyRequest, reply: FastifyReply) => {
+    return artifactController.list(request, reply);
+  });
+
+  // GET /api/v1/artifacts/:id - 获取 Artifact 详情
+  app.get('/api/v1/artifacts/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+    return artifactController.get(request, reply);
+  });
+
+  // GET /api/v1/artifacts/:id/download - 下载 Artifact
+  app.get('/api/v1/artifacts/:id/download', async (request: FastifyRequest, reply: FastifyReply) => {
+    return artifactController.download(request, reply);
+  });
+
+  // DELETE /api/v1/artifacts/:id - 删除 Artifact
+  app.delete('/api/v1/artifacts/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+    return artifactController.delete(request, reply);
+  });
+
+  // POST /api/v1/artifacts/cleanup/expired - 清理过期 Artifact
+  app.post('/api/v1/artifacts/cleanup/expired', async (request: FastifyRequest, reply: FastifyReply) => {
+    return artifactController.cleanupExpired(request, reply);
+  });
+
+  // ==================== Stage 级别缓存和 Artifact 路由 ====================
+
+  // POST /api/v1/pipeline-runs/:runId/stages/:stageId/cache - 保存缓存
+  app.post('/pipeline-runs/:runId/stages/:stageId/cache', async (request: FastifyRequest, reply: FastifyReply) => {
+    return stageCacheController.saveCache(request, reply);
+  });
+
+  // GET /api/v1/pipeline-runs/:runId/stages/:stageId/cache - 恢复缓存
+  app.get('/pipeline-runs/:runId/stages/:stageId/cache', async (request: FastifyRequest, reply: FastifyReply) => {
+    return stageCacheController.restoreCache(request, reply);
+  });
+
+  // POST /api/v1/pipeline-runs/:runId/stages/:stageId/artifacts - 上传 Artifact
+  app.post('/pipeline-runs/:runId/stages/:stageId/artifacts', async (request: FastifyRequest, reply: FastifyReply) => {
+    return stageCacheController.uploadArtifact(request, reply);
+  });
+
+  // GET /api/v1/pipeline-runs/:runId/stages/:stageId/artifacts - 获取 Artifact 列表
+  app.get('/pipeline-runs/:runId/stages/:stageId/artifacts', async (request: FastifyRequest, reply: FastifyReply) => {
+    return stageCacheController.listArtifacts(request, reply);
   });
 }

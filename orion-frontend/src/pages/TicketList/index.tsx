@@ -9,7 +9,7 @@
  * - SLA column: green if >50% time, orange if <25%, red if overdue
  * - Pagination at bottom
  */
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Typography, Button, Space, Tag, Badge, Modal, message } from 'antd';
 import {
   PlusOutlined,
@@ -26,11 +26,8 @@ import {
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import MetricCard from '@/components/MetricCard';
-import {
-  mockTickets,
-  mockEngineers,
-  type MockTicket,
-} from '@/pages/__mocks__/mockTicketData';
+import { getTickets, type Ticket } from '@/api/ticketing';
+import { mockEngineers } from '@/pages/__mocks__/mockTicketData';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import CreateTicketModal from './CreateTicketModal';
@@ -110,10 +107,31 @@ const TicketList: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [dispatchPanelOpen, setDispatchPanelOpen] = useState(false);
+  const [tickets, setTickets] = useState<Ticket[]>([]);
+
+  // Load tickets from API
+  const loadTickets = async () => {
+    setLoading(true);
+    try {
+      const params = { page: 1, pageSize: 50, ...filters };
+      const response = await getTickets(params);
+      const apiData = response.data.data;
+      setTickets(Array.isArray(apiData) ? apiData : (apiData as any).items || []);
+    } catch (error) {
+      message.error('加载工单列表失败');
+      console.error('Failed to load tickets:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadTickets();
+  }, [filters]);
 
   // Filter tickets based on search and filters
   const filteredTickets = useMemo(() => {
-    return mockTickets.filter((ticket) => {
+    return tickets.filter((ticket) => {
       // Search filter
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
@@ -157,10 +175,10 @@ const TicketList: React.FC = () => {
   }, [searchQuery, filters]);
 
   // Summary metrics
-  const openCount = mockTickets.filter((t) => t.status === 'open' || t.status === 'assigned').length;
-  const inProgressCount = mockTickets.filter((t) => t.status === 'in-progress').length;
-  const overdueCount = mockTickets.filter((t) => calculateSLA(t).overdue).length;
-  const slaBreached = mockSLABreachedCount();
+  const openCount = tickets.filter((t) => t.status === 'open' || t.status === 'assigned').length;
+  const inProgressCount = tickets.filter((t) => t.status === 'in-progress').length;
+  const overdueCount = tickets.filter((t) => calculateSLA(t).overdue).length;
+  const slaBreached = tickets.filter((t) => calculateSLA(t).overdue).length;
 
   // Filter definitions
   const filterDefs: FilterDefinition[] = [
@@ -207,7 +225,7 @@ const TicketList: React.FC = () => {
   ];
 
   // Table columns
-  const columns: TableColumn<MockTicket>[] = [
+  const columns: TableColumn<Ticket>[] = [
     {
       key: 'id',
       title: '工单ID',
@@ -319,7 +337,7 @@ const TicketList: React.FC = () => {
       key: 'actions',
       title: '操作',
       width: 160,
-      render: (_: unknown, record: MockTicket) => (
+      render: (_: unknown, record: Ticket) => (
         <Space size="small">
           <Button
             type="link"
@@ -352,11 +370,10 @@ const TicketList: React.FC = () => {
   ];
 
   const handleRefresh = () => {
-    setLoading(true);
-    setTimeout(() => setLoading(false), 800);
+    loadTickets();
   };
 
-  const handleAssign = (ticket: MockTicket) => {
+  const handleAssign = (ticket: Ticket) => {
     Modal.confirm({
       title: '分配工单',
       content: `选择工程师来分配工单 ${ticket.id}`,
@@ -488,13 +505,5 @@ const TicketList: React.FC = () => {
     </div>
   );
 };
-
-/** Count SLA breached tickets */
-function mockSLABreachedCount(): number {
-  return mockTickets.filter((t) => {
-    const sla = calculateSLA(t);
-    return sla.overdue;
-  }).length;
-}
 
 export default TicketList;

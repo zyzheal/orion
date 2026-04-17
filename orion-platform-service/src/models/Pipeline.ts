@@ -37,6 +37,18 @@ export interface PipelineStage {
   if?: string;
   timeout?: number;
   retries?: number;
+  // 缓存配置
+  cache?: {
+    enabled: boolean;
+    key: string;
+    paths: string[];
+    restoreKeys?: string[];
+  };
+  // Artifact 配置
+  artifacts?: {
+    upload?: string[];
+    expiry?: number;  // 天数
+  };
 }
 
 export interface PipelineSpec {

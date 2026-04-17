@@ -7,13 +7,13 @@
  * - Status filtering
  * - Detail link
  */
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Typography, Button, Space, Tag } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
-import { mockDeployments } from '@/pages/__mocks__/mockData';
+import { getDeployments } from '@/api/deployments';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -27,10 +27,29 @@ const DeploymentList: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<Record<string, string | string[] | undefined>>({});
   const [loading, setLoading] = useState(false);
+  const [deployments, setDeployments] = useState<any[]>([]);
+
+  // Load deployments from API
+  const loadDeployments = async () => {
+    setLoading(true);
+    try {
+      const response = await getDeployments();
+      const apiData = response.data.data;
+      setDeployments(Array.isArray(apiData) ? apiData : (apiData as any).items || []);
+    } catch (error) {
+      console.error('Failed to load deployments:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadDeployments();
+  }, []);
 
   // Filter deployments based on search and filters
   const filteredDeployments = useMemo(() => {
-    return mockDeployments.filter((deployment) => {
+    return deployments.filter((deployment) => {
       // Search filter
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
@@ -223,8 +242,7 @@ const DeploymentList: React.FC = () => {
   ];
 
   const handleRefresh = () => {
-    setLoading(true);
-    setTimeout(() => setLoading(false), 1000);
+    loadDeployments();
   };
 
   return (

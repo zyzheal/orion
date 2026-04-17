@@ -9,7 +9,7 @@
  * - Optimization recommendations
  * - Quick actions
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   Col,
@@ -41,11 +41,17 @@ import {
 } from '@ant-design/icons';
 import TableComponent, { type TableColumn } from '@/components/Table';
 import {
-  mockCostSummary,
-  mockCostByService,
-  mockOptimizations,
-  mockBudgetAlerts,
-} from '@/pages/__mocks__/mockFinOpsData';
+  getCostSummary,
+  getCostByService,
+  getOptimizations,
+  getBudgetAlerts,
+  applyOptimization as apiApplyOptimization,
+  exportCostReport as apiExportCostReport,
+  type CostSummary,
+  type CostByServiceItem,
+  type OptimizationItem,
+  type BudgetAlertItem,
+} from '@/api/finops';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -72,32 +78,72 @@ const alertStatusConfig: Record<string, { color: string; label: string }> = {
 };
 
 const FinOpsDashboard: React.FC = () => {
-  const [loading] = useState(false);
-  const [optimizations, setOptimizations] = useState(mockOptimizations);
+  const [loading, setLoading] = useState(true);
+  const [optimizations, setOptimizations] = useState<OptimizationItem[]>([]);
+  const [costSummary, setCostSummary] = useState<CostSummary | null>(null);
+  const [costByService, setCostByService] = useState<CostByServiceItem[]>([]);
+  const [budgetAlerts, setBudgetAlerts] = useState<BudgetAlertItem[]>([]);
+
+  // Load data from API
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const [costSummaryRes, costByServiceRes, optimizationsRes, budgetAlertsRes] = await Promise.all([
+        getCostSummary(),
+        getCostByService(),
+        getOptimizations(),
+        getBudgetAlerts(),
+      ]);
+
+      setCostSummary(costSummaryRes.data.data);
+      setCostByService(Array.isArray(costByServiceRes.data.data) ? costByServiceRes.data.data : []);
+      setOptimizations(Array.isArray(optimizationsRes.data.data) ? optimizationsRes.data.data : []);
+      setBudgetAlerts(Array.isArray(budgetAlertsRes.data.data) ? budgetAlertsRes.data.data : []);
+    } catch (error) {
+      message.error('加载成本数据失败');
+      console.error('Failed to load finops data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
 
   // Calculate budget usage percentage
-  const budgetUsagePercent = Math.round(
-    (mockCostSummary.totalMonthly / mockCostSummary.budgetLimit) * 100
-  );
+  const budgetUsagePercent = costSummary
+    ? Math.round((costSummary.totalMonthly / costSummary.budgetLimit) * 100)
+    : 0;
 
   // Calculate month-over-month change
-  const momChange = (
-    ((mockCostSummary.totalMonthly - mockCostSummary.previousMonth) /
-      mockCostSummary.previousMonth) *
-    100
-  ).toFixed(1);
+  const momChange = costSummary
+    ? (((costSummary.totalMonthly - costSummary.previousMonth) / costSummary.previousMonth) * 100).toFixed(1)
+    : '0.0';
 
   // Handle apply optimization
-  const handleApplyOptimization = (key: string) => {
-    setOptimizations((prev) =>
-      prev.map((opt) => (opt.key === key ? { ...opt, status: 'applied' as const } : opt))
-    );
-    message.success('优化建议已应用');
+  const handleApplyOptimization = async (key: string) => {
+    try {
+      await apiApplyOptimization(key);
+      setOptimizations((prev) =>
+        prev.map((opt) => (opt.key === key ? { ...opt, status: 'applied' as const } : opt))
+      );
+      message.success('优化建议已应用');
+    } catch (error) {
+      message.error('应用优化建议失败');
+      console.error('Failed to apply optimization:', error);
+    }
   };
 
   // Handle export report
-  const handleExportReport = () => {
-    message.success('报表导出中，请稍后在通知中心查看');
+  const handleExportReport = async () => {
+    try {
+      await apiExportCostReport();
+      message.success('报表导出中，请稍后在通知中心查看');
+    } catch (error) {
+      message.error('导出报表失败');
+      console.error('Failed to export report:', error);
+    }
   };
 
   // Cost by service columns
@@ -159,6 +205,9 @@ const FinOpsDashboard: React.FC = () => {
     },
   ];
 
+  // Data timestamp
+  const dataTimestamp = dayjs().format('YYYY-MM-DD HH:mm');
+
   return (
     <div style={{ padding: 0 }}>
       {/* Page Header */}
@@ -176,121 +225,125 @@ const FinOpsDashboard: React.FC = () => {
             成本分析
           </Title>
           <Text type="secondary">
-            数据更新时间：{dayjs().format('YYYY-MM-DD HH:mm')}
+            数据更新时间：{dataTimestamp}
           </Text>
         </div>
       </div>
 
       {/* Summary Cards Row */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-        {/* Monthly Cost */}
-        <Col xs={24} sm={12} lg={6}>
-          <Card bordered={false} style={{ borderRadius: 8 }}>
-            <Statistic
-              title="本月花费"
-              value={mockCostSummary.totalMonthly}
-              prefix={<DollarOutlined style={{ color: '#1890ff' }} />}
-              suffix="¥"
-              precision={0}
-              valueStyle={{ color: '#1890ff', fontSize: 28 }}
-            />
-            <div style={{ marginTop: 8 }}>
-              <Text
-                type="secondary"
-                style={{ fontSize: 12 }}
-              >
-                较上月{' '}
-                <Text
-                  style={{
-                    color: parseFloat(momChange) > 0 ? '#ff4d4f' : '#52c41a',
-                    fontWeight: 600,
-                  }}
-                >
-                  {parseFloat(momChange) > 0 ? '+' : ''}
-                  {momChange}%{' '}
-                  {parseFloat(momChange) > 0 ? (
-                    <ArrowUpOutlined style={{ fontSize: 10 }} />
-                  ) : (
-                    <ArrowDownOutlined style={{ fontSize: 10 }} />
-                  )}
-                </Text>
-              </Text>
-            </div>
-          </Card>
-        </Col>
-
-        {/* Budget Usage */}
-        <Col xs={24} sm={12} lg={6}>
-          <Card bordered={false} style={{ borderRadius: 8 }}>
-            <Statistic
-              title="预算使用"
-              value={budgetUsagePercent}
-              prefix={<WalletOutlined />}
-              suffix="%"
-              precision={0}
-              valueStyle={{
-                color: budgetUsagePercent > 90 ? '#ff4d4f' : budgetUsagePercent > 70 ? '#fa8c16' : '#52c41a',
-                fontSize: 28,
-              }}
-            />
-            <div style={{ marginTop: 8 }}>
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                预算上限 ¥{mockCostSummary.budgetLimit.toLocaleString()}
-              </Text>
-              <Progress
-                percent={budgetUsagePercent}
-                size="small"
-                strokeColor={
-                  budgetUsagePercent > 90
-                    ? '#ff4d4f'
-                    : budgetUsagePercent > 70
-                    ? '#fa8c16'
-                    : '#52c41a'
-                }
-                style={{ marginTop: 4 }}
+      {loading || !costSummary ? (
+        <div style={{ textAlign: 'center', padding: '40px 0' }}>Loading...</div>
+      ) : (
+        <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+          {/* Monthly Cost */}
+          <Col xs={24} sm={12} lg={6}>
+            <Card bordered={false} style={{ borderRadius: 8 }}>
+              <Statistic
+                title="本月花费"
+                value={costSummary.totalMonthly}
+                prefix={<DollarOutlined style={{ color: '#1890ff' }} />}
+                suffix="¥"
+                precision={0}
+                valueStyle={{ color: '#1890ff', fontSize: 28 }}
               />
-            </div>
-          </Card>
-        </Col>
+              <div style={{ marginTop: 8 }}>
+                <Text
+                  type="secondary"
+                  style={{ fontSize: 12 }}
+                >
+                  较上月{' '}
+                  <Text
+                    style={{
+                      color: parseFloat(momChange) > 0 ? '#ff4d4f' : '#52c41a',
+                      fontWeight: 600,
+                    }}
+                  >
+                    {parseFloat(momChange) > 0 ? '+' : ''}
+                    {momChange}%{' '}
+                    {parseFloat(momChange) > 0 ? (
+                      <ArrowUpOutlined style={{ fontSize: 10 }} />
+                    ) : (
+                      <ArrowDownOutlined style={{ fontSize: 10 }} />
+                    )}
+                  </Text>
+                </Text>
+              </div>
+            </Card>
+          </Col>
 
-        {/* Estimated Waste */}
-        <Col xs={24} sm={12} lg={6}>
-          <Card bordered={false} style={{ borderRadius: 8 }}>
-            <Statistic
-              title="预计浪费"
-              value={mockCostSummary.waste}
-              prefix={<FireOutlined style={{ color: '#ff4d4f' }} />}
-              suffix="¥"
-              precision={0}
-              valueStyle={{ color: '#ff4d4f', fontSize: 28 }}
-            />
-            <div style={{ marginTop: 8 }}>
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                闲置资源和过度配置
-              </Text>
-            </div>
-          </Card>
-        </Col>
+          {/* Budget Usage */}
+          <Col xs={24} sm={12} lg={6}>
+            <Card bordered={false} style={{ borderRadius: 8 }}>
+              <Statistic
+                title="预算使用"
+                value={budgetUsagePercent}
+                prefix={<WalletOutlined />}
+                suffix="%"
+                precision={0}
+                valueStyle={{
+                  color: budgetUsagePercent > 90 ? '#ff4d4f' : budgetUsagePercent > 70 ? '#fa8c16' : '#52c41a',
+                  fontSize: 28,
+                }}
+              />
+              <div style={{ marginTop: 8 }}>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  预算上限 ¥{costSummary.budgetLimit.toLocaleString()}
+                </Text>
+                <Progress
+                  percent={budgetUsagePercent}
+                  size="small"
+                  strokeColor={
+                    budgetUsagePercent > 90
+                      ? '#ff4d4f'
+                      : budgetUsagePercent > 70
+                      ? '#fa8c16'
+                      : '#52c41a'
+                  }
+                  style={{ marginTop: 4 }}
+                />
+              </div>
+            </Card>
+          </Col>
 
-        {/* Savings */}
-        <Col xs={24} sm={12} lg={6}>
-          <Card bordered={false} style={{ borderRadius: 8 }}>
-            <Statistic
-              title="节省金额"
-              value={mockCostSummary.savings}
-              prefix={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
-              suffix="¥"
-              precision={0}
-              valueStyle={{ color: '#52c41a', fontSize: 28 }}
-            />
-            <div style={{ marginTop: 8 }}>
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                已通过优化措施节省
-              </Text>
-            </div>
-          </Card>
-        </Col>
-      </Row>
+          {/* Estimated Waste */}
+          <Col xs={24} sm={12} lg={6}>
+            <Card bordered={false} style={{ borderRadius: 8 }}>
+              <Statistic
+                title="预计浪费"
+                value={costSummary.waste}
+                prefix={<FireOutlined style={{ color: '#ff4d4f' }} />}
+                suffix="¥"
+                precision={0}
+                valueStyle={{ color: '#ff4d4f', fontSize: 28 }}
+              />
+              <div style={{ marginTop: 8 }}>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  闲置资源和过度配置
+                </Text>
+              </div>
+            </Card>
+          </Col>
+
+          {/* Savings */}
+          <Col xs={24} sm={12} lg={6}>
+            <Card bordered={false} style={{ borderRadius: 8 }}>
+              <Statistic
+                title="节省金额"
+                value={costSummary.savings}
+                prefix={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
+                suffix="¥"
+                precision={0}
+                valueStyle={{ color: '#52c41a', fontSize: 28 }}
+              />
+              <div style={{ marginTop: 8 }}>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  已通过优化措施节省
+                </Text>
+              </div>
+            </Card>
+          </Col>
+        </Row>
+      )}
 
       {/* Main Content: Two Column Layout */}
       <Row gutter={[16, 16]}>
@@ -334,7 +387,7 @@ const FinOpsDashboard: React.FC = () => {
           >
             <TableComponent
               columns={costByServiceColumns}
-              dataSource={mockCostByService}
+              dataSource={costByService}
               rowKey="key"
               size="middle"
               pagination={false}
@@ -349,7 +402,7 @@ const FinOpsDashboard: React.FC = () => {
             loading={loading}
           >
             <Space direction="vertical" style={{ width: '100%' }} size={12}>
-              {mockBudgetAlerts.map((alert) => (
+              {budgetAlerts.map((alert) => (
                 <Alert
                   key={alert.key}
                   message={

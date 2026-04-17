@@ -9,19 +9,17 @@
  * - 改进建议
  */
 import React, { useState, useEffect } from 'react';
-import { Typography, Card, Row, Col, Table, Tag, Progress, Space, Statistic, Tabs, Button } from 'antd';
+import { Typography, Card, Table, Tag, Space, Tabs, message } from 'antd';
 import {
-  ArrowUpOutlined,
-  ArrowDownOutlined,
   ClockCircleOutlined,
   CheckCircleOutlined,
   ThunderboltOutlined,
   TrophyOutlined,
+  CloseCircleOutlined,
 } from '@ant-design/icons';
 import DashboardLayout from '@/components/DashboardLayout';
 import MetricCard from '@/components/MetricCard';
-import StatusBadge from '@/components/StatusBadge';
-import { mockEfficiencyData } from '@/pages/__mocks__/mockEfficiencyData';
+import { getDoraMetrics, getDoraBenchmarks, getEfficiencyDashboard, getClickHouseStatus } from '@/api/efficiency';
 
 const { Title, Text } = Typography;
 const { TabPane } = Tabs;
@@ -29,12 +27,56 @@ const { TabPane } = Tabs;
 const EfficiencyDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
+  const [doraMetrics, setDoraMetrics] = useState<any>(null);
+  const [benchmarks, setBenchmarks] = useState<any>(null);
+  const [dashboardData, setDashboardData] = useState<any>(null);
+  const [clickHouseStatus, setClickHouseStatus] = useState<any>(null);
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const [metricsRes, benchmarksRes, dashboardRes, statusRes] = await Promise.all([
+        getDoraMetrics(),
+        getDoraBenchmarks(),
+        getEfficiencyDashboard(),
+        getClickHouseStatus(),
+      ]);
+      setDoraMetrics(metricsRes.data.data);
+      setBenchmarks(benchmarksRes.data.data);
+      setDashboardData(dashboardRes.data.data);
+      setClickHouseStatus(statusRes.data.data);
+    } catch (error) {
+      console.error('Failed to load efficiency data:', error);
+      message.error('加载效能数据失败');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    // 模拟数据加载
-    const timer = setTimeout(() => setLoading(false), 500);
-    return () => clearTimeout(timer);
+    loadData();
   }, []);
+
+  const getLevel = (value: any, metricKey: string) => {
+    if (!benchmarks || value === undefined) return '-';
+    const category = benchmarks[metricKey];
+    if (!category) return '-';
+    // Simple comparison logic - lower is better for time/rate metrics
+    if (metricKey === 'deploymentFrequency') {
+      if (value.includes('day') || value.includes('hour')) return 'Elite';
+      if (value.includes('week')) return 'High';
+      if (value.includes('month')) return 'Medium';
+      return 'Low';
+    } else {
+      const numValue = parseFloat(value) || 0;
+      const elite = parseFloat(category.elite) || 0;
+      const high = parseFloat(category.high) || 0;
+      const medium = parseFloat(category.medium) || 0;
+      if (numValue <= elite || numValue <= high) return 'Elite';
+      if (numValue <= medium) return 'High';
+      return 'Medium';
+    }
+  };
 
   // DORA 指标列定义
   const metricColumns = [
@@ -60,24 +102,6 @@ const EfficiencyDashboard: React.FC = () => {
       ),
     },
     {
-      title: '目标值',
-      dataIndex: 'targetValue',
-      key: 'targetValue',
-    },
-    {
-      title: '趋势',
-      dataIndex: 'trend',
-      key: 'trend',
-      render: (trend: 'up' | 'down' | 'stable') => {
-        const config = {
-          up: { icon: <ArrowUpOutlined />, color: '#52c41a' },
-          down: { icon: <ArrowDownOutlined />, color: '#ff4d4f' },
-          stable: { icon: <ClockCircleOutlined />, color: '#999' },
-        };
-        return <span style={{ color: config[trend].color }}>{config[trend].icon}</span>;
-      },
-    },
-    {
       title: '等级',
       dataIndex: 'level',
       key: 'level',
@@ -91,58 +115,65 @@ const EfficiencyDashboard: React.FC = () => {
         return <Tag color={colorMap[level]}>{level}</Tag>;
       },
     },
+    {
+      title: 'Benchmark',
+      key: 'benchmark',
+      render: (_: any, record: any) => {
+        if (!benchmarks) return '-';
+        const benchmarkKey = record.benchmarkKey;
+        const category = benchmarks[benchmarkKey];
+        if (!category) return '-';
+        return (
+          <Space direction="vertical" size={0}>
+            <Text><Tag color="#52c41a">Elite</Tag> {category.elite}</Text>
+            <Text><Tag color="#1890ff">High</Tag> {category.high}</Text>
+            <Text><Tag color="#faad14">Med</Tag> {category.medium}</Text>
+          </Space>
+        );
+      },
+    },
   ];
 
-  // 团队对比列定义
-  const teamColumns = [
-    {
-      title: '团队',
-      dataIndex: 'team',
-      key: 'team',
-    },
-    {
-      title: '发布频率',
-      dataIndex: 'deploymentFrequency',
-      key: 'deploymentFrequency',
-      sorter: (a: any, b: any) => a.deploymentFrequency - b.deploymentFrequency,
-    },
-    {
-      title: '变更前置时间',
-      dataIndex: 'leadTime',
-      key: 'leadTime',
-      render: (hours: number) => `${hours}h`,
-    },
-    {
-      title: '恢复时间',
-      dataIndex: 'mttr',
-      key: 'mttr',
-      render: (minutes: number) => `${minutes}m`,
-    },
-    {
-      title: '失败率',
-      dataIndex: 'failureRate',
-      key: 'failureRate',
-      render: (rate: number) => (
-        <Progress
-          percent={rate}
-          strokeColor={rate < 5 ? '#52c41a' : rate < 15 ? '#faad14' : '#ff4d4f'}
-          format={() => `${rate}%`}
-          size="small"
-        />
-      ),
-    },
-    {
-      title: '综合评分',
-      dataIndex: 'score',
-      key: 'score',
-      sorter: (a: any, b: any) => a.score - b.score,
-      render: (score: number) => (
-        <Tag color={score >= 80 ? '#52c41a' : score >= 60 ? '#1890ff' : '#faad14'}>
-          {score} 分
-        </Tag>
-      ),
-    },
-  ];
+  const doraMetricsData = doraMetrics
+    ? [
+        {
+          key: 'deploymentFrequency',
+          name: '发布频率',
+          icon: <ThunderboltOutlined />,
+          currentValue: doraMetrics.metrics?.deploymentFrequency || '-',
+          trend: 'up',
+          level: getLevel(doraMetrics.metrics?.deploymentFrequency, 'deploymentFrequency'),
+          benchmarkKey: 'deploymentFrequency',
+        },
+        {
+          key: 'leadTimeForChanges',
+          name: '变更前置时间',
+          icon: <ClockCircleOutlined />,
+          currentValue: `${doraMetrics.metrics?.leadTimeForChanges || '-'} 小时`,
+          trend: 'down',
+          level: getLevel(doraMetrics.metrics?.leadTimeForChanges, 'leadTimeForChanges'),
+          benchmarkKey: 'leadTimeForChanges',
+        },
+        {
+          key: 'changeFailureRate',
+          name: '变更失败率',
+          icon: <CloseCircleOutlined />,
+          currentValue: `${(doraMetrics.metrics?.changeFailureRate || 0).toFixed(1)}%`,
+          trend: 'down',
+          level: getLevel(doraMetrics.metrics?.changeFailureRate, 'changeFailureRate'),
+          benchmarkKey: 'changeFailureRate',
+        },
+        {
+          key: 'meanTimeToRecovery',
+          name: '服务恢复时间',
+          icon: <CheckCircleOutlined />,
+          currentValue: `${doraMetrics.metrics?.meanTimeToRecovery || '-'} 分钟`,
+          trend: 'down',
+          level: getLevel(doraMetrics.metrics?.meanTimeToRecovery, 'meanTimeToRecovery'),
+          benchmarkKey: 'meanTimeToRecovery',
+        },
+      ]
+    : [];
 
   return (
     <div>
@@ -161,16 +192,16 @@ const EfficiencyDashboard: React.FC = () => {
         <DashboardLayout columns={4} gap={16}>
           <MetricCard
             title="发布频率"
-            value={mockEfficiencyData.metrics.deploymentFrequency.value}
+            value={dashboardData?.dora?.deploymentFrequency || '-'}
             unit="次/周"
-            trend={mockEfficiencyData.metrics.deploymentFrequency.trend as any}
+            trend="up"
             trendPercent={12.5}
             previousValue={156}
             loading={loading}
           />
           <MetricCard
             title="变更前置时间"
-            value={mockEfficiencyData.metrics.leadTime.value}
+            value={dashboardData?.dora?.leadTime || '-'}
             unit="小时"
             trend="down"
             trendPercent={18.2}
@@ -179,7 +210,7 @@ const EfficiencyDashboard: React.FC = () => {
           />
           <MetricCard
             title="服务恢复时间"
-            value={mockEfficiencyData.metrics.mttr.value}
+            value={dashboardData?.dora?.mttr || '-'}
             unit="分钟"
             trend="down"
             trendPercent={25.0}
@@ -188,7 +219,7 @@ const EfficiencyDashboard: React.FC = () => {
           />
           <MetricCard
             title="变更失败率"
-            value={mockEfficiencyData.metrics.failureRate.value}
+            value={dashboardData?.dora?.changeFailureRate || '-'}
             unit="%"
             trend="down"
             trendPercent={2.1}
@@ -205,45 +236,54 @@ const EfficiencyDashboard: React.FC = () => {
           <Card title="DORA 指标详情" style={{ marginBottom: 16 }}>
             <Table
               columns={metricColumns}
-              dataSource={mockEfficiencyData.doraMetrics}
+              dataSource={doraMetricsData}
               rowKey="key"
               pagination={false}
               size="small"
+              loading={loading}
             />
+          </Card>
+
+          {/* ClickHouse 状态 */}
+          <Card title="数据同步状态" style={{ marginBottom: 16 }}>
+            <Space size="large">
+              <div>
+                <Text type="secondary">ClickHouse:</Text>{' '}
+                <Tag color={clickHouseStatus?.connected ? 'green' : 'red'}>
+                  {clickHouseStatus?.connected ? '已连接' : '未连接'}
+                </Tag>
+              </div>
+              <div>
+                <Text type="secondary">同步记录:</Text>{' '}
+                <Text strong>{clickHouseStatus?.syncedRecords || 0}</Text>
+              </div>
+              <div>
+                <Text type="secondary">最后同步:</Text>{' '}
+                {clickHouseStatus?.lastSyncAt ? new Date(clickHouseStatus.lastSyncAt).toLocaleString() : '从未'}
+              </div>
+            </Space>
           </Card>
 
           {/* 改进建议 */}
           <Card title="改进建议">
-            {mockEfficiencyData.suggestions.map((suggestion, index) => (
-              <div
-                key={index}
-                style={{
-                  padding: '12px 16px',
-                  marginBottom: index < mockEfficiencyData.suggestions.length - 1 ? 8 : 0,
-                  background: index === 0 ? 'rgba(24, 144, 255, 0.04)' : 'transparent',
-                  borderRadius: 8,
-                  borderLeft: index === 0 ? '3px solid #1890ff' : '3px solid #d9d9d9',
-                }}
-              >
-                <Space>
-                  <TrophyOutlined style={{ color: index === 0 ? '#1890ff' : '#999' }} />
-                  <Text>{suggestion}</Text>
-                </Space>
-              </div>
-            ))}
+            <div style={{ padding: '12px 16px', background: 'rgba(24, 144, 255, 0.04)', borderRadius: 8, borderLeft: '3px solid #1890ff' }}>
+              <Space>
+                <TrophyOutlined style={{ color: '#1890ff' }} />
+                <Text>
+                  {dashboardData?.dora?.deploymentFrequency && dashboardData.dora.deploymentFrequency < 10
+                    ? '建议提高发布频率，向 Elite 级别（每天多次）看齐'
+                    : '保持当前发布频率，继续优化其他指标'}
+                </Text>
+              </Space>
+            </div>
           </Card>
         </TabPane>
 
         <TabPane tab="团队对比" key="teams">
           <Card title="团队效能对比">
-            <Table
-              columns={teamColumns}
-              dataSource={mockEfficiencyData.teamComparison}
-              rowKey="team"
-              pagination={false}
-              size="small"
-              scroll={{ x: 800 }}
-            />
+            <div style={{ textAlign: 'center', padding: 40 }}>
+              <Text type="secondary">团队对比功能开发中...</Text>
+            </div>
           </Card>
         </TabPane>
 

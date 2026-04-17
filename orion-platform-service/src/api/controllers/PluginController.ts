@@ -5,8 +5,8 @@
  */
 
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { PluginManagerService, PluginType, PluginState } from '../services/plugin-manager-service';
-import { PluginExecutorService } from '../services/plugin-executor-service';
+import { PluginManagerService, PluginType, PluginState } from '../../services/plugin-manager-service';
+import { PluginExecutorService } from '../../services/plugin-executor-service';
 
 export class PluginController {
   private pluginManager: PluginManagerService;

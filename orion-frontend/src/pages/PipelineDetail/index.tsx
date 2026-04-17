@@ -8,8 +8,8 @@
  * - Log viewer section
  * - Re-run trigger button
  */
-import React, { useState } from 'react';
-import { Typography, Button, Space, Tag, Card, Descriptions, Tabs, Badge } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Typography, Button, Space, Tag, Card, Descriptions, Tabs, Badge, message } from 'antd';
 import {
   PlayCircleOutlined,
   ClockCircleOutlined,
@@ -19,6 +19,7 @@ import {
 } from '@ant-design/icons';
 import StatusBadge from '@/components/StatusBadge';
 import CardPanel from '@/components/CardPanel';
+import { getPipelineRun, retryPipelineRun } from '@/api/pipelines';
 import { mockPipelines } from '@/pages/__mocks__/mockData';
 import { useNavigate, useParams } from 'react-router-dom';
 import dayjs from 'dayjs';
@@ -44,9 +45,31 @@ const PipelineDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [activeTab, setActiveTab] = useState('stages');
   const [isRerunning, setIsRerunning] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [pipeline, setPipeline] = useState<any>(null);
 
-  // Find the pipeline from mock data
-  const pipeline = mockPipelines.find((p) => p.id === id) || mockPipelines[0];
+  // Load pipeline detail from API
+  useEffect(() => {
+    const loadPipeline = async () => {
+      setLoading(true);
+      try {
+        const response = await getPipelineRun(id!);
+        const apiData = response.data.data;
+        setPipeline(apiData || mockPipelines[0]);
+      } catch (error) {
+        message.error('加载 Pipeline 详情失败');
+        console.error('Failed to load pipeline detail:', error);
+        // Fallback to mock data
+        setPipeline(mockPipelines[0]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (id) {
+      loadPipeline();
+    }
+  }, [id]);
 
   // Calculate progress percentage
   const totalStages = pipeline.stages?.length || 0;
@@ -55,7 +78,7 @@ const PipelineDetail: React.FC = () => {
 
   // Format duration
   const formatDuration = (seconds?: number) => {
-    if (!seconds) return '-';
+    if (!seconds || !pipeline) return '-';
     const dur = dayjs.duration(seconds, 'seconds');
     const minutes = Math.floor(dur.asMinutes());
     const secs = dur.seconds();
@@ -63,11 +86,19 @@ const PipelineDetail: React.FC = () => {
   };
 
   // Handle re-run
-  const handleRerun = () => {
-    setIsRerunning(true);
-    setTimeout(() => {
+  const handleRerun = async () => {
+    try {
+      await retryPipelineRun(id!);
+      message.success('Pipeline 重新运行成功');
+      // Reload pipeline detail after re-run
+      const response = await getPipelineRun(id!);
+      setPipeline(response.data.data);
+    } catch (error) {
+      message.error('重新运行失败');
+      console.error('Failed to rerun pipeline:', error);
+    } finally {
       setIsRerunning(false);
-    }, 2000);
+    }
   };
 
   const triggerLabel: Record<string, string> = {
@@ -92,6 +123,7 @@ const PipelineDetail: React.FC = () => {
           type="text"
           icon={<ArrowLeftOutlined />}
           onClick={() => navigate('/pipelines')}
+          disabled={loading}
         >
           返回列表
         </Button>
@@ -106,13 +138,13 @@ const PipelineDetail: React.FC = () => {
         </div>
         <div style={{ marginLeft: 'auto' }}>
           <Space>
-            <StatusBadge status={pipeline.status} size="medium" />
+            {pipeline && <StatusBadge status={pipeline.status} size="medium" />}
             <Button
               type="primary"
               icon={<ReloadOutlined />}
               loading={isRerunning}
               onClick={handleRerun}
-              disabled={pipeline.status === 'running'}
+              disabled={!pipeline || pipeline.status === 'running' || loading}
             >
               {isRerunning ? '触发中...' : '重新运行'}
             </Button>
@@ -121,59 +153,64 @@ const PipelineDetail: React.FC = () => {
       </div>
 
       {/* Pipeline info card */}
-      <CardPanel>
-        <Descriptions
-          column={4}
-          size="small"
-          bordered
-          labelStyle={{ width: 120 }}
-        >
-          <Descriptions.Item label="状态">
-            <StatusBadge status={pipeline.status} size="small" />
-          </Descriptions.Item>
-          <Descriptions.Item label="分支">
-            <Tag color="blue">{pipeline.branch}</Tag>
-          </Descriptions.Item>
-          <Descriptions.Item label="触发人">
-            <Text code>{pipeline.author}</Text>
-          </Descriptions.Item>
-          <Descriptions.Item label="触发方式">
-            <Tag>{triggerLabel[pipeline.trigger] || pipeline.trigger}</Tag>
-          </Descriptions.Item>
-          <Descriptions.Item label="开始时间">
-            <Space>
-              <ClockCircleOutlined />
-              <Text type="secondary">{dayjs(pipeline.startTime).format('YYYY-MM-DD HH:mm:ss')}</Text>
-            </Space>
-          </Descriptions.Item>
-          <Descriptions.Item label="结束时间">
-            {pipeline.endTime ? (
-              <Text type="secondary">{dayjs(pipeline.endTime).format('YYYY-MM-DD HH:mm:ss')}</Text>
-            ) : (
-              <Text type="secondary">-</Text>
-            )}
-          </Descriptions.Item>
-          <Descriptions.Item label="耗时">
-            {formatDuration(pipeline.duration)}
-          </Descriptions.Item>
-          <Descriptions.Item label="进度">
-            <Space>
-              <Badge
-                status="processing"
-                text={`${completedStages}/${totalStages} 阶段完成`}
-              />
-              <Text type="secondary">({progressPercent}%)</Text>
-            </Space>
-          </Descriptions.Item>
-        </Descriptions>
-      </CardPanel>
+      {loading || !pipeline ? (
+        <CardPanel>Loading...</CardPanel>
+      ) : (
+        <CardPanel>
+          <Descriptions
+            column={4}
+            size="small"
+            bordered
+            labelStyle={{ width: 120 }}
+          >
+            <Descriptions.Item label="状态">
+              <StatusBadge status={pipeline.status} size="small" />
+            </Descriptions.Item>
+            <Descriptions.Item label="分支">
+              <Tag color="blue">{pipeline.branch}</Tag>
+            </Descriptions.Item>
+            <Descriptions.Item label="触发人">
+              <Text code>{pipeline.author}</Text>
+            </Descriptions.Item>
+            <Descriptions.Item label="触发方式">
+              <Tag>{triggerLabel[pipeline.trigger] || pipeline.trigger}</Tag>
+            </Descriptions.Item>
+            <Descriptions.Item label="开始时间">
+              <Space>
+                <ClockCircleOutlined />
+                <Text type="secondary">{dayjs(pipeline.startTime).format('YYYY-MM-DD HH:mm:ss')}</Text>
+              </Space>
+            </Descriptions.Item>
+            <Descriptions.Item label="结束时间">
+              {pipeline.endTime ? (
+                <Text type="secondary">{dayjs(pipeline.endTime).format('YYYY-MM-DD HH:mm:ss')}</Text>
+              ) : (
+                <Text type="secondary">-</Text>
+              )}
+            </Descriptions.Item>
+            <Descriptions.Item label="耗时">
+              {formatDuration(pipeline.duration)}
+            </Descriptions.Item>
+            <Descriptions.Item label="进度">
+              <Space>
+                <Badge
+                  status="processing"
+                  text={`${completedStages}/${totalStages} 阶段完成`}
+                />
+                <Text type="secondary">({progressPercent}%)</Text>
+              </Space>
+            </Descriptions.Item>
+          </Descriptions>
+        </CardPanel>
+      )}
 
       {/* Tabbed content: Stages / Logs */}
-      <Tabs
-        activeKey={activeTab}
-        onChange={setActiveTab}
-        style={{ marginBottom: 16 }}
-      >
+      {loading || !pipeline ? null : (
+        <Tabs
+          activeKey={activeTab}
+          onChange={setActiveTab}
+          style={{ marginBottom: 16 }}
+        >
         <TabPane
           tab={
             <Space>
@@ -400,6 +437,7 @@ const PipelineDetail: React.FC = () => {
           </CardPanel>
         </TabPane>
       </Tabs>
+      )}
     </div>
   );
 };

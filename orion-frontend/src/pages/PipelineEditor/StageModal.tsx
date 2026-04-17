@@ -1,8 +1,9 @@
 /**
  * StageModal - Stage 配置弹窗
  */
-import React, { useEffect } from 'react';
-import { Modal, Form, Input, InputNumber, Select, Space, Typography, Divider } from 'antd';
+import React, { useEffect, useState } from 'react';
+import { Modal, Form, Input, InputNumber, Select, Space, Typography, Divider, Switch, Button, Card } from 'antd';
+import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import type { StageConfig } from './index';
 
 const { Title } = Typography;
@@ -33,6 +34,8 @@ const StageModal: React.FC<StageModalProps> = ({
   onCancel,
 }) => {
   const [form] = Form.useForm();
+  const [cachePaths, setCachePaths] = useState<string[]>(['']);
+  const [artifactPaths, setArtifactPaths] = useState<string[]>(['']);
 
   useEffect(() => {
     if (stage) {
@@ -46,9 +49,18 @@ const StageModal: React.FC<StageModalProps> = ({
         command: stage.config?.command || '',
         image: stage.config?.image || '',
         env: stage.config?.env || '',
+        cacheEnabled: stage.cache?.enabled || false,
+        cacheKey: stage.cache?.key || '',
+        cacheRestoreKeys: stage.cache?.restoreKeys?.join('\n') || '',
+        artifactUpload: stage.artifacts?.upload?.join('\n') || '',
+        artifactExpiry: stage.artifacts?.expiry || 7,
       });
+      setCachePaths(stage.cache?.paths?.length ? stage.cache.paths : ['']);
+      setArtifactPaths(stage.artifacts?.upload?.length ? stage.artifacts.upload : ['']);
     } else {
       form.resetFields();
+      setCachePaths(['']);
+      setArtifactPaths(['']);
     }
   }, [stage, form, visible]);
 
@@ -68,11 +80,47 @@ const StageModal: React.FC<StageModalProps> = ({
           image: values.image,
           env: values.env,
         },
+        // 缓存配置
+        cache: values.cacheEnabled ? {
+          enabled: true,
+          key: values.cacheKey,
+          paths: cachePaths.filter(p => p.trim()),
+          restoreKeys: values.cacheRestoreKeys?.split('\n').filter((k: string) => k.trim()),
+        } : undefined,
+        // Artifact 配置
+        artifacts: {
+          upload: artifactPaths.filter(p => p.trim()),
+          expiry: values.artifactExpiry,
+        },
       };
       onSave(stageConfig);
     } catch (error) {
       // 验证失败，不处理
     }
+  };
+
+  // 缓存路径管理
+  const handleAddCachePath = () => setCachePaths([...cachePaths, '']);
+  const handleRemoveCachePath = (index: number) => {
+    const newPaths = cachePaths.filter((_, i) => i !== index);
+    setCachePaths(newPaths.length ? newPaths : ['']);
+  };
+  const handleUpdateCachePath = (index: number, value: string) => {
+    const newPaths = [...cachePaths];
+    newPaths[index] = value;
+    setCachePaths(newPaths);
+  };
+
+  // Artifact 路径管理
+  const handleAddArtifactPath = () => setArtifactPaths([...artifactPaths, '']);
+  const handleRemoveArtifactPath = (index: number) => {
+    const newPaths = artifactPaths.filter((_, i) => i !== index);
+    setArtifactPaths(newPaths.length ? newPaths : ['']);
+  };
+  const handleUpdateArtifactPath = (index: number, value: string) => {
+    const newPaths = [...artifactPaths];
+    newPaths[index] = value;
+    setArtifactPaths(newPaths);
   };
 
   return (
@@ -81,9 +129,15 @@ const StageModal: React.FC<StageModalProps> = ({
       open={visible}
       onOk={handleOk}
       onCancel={onCancel}
-      width={600}
+      width={700}
       okText="保存"
       cancelText="取消"
+      footer={
+        <Space>
+          <Button onClick={onCancel}>取消</Button>
+          <Button type="primary" onClick={handleOk}>保存</Button>
+        </Space>
+      }
     >
       <Form
         form={form}
@@ -92,6 +146,8 @@ const StageModal: React.FC<StageModalProps> = ({
         initialValues={{
           timeout: 300,
           retryCount: 0,
+          cacheEnabled: false,
+          artifactExpiry: 7,
         }}
       >
         <Form.Item
@@ -214,6 +270,114 @@ const StageModal: React.FC<StageModalProps> = ({
             style={{ fontFamily: 'monospace' }}
           />
         </Form.Item>
+
+        {/* 缓存配置 */}
+        <Divider orientation="left" orientationMargin={0}>
+          <Space>
+            <Form.Item noStyle name="cacheEnabled" valuePropName="checked">
+              <Switch size="small" />
+            </Form.Item>
+            <span>启用构建缓存</span>
+          </Space>
+        </Divider>
+
+        <Form.Item noStyle shouldUpdate>
+          {(formInstance) => formInstance.getFieldValue('cacheEnabled') && (
+            <Card size="small" style={{ marginBottom: 16 }}>
+              <Form.Item
+                label="缓存 Key"
+                name="cacheKey"
+                tooltip="缓存的唯一标识，可使用表达式如 ${{ hashFiles('package-lock.json') }}"
+                rules={[{ required: true, message: '请输入缓存 Key' }]}
+              >
+                <Input placeholder="例如：npm-${{ hashFiles('package-lock.json') }}" />
+              </Form.Item>
+
+              <Form.Item label="缓存路径" required>
+                <Space direction="vertical" style={{ width: '100%' }} size={8}>
+                  {cachePaths.map((path, index) => (
+                    <Space key={index} style={{ width: '100%' }}>
+                      <Input
+                        value={path}
+                        onChange={(e) => handleUpdateCachePath(index, e.target.value)}
+                        placeholder="例如：node_modules, .npm/cache"
+                        style={{ flex: 1 }}
+                      />
+                      <Button
+                        icon={<PlusOutlined />}
+                        onClick={handleAddCachePath}
+                      />
+                      <Button
+                        danger
+                        icon={<DeleteOutlined />}
+                        onClick={() => handleRemoveCachePath(index)}
+                        disabled={cachePaths.length === 1}
+                      />
+                    </Space>
+                  ))}
+                </Space>
+              </Form.Item>
+
+              <Form.Item
+                label="恢复 Key 前缀"
+                name="cacheRestoreKeys"
+                tooltip="用于匹配缓存的前缀列表，每行一个"
+              >
+                <TextArea
+                  rows={2}
+                  placeholder="npm-&#10;build-"
+                  style={{ fontFamily: 'monospace' }}
+                />
+              </Form.Item>
+            </Card>
+          )}
+        </Form.Item>
+
+        {/* Artifact 配置 */}
+        <Divider orientation="left" orientationMargin={0}>构建产物 (Artifact)</Divider>
+
+        <Card size="small" style={{ marginBottom: 16 }}>
+          <Form.Item
+            label="上传路径"
+            required
+          >
+            <Space direction="vertical" style={{ width: '100%' }} size={8}>
+              {artifactPaths.map((path, index) => (
+                <Space key={index} style={{ width: '100%' }}>
+                  <Input
+                    value={path}
+                    onChange={(e) => handleUpdateArtifactPath(index, e.target.value)}
+                    placeholder="例如：dist/, build/*.jar"
+                    style={{ flex: 1 }}
+                  />
+                  <Button
+                    icon={<PlusOutlined />}
+                    onClick={handleAddArtifactPath}
+                  />
+                  <Button
+                    danger
+                    icon={<DeleteOutlined />}
+                    onClick={() => handleRemoveArtifactPath(index)}
+                    disabled={artifactPaths.length === 1}
+                  />
+                </Space>
+              ))}
+            </Space>
+          </Form.Item>
+
+          <Form.Item
+            label="过期时间 (天)"
+            name="artifactExpiry"
+            tooltip="构建产物保留天数，0 表示永久保存"
+          >
+            <InputNumber
+              min={0}
+              max={365}
+              style={{ width: '100%' }}
+              placeholder="默认 7 天"
+            />
+          </Form.Item>
+        </Card>
       </Form>
     </Modal>
   );

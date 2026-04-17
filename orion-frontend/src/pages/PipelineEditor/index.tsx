@@ -2,14 +2,14 @@
  * Pipeline Editor Page - 可视化 Pipeline 编辑器
  * 支持拖拽式 Stage 编排、Stage 增删改、依赖配置、YAML 预览
  */
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   Typography, Button, Space, Card, message, Modal, Form,
-  Input, Select, Divider, Tag, Tooltip, Alert, Drawer
+  Input, Divider, Tag, Alert, Drawer
 } from 'antd';
 import {
-  PlusOutlined, DeleteOutlined, EditOutlined, SaveOutlined,
-  UndoOutlined, PlayCircleOutlined, DragOutlined, CodeOutlined,
+  PlusOutlined, SaveOutlined,
+  UndoOutlined, DragOutlined, CodeOutlined,
   ArrowLeftOutlined, CopyOutlined
 } from '@ant-design/icons';
 import { DndContext, closestCenter } from '@dnd-kit/core';
@@ -17,7 +17,7 @@ import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-ki
 import { useNavigate, useParams } from 'react-router-dom';
 import StageItem from './StageItem';
 import StageModal from './StageModal';
-import { mockPipelines } from '@/pages/__mocks__/mockData';
+import { getPipeline, createPipeline, updatePipeline } from '@/api/pipelines';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -30,6 +30,20 @@ export interface StageConfig {
   retryCount?: number;
   dependsOn?: string[];
   config: Record<string, any>;
+  cache?: CacheConfig;
+  artifacts?: ArtifactConfig;
+}
+
+export interface CacheConfig {
+  enabled: boolean;
+  key: string;
+  paths: string[];
+  restoreKeys?: string[];
+}
+
+export interface ArtifactConfig {
+  upload?: string[];
+  expiry?: number;
 }
 
 interface PipelineForm {
@@ -77,27 +91,34 @@ const PipelineEditor: React.FC = () => {
   // 加载现有 Pipeline（编辑模式）
   React.useEffect(() => {
     if (id) {
-      const pipeline = mockPipelines.find(p => p.id === id);
-      if (pipeline) {
-        setPipelineInfo({
-          name: pipeline.name,
-          version: pipeline.version || '1.0.0',
-          description: pipeline.description || '',
-        });
-        // 从 spec.stages 加载 Stage
-        if (pipeline.spec?.stages) {
-          const loadedStages: StageConfig[] = pipeline.spec.stages.map((s: any, idx: number) => ({
-            id: `stage-${idx}-${Date.now()}`,
-            name: s.name,
-            type: s.type || 'custom',
-            timeout: s.timeout,
-            retryCount: s.retryCount,
-            dependsOn: s.dependsOn || [],
-            config: s.config || {},
-          }));
-          setStages(loadedStages);
+      getPipeline(id).then((response) => {
+        const pipeline: any = response.data.data;
+        if (pipeline) {
+          setPipelineInfo({
+            name: pipeline.name,
+            version: pipeline.version || '1.0.0',
+            description: pipeline.description || '',
+          });
+          // 从 spec.stages 加载 Stage
+          if (pipeline.spec?.stages) {
+            const loadedStages: StageConfig[] = pipeline.spec.stages.map((s: any, idx: number) => ({
+              id: `stage-${idx}-${Date.now()}`,
+              name: s.name,
+              type: s.type || 'custom',
+              timeout: s.timeout,
+              retryCount: s.retryCount,
+              dependsOn: s.dependsOn || [],
+              config: s.config || {},
+              cache: s.cache,
+              artifacts: s.artifacts,
+            }));
+            setStages(loadedStages);
+          }
         }
-      }
+      }).catch((error) => {
+        message.error('加载 Pipeline 失败');
+        console.error('Failed to load pipeline:', error);
+      });
     }
   }, [id]);
 
@@ -110,13 +131,35 @@ const PipelineEditor: React.FC = () => {
 
 spec:
   stages:
-${stages.map(stage => `    - name: ${stage.name}
-      type: ${stage.type}
-      timeout: ${stage.timeout || 300}
-      retryCount: ${stage.retryCount || 0}
-      dependsOn: ${stage.dependsOn?.length ? JSON.stringify(stage.dependsOn) : '[]'}
-      config:
-        ${JSON.stringify(stage.config, null, 8).split('\n').join('\n        ')}`).join('\n')}`;
+${stages.map(stage => {
+    const lines = [
+      `    - name: ${stage.name}`,
+      `      type: ${stage.type}`,
+      `      timeout: ${stage.timeout || 300}`,
+      `      retryCount: ${stage.retryCount || 0}`,
+      `      dependsOn: ${stage.dependsOn?.length ? JSON.stringify(stage.dependsOn) : '[]'}`,
+    ];
+
+    // 缓存配置
+    if (stage.cache?.enabled) {
+      lines.push(`      cache:
+        key: ${stage.cache.key}
+        paths: ${JSON.stringify(stage.cache.paths)}
+        restoreKeys: ${stage.cache.restoreKeys ? JSON.stringify(stage.cache.restoreKeys) : '[]'}`);
+    }
+
+    // Artifact 配置
+    if (stage.artifacts?.upload?.length) {
+      lines.push(`      artifacts:
+        upload: ${JSON.stringify(stage.artifacts.upload)}
+        expiry: ${stage.artifacts.expiry || 7}`);
+    }
+
+    lines.push(`      config:
+        ${JSON.stringify(stage.config, null, 8).split('\n').join('\n        ')}`);
+
+    return lines.join('\n');
+  }).join('\n')}`;
     return yaml;
   }, [pipelineInfo, stages]);
 
@@ -220,23 +263,24 @@ ${stages.map(stage => `    - name: ${stage.name}
     try {
       const yaml = generateYaml();
 
-      // 模拟 API 调用
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // 调用真实 API
+      if (id) {
+        await updatePipeline(id, { yamlDefinition: yaml });
+        message.success('Pipeline 已更新');
+      } else {
+        await createPipeline({
+          name: pipelineInfo.name,
+          version: pipelineInfo.version,
+          description: pipelineInfo.description,
+          yamlDefinition: yaml,
+        });
+        message.success('Pipeline 已创建');
+      }
 
-      // 实际使用时替换为真实 API 调用
-      // const response = id
-      //   ? await api.put(`/api/v1/pipelines/${id}`, { yamlDefinition: yaml })
-      //   : await api.post('/api/v1/pipelines', {
-      //       name: pipelineInfo.name,
-      //       version: pipelineInfo.version,
-      //       description: pipelineInfo.description,
-      //       yamlDefinition: yaml
-      //     });
-
-      message.success(id ? 'Pipeline 已更新' : 'Pipeline 已创建');
       navigate('/pipelines');
     } catch (error) {
       message.error('保存失败，请重试');
+      console.error('Failed to save pipeline:', error);
     } finally {
       setSaving(false);
     }
