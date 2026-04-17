@@ -37,6 +37,14 @@ import alertRoutes from './alert-routes';
 import auditRoutes from './audit-routes';
 import tenantRoutes from './tenant-routes';
 import efficiencyRoutes from './efficiency-routes';
+import sbomRoutes from './sbom-routes';
+import policyRoutes from './policy-routes';
+import changeIntelligenceRoutes from './change-intelligence-routes';
+import canaryAnalysisRoutes from './canary-analysis-routes';
+import iacRoutes from './iac-routes';
+import chatopsRoutes from './chatops-routes';
+import skillRoutes from './skill-routes';
+import aiCostRoutes from './ai-cost-routes';
 
 export interface ApiRoutesOptions {
   eventBus?: EventBusService;
@@ -237,4 +245,22 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // 注册效能分析 API 路由
   await app.register(efficiencyRoutes, { prefix: '/efficiency' });
+
+  // 注册 SBOM Attestation API 路由 (P0)
+  await app.register(sbomRoutes, { prefix: '/sbom', eventBus: options.eventBus });
+
+  // 注册 OPA Policy Engine API 路由 (P0)
+  await app.register(policyRoutes, { prefix: '/policies', eventBus: options.eventBus });
+
+  // 注册 AI Change Intelligence API 路由 (P0)
+  await app.register(changeIntelligenceRoutes, { prefix: '/change-intelligence', eventBus: options.eventBus });
+
+  // 注册 ML Canary Analysis API 路由 (P0)
+  await app.register(canaryAnalysisRoutes, { prefix: '/canary-analysis', eventBus: options.eventBus });
+
+  // 注册 Skill Management API 路由 (M12)
+  await app.register(skillRoutes, { prefix: '/skills' });
+
+  // 注册 AI Cost Optimization API 路由 (M36)
+  await app.register(aiCostRoutes, { prefix: '/ai-cost' });
 }
