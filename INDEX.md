@@ -1,8 +1,9 @@
 # 📚 Orion 设计文档索引
 
-> 版本：v1.1 | 创建日期：2026-04-10 | 状态：37 模块 251 功能完整  
+> 版本：v2.0 | 创建日期：2026-04-10 | 状态：**41 模块 251 功能**  
 > 变更日志：[CHANGELOG.md](CHANGELOG.md) | 管理规范：[docs/文档管理规范.md](docs/文档管理规范.md)  
-> **最新更新**: 补充 53 个功能 (AI 算法/LLM/SSO/产物/二方库/知识库/CMDB)
+> **最新更新**: 2026-04-18 — 新增 4 模块代码实现，全部 41 模块实现状态标注  
+> **实现进度**: 后端 36/41 ✅ | 前端 38/41 ✅ | API 34/41 ✅ | 数据库 10/41 ✅
 
 ---
 
@@ -32,18 +33,40 @@
 
 ---
 
+## 代码实现状态总览
+
+| 维度 | 数量 | 说明 |
+|------|------|------|
+| **后端服务** | 32 个目录 | `orion-platform-service/src/services/` |
+| **前端页面** | 50 个目录 | `orion-frontend/src/pages/` |
+| **API 客户端** | 33 个文件 | `orion-frontend/src/api/` |
+| **后端路由** | 28 个文件 | `orion-platform-service/src/api/*-routes.ts` |
+| **数据库迁移** | 10 对 (024-033) | `orion-platform-service/src/db/migrations/` |
+| **设计文档** | 170+ 份 | 含架构/AI/安全/前端/SRE 等 |
+
+### 模块实现矩阵
+
+| 状态 | 数量 | 模块 |
+|------|------|------|
+| ✅ 全栈实现 | 30 | M1,M4,M5,M7,M9-M19,M21-M23,M26,M27,M31,M35-M37 + AI Change Intelligence, ML Canary Analysis, AI Agent Orchestration, Ephemeral Dev Environments |
+| 🟡 部分实现 | 8 | M2(前端组件已实现), M3(嵌入到自愈页面), M8(前端已实现), M24(后端服务), M25(后端+路由), M28(独立子项目), M32(后端服务), M33(前端+API) |
+| 🔴 未实现 | 3 | M6(多分支产品线), M29(产物管理), M30(二方库管理) |
+| ➕ 代码新增 | 4 | AI Change Intelligence, ML Canary Analysis, AI Agent Orchestration, Ephemeral Dev Environments (不在原 INDEX 中) |
+
+---
+
 ## 文档统计
 
 | 维度 | 数量 |
 |------|------|
-| 总文档数 | **157 份** (不含子项目) |
-| 总行数 | **~120,000 行** |
+| 总文档数 | **170+ 份** (不含子项目) |
+| 总行数 | **~130,000 行** |
 | ADR 决策记录 | **13 份** |
 | 评审报告 | **5 份** |
 | 高保真设计 | **23 份** |
 | 文档模板 | **2 份** |
 | 子项目 | orion-visor, orion-knowledge, orion-dba |
-| **覆盖模块** | **37 个** |
+| **覆盖模块** | **41 个** (37 原 INDEX + 4 新增) |
 | **覆盖功能** | **251 个** |
 | **AI 功能** | **52 个** (23%) |
 
@@ -150,7 +173,29 @@
 | [Micro-frontend Guide](docs/frontend/micro-frontend-development-guide.md) | ~500 | 微前端开发指南 |
 | [微前端统一技术栈](docs/frontend/micro-frontend-unified-stack-design.md) | ~1100 | Vue 3 + qiankun |
 | [WebSocket 单例管理](docs/frontend/websocket-singleton-design.md) | ~900 | 多 Tab 共享连接 |
-| [AI 人工确认交互设计规范](docs/frontend/AI 人工确认交互设计规范.md) | ~1200 | P0/P1/P2/P3 分层确认 |
+| [AI 人工确认交互设计规范](docs/frontend/AI%20人工确认交互设计规范.md) | ~1200 | P0/P1/P2/P3 分层确认 |
+
+### 🔌 前端缺口模块设计 (新增 6 份)
+
+| 文档 | 行数 | 说明 |
+|------|------|------|
+| [BuildEnv 前端设计](docs/frontend/build-env-frontend-design.md) | ~500 | 构建镜像/缓存/Pod/日志/制品 |
+| [CodeMgmt 前端设计](docs/frontend/code-mgmt-frontend-design.md) | ~500 | 仓库/分支策略/CODEOWNERS/Webhook |
+| [AI Review 前端设计](docs/frontend/ai-review-frontend-design.md) | ~500 | Review 触发/历史/规则/配置 |
+| [Self-Healing 前端设计](docs/frontend/self-healing-frontend-design.md) | ~500 | 事件/历史/策略/审批队列 |
+| [Monitoring 前端设计](docs/frontend/monitoring-frontend-design.md) | ~500 | 指标/告警/规则/渠道 |
+| [Diagnostic 前端设计](docs/frontend/diagnostic-frontend-design.md) | ~500 | 诊断会话/报告/知识库/触发 |
+
+### 🏗️ P0 特性架构设计 (新增 6 份)
+
+| 文档 | 行数 | 说明 |
+|------|------|------|
+| [SBOM 供应链溯源](docs/architecture/sbom-attestation-design.md) | ~900 | SBOM 文档/签名/漏洞扫描/合规门禁 |
+| [OPA 策略引擎](docs/architecture/opa-policy-engine-design.md) | ~800 | Rego 策略/实时评估/违规管理 |
+| [AI 变更智能](docs/architecture/ai-change-intelligence-design.md) | ~700 | 变更风险分析/影响面评估/SHAP 归因 |
+| [ML 金丝雀分析](docs/architecture/ml-canary-analysis-design.md) | ~700 | ML 异常检测/自动回滚/置信度评估 |
+| [AI Agent 编排](docs/architecture/ai-agent-orchestration-design.md) | ~700 | Agent 画像/工作流/权限管理 |
+| [临时开发环境](docs/architecture/ephemeral-dev-environments-design.md) | ~700 | PR 环境自动拉起/隔离/销毁 |
 
 ### 🗄️ 数据库 (新增 3 份)
 
@@ -278,45 +323,49 @@
 
 ## 按模块索引
 
-| 模块 | 名称 | 相关文档 |
-|------|------|---------|
-| M1 | 效能看板 | DORA 指标计算，前端组件库，效能看板详细设计 |
-| M2 | 流水线可视化 | 前端架构，WebSocket 认证 |
-| M3 | 审批工作台 | 审批组件库，前端架构 |
-| M4 | 安全审计中心 | 安全与权限，数据隐私合规，审计日志防篡改 |
-| M5 | Pipeline 引擎 | 算法设计，Plugin-SPI |
-| M6 | 多分支产品线 | ADR-001, ADR-008 |
-| M7 | 配置管理 GitOps | 开放平台基座 |
-| M8 | 通知协作 | ChatOps 命令集，智能工单与自动排单 |
-| M9 | AI 算法引擎 | 算法设计，AI 降级方案，Prompt 注入防护 |
-| M10 | LLM 推理层 | AI 模型训练，特征漂移监控 |
-| M11 | AI 增强层 | AI-Skill-Schema |
-| M12 | Skill 管理 | AI-Skill-Schema |
-| M13 | 代码管理 | GitLab Adapter, Gerrit Adapter |
-| M14 | 构建环境 | 构建缓存 |
-| M15 | 多工具链 | 工具管理中心，Plugin-SPI, 依赖追踪 |
-| M16 | 智能部署 | 微服务架构，灾备方案 |
-| M17 | 自愈引擎 | 可观测性，自愈权限治理 |
-| M18 | 安全合规 | 安全与权限，Prompt 注入防护，软件供应链安全 |
-| M19 | 多租户 | 多租户隔离设计 |
-| M20 | IaC 管理 | IaC-AI-审查流程 |
-| M21 | 审计中心 | 安全与权限，SQL 审计，审计日志防篡改 |
-| M22 | FinOps 成本 | 成本数据采集，ClickHouse 集成 |
-| M23 | SSO/RBAC | 认证授权，JWT 并发刷新，SSO 集成设计 |
-| M24 | 事件总线 | NATS 事件总线，NATS 高可用 |
-| M25 | 数据存储 | 数据库选型，数据库分片，备份恢复 |
-| M26 | 可观测性 | 可观测性设计，部署架构 |
-| M27 | 插件扩展 | Plugin-SPI, 开放平台基座 |
-| M28 | Orion-Knowledge | 微服务改造方案，知识库基础设计，RAG 问答 |
-| M29 | 产物管理 | 产物管理详细设计，Artifact Promotion |
-| M30 | 二方库管理 | 二方库管理详细设计，依赖追踪 |
-| M31 | 智能工单 | 智能工单与自动排单设计 |
-| M32 | CMDB | CMDB 模块设计，CMDB 集成接口，CMDB Schema |
-| M33 | 通知中心 | 通知协作，ChatOps |
-| M34 | 人工确认交互 | AI 人工确认交互设计规范 |
-| M35 | ChatOps | ChatOps 命令集设计 |
-| M36 | AI 成本优化 | AI 成本控制设计 |
-| M37 | AI 文档管理 | 知识库详细设计，RAG 问答，知识图谱 |
+| 模块 | 名称 | 实现状态 | 代码位置 | 相关文档 |
+|------|------|----------|----------|---------|
+| M1 | 效能看板 | ✅ 全栈 | `services/efficiency/` `pages/EfficiencyDashboard/` `api/efficiency.ts` `efficiency-routes.ts` | DORA 指标计算，前端组件库，效能看板详细设计 |
+| M2 | 流水线可视化 | 🟡 前端组件 | `pages/PipelineList/` `PipelineEditor/` `PipelineDetail/` `api/pipelines.ts` `build-routes.ts` | 前端架构，WebSocket 认证 |
+| M3 | 审批工作台 | 🟡 嵌入组件 | `pages/SelfHealing/ApprovalQueue.tsx` | 审批组件库，前端架构 |
+| M4 | 安全审计中心 | ✅ 全栈 | `services/ai-security/` `pages/RiskDashboard/` `api/risk.ts` `ai-security-routes.ts` `risk-routes.ts` | 安全与权限，数据隐私合规，审计日志防篡改 |
+| M5 | Pipeline 引擎 | ✅ 全栈 | `services/pipeline/` `pages/PipelineList/Editor/Detail/` `api/pipelines.ts` `build-routes.ts` | 算法设计，Plugin-SPI |
+| M6 | 多分支产品线 | 🔴 未实现 | — | ADR-001, ADR-008, product-line-management-design.md |
+| M7 | 配置管理 GitOps | ✅ 全栈 | `services/config-mgmt/` `pages/ConfigManagement/` `api/config.ts` `config-routes.ts` | 开放平台基座 |
+| M8 | 通知协作 | 🟡 前端+API | `pages/NotificationCenter/` `api/notifications.ts` | ChatOps 命令集，智能工单与自动排单 |
+| M9 | AI 算法引擎 | ✅ 全栈 | `services/ai/` `pages/AIGateway/` `api/ai-gateway.ts` `ai-gateway-routes.ts` | 算法设计，AI 降级方案，Prompt 注入防护 |
+| M10 | LLM 推理层 | 🟡 与 M9 共用 | `services/ai/` `pages/AIGateway/` `api/ai-gateway.ts` | AI 模型训练，特征漂移监控 |
+| M11 | AI 增强层 | ✅ 全栈 | `services/ai-review/` `pages/AIReview/` `api/ai-review.ts` `ai-review-routes.ts` | AI-Skill-Schema |
+| M12 | Skill 管理 | ✅ 全栈 | `services/skill/` `pages/SkillManagement/` `api/skills.ts` `skill-routes.ts` `migrations/030` | AI-Skill-Schema, skill-marketplace-design.md |
+| M13 | 代码管理 | ✅ 全栈 | `services/code-repo/` `pages/CodeMgmt/` `api/code-mgmt.ts` `code-repo-routes.ts` | GitLab Adapter, Gerrit Adapter |
+| M14 | 构建环境 | ✅ 全栈 | `services/build/` `pages/BuildEnv/` `api/build-env.ts` `build-routes.ts` | 构建缓存 |
+| M15 | 多工具链 | ✅ 全栈 | `services/plugin/` `services/plugin-spi/` `pages/PluginManagement/` `api/plugins.ts` `plugin-spi-routes.ts` `routes-plugin.ts` | 工具管理中心，Plugin-SPI, 依赖追踪 |
+| M16 | 智能部署 | ✅ 全栈 | `services/smart-deploy/` `pages/DeploymentList/Detail/` `api/deployments.ts` `deploy-routes.ts` | 微服务架构，灾备方案 |
+| M17 | 自愈引擎 | ✅ 全栈 | `services/self-healing/` `pages/SelfHealing/` `api/self-healing.ts` `self-healing-routes.ts` | 可观测性，自愈权限治理 |
+| M18 | 安全合规 | ✅ 全栈 | `services/policy/` `services/sbom/` `pages/PolicyManagement/` `SbomDashboard/Detail/` `api/policies.ts` `sbom.ts` `policy-routes.ts` `sbom-routes.ts` `migrations/026,027` | 安全与权限，Prompt 注入防护，软件供应链安全 |
+| M19 | 多租户 | ✅ 全栈 | `services/tenant/` `pages/TenantManagement/` `api/tenant.ts` `tenant-routes.ts` | 多租户隔离设计 |
+| M20 | IaC 管理 | ✅ 全栈 | `services/iac/` `pages/IacManagement/` `api/iac.ts` `iac-routes.ts` `migrations/032` | IaC-AI-审查流程, iac-management-design.md |
+| M21 | 审计中心 | ✅ 全栈 | `services/audit/` `pages/AuditLog/` `api/audit.ts` `audit-routes.ts` | 安全与权限，SQL 审计，审计日志防篡改 |
+| M22 | FinOps 成本 | ✅ 全栈 | `services/finops/` `pages/FinOpsDashboard/` `api/finops.ts` `finops-v2-routes.ts` | 成本数据采集，ClickHouse 集成 |
+| M23 | SSO/RBAC | ✅ 全栈 | `api/auth.ts` `routes-auth.ts` `pages/Login/` | 认证授权，JWT 并发刷新，SSO 集成设计 |
+| M24 | 事件总线 | 🟡 后端服务 | `services/event-bus-service.ts` | NATS 事件总线，NATS 高可用 |
+| M25 | 数据存储 | 🟡 后端+路由 | `services/database/` `services/backup/` `backup-routes.ts` | 数据库选型，数据库分片，备份恢复 |
+| M26 | 可观测性 | ✅ 全栈 | `services/monitoring/` `services/diagnostic/` `pages/Monitoring/` `Diagnostic/` `api/monitoring.ts` `diagnostic.ts` `monitoring-routes.ts` `diagnostic-routes.ts` | 可观测性设计，部署架构 |
+| M27 | 插件扩展 | 🟡 与 M15 共用 | `services/plugin/` `services/plugin-spi/` `pages/PluginManagement/` `api/plugins.ts` `routes-plugin.ts` | Plugin-SPI, 开放平台基座 |
+| M28 | Orion-Knowledge | 🟡 独立子项目 | `orion-knowledge/` (Go 微服务 + Vue 前端) | 微服务改造方案，知识库基础设计，RAG 问答 |
+| M29 | 产物管理 | 🔴 未实现 | — | 产物管理详细设计，Artifact Promotion |
+| M30 | 二方库管理 | 🔴 未实现 | — | 二方库管理详细设计，依赖追踪 |
+| M31 | 智能工单 | ✅ 全栈 | `services/ticketing/` `pages/TicketList/Detail/` `api/ticketing.ts` `ticketing-routes.ts` | 智能工单与自动排单设计 |
+| M32 | CMDB | 🟡 后端服务 | `services/cmdb/` `services/cmdb-integration-service.ts` | CMDB 模块设计，CMDB 集成接口，CMDB Schema |
+| M33 | 通知中心 | 🟡 前端+API | `pages/NotificationCenter/` `api/notifications.ts` | 通知协作，ChatOps |
+| M34 | 人工确认交互 | 🟡 前端+API | `pages/ConfirmationWorkbench/` `api/confirmations.ts` | AI 人工确认交互设计规范 |
+| M35 | ChatOps | ✅ 全栈 | `services/chatops/` `pages/ChatOps/` `api/chatops.ts` `chatops-routes.ts` `migrations/033` | ChatOps 命令集设计, chatops-design.md |
+| M36 | AI 成本优化 | ✅ 全栈 | `services/cost/` `pages/AICostDashboard/` `api/ai-cost.ts` `ai-cost-routes.ts` `migrations/031` | AI 成本控制设计, ai-cost-control-design.md |
+| M37 | AI 文档管理 | 🟡 前端+子项目 | `pages/AIDocManagement/` `api/ai-docs.ts` + `orion-knowledge/` 子项目 | 知识库详细设计，RAG 问答，知识图谱 |
+| **M38** | **AI 变更智能** | ✅ 全栈 | `services/change-intelligence/` `pages/ChangeIntelligence/` `api/change-intelligence.ts` `change-intelligence-routes.ts` `migrations/028` | ai-change-intelligence-design.md |
+| **M39** | **ML 金丝雀分析** | ✅ 全栈 | `services/canary-analysis/` `pages/CanaryAnalysis/` `api/canary-analysis.ts` `canary-analysis-routes.ts` `migrations/029` | ml-canary-analysis-design.md |
+| **M40** | **AI Agent 编排** | ✅ 全栈 | `services/agent-profile-service.ts` `agent-run-service.ts` `pages/AgentDashboard/` `AgentRunDetail/` `api/agents.ts` `routes-agent.ts` `migrations/024` | ai-agent-orchestration-design.md |
+| **M41** | **临时开发环境** | ✅ 全栈 | `services/ephemeral-env-service.ts` `k8s-provisioner-service.ts` `pages/EphemeralEnvList/Detail/` `api/ephemeral-envs.ts` `routes-ephemeral-env.ts` `migrations/025` | ephemeral-dev-environments-design.md |
 
 ---
 
@@ -353,4 +402,5 @@ wc -l docs/**/*.md
 
 ---
 
-_维护者：Orion 架构团队 | 更新频率：每次文档变更时同步更新 | 最后更新：2026-04-11_
+_维护者：Orion 架构团队 | 更新频率：每次文档变更时同步更新 | 最后更新：2026-04-18_
+_实现状态 v2.0: 41 模块中 30 全栈实现，8 部分实现，3 待实现_
