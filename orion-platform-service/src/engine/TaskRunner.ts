@@ -21,14 +21,14 @@ export class TaskRunner {
   /**
    * 执行 Task
    */
-  async run(task: Task): Promise<Task> {
+  async run(task: Task, signal?: AbortSignal): Promise<Task> {
     let updatedTask = { ...task };
     updatedTask = appendTaskLog(updatedTask, `[INFO] Starting task: ${task.name}`);
     updatedTask = appendTaskLog(updatedTask, `[INFO] Task type: ${task.type}`);
 
     try {
-      // 根据 task type 分发到不同的执行器
-      const result = await this.executeByType(updatedTask);
+      // 根据 task type 分发到不同执行器
+      const result = await this.executeByType(updatedTask, signal);
 
       updatedTask = appendTaskLog(updatedTask, `[INFO] Task completed successfully`);
 
@@ -56,34 +56,33 @@ export class TaskRunner {
   /**
    * 根据类型执行 Task
    */
-  private async executeByType(task: Task): Promise<Record<string, unknown>> {
+  private async executeByType(task: Task, signal?: AbortSignal): Promise<Record<string, unknown>> {
     const type = task.type.toLowerCase();
 
     if (type.startsWith('git/')) {
-      return this.executeGitTask(task);
+      return this.executeGitTask(task, signal);
     } else if (type.startsWith('npm/') || type.startsWith('yarn/')) {
-      return this.executeNpmTask(task);
-    } else if (type.startsWith('k8s/')) {
-      return this.executeK8sTask(task);
+      return this.executeNpmTask(task, signal);
+    } else if (type.startsWith('k8s/') || type.startsWith('kubernetes/')) {
+      return this.executeK8sTask(task, signal);
     } else if (type.startsWith('shell/') || type.startsWith('script/')) {
-      return this.executeShellTask(task);
+      return this.executeShellTask(task, signal);
     } else {
       // 未知类型，模拟执行成功
-      return this.executeMockTask(task);
+      return this.executeMockTask(task, signal);
     }
   }
 
   /**
    * 执行 Git 相关任务
    */
-  private async executeGitTask(task: Task): Promise<Record<string, unknown>> {
+  private async executeGitTask(task: Task, signal?: AbortSignal): Promise<Record<string, unknown>> {
     const action = task.type.split('/')[1];
     const params = task.parameters;
 
     task = appendTaskLog(task, `[GIT] Executing ${action}...`);
 
-    // 模拟 Git 操作
-    await this.sleep(100);
+    await this.sleep(100, signal);
 
     return {
       action,
@@ -97,13 +96,12 @@ export class TaskRunner {
   /**
    * 执行 Npm/Yarn 任务
    */
-  private async executeNpmTask(task: Task): Promise<Record<string, unknown>> {
+  private async executeNpmTask(task: Task, signal?: AbortSignal): Promise<Record<string, unknown>> {
     const command = task.parameters.command || task.parameters.script || 'unknown';
 
     task = appendTaskLog(task, `[NPM] Running command: ${command}`);
 
-    // 模拟命令执行
-    await this.sleep(200);
+    await this.sleep(200, signal);
 
     return {
       command,
@@ -116,14 +114,13 @@ export class TaskRunner {
   /**
    * 执行 Kubernetes 任务
    */
-  private async executeK8sTask(task: Task): Promise<Record<string, unknown>> {
+  private async executeK8sTask(task: Task, signal?: AbortSignal): Promise<Record<string, unknown>> {
     const action = task.type.split('/')[1];
     const params = task.parameters;
 
     task = appendTaskLog(task, `[K8S] ${action} deployment ${params.name || 'unknown'}...`);
 
-    // 模拟 K8s 操作
-    await this.sleep(300);
+    await this.sleep(300, signal);
 
     return {
       action,
@@ -137,13 +134,12 @@ export class TaskRunner {
   /**
    * 执行 Shell 任务
    */
-  private async executeShellTask(task: Task): Promise<Record<string, unknown>> {
+  private async executeShellTask(task: Task, signal?: AbortSignal): Promise<Record<string, unknown>> {
     const script = task.parameters.script || task.parameters.command || '';
 
     task = appendTaskLog(task, `[SHELL] Executing: ${script}`);
 
-    // 模拟 shell 执行
-    await this.sleep(100);
+    await this.sleep(100, signal);
 
     return {
       script,
@@ -156,11 +152,10 @@ export class TaskRunner {
   /**
    * 执行模拟任务（用于测试）
    */
-  private async executeMockTask(task: Task): Promise<Record<string, unknown>> {
+  private async executeMockTask(task: Task, signal?: AbortSignal): Promise<Record<string, unknown>> {
     task = appendTaskLog(task, `[MOCK] Simulating task execution: ${task.name}`);
 
-    // 模拟执行
-    await this.sleep(50);
+    await this.sleep(50, signal);
 
     return {
       simulated: true,
@@ -171,9 +166,21 @@ export class TaskRunner {
   }
 
   /**
-   * 休眠辅助函数
+   * 休眠辅助函数（支持 AbortSignal 取消）
    */
-  private sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+  private sleep(ms: number, signal?: AbortSignal): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if (signal?.aborted) {
+        reject(new DOMException('Task was cancelled', 'AbortError'));
+        return;
+      }
+
+      const timer = setTimeout(resolve, ms);
+
+      signal?.addEventListener('abort', () => {
+        clearTimeout(timer);
+        reject(new DOMException('Task was cancelled', 'AbortError'));
+      }, { once: true });
+    });
   }
 }

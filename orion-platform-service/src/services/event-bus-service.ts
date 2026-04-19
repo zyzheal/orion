@@ -149,7 +149,7 @@ export class EventBusService extends EventEmitter {
   ): Promise<string> {
     if (!this.natsConnection) {
       console.warn('[EventBusService] NATS not connected, event not published:', type);
-      return 'mock-event-id';
+      throw new Error(`NATS not connected, cannot publish event: ${type}`);
     }
 
     try {
@@ -162,10 +162,10 @@ export class EventBusService extends EventEmitter {
       });
 
       const pubAck = await this.natsConnection.publish(subject, new TextEncoder().encode(message));
-      return pubAck.seq.toString();
+      return pubAck?.seq?.toString() || type;
     } catch (error) {
-      console.warn('[EventBusService] Failed to publish event:', error);
-      return 'mock-event-id';
+      console.error('[EventBusService] Failed to publish event:', error);
+      throw error;
     }
   }
 
@@ -209,6 +209,10 @@ export class EventBusService extends EventEmitter {
             msg.ack();
           } catch (error) {
             console.error('[EventBusService] Error handling message:', error);
+            // Nak the message so it can be redelivered (with DLQ handling in JetStream)
+            if (msg.nak) {
+              msg.nak();
+            }
           }
         }
       })().catch((err) => {

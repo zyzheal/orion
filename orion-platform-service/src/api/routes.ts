@@ -45,6 +45,7 @@ import iacRoutes from './iac-routes';
 import chatopsRoutes from './chatops-routes';
 import skillRoutes from './skill-routes';
 import aiCostRoutes from './ai-cost-routes';
+import confirmationRoutes from './confirmation-routes';
 
 export interface ApiRoutesOptions {
   eventBus?: EventBusService;
@@ -269,4 +270,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // 注册 ChatOps API 路由 (M35)
   await app.register(chatopsRoutes, { prefix: '/chatops', eventBus: options.eventBus });
+
+  // 注册 Manual Confirmation API 路由 (P0-6)
+  await app.register(confirmationRoutes, { prefix: '/confirmations' });
 }

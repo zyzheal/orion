@@ -1,14 +1,15 @@
 /**
- * Deployment Detail Page (TASK-905)
+ * Deployment Detail Page (TASK-905) - FIXED P0-2
  * Deployment detail with info, stage progress, health checks, and rollback.
+ * Uses real API calls instead of mock data.
  *
  * Features:
- * - Deployment info
- * - Stage progress
- * - Health check status
- * - Rollback button
+ * - Deployment info from API
+ * - Stage progress from API
+ * - Health check status from API
+ * - Real rollback via API
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Typography,
   Button,
@@ -21,6 +22,7 @@ import {
   Result,
   Row,
   Col,
+  Spin,
 } from 'antd';
 import {
   ArrowLeftOutlined,
@@ -28,12 +30,11 @@ import {
   CheckCircleOutlined,
   CloseCircleOutlined,
   InfoCircleOutlined,
-  SyncOutlined,
   QuestionCircleOutlined,
 } from '@ant-design/icons';
 import StatusBadge from '@/components/StatusBadge';
 import CardPanel from '@/components/CardPanel';
-import { mockDeployments } from '@/pages/__mocks__/mockData';
+import { getDeployment, rollbackDeployment, type Deployment, type HealthCheckResult } from '@/api/deployments';
 import { useNavigate, useParams } from 'react-router-dom';
 import dayjs from 'dayjs';
 
@@ -41,8 +42,10 @@ const { Title, Text } = Typography;
 
 // Environment display config
 const envConfig: Record<string, { color: string; label: string }> = {
+  prod: { color: 'red', label: '生产环境' },
   production: { color: 'red', label: '生产环境' },
   staging: { color: 'orange', label: '预发环境' },
+  dev: { color: 'blue', label: '开发环境' },
   development: { color: 'blue', label: '开发环境' },
   test: { color: 'default', label: '测试环境' },
 };
@@ -66,15 +69,74 @@ const healthCheckIcon: Record<string, React.ReactNode> = {
 const DeploymentDetail: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
+  const [deployment, setDeployment] = useState<Deployment | null>(null);
+  const [loading, setLoading] = useState(false);
   const [isRollingBack, setIsRollingBack] = useState(false);
   const [rollbackModalVisible, setRollbackModalVisible] = useState(false);
 
-  // Find the deployment from mock data
-  const deployment = mockDeployments.find((d) => d.id === id) || mockDeployments[0];
+  // Load deployment from API
+  const loadDeployment = async () => {
+    if (!id) return;
+    setLoading(true);
+    try {
+      const response = await getDeployment(id);
+      const data = response.data.data || response.data;
+      setDeployment(data as Deployment);
+    } catch (error) {
+      console.error('Failed to load deployment:', error);
+      message.error('加载部署详情失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadDeployment();
+  }, [id]);
+
+  // Handle rollback
+  const handleRollback = async () => {
+    if (!deployment) return;
+    setIsRollingBack(true);
+    setRollbackModalVisible(false);
+    try {
+      await rollbackDeployment(deployment.id);
+      message.success('回滚操作已触发，正在执行中...');
+      // Reload to get updated status
+      await loadDeployment();
+    } catch (error) {
+      console.error('Failed to rollback:', error);
+      message.error('回滚操作失败');
+    } finally {
+      setIsRollingBack(false);
+    }
+  };
+
+  if (loading && !deployment) {
+    return (
+      <div style={{ padding: 48, textAlign: 'center' }}>
+        <Spin size="large" />
+      </div>
+    );
+  }
+
+  if (!deployment) {
+    return (
+      <Result
+        status="404"
+        title="部署不存在"
+        subTitle="未找到该部署记录"
+        extra={
+          <Button type="primary" onClick={() => navigate('/deployments')}>
+            返回列表
+          </Button>
+        }
+      />
+    );
+  }
 
   const env = envConfig[deployment.environment] || { color: 'default', label: deployment.environment };
 
-  // Format duration
   const formatDuration = (seconds?: number) => {
     if (!seconds) return '-';
     const minutes = Math.floor(seconds / 60);
@@ -82,23 +144,11 @@ const DeploymentDetail: React.FC = () => {
     return minutes > 0 ? `${minutes}m ${secs}s` : `${secs}s`;
   };
 
-  // Stage status color
   const stageStatusColor: Record<string, string> = {
     success: '#52c41a',
     running: '#1890ff',
     failed: '#f5222d',
     pending: '#d9d9d9',
-  };
-
-  // Handle rollback
-  const handleRollback = () => {
-    setIsRollingBack(true);
-    setRollbackModalVisible(false);
-    // Simulate rollback
-    setTimeout(() => {
-      setIsRollingBack(false);
-      message.success('回滚操作已触发，正在执行中...');
-    }, 2000);
   };
 
   const canRollback = deployment.status === 'success';
@@ -130,7 +180,7 @@ const DeploymentDetail: React.FC = () => {
           </Text>
         </div>
         <Space>
-          <StatusBadge status={deployment.status} size="medium" />
+          <StatusBadge status={deployment.status as any} size="medium" />
           {canRollback && (
             <Button
               danger
@@ -186,7 +236,9 @@ const DeploymentDetail: React.FC = () => {
             <Text code>{deployment.triggeredBy}</Text>
           </Descriptions.Item>
           <Descriptions.Item label="开始时间">
-            {dayjs(deployment.startTime).format('YYYY-MM-DD HH:mm:ss')}
+            {deployment.startTime
+              ? dayjs(deployment.startTime).format('YYYY-MM-DD HH:mm:ss')
+              : '-'}
           </Descriptions.Item>
           <Descriptions.Item label="结束时间">
             {deployment.endTime
@@ -231,42 +283,43 @@ const DeploymentDetail: React.FC = () => {
         {/* Stage progress */}
         <Col xs={24} xl={14}>
           <CardPanel title="部署阶段">
-            <Space direction="vertical" style={{ width: '100%' }} size={12}>
-              {deployment.stages?.map((stage, index) => (
-                <Card
-                  key={stage.name}
-                  size="small"
-                  style={{
-                    borderLeft: `4px solid ${stageStatusColor[stage.status] || '#d9d9d9'}`,
-                  }}
-                >
-                  <div
+            {deployment.stages && deployment.stages.length > 0 ? (
+              <Space direction="vertical" style={{ width: '100%' }} size={12}>
+                {deployment.stages.map((stage, index) => (
+                  <Card
+                    key={stage.id || stage.name}
+                    size="small"
                     style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
+                      borderLeft: `4px solid ${stageStatusColor[stage.status] || '#d9d9d9'}`,
                     }}
                   >
-                    <Space>
-                      <Text strong style={{ fontSize: 14 }}>
-                        {index + 1}. {stage.name}
-                      </Text>
-                      {stage.status === 'running' && (
-                        <SyncOutlined spin style={{ color: '#1890ff' }} />
-                      )}
-                    </Space>
-                    <Space>
-                      {stage.details && (
-                        <Text type="secondary" style={{ fontSize: 12 }}>
-                          {stage.details}
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                      }}
+                    >
+                      <Space>
+                        <Text strong style={{ fontSize: 14 }}>
+                          {index + 1}. {stage.name}
                         </Text>
-                      )}
-                      <StatusBadge status={stage.status as any} size="small" />
-                    </Space>
-                  </div>
-                </Card>
-              ))}
-            </Space>
+                      </Space>
+                      <Space>
+                        {stage.details && (
+                          <Text type="secondary" style={{ fontSize: 12 }}>
+                            {stage.details}
+                          </Text>
+                        )}
+                        <StatusBadge status={stage.status as any} size="small" />
+                      </Space>
+                    </div>
+                  </Card>
+                ))}
+              </Space>
+            ) : (
+              <Text type="secondary">暂无阶段数据</Text>
+            )}
           </CardPanel>
         </Col>
 
@@ -275,7 +328,7 @@ const DeploymentDetail: React.FC = () => {
           <CardPanel title="健康检查">
             <Space direction="vertical" style={{ width: '100%' }} size={12}>
               {deployment.healthChecks && deployment.healthChecks.length > 0 ? (
-                deployment.healthChecks.map((check) => (
+                deployment.healthChecks.map((check: HealthCheckResult) => (
                   <div
                     key={check.name}
                     style={{

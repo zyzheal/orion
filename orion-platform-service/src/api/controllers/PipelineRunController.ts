@@ -192,21 +192,34 @@ export class PipelineRunController {
       const params = request.params as any;
       const { id } = params;
 
-      const run = await this.runService.cancelRun(id);
+      // Try to cancel via engine (stops running stages)
+      const cancelled = await this.engine.cancelExecution(id);
 
-      if (!run) {
-        await reply.status(404).send({
-          error: 'NOT_FOUND',
-          code: '30201',
-          message: `PipelineRun '${id}' not found`,
+      if (!cancelled) {
+        // Fallback: cancel at run service level (status-only for non-running)
+        const run = await this.runService.cancelRun(id);
+        if (!run) {
+          await reply.status(404).send({
+            error: 'NOT_FOUND',
+            code: '30201',
+            message: `PipelineRun '${id}' not found or not running`,
+          });
+          return;
+        }
+
+        await reply.send({
+          id: run.id,
+          status: run.status,
+          cancelledAt: run.completedAt,
         });
         return;
       }
 
+      const run = await this.runService.getRun(id);
       await reply.send({
-        id: run.id,
-        status: run.status,
-        cancelledAt: run.completedAt,
+        id: run!.id,
+        status: run!.status,
+        cancelledAt: run!.completedAt,
       });
     } catch (error) {
       await reply.status(500).send({

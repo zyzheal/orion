@@ -1,9 +1,9 @@
 /**
- * Stage Executor - Stage 执行器
+ * Stage Executor - Stage 执行器 (FIXED P0-3)
  *
  * 负责：
  * - 执行 Stage 内的 Tasks
- * - 处理 Stage 超时和重试
+ * - 处理 Stage 超时和重试（超时会取消正在运行的 Task）
  * - 更新 Stage 状态
  */
 
@@ -15,6 +15,9 @@ import { PipelineEventPublisher } from '../events/PipelineEventPublisher';
 export class StageExecutor {
   private taskRunner: TaskRunner;
   private eventPublisher: PipelineEventPublisher;
+
+  // Track active abort controllers for cancellation
+  private activeControllers = new Map<string, AbortController>();
 
   constructor(taskRunner: TaskRunner, eventPublisher: PipelineEventPublisher) {
     this.taskRunner = taskRunner;
@@ -58,14 +61,22 @@ export class StageExecutor {
     let updatedTask = startTask(task);
     await this.eventPublisher.publishTaskStarted(runId, stage.id, updatedTask);
 
+    // 创建 AbortController 用于超时取消
+    const controller = new AbortController();
+    this.activeControllers.set(task.id, controller);
+
     try {
       // 设置超时
-      const timeoutPromise = new Promise<Task>((_, reject) => {
-        setTimeout(() => reject(new Error(`Task timeout after ${updatedTask.timeoutSeconds}s`)), updatedTask.timeoutSeconds * 1000);
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => {
+          // 取消正在运行的 Task
+          controller.abort();
+          reject(new Error(`Task timeout after ${updatedTask.timeoutSeconds}s`));
+        }, updatedTask.timeoutSeconds * 1000);
       });
 
-      // 执行 Task
-      const executePromise = this.taskRunner.run(updatedTask);
+      // 执行 Task（传入 AbortSignal）
+      const executePromise = this.taskRunner.run(updatedTask, controller.signal);
 
       // 等待完成或超时
       const result = await Promise.race([executePromise, timeoutPromise]);
@@ -86,6 +97,32 @@ export class StageExecutor {
       await this.eventPublisher.publishTaskFailed(runId, stage.id, updatedTask, errorMessage);
 
       return updatedTask;
+    } finally {
+      // 清理 AbortController
+      this.activeControllers.delete(task.id);
+    }
+  }
+
+  /**
+   * 取消正在运行的 Task（供外部调用，如 P0-4 cancelRun）
+   */
+  cancelTask(taskId: string): void {
+    const controller = this.activeControllers.get(taskId);
+    if (controller) {
+      controller.abort();
+      this.activeControllers.delete(taskId);
+    }
+  }
+
+  /**
+   * 取消 Stage 内所有正在运行的 Tasks
+   */
+  cancelStage(stage: Stage): void {
+    // 清理此 stage 相关的所有活跃控制器
+    for (const [taskId] of this.activeControllers) {
+      if (taskId.startsWith(stage.id)) {
+        this.cancelTask(taskId);
+      }
     }
   }
 }

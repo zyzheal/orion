@@ -403,4 +403,54 @@ export class PipelineEngine {
   getExecution(runId: string): PipelineExecution | undefined {
     return this.executions.get(runId);
   }
+
+  /**
+   * 取消正在执行的 PipelineRun（FIXED P0-4）
+   * 停止所有运行中的 Stages，标记待处理 Stages 为取消
+   */
+  async cancelExecution(runId: string): Promise<boolean> {
+    const execution = this.executions.get(runId);
+    if (!execution) {
+      return false;
+    }
+
+    // 取消所有运行中的 Stages
+    for (const stageId of execution.runningStages) {
+      const stage = execution.stages.get(stageId);
+      if (stage) {
+        const cancelledStage = {
+          ...stage,
+          status: StageStatus.SKIPPED,
+          completedAt: new Date(),
+          durationMs: Date.now() - stage.startedAt!.getTime(),
+        };
+        execution.stages.set(stageId, cancelledStage);
+        await this.runService.updateStage(cancelledStage);
+        await this.eventPublisher.publishStageSkipped(execution.run.id, cancelledStage);
+      }
+    }
+
+    // 标记所有待处理的 Stages 为跳过
+    for (const stageId of execution.pendingStages) {
+      const stage = execution.stages.get(stageId);
+      if (stage) {
+        const skippedStage = {
+          ...stage,
+          status: StageStatus.SKIPPED,
+          completedAt: new Date(),
+        };
+        execution.stages.set(stageId, skippedStage);
+        await this.runService.updateStage(skippedStage);
+        await this.eventPublisher.publishStageSkipped(execution.run.id, skippedStage);
+      }
+    }
+
+    // 取消 PipelineRun
+    await this.runService.cancelRun(runId);
+
+    // 清理执行上下文
+    this.executions.delete(runId);
+
+    return true;
+  }
 }

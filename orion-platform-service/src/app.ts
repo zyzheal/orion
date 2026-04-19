@@ -136,10 +136,10 @@ export async function createApp(options: PlatformAppOptions = {}): Promise<{
 
   // ==================== API 路由 ====================
 
-  // 注册认证 API 路由
-  await app.register(authRoutes, { prefix: '/api/v1/auth' });
+  // Register auth API routes with database access
+  await app.register(authRoutes, { prefix: '/api/v1/auth', database: options.database });
 
-  // 注册 Pipeline API
+  // Register main API routes
   await app.register(apiRoutes, { prefix: '/api/v1', eventBus: options.eventBus });
 
   // 基础 API 路由

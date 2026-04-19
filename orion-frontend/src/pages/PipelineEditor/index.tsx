@@ -99,19 +99,24 @@ const PipelineEditor: React.FC = () => {
             version: pipeline.version || '1.0.0',
             description: pipeline.description || '',
           });
-          // 从 spec.stages 加载 Stage
+          // 从 spec.stages 加载 Stage，支持后端格式和前端格式
           if (pipeline.spec?.stages) {
-            const loadedStages: StageConfig[] = pipeline.spec.stages.map((s: any, idx: number) => ({
-              id: `stage-${idx}-${Date.now()}`,
-              name: s.name,
-              type: s.type || 'custom',
-              timeout: s.timeout,
-              retryCount: s.retryCount,
-              dependsOn: s.dependsOn || [],
-              config: s.config || {},
-              cache: s.cache,
-              artifacts: s.artifacts,
-            }));
+            const loadedStages: StageConfig[] = pipeline.spec.stages.map((s: any, idx: number) => {
+              // 后端格式: { name, runsOn, steps: [{ name, uses, with }], timeout, retries, ... }
+              const stepType = s.steps?.[0]?.uses?.split('@')[0]?.replace('orion/', '') || s.type || 'custom';
+              const stepConfig = s.steps?.[0]?.with || s.config || {};
+              return {
+                id: `stage-${idx}-${Date.now()}`,
+                name: s.name,
+                type: stepType,
+                timeout: s.timeout,
+                retryCount: s.retries ?? s.retryCount,
+                dependsOn: s.dependsOn || [],
+                config: stepConfig,
+                cache: s.cache,
+                artifacts: s.artifacts,
+              };
+            });
             setStages(loadedStages);
           }
         }
@@ -122,45 +127,66 @@ const PipelineEditor: React.FC = () => {
     }
   }, [id]);
 
-  // 生成 YAML
+  // 生成 YAML (FIXED P0-8: aligned with backend PipelineStage schema)
   const generateYaml = useCallback(() => {
-    const yaml = `metadata:
-  name: ${pipelineInfo.name}
-  version: ${pipelineInfo.version}
-  description: ${pipelineInfo.description || '""'}
-
-spec:
-  stages:
-${stages.map(stage => {
-    const lines = [
-      `    - name: ${stage.name}`,
-      `      type: ${stage.type}`,
-      `      timeout: ${stage.timeout || 300}`,
-      `      retryCount: ${stage.retryCount || 0}`,
-      `      dependsOn: ${stage.dependsOn?.length ? JSON.stringify(stage.dependsOn) : '[]'}`,
+    const yamlLines: string[] = [
+      `apiVersion: v1`,
+      `kind: Pipeline`,
+      `metadata:`,
+      `  name: ${pipelineInfo.name}`,
+      `  version: ${pipelineInfo.version}`,
+      `  description: ${pipelineInfo.description || '""'}`,
+      ``,
+      `spec:`,
+      `  stages:`,
     ];
 
-    // 缓存配置
-    if (stage.cache?.enabled) {
-      lines.push(`      cache:
-        key: ${stage.cache.key}
-        paths: ${JSON.stringify(stage.cache.paths)}
-        restoreKeys: ${stage.cache.restoreKeys ? JSON.stringify(stage.cache.restoreKeys) : '[]'}`);
+    for (const stage of stages) {
+      const stepUses = stage.config?.uses || `orion/${stage.type}@v1`;
+      const stepName = `${stage.name}-step`;
+      const stepWith = stage.config && Object.keys(stage.config).length > 0
+        ? `\n        with: ${JSON.stringify(stage.config)}`
+        : '';
+
+      const stageLines = [
+        `    - name: ${stage.name}`,
+        `      runsOn: ubuntu-latest`,
+        `      timeout: ${stage.timeout || 300}`,
+        `      retries: ${stage.retryCount || 0}`,
+      ];
+
+      if (stage.dependsOn?.length) {
+        stageLines.push(`      dependsOn: ${JSON.stringify(stage.dependsOn)}`);
+      }
+
+      stageLines.push(`      steps:`);
+      stageLines.push(`        - name: ${stepName}`);
+      stageLines.push(`          uses: ${stepUses}${stepWith}`);
+
+      // 缓存配置
+      if (stage.cache?.enabled) {
+        stageLines.push(`      cache:`);
+        stageLines.push(`        enabled: true`);
+        stageLines.push(`        key: ${stage.cache.key}`);
+        stageLines.push(`        paths: ${JSON.stringify(stage.cache.paths)}`);
+        if (stage.cache.restoreKeys?.length) {
+          stageLines.push(`        restoreKeys: ${JSON.stringify(stage.cache.restoreKeys)}`);
+        }
+      }
+
+      // Artifact 配置
+      if (stage.artifacts?.upload?.length) {
+        stageLines.push(`      artifacts:`);
+        stageLines.push(`        upload: ${JSON.stringify(stage.artifacts.upload)}`);
+        if (stage.artifacts.expiry) {
+          stageLines.push(`        expiry: ${stage.artifacts.expiry}`);
+        }
+      }
+
+      yamlLines.push(...stageLines);
     }
 
-    // Artifact 配置
-    if (stage.artifacts?.upload?.length) {
-      lines.push(`      artifacts:
-        upload: ${JSON.stringify(stage.artifacts.upload)}
-        expiry: ${stage.artifacts.expiry || 7}`);
-    }
-
-    lines.push(`      config:
-        ${JSON.stringify(stage.config, null, 8).split('\n').join('\n        ')}`);
-
-    return lines.join('\n');
-  }).join('\n')}`;
-    return yaml;
+    return yamlLines.join('\n');
   }, [pipelineInfo, stages]);
 
   // 处理拖拽结束

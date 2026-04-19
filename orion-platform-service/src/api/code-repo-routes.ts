@@ -5,12 +5,33 @@
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { CodeRepoController, registerGitLabInstance } from './controllers/code-repo/CodeRepoController';
+import { CodeRepoController, registerGitLabInstance, registerGerritInstance } from './controllers/code-repo/CodeRepoController';
 import { BranchPolicyController } from './controllers/code-repo/BranchPolicyController';
 import { CodeOwnershipController } from './controllers/code-repo/CodeOwnershipController';
 import { WebhookController } from './controllers/code-repo/WebhookController';
 
 export default async function codeRepoRoutes(app: FastifyInstance): Promise<void> {
+  // ==================== 注册适配器 (FIXED P0-7) ====================
+
+  // 从环境变量注册 GitLab 实例
+  if (process.env.GITLAB_BASE_URL && process.env.GITLAB_TOKEN) {
+    registerGitLabInstance('default-gitlab', {
+      baseUrl: process.env.GITLAB_BASE_URL,
+      token: process.env.GITLAB_TOKEN,
+    });
+    console.log('[CodeRepo] Registered GitLab adapter: default-gitlab');
+  }
+
+  // 从环境变量注册 Gerrit 实例
+  if (process.env.GERRIT_BASE_URL && process.env.GERRIT_USERNAME && process.env.GERRIT_PASSWORD) {
+    registerGerritInstance('default-gerrit', {
+      baseUrl: process.env.GERRIT_BASE_URL,
+      username: process.env.GERRIT_USERNAME,
+      password: process.env.GERRIT_PASSWORD,
+    });
+    console.log('[CodeRepo] Registered Gerrit adapter: default-gerrit');
+  }
+
   // 初始化控制器
   const codeRepoController = new CodeRepoController();
   const branchPolicyController = new BranchPolicyController();

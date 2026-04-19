@@ -1,6 +1,7 @@
 /**
- * Deployment API Service
+ * Deployment API Service - FIXED P0-2
  * Deployment CRUD operations and execution management
+ * Aligned with backend routes: /api/v1/deploy/*
  */
 import { api } from './client';
 
@@ -9,7 +10,7 @@ export interface Deployment {
   appName: string;
   version: string;
   environment: 'dev' | 'staging' | 'prod';
-  status: 'pending' | 'deploying' | 'success' | 'failed' | 'rolled_back';
+  status: 'pending' | 'deploying' | 'success' | 'failed' | 'rolled_back' | 'cancelled';
   strategy: 'blue-green' | 'canary' | 'rolling' | 'recreate';
   triggeredBy: string;
   commit?: string;
@@ -17,6 +18,9 @@ export interface Deployment {
   endTime?: string;
   duration?: number;
   stages?: DeploymentStage[];
+  healthChecks?: HealthCheckResult[];
+  pipelineRunId?: string;
+  rollbackFrom?: string;
 }
 
 export interface DeploymentStage {
@@ -26,7 +30,15 @@ export interface DeploymentStage {
   startTime?: string;
   endTime?: string;
   duration?: number;
+  details?: string;
   logs?: string[];
+}
+
+export interface HealthCheckResult {
+  name: string;
+  status: 'healthy' | 'unhealthy' | 'degraded' | 'unknown';
+  message?: string;
+  latency?: number;
 }
 
 export interface DeploymentListParams {
@@ -48,19 +60,19 @@ export interface CreateDeploymentInput {
 // ---- Deployment CRUD ----
 
 export function getDeployments(params?: DeploymentListParams) {
-  return api.get('/v1/deployments', { params });
+  return api.get('/v1/deploy/history', { params });
 }
 
 export function getDeployment(id: string) {
-  return api.get(`/v1/deployments/${id}`);
+  return api.get(`/v1/deploy/${id}`);
 }
 
 export function createDeployment(data: CreateDeploymentInput) {
-  return api.post('/v1/deployments', data);
+  return api.post('/v1/deploy', data);
 }
 
 export function cancelDeployment(id: string) {
-  return api.post(`/v1/deployments/${id}/cancel`);
+  return api.post(`/v1/deploy/${id}/cancel`);
 }
 
 // ---- Smart Deploy API ----
@@ -71,7 +83,7 @@ export function smartDeploy(data: {
   version: string;
   strategy?: string;
 }) {
-  return api.post('/v1/deploy/deploy', data);
+  return api.post('/v1/deploy', data);
 }
 
 export function getDeploymentStatus(id: string) {

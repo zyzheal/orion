@@ -6,17 +6,104 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
+import { scrypt, randomBytes, timingSafeEqual } from 'crypto';
+import { promisify } from 'util';
+import { DatabasePool } from '../services/database';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'orion-dev-secret-key-change-in-prod';
-const JWT_EXPIRES_IN = '24h';
+const scryptAsync = promisify(scrypt);
 
-// 模拟用户数据库
-const MOCK_USERS = [
-  { id: '1', username: 'admin', password: 'admin123', email: 'admin@orion.com', role: 'admin' },
-  { id: '2', username: 'user', password: 'user123', email: 'user@orion.com', role: 'user' },
-];
+// JWT_SECRET must be set via environment variable
+const JWT_SECRET: string = process.env.JWT_SECRET || '';
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET environment variable is required. Please set it before starting the service.');
+}
 
-export default async function authRoutes(app: FastifyInstance): Promise<void> {
+const jwtSecret = JWT_SECRET;
+
+export interface AuthRouteOptions {
+  database?: DatabasePool;
+}
+
+const ACCESS_TOKEN_EXPIRES_IN = '5m';
+const REFRESH_TOKEN_EXPIRES_IN = '7d';
+
+// Password hashing utility
+async function hashPassword(password: string): Promise<string> {
+  const salt = randomBytes(16).toString('hex');
+  const hash = (await scryptAsync(password, salt, 64)) as Buffer;
+  return `${salt}:${hash.toString('hex')}`;
+}
+
+async function verifyPassword(storedPassword: string, suppliedPassword: string): Promise<boolean> {
+  const [salt, key] = storedPassword.split(':');
+  const keyBuffer = Buffer.from(key, 'hex');
+  const suppliedHash = (await scryptAsync(suppliedPassword, salt, 64)) as Buffer;
+  return timingSafeEqual(keyBuffer, suppliedHash);
+}
+
+export default async function authRoutes(app: FastifyInstance, options: AuthRouteOptions = {}): Promise<void> {
+  const database = options.database;
+
+  /**
+   * Helper to execute DB queries safely
+   */
+  async function dbQuery(sql: string, params?: any[]): Promise<any> {
+    if (!database) {
+      console.warn('[AuthRoutes] Database not available:', sql.substring(0, 50));
+      return null;
+    }
+    return database.query(sql, params);
+  }
+
+  /**
+   * POST /api/v1/auth/register - 用户注册
+   */
+  app.post('/register', async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = request.body as any || {};
+    const { username, password, email } = body;
+
+    if (!username || !password) {
+      return reply.status(400).send({
+        success: false,
+        error: 'USERNAME_OR_PASSWORD_REQUIRED',
+        code: '30102',
+        message: '用户名或密码不能为空',
+      });
+    }
+
+    if (password.length < 8) {
+      return reply.status(400).send({
+        success: false,
+        error: 'PASSWORD_TOO_SHORT',
+        code: '30103',
+        message: '密码长度至少为 8 位',
+      });
+    }
+
+    const existing = await dbQuery('SELECT id FROM users WHERE username = $1', [username]);
+    if (existing && existing.rows?.length > 0) {
+      return reply.status(409).send({
+        success: false,
+        error: 'USERNAME_EXISTS',
+        code: '30104',
+        message: '用户名已存在',
+      });
+    }
+
+    const hashedPassword = await hashPassword(password);
+    const userId = crypto.randomUUID();
+
+    await dbQuery(
+      'INSERT INTO users (id, username, password_hash, email, role, created_at) VALUES ($1, $2, $3, $4, $5, NOW())',
+      [userId, username, hashedPassword, email || null, 'user']
+    );
+
+    return reply.status(201).send({
+      success: true,
+      message: '注册成功',
+    });
+  });
+
   /**
    * POST /api/v1/auth/login - 用户登录
    */
@@ -33,8 +120,8 @@ export default async function authRoutes(app: FastifyInstance): Promise<void> {
       });
     }
 
-    // 查找用户
-    const user = MOCK_USERS.find((u) => u.username === username && u.password === password);
+    const dbResult = await dbQuery('SELECT id, username, password_hash, email, role FROM users WHERE username = $1', [username]);
+    const user = dbResult?.rows?.[0];
 
     if (!user) {
       return reply.status(401).send({
@@ -45,23 +132,37 @@ export default async function authRoutes(app: FastifyInstance): Promise<void> {
       });
     }
 
-    // 生成 Token
+    const passwordValid = await verifyPassword(user.password_hash, password);
+    if (!passwordValid) {
+      return reply.status(401).send({
+        success: false,
+        error: 'INVALID_CREDENTIALS',
+        code: '20102',
+        message: '用户名或密码错误',
+      });
+    }
+
     const accessToken = jwt.sign(
       { userId: user.id, username: user.username, role: user.role },
-      JWT_SECRET,
-      { expiresIn: JWT_EXPIRES_IN }
+      jwtSecret,
+      { expiresIn: ACCESS_TOKEN_EXPIRES_IN }
     );
 
     const refreshToken = crypto.randomBytes(32).toString('hex');
+    const refreshTokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
 
-    const expiresAt = Date.now() + 24 * 60 * 60 * 1000; // 24 小时
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    await dbQuery(
+      'INSERT INTO refresh_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)',
+      [user.id, refreshTokenHash, expiresAt]
+    );
 
     return reply.send({
       success: true,
       data: {
         accessToken,
         refreshToken,
-        expiresAt,
+        expiresAt: Date.now() + 5 * 60 * 1000,
         user: {
           id: user.id,
           username: user.username,
@@ -77,7 +178,14 @@ export default async function authRoutes(app: FastifyInstance): Promise<void> {
    * POST /api/v1/auth/logout - 用户登出
    */
   app.post('/logout', async (request: FastifyRequest, reply: FastifyReply) => {
-    // 在实际实现中，这里会将 token 加入黑名单
+    const body = request.body as any || {};
+    const { refreshToken } = body;
+
+    if (refreshToken) {
+      const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+      await dbQuery('DELETE FROM refresh_tokens WHERE token_hash = $1', [tokenHash]);
+    }
+
     return reply.send({
       success: true,
       message: '登出成功',
@@ -100,19 +208,45 @@ export default async function authRoutes(app: FastifyInstance): Promise<void> {
       });
     }
 
-    // 在实际实现中，这里会验证 refreshToken 并生成新的 accessToken
-    const accessToken = jwt.sign(
-      { userId: '1', username: 'refreshed', role: 'user' },
-      JWT_SECRET,
-      { expiresIn: JWT_EXPIRES_IN }
+    const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+    const result = await dbQuery(
+      'SELECT rt.user_id, u.username, u.role FROM refresh_tokens rt JOIN users u ON u.id = rt.user_id WHERE rt.token_hash = $1 AND rt.expires_at > NOW()',
+      [tokenHash]
+    );
+
+    const row = result?.rows?.[0];
+    if (!row) {
+      return reply.status(401).send({
+        success: false,
+        error: 'INVALID_OR_EXPIRED_REFRESH_TOKEN',
+        code: '20105',
+        message: '刷新 Token 无效或已过期',
+      });
+    }
+
+    await dbQuery('DELETE FROM refresh_tokens WHERE token_hash = $1', [tokenHash]);
+
+    const newAccessToken = jwt.sign(
+      { userId: row.user_id, username: row.username, role: row.role },
+      jwtSecret,
+      { expiresIn: ACCESS_TOKEN_EXPIRES_IN }
+    );
+
+    const newRefreshToken = crypto.randomBytes(32).toString('hex');
+    const newTokenHash = crypto.createHash('sha256').update(newRefreshToken).digest('hex');
+    const newExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+    await dbQuery(
+      'INSERT INTO refresh_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)',
+      [row.user_id, newTokenHash, newExpiresAt]
     );
 
     return reply.send({
       success: true,
       data: {
-        accessToken,
-        refreshToken: crypto.randomBytes(32).toString('hex'),
-        expiresAt: Date.now() + 24 * 60 * 60 * 1000,
+        accessToken: newAccessToken,
+        refreshToken: newRefreshToken,
+        expiresAt: Date.now() + 5 * 60 * 1000,
       },
     });
   });
@@ -121,7 +255,6 @@ export default async function authRoutes(app: FastifyInstance): Promise<void> {
    * GET /api/v1/auth/me - 获取当前用户信息
    */
   app.get('/me', async (request: FastifyRequest, reply: FastifyReply) => {
-    // 从 token 中解析用户信息
     const authHeader = request.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return reply.status(401).send({
@@ -134,9 +267,11 @@ export default async function authRoutes(app: FastifyInstance): Promise<void> {
 
     const token = authHeader.split(' ')[1];
     try {
-      const payload = jwt.verify(token, JWT_SECRET) as { userId: string; username: string; role: string };
+      const payload = jwt.verify(token, jwtSecret) as { userId: string; username: string; role: string };
 
-      const user = MOCK_USERS.find((u) => u.id === payload.userId);
+      const result = await dbQuery('SELECT id, username, email, role FROM users WHERE id = $1', [payload.userId]);
+      const user = result?.rows?.[0];
+
       if (!user) {
         return reply.status(404).send({
           success: false,

@@ -1,10 +1,10 @@
 /**
- * Pipeline List Page (TASK-905)
+ * Pipeline List Page (TASK-905) - FIXED P0-1
  * Pipeline listing with filters/status, table view with pagination.
  *
  * Features:
- * - Table with pipeline data (name, status, branch, author, duration, triggered)
- * - SearchFilterBar for filtering by status/branch
+ * - Table with pipeline data (name, version, status, stage count, created/updated)
+ * - SearchFilterBar for filtering by status
  * - StatusBadge for pipeline states
  * - Pagination support
  */
@@ -14,13 +14,11 @@ import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
-import { getPipelineRuns } from '@/api/pipelines';
+import { getPipelines, type Pipeline } from '@/api/pipelines';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
-import duration from 'dayjs/plugin/duration';
 import relativeTime from 'dayjs/plugin/relativeTime';
 
-dayjs.extend(duration);
 dayjs.extend(relativeTime);
 
 const { Title, Text } = Typography;
@@ -30,13 +28,13 @@ const PipelineList: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<Record<string, string | string[] | undefined>>({});
   const [loading, setLoading] = useState(false);
-  const [pipelines, setPipelines] = useState<any[]>([]);
+  const [pipelines, setPipelines] = useState<Pipeline[]>([]);
 
   // Load pipelines from API
   const loadPipelines = async () => {
     setLoading(true);
     try {
-      const response = await getPipelineRuns();
+      const response = await getPipelines();
       const apiData = response.data.data;
       setPipelines(Array.isArray(apiData) ? apiData : (apiData as any).items || []);
     } catch (error) {
@@ -58,9 +56,8 @@ const PipelineList: React.FC = () => {
         const query = searchQuery.toLowerCase();
         const searchable = [
           pipeline.name,
-          pipeline.branch,
-          pipeline.author,
-          pipeline.commit || '',
+          pipeline.version,
+          pipeline.description || '',
         ].join(' ').toLowerCase();
         if (!searchable.includes(query)) return false;
       }
@@ -68,12 +65,6 @@ const PipelineList: React.FC = () => {
       // Status filter
       const statusFilter = filters.status;
       if (statusFilter && statusFilter !== 'all' && pipeline.status !== statusFilter) {
-        return false;
-      }
-
-      // Branch filter
-      const branchFilter = filters.branch;
-      if (branchFilter && pipeline.branch !== branchFilter) {
         return false;
       }
 
@@ -88,23 +79,9 @@ const PipelineList: React.FC = () => {
       label: '状态',
       options: [
         { label: '全部', value: 'all' },
-        { label: '运行中', value: 'running' },
-        { label: '成功', value: 'success' },
-        { label: '失败', value: 'failed' },
-        { label: '等待中', value: 'pending' },
-        { label: '警告', value: 'warning' },
-        { label: '已取消', value: 'cancelled' },
-      ],
-    },
-    {
-      key: 'branch',
-      label: '分支',
-      options: [
-        { label: '全部', value: 'all' },
-        { label: 'main', value: 'main' },
-        { label: 'develop', value: 'develop' },
-        { label: 'feature/auth', value: 'feature/auth' },
-        { label: 'feature/new-ui', value: 'feature/new-ui' },
+        { label: '启用', value: 'active' },
+        { label: '停用', value: 'inactive' },
+        { label: '已删除', value: 'deleted' },
       ],
     },
   ];
@@ -115,10 +92,10 @@ const PipelineList: React.FC = () => {
       key: 'name',
       title: 'Pipeline',
       dataIndex: 'name',
-      width: 200,
+      width: 250,
       sortable: true,
       filterable: true,
-      render: (_value: unknown, record: any) => (
+      render: (_value: unknown, record) => (
         <Space direction="vertical" size={0}>
           <Text
             strong
@@ -128,8 +105,8 @@ const PipelineList: React.FC = () => {
             {record.name}
           </Text>
           <Text type="secondary" style={{ fontSize: 12 }}>
-            #{record.runNumber}
-            {record.commit ? ` \u00b7 ${record.commit}` : ''}
+            v{record.version}
+            {record.description ? ` · ${record.description}` : ''}
           </Text>
         </Space>
       ),
@@ -142,58 +119,31 @@ const PipelineList: React.FC = () => {
       render: (value: unknown) => <StatusBadge status={value as any} size="small" />,
     },
     {
-      key: 'branch',
-      title: '分支',
-      dataIndex: 'branch',
+      key: 'stages',
+      title: 'Stage 数量',
+      dataIndex: 'spec',
+      width: 120,
+      render: (spec: any) => {
+        const count = spec?.stages?.length || 0;
+        return <Tag color="blue">{count} 个 Stage</Tag>;
+      },
+    },
+    {
+      key: 'createdAt',
+      title: '创建时间',
+      dataIndex: 'createdAt',
       width: 160,
+      sortable: true,
       render: (value: unknown) => (
-        <Tag color="blue" style={{ margin: 0 }}>
-          {String(value)}
-        </Tag>
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          {dayjs(String(value)).fromNow()}
+        </Text>
       ),
     },
     {
-      key: 'author',
-      title: '触发人',
-      dataIndex: 'author',
-      width: 120,
-      render: (value: unknown) => <Text code>{String(value)}</Text>,
-    },
-    {
-      key: 'trigger',
-      title: '触发方式',
-      dataIndex: 'trigger',
-      width: 100,
-      render: (value: unknown) => {
-        const triggerMap: Record<string, { label: string; color: string }> = {
-          manual: { label: '手动', color: 'purple' },
-          push: { label: 'Push', color: 'green' },
-          schedule: { label: '定时', color: 'orange' },
-          api: { label: 'API', color: 'blue' },
-        };
-        const config = triggerMap[String(value)] || { label: String(value), color: 'default' };
-        return <Tag color={config.color}>{config.label}</Tag>;
-      },
-    },
-    {
-      key: 'duration',
-      title: '耗时',
-      dataIndex: 'duration',
-      width: 100,
-      sortable: true,
-      render: (value: unknown) => {
-        if (!value) return <Text type="secondary">-</Text>;
-        const seconds = Number(value);
-        const dur = dayjs.duration(seconds, 'seconds');
-        const minutes = Math.floor(dur.asMinutes());
-        const secs = dur.seconds();
-        return <Text>{minutes > 0 ? `${minutes}m ${secs}s` : `${secs}s`}</Text>;
-      },
-    },
-    {
-      key: 'startTime',
-      title: '触发时间',
-      dataIndex: 'startTime',
+      key: 'updatedAt',
+      title: '更新时间',
+      dataIndex: 'updatedAt',
       width: 160,
       sortable: true,
       render: (value: unknown) => (
@@ -205,8 +155,8 @@ const PipelineList: React.FC = () => {
     {
       key: 'actions',
       title: '操作',
-      width: 120,
-      render: (_: unknown, record: any) => (
+      width: 180,
+      render: (_: unknown, record) => (
         <Space size="small">
           <Button
             type="link"
@@ -218,9 +168,17 @@ const PipelineList: React.FC = () => {
           <Button
             type="link"
             size="small"
-            disabled={record.status === 'running'}
+            onClick={() => navigate(`/pipelines/${record.id}/edit`)}
           >
-            重试
+            编辑
+          </Button>
+          <Button
+            type="link"
+            size="small"
+            danger
+            onClick={() => navigate(`/pipelines/${record.id}/runs`)}
+          >
+            运行
           </Button>
         </Space>
       ),
@@ -247,7 +205,7 @@ const PipelineList: React.FC = () => {
             Pipeline 列表
           </Title>
           <Text type="secondary">
-            共 {filteredPipelines.length} 个 Pipeline 运行记录
+            共 {filteredPipelines.length} 个 Pipeline
           </Text>
         </div>
         <Space>
@@ -266,7 +224,7 @@ const PipelineList: React.FC = () => {
           onSearch={setSearchQuery}
           onFilter={setFilters}
           filters={filterDefs}
-          searchPlaceholder="搜索 Pipeline 名称、分支、提交..."
+          searchPlaceholder="搜索 Pipeline 名称、版本、描述..."
         />
       </div>
 

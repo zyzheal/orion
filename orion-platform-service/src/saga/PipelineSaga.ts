@@ -91,7 +91,8 @@ const tasksByStage = new Map<string, Task[]>();
  */
 export function createPipelineSagaDefinition(
   pipelineService: PipelineService,
-  eventPublisher: PipelineEventPublisher
+  eventPublisher: PipelineEventPublisher,
+  stageExecutor?: any // StageExecutor instance for real execution (FIXED P0-5)
 ): SagaDefinition<PipelineSagaInput, PipelineSagaOutput> {
   const steps: SagaStep<PipelineSagaInput, unknown>[] = [
     // 步骤 1: 创建 PipelineRun
@@ -232,7 +233,7 @@ export function createPipelineSagaDefinition(
       timeoutMs: 10000,
     },
 
-    // 步骤 3: 执行阶段
+    // 步骤 3: 执行阶段 (FIXED P0-5)
     {
       name: 'executeStages',
       sequence: 3,
@@ -240,30 +241,87 @@ export function createPipelineSagaDefinition(
         const runId = context.metadata.runId as string;
         const stages = stagesByRun.get(runId) || [];
 
-        // 模拟执行阶段
-        // 实际应由 PipelineEngine 执行
-        // 这里我们标记所有阶段为成功状态（模拟）
+        if (!stages.length) {
+          return { executedStages: [], status: StageStatus.SUCCESS };
+        }
 
+        // 如果有真实的 StageExecutor，则使用它执行
+        if (stageExecutor) {
+          const executedStages: Stage[] = [];
+          for (const stage of stages) {
+            // 更新 Stage 状态为 running
+            const runningStage: Stage = {
+              ...stage,
+              status: StageStatus.RUNNING,
+              startedAt: new Date(),
+            };
+            stagesByRun.set(runId, stages.map(s => s.id === stage.id ? runningStage : s));
+            await eventPublisher.publishStageStarted(runId, runningStage);
+
+            try {
+              // 获取 Stage 的 Tasks 并执行
+              const tasks = tasksByStage.get(stage.id) || [];
+              const result = await stageExecutor.executeStage(runId, stage, tasks);
+
+              // 更新 Stage 状态
+              const completedStage: Stage = {
+                ...runningStage,
+                status: result.success ? StageStatus.SUCCESS : StageStatus.FAILED,
+                completedAt: new Date(),
+                durationMs: Date.now() - runningStage.startedAt!.getTime(),
+                error: result.error,
+              };
+              stagesByRun.set(runId, stages.map(s => s.id === stage.id ? completedStage : s));
+
+              if (!result.success) {
+                await eventPublisher.publishStageFailed(runId, completedStage, result.error || 'Unknown error');
+                // Stage 失败，跳过后续 stages
+                return {
+                  executedStages: [...executedStages, completedStage],
+                  status: StageStatus.FAILED,
+                  error: result.error,
+                };
+              }
+
+              await eventPublisher.publishStageCompleted(runId, completedStage);
+              executedStages.push(completedStage);
+            } catch (error) {
+              const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+              const failedStage: Stage = {
+                ...runningStage,
+                status: StageStatus.FAILED,
+                completedAt: new Date(),
+                durationMs: Date.now() - runningStage.startedAt!.getTime(),
+                error: errorMessage,
+              };
+              stagesByRun.set(runId, stages.map(s => s.id === stage.id ? failedStage : s));
+              await eventPublisher.publishStageFailed(runId, failedStage, errorMessage);
+              return {
+                executedStages: [...executedStages, failedStage],
+                status: StageStatus.FAILED,
+                error: errorMessage,
+              };
+            }
+          }
+
+          return { executedStages, status: StageStatus.SUCCESS };
+        }
+
+        // Fallback: 无 StageExecutor 时模拟执行（原有行为）
         const executedStages: Stage[] = [];
         for (const stage of stages) {
-          // 模拟执行（实际应调用 StageExecutor）
           const executedStage: Stage = {
             ...stage,
             status: StageStatus.SUCCESS,
             startedAt: new Date(),
             completedAt: new Date(),
-            durationMs: 1000, // 模拟执行时间
+            durationMs: 1000,
           };
           executedStages.push(executedStage);
         }
 
-        // 更新存储
         stagesByRun.set(runId, executedStages);
-
-        return {
-          executedStages,
-          status: StageStatus.SUCCESS,
-        };
+        return { executedStages, status: StageStatus.SUCCESS };
       },
       compensate: async (input: PipelineSagaInput, output: unknown, context: SagaContext): Promise<void> => {
         const runId = context.metadata.runId as string;
@@ -438,10 +496,11 @@ export class PipelineSaga {
 
   constructor(
     pipelineService: PipelineService,
-    eventPublisher: PipelineEventPublisher
+    eventPublisher: PipelineEventPublisher,
+    stageExecutor?: any // StageExecutor (FIXED P0-5)
   ) {
     this.pipelineService = pipelineService;
-    this.definition = createPipelineSagaDefinition(pipelineService, eventPublisher);
+    this.definition = createPipelineSagaDefinition(pipelineService, eventPublisher, stageExecutor);
   }
 
   /**
