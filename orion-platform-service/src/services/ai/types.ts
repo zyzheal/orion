@@ -237,3 +237,31 @@ export interface AIGatewayEvent {
 }
 
 export type AIGatewayEventHandler = (event: AIGatewayEvent) => void;
+
+// ==================== VectorStore 类型 ====================
+
+export interface VectorDocument {
+  id: string;
+  content: string;
+  metadata: Record<string, any>;
+  embedding: number[];
+}
+
+export interface SearchQuery {
+  query: string;
+  topK?: number;
+  filter?: Record<string, any>;
+}
+
+export interface SearchResult {
+  document: VectorDocument;
+  score: number;
+}
+
+export interface VectorStoreConfig {
+  host: string;
+  port: number;
+  collectionName: string;
+  dimension: number;
+  apiKey?: string;
+}

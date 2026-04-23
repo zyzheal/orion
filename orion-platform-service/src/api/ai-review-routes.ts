@@ -7,7 +7,8 @@
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { AIReviewController } from './controllers/ai-review/AIReviewController';
-import { AIReviewService } from './services/ai-review/AIReviewService';
+import { AIReviewService } from '../services/ai-review/AIReviewService';
+import { PromptSecurity } from '../services/ai/PromptSecurity';
 
 let aiReviewController: AIReviewController | null = null;
 
@@ -96,5 +97,17 @@ export default async function aiReviewRoutes(app: FastifyInstance): Promise<void
   // PUT /config - 更新配置
   app.put('/config', async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.updateConfig(request, reply);
+  });
+
+  // ==================== Prompt Security ====================
+
+  // POST /analyze - Analyze prompt security
+  app.post('/analyze', async (request: FastifyRequest, reply: FastifyReply) => {
+    const { prompt } = request.body as { prompt: string };
+    if (!prompt) return reply.status(400).send({ error: 'PROMPT_REQUIRED' });
+
+    const promptSecurity = new PromptSecurity();
+    const analysis = promptSecurity.analyze(prompt);
+    return reply.send(analysis);
   });
 }

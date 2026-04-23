@@ -48,6 +48,12 @@ import aiCostRoutes from './ai-cost-routes';
 import artifactRoutes from './artifact-routes';
 import confirmationRoutes from './confirmation-routes';
 
+// New P0 routes
+import vectorStoreRoutes from './vector-store-routes';
+import oncallRoutes from './oncall-routes';
+import approvalRoutes from './approval-routes';
+import eventbusRoutes from './eventbus-routes';
+
 export interface ApiRoutesOptions {
   eventBus?: EventBusService;
 }
@@ -277,4 +283,16 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // 注册 Artifact Registry API 路由
   await app.register(artifactRoutes, { prefix: '/artifacts' });
+
+  // 注册 Vector Store API 路由 (P0 - AI semantic search)
+  await app.register(vectorStoreRoutes, { prefix: '/vector-store' });
+
+  // 注册 OnCall 排班 API 路由 (P0 - SRE scheduling)
+  await app.register(oncallRoutes, { prefix: '/oncall' });
+
+  // 注册审批 API 路由 (P0 - multi-level approval)
+  await app.register(approvalRoutes, { prefix: '/approvals' });
+
+  // 注册 EventBus API 路由 (P0 - NATS message bus)
+  await app.register((app: FastifyInstance) => eventbusRoutes(app, options.eventBus), { prefix: '/eventbus' });
 }

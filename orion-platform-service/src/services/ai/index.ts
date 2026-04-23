@@ -6,3 +6,5 @@ export * from './types';
 export * from './AIGateway';
 export * from './AIDegradationRouter';
 export * from './RuleEngine';
+export * from './VectorStore';
+export * from './PromptSecurity';

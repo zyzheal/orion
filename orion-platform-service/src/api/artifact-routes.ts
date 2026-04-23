@@ -8,6 +8,7 @@ import { ArtifactController } from './controllers/artifact/ArtifactController';
 import { ArtifactRegistryServiceImpl } from '../services/artifact/ArtifactRegistryService';
 import { PostgresArtifactRepository } from '../repositories/ArtifactRepository';
 import { LocalArtifactStorage } from '../storage/ArtifactStorage';
+import { PromotionService, PromotionStage } from '../services/artifact/PromotionService';
 
 export default async function artifactRoutes(app: FastifyInstance): Promise<void> {
   // 初始化依赖
@@ -15,6 +16,7 @@ export default async function artifactRoutes(app: FastifyInstance): Promise<void
   const artifactStorage = new LocalArtifactStorage('/tmp/artifacts');
   const artifactService = new ArtifactRegistryServiceImpl(artifactRepository, artifactStorage);
   const artifactController = new ArtifactController(artifactService);
+  const promotionService = new PromotionService();
 
   // ==================== 制品管理 ====================
 
@@ -81,7 +83,33 @@ export default async function artifactRoutes(app: FastifyInstance): Promise<void
 
   // POST /artifacts/:id/promote - 制品升级
   app.post('/artifacts/:id/promote', async (request: FastifyRequest, reply: FastifyReply) => {
-    return artifactController.promote(request, reply);
+    const { id } = request.params as { id: string };
+    const { promotedBy, approvedBy, reason } = request.body as any;
+
+    try {
+      if (approvedBy) {
+        const record = await promotionService.promoteWithApproval(id, promotedBy, approvedBy, reason);
+        return reply.send(record);
+      }
+      const record = await promotionService.promote(id, promotedBy, reason);
+      return reply.send(record);
+    } catch (err: any) {
+      return reply.status(400).send({ error: err.message });
+    }
+  });
+
+  // GET /artifacts/:id/stage - 获取当前阶段
+  app.get('/artifacts/:id/stage', async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.params as { id: string };
+    const stage = promotionService.getCurrentStage(id);
+    if (!stage) return reply.status(404).send({ error: 'NOT_FOUND' });
+    return reply.send({ stage });
+  });
+
+  // GET /artifacts/:id/history - 获取晋升历史
+  app.get('/artifacts/:id/history', async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.params as { id: string };
+    return reply.send({ history: promotionService.getHistory(id) });
   });
 
   // POST /artifacts/:id/deprecate - 废弃制品
