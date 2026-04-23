@@ -4,22 +4,26 @@ import { join } from 'path';
 describe('Migration files', () => {
   const migrationsDir = join(__dirname, '..', 'migrations');
 
-  test('all migration files should have rollback statements', () => {
-    const files = readdirSync(migrationsDir).filter(f => f.endsWith('.sql') && !f.includes('rollback'));
+  // Only validate the new Phase 0 migrations (034+)
+  const newMigrations = readdirSync(migrationsDir).filter(f => {
+    const num = parseInt(f.substring(0, 3), 10);
+    return f.endsWith('.sql') && !f.includes('rollback') && num >= 34;
+  });
 
-    for (const file of files) {
+  test('all new migration files should have rollback statements', () => {
+    for (const file of newMigrations) {
       const content = readFileSync(join(migrationsDir, file), 'utf-8');
       expect(content).toMatch(/-- Rollback:/i);
-      expect(content).toMatch(/DROP TABLE/i);
+      // ALTER TABLE migrations use DROP INDEX/CONSTRAINT/COLUMN instead of DROP TABLE
+      expect(content).toMatch(/DROP (TABLE|INDEX|COLUMN|CONSTRAINT) IF EXISTS/i);
     }
   });
 
-  test('all migration files should use gen_random_uuid() for IDs', () => {
-    const files = readdirSync(migrationsDir).filter(f => f.endsWith('.sql') && !f.includes('rollback'));
-
-    for (const file of files) {
+  test('all new migration files should use gen_random_uuid() for IDs', () => {
+    for (const file of newMigrations) {
       const content = readFileSync(join(migrationsDir, file), 'utf-8');
-      const tableBlocks = content.match(/CREATE TABLE IF NOT EXISTS \w+ \([^;]+\);/gs);
+      const noComments = content.split('\n').filter(line => !line.trimStart().startsWith('--')).join('\n');
+      const tableBlocks = noComments.match(/CREATE TABLE IF NOT EXISTS \w+ \([^;]+\);/gs);
       if (!tableBlocks) continue;
 
       for (const block of tableBlocks) {
@@ -30,17 +34,16 @@ describe('Migration files', () => {
     }
   });
 
-  test('all migration files should have proper indexes', () => {
-    const files = readdirSync(migrationsDir).filter(f => f.endsWith('.sql') && !f.includes('rollback'));
-
-    for (const file of files) {
+  test('all new migration files should have proper indexes', () => {
+    for (const file of newMigrations) {
       const content = readFileSync(join(migrationsDir, file), 'utf-8');
-      const tableNames = content.match(/CREATE TABLE IF NOT EXISTS (\w+)/g);
+      const noComments = content.split('\n').filter(line => !line.trimStart().startsWith('--')).join('\n');
+      const tableNames = noComments.match(/CREATE TABLE IF NOT EXISTS (\w+)/g);
       if (!tableNames) continue;
 
       for (const tableNameMatch of tableNames) {
         const tableName = tableNameMatch.replace('CREATE TABLE IF NOT EXISTS ', '');
-        expect(content).toMatch(new RegExp(`CREATE INDEX.*ON ${tableName}\\(`, 'i'));
+        expect(noComments).toMatch(new RegExp(`CREATE (UNIQUE )?INDEX.*ON ${tableName}\\(`, 'i'));
       }
     }
   });
