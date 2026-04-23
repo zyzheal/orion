@@ -72,4 +72,31 @@ describe('QueryBuilder', () => {
 
     expect(sql).toContain('RETURNING *');
   });
+
+  test('should prevent SQL injection in select columns', () => {
+    const qb = new QueryBuilder('users');
+    expect(() => qb.select(['id', '1=1; DROP TABLE users']).build()).toThrow('Invalid select column');
+  });
+
+  test('should prevent SQL injection in returning clause', () => {
+    const qb = new QueryBuilder('users');
+    expect(() => qb.insert({ name: 'x' }).returning('1=1; DROP TABLE users').build()).toThrow('Invalid returning column');
+  });
+
+  test('should support returning with array of columns', () => {
+    const qb = new QueryBuilder('users');
+    const { sql } = qb.insert({ name: 'John' }).returning(['id', 'name']).build();
+
+    expect(sql).toContain('RETURNING id, name');
+  });
+
+  test('should reject invalid where column name', () => {
+    const qb = new QueryBuilder('users');
+    expect(() => qb.where({ '1=1; DROP TABLE': 'x' }).build()).toThrow('Invalid column name');
+  });
+
+  test('should reject invalid order by column', () => {
+    const qb = new QueryBuilder('users');
+    expect(() => qb.orderBy('name; DROP TABLE').build()).toThrow('Invalid order column');
+  });
 });

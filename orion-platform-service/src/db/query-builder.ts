@@ -7,9 +7,11 @@ function validateIdentifier(name: string, label: string): void {
   }
 }
 
+export type QueryParamValue = string | number | boolean | null | Date | Buffer;
+
 export interface QueryResult {
   sql: string;
-  params: any[];
+  params: QueryParamValue[];
 }
 
 export class QueryBuilder {
@@ -83,18 +85,24 @@ export class QueryBuilder {
     return this;
   }
 
-  returning(columns: string): this {
-    this.returningClause = columns;
+  returning(columns: string | string[]): this {
+    const cols = Array.isArray(columns) ? columns : [columns];
+    for (const col of cols) {
+      if (col !== '*') validateIdentifier(col, 'returning column');
+    }
+    this.returningClause = cols.join(', ');
     return this;
   }
 
   build(): QueryResult {
-    const params: any[] = [];
+    const params: QueryParamValue[] = [];
     let sql = '';
-    let paramIndex = 1;
 
     switch (this.type) {
       case 'select': {
+        for (const col of this.columns) {
+          if (col !== '*') validateIdentifier(col, 'select column');
+        }
         sql = `SELECT ${this.columns.join(', ')} FROM ${this.table}`;
         break;
       }
