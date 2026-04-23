@@ -101,4 +101,41 @@ describe('BaseRepository', () => {
     const result = await repo.delete('nonexistent');
     expect(result).toBe(false);
   });
+
+  test('findAll should reject SQL injection in where clause', async () => {
+    await expect(repo.findAll({
+      where: { '1=1; DROP TABLE users;--': 'x' },
+    })).rejects.toThrow('Invalid where column');
+  });
+
+  test('findAll should reject SQL injection in orderBy', async () => {
+    await expect(repo.findAll({
+      orderBy: 'created_at; DROP TABLE users',
+    })).rejects.toThrow('Invalid order by column');
+  });
+
+  test('create should reject SQL injection in column names', async () => {
+    await expect(repo.create({
+      id: '1',
+      name: 'x',
+      status: 'y',
+      '1=1; DROP TABLE--': 'z',
+    } as any)).rejects.toThrow('Invalid column name');
+  });
+
+  test('update should reject empty data', async () => {
+    await expect(repo.update('1', {})).rejects.toThrow('Update requires at least one column');
+  });
+
+  test('create should throw when no rows returned', async () => {
+    mockDb.query.mockResolvedValue({ rows: [] });
+
+    await expect(repo.create({ id: '1', name: 'x', status: 'y' })).rejects.toThrow('returned no rows');
+  });
+
+  test('update should throw when no rows affected', async () => {
+    mockDb.query.mockResolvedValue({ rows: [] });
+
+    await expect(repo.update('nonexistent', { name: 'x' })).rejects.toThrow('affected no rows');
+  });
 });
