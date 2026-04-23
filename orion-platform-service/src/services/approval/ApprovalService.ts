@@ -70,7 +70,10 @@ export class ApprovalService {
     if (request.status !== ApprovalStatus.PENDING) throw new Error('Approval not pending');
     if (!request.approverIds.includes(userId)) throw new Error('Not authorized to approve');
 
-    request.approvals.push(userId);
+    // Deduplicate approvals
+    if (!request.approvals.includes(userId)) {
+      request.approvals.push(userId);
+    }
     request.updatedAt = new Date();
 
     if (request.approvals.length >= request.requiredApprovals) {
@@ -86,8 +89,12 @@ export class ApprovalService {
     const request = this.requests.get(approvalId);
     if (!request) throw new Error(`Approval not found: ${approvalId}`);
     if (request.status !== ApprovalStatus.PENDING) throw new Error('Approval not pending');
+    if (!request.approverIds.includes(userId)) throw new Error('Not authorized to reject');
 
-    request.rejections.push(userId);
+    // Deduplicate rejections
+    if (!request.rejections.includes(userId)) {
+      request.rejections.push(userId);
+    }
     request.status = ApprovalStatus.REJECTED;
     request.updatedAt = new Date();
     return request;

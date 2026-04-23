@@ -3,6 +3,7 @@
  * development -> testing -> staging -> production -> released
  */
 import pino from 'pino';
+import { v4 as uuidv4 } from 'uuid';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -63,7 +64,7 @@ export class PromotionService {
     this.currentStages.set(artifactId, nextStage);
 
     const record: PromotionRecord = {
-      id: `promo_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      id: `promo_${uuidv4()}`,
       artifactId,
       fromStage: currentStage,
       toStage: nextStage,

@@ -11,8 +11,20 @@ export default async function oncallRoutes(app: FastifyInstance): Promise<void> 
   // POST /oncall/schedules - Create schedule
   app.post('/schedules', async (request: FastifyRequest, reply: FastifyReply) => {
     const { name, timezone, rotationType, teamMembers, rotationStartHour, escalations } = request.body as any;
-    const schedule = await oncallService.createSchedule(name, timezone, rotationType, teamMembers, rotationStartHour, escalations);
-    return reply.send(schedule);
+
+    // Input validation
+    if (!name || typeof name !== 'string') return reply.status(400).send({ error: 'NAME_REQUIRED' });
+    if (!timezone || typeof timezone !== 'string') return reply.status(400).send({ error: 'TIMEZONE_REQUIRED' });
+    if (!rotationType || !['daily', 'weekly', 'monthly'].includes(rotationType)) return reply.status(400).send({ error: 'INVALID_ROTATION_TYPE' });
+    if (!teamMembers || !Array.isArray(teamMembers) || teamMembers.length === 0) return reply.status(400).send({ error: 'TEAM_MEMBERS_REQUIRED' });
+    if (rotationStartHour !== undefined && (rotationStartHour < 0 || rotationStartHour > 23)) return reply.status(400).send({ error: 'INVALID_ROTATION_START_HOUR' });
+
+    try {
+      const schedule = await oncallService.createSchedule(name, timezone, rotationType, teamMembers, rotationStartHour, escalations);
+      return reply.send(schedule);
+    } catch (err: any) {
+      return reply.status(400).send({ error: err.message });
+    }
   });
 
   // GET /oncall/schedules - List schedules

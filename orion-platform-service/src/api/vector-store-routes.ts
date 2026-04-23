@@ -10,9 +10,9 @@ import { VectorStoreConfig } from '../../services/ai/types';
 export default async function vectorStoreRoutes(app: FastifyInstance): Promise<void> {
   const config: VectorStoreConfig = {
     host: process.env.VECTOR_STORE_HOST || 'localhost',
-    port: parseInt(process.env.VECTOR_STORE_PORT || '19530'),
+    port: parseInt(process.env.VECTOR_STORE_PORT || '19530') || 19530,
     collectionName: process.env.VECTOR_STORE_COLLECTION || 'orion',
-    dimension: parseInt(process.env.VECTOR_STORE_DIMENSION || '1536'),
+    dimension: parseInt(process.env.VECTOR_STORE_DIMENSION || '1536') || 1536,
   };
 
   const vectorStore = new VectorStore(config);

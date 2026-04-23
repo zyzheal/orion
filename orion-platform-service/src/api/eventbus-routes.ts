@@ -24,7 +24,8 @@ export default async function eventbusRoutes(app: FastifyInstance, eventBus?: Ev
   // GET /eventbus/status - Get connection status
   app.get('/status', async (_request: FastifyRequest, reply: FastifyReply) => {
     const health = await service.checkHealth();
-    return reply.send({ ...health, servers: (service as any).config?.servers || [] });
+    const config = service.getConfig();
+    return reply.send({ ...health, servers: config.servers, enabled: config.enabled });
   });
 
   // POST /eventbus/connect - Connect to NATS

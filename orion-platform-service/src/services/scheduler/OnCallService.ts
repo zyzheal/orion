@@ -105,9 +105,10 @@ export class OnCallService {
       }
     }
 
-    // Fallback: return first member
+    // No assignment covers current time - use fallback but flag it
+    logger.warn({ scheduleId, scheduleName: schedule.name }, 'No active assignment found, using fallback');
     return {
-      isOnCall: true,
+      isOnCall: false,
       primaryUserId: schedule.teamMembers[0],
       escalationTargets: this.getEscalationTargets(schedule, schedule.teamMembers[0]),
     };
@@ -177,8 +178,13 @@ export class OnCallService {
   async deleteSchedule(id: string): Promise<boolean> {
     const deleted = this.schedules.delete(id);
     if (deleted) {
+      // Clean up associated assignments
       for (const [key, assign] of this.assignments) {
         if (assign.scheduleId === id) this.assignments.delete(key);
+      }
+      // Clean up associated overrides
+      for (const [key, override] of this.overrides) {
+        if (override.scheduleId === id) this.overrides.delete(key);
       }
     }
     return deleted;

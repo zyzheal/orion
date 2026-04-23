@@ -277,4 +277,14 @@ export class EventBusService extends EventEmitter {
     }
     return this.isConnected;
   }
+
+  /**
+   * 获取配置信息（用于状态查询）
+   */
+  getConfig(): { servers: string[]; enabled: boolean } {
+    return {
+      servers: this.config.servers || [],
+      enabled: this.config.enabled,
+    };
+  }
 }
