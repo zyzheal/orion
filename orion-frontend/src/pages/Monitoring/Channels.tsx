@@ -5,6 +5,7 @@
 import React, { useState, useEffect } from 'react';
 import { Typography, Button, Space, Tag, Modal, Form, Input, Select, Switch, Tabs, message } from 'antd';
 import { PlusOutlined, ReloadOutlined, MailOutlined } from '@ant-design/icons';
+import { spacing } from '@/tokens';
 import Table, { type TableColumn } from '@/components/Table';
 import {
   getChannels,
@@ -142,7 +143,7 @@ const MonitoringChannels: React.FC = () => {
       title: '配置',
       dataIndex: 'config',
       render: (v: unknown) => (
-        <Text code style={{ fontSize: 11, maxWidth: 300, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <Text code style={{ fontSize: spacing[2], maxWidth: 300, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {JSON.stringify(v)}
         </Text>
       ),

@@ -77,7 +77,7 @@ export interface CostTrendParams {
  * 获取成本概览
  */
 export const getCostSummary = async (): Promise<CostSummary> => {
-  const response = await api.get<CostSummary>('/v1/finops/cost-summary');
+  const response = await api.get<CostSummary>('/v1/cost/summary');
   return response.data.data;
 };
 
@@ -87,7 +87,7 @@ export const getCostSummary = async (): Promise<CostSummary> => {
 export const getCostByService = async (
   params?: CostByServiceParams
 ): Promise<CostByServiceItem[]> => {
-  const response = await api.get<CostByServiceItem[]>('/v1/finops/cost-by-service', { params });
+  const response = await api.get<CostByServiceItem[]>('/v1/cost/breakdown', { params });
   return response.data.data;
 };
 
@@ -97,7 +97,7 @@ export const getCostByService = async (
 export const getCostTrend = async (
   params?: CostTrendParams
 ): Promise<CostTrendItem[]> => {
-  const response = await api.get<CostTrendItem[]>('/v1/finops/cost-trend', { params });
+  const response = await api.post<CostTrendItem[]>('/v1/cost/trend', params);
   return response.data.data;
 };
 
@@ -123,7 +123,7 @@ export const applyOptimization = async (id: string): Promise<{ success: boolean 
  * 获取预算告警
  */
 export const getBudgetAlerts = async (): Promise<BudgetAlertItem[]> => {
-  const response = await api.get<BudgetAlertItem[]>('/v1/finops/budget-alerts');
+  const response = await api.get<BudgetAlertItem[]>('/v1/cost/budget-alerts');
   return response.data.data;
 };
 

@@ -7,6 +7,7 @@ import {
   Typography, Button, Space, Card, message, Modal, Form,
   Input, Divider, Tag, Alert, Drawer
 } from 'antd';
+import { colors, spacing } from '@/tokens';
 import {
   PlusOutlined, SaveOutlined,
   UndoOutlined, DragOutlined, CodeOutlined,
@@ -478,7 +479,7 @@ const PipelineEditor: React.FC = () => {
       <Card style={{ marginTop: 24 }} title="阶段类型说明">
         <Space wrap>
           {STAGE_TYPES.map(type => (
-            <Tag key={type.value} color="default" style={{ fontSize: 13, padding: '4px 12px' }}>
+            <Tag key={type.value} color="default" style={{ fontSize: spacing[3], padding: '4px 12px' }}>
               {type.icon} {type.label}
             </Tag>
           ))}
@@ -536,7 +537,7 @@ const PipelineEditor: React.FC = () => {
           value={generatedYaml}
           readOnly
           rows={30}
-          style={{ fontFamily: 'monospace', fontSize: 13, border: 'none' }}
+          style={{ fontFamily: 'monospace', fontSize: spacing[3], border: 'none' }}
         />
       </Drawer>
     </div>

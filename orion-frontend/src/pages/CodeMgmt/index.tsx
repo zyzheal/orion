@@ -4,6 +4,7 @@
  */
 import React, { useState } from 'react';
 import { Layout, Menu } from 'antd';
+import { colors, spacing } from '@/tokens';
 import {
   FolderOutlined,
   BranchesOutlined,
@@ -62,8 +63,8 @@ const CodeMgmtLayout: React.FC = () => {
         collapsed={collapsed}
         onCollapse={setCollapsed}
         style={{
-          background: '#fff',
-          borderRight: '1px solid #f0f0f0',
+          background: colors.light.bg.primary,
+          borderRight: `1px solid ${colors.light.border.light}`,
           padding: '8px 0',
         }}
         theme="light"
@@ -82,7 +83,7 @@ const CodeMgmtLayout: React.FC = () => {
             padding: 24,
             margin: 0,
             minHeight: 280,
-            background: '#fff',
+            background: colors.light.bg.primary,
           }}
         >
           <Outlet />

@@ -5,6 +5,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Typography, Button, Space, Tag, Switch, Modal, Form, Input, InputNumber, Checkbox, message } from 'antd';
 import { PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { spacing } from '@/tokens';
 import Table, { type TableColumn } from '@/components/Table';
 import {
   getBranchPolicies, createBranchPolicy, updateBranchPolicy, deleteBranchPolicy,
@@ -136,7 +137,7 @@ const BranchPolicyList: React.FC = () => {
       render: (value: unknown, record: any) => (
         <Space direction="vertical" size={0}>
           <Text code strong>{String(value)}</Text>
-          <Text type="secondary" style={{ fontSize: 12 }}>
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
             仓库: {record.repoId}
           </Text>
         </Space>
@@ -194,7 +195,7 @@ const BranchPolicyList: React.FC = () => {
       width: 160,
       sortable: true,
       render: () => (
-        <Text type="secondary" style={{ fontSize: 12 }}>
+        <Text type="secondary" style={{ fontSize: spacing[3] }}>
           -
         </Text>
       ),

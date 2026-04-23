@@ -11,6 +11,7 @@
 import pino from 'pino';
 import { EventEmitter } from 'events';
 import { EventBusService } from './event-bus-service';
+import { PluginRepository } from '../repositories/PluginRepository';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -110,16 +111,26 @@ export interface HealthCheckStatus {
 }
 
 /**
+ * 插件管理器配置
+ */
+export interface PluginManagerServiceConfig {
+  eventBus?: EventBusService;
+  pluginRepository?: PluginRepository;
+}
+
+/**
  * 插件管理器
  */
 export class PluginManagerService extends EventEmitter {
   private plugins: Map<string, PluginInfo> = new Map();
   private runtimes: Map<string, PluginRuntimeInfo> = new Map();
   private eventBus?: EventBusService;
+  private pluginRepository?: PluginRepository;
 
-  constructor(options?: { eventBus?: EventBusService }) {
+  constructor(config?: PluginManagerServiceConfig) {
     super();
-    this.eventBus = options?.eventBus;
+    this.eventBus = config?.eventBus;
+    this.pluginRepository = config?.pluginRepository;
   }
 
   /**
@@ -190,14 +201,22 @@ export class PluginManagerService extends EventEmitter {
     logger.info({ pluginId, version }, 'Installing plugin');
 
     // 检查插件是否已存在
-    const existing = this.plugins.get(pluginId);
+    let existing = this.plugins.get(pluginId);
     if (existing && existing.state !== 'UNINSTALLED') {
       throw new Error(`Plugin ${pluginId} is already installed`);
     }
 
+    // 如果有仓库，先检查数据库
+    if (this.pluginRepository) {
+      existing = await this.pluginRepository.findById(pluginId);
+      if (existing && existing.state !== 'UNINSTALLED') {
+        throw new Error(`Plugin ${pluginId} is already installed`);
+      }
+    }
+
     // 获取插件元数据（从注册表）
     const availablePlugins = await this.listAvailablePlugins();
-    const plugin = availablePlugins.find((p) => p.id === pluginId);
+    let plugin = availablePlugins.find((p) => p.id === pluginId);
 
     if (!plugin) {
       throw new Error(`Plugin ${pluginId} not found`);
@@ -212,6 +231,11 @@ export class PluginManagerService extends EventEmitter {
       updatedAt: new Date(),
       config,
     };
+
+    // 保存到数据库
+    if (this.pluginRepository) {
+      await this.pluginRepository.create(pluginInfo);
+    }
 
     this.plugins.set(pluginId, pluginInfo);
 
@@ -247,6 +271,11 @@ export class PluginManagerService extends EventEmitter {
 
     // 清理运行时信息
     this.runtimes.delete(pluginId);
+
+    // 保存到数据库
+    if (this.pluginRepository) {
+      await this.pluginRepository.softDelete(pluginId);
+    }
 
     await this.publishEvent('plugin.uninstalled', {
       pluginId,
@@ -519,10 +548,162 @@ export class PluginManagerService extends EventEmitter {
     if (this.eventBus) {
       try {
         await this.eventBus.publish(type, data, { source: 'plugin-manager' });
-      } catch (err) {
-        logger.error({ err }, 'Failed to publish event');
+      } catch (error) {
+        logger.warn({ error, type }, 'Failed to publish event');
       }
     }
-    this.emit('event', { type, data });
+  }
+
+  /**
+   * 从数据库加载插件
+   */
+  async loadPluginsFromDatabase(): Promise<void> {
+    if (!this.pluginRepository) {
+      return;
+    }
+
+    try {
+      const { plugins } = await this.pluginRepository.list({
+        state: 'AVAILABLE'
+      });
+
+      for (const plugin of plugins) {
+        this.plugins.set(plugin.id, plugin);
+      }
+
+      logger.info({ count: plugins.length }, 'Plugins loaded from database');
+    } catch (error) {
+      logger.error({ error }, 'Failed to load plugins from database');
+    }
+  }
+
+  /**
+   * 更新插件配置
+   */
+  async updatePluginConfig(pluginId: string, config: Record<string, any>): Promise<PluginInfo> {
+    logger.info({ pluginId }, 'Updating plugin config');
+
+    const plugin = this.plugins.get(pluginId);
+    if (!plugin) {
+      throw new Error(`Plugin ${pluginId} not found`);
+    }
+
+    // 验证配置
+    this.validateConfig(plugin, config);
+
+    // 更新配置
+    plugin.config = config;
+    plugin.updatedAt = new Date();
+
+    // 保存到数据库
+    if (this.pluginRepository) {
+      await this.pluginRepository.updateConfig(pluginId, config);
+    }
+
+    await this.publishEvent('plugin.config_updated', {
+      pluginId,
+      config,
+      updatedAt: plugin.updatedAt,
+    });
+
+    logger.info({ pluginId }, 'Plugin config updated');
+    return plugin;
+  }
+
+  /**
+   * 更新插件状态
+   */
+  async updatePluginState(pluginId: string, state: PluginState): Promise<PluginInfo> {
+    logger.info({ pluginId, state }, 'Updating plugin state');
+
+    const plugin = this.plugins.get(pluginId);
+    if (!plugin) {
+      throw new Error(`Plugin ${pluginId} not found`);
+    }
+
+    plugin.state = state;
+    plugin.updatedAt = new Date();
+
+    // 保存到数据库
+    if (this.pluginRepository) {
+      await this.pluginRepository.updateState(pluginId, state);
+    }
+
+    await this.publishEvent('plugin.state_changed', {
+      pluginId,
+      state,
+      updatedAt: plugin.updatedAt,
+    });
+
+    logger.info({ pluginId, state }, 'Plugin state updated');
+    return plugin;
+  }
+
+  /**
+   * 获取插件统计信息
+   */
+  async getPluginStats(): Promise<any> {
+    if (!this.pluginRepository) {
+      return {
+        total: this.plugins.size,
+        byType: {},
+        byState: {}
+      };
+    }
+
+    return await this.pluginRepository.getStats();
+  }
+
+  /**
+   * 搜索插件
+   */
+  async searchPlugins(query: string): Promise<PluginInfo[]> {
+    if (!this.pluginRepository) {
+      return [];
+    }
+
+    const plugins = await this.pluginRepository.search(query);
+    return plugins.map(plugin => {
+      this.plugins.set(plugin.id, plugin);
+      return plugin;
+    });
+  }
+
+  /**
+   * 添加插件标签
+   */
+  async addPluginTag(pluginId: string, tag: string): Promise<void> {
+    if (!this.pluginRepository) {
+      return;
+    }
+
+    await this.pluginRepository.addTag(pluginId, tag);
+    
+    const plugin = this.plugins.get(pluginId);
+    if (plugin) {
+      plugin.tags.push(tag);
+      plugin.updatedAt = new Date();
+    }
+
+    logger.info({ pluginId, tag }, 'Plugin tag added');
+  }
+
+  /**
+   * 移除插件标签
+   */
+  async removePluginTag(pluginId: string, tag: string): Promise<void> {
+    if (!this.pluginRepository) {
+      return;
+    }
+
+    await this.pluginRepository.removeTag(pluginId, tag);
+    
+    const plugin = this.plugins.get(pluginId);
+    if (plugin) {
+      plugin.tags = plugin.tags.filter(t => t !== tag);
+      plugin.updatedAt = new Date();
+    }
+
+    logger.info({ pluginId, tag }, 'Plugin tag removed');
   }
 }

@@ -4,6 +4,7 @@
  */
 import React from 'react';
 import { Typography, Card, Row, Col, Tag, Button } from 'antd';
+import { colors, spacing } from '@/tokens';
 import {
   DatabaseOutlined,
   BookOutlined,
@@ -30,7 +31,7 @@ const subApps: SubAppCard[] = [
     name: '数据库管理',
     description: '提供数据库连接管理、SQL 执行、数据建模、性能监控等功能',
     icon: <DatabaseOutlined />,
-    color: '#1890ff',
+    color: colors.primary[500],
     path: '/dba',
     tags: ['数据库', 'SQL', '管理工具'],
   },
@@ -39,7 +40,7 @@ const subApps: SubAppCard[] = [
     name: '知识库',
     description: '团队知识沉淀、文档管理、经验分享、最佳实践收集',
     icon: <BookOutlined />,
-    color: '#52c41a',
+    color: colors.success[500],
     path: '/knowledge',
     tags: ['文档', '知识管理', '协作'],
   },
@@ -48,7 +49,7 @@ const subApps: SubAppCard[] = [
     name: '监控中心',
     description: '系统监控、告警管理、性能分析、日志查询一体化平台',
     icon: <DashboardOutlined />,
-    color: '#722ed1',
+    color: colors.purple[500],
     path: '/visor',
     tags: ['监控', '告警', '分析'],
   },
@@ -61,7 +62,7 @@ const SubApps: React.FC = () => {
     <div style={{ padding: 24 }}>
       <div style={{ marginBottom: 32 }}>
         <Title level={2}>子系统导航</Title>
-        <Paragraph type="secondary" style={{ fontSize: 16 }}>
+        <Paragraph type="secondary" style={{ fontSize: spacing[4] }}>
           Orion 平台采用微前端架构，以下为集成的子系统应用。点击卡片进入相应子系统。
         </Paragraph>
       </div>
@@ -75,7 +76,7 @@ const SubApps: React.FC = () => {
                 height: '100%',
                 minHeight: 280,
                 borderRadius: 12,
-                border: '1px solid #f0f0f0',
+                border: `1px solid ${colors.light.border.light}`,
                 transition: 'all 0.3s',
                 boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
               }}
@@ -98,7 +99,7 @@ const SubApps: React.FC = () => {
                   marginBottom: 16,
                 }}
               >
-                <div style={{ fontSize: 32, color: app.color }}>
+                <div style={{ fontSize: spacing[8], color: app.color }}>
                   {app.icon}
                 </div>
               </div>
@@ -119,7 +120,7 @@ const SubApps: React.FC = () => {
                 type="secondary"
                 style={{
                   flex: 1,
-                  fontSize: 14,
+                  fontSize: spacing[4],
                   lineHeight: 1.6,
                   marginBottom: 24,
                 }}
@@ -151,12 +152,12 @@ const SubApps: React.FC = () => {
       <Card
         style={{
           marginTop: 32,
-          background: '#fafafa',
+          background: colors.neutral[50],
           border: 'none',
         }}
       >
         <Title level={5}>🏗️ 微前端架构说明</Title>
-        <Paragraph style={{ fontSize: 14, color: '#666' }}>
+        <Paragraph style={{ fontSize: spacing[4], color: colors.neutral[500] }}>
           <ul style={{ paddingLeft: 20 }}>
             <li>采用 <strong>Wujie（无界）</strong> 微前端框架，实现子系统间完全隔离</li>
             <li>支持子系统独立开发、独立部署、技术栈无关</li>

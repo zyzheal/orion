@@ -4,6 +4,7 @@
  */
 import React, { useState } from 'react';
 import { Layout, Menu, Typography } from 'antd';
+import { colors, spacing } from '@/tokens';
 import {
   ScanOutlined,
   HistoryOutlined,
@@ -40,7 +41,7 @@ const AIReviewLayout: React.FC = () => {
         collapsed={collapsed}
         onCollapse={setCollapsed}
         theme="light"
-        style={{ borderRight: '1px solid #f0f0f0' }}
+        style={{ borderRight: `1px solid ${colors.light.border.light}` }}
       >
         <div style={{ padding: '16px 12px' }}>
           <Title level={4} style={{ margin: 0 }}>

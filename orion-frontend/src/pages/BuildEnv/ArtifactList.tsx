@@ -4,6 +4,7 @@
  */
 import React, { useState, useMemo, useEffect } from 'react';
 import { Typography, Button, Space, Tag, Popconfirm, message } from 'antd';
+import { spacing } from '@/tokens';
 import { ReloadOutlined, DownloadOutlined, DeleteOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
@@ -158,14 +159,14 @@ const ArtifactList: React.FC = () => {
       title: 'Run ID',
       dataIndex: 'pipelineRunId',
       width: 180,
-      render: (value) => <Text type="secondary" style={{ fontSize: 12 }}>{String(value)}</Text>,
+      render: (value) => <Text type="secondary" style={{ fontSize: spacing[3] }}>{String(value)}</Text>,
     },
     {
       key: 'stageId',
       title: 'Stage ID',
       dataIndex: 'stageId',
       width: 160,
-      render: (value) => <Text type="secondary" style={{ fontSize: 12 }}>{String(value)}</Text>,
+      render: (value) => <Text type="secondary" style={{ fontSize: spacing[3] }}>{String(value)}</Text>,
     },
     {
       key: 'expiresAt',
@@ -177,7 +178,7 @@ const ArtifactList: React.FC = () => {
         const expiry = dayjs(String(value));
         const isExpired = expiry.isBefore(dayjs());
         return (
-          <Text type={isExpired ? 'danger' : 'secondary'} style={{ fontSize: 12 }}>
+          <Text type={isExpired ? 'danger' : 'secondary'} style={{ fontSize: spacing[3] }}>
             {expiry.fromNow()}
           </Text>
         );
@@ -190,7 +191,7 @@ const ArtifactList: React.FC = () => {
       width: 140,
       sortable: true,
       render: (value) => (
-        <Text type="secondary" style={{ fontSize: 12 }}>
+        <Text type="secondary" style={{ fontSize: spacing[3] }}>
           {dayjs(String(value)).fromNow()}
         </Text>
       ),

@@ -3,6 +3,7 @@
  */
 import React, { useState, useMemo, useEffect } from 'react';
 import { Typography, Button, Space, Tag, Card, Checkbox, message, Select } from 'antd';
+import { colors, spacing } from '@/tokens';
 import { ReloadOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import { getConfirmations, batchApprove, type ConfirmationRequest } from '@/api/confirmations';
@@ -11,10 +12,10 @@ import dayjs from 'dayjs';
 const { Title, Text } = Typography;
 
 const priorityColorMap: Record<string, string> = {
-  P0: '#ff4d4f',
-  P1: '#fa8c16',
-  P2: '#faad14',
-  P3: '#52c41a',
+  P0: colors.error[400],
+  P1: colors.warning[500],
+  P2: colors.warning[500],
+  P3: colors.success[500],
 };
 
 const BatchConfirmation: React.FC = () => {
@@ -109,14 +110,14 @@ const BatchConfirmation: React.FC = () => {
       title: '确认 ID',
       dataIndex: 'id',
       width: 180,
-      render: (v: unknown) => <Text code style={{ fontSize: 12 }}>{String(v).slice(0, 16)}...</Text>,
+      render: (v: unknown) => <Text code style={{ fontSize: spacing[3] }}>{String(v).slice(0, 16)}...</Text>,
     },
     {
       key: 'aiSuggestion',
       title: 'AI 建议',
       dataIndex: 'aiSuggestion',
       width: 240,
-      render: (v: unknown) => <Text style={{ fontSize: 12 }}>{String(v)}</Text>,
+      render: (v: unknown) => <Text style={{ fontSize: spacing[3] }}>{String(v)}</Text>,
     },
     {
       key: 'aiConfidence',
@@ -130,7 +131,7 @@ const BatchConfirmation: React.FC = () => {
       title: '推送时间',
       dataIndex: 'pushTime',
       width: 160,
-      render: (v: unknown) => <Text type="secondary" style={{ fontSize: 12 }}>{dayjs(String(v)).fromNow()}</Text>,
+      render: (v: unknown) => <Text type="secondary" style={{ fontSize: spacing[3] }}>{dayjs(String(v)).fromNow()}</Text>,
     },
   ];
 

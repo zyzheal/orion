@@ -3,6 +3,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import { Typography, Button, Space, Tag, Card, Progress, Input, message, Descriptions, Statistic, Row, Col, Divider } from 'antd';
+import { colors } from '@/tokens';
 import { CheckOutlined, CloseOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import { getConfirmation, approveConfirmation, rejectConfirmation, type ConfirmationRequest } from '@/api/confirmations';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -14,10 +15,10 @@ dayjs.extend(relativeTime);
 const { Title, Text } = Typography;
 
 const priorityColorMap: Record<string, string> = {
-  P0: '#ff4d4f',
-  P1: '#fa8c16',
-  P2: '#faad14',
-  P3: '#52c41a',
+  P0: colors.error[400],
+  P1: colors.warning[500],
+  P2: colors.warning[500],
+  P3: colors.success[500],
 };
 
 const ConfirmationDetail: React.FC = () => {
@@ -131,7 +132,7 @@ const ConfirmationDetail: React.FC = () => {
           <Col span={12}>
             <Progress
               percent={confirmation.aiConfidence}
-              strokeColor={confirmation.aiConfidence >= 80 ? '#52c41a' : confirmation.aiConfidence >= 60 ? '#faad14' : '#ff4d4f'}
+              strokeColor={confirmation.aiConfidence >= 80 ? colors.success[500] : confirmation.aiConfidence >= 60 ? colors.warning[500] : colors.error[400]}
             />
           </Col>
         </Row>

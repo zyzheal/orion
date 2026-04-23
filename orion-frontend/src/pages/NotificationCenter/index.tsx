@@ -22,6 +22,7 @@ import {
   message,
   Popconfirm,
 } from 'antd';
+import { colors, spacing } from '@/tokens';
 import {
   BellOutlined,
   UserAddOutlined,
@@ -59,14 +60,14 @@ const { Title, Text, Paragraph } = Typography;
 
 // Icon mapping for notification types
 const typeIconMap: Record<string, React.ReactElement> = {
-  ticket_assigned: <UserAddOutlined style={{ color: '#1890ff', fontSize: 20 }} />,
-  ticket_escalated: <ArrowUpOutlined style={{ color: '#fa8c16', fontSize: 20 }} />,
-  sla_warning: <WarningOutlined style={{ color: '#faad14', fontSize: 20 }} />,
-  sla_breached: <ExclamationCircleOutlined style={{ color: '#f5222d', fontSize: 20 }} />,
-  pipeline_completed: <CheckCircleOutlined style={{ color: '#52c41a', fontSize: 20 }} />,
-  comment_mention: <MessageOutlined style={{ color: '#722ed1', fontSize: 20 }} />,
-  transfer_request: <SwapOutlined style={{ color: '#13c2c2', fontSize: 20 }} />,
-  system_alert: <AlertOutlined style={{ color: '#f5222d', fontSize: 20 }} />,
+  ticket_assigned: <UserAddOutlined style={{ color: colors.primary[500], fontSize: spacing[5] }} />,
+  ticket_escalated: <ArrowUpOutlined style={{ color: colors.warning[500], fontSize: spacing[5] }} />,
+  sla_warning: <WarningOutlined style={{ color: colors.warning[500], fontSize: spacing[5] }} />,
+  sla_breached: <ExclamationCircleOutlined style={{ color: colors.error[500], fontSize: spacing[5] }} />,
+  pipeline_completed: <CheckCircleOutlined style={{ color: colors.success[500], fontSize: spacing[5] }} />,
+  comment_mention: <MessageOutlined style={{ color: colors.purple[500], fontSize: spacing[5] }} />,
+  transfer_request: <SwapOutlined style={{ color: colors.cyan[500], fontSize: spacing[5] }} />,
+  system_alert: <AlertOutlined style={{ color: colors.error[500], fontSize: spacing[5] }} />,
 };
 
 // Type label mapping
@@ -83,10 +84,10 @@ const typeLabelMap: Record<string, string> = {
 
 // Priority config
 const priorityConfig: Record<string, { color: string; label: string; bg: string }> = {
-  critical: { color: '#f5222d', label: '紧急', bg: 'rgba(245, 34, 45, 0.04)' },
-  high: { color: '#fa8c16', label: '高', bg: 'rgba(250, 140, 22, 0.04)' },
-  medium: { color: '#faad14', label: '中', bg: 'transparent' },
-  low: { color: '#d9d9d9', label: '低', bg: 'transparent' },
+  critical: { color: colors.error[500], label: '紧急', bg: 'rgba(245, 34, 45, 0.04)' },
+  high: { color: colors.warning[500], label: '高', bg: 'rgba(250, 140, 22, 0.04)' },
+  medium: { color: colors.warning[500], label: '中', bg: 'transparent' },
+  low: { color: colors.neutral[300], label: '低', bg: 'transparent' },
 };
 
 // Tab definitions
@@ -237,7 +238,7 @@ const NotificationCenter: React.FC = () => {
           <Statistic
             title="未读"
             value={stats.unread}
-            valueStyle={{ color: stats.unread > 0 ? '#f5222d' : undefined, fontSize: 24 }}
+            valueStyle={{ color: stats.unread > 0 ? colors.error[500] : undefined, fontSize: spacing[6] }}
             prefix={<BellOutlined />}
           />
         </Card>
@@ -247,7 +248,7 @@ const NotificationCenter: React.FC = () => {
           <Statistic
             title="紧急"
             value={stats.critical}
-            valueStyle={{ color: stats.critical > 0 ? '#f5222d' : undefined, fontSize: 24 }}
+            valueStyle={{ color: stats.critical > 0 ? colors.error[500] : undefined, fontSize: spacing[6] }}
             prefix={<ExclamationCircleOutlined />}
           />
         </Card>
@@ -257,7 +258,7 @@ const NotificationCenter: React.FC = () => {
           <Statistic
             title="今日"
             value={stats.today}
-            valueStyle={{ fontSize: 24 }}
+            valueStyle={{ fontSize: spacing[6] }}
             prefix={<CheckCircleOutlined />}
           />
         </Card>
@@ -267,7 +268,7 @@ const NotificationCenter: React.FC = () => {
           <Statistic
             title="本周"
             value={stats.thisWeek}
-            valueStyle={{ fontSize: 24 }}
+            valueStyle={{ fontSize: spacing[6] }}
             prefix={<BellOutlined />}
           />
         </Card>
@@ -279,7 +280,7 @@ const NotificationCenter: React.FC = () => {
   const renderNotificationItem = (item: MockNotification) => {
     const isExpanded = expandedIds.has(item.id);
     const priorityConf = priorityConfig[item.priority];
-    const typeIcon = typeIconMap[item.type] || <BellOutlined style={{ fontSize: 20 }} />;
+    const typeIcon = typeIconMap[item.type] || <BellOutlined style={{ fontSize: spacing[5] }} />;
     const typeLabel = typeLabelMap[item.type] || item.type;
 
     // Background color for priority (only critical and high)
@@ -318,8 +319,8 @@ const NotificationCenter: React.FC = () => {
               <Text
                 strong={!item.read}
                 style={{
-                  fontSize: 14,
-                  color: item.read ? undefined : '#000',
+                  fontSize: spacing[4],
+                  color: item.read ? undefined : colors.neutral[900],
                   flex: 1,
                 }}
                 ellipsis={{ tooltip: item.title }}
@@ -327,11 +328,11 @@ const NotificationCenter: React.FC = () => {
                 {item.title}
               </Text>
               {/* Priority badge */}
-              <Tag color={priorityConf.color} style={{ fontSize: 11, margin: 0 }}>
+              <Tag color={priorityConf.color} style={{ fontSize: spacing[2], margin: 0 }}>
                 {priorityConf.label}
               </Tag>
               {/* Type tag */}
-              <Tag style={{ fontSize: 11, margin: 0 }}>{typeLabel}</Tag>
+              <Tag style={{ fontSize: spacing[2], margin: 0 }}>{typeLabel}</Tag>
               {/* Unread dot */}
               {!item.read && (
                 <div
@@ -339,7 +340,7 @@ const NotificationCenter: React.FC = () => {
                     width: 8,
                     height: 8,
                     borderRadius: '50%',
-                    background: '#1890ff',
+                    background: colors.primary[500],
                     flexShrink: 0,
                   }}
                 />
@@ -349,21 +350,21 @@ const NotificationCenter: React.FC = () => {
             {/* Content (truncated) */}
             <Paragraph
               ellipsis={{ rows: isExpanded ? 10 : 2, tooltip: !isExpanded }}
-              style={{ margin: '4px 0 8px', fontSize: 13, color: '#666' }}
+              style={{ margin: '4px 0 8px', fontSize: spacing[3], color: colors.neutral[500] }}
             >
               {item.content}
             </Paragraph>
 
             {/* Meta row */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-              <Text type="secondary" style={{ fontSize: 12 }}>
+              <Text type="secondary" style={{ fontSize: spacing[3] }}>
                 {item.sender}
               </Text>
-              <Text type="secondary" style={{ fontSize: 12 }}>
+              <Text type="secondary" style={{ fontSize: spacing[3] }}>
                 {dayjs(item.createdAt).fromNow()}
               </Text>
               {item.relatedId && (
-                <Text type="secondary" style={{ fontSize: 12, color: '#1890ff' }}>
+                <Text type="secondary" style={{ fontSize: spacing[3], color: colors.primary[500] }}>
                   关联: {item.relatedId}
                 </Text>
               )}
@@ -372,7 +373,7 @@ const NotificationCenter: React.FC = () => {
             {/* Expanded actions */}
             {isExpanded && (
               <div
-                style={{ marginTop: 12, borderTop: '1px solid #f0f0f0', paddingTop: 12 }}
+                style={{ marginTop: spacing[3], borderTop: `1px solid ${colors.light.border.light}`, paddingTop: spacing[3] }}
                 onClick={(e) => e.stopPropagation()}
               >
                 {item.actions && item.actions.length > 0 && (

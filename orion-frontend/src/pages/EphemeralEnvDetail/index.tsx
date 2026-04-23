@@ -23,6 +23,7 @@ import {
   Alert,
   Popconfirm,
 } from 'antd';
+import { colors, spacing } from '@/tokens';
 import {
   ArrowLeftOutlined,
   ReloadOutlined,
@@ -235,7 +236,7 @@ const EphemeralEnvDetail: React.FC = () => {
       width: 160,
       render: (value: string) => (
         <Space>
-          <CodeOutlined style={{ color: '#722ed1' }} />
+          <CodeOutlined style={{ color: colors.purple[500] }} />
           <Text strong>{value}</Text>
         </Space>
       ),
@@ -245,7 +246,7 @@ const EphemeralEnvDetail: React.FC = () => {
       dataIndex: 'image',
       key: 'image',
       ellipsis: true,
-      render: (value: string) => <Text code style={{ fontSize: 11 }}>{value}</Text>,
+      render: (value: string) => <Text code style={{ fontSize: spacing[2] }}>{value}</Text>,
     },
     {
       title: '副本数',
@@ -296,10 +297,10 @@ const EphemeralEnvDetail: React.FC = () => {
         style={{
           marginBottom: 24,
           borderLeft: `4px solid ${
-            env.status === 'running' ? '#52c41a' :
-            env.status === 'provisioning' ? '#1890ff' :
-            env.status === 'idle' ? '#faad14' :
-            env.status === 'destroyed' ? '#f5222d' : '#8c8c8c'
+            env.status === 'running' ? colors.success[500] :
+            env.status === 'provisioning' ? colors.primary[500] :
+            env.status === 'idle' ? colors.warning[500] :
+            env.status === 'destroyed' ? colors.error[500] : colors.neutral[400]
           }`,
         }}
       >
@@ -374,7 +375,7 @@ const EphemeralEnvDetail: React.FC = () => {
       <Card title="环境信息" size="small" style={{ marginBottom: 24 }}>
         <Descriptions column={3} size="small" bordered>
           <Descriptions.Item label="环境 ID">
-            <Text code style={{ fontSize: 11 }}>{env.id}</Text>
+            <Text code style={{ fontSize: spacing[2] }}>{env.id}</Text>
           </Descriptions.Item>
           <Descriptions.Item label="Namespace">{env.namespace}</Descriptions.Item>
           <Descriptions.Item label="PR ID">#{env.prId}</Descriptions.Item>
@@ -383,7 +384,7 @@ const EphemeralEnvDetail: React.FC = () => {
             <Tag>{env.branchName}</Tag>
           </Descriptions.Item>
           <Descriptions.Item label="Commit SHA">
-            <Text code style={{ fontSize: 11 }}>{env.commitSha}</Text>
+            <Text code style={{ fontSize: spacing[2] }}>{env.commitSha}</Text>
           </Descriptions.Item>
           <Descriptions.Item label="创建者">{env.createdBy || '-'}</Descriptions.Item>
           <Descriptions.Item label="创建时间">
@@ -522,9 +523,9 @@ const EphemeralEnvDetail: React.FC = () => {
               textAlign: 'center',
               border: '1px solid #b7eb8f',
             }}>
-              <Text type="secondary" style={{ fontSize: 12 }}>总成本</Text>
+              <Text type="secondary" style={{ fontSize: spacing[3] }}>总成本</Text>
               <br />
-              <Text strong style={{ fontSize: 20, color: '#52c41a' }}>
+              <Text strong style={{ fontSize: spacing[5], color: colors.success[500] }}>
                 {cost.totalCost.toFixed(2)} {cost.currency}
               </Text>
             </div>

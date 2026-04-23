@@ -52,6 +52,7 @@ import {
   type OptimizationItem,
   type BudgetAlertItem,
 } from '@/api/finops';
+import { colors, spacing } from '@/tokens';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -160,7 +161,7 @@ const FinOpsDashboard: React.FC = () => {
       dataIndex: 'cost',
       sorter: (a, b) => a.cost - b.cost,
       render: (value: number) => (
-        <Text strong style={{ color: '#1890ff' }}>
+        <Text strong style={{ color: colors.primary[500] }}>
           ¥{value.toLocaleString()}
         </Text>
       ),
@@ -174,11 +175,11 @@ const FinOpsDashboard: React.FC = () => {
           <Progress
             percent={value}
             size="small"
-            strokeColor="#1890ff"
+            strokeColor={colors.primary[500]}
             showInfo={false}
             style={{ flex: 1 }}
           />
-          <Text type="secondary" style={{ fontSize: 12, minWidth: 40 }}>
+          <Text type="secondary" style={{ fontSize: spacing[3], minWidth: 40 }}>
             {value}%
           </Text>
         </div>
@@ -191,14 +192,14 @@ const FinOpsDashboard: React.FC = () => {
       width: 80,
       render: (value: 'up' | 'down' | 'stable') => {
         const config: Record<string, { icon: React.ReactNode; color: string }> = {
-          up: { icon: <ArrowUpOutlined />, color: '#ff4d4f' },
-          down: { icon: <ArrowDownOutlined />, color: '#52c41a' },
-          stable: { icon: <MinusOutlined />, color: '#999' },
+          up: { icon: <ArrowUpOutlined />, color: colors.error[400] },
+          down: { icon: <ArrowDownOutlined />, color: colors.success[500] },
+          stable: { icon: <MinusOutlined />, color: colors.neutral[400] },
         };
         const c = config[value];
         return (
           <Tooltip title={value === 'up' ? '上升' : value === 'down' ? '下降' : '持平'}>
-            <Text style={{ color: c.color, fontSize: 16 }}>{c.icon}</Text>
+            <Text style={{ color: c.color, fontSize: spacing[4] }}>{c.icon}</Text>
           </Tooltip>
         );
       },
@@ -241,29 +242,29 @@ const FinOpsDashboard: React.FC = () => {
               <Statistic
                 title="本月花费"
                 value={costSummary.totalMonthly}
-                prefix={<DollarOutlined style={{ color: '#1890ff' }} />}
+                prefix={<DollarOutlined style={{ color: colors.primary[500] }} />}
                 suffix="¥"
                 precision={0}
-                valueStyle={{ color: '#1890ff', fontSize: 28 }}
+                valueStyle={{ color: colors.primary[500], fontSize: spacing[8] }}
               />
               <div style={{ marginTop: 8 }}>
                 <Text
                   type="secondary"
-                  style={{ fontSize: 12 }}
+                  style={{ fontSize: spacing[3] }}
                 >
                   较上月{' '}
                   <Text
                     style={{
-                      color: parseFloat(momChange) > 0 ? '#ff4d4f' : '#52c41a',
+                      color: parseFloat(momChange) > 0 ? colors.error[400] : colors.success[500],
                       fontWeight: 600,
                     }}
                   >
                     {parseFloat(momChange) > 0 ? '+' : ''}
                     {momChange}%{' '}
                     {parseFloat(momChange) > 0 ? (
-                      <ArrowUpOutlined style={{ fontSize: 10 }} />
+                      <ArrowUpOutlined style={{ fontSize: spacing[2] }} />
                     ) : (
-                      <ArrowDownOutlined style={{ fontSize: 10 }} />
+                      <ArrowDownOutlined style={{ fontSize: spacing[2] }} />
                     )}
                   </Text>
                 </Text>
@@ -281,12 +282,12 @@ const FinOpsDashboard: React.FC = () => {
                 suffix="%"
                 precision={0}
                 valueStyle={{
-                  color: budgetUsagePercent > 90 ? '#ff4d4f' : budgetUsagePercent > 70 ? '#fa8c16' : '#52c41a',
-                  fontSize: 28,
+                  color: budgetUsagePercent > 90 ? colors.error[400] : budgetUsagePercent > 70 ? colors.warning[500] : colors.success[500],
+                  fontSize: spacing[8],
                 }}
               />
               <div style={{ marginTop: 8 }}>
-                <Text type="secondary" style={{ fontSize: 12 }}>
+                <Text type="secondary" style={{ fontSize: spacing[3] }}>
                   预算上限 ¥{costSummary.budgetLimit.toLocaleString()}
                 </Text>
                 <Progress
@@ -294,10 +295,10 @@ const FinOpsDashboard: React.FC = () => {
                   size="small"
                   strokeColor={
                     budgetUsagePercent > 90
-                      ? '#ff4d4f'
+                      ? colors.error[400]
                       : budgetUsagePercent > 70
-                      ? '#fa8c16'
-                      : '#52c41a'
+                      ? colors.warning[500]
+                      : colors.success[500]
                   }
                   style={{ marginTop: 4 }}
                 />
@@ -311,13 +312,13 @@ const FinOpsDashboard: React.FC = () => {
               <Statistic
                 title="预计浪费"
                 value={costSummary.waste}
-                prefix={<FireOutlined style={{ color: '#ff4d4f' }} />}
+                prefix={<FireOutlined style={{ color: colors.error[400] }} />}
                 suffix="¥"
                 precision={0}
-                valueStyle={{ color: '#ff4d4f', fontSize: 28 }}
+                valueStyle={{ color: colors.error[400], fontSize: spacing[8] }}
               />
               <div style={{ marginTop: 8 }}>
-                <Text type="secondary" style={{ fontSize: 12 }}>
+                <Text type="secondary" style={{ fontSize: spacing[3] }}>
                   闲置资源和过度配置
                 </Text>
               </div>
@@ -330,13 +331,13 @@ const FinOpsDashboard: React.FC = () => {
               <Statistic
                 title="节省金额"
                 value={costSummary.savings}
-                prefix={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
+                prefix={<CheckCircleOutlined style={{ color: colors.success[500] }} />}
                 suffix="¥"
                 precision={0}
-                valueStyle={{ color: '#52c41a', fontSize: 28 }}
+                valueStyle={{ color: colors.success[500], fontSize: spacing[8] }}
               />
               <div style={{ marginTop: 8 }}>
-                <Text type="secondary" style={{ fontSize: 12 }}>
+                <Text type="secondary" style={{ fontSize: spacing[3] }}>
                   已通过优化措施节省
                 </Text>
               </div>
@@ -367,12 +368,12 @@ const FinOpsDashboard: React.FC = () => {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                background: '#fafafa',
+                background: colors.neutral[50],
                 borderRadius: 6,
-                border: '1px dashed #d9d9d9',
+                border: `1px dashed ${colors.neutral[300]}`,
               }}
             >
-              <Text type="secondary" style={{ fontSize: 14 }}>
+              <Text type="secondary" style={{ fontSize: spacing[4] }}>
                 图表加载中...
               </Text>
             </div>
@@ -415,7 +416,7 @@ const FinOpsDashboard: React.FC = () => {
                   }
                   description={
                     <div style={{ marginTop: 4 }}>
-                      <Text type="secondary" style={{ fontSize: 12 }}>
+                      <Text type="secondary" style={{ fontSize: spacing[3] }}>
                         当前使用 {alert.current}% / 预算阈值 {alert.threshold}%
                       </Text>
                       <Progress
@@ -423,8 +424,8 @@ const FinOpsDashboard: React.FC = () => {
                         size="small"
                         strokeColor={
                           alert.status === 'exceeded'
-                            ? '#ff4d4f'
-                            : '#fa8c16'
+                            ? colors.error[400]
+                            : colors.warning[500]
                         }
                         style={{ marginTop: 8 }}
                       />
@@ -476,10 +477,10 @@ const FinOpsDashboard: React.FC = () => {
                         {effortConfig[opt.effort].label}
                       </Tag>
                     </div>
-                    <Text type="secondary" style={{ fontSize: 12 }}>
+                    <Text type="secondary" style={{ fontSize: spacing[3] }}>
                       {opt.description}
                     </Text>
-                    <Text strong style={{ color: '#52c41a', fontSize: 14 }}>
+                    <Text strong style={{ color: colors.success[500], fontSize: spacing[4] }}>
                       预计节省 ¥{opt.savings.toLocaleString()}/月
                     </Text>
                   </Space>

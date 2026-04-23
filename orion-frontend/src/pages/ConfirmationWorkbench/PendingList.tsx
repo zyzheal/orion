@@ -3,6 +3,7 @@
  */
 import React, { useState, useMemo, useEffect } from 'react';
 import { Typography, Button, Space, Tag, Card, Row, Col, Statistic, Modal, Form, Input, message, Progress } from 'antd';
+import { colors, spacing } from '@/tokens';
 import { ReloadOutlined, CheckOutlined, CloseOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
@@ -16,10 +17,10 @@ dayjs.extend(relativeTime);
 const { Title, Text } = Typography;
 
 const priorityColorMap: Record<string, string> = {
-  P0: '#ff4d4f',
-  P1: '#fa8c16',
-  P2: '#faad14',
-  P3: '#52c41a',
+  P0: colors.error[400],
+  P1: colors.warning[500],
+  P2: colors.warning[500],
+  P3: colors.success[500],
 };
 
 const sceneTypeOptions = [
@@ -128,14 +129,14 @@ const PendingList: React.FC = () => {
       dataIndex: 'id',
       width: 180,
       sortable: true,
-      render: (v: unknown) => <Text code style={{ fontSize: 12 }}>{String(v).slice(0, 16)}...</Text>,
+      render: (v: unknown) => <Text code style={{ fontSize: spacing[3] }}>{String(v).slice(0, 16)}...</Text>,
     },
     {
       key: 'aiSuggestion',
       title: 'AI 建议',
       dataIndex: 'aiSuggestion',
       width: 200,
-      render: (v: unknown) => <Text style={{ fontSize: 12 }}>{String(v)}</Text>,
+      render: (v: unknown) => <Text style={{ fontSize: spacing[3] }}>{String(v)}</Text>,
     },
     {
       key: 'aiConfidence',
@@ -146,7 +147,7 @@ const PendingList: React.FC = () => {
         <Progress
           percent={Number(v)}
           size="small"
-          strokeColor={Number(v) >= 80 ? '#52c41a' : Number(v) >= 60 ? '#faad14' : '#ff4d4f'}
+          strokeColor={Number(v) >= 80 ? colors.success[500] : Number(v) >= 60 ? colors.warning[500] : colors.error[400]}
           format={() => `${Number(v)}%`}
         />
       ),
@@ -165,7 +166,7 @@ const PendingList: React.FC = () => {
       width: 160,
       sortable: true,
       render: (v: unknown) => (
-        <Text type="secondary" style={{ fontSize: 12 }}>{dayjs(String(v)).fromNow()}</Text>
+        <Text type="secondary" style={{ fontSize: spacing[3] }}>{dayjs(String(v)).fromNow()}</Text>
       ),
     },
     {
@@ -175,7 +176,7 @@ const PendingList: React.FC = () => {
       render: (_: unknown, record: any) =>
         record.status === 'pending' ? (
           <Space size="small">
-            <Button type="link" size="small" icon={<CheckOutlined />} style={{ color: '#52c41a' }}
+            <Button type="link" size="small" icon={<CheckOutlined />} style={{ color: colors.success[500] }}
               onClick={() => openCommentModal(record, 'approve')}>
               确认
             </Button>
@@ -229,7 +230,7 @@ const PendingList: React.FC = () => {
 
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col span={6}>
-          <Card><Statistic title="待确认" value={pendingCount} valueStyle={{ color: '#1890ff' }} /></Card>
+          <Card><Statistic title="待确认" value={pendingCount} valueStyle={{ color: colors.primary[500] }} /></Card>
         </Col>
         <Col span={6}>
           <Card><Statistic title="P0 紧急" value={p0Count} valueStyle={{ color: priorityColorMap.P0 }} /></Card>

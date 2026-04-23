@@ -22,6 +22,7 @@ import {
   Progress,
   Alert,
 } from 'antd';
+import { colors, spacing } from '@/tokens';
 import {
   ArrowLeftOutlined,
   ReloadOutlined,
@@ -204,10 +205,10 @@ const AgentRunDetail: React.FC = () => {
         style={{
           marginBottom: 24,
           borderLeft: `4px solid ${
-            run.status === 'completed' ? '#52c41a' :
-            run.status === 'failed' ? '#f5222d' :
-            run.status === 'running' ? '#1890ff' :
-            run.status === 'waiting_approval' ? '#faad14' : '#8c8c8c'
+            run.status === 'completed' ? colors.success[500] :
+            run.status === 'failed' ? colors.error[500] :
+            run.status === 'running' ? colors.primary[500] :
+            run.status === 'waiting_approval' ? colors.warning[500] : colors.neutral[400]
           }`,
         }}
       >
@@ -255,17 +256,17 @@ const AgentRunDetail: React.FC = () => {
         {/* Progress bar */}
         <div style={{ marginTop: 16 }}>
           <Space>
-            <Text style={{ fontSize: 12 }}>进度</Text>
+            <Text style={{ fontSize: spacing[3] }}>进度</Text>
             <Progress
               percent={progress}
               size="small"
               style={{ width: 300 }}
               strokeColor={{
-                '0%': '#1890ff',
-                '100%': '#52c41a',
+                '0%': colors.primary[500],
+                '100%': colors.success[500],
               }}
             />
-            <Text type="secondary" style={{ fontSize: 12 }}>
+            <Text type="secondary" style={{ fontSize: spacing[3] }}>
               {run.currentStep} / {run.totalSteps} 步骤
             </Text>
           </Space>
@@ -301,10 +302,10 @@ const AgentRunDetail: React.FC = () => {
             <Divider style={{ margin: '12px 0' }} />
             <Title level={5}>触发载荷</Title>
             <pre style={{
-              background: '#f5f5f5',
+              background: colors.neutral[50],
               padding: 12,
               borderRadius: 4,
-              fontSize: 12,
+              fontSize: spacing[3],
               overflow: 'auto',
               maxHeight: 200,
             }}>
@@ -357,20 +358,20 @@ const AgentRunDetail: React.FC = () => {
                     </Descriptions.Item>
                     <Descriptions.Item label="操作">{decision.action}</Descriptions.Item>
                     <Descriptions.Item label="输入">
-                      <pre style={{ margin: 0, fontSize: 12, background: '#fafafa', padding: 8, borderRadius: 4 }}>
+                      <pre style={{ margin: 0, fontSize: spacing[3], background: colors.neutral[50], padding: 8, borderRadius: 4 }}>
                         {JSON.stringify(decision.actionInput, null, 2)}
                       </pre>
                     </Descriptions.Item>
                     {decision.actionOutput && (
                       <Descriptions.Item label="输出">
-                        <pre style={{ margin: 0, fontSize: 12, background: '#fafafa', padding: 8, borderRadius: 4 }}>
+                        <pre style={{ margin: 0, fontSize: spacing[3], background: colors.neutral[50], padding: 8, borderRadius: 4 }}>
                           {JSON.stringify(decision.actionOutput, null, 2)}
                         </pre>
                       </Descriptions.Item>
                     )}
                     {decision.toolResult && (
                       <Descriptions.Item label="工具结果">
-                        <pre style={{ margin: 0, fontSize: 12, background: '#fafafa', padding: 8, borderRadius: 4 }}>
+                        <pre style={{ margin: 0, fontSize: spacing[3], background: colors.neutral[50], padding: 8, borderRadius: 4 }}>
                           {JSON.stringify(decision.toolResult, null, 2)}
                         </pre>
                       </Descriptions.Item>
@@ -382,7 +383,7 @@ const AgentRunDetail: React.FC = () => {
                     )}
                     {decision.error && (
                       <Descriptions.Item label="错误">
-                        <Alert message={decision.error} type="error" showIcon style={{ fontSize: 12 }} />
+                        <Alert message={decision.error} type="error" showIcon style={{ fontSize: spacing[3] }} />
                       </Descriptions.Item>
                     )}
                     <Descriptions.Item label="创建时间">
@@ -400,7 +401,7 @@ const AgentRunDetail: React.FC = () => {
         <Card
           title={
             <Space>
-              <WarningOutlined style={{ color: '#faad14' }} />
+              <WarningOutlined style={{ color: colors.warning[500] }} />
               审批记录
             </Space>
           }
@@ -444,7 +445,7 @@ const AgentRunDetail: React.FC = () => {
         <Card
           title={
             <Space>
-              <CheckCircleOutlined style={{ color: '#52c41a' }} />
+              <CheckCircleOutlined style={{ color: colors.success[500] }} />
               运行结果
             </Space>
           }
@@ -476,10 +477,10 @@ const AgentRunDetail: React.FC = () => {
             />
           )}
           <pre style={{
-            background: '#f5f5f5',
+            background: colors.neutral[50],
             padding: 12,
             borderRadius: 4,
-            fontSize: 12,
+            fontSize: spacing[3],
             overflow: 'auto',
             maxHeight: 300,
           }}>

@@ -8,6 +8,7 @@ import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import { getWorkspaces, createWorkspace, updateWorkspace, type IaCWorkspace, type WorkspaceInput } from '@/api/iac';
+import { colors, spacing } from '@/tokens';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 
@@ -158,13 +159,13 @@ const WorkspaceList: React.FC = () => {
       render: (v: unknown) =>
         v ? (
           <Space>
-            <LockOutlined style={{ color: '#faad14' }} />
-            <Text type="secondary" style={{ fontSize: 12 }}>{String(v)}</Text>
+            <LockOutlined style={{ color: colors.warning[500] }} />
+            <Text type="secondary" style={{ fontSize: spacing[3] }}>{String(v)}</Text>
           </Space>
         ) : (
           <Space>
-            <UnlockOutlined style={{ color: '#52c41a' }} />
-            <Text type="secondary" style={{ fontSize: 12 }}>未锁定</Text>
+            <UnlockOutlined style={{ color: colors.success[500] }} />
+            <Text type="secondary" style={{ fontSize: spacing[3] }}>未锁定</Text>
           </Space>
         ),
     },
@@ -182,7 +183,7 @@ const WorkspaceList: React.FC = () => {
       width: 160,
       sortable: true,
       render: (v: unknown) => (
-        <Text type="secondary" style={{ fontSize: 12 }}>{dayjs(String(v)).fromNow()}</Text>
+        <Text type="secondary" style={{ fontSize: spacing[3] }}>{dayjs(String(v)).fromNow()}</Text>
       ),
     },
     {
@@ -217,7 +218,7 @@ const WorkspaceList: React.FC = () => {
 
   return (
     <div style={{ padding: 0 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing[6] }}>
         <div>
           <Title level={3} style={{ margin: 0 }}>工作空间</Title>
           <Text type="secondary">管理 IaC 工作空间</Text>
@@ -229,7 +230,7 @@ const WorkspaceList: React.FC = () => {
       </div>
 
       <Card>
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: spacing[4] }}>
           <SearchFilterBar onSearch={setSearchQuery} onFilter={setFilters} filters={filterDefs} searchPlaceholder="搜索工作空间..." />
         </div>
         <Table columns={columns} dataSource={filteredWorkspaces as unknown as Record<string, unknown>[]} loading={loading} rowKey="id" size="middle" striped />

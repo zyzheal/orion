@@ -5,6 +5,7 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Typography, Button, Space, Card, Row, Col, Tag, message, Modal } from 'antd';
 import { ReloadOutlined, EyeOutlined, DeleteOutlined, BranchesOutlined, MergeOutlined } from '@ant-design/icons';
+import { spacing } from '@/tokens';
 import { getCodeRepoAdapters, getCodeRepos, getCodeRepoBranches, getPullRequests, type CodeRepo } from '@/api/code-mgmt';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
@@ -168,7 +169,7 @@ const RepoList: React.FC = () => {
                   size="small"
                   title={
                     <Space>
-                      <Text strong style={{ fontSize: 14 }}>
+                      <Text strong style={{ fontSize: spacing[4] }}>
                         {repo.name}
                       </Text>
                     </Space>
@@ -215,12 +216,12 @@ const RepoList: React.FC = () => {
                   ]}
                 >
                   <Space direction="vertical" size={4} style={{ width: '100%' }}>
-                    <Text type="secondary" style={{ fontSize: 12 }} ellipsis>
+                    <Text type="secondary" style={{ fontSize: spacing[3] }} ellipsis>
                       {repo.url}
                     </Text>
                     <Space size={8}>
                       <Tag color="geekblue">{repo.adapterId}</Tag>
-                      <Text type="secondary" style={{ fontSize: 11 }}>
+                      <Text type="secondary" style={{ fontSize: spacing[2] }}>
                         创建于 {dayjs(repo.createdAt).format('YYYY-MM-DD')}
                       </Text>
                     </Space>

@@ -4,6 +4,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import { Typography, Button, Space, Tag, Tabs, Modal, Form, Input, Select, Switch, Popconfirm, message } from 'antd';
+import { spacing } from '@/tokens';
 import { ReloadOutlined, DeleteOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
@@ -169,7 +170,7 @@ const BuildCachePage: React.FC = () => {
       title: 'Pipeline',
       dataIndex: 'pipeline',
       width: 160,
-      render: (value) => <Text code style={{ fontSize: 12 }}>{String(value)}</Text>,
+      render: (value) => <Text code style={{ fontSize: spacing[3] }}>{String(value)}</Text>,
     },
     {
       key: 'stage',
@@ -263,14 +264,14 @@ const BuildCachePage: React.FC = () => {
       dataIndex: 'key',
       width: 300,
       sortable: true,
-      render: (value) => <Text code style={{ fontSize: 12 }}>{String(value)}</Text>,
+      render: (value) => <Text code style={{ fontSize: spacing[3] }}>{String(value)}</Text>,
     },
     {
       key: 'configId',
       title: 'Config ID',
       dataIndex: 'configId',
       width: 140,
-      render: (value) => <Text type="secondary" style={{ fontSize: 12 }}>{String(value)}</Text>,
+      render: (value) => <Text type="secondary" style={{ fontSize: spacing[3] }}>{String(value)}</Text>,
     },
     {
       key: 'size',
@@ -292,7 +293,7 @@ const BuildCachePage: React.FC = () => {
       width: 140,
       sortable: true,
       render: (value) => (
-        <Text type="secondary" style={{ fontSize: 12 }}>
+        <Text type="secondary" style={{ fontSize: spacing[3] }}>
           {dayjs(String(value)).fromNow()}
         </Text>
       ),
@@ -304,7 +305,7 @@ const BuildCachePage: React.FC = () => {
       width: 140,
       sortable: true,
       render: (value) => (
-        <Text type="secondary" style={{ fontSize: 12 }}>
+        <Text type="secondary" style={{ fontSize: spacing[3] }}>
           {dayjs(String(value)).fromNow()}
         </Text>
       ),

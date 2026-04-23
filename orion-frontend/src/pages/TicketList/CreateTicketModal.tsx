@@ -22,6 +22,7 @@ import {
   FileSearchOutlined,
 } from '@ant-design/icons';
 import { mockTickets } from '@/pages/__mocks__/mockTicketData';
+import { colors, spacing } from '@/tokens';
 
 const { Text } = Typography;
 const { TextArea } = Input;
@@ -72,10 +73,10 @@ const sourceOptions = [
 ];
 
 const priorityColors: Record<string, string> = {
-  critical: '#ff4d4f',
-  high: '#fa8c16',
-  medium: '#1890ff',
-  low: '#8c8c8c',
+  critical: colors.error[400],
+  high: colors.warning[600],
+  medium: colors.primary[500],
+  low: colors.neutral[500],
 };
 
 const priorityLabels: Record<string, string> = {
@@ -193,24 +194,24 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({
         {potentialDuplicates.length > 0 && (
           <div
             style={{
-              background: '#fffbe6',
-              border: '1px solid #ffe58f',
+              background: colors.warning[50],
+              border: `1px solid ${colors.warning[200]}`,
               borderRadius: 8,
-              padding: 12,
-              marginBottom: 16,
+              padding: spacing[3],
+              marginBottom: spacing[4],
             }}
             data-testid="duplicate-preview"
           >
             <Space>
-              <WarningOutlined style={{ color: '#faad14' }} />
-              <Text strong style={{ color: '#ad8b00' }}>
+              <WarningOutlined style={{ color: colors.warning[500] }} />
+              <Text strong style={{ color: colors.warning[700] }}>
                 发现可能的重复工单
               </Text>
             </Space>
-            <div style={{ marginTop: 8 }}>
+            <div style={{ marginTop: spacing[2] }}>
               {potentialDuplicates.map((dup, idx) => (
-                <div key={idx} style={{ marginBottom: 4 }}>
-                  <Text type="secondary" style={{ fontSize: 12 }}>
+                <div key={idx} style={{ marginBottom: spacing[1] }}>
+                  <Text type="secondary" style={{ fontSize: spacing[3] }}>
                     <FileSearchOutlined /> {dup}
                   </Text>
                 </div>

@@ -4,6 +4,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Typography, Button, Space, Tag, Card, Rate, Modal, message, Row, Col, Statistic } from 'antd';
 import { ReloadOutlined, DeleteOutlined, ReloadOutlined as ReloadIcon } from '@ant-design/icons';
+import { spacing } from '@/tokens';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
@@ -127,7 +128,7 @@ const MySkills: React.FC = () => {
       width: 160,
       sortable: true,
       render: (v: unknown) => (
-        <Text type="secondary" style={{ fontSize: 12 }}>{dayjs(String(v)).fromNow()}</Text>
+        <Text type="secondary" style={{ fontSize: spacing[3] }}>{dayjs(String(v)).fromNow()}</Text>
       ),
     },
     {

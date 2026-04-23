@@ -4,6 +4,7 @@
  */
 import React, { useState, useMemo, useEffect } from 'react';
 import { Typography, Button, Space, Tag, Card, Row, Col, Statistic, Modal, Form, Input, Select, message, Tabs } from 'antd';
+import { colors, spacing } from '@/tokens';
 import { PlusOutlined, ReloadOutlined, SyncOutlined, PlayCircleOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
@@ -141,7 +142,7 @@ const PolicyManagement: React.FC = () => {
       render: (value: unknown, record: any) => (
         <Space direction="vertical" size={0}>
           <Text strong>{String(value)}</Text>
-          <Text type="secondary" style={{ fontSize: 12 }}>{record.description || '-'}</Text>
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>{record.description || '-'}</Text>
         </Space>
       ),
     },
@@ -250,7 +251,7 @@ const PolicyManagement: React.FC = () => {
       dataIndex: 'createdAt',
       width: 160,
       render: (value: unknown) => (
-        <Text type="secondary" style={{ fontSize: 12 }}>
+        <Text type="secondary" style={{ fontSize: spacing[3] }}>
           {dayjs(String(value)).fromNow()}
         </Text>
       ),
@@ -337,17 +338,17 @@ const PolicyManagement: React.FC = () => {
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="启用中" value={policies.filter((p) => p.enabled).length} valueStyle={{ color: '#3f8600' }} />
+            <Statistic title="启用中" value={policies.filter((p) => p.enabled).length} valueStyle={{ color: colors.success[600] }} />
           </Card>
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="活跃违规" value={openViolations} valueStyle={{ color: '#cf1322' }} />
+            <Statistic title="活跃违规" value={openViolations} valueStyle={{ color: colors.error[600] }} />
           </Card>
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="阻断违规" value={blockedViolations} valueStyle={{ color: '#cf1322' }} />
+            <Statistic title="阻断违规" value={blockedViolations} valueStyle={{ color: colors.error[600] }} />
           </Card>
         </Col>
       </Row>

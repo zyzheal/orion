@@ -53,37 +53,37 @@ export interface AlertRule {
 // ---- Alert CRUD ----
 
 export function getAlerts(params?: AlertListParams) {
-  return api.get('/v1/alerts', { params });
+  return api.get('/v1/alert', { params });
 }
 
 export function getAlert(id: string) {
-  return api.get(`/v1/alerts/${id}`);
+  return api.get(`/v1/alert/${id}`);
 }
 
 export function createAlert(data: CreateAlertInput) {
-  return api.post('/v1/alerts', data);
+  return api.post('/v1/alert', data);
 }
 
 export function acknowledgeAlert(id: string, data?: { acknowledgedBy?: string; reason?: string }) {
-  return api.post(`/v1/alerts/${id}/acknowledge`, data);
+  return api.post(`/v1/alert/${id}/acknowledge`, data);
 }
 
 export function resolveAlert(id: string, data?: { resolvedBy?: string; resolution?: string }) {
-  return api.post(`/v1/alerts/${id}/resolve`, data);
+  return api.post(`/v1/alert/${id}/resolve`, data);
 }
 
 export function deleteAlert(id: string) {
-  return api.delete(`/v1/alerts/${id}`);
+  return api.delete(`/v1/alert/${id}`);
 }
 
 export function getActiveAlerts() {
-  return api.get('/v1/alerts/active');
+  return api.get('/v1/alert/active');
 }
 
 // ---- Alert Rules ----
 
 export function getAlertRules() {
-  return api.get('/v1/alerts/rules');
+  return api.get('/v1/alert/rules');
 }
 
 export function createAlertRule(data: {
@@ -93,27 +93,27 @@ export function createAlertRule(data: {
   threshold: number;
   severity: string;
 }) {
-  return api.post('/v1/alerts/rules', data);
+  return api.post('/v1/alert/rules', data);
 }
 
 export function updateAlertRule(id: string, data: Partial<AlertRule>) {
-  return api.put(`/v1/alerts/rules/${id}`, data);
+  return api.put(`/v1/alert/rules/${id}`, data);
 }
 
 export function deleteAlertRule(id: string) {
-  return api.delete(`/v1/alerts/rules/${id}`);
+  return api.delete(`/v1/alert/rules/${id}`);
 }
 
 export function toggleAlertRule(id: string) {
-  return api.patch(`/v1/alerts/rules/${id}/toggle`);
+  return api.patch(`/v1/alert/rules/${id}/toggle`);
 }
 
 // ---- Alert Stats ----
 
 export function getAlertStats() {
-  return api.get('/v1/alerts/stats');
+  return api.get('/v1/alert/stats');
 }
 
 export function getAlertMetrics(metric: string, startTime?: string, endTime?: string) {
-  return api.get(`/v1/alerts/metrics/${metric}`, { params: { startTime, endTime } });
+  return api.get(`/v1/alert/metrics/${metric}`, { params: { startTime, endTime } });
 }

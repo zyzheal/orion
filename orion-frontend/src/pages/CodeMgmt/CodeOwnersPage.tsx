@@ -8,6 +8,7 @@ import {
   SaveOutlined, CheckCircleOutlined, ReloadOutlined,
   DeleteOutlined, ThunderboltOutlined,
 } from '@ant-design/icons';
+import { spacing } from '@/tokens';
 import Table, { type TableColumn } from '@/components/Table';
 import { Modal, Tag } from 'antd';
 import {
@@ -323,7 +324,7 @@ const CodeOwnersPage: React.FC = () => {
           onChange={(e) => setContent(e.target.value)}
           placeholder={`# CODEOWNERS 文件格式示例:\n# 路径模式  负责人\n\n# 默认负责人\n*       @default-owner\n\n# 前端代码负责人\nsrc/frontend/    @frontend-team\n\n# 后端代码负责人\nsrc/backend/     @backend-team\n\n# 测试文件\n**/*.test.ts     @qa-team`}
           rows={20}
-          style={{ fontFamily: 'monospace', fontSize: 14, lineHeight: 1.6 }}
+          style={{ fontFamily: 'monospace', fontSize: spacing[4], lineHeight: 1.6 }}
         />
       </Card>
 

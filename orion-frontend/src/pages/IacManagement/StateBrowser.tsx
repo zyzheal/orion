@@ -3,6 +3,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import { Typography, Button, Space, Tag, Card, Row, Col, Statistic, message, Select, Modal } from 'antd';
+import { colors, spacing } from '@/tokens';
 import { ReloadOutlined, DiffOutlined, EyeOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import { getWorkspaces, getWorkspaceStateVersions, getWorkspaceResources, type IaCStateVersion, type IaCStateResource } from '@/api/iac';
@@ -103,7 +104,7 @@ const StateBrowser: React.FC = () => {
       width: 160,
       sortable: true,
       render: (v: unknown) => (
-        <Text type="secondary" style={{ fontSize: 12 }}>{dayjs(String(v)).fromNow()}</Text>
+        <Text type="secondary" style={{ fontSize: spacing[3] }}>{dayjs(String(v)).fromNow()}</Text>
       ),
     },
     {
@@ -125,7 +126,7 @@ const StateBrowser: React.FC = () => {
       dataIndex: 'address',
       width: 300,
       sortable: true,
-      render: (v: unknown) => <Text code style={{ fontSize: 12 }}>{String(v)}</Text>,
+      render: (v: unknown) => <Text code style={{ fontSize: spacing[3] }}>{String(v)}</Text>,
     },
     {
       key: 'type',
@@ -214,7 +215,7 @@ const StateBrowser: React.FC = () => {
       <Modal title="状态差异" open={diffModalVisible} onCancel={() => setDiffModalVisible(false)} footer={<Button onClick={() => setDiffModalVisible(false)}>关闭</Button>}>
         <p>比较版本 v{diffVersionA} 与 v{diffVersionB} 的状态差异</p>
         <Text type="secondary">工作空间: {selectedWsName}</Text>
-        <div style={{ marginTop: 16, padding: 16, background: '#f5f5f5', borderRadius: 4 }}>
+        <div style={{ marginTop: 16, padding: 16, background: colors.neutral[50], borderRadius: 4 }}>
           <Text>差异对比结果将在此显示</Text>
         </div>
       </Modal>

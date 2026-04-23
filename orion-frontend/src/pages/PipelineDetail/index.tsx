@@ -10,6 +10,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import { Typography, Button, Space, Tag, Card, Descriptions, Tabs, Badge, message } from 'antd';
+import { colors, spacing } from '@/tokens';
 import {
   PlayCircleOutlined,
   ClockCircleOutlined,
@@ -32,12 +33,12 @@ const { TabPane } = Tabs;
 
 // Status color map for stages
 const stageStatusColors: Record<string, string> = {
-  success: '#52c41a',
-  running: '#1890ff',
-  failed: '#f5222d',
-  pending: '#d9d9d9',
-  warning: '#faad14',
-  cancelled: '#8c8c8c',
+  success: colors.success[500],
+  running: colors.primary[500],
+  failed: colors.error[500],
+  pending: colors.neutral[300],
+  warning: colors.warning[500],
+  cancelled: colors.neutral[400],
 };
 
 const PipelineDetail: React.FC = () => {
@@ -249,12 +250,12 @@ const PipelineDetail: React.FC = () => {
                           width: 32,
                           height: 32,
                           borderRadius: '50%',
-                          backgroundColor: stageStatusColors[stage.status] || '#d9d9d9',
+                          backgroundColor: stageStatusColors[stage.status] || colors.neutral[300],
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          color: '#fff',
-                          fontSize: 14,
+                          color: colors.neutral[0],
+                          fontSize: spacing[4],
                           fontWeight: 600,
                           boxShadow:
                             stage.status === 'running'
@@ -270,7 +271,7 @@ const PipelineDetail: React.FC = () => {
                       </div>
                       <Text
                         style={{
-                          fontSize: 11,
+                          fontSize: spacing[2],
                           textAlign: 'center',
                           maxWidth: 80,
                           overflow: 'hidden',
@@ -282,7 +283,7 @@ const PipelineDetail: React.FC = () => {
                         {stage.name}
                       </Text>
                       {stage.duration && (
-                        <Text type="secondary" style={{ fontSize: 10 }}>
+                        <Text type="secondary" style={{ fontSize: spacing[2] }}>
                           {formatDuration(stage.duration)}
                         </Text>
                       )}
@@ -295,8 +296,8 @@ const PipelineDetail: React.FC = () => {
                           height: 3,
                           backgroundColor:
                             pipeline.stages![index + 1].status === 'pending'
-                              ? '#f0f0f0'
-                              : stageStatusColors[pipeline.stages![index].status] || '#d9d9d9',
+                              ? colors.light.border.light
+                              : stageStatusColors[pipeline.stages![index].status] || colors.neutral[300],
                           borderRadius: 2,
                           marginTop: -16,
                         }}
@@ -324,7 +325,7 @@ const PipelineDetail: React.FC = () => {
                       }
                       extra={
                         stage.duration && (
-                          <Text type="secondary" style={{ fontSize: 12 }}>
+                          <Text type="secondary" style={{ fontSize: spacing[3] }}>
                             耗时: {formatDuration(stage.duration)}
                           </Text>
                         )
@@ -340,13 +341,13 @@ const PipelineDetail: React.FC = () => {
                                 display: 'flex',
                                 alignItems: 'center',
                                 gap: 8,
-                                fontSize: 13,
+                                fontSize: spacing[3],
                               }}
                             >
                               <StatusBadge status={step.status} size="small" variant="subtle" />
                               <Text>{step.name}</Text>
                               {step.duration && (
-                                <Text type="secondary" style={{ fontSize: 11, marginLeft: 'auto' }}>
+                                <Text type="secondary" style={{ fontSize: spacing[2], marginLeft: 'auto' }}>
                                   {formatDuration(step.duration)}
                                 </Text>
                               )}
@@ -379,11 +380,11 @@ const PipelineDetail: React.FC = () => {
                 borderRadius: 6,
                 padding: 16,
                 fontFamily: 'Menlo, Monaco, "Courier New", monospace',
-                fontSize: 13,
+                fontSize: spacing[3],
                 lineHeight: 1.6,
                 maxHeight: 500,
                 overflowY: 'auto',
-                color: '#d4d4d4',
+                color: colors.neutral[300],
               }}
             >
               {pipeline.stages?.map((stage) => (
@@ -406,16 +407,16 @@ const PipelineDetail: React.FC = () => {
                     stage.logs.map((log, index) => (
                       <div key={index} style={{ paddingLeft: 16 }}>
                         {log.includes('FAIL') ? (
-                          <span style={{ color: '#f44747' }}>{log}</span>
+                          <span style={{ color: colors.error[500] }}>{log}</span>
                         ) : log.includes('passed') || log.includes('successful') || log.includes('Success') ? (
-                          <span style={{ color: '#6a9955' }}>{log}</span>
+                          <span style={{ color: colors.success[600] }}>{log}</span>
                         ) : (
                           log
                         )}
                       </div>
                     ))
                   ) : (
-                    <div style={{ paddingLeft: 16, color: '#666' }}>
+                    <div style={{ paddingLeft: 16, color: colors.neutral[500] }}>
                       {stage.status === 'pending' ? '[Waiting to start...]' : '[No logs available]'}
                     </div>
                   )}
@@ -428,7 +429,7 @@ const PipelineDetail: React.FC = () => {
                     display: 'inline-block',
                     width: 8,
                     height: 16,
-                    backgroundColor: '#d4d4d4',
+                    backgroundColor: colors.neutral[300],
                     animation: 'blink 1s step-end infinite',
                   }}
                 />

@@ -4,6 +4,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import { Typography, Button, Space, Tag, message, Drawer, Card } from 'antd';
+import { colors, spacing } from '@/tokens';
 import { ReloadOutlined, FileTextOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
@@ -75,7 +76,7 @@ const DiagnosticReports: React.FC = () => {
       dataIndex: 'id',
       render: (v: unknown, record: any) => (
         <Text
-          style={{ color: '#722ed1', cursor: 'pointer' }}
+          style={{ color: colors.purple[500], cursor: 'pointer' }}
           onClick={() => showReportDetail(record)}
         >
           {v as string}
@@ -86,7 +87,7 @@ const DiagnosticReports: React.FC = () => {
       key: 'sessionId',
       title: '会话ID',
       dataIndex: 'sessionId',
-      render: (v: unknown) => <Text code style={{ fontSize: 12 }}>{v as string}</Text>,
+      render: (v: unknown) => <Text code style={{ fontSize: spacing[3] }}>{v as string}</Text>,
     },
     {
       key: 'patternMatches',
@@ -115,7 +116,7 @@ const DiagnosticReports: React.FC = () => {
       sortable: true,
       width: 160,
       render: (v: unknown) => (
-        <Text type="secondary" style={{ fontSize: 12 }}>
+        <Text type="secondary" style={{ fontSize: spacing[3] }}>
           {dayjs(v as string).format('YYYY-MM-DD HH:mm:ss')}
         </Text>
       ),
@@ -197,7 +198,7 @@ const DiagnosticReports: React.FC = () => {
               <>
                 <Title level={5}>诊断发现</Title>
                 {selectedReport.findings.map((finding: any, idx: number) => (
-                  <Card key={idx} size="small" style={{ background: '#fafafa' }}>
+                  <Card key={idx} size="small" style={{ background: colors.neutral[50] }}>
                     <Space direction="vertical" style={{ width: '100%' }}>
                       <Space>
                         <Tag color="purple">{finding.pattern}</Tag>

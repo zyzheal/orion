@@ -8,6 +8,7 @@ import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import { getSkills, installSkill, type SkillPackage } from '@/api/skills';
+import { colors, spacing } from '@/tokens';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 
@@ -95,10 +96,10 @@ const SkillMarketplace: React.FC = () => {
       sortable: true,
       render: (v: unknown, record: any) => (
         <Space direction="vertical" size={0}>
-          <Text strong style={{ cursor: 'pointer', color: '#1890ff' }} onClick={() => handleViewDetail(record)}>
+          <Text strong style={{ cursor: 'pointer', color: colors.primary[500] }} onClick={() => handleViewDetail(record)}>
             {String(v)}
           </Text>
-          <Text type="secondary" style={{ fontSize: 12 }}>{record.description.slice(0, 40)}...</Text>
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>{record.description.slice(0, 40)}...</Text>
         </Space>
       ),
     },
@@ -157,7 +158,7 @@ const SkillMarketplace: React.FC = () => {
       width: 140,
       sortable: true,
       render: (v: unknown) => (
-        <Text type="secondary" style={{ fontSize: 12 }}>{dayjs(String(v)).fromNow()}</Text>
+        <Text type="secondary" style={{ fontSize: spacing[3] }}>{dayjs(String(v)).fromNow()}</Text>
       ),
     },
     {

@@ -3,6 +3,7 @@
  */
 import React, { useState, useMemo, useEffect } from 'react';
 import { Typography, Button, Space, Tag, Card, Row, Col, Statistic, Timeline, message } from 'antd';
+import { colors, spacing } from '@/tokens';
 import { ReloadOutlined, PlayCircleOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
@@ -117,7 +118,7 @@ const ExecutionDashboard: React.FC = () => {
       width: 160,
       sortable: true,
       render: (v: unknown) => (
-        <Text type="secondary" style={{ fontSize: 12 }}>{dayjs(String(v)).fromNow()}</Text>
+        <Text type="secondary" style={{ fontSize: spacing[3] }}>{dayjs(String(v)).fromNow()}</Text>
       ),
     },
     {
@@ -159,9 +160,9 @@ const ExecutionDashboard: React.FC = () => {
 
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col span={6}><Card><Statistic title="总执行" value={executions.length} /></Card></Col>
-        <Col span={6}><Card><Statistic title="成功" value={successCount} valueStyle={{ color: '#52c41a' }} /></Card></Col>
-        <Col span={6}><Card><Statistic title="失败" value={failedCount} valueStyle={{ color: '#ff4d4f' }} /></Card></Col>
-        <Col span={6}><Card><Statistic title="运行中" value={runningCount} valueStyle={{ color: '#1890ff' }} /></Card></Col>
+        <Col span={6}><Card><Statistic title="成功" value={successCount} valueStyle={{ color: colors.success[500] }} /></Card></Col>
+        <Col span={6}><Card><Statistic title="失败" value={failedCount} valueStyle={{ color: colors.error[400] }} /></Card></Col>
+        <Col span={6}><Card><Statistic title="运行中" value={runningCount} valueStyle={{ color: colors.primary[500] }} /></Card></Col>
       </Row>
 
       <Row gutter={16}>
@@ -180,7 +181,7 @@ const ExecutionDashboard: React.FC = () => {
                 <Timeline.Item key={exec.id} color={exec.status === 'success' ? 'green' : exec.status === 'failed' ? 'red' : exec.status === 'running' ? 'blue' : 'gray'}>
                   <Text strong>/{exec.command}</Text>
                   <br />
-                  <Text type="secondary" style={{ fontSize: 12 }}>
+                  <Text type="secondary" style={{ fontSize: spacing[3] }}>
                     {exec.platform} - {dayjs(exec.startTime).fromNow()}
                   </Text>
                 </Timeline.Item>

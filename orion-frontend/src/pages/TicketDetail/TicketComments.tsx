@@ -38,6 +38,7 @@ import {
   mockTicketAttachments,
   mockEngineers,
 } from '@/pages/__mocks__/mockTicketData';
+import { colors, spacing } from '@/tokens';
 
 const { Text } = Typography;
 const { TextArea } = Input;
@@ -78,12 +79,12 @@ interface TicketCommentsProps {
 
 function getFileIcon(fileType: string): React.ReactNode {
   if (fileType.startsWith('image/')) {
-    return <FileImageOutlined style={{ color: '#52c41a' }} />;
+    return <FileImageOutlined style={{ color: colors.success[500] }} />;
   }
   if (fileType.startsWith('text/') || fileType.includes('log')) {
-    return <FileTextOutlined style={{ color: '#1890ff' }} />;
+    return <FileTextOutlined style={{ color: colors.primary[500] }} />;
   }
-  return <FileOutlined style={{ color: '#8c8c8c' }} />;
+  return <FileOutlined style={{ color: colors.neutral[400] }} />;
 }
 
 // ============================================================================
@@ -100,7 +101,7 @@ function renderContentWithMentions(content: string): React.ReactNode {
         <Tag
           key={index}
           color="blue"
-          style={{ margin: '0 2px', cursor: 'pointer', fontSize: 12 }}
+          style={{ margin: '0 2px', cursor: 'pointer', fontSize: spacing[3] }}
           data-testid={`mention-${mentionName}`}
         >
           {part}
@@ -204,7 +205,7 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
           {mockTicketComments[ticketId]?.filter((c) => c.type === 'comment').length > 0 && (
             <Badge
               count={mockTicketComments[ticketId].filter((c) => c.type === 'comment').length}
-              style={{ marginLeft: 6, backgroundColor: '#1890ff' }}
+              style={{ marginLeft: 6, backgroundColor: colors.primary[500] }}
             />
           )}
         </span>
@@ -217,14 +218,14 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
           内部备注
           <Tag
             color="gold"
-            style={{ marginLeft: 6, fontSize: 10, padding: '0 4px', lineHeight: '16px' }}
+            style={{ marginLeft: 6, fontSize: spacing[2], padding: '0 4px', lineHeight: '16px' }}
           >
             内部
           </Tag>
           {mockTicketComments[ticketId]?.filter((c) => c.type === 'internal-note').length > 0 && (
             <Badge
               count={mockTicketComments[ticketId].filter((c) => c.type === 'internal-note').length}
-              style={{ marginLeft: 4, backgroundColor: '#faad14' }}
+              style={{ marginLeft: 4, backgroundColor: colors.warning[500] }}
             />
           )}
         </span>
@@ -266,18 +267,18 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
                   gap: 12,
                   padding: 12,
                   borderRadius: 8,
-                  background: comment.type === 'internal-note' ? '#fffbe6' : '#fafafa',
+                  background: comment.type === 'internal-note' ? colors.warning[50] : colors.neutral[50],
                   border:
                     comment.type === 'internal-note'
-                      ? '1px solid #fff1b8'
-                      : '1px solid #f0f0f0',
+                      ? `1px solid ${colors.warning[100]}`
+                      : `1px solid ${colors.light.border.light}`,
                 }}
               >
                 {/* Avatar */}
                 <Avatar
                   size={36}
                   style={{
-                    background: comment.author === '内部' ? '#faad14' : '#1890ff',
+                    background: comment.author === '内部' ? colors.warning[500] : colors.primary[500],
                     flexShrink: 0,
                   }}
                 >
@@ -296,34 +297,34 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
                       flexWrap: 'wrap',
                     }}
                   >
-                    <Text strong style={{ fontSize: 14 }}>
+                    <Text strong style={{ fontSize: spacing[4] }}>
                       {comment.author}
                     </Text>
                     {comment.type === 'internal-note' && (
                       <Tag
                         color="gold"
-                        style={{ margin: 0, fontSize: 10, padding: '0 4px', lineHeight: '16px' }}
+                        style={{ margin: 0, fontSize: spacing[2], padding: '0 4px', lineHeight: '16px' }}
                         data-testid={`internal-badge-${comment.id}`}
                       >
                         内部备注
                       </Tag>
                     )}
-                    <Text type="secondary" style={{ fontSize: 12, marginLeft: 'auto' }}>
+                    <Text type="secondary" style={{ fontSize: spacing[3], marginLeft: 'auto' }}>
                       {dayjs(comment.createdAt).format('MM-DD HH:mm')}
                     </Text>
                   </div>
 
                   {/* Content text with @mention highlighting */}
-                  <div style={{ fontSize: 14, lineHeight: 1.6 }} data-testid={`comment-content-${comment.id}`}>
+                  <div style={{ fontSize: spacing[4], lineHeight: 1.6 }} data-testid={`comment-content-${comment.id}`}>
                     {renderContentWithMentions(comment.content)}
                   </div>
 
                   {/* Mention list */}
                   {comment.mentions.length > 0 && (
                     <div style={{ marginTop: 6 }}>
-                      <UserOutlined style={{ fontSize: 12, color: '#8c8c8c', marginRight: 4 }} />
+                      <UserOutlined style={{ fontSize: spacing[3], color: colors.neutral[400], marginRight: 4 }} />
                       {comment.mentions.map((m) => (
-                        <Tag key={m} color="blue" style={{ margin: '0 4px 0 0', fontSize: 12 }}>
+                        <Tag key={m} color="blue" style={{ margin: '0 4px 0 0', fontSize: spacing[3] }}>
                           {m}
                         </Tag>
                       ))}
@@ -345,7 +346,7 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
         <>
           <Divider style={{ margin: '0 0 12px' }} />
           <div style={{ marginBottom: 16 }} data-testid="attachments-section">
-            <Text strong style={{ fontSize: 13, marginBottom: 8, display: 'block' }}>
+            <Text strong style={{ fontSize: spacing[3], marginBottom: 8, display: 'block' }}>
               <PaperClipOutlined style={{ marginRight: 4 }} />
               附件 ({attachments.length})
             </Text>
@@ -360,8 +361,8 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
                     gap: 8,
                     padding: '6px 10px',
                     borderRadius: 6,
-                    background: '#fafafa',
-                    border: '1px solid #f0f0f0',
+                    background: colors.neutral[50],
+                    border: `1px solid ${colors.light.border.light}`,
                     cursor: 'pointer',
                   }}
                 >
@@ -369,10 +370,10 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
                   <Text style={{ flex: 1 }} ellipsis>
                     {att.name}
                   </Text>
-                  <Text type="secondary" style={{ fontSize: 12 }}>
+                  <Text type="secondary" style={{ fontSize: spacing[3] }}>
                     {att.size}
                   </Text>
-                  <Text type="secondary" style={{ fontSize: 12 }}>
+                  <Text type="secondary" style={{ fontSize: spacing[3] }}>
                     {dayjs(att.uploadedAt).format('MM-DD HH:mm')}
                   </Text>
                 </div>
@@ -407,8 +408,8 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
               bottom: '100%',
               left: 0,
               right: 0,
-              background: '#fff',
-              border: '1px solid #d9d9d9',
+              background: colors.light.bg.primary,
+              border: `1px solid ${colors.light.border.light}`,
               borderRadius: 6,
               boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
               zIndex: 10,
@@ -427,21 +428,21 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
                   display: 'flex',
                   alignItems: 'center',
                   gap: 8,
-                  borderBottom: '1px solid #f0f0f0',
+                  borderBottom: `1px solid ${colors.light.border.light}`,
                 }}
                 onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLDivElement).style.background = '#e6f7ff';
+                  (e.currentTarget as HTMLDivElement).style.background = colors.info[50];
                 }}
                 onMouseLeave={(e) => {
                   (e.currentTarget as HTMLDivElement).style.background = 'transparent';
                 }}
                 data-testid={`mention-option-${engineer.name}`}
               >
-                <Avatar size={20} style={{ background: '#1890ff', fontSize: 10 }}>
+                <Avatar size={20} style={{ background: colors.primary[500], fontSize: spacing[2] }}>
                   {engineer.name[0]}
                 </Avatar>
                 <Text>{engineer.name}</Text>
-                <Text type="secondary" style={{ fontSize: 12, marginLeft: 'auto' }}>
+                <Text type="secondary" style={{ fontSize: spacing[3], marginLeft: 'auto' }}>
                   {engineer.availability === 'available'
                     ? '可用'
                     : engineer.availability === 'busy'
@@ -455,7 +456,7 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
 
         {/* Footer: char count + submit */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Text type="secondary" style={{ fontSize: 12 }}>
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
             {charCount}/{maxChars}
           </Text>
           <Space>

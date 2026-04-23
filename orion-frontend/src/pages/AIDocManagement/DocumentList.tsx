@@ -3,6 +3,7 @@
  */
 import React, { useState, useMemo, useEffect } from 'react';
 import { Typography, Button, Space, Tag, Card, Modal, Form, Input, Select, message, Popconfirm } from 'antd';
+import { colors, spacing } from '@/tokens';
 import { PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
@@ -139,7 +140,7 @@ const DocumentListPage: React.FC = () => {
     { key: 'tags', title: '标签', dataIndex: 'tags', width: 160, render: (v: unknown) => <Space size={4} wrap>{Array.isArray(v) ? v.map((t) => <Tag key={t}>{t}</Tag>) : null}</Space> },
     { key: 'status', title: '状态', dataIndex: 'status', width: 100, render: (v: unknown) => <StatusBadge status={v as any} size="small" /> },
     { key: 'authorId', title: '作者', dataIndex: 'authorId', width: 100, render: (v: unknown) => <Text>{String(v)}</Text> },
-    { key: 'updatedAt', title: '更新时间', dataIndex: 'updatedAt', width: 160, sortable: true, render: (v: unknown) => <Text type="secondary" style={{ fontSize: 12 }}>{dayjs(String(v)).fromNow()}</Text> },
+    { key: 'updatedAt', title: '更新时间', dataIndex: 'updatedAt', width: 160, sortable: true, render: (v: unknown) => <Text type="secondary" style={{ fontSize: spacing[3] }}>{dayjs(String(v)).fromNow()}</Text> },
     { key: 'actions', title: '操作', width: 180, render: (_: unknown, record: any) => (
       <Space size="small">
         <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => { setViewingDoc(record); setViewModalVisible(true); }}>查看</Button>
@@ -219,7 +220,7 @@ const DocumentListPage: React.FC = () => {
             <Space size={4} style={{ marginBottom: 16 }}>
               {viewingDoc.tags.map((t) => <Tag key={t}>{t}</Tag>)}
             </Space>
-            <pre style={{ whiteSpace: 'pre-wrap', background: '#f5f5f5', padding: 16, borderRadius: 4 }}>{viewingDoc.content}</pre>
+            <pre style={{ whiteSpace: 'pre-wrap', background: colors.neutral[50], padding: 16, borderRadius: 4 }}>{viewingDoc.content}</pre>
           </div>
         )}
       </Modal>

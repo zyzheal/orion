@@ -45,6 +45,7 @@ import iacRoutes from './iac-routes';
 import chatopsRoutes from './chatops-routes';
 import skillRoutes from './skill-routes';
 import aiCostRoutes from './ai-cost-routes';
+import artifactRoutes from './artifact-routes';
 import confirmationRoutes from './confirmation-routes';
 
 export interface ApiRoutesOptions {
@@ -273,4 +274,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // 注册 Manual Confirmation API 路由 (P0-6)
   await app.register(confirmationRoutes, { prefix: '/confirmations' });
+
+  // 注册 Artifact Registry API 路由
+  await app.register(artifactRoutes, { prefix: '/artifacts' });
 }

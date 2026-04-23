@@ -43,6 +43,10 @@ export interface WebhookServiceConfig {
   webhookSecrets?: Map<string, string>; // repoId -> secret
   /** 是否启用事件日志 */
   enableEventLog?: boolean;
+  /** IP 白名单 (可选) */
+  ipWhitelist?: string[]; // 允许的 IP 地址列表
+  /** IP 白名单模式 (可选) */
+  ipWhitelistMode?: 'allow' | 'deny'; // 'allow' = 只允许白名单, 'deny' = 禁止白名单
 }
 
 /** 内部事件日志记录 */
@@ -69,6 +73,8 @@ export class CodeRepoWebhookService extends EventEmitter {
   private webhookSecrets: Map<string, string>;
   private enableEventLog: boolean;
   private eventLog: EventLogEntry[];
+  private ipWhitelist: string[];
+  private ipWhitelistMode: 'allow' | 'deny';
 
   constructor(config?: WebhookServiceConfig) {
     super();
@@ -77,6 +83,8 @@ export class CodeRepoWebhookService extends EventEmitter {
     this.webhookSecrets = config?.webhookSecrets || new Map();
     this.enableEventLog = config?.enableEventLog !== false;
     this.eventLog = [];
+    this.ipWhitelist = config?.ipWhitelist || [];
+    this.ipWhitelistMode = config?.ipWhitelistMode || 'allow';
   }
 
   /**
@@ -91,6 +99,31 @@ export class CodeRepoWebhookService extends EventEmitter {
    */
   registerWebhookSecret(repoId: string, secret: string): void {
     this.webhookSecrets.set(repoId, secret);
+  }
+
+  /**
+   * 设置 IP 白名单
+   */
+  setIpWhitelist(whitelist: string[], mode: 'allow' | 'deny' = 'allow'): void {
+    this.ipWhitelist = whitelist;
+    this.ipWhitelistMode = mode;
+  }
+
+  /**
+   * 验证 IP 白名单
+   */
+  verifyIpWhitelist(ipAddress: string): boolean {
+    if (this.ipWhitelist.length === 0) {
+      return true; // 没有配置白名单，允许所有
+    }
+
+    const isAllowed = this.ipWhitelist.includes(ipAddress);
+
+    if (this.ipWhitelistMode === 'allow') {
+      return isAllowed; // 只允许白名单中的 IP
+    } else {
+      return !isAllowed; // 禁止白名单中的 IP
+    }
   }
 
   /**
@@ -281,6 +314,84 @@ export class CodeRepoWebhookService extends EventEmitter {
         error: error.message || 'Failed to publish event',
       };
     }
+  }
+
+  /**
+   * 处理 Webhook 请求（公共入口点）
+   * 
+   * @param payload Webhook 载荷
+   * @param headers 请求头
+   * @param ipAddress 客户端 IP 地址
+   * @param repoId 仓库 ID
+   */
+  async processWebhook(
+    payload: any,
+    headers: Record<string, string | undefined> = {},
+    ipAddress?: string,
+    repoId?: string
+  ): Promise<WebhookProcessResult> {
+    try {
+      // IP 白名单验证
+      if (ipAddress && !this.verifyIpWhitelist(ipAddress)) {
+        return {
+          success: false,
+          error: `IP address ${ipAddress} is not allowed`,
+        };
+      }
+
+      // 签名验证
+      if (repoId && !this.verifyWebhookSignature(repoId, JSON.stringify(payload), headers)) {
+        return {
+          success: false,
+          error: 'Invalid webhook signature',
+        };
+      }
+
+      // 根据仓库类型分发处理
+      const repoType = this.detectRepoType(headers, payload);
+      
+      switch (repoType) {
+        case RepoType.GITLAB:
+          return await this.handleGitLabWebhook(payload, headers);
+        case RepoType.GITHUB:
+          return await this.handleGitHubWebhook(payload, headers);
+        case RepoType.GERRIT:
+          return await this.handleGerritWebhook(payload, headers);
+        default:
+          return {
+            success: false,
+            error: `Unsupported repository type: ${repoType}`,
+          };
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message || 'Failed to process webhook',
+      };
+    }
+  }
+
+  /**
+   * 检测仓库类型
+   */
+  private detectRepoType(headers: Record<string, string | undefined>, payload: any): RepoType {
+    // 检查 GitLab
+    if (headers['x-gitlab-token'] || headers['X-Gitlab-Token'] || payload.object_kind) {
+      return RepoType.GITLAB;
+    }
+    
+    // 检查 GitHub
+    if (headers['x-github-event'] || payload.action || payload.pull_request) {
+      return RepoType.GITHUB;
+    }
+    
+    // 检查 Gerrit
+    if (payload.type || payload.change) {
+      return RepoType.GERRIT;
+    }
+    
+    // 默认返回 GitLab
+    return RepoType.GITLAB;
   }
 
   // ==================== GitLab 事件映射 ====================

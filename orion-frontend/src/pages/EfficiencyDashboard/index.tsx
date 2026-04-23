@@ -10,6 +10,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import { Typography, Card, Table, Tag, Space, Tabs, message } from 'antd';
+import { colors, spacing } from '@/tokens';
 import {
   ClockCircleOutlined,
   CheckCircleOutlined,
@@ -96,7 +97,7 @@ const EfficiencyDashboard: React.FC = () => {
       dataIndex: 'currentValue',
       key: 'currentValue',
       render: (value: any, record: any) => (
-        <Text strong style={{ color: record.trend === 'up' ? '#52c41a' : '#faad14' }}>
+        <Text strong style={{ color: record.trend === 'up' ? colors.success[500] : colors.warning[500] }}>
           {value}
         </Text>
       ),
@@ -107,10 +108,10 @@ const EfficiencyDashboard: React.FC = () => {
       key: 'level',
       render: (level: string) => {
         const colorMap: Record<string, string> = {
-          Elite: '#52c41a',
-          High: '#1890ff',
-          Medium: '#faad14',
-          Low: '#ff4d4f',
+          Elite: colors.success[500],
+          High: colors.primary[500],
+          Medium: colors.warning[500],
+          Low: colors.error[400],
         };
         return <Tag color={colorMap[level]}>{level}</Tag>;
       },
@@ -125,9 +126,9 @@ const EfficiencyDashboard: React.FC = () => {
         if (!category) return '-';
         return (
           <Space direction="vertical" size={0}>
-            <Text><Tag color="#52c41a">Elite</Tag> {category.elite}</Text>
-            <Text><Tag color="#1890ff">High</Tag> {category.high}</Text>
-            <Text><Tag color="#faad14">Med</Tag> {category.medium}</Text>
+            <Text><Tag color="colors.success[500]">Elite</Tag> {category.elite}</Text>
+            <Text><Tag color="colors.primary[500]">High</Tag> {category.high}</Text>
+            <Text><Tag color="colors.warning[500]">Med</Tag> {category.medium}</Text>
           </Space>
         );
       },
@@ -266,9 +267,9 @@ const EfficiencyDashboard: React.FC = () => {
 
           {/* 改进建议 */}
           <Card title="改进建议">
-            <div style={{ padding: '12px 16px', background: 'rgba(24, 144, 255, 0.04)', borderRadius: 8, borderLeft: '3px solid #1890ff' }}>
+            <div style={{ padding: '12px 16px', background: 'rgba(24, 144, 255, 0.04)', borderRadius: 8, borderLeft: `3px solid ${colors.primary[500]}` }}>
               <Space>
-                <TrophyOutlined style={{ color: '#1890ff' }} />
+                <TrophyOutlined style={{ color: colors.primary[500] }} />
                 <Text>
                   {dashboardData?.dora?.deploymentFrequency && dashboardData.dora.deploymentFrequency < 10
                     ? '建议提高发布频率，向 Elite 级别（每天多次）看齐'

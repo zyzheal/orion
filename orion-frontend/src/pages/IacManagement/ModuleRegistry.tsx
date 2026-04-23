@@ -3,6 +3,7 @@
  */
 import React, { useState, useMemo, useEffect } from 'react';
 import { Typography, Button, Space, Tag, Card, Modal, Form, Input, Select, message, Popconfirm } from 'antd';
+import { spacing } from '@/tokens';
 import { PlusOutlined, ReloadOutlined, DeleteOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
@@ -107,7 +108,7 @@ const ModuleRegistry: React.FC = () => {
       title: '描述',
       dataIndex: 'description',
       width: 240,
-      render: (v: unknown) => <Text type="secondary" style={{ fontSize: 12 }}>{String(v)}</Text>,
+      render: (v: unknown) => <Text type="secondary" style={{ fontSize: spacing[3] }}>{String(v)}</Text>,
     },
     {
       key: 'provider',
@@ -132,7 +133,7 @@ const ModuleRegistry: React.FC = () => {
       title: '来源',
       dataIndex: 'source',
       width: 200,
-      render: (v: unknown) => <Text code style={{ fontSize: 12 }}>{String(v)}</Text>,
+      render: (v: unknown) => <Text code style={{ fontSize: spacing[3] }}>{String(v)}</Text>,
     },
     {
       key: 'downloadCount',
@@ -149,7 +150,7 @@ const ModuleRegistry: React.FC = () => {
       width: 160,
       sortable: true,
       render: (v: unknown) => (
-        <Text type="secondary" style={{ fontSize: 12 }}>{dayjs(String(v)).fromNow()}</Text>
+        <Text type="secondary" style={{ fontSize: spacing[3] }}>{dayjs(String(v)).fromNow()}</Text>
       ),
     },
     {

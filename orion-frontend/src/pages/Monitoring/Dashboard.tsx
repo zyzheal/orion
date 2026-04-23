@@ -14,6 +14,7 @@ import {
   LineChartOutlined,
 } from '@ant-design/icons';
 import { getDashboardData, getMonitoringHealth, startMonitoring, stopMonitoring, getAnomalySummary } from '@/api/monitoring';
+import { colors, spacing } from '@/tokens';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -122,7 +123,7 @@ const MonitoringDashboard: React.FC = () => {
               value={dashboardData?.alerts?.total || 0}
               prefix={<AlertOutlined />}
             />
-            <Text type="secondary" style={{ fontSize: 12 }}>
+            <Text type="secondary" style={{ fontSize: spacing[3] }}>
               活跃 {dashboardData?.alerts?.active || 0} / 已解决 {dashboardData?.alerts?.resolved || 0}
             </Text>
           </Card>
@@ -134,7 +135,7 @@ const MonitoringDashboard: React.FC = () => {
               value={dashboardData?.rules?.total || 0}
               prefix={<AlertOutlined />}
             />
-            <Text type="secondary" style={{ fontSize: 12 }}>
+            <Text type="secondary" style={{ fontSize: spacing[3] }}>
               已启用 {dashboardData?.rules?.enabled || 0}
             </Text>
           </Card>
@@ -146,7 +147,7 @@ const MonitoringDashboard: React.FC = () => {
               value={dashboardData?.metrics?.total || 0}
               prefix={<LineChartOutlined />}
             />
-            <Text type="secondary" style={{ fontSize: 12 }}>
+            <Text type="secondary" style={{ fontSize: spacing[3] }}>
               速率 {dashboardData?.metrics?.rate || 0}/s
             </Text>
           </Card>
@@ -158,7 +159,7 @@ const MonitoringDashboard: React.FC = () => {
               value={dashboardData?.channels?.total || 0}
               prefix={<CheckCircleOutlined />}
             />
-            <Text type="secondary" style={{ fontSize: 12 }}>
+            <Text type="secondary" style={{ fontSize: spacing[3] }}>
               活跃 {dashboardData?.channels?.active || 0}
             </Text>
           </Card>
@@ -188,7 +189,7 @@ const MonitoringDashboard: React.FC = () => {
         {anomalies?.anomalies && anomalies.anomalies.length > 0 ? (
           <Space direction="vertical" style={{ width: '100%' }}>
             {anomalies.anomalies.slice(0, 10).map((a: any, idx: number) => (
-              <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f0f0f0' }}>
+              <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: `1px solid ${colors.light.border.light}` }}>
                 <Space>
                   <Tag color={a.severity === 'high' ? 'red' : a.severity === 'medium' ? 'orange' : 'blue'}>
                     {a.severity}

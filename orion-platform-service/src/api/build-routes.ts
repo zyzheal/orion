@@ -15,12 +15,14 @@ import { BuildCacheService } from '../services/build/BuildCacheService';
 import { K8sBuildExecutor } from '../services/build/K8sBuildExecutor';
 import { BuildLogService } from '../services/build/BuildLogService';
 import { ArtifactService } from '../services/build/ArtifactService';
+import { BuildxBuilderService } from '../services/build/BuildxBuilderService';
 import { BuilderImageController } from './controllers/build/BuilderImageController';
 import { BuildCacheController } from './controllers/build/BuildCacheController';
 import { K8sBuildController } from './controllers/build/K8sBuildController';
 import { BuildLogController } from './controllers/build/BuildLogController';
 import { ArtifactController } from './controllers/build/ArtifactController';
 import { StageCacheController } from './controllers/build/StageCacheController';
+import { BuildxBuilderController } from './controllers/build/BuildxBuilderController';
 
 export default async function buildRoutes(app: FastifyInstance): Promise<void> {
   // 初始化服务
@@ -33,6 +35,7 @@ export default async function buildRoutes(app: FastifyInstance): Promise<void> {
   );
   const buildLogService = new BuildLogService();
   const artifactService = new ArtifactService();
+  const buildxBuilderService = new BuildxBuilderService();
 
   // 初始化控制器
   const builderImageController = new BuilderImageController(builderImageService);
@@ -41,6 +44,7 @@ export default async function buildRoutes(app: FastifyInstance): Promise<void> {
   const buildLogController = new BuildLogController(buildLogService);
   const artifactController = new ArtifactController(artifactService);
   const stageCacheController = new StageCacheController(buildCacheService, artifactService);
+  const buildxBuilderController = new BuildxBuilderController(buildxBuilderService);
 
   // ==================== Builder 镜像路由 ====================
 
@@ -292,5 +296,42 @@ export default async function buildRoutes(app: FastifyInstance): Promise<void> {
   // GET /api/v1/pipeline-runs/:runId/stages/:stageId/artifacts - 获取 Artifact 列表
   app.get('/pipeline-runs/:runId/stages/:stageId/artifacts', async (request: FastifyRequest, reply: FastifyReply) => {
     return stageCacheController.listArtifacts(request, reply);
+  });
+
+  // ==================== Buildx Builder 路由 ====================
+
+  // POST /build/buildx - 多架构构建
+  app.post('/build/buildx', async (request: FastifyRequest, reply: FastifyReply) => {
+    return buildxBuilderController.buildMultiArch(request, reply);
+  });
+
+  // GET /build/buildx/builders - 获取构建器列表
+  app.get('/build/buildx/builders', async (request: FastifyRequest, reply: FastifyReply) => {
+    return buildxBuilderController.getBuilders(request, reply);
+  });
+
+  // GET /build/buildx/current - 获取当前构建器
+  app.get('/build/buildx/current', async (request: FastifyRequest, reply: FastifyReply) => {
+    return buildxBuilderController.getCurrentBuilder(request, reply);
+  });
+
+  // POST /build/buildx/validate - 验证构建配置
+  app.post('/build/buildx/validate', async (request: FastifyRequest, reply: FastifyReply) => {
+    return buildxBuilderController.validateBuildConfig(request, reply);
+  });
+
+  // GET /build/buildx/history - 获取构建历史
+  app.get('/build/buildx/history', async (request: FastifyRequest, reply: FastifyReply) => {
+    return buildxBuilderController.getBuildHistory(request, reply);
+  });
+
+  // POST /build/buildx/:buildId/cancel - 取消构建
+  app.post('/build/buildx/:buildId/cancel', async (request: FastifyRequest, reply: FastifyReply) => {
+    return buildxBuilderController.cancelBuild(request, reply);
+  });
+
+  // GET /build/buildx/:buildId/status - 获取构建状态
+  app.get('/build/buildx/:buildId/status', async (request: FastifyRequest, reply: FastifyReply) => {
+    return buildxBuilderController.getBuildStatus(request, reply);
   });
 }

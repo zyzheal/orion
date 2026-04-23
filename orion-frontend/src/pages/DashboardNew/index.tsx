@@ -4,6 +4,7 @@
  */
 import React from 'react';
 import { Card, Row, Col, Statistic, Progress, Tag, Table, Typography, Badge, Button, Space } from 'antd';
+import { colors, spacing } from '@/tokens';
 import {
   AppstoreOutlined,
   ClockCircleOutlined,
@@ -59,17 +60,17 @@ const systemHealth = [
 ];
 
 const quickActions = [
-  { name: '创建 Pipeline', icon: <RocketOutlined />, color: '#1890ff', path: '/pipelines/create' },
-  { name: '查看日志', icon: <CodeOutlined />, color: '#52c41a', path: '/logs' },
-  { name: '运行任务', icon: <PlayCircleOutlined />, color: '#722ed1', path: '/tasks' },
-  { name: '历史记录', icon: <HistoryOutlined />, color: '#faad14', path: '/history' },
+  { name: '创建 Pipeline', icon: <RocketOutlined />, color: colors.primary[500], path: '/pipelines/create' },
+  { name: '查看日志', icon: <CodeOutlined />, color: colors.success[500], path: '/logs' },
+  { name: '运行任务', icon: <PlayCircleOutlined />, color: colors.purple[500], path: '/tasks' },
+  { name: '历史记录', icon: <HistoryOutlined />, color: colors.warning[500], path: '/history' },
 ];
 
 const dashboardLinks = [
-  { name: '总览看板', icon: <DashboardOutlined />, color: '#1890ff', path: '/dashboard/executive', desc: '全局 KPI、趋势、排行' },
-  { name: '经理看板', icon: <TeamOutlined />, color: '#722ed1', path: '/dashboard/manager', desc: '团队明细、周环比' },
-  { name: '个人看板', icon: <UserSwitchOutlined />, color: '#52c41a', path: '/dashboard/engineer', desc: '个人效能、在手工单' },
-  { name: '告警中心', icon: <AlertOutlined />, color: '#ff4d4f', path: '/alerts', desc: '告警列表、确认处理' },
+  { name: '总览看板', icon: <DashboardOutlined />, color: colors.primary[500], path: '/dashboard/executive', desc: '全局 KPI、趋势、排行' },
+  { name: '经理看板', icon: <TeamOutlined />, color: colors.purple[500], path: '/dashboard/manager', desc: '团队明细、周环比' },
+  { name: '个人看板', icon: <UserSwitchOutlined />, color: colors.success[500], path: '/dashboard/engineer', desc: '个人效能、在手工单' },
+  { name: '告警中心', icon: <AlertOutlined />, color: colors.error[400], path: '/alerts', desc: '告警列表、确认处理' },
 ];
 
 const statusColors: Record<string, string> = {
@@ -109,7 +110,7 @@ const DashboardNew: React.FC = () => {
           <Text strong>{text}</Text>
           <Space size={8} style={{ marginTop: 4 }}>
             <Tag color={priorityColors[record.priority]}>{record.priority.toUpperCase()}</Tag>
-            <Text type="secondary" style={{ fontSize: 12 }}>截止：{record.due}</Text>
+            <Text type="secondary" style={{ fontSize: spacing[3] }}>截止：{record.due}</Text>
           </Space>
         </Space>
       ),
@@ -133,7 +134,7 @@ const DashboardNew: React.FC = () => {
       dataIndex: 'assignee',
       key: 'assignee',
       render: (assignee: string) => (
-        <Text code style={{ fontSize: 13 }}>{assignee}</Text>
+        <Text code style={{ fontSize: spacing[3] }}>{assignee}</Text>
       ),
     },
     {
@@ -194,11 +195,11 @@ const DashboardNew: React.FC = () => {
               title="Pipeline 总数"
               value={pipelineStats.total}
               prefix={<ThunderboltOutlined />}
-              valueStyle={{ color: '#1890ff' }}
+              valueStyle={{ color: colors.primary[500] }}
             />
             <Progress
               percent={75}
-              strokeColor="#1890ff"
+              strokeColor="colors.primary[500]"
               size="small"
               style={{ marginTop: 16 }}
               format={() => '本周完成率 75%'}
@@ -211,7 +212,7 @@ const DashboardNew: React.FC = () => {
               title="运行中"
               value={pipelineStats.running}
               prefix={<ClockCircleOutlined />}
-              valueStyle={{ color: '#faad14' }}
+              valueStyle={{ color: colors.warning[500] }}
             />
             <div style={{ marginTop: 16 }}>
               <Tag color="processing">3 个任务执行中</Tag>
@@ -224,7 +225,7 @@ const DashboardNew: React.FC = () => {
               title="成功"
               value={pipelineStats.success}
               prefix={<CheckCircleOutlined />}
-              valueStyle={{ color: '#52c41a' }}
+              valueStyle={{ color: colors.success[500] }}
             />
             <div style={{ marginTop: 16 }}>
               <Tag color="success">成功率 95%</Tag>
@@ -237,7 +238,7 @@ const DashboardNew: React.FC = () => {
               title="待处理任务"
               value={taskStats.todo}
               prefix={<WarningOutlined />}
-              valueStyle={{ color: '#ff4d4f' }}
+              valueStyle={{ color: colors.error[400] }}
             />
             <div style={{ marginTop: 16 }}>
               <Tag color="red">{taskStats.inProgress} 进行中</Tag>
@@ -301,15 +302,15 @@ const DashboardNew: React.FC = () => {
                       flexDirection: 'column',
                       justifyContent: 'center',
                       alignItems: 'center',
-                      border: '1px solid #f0f0f0',
+                      border: `1px solid ${colors.light.border.light}`,
                       transition: 'all 0.3s',
                     }}
                   >
-                    <div style={{ fontSize: 24, color: link.color, marginBottom: 6 }}>
+                    <div style={{ fontSize: spacing[6], color: link.color, marginBottom: 6 }}>
                       {link.icon}
                     </div>
-                    <Text strong style={{ fontSize: 13 }}>{link.name}</Text>
-                    <Text type="secondary" style={{ fontSize: 11, marginTop: 2 }}>{link.desc}</Text>
+                    <Text strong style={{ fontSize: spacing[3] }}>{link.name}</Text>
+                    <Text type="secondary" style={{ fontSize: spacing[2], marginTop: 2 }}>{link.desc}</Text>
                   </Card>
                 </Col>
               ))}
@@ -330,7 +331,7 @@ const DashboardNew: React.FC = () => {
                     justifyContent: 'space-between',
                     alignItems: 'center',
                     padding: '8px 0',
-                    borderBottom: '1px solid #f5f5f5',
+                    borderBottom: `1px solid ${colors.neutral[50]}`,
                   }}
                 >
                   <Space>
@@ -338,8 +339,8 @@ const DashboardNew: React.FC = () => {
                     <Text>{item.name}</Text>
                   </Space>
                   <Space>
-                    <Text type="secondary" style={{ fontSize: 12 }}>{item.latency}</Text>
-                    <Text type="secondary" style={{ fontSize: 12 }}>{item.uptime}</Text>
+                    <Text type="secondary" style={{ fontSize: spacing[3] }}>{item.latency}</Text>
+                    <Text type="secondary" style={{ fontSize: spacing[3] }}>{item.uptime}</Text>
                   </Space>
                 </div>
               ))}
@@ -365,10 +366,10 @@ const DashboardNew: React.FC = () => {
                       transition: 'all 0.3s',
                     }}
                   >
-                    <div style={{ fontSize: 28, color: action.color, marginBottom: 8 }}>
+                    <div style={{ fontSize: spacing[7], color: action.color, marginBottom: 8 }}>
                       {action.icon}
                     </div>
-                    <Text style={{ fontSize: 12 }}>{action.name}</Text>
+                    <Text style={{ fontSize: spacing[3] }}>{action.name}</Text>
                   </Card>
                 </Col>
               ))}
@@ -377,12 +378,12 @@ const DashboardNew: React.FC = () => {
 
           {/* 公告/提醒 */}
           <Card title="系统提醒">
-            <Paragraph type="secondary" style={{ fontSize: 13, marginBottom: 8 }}>
-              <WarningOutlined style={{ color: '#faad14', marginRight: 8 }} />
+            <Paragraph type="secondary" style={{ fontSize: spacing[3], marginBottom: 8 }}>
+              <WarningOutlined style={{ color: colors.warning[500], marginRight: 8 }} />
               Event Bus 延迟较高，请检查 NATS 服务
             </Paragraph>
-            <Paragraph type="secondary" style={{ fontSize: 13 }}>
-              <CheckCircleOutlined style={{ color: '#52c41a', marginRight: 8 }} />
+            <Paragraph type="secondary" style={{ fontSize: spacing[3] }}>
+              <CheckCircleOutlined style={{ color: colors.success[500], marginRight: 8 }} />
               所有子系统运行正常
             </Paragraph>
           </Card>

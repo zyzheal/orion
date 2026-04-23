@@ -4,6 +4,7 @@
  */
 import React, { useState, useMemo, useEffect } from 'react';
 import { Typography, Button, Space, Popconfirm, message } from 'antd';
+import { colors, spacing } from '@/tokens';
 import { ReloadOutlined, StopOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
@@ -117,7 +118,7 @@ const BuildPodList: React.FC = () => {
       render: (_value, record) => (
         <Text
           strong
-          style={{ cursor: 'pointer', color: '#1890ff' }}
+          style={{ cursor: 'pointer', color: colors.primary[500] }}
           onClick={() => navigate(`/console/build-env/pods/${record.id}`)}
         >
           {record.name}
@@ -129,21 +130,21 @@ const BuildPodList: React.FC = () => {
       title: 'Namespace',
       dataIndex: 'namespace',
       width: 160,
-      render: (value) => <Text code style={{ fontSize: 12 }}>{String(value)}</Text>,
+      render: (value) => <Text code style={{ fontSize: spacing[3] }}>{String(value)}</Text>,
     },
     {
       key: 'runId',
       title: 'Run ID',
       dataIndex: 'runId',
       width: 160,
-      render: (value) => <Text type="secondary" style={{ fontSize: 12 }}>{String(value)}</Text>,
+      render: (value) => <Text type="secondary" style={{ fontSize: spacing[3] }}>{String(value)}</Text>,
     },
     {
       key: 'stageId',
       title: 'Stage ID',
       dataIndex: 'stageId',
       width: 160,
-      render: (value) => <Text type="secondary" style={{ fontSize: 12 }}>{String(value)}</Text>,
+      render: (value) => <Text type="secondary" style={{ fontSize: spacing[3] }}>{String(value)}</Text>,
     },
     {
       key: 'status',
@@ -167,7 +168,7 @@ const BuildPodList: React.FC = () => {
       width: 140,
       sortable: true,
       render: (value) => (
-        <Text type="secondary" style={{ fontSize: 12 }}>
+        <Text type="secondary" style={{ fontSize: spacing[3] }}>
           {dayjs(String(value)).fromNow()}
         </Text>
       ),

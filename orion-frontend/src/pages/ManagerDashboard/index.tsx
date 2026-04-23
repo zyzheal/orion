@@ -16,6 +16,7 @@ import {
   Typography,
   Space,
 } from 'antd';
+import { colors, spacing } from '@/tokens';
 import type { ColumnsType } from 'antd/es/table';
 import {
   ArrowUpOutlined,
@@ -34,11 +35,11 @@ const { Title, Text } = Typography;
 
 // Color constants
 const COLORS = {
-  success: '#52c41a',
-  warning: '#faad14',
-  error: '#ff4d4f',
-  info: '#1890ff',
-  purple: '#722ed1',
+  success: colors.success[500],
+  warning: colors.warning[500],
+  error: colors.error[400],
+  info: colors.primary[500],
+  purple: colors.purple[500],
 };
 
 /**
@@ -56,7 +57,7 @@ const SimpleBar: React.FC<{
       style={{
         width,
         height: 6,
-        backgroundColor: '#f0f0f0',
+        backgroundColor: colors.light.border.light,
         borderRadius: 3,
         overflow: 'hidden',
       }}
@@ -100,7 +101,7 @@ const gradeColor = (grade: string): string => {
     case 'D':
       return COLORS.error;
     default:
-      return '#8c8c8c';
+      return colors.neutral[400];
   }
 };
 
@@ -116,7 +117,7 @@ const TrendIndicator: React.FC<{ trend: 'improving' | 'stable' | 'declining' }> 
   if (trend === 'declining') {
     return <ArrowDownOutlined style={{ color: COLORS.error }} />;
   }
-  return <MinusOutlined style={{ color: '#8c8c8c' }} />;
+  return <MinusOutlined style={{ color: colors.neutral[400] }} />;
 };
 
 const ManagerDashboard: React.FC = () => {
@@ -164,10 +165,10 @@ const ManagerDashboard: React.FC = () => {
       width: 120,
       render: (_, record) => (
         <Space direction="vertical" size={2}>
-          <Text style={{ fontSize: 12 }}>
+          <Text style={{ fontSize: spacing[3] }}>
             分配 <Text strong>{record.workload.totalAssigned}</Text>
           </Text>
-          <Text style={{ fontSize: 12 }}>
+          <Text style={{ fontSize: spacing[3] }}>
             解决 <Text strong style={{ color: COLORS.success }}>
               {record.workload.totalResolved}
             </Text>
@@ -181,10 +182,10 @@ const ManagerDashboard: React.FC = () => {
       width: 120,
       render: (_, record) => (
         <Space direction="vertical" size={2}>
-          <Text style={{ fontSize: 12 }}>
+          <Text style={{ fontSize: spacing[3] }}>
             平均 {msToHours(record.efficiency.avgResolutionTimeMs)}
           </Text>
-          <Text style={{ fontSize: 12 }}>
+          <Text style={{ fontSize: spacing[3] }}>
             {record.efficiency.ticketsPerDay} 单/天
           </Text>
         </Space>
@@ -196,16 +197,16 @@ const ManagerDashboard: React.FC = () => {
       width: 160,
       render: (_, record) => (
         <Space direction="vertical" size={2}>
-          <Text style={{ fontSize: 12 }}>
+          <Text style={{ fontSize: spacing[3] }}>
             SLA{' '}
             <Text strong style={{ color: record.quality.slaComplianceRate >= 0.9 ? COLORS.success : COLORS.error }}>
               {(record.quality.slaComplianceRate * 100).toFixed(0)}%
             </Text>
           </Text>
-          <Text style={{ fontSize: 12 }}>
+          <Text style={{ fontSize: spacing[3] }}>
             首次解决 {(record.quality.firstTimeResolveRate * 100).toFixed(0)}%
           </Text>
-          <Text style={{ fontSize: 12 }}>
+          <Text style={{ fontSize: spacing[3] }}>
             重开率{' '}
             <Text
               style={{
@@ -300,7 +301,7 @@ const ManagerDashboard: React.FC = () => {
                 title="总工单数"
                 value={data.teamOverview.totalTickets}
                 suffix="个"
-                valueStyle={{ fontSize: 24, fontWeight: 600 }}
+                valueStyle={{ fontSize: spacing[6], fontWeight: 600 }}
               />
             </CardPanel>
           </Col>
@@ -310,7 +311,7 @@ const ManagerDashboard: React.FC = () => {
                 title="已解决"
                 value={data.teamOverview.resolvedCount}
                 suffix="个"
-                valueStyle={{ fontSize: 24, fontWeight: 600, color: COLORS.success }}
+                valueStyle={{ fontSize: spacing[6], fontWeight: 600, color: COLORS.success }}
                 prefix={<CheckCircleOutlined />}
               />
             </CardPanel>
@@ -321,7 +322,7 @@ const ManagerDashboard: React.FC = () => {
                 title="平均解决时间"
                 value={data.teamOverview.avgResolutionTimeHours}
                 suffix="h"
-                valueStyle={{ fontSize: 24, fontWeight: 600 }}
+                valueStyle={{ fontSize: spacing[6], fontWeight: 600 }}
                 prefix={<ClockCircleOutlined />}
               />
             </CardPanel>
@@ -333,7 +334,7 @@ const ManagerDashboard: React.FC = () => {
                 value={data.teamOverview.slaComplianceRate}
                 suffix="%"
                 valueStyle={{
-                  fontSize: 24,
+                  fontSize: spacing[6],
                   fontWeight: 600,
                   color: data.teamOverview.slaComplianceRate >= 90 ? COLORS.success : COLORS.error,
                 }}
@@ -348,7 +349,7 @@ const ManagerDashboard: React.FC = () => {
                 value={data.teamOverview.teamLoadPercentage}
                 suffix="%"
                 valueStyle={{
-                  fontSize: 24,
+                  fontSize: spacing[6],
                   fontWeight: 600,
                   color:
                     data.teamOverview.teamLoadPercentage > 85
@@ -384,19 +385,19 @@ const ManagerDashboard: React.FC = () => {
                   style={{
                     padding: '12px 16px',
                     borderRadius: 8,
-                    backgroundColor: '#fafafa',
+                    backgroundColor: colors.neutral[50],
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
                   }}
                 >
                   <div>
-                    <Text type="secondary" style={{ fontSize: 12 }}>
+                    <Text type="secondary" style={{ fontSize: spacing[3] }}>
                       {metric.label}
                     </Text>
                     <div
                       style={{
-                        fontSize: 22,
+                        fontSize: spacing[6],
                         fontWeight: 600,
                         color:
                           metric.value > 0
@@ -407,7 +408,7 @@ const ManagerDashboard: React.FC = () => {
                               ? metric.label === '平均解决时间'
                                 ? COLORS.success
                                 : COLORS.error
-                              : '#8c8c8c',
+                              : colors.neutral[400],
                       }}
                     >
                       {metric.value > 0 ? '+' : ''}
@@ -415,13 +416,13 @@ const ManagerDashboard: React.FC = () => {
                       {metric.suffix}
                     </div>
                   </div>
-                  <div style={{ fontSize: 24 }}>
+                  <div style={{ fontSize: spacing[6] }}>
                     {metric.value > 0 ? (
                       <ArrowUpOutlined style={{ color: COLORS.success }} />
                     ) : metric.value < 0 ? (
                       <ArrowDownOutlined style={{ color: COLORS.error }} />
                     ) : (
-                      <MinusOutlined style={{ color: '#8c8c8c' }} />
+                      <MinusOutlined style={{ color: colors.neutral[400] }} />
                     )}
                   </div>
                 </div>
@@ -454,7 +455,7 @@ const ManagerDashboard: React.FC = () => {
                 <Statistic
                   title="总转派次数"
                   value={data.transferAnalysis.totalTransfers}
-                  valueStyle={{ fontSize: 28, fontWeight: 600 }}
+                  valueStyle={{ fontSize: spacing[7], fontWeight: 600 }}
                 />
               </Col>
               <Col xs={24} sm={12}>
@@ -462,7 +463,7 @@ const ManagerDashboard: React.FC = () => {
                   title="平均每工单转派"
                   value={data.transferAnalysis.avgTransfersPerTicket}
                   precision={2}
-                  valueStyle={{ fontSize: 28, fontWeight: 600 }}
+                  valueStyle={{ fontSize: spacing[7], fontWeight: 600 }}
                 />
               </Col>
             </Row>

@@ -50,6 +50,21 @@ export interface Commit {
   branch?: string;
 }
 
+/** 提交状态 */
+export enum CommitStatus {
+  PENDING = 'PENDING',
+  SUCCESS = 'SUCCESS',
+  FAILED = 'FAILED',
+  CANCELLED = 'CANCELLED'
+}
+
+/** Git 提供商 */
+export enum GitProvider {
+  GITLAB = 'gitlab',
+  GITHUB = 'github',
+  GERRIT = 'gerrit'
+}
+
 // ==================== Merge Request / Change 类型 ====================
 
 /** PR/MR 状态 */

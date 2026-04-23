@@ -23,19 +23,19 @@ export interface TicketListParams {
 // ---- CRUD ----
 
 export function getTickets(params?: TicketListParams) {
-  return api.get('/v1/ticketing/tickets', { params });
+  return api.get('/v1/tickets', { params });
 }
 
 export function getTicket(id: string) {
-  return api.get(`/v1/ticketing/tickets/${id}`);
+  return api.get(`/v1/tickets/${id}`);
 }
 
 export function createTicket(data: Record<string, unknown>) {
-  return api.post('/v1/ticketing/tickets', data);
+  return api.post('/v1/tickets', data);
 }
 
 export function updateTicket(id: string, data: Record<string, unknown>) {
-  return api.patch(`/v1/ticketing/tickets/${id}`, data);
+  return api.patch(`/v1/tickets/${id}`, data);
 }
 
 // ---- Workflow ----
@@ -44,59 +44,59 @@ export function transitionTicket(
   id: string,
   data: { toStatus: string; performedBy: string; reason?: string }
 ) {
-  return api.post(`/v1/ticketing/tickets/${id}/transition`, data);
+  return api.post(`/v1/tickets/${id}/transition`, data);
 }
 
 export function assignTicket(
   id: string,
   data: { assignee: string; assignedBy: string; reason?: string }
 ) {
-  return api.post(`/v1/ticketing/tickets/${id}/assign`, data);
+  return api.post(`/v1/tickets/${id}/assign`, data);
 }
 
 export function escalateTicket(
   id: string,
   data: { escalatedBy: string; reason?: string }
 ) {
-  return api.post(`/v1/ticketing/tickets/${id}/escalate`, data);
+  return api.post(`/v1/tickets/${id}/escalate`, data);
 }
 
 export function resolveTicket(
   id: string,
   data: { performedBy: string; resolutionNote?: string }
 ) {
-  return api.post(`/v1/ticketing/tickets/${id}/resolve`, data);
+  return api.post(`/v1/tickets/${id}/resolve`, data);
 }
 
 export function closeTicket(
   id: string,
   data: { performedBy: string; reason?: string }
 ) {
-  return api.post(`/v1/ticketing/tickets/${id}/close`, data);
+  return api.post(`/v1/tickets/${id}/close`, data);
 }
 
 // ---- Relations ----
 
 export function getTicketRelations(id: string) {
-  return api.get(`/v1/ticketing/tickets/${id}/relations`);
+  return api.get(`/v1/tickets/${id}/relations`);
 }
 
 export function getTicketHistory(id: string) {
-  return api.get(`/v1/ticketing/tickets/${id}/history`);
+  return api.get(`/v1/tickets/${id}/history`);
 }
 
 // ---- Dispatch ----
 
 export function getQueueStatus() {
-  return api.get('/v1/ticketing/dispatch/queue');
+  return api.get('/v1/tickets/dispatch/queue');
 }
 
 export function getSLAAlerts(params?: { type?: string; limit?: number }) {
-  return api.get('/v1/ticketing/dispatch/queue/alerts', { params });
+  return api.get('/v1/tickets/dispatch/queue/alerts', { params });
 }
 
 export function autoDispatch(ticketId: string) {
-  return api.post(`/v1/ticketing/dispatch/auto/${ticketId}`);
+  return api.post(`/v1/tickets/dispatch/auto/${ticketId}`);
 }
 
 // ---- Transfer ----
@@ -105,11 +105,11 @@ export function transferTicket(
   id: string,
   data: { toEngineer: string; reason: string; initiatedBy: string }
 ) {
-  return api.post(`/v1/ticketing/transfer/${id}`, data);
+  return api.post(`/v1/tickets/transfer/${id}`, data);
 }
 
 export function getTransferHistory(id: string) {
-  return api.get(`/v1/ticketing/transfer/${id}/history`);
+  return api.get(`/v1/tickets/transfer/${id}/history`);
 }
 
 // ---- Suspend ----
@@ -123,54 +123,54 @@ export function createSuspend(data: {
   notes?: string;
   createdBy: string;
 }) {
-  return api.post('/v1/ticketing/suspend', data);
+  return api.post('/v1/tickets/suspend', data);
 }
 
 export function getSuspends(params?: { status?: string }) {
-  return api.get('/v1/ticketing/suspend', { params });
+  return api.get('/v1/tickets/suspend', { params });
 }
 
 export function activateSuspend(id: string) {
-  return api.post(`/v1/ticketing/suspend/${id}/activate`);
+  return api.post(`/v1/tickets/suspend/${id}/activate`);
 }
 
 export function endSuspend(id: string) {
-  return api.post(`/v1/ticketing/suspend/${id}/end`);
+  return api.post(`/v1/tickets/suspend/${id}/end`);
 }
 
 // ---- Reports & Statistics ----
 
 export function getStatistics() {
-  return api.get('/v1/ticketing/statistics');
+  return api.get('/v1/tickets/statistics');
 }
 
 export function getSLACompliance(params?: { periodStart?: string; periodEnd?: string }) {
-  return api.get('/v1/ticketing/reports/sla', { params });
+  return api.get('/v1/tickets/reports/sla', { params });
 }
 
 export function getBacklogAnalysis() {
-  return api.get('/v1/ticketing/reports/backlog');
+  return api.get('/v1/tickets/reports/backlog');
 }
 
 export function getTrendReport(params?: { days?: number; granularity?: string }) {
-  return api.get('/v1/ticketing/reports/trend', { params });
+  return api.get('/v1/tickets/reports/trend', { params });
 }
 
 // ---- Comments ----
 
 export function getComments(ticketId: string) {
-  return api.get(`/v1/ticketing/tickets/${ticketId}/comments`);
+  return api.get(`/v1/tickets/${ticketId}/comments`);
 }
 
 export function addComment(
   ticketId: string,
   data: { content: string; type: 'comment' | 'internal-note'; mentions?: string[] }
 ) {
-  return api.post(`/v1/ticketing/tickets/${ticketId}/comments`, data);
+  return api.post(`/v1/tickets/${ticketId}/comments`, data);
 }
 
 // ---- Attachments ----
 
 export function getAttachments(ticketId: string) {
-  return api.get(`/v1/ticketing/tickets/${ticketId}/attachments`);
+  return api.get(`/v1/tickets/${ticketId}/attachments`);
 }

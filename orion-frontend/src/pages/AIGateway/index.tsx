@@ -4,6 +4,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import { Typography, Card, Row, Col, Table, Tag, Space, Button, Statistic, Progress } from 'antd';
+import { colors, spacing } from '@/tokens';
 import {
   ThunderboltOutlined,
   SafetyOutlined,
@@ -123,7 +124,7 @@ const AIGatewayPage: React.FC = () => {
       render: (rate: number) => (
         <Progress
           percent={(rate || 0) * 100}
-          strokeColor={rate > 0.15 ? '#f5222d' : rate > 0.05 ? '#fa8c16' : '#52c41a'}
+          strokeColor={rate > 0.15 ? colors.error[500] : rate > 0.05 ? colors.warning[500] : colors.success[500]}
           format={(percent) => `${((percent ?? 0) / 100).toFixed(2)}`}
           size="small"
         />
@@ -188,7 +189,7 @@ const AIGatewayPage: React.FC = () => {
               <Statistic
                 title="健康场景"
                 value={healthData.filter((h) => h.isHealthy).length}
-                valueStyle={{ color: '#52c41a' }}
+                valueStyle={{ color: colors.success[500] }}
                 prefix={<CheckCircleOutlined />}
               />
             </Card>
@@ -198,7 +199,7 @@ const AIGatewayPage: React.FC = () => {
               <Statistic
                 title="熔断场景"
                 value={healthData.filter((h) => h.circuitState === 'OPEN').length}
-                valueStyle={{ color: '#f5222d' }}
+                valueStyle={{ color: colors.error[500] }}
                 prefix={<CloseCircleOutlined />}
               />
             </Card>
@@ -208,7 +209,7 @@ const AIGatewayPage: React.FC = () => {
               <Statistic
                 title="降级激活"
                 value={healthData.filter((h) => h.degradationActive).length}
-                valueStyle={{ color: '#fa8c16' }}
+                valueStyle={{ color: colors.warning[500] }}
                 prefix={<SafetyOutlined />}
               />
             </Card>

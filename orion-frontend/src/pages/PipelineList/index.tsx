@@ -10,6 +10,7 @@
  */
 import React, { useState, useMemo, useEffect } from 'react';
 import { Typography, Button, Space, Tag } from 'antd';
+import { colors, spacing } from '@/tokens';
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
@@ -99,12 +100,12 @@ const PipelineList: React.FC = () => {
         <Space direction="vertical" size={0}>
           <Text
             strong
-            style={{ cursor: 'pointer', color: '#1890ff' }}
+            style={{ cursor: 'pointer', color: colors.primary[500] }}
             onClick={() => navigate(`/pipelines/${record.id}`)}
           >
             {record.name}
           </Text>
-          <Text type="secondary" style={{ fontSize: 12 }}>
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
             v{record.version}
             {record.description ? ` · ${record.description}` : ''}
           </Text>
@@ -135,7 +136,7 @@ const PipelineList: React.FC = () => {
       width: 160,
       sortable: true,
       render: (value: unknown) => (
-        <Text type="secondary" style={{ fontSize: 12 }}>
+        <Text type="secondary" style={{ fontSize: spacing[3] }}>
           {dayjs(String(value)).fromNow()}
         </Text>
       ),
@@ -147,7 +148,7 @@ const PipelineList: React.FC = () => {
       width: 160,
       sortable: true,
       render: (value: unknown) => (
-        <Text type="secondary" style={{ fontSize: 12 }}>
+        <Text type="secondary" style={{ fontSize: spacing[3] }}>
           {dayjs(String(value)).fromNow()}
         </Text>
       ),

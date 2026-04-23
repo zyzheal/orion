@@ -3,6 +3,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import { Typography, Button, Space, Tag, Card, Input, Select, Collapse, Progress, Row, Col } from 'antd';
+import { colors, spacing } from '@/tokens';
 import { SendOutlined, BookOutlined } from '@ant-design/icons';
 import { ragQuery, getSpaces, type RAGResult } from '@/api/ai-docs';
 import dayjs from 'dayjs';
@@ -101,10 +102,10 @@ const RAGQueryPage: React.FC = () => {
           <Card title="对话" style={{ minHeight: 500 }}>
             <div style={{ maxHeight: 400, overflowY: 'auto', marginBottom: 16 }}>
               {messages.map((msg) => (
-                <div key={msg.id} style={{ marginBottom: 16, padding: 12, borderRadius: 8, background: msg.role === 'user' ? '#e6f7ff' : '#f5f5f5' }}>
+                <div key={msg.id} style={{ marginBottom: 16, padding: 12, borderRadius: 8, background: msg.role === 'user' ? colors.info[50] : colors.neutral[50] }}>
                   <Space style={{ marginBottom: 4 }}>
                     <Tag color={msg.role === 'user' ? 'blue' : 'green'}>{msg.role === 'user' ? '用户' : 'AI'}</Tag>
-                    <Text type="secondary" style={{ fontSize: 12 }}>{dayjs(msg.timestamp).format('HH:mm:ss')}</Text>
+                    <Text type="secondary" style={{ fontSize: spacing[3] }}>{dayjs(msg.timestamp).format('HH:mm:ss')}</Text>
                     {msg.confidence !== undefined && (
                       <Tag>置信度 {msg.confidence}%</Tag>
                     )}
@@ -129,11 +130,11 @@ const RAGQueryPage: React.FC = () => {
             {messages.filter((m) => m.role === 'assistant' && m.sources && m.sources.length > 0).reverse()[0]?.sources?.map((source, index) => (
               <Collapse key={index} items={[{
                 key: source.documentId,
-                label: <Space><Text strong style={{ fontSize: 12 }}>{source.title}</Text><Tag color="blue">{(source.relevanceScore * 100).toFixed(0)}%</Tag></Space>,
+                label: <Space><Text strong style={{ fontSize: spacing[3] }}>{source.title}</Text><Tag color="blue">{(source.relevanceScore * 100).toFixed(0)}%</Tag></Space>,
                 children: <div>
-                  <Text type="secondary" style={{ fontSize: 12 }}>{source.snippet}</Text>
+                  <Text type="secondary" style={{ fontSize: spacing[3] }}>{source.snippet}</Text>
                   <br />
-                  <Progress percent={source.relevanceScore * 100} size="small" strokeColor="#1890ff" style={{ marginTop: 8 }} />
+                  <Progress percent={source.relevanceScore * 100} size="small" strokeColor="colors.primary[500]" style={{ marginTop: 8 }} />
                 </div>,
               }]} defaultActiveKey={[]} size="small" />
             ))}

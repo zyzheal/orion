@@ -22,6 +22,7 @@ import {
   Drawer,
   Descriptions,
 } from 'antd';
+import { colors, spacing } from '@/tokens';
 import {
   ReloadOutlined,
   PlusOutlined,
@@ -245,7 +246,7 @@ const ConfigManagementPage: React.FC = () => {
               <Statistic
                 title="已激活"
                 value={configs.filter((c) => c.status === 'active').length}
-                valueStyle={{ color: '#52c41a' }}
+                valueStyle={{ color: colors.success[500] }}
               />
             </Card>
           </Col>
@@ -254,7 +255,7 @@ const ConfigManagementPage: React.FC = () => {
               <Statistic
                 title="待审批"
                 value={configs.filter((c) => c.status === 'pending_approval').length}
-                valueStyle={{ color: '#fa8c16' }}
+                valueStyle={{ color: colors.warning[500] }}
               />
             </Card>
           </Col>
@@ -263,7 +264,7 @@ const ConfigManagementPage: React.FC = () => {
               <Statistic
                 title="草稿"
                 value={configs.filter((c) => c.status === 'draft').length}
-                valueStyle={{ color: '#8c8c8c' }}
+                valueStyle={{ color: colors.neutral[400] }}
               />
             </Card>
           </Col>
@@ -272,7 +273,7 @@ const ConfigManagementPage: React.FC = () => {
               <Statistic
                 title="敏感配置"
                 value={configs.filter((c) => c.sensitive).length}
-                valueStyle={{ color: '#f5222d' }}
+                valueStyle={{ color: colors.error[500] }}
               />
             </Card>
           </Col>
@@ -281,7 +282,7 @@ const ConfigManagementPage: React.FC = () => {
               <Statistic
                 title="GitOps 状态"
                 value={gitOpsConfig?.syncStatus === 'success' ? 1 : 0}
-                valueStyle={{ color: gitOpsConfig?.syncStatus === 'success' ? '#52c41a' : '#f5222d' }}
+                valueStyle={{ color: gitOpsConfig?.syncStatus === 'success' ? colors.success[500] : colors.error[500] }}
                 prefix={gitOpsConfig?.syncStatus === 'success' ? <CheckCircleOutlined /> : <CloseCircleOutlined />}
               />
             </Card>

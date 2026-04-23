@@ -1,5 +1,6 @@
 import React from 'react';
 import { Card, Row, Col, Statistic, Progress, Table, Tag } from 'antd';
+import { colors, spacing } from '@/tokens';
 import {
   ProjectOutlined,
   CheckCircleOutlined,
@@ -107,7 +108,7 @@ const Dashboard: React.FC = () => {
               title="项目总数"
               value={stats.totalProjects}
               prefix={<ProjectOutlined />}
-              valueStyle={{ color: '#1890ff' }}
+              valueStyle={{ color: colors.primary[500] }}
             />
           </Card>
         </Col>
@@ -117,7 +118,7 @@ const Dashboard: React.FC = () => {
               title="活跃 Pipeline"
               value={stats.activePipelines}
               prefix={<SyncOutlined spin />}
-              valueStyle={{ color: '#52c41a' }}
+              valueStyle={{ color: colors.success[500] }}
             />
           </Card>
         </Col>
@@ -127,7 +128,7 @@ const Dashboard: React.FC = () => {
               title="用户总数"
               value={stats.totalUsers}
               prefix={<UsergroupAddOutlined />}
-              valueStyle={{ color: '#722ed1' }}
+              valueStyle={{ color: colors.purple[500] }}
             />
           </Card>
         </Col>
@@ -145,10 +146,10 @@ const Dashboard: React.FC = () => {
               valueStyle={{
                 color:
                   stats.systemHealth === 'healthy'
-                    ? '#52c41a'
+                    ? colors.success[500]
                     : stats.systemHealth === 'warning'
-                      ? '#faad14'
-                      : '#f5222d',
+                      ? colors.warning[500]
+                      : colors.error[500],
               }}
             />
           </Card>

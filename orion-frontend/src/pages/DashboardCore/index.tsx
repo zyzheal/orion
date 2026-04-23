@@ -9,6 +9,7 @@
  */
 import React from 'react';
 import { Card, Row, Col, Typography, Space, Tag } from 'antd';
+import { colors, spacing } from '@/tokens';
 import {
   RocketOutlined,
   CloudUploadOutlined,
@@ -116,14 +117,14 @@ const DashboardCore: React.FC = () => {
                   >
                     <div
                       style={{
-                        fontSize: 28,
+                        fontSize: spacing[7],
                         color: action.color,
                         marginBottom: 8,
                       }}
                     >
                       {quickActionIcons[action.icon]}
                     </div>
-                    <Text style={{ fontSize: 12 }}>{action.name}</Text>
+                    <Text style={{ fontSize: spacing[3] }}>{action.name}</Text>
                   </Card>
                 </Col>
               ))}
@@ -146,14 +147,14 @@ const DashboardCore: React.FC = () => {
                     justifyContent: 'space-between',
                     alignItems: 'center',
                     padding: '8px 0',
-                    borderBottom: '1px solid #f0f0f0',
+                    borderBottom: `1px solid ${colors.light.border.light}`,
                   }}
                 >
                   <Space>
                     <StatusBadge status={item.status} size="small" showDot={false} variant="subtle" />
                     <Text>{item.name}</Text>
                   </Space>
-                  <Text type="secondary" style={{ fontSize: 12 }}>
+                  <Text type="secondary" style={{ fontSize: spacing[3] }}>
                     {item.latency}
                   </Text>
                 </div>

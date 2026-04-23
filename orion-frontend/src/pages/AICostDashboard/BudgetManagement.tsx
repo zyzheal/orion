@@ -8,6 +8,7 @@ import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import { getBudgets, createBudget, updateBudget, restoreBudget, type Budget, type BudgetInput } from '@/api/ai-cost';
+import { colors, spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -145,7 +146,7 @@ const BudgetManagement: React.FC = () => {
       title: '范围',
       dataIndex: 'scope',
       width: 140,
-      render: (v: unknown) => <Text code style={{ fontSize: 12 }}>{String(v)}</Text>,
+      render: (v: unknown) => <Text code style={{ fontSize: spacing[3] }}>{String(v)}</Text>,
     },
     {
       key: 'period',
@@ -210,7 +211,7 @@ const BudgetManagement: React.FC = () => {
 
   return (
     <div style={{ padding: 0 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing[6] }}>
         <div>
           <Title level={3} style={{ margin: 0 }}>预算管理</Title>
           <Text type="secondary">创建和管理 AI 调用预算</Text>
@@ -223,8 +224,8 @@ const BudgetManagement: React.FC = () => {
 
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col span={6}><Card><Statistic title="总预算" value={budgets.length} /></Card></Col>
-        <Col span={6}><Card><Statistic title="活跃" value={budgets.filter((b) => b.status === 'active').length} valueStyle={{ color: '#52c41a' }} /></Card></Col>
-        <Col span={6}><Card><Statistic title="已超支" value={budgets.filter((b) => b.status === 'exceeded').length} valueStyle={{ color: '#ff4d4f' }} /></Card></Col>
+        <Col span={6}><Card><Statistic title="活跃" value={budgets.filter((b) => b.status === 'active').length} valueStyle={{ color: colors.success[500] }} /></Card></Col>
+        <Col span={6}><Card><Statistic title="已超支" value={budgets.filter((b) => b.status === 'exceeded').length} valueStyle={{ color: colors.error[400] }} /></Card></Col>
         <Col span={6}><Card><Statistic title="总预算金额" value={budgets.reduce((sum, b) => sum + b.amount, 0)} prefix="$" /></Card></Col>
       </Row>
 

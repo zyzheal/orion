@@ -1,5 +1,6 @@
 import React from 'react';
 import { Form, Input, Button, Card, message, Typography } from 'antd';
+import { spacing } from '@/tokens';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
@@ -90,7 +91,7 @@ const Login: React.FC = () => {
         </Form>
 
         <div style={{ textAlign: 'center', marginTop: 16 }}>
-          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+          <Typography.Text type="secondary" style={{ fontSize: spacing[3] }}>
             默认账号：admin / admin123
           </Typography.Text>
         </div>

@@ -4,6 +4,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import { Typography, Button, Space, Tag, Modal, Form, Input, Select, message, Drawer, Descriptions, Statistic, Row, Col, Card } from 'antd';
+import { colors, spacing } from '@/tokens';
 import { PlusOutlined, ReloadOutlined, BookOutlined, SearchOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
@@ -137,7 +138,7 @@ const DiagnosticKnowledgeBase: React.FC = () => {
         return (
         <Text
           strong
-          style={{ color: '#722ed1', cursor: 'pointer' }}
+          style={{ color: colors.purple[500], cursor: 'pointer' }}
           onClick={() => showDetail(record)}
         >
           {value}
@@ -165,7 +166,7 @@ const DiagnosticKnowledgeBase: React.FC = () => {
         return (
           <Space wrap>
             {symptoms.slice(0, 3).map((s, idx) => (
-              <Tag key={idx} style={{ fontSize: 11 }}>{s}</Tag>
+              <Tag key={idx} style={{ fontSize: spacing[2] }}>{s}</Tag>
             ))}
             {symptoms.length > 3 && <Tag>+{symptoms.length - 3}</Tag>}
           </Space>
@@ -184,7 +185,7 @@ const DiagnosticKnowledgeBase: React.FC = () => {
       key: 'rootCause',
       title: '根因',
       dataIndex: 'rootCause',
-      render: (v: unknown) => <Text type="secondary" style={{ fontSize: 12 }}>{v as string}</Text>,
+      render: (v: unknown) => <Text type="secondary" style={{ fontSize: spacing[3] }}>{v as string}</Text>,
     },
     {
       key: 'actions',

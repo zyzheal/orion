@@ -16,7 +16,7 @@ import type {
  */
 export function getExecutiveDashboard(params?: { days?: number }) {
   return api.get<ExecutiveDashboardData>(
-    '/api/v1/ticketing/bi/dashboard/executive',
+    '/v1/efficiency/dashboard',
     { params }
   );
 }
@@ -26,7 +26,7 @@ export function getExecutiveDashboard(params?: { days?: number }) {
  */
 export function getManagerDashboard(params?: { teamId?: string; days?: number }) {
   return api.get<ManagerDashboardData>(
-    '/api/v1/ticketing/bi/dashboard/manager',
+    '/v1/efficiency/dashboard',
     { params }
   );
 }
@@ -36,8 +36,8 @@ export function getManagerDashboard(params?: { teamId?: string; days?: number })
  */
 export function getEngineerDashboard(engineerId: string, params?: { days?: number }) {
   return api.get<EngineerDashboardData>(
-    `/api/v1/ticketing/bi/dashboard/engineer/${engineerId}`,
-    { params }
+    `/v1/efficiency/dashboard`,
+    { params: { ...params, engineerId } }
   );
 }
 
@@ -48,7 +48,7 @@ export function getEfficiencyScore(
   engineerId: string,
   params?: { start?: string; end?: string }
 ) {
-  return api.get(`/api/v1/ticketing/bi/score/${engineerId}`, { params });
+  return api.get(`/v1/efficiency/score`, { params: { ...params, engineerId } });
 }
 
 /**
@@ -60,5 +60,5 @@ export function exportBIData(data: {
   start: string;
   end: string;
 }) {
-  return api.post('/api/v1/ticketing/bi/export', data);
+  return api.post('/v1/efficiency/export', data);
 }

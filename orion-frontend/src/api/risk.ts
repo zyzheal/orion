@@ -72,12 +72,8 @@ export interface RiskFilters {
 
 // ==================== Risk Assessment ====================
 
-export function assessRisk(input: RiskAssessmentInput) {
-  return api.post<RiskAssessment>('/v1/risk/assess', input);
-}
-
-export function assessDeploymentRisk(deploymentId: string) {
-  return api.post<RiskAssessment>('/v1/risk/assess/deployment', { deploymentId });
+export function assessDeploymentRisk(deploymentId: string, params?: Record<string, any>) {
+  return api.post<RiskAssessment>('/v1/risk/assess/deployment', { deploymentId, ...params });
 }
 
 export function assessChangeRisk(changeId: string) {

@@ -6,6 +6,7 @@ import { Typography, Button, Tag, Card, Row, Col, Statistic, Table as AntTable }
 import { ReloadOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { getDashboardData, getModelPricing, type DashboardData, type ModelPricing } from '@/api/ai-cost';
+import { colors, spacing } from '@/tokens';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -78,7 +79,7 @@ const CostOverview: React.FC = () => {
 
   return (
     <div style={{ padding: 0 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing[6] }}>
         <div>
           <Title level={3} style={{ margin: 0 }}>成本总览</Title>
           <Text type="secondary">AI 模型调用成本与资源使用统计</Text>
@@ -87,11 +88,11 @@ const CostOverview: React.FC = () => {
       </div>
 
       {/* Stats Cards */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: spacing[6] }}>
         <Col span={6}>
           <Card>
             <Statistic title="今日费用" value={dashboard?.todayCost || 0} precision={2} prefix="$"
-              valueStyle={{ color: '#cf1322' }} />
+              valueStyle={{ color: colors.error[600] }} />
           </Card>
         </Col>
         <Col span={6}>
@@ -107,7 +108,7 @@ const CostOverview: React.FC = () => {
         <Col span={6}>
           <Card>
             <Statistic title="预算使用" value={dashboard?.budgetUsage || 0} precision={1} suffix="%"
-              valueStyle={{ color: (dashboard?.budgetUsage || 0) > 80 ? '#cf1322' : '#3f8600' }} />
+              valueStyle={{ color: (dashboard?.budgetUsage || 0) > 80 ? colors.error[600] : colors.success[600] }} />
           </Card>
         </Col>
       </Row>

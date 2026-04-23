@@ -9,6 +9,7 @@ import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import { getAlerts, acknowledgeAlert, resolveAlert, escalateAlert } from '@/api/monitoring';
 import type { Alert } from '@/api/monitoring';
+import { colors, spacing } from '@/tokens';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -146,7 +147,7 @@ const MonitoringAlerts: React.FC = () => {
       title: '规则ID',
       dataIndex: 'ruleId',
       width: 120,
-      render: (v: unknown) => <Text code style={{ fontSize: 12 }}>{v as string}</Text>,
+      render: (v: unknown) => <Text code style={{ fontSize: spacing[3] }}>{v as string}</Text>,
     },
     {
       key: 'status',
@@ -165,7 +166,7 @@ const MonitoringAlerts: React.FC = () => {
       sortable: true,
       width: 160,
       render: (v: unknown) => (
-        <Text type="secondary" style={{ fontSize: 12 }}>
+        <Text type="secondary" style={{ fontSize: spacing[3] }}>
           {dayjs(v as string).format('YYYY-MM-DD HH:mm:ss')}
         </Text>
       ),

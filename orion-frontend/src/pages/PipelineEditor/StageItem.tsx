@@ -3,6 +3,7 @@
  */
 import React from 'react';
 import { Card, Tag, Space, Typography, Button, Tooltip, Badge } from 'antd';
+import { colors, spacing } from '@/tokens';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import {
@@ -84,7 +85,7 @@ const StageItem: React.FC<StageItemProps> = ({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: '#999',
+              color: colors.neutral[400],
             }}
           >
             <DragOutlined />
@@ -94,7 +95,7 @@ const StageItem: React.FC<StageItemProps> = ({
           <Badge
             count={index + 1}
             style={{
-              backgroundColor: '#1890ff',
+              backgroundColor: colors.primary[500],
               minWidth: 24,
               height: 24,
               display: 'flex',
@@ -107,34 +108,34 @@ const StageItem: React.FC<StageItemProps> = ({
           <div style={{ flex: 1 }}>
             <Space direction="vertical" size={2} style={{ width: '100%' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Text strong style={{ fontSize: 15 }}>
+                <Text strong style={{ fontSize: spacing[4] }}>
                   {stageTypeIcon} {stage.name}
                 </Text>
                 <Tag color="blue">{stage.type}</Tag>
               </div>
               <Space size={12} wrap>
                 {stage.timeout && (
-                  <Text type="secondary" style={{ fontSize: 12 }}>
+                  <Text type="secondary" style={{ fontSize: spacing[3] }}>
                     <ClockCircleOutlined /> 超时：{stage.timeout}s
                   </Text>
                 )}
                 {stage.retryCount && stage.retryCount > 0 && (
-                  <Text type="secondary" style={{ fontSize: 12 }}>
+                  <Text type="secondary" style={{ fontSize: spacing[3] }}>
                     <ReloadOutlined /> 重试：{stage.retryCount}次
                   </Text>
                 )}
                 {stage.dependsOn && stage.dependsOn.length > 0 && (
-                  <Text type="secondary" style={{ fontSize: 12 }}>
+                  <Text type="secondary" style={{ fontSize: spacing[3] }}>
                     <LinkOutlined /> 依赖：{stage.dependsOn.join(', ')}
                   </Text>
                 )}
                 {stage.cache?.enabled && (
-                  <Text type="secondary" style={{ fontSize: 12 }}>
+                  <Text type="secondary" style={{ fontSize: spacing[3] }}>
                     <SaveOutlined /> 缓存：{stage.cache.key}
                   </Text>
                 )}
                 {stage.artifacts?.upload && stage.artifacts.upload.length > 0 && (
-                  <Text type="secondary" style={{ fontSize: 12 }}>
+                  <Text type="secondary" style={{ fontSize: spacing[3] }}>
                     <FileTextOutlined /> 产物：{stage.artifacts.upload.length} 个路径
                   </Text>
                 )}

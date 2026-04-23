@@ -3,6 +3,7 @@
  */
 import React, { useState, useMemo, useEffect } from 'react';
 import { Typography, Button, Space, Tag, Card, Row, Col, Statistic, message } from 'antd';
+import { colors, spacing } from '@/tokens';
 import { ReloadOutlined, DownloadOutlined, BarChartOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
@@ -75,7 +76,7 @@ const AuditLogViewer: React.FC = () => {
       title: '日志 ID',
       dataIndex: 'id',
       width: 180,
-      render: (v: unknown) => <Text code style={{ fontSize: 12 }}>{String(v).slice(0, 12)}...</Text>,
+      render: (v: unknown) => <Text code style={{ fontSize: spacing[3] }}>{String(v).slice(0, 12)}...</Text>,
     },
     {
       key: 'command',
@@ -110,7 +111,7 @@ const AuditLogViewer: React.FC = () => {
       title: '详情',
       dataIndex: 'details',
       width: 200,
-      render: (v: unknown) => <Text style={{ fontSize: 12 }}>{String(v || '-')}</Text>,
+      render: (v: unknown) => <Text style={{ fontSize: spacing[3] }}>{String(v || '-')}</Text>,
     },
     {
       key: 'timestamp',
@@ -119,7 +120,7 @@ const AuditLogViewer: React.FC = () => {
       width: 160,
       sortable: true,
       render: (v: unknown) => (
-        <Text type="secondary" style={{ fontSize: 12 }}>{dayjs(String(v)).fromNow()}</Text>
+        <Text type="secondary" style={{ fontSize: spacing[3] }}>{dayjs(String(v)).fromNow()}</Text>
       ),
     },
   ];
@@ -156,12 +157,12 @@ const AuditLogViewer: React.FC = () => {
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="最常用命令" value={stats?.topCommands?.[0]?.command || '-'} valueStyle={{ fontSize: 16 }} />
+            <Statistic title="最常用命令" value={stats?.topCommands?.[0]?.command || '-'} valueStyle={{ fontSize: spacing[4] }} />
           </Card>
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="最活跃用户" value={stats?.topUsers?.[0]?.userId || '-'} valueStyle={{ fontSize: 16 }} />
+            <Statistic title="最活跃用户" value={stats?.topUsers?.[0]?.userId || '-'} valueStyle={{ fontSize: spacing[4] }} />
           </Card>
         </Col>
       </Row>

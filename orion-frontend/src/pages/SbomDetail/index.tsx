@@ -4,6 +4,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import { Typography, Button, Space, Tag, Card, Descriptions, Table as AntTable, Modal, message, Spin } from 'antd';
+import { colors, spacing } from '@/tokens';
 import { ArrowLeftOutlined, DownloadOutlined, ReloadOutlined } from '@ant-design/icons';
 import StatusBadge from '@/components/StatusBadge';
 import type { TableColumn } from '@/components/Table';
@@ -156,7 +157,7 @@ const SbomDetail: React.FC = () => {
       width: 80,
       render: (value: unknown) => {
         const v = Number(value);
-        return v > 0 ? <Text style={{ color: '#cf1322' }}>{String(v)}</Text> : <Text type="secondary">0</Text>;
+        return v > 0 ? <Text style={{ color: colors.error[600] }}>{String(v)}</Text> : <Text type="secondary">0</Text>;
       },
     },
     {
@@ -166,7 +167,7 @@ const SbomDetail: React.FC = () => {
       width: 80,
       render: (value: unknown) => {
         const v = Number(value);
-        return v > 0 ? <Text style={{ color: '#fa8c16' }}>{String(v)}</Text> : <Text type="secondary">0</Text>;
+        return v > 0 ? <Text style={{ color: colors.warning[500] }}>{String(v)}</Text> : <Text type="secondary">0</Text>;
       },
     },
     {
@@ -198,7 +199,7 @@ const SbomDetail: React.FC = () => {
       key: 'scannedAt',
       width: 160,
       render: (value: unknown) => (
-        <Text type="secondary" style={{ fontSize: 12 }}>
+        <Text type="secondary" style={{ fontSize: spacing[3] }}>
           {dayjs(String(value)).fromNow()}
         </Text>
       ),
@@ -221,7 +222,7 @@ const SbomDetail: React.FC = () => {
       dataIndex: 'cveId',
       key: 'cveId',
       width: 160,
-      render: (value: unknown) => <Text code style={{ color: '#1890ff' }}>{String(value)}</Text>,
+      render: (value: unknown) => <Text code style={{ color: colors.primary[500] }}>{String(value)}</Text>,
     },
     {
       title: '严重级别',

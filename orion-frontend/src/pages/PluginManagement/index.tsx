@@ -55,6 +55,7 @@ import {
   type PluginCategory,
 } from '@/api/plugins';
 import { categoryLabels, healthStatusLabels } from '@/pages/__mocks__/mockPluginData';
+import { colors, spacing } from '@/tokens';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -74,15 +75,15 @@ type ApiPlugin = Plugin & {
 
 const healthConfig: Record<string, { color: string; icon: React.ReactNode }> = {
   healthy: {
-    color: '#52c41a',
+    color: colors.success[500],
     icon: <CheckCircleOutlined />,
   },
   warning: {
-    color: '#faad14',
+    color: colors.warning[500],
     icon: <WarningOutlined />,
   },
   error: {
-    color: '#ff4d4f',
+    color: colors.error[400],
     icon: <CloseCircleOutlined />,
   },
 };
@@ -145,7 +146,7 @@ const PluginDetailDrawer: React.FC<PluginDetailDrawerProps> = ({
           <Descriptions.Item label="最新版本">
             <Badge
               count="可更新"
-              style={{ backgroundColor: '#1890ff' }}
+              style={{ backgroundColor: colors.primary[500] }}
             >
               <Tag color="blue">{plugin.latestVersion}</Tag>
             </Badge>
@@ -705,7 +706,7 @@ const PluginManagement: React.FC = () => {
       width: 200,
       render: (value: unknown) => (
         <Space>
-          <AppstoreOutlined style={{ color: '#1890ff' }} />
+          <AppstoreOutlined style={{ color: colors.primary[500] }} />
           <Text strong>{String(value)}</Text>
         </Space>
       ),
@@ -719,7 +720,7 @@ const PluginManagement: React.FC = () => {
         <Space>
           <Tag>v{String(value)}</Tag>
           {record.latestVersion && (
-            <Badge count="新" style={{ backgroundColor: '#1890ff' }} />
+            <Badge count="新" style={{ backgroundColor: colors.primary[500] }} />
           )}
         </Space>
       ),
@@ -767,8 +768,8 @@ const PluginManagement: React.FC = () => {
       width: 140,
       render: (value: unknown, _record: ApiPlugin) => (
         <Space>
-          <ClockCircleOutlined style={{ color: '#8c8c8c' }} />
-          <Text type="secondary" style={{ fontSize: 12 }}>
+          <ClockCircleOutlined style={{ color: colors.neutral[500] }} />
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
             {value ? dayjs(String(value)).format('YYYY-MM-DD') : '-'}
           </Text>
         </Space>
@@ -785,7 +786,7 @@ const PluginManagement: React.FC = () => {
         return (
           <Space>
             <span style={{ color: config.color }}>{config.icon}</span>
-            <Text style={{ color: config.color, fontSize: 12 }}>
+            <Text style={{ color: config.color, fontSize: spacing[3] }}>
               {healthStatusLabels[status]}
             </Text>
           </Space>
@@ -898,28 +899,28 @@ const PluginManagement: React.FC = () => {
           title="插件总数"
           value={totalCount}
           icon={<AppstoreOutlined />}
-          color="#1890ff"
+          color={colors.primary[500]}
           footer="已安装的全部插件"
         />
         <MetricCard
           title="已启用"
           value={enabledCount}
           icon={<CheckCircleOutlined />}
-          color="#52c41a"
+          color={colors.success[500]}
           footer="当前运行中的插件"
         />
         <MetricCard
           title="已禁用"
           value={disabledCount}
           icon={<CloseCircleOutlined />}
-          color="#8c8c8c"
+          color={colors.neutral[500]}
           footer="已停止的插件"
         />
         <MetricCard
           title="可更新"
           value={updatesAvailableCount}
           icon={<CloudDownloadOutlined />}
-          color="#722ed1"
+          color={colors.purple[500]}
           footer="有新版本可用的插件"
         />
       </div>

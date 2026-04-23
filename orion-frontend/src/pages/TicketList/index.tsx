@@ -29,6 +29,7 @@ import MetricCard from '@/components/MetricCard';
 import { getTickets, type Ticket } from '@/api/ticketing';
 import { mockEngineers } from '@/pages/__mocks__/mockTicketData';
 import { useNavigate } from 'react-router-dom';
+import { colors, spacing } from '@/tokens';
 import dayjs from 'dayjs';
 import CreateTicketModal from './CreateTicketModal';
 import DispatchPanel from './DispatchPanel';
@@ -40,10 +41,10 @@ const { Title, Text } = Typography;
 // ============================================================================
 
 const priorityConfig: Record<string, { color: string; label: string; order: number }> = {
-  critical: { color: '#ff4d4f', label: '紧急', order: 0 },
-  high: { color: '#fa8c16', label: '高', order: 1 },
-  medium: { color: '#1890ff', label: '中', order: 2 },
-  low: { color: '#8c8c8c', label: '低', order: 3 },
+  critical: { color: colors.error[400], label: '紧急', order: 0 },
+  high: { color: colors.warning[600], label: '高', order: 1 },
+  medium: { color: colors.primary[500], label: '中', order: 2 },
+  low: { color: colors.neutral[500], label: '低', order: 3 },
 };
 
 const statusConfig: Record<string, { color: string; label: string }> = {
@@ -84,16 +85,16 @@ function calculateSLA(ticket: MockTicket): {
   const remainingMs = due.diff(now);
 
   if (remainingMs <= 0) {
-    return { percent: 0, color: '#ff4d4f', text: '已超时', overdue: true };
+    return { percent: 0, color: colors.error[400], text: '已超时', overdue: true };
   }
 
   const percent = Math.max(0, Math.round((remainingMs / totalMs) * 100));
 
   if (percent < 25) {
-    return { percent, color: '#fa8c16', text: `${Math.round(remainingMs / 3600000)}h`, overdue: false };
+    return { percent, color: colors.warning[600], text: `${Math.round(remainingMs / 3600000)}h`, overdue: false };
   }
 
-  return { percent, color: '#52c41a', text: `${Math.round(remainingMs / 3600000)}h`, overdue: false };
+  return { percent, color: colors.success[500], text: `${Math.round(remainingMs / 3600000)}h`, overdue: false };
 }
 
 // ============================================================================
@@ -234,7 +235,7 @@ const TicketList: React.FC = () => {
       render: (value: unknown, record: MockTicket) => (
         <Text
           strong
-          style={{ cursor: 'pointer', color: '#1890ff' }}
+          style={{ cursor: 'pointer', color: colors.primary[500] }}
           onClick={() => navigate(`/tickets/${record.id}`)}
           data-testid={`ticket-link-${record.id}`}
         >
@@ -251,12 +252,12 @@ const TicketList: React.FC = () => {
         <Space direction="vertical" size={0}>
           <Text
             strong
-            style={{ cursor: 'pointer', color: '#1890ff' }}
+            style={{ cursor: 'pointer', color: colors.primary[500] }}
             onClick={() => navigate(`/tickets/${record.id}`)}
           >
             {String(value)}
           </Text>
-          <Text type="secondary" style={{ fontSize: 12 }}>
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
             来源: {record.source === 'alert' ? '告警' : record.source === 'incident' ? '事件' : record.source === 'api' ? 'API' : '手动'}
           </Text>
         </Space>
@@ -328,7 +329,7 @@ const TicketList: React.FC = () => {
       dataIndex: 'createdAt',
       width: 140,
       render: (value: unknown) => (
-        <Text type="secondary" style={{ fontSize: 12 }}>
+        <Text type="secondary" style={{ fontSize: spacing[3] }}>
           {dayjs(String(value)).format('MM-DD HH:mm')}
         </Text>
       ),
@@ -443,28 +444,28 @@ const TicketList: React.FC = () => {
           title="待处理"
           value={openCount}
           icon={<InboxOutlined />}
-          color="#1890ff"
+          color={colors.primary[500]}
           footer="需要分配的工单"
         />
         <MetricCard
           title="处理中"
           value={inProgressCount}
           icon={<ExclamationCircleOutlined />}
-          color="#fa8c16"
+          color={colors.warning[500]}
           footer="正在进行处理的工单"
         />
         <MetricCard
           title="已超时"
           value={overdueCount}
           icon={<ClockCircleOutlined />}
-          color="#ff4d4f"
+          color={colors.error[400]}
           footer="超过 SLA 时限"
         />
         <MetricCard
           title="SLA 违约"
           value={slaBreached}
           icon={<WarningOutlined />}
-          color="#722ed1"
+          color={colors.purple[500]}
           footer="SLA 违约次数"
         />
       </div>

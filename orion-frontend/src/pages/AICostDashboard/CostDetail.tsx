@@ -6,6 +6,7 @@ import { Typography, Button, Space, Tag, Card, DatePicker, Select, message, Tabl
 import { ReloadOutlined, DownloadOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { getCosts, type CostRecord } from '@/api/ai-cost';
+import { colors, spacing } from '@/tokens';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 
@@ -72,7 +73,7 @@ const CostDetail: React.FC = () => {
     { key: 'tenantId', title: '租户', dataIndex: 'tenantId', render: (v: unknown) => <Tag color="blue">{String(v)}</Tag> },
     { key: 'projectId', title: '项目', dataIndex: 'projectId', render: (v: unknown) => <Text>{String(v)}</Text> },
     { key: 'userId', title: '用户', dataIndex: 'userId', render: (v: unknown) => <Text>{String(v)}</Text> },
-    { key: 'timestamp', title: '时间', dataIndex: 'timestamp', render: (v: unknown) => <Text type="secondary" style={{ fontSize: 12 }}>{dayjs(String(v)).fromNow()}</Text> },
+    { key: 'timestamp', title: '时间', dataIndex: 'timestamp', render: (v: unknown) => <Text type="secondary" style={{ fontSize: spacing[3] }}>{dayjs(String(v)).fromNow()}</Text> },
   ];
 
   const handleExport = () => {
@@ -81,7 +82,7 @@ const CostDetail: React.FC = () => {
 
   return (
     <div style={{ padding: 0 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing[6] }}>
         <div>
           <Title level={3} style={{ margin: 0 }}>成本明细</Title>
           <Text type="secondary">按维度下钻查看 AI 调用成本</Text>
@@ -95,7 +96,7 @@ const CostDetail: React.FC = () => {
       </div>
 
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-        <Col span={6}><Card><Statistic title="总费用" value={totalCost} precision={2} prefix="$" valueStyle={{ color: '#cf1322' }} /></Card></Col>
+        <Col span={6}><Card><Statistic title="总费用" value={totalCost} precision={2} prefix="$" valueStyle={{ color: colors.error[600] }} /></Card></Col>
         <Col span={6}><Card><Statistic title="输入 Token" value={totalInputTokens} suffix="tokens" /></Card></Col>
         <Col span={6}><Card><Statistic title="输出 Token" value={totalOutputTokens} suffix="tokens" /></Card></Col>
         <Col span={6}><Card><Statistic title="记录数" value={costs.length} suffix="条" /></Card></Col>

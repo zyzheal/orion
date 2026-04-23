@@ -23,3 +23,5 @@ export { GerritAdapter, type GerritAdapterConfig } from './GerritAdapter';
 export { BranchPolicyService, type BranchPolicyCreateInput, type BranchPolicyUpdateInput, type ApprovalRuleInput, type MergeCheckResult } from './BranchPolicyService';
 export { CodeOwnershipService, type ParseResult } from './CodeOwnershipService';
 export { CodeRepoWebhookService, type WebhookServiceConfig, type IEventPublisher } from './WebhookService';
+export type { WebhookProcessResult } from './WebhookService';
+export { CommitStatusService, type CommitStatusInput, type CommitStatusQuery, type CommitStatusServiceConfig } from './CommitStatusService';

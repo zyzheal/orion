@@ -4,6 +4,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Typography, Button, Space, Tag, Card, Modal, Form, Input, Select, message, Popconfirm } from 'antd';
 import { PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { spacing } from '@/tokens';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import { getSpaces, createSpace, updateSpace, deleteSpace, type Space as SpaceType, type SpaceInput } from '@/api/ai-docs';
@@ -131,7 +132,7 @@ const SpaceList: React.FC = () => {
     { key: 'description', title: '描述', dataIndex: 'description', width: 200, render: (v: unknown) => <Text type="secondary">{String(v || '-')}</Text> },
     { key: 'documentCount', title: '文档数', dataIndex: 'documentCount', width: 80, render: (v: unknown) => <Text>{String(v)}</Text> },
     { key: 'ownerId', title: '所有者', dataIndex: 'ownerId', width: 120, render: (v: unknown) => <Text>{String(v)}</Text> },
-    { key: 'updatedAt', title: '更新时间', dataIndex: 'updatedAt', width: 160, sortable: true, render: (v: unknown) => <Text type="secondary" style={{ fontSize: 12 }}>{dayjs(String(v)).fromNow()}</Text> },
+    { key: 'updatedAt', title: '更新时间', dataIndex: 'updatedAt', width: 160, sortable: true, render: (v: unknown) => <Text type="secondary" style={{ fontSize: spacing[3] }}>{dayjs(String(v)).fromNow()}</Text> },
     { key: 'actions', title: '操作', width: 160, render: (_: unknown, record: any) => (
       <Space size="small">
         <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEdit(record)}>编辑</Button>

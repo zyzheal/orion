@@ -3,6 +3,7 @@
  */
 import React, { useState, useMemo, useEffect } from 'react';
 import { Typography, Button, Space, Tag, Card, Row, Col, Statistic, Descriptions, Progress, message } from 'antd';
+import { colors, spacing } from '@/tokens';
 import { ReloadOutlined, CheckCircleOutlined, CloseCircleOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
@@ -88,7 +89,7 @@ const PlanViewer: React.FC = () => {
       dataIndex: 'id',
       width: 180,
       sortable: true,
-      render: (v: unknown) => <Text code style={{ fontSize: 12 }}>{String(v).slice(0, 12)}...</Text>,
+      render: (v: unknown) => <Text code style={{ fontSize: spacing[3] }}>{String(v).slice(0, 12)}...</Text>,
     },
     {
       key: 'workspace',
@@ -129,7 +130,7 @@ const PlanViewer: React.FC = () => {
       sortable: true,
       render: (v: unknown) => (
         v !== null && v !== undefined ? (
-          <Text strong style={{ color: Number(v) > 100 ? '#cf1322' : '#3f8600' }}>
+          <Text strong style={{ color: Number(v) > 100 ? colors.error[600] : colors.success[600] }}>
             ${Number(v).toFixed(2)}
           </Text>
         ) : <Text type="secondary">N/A</Text>
@@ -149,7 +150,7 @@ const PlanViewer: React.FC = () => {
             type="circle"
             size={32}
             percent={score}
-            strokeColor={score >= 80 ? '#52c41a' : score >= 60 ? '#faad14' : '#ff4d4f'}
+            strokeColor={score >= 80 ? colors.success[500] : score >= 60 ? colors.warning[500] : colors.error[400]}
             format={() => `${score}`}
           />
         );
@@ -162,7 +163,7 @@ const PlanViewer: React.FC = () => {
       width: 160,
       sortable: true,
       render: (v: unknown) => (
-        <Text type="secondary" style={{ fontSize: 12 }}>{dayjs(String(v)).fromNow()}</Text>
+        <Text type="secondary" style={{ fontSize: spacing[3] }}>{dayjs(String(v)).fromNow()}</Text>
       ),
     },
     {
@@ -174,7 +175,7 @@ const PlanViewer: React.FC = () => {
           <Button type="link" size="small" icon={<InfoCircleOutlined />} onClick={() => setSelectedPlan(record)}>详情</Button>
           {record.status === 'pending' && (
             <>
-              <Button type="link" size="small" icon={<CheckCircleOutlined />} style={{ color: '#52c41a' }}>应用</Button>
+              <Button type="link" size="small" icon={<CheckCircleOutlined />} style={{ color: colors.success[500] }}>应用</Button>
               <Button type="link" size="small" icon={<CloseCircleOutlined />} danger>丢弃</Button>
             </>
           )}

@@ -52,6 +52,7 @@ import {
 } from '@/api/ticketing';
 import { mockEngineers, mockTicketHistory, mockTicketRelations, mockTransferHistory } from '@/pages/__mocks__/mockTicketData';
 import TicketComments from './TicketComments';
+import { colors, spacing } from '@/tokens';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -60,10 +61,10 @@ const { Title, Text, Paragraph } = Typography;
 // ============================================================================
 
 const priorityConfig: Record<string, { color: string; label: string }> = {
-  critical: { color: '#ff4d4f', label: '紧急' },
-  high: { color: '#fa8c16', label: '高' },
+  critical: { color: colors.error[400], label: '紧急' },
+  high: { color: colors.warning[600], label: '高' },
   medium: { color: 'blue', label: '中' },
-  low: { color: '#8c8c8c', label: '低' },
+  low: { color: colors.neutral[400], label: '低' },
 };
 
 const statusConfig: Record<string, { color: string; label: string }> = {
@@ -153,9 +154,9 @@ function formatDuration(ms: number): string {
 }
 
 const slaStatusColors: Record<string, string> = {
-  normal: '#52c41a',
-  warning: '#faad14',
-  danger: '#ff4d4f',
+  normal: colors.success[500],
+  warning: colors.warning[500],
+  danger: colors.error[400],
 };
 
 // ============================================================================
@@ -348,7 +349,7 @@ const TicketDetail: React.FC = () => {
             {pConfig.label}
           </Tag>
         </div>
-        <Title level={4} style={{ margin: '8px 0 0', fontWeight: 'normal', color: '#595959' }}>
+        <Title level={4} style={{ margin: '8px 0 0', fontWeight: 'normal', color: colors.neutral[600] }}>
           {ticket.title}
         </Title>
       </div>
@@ -491,7 +492,7 @@ const TicketDetail: React.FC = () => {
                     alignItems: 'center',
                     gap: 8,
                     padding: '8px 0',
-                    borderBottom: '1px solid #f0f0f0',
+                    borderBottom: `1px solid ${colors.light.border.light}`,
                   }}
                 >
                   <Tag color={relationTypeColors[rel.relationType]}>
@@ -499,7 +500,7 @@ const TicketDetail: React.FC = () => {
                   </Tag>
                   <Text
                     strong
-                    style={{ cursor: 'pointer', color: '#1890ff' }}
+                    style={{ cursor: 'pointer', color: colors.primary[500] }}
                     onClick={() => navigate(`/tickets/${rel.relatedTicketId}`)}
                   >
                     {rel.relatedTicketId}
@@ -532,20 +533,20 @@ const TicketDetail: React.FC = () => {
                     alignItems: 'center',
                     gap: 8,
                     padding: '8px 0',
-                    borderBottom: '1px solid #f0f0f0',
+                    borderBottom: `1px solid ${colors.light.border.light}`,
                   }}
                 >
                   <Avatar size="small">{t.fromEngineer[0]}</Avatar>
                   <Text>{t.fromEngineer}</Text>
                   <SwapOutlined />
-                  <Avatar size="small" style={{ background: '#1890ff' }}>
+                  <Avatar size="small" style={{ background: colors.primary[500] }}>
                     {t.toEngineer[0]}
                   </Avatar>
                   <Text>{t.toEngineer}</Text>
                   <Text type="secondary" style={{ marginLeft: 'auto' }}>
                     {t.reason}
                   </Text>
-                  <Text type="secondary" style={{ fontSize: 12 }}>
+                  <Text type="secondary" style={{ fontSize: spacing[3] }}>
                     {dayjs(t.timestamp).format('MM-DD HH:mm')}
                   </Text>
                 </div>
@@ -586,7 +587,7 @@ const TicketDetail: React.FC = () => {
             {ticket.assignee ? (
               <Space direction="vertical" style={{ width: '100%' }}>
                 <Space>
-                  <Avatar style={{ background: '#1890ff' }}>
+                  <Avatar style={{ background: colors.primary[500] }}>
                     {ticket.assignee[0]}
                   </Avatar>
                   <Text strong>{ticket.assignee}</Text>
@@ -604,7 +605,7 @@ const TicketDetail: React.FC = () => {
             <Card title="升级信息" size="small" style={{ marginBottom: 16 }}>
               <Space direction="vertical" style={{ width: '100%' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />
+                  <ExclamationCircleOutlined style={{ color: colors.error[400] }} />
                   <Text strong>当前级别: L{ticket.escalationLevel}</Text>
                 </div>
                 {Array.from({ length: ticket.escalationLevel }).map((_, i) => (
@@ -648,13 +649,13 @@ const TicketDetail: React.FC = () => {
                     )}
                     {entry.reason && (
                       <div>
-                        <Text type="secondary" style={{ fontSize: 12 }}>
+                        <Text type="secondary" style={{ fontSize: spacing[3] }}>
                           {entry.reason}
                         </Text>
                       </div>
                     )}
                     <div>
-                      <Text type="secondary" style={{ fontSize: 12 }}>
+                      <Text type="secondary" style={{ fontSize: spacing[3] }}>
                         {entry.performedBy} · {dayjs(entry.timestamp).format('MM-DD HH:mm')}
                       </Text>
                     </div>

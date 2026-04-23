@@ -24,6 +24,7 @@ import {
   Divider,
   Drawer,
 } from 'antd';
+import { colors, spacing } from '@/tokens';
 import {
   PlusOutlined,
   ReloadOutlined,
@@ -549,7 +550,7 @@ const AgentDashboard: React.FC = () => {
       width: 180,
       render: (value: unknown) => (
         <Space>
-          <ThunderboltOutlined style={{ color: '#722ed1' }} />
+          <ThunderboltOutlined style={{ color: colors.purple[500] }} />
           <Text strong>{String(value)}</Text>
         </Space>
       ),
@@ -583,7 +584,7 @@ const AgentDashboard: React.FC = () => {
       dataIndex: 'llmConfig',
       width: 160,
       render: (value: unknown) => (
-        <Text type="secondary" style={{ fontSize: 12 }}>
+        <Text type="secondary" style={{ fontSize: spacing[3] }}>
           {(value as any)?.model || '-'}
         </Text>
       ),
@@ -595,8 +596,8 @@ const AgentDashboard: React.FC = () => {
       width: 160,
       render: (value: unknown) => (
         <Space>
-          <ClockCircleOutlined style={{ color: '#8c8c8c' }} />
-          <Text type="secondary" style={{ fontSize: 12 }}>
+          <ClockCircleOutlined style={{ color: colors.neutral[400] }} />
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
             {value ? dayjs(String(value)).format('YYYY-MM-DD HH:mm') : '-'}
           </Text>
         </Space>
@@ -678,7 +679,7 @@ const AgentDashboard: React.FC = () => {
       title: '进度',
       width: 180,
       render: (_: unknown, record: AgentRun) => (
-        <span style={{ fontSize: 12 }}>
+        <span style={{ fontSize: spacing[3] }}>
           步骤 {record.currentStep}/{record.totalSteps}
         </span>
       ),
@@ -689,7 +690,7 @@ const AgentDashboard: React.FC = () => {
       dataIndex: 'startedAt',
       width: 160,
       render: (value: unknown) => (
-        <Text type="secondary" style={{ fontSize: 12 }}>
+        <Text type="secondary" style={{ fontSize: spacing[3] }}>
           {value ? dayjs(String(value)).format('YYYY-MM-DD HH:mm') : '-'}
         </Text>
       ),
@@ -751,28 +752,28 @@ const AgentDashboard: React.FC = () => {
           title="活跃 Agent"
           value={activeAgentCount}
           icon={<AppstoreOutlined />}
-          color="#722ed1"
+          color="colors.purple[500]"
           footer="已启用的 Agent 数量"
         />
         <MetricCard
           title="今日运行"
           value={todayRunCount}
           icon={<PlayCircleOutlined />}
-          color="#1890ff"
+          color="colors.primary[500]"
           footer="今天触发的运行次数"
         />
         <MetricCard
           title="成功率"
           value={`${successRate}%`}
           icon={<CheckCircleOutlined />}
-          color="#52c41a"
+          color="colors.success[500]"
           footer="运行成功占比"
         />
         <MetricCard
           title="平均耗时"
           value={`${avgDuration}s`}
           icon={<ClockCircleOutlined />}
-          color="#faad14"
+          color="colors.warning[500]"
           footer="成功运行的平均时长"
         />
       </div>
@@ -782,7 +783,7 @@ const AgentDashboard: React.FC = () => {
         <div style={{ marginBottom: 24 }}>
           <Title level={5} style={{ marginBottom: 12 }}>
             <Space>
-              <PauseCircleOutlined style={{ color: '#faad14' }} />
+              <PauseCircleOutlined style={{ color: colors.warning[500] }} />
               待审批队列 ({approvals.length})
             </Space>
           </Title>
@@ -793,7 +794,7 @@ const AgentDashboard: React.FC = () => {
                 title: '审批 ID',
                 dataIndex: 'id',
                 width: 120,
-                render: (v: unknown) => <Text code style={{ fontSize: 11 }}>{String(v).slice(0, 8)}</Text>,
+                render: (v: unknown) => <Text code style={{ fontSize: spacing[2] }}>{String(v).slice(0, 8)}</Text>,
               },
               {
                 key: 'agentId',
@@ -814,7 +815,7 @@ const AgentDashboard: React.FC = () => {
                 title: '原因',
                 dataIndex: 'reason',
                 render: (v: unknown) => (
-                  <Text type="secondary" style={{ fontSize: 12 }}>
+                  <Text type="secondary" style={{ fontSize: spacing[3] }}>
                     {String(v || '-')}
                   </Text>
                 ),
@@ -825,7 +826,7 @@ const AgentDashboard: React.FC = () => {
                 dataIndex: 'createdAt',
                 width: 160,
                 render: (v: unknown) => (
-                  <Text type="secondary" style={{ fontSize: 12 }}>
+                  <Text type="secondary" style={{ fontSize: spacing[3] }}>
                     {v ? dayjs(String(v)).format('YYYY-MM-DD HH:mm') : '-'}
                   </Text>
                 ),

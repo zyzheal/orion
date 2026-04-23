@@ -4,6 +4,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import { Typography, Button, Space, Tag, Modal, Form, Input, Select, message, Drawer } from 'antd';
+import { colors, spacing } from '@/tokens';
 import { PlusOutlined, ReloadOutlined, SearchOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
@@ -147,7 +148,7 @@ const DiagnosticSessions: React.FC = () => {
         return (
         <Text
           code
-          style={{ fontSize: 12, color: '#722ed1', cursor: 'pointer' }}
+          style={{ fontSize: spacing[3], color: colors.purple[500], cursor: 'pointer' }}
           onClick={() => {
             const s = sessions.find((item) => item.id === value);
             if (s) showSessionDetail(s);
@@ -170,7 +171,7 @@ const DiagnosticSessions: React.FC = () => {
       title: '触发器ID',
       dataIndex: 'triggerId',
       width: 140,
-      render: (v: unknown) => <Text code style={{ fontSize: 11 }}>{v as string}</Text>,
+      render: (v: unknown) => <Text code style={{ fontSize: spacing[2] }}>{v as string}</Text>,
     },
     {
       key: 'symptomCount',
@@ -197,7 +198,7 @@ const DiagnosticSessions: React.FC = () => {
       sortable: true,
       width: 160,
       render: (v: unknown) => (
-        <Text type="secondary" style={{ fontSize: 12 }}>
+        <Text type="secondary" style={{ fontSize: spacing[3] }}>
           {dayjs(v as string).format('YYYY-MM-DD HH:mm:ss')}
         </Text>
       ),
@@ -349,7 +350,7 @@ const DiagnosticSessions: React.FC = () => {
                 <Title level={5}>症状列表</Title>
                 <Space direction="vertical" style={{ width: '100%' }}>
                   {sessionDetail.symptoms.map((symptom: DiagnosticSymptom, idx: number) => (
-                    <div key={idx} style={{ padding: 12, background: '#fafafa', borderRadius: 6 }}>
+                    <div key={idx} style={{ padding: 12, background: colors.neutral[50], borderRadius: 6 }}>
                       <Space>
                         <Tag color="purple">{symptom.type}</Tag>
                         <Text strong>{symptom.source}</Text>

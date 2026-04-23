@@ -3,6 +3,7 @@
  */
 import React, { useState, useMemo, useEffect } from 'react';
 import { Typography, Button, Space, Tag, Card, Modal, message } from 'antd';
+import { colors, spacing } from '@/tokens';
 import { ReloadOutlined, InfoCircleOutlined, CodeOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
@@ -89,7 +90,7 @@ const CommandBrowser: React.FC = () => {
       title: '描述',
       dataIndex: 'description',
       width: 300,
-      render: (v: unknown) => <Text style={{ fontSize: 12 }}>{String(v)}</Text>,
+      render: (v: unknown) => <Text style={{ fontSize: spacing[3] }}>{String(v)}</Text>,
     },
     {
       key: 'examples',
@@ -142,7 +143,7 @@ const CommandBrowser: React.FC = () => {
         {selectedCommand && (
           <div>
             <Space style={{ marginBottom: 16 }}>
-              <Text strong style={{ fontSize: 16 }}>/{selectedCommand.name}</Text>
+              <Text strong style={{ fontSize: spacing[4] }}>/{selectedCommand.name}</Text>
               {selectedCommand.subcommand && <Tag>{selectedCommand.subcommand}</Tag>}
               <Tag color={permissionLevelColorMap[selectedCommand.permissionLevel]}>{selectedCommand.permissionLevel}</Tag>
             </Space>
@@ -168,7 +169,7 @@ const CommandBrowser: React.FC = () => {
 
             <Title level={5} style={{ marginTop: 16 }}>使用示例</Title>
             {selectedCommand.examples.map((example, index) => (
-              <Card key={index} size="small" style={{ marginBottom: 8, background: '#f5f5f5' }}>
+              <Card key={index} size="small" style={{ marginBottom: 8, background: colors.neutral[50] }}>
                 <Text code>{example}</Text>
               </Card>
             ))}

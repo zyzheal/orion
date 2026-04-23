@@ -4,6 +4,7 @@
  */
 import React, { useState, useMemo, useEffect } from 'react';
 import { Typography, Button, Space, Tag, Card, Row, Col, Statistic, Modal, Form, Input, Select, message } from 'antd';
+import { colors, spacing } from '@/tokens';
 import { PlusOutlined, ReloadOutlined, DownloadOutlined, EyeOutlined, FileTextOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
@@ -97,12 +98,12 @@ const SbomDashboard: React.FC = () => {
         <Space direction="vertical" size={0}>
           <Text
             strong
-            style={{ cursor: 'pointer', color: '#1890ff' }}
+            style={{ cursor: 'pointer', color: colors.primary[500] }}
             onClick={() => navigate(`/sbom/${record.id}`)}
           >
             {record.documentId}
           </Text>
-          <Text type="secondary" style={{ fontSize: 12 }}>
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
             Build: {record.buildId}
           </Text>
         </Space>
@@ -139,7 +140,7 @@ const SbomDashboard: React.FC = () => {
       width: 160,
       sortable: true,
       render: (value: unknown) => (
-        <Text type="secondary" style={{ fontSize: 12 }}>
+        <Text type="secondary" style={{ fontSize: spacing[3] }}>
           {dayjs(String(value)).fromNow()}
         </Text>
       ),
@@ -246,7 +247,7 @@ const SbomDashboard: React.FC = () => {
               value={compliance?.complianceRate || 0}
               precision={1}
               suffix="%"
-              valueStyle={{ color: (compliance?.complianceRate || 0) >= 90 ? '#3f8600' : '#cf1322' }}
+              valueStyle={{ color: (compliance?.complianceRate || 0) >= 90 ? colors.success[600] : colors.error[600] }}
             />
           </Card>
         </Col>
@@ -295,7 +296,7 @@ const SbomDashboard: React.FC = () => {
               <Statistic title="合规数" value={compliance.compliantSboms || 0} />
             </Col>
             <Col span={6}>
-              <Statistic title="严重漏洞" value={compliance.criticalVulns || 0} valueStyle={{ color: '#cf1322' }} />
+              <Statistic title="严重漏洞" value={compliance.criticalVulns || 0} valueStyle={{ color: colors.error[600] }} />
             </Col>
             <Col span={6}>
               <Statistic title="活跃豁免" value={waivers.length} />

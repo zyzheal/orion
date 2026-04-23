@@ -19,6 +19,7 @@ import {
   InputNumber,
   message,
 } from 'antd';
+import { colors, spacing } from '@/tokens';
 import {
   ReloadOutlined,
   TeamOutlined,
@@ -187,7 +188,7 @@ const TenantManagementPage: React.FC = () => {
               <Statistic
                 title="可用 Namespace"
                 value={poolStatus?.availableNamespaces || 0}
-                valueStyle={{ color: '#52c41a' }}
+                valueStyle={{ color: colors.success[500] }}
                 suffix={`/ ${poolStatus?.totalNamespaces || 0}`}
               />
             </Card>
@@ -197,7 +198,7 @@ const TenantManagementPage: React.FC = () => {
               <Statistic
                 title="已分配 Namespace"
                 value={poolStatus?.allocatedNamespaces || 0}
-                valueStyle={{ color: '#1890ff' }}
+                valueStyle={{ color: colors.primary[500] }}
               />
             </Card>
           </Col>
@@ -209,7 +210,7 @@ const TenantManagementPage: React.FC = () => {
                 precision={1}
                 suffix="%"
                 valueStyle={{
-                  color: (poolStatus?.utilizationPercent || 0) > 80 ? '#f5222d' : '#52c41a',
+                  color: (poolStatus?.utilizationPercent || 0) > 80 ? colors.error[500] : colors.success[500],
                 }}
               />
             </Card>
@@ -224,7 +225,7 @@ const TenantManagementPage: React.FC = () => {
                 <div style={{ marginBottom: 8 }}>
                   <Text type="secondary">{item.label}</Text>
                 </div>
-                <div style={{ fontWeight: 'bold', fontSize: 20 }}>
+                <div style={{ fontWeight: 'bold', fontSize: spacing[5] }}>
                   {item.value} {item.unit}
                 </div>
               </Col>
@@ -252,8 +253,8 @@ const TenantManagementPage: React.FC = () => {
             <Progress
               percent={poolStatus?.utilizationPercent || 0}
               strokeColor={{
-                '0%': '#52c41a',
-                '100%': poolStatus?.utilizationPercent && poolStatus.utilizationPercent > 80 ? '#f5222d' : '#1890ff',
+                '0%': colors.success[500],
+                '100%': poolStatus?.utilizationPercent && poolStatus.utilizationPercent > 80 ? colors.error[500] : colors.primary[500],
               }}
               format={(percent) => `${(percent ?? 0).toFixed(1)}% 已使用`}
             />

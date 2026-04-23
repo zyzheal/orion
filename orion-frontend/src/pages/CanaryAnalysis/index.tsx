@@ -4,6 +4,7 @@
  */
 import React, { useState, useMemo, useEffect } from 'react';
 import { Typography, Button, Space, Tag, Card, Row, Col, Statistic, Modal, Form, Input, message, Select, Descriptions, Alert } from 'antd';
+import { colors, spacing } from '@/tokens';
 import { ReloadOutlined, SettingOutlined, PlayCircleOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
@@ -142,7 +143,7 @@ const CanaryAnalysis: React.FC = () => {
       render: (_value: unknown, record: any) => (
         <Space direction="vertical" size={0}>
           <Text strong>Deployment #{record.deploymentId}</Text>
-          <Text type="secondary" style={{ fontSize: 12 }}>Run #{record.runNumber}</Text>
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>Run #{record.runNumber}</Text>
         </Space>
       ),
     },
@@ -206,7 +207,7 @@ const CanaryAnalysis: React.FC = () => {
       width: 160,
       sortable: true,
       render: (value: unknown) => (
-        <Text type="secondary" style={{ fontSize: 12 }}>
+        <Text type="secondary" style={{ fontSize: spacing[3] }}>
           {dayjs(String(value)).fromNow()}
         </Text>
       ),
@@ -275,17 +276,17 @@ const CanaryAnalysis: React.FC = () => {
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="运行中" value={runningCount} valueStyle={{ color: '#1890ff' }} />
+            <Statistic title="运行中" value={runningCount} valueStyle={{ color: colors.primary[500] }} />
           </Card>
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="已升级" value={promotedCount} valueStyle={{ color: '#3f8600' }} />
+            <Statistic title="已升级" value={promotedCount} valueStyle={{ color: colors.success[600] }} />
           </Card>
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="已回滚" value={rolledbackCount} valueStyle={{ color: '#cf1322' }} />
+            <Statistic title="已回滚" value={rolledbackCount} valueStyle={{ color: colors.error[600] }} />
           </Card>
         </Col>
       </Row>

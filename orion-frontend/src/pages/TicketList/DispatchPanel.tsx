@@ -39,6 +39,7 @@ import {
   mockSLAAlerts,
   type MockTicket,
 } from '@/pages/__mocks__/mockTicketData';
+import { colors, spacing } from '@/tokens';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -57,16 +58,16 @@ export interface DispatchPanelProps {
 // ============================================================================
 
 const priorityConfig: Record<string, { color: string; label: string }> = {
-  critical: { color: '#ff4d4f', label: '紧急' },
-  high: { color: '#fa8c16', label: '高' },
+  critical: { color: colors.error[400], label: '紧急' },
+  high: { color: colors.warning[600], label: '高' },
   medium: { color: 'blue', label: '中' },
-  low: { color: '#8c8c8c', label: '低' },
+  low: { color: colors.neutral[500], label: '低' },
 };
 
 const availabilityConfig: Record<string, { color: string; label: string; status: 'success' | 'processing' | 'default' }> = {
-  available: { color: '#52c41a', label: '可用', status: 'success' },
-  busy: { color: '#fa8c16', label: '忙碌', status: 'processing' },
-  away: { color: '#8c8c8c', label: '离开', status: 'default' },
+  available: { color: colors.success[500], label: '可用', status: 'success' },
+  busy: { color: colors.warning[600], label: '忙碌', status: 'processing' },
+  away: { color: colors.neutral[500], label: '离开', status: 'default' },
 };
 
 function formatWaitTime(ms: number): string {
@@ -97,7 +98,7 @@ const DispatchPanel: React.FC<DispatchPanelProps> = ({ open, onClose }) => {
       dataIndex: 'id',
       key: 'id',
       width: 90,
-      render: (value: string) => <Text strong style={{ color: '#1890ff' }}>{value}</Text>,
+      render: (value: string) => <Text strong style={{ color: colors.primary[500] }}>{value}</Text>,
     },
     {
       title: '标题',
@@ -121,7 +122,7 @@ const DispatchPanel: React.FC<DispatchPanelProps> = ({ open, onClose }) => {
       key: 'dueDate',
       width: 120,
       render: (value: string) => (
-        <Text type="secondary" style={{ fontSize: 12 }}>
+        <Text type="secondary" style={{ fontSize: spacing[3] }}>
           {dayjs(value).format('MM-DD HH:mm')}
         </Text>
       ),
@@ -135,7 +136,7 @@ const DispatchPanel: React.FC<DispatchPanelProps> = ({ open, onClose }) => {
         const hours = Math.floor(waitMs / 3600000);
         return (
           <Space>
-            <ClockCircleOutlined style={{ color: hours > 4 ? '#ff4d4f' : '#52c41a' }} />
+            <ClockCircleOutlined style={{ color: hours > 4 ? colors.error[400] : colors.success[500] }} />
             <Text>{hours}h</Text>
           </Space>
         );
@@ -185,21 +186,21 @@ const DispatchPanel: React.FC<DispatchPanelProps> = ({ open, onClose }) => {
   const slaAlertConfig: Record<string, { icon: React.ReactNode; color: string; label: string; bg: string }> = {
     'sla-warning': {
       icon: <WarningOutlined />,
-      color: '#faad14',
+      color: colors.warning[500],
       label: 'SLA 警告',
-      bg: '#fffbe6',
+      bg: colors.warning[50],
     },
     'sla-critical': {
       icon: <CloseCircleOutlined />,
-      color: '#ff4d4f',
+      color: colors.error[400],
       label: 'SLA 严重',
-      bg: '#fff1f0',
+      bg: colors.error[50],
     },
     'sla-breach': {
       icon: <CloseCircleOutlined />,
-      color: '#cf1322',
+      color: colors.error[600],
       label: 'SLA 违约',
-      bg: '#fff1f0',
+      bg: colors.error[50],
     },
   };
 
@@ -220,28 +221,28 @@ const DispatchPanel: React.FC<DispatchPanelProps> = ({ open, onClose }) => {
               title="队列中"
               value={mockQueueStatus.totalInQueue}
               suffix="个"
-              valueStyle={{ fontSize: 24 }}
+              valueStyle={{ fontSize: spacing[6] }}
             />
           </Col>
           <Col span={6}>
             <Statistic
               title="SLA 风险"
               value={mockQueueStatus.slaAtRisk}
-              valueStyle={{ fontSize: 24, color: '#fa8c16' }}
+              valueStyle={{ fontSize: spacing[6], color: colors.warning[600] }}
             />
           </Col>
           <Col span={6}>
             <Statistic
               title="SLA 违约"
               value={mockQueueStatus.slaBreached}
-              valueStyle={{ fontSize: 24, color: '#ff4d4f' }}
+              valueStyle={{ fontSize: spacing[6], color: colors.error[400] }}
             />
           </Col>
           <Col span={6}>
             <Statistic
               title="平均等待"
               value={formatWaitTime(mockQueueStatus.avgWaitTimeMs)}
-              valueStyle={{ fontSize: 18 }}
+              valueStyle={{ fontSize: spacing[5] }}
             />
           </Col>
         </Row>
@@ -285,7 +286,7 @@ const DispatchPanel: React.FC<DispatchPanelProps> = ({ open, onClose }) => {
       {mockSLAAlerts.length > 0 && (
         <div style={{ marginBottom: 16 }}>
           <Title level={5} style={{ marginBottom: 8 }}>
-            <WarningOutlined style={{ color: '#faad14', marginRight: 8 }} />
+            <WarningOutlined style={{ color: colors.warning[500], marginRight: 8 }} />
             SLA 告警
           </Title>
           {mockSLAAlerts.map((alert) => {
@@ -304,7 +305,7 @@ const DispatchPanel: React.FC<DispatchPanelProps> = ({ open, onClose }) => {
                   <span style={{ color: config.color }}>{config.icon}</span>
                   <Tag color={config.color}>{config.label}</Tag>
                   <Text>{alert.message}</Text>
-                  <Text type="secondary" style={{ fontSize: 12 }}>
+                  <Text type="secondary" style={{ fontSize: spacing[3] }}>
                     剩余 {formatWaitTime(alert.timeRemainingMs)}
                   </Text>
                 </Space>
@@ -339,14 +340,14 @@ const DispatchPanel: React.FC<DispatchPanelProps> = ({ open, onClose }) => {
                       percent={loadPercent}
                       size="small"
                       strokeColor={
-                        loadPercent > 80 ? '#ff4d4f' : loadPercent > 60 ? '#fa8c16' : '#52c41a'
+                        loadPercent > 80 ? colors.error[400] : loadPercent > 60 ? colors.warning[600] : colors.success[500]
                       }
                       format={() => `${engineer.currentLoad}/${engineer.maxCapacity}`}
                     />
                   </div>
                   <Space size={4}>
                     {engineer.expertise.slice(0, 3).map((exp) => (
-                      <Tag key={exp} style={{ margin: 0, fontSize: 11 }}>
+                      <Tag key={exp} style={{ margin: 0, fontSize: spacing[2] }}>
                         {exp}
                       </Tag>
                     ))}

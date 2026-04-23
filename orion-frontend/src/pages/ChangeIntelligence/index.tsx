@@ -4,6 +4,7 @@
  */
 import React, { useState, useMemo, useEffect } from 'react';
 import { Typography, Button, Space, Tag, Card, Row, Col, Statistic, Modal, Form, Input, message, Descriptions } from 'antd';
+import { colors, spacing } from '@/tokens';
 import { ReloadOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
@@ -120,10 +121,10 @@ const ChangeIntelligence: React.FC = () => {
       sortable: true,
       render: (_value: unknown, record: any) => (
         <Space direction="vertical" size={0}>
-          <Text strong style={{ color: '#1890ff' }}>
+          <Text strong style={{ color: colors.primary[500] }}>
             PR #{record.prId}
           </Text>
-          <Text type="secondary" style={{ fontSize: 12 }}>{record.repoId}</Text>
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>{record.repoId}</Text>
         </Space>
       ),
     },
@@ -133,7 +134,7 @@ const ChangeIntelligence: React.FC = () => {
       dataIndex: 'commitSha',
       width: 140,
       render: (value: unknown) => (
-        <Text code style={{ fontSize: 12 }}>{String(value).slice(0, 7)}</Text>
+        <Text code style={{ fontSize: spacing[3] }}>{String(value).slice(0, 7)}</Text>
       ),
     },
     {
@@ -144,8 +145,8 @@ const ChangeIntelligence: React.FC = () => {
       sortable: true,
       render: (value: unknown) => {
         const score = Number(value);
-        const color = score >= 0.8 ? '#cf1322' : score >= 0.5 ? '#fa8c16' : '#3f8600';
-        return <Text strong style={{ color, fontSize: 16 }}>{(score * 100).toFixed(0)}%</Text>;
+        const color = score >= 0.8 ? colors.error[600] : score >= 0.5 ? colors.warning[500] : colors.success[600];
+        return <Text strong style={{ color, fontSize: spacing[4] }}>{(score * 100).toFixed(0)}%</Text>;
       },
     },
     {
@@ -182,7 +183,7 @@ const ChangeIntelligence: React.FC = () => {
       width: 160,
       sortable: true,
       render: (value: unknown) => (
-        <Text type="secondary" style={{ fontSize: 12 }}>
+        <Text type="secondary" style={{ fontSize: spacing[3] }}>
           {dayjs(String(value)).fromNow()}
         </Text>
       ),
@@ -253,7 +254,7 @@ const ChangeIntelligence: React.FC = () => {
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="高风险变更" value={highRiskCount} valueStyle={{ color: '#cf1322' }} />
+            <Statistic title="高风险变更" value={highRiskCount} valueStyle={{ color: colors.error[600] }} />
           </Card>
         </Col>
         <Col span={6}>
@@ -261,7 +262,7 @@ const ChangeIntelligence: React.FC = () => {
             <Statistic
               title="趋势"
               value={trends.length > 0 ? '稳定' : '无数据'}
-              valueStyle={{ color: '#3f8600' }}
+              valueStyle={{ color: colors.success[600] }}
             />
           </Card>
         </Col>
@@ -324,7 +325,7 @@ const ChangeIntelligence: React.FC = () => {
               <Descriptions.Item label="Commit">{selectedReport.commitSha.slice(0, 7)}</Descriptions.Item>
               <Descriptions.Item label="风险评分">
                 <Text strong style={{
-                  color: selectedReport.riskScore >= 0.8 ? '#cf1322' : selectedReport.riskScore >= 0.5 ? '#fa8c16' : '#3f8600',
+                  color: selectedReport.riskScore >= 0.8 ? colors.error[600] : selectedReport.riskScore >= 0.5 ? colors.warning[500] : colors.success[600],
                 }}>
                   {(selectedReport.riskScore * 100).toFixed(1)}%
                 </Text>
@@ -348,14 +349,14 @@ const ChangeIntelligence: React.FC = () => {
                       <div style={{
                         height: 8,
                         borderRadius: 4,
-                        background: '#f0f0f0',
+                        background: colors.light.border.light,
                         overflow: 'hidden',
                       }}>
                         <div style={{
                           width: `${Math.min(Math.abs(f.contribution) * 100, 100)}%`,
                           height: '100%',
                           borderRadius: 4,
-                          background: f.contribution > 0 ? '#ff4d4f' : '#52c41a',
+                          background: f.contribution > 0 ? colors.error[400] : colors.success[500],
                         }} />
                       </div>
                     </Col>
@@ -388,7 +389,7 @@ const ChangeIntelligence: React.FC = () => {
                     </Tag>
                   ))}
                 </div>
-                <Text type="secondary" style={{ fontSize: 12 }}>
+                <Text type="secondary" style={{ fontSize: spacing[3] }}>
                   {blastRadius.nodes.length} 个节点，{blastRadius.edges.length} 条边
                 </Text>
               </Card>

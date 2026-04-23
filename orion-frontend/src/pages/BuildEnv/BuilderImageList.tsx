@@ -4,6 +4,7 @@
  */
 import React, { useState, useMemo, useEffect } from 'react';
 import { Typography, Button, Space, Tag, Modal, Form, Input, Select, Popconfirm, message } from 'antd';
+import { colors, spacing } from '@/tokens';
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
@@ -168,7 +169,7 @@ const BuilderImageList: React.FC = () => {
       width: 200,
       sortable: true,
       render: (_value, record) => (
-        <Text strong style={{ color: '#1890ff' }}>
+        <Text strong style={{ color: colors.primary[500] }}>
           {record.name}
         </Text>
       ),
@@ -194,7 +195,7 @@ const BuilderImageList: React.FC = () => {
       title: 'Base Image',
       dataIndex: 'baseImage',
       width: 250,
-      render: (value) => <Text code style={{ fontSize: 12 }}>{String(value)}</Text>,
+      render: (value) => <Text code style={{ fontSize: spacing[3] }}>{String(value)}</Text>,
     },
     {
       key: 'version',
@@ -224,7 +225,7 @@ const BuilderImageList: React.FC = () => {
       width: 140,
       sortable: true,
       render: (value) => (
-        <Text type="secondary" style={{ fontSize: 12 }}>
+        <Text type="secondary" style={{ fontSize: spacing[3] }}>
           {dayjs(String(value)).fromNow()}
         </Text>
       ),

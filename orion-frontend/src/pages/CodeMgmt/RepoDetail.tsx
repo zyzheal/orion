@@ -4,6 +4,7 @@
  */
 import React, { useState, useEffect, useCallback } from 'react';
 import { Typography, Tabs, Button, Space, Tag, Modal, Form, Input, message, Spin, Select } from 'antd';
+import { colors, spacing } from '@/tokens';
 import {
   ArrowLeftOutlined, ReloadOutlined, PlusOutlined,
   DeleteOutlined, LockOutlined, UnlockOutlined,
@@ -176,7 +177,7 @@ const RepoDetail: React.FC = () => {
       dataIndex: 'commitSha',
       width: 180,
       render: (value: unknown) => (
-        <Text code style={{ fontSize: 12 }}>
+        <Text code style={{ fontSize: spacing[3] }}>
           {String(value).substring(0, 8)}
         </Text>
       ),
@@ -225,10 +226,10 @@ const RepoDetail: React.FC = () => {
       sortable: true,
       render: (value: unknown, record: any) => (
         <Space direction="vertical" size={0}>
-          <Text strong style={{ cursor: 'pointer', color: '#1890ff' }}>
+          <Text strong style={{ cursor: 'pointer', color: colors.primary[500] }}>
             {String(value)}
           </Text>
-          <Text type="secondary" style={{ fontSize: 12 }}>
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
             #{record.id}
           </Text>
         </Space>
@@ -282,7 +283,7 @@ const RepoDetail: React.FC = () => {
       width: 160,
       sortable: true,
       render: (value: unknown) => (
-        <Text type="secondary" style={{ fontSize: 12 }}>
+        <Text type="secondary" style={{ fontSize: spacing[3] }}>
           {dayjs(String(value)).fromNow()}
         </Text>
       ),

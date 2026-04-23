@@ -12,6 +12,7 @@ import {
   SafetyOutlined,
   MailOutlined,
 } from '@ant-design/icons';
+import { colors, spacing } from '@/tokens';
 
 const { Sider, Content } = Layout;
 const { Title } = Typography;
@@ -42,12 +43,12 @@ const MonitoringLayout: React.FC = () => {
         collapsed={collapsed}
         onCollapse={setCollapsed}
         theme="light"
-        style={{ borderRight: '1px solid #f0f0f0' }}
+        style={{ borderRight: `1px solid ${colors.light.border.light}` }}
         width={220}
       >
         {!collapsed && (
-          <div style={{ padding: '16px 12px 8px' }}>
-            <Title level={5} style={{ margin: 0, color: '#1890ff' }}>
+          <div style={{ padding: `${spacing[4]}px ${spacing[3]}px ${spacing[2]}px` }}>
+            <Title level={5} style={{ margin: 0, color: colors.primary[500] }}>
               Monitoring
             </Title>
           </div>
@@ -63,10 +64,10 @@ const MonitoringLayout: React.FC = () => {
       <Layout>
         <Content
           style={{
-            padding: 24,
+            padding: spacing[6],
             margin: 0,
             minHeight: 280,
-            background: '#fff',
+            background: colors.light.bg.primary,
           }}
         >
           <Outlet />

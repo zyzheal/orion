@@ -5,6 +5,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Typography, Button, Space, Tag, Drawer, Input, message } from 'antd';
 import { ReloadOutlined, EyeOutlined } from '@ant-design/icons';
+import { spacing } from '@/tokens';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import { getWebhookLogs, type WebhookEvent } from '@/api/code-mgmt';
@@ -99,7 +100,7 @@ const WebhookLog: React.FC = () => {
       dataIndex: 'id',
       width: 120,
       render: (value: unknown) => (
-        <Text code style={{ fontSize: 12 }}>
+        <Text code style={{ fontSize: spacing[3] }}>
           {String(value).substring(0, 8)}
         </Text>
       ),
@@ -159,7 +160,7 @@ const WebhookLog: React.FC = () => {
       width: 180,
       sortable: true,
       render: (value: unknown) => (
-        <Text type="secondary" style={{ fontSize: 12 }}>
+        <Text type="secondary" style={{ fontSize: spacing[3] }}>
           {dayjs(String(value)).format('YYYY-MM-DD HH:mm:ss')}
         </Text>
       ),
@@ -290,7 +291,7 @@ const WebhookLog: React.FC = () => {
                 value={JSON.stringify(selectedEvent.payload, null, 2)}
                 readOnly
                 rows={15}
-                style={{ fontFamily: 'monospace', fontSize: 12, marginTop: 8 }}
+                style={{ fontFamily: 'monospace', fontSize: spacing[3], marginTop: 8 }}
               />
             </div>
           </Space>

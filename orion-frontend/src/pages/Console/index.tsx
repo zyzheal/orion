@@ -42,6 +42,7 @@ import {
   DeleteOutlined,
   PlusOutlined,
 } from '@ant-design/icons';
+import { colors, spacing } from '@/tokens';
 
 const { Title, Text, Paragraph } = Typography;
 const { TabPane } = Tabs;
@@ -333,11 +334,11 @@ const Console: React.FC = () => {
       render: (name: string, record: Plugin) => (
         <Space direction="vertical" size={0}>
           <Space>
-            <AppstoreOutlined style={{ color: '#1890ff' }} />
+            <AppstoreOutlined style={{ color: colors.primary[500] }} />
             <Text strong>{name}</Text>
             <Tag color="blue">{record.version}</Tag>
           </Space>
-          <Text type="secondary" style={{ fontSize: 12 }}>
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
             {record.description}
           </Text>
         </Space>
@@ -418,7 +419,7 @@ const Console: React.FC = () => {
               </Tooltip>
             )}
           </Space>
-          <Text type="secondary" style={{ fontSize: 12 }}>
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
             {record.description}
           </Text>
         </Space>
@@ -453,10 +454,10 @@ const Console: React.FC = () => {
       key: 'username',
       render: (username: string, record: User) => (
         <Space>
-          <Avatar icon={<UserOutlined />} style={{ background: '#1890ff' }} />
+          <Avatar icon={<UserOutlined />} style={{ background: colors.primary[500] }} />
           <div>
             <div style={{ fontWeight: 500 }}>{username}</div>
-            <div style={{ fontSize: 12, color: '#999' }}>{record.email}</div>
+            <div style={{ fontSize: spacing[3], color: colors.neutral[400] }}>{record.email}</div>
           </div>
         </Space>
       ),
@@ -507,7 +508,7 @@ const Console: React.FC = () => {
       {/* 页面标题 */}
       <div style={{ marginBottom: 24 }}>
         <Title level={2} style={{ marginBottom: 8 }}>
-          <ControlOutlined style={{ marginRight: 12, color: '#722ed1' }} />
+          <ControlOutlined style={{ marginRight: spacing[3], color: colors.purple[500] }} />
           系统控制台
         </Title>
         <Paragraph type="secondary">
@@ -523,11 +524,11 @@ const Console: React.FC = () => {
               title="总插件数"
               value={stats.totalPlugins}
               prefix={<AppstoreOutlined />}
-              valueStyle={{ color: '#1890ff' }}
+              valueStyle={{ color: colors.primary[500] }}
             />
             <Progress
               percent={(stats.activePlugins / stats.totalPlugins) * 100}
-              strokeColor="#1890ff"
+              strokeColor={colors.primary[500]}
               size="small"
               style={{ marginTop: 12 }}
               format={() => `${stats.activePlugins} 个运行中`}
@@ -540,7 +541,7 @@ const Console: React.FC = () => {
               title="系统用户"
               value={stats.totalUsers}
               prefix={<UserOutlined />}
-              valueStyle={{ color: '#52c41a' }}
+              valueStyle={{ color: colors.success[500] }}
             />
             <div style={{ marginTop: 16 }}>
               <Tag color="green">{stats.onlineUsers} 在线</Tag>
@@ -554,11 +555,11 @@ const Console: React.FC = () => {
               value={892}
               suffix="/ 分钟"
               prefix={<CloudServerOutlined />}
-              valueStyle={{ color: '#722ed1' }}
+              valueStyle={{ color: colors.purple[500] }}
             />
             <Progress
               percent={67}
-              strokeColor="#722ed1"
+              strokeColor={colors.purple[500]}
               size="small"
               style={{ marginTop: 12 }}
               format={() => '负载 67%'}
@@ -572,7 +573,7 @@ const Console: React.FC = () => {
               value={98}
               suffix="%"
               prefix={<SafetyCertificateOutlined />}
-              valueStyle={{ color: '#52c41a' }}
+              valueStyle={{ color: colors.success[500] }}
             />
             <div style={{ marginTop: 16 }}>
               <Tag color="success">运行正常</Tag>

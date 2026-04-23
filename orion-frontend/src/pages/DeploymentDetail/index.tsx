@@ -24,6 +24,7 @@ import {
   Col,
   Spin,
 } from 'antd';
+import { colors, spacing } from '@/tokens';
 import {
   ArrowLeftOutlined,
   RollbackOutlined,
@@ -60,10 +61,10 @@ const strategyLabels: Record<string, string> = {
 
 // Health check status icon
 const healthCheckIcon: Record<string, React.ReactNode> = {
-  healthy: <CheckCircleOutlined style={{ color: '#52c41a' }} />,
-  unhealthy: <CloseCircleOutlined style={{ color: '#f5222d' }} />,
-  degraded: <QuestionCircleOutlined style={{ color: '#faad14' }} />,
-  unknown: <InfoCircleOutlined style={{ color: '#8c8c8c' }} />,
+  healthy: <CheckCircleOutlined style={{ color: colors.success[500] }} />,
+  unhealthy: <CloseCircleOutlined style={{ color: colors.error[500] }} />,
+  degraded: <QuestionCircleOutlined style={{ color: colors.warning[500] }} />,
+  unknown: <InfoCircleOutlined style={{ color: colors.neutral[400] }} />,
 };
 
 const DeploymentDetail: React.FC = () => {
@@ -145,10 +146,10 @@ const DeploymentDetail: React.FC = () => {
   };
 
   const stageStatusColor: Record<string, string> = {
-    success: '#52c41a',
-    running: '#1890ff',
-    failed: '#f5222d',
-    pending: '#d9d9d9',
+    success: colors.success[500],
+    running: colors.primary[500],
+    failed: colors.error[500],
+    pending: colors.neutral[300],
   };
 
   const canRollback = deployment.status === 'success';
@@ -290,7 +291,7 @@ const DeploymentDetail: React.FC = () => {
                     key={stage.id || stage.name}
                     size="small"
                     style={{
-                      borderLeft: `4px solid ${stageStatusColor[stage.status] || '#d9d9d9'}`,
+                      borderLeft: `4px solid ${stageStatusColor[stage.status] || colors.neutral[300]}`,
                     }}
                   >
                     <div
@@ -301,13 +302,13 @@ const DeploymentDetail: React.FC = () => {
                       }}
                     >
                       <Space>
-                        <Text strong style={{ fontSize: 14 }}>
+                        <Text strong style={{ fontSize: spacing[4] }}>
                           {index + 1}. {stage.name}
                         </Text>
                       </Space>
                       <Space>
                         {stage.details && (
-                          <Text type="secondary" style={{ fontSize: 12 }}>
+                          <Text type="secondary" style={{ fontSize: spacing[3] }}>
                             {stage.details}
                           </Text>
                         )}
@@ -345,16 +346,16 @@ const DeploymentDetail: React.FC = () => {
                       borderRadius: 6,
                     }}
                   >
-                    <span style={{ fontSize: 20 }}>
+                    <span style={{ fontSize: spacing[5] }}>
                       {healthCheckIcon[check.status]}
                     </span>
                     <div style={{ flex: 1 }}>
-                      <Text strong style={{ fontSize: 14 }}>
+                      <Text strong style={{ fontSize: spacing[4] }}>
                         {check.name}
                       </Text>
                       {check.message && (
                         <div>
-                          <Text type="secondary" style={{ fontSize: 12 }}>
+                          <Text type="secondary" style={{ fontSize: spacing[3] }}>
                             {check.message}
                           </Text>
                         </div>

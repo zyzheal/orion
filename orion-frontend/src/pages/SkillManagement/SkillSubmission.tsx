@@ -5,6 +5,7 @@ import React, { useState } from 'react';
 import { Typography, Button, Space, Card, Form, Input, Select, message, Tag } from 'antd';
 import { PlusOutlined, SendOutlined } from '@ant-design/icons';
 import { createSkill, type SkillPackageInput } from '@/api/skills';
+import { colors, spacing } from '@/tokens';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -63,12 +64,12 @@ const SkillSubmission: React.FC = () => {
 
   return (
     <div style={{ padding: 0 }}>
-      <div style={{ marginBottom: 24 }}>
+      <div style={{ marginBottom: spacing[6] }}>
         <Title level={3} style={{ margin: 0 }}>技能提交</Title>
         <Text type="secondary">提交新的技能包到社区市场</Text>
       </div>
 
-      <Card title={<Space><PlusOutlined />提交新技能</Space>} style={{ marginBottom: 24 }}>
+      <Card title={<Space><PlusOutlined />提交新技能</Space>} style={{ marginBottom: spacing[6] }}>
         <Form form={form} layout="vertical" style={{ maxWidth: 700 }}>
           <Form.Item name="name" label="技能名称" rules={[{ required: true, message: '请输入技能名称' }]}>
             <Input placeholder="例如: Kubernetes 健康检查" />
@@ -118,7 +119,7 @@ const SkillSubmission: React.FC = () => {
       {submittedSkills.length > 0 && (
         <Card title="提交历史" extra={<Text type="secondary">本次会话提交</Text>}>
           {submittedSkills.map((skill, index) => (
-            <div key={index} style={{ marginBottom: 12, paddingBottom: 12, borderBottom: index < submittedSkills.length - 1 ? '1px solid #f0f0f0' : 'none' }}>
+            <div key={index} style={{ marginBottom: spacing[3], paddingBottom: spacing[3], borderBottom: index < submittedSkills.length - 1 ? `1px solid ${colors.light.border.light}` : 'none' }}>
               <Space>
                 <Text strong>{skill.name}</Text>
                 <Tag>v{skill.version}</Tag>

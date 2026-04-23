@@ -19,6 +19,7 @@ import {
   Divider,
   Badge,
 } from 'antd';
+import { colors, spacing } from '@/tokens';
 import {
   RiseOutlined,
   FallOutlined,
@@ -40,11 +41,11 @@ const { Title, Text } = Typography;
 
 // Color constants for consistency
 const COLORS = {
-  success: '#52c41a',
-  warning: '#faad14',
-  error: '#ff4d4f',
-  info: '#1890ff',
-  purple: '#722ed1',
+  success: colors.success[500],
+  warning: colors.warning[500],
+  error: colors.error[400],
+  info: colors.primary[500],
+  purple: colors.purple[500],
   cyan: '#13c2c2',
 };
 
@@ -63,7 +64,7 @@ const SimpleBar: React.FC<{
       style={{
         width,
         height: 8,
-        backgroundColor: '#f0f0f0',
+        backgroundColor: colors.light.border.light,
         borderRadius: 4,
         overflow: 'hidden',
       }}
@@ -178,7 +179,7 @@ const ExecutiveDashboard: React.FC = () => {
         <Badge
           count={index + 1}
           style={{
-            backgroundColor: index === 0 ? '#faad14' : index === 1 ? '#8c8c8c' : '#cd7f32',
+            backgroundColor: index === 0 ? colors.warning[500] : index === 1 ? colors.neutral[400] : colors.warning[700],
           }}
         />
       ),
@@ -219,7 +220,7 @@ const ExecutiveDashboard: React.FC = () => {
       title: '超期工单',
       value: data.alerts.overdueTicketsCount,
       suffix: '个',
-      color: '#fa8c16',
+      color: colors.warning[500],
       icon: <ClockCircleOutlined />,
     },
     {
@@ -247,7 +248,7 @@ const ExecutiveDashboard: React.FC = () => {
   // Priority color mapping
   const priorityColors: Record<string, string> = {
     critical: COLORS.error,
-    high: '#fa8c16',
+    high: colors.warning[500],
     medium: COLORS.warning,
     low: COLORS.info,
   };
@@ -313,19 +314,19 @@ const ExecutiveDashboard: React.FC = () => {
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        fontSize: 18,
+                        fontSize: spacing[5],
                       }}
                     >
                       {kpiIcons[metric.title]}
                     </div>
                     <div>
-                      <Text type="secondary" style={{ fontSize: 12 }}>
+                      <Text type="secondary" style={{ fontSize: spacing[3] }}>
                         {metric.title}
                       </Text>
-                      <div style={{ fontSize: 24, fontWeight: 600, lineHeight: 1.2 }}>
+                      <div style={{ fontSize: spacing[6], fontWeight: 600, lineHeight: 1.2 }}>
                         {metric.value}
                         {metric.suffix && (
-                          <Text type="secondary" style={{ fontSize: 14, marginLeft: 4 }}>
+                          <Text type="secondary" style={{ fontSize: spacing[4], marginLeft: 4 }}>
                             {metric.suffix}
                           </Text>
                         )}
@@ -333,7 +334,7 @@ const ExecutiveDashboard: React.FC = () => {
                       {metric.trend && (
                         <Text
                           style={{
-                            fontSize: 12,
+                            fontSize: spacing[3],
                             color:
                               metric.trend.direction === 'up' ? COLORS.success : COLORS.warning,
                           }}
@@ -396,7 +397,7 @@ const ExecutiveDashboard: React.FC = () => {
                       title={`解决: ${d.resolved}`}
                     />
                   </div>
-                  <Text style={{ fontSize: 10, color: '#8c8c8c' }}>
+                  <Text style={{ fontSize: spacing[2], color: colors.neutral[400] }}>
                     {dayjs(d.period).format('MM/DD')}
                   </Text>
                 </div>
@@ -406,11 +407,11 @@ const ExecutiveDashboard: React.FC = () => {
             <Space size={24}>
               <Space size={4}>
                 <div style={{ width: 10, height: 10, backgroundColor: COLORS.info, borderRadius: 2 }} />
-                <Text style={{ fontSize: 12 }}>创建</Text>
+                <Text style={{ fontSize: spacing[3] }}>创建</Text>
               </Space>
               <Space size={4}>
                 <div style={{ width: 10, height: 10, backgroundColor: COLORS.success, borderRadius: 2 }} />
-                <Text style={{ fontSize: 12 }}>解决</Text>
+                <Text style={{ fontSize: spacing[3] }}>解决</Text>
               </Space>
             </Space>
           </CardPanel>
@@ -447,7 +448,7 @@ const ExecutiveDashboard: React.FC = () => {
                         title={`SLA: ${rate}%`}
                       />
                     </div>
-                    <Text style={{ fontSize: 10, color: '#8c8c8c' }}>
+                    <Text style={{ fontSize: spacing[2], color: colors.neutral[400] }}>
                       {dayjs(d.period).format('MM/DD')}
                     </Text>
                   </div>
@@ -459,15 +460,15 @@ const ExecutiveDashboard: React.FC = () => {
             <Space size={16}>
               <Space size={4}>
                 <div style={{ width: 10, height: 10, backgroundColor: COLORS.success, borderRadius: 2 }} />
-                <Text style={{ fontSize: 12 }}>{'达标 (>=90%)'}</Text>
+                <Text style={{ fontSize: spacing[3] }}>{'达标 (>=90%)'}</Text>
               </Space>
               <Space size={4}>
                 <div style={{ width: 10, height: 10, backgroundColor: COLORS.warning, borderRadius: 2 }} />
-                <Text style={{ fontSize: 12 }}>预警 (80-90%)</Text>
+                <Text style={{ fontSize: spacing[3] }}>预警 (80-90%)</Text>
               </Space>
               <Space size={4}>
                 <div style={{ width: 10, height: 10, backgroundColor: COLORS.error, borderRadius: 2 }} />
-                <Text style={{ fontSize: 12 }}>{'违规 (<80%)'}</Text>
+                <Text style={{ fontSize: spacing[3] }}>{'违规 (<80%)'}</Text>
               </Space>
             </Space>
           </CardPanel>
@@ -510,7 +511,7 @@ const ExecutiveDashboard: React.FC = () => {
                   >
                     <div>
                       <Text strong>{member.name}</Text>
-                      <Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>
+                      <Text type="secondary" style={{ marginLeft: 8, fontSize: spacing[3] }}>
                         {member.engineerId}
                       </Text>
                     </div>
@@ -522,7 +523,7 @@ const ExecutiveDashboard: React.FC = () => {
                     </Tag>
                   </div>
                   <div style={{ marginTop: 8 }}>
-                    <Text type="warning" style={{ fontSize: 12 }}>
+                    <Text type="warning" style={{ fontSize: spacing[3] }}>
                       <WarningOutlined style={{ marginRight: 4 }} />
                       {member.needsAttention}
                     </Text>
@@ -563,7 +564,7 @@ const ExecutiveDashboard: React.FC = () => {
                     }
                     value={alert.value}
                     suffix={alert.suffix}
-                    valueStyle={{ color: alert.color, fontSize: 28 }}
+                    valueStyle={{ color: alert.color, fontSize: spacing[7] }}
                   />
                 </Card>
               </Col>
@@ -586,7 +587,7 @@ const ExecutiveDashboard: React.FC = () => {
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     padding: '8px 0',
-                    borderBottom: '1px solid #f0f0f0',
+                    borderBottom: `1px solid ${colors.light.border.light}`,
                   }}
                 >
                   <Space style={{ minWidth: 100 }}>
@@ -602,7 +603,7 @@ const ExecutiveDashboard: React.FC = () => {
                     <Text style={{ minWidth: 40, textAlign: 'right' }}>
                       {val.count} 个
                     </Text>
-                    <Text type="secondary" style={{ minWidth: 60, fontSize: 12 }}>
+                    <Text type="secondary" style={{ minWidth: 60, fontSize: spacing[3] }}>
                       平均 {val.avgResolutionHours}h
                     </Text>
                   </Space>

@@ -22,6 +22,7 @@ import {
   Popconfirm,
   Drawer,
 } from 'antd';
+import { colors, spacing } from '@/tokens';
 import {
   PlusOutlined,
   ReloadOutlined,
@@ -151,9 +152,9 @@ const CostDrawer: React.FC<CostDrawerProps> = ({ env, open, onClose }) => {
             textAlign: 'center',
             border: '1px solid #b7eb8f',
           }}>
-            <Text type="secondary" style={{ fontSize: 12 }}>总成本</Text>
+            <Text type="secondary" style={{ fontSize: spacing[3] }}>总成本</Text>
             <br />
-            <Text strong style={{ fontSize: 24, color: '#52c41a' }}>
+            <Text strong style={{ fontSize: spacing[6], color: colors.success[500] }}>
               {cost.totalCost.toFixed(2)} {cost.currency}
             </Text>
           </div>
@@ -393,7 +394,7 @@ const EphemeralEnvList: React.FC = () => {
           >
             <Text strong>{String(value)}</Text>
           </Button>
-          <Text type="secondary" style={{ fontSize: 11 }}>
+          <Text type="secondary" style={{ fontSize: spacing[2] }}>
             PR #{record.prId}
           </Text>
         </Space>
@@ -406,8 +407,8 @@ const EphemeralEnvList: React.FC = () => {
       width: 160,
       render: (value: unknown) => (
         <Space>
-          <CloudServerOutlined style={{ color: '#1890ff' }} />
-          <Text style={{ fontSize: 12 }}>{String(value)}</Text>
+          <CloudServerOutlined style={{ color: colors.primary[500] }} />
+          <Text style={{ fontSize: spacing[3] }}>{String(value)}</Text>
         </Space>
       ),
     },
@@ -461,7 +462,7 @@ const EphemeralEnvList: React.FC = () => {
         if (!value) return <Text type="secondary">-</Text>;
         const res = value as { cpu?: string; memory?: string };
         return (
-          <Text style={{ fontSize: 11 }}>
+          <Text style={{ fontSize: spacing[2] }}>
             CPU: {res.cpu || '-'} / MEM: {res.memory || '-'}
           </Text>
         );
@@ -474,11 +475,11 @@ const EphemeralEnvList: React.FC = () => {
       width: 160,
       render: (value: unknown, record: EphemeralEnvironment) => (
         <Space direction="vertical" size={0}>
-          <Text style={{ fontSize: 12 }}>
+          <Text style={{ fontSize: spacing[3] }}>
             {value ? dayjs(String(value)).format('YYYY-MM-DD HH:mm') : '-'}
           </Text>
           {record.idleSince && (
-            <Text type="secondary" style={{ fontSize: 11 }}>
+            <Text type="secondary" style={{ fontSize: spacing[2] }}>
               空闲自 {dayjs(record.idleSince).format('HH:mm')}
             </Text>
           )}
@@ -604,28 +605,28 @@ const EphemeralEnvList: React.FC = () => {
           title="环境总数"
           value={totalCount}
           icon={<AppstoreOutlined />}
-          color="#1890ff"
+          color="colors.primary[500]"
           footer="所有环境 (含已销毁)"
         />
         <MetricCard
           title="活跃环境"
           value={activeCount}
           icon={<ThunderboltOutlined />}
-          color="#52c41a"
+          color="colors.success[500]"
           footer="创建中 + 运行中"
         />
         <MetricCard
           title="运行中"
           value={runningCount}
           icon={<CloudServerOutlined />}
-          color="#722ed1"
+          color="colors.purple[500]"
           footer="正在运行的环境"
         />
         <MetricCard
           title="空闲"
           value={idleCount}
           icon={<ClockCircleOutlined />}
-          color="#faad14"
+          color="colors.warning[500]"
           footer="空闲等待回收"
         />
       </div>

@@ -9,6 +9,7 @@
  */
 import React, { useState, useMemo, useEffect } from 'react';
 import { Typography, Button, Space, Tag } from 'antd';
+import { colors, spacing } from '@/tokens';
 import { ReloadOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
@@ -133,12 +134,12 @@ const DeploymentList: React.FC = () => {
         <Space direction="vertical" size={0}>
           <Text
             strong
-            style={{ cursor: 'pointer', color: '#1890ff' }}
+            style={{ cursor: 'pointer', color: colors.primary[500] }}
             onClick={() => navigate(`/deployments/${record.id}`)}
           >
             {record.appName}
           </Text>
-          <Text type="secondary" style={{ fontSize: 12 }}>
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
             {record.version}
           </Text>
         </Space>
@@ -168,7 +169,7 @@ const DeploymentList: React.FC = () => {
       dataIndex: 'strategy',
       width: 120,
       render: (value: unknown) => (
-        <Text style={{ fontSize: 13 }}>
+        <Text style={{ fontSize: spacing[3] }}>
           {strategyLabels[String(value)] || String(value)}
         </Text>
       ),
@@ -209,10 +210,10 @@ const DeploymentList: React.FC = () => {
       sortable: true,
       render: (value: unknown) => (
         <Space direction="vertical" size={0}>
-          <Text style={{ fontSize: 13 }}>
+          <Text style={{ fontSize: spacing[3] }}>
             {dayjs(String(value)).format('MM-DD HH:mm')}
           </Text>
-          <Text type="secondary" style={{ fontSize: 11 }}>
+          <Text type="secondary" style={{ fontSize: spacing[2] }}>
             {dayjs(String(value)).fromNow()}
           </Text>
         </Space>

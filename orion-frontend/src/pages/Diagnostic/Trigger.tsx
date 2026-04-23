@@ -5,6 +5,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Typography, Card, Form, Input, Select, Button, Space, message, Alert, Tag } from 'antd';
+import { colors, spacing } from '@/tokens';
 import { RocketOutlined, ArrowLeftOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import { triggerDiagnostic } from '@/api/diagnostic';
 
@@ -145,7 +146,7 @@ const DiagnosticTrigger: React.FC = () => {
             <Card
               key={index}
               size="small"
-              style={{ marginBottom: 12, background: '#fafafa' }}
+              style={{ marginBottom: 12, background: colors.neutral[50] }}
               title={`症状 #${index + 1}`}
               extra={
                 <Button

@@ -4,6 +4,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import { Typography, Card, Form, Input, Button, Select, message, Divider, Space } from 'antd';
+import { colors, spacing } from '@/tokens';
 import { SaveOutlined, ReloadOutlined } from '@ant-design/icons';
 import { getReviewConfig, updateReviewConfig } from '@/api/ai-review';
 import type { AIReviewConfig } from '@/api/ai-review';
@@ -98,7 +99,7 @@ const AIReviewConfig: React.FC = () => {
             <TextArea
               rows={12}
               placeholder="请输入 AI Review 的提示模板..."
-              style={{ fontFamily: 'monospace', fontSize: 13 }}
+              style={{ fontFamily: 'monospace', fontSize: spacing[3] }}
             />
           </Form.Item>
 

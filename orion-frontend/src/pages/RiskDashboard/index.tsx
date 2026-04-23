@@ -23,6 +23,7 @@ import {
   Descriptions,
   Timeline,
 } from 'antd';
+import { colors, spacing } from '@/tokens';
 import {
   WarningOutlined,
   SafetyOutlined,
@@ -165,7 +166,7 @@ const RiskDashboardPage: React.FC = () => {
       render: (score: number) => (
         <Progress
           percent={score}
-          strokeColor={score > 70 ? '#f5222d' : score > 40 ? '#faad14' : '#52c41a'}
+          strokeColor={score > 70 ? colors.error[500] : score > 40 ? colors.warning[500] : colors.success[500]}
           format={(percent) => `${(percent ?? 0).toFixed(0)}`}
           size="small"
         />
@@ -308,7 +309,7 @@ const RiskDashboardPage: React.FC = () => {
               <Statistic
                 title="评估中"
                 value={status?.pendingAssessments || 0}
-                valueStyle={{ color: '#faad14' }}
+                valueStyle={{ color: colors.warning[500] }}
               />
             </Card>
           </Col>
@@ -317,7 +318,7 @@ const RiskDashboardPage: React.FC = () => {
               <Statistic
                 title="高风险"
                 value={status?.highRiskCount || 0}
-                valueStyle={{ color: '#f5222d' }}
+                valueStyle={{ color: colors.error[500] }}
                 prefix={<WarningOutlined />}
               />
             </Card>
@@ -327,7 +328,7 @@ const RiskDashboardPage: React.FC = () => {
               <Statistic
                 title="未确认事件"
                 value={events.length}
-                valueStyle={{ color: events.length > 0 ? '#f5222d' : '#52c41a' }}
+                valueStyle={{ color: events.length > 0 ? colors.error[500] : colors.success[500] }}
                 prefix={events.length > 0 ? <ExclamationCircleOutlined /> : <CheckCircleOutlined />}
               />
             </Card>
@@ -432,7 +433,7 @@ const RiskDashboardPage: React.FC = () => {
                   >
                     <div>
                       <Text strong>{factor.name}</Text>
-                      <div style={{ fontSize: 12, color: '#999' }}>{factor.category}</div>
+                      <div style={{ fontSize: spacing[3], color: colors.neutral[400] }}>{factor.category}</div>
                       <div style={{ marginTop: 4 }}>
                         <Text type="secondary">{factor.description}</Text>
                       </div>

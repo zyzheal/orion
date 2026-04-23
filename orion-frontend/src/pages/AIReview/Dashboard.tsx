@@ -16,6 +16,7 @@ import { getReviewHistory, triggerReview, reviewDiff } from '@/api/ai-review';
 import type { AIReviewResult } from '@/api/ai-review';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
+import { colors, spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -120,7 +121,7 @@ const AIReviewDashboard: React.FC = () => {
       render: (rate: number) => (
         <Progress
           percent={Math.round(rate * 100)}
-          strokeColor={rate > 0.8 ? '#52c41a' : rate > 0.5 ? '#fa8c16' : '#f5222d'}
+          strokeColor={rate > 0.8 ? colors.success[500] : rate > 0.5 ? colors.warning[500] : colors.error[500]}
           size="small"
         />
       ),
@@ -169,17 +170,17 @@ const AIReviewDashboard: React.FC = () => {
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="总问题数" value={totalIssues} valueStyle={{ color: '#f5222d' }} prefix={<CloseCircleOutlined />} />
+            <Statistic title="总问题数" value={totalIssues} valueStyle={{ color: colors.error[500] }} prefix={<CloseCircleOutlined />} />
           </Card>
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="严重问题" value={totalCritical} valueStyle={{ color: '#fa8c16' }} prefix={<WarningOutlined />} />
+            <Statistic title="严重问题" value={totalCritical} valueStyle={{ color: colors.warning[500] }} prefix={<WarningOutlined />} />
           </Card>
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="平均通过率" value={Math.round(avgPassRate * 100)} suffix="%" valueStyle={{ color: '#52c41a' }} prefix={<CheckCircleOutlined />} />
+            <Statistic title="平均通过率" value={Math.round(avgPassRate * 100)} suffix="%" valueStyle={{ color: colors.success[500] }} prefix={<CheckCircleOutlined />} />
           </Card>
         </Col>
       </Row>

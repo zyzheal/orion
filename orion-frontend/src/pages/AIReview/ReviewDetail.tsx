@@ -9,6 +9,7 @@ import { getReviewDetail } from '@/api/ai-review';
 import type { AIReviewResult } from '@/api/ai-review';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import dayjs from 'dayjs';
+import { colors, spacing } from '@/tokens';
 
 const { Title } = Typography;
 
@@ -146,17 +147,17 @@ const AIReviewDetail: React.FC = () => {
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="严重问题" value={detail.criticalCount} valueStyle={{ color: '#f5222d' }} prefix={<CloseCircleOutlined />} />
+            <Statistic title="严重问题" value={detail.criticalCount} valueStyle={{ color: colors.error[500] }} prefix={<CloseCircleOutlined />} />
           </Card>
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="警告" value={detail.warningCount} valueStyle={{ color: '#fa8c16' }} prefix={<WarningOutlined />} />
+            <Statistic title="警告" value={detail.warningCount} valueStyle={{ color: colors.warning[500] }} prefix={<WarningOutlined />} />
           </Card>
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="提示" value={detail.infoCount} valueStyle={{ color: '#1890ff' }} prefix={<InfoCircleOutlined />} />
+            <Statistic title="提示" value={detail.infoCount} valueStyle={{ color: colors.primary[500] }} prefix={<InfoCircleOutlined />} />
           </Card>
         </Col>
       </Row>

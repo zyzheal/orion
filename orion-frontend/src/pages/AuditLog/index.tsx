@@ -16,6 +16,7 @@ import {
   Descriptions,
   message,
 } from 'antd';
+import { colors, spacing } from '@/tokens';
 import {
   ReloadOutlined,
   SafetyCertificateOutlined,
@@ -181,7 +182,7 @@ const AuditLogPage: React.FC = () => {
               <Statistic
                 title="最早序列号"
                 value={chainInfo?.firstSequence || 0}
-                valueStyle={{ color: '#1890ff' }}
+                valueStyle={{ color: colors.primary[500] }}
               />
             </Card>
           </Col>
@@ -190,7 +191,7 @@ const AuditLogPage: React.FC = () => {
               <Statistic
                 title="最新序列号"
                 value={chainInfo?.lastSequence || 0}
-                valueStyle={{ color: '#52c41a' }}
+                valueStyle={{ color: colors.success[500] }}
               />
             </Card>
           </Col>

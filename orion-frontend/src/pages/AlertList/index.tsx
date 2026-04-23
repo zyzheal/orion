@@ -10,6 +10,7 @@
  */
 import React, { useState, useMemo, useEffect } from 'react';
 import { Typography, Button, Space, Tag, Modal, message } from 'antd';
+import { colors, spacing } from '@/tokens';
 import {
   ReloadOutlined,
   CheckOutlined,
@@ -29,9 +30,9 @@ const { Title, Text } = Typography;
 
 // Severity config
 const severityConfig: Record<AlertSeverity, { color: string; label: string; icon: string }> = {
-  critical: { color: '#f5222d', label: '严重', icon: '\u26A0' },
-  warning: { color: '#fa8c16', label: '警告', icon: '\u26A1' },
-  info: { color: '#1890ff', label: '提示', icon: '\u2139' },
+  critical: { color: colors.error[500], label: '严重', icon: '\u26A0' },
+  warning: { color: colors.warning[500], label: '警告', icon: '\u26A1' },
+  info: { color: colors.primary[500], label: '提示', icon: '\u2139' },
 };
 
 // Status config
@@ -218,12 +219,12 @@ const AlertList: React.FC = () => {
         <Space direction="vertical" size={0}>
           <Text
             strong
-            style={{ cursor: 'pointer', color: '#1890ff' }}
+            style={{ cursor: 'pointer', color: colors.primary[500] }}
             onClick={() => showDetail(record)}
           >
             {String(value)}
           </Text>
-          <Text type="secondary" style={{ fontSize: 11 }}>
+          <Text type="secondary" style={{ fontSize: spacing[2] }}>
             {record.source}
           </Text>
         </Space>
@@ -235,7 +236,7 @@ const AlertList: React.FC = () => {
       dataIndex: 'value',
       width: 100,
       render: (value) => (
-        <Text strong style={{ color: '#cf1322' }}>
+        <Text strong style={{ color: colors.error[600] }}>
           {String(value)}
         </Text>
       ),
@@ -246,7 +247,7 @@ const AlertList: React.FC = () => {
       dataIndex: 'threshold',
       width: 100,
       render: (value) => (
-        <Text type="secondary" style={{ fontSize: 12 }}>
+        <Text type="secondary" style={{ fontSize: spacing[3] }}>
           {String(value)}
         </Text>
       ),
@@ -256,7 +257,7 @@ const AlertList: React.FC = () => {
       title: '消息',
       dataIndex: 'message',
       render: (value: unknown) => (
-        <Text style={{ fontSize: 13 }} title={String(value)}>
+        <Text style={{ fontSize: spacing[3] }} title={String(value)}>
           {String(value)}
         </Text>
       ),
@@ -278,7 +279,7 @@ const AlertList: React.FC = () => {
       width: 140,
       sortable: true,
       render: (value: unknown) => (
-        <Text type="secondary" style={{ fontSize: 12 }}>
+        <Text type="secondary" style={{ fontSize: spacing[3] }}>
           {dayjs(String(value)).fromNow()}
         </Text>
       ),
@@ -463,18 +464,18 @@ const AlertList: React.FC = () => {
 
             {/* Detail info */}
             <div>
-              <Text type="secondary" style={{ fontSize: 12 }}>
+              <Text type="secondary" style={{ fontSize: spacing[3] }}>
                 指标名称
               </Text>
               <div>
-                <Text strong style={{ fontSize: 16 }}>
+                <Text strong style={{ fontSize: spacing[4] }}>
                   {selectedAlert.metric}
                 </Text>
               </div>
             </div>
 
             <div>
-              <Text type="secondary" style={{ fontSize: 12 }}>
+              <Text type="secondary" style={{ fontSize: spacing[3] }}>
                 告警消息
               </Text>
               <div>
@@ -484,17 +485,17 @@ const AlertList: React.FC = () => {
 
             <div style={{ display: 'flex', gap: 32 }}>
               <div>
-                <Text type="secondary" style={{ fontSize: 12 }}>
+                <Text type="secondary" style={{ fontSize: spacing[3] }}>
                   当前值
                 </Text>
                 <div>
-                  <Text strong style={{ color: '#cf1322', fontSize: 18 }}>
+                  <Text strong style={{ color: colors.error[600], fontSize: spacing[5] }}>
                     {selectedAlert.value}
                   </Text>
                 </div>
               </div>
               <div>
-                <Text type="secondary" style={{ fontSize: 12 }}>
+                <Text type="secondary" style={{ fontSize: spacing[3] }}>
                   阈值
                 </Text>
                 <div>
@@ -502,7 +503,7 @@ const AlertList: React.FC = () => {
                 </div>
               </div>
               <div>
-                <Text type="secondary" style={{ fontSize: 12 }}>
+                <Text type="secondary" style={{ fontSize: spacing[3] }}>
                   来源
                 </Text>
                 <div>
@@ -513,21 +514,21 @@ const AlertList: React.FC = () => {
 
             <div style={{ display: 'flex', gap: 32 }}>
               <div>
-                <Text type="secondary" style={{ fontSize: 12 }}>
+                <Text type="secondary" style={{ fontSize: spacing[3] }}>
                   首次触发
                 </Text>
                 <div>
-                  <Text style={{ fontSize: 12 }}>
+                  <Text style={{ fontSize: spacing[3] }}>
                     {dayjs(selectedAlert.firstTriggered).format('YYYY-MM-DD HH:mm:ss')}
                   </Text>
                 </div>
               </div>
               <div>
-                <Text type="secondary" style={{ fontSize: 12 }}>
+                <Text type="secondary" style={{ fontSize: spacing[3] }}>
                   最后更新
                 </Text>
                 <div>
-                  <Text style={{ fontSize: 12 }}>
+                  <Text style={{ fontSize: spacing[3] }}>
                     {dayjs(selectedAlert.lastUpdated).format('YYYY-MM-DD HH:mm:ss')}
                   </Text>
                 </div>
@@ -536,7 +537,7 @@ const AlertList: React.FC = () => {
 
             {selectedAlert.acknowledgedBy && (
               <div>
-                <Text type="secondary" style={{ fontSize: 12 }}>
+                <Text type="secondary" style={{ fontSize: spacing[3] }}>
                   确认信息
                 </Text>
                 <div>
@@ -550,7 +551,7 @@ const AlertList: React.FC = () => {
 
             {selectedAlert.resolvedBy && (
               <div>
-                <Text type="secondary" style={{ fontSize: 12 }}>
+                <Text type="secondary" style={{ fontSize: spacing[3] }}>
                   解决信息
                 </Text>
                 <div>

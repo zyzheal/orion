@@ -9,6 +9,7 @@ import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import { getMetrics, recordMetric, registerMetric, getMetricSeries, getMetricSummary } from '@/api/monitoring';
 import type { Metric } from '@/api/monitoring';
+import { colors, spacing } from '@/tokens';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -105,7 +106,7 @@ const MonitoringMetrics: React.FC = () => {
       sortable: true,
       filterable: true,
       render: (v: unknown) => (
-        <Text strong style={{ color: '#1890ff', cursor: 'pointer' }} onClick={() => {
+        <Text strong style={{ color: colors.primary[500], cursor: 'pointer' }} onClick={() => {
           const m = metrics.find((item) => item.name === String(v));
           if (m) showDetail(m);
         }}>
@@ -137,7 +138,7 @@ const MonitoringMetrics: React.FC = () => {
         return (
         <Space wrap>
           {tags && Object.entries(tags).slice(0, 3).map(([k, val]) => (
-            <Tag key={k} style={{ fontSize: 11 }}>{k}:{val}</Tag>
+            <Tag key={k} style={{ fontSize: spacing[2] }}>{k}:{val}</Tag>
           ))}
           {tags && Object.keys(tags).length > 3 && (
             <Tag>+{Object.keys(tags).length - 3}</Tag>
@@ -153,7 +154,7 @@ const MonitoringMetrics: React.FC = () => {
       sortable: true,
       width: 160,
       render: (v: unknown) => (
-        <Text type="secondary" style={{ fontSize: 12 }}>
+        <Text type="secondary" style={{ fontSize: spacing[3] }}>
           {dayjs(String(v)).format('YYYY-MM-DD HH:mm:ss')}
         </Text>
       ),
@@ -282,7 +283,7 @@ const MonitoringMetrics: React.FC = () => {
         {seriesData.length > 0 ? (
           <Space direction="vertical" style={{ width: '100%' }}>
             {seriesData.slice(-20).reverse().map((point: any, idx: number) => (
-              <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid #f0f0f0' }}>
+              <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: `1px solid ${colors.light.border.light}` }}>
                 <Text type="secondary">{dayjs(point.timestamp).format('HH:mm:ss')}</Text>
                 <Text strong>{point.value}</Text>
               </div>

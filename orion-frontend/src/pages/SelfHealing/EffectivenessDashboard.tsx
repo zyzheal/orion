@@ -4,6 +4,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import { Typography, Card, Row, Col, Statistic, Table, Tag, Button, message } from 'antd';
+import { colors, spacing } from '@/tokens';
 import {
   ReloadOutlined,
   ThunderboltOutlined,
@@ -94,7 +95,7 @@ const EffectivenessDashboard: React.FC = () => {
               title="自愈合率"
               value={effectiveness?.healingRate ? Math.round(effectiveness.healingRate * 100) : 0}
               suffix="%"
-              valueStyle={{ color: '#52c41a' }}
+              valueStyle={{ color: colors.success[500] }}
               prefix={<ThunderboltOutlined />}
             />
           </Card>
@@ -105,7 +106,7 @@ const EffectivenessDashboard: React.FC = () => {
               title="平均 MTTR"
               value={effectiveness?.avgMttr ? Math.round(effectiveness.avgMttr) : 0}
               suffix="min"
-              valueStyle={{ color: '#1890ff' }}
+              valueStyle={{ color: colors.primary[500] }}
               prefix={<ClockCircleOutlined />}
             />
           </Card>
@@ -115,7 +116,7 @@ const EffectivenessDashboard: React.FC = () => {
             <Statistic
               title="总事件数"
               value={effectiveness?.totalIncidents || 0}
-              valueStyle={{ color: '#722ed1' }}
+              valueStyle={{ color: colors.purple[500] }}
               prefix={<LineChartOutlined />}
             />
           </Card>
@@ -126,7 +127,7 @@ const EffectivenessDashboard: React.FC = () => {
               title="成功率"
               value={effectiveness?.successRate ? Math.round(effectiveness.successRate * 100) : 0}
               suffix="%"
-              valueStyle={{ color: '#52c41a' }}
+              valueStyle={{ color: colors.success[500] }}
               prefix={<CheckCircleOutlined />}
             />
           </Card>

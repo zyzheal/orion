@@ -19,6 +19,7 @@ import {
   Divider,
   Badge,
 } from 'antd';
+import { colors, spacing } from '@/tokens';
 import type { ColumnsType } from 'antd/es/table';
 import {
   TrophyOutlined,
@@ -38,11 +39,11 @@ const { Title, Text } = Typography;
 
 // Color constants
 const COLORS = {
-  success: '#52c41a',
-  warning: '#faad14',
-  error: '#ff4d4f',
-  info: '#1890ff',
-  purple: '#722ed1',
+  success: colors.success[500],
+  warning: colors.warning[500],
+  error: colors.error[400],
+  info: colors.primary[500],
+  purple: colors.purple[500],
   cyan: '#13c2c2',
 };
 
@@ -54,13 +55,13 @@ const priorityColor = (priority: string): string => {
     case 'critical':
       return COLORS.error;
     case 'high':
-      return '#fa8c16';
+      return colors.warning[500];
     case 'medium':
       return COLORS.warning;
     case 'low':
       return COLORS.info;
     default:
-      return '#8c8c8c';
+      return colors.neutral[400];
   }
 };
 
@@ -229,7 +230,7 @@ const EngineerDashboard: React.FC = () => {
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      fontSize: 24,
+                      fontSize: spacing[6],
                     }}
                   >
                     <UserOutlined />
@@ -238,7 +239,7 @@ const EngineerDashboard: React.FC = () => {
                     <Title level={4} style={{ margin: 0 }}>
                       {data.personalOverview.engineerName}
                     </Title>
-                    <Text type="secondary" style={{ fontSize: 12 }}>
+                    <Text type="secondary" style={{ fontSize: spacing[3] }}>
                       {data.personalOverview.engineerId}
                     </Text>
                   </div>
@@ -247,13 +248,13 @@ const EngineerDashboard: React.FC = () => {
                   <Tag
                     color="gold"
                     icon={<TrophyOutlined />}
-                    style={{ fontWeight: 700, fontSize: 14, padding: '4px 12px' }}
+                    style={{ fontWeight: 700, fontSize: spacing[4], padding: '4px 12px' }}
                   >
                     排名 #{data.personalOverview.rank}/{data.personalOverview.totalInTeam}
                   </Tag>
                   <Tag
-                    color={gradeColorMap[data.personalOverview.performanceGrade] || '#8c8c8c'}
-                    style={{ fontWeight: 700, fontSize: 14, padding: '4px 12px' }}
+                    color={gradeColorMap[data.personalOverview.performanceGrade] || colors.neutral[400]}
+                    style={{ fontWeight: 700, fontSize: spacing[4], padding: '4px 12px' }}
                   >
                     等级 {data.personalOverview.performanceGrade}
                   </Tag>
@@ -270,7 +271,7 @@ const EngineerDashboard: React.FC = () => {
                     value={data.personalOverview.currentLoad}
                     suffix="个"
                     prefix={<ClockCircleOutlined />}
-                    valueStyle={{ fontSize: 22, fontWeight: 600 }}
+                    valueStyle={{ fontSize: spacing[6], fontWeight: 600 }}
                   />
                 </Col>
                 <Col xs={12} sm={6}>
@@ -279,7 +280,7 @@ const EngineerDashboard: React.FC = () => {
                     value={data.personalOverview.totalResolved}
                     suffix="个"
                     prefix={<CheckCircleOutlined style={{ color: COLORS.success }} />}
-                    valueStyle={{ fontSize: 22, fontWeight: 600, color: COLORS.success }}
+                    valueStyle={{ fontSize: spacing[6], fontWeight: 600, color: COLORS.success }}
                   />
                 </Col>
                 <Col xs={12} sm={6}>
@@ -288,7 +289,7 @@ const EngineerDashboard: React.FC = () => {
                     value={data.personalOverview.avgResolutionTimeHours}
                     suffix="h"
                     prefix={<ThunderboltOutlined />}
-                    valueStyle={{ fontSize: 22, fontWeight: 600 }}
+                    valueStyle={{ fontSize: spacing[6], fontWeight: 600 }}
                   />
                 </Col>
                 <Col xs={12} sm={6}>
@@ -298,7 +299,7 @@ const EngineerDashboard: React.FC = () => {
                     suffix="%"
                     prefix={<FlagOutlined style={{ color: COLORS.info }} />}
                     valueStyle={{
-                      fontSize: 22,
+                      fontSize: spacing[6],
                       fontWeight: 600,
                       color: data.personalOverview.slaComplianceRate >= 95 ? COLORS.success : COLORS.warning,
                     }}
@@ -338,7 +339,7 @@ const EngineerDashboard: React.FC = () => {
                     title={`解决: ${d.resolved}, 平均: ${d.avgResolutionHours}h`}
                   />
                 </div>
-                <Text style={{ fontSize: 10, color: '#8c8c8c' }}>
+                <Text style={{ fontSize: spacing[2], color: colors.neutral[400] }}>
                   {dayjs(d.period).format('MM/DD')}
                 </Text>
               </div>
@@ -348,7 +349,7 @@ const EngineerDashboard: React.FC = () => {
           <Space size={24}>
             <Space size={4}>
               <div style={{ width: 10, height: 10, backgroundColor: COLORS.success, borderRadius: 2 }} />
-              <Text style={{ fontSize: 12 }}>每日解决数</Text>
+              <Text style={{ fontSize: spacing[3] }}>每日解决数</Text>
             </Space>
           </Space>
         </CardPanel>
@@ -372,10 +373,10 @@ const EngineerDashboard: React.FC = () => {
                   >
                     <Tag color={COLORS.success}>{categoryName(s.category)}</Tag>
                     <Space>
-                      <Text style={{ fontSize: 12 }}>
+                      <Text style={{ fontSize: spacing[3] }}>
                         解决 {s.resolvedCount} 个
                       </Text>
-                      <Text style={{ fontSize: 12 }}>
+                      <Text style={{ fontSize: spacing[3] }}>
                         SLA {(s.slaComplianceRate * 100).toFixed(0)}%
                       </Text>
                     </Space>
@@ -418,10 +419,10 @@ const EngineerDashboard: React.FC = () => {
                       {categoryName(w.category)}
                     </Tag>
                     <Space>
-                      <Text style={{ fontSize: 12 }}>
+                      <Text style={{ fontSize: spacing[3] }}>
                         解决 {w.resolvedCount} 个
                       </Text>
-                      <Text style={{ fontSize: 12 }}>
+                      <Text style={{ fontSize: spacing[3] }}>
                         SLA {(w.slaComplianceRate * 100).toFixed(0)}%
                       </Text>
                     </Space>
@@ -433,7 +434,7 @@ const EngineerDashboard: React.FC = () => {
                     format={() => `SLA ${(w.slaComplianceRate * 100).toFixed(0)}%`}
                   />
                   <div style={{ marginTop: 8 }}>
-                    <Text type="secondary" style={{ fontSize: 12 }}>
+                    <Text type="secondary" style={{ fontSize: spacing[3] }}>
                       <WarningOutlined style={{ marginRight: 4 }} />
                       建议: {w.suggestion}
                     </Text>
@@ -469,7 +470,7 @@ const EngineerDashboard: React.FC = () => {
           {/* Inline style for overdue row highlighting */}
           <style>{`
             .overdue-row {
-              background-color: #fff1f0 !important;
+              background-color: ${colors.error[50]} !important;
             }
             .overdue-row:hover td {
               background-color: #ffccc7 !important;
