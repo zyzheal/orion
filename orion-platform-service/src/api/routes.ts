@@ -14,6 +14,7 @@ import { StageExecutor } from '../engine/StageExecutor';
 import { TaskRunner } from '../engine/TaskRunner';
 import { PipelineEventPublisher } from '../events/PipelineEventPublisher';
 import { EventBusService } from '../services/event-bus-service';
+import { DatabasePool } from '../services/database';
 import cmdbRoutes from '../routes-cmdb';
 import buildRoutes from './build-routes';
 import codeRepoRoutes from './code-repo-routes';
@@ -53,9 +54,13 @@ import vectorStoreRoutes from './vector-store-routes';
 import oncallRoutes from './oncall-routes';
 import approvalRoutes from './approval-routes';
 import eventbusRoutes from './eventbus-routes';
+import productLineRoutes from './product-line-routes';
+import internalLibraryRoutes from './internal-library-routes';
+import notificationRoutes from './notification-routes';
 
 export interface ApiRoutesOptions {
   eventBus?: EventBusService;
+  database?: DatabasePool;
 }
 
 export default async function apiRoutes(app: FastifyInstance, options: ApiRoutesOptions): Promise<void> {
@@ -184,7 +189,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // ==================== CMDB 路由 ====================
 
   // 注册 CMDB API 路由
-  await app.register(cmdbRoutes, { prefix: '/cmdb' });
+  await app.register(cmdbRoutes, { prefix: '/cmdb', database: options.database });
 
   // ==================== 构建环境管理路由 ====================
 
@@ -246,7 +251,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await app.register(alertRoutes, { prefix: '/alert' });
 
   // 注册审计 API 路由
-  await app.register(auditRoutes, { prefix: '/audit' });
+  await app.register(auditRoutes, { prefix: '/audit', database: options.database });
 
   // 注册租户管理 API 路由
   await app.register(tenantRoutes, { prefix: '/tenant' });
@@ -267,7 +272,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await app.register(canaryAnalysisRoutes, { prefix: '/canary-analysis', eventBus: options.eventBus });
 
   // 注册 Skill Management API 路由 (M12)
-  await app.register(skillRoutes, { prefix: '/skills' });
+  await app.register(skillRoutes, { prefix: '/skills', database: options.database });
 
   // 注册 AI Cost Optimization API 路由 (M36)
   await app.register(aiCostRoutes, { prefix: '/ai-cost' });
@@ -295,4 +300,13 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // 注册 EventBus API 路由 (P0 - NATS message bus)
   await app.register((app: FastifyInstance) => eventbusRoutes(app, options.eventBus), { prefix: '/eventbus' });
+
+  // 注册 ProductLine 多分支产品线 API 路由 (M6)
+  await app.register(productLineRoutes);
+
+  // 注册 Internal Library 二方库管理 API 路由 (M30)
+  await app.register(internalLibraryRoutes);
+
+  // 注册 Notification API 路由 (M8/M33)
+  await app.register(notificationRoutes, { prefix: '/notifications' });
 }

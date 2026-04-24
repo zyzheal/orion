@@ -2,14 +2,34 @@
  * Skill Management API Routes
  *
  * Routes under /api/v1/skills
+ * Migrated to PostgreSQL Repository pattern (M12)
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { DatabasePool } from '../services/database';
+import { SkillRepository } from '../services/skill/SkillRepository';
 import { SkillService } from '../services/skill/SkillService';
 import { SkillController } from './controllers/SkillController';
 
-export default async function skillRoutes(app: FastifyInstance): Promise<void> {
-  const service = new SkillService();
+interface SkillRoutesOptions {
+  database?: DatabasePool;
+}
+
+export default async function skillRoutes(
+  app: FastifyInstance,
+  options: SkillRoutesOptions
+): Promise<void> {
+  // Initialize Repository and Service with database pool
+  const repository = options.database
+    ? new SkillRepository(options.database)
+    : undefined;
+
+  if (!repository) {
+    console.warn('[SkillRoutes] No database pool provided, skill routes will not be functional');
+    return;
+  }
+
+  const service = new SkillService(repository);
   const controller = new SkillController(service);
 
   // ==================== Skill CRUD ====================

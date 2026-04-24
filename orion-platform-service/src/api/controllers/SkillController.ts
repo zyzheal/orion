@@ -1,9 +1,11 @@
 /**
  * Skill Controller - Fastify HTTP request/response handlers
+ *
+ * Bridges HTTP layer to SkillService (PostgreSQL-backed)
  */
 
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { SkillService } from '../../services/skill/SkillService';
+import { SkillService, SkillServiceError } from '../../services/skill/SkillService';
 
 export class SkillController {
   private service: SkillService;
@@ -17,16 +19,22 @@ export class SkillController {
   async list(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const query = request.query as Record<string, string | undefined>;
-      const { skills, total } = await this.service.list({
-        q: query.q,
-        category: query.category as any,
-        tag: query.tag,
-        status: query.status as any,
-        page: query.page ? parseInt(query.page) : undefined,
-        perPage: query.perPage ? parseInt(query.perPage) : undefined,
+      const tags = query.tags ? query.tags.split(',') : undefined;
+      const result = await this.service.listSkills({
+        page: query.page ? parseInt(query.page, 10) : undefined,
+        limit: query.perPage ? parseInt(query.perPage, 10) : undefined,
+        status: query.status,
+        category: query.category,
+        tags,
       });
 
-      await reply.send({ success: true, data: skills, total });
+      await reply.send({
+        success: true,
+        data: result.data,
+        total: result.total,
+        page: result.page,
+        totalPages: result.totalPages,
+      });
     } catch (err) {
       await reply.status(500).send({
         success: false,
@@ -38,13 +46,13 @@ export class SkillController {
   async getDetail(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const params = request.params as Record<string, string>;
-      const skill = await this.service.getById(params.id);
-      if (!skill) {
+      const skill = await this.service.getSkill(params.id);
+      await reply.send({ success: true, data: skill });
+    } catch (err) {
+      if (err instanceof SkillServiceError && err.code === 'SKILL_NOT_FOUND') {
         await reply.status(404).send({ success: false, error: 'Skill not found' });
         return;
       }
-      await reply.send({ success: true, data: skill });
-    } catch (err) {
       await reply.status(500).send({
         success: false,
         error: err instanceof Error ? err.message : 'Internal server error',
@@ -62,11 +70,11 @@ export class SkillController {
         });
         return;
       }
-      const skill = await this.service.create({
+      const skill = await this.service.createSkill({
         name: body.name as string,
         version: body.version as string,
         description: body.description as string,
-        category: body.category as any,
+        category: body.category as string,
         tags: (body.tags as string[]) ?? [],
         author: body.author as string,
         schema: (body.schema as Record<string, unknown>) ?? {},
@@ -74,6 +82,13 @@ export class SkillController {
 
       await reply.status(201).send({ success: true, data: skill });
     } catch (err) {
+      if (err instanceof SkillServiceError && err.code === 'DUPLICATE_NAME') {
+        await reply.status(409).send({
+          success: false,
+          error: 'Skill name already exists',
+        });
+        return;
+      }
       await reply.status(400).send({
         success: false,
         error: err instanceof Error ? err.message : 'Failed to create skill',
@@ -85,20 +100,20 @@ export class SkillController {
     try {
       const params = request.params as Record<string, string>;
       const body = request.body as Record<string, unknown>;
-      const skill = await this.service.update(params.id, {
+      const skill = await this.service.updateSkill(params.id, {
         name: body.name as string | undefined,
         description: body.description as string | undefined,
-        category: body.category as any,
+        category: body.category as string | undefined,
         tags: body.tags as string[] | undefined,
-        status: body.status as any,
+        status: body.status as string | undefined,
         schema: body.schema as Record<string, unknown> | undefined,
       });
-      if (!skill) {
+      await reply.send({ success: true, data: skill });
+    } catch (err) {
+      if (err instanceof SkillServiceError && err.code === 'SKILL_NOT_FOUND') {
         await reply.status(404).send({ success: false, error: 'Skill not found' });
         return;
       }
-      await reply.send({ success: true, data: skill });
-    } catch (err) {
       await reply.status(400).send({
         success: false,
         error: err instanceof Error ? err.message : 'Failed to update skill',
@@ -109,13 +124,17 @@ export class SkillController {
   async delete(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const params = request.params as Record<string, string>;
-      const deleted = await this.service.delete(params.id);
+      const deleted = await this.service.uninstallSkill(params.id);
       if (!deleted) {
         await reply.status(404).send({ success: false, error: 'Skill not found' });
         return;
       }
       await reply.send({ success: true, message: 'Skill deleted' });
     } catch (err) {
+      if (err instanceof SkillServiceError && err.code === 'SKILL_NOT_FOUND') {
+        await reply.status(404).send({ success: false, error: 'Skill not found' });
+        return;
+      }
       await reply.status(500).send({
         success: false,
         error: err instanceof Error ? err.message : 'Internal server error',
@@ -124,6 +143,25 @@ export class SkillController {
   }
 
   // ==================== Version Management ====================
+
+  async listVersions(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    try {
+      const params = request.params as Record<string, string>;
+      // Verify skill exists first
+      await this.service.getSkill(params.id);
+      const versions = await this.service.getVersions(params.id);
+      await reply.send({ success: true, data: versions, total: versions.length });
+    } catch (err) {
+      if (err instanceof SkillServiceError && err.code === 'SKILL_NOT_FOUND') {
+        await reply.status(404).send({ success: false, error: 'Skill not found' });
+        return;
+      }
+      await reply.status(500).send({
+        success: false,
+        error: err instanceof Error ? err.message : 'Internal server error',
+      });
+    }
+  }
 
   async addVersion(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
@@ -136,8 +174,7 @@ export class SkillController {
         });
         return;
       }
-      const version = await this.service.addVersion({
-        skillId: params.id,
+      const version = await this.service.createVersion(params.id, {
         version: body.version as string,
         changelog: body.changelog as string | undefined,
         schema: body.schema as Record<string, unknown> | undefined,
@@ -145,27 +182,13 @@ export class SkillController {
 
       await reply.status(201).send({ success: true, data: version });
     } catch (err) {
-      await reply.status(400).send({
-        success: false,
-        error: err instanceof Error ? err.message : 'Failed to add version',
-      });
-    }
-  }
-
-  async listVersions(request: FastifyRequest, reply: FastifyReply): Promise<void> {
-    try {
-      const params = request.params as Record<string, string>;
-      const skill = await this.service.getById(params.id);
-      if (!skill) {
+      if (err instanceof SkillServiceError && err.code === 'SKILL_NOT_FOUND') {
         await reply.status(404).send({ success: false, error: 'Skill not found' });
         return;
       }
-      const versions = await this.service.listVersions(params.id);
-      await reply.send({ success: true, data: versions, total: versions.length });
-    } catch (err) {
-      await reply.status(500).send({
+      await reply.status(400).send({
         success: false,
-        error: err instanceof Error ? err.message : 'Internal server error',
+        error: err instanceof Error ? err.message : 'Failed to add version',
       });
     }
   }
@@ -175,13 +198,14 @@ export class SkillController {
   async install(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const params = request.params as Record<string, string>;
-      const skill = await this.service.install(params.id);
-      if (!skill) {
+      await this.service.installSkill(params.id);
+      const skill = await this.service.getSkill(params.id);
+      await reply.send({ success: true, data: skill, message: 'Skill installed' });
+    } catch (err) {
+      if (err instanceof SkillServiceError && err.code === 'SKILL_NOT_FOUND') {
         await reply.status(404).send({ success: false, error: 'Skill not found' });
         return;
       }
-      await reply.send({ success: true, data: skill, message: 'Skill installed' });
-    } catch (err) {
       await reply.status(500).send({
         success: false,
         error: err instanceof Error ? err.message : 'Internal server error',
@@ -192,13 +216,17 @@ export class SkillController {
   async uninstall(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const params = request.params as Record<string, string>;
-      const skill = await this.service.uninstall(params.id);
-      if (!skill) {
+      const uninstalled = await this.service.uninstallSkill(params.id);
+      if (!uninstalled) {
         await reply.status(404).send({ success: false, error: 'Skill not found' });
         return;
       }
-      await reply.send({ success: true, data: skill, message: 'Skill uninstalled' });
+      await reply.send({ success: true, message: 'Skill uninstalled' });
     } catch (err) {
+      if (err instanceof SkillServiceError && err.code === 'SKILL_NOT_FOUND') {
+        await reply.status(404).send({ success: false, error: 'Skill not found' });
+        return;
+      }
       await reply.status(500).send({
         success: false,
         error: err instanceof Error ? err.message : 'Internal server error',
@@ -219,15 +247,18 @@ export class SkillController {
         });
         return;
       }
-      const review = await this.service.rate({
-        skillId: params.id,
-        userId: body.userId as string,
+      const review = await this.service.addReview(params.id, {
+        user_id: body.userId as string,
         rating: body.rating as number,
         comment: body.comment as string | undefined,
       });
 
       await reply.status(201).send({ success: true, data: review });
     } catch (err) {
+      if (err instanceof SkillServiceError && err.code === 'SKILL_NOT_FOUND') {
+        await reply.status(404).send({ success: false, error: 'Skill not found' });
+        return;
+      }
       await reply.status(400).send({
         success: false,
         error: err instanceof Error ? err.message : 'Failed to rate skill',
