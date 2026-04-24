@@ -26,6 +26,9 @@ import {
   TeamOutlined,
   UserSwitchOutlined,
   UnorderedListOutlined,
+  BookOutlined,
+  DatabaseOutlined,
+  EyeOutlined,
 } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
 import type { GetProp } from 'antd';
@@ -117,14 +120,17 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       children: [
         {
           key: '/dba',
+          icon: <DatabaseOutlined />,
           label: '数据库管理',
         },
         {
           key: '/knowledge',
+          icon: <BookOutlined />,
           label: '知识库',
         },
         {
           key: '/visor',
+          icon: <EyeOutlined />,
           label: '监控中心',
         },
       ],

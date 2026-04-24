@@ -81,6 +81,12 @@ export const routes: AppRoute[] = [
     element: React.lazy(() => import('@/components/SubAppRoute')),
     protected: true,
   },
+  // Knowledge Base (M28)
+  {
+    path: '/knowledge',
+    element: React.lazy(() => import('@/pages/KnowledgeBase')),
+    protected: true,
+  },
   {
     path: '/knowledge/*',
     element: React.lazy(() => import('@/components/SubAppRoute')),
@@ -414,6 +420,12 @@ export const routes: AppRoute[] = [
   {
     path: '/ephemeral-envs/:id',
     element: React.lazy(() => import('@/pages/EphemeralEnvDetail')),
+    protected: true,
+  },
+  // CMDB (M32)
+  {
+    path: '/cmdb',
+    element: React.lazy(() => import('@/pages/CMDB')),
     protected: true,
   },
   // 404 页面
