@@ -15,6 +15,7 @@ import {
   createPolicyOverride,
   ViolationStatus,
 } from '../../models/PolicyDefinition';
+import { PolicyEvaluationRepository, PolicyEvaluationEntity } from '../../repositories/PolicyEvaluationRepository';
 
 export interface PolicyEvaluationListFilter {
   runId?: string;
@@ -35,13 +36,16 @@ export interface PolicyEvaluationResult {
 }
 
 export class PolicyEvaluationService {
-  private evaluations: Map<string, PolicyEvaluation> = new Map();
+  private evaluationRepository?: PolicyEvaluationRepository;
   private violations: Map<string, PolicyViolation> = new Map();
   private overrides: Map<string, PolicyOverride> = new Map();
   private eventBus?: EventBusService;
 
-  constructor(options?: { eventBus?: EventBusService }) {
+  constructor(options?: { eventBus?: EventBusService; db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> } }) {
     this.eventBus = options?.eventBus;
+    if (options?.db) {
+      this.evaluationRepository = new PolicyEvaluationRepository(options.db);
+    }
   }
 
   /**
@@ -75,7 +79,17 @@ export class PolicyEvaluationService {
       result: mockResult,
       evaluationMs: Date.now() - startTime,
     });
-    this.evaluations.set(evaluation.id, evaluation);
+
+    if (this.evaluationRepository) {
+      await this.evaluationRepository.create({
+        id: evaluation.id,
+        policyId,
+        runId,
+        inputContext,
+        result: mockResult,
+        evaluationMs: evaluation.evaluationMs,
+      });
+    }
 
     const violations: PolicyViolation[] = [];
     if (!mockResult.allow && Array.isArray(mockResult.deny)) {
@@ -130,16 +144,31 @@ export class PolicyEvaluationService {
 
   // Evaluation listing
   async getEvaluations(filter: PolicyEvaluationListFilter = {}): Promise<PolicyEvaluation[]> {
-    let items = Array.from(this.evaluations.values());
-
-    if (filter.runId) {
-      items = items.filter(e => e.runId === filter.runId);
+    if (this.evaluationRepository) {
+      if (filter.runId) {
+        const entities = await this.evaluationRepository.findByRunId(filter.runId);
+        return entities.map(e => this.mapEntityToEvaluation(e));
+      }
+      if (filter.policyId) {
+        const entities = await this.evaluationRepository.findByPolicyId(filter.policyId);
+        return entities.map(e => this.mapEntityToEvaluation(e));
+      }
+      const entities = await this.evaluationRepository.findAll();
+      return entities.map(e => this.mapEntityToEvaluation(e));
     }
-    if (filter.policyId) {
-      items = items.filter(e => e.policyId === filter.policyId);
-    }
+    return [];
+  }
 
-    return items;
+  private mapEntityToEvaluation(entity: PolicyEvaluationEntity): PolicyEvaluation {
+    return {
+      id: entity.id,
+      policyId: entity.policyId ?? undefined,
+      runId: entity.runId,
+      inputContext: entity.inputContext,
+      result: entity.result,
+      evaluatedAt: entity.evaluatedAt,
+      evaluationMs: entity.evaluationMs ?? undefined,
+    };
   }
 
   // Violation listing

@@ -7,6 +7,7 @@ import pino from 'pino';
 import { EventEmitter } from 'events';
 import { DistributedLockService } from './DistributedLockService';
 import { EventBusService } from '../event-bus-service';
+import { CronJobRepository, CronJobEntity } from '../../repositories/CronJobRepository';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -38,79 +39,121 @@ export interface CronSchedulerConfig {
 }
 
 export class CronSchedulerService extends EventEmitter {
-  private jobs: Map<string, CronJob> = new Map();
+  private taskHandlers: Map<string, () => Promise<void>> = new Map(); // Keep task handlers in memory
   private executions: Map<string, CronJobExecution> = new Map();
+  private cronJobRepository?: CronJobRepository;
   private lockService: DistributedLockService;
   private eventBus?: EventBusService;
   private runningJobs: Set<string> = new Set();
 
-  constructor(config?: CronSchedulerConfig, eventBus?: EventBusService) {
+  constructor(config?: CronSchedulerConfig, eventBus?: EventBusService, db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
     super();
     this.eventBus = eventBus;
-    this.lockService = new DistributedLockService(config?.redisUrl ? 
+    if (db) {
+      this.cronJobRepository = new CronJobRepository(db);
+    }
+    this.lockService = new DistributedLockService(config?.redisUrl ?
       { url: config?.redisUrl } : undefined);
   }
 
   /**
    * 添加定时任务
    */
-  addJob(job: CronJob): void {
-    this.jobs.set(job.id, job);
+  async addJob(job: CronJob): Promise<void> {
+    // Store task handler in memory
+    this.taskHandlers.set(job.id, job.task);
+
+    if (this.cronJobRepository) {
+      await this.cronJobRepository.create({
+        id: job.id,
+        name: job.name,
+        schedule: job.schedule,
+        handler: job.id, // Handler reference
+        payload: job.metadata ?? {},
+        enabled: job.enabled,
+        lastRunAt: null,
+        lastRunStatus: null,
+        nextRunAt: null,
+        createdAt: new Date(),
+      });
+    }
     logger.info({ jobId: job.id, name: job.name }, 'Cron job added');
   }
 
   /**
    * 移除定时任务
    */
-  removeJob(jobId: string): void {
-    const job = this.jobs.get(jobId);
-    if (job) {
-      this.jobs.delete(jobId);
-      logger.info({ jobId }, 'Cron job removed');
+  async removeJob(jobId: string): Promise<void> {
+    this.taskHandlers.delete(jobId);
+    if (this.cronJobRepository) {
+      await this.cronJobRepository.delete(jobId);
     }
+    logger.info({ jobId }, 'Cron job removed');
   }
 
   /**
    * 启用定时任务
    */
-  enableJob(jobId: string): void {
-    const job = this.jobs.get(jobId);
-    if (job) {
-      job.enabled = true;
-      logger.info({ jobId }, 'Cron job enabled');
+  async enableJob(jobId: string): Promise<void> {
+    if (this.cronJobRepository) {
+      await this.cronJobRepository.update(jobId, { enabled: true });
     }
+    logger.info({ jobId }, 'Cron job enabled');
   }
 
   /**
    * 禁用定时任务
    */
-  disableJob(jobId: string): void {
-    const job = this.jobs.get(jobId);
-    if (job) {
-      job.enabled = false;
-      logger.info({ jobId }, 'Cron job disabled');
+  async disableJob(jobId: string): Promise<void> {
+    if (this.cronJobRepository) {
+      await this.cronJobRepository.update(jobId, { enabled: false });
     }
+    logger.info({ jobId }, 'Cron job disabled');
   }
 
   /**
    * 获取定时任务
    */
-  getJob(jobId: string): CronJob | undefined {
-    return this.jobs.get(jobId);
+  async getJob(jobId: string): Promise<CronJob | undefined> {
+    if (this.cronJobRepository) {
+      const entity = await this.cronJobRepository.findById(jobId);
+      if (!entity) return undefined;
+      const task = this.taskHandlers.get(jobId);
+      if (!task) return undefined;
+      return this.mapEntityToJob(entity, task);
+    }
+    return undefined;
   }
 
   /**
    * 获取所有定时任务
    */
-  getJobs(): CronJob[] {
-    return Array.from(this.jobs.values());
+  async getJobs(): Promise<CronJob[]> {
+    if (this.cronJobRepository) {
+      const entities = await this.cronJobRepository.findAll();
+      return entities
+        .filter(e => this.taskHandlers.has(e.id))
+        .map(e => this.mapEntityToJob(e, this.taskHandlers.get(e.id)!));
+    }
+    return [];
+  }
+
+  private mapEntityToJob(entity: CronJobEntity, task: () => Promise<void>): CronJob {
+    return {
+      id: entity.id,
+      name: entity.name,
+      schedule: entity.schedule,
+      task,
+      enabled: entity.enabled,
+      metadata: entity.payload,
+    };
   }
 
   /**
    * 执行定时任务（带分布式锁）
    */
   async executeJob(jobId: string): Promise<CronJobExecution> {
-    const job = this.jobs.get(jobId);
+    const job = await this.getJob(jobId);
     if (!job) {
       throw new Error(`Job ${jobId} not found`);
     }
@@ -136,18 +179,28 @@ export class CronSchedulerService extends EventEmitter {
         `cron:${jobId}`,
         async () => {
           logger.info({ jobId, executionId }, 'Executing cron job with lock');
-          
+
           try {
             await job.task();
             execution.status = 'completed';
             execution.endTime = new Date();
-            
+
+            // Update repository with last run status
+            if (this.cronJobRepository) {
+              await this.cronJobRepository.updateLastRun(jobId, execution.startTime, 'completed', new Date());
+            }
+
             logger.info({ jobId, executionId }, 'Cron job completed successfully');
           } catch (error) {
             execution.status = 'failed';
             execution.endTime = new Date();
             execution.error = error instanceof Error ? error.message : String(error);
-            
+
+            // Update repository with failed status
+            if (this.cronJobRepository) {
+              await this.cronJobRepository.updateLastRun(jobId, execution.startTime, 'failed', new Date());
+            }
+
             logger.error({
               jobId,
               executionId,
@@ -231,22 +284,23 @@ export class CronSchedulerService extends EventEmitter {
    */
   private async checkAndExecuteJobs(): Promise<void> {
     const now = new Date();
-    
-    for (const [jobId, job] of this.jobs) {
+
+    const jobs = await this.getJobs();
+    for (const job of jobs) {
       if (!job.enabled) continue;
 
       try {
         // 检查是否应该执行任务
         const shouldExecute = this.shouldExecuteJob(job, now);
-        
+
         if (shouldExecute) {
           // 在后台执行任务
-          this.executeJob(jobId).catch(error => {
-            logger.error({ jobId, error }, 'Failed to execute job');
+          this.executeJob(job.id).catch(error => {
+            logger.error({ jobId: job.id, error }, 'Failed to execute job');
           });
         }
       } catch (error) {
-        logger.error({ jobId, error }, 'Failed to check job');
+        logger.error({ jobId: job.id, error }, 'Failed to check job');
       }
     }
   }

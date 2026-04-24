@@ -5,13 +5,20 @@
 import pino from 'pino';
 import { v4 as uuidv4 } from 'uuid';
 import { OnCallSchedule, OnCallAssignment, OnCallOverride, OnCallCheckResult, EscalationRule } from './types';
+import { OnCallScheduleRepository, OnCallScheduleEntity } from '../../repositories/OnCallScheduleRepository';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
 export class OnCallService {
-  private schedules: Map<string, OnCallSchedule> = new Map();
+  private scheduleRepository?: OnCallScheduleRepository;
   private assignments: Map<string, OnCallAssignment> = new Map();
   private overrides: Map<string, OnCallOverride> = new Map();
+
+  constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+    if (db) {
+      this.scheduleRepository = new OnCallScheduleRepository(db);
+    }
+  }
 
   /**
    * Create on-call schedule
@@ -26,19 +33,41 @@ export class OnCallService {
   ): Promise<OnCallSchedule> {
     if (!name || teamMembers.length === 0) throw new Error('Name and team members required');
 
+    const id = `schedule_${uuidv4()}`;
+    const now = new Date();
+
+    if (this.scheduleRepository) {
+      const entity = await this.scheduleRepository.create({
+        id,
+        name,
+        timezone,
+        rotationType,
+        rotationStartHour,
+        teamMembers,
+        startDate: now,
+        escalations: escalations.map(e => ({ userId: e.userId, delay: e.delay })),
+        createdAt: now,
+        updatedAt: now,
+      });
+      const schedule = this.mapEntityToSchedule(entity, escalations);
+      this.generateAssignments(schedule);
+      logger.info({ scheduleId: schedule.id }, 'OnCall schedule created');
+      return schedule;
+    }
+
+    // Fallback for memory-only usage
     const schedule: OnCallSchedule = {
-      id: `schedule_${uuidv4()}`,
+      id,
       name,
       timezone,
       rotationType,
       rotationStartHour,
       teamMembers,
-      startDate: new Date(),
+      startDate: now,
       escalations,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      createdAt: now,
+      updatedAt: now,
     };
-    this.schedules.set(schedule.id, schedule);
     this.generateAssignments(schedule);
     logger.info({ scheduleId: schedule.id }, 'OnCall schedule created');
     return schedule;
@@ -78,8 +107,8 @@ export class OnCallService {
   /**
    * Get current on-call person
    */
-  getCurrentOnCall(scheduleId: string): OnCallCheckResult {
-    const schedule = this.schedules.get(scheduleId);
+  async getCurrentOnCall(scheduleId: string): Promise<OnCallCheckResult> {
+    const schedule = await this.getSchedule(scheduleId);
     if (!schedule) return { isOnCall: false };
 
     // For simplicity, return first team member as current (production would use time-based rotation)
@@ -161,32 +190,58 @@ export class OnCallService {
   /**
    * List all schedules
    */
-  listSchedules(): OnCallSchedule[] {
-    return Array.from(this.schedules.values());
+  async listSchedules(): Promise<OnCallSchedule[]> {
+    if (this.scheduleRepository) {
+      const entities = await this.scheduleRepository.findAll();
+      return entities.map(e => this.mapEntityToSchedule(e));
+    }
+    return [];
   }
 
   /**
    * Get schedule by ID
    */
-  getSchedule(id: string): OnCallSchedule | undefined {
-    return this.schedules.get(id);
+  async getSchedule(id: string): Promise<OnCallSchedule | undefined> {
+    if (this.scheduleRepository) {
+      const entity = await this.scheduleRepository.findById(id);
+      return entity ? this.mapEntityToSchedule(entity) : undefined;
+    }
+    return undefined;
   }
 
   /**
    * Delete schedule
    */
   async deleteSchedule(id: string): Promise<boolean> {
-    const deleted = this.schedules.delete(id);
-    if (deleted) {
-      // Clean up associated assignments
-      for (const [key, assign] of this.assignments) {
-        if (assign.scheduleId === id) this.assignments.delete(key);
+    if (this.scheduleRepository) {
+      const deleted = await this.scheduleRepository.delete(id);
+      if (deleted) {
+        // Clean up associated assignments
+        for (const [key, assign] of this.assignments) {
+          if (assign.scheduleId === id) this.assignments.delete(key);
+        }
+        // Clean up associated overrides
+        for (const [key, override] of this.overrides) {
+          if (override.scheduleId === id) this.overrides.delete(key);
+        }
       }
-      // Clean up associated overrides
-      for (const [key, override] of this.overrides) {
-        if (override.scheduleId === id) this.overrides.delete(key);
-      }
+      return deleted;
     }
-    return deleted;
+    return false;
+  }
+
+  private mapEntityToSchedule(entity: OnCallScheduleEntity, escalations?: EscalationRule[]): OnCallSchedule {
+    return {
+      id: entity.id,
+      name: entity.name,
+      timezone: entity.timezone,
+      rotationType: entity.rotationType as 'daily' | 'weekly' | 'monthly',
+      rotationStartHour: entity.rotationStartHour,
+      teamMembers: entity.teamMembers,
+      startDate: entity.startDate,
+      escalations: escalations ?? entity.escalations.map(e => ({ userId: e.userId, delay: e.delay })),
+      createdAt: entity.createdAt,
+      updatedAt: entity.updatedAt,
+    };
   }
 }

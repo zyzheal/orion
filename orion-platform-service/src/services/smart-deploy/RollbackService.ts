@@ -16,17 +16,20 @@ import {
   IEventPublisher,
   DeployEvents,
 } from './types';
+import { RollbackRepository, RollbackEntity } from '../../repositories/RollbackRepository';
 
 /**
  * Rollback service for managing deployment rollbacks
  */
 export class RollbackService {
-  private rollbacks: Map<string, RollbackInfo> = new Map();
-  private rollbackHistory: Map<string, RollbackInfo[]> = new Map(); // deploymentId -> history
+  private rollbackRepository?: RollbackRepository;
   private eventPublisher?: IEventPublisher;
 
-  constructor(options?: { eventPublisher?: IEventPublisher }) {
+  constructor(options?: { eventPublisher?: IEventPublisher; db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> } }) {
     this.eventPublisher = options?.eventPublisher;
+    if (options?.db) {
+      this.rollbackRepository = new RollbackRepository(options.db);
+    }
   }
 
   /**
@@ -37,7 +40,7 @@ export class RollbackService {
     reason: string,
     triggeredBy: string,
     targetVersion?: string
-  ): Promise<RollbackInfo> {
+  ): Promise<RollbackEntity> {
     // Check if deployment is in a rollbackable state
     if (!this.isRollbackable(deployment.status)) {
       throw new Error(
@@ -52,36 +55,51 @@ export class RollbackService {
       );
     }
 
-    const rollbackInfo: RollbackInfo = {
-      id: uuidv4(),
+    const rollbackId = uuidv4();
+    const startedAt = new Date();
+
+    if (this.rollbackRepository) {
+      const entity = await this.rollbackRepository.create({
+        id: rollbackId,
+        deploymentId: deployment.id,
+        rollbackType: 'manual',
+        reason,
+        triggeredBy,
+        startedAt,
+        status: 'pending',
+        previousVersion: deployment.version,
+        targetVersion: targetVersion ?? null,
+      });
+
+      // Publish rollback started event
+      await this.publishEvent(DeployEvents.ROLLBACK_STARTED, {
+        rollbackId: entity.id,
+        deploymentId: deployment.id,
+        appName: deployment.appName,
+        version: deployment.version,
+        targetVersion,
+        reason,
+        triggeredBy,
+      });
+
+      return entity;
+    }
+
+    // Memory fallback
+    return {
+      id: rollbackId,
       deploymentId: deployment.id,
       reason,
       triggeredBy,
       status: 'pending',
       targetVersion,
-      startedAt: new Date(),
+      startedAt,
+      rollbackType: 'manual',
+      previousVersion: deployment.version,
+      completedAt: null,
+      errorMessage: null,
+      createdAt: new Date(),
     };
-
-    // Store rollback info
-    this.rollbacks.set(rollbackInfo.id, rollbackInfo);
-
-    // Add to history
-    const history = this.rollbackHistory.get(deployment.id) || [];
-    history.push(rollbackInfo);
-    this.rollbackHistory.set(deployment.id, history);
-
-    // Publish rollback started event
-    await this.publishEvent(DeployEvents.ROLLBACK_STARTED, {
-      rollbackId: rollbackInfo.id,
-      deploymentId: deployment.id,
-      appName: deployment.appName,
-      version: deployment.version,
-      targetVersion,
-      reason,
-      triggeredBy,
-    });
-
-    return rollbackInfo;
   }
 
   /**
@@ -89,10 +107,12 @@ export class RollbackService {
    */
   async executeRollback(
     deployment: Deployment,
-    rollbackInfo: RollbackInfo
-  ): Promise<{ rollback: RollbackInfo; deployment: Deployment }> {
+    rollbackInfo: RollbackEntity
+  ): Promise<{ rollback: RollbackEntity; deployment: Deployment }> {
     // Update rollback status to running
-    rollbackInfo.status = 'running';
+    if (this.rollbackRepository) {
+      await this.rollbackRepository.updateStatus(rollbackInfo.id, 'running');
+    }
 
     try {
       // Determine target version for rollback
@@ -107,18 +127,16 @@ export class RollbackService {
       }
 
       // Execute rollback using the same strategy as the original deployment
-      await this.performRollback(deployment, targetVersion);
+      await this.performRollback(deployment, targetVersion ?? '');
 
       // Update rollback info
-      rollbackInfo.status = 'completed';
-      rollbackInfo.completedAt = new Date();
-      rollbackInfo.targetVersion = targetVersion;
+      const completedAt = new Date();
+      if (this.rollbackRepository) {
+        await this.rollbackRepository.updateStatus(rollbackInfo.id, 'completed', completedAt);
+      }
 
       // Update deployment status
       deployment.status = 'rolled_back';
-      deployment.rollbackInfo = rollbackInfo;
-      deployment.completedAt = new Date();
-      deployment.updatedAt = new Date();
 
       // Publish rollback completed event
       await this.publishEvent(DeployEvents.ROLLBACK_COMPLETED, {
@@ -126,20 +144,18 @@ export class RollbackService {
         deploymentId: deployment.id,
         appName: deployment.appName,
         targetVersion,
-        completedAt: rollbackInfo.completedAt,
+        completedAt,
       });
 
       return { rollback: rollbackInfo, deployment };
     } catch (error: any) {
       // Update rollback info with failure
-      rollbackInfo.status = 'failed';
-      rollbackInfo.error = error.message;
-      rollbackInfo.completedAt = new Date();
+      if (this.rollbackRepository) {
+        await this.rollbackRepository.updateStatus(rollbackInfo.id, 'failed', new Date(), error.message);
+      }
 
-      // Update deployment status
       deployment.status = 'failed';
       deployment.error = `Rollback failed: ${error.message}`;
-      deployment.updatedAt = new Date();
 
       return { rollback: rollbackInfo, deployment };
     }
@@ -167,22 +183,31 @@ export class RollbackService {
   /**
    * Get rollback history for a deployment
    */
-  getRollbackHistory(deploymentId: string): RollbackInfo[] {
-    return this.rollbackHistory.get(deploymentId) || [];
+  async getRollbackHistory(deploymentId: string): Promise<RollbackEntity[]> {
+    if (this.rollbackRepository) {
+      return await this.rollbackRepository.findByDeploymentId(deploymentId);
+    }
+    return [];
   }
 
   /**
    * Get rollback by ID
    */
-  getRollbackById(rollbackId: string): RollbackInfo | null {
-    return this.rollbacks.get(rollbackId) || null;
+  async getRollbackById(rollbackId: string): Promise<RollbackEntity | null> {
+    if (this.rollbackRepository) {
+      return await this.rollbackRepository.findById(rollbackId) ?? null;
+    }
+    return null;
   }
 
   /**
    * Get all rollbacks
    */
-  getAllRollbacks(): RollbackInfo[] {
-    return Array.from(this.rollbacks.values());
+  async getAllRollbacks(): Promise<RollbackEntity[]> {
+    if (this.rollbackRepository) {
+      return await this.rollbackRepository.findAll();
+    }
+    return [];
   }
 
   /**
@@ -210,25 +235,10 @@ export class RollbackService {
         versionParts[versionParts.length - 1] = (patch - 1).toString();
         return versionParts.join('.');
       }
-      // If patch is 0, try decrementing minor version
-      const minor = parseInt(versionParts[versionParts.length - 2]);
-      if (minor > 0) {
-        versionParts[versionParts.length - 2] = (minor - 1).toString();
-        versionParts[versionParts.length - 1] = '0';
-        return versionParts.join('.');
-      }
     }
 
     // Fallback: simulate a previous version
     return '0.9.0';
-  }
-
-  /**
-   * Clear all stored data (for testing)
-   */
-  static clearAll(): void {
-    // Since we can't access private members statically,
-    // this is handled in tests by creating new instances
   }
 
   // ==================== Private Methods ====================

@@ -17,20 +17,44 @@ import {
   DeploymentStatus,
   DeploymentStrategyType,
 } from './types';
+import { DeploymentHistoryRepository, DeploymentHistoryEntity } from '../../repositories/DeploymentHistoryRepository';
 
 /**
  * Deployment history and audit service
  */
 export class DeploymentHistoryService {
-  // In-memory storage (production should use database)
-  private deployments: Map<string, Deployment> = new Map();
+  private deploymentRepository?: DeploymentHistoryRepository;
   private auditTrail: AuditTrailEntry[] = [];
+
+  constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+    if (db) {
+      this.deploymentRepository = new DeploymentHistoryRepository(db);
+    }
+  }
 
   /**
    * Record a deployment
    */
   async recordDeployment(deployment: Deployment): Promise<Deployment> {
-    this.deployments.set(deployment.id, deployment);
+    if (this.deploymentRepository) {
+      await this.deploymentRepository.create({
+        id: deployment.id,
+        tenantId: 'default',
+        projectId: null,
+        pipelineRunId: null,
+        buildId: null,
+        environment: deployment.environment,
+        status: deployment.status,
+        strategy: deployment.strategy,
+        config: {},
+        deployedBy: deployment.initiatedBy,
+        startedAt: deployment.startedAt,
+        completedAt: deployment.completedAt ?? null,
+        durationMs: null,
+        errorMessage: deployment.error ?? null,
+        rollbackTo: null,
+      });
+    }
 
     // Add audit trail entry
     await this.addAuditTrailEntry({
@@ -56,16 +80,16 @@ export class DeploymentHistoryService {
     deploymentId: string,
     updates: Partial<Deployment>
   ): Promise<Deployment | null> {
-    const deployment = this.deployments.get(deploymentId);
-    if (!deployment) {
-      return null;
+    if (this.deploymentRepository) {
+      if (updates.status) {
+        await this.deploymentRepository.updateStatus(
+          deploymentId,
+          updates.status,
+          updates.completedAt,
+          updates.error,
+        );
+      }
     }
-
-    // Apply updates
-    Object.assign(deployment, updates);
-    deployment.updatedAt = new Date();
-
-    this.deployments.set(deploymentId, deployment);
 
     // Add audit trail entry
     await this.addAuditTrailEntry({
@@ -74,249 +98,65 @@ export class DeploymentHistoryService {
       performedBy: updates.initiatedBy || 'system',
       details: {
         updatedFields: Object.keys(updates),
-        status: deployment.status,
+        status: updates.status,
       },
     });
 
-    return deployment;
+    return null; // Repository handles persistence
   }
 
   /**
    * Get deployment by ID
    */
-  async getDeployment(deploymentId: string): Promise<Deployment | null> {
-    return this.deployments.get(deploymentId) || null;
+  async getDeployment(deploymentId: string): Promise<DeploymentHistoryEntity | null> {
+    if (this.deploymentRepository) {
+      return await this.deploymentRepository.findById(deploymentId);
+    }
+    return null;
   }
 
   /**
    * Get deployment history with filtering and pagination
    */
   async getHistory(query: HistoryQuery = {}): Promise<HistoryQueryResponse> {
-    let deployments = Array.from(this.deployments.values());
+    if (this.deploymentRepository) {
+      let deployments = await this.deploymentRepository.findAll();
 
-    // Apply filters
-    if (query.appName) {
-      deployments = deployments.filter((d) => d.appName === query.appName);
+      // Apply filters
+      if (query.environment) {
+        deployments = deployments.filter(d => d.environment === query.environment);
+      }
+      if (query.status) {
+        deployments = deployments.filter(d => d.status === query.status);
+      }
+
+      // Sort by start time (most recent first)
+      deployments.sort((a, b) => (b.createdAt?.getTime() ?? 0) - (a.createdAt?.getTime() ?? 0));
+
+      const total = deployments.length;
+      const limit = query.limit || 20;
+      const offset = query.offset || 0;
+      const data = deployments.slice(offset, offset + limit);
+
+      return {
+        data: data as unknown as Deployment[],
+        total,
+        limit,
+        offset,
+      };
     }
 
-    if (query.version) {
-      deployments = deployments.filter((d) => d.version === query.version);
-    }
-
-    if (query.environment) {
-      deployments = deployments.filter(
-        (d) => d.environment === query.environment
-      );
-    }
-
-    if (query.status) {
-      deployments = deployments.filter((d) => d.status === query.status);
-    }
-
-    if (query.strategy) {
-      deployments = deployments.filter((d) => d.strategy === query.strategy);
-    }
-
-    if (query.initiatedBy) {
-      deployments = deployments.filter(
-        (d) => d.initiatedBy === query.initiatedBy
-      );
-    }
-
-    if (query.startDate) {
-      deployments = deployments.filter(
-        (d) => d.startedAt >= query.startDate!
-      );
-    }
-
-    if (query.endDate) {
-      deployments = deployments.filter(
-        (d) => d.startedAt <= query.endDate!
-      );
-    }
-
-    // Sort by start time (most recent first)
-    deployments.sort(
-      (a, b) => b.startedAt.getTime() - a.startedAt.getTime()
-    );
-
-    const total = deployments.length;
-    const limit = query.limit || 20;
-    const offset = query.offset || 0;
-    const data = deployments.slice(offset, offset + limit);
-
-    return {
-      data,
-      total,
-      limit,
-      offset,
-    };
-  }
-
-  /**
-   * Get deployment metrics
-   */
-  async getMetrics(filters?: {
-    appName?: string;
-    environment?: string;
-    startDate?: Date;
-    endDate?: Date;
-  }): Promise<DeploymentMetrics> {
-    let deployments = Array.from(this.deployments.values());
-
-    // Apply filters
-    if (filters?.appName) {
-      deployments = deployments.filter((d) => d.appName === filters.appName);
-    }
-
-    if (filters?.environment) {
-      deployments = deployments.filter(
-        (d) => d.environment === filters.environment
-      );
-    }
-
-    if (filters?.startDate) {
-      deployments = deployments.filter(
-        (d) => d.startedAt >= filters.startDate!
-      );
-    }
-
-    if (filters?.endDate) {
-      deployments = deployments.filter(
-        (d) => d.startedAt <= filters.endDate!
-      );
-    }
-
-    const total = deployments.length;
-    const successful = deployments.filter(
-      (d) => d.status === 'completed'
-    ).length;
-    const failed = deployments.filter((d) => d.status === 'failed').length;
-    const rolledBack = deployments.filter(
-      (d) => d.status === 'rolled_back'
-    ).length;
-
-    // Calculate durations for completed deployments
-    const durations = deployments
-      .filter(
-        (d) =>
-          d.completedAt && d.startedAt && d.status !== 'pending'
-      )
-      .map((d) => d.completedAt!.getTime() - d.startedAt.getTime());
-
-    const averageDurationMs =
-      durations.length > 0
-        ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length)
-        : 0;
-
-    const medianDurationMs =
-      durations.length > 0
-        ? this.calculateMedian(durations)
-        : 0;
-
-    // Count by strategy
-    const byStrategy: Record<string, number> = {};
-    for (const d of deployments) {
-      byStrategy[d.strategy] = (byStrategy[d.strategy] || 0) + 1;
-    }
-
-    // Count by environment
-    const byEnvironment: Record<string, number> = {};
-    for (const d of deployments) {
-      byEnvironment[d.environment] = (byEnvironment[d.environment] || 0) + 1;
-    }
-
-    // Count by status
-    const byStatus: Record<string, number> = {};
-    for (const d of deployments) {
-      byStatus[d.status] = (byStatus[d.status] || 0) + 1;
-    }
-
-    return {
-      totalDeployments: total,
-      successfulDeployments: successful,
-      failedDeployments: failed,
-      rolledBackDeployments: rolledBack,
-      successRate: total > 0 ? Math.round((successful / total) * 100) : 0,
-      averageDurationMs,
-      medianDurationMs,
-      rollbackRate: total > 0 ? Math.round((rolledBack / total) * 100) : 0,
-      byStrategy,
-      byEnvironment,
-      byStatus,
-    };
-  }
-
-  /**
-   * Get audit trail for a deployment
-   */
-  async getAuditTrail(deploymentId: string): Promise<AuditTrailEntry[]> {
-    return this.auditTrail.filter(
-      (entry) => entry.deploymentId === deploymentId
-    );
-  }
-
-  /**
-   * Get all audit trail entries
-   */
-  async getAllAuditTrail(): Promise<AuditTrailEntry[]> {
-    return [...this.auditTrail].sort(
-      (a, b) => b.timestamp.getTime() - a.timestamp.getTime()
-    );
-  }
-
-  /**
-   * Get deployments by app name
-   */
-  async getByAppName(appName: string): Promise<Deployment[]> {
-    return Array.from(this.deployments.values())
-      .filter((d) => d.appName === appName)
-      .sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime());
+    return { data: [], total: 0, limit: 20, offset: 0 };
   }
 
   /**
    * Get deployments by environment
    */
-  async getByEnvironment(environment: string): Promise<Deployment[]> {
-    return Array.from(this.deployments.values())
-      .filter((d) => d.environment === environment)
-      .sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime());
-  }
-
-  /**
-   * Get latest deployment for an app in an environment
-   */
-  async getLatestDeployment(
-    appName: string,
-    environment: string
-  ): Promise<Deployment | null> {
-    const deployments = Array.from(this.deployments.values())
-      .filter(
-        (d) =>
-          d.appName === appName && d.environment === environment
-      )
-      .sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime());
-
-    return deployments.length > 0 ? deployments[0] : null;
-  }
-
-  /**
-   * Get the last successful deployment for an app in an environment
-   */
-  async getLastSuccessfulDeployment(
-    appName: string,
-    environment: string
-  ): Promise<Deployment | null> {
-    const deployments = Array.from(this.deployments.values())
-      .filter(
-        (d) =>
-          d.appName === appName &&
-          d.environment === environment &&
-          d.status === 'completed'
-      )
-      .sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime());
-
-    return deployments.length > 0 ? deployments[0] : null;
+  async getByEnvironment(environment: string): Promise<DeploymentHistoryEntity[]> {
+    if (this.deploymentRepository) {
+      return await this.deploymentRepository.findByEnvironment(environment);
+    }
+    return [];
   }
 
   /**

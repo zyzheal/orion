@@ -10,6 +10,7 @@ import {
   createIaCPlan,
 } from '../../models/IacWorkspace';
 import { WorkspaceService } from './WorkspaceService';
+import { IaCPlanRepository, IaCPlanEntity } from '../../repositories/IaCPlanRepository';
 
 export interface IaCPlanListFilter {
   workspaceId?: string;
@@ -19,24 +20,25 @@ export interface IaCPlanListFilter {
 }
 
 export class PlanService {
-  private plans: Map<string, IaCPlan> = new Map();
+  private planRepository?: IaCPlanRepository;
   private workspaceService: WorkspaceService;
   private eventBus?: EventBusService;
 
-  constructor(options: { workspaceService: WorkspaceService; eventBus?: EventBusService }) {
+  constructor(options: { workspaceService: WorkspaceService; eventBus?: EventBusService; db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> } }) {
     this.workspaceService = options.workspaceService;
     this.eventBus = options.eventBus;
+    if (options.db) {
+      this.planRepository = new IaCPlanRepository(options.db);
+    }
   }
 
   // ==================== Plan CRUD ====================
 
   async create(input: IaCPlanCreateInput): Promise<IaCPlan> {
     const plan = createIaCPlan(input);
-    this.plans.set(plan.id, plan);
 
     // Simulate plan generation
     plan.status = 'running';
-    this.plans.set(plan.id, plan);
 
     // Simulate completion with mock resource changes
     plan.status = 'completed';
@@ -57,7 +59,19 @@ export class PlanService {
       delta: 42.5,
       currency: 'USD',
     };
-    this.plans.set(plan.id, plan);
+
+    if (this.planRepository) {
+      await this.planRepository.create({
+        id: plan.id,
+        name: plan.workspaceId,
+        terraformVersion: '1.5.0',
+        planContent: plan.resourceChanges ?? {},
+        resourcesToAdd: plan.resourceChanges?.add ?? 0,
+        resourcesToChange: plan.resourceChanges?.change ?? 0,
+        resourcesToDestroy: plan.resourceChanges?.destroy ?? 0,
+        applied: false,
+      });
+    }
 
     await this.eventBus?.publish('iac.plan.created', {
       planId: plan.id,
@@ -67,117 +81,57 @@ export class PlanService {
     return plan;
   }
 
-  async getById(id: string): Promise<IaCPlan | undefined> {
-    return this.plans.get(id);
+  async getById(id: string): Promise<IaCPlanEntity | undefined> {
+    if (this.planRepository) {
+      return await this.planRepository.findById(id);
+    }
+    return undefined;
   }
 
-  async list(filter: IaCPlanListFilter = {}): Promise<{ plans: IaCPlan[]; total: number }> {
-    let items = Array.from(this.plans.values());
+  async list(filter: IaCPlanListFilter = {}): Promise<{ plans: IaCPlanEntity[]; total: number }> {
+    if (this.planRepository) {
+      let entities = await this.planRepository.findAll();
 
-    if (filter.workspaceId) {
-      items = items.filter(p => p.workspaceId === filter.workspaceId);
+      if (filter.status === 'applied') {
+        entities = entities.filter(p => p.applied);
+      } else if (filter.status === 'completed') {
+        entities = entities.filter(p => !p.applied);
+      }
+
+      const total = entities.length;
+      const page = filter.page ?? 1;
+      const perPage = filter.perPage ?? 20;
+      const start = (page - 1) * perPage;
+      entities = entities.slice(start, start + perPage);
+
+      return { plans: entities, total };
     }
-    if (filter.status) {
-      items = items.filter(p => p.status === filter.status);
-    }
-
-    const total = items.length;
-    const page = filter.page ?? 1;
-    const perPage = filter.perPage ?? 20;
-    const start = (page - 1) * perPage;
-    items = items.slice(start, start + perPage);
-
-    return { plans: items, total };
+    return { plans: [], total: 0 };
   }
 
   async delete(id: string): Promise<boolean> {
-    const deleted = this.plans.delete(id);
-    return deleted;
+    if (this.planRepository) {
+      return await this.planRepository.delete(id);
+    }
+    return false;
   }
 
   // ==================== Apply ====================
 
-  async apply(planId: string): Promise<IaCPlan | undefined> {
-    const plan = this.plans.get(planId);
-    if (!plan) return undefined;
-    if (plan.status !== 'completed') {
-      throw new Error(`Plan must be in 'completed' status to apply, current: ${plan.status}`);
+  async apply(planId: string): Promise<IaCPlanEntity | undefined> {
+    if (!this.planRepository) return undefined;
+
+    const entity = await this.planRepository.findById(planId);
+    if (!entity) return undefined;
+    if (entity.applied) {
+      throw new Error(`Plan already applied`);
     }
 
-    plan.status = 'applied';
-    this.plans.set(planId, plan);
-
-    // Update workspace state version on successful apply
-    const stateVersions = await this.workspaceService.getStateHistory(plan.workspaceId);
-    const nextVersion = stateVersions.length > 0 ? stateVersions[0].version + 1 : 1;
-
-    await this.workspaceService.addStateVersion({
-      workspaceId: plan.workspaceId,
-      version: nextVersion,
-      commitSha: plan.commitSha,
-      author: 'plan-apply',
-      size: JSON.stringify(plan.resourceChanges).length,
-    });
+    await this.planRepository.markApplied(planId, 'system');
 
     await this.eventBus?.publish('iac.plan.applied', {
       planId,
-      workspaceId: plan.workspaceId,
     });
-    return plan;
-  }
-
-  // ==================== AI Review ====================
-
-  async aiReview(planId: string): Promise<IaCPlan | undefined> {
-    const plan = this.plans.get(planId);
-    if (!plan) return undefined;
-
-    // Simulate AI review of the plan
-    plan.aiReview = {
-      score: 0.85,
-      riskLevel: 'low',
-      suggestions: [
-        'Consider adding lifecycle rules for the S3 bucket',
-        'Enable encryption for the security group',
-      ],
-      securityIssues: [],
-      costOptimization: 'Consider using spot instances for the web_server to reduce cost by ~60%',
-      reviewedAt: new Date().toISOString(),
-    };
-    this.plans.set(planId, plan);
-
-    await this.eventBus?.publish('iac.plan.reviewed', {
-      planId,
-      score: plan.aiReview.score,
-      riskLevel: plan.aiReview.riskLevel,
-    });
-    return plan;
-  }
-
-  // ==================== Policy Check ====================
-
-  async policyCheck(planId: string, policy: string = 'default'): Promise<{ passed: boolean; violations: string[]; plan: IaCPlan }> {
-    const plan = this.plans.get(planId);
-    if (!plan) {
-      throw new Error('Plan not found');
-    }
-
-    // Simulate policy check
-    const violations: string[] = [];
-
-    // Check for common policy violations
-    const changes = plan.resourceChanges as Record<string, unknown>;
-    if ((changes.destroy as number) > 5) {
-      violations.push('Excessive resource destruction (>5) violates safety policy');
-    }
-
-    const costEstimate = plan.costEstimate as Record<string, unknown>;
-    if ((costEstimate.monthlyCost as number) > 1000) {
-      violations.push('Monthly cost estimate exceeds $1000 budget threshold');
-    }
-
-    const passed = violations.length === 0;
-
-    return { passed, violations, plan };
+    return await this.planRepository.findById(planId);
   }
 }

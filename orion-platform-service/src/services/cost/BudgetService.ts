@@ -19,6 +19,7 @@ import {
   AlertStatus,
   BudgetStatus,
 } from '../../models/CostRecord';
+import { BudgetRepository, BudgetEntity } from '../../repositories/BudgetRepository';
 
 export interface BudgetListFilter {
   type?: string;
@@ -53,71 +54,121 @@ export interface CostSummary {
 }
 
 export class BudgetService {
-  private budgets: Map<string, Budget> = new Map();
+  private budgetRepository?: BudgetRepository;
   private costRecords: Map<string, CostRecord> = new Map();
   private alertRules: Map<string, AlertRule> = new Map();
   private modelPricing: Map<string, ModelPricing> = new Map();
+
+  constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+    if (db) {
+      this.budgetRepository = new BudgetRepository(db);
+    }
+  }
 
   // ==================== Budget CRUD ====================
 
   async createBudget(input: BudgetCreateInput): Promise<Budget> {
     const budget = createBudget(input);
-    this.budgets.set(budget.id, budget);
+    if (this.budgetRepository) {
+      const entity = await this.budgetRepository.create({
+        id: budget.id,
+        name: budget.name,
+        type: budget.type,
+        scope: budget.scope,
+        period: budget.period,
+        amount: budget.amount,
+        thresholds: budget.thresholds,
+        status: budget.status,
+        spent: budget.spent,
+        createdAt: budget.createdAt,
+        updatedAt: budget.updatedAt,
+      });
+      return this.mapEntityToBudget(entity);
+    }
     return budget;
   }
 
   async getBudgetById(id: string): Promise<Budget | undefined> {
-    return this.budgets.get(id);
+    if (this.budgetRepository) {
+      const entity = await this.budgetRepository.findById(id);
+      return entity ? this.mapEntityToBudget(entity) : undefined;
+    }
+    // Memory fallback removed - use Repository
+    return undefined;
   }
 
   async listBudgets(filter: BudgetListFilter = {}): Promise<{ budgets: Budget[]; total: number }> {
-    let items = Array.from(this.budgets.values());
+    if (this.budgetRepository) {
+      let items = await this.budgetRepository.findAll();
 
-    if (filter.type) {
-      items = items.filter((b) => b.type === filter.type);
-    }
-    if (filter.scope) {
-      items = items.filter((b) => b.scope === filter.scope);
-    }
-    if (filter.status) {
-      items = items.filter((b) => b.status === filter.status);
-    }
+      if (filter.type) {
+        items = items.filter((b) => b.type === filter.type);
+      }
+      if (filter.scope) {
+        items = items.filter((b) => b.scope === filter.scope);
+      }
+      if (filter.status) {
+        items = items.filter((b) => b.status === filter.status);
+      }
 
-    const total = items.length;
-    const page = filter.page ?? 1;
-    const perPage = filter.perPage ?? 20;
-    const start = (page - 1) * perPage;
-    const paged = items.slice(start, start + perPage);
+      const total = items.length;
+      const page = filter.page ?? 1;
+      const perPage = filter.perPage ?? 20;
+      const start = (page - 1) * perPage;
+      const paged = items.slice(start, start + perPage);
 
-    return { budgets: paged, total };
+      return { budgets: paged.map(e => this.mapEntityToBudget(e)), total };
+    }
+    return { budgets: [], total: 0 };
   }
 
   async updateBudget(id: string, input: BudgetUpdateInput): Promise<Budget | undefined> {
-    const budget = this.budgets.get(id);
-    if (!budget) return undefined;
+    if (this.budgetRepository) {
+      const entity = await this.budgetRepository.findById(id);
+      if (!entity) return undefined;
 
-    if (input.name !== undefined) budget.name = input.name;
-    if (input.amount !== undefined) budget.amount = input.amount;
-    if (input.thresholds !== undefined) budget.thresholds = input.thresholds;
-    if (input.status !== undefined) budget.status = input.status;
-    budget.updatedAt = new Date();
+      const updates: Partial<BudgetEntity> = {};
+      if (input.name !== undefined) updates.name = input.name;
+      if (input.amount !== undefined) updates.amount = input.amount;
+      if (input.thresholds !== undefined) updates.thresholds = input.thresholds;
+      if (input.status !== undefined) updates.status = input.status;
+      updates.updatedAt = new Date();
 
-    this.budgets.set(id, budget);
-    return budget;
+      const updated = await this.budgetRepository.update(id, updates);
+      return updated ? this.mapEntityToBudget(updated) : undefined;
+    }
+    return undefined;
   }
 
   async deleteBudget(id: string): Promise<boolean> {
-    return this.budgets.delete(id);
+    if (this.budgetRepository) {
+      return await this.budgetRepository.delete(id);
+    }
+    return false;
   }
 
   async restoreBudget(id: string): Promise<Budget | undefined> {
-    const budget = this.budgets.get(id);
-    if (!budget) return undefined;
+    if (this.budgetRepository) {
+      const updated = await this.budgetRepository.update(id, { status: 'active', updatedAt: new Date() });
+      return updated ? this.mapEntityToBudget(updated) : undefined;
+    }
+    return undefined;
+  }
 
-    budget.status = 'active';
-    budget.updatedAt = new Date();
-    this.budgets.set(id, budget);
-    return budget;
+  private mapEntityToBudget(entity: BudgetEntity): Budget {
+    return {
+      id: entity.id,
+      name: entity.name,
+      type: entity.type,
+      scope: entity.scope,
+      period: entity.period,
+      amount: entity.amount,
+      thresholds: entity.thresholds,
+      status: entity.status as BudgetStatus,
+      spent: entity.spent,
+      createdAt: entity.createdAt,
+      updatedAt: entity.updatedAt,
+    };
   }
 
   // ==================== Cost Tracking ====================
@@ -128,13 +179,13 @@ export class BudgetService {
 
     // 更新相关预算的已消耗金额
     if (input.tenantId) {
-      this._updateBudgetSpent('tenant', input.tenantId, input.totalCost);
+      await this._updateBudgetSpent('tenant', input.tenantId, input.totalCost);
     }
     if (input.projectId) {
-      this._updateBudgetSpent('project', input.projectId, input.totalCost);
+      await this._updateBudgetSpent('project', input.projectId, input.totalCost);
     }
     if (input.userId) {
-      this._updateBudgetSpent('user', input.userId, input.totalCost);
+      await this._updateBudgetSpent('user', input.userId, input.totalCost);
     }
 
     return record;
@@ -246,7 +297,7 @@ export class BudgetService {
     status: 'ok' | 'warning' | 'critical' | 'exceeded';
     remaining: number;
   }> {
-    const budget = this.budgets.get(budgetId);
+    const budget = await this.getBudgetById(budgetId);
     if (!budget) {
       throw new Error(`Budget ${budgetId} not found`);
     }
@@ -342,9 +393,7 @@ export class BudgetService {
     budgetHealth: { budgetId: string; name: string; usagePercent: number; status: string }[];
   }> {
     const summary = await this.getCostSummary();
-    const activeBudgets = Array.from(this.budgets.values()).filter(
-      (b) => b.status === 'active'
-    );
+    const { budgets: activeBudgets } = await this.listBudgets({ status: 'active' });
     const activeAlerts = await this.getActiveAlerts();
 
     // Top 5 模型按成本排序
@@ -386,22 +435,17 @@ export class BudgetService {
 
   // ==================== Internal Helpers ====================
 
-  private _updateBudgetSpent(type: string, scope: string, cost: number): void {
-    for (const budget of this.budgets.values()) {
-      if (
-        budget.type === type &&
-        budget.scope === scope &&
-        budget.status === 'active'
-      ) {
-        budget.spent += cost;
-        budget.updatedAt = new Date();
+  private async _updateBudgetSpent(type: string, scope: string, cost: number): Promise<void> {
+    if (!this.budgetRepository) return;
 
-        // 检查是否超出预算
-        if (budget.spent >= budget.amount) {
-          budget.status = 'exhausted';
-        }
+    const entity = await this.budgetRepository.findByEntity(type, scope);
+    if (entity && entity.status === 'active') {
+      const newSpent = entity.spent + cost;
+      await this.budgetRepository.updateSpent(entity.id, newSpent);
 
-        this.budgets.set(budget.id, budget);
+      // 检查是否超出预算
+      if (newSpent >= entity.amount) {
+        await this.budgetRepository.update(entity.id, { status: 'exhausted', updatedAt: new Date() });
       }
     }
   }
