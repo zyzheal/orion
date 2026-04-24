@@ -23,6 +23,7 @@ import {
 } from './types';
 import { RiskScoringEngine } from './RiskScoringEngine';
 import { HealthCheckService } from './HealthCheckService';
+import { RiskAssessmentRepository, RiskAssessmentEntity } from '../../repositories/RiskAssessmentRepository';
 
 /**
  * 风险评估服务
@@ -31,17 +32,19 @@ export class RiskAssessmentService {
   private scoringEngine: RiskScoringEngine;
   private healthCheckService: HealthCheckService;
   private eventBus: any;
-  private assessmentHistory: Map<string, RiskAssessment>;
+  private assessmentRepository?: RiskAssessmentRepository;
   private reportHistory: Map<string, RiskReport>;
 
-  constructor(config?: RiskAssessmentServiceConfig) {
+  constructor(config?: RiskAssessmentServiceConfig, db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
     this.scoringEngine = new RiskScoringEngine();
     this.healthCheckService = new HealthCheckService({
       config: config?.healthCheckConfig,
     });
     this.eventBus = config?.eventBus;
-    this.assessmentHistory = new Map();
     this.reportHistory = new Map();
+    if (db) {
+      this.assessmentRepository = new RiskAssessmentRepository(db);
+    }
   }
 
   /**
@@ -109,8 +112,21 @@ export class RiskAssessmentService {
       metadata: healthCheckResult ? { healthCheckResult } : undefined,
     };
 
-    // 存储评估历史
-    this.assessmentHistory.set(assessmentId, assessment);
+    // 存储评估到 Repository
+    if (this.assessmentRepository) {
+      await this.assessmentRepository.create({
+        tenantId: tenantId ?? 'default',
+        name: `Risk assessment for deployment ${params.deploymentId}`,
+        type: 'deployment',
+        targetType: 'deployment',
+        targetId: params.deploymentId,
+        score: riskScore,
+        riskLevel,
+        findings: factors,
+        status: 'completed',
+        createdAt: new Date(),
+      });
+    }
 
     // 发布风险评估事件
     await this.publishRiskAssessmentEvent(assessment, healthCheckResult);
@@ -148,7 +164,21 @@ export class RiskAssessmentService {
       tenantId,
     };
 
-    this.assessmentHistory.set(assessment.id, assessment);
+    if (this.assessmentRepository) {
+      await this.assessmentRepository.create({
+        tenantId: tenantId ?? 'default',
+        name: `Risk assessment for change ${params.changeId}`,
+        type: 'change',
+        targetType: 'change',
+        targetId: params.changeId,
+        score: riskScore,
+        riskLevel,
+        findings: factors,
+        status: 'completed',
+        createdAt: new Date(),
+      });
+    }
+
     await this.publishRiskAssessmentEvent(assessment);
 
     return assessment;
@@ -157,54 +187,61 @@ export class RiskAssessmentService {
   /**
    * 获取评估历史
    */
-  getAssessmentHistory(filter?: {
+  async getAssessmentHistory(filter?: {
     targetType?: RiskTargetType;
     targetId?: string;
     tenantId?: string;
     riskLevel?: RiskLevel;
     since?: Date;
     limit?: number;
-  }): RiskAssessment[] {
-    let results = Array.from(this.assessmentHistory.values());
+  }): Promise<RiskAssessment[]> {
+    if (this.assessmentRepository) {
+      let entities: RiskAssessmentEntity[];
 
-    if (filter?.targetType) {
-      results = results.filter((a) => a.targetType === filter.targetType);
-    }
-    if (filter?.targetId) {
-      results = results.filter((a) => a.targetId === filter.targetId);
-    }
-    if (filter?.tenantId) {
-      results = results.filter((a) => a.tenantId === filter.tenantId);
-    }
-    if (filter?.riskLevel) {
-      results = results.filter((a) => a.riskLevel === filter.riskLevel);
-    }
-    if (filter?.since) {
-      results = results.filter((a) => a.createdAt >= filter.since!);
-    }
+      if (filter?.targetType && filter?.targetId) {
+        entities = await this.assessmentRepository.findByTarget(filter.targetType, filter.targetId);
+      } else if (filter?.tenantId) {
+        entities = await this.assessmentRepository.findByTenant(filter.tenantId, { limit: filter?.limit ?? 20 });
+      } else {
+        const result = await this.assessmentRepository.findAll({ limit: filter?.limit ?? 20 });
+        entities = result.entities;
+      }
 
-    // 按创建时间倒序
-    results.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-
-    if (filter?.limit) {
-      results = results.slice(0, filter.limit);
+      return entities.map(e => this.mapEntityToAssessment(e));
     }
-
-    return results;
+    return [];
   }
 
   /**
    * 获取单个评估详情
    */
-  getAssessmentById(assessmentId: string): RiskAssessment | undefined {
-    return this.assessmentHistory.get(assessmentId);
+  async getAssessmentById(assessmentId: string): Promise<RiskAssessment | undefined> {
+    if (this.assessmentRepository) {
+      const entity = await this.assessmentRepository.findById(assessmentId);
+      return entity ? this.mapEntityToAssessment(entity) : undefined;
+    }
+    return undefined;
+  }
+
+  private mapEntityToAssessment(entity: RiskAssessmentEntity): RiskAssessment {
+    return {
+      id: entity.id,
+      targetType: entity.targetType as RiskTargetType,
+      targetId: entity.targetId,
+      riskScore: entity.score ?? 0,
+      riskLevel: entity.riskLevel as RiskLevel ?? 'Medium',
+      factors: entity.findings as RiskFactor[] ?? [],
+      recommendations: [],
+      createdAt: entity.createdAt,
+      tenantId: entity.tenantId,
+    };
   }
 
   /**
    * 生成风险评估报告
    */
   async generateReport(assessmentId: string): Promise<RiskReport | null> {
-    const assessment = this.assessmentHistory.get(assessmentId);
+    const assessment = await this.getAssessmentById(assessmentId);
     if (!assessment) return null;
 
     const technicalFactors = assessment.factors.filter((f) => f.category === 'technical');
@@ -290,10 +327,10 @@ export class RiskAssessmentService {
   }
 
   /**
-   * 清空评估历史（用于测试）
+   * 清空报告历史（用于测试）
+   * 注意：评估记录存储在数据库中，需要通过 Repository 删除
    */
   clearHistory(): void {
-    this.assessmentHistory.clear();
     this.reportHistory.clear();
   }
 

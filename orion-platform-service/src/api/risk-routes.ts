@@ -137,7 +137,7 @@ export default async function riskRoutes(
     ) => {
       const { targetType, targetId, tenantId, riskLevel, since, limit } = request.query;
 
-      const assessments = service.getAssessmentHistory({
+      const assessments = await service.getAssessmentHistory({
         targetType,
         targetId,
         tenantId,
@@ -166,7 +166,7 @@ export default async function riskRoutes(
       reply: FastifyReply
     ) => {
       const { id } = request.params;
-      const assessment = service.getAssessmentById(id);
+      const assessment = await service.getAssessmentById(id);
 
       if (!assessment) {
         return reply.status(404).send({
@@ -350,10 +350,11 @@ export default async function riskRoutes(
    * 获取风险评估服务状态
    */
   app.get('/status', async (_request: FastifyRequest, reply: FastifyReply) => {
+    const assessments = await service.getAssessmentHistory();
     return reply.send({
       service: 'risk-assessment',
       status: 'running',
-      assessmentsCount: service.getAssessmentHistory().length,
+      assessmentsCount: assessments.length,
       reportsCount: service.getReportHistory().length,
     });
   });
