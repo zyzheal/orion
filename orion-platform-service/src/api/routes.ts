@@ -226,8 +226,8 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // 注册监控告警 API 路由 (TASK-703)
   await app.register(monitoringRoutes, { prefix: '/monitoring', database: options.database });
 
-  // 注册智能工单 API 路由 (TASK-801)
-  await app.register(ticketingRoutes, { prefix: '/tickets' });
+  // 注册智能工单 API 路由 (TASK-801) - PostgreSQL backed
+  await app.register(ticketingRoutes, { prefix: '/tickets', database: options.database });
 
   // 注册自愈引擎 API 路由 (TASK-702)
   await app.register(selfHealingRoutes, { prefix: '/self-healing' });
@@ -259,8 +259,8 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // 注册效能分析 API 路由
   await app.register(efficiencyRoutes, { prefix: '/efficiency' });
 
-  // 注册 SBOM Attestation API 路由 (P0)
-  await app.register(sbomRoutes, { prefix: '/sbom', eventBus: options.eventBus });
+  // 注册 SBOM Attestation API 路由 (P0) - migrated to PostgreSQL
+  await app.register(sbomRoutes, { prefix: '/sbom', eventBus: options.eventBus, database: options.database });
 
   // 注册 OPA Policy Engine API 路由 (P0) - PostgreSQL backed
   await app.register(policyRoutes, { prefix: '/policies', database: options.database, eventBus: options.eventBus });

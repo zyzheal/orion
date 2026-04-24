@@ -2,15 +2,45 @@
  * TASK-801: Smart Ticketing API Routes
  *
  * Provides endpoints for ticket CRUD, workflow management,
- * assignment, relations, SLA tracking, and reporting.
+ * assignment, relations, SLA-tracking, and reporting.
  * Registered under /api/v1/tickets and /api/v1/ticketing prefixes.
+ *
+ * Migrated to PostgreSQL Repository pattern:
+ * - Core ticket CRUD uses TicketingRepository + TicketingService
+ * - Advanced features (workflow, dispatch, BI) still use TicketService (Map-based)
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { TicketingController } from '../controllers/ticketing/TicketingController';
+import { DatabasePool } from '../services/database';
+import { TicketingController } from './controllers/ticketing/TicketingController';
+import { TicketingRepository } from '../services/ticketing/TicketingRepository';
+import { TicketingService } from '../services/ticketing/TicketingService';
+import { TicketService } from '../services/ticketing/TicketService';
 
-export default async function ticketingRoutes(app: FastifyInstance): Promise<void> {
-  const controller = new TicketingController();
+interface TicketingRoutesOptions {
+  database?: DatabasePool;
+}
+
+export default async function ticketingRoutes(
+  app: FastifyInstance,
+  options: TicketingRoutesOptions
+): Promise<void> {
+  // Initialize Repository and Service with database pool
+  const repository = options.database
+    ? new TicketingRepository(options.database)
+    : undefined;
+
+  const ticketingService = repository
+    ? new TicketingService(repository)
+    : undefined;
+
+  // Initialize controller with both services
+  // - TicketService (Map-based, for advanced features)
+  // - TicketingService (PostgreSQL-backed, for core CRUD)
+  const controller = new TicketingController(
+    new TicketService(),
+    ticketingService
+  );
 
   // ==================== Service Control ====================
 
