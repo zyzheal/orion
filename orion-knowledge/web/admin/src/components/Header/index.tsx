@@ -105,7 +105,7 @@ const Header = () => {
         onOk={() => {
           message.success('退出登录成功，请重新登录');
           setTimeout(() => {
-            localStorage.removeItem('panda_wiki_token');
+            localStorage.removeItem('orion_knowledge_token');
             navigate('/login');
           }, 1500);
         }}

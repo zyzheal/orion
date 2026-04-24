@@ -1,8 +1,8 @@
-# PandaWiki Admin
+# Orion Knowledge Admin
 
 ## 项目概述
 
-PandaWiki Admin 是一个基于现代前端技术栈构建的管理后台，用于管理 PandaWiki 的内容和功能。项目采用 React 19 和 Vite 作为开发工具，集成了丰富的 UI 组件和编辑器功能。
+Orion Knowledge Admin 是一个基于现代前端技术栈构建的管理后台，用于管理 Orion Knowledge 的内容和功能。项目采用 React 19 和 Vite 作为开发工具，集成了丰富的 UI 组件和编辑器功能。
 
 ## 功能特性
 
@@ -25,7 +25,7 @@ PandaWiki Admin 是一个基于现代前端技术栈构建的管理后台，用�
 
 1. 克隆项目：
    ```bash
-   git clone https://github.com/your-repo/PandaWiki.git
+   git clone https://github.com/orion-knowledge/orion-knowledge.git
    ```
 2. 安装依赖：
    ```bash

@@ -16,7 +16,7 @@ const Version = () => {
   const [typeOpen, setTypeOpen] = useState(false);
 
   useEffect(() => {
-    // fetch('https://release.baizhi.cloud/panda-wiki/version.txt')
+    // fetch('https://orion-knowledge.local/release/version.txt')
       .then(response => response.text())
       .then(data => {
         setLatestVersion(data);

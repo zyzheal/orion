@@ -19,7 +19,7 @@ function App() {
   const loginPage = pathname.includes('/login');
   const onlyAllowShareApi = loginPage;
 
-  const token = localStorage.getItem('panda_wiki_token') || '';
+  const token = localStorage.getItem('orion_knowledge_token') || '';
 
   useEffect(() => {
     if (token) {

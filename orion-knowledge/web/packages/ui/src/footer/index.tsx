@@ -338,7 +338,7 @@ const Footer = React.memo(
                 })}
               >
                 <Link
-                  href={'https://pandawiki.docs.baizhi.cloud/'}
+                  href={'#'}
                   target='_blank'
                 >
                   <Stack
@@ -778,7 +778,7 @@ const Footer = React.memo(
                       })}
                     >
                       <Link
-                        href={'https://pandawiki.docs.baizhi.cloud/'}
+                        href={'#'}
                         target='_blank'
                       >
                         <Stack

@@ -174,8 +174,8 @@ export const ModelProvider = {
     code: true,
     embedding: true,
     rerank: true,
-    modelDocumentUrl: 'https://model-square.app.baizhi.cloud/token',
-    defaultBaseUrl: 'https://model-square.app.baizhi.cloud/v1',
+    modelDocumentUrl: 'https://orion-models.local/token',
+    defaultBaseUrl: 'https://orion-models.local/v1',
   },
   ZhiPu: {
     label: 'ZhiPu',

@@ -130,7 +130,7 @@ const CardMCP = ({ kb }: CardMCPProps) => {
         ]}
         more={{
           type: 'link',
-          href: 'https://pandawiki.docs.baizhi.cloud/node/019aa45c-90c1-7e6f-b17a-74ab1b200153',
+          href: '#',
           target: '_blank',
           text: '使用方法',
         }}

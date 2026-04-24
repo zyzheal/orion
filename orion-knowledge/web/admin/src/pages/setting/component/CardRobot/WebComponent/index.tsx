@@ -161,7 +161,7 @@ const CardRobotWebComponent = ({ kb }: CardRobotWebComponentProps) => {
       more={
         <Link
           component='a'
-          href='https://pandawiki.docs.baizhi.cloud/node/0197f335-a1a8-786c-95df-0848f61fb98a'
+          href='#'
           target='_blank'
           sx={{
             fontSize: 14,
@@ -344,7 +344,7 @@ const CardRobotWebComponent = ({ kb }: CardRobotWebComponentProps) => {
                             <TextField
                               {...field}
                               fullWidth
-                              placeholder='嵌入网站中自定义按钮的 #id 点击触发，如: pandawiki-widget-bot-btn'
+                              placeholder='嵌入网站中自定义按钮的 #id 点击触发，如: orion-widget-bot-btn'
                               error={!!errors.btn_id}
                               helperText={errors.btn_id?.message}
                               onChange={event => {

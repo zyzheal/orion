@@ -1,6 +1,6 @@
 PLATFORM=linux/amd64
 TAG=main
-REGISTRY=panda-wiki-app
+REGISTRY=orion-knowledge-app
 
 
 # 构建前端代码
@@ -17,5 +17,4 @@ image: build
 	  .
 
 save: image
-	docker save -o /tmp/panda-wiki-app_frontend.tar panda-wiki-app/frontend:main
-		
+	docker save -o /tmp/orion-knowledge-app_frontend.tar orion-knowledge-app/frontend:main

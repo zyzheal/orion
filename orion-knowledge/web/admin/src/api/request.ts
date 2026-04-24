@@ -21,7 +21,7 @@ type ErrorResponse = {
 type Response<T> = BasicResponse<T> | ErrorResponse;
 
 const request = <T>(options: AxiosRequestConfig): Promise<T> => {
-  const token = localStorage.getItem('panda_wiki_token') || '';
+  const token = localStorage.getItem('orion_knowledge_token') || '';
   const config = {
     baseURL: window.__BASENAME__ || '/',
     timeout: 0,
@@ -49,7 +49,7 @@ const request = <T>(options: AxiosRequestConfig): Promise<T> => {
     (error: AxiosError) => {
       if (error.response?.status === 401) {
         window.location.href = window.__BASENAME__ + '/login';
-        localStorage.removeItem('panda_wiki_token');
+        localStorage.removeItem('orion_knowledge_token');
       }
       message.error(error.response?.statusText || '网络异常');
       return Promise.reject(error.response);

@@ -28,7 +28,7 @@ const Login = () => {
   const submit = () => {
     postApiV1UserLogin({ account, password })
       .then(res => {
-        localStorage.setItem('panda_wiki_token', res.token!);
+        localStorage.setItem('orion_knowledge_token', res.token!);
         navigate(redirect);
         message.success('登录成功');
       })

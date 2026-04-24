@@ -133,7 +133,7 @@ const CardRobotWecomService = ({
       onSubmit={onSubmit}
       more={{
         type: 'link',
-        href: 'https://pandawiki.docs.baizhi.cloud/node/01980888-bb0c-77d6-bc45-4636249b0d96',
+        href: '#',
         target: '_blank',
         text: '使用方法',
       }}

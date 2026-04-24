@@ -53,7 +53,7 @@ class SSEClient<T> {
     this.buffer = '';
     this.completed = false;
 
-    const token = localStorage.getItem('panda_wiki_token') || '';
+    const token = localStorage.getItem('orion_knowledge_token') || '';
 
     const timeoutDuration = 300000;
     const timeoutId = setTimeout(() => {

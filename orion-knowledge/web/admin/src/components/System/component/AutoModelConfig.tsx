@@ -158,7 +158,7 @@ const AutoModelConfig = forwardRef<AutoModelConfigRef, AutoModelConfigProps>(
             </Box>
             <Box
               component='a'
-              href='https://model-square.app.baizhi.cloud/token'
+              href='#'
               target='_blank'
               sx={{
                 color: 'primary.main',
@@ -169,7 +169,7 @@ const AutoModelConfig = forwardRef<AutoModelConfigRef, AutoModelConfigProps>(
               }}
             >
               <KeySharpIcon sx={{ fontSize: 14, color: 'primary.main' }} />
-              获取百智云 API Key
+              获取 Orion 模型 API Key
             </Box>
           </Box>
           <TextField
