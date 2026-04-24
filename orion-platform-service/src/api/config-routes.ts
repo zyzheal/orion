@@ -8,15 +8,27 @@
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { ConfigRepository } from '../services/config-mgmt/ConfigRepository';
 import { ConfigService } from '../services/config-mgmt/ConfigService';
 import { GitOpsService } from '../services/config-mgmt/GitOpsService';
 import { ConfigApprovalService } from '../services/config-mgmt/ConfigApprovalService';
 import { ConfigDiffService } from '../services/config-mgmt/ConfigDiffService';
 import { ConfigController } from './controllers/ConfigController';
+import { DatabasePool } from '../services/database';
 
-export default async function configRoutes(app: FastifyInstance): Promise<void> {
-  // Initialize services
-  const configService = new ConfigService();
+export interface ConfigRoutesOptions {
+  database?: DatabasePool;
+}
+
+export default async function configRoutes(
+  app: FastifyInstance,
+  options: ConfigRoutesOptions
+): Promise<void> {
+  // Initialize repository with PostgreSQL connection (falls back to in-memory if not provided)
+  const configRepo = new ConfigRepository(options.database);
+
+  // Initialize services - all depend on ConfigService which now uses the repository
+  const configService = new ConfigService(configRepo);
   const gitOpsService = new GitOpsService({ configService });
   const approvalService = new ConfigApprovalService({ configService });
   const diffService = new ConfigDiffService({ configService });

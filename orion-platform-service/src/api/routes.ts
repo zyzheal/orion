@@ -199,8 +199,8 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // 注册 Code Repository Integration API 路由
   await app.register(codeRepoRoutes, { prefix: '/code-repo' });
 
-  // 注册 Configuration Management API 路由
-  await app.register(configRoutes, { prefix: '/config' });
+  // 注册 Configuration Management API 路由 (PostgreSQL backed)
+  await app.register(configRoutes, { prefix: '/config', database: options.database });
 
   // 注册 FinOps 成本管理 API 路由
   await app.register(costRoutes, { prefix: '/cost', database: options.database });
@@ -232,8 +232,8 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // 注册自愈引擎 API 路由 (TASK-702)
   await app.register(selfHealingRoutes, { prefix: '/self-healing' });
 
-  // 注册备份恢复 API 路由 (TASK-704)
-  await app.register(backupRoutes, { prefix: '/backup' });
+  // 注册备份恢复 API 路由 (TASK-704) - PostgreSQL backed
+  await app.register(backupRoutes, { prefix: '/backup', database: options.database });
 
   // 注册 Plugin SPI API 路由 (TASK-104)
   await app.register(pluginSpiRoutes, { prefix: '/plugins-spi' });
