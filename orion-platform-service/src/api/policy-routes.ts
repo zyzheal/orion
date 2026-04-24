@@ -2,21 +2,40 @@
  * OPA Policy Engine API Routes
  *
  * Routes under /api/v1/policies
+ * Migrated to PostgreSQL Repository pattern
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { DatabasePool } from '../services/database';
+import { PolicyRepository } from '../services/policy/PolicyRepository';
 import { PolicyService } from '../services/policy/PolicyService';
 import { PolicyEvaluationService } from '../services/policy/PolicyEvaluationService';
 import { PolicyController } from './controllers/PolicyController';
 import { PolicyEvaluationController } from './controllers/PolicyEvaluationController';
 import { EventBusService } from '../services/event-bus-service';
 
+interface PolicyRoutesOptions {
+  database?: DatabasePool;
+  eventBus?: EventBusService;
+}
+
 export default async function policyRoutes(
   app: FastifyInstance,
-  options?: { eventBus?: EventBusService }
+  options: PolicyRoutesOptions
 ): Promise<void> {
-  const policyService = new PolicyService({ eventBus: options?.eventBus });
-  const evaluationService = new PolicyEvaluationService({ eventBus: options?.eventBus });
+  // Initialize Repository and Service with database pool
+  if (!options.database) {
+    console.warn('[PolicyRoutes] No database pool provided, policy routes will not be functional');
+    return;
+  }
+
+  const policyRepo = new PolicyRepository(options.database);
+  const policyService = new PolicyService(policyRepo);
+  const evaluationService = new PolicyEvaluationService({
+    eventBus: options.eventBus,
+    db: options.database,
+  });
+
   const policyController = new PolicyController(policyService);
   const evalController = new PolicyEvaluationController(evaluationService);
 

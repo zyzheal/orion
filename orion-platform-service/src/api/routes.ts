@@ -262,8 +262,8 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // 注册 SBOM Attestation API 路由 (P0)
   await app.register(sbomRoutes, { prefix: '/sbom', eventBus: options.eventBus });
 
-  // 注册 OPA Policy Engine API 路由 (P0)
-  await app.register(policyRoutes, { prefix: '/policies', eventBus: options.eventBus });
+  // 注册 OPA Policy Engine API 路由 (P0) - PostgreSQL backed
+  await app.register(policyRoutes, { prefix: '/policies', database: options.database, eventBus: options.eventBus });
 
   // 注册 AI Change Intelligence API 路由 (P0)
   await app.register(changeIntelligenceRoutes, { prefix: '/change-intelligence', eventBus: options.eventBus });
