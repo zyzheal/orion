@@ -4,13 +4,26 @@
  * Provides endpoints for backup management, verification,
  * recovery plans, and health monitoring.
  * Registered under /api/v1/backup prefix.
+ *
+ * Migrated to PostgreSQL Repository pattern.
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { BackupController } from '../controllers/backup/BackupController';
+import { DatabasePool } from '../services/database';
+import { BackupController } from './controllers/backup/BackupController';
+import { BackupService } from '../services/backup';
 
-export default async function backupRoutes(app: FastifyInstance): Promise<void> {
-  const controller = new BackupController();
+interface BackupRoutesOptions {
+  database?: DatabasePool;
+}
+
+export default async function backupRoutes(
+  app: FastifyInstance,
+  options: BackupRoutesOptions
+): Promise<void> {
+  // Initialize Repository + Service with database pool
+  const service = new BackupService({ database: options.database });
+  const controller = new BackupController(service);
 
   // ==================== Service Control ====================
 

@@ -11,7 +11,7 @@ import {
   BackupType,
   BackupStatus,
   BackupSourceType,
-} from '../../services/backup';
+} from '../../../services/backup';
 
 export class BackupController {
   private backupService: BackupService;
@@ -26,10 +26,6 @@ export class BackupController {
 
   // ==================== Service Control ====================
 
-  /**
-   * Start backup service
-   * POST /api/v1/backup/start
-   */
   async startService(request: FastifyRequest, reply: FastifyReply) {
     try {
       await this.backupService.start();
@@ -45,10 +41,6 @@ export class BackupController {
     }
   }
 
-  /**
-   * Stop backup service
-   * POST /api/v1/backup/stop
-   */
   async stopService(request: FastifyRequest, reply: FastifyReply) {
     try {
       await this.backupService.stop();
@@ -64,10 +56,6 @@ export class BackupController {
     }
   }
 
-  /**
-   * Health check
-   * GET /api/v1/backup/health
-   */
   async healthCheck(request: FastifyRequest, reply: FastifyReply) {
     const health = this.backupService.getHealthStatus();
     await reply.status(200).send({
@@ -78,10 +66,6 @@ export class BackupController {
 
   // ==================== Backup Plans ====================
 
-  /**
-   * Create a backup plan
-   * POST /api/v1/backup/plans
-   */
   async createPlan(request: FastifyRequest, reply: FastifyReply) {
     try {
       const body = request.body as any || {};
@@ -124,7 +108,7 @@ export class BackupController {
       }
 
       const validSources: BackupSourceType[] = ['database', 'filesystem', 'config', 'all'];
-      if (!Array.isArray(sources) || !sources.every((s: string) => validSources.includes(s))) {
+      if (!Array.isArray(sources) || !sources.every((s: string) => validSources.includes(s as BackupSourceType))) {
         await reply.status(400).send({
           error: 'VALIDATION_ERROR',
           message: `Invalid sources. Must be array of: ${validSources.join(', ')}`,
@@ -132,7 +116,7 @@ export class BackupController {
         return;
       }
 
-      const plan = this.backupService.createPlan({
+      const plan = await this.backupService.createPlan({
         id: id || `plan-${Date.now()}`,
         name,
         type,
@@ -161,16 +145,12 @@ export class BackupController {
     }
   }
 
-  /**
-   * Get all backup plans
-   * GET /api/v1/backup/plans
-   */
   async getPlans(request: FastifyRequest, reply: FastifyReply) {
-    const plans = this.backupService.getAllPlans();
+    const plans = await this.backupService.getAllPlans();
     const scheduleInfo = this.backupService.getAllScheduleInfo();
 
-    const enrichedPlans = plans.map(plan => {
-      const schedule = scheduleInfo.find(s => s.planId === plan.id);
+    const enrichedPlans = plans.map((plan: any) => {
+      const schedule = scheduleInfo.find((s: any) => s.planId === plan.id);
       return {
         ...plan,
         nextRun: schedule?.nextRun || null,
@@ -183,13 +163,9 @@ export class BackupController {
     });
   }
 
-  /**
-   * Get a backup plan
-   * GET /api/v1/backup/plans/:id
-   */
   async getPlan(request: FastifyRequest, reply: FastifyReply) {
     const params = request.params as any;
-    const plan = this.backupService.getPlan(params.id);
+    const plan = await this.backupService.getPlan(params.id);
 
     if (!plan) {
       await reply.status(404).send({
@@ -207,15 +183,11 @@ export class BackupController {
     });
   }
 
-  /**
-   * Update a backup plan
-   * PUT /api/v1/backup/plans/:id
-   */
   async updatePlan(request: FastifyRequest, reply: FastifyReply) {
     const params = request.params as any;
     const body = request.body as any || {};
 
-    const plan = this.backupService.updatePlan(params.id, body);
+    const plan = await this.backupService.updatePlan(params.id, body);
 
     if (!plan) {
       await reply.status(404).send({
@@ -231,13 +203,9 @@ export class BackupController {
     });
   }
 
-  /**
-   * Delete a backup plan
-   * DELETE /api/v1/backup/plans/:id
-   */
   async deletePlan(request: FastifyRequest, reply: FastifyReply) {
     const params = request.params as any;
-    const deleted = this.backupService.deletePlan(params.id);
+    const deleted = await this.backupService.deletePlan(params.id);
 
     if (!deleted) {
       await reply.status(404).send({
@@ -253,16 +221,12 @@ export class BackupController {
     });
   }
 
-  /**
-   * Toggle a backup plan
-   * PATCH /api/v1/backup/plans/:id/toggle
-   */
   async togglePlan(request: FastifyRequest, reply: FastifyReply) {
     const params = request.params as any;
     const body = request.body as any || {};
     const enabled = body.enabled !== false;
 
-    const plan = this.backupService.togglePlan(params.id, enabled);
+    const plan = await this.backupService.togglePlan(params.id, enabled);
 
     if (!plan) {
       await reply.status(404).send({
@@ -280,10 +244,6 @@ export class BackupController {
 
   // ==================== Backup Execution ====================
 
-  /**
-   * Trigger a manual backup
-   * POST /api/v1/backup/trigger
-   */
   async triggerBackup(request: FastifyRequest, reply: FastifyReply) {
     try {
       const body = request.body as any || {};
@@ -321,10 +281,6 @@ export class BackupController {
 
   // ==================== Backup Records ====================
 
-  /**
-   * Get all backups
-   * GET /api/v1/backup/backups
-   */
   async getBackups(request: FastifyRequest, reply: FastifyReply) {
     const query = request.query as any;
 
@@ -333,7 +289,7 @@ export class BackupController {
     if (query.status) filter.status = query.status;
     if (query.type) filter.type = query.type;
 
-    const backups = this.backupService.getBackups(filter);
+    const backups = await this.backupService.getBackups(filter);
 
     await reply.status(200).send({
       success: true,
@@ -341,13 +297,9 @@ export class BackupController {
     });
   }
 
-  /**
-   * Get backup detail
-   * GET /api/v1/backup/backups/:id
-   */
   async getBackupDetail(request: FastifyRequest, reply: FastifyReply) {
     const params = request.params as any;
-    const backup = this.backupService.getBackupDetail(params.id);
+    const backup = await this.backupService.getBackupDetail(params.id);
 
     if (!backup) {
       await reply.status(404).send({
@@ -363,10 +315,6 @@ export class BackupController {
     });
   }
 
-  /**
-   * Delete a backup
-   * DELETE /api/v1/backup/backups/:id
-   */
   async deleteBackup(request: FastifyRequest, reply: FastifyReply) {
     const params = request.params as any;
     const deleted = await this.backupService.deleteBackup(params.id);
@@ -387,10 +335,6 @@ export class BackupController {
 
   // ==================== Verification ====================
 
-  /**
-   * Verify a backup's integrity
-   * POST /api/v1/backup/backups/:id/verify
-   */
   async verifyBackup(request: FastifyRequest, reply: FastifyReply) {
     const params = request.params as any;
 
@@ -408,10 +352,6 @@ export class BackupController {
     }
   }
 
-  /**
-   * Test restore a backup
-   * POST /api/v1/backup/backups/:id/test-restore
-   */
   async testRestore(request: FastifyRequest, reply: FastifyReply) {
     const params = request.params as any;
 
@@ -429,10 +369,6 @@ export class BackupController {
     }
   }
 
-  /**
-   * Get verification history for a backup
-   * GET /api/v1/backup/backups/:id/verifications
-   */
   async getVerifications(request: FastifyRequest, reply: FastifyReply) {
     const params = request.params as any;
     const verifications = this.backupService.getVerificationsForBackup(params.id);
@@ -445,10 +381,6 @@ export class BackupController {
 
   // ==================== Recovery Plans ====================
 
-  /**
-   * Create a recovery plan
-   * POST /api/v1/backup/recovery-plans
-   */
   async createRecoveryPlan(request: FastifyRequest, reply: FastifyReply) {
     try {
       const body = request.body as any || {};
@@ -492,10 +424,6 @@ export class BackupController {
     }
   }
 
-  /**
-   * Get all recovery plans
-   * GET /api/v1/backup/recovery-plans
-   */
   async getRecoveryPlans(request: FastifyRequest, reply: FastifyReply) {
     const plans = this.backupService.getAllRecoveryPlans();
     await reply.status(200).send({
@@ -504,10 +432,6 @@ export class BackupController {
     });
   }
 
-  /**
-   * Get a recovery plan
-   * GET /api/v1/backup/recovery-plans/:id
-   */
   async getRecoveryPlan(request: FastifyRequest, reply: FastifyReply) {
     const params = request.params as any;
     const plan = this.backupService.getRecoveryPlan(params.id);
@@ -526,10 +450,6 @@ export class BackupController {
     });
   }
 
-  /**
-   * Update a recovery plan
-   * PUT /api/v1/backup/recovery-plans/:id
-   */
   async updateRecoveryPlan(request: FastifyRequest, reply: FastifyReply) {
     const params = request.params as any;
     const body = request.body as any || {};
@@ -550,10 +470,6 @@ export class BackupController {
     });
   }
 
-  /**
-   * Delete a recovery plan
-   * DELETE /api/v1/backup/recovery-plans/:id
-   */
   async deleteRecoveryPlan(request: FastifyRequest, reply: FastifyReply) {
     const params = request.params as any;
     const deleted = this.backupService.deleteRecoveryPlan(params.id);
@@ -574,10 +490,6 @@ export class BackupController {
 
   // ==================== Recovery Execution ====================
 
-  /**
-   * Initiate recovery
-   * POST /api/v1/backup/recovery/:planId/initiate
-   */
   async initiateRecovery(request: FastifyRequest, reply: FastifyReply) {
     try {
       const params = request.params as any;
@@ -601,10 +513,6 @@ export class BackupController {
     }
   }
 
-  /**
-   * Execute a recovery plan
-   * POST /api/v1/backup/recovery/:executionId/execute
-   */
   async executeRecovery(request: FastifyRequest, reply: FastifyReply) {
     try {
       const params = request.params as any;
@@ -623,10 +531,6 @@ export class BackupController {
     }
   }
 
-  /**
-   * Initiate point-in-time recovery
-   * POST /api/v1/backup/recovery/:planId/point-in-time
-   */
   async initiatePointInTimeRecovery(request: FastifyRequest, reply: FastifyReply) {
     try {
       const params = request.params as any;
@@ -658,10 +562,6 @@ export class BackupController {
     }
   }
 
-  /**
-   * Get recovery executions
-   * GET /api/v1/backup/recovery/executions
-   */
   async getRecoveryExecutions(request: FastifyRequest, reply: FastifyReply) {
     const executions = this.backupService.getRecoveryExecutions();
     await reply.status(200).send({
@@ -670,10 +570,6 @@ export class BackupController {
     });
   }
 
-  /**
-   * Get RTO/RPO statistics
-   * GET /api/v1/backup/recovery/rto-rpo-stats
-   */
   async getRtoRpoStats(request: FastifyRequest, reply: FastifyReply) {
     const stats = this.backupService.getRtoRpoStats();
     await reply.status(200).send({
@@ -684,22 +580,14 @@ export class BackupController {
 
   // ==================== Health & Monitoring ====================
 
-  /**
-   * Get backup status summary
-   * GET /api/v1/backup/status
-   */
   async getBackupStatus(request: FastifyRequest, reply: FastifyReply) {
-    const summary = this.backupService.getBackupStatusSummary();
+    const summary = await this.backupService.getBackupStatusSummary();
     await reply.status(200).send({
       success: true,
       data: { summary },
     });
   }
 
-  /**
-   * Get storage usage
-   * GET /api/v1/backup/storage
-   */
   async getStorageUsage(request: FastifyRequest, reply: FastifyReply) {
     const usage = this.backupService.getStorageUsage();
     await reply.status(200).send({
@@ -708,25 +596,17 @@ export class BackupController {
     });
   }
 
-  /**
-   * Generate health report
-   * GET /api/v1/backup/health-report
-   */
   async getHealthReport(request: FastifyRequest, reply: FastifyReply) {
-    const report = this.backupService.generateHealthReport();
+    const report = await this.backupService.generateHealthReport();
     await reply.status(200).send({
       success: true,
       data: { report },
     });
   }
 
-  /**
-   * Enforce retention policies
-   * POST /api/v1/backup/retention/enforce
-   */
   async enforceRetention(request: FastifyRequest, reply: FastifyReply) {
     try {
-      const deleted = this.backupService.enforceAllRetentions();
+      const deleted = await this.backupService.enforceAllRetentions();
       await reply.status(200).send({
         success: true,
         data: { deleted, count: deleted.length },

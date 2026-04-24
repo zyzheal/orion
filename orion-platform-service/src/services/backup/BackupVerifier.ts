@@ -298,8 +298,7 @@ export class BackupVerifier extends EventEmitter {
       }
 
       if (
-        (backup.status === 'completed' || backup.status === 'failed') &&
-        backup.status !== 'verified'
+        backup.status === 'completed' || backup.status === 'failed'
       ) {
         unverifiedCount++;
       }

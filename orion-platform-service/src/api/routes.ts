@@ -229,8 +229,8 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // 注册智能工单 API 路由 (TASK-801) - PostgreSQL backed
   await app.register(ticketingRoutes, { prefix: '/tickets', database: options.database });
 
-  // 注册自愈引擎 API 路由 (TASK-702)
-  await app.register(selfHealingRoutes, { prefix: '/self-healing' });
+  // Register self-healing API routes (TASK-702) - PostgreSQL backed
+  await app.register(selfHealingRoutes, { prefix: '/self-healing', database: options.database });
 
   // 注册备份恢复 API 路由 (TASK-704) - PostgreSQL backed
   await app.register(backupRoutes, { prefix: '/backup', database: options.database });

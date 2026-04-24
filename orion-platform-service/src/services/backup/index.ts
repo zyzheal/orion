@@ -7,12 +7,17 @@
 // Types
 export * from './types';
 
+// Database-backed repositories
+export { BackupRepository, BackupJobRecord, BackupRestoreRecord } from './BackupRepository';
+export { BackupPlanRepository, BackupPlanRecord } from './BackupPlanRepository';
+export { RecoveryRepository, RecoveryExecutionRecord } from './RecoveryRepository';
+
 // Services
+export { BackupService, BackupServiceError } from './BackupService';
 export { BackupScheduler } from './BackupScheduler';
 export { BackupStorage } from './BackupStorage';
 export { BackupVerifier } from './BackupVerifier';
 export { RecoveryService } from './RecoveryService';
-export { BackupService } from './BackupService';
 
 // Auxiliary exports
 export type { BackupEventType } from './BackupService';
