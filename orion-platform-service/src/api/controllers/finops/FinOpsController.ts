@@ -2,24 +2,27 @@
  * FinOps 成本控制器 (Fastify 版本)
  *
  * 处理成本管理相关的 HTTP 请求
+ * Migrated to use PostgreSQL-backed FinOpsService
  */
 
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { CloudCostCollector, K8sCostAllocator, SaaSCostTracker, CostService, CostEventPublisher } from '../../../services/finops';
-import { CostPeriod, BillingCycle } from '../../../services/finops/types';
+import { FinOpsService } from '../../../services/finops/FinOpsService';
+import { CloudCostCollector, K8sCostAllocator, SaaSCostTracker, CostEventPublisher } from '../../../services/finops';
+import { CostPeriod } from '../../../services/finops/types';
 
 export class FinOpsController {
+  private service: FinOpsService;
   private cloudCollector: CloudCostCollector;
   private k8sAllocator: K8sCostAllocator;
-  private saasTracker: SaaSCostTracker;
-  private costService: CostService;
   private eventPublisher: CostEventPublisher;
 
-  constructor() {
+  constructor(service: FinOpsService) {
+    this.service = service;
+    // CloudCostCollector and K8sCostAllocator are kept for their
+    // collection/allocation logic (they transform data from external sources).
+    // The persistence layer is now handled by FinOpsService (PostgreSQL).
     this.cloudCollector = new CloudCostCollector();
     this.k8sAllocator = new K8sCostAllocator();
-    this.saasTracker = new SaaSCostTracker();
-    this.costService = new CostService();
     this.eventPublisher = new CostEventPublisher();
   }
 
@@ -44,16 +47,31 @@ export class FinOpsController {
         resources = await this.cloudCollector.collectAll(startDate, endDate);
       }
 
-      // 标准化成本
+      // Normalize and store to PostgreSQL via FinOpsService
       const normalized = this.cloudCollector.normalizeCost(resources);
 
-      // 添加到聚合服务
-      this.costService.addCloudCosts(normalized);
+      // Map CloudResource to CloudCostInput for DB storage
+      const cloudInputs = normalized.map((r: any) => ({
+        provider: r.provider,
+        resourceType: r.resourceType,
+        resourceId: r.resourceId,
+        resourceName: r.resourceName,
+        region: r.region,
+        cost: r.cost,
+        currency: r.currency,
+        tags: r.tags,
+        timestamp: r.timestamp,
+        tenantId: r.tenantId,
+        environment: r.environment,
+        billingPeriod: r.billingPeriod,
+      }));
 
-      // 发布事件
+      await this.service.collectCloudCosts(cloudInputs);
+
+      // Publish event
       const groupedByType = this.cloudCollector.groupByResourceType(resources);
       const groupedByTenant = this.cloudCollector.groupByTenant(resources);
-      const totalCost = resources.reduce((sum, r) => sum + r.cost, 0);
+      const totalCost = resources.reduce((sum: number, r: any) => sum + r.cost, 0);
 
       await this.eventPublisher.publishCostCollected({
         source: provider || 'all',
@@ -113,19 +131,36 @@ export class FinOpsController {
         return;
       }
 
+      // Allocate using K8sCostAllocator (transformation logic)
       const records = this.k8sAllocator.allocateClusterCosts(
         clusterUsage,
         podUsage,
         new Date()
       );
 
-      this.costService.addK8sCosts(records);
+      // Persist to PostgreSQL via FinOpsService
+      const k8sInputs = records.map((r: any) => ({
+        namespace: r.namespace,
+        deployment: r.deployment,
+        podName: r.podName,
+        cpuCost: r.cpuCost,
+        memoryCost: r.memoryCost,
+        storageCost: r.storageCost,
+        networkCost: r.networkCost,
+        totalCost: r.totalCost,
+        tenantId: r.tenantId,
+        timestamp: r.timestamp,
+        clusterName: r.clusterName,
+        nodeName: r.nodeName,
+      }));
+
+      const stored = await this.service.allocateK8sCosts(k8sInputs);
 
       await reply.status(200).send({
         success: true,
         data: {
-          allocated: records.length,
-          records,
+          allocated: stored.length,
+          records: stored,
         },
       });
     } catch (error: any) {
@@ -142,7 +177,7 @@ export class FinOpsController {
    */
   async getNamespaceCosts(request: FastifyRequest, reply: FastifyReply) {
     const query = request.query as any || {};
-    const costs = this.k8sAllocator.getNamespaceCosts({
+    const costs = await this.service.getK8sNamespaceCosts({
       namespace: query.namespace,
     });
 
@@ -158,7 +193,7 @@ export class FinOpsController {
    */
   async getPodCosts(request: FastifyRequest, reply: FastifyReply) {
     const query = request.query as any || {};
-    const costs = this.k8sAllocator.getPodCosts({
+    const costs = await this.service.getK8sPodCosts({
       namespace: query.namespace,
       deployment: query.deployment,
     });
@@ -175,7 +210,7 @@ export class FinOpsController {
    */
   async getTenantCosts(request: FastifyRequest, reply: FastifyReply) {
     const query = request.query as any || {};
-    const costs = this.k8sAllocator.getTenantCosts({
+    const costs = await this.service.getK8sTenantCosts({
       tenantId: query.tenantId,
     });
 
@@ -204,7 +239,7 @@ export class FinOpsController {
         return;
       }
 
-      const validCycles: BillingCycle[] = ['monthly', 'quarterly', 'annually'];
+      const validCycles = ['monthly', 'quarterly', 'annually'];
       if (!validCycles.includes(billingCycle)) {
         await reply.status(400).send({
           error: 'VALIDATION_ERROR',
@@ -213,7 +248,7 @@ export class FinOpsController {
         return;
       }
 
-      const sub = this.saasTracker.addSubscription({
+      const sub = await this.service.addSaaSSubscription({
         tool,
         subscription,
         seats,
@@ -224,8 +259,6 @@ export class FinOpsController {
         tenantId,
         notes,
       });
-
-      this.costService.addSaaSCosts([sub]);
 
       await reply.status(201).send({
         success: true,
@@ -247,7 +280,24 @@ export class FinOpsController {
     const params = request.params as any;
     const body = request.body as any || {};
 
-    const updated = this.saasTracker.updateSubscription(params.id, body);
+    const updates: any = {};
+    if (body.seats !== undefined) updates.seats = body.seats;
+    if (body.unitCost !== undefined) updates.unitCost = body.unitCost;
+    if (body.billingCycle !== undefined) updates.billingCycle = body.billingCycle;
+    if (body.startDate !== undefined) updates.startDate = new Date(body.startDate);
+    if (body.endDate !== undefined) updates.endDate = new Date(body.endDate);
+    if (body.status !== undefined) updates.status = body.status;
+    if (body.notes !== undefined) updates.notes = body.notes;
+
+    if (Object.keys(updates).length === 0) {
+      await reply.status(400).send({
+        error: 'VALIDATION_ERROR',
+        message: 'No fields to update',
+      });
+      return;
+    }
+
+    const updated = await this.service.updateSaaSSubscription(params.id, updates);
 
     if (!updated) {
       await reply.status(404).send({
@@ -269,7 +319,7 @@ export class FinOpsController {
    */
   async getSaaSSubscriptions(request: FastifyRequest, reply: FastifyReply) {
     const query = request.query as any || {};
-    const subscriptions = this.saasTracker.getSubscriptions({
+    const subscriptions = await this.service.getSaaSSubscriptions({
       tool: query.tool,
       status: query.status,
       tenantId: query.tenantId,
@@ -287,14 +337,20 @@ export class FinOpsController {
    */
   async getSaaSMonthlyCost(request: FastifyRequest, reply: FastifyReply) {
     const query = request.query as any || {};
-    const monthlyCost = this.saasTracker.getMonthlyCost({
+    const subscriptions = await this.service.getSaaSSubscriptions({
       tool: query.tool,
+      status: 'active',
       tenantId: query.tenantId,
     });
 
+    const monthlyCost = subscriptions.reduce((sum, s) => {
+      const monthsDiff = (s.end_date.getTime() - s.start_date.getTime()) / (30.44 * 24 * 60 * 60 * 1000);
+      return sum + s.total_cost / Math.max(monthsDiff, 1);
+    }, 0);
+
     await reply.status(200).send({
       success: true,
-      data: { monthlyCost, currency: 'USD' },
+      data: { monthlyCost: Math.round(monthlyCost * 100) / 100, currency: 'USD' },
     });
   }
 
@@ -304,14 +360,22 @@ export class FinOpsController {
    */
   async getSaaSAnnualProjection(request: FastifyRequest, reply: FastifyReply) {
     const query = request.query as any || {};
-    const annualCost = this.saasTracker.getAnnualProjection({
+    const subscriptions = await this.service.getSaaSSubscriptions({
       tool: query.tool,
+      status: 'active',
       tenantId: query.tenantId,
     });
 
+    const monthlyCost = subscriptions.reduce((sum, s) => {
+      const monthsDiff = (s.end_date.getTime() - s.start_date.getTime()) / (30.44 * 24 * 60 * 60 * 1000);
+      return sum + s.total_cost / Math.max(monthsDiff, 1);
+    }, 0);
+
+    const annualCost = monthlyCost * 12;
+
     await reply.status(200).send({
       success: true,
-      data: { annualCost, currency: 'USD' },
+      data: { annualCost: Math.round(annualCost * 100) / 100, currency: 'USD' },
     });
   }
 
@@ -320,7 +384,17 @@ export class FinOpsController {
    * GET /api/v1/cost/saas/license-utilization
    */
   async getLicenseUtilization(request: FastifyRequest, reply: FastifyReply) {
-    const utilization = this.saasTracker.getLicenseUtilization();
+    // License utilization is typically sourced from SaaS APIs.
+    // With DB-backed data, we return subscription counts as a proxy.
+    const subscriptions = await this.service.getSaaSSubscriptions({ status: 'active' });
+
+    const utilization = subscriptions.map(s => ({
+      tool: s.tool,
+      subscription: s.subscription,
+      seats: s.seats,
+      totalCost: s.total_cost,
+      status: s.status,
+    }));
 
     await reply.status(200).send({
       success: true,
@@ -336,7 +410,7 @@ export class FinOpsController {
    */
   async getCostSummary(request: FastifyRequest, reply: FastifyReply) {
     const query = request.query as any || {};
-    const summary = this.costService.getCostSummary(
+    const summary = await this.service.getCostSummary(
       (query.period as CostPeriod) || 'monthly',
       { tenantId: query.tenantId }
     );
@@ -364,7 +438,7 @@ export class FinOpsController {
       return;
     }
 
-    const breakdown = this.costService.getCostBreakdown(dimension, {
+    const breakdown = await this.service.getCostBreakdown(dimension as any, {
       tenantId: query.tenantId,
     });
 
@@ -390,7 +464,7 @@ export class FinOpsController {
       return;
     }
 
-    const trend = this.costService.getCostTrend(
+    const trend = await this.service.getCostTrend(
       dataPoints.map((p: any) => ({
         date: new Date(p.date),
         cost: p.cost,
@@ -412,7 +486,7 @@ export class FinOpsController {
   async createBudgetAlert(request: FastifyRequest, reply: FastifyReply) {
     try {
       const body = request.body as any || {};
-      const { budgetAmount, thresholdPercent, tenantId, environment, currency = 'USD', period = 'monthly' as CostPeriod } = body;
+      const { budgetAmount, thresholdPercent, tenantId, environment, currency = 'USD', period = 'monthly' } = body;
 
       if (!budgetAmount || !thresholdPercent) {
         await reply.status(400).send({
@@ -422,7 +496,7 @@ export class FinOpsController {
         return;
       }
 
-      const alert = this.costService.createBudgetAlert({
+      const alert = await this.service.createLegacyBudgetAlert({
         budgetAmount,
         thresholdPercent,
         tenantId,
@@ -449,7 +523,7 @@ export class FinOpsController {
    */
   async getBudgetAlerts(request: FastifyRequest, reply: FastifyReply) {
     const query = request.query as any || {};
-    const alerts = this.costService.getBudgetAlerts({
+    const alerts = await this.service.getLegacyBudgetAlerts({
       tenantId: query.tenantId,
       environment: query.environment,
     });
@@ -466,7 +540,7 @@ export class FinOpsController {
    */
   async deleteBudgetAlert(request: FastifyRequest, reply: FastifyReply) {
     const params = request.params as any;
-    const deleted = this.costService.deleteBudgetAlert(params.id);
+    const deleted = await this.service.deleteLegacyBudgetAlert(params.id);
 
     if (!deleted) {
       await reply.status(404).send({
@@ -487,7 +561,7 @@ export class FinOpsController {
    * POST /api/v1/cost/budget-alerts/check
    */
   async checkBudgetAlerts(request: FastifyRequest, reply: FastifyReply) {
-    const triggered = this.costService.checkBudgetAlerts();
+    const triggered = await this.service.checkLegacyBudgetAlerts();
 
     await reply.status(200).send({
       success: true,
@@ -552,8 +626,7 @@ export class FinOpsController {
         services: {
           cloudCollector: true,
           k8sAllocator: true,
-          saasTracker: true,
-          costService: true,
+          finOpsService: !!this.service,
           eventPublisher: true,
         },
       },

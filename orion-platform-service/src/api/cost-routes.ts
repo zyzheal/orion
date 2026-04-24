@@ -2,13 +2,35 @@
  * FinOps 成本管理 API 路由注册
  *
  * 提供云资源成本采集、K8s 成本分摊、SaaS 工具成本、预算告警等 API 端点
+ * Migrated to PostgreSQL Repository pattern via FinOpsService
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { DatabasePool } from '../services/database';
+import { FinOpsRepository } from '../services/finops/FinOpsRepository';
+import { FinOpsService } from '../services/finops/FinOpsService';
 import { FinOpsController } from './controllers/finops/FinOpsController';
 
-export default async function costRoutes(app: FastifyInstance): Promise<void> {
-  const controller = new FinOpsController();
+interface CostRoutesOptions {
+  database?: DatabasePool;
+}
+
+export default async function costRoutes(
+  app: FastifyInstance,
+  options: CostRoutesOptions
+): Promise<void> {
+  // Initialize Repository and Service with database pool
+  const repository = options.database
+    ? new FinOpsRepository(options.database)
+    : undefined;
+
+  if (!repository) {
+    console.warn('[CostRoutes] No database pool provided, cost routes will not be functional');
+    return;
+  }
+
+  const service = new FinOpsService(repository);
+  const controller = new FinOpsController(service);
 
   // ==================== 云资源成本采集 ====================
 

@@ -203,13 +203,13 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await app.register(configRoutes, { prefix: '/config' });
 
   // 注册 FinOps 成本管理 API 路由
-  await app.register(costRoutes, { prefix: '/cost' });
+  await app.register(costRoutes, { prefix: '/cost', database: options.database });
 
   // 注册风险评估 API 路由
   await app.register(riskRoutes, { prefix: '/risk' });
 
-  // 注册 FinOps 成本追踪与 ROI API 路由 (TASK-502)
-  await app.register(finopsV2Routes, { prefix: '/finops' });
+  // 注册 FinOps 成本追踪与 ROI API 路由 (TASK-502) - PostgreSQL backed
+  await app.register(finopsV2Routes, { prefix: '/finops', database: options.database });
 
   // 注册 AI Code Review API 路由 (TASK-302)
   await app.register(aiReviewRoutes, { prefix: '/ai-review' });
@@ -224,7 +224,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await app.register(deployRoutes, { prefix: '/deploy' });
 
   // 注册监控告警 API 路由 (TASK-703)
-  await app.register(monitoringRoutes, { prefix: '/monitoring' });
+  await app.register(monitoringRoutes, { prefix: '/monitoring', database: options.database });
 
   // 注册智能工单 API 路由 (TASK-801)
   await app.register(ticketingRoutes, { prefix: '/tickets' });
