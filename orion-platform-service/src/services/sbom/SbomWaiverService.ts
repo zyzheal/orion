@@ -34,14 +34,12 @@ export class SbomWaiverService {
     const waiver = createSbomWaiver(input);
 
     if (this.waiverRepository) {
-      await this.waiverRepository.create({
-        id: waiver.id,
-        vulnerabilityId: waiver.vulnerabilityId ?? '',
-        reason: waiver.reason,
-        approvedBy: null,
-        approvedAt: waiver.createdAt,
-        expiresAt: waiver.expiresAt,
-      });
+      const db = (this.waiverRepository as any).db;
+      await db.query(
+        `INSERT INTO sbom_waivers (id, cve_id, package_name, package_version, reason, approved_by, approved_at, expires_at, scope, scope_target)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+        [waiver.id, waiver.cveId, waiver.packageName, waiver.packageVersion, waiver.reason, waiver.approvedBy, waiver.approvedAt, waiver.expiresAt, waiver.scope, waiver.scopeTarget ?? null],
+      );
     }
 
     await this.eventBus?.publish('sbom.waiver.created', {
@@ -64,7 +62,8 @@ export class SbomWaiverService {
       if (filter.active) {
         return await this.waiverRepository.findActive();
       }
-      return await this.waiverRepository.findAll();
+      const result = await this.waiverRepository.findAll();
+      return result.entities;
     }
     return [];
   }

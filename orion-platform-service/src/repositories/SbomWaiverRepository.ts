@@ -2,11 +2,15 @@ import { BaseRepository } from '../db/base-repository';
 
 export interface SbomWaiverEntity {
   id: string;
-  vulnerabilityId: string;
+  cveId: string;
+  packageName: string;
+  packageVersion: string;
   reason: string;
   approvedBy: string | null;
   approvedAt: Date;
   expiresAt: Date;
+  scope: string | null;
+  scopeTarget: string | null;
 }
 
 export class SbomWaiverRepository extends BaseRepository<SbomWaiverEntity> {
@@ -14,10 +18,10 @@ export class SbomWaiverRepository extends BaseRepository<SbomWaiverEntity> {
     super(db, 'sbom_waivers');
   }
 
-  async findByVulnerabilityId(vulnerabilityId: string): Promise<SbomWaiverEntity[]> {
+  async findByCveId(cveId: string): Promise<SbomWaiverEntity[]> {
     const result = await this.db.query(
-      `SELECT * FROM sbom_waivers WHERE vulnerability_id = $1 ORDER BY approved_at DESC`,
-      [vulnerabilityId],
+      `SELECT * FROM sbom_waivers WHERE cve_id = $1 ORDER BY approved_at DESC`,
+      [cveId],
     );
     return result.rows.map(row => this.mapRowToEntity(row));
   }
@@ -36,21 +40,18 @@ export class SbomWaiverRepository extends BaseRepository<SbomWaiverEntity> {
     return result.rows.map(row => this.mapRowToEntity(row));
   }
 
-  async deleteByVulnerabilityId(vulnerabilityId: string): Promise<void> {
-    await this.db.query(
-      `DELETE FROM sbom_waivers WHERE vulnerability_id = $1`,
-      [vulnerabilityId],
-    );
-  }
-
   protected mapRowToEntity(row: any): SbomWaiverEntity {
     return {
       id: row.id,
-      vulnerabilityId: row.vulnerability_id,
+      cveId: row.cve_id,
+      packageName: row.package_name,
+      packageVersion: row.package_version,
       reason: row.reason,
       approvedBy: row.approved_by,
       approvedAt: row.approved_at,
       expiresAt: row.expires_at,
+      scope: row.scope,
+      scopeTarget: row.scope_target,
     };
   }
 }

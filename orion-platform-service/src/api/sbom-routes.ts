@@ -2,22 +2,38 @@
  * SBOM Attestation API Routes
  *
  * Routes under /api/v1/sbom
+ * Migrated to PostgreSQL Repository pattern
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { DatabasePool } from '../services/database';
 import { SbomDocumentService } from '../services/sbom/SbomDocumentService';
 import { SbomVulnerabilityService } from '../services/sbom/SbomVulnerabilityService';
 import { SbomWaiverService } from '../services/sbom/SbomWaiverService';
 import { SbomController } from './controllers/SbomController';
 import { EventBusService } from '../services/event-bus-service';
 
+interface SbomRoutesOptions {
+  eventBus?: EventBusService;
+  database?: DatabasePool;
+}
+
 export default async function sbomRoutes(
   app: FastifyInstance,
-  options?: { eventBus?: EventBusService }
+  options: SbomRoutesOptions
 ): Promise<void> {
-  const documentService = new SbomDocumentService({ eventBus: options?.eventBus });
-  const vulnerabilityService = new SbomVulnerabilityService({ eventBus: options?.eventBus });
-  const waiverService = new SbomWaiverService({ eventBus: options?.eventBus });
+  const documentService = new SbomDocumentService({
+    eventBus: options.eventBus,
+    db: options.database,
+  });
+  const vulnerabilityService = new SbomVulnerabilityService({
+    eventBus: options.eventBus,
+    db: options.database,
+  });
+  const waiverService = new SbomWaiverService({
+    eventBus: options.eventBus,
+    db: options.database,
+  });
   const controller = new SbomController({
     documentService,
     vulnerabilityService,
