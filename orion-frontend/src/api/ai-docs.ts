@@ -1,10 +1,14 @@
 /**
- * AI Doc Management API Service
- * Knowledge base spaces, documents, RAG query, and knowledge graph
+ * AI Docs / Knowledge API Service
+ * - Space CRUD (knowledge base spaces)
+ * - Document CRUD (docs within spaces)
+ * - RAG retrieve & query (for future use)
  */
 import { api } from './client';
 
-// ---- Types ----
+// ============================================================================
+// Types
+// ============================================================================
 
 export interface Space {
   id: string;
@@ -12,12 +16,34 @@ export interface Space {
   type: 'public' | 'internal' | 'private';
   ownerId: string;
   teamId?: string;
-  documentCount: number;
+  documentCount?: number;
   description?: string;
   createdAt: string;
   updatedAt: string;
 }
 
+export interface SpaceInput {
+  name: string;
+  type: 'public' | 'internal' | 'private';
+  description?: string;
+  teamId?: string;
+}
+
+export interface Doc {
+  id: string;
+  spaceId: string;
+  title: string;
+  content: string;
+  tags?: string[];
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * Extended Document type used by DocumentList and DocumentEditor pages.
+ * Includes status, author, and richer metadata fields.
+ */
 export interface Document {
   id: string;
   spaceId: string;
@@ -31,27 +57,16 @@ export interface Document {
   updatedAt: string;
 }
 
-export interface RAGResult {
-  documentId: string;
+export interface DocInput {
   title: string;
-  snippet: string;
-  relevanceScore: number;
+  content: string;
   spaceId: string;
+  tags?: string[];
 }
 
-export interface RAGResponse {
-  answer: string;
-  sources: RAGResult[];
-  confidence: number;
-}
-
-export interface SpaceInput {
-  name: string;
-  type: string;
-  description?: string;
-  teamId?: string;
-}
-
+/**
+ * Document input used by DocumentList page (includes spaceId at top level).
+ */
 export interface DocumentInput {
   spaceId: string;
   title: string;
@@ -66,82 +81,121 @@ export interface UpdateDocumentInput {
   status?: string;
 }
 
-export interface SpaceListParams {
-  type?: string;
-  search?: string;
-  page?: number;
-  perPage?: number;
-}
-
-export interface DocListParams {
+export interface GetDocsParams {
   spaceId?: string;
-  status?: string;
-  tag?: string;
-  search?: string;
   page?: number;
-  perPage?: number;
+  tag?: string;
 }
 
-// ---- Spaces ----
-
-export function getSpaces(params?: SpaceListParams) {
-  return api.get('/v1/ai-docs/spaces', { params });
+export interface RagRetrieveResponse {
+  results: Array<{
+    docId: string;
+    title: string;
+    snippet: string;
+    score: number;
+    metadata?: Record<string, any>;
+  }>;
+  total: number;
 }
 
-export function getSpace(id: string) {
-  return api.get(`/v1/ai-docs/spaces/${id}`);
+export interface RagQueryResponse {
+  answer: string;
+  sources: Array<{
+    docId: string;
+    title: string;
+    relevance: number;
+  }>;
 }
 
-export function createSpace(data: SpaceInput) {
-  return api.post('/v1/ai-docs/spaces', data);
+/**
+ * RAGResult type used by RAGQuery page for rendering source snippets.
+ */
+export interface RAGResult {
+  documentId: string;
+  title: string;
+  snippet: string;
+  relevanceScore: number;
+  spaceId: string;
 }
 
-export function updateSpace(id: string, data: Partial<SpaceInput>) {
-  return api.put(`/v1/ai-docs/spaces/${id}`, data);
+export interface RAGResponse {
+  answer: string;
+  sources: RAGResult[];
+  confidence: number;
 }
 
-export function deleteSpace(id: string) {
-  return api.delete(`/v1/ai-docs/spaces/${id}`);
-}
+// ============================================================================
+// Space CRUD
+// ============================================================================
 
-// ---- Documents ----
+export const getSpaces = async (params?: { type?: string; search?: string; page?: number; perPage?: number }) => {
+  return api.get<Space[]>('/knowledge/v1/spaces', { params });
+};
 
-export function getDocs(params?: DocListParams) {
-  return api.get('/v1/ai-docs/docs', { params });
-}
+export const getSpace = async (id: string) => {
+  return api.get<Space>(`/knowledge/v1/spaces/${id}`);
+};
 
-export function getDoc(id: string) {
-  return api.get(`/v1/ai-docs/docs/${id}`);
-}
+export const createSpace = async (input: SpaceInput) => {
+  return api.post<Space>('/knowledge/v1/spaces', input);
+};
 
-export function createDoc(data: DocumentInput) {
-  return api.post('/v1/ai-docs/docs', data);
-}
+export const updateSpace = async (id: string, input: Partial<SpaceInput>) => {
+  return api.put<Space>(`/knowledge/v1/spaces/${id}`, input);
+};
 
-export function updateDoc(id: string, data: UpdateDocumentInput) {
-  return api.put(`/v1/ai-docs/docs/${id}`, data);
-}
+export const deleteSpace = async (id: string) => {
+  return api.delete(`/knowledge/v1/spaces/${id}`);
+};
 
-export function deleteDoc(id: string) {
-  return api.delete(`/v1/ai-docs/docs/${id}`);
-}
+// ============================================================================
+// Document CRUD
+// ============================================================================
 
-export function getDocVersions(id: string) {
-  return api.get(`/v1/ai-docs/docs/${id}/versions`);
-}
+export const getDocs = async (params?: { spaceId?: string; page?: number; pageSize?: number; status?: string; tag?: string; search?: string; perPage?: number }) => {
+  return api.get<Document[]>('/knowledge/v1/docs', { params });
+};
 
-// ---- RAG ----
+export const getDoc = async (id: string) => {
+  return api.get<Document>(`/knowledge/v1/docs/${id}`);
+};
 
-export function ragQuery(data: { query: string; spaceId?: string; topK?: number }) {
-  return api.post('/v1/ai-docs/rag/query', data);
-}
+export const createDoc = async (input: DocInput | DocumentInput) => {
+  return api.post<Document>('/knowledge/v1/docs', input);
+};
 
-export function ragRetrieve(data: { query: string; spaceId?: string; topK?: number }) {
-  return api.post('/v1/ai-docs/rag/retrieve', data);
-}
+export const updateDoc = async (id: string, input: Partial<DocInput> | UpdateDocumentInput) => {
+  return api.put<Document>(`/knowledge/v1/docs/${id}`, input);
+};
 
-// ---- Knowledge Graph ----
+export const deleteDoc = async (id: string) => {
+  return api.delete(`/knowledge/v1/docs/${id}`);
+};
 
-export function getKnowledgeGraph(params?: { spaceId?: string }) {
-  return api.get('/v1/ai-docs/graph', { params });
-}
+export const getDocVersions = async (id: string) => {
+  return api.get(`/knowledge/v1/docs/${id}/versions`);
+};
+
+// ============================================================================
+// RAG API (for future use)
+// ============================================================================
+
+export const ragRetrieve = async (
+  data: { query: string; spaceId?: string; topK?: number }
+) => {
+  return api.post<RagRetrieveResponse>('/knowledge/v1/rag/retrieve', data);
+};
+
+export const ragQuery = async (
+  data: { query: string; spaceId?: string; topK?: number }
+) => {
+  return api.post<RAGResponse>('/knowledge/v1/rag/query', data);
+};
+
+// ============================================================================
+// Knowledge Graph
+// ============================================================================
+
+export const getKnowledgeGraph = async (params?: { spaceId?: string }) => {
+  return api.get('/knowledge/v1/graph', { params });
+};
