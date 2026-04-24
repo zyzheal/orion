@@ -4,6 +4,7 @@
  */
 import pino from 'pino';
 import { v4 as uuidv4 } from 'uuid';
+import { ArtifactPromotionRepository } from '../../repositories/ArtifactPromotionRepository';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -42,6 +43,13 @@ export interface PromotionServiceError extends Error {
 export class PromotionService {
   private currentStages: Map<string, PromotionStage> = new Map();
   private promotionHistory: PromotionRecord[] = [];
+  private promotionRepository?: ArtifactPromotionRepository;
+
+  constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+    if (db) {
+      this.promotionRepository = new ArtifactPromotionRepository(db);
+    }
+  }
 
   /**
    * Set artifact current stage
@@ -73,6 +81,22 @@ export class PromotionService {
       timestamp: new Date(),
     };
     this.promotionHistory.push(record);
+
+    // Store in repository
+    if (this.promotionRepository) {
+      await this.promotionRepository.create({
+        artifactId,
+        fromEnv: currentStage,
+        toEnv: nextStage,
+        status: 'completed',
+        promotedBy,
+        approvedBy: null,
+        approvedAt: null,
+        reason: reason ?? null,
+        createdAt: record.timestamp,
+      });
+    }
+
     logger.info({ artifactId, from: currentStage, to: nextStage }, 'Artifact promoted');
     return record;
   }
@@ -84,6 +108,12 @@ export class PromotionService {
     const record = await this.promote(artifactId, promotedBy, reason);
     record.approvedBy = approvedBy;
     record.approvedAt = new Date();
+
+    // Update repository with approval info
+    if (this.promotionRepository) {
+      await this.promotionRepository.approve(record.id, approvedBy);
+    }
+
     return record;
   }
 
@@ -97,7 +127,22 @@ export class PromotionService {
   /**
    * Get promotion history
    */
-  getHistory(artifactId: string): PromotionRecord[] {
+  async getHistory(artifactId: string): Promise<PromotionRecord[]> {
+    // Load from repository if available
+    if (this.promotionRepository) {
+      const entities = await this.promotionRepository.findByArtifact(artifactId);
+      return entities.map(e => ({
+        id: e.id,
+        artifactId: e.artifactId,
+        fromStage: e.fromEnv as PromotionStage,
+        toStage: e.toEnv as PromotionStage,
+        promotedBy: e.promotedBy,
+        approvedBy: e.approvedBy,
+        approvedAt: e.approvedAt,
+        reason: e.reason,
+        timestamp: e.createdAt,
+      }));
+    }
     return this.promotionHistory.filter(r => r.artifactId === artifactId);
   }
 
