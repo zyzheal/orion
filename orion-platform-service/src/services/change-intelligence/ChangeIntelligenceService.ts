@@ -19,6 +19,12 @@ import {
   HistoricalMatchCreateInput,
   createHistoricalMatch,
 } from '../../models/ChangeIntelligence';
+import {
+  ChangeIntelligenceRepository,
+  AffectedServiceRepository,
+  RiskFactorRepository,
+  HistoricalMatchRepository,
+} from '../../repositories/ChangeIntelligenceRepository';
 
 export interface ChangeIntelligenceReportListFilter {
   prId?: string;
@@ -39,8 +45,20 @@ export class ChangeIntelligenceService {
   private historicalMatches: Map<string, HistoricalMatch[]> = new Map();
   private eventBus?: EventBusService;
 
-  constructor(options?: { eventBus?: EventBusService }) {
+  // Repositories
+  private reportRepository?: ChangeIntelligenceRepository;
+  private affectedServiceRepository?: AffectedServiceRepository;
+  private riskFactorRepository?: RiskFactorRepository;
+  private historicalMatchRepository?: HistoricalMatchRepository;
+
+  constructor(options?: { eventBus?: EventBusService; db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> } }) {
     this.eventBus = options?.eventBus;
+    if (options?.db) {
+      this.reportRepository = new ChangeIntelligenceRepository(options.db);
+      this.affectedServiceRepository = new AffectedServiceRepository(options.db);
+      this.riskFactorRepository = new RiskFactorRepository(options.db);
+      this.historicalMatchRepository = new HistoricalMatchRepository(options.db);
+    }
   }
 
   /**
@@ -67,6 +85,23 @@ export class ChangeIntelligenceService {
 
     const report = createChangeIntelligenceReport(input, riskScore, shapFactors, 3, 5);
     this.reports.set(report.id, report);
+
+    // Store report in repository
+    if (this.reportRepository) {
+      await this.reportRepository.create({
+        prId: input.prId,
+        repoId: input.repoId,
+        commitSha: input.commitSha,
+        riskScore,
+        riskLevel: report.riskLevel,
+        affectedServices: 3,
+        affectedCapabilities: 5,
+        shapFactors: shapFactors,
+        gitlabCommentPosted: false,
+        createdAt: report.createdAt,
+        updatedAt: report.createdAt,
+      });
+    }
 
     // Mock affected services
     const services: AffectedService[] = [
@@ -101,6 +136,19 @@ export class ChangeIntelligenceService {
     this.affectedServices.set(report.id, services);
     report.affectedServices = services.length;
 
+    // Store affected services in repository
+    if (this.affectedServiceRepository) {
+      await this.affectedServiceRepository.batchCreate(services.map(s => ({
+        reportId: report.id,
+        serviceName: s.serviceName,
+        serviceTier: s.serviceTier ?? null,
+        impactType: s.impactType ?? null,
+        changedFiles: s.changedFiles ?? [],
+        sloRisk: s.sloRisk ?? null,
+        recommendedReviewers: s.recommendedReviewers ?? [],
+      })));
+    }
+
     // Mock risk factors
     const factors: RiskFactor[] = [
       createRiskFactor({
@@ -130,6 +178,18 @@ export class ChangeIntelligenceService {
     ];
     this.riskFactors.set(report.id, factors);
 
+    // Store risk factors in repository
+    if (this.riskFactorRepository) {
+      await this.riskFactorRepository.batchCreate(factors.map(f => ({
+        reportId: report.id,
+        factorName: f.factorName,
+        factorValue: f.factorValue,
+        weight: f.weight,
+        contribution: f.contribution,
+        description: f.description ?? null,
+      })));
+    }
+
     // Mock historical matches
     const matches: HistoricalMatch[] = [
       createHistoricalMatch({
@@ -148,6 +208,19 @@ export class ChangeIntelligenceService {
     ];
     this.historicalMatches.set(report.id, matches);
 
+    // Store historical matches in repository
+    if (this.historicalMatchRepository) {
+      for (const match of matches) {
+        await this.historicalMatchRepository.create({
+          reportId: report.id,
+          historicalPr: match.historicalPr ?? null,
+          similarity: match.similarity ?? null,
+          incidentLinked: match.incidentLinked ?? false,
+          incidentId: match.incidentId ?? null,
+        });
+      }
+    }
+
     await this.eventBus?.publish('change-intelligence.analyzed', {
       reportId: report.id,
       prId: input.prId,
@@ -160,12 +233,66 @@ export class ChangeIntelligenceService {
 
   // Report CRUD
   async getById(id: string): Promise<ChangeIntelligenceReport | undefined> {
-    return this.reports.get(id);
+    const cached = this.reports.get(id);
+    if (cached) return cached;
+
+    // Load from repository
+    if (this.reportRepository) {
+      const entity = await this.reportRepository.findById(id);
+      if (entity) {
+        const report: ChangeIntelligenceReport = {
+          id: entity.id,
+          prId: entity.prId,
+          repoId: entity.repoId,
+          commitSha: entity.commitSha,
+          riskScore: entity.riskScore,
+          riskLevel: entity.riskLevel,
+          affectedServices: entity.affectedServices,
+          affectedCapabilities: entity.affectedCapabilities,
+          shapFactors: entity.shapFactors ?? [],
+          gitlabCommentPosted: entity.gitlabCommentPosted,
+          createdAt: entity.createdAt,
+          updatedAt: entity.updatedAt,
+        };
+        this.reports.set(id, report);
+        return report;
+      }
+    }
+    return undefined;
   }
 
   async list(filter: ChangeIntelligenceReportListFilter = {}): Promise<ChangeIntelligenceReport[]> {
-    let items = Array.from(this.reports.values());
+    // Use repository if available
+    if (this.reportRepository) {
+      let entities;
+      if (filter.prId && filter.repoId) {
+        entities = await this.reportRepository.findByPrRepo(filter.prId, filter.repoId);
+      } else if (filter.riskLevel) {
+        entities = await this.reportRepository.findByRiskLevel(filter.riskLevel);
+      } else if (filter.days) {
+        entities = await this.reportRepository.findRecent(filter.days);
+      } else {
+        const result = await this.reportRepository.findAll({ limit: 100 });
+        entities = result.entities;
+      }
+      return entities.map(e => ({
+        id: e.id,
+        prId: e.prId,
+        repoId: e.repoId,
+        commitSha: e.commitSha,
+        riskScore: e.riskScore,
+        riskLevel: e.riskLevel,
+        affectedServices: e.affectedServices,
+        affectedCapabilities: e.affectedCapabilities,
+        shapFactors: e.shapFactors ?? [],
+        gitlabCommentPosted: e.gitlabCommentPosted,
+        createdAt: e.createdAt,
+        updatedAt: e.updatedAt,
+      }));
+    }
 
+    // Fallback to in-memory
+    let items = Array.from(this.reports.values());
     if (filter.prId) {
       items = items.filter(r => r.prId === filter.prId);
     }
@@ -179,7 +306,6 @@ export class ChangeIntelligenceService {
       const cutoff = new Date(Date.now() - filter.days * 24 * 60 * 60 * 1000);
       items = items.filter(r => r.createdAt >= cutoff);
     }
-
     return items.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   }
 
