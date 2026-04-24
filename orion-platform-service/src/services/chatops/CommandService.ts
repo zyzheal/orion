@@ -8,6 +8,7 @@ import {
   ChatOpsCommandCreateInput,
   createChatOpsCommand,
 } from '../../models/ChatOps';
+import { ChatOpsCommandRepository } from '../../repositories/ChatOpsRepository';
 
 export interface ChatOpsCommandListFilter {
   permissionLevel?: string;
@@ -19,9 +20,13 @@ export interface ChatOpsCommandListFilter {
 export class CommandService {
   private commands: Map<string, ChatOpsCommand> = new Map();
   private eventBus?: EventBusService;
+  private commandRepository?: ChatOpsCommandRepository;
 
-  constructor(options?: { eventBus?: EventBusService }) {
+  constructor(options?: { eventBus?: EventBusService; db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> } }) {
     this.eventBus = options?.eventBus;
+    if (options?.db) {
+      this.commandRepository = new ChatOpsCommandRepository(options.db);
+    }
 
     // Register default commands
     this.registerDefaults();
@@ -98,6 +103,18 @@ export class CommandService {
     const command = createChatOpsCommand(input);
     this.commands.set(command.name, command);
 
+    // Store in repository
+    if (this.commandRepository) {
+      await this.commandRepository.create({
+        name: command.name,
+        subcommand: command.subcommand ?? '',
+        schema: command.schema ?? {},
+        aliases: command.aliases ?? [],
+        permissionLevel: command.permissionLevel ?? 'user',
+        examples: command.examples ?? [],
+      });
+    }
+
     await this.eventBus?.publish('chatops.command.created', {
       commandName: command.name,
       permissionLevel: command.permissionLevel,
@@ -106,20 +123,100 @@ export class CommandService {
   }
 
   async getByName(name: string): Promise<ChatOpsCommand | undefined> {
-    // Try direct name match
+    // Try direct name match from cache
     const cmd = this.commands.get(name);
     if (cmd) return cmd;
 
-    // Try alias match
+    // Try alias match from cache
     for (const command of this.commands.values()) {
       if (command.aliases.includes(name)) {
         return command;
       }
     }
+
+    // Load from repository
+    if (this.commandRepository) {
+      const entity = await this.commandRepository.findByName(name);
+      if (entity) {
+        const cmd: ChatOpsCommand = {
+          id: entity.id,
+          name: entity.name,
+          subcommand: entity.subcommand,
+          schema: entity.schema,
+          aliases: entity.aliases,
+          permissionLevel: entity.permissionLevel,
+          examples: entity.examples,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+        this.commands.set(entity.name, cmd);
+        return cmd;
+      }
+
+      // Try alias match from repository
+      const aliasEntity = await this.commandRepository.findByAlias(name);
+      if (aliasEntity) {
+        const cmd: ChatOpsCommand = {
+          id: aliasEntity.id,
+          name: aliasEntity.name,
+          subcommand: aliasEntity.subcommand,
+          schema: aliasEntity.schema,
+          aliases: aliasEntity.aliases,
+          permissionLevel: aliasEntity.permissionLevel,
+          examples: aliasEntity.examples,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+        this.commands.set(aliasEntity.name, cmd);
+        return cmd;
+      }
+    }
+
     return undefined;
   }
 
   async list(filter: ChatOpsCommandListFilter = {}): Promise<{ commands: ChatOpsCommand[]; total: number }> {
+    // Use repository if available
+    if (this.commandRepository) {
+      let entities;
+      if (filter.permissionLevel) {
+        entities = await this.commandRepository.findByPermission(filter.permissionLevel);
+      } else {
+        const result = await this.commandRepository.findAll({ limit: 100 });
+        entities = result.entities;
+      }
+
+      const commands = entities.map(e => ({
+        id: e.id,
+        name: e.name,
+        subcommand: e.subcommand,
+        schema: e.schema,
+        aliases: e.aliases,
+        permissionLevel: e.permissionLevel,
+        examples: e.examples,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }));
+
+      // Apply name filter
+      let filtered = commands;
+      if (filter.name) {
+        filtered = filtered.filter(c =>
+          c.name.toLowerCase().includes(filter.name!.toLowerCase()) ||
+          c.aliases.some(a => a.toLowerCase().includes(filter.name!.toLowerCase()))
+        );
+      }
+
+      const total = filtered.length;
+      const page = filter.page ?? 1;
+      const perPage = filter.perPage ?? 20;
+      const start = (page - 1) * perPage;
+      const paginated = filtered.slice(start, start + perPage);
+
+      return { commands: paginated, total };
+    }
+
+    // Fallback to in-memory
     let items = Array.from(this.commands.values());
 
     if (filter.name) {
@@ -143,6 +240,15 @@ export class CommandService {
 
   async delete(name: string): Promise<boolean> {
     const deleted = this.commands.delete(name);
+
+    // Delete from repository
+    if (this.commandRepository) {
+      const entity = await this.commandRepository.findByName(name);
+      if (entity) {
+        await this.commandRepository.delete(entity.id);
+      }
+    }
+
     return deleted;
   }
 
