@@ -274,7 +274,7 @@
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/github_com_chaitin_panda-wiki_api_auth_v1.AuthGetResp"
+                                            "$ref": "#/definitions/github_com_orion-platform_orion-knowledge_api_auth_v1.AuthGetResp"
                                         }
                                     }
                                 }
@@ -1545,7 +1545,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_chaitin_panda-wiki_domain.CheckModelReq"
+                            "$ref": "#/definitions/github_com_orion-platform_orion-knowledge_domain.CheckModelReq"
                         }
                     }
                 ],
@@ -1561,7 +1561,7 @@
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/github_com_chaitin_panda-wiki_domain.CheckModelResp"
+                                            "$ref": "#/definitions/github_com_orion-platform_orion-knowledge_domain.CheckModelResp"
                                         }
                                     }
                                 }
@@ -1596,7 +1596,7 @@
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/github_com_chaitin_panda-wiki_domain.ModelListItem"
+                                            "$ref": "#/definitions/github_com_orion-platform_orion-knowledge_domain.ModelListItem"
                                         }
                                     }
                                 }
@@ -2311,7 +2311,7 @@
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/github_com_chaitin_panda-wiki_api_node_v1.NodeListGroupNavResp"
+                                                "$ref": "#/definitions/github_com_orion-platform_orion-knowledge_api_node_v1.NodeListGroupNavResp"
                                             }
                                         }
                                     }
@@ -3630,7 +3630,7 @@
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/github_com_chaitin_panda-wiki_api_share_v1.AuthGetResp"
+                                            "$ref": "#/definitions/github_com_orion-platform_orion-knowledge_api_share_v1.AuthGetResp"
                                         }
                                     }
                                 }
@@ -4470,7 +4470,7 @@
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/github_com_chaitin_panda-wiki_api_share_v1.GitHubCallbackResp"
+                                            "$ref": "#/definitions/github_com_orion-platform_orion-knowledge_api_share_v1.GitHubCallbackResp"
                                         }
                                     }
                                 }
@@ -6327,7 +6327,7 @@
                     "description": "model",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/github_com_chaitin_panda-wiki_domain.ModelProvider"
+                            "$ref": "#/definitions/github_com_orion-platform_orion-knowledge_domain.ModelProvider"
                         }
                     ]
                 },
@@ -6507,10 +6507,10 @@
                     "type": "string"
                 },
                 "parameters": {
-                    "$ref": "#/definitions/github_com_chaitin_panda-wiki_domain.ModelParam"
+                    "$ref": "#/definitions/github_com_orion-platform_orion-knowledge_domain.ModelParam"
                 },
                 "provider": {
-                    "$ref": "#/definitions/github_com_chaitin_panda-wiki_domain.ModelProvider"
+                    "$ref": "#/definitions/github_com_orion-platform_orion-knowledge_domain.ModelProvider"
                 },
                 "type": {
                     "enum": [
@@ -8228,10 +8228,10 @@
                     "type": "string"
                 },
                 "parameters": {
-                    "$ref": "#/definitions/github_com_chaitin_panda-wiki_domain.ModelParam"
+                    "$ref": "#/definitions/github_com_orion-platform_orion-knowledge_domain.ModelParam"
                 },
                 "provider": {
-                    "$ref": "#/definitions/github_com_chaitin_panda-wiki_domain.ModelProvider"
+                    "$ref": "#/definitions/github_com_orion-platform_orion-knowledge_domain.ModelProvider"
                 },
                 "type": {
                     "enum": [
@@ -8603,7 +8603,7 @@
                 }
             }
         },
-        "github_com_chaitin_panda-wiki_api_auth_v1.AuthGetResp": {
+        "github_com_orion-platform_orion-knowledge_api_auth_v1.AuthGetResp": {
             "type": "object",
             "properties": {
                 "auths": {
@@ -8626,7 +8626,7 @@
                 }
             }
         },
-        "github_com_chaitin_panda-wiki_api_node_v1.NodeListGroupNavResp": {
+        "github_com_orion-platform_orion-knowledge_api_node_v1.NodeListGroupNavResp": {
             "type": "object",
             "properties": {
                 "count": {
@@ -8652,7 +8652,7 @@
                 }
             }
         },
-        "github_com_chaitin_panda-wiki_api_share_v1.AuthGetResp": {
+        "github_com_orion-platform_orion-knowledge_api_share_v1.AuthGetResp": {
             "type": "object",
             "properties": {
                 "auth_type": {
@@ -8666,10 +8666,10 @@
                 }
             }
         },
-        "github_com_chaitin_panda-wiki_api_share_v1.GitHubCallbackResp": {
+        "github_com_orion-platform_orion-knowledge_api_share_v1.GitHubCallbackResp": {
             "type": "object"
         },
-        "github_com_chaitin_panda-wiki_domain.CheckModelReq": {
+        "github_com_orion-platform_orion-knowledge_domain.CheckModelReq": {
             "type": "object",
             "required": [
                 "base_url",
@@ -8695,10 +8695,10 @@
                     "type": "string"
                 },
                 "parameters": {
-                    "$ref": "#/definitions/github_com_chaitin_panda-wiki_domain.ModelParam"
+                    "$ref": "#/definitions/github_com_orion-platform_orion-knowledge_domain.ModelParam"
                 },
                 "provider": {
-                    "$ref": "#/definitions/github_com_chaitin_panda-wiki_domain.ModelProvider"
+                    "$ref": "#/definitions/github_com_orion-platform_orion-knowledge_domain.ModelProvider"
                 },
                 "type": {
                     "enum": [
@@ -8716,7 +8716,7 @@
                 }
             }
         },
-        "github_com_chaitin_panda-wiki_domain.CheckModelResp": {
+        "github_com_orion-platform_orion-knowledge_domain.CheckModelResp": {
             "type": "object",
             "properties": {
                 "content": {
@@ -8727,7 +8727,7 @@
                 }
             }
         },
-        "github_com_chaitin_panda-wiki_domain.ModelListItem": {
+        "github_com_orion-platform_orion-knowledge_domain.ModelListItem": {
             "type": "object",
             "properties": {
                 "api_header": {
@@ -8756,13 +8756,13 @@
                     "type": "string"
                 },
                 "parameters": {
-                    "$ref": "#/definitions/github_com_chaitin_panda-wiki_domain.ModelParam"
+                    "$ref": "#/definitions/github_com_orion-platform_orion-knowledge_domain.ModelParam"
                 },
                 "prompt_tokens": {
                     "type": "integer"
                 },
                 "provider": {
-                    "$ref": "#/definitions/github_com_chaitin_panda-wiki_domain.ModelProvider"
+                    "$ref": "#/definitions/github_com_orion-platform_orion-knowledge_domain.ModelProvider"
                 },
                 "total_tokens": {
                     "type": "integer"
@@ -8772,7 +8772,7 @@
                 }
             }
         },
-        "github_com_chaitin_panda-wiki_domain.ModelParam": {
+        "github_com_orion-platform_orion-knowledge_domain.ModelParam": {
             "type": "object",
             "properties": {
                 "context_window": {
@@ -8798,7 +8798,7 @@
                 }
             }
         },
-        "github_com_chaitin_panda-wiki_domain.ModelProvider": {
+        "github_com_orion-platform_orion-knowledge_domain.ModelProvider": {
             "type": "string",
             "enum": [
                 "BaiZhiCloud"

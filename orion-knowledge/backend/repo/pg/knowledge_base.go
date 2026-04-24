@@ -406,7 +406,7 @@ func (r *KnowledgeBaseRepository) CreateKnowledgeBase(ctx context.Context, maxKB
 						ShowIcon: false,
 						Target:   "_blank",
 						Text:     "Orion Knowledge",
-						URL:      "https://pandawiki.docs.baizhi.cloud",
+						URL:      "https://orion-knowledge.docs.baizhi.cloud",
 						Variant:  "outlined",
 					},
 				},
