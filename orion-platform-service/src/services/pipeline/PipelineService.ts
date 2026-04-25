@@ -1,270 +1,540 @@
 /**
- * Pipeline Service - Pipeline CRUD 操作
+ * PipelineService - Business logic layer for Pipeline operations
+ *
+ * Handles pipeline CRUD, execution, and management.
+ * Uses PostgreSQL PipelineRepository for persistence.
  */
 
 import {
+  PipelineRepository,
   Pipeline,
-  PipelineStatus,
-  PipelineCreateInput,
-  PipelineUpdateInput,
-  createPipeline,
-  parsePipelineYaml,
-} from '../../models/Pipeline';
+  PipelineRun,
+  PipelineStage,
+  StageExecution,
+  CreatePipelineInput,
+  UpdatePipelineInput,
+  CreatePipelineRunInput,
+} from './PipelineRepository';
 
-/**
- * 内存存储（生产环境应使用数据库）
- */
-const pipelines = new Map<string, Pipeline>();
-const pipelineVersions = new Map<string, Pipeline[]>(); // name -> [pipelines]
+export interface ListPipelinesOptions {
+  page?: number;
+  limit?: number;
+  tenantId?: string;
+  projectId?: string;
+  status?: string;
+}
 
-export class PipelineService {
-  /**
-   * 创建 Pipeline
-   */
-  async create(input: PipelineCreateInput): Promise<Pipeline> {
-    // 验证 YAML
-    try {
-      const { metadata, spec } = parsePipelineYaml(input.yamlDefinition);
+export interface ListRunsOptions {
+  page?: number;
+  limit?: number;
+  status?: string;
+}
 
-      // 验证 metadata 与输入是否一致
-      if (metadata.name !== input.name) {
-        throw new Error(`Pipeline name mismatch: YAML has '${metadata.name}', expected '${input.name}'`);
-      }
-      if (metadata.version !== input.version) {
-        throw new Error(`Pipeline version mismatch: YAML has '${metadata.version}', expected '${input.version}'`);
-      }
+export interface PaginatedResult<T> {
+  data: T[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
 
-      // 验证 stages
-      if (!spec.stages || spec.stages.length === 0) {
-        throw new Error('Pipeline must have at least one stage');
-      }
-
-      // 验证 stage 依赖关系
-      const stageNames = new Set(spec.stages.map((s: { name: string }) => s.name));
-      for (const stage of spec.stages) {
-        if (stage.dependsOn) {
-          for (const dep of stage.dependsOn) {
-            if (!stageNames.has(dep)) {
-              throw new Error(`Stage '${stage.name}' depends on unknown stage '${dep}'`);
-            }
-          }
-        }
-      }
-    } catch (error) {
-      if (error instanceof Error) {
-        throw new Error(`Pipeline validation failed: ${error.message}`);
-      }
-      throw error;
-    }
-
-    // 检查同名同版本是否已存在
-    const key = `${input.name}@${input.version}`;
-    const existing = Array.from(pipelines.values()).find(
-      p => p.name === input.name && p.version === input.version && p.status !== PipelineStatus.DELETED
-    );
-    if (existing) {
-      throw new Error(`Pipeline '${key}' already exists`);
-    }
-
-    const pipeline = createPipeline(input);
-    pipelines.set(pipeline.id, pipeline);
-
-    // 维护版本列表
-    const versions = pipelineVersions.get(input.name) || [];
-    versions.push(pipeline);
-    pipelineVersions.set(input.name, versions);
-
-    return pipeline;
-  }
-
-  /**
-   * 获取 Pipeline 详情
-   */
-  async getById(id: string): Promise<Pipeline | null> {
-    const pipeline = pipelines.get(id);
-    if (!pipeline || pipeline.status === PipelineStatus.DELETED) {
-      return null;
-    }
-
-    // 返回时解析 spec
-    try {
-      const { spec } = parsePipelineYaml(pipeline.yamlDefinition);
-      return { ...pipeline, spec };
-    } catch {
-      return pipeline;
-    }
-  }
-
-  /**
-   * 获取 Pipeline 列表
-   */
-  async list(options?: {
-    name?: string;
-    status?: PipelineStatus;
-    limit?: number;
-    offset?: number;
-  }): Promise<Pipeline[]> {
-    let result = Array.from(pipelines.values());
-
-    // 过滤已删除的
-    result = result.filter(p => p.status !== PipelineStatus.DELETED);
-
-    // 按名称过滤
-    if (options?.name) {
-      result = result.filter(p => p.name === options.name);
-    }
-
-    // 按状态过滤
-    if (options?.status) {
-      result = result.filter(p => p.status === options.status);
-    }
-
-    // 排序（最新的在前）
-    result.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-
-    // 分页
-    const offset = options?.offset || 0;
-    const limit = options?.limit || 100;
-    return result.slice(offset, offset + limit);
-  }
-
-  /**
-   * 获取 Pipeline 所有版本
-   */
-  async getVersions(name: string): Promise<Pipeline[]> {
-    const versions = pipelineVersions.get(name) || [];
-    return versions
-      .filter(p => p.status !== PipelineStatus.DELETED)
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-  }
-
-  /**
-   * 更新 Pipeline
-   */
-  async update(id: string, input: PipelineUpdateInput): Promise<Pipeline | null> {
-    const pipeline = pipelines.get(id);
-    if (!pipeline || pipeline.status === PipelineStatus.DELETED) {
-      return null;
-    }
-
-    // 更新 YAML 定义时需要验证
-    if (input.yamlDefinition) {
-      try {
-        const { metadata } = parsePipelineYaml(input.yamlDefinition);
-        if (metadata.name !== pipeline.name || metadata.version !== pipeline.version) {
-          throw new Error('Cannot change pipeline name or version in update');
-        }
-        pipeline.yamlDefinition = input.yamlDefinition;
-      } catch (error) {
-        if (error instanceof Error) {
-          throw new Error(`Pipeline validation failed: ${error.message}`);
-        }
-        throw error;
-      }
-    }
-
-    if (input.description !== undefined) {
-      pipeline.description = input.description;
-    }
-
-    if (input.status !== undefined) {
-      pipeline.status = input.status;
-    }
-
-    pipeline.updatedAt = new Date();
-    pipelines.set(id, pipeline);
-
-    return pipeline;
-  }
-
-  /**
-   * 删除 Pipeline
-   */
-  async delete(id: string): Promise<boolean> {
-    const pipeline = pipelines.get(id);
-    if (!pipeline || pipeline.status === PipelineStatus.DELETED) {
-      return false;
-    }
-
-    pipeline.status = PipelineStatus.DELETED;
-    pipeline.updatedAt = new Date();
-    pipelines.set(id, pipeline);
-
-    return true;
-  }
-
-  /**
-   * 验证 Pipeline YAML
-   */
-  async validate(yamlDefinition: string): Promise<{ valid: boolean; errors: string[] }> {
-    const errors: string[] = [];
-
-    try {
-      const { metadata, spec } = parsePipelineYaml(yamlDefinition);
-
-      // 验证 stages
-      if (!spec.stages || spec.stages.length === 0) {
-        errors.push('Pipeline must have at least one stage');
-      } else {
-        // 验证 stage 依赖关系
-        const stageNames = new Set(spec.stages.map((s: { name: string }) => s.name));
-        for (const stage of spec.stages) {
-          if (stage.dependsOn) {
-            for (const dep of stage.dependsOn) {
-              if (!stageNames.has(dep)) {
-                errors.push(`Stage '${stage.name}' depends on unknown stage '${dep}'`);
-              }
-            }
-          }
-        }
-
-        // 验证循环依赖
-        const visited = new Set<string>();
-        const recStack = new Set<string>();
-
-        const hasCycle = (stageName: string): boolean => {
-          if (recStack.has(stageName)) {
-            return true;
-          }
-          if (visited.has(stageName)) {
-            return false;
-          }
-
-          visited.add(stageName);
-          recStack.add(stageName);
-
-          const stage = spec.stages?.find((s: { name: string }) => s.name === stageName);
-          if (stage?.dependsOn) {
-            for (const dep of stage.dependsOn) {
-              if (hasCycle(dep)) {
-                return true;
-              }
-            }
-          }
-
-          recStack.delete(stageName);
-          return false;
-        };
-
-        for (const stage of spec.stages) {
-          if (hasCycle(stage.name)) {
-            errors.push('Circular dependency detected in stages');
-            break;
-          }
-        }
-      }
-    } catch (error) {
-      if (error instanceof Error) {
-        errors.push(error.message);
-      }
-    }
-
-    return {
-      valid: errors.length === 0,
-      errors,
-    };
+export class PipelineServiceError extends Error {
+  constructor(message: string, public code: string) {
+    super(message);
+    this.name = 'PipelineServiceError';
   }
 }
 
-// 导出单例
-export const pipelineService = new PipelineService();
+export class PipelineService {
+  private repository: PipelineRepository | null;
+
+  constructor(repository: PipelineRepository | null) {
+    this.repository = repository;
+  }
+
+  // ==================== Pipeline CRUD ====================
+
+  /**
+   * Create a new pipeline
+   */
+  async create(input: CreatePipelineInput): Promise<Pipeline> {
+    if (!this.repository) {
+      throw new PipelineServiceError('Database not available', 'SERVICE_UNAVAILABLE');
+    }
+    return this.repository.create(input);
+  }
+
+  /**
+   * List pipelines by tenant (simple list)
+   */
+  async list(tenantId: string, projectId?: string): Promise<Pipeline[]> {
+    if (!this.repository) {
+      return [];
+    }
+    return this.repository.findAll({ tenantId, projectId });
+  }
+
+  /**
+   * Get pipeline by ID
+   */
+  async getById(id: string): Promise<Pipeline | null> {
+    if (!this.repository) {
+      return null;
+    }
+    return this.repository.findById(id);
+  }
+
+  /**
+   * Get pipeline by ID (throws if not found)
+   */
+  async getPipeline(id: string): Promise<Pipeline> {
+    if (!this.repository) {
+      throw new PipelineServiceError('Database not available', 'SERVICE_UNAVAILABLE');
+    }
+    const pipeline = await this.repository.findById(id);
+
+    if (!pipeline) {
+      throw new PipelineServiceError(`Pipeline not found: ${id}`, 'PIPELINE_NOT_FOUND');
+    }
+
+    return pipeline;
+  }
+
+  async getVersions(tenantId: string, pipelineId: string): Promise<Pipeline[]> {
+    if (!this.repository) {
+      return [];
+    }
+    return this.repository.findVersions(pipelineId);
+  }
+
+  /**
+   * List pipelines with pagination
+   */
+  async listPipelines(options: ListPipelinesOptions = {}): Promise<PaginatedResult<Pipeline>> {
+    if (!this.repository) {
+      return { data: [], total: 0, page: options.page || 1, limit: options.limit || 20, totalPages: 0 };
+    }
+    const { page = 1, limit = 20, tenantId, projectId, status } = options;
+    const offset = (page - 1) * limit;
+
+    const [pipelines, total] = await Promise.all([
+      this.repository.findAll({ tenantId, projectId, status, limit, offset }),
+      this.repository.count({ tenantId, status }),
+    ]);
+
+    return {
+      data: pipelines,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  async update(id: string, input: UpdatePipelineInput): Promise<Pipeline | null> {
+    if (!this.repository) {
+      return null;
+    }
+    return this.repository.update(id, input);
+  }
+
+  async delete(id: string): Promise<boolean> {
+    if (!this.repository) {
+      return false;
+    }
+    return this.repository.delete(id);
+  }
+
+  /**
+   * Create a new pipeline (legacy API - creates from CreatePipelineInput)
+   */
+  async createPipeline(input: CreatePipelineInput): Promise<Pipeline> {
+    if (!this.repository) {
+      throw new PipelineServiceError('Database not available', 'SERVICE_UNAVAILABLE');
+    }
+
+    // Validate required fields
+    if (!input.tenant_id) {
+      throw new PipelineServiceError('Tenant ID is required', 'INVALID_INPUT');
+    }
+
+    if (!input.name || input.name.trim().length === 0) {
+      throw new PipelineServiceError('Pipeline name is required', 'INVALID_INPUT');
+    }
+
+    return this.repository.create({
+      ...input,
+      name: input.name.trim(),
+      description: input.description?.trim(),
+    });
+  }
+
+  /**
+   * Update a pipeline
+   */
+  async updatePipeline(id: string, input: UpdatePipelineInput): Promise<Pipeline> {
+    if (!this.repository) {
+      throw new PipelineServiceError('Database not available', 'SERVICE_UNAVAILABLE');
+    }
+    const existing = await this.repository.findById(id);
+    if (!existing) {
+      throw new PipelineServiceError(`Pipeline not found: ${id}`, 'PIPELINE_NOT_FOUND');
+    }
+
+    const updated = await this.repository.update(id, input);
+
+    if (!updated) {
+      throw new PipelineServiceError(`Failed to update pipeline: ${id}`, 'UPDATE_FAILED');
+    }
+
+    return updated;
+  }
+
+  /**
+   * Delete a pipeline (soft delete)
+   */
+  async deletePipeline(id: string): Promise<boolean> {
+    if (!this.repository) {
+      throw new PipelineServiceError('Database not available', 'SERVICE_UNAVAILABLE');
+    }
+    const existing = await this.repository.findById(id);
+    if (!existing) {
+      throw new PipelineServiceError(`Pipeline not found: ${id}`, 'PIPELINE_NOT_FOUND');
+    }
+
+    return this.repository.delete(id);
+  }
+
+  // ==================== Pipeline Stages ====================
+
+  /**
+   * Get pipeline stages
+   */
+  async getPipelineStages(pipelineId: string): Promise<PipelineStage[]> {
+    if (!this.repository) {
+      return [];
+    }
+    const pipeline = await this.repository.findById(pipelineId);
+    if (!pipeline) {
+      throw new PipelineServiceError(`Pipeline not found: ${pipelineId}`, 'PIPELINE_NOT_FOUND');
+    }
+
+    return this.repository.findStagesByPipeline(pipelineId);
+  }
+
+  /**
+   * Add stage to pipeline
+   */
+  async addStage(pipelineId: string, stage: {
+    name: string;
+    type: string;
+    config?: Record<string, any>;
+    order_index: number;
+    timeout?: number;
+    retry_count?: number;
+    parallel?: boolean;
+    conditions?: Record<string, any>;
+  }): Promise<PipelineStage> {
+    if (!this.repository) {
+      throw new PipelineServiceError('Database not available', 'SERVICE_UNAVAILABLE');
+    }
+    const pipeline = await this.repository.findById(pipelineId);
+    if (!pipeline) {
+      throw new PipelineServiceError(`Pipeline not found: ${pipelineId}`, 'PIPELINE_NOT_FOUND');
+    }
+
+    return this.repository.createStage(pipelineId, {
+      name: stage.name,
+      type: stage.type,
+      config: stage.config || {},
+      order_index: stage.order_index,
+      timeout: stage.timeout || null,
+      retry_count: stage.retry_count || 0,
+      parallel: stage.parallel || false,
+      conditions: stage.conditions || {},
+    });
+  }
+
+  // ==================== Pipeline Runs ====================
+
+  /**
+   * Get pipeline run by ID
+   */
+  async getRun(id: string): Promise<PipelineRun> {
+    if (!this.repository) {
+      throw new PipelineServiceError('Database not available', 'SERVICE_UNAVAILABLE');
+    }
+    const run = await this.repository.findRunById(id);
+
+    if (!run) {
+      throw new PipelineServiceError(`Pipeline run not found: ${id}`, 'RUN_NOT_FOUND');
+    }
+
+    return run;
+  }
+
+  /**
+   * List pipeline runs
+   */
+  async listRuns(pipelineId: string, options: ListRunsOptions = {}): Promise<PaginatedResult<PipelineRun>> {
+    if (!this.repository) {
+      return { data: [], total: 0, page: options.page || 1, limit: options.limit || 20, totalPages: 0 };
+    }
+    const { page = 1, limit = 20, status } = options;
+    const offset = (page - 1) * limit;
+
+    const [runs, total] = await Promise.all([
+      this.repository.findRunsByPipeline(pipelineId, { limit, offset }),
+      this.repository.countRuns(pipelineId, status),
+    ]);
+
+    return {
+      data: runs,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  /**
+   * Trigger a new pipeline run
+   */
+  async triggerRun(pipelineId: string, input: {
+    trigger_type?: string;
+    trigger_by?: string;
+  }): Promise<PipelineRun> {
+    if (!this.repository) {
+      throw new PipelineServiceError('Database not available', 'SERVICE_UNAVAILABLE');
+    }
+    const pipeline = await this.repository.findById(pipelineId);
+
+    if (!pipeline) {
+      throw new PipelineServiceError(`Pipeline not found: ${pipelineId}`, 'PIPELINE_NOT_FOUND');
+    }
+
+    if (pipeline.status !== 'active') {
+      throw new PipelineServiceError('Pipeline is not active', 'PIPELINE_INACTIVE');
+    }
+
+    // Get pipeline config as snapshot
+    const configSnapshot = pipeline.config;
+
+    const runInput: CreatePipelineRunInput = {
+      tenant_id: pipeline.tenant_id,
+      pipeline_id: pipelineId,
+      trigger_type: input.trigger_type || 'manual',
+      trigger_by: input.trigger_by,
+      config_snapshot: configSnapshot,
+    };
+
+    const run = await this.repository.createRun(runInput);
+
+    // Start async execution (in real implementation, this would be handled by a worker)
+    this.executePipeline(run.id, pipelineId).catch(err => {
+      console.error(`Pipeline execution failed: ${err.message}`);
+    });
+
+    return run;
+  }
+
+  /**
+   * Execute pipeline (internal method)
+   */
+  private async executePipeline(runId: string, pipelineId: string): Promise<void> {
+    if (!this.repository) return;
+
+    // Update run status to running
+    const startedAt = new Date();
+    await this.repository.updateRunStatus(runId, 'running', startedAt);
+
+    try {
+      // Get stages
+      const stages = await this.repository.findStagesByPipeline(pipelineId);
+
+      // Execute each stage sequentially
+      for (const stage of stages) {
+        await this.executeStage(runId, stage);
+      }
+
+      // All stages completed successfully
+      const completedAt = new Date();
+      await this.repository.updateRunStatus(runId, 'success', startedAt, completedAt);
+
+    } catch (error: any) {
+      // Pipeline failed
+      const completedAt = new Date();
+      await this.repository.updateRunStatus(runId, 'failed', startedAt, completedAt, error.message);
+    }
+  }
+
+  /**
+   * Execute a single stage
+   */
+  private async executeStage(runId: string, stage: PipelineStage): Promise<void> {
+    if (!this.repository) return;
+
+    const startedAt = new Date();
+
+    // Create stage execution record
+    const execution = await this.repository.createStageExecution(runId, stage.id, stage.name);
+
+    // Update status to running
+    await this.repository.updateStageExecutionStatus(execution.id, 'running', startedAt);
+
+    try {
+      // Simulate stage execution (in real implementation, this would run the actual stage)
+      // For now, we'll just mark it as success after a short delay
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      const completedAt = new Date();
+      await this.repository.updateStageExecutionStatus(
+        execution.id,
+        'success',
+        startedAt,
+        completedAt
+      );
+
+    } catch (error: any) {
+      const completedAt = new Date();
+      await this.repository.updateStageExecutionStatus(
+        execution.id,
+        'failed',
+        startedAt,
+        completedAt,
+        error.message
+      );
+
+      // If stage failed and not configured for retry, propagate error
+      if (stage.retry_count <= 0) {
+        throw error;
+      }
+    }
+  }
+
+  /**
+   * Cancel a running pipeline
+   */
+  async cancelRun(runId: string): Promise<PipelineRun> {
+    if (!this.repository) {
+      throw new PipelineServiceError('Database not available', 'SERVICE_UNAVAILABLE');
+    }
+    const run = await this.repository.findRunById(runId);
+
+    if (!run) {
+      throw new PipelineServiceError(`Pipeline run not found: ${runId}`, 'RUN_NOT_FOUND');
+    }
+
+    if (run.status !== 'running' && run.status !== 'pending') {
+      throw new PipelineServiceError('Cannot cancel a pipeline that is not running', 'INVALID_STATE');
+    }
+
+    const completedAt = new Date();
+    const updated = await this.repository.updateRunStatus(
+      runId,
+      'cancelled',
+      run.started_at || undefined,
+      completedAt,
+      'Cancelled by user'
+    );
+
+    if (!updated) {
+      throw new PipelineServiceError(`Failed to cancel run: ${runId}`, 'CANCEL_FAILED');
+    }
+
+    return updated;
+  }
+
+  /**
+   * Get stage executions for a run
+   */
+  async getStageExecutions(runId: string): Promise<StageExecution[]> {
+    if (!this.repository) {
+      return [];
+    }
+    const run = await this.repository.findRunById(runId);
+    if (!run) {
+      throw new PipelineServiceError(`Pipeline run not found: ${runId}`, 'RUN_NOT_FOUND');
+    }
+
+    return this.repository.findStageExecutions(runId);
+  }
+
+  /**
+   * Get pipeline statistics
+   */
+  async getPipelineStats(pipelineId: string): Promise<{
+    totalRuns: number;
+    successRuns: number;
+    failedRuns: number;
+    runningRuns: number;
+    avgDuration: number;
+  }> {
+    if (!this.repository) {
+      return { totalRuns: 0, successRuns: 0, failedRuns: 0, runningRuns: 0, avgDuration: 0 };
+    }
+    return this.repository.getPipelineStats(pipelineId);
+  }
+
+  /**
+   * Retry a failed pipeline run
+   */
+  async retryRun(originalRunId: string): Promise<PipelineRun> {
+    if (!this.repository) {
+      throw new PipelineServiceError('Database not available', 'SERVICE_UNAVAILABLE');
+    }
+    const originalRun = await this.repository.findRunById(originalRunId);
+
+    if (!originalRun) {
+      throw new PipelineServiceError(`Pipeline run not found: ${originalRunId}`, 'RUN_NOT_FOUND');
+    }
+
+    if (originalRun.status !== 'failed' && originalRun.status !== 'cancelled') {
+      throw new PipelineServiceError('Can only retry failed or cancelled runs', 'INVALID_STATE');
+    }
+
+    // Trigger a new run with same config
+    return this.triggerRun(originalRun.pipeline_id, {
+      trigger_type: 'retry',
+      trigger_by: originalRun.trigger_by || undefined,
+    });
+  }
+
+  // ==================== YAML Validation ====================
+
+  /**
+   * Validate pipeline YAML definition
+   */
+  async validate(yamlDefinition: string): Promise<{ valid: boolean; errors: string[] }> {
+    try {
+      // Basic validation - check required fields
+      const yamlModule = require('js-yaml');
+      const parsed = yamlModule.load(yamlDefinition) as any;
+
+      const errors: string[] = [];
+
+      if (!parsed.apiVersion) {
+        errors.push('Missing apiVersion');
+      }
+      if (!parsed.kind || parsed.kind !== 'Pipeline') {
+        errors.push(`Expected kind 'Pipeline', got '${parsed.kind}'`);
+      }
+      if (!parsed.metadata || !parsed.metadata.name) {
+        errors.push('Missing metadata.name');
+      }
+      if (!parsed.spec || !parsed.spec.stages || !Array.isArray(parsed.spec.stages)) {
+        errors.push('Missing or invalid spec.stages');
+      }
+
+      return {
+        valid: errors.length === 0,
+        errors,
+      };
+    } catch (error: any) {
+      return {
+        valid: false,
+        errors: [error.message || 'Invalid YAML format'],
+      };
+    }
+  }
+}

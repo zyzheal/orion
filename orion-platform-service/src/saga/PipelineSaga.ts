@@ -10,7 +10,8 @@
  */
 
 import { SagaStep, SagaContext, SagaDefinition } from './types';
-import { Pipeline, parsePipelineYaml, PipelineStage as PipelineYamlStage } from '../models/Pipeline';
+import { parsePipelineYaml, PipelineStage as PipelineYamlStage } from '../models/Pipeline';
+import { Pipeline } from '../services/pipeline/PipelineRepository';
 import { PipelineRun, PipelineRunStatus, TriggerType, createPipelineRun } from '../models/PipelineRun';
 import { Stage, StageStatus, createStage } from '../models/Stage';
 import { Task, createTask } from '../models/Task';
@@ -109,6 +110,9 @@ export function createPipelineSagaDefinition(
         // 解析 YAML
         let spec: { stages: PipelineYamlStage[] };
         try {
+          if (!pipeline.yamlDefinition) {
+            throw new Error('Pipeline has no YAML definition');
+          }
           const result = parsePipelineYaml(pipeline.yamlDefinition);
           spec = result.spec;
         } catch (error) {
@@ -118,7 +122,7 @@ export function createPipelineSagaDefinition(
         // 创建 PipelineRun
         const run = createPipelineRun({
           pipelineId: input.pipelineId,
-          pipelineVersion: pipeline.version,
+          pipelineVersion: String(pipeline.version || 1),
           triggerType: input.triggerType,
           triggerBy: input.triggerBy,
           context: input.context,

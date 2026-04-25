@@ -20,6 +20,7 @@ export class PipelineController {
   async create(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const body = request.body as any || {};
+      const tenantId = (request.headers['x-tenant-id'] as string) || '00000000-0000-0000-0000-000000000000';
       const { name, version, description, yamlDefinition, createdBy } = body;
 
       if (!name || !version || !yamlDefinition) {
@@ -32,8 +33,9 @@ export class PipelineController {
       }
 
       const pipeline = await this.pipelineService.create({
+        tenant_id: tenantId,
         name,
-        version,
+        version: parseInt(version, 10),
         description,
         yamlDefinition,
         createdBy,
@@ -82,13 +84,9 @@ export class PipelineController {
     try {
       const query = request.query as any;
       const { name, status, limit, offset } = query;
+      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
 
-      const pipelines = await this.pipelineService.list({
-        name: name as string,
-        status: status as PipelineStatus | undefined,
-        limit: limit ? parseInt(limit as string) : undefined,
-        offset: offset ? parseInt(offset as string) : undefined,
-      });
+      const pipelines = await this.pipelineService.list(tenantId);
 
       await reply.send({
         data: pipelines.map(p => ({
@@ -97,7 +95,7 @@ export class PipelineController {
           version: p.version,
           description: p.description,
           status: p.status,
-          createdAt: p.createdAt,
+          createdAt: p.createdAt || p.created_at,
         })),
         total: pipelines.length,
       });
@@ -169,7 +167,8 @@ export class PipelineController {
         return;
       }
 
-      const versions = await this.pipelineService.getVersions(pipeline.name);
+      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+      const versions = await this.pipelineService.getVersions(tenantId, pipeline.id);
 
       await reply.send({
         data: versions.map(v => ({

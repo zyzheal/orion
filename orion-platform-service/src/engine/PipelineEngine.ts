@@ -65,6 +65,9 @@ export class PipelineEngine {
     // 2. 解析 YAML
     let spec: { stages: PipelineYamlStage[] };
     try {
+      if (!pipeline.yamlDefinition) {
+        throw new Error('Pipeline has no YAML definition');
+      }
       const result = parsePipelineYaml(pipeline.yamlDefinition);
       spec = result.spec;
     } catch (error) {
@@ -74,7 +77,7 @@ export class PipelineEngine {
     // 3. 创建 PipelineRun
     const run = await this.runService.createRun({
       pipelineId,
-      pipelineVersion: pipeline.version,
+      pipelineVersion: String(pipeline.version || 1),
       triggerType,
       triggerBy,
       context,

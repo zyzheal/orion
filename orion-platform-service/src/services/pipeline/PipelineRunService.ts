@@ -1,5 +1,8 @@
 /**
  * PipelineRun Service - PipelineRun 管理
+ *
+ * Migrated from Map() in-memory storage to PostgreSQL Repository pattern.
+ * Maintains backward-compatible API for controllers and engine.
  */
 
 import {
@@ -14,253 +17,396 @@ import {
   cancelPipelineRun,
 } from '../../models/PipelineRun';
 import { Stage, StageStatus } from '../../models/Stage';
-import { Task } from '../../models/Task';
+import { Task, TaskStatus } from '../../models/Task';
 import { PipelineEventPublisher } from '../../events/PipelineEventPublisher';
-
-/**
- * 内存存储（生产环境应使用数据库）
- */
-const pipelineRuns = new Map<string, PipelineRun>();
-const stagesByRun = new Map<string, Stage[]>(); // runId -> stages
-const tasksByStage = new Map<string, Task[]>(); // stageId -> tasks
+import {
+  PipelineRunRepository,
+  PipelineRunRecord,
+  StageExecutionRecord,
+  TaskExecutionRecord,
+  CreateRunInput,
+} from './PipelineRunRepository';
+import { v4 as uuidv4 } from 'uuid';
 
 export class PipelineRunService {
   private eventPublisher: PipelineEventPublisher;
+  private repository: PipelineRunRepository | null = null;
 
-  constructor(eventPublisher?: PipelineEventPublisher) {
+  constructor(eventPublisher?: PipelineEventPublisher, repository?: PipelineRunRepository) {
     this.eventPublisher = eventPublisher || new PipelineEventPublisher();
+    this.repository = repository || null;
   }
 
   /**
-   * 设置事件发布器
+   * Set event publisher (for dependency injection)
    */
   setEventPublisher(eventPublisher: PipelineEventPublisher): void {
     this.eventPublisher = eventPublisher;
   }
 
+  // ==================== Mapping helpers ====================
+
   /**
-   * 创建 PipelineRun
+   * Map database PipelineRunRecord to domain PipelineRun model
+   */
+  private mapRun(record: PipelineRunRecord): PipelineRun {
+    return {
+      id: record.id,
+      pipelineId: record.pipeline_id,
+      pipelineVersion: (record.config_snapshot as any)?.version || '1',
+      triggerType: record.trigger_type as TriggerType,
+      triggerBy: record.trigger_by || undefined,
+      status: record.status as PipelineRunStatus,
+      startedAt: record.started_at || undefined,
+      completedAt: record.completed_at || undefined,
+      durationMs: record.duration_ms || undefined,
+      context: record.config_snapshot || {},
+      createdAt: record.created_at,
+      updatedAt: record.completed_at || record.started_at || record.created_at,
+    };
+  }
+
+  /**
+   * Map domain PipelineRunCreateInput to database CreateRunInput
+   */
+  private mapCreateInput(input: PipelineRunCreateInput): CreateRunInput {
+    return {
+      tenant_id: '00000000-0000-0000-0000-000000000000', // Default tenant (should come from context)
+      pipeline_id: input.pipelineId,
+      trigger_type: input.triggerType,
+      trigger_by: input.triggerBy,
+      config_snapshot: { version: input.pipelineVersion, ...(input.context || {}) },
+    };
+  }
+
+  /**
+   * Map database StageExecutionRecord to domain Stage model
+   */
+  private mapStageExecution(record: StageExecutionRecord, runId: string, sequence: number): Stage {
+    return {
+      id: record.id,
+      runId,
+      name: record.stage_name,
+      sequence,
+      status: record.status as StageStatus,
+      dependsOn: [],
+      timeoutSeconds: 3600,
+      retryCount: 0,
+      maxRetries: 0,
+      startedAt: record.started_at || undefined,
+      completedAt: record.completed_at || undefined,
+      durationMs: record.duration_ms || undefined,
+      error: record.error_message || undefined,
+      createdAt: record.created_at,
+    };
+  }
+
+  /**
+   * Map database TaskExecutionRecord to domain Task model
+   */
+  private mapTaskExecution(record: TaskExecutionRecord, stageId: string, sequence: number): Task {
+    return {
+      id: record.id,
+      stageId,
+      name: record.task_name,
+      type: record.task_type,
+      sequence,
+      status: record.status as TaskStatus,
+      config: record.input || {},
+      parameters: {},
+      retryCount: 0,
+      maxRetries: 0,
+      timeoutSeconds: 600,
+      startedAt: record.started_at || undefined,
+      completedAt: record.completed_at || undefined,
+      durationMs: record.duration_ms || undefined,
+      result: record.output || undefined,
+      error: record.error_message || undefined,
+      log: record.logs || undefined,
+      createdAt: record.created_at,
+    };
+  }
+
+  // ==================== PipelineRun CRUD ====================
+
+  /**
+   * Create PipelineRun
    */
   async createRun(input: PipelineRunCreateInput): Promise<PipelineRun> {
+    // If repository is available, use database
+    if (this.repository) {
+      const dbInput = this.mapCreateInput(input);
+      const record = await this.repository.create(dbInput);
+      const run = this.mapRun(record);
+
+      await this.eventPublisher.publishRunCreated(run);
+      return run;
+    }
+
+    // Fallback: in-memory (legacy)
     const run = createPipelineRun(input);
-    pipelineRuns.set(run.id, run);
-
-    // 发布事件
     await this.eventPublisher.publishRunCreated(run);
-
     return run;
   }
 
   /**
-   * 获取 PipelineRun
+   * Get PipelineRun by ID
    */
   async getRun(id: string): Promise<PipelineRun | null> {
-    return pipelineRuns.get(id) || null;
+    if (this.repository) {
+      const record = await this.repository.findById(id);
+      return record ? this.mapRun(record) : null;
+    }
+
+    return null;
   }
 
   /**
-   * 获取 PipelineRun 列表
+   * Get PipelineRun list with filtering
    */
   async listRuns(filter?: PipelineRunFilter): Promise<PipelineRun[]> {
-    let result = Array.from(pipelineRuns.values());
-
-    if (filter?.pipelineId) {
-      result = result.filter(r => r.pipelineId === filter.pipelineId);
+    if (this.repository) {
+      const records = await this.repository.findAll({
+        pipelineId: filter?.pipelineId,
+        status: filter?.status
+          ? (Array.isArray(filter.status) ? filter.status : [filter.status])
+          : undefined,
+        triggerType: filter?.triggerType,
+        limit: filter?.limit,
+        offset: filter?.offset,
+      });
+      return records.map(r => this.mapRun(r));
     }
 
-    if (filter?.status) {
-      const statuses = Array.isArray(filter.status) ? filter.status : [filter.status];
-      result = result.filter(r => statuses.includes(r.status));
-    }
-
-    if (filter?.triggerType) {
-      result = result.filter(r => r.triggerType === filter.triggerType);
-    }
-
-    // 排序（最新的在前）
-    result.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-
-    // 分页
-    const offset = filter?.offset || 0;
-    const limit = filter?.limit || 100;
-    return result.slice(offset, offset + limit);
+    return [];
   }
 
   /**
-   * 开始执行 PipelineRun
+   * Start PipelineRun
    */
   async startRun(runId: string): Promise<PipelineRun | null> {
-    const run = pipelineRuns.get(runId);
-    if (!run) {
-      return null;
+    if (this.repository) {
+      const run = await this.repository.findById(runId);
+      if (!run) return null;
+
+      const updatedRun = await this.repository.updateStatus(runId, 'running', new Date());
+      if (!updatedRun) return null;
+
+      const domainRun = this.mapRun(updatedRun);
+      await this.eventPublisher.publishRunStarted(domainRun);
+      return domainRun;
     }
 
-    const updatedRun = startPipelineRun(run);
-    pipelineRuns.set(runId, updatedRun);
-
-    // 发布事件
-    await this.eventPublisher.publishRunStarted(updatedRun);
-
-    return updatedRun;
+    return null;
   }
 
   /**
-   * 完成 PipelineRun
+   * Complete PipelineRun
    */
   async completeRun(runId: string, status: PipelineRunStatus.SUCCESS | PipelineRunStatus.FAILED): Promise<PipelineRun | null> {
-    const run = pipelineRuns.get(runId);
-    if (!run) {
-      return null;
+    if (this.repository) {
+      const run = await this.repository.findById(runId);
+      if (!run) return null;
+
+      const completedAt = new Date();
+      const startedAt = run.started_at || run.created_at;
+      const updatedRun = await this.repository.updateStatus(
+        runId, status, startedAt, completedAt
+      );
+      if (!updatedRun) return null;
+
+      const domainRun = this.mapRun(updatedRun);
+      if (status === PipelineRunStatus.SUCCESS) {
+        await this.eventPublisher.publishRunCompleted(domainRun);
+      } else {
+        await this.eventPublisher.publishRunFailed(domainRun);
+      }
+      return domainRun;
     }
 
-    const updatedRun = completePipelineRun(run, status);
-    pipelineRuns.set(runId, updatedRun);
-
-    // 发布事件
-    if (status === PipelineRunStatus.SUCCESS) {
-      await this.eventPublisher.publishRunCompleted(updatedRun);
-    } else {
-      await this.eventPublisher.publishRunFailed(updatedRun);
-    }
-
-    return updatedRun;
+    return null;
   }
 
   /**
-   * 取消 PipelineRun
+   * Cancel PipelineRun
    */
   async cancelRun(runId: string): Promise<PipelineRun | null> {
-    const run = pipelineRuns.get(runId);
-    if (!run || run.status !== PipelineRunStatus.RUNNING) {
-      return null;
+    if (this.repository) {
+      const run = await this.repository.findById(runId);
+      if (!run || (run.status !== 'running' && run.status !== 'pending')) {
+        return null;
+      }
+
+      const completedAt = new Date();
+      const startedAt = run.started_at || run.created_at;
+      const updatedRun = await this.repository.updateStatus(
+        runId, 'cancelled', startedAt, completedAt, 'Cancelled by user'
+      );
+      if (!updatedRun) return null;
+
+      const domainRun = this.mapRun(updatedRun);
+      await this.eventPublisher.publishRunCancelled(domainRun);
+      return domainRun;
     }
 
-    const updatedRun = cancelPipelineRun(run);
-    pipelineRuns.set(runId, updatedRun);
-
-    // 发布事件
-    await this.eventPublisher.publishRunCancelled(updatedRun);
-
-    return updatedRun;
+    return null;
   }
 
+  // ==================== Stage Management ====================
+
   /**
-   * 添加 Stage 到 PipelineRun
+   * Add Stage to PipelineRun
    */
   async addStage(runId: string, stage: Stage): Promise<void> {
-    const stages = stagesByRun.get(runId) || [];
-    stages.push(stage);
-    stagesByRun.set(runId, stages);
+    if (this.repository) {
+      await this.repository.createStageExecution(runId, stage.id || null, stage.name);
+      return;
+    }
   }
 
   /**
-   * 获取 PipelineRun 的所有 Stages
+   * Get stages for a run
    */
   async getStages(runId: string): Promise<Stage[]> {
-    return stagesByRun.get(runId) || [];
+    if (this.repository) {
+      const records = await this.repository.findStageExecutionsByRun(runId);
+      return records.map((r, i) => this.mapStageExecution(r, runId, i + 1));
+    }
+
+    return [];
   }
 
   /**
-   * 获取 Stage
+   * Get stage by ID
    */
   async getStage(stageId: string): Promise<Stage | null> {
-    for (const stages of stagesByRun.values()) {
-      const stage = stages.find(s => s.id === stageId);
-      if (stage) return stage;
+    if (this.repository) {
+      const record = await this.repository.findStageExecutionById(stageId);
+      if (!record) return null;
+      return this.mapStageExecution(record, record.run_id, 1);
     }
+
     return null;
   }
 
   /**
-   * 更新 Stage
+   * Update stage
    */
   async updateStage(stage: Stage): Promise<void> {
-    const stages = stagesByRun.get(stage.runId) || [];
-    const index = stages.findIndex(s => s.id === stage.id);
-    if (index !== -1) {
-      stages[index] = stage;
-      stagesByRun.set(stage.runId, stages);
+    if (this.repository) {
+      await this.repository.updateStageExecutionStatus(
+        stage.id,
+        stage.status,
+        stage.startedAt,
+        stage.completedAt,
+        stage.error
+      );
     }
   }
 
+  // ==================== Task Management ====================
+
   /**
-   * 添加 Task 到 Stage
+   * Add Task to Stage
    */
   async addTask(stageId: string, task: Task): Promise<void> {
-    const tasks = tasksByStage.get(stageId) || [];
-    tasks.push(task);
-    tasksByStage.set(stageId, tasks);
+    if (this.repository) {
+      await this.repository.createTaskExecution(stageId, task.name, task.type);
+    }
   }
 
   /**
-   * 获取 Stage 的所有 Tasks
+   * Get tasks for a stage
    */
   async getTasks(stageId: string): Promise<Task[]> {
-    return tasksByStage.get(stageId) || [];
+    if (this.repository) {
+      const records = await this.repository.findTaskExecutionsByExecution(stageId);
+      return records.map((r, i) => this.mapTaskExecution(r, stageId, i + 1));
+    }
+
+    return [];
   }
 
   /**
-   * 获取 Task
+   * Get task by ID
    */
   async getTask(taskId: string): Promise<Task | null> {
-    for (const tasks of tasksByStage.values()) {
-      const task = tasks.find(t => t.id === taskId);
-      if (task) return task;
+    if (this.repository) {
+      const record = await this.repository.findTaskExecutionById(taskId);
+      if (!record) return null;
+      return this.mapTaskExecution(record, record.execution_id, 1);
     }
+
     return null;
   }
 
   /**
-   * 更新 Task
+   * Update task
    */
   async updateTask(task: Task): Promise<void> {
-    // 找到 task 所属的 stage
-    for (const [stageId, tasks] of tasksByStage.entries()) {
-      const index = tasks.findIndex(t => t.id === task.id);
-      if (index !== -1) {
-        tasks[index] = task;
-        tasksByStage.set(stageId, tasks);
-        return;
-      }
+    if (this.repository) {
+      await this.repository.updateTaskExecution(task.id, {
+        status: task.status,
+        output: task.result,
+        startedAt: task.startedAt,
+        completedAt: task.completedAt,
+        errorMessage: task.error,
+        logs: task.log,
+      });
     }
   }
 
+  // ==================== Run Detail ====================
+
   /**
-   * 获取 PipelineRun 的详情（包含 stages 和 tasks）
+   * Get PipelineRun detail with stages and tasks
    */
   async getRunDetail(runId: string): Promise<{
     run: PipelineRun | null;
     stages: Stage[];
     tasks: Task[];
   } | null> {
-    const run = pipelineRuns.get(runId);
-    if (!run) {
+    if (!this.repository) {
       return null;
     }
 
-    const stages = stagesByRun.get(runId) || [];
+    const runRecord = await this.repository.findById(runId);
+    if (!runRecord) {
+      return null;
+    }
+
+    const run = this.mapRun(runRecord);
+    const stageRecords = await this.repository.findStageExecutionsByRun(runId);
+    const stages = stageRecords.map((r, i) => this.mapStageExecution(r, runId, i + 1));
+
     const tasks: Task[] = [];
-    for (const stage of stages) {
-      const stageTasks = tasksByStage.get(stage.id) || [];
-      tasks.push(...stageTasks);
+    for (const stage of stageRecords) {
+      const taskRecords = await this.repository.findTaskExecutionsByExecution(stage.id);
+      tasks.push(...taskRecords.map((r, i) => this.mapTaskExecution(r, stage.id, i + 1)));
     }
 
     return { run, stages, tasks };
   }
 
+  // ==================== Run Completion Check ====================
+
   /**
-   * 检查 PipelineRun 是否所有 stages 都已完成
+   * Check if all stages of a run are complete
    */
   async checkRunCompletion(runId: string): Promise<{
     isComplete: boolean;
     allSuccess: boolean;
   } | null> {
-    const run = pipelineRuns.get(runId);
+    if (!this.repository) {
+      return null;
+    }
+
+    const run = await this.repository.findById(runId);
     if (!run) {
       return null;
     }
 
-    const stages = stagesByRun.get(runId) || [];
+    const stages = await this.repository.findStageExecutionsByRun(runId);
     if (stages.length === 0) {
       return { isComplete: true, allSuccess: true };
     }
@@ -278,6 +424,3 @@ export class PipelineRunService {
     };
   }
 }
-
-// 导出单例
-export const pipelineRunService = new PipelineRunService();
