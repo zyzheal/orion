@@ -60,6 +60,8 @@ import internalLibraryRoutes from './internal-library-routes';
 import notificationRoutes from './notification-routes';
 import webhookRoutes from './webhook-routes';
 import roleRoutes from './role-routes';
+import knowledgeRoutes from './knowledge-routes';
+import environmentRoutes from './environment-routes';
 import projectRoutes from './project-routes';
 
 export interface ApiRoutesOptions {
@@ -325,4 +327,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // 注册 Project Management API 路由 - PostgreSQL backed
   await app.register(projectRoutes, { prefix: '/projects', database: options.database });
+
+  // 注册 Environment Management API 路由 - PostgreSQL backed
+  await app.register(environmentRoutes, { prefix: '/environments', database: options.database });
 }
