@@ -129,23 +129,23 @@ export interface RAGResponse {
 // ============================================================================
 
 export const getSpaces = async (params?: { type?: string; search?: string; page?: number; perPage?: number }) => {
-  return api.get<Space[]>('/knowledge/v1/spaces', { params });
+  return api.get<Space[]>('/v1/knowledge/v1/spaces', { params });
 };
 
 export const getSpace = async (id: string) => {
-  return api.get<Space>(`/knowledge/v1/spaces/${id}`);
+  return api.get<Space>(`/v1/knowledge/v1/spaces/${id}`);
 };
 
 export const createSpace = async (input: SpaceInput) => {
-  return api.post<Space>('/knowledge/v1/spaces', input);
+  return api.post<Space>('/v1/knowledge/v1/spaces', input);
 };
 
 export const updateSpace = async (id: string, input: Partial<SpaceInput>) => {
-  return api.put<Space>(`/knowledge/v1/spaces/${id}`, input);
+  return api.put<Space>(`/v1/knowledge/v1/spaces/${id}`, input);
 };
 
 export const deleteSpace = async (id: string) => {
-  return api.delete(`/knowledge/v1/spaces/${id}`);
+  return api.delete(`/v1/knowledge/v1/spaces/${id}`);
 };
 
 // ============================================================================
@@ -153,27 +153,27 @@ export const deleteSpace = async (id: string) => {
 // ============================================================================
 
 export const getDocs = async (params?: { spaceId?: string; page?: number; pageSize?: number; status?: string; tag?: string; search?: string; perPage?: number }) => {
-  return api.get<Document[]>('/knowledge/v1/docs', { params });
+  return api.get<Document[]>('/v1/knowledge/v1/docs', { params });
 };
 
 export const getDoc = async (id: string) => {
-  return api.get<Document>(`/knowledge/v1/docs/${id}`);
+  return api.get<Document>(`/v1/knowledge/v1/docs/${id}`);
 };
 
 export const createDoc = async (input: DocInput | DocumentInput) => {
-  return api.post<Document>('/knowledge/v1/docs', input);
+  return api.post<Document>('/v1/knowledge/v1/docs', input);
 };
 
 export const updateDoc = async (id: string, input: Partial<DocInput> | UpdateDocumentInput) => {
-  return api.put<Document>(`/knowledge/v1/docs/${id}`, input);
+  return api.put<Document>(`/v1/knowledge/v1/docs/${id}`, input);
 };
 
 export const deleteDoc = async (id: string) => {
-  return api.delete(`/knowledge/v1/docs/${id}`);
+  return api.delete(`/v1/knowledge/v1/docs/${id}`);
 };
 
 export const getDocVersions = async (id: string) => {
-  return api.get(`/knowledge/v1/docs/${id}/versions`);
+  return api.get(`/v1/knowledge/v1/docs/${id}/versions`);
 };
 
 // ============================================================================
@@ -183,13 +183,13 @@ export const getDocVersions = async (id: string) => {
 export const ragRetrieve = async (
   data: { query: string; spaceId?: string; topK?: number }
 ) => {
-  return api.post<RagRetrieveResponse>('/knowledge/v1/rag/retrieve', data);
+  return api.post<RagRetrieveResponse>('/v1/knowledge/v1/rag/retrieve', data);
 };
 
 export const ragQuery = async (
   data: { query: string; spaceId?: string; topK?: number }
 ) => {
-  return api.post<RAGResponse>('/knowledge/v1/rag/query', data);
+  return api.post<RAGResponse>('/v1/knowledge/v1/rag/query', data);
 };
 
 // ============================================================================
@@ -197,5 +197,5 @@ export const ragQuery = async (
 // ============================================================================
 
 export const getKnowledgeGraph = async (params?: { spaceId?: string }) => {
-  return api.get('/knowledge/v1/graph', { params });
+  return api.get('/v1/knowledge/v1/graph', { params });
 };

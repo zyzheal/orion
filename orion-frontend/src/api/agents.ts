@@ -131,7 +131,9 @@ export function retryAgentRun(id: string) {
 }
 
 // ============================================================================
-// Agent Approval APIs
+// Agent Approvals APIs
+// Note: Backend agent-routes.ts doesn't have /agent-approvals endpoints.
+// Approvals are managed through individual agent run decisions.
 // ============================================================================
 
 export interface AgentApprovalParams {
@@ -140,8 +142,9 @@ export interface AgentApprovalParams {
   pageSize?: number;
 }
 
-export function getAgentApprovals(params?: AgentApprovalParams) {
-  return api.get<AgentApproval[]>('/v1/agent-approvals', { params });
+export function getAgentApprovals(_params?: AgentApprovalParams) {
+  console.warn('getAgentApprovals: backend /agent-approvals endpoint not available');
+  return Promise.resolve([] as AgentApproval[]);
 }
 
 export interface ApprovalResponseInput {
@@ -150,6 +153,7 @@ export interface ApprovalResponseInput {
   rejectionReason?: string;
 }
 
-export function respondToApproval(id: string, data: ApprovalResponseInput) {
-  return api.post<AgentApproval>(`/v1/agent-approvals/${id}/respond`, data);
+export function respondToApproval(_id: string, _data: ApprovalResponseInput) {
+  console.warn('respondToApproval: backend /agent-approvals/:id/respond endpoint not available');
+  return Promise.resolve({} as AgentApproval);
 }

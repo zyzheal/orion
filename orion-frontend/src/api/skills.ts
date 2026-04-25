@@ -104,11 +104,13 @@ export function rateSkill(id: string, data: SkillRating) {
 }
 
 // ---- My Skills ----
+// Note: Backend skill-routes.ts doesn't have /my endpoints.
+// Use query params on /skills to filter by installed status.
 
 export function getMySkills() {
-  return api.get('/v1/skills/my');
+  return api.get('/v1/skills', { params: { installed: 'true' } });
 }
 
 export function getInstalledSkill(id: string) {
-  return api.get(`/v1/skills/my/${id}`);
+  return api.get(`/v1/skills/${id}`);
 }

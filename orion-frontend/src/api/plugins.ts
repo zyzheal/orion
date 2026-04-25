@@ -134,61 +134,61 @@ export interface PluginExecutionResult {
  * 列出可用插件
  */
 export function getAvailablePlugins(params?: { type?: PluginType; tags?: string }) {
-  return api.get<Plugin[]>('/plugins/available', { params });
+  return api.get<Plugin[]>('/v1/plugins/available', { params });
 }
 
 /**
  * 列出已安装插件
  */
 export function getInstalledPlugins(params?: { type?: PluginType; state?: PluginState }) {
-  return api.get<Plugin[]>('/plugins/installed', { params });
+  return api.get<Plugin[]>('/v1/plugins/installed', { params });
 }
 
 /**
  * 获取插件详情
  */
 export function getPlugin(pluginId: string) {
-  return api.get<Plugin>(`/plugins/${pluginId}`);
+  return api.get<Plugin>(`/v1/plugins/${pluginId}`);
 }
 
 /**
  * 安装插件
  */
 export function installPlugin(pluginId: string, data: InstallPluginInput) {
-  return api.post<Plugin>(`/plugins/${pluginId}/install`, data);
+  return api.post<Plugin>(`/v1/plugins/${pluginId}/install`, data);
 }
 
 /**
  * 卸载插件
  */
 export function uninstallPlugin(pluginId: string) {
-  return api.post<Plugin>(`/plugins/${pluginId}/uninstall`);
+  return api.post<Plugin>(`/v1/plugins/${pluginId}/uninstall`);
 }
 
 /**
  * 激活插件 (启用)
  */
 export function activatePlugin(pluginId: string) {
-  return api.post<Plugin>(`/plugins/${pluginId}/activate`);
+  return api.post<Plugin>(`/v1/plugins/${pluginId}/activate`);
 }
 
 /**
  * 停用插件 (禁用)
  */
 export function deactivatePlugin(pluginId: string) {
-  return api.post<Plugin>(`/plugins/${pluginId}/deactivate`);
+  return api.post<Plugin>(`/v1/plugins/${pluginId}/deactivate`);
 }
 
 /**
  * 配置插件
  */
 export function configurePlugin(pluginId: string, data: ConfigurePluginInput) {
-  return api.post<Plugin>(`/plugins/${pluginId}/configure`, data);
+  return api.post<Plugin>(`/v1/plugins/${pluginId}/configure`, data);
 }
 
 /**
  * 执行插件任务
  */
 export function executePlugin(pluginId: string, data: ExecutePluginInput) {
-  return api.post<PluginExecutionResult>(`/plugins/${pluginId}/execute`, data);
+  return api.post<PluginExecutionResult>(`/v1/plugins/${pluginId}/execute`, data);
 }

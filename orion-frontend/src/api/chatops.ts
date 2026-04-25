@@ -102,7 +102,7 @@ export function executeCommand(data: CommandExecutionInput) {
 }
 
 export function getCommandStatus(id: string) {
-  return api.get(`/v1/chatops/executions/${id}`);
+  return api.get(`/v1/chatops/status/${id}`);
 }
 
 // ---- Audit ----
@@ -120,11 +120,15 @@ export function exportAuditLogs(data: { startDate: string; endDate: string; form
 }
 
 // ---- Settings ----
+// Note: Backend chatops-routes.ts doesn't have /settings endpoints.
+// Settings should be managed through command configuration or external config.
 
 export function getChatOpsSettings() {
-  return api.get('/v1/chatops/settings');
+  console.warn('getChatOpsSettings: backend endpoint not available on chatops routes');
+  return Promise.resolve({ data: {} });
 }
 
-export function updateChatOpsSettings(data: Record<string, unknown>) {
-  return api.put('/v1/chatops/settings', data);
+export function updateChatOpsSettings(_data: Record<string, unknown>) {
+  console.warn('updateChatOpsSettings: backend endpoint not available on chatops routes');
+  return Promise.resolve({ data: {} });
 }

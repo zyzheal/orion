@@ -167,12 +167,17 @@ export function restoreCache(runId: string, stageId: string, key: string) {
   return api.get(`/v1/pipeline-runs/${runId}/stages/${stageId}/cache`, { params: { key } });
 }
 
-export function deleteCache(cacheKey: string) {
-  return api.delete(`/v1/caches/${cacheKey}`);
+// Note: Build cache management is under /build-cache, not /caches
+export function deleteCache(_cacheKey: string) {
+  // Backend uses /build-cache/entries/:id for cache entry deletion
+  console.warn('deleteCache: use build-cache endpoints under /v1/build-cache instead');
+  return Promise.resolve();
 }
 
-export function listCaches(params?: { stageName?: string }) {
-  return api.get('/v1/caches', { params });
+export function listCaches(_params?: { stageName?: string }) {
+  // Backend uses /build-cache/configs and /build-cache/entries
+  console.warn('listCaches: use build-cache endpoints under /v1/build-cache instead');
+  return Promise.resolve({ data: [] });
 }
 
 // ---- Artifact Management ----

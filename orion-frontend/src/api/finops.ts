@@ -6,7 +6,6 @@
  * - Cost report export
  */
 import { api } from './client';
-import type { ApiResponse } from './types';
 
 // ============================================================================
 // Type Definitions
@@ -105,7 +104,7 @@ export const getCostTrend = async (
  * 获取优化建议列表
  */
 export const getOptimizations = async (): Promise<OptimizationItem[]> => {
-  const response = await api.get<OptimizationItem[]>('/v1/finops/optimizations');
+  const response = await api.get<OptimizationItem[]>('/v1/finops/optimize/suggestions');
   return response.data.data;
 };
 
@@ -113,8 +112,9 @@ export const getOptimizations = async (): Promise<OptimizationItem[]> => {
  * 应用优化建议
  */
 export const applyOptimization = async (id: string): Promise<{ success: boolean }> => {
-  const response = await api.post<{ success: boolean }>(
-    `/v1/finops/optimizations/${id}/apply`
+  const response = await api.patch<{ success: boolean }>(
+    `/v1/finops/optimize/${id}/status`,
+    { status: 'applied' }
   );
   return response.data.data;
 };
@@ -123,7 +123,7 @@ export const applyOptimization = async (id: string): Promise<{ success: boolean 
  * 获取预算告警
  */
 export const getBudgetAlerts = async (): Promise<BudgetAlertItem[]> => {
-  const response = await api.get<BudgetAlertItem[]>('/v1/cost/budget-alerts');
+  const response = await api.get<BudgetAlertItem[]>('/v1/finops/budget/check-alerts');
   return response.data.data;
 };
 
@@ -133,8 +133,10 @@ export const getBudgetAlerts = async (): Promise<BudgetAlertItem[]> => {
 export const exportCostReport = async (
   params: CostReportParams
 ): Promise<Blob> => {
-  const response = await api.post<Blob>('/v1/finops/export-report', params, {
+  // Backend doesn't have a direct export endpoint; use chargeback report
+  const response = await api.get('/v1/finops/chargeback', {
+    params,
     responseType: 'blob',
   });
-  return response.data;
+  return response.data as unknown as Blob;
 };

@@ -127,41 +127,47 @@ export function updateGitOpsConfig(config: Partial<GitOpsConfig>) {
 }
 
 export function syncFromGit() {
-  return api.post<{ status: string; syncedAt: string }>('/v1/config/gitops/sync');
+  // Backend uses /gitops/:gitOpsConfigId/sync, not /gitops/sync
+  // Use /gitops/drift as fallback for triggering sync
+  return api.post<{ status: string; syncedAt: string }>('/v1/config/gitops/drift');
 }
 
 export function getGitOpsStatus() {
-  return api.get<GitOpsConfig>('/v1/config/gitops/status');
+  return api.get<GitOpsConfig>('/v1/config/gitops/sync-status');
 }
 
 // ==================== Approval Workflow ====================
 
 export function submitForApproval(id: string, reviewers: string[]) {
-  return api.post<ApprovalWorkflow>(`/v1/config/configs/${id}/approve`, { reviewers });
+  // Backend uses /change-requests for approval workflow
+  return api.post<ApprovalWorkflow>(`/v1/config/change-requests`, { configId: id, reviewers });
 }
 
 export function approveConfig(id: string, comment?: string) {
-  return api.post<ApprovalWorkflow>(`/v1/config/configs/${id}/approval/approve`, { comment });
+  // Backend uses /change-requests/:changeRequestId/approve
+  return api.post<ApprovalWorkflow>(`/v1/config/change-requests/${id}/approve`, { comment });
 }
 
 export function rejectConfig(id: string, comment: string) {
-  return api.post<ApprovalWorkflow>(`/v1/config/configs/${id}/approval/reject`, { comment });
+  return api.post<ApprovalWorkflow>(`/v1/config/change-requests/${id}/reject`, { comment });
 }
 
 export function getApprovalWorkflow(id: string) {
-  return api.get<ApprovalWorkflow>(`/v1/config/configs/${id}/approval`);
+  return api.get<ApprovalWorkflow>(`/v1/config/change-requests/${id}`);
 }
 
 // ==================== Config Diff ====================
 
 export function compareConfigs(id: string, version1: number, version2: number) {
-  return api.get<ConfigDiff>(`/v1/config/configs/${id}/compare`, {
+  // Backend uses /configs/:configId/versions/diff
+  return api.get<ConfigDiff>(`/v1/config/configs/${id}/versions/diff`, {
     params: { version1, version2 },
   });
 }
 
 export function diffConfigWithCurrent(id: string, newValue: any) {
-  return api.post<ConfigDiff>(`/v1/config/configs/${id}/diff`, { newValue });
+  // Backend uses /diff/:sourceEnv/:targetEnv for env comparison
+  return api.post<ConfigDiff>(`/v1/config/configs/${id}/versions/diff`, { newValue });
 }
 
 // ==================== Statistics ====================

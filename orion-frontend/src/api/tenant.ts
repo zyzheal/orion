@@ -137,7 +137,8 @@ export function getTenantStats(tenantId?: number) {
       quotaUsage: any;
       namespaceCount: number;
     };
-  }>('/v1/tenant/stats', {
+  }>('/v1/tenant/count', {
+    params: tenantId ? { status: undefined } : {},
     headers: tenantId ? { 'x-tenant-id': tenantId.toString() } : {},
   });
 }
