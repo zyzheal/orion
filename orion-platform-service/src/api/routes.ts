@@ -330,4 +330,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // 注册 Environment Management API 路由 - PostgreSQL backed
   await app.register(environmentRoutes, { prefix: '/environments', database: options.database });
+
+  // 注册 Knowledge Base API 路由 (M28) - PostgreSQL backed
+  await app.register(knowledgeRoutes, { prefix: '/knowledge', database: options.database });
 }
