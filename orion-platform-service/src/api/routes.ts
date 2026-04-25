@@ -229,8 +229,8 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // 注册智能测试选择器 API 路由 (TASK-303)
   await app.register(testSelectorRoutes, { prefix: '/test-selector' });
 
-  // 注册智能部署 API 路由 (TASK-701)
-  await app.register(deployRoutes, { prefix: '/deploy' });
+  // 注册智能部署 API 路由 (TASK-701) - PostgreSQL backed
+  await app.register(deployRoutes, { prefix: '/deploy', database: options.database });
 
   // 注册监控告警 API 路由 (TASK-703)
   await app.register(monitoringRoutes, { prefix: '/monitoring', database: options.database });
