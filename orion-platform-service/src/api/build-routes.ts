@@ -10,6 +10,7 @@
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { DatabasePool } from '../services/database';
 import { BuilderImageService } from '../services/build/BuilderImageService';
 import { BuildCacheService } from '../services/build/BuildCacheService';
 import { K8sBuildExecutor } from '../services/build/K8sBuildExecutor';
@@ -23,11 +24,36 @@ import { BuildLogController } from './controllers/build/BuildLogController';
 import { ArtifactController } from './controllers/build/ArtifactController';
 import { StageCacheController } from './controllers/build/StageCacheController';
 import { BuildxBuilderController } from './controllers/build/BuildxBuilderController';
+import {
+  BuildCacheConfigRepository,
+  BuildCacheEntryRepository,
+} from '../repositories/BuildCacheRepository';
 
-export default async function buildRoutes(app: FastifyInstance): Promise<void> {
+interface BuildRoutesOptions {
+  database?: DatabasePool;
+}
+
+export default async function buildRoutes(app: FastifyInstance, opts: BuildRoutesOptions = {}): Promise<void> {
   // 初始化服务
   const builderImageService = new BuilderImageService();
-  const buildCacheService = new BuildCacheService();
+
+  // BuildCacheService: PostgreSQL Repository backed (or Map fallback if no database)
+  let buildCacheService: BuildCacheService;
+  if (opts.database) {
+    const configRepo = new BuildCacheConfigRepository(opts.database);
+    const entryRepo = new BuildCacheEntryRepository(opts.database);
+    buildCacheService = new BuildCacheService(configRepo, entryRepo);
+  } else {
+    // Fallback: create a mock version for backward compatibility during transition
+    // In production, always pass options.database
+    const mockDb = {
+      query: async (_text: string, _params?: unknown[]) => ({ rows: [], rowCount: 0 }),
+    };
+    const configRepo = new BuildCacheConfigRepository(mockDb);
+    const entryRepo = new BuildCacheEntryRepository(mockDb);
+    buildCacheService = new BuildCacheService(configRepo, entryRepo);
+  }
+
   const k8sBuildExecutor = new K8sBuildExecutor(
     undefined,  // 使用 Mock K8s 客户端
     buildCacheService,

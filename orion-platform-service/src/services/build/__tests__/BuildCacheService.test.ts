@@ -1,20 +1,254 @@
 /**
  * BuildCacheService 单元测试
+ *
+ * Uses in-memory mock repositories to test business logic without a real database.
  */
 
 import { BuildCacheService } from '../BuildCacheService';
+import {
+  BuildCacheConfigRepository,
+  BuildCacheEntryRepository,
+} from '../../../repositories/BuildCacheRepository';
 import {
   CacheLevel,
   CacheStatus,
   CacheCleanupPolicy,
   CacheStorageType,
+  BuildCacheConfig,
+  CacheEntry,
 } from '../../../models/BuildCache';
+
+// ==================== In-Memory Mock Repositories ====================
+
+class MockConfigRepository extends BuildCacheConfigRepository {
+  private store: Map<string, BuildCacheConfig> = new Map();
+
+  constructor() {
+    super({ query: async () => ({ rows: [], rowCount: 0 }) });
+  }
+
+  async findById(id: string): Promise<BuildCacheConfig | undefined> {
+    return this.store.get(id);
+  }
+
+  async findByLevelAndTarget(
+    level: CacheLevel,
+    targetId?: string,
+  ): Promise<BuildCacheConfig | undefined> {
+    for (const config of this.store.values()) {
+      if (config.level === level && (config.targetId || '') === (targetId || '')) {
+        return config;
+      }
+    }
+    return undefined;
+  }
+
+  async findAllWithFilters(options?: {
+    level?: CacheLevel;
+    status?: CacheStatus;
+    limit?: number;
+    offset?: number;
+  }): Promise<BuildCacheConfig[]> {
+    let result = Array.from(this.store.values());
+    if (options?.level) result = result.filter(c => c.level === options.level);
+    if (options?.status) result = result.filter(c => c.status === options.status);
+    result.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    const offset = options?.offset || 0;
+    const limit = options?.limit || 100;
+    return result.slice(offset, offset + limit);
+  }
+
+  async createConfig(data: {
+    level: CacheLevel;
+    targetId?: string;
+    status: CacheStatus;
+    storageType: CacheStorageType;
+    storagePath?: string;
+    maxTotalSize?: string;
+    maxAgeDays?: number;
+    cleanupPolicy: CacheCleanupPolicy;
+    cacheKeyPattern?: string;
+    cachePaths: string[];
+    description?: string;
+  }): Promise<BuildCacheConfig> {
+    const now = new Date();
+    const config: BuildCacheConfig = {
+      id: `config-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      level: data.level,
+      targetId: data.targetId,
+      status: data.status,
+      storageType: data.storageType,
+      storagePath: data.storagePath,
+      maxTotalSize: data.maxTotalSize,
+      maxAgeDays: data.maxAgeDays,
+      cleanupPolicy: data.cleanupPolicy,
+      cacheKeyPattern: data.cacheKeyPattern,
+      cachePaths: data.cachePaths,
+      description: data.description,
+      createdAt: now,
+    };
+    this.store.set(config.id, config);
+    return config;
+  }
+
+  async updateConfig(id: string, data: Partial<Record<string, unknown>>): Promise<BuildCacheConfig> {
+    const config = this.store.get(id);
+    if (!config) throw new Error(`Config '${id}' not found`);
+    const updated = { ...config, updatedAt: new Date() };
+    for (const [key, value] of Object.entries(data)) {
+      if (value !== undefined) {
+        // Map snake_case back to camelCase for the entity
+        const camelKey = key === 'storage_type' ? 'storageType' :
+          key === 'storage_path' ? 'storagePath' :
+          key === 'max_total_size' ? 'maxTotalSize' :
+          key === 'max_age_days' ? 'maxAgeDays' :
+          key === 'cleanup_policy' ? 'cleanupPolicy' :
+          key === 'cache_key_pattern' ? 'cacheKeyPattern' :
+          key === 'cache_paths' ? 'cachePaths' :
+          key;
+        (updated as any)[camelKey] = value;
+      }
+    }
+    this.store.set(id, updated);
+    return updated;
+  }
+
+  async delete(id: string): Promise<boolean> {
+    return this.store.delete(id);
+  }
+}
+
+class MockEntryRepository extends BuildCacheEntryRepository {
+  private store: Map<string, CacheEntry> = new Map();
+
+  constructor() {
+    super({ query: async () => ({ rows: [], rowCount: 0 }) });
+  }
+
+  async findById(id: string): Promise<CacheEntry | undefined> {
+    return this.store.get(id);
+  }
+
+  async findByCacheKey(configId: string, cacheKey: string): Promise<CacheEntry | undefined> {
+    for (const entry of this.store.values()) {
+      if (entry.configId === configId && entry.cacheKey === cacheKey) {
+        return entry;
+      }
+    }
+    return undefined;
+  }
+
+  async findByConfigId(configId: string, options?: {
+    limit?: number;
+    offset?: number;
+  }): Promise<CacheEntry[]> {
+    let result = Array.from(this.store.values()).filter(e => e.configId === configId);
+    result.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    const offset = options?.offset || 0;
+    const limit = options?.limit || 100;
+    return result.slice(offset, offset + limit);
+  }
+
+  async findAllWithFilter(options?: {
+    configId?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<CacheEntry[]> {
+    let result = Array.from(this.store.values());
+    if (options?.configId) result = result.filter(e => e.configId === options.configId);
+    result.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    const offset = options?.offset || 0;
+    const limit = options?.limit || 100;
+    return result.slice(offset, offset + limit);
+  }
+
+  async deleteExpired(): Promise<number> {
+    const now = new Date();
+    let count = 0;
+    for (const [id, entry] of this.store.entries()) {
+      if (entry.expiresAt && entry.expiresAt <= now) {
+        this.store.delete(id);
+        count++;
+      }
+    }
+    return count;
+  }
+
+  async deleteByConfigId(configId: string): Promise<number> {
+    let count = 0;
+    for (const [id, entry] of this.store.entries()) {
+      if (entry.configId === configId) {
+        this.store.delete(id);
+        count++;
+      }
+    }
+    return count;
+  }
+
+  async findLRUEntries(configId: string): Promise<CacheEntry[]> {
+    return Array.from(this.store.values())
+      .filter(e => e.configId === configId)
+      .sort((a, b) => {
+        const aTime = a.lastHitAt?.getTime() || a.createdAt.getTime();
+        const bTime = b.lastHitAt?.getTime() || b.createdAt.getTime();
+        return aTime - bTime;
+      });
+  }
+
+  async recordHit(id: string): Promise<CacheEntry> {
+    const entry = this.store.get(id);
+    if (!entry) throw new Error(`Cache entry '${id}' not found`);
+    const updated = {
+      ...entry,
+      hitCount: entry.hitCount + 1,
+      lastHitAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.store.set(id, updated);
+    return updated;
+  }
+
+  async createEntry(data: {
+    configId: string;
+    cacheKey: string;
+    hash: string;
+    size?: number;
+    storagePath: string;
+    hitCount?: number;
+    lastHitAt?: Date;
+    expiresAt?: Date;
+  }): Promise<CacheEntry> {
+    const now = new Date();
+    const entry: CacheEntry = {
+      id: `entry-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      configId: data.configId,
+      cacheKey: data.cacheKey,
+      hash: data.hash,
+      size: data.size,
+      storagePath: data.storagePath,
+      hitCount: data.hitCount || 0,
+      lastHitAt: data.lastHitAt,
+      expiresAt: data.expiresAt,
+      createdAt: now,
+    };
+    this.store.set(entry.id, entry);
+    return entry;
+  }
+
+  async delete(id: string): Promise<boolean> {
+    return this.store.delete(id);
+  }
+}
+
+// ==================== Tests ====================
 
 describe('BuildCacheService', () => {
   let service: BuildCacheService;
 
   beforeEach(() => {
-    service = new BuildCacheService();
+    const configRepo = new MockConfigRepository();
+    const entryRepo = new MockEntryRepository();
+    service = new BuildCacheService(configRepo, entryRepo);
   });
 
   describe('createConfig', () => {
@@ -61,7 +295,6 @@ describe('BuildCacheService', () => {
     });
 
     it('should require cachePaths', async () => {
-      // Empty cachePaths should fail validation at controller level
       const config = await service.createConfig({
         level: CacheLevel.TASK,
         targetId: 'task-456',
@@ -186,7 +419,6 @@ describe('BuildCacheService', () => {
 
   describe('isCacheEnabled (cascade)', () => {
     it('should check task level first', async () => {
-      // Setup: Global enabled, Pipeline enabled, Task disabled
       await service.createConfig({
         level: CacheLevel.GLOBAL,
         cachePaths: ['node_modules'],
@@ -205,7 +437,6 @@ describe('BuildCacheService', () => {
         status: CacheStatus.DISABLED,
       });
 
-      // Task level should take precedence
       const enabled = await service.isCacheEnabled('pipeline-1', 'task-1');
       expect(enabled).toBe(false);
     });
@@ -324,19 +555,18 @@ describe('BuildCacheService', () => {
       const entry = await service.getCacheEntryByKey(config.id, 'cache-hash1');
 
       expect(entry).toBeDefined();
-      expect(entry?.hitCount).toBe(1); // Hit recorded
+      expect(entry?.hitCount).toBe(1);
     });
 
     it('should return null for expired entry', async () => {
       const config = await service.createConfig({
         level: CacheLevel.GLOBAL,
         cachePaths: ['node_modules'],
-        maxAgeDays: 0, // Expire immediately
+        maxAgeDays: 0,
       });
 
       await service.createCacheEntry(config.id, 'hash1', '/cache/hash1');
 
-      // Entry should be expired
       const entry = await service.getCacheEntryByKey(config.id, 'cache-hash1');
       expect(entry).toBeNull();
     });
@@ -382,7 +612,6 @@ describe('BuildCacheService', () => {
       await service.createCacheEntry(config.id, 'hash2', '/cache/hash2');
       await service.createCacheEntry(config.id, 'hash3', '/cache/hash3');
 
-      // Access hash3 to make it "recently used"
       await service.getCacheEntryByKey(config.id, 'cache-hash3');
 
       const cleaned = await service.cleanupLRU(config.id, 1);

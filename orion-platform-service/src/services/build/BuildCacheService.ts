@@ -4,8 +4,10 @@
  * 职责：
  * - 三级缓存开关管理：全局 -> 流水线 -> 任务
  * - 缓存键生成（基于依赖文件 hash）
- * - 缓存存储管理（本地卷或远端）
+ * - 缓存存储管理（通过 PostgreSQL Repository）
  * - 缓存清理策略
+ *
+ * 使用 PostgreSQL Repository 替代 Map() 内存存储，确保数据持久化。
  */
 
 import {
@@ -20,17 +22,23 @@ import {
   createBuildCacheConfig,
   updateBuildCacheConfig,
   createCacheEntry,
-  recordCacheHit,
   generateCacheKey,
 } from '../../models/BuildCache';
+import {
+  BuildCacheConfigRepository,
+  BuildCacheEntryRepository,
+} from '../../repositories/BuildCacheRepository';
 
 export class BuildCacheService {
-  private configs: Map<string, BuildCacheConfig>;
-  private entries: Map<string, CacheEntry>;
+  private configRepo: BuildCacheConfigRepository;
+  private entryRepo: BuildCacheEntryRepository;
 
-  constructor() {
-    this.configs = new Map();
-    this.entries = new Map();
+  constructor(
+    configRepo: BuildCacheConfigRepository,
+    entryRepo: BuildCacheEntryRepository,
+  ) {
+    this.configRepo = configRepo;
+    this.entryRepo = entryRepo;
   }
 
   /**
@@ -38,23 +46,36 @@ export class BuildCacheService {
    */
   async createConfig(input: BuildCacheConfigCreateInput): Promise<BuildCacheConfig> {
     // 检查是否已存在相同级别的配置
-    const existing = Array.from(this.configs.values()).find(
-      cfg => cfg.level === input.level && cfg.targetId === input.targetId
+    const existing = await this.configRepo.findByLevelAndTarget(
+      input.level,
+      input.targetId,
     );
     if (existing) {
       throw new Error(`Cache config already exists for level=${input.level}, target=${input.targetId}`);
     }
 
     const config = createBuildCacheConfig(input);
-    this.configs.set(config.id, config);
-    return config;
+    return this.configRepo.createConfig({
+      level: config.level,
+      targetId: config.targetId,
+      status: config.status,
+      storageType: config.storageType,
+      storagePath: config.storagePath,
+      maxTotalSize: config.maxTotalSize,
+      maxAgeDays: config.maxAgeDays,
+      cleanupPolicy: config.cleanupPolicy,
+      cacheKeyPattern: config.cacheKeyPattern,
+      cachePaths: config.cachePaths,
+      description: config.description,
+    });
   }
 
   /**
    * 获取缓存配置
    */
   async getConfig(id: string): Promise<BuildCacheConfig | null> {
-    return this.configs.get(id) || null;
+    const config = await this.configRepo.findById(id);
+    return config || null;
   }
 
   /**
@@ -62,11 +83,10 @@ export class BuildCacheService {
    */
   async getConfigByLevelAndTarget(
     level: CacheLevel,
-    targetId?: string
+    targetId?: string,
   ): Promise<BuildCacheConfig | null> {
-    return Array.from(this.configs.values()).find(
-      cfg => cfg.level === level && cfg.targetId === targetId
-    ) || null;
+    const config = await this.configRepo.findByLevelAndTarget(level, targetId);
+    return config || null;
   }
 
   /**
@@ -74,23 +94,33 @@ export class BuildCacheService {
    */
   async updateConfig(
     id: string,
-    input: BuildCacheConfigUpdateInput
+    input: BuildCacheConfigUpdateInput,
   ): Promise<BuildCacheConfig | null> {
-    const config = this.configs.get(id);
+    const config = await this.configRepo.findById(id);
     if (!config) {
       return null;
     }
 
-    const updated = updateBuildCacheConfig(config, input);
-    this.configs.set(id, updated);
-    return updated;
+    // Map update input to snake_case fields for the repository
+    const updateData: Record<string, unknown> = {};
+    if (input.status !== undefined) updateData.status = input.status;
+    if (input.storageType !== undefined) updateData.storageType = input.storageType;
+    if (input.storagePath !== undefined) updateData.storagePath = input.storagePath;
+    if (input.maxTotalSize !== undefined) updateData.maxTotalSize = input.maxTotalSize;
+    if (input.maxAgeDays !== undefined) updateData.maxAgeDays = input.maxAgeDays;
+    if (input.cleanupPolicy !== undefined) updateData.cleanupPolicy = input.cleanupPolicy;
+    if (input.cacheKeyPattern !== undefined) updateData.cacheKeyPattern = input.cacheKeyPattern;
+    if (input.cachePaths !== undefined) updateData.cachePaths = input.cachePaths;
+    if (input.description !== undefined) updateData.description = input.description;
+
+    return this.configRepo.updateConfig(id, updateData);
   }
 
   /**
    * 删除缓存配置
    */
   async deleteConfig(id: string): Promise<boolean> {
-    return this.configs.delete(id);
+    return this.configRepo.delete(id);
   }
 
   /**
@@ -102,21 +132,7 @@ export class BuildCacheService {
     limit?: number;
     offset?: number;
   }): Promise<BuildCacheConfig[]> {
-    let result = Array.from(this.configs.values());
-
-    if (options?.level) {
-      result = result.filter(cfg => cfg.level === options.level);
-    }
-
-    if (options?.status) {
-      result = result.filter(cfg => cfg.status === options.status);
-    }
-
-    result.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-
-    const offset = options?.offset || 0;
-    const limit = options?.limit || 100;
-    return result.slice(offset, offset + limit);
+    return this.configRepo.findAllWithFilters(options);
   }
 
   /**
@@ -160,7 +176,7 @@ export class BuildCacheService {
    */
   async getEffectiveConfig(
     pipelineId: string,
-    taskId?: string
+    taskId?: string,
   ): Promise<BuildCacheConfig | null> {
     // 1. 优先检查任务级别
     if (taskId) {
@@ -199,13 +215,11 @@ export class BuildCacheService {
    */
   computeDependencyHash(
     filePaths: string[],
-    fileHashes: Record<string, string>
+    fileHashes: Record<string, string>,
   ): string {
-    // 简单实现：将所有文件 hash 拼接后取前 16 位
     const sortedPaths = [...filePaths].sort();
     const combined = sortedPaths.map(p => fileHashes[p] || 'not-found').join(':');
 
-    // 使用简单的 hash 算法（生产环境应使用 crypto.createHash）
     let hash = 0;
     for (let i = 0; i < combined.length; i++) {
       const char = combined.charCodeAt(i);
@@ -220,9 +234,9 @@ export class BuildCacheService {
   async createCacheEntry(
     configId: string,
     hash: string,
-    storagePath: string
+    storagePath: string,
   ): Promise<CacheEntry> {
-    const config = this.configs.get(configId);
+    const config = await this.getConfig(configId);
     if (!config) {
       throw new Error(`Cache config '${configId}' not found`);
     }
@@ -236,15 +250,24 @@ export class BuildCacheService {
       entry.expiresAt = new Date(Date.now() + config.maxAgeDays * 24 * 60 * 60 * 1000);
     }
 
-    this.entries.set(entry.id, entry);
-    return entry;
+    return this.entryRepo.createEntry({
+      configId: entry.configId,
+      cacheKey: entry.cacheKey,
+      hash: entry.hash,
+      size: entry.size,
+      storagePath: entry.storagePath,
+      hitCount: entry.hitCount,
+      lastHitAt: entry.lastHitAt,
+      expiresAt: entry.expiresAt,
+    });
   }
 
   /**
    * 获取缓存条目
    */
   async getCacheEntry(id: string): Promise<CacheEntry | null> {
-    return this.entries.get(id) || null;
+    const entry = await this.entryRepo.findById(id);
+    return entry || null;
   }
 
   /**
@@ -252,11 +275,9 @@ export class BuildCacheService {
    */
   async getCacheEntryByKey(
     configId: string,
-    cacheKey: string
+    cacheKey: string,
   ): Promise<CacheEntry | null> {
-    const entry = Array.from(this.entries.values()).find(
-      e => e.configId === configId && e.cacheKey === cacheKey
-    );
+    const entry = await this.entryRepo.findByCacheKey(configId, cacheKey);
 
     if (!entry) return null;
 
@@ -266,7 +287,7 @@ export class BuildCacheService {
     }
 
     // 记录命中
-    return recordCacheHit(entry);
+    return this.entryRepo.recordHit(entry.id);
   }
 
   /**
@@ -277,24 +298,23 @@ export class BuildCacheService {
     limit?: number;
     offset?: number;
   }): Promise<CacheEntry[]> {
-    let result = Array.from(this.entries.values());
-
     if (options?.configId) {
-      result = result.filter(e => e.configId === options.configId);
+      return this.entryRepo.findByConfigId(options.configId, {
+        limit: options.limit,
+        offset: options.offset,
+      });
     }
-
-    result.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-
-    const offset = options?.offset || 0;
-    const limit = options?.limit || 100;
-    return result.slice(offset, offset + limit);
+    return this.entryRepo.findAllWithFilter({
+      limit: options?.limit,
+      offset: options?.offset,
+    });
   }
 
   /**
    * 删除缓存条目
    */
   async deleteCacheEntry(id: string): Promise<boolean> {
-    return this.entries.delete(id);
+    return this.entryRepo.delete(id);
   }
 
   // ==================== 缓存清理 ====================
@@ -305,17 +325,7 @@ export class BuildCacheService {
    * @returns 清理的条目数量
    */
   async cleanupExpired(): Promise<number> {
-    const now = new Date();
-    let count = 0;
-
-    for (const [id, entry] of this.entries.entries()) {
-      if (entry.expiresAt && entry.expiresAt <= now) {
-        this.entries.delete(id);
-        count++;
-      }
-    }
-
-    return count;
+    return this.entryRepo.deleteExpired();
   }
 
   /**
@@ -326,25 +336,20 @@ export class BuildCacheService {
    * @returns 清理的条目数量
    */
   async cleanupLRU(configId: string, maxEntries: number): Promise<number> {
-    const configEntries = Array.from(this.entries.values())
-      .filter(e => e.configId === configId)
-      .sort((a, b) => {
-        // 按最后命中时间排序（未命中的排前面）
-        const aTime = a.lastHitAt?.getTime() || a.createdAt.getTime();
-        const bTime = b.lastHitAt?.getTime() || b.createdAt.getTime();
-        return aTime - bTime;
-      });
+    const configEntries = await this.entryRepo.findLRUEntries(configId);
 
     if (configEntries.length <= maxEntries) {
       return 0;
     }
 
     const toDelete = configEntries.slice(0, configEntries.length - maxEntries);
+    let count = 0;
     for (const entry of toDelete) {
-      this.entries.delete(entry.id);
+      const deleted = await this.entryRepo.delete(entry.id);
+      if (deleted) count++;
     }
 
-    return toDelete.length;
+    return count;
   }
 
   /**
@@ -354,15 +359,6 @@ export class BuildCacheService {
    * @returns 清理的条目数量
    */
   async clearConfigCache(configId: string): Promise<number> {
-    let count = 0;
-    for (const [id, entry] of this.entries.entries()) {
-      if (entry.configId === configId) {
-        this.entries.delete(id);
-        count++;
-      }
-    }
-    return count;
+    return this.entryRepo.deleteByConfigId(configId);
   }
 }
-
-export const buildCacheService = new BuildCacheService();
