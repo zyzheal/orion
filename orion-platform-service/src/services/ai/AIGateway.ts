@@ -185,7 +185,7 @@ export class AIGateway {
     });
 
     try {
-      const response = await Promise.race([this.llmCaller<T>(request), timeoutPromise]);
+      const response = await Promise.race([this.llmCaller(request), timeoutPromise]) as AIResponse<T>;
       return response;
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));

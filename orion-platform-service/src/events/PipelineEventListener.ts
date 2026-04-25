@@ -4,7 +4,7 @@
  * 展示如何订阅和处理 Pipeline 事件
  */
 
-import { EventBus, CloudEvent, EventHandler, EventContext } from '@orion/event-bus';
+import { EventBus, CloudEvent, EventHandler, EventContext, Subscription } from '@orion/event-bus';
 import { PipelineEventType, PipelineRunEventData, StageEventData } from './types';
 
 /**
@@ -55,7 +55,7 @@ export class PipelineEventListener {
   private streamName: string;
   private consumerGroup: string;
   private handlers: PipelineEventHandler;
-  private subscriptions: Array<() => Promise<void>> = [];
+  private subscriptions: Subscription[] = [];
 
   constructor(config: PipelineEventListenerConfig) {
     this.eventBus = config.eventBus;
@@ -106,7 +106,7 @@ export class PipelineEventListener {
       const eventType = eventTypeMap[handlerKey];
       const unsubscribe = await this.eventBus.subscribe<PipelineRunEventData>(
         eventType,
-        handler,
+        handler as any,
         {
           streamName: this.streamName,
           durableName: `${this.consumerGroup}-${eventType}`,
@@ -144,7 +144,7 @@ export class PipelineEventListener {
       const eventType = eventTypeMap[handlerKey];
       const unsubscribe = await this.eventBus.subscribe<StageEventData>(
         eventType,
-        handler,
+        handler as any,
         {
           streamName: this.streamName,
           durableName: `${this.consumerGroup}-${eventType}`,
@@ -163,9 +163,9 @@ export class PipelineEventListener {
   async stop(): Promise<void> {
     console.log('[PipelineEventListener] Stopping event listeners...');
 
-    for (const unsubscribe of this.subscriptions) {
+    for (const subscription of this.subscriptions) {
       try {
-        await unsubscribe();
+        await subscription.unsubscribe();
       } catch (error) {
         console.error('[PipelineEventListener] Error unsubscribing:', error);
       }

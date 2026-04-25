@@ -924,7 +924,7 @@ export class FinOpsService {
     return breakdowns;
   }
 
-  async getCostTrend(dataPoints: { date: Date; cost: number }[]): Promise<{ points: { date: Date; cost: number; changeRate: number }[]; overallChangeRate: number; averageCost: number; maxCost: number; minCost: number }> {
+  async computeCostTrendFromData(dataPoints: { date: Date; cost: number }[]): Promise<{ points: { date: Date; cost: number; changeRate: number }[]; overallChangeRate: number; averageCost: number; maxCost: number; minCost: number }> {
     const trend = this.computeTrend(dataPoints.map(d => ({ date: d.date, cost: d.cost })));
     return {
       points: trend.points,

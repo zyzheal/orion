@@ -20,6 +20,7 @@ import {
   ApproveChangeInput,
   ApprovalRecord,
   ConfigItem,
+  ConfigEnvironment,
   IEventPublisher,
   ConfigEvents,
 } from './types';
@@ -58,7 +59,7 @@ export class ConfigApprovalService {
   async createChangeRequest(
     input: CreateChangeRequestInput
   ): Promise<ConfigChangeRequest> {
-    const config = await this.configService.getConfig(input.configId);
+    const config = await this.configService.getConfig('default', input.configId);
     if (!config) {
       throw new Error(`Config '${input.configId}' not found`);
     }
@@ -70,8 +71,8 @@ export class ConfigApprovalService {
       id,
       configId: input.configId,
       configKey: config.key,
-      environment: config.environment,
-      oldValue: config.value,
+      environment: (config.environment as ConfigEnvironment) || 'dev',
+      oldValue: typeof config.value === 'string' ? config.value : JSON.stringify(config.value),
       newValue: input.newValue,
       reason: input.reason,
       requester: input.requester,
@@ -287,10 +288,12 @@ export class ConfigApprovalService {
 
   private async applyChange(changeRequest: ConfigChangeRequest): Promise<void> {
     try {
-      await this.configService.updateConfig(changeRequest.configId, {
-        value: changeRequest.newValue,
-        updatedBy: `approval:${changeRequest.id}`,
-      });
+      await this.configService.updateConfig(
+        'default',
+        changeRequest.configId,
+        { value: changeRequest.newValue },
+        `approval:${changeRequest.id}`,
+      );
 
       changeRequest.status = 'applied';
       changeRequest.appliedAt = new Date();

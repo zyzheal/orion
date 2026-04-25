@@ -116,7 +116,7 @@ export class GitHubClient {
       }
 
       const statuses = await response.json();
-      return statuses;
+      return statuses as any[];
     } catch (error) {
       logger.error({
         error,
@@ -367,7 +367,7 @@ export class GitHubClient {
         throw new Error(`GitHub API error: ${response.status} - ${errorText}`);
       }
 
-      return await response.json();
+      return (await response.json()) as any[];
     } catch (error) {
       logger.error({
         error,

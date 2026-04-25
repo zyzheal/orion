@@ -236,23 +236,16 @@ export class GitOpsService {
 
         // Apply configs if auto-apply is enabled
         if (gitConfig.autoApply) {
-          const importResult = await this.configService.batchImportConfigs(
-            parsedConfigs.map((pc) => ({
-              key: pc.key,
-              value: pc.value,
-              environment: pc.environment as any,
-              description: pc.description,
-              encrypted: pc.encrypted,
-              tags: pc.tags,
-              createdBy: 'gitops-sync',
-            }))
+          const importResult = await this.configService.importConfig(
+            'default',
+            parsedConfigs.reduce((acc, pc) => {
+              acc[pc.key] = pc.value;
+              return acc;
+            }, {} as Record<string, any>),
+            'gitops-sync'
           );
 
-          syncStatus.itemsSynced += importResult.created;
-          syncStatus.itemsFailed += importResult.errors.length;
-          if (importResult.errors.length > 0) {
-            syncStatus.status = 'partial';
-          }
+          syncStatus.itemsSynced += importResult;
         } else {
           syncStatus.itemsSynced = parsedConfigs.length;
         }
@@ -444,7 +437,7 @@ export class GitOpsService {
     try {
       const parsed = JSON.parse(content);
       for (const [env, configs] of Object.entries(parsed)) {
-        if (typeof configs === 'object') {
+        if (typeof configs === 'object' && configs !== null) {
           for (const [key, value] of Object.entries(configs)) {
             results.push({
               key,
@@ -469,9 +462,9 @@ export class GitOpsService {
       const env = gc.environment as any;
       if (!['dev', 'staging', 'prod'].includes(env)) continue;
 
-      const platformConfig = await this.configService.getConfigByKey(
-        gc.key,
-        env
+      const platformConfig = await this.configService.getConfig(
+        'default',
+        gc.key
       );
 
       if (!platformConfig) {
@@ -482,12 +475,12 @@ export class GitOpsService {
           newValue: gc.value,
           changeType: 'added',
         });
-      } else if (platformConfig.value !== gc.value) {
+      } else if (JSON.stringify(platformConfig.value) !== gc.value) {
         // Value mismatch
         driftItems.push({
           key: gc.key,
           environment: env,
-          oldValue: platformConfig.value,
+          oldValue: JSON.stringify(platformConfig.value),
           newValue: gc.value,
           changeType: 'modified',
         });
@@ -495,16 +488,16 @@ export class GitOpsService {
     }
 
     // Check for configs in platform but not in Git
-    const allPlatformConfigs = await this.configService.listConfigs({});
+    const allPlatformConfigs = await this.configService.listConfigs('default');
     for (const pc of allPlatformConfigs) {
       const gitMatch = gitConfigs.find(
-        (gc) => gc.key === pc.key && gc.environment === pc.environment
+        (gc) => gc.key === pc.key
       );
       if (!gitMatch) {
         driftItems.push({
           key: pc.key,
-          environment: pc.environment,
-          oldValue: pc.value,
+          environment: 'dev' as any,
+          oldValue: JSON.stringify(pc.value),
           changeType: 'removed',
         });
       }

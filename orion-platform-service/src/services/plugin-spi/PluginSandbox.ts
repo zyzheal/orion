@@ -247,6 +247,7 @@ export class PluginSandboxSPI {
    * Get plugin execution health metrics
    */
   getPluginHealth(pluginId: string): {
+    pluginId: string;
     totalExecutions: number;
     successCount: number;
     failureCount: number;

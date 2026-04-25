@@ -112,7 +112,7 @@ export class GitLabClient {
       }
 
       const statuses = await response.json();
-      return statuses;
+      return statuses as any[];
     } catch (error) {
       logger.error({
         error,

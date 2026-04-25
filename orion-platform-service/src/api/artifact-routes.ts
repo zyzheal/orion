@@ -12,7 +12,7 @@ import { PromotionService, PromotionStage } from '../services/artifact/Promotion
 
 export default async function artifactRoutes(app: FastifyInstance): Promise<void> {
   // 初始化依赖
-  const artifactRepository = new PostgresArtifactRepository(app.db);
+  const artifactRepository = new PostgresArtifactRepository((app as any).db);
   const artifactStorage = new LocalArtifactStorage('/tmp/artifacts');
   const artifactService = new ArtifactRegistryServiceImpl(artifactRepository, artifactStorage);
   const artifactController = new ArtifactController(artifactService);

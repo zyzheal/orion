@@ -350,6 +350,7 @@ export class ReviewRuleEngine {
       ...updates,
       metadata: {
         ...existing.metadata,
+        createdAt: existing.metadata?.createdAt ?? new Date(),
         updatedAt: new Date(),
       },
     };

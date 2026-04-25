@@ -18,8 +18,8 @@ import {
   AlertStatus,
   ChannelType,
   NotificationStatus,
-  TimeWindow,
 } from '../../../services/monitoring/types';
+import { TimeWindow } from '../../../services/monitoring/MonitoringDashboard';
 import { WidgetConfig } from '../../../services/monitoring/MonitoringDashboard';
 
 export class MonitoringController {

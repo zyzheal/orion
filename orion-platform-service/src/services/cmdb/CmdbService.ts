@@ -160,13 +160,15 @@ export class CmdbService {
 
   /**
    * 通过 ciId 获取配置项
+   * @param ciId - 配置项 ID
+   * @param tenantId - 租户 ID（默认 BigInt(1)，避免使用硬编码的 0）
    */
-  async getCIByCiId(ciId: string): Promise<CI | null> {
+  async getCIByCiId(ciId: string, tenantId?: bigint): Promise<CI | null> {
     let ci: CI | null = null;
+    const resolvedTenantId = tenantId ?? BigInt(1);
 
     if (this.ciRepository) {
-      // 需要一个默认的 tenantId，这里使用 0 作为默认值
-      ci = await this.ciRepository.getCIByCiId(ciId, BigInt(0));
+      ci = await this.ciRepository.getCIByCiId(ciId, resolvedTenantId);
     } else {
       ci = Array.from(cis.values()).find(c => c.ciId === ciId && !c.deletedAt) || null;
     }
@@ -329,7 +331,7 @@ export class CmdbService {
       ci.deletedAt = new Date();
       ci.status = 'DECOMMISSIONED';
     } else {
-      ci = cis.get(id);
+      ci = cis.get(id) ?? null;
       if (!ci || ci.deletedAt) {
         return false;
       }
@@ -430,14 +432,15 @@ export class CmdbService {
   /**
    * 创建关联关系
    */
-  async createRelation(input: CreateRelationInput, user: string): Promise<CIRelation> {
+  async createRelation(input: CreateRelationInput, user: string, tenantId?: bigint): Promise<CIRelation> {
     // 验证 CI 是否存在
     let fromCI: CI | null = null;
     let toCI: CI | null = null;
+    const resolvedTenantId = tenantId ?? BigInt(1);
 
     if (this.ciRepository) {
-      fromCI = await this.ciRepository.getCIByCiId(input.fromCiId, BigInt(0));
-      toCI = await this.ciRepository.getCIByCiId(input.toCiId, BigInt(0));
+      fromCI = await this.ciRepository.getCIByCiId(input.fromCiId, resolvedTenantId);
+      toCI = await this.ciRepository.getCIByCiId(input.toCiId, resolvedTenantId);
     } else {
       fromCI = Array.from(cis.values()).find(c => c.ciId === input.fromCiId && !c.deletedAt) || null;
       toCI = Array.from(cis.values()).find(c => c.ciId === input.toCiId && !c.deletedAt) || null;

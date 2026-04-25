@@ -45,7 +45,7 @@ export class OnCallService {
         rotationStartHour,
         teamMembers,
         startDate: now,
-        escalations: escalations.map(e => ({ userId: e.userId, delay: e.delay })),
+        escalations: escalations.map(e => ({ userId: e.targets?.[0] ?? '', delay: e.timeoutMinutes })),
         createdAt: now,
         updatedAt: now,
       });
@@ -192,8 +192,8 @@ export class OnCallService {
    */
   async listSchedules(): Promise<OnCallSchedule[]> {
     if (this.scheduleRepository) {
-      const entities = await this.scheduleRepository.findAll();
-      return entities.map(e => this.mapEntityToSchedule(e));
+      const result = await this.scheduleRepository.findAll();
+      return result.entities.map(e => this.mapEntityToSchedule(e));
     }
     return [];
   }
@@ -239,7 +239,11 @@ export class OnCallService {
       rotationStartHour: entity.rotationStartHour,
       teamMembers: entity.teamMembers,
       startDate: entity.startDate,
-      escalations: escalations ?? entity.escalations.map(e => ({ userId: e.userId, delay: e.delay })),
+      escalations: escalations ?? entity.escalations.map((e: any) => ({
+        level: 0,
+        timeoutMinutes: e.delay ?? 0,
+        targets: e.userId ? [e.userId] : [],
+      })),
       createdAt: entity.createdAt,
       updatedAt: entity.updatedAt,
     };

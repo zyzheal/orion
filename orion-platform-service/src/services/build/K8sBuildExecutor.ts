@@ -217,7 +217,7 @@ class MockK8sClient implements K8sClient {
  */
 export class K8sBuildExecutor {
   private k8sClient: K8sClient;
-  private cacheService: BuildCacheService;
+  private cacheService?: BuildCacheService;
   private imageService: BuilderImageService;
   private pods: Map<string, BuildPod>;
 
@@ -227,7 +227,7 @@ export class K8sBuildExecutor {
     imageService?: BuilderImageService
   ) {
     this.k8sClient = k8sClient || new MockK8sClient();
-    this.cacheService = cacheService || new BuildCacheService();
+    this.cacheService = cacheService; // Optional, caller must provide if needed
     this.imageService = imageService || new BuilderImageService();
     this.pods = new Map();
   }

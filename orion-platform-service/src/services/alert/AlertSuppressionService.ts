@@ -218,13 +218,7 @@ export class AlertSuppressionService {
    * 批量处理告警
    * 先进行根因分析，再应用抑制规则
    */
-  batchProcess(alerts: Alert[]): {
-    processed: number;
-    suppressed: number;
-    unsuppressed: number;
-    rootCauseAnalysis?: RootCauseAnalysis;
-    results: Array<{ alertId: string; result: SuppressionResult }>;
-  } {
+  async batchProcess(alerts: Alert[]): Promise<{ processed: number; suppressed: number; unsuppressed: number; rootCauseAnalysis?: RootCauseAnalysis; results: Array<{ alertId: string; result: SuppressionResult }>; }> {
     // 更新拓扑健康状态
     this.correlation.updateNodeHealth(alerts);
 
@@ -244,7 +238,7 @@ export class AlertSuppressionService {
         }
       }
 
-      const result = this.processAlert(alert);
+      const result = await this.processAlert(alert);
       results.push({ alertId: alert.id, result });
 
       if (result.suppressed) {

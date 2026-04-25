@@ -89,7 +89,7 @@ function extractTenantInfo(
   config: TenantMiddlewareOptions
 ): TenantInfo | null {
   // 优先从 JWT user 对象获取（如果已验证）
-  const user = request.user as Record<string, unknown> | undefined;
+  const user = (request as any).user as Record<string, unknown> | undefined;
   if (user?.tenant_id) {
     return {
       tenantId: user.tenant_id as number,

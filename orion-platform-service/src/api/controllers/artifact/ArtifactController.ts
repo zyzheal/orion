@@ -4,7 +4,7 @@
  */
 
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { ArtifactRegistryService } from '../../../services/artifact/ArtifactRegistryService';
+import { ArtifactRegistryServiceImpl } from '../../../services/artifact/ArtifactRegistryService';
 import {
   CreateArtifactInput,
   UpdateArtifactInput,
@@ -15,7 +15,7 @@ import {
 } from '../../../models/Artifact';
 
 export class ArtifactController {
-  constructor(private artifactService: ArtifactRegistryService) {}
+  constructor(private artifactService: ArtifactRegistryServiceImpl) {}
 
   /**
    * 创建制品
@@ -204,7 +204,7 @@ export class ArtifactController {
   async download(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const { id } = request.params as { id: string };
-      const user = request.user as any; // 假设已认证
+      const user = (request as any).user as any; // 假设已认证
       const clientIp = request.ip;
       const userAgent = request.headers['user-agent'];
       

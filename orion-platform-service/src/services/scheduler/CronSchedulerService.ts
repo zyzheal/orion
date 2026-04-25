@@ -130,8 +130,8 @@ export class CronSchedulerService extends EventEmitter {
    */
   async getJobs(): Promise<CronJob[]> {
     if (this.cronJobRepository) {
-      const entities = await this.cronJobRepository.findAll();
-      return entities
+      const result = await this.cronJobRepository.findAll();
+      return result.entities
         .filter(e => this.taskHandlers.has(e.id))
         .map(e => this.mapEntityToJob(e, this.taskHandlers.get(e.id)!));
     }

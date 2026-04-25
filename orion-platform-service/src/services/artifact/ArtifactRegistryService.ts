@@ -318,7 +318,7 @@ export class ArtifactRegistryServiceImpl implements ArtifactRegistryService {
       const artifact = await this.update({ 
         id, 
         status: ArtifactStatus.QUARANTINED,
-        metadata: { ...await this.artifactRepository.findById(id)?.metadata, quarantineReason: reason }
+        metadata: { ...(await this.artifactRepository.findById(id))?.metadata, quarantineReason: reason }
       });
       
       logger.info({ artifactId: id, reason }, 'Artifact quarantined successfully');

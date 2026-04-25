@@ -35,7 +35,7 @@ export default async function cronRoutes(app: FastifyInstance): Promise<void> {
 
   // GET /cron/jobs - 获取定时任务列表
   app.get('/cron/jobs', async (request: FastifyRequest, reply: FastifyReply) => {
-    const jobs = cronSchedulerService.getJobs();
+    const jobs = await cronSchedulerService.getJobs();
     
     reply.send({
       success: true,
@@ -182,7 +182,7 @@ export default async function cronRoutes(app: FastifyInstance): Promise<void> {
   // GET /cron/status - 获取调度器状态
   app.get('/cron/status', async (request: FastifyRequest, reply: FastifyReply) => {
     const runningJobs = cronSchedulerService.getRunningJobs();
-    const jobs = cronSchedulerService.getJobs();
+    const jobs = await cronSchedulerService.getJobs();
     
     reply.send({
       success: true,

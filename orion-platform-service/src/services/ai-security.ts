@@ -30,7 +30,7 @@ export interface AuditLogEntry {
   id: string;
   timestamp: Date;
   action: 'input_sanitized' | 'output_validated' | 'sandbox_executed' | 'security_violation';
-  userId: string;
+  userId?: string;
   sessionId: string;
   details: {
     originalLength?: number;

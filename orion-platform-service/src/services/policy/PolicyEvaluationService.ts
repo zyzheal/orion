@@ -85,9 +85,10 @@ export class PolicyEvaluationService {
         id: evaluation.id,
         policyId,
         runId,
-        inputContext,
-        result: mockResult,
-        evaluationMs: evaluation.evaluationMs,
+        inputContext: inputContext as Record<string, any>,
+        result: mockResult as Record<string, any>,
+        evaluatedAt: new Date(),
+        evaluationMs: evaluation.evaluationMs ?? null,
       });
     }
 
@@ -153,8 +154,8 @@ export class PolicyEvaluationService {
         const entities = await this.evaluationRepository.findByPolicyId(filter.policyId);
         return entities.map(e => this.mapEntityToEvaluation(e));
       }
-      const entities = await this.evaluationRepository.findAll();
-      return entities.map(e => this.mapEntityToEvaluation(e));
+      const result = await this.evaluationRepository.findAll();
+      return result.entities.map((e: PolicyEvaluationEntity) => this.mapEntityToEvaluation(e));
     }
     return [];
   }

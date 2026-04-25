@@ -137,9 +137,9 @@ export class PromotionService {
         fromStage: e.fromEnv as PromotionStage,
         toStage: e.toEnv as PromotionStage,
         promotedBy: e.promotedBy,
-        approvedBy: e.approvedBy,
-        approvedAt: e.approvedAt,
-        reason: e.reason,
+        approvedBy: e.approvedBy ?? undefined,
+        approvedAt: e.approvedAt ?? undefined,
+        reason: e.reason ?? undefined,
         timestamp: e.createdAt,
       }));
     }

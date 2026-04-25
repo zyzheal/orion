@@ -326,7 +326,7 @@ export class PluginExecutorService {
   /**
    * 获取资源统计
    */
-  getResourceStats() {
+  getResourceStats(): any {
     return this.resourceManager?.getResourceStats();
   }
 

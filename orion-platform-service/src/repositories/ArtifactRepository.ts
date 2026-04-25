@@ -7,8 +7,8 @@ import { Artifact, ArtifactType, ArtifactStatus, ArtifactQueryOptions } from '..
 
 export interface ArtifactRepository {
   create(artifact: Artifact): Promise<void>;
-  findById(id: string): Promise<Artifact>;
-  findByNamespaceNameVersion(namespace: string, name: string, version: string): Promise<Artifact>;
+  findById(id: string): Promise<Artifact | null>;
+  findByNamespaceNameVersion(namespace: string, name: string, version: string): Promise<Artifact | null>;
   find(options: ArtifactQueryOptions): Promise<{ artifacts: Artifact[]; total: number }>;
   update(artifact: Artifact): Promise<void>;
   softDelete(id: string): Promise<void>;
@@ -50,7 +50,7 @@ export class PostgresArtifactRepository implements ArtifactRepository {
     ]);
   }
 
-  async findById(id: string): Promise<Artifact> {
+  async findById(id: string): Promise<Artifact | null> {
     const query = `
       SELECT * FROM artifact_registry 
       WHERE id = $1 AND deleted_at IS NULL
@@ -65,7 +65,7 @@ export class PostgresArtifactRepository implements ArtifactRepository {
     return this.mapRowToArtifact(result.rows[0]);
   }
 
-  async findByNamespaceNameVersion(namespace: string, name: string, version: string): Promise<Artifact> {
+  async findByNamespaceNameVersion(namespace: string, name: string, version: string): Promise<Artifact | null> {
     const query = `
       SELECT * FROM artifact_registry 
       WHERE namespace = $1 AND name = $2 AND version = $3 AND deleted_at IS NULL
@@ -143,7 +143,7 @@ export class PostgresArtifactRepository implements ArtifactRepository {
     const countResult = await this.db.query(countQuery, queryParams.slice(0, -2));
     
     return {
-      artifacts: result.rows.map(row => this.mapRowToArtifact(row)),
+      artifacts: result.rows.map((row: any) => this.mapRowToArtifact(row)),
       total: parseInt(countResult.rows[0].count)
     };
   }
@@ -256,7 +256,7 @@ export class PostgresArtifactRepository implements ArtifactRepository {
     const searchTerm = `%${query}%`;
     const result = await this.db.query(searchQuery, [searchTerm]);
     
-    return result.rows.map(row => this.mapRowToArtifact(row));
+    return result.rows.map((row: any) => this.mapRowToArtifact(row));
   }
 
   // 添加统计方法

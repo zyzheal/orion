@@ -141,6 +141,8 @@ export interface ConfigChangeRequest {
   requiredApprovals: number;
   appliedAt?: Date;
   appliedBy?: string;
+  approvedAt?: Date;
+  approvedBy?: string;
   createdAt: Date;
   updatedAt: Date;
 }

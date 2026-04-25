@@ -67,7 +67,7 @@ export class LocalArtifactStorage implements ArtifactStorage {
       await fs.unlink(filePath);
     } catch (error) {
       // 文件不存在，忽略错误
-      if (error.code !== 'ENOENT') {
+      if (error instanceof Error && 'code' in error && (error as any).code !== 'ENOENT') {
         throw error;
       }
     }

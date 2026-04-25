@@ -464,7 +464,7 @@ export class FinOpsController {
       return;
     }
 
-    const trend = await this.service.getCostTrend(
+    const trend = await this.service.computeCostTrendFromData(
       dataPoints.map((p: any) => ({
         date: new Date(p.date),
         cost: p.cost,

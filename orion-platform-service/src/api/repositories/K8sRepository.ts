@@ -84,6 +84,7 @@ export interface K8sFilters {
   tenantId: bigint;
   clusterId?: string;
   namespaceId?: string;
+  deploymentId?: string;
   name?: string;
   labels?: Record<string, string>;
   limit?: number;

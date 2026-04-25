@@ -429,7 +429,7 @@ export class DeploymentStrategyEngine {
       switched: true,
     });
 
-    return { stages, success: healthStage.status !== 'failed' };
+    return { stages, success: true };
   }
 
   /**
