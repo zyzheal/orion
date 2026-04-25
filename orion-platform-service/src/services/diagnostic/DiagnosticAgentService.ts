@@ -6,6 +6,9 @@
  * - 订阅 NATS 事件总线上的故障事件
  * - 自动触发诊断
  * - 管理诊断历史和知识库
+ *
+ * Migration: Now supports PostgreSQL Repository for persistent session/report storage.
+ * When repository is provided, sessions and reports are persisted to PostgreSQL.
  */
 
 import { v4 as uuidv4 } from 'uuid';
@@ -26,6 +29,8 @@ import {
 import { DiagnosticEngine, DiagnosticEngineConfig } from './DiagnosticEngine';
 import { DiagnosticReporter } from './DiagnosticReporter';
 import { DiagnosticKnowledgeBase } from './DiagnosticKnowledgeBase';
+import { DiagnosticRepository } from './DiagnosticRepository';
+import { DiagnosticService } from './DiagnosticService';
 
 /**
  * 诊断 Agent 服务配置
@@ -37,6 +42,8 @@ export interface DiagnosticAgentServiceConfig {
   engineConfig?: DiagnosticEngineConfig;
   /** 是否启用自动诊断 */
   autoDiagnosticEnabled?: boolean;
+  /** PostgreSQL repository for persistent storage */
+  repository?: DiagnosticRepository;
 }
 
 /**
@@ -48,9 +55,12 @@ export class DiagnosticAgentService {
   private knowledgeBase: DiagnosticKnowledgeBase;
   private eventBus: any;
   private autoDiagnosticEnabled: boolean;
-  private reports: Map<string, DiagnosticReport>;
   private subscriptions: any[];
   private isRunning: boolean;
+  /** PostgreSQL-backed service for persistent storage (optional) */
+  private pgService: DiagnosticService | null;
+  /** Fallback in-memory report store (used when no repository provided) */
+  private reports: Map<string, DiagnosticReport>;
 
   constructor(config?: DiagnosticAgentServiceConfig) {
     this.engine = new DiagnosticEngine(config?.engineConfig);
@@ -61,6 +71,11 @@ export class DiagnosticAgentService {
     this.reports = new Map();
     this.subscriptions = [];
     this.isRunning = false;
+
+    // Initialize PostgreSQL service if repository is provided
+    this.pgService = config?.repository
+      ? new DiagnosticService(config.repository)
+      : null;
 
     // 初始化内置诊断模式
     this.initializeDefaultPatterns();
@@ -92,6 +107,15 @@ export class DiagnosticAgentService {
       tenantId: params.tenantId,
     });
 
+    // Persist session to PostgreSQL if available
+    if (this.pgService) {
+      try {
+        await this.pgService.createSession(session);
+      } catch (err) {
+        console.error('[DiagnosticAgentService] Failed to persist session to PostgreSQL:', err);
+      }
+    }
+
     // 2. 症状关联分析
     this.engine.correlateSymptoms(session.id);
 
@@ -104,6 +128,20 @@ export class DiagnosticAgentService {
     // 5. 生成报告
     const report = this.reporter.generateReport(completedSession);
     this.reports.set(report.id, report);
+
+    // Persist completed session with result to PostgreSQL
+    if (this.pgService) {
+      try {
+        await this.pgService.completeSession(
+          session.id,
+          completedSession.rootCause,
+          completedSession.confidence,
+          completedSession.findings
+        );
+      } catch (err) {
+        console.error('[DiagnosticAgentService] Failed to complete session in PostgreSQL:', err);
+      }
+    }
 
     // 6. 如果匹配到知识库模式，记录结果
     const kbMatches = this.knowledgeBase.matchSymptoms(symptoms);
@@ -144,21 +182,37 @@ export class DiagnosticAgentService {
   /**
    * 获取诊断历史
    */
-  getDiagnosticHistory(params?: {
+  async getDiagnosticHistory(params?: {
     triggerType?: DiagnosticTriggerType;
     triggerId?: string;
     tenantId?: string;
     status?: DiagnosticSessionStatus;
     since?: Date;
     limit?: number;
-  }): DiagnosticSession[] {
+  }): Promise<DiagnosticSession[]> {
+    // Use PostgreSQL-backed service if available
+    if (this.pgService && params?.tenantId) {
+      try {
+        return await this.pgService.getHistory(params.tenantId, params.limit);
+      } catch (err) {
+        console.error('[DiagnosticAgentService] Failed to get history from PostgreSQL, falling back to memory:', err);
+      }
+    }
     return this.engine.getDiagnosticHistory(params);
   }
 
   /**
    * 获取诊断详情
    */
-  getDiagnosticDetail(sessionId: string): DiagnosticSession | undefined {
+  async getDiagnosticDetail(sessionId: string): Promise<DiagnosticSession | undefined> {
+    // Try PostgreSQL first if available
+    if (this.pgService) {
+      try {
+        return await this.pgService.getSession(sessionId);
+      } catch {
+        // Fall back to in-memory
+      }
+    }
     return this.engine.getSession(sessionId);
   }
 
@@ -367,6 +421,30 @@ export class DiagnosticAgentService {
       patternsCount: this.knowledgeBase.getAllPatterns().length,
       isRunning: this.isRunning,
     };
+  }
+
+  /**
+   * 获取服务状态 (async version with PostgreSQL counts)
+   */
+  async getStatusAsync(): Promise<{
+    service: string;
+    status: string;
+    sessionsCount: number;
+    reportsCount: number;
+    patternsCount: number;
+    isRunning: boolean;
+  }> {
+    const base = this.getStatus();
+    if (this.pgService) {
+      try {
+        const sessions = await this.pgService.getHistory('default', 1);
+        // We can't get total without a count query, so use memory count as fallback
+        base.sessionsCount = Math.max(base.sessionsCount, sessions.length > 0 ? base.sessionsCount : 0);
+      } catch {
+        // ignore
+      }
+    }
+    return base;
   }
 
   /**

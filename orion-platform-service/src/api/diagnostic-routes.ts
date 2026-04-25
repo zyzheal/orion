@@ -2,9 +2,14 @@
  * 诊断 Agent API 路由
  *
  * 前缀: /api/v1/diagnostic
+ *
+ * Migration: Now uses PostgreSQL Repository pattern when database pool is provided.
+ * Falls back to in-memory storage for backward compatibility.
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { DatabasePool } from '../services/database';
+import { DiagnosticRepository } from '../services/diagnostic/DiagnosticRepository';
 import {
   DiagnosticAgentService,
   DiagnosticAgentServiceConfig,
@@ -18,13 +23,27 @@ import {
 
 export interface DiagnosticRoutesOptions {
   diagnosticAgentService?: DiagnosticAgentService;
+  database?: DatabasePool;
 }
 
 export default async function diagnosticRoutes(
   app: FastifyInstance,
   options: DiagnosticRoutesOptions
 ): Promise<void> {
-  const service = options.diagnosticAgentService || new DiagnosticAgentService();
+  // Initialize service: prefer PostgreSQL-backed service if database is available
+  let service: DiagnosticAgentService;
+  if (options.database) {
+    const repository = new DiagnosticRepository(options.database);
+    const config: DiagnosticAgentServiceConfig = {
+      repository,
+    };
+    service = new DiagnosticAgentService(config);
+  } else if (options.diagnosticAgentService) {
+    service = options.diagnosticAgentService;
+  } else {
+    // Fallback: in-memory only (for tests / no DB)
+    service = new DiagnosticAgentService();
+  }
 
   // ==================== 诊断触发 ====================
 
@@ -86,7 +105,7 @@ export default async function diagnosticRoutes(
     ) => {
       const { triggerType, triggerId, tenantId, status, since, limit } = request.query;
 
-      const sessions = service.getDiagnosticHistory({
+      const sessions = await service.getDiagnosticHistory({
         triggerType,
         triggerId,
         tenantId,
@@ -115,7 +134,7 @@ export default async function diagnosticRoutes(
       reply: FastifyReply
     ) => {
       const { id } = request.params;
-      const session = service.getDiagnosticDetail(id);
+      const session = await service.getDiagnosticDetail(id);
 
       if (!session) {
         return reply.status(404).send({
@@ -192,7 +211,7 @@ export default async function diagnosticRoutes(
       reply: FastifyReply
     ) => {
       const { id } = request.params;
-      const session = service.getDiagnosticDetail(id);
+      const session = await service.getDiagnosticDetail(id);
 
       if (!session) {
         return reply.status(404).send({

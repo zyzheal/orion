@@ -163,23 +163,23 @@ describe('DiagnosticAgentService', () => {
       });
     });
 
-    it('should return all sessions by default', () => {
-      const history = service.getDiagnosticHistory();
+    it('should return all sessions by default', async () => {
+      const history = await service.getDiagnosticHistory();
       expect(history.length).toBe(3);
     });
 
-    it('should filter by triggerType', () => {
-      const history = service.getDiagnosticHistory({ triggerType: 'deployment_failure' });
+    it('should filter by triggerType', async () => {
+      const history = await service.getDiagnosticHistory({ triggerType: 'deployment_failure' });
       expect(history.length).toBe(2);
     });
 
-    it('should filter by tenantId', () => {
-      const history = service.getDiagnosticHistory({ tenantId: 'tenant-a' });
+    it('should filter by tenantId', async () => {
+      const history = await service.getDiagnosticHistory({ tenantId: 'tenant-a' });
       expect(history.length).toBe(2);
     });
 
-    it('should limit results', () => {
-      const history = service.getDiagnosticHistory({ limit: 2 });
+    it('should limit results', async () => {
+      const history = await service.getDiagnosticHistory({ limit: 2 });
       expect(history.length).toBe(2);
     });
   });
@@ -196,13 +196,13 @@ describe('DiagnosticAgentService', () => {
         ],
       });
 
-      const detail = service.getDiagnosticDetail(result.session.id);
+      const detail = await service.getDiagnosticDetail(result.session.id);
       expect(detail).toBeDefined();
       expect(detail!.id).toBe(result.session.id);
     });
 
-    it('should return undefined for non-existent ID', () => {
-      const detail = service.getDiagnosticDetail('non-existent');
+    it('should return undefined for non-existent ID', async () => {
+      const detail = await service.getDiagnosticDetail('non-existent');
       expect(detail).toBeUndefined();
     });
   });
