@@ -64,6 +64,7 @@ import knowledgeRoutes from './knowledge-routes';
 import metricsRoutes from './metrics-routes';
 import userRoutes from './user-routes';
 import environmentRoutes from './environment-routes';
+import queueRoutes from './queue-routes';
 import projectRoutes from './project-routes';
 import agentRoutes from '../routes-agent';
 
@@ -333,6 +334,9 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // 注册 Environment Management API 路由 - PostgreSQL backed
   await app.register(environmentRoutes, { prefix: '/environments', database: options.database });
+
+  // 注册 Queue Management API 路由 (M24) - PostgreSQL backed
+  await app.register(queueRoutes, { prefix: '/queue', database: options.database });
 
   // 注册 Knowledge Base API 路由 (M28) - PostgreSQL backed
   await app.register(knowledgeRoutes, { prefix: '/knowledge', database: options.database });
