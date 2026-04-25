@@ -8,7 +8,9 @@ import { PipelineRunController } from './controllers/PipelineRunController';
 import { StageController } from './controllers/StageController';
 import { TaskController } from './controllers/TaskController';
 import { PipelineService } from '../services/pipeline/PipelineService';
+import { PipelineRepository } from '../services/pipeline/PipelineRepository';
 import { PipelineRunService } from '../services/pipeline/PipelineRunService';
+import { PipelineRunRepository } from '../services/pipeline/PipelineRunRepository';
 import { PipelineEngine } from '../engine/PipelineEngine';
 import { StageExecutor } from '../engine/StageExecutor';
 import { TaskRunner } from '../engine/TaskRunner';
@@ -81,8 +83,20 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
       isHealthy: () => true,
     }
   } : undefined);
-  const pipelineService = new PipelineService();
-  const runService = new PipelineRunService(eventPublisher);
+  // 初始化 Pipeline 服务 - PostgreSQL Repository pattern
+  let pipelineRepository: PipelineRepository | null = null;
+  let pipelineRunRepository: PipelineRunRepository | null = null;
+
+  if (options.database) {
+    pipelineRepository = new PipelineRepository(options.database);
+    pipelineRunRepository = new PipelineRunRepository(options.database);
+    console.log('[Routes] Database-backed PipelineRepository & PipelineRunRepository initialized');
+  } else {
+    console.warn('[Routes] Database not available, pipeline CRUD will not be functional');
+  }
+
+  const pipelineService = new PipelineService(pipelineRepository!);
+  const runService = new PipelineRunService(eventPublisher, pipelineRunRepository!);
   const taskRunner = new TaskRunner();
   const stageExecutor = new StageExecutor(taskRunner, eventPublisher);
   const engine = new PipelineEngine(pipelineService, runService, eventPublisher, stageExecutor);
@@ -224,8 +238,8 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // 注册 AI Code Review API 路由 (TASK-302)
   await app.register(aiReviewRoutes, { prefix: '/ai-review' });
 
-  // 注册诊断 Agent API 路由 (TASK-305)
-  await app.register(diagnosticRoutes, { prefix: '/diagnostic' });
+  // 注册诊断 Agent API 路由 (TASK-305) - PostgreSQL backed
+  await app.register(diagnosticRoutes, { prefix: '/diagnostic', database: options.database });
 
   // 注册智能测试选择器 API 路由 (TASK-303)
   await app.register(testSelectorRoutes, { prefix: '/test-selector' });
@@ -308,8 +322,8 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // 注册审批 API 路由 (P0 - multi-level approval)
   await app.register(approvalRoutes, { prefix: '/approvals' });
 
-  // 注册 EventBus API 路由 (P0 - NATS message bus)
-  await app.register((app: FastifyInstance) => eventbusRoutes(app, options.eventBus), { prefix: '/eventbus' });
+  // 注册 EventBus API 路由 (M24 - PostgreSQL backed)
+  await app.register(eventbusRoutes, { prefix: '/eventbus', database: options.database, eventBus: options.eventBus });
 
   // 注册 ProductLine 多分支产品线 API 路由 (M6)
   await app.register(productLineRoutes, { prefix: '/product-lines', database: options.database });
