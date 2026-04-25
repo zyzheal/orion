@@ -62,6 +62,7 @@ import webhookRoutes from './webhook-routes';
 import roleRoutes from './role-routes';
 import knowledgeRoutes from './knowledge-routes';
 import metricsRoutes from './metrics-routes';
+import userRoutes from './user-routes';
 import environmentRoutes from './environment-routes';
 import projectRoutes from './project-routes';
 
@@ -337,4 +338,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // 注册 Metrics API 路由 - PostgreSQL backed
   await app.register(metricsRoutes, { prefix: '/metrics', database: options.database });
+
+  // 注册 User Management API 路由 - PostgreSQL backed
+  await app.register(userRoutes, { prefix: '/users', database: options.database });
 }
