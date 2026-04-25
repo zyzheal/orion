@@ -422,6 +422,12 @@ export const routes: AppRoute[] = [
     element: React.lazy(() => import('@/pages/EphemeralEnvDetail')),
     protected: true,
   },
+  // Artifact Management (M29)
+  {
+    path: '/artifacts',
+    element: React.lazy(() => import('@/pages/Artifacts')),
+    protected: true,
+  },
   // Product Line Management (M6)
   {
     path: '/product-lines',

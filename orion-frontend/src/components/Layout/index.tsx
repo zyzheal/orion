@@ -21,6 +21,7 @@ import {
   RocketOutlined,
   CloudServerOutlined,
   ForkOutlined,
+  InboxOutlined,
   DollarCircleOutlined,
   AlertOutlined,
   BarChartOutlined,
@@ -140,6 +141,11 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       key: '/product-lines',
       icon: <ForkOutlined />,
       label: '产品线',
+    },
+    {
+      key: '/artifacts',
+      icon: <InboxOutlined />,
+      label: '制品管理',
     },
     {
       key: '/projects',
