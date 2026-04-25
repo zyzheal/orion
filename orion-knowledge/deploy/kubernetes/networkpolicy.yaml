@@ -1,0 +1,96 @@
+# ──────────────────────────────────────────────────────────
+# NetworkPolicy - 微服务间通信隔离
+# ──────────────────────────────────────────────────────────
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: knowledge-network-policy
+  namespace: orion-knowledge
+  labels:
+    app.kubernetes.io/name: orion-knowledge
+    app.kubernetes.io/component: networkpolicy
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: orion-knowledge
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # ── API: 允许来自 Ingress/Admin/App 的流量 ────────────
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: ingress
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: admin
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: app
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: oauth2-proxy
+      ports:
+        - protocol: TCP
+          port: 8000
+    # ── PostgreSQL: 仅允许 API/Consumer ──────────────────
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: api
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: consumer
+      ports:
+        - protocol: TCP
+          port: 5432
+    # ── Redis: 仅允许 API/Consumer ───────────────────────
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: api
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: consumer
+      ports:
+        - protocol: TCP
+          port: 6379
+    # ── MinIO: 仅允许 API/Consumer ───────────────────────
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: api
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: consumer
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: minio-init
+      ports:
+        - protocol: TCP
+          port: 9000
+    # ── NATS: 仅允许 API/Consumer ────────────────────────
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: api
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: consumer
+      ports:
+        - protocol: TCP
+          port: 4222
+  egress:
+    # ── 允许 DNS 解析 ────────────────────────────────────
+    - to: []
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # ── 允许内部服务间通信 ────────────────────────────────
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: orion-knowledge

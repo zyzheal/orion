@@ -1,0 +1,38 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: knowledge-config
+  namespace: orion-knowledge
+  labels:
+    app.kubernetes.io/name: orion-knowledge
+    app.kubernetes.io/component: config
+data:
+  # ── API 服务配置 ────────────────────────────────────────
+  API_PORT: "8000"
+  LOG_LEVEL: "info"
+  BASE_PATH: ""
+
+  # ── PostgreSQL 配置 ─────────────────────────────────────
+  PG_HOST: "orion-knowledge-pg"
+  PG_PORT: "5432"
+  PG_DB: "orion_knowledge"
+  PG_USER: "knowledge"
+  PG_SSLMODE: "disable"
+  PG_TIMEZONE: "Asia/Shanghai"
+
+  # ── Redis 配置 ──────────────────────────────────────────
+  REDIS_ADDR: "orion-knowledge-redis:6379"
+
+  # ── MinIO / S3 配置 ─────────────────────────────────────
+  S3_ENDPOINT: "orion-knowledge-minio:9000"
+  S3_BUCKET: "knowledge"
+  S3_USE_SSL: "false"
+
+  # ── NATS 配置 ───────────────────────────────────────────
+  NATS_URL: "nats://orion-knowledge-nats:4222"
+
+  # ── Nginx 代理配置 (admin/app) ──────────────────────────
+  NGINX_API_PROXY: "http://orion-knowledge-api:8000"
+
+  # ── App (Wiki) 配置 ─────────────────────────────────────
+  APP_TARGET: "http://orion-knowledge-api:8000"

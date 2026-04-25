@@ -1,0 +1,103 @@
+# ──────────────────────────────────────────────────────────
+# Consumer Deployment + HPA (文档解析/向量化)
+# ──────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orion-knowledge-consumer
+  namespace: orion-knowledge
+  labels:
+    app.kubernetes.io/name: orion-knowledge
+    app.kubernetes.io/component: consumer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: orion-knowledge
+      app.kubernetes.io/component: consumer
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: orion-knowledge
+        app.kubernetes.io/component: consumer
+    spec:
+      containers:
+        - name: consumer
+          image: orion-knowledge-consumer:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: PG_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: knowledge-secrets
+                  key: PG_DSN
+            - name: REDIS_ADDR
+              valueFrom:
+                configMapKeyRef:
+                  name: knowledge-config
+                  key: REDIS_ADDR
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: knowledge-secrets
+                  key: REDIS_PASSWORD
+            - name: S3_ENDPOINT
+              valueFrom:
+                configMapKeyRef:
+                  name: knowledge-config
+                  key: S3_ENDPOINT
+            - name: S3_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: knowledge-secrets
+                  key: S3_ACCESS_KEY
+            - name: S3_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: knowledge-secrets
+                  key: S3_SECRET_KEY
+            - name: S3_BUCKET
+              valueFrom:
+                configMapKeyRef:
+                  name: knowledge-config
+                  key: S3_BUCKET
+            - name: S3_USE_SSL
+              valueFrom:
+                configMapKeyRef:
+                  name: knowledge-config
+                  key: S3_USE_SSL
+            - name: NATS_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: knowledge-config
+                  key: NATS_URL
+          resources:
+            requests:
+              cpu: 500m
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: orion-knowledge-consumer-hpa
+  namespace: orion-knowledge
+  labels:
+    app.kubernetes.io/name: orion-knowledge
+    app.kubernetes.io/component: consumer
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: orion-knowledge-consumer
+  minReplicas: 1
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 75
