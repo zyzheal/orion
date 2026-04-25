@@ -64,6 +64,20 @@ export class EventBusService extends EventEmitter {
   }
 
   /**
+   * 注入 repositories（用于在已有实例上添加持久化能力）
+   */
+  setRepositories(repos: EventBusRepositories): void {
+    this.repos = { ...this.repos, ...repos };
+  }
+
+  /**
+   * 获取 repositories（用于状态检查）
+   */
+  getRepositories(): EventBusRepositories {
+    return this.repos;
+  }
+
+  /**
    * 连接事件总线
    */
   async connect(): Promise<void> {

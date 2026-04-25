@@ -26,22 +26,37 @@ export default async function eventbusRoutes(
   app: FastifyInstance,
   options: EventBusRoutesOptions
 ): Promise<void> {
-  // Initialize repositories if database is available
+  // Priority 1: Use the main eventBus instance (already connected to NATS)
+  // Priority 2: If no eventBus but database exists, create a new instance with persistence
+  // Priority 3: Fallback to disabled
   let service: EventBusService;
 
-  if (options.database) {
+  if (options.eventBus) {
+    // Reuse the main NATS-connected eventBus instance
+    service = options.eventBus;
+
+    // Inject repositories if database is available and not already set
+    if (options.database && !service.getRepositories?.().eventRepo) {
+      const configRepo = new EventBusConfigRepository(options.database);
+      const subscriptionRepo = new EventSubscriptionRepository(options.database);
+      const eventRepo = new EventBusEventRepository(options.database);
+      service.setRepositories({ configRepo, subscriptionRepo, eventRepo });
+      console.log('[EventBusRoutes] Repositories injected into main EventBusService');
+    }
+  } else if (options.database) {
+    // No main eventBus, create one with full persistence
     const configRepo = new EventBusConfigRepository(options.database);
     const subscriptionRepo = new EventSubscriptionRepository(options.database);
     const eventRepo = new EventBusEventRepository(options.database);
-
     service = new EventBusService(
       { enabled: true },
       { configRepo, subscriptionRepo, eventRepo },
     );
+    console.log('[EventBusRoutes] Created new EventBusService with database');
   } else {
-    // Fallback: no persistence
-    console.warn('[EventBusRoutes] No database pool provided, event bus will run without persistence');
-    service = options.eventBus || new EventBusService({ enabled: false });
+    // Fallback: no persistence, no NATS
+    console.warn('[EventBusRoutes] No database pool and no eventBus, event bus will run without persistence');
+    service = new EventBusService({ enabled: false });
   }
 
   // POST /eventbus/publish - Publish event
