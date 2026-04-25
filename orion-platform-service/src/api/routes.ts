@@ -305,7 +305,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await app.register((app: FastifyInstance) => eventbusRoutes(app, options.eventBus), { prefix: '/eventbus' });
 
   // 注册 ProductLine 多分支产品线 API 路由 (M6)
-  await app.register(productLineRoutes);
+  await app.register(productLineRoutes, { prefix: '/product-lines', database: options.database });
 
   // 注册 Internal Library 二方库管理 API 路由 (M30)
   await app.register(internalLibraryRoutes);
