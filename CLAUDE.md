@@ -23,15 +23,15 @@ docs/                       # 260+ design docs organized by domain
 
 ### Backend Service Architecture (`orion-platform-service/src/`)
 
-- `api/` — Route definitions. `routes.ts` is the central registry (~30 route modules). Each `-routes.ts` file mounts under a prefix.
+- `api/` — Route definitions. `routes.ts` is the central registry (~48 route modules). Each `-routes.ts` file mounts under a prefix.
 - `api/controllers/` — Request handlers
-- `services/` — 70+ service modules (tenant, pipeline, finops, alert, diagnostic, self-healing, skill, etc.)
+- `services/` — 70+ service modules (tenant, pipeline, finops, alert, diagnostic, self-healing, skill, etc.). 30+ migrated to PostgreSQL Repository pattern.
 - `engine/` — Pipeline engine: `PipelineEngine` → `StageExecutor` → `TaskRunner`
 - `saga/` — Saga orchestration: `SagaCoordinator`, `PipelineSaga`, `TransactionLog`
 - `events/` — Event publishers: Pipeline/Code/Config/Deployment/Incident event types
 - `models/` — Data models (TypeScript classes)
 - `repositories/` — Data access layer
-- `db/migrations/` — SQL migration files (001-034+)
+- `db/migrations/` — SQL migration files (001-049, 68 files)
 
 ## Key Commands
 
@@ -78,18 +78,22 @@ npx vitest run path/to/test.ts
 
 ## Important Context
 
-### Current Implementation State (~43% overall)
-- **Backend**: ~45% (many services use `Map()` for mock storage — no real DB persistence)
-- **Frontend**: ~72% (pages exist but backend APIs often missing)
-- **API consistency**: ~80% (~30 path mismatches between frontend and backend)
-- **Database**: 10/41 tables from migrations; most services use `new Map()` instead of real DB
+### Current Implementation State (~72% overall)
+- **Backend**: ~78% (30+ services migrated from Map() to PostgreSQL Repository pattern, M25 persistence complete)
+- **Frontend**: ~85% (M6/M29/M30 frontend pages added, 57+ pages total)
+- **API consistency**: ~95% (~30 path mismatches between frontend and backend fixed)
+- **Database**: 68 migration files (001-049); most services now use PostgreSQL Repository pattern
 
 ### Known Issues to Be Aware Of
-1. **Map() mock storage**: 30+ services store data in memory via `new Map()`. Any stateful operation loses data on restart.
-2. **Frontend-backend API path mismatch**: ~30 routes have inconsistent paths between `orion-frontend/src/api/*.ts` and `orion-platform-service/src/api/*-routes.ts`
-3. **No real EventBus integration**: Event publishers exist but are not wired to NATS
-4. **Dual ArtifactService confusion**: `services/artifact/` and build-related services have overlapping responsibilities
-5. **orion-platform-service is the monolith**: All services run in one process; service separation is designed but not implemented
+1. **No real EventBus integration**: Event publishers exist but are not wired to NATS
+2. **Dual ArtifactService confusion**: `services/artifact/` and build-related services have overlapping responsibilities
+3. **orion-platform-service is the monolith**: All services run in one process; service separation is designed but not implemented
+
+### Recent Milestones (2026-04)
+- **M25 Persistence Migration**: 30+ services migrated from `Map()` mock storage to PostgreSQL Repository pattern (SessionService, RoleService, TenantService, ChatOps, SelfHealing, etc.)
+- **M6/M29/M30 Frontend**: ProductLine, ArtifactManagement, InternalLibrary frontend pages implemented
+- **API Path Consistency**: ~30 frontend-backend path mismatches resolved (~95% consistent)
+- **80 Outdated Docs Removed**: Cleanup of cache/review/sprint/task files
 
 ### Service Ports
 - API Gateway: `localhost:3000` (healthz)

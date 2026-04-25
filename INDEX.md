@@ -1,9 +1,9 @@
 # 📚 Orion 设计文档索引
 
-> 版本：v2.0 | 创建日期：2026-04-10 | 状态：**41 模块 251 功能**  
-> 变更日志：[CHANGELOG.md](CHANGELOG.md) | 管理规范：[docs/文档管理规范.md](docs/文档管理规范.md)  
-> **最新更新**: 2026-04-18 — 新增 4 模块代码实现，全部 41 模块实现状态标注  
-> **实现进度**: 后端 36/41 ✅ | 前端 38/41 ✅ | API 34/41 ✅ | 数据库 10/41 ✅
+> 版本：v2.1 | 创建日期：2026-04-10 | 状态：**44+ 模块 260+ 功能**
+> 变更日志：[CHANGELOG.md](CHANGELOG.md) | 管理规范：[docs/文档管理规范.md](docs/文档管理规范.md)
+> **最新更新**: 2026-04-25 — 过期文档清理，M25 持久化迁移完成，M6/M29/M30 前端实现
+> **实现进度**: 后端 ~78% | 前端 ~85% | API 一致性 ~95% | 数据库 68 migrations
 
 ---
 
@@ -37,21 +37,24 @@
 
 | 维度 | 数量 | 说明 |
 |------|------|------|
-| **后端服务** | 32 个目录 | `orion-platform-service/src/services/` |
-| **前端页面** | 50 个目录 | `orion-frontend/src/pages/` |
-| **API 客户端** | 33 个文件 | `orion-frontend/src/api/` |
-| **后端路由** | 28 个文件 | `orion-platform-service/src/api/*-routes.ts` |
-| **数据库迁移** | 10 对 (024-033) | `orion-platform-service/src/db/migrations/` |
+| **后端服务目录** | 48 个 | `orion-platform-service/src/services/` 含子服务文件 |
+| **后端服务模块** | 35+ 个 | `services/*/index.ts` 独立服务包 (30+ 已迁移 PostgreSQL) |
+| **前端页面** | 57+ 个 | `orion-frontend/src/pages/` |
+| **API 客户端** | 39 个 | `orion-frontend/src/api/` |
+| **后端路由** | 48 个 | `orion-platform-service/src/api/*-routes.ts` |
+| **数据库迁移** | 68 个 (001-049) | `orion-platform-service/src/db/migrations/` |
 | **设计文档** | 170+ 份 | 含架构/AI/安全/前端/SRE 等 |
+
+> 注：30+ 服务已从 `Map()` 迁移至 PostgreSQL Repository 模式。API 路径不匹配已修复 (~95% 一致)。
 
 ### 模块实现矩阵
 
 | 状态 | 数量 | 模块 |
 |------|------|------|
-| ✅ 全栈实现 | 30 | M1,M4,M5,M7,M9-M19,M21-M23,M26,M27,M31,M35-M37 + AI Change Intelligence, ML Canary Analysis, AI Agent Orchestration, Ephemeral Dev Environments |
-| 🟡 部分实现 | 8 | M2(前端组件已实现), M3(嵌入到自愈页面), M8(前端已实现), M24(后端服务), M25(后端+路由), M28(独立子项目), M32(后端服务), M33(前端+API) |
-| 🔴 未实现 | 3 | M6(多分支产品线), M29(产物管理), M30(二方库管理) |
-| ➕ 代码新增 | 4 | AI Change Intelligence, ML Canary Analysis, AI Agent Orchestration, Ephemeral Dev Environments (不在原 INDEX 中) |
+| ✅ 全栈实现 | ~31 | M1,M4,M5,M6,M7,M9-M20,M22-M23,M26,M29,M30-M31,M35-M37 + M38-M41 |
+| 🟡 部分实现 | 10+ | M2,M3,M8,M24,M25,M27,M28,M32,M33,M34, Risk Assessment, Alert, Scheduler |
+| 🔴 未实现 | 0 | — |
+| ➕ 代码新增 | 8+ | Risk Assessment, Alert, Scheduler, Test Selector, CMDB 增强, 多个独立服务 |
 
 ---
 
@@ -103,9 +106,6 @@
 | [跨时代颠覆性亮点设计](docs/architecture/跨时代颠覆性亮点设计.md) | ~700 | 自主事件指挥官等 6 大亮点 |
 | [外部组件集成架构](docs/architecture/外部组件集成架构设计.md) | ~300 | 第三方系统集成 |
 | [外部服务集成清单](docs/architecture/外部服务集成清单.md) | ~200 | 集成列表 |
-| [P0 功能模块补充](docs/architecture/P0 功能模块补充设计.md) | ~300 | 核心模块补充 |
-| [P0 交互设计补充](docs/architecture/P0 交互设计补充.md) | ~400 | 交互设计 |
-| [P0 缺陷修复汇总](docs/architecture/P0%20缺陷修复汇总报告.md) | ~200 | 缺陷修复 |
 | [Plugin SPI 示例](docs/architecture/plugin-spi-examples.md) | ~300 | 代码示例 |
 | [平台服务拆分设计](docs/architecture/platform-service-split-design.md) | ~880 | orion-platform-service 拆分为 3 个服务 |
 | [gRPC 集成设计](docs/architecture/grpc-integration-design.md) | ~700 | gRPC vs REST 决策矩阵 |
@@ -330,7 +330,7 @@
 | M3 | 审批工作台 | 🟡 嵌入组件 | `pages/SelfHealing/ApprovalQueue.tsx` | 审批组件库，前端架构 |
 | M4 | 安全审计中心 | ✅ 全栈 | `services/ai-security/` `pages/RiskDashboard/` `api/risk.ts` `ai-security-routes.ts` `risk-routes.ts` | 安全与权限，数据隐私合规，审计日志防篡改 |
 | M5 | Pipeline 引擎 | ✅ 全栈 | `services/pipeline/` `pages/PipelineList/Editor/Detail/` `api/pipelines.ts` `build-routes.ts` | 算法设计，Plugin-SPI |
-| M6 | 多分支产品线 | 🔴 未实现 | — | ADR-001, ADR-008, product-line-management-design.md |
+| M6 | 多分支产品线 | ✅ 全栈 | `services/product-line/` `pages/ProductLine/` `api/product-line.ts` `product-line-routes.ts` | ADR-001, ADR-008, product-line-management-design.md |
 | M7 | 配置管理 GitOps | ✅ 全栈 | `services/config-mgmt/` `pages/ConfigManagement/` `api/config.ts` `config-routes.ts` | 开放平台基座 |
 | M8 | 通知协作 | 🟡 前端+API | `pages/NotificationCenter/` `api/notifications.ts` | ChatOps 命令集，智能工单与自动排单 |
 | M9 | AI 算法引擎 | ✅ 全栈 | `services/ai/` `pages/AIGateway/` `api/ai-gateway.ts` `ai-gateway-routes.ts` | 算法设计，AI 降级方案，Prompt 注入防护 |
@@ -353,8 +353,8 @@
 | M26 | 可观测性 | ✅ 全栈 | `services/monitoring/` `services/diagnostic/` `pages/Monitoring/` `Diagnostic/` `api/monitoring.ts` `diagnostic.ts` `monitoring-routes.ts` `diagnostic-routes.ts` | 可观测性设计，部署架构 |
 | M27 | 插件扩展 | 🟡 与 M15 共用 | `services/plugin/` `services/plugin-spi/` `pages/PluginManagement/` `api/plugins.ts` `routes-plugin.ts` | Plugin-SPI, 开放平台基座 |
 | M28 | Orion-Knowledge | 🟡 独立子项目 | `orion-knowledge/` (Go 微服务 + Vue 前端) | 微服务改造方案，知识库基础设计，RAG 问答 |
-| M29 | 产物管理 | 🔴 未实现 | — | 产物管理详细设计，Artifact Promotion |
-| M30 | 二方库管理 | 🔴 未实现 | — | 二方库管理详细设计，依赖追踪 |
+| M29 | 产物管理 | ✅ 全栈 | `services/artifact/` `pages/ArtifactManagement/` `api/artifact.ts` `artifact-routes.ts` | 产物管理详细设计，Artifact Promotion |
+| M30 | 二方库管理 | ✅ 全栈 | `services/internal-library/` `pages/InternalLibrary/` `api/internal-library.ts` `internal-library-routes.ts` | 二方库管理详细设计，依赖追踪 |
 | M31 | 智能工单 | ✅ 全栈 | `services/ticketing/` `pages/TicketList/Detail/` `api/ticketing.ts` `ticketing-routes.ts` | 智能工单与自动排单设计 |
 | M32 | CMDB | 🟡 后端服务 | `services/cmdb/` `services/cmdb-integration-service.ts` | CMDB 模块设计，CMDB 集成接口，CMDB Schema |
 | M33 | 通知中心 | 🟡 前端+API | `pages/NotificationCenter/` `api/notifications.ts` | 通知协作，ChatOps |
@@ -366,6 +366,32 @@
 | **M39** | **ML 金丝雀分析** | ✅ 全栈 | `services/canary-analysis/` `pages/CanaryAnalysis/` `api/canary-analysis.ts` `canary-analysis-routes.ts` `migrations/029` | ml-canary-analysis-design.md |
 | **M40** | **AI Agent 编排** | ✅ 全栈 | `services/agent-profile-service.ts` `agent-run-service.ts` `pages/AgentDashboard/` `AgentRunDetail/` `api/agents.ts` `routes-agent.ts` `migrations/024` | ai-agent-orchestration-design.md |
 | **M41** | **临时开发环境** | ✅ 全栈 | `services/ephemeral-env-service.ts` `k8s-provisioner-service.ts` `pages/EphemeralEnvList/Detail/` `api/ephemeral-envs.ts` `routes-ephemeral-env.ts` `migrations/025` | ephemeral-dev-environments-design.md |
+
+### 新增服务 (代码审计发现)
+
+| 模块 | 名称 | 实现状态 | 代码位置 | 说明 |
+|------|------|----------|----------|------|
+| S1 | 风险评估服务 | 🟡 后端 | `services/risk-assessment/` | RiskAssessmentService, RiskScoringEngine, HealthCheckService |
+| S2 | 告警服务 | 🟡 后端 | `services/alert/` | AlertDeduplication, AlertCorrelationService, AlertSuppressionService |
+| S3 | 定时调度服务 | 🟡 后端 | `services/scheduler/` | CronSchedulerService, DistributedLockService |
+| S4 | 测试选择器 | 🟡 后端 | `services/test-selector/` | TestDependencyAnalyzer, TestExecutionOptimizer, TestFailurePredictor |
+| S5 | 构建增强服务 | 🟡 后端 | `services/build/` | BuildCacheService, K8sBuildExecutor, BuilderImageService |
+| S6 | 部署策略引擎 | 🟡 后端 | `services/smart-deploy/` | DeploymentStrategyEngine, RollbackService, DeploymentVerifier |
+| S7 | 策略引擎增强 | 🟡 后端 | `services/policy/` | PolicyEvaluationService |
+| S8 | SBOM 增强 | 🟡 后端 | `services/sbom/` | SbomVulnerabilityService, SbomWaiverService |
+
+> 注: 以上服务的持久化已逐步迁移至 PostgreSQL Repository 模式。
+
+### 前端 Dashboard 变体
+
+| 页面 | 说明 |
+|------|------|
+| Console | 控制台主入口 |
+| DashboardCore | 核心仪表盘 |
+| DashboardNew | 新版仪表盘 |
+| EngineerDashboard | 工程师视图 |
+| ExecutiveDashboard | 管理层视图 |
+| ManagerDashboard | 经理视图 |
 
 ---
 
@@ -402,5 +428,8 @@ wc -l docs/**/*.md
 
 ---
 
-_维护者：Orion 架构团队 | 更新频率：每次文档变更时同步更新 | 最后更新：2026-04-18_
-_实现状态 v2.0: 41 模块中 30 全栈实现，8 部分实现，3 待实现_
+> 最近完成: M25 持久化迁移 (30+ 服务 Map() → PostgreSQL), M6/M29/M30 全栈实现, API 路径修复 (~95%)
+
+_维护者：Orion 架构团队 | 更新频率：每次文档变更时同步更新 | 最后更新：2026-04-25_
+_实现状态 v2.2: 44+ 模块，约 31 全栈实现，10+ 部分实现，0 未实现_
+_最近里程碑: M25 持久化迁移完成, M6/M29/M30 前端实现, API 路径修复_
