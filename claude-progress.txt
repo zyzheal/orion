@@ -506,3 +506,30 @@
 - [x] Route wiring - database pool passed through routes.ts -> build-routes.ts
 - [x] 28 unit tests passing
 - [x] TypeScript type-check passes (no new errors)
+
+## API Path Mismatch Fixes (COMPLETED - 2026-04-25)
+
+### Completed Work
+
+Fixed ~15 API path mismatches between frontend API clients (`orion-frontend/src/api/*.ts`) and backend routes (`orion-platform-service/src/api/*-routes.ts`). Backend routes treated as source of truth.
+
+1. **`plugins.ts`** - Added missing `/v1/` prefix to all 9 plugin endpoints
+2. **`alerts.ts`** - Major remapping: alert list -> `/v1/alert/list`, create -> `/v1/alert/ingest`, stats -> `/v1/alert/deduplication/stats`, alert rules -> `/v1/monitoring/rules`
+3. **`tenant.ts`** - Changed `getTenantStats` from `/v1/tenant/stats` to `/v1/tenant/count`
+4. **`skills.ts`** - Fixed `getMySkills` to use query param `?installed=true` instead of non-existent `/my` route
+5. **`config.ts`** - Updated 6 paths to match backend (syncFromGit, getGitOpsStatus, submitForApproval, approveConfig, compareConfigs, diffConfigWithCurrent)
+6. **`ai-docs.ts`** - Changed knowledge base paths from `/knowledge/v1/` to `/v1/knowledge/v1/`
+7. **`chatops.ts`** - Fixed `getCommandStatus` path, stubbed settings endpoints
+8. **`agents.ts`** - Stubbed `getAgentApprovals` and `respondToApproval` (no backend routes)
+9. **`pipelines.ts`** - Stubbed `deleteCache` and `listCaches` (redirect to build-cache endpoints)
+10. **`finops.ts`** - Fixed 4 paths (optimizations, applyOptimization, budgetAlerts, exportCostReport)
+11. **`ephemeral-envs.ts`** - All 6 functions stubbed with warnings (no backend routes)
+12. **`build-routes.ts`** (backend) - Fixed artifact routes with redundant `/api/v1/` prefix bug
+
+### TypeScript Verification
+- Fixed TS6133 unused parameter errors in agents.ts, alerts.ts, chatops.ts, ephemeral-envs.ts, pipelines.ts
+- Fixed unused imports in ephemeral-envs.ts and finops.ts
+- `npx tsc --noEmit` passes with no new errors (pre-existing auth.ts errors unchanged)
+
+### Commit
+- Committed as `f5ced21` on branch `feat/frontend-gap-implementation`
