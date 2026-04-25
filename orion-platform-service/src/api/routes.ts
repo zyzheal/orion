@@ -47,6 +47,7 @@ import chatopsRoutes from './chatops-routes';
 import skillRoutes from './skill-routes';
 import aiCostRoutes from './ai-cost-routes';
 import artifactRoutes from './artifact-routes';
+import sessionRoutes from './session-routes';
 import confirmationRoutes from './confirmation-routes';
 
 // New P0 routes
@@ -57,6 +58,7 @@ import eventbusRoutes from './eventbus-routes';
 import productLineRoutes from './product-line-routes';
 import internalLibraryRoutes from './internal-library-routes';
 import notificationRoutes from './notification-routes';
+import roleRoutes from './role-routes';
 
 export interface ApiRoutesOptions {
   eventBus?: EventBusService;
@@ -253,8 +255,8 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // 注册审计 API 路由
   await app.register(auditRoutes, { prefix: '/audit', database: options.database });
 
-  // 注册租户管理 API 路由
-  await app.register(tenantRoutes, { prefix: '/tenant' });
+  // 注册租户管理 API 路由 (PostgreSQL backed)
+  await app.register(tenantRoutes, { prefix: '/tenant', database: options.database });
 
   // 注册效能分析 API 路由
   await app.register(efficiencyRoutes, { prefix: '/efficiency' });
@@ -309,4 +311,10 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // 注册 Notification API 路由 (M8/M33)
   await app.register(notificationRoutes, { prefix: '/notifications' });
+
+  // 注册 Role Management API 路由 (RBAC) - PostgreSQL backed
+  await app.register(roleRoutes, { prefix: '/roles', database: options.database });
+
+  // 注册 Session Management API 路由 - PostgreSQL backed
+  await app.register(sessionRoutes, { prefix: '/sessions', database: options.database });
 }

@@ -10,6 +10,9 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { TenantContext, TenantInfo, tenantContext } from '../services/tenant/TenantContext';
 import { TenantQuotaService, TenantQuota, tenantQuotaService, QuotaCheckResult } from '../services/tenant/TenantQuotaService';
 import { NamespacePoolService, namespacePoolService } from '../services/tenant/NamespacePoolService';
+import { TenantService, TenantServiceError } from '../services/tenant/TenantService';
+import { TenantRepository } from '../services/tenant/TenantRepository';
+import { DatabasePool } from '../services/database';
 
 interface TenantQuotaUpdate {
   maxPipelines?: number;
@@ -28,11 +31,32 @@ interface NamespaceReleaseRequest {
   namespaceName: string;
 }
 
-export default async function tenantRoutes(app: FastifyInstance): Promise<void> {
+/**
+ * Options passed to tenant routes via app.register()
+ * Follows the same pattern as cost-routes.ts, config-routes.ts, etc.
+ */
+interface TenantRoutesOptions {
+  database?: DatabasePool;
+}
+
+export default async function tenantRoutes(
+  app: FastifyInstance,
+  options: TenantRoutesOptions
+): Promise<void> {
   // Initialize services
   const context = new TenantContext();
   const quotaService = tenantQuotaService;
   const namespacePool = namespacePoolService;
+
+  // Initialize database-backed TenantService via Repository pattern
+  let tenantService: TenantService | null = null;
+  if (options.database) {
+    const tenantRepository = new TenantRepository(options.database);
+    tenantService = new TenantService(tenantRepository);
+    console.log('[TenantRoutes] Database-backed TenantService initialized');
+  } else {
+    console.warn('[TenantRoutes] Database not available, tenant CRUD routes will not be functional');
+  }
 
   // ==================== Tenant Context ====================
 
@@ -233,5 +257,180 @@ export default async function tenantRoutes(app: FastifyInstance): Promise<void> 
         jwtTenantClaim: body.jwtTenantClaim || 'tenant_id',
       },
     });
+  });
+
+  // ==================== Tenant CRUD (Database-backed) ====================
+
+  // GET /tenant - List all tenants
+  app.get('/', async (request: FastifyRequest, reply: FastifyReply) => {
+    const { page = '1', limit = '20', status } = request.query as Record<string, string>;
+    
+    if (tenantService) {
+      try {
+        const result = await tenantService.listTenants({
+          page: parseInt(page, 10),
+          limit: parseInt(limit, 10),
+          status,
+        });
+        return reply.send(result);
+      } catch (error: any) {
+        return reply.status(500).send({
+          error: 'LIST_ERROR',
+          message: error.message,
+        });
+      }
+    }
+
+    // Fallback: return empty list if no database
+    return reply.send({
+      data: [],
+      total: 0,
+      page: parseInt(page, 10),
+      limit: parseInt(limit, 10),
+      totalPages: 0,
+    });
+  });
+
+  // GET /tenant/:id - Get tenant by ID
+  app.get('/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.params as { id: string };
+
+    if (tenantService) {
+      try {
+        const tenant = await tenantService.getTenant(id);
+        return reply.send(tenant);
+      } catch (error: any) {
+        if (error instanceof TenantServiceError && error.code === 'TENANT_NOT_FOUND') {
+          return reply.status(404).send({
+            error: 'TENANT_NOT_FOUND',
+            message: error.message,
+          });
+        }
+        return reply.status(500).send({
+          error: 'GET_ERROR',
+          message: error.message,
+        });
+      }
+    }
+
+    return reply.status(503).send({
+      error: 'SERVICE_UNAVAILABLE',
+      message: 'Database not available',
+    });
+  });
+
+  // POST /tenant - Create new tenant
+  app.post('/', async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = request.body as {
+      name: string;
+      display_name?: string;
+      settings?: Record<string, any>;
+    };
+
+    if (tenantService) {
+      try {
+        const tenant = await tenantService.createTenant(body);
+        return reply.status(201).send(tenant);
+      } catch (error: any) {
+        if (error instanceof TenantServiceError) {
+          return reply.status(400).send({
+            error: error.code,
+            message: error.message,
+          });
+        }
+        return reply.status(500).send({
+          error: 'CREATE_ERROR',
+          message: error.message,
+        });
+      }
+    }
+
+    return reply.status(503).send({
+      error: 'SERVICE_UNAVAILABLE',
+      message: 'Database not available',
+    });
+  });
+
+  // PUT /tenant/:id - Update tenant
+  app.put('/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.params as { id: string };
+    const body = request.body as {
+      name?: string;
+      display_name?: string;
+      status?: string;
+      settings?: Record<string, any>;
+    };
+
+    if (tenantService) {
+      try {
+        const tenant = await tenantService.updateTenant(id, body);
+        return reply.send(tenant);
+      } catch (error: any) {
+        if (error instanceof TenantServiceError) {
+          const statusCode = error.code === 'TENANT_NOT_FOUND' ? 404 : 400;
+          return reply.status(statusCode).send({
+            error: error.code,
+            message: error.message,
+          });
+        }
+        return reply.status(500).send({
+          error: 'UPDATE_ERROR',
+          message: error.message,
+        });
+      }
+    }
+
+    return reply.status(503).send({
+      error: 'SERVICE_UNAVAILABLE',
+      message: 'Database not available',
+    });
+  });
+
+  // DELETE /tenant/:id - Delete tenant (soft delete)
+  app.delete('/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.params as { id: string };
+
+    if (tenantService) {
+      try {
+        await tenantService.deleteTenant(id);
+        return reply.status(204).send();
+      } catch (error: any) {
+        if (error instanceof TenantServiceError) {
+          const statusCode = error.code === 'TENANT_NOT_FOUND' ? 404 : 400;
+          return reply.status(statusCode).send({
+            error: error.code,
+            message: error.message,
+          });
+        }
+        return reply.status(500).send({
+          error: 'DELETE_ERROR',
+          message: error.message,
+        });
+      }
+    }
+
+    return reply.status(503).send({
+      error: 'SERVICE_UNAVAILABLE',
+      message: 'Database not available',
+    });
+  });
+
+  // GET /tenant/count - Get tenant count
+  app.get('/count', async (request: FastifyRequest, reply: FastifyReply) => {
+    const { status } = request.query as Record<string, string>;
+
+    if (tenantService) {
+      try {
+        const result = await tenantService.listTenants({ limit: 1, status });
+        return reply.send({ total: result.total });
+      } catch (error: any) {
+        return reply.status(500).send({
+          error: 'COUNT_ERROR',
+          message: error.message,
+        });
+      }
+    }
+
+    return reply.send({ total: 0 });
   });
 }
