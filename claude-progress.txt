@@ -442,3 +442,67 @@
 - [x] Cost calculator - estimation, ROI, trend, forecast
 - [x] SQL migrations - proper types, indexes, comments, rollback
 - [x] TypeScript strict mode - no errors in new files (pre-existing errors in other files)
+
+## Metrics Service PostgreSQL Migration (COMPLETED)
+
+### Completed Work
+
+1. **SQL Migration** (`src/db/migrations/053_create_metrics.sql` + `053_rollback_metrics.sql`)
+   - Created metrics table with id, tenant_id, name, value, unit, labels (JSONB), timestamp
+   - Indexes on tenant_id, name, timestamp, and composite (tenant_id, name, timestamp DESC)
+
+2. **MetricsController** (`src/api/controllers/MetricsController.ts`)
+   - record(): POST /record - Record a metric data point
+   - query(): POST /query - Query metrics by name and time range
+   - getStats(): POST /stats - Get aggregated stats (avg/min/max/count)
+
+3. **Metrics Routes** (`src/api/metrics-routes.ts`)
+   - Repository -> Service -> Controller pattern
+   - Receives database pool from options, creates MetricsRepository -> MetricsService -> MetricsController
+   - 3 endpoints under /api/v1/metrics prefix
+   - Registered in routes.ts
+
+4. **Unit Tests** (6 tests all passing)
+   - MetricsRepository.test.ts: 3 tests (record, query, aggregate)
+   - MetricsService.test.ts: 3 tests (record, query, getStats)
+
+### Acceptance Criteria
+- [x] MetricsRepository uses PostgreSQL (no Map())
+- [x] MetricsService delegates to repository
+- [x] API routes registered with database pool
+- [x] SQL migration with proper indexes
+- [x] Unit tests passing (6 tests)
+- [x] No new TypeScript errors
+
+## BuildCacheService PostgreSQL Migration (COMPLETED - 2026-04-25)
+
+### Completed Work
+
+1. **BuildCacheRepository** (`orion-platform-service/src/repositories/BuildCacheRepository.ts`)
+   - BuildCacheConfigRepository: CRUD with snake_case column mapping, findByLevelAndTarget, findAllWithFilters
+   - BuildCacheEntryRepository: Entry CRUD, findByCacheKey, findLRUEntries, deleteExpired, deleteByConfigId, recordHit
+   - Both use custom createConfig/createEntry/updateConfig methods for proper camelCase to snake_case mapping
+
+2. **BuildCacheService** (`orion-platform-service/src/services/build/BuildCacheService.ts`)
+   - Replaced Map() in-memory storage with PostgreSQL Repository pattern
+   - Constructor now accepts BuildCacheConfigRepository + BuildCacheEntryRepository
+   - All business logic preserved: 3-level cascade (global/pipeline/task), cache key generation, LRU cleanup
+
+3. **SQL Migrations** (`orion-platform-service/src/db/migrations/053_*`)
+   - 053_create_build_cache_tables.sql: build_cache_configs + build_cache_entries tables with indexes
+   - 053_rollback_build_cache_tables.sql: DROP TABLE rollback
+
+4. **Route Updates**
+   - build-routes.ts: receives DatabasePool via BuildRoutesOptions, creates repositories -> service
+   - routes.ts: passes `database: options.database` to buildRoutes registration
+
+5. **Tests**: 28 unit tests all passing (updated to use in-memory mock repositories)
+
+### Acceptance Criteria
+- [x] BuildCacheConfigRepository - PostgreSQL backed with snake_case column mapping
+- [x] BuildCacheEntryRepository - PostgreSQL backed with hit tracking, LRU, cleanup
+- [x] BuildCacheService - no more Map(), uses Repository pattern
+- [x] SQL migration - proper tables, indexes, comments, rollback
+- [x] Route wiring - database pool passed through routes.ts -> build-routes.ts
+- [x] 28 unit tests passing
+- [x] TypeScript type-check passes (no new errors)
