@@ -5,20 +5,36 @@
  * management, strategy configuration, approval workflows,
  * history queries, and effectiveness metrics.
  *
- * TASK-702: Self-Healing Engine (自愈引擎)
+ * TASK-702: Self-Healing Engine (self-healing rules/executions backed by PostgreSQL)
  * Prefix: /api/v1/self-healing
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { DatabasePool } from '../services/database';
+import { SelfHealingRepository } from '../services/self-healing/SelfHealingRepository';
 import { SelfHealingService } from '../services/self-healing/SelfHealingService';
 import { SelfHealingController } from './controllers/SelfHealingController';
 
+export interface SelfHealingRoutesOptions {
+  database?: DatabasePool;
+}
+
 export default async function selfHealingRoutes(
-  app: FastifyInstance
+  app: FastifyInstance,
+  options: SelfHealingRoutesOptions
 ): Promise<void> {
-  // Initialize service and controller
-  const selfHealingService = new SelfHealingService();
-  const selfHealingController = new SelfHealingController(selfHealingService);
+  // Initialize Repository and Service with database pool
+  const repository = options.database
+    ? new SelfHealingRepository(options.database)
+    : undefined;
+
+  if (!repository) {
+    console.warn('[SelfHealingRoutes] No database pool provided, self-healing routes will not be functional');
+    return;
+  }
+
+  const service = new SelfHealingService(repository);
+  const controller = new SelfHealingController(service);
 
   // ==================== Incident Management ====================
 
@@ -26,7 +42,7 @@ export default async function selfHealingRoutes(
   app.post(
     '/incidents',
     async (request: FastifyRequest, reply: FastifyReply) => {
-      return selfHealingController.createIncident(request, reply);
+      return controller.createIncident(request, reply);
     }
   );
 
@@ -34,7 +50,7 @@ export default async function selfHealingRoutes(
   app.get(
     '/incidents/:id',
     async (request: FastifyRequest, reply: FastifyReply) => {
-      return selfHealingController.getIncident(request, reply);
+      return controller.getIncident(request, reply);
     }
   );
 
@@ -42,7 +58,7 @@ export default async function selfHealingRoutes(
 
   // GET /self-healing/history - Get healing history
   app.get('/history', async (request: FastifyRequest, reply: FastifyReply) => {
-    return selfHealingController.getHistory(request, reply);
+    return controller.getHistory(request, reply);
   });
 
   // ==================== Effectiveness ====================
@@ -51,7 +67,7 @@ export default async function selfHealingRoutes(
   app.get(
     '/effectiveness',
     async (request: FastifyRequest, reply: FastifyReply) => {
-      return selfHealingController.getEffectiveness(request, reply);
+      return controller.getEffectiveness(request, reply);
     }
   );
 
@@ -61,7 +77,7 @@ export default async function selfHealingRoutes(
   app.get(
     '/strategies',
     async (request: FastifyRequest, reply: FastifyReply) => {
-      return selfHealingController.getStrategies(request, reply);
+      return controller.getStrategies(request, reply);
     }
   );
 
@@ -69,7 +85,7 @@ export default async function selfHealingRoutes(
   app.get(
     '/strategies/:id',
     async (request: FastifyRequest, reply: FastifyReply) => {
-      return selfHealingController.getStrategy(request, reply);
+      return controller.getStrategy(request, reply);
     }
   );
 
@@ -77,7 +93,7 @@ export default async function selfHealingRoutes(
   app.post(
     '/strategies',
     async (request: FastifyRequest, reply: FastifyReply) => {
-      return selfHealingController.registerStrategy(request, reply);
+      return controller.registerStrategy(request, reply);
     }
   );
 
@@ -85,7 +101,7 @@ export default async function selfHealingRoutes(
   app.post(
     '/strategies/:id/toggle',
     async (request: FastifyRequest, reply: FastifyReply) => {
-      return selfHealingController.toggleStrategy(request, reply);
+      return controller.toggleStrategy(request, reply);
     }
   );
 
@@ -95,7 +111,7 @@ export default async function selfHealingRoutes(
   app.get(
     '/approvals',
     async (request: FastifyRequest, reply: FastifyReply) => {
-      return selfHealingController.getApprovals(request, reply);
+      return controller.getApprovals(request, reply);
     }
   );
 
@@ -103,7 +119,7 @@ export default async function selfHealingRoutes(
   app.get(
     '/approvals/:id',
     async (request: FastifyRequest, reply: FastifyReply) => {
-      return selfHealingController.getApproval(request, reply);
+      return controller.getApproval(request, reply);
     }
   );
 
@@ -111,7 +127,7 @@ export default async function selfHealingRoutes(
   app.post(
     '/approvals/:id/respond',
     async (request: FastifyRequest, reply: FastifyReply) => {
-      return selfHealingController.respondToApproval(request, reply);
+      return controller.respondToApproval(request, reply);
     }
   );
 }

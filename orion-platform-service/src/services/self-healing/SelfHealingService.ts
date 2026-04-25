@@ -1,727 +1,593 @@
 /**
- * Self-Healing Service
+ * SelfHealingService - Business logic layer for Self-Healing operations
  *
- * Main orchestration service that subscribes to monitoring alerts,
- * triggers healing workflows, and tracks healing history and effectiveness.
+ * Orchestrates incident handling, strategy matching, decision making,
+ * and approval workflows. Uses PostgreSQL Repository for persistence
+ * of incidents and approvals, while leveraging in-memory components
+ * for strategy matching and action execution.
  *
- * TASK-702: Self-Healing Engine (自愈引擎)
+ * TASK-702: Self-Healing Engine (self-healing rules/executions backed by PostgreSQL)
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import {
-  HealingIncident,
-  IncidentStatus,
-  IncidentType,
-  IncidentSeverity,
-  HealingResult,
-  HealingActionResult,
-  HealingHistoryQuery,
-  HealingHistoryResponse,
-  HealingEffectiveness,
-  HealingStrategy,
-  ApprovalRequest,
-  ApprovalResponse,
-  MonitoringAlertEvent,
-  IEventPublisher,
-  SelfHealingEvents,
-} from './types';
+import { SelfHealingRepository, HealingIncidentRow, ApprovalRequestRow } from './SelfHealingRepository';
 import { HealingStrategyEngine } from './HealingStrategyEngine';
 import { HealingActionExecutor } from './HealingActionExecutor';
 import {
-  HealingDecisionMaker,
-  DecisionMakerConfig,
-  IRiskAssessor,
-} from './HealingDecisionMaker';
+  HealingStrategy,
+  HealingIncident,
+  HealingResult,
+  HealingActionResult,
+  ApprovalRequest,
+  ApprovalResponse,
+  IncidentStatus,
+  MonitoringAlertEvent,
+  HealingHistoryQuery,
+  HealingHistoryResponse,
+  HealingEffectiveness,
+  IncidentType,
+  IncidentSeverity,
+  RiskLevel,
+} from './types';
 
-/**
- * Map monitoring metrics to incident types
- */
-function metricToIncidentType(metric: string): IncidentType {
-  const metricLower = metric.toLowerCase();
-
-  if (metricLower.includes('cpu')) return 'high_cpu';
-  if (metricLower.includes('memory') || metricLower.includes('mem'))
-    return 'high_memory';
-  if (metricLower.includes('error')) return 'high_error_rate';
-  if (metricLower.includes('latency') || metricLower.includes('response_time'))
-    return 'high_latency';
-  if (metricLower.includes('crash') || metricLower.includes('restart'))
-    return 'pod_crash';
-  if (metricLower.includes('node') || metricLower.includes('host'))
-    return 'node_failure';
-  if (metricLower.includes('down') || metricLower.includes('unavailable'))
-    return 'service_down';
-  if (metricLower.includes('deploy')) return 'deployment_failure';
-  if (metricLower.includes('disk')) return 'disk_full';
-  if (metricLower.includes('network') || metricLower.includes('timeout'))
-    return 'network_timeout';
-
-  return 'custom';
-}
-
-/**
- * Map monitoring severity to incident severity
- */
-function mapSeverity(severity: string): IncidentSeverity {
-  const s = severity.toLowerCase();
-  if (s === 'critical' || s === 'critical') return 'critical';
-  if (s === 'warning' || s === 'warn') return 'warning';
-  return 'info';
-}
+// ==================== Options ====================
 
 export interface SelfHealingServiceOptions {
-  /** Event publisher for NATS/event bus */
-  eventPublisher?: IEventPublisher;
-  /** Decision maker configuration */
-  decisionMakerConfig?: DecisionMakerConfig;
-  /** Risk assessor integration */
-  riskAssessor?: IRiskAssessor;
+  approvalExpirationMs?: number;
+  autoExecuteOnApproval?: boolean;
+}
+
+const DEFAULT_OPTIONS: Required<SelfHealingServiceOptions> = {
+  approvalExpirationMs: 300000, // 5 minutes
+  autoExecuteOnApproval: true,
+};
+
+// ==================== Service ====================
+
+export class SelfHealingServiceError extends Error {
+  constructor(message: string, public code: string) {
+    super(message);
+    this.name = 'SelfHealingServiceError';
+  }
 }
 
 export class SelfHealingService {
+  private repository: SelfHealingRepository;
   private strategyEngine: HealingStrategyEngine;
   private actionExecutor: HealingActionExecutor;
-  private decisionMaker: HealingDecisionMaker;
-  private incidents: Map<string, HealingIncident> = new Map();
-  private eventPublisher?: IEventPublisher;
-  private alertSubscription?: () => Promise<void>;
-  private isStarted: boolean = false;
+  private options: Required<SelfHealingServiceOptions>;
 
-  constructor(options?: SelfHealingServiceOptions) {
+  constructor(
+    repository: SelfHealingRepository,
+    options?: SelfHealingServiceOptions
+  ) {
+    this.repository = repository;
     this.strategyEngine = new HealingStrategyEngine();
     this.actionExecutor = new HealingActionExecutor();
-    this.decisionMaker = new HealingDecisionMaker(
-      options?.decisionMakerConfig,
-      options?.riskAssessor
-    );
-    this.eventPublisher = options?.eventPublisher;
+    this.options = { ...DEFAULT_OPTIONS, ...options };
   }
 
-  /**
-   * Start the self-healing service and subscribe to monitoring alerts
-   */
-  async start(
-    subscribeToAlerts?: (
-      handler: (event: MonitoringAlertEvent) => Promise<void>
-    ) => Promise<() => Promise<void>>
-  ): Promise<void> {
-    if (this.isStarted) {
-      console.warn('[SelfHealingService] Already started');
-      return;
-    }
-
-    this.isStarted = true;
-    console.log('[SelfHealingService] Self-healing service started');
-
-    // Subscribe to monitoring alerts if handler provided
-    if (subscribeToAlerts) {
-      try {
-        this.alertSubscription = await subscribeToAlerts(
-          async (event) => {
-            await this.handleAlert(event);
-          }
-        );
-        console.log('[SelfHealingService] Subscribed to monitoring alerts');
-      } catch (error) {
-        console.warn(
-          '[SelfHealingService] Failed to subscribe to alerts:',
-          error
-        );
-      }
-    }
+  // Expose strategy engine for strategy management
+  getStrategyEngine(): HealingStrategyEngine {
+    return this.strategyEngine;
   }
 
-  /**
-   * Stop the self-healing service
-   */
-  async stop(): Promise<void> {
-    if (!this.isStarted) return;
-
-    this.isStarted = false;
-
-    if (this.alertSubscription) {
-      try {
-        await this.alertSubscription();
-      } catch (error) {
-        console.warn(
-          '[SelfHealingService] Error unsubscribing from alerts:',
-          error
-        );
-      }
-      this.alertSubscription = undefined;
-    }
-
-    console.log('[SelfHealingService] Self-healing service stopped');
-  }
+  // ==================== Incident Management ====================
 
   /**
-   * Handle a monitoring alert event
+   * Handle an incoming alert and create a healing incident
    */
   async handleAlert(alert: MonitoringAlertEvent): Promise<HealingIncident> {
-    // Map alert to incident
-    const incidentType = metricToIncidentType(alert.metric);
-    const severity = mapSeverity(alert.severity);
+    const incidentId = uuidv4();
+    const now = new Date();
 
-    // Extract app name and environment from tags
-    const appName = alert.tags?.app || alert.tags?.appName || 'unknown';
-    const environment = alert.tags?.env || alert.tags?.environment || 'unknown';
+    // Determine incident type from the alert metric
+    const incidentType = this.mapMetricToIncidentType(alert.metric);
 
-    console.log(
-      `[SelfHealingService] Received alert: ${alert.metric} (${severity}) for ${appName} in ${environment}`
-    );
-
-    // Find best strategy
-    const strategy = this.strategyEngine.selectBestStrategy(incidentType, {
-      severity,
-      ...alert.tags,
-    });
-
-    // Create incident record
-    const incident: HealingIncident = {
-      id: uuidv4(),
-      alertId: alert.alertId,
+    // Create incident in DB (initial status: evaluating)
+    const row = await this.repository.createIncident({
+      alert_id: alert.alertId,
       type: incidentType,
-      severity,
-      appName,
-      environment,
-      strategy: strategy ?? undefined,
-      actions: strategy ? [...strategy.actions] : [],
-      status: 'new',
-      startedAt: new Date(),
-      attempts: 0,
+      severity: alert.severity,
+      app_name: alert.tags.app || 'unknown',
+      environment: alert.tags.env || 'unknown',
+      actions: [],
+      status: 'evaluating',
       tags: alert.tags,
-    };
-
-    this.incidents.set(incident.id, incident);
-
-    // Publish incident detected event
-    await this.publishEvent(SelfHealingEvents.INCIDENT_DETECTED, {
-      incidentId: incident.id,
-      alertId: alert.alertId,
-      type: incidentType,
-      severity,
-      appName,
-      environment,
     });
 
-    // If no strategy found, mark as escalated
+    // Match to a strategy (include severity in context for condition matching)
+    const matchContext = { ...alert.tags, severity: alert.severity };
+    const strategy = this.strategyEngine.selectBestStrategy(
+      incidentType as IncidentType,
+      matchContext
+    );
+
     if (!strategy) {
-      incident.status = 'escalated';
-      incident.error = `No healing strategy found for incident type: ${incidentType}`;
-
-      await this.publishEvent(SelfHealingEvents.INCIDENT_ESCALATED, {
-        incidentId: incident.id,
-        reason: incident.error,
+      // No matching strategy - mark as failed
+      const failed = await this.repository.updateIncident(row.id, {
+        status: 'failed',
+        error: 'No matching healing strategy found',
+        completed_at: now,
       });
-
-      return incident;
+      return this.mapRowToIncident(failed!);
     }
 
-    // Execute healing workflow
-    return this.executeHealing(incident);
-  }
-
-  /**
-   * Execute healing workflow for an incident
-   */
-  async executeHealing(incident: HealingIncident): Promise<HealingIncident> {
-    const startTime = Date.now();
-
-    if (!incident.strategy) {
-      incident.status = 'escalated';
-      incident.error = 'No healing strategy available';
-      return incident;
-    }
-
-    // If already approved (via manual approval workflow), skip decision check
-    const wasPreApproved = incident.approvalStatus === 'approved';
-
-    if (!wasPreApproved) {
-      // Get decision (auto vs manual)
-      const decision = await this.decisionMaker.getDecision({
-        strategy: incident.strategy,
-        appName: incident.appName,
-        environment: incident.environment,
-        incidentType: incident.type,
-        severity: incident.severity,
-        tags: incident.tags,
-      });
-
-      // Check if manual approval is needed
-      if (decision.requiresApproval) {
-        const approvalRequest = this.decisionMaker.createApprovalRequest({
-          incidentId: incident.id,
-          decision,
-          appName: incident.appName,
-          environment: incident.environment,
-          incidentType: incident.type,
-        });
-
-        incident.approvalStatus = 'pending';
-        incident.approvalRequestId = approvalRequest.id;
-        incident.status = 'pending_approval';
-
-        await this.publishEvent(SelfHealingEvents.APPROVAL_REQUESTED, {
-          incidentId: incident.id,
-          approvalRequestId: approvalRequest.id,
-          title: approvalRequest.title,
-          riskLevel: approvalRequest.riskLevel,
-        });
-
-        this.incidents.set(incident.id, incident);
-        return incident;
-      }
-    }
-
-    // Auto-heal approved
-    incident.status = 'healing';
-    incident.attempts++;
-
-    await this.publishEvent(SelfHealingEvents.HEALING_STARTED, {
-      incidentId: incident.id,
-      strategy: incident.strategy.name,
-      actions: incident.actions.map((a) => a.type),
-    });
-
-    // Execute actions
-    const actionResults: HealingActionResult[] = [];
-    let allSucceeded = true;
-
-    for (const action of incident.actions) {
-      const result = await this.actionExecutor.executeAction(action);
-      actionResults.push(result);
-
-      await this.publishEvent(SelfHealingEvents.ACTION_EXECUTED, {
-        incidentId: incident.id,
-        actionType: action.type,
-        success: result.success,
-        durationMs: result.durationMs,
-      });
-
-      if (!result.success) {
-        allSucceeded = false;
-
-        // Try rollback if action supports it
-        if (action.rollback) {
-          const rollbackResult =
-            await this.actionExecutor.rollbackAction(action);
-          result.rollbackNeeded = true;
-          result.rollbackSuccess = rollbackResult.success;
-        }
-
-        break; // Stop on first failure
-      }
-
-      // Verify action
-      const verified = await this.actionExecutor.verifyAction(
-        action.type,
-        action.params
-      );
-      result.verified = verified;
-
-      if (!verified) {
-        allSucceeded = false;
-        result.message += ' (verification failed)';
-        break;
-      }
-    }
-
-    // Calculate healing result
-    const duration = Date.now() - startTime;
-    const healingResult: HealingResult = {
-      success: allSucceeded,
-      duration,
-      actionsExecuted: actionResults,
-      effectiveness: allSucceeded ? this.calculateEffectiveness(actionResults, duration) : 0,
-      recurred: false,
-      verifiedAt: new Date(),
-    };
-
-    if (!allSucceeded) {
-      const failedAction = actionResults.find((a) => !a.success);
-      healingResult.errorMessage =
-        failedAction?.error || 'One or more actions failed';
-    }
-
-    // Update incident
-    incident.status = allSucceeded ? 'healed' : 'failed';
-    incident.completedAt = new Date();
-    incident.result = healingResult;
-
-    if (!allSucceeded) {
-      incident.error = healingResult.errorMessage;
-
-      await this.publishEvent(SelfHealingEvents.HEALING_FAILED, {
-        incidentId: incident.id,
-        error: healingResult.errorMessage,
-        actionsExecuted: actionResults.length,
-      });
-    } else {
-      await this.publishEvent(SelfHealingEvents.HEALING_COMPLETED, {
-        incidentId: incident.id,
-        duration,
-        actionsExecuted: actionResults.length,
-        effectiveness: healingResult.effectiveness,
-      });
-    }
-
-    this.incidents.set(incident.id, incident);
-    return incident;
-  }
-
-  /**
-   * Respond to an approval request and continue healing if approved
-   */
-  async respondToApproval(
-    requestId: string,
-    response: ApprovalResponse
-  ): Promise<HealingIncident> {
-    const approvalRequest = this.decisionMaker.respondToApproval(
-      requestId,
-      response
+    // Determine if auto-heal or manual approval needed
+    const requiresApproval = this.requiresManualApproval(
+      strategy,
+      alert.tags.env || 'unknown',
+      alert.severity
     );
 
-    const incident = this.incidents.get(approvalRequest.incidentId);
-    if (!incident) {
-      throw new Error(
-        `Incident not found for approval request '${requestId}'`
-      );
-    }
+    const approvalStatus = requiresApproval ? 'pending' : 'not_required';
 
-    incident.approvalStatus = approvalRequest.status;
-
-    await this.publishEvent(SelfHealingEvents.APPROVAL_RESPONDED, {
-      incidentId: incident.id,
-      approvalRequestId: requestId,
-      approved: response.approved,
-      respondedBy: response.respondedBy,
+    // Update incident with strategy
+    const updated = await this.repository.updateIncident(row.id, {
+      status: requiresApproval ? 'pending_approval' : 'healing',
+      strategy_id: strategy.id,
+      strategy_name: strategy.name,
+      actions: strategy.actions,
+      approval_status: approvalStatus,
+      attempts: 1,
     });
 
-    // If approved, continue healing
-    if (response.approved && incident.status === 'pending_approval') {
-      return this.executeHealing(incident);
+    if (requiresApproval) {
+      // Create approval request
+      const approval = await this.repository.createApprovalRequest({
+        incident_id: row.id,
+        title: `Self-Healing Approval: ${incidentType} in ${alert.tags.app}`,
+        description: `Auto-healing requires approval for incident in ${alert.tags.app} (${alert.tags.env}). ${strategy.name}`,
+        risk_level: this.assessRiskLevel(alert.tags.env || 'unknown'),
+        recommended_actions: strategy.actions,
+        expires_at: new Date(now.getTime() + this.options.approvalExpirationMs),
+      });
+
+      // Link approval to incident
+      await this.repository.updateIncident(row.id, {
+        approval_request_id: approval.id,
+      });
+
+      const final = await this.repository.findIncidentById(row.id);
+      return this.mapRowToIncident(final!);
     }
 
-    // If rejected, mark as cancelled
-    if (!response.approved) {
-      incident.status = 'cancelled';
-      incident.error = `Approval rejected: ${response.reason || 'No reason provided'}`;
-      this.incidents.set(incident.id, incident);
-    }
+    // Auto-heal: execute actions
+    const result = await this.executeHealingActions(strategy, updated!);
 
-    return incident;
+    return result;
   }
 
   /**
-   * Get incident by ID
+   * Get an incident by ID
    */
-  getIncident(incidentId: string): HealingIncident | undefined {
-    return this.incidents.get(incidentId);
+  async getIncident(id: string): Promise<HealingIncident | undefined> {
+    const row = await this.repository.findIncidentById(id);
+    if (!row) return undefined;
+    return this.mapRowToIncident(row);
   }
 
   /**
-   * Get healing history with optional filters
+   * Get healing history with filters
    */
-  getHistory(query: HealingHistoryQuery = {}): HealingHistoryResponse {
-    let incidents = Array.from(this.incidents.values());
+  async getHistory(query: HealingHistoryQuery): Promise<HealingHistoryResponse> {
+    // Mark expired approvals first
+    await this.repository.markExpiredApprovals();
 
-    // Apply filters
-    if (query.appName) {
-      incidents = incidents.filter((i) => i.appName === query.appName);
-    }
-    if (query.environment) {
-      incidents = incidents.filter((i) => i.environment === query.environment);
-    }
-    if (query.type) {
-      incidents = incidents.filter((i) => i.type === query.type);
-    }
-    if (query.status) {
-      incidents = incidents.filter((i) => i.status === query.status);
-    }
-    if (query.strategyId) {
-      incidents = incidents.filter(
-        (i) => i.strategy?.id === query.strategyId
-      );
-    }
-    if (query.severity) {
-      incidents = incidents.filter((i) => i.severity === query.severity);
-    }
-    if (query.startDate) {
-      incidents = incidents.filter((i) => i.startedAt >= query.startDate!);
-    }
-    if (query.endDate) {
-      incidents = incidents.filter((i) => i.startedAt <= query.endDate!);
-    }
-
-    // Sort by startedAt descending
-    incidents.sort(
-      (a, b) => b.startedAt.getTime() - a.startedAt.getTime()
-    );
-
-    const total = incidents.length;
-
-    // Apply pagination
-    const limit = query.limit ?? 50;
-    const offset = query.offset ?? 0;
-    const paginated = incidents.slice(offset, offset + limit);
+    const result = await this.repository.findIncidents({
+      appName: query.appName,
+      environment: query.environment,
+      type: query.type,
+      status: query.status,
+      severity: query.severity,
+      startDate: query.startDate,
+      endDate: query.endDate,
+      limit: query.limit ?? 50,
+      offset: query.offset ?? 0,
+    });
 
     return {
-      data: paginated,
-      total,
-      limit,
-      offset,
+      data: result.rows.map((r) => this.mapRowToIncident(r)),
+      total: result.total,
+      limit: query.limit ?? 50,
+      offset: query.offset ?? 0,
     };
   }
 
   /**
-   * Get healing effectiveness metrics
+   * Get effectiveness metrics
    */
-  getEffectiveness(
-    filters?: {
-      appName?: string;
-      environment?: string;
-      startDate?: Date;
-      endDate?: Date;
-    }
-  ): HealingEffectiveness {
-    let incidents = Array.from(this.incidents.values()).filter(
-      (i) => i.status !== 'new' && i.status !== 'evaluating'
-    );
+  async getEffectiveness(filters: {
+    appName?: string;
+    environment?: string;
+    startDate?: Date;
+    endDate?: Date;
+  }): Promise<HealingEffectiveness> {
+    const result = await this.repository.findIncidents({
+      appName: filters.appName,
+      environment: filters.environment,
+      startDate: filters.startDate,
+      endDate: filters.endDate,
+      limit: 10000, // Large limit for metrics
+    });
 
-    // Apply filters
-    if (filters?.appName) {
-      incidents = incidents.filter((i) => i.appName === filters.appName);
-    }
-    if (filters?.environment) {
-      incidents = incidents.filter(
-        (i) => i.environment === filters.environment
-      );
-    }
-    if (filters?.startDate) {
-      incidents = incidents.filter((i) => i.startedAt >= filters.startDate!);
-    }
-    if (filters?.endDate) {
-      incidents = incidents.filter((i) => i.startedAt <= filters.endDate!);
-    }
-
-    const healed = incidents.filter((i) => i.status === 'healed');
-    const failed = incidents.filter((i) => i.status === 'failed');
-    const escalated = incidents.filter((i) => i.status === 'escalated');
+    const incidents = result.rows.map((r) => this.mapRowToIncident(r));
+    const total = incidents.length;
+    const healed = incidents.filter((i) => i.status === 'healed').length;
+    const failed = incidents.filter((i) => i.status === 'failed').length;
+    const escalated = incidents.filter((i) => i.status === 'escalated').length;
+    const recurred = incidents.filter((i) => i.result?.recurred).length;
 
     const durations = incidents
-      .filter((i) => i.completedAt)
-      .map((i) => (i.completedAt!.getTime() - i.startedAt.getTime()));
-
-    const effectivenessScores = incidents
-      .filter((i) => i.result?.effectiveness !== undefined)
+      .filter((i) => i.result?.duration)
+      .map((i) => i.result!.duration);
+    const avgDuration = durations.length > 0
+      ? durations.reduce((a, b) => a + b, 0) / durations.length
+      : 0;
+    const medianDuration = durations.length > 0
+      ? durations.sort((a, b) => a - b)[Math.floor(durations.length / 2)]
+      : 0;
+    const effectiveness = incidents
+      .filter((i) => i.result?.effectiveness)
       .map((i) => i.result!.effectiveness!);
-
-    const recurred = incidents.filter((i) => i.result?.recurred);
+    const avgEffectiveness = effectiveness.length > 0
+      ? effectiveness.reduce((a, b) => a + b, 0) / effectiveness.length
+      : 0;
 
     // By incident type
-    const byIncidentType: Record<string, { total: number; success: number; rate: number }> = {};
-    for (const inc of incidents) {
-      if (!byIncidentType[inc.type]) {
-        byIncidentType[inc.type] = { total: 0, success: 0, rate: 0 };
-      }
-      byIncidentType[inc.type].total++;
-      if (inc.status === 'healed') {
-        byIncidentType[inc.type].success++;
-      }
+    const byType: Record<string, { total: number; success: number; rate: number }> = {};
+    for (const i of incidents) {
+      if (!byType[i.type]) byType[i.type] = { total: 0, success: 0, rate: 0 };
+      byType[i.type].total++;
+      if (i.status === 'healed') byType[i.type].success++;
     }
-    for (const key of Object.keys(byIncidentType)) {
-      const entry = byIncidentType[key];
-      entry.rate = entry.total > 0 ? Math.round((entry.success / entry.total) * 100) : 0;
+    for (const key of Object.keys(byType)) {
+      byType[key].rate = byType[key].total > 0
+        ? Math.round((byType[key].success / byType[key].total) * 100)
+        : 0;
     }
 
     // By strategy
     const byStrategy: Record<string, { total: number; success: number; rate: number }> = {};
-    for (const inc of incidents) {
-      const strategyName = inc.strategy?.name || 'unknown';
-      if (!byStrategy[strategyName]) {
-        byStrategy[strategyName] = { total: 0, success: 0, rate: 0 };
-      }
-      byStrategy[strategyName].total++;
-      if (inc.status === 'healed') {
-        byStrategy[strategyName].success++;
-      }
+    for (const i of incidents) {
+      const name = i.strategy?.name || 'unknown';
+      if (!byStrategy[name]) byStrategy[name] = { total: 0, success: 0, rate: 0 };
+      byStrategy[name].total++;
+      if (i.status === 'healed') byStrategy[name].success++;
     }
     for (const key of Object.keys(byStrategy)) {
-      const entry = byStrategy[key];
-      entry.rate = entry.total > 0 ? Math.round((entry.success / entry.total) * 100) : 0;
+      byStrategy[key].rate = byStrategy[key].total > 0
+        ? Math.round((byStrategy[key].success / byStrategy[key].total) * 100)
+        : 0;
     }
 
     // By environment
-    const byEnvironment: Record<string, { total: number; success: number; rate: number }> = {};
-    for (const inc of incidents) {
-      if (!byEnvironment[inc.environment]) {
-        byEnvironment[inc.environment] = { total: 0, success: 0, rate: 0 };
-      }
-      byEnvironment[inc.environment].total++;
-      if (inc.status === 'healed') {
-        byEnvironment[inc.environment].success++;
-      }
+    const byEnv: Record<string, { total: number; success: number; rate: number }> = {};
+    for (const i of incidents) {
+      if (!byEnv[i.environment]) byEnv[i.environment] = { total: 0, success: 0, rate: 0 };
+      byEnv[i.environment].total++;
+      if (i.status === 'healed') byEnv[i.environment].success++;
     }
-    for (const key of Object.keys(byEnvironment)) {
-      const entry = byEnvironment[key];
-      entry.rate = entry.total > 0 ? Math.round((entry.success / entry.total) * 100) : 0;
+    for (const key of Object.keys(byEnv)) {
+      byEnv[key].rate = byEnv[key].total > 0
+        ? Math.round((byEnv[key].success / byEnv[key].total) * 100)
+        : 0;
     }
 
     // By action type
-    const byActionType: Record<string, { total: number; success: number; rate: number }> = {};
-    for (const inc of incidents) {
-      if (inc.result) {
-        for (const actionResult of inc.result.actionsExecuted) {
-          if (!byActionType[actionResult.type]) {
-            byActionType[actionResult.type] = { total: 0, success: 0, rate: 0 };
-          }
-          byActionType[actionResult.type].total++;
-          if (actionResult.success) {
-            byActionType[actionResult.type].success++;
-          }
-        }
+    const byAction: Record<string, { total: number; success: number; rate: number }> = {};
+    for (const i of incidents) {
+      for (const action of i.actions) {
+        if (!byAction[action.type]) byAction[action.type] = { total: 0, success: 0, rate: 0 };
+        byAction[action.type].total++;
+        const actionResult = i.result?.actionsExecuted?.find(
+          (a) => a.type === action.type && a.success
+        );
+        if (actionResult) byAction[action.type].success++;
       }
     }
-    for (const key of Object.keys(byActionType)) {
-      const entry = byActionType[key];
-      entry.rate = entry.total > 0 ? Math.round((entry.success / entry.total) * 100) : 0;
+    for (const key of Object.keys(byAction)) {
+      byAction[key].rate = byAction[key].total > 0
+        ? Math.round((byAction[key].success / byAction[key].total) * 100)
+        : 0;
     }
 
-    const sortedDurations = [...durations].sort((a, b) => a - b);
-    const medianDuration =
-      sortedDurations.length > 0
-        ? sortedDurations[Math.floor(sortedDurations.length / 2)]
-        : 0;
-
     return {
-      totalIncidents: incidents.length,
-      healedIncidents: healed.length,
-      failedIncidents: failed.length,
-      escalatedIncidents: escalated.length,
-      successRate:
-        incidents.length > 0
-          ? Math.round((healed.length / incidents.length) * 100)
-          : 0,
-      averageDurationMs:
-        durations.length > 0
-          ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length)
-          : 0,
-      medianDurationMs: medianDuration,
-      averageEffectiveness:
-        effectivenessScores.length > 0
-          ? Math.round(
-              effectivenessScores.reduce((a, b) => a + b, 0) /
-                effectivenessScores.length
-            )
-          : 0,
-      recurredIncidents: recurred.length,
-      recurrenceRate:
-        incidents.length > 0
-          ? Math.round((recurred.length / incidents.length) * 100)
-          : 0,
-      byIncidentType,
-      byStrategy,
-      byEnvironment,
-      byActionType,
+      totalIncidents: total,
+      healedIncidents: healed,
+      failedIncidents: failed,
+      escalatedIncidents: escalated,
+      successRate: total > 0 ? Math.round((healed / total) * 100) : 0,
+      averageDurationMs: Math.round(avgDuration),
+      medianDurationMs: Math.round(medianDuration),
+      averageEffectiveness: Math.round(avgEffectiveness),
+      recurredIncidents: recurred,
+      recurrenceRate: total > 0 ? Math.round((recurred / total) * 100) : 0,
+      byIncidentType: byType,
+      byStrategy: byStrategy,
+      byEnvironment: byEnv,
+      byActionType: byAction,
     };
   }
 
-  /**
-   * Get registered healing strategies
-   */
+  // ==================== Strategy Management ====================
+
   getStrategies(): HealingStrategy[] {
     return this.strategyEngine.getAllStrategies();
   }
 
-  /**
-   * Get strategy by ID
-   */
-  getStrategy(strategyId: string): HealingStrategy | undefined {
-    return this.strategyEngine.getStrategy(strategyId);
+  getStrategy(id: string): HealingStrategy | undefined {
+    return this.strategyEngine.getStrategy(id);
   }
 
-  /**
-   * Enable/disable a strategy
-   */
-  toggleStrategy(strategyId: string, enabled: boolean): boolean {
-    if (enabled) {
-      return this.strategyEngine.enableStrategy(strategyId);
-    }
-    return this.strategyEngine.disableStrategy(strategyId);
-  }
-
-  /**
-   * Register a custom healing strategy
-   */
   registerCustomStrategy(strategy: HealingStrategy): void {
     this.strategyEngine.registerStrategy(strategy);
   }
 
-  /**
-   * Get approval requests
-   */
-  getApprovalRequests(status?: ApprovalRequest['status']): ApprovalRequest[] {
-    return this.decisionMaker.getApprovalRequests(status);
+  toggleStrategy(id: string, enabled: boolean): boolean {
+    if (enabled) {
+      return this.strategyEngine.enableStrategy(id);
+    }
+    return this.strategyEngine.disableStrategy(id);
   }
 
-  /**
-   * Get approval request by ID
-   */
-  getApprovalRequest(requestId: string): ApprovalRequest | undefined {
-    return this.decisionMaker.getApprovalRequest(requestId);
+  // ==================== Approval Workflow ====================
+
+  async getApprovalRequests(status?: 'pending' | 'approved' | 'rejected' | 'expired'): Promise<ApprovalRequest[]> {
+    // Mark expired first
+    await this.repository.markExpiredApprovals();
+
+    const rows = await this.repository.findApprovalsByStatus(status);
+    return rows.map((r) => this.mapRowToApproval(r));
   }
 
-  // ==================== Private Methods ====================
+  async getApprovalRequest(id: string): Promise<ApprovalRequest | undefined> {
+    // Mark expired first
+    await this.repository.markExpiredApprovals();
 
-  /**
-   * Calculate effectiveness score for a healing result
-   */
-  private calculateEffectiveness(
-    actionResults: HealingActionResult[],
-    durationMs: number
-  ): number {
-    if (actionResults.length === 0) return 0;
+    const row = await this.repository.findApprovalById(id);
+    if (!row) return undefined;
+    return this.mapRowToApproval(row);
+  }
 
-    // Base score: all actions succeeded
-    const successRate =
-      actionResults.filter((a) => a.success).length / actionResults.length;
+  async respondToApproval(id: string, response: ApprovalResponse): Promise<HealingIncident> {
+    // Mark expired first
+    await this.repository.markExpiredApprovals();
 
-    // Duration factor: faster is better (max 30s is ideal, 5min+ is poor)
-    const idealDuration = 30000;
-    const maxDuration = 300000;
-    let durationScore = 1;
-    if (durationMs > idealDuration) {
-      durationScore = Math.max(
-        0,
-        1 - (durationMs - idealDuration) / (maxDuration - idealDuration)
+    const approvalRow = await this.repository.findApprovalById(id);
+    if (!approvalRow) {
+      throw new Error(`Approval request '${id}' not found`);
+    }
+
+    if (approvalRow.status !== 'pending') {
+      throw new Error(`Approval request '${id}' is already ${approvalRow.status}`);
+    }
+
+    // Check expiration
+    if (approvalRow.expires_at && new Date() > approvalRow.expires_at) {
+      await this.repository.updateApprovalRequest(id, { status: 'expired' });
+      throw new Error(`Approval request '${id}' has expired`);
+    }
+
+    const now = new Date();
+
+    // Update approval request
+    await this.repository.updateApprovalRequest(id, {
+      status: response.approved ? 'approved' : 'rejected',
+      approved_by: response.respondedBy,
+      approval_reason: response.reason,
+      responded_at: now,
+    });
+
+    // Update associated incident
+    const incident = await this.repository.findIncidentById(approvalRow.incident_id);
+    if (!incident) {
+      throw new Error(`Associated incident not found`);
+    }
+
+    if (response.approved) {
+      // Execute healing actions
+      const strategy = this.strategyEngine.getStrategy(incident.strategy_id || '');
+      if (strategy) {
+        await this.repository.updateIncident(incident.id, {
+          approval_status: 'approved',
+          status: 'healing',
+        });
+        const result = await this.executeHealingActions(strategy, incident);
+        return result;
+      }
+
+      // No strategy found, just update status
+      await this.repository.updateIncident(incident.id, {
+        approval_status: 'approved',
+        status: 'healed',
+        completed_at: now,
+      });
+      return this.mapRowToIncident(
+        (await this.repository.findIncidentById(incident.id))!
       );
     }
 
-    // Verification factor
-    const verificationRate =
-      actionResults.filter((a) => a.verified).length / actionResults.length;
+    // Rejected
+    await this.repository.updateIncident(incident.id, {
+      approval_status: 'rejected',
+      status: 'failed',
+      error: `Approval rejected by ${response.respondedBy}: ${response.reason || 'no reason provided'}`,
+      completed_at: now,
+    });
 
-    // Combined effectiveness score (0-100)
-    const score = (successRate * 0.5 + durationScore * 0.25 + verificationRate * 0.25) * 100;
+    return this.mapRowToIncident(
+      (await this.repository.findIncidentById(incident.id))!
+    );
+  }
 
-    return Math.round(Math.min(100, Math.max(0, score)));
+  // ==================== Private Helpers ====================
+
+  /**
+   * Execute healing actions for an incident
+   */
+  private async executeHealingActions(
+    strategy: HealingStrategy,
+    incidentRow: HealingIncidentRow
+  ): Promise<HealingIncident> {
+    const startTime = Date.now();
+    const actionResults: HealingActionResult[] = [];
+    let allSuccess = true;
+
+    for (const action of strategy.actions) {
+      const result = await this.actionExecutor.executeAction(action);
+      actionResults.push(result);
+      if (!result.success) {
+        allSuccess = false;
+        // If action supports rollback and failed, rollback
+        if (action.rollback) {
+          await this.actionExecutor.rollbackAction(action);
+        }
+      }
+    }
+
+    const duration = Date.now() - startTime;
+
+    const healingResult: HealingResult = {
+      success: allSuccess,
+      duration,
+      actionsExecuted: actionResults,
+      effectiveness: allSuccess ? 85 : 30,
+      verifiedAt: new Date(),
+    };
+
+    const finalStatus = allSuccess ? 'healed' : 'failed';
+
+    await this.repository.updateIncident(incidentRow.id, {
+      status: finalStatus,
+      approval_status: incidentRow.approval_status === 'pending' ? 'approved' : (incidentRow.approval_status || undefined),
+      result: healingResult,
+      error: allSuccess ? undefined : 'Some healing actions failed',
+      completed_at: new Date(),
+    });
+
+    return this.mapRowToIncident(
+      (await this.repository.findIncidentById(incidentRow.id))!
+    );
   }
 
   /**
-   * Publish event to event bus
+   * Map database row to HealingIncident type
    */
-  private async publishEvent(type: string, data: any): Promise<void> {
-    if (this.eventPublisher) {
-      try {
-        await this.eventPublisher.publish(type, data, {
-          source: 'orion-self-healing',
-        });
-      } catch (error) {
-        console.warn(
-          `[SelfHealingService] Failed to publish event ${type}:`,
-          error
-        );
-      }
+  private mapRowToIncident(row: HealingIncidentRow): HealingIncident {
+    const strategy = row.strategy_id
+      ? this.strategyEngine.getStrategy(row.strategy_id)
+      : undefined;
+
+    return {
+      id: row.id,
+      alertId: row.alert_id || undefined,
+      type: row.type as IncidentType,
+      severity: row.severity as IncidentSeverity,
+      appName: row.app_name,
+      environment: row.environment,
+      strategy: strategy,
+      actions: row.actions || [],
+      status: row.status as IncidentStatus,
+      startedAt: row.started_at,
+      completedAt: row.completed_at || undefined,
+      result: row.result || undefined,
+      error: row.error || undefined,
+      approvalStatus: row.approval_status as HealingIncident['approvalStatus'],
+      approvalRequestId: row.approval_request_id || undefined,
+      attempts: row.attempts,
+      tags: row.tags || {},
+    };
+  }
+
+  /**
+   * Map database row to ApprovalRequest type
+   */
+  private mapRowToApproval(row: ApprovalRequestRow): ApprovalRequest {
+    return {
+      id: row.id,
+      incidentId: row.incident_id,
+      title: row.title,
+      description: row.description || '',
+      riskLevel: row.risk_level as RiskLevel,
+      recommendedActions: row.recommended_actions || [],
+      status: row.status as ApprovalRequest['status'],
+      requestedBy: row.requested_by,
+      approvedBy: row.approved_by || undefined,
+      approvalReason: row.approval_reason || undefined,
+      requestedAt: row.requested_at,
+      respondedAt: row.responded_at || undefined,
+      expiresAt: row.expires_at || undefined,
+    };
+  }
+
+  /**
+   * Map alert metric name to incident type
+   */
+  private mapMetricToIncidentType(metric: string): IncidentType {
+    const metricMap: Record<string, IncidentType> = {
+      cpu_usage: 'high_cpu',
+      memory_usage: 'high_memory',
+      error_rate: 'high_error_rate',
+      latency: 'high_latency',
+      pod_crash: 'pod_crash',
+      node_failure: 'node_failure',
+      service_down: 'service_down',
+      deployment_failure: 'deployment_failure',
+      disk_full: 'disk_full',
+      disk_usage: 'disk_full',
+      network_timeout: 'network_timeout',
+    };
+
+    // Try exact match first
+    if (metricMap[metric]) return metricMap[metric];
+
+    // Try contains match: check if metric contains a known key
+    for (const [key, type] of Object.entries(metricMap)) {
+      if (metric.includes(key)) return type;
     }
+
+    // Reverse contains: check if any key contains the metric
+    for (const [key, type] of Object.entries(metricMap)) {
+      if (key.includes(metric)) return type;
+    }
+
+    return 'custom';
+  }
+
+  /**
+   * Determine if manual approval is required
+   */
+  private requiresManualApproval(
+    strategy: HealingStrategy,
+    environment: string,
+    severity: IncidentSeverity
+  ): boolean {
+    // Production always requires approval
+    if (environment.toLowerCase() === 'production' || environment.toLowerCase() === 'prod') {
+      return true;
+    }
+
+    // Critical severity always requires approval
+    if (severity === 'critical') {
+      return true;
+    }
+
+    // Low confidence requires approval
+    if (strategy.confidence < 70) {
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Assess risk level based on environment
+   */
+  private assessRiskLevel(environment: string): RiskLevel {
+    const env = environment.toLowerCase();
+    if (env === 'production' || env === 'prod') return 'high';
+    if (env === 'staging' || env === 'pre-prod') return 'medium';
+    return 'low';
   }
 }

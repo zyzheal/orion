@@ -2,6 +2,10 @@
  * Self-Healing Engine Module
  *
  * TASK-702: Self-Healing Engine (自愈引擎)
+ *
+ * PostgreSQL-backed service for healing incidents, approvals,
+ * rules, and executions. Strategy engine remains in-memory
+ * for built-in strategy configuration.
  */
 
 export * from './types';
@@ -12,4 +16,17 @@ export {
   type IRiskAssessor,
   type DecisionMakerConfig,
 } from './HealingDecisionMaker';
-export { SelfHealingService, type SelfHealingServiceOptions } from './SelfHealingService';
+
+// Database-backed Repository and Service
+export {
+  SelfHealingRepository,
+  type SelfHealingRule,
+  type SelfHealingExecution,
+  type HealingIncidentRow,
+  type ApprovalRequestRow,
+} from './SelfHealingRepository';
+export {
+  SelfHealingService,
+  SelfHealingServiceError,
+  type SelfHealingServiceOptions,
+} from './SelfHealingService';

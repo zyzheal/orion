@@ -118,7 +118,7 @@ export class SelfHealingController {
       const params = request.params as any;
       const { id } = params;
 
-      const incident = this.selfHealingService.getIncident(id);
+      const incident = await this.selfHealingService.getIncident(id);
       if (!incident) {
         await reply.status(404).send({
           error: 'NOT_FOUND',
@@ -177,7 +177,7 @@ export class SelfHealingController {
         offset,
       } = query;
 
-      const history = this.selfHealingService.getHistory({
+      const history = await this.selfHealingService.getHistory({
         appName,
         environment,
         type: type as any,
@@ -231,7 +231,7 @@ export class SelfHealingController {
       const query = request.query as any;
       const { appName, environment, startDate, endDate } = query;
 
-      const effectiveness = this.selfHealingService.getEffectiveness({
+      const effectiveness = await this.selfHealingService.getEffectiveness({
         appName,
         environment,
         startDate: startDate ? new Date(startDate) : undefined,
@@ -441,7 +441,7 @@ export class SelfHealingController {
       const query = request.query as any;
       const { status } = query;
 
-      const approvals = this.selfHealingService.getApprovalRequests(
+      const approvals = await this.selfHealingService.getApprovalRequests(
         status as any
       );
 
@@ -469,7 +469,7 @@ export class SelfHealingController {
       const params = request.params as any;
       const { id } = params;
 
-      const approval = this.selfHealingService.getApprovalRequest(id);
+      const approval = await this.selfHealingService.getApprovalRequest(id);
       if (!approval) {
         await reply.status(404).send({
           error: 'NOT_FOUND',

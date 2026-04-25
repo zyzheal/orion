@@ -5,9 +5,9 @@
  * - HealingStrategyEngine
  * - HealingActionExecutor
  * - HealingDecisionMaker
- * - SelfHealingService
+ * - SelfHealingService (with mock repository)
  *
- * TASK-702: Self-Healing Engine (自愈引擎)
+ * TASK-702: Self-Healing Engine (self-healing rules/executions backed by PostgreSQL)
  */
 
 import { HealingStrategyEngine } from '../HealingStrategyEngine';
@@ -17,6 +17,7 @@ import {
   type IRiskAssessor,
 } from '../HealingDecisionMaker';
 import { SelfHealingService } from '../SelfHealingService';
+import { SelfHealingRepository, HealingIncidentRow, ApprovalRequestRow } from '../SelfHealingRepository';
 import {
   HealingStrategy,
   HealingAction,
@@ -25,11 +26,167 @@ import {
   HealingIncident,
 } from '../types';
 
-// ==================== Mock Event Publisher ====================
+// ==================== Mock Repository ====================
 
-const mockEventPublisher = {
-  publish: jest.fn().mockResolvedValue('mock-event-id'),
-};
+class MockSelfHealingRepository {
+  private incidents: Map<string, HealingIncidentRow> = new Map();
+  private approvals: Map<string, ApprovalRequestRow> = new Map();
+  private rules: Map<string, any> = new Map();
+  private executions: Map<string, any> = new Map();
+
+  // Rules methods (stubs)
+  async findRuleById(id: string): Promise<any | null> { return this.rules.get(id) || null; }
+  async findAllRules(tenantId?: string): Promise<any[]> { return Array.from(this.rules.values()); }
+  async createRule(tenantId: string, name: string, triggerCondition: any, action: any): Promise<any> {
+    const rule = { id: `rule-${Date.now()}`, tenant_id: tenantId, name, trigger_condition: triggerCondition, action, enabled: true, execution_count: 0, last_executed: null, created_at: new Date(), updated_at: new Date() };
+    this.rules.set(rule.id, rule);
+    return rule;
+  }
+  async updateRule(id: string, input: any): Promise<any | null> {
+    const existing = this.rules.get(id);
+    if (!existing) return null;
+    const updated = { ...existing, ...input, updated_at: new Date() };
+    this.rules.set(id, updated);
+    return updated;
+  }
+  async deleteRule(id: string): Promise<boolean> { return this.rules.delete(id); }
+  async incrementExecutionCount(id: string): Promise<void> {
+    const rule = this.rules.get(id);
+    if (rule) { rule.execution_count++; }
+  }
+  async createExecution(ruleId: string, triggerEvent: any): Promise<any> {
+    const exec = { id: `exec-${Date.now()}`, rule_id: ruleId, trigger_event: triggerEvent, status: 'running', result: null, error_message: null, started_at: new Date(), completed_at: null };
+    this.executions.set(exec.id, exec);
+    return exec;
+  }
+  async completeExecution(id: string, status: string, result?: any, errorMessage?: string): Promise<any | null> {
+    const exec = this.executions.get(id);
+    if (!exec) return null;
+    const updated = { ...exec, status, result, error_message: errorMessage, completed_at: new Date() };
+    this.executions.set(id, updated);
+    return updated;
+  }
+  async findExecutions(ruleId: string, limit: number = 10): Promise<any[]> {
+    return Array.from(this.executions.values()).filter(e => e.rule_id === ruleId).slice(0, limit);
+  }
+
+  // Incident methods
+  async createIncident(incident: any): Promise<HealingIncidentRow> {
+    const row: HealingIncidentRow = {
+      id: incident.id || `incident-${Date.now()}-${Math.random()}`,
+      alert_id: incident.alert_id || null,
+      type: incident.type,
+      severity: incident.severity,
+      app_name: incident.app_name,
+      environment: incident.environment,
+      strategy_id: incident.strategy_id || null,
+      strategy_name: incident.strategy_name || null,
+      actions: incident.actions || [],
+      status: incident.status || 'new',
+      attempts: incident.attempts ?? 0,
+      approval_status: incident.approval_status || null,
+      approval_request_id: incident.approval_request_id || null,
+      result: null,
+      error: null,
+      tags: incident.tags || null,
+      started_at: new Date(),
+      completed_at: null,
+    };
+    this.incidents.set(row.id, row);
+    return row;
+  }
+
+  async findIncidentById(id: string): Promise<HealingIncidentRow | null> {
+    return this.incidents.get(id) || null;
+  }
+
+  async findIncidents(filters: any): Promise<{ rows: HealingIncidentRow[]; total: number }> {
+    let rows = Array.from(this.incidents.values());
+
+    if (filters.appName) rows = rows.filter(r => r.app_name === filters.appName);
+    if (filters.environment) rows = rows.filter(r => r.environment === filters.environment);
+    if (filters.type) rows = rows.filter(r => r.type === filters.type);
+    if (filters.status) rows = rows.filter(r => r.status === filters.status);
+    if (filters.severity) rows = rows.filter(r => r.severity === filters.severity);
+    if (filters.startDate) rows = rows.filter(r => r.started_at >= filters.startDate);
+    if (filters.endDate) rows = rows.filter(r => r.started_at <= filters.endDate);
+
+    const total = rows.length;
+    const offset = filters.offset ?? 0;
+    const limit = filters.limit ?? 50;
+    rows = rows.slice(offset, offset + limit);
+
+    return { rows, total };
+  }
+
+  async updateIncident(id: string, updates: any): Promise<HealingIncidentRow | null> {
+    const existing = this.incidents.get(id);
+    if (!existing) return null;
+    // Only apply non-undefined updates
+    const updated = { ...existing };
+    for (const [key, value] of Object.entries(updates)) {
+      if (value !== undefined) {
+        (updated as any)[key] = value;
+      }
+    }
+    this.incidents.set(id, updated);
+    return updated;
+  }
+
+  // Approval methods
+  async createApprovalRequest(approval: any): Promise<ApprovalRequestRow> {
+    const row: ApprovalRequestRow = {
+      id: `approval-${Date.now()}-${Math.random()}`,
+      incident_id: approval.incident_id,
+      title: approval.title,
+      description: approval.description || null,
+      risk_level: approval.risk_level,
+      recommended_actions: approval.recommended_actions || [],
+      status: approval.status || 'pending',
+      requested_by: approval.requested_by || 'system',
+      approved_by: null,
+      approval_reason: null,
+      requested_at: new Date(),
+      responded_at: null,
+      expires_at: approval.expires_at || null,
+    };
+    this.approvals.set(row.id, row);
+    return row;
+  }
+
+  async findApprovalById(id: string): Promise<ApprovalRequestRow | null> {
+    return this.approvals.get(id) || null;
+  }
+
+  async findApprovalsByStatus(status?: string): Promise<ApprovalRequestRow[]> {
+    let rows = Array.from(this.approvals.values());
+    if (status) rows = rows.filter(r => r.status === status);
+    return rows.sort((a, b) => b.requested_at.getTime() - a.requested_at.getTime());
+  }
+
+  async updateApprovalRequest(id: string, updates: any): Promise<ApprovalRequestRow | null> {
+    const existing = this.approvals.get(id);
+    if (!existing) return null;
+    const updated = { ...existing, ...updates };
+    this.approvals.set(id, updated);
+    return updated;
+  }
+
+  async markExpiredApprovals(): Promise<number> {
+    let count = 0;
+    for (const [id, row] of this.approvals.entries()) {
+      if (row.status === 'pending' && row.expires_at && new Date() > row.expires_at) {
+        row.status = 'expired';
+        this.approvals.set(id, row);
+        count++;
+      }
+    }
+    return count;
+  }
+}
+
+// Cast mock to repository type
+const mockRepo = new MockSelfHealingRepository() as unknown as SelfHealingRepository;
 
 // ==================== Helper Functions ====================
 
@@ -185,7 +342,6 @@ describe('HealingStrategyEngine', () => {
     });
 
     it('should return empty array for unmatched type', () => {
-      // Disable the built-in high_latency strategy first
       engine.disableStrategy('high_latency' as any);
       const matches = engine.matchStrategies('custom');
       expect(matches.length).toBe(0);
@@ -219,11 +375,9 @@ describe('HealingStrategyEngine', () => {
         ],
       }));
 
-      // Should match with critical severity
       const criticalMatches = engine.matchStrategies('pod_crash', { severity: 'critical' });
       expect(criticalMatches.some((s) => s.id === 'conditional')).toBe(true);
 
-      // Should not match with warning severity
       const warningMatches = engine.matchStrategies('pod_crash', { severity: 'warning' });
       expect(warningMatches.some((s) => s.id === 'conditional')).toBe(false);
     });
@@ -238,7 +392,6 @@ describe('HealingStrategyEngine', () => {
       }));
 
       const best = engine.selectBestStrategy('pod_crash');
-      // restart-on-crash has confidence 90, should be selected
       expect(best?.id).toBe('restart-on-crash');
     });
 
@@ -695,7 +848,7 @@ describe('HealingDecisionMaker', () => {
   describe('checkExpiredRequests', () => {
     it('should mark expired requests as expired', () => {
       const dm = new HealingDecisionMaker({
-        approvalExpirationMs: 0, // Immediate expiration
+        approvalExpirationMs: 0,
       });
 
       const request = dm.createApprovalRequest({
@@ -717,29 +870,12 @@ describe('HealingDecisionMaker', () => {
 
 describe('SelfHealingService', () => {
   let service: SelfHealingService;
+  let mockRepo: SelfHealingRepository;
 
   beforeEach(() => {
-    service = new SelfHealingService({
-      eventPublisher: mockEventPublisher as any,
-    });
-  });
-
-  describe('start / stop', () => {
-    it('should start the service', async () => {
-      await service.start();
-      // No error means success
-    });
-
-    it('should not error when starting twice', async () => {
-      await service.start();
-      await service.start(); // Should just warn, not throw
-    });
-
-    it('should stop the service', async () => {
-      await service.start();
-      await service.stop();
-      // No error means success
-    });
+    const repo = new MockSelfHealingRepository();
+    mockRepo = repo as unknown as SelfHealingRepository;
+    service = new SelfHealingService(mockRepo);
   });
 
   describe('handleAlert', () => {
@@ -778,7 +914,7 @@ describe('SelfHealingService', () => {
       expect(incident.type).toBe('high_cpu');
     });
 
-    it('should escalate when no strategy found', async () => {
+    it('should fail when no strategy found', async () => {
       const incident = await service.handleAlert({
         alertId: 'alert-unknown',
         metric: 'unknown_metric_xyz',
@@ -790,12 +926,11 @@ describe('SelfHealingService', () => {
         triggeredAt: new Date(),
       });
 
-      expect(incident.status).toBe('escalated');
-      expect(incident.error).toContain('No healing strategy');
+      expect(incident.status).toBe('failed');
+      expect(incident.error).toContain('No matching healing strategy');
     });
 
     it('should map metric names to incident types', async () => {
-      // Test various metric mappings
       const testCases = [
         { metric: 'cpu_usage', expectedType: 'high_cpu' },
         { metric: 'memory_usage', expectedType: 'high_memory' },
@@ -859,30 +994,8 @@ describe('SelfHealingService', () => {
     });
   });
 
-  describe('executeHealing', () => {
-    it('should execute healing successfully', async () => {
-      const incident = createIncident({
-        id: 'execute-1',
-        strategy: createStrategy({ confidence: 90 }),
-      });
-
-      const result = await service.executeHealing(incident);
-      expect(result.status).toBe('healed');
-      expect(result.result?.success).toBe(true);
-      expect(result.result?.actionsExecuted.length).toBeGreaterThan(0);
-    });
-
-    it('should escalate when no strategy available', async () => {
-      const incident = createIncident({ id: 'execute-2', strategy: undefined });
-      const result = await service.executeHealing(incident);
-
-      expect(result.status).toBe('escalated');
-    });
-  });
-
   describe('respondToApproval', () => {
     it('should continue healing when approved', async () => {
-      // Create an incident that requires approval (production)
       const incident = await service.handleAlert({
         alertId: 'alert-approval',
         metric: 'pod_crash',
@@ -896,7 +1009,6 @@ describe('SelfHealingService', () => {
 
       expect(incident.status).toBe('pending_approval');
 
-      // Approve the request
       const updatedIncident = await service.respondToApproval(
         incident.approvalRequestId!,
         { approved: true, reason: 'Approved by admin', respondedBy: 'admin' }
@@ -906,7 +1018,7 @@ describe('SelfHealingService', () => {
       expect(updatedIncident.status).toBe('healed');
     });
 
-    it('should cancel when rejected', async () => {
+    it('should fail when rejected', async () => {
       const incident = await service.handleAlert({
         alertId: 'alert-reject',
         metric: 'pod_crash',
@@ -924,7 +1036,7 @@ describe('SelfHealingService', () => {
       );
 
       expect(updatedIncident.approvalStatus).toBe('rejected');
-      expect(updatedIncident.status).toBe('cancelled');
+      expect(updatedIncident.status).toBe('failed');
     });
   });
 
@@ -941,13 +1053,13 @@ describe('SelfHealingService', () => {
         triggeredAt: new Date(),
       });
 
-      const found = service.getIncident(incident.id);
+      const found = await service.getIncident(incident.id);
       expect(found).toBeDefined();
       expect(found?.id).toBe(incident.id);
     });
 
-    it('should return undefined for non-existent incident', () => {
-      const found = service.getIncident('non-existent');
+    it('should return undefined for non-existent incident', async () => {
+      const found = await service.getIncident('non-existent');
       expect(found).toBeUndefined();
     });
   });
@@ -975,7 +1087,7 @@ describe('SelfHealingService', () => {
         triggeredAt: new Date(),
       });
 
-      const history = service.getHistory();
+      const history = await service.getHistory({});
       expect(history.total).toBe(2);
       expect(history.data.length).toBe(2);
     });
@@ -1002,12 +1114,11 @@ describe('SelfHealingService', () => {
         triggeredAt: new Date(),
       });
 
-      const history = service.getHistory({ appName: 'filter-app' });
+      const history = await service.getHistory({ appName: 'filter-app' });
       expect(history.total).toBe(1);
     });
 
     it('should filter by status', async () => {
-      // One healed (dev)
       await service.handleAlert({
         alertId: 'alert-status-1',
         metric: 'pod_crash',
@@ -1019,7 +1130,6 @@ describe('SelfHealingService', () => {
         triggeredAt: new Date(),
       });
 
-      // One escalated (unknown metric)
       await service.handleAlert({
         alertId: 'alert-status-2',
         metric: 'completely_unknown_metric',
@@ -1031,10 +1141,10 @@ describe('SelfHealingService', () => {
         triggeredAt: new Date(),
       });
 
-      const healedHistory = service.getHistory({ status: 'healed' });
+      const healedHistory = await service.getHistory({ status: 'healed' });
       expect(healedHistory.total).toBeGreaterThanOrEqual(1);
 
-      const escalatedHistory = service.getHistory({ status: 'escalated' });
+      const escalatedHistory = await service.getHistory({ status: 'failed' });
       expect(escalatedHistory.total).toBeGreaterThanOrEqual(1);
     });
 
@@ -1052,18 +1162,17 @@ describe('SelfHealingService', () => {
         });
       }
 
-      const page1 = service.getHistory({ limit: 2, offset: 0 });
+      const page1 = await service.getHistory({ limit: 2, offset: 0 });
       expect(page1.data.length).toBe(2);
       expect(page1.total).toBeGreaterThanOrEqual(5);
 
-      const page2 = service.getHistory({ limit: 2, offset: 2 });
+      const page2 = await service.getHistory({ limit: 2, offset: 2 });
       expect(page2.data.length).toBe(2);
     });
   });
 
   describe('getEffectiveness', () => {
     it('should return effectiveness metrics', async () => {
-      // Create several incidents
       await service.handleAlert({
         alertId: 'alert-eff-1',
         metric: 'pod_crash',
@@ -1085,7 +1194,7 @@ describe('SelfHealingService', () => {
         triggeredAt: new Date(),
       });
 
-      const effectiveness = service.getEffectiveness();
+      const effectiveness = await service.getEffectiveness({});
 
       expect(effectiveness.totalIncidents).toBeGreaterThanOrEqual(2);
       expect(effectiveness.successRate).toBeGreaterThanOrEqual(0);
@@ -1095,9 +1204,10 @@ describe('SelfHealingService', () => {
       expect(effectiveness.byActionType).toBeDefined();
     });
 
-    it('should return zero metrics for empty history', () => {
-      const freshService = new SelfHealingService();
-      const effectiveness = freshService.getEffectiveness();
+    it('should return zero metrics for empty history', async () => {
+      const freshRepo = new MockSelfHealingRepository() as unknown as SelfHealingRepository;
+      const freshService = new SelfHealingService(freshRepo);
+      const effectiveness = await freshService.getEffectiveness({});
 
       expect(effectiveness.totalIncidents).toBe(0);
       expect(effectiveness.successRate).toBe(0);
@@ -1126,7 +1236,7 @@ describe('SelfHealingService', () => {
         triggeredAt: new Date(),
       });
 
-      const filtered = service.getEffectiveness({ appName: 'filter-app' });
+      const filtered = await service.getEffectiveness({ appName: 'filter-app' });
       expect(filtered.totalIncidents).toBe(1);
     });
   });
@@ -1168,7 +1278,6 @@ describe('SelfHealingService', () => {
 
   describe('getApprovalRequests', () => {
     it('should return approval requests', async () => {
-      // Create a production incident that requires approval
       await service.handleAlert({
         alertId: 'alert-approval-list',
         metric: 'pod_crash',
@@ -1180,7 +1289,7 @@ describe('SelfHealingService', () => {
         triggeredAt: new Date(),
       });
 
-      const pending = service.getApprovalRequests('pending');
+      const pending = await service.getApprovalRequests('pending');
       expect(pending.length).toBeGreaterThanOrEqual(1);
     });
   });
