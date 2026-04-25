@@ -2,6 +2,10 @@
  * Agent Orchestration API Routes (Fastify 版本)
  *
  * Agent Profile 和 Agent Run 相关的 API 路由
+ *
+ * Migrated to PostgreSQL Repository pattern:
+ * - AgentProfileService receives database pool for AgentProfileRepository
+ * - AgentRunService receives AgentRunRepository backed by PostgreSQL
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
@@ -10,9 +14,12 @@ import { AgentRunService } from './services/agent-run-service';
 import { AgentProfileController } from './api/controllers/AgentProfileController';
 import { AgentRunController } from './api/controllers/AgentRunController';
 import { EventBusService } from './services/event-bus-service';
+import { AgentRunRepository } from './repositories/AgentRunRepository';
+import { DatabasePool } from './services/database';
 
 export interface AgentRoutesOptions {
   eventBus?: EventBusService;
+  database?: DatabasePool;
 }
 
 /**
@@ -22,12 +29,22 @@ export default async function registerAgentRoutes(
   app: FastifyInstance,
   options: AgentRoutesOptions
 ): Promise<void> {
-  // 初始化服务
-  const agentProfileService = new AgentProfileService();
-  const agentRunService = new AgentRunService({
-    agentProfileService,
-    eventBus: options.eventBus,
-  });
+  // Initialize Profile Service with optional DB backing
+  const agentProfileService = new AgentProfileService(options.database);
+
+  let agentRunService: AgentRunService;
+
+  if (options.database) {
+    // PostgreSQL-backed AgentRunService
+    const runRepository = new AgentRunRepository(options.database);
+    agentRunService = new AgentRunService({
+      agentProfileService,
+      eventBus: options.eventBus,
+      runRepository,
+    });
+  } else {
+    throw new Error('Agent routes require a database connection');
+  }
 
   // 初始化控制器
   const agentProfileController = new AgentProfileController(agentProfileService);
