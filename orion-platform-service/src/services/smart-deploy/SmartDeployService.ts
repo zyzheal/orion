@@ -26,6 +26,24 @@ import { DeploymentWorkflow } from './DeploymentWorkflow';
 import { DeploymentHistoryService } from './DeploymentHistoryService';
 import { RollbackService } from './RollbackService';
 import { DeploymentVerifier } from './DeploymentVerifier';
+import { RollbackEntity } from '../../repositories/RollbackRepository';
+
+/**
+ * Convert RollbackEntity to RollbackInfo domain type
+ */
+function toRollbackInfo(entity: RollbackEntity): RollbackInfo {
+  return {
+    id: entity.id,
+    deploymentId: entity.deploymentId,
+    reason: entity.reason ?? 'unknown',
+    triggeredBy: entity.triggeredBy ?? 'system',
+    status: entity.status as RollbackInfo['status'],
+    targetVersion: entity.targetVersion ?? undefined,
+    startedAt: entity.startedAt,
+    completedAt: entity.completedAt ?? undefined,
+    error: entity.errorMessage ?? undefined,
+  };
+}
 
 /**
  * Risk assessment interface (from TASK-401 Risk Assessment)
@@ -180,14 +198,15 @@ export class SmartDeployService {
       });
     }
 
-    return { deployment: result.deployment, rollback: result.rollback };
+    return { deployment: result.deployment, rollback: toRollbackInfo(result.rollback) };
   }
 
   /**
    * Get rollback history for a deployment
    */
   async getRollbackHistory(deploymentId: string): Promise<RollbackInfo[]> {
-    return this.rollbackService.getRollbackHistory(deploymentId);
+    const entities = await this.rollbackService.getRollbackHistory(deploymentId);
+    return entities.map(toRollbackInfo);
   }
 
   /**

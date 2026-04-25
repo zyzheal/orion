@@ -66,9 +66,12 @@ export class RollbackService {
         reason,
         triggeredBy,
         startedAt,
+        completedAt: null,
         status: 'pending',
         previousVersion: deployment.version,
         targetVersion: targetVersion ?? null,
+        errorMessage: null,
+        createdAt: new Date(),
       });
 
       // Publish rollback started event
@@ -92,7 +95,7 @@ export class RollbackService {
       reason,
       triggeredBy,
       status: 'pending',
-      targetVersion,
+      targetVersion: targetVersion ?? null,
       startedAt,
       rollbackType: 'manual',
       previousVersion: deployment.version,
@@ -205,7 +208,8 @@ export class RollbackService {
    */
   async getAllRollbacks(): Promise<RollbackEntity[]> {
     if (this.rollbackRepository) {
-      return await this.rollbackRepository.findAll();
+      const result = await this.rollbackRepository.findAll();
+      return result.entities;
     }
     return [];
   }

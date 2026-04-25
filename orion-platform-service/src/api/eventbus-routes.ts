@@ -10,12 +10,12 @@
  */
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { DatabasePool } from '../services/database';
-import { EventBusService } from '../../services/event-bus-service';
+import { EventBusService } from '../services/event-bus-service';
 import {
   EventBusConfigRepository,
   EventSubscriptionRepository,
   EventBusEventRepository,
-} from '../../repositories/EventBusRepository';
+} from '../repositories/EventBusRepository';
 
 interface EventBusRoutesOptions {
   database?: DatabasePool;

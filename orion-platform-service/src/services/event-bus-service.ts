@@ -280,9 +280,9 @@ export class EventBusService extends EventEmitter {
             subject_pattern: eventType,
             handler_name: eventType,
             handler_type: 'nats',
-            durable_name: options?.durableName || null,
+            durable_name: options?.durableName,
             queue_group: queue,
-            filter_subject: options?.filterSubject || null,
+            filter_subject: options?.filterSubject,
             status: 'active',
             metadata: { streamName: options?.streamName },
           });
@@ -392,7 +392,7 @@ export class EventBusService extends EventEmitter {
   getConfig(): { servers: string[]; enabled: boolean } {
     return {
       servers: this.config.servers || [],
-      enabled: this.config.enabled,
+      enabled: this.config.enabled !== false,
     };
   }
 
