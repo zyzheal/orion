@@ -31,6 +31,7 @@ import {
   BookOutlined,
   DatabaseOutlined,
   EyeOutlined,
+  DeploymentUnitOutlined,
 } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
 import type { GetProp } from 'antd';
@@ -146,6 +147,11 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       key: '/artifacts',
       icon: <InboxOutlined />,
       label: '制品管理',
+    },
+    {
+      key: '/internal-libraries',
+      icon: <DeploymentUnitOutlined />,
+      label: '二方库',
     },
     {
       key: '/projects',

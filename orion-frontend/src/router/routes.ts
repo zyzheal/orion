@@ -434,6 +434,12 @@ export const routes: AppRoute[] = [
     element: React.lazy(() => import('@/pages/ProductLine')),
     protected: true,
   },
+  // Internal Library Management (M30)
+  {
+    path: '/internal-libraries',
+    element: React.lazy(() => import('@/pages/InternalLibrary')),
+    protected: true,
+  },
   // CMDB (M32)
   {
     path: '/cmdb',
