@@ -4,8 +4,8 @@
  * Prefix: /api/v1/vector-store
  */
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { VectorStore } from '../../services/ai/VectorStore';
-import { VectorStoreConfig } from '../../services/ai/types';
+import { VectorStore } from '../services/ai/VectorStore';
+import { VectorStoreConfig } from '../services/ai/types';
 
 export default async function vectorStoreRoutes(app: FastifyInstance): Promise<void> {
   const config: VectorStoreConfig = {

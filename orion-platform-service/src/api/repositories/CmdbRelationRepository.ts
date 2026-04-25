@@ -2,8 +2,8 @@
  * CMDB Relation Repository - 配置项关联关系数据访问层
  */
 
-import { DatabasePool } from '../database';
-import { CIRelation, CreateRelationInput } from './CmdbTypes';
+import { DatabasePool } from '../../services/database';
+import { CIRelation, CreateRelationInput } from '../../services/cmdb/CmdbTypes';
 
 export class CmdbRelationRepository {
   private database: DatabasePool;

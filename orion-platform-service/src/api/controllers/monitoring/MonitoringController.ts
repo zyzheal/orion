@@ -3,24 +3,24 @@
  *
  * Handles API requests for metrics, alerts, rules, channels,
  * escalation policies, and dashboard data.
+ *
+ * Uses database-backed MonitoringService for persistence where available,
+ * with in-memory sub-services for real-time metric collection and rule evaluation.
  */
 
 import { FastifyRequest, FastifyReply } from 'fastify';
 import {
   MonitoringService,
-  MetricCollector,
-  AlertRuleEngine,
-  AlertNotificationService,
-  MonitoringDashboard,
-} from '../../services/monitoring';
+  MonitoringServiceError,
+} from '../../../services/monitoring';
 import {
   AlertSeverity,
   AlertStatus,
   ChannelType,
   NotificationStatus,
   TimeWindow,
-} from '../../services/monitoring/types';
-import { WidgetConfig } from '../../services/monitoring/MonitoringDashboard';
+} from '../../../services/monitoring/types';
+import { WidgetConfig } from '../../../services/monitoring/MonitoringDashboard';
 
 export class MonitoringController {
   private monitoringService: MonitoringService;
@@ -31,6 +31,23 @@ export class MonitoringController {
     } else {
       this.monitoringService = new MonitoringService();
     }
+  }
+
+  // ==================== Error Handling ====================
+
+  private handleServiceError(error: unknown, reply: FastifyReply, defaultCode = 500) {
+    if (error instanceof MonitoringServiceError) {
+      const status = error.code === 'NO_DATABASE' ? 503
+        : error.code === 'CONFIG_NOT_FOUND' || error.code === 'ALERT_NOT_FOUND' || error.code === 'RULE_NOT_FOUND' || error.code === 'CHANNEL_NOT_FOUND' ? 404
+        : 400;
+      return reply.status(status).send({
+        error: error.name,
+        message: error.message,
+        code: error.code,
+      });
+    }
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    return reply.status(defaultCode).send({ error: 'INTERNAL_ERROR', message });
   }
 
   // ==================== Service Control ====================
@@ -104,12 +121,7 @@ export class MonitoringController {
         return;
       }
 
-      this.monitoringService.metricCollector.recordMetric(
-        name,
-        value,
-        tags,
-        unit ? undefined : undefined
-      );
+      this.monitoringService.metricCollector.recordMetric(name, value, tags);
 
       await reply.status(201).send({
         success: true,
@@ -223,7 +235,6 @@ export class MonitoringController {
     try {
       const body = request.body as any || {};
       const {
-        id,
         name,
         metric,
         condition,
@@ -263,32 +274,55 @@ export class MonitoringController {
         return;
       }
 
-      const rule = {
-        id: id || `rule-${Date.now()}`,
-        name,
-        metric,
-        condition,
-        threshold,
-        severity: severity || 'warning',
-        enabled: enabled !== false,
-        cooldownMs: cooldownMs ?? 300000, // 5 minutes default
-        tags,
-        rateOfChangePercent,
-        description,
-        evaluationWindowMs,
-      };
+      // Try database-backed method, fall back to in-memory
+      try {
+        const rule = await this.monitoringService.createRule({
+          tenant_id: (body as any).tenant_id || 'default',
+          name,
+          metric,
+          condition,
+          threshold,
+          severity: severity || 'warning',
+          enabled: enabled !== false,
+          cooldown_ms: cooldownMs ?? 300000,
+          tags,
+          rate_of_change_percent: rateOfChangePercent,
+          description,
+          evaluation_window_ms: evaluationWindowMs,
+        });
 
-      this.monitoringService.addRule(rule);
-
-      await reply.status(201).send({
-        success: true,
-        data: { rule },
-      });
+        await reply.status(201).send({
+          success: true,
+          data: { rule },
+        });
+      } catch (err) {
+        if (err instanceof MonitoringServiceError && err.code === 'NO_DATABASE') {
+          // Fall back to in-memory
+          const rule = {
+            id: `rule-${Date.now()}`,
+            name,
+            metric,
+            condition,
+            threshold,
+            severity: severity || 'warning',
+            enabled: enabled !== false,
+            cooldownMs: cooldownMs ?? 300000,
+            tags,
+            rateOfChangePercent,
+            description,
+            evaluationWindowMs,
+          };
+          this.monitoringService.addRule(rule);
+          await reply.status(201).send({
+            success: true,
+            data: { rule },
+          });
+        } else {
+          throw err;
+        }
+      }
     } catch (error: any) {
-      await reply.status(500).send({
-        error: 'RULE_ERROR',
-        message: error.message,
-      });
+      this.handleServiceError(error, reply);
     }
   }
 
@@ -297,11 +331,29 @@ export class MonitoringController {
    * GET /api/v1/monitoring/rules
    */
   async getRules(request: FastifyRequest, reply: FastifyReply) {
-    const rules = this.monitoringService.alertRuleEngine.getAllRules();
-    await reply.status(200).send({
-      success: true,
-      data: { rules },
-    });
+    try {
+      // Try database-backed method first
+      try {
+        const rules = await this.monitoringService.listRules();
+        await reply.status(200).send({
+          success: true,
+          data: { rules },
+        });
+      } catch (err) {
+        if (err instanceof MonitoringServiceError && err.code === 'NO_DATABASE') {
+          // Fall back to in-memory
+          const rules = this.monitoringService.alertRuleEngine.getAllRules();
+          await reply.status(200).send({
+            success: true,
+            data: { rules },
+          });
+        } else {
+          throw err;
+        }
+      }
+    } catch (error: any) {
+      this.handleServiceError(error, reply);
+    }
   }
 
   /**
@@ -309,21 +361,35 @@ export class MonitoringController {
    * GET /api/v1/monitoring/rules/:id
    */
   async getRule(request: FastifyRequest, reply: FastifyReply) {
-    const params = request.params as any;
-    const rule = this.monitoringService.alertRuleEngine.getRule(params.id);
-
-    if (!rule) {
-      await reply.status(404).send({
-        error: 'NOT_FOUND',
-        message: `Rule ${params.id} not found`,
-      });
-      return;
+    try {
+      const params = request.params as any;
+      try {
+        const rule = await this.monitoringService.getRule(params.id);
+        await reply.status(200).send({
+          success: true,
+          data: { rule },
+        });
+      } catch (err) {
+        if (err instanceof MonitoringServiceError && err.code === 'NO_DATABASE') {
+          const rule = this.monitoringService.alertRuleEngine.getRule(params.id);
+          if (!rule) {
+            await reply.status(404).send({
+              error: 'NOT_FOUND',
+              message: `Rule ${params.id} not found`,
+            });
+            return;
+          }
+          await reply.status(200).send({
+            success: true,
+            data: { rule },
+          });
+        } else {
+          throw err;
+        }
+      }
+    } catch (error: any) {
+      this.handleServiceError(error, reply);
     }
-
-    await reply.status(200).send({
-      success: true,
-      data: { rule },
-    });
   }
 
   /**
@@ -331,23 +397,36 @@ export class MonitoringController {
    * PUT /api/v1/monitoring/rules/:id
    */
   async updateRule(request: FastifyRequest, reply: FastifyReply) {
-    const params = request.params as any;
-    const body = request.body as any || {};
-
-    const rule = this.monitoringService.alertRuleEngine.updateRule(params.id, body);
-
-    if (!rule) {
-      await reply.status(404).send({
-        error: 'NOT_FOUND',
-        message: `Rule ${params.id} not found`,
-      });
-      return;
+    try {
+      const params = request.params as any;
+      const body = request.body as any || {};
+      try {
+        const rule = await this.monitoringService.updateRule(params.id, body);
+        await reply.status(200).send({
+          success: true,
+          data: { rule },
+        });
+      } catch (err) {
+        if (err instanceof MonitoringServiceError && err.code === 'NO_DATABASE') {
+          const rule = this.monitoringService.alertRuleEngine.updateRule(params.id, body);
+          if (!rule) {
+            await reply.status(404).send({
+              error: 'NOT_FOUND',
+              message: `Rule ${params.id} not found`,
+            });
+            return;
+          }
+          await reply.status(200).send({
+            success: true,
+            data: { rule },
+          });
+        } else {
+          throw err;
+        }
+      }
+    } catch (error: any) {
+      this.handleServiceError(error, reply);
     }
-
-    await reply.status(200).send({
-      success: true,
-      data: { rule },
-    });
   }
 
   /**
@@ -355,21 +434,35 @@ export class MonitoringController {
    * DELETE /api/v1/monitoring/rules/:id
    */
   async deleteRule(request: FastifyRequest, reply: FastifyReply) {
-    const params = request.params as any;
-    const deleted = this.monitoringService.alertRuleEngine.removeRule(params.id);
-
-    if (!deleted) {
-      await reply.status(404).send({
-        error: 'NOT_FOUND',
-        message: `Rule ${params.id} not found`,
-      });
-      return;
+    try {
+      const params = request.params as any;
+      try {
+        await this.monitoringService.deleteRule(params.id);
+        await reply.status(200).send({
+          success: true,
+          message: 'Rule deleted',
+        });
+      } catch (err) {
+        if (err instanceof MonitoringServiceError && err.code === 'NO_DATABASE') {
+          const deleted = this.monitoringService.alertRuleEngine.removeRule(params.id);
+          if (!deleted) {
+            await reply.status(404).send({
+              error: 'NOT_FOUND',
+              message: `Rule ${params.id} not found`,
+            });
+            return;
+          }
+          await reply.status(200).send({
+            success: true,
+            message: 'Rule deleted',
+          });
+        } else {
+          throw err;
+        }
+      }
+    } catch (error: any) {
+      this.handleServiceError(error, reply);
     }
-
-    await reply.status(200).send({
-      success: true,
-      message: 'Rule deleted',
-    });
   }
 
   /**
@@ -377,24 +470,71 @@ export class MonitoringController {
    * PATCH /api/v1/monitoring/rules/:id/toggle
    */
   async toggleRule(request: FastifyRequest, reply: FastifyReply) {
-    const params = request.params as any;
-    const body = request.body as any || {};
-    const enabled = body.enabled !== false;
-
-    const toggled = this.monitoringService.alertRuleEngine.toggleRule(params.id, enabled);
-
-    if (!toggled) {
-      await reply.status(404).send({
-        error: 'NOT_FOUND',
-        message: `Rule ${params.id} not found`,
-      });
-      return;
+    try {
+      const params = request.params as any;
+      const body = request.body as any || {};
+      const enabled = body.enabled !== false;
+      try {
+        const rule = await this.monitoringService.toggleRule(params.id, enabled);
+        await reply.status(200).send({
+          success: true,
+          data: { rule },
+        });
+      } catch (err) {
+        if (err instanceof MonitoringServiceError && err.code === 'NO_DATABASE') {
+          const toggled = this.monitoringService.alertRuleEngine.toggleRule(params.id, enabled);
+          if (!toggled) {
+            await reply.status(404).send({
+              error: 'NOT_FOUND',
+              message: `Rule ${params.id} not found`,
+            });
+            return;
+          }
+          await reply.status(200).send({
+            success: true,
+            data: { enabled },
+          });
+        } else {
+          throw err;
+        }
+      }
+    } catch (error: any) {
+      this.handleServiceError(error, reply);
     }
+  }
 
-    await reply.status(200).send({
-      success: true,
-      data: { enabled },
-    });
+  /**
+   * Suppress a rule
+   * POST /api/v1/monitoring/rules/:id/suppress
+   */
+  async suppressRule(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const params = request.params as any;
+      await this.monitoringService.suppressRule(params.id);
+      await reply.status(200).send({
+        success: true,
+        message: `Rule ${params.id} suppressed`,
+      });
+    } catch (error: any) {
+      this.handleServiceError(error, reply);
+    }
+  }
+
+  /**
+   * Unsuppress a rule
+   * POST /api/v1/monitoring/rules/:id/unsuppress
+   */
+  async unsuppressRule(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const params = request.params as any;
+      await this.monitoringService.unsuppressRule(params.id);
+      await reply.status(200).send({
+        success: true,
+        message: `Rule ${params.id} unsuppressed`,
+      });
+    } catch (error: any) {
+      this.handleServiceError(error, reply);
+    }
   }
 
   /**
@@ -402,14 +542,18 @@ export class MonitoringController {
    * POST /api/v1/monitoring/rules/evaluate
    */
   async evaluateRules(request: FastifyRequest, reply: FastifyReply) {
-    const newAlerts = this.monitoringService.alertRuleEngine.evaluateRules();
-    await reply.status(200).send({
-      success: true,
-      data: {
-        newAlerts,
-        count: newAlerts.length,
-      },
-    });
+    try {
+      const newAlerts = await this.monitoringService.evaluateRules();
+      await reply.status(200).send({
+        success: true,
+        data: {
+          newAlerts,
+          count: newAlerts.length,
+        },
+      });
+    } catch (error: any) {
+      this.handleServiceError(error, reply);
+    }
   }
 
   // ==================== Alerts ====================
@@ -419,17 +563,35 @@ export class MonitoringController {
    * GET /api/v1/monitoring/alerts
    */
   async getAlerts(request: FastifyRequest, reply: FastifyReply) {
-    const query = request.query as any;
-    const alerts = this.monitoringService.getAlerts({
-      status: query.status as AlertStatus,
-      severity: query.severity as AlertSeverity,
-      ruleId: query.ruleId,
-    });
-
-    await reply.status(200).send({
-      success: true,
-      data: { alerts },
-    });
+    try {
+      const query = request.query as any;
+      try {
+        const result = await this.monitoringService.listAlerts({
+          status: query.status,
+          severity: query.severity,
+        });
+        await reply.status(200).send({
+          success: true,
+          data: { alerts: result.data, total: result.total, page: result.page, limit: result.limit },
+        });
+      } catch (err) {
+        if (err instanceof MonitoringServiceError && err.code === 'NO_DATABASE') {
+          const alerts = this.monitoringService.getAlerts({
+            status: query.status as AlertStatus,
+            severity: query.severity as AlertSeverity,
+            ruleId: query.ruleId,
+          });
+          await reply.status(200).send({
+            success: true,
+            data: { alerts },
+          });
+        } else {
+          throw err;
+        }
+      }
+    } catch (error: any) {
+      this.handleServiceError(error, reply);
+    }
   }
 
   /**
@@ -449,21 +611,35 @@ export class MonitoringController {
    * GET /api/v1/monitoring/alerts/:id
    */
   async getAlert(request: FastifyRequest, reply: FastifyReply) {
-    const params = request.params as any;
-    const alert = this.monitoringService.alertRuleEngine.getAlert(params.id);
-
-    if (!alert) {
-      await reply.status(404).send({
-        error: 'NOT_FOUND',
-        message: `Alert ${params.id} not found`,
-      });
-      return;
+    try {
+      const params = request.params as any;
+      try {
+        const alert = await this.monitoringService.getAlert(params.id);
+        await reply.status(200).send({
+          success: true,
+          data: { alert },
+        });
+      } catch (err) {
+        if (err instanceof MonitoringServiceError && err.code === 'NO_DATABASE') {
+          const alert = this.monitoringService.alertRuleEngine.getAlert(params.id);
+          if (!alert) {
+            await reply.status(404).send({
+              error: 'NOT_FOUND',
+              message: `Alert ${params.id} not found`,
+            });
+            return;
+          }
+          await reply.status(200).send({
+            success: true,
+            data: { alert },
+          });
+        } else {
+          throw err;
+        }
+      }
+    } catch (error: any) {
+      this.handleServiceError(error, reply);
     }
-
-    await reply.status(200).send({
-      success: true,
-      data: { alert },
-    });
   }
 
   /**
@@ -471,27 +647,37 @@ export class MonitoringController {
    * POST /api/v1/monitoring/alerts/:id/acknowledge
    */
   async acknowledgeAlert(request: FastifyRequest, reply: FastifyReply) {
-    const params = request.params as any;
-    const body = request.body as any || {};
-    const { acknowledgedBy } = body;
-
-    const alert = this.monitoringService.acknowledgeAlert(
-      params.id,
-      acknowledgedBy || 'api'
-    );
-
-    if (!alert) {
-      await reply.status(404).send({
-        error: 'NOT_FOUND',
-        message: `Alert ${params.id} not found`,
-      });
-      return;
+    try {
+      const params = request.params as any;
+      const body = request.body as any || {};
+      const { acknowledgedBy } = body;
+      try {
+        const alert = await this.monitoringService.acknowledgeAlert(params.id, acknowledgedBy || 'api');
+        await reply.status(200).send({
+          success: true,
+          data: { alert },
+        });
+      } catch (err) {
+        if (err instanceof MonitoringServiceError && err.code === 'NO_DATABASE') {
+          const alert = this.monitoringService.alertRuleEngine.acknowledgeAlert(params.id, acknowledgedBy || 'api');
+          if (!alert) {
+            await reply.status(404).send({
+              error: 'NOT_FOUND',
+              message: `Alert ${params.id} not found`,
+            });
+            return;
+          }
+          await reply.status(200).send({
+            success: true,
+            data: { alert },
+          });
+        } else {
+          throw err;
+        }
+      }
+    } catch (error: any) {
+      this.handleServiceError(error, reply);
     }
-
-    await reply.status(200).send({
-      success: true,
-      data: { alert },
-    });
   }
 
   /**
@@ -499,191 +685,35 @@ export class MonitoringController {
    * POST /api/v1/monitoring/alerts/:id/resolve
    */
   async resolveAlert(request: FastifyRequest, reply: FastifyReply) {
-    const params = request.params as any;
-    const alert = this.monitoringService.resolveAlert(params.id);
-
-    if (!alert) {
-      await reply.status(404).send({
-        error: 'NOT_FOUND',
-        message: `Alert ${params.id} not found`,
-      });
-      return;
-    }
-
-    await reply.status(200).send({
-      success: true,
-      data: { alert },
-    });
-  }
-
-  /**
-   * Suppress a rule
-   * POST /api/v1/monitoring/rules/:id/suppress
-   */
-  async suppressRule(request: FastifyRequest, reply: FastifyReply) {
-    const params = request.params as any;
-    this.monitoringService.alertRuleEngine.suppressRule(params.id);
-
-    await reply.status(200).send({
-      success: true,
-      message: `Rule ${params.id} suppressed`,
-    });
-  }
-
-  /**
-   * Unsuppress a rule
-   * POST /api/v1/monitoring/rules/:id/unsuppress
-   */
-  async unsuppressRule(request: FastifyRequest, reply: FastifyReply) {
-    const params = request.params as any;
-    this.monitoringService.alertRuleEngine.unsuppressRule(params.id);
-
-    await reply.status(200).send({
-      success: true,
-      message: `Rule ${params.id} unsuppressed`,
-    });
-  }
-
-  // ==================== Notification Channels ====================
-
-  /**
-   * Create a notification channel
-   * POST /api/v1/monitoring/channels
-   */
-  async createChannel(request: FastifyRequest, reply: FastifyReply) {
     try {
-      const body = request.body as any || {};
-      const { id, name, type, config, enabled, severityFilter } = body;
-
-      if (!name || !type || !config) {
-        await reply.status(400).send({
-          error: 'VALIDATION_ERROR',
-          message: 'Missing required fields: name, type, config',
+      const params = request.params as any;
+      try {
+        const alert = await this.monitoringService.resolveAlert(params.id);
+        await reply.status(200).send({
+          success: true,
+          data: { alert },
         });
-        return;
+      } catch (err) {
+        if (err instanceof MonitoringServiceError && err.code === 'NO_DATABASE') {
+          const alert = this.monitoringService.alertRuleEngine.resolveAlert(params.id);
+          if (!alert) {
+            await reply.status(404).send({
+              error: 'NOT_FOUND',
+              message: `Alert ${params.id} not found`,
+            });
+            return;
+          }
+          await reply.status(200).send({
+            success: true,
+            data: { alert },
+          });
+        } else {
+          throw err;
+        }
       }
-
-      const validTypes: ChannelType[] = ['email', 'webhook', 'slack'];
-      if (!validTypes.includes(type)) {
-        await reply.status(400).send({
-          error: 'VALIDATION_ERROR',
-          message: `Invalid type. Must be one of: ${validTypes.join(', ')}`,
-        });
-        return;
-      }
-
-      const channel = {
-        id: id || `channel-${Date.now()}`,
-        name,
-        type,
-        config,
-        enabled: enabled !== false,
-        severityFilter,
-      };
-
-      this.monitoringService.notificationService.addChannel(channel);
-
-      await reply.status(201).send({
-        success: true,
-        data: { channel },
-      });
     } catch (error: any) {
-      await reply.status(500).send({
-        error: 'CHANNEL_ERROR',
-        message: error.message,
-      });
+      this.handleServiceError(error, reply);
     }
-  }
-
-  /**
-   * Get all channels
-   * GET /api/v1/monitoring/channels
-   */
-  async getChannels(request: FastifyRequest, reply: FastifyReply) {
-    const channels = this.monitoringService.notificationService.getAllChannels();
-    await reply.status(200).send({
-      success: true,
-      data: { channels },
-    });
-  }
-
-  /**
-   * Toggle a channel
-   * PATCH /api/v1/monitoring/channels/:id/toggle
-   */
-  async toggleChannel(request: FastifyRequest, reply: FastifyReply) {
-    const params = request.params as any;
-    const body = request.body as any || {};
-    const enabled = body.enabled !== false;
-
-    const toggled = this.monitoringService.notificationService.toggleChannel(params.id, enabled);
-
-    if (!toggled) {
-      await reply.status(404).send({
-        error: 'NOT_FOUND',
-        message: `Channel ${params.id} not found`,
-      });
-      return;
-    }
-
-    await reply.status(200).send({
-      success: true,
-      data: { enabled },
-    });
-  }
-
-  // ==================== Escalation Policies ====================
-
-  /**
-   * Create an escalation policy
-   * POST /api/v1/monitoring/escalation
-   */
-  async createEscalationPolicy(request: FastifyRequest, reply: FastifyReply) {
-    try {
-      const body = request.body as any || {};
-      const { id, name, steps, repeatCount, enabled, description } = body;
-
-      if (!name || !steps || !Array.isArray(steps)) {
-        await reply.status(400).send({
-          error: 'VALIDATION_ERROR',
-          message: 'Missing required fields: name, steps (array)',
-        });
-        return;
-      }
-
-      const policy = {
-        id: id || `policy-${Date.now()}`,
-        name,
-        steps,
-        repeatCount: repeatCount ?? 0,
-        enabled: enabled !== false,
-        description,
-      };
-
-      this.monitoringService.notificationService.addEscalationPolicy(policy);
-
-      await reply.status(201).send({
-        success: true,
-        data: { policy },
-      });
-    } catch (error: any) {
-      await reply.status(500).send({
-        error: 'ESCALATION_ERROR',
-        message: error.message,
-      });
-    }
-  }
-
-  /**
-   * Get all escalation policies
-   * GET /api/v1/monitoring/escalation
-   */
-  async getEscalationPolicies(request: FastifyRequest, reply: FastifyReply) {
-    const policies = this.monitoringService.notificationService.getAllEscalationPolicies();
-    await reply.status(200).send({
-      success: true,
-      data: { policies },
-    });
   }
 
   /**
@@ -720,6 +750,225 @@ export class MonitoringController {
     });
   }
 
+  // ==================== Notification Channels ====================
+
+  /**
+   * Create a notification channel
+   * POST /api/v1/monitoring/channels
+   */
+  async createChannel(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const body = request.body as any || {};
+      const { id, name, type, config, enabled, severityFilter } = body;
+
+      if (!name || !type || !config) {
+        await reply.status(400).send({
+          error: 'VALIDATION_ERROR',
+          message: 'Missing required fields: name, type, config',
+        });
+        return;
+      }
+
+      const validTypes: ChannelType[] = ['email', 'webhook', 'slack'];
+      if (!validTypes.includes(type)) {
+        await reply.status(400).send({
+          error: 'VALIDATION_ERROR',
+          message: `Invalid type. Must be one of: ${validTypes.join(', ')}`,
+        });
+        return;
+      }
+
+      try {
+        const channel = await this.monitoringService.createChannel({
+          tenant_id: body.tenant_id || 'default',
+          name,
+          type,
+          config,
+          enabled: enabled !== false,
+          severity_filter: severityFilter,
+        });
+
+        await reply.status(201).send({
+          success: true,
+          data: { channel },
+        });
+      } catch (err) {
+        if (err instanceof MonitoringServiceError && err.code === 'NO_DATABASE') {
+          // Fall back to in-memory
+          const channel = {
+            id: id || `channel-${Date.now()}`,
+            name,
+            type,
+            config,
+            enabled: enabled !== false,
+            severityFilter,
+          };
+          this.monitoringService.notificationService.addChannel(channel);
+          await reply.status(201).send({
+            success: true,
+            data: { channel },
+          });
+        } else {
+          throw err;
+        }
+      }
+    } catch (error: any) {
+      this.handleServiceError(error, reply);
+    }
+  }
+
+  /**
+   * Get all channels
+   * GET /api/v1/monitoring/channels
+   */
+  async getChannels(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      try {
+        const channels = await this.monitoringService.listChannels();
+        await reply.status(200).send({
+          success: true,
+          data: { channels },
+        });
+      } catch (err) {
+        if (err instanceof MonitoringServiceError && err.code === 'NO_DATABASE') {
+          const channels = this.monitoringService.notificationService.getAllChannels();
+          await reply.status(200).send({
+            success: true,
+            data: { channels },
+          });
+        } else {
+          throw err;
+        }
+      }
+    } catch (error: any) {
+      this.handleServiceError(error, reply);
+    }
+  }
+
+  /**
+   * Toggle a channel
+   * PATCH /api/v1/monitoring/channels/:id/toggle
+   */
+  async toggleChannel(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const params = request.params as any;
+      const body = request.body as any || {};
+      const enabled = body.enabled !== false;
+
+      try {
+        const channel = await this.monitoringService.toggleChannel(params.id, enabled);
+        await reply.status(200).send({
+          success: true,
+          data: { channel },
+        });
+      } catch (err) {
+        if (err instanceof MonitoringServiceError && err.code === 'NO_DATABASE') {
+          const toggled = this.monitoringService.notificationService.toggleChannel(params.id, enabled);
+          if (!toggled) {
+            await reply.status(404).send({
+              error: 'NOT_FOUND',
+              message: `Channel ${params.id} not found`,
+            });
+            return;
+          }
+          await reply.status(200).send({
+            success: true,
+            data: { enabled },
+          });
+        } else {
+          throw err;
+        }
+      }
+    } catch (error: any) {
+      this.handleServiceError(error, reply);
+    }
+  }
+
+  // ==================== Escalation Policies ====================
+
+  /**
+   * Create an escalation policy
+   * POST /api/v1/monitoring/escalation
+   */
+  async createEscalationPolicy(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const body = request.body as any || {};
+      const { id, name, steps, repeatCount, enabled, description } = body;
+
+      if (!name || !steps || !Array.isArray(steps)) {
+        await reply.status(400).send({
+          error: 'VALIDATION_ERROR',
+          message: 'Missing required fields: name, steps (array)',
+        });
+        return;
+      }
+
+      try {
+        const policy = await this.monitoringService.createPolicy({
+          tenant_id: body.tenant_id || 'default',
+          name,
+          steps,
+          repeat_count: repeatCount ?? 0,
+          enabled: enabled !== false,
+          description,
+        });
+
+        await reply.status(201).send({
+          success: true,
+          data: { policy },
+        });
+      } catch (err) {
+        if (err instanceof MonitoringServiceError && err.code === 'NO_DATABASE') {
+          const policy = {
+            id: id || `policy-${Date.now()}`,
+            name,
+            steps,
+            repeatCount: repeatCount ?? 0,
+            enabled: enabled !== false,
+            description,
+          };
+          this.monitoringService.notificationService.addEscalationPolicy(policy);
+          await reply.status(201).send({
+            success: true,
+            data: { policy },
+          });
+        } else {
+          throw err;
+        }
+      }
+    } catch (error: any) {
+      this.handleServiceError(error, reply);
+    }
+  }
+
+  /**
+   * Get all escalation policies
+   * GET /api/v1/monitoring/escalation
+   */
+  async getEscalationPolicies(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      try {
+        const policies = await this.monitoringService.listPolicies();
+        await reply.status(200).send({
+          success: true,
+          data: { policies },
+        });
+      } catch (err) {
+        if (err instanceof MonitoringServiceError && err.code === 'NO_DATABASE') {
+          const policies = this.monitoringService.notificationService.getAllEscalationPolicies();
+          await reply.status(200).send({
+            success: true,
+            data: { policies },
+          });
+        } else {
+          throw err;
+        }
+      }
+    } catch (error: any) {
+      this.handleServiceError(error, reply);
+    }
+  }
+
   // ==================== Notification History ====================
 
   /**
@@ -727,18 +976,38 @@ export class MonitoringController {
    * GET /api/v1/monitoring/notifications
    */
   async getNotificationHistory(request: FastifyRequest, reply: FastifyReply) {
-    const query = request.query as any;
-    const history = this.monitoringService.notificationService.getNotificationHistory({
-      alertId: query.alertId,
-      channelId: query.channelId,
-      status: query.status as NotificationStatus,
-      limit: query.limit ? parseInt(query.limit) : undefined,
-    });
-
-    await reply.status(200).send({
-      success: true,
-      data: { history },
-    });
+    try {
+      const query = request.query as any;
+      try {
+        const history = await this.monitoringService.getNotificationHistory({
+          alertId: query.alertId,
+          channelId: query.channelId,
+          status: query.status as NotificationStatus,
+          limit: query.limit ? parseInt(query.limit) : undefined,
+        });
+        await reply.status(200).send({
+          success: true,
+          data: { history },
+        });
+      } catch (err) {
+        if (err instanceof MonitoringServiceError && err.code === 'NO_DATABASE') {
+          const history = this.monitoringService.notificationService.getNotificationHistory({
+            alertId: query.alertId,
+            channelId: query.channelId,
+            status: query.status as NotificationStatus,
+            limit: query.limit ? parseInt(query.limit) : undefined,
+          });
+          await reply.status(200).send({
+            success: true,
+            data: { history },
+          });
+        } else {
+          throw err;
+        }
+      }
+    } catch (error: any) {
+      this.handleServiceError(error, reply);
+    }
   }
 
   // ==================== Dashboard ====================
@@ -795,10 +1064,7 @@ export class MonitoringController {
         data: { widget: config },
       });
     } catch (error: any) {
-      await reply.status(500).send({
-        error: 'WIDGET_ERROR',
-        message: error.message,
-      });
+      this.handleServiceError(error, reply);
     }
   }
 

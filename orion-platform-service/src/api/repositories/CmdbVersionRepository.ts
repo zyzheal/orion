@@ -2,8 +2,8 @@
  * CMDB Version Repository - 配置项版本历史数据访问层
  */
 
-import { DatabasePool } from '../database';
-import { CIVersion } from './CmdbTypes';
+import { DatabasePool } from '../../services/database';
+import { CIVersion } from '../../services/cmdb/CmdbTypes';
 
 export class CmdbVersionRepository {
   private database: DatabasePool;

@@ -5,8 +5,8 @@
 
 import pino from 'pino';
 import { GitLabAdapter } from './GitLabAdapter';
-import { GitLabClient } from '../clients/GitLabClient';
-import { GitHubClient } from '../clients/GitHubClient';
+import { GitLabClient } from '../../clients/GitLabClient';
+import { GitHubClient } from '../../clients/GitHubClient';
 import { CommitStatus, GitProvider } from './types';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });

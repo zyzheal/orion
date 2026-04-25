@@ -17,12 +17,7 @@ export class PolicyController {
   async listPolicies(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const query = request.query as any;
-      const policies = await this.policyService.list({
-        category: query.category,
-        severity: query.severity,
-        enabled: query.enabled !== undefined ? query.enabled === 'true' : undefined,
-        gateId: query.gateId,
-      });
+      const policies = await this.policyService.listPolicies(query.tenantId);
       await reply.send({ success: true, data: policies, total: policies.length });
     } catch (err) {
       await reply.status(500).send({
@@ -35,31 +30,33 @@ export class PolicyController {
   async getPolicy(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const params = request.params as any;
-      const policy = await this.policyService.getById(params.id);
-      if (!policy) {
-        await reply.status(404).send({ success: false, error: 'Policy not found' });
-        return;
-      }
+      const policy = await this.policyService.getPolicy(params.id);
       await reply.send({ success: true, data: policy });
     } catch (err) {
-      await reply.status(500).send({
-        success: false,
-        error: err instanceof Error ? err.message : 'Internal server error',
-      });
+      if (err instanceof Error && err.message.startsWith('Policy not found')) {
+        await reply.status(404).send({ success: false, error: err.message });
+      } else {
+        await reply.status(500).send({
+          success: false,
+          error: err instanceof Error ? err.message : 'Internal server error',
+        });
+      }
     }
   }
 
   async createPolicy(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const body = request.body as any;
-      if (!body.name || !body.category || !body.regoPath) {
+      if (!body.tenantId || !body.name || !body.resource || !body.action || !body.regoCode) {
         await reply.status(400).send({
           success: false,
-          error: 'name, category, and regoPath are required',
+          error: 'tenantId, name, resource, action, and regoCode are required',
         });
         return;
       }
-      const policy = await this.policyService.create(body);
+      const policy = await this.policyService.createPolicy(
+        body.tenantId, body.name, body.resource, body.action, body.regoCode, body.effect
+      );
       await reply.status(201).send({ success: true, data: policy });
     } catch (err) {
       await reply.status(400).send({
@@ -73,11 +70,11 @@ export class PolicyController {
     try {
       const params = request.params as any;
       const body = request.body as any;
-      const policy = await this.policyService.update(params.id, body);
-      if (!policy) {
-        await reply.status(404).send({ success: false, error: 'Policy not found' });
-        return;
-      }
+      const policy = await this.policyService.updatePolicy(params.id, {
+        name: body.name,
+        rego_code: body.regoCode,
+        enabled: body.enabled,
+      });
       await reply.send({ success: true, data: policy });
     } catch (err) {
       await reply.status(400).send({
@@ -90,7 +87,7 @@ export class PolicyController {
   async deletePolicy(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const params = request.params as any;
-      const deleted = await this.policyService.delete(params.id);
+      const deleted = await this.policyService.deletePolicy(params.id);
       if (!deleted) {
         await reply.status(404).send({ success: false, error: 'Policy not found' });
         return;
@@ -104,66 +101,32 @@ export class PolicyController {
     }
   }
 
-  async togglePolicy(request: FastifyRequest, reply: FastifyReply): Promise<void> {
-    try {
-      const params = request.params as any;
-      const policy = await this.policyService.toggle(params.id);
-      if (!policy) {
-        await reply.status(404).send({ success: false, error: 'Policy not found' });
-        return;
-      }
-      await reply.send({ success: true, data: policy });
-    } catch (err) {
-      await reply.status(500).send({
-        success: false,
-        error: err instanceof Error ? err.message : 'Failed to toggle policy',
-      });
-    }
-  }
-
-  // ==================== Bundle ====================
-
-  async listBundles(request: FastifyRequest, reply: FastifyReply): Promise<void> {
-    try {
-      const bundles = await this.policyService.listBundles();
-      await reply.send({ success: true, data: bundles, total: bundles.length });
-    } catch (err) {
-      await reply.status(500).send({
-        success: false,
-        error: err instanceof Error ? err.message : 'Internal server error',
-      });
-    }
-  }
-
-  async getBundle(request: FastifyRequest, reply: FastifyReply): Promise<void> {
-    try {
-      const params = request.params as any;
-      const bundle = await this.policyService.getBundleById(params.id);
-      if (!bundle) {
-        await reply.status(404).send({ success: false, error: 'Bundle not found' });
-        return;
-      }
-      await reply.send({ success: true, data: bundle });
-    } catch (err) {
-      await reply.status(500).send({
-        success: false,
-        error: err instanceof Error ? err.message : 'Internal server error',
-      });
-    }
-  }
-
-  async syncBundle(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+  async evaluatePolicy(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const body = request.body as any;
-      const bundle = await this.policyService.syncBundle(
-        body.gitRef || 'main',
-        body.bundleName || 'default'
+      const result = await this.policyService.evaluate(
+        body.tenantId, body.resourceType, body.resourceId, body.action, body.context || {}
       );
-      await reply.status(201).send({ success: true, data: bundle });
+      await reply.send({ success: true, data: result });
     } catch (err) {
       await reply.status(400).send({
         success: false,
-        error: err instanceof Error ? err.message : 'Failed to sync bundle',
+        error: err instanceof Error ? err.message : 'Failed to evaluate policy',
+      });
+    }
+  }
+
+  async getEvaluationHistory(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    try {
+      const query = request.query as any;
+      const evaluations = await this.policyService.getEvaluationHistory(
+        query.tenantId, query.limit ? parseInt(query.limit) : undefined
+      );
+      await reply.send({ success: true, data: evaluations, total: evaluations.length });
+    } catch (err) {
+      await reply.status(500).send({
+        success: false,
+        error: err instanceof Error ? err.message : 'Internal server error',
       });
     }
   }

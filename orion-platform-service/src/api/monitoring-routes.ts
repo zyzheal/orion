@@ -4,13 +4,44 @@
  * Provides endpoints for metrics collection, alert management,
  * notification channels, escalation policies, and dashboard data.
  * Registered under /api/v1/monitoring prefix.
+ *
+ * Supports both database-backed (PostgreSQL) and in-memory modes.
+ * When database pool is provided, uses MonitoringRepository for persistence.
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { MonitoringController } from '../controllers/monitoring/MonitoringController';
+import { MonitoringController } from './controllers/monitoring/MonitoringController';
+import { MonitoringService } from '../services/monitoring';
+import { MonitoringRepository } from '../services/monitoring/MonitoringRepository';
+import { DatabasePool } from '../services/database';
 
-export default async function monitoringRoutes(app: FastifyInstance): Promise<void> {
-  const controller = new MonitoringController();
+interface MonitoringRoutesOptions {
+  database?: DatabasePool;
+  monitoringService?: MonitoringService;
+}
+
+export default async function monitoringRoutes(
+  app: FastifyInstance,
+  options: MonitoringRoutesOptions = {}
+): Promise<void> {
+  // Initialize service with database repository if available
+  let service: MonitoringService;
+  if (options.monitoringService) {
+    service = options.monitoringService;
+  } else if (options.database) {
+    const repository = new MonitoringRepository(options.database);
+    service = new MonitoringService(repository);
+  } else {
+    service = new MonitoringService();
+  }
+
+  const controller = new MonitoringController(service);
+
+  // Error handler helper
+  function handleError(error: unknown, reply: FastifyReply, defaultCode = 500) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    return reply.status(defaultCode).send({ error: 'INTERNAL_ERROR', message });
+  }
 
   // ==================== Service Control ====================
 

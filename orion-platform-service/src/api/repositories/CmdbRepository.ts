@@ -2,8 +2,8 @@
  * CMDB Repository - 配置项数据访问层
  */
 
-import { DatabasePool, QueryResult } from '../database';
-import { CI, CreateCIInput, UpdateCIInput, CIFilters, CIListResponse, CiStatus, CiType } from './CmdbTypes';
+import { DatabasePool, QueryResult } from '../../services/database';
+import { CI, CreateCIInput, UpdateCIInput, CIFilters, CIListResponse, CiStatus, CiType } from '../../services/cmdb/CmdbTypes';
 
 export class CmdbRepository {
   private database: DatabasePool;

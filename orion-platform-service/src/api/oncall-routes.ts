@@ -3,7 +3,7 @@
  * Prefix: /api/v1/oncall
  */
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { OnCallService } from '../../services/scheduler/OnCallService';
+import { OnCallService } from '../services/scheduler/OnCallService';
 
 export default async function oncallRoutes(app: FastifyInstance): Promise<void> {
   const oncallService = new OnCallService();

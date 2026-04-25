@@ -3,13 +3,44 @@
  *
  * 提供成本追踪、ROI 分析、预算管理、成本优化等端点
  * 注册在 /api/v1/finops 前缀下
+ *
+ * Uses PostgreSQL Repository pattern via FinOpsService
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { FinOpsV2Controller } from '../controllers/finops/FinOpsV2Controller';
+import { DatabasePool } from '../services/database';
+import { FinOpsRepository } from '../services/finops/FinOpsRepository';
+import { FinOpsService } from '../services/finops/FinOpsService';
+import { FinOpsV2Controller } from './controllers/finops/FinOpsV2Controller';
 
-export default async function finopsV2Routes(app: FastifyInstance): Promise<void> {
-  const controller = new FinOpsV2Controller();
+export default async function finopsV2Routes(
+  app: FastifyInstance,
+  options?: { database?: DatabasePool }
+): Promise<void> {
+  // Create repository with database pool (falls back to undefined for dev/testing)
+  const repository = options?.database
+    ? new FinOpsRepository(options.database)
+    : undefined;
+
+  // If no database, create a minimal in-memory fallback repository is not available
+  // In production, database should always be provided
+  const service = repository
+    ? new FinOpsService(repository)
+    : undefined;
+
+  if (!service) {
+    // Fallback: register routes that return 503 Service Unavailable
+    app.get('/health', async (request: FastifyRequest, reply: FastifyReply) => {
+      await reply.status(503).send({
+        success: false,
+        error: 'DATABASE_NOT_CONFIGURED',
+        message: 'FinOps service requires PostgreSQL database connection',
+      });
+    });
+    return;
+  }
+
+  const controller = new FinOpsV2Controller(service);
 
   // ==================== 成本追踪 ====================
 

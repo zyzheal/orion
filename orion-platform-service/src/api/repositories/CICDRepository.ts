@@ -2,7 +2,7 @@
  * CI/CD Repository - CI/CD 资源数据访问层
  */
 
-import { DatabasePool } from '../database';
+import { DatabasePool } from '../../services/database';
 
 export interface CICDPipeline {
   id: string;

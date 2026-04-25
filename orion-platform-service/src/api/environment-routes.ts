@@ -16,10 +16,10 @@
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { EnvironmentRepository } from '../../services/environment/EnvironmentRepository';
-import { EnvironmentService } from '../../services/environment/EnvironmentService';
-import { EnvironmentController } from '../controllers/EnvironmentController';
-import { DatabasePool } from '../../services/database';
+import { EnvironmentRepository } from '../services/environment/EnvironmentRepository';
+import { EnvironmentService } from '../services/environment/EnvironmentService';
+import { EnvironmentController } from './controllers/EnvironmentController';
+import { DatabasePool } from '../services/database';
 
 export interface EnvironmentRoutesOptions {
   database?: DatabasePool;

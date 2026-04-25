@@ -2,7 +2,7 @@
  * Host Repository - 主机资源数据访问层
  */
 
-import { DatabasePool } from '../database';
+import { DatabasePool } from '../../services/database';
 
 export interface HostResource {
   id: string;

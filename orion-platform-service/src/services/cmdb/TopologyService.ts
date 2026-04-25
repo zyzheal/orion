@@ -4,8 +4,8 @@
  * 生成和管理 CMDB 资源拓扑关系
  */
 
-import { CmdbService } from './cmdb/CmdbService';
-import { CiType } from './cmdb/CmdbTypes';
+import { CmdbService } from './CmdbService';
+import { CiType } from './CmdbTypes';
 
 export interface TopologyNode {
   id: string;

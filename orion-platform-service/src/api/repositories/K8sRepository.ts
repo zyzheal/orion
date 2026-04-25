@@ -2,7 +2,7 @@
  * K8s Repository - K8s 资源数据访问层
  */
 
-import { DatabasePool } from '../database';
+import { DatabasePool } from '../../services/database';
 
 export interface K8sCluster {
   id: string;

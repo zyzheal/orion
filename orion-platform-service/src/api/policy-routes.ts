@@ -65,25 +65,15 @@ export default async function policyRoutes(
     return policyController.deletePolicy(request, reply);
   });
 
-  app.patch('/:id/toggle', async (request: FastifyRequest, reply: FastifyReply) => {
-    return policyController.togglePolicy(request, reply);
+  app.post('/evaluate', async (request: FastifyRequest, reply: FastifyReply) => {
+    return policyController.evaluatePolicy(request, reply);
   });
 
-  // ==================== Bundles ====================
-
-  app.get('/bundles', async (request: FastifyRequest, reply: FastifyReply) => {
-    return policyController.listBundles(request, reply);
+  app.get('/evaluations', async (request: FastifyRequest, reply: FastifyReply) => {
+    return policyController.getEvaluationHistory(request, reply);
   });
 
-  app.get('/bundles/:id', async (request: FastifyRequest, reply: FastifyReply) => {
-    return policyController.getBundle(request, reply);
-  });
-
-  app.post('/bundles/sync', async (request: FastifyRequest, reply: FastifyReply) => {
-    return policyController.syncBundle(request, reply);
-  });
-
-  // ==================== Evaluation ====================
+  // ==================== Evaluation Service ====================
 
   app.post('/evaluate', async (request: FastifyRequest, reply: FastifyReply) => {
     return evalController.evaluate(request, reply);
