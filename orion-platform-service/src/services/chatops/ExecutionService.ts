@@ -1,8 +1,10 @@
 /**
  * ChatOps Execution Service - Command execution, tracking, audit
+ *
+ * Migrated to PostgreSQL Repository pattern.
+ * All state is persisted to database; no in-memory Map storage.
  */
 
-import { v4 as uuidv4 } from 'uuid';
 import { EventBusService } from '../event-bus-service';
 import {
   ChatOpsExecution,
@@ -17,6 +19,13 @@ import {
   createChatOpsAuditLog,
 } from '../../models/ChatOps';
 import { CommandService } from './CommandService';
+import {
+  ChatOpsExecutionRepository,
+  ChatOpsSessionRepository,
+  ChatOpsAuditLogRepository,
+  ChatOpsExecutionEntity,
+  ChatOpsAuditLogEntity,
+} from '../../repositories/ChatOpsRepository';
 
 export interface ChatOpsExecutionListFilter {
   commandId?: string;
@@ -39,45 +48,98 @@ export interface ChatOpsAuditLogFilter {
 }
 
 export class ExecutionService {
-  private executions: Map<string, ChatOpsExecution> = new Map();
-  private sessions: Map<string, ChatOpsSession> = new Map();
-  private auditLogs: Map<string, ChatOpsAuditLog> = new Map();
+  private executionRepo: ChatOpsExecutionRepository;
+  private sessionRepo: ChatOpsSessionRepository;
+  private auditRepo: ChatOpsAuditLogRepository;
   private commandService: CommandService;
   private eventBus?: EventBusService;
 
-  constructor(options: { commandService: CommandService; eventBus?: EventBusService }) {
+  constructor(options: {
+    commandService: CommandService;
+    eventBus?: EventBusService;
+    executionRepo: ChatOpsExecutionRepository;
+    sessionRepo: ChatOpsSessionRepository;
+    auditRepo: ChatOpsAuditLogRepository;
+  }) {
     this.commandService = options.commandService;
     this.eventBus = options.eventBus;
+    this.executionRepo = options.executionRepo;
+    this.sessionRepo = options.sessionRepo;
+    this.auditRepo = options.auditRepo;
+  }
+
+  // ==================== Entity -> Model mapping ====================
+
+  private entityToExecution(entity: ChatOpsExecutionEntity): ChatOpsExecution {
+    return {
+      id: entity.id,
+      commandId: entity.commandId,
+      userId: entity.userId,
+      platform: entity.platform,
+      channel: entity.channel,
+      params: entity.params,
+      status: entity.status as ChatOpsExecutionStatus,
+      startTime: entity.startTime,
+      endTime: entity.endTime,
+      result: entity.result,
+      milestones: entity.milestones,
+    };
+  }
+
+  private entityToAuditLog(entity: ChatOpsAuditLogEntity): ChatOpsAuditLog {
+    return {
+      id: entity.id,
+      traceId: entity.traceId,
+      actor: entity.actor,
+      timestamp: entity.timestamp,
+      action: entity.action,
+      result: entity.result,
+      context: entity.context,
+    };
   }
 
   // ==================== Execution ====================
 
   async execute(input: ChatOpsExecutionCreateInput): Promise<ChatOpsExecution> {
     const execution = createChatOpsExecution(input);
-    this.executions.set(execution.id, execution);
 
-    // Simulate execution
-    execution.status = 'running';
-    execution.milestones = { started: new Date().toISOString() };
-    this.executions.set(execution.id, execution);
+    // Persist initial state
+    await this.executionRepo.insert({
+      command_id: execution.commandId,
+      user_id: execution.userId,
+      platform: execution.platform,
+      channel: execution.channel,
+      params: execution.params,
+      status: 'running',
+      start_time: execution.startTime,
+      end_time: null,
+      result: {},
+      milestones: { started: new Date().toISOString() },
+    });
 
     // Look up command for additional context
     const command = await this.commandService.getByName(input.commandId);
 
     // Simulate completion
+    const endTime = new Date();
     try {
-      execution.status = 'completed';
-      execution.endTime = new Date();
-      execution.result = {
-        output: `Command ${input.commandId} executed successfully`,
-        exitCode: 0,
-        durationMs: execution.endTime.getTime() - execution.startTime.getTime(),
-      };
-      execution.milestones = {
-        started: execution.startTime.toISOString(),
-        completed: execution.endTime.toISOString(),
-      };
-      this.executions.set(execution.id, execution);
+      await this.executionRepo.updateStatus(
+        execution.id,
+        'completed',
+        endTime,
+        {
+          output: `Command ${input.commandId} executed successfully`,
+          exitCode: 0,
+          durationMs: endTime.getTime() - execution.startTime.getTime(),
+        },
+      );
+
+      await this.executionRepo.update(execution.id, {
+        milestones: {
+          started: execution.startTime.toISOString(),
+          completed: endTime.toISOString(),
+        },
+      } as any);
 
       // Create audit log
       await this.createAuditLog({
@@ -88,17 +150,15 @@ export class ExecutionService {
         context: { executionId: execution.id },
       });
     } catch (err) {
-      execution.status = 'failed';
-      execution.endTime = new Date();
-      execution.result = {
-        error: err instanceof Error ? err.message : 'Unknown error',
-        exitCode: 1,
-      };
-      execution.milestones = {
-        started: execution.startTime.toISOString(),
-        failed: execution.endTime.toISOString(),
-      };
-      this.executions.set(execution.id, execution);
+      await this.executionRepo.updateStatus(
+        execution.id,
+        'failed',
+        endTime,
+        {
+          error: err instanceof Error ? err.message : 'Unknown error',
+          exitCode: 1,
+        },
+      );
 
       await this.createAuditLog({
         traceId: execution.id,
@@ -112,73 +172,109 @@ export class ExecutionService {
     await this.eventBus?.publish('chatops.execution.completed', {
       executionId: execution.id,
       commandId: execution.commandId,
-      status: execution.status,
+      status: 'completed',
     });
 
-    return execution;
+    // Return updated execution from DB
+    const updated = await this.executionRepo.findById(execution.id);
+    return this.entityToExecution(updated!);
   }
 
   async getById(id: string): Promise<ChatOpsExecution | undefined> {
-    return this.executions.get(id);
+    const entity = await this.executionRepo.findById(id);
+    return entity ? this.entityToExecution(entity) : undefined;
   }
 
   async list(filter: ChatOpsExecutionListFilter = {}): Promise<{ executions: ChatOpsExecution[]; total: number }> {
-    let items = Array.from(this.executions.values());
+    let entities: ChatOpsExecutionEntity[];
 
     if (filter.commandId) {
-      items = items.filter(e => e.commandId === filter.commandId);
-    }
-    if (filter.userId) {
-      items = items.filter(e => e.userId === filter.userId);
-    }
-    if (filter.status) {
-      items = items.filter(e => e.status === filter.status);
-    }
-    if (filter.platform) {
-      items = items.filter(e => e.platform === filter.platform);
+      entities = await this.executionRepo.findByCommandId(filter.commandId);
+    } else if (filter.userId) {
+      entities = await this.executionRepo.findByUser(filter.userId);
+    } else if (filter.status) {
+      entities = await this.executionRepo.findByStatus(filter.status);
+    } else {
+      const result = await this.executionRepo.findAll({ limit: 1000 });
+      entities = result.entities;
     }
 
-    const total = items.length;
+    if (filter.platform) {
+      entities = entities.filter(e => e.platform === filter.platform);
+    }
+
+    const total = entities.length;
     const page = filter.page ?? 1;
     const perPage = filter.perPage ?? 20;
     const start = (page - 1) * perPage;
-    items = items.slice(start, start + perPage);
+    const paginated = entities.slice(start, start + perPage);
 
-    return { executions: items, total };
+    return { executions: paginated.map(e => this.entityToExecution(e)), total };
   }
 
   // ==================== Session ====================
 
   async createSession(input: ChatOpsSessionCreateInput): Promise<ChatOpsSession> {
     const session = createChatOpsSession(input);
-    this.sessions.set(session.key, session);
+
+    await this.sessionRepo.insert({
+      key: session.key,
+      user_id: session.userId,
+      channel_id: session.channelId,
+      history: [],
+      state: {},
+    });
+
     return session;
   }
 
   async getSession(key: string): Promise<ChatOpsSession | undefined> {
-    return this.sessions.get(key);
+    const entity = await this.sessionRepo.findByKey(key);
+    if (!entity) return undefined;
+    return {
+      key: entity.key,
+      userId: entity.userId,
+      channelId: entity.channelId,
+      history: entity.history,
+      state: entity.state,
+    };
   }
 
   async updateSession(key: string, updates: { history?: Record<string, unknown>[]; state?: Record<string, unknown> }): Promise<ChatOpsSession | undefined> {
-    const session = this.sessions.get(key);
-    if (!session) return undefined;
+    const entity = await this.sessionRepo.findByKey(key);
+    if (!entity) return undefined;
 
-    if (updates.history) session.history = updates.history;
-    if (updates.state) session.state = updates.state;
-    this.sessions.set(key, session);
-    return session;
+    await this.sessionRepo.updateState(key, updates.state ?? entity.state, updates.history ?? entity.history);
+
+    return {
+      key,
+      userId: entity.userId,
+      channelId: entity.channelId,
+      history: updates.history ?? entity.history,
+      state: updates.state ?? entity.state,
+    };
   }
 
   // ==================== Audit ====================
 
   private async createAuditLog(input: ChatOpsAuditLogCreateInput): Promise<ChatOpsAuditLog> {
     const log = createChatOpsAuditLog(input);
-    this.auditLogs.set(log.id, log);
-    return log;
+
+    const entity = await this.auditRepo.insert({
+      trace_id: log.traceId,
+      actor: log.actor,
+      timestamp: log.timestamp,
+      action: log.action,
+      result: log.result,
+      context: log.context,
+    });
+
+    return this.entityToAuditLog(entity);
   }
 
   async getAuditLogs(filter: ChatOpsAuditLogFilter = {}): Promise<{ logs: ChatOpsAuditLog[]; total: number }> {
-    let items = Array.from(this.auditLogs.values());
+    const result = await this.auditRepo.findAll({ limit: 1000, orderBy: 'timestamp', orderDir: 'DESC' });
+    let items = result.entities;
 
     if (filter.traceId) {
       items = items.filter(l => l.traceId === filter.traceId);
@@ -203,21 +299,20 @@ export class ExecutionService {
     const page = filter.page ?? 1;
     const perPage = filter.perPage ?? 20;
     const start = (page - 1) * perPage;
-    items = items.slice(start, start + perPage);
+    const paginated = items.slice(start, start + perPage);
 
-    return { logs: items, total };
+    return { logs: paginated.map(e => this.entityToAuditLog(e)), total };
   }
 
   async getAuditStats(): Promise<Record<string, unknown>> {
-    const allLogs = Array.from(this.auditLogs.values());
+    const totalCount = await this.auditRepo.countAll();
+    const successCount = await this.auditRepo.countByResult('success');
+    const failedCount = await this.auditRepo.countByResult('failed');
 
-    const totalCount = allLogs.length;
-    const successCount = allLogs.filter(l => l.result === 'success').length;
-    const failedCount = allLogs.filter(l => l.result === 'failed').length;
-
-    // Count by action type
+    // Count by action type - fetch recent logs for action breakdown
+    const recentLogs = await this.auditRepo.findRecent(24);
     const actionCounts: Record<string, number> = {};
-    for (const log of allLogs) {
+    for (const log of recentLogs) {
       const action = log.action as Record<string, string>;
       const cmd = action.command || 'unknown';
       actionCounts[cmd] = (actionCounts[cmd] || 0) + 1;
@@ -225,7 +320,7 @@ export class ExecutionService {
 
     // Count by platform
     const platformCounts: Record<string, number> = {};
-    for (const log of allLogs) {
+    for (const log of recentLogs) {
       const actor = log.actor as Record<string, string>;
       const platform = actor.platform || 'unknown';
       platformCounts[platform] = (platformCounts[platform] || 0) + 1;

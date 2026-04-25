@@ -2,20 +2,59 @@
  * ChatOps API Routes
  *
  * Routes under /api/v1/chatops
+ * Migrated to PostgreSQL Repository pattern (M35)
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { DatabasePool } from '../services/database';
+import { EventBusService } from '../services/event-bus-service';
+import {
+  ChatOpsCommandRepository,
+  ChatOpsExecutionRepository,
+  ChatOpsSessionRepository,
+  ChatOpsAuditLogRepository,
+} from '../repositories/ChatOpsRepository';
 import { CommandService } from '../services/chatops/CommandService';
 import { ExecutionService } from '../services/chatops/ExecutionService';
 import { ChatOpsController } from './controllers/ChatOpsController';
-import { EventBusService } from '../services/event-bus-service';
+
+interface ChatOpsRoutesOptions {
+  eventBus?: EventBusService;
+  database?: DatabasePool;
+}
 
 export default async function chatopsRoutes(
   app: FastifyInstance,
-  options?: { eventBus?: EventBusService }
+  options: ChatOpsRoutesOptions
 ): Promise<void> {
-  const commandService = new CommandService({ eventBus: options?.eventBus });
-  const executionService = new ExecutionService({ commandService, eventBus: options?.eventBus });
+  if (!options.database) {
+    console.warn('[ChatOpsRoutes] No database pool provided, chatops routes will not be functional');
+    return;
+  }
+
+  // Initialize repositories
+  const commandRepo = new ChatOpsCommandRepository(options.database);
+  const executionRepo = new ChatOpsExecutionRepository(options.database);
+  const sessionRepo = new ChatOpsSessionRepository(options.database);
+  const auditRepo = new ChatOpsAuditLogRepository(options.database);
+
+  // Initialize services
+  const commandService = new CommandService({
+    eventBus: options.eventBus,
+    repository: commandRepo,
+  });
+  const executionService = new ExecutionService({
+    commandService,
+    eventBus: options.eventBus,
+    executionRepo,
+    sessionRepo,
+    auditRepo,
+  });
+
+  // Seed default commands on startup (idempotent)
+  await commandService.seedDefaults();
+
+  // Initialize controller
   const controller = new ChatOpsController({ commandService, executionService });
 
   // ==================== Commands ====================

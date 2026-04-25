@@ -26,6 +26,7 @@ export interface ChatOpsExecutionEntity {
 }
 
 export interface ChatOpsSessionEntity {
+  id: string;
   key: string;
   userId: string;
   channelId: string;
@@ -43,7 +44,8 @@ export interface ChatOpsAuditLogEntity {
   context: Record<string, any>;
 }
 
-// Command Repository
+// ==================== Command Repository ====================
+
 export class ChatOpsCommandRepository extends BaseRepository<ChatOpsCommandEntity> {
   constructor(db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
     super(db, 'chatops_commands');
@@ -75,6 +77,19 @@ export class ChatOpsCommandRepository extends BaseRepository<ChatOpsCommandEntit
     return result.rows.map(row => this.mapRowToEntity(row));
   }
 
+  /** Insert with explicit snake_case column mapping */
+  async insert(data: {
+    name: string; subcommand: string; schema: Record<string, any>;
+    aliases: string[]; permissionLevel: string; examples: string[];
+  }): Promise<ChatOpsCommandEntity> {
+    const result = await this.db.query(
+      `INSERT INTO chatops_commands (name, subcommand, schema, aliases, permission_level, examples) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [data.name, data.subcommand, data.schema, data.aliases, data.permissionLevel, data.examples],
+    );
+    if (result.rows.length === 0) throw new Error('INSERT returned no rows');
+    return this.mapRowToEntity(result.rows[0]);
+  }
+
   protected mapRowToEntity(row: any): ChatOpsCommandEntity {
     return {
       id: row.id,
@@ -88,7 +103,8 @@ export class ChatOpsCommandRepository extends BaseRepository<ChatOpsCommandEntit
   }
 }
 
-// Execution Repository
+// ==================== Execution Repository ====================
+
 export class ChatOpsExecutionRepository extends BaseRepository<ChatOpsExecutionEntity> {
   constructor(db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
     super(db, 'chatops_executions');
@@ -111,6 +127,14 @@ export class ChatOpsExecutionRepository extends BaseRepository<ChatOpsExecutionE
     return result.rows.map(row => this.mapRowToEntity(row));
   }
 
+  async findByCommandId(commandId: string): Promise<ChatOpsExecutionEntity[]> {
+    const result = await this.db.query(
+      `SELECT * FROM chatops_executions WHERE command_id = $1 ORDER BY start_time DESC`,
+      [commandId],
+    );
+    return result.rows.map(row => this.mapRowToEntity(row));
+  }
+
   async updateStatus(id: string, status: string, endTime: Date, result: Record<string, any>): Promise<ChatOpsExecutionEntity | null> {
     const dbResult = await this.db.query(
       `UPDATE chatops_executions SET status = $1, end_time = $2, result = $3 WHERE id = $4 RETURNING *`,
@@ -118,6 +142,21 @@ export class ChatOpsExecutionRepository extends BaseRepository<ChatOpsExecutionE
     );
     if (dbResult.rows.length === 0) return null;
     return this.mapRowToEntity(dbResult.rows[0]);
+  }
+
+  /** Insert with explicit snake_case column mapping */
+  async insert(data: {
+    command_id: string; user_id: string; platform: string; channel: string;
+    params: Record<string, any>; status: string; start_time: Date;
+    end_time: Date | null; result: Record<string, any>; milestones: Record<string, any>;
+  }): Promise<ChatOpsExecutionEntity> {
+    const cols = Object.keys(data);
+    const vals = Object.values(data);
+    const placeholders = vals.map((_, i) => `$${i + 1}`).join(', ');
+    const query = `INSERT INTO chatops_executions (${cols.join(', ')}) VALUES (${placeholders}) RETURNING *`;
+    const result = await this.db.query(query, vals);
+    if (result.rows.length === 0) throw new Error('INSERT returned no rows');
+    return this.mapRowToEntity(result.rows[0]);
   }
 
   protected mapRowToEntity(row: any): ChatOpsExecutionEntity {
@@ -137,7 +176,8 @@ export class ChatOpsExecutionRepository extends BaseRepository<ChatOpsExecutionE
   }
 }
 
-// Session Repository
+// ==================== Session Repository ====================
+
 export class ChatOpsSessionRepository extends BaseRepository<ChatOpsSessionEntity> {
   constructor(db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
     super(db, 'chatops_sessions');
@@ -169,8 +209,22 @@ export class ChatOpsSessionRepository extends BaseRepository<ChatOpsSessionEntit
     return this.mapRowToEntity(result.rows[0]);
   }
 
+  /** Insert with explicit snake_case column mapping */
+  async insert(data: {
+    key: string; user_id: string; channel_id: string;
+    history: any[]; state: Record<string, any>;
+  }): Promise<ChatOpsSessionEntity> {
+    const result = await this.db.query(
+      `INSERT INTO chatops_sessions (key, user_id, channel_id, history, state) VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+      [data.key, data.user_id, data.channel_id, data.history, data.state],
+    );
+    if (result.rows.length === 0) throw new Error('INSERT returned no rows');
+    return this.mapRowToEntity(result.rows[0]);
+  }
+
   protected mapRowToEntity(row: any): ChatOpsSessionEntity {
     return {
+      id: row.id ?? '',
       key: row.key,
       userId: row.user_id,
       channelId: row.channel_id,
@@ -180,7 +234,8 @@ export class ChatOpsSessionRepository extends BaseRepository<ChatOpsSessionEntit
   }
 }
 
-// Audit Log Repository
+// ==================== Audit Log Repository ====================
+
 export class ChatOpsAuditLogRepository extends BaseRepository<ChatOpsAuditLogEntity> {
   constructor(db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
     super(db, 'chatops_audit_logs');
@@ -209,6 +264,51 @@ export class ChatOpsAuditLogRepository extends BaseRepository<ChatOpsAuditLogEnt
       [hours],
     );
     return result.rows.map(row => this.mapRowToEntity(row));
+  }
+
+  /** Insert with explicit snake_case column mapping */
+  async insert(data: {
+    trace_id: string; actor: Record<string, any>; timestamp: Date;
+    action: Record<string, any>; result: string; context: Record<string, any>;
+  }): Promise<ChatOpsAuditLogEntity> {
+    const result = await this.db.query(
+      `INSERT INTO chatops_audit_logs (trace_id, actor, timestamp, action, result, context) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [data.trace_id, data.actor, data.timestamp, data.action, data.result, data.context],
+    );
+    if (result.rows.length === 0) throw new Error('INSERT returned no rows');
+    return this.mapRowToEntity(result.rows[0]);
+  }
+
+  // Stats and aggregation helpers
+  async countByResult(resultType: string): Promise<number> {
+    const result = await this.db.query(
+      `SELECT COUNT(*) as count FROM chatops_audit_logs WHERE result = $1`,
+      [resultType],
+    );
+    return parseInt((result.rows[0] as any).count, 10);
+  }
+
+  async countAll(): Promise<number> {
+    const result = await this.db.query(
+      `SELECT COUNT(*) as count FROM chatops_audit_logs`,
+    );
+    return parseInt((result.rows[0] as any).count, 10);
+  }
+
+  async countByAction(command: string): Promise<number> {
+    const result = await this.db.query(
+      `SELECT COUNT(*) as count FROM chatops_audit_logs WHERE action->>'command' = $1`,
+      [command],
+    );
+    return parseInt((result.rows[0] as any).count, 10);
+  }
+
+  async countByPlatform(platform: string): Promise<number> {
+    const result = await this.db.query(
+      `SELECT COUNT(*) as count FROM chatops_audit_logs WHERE actor->>'platform' = $1`,
+      [platform],
+    );
+    return parseInt((result.rows[0] as any).count, 10);
   }
 
   protected mapRowToEntity(row: any): ChatOpsAuditLogEntity {

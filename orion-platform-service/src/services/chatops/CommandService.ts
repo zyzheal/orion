@@ -1,5 +1,8 @@
 /**
  * ChatOps Command Service - Command registry, parsing, help
+ *
+ * Migrated to PostgreSQL Repository pattern (first-class).
+ * All command data is stored in the database; no in-memory Map storage.
  */
 
 import { EventBusService } from '../event-bus-service';
@@ -17,239 +20,179 @@ export interface ChatOpsCommandListFilter {
   perPage?: number;
 }
 
+/** Default command definitions seeded into the database on first run. */
+const DEFAULT_COMMANDS: ChatOpsCommandCreateInput[] = [
+  {
+    name: 'deploy',
+    subcommand: 'service',
+    schema: {
+      service: { type: 'string', required: true },
+      environment: { type: 'string', enum: ['dev', 'staging', 'prod'], required: true },
+      version: { type: 'string', required: false },
+    },
+    aliases: ['deploy-service', 'rollout'],
+    permissionLevel: 'deployer',
+    examples: ['/deploy service=api environment=staging version=1.2.3'],
+  },
+  {
+    name: 'restart',
+    subcommand: 'pod',
+    schema: {
+      namespace: { type: 'string', required: true },
+      pod: { type: 'string', required: true },
+    },
+    aliases: ['restart-pod'],
+    permissionLevel: 'operator',
+    examples: ['/restart namespace=production pod=api-server-abc123'],
+  },
+  {
+    name: 'status',
+    subcommand: 'pipeline',
+    schema: {
+      pipelineId: { type: 'string', required: true },
+    },
+    aliases: ['pipeline-status', 'ps'],
+    permissionLevel: 'user',
+    examples: ['/status pipelineId=pipeline-123'],
+  },
+  {
+    name: 'rollback',
+    subcommand: 'deployment',
+    schema: {
+      deployment: { type: 'string', required: true },
+      targetVersion: { type: 'string', required: false },
+    },
+    aliases: ['rollback-deploy'],
+    permissionLevel: 'admin',
+    examples: ['/rollback deployment=api targetVersion=1.1.0'],
+  },
+  {
+    name: 'alert',
+    subcommand: 'list',
+    schema: {
+      severity: { type: 'string', enum: ['critical', 'warning', 'info'], required: false },
+      hours: { type: 'number', required: false },
+    },
+    aliases: ['alerts'],
+    permissionLevel: 'user',
+    examples: ['/alert severity=critical hours=24'],
+  },
+];
+
 export class CommandService {
-  private commands: Map<string, ChatOpsCommand> = new Map();
   private eventBus?: EventBusService;
   private commandRepository?: ChatOpsCommandRepository;
 
-  constructor(options?: { eventBus?: EventBusService; db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> } }) {
-    this.eventBus = options?.eventBus;
-    if (options?.db) {
-      this.commandRepository = new ChatOpsCommandRepository(options.db);
-    }
-
-    // Register default commands
-    this.registerDefaults();
+  constructor(options: { eventBus?: EventBusService; repository?: ChatOpsCommandRepository }) {
+    this.eventBus = options.eventBus;
+    this.commandRepository = options.repository;
   }
 
-  private registerDefaults(): void {
-    const defaults: ChatOpsCommandCreateInput[] = [
-      {
-        name: 'deploy',
-        subcommand: 'service',
-        schema: {
-          service: { type: 'string', required: true },
-          environment: { type: 'string', enum: ['dev', 'staging', 'prod'], required: true },
-          version: { type: 'string', required: false },
-        },
-        aliases: ['deploy-service', 'rollout'],
-        permissionLevel: 'deployer',
-        examples: ['/deploy service=api environment=staging version=1.2.3'],
-      },
-      {
-        name: 'restart',
-        subcommand: 'pod',
-        schema: {
-          namespace: { type: 'string', required: true },
-          pod: { type: 'string', required: true },
-        },
-        aliases: ['restart-pod'],
-        permissionLevel: 'operator',
-        examples: ['/restart namespace=production pod=api-server-abc123'],
-      },
-      {
-        name: 'status',
-        subcommand: 'pipeline',
-        schema: {
-          pipelineId: { type: 'string', required: true },
-        },
-        aliases: ['pipeline-status', 'ps'],
-        permissionLevel: 'user',
-        examples: ['/status pipelineId=pipeline-123'],
-      },
-      {
-        name: 'rollback',
-        subcommand: 'deployment',
-        schema: {
-          deployment: { type: 'string', required: true },
-          targetVersion: { type: 'string', required: false },
-        },
-        aliases: ['rollback-deploy'],
-        permissionLevel: 'admin',
-        examples: ['/rollback deployment=api targetVersion=1.1.0'],
-      },
-      {
-        name: 'alert',
-        subcommand: 'list',
-        schema: {
-          severity: { type: 'string', enum: ['critical', 'warning', 'info'], required: false },
-          hours: { type: 'number', required: false },
-        },
-        aliases: ['alerts'],
-        permissionLevel: 'user',
-        examples: ['/alert severity=critical hours=24'],
-      },
-    ];
+  /** Seed default commands if the database is empty. Called once on startup. */
+  async seedDefaults(): Promise<void> {
+    if (!this.commandRepository) return;
 
-    for (const def of defaults) {
-      const cmd = createChatOpsCommand(def);
-      this.commands.set(cmd.name, cmd);
+    const existing = await this.commandRepository.findAll({ limit: 1 });
+    if (existing.total > 0) return; // Already seeded
+
+    for (const def of DEFAULT_COMMANDS) {
+      try {
+        await this.commandRepository.insert({
+          name: def.name,
+          subcommand: def.subcommand ?? '',
+          schema: def.schema ?? {},
+          aliases: def.aliases ?? [],
+          permissionLevel: def.permissionLevel ?? 'user',
+          examples: def.examples ?? [],
+        });
+      } catch {
+        // Skip if already exists (race condition or manual insert)
+      }
     }
   }
 
-  // ==================== Command Registry ====================
+  // ==================== Command CRUD ====================
 
-  async create(input: ChatOpsCommandCreateInput): Promise<ChatOpsCommand> {
-    const command = createChatOpsCommand(input);
-    this.commands.set(command.name, command);
-
-    // Store in repository
-    if (this.commandRepository) {
-      await this.commandRepository.create({
-        name: command.name,
-        subcommand: command.subcommand ?? '',
-        schema: command.schema ?? {},
-        aliases: command.aliases ?? [],
-        permissionLevel: command.permissionLevel ?? 'user',
-        examples: command.examples ?? [],
-      });
+  async insert(input: ChatOpsCommandCreateInput): Promise<ChatOpsCommand> {
+    if (!this.commandRepository) {
+      throw new Error('CommandService: no database repository configured');
     }
+
+    const entity = await this.commandRepository.insert({
+      name: input.name,
+      subcommand: input.subcommand ?? '',
+      schema: input.schema ?? {},
+      aliases: input.aliases ?? [],
+      permissionLevel: input.permissionLevel ?? 'user',
+      examples: input.examples ?? [],
+    });
 
     await this.eventBus?.publish('chatops.command.created', {
-      commandName: command.name,
-      permissionLevel: command.permissionLevel,
+      commandName: entity.name,
+      permissionLevel: entity.permissionLevel,
     });
-    return command;
+
+    return this.entityToModel(entity);
   }
 
   async getByName(name: string): Promise<ChatOpsCommand | undefined> {
-    // Try direct name match from cache
-    const cmd = this.commands.get(name);
-    if (cmd) return cmd;
-
-    // Try alias match from cache
-    for (const command of this.commands.values()) {
-      if (command.aliases.includes(name)) {
-        return command;
-      }
+    if (!this.commandRepository) {
+      throw new Error('CommandService: no database repository configured');
     }
 
-    // Load from repository
-    if (this.commandRepository) {
-      const entity = await this.commandRepository.findByName(name);
-      if (entity) {
-        const cmd: ChatOpsCommand = {
-          id: entity.id,
-          name: entity.name,
-          subcommand: entity.subcommand,
-          schema: entity.schema,
-          aliases: entity.aliases,
-          permissionLevel: entity.permissionLevel,
-          examples: entity.examples,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        };
-        this.commands.set(entity.name, cmd);
-        return cmd;
-      }
+    // Try direct name match
+    let entity = await this.commandRepository.findByName(name);
+    if (entity) return this.entityToModel(entity);
 
-      // Try alias match from repository
-      const aliasEntity = await this.commandRepository.findByAlias(name);
-      if (aliasEntity) {
-        const cmd: ChatOpsCommand = {
-          id: aliasEntity.id,
-          name: aliasEntity.name,
-          subcommand: aliasEntity.subcommand,
-          schema: aliasEntity.schema,
-          aliases: aliasEntity.aliases,
-          permissionLevel: aliasEntity.permissionLevel,
-          examples: aliasEntity.examples,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        };
-        this.commands.set(aliasEntity.name, cmd);
-        return cmd;
-      }
-    }
+    // Try alias match
+    entity = await this.commandRepository.findByAlias(name);
+    if (entity) return this.entityToModel(entity);
 
     return undefined;
   }
 
   async list(filter: ChatOpsCommandListFilter = {}): Promise<{ commands: ChatOpsCommand[]; total: number }> {
-    // Use repository if available
-    if (this.commandRepository) {
-      let entities;
-      if (filter.permissionLevel) {
-        entities = await this.commandRepository.findByPermission(filter.permissionLevel);
-      } else {
-        const result = await this.commandRepository.findAll({ limit: 100 });
-        entities = result.entities;
-      }
-
-      const commands = entities.map(e => ({
-        id: e.id,
-        name: e.name,
-        subcommand: e.subcommand,
-        schema: e.schema,
-        aliases: e.aliases,
-        permissionLevel: e.permissionLevel,
-        examples: e.examples,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      }));
-
-      // Apply name filter
-      let filtered = commands;
-      if (filter.name) {
-        filtered = filtered.filter(c =>
-          c.name.toLowerCase().includes(filter.name!.toLowerCase()) ||
-          c.aliases.some(a => a.toLowerCase().includes(filter.name!.toLowerCase()))
-        );
-      }
-
-      const total = filtered.length;
-      const page = filter.page ?? 1;
-      const perPage = filter.perPage ?? 20;
-      const start = (page - 1) * perPage;
-      const paginated = filtered.slice(start, start + perPage);
-
-      return { commands: paginated, total };
+    if (!this.commandRepository) {
+      throw new Error('CommandService: no database repository configured');
     }
 
-    // Fallback to in-memory
-    let items = Array.from(this.commands.values());
+    let entities;
+    if (filter.permissionLevel) {
+      entities = await this.commandRepository.findByPermission(filter.permissionLevel);
+    } else {
+      const result = await this.commandRepository.findAll({ limit: 100, orderBy: 'name' });
+      entities = result.entities;
+    }
 
+    let commands = entities.map(e => this.entityToModel(e));
+
+    // Apply name filter (search name and aliases)
     if (filter.name) {
-      items = items.filter(c =>
-        c.name.toLowerCase().includes(filter.name!.toLowerCase()) ||
-        c.aliases.some(a => a.toLowerCase().includes(filter.name!.toLowerCase()))
+      const lower = filter.name.toLowerCase();
+      commands = commands.filter(c =>
+        c.name.toLowerCase().includes(lower) ||
+        c.aliases.some(a => a.toLowerCase().includes(lower))
       );
     }
-    if (filter.permissionLevel) {
-      items = items.filter(c => c.permissionLevel === filter.permissionLevel);
-    }
 
-    const total = items.length;
+    const total = commands.length;
     const page = filter.page ?? 1;
     const perPage = filter.perPage ?? 20;
     const start = (page - 1) * perPage;
-    items = items.slice(start, start + perPage);
+    const paginated = commands.slice(start, start + perPage);
 
-    return { commands: items, total };
+    return { commands: paginated, total };
   }
 
   async delete(name: string): Promise<boolean> {
-    const deleted = this.commands.delete(name);
-
-    // Delete from repository
-    if (this.commandRepository) {
-      const entity = await this.commandRepository.findByName(name);
-      if (entity) {
-        await this.commandRepository.delete(entity.id);
-      }
+    if (!this.commandRepository) {
+      throw new Error('CommandService: no database repository configured');
     }
 
-    return deleted;
+    const entity = await this.commandRepository.findByName(name);
+    if (!entity) return false;
+
+    return this.commandRepository.delete(entity.id);
   }
 
   // ==================== Parsing & Help ====================
@@ -294,6 +237,33 @@ export class CommandService {
   }
 
   async getAllCommands(): Promise<ChatOpsCommand[]> {
-    return Array.from(this.commands.values());
+    if (!this.commandRepository) {
+      throw new Error('CommandService: no database repository configured');
+    }
+
+    const result = await this.commandRepository.findAll({ limit: 1000 });
+    return result.entities.map(e => this.entityToModel(e));
+  }
+
+  // ==================== Internal ====================
+
+  private entityToModel(entity: {
+    id: string;
+    name: string;
+    subcommand: string;
+    schema: Record<string, any>;
+    aliases: string[];
+    permissionLevel: string;
+    examples: string[];
+  }): ChatOpsCommand {
+    return {
+      id: entity.id,
+      name: entity.name,
+      subcommand: entity.subcommand,
+      schema: entity.schema,
+      aliases: entity.aliases,
+      permissionLevel: entity.permissionLevel,
+      examples: entity.examples,
+    };
   }
 }

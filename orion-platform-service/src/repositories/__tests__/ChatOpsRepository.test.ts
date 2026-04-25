@@ -81,6 +81,15 @@ describe('ChatOpsExecutionRepository', () => {
     expect(result[0].status).toBe('running');
   });
 
+  test('should find by command id', async () => {
+    mockDb.query.mockResolvedValue({
+      rows: [{ id: 'exec-1', command_id: 'deploy', user_id: 'u1', platform: 'slack', channel: 'devops', params: {}, status: 'completed', start_time: new Date(), end_time: new Date(), result: {}, milestones: {} }],
+    });
+    const result = await repo.findByCommandId('deploy');
+    expect(result.length).toBe(1);
+    expect(result[0].commandId).toBe('deploy');
+  });
+
   test('should update status', async () => {
     mockDb.query.mockResolvedValue({
       rows: [{ id: 'exec-1', command_id: 'deploy', user_id: 'u1', platform: 'slack', channel: 'devops', params: {}, status: 'completed', start_time: new Date(), end_time: new Date(), result: { success: true }, milestones: {} }],
@@ -165,5 +174,17 @@ describe('ChatOpsAuditLogRepository', () => {
     });
     const result = await repo.findRecent(24);
     expect(mockDb.query).toHaveBeenCalledWith(expect.stringContaining('INTERVAL'), [24]);
+  });
+
+  test('should count by result type', async () => {
+    mockDb.query.mockResolvedValue({ rows: [{ count: '42' }] });
+    const count = await repo.countByResult('success');
+    expect(count).toBe(42);
+  });
+
+  test('should count all logs', async () => {
+    mockDb.query.mockResolvedValue({ rows: [{ count: '100' }] });
+    const count = await repo.countAll();
+    expect(count).toBe(100);
   });
 });
