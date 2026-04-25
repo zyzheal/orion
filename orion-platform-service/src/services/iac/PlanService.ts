@@ -70,7 +70,7 @@ export class PlanService {
         resourcesToChange: plan.resourceChanges?.change ?? 0,
         resourcesToDestroy: plan.resourceChanges?.destroy ?? 0,
         applied: false,
-      });
+      } as any);
     }
 
     await this.eventBus?.publish('iac.plan.created', {
@@ -90,7 +90,8 @@ export class PlanService {
 
   async list(filter: IaCPlanListFilter = {}): Promise<{ plans: IaCPlanEntity[]; total: number }> {
     if (this.planRepository) {
-      let entities = await this.planRepository.findAll();
+      const result = await this.planRepository.findAll();
+      let entities = result.entities;
 
       if (filter.status === 'applied') {
         entities = entities.filter(p => p.applied);

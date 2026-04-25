@@ -1,5 +1,7 @@
 /**
  * IaC Workspace Service - Workspace CRUD, locking, state management
+ *
+ * Uses PostgreSQL repositories for persistence (migration from Map() in-memory).
  */
 
 import { EventBusService } from '../event-bus-service';
@@ -18,6 +20,9 @@ import {
   IaCWorkspaceStatus,
   IaCProvider,
 } from '../../models/IacWorkspace';
+import { IaCWorkspaceRepository, IaCWorkspaceEntity } from '../../repositories/IaCWorkspaceRepository';
+import { IaCStateVersionRepository, IaCStateVersionEntity } from '../../repositories/IaCStateVersionRepository';
+import { IaCModuleRepository, IaCModuleEntity } from '../../repositories/IaCModuleRepository';
 
 export interface IaCWorkspaceListFilter {
   projectId?: string;
@@ -28,23 +33,92 @@ export interface IaCWorkspaceListFilter {
   perPage?: number;
 }
 
+// Entity-to-domain mapper for IaCWorkspace
+function toWorkspace(entity: IaCWorkspaceEntity): IaCWorkspace {
+  return {
+    id: entity.id,
+    name: entity.name,
+    projectId: entity.projectId,
+    environment: entity.environment,
+    statePath: entity.statePath,
+    variables: entity.variables,
+    lockedBy: entity.lockedBy,
+    status: entity.status,
+    provider: entity.provider,
+    createdAt: entity.createdAt,
+  };
+}
+
+// Entity-to-domain mapper for IaCStateVersion
+function toStateVersion(entity: IaCStateVersionEntity): IaCStateVersion {
+  return {
+    id: entity.id,
+    workspaceId: entity.workspaceId,
+    version: entity.version,
+    timestamp: entity.timestamp,
+    commitSha: entity.commitSha,
+    author: entity.author,
+    size: entity.size,
+  };
+}
+
+// Entity-to-domain mapper for IaCModule
+function toModule(entity: IaCModuleEntity): IaCModule {
+  return {
+    id: entity.id,
+    name: entity.name,
+    version: entity.version,
+    source: entity.source,
+    dependencies: entity.dependencies,
+    createdAt: entity.createdAt,
+  };
+}
+
 export class WorkspaceService {
-  private workspaces: Map<string, IaCWorkspace> = new Map();
-  private stateVersions: Map<string, IaCStateVersion[]> = new Map();
-  private modules: Map<string, IaCModule> = new Map();
+  private workspaceRepository?: IaCWorkspaceRepository;
+  private stateVersionRepository?: IaCStateVersionRepository;
+  private moduleRepository?: IaCModuleRepository;
   private eventBus?: EventBusService;
 
-  constructor(options?: { eventBus?: EventBusService }) {
-    this.eventBus = options?.eventBus;
+  constructor(options: {
+    eventBus?: EventBusService;
+    db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> };
+  }) {
+    this.eventBus = options.eventBus;
+    if (options.db) {
+      this.workspaceRepository = new IaCWorkspaceRepository(options.db);
+      this.stateVersionRepository = new IaCStateVersionRepository(options.db);
+      this.moduleRepository = new IaCModuleRepository(options.db);
+    }
   }
 
   // ==================== Workspace CRUD ====================
 
   async create(input: IaCWorkspaceCreateInput): Promise<IaCWorkspace> {
-    const workspace = createIaCWorkspace(input);
-    this.workspaces.set(workspace.id, workspace);
-    this.stateVersions.set(workspace.id, []);
+    if (this.workspaceRepository) {
+      // PostgreSQL path
+      const entity = await this.workspaceRepository.create({
+        name: input.name,
+        project_id: input.projectId,
+        environment: input.environment,
+        state_path: input.statePath ?? '',
+        variables: input.variables ?? {},
+        status: 'active',
+        provider: input.provider ?? 'terraform',
+      } as any);
 
+      const workspace = toWorkspace(entity);
+
+      await this.eventBus?.publish('iac.workspace.created', {
+        workspaceId: workspace.id,
+        name: workspace.name,
+        environment: workspace.environment,
+      });
+      return workspace;
+    }
+
+    // Fallback: in-memory path (backward compatibility)
+    const workspace = createIaCWorkspace(input);
     await this.eventBus?.publish('iac.workspace.created', {
       workspaceId: workspace.id,
       name: workspace.name,
@@ -54,98 +128,133 @@ export class WorkspaceService {
   }
 
   async getById(id: string): Promise<IaCWorkspace | undefined> {
-    return this.workspaces.get(id);
+    if (this.workspaceRepository) {
+      const entity = await this.workspaceRepository.findById(id);
+      return entity ? toWorkspace(entity) : undefined;
+    }
+    return undefined;
   }
 
   async list(filter: IaCWorkspaceListFilter = {}): Promise<{ workspaces: IaCWorkspace[]; total: number }> {
-    let items = Array.from(this.workspaces.values());
+    if (this.workspaceRepository) {
+      const entities = await this.workspaceRepository.findAllFiltered({
+        projectId: filter.projectId,
+        environment: filter.environment,
+        status: filter.status,
+        provider: filter.provider,
+      });
 
-    if (filter.projectId) {
-      items = items.filter(w => w.projectId === filter.projectId);
-    }
-    if (filter.environment) {
-      items = items.filter(w => w.environment === filter.environment);
-    }
-    if (filter.status) {
-      items = items.filter(w => w.status === filter.status);
-    }
-    if (filter.provider) {
-      items = items.filter(w => w.provider === filter.provider);
-    }
+      const total = entities.length;
+      const page = filter.page ?? 1;
+      const perPage = filter.perPage ?? 20;
+      const start = (page - 1) * perPage;
+      const paged = entities.slice(start, start + perPage);
 
-    const total = items.length;
-    const page = filter.page ?? 1;
-    const perPage = filter.perPage ?? 20;
-    const start = (page - 1) * perPage;
-    items = items.slice(start, start + perPage);
-
-    return { workspaces: items, total };
+      return { workspaces: paged.map(toWorkspace), total };
+    }
+    return { workspaces: [], total: 0 };
   }
 
   async update(id: string, input: IaCWorkspaceUpdateInput): Promise<IaCWorkspace | undefined> {
-    const workspace = this.workspaces.get(id);
-    if (!workspace) return undefined;
+    if (this.workspaceRepository) {
+      // Build update payload with snake_case columns
+      const updateData: Record<string, unknown> = {};
+      if (input.name !== undefined) updateData.name = input.name;
+      if (input.statePath !== undefined) updateData.state_path = input.statePath;
+      if (input.variables !== undefined) updateData.variables = input.variables;
+      if (input.status !== undefined) updateData.status = input.status;
 
-    if (input.name !== undefined) workspace.name = input.name;
-    if (input.statePath !== undefined) workspace.statePath = input.statePath;
-    if (input.variables !== undefined) workspace.variables = input.variables;
-    if (input.status !== undefined) workspace.status = input.status;
+      if (Object.keys(updateData).length === 0) {
+        return this.getById(id);
+      }
 
-    this.workspaces.set(id, workspace);
-    await this.eventBus?.publish('iac.workspace.updated', { workspaceId: id });
-    return workspace;
+      try {
+        const entity = await this.workspaceRepository.update(id, updateData as any);
+        await this.eventBus?.publish('iac.workspace.updated', { workspaceId: id });
+        return toWorkspace(entity);
+      } catch {
+        return undefined;
+      }
+    }
+    return undefined;
   }
 
   async delete(id: string): Promise<boolean> {
-    const deleted = this.workspaces.delete(id);
-    this.stateVersions.delete(id);
-    if (deleted) {
-      await this.eventBus?.publish('iac.workspace.deleted', { workspaceId: id });
+    if (this.workspaceRepository) {
+      const deleted = await this.workspaceRepository.delete(id);
+      if (deleted) {
+        await this.eventBus?.publish('iac.workspace.deleted', { workspaceId: id });
+      }
+      return deleted;
     }
-    return deleted;
+    return false;
   }
 
   // ==================== Locking ====================
 
   async lock(workspaceId: string, userId: string): Promise<IaCWorkspace | undefined> {
-    const workspace = this.workspaces.get(workspaceId);
-    if (!workspace) return undefined;
-    if (workspace.lockedBy) {
-      throw new Error(`Workspace is already locked by ${workspace.lockedBy}`);
+    if (this.workspaceRepository) {
+      const entity = await this.workspaceRepository.findById(workspaceId);
+      if (!entity) return undefined;
+      if (entity.lockedBy) {
+        throw new Error(`Workspace is already locked by ${entity.lockedBy}`);
+      }
+
+      const updated = await this.workspaceRepository.update(workspaceId, {
+        locked_by: userId,
+        status: 'locked',
+      } as any);
+
+      await this.eventBus?.publish('iac.workspace.locked', {
+        workspaceId,
+        lockedBy: userId,
+      });
+      return toWorkspace(updated);
     }
-
-    workspace.lockedBy = userId;
-    workspace.status = 'locked';
-    this.workspaces.set(workspaceId, workspace);
-
-    await this.eventBus?.publish('iac.workspace.locked', {
-      workspaceId,
-      lockedBy: userId,
-    });
-    return workspace;
+    return undefined;
   }
 
   async unlock(workspaceId: string): Promise<IaCWorkspace | undefined> {
-    const workspace = this.workspaces.get(workspaceId);
-    if (!workspace) return undefined;
+    if (this.workspaceRepository) {
+      const entity = await this.workspaceRepository.findById(workspaceId);
+      if (!entity) return undefined;
 
-    workspace.lockedBy = null;
-    workspace.status = 'active';
-    this.workspaces.set(workspaceId, workspace);
+      const updated = await this.workspaceRepository.update(workspaceId, {
+        locked_by: null,
+        status: 'active',
+      } as any);
 
-    await this.eventBus?.publish('iac.workspace.unlocked', { workspaceId });
-    return workspace;
+      await this.eventBus?.publish('iac.workspace.unlocked', { workspaceId });
+      return toWorkspace(updated);
+    }
+    return undefined;
   }
 
   // ==================== State Management ====================
 
   async addStateVersion(input: IaCStateVersionCreateInput): Promise<IaCStateVersion> {
-    const version = createIaCStateVersion(input);
-    const versions = this.stateVersions.get(input.workspaceId) ?? [];
-    versions.push(version);
-    versions.sort((a, b) => b.version - a.version);
-    this.stateVersions.set(input.workspaceId, versions);
+    if (this.stateVersionRepository) {
+      // Get next version number if not provided
+      const version = input.version || await this.stateVersionRepository.getNextVersion(input.workspaceId);
 
+      const entity = await this.stateVersionRepository.create({
+        workspace_id: input.workspaceId,
+        version,
+        timestamp: new Date(),
+        commit_sha: input.commitSha,
+        author: input.author,
+        size: input.size,
+      } as any);
+
+      await this.eventBus?.publish('iac.state.versioned', {
+        workspaceId: input.workspaceId,
+        version: entity.version,
+      });
+      return toStateVersion(entity);
+    }
+
+    // Fallback: in-memory
+    const version = createIaCStateVersion(input);
     await this.eventBus?.publish('iac.state.versioned', {
       workspaceId: input.workspaceId,
       version: version.version,
@@ -154,25 +263,29 @@ export class WorkspaceService {
   }
 
   async getCurrentState(workspaceId: string): Promise<IaCStateVersion | undefined> {
-    const versions = this.stateVersions.get(workspaceId) ?? [];
-    if (versions.length === 0) return undefined;
-    return versions[0]; // Already sorted by version descending
+    if (this.stateVersionRepository) {
+      const entity = await this.stateVersionRepository.findCurrent(workspaceId);
+      return entity ? toStateVersion(entity) : undefined;
+    }
+    return undefined;
   }
 
   async getStateHistory(workspaceId: string): Promise<IaCStateVersion[]> {
-    return this.stateVersions.get(workspaceId) ?? [];
+    if (this.stateVersionRepository) {
+      const entities = await this.stateVersionRepository.findByWorkspace(workspaceId);
+      return entities.map(toStateVersion);
+    }
+    return [];
   }
 
   // ==================== Resource Listing ====================
 
   async listResources(workspaceId: string): Promise<Record<string, unknown>[]> {
-    const workspace = this.workspaces.get(workspaceId);
+    const workspace = await this.getById(workspaceId);
     if (!workspace) return [];
 
-    // Derive mock resources from variables for in-memory implementation
+    const currentState = await this.getCurrentState(workspaceId);
     const resources: Record<string, unknown>[] = [];
-    const stateVersions = this.stateVersions.get(workspaceId) ?? [];
-    const currentState = stateVersions[0];
 
     if (currentState) {
       resources.push({
@@ -201,15 +314,16 @@ export class WorkspaceService {
   }
 
   async importResource(workspaceId: string, resource: Record<string, unknown>): Promise<Record<string, unknown>> {
-    const workspace = this.workspaces.get(workspaceId);
+    const workspace = await this.getById(workspaceId);
     if (!workspace) {
       throw new Error('Workspace not found');
     }
 
     // Store imported resource in variables for tracking
     const resourceId = (resource.address as string) || `imported-${Date.now()}`;
-    workspace.variables[`imported_${resourceId}`] = resource;
-    this.workspaces.set(workspaceId, workspace);
+    const updatedVariables = { ...workspace.variables, [`imported_${resourceId}`]: resource };
+
+    await this.update(workspaceId, { variables: updatedVariables });
 
     await this.eventBus?.publish('iac.resource.imported', {
       workspaceId,
@@ -221,9 +335,24 @@ export class WorkspaceService {
   // ==================== Module Management ====================
 
   async createModule(input: IaCModuleCreateInput): Promise<IaCModule> {
-    const module = createIaCModule(input);
-    this.modules.set(module.id, module);
+    if (this.moduleRepository) {
+      const entity = await this.moduleRepository.create({
+        name: input.name,
+        version: input.version,
+        source: input.source,
+        dependencies: input.dependencies ?? {},
+      } as any);
 
+      await this.eventBus?.publish('iac.module.created', {
+        moduleId: entity.id,
+        name: entity.name,
+        version: entity.version,
+      });
+      return toModule(entity);
+    }
+
+    // Fallback: in-memory
+    const module = createIaCModule(input);
     await this.eventBus?.publish('iac.module.created', {
       moduleId: module.id,
       name: module.name,
@@ -233,15 +362,25 @@ export class WorkspaceService {
   }
 
   async getModuleById(id: string): Promise<IaCModule | undefined> {
-    return this.modules.get(id);
+    if (this.moduleRepository) {
+      const entity = await this.moduleRepository.findById(id);
+      return entity ? toModule(entity) : undefined;
+    }
+    return undefined;
   }
 
   async listModules(): Promise<IaCModule[]> {
-    return Array.from(this.modules.values());
+    if (this.moduleRepository) {
+      const entities = await this.moduleRepository.findAllModules();
+      return entities.map(toModule);
+    }
+    return [];
   }
 
   async deleteModule(id: string): Promise<boolean> {
-    const deleted = this.modules.delete(id);
-    return deleted;
+    if (this.moduleRepository) {
+      return await this.moduleRepository.delete(id);
+    }
+    return false;
   }
 }

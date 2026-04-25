@@ -2,6 +2,9 @@
  * IaC Management API Routes
  *
  * Routes under /api/v1/iac
+ *
+ * M20: IaC Workspace management with PostgreSQL persistence.
+ * Accepts database pool via options to create repositories.
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
@@ -12,10 +15,17 @@ import { EventBusService } from '../services/event-bus-service';
 
 export default async function iacRoutes(
   app: FastifyInstance,
-  options?: { eventBus?: EventBusService }
+  options?: { eventBus?: EventBusService; database?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> } }
 ): Promise<void> {
-  const workspaceService = new WorkspaceService({ eventBus: options?.eventBus });
-  const planService = new PlanService({ workspaceService, eventBus: options?.eventBus });
+  const workspaceService = new WorkspaceService({
+    eventBus: options?.eventBus,
+    db: options?.database,
+  });
+  const planService = new PlanService({
+    workspaceService,
+    eventBus: options?.eventBus,
+    db: options?.database,
+  });
   const controller = new IacController({ workspaceService, planService });
 
   // ==================== Workspaces ====================
