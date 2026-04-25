@@ -58,6 +58,7 @@ import eventbusRoutes from './eventbus-routes';
 import productLineRoutes from './product-line-routes';
 import internalLibraryRoutes from './internal-library-routes';
 import notificationRoutes from './notification-routes';
+import webhookRoutes from './webhook-routes';
 import roleRoutes from './role-routes';
 
 export interface ApiRoutesOptions {
@@ -317,4 +318,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // 注册 Session Management API 路由 - PostgreSQL backed
   await app.register(sessionRoutes, { prefix: '/sessions', database: options.database });
+
+  // 注册 Webhook Management API 路由 (M1) - PostgreSQL backed
+  await app.register(webhookRoutes, { prefix: '/webhooks', database: options.database });
 }
