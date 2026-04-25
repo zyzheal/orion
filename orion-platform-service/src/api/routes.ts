@@ -65,6 +65,7 @@ import metricsRoutes from './metrics-routes';
 import userRoutes from './user-routes';
 import environmentRoutes from './environment-routes';
 import projectRoutes from './project-routes';
+import agentRoutes from '../routes-agent';
 
 export interface ApiRoutesOptions {
   eventBus?: EventBusService;
@@ -341,4 +342,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // 注册 User Management API 路由 - PostgreSQL backed
   await app.register(userRoutes, { prefix: '/users', database: options.database });
+
+  // 注册 Agent Orchestration API 路由 - PostgreSQL backed
+  await app.register(agentRoutes, { prefix: '/', eventBus: options.eventBus, database: options.database });
 }
