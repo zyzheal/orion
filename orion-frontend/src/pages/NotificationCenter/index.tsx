@@ -6,7 +6,7 @@
  * - Mark all as read, Clear read notifications actions
  * - Empty state for no notifications
  */
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Typography,
   Button,
@@ -66,7 +66,7 @@ const typeIconMap: Record<string, React.ReactElement> = {
   sla_breached: <ExclamationCircleOutlined style={{ color: colors.error[500], fontSize: spacing[5] }} />,
   pipeline_completed: <CheckCircleOutlined style={{ color: colors.success[500], fontSize: spacing[5] }} />,
   comment_mention: <MessageOutlined style={{ color: colors.purple[500], fontSize: spacing[5] }} />,
-  transfer_request: <SwapOutlined style={{ color: colors.cyan[500], fontSize: spacing[5] }} />,
+  transfer_request: <SwapOutlined style={{ color: colors.info[500], fontSize: spacing[5] }} />,
   system_alert: <AlertOutlined style={{ color: colors.error[500], fontSize: spacing[5] }} />,
 };
 

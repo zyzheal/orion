@@ -6,7 +6,7 @@
  * - Used for list pages with search and filtering capabilities
  */
 import React, { useState, useMemo, useCallback, useRef } from 'react';
-import { Input, Select, Tag, Space, Button } from 'antd';
+import { Input, Select, Tag, Button } from 'antd';
 import { SearchOutlined, CloseOutlined, FilterOutlined } from '@ant-design/icons';
 
 // ============================================================================

@@ -34,7 +34,7 @@ import {
 } from '@ant-design/icons';
 import DashboardLayout from '@/components/DashboardLayout';
 import {
-  assessRisk,
+  assessDeploymentRisk,
   runHealthCheck,
   getRiskAssessments,
   getRiskEvents,
@@ -93,10 +93,7 @@ const RiskDashboardPage: React.FC = () => {
 
   const handleAssess = async (values: any) => {
     try {
-      await assessRisk({
-        targetType: values.targetType,
-        targetId: values.targetId,
-        metadata: values.metadata ? JSON.parse(values.metadata) : undefined,
+      await assessDeploymentRisk(values.targetId, {
       });
       message.success('风险评估已启动');
       setAssessModalOpen(false);

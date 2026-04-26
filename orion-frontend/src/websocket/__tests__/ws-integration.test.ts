@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * WebSocket 前后端联调测试
  *

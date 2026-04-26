@@ -6,7 +6,6 @@ import React from 'react';
 import { Card, Row, Col, Statistic, Progress, Tag, Table, Typography, Badge, Button, Space } from 'antd';
 import { colors, spacing } from '@/tokens';
 import {
-  AppstoreOutlined,
   ClockCircleOutlined,
   CheckCircleOutlined,
   WarningOutlined,
@@ -19,12 +18,11 @@ import {
   DashboardOutlined,
   TeamOutlined,
   UserSwitchOutlined,
-  CloudServerOutlined,
   AlertOutlined,
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 
-const { Title, Text, Paragraph } = Typography;
+const { Text, Paragraph } = Typography;
 
 // 模拟数据
 const pipelineStats = {
@@ -366,7 +364,7 @@ const DashboardNew: React.FC = () => {
                       transition: 'all 0.3s',
                     }}
                   >
-                    <div style={{ fontSize: spacing[7], color: action.color, marginBottom: 8 }}>
+                    <div style={{ fontSize: 28, color: action.color, marginBottom: 8 }}>
                       {action.icon}
                     </div>
                     <Text style={{ fontSize: spacing[3] }}>{action.name}</Text>

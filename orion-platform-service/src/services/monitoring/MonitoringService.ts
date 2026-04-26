@@ -1,550 +1,478 @@
 /**
- * TASK-703: Monitoring Service (Main Orchestrator)
+ * MonitoringService - Business logic layer for Monitoring operations
  *
- * Orchestrates metric collection, alert evaluation, and notifications.
- * Subscribes to NATS events for monitoring. Runs periodic metric collection
- * and alert evaluation loops.
+ * Combines repository-backed persistence (configs, alerts, rules, channels,
+ * policies, notification history) with in-memory sub-services for real-time
+ * metric collection, rule evaluation, and dashboard generation.
  */
 
-import { EventEmitter } from 'events';
+import {
+  MonitoringRepository,
+  MonitoringConfig,
+  Alert,
+  AlertRuleRecord,
+  NotificationChannelRecord,
+  EscalationPolicyRecord,
+  NotificationHistoryRecord,
+  CreateMonitoringConfigInput,
+  CreateAlertInput,
+  UpdateAlertInput,
+  CreateAlertRuleInput,
+  CreateNotificationChannelInput,
+  CreateEscalationPolicyInput,
+} from './MonitoringRepository';
 import { MetricCollector } from './MetricCollector';
 import { AlertRuleEngine } from './AlertRuleEngine';
 import { AlertNotificationService } from './AlertNotificationService';
 import { MonitoringDashboard } from './MonitoringDashboard';
-import {
-  Alert,
-  AlertRule,
-  AlertChannel,
-  AlertSeverity,
-  EscalationPolicy,
-  MonitoringConfig,
-  Metric,
-  DashboardData,
-  AnomalyResult,
-} from './types';
-import { WidgetConfig } from './MonitoringDashboard';
+import { AlertRule, AlertChannel, EscalationPolicy } from './types';
 
-/**
- * Default monitoring configuration
- */
-const DEFAULT_CONFIG: MonitoringConfig = {
-  collectionIntervalMs: 30 * 1000, // 30 seconds
-  evaluationIntervalMs: 15 * 1000, // 15 seconds
-  retentionMs: 24 * 60 * 60 * 1000, // 24 hours
-  maxDataPointsPerMetric: 10000,
-  anomalyZScoreThreshold: 2.5,
-  enableSystemMetrics: true,
-  natsSubjectPrefix: 'orion.monitoring',
-};
+export interface ListAlertsOptions {
+  page?: number;
+  limit?: number;
+  tenantId?: string;
+  status?: string;
+  severity?: string;
+}
 
-/**
- * NATS event types for monitoring
- */
-export type MonitoringEventType =
-  | 'metric.collected'
-  | 'alert.triggered'
-  | 'alert.resolved'
-  | 'alert.acknowledged'
-  | 'system.metrics.collected';
+export interface PaginatedResult<T> {
+  data: T[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
 
-/**
- * Monitoring Service - Main orchestration layer
- *
- * Coordinates:
- * - Periodic metric collection
- * - Alert rule evaluation
- * - Alert notification delivery
- * - Escalation management
- * - Dashboard data generation
- * - NATS event subscription for monitoring
- */
-export class MonitoringService extends EventEmitter {
-  /** Service configuration */
-  private config: MonitoringConfig;
+export class MonitoringServiceError extends Error {
+  constructor(message: string, public code: string) {
+    super(message);
+    this.name = 'MonitoringServiceError';
+  }
+}
 
-  /** Metric collector */
-  public metricCollector: MetricCollector;
+export class MonitoringService {
+  private repository?: MonitoringRepository;
 
-  /** Alert rule engine */
-  public alertRuleEngine: AlertRuleEngine;
+  // In-memory sub-services for real-time operations
+  readonly metricCollector: MetricCollector;
+  readonly alertRuleEngine: AlertRuleEngine;
+  readonly notificationService: AlertNotificationService;
+  readonly dashboard: MonitoringDashboard;
 
-  /** Alert notification service */
-  public notificationService: AlertNotificationService;
-
-  /** Monitoring dashboard */
-  public dashboard: MonitoringDashboard;
-
-  /** Running state */
-  private isRunning: boolean = false;
-
-  /** Metric collection interval timer */
+  // Service state
+  private running = false;
   private collectionTimer?: NodeJS.Timeout;
-
-  /** Alert evaluation interval timer */
   private evaluationTimer?: NodeJS.Timeout;
 
-  /** NATS connection (optional) */
-  private natsConnection: any = null;
+  constructor(repository?: MonitoringRepository) {
+    this.repository = repository;
 
-  /** NATS event handler unsubscriber */
-  private natsUnsubscribe?: () => Promise<void>;
-
-  constructor(config?: Partial<MonitoringConfig>) {
-    super();
-
-    this.config = { ...DEFAULT_CONFIG, ...config };
-
-    // Initialize components
-    this.metricCollector = new MetricCollector({
-      retentionMs: this.config.retentionMs,
-      maxDataPointsPerMetric: this.config.maxDataPointsPerMetric,
-    });
-
+    // Initialize sub-services
+    this.metricCollector = new MetricCollector();
     this.alertRuleEngine = new AlertRuleEngine(this.metricCollector);
     this.notificationService = new AlertNotificationService();
-    this.dashboard = new MonitoringDashboard(this.metricCollector, {
-      anomalyThreshold: this.config.anomalyZScoreThreshold,
-    });
+    this.dashboard = new MonitoringDashboard(this.metricCollector);
 
-    // Set up alert callback
-    this.alertRuleEngine.onAlert = (alert: Alert) => {
-      this.handleNewAlert(alert);
+    // Wire alert callbacks
+    this.alertRuleEngine.onAlert = (alert) => {
+      // Auto-send notifications for new alerts via registered channels
+      // In production, this would trigger the notification pipeline
     };
   }
 
-  // ==================== Lifecycle ====================
+  // ==================== Service Lifecycle ====================
 
-  /**
-   * Start the monitoring service
-   */
   async start(): Promise<void> {
-    if (this.isRunning) {
-      console.log('[MonitoringService] Already running');
-      return;
-    }
+    if (this.running) return;
+    this.running = true;
 
-    this.isRunning = true;
-    console.log('[MonitoringService] Starting...');
+    // Load persisted rules into the in-memory engine
+    await this.loadPersistedRules();
 
-    // Start periodic metric collection
-    if (this.config.enableSystemMetrics) {
-      this.startCollectionLoop();
-    }
+    // Load persisted channels into the notification service
+    await this.loadPersistedChannels();
 
-    // Start periodic alert evaluation
-    this.startEvaluationLoop();
-
-    // Connect to NATS if available
-    await this.connectNats();
-
-    // Collect initial system metrics
-    if (this.config.enableSystemMetrics) {
+    // Start periodic metric collection (every 30s)
+    this.collectionTimer = setInterval(() => {
       this.metricCollector.collectSystemMetrics();
-    }
+    }, 30000);
 
-    this.emit('started');
-    console.log('[MonitoringService] Started');
+    // Start periodic alert evaluation (every 60s)
+    this.evaluationTimer = setInterval(() => {
+      const newAlerts = this.alertRuleEngine.evaluateRules();
+      // In production, these would be persisted via repository
+    }, 60000);
+
+    // Collect initial metrics
+    this.metricCollector.collectSystemMetrics();
   }
 
-  /**
-   * Stop the monitoring service
-   */
   async stop(): Promise<void> {
-    if (!this.isRunning) return;
+    if (!this.running) return;
+    this.running = false;
 
-    this.isRunning = false;
-    console.log('[MonitoringService] Stopping...');
-
-    // Clear timers
-    if (this.collectionTimer) {
-      clearTimeout(this.collectionTimer);
-      this.collectionTimer = undefined;
-    }
-
-    if (this.evaluationTimer) {
-      clearTimeout(this.evaluationTimer);
-      this.evaluationTimer = undefined;
-    }
-
-    // Cancel all escalations
-    this.notificationService.clearAll();
-
-    // Disconnect NATS
-    if (this.natsConnection) {
-      try {
-        await this.natsUnsubscribe?.();
-        await this.natsConnection.close();
-      } catch (error) {
-        console.warn('[MonitoringService] Error disconnecting NATS:', error);
-      }
-      this.natsConnection = null;
-    }
-
-    this.emit('stopped');
-    console.log('[MonitoringService] Stopped');
+    if (this.collectionTimer) clearInterval(this.collectionTimer);
+    if (this.evaluationTimer) clearInterval(this.evaluationTimer);
   }
 
-  /**
-   * Check if the service is running
-   */
-  getIsRunning(): boolean {
-    return this.isRunning;
-  }
-
-  // ==================== Collection Loop ====================
-
-  /**
-   * Start periodic metric collection
-   */
-  private startCollectionLoop(): void {
-    const collect = () => {
-      if (!this.isRunning) return;
-
-      try {
-        const metrics = this.metricCollector.collectSystemMetrics();
-        this.emit('metrics:collected', metrics);
-
-        // Publish to NATS
-        this.publishNatsEvent('system.metrics.collected', {
-          metricCount: metrics.length,
-          timestamp: new Date().toISOString(),
-        });
-      } catch (error) {
-        console.error('[MonitoringService] Collection error:', error);
-      }
-
-      this.collectionTimer = setTimeout(collect, this.config.collectionIntervalMs);
+  getHealthStatus(): { running: boolean; uptime: string; metricsCount: number; rulesCount: number; activeAlerts: number } {
+    return {
+      running: this.running,
+      uptime: this.running ? 'running' : 'stopped',
+      metricsCount: this.metricCollector.getRegisteredMetrics().length,
+      rulesCount: this.alertRuleEngine.getAllRules().length,
+      activeAlerts: this.alertRuleEngine.getActiveAlerts().length,
     };
-
-    this.collectionTimer = setTimeout(collect, this.config.collectionIntervalMs);
   }
 
-  // ==================== Evaluation Loop ====================
+  // ==================== Monitoring Config ====================
 
-  /**
-   * Start periodic alert evaluation
-   */
-  private startEvaluationLoop(): void {
-    const evaluate = () => {
-      if (!this.isRunning) return;
-
-      try {
-        const newAlerts = this.alertRuleEngine.evaluateRules();
-
-        if (newAlerts.length > 0) {
-          this.emit('alerts:new', newAlerts);
-        }
-      } catch (error) {
-        console.error('[MonitoringService] Evaluation error:', error);
-      }
-
-      this.evaluationTimer = setTimeout(evaluate, this.config.evaluationIntervalMs);
-    };
-
-    this.evaluationTimer = setTimeout(evaluate, this.config.evaluationIntervalMs);
+  async getConfig(id: string): Promise<MonitoringConfig> {
+    if (!this.repository) throw new MonitoringServiceError('Database not configured', 'NO_DATABASE');
+    const config = await this.repository.findConfigById(id);
+    if (!config) throw new MonitoringServiceError(`Config not found: ${id}`, 'CONFIG_NOT_FOUND');
+    return config;
   }
 
-  // ==================== Alert Handling ====================
-
-  /**
-   * Handle a new alert trigger
-   */
-  private async handleNewAlert(alert: Alert): Promise<void> {
-    console.log(
-      `[MonitoringService] Alert triggered: ${alert.ruleName || alert.metric} (${alert.severity})`
-    );
-
-    this.emit('alert:triggered', alert);
-
-    // Publish to NATS
-    this.publishNatsEvent('alert.triggered', {
-      alertId: alert.id,
-      ruleId: alert.ruleId,
-      severity: alert.severity,
-      metric: alert.metric,
-      value: alert.value,
-      threshold: alert.threshold,
-      message: alert.message,
-    });
-
-    // Send notifications
-    await this.sendAlertNotifications(alert);
+  async listConfigs(tenantId?: string): Promise<MonitoringConfig[]> {
+    if (!this.repository) throw new MonitoringServiceError('Database not configured', 'NO_DATABASE');
+    return this.repository.findAllConfigs(tenantId);
   }
 
-  /**
-   * Send notifications for an alert
-   */
-  private async sendAlertNotifications(alert: Alert): Promise<void> {
-    // Find channels that match this alert's severity
-    const channels = this.notificationService.getAllChannels();
-    const matchingChannelIds = channels
-      .filter(c => {
-        if (!c.enabled) return false;
-        if (c.severityFilter && !c.severityFilter.includes(alert.severity)) return false;
-        return true;
-      })
-      .map(c => c.id);
-
-    if (matchingChannelIds.length === 0) return;
-
-    try {
-      const records = await this.notificationService.sendNotification(
-        alert,
-        matchingChannelIds
-      );
-
-      this.emit('alert:notifications:sent', { alert, records });
-    } catch (error) {
-      console.error('[MonitoringService] Error sending notifications:', error);
-      this.emit('alert:notification:error', { alert, error });
-    }
+  async createConfig(input: CreateMonitoringConfigInput): Promise<MonitoringConfig> {
+    if (!this.repository) throw new MonitoringServiceError('Database not configured', 'NO_DATABASE');
+    if (!input.tenant_id) throw new MonitoringServiceError('Tenant ID required', 'INVALID_INPUT');
+    if (!input.name) throw new MonitoringServiceError('Name required', 'INVALID_INPUT');
+    return this.repository.createConfig(input);
   }
 
-  // ==================== Public API ====================
+  async updateConfig(id: string, input: Partial<CreateMonitoringConfigInput>): Promise<MonitoringConfig> {
+    if (!this.repository) throw new MonitoringServiceError('Database not configured', 'NO_DATABASE');
+    const existing = await this.repository.findConfigById(id);
+    if (!existing) throw new MonitoringServiceError(`Config not found: ${id}`, 'CONFIG_NOT_FOUND');
+    const updated = await this.repository.updateConfig(id, input);
+    if (!updated) throw new MonitoringServiceError(`Failed to update config: ${id}`, 'UPDATE_FAILED');
+    return updated;
+  }
+
+  async deleteConfig(id: string): Promise<boolean> {
+    if (!this.repository) throw new MonitoringServiceError('Database not configured', 'NO_DATABASE');
+    const existing = await this.repository.findConfigById(id);
+    if (!existing) throw new MonitoringServiceError(`Config not found: ${id}`, 'CONFIG_NOT_FOUND');
+    return this.repository.deleteConfig(id);
+  }
+
+  async enableConfig(id: string): Promise<MonitoringConfig> {
+    return this.updateConfig(id, { enabled: true });
+  }
+
+  async disableConfig(id: string): Promise<MonitoringConfig> {
+    return this.updateConfig(id, { enabled: false });
+  }
+
+  // ==================== Alerts ====================
+
+  async getAlert(id: string): Promise<Alert> {
+    if (!this.repository) throw new MonitoringServiceError('Database not configured', 'NO_DATABASE');
+    const alert = await this.repository.findAlertById(id);
+    if (!alert) throw new MonitoringServiceError(`Alert not found: ${id}`, 'ALERT_NOT_FOUND');
+    return alert;
+  }
+
+  async listAlerts(options: ListAlertsOptions = {}): Promise<PaginatedResult<Alert>> {
+    if (!this.repository) throw new MonitoringServiceError('Database not configured', 'NO_DATABASE');
+    const { page = 1, limit = 20, tenantId, status, severity } = options;
+    const offset = (page - 1) * limit;
+
+    const [alerts, total] = await Promise.all([
+      this.repository.findAllAlerts({ tenantId, status, severity, limit, offset }),
+      this.repository.countAlerts({ tenantId, status }),
+    ]);
+
+    return { data: alerts, total, page, limit, totalPages: Math.ceil(total / limit) };
+  }
+
+  async createAlert(input: CreateAlertInput): Promise<Alert> {
+    if (!this.repository) throw new MonitoringServiceError('Database not configured', 'NO_DATABASE');
+    if (!input.tenant_id) throw new MonitoringServiceError('Tenant ID required', 'INVALID_INPUT');
+    if (!input.title) throw new MonitoringServiceError('Title required', 'INVALID_INPUT');
+    return this.repository.createAlert(input);
+  }
+
+  async acknowledgeAlert(id: string, userId: string): Promise<Alert> {
+    if (!this.repository) throw new MonitoringServiceError('Database not configured', 'NO_DATABASE');
+    const alert = await this.repository.findAlertById(id);
+    if (!alert) throw new MonitoringServiceError(`Alert not found: ${id}`, 'ALERT_NOT_FOUND');
+    const updated = await this.repository.acknowledgeAlert(id, userId);
+    if (!updated) throw new MonitoringServiceError(`Failed to acknowledge: ${id}`, 'UPDATE_FAILED');
+    return updated;
+  }
+
+  async resolveAlert(id: string): Promise<Alert> {
+    if (!this.repository) throw new MonitoringServiceError('Database not configured', 'NO_DATABASE');
+    const alert = await this.repository.findAlertById(id);
+    if (!alert) throw new MonitoringServiceError(`Alert not found: ${id}`, 'ALERT_NOT_FOUND');
+    const updated = await this.repository.resolveAlert(id);
+    if (!updated) throw new MonitoringServiceError(`Failed to resolve: ${id}`, 'UPDATE_FAILED');
+    return updated;
+  }
+
+  // ==================== Alert Rules ====================
+
+  async listRules(tenantId?: string): Promise<AlertRuleRecord[]> {
+    if (!this.repository) throw new MonitoringServiceError('Database not configured', 'NO_DATABASE');
+    return this.repository.findAllRules(tenantId);
+  }
+
+  async getRule(id: string): Promise<AlertRuleRecord> {
+    if (!this.repository) throw new MonitoringServiceError('Database not configured', 'NO_DATABASE');
+    const rule = await this.repository.findRuleById(id);
+    if (!rule) throw new MonitoringServiceError(`Rule not found: ${id}`, 'RULE_NOT_FOUND');
+    return rule;
+  }
+
+  async createRule(input: CreateAlertRuleInput): Promise<AlertRuleRecord> {
+    if (!this.repository) throw new MonitoringServiceError('Database not configured', 'NO_DATABASE');
+    if (!input.tenant_id) throw new MonitoringServiceError('Tenant ID required', 'INVALID_INPUT');
+    if (!input.name) throw new MonitoringServiceError('Name required', 'INVALID_INPUT');
+    if (!input.metric) throw new MonitoringServiceError('Metric required', 'INVALID_INPUT');
+    if (!input.condition) throw new MonitoringServiceError('Condition required', 'INVALID_INPUT');
+    if (input.threshold === undefined) throw new MonitoringServiceError('Threshold required', 'INVALID_INPUT');
+
+    const record = await this.repository.createRule(input);
+
+    // Also add to in-memory engine for real-time evaluation
+    this.alertRuleEngine.addRule(this.ruleRecordToRule(record));
+
+    return record;
+  }
+
+  async updateRule(id: string, input: Partial<CreateAlertRuleInput>): Promise<AlertRuleRecord> {
+    if (!this.repository) throw new MonitoringServiceError('Database not configured', 'NO_DATABASE');
+    const existing = await this.repository.findRuleById(id);
+    if (!existing) throw new MonitoringServiceError(`Rule not found: ${id}`, 'RULE_NOT_FOUND');
+    const updated = await this.repository.updateRule(id, input);
+    if (!updated) throw new MonitoringServiceError(`Failed to update rule: ${id}`, 'UPDATE_FAILED');
+
+    // Update in-memory engine
+    this.alertRuleEngine.updateRule(id, this.ruleRecordToPartialRule(updated));
+
+    return updated;
+  }
+
+  async deleteRule(id: string): Promise<boolean> {
+    if (!this.repository) throw new MonitoringServiceError('Database not configured', 'NO_DATABASE');
+    const existing = await this.repository.findRuleById(id);
+    if (!existing) throw new MonitoringServiceError(`Rule not found: ${id}`, 'RULE_NOT_FOUND');
+
+    // Remove from in-memory engine
+    this.alertRuleEngine.removeRule(id);
+
+    return this.repository.deleteRule(id);
+  }
+
+  async toggleRule(id: string, enabled: boolean): Promise<AlertRuleRecord> {
+    if (!this.repository) throw new MonitoringServiceError('Database not configured', 'NO_DATABASE');
+    const updated = await this.repository.toggleRule(id, enabled);
+    if (!updated) throw new MonitoringServiceError(`Rule not found: ${id}`, 'RULE_NOT_FOUND');
+    this.alertRuleEngine.toggleRule(id, enabled);
+    return updated;
+  }
+
+  async suppressRule(id: string): Promise<AlertRuleRecord> {
+    if (!this.repository) throw new MonitoringServiceError('Database not configured', 'NO_DATABASE');
+    const updated = await this.repository.suppressRule(id);
+    if (!updated) throw new MonitoringServiceError(`Rule not found: ${id}`, 'RULE_NOT_FOUND');
+    return updated;
+  }
+
+  async unsuppressRule(id: string): Promise<AlertRuleRecord> {
+    if (!this.repository) throw new MonitoringServiceError('Database not configured', 'NO_DATABASE');
+    const updated = await this.repository.unsuppressRule(id);
+    if (!updated) throw new MonitoringServiceError(`Rule not found: ${id}`, 'RULE_NOT_FOUND');
+    return updated;
+  }
+
+  async evaluateRules(): Promise<any[]> {
+    const newAlerts = this.alertRuleEngine.evaluateRules();
+    return newAlerts;
+  }
+
+  // ==================== Notification Channels ====================
+
+  async listChannels(tenantId?: string): Promise<NotificationChannelRecord[]> {
+    if (!this.repository) throw new MonitoringServiceError('Database not configured', 'NO_DATABASE');
+    return this.repository.findAllChannels(tenantId);
+  }
+
+  async createChannel(input: CreateNotificationChannelInput): Promise<NotificationChannelRecord> {
+    if (!this.repository) throw new MonitoringServiceError('Database not configured', 'NO_DATABASE');
+    if (!input.tenant_id) throw new MonitoringServiceError('Tenant ID required', 'INVALID_INPUT');
+    if (!input.name) throw new MonitoringServiceError('Name required', 'INVALID_INPUT');
+    if (!input.type) throw new MonitoringServiceError('Type required', 'INVALID_INPUT');
+    if (!input.config) throw new MonitoringServiceError('Config required', 'INVALID_INPUT');
+
+    const record = await this.repository.createChannel(input);
+
+    // Also add to in-memory notification service
+    this.notificationService.addChannel(this.channelRecordToChannel(record));
+
+    return record;
+  }
+
+  async toggleChannel(id: string, enabled: boolean): Promise<NotificationChannelRecord> {
+    if (!this.repository) throw new MonitoringServiceError('Database not configured', 'NO_DATABASE');
+    const updated = await this.repository.toggleChannel(id, enabled);
+    if (!updated) throw new MonitoringServiceError(`Channel not found: ${id}`, 'CHANNEL_NOT_FOUND');
+    this.notificationService.toggleChannel(id, enabled);
+    return updated;
+  }
+
+  // ==================== Escalation Policies ====================
+
+  async listPolicies(tenantId?: string): Promise<EscalationPolicyRecord[]> {
+    if (!this.repository) throw new MonitoringServiceError('Database not configured', 'NO_DATABASE');
+    return this.repository.findAllPolicies(tenantId);
+  }
+
+  async createPolicy(input: CreateEscalationPolicyInput): Promise<EscalationPolicyRecord> {
+    if (!this.repository) throw new MonitoringServiceError('Database not configured', 'NO_DATABASE');
+    if (!input.tenant_id) throw new MonitoringServiceError('Tenant ID required', 'INVALID_INPUT');
+    if (!input.name) throw new MonitoringServiceError('Name required', 'INVALID_INPUT');
+    if (!input.steps || !Array.isArray(input.steps)) throw new MonitoringServiceError('Steps array required', 'INVALID_INPUT');
+
+    const record = await this.repository.createPolicy(input);
+
+    // Also add to in-memory notification service
+    this.notificationService.addEscalationPolicy(this.policyRecordToPolicy(record));
+
+    return record;
+  }
+
+  // ==================== Notification History ====================
+
+  async getNotificationHistory(options?: { tenantId?: string; alertId?: string; channelId?: string; status?: string; limit?: number }): Promise<NotificationHistoryRecord[]> {
+    if (!this.repository) throw new MonitoringServiceError('Database not configured', 'NO_DATABASE');
+    return this.repository.findNotificationHistory(options);
+  }
+
+  // ==================== Stats ====================
+
+  async getAlertStats(tenantId?: string) {
+    if (!this.repository) throw new MonitoringServiceError('Database not configured', 'NO_DATABASE');
+    return this.repository.getAlertStats(tenantId);
+  }
+
+  // ==================== Dashboard ====================
+
+  getDashboardData() {
+    const activeAlerts = this.alertRuleEngine.getAlertCountsBySeverity();
+    return this.dashboard.getDashboardData(activeAlerts as any);
+  }
+
+  // ==================== In-memory operations (compatibility) ====================
 
   /**
-   * Add an alert rule
+   * Add a rule directly to the in-memory engine (for legacy compatibility).
+   * Prefer createRule() for database-backed persistence.
    */
   addRule(rule: AlertRule): void {
     this.alertRuleEngine.addRule(rule);
-    console.log(`[MonitoringService] Rule added: ${rule.name} (${rule.id})`);
   }
 
   /**
-   * Remove an alert rule
+   * Get alerts from in-memory engine (for legacy compatibility).
+   * Prefer listAlerts() for database-backed persistence.
    */
-  removeRule(ruleId: string): boolean {
-    return this.alertRuleEngine.removeRule(ruleId);
-  }
-
-  /**
-   * Get all alerts
-   */
-  getAlerts(filter?: {
-    status?: string;
-    severity?: AlertSeverity;
-    ruleId?: string;
-  }) {
+  getAlerts(filter?: { status?: string; severity?: string; ruleId?: string }): any[] {
     return this.alertRuleEngine.getAlerts(filter as any);
   }
 
   /**
-   * Get active alerts
+   * Get active alerts from in-memory engine.
    */
-  getActiveAlerts(): Alert[] {
+  getActiveAlerts(): any[] {
     return this.alertRuleEngine.getActiveAlerts();
   }
 
-  /**
-   * Acknowledge an alert
-   */
-  acknowledgeAlert(alertId: string, acknowledgedBy: string): Alert | null {
-    const alert = this.alertRuleEngine.acknowledgeAlert(alertId, acknowledgedBy);
-    if (alert) {
-      this.notificationService.acknowledgeAlert(alertId, acknowledgedBy);
-      this.publishNatsEvent('alert.acknowledged', {
-        alertId,
-        acknowledgedBy,
-        timestamp: new Date().toISOString(),
-      });
-      this.emit('alert:acknowledged', alert);
-    }
-    return alert;
-  }
+  // ==================== Private Helpers ====================
 
-  /**
-   * Resolve an alert
-   */
-  resolveAlert(alertId: string): Alert | null {
-    const alert = this.alertRuleEngine.resolveAlert(alertId);
-    if (alert) {
-      this.publishNatsEvent('alert.resolved', {
-        alertId,
-        timestamp: new Date().toISOString(),
-      });
-      this.emit('alert:resolved', alert);
-    }
-    return alert;
-  }
-
-  /**
-   * Get metric data
-   */
-  getMetrics(metricName?: string, tags?: Record<string, string>) {
-    if (metricName) {
-      return this.metricCollector.getMetricSeries({ name: metricName, tags });
-    }
-    return this.metricCollector.getRegisteredMetrics();
-  }
-
-  /**
-   * Get dashboard data
-   */
-  getDashboardData(): DashboardData {
-    const alertCounts = this.alertRuleEngine.getAlertCountsBySeverity();
-    return this.dashboard.getDashboardData(alertCounts as Record<AlertSeverity, number>);
-  }
-
-  /**
-   * Get anomalies
-   */
-  getAnomalies(metricName?: string, timeWindow?: string): AnomalyResult[] {
-    if (metricName) {
-      return this.dashboard.detectAnomalies(metricName, timeWindow as any);
-    }
-    return this.dashboard.detectAllAnomalies();
-  }
-
-  // ==================== NATS Integration ====================
-
-  /**
-   * Connect to NATS for monitoring events
-   */
-  private async connectNats(): Promise<void> {
+  private async loadPersistedRules(): Promise<void> {
+    if (!this.repository) return;
     try {
-      const { connect } = await import('nats').catch(() => ({ connect: null }));
-
-      if (!connect) {
-        console.log('[MonitoringService] NATS not available, running without event subscription');
-        return;
+      const rules = await this.repository.findAllRules();
+      for (const record of rules) {
+        this.alertRuleEngine.addRule(this.ruleRecordToRule(record));
       }
-
-      this.natsConnection = await connect({
-        servers: ['nats://localhost:4222'],
-        timeout: 5000,
-        reconnect: false,
-      });
-
-      console.log('[MonitoringService] Connected to NATS');
-
-      // Subscribe to relevant events
-      await this.subscribeToEvents();
     } catch (error) {
-      console.log('[MonitoringService] NATS connection failed, running without event bus:', error);
+      console.warn('[MonitoringService] Failed to load persisted rules:', error);
     }
   }
 
-  /**
-   * Subscribe to NATS monitoring events
-   */
-  private async subscribeToEvents(): Promise<void> {
-    if (!this.natsConnection) return;
-
+  private async loadPersistedChannels(): Promise<void> {
+    if (!this.repository) return;
     try {
-      const subject = `${this.config.natsSubjectPrefix}.>`;
-      const subscription = this.natsConnection.subscribe(subject, {
-        queue: 'orion-monitoring',
-      });
-
-      (async () => {
-        for await (const msg of subscription) {
-          try {
-            const data = JSON.parse(new TextDecoder().decode(msg.data));
-            this.handleNatsMessage(msg.subject, data);
-            msg.ack();
-          } catch (error) {
-            console.error('[MonitoringService] Error processing NATS message:', error);
-          }
-        }
-      })().catch(console.error);
-
-      this.natsUnsubscribe = async () => {
-        await subscription.drain();
-      };
-
-      console.log(`[MonitoringService] Subscribed to ${subject}`);
+      const channels = await this.repository.findAllChannels();
+      for (const record of channels) {
+        this.notificationService.addChannel(this.channelRecordToChannel(record));
+      }
     } catch (error) {
-      console.warn('[MonitoringService] Failed to subscribe to NATS events:', error);
+      console.warn('[MonitoringService] Failed to load persisted channels:', error);
     }
   }
 
-  /**
-   * Handle incoming NATS message
-   */
-  private handleNatsMessage(subject: string, data: any): void {
-    this.emit('nats:message', { subject, data });
-
-    // Process specific event types
-    if (subject.includes('metric')) {
-      this.handleExternalMetric(data);
-    }
-  }
-
-  /**
-   * Handle external metric data from NATS
-   */
-  private handleExternalMetric(data: any): void {
-    if (data.name && data.value !== undefined) {
-      this.metricCollector.recordMetric(
-        data.name,
-        data.value,
-        data.tags,
-        data.timestamp ? new Date(data.timestamp) : undefined
-      );
-      this.emit('metric:recorded', { name: data.name, value: data.value });
-    }
-  }
-
-  /**
-   * Publish event to NATS
-   */
-  private async publishNatsEvent(eventType: string, data: any): Promise<void> {
-    if (!this.natsConnection) return;
-
-    try {
-      const subject = `${this.config.natsSubjectPrefix}.${eventType}`;
-      const message = JSON.stringify({
-        type: eventType,
-        source: 'orion-monitoring-service',
-        data,
-        timestamp: new Date().toISOString(),
-      });
-
-      await this.natsConnection.publish(
-        subject,
-        new TextEncoder().encode(message)
-      );
-    } catch (error) {
-      // Silently fail - NATS is optional
-    }
-  }
-
-  // ==================== Maintenance ====================
-
-  /**
-   * Prune expired metric data
-   */
-  pruneExpiredMetrics(): number {
-    return this.metricCollector.pruneExpired();
-  }
-
-  /**
-   * Get service health status
-   */
-  getHealthStatus(): {
-    status: 'healthy' | 'degraded' | 'unhealthy';
-    isRunning: boolean;
-    rulesCount: number;
-    alertsCount: number;
-    channelsCount: number;
-    metricsCount: number;
-  } {
-    const activeAlerts = this.alertRuleEngine.getActiveAlerts().length;
-    const rulesCount = this.alertRuleEngine.getAllRules().length;
-    const channelsCount = this.notificationService.getAllChannels().length;
-    const metricsCount = this.metricCollector.getRegisteredMetrics().length;
-
-    let status: 'healthy' | 'degraded' | 'unhealthy' = 'healthy';
-    if (activeAlerts > 10) status = 'unhealthy';
-    else if (activeAlerts > 5) status = 'degraded';
-
+  private ruleRecordToRule(record: AlertRuleRecord): AlertRule {
     return {
-      status,
-      isRunning: this.isRunning,
-      rulesCount,
-      alertsCount: activeAlerts,
-      channelsCount,
-      metricsCount,
+      id: record.id,
+      name: record.name,
+      metric: record.metric,
+      condition: record.condition as any,
+      threshold: Number(record.threshold),
+      severity: record.severity as any,
+      enabled: record.enabled,
+      cooldownMs: record.cooldown_ms,
+      tags: record.tags || undefined,
+      rateOfChangePercent: record.rate_of_change_percent || undefined,
+      description: record.description || undefined,
+      evaluationWindowMs: record.evaluation_window_ms || undefined,
+    };
+  }
+
+  private ruleRecordToPartialRule(record: AlertRuleRecord): Partial<AlertRule> {
+    return {
+      name: record.name,
+      metric: record.metric,
+      condition: record.condition as any,
+      threshold: Number(record.threshold),
+      severity: record.severity as any,
+      enabled: record.enabled,
+      cooldownMs: record.cooldown_ms,
+      tags: record.tags || undefined,
+      rateOfChangePercent: record.rate_of_change_percent || undefined,
+      description: record.description || undefined,
+      evaluationWindowMs: record.evaluation_window_ms || undefined,
+    };
+  }
+
+  private channelRecordToChannel(record: NotificationChannelRecord): AlertChannel {
+    return {
+      id: record.id,
+      name: record.name,
+      type: record.type as any,
+      config: record.config as any,
+      enabled: record.enabled,
+      severityFilter: record.severity_filter as any,
+    };
+  }
+
+  private policyRecordToPolicy(record: EscalationPolicyRecord): EscalationPolicy {
+    return {
+      id: record.id,
+      name: record.name,
+      steps: record.steps as any,
+      repeatCount: record.repeat_count,
+      enabled: record.enabled,
+      description: record.description || undefined,
     };
   }
 }

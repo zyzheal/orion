@@ -1,15 +1,9 @@
 import React from 'react';
-import type { FC, ReactNode } from 'react';
-
-interface PageComponentProps {
-  children?: ReactNode;
-}
-
-type PageComponent = FC<PageComponentProps>;
+import type { FC } from 'react';
 
 export interface AppRoute {
   path: string;
-  element: React.LazyExoticComponent<PageComponent>;
+  element: React.LazyExoticComponent<FC<any>>;
   protected?: boolean;
   children?: AppRoute[];
 }

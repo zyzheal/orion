@@ -22,7 +22,7 @@ import {
   Drawer,
   Descriptions,
 } from 'antd';
-import { colors, spacing } from '@/tokens';
+import { colors } from '@/tokens';
 import {
   ReloadOutlined,
   PlusOutlined,

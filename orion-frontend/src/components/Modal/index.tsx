@@ -5,7 +5,7 @@
  * - Wraps Ant Design Modal with preset configurations
  */
 import React, { useState, useCallback } from 'react';
-import { Modal as AntModal, Spin } from 'antd';
+import { Modal as AntModal } from 'antd';
 import {
   ExclamationCircleOutlined,
   InfoCircleOutlined,
@@ -119,7 +119,6 @@ function OrionModal({
 
   const resolvedOkText = okText || defaultTexts[type].ok;
   const resolvedCancelText = cancelText || defaultTexts[type].cancel;
-  const showCancelButton = showCancel && type === 'confirm';
 
   return (
     <AntModal
@@ -135,7 +134,7 @@ function OrionModal({
       okText={resolvedOkText}
       cancelText={resolvedCancelText}
       okButtonProps={{ loading: isLoading }}
-      cancelButtonProps={{ disabled: isLoading }}
+      cancelButtonProps={{ disabled: isLoading, style: showCancel ? undefined : { display: 'none' } }}
       confirmLoading={isLoading}
       maskClosable={maskClosable}
       destroyOnClose={destroyOnClose}

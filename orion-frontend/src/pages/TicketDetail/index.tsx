@@ -47,12 +47,28 @@ import {
   assignTicket,
   resolveTicket,
   closeTicket,
-  transitionTicket,
-  type Ticket,
 } from '@/api/ticketing';
 import { mockEngineers, mockTicketHistory, mockTicketRelations, mockTransferHistory } from '@/pages/__mocks__/mockTicketData';
 import TicketComments from './TicketComments';
 import { colors, spacing } from '@/tokens';
+
+// Local Ticket type definition
+interface Ticket {
+  id: string;
+  title: string;
+  description: string;
+  status: string;
+  priority: string;
+  category: string;
+  source: string;
+  reporter: string;
+  assignee: string | null;
+  tags: Record<string, string>;
+  createdAt: string;
+  updatedAt: string;
+  dueDate: string;
+  escalationLevel: number;
+}
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -178,7 +194,7 @@ const TicketDetail: React.FC = () => {
   const [transferForm] = Form.useForm();
 
   const [ticket, setTicket] = useState<Ticket | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [_loading, setLoading] = useState(false);
 
   // Load ticket from API
   useEffect(() => {
@@ -188,8 +204,8 @@ const TicketDetail: React.FC = () => {
   const loadTicket = async () => {
     setLoading(true);
     try {
-      const response = await getTicket(id);
-      setTicket(response.data.data);
+      const response = await getTicket(id!);
+      setTicket((response as any).data?.data || null);
     } catch (err) {
       message.error('加载工单详情失败');
       console.error('Failed to load ticket detail:', err);
@@ -245,7 +261,7 @@ const TicketDetail: React.FC = () => {
   const handleAssign = async () => {
     try {
       const values = await assignForm.validateFields();
-      await assignTicket(ticket!.id, { assignee: values.assignee, reason: values.reason });
+      await assignTicket(ticket!.id, { assignee: values.assignee, assignedBy: 'current-user', reason: values.reason });
       message.success(`工单已分配给 ${values.assignee}`);
       setAssignModalOpen(false);
       assignForm.resetFields();
@@ -275,7 +291,7 @@ const TicketDetail: React.FC = () => {
     try {
       const values = await resolveForm.validateFields();
       await resolveTicket(ticket!.id, {
-        resolvedBy: 'current-user',
+        performedBy: 'current-user',
         resolutionNote: values.resolutionNote,
       });
       message.success('工单已标记为已解决');
@@ -294,6 +310,7 @@ const TicketDetail: React.FC = () => {
       const values = await transferForm.validateFields();
       await assignTicket(ticket!.id, {
         assignee: values.toEngineer,
+        assignedBy: 'current-user',
         reason: values.reason,
       });
       message.success(`工单已转交给 ${values.toEngineer}`);
@@ -309,7 +326,7 @@ const TicketDetail: React.FC = () => {
 
   const handleClose = async () => {
     try {
-      await closeTicket(ticket!.id, { closedBy: 'current-user' });
+      await closeTicket(ticket!.id, { performedBy: 'current-user' });
       message.success('工单已关闭');
       loadTicket();
     } catch (error) {

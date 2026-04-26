@@ -9,7 +9,7 @@ import { getReviewDetail } from '@/api/ai-review';
 import type { AIReviewResult } from '@/api/ai-review';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import dayjs from 'dayjs';
-import { colors, spacing } from '@/tokens';
+import { colors } from '@/tokens';
 
 const { Title } = Typography;
 

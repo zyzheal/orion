@@ -17,10 +17,10 @@ vi.mock('dayjs', async () => {
 
 // Mock the dayjs plugins
 vi.mock('dayjs/plugin/relativeTime', async (importOriginal) => {
-  const actual = await importOriginal();
+  const actual = await importOriginal() as any;
   return {
     ...actual,
-    default: actual.default || vi.fn(),
+    default: actual?.default || vi.fn(),
   };
 });
 

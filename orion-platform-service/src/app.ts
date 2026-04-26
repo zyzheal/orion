@@ -139,8 +139,8 @@ export async function createApp(options: PlatformAppOptions = {}): Promise<{
   // Register auth API routes with database access
   await app.register(authRoutes, { prefix: '/api/v1/auth', database: options.database });
 
-  // Register main API routes
-  await app.register(apiRoutes, { prefix: '/api/v1', eventBus: options.eventBus });
+  // Register main API routes with database access
+  await app.register(apiRoutes, { prefix: '/api/v1', eventBus: options.eventBus, database: options.database });
 
   // 基础 API 路由
   app.get('/api/v1/info', async (request: FastifyRequest, reply: FastifyReply) => {

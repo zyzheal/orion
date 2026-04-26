@@ -91,7 +91,6 @@ function OrionTimeline({
   showMore = true,
   onShowMore,
   pending = false,
-  pendingText = 'Pending...',
   mode = 'left',
 }: TimelineProps) {
   const displayEvents = maxItems ? events.slice(0, maxItems) : events;
@@ -180,7 +179,6 @@ function OrionTimeline({
             }}
           />
         }
-        pendingText={pendingText}
         items={items}
       />
 
@@ -194,7 +192,7 @@ function OrionTimeline({
               fontSize: 14,
             }}
           >
-            Show More ({events.length - maxItems} more)
+            Show More ({events.length - (maxItems ?? 0)} more)
           </a>
         </div>
       )}

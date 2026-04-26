@@ -56,7 +56,7 @@ describe('TicketComments', () => {
   });
 
   it('should display internal note badge when switching to internal-note tab', () => {
-    const { container } = renderComments('TKT-001');
+    renderComments('TKT-001');
 
     // Find the internal-note tab and click it
     const internalTab = screen.getByTestId('tab-internal-notes').closest('[role="tab"]');

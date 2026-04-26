@@ -12,13 +12,11 @@
  */
 
 import { ConfigService } from './ConfigService';
+import { ConfigEntry, ConfigHistory } from './ConfigRepository';
 import {
-  ConfigItem,
-  ConfigVersion,
   ConfigDiff,
   DiffReport,
   VersionDiffReport,
-  ConfigEnvironment,
 } from './types';
 
 export interface ConfigDiffServiceConfig {
@@ -36,8 +34,8 @@ export class ConfigDiffService {
    * Compare configurations between two environments
    */
   async compareEnvironments(
-    sourceEnv: ConfigEnvironment,
-    targetEnv: ConfigEnvironment
+    sourceEnv: string,
+    targetEnv: string
   ): Promise<DiffReport> {
     const sourceConfigs = await this.configService.getEnvironmentConfigs(
       sourceEnv
@@ -49,7 +47,7 @@ export class ConfigDiffService {
     const diffs: ConfigDiff[] = [];
 
     // Build a map for target configs for quick lookup
-    const targetMap = new Map<string, ConfigItem>();
+    const targetMap = new Map<string, ConfigEntry>();
     for (const tc of targetConfigs) {
       targetMap.set(tc.key, tc);
     }
@@ -61,24 +59,24 @@ export class ConfigDiffService {
         // Config exists in source but not in target
         diffs.push({
           key: sc.key,
-          environment: targetEnv,
-          oldValue: sc.value,
+          environment: targetEnv as any,
+          oldValue: JSON.stringify(sc.value),
           changeType: 'added',
         });
-      } else if (sc.value !== targetConfig.value) {
+      } else if (JSON.stringify(sc.value) !== JSON.stringify(targetConfig.value)) {
         // Value differs
         diffs.push({
           key: sc.key,
-          environment: targetEnv,
-          oldValue: sc.value,
-          newValue: targetConfig.value,
+          environment: targetEnv as any,
+          oldValue: JSON.stringify(sc.value),
+          newValue: JSON.stringify(targetConfig.value),
           changeType: 'modified',
         });
       }
     }
 
     // Check target configs against source (for removed items)
-    const sourceMap = new Map<string, ConfigItem>();
+    const sourceMap = new Map<string, ConfigEntry>();
     for (const sc of sourceConfigs) {
       sourceMap.set(sc.key, sc);
     }
@@ -87,8 +85,8 @@ export class ConfigDiffService {
       if (!sourceMap.has(tc.key)) {
         diffs.push({
           key: tc.key,
-          environment: targetEnv,
-          newValue: tc.value,
+          environment: targetEnv as any,
+          newValue: JSON.stringify(tc.value),
           changeType: 'removed',
         });
       }
@@ -99,8 +97,8 @@ export class ConfigDiffService {
     const modified = diffs.filter((d) => d.changeType === 'modified').length;
 
     return {
-      sourceEnvironment: sourceEnv,
-      targetEnvironment: targetEnv,
+      sourceEnvironment: sourceEnv as any,
+      targetEnvironment: targetEnv as any,
       diffs,
       totalChanges: diffs.length,
       added,
@@ -118,7 +116,7 @@ export class ConfigDiffService {
     fromVersion: number,
     toVersion: number
   ): Promise<VersionDiffReport> {
-    const versions = await this.configService.getConfigVersions(configId);
+    const versions = await this.configService.getConfigVersionsById(configId);
     if (versions.length === 0) {
       throw new Error(`No versions found for config '${configId}'`);
     }
@@ -139,12 +137,12 @@ export class ConfigDiffService {
 
     return {
       configId,
-      key: fromVersionRecord.key,
-      environment: fromVersionRecord.environment,
+      key: fromVersionRecord.key ?? configId,
+      environment: 'dev' as any,
       fromVersion,
       toVersion,
-      oldValue: fromVersionRecord.value,
-      newValue: toVersionRecord.value,
+      oldValue: JSON.stringify(fromVersionRecord.old_value ?? fromVersionRecord.oldValue ?? {}),
+      newValue: JSON.stringify(toVersionRecord.new_value ?? toVersionRecord.newValue ?? {}),
       generatedAt: new Date(),
     };
   }
@@ -160,7 +158,7 @@ export class ConfigDiffService {
     environmentComparisons: DiffReport[];
     versionDiffs?: VersionDiffReport[];
   }> {
-    const environments: ConfigEnvironment[] = ['dev', 'staging', 'prod'];
+    const environments: string[] = ['dev', 'staging', 'prod'];
     const comparisons: DiffReport[] = [];
 
     // Compare adjacent environments
@@ -181,14 +179,16 @@ export class ConfigDiffService {
 
     // If a specific config ID is provided, include version diffs
     if (configId) {
-      const versions = await this.configService.getConfigVersions(configId);
+      const versions = await this.configService.getConfigVersionsById(configId);
       const versionDiffs: VersionDiffReport[] = [];
 
       for (let i = 0; i < versions.length - 1; i++) {
+        const vFrom = versions[i].version ?? 0;
+        const vTo = versions[i + 1].version ?? 0;
         const diff = await this.compareVersions(
           configId,
-          versions[i].version,
-          versions[i + 1].version
+          vFrom,
+          vTo
         );
         versionDiffs.push(diff);
       }
@@ -206,19 +206,20 @@ export class ConfigDiffService {
     configId: string,
     proposedValue: string
   ): Promise<ConfigDiff | null> {
-    const config = await this.configService.getConfig(configId);
+    const config = await this.configService.getConfigById2(configId);
     if (!config) {
       return null;
     }
 
-    if (config.value === proposedValue) {
+    const currentValueStr = JSON.stringify(config.value);
+    if (currentValueStr === proposedValue) {
       return null;
     }
 
     return {
       key: config.key,
-      environment: config.environment,
-      oldValue: config.value,
+      environment: (config.environment ?? 'dev') as any,
+      oldValue: currentValueStr,
       newValue: proposedValue,
       changeType: 'modified',
     };
@@ -228,8 +229,8 @@ export class ConfigDiffService {
    * List all config keys that differ between two environments
    */
   async getChangedKeys(
-    sourceEnv: ConfigEnvironment,
-    targetEnv: ConfigEnvironment
+    sourceEnv: string,
+    targetEnv: string
   ): Promise<string[]> {
     const report = await this.compareEnvironments(sourceEnv, targetEnv);
     return report.diffs.map((d) => d.key);
@@ -239,8 +240,8 @@ export class ConfigDiffService {
    * Get configs that exist in one environment but not another
    */
   async getUniqueConfigs(
-    sourceEnv: ConfigEnvironment,
-    targetEnv: ConfigEnvironment
+    sourceEnv: string,
+    targetEnv: string
   ): Promise<{ onlyInSource: string[]; onlyInTarget: string[] }> {
     const sourceConfigs = await this.configService.getEnvironmentConfigs(
       sourceEnv
@@ -249,8 +250,8 @@ export class ConfigDiffService {
       targetEnv
     );
 
-    const sourceKeys = new Set(sourceConfigs.map((c) => c.key));
-    const targetKeys = new Set(targetConfigs.map((c) => c.key));
+    const sourceKeys = new Set(sourceConfigs.map((c: ConfigEntry) => c.key));
+    const targetKeys = new Set(targetConfigs.map((c: ConfigEntry) => c.key));
 
     const onlyInSource = [...sourceKeys].filter((k) => !targetKeys.has(k));
     const onlyInTarget = [...targetKeys].filter((k) => !sourceKeys.has(k));

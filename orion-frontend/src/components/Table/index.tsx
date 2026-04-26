@@ -35,6 +35,8 @@ export interface TableColumn<T = Record<string, unknown>> {
   fixed?: 'left' | 'right';
   /** Hide column */
   hidden?: boolean;
+  /** Sorter function for this column */
+  sorter?: boolean | ((a: T, b: T) => number);
 }
 
 export interface TablePagination {
@@ -43,7 +45,7 @@ export interface TablePagination {
   total: number;
 }
 
-export interface OrionTableProps<T extends Record<string, unknown>>
+export interface OrionTableProps<T extends object>
   extends Omit<TableProps<T>, 'columns' | 'pagination'> {
   /** Column definitions */
   columns: TableColumn<T>[];
@@ -54,7 +56,7 @@ export interface OrionTableProps<T extends Record<string, unknown>>
   /** Whether to use client-side pagination (default: true) */
   clientPagination?: boolean;
   /** External pagination config */
-  pagination?: TablePagination;
+  pagination?: TablePagination | false;
   /** External sort handler (for server-side sorting) */
   onSort?: (columnKey: string, order: 'ascend' | 'descend' | null) => void;
   /** External filter handler (for server-side filtering) */
@@ -77,7 +79,7 @@ export interface OrionTableProps<T extends Record<string, unknown>>
 // Component
 // ============================================================================
 
-function OrionTable<T extends Record<string, unknown>>({
+function OrionTable<T extends object>({
   columns,
   dataSource,
   loading = false,
@@ -223,7 +225,7 @@ function OrionTable<T extends Record<string, unknown>>({
 
   // ---- Handlers ----
   const handleTableChange: TableProps<T>['onChange'] = useCallback(
-    (pagination, filters, sorter) => {
+    (_pagination: any, _filters: any, sorter: any) => {
       if (Array.isArray(sorter)) return;
       const order = sorter.order || null;
       const columnKey = (sorter.columnKey as string) || '';
@@ -320,9 +322,9 @@ function OrionTable<T extends Record<string, unknown>>({
           }}
         >
           <Pagination
-            current={externalPagination?.current ?? page}
-            pageSize={externalPagination?.pageSize ?? pageSize}
-            total={externalPagination?.total ?? processedData.length}
+            current={externalPagination && typeof externalPagination === 'object' ? externalPagination.current : page}
+            pageSize={externalPagination && typeof externalPagination === 'object' ? externalPagination.pageSize : pageSize}
+            total={externalPagination && typeof externalPagination === 'object' ? externalPagination.total : processedData.length}
             onChange={handlePaginationChange}
             onShowSizeChange={(_, size) => handlePaginationChange(1, size)}
             pageSizeOptions={pageSizeOptions.map(String)}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { routes } from './routes';
 import { Layout } from '@/components/Layout';
 import { Loading } from '@/components/Loading';
@@ -28,7 +28,7 @@ const checkIsAuthenticated = (): boolean => {
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { isAuthenticated: storeAuthenticated } = useAuthStore();
+  const { isAuthenticated: _storeAuthenticated } = useAuthStore();
   const [isChecking, setIsChecking] = useState(true);
   const [authorized, setAuthorized] = useState(false);
 

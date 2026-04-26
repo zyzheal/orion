@@ -14,7 +14,6 @@ import {
   Card,
   Col,
   Row,
-  Table,
   Tag,
   Typography,
   Button,
@@ -22,7 +21,6 @@ import {
   Progress,
   Statistic,
   Alert,
-  Divider,
   message,
   Tooltip,
 } from 'antd';
@@ -96,10 +94,10 @@ const FinOpsDashboard: React.FC = () => {
         getBudgetAlerts(),
       ]);
 
-      setCostSummary(costSummaryRes.data.data);
-      setCostByService(Array.isArray(costByServiceRes.data.data) ? costByServiceRes.data.data : []);
-      setOptimizations(Array.isArray(optimizationsRes.data.data) ? optimizationsRes.data.data : []);
-      setBudgetAlerts(Array.isArray(budgetAlertsRes.data.data) ? budgetAlertsRes.data.data : []);
+      setCostSummary(costSummaryRes);
+      setCostByService(Array.isArray(costByServiceRes) ? costByServiceRes : []);
+      setOptimizations(Array.isArray(optimizationsRes) ? optimizationsRes : []);
+      setBudgetAlerts(Array.isArray(budgetAlertsRes) ? budgetAlertsRes : []);
     } catch (error) {
       message.error('加载成本数据失败');
       console.error('Failed to load finops data:', error);
@@ -139,7 +137,7 @@ const FinOpsDashboard: React.FC = () => {
   // Handle export report
   const handleExportReport = async () => {
     try {
-      await apiExportCostReport();
+      await apiExportCostReport({});
       message.success('报表导出中，请稍后在通知中心查看');
     } catch (error) {
       message.error('导出报表失败');
@@ -153,16 +151,16 @@ const FinOpsDashboard: React.FC = () => {
       key: 'service',
       title: '服务名称',
       dataIndex: 'service',
-      render: (value: string) => <Text strong>{value}</Text>,
+      render: (value: unknown) => <Text strong>{value as string}</Text>,
     },
     {
       key: 'cost',
       title: '月费用 (¥)',
       dataIndex: 'cost',
-      sorter: (a, b) => a.cost - b.cost,
-      render: (value: number) => (
+      sorter: (a: any, b: any) => a.cost - b.cost,
+      render: (value: unknown) => (
         <Text strong style={{ color: colors.primary[500] }}>
-          ¥{value.toLocaleString()}
+          ¥{(value as number).toLocaleString()}
         </Text>
       ),
     },
@@ -170,17 +168,17 @@ const FinOpsDashboard: React.FC = () => {
       key: 'percent',
       title: '占比',
       dataIndex: 'percent',
-      render: (value: number) => (
+      render: (value: unknown) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Progress
-            percent={value}
+            percent={value as number}
             size="small"
             strokeColor={colors.primary[500]}
             showInfo={false}
             style={{ flex: 1 }}
           />
           <Text type="secondary" style={{ fontSize: spacing[3], minWidth: 40 }}>
-            {value}%
+            {value as number}%
           </Text>
         </div>
       ),
@@ -190,15 +188,16 @@ const FinOpsDashboard: React.FC = () => {
       title: '趋势',
       dataIndex: 'trend',
       width: 80,
-      render: (value: 'up' | 'down' | 'stable') => {
+      render: (value: unknown) => {
+        const v = value as 'up' | 'down' | 'stable';
         const config: Record<string, { icon: React.ReactNode; color: string }> = {
           up: { icon: <ArrowUpOutlined />, color: colors.error[400] },
           down: { icon: <ArrowDownOutlined />, color: colors.success[500] },
           stable: { icon: <MinusOutlined />, color: colors.neutral[400] },
         };
-        const c = config[value];
+        const c = config[v];
         return (
-          <Tooltip title={value === 'up' ? '上升' : value === 'down' ? '下降' : '持平'}>
+          <Tooltip title={v === 'up' ? '上升' : v === 'down' ? '下降' : '持平'}>
             <Text style={{ color: c.color, fontSize: spacing[4] }}>{c.icon}</Text>
           </Tooltip>
         );

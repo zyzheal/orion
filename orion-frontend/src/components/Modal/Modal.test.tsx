@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import Modal, { type ModalType } from './index';
+import Modal from './index';
 
 describe('OrionModal', () => {
   const defaultProps = {

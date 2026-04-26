@@ -88,8 +88,8 @@ const EphemeralEnvDetail: React.FC = () => {
   const loadData = async (envId: string) => {
     setLoading(true);
     try {
-      const envRes = await getEphemeralEnv(envId).catch(() => ({ data: { data: null } }));
-      setEnv(envRes.data?.data || null);
+      const envRes = await getEphemeralEnv(envId).catch(() => null);
+      setEnv(envRes || null);
     } catch (err: any) {
       console.error('Failed to load environment:', err);
       message.error('加载环境详情失败');
@@ -101,8 +101,8 @@ const EphemeralEnvDetail: React.FC = () => {
   const loadCost = async (envId: string) => {
     setCostLoading(true);
     try {
-      const costRes = await getEphemeralEnvCost(envId).catch(() => ({ data: { data: null } }));
-      setCost(costRes.data?.data || null);
+      const costRes = await getEphemeralEnvCost(envId).catch(() => null);
+      setCost(costRes || null);
     } catch {
       setCost(null);
     } finally {

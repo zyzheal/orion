@@ -9,7 +9,7 @@ import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import { getAlerts, acknowledgeAlert, resolveAlert, escalateAlert } from '@/api/monitoring';
 import type { Alert } from '@/api/monitoring';
-import { colors, spacing } from '@/tokens';
+import { spacing } from '@/tokens';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, Row, Col, Statistic, Progress, Table, Tag } from 'antd';
-import { colors, spacing } from '@/tokens';
+import { colors } from '@/tokens';
 import {
   ProjectOutlined,
   CheckCircleOutlined,

@@ -9,9 +9,11 @@ import { CmdbService } from './services/cmdb/CmdbService';
 import { CmdbIntegrationService } from './services/cmdb-integration-service';
 import { CmdbEventPublisher } from './services/cmdb/CmdbEventPublisher';
 import { EventBusService } from './services/event-bus-service';
+import { DatabasePool } from './services/database';
 
 export interface CmdbRoutesOptions {
   eventBus?: EventBusService;
+  database?: DatabasePool;
 }
 
 export default async function cmdbRoutes(app: FastifyInstance, options: CmdbRoutesOptions): Promise<void> {
@@ -19,7 +21,7 @@ export default async function cmdbRoutes(app: FastifyInstance, options: CmdbRout
   const eventPublisher = options?.eventBus
     ? new CmdbEventPublisher(options.eventBus)
     : undefined;
-  const cmdbService = new CmdbService({ eventPublisher });
+  const cmdbService = new CmdbService({ eventPublisher, database: options?.database });
   const cmdbController = new CmdbController(cmdbService);
 
   // 初始化集成服务

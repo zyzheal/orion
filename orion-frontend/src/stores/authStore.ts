@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import type { UserInfo } from '@/api/types';
-import { refreshAuthToken as refreshAuthTokenApi } from '@/api/auth';
+import { refreshAuthTokenApi } from '@/api/auth';
 
 interface AuthState {
   user: UserInfo | null;

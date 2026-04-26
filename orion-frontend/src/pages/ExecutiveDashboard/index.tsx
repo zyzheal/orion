@@ -564,7 +564,7 @@ const ExecutiveDashboard: React.FC = () => {
                     }
                     value={alert.value}
                     suffix={alert.suffix}
-                    valueStyle={{ color: alert.color, fontSize: spacing[7] }}
+                    valueStyle={{ color: alert.color, fontSize: 28 }}
                   />
                 </Card>
               </Col>

@@ -132,7 +132,7 @@ function renderField(field: FormField, form: FormInstance): React.ReactNode {
   const commonProps = {
     placeholder: field.placeholder || `Please enter ${field.label.toLowerCase()}`,
     disabled: field.disabled,
-    size: undefined as string | undefined,
+    size: undefined as 'small' | 'middle' | 'large' | undefined,
     ...field.inputProps,
   };
 
@@ -157,7 +157,7 @@ function renderField(field: FormField, form: FormInstance): React.ReactNode {
     case 'date':
       return <DatePicker {...commonProps} style={{ width: '100%' }} />;
     case 'switch':
-      return <Switch {...commonProps} />;
+      return <Switch disabled={field.disabled} {...field.inputProps} />;
     case 'custom':
       return field.render?.(form);
     default:

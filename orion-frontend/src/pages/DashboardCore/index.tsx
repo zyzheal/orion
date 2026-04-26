@@ -117,7 +117,7 @@ const DashboardCore: React.FC = () => {
                   >
                     <div
                       style={{
-                        fontSize: spacing[7],
+                        fontSize: 28,
                         color: action.color,
                         marginBottom: 8,
                       }}

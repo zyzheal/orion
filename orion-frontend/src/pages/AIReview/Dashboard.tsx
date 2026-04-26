@@ -16,7 +16,7 @@ import { getReviewHistory, triggerReview, reviewDiff } from '@/api/ai-review';
 import type { AIReviewResult } from '@/api/ai-review';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
-import { colors, spacing } from '@/tokens';
+import { colors } from '@/tokens';
 
 const { Title, Text } = Typography;
 

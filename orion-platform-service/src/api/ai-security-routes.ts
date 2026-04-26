@@ -9,7 +9,7 @@ import {
   validateOutput,
   ExecutionSandbox,
   SecurityError,
-} from '../ai-security';
+} from '../services/ai-security';
 
 const securityService = new AISecurityService();
 

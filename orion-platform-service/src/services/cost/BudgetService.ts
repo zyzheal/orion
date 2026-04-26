@@ -4,6 +4,9 @@
 
 import {
   Budget,
+  BudgetThresholds,
+  BudgetType,
+  BudgetPeriod,
   BudgetCreateInput,
   BudgetUpdateInput,
   createBudget,
@@ -77,7 +80,7 @@ export class BudgetService {
         scope: budget.scope,
         period: budget.period,
         amount: budget.amount,
-        thresholds: budget.thresholds,
+        thresholds: budget.thresholds as unknown as Record<string, number>,
         status: budget.status,
         spent: budget.spent,
         createdAt: budget.createdAt,
@@ -99,16 +102,17 @@ export class BudgetService {
 
   async listBudgets(filter: BudgetListFilter = {}): Promise<{ budgets: Budget[]; total: number }> {
     if (this.budgetRepository) {
-      let items = await this.budgetRepository.findAll();
+      const result = await this.budgetRepository.findAll();
+      let items = result.entities;
 
       if (filter.type) {
-        items = items.filter((b) => b.type === filter.type);
+        items = items.filter((b: BudgetEntity) => b.type === filter.type);
       }
       if (filter.scope) {
-        items = items.filter((b) => b.scope === filter.scope);
+        items = items.filter((b: BudgetEntity) => b.scope === filter.scope);
       }
       if (filter.status) {
-        items = items.filter((b) => b.status === filter.status);
+        items = items.filter((b: BudgetEntity) => b.status === filter.status);
       }
 
       const total = items.length;
@@ -130,7 +134,7 @@ export class BudgetService {
       const updates: Partial<BudgetEntity> = {};
       if (input.name !== undefined) updates.name = input.name;
       if (input.amount !== undefined) updates.amount = input.amount;
-      if (input.thresholds !== undefined) updates.thresholds = input.thresholds;
+      if (input.thresholds !== undefined) updates.thresholds = input.thresholds as unknown as Record<string, number>;
       if (input.status !== undefined) updates.status = input.status;
       updates.updatedAt = new Date();
 
@@ -156,14 +160,19 @@ export class BudgetService {
   }
 
   private mapEntityToBudget(entity: BudgetEntity): Budget {
+    const thresholdsRaw = entity.thresholds as Partial<BudgetThresholds>;
     return {
       id: entity.id,
       name: entity.name,
-      type: entity.type,
+      type: entity.type as BudgetType,
       scope: entity.scope,
-      period: entity.period,
+      period: entity.period as BudgetPeriod,
       amount: entity.amount,
-      thresholds: entity.thresholds,
+      thresholds: {
+        warning: thresholdsRaw.warning ?? 0.8,
+        critical: thresholdsRaw.critical ?? 0.95,
+        hardLimit: thresholdsRaw.hardLimit ?? 1.0,
+      },
       status: entity.status as BudgetStatus,
       spent: entity.spent,
       createdAt: entity.createdAt,

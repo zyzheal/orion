@@ -96,7 +96,7 @@ const CostDrawer: React.FC<CostDrawerProps> = ({ env, open, onClose }) => {
     if (open && env) {
       setLoading(true);
       getEphemeralEnvCost(env.id)
-        .then((res) => setCost(res.data?.data || null))
+        .then((res) => setCost((res as any).data?.data || null))
         .catch(() => setCost(null))
         .finally(() => setLoading(false));
     }
@@ -184,7 +184,7 @@ const CreateEnvModal: React.FC<CreateEnvModalProps> = ({ open, onCancel, onSucce
   useEffect(() => {
     if (open) {
       getEnvironmentTemplates()
-        .then((res) => setTemplates(res.data?.data || []))
+        .then((res) => setTemplates((res as any).data?.data || []))
         .catch(() => setTemplates([]));
     }
   }, [open]);
@@ -283,7 +283,7 @@ const EphemeralEnvList: React.FC = () => {
     setLoading(true);
     try {
       const response = await getEphemeralEnvs({});
-      setEnvs(response.data?.data || []);
+      setEnvs(((response as any).data?.data as EphemeralEnvironment[]) || []);
     } catch (err: any) {
       console.error('Failed to load environments:', err);
       message.error('加载环境列表失败');

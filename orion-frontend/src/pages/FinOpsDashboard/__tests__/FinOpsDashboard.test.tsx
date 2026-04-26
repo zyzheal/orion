@@ -2,7 +2,7 @@
  * Tests for FinOpsDashboard page
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, getAllByText } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import FinOpsDashboard from '@/pages/FinOpsDashboard';
 

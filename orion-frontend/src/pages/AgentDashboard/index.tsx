@@ -415,9 +415,9 @@ const AgentDashboard: React.FC = () => {
         getAgentRuns({ pageSize: 10 }).catch(() => ({ data: { data: [] } })),
         getAgentApprovals({ status: 'pending' }).catch(() => ({ data: { data: [] } })),
       ]);
-      setAgents(agentsRes.data?.data || []);
-      setRuns(runsRes.data?.data || []);
-      setApprovals(approvalsRes.data?.data || []);
+      setAgents((agentsRes as any).data?.data || []);
+      setRuns((runsRes as any).data?.data || []);
+      setApprovals((approvalsRes as any).data?.data || []);
     } catch (err: any) {
       console.error('Failed to load data:', err);
       message.error('加载数据失败');

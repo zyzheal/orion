@@ -7,7 +7,7 @@ import {
   Typography, Button, Space, Card, message, Modal, Form,
   Input, Divider, Tag, Alert, Drawer
 } from 'antd';
-import { colors, spacing } from '@/tokens';
+import { spacing } from '@/tokens';
 import {
   PlusOutlined, SaveOutlined,
   UndoOutlined, DragOutlined, CodeOutlined,

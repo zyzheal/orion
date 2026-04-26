@@ -5,6 +5,7 @@
  * - Animated indicator for running state
  */
 import React, { useMemo } from 'react';
+import { colors } from '@/tokens';
 
 // ============================================================================
 // Types
@@ -46,51 +47,51 @@ interface StatusConfig {
 
 const statusConfigMap: Record<StatusType, StatusConfig> = {
   running: {
-    color: '#1890ff',
-    bgColor: '#e6f7ff',
-    borderColor: '#91d5ff',
+    color: colors.primary[500],
+    bgColor: colors.primary[50],
+    borderColor: colors.primary[200],
     label: 'Running',
     animated: true,
   },
   pending: {
-    color: '#8c8c8c',
-    bgColor: '#fafafa',
-    borderColor: '#d9d9d9',
+    color: colors.neutral[500],
+    bgColor: colors.neutral[50],
+    borderColor: colors.neutral[300],
     label: 'Pending',
     animated: false,
   },
   success: {
-    color: '#389e0d',
-    bgColor: '#f6ffed',
-    borderColor: '#b7eb8f',
+    color: colors.success[600],
+    bgColor: colors.success[50],
+    borderColor: colors.success[200],
     label: 'Success',
     animated: false,
   },
   failed: {
-    color: '#cf1322',
-    bgColor: '#fff1f0',
-    borderColor: '#ffa39e',
+    color: colors.error[600],
+    bgColor: colors.error[50],
+    borderColor: colors.error[200],
     label: 'Failed',
     animated: false,
   },
   warning: {
-    color: '#d48806',
-    bgColor: '#fffbe6',
-    borderColor: '#ffecb3',
+    color: colors.warning[600],
+    bgColor: colors.warning[50],
+    borderColor: colors.warning[200],
     label: 'Warning',
     animated: false,
   },
   cancelled: {
-    color: '#8c8c8c',
-    bgColor: '#fafafa',
-    borderColor: '#d9d9d9',
+    color: colors.neutral[500],
+    bgColor: colors.neutral[50],
+    borderColor: colors.neutral[300],
     label: 'Cancelled',
     animated: false,
   },
   unknown: {
-    color: '#8c8c8c',
-    bgColor: '#fafafa',
-    borderColor: '#d9d9d9',
+    color: colors.neutral[500],
+    bgColor: colors.neutral[50],
+    borderColor: colors.neutral[300],
     label: 'Unknown',
     animated: false,
   },

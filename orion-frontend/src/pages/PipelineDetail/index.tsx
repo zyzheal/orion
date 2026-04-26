@@ -74,7 +74,7 @@ const PipelineDetail: React.FC = () => {
 
   // Calculate progress percentage
   const totalStages = pipeline.stages?.length || 0;
-  const completedStages = pipeline.stages?.filter((s) => s.status === 'success').length || 0;
+  const completedStages = pipeline.stages?.filter((s: any) => s.status === 'success').length || 0;
   const progressPercent = totalStages > 0 ? Math.round((completedStages / totalStages) * 100) : 0;
 
   // Format duration
@@ -233,7 +233,7 @@ const PipelineDetail: React.FC = () => {
                   padding: '8px 0',
                 }}
               >
-                {pipeline.stages?.map((stage, index) => (
+                {pipeline.stages?.map((stage: any, index: number) => (
                   <React.Fragment key={stage.name}>
                     {/* Stage node */}
                     <div
@@ -310,7 +310,7 @@ const PipelineDetail: React.FC = () => {
               {/* Stage details table */}
               {pipeline.stages && pipeline.stages.length > 0 && (
                 <div style={{ marginTop: 8 }}>
-                  {pipeline.stages.map((stage, index) => (
+                  {pipeline.stages.map((stage: any, index: number) => (
                     <Card
                       key={stage.name}
                       size="small"
@@ -334,7 +334,7 @@ const PipelineDetail: React.FC = () => {
                       {/* Steps within the stage */}
                       {stage.steps && stage.steps.length > 0 && (
                         <Space direction="vertical" size={4}>
-                          {stage.steps.map((step) => (
+                          {stage.steps.map((step: any) => (
                             <div
                               key={step.name}
                               style={{
@@ -387,7 +387,7 @@ const PipelineDetail: React.FC = () => {
                 color: colors.neutral[300],
               }}
             >
-              {pipeline.stages?.map((stage) => (
+              {pipeline.stages?.map((stage: any) => (
                 <div key={stage.name} style={{ marginBottom: 16 }}>
                   {/* Stage header */}
                   <div
@@ -404,7 +404,7 @@ const PipelineDetail: React.FC = () => {
                   </div>
                   {/* Stage logs */}
                   {stage.logs && stage.logs.length > 0 ? (
-                    stage.logs.map((log, index) => (
+                    stage.logs.map((log: any, index: number) => (
                       <div key={index} style={{ paddingLeft: 16 }}>
                         {log.includes('FAIL') ? (
                           <span style={{ color: colors.error[500] }}>{log}</span>

@@ -298,7 +298,7 @@ export function useWebSocket(
   }, [setError, onError]);
 
   // 断开连接处理
-  const handleDisconnect = useCallback((isHeartbeatTimeout = false) => {
+  const handleDisconnect = useCallback((_isHeartbeatTimeout = false) => {
     stopHeartbeat();
 
     if (isManualDisconnectRef.current) {
@@ -375,7 +375,9 @@ export function useWebSocket(
       };
 
       wsRef.current.onmessage = handleMessage;
-      wsRef.current.onerror = handleError as (event: ErrorEvent) => void;
+      wsRef.current.onerror = (event: Event) => {
+        handleError(event as CloseEvent | ErrorEvent);
+      };
       wsRef.current.onclose = (event) => {
         console.log('[WS] WebSocket closed:', event.code, event.reason);
         handleDisconnect(event.code !== 1000); // 非正常关闭触发重连

@@ -2,7 +2,7 @@ import React from 'react';
 import { Form, Input, Button, Card, message, Typography } from 'antd';
 import { spacing } from '@/tokens';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 
 const { Title } = Typography;
@@ -13,7 +13,6 @@ interface LoginFormData {
 }
 
 const Login: React.FC = () => {
-  const navigate = useNavigate();
   const location = useLocation();
   const { login, isLoading } = useAuth();
   const [form] = Form.useForm<LoginFormData>();

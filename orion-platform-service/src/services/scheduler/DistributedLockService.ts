@@ -80,7 +80,7 @@ export class DistributedLockService {
         logger.warn({
           key,
           attempt: attempt + 1,
-          error: error.message
+          error: (error as Error).message
         }, 'Failed to acquire lock');
         
         attempt++;
@@ -118,7 +118,7 @@ export class DistributedLockService {
       logger.error({
         lockKey,
         lockValue,
-        error: error.message
+        error: (error as Error).message
       }, 'Failed to release lock');
       throw error;
     }
@@ -149,7 +149,7 @@ export class DistributedLockService {
     } catch (error) {
       logger.error({
         key,
-        error: error.message
+        error: (error as Error).message
       }, 'Failed to try lock');
       throw error;
     }
@@ -166,7 +166,7 @@ export class DistributedLockService {
     } catch (error) {
       logger.error({
         key,
-        error: error.message
+        error: (error as Error).message
       }, 'Failed to check lock');
       return false;
     }
@@ -190,7 +190,7 @@ export class DistributedLockService {
     } catch (error) {
       logger.error({
         key,
-        error: error.message
+        error: (error as Error).message
       }, 'Failed to get lock info');
       return null;
     }
@@ -218,7 +218,7 @@ export class DistributedLockService {
     } catch (error) {
       logger.error({
         key: lock.key,
-        error: error.message
+        error: (error as Error).message
       }, 'Failed to renew lock');
       throw error;
     }
@@ -264,13 +264,13 @@ export class DistributedLockService {
     const locks = new Map();
     
     return {
-      async set(key: string, value: string, px?: string, ttl?: string, nx?: string): Promise<string> {
+      async set(key: string, value: string, px?: string, ttl?: number, nx?: string): Promise<string | null> {
         if (nx && locks.has(key)) {
           return null;
         }
         locks.set(key, value);
         if (ttl) {
-          setTimeout(() => locks.delete(key), parseInt(ttl));
+          setTimeout(() => locks.delete(key), ttl);
         }
         return 'OK';
       },

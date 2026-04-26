@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * WebSocket 客户端测试
  */

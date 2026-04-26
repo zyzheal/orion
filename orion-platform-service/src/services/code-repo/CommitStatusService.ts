@@ -40,16 +40,19 @@ export class CommitStatusService {
 
   constructor(config?: CommitStatusServiceConfig) {
     this.gitLabClient = new GitLabClient({
-      baseUrl: config?.gitLabBaseUrl || process.env.GITLAB_BASE_URL,
-      token: config?.gitLabToken || process.env.GITLAB_TOKEN
+      baseUrl: config?.gitLabBaseUrl || process.env.GITLAB_BASE_URL || 'https://gitlab.com',
+      token: config?.gitLabToken || process.env.GITLAB_TOKEN || ''
     });
 
     this.githubClient = new GitHubClient({
-      baseUrl: config?.githubBaseUrl || process.env.GITHUB_BASE_URL,
-      token: config?.githubToken || process.env.GITHUB_TOKEN
+      baseUrl: config?.githubBaseUrl || process.env.GITHUB_BASE_URL || 'https://api.github.com',
+      token: config?.githubToken || process.env.GITHUB_TOKEN || ''
     });
 
-    this.gitLabAdapter = new GitLabAdapter(this.gitLabClient);
+    this.gitLabAdapter = new GitLabAdapter({
+      baseUrl: config?.gitLabBaseUrl || process.env.GITLAB_BASE_URL || 'https://gitlab.com',
+      token: config?.gitLabToken || process.env.GITLAB_TOKEN || ''
+    });
   }
 
   /**
@@ -256,7 +259,7 @@ export class CommitStatusService {
    * 创建 GitLab 提交状态
    */
   private async createGitLabStatus(input: CommitStatusInput): Promise<void> {
-    const gitlabStateMap = {
+    const gitlabStateMap: Record<string, 'pending' | 'success' | 'failed' | 'canceled'> = {
       [CommitStatus.PENDING]: 'pending',
       [CommitStatus.SUCCESS]: 'success',
       [CommitStatus.FAILED]: 'failed',
@@ -282,7 +285,7 @@ export class CommitStatusService {
    * 创建 GitHub 提交状态
    */
   private async createGitHubStatus(input: CommitStatusInput): Promise<void> {
-    const githubStateMap = {
+    const githubStateMap: Record<string, 'pending' | 'success' | 'failure' | 'cancelled'> = {
       [CommitStatus.PENDING]: 'pending',
       [CommitStatus.SUCCESS]: 'success',
       [CommitStatus.FAILED]: 'failure',
@@ -353,7 +356,7 @@ export class CommitStatusService {
       projectId: query.repositoryId,
       commitSha: query.commitSha,
       state: 'canceled',
-      context: query.context,
+      context: query.context || '',
       description: 'Status deleted by system'
     });
   }
@@ -368,7 +371,7 @@ export class CommitStatusService {
       repo: this.extractRepo(query.repositoryId),
       sha: query.commitSha,
       state: 'cancelled',
-      context: query.context,
+      context: query.context || '',
       description: 'Status deleted by system'
     });
   }
@@ -377,7 +380,7 @@ export class CommitStatusService {
    * 批量更新 GitLab 提交状态
    */
   private async batchUpdateGitLabStatuses(inputs: CommitStatusInput[]): Promise<void> {
-    const gitlabStateMap = {
+    const gitlabStateMap: Record<string, 'pending' | 'success' | 'failed' | 'canceled'> = {
       [CommitStatus.PENDING]: 'pending',
       [CommitStatus.SUCCESS]: 'success',
       [CommitStatus.FAILED]: 'failed',
@@ -387,7 +390,7 @@ export class CommitStatusService {
     const updates = inputs.map(input => ({
       projectId: input.repositoryId,
       commitSha: input.commitSha,
-      state: gitlabStateMap[input.state],
+      state: gitlabStateMap[input.state] as 'pending' | 'success' | 'failed' | 'canceled',
       targetUrl: input.targetUrl,
       description: input.description,
       context: input.context
@@ -400,7 +403,7 @@ export class CommitStatusService {
    * 批量更新 GitHub 提交状态
    */
   private async batchUpdateGitHubStatuses(inputs: CommitStatusInput[]): Promise<void> {
-    const githubStateMap = {
+    const githubStateMap: Record<string, 'pending' | 'success' | 'failure' | 'cancelled'> = {
       [CommitStatus.PENDING]: 'pending',
       [CommitStatus.SUCCESS]: 'success',
       [CommitStatus.FAILED]: 'failure',
@@ -411,7 +414,7 @@ export class CommitStatusService {
       owner: this.extractOwner(input.repositoryId),
       repo: this.extractRepo(input.repositoryId),
       sha: input.commitSha,
-      state: githubStateMap[input.state],
+      state: githubStateMap[input.state] as 'pending' | 'success' | 'failure' | 'cancelled',
       targetUrl: input.targetUrl,
       description: input.description,
       context: input.context
@@ -463,7 +466,10 @@ export class CommitStatusService {
         grouped.set(provider, []);
       }
       
-      grouped.get(provider).push(input);
+      const existing = grouped.get(provider);
+      if (existing) {
+        existing.push(input);
+      }
     });
     
     return grouped;

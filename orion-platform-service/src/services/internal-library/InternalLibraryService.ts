@@ -198,7 +198,7 @@ export class InternalLibraryService {
     await this.libraryRepo.updateVersion(
       input.libraryId,
       input.version,
-      input.status === 'stable' ? input.version : library.latest_stable_version
+      input.status === 'stable' ? input.version : (library.latestStableVersion || '')
     );
 
     logger.info({ libraryId: input.libraryId, version: input.version }, 'Library version published');
@@ -272,12 +272,10 @@ export class InternalLibraryService {
     if (!this.dependentRepo) return [];
     const entities = await this.dependentRepo.findByLibrary(libraryId);
     return entities.map(e => ({
-      id: e.id,
-      libraryId: e.libraryId,
       repoName: e.repoName,
       teamName: e.teamName,
       currentVersion: e.currentVersion,
-      latestCompatibleVersion: e.latestCompatibleVersion,
+      latestCompatibleVersion: e.latestCompatibleVersion ?? undefined,
       upgradeAvailable: e.upgradeAvailable,
       upgradeType: e.upgradeType as 'patch' | 'minor' | 'major' | 'breaking' | undefined,
       lastUpdated: e.lastUpdated,
@@ -306,12 +304,12 @@ export class InternalLibraryService {
 
     logger.info({ libraryId, repoName, version }, 'Library dependent added');
     return {
-      id: entity.id,
-      libraryId: entity.libraryId,
       repoName: entity.repoName,
       teamName: entity.teamName,
       currentVersion: entity.currentVersion,
+      latestCompatibleVersion: entity.latestCompatibleVersion ?? undefined,
       upgradeAvailable: entity.upgradeAvailable,
+      upgradeType: entity.upgradeType as 'patch' | 'minor' | 'major' | 'breaking' | undefined,
       lastUpdated: entity.lastUpdated,
     };
   }
@@ -328,13 +326,10 @@ export class InternalLibraryService {
 
     // 检查是否需要升级
     const library = await this.libraryRepo?.findById(libraryId);
-    const latestVersion = library?.latest_stable_version ?? '';
+    const latestVersion = library?.latestStableVersion ?? '';
     const upgradeAvailable = newVersion !== latestVersion;
 
-    let upgradeType: string | null = null;
-    if (upgradeAvailable) {
-      upgradeType = this.determineUpgradeType(newVersion, latestVersion);
-    }
+    const upgradeType: string | undefined = upgradeAvailable ? this.determineUpgradeType(newVersion, latestVersion) : undefined;
 
     await this.dependentRepo.updateVersion(dependent.id, newVersion, upgradeAvailable, upgradeType);
     return true;
@@ -353,7 +348,7 @@ export class InternalLibraryService {
       const library = await this.libraryRepo.findById(dep.libraryId);
       if (!library) continue;
 
-      const latestVersion = library.latest_stable_version;
+      const latestVersion = library.latestStableVersion;
       const isLatest = dep.currentVersion === latestVersion;
       const isDeprecated = library.status === 'deprecated';
 
@@ -373,7 +368,7 @@ export class InternalLibraryService {
         latestVersion,
         status,
         upgradeType: isLatest ? undefined : (this.determineUpgradeType(dep.currentVersion, latestVersion) as 'patch' | 'minor' | 'major' | 'breaking'),
-        securityScore: library.quality_security_score ?? undefined,
+        securityScore: library.qualitySecurityScore ?? undefined,
       });
     }
 
@@ -394,7 +389,7 @@ export class InternalLibraryService {
     const totalTeams = teams.size;
 
     const library = await this.libraryRepo.findById(libraryId);
-    const latestVersion = library?.latest_stable_version ?? '';
+    const latestVersion = library?.latestStableVersion ?? '';
     const usingLatest = dependents.filter(d => d.currentVersion === latestVersion).length;
     const needingUpgrade = totalRepos - usingLatest;
 
@@ -417,16 +412,16 @@ export class InternalLibraryService {
     return {
       id: entity.id,
       name: entity.name,
-      displayName: entity.displayName,
-      description: entity.description,
+      displayName: entity.displayName ?? undefined,
+      description: entity.description ?? undefined,
       language: entity.language as LibraryLanguage,
       status: entity.status as LibraryStatus,
 
       owner: entity.owner,
       maintainers: entity.maintainers,
       repository: entity.repository,
-      documentation: entity.documentation,
-      sla: entity.sla,
+      documentation: entity.documentation ?? undefined,
+      sla: entity.sla ?? undefined,
 
       currentVersion: entity.currentVersion,
       latestStableVersion: entity.latestStableVersion,
@@ -442,15 +437,15 @@ export class InternalLibraryService {
       },
 
       quality: {
-        testCoverage: entity.qualityTestCoverage,
-        securityScore: entity.qualitySecurityScore,
-        openIssues: entity.qualityOpenIssues,
-        openPRs: entity.qualityOpenPRs,
-        lastReleaseAge: entity.qualityLastReleaseAge,
+        testCoverage: entity.qualityTestCoverage ?? undefined,
+        securityScore: entity.qualitySecurityScore ?? undefined,
+        openIssues: entity.qualityOpenIssues ?? undefined,
+        openPRs: entity.qualityOpenPRs ?? undefined,
+        lastReleaseAge: entity.qualityLastReleaseAge ?? undefined,
       },
 
       publishConfig: {
-        repository: entity.publishRepository,
+        repository: entity.publishRepository ?? undefined,
         autoPublish: entity.publishAutoPublish,
         requireApproval: entity.publishRequireApproval,
         approvers: entity.publishApprovers,
@@ -460,7 +455,7 @@ export class InternalLibraryService {
       annotations: entity.annotations,
       createdAt: entity.createdAt,
       updatedAt: entity.updatedAt,
-      tenantId: entity.tenantId,
+      tenantId: entity.tenantId ?? undefined,
     };
   }
 

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { Layout, Menu } from 'antd';
-import { colors, spacing } from '@/tokens';
+import { colors } from '@/tokens';
 import { BookOutlined, FileOutlined, QuestionCircleOutlined, ApartmentOutlined } from '@ant-design/icons';
 
 const { Sider, Content } = Layout;

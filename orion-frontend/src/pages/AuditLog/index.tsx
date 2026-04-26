@@ -16,7 +16,7 @@ import {
   Descriptions,
   message,
 } from 'antd';
-import { colors, spacing } from '@/tokens';
+import { colors } from '@/tokens';
 import {
   ReloadOutlined,
   SafetyCertificateOutlined,

@@ -455,7 +455,7 @@ const ManagerDashboard: React.FC = () => {
                 <Statistic
                   title="总转派次数"
                   value={data.transferAnalysis.totalTransfers}
-                  valueStyle={{ fontSize: spacing[7], fontWeight: 600 }}
+                  valueStyle={{ fontSize: 28, fontWeight: 600 }}
                 />
               </Col>
               <Col xs={24} sm={12}>
@@ -463,7 +463,7 @@ const ManagerDashboard: React.FC = () => {
                   title="平均每工单转派"
                   value={data.transferAnalysis.avgTransfersPerTicket}
                   precision={2}
-                  valueStyle={{ fontSize: spacing[7], fontWeight: 600 }}
+                  valueStyle={{ fontSize: 28, fontWeight: 600 }}
                 />
               </Col>
             </Row>

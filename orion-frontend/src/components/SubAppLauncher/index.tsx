@@ -2,7 +2,7 @@
  * 子系统启动器 - 带动态效果的弹出式菜单
  */
 import React, { useState } from 'react';
-import { Popover, Card, Badge, Tag } from 'antd';
+import { Popover, Badge } from 'antd';
 import {
   DatabaseOutlined,
   BookOutlined,

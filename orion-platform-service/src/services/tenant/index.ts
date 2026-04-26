@@ -6,6 +6,8 @@
  * - TenantMiddleware - Fastify 租户中间件
  * - TenantQuotaService - 租户配额服务
  * - NamespacePoolService - Namespace 池服务
+ * - TenantRepository - 数据库访问层 (with PostgreSQL)
+ * - TenantService - 业务逻辑层
  */
 
 export { TenantContext, TenantInfo, TenantContextConfig, tenantContext } from './TenantContext';
@@ -31,3 +33,17 @@ export {
   NamespacePoolConfig,
   namespacePoolService,
 } from './NamespacePoolService';
+
+// Database-backed services
+export {
+  TenantRepository,
+  Tenant,
+  CreateTenantInput,
+  UpdateTenantInput,
+} from './TenantRepository';
+export {
+  TenantService,
+  TenantServiceError,
+  ListTenantsOptions,
+  PaginatedResult,
+} from './TenantService';

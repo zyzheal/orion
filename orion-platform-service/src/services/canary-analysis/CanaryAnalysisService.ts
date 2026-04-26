@@ -103,13 +103,13 @@ export class CanaryAnalysisService {
           id: entity.id,
           deploymentId: entity.deploymentId,
           runNumber: entity.runNumber,
-          trafficSplit: entity.trafficSplit,
+          trafficSplit: entity.trafficSplit as any,
           status: entity.status as CanaryStatus,
           confidence: entity.confidence ?? 0,
           decision: entity.decision as CanaryDecision ?? 'continue',
           startedAt: entity.startedAt,
-          completedAt: entity.completedAt,
-          durationMs: entity.durationMs,
+          completedAt: entity.completedAt ?? undefined,
+          durationMs: entity.durationMs ?? undefined,
         };
         this.runs.set(id, run);
         return run;
@@ -130,17 +130,17 @@ export class CanaryAnalysisService {
         const result = await this.runRepository.findAll({ limit: 100 });
         entities = result.entities;
       }
-      return entities.map(e => ({
+      return entities.map((e: any) => ({
         id: e.id,
         deploymentId: e.deploymentId,
         runNumber: e.runNumber,
-        trafficSplit: e.trafficSplit,
+        trafficSplit: e.trafficSplit as any,
         status: e.status as CanaryStatus,
         confidence: e.confidence ?? 0,
         decision: e.decision as CanaryDecision ?? 'continue',
         startedAt: e.startedAt,
-        completedAt: e.completedAt,
-        durationMs: e.durationMs,
+        completedAt: e.completedAt ?? undefined,
+        durationMs: e.durationMs ?? undefined,
       }));
     }
 
@@ -217,23 +217,23 @@ export class CanaryAnalysisService {
       await this.metricRepository.batchCreate(metricResults.map(m => ({
         runId,
         metricName: m.metricName,
-        baselineValue: m.baselineValue,
-        canaryValue: m.canaryValue,
-        mannWhitneyP: m.mannWhitneyP,
-        ksStatistic: m.ksStatistic,
-        cliffDelta: m.cliffDelta,
-        verdict: m.verdict,
-        category: m.category,
+        baselineValue: m.baselineValue ?? 0,
+        canaryValue: m.canaryValue ?? 0,
+        mannWhitneyP: m.mannWhitneyP ?? 0,
+        ksStatistic: m.ksStatistic ?? 0,
+        cliffDelta: m.cliffDelta ?? 0,
+        verdict: m.verdict ?? 'pass',
+        category: m.category ?? 'unknown',
       })));
     }
     if (this.mlRepository && mlResultList.length > 0) {
       await this.mlRepository.batchCreate(mlResultList.map(ml => ({
         runId,
         modelName: ml.modelName,
-        prediction: ml.prediction,
-        confidence: ml.confidence,
-        shapExplanation: ml.shapExplanation,
-        clusterId: ml.clusterId,
+        prediction: ml.prediction ?? 'unknown',
+        confidence: ml.confidence ?? 0,
+        shapExplanation: ml.shapExplanation as Record<string, number> | null,
+        clusterId: ml.clusterId ?? 0,
       })));
     }
     if (this.decisionRepository) {
@@ -405,7 +405,7 @@ export class CanaryAnalysisService {
           promoteThreshold: entity.promoteThreshold,
           rollbackThreshold: entity.rollbackThreshold,
           trafficStep: entity.trafficStep,
-          metricWeights: entity.metricWeights,
+          metricWeights: entity.metricWeights ?? undefined,
           excludedMetrics: entity.excludedMetrics,
           sloMetrics: entity.sloMetrics,
           createdAt: entity.createdAt,
@@ -438,7 +438,7 @@ export class CanaryAnalysisService {
           promoteThreshold: entity.promoteThreshold,
           rollbackThreshold: entity.rollbackThreshold,
           trafficStep: entity.trafficStep,
-          metricWeights: entity.metricWeights,
+          metricWeights: entity.metricWeights ?? undefined,
           excludedMetrics: entity.excludedMetrics,
           sloMetrics: entity.sloMetrics,
           createdAt: entity.createdAt,
@@ -454,8 +454,8 @@ export class CanaryAnalysisService {
   async listConfigs(): Promise<CanaryAnalysisConfig[]> {
     // Use repository if available
     if (this.configRepository) {
-      const entities = await this.configRepository.findAll();
-      return entities.map(e => ({
+      const result = await this.configRepository.findAll();
+      return result.entities.map((e: any) => ({
         id: e.id,
         serviceName: e.serviceName,
         environment: e.environment,

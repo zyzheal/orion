@@ -2,11 +2,10 @@
  * StageModal - Stage 配置弹窗
  */
 import React, { useEffect, useState } from 'react';
-import { Modal, Form, Input, InputNumber, Select, Space, Typography, Divider, Switch, Button, Card } from 'antd';
+import { Modal, Form, Input, InputNumber, Select, Space, Divider, Switch, Button, Card } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import type { StageConfig } from './index';
 
-const { Title } = Typography;
 const { TextArea } = Input;
 
 const STAGE_TYPES = [
@@ -186,7 +185,7 @@ const StageModal: React.FC<StageModalProps> = ({
             style={{ width: '100%' }}
             placeholder="默认 300 秒"
             formatter={(value) => `${value}s`}
-            parser={(value) => Number(value?.replace('s', ''))}
+            parser={(value) => Number(value?.replace('s', '')) as any}
           />
         </Form.Item>
 

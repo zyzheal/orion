@@ -8,6 +8,10 @@
 // Types
 export * from './types';
 
+// Database-backed services (NEW)
+export { TicketingRepository, Ticket, TicketComment, CreateTicketInput, UpdateTicketInput } from './TicketingRepository';
+export { TicketingService, TicketingServiceError } from './TicketingService';
+
 // Services
 export { TicketGenerator } from './TicketGenerator';
 export { TicketWorkflowService } from './TicketWorkflowService';

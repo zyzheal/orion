@@ -39,7 +39,6 @@ import {
   SyncOutlined,
   RocketOutlined,
   EditOutlined,
-  DeleteOutlined,
   PlusOutlined,
 } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
@@ -246,7 +245,7 @@ const users: User[] = [
 const Console: React.FC = () => {
   const [pluginData, setPluginData] = useState<Plugin[]>(plugins);
   const [configData, setConfigData] = useState<ConfigItem[]>(configItems);
-  const [userData, setUserData] = useState<User[]>(users);
+  const [_userData, _setUserData] = useState<User[]>(users);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [form] = Form.useForm();
 
@@ -661,7 +660,7 @@ const Console: React.FC = () => {
             </div>
             <Table
               columns={userColumns}
-              dataSource={userData}
+              dataSource={_userData}
               pagination={{ pageSize: 5 }}
               size="middle"
             />

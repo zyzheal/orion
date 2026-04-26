@@ -5,8 +5,8 @@
  * - 左上角：子系统启动器 + 系统名称 (可点击返回首页)
  * - 右上角：主题切换 + 控制台 (管理员) + 用户菜单
  */
-import React, { useState } from 'react';
-import { Layout as AntLayout, Menu, Avatar, Dropdown, Space, Breadcrumb, Button } from 'antd';
+import React from 'react';
+import { Layout as AntLayout, Menu, Avatar, Dropdown, Breadcrumb, Button } from 'antd';
 import {
   DashboardOutlined,
   ProjectOutlined,

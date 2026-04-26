@@ -26,7 +26,7 @@ import {
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import MetricCard from '@/components/MetricCard';
-import { getTickets, type Ticket } from '@/api/ticketing';
+import { getTickets } from '@/api/ticketing';
 import { mockEngineers } from '@/pages/__mocks__/mockTicketData';
 import { useNavigate } from 'react-router-dom';
 import { colors, spacing } from '@/tokens';
@@ -35,6 +35,25 @@ import CreateTicketModal from './CreateTicketModal';
 import DispatchPanel from './DispatchPanel';
 
 const { Title, Text } = Typography;
+
+// Local Ticket type definition
+interface Ticket {
+  id: string;
+  title: string;
+  description: string;
+  status: string;
+  priority: string;
+  category: string;
+  source: string;
+  reporter: string;
+  assignee: string | null;
+  createdAt: string;
+  dueDate: string;
+  escalationLevel: number;
+  tags?: Record<string, string>;
+}
+
+type MockTicket = Ticket;
 
 // ============================================================================
 // Helpers

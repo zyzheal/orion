@@ -10,7 +10,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import { Typography, Card, Table, Tag, Space, Tabs, message } from 'antd';
-import { colors, spacing } from '@/tokens';
+import { colors } from '@/tokens';
 import {
   ClockCircleOutlined,
   CheckCircleOutlined,

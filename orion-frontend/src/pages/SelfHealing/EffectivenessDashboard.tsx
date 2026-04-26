@@ -4,7 +4,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import { Typography, Card, Row, Col, Statistic, Table, Tag, Button, message } from 'antd';
-import { colors, spacing } from '@/tokens';
+import { colors } from '@/tokens';
 import {
   ReloadOutlined,
   ThunderboltOutlined,

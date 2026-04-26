@@ -95,9 +95,9 @@ const AgentRunDetail: React.FC = () => {
         getAgentRunDecisions(runId).catch(() => ({ data: { data: [] } })),
         getAgentApprovals({ status: 'pending' }).catch(() => ({ data: { data: [] } })),
       ]);
-      setRun(runRes.data?.data || null);
-      setDecisions(decisionsRes.data?.data || []);
-      setApprovals((approvalsRes.data?.data || []).filter((a: AgentApproval) => a.runId === runId));
+      setRun((runRes as any).data?.data || null);
+      setDecisions((decisionsRes as any).data?.data || []);
+      setApprovals((((approvalsRes as any).data?.data as AgentApproval[]) || []).filter((a: AgentApproval) => a.runId === runId));
     } catch (err: any) {
       console.error('Failed to load run data:', err);
       message.error('加载运行数据失败');

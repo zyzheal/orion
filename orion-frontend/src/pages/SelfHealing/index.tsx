@@ -4,7 +4,7 @@
  */
 import React, { useState } from 'react';
 import { Layout, Menu, Typography } from 'antd';
-import { colors, spacing } from '@/tokens';
+import { colors } from '@/tokens';
 import {
   MedicineBoxOutlined,
   HistoryOutlined,

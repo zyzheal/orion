@@ -21,7 +21,7 @@ const ChatOpsSettings: React.FC = () => {
   const loadSettings = async () => {
     try {
       const res = await getChatOpsSettings();
-      const data = res.data.data;
+      const data = (res as any).data?.data;
       if (data) form.setFieldsValue(data);
     } catch {
       // Use defaults

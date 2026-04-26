@@ -341,13 +341,14 @@ export class CmdbController {
       }
 
       const user = request.headers['x-user-id'] as string || 'system';
+      const tenantId = BigInt(request.headers['x-tenant-id'] as string || '1');
 
       const relation = await this.cmdbService.createRelation({
         fromCiId,
         toCiId,
         relationType: relationType as RelationType,
         description,
-      }, user);
+      }, user, tenantId);
 
       await reply.status(201).send({
         id: relation.id,

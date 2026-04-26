@@ -36,6 +36,7 @@ export class ConfigController {
       const body = request.body as any;
       const { key, value, environment, description, encrypted, tags, createdBy } =
         body;
+      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
 
       if (!key || !value || !environment || !createdBy) {
         await reply.status(400).send({
@@ -56,7 +57,7 @@ export class ConfigController {
         return;
       }
 
-      const config = await this.configService.createConfig({
+      const config = await this.configService.createConfig(tenantId, {
         key,
         value,
         environment,
@@ -97,6 +98,7 @@ export class ConfigController {
       const body = request.body as any;
       const { configId } = params;
       const { value, description, status, tags, updatedBy } = body;
+      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
 
       if (!value || !updatedBy) {
         await reply.status(400).send({
@@ -107,7 +109,7 @@ export class ConfigController {
         return;
       }
 
-      const config = await this.configService.updateConfig(configId, {
+      const config = await this.configService.updateConfig(tenantId, configId, {
         value,
         description,
         status,
@@ -145,7 +147,7 @@ export class ConfigController {
       const params = request.params as any;
       const { configId } = params;
 
-      const config = await this.configService.getConfig(configId);
+      const config = await this.configService.getConfigById(configId);
       if (!config) {
         await reply.status(404).send({
           error: 'NOT_FOUND',
@@ -183,8 +185,9 @@ export class ConfigController {
     try {
       const query = request.query as any;
       const { environment, status, keyPrefix, tags, limit, offset } = query;
+      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
 
-      const configs = await this.configService.listConfigs({
+      const configs = await this.configService.list(tenantId, {
         environment: environment as any,
         status: status as any,
         keyPrefix,
@@ -244,8 +247,10 @@ export class ConfigController {
     try {
       const params = request.params as any;
       const { configId } = params;
+      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
 
-      const versions = await this.configService.getConfigVersions(configId);
+      const config = await this.configService.getConfigById(configId);
+      const versions = await this.configService.getConfigVersions(tenantId, config?.key || configId);
 
       await reply.send({
         data: versions.map((v) => ({
@@ -285,11 +290,22 @@ export class ConfigController {
         return;
       }
 
+      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+
       const config = await this.configService.rollbackConfig(
+        tenantId,
         configId,
-        targetVersion,
-        rolledBackBy
+        targetVersion
       );
+
+      if (!config) {
+        await reply.status(404).send({
+          error: 'NOT_FOUND',
+          code: 'CONFIG_006',
+          message: `Config '${configId}' not found or rollback failed`,
+        });
+        return;
+      }
 
       await reply.send({
         id: config.id,
@@ -331,11 +347,22 @@ export class ConfigController {
         return;
       }
 
+      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+
       const config = await this.configService.cloneConfig(
+        tenantId,
         configId,
-        targetEnvironment,
-        createdBy
+        targetEnvironment
       );
+
+      if (!config) {
+        await reply.status(404).send({
+          error: 'NOT_FOUND',
+          code: 'CONFIG_007',
+          message: `Source config '${configId}' not found`,
+        });
+        return;
+      }
 
       await reply.status(201).send({
         id: config.id,

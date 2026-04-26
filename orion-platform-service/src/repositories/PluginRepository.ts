@@ -7,8 +7,8 @@ import { PluginInfo, PluginType, PluginState } from '../services/plugin-manager-
 
 export interface PluginRepository {
   create(plugin: PluginInfo): Promise<void>;
-  findById(id: string): Promise<PluginInfo>;
-  findByName(name: string, version?: string): Promise<PluginInfo>;
+  findById(id: string): Promise<PluginInfo | undefined>;
+  findByName(name: string, version?: string): Promise<PluginInfo | undefined>;
   findByType(type: PluginType): Promise<PluginInfo[]>;
   findByState(state: PluginState): Promise<PluginInfo[]>;
   findByTag(tag: string): Promise<PluginInfo[]>;
@@ -65,7 +65,7 @@ export class PostgresPluginRepository implements PluginRepository {
     ]);
   }
 
-  async findById(id: string): Promise<PluginInfo> {
+  async findById(id: string): Promise<PluginInfo | undefined> {
     const query = `
       SELECT * FROM plugins WHERE id = $1
     `;
@@ -73,29 +73,29 @@ export class PostgresPluginRepository implements PluginRepository {
     const result = await this.db.query(query, [id]);
     
     if (result.rows.length === 0) {
-      return null;
+      return undefined;
     }
-    
+
     return this.mapRowToPlugin(result.rows[0]);
   }
 
-  async findByName(name: string, version?: string): Promise<PluginInfo> {
+  async findByName(name: string, version?: string): Promise<PluginInfo | undefined> {
     let query = `
       SELECT * FROM plugins WHERE name = $1
     `;
     const queryParams: any[] = [name];
-    
+
     if (version) {
       query += ' AND version = $2';
       queryParams.push(version);
     }
-    
+
     const result = await this.db.query(query, queryParams);
-    
+
     if (result.rows.length === 0) {
-      return null;
+      return undefined;
     }
-    
+
     return this.mapRowToPlugin(result.rows[0]);
   }
 
@@ -103,18 +103,18 @@ export class PostgresPluginRepository implements PluginRepository {
     const query = `
       SELECT * FROM plugins WHERE type = $1 ORDER BY created_at DESC
     `;
-    
+
     const result = await this.db.query(query, [type]);
-    return result.rows.map(row => this.mapRowToPlugin(row));
+    return result.rows.map((row: any) => this.mapRowToPlugin(row));
   }
 
   async findByState(state: PluginState): Promise<PluginInfo[]> {
     const query = `
       SELECT * FROM plugins WHERE state = $1 ORDER BY updated_at DESC
     `;
-    
+
     const result = await this.db.query(query, [state]);
-    return result.rows.map(row => this.mapRowToPlugin(row));
+    return result.rows.map((row: any) => this.mapRowToPlugin(row));
   }
 
   async findByTag(tag: string): Promise<PluginInfo[]> {
@@ -123,9 +123,9 @@ export class PostgresPluginRepository implements PluginRepository {
       JOIN plugin_tags pt ON p.id = pt.plugin_id
       WHERE pt.tag = $1 ORDER BY p.updated_at DESC
     `;
-    
+
     const result = await this.db.query(query, [tag]);
-    return result.rows.map(row => this.mapRowToPlugin(row));
+    return result.rows.map((row: any) => this.mapRowToPlugin(row));
   }
 
   async update(plugin: PluginInfo): Promise<void> {
@@ -219,7 +219,7 @@ export class PostgresPluginRepository implements PluginRepository {
     `;
     
     const result = await this.db.query(query, [id]);
-    return result.rows.map(row => row.tag);
+    return result.rows.map((row: any) => row.tag);
   }
 
   async search(query: string): Promise<PluginInfo[]> {
@@ -232,7 +232,7 @@ export class PostgresPluginRepository implements PluginRepository {
     
     const searchTerm = `%${query}%`;
     const result = await this.db.query(searchQuery, [searchTerm]);
-    return result.rows.map(row => this.mapRowToPlugin(row));
+    return result.rows.map((row: any) => this.mapRowToPlugin(row));
   }
 
   async list(options: {
@@ -293,7 +293,7 @@ export class PostgresPluginRepository implements PluginRepository {
     const countResult = await this.db.query(countQuery, queryParams.slice(0, -2));
     
     return {
-      plugins: result.rows.map(row => this.mapRowToPlugin(row)),
+      plugins: result.rows.map((row: any) => this.mapRowToPlugin(row)),
       total: parseInt(countResult.rows[0].count)
     };
   }

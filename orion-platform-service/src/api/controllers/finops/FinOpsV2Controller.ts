@@ -2,41 +2,23 @@
  * TASK-502: FinOps 成本追踪与 ROI 控制器
  *
  * 处理成本追踪、ROI 分析、预算管理、成本优化等 API 请求
+ * Uses database-backed FinOpsService (PostgreSQL Repository pattern)
  */
 
 import { FastifyRequest, FastifyReply } from 'fastify';
-import {
-  CostTrackingService,
-  ROIAnalyzer,
-  BudgetService,
-  CostOptimizer,
-} from '../../../services/finops';
+import { FinOpsService } from '../../../services/finops/FinOpsService';
 import {
   CostEntityType,
-  CostPeriod,
   OptimizationCategory,
   OptimizationPriority,
   OptimizationStatus,
-  ROIInvestmentType,
 } from '../../../services/finops/types';
-import {
-  EntityCostSummary,
-  ChargebackReport,
-  CostTrendQuery,
-  OptimizationQuery,
-} from '../../../services/finops';
 
 export class FinOpsV2Controller {
-  private trackingService: CostTrackingService;
-  private roiAnalyzer: ROIAnalyzer;
-  private budgetService: BudgetService;
-  private costOptimizer: CostOptimizer;
+  private finOpsService: FinOpsService;
 
-  constructor() {
-    this.trackingService = new CostTrackingService();
-    this.roiAnalyzer = new ROIAnalyzer();
-    this.budgetService = new BudgetService();
-    this.costOptimizer = new CostOptimizer();
+  constructor(finOpsService: FinOpsService) {
+    this.finOpsService = finOpsService;
   }
 
   // ==================== 成本追踪 ====================
@@ -58,8 +40,9 @@ export class FinOpsV2Controller {
         return;
       }
 
-      const record = this.trackingService.trackProjectCost({
-        projectId,
+      const record = await this.finOpsService.trackCost({
+        entityType: 'project',
+        entityId: projectId,
         amount,
         category,
         environment,
@@ -96,8 +79,9 @@ export class FinOpsV2Controller {
         return;
       }
 
-      const record = this.trackingService.trackTenantCost({
-        tenantId,
+      const record = await this.finOpsService.trackCost({
+        entityType: 'tenant',
+        entityId: tenantId,
         amount,
         category,
         environment,
@@ -134,8 +118,9 @@ export class FinOpsV2Controller {
         return;
       }
 
-      const record = this.trackingService.trackTeamCost({
-        teamId,
+      const record = await this.finOpsService.trackCost({
+        entityType: 'team',
+        entityId: teamId,
         amount,
         category,
         environment,
@@ -174,10 +159,10 @@ export class FinOpsV2Controller {
       return;
     }
 
-    const summary = this.trackingService.getCostByEntity(
+    const summary = await this.finOpsService.getCostByEntity(
       entityType,
       entityId,
-      (query.period as CostPeriod) || 'monthly'
+      (query.period as any) || 'monthly'
     );
 
     await reply.status(200).send({
@@ -194,14 +179,12 @@ export class FinOpsV2Controller {
     const params = request.params as any;
     const query = request.query as any;
 
-    const trendQuery: CostTrendQuery = {
-      entityType: params.entityType,
-      entityId: params.entityId,
-      period: (query.period as CostPeriod) || 'monthly',
-      category: query.category,
-    };
-
-    const trend = this.trackingService.getCostTrend(trendQuery);
+    const trend = await this.finOpsService.getCostTrend(
+      params.entityType,
+      params.entityId,
+      (query.period as any) || 'monthly',
+      query.category
+    );
 
     await reply.status(200).send({
       success: true,
@@ -215,8 +198,8 @@ export class FinOpsV2Controller {
    */
   async getChargebackReport(request: FastifyRequest, reply: FastifyReply) {
     const query = request.query as any;
-    const report: ChargebackReport = this.trackingService.getChargebackReport(
-      (query.period as CostPeriod) || 'monthly'
+    const report = await this.finOpsService.getChargebackReport(
+      (query.period as any) || 'monthly'
     );
 
     await reply.status(200).send({
@@ -252,7 +235,7 @@ export class FinOpsV2Controller {
         return;
       }
 
-      const validTypes: ROIInvestmentType[] = [
+      const validTypes = [
         'infrastructure',
         'automation',
         'tooling',
@@ -267,7 +250,7 @@ export class FinOpsV2Controller {
         return;
       }
 
-      const analysis = this.roiAnalyzer.calculateROI({
+      const analysis = await this.finOpsService.calculateROI({
         investmentType,
         name,
         cost,
@@ -320,7 +303,7 @@ export class FinOpsV2Controller {
         return;
       }
 
-      const analysis = this.roiAnalyzer.analyzeAutomationSavings({
+      const analysis = await this.finOpsService.analyzeAutomationSavings({
         name,
         manualHoursPerMonth,
         hourlyRate,
@@ -369,12 +352,12 @@ export class FinOpsV2Controller {
         return;
       }
 
-      const comparison = this.roiAnalyzer.comparePeriods({
+      const comparison = await this.finOpsService.comparePeriods({
         description,
         beforeCost,
         afterCost,
         timeSavingsHours,
-        period: (period as CostPeriod) || 'monthly',
+        period: (period as any) || 'monthly',
       });
 
       await reply.status(201).send({
@@ -395,8 +378,8 @@ export class FinOpsV2Controller {
    */
   async getROIHistory(request: FastifyRequest, reply: FastifyReply) {
     const query = request.query as any;
-    const history = this.roiAnalyzer.getROIHistory({
-      investmentType: query.investmentType as ROIInvestmentType,
+    const history = await this.finOpsService.getROIHistory({
+      investmentType: query.investmentType,
       minROI: query.minROI ? parseFloat(query.minROI) : undefined,
     });
 
@@ -411,7 +394,7 @@ export class FinOpsV2Controller {
    * GET /api/v1/finops/roi/summary
    */
   async getROISummary(request: FastifyRequest, reply: FastifyReply) {
-    const summary = this.roiAnalyzer.getSummary();
+    const summary = await this.finOpsService.getROISummary();
 
     await reply.status(200).send({
       success: true,
@@ -447,7 +430,7 @@ export class FinOpsV2Controller {
         return;
       }
 
-      const budget = this.budgetService.createBudget({
+      const budget = await this.finOpsService.createBudget({
         entityType,
         entityId,
         amount,
@@ -478,7 +461,7 @@ export class FinOpsV2Controller {
     const params = request.params as any;
     const body = request.body as any || {};
 
-    const budget = this.budgetService.updateBudget(params.id, body);
+    const budget = await this.finOpsService.updateBudget(params.id, body);
 
     if (!budget) {
       await reply.status(404).send({
@@ -500,7 +483,7 @@ export class FinOpsV2Controller {
    */
   async deleteBudget(request: FastifyRequest, reply: FastifyReply) {
     const params = request.params as any;
-    const deleted = this.budgetService.deleteBudget(params.id);
+    const deleted = await this.finOpsService.deleteBudget(params.id);
 
     if (!deleted) {
       await reply.status(404).send({
@@ -522,7 +505,7 @@ export class FinOpsV2Controller {
    */
   async listBudgets(request: FastifyRequest, reply: FastifyReply) {
     const query = request.query as any;
-    const budgets = this.budgetService.listBudgets({
+    const budgets = await this.finOpsService.listBudgets({
       entityType: query.entityType as CostEntityType,
       entityId: query.entityId,
     });
@@ -550,10 +533,10 @@ export class FinOpsV2Controller {
       return;
     }
 
-    this.budgetService.updateEntitySpend(entityType, entityId, amount);
+    await this.finOpsService.updateEntitySpend(entityType, entityId, amount);
 
     // 自动检查告警
-    const triggered = this.budgetService.checkBudgetAlerts();
+    const triggered = await this.finOpsService.checkBudgetAlerts();
 
     await reply.status(200).send({
       success: true,
@@ -569,7 +552,7 @@ export class FinOpsV2Controller {
    * POST /api/v1/finops/budget/check-alerts
    */
   async checkBudgetAlerts(request: FastifyRequest, reply: FastifyReply) {
-    const triggered = this.budgetService.checkBudgetAlerts();
+    const triggered = await this.finOpsService.checkBudgetAlerts();
 
     await reply.status(200).send({
       success: true,
@@ -583,7 +566,7 @@ export class FinOpsV2Controller {
    */
   async getBudgetStatus(request: FastifyRequest, reply: FastifyReply) {
     const params = request.params as any;
-    const status = this.budgetService.getBudgetStatus(params.id);
+    const status = await this.finOpsService.getBudgetStatus(params.id);
 
     if (!status) {
       await reply.status(404).send({
@@ -605,7 +588,7 @@ export class FinOpsV2Controller {
    */
   async forecastBudget(request: FastifyRequest, reply: FastifyReply) {
     const params = request.params as any;
-    const forecast = this.budgetService.forecastBudget(params.id);
+    const forecast = await this.finOpsService.forecastBudget(params.id);
 
     if (!forecast) {
       await reply.status(404).send({
@@ -627,7 +610,7 @@ export class FinOpsV2Controller {
    */
   async getAlertTriggers(request: FastifyRequest, reply: FastifyReply) {
     const query = request.query as any;
-    const triggers = this.budgetService.getAlertTriggers({
+    const triggers = await this.finOpsService.getAlertTriggers({
       budgetId: query.budgetId,
       entityType: query.entityType as CostEntityType,
     });
@@ -657,7 +640,7 @@ export class FinOpsV2Controller {
         return;
       }
 
-      const suggestions = this.costOptimizer.analyzeOptimization(utilizations);
+      const suggestions = await this.finOpsService.analyzeOptimization(utilizations);
 
       await reply.status(200).send({
         success: true,
@@ -677,7 +660,7 @@ export class FinOpsV2Controller {
    */
   async getRightSizingRecommendations(request: FastifyRequest, reply: FastifyReply) {
     const query = request.query as any;
-    const recommendations = this.costOptimizer.getRightSizingRecommendations({
+    const recommendations = await this.finOpsService.getRightSizingRecommendations({
       tenantId: query.tenantId,
       environment: query.environment,
     });
@@ -694,7 +677,7 @@ export class FinOpsV2Controller {
    */
   async detectUnusedResources(request: FastifyRequest, reply: FastifyReply) {
     const query = request.query as any;
-    const unused = this.costOptimizer.detectUnusedResources({
+    const unused = await this.finOpsService.detectUnusedResources({
       tenantId: query.tenantId,
       environment: query.environment,
     });
@@ -711,7 +694,7 @@ export class FinOpsV2Controller {
    */
   async estimateSavings(request: FastifyRequest, reply: FastifyReply) {
     const query = request.query as any;
-    const savings = this.costOptimizer.estimateSavings({
+    const savings = await this.finOpsService.estimateSavings({
       category: query.category as OptimizationCategory,
       status: query.status as OptimizationStatus,
     });
@@ -728,7 +711,7 @@ export class FinOpsV2Controller {
    */
   async getOptimizations(request: FastifyRequest, reply: FastifyReply) {
     const query = request.query as any;
-    const optimizations = this.costOptimizer.getOptimizations({
+    const optimizations = await this.finOpsService.getOptimizations({
       category: query.category as OptimizationCategory,
       priority: query.priority as OptimizationPriority,
       status: query.status as OptimizationStatus,
@@ -775,7 +758,7 @@ export class FinOpsV2Controller {
       return;
     }
 
-    const updated = this.costOptimizer.updateOptimizationStatus(
+    const updated = await this.finOpsService.updateOptimizationStatus(
       params.id,
       status
     );
@@ -800,7 +783,7 @@ export class FinOpsV2Controller {
    */
   async deleteOptimization(request: FastifyRequest, reply: FastifyReply) {
     const params = request.params as any;
-    const deleted = this.costOptimizer.deleteOptimization(params.id);
+    const deleted = await this.finOpsService.deleteOptimization(params.id);
 
     if (!deleted) {
       await reply.status(404).send({
@@ -827,12 +810,7 @@ export class FinOpsV2Controller {
       success: true,
       data: {
         status: 'healthy',
-        services: {
-          costTracking: true,
-          roiAnalyzer: true,
-          budgetService: true,
-          costOptimizer: true,
-        },
+        storage: 'postgresql',
       },
     });
   }

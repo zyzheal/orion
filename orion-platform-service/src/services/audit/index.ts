@@ -8,6 +8,10 @@ export { AuditLogChain } from './AuditLogChain';
 export { ImmutableAuditStorage } from './ImmutableAuditStorage';
 export { AuditIntegrityVerifier } from './AuditIntegrityVerifier';
 
+// Database-backed services (NEW)
+export { AuditRepository } from './AuditRepository';
+export { AuditService, AuditServiceError } from './AuditService';
+
 export {
   ChainedAuditLogEntry,
   ChainVerificationResult,

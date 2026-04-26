@@ -1,210 +1,308 @@
 /**
- * Skill Package Service - 管理技能包、版本、安装、评分
+ * SkillService - Business logic layer for Skill operations
+ * 
+ * Handles skill package management, versioning, and reviews
  */
 
-import {
+import { 
+  SkillRepository, 
   SkillPackage,
-  SkillPackageCreateInput,
-  SkillPackageUpdateInput,
-  createSkillPackage,
   SkillVersion,
-  SkillVersionCreateInput,
-  createSkillVersion,
   SkillReview,
-  SkillReviewCreateInput,
-  createSkillReview,
-  SkillStatus,
-  SkillCategory,
-} from '../../models/SkillPackage';
+  CreateSkillInput,
+  UpdateSkillInput,
+  CreateSkillVersionInput,
+  CreateSkillReviewInput
+} from './SkillRepository';
 
-export interface SkillListFilter {
-  q?: string;
-  category?: SkillCategory;
-  tag?: string;
-  status?: SkillStatus;
+export interface ListSkillsOptions {
   page?: number;
-  perPage?: number;
+  limit?: number;
+  status?: string;
+  category?: string;
+  tags?: string[];
+}
+
+export interface PaginatedResult<T> {
+  data: T[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export class SkillServiceError extends Error {
+  constructor(message: string, public code: string) {
+    super(message);
+    this.name = 'SkillServiceError';
+  }
 }
 
 export class SkillService {
-  private skills: Map<string, SkillPackage> = new Map();
-  private versions: Map<string, SkillVersion[]> = new Map();
-  private reviews: Map<string, SkillReview[]> = new Map();
+  private repository: SkillRepository;
+
+  constructor(repository: SkillRepository) {
+    this.repository = repository;
+  }
 
   // ==================== Skill CRUD ====================
 
-  async create(input: SkillPackageCreateInput): Promise<SkillPackage> {
-    const skill = createSkillPackage(input);
-    this.skills.set(skill.id, skill);
-    this.versions.set(skill.id, []);
-    this.reviews.set(skill.id, []);
-    return skill;
-  }
-
-  async getById(id: string): Promise<SkillPackage | undefined> {
-    return this.skills.get(id);
-  }
-
-  async list(filter: SkillListFilter = {}): Promise<{ skills: SkillPackage[]; total: number }> {
-    let items = Array.from(this.skills.values());
-
-    // 全文搜索（name / description / author / tags）
-    if (filter.q) {
-      const query = filter.q.toLowerCase();
-      items = items.filter(
-        (s) =>
-          s.name.toLowerCase().includes(query) ||
-          s.description.toLowerCase().includes(query) ||
-          s.author.toLowerCase().includes(query) ||
-          s.tags.some((t) => t.toLowerCase().includes(query))
-      );
-    }
-
-    if (filter.category) {
-      items = items.filter((s) => s.category === filter.category);
-    }
-
-    if (filter.tag) {
-      const tag = filter.tag.toLowerCase();
-      items = items.filter((s) => s.tags.some((t) => t.toLowerCase() === tag));
-    }
-
-    if (filter.status) {
-      items = items.filter((s) => s.status === filter.status);
-    }
-
-    const total = items.length;
-    const page = filter.page ?? 1;
-    const perPage = filter.perPage ?? 20;
-    const start = (page - 1) * perPage;
-    const paged = items.slice(start, start + perPage);
-
-    return { skills: paged, total };
-  }
-
-  async update(id: string, input: SkillPackageUpdateInput): Promise<SkillPackage | undefined> {
-    const skill = this.skills.get(id);
-    if (!skill) return undefined;
-
-    if (input.name !== undefined) skill.name = input.name;
-    if (input.description !== undefined) skill.description = input.description;
-    if (input.category !== undefined) skill.category = input.category;
-    if (input.tags !== undefined) skill.tags = input.tags;
-    if (input.status !== undefined) skill.status = input.status;
-    if (input.schema !== undefined) skill.schema = input.schema;
-    skill.updatedAt = new Date();
-
-    this.skills.set(id, skill);
-    return skill;
-  }
-
-  async delete(id: string): Promise<boolean> {
-    const deleted = this.skills.delete(id);
-    if (deleted) {
-      this.versions.delete(id);
-      this.reviews.delete(id);
-    }
-    return deleted;
-  }
-
-  // ==================== Version Management ====================
-
-  async addVersion(input: SkillVersionCreateInput): Promise<SkillVersion> {
-    const skill = this.skills.get(input.skillId);
+  /**
+   * Get skill by ID
+   */
+  async getSkill(id: string): Promise<SkillPackage> {
+    const skill = await this.repository.findById(id);
+    
     if (!skill) {
-      throw new Error(`Skill ${input.skillId} not found`);
+      throw new SkillServiceError(`Skill not found: ${id}`, 'SKILL_NOT_FOUND');
     }
-
-    // 将所有旧版本标记为非最新
-    const versions = this.versions.get(input.skillId) ?? [];
-    for (const v of versions) {
-      v.isLatest = false;
-    }
-
-    const version = createSkillVersion(input);
-    versions.push(version);
-    this.versions.set(input.skillId, versions);
-
-    // 更新 skill 当前版本
-    skill.version = input.version;
-    skill.updatedAt = new Date();
-    this.skills.set(input.skillId, skill);
-
-    return version;
-  }
-
-  async listVersions(skillId: string): Promise<SkillVersion[]> {
-    return this.versions.get(skillId) ?? [];
-  }
-
-  // ==================== Install / Uninstall ====================
-
-  async install(skillId: string): Promise<SkillPackage | undefined> {
-    const skill = this.skills.get(skillId);
-    if (!skill) return undefined;
-
-    skill.installCount += 1;
-    skill.updatedAt = new Date();
-    this.skills.set(skillId, skill);
+    
     return skill;
   }
 
-  async uninstall(skillId: string): Promise<SkillPackage | undefined> {
-    const skill = this.skills.get(skillId);
-    if (!skill) return undefined;
+  /**
+   * List skills with pagination
+   */
+  async listSkills(options: ListSkillsOptions = {}): Promise<PaginatedResult<SkillPackage>> {
+    const { page = 1, limit = 20, status, category, tags } = options;
+    const offset = (page - 1) * limit;
 
-    if (skill.installCount > 0) {
-      skill.installCount -= 1;
+    const [skills, total] = await Promise.all([
+      this.repository.findAll({ status, category, tags, limit, offset }),
+      this.repository.count({ status, category }),
+    ]);
+
+    return {
+      data: skills,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  /**
+   * Create a new skill
+   */
+  async createSkill(input: CreateSkillInput): Promise<SkillPackage> {
+    if (!input.name || input.name.trim().length === 0) {
+      throw new SkillServiceError('Skill name is required', 'INVALID_INPUT');
     }
-    skill.updatedAt = new Date();
-    this.skills.set(skillId, skill);
+
+    if (!input.description || input.description.trim().length === 0) {
+      throw new SkillServiceError('Description is required', 'INVALID_INPUT');
+    }
+
+    if (!input.author || input.author.trim().length === 0) {
+      throw new SkillServiceError('Author is required', 'INVALID_INPUT');
+    }
+
+    // Check for duplicate name
+    const exists = await this.repository.findByName(input.name);
+    if (exists) {
+      throw new SkillServiceError('Skill name already exists', 'DUPLICATE_NAME');
+    }
+
+    const skill = await this.repository.create({
+      ...input,
+      name: input.name.trim(),
+      description: input.description.trim(),
+    });
+
+    // Create initial version
+    await this.repository.createVersion({
+      skill_id: skill.id,
+      version: skill.version,
+      schema: input.schema,
+    });
+
     return skill;
   }
 
-  // ==================== Rating ====================
+  /**
+   * Update skill
+   */
+  async updateSkill(id: string, input: UpdateSkillInput): Promise<SkillPackage> {
+    const existing = await this.repository.findById(id);
+    if (!existing) {
+      throw new SkillServiceError(`Skill not found: ${id}`, 'SKILL_NOT_FOUND');
+    }
 
-  async rate(input: SkillReviewCreateInput): Promise<SkillReview> {
-    const skill = this.skills.get(input.skillId);
+    const updated = await this.repository.update(id, input);
+    
+    if (!updated) {
+      throw new SkillServiceError(`Failed to update skill: ${id}`, 'UPDATE_FAILED');
+    }
+    
+    return updated;
+  }
+
+  /**
+   * Publish skill
+   */
+  async publishSkill(id: string): Promise<SkillPackage> {
+    const existing = await this.repository.findById(id);
+    if (!existing) {
+      throw new SkillServiceError(`Skill not found: ${id}`, 'SKILL_NOT_FOUND');
+    }
+
+    if (existing.status !== 'draft' && existing.status !== 'review') {
+      throw new SkillServiceError('Can only publish draft or review skills', 'INVALID_STATE');
+    }
+
+    return this.repository.update(id, { status: 'published' }) as Promise<SkillPackage>;
+  }
+
+  /**
+   * Uninstall skill
+   */
+  async uninstallSkill(id: string): Promise<boolean> {
+    const existing = await this.repository.findById(id);
+    if (!existing) {
+      throw new SkillServiceError(`Skill not found: ${id}`, 'SKILL_NOT_FOUND');
+    }
+
+    return this.repository.delete(id);
+  }
+
+  /**
+   * Install skill (increment count)
+   */
+  async installSkill(id: string): Promise<void> {
+    const skill = await this.repository.findById(id);
+    
     if (!skill) {
-      throw new Error(`Skill ${input.skillId} not found`);
+      throw new SkillServiceError(`Skill not found: ${id}`, 'SKILL_NOT_FOUND');
+    }
+
+    if (skill.status !== 'published') {
+      throw new SkillServiceError('Can only install published skills', 'INVALID_STATE');
+    }
+
+    await this.repository.incrementInstallCount(id);
+  }
+
+  // ==================== Versions ====================
+
+  /**
+   * Get skill versions
+   */
+  async getVersions(skillId: string): Promise<SkillVersion[]> {
+    const skill = await this.repository.findById(skillId);
+    if (!skill) {
+      throw new SkillServiceError(`Skill not found: ${skillId}`, 'SKILL_NOT_FOUND');
+    }
+
+    return this.repository.findVersions(skillId);
+  }
+
+  /**
+   * Get latest version
+   */
+  async getLatestVersion(skillId: string): Promise<SkillVersion | null> {
+    return this.repository.findLatestVersion(skillId);
+  }
+
+  /**
+   * Create new version
+   */
+  async createVersion(skillId: string, input: {
+    version: string;
+    changelog?: string;
+    schema?: Record<string, any>;
+  }): Promise<SkillVersion> {
+    const skill = await this.repository.findById(skillId);
+    if (!skill) {
+      throw new SkillServiceError(`Skill not found: ${skillId}`, 'SKILL_NOT_FOUND');
+    }
+
+    return this.repository.createVersion({
+      skill_id: skillId,
+      version: input.version,
+      changelog: input.changelog,
+      schema: input.schema,
+    });
+  }
+
+  // ==================== Reviews ====================
+
+  /**
+   * Get skill reviews
+   */
+  async getReviews(skillId: string): Promise<SkillReview[]> {
+    const skill = await this.repository.findById(skillId);
+    if (!skill) {
+      throw new SkillServiceError(`Skill not found: ${skillId}`, 'SKILL_NOT_FOUND');
+    }
+
+    return this.repository.findReviews(skillId);
+  }
+
+  /**
+   * Add review
+   */
+  async addReview(skillId: string, input: {
+    user_id: string;
+    rating: number;
+    comment?: string;
+  }): Promise<SkillReview> {
+    const skill = await this.repository.findById(skillId);
+    if (!skill) {
+      throw new SkillServiceError(`Skill not found: ${skillId}`, 'SKILL_NOT_FOUND');
     }
 
     if (input.rating < 1 || input.rating > 5) {
-      throw new Error('Rating must be between 1 and 5');
+      throw new SkillServiceError('Rating must be between 1 and 5', 'INVALID_RATING');
     }
 
-    const reviews = this.reviews.get(input.skillId) ?? [];
-
-    // 检查用户是否已经评过分，如果是则更新
-    const existingIndex = reviews.findIndex((r) => r.userId === input.userId);
-    if (existingIndex >= 0) {
-      const oldRating = reviews[existingIndex].rating;
-      reviews[existingIndex].rating = input.rating;
-      reviews[existingIndex].comment = input.comment ?? reviews[existingIndex].comment;
-
-      // 重新计算平均评分
-      const totalRating = reviews.reduce((sum, r) => sum + r.rating, 0);
-      skill.rating = totalRating / reviews.length;
-      skill.ratingCount = reviews.length;
-    } else {
-      const review = createSkillReview(input);
-      reviews.push(review);
-
-      // 重新计算平均评分
-      const totalRating = reviews.reduce((sum, r) => sum + r.rating, 0);
-      skill.rating = totalRating / reviews.length;
-      skill.ratingCount = reviews.length;
-    }
-
-    this.reviews.set(input.skillId, reviews);
-    skill.updatedAt = new Date();
-    this.skills.set(input.skillId, skill);
-
-    // 返回最新添加或更新的 review
-    return reviews[existingIndex >= 0 ? existingIndex : reviews.length - 1];
+    return this.repository.createReview({
+      skill_id: skillId,
+      user_id: input.user_id,
+      rating: input.rating,
+      comment: input.comment,
+    });
   }
 
-  async getReviews(skillId: string): Promise<SkillReview[]> {
-    return this.reviews.get(skillId) ?? [];
+  // ==================== Search ====================
+
+  /**
+   * Search skills
+   */
+  async searchSkills(query: string, limit: number = 20): Promise<SkillPackage[]> {
+    return this.repository.search(query, limit);
+  }
+
+  /**
+   * Get categories
+   */
+  async getCategories(): Promise<{ category: string; count: number }[]> {
+    return this.repository.getCategories();
+  }
+
+  // ==================== Marketplace ====================
+
+  /**
+   * Get published skills (marketplace)
+   */
+  async getMarketplace(options: {
+    category?: string;
+    tags?: string[];
+    page?: number;
+    limit?: number;
+  } = {}): Promise<PaginatedResult<SkillPackage>> {
+    return this.listSkills({
+      ...options,
+      status: 'published',
+    });
+  }
+
+  /**
+   * Get featured skills
+   */
+  async getFeaturedSkills(limit: number = 10): Promise<SkillPackage[]> {
+    return this.repository.findAll({
+      status: 'published',
+      limit,
+    });
   }
 }
