@@ -5,7 +5,7 @@
  */
 import React, { useState, useMemo, useEffect } from 'react';
 import {
-  Typography, Button, Space, Tag, Card, Modal, Form, Input, Select, message,
+  Typography, Button, Space, Tag, Card, Modal, Form, Input, Select, message, Alert,
   Popconfirm, Descriptions, Drawer, Tooltip, Progress, Avatar,
 } from 'antd';
 import {
@@ -130,6 +130,7 @@ const ApprovalManagement: React.FC = () => {
   const [createForm] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
   const [currentUserId] = useState('current-user');
+  const [usingMockData, setUsingMockData] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -138,6 +139,7 @@ const ApprovalManagement: React.FC = () => {
       const list = res.data?.data?.approvals;
       setApprovals(Array.isArray(list) ? list : []);
     } catch {
+      setUsingMockData(true);
       setApprovals(MOCK_APPROVALS);
     } finally {
       setLoading(false);
@@ -467,6 +469,19 @@ const ApprovalManagement: React.FC = () => {
           </Button>
         </Space>
       </div>
+
+      {/* Mock data warning banner */}
+      {usingMockData && (
+        <Alert
+          message="使用模拟数据"
+          description="后端服务暂时不可用，当前显示的是模拟数据，可能不是最新状态。"
+          type="warning"
+          showIcon
+          closable
+          style={{ marginBottom: 16 }}
+          onClose={() => setUsingMockData(false)}
+        />
+      )}
 
       {/* Stats Panel */}
       <Card size="small" style={{ marginBottom: 16 }}>

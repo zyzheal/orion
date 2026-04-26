@@ -4,7 +4,7 @@
  */
 import React, { useState, useMemo, useEffect } from 'react';
 import {
-  Typography, Button, Space, Tag, Card, Modal, Form, Input, Select, message,
+  Typography, Button, Space, Tag, Card, Modal, Form, Input, Select, message, Alert,
   Popconfirm, Tabs, Descriptions, Drawer, Tooltip, Statistic, Row, Col, Timeline,
 } from 'antd';
 import {
@@ -168,6 +168,7 @@ const ArtifactManagement: React.FC = () => {
   const [namespaces, setNamespaces] = useState<string[]>([]);
   const [tags, setTags] = useState<TagType[]>([]);
   const [promotionHistory, setPromotionHistory] = useState<PromotionRecord[]>([]);
+  const [usingMockData, setUsingMockData] = useState(false);
   const [createForm] = Form.useForm();
   const [editForm] = Form.useForm();
   const [promotionForm] = Form.useForm();
@@ -185,6 +186,7 @@ const ArtifactManagement: React.FC = () => {
       const res = await getArtifacts();
       setArtifacts(Array.isArray(res.data?.data) ? res.data.data : []);
     } catch {
+      setUsingMockData(true);
       setArtifacts(MOCK_ARTIFACTS);
     } finally {
       setLoading(false);
@@ -196,6 +198,7 @@ const ArtifactManagement: React.FC = () => {
       const res = await getArtifactStats();
       setStats(res.data?.data || MOCK_STATS);
     } catch {
+      setUsingMockData(true);
       setStats(MOCK_STATS);
     }
   };
@@ -205,6 +208,7 @@ const ArtifactManagement: React.FC = () => {
       const res = await getNamespaces();
       setNamespaces(res.data?.data || []);
     } catch {
+      setUsingMockData(true);
       setNamespaces(['platform', 'ai', 'frontend', 'infra']);
     }
   };
@@ -664,6 +668,19 @@ const ArtifactManagement: React.FC = () => {
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalVisible(true)}>创建制品</Button>
         </Space>
       </div>
+
+      {/* Mock data warning banner */}
+      {usingMockData && (
+        <Alert
+          message="使用模拟数据"
+          description="后端服务暂时不可用，当前显示的是模拟数据，可能不是最新状态。"
+          type="warning"
+          showIcon
+          closable
+          style={{ marginBottom: 16 }}
+          onClose={() => setUsingMockData(false)}
+        />
+      )}
 
       {/* Stats Panel */}
       {stats && (

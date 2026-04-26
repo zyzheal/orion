@@ -4,7 +4,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import {
-  Typography, Button, Space, Tag, Card, Modal, Form, Input, Select, message,
+  Typography, Button, Space, Tag, Card, Modal, Form, Input, Select, message, Alert,
   Popconfirm, Descriptions, Drawer, Tooltip, Table as AntTable, Timeline,
   Empty, Avatar, Badge,
 } from 'antd';
@@ -138,6 +138,7 @@ const OnCallManagement: React.FC = () => {
   const [overrideForm] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
   const [memberInput, setMemberInput] = useState('');
+  const [usingMockData, setUsingMockData] = useState(false);
 
   // ---- Data Loading ----
 
@@ -148,6 +149,7 @@ const OnCallManagement: React.FC = () => {
       const data = res.data?.data?.schedules;
       setSchedules(Array.isArray(data) && data.length > 0 ? data : MOCK_SCHEDULES);
     } catch {
+      setUsingMockData(true);
       setSchedules(MOCK_SCHEDULES);
     } finally {
       setLoading(false);
@@ -164,6 +166,7 @@ const OnCallManagement: React.FC = () => {
         setCurrentOnCall((prev) => ({ ...prev, [scheduleId]: MOCK_CURRENT_ONCALL[scheduleId] || { isOnCall: false } }));
       }
     } catch {
+      setUsingMockData(true);
       setCurrentOnCall((prev) => ({ ...prev, [scheduleId]: MOCK_CURRENT_ONCALL[scheduleId] || { isOnCall: false } }));
     }
   };
@@ -497,6 +500,19 @@ const OnCallManagement: React.FC = () => {
           <Button type="primary" icon={<PlusOutlined />} onClick={() => { setCreateModalVisible(true); createForm.resetFields(); setMemberInput(''); }}>创建排班</Button>
         </Space>
       </div>
+
+      {/* Mock data warning banner */}
+      {usingMockData && (
+        <Alert
+          message="使用模拟数据"
+          description="后端服务暂时不可用，当前显示的是模拟数据，可能不是最新状态。"
+          type="warning"
+          showIcon
+          closable
+          style={{ marginBottom: 16 }}
+          onClose={() => setUsingMockData(false)}
+        />
+      )}
 
       {/* Schedule List */}
       <Card>

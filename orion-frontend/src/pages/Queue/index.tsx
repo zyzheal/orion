@@ -4,7 +4,7 @@
  */
 import React, { useState, useEffect, useMemo } from 'react';
 import {
-  Typography, Button, Space, Tag, Card, Modal, Form, Input, Select, message,
+  Typography, Button, Space, Tag, Card, Modal, Form, Input, Select, message, Alert,
   Popconfirm, Drawer, Descriptions, Tooltip, Statistic, Row, Col, Table as AntTable,
 } from 'antd';
 import {
@@ -117,6 +117,7 @@ const QueueManagement: React.FC = () => {
   const [enqueueForm] = Form.useForm();
   const [dequeueForm] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
+  const [usingMockData, setUsingMockData] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -131,6 +132,7 @@ const QueueManagement: React.FC = () => {
       const res = await listJobs(params);
       setJobs(Array.isArray(res.data?.data?.jobs) ? res.data.data.jobs : []);
     } catch {
+      setUsingMockData(true);
       // Fallback to mock data
       let filtered = [...MOCK_JOBS];
       if (statusFilter !== 'all') {
@@ -150,6 +152,7 @@ const QueueManagement: React.FC = () => {
       const res = await getQueueStats();
       setStats(res.data?.data || MOCK_STATS);
     } catch {
+      setUsingMockData(true);
       setStats(MOCK_STATS);
     }
   };
@@ -375,6 +378,19 @@ const QueueManagement: React.FC = () => {
           </Button>
         </Space>
       </div>
+
+      {/* Mock data warning banner */}
+      {usingMockData && (
+        <Alert
+          message="使用模拟数据"
+          description="后端服务暂时不可用，当前显示的是模拟数据，可能不是最新状态。"
+          type="warning"
+          showIcon
+          closable
+          style={{ marginBottom: 16 }}
+          onClose={() => setUsingMockData(false)}
+        />
+      )}
 
       {/* Stats Panel */}
       {stats && (
