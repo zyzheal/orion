@@ -476,6 +476,30 @@ export const routes: AppRoute[] = [
     element: React.lazy(() => import('@/pages/VectorStore')),
     protected: true,
   },
+  // EventBus Monitoring
+  {
+    path: '/eventbus',
+    element: React.lazy(() => import('@/pages/EventBus')),
+    protected: true,
+  },
+  // Session Management
+  {
+    path: '/sessions',
+    element: React.lazy(() => import('@/pages/Sessions')),
+    protected: true,
+  },
+  // Metrics Dashboard (P1 - Missing Page)
+  {
+    path: '/metrics-dashboard',
+    element: React.lazy(() => import('@/pages/MetricsDashboard')),
+    protected: true,
+  },
+  // Test Selector (P1 - Missing Page)
+  {
+    path: '/test-selector',
+    element: React.lazy(() => import('@/pages/TestSelector')),
+    protected: true,
+  },
   // 404 页面
   {
     path: '*',
