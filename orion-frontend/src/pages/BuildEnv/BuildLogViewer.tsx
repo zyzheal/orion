@@ -177,8 +177,8 @@ const BuildLogViewer: React.FC<BuildLogViewerProps> = ({ logId, height = 500, au
         style={{
           height,
           overflowY: 'auto',
-          background: '#1e1e1e',
-          color: '#d4d4d4',
+          background: colors.neutral[900],
+          color: colors.neutral[400],
           fontFamily: '"Fira Code", "JetBrains Mono", "Cascadia Code", Menlo, Consolas, monospace',
           fontSize: spacing[3],
           lineHeight: '20px',
@@ -236,8 +236,8 @@ const BuildLogViewer: React.FC<BuildLogViewerProps> = ({ logId, height = 500, au
       <div
         style={{
           padding: '6px 16px',
-          background: '#2d2d2d',
-          borderTop: '1px solid #3c3c3c',
+          background: colors.neutral[800],
+          borderTop: `1px solid ${colors.neutral[700]}`,
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',

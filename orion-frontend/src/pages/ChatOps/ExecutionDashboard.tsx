@@ -17,10 +17,10 @@ dayjs.extend(relativeTime);
 const { Title, Text } = Typography;
 
 const platformColorMap: Record<string, string> = {
-  dingtalk: '#0089FF',
-  wecom: '#4C9BFF',
-  feishu: '#3370FF',
-  slack: '#4A154B',
+  dingtalk: colors.primary[500],
+  wecom: colors.primary[400],
+  feishu: colors.primary[600],
+  slack: colors.purple[800],
   cli: 'default',
 };
 

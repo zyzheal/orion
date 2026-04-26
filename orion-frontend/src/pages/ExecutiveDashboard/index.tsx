@@ -46,7 +46,7 @@ const COLORS = {
   error: colors.error[400],
   info: colors.primary[500],
   purple: colors.purple[500],
-  cyan: '#13c2c2',
+  cyan: colors.info[500],
 };
 
 /**

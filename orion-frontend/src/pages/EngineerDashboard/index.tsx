@@ -44,7 +44,7 @@ const COLORS = {
   error: colors.error[400],
   info: colors.primary[500],
   purple: colors.purple[500],
-  cyan: '#13c2c2',
+  cyan: colors.info[500],
 };
 
 /**
@@ -473,7 +473,7 @@ const EngineerDashboard: React.FC = () => {
               background-color: ${colors.error[50]} !important;
             }
             .overdue-row:hover td {
-              background-color: #ffccc7 !important;
+              background-color: ${colors.error[100]} !important;
             }
           `}</style>
         </CardPanel>

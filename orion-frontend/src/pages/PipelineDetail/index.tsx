@@ -376,7 +376,7 @@ const PipelineDetail: React.FC = () => {
           <CardPanel title="日志输出">
             <div
               style={{
-                background: '#1e1e1e',
+                background: colors.neutral[900],
                 borderRadius: 6,
                 padding: 16,
                 fontFamily: 'Menlo, Monaco, "Courier New", monospace',
