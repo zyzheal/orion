@@ -579,3 +579,95 @@ After M24/M25 PostgreSQL persistence migrations, the backend had 292 TypeScript 
 - TypeScript errors: 292 -> 219 (73 migration-introduced errors fixed)
 - All 219 remaining errors are pre-existing (monitoring, cmdb, config-mgmt, canary-analysis, etc.)
 - No new errors introduced by the fixes
+
+## Mock Data Warning Banners (COMPLETED - 2026-04-26)
+
+### Completed Work
+
+Added Ant Design `Alert` (type="warning") banners to 9 frontend pages that fall back to mock data when API calls fail. Each page now has:
+- `usingMockData` state (boolean)
+- `setUsingMockData(true)` in catch blocks where mock data fallback occurs
+- Visible warning banner at the top of page content, closable by user
+
+**Pages updated (9 files):**
+1. `Artifacts/index.tsx` - loadData, loadStats, loadNamespaces catch blocks
+2. `Approvals/index.tsx` - loadData catch block
+3. `OnCall/index.tsx` - loadData, loadCurrentOnCall catch blocks
+4. `Queue/index.tsx` - loadData, loadStats catch blocks
+5. `Projects/index.tsx` - loadData, loadResources catch blocks
+6. `InternalLibrary/index.tsx` - loadData catch block
+7. `ProductLine/index.tsx` - loadData catch block
+8. `VectorStore/index.tsx` - loadData, loadStats catch blocks
+9. `Environments/index.tsx` - loadData catch block
+
+**Pages skipped (2 files):**
+- `EphemeralEnvList/index.tsx` - No mock data fallback (shows empty list + error message)
+- `CMDB/index.tsx` - No mock data fallback (shows empty list + error message)
+
+### Commits
+- `cbcad23` - Artifacts, Approvals, OnCall, Queue (4 files)
+- `2101481` - Projects, InternalLibrary, ProductLine (3 files)
+- `60af89a` - VectorStore, Environments (2 files)
+
+### Verification
+- TypeScript type-check: no new errors introduced (all 9 modified files compile cleanly)
+- Pre-existing errors in other files (ConfigManagement, EfficiencyDashboard, Monitoring) unchanged
+
+## P1 Missing Pages - EventBus & Sessions (COMPLETED - 2026-04-27)
+
+### Completed Work
+
+1. **EventBus Monitoring Page** (`orion-frontend/src/pages/EventBus/index.tsx`)
+   - Page header: "EventBus" with subtitle "事件总线监控"
+   - 4 stats cards (MetricCard): Total Events, Active Subscribers, Failed Events, Event Rate
+   - Event stream table with columns: Event Type, Source, Timestamp, Status, Payload Size, Subscribers
+   - Filter by event type and status (Select dropdowns)
+   - Search by event type, source, trace ID, topic (Input.Search)
+   - Refresh button
+   - Event detail drawer with full event information
+   - Mock data with `<Alert type="warning">` banner (no backend API yet)
+   - Uses design tokens: `colors`, `spacing` from `@/tokens`
+   - Uses shared components: `MetricCard`, `Table` with `TableColumn` type
+   - Proper TypeScript types: `EventBusEvent`, `EventBusStats`, `EventStatus`
+   - No `any` types, uses `catch (error: unknown)` with `error instanceof Error` type guards
+
+2. **Session Management Page** (`orion-frontend/src/pages/Sessions/index.tsx`)
+   - Page header: "Session Management" with subtitle "用户会话管理"
+   - 4 stats cards (MetricCard): Active Sessions, Total Users, Expired Sessions, Avg Duration
+   - Session table with columns: User, Session ID, IP Address, Status, Started At, Last Active, Duration, Actions
+   - Filter by status (Active, Expired, Revoked)
+   - Search by user, session ID, or IP address
+   - Revoke session action with Popconfirm
+   - Session detail drawer with full session information
+   - Mock data with `<Alert type="warning">` banner (no backend API yet)
+   - Uses design tokens: `colors`, `spacing` from `@/tokens`
+   - Uses shared components: `MetricCard`, `Table` with `TableColumn` type
+   - Proper TypeScript types: `UserSession`, `SessionStats`, `SessionStatus`
+   - No `any` types, uses `catch (error: unknown)` with `error instanceof Error` type guards
+
+3. **Route Registration** (`orion-frontend/src/router/routes.ts`)
+   - Added `/eventbus` -> EventBus page
+   - Added `/sessions` -> Sessions page
+
+### Acceptance Criteria
+- [x] EventBus page with stats cards, event stream table, filters, detail drawer
+- [x] Sessions page with stats cards, session table, filters, search, revoke action, detail drawer
+- [x] Both pages use MetricCard, Table, SearchFilterBar patterns
+- [x] Both pages use design tokens (no hardcoded colors)
+- [x] Both pages use mock data with warning banners
+- [x] No `any` types used in new code
+- [x] Proper error handling with `catch (error: unknown)` and `error instanceof Error`
+- [x] Routes registered in router
+- [x] TypeScript type-check passes with no new errors
+
+### Verification
+- TypeScript type-check: 0 new errors introduced
+- Pre-existing errors (Backup, ConfigManagement, PluginSPI, RiskDashboard) unchanged at 14 errors
+- Both pages compile cleanly
+
+### Commit
+- `98905d4` - EventBus and Sessions management pages (P1)
+
+## Next Steps
+1. Continue implementing remaining P1/P2 missing pages
+2. Consider adding backend API clients for EventBus and Sessions when available
