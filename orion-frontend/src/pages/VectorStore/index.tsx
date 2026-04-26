@@ -4,7 +4,7 @@
  */
 import React, { useState, useMemo, useEffect } from 'react';
 import {
-  Typography, Button, Space, Tag, Card, Modal, Form, Input, Select, message,
+  Typography, Button, Space, Tag, Card, Modal, Form, Input, Select, message, Alert,
   Popconfirm, Tabs, Descriptions, Drawer, Tooltip, Statistic, Row, Col,
   Upload, Table as AntTable, Spin,
 } from 'antd';
@@ -181,6 +181,7 @@ const VectorStorePage: React.FC = () => {
   const [stats, setStats] = useState<VectorStats | null>(null);
   const [createForm] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
+  const [usingMockData, setUsingMockData] = useState(false);
 
   // Search tab state
   const [searchText, setSearchText] = useState('');
@@ -202,6 +203,7 @@ const VectorStorePage: React.FC = () => {
       const res = await getCollections();
       setCollections(Array.isArray(res.data?.data) ? res.data.data : MOCK_COLLECTIONS);
     } catch {
+      setUsingMockData(true);
       setCollections(MOCK_COLLECTIONS);
     } finally {
       setLoading(false);
@@ -213,6 +215,7 @@ const VectorStorePage: React.FC = () => {
       const res = await getVectorStats();
       setStats(res.data?.data || MOCK_STATS);
     } catch {
+      setUsingMockData(true);
       setStats(MOCK_STATS);
     }
   };
@@ -556,6 +559,19 @@ const VectorStorePage: React.FC = () => {
           </Button>
         </Space>
       </div>
+
+      {/* Mock data warning banner */}
+      {usingMockData && (
+        <Alert
+          message="使用模拟数据"
+          description="后端服务暂时不可用，当前显示的是模拟数据，可能不是最新状态。"
+          type="warning"
+          showIcon
+          closable
+          style={{ marginBottom: 16 }}
+          onClose={() => setUsingMockData(false)}
+        />
+      )}
 
       {/* Stats Panel */}
       {stats && (
