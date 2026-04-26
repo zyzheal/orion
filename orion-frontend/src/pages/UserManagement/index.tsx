@@ -18,6 +18,7 @@ import {
   listUsers, createUser, updateUser, deleteUser,
   type User, type CreateUserInput, type UpdateUserInput,
 } from '@/api/users';
+import { colors } from '@/tokens/colors';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -270,7 +271,7 @@ const UserManagement: React.FC = () => {
       render: (_: unknown, record: User) => (
         <Space>
           <Avatar size="small" icon={<UserOutlined />}
-            style={{ backgroundColor: roleColorMap[record.role] === 'red' ? '#f5222d' : roleColorMap[record.role] === 'blue' ? '#1890ff' : roleColorMap[record.role] === 'gold' ? '#faad14' : '#d9d9d9' }}
+            style={{ backgroundColor: roleColorMap[record.role] === 'red' ? colors.error[500] : roleColorMap[record.role] === 'blue' ? colors.primary[500] : roleColorMap[record.role] === 'gold' ? colors.warning[500] : colors.neutral[300] }}
           >
             {record.name ? record.name.charAt(0) : record.username.charAt(0).toUpperCase()}
           </Avatar>
@@ -440,13 +441,13 @@ const UserManagement: React.FC = () => {
             <Statistic title="用户总数" value={stats.total} prefix={<UserOutlined />} />
           </Col>
           <Col span={6}>
-            <Statistic title="已启用" value={stats.active} valueStyle={{ color: '#52c41a' }} prefix={<CheckCircleOutlined />} />
+            <Statistic title="已启用" value={stats.active} valueStyle={{ color: colors.success[500] }} prefix={<CheckCircleOutlined />} />
           </Col>
           <Col span={6}>
-            <Statistic title="已禁用/锁定" value={stats.inactive} valueStyle={{ color: '#faad14' }} prefix={<StopOutlined />} />
+            <Statistic title="已禁用/锁定" value={stats.inactive} valueStyle={{ color: colors.warning[500] }} prefix={<StopOutlined />} />
           </Col>
           <Col span={6}>
-            <Statistic title="管理员" value={stats.admins} valueStyle={{ color: '#f5222d' }} />
+            <Statistic title="管理员" value={stats.admins} valueStyle={{ color: colors.error[500] }} />
           </Col>
         </Row>
       </Card>

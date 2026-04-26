@@ -15,6 +15,7 @@ import {
   listJobs, enqueueJob, dequeueJob, completeJob, failJob, getQueueStats,
   type QueueJob, type JobStatus, type EnqueueInput, type QueueStats,
 } from '@/api/queue';
+import { colors } from '@/tokens/colors';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 
@@ -384,7 +385,7 @@ const QueueManagement: React.FC = () => {
                 title="等待中"
                 value={stats.pending}
                 prefix={<ClockCircleOutlined />}
-                valueStyle={{ color: '#1890ff' }}
+                valueStyle={{ color: colors.primary[500] }}
               />
             </Col>
             <Col span={6}>
@@ -392,7 +393,7 @@ const QueueManagement: React.FC = () => {
                 title="处理中"
                 value={stats.processing}
                 prefix={<SyncOutlined spin />}
-                valueStyle={{ color: '#faad14' }}
+                valueStyle={{ color: colors.warning[500] }}
               />
             </Col>
             <Col span={6}>
@@ -400,7 +401,7 @@ const QueueManagement: React.FC = () => {
                 title="已完成"
                 value={stats.completed}
                 prefix={<CheckCircleOutlined />}
-                valueStyle={{ color: '#52c41a' }}
+                valueStyle={{ color: colors.success[500] }}
               />
             </Col>
             <Col span={6}>
@@ -408,7 +409,7 @@ const QueueManagement: React.FC = () => {
                 title="已失败"
                 value={stats.failed}
                 prefix={<CloseCircleOutlined />}
-                valueStyle={{ color: '#ff4d4f' }}
+                valueStyle={{ color: colors.error[400] }}
               />
             </Col>
           </Row>
@@ -587,7 +588,7 @@ const QueueManagement: React.FC = () => {
               </Descriptions.Item>
               <Descriptions.Item label="Payload" span={2}>
                 <pre style={{
-                  background: '#f5f5f5',
+                  background: colors.neutral[100],
                   padding: 12,
                   borderRadius: 4,
                   fontSize: 12,

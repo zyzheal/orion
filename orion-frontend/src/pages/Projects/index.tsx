@@ -19,6 +19,7 @@ import {
   type Project, type CreateProjectInput, type UpdateProjectInput,
   type ProjectResource,
 } from '@/api/projects';
+import { colors } from '@/tokens/colors';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 
@@ -252,7 +253,7 @@ const ProjectManagement: React.FC = () => {
       render: (v: unknown, record: any) => (
         <Space direction="vertical" size={0}>
           <Text strong style={{ cursor: 'pointer' }} onClick={() => openDetail(record)}>
-            <FolderOutlined style={{ marginRight: 6, color: '#1890ff' }} />
+            <FolderOutlined style={{ marginRight: 6, color: colors.primary[500] }} />
             {String(v)}
           </Text>
           <Text type="secondary" style={{ fontSize: 12 }}>/ {record.slug}</Text>
@@ -277,7 +278,7 @@ const ProjectManagement: React.FC = () => {
       key: 'team', title: '负责人', width: 120,
       render: (_: unknown, record: any) => (
         <Space>
-          <Avatar size="small" style={{ backgroundColor: '#1890ff' }}>
+          <Avatar size="small" style={{ backgroundColor: colors.primary[500] }}>
             {record.teamLead ? record.teamLead.charAt(0) : '?'}
           </Avatar>
           <Text>{record.teamLead || '-'}</Text>
@@ -445,7 +446,7 @@ const ProjectManagement: React.FC = () => {
       <Drawer
         title={selectedProject ? (
           <Space>
-            <FolderOutlined style={{ color: '#1890ff' }} />
+            <FolderOutlined style={{ color: colors.primary[500] }} />
             <span>{selectedProject.name}</span>
             <Tag color={statusColorMap[selectedProject.status]}>
               {statusLabelMap[selectedProject.status]}
@@ -461,7 +462,7 @@ const ProjectManagement: React.FC = () => {
               <Descriptions.Item label="Slug">{selectedProject.slug}</Descriptions.Item>
               <Descriptions.Item label="负责人">
                 <Space>
-                  <Avatar size="small" style={{ backgroundColor: '#1890ff' }}>
+                  <Avatar size="small" style={{ backgroundColor: colors.primary[500] }}>
                     {selectedProject.teamLead?.charAt(0) || '?'}
                   </Avatar>
                   {selectedProject.teamLead || '-'}

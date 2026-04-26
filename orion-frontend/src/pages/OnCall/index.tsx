@@ -21,6 +21,7 @@ import {
   type CreateScheduleInput, type CreateOverrideInput,
   type CurrentOnCallResult,
 } from '@/api/oncall';
+import { colors } from '@/tokens/colors';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import utc from 'dayjs/plugin/utc';
@@ -307,7 +308,7 @@ const OnCallManagement: React.FC = () => {
         return (
           <Space>
             <Badge status={oncall?.isOnCall ? 'success' : 'default'} />
-            <Avatar size="small" icon={<UserOutlined />} style={{ backgroundColor: '#1890ff' }} />
+            <Avatar size="small" icon={<UserOutlined />} style={{ backgroundColor: colors.primary[500] }} />
             <Text>{resolveUserName(userId)}</Text>
           </Space>
         );
@@ -423,7 +424,7 @@ const OnCallManagement: React.FC = () => {
                 children: (
                   <Space direction="vertical" size={0}>
                     <Space>
-                      <Avatar size="small" icon={<UserOutlined />} style={{ backgroundColor: isCurrent ? '#52c41a' : '#1890ff' }} />
+                      <Avatar size="small" icon={<UserOutlined />} style={{ backgroundColor: isCurrent ? colors.success[500] : colors.primary[500] }} />
                       <Text strong={isCurrent}>{resolveUserName(a.userId)}</Text>
                       {isCurrent && <Badge status="success" text={<Text type="secondary" style={{ fontSize: 12 }}>当前值班</Text>} />}
                     </Space>

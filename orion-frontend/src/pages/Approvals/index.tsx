@@ -18,6 +18,7 @@ import {
   getApprovals, getApproval, createApproval, approveApproval, rejectApproval,
   type ApprovalRequest, type CreateApprovalInput, type ApprovalStatus,
 } from '@/api/approvals';
+import { colors } from '@/tokens/colors';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 
@@ -296,7 +297,7 @@ const ApprovalManagement: React.FC = () => {
                   size="small"
                   icon={<UserOutlined />}
                   style={{
-                    backgroundColor: hasApproved ? '#52c41a' : hasRejected ? '#ff4d4f' : '#d9d9d9',
+                    backgroundColor: hasApproved ? colors.success[500] : hasRejected ? colors.error[400] : colors.neutral[300],
                     fontSize: 10,
                   }}
                 >
@@ -334,7 +335,7 @@ const ApprovalManagement: React.FC = () => {
             <>
               <Popconfirm title="确认通过该审批?" onConfirm={() => handleApprove(record.id)}>
                 <Tooltip title="通过">
-                  <Button type="link" size="small" style={{ color: '#52c41a' }} icon={<CheckOutlined />}>
+                  <Button type="link" size="small" style={{ color: colors.success[500] }} icon={<CheckOutlined />}>
                     通过
                   </Button>
                 </Tooltip>
@@ -401,15 +402,15 @@ const ApprovalManagement: React.FC = () => {
               let statusIcon = <ClockCircleOutlined style={{ color: '#999' }} />;
               let statusText = '待审批';
               if (hasApproved) {
-                statusIcon = <CheckCircleOutlined style={{ color: '#52c41a' }} />;
+                statusIcon = <CheckCircleOutlined style={{ color: colors.success[500] }} />;
                 statusText = '已通过';
               } else if (hasRejected) {
-                statusIcon = <StopOutlined style={{ color: '#ff4d4f' }} />;
+                statusIcon = <StopOutlined style={{ color: colors.error[400] }} />;
                 statusText = '已拒绝';
               }
               return (
                 <Space key={uid} style={{ padding: '4px 0' }}>
-                  <Avatar size="small" icon={<UserOutlined />} style={{ backgroundColor: hasApproved ? '#52c41a' : hasRejected ? '#ff4d4f' : '#d9d9d9' }}>
+                  <Avatar size="small" icon={<UserOutlined />} style={{ backgroundColor: hasApproved ? colors.success[500] : hasRejected ? colors.error[400] : colors.neutral[300] }}>
                     {uid.substring(0, 2)}
                   </Avatar>
                   <Text>{uid}</Text>
@@ -436,7 +437,7 @@ const ApprovalManagement: React.FC = () => {
         {a.status === 'pending' && (
           <Space style={{ marginTop: 16 }}>
             <Popconfirm title="确认通过该审批?" onConfirm={() => handleApprove(a.id)}>
-              <Button type="primary" icon={<CheckOutlined />} style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}>
+              <Button type="primary" icon={<CheckOutlined />} style={{ backgroundColor: colors.success[500], borderColor: colors.success[500] }}>
                 通过
               </Button>
             </Popconfirm>
@@ -475,19 +476,19 @@ const ApprovalManagement: React.FC = () => {
             <Text strong>{stats.total}</Text>
           </Space>
           <Space>
-            <ClockCircleOutlined style={{ color: '#1890ff' }} />
+            <ClockCircleOutlined style={{ color: colors.primary[500] }} />
             <Text type="secondary">待审批:</Text>
-            <Text strong style={{ color: '#1890ff' }}>{stats.pending}</Text>
+            <Text strong style={{ color: colors.primary[500] }}>{stats.pending}</Text>
           </Space>
           <Space>
-            <CheckCircleOutlined style={{ color: '#52c41a' }} />
+            <CheckCircleOutlined style={{ color: colors.success[500] }} />
             <Text type="secondary">已通过:</Text>
-            <Text strong style={{ color: '#52c41a' }}>{stats.approved}</Text>
+            <Text strong style={{ color: colors.success[500] }}>{stats.approved}</Text>
           </Space>
           <Space>
-            <StopOutlined style={{ color: '#ff4d4f' }} />
+            <StopOutlined style={{ color: colors.error[400] }} />
             <Text type="secondary">已拒绝:</Text>
-            <Text strong style={{ color: '#ff4d4f' }}>{stats.rejected}</Text>
+            <Text strong style={{ color: colors.error[400] }}>{stats.rejected}</Text>
           </Space>
         </Space>
       </Card>
