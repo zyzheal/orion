@@ -4,7 +4,7 @@
  */
 import React, { useState, useMemo, useEffect } from 'react';
 import {
-  Typography, Button, Space, Tag, Card, Modal, Form, Input, message,
+  Typography, Button, Space, Tag, Card, Modal, Form, Input, message, Alert,
   Popconfirm, Drawer, Tooltip, Descriptions, Table as AntTable, Avatar,
 } from 'antd';
 import {
@@ -116,6 +116,7 @@ const ProjectManagement: React.FC = () => {
   const [createForm] = Form.useForm();
   const [editForm] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
+  const [usingMockData, setUsingMockData] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -127,9 +128,11 @@ const ProjectManagement: React.FC = () => {
       } else if (Array.isArray(data?.data)) {
         setProjects(data.data);
       } else {
+        setUsingMockData(true);
         setProjects(MOCK_PROJECTS);
       }
     } catch {
+      setUsingMockData(true);
       setProjects(MOCK_PROJECTS);
     } finally {
       setLoading(false);
@@ -241,6 +244,7 @@ const ProjectManagement: React.FC = () => {
       const res = await getProjectResources(projectId);
       setProjectResources(Array.isArray(res.data?.data) ? res.data.data : []);
     } catch {
+      setUsingMockData(true);
       setProjectResources(MOCK_RESOURCES.filter((r) => r.projectId === projectId));
     }
   };
@@ -378,6 +382,19 @@ const ProjectManagement: React.FC = () => {
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalVisible(true)}>创建项目</Button>
         </Space>
       </div>
+
+      {/* Mock data warning banner */}
+      {usingMockData && (
+        <Alert
+          message="使用模拟数据"
+          description="后端服务暂时不可用，当前显示的是模拟数据，可能不是最新状态。"
+          type="warning"
+          showIcon
+          closable
+          style={{ marginBottom: 16 }}
+          onClose={() => setUsingMockData(false)}
+        />
+      )}
 
       {/* Project List */}
       <Card>

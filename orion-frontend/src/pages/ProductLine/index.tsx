@@ -4,7 +4,7 @@
  */
 import React, { useState, useMemo, useEffect } from 'react';
 import {
-  Typography, Button, Space, Tag, Card, Modal, Form, Input, Select, message,
+  Typography, Button, Space, Tag, Card, Modal, Form, Input, Select, message, Alert,
   Popconfirm, Tabs, Table as AntTable, Descriptions, Drawer, Tooltip, Switch,
 } from 'antd';
 import {
@@ -254,6 +254,7 @@ const ProductLineManagement: React.FC = () => {
   const [rtForm] = Form.useForm();
   const [hfForm] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
+  const [usingMockData, setUsingMockData] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -261,6 +262,7 @@ const ProductLineManagement: React.FC = () => {
       const res = await getProductLines();
       setProductLines(Array.isArray(res.data?.data) ? res.data.data : []);
     } catch {
+      setUsingMockData(true);
       setProductLines(MOCK_PRODUCT_LINES);
     } finally {
       setLoading(false);
@@ -619,6 +621,19 @@ const ProductLineManagement: React.FC = () => {
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalVisible(true)}>创建产品线</Button>
         </Space>
       </div>
+
+      {/* Mock data warning banner */}
+      {usingMockData && (
+        <Alert
+          message="使用模拟数据"
+          description="后端服务暂时不可用，当前显示的是模拟数据，可能不是最新状态。"
+          type="warning"
+          showIcon
+          closable
+          style={{ marginBottom: 16 }}
+          onClose={() => setUsingMockData(false)}
+        />
+      )}
 
       {/* Branch Resolver Tool */}
       <BranchResolver productLines={productLines} />
