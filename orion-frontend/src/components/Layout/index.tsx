@@ -32,13 +32,15 @@ import {
   DatabaseOutlined,
   EyeOutlined,
   DeploymentUnitOutlined,
+  CheckCircleOutlined,
+  ClockCircleOutlined,
 } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
 import type { GetProp } from 'antd';
 import { useAppStore } from '@/stores/appStore';
 import { useAuth } from '@/hooks/useAuth';
 import SubAppLauncher from '@/components/SubAppLauncher';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { NotificationBell } from '@/components/NotificationBell';
 
 type ItemType = GetProp<MenuProps, 'items'>[number];
@@ -51,9 +53,37 @@ interface LayoutProps {
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const navigate = useNavigate();
-  const { theme, setTheme, setBreadcrumbs } = useAppStore();
+  const location = useLocation();
+  const { theme, setTheme, breadcrumbs, setBreadcrumbs } = useAppStore();
   const { user, logout } = useAuth();
   const isAdmin = user?.role === 'admin';
+
+  // 根据当前路由动态计算菜单激活态
+  const selectedKeys = React.useMemo(() => {
+    const path = location.pathname;
+    // Direct match
+    for (const item of navMenuItems) {
+      if (!item || !('key' in item)) continue;
+      if (item.key === path) return [item.key as string];
+      if ('children' in item && item.children) {
+        for (const child of item.children) {
+          if (!child || !('key' in child)) continue;
+          if (child.key === path) return [child.key as string];
+          if ('children' in child && child.children) {
+            const gc = child.children.find((c) => c && 'key' in c && c.key === path);
+            if (gc && 'key' in gc) return [gc.key as string];
+          }
+        }
+      }
+    }
+    // Prefix match for nested routes
+    for (const item of navMenuItems) {
+      if (!item || !('key' in item) || !item.key) continue;
+      const itemKey = String(item.key);
+      if (itemKey !== '/dashboard' && path.startsWith(itemKey)) return [itemKey];
+    }
+    return ['/dashboard'];
+  }, [location.pathname]);
 
   // 顶部导航菜单
   const navMenuItems: ItemType[] = [
@@ -169,7 +199,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         {
           key: '/visor',
           icon: <EyeOutlined />,
-          label: '监控中心',
+          label: '运维监控',
         },
       ],
     },
@@ -216,7 +246,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         {
           key: '/knowledge',
           icon: <BookOutlined />,
-          label: '知识库',
+          label: 'AI 知识库',
         },
         {
           key: '/console/ai-docs',
@@ -251,6 +281,11 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           label: '租户管理',
         },
         {
+          key: '/roles',
+          icon: <UserSwitchOutlined />,
+          label: '角色管理',
+        },
+        {
           key: '/config-management',
           icon: <SettingOutlined />,
           label: '配置管理',
@@ -265,6 +300,21 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           icon: <AppstoreOutlined />,
           label: 'Skill 市场',
         },
+        {
+          key: '/sbom',
+          icon: <EyeOutlined />,
+          label: 'SBOM',
+        },
+        {
+          key: '/approvals',
+          icon: <CheckCircleOutlined />,
+          label: '审批流',
+        },
+        {
+          key: '/oncall',
+          icon: <ClockCircleOutlined />,
+          label: '值班管理',
+        },
       ],
     },
     {
@@ -272,6 +322,11 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       icon: <CloudServerOutlined />,
       label: '环境',
       children: [
+        {
+          key: '/environments',
+          icon: <CloudServerOutlined />,
+          label: '环境管理',
+        },
         {
           key: '/ephemeral-envs',
           icon: <CloudServerOutlined />,
@@ -291,6 +346,16 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           key: '/console/code-mgmt',
           icon: <ForkOutlined />,
           label: '代码管理',
+        },
+        {
+          key: '/queue',
+          icon: <UnorderedListOutlined />,
+          label: '队列管理',
+        },
+        {
+          key: '/vector-store',
+          icon: <DatabaseOutlined />,
+          label: '向量存储',
         },
       ],
     },
@@ -388,6 +453,18 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const handleConsoleMenuClick: MenuProps['onClick'] = (e) => {
     navigate(e.key);
+    // Update breadcrumbs for console menu items
+    const labelMap: Record<string, string> = {
+      '/console/plugins': '插件管理',
+      '/console/settings': '系统配置',
+      '/console/users': '用户管理',
+      '/console/confirmations': '人工确认',
+      '/console/ai-cost': 'AI 成本',
+    };
+    const label = labelMap[e.key];
+    if (label) {
+      setBreadcrumbs([{ title: '控制台', path: '/console' }, { title: label, path: e.key }]);
+    }
   };
 
   const toggleTheme = () => {
@@ -453,7 +530,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           {/* 顶部导航菜单 */}
           <Menu
             mode="horizontal"
-            selectedKeys={['/dashboard']}
+            selectedKeys={selectedKeys}
             items={navMenuItems}
             onClick={handleMenuClick}
             style={{
@@ -557,7 +634,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               ),
               href: '/',
             },
-            ...(useAppStore.getState().breadcrumbs || []),
+            ...(breadcrumbs || []),
           ]}
         />
       </div>

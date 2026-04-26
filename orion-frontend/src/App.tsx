@@ -22,6 +22,8 @@ if (typeof document !== 'undefined') {
 
 const AppContent: React.FC = () => {
   const { theme: appTheme } = useAppStore();
+  const isDark = appTheme === 'dark';
+  const c = isDark ? colors.dark : colors.light;
 
   const antdToken = {
     colorPrimary: colors.primary[500],
@@ -29,13 +31,14 @@ const AppContent: React.FC = () => {
     colorWarning: colors.warning[500],
     colorError: colors.error[500],
     colorInfo: colors.info[500],
-    colorText: colors.light.text.primary,
-    colorBgContainer: colors.light.bg.primary,
-    colorBgLayout: colors.light.bg.secondary,
-    colorBorder: colors.light.border.default,
+    colorText: c.text.primary,
+    colorTextSecondary: c.text.secondary,
+    colorBgContainer: c.bg.primary,
+    colorBgLayout: c.bg.secondary,
+    colorBorder: c.border.default,
     borderRadius: radius.md,
     borderRadiusLG: radius.lg,
-    boxShadow: shadows.card,
+    boxShadow: isDark ? shadows.dark.card : shadows.card,
     fontFamily: typography.fontFamily.base,
     fontSize: typography.fontSize.md,
   };
