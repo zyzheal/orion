@@ -25,6 +25,7 @@ import {
   type ArtifactStage, type ArtifactStatus,
   type PromotionRecord, type Tag as TagType, type ArtifactStats,
 } from '@/api/artifacts';
+import { colors } from '@/tokens/colors';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 
@@ -563,10 +564,10 @@ const ArtifactManagement: React.FC = () => {
               <>
                 <Title level={5}>漏洞统计</Title>
                 <Row gutter={16}>
-                  <Col span={6}><Card size="small"><Statistic title="严重" value={a.security.scanResults.critical} valueStyle={{ color: a.security.scanResults.critical > 0 ? '#cf1322' : '#3f8600' }} /></Card></Col>
-                  <Col span={6}><Card size="small"><Statistic title="高危" value={a.security.scanResults.high} valueStyle={{ color: a.security.scanResults.high > 0 ? '#fa541c' : '#3f8600' }} /></Card></Col>
-                  <Col span={6}><Card size="small"><Statistic title="中危" value={a.security.scanResults.medium} valueStyle={{ color: a.security.scanResults.medium > 0 ? '#faad14' : '#3f8600' }} /></Card></Col>
-                  <Col span={6}><Card size="small"><Statistic title="低危" value={a.security.scanResults.low} valueStyle={{ color: '#666' }} /></Card></Col>
+                  <Col span={6}><Card size="small"><Statistic title="严重" value={a.security.scanResults.critical} valueStyle={{ color: a.security.scanResults.critical > 0 ? colors.error[600] : colors.success[600] }} /></Card></Col>
+                  <Col span={6}><Card size="small"><Statistic title="高危" value={a.security.scanResults.high} valueStyle={{ color: a.security.scanResults.high > 0 ? colors.error[500] : colors.success[600] }} /></Card></Col>
+                  <Col span={6}><Card size="small"><Statistic title="中危" value={a.security.scanResults.medium} valueStyle={{ color: a.security.scanResults.medium > 0 ? colors.warning[500] : colors.success[600] }} /></Card></Col>
+                  <Col span={6}><Card size="small"><Statistic title="低危" value={a.security.scanResults.low} valueStyle={{ color: colors.neutral[500] }} /></Card></Col>
                 </Row>
               </>
             )}
@@ -672,19 +673,19 @@ const ArtifactManagement: React.FC = () => {
               <Statistic title="制品总数" value={stats.total} prefix={<FileTextOutlined />} />
             </Col>
             <Col span={3}>
-              <Statistic title="Snapshot" value={stats.byStage?.snapshot ?? 0} valueStyle={{ color: '#999', fontSize: 20 }} />
+              <Statistic title="Snapshot" value={stats.byStage?.snapshot ?? 0} valueStyle={{ color: colors.neutral[500], fontSize: 20 }} />
             </Col>
             <Col span={3}>
-              <Statistic title="RC" value={stats.byStage?.release_candidate ?? 0} valueStyle={{ color: '#1890ff', fontSize: 20 }} />
+              <Statistic title="RC" value={stats.byStage?.release_candidate ?? 0} valueStyle={{ color: colors.primary[500], fontSize: 20 }} />
             </Col>
             <Col span={3}>
-              <Statistic title="Stable" value={stats.byStage?.stable ?? 0} valueStyle={{ color: '#52c41a', fontSize: 20 }} />
+              <Statistic title="Stable" value={stats.byStage?.stable ?? 0} valueStyle={{ color: colors.success[500], fontSize: 20 }} />
             </Col>
             <Col span={3}>
-              <Statistic title="Production" value={stats.byStage?.production ?? 0} valueStyle={{ color: '#faad14', fontSize: 20 }} />
+              <Statistic title="Production" value={stats.byStage?.production ?? 0} valueStyle={{ color: colors.warning[500], fontSize: 20 }} />
             </Col>
             <Col span={3}>
-              <Statistic title="Archived" value={stats.byStage?.archived ?? 0} valueStyle={{ color: '#fa8c16', fontSize: 20 }} />
+              <Statistic title="Archived" value={stats.byStage?.archived ?? 0} valueStyle={{ color: colors.warning[500], fontSize: 20 }} />
             </Col>
             <Col span={3}>
               <Statistic title="总大小" value={formatSize(stats.totalSizeBytes || 0)} valueStyle={{ fontSize: 16 }} prefix={<ClockCircleOutlined />} />

@@ -42,6 +42,7 @@ import { useAuth } from '@/hooks/useAuth';
 import SubAppLauncher from '@/components/SubAppLauncher';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { NotificationBell } from '@/components/NotificationBell';
+import { colors } from '@/tokens/colors';
 
 type ItemType = GetProp<MenuProps, 'items'>[number];
 
@@ -477,7 +478,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       <Header
         style={{
           padding: '0 24px',
-          background: theme === 'dark' ? '#001529' : '#fff',
+          background: theme === 'dark' ? colors.dark.bg.primary : '#fff',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -516,7 +517,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               style={{
                 fontSize: 16,
                 fontWeight: 'bold',
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                background: `linear-gradient(135deg, ${colors.primary[500]} 0%, ${colors.purple[500]} 100%)`,
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
                 backgroundClip: 'text',
@@ -605,7 +606,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                 src={user?.avatar}
                 size="default"
                 style={{
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  background: `linear-gradient(135deg, ${colors.primary[500]} 0%, ${colors.purple[500]} 100%)`,
                 }}
               />
               <span style={{ fontSize: 14, fontWeight: 500, whiteSpace: 'nowrap' }}>

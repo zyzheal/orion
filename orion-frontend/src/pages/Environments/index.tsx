@@ -20,6 +20,7 @@ import {
   type EnvironmentType, type EnvironmentStatus,
 } from '@/api/environments';
 import dayjs from 'dayjs';
+import { colors } from '@/tokens/colors';
 
 const { Title, Text } = Typography;
 
@@ -524,7 +525,7 @@ const EnvironmentManagement: React.FC = () => {
               <div style={{ marginTop: 24 }}>
                 <Title level={5}>环境配置</Title>
                 <pre style={{
-                  background: '#f5f5f5',
+                  background: colors.neutral[100],
                   padding: 16,
                   borderRadius: 4,
                   fontSize: 13,

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Form, Input, Button, Card, message, Typography } from 'antd';
 import { spacing } from '@/tokens';
+import { colors } from '@/tokens/colors';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
@@ -43,7 +44,7 @@ const Login: React.FC = () => {
         justifyContent: 'center',
         alignItems: 'center',
         minHeight: '100vh',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        background: `linear-gradient(135deg, ${colors.primary[500]} 0%, ${colors.purple[500]} 100%)`,
       }}
     >
       <Card

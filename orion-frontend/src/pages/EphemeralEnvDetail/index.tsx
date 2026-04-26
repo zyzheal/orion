@@ -518,10 +518,10 @@ const EphemeralEnvDetail: React.FC = () => {
             <div style={{
               marginTop: 16,
               padding: 12,
-              background: '#f6ffed',
+              background: colors.success[50],
               borderRadius: 6,
               textAlign: 'center',
-              border: '1px solid #b7eb8f',
+              border: `1px solid ${colors.success[200]}`,
             }}>
               <Text type="secondary" style={{ fontSize: spacing[3] }}>总成本</Text>
               <br />

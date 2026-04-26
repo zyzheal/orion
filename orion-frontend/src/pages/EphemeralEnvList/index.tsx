@@ -147,10 +147,10 @@ const CostDrawer: React.FC<CostDrawerProps> = ({ env, open, onClose }) => {
           <div style={{
             marginTop: 24,
             padding: 16,
-            background: '#f6ffed',
+            background: colors.success[50],
             borderRadius: 8,
             textAlign: 'center',
-            border: '1px solid #b7eb8f',
+            border: `1px solid ${colors.success[200]}`,
           }}>
             <Text type="secondary" style={{ fontSize: spacing[3] }}>总成本</Text>
             <br />
