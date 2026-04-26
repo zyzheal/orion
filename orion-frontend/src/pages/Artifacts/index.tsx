@@ -405,10 +405,10 @@ const ArtifactManagement: React.FC = () => {
 
   // ---- Table columns ----
 
-  const columns: TableColumn<any>[] = [
+  const columns: TableColumn<Artifact>[] = [
     {
       key: 'name', title: '制品名称', dataIndex: 'name', width: 200, sortable: true,
-      render: (v: unknown, record: any) => (
+      render: (v: unknown, record: Artifact) => (
         <Space direction="vertical" size={0}>
           <Text strong style={{ cursor: 'pointer' }} onClick={() => openDetail(record)}>{String(v)}</Text>
           <Text type="secondary" style={{ fontSize: 12 }}>{record.displayName || record.namespace}/{record.version}</Text>
@@ -417,11 +417,11 @@ const ArtifactManagement: React.FC = () => {
     },
     {
       key: 'type', title: '类型', width: 120,
-      render: (_: unknown, record: any) => <Tag>{typeLabelMap[record.type] || record.type}</Tag>,
+      render: (_: unknown, record: Artifact) => <Tag>{typeLabelMap[record.type] || record.type}</Tag>,
     },
     {
       key: 'stage', title: '阶段', width: 110,
-      render: (_: unknown, record: any) => (
+      render: (_: unknown, record: Artifact) => (
         <Tag color={stageColorMap[record.stage as ArtifactStage] || 'default'}>
           {stageLabelMap[record.stage as ArtifactStage] || record.stage}
         </Tag>
@@ -429,17 +429,17 @@ const ArtifactManagement: React.FC = () => {
     },
     {
       key: 'status', title: '状态', width: 100,
-      render: (_: unknown, record: any) => (
+      render: (_: unknown, record: Artifact) => (
         <Tag color={statusColorMap[record.status as ArtifactStatus] || 'default'}>{record.status}</Tag>
       ),
     },
     {
       key: 'size', title: '大小', width: 90,
-      render: (_: unknown, record: any) => <Text type="secondary" style={{ fontSize: 12 }}>{formatSize(record.sizeBytes || 0)}</Text>,
+      render: (_: unknown, record: Artifact) => <Text type="secondary" style={{ fontSize: 12 }}>{formatSize(record.sizeBytes || 0)}</Text>,
     },
     {
       key: 'security', title: '安全评分', width: 100,
-      render: (_: unknown, record: any) => {
+      render: (_: unknown, record: Artifact) => {
         const scan = record.security?.scanResults;
         if (!scan) return <Text type="secondary">-</Text>;
         const total = scan.critical + scan.high + scan.medium + scan.low;
@@ -457,7 +457,7 @@ const ArtifactManagement: React.FC = () => {
     },
     {
       key: 'actions', title: '操作', width: 260,
-      render: (_: unknown, record: any) => (
+      render: (_: unknown, record: Artifact) => (
         <Space size="small" wrap>
           <Tooltip title="详情"><Button type="link" size="small" icon={<EyeOutlined />} onClick={() => openDetail(record)}>详情</Button></Tooltip>
           <Tooltip title="编辑"><Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEdit(record)} /></Tooltip>
@@ -683,7 +683,7 @@ const ArtifactManagement: React.FC = () => {
         <div style={{ marginBottom: 16 }}>
           <SearchFilterBar onSearch={setSearchQuery} onFilter={setFilters} filters={filterDefs} searchPlaceholder="搜索制品..." />
         </div>
-        <Table columns={columns} dataSource={filteredData as unknown as Record<string, unknown>[]} loading={loading} rowKey="id" size="middle" striped />
+        <Table columns={columns} dataSource={filteredData} loading={loading} rowKey="id" size="middle" striped />
       </Card>
 
       {/* Create Modal */}

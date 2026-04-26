@@ -4,6 +4,7 @@
  */
 import React from 'react';
 import { Card, Row, Col, Statistic, Progress, Tag, Table, Typography, Badge, Button, Space } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
 import { colors, spacing } from '@/tokens';
 import {
   ClockCircleOutlined,
@@ -24,6 +25,48 @@ import { useNavigate } from 'react-router-dom';
 
 const { Text, Paragraph } = Typography;
 
+// ---- Type definitions ----
+
+interface PipelineRecord {
+  key: string;
+  name: string;
+  status: string;
+  duration: string;
+  trigger: string;
+  time: string;
+}
+
+interface TaskRecord {
+  key: string;
+  title: string;
+  priority: string;
+  status: string;
+  assignee: string;
+  due: string;
+}
+
+interface SystemHealthItem {
+  name: string;
+  status: string;
+  latency: string;
+  uptime: string;
+}
+
+interface QuickAction {
+  name: string;
+  icon: React.ReactNode;
+  color: string;
+  path: string;
+}
+
+interface DashboardLink {
+  name: string;
+  icon: React.ReactNode;
+  color: string;
+  path: string;
+  desc: string;
+}
+
 // 模拟数据
 const pipelineStats = {
   total: 24,
@@ -33,7 +76,7 @@ const pipelineStats = {
   pending: 5,
 };
 
-const recentPipelines = [
+const recentPipelines: PipelineRecord[] = [
   { key: '1', name: 'frontend-deploy', status: 'running', duration: '2m 30s', trigger: 'heal', time: '2 分钟前' },
   { key: '2', name: 'api-service-build', status: 'success', duration: '5m 12s', trigger: 'ci-bot', time: '10 分钟前' },
   { key: '3', name: 'database-migration', status: 'pending', duration: '-', trigger: 'heal', time: '15 分钟前' },
@@ -41,7 +84,7 @@ const recentPipelines = [
   { key: '5', name: 'docs-build', status: 'success', duration: '3m 20s', trigger: 'heal', time: '2 小时前' },
 ];
 
-const tasks = [
+const tasks: TaskRecord[] = [
   { key: '1', title: '完成 F206 子应用联调测试', priority: 'high', status: 'in-progress', assignee: 'heal', due: '今天' },
   { key: '2', title: '修复 Pipeline 执行超时问题', priority: 'high', status: 'todo', assignee: 'heal', due: '明天' },
   { key: '3', title: '更新 API 文档', priority: 'medium', status: 'todo', assignee: 'team', due: '本周' },
@@ -49,7 +92,7 @@ const tasks = [
   { key: '5', title: '性能优化 - 启动速度', priority: 'low', status: 'todo', assignee: 'team', due: '下周' },
 ];
 
-const systemHealth = [
+const systemHealth: SystemHealthItem[] = [
   { name: 'API Gateway', status: 'healthy', latency: '45ms', uptime: '99.9%' },
   { name: 'Platform Service', status: 'healthy', latency: '32ms', uptime: '99.8%' },
   { name: 'Database', status: 'healthy', latency: '12ms', uptime: '99.99%' },
@@ -57,14 +100,14 @@ const systemHealth = [
   { name: 'Event Bus', status: 'warning', latency: '156ms', uptime: '98.5%' },
 ];
 
-const quickActions = [
+const quickActions: QuickAction[] = [
   { name: '创建 Pipeline', icon: <RocketOutlined />, color: colors.primary[500], path: '/pipelines/create' },
   { name: '查看日志', icon: <CodeOutlined />, color: colors.success[500], path: '/logs' },
   { name: '运行任务', icon: <PlayCircleOutlined />, color: colors.purple[500], path: '/tasks' },
   { name: '历史记录', icon: <HistoryOutlined />, color: colors.warning[500], path: '/history' },
 ];
 
-const dashboardLinks = [
+const dashboardLinks: DashboardLink[] = [
   { name: '总览看板', icon: <DashboardOutlined />, color: colors.primary[500], path: '/dashboard/executive', desc: '全局 KPI、趋势、排行' },
   { name: '经理看板', icon: <TeamOutlined />, color: colors.purple[500], path: '/dashboard/manager', desc: '团队明细、周环比' },
   { name: '个人看板', icon: <UserSwitchOutlined />, color: colors.success[500], path: '/dashboard/engineer', desc: '个人效能、在手工单' },
@@ -98,12 +141,12 @@ const DashboardNew: React.FC = () => {
     completed: 12,
   };
 
-  const taskColumns = [
+  const taskColumns: ColumnsType<TaskRecord> = [
     {
       title: '任务',
       dataIndex: 'title',
       key: 'title',
-      render: (text: string, record: typeof tasks[0]) => (
+      render: (text: string, record: TaskRecord) => (
         <Space direction="vertical" size={0} style={{ width: '100%' }}>
           <Text strong>{text}</Text>
           <Space size={8} style={{ marginTop: 4 }}>
@@ -142,7 +185,7 @@ const DashboardNew: React.FC = () => {
     },
   ];
 
-  const pipelineColumns = [
+  const pipelineColumns: ColumnsType<PipelineRecord> = [
     {
       title: 'Pipeline',
       dataIndex: 'name',

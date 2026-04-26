@@ -146,7 +146,7 @@ const FinOpsDashboard: React.FC = () => {
   };
 
   // Cost by service columns
-  const costByServiceColumns: TableColumn<any>[] = [
+  const costByServiceColumns: TableColumn<CostByServiceItem>[] = [
     {
       key: 'service',
       title: '服务名称',
@@ -157,7 +157,7 @@ const FinOpsDashboard: React.FC = () => {
       key: 'cost',
       title: '月费用 (¥)',
       dataIndex: 'cost',
-      sorter: (a: any, b: any) => a.cost - b.cost,
+      sorter: (a: CostByServiceItem, b: CostByServiceItem) => a.cost - b.cost,
       render: (value: unknown) => (
         <Text strong style={{ color: colors.primary[500] }}>
           ¥{(value as number).toLocaleString()}

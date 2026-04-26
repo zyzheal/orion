@@ -108,7 +108,7 @@ const CreateAgentModal: React.FC<CreateAgentModalProps> = ({ open, onCancel, onS
       setCreating(true);
 
       const toolsStr = values.tools || '[]';
-      let tools: Array<{ toolName: string; permission: string; config?: Record<string, any> }> = [];
+      let tools: Array<{ toolName: string; permission: string; config?: Record<string, unknown> }> = [];
       try {
         tools = JSON.parse(toolsStr);
       } catch {
@@ -132,16 +132,17 @@ const CreateAgentModal: React.FC<CreateAgentModalProps> = ({ open, onCancel, onS
               maxTokens: values.maxTokens ? parseInt(values.maxTokens, 10) : undefined,
             }
           : undefined,
-      } as any);
+      });
 
       message.success(`Agent ${values.name} 创建成功`);
       form.resetFields();
       setCreating(false);
       onSuccess();
-    } catch (err: any) {
+    } catch (err: unknown) {
       setCreating(false);
-      if (err.errorFields) return;
-      message.error(`创建失败：${err.message}`);
+      if (err instanceof Error && 'errorFields' in err) return;
+      const message_text = err instanceof Error ? err.message : 'Unknown error';
+      message.error(`创建失败：${message_text}`);
     }
   };
 
@@ -234,7 +235,7 @@ const TriggerRunModal: React.FC<TriggerRunModalProps> = ({ open, onCancel, onSuc
       const values = await form.validateFields();
       setTriggering(true);
 
-      let payload: Record<string, any> = {};
+      let payload: Record<string, unknown> = {};
       if (values.payload) {
         try {
           payload = JSON.parse(values.payload);
@@ -255,10 +256,11 @@ const TriggerRunModal: React.FC<TriggerRunModalProps> = ({ open, onCancel, onSuc
       form.resetFields();
       setTriggering(false);
       onSuccess();
-    } catch (err: any) {
+    } catch (err: unknown) {
       setTriggering(false);
-      if (err.errorFields) return;
-      message.error(`触发失败：${err.message}`);
+      if (err instanceof Error && 'errorFields' in err) return;
+      const message_text = err instanceof Error ? err.message : 'Unknown error';
+      message.error(`触发失败：${message_text}`);
     }
   };
 
@@ -350,7 +352,7 @@ const AgentDetailDrawer: React.FC<AgentDetailDrawerProps> = ({ agent, open, onCl
               render: (v: unknown) => <Tag color={String(v) === 'read' ? 'green' : 'orange'}>{String(v)}</Tag>,
             },
           ]}
-          dataSource={agent.tools as any}
+          dataSource={agent.tools}
           rowKey="toolName"
           size="small"
           clientPagination={false}
@@ -410,15 +412,16 @@ const AgentDashboard: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [agentsRes, runsRes, approvalsRes] = await Promise.all([
-        getAgentProfiles().catch(() => ({ data: { data: [] } })),
-        getAgentRuns({ pageSize: 10 }).catch(() => ({ data: { data: [] } })),
-        getAgentApprovals({ status: 'pending' }).catch(() => ({ data: { data: [] } })),
+      const [agentsRes, runsRes] = await Promise.all([
+        getAgentProfiles(),
+        getAgentRuns({ pageSize: 10 }),
       ]);
-      setAgents((agentsRes as any).data?.data || []);
-      setRuns((runsRes as any).data?.data || []);
-      setApprovals((approvalsRes as any).data?.data || []);
-    } catch (err: any) {
+      setAgents(agentsRes.data?.data || []);
+      setRuns(runsRes.data?.data || []);
+      // getAgentApprovals returns data directly (not wrapped in AxiosResponse)
+      const approvalsData = await getAgentApprovals({ status: 'pending' });
+      setApprovals(approvalsData);
+    } catch (err: unknown) {
       console.error('Failed to load data:', err);
       message.error('加载数据失败');
     } finally {
@@ -484,8 +487,9 @@ const AgentDashboard: React.FC = () => {
       await toggleAgentProfile(agent.id);
       message.success(`Agent ${agent.name} 已${agent.enabled ? '禁用' : '启用'}`);
       await loadData();
-    } catch (err: any) {
-      message.error(`操作失败：${err.message}`);
+    } catch (err: unknown) {
+      const message_text = err instanceof Error ? err.message : 'Unknown error';
+      message.error(`操作失败：${message_text}`);
     }
   };
 
@@ -501,8 +505,9 @@ const AgentDashboard: React.FC = () => {
           await deleteAgentProfile(agent.id);
           message.success(`Agent ${agent.name} 已删除`);
           await loadData();
-        } catch (err: any) {
-          message.error(`删除失败：${err.message}`);
+        } catch (err: unknown) {
+          const message_text = err instanceof Error ? err.message : 'Unknown error';
+          message.error(`删除失败：${message_text}`);
         }
       },
     });
@@ -518,8 +523,9 @@ const AgentDashboard: React.FC = () => {
       await respondToApproval(approval.id, { approved: true, reason: 'Approved via dashboard' });
       message.success('审批已通过');
       await loadData();
-    } catch (err: any) {
-      message.error(`审批失败：${err.message}`);
+    } catch (err: unknown) {
+      const message_text = err instanceof Error ? err.message : 'Unknown error';
+      message.error(`审批失败：${message_text}`);
     }
   };
 
@@ -535,8 +541,9 @@ const AgentDashboard: React.FC = () => {
           await respondToApproval(approval.id, { approved: false, rejectionReason: 'Rejected via dashboard' });
           message.success('审批已拒绝');
           await loadData();
-        } catch (err: any) {
-          message.error(`拒绝失败：${err.message}`);
+        } catch (err: unknown) {
+          const message_text = err instanceof Error ? err.message : 'Unknown error';
+          message.error(`拒绝失败：${message_text}`);
         }
       },
     });
@@ -576,7 +583,7 @@ const AgentDashboard: React.FC = () => {
       title: '工具数',
       dataIndex: 'tools',
       width: 80,
-      render: (value: unknown) => <Tag>{(value as any[]).length}</Tag>,
+      render: (value: unknown) => <Tag>{(value as Array<{ toolName: string; permission: string }>).length}</Tag>,
     },
     {
       key: 'llmModel',
@@ -585,7 +592,7 @@ const AgentDashboard: React.FC = () => {
       width: 160,
       render: (value: unknown) => (
         <Text type="secondary" style={{ fontSize: spacing[3] }}>
-          {(value as any)?.model || '-'}
+          {(value as { model?: string })?.model || '-'}
         </Text>
       ),
     },
@@ -856,8 +863,8 @@ const AgentDashboard: React.FC = () => {
                   </Space>
                 ),
               },
-            ] as any}
-            dataSource={approvals as any}
+            ]}
+            dataSource={approvals}
             rowKey="id"
             size="small"
             striped
@@ -878,8 +885,8 @@ const AgentDashboard: React.FC = () => {
         />
       </div>
       <Table
-        columns={agentColumns as any}
-        dataSource={filteredAgents as any}
+        columns={agentColumns}
+        dataSource={filteredAgents}
         loading={loading}
         rowKey="id"
         size="middle"
@@ -892,8 +899,8 @@ const AgentDashboard: React.FC = () => {
         最近运行
       </Title>
       <Table
-        columns={runColumns as any}
-        dataSource={runs as any}
+        columns={runColumns}
+        dataSource={runs}
         rowKey="id"
         size="small"
         striped

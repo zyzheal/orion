@@ -7,12 +7,16 @@ import { Typography, Button, Space, Tag, Card, Row, Col, Statistic, Modal, Form,
 import { colors, spacing } from '@/tokens';
 import { PlusOutlined, ReloadOutlined, DownloadOutlined, EyeOutlined, FileTextOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
-import StatusBadge from '@/components/StatusBadge';
+import StatusBadge, { type StatusType } from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import {
   getSbomDocuments,
   getSbomWaivers,
   getSbomComplianceReport,
+  type SbomDocument,
+  type SbomWaiver,
+  type SbomComplianceReport,
+  type SbomWaiverInput,
 } from '@/api/sbom';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
@@ -22,12 +26,19 @@ dayjs.extend(relativeTime);
 
 const { Title, Text } = Typography;
 
+// Map SBOM status to StatusBadge StatusType
+const sbomStatusToBadge: Record<string, StatusType> = {
+  active: 'success',
+  expired: 'warning',
+  revoked: 'failed',
+};
+
 const SbomDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [documents, setDocuments] = useState<any[]>([]);
-  const [waivers, setWaivers] = useState<any[]>([]);
-  const [compliance, setCompliance] = useState<any>(null);
+  const [documents, setDocuments] = useState<SbomDocument[]>([]);
+  const [waivers, setWaivers] = useState<SbomWaiver[]>([]);
+  const [compliance, setCompliance] = useState<SbomComplianceReport | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<Record<string, string | string[] | undefined>>({});
   const [waiverModalVisible, setWaiverModalVisible] = useState(false);
@@ -41,9 +52,9 @@ const SbomDashboard: React.FC = () => {
         getSbomWaivers(),
         getSbomComplianceReport(),
       ]);
-      setDocuments(Array.isArray(docRes.data.data) ? docRes.data.data : []);
-      setWaivers(Array.isArray(waiverRes.data.data) ? waiverRes.data.data : []);
-      setCompliance(compRes.data.data);
+      setDocuments(Array.isArray(docRes.data.data) ? docRes.data.data as SbomDocument[] : []);
+      setWaivers(Array.isArray(waiverRes.data.data) ? waiverRes.data.data as SbomWaiver[] : []);
+      setCompliance((compRes.data.data as SbomComplianceReport) || null);
     } catch {
       message.error('Failed to load SBOM data');
     } finally {
@@ -73,10 +84,10 @@ const SbomDashboard: React.FC = () => {
     });
   }, [searchQuery, filters, documents]);
 
-  const totalVulns = documents.reduce((sum: number, d: any) => sum + d.packageCount, 0);
-  const activeDocs = documents.filter((d: any) => d.status === 'active').length;
+  const totalVulns = documents.reduce((sum: number, d: SbomDocument) => sum + d.packageCount, 0);
+  const activeDocs = documents.filter((d: SbomDocument) => d.status === 'active').length;
 
-  const handleCreateWaiver = async () => {
+  const handleCreateWaiver = async (_values: SbomWaiverInput) => {
     try {
       message.success('Waiver created successfully');
       setWaiverModalVisible(false);
@@ -87,14 +98,14 @@ const SbomDashboard: React.FC = () => {
     }
   };
 
-  const columns: TableColumn<any>[] = [
+  const columns: TableColumn<SbomDocument>[] = [
     {
       key: 'documentId',
       title: 'Document',
       dataIndex: 'documentId',
       width: 200,
       sortable: true,
-      render: (_value: unknown, record: any) => (
+      render: (_value: unknown, record: SbomDocument) => (
         <Space direction="vertical" size={0}>
           <Text
             strong
@@ -131,7 +142,7 @@ const SbomDashboard: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       width: 120,
-      render: (value: unknown) => <StatusBadge status={value as any} size="small" />,
+      render: (value: unknown) => <StatusBadge status={sbomStatusToBadge[String(value)] || 'unknown'} size="small" />,
     },
     {
       key: 'createdAt',
@@ -149,7 +160,7 @@ const SbomDashboard: React.FC = () => {
       key: 'actions',
       title: '操作',
       width: 160,
-      render: (_: unknown, record: any) => (
+      render: (_: unknown, record: SbomDocument) => (
         <Space size="small">
           <Button
             type="link"
