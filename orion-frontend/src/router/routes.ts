@@ -56,12 +56,12 @@ export const routes: AppRoute[] = [
   },
   {
     path: '/console/users',
-    element: React.lazy(() => import('@/pages/Console')),
+    element: React.lazy(() => import('@/pages/UserManagement')),
     protected: true,
   },
   {
     path: '/projects',
-    element: React.lazy(() => import('@/pages/Dashboard')),
+    element: React.lazy(() => import('@/pages/Projects')),
     protected: true,
   },
   {
@@ -434,10 +434,46 @@ export const routes: AppRoute[] = [
     element: React.lazy(() => import('@/pages/InternalLibrary')),
     protected: true,
   },
+  // Role Management (RBAC)
+  {
+    path: '/roles',
+    element: React.lazy(() => import('@/pages/RoleManagement')),
+    protected: true,
+  },
+  // OnCall Management
+  {
+    path: '/oncall',
+    element: React.lazy(() => import('@/pages/OnCall')),
+    protected: true,
+  },
   // CMDB (M32)
   {
     path: '/cmdb',
     element: React.lazy(() => import('@/pages/CMDB')),
+    protected: true,
+  },
+  // Approval Management (M33)
+  {
+    path: '/approvals',
+    element: React.lazy(() => import('@/pages/Approvals')),
+    protected: true,
+  },
+  // Queue Management
+  {
+    path: '/queue',
+    element: React.lazy(() => import('@/pages/Queue')),
+    protected: true,
+  },
+  // Environment Management
+  {
+    path: '/environments',
+    element: React.lazy(() => import('@/pages/Environments')),
+    protected: true,
+  },
+  // Vector Store Management
+  {
+    path: '/vector-store',
+    element: React.lazy(() => import('@/pages/VectorStore')),
     protected: true,
   },
   // 404 页面

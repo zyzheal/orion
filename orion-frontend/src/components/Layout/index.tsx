@@ -87,6 +87,31 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           icon: <DollarCircleOutlined />,
           label: '成本分析',
         },
+        {
+          key: '/monitoring',
+          icon: <EyeOutlined />,
+          label: '监控中心',
+        },
+        {
+          key: '/diagnostic',
+          icon: <EyeOutlined />,
+          label: '诊断中心',
+        },
+        {
+          key: '/self-healing',
+          icon: <RocketOutlined />,
+          label: '自愈系统',
+        },
+        {
+          key: '/canary-analysis',
+          icon: <BarChartOutlined />,
+          label: '灰度分析',
+        },
+        {
+          key: '/change-intelligence',
+          icon: <BarChartOutlined />,
+          label: '变更智能',
+        },
       ],
     },
     {
@@ -113,6 +138,16 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           key: '/dashboard/engineer',
           icon: <UserSwitchOutlined />,
           label: '个人看板',
+        },
+        {
+          key: '/efficiency-dashboard',
+          icon: <BarChartOutlined />,
+          label: '效能分析',
+        },
+        {
+          key: '/risk-dashboard',
+          icon: <AlertOutlined />,
+          label: '风险看板',
         },
       ],
     },
@@ -158,11 +193,112 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       icon: <ProjectOutlined />,
       label: '项目',
     },
+    {
+      key: '/ai',
+      icon: <RocketOutlined />,
+      label: 'AI 能力',
+      children: [
+        {
+          key: '/ai-gateway',
+          icon: <RocketOutlined />,
+          label: 'AI 网关',
+        },
+        {
+          key: '/agents',
+          icon: <AppstoreOutlined />,
+          label: 'Agent 调度',
+        },
+        {
+          key: '/console/ai-review',
+          icon: <EyeOutlined />,
+          label: 'AI Review',
+        },
+        {
+          key: '/knowledge',
+          icon: <BookOutlined />,
+          label: '知识库',
+        },
+        {
+          key: '/console/ai-docs',
+          icon: <BookOutlined />,
+          label: 'AI 文档',
+        },
+        {
+          key: '/console/chatops',
+          icon: <RocketOutlined />,
+          label: 'ChatOps',
+        },
+      ],
+    },
+    {
+      key: '/governance',
+      icon: <SettingOutlined />,
+      label: '治理',
+      children: [
+        {
+          key: '/policies',
+          icon: <SettingOutlined />,
+          label: '策略管理',
+        },
+        {
+          key: '/audit-log',
+          icon: <UnorderedListOutlined />,
+          label: '审计日志',
+        },
+        {
+          key: '/tenant-management',
+          icon: <TeamOutlined />,
+          label: '租户管理',
+        },
+        {
+          key: '/config-management',
+          icon: <SettingOutlined />,
+          label: '配置管理',
+        },
+        {
+          key: '/cmdb',
+          icon: <DatabaseOutlined />,
+          label: 'CMDB',
+        },
+        {
+          key: '/skills',
+          icon: <AppstoreOutlined />,
+          label: 'Skill 市场',
+        },
+      ],
+    },
+    {
+      key: '/dev-env',
+      icon: <CloudServerOutlined />,
+      label: '环境',
+      children: [
+        {
+          key: '/ephemeral-envs',
+          icon: <CloudServerOutlined />,
+          label: '临时环境',
+        },
+        {
+          key: '/console/build-env',
+          icon: <CloudServerOutlined />,
+          label: '构建环境',
+        },
+        {
+          key: '/console/iac',
+          icon: <DatabaseOutlined />,
+          label: 'IaC 管理',
+        },
+        {
+          key: '/console/code-mgmt',
+          icon: <ForkOutlined />,
+          label: '代码管理',
+        },
+      ],
+    },
   ];
 
   const handleMenuClick: MenuProps['onClick'] = (e) => {
     navigate(e.key);
-    // Find menu item (including nested children)
+    // Find menu item (including nested children at any depth)
     let foundLabel: string | undefined;
     for (const item of navMenuItems) {
       if (!item || !('key' in item)) continue;
@@ -170,13 +306,24 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         foundLabel = 'label' in item ? String(item.label) : undefined;
         break;
       }
-      // Check children
+      // Check children (2 levels deep)
       if ('children' in item && item.children) {
-        const child = item.children.find((c) => c && 'key' in c && c.key === e.key);
-        if (child && 'label' in child) {
-          foundLabel = String(child.label);
-          break;
+        for (const child of item.children) {
+          if (!child || !('key' in child)) continue;
+          if (child.key === e.key) {
+            foundLabel = 'label' in child ? String(child.label) : undefined;
+            break;
+          }
+          // Check grandchildren
+          if ('children' in child && child.children) {
+            const grandchild = child.children.find((c) => c && 'key' in c && c.key === e.key);
+            if (grandchild && 'label' in grandchild) {
+              foundLabel = String(grandchild.label);
+              break;
+            }
+          }
         }
+        if (foundLabel) break;
       }
     }
     if (foundLabel) {
@@ -226,6 +373,16 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       key: '/console/users',
       icon: <UserOutlined />,
       label: '用户管理',
+    },
+    {
+      key: '/console/confirmations',
+      icon: <UnorderedListOutlined />,
+      label: '人工确认',
+    },
+    {
+      key: '/console/ai-cost',
+      icon: <DollarCircleOutlined />,
+      label: 'AI 成本',
     },
   ];
 
