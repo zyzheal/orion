@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Typography, Card, Row, Col, Statistic } from 'antd';
 import { colors, spacing } from '@/tokens';
 import {
@@ -11,10 +11,6 @@ import {
 const { Title } = Typography;
 
 const Dashboard: React.FC = () => {
-  useEffect(() => {
-    console.log('[Dashboard] Component mounted');
-  }, []);
-
   return (
     <div style={{ padding: 24 }}>
       <Title level={2}>Dashboard</Title>

@@ -146,7 +146,7 @@ const AIReviewRules: React.FC = () => {
         </Space>
       ),
     },
-  ] as any[];
+  ];
 
   const tableData = filteredData.map((r) => ({ ...r, key: r.id }));
 

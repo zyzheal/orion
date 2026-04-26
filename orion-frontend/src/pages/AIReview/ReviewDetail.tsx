@@ -88,7 +88,7 @@ const AIReviewDetail: React.FC = () => {
     { title: '行号', dataIndex: 'line', key: 'line', width: 80 },
     { title: '描述', dataIndex: 'description', key: 'description', ellipsis: true },
     { title: '建议', dataIndex: 'suggestion', key: 'suggestion', ellipsis: true },
-  ] as any[];
+  ];
 
   // Simulated issues based on counts
   const mockIssues = Array.from({ length: Math.min(detail.totalIssues, 20) }, (_, i) => ({

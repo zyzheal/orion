@@ -18,11 +18,9 @@ const Login: React.FC = () => {
   const [form] = Form.useForm<LoginFormData>();
 
   const handleSubmit = async (values: LoginFormData) => {
-    console.log('[Login] Submitting login form');
     const result = await login(values);
 
     if (result.success) {
-      console.log('[Login] Login successful, navigating to dashboard');
       message.success('登录成功');
 
       // 获取来源页面

@@ -135,7 +135,7 @@ const TenantManagementPage: React.FC = () => {
       key: 'allocatedAt',
       render: (ts?: string) => (ts ? new Date(ts).toLocaleString() : '-'),
     },
-  ] as any[];
+  ];
 
   const quotaItems = quota
     ? [

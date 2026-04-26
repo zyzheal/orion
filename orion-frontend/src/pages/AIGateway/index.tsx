@@ -143,7 +143,7 @@ const AIGatewayPage: React.FC = () => {
       render: (active: boolean) =>
         active ? <Tag color="orange">已激活</Tag> : <Tag color="default">未激活</Tag>,
     },
-  ] as any[];
+  ];
 
   const tableData: HealthRecord[] = healthData.map((h) => ({
     key: h.scenario,

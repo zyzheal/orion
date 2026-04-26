@@ -188,7 +188,7 @@ const ConfigManagementPage: React.FC = () => {
         </Space>
       ),
     },
-  ] as any[];
+  ];
 
   const handleApproval = async (id: string) => {
     try {

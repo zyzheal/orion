@@ -113,7 +113,7 @@ const IncidentList: React.FC = () => {
         </Button>
       ),
     },
-  ] as any[];
+  ];
 
   const tableData = data.map((r) => ({ ...r, key: r.id }));
 

@@ -681,8 +681,7 @@ const Console: React.FC = () => {
         <Form
           form={form}
           layout="vertical"
-          onFinish={(values) => {
-            console.log('添加用户:', values);
+          onFinish={() => {
             setIsModalOpen(false);
             message.success('用户添加成功');
             form.resetFields();

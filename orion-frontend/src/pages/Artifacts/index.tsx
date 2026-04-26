@@ -17,7 +17,7 @@ import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import {
   getArtifacts, createArtifact, updateArtifact, deleteArtifact,
-  getArtifactTags, addArtifactTags,
+  getArtifactTags, addArtifactTags, downloadArtifact,
   promoteArtifact, getPromotionHistory,
   deprecateArtifact, quarantineArtifact,
   getArtifactStats, getNamespaces,
@@ -305,6 +305,21 @@ const ArtifactManagement: React.FC = () => {
     }
   };
 
+  const handleDownload = async (record: Artifact) => {
+    try {
+      const res = await downloadArtifact(record.id);
+      const url = res.data?.data?.url;
+      if (url) {
+        window.open(url, '_blank');
+        message.success('下载链接已打开');
+      } else {
+        message.warning('未获取到下载链接');
+      }
+    } catch {
+      message.error('下载失败');
+    }
+  };
+
   const handlePromote = async () => {
     if (!selectedArtifact) return;
     try {
@@ -467,7 +482,7 @@ const ArtifactManagement: React.FC = () => {
           {record.status === 'available' && (
             <Tooltip title="管理标签"><Button type="link" size="small" icon={<TagOutlined />} onClick={() => openTagModal(record)} /></Tooltip>
           )}
-          <Tooltip title="下载"><Button type="link" size="small" icon={<DownloadOutlined />} /></Tooltip>
+          <Tooltip title="下载"><Button type="link" size="small" icon={<DownloadOutlined />} onClick={() => handleDownload(record)} /></Tooltip>
           {record.status === 'available' && (
             <>
               <Tooltip title="废弃"><Popconfirm title="确认废弃该制品?" onConfirm={() => handleDeprecate(record.id)}><Button type="link" size="small" danger icon={<StopOutlined />} /></Popconfirm></Tooltip>

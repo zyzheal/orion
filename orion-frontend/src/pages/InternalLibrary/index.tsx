@@ -300,7 +300,7 @@ const InternalLibraryManagement: React.FC = () => {
       createForm.resetFields();
       loadData();
     } catch {
-      // validation error or API error
+      message.error('二方库创建失败');
     } finally {
       setSubmitting(false);
     }

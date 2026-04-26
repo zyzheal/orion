@@ -83,7 +83,7 @@ const HealingHistory: React.FC = () => {
       width: 160,
       render: (ts: string) => dayjs(ts).format('YYYY-MM-DD HH:mm'),
     },
-  ] as any[];
+  ];
 
   const tableData = data.map((r) => ({ ...r, key: r.id }));
 

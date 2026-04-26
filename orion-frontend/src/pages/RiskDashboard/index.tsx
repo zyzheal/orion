@@ -201,7 +201,7 @@ const RiskDashboardPage: React.FC = () => {
         </Button>
       ),
     },
-  ] as any[];
+  ];
 
   const eventColumns = [
     {
@@ -253,7 +253,7 @@ const RiskDashboardPage: React.FC = () => {
           <Tag color="green">已确认</Tag>
         ),
     },
-  ] as any[];
+  ];
 
   const tableData: RiskRecord[] = assessments.map((a) => ({
     key: a.id,

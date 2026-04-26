@@ -173,7 +173,14 @@ const OnCallManagement: React.FC = () => {
 
   useEffect(() => {
     // Load current on-call for all schedules
-    schedules.forEach((s) => loadCurrentOnCall(s.id));
+    let cancelled = false;
+    const promises = schedules.map((s) => loadCurrentOnCall(s.id));
+    Promise.allSettled(promises).then(() => {
+      if (!cancelled) {
+        // All loaded, state already updated within individual loadCurrentOnCall calls
+      }
+    });
+    return () => { cancelled = true; };
   }, [schedules]);
 
   // ---- Handlers ----

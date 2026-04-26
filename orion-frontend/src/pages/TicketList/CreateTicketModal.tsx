@@ -126,11 +126,10 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({
 
   const handleSubmit = useCallback(async () => {
     try {
-      const values = await form.validateFields();
+      await form.validateFields();
       setSubmitting(true);
       // Simulate API call
       await new Promise((resolve) => setTimeout(resolve, 1000));
-      console.log('Create ticket:', values);
       message.success('工单创建成功');
       form.resetFields();
       setTitleValue('');

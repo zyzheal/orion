@@ -137,7 +137,7 @@ const AuditLogPage: React.FC = () => {
         </Button>
       ),
     },
-  ] as any[];
+  ];
 
   const tableData = auditLogs.map((log) => ({
     ...log,

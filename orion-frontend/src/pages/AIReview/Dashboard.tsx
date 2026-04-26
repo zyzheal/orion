@@ -141,7 +141,7 @@ const AIReviewDashboard: React.FC = () => {
         </Button>
       ),
     },
-  ] as any[];
+  ];
 
   const tableData = recentReviews.map((r) => ({ ...r, key: r.id }));
 

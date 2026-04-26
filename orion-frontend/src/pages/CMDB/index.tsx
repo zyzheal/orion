@@ -9,6 +9,7 @@ import {
   Row,
   Col,
   Table,
+  type TableColumnsType,
   Tag,
   Space,
   Button,
@@ -128,15 +129,15 @@ const CITablePage: React.FC = () => {
     deprecated: 'red',
   };
 
-  const columns = [
+  const columns: TableColumnsType<CIItem> = [
     {
       title: '名称',
       dataIndex: 'name',
       key: 'name',
-      render: (text: string, record: CIItem) => (
+      render: (text: unknown, record: CIItem) => (
         <Space>
           {typeIconMap[record.type] || <CloudServerOutlined />}
-          <Text strong>{text}</Text>
+          <Text strong>{String(text)}</Text>
         </Space>
       ),
     },
@@ -144,33 +145,33 @@ const CITablePage: React.FC = () => {
       title: '类型',
       dataIndex: 'type',
       key: 'type',
-      render: (type: string) => <Tag color="blue">{type}</Tag>,
+      render: (type: unknown) => <Tag color="blue">{String(type)}</Tag>,
     },
     {
       title: '环境',
       dataIndex: 'environment',
       key: 'environment',
-      render: (env: string) => env ? <Tag color={env === 'production' ? 'red' : 'geekblue'}>{env}</Tag> : '-',
+      render: (env: unknown) => env ? <Tag color={String(env) === 'production' ? 'red' : 'geekblue'}>{String(env)}</Tag> : '-',
     },
     {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
-      render: (status: string) => (
-        <Tag color={statusColorMap[status] || 'default'}>{status}</Tag>
+      render: (status: unknown) => (
+        <Tag color={statusColorMap[String(status)] || 'default'}>{String(status)}</Tag>
       ),
     },
     {
       title: '负责人',
       dataIndex: 'owner',
       key: 'owner',
-      render: (owner: string) => owner || '-',
+      render: (owner: unknown) => owner ? String(owner) : '-',
     },
     {
       title: '更新时间',
       dataIndex: 'updated_at',
       key: 'updated_at',
-      render: (ts: string) => new Date(ts).toLocaleString(),
+      render: (ts: unknown) => new Date(String(ts)).toLocaleString(),
     },
     {
       title: '操作',
@@ -186,7 +187,7 @@ const CITablePage: React.FC = () => {
         </Space>
       ),
     },
-  ] as any[];
+  ];
 
   return (
     <div>
@@ -471,7 +472,7 @@ const IntegrationPage: React.FC = () => {
       key: 'status',
       render: (s: string) => <Tag color={s === 'running' ? 'green' : 'default'}>{s}</Tag>,
     },
-  ] as any[];
+  ];
 
   const k8sColumns = [
     { title: '类型', dataIndex: 'kind', key: 'kind', render: (k: string) => <Tag>{k}</Tag> },
@@ -489,7 +490,7 @@ const IntegrationPage: React.FC = () => {
       key: 'status',
       render: (s: string) => <Tag color={s === 'Running' ? 'green' : 'default'}>{s}</Tag>,
     },
-  ] as any[];
+  ];
 
   return (
     <div>

@@ -124,7 +124,7 @@ const ApprovalQueue: React.FC = () => {
         </Space>
       ),
     },
-  ] as any[];
+  ];
 
   const tableData = data.map((r) => ({ ...r, key: r.id }));
 

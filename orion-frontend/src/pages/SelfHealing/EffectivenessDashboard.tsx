@@ -73,7 +73,7 @@ const EffectivenessDashboard: React.FC = () => {
       width: 160,
       render: (ts: string) => dayjs(ts).format('YYYY-MM-DD HH:mm'),
     },
-  ] as any[];
+  ];
 
   const historyData = recentHistory.map((r) => ({ ...r, key: r.id }));
 
