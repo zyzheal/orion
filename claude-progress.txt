@@ -533,3 +533,49 @@ Fixed ~15 API path mismatches between frontend API clients (`orion-frontend/src/
 
 ### Commit
 - Committed as `f5ced21` on branch `feat/frontend-gap-implementation`
+
+## M25 Persistence Migration - TypeScript Error Fixes (COMPLETED - 2026-04-25)
+
+### Problem
+After M24/M25 PostgreSQL persistence migrations, the backend had 292 TypeScript compilation errors. Analysis revealed 73 were NEW errors introduced by the migration work (FindAllResult type mismatch, entity-to-domain conversion gaps, import path issues, null/undefined type mismatches).
+
+### Completed Work
+
+1. **DeploymentHistoryService** (`src/services/smart-deploy/DeploymentHistoryService.ts`)
+   - Added toEntity()/toDomain() conversion functions between DeploymentHistoryEntity and Deployment domain type
+   - Fixed FindAllResult misuse: changed `deployments.filter()` to `result.entities.filter()`
+   - Added missing methods: getMetrics(), getAuditTrail(), getByAppName(), getLatestDeployment()
+   - Fixed getDeployment() return type from DeploymentHistoryEntity to Deployment
+
+2. **RollbackService** (`src/services/smart-deploy/RollbackService.ts`)
+   - Fixed create() call to include all required entity fields
+   - Fixed null vs undefined for targetVersion
+   - Fixed getAllRollbacks() to use `.entities` from FindAllResult
+
+3. **SmartDeployService** (`src/services/smart-deploy/SmartDeployService.ts`)
+   - Added RollbackEntity import and toRollbackInfo() conversion function
+   - Fixed getRollbackHistory() return type conversion
+
+4. **EventBusService** (`src/services/event-bus-service.ts`)
+   - Fixed `|| null` to pass undefined directly for optional fields
+   - Fixed boolean type assertion in getConfig()
+
+5. **AgentProfileService** (`src/services/agent-profile-service.ts`)
+   - Fixed FindAllResult misuse (3 occurrences)
+   - Fixed create() to match AgentProfileEntity type
+   - Fixed update() to handle AgentProfileUpdateInput missing fields
+   - Rewrote mapEntityToProfile() to properly construct AgentProfile from entity
+
+6. **ProductLineService** (`src/services/product-line/ProductLineService.ts`)
+   - Fixed import path from `../models/ProductLine` to `../../models/ProductLine`
+   - Fixed create() calls to include all required entity fields (state, lastRun, etc.)
+   - Fixed null vs undefined conversions (Date | null -> Date | undefined)
+   - Added explicit type annotations for implicit any parameters
+
+7. **EventBus Routes** (`src/api/eventbus-routes.ts`)
+   - Fixed import paths from `../../services/` to `../services/`
+
+### Result
+- TypeScript errors: 292 -> 219 (73 migration-introduced errors fixed)
+- All 219 remaining errors are pre-existing (monitoring, cmdb, config-mgmt, canary-analysis, etc.)
+- No new errors introduced by the fixes
