@@ -7,7 +7,7 @@ import { Typography, Button, Space, Tag, Card, Row, Col, Statistic, Modal, Form,
 import { colors, spacing } from '@/tokens';
 import { ReloadOutlined, SettingOutlined, PlayCircleOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
-import StatusBadge from '@/components/StatusBadge';
+import StatusBadge, { type StatusType } from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import {
   getCanaryRuns,
@@ -18,6 +18,11 @@ import {
   createCanaryConfig,
   forcePromote,
   forceRollback,
+  type CanaryAnalysisRun,
+  type CanaryMetricResult,
+  type CanaryMlResult,
+  type CanaryTriggerInput,
+  type CanaryConfigInput,
 } from '@/api/canary-analysis';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -26,12 +31,30 @@ dayjs.extend(relativeTime);
 
 const { Title, Text } = Typography;
 
+// ---- Form value interfaces ----
+
+interface TriggerFormValues {
+  deploymentId: string;
+  roundNumber: number;
+}
+
+interface ConfigFormValues {
+  serviceName: string;
+  environment: string;
+  analysisIntervalSec: number;
+  maxRounds: number;
+  warmupPeriodSec: number;
+  trafficStep: number;
+  promoteThreshold: number;
+  rollbackThreshold: number;
+}
+
 const CanaryAnalysis: React.FC = () => {
   const [loading, setLoading] = useState(false);
-  const [runs, setRuns] = useState<any[]>([]);
-  const [selectedRun, setSelectedRun] = useState<any>(null);
-  const [metrics, setMetrics] = useState<any[]>([]);
-  const [mlResults, setMlResults] = useState<any[]>([]);
+  const [runs, setRuns] = useState<CanaryAnalysisRun[]>([]);
+  const [selectedRun, setSelectedRun] = useState<CanaryAnalysisRun | null>(null);
+  const [metrics, setMetrics] = useState<CanaryMetricResult[]>([]);
+  const [mlResults, setMlResults] = useState<CanaryMlResult[]>([]);
   const [runDetailVisible, setRunDetailVisible] = useState(false);
   const [triggerModalVisible, setTriggerModalVisible] = useState(false);
   const [configModalVisible, setConfigModalVisible] = useState(false);
@@ -58,7 +81,7 @@ const CanaryAnalysis: React.FC = () => {
   }, []);
 
   const filteredRuns = useMemo(() => {
-    return runs.filter((r: any) => {
+    return runs.filter((r) => {
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
         if (!r.deploymentId.toLowerCase().includes(q)) return false;
@@ -68,11 +91,11 @@ const CanaryAnalysis: React.FC = () => {
     });
   }, [searchQuery, filters, runs]);
 
-  const runningCount = runs.filter((r: any) => r.status === 'running').length;
-  const promotedCount = runs.filter((r: any) => r.status === 'promote').length;
-  const rolledbackCount = runs.filter((r: any) => r.status === 'rollback').length;
+  const runningCount = runs.filter((r) => r.status === 'running').length;
+  const promotedCount = runs.filter((r) => r.status === 'promote').length;
+  const rolledbackCount = runs.filter((r) => r.status === 'rollback').length;
 
-  const handleViewRun = async (run: any) => {
+  const handleViewRun = async (run: CanaryAnalysisRun) => {
     setSelectedRun(run);
     try {
       const [metricRes, mlRes] = await Promise.all([
@@ -87,9 +110,9 @@ const CanaryAnalysis: React.FC = () => {
     }
   };
 
-  const handleTrigger = async (values: any) => {
+  const handleTrigger = async (values: TriggerFormValues) => {
     try {
-      await triggerCanaryAnalysis(values);
+      await triggerCanaryAnalysis(values as CanaryTriggerInput);
       message.success('Canary analysis triggered');
       setTriggerModalVisible(false);
       triggerForm.resetFields();
@@ -121,9 +144,9 @@ const CanaryAnalysis: React.FC = () => {
     }
   };
 
-  const handleSaveConfig = async (values: any) => {
+  const handleSaveConfig = async (values: ConfigFormValues) => {
     try {
-      await createCanaryConfig(values);
+      await createCanaryConfig(values as CanaryConfigInput);
       message.success('Config created');
       setConfigModalVisible(false);
       configForm.resetFields();
@@ -133,14 +156,14 @@ const CanaryAnalysis: React.FC = () => {
     }
   };
 
-  const runColumns: TableColumn<any>[] = [
+  const runColumns: TableColumn<CanaryAnalysisRun>[] = [
     {
       key: 'deploymentId',
       title: '部署',
       dataIndex: 'deploymentId',
       width: 200,
       sortable: true,
-      render: (_value: unknown, record: any) => (
+      render: (_value: unknown, record: CanaryAnalysisRun) => (
         <Space direction="vertical" size={0}>
           <Text strong>Deployment #{record.deploymentId}</Text>
           <Text type="secondary" style={{ fontSize: spacing[3] }}>Run #{record.runNumber}</Text>
@@ -153,13 +176,13 @@ const CanaryAnalysis: React.FC = () => {
       dataIndex: 'status',
       width: 140,
       render: (value: unknown) => {
-        const statusMap: Record<string, any> = {
+        const statusMap: Record<string, string> = {
           running: 'running',
           promote: 'success',
           rollback: 'failed',
           inconclusive: 'warning',
         };
-        return <StatusBadge status={statusMap[String(value)] || 'unknown'} size="small" />;
+        return <StatusBadge status={(statusMap[String(value)] || 'unknown') as StatusType} size="small" />;
       },
     },
     {
@@ -216,7 +239,7 @@ const CanaryAnalysis: React.FC = () => {
       key: 'actions',
       title: '操作',
       width: 100,
-      render: (_: unknown, record: any) => (
+      render: (_: unknown, record: CanaryAnalysisRun) => (
         <Button type="link" size="small" onClick={() => handleViewRun(record)}>
           详情
         </Button>
@@ -417,15 +440,15 @@ const CanaryAnalysis: React.FC = () => {
                       dataIndex: 'verdict',
                       width: 100,
                       render: (value: unknown) => {
-                        const statusMap: Record<string, any> = { pass: 'success', warn: 'warning', fail: 'failed' };
-                        return value ? <StatusBadge status={statusMap[String(value)] || 'unknown'} size="small" /> : '-';
+                        const statusMap: Record<string, string> = { pass: 'success', warn: 'warning', fail: 'failed' };
+                        return value ? <StatusBadge status={(statusMap[String(value)] || 'unknown') as StatusType} size="small" /> : '-';
                       },
                     },
                   ]}
                   dataSource={metrics}
                   rowKey="id"
                   size="small"
-                  pagination={false as any}
+                  pagination={false}
                 />
               ) : (
                 <Text type="secondary">暂无指标数据</Text>
@@ -435,7 +458,7 @@ const CanaryAnalysis: React.FC = () => {
             {/* ML Results */}
             {mlResults.length > 0 && (
               <Card title="ML 分析结果" size="small">
-                {mlResults.map((ml: any) => (
+                {mlResults.map((ml) => (
                   <Descriptions key={ml.id} bordered column={3} size="small" style={{ marginBottom: 8 }}>
                     <Descriptions.Item label="模型">{ml.modelName}</Descriptions.Item>
                     <Descriptions.Item label="预测">

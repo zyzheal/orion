@@ -25,13 +25,64 @@ import { getDoraMetrics, getDoraBenchmarks, getEfficiencyDashboard, getClickHous
 const { Title, Text } = Typography;
 const { TabPane } = Tabs;
 
+// ---- Type definitions for API responses ----
+
+interface DoraBenchmarkCategory {
+  elite: string;
+  high: string;
+  medium: string;
+}
+
+interface DoraBenchmarks {
+  deploymentFrequency: DoraBenchmarkCategory;
+  leadTimeForChanges: DoraBenchmarkCategory;
+  changeFailureRate: DoraBenchmarkCategory;
+  meanTimeToRecovery: DoraBenchmarkCategory;
+}
+
+interface DoraMetricsData {
+  metrics?: {
+    deploymentFrequency?: string;
+    leadTimeForChanges?: number;
+    changeFailureRate?: number;
+    meanTimeToRecovery?: number;
+  };
+}
+
+interface ClickHouseStatusData {
+  connected?: boolean;
+  syncedRecords?: number;
+  lastSyncAt?: string;
+}
+
+interface DashboardDoraData {
+  deploymentFrequency?: number;
+  leadTime?: number;
+  mttr?: number;
+  changeFailureRate?: number;
+}
+
+interface EfficiencyDashboardData {
+  dora?: DashboardDoraData;
+}
+
+interface MetricRow {
+  key: string;
+  name: string;
+  icon: React.ReactNode;
+  currentValue: string;
+  trend: string;
+  level: string;
+  benchmarkKey: string;
+}
+
 const EfficiencyDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
-  const [doraMetrics, setDoraMetrics] = useState<any>(null);
-  const [benchmarks, setBenchmarks] = useState<any>(null);
-  const [dashboardData, setDashboardData] = useState<any>(null);
-  const [clickHouseStatus, setClickHouseStatus] = useState<any>(null);
+  const [doraMetrics, setDoraMetrics] = useState<DoraMetricsData | null>(null);
+  const [benchmarks, setBenchmarks] = useState<DoraBenchmarks | null>(null);
+  const [dashboardData, setDashboardData] = useState<EfficiencyDashboardData | null>(null);
+  const [clickHouseStatus, setClickHouseStatus] = useState<ClickHouseStatusData | null>(null);
 
   const loadData = async () => {
     setLoading(true);
@@ -44,11 +95,12 @@ const EfficiencyDashboard: React.FC = () => {
       ]);
       setDoraMetrics(metricsRes.data.data);
       setBenchmarks(benchmarksRes.data.data);
-      setDashboardData(dashboardRes.data.data);
+      setDashboardData(dashboardRes.data.data as unknown as EfficiencyDashboardData | null);
       setClickHouseStatus(statusRes.data.data);
-    } catch (error) {
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : '加载效能数据失败';
       console.error('Failed to load efficiency data:', error);
-      message.error('加载效能数据失败');
+      message.error(msg);
     } finally {
       setLoading(false);
     }
@@ -58,18 +110,19 @@ const EfficiencyDashboard: React.FC = () => {
     loadData();
   }, []);
 
-  const getLevel = (value: any, metricKey: string) => {
+  const getLevel = (value: unknown, metricKey: string) => {
     if (!benchmarks || value === undefined) return '-';
-    const category = benchmarks[metricKey];
+    const category = (benchmarks as unknown as Record<string, DoraBenchmarkCategory>)[metricKey];
     if (!category) return '-';
+    const strValue = String(value);
     // Simple comparison logic - lower is better for time/rate metrics
     if (metricKey === 'deploymentFrequency') {
-      if (value.includes('day') || value.includes('hour')) return 'Elite';
-      if (value.includes('week')) return 'High';
-      if (value.includes('month')) return 'Medium';
+      if (strValue.includes('day') || strValue.includes('hour')) return 'Elite';
+      if (strValue.includes('week')) return 'High';
+      if (strValue.includes('month')) return 'Medium';
       return 'Low';
     } else {
-      const numValue = parseFloat(value) || 0;
+      const numValue = parseFloat(strValue) || 0;
       const elite = parseFloat(category.elite) || 0;
       const high = parseFloat(category.high) || 0;
       const medium = parseFloat(category.medium) || 0;
@@ -85,7 +138,7 @@ const EfficiencyDashboard: React.FC = () => {
       title: '指标',
       dataIndex: 'name',
       key: 'name',
-      render: (text: string, record: any) => (
+      render: (text: string, record: MetricRow) => (
         <Space>
           {record.icon}
           <Text strong>{text}</Text>
@@ -96,9 +149,9 @@ const EfficiencyDashboard: React.FC = () => {
       title: '当前值',
       dataIndex: 'currentValue',
       key: 'currentValue',
-      render: (value: any, record: any) => (
+      render: (value: unknown, record: MetricRow) => (
         <Text strong style={{ color: record.trend === 'up' ? colors.success[500] : colors.warning[500] }}>
-          {value}
+          {String(value)}
         </Text>
       ),
     },
@@ -119,10 +172,10 @@ const EfficiencyDashboard: React.FC = () => {
     {
       title: 'Benchmark',
       key: 'benchmark',
-      render: (_: any, record: any) => {
+      render: (_: unknown, record: MetricRow) => {
         if (!benchmarks) return '-';
         const benchmarkKey = record.benchmarkKey;
-        const category = benchmarks[benchmarkKey];
+        const category = (benchmarks as unknown as Record<string, DoraBenchmarkCategory>)[benchmarkKey];
         if (!category) return '-';
         return (
           <Space direction="vertical" size={0}>

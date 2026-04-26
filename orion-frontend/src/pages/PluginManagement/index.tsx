@@ -53,6 +53,7 @@ import {
   type PluginType,
   type PluginHealthStatus,
   type PluginCategory,
+  type PluginExecutionResult,
 } from '@/api/plugins';
 import { categoryLabels, healthStatusLabels } from '@/pages/__mocks__/mockPluginData';
 import { colors, spacing } from '@/tokens';
@@ -68,6 +69,12 @@ type ApiPlugin = Plugin & {
   category?: 'core' | 'extension' | 'security' | 'monitoring';
   status?: 'enabled' | 'disabled';
 };
+
+// Plugin config form values - mirrors Plugin.config
+type PluginConfig = Record<string, unknown>;
+
+// Execute plugin task result - alias of API type
+type ExecutePluginResult = PluginExecutionResult;
 
 // ============================================================================
 // Health status config
@@ -96,7 +103,7 @@ interface PluginDetailDrawerProps {
   plugin: ApiPlugin | null;
   open: boolean;
   onClose: () => void;
-  onSaveConfig?: (config: Record<string, any>) => Promise<void>;
+  onSaveConfig?: (config: PluginConfig) => Promise<void>;
 }
 
 const PluginDetailDrawer: React.FC<PluginDetailDrawerProps> = ({
@@ -246,7 +253,7 @@ const PluginDetailDrawer: React.FC<PluginDetailDrawerProps> = ({
 interface ExecutePluginTaskModalProps {
   open: boolean;
   onCancel: () => void;
-  onSuccess: (result: any) => void;
+  onSuccess: (result: ExecutePluginResult) => void;
   plugin: ApiPlugin | null;
 }
 
@@ -276,12 +283,11 @@ const ExecutePluginTaskModal: React.FC<ExecutePluginTaskModalProps> = ({
       message.success(`任务执行成功`);
       form.resetFields();
       setExecuting(false);
-      onSuccess(response.data);
-    } catch (err: any) {
+      onSuccess(response.data as ExecutePluginResult);
+    } catch (err: unknown) {
       setExecuting(false);
-      if (err.response?.status) {
-        message.error(`执行失败：${err.message}`);
-      }
+      const msg = err instanceof Error ? err.message : '执行失败';
+      message.error(`执行失败：${msg}`);
     }
   };
 
@@ -384,11 +390,13 @@ const InstallPluginModal: React.FC<InstallPluginModalProps> = ({
   useEffect(() => {
     if (open) {
       getAvailablePlugins({})
-        .then((res: any) => {
-          setAvailablePlugins(res.data.data || []);
+        .then((res) => {
+          setAvailablePlugins(res.data?.data || []);
         })
-        .catch((err: any) => {
+        .catch((err: unknown) => {
+          const msg = err instanceof Error ? err.message : '加载可用插件失败';
           console.error('Failed to load available plugins:', err);
+          message.error(msg);
         });
     }
   }, [open]);
@@ -406,11 +414,13 @@ const InstallPluginModal: React.FC<InstallPluginModalProps> = ({
       form.resetFields();
       setInstalling(false);
       onSuccess();
-    } catch (err: any) {
+    } catch (err: unknown) {
       setInstalling(false);
-      if (err.response?.status !== 400) {
-        message.error(`安装失败：${err.message}`);
-      }
+      const errObj = err as { response?: { status?: number }; errorFields?: unknown };
+      if (errObj.response?.status === 400) return;
+      if (errObj.errorFields) return;
+      const msg = err instanceof Error ? err.message : '安装失败';
+      message.error(`安装失败：${msg}`);
     }
   };
 
@@ -489,9 +499,10 @@ const PluginManagement: React.FC = () => {
     try {
       const response = await getInstalledPlugins({});
       setPlugins(response.data.data || []);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : '加载插件列表失败';
       console.error('Failed to load plugins:', err);
-      message.error('加载插件列表失败');
+      message.error(msg);
     } finally {
       setLoading(false);
     }
@@ -598,8 +609,9 @@ const PluginManagement: React.FC = () => {
             message.success(`插件 ${plugin.name} 已禁用`);
           }
           await loadPlugins();
-        } catch (err: any) {
-          message.error(`${action}失败：${err.message}`);
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : `${action}失败`;
+          message.error(`${action}失败：${msg}`);
         }
       },
     });
@@ -626,14 +638,14 @@ const PluginManagement: React.FC = () => {
   };
 
   // Handle execute task success
-  const handleExecuteSuccess = (result: any) => {
+  const handleExecuteSuccess = (result: ExecutePluginResult) => {
     setExecuteModalOpen(false);
     setSelectedPlugin(null);
     message.success(`任务执行完成：${result.status}`);
   };
 
   // Handle save plugin config
-  const handleSaveConfig = async (config: Record<string, any>) => {
+  const handleSaveConfig = async (config: PluginConfig) => {
     if (!selectedPlugin) return;
 
     try {
@@ -642,8 +654,9 @@ const PluginManagement: React.FC = () => {
       // Refresh plugin details
       const response = await getPlugin(selectedPlugin.id);
       setSelectedPlugin(response.data.data as ApiPlugin);
-    } catch (err: any) {
-      message.error(`保存配置失败：${err.message}`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : '保存配置失败';
+      message.error(`保存配置失败：${msg}`);
     }
   };
 
@@ -659,8 +672,9 @@ const PluginManagement: React.FC = () => {
           await installPlugin(plugin.id, { version: plugin.latestVersion });
           message.success(`插件 ${plugin.name} 更新成功`);
           await loadPlugins();
-        } catch (err: any) {
-          message.error(`更新失败：${err.message}`);
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : '更新失败';
+          message.error(`更新失败：${msg}`);
         }
       },
     });
@@ -679,8 +693,9 @@ const PluginManagement: React.FC = () => {
           await uninstallPlugin(plugin.id);
           message.success(`插件 ${plugin.name} 已删除`);
           await loadPlugins();
-        } catch (err: any) {
-          message.error(`删除失败：${err.message}`);
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : '删除失败';
+          message.error(`删除失败：${msg}`);
         }
       },
     });

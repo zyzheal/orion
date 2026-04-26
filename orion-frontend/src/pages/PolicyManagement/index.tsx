@@ -21,20 +21,28 @@ import {
 } from '@/api/policies';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
+import type { PolicyDefinition, PolicyViolation, PolicyInput } from '@/api/policies';
 
 dayjs.extend(relativeTime);
 
 const { Title, Text } = Typography;
 
+// ---- Form value interfaces ----
+
+interface EvaluateFormValues {
+  policyId: string;
+  input?: string;
+}
+
 const PolicyManagement: React.FC = () => {
   const [loading, setLoading] = useState(false);
-  const [policies, setPolicies] = useState<any[]>([]);
-  const [violations, setViolations] = useState<any[]>([]);
+  const [policies, setPolicies] = useState<PolicyDefinition[]>([]);
+  const [violations, setViolations] = useState<PolicyViolation[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<Record<string, string | string[] | undefined>>({});
   const [policyModalVisible, setPolicyModalVisible] = useState(false);
   const [evaluateModalVisible, setEvaluateModalVisible] = useState(false);
-  const [editingPolicy, setEditingPolicy] = useState<any>(null);
+  const [editingPolicy, setEditingPolicy] = useState<PolicyDefinition | null>(null);
   const [form] = Form.useForm();
   const [evalForm] = Form.useForm();
 
@@ -73,13 +81,22 @@ const PolicyManagement: React.FC = () => {
   const openViolations = violations.filter((v) => v.status === 'open').length;
   const blockedViolations = violations.filter((v) => v.severity === 'block').length;
 
-  const handleSavePolicy = async (values: any) => {
+  const handleSavePolicy = async (values: Record<string, unknown>) => {
     try {
+      const payload: PolicyInput = {
+        name: String(values.name),
+        description: values.description ? String(values.description) : undefined,
+        category: values.category as PolicyInput['category'],
+        regoPath: String(values.regoPath),
+        gateId: values.gateId ? String(values.gateId) : undefined,
+        severity: values.severity as PolicyInput['severity'],
+        enabled: true,
+      };
       if (editingPolicy) {
-        await updatePolicy(editingPolicy.id, values);
+        await updatePolicy(editingPolicy.id, payload);
         message.success('Policy updated');
       } else {
-        await createPolicy(values);
+        await createPolicy(payload);
         message.success('Policy created');
       }
       setPolicyModalVisible(false);
@@ -91,7 +108,7 @@ const PolicyManagement: React.FC = () => {
     }
   };
 
-  const handleTogglePolicy = async (policy: any) => {
+  const handleTogglePolicy = async (policy: PolicyDefinition) => {
     try {
       await togglePolicy(policy.id);
       message.success(`Policy ${policy.enabled ? 'disabled' : 'enabled'}`);
@@ -111,9 +128,10 @@ const PolicyManagement: React.FC = () => {
     }
   };
 
-  const handleEvaluate = async (values: any) => {
+  const handleEvaluate = async (values: EvaluateFormValues) => {
     try {
-      await evaluatePolicy({ policyId: values.policyId, input: values.input || {} });
+      const inputContext: Record<string, unknown> = values.input ? JSON.parse(values.input) : {};
+      await evaluatePolicy({ policyId: values.policyId, input: inputContext });
       message.success('Policy evaluated');
       setEvaluateModalVisible(false);
       evalForm.resetFields();
@@ -132,14 +150,14 @@ const PolicyManagement: React.FC = () => {
     }
   };
 
-  const policyColumns: TableColumn<any>[] = [
+  const policyColumns: TableColumn<PolicyDefinition>[] = [
     {
       key: 'name',
       title: '策略名称',
       dataIndex: 'name',
       width: 200,
       sortable: true,
-      render: (value: unknown, record: any) => (
+      render: (value: unknown, record: PolicyDefinition) => (
         <Space direction="vertical" size={0}>
           <Text strong>{String(value)}</Text>
           <Text type="secondary" style={{ fontSize: spacing[3] }}>{record.description || '-'}</Text>
@@ -193,7 +211,7 @@ const PolicyManagement: React.FC = () => {
       key: 'actions',
       title: '操作',
       width: 200,
-      render: (_: unknown, record: any) => (
+      render: (_: unknown, record: PolicyDefinition) => (
         <Space size="small">
           <Button type="link" size="small" onClick={() => {
             setEditingPolicy(record);
@@ -213,7 +231,7 @@ const PolicyManagement: React.FC = () => {
     },
   ];
 
-  const violationColumns: TableColumn<any>[] = [
+  const violationColumns: TableColumn<PolicyViolation>[] = [
     {
       key: 'policyName',
       title: '策略',
@@ -260,7 +278,7 @@ const PolicyManagement: React.FC = () => {
       key: 'actions',
       title: '操作',
       width: 100,
-      render: (_: unknown, record: any) =>
+      render: (_: unknown, record: PolicyViolation) =>
         record.status === 'open' ? (
           <Button type="link" size="small" onClick={() => handleResolveViolation(record.id)}>
             解决

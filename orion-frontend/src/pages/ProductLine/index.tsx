@@ -460,10 +460,10 @@ const ProductLineManagement: React.FC = () => {
 
   // ---- Table columns ----
 
-  const columns: TableColumn<any>[] = [
+  const columns: TableColumn<ProductLine>[] = [
     {
       key: 'displayName', title: '产品线', dataIndex: 'displayName', width: 160, sortable: true,
-      render: (v: unknown, record: any) => (
+      render: (v: unknown, record: ProductLine) => (
         <Space direction="vertical" size={0}>
           <Text strong style={{ cursor: 'pointer' }} onClick={() => openDetail(record)}>{String(v)}</Text>
           <Text type="secondary" style={{ fontSize: 12 }}>{record.name}</Text>
@@ -476,7 +476,7 @@ const ProductLineManagement: React.FC = () => {
     },
     {
       key: 'branchMode', title: '分支模式', width: 110,
-      render: (_: unknown, record: any) => {
+      render: (_: unknown, record: ProductLine) => {
         const mode = record.branchPolicies?.mode as BranchMode;
         const modeLabels: Record<BranchMode, string> = { 'gitflow': 'GitFlow', 'github-flow': 'GitHub Flow', 'trunk-based': 'Trunk-Based' };
         return <Tag>{modeLabels[mode] || mode}</Tag>;
@@ -484,11 +484,11 @@ const ProductLineManagement: React.FC = () => {
     },
     {
       key: 'phase', title: '状态', width: 90,
-      render: (_: unknown, record: any) => <Tag color={phaseColorMap[record.status?.phase as ProductLinePhase] || 'default'}>{record.status?.phase || '-'}</Tag>,
+      render: (_: unknown, record: ProductLine) => <Tag color={phaseColorMap[record.status?.phase as ProductLinePhase] || 'default'}>{record.status?.phase || '-'}</Tag>,
     },
     {
       key: 'stats', title: '流水线/部署', width: 130,
-      render: (_: unknown, record: any) => {
+      render: (_: unknown, record: ProductLine) => {
         const stats = record.status?.statistics;
         if (!stats) return <Text type="secondary">-</Text>;
         return (
@@ -505,7 +505,7 @@ const ProductLineManagement: React.FC = () => {
     },
     {
       key: 'actions', title: '操作', width: 240,
-      render: (_: unknown, record: any) => (
+      render: (_: unknown, record: ProductLine) => (
         <Space size="small" wrap>
           <Tooltip title="查看详情"><Button type="link" size="small" onClick={() => openDetail(record)}>详情</Button></Tooltip>
           <Tooltip title="编辑"><Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEdit(record)} /></Tooltip>
@@ -538,20 +538,20 @@ const ProductLineManagement: React.FC = () => {
 
   // ---- Release Train columns ----
 
-  const rtColumns: TableColumn<any>[] = [
+  const rtColumns: TableColumn<ReleaseTrain>[] = [
     { key: 'name', title: '名称', dataIndex: 'name', width: 140, render: (v: unknown) => <Text strong><RocketOutlined /> {String(v)}</Text> },
     { key: 'schedule', title: '调度 (Cron)', dataIndex: 'schedule', width: 120, render: (v: unknown) => <Text code>{String(v)}</Text> },
     { key: 'branches', title: '源 -> 目标', width: 160,
-      render: (_: unknown, record: any) => <Text><Tag>{record.sourceBranch || 'develop'}</Tag> <Text type="secondary">→</Text> <Tag color="blue">{record.targetBranch || 'main'}</Tag></Text> },
+      render: (_: unknown, record: ReleaseTrain) => <Text><Tag>{record.sourceBranch || 'develop'}</Tag> <Text type="secondary">→</Text> <Tag color="blue">{record.targetBranch || 'main'}</Tag></Text> },
     { key: 'state', title: '状态', width: 90,
-      render: (_: unknown, record: any) => <Tag color={releaseTrainStateColorMap[record.status?.state] || 'default'}>{record.status?.state || '-'}</Tag> },
-    { key: 'lastRelease', title: '上次发布', width: 100, render: (_: unknown, record: any) => <Text>{record.status?.lastRelease || '-'}</Text> },
-    { key: 'nextRun', title: '下次运行', width: 140, render: (_: unknown, record: any) => <Text type="secondary">{record.status?.nextRun ? dayjs(String(record.status.nextRun)).fromNow() : '-'}</Text> },
+      render: (_: unknown, record: ReleaseTrain) => <Tag color={releaseTrainStateColorMap[record.status?.state] || 'default'}>{record.status?.state || '-'}</Tag> },
+    { key: 'lastRelease', title: '上次发布', width: 100, render: (_: unknown, record: ReleaseTrain) => <Text>{record.status?.lastRelease || '-'}</Text> },
+    { key: 'nextRun', title: '下次运行', width: 140, render: (_: unknown, record: ReleaseTrain) => <Text type="secondary">{record.status?.nextRun ? dayjs(String(record.status.nextRun)).fromNow() : '-'}</Text> },
   ];
 
   // ---- Hotfix Channel columns ----
 
-  const hfColumns: TableColumn<any>[] = [
+  const hfColumns: TableColumn<HotfixChannel>[] = [
     { key: 'name', title: '名称', dataIndex: 'name', width: 160, render: (v: unknown) => <Text strong><FireOutlined /> {String(v)}</Text> },
     { key: 'branchPattern', title: '分支模式', dataIndex: 'branchPattern', width: 140, render: (v: unknown) => <Text code>{String(v)}</Text> },
     { key: 'enabled', title: '启用', dataIndex: 'enabled', width: 70, render: (v: unknown) => <Switch checked={!!v} size="small" disabled /> },
@@ -559,7 +559,7 @@ const ProductLineManagement: React.FC = () => {
       render: (v: unknown) => v ? <Tag color="orange">是</Tag> : <Tag>否</Tag> },
     { key: 'autoMerge', title: '自动合并', dataIndex: 'autoMerge', width: 90,
       render: (v: unknown) => v ? <Tag color="green">是</Tag> : <Tag>否</Tag> },
-    { key: 'activeHotfixes', title: '进行中', width: 80, render: (_: unknown, record: any) => <Text>{record.status?.activeHotfixes ?? 0}</Text> },
+    { key: 'activeHotfixes', title: '进行中', width: 80, render: (_: unknown, record: HotfixChannel) => <Text>{record.status?.activeHotfixes ?? 0}</Text> },
     { key: 'maxDuration', title: '最大时长(分)', dataIndex: 'maxDuration', width: 100, render: (v: unknown) => <Text>{String(v ?? '-')}</Text> },
   ];
 
@@ -643,7 +643,7 @@ const ProductLineManagement: React.FC = () => {
         <div style={{ marginBottom: 16 }}>
           <SearchFilterBar onSearch={setSearchQuery} onFilter={setFilters} filters={filterDefs} searchPlaceholder="搜索产品线..." />
         </div>
-        <Table columns={columns} dataSource={filteredData as unknown as Record<string, unknown>[]} loading={loading} rowKey="id" size="middle" striped />
+        <Table columns={columns} dataSource={filteredData} loading={loading} rowKey="id" size="middle" striped />
       </Card>
 
       {/* Create Modal */}

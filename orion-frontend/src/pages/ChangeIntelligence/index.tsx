@@ -7,7 +7,7 @@ import { Typography, Button, Space, Tag, Card, Row, Col, Statistic, Modal, Form,
 import { colors, spacing } from '@/tokens';
 import { ReloadOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
-import StatusBadge from '@/components/StatusBadge';
+import StatusBadge, { type StatusType } from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import {
   getChangeReports,
@@ -15,6 +15,10 @@ import {
   getBlastRadius,
   analyzeChange,
   getChangeTrends,
+  type ChangeIntelligenceReport,
+  type AffectedService,
+  type BlastRadiusData,
+  type ChangeAnalyzeInput,
 } from '@/api/change-intelligence';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -25,15 +29,15 @@ const { Title, Text } = Typography;
 
 const ChangeIntelligence: React.FC = () => {
   const [loading, setLoading] = useState(false);
-  const [reports, setReports] = useState<any[]>([]);
-  const [trends, setTrends] = useState<any[]>([]);
+  const [reports, setReports] = useState<ChangeIntelligenceReport[]>([]);
+  const [trends, setTrends] = useState<Array<Record<string, unknown>>>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<Record<string, string | string[] | undefined>>({});
   const [analyzeModalVisible, setAnalyzeModalVisible] = useState(false);
   const [reportDetailVisible, setReportDetailVisible] = useState(false);
-  const [selectedReport, setSelectedReport] = useState<any>(null);
-  const [blastRadius, setBlastRadius] = useState<any>(null);
-  const [affectedServices, setAffectedServices] = useState<any[]>([]);
+  const [selectedReport, setSelectedReport] = useState<ChangeIntelligenceReport | null>(null);
+  const [blastRadius, setBlastRadius] = useState<BlastRadiusData | null>(null);
+  const [affectedServices, setAffectedServices] = useState<AffectedService[]>([]);
   const [analyzeForm] = Form.useForm();
 
   const loadData = async () => {
@@ -57,7 +61,7 @@ const ChangeIntelligence: React.FC = () => {
   }, []);
 
   const filteredReports = useMemo(() => {
-    return reports.filter((r: any) => {
+    return reports.filter((r) => {
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
         if (
@@ -71,12 +75,12 @@ const ChangeIntelligence: React.FC = () => {
     });
   }, [searchQuery, filters, reports]);
 
-  const highRiskCount = reports.filter((r: any) => r.riskLevel === 'high' || r.riskLevel === 'critical').length;
+  const highRiskCount = reports.filter((r) => r.riskLevel === 'high' || r.riskLevel === 'critical').length;
   const avgRiskScore = reports.length > 0
-    ? reports.reduce((sum: number, r: any) => sum + r.riskScore, 0) / reports.length
+    ? reports.reduce((sum, r) => sum + r.riskScore, 0) / reports.length
     : 0;
 
-  const handleAnalyze = async (values: any) => {
+  const handleAnalyze = async (values: ChangeAnalyzeInput) => {
     try {
       await analyzeChange(values);
       message.success('Analysis triggered');
@@ -88,17 +92,17 @@ const ChangeIntelligence: React.FC = () => {
     }
   };
 
-  const handleViewDetail = async (report: any) => {
+  const handleViewDetail = async (report: ChangeIntelligenceReport) => {
     setSelectedReport(report);
     try {
       const [detailRes, blastRes] = await Promise.all([
         getChangeReportDetail(report.id),
         getBlastRadius(report.id),
       ]);
-      const detailData = detailRes.data.data || {};
-      const svcList = (detailData as any).affectedServices;
+      const detailData = detailRes.data.data as { affectedServices?: AffectedService[] } | undefined;
+      const svcList = detailData?.affectedServices;
       setAffectedServices(Array.isArray(svcList) ? svcList : []);
-      setBlastRadius(blastRes.data.data);
+      setBlastRadius((blastRes.data.data as BlastRadiusData) || null);
       setReportDetailVisible(true);
     } catch {
       message.error('Failed to load report detail');
@@ -112,14 +116,14 @@ const ChangeIntelligence: React.FC = () => {
     critical: 'red',
   };
 
-  const columns: TableColumn<any>[] = [
+  const columns: TableColumn<ChangeIntelligenceReport>[] = [
     {
       key: 'prId',
       title: 'PR',
       dataIndex: 'prId',
       width: 140,
       sortable: true,
-      render: (_value: unknown, record: any) => (
+      render: (_value: unknown, record: ChangeIntelligenceReport) => (
         <Space direction="vertical" size={0}>
           <Text strong style={{ color: colors.primary[500] }}>
             PR #{record.prId}
@@ -192,7 +196,7 @@ const ChangeIntelligence: React.FC = () => {
       key: 'actions',
       title: '操作',
       width: 100,
-      render: (_: unknown, record: any) => (
+      render: (_: unknown, record: ChangeIntelligenceReport) => (
         <Button type="link" size="small" onClick={() => handleViewDetail(record)}>
           详情
         </Button>
@@ -341,7 +345,7 @@ const ChangeIntelligence: React.FC = () => {
             {/* SHAP Factors */}
             {selectedReport.shapFactors && selectedReport.shapFactors.length > 0 && (
               <Card title="SHAP 风险因子" size="small" style={{ marginBottom: 16 }}>
-                {selectedReport.shapFactors.map((f: any, i: number) => (
+                {selectedReport.shapFactors.map((f: { factor: string; value: number; contribution: number }, i: number) => (
                   <Row key={i} style={{ marginBottom: 8 }}>
                     <Col span={6}><Text strong>{f.factor}</Text></Col>
                     <Col span={4}><Text>{f.value.toFixed(3)}</Text></Col>
@@ -374,7 +378,7 @@ const ChangeIntelligence: React.FC = () => {
             {blastRadius && (
               <Card title="影响面图谱" size="small" style={{ marginBottom: 16 }}>
                 <div style={{ minHeight: 200, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                  {blastRadius.nodes.map((node: any) => (
+                  {blastRadius.nodes.map((node) => (
                     <Tag
                       key={node.id}
                       color={
@@ -430,8 +434,8 @@ const ChangeIntelligence: React.FC = () => {
                       dataIndex: 'sloRisk',
                       width: 100,
                       render: (value: unknown) => {
-                        const statusMap: Record<string, any> = { none: 'success', low: 'warning', medium: 'failed', high: 'failed' };
-                        return <StatusBadge status={statusMap[String(value)] || 'unknown'} size="small" />;
+                        const statusMap: Record<string, string> = { none: 'success', low: 'warning', medium: 'failed', high: 'failed' };
+                        return <StatusBadge status={(statusMap[String(value)] || 'unknown') as StatusType} size="small" />;
                       },
                     },
                     {
@@ -449,7 +453,7 @@ const ChangeIntelligence: React.FC = () => {
                   dataSource={affectedServices}
                   rowKey="id"
                   size="small"
-                  pagination={false as any}
+                  pagination={false}
                 />
               </Card>
             )}

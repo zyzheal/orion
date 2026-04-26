@@ -15,6 +15,16 @@ import type { SelfHealingStrategy } from '@/api/self-healing';
 const { Title, Text } = Typography;
 const { TextArea } = Input;
 
+// ---- Form value interface ----
+
+interface StrategyFormValues {
+  name: string;
+  triggerType: string;
+  actions: string;
+  confidence?: string;
+  description?: string;
+}
+
 const StrategyList: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<SelfHealingStrategy[]>([]);
@@ -28,9 +38,10 @@ const StrategyList: React.FC = () => {
     try {
       const res = await getStrategies();
       setData(res.data.data?.items || []);
-    } catch (error) {
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : '加载策略列表失败';
       console.error('Failed to load strategies:', error);
-      message.error('加载策略列表失败');
+      message.error(msg);
     } finally {
       setLoading(false);
     }
@@ -45,8 +56,9 @@ const StrategyList: React.FC = () => {
       await toggleStrategy(id);
       message.success('策略状态已切换');
       loadData();
-    } catch (error) {
-      message.error('切换策略状态失败');
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : '切换策略状态失败';
+      message.error(msg);
     }
   };
 
@@ -65,7 +77,7 @@ const StrategyList: React.FC = () => {
     setModalOpen(true);
   };
 
-  const handleSubmit = async (values: any) => {
+  const handleSubmit = async (values: StrategyFormValues) => {
     setFormLoading(true);
     try {
       const payload = {
@@ -83,8 +95,9 @@ const StrategyList: React.FC = () => {
       }
       setModalOpen(false);
       loadData();
-    } catch (error) {
-      message.error(editingStrategy ? '更新策略失败' : '创建策略失败');
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : (editingStrategy ? '更新策略失败' : '创建策略失败');
+      message.error(msg);
     } finally {
       setFormLoading(false);
     }
@@ -126,7 +139,7 @@ const StrategyList: React.FC = () => {
       title: '操作',
       key: 'action',
       width: 120,
-      render: (_: any, record: SelfHealingStrategy) => (
+      render: (_: unknown, record: SelfHealingStrategy) => (
         <Space>
           <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEditModal(record)}>编辑</Button>
         </Space>

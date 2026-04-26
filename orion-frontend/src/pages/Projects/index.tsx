@@ -251,10 +251,10 @@ const ProjectManagement: React.FC = () => {
 
   // ---- Table columns ----
 
-  const columns: TableColumn<any>[] = [
+  const columns: TableColumn<Project>[] = [
     {
       key: 'name', title: '项目名称', dataIndex: 'name', width: 200, sortable: true,
-      render: (v: unknown, record: any) => (
+      render: (v: unknown, record: Project) => (
         <Space direction="vertical" size={0}>
           <Text strong style={{ cursor: 'pointer' }} onClick={() => openDetail(record)}>
             <FolderOutlined style={{ marginRight: 6, color: colors.primary[500] }} />
@@ -272,7 +272,7 @@ const ProjectManagement: React.FC = () => {
     },
     {
       key: 'status', title: '状态', width: 100,
-      render: (_: unknown, record: any) => (
+      render: (_: unknown, record: Project) => (
         <Tag color={statusColorMap[record.status] || 'default'}>
           {statusLabelMap[record.status] || record.status}
         </Tag>
@@ -280,7 +280,7 @@ const ProjectManagement: React.FC = () => {
     },
     {
       key: 'team', title: '负责人', width: 120,
-      render: (_: unknown, record: any) => (
+      render: (_: unknown, record: Project) => (
         <Space>
           <Avatar size="small" style={{ backgroundColor: colors.primary[500] }}>
             {record.teamLead ? record.teamLead.charAt(0) : '?'}
@@ -291,7 +291,7 @@ const ProjectManagement: React.FC = () => {
     },
     {
       key: 'members', title: '团队成员', width: 120,
-      render: (_: unknown, record: any) => (
+      render: (_: unknown, record: Project) => (
         <Tooltip title={record.teamMembers?.join(', ')}>
           <Space>
             <TeamOutlined />
@@ -302,7 +302,7 @@ const ProjectManagement: React.FC = () => {
     },
     {
       key: 'environments', title: '环境', width: 150,
-      render: (_: unknown, record: any) => (
+      render: (_: unknown, record: Project) => (
         <Space wrap>
           {record.environments?.map((env: string) => (
             <Tag key={env} color="blue" style={{ fontSize: 11 }}>{env}</Tag>
@@ -316,7 +316,7 @@ const ProjectManagement: React.FC = () => {
     },
     {
       key: 'actions', title: '操作', width: 160,
-      render: (_: unknown, record: any) => (
+      render: (_: unknown, record: Project) => (
         <Space size="small" wrap>
           <Tooltip title="详情">
             <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => openDetail(record)}>详情</Button>
@@ -403,7 +403,7 @@ const ProjectManagement: React.FC = () => {
         </div>
         <Table
           columns={columns}
-          dataSource={filteredData as unknown as Record<string, unknown>[]}
+          dataSource={filteredData}
           loading={loading}
           rowKey="id"
           size="middle"

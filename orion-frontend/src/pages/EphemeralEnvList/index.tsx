@@ -96,7 +96,9 @@ const CostDrawer: React.FC<CostDrawerProps> = ({ env, open, onClose }) => {
     if (open && env) {
       setLoading(true);
       getEphemeralEnvCost(env.id)
-        .then((res) => setCost((res as any).data?.data || null))
+        .then((res) => {
+          setCost(res || null);
+        })
         .catch(() => setCost(null))
         .finally(() => setLoading(false));
     }
@@ -184,7 +186,9 @@ const CreateEnvModal: React.FC<CreateEnvModalProps> = ({ open, onCancel, onSucce
   useEffect(() => {
     if (open) {
       getEnvironmentTemplates()
-        .then((res) => setTemplates((res as any).data?.data || []))
+        .then((res) => {
+          setTemplates(Array.isArray(res) ? res : []);
+        })
         .catch(() => setTemplates([]));
     }
   }, [open]);
@@ -206,10 +210,12 @@ const CreateEnvModal: React.FC<CreateEnvModalProps> = ({ open, onCancel, onSucce
       form.resetFields();
       setCreating(false);
       onSuccess();
-    } catch (err: any) {
+    } catch (err: unknown) {
       setCreating(false);
-      if (err.errorFields) return;
-      message.error(`创建失败：${err.message}`);
+      const errObj = err as { errorFields?: unknown; message?: string };
+      if (errObj.errorFields) return;
+      const msg = err instanceof Error ? err.message : '创建失败';
+      message.error(`创建失败：${msg}`);
     }
   };
 
@@ -283,10 +289,11 @@ const EphemeralEnvList: React.FC = () => {
     setLoading(true);
     try {
       const response = await getEphemeralEnvs({});
-      setEnvs(((response as any).data?.data as EphemeralEnvironment[]) || []);
-    } catch (err: any) {
+      setEnvs(Array.isArray(response) ? response : []);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : '加载环境列表失败';
       console.error('Failed to load environments:', err);
-      message.error('加载环境列表失败');
+      message.error(msg);
     } finally {
       setLoading(false);
     }
@@ -358,8 +365,9 @@ const EphemeralEnvList: React.FC = () => {
       await wakeEphemeralEnv(env.id);
       message.success('环境已唤醒');
       await loadEnvs();
-    } catch (err: any) {
-      message.error(`唤醒失败：${err.message}`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : '唤醒失败';
+      message.error(`唤醒失败：${msg}`);
     }
   };
 
@@ -368,8 +376,9 @@ const EphemeralEnvList: React.FC = () => {
       await teardownEphemeralEnv(env.id);
       message.success('环境销毁已触发');
       await loadEnvs();
-    } catch (err: any) {
-      message.error(`销毁失败：${err.message}`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : '销毁失败';
+      message.error(`销毁失败：${msg}`);
     }
   };
 
@@ -428,7 +437,7 @@ const EphemeralEnvList: React.FC = () => {
         const status = String(value);
         return (
           <Badge
-            status={statusToColor[status] as any}
+            status={statusToColor[status] as 'success' | 'processing' | 'default' | 'error' | 'warning'}
             text={statusLabel[status] || status}
           />
         );

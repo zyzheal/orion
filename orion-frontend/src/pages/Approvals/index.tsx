@@ -240,18 +240,18 @@ const ApprovalManagement: React.FC = () => {
 
   // ---- Table columns ----
 
-  const columns: TableColumn<any>[] = [
+  const columns: TableColumn<ApprovalRequest>[] = [
     {
       key: 'title',
       title: '审批标题',
       dataIndex: 'title',
       width: 260,
-      render: (v: unknown, record: any) => (
+      render: (v: unknown, record: ApprovalRequest) => (
         <Space direction="vertical" size={0}>
           <Text strong style={{ cursor: 'pointer' }} onClick={() => openDetail(record)}>{String(v)}</Text>
           <Text type="secondary" style={{ fontSize: 12 }}>
             申请人: {record.requesterId}
-            {record.metadata?.resourceType && ` | 类型: ${record.metadata.resourceType}`}
+            {record.metadata?.resourceType != null && ` | 类型: ${record.metadata.resourceType as string}`}
           </Text>
         </Space>
       ),
@@ -260,9 +260,9 @@ const ApprovalManagement: React.FC = () => {
       key: 'status',
       title: '状态',
       width: 100,
-      render: (_: unknown, record: any) => (
-        <Tag color={statusColorMap[record.status as ApprovalStatus] || 'default'}>
-          {statusLabelMap[record.status as ApprovalStatus] || record.status}
+      render: (_: unknown, record: ApprovalRequest) => (
+        <Tag color={statusColorMap[record.status] || 'default'}>
+          {statusLabelMap[record.status] || record.status}
         </Tag>
       ),
     },
@@ -270,7 +270,7 @@ const ApprovalManagement: React.FC = () => {
       key: 'progress',
       title: '审批进度',
       width: 180,
-      render: (_: unknown, record: any) => (
+      render: (_: unknown, record: ApprovalRequest) => (
         <Space direction="vertical" size={0} style={{ width: '100%' }}>
           <Progress
             percent={approvalProgress(record)}
@@ -288,7 +288,7 @@ const ApprovalManagement: React.FC = () => {
       key: 'approvers',
       title: '审批人',
       width: 200,
-      render: (_: unknown, record: any) => (
+      render: (_: unknown, record: ApprovalRequest) => (
         <Space size={4} wrap>
           {record.approverIds.slice(0, 3).map((uid: string) => {
             const hasApproved = record.approvals.includes(uid);
@@ -326,7 +326,7 @@ const ApprovalManagement: React.FC = () => {
       key: 'actions',
       title: '操作',
       width: 160,
-      render: (_: unknown, record: any) => (
+      render: (_: unknown, record: ApprovalRequest) => (
         <Space size="small" wrap>
           <Tooltip title="详情">
             <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => openDetail(record)}>
@@ -536,7 +536,7 @@ const ApprovalManagement: React.FC = () => {
         {/* Approval Table */}
         <Table
           columns={columns}
-          dataSource={filteredData as unknown as Record<string, unknown>[]}
+          dataSource={filteredData}
           loading={loading}
           rowKey="id"
           size="middle"

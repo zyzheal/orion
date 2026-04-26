@@ -15,6 +15,34 @@ import dayjs from 'dayjs';
 const { Title, Text } = Typography;
 const { TextArea } = Input;
 
+// ---- Form value interfaces ----
+
+interface RecordMetricFormValues {
+  name: string;
+  value: number;
+  tags?: string;
+}
+
+interface RegisterMetricFormValues {
+  name: string;
+  type: string;
+  unit: string;
+  tags?: string;
+}
+
+interface MetricSeriesPoint {
+  timestamp: string;
+  value: number;
+}
+
+interface MetricSummary {
+  avg?: number;
+  min?: number;
+  max?: number;
+  p95?: number;
+  count: number;
+}
+
 const MonitoringMetrics: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [metrics, setMetrics] = useState<Metric[]>([]);
@@ -23,8 +51,8 @@ const MonitoringMetrics: React.FC = () => {
   const [registerModalVisible, setRegisterModalVisible] = useState(false);
   const [detailDrawerVisible, setDetailDrawerVisible] = useState(false);
   const [selectedMetric, setSelectedMetric] = useState<Metric | null>(null);
-  const [seriesData, setSeriesData] = useState<any[]>([]);
-  const [summaryData, setSummaryData] = useState<any>(null);
+  const [seriesData, setSeriesData] = useState<MetricSeriesPoint[]>([]);
+  const [summaryData, setSummaryData] = useState<MetricSummary | null>(null);
   const [recordForm] = Form.useForm();
   const [registerForm] = Form.useForm();
 
@@ -57,27 +85,40 @@ const MonitoringMetrics: React.FC = () => {
     });
   }, [searchQuery, metrics]);
 
-  const handleRecord = async (values: any) => {
+  const handleRecord = async (values: RecordMetricFormValues) => {
     try {
-      await recordMetric(values);
+      const payload = {
+        name: values.name,
+        value: values.value,
+        tags: values.tags ? JSON.parse(values.tags) : undefined,
+      };
+      await recordMetric(payload);
       message.success('指标已记录');
       setRecordModalVisible(false);
       recordForm.resetFields();
       loadData();
-    } catch (error) {
-      message.error('记录指标失败');
+    } catch (error: unknown) {
+      const message_text = error instanceof Error ? error.message : '记录指标失败';
+      message.error(`记录指标失败: ${message_text}`);
     }
   };
 
-  const handleRegister = async (values: any) => {
+  const handleRegister = async (values: RegisterMetricFormValues) => {
     try {
-      await registerMetric(values);
+      const payload = {
+        name: values.name,
+        type: values.type,
+        unit: values.unit,
+        tags: values.tags ? JSON.parse(values.tags) : undefined,
+      };
+      await registerMetric(payload);
       message.success('指标已注册');
       setRegisterModalVisible(false);
       registerForm.resetFields();
       loadData();
-    } catch (error) {
-      message.error('注册指标失败');
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : '注册指标失败';
+      message.error(`注册指标失败: ${msg}`);
     }
   };
 
@@ -91,14 +132,15 @@ const MonitoringMetrics: React.FC = () => {
       ]);
       setSeriesData(seriesRes.data.data?.points || []);
       setSummaryData(summaryRes.data.data);
-    } catch (error) {
-      message.error('加载指标详情失败');
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : '加载指标详情失败';
+      message.error(`加载指标详情失败: ${msg}`);
     }
   };
 
   const filterDefs: FilterDefinition[] = [];
 
-  const columns: TableColumn<any>[] = [
+  const columns: TableColumn<Metric>[] = [
     {
       key: 'name',
       title: '指标名称',
@@ -282,7 +324,7 @@ const MonitoringMetrics: React.FC = () => {
         <Title level={5}>时间序列</Title>
         {seriesData.length > 0 ? (
           <Space direction="vertical" style={{ width: '100%' }}>
-            {seriesData.slice(-20).reverse().map((point: any, idx: number) => (
+            {seriesData.slice(-20).reverse().map((point: MetricSeriesPoint, idx: number) => (
               <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: `1px solid ${colors.light.border.light}` }}>
                 <Text type="secondary">{dayjs(point.timestamp).format('HH:mm:ss')}</Text>
                 <Text strong>{point.value}</Text>
