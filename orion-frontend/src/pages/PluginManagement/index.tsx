@@ -283,7 +283,7 @@ const ExecutePluginTaskModal: React.FC<ExecutePluginTaskModalProps> = ({
       message.success(`任务执行成功`);
       form.resetFields();
       setExecuting(false);
-      onSuccess(response.data as ExecutePluginResult);
+      onSuccess(response.data.data as unknown as ExecutePluginResult);
     } catch (err: unknown) {
       setExecuting(false);
       const msg = err instanceof Error ? err.message : '执行失败';
