@@ -517,7 +517,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       <Header
         style={{
           padding: '0 24px',
-          background: theme === 'dark' ? colors.dark.bg.primary : '#fff',
+          background: theme === 'dark' ? colors.dark.bg.primary : colors.light.bg.primary,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -598,7 +598,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                 size="large"
                 style={{
                   fontSize: 18,
-                  color: theme === 'dark' ? '#fff' : '#666',
+                  color: theme === 'dark' ? colors.dark.text.primary : colors.light.text.secondary,
                 }}
                 title="控制台"
               />
@@ -613,7 +613,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             onClick={toggleTheme}
             style={{
               fontSize: 18,
-              color: theme === 'dark' ? '#fff' : '#666',
+              color: theme === 'dark' ? colors.dark.text.primary : colors.light.text.secondary,
             }}
             title={theme === 'dark' ? '切换到浅色模式' : '切换到深色模式'}
           />
@@ -659,7 +659,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       {/* 面包屑导航 */}
       <div
         style={{
-          background: theme === 'dark' ? '#141414' : '#f0f2f5',
+          background: theme === 'dark' ? colors.dark.bg.primary : colors.light.bg.tertiary,
           padding: '12px 24px',
         }}
       >
@@ -683,7 +683,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       <Content
         style={{
           margin: '16px 24px',
-          background: theme === 'dark' ? '#141414' : '#fff',
+          background: theme === 'dark' ? colors.dark.bg.primary : colors.light.bg.primary,
           borderRadius: 12,
           padding: 24,
           minHeight: 'calc(100vh - 180px)',
@@ -699,7 +699,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       <Footer style={{
         textAlign: 'center',
         background: 'transparent',
-        color: theme === 'dark' ? '#666' : '#999',
+        color: theme === 'dark' ? colors.dark.text.tertiary : colors.neutral[400],
       }}>
         Orion Platform ©{new Date().getFullYear()} Created by Orion Team
       </Footer>

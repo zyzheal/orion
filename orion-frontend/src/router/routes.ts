@@ -64,11 +64,6 @@ export const routes: AppRoute[] = [
     element: React.lazy(() => import('@/pages/Projects')),
     protected: true,
   },
-  {
-    path: '/settings',
-    element: React.lazy(() => import('@/pages/Dashboard')),
-    protected: true,
-  },
   // 微前端子应用路由
   {
     path: '/dba/*',
