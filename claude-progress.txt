@@ -4,9 +4,79 @@
 - **Name**: orion-design
 - **Root**: /Users/heal/orion-design
 - **Initialized**: 2026-04-11
-- **Current Phase**: TASK-202 Configuration Management & GitOps (完成)
+- **Current Branch**: feat/frontend-gap-implementation
 
-## Current Status (2026-04-12)
+## Current Status (2026-04-27)
+
+### feat: ChatOps 推荐面板权限过滤 (COMPLETED)
+- Commit: 9359a63
+- ChatOpsController: 注入可选的 eventSubscriber 依赖
+- getRecommendations 方法: 优先调用 eventSubscriber.getFilteredRecommendations(user.role) 按角色过滤推荐
+  - viewer 角色不显示 critical 级别的操作按钮
+  - 无 eventSubscriber 时回退到 recommendationService
+- chatops-routes.ts: 调整初始化顺序，先创建 eventSubscriber 再创建 controller
+- TypeScript 类型检查通过，无新增错误
+
+### refactor: Split Artifacts and InternalLibrary into smaller sub-components (COMPLETED)
+- Commit: 63055ab
+- Artifacts page: index.tsx reduced from 879 to 624 lines (-29%)
+  - `ArtifactStats.tsx` (51 lines): Statistics cards for artifact lifecycle counts
+  - `ArtifactTable.tsx` (179 lines): Artifact list table with all columns and action buttons
+  - `ArtifactDetail.tsx` (217 lines): Detail drawer tabs (info, security, tests, deployments, tags, promotion)
+- InternalLibrary page: index.tsx reduced from 857 to 563 lines (-34%)
+  - `LibraryTable.tsx` (126 lines): Library list table with columns and action buttons
+  - `LibraryDetail.tsx` (285 lines): Detail drawer tabs (info, versions, dependents, dep-check)
+  - `CreateLibraryModal.tsx` (70 lines): Create library form modal
+- All business logic preserved. Sub-components receive data via props.
+- TypeScript compilation passes (only pre-existing routes.ts error remains).
+
+### refactor: Split PluginManagement and PluginSPI into smaller sub-components (COMPLETED)
+
+#### PluginManagement (was 996 lines single file -> 6 files)
+- `index.tsx` (202 lines): State management, data loading, sub-component composition
+- `PluginList.tsx` (430 lines): Summary cards, search/filter bar, plugin table with columns and actions
+- `PluginDetail.tsx` (189 lines): Drawer with metadata, config form, permissions
+- `PluginCreateModal.tsx` (128 lines): Install plugin modal with available plugin selection
+- `PluginLifecycle.tsx` (142 lines): Execute plugin task modal with task configuration
+- `types.tsx` (82 lines): Shared types, health config, label maps, type-to-category mapping
+
+#### PluginSPI (was 1077 lines single file -> 5 files)
+- `index.tsx` (315 lines): Data loading, stats, tab switching, sub-component composition
+- `ExtensionPointList.tsx` (188 lines): Extension point table with search and SPI type/status filter
+- `PluginRegistry.tsx` (190 lines): Plugin registration table with toggle enable/disable
+- `SPIConfig.tsx` (210 lines): SPI config table with add/edit/delete modal
+- `types.ts` (334 lines): Shared types, label/color maps, fallback strategies, mock data
+
+#### Verification
+- TypeScript type-check: 0 new errors introduced
+- All existing business logic preserved
+- Props-based component communication (no global state changes)
+- Design tokens used throughout (no hardcoded colors)
+
+### Next Steps
+1. Continue closing remaining frontend-backend gaps
+
+### feat: Loading Skeleton States for Major List Pages (COMPLETED)
+- Commit: ef7141d
+- Created `PageSkeleton` component at `src/components/PageSkeleton/index.tsx`
+  - Configurable stat cards (0-7+), table rows (default 8), search bar, header
+  - Uses Ant Design Skeleton components with animation
+  - Supports dark mode via CSS variables
+- Updated `Table` component to use Ant Design's built-in loading support
+- Applied skeleton to 11 pages on initial load (loading && data.length === 0):
+  - Artifacts (7 stat cards + 8 table rows)
+  - Projects (8 table rows)
+  - ProductLine (8 table rows)
+  - InternalLibrary (8 table rows)
+  - Approvals (8 table rows)
+  - OnCall (8 table rows)
+  - CMDB (3 sub-components, each with skeleton)
+  - RoleManagement (8 table rows)
+  - UserManagement (4 stat cards + 8 table rows)
+  - AuditLog (3 stat cards + 10 table rows)
+- TypeScript compilation passes (only pre-existing routes.ts error remains)
+
+## Previous Status (2026-04-12)
 
 ### TASK-201 - 代码管理集成 (COMPLETED)
 
@@ -883,3 +953,99 @@ Eliminated ALL `TableColumn<any>` type annotations and `as any` assertions acros
 
 ### Commit
 - `2cbbe0c` - refactor(frontend): eliminate all TableColumn<any> and notifications.ts as any types
+
+## AgentDashboard & VectorStore Component Split (COMPLETED - 2026-04-27)
+
+### Completed Work
+
+1. **AgentDashboard** (939 lines -> 7 files, largest 273 lines)
+   - `index.tsx` (273 lines): State management, data loading, sub-component orchestration
+   - `AgentMetrics.tsx` (69 lines): Summary metric cards (active agents, today's runs, success rate, avg duration)
+   - `AgentTable.tsx` (192 lines): Agent profile table with search/filter and action buttons
+   - `AgentRunList.tsx` (199 lines): Pending approvals and recent runs tables
+   - `AgentDetailDrawer.tsx` (98 lines): Agent profile detail panel with tools/LLM/capabilities sections
+   - `CreateAgentModal.tsx` (134 lines): Agent creation form with role/tools/LLM config
+   - `TriggerRunModal.tsx` (88 lines): Run trigger form with event/payload config
+   - `constants.ts` (31 lines): Shared constants (ROLE_OPTIONS, TRIGGER_EVENT_OPTIONS, statusToBadge)
+
+2. **VectorStore** (812 lines -> 6 files + constants, largest 323 lines)
+   - `index.tsx` (323 lines): State management, data loading, sub-component orchestration
+   - `CollectionList.tsx` (142 lines): Collection table with search, status/index type/metric columns
+   - `CollectionDetail.tsx` (146 lines): Detail drawer with info/document tabs
+   - `VectorSearch.tsx` (100 lines): Similarity search panel with results display
+   - `DocumentManager.tsx` (99 lines): Document upload panel with file reader support
+   - `CreateCollectionModal.tsx` (102 lines): Collection creation form with dimensions/index type selection
+   - `constants.ts` (146 lines): Shared constants and mock data (collections, documents, search results, stats)
+
+### Verification
+- TypeScript type-check: 0 errors in all new/modified files
+- All pre-existing errors in other files unchanged
+- Routing continues to work (default exports preserved in index.tsx)
+
+### Commit
+- `f91fed8` - refactor(frontend): split AgentDashboard and VectorStore into smaller sub-components
+
+## ChatOps Phase 1a - RealDataProvider, SSE Reconnect, DND Settings, Audit Log (COMPLETED - 2026-04-27)
+
+### Completed Work
+
+1. **Task 1: RealDataProvider 替代 MockDataProvider (P0)**
+   - `orion-platform-service/src/services/chatops/RecommendationService.ts`:
+     - 将 `MockDataProvider` 接口重命名为 `DataProvider`
+     - 新增 `RealDataProvider` 类，实现 `DataProvider` 接口
+     - 查询真实数据库表: alerts (活跃告警), pipeline_runs (阻塞任务), self_healing_incidents (自愈失败), alert_rules (成本异常)
+     - 所有查询通过 `safeQuery()` 包裹，表不存在时优雅降级为空数组
+     - 支持可选 tenantId 过滤
+     - `MockDataProviderImpl` 保留但注释掉，便于回滚
+   - `orion-platform-service/src/api/chatops-routes.ts`:
+     - 将 `MockDataProviderImpl` 替换为 `RealDataProvider(db)`
+
+2. **Task 2: SSE 断线重连机制 (P1)**
+   - `orion-frontend/src/api/chatops.ts`:
+     - 新增 `connectSSE(options)` 函数，支持 `onMessage`/`onReconnect`/`onError` 回调
+     - 指数退避重连: 1s, 2s, 4s, 8s, ... 最大 30s
+     - 新增 `disconnectSSE()` 清理函数
+     - 新增 `getSSEState()` 状态查询
+     - 全局单例管理，避免重复连接
+
+3. **Task 3: ChatOpsSettings DND 完整对接 (P2)**
+   - `orion-frontend/src/pages/ChatOps/ChatOpsSettings.tsx`:
+     - 新增免打扰设置 Card: 开关、时间选择器、重复日期多选、紧急告警穿透
+     - 连接 getDNDSettings/updateDNDSettings/toggleDND API
+     - 独立 DND form 和保存状态
+
+4. **Task 4: 审计日志前端页面对接 (P2)**
+   - `orion-frontend/src/pages/ChatOps/AuditLogViewer.tsx`:
+     - 新增日期范围选择器 (RangePicker)
+     - 新增状态过滤 (成功/失败)
+     - 搜索和过滤参数传递给 API (之前仅前端过滤)
+     - 导出使用选中日期范围
+
+### Verification
+- Backend TypeScript type-check: 0 errors (clean)
+- Frontend TypeScript type-check: 0 errors (clean)
+- All pre-existing errors in other files unchanged
+
+## feat: ChatOps 推荐面板权限过滤 (COMPLETED)
+
+### Completed Work
+
+1. **ChatOpsController** (`src/api/controllers/ChatOpsController.ts`):
+   - 新增可选的 `eventSubscriber` 依赖注入
+   - `getRecommendations` 方法优先调用 `eventSubscriber.getFilteredRecommendations(user.role)` 按角色过滤推荐
+   - viewer 角色不显示 critical 级别的操作按钮 (由 EventSubscriber.getFilteredRecommendations 实现)
+   - 无 eventSubscriber 时回退到 recommendationService
+
+2. **chatops-routes.ts** (`src/api/chatops-routes.ts`):
+   - 调整初始化顺序：先创建 eventSubscriber，再创建 controller
+   - 将 eventSubscriber 注入到 ChatOpsController
+
+### Verification
+- Backend TypeScript type-check: 0 new errors (仅 pre-existing WebhookVerifier.ts 错误)
+
+### Commit
+- `9359a63` - feat(chatops): inject EventSubscriber into controller for role-based recommendation filtering
+
+## Next Steps
+1. Continue implementing remaining frontend gaps
+2. Wire SSE recommendations to SmartRecommend panel for real-time updates
