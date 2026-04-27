@@ -344,8 +344,8 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // 注册 Artifact Registry API 路由
   await app.register(artifactRoutes, { prefix: '/artifacts' });
 
-  // 注册 Vector Store API 路由 (P0 - AI semantic search)
-  await app.register(vectorStoreRoutes, { prefix: '/vector-store' });
+  // 注册 Vector Store API 路由 (P0 - AI semantic search) — admin only
+  await registerWithRoleGuard(app, vectorStoreRoutes, '/vector-store');
 
   // 注册 OnCall 排班 API 路由 (P0 - SRE scheduling)
   await app.register(oncallRoutes, { prefix: '/oncall' });
@@ -353,8 +353,8 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // 注册审批 API 路由 (P0 - multi-level approval)
   await app.register(approvalRoutes, { prefix: '/approvals' });
 
-  // 注册 EventBus API 路由 (M24 - PostgreSQL backed)
-  await app.register(eventbusRoutes, { prefix: '/eventbus', database: options.database, eventBus: options.eventBus });
+  // 注册 EventBus API 路由 (M24 - PostgreSQL backed) — admin only
+  await registerWithRoleGuard(app, eventbusRoutes, '/eventbus', { database: options.database, eventBus: options.eventBus });
 
   // 注册 ProductLine 多分支产品线 API 路由 (M6)
   await app.register(productLineRoutes, { prefix: '/product-lines', database: options.database });

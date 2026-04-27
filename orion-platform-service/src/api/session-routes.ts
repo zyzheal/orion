@@ -6,6 +6,8 @@
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { roleGuard } from '../middleware/roleGuard';
 import { DatabasePool } from '../services/database';
 import { SessionRepository } from '../services/session/SessionRepository';
 import { SessionService } from '../services/session/SessionService';
@@ -50,7 +52,12 @@ export default async function sessionRoutes(
   });
 
   // POST /api/v1/sessions/cleanup — Clean up expired sessions (admin)
-  app.post('/cleanup', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/cleanup', {
+    onRequest: [
+      authenticateUser,
+      roleGuard(['admin', 'platform_admin']),
+    ],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.cleanup(request, reply);
   });
 }

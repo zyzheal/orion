@@ -3,6 +3,8 @@
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { roleGuard } from '../middleware/roleGuard';
 import { NotificationService, NotificationServiceError } from '../services/notification';
 import { NotificationRepository, NotificationSettingsRepository, NotificationSettingsService } from '../services/notification';
 
@@ -92,7 +94,7 @@ export default async function notificationRoutes(app: FastifyInstance, options: 
     }
   });
 
-  // POST /api/v1/notifications/broadcast - Broadcast to multiple users
+  // POST /api/v1/notifications/broadcast - Broadcast to multiple users (admin only)
   app.post<{
     Body: {
       tenant_id: string;
@@ -101,7 +103,12 @@ export default async function notificationRoutes(app: FastifyInstance, options: 
       title: string;
       message: string;
     };
-  }>('/broadcast', async (request, reply) => {
+  }>('/broadcast', {
+    onRequest: [
+      authenticateUser,
+      roleGuard(['admin', 'platform_admin']),
+    ],
+  }, async (request, reply) => {
     try {
       const { tenant_id, user_ids, type, title, message } = request.body;
       const count = await service.broadcast(tenant_id, user_ids, type, title, message);
