@@ -47,17 +47,6 @@ import {
 const { Title, Text } = Typography;
 const { TextArea } = Input;
 
-interface RiskRecord {
-  key: string;
-  id: string;
-  targetType: string;
-  targetId: string;
-  riskLevel: string;
-  riskScore: number;
-  status: string;
-  assessedAt: string;
-}
-
 const RiskDashboardPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [assessments, setAssessments] = useState<RiskAssessment[]>([]);
@@ -255,11 +244,6 @@ const RiskDashboardPage: React.FC = () => {
     },
   ];
 
-  const tableData: RiskRecord[] = assessments.map((a) => ({
-    key: a.id,
-    ...a,
-  }));
-
   const eventTableData = events.map((e) => ({
     key: e.id,
     ...e,
@@ -346,9 +330,10 @@ const RiskDashboardPage: React.FC = () => {
 
         {/* Assessment Table */}
         <Card title="风险评估记录" style={{ marginBottom: 24 }}>
-          <Table
+          <Table<RiskAssessment>
             columns={columns}
-            dataSource={tableData}
+            dataSource={assessments}
+            rowKey="id"
             loading={loading}
             pagination={{ pageSize: 10 }}
             size="small"

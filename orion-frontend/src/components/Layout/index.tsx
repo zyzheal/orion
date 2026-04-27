@@ -34,6 +34,10 @@ import {
   DeploymentUnitOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
+  CloudUploadOutlined,
+  ExperimentOutlined,
+  ApiOutlined,
+  SecurityScanOutlined,
 } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
 import type { GetProp } from 'antd';
@@ -142,6 +146,21 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           key: '/change-intelligence',
           icon: <BarChartOutlined />,
           label: '变更智能',
+        },
+        {
+          key: '/eventbus',
+          icon: <DeploymentUnitOutlined />,
+          label: '事件总线',
+        },
+        {
+          key: '/metrics-dashboard',
+          icon: <BarChartOutlined />,
+          label: '指标看板',
+        },
+        {
+          key: '/test-selector',
+          icon: <ExperimentOutlined />,
+          label: '测试管理',
         },
       ],
     },
@@ -259,6 +278,11 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           icon: <RocketOutlined />,
           label: 'ChatOps',
         },
+        {
+          key: '/ai-security',
+          icon: <SecurityScanOutlined />,
+          label: 'AI 安全',
+        },
       ],
     },
     {
@@ -315,6 +339,21 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           key: '/oncall',
           icon: <ClockCircleOutlined />,
           label: '值班管理',
+        },
+        {
+          key: '/sessions',
+          icon: <UserSwitchOutlined />,
+          label: '会话管理',
+        },
+        {
+          key: '/backup',
+          icon: <CloudUploadOutlined />,
+          label: '备份恢复',
+        },
+        {
+          key: '/plugin-spi',
+          icon: <ApiOutlined />,
+          label: '插件框架',
         },
       ],
     },

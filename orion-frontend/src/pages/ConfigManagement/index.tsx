@@ -45,19 +45,6 @@ import {
 const { Title, Text } = Typography;
 const { TextArea } = Input;
 
-interface ConfigRecord {
-  key: string;
-  id: string;
-  keyName: string;
-  value: string;
-  environment: string;
-  category: string;
-  status: string;
-  sensitive: boolean;
-  updatedAt: string;
-  updatedBy: string;
-}
-
 const ConfigManagementPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [configs, setConfigs] = useState<ConfigItem[]>([]);
@@ -199,19 +186,6 @@ const ConfigManagementPage: React.FC = () => {
     }
   };
 
-  const tableData: ConfigRecord[] = configs.map((config) => ({
-    key: config.id,
-    id: config.id,
-    keyName: config.key,
-    value: JSON.stringify(config.value),
-    environment: config.environment,
-    category: config.category,
-    status: config.status,
-    sensitive: config.sensitive,
-    updatedAt: config.updatedAt,
-    updatedBy: config.updatedBy,
-  }));
-
   return (
     <DashboardLayout>
       <div style={{ padding: 24 }}>
@@ -317,7 +291,7 @@ const ConfigManagementPage: React.FC = () => {
         <Card title="配置列表">
           <Table
             columns={columns}
-            dataSource={tableData}
+            dataSource={configs}
             loading={loading}
             pagination={{ pageSize: 10 }}
           />
