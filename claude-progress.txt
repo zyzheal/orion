@@ -714,6 +714,119 @@ Added Ant Design `Alert` (type="warning") banners to 9 frontend pages that fall 
 - `d092b98` - feat(frontend): add Metrics Dashboard and Test Selector pages (P1)
 
 ## Next Steps
-1. Continue implementing remaining P1/P2 missing pages
+1. Continue implementing remaining frontend gaps (CMDB edit, Projects update)
 2. Consider adding backend API clients for Metrics Dashboard and Test Selector when available
 3. Integrate ECharts for trend visualization in Metrics Dashboard
+
+## CMDB Edit + Project Update (COMPLETED - 2026-04-27)
+
+### Completed Work
+
+1. **CMDB CI Edit Feature** (`orion-frontend/src/pages/CMDB/index.tsx`)
+   - Added "编辑" button in CI action column (alongside 详情 and 删除)
+   - Added EditOutlined icon import
+   - Added updateCI and UpdateCIInput imports from @/api/cmdb
+   - Added edit modal state: editModalOpen, editingCI, editForm
+   - Added openEdit() helper to populate edit form with existing CI data
+   - Added handleUpdate() to call updateCI API with UpdateCIInput payload
+   - Edit Modal with pre-filled fields: name, type (disabled), subtype, environment, owner, status, tags
+   - Type field is read-only in edit mode (CI type cannot be changed)
+   - Form submission triggers API call, refreshes list on success
+   - Modal cleanup on cancel (reset fields, clear editingCI)
+
+2. **Projects Update Feature** - Already implemented
+   - Projects page already has full edit functionality:
+     - Edit button in action column
+     - Edit modal with pre-filled data
+     - handleEdit() calling updateProject API
+     - openEdit() helper for form population
+   - No changes needed for this page
+
+### Verification
+- TypeScript type-check: `npx tsc --noEmit` passes with 0 errors
+- Follows existing CMDB page patterns and code style
+- Uses same form/modal pattern as create modal
+
+### Commit
+- `8f16d40` - feat(frontend): add CI edit to CMDB and project update functionality
+
+## P1 Missing Pages - Backup, PluginSPI, AISecurity (COMPLETED - 2026-04-27)
+
+### Completed Work
+
+1. **Backup Management** (`orion-frontend/src/pages/Backup/index.tsx`)
+   - Page header: "Backup Management" with subtitle "数据备份与恢复"
+   - Stats cards via MetricCard: Total Backups, Successful, Failed, Last Backup Time
+   - Backup list table: Name, Type, Size, Status, Duration, Created At, Actions
+   - SearchFilterBar with filter by type (Database, Config, Full) and status
+   - Create backup modal with name, type, description fields
+   - Restore confirmation modal with warning alert and backup details
+   - Download and delete actions with Popconfirm
+   - Mock data warning banner (no backup API available yet)
+
+2. **Plugin SPI** (`orion-frontend/src/pages/PluginSPI/index.tsx`)
+   - Page header: "Plugin SPI" with subtitle "插件扩展点管理"
+   - Stats cards: Total Extension Points, Active Points, Total Registrations, Enabled Plugins
+   - Three tab views: Extension Points, Plugin Registrations, SPI Config
+   - Extension point table: Name, Description, SPI Type, Registered Plugins, Status, Version
+   - Plugin registration table: Name, SPI Point, Provider, Priority, Status
+   - SPI configuration table with edit/delete/add
+   - Filter by SPI type and status
+   - Add/edit SPI configuration modal with fallback strategies
+
+3. **AI Security** (`orion-frontend/src/pages/AISecurity/index.tsx`)
+   - Page header: "AI Security" with subtitle "AI 安全策略"
+   - Stats cards: Policies Active, Requests Blocked, Sensitive Data Detected, Compliance Score
+   - Security policy table: Name, Type, Severity, Status, Violations, Toggle, Actions
+   - Filter by policy type (Input Validation, Output Filtering, PII Detection, Rate Limiting)
+   - Create/edit security policy modals
+   - Evaluate policy modal with recent evaluation results table
+   - Policy detail modal with descriptions, rules, and compliance score progress
+
+### Routes Added
+- `/backup` -> Backup Management
+- `/plugin-spi` -> Plugin SPI
+- `/ai-security` -> AI Security
+
+### Acceptance Criteria
+- [x] Backup Management page with all required features
+- [x] Plugin SPI page with all required features
+- [x] AI Security page with all required features
+- [x] No `any` types used in any of the 3 pages
+- [x] `catch (error: unknown)` with `error instanceof Error` type guards
+- [x] Mock data warning banners (`Alert type="warning"`) on all 3 pages
+- [x] Design tokens used (colors, spacing) - no hardcoded colors
+- [x] Existing components reused (MetricCard, Table, SearchFilterBar)
+- [x] Routes registered in routes.ts
+- [x] TypeScript type-check passes (0 errors in new files)
+
+### Commit
+- `8faba4e` - feat(frontend): add 3 missing P1 pages - Backup, PluginSPI, AISecurity
+
+## Layout Design Token Migration (COMPLETED - 2026-04-27)
+
+### Completed Work
+
+Replaced 6 hardcoded color values in `orion-frontend/src/components/Layout/index.tsx` with Design Tokens from `colors.ts`:
+
+1. **Header background**: `'#fff'` -> `colors.light.bg.primary`
+2. **Console button icon color**: `'#fff'`/`'#666'` -> `colors.dark.text.primary`/`colors.light.text.secondary`
+3. **Theme toggle button color**: `'#fff'`/`'#666'` -> `colors.dark.text.primary`/`colors.light.text.secondary`
+4. **Breadcrumb background**: `'#141414'`/`'#f0f2f5'` -> `colors.dark.bg.primary`/`colors.light.bg.tertiary`
+5. **Content background**: `'#141414'`/`'#fff'` -> `colors.dark.bg.primary`/`colors.light.bg.primary`
+6. **Footer text color**: `'#666'`/`'#999'` -> `colors.dark.text.tertiary`/`colors.neutral[400]`
+
+**Already tokenized (no changes needed):**
+- Title gradient: `colors.primary[500]` -> `colors.purple[500]`
+- Avatar gradient: `colors.primary[500]` -> `colors.purple[500]`
+
+**Kept as inline values (require alpha transparency):**
+- Hover backgrounds: `rgba(255,255,255,0.1)` / `rgba(0,0,0,0.04)`
+- Box shadows: `rgba(0,0,0,0.3)` / `rgba(0,0,0,0.08)`
+
+### Verification
+- TypeScript type-check: 0 errors in Layout/index.tsx
+- Pre-existing errors in other files unchanged
+
+### Commit
+- `ff45f17` - refactor(frontend): replace hardcoded gradient and dark colors in Layout with Design Tokens
