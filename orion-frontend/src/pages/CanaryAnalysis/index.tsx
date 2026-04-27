@@ -69,8 +69,12 @@ const CanaryAnalysis: React.FC = () => {
       const runRes = await getCanaryRuns();
       await getCanaryConfigs();
       setRuns(Array.isArray(runRes.data.data) ? runRes.data.data : []);
-    } catch {
-      message.error('Failed to load canary analysis data');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`加载金丝雀分析数据失败：${error.message}`);
+      } else {
+        message.error('Failed to load canary analysis data');
+      }
     } finally {
       setLoading(false);
     }
@@ -105,8 +109,12 @@ const CanaryAnalysis: React.FC = () => {
       setMetrics(Array.isArray(metricRes.data.data) ? metricRes.data.data : []);
       setMlResults(Array.isArray(mlRes.data.data) ? mlRes.data.data : []);
       setRunDetailVisible(true);
-    } catch {
-      message.error('Failed to load run detail');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`加载运行详情失败：${error.message}`);
+      } else {
+        message.error('Failed to load run detail');
+      }
     }
   };
 
@@ -117,8 +125,12 @@ const CanaryAnalysis: React.FC = () => {
       setTriggerModalVisible(false);
       triggerForm.resetFields();
       loadData();
-    } catch {
-      message.error('Failed to trigger analysis');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`触发分析失败：${error.message}`);
+      } else {
+        message.error('Failed to trigger analysis');
+      }
     }
   };
 
@@ -128,8 +140,12 @@ const CanaryAnalysis: React.FC = () => {
       message.success('Force promoted');
       loadData();
       setRunDetailVisible(false);
-    } catch {
-      message.error('Failed to force promote');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`强制升级失败：${error.message}`);
+      } else {
+        message.error('Failed to force promote');
+      }
     }
   };
 
@@ -139,8 +155,12 @@ const CanaryAnalysis: React.FC = () => {
       message.success('Force rolled back');
       loadData();
       setRunDetailVisible(false);
-    } catch {
-      message.error('Failed to force rollback');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`强制回滚失败：${error.message}`);
+      } else {
+        message.error('Failed to force rollback');
+      }
     }
   };
 
@@ -151,8 +171,12 @@ const CanaryAnalysis: React.FC = () => {
       setConfigModalVisible(false);
       configForm.resetFields();
       loadData();
-    } catch {
-      message.error('Failed to create config');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`创建配置失败：${error.message}`);
+      } else {
+        message.error('Failed to create config');
+      }
     }
   };
 

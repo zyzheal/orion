@@ -62,7 +62,7 @@ const RepoDetail: React.FC = () => {
             }
           }
         } catch {
-          // continue to next adapter
+          // continue to next adapter - optional loading
         }
       }
     } catch (error: unknown) {

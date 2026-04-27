@@ -203,8 +203,15 @@ const InternalLibraryManagement: React.FC = () => {
       setCreateModalVisible(false);
       createForm.resetFields();
       loadData();
-    } catch {
-      message.error('二方库创建失败');
+    } catch (error: unknown) {
+      const err = error as { errorFields?: unknown };
+      if (!err.errorFields) {
+        if (error instanceof Error) {
+          message.error(`二方库创建失败：${error.message}`);
+        } else {
+          message.error('二方库创建失败');
+        }
+      }
     } finally {
       setSubmitting(false);
     }
@@ -215,8 +222,12 @@ const InternalLibraryManagement: React.FC = () => {
       await deleteInternalLibrary(id);
       message.success('二方库已删除');
       loadData();
-    } catch {
-      message.error('删除失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`删除失败：${error.message}`);
+      } else {
+        message.error('删除失败');
+      }
     }
   };
 
@@ -225,8 +236,12 @@ const InternalLibraryManagement: React.FC = () => {
       await activateInternalLibrary(id);
       message.success('二方库已激活');
       loadData();
-    } catch {
-      message.error('激活失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`激活失败：${error.message}`);
+      } else {
+        message.error('激活失败');
+      }
     }
   };
 
@@ -247,8 +262,15 @@ const InternalLibraryManagement: React.FC = () => {
       deprecateForm.resetFields();
       loadData();
       if (detailDrawerVisible) openDetail(selectedLib);
-    } catch {
-      message.error('废弃失败');
+    } catch (error: unknown) {
+      const err = error as { errorFields?: unknown };
+      if (!err.errorFields) {
+        if (error instanceof Error) {
+          message.error(`废弃失败：${error.message}`);
+        } else {
+          message.error('废弃失败');
+        }
+      }
     } finally {
       setSubmitting(false);
     }
@@ -273,8 +295,15 @@ const InternalLibraryManagement: React.FC = () => {
       setVersionModalVisible(false);
       versionForm.resetFields();
       if (detailDrawerVisible) openDetail(selectedLib);
-    } catch {
-      message.error('发布失败');
+    } catch (error: unknown) {
+      const err = error as { errorFields?: unknown };
+      if (!err.errorFields) {
+        if (error instanceof Error) {
+          message.error(`发布失败：${error.message}`);
+        } else {
+          message.error('发布失败');
+        }
+      }
     } finally {
       setSubmitting(false);
     }
@@ -291,8 +320,15 @@ const InternalLibraryManagement: React.FC = () => {
       setDeprecateVersionModalVisible(false);
       deprecateVersionForm.resetFields();
       if (detailDrawerVisible) openDetail(selectedLib);
-    } catch {
-      message.error('废弃失败');
+    } catch (error: unknown) {
+      const err = error as { errorFields?: unknown };
+      if (!err.errorFields) {
+        if (error instanceof Error) {
+          message.error(`废弃失败：${error.message}`);
+        } else {
+          message.error('废弃失败');
+        }
+      }
     } finally {
       setSubmitting(false);
     }
@@ -313,8 +349,15 @@ const InternalLibraryManagement: React.FC = () => {
       setAddDependentModalVisible(false);
       addDependentForm.resetFields();
       if (detailDrawerVisible) openDetail(selectedLib);
-    } catch {
-      message.error('添加失败');
+    } catch (error: unknown) {
+      const err = error as { errorFields?: unknown };
+      if (!err.errorFields) {
+        if (error instanceof Error) {
+          message.error(`添加失败：${error.message}`);
+        } else {
+          message.error('添加失败');
+        }
+      }
     } finally {
       setSubmitting(false);
     }
@@ -326,8 +369,12 @@ const InternalLibraryManagement: React.FC = () => {
       await updateDependent(selectedLib.id, repoName, version);
       message.success('依赖版本已更新');
       if (detailDrawerVisible) openDetail(selectedLib);
-    } catch {
-      message.error('更新失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`更新失败：${error.message}`);
+      } else {
+        message.error('更新失败');
+      }
     }
   };
 
@@ -337,8 +384,12 @@ const InternalLibraryManagement: React.FC = () => {
       await updateDependentStats(selectedLib.id);
       message.success('依赖统计已更新');
       if (detailDrawerVisible) openDetail(selectedLib);
-    } catch {
-      message.error('更新统计失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`更新依赖统计失败：${error.message}`);
+      } else {
+        message.error('更新依赖统计失败');
+      }
     }
   };
 
@@ -353,7 +404,7 @@ const InternalLibraryManagement: React.FC = () => {
       ]);
       setVersions(verRes?.data?.data || lib.versions || MOCK_LIBRARIES.find((m) => m.id === lib.id)?.versions || []);
       setDependents(depRes?.data?.data || lib.dependents?.list || MOCK_DEPENDENTS);
-    } catch {
+    } catch (error: unknown) {
       setVersions(lib.versions || []);
       setDependents(lib.dependents?.list || MOCK_DEPENDENTS);
     }

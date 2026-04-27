@@ -370,9 +370,14 @@ const AISecurityPage: React.FC = () => {
     try {
       // TODO: Replace with actual API call when AI security API is available
       throw new Error('API not yet implemented');
-    } catch {
+    } catch (error: unknown) {
       setUsingMockData(true);
       setPolicies(MOCK_POLICIES);
+      if (error instanceof Error) {
+        message.error(`加载安全策略失败：${error.message}`);
+      } else {
+        message.error('加载安全策略失败，请稍后重试');
+      }
     } finally {
       setLoading(false);
     }
@@ -381,9 +386,14 @@ const AISecurityPage: React.FC = () => {
   const loadStats = async () => {
     try {
       throw new Error('API not yet implemented');
-    } catch {
+    } catch (error: unknown) {
       setUsingMockData(true);
       setStats(MOCK_STATS);
+      if (error instanceof Error) {
+        message.error(`加载统计数据失败：${error.message}`);
+      } else {
+        message.error('加载统计数据失败，请稍后重试');
+      }
     }
   };
 
@@ -457,8 +467,12 @@ const AISecurityPage: React.FC = () => {
       message.success('策略已删除');
       loadData();
       loadStats();
-    } catch {
-      message.error('删除失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`删除策略失败：${error.message}`);
+      } else {
+        message.error('删除失败');
+      }
     }
   };
 
@@ -472,8 +486,12 @@ const AISecurityPage: React.FC = () => {
       message.success(
         `策略 "${record.name}" 已${newEnabled ? '启用' : '禁用'}`
       );
-    } catch {
-      message.error('状态更新失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`状态更新失败：${error.message}`);
+      } else {
+        message.error('状态更新失败');
+      }
     }
   };
 
@@ -483,8 +501,12 @@ const AISecurityPage: React.FC = () => {
       // TODO: Replace with actual API call
       message.success('策略评估已启动，结果将稍后显示');
       setEvaluateModalVisible(false);
-    } catch {
-      message.error('评估启动失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`评估启动失败：${error.message}`);
+      } else {
+        message.error('评估启动失败');
+      }
     } finally {
       setSubmitting(false);
     }

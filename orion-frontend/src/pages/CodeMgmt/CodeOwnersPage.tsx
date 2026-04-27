@@ -70,7 +70,7 @@ const CodeOwnersPage: React.FC = () => {
             repos.forEach((repo) => allRepos.push({ ...repo, adapterId: adapter.id }));
           }
         } catch {
-          // skip
+          // skip adapter - optional loading
         }
       }
       setRepoOptions(allRepos);

@@ -189,7 +189,7 @@ const BranchResolver: React.FC<{ productLines: ProductLine[] }> = ({ productLine
         needsApproval: approvalRes?.data?.data?.requiresApproval,
         isHotfixBranch: hotfixRes?.data?.data?.isHotfix,
       });
-    } catch {
+    } catch (error: unknown) {
       // Try mock: find matching env mapping
       const pl = productLines.find((p) => p.id === plId);
       if (pl) {
@@ -262,9 +262,14 @@ const ProductLineManagement: React.FC = () => {
     try {
       const res = await getProductLines();
       setProductLines(Array.isArray(res.data?.data) ? res.data.data : []);
-    } catch {
+    } catch (error: unknown) {
       setUsingMockData(true);
       setProductLines(MOCK_PRODUCT_LINES);
+      if (error instanceof Error) {
+        message.error(`加载产品线数据失败：${error.message}`);
+      } else {
+        message.error('加载产品线数据失败，请稍后重试');
+      }
     } finally {
       setLoading(false);
     }
@@ -316,8 +321,15 @@ const ProductLineManagement: React.FC = () => {
       setCreateModalVisible(false);
       createForm.resetFields();
       loadData();
-    } catch {
-      message.error('创建失败');
+    } catch (error: unknown) {
+      const err = error as { errorFields?: unknown };
+      if (!err.errorFields) {
+        if (error instanceof Error) {
+          message.error(`创建失败：${error.message}`);
+        } else {
+          message.error('创建失败');
+        }
+      }
     } finally {
       setSubmitting(false);
     }
@@ -341,8 +353,15 @@ const ProductLineManagement: React.FC = () => {
       message.success('产品线更新成功');
       setEditModalVisible(false);
       loadData();
-    } catch {
-      message.error('更新失败');
+    } catch (error: unknown) {
+      const err = error as { errorFields?: unknown };
+      if (!err.errorFields) {
+        if (error instanceof Error) {
+          message.error(`更新失败：${error.message}`);
+        } else {
+          message.error('更新失败');
+        }
+      }
     } finally {
       setSubmitting(false);
     }
@@ -353,8 +372,12 @@ const ProductLineManagement: React.FC = () => {
       await deleteProductLine(id);
       message.success('产品线已删除');
       loadData();
-    } catch {
-      message.error('删除失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`删除失败：${error.message}`);
+      } else {
+        message.error('删除失败');
+      }
     }
   };
 
@@ -363,8 +386,12 @@ const ProductLineManagement: React.FC = () => {
       await activateProductLine(id);
       message.success('产品线已激活');
       loadData();
-    } catch {
-      message.error('激活失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`激活失败：${error.message}`);
+      } else {
+        message.error('激活失败');
+      }
     }
   };
 
@@ -373,8 +400,12 @@ const ProductLineManagement: React.FC = () => {
       await suspendProductLine(id);
       message.success('产品线已暂停');
       loadData();
-    } catch {
-      message.error('暂停失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`暂停失败：${error.message}`);
+      } else {
+        message.error('暂停失败');
+      }
     }
   };
 
@@ -399,7 +430,7 @@ const ProductLineManagement: React.FC = () => {
       ]);
       setReleaseTrains(rtRes?.data?.data || MOCK_RELEASE_TRAINS.filter((r) => r.productLineId === pl.id));
       setHotfixChannels(hfRes?.data?.data || MOCK_HOTFIX_CHANNELS.filter((h) => h.productLineId === pl.id));
-    } catch {
+    } catch (error: unknown) {
       setReleaseTrains(MOCK_RELEASE_TRAINS.filter((r) => r.productLineId === pl.id));
       setHotfixChannels(MOCK_HOTFIX_CHANNELS.filter((h) => h.productLineId === pl.id));
     }
@@ -424,9 +455,16 @@ const ProductLineManagement: React.FC = () => {
       setRtModalVisible(false);
       rtForm.resetFields();
       // Reload
-      try { const res = await getReleaseTrains(selectedPL.id); setReleaseTrains(res.data?.data || []); } catch { /* ignore */ }
-    } catch {
-      message.error('创建失败');
+      try { const res = await getReleaseTrains(selectedPL.id); setReleaseTrains(res.data?.data || []); } catch { /* optional reload, ignore */ }
+    } catch (error: unknown) {
+      const err = error as { errorFields?: unknown };
+      if (!err.errorFields) {
+        if (error instanceof Error) {
+          message.error(`创建失败：${error.message}`);
+        } else {
+          message.error('创建失败');
+        }
+      }
     } finally {
       setSubmitting(false);
     }
@@ -451,9 +489,16 @@ const ProductLineManagement: React.FC = () => {
       message.success('紧急修复通道创建成功');
       setHfModalVisible(false);
       hfForm.resetFields();
-      try { const res = await getHotfixChannels(selectedPL.id); setHotfixChannels(res.data?.data || []); } catch { /* ignore */ }
-    } catch {
-      message.error('创建失败');
+      try { const res = await getHotfixChannels(selectedPL.id); setHotfixChannels(res.data?.data || []); } catch { /* optional reload, ignore */ }
+    } catch (error: unknown) {
+      const err = error as { errorFields?: unknown };
+      if (!err.errorFields) {
+        if (error instanceof Error) {
+          message.error(`创建失败：${error.message}`);
+        } else {
+          message.error('创建失败');
+        }
+      }
     } finally {
       setSubmitting(false);
     }

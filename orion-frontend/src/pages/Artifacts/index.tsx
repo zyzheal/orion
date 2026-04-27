@@ -183,7 +183,7 @@ const ArtifactManagement: React.FC = () => {
     try {
       const res = await getArtifactStats();
       setStats(res.data?.data || MOCK_STATS);
-    } catch {
+    } catch (error: unknown) {
       setUsingMockData(true);
       setStats(MOCK_STATS);
     }
@@ -193,7 +193,7 @@ const ArtifactManagement: React.FC = () => {
     try {
       const res = await getNamespaces();
       setNamespaces(res.data?.data || []);
-    } catch {
+    } catch (error: unknown) {
       setUsingMockData(true);
       setNamespaces(['platform', 'ai', 'frontend', 'infra']);
     }
@@ -237,8 +237,15 @@ const ArtifactManagement: React.FC = () => {
       createForm.resetFields();
       loadData();
       loadStats();
-    } catch {
-      message.error('创建失败');
+    } catch (error: unknown) {
+      const err = error as { errorFields?: unknown };
+      if (!err.errorFields) {
+        if (error instanceof Error) {
+          message.error(`创建失败：${error.message}`);
+        } else {
+          message.error('创建失败');
+        }
+      }
     } finally {
       setSubmitting(false);
     }
@@ -258,8 +265,15 @@ const ArtifactManagement: React.FC = () => {
       message.success('制品更新成功');
       setEditModalVisible(false);
       loadData();
-    } catch {
-      message.error('更新失败');
+    } catch (error: unknown) {
+      const err = error as { errorFields?: unknown };
+      if (!err.errorFields) {
+        if (error instanceof Error) {
+          message.error(`更新失败：${error.message}`);
+        } else {
+          message.error('更新失败');
+        }
+      }
     } finally {
       setSubmitting(false);
     }
@@ -271,8 +285,12 @@ const ArtifactManagement: React.FC = () => {
       message.success('制品已删除');
       loadData();
       loadStats();
-    } catch {
-      message.error('删除失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`删除失败：${error.message}`);
+      } else {
+        message.error('删除失败');
+      }
     }
   };
 
@@ -281,8 +299,12 @@ const ArtifactManagement: React.FC = () => {
       await deprecateArtifact(id);
       message.success('制品已废弃');
       loadData();
-    } catch {
-      message.error('废弃失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`废弃失败：${error.message}`);
+      } else {
+        message.error('废弃失败');
+      }
     }
   };
 
@@ -291,8 +313,12 @@ const ArtifactManagement: React.FC = () => {
       await quarantineArtifact(id);
       message.success('制品已隔离');
       loadData();
-    } catch {
-      message.error('隔离失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`隔离失败：${error.message}`);
+      } else {
+        message.error('隔离失败');
+      }
     }
   };
 
@@ -306,8 +332,12 @@ const ArtifactManagement: React.FC = () => {
       } else {
         message.warning('未获取到下载链接');
       }
-    } catch {
-      message.error('下载失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`下载失败：${error.message}`);
+      } else {
+        message.error('下载失败');
+      }
     }
   };
 
@@ -327,8 +357,15 @@ const ArtifactManagement: React.FC = () => {
       promotionForm.resetFields();
       loadData();
       loadStats();
-    } catch {
-      message.error('晋升失败');
+    } catch (error: unknown) {
+      const err = error as { errorFields?: unknown };
+      if (!err.errorFields) {
+        if (error instanceof Error) {
+          message.error(`晋升失败：${error.message}`);
+        } else {
+          message.error('晋升失败');
+        }
+      }
     } finally {
       setSubmitting(false);
     }
@@ -345,8 +382,15 @@ const ArtifactManagement: React.FC = () => {
       setTagModalVisible(false);
       tagForm.resetFields();
       loadTags(selectedArtifact.id);
-    } catch {
-      message.error('添加标签失败');
+    } catch (error: unknown) {
+      const err = error as { errorFields?: unknown };
+      if (!err.errorFields) {
+        if (error instanceof Error) {
+          message.error(`添加标签失败：${error.message}`);
+        } else {
+          message.error('添加标签失败');
+        }
+      }
     } finally {
       setSubmitting(false);
     }
@@ -385,7 +429,7 @@ const ArtifactManagement: React.FC = () => {
     try {
       const res = await getArtifactTags(id);
       setTags(Array.isArray(res.data?.data) ? res.data.data : MOCK_TAGS.filter((t) => t.artifactId === id));
-    } catch {
+    } catch (error: unknown) {
       setTags(MOCK_TAGS.filter((t) => t.artifactId === id));
     }
   };
@@ -394,7 +438,7 @@ const ArtifactManagement: React.FC = () => {
     try {
       const res = await getPromotionHistory(id);
       setPromotionHistory(Array.isArray(res.data?.data) ? res.data.data : MOCK_PROMOTION_HISTORY.filter((p) => p.artifactId === id));
-    } catch {
+    } catch (error: unknown) {
       setPromotionHistory(MOCK_PROMOTION_HISTORY.filter((p) => p.artifactId === id));
     }
   };

@@ -78,7 +78,7 @@ const RepoList: React.FC = () => {
         setRepoBranchCounts((prev) => ({ ...prev, [repo.id]: branches.length }));
       }
     } catch {
-      // silently ignore
+      // silently ignore - optional detail loading
     }
     try {
       const prResp = await getPullRequests(repo.adapterId, repo.id);
@@ -87,7 +87,7 @@ const RepoList: React.FC = () => {
         setRepoPrCounts((prev) => ({ ...prev, [repo.id]: prs.length }));
       }
     } catch {
-      // silently ignore
+      // silently ignore - optional detail loading
     }
   }, []);
 

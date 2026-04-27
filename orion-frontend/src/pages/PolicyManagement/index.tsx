@@ -55,8 +55,12 @@ const PolicyManagement: React.FC = () => {
       ]);
       setPolicies(Array.isArray(policyRes.data.data) ? policyRes.data.data : []);
       setViolations(Array.isArray(violationRes.data.data) ? violationRes.data.data : []);
-    } catch {
-      message.error('Failed to load policy data');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`Failed to load policy data：${error.message}`);
+      } else {
+        message.error('Failed to load policy data');
+      }
     } finally {
       setLoading(false);
     }
@@ -103,8 +107,12 @@ const PolicyManagement: React.FC = () => {
       setEditingPolicy(null);
       form.resetFields();
       loadData();
-    } catch {
-      message.error('Failed to save policy');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`Failed to save policy：${error.message}`);
+      } else {
+        message.error('Failed to save policy');
+      }
     }
   };
 
@@ -113,8 +121,12 @@ const PolicyManagement: React.FC = () => {
       await togglePolicy(policy.id);
       message.success(`Policy ${policy.enabled ? 'disabled' : 'enabled'}`);
       loadData();
-    } catch {
-      message.error('Failed to toggle policy');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`Failed to toggle policy：${error.message}`);
+      } else {
+        message.error('Failed to toggle policy');
+      }
     }
   };
 
@@ -123,8 +135,12 @@ const PolicyManagement: React.FC = () => {
       await deletePolicy(id);
       message.success('Policy deleted');
       loadData();
-    } catch {
-      message.error('Failed to delete policy');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`Failed to delete policy：${error.message}`);
+      } else {
+        message.error('Failed to delete policy');
+      }
     }
   };
 
@@ -135,8 +151,12 @@ const PolicyManagement: React.FC = () => {
       message.success('Policy evaluated');
       setEvaluateModalVisible(false);
       evalForm.resetFields();
-    } catch {
-      message.error('Failed to evaluate policy');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`Failed to evaluate policy：${error.message}`);
+      } else {
+        message.error('Failed to evaluate policy');
+      }
     }
   };
 
@@ -145,8 +165,12 @@ const PolicyManagement: React.FC = () => {
       await resolveViolation(id);
       message.success('Violation resolved');
       loadData();
-    } catch {
-      message.error('Failed to resolve violation');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`Failed to resolve violation：${error.message}`);
+      } else {
+        message.error('Failed to resolve violation');
+      }
     }
   };
 

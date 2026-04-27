@@ -131,9 +131,8 @@ const QueueManagement: React.FC = () => {
       }
       const res = await listJobs(params);
       setJobs(Array.isArray(res.data?.data?.jobs) ? res.data.data.jobs : []);
-    } catch {
+    } catch (error: unknown) {
       setUsingMockData(true);
-      // Fallback to mock data
       let filtered = [...MOCK_JOBS];
       if (statusFilter !== 'all') {
         filtered = filtered.filter((j) => j.status === statusFilter);
@@ -142,6 +141,11 @@ const QueueManagement: React.FC = () => {
         filtered = filtered.filter((j) => j.queue === queueFilter);
       }
       setJobs(filtered);
+      if (error instanceof Error) {
+        message.error(`加载任务数据失败：${error.message}`);
+      } else {
+        message.error('加载任务数据失败，请稍后重试');
+      }
     } finally {
       setLoading(false);
     }
@@ -151,7 +155,7 @@ const QueueManagement: React.FC = () => {
     try {
       const res = await getQueueStats();
       setStats(res.data?.data || MOCK_STATS);
-    } catch {
+    } catch (error: unknown) {
       setUsingMockData(true);
       setStats(MOCK_STATS);
     }
@@ -184,9 +188,11 @@ const QueueManagement: React.FC = () => {
       enqueueForm.resetFields();
       loadData();
       loadStats();
-    } catch (err: any) {
-      if (err?.message?.includes('JSON')) {
+    } catch (err: unknown) {
+      if (err instanceof Error && err.message.includes('JSON')) {
         message.error('Payload 格式错误，请输入有效的 JSON');
+      } else if (err instanceof Error) {
+        message.error(`入队失败：${err.message}`);
       } else {
         message.error('入队失败');
       }
@@ -208,8 +214,12 @@ const QueueManagement: React.FC = () => {
       dequeueForm.resetFields();
       loadData();
       loadStats();
-    } catch {
-      message.error('出队失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`出队失败：${error.message}`);
+      } else {
+        message.error('出队失败');
+      }
     } finally {
       setSubmitting(false);
     }
@@ -221,8 +231,12 @@ const QueueManagement: React.FC = () => {
       message.success('任务已标记为完成');
       loadData();
       loadStats();
-    } catch {
-      message.error('操作失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`操作失败：${error.message}`);
+      } else {
+        message.error('操作失败');
+      }
     }
   };
 
@@ -232,8 +246,12 @@ const QueueManagement: React.FC = () => {
       message.success('任务已标记为失败');
       loadData();
       loadStats();
-    } catch {
-      message.error('操作失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`操作失败：${error.message}`);
+      } else {
+        message.error('操作失败');
+      }
     }
   };
 
