@@ -2,7 +2,7 @@
  * Cost Overview - Stats cards, 7-day trend, top tenants/users, model distribution
  */
 import React, { useState, useEffect } from 'react';
-import { Typography, Button, Tag, Card, Row, Col, Statistic, Table as AntTable } from 'antd';
+import { Typography, Button, Tag, Card, Row, Col, Statistic, Table as AntTable, message } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { getDashboardData, getModelPricing, type DashboardData, type ModelPricing } from '@/api/ai-cost';
@@ -25,7 +25,7 @@ const CostOverview: React.FC = () => {
       ]);
       setDashboard(dashRes.data.data as DashboardData | null);
       setPricing(Array.isArray(pricingRes.data.data) ? pricingRes.data.data : []);
-    } catch {
+    } catch (error: unknown) {
       // Set mock data for demo
       setDashboard({
         todayCost: 128.45,
@@ -53,6 +53,11 @@ const CostOverview: React.FC = () => {
           { model: 'claude-3', cost: 120.00 },
         ],
       });
+      if (error instanceof Error) {
+        message.warning(`加载成本数据失败，使用模拟数据：${error.message}`);
+      } else {
+        message.warning('加载成本数据失败，使用模拟数据');
+      }
     } finally {
       setLoading(false);
     }

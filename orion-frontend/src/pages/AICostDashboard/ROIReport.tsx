@@ -2,7 +2,7 @@
  * ROI Report - Monthly ROI by feature, improvement suggestions
  */
 import React, { useState, useEffect } from 'react';
-import { Typography, Button, Space, Tag, Card, Row, Col, Statistic, Select, Table as AntTable } from 'antd';
+import { Typography, Button, Space, Tag, Card, Row, Col, Statistic, Select, Table as AntTable, message } from 'antd';
 import { ReloadOutlined, RiseOutlined, FundOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { getROIReport } from '@/api/ai-cost';
@@ -39,7 +39,7 @@ const ROIFeatureReport: React.FC = () => {
       const data = res.data.data as { features?: ROIFeatureData[]; suggestions?: ROISuggestion[] };
       setRoiData(Array.isArray(data?.features) ? data.features : []);
       setSuggestions(Array.isArray(data?.suggestions) ? data.suggestions : []);
-    } catch {
+    } catch (error: unknown) {
       // Mock data
       setRoiData([
         { feature: '代码审查', cost: 120.50, timeSaved: 45, qualityScore: 85, roi: 3.2 },
@@ -53,6 +53,9 @@ const ROIFeatureReport: React.FC = () => {
         { id: 's2', category: '缓存优化', description: '启用响应缓存减少重复调用', potentialSaving: 200, priority: 'high' },
         { id: 's3', category: 'Token 优化', description: '优化 prompt 减少不必要的上下文', potentialSaving: 120, priority: 'medium' },
       ]);
+      if (error instanceof Error) {
+        message.warning(`加载ROI数据失败，使用模拟数据：${error.message}`);
+      }
     } finally {
       setLoading(false);
     }

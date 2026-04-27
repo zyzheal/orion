@@ -2,7 +2,7 @@
  * RAG Query - RAG Q&A interface with retrieval results
  */
 import React, { useState, useEffect } from 'react';
-import { Typography, Button, Space, Tag, Card, Input, Select, Collapse, Progress, Row, Col } from 'antd';
+import { Typography, Button, Space, Tag, Card, Input, Select, Collapse, Progress, Row, Col, message } from 'antd';
 import { colors, spacing } from '@/tokens';
 import { SendOutlined, BookOutlined } from '@ant-design/icons';
 import { ragQuery, getSpaces, type RAGResult } from '@/api/ai-docs';
@@ -32,8 +32,11 @@ const RAGQueryPage: React.FC = () => {
       const res = await getSpaces();
       const spaceList = Array.isArray(res.data.data) ? res.data.data : [];
       setSpaces(spaceList.map((s: { id: string; name: string }) => ({ id: s.id, name: s.name })));
-    } catch {
+    } catch (error: unknown) {
       setSpaces([{ id: 'all', name: '全部知识库' }, { id: 's1', name: '技术文档库' }, { id: 's2', name: '团队知识库' }]);
+      if (error instanceof Error) {
+        message.warning('加载知识库列表失败，使用模拟数据');
+      }
     }
   };
 
@@ -70,7 +73,7 @@ const RAGQueryPage: React.FC = () => {
         timestamp: dayjs().toISOString(),
       };
       setMessages((prev) => [...prev, assistantMessage]);
-    } catch {
+    } catch (error: unknown) {
       // Mock response
       const mockSources: RAGResult[] = [
         { documentId: 'd1', title: 'API 设计最佳实践', snippet: 'RESTful API 应该遵循资源命名规范...', relevanceScore: 0.92, spaceId: 's1' },

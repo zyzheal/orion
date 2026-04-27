@@ -32,8 +32,12 @@ const AuditLogViewer: React.FC = () => {
       ]);
       setLogs(Array.isArray(logRes.data.data) ? logRes.data.data : []);
       setStats(statsRes.data.data as AuditStats | null);
-    } catch {
-      message.error('Failed to load audit logs');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`Failed to load audit logs：${error.message}`);
+      } else {
+        message.error('Failed to load audit logs');
+      }
     } finally {
       setLoading(false);
     }
@@ -63,8 +67,12 @@ const AuditLogViewer: React.FC = () => {
         format: 'csv',
       });
       message.success('导出成功');
-    } catch {
-      message.error('导出失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`导出失败：${error.message}`);
+      } else {
+        message.error('导出失败');
+      }
     } finally {
       setExporting(false);
     }

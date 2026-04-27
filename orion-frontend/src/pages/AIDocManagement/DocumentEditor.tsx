@@ -38,11 +38,14 @@ const DocumentEditor: React.FC = () => {
     try {
       const res = await getDocs();
       setDocuments(Array.isArray(res.data.data) ? res.data.data : []);
-    } catch {
+    } catch (error: unknown) {
       setDocuments([
         { id: 'd1', spaceId: 's1', title: 'API 设计最佳实践', content: '# API 设计最佳实践\n\n本文档介绍了 RESTful API 的设计原则...', status: 'published', version: 3, tags: ['api', 'design'], authorId: 'admin', createdAt: '2024-01-15', updatedAt: '2024-03-10' },
         { id: 'd2', spaceId: 's1', title: 'Kubernetes 运维手册', content: '# Kubernetes 运维手册\n\nK8s 日常运维操作指南...', status: 'published', version: 5, tags: ['k8s', 'ops'], authorId: 'admin', createdAt: '2024-02-01', updatedAt: '2024-03-15' },
       ]);
+      if (error instanceof Error) {
+        message.warning(`加载文档失败，使用模拟数据：${error.message}`);
+      }
     } finally {
       setLoading(false);
     }
@@ -66,8 +69,12 @@ const DocumentEditor: React.FC = () => {
       await updateDoc(selectedDoc.id, { title, content, status });
       message.success('文档已保存');
       loadDocuments();
-    } catch {
-      message.error('保存失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`保存失败：${error.message}`);
+      } else {
+        message.error('保存失败');
+      }
     } finally {
       setSaving(false);
     }

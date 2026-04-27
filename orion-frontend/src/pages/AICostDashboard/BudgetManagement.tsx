@@ -44,13 +44,16 @@ const BudgetManagement: React.FC = () => {
     try {
       const res = await getBudgets();
       setBudgets(Array.isArray(res.data.data) ? res.data.data : []);
-    } catch {
+    } catch (error: unknown) {
       // Demo mock data
       setBudgets([
         { id: 'b1', name: 'GPT-4 月度预算', type: 'model', scope: 'gpt-4', period: 'monthly', amount: 5000, thresholds: { warning: 80, critical: 95 }, status: 'active', createdAt: '2024-01-01', updatedAt: '2024-01-15' },
         { id: 'b2', name: '租户 Alpha 预算', type: 'tenant', scope: 'tenant-alpha', period: 'monthly', amount: 2000, thresholds: { warning: 75, critical: 90 }, status: 'active', createdAt: '2024-01-05', updatedAt: '2024-01-10' },
         { id: 'b3', name: '用户预算', type: 'user', scope: 'user-001', period: 'monthly', amount: 500, thresholds: { warning: 80, critical: 95 }, status: 'exceeded', createdAt: '2024-02-01', updatedAt: '2024-02-20' },
       ]);
+      if (error instanceof Error) {
+        message.warning(`加载预算数据失败，使用模拟数据：${error.message}`);
+      }
     } finally {
       setLoading(false);
     }
@@ -89,8 +92,12 @@ const BudgetManagement: React.FC = () => {
       setCreateModalVisible(false);
       createForm.resetFields();
       loadData();
-    } catch {
-      message.error('创建失败');
+    } catch (error: unknown) {
+      const err = error as { errorFields?: unknown };
+      if (!err.errorFields) {
+        const msg = error instanceof Error ? error.message : '创建失败';
+        message.error(msg);
+      }
     } finally {
       setSubmitting(false);
     }
@@ -109,8 +116,12 @@ const BudgetManagement: React.FC = () => {
       message.success('预算更新成功');
       setEditModalVisible(false);
       loadData();
-    } catch {
-      message.error('更新失败');
+    } catch (error: unknown) {
+      const err = error as { errorFields?: unknown };
+      if (!err.errorFields) {
+        const msg = error instanceof Error ? error.message : '更新失败';
+        message.error(msg);
+      }
     } finally {
       setSubmitting(false);
     }
@@ -121,8 +132,12 @@ const BudgetManagement: React.FC = () => {
       await restoreBudget(id);
       message.success('预算已重置');
       loadData();
-    } catch {
-      message.error('重置失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`预算重置失败：${error.message}`);
+      } else {
+        message.error('重置失败');
+      }
     }
   };
 

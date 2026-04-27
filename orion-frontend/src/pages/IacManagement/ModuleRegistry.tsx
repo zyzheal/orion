@@ -38,8 +38,12 @@ const ModuleRegistry: React.FC = () => {
     try {
       const res = await getModules();
       setModules(Array.isArray(res.data.data) ? res.data.data : []);
-    } catch {
-      message.error('Failed to load modules');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`Failed to load modules：${error.message}`);
+      } else {
+        message.error('Failed to load modules');
+      }
     } finally {
       setLoading(false);
     }
@@ -77,8 +81,12 @@ const ModuleRegistry: React.FC = () => {
       setCreateModalVisible(false);
       createForm.resetFields();
       loadData();
-    } catch {
-      message.error('注册失败');
+    } catch (error: unknown) {
+      const err = error as { errorFields?: unknown };
+      if (!err.errorFields) {
+        const msg = error instanceof Error ? error.message : '注册失败';
+        message.error(msg);
+      }
     } finally {
       setSubmitting(false);
     }
@@ -89,8 +97,12 @@ const ModuleRegistry: React.FC = () => {
       await deleteModule(id);
       message.success('模块已删除');
       loadData();
-    } catch {
-      message.error('删除失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`删除失败：${error.message}`);
+      } else {
+        message.error('删除失败');
+      }
     }
   };
 

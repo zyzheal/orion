@@ -23,8 +23,8 @@ const ChatOpsSettings: React.FC = () => {
       const res = await getChatOpsSettings();
       const data = (res as any).data?.data;
       if (data) form.setFieldsValue(data);
-    } catch {
-      // Use defaults
+    } catch (error: unknown) {
+      // Use defaults - optional settings load
     }
   };
 
@@ -38,8 +38,12 @@ const ChatOpsSettings: React.FC = () => {
       setSaving(true);
       await updateChatOpsSettings(values);
       message.success('设置已保存');
-    } catch {
-      message.error('保存失败');
+    } catch (error: unknown) {
+      const err = error as { errorFields?: unknown };
+      if (!err.errorFields) {
+        const msg = error instanceof Error ? error.message : '保存失败';
+        message.error(msg);
+      }
     } finally {
       setSaving(false);
     }

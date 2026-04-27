@@ -31,8 +31,12 @@ const CommandBrowser: React.FC = () => {
     try {
       const res = await getCommands();
       setCommands(Array.isArray(res.data.data) ? res.data.data : []);
-    } catch {
-      message.error('Failed to load commands');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`Failed to load commands：${error.message}`);
+      } else {
+        message.error('Failed to load commands');
+      }
     } finally {
       setLoading(false);
     }

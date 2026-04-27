@@ -47,13 +47,17 @@ const PlanViewer: React.FC = () => {
           if (Array.isArray(planRes.data.data)) {
             allPlans.push(...planRes.data.data);
           }
-        } catch {
-          // Workspace may not have plans
+        } catch (error: unknown) {
+          // Workspace may not have plans - silently ignore
         }
       }
       setPlans(allPlans);
-    } catch {
-      message.error('Failed to load plans');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`Failed to load plans：${error.message}`);
+      } else {
+        message.error('Failed to load plans');
+      }
     } finally {
       setLoading(false);
     }

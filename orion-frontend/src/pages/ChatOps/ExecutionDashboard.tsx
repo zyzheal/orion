@@ -47,8 +47,12 @@ const ExecutionDashboard: React.FC = () => {
         durationMs: index % 5 !== 0 ? (index * 1000 + 500) : undefined,
       }));
       setExecutions(mockExecutions);
-    } catch {
-      message.error('Failed to load executions');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`Failed to load executions：${error.message}`);
+      } else {
+        message.error('Failed to load executions');
+      }
     } finally {
       setLoading(false);
     }

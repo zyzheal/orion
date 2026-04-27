@@ -123,9 +123,14 @@ const EnvironmentManagement: React.FC = () => {
     try {
       const res = await getEnvironments();
       setEnvironments(Array.isArray(res.data?.data) ? res.data.data : []);
-    } catch {
+    } catch (error: unknown) {
       setUsingMockData(true);
       setEnvironments(MOCK_ENVIRONMENTS);
+      if (error instanceof Error) {
+        message.error(`加载环境列表失败：${error.message}`);
+      } else {
+        message.error('加载环境列表失败，请稍后重试');
+      }
     } finally {
       setLoading(false);
     }
@@ -160,7 +165,7 @@ const EnvironmentManagement: React.FC = () => {
         cluster: values.cluster || undefined,
         namespace: values.namespace || undefined,
         config: values.config ? (() => {
-          try { return JSON.parse(values.config); } catch { return undefined; }
+          try { return JSON.parse(values.config); } catch (error: unknown) { return undefined; }
         })() : undefined,
       };
       await createEnvironment(payload);
@@ -168,9 +173,11 @@ const EnvironmentManagement: React.FC = () => {
       setCreateModalVisible(false);
       createForm.resetFields();
       loadData();
-    } catch (err: any) {
+    } catch (error: unknown) {
+      const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
-        message.error(err.response?.data?.message || '创建失败');
+        const msg = error instanceof Error ? error.message : '创建失败';
+        message.error(msg);
       }
     } finally {
       setSubmitting(false);
@@ -188,16 +195,18 @@ const EnvironmentManagement: React.FC = () => {
         cluster: values.cluster || undefined,
         namespace: values.namespace || undefined,
         config: values.config ? (() => {
-          try { return JSON.parse(values.config); } catch { return undefined; }
+          try { return JSON.parse(values.config); } catch (error: unknown) { return undefined; }
         })() : undefined,
       };
       await updateEnvironment(editingEnv.id, payload);
       message.success('环境更新成功');
       setEditModalVisible(false);
       loadData();
-    } catch (err: any) {
+    } catch (error: unknown) {
+      const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
-        message.error(err.response?.data?.message || '更新失败');
+        const msg = error instanceof Error ? error.message : '更新失败';
+        message.error(msg);
       }
     } finally {
       setSubmitting(false);
@@ -209,8 +218,12 @@ const EnvironmentManagement: React.FC = () => {
       await deleteEnvironment(id);
       message.success('环境已删除');
       loadData();
-    } catch {
-      message.error('删除失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`删除失败：${error.message}`);
+      } else {
+        message.error('删除失败');
+      }
     }
   };
 
@@ -219,8 +232,12 @@ const EnvironmentManagement: React.FC = () => {
       await updateEnvironmentStatus(id, { status });
       message.success('状态更新成功');
       loadData();
-    } catch {
-      message.error('状态更新失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`状态更新失败：${error.message}`);
+      } else {
+        message.error('状态更新失败');
+      }
     }
   };
 

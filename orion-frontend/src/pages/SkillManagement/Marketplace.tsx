@@ -40,8 +40,12 @@ const SkillMarketplace: React.FC = () => {
     try {
       const res = await getSkills();
       setSkills(Array.isArray(res.data.data) ? res.data.data : []);
-    } catch {
-      message.error('Failed to load skills');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`Failed to load skills：${error.message}`);
+      } else {
+        message.error('Failed to load skills');
+      }
     } finally {
       setLoading(false);
     }
@@ -75,8 +79,12 @@ const SkillMarketplace: React.FC = () => {
       await installSkill(skill.id);
       message.success(`技能 "${skill.name}" 安装成功`);
       loadData();
-    } catch {
-      message.error('安装失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`安装失败：${error.message}`);
+      } else {
+        message.error('安装失败');
+      }
     } finally {
       setInstalling(false);
     }

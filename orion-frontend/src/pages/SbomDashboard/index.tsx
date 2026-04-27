@@ -55,8 +55,12 @@ const SbomDashboard: React.FC = () => {
       setDocuments(Array.isArray(docRes.data.data) ? docRes.data.data as SbomDocument[] : []);
       setWaivers(Array.isArray(waiverRes.data.data) ? waiverRes.data.data as SbomWaiver[] : []);
       setCompliance((compRes.data.data as SbomComplianceReport) || null);
-    } catch {
-      message.error('Failed to load SBOM data');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`Failed to load SBOM data：${error.message}`);
+      } else {
+        message.error('Failed to load SBOM data');
+      }
     } finally {
       setLoading(false);
     }
@@ -93,8 +97,12 @@ const SbomDashboard: React.FC = () => {
       setWaiverModalVisible(false);
       form.resetFields();
       loadData();
-    } catch {
-      message.error('Failed to create waiver');
+    } catch (error: unknown) {
+      const err = error as { errorFields?: unknown };
+      if (!err.errorFields) {
+        const msg = error instanceof Error ? error.message : 'Failed to create waiver';
+        message.error(msg);
+      }
     }
   };
 

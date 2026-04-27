@@ -48,12 +48,15 @@ const AlertConfig: React.FC = () => {
     try {
       const res = await getAlerts();
       setAlerts(Array.isArray(res.data.data) ? res.data.data : []);
-    } catch {
+    } catch (error: unknown) {
       // Mock alerts
       setAlerts([
         { id: 'a1', budgetId: 'b1', severity: 'warning', message: 'GPT-4 月度预算已使用 80%', currentUsage: 80, threshold: 80, createdAt: dayjs().subtract(2, 'hour').toISOString() },
         { id: 'a2', budgetId: 'b3', severity: 'critical', message: '用户预算已超支', currentUsage: 120, threshold: 100, createdAt: dayjs().subtract(1, 'day').toISOString() },
       ]);
+      if (error instanceof Error) {
+        message.warning(`加载告警数据失败，使用模拟数据：${error.message}`);
+      }
     } finally {
       setLoading(false);
     }
@@ -81,8 +84,12 @@ const AlertConfig: React.FC = () => {
       message.success('告警规则创建成功');
       setCreateModalVisible(false);
       createForm.resetFields();
-    } catch {
-      message.error('创建失败');
+    } catch (error: unknown) {
+      const err = error as { errorFields?: unknown };
+      if (!err.errorFields) {
+        const msg = error instanceof Error ? error.message : '创建失败';
+        message.error(msg);
+      }
     } finally {
       setSubmitting(false);
     }

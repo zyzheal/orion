@@ -119,9 +119,14 @@ const RoleManagement: React.FC = () => {
     try {
       const res = await getRoles(DEFAULT_TENANT_ID);
       setRoles(Array.isArray(res.data?.data) ? res.data.data : []);
-    } catch {
+    } catch (error: unknown) {
       // Fallback to mock data when backend is unavailable
       setRoles(MOCK_ROLES);
+      if (error instanceof Error) {
+        message.error(`加载角色列表失败：${error.message}`);
+      } else {
+        message.error('加载角色列表失败，请稍后重试');
+      }
     } finally {
       setLoading(false);
     }
@@ -154,8 +159,12 @@ const RoleManagement: React.FC = () => {
       setCreateModalVisible(false);
       createForm.resetFields();
       loadData();
-    } catch {
-      message.error('创建失败');
+    } catch (error: unknown) {
+      const err = error as { errorFields?: unknown };
+      if (!err.errorFields) {
+        const msg = error instanceof Error ? error.message : '创建失败';
+        message.error(msg);
+      }
     } finally {
       setSubmitting(false);
     }
@@ -166,8 +175,12 @@ const RoleManagement: React.FC = () => {
       await deleteRole(id);
       message.success(`角色 "${name}" 已删除`);
       loadData();
-    } catch {
-      message.error('删除失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`删除失败：${error.message}`);
+      } else {
+        message.error('删除失败');
+      }
     }
   };
 

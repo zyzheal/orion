@@ -40,7 +40,7 @@ const DocumentListPage: React.FC = () => {
       setDocuments(Array.isArray(docRes.data.data) ? docRes.data.data : []);
       const spaceList = Array.isArray(spaceRes.data.data) ? spaceRes.data.data : [];
       setSpaces(spaceList.map((s: { id: string; name: string }) => ({ id: s.id, name: s.name })));
-    } catch {
+    } catch (error: unknown) {
       // Mock data
       setDocuments([
         { id: 'd1', spaceId: 's1', title: 'API 设计最佳实践', content: '本文档介绍了 RESTful API 的设计原则...', status: 'published', version: 3, tags: ['api', 'design'], authorId: 'admin', createdAt: '2024-01-15', updatedAt: '2024-03-10' },
@@ -48,6 +48,9 @@ const DocumentListPage: React.FC = () => {
         { id: 'd3', spaceId: 's2', title: '团队开发规范', content: '代码规范和 review 流程...', status: 'draft', version: 1, tags: ['guide'], authorId: 'team-lead', createdAt: '2024-03-01', updatedAt: '2024-03-05' },
       ]);
       setSpaces([{ id: 's1', name: '技术文档库' }, { id: 's2', name: '团队知识库' }, { id: 's3', name: '项目笔记' }]);
+      if (error instanceof Error) {
+        message.warning(`加载文档数据失败，使用模拟数据：${error.message}`);
+      }
     } finally {
       setLoading(false);
     }
@@ -92,8 +95,12 @@ const DocumentListPage: React.FC = () => {
       createForm.resetFields();
       setTags([]);
       loadData();
-    } catch {
-      message.error('创建失败');
+    } catch (error: unknown) {
+      const err = error as { errorFields?: unknown };
+      if (!err.errorFields) {
+        const msg = error instanceof Error ? error.message : '创建失败';
+        message.error(msg);
+      }
     } finally {
       setSubmitting(false);
     }
@@ -108,8 +115,12 @@ const DocumentListPage: React.FC = () => {
       message.success('文档更新成功');
       setEditModalVisible(false);
       loadData();
-    } catch {
-      message.error('更新失败');
+    } catch (error: unknown) {
+      const err = error as { errorFields?: unknown };
+      if (!err.errorFields) {
+        const msg = error instanceof Error ? error.message : '更新失败';
+        message.error(msg);
+      }
     } finally {
       setSubmitting(false);
     }
@@ -120,8 +131,12 @@ const DocumentListPage: React.FC = () => {
       await deleteDoc(id);
       message.success('文档已删除');
       loadData();
-    } catch {
-      message.error('删除失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`删除失败：${error.message}`);
+      } else {
+        message.error('删除失败');
+      }
     }
   };
 

@@ -36,7 +36,7 @@ const CostDetail: React.FC = () => {
         endDate: dateRange?.[1]?.format('YYYY-MM-DD'),
       });
       setCosts(Array.isArray(res.data.data) ? res.data.data : []);
-    } catch {
+    } catch (error: unknown) {
       // Mock data
       const mockCosts: CostRecord[] = Array.from({ length: 20 }, (_, i) => ({
         id: `cost-${i}`,
@@ -51,6 +51,9 @@ const CostDetail: React.FC = () => {
         timestamp: dayjs().subtract(i * 2, 'hour').toISOString(),
       }));
       setCosts(mockCosts);
+      if (error instanceof Error) {
+        message.warning(`加载成本数据失败，使用模拟数据：${error.message}`);
+      }
     } finally {
       setLoading(false);
     }
