@@ -8,6 +8,13 @@ import { api } from './client';
 
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected' | 'cancelled';
 
+export interface ApprovalComment {
+  userId: string;
+  comment: string;
+  action: 'approved' | 'rejected';
+  createdAt: string;
+}
+
 export interface ApprovalRequest {
   id: string;
   title: string;
@@ -21,6 +28,7 @@ export interface ApprovalRequest {
   createdAt: string;
   updatedAt: string;
   metadata?: Record<string, unknown>;
+  comments?: ApprovalComment[];
 }
 
 export interface CreateApprovalInput {
@@ -34,6 +42,7 @@ export interface CreateApprovalInput {
 
 export interface ApproveRejectInput {
   userId: string;
+  comment?: string;
 }
 
 export interface ApprovalListResponse {

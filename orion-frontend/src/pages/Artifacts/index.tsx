@@ -175,19 +175,39 @@ const ArtifactManagement: React.FC = () => {
   const [tagForm] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
 
+  // ---- Server-side pagination state ----
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [total, setTotal] = useState(0);
+
   const typeOptions = useMemo(() => [
     { label: '全部', value: 'all' },
     ...Object.entries(typeLabelMap).slice(0, 8).map(([v, l]) => ({ label: l, value: v })),
   ], []);
 
-  const loadData = async () => {
+  const loadData = async (page?: number, size?: number) => {
+    const p = page ?? currentPage;
+    const s = size ?? pageSize;
     setLoading(true);
     try {
-      const res = await getArtifacts();
-      setArtifacts(Array.isArray(res.data?.data) ? res.data.data : []);
+      const res = await getArtifacts({ page: p, perPage: s });
+      // Backend may return either { data: Artifact[], total: number } or just Artifact[]
+      const raw = res.data?.data;
+      if (Array.isArray(raw)) {
+        setArtifacts(raw);
+        // If response includes total count use it, otherwise estimate from mock data length
+        const respTotal = (res.data as any)?.total ?? raw.length;
+        setTotal(respTotal);
+      } else {
+        setArtifacts([]);
+        setTotal(0);
+      }
     } catch {
       setUsingMockData(true);
-      setArtifacts(MOCK_ARTIFACTS);
+      // For mock data, apply client-side pagination slice
+      setTotal(MOCK_ARTIFACTS.length);
+      const start = (p - 1) * s;
+      setArtifacts(MOCK_ARTIFACTS.slice(start, start + s));
     } finally {
       setLoading(false);
     }
@@ -716,7 +736,21 @@ const ArtifactManagement: React.FC = () => {
         <div style={{ marginBottom: 16 }}>
           <SearchFilterBar onSearch={setSearchQuery} onFilter={setFilters} filters={filterDefs} searchPlaceholder="搜索制品..." />
         </div>
-        <Table columns={columns} dataSource={filteredData} loading={loading} rowKey="id" size="middle" striped />
+        <Table
+          columns={columns}
+          dataSource={filteredData}
+          loading={loading}
+          rowKey="id"
+          size="middle"
+          striped
+          clientPagination={false}
+          pagination={{ current: currentPage, pageSize, total }}
+          onPaginationChange={(page, size) => {
+            setCurrentPage(page);
+            setPageSize(size);
+            loadData(page, size);
+          }}
+        />
       </Card>
 
       {/* Create Modal */}

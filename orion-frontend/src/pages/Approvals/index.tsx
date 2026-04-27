@@ -6,7 +6,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import {
   Typography, Button, Space, Tag, Card, Modal, Form, Input, Select, message, Alert,
-  Popconfirm, Descriptions, Drawer, Tooltip, Progress, Avatar,
+  Descriptions, Drawer, Tooltip, Progress, Avatar,
 } from 'antd';
 import {
   PlusOutlined, ReloadOutlined, CheckOutlined, CloseOutlined,
@@ -14,9 +14,11 @@ import {
   CheckCircleOutlined, StopOutlined,
 } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
+import PageSkeleton from '@/components/PageSkeleton';
 import {
   getApprovals, getApproval, createApproval, approveApproval, rejectApproval,
   type ApprovalRequest, type CreateApprovalInput, type ApprovalStatus,
+  type ApprovalComment,
 } from '@/api/approvals';
 import { colors } from '@/tokens/colors';
 import dayjs from 'dayjs';
@@ -132,6 +134,13 @@ const ApprovalManagement: React.FC = () => {
   const [currentUserId] = useState('current-user');
   const [usingMockData, setUsingMockData] = useState(false);
 
+  // ---- Comment modal state ----
+  const [commentModalVisible, setCommentModalVisible] = useState(false);
+  const [commentAction, setCommentAction] = useState<'approve' | 'reject'>('approve');
+  const [commentTargetId, setCommentTargetId] = useState('');
+  const [commentText, setCommentText] = useState('');
+  const [commentSubmitting, setCommentSubmitting] = useState(false);
+
   const loadData = async () => {
     setLoading(true);
     try {
@@ -195,9 +204,9 @@ const ApprovalManagement: React.FC = () => {
     }
   };
 
-  const handleApprove = async (id: string) => {
+  const handleApprove = async (id: string, comment?: string) => {
     try {
-      await approveApproval(id, { userId: currentUserId });
+      await approveApproval(id, { userId: currentUserId, comment });
       message.success('审批通过');
       loadData();
       if (selectedApproval?.id === id) loadDetail(id);
@@ -206,14 +215,37 @@ const ApprovalManagement: React.FC = () => {
     }
   };
 
-  const handleReject = async (id: string) => {
+  const handleReject = async (id: string, comment?: string) => {
     try {
-      await rejectApproval(id, { userId: currentUserId });
+      await rejectApproval(id, { userId: currentUserId, comment });
       message.success('已拒绝');
       loadData();
       if (selectedApproval?.id === id) loadDetail(id);
     } catch {
       message.error('拒绝操作失败');
+    }
+  };
+
+  // ---- Comment modal handlers ----
+
+  const openCommentModal = (id: string, action: 'approve' | 'reject') => {
+    setCommentTargetId(id);
+    setCommentAction(action);
+    setCommentText('');
+    setCommentModalVisible(true);
+  };
+
+  const handleCommentSubmit = async () => {
+    setCommentSubmitting(true);
+    try {
+      if (commentAction === 'approve') {
+        await handleApprove(commentTargetId, commentText.trim() || undefined);
+      } else {
+        await handleReject(commentTargetId, commentText.trim() || undefined);
+      }
+      setCommentModalVisible(false);
+    } finally {
+      setCommentSubmitting(false);
     }
   };
 
@@ -335,20 +367,28 @@ const ApprovalManagement: React.FC = () => {
           </Tooltip>
           {record.status === 'pending' && (
             <>
-              <Popconfirm title="确认通过该审批?" onConfirm={() => handleApprove(record.id)}>
-                <Tooltip title="通过">
-                  <Button type="link" size="small" style={{ color: colors.success[500] }} icon={<CheckOutlined />}>
-                    通过
-                  </Button>
-                </Tooltip>
-              </Popconfirm>
-              <Popconfirm title="确认拒绝该审批?" onConfirm={() => handleReject(record.id)}>
-                <Tooltip title="拒绝">
-                  <Button type="link" size="small" danger icon={<CloseOutlined />}>
-                    拒绝
-                  </Button>
-                </Tooltip>
-              </Popconfirm>
+              <Tooltip title="通过">
+                <Button
+                  type="link"
+                  size="small"
+                  style={{ color: colors.success[500] }}
+                  icon={<CheckOutlined />}
+                  onClick={() => openCommentModal(record.id, 'approve')}
+                >
+                  通过
+                </Button>
+              </Tooltip>
+              <Tooltip title="拒绝">
+                <Button
+                  type="link"
+                  size="small"
+                  danger
+                  icon={<CloseOutlined />}
+                  onClick={() => openCommentModal(record.id, 'reject')}
+                >
+                  拒绝
+                </Button>
+              </Tooltip>
             </>
           )}
         </Space>
@@ -401,7 +441,7 @@ const ApprovalManagement: React.FC = () => {
             {a.approverIds.map((uid: string) => {
               const hasApproved = a.approvals.includes(uid);
               const hasRejected = a.rejections.includes(uid);
-              let statusIcon = <ClockCircleOutlined style={{ color: '#999' }} />;
+              let statusIcon = <ClockCircleOutlined style={{ color: colors.neutral[400] }} />;
               let statusText = '待审批';
               if (hasApproved) {
                 statusIcon = <CheckCircleOutlined style={{ color: colors.success[500] }} />;
@@ -424,6 +464,33 @@ const ApprovalManagement: React.FC = () => {
           </Space>
         </Card>
 
+        {/* Comment History */}
+        {a.comments && a.comments.length > 0 && (
+          <Card size="small" title="审批评论" style={{ marginTop: 16 }}>
+            <Space direction="vertical" style={{ width: '100%' }}>
+              {a.comments.map((c: ApprovalComment, idx: number) => (
+                <div key={idx} style={{ padding: '8px 0', borderBottom: idx < a.comments!.length - 1 ? `1px solid ${colors.neutral[200]}` : 'none' }}>
+                  <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+                    <Space>
+                      <Avatar size="small" icon={<UserOutlined />} style={{ backgroundColor: c.action === 'approved' ? colors.success[500] : colors.error[400] }}>
+                        {c.userId.substring(0, 2)}
+                      </Avatar>
+                      <Text strong>{c.userId}</Text>
+                      <Tag color={c.action === 'approved' ? 'success' : 'error'}>
+                        {c.action === 'approved' ? '通过' : '拒绝'}
+                      </Tag>
+                    </Space>
+                    <Text type="secondary" style={{ fontSize: 12 }}>{dayjs(c.createdAt).fromNow()}</Text>
+                  </Space>
+                  {c.comment && (
+                    <Text style={{ display: 'block', marginTop: 4, fontSize: 13 }}>{c.comment}</Text>
+                  )}
+                </div>
+              ))}
+            </Space>
+          </Card>
+        )}
+
         {/* Metadata */}
         {a.metadata && Object.keys(a.metadata).length > 0 && (
           <Card size="small" title="元数据" style={{ marginTop: 16 }}>
@@ -438,16 +505,21 @@ const ApprovalManagement: React.FC = () => {
         {/* Action buttons for pending items */}
         {a.status === 'pending' && (
           <Space style={{ marginTop: 16 }}>
-            <Popconfirm title="确认通过该审批?" onConfirm={() => handleApprove(a.id)}>
-              <Button type="primary" icon={<CheckOutlined />} style={{ backgroundColor: colors.success[500], borderColor: colors.success[500] }}>
-                通过
-              </Button>
-            </Popconfirm>
-            <Popconfirm title="确认拒绝该审批?" onConfirm={() => handleReject(a.id)}>
-              <Button danger icon={<CloseOutlined />}>
-                拒绝
-              </Button>
-            </Popconfirm>
+            <Button
+              type="primary"
+              icon={<CheckOutlined />}
+              style={{ backgroundColor: colors.success[500], borderColor: colors.success[500] }}
+              onClick={() => openCommentModal(a.id, 'approve')}
+            >
+              通过
+            </Button>
+            <Button
+              danger
+              icon={<CloseOutlined />}
+              onClick={() => openCommentModal(a.id, 'reject')}
+            >
+              拒绝
+            </Button>
           </Space>
         )}
       </div>
@@ -600,6 +672,34 @@ const ApprovalManagement: React.FC = () => {
       >
         {detailContent}
       </Drawer>
+
+      {/* Comment Modal */}
+      <Modal
+        title={commentAction === 'approve' ? '通过审批' : '拒绝审批'}
+        open={commentModalVisible}
+        onCancel={() => setCommentModalVisible(false)}
+        onOk={handleCommentSubmit}
+        confirmLoading={commentSubmitting}
+        okText={commentAction === 'approve' ? '通过' : '拒绝'}
+        okButtonProps={{
+          danger: commentAction === 'reject',
+          style: commentAction === 'approve' ? { backgroundColor: colors.success[500], borderColor: colors.success[500] } : undefined,
+        }}
+      >
+        <div style={{ marginBottom: 8 }}>
+          <Text type="secondary">
+            {commentAction === 'approve' ? '确认通过该审批？可填写评论理由（可选）。' : '确认拒绝该审批？请填写拒绝理由（可选）。'}
+          </Text>
+        </div>
+        <Input.TextArea
+          rows={4}
+          placeholder={commentAction === 'reject' ? '请输入拒绝理由...' : '请输入评论/理由（可选）...'}
+          value={commentText}
+          onChange={(e) => setCommentText(e.target.value)}
+          maxLength={500}
+          showCount
+        />
+      </Modal>
     </div>
   );
 };

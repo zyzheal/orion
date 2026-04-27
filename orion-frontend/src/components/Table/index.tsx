@@ -8,7 +8,7 @@
  * Wraps Ant Design Table with additional conveniences for the Orion platform.
  */
 import React, { useState, useMemo, useCallback } from 'react';
-import { Table as AntTable, Pagination, Input, Space, Button, Spin } from 'antd';
+import { Table as AntTable, Pagination, Input, Space, Button } from 'antd';
 import { SearchOutlined, FilterOutlined, ClearOutlined } from '@ant-design/icons';
 import type { ColumnsType, TableProps } from 'antd/es/table';
 
@@ -73,6 +73,8 @@ export interface OrionTableProps<T extends object>
   size?: 'small' | 'middle' | 'large';
   /** Whether to show stripe rows */
   striped?: boolean;
+  /** Pagination change handler (for server-side pagination) */
+  onPaginationChange?: (page: number, pageSize: number) => void;
 }
 
 // ============================================================================
@@ -93,6 +95,7 @@ function OrionTable<T extends object>({
   showTotal = true,
   size = 'middle',
   striped = false,
+  onPaginationChange,
   rowKey = 'id' as keyof T & string,
   scroll,
   ...restProps
@@ -239,12 +242,18 @@ function OrionTable<T extends object>({
 
   const handlePaginationChange = useCallback(
     (newPage: number, newPageSize?: number) => {
-      setPage(newPage);
-      if (newPageSize) {
-        setPageSize(newPageSize);
+      const effectivePageSize = newPageSize ?? pageSize;
+      if (!clientPagination && onPaginationChange) {
+        // Server-side pagination: notify parent to reload data
+        onPaginationChange(newPage, effectivePageSize);
+      } else {
+        setPage(newPage);
+        if (newPageSize) {
+          setPageSize(newPageSize);
+        }
       }
     },
-    []
+    [clientPagination, onPaginationChange, pageSize]
   );
 
   const clearAllFilters = useCallback(() => {
@@ -291,26 +300,28 @@ function OrionTable<T extends object>({
         </div>
       )}
 
-      {/* Table */}
-      <Spin spinning={loading}>
-        <AntTable<T>
-          columns={antColumns}
-          dataSource={clientPagination ? paginatedData : processedData}
-          rowKey={rowKey}
-          onChange={handleTableChange}
-          onRow={onRow}
-          size={size}
-          scroll={scroll}
-          rowClassName={
-            striped ? (_record, index) => (index % 2 === 1 ? 'orion-table-row-stripe' : '') : undefined
-          }
-          locale={{
-            emptyText: 'No data available',
-            ...restProps.locale,
-          }}
-          {...restProps}
-        />
-      </Spin>
+      {/* Table - uses Ant Design's built-in loading skeleton */}
+      <AntTable<T>
+        columns={antColumns}
+        dataSource={clientPagination ? paginatedData : processedData}
+        rowKey={rowKey}
+        onChange={handleTableChange}
+        onRow={onRow}
+        size={size}
+        scroll={scroll}
+        loading={loading ? {
+          indicator: null,
+          tip: '加载中...',
+        } : undefined}
+        rowClassName={
+          striped ? (_record, index) => (index % 2 === 1 ? 'orion-table-row-stripe' : '') : undefined
+        }
+        locale={{
+          emptyText: 'No data available',
+          ...restProps.locale,
+        }}
+        {...restProps}
+      />
 
       {/* Pagination */}
       {(clientPagination || externalPagination) && (
