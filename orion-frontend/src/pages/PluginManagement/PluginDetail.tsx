@@ -20,10 +20,10 @@ import {
 import {
   type ApiPlugin,
   type PluginConfig,
-  healthConfig,
   categoryLabels,
   healthStatusLabels,
 } from './types';
+import { healthConfig } from './constants';
 import { colors } from '@/tokens';
 import dayjs from 'dayjs';
 

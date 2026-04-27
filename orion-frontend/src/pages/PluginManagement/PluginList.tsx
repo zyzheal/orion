@@ -33,11 +33,11 @@ import {
 } from '@/api/plugins';
 import {
   type ApiPlugin,
-  healthConfig,
   categoryLabels,
   healthStatusLabels,
   mapPluginTypeToCategory,
 } from './types';
+import { healthConfig } from './constants';
 import dayjs from 'dayjs';
 
 const { Text } = Typography;

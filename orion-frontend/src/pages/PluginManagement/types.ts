@@ -1,14 +1,7 @@
 /**
  * PluginManagement - Shared Types & Constants
- * Type definitions, label maps, and health status configuration
+ * Type definitions, label maps, and plugin category mapping
  */
-import React from 'react';
-import {
-  CheckCircleOutlined,
-  WarningOutlined,
-  CloseCircleOutlined,
-} from '@ant-design/icons';
-import { colors } from '@/tokens';
 import type {
   Plugin,
   PluginType,
@@ -33,25 +26,6 @@ export type PluginConfig = Record<string, unknown>;
 
 // Execute plugin task result - alias of API type
 export type ExecutePluginResult = PluginExecutionResult;
-
-// ============================================================================
-// Health status config
-// ============================================================================
-
-export const healthConfig: Record<string, { color: string; icon: React.ReactNode }> = {
-  healthy: {
-    color: colors.success[500],
-    icon: <CheckCircleOutlined />,
-  },
-  warning: {
-    color: colors.warning[500],
-    icon: <WarningOutlined />,
-  },
-  error: {
-    color: colors.error[400],
-    icon: <CloseCircleOutlined />,
-  },
-};
 
 // ============================================================================
 // Re-export label maps from mock data for convenience
