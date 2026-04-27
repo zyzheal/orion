@@ -4,17 +4,13 @@
  */
 import React, { useState, useMemo, useEffect } from 'react';
 import {
-  Typography, Button, Space, Tag, Card, Modal, Form, Input, Select, message, Alert,
-  Popconfirm, Tabs, Descriptions, Drawer, Tooltip, Statistic, Row, Col, Timeline,
+  Typography, Button, Space, Modal, Form, Input, Select, message, Alert,
+  Tabs, Drawer, Tag, Card,
 } from 'antd';
 import {
-  PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined,
-  DownloadOutlined, TagOutlined, RocketOutlined, StopOutlined,
-  SafetyCertificateOutlined, EyeOutlined,
-  ClockCircleOutlined, FileTextOutlined,
+  PlusOutlined, ReloadOutlined,
 } from '@ant-design/icons';
-import Table, { type TableColumn } from '@/components/Table';
-import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
+import SearchFilterBar from '@/components/SearchFilterBar';
 import PageSkeleton from '@/components/PageSkeleton';
 import {
   getArtifacts, createArtifact, updateArtifact, deleteArtifact,
@@ -23,10 +19,12 @@ import {
   deprecateArtifact, quarantineArtifact,
   getArtifactStats, getNamespaces,
   type Artifact, type CreateArtifactInput, type UpdateArtifactInput,
-  type ArtifactStage, type ArtifactStatus,
-  type PromotionRecord, type Tag as TagType, type ArtifactStats,
+  type ArtifactStage, type PromotionRecord, type Tag as TagType,
+  type ArtifactStats as ArtifactStatsType,
 } from '@/api/artifacts';
-import { colors } from '@/tokens/colors';
+import ArtifactStats from './ArtifactStats';
+import ArtifactTable from './ArtifactTable';
+import { getArtifactTabItems } from './ArtifactDetail';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 
@@ -34,31 +32,7 @@ dayjs.extend(relativeTime);
 
 const { Title, Text } = Typography;
 
-// ---- Color maps ----
-
-const stageColorMap: Record<ArtifactStage, string> = {
-  snapshot: 'default',
-  release_candidate: 'blue',
-  stable: 'green',
-  production: 'gold',
-  archived: 'orange',
-};
-
-const stageLabelMap: Record<ArtifactStage, string> = {
-  snapshot: 'Snapshot',
-  release_candidate: 'RC',
-  stable: 'Stable',
-  production: 'Production',
-  archived: 'Archived',
-};
-
-const statusColorMap: Record<ArtifactStatus, string> = {
-  uploading: 'processing',
-  available: 'success',
-  deprecated: 'default',
-  quarantined: 'error',
-  deleted: 'default',
-};
+// ---- Type label map (used in create form) ----
 
 const typeLabelMap: Record<string, string> = {
   container_image: '容器镜像', base_image: '基础镜像', builder_image: '构建镜像',
@@ -142,13 +116,6 @@ const MOCK_STATS: ArtifactStats = {
   avgSecurityScore: 92,
 };
 
-const formatSize = (bytes: number): string => {
-  if (bytes >= 1073741824) return `${(bytes / 1073741824).toFixed(1)} GB`;
-  if (bytes >= 1048576) return `${(bytes / 1048576).toFixed(1)} MB`;
-  if (bytes >= 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${bytes} B`;
-};
-
 const promotionStageOrder: ArtifactStage[] = ['snapshot', 'release_candidate', 'stable', 'production'];
 
 // ---- Main Component ----
@@ -165,7 +132,7 @@ const ArtifactManagement: React.FC = () => {
   const [selectedArtifact, setSelectedArtifact] = useState<Artifact | null>(null);
   const [promotionModalVisible, setPromotionModalVisible] = useState(false);
   const [tagModalVisible, setTagModalVisible] = useState(false);
-  const [stats, setStats] = useState<ArtifactStats | null>(null);
+  const [stats, setStats] = useState<ArtifactStatsType | null>(null);
   const [namespaces, setNamespaces] = useState<string[]>([]);
   const [tags, setTags] = useState<TagType[]>([]);
   const [promotionHistory, setPromotionHistory] = useState<PromotionRecord[]>([]);
@@ -438,95 +405,12 @@ const ArtifactManagement: React.FC = () => {
     // Backend API not yet returning download records
   };
 
-  const nextAvailableStage = (currentStage: ArtifactStage): ArtifactStage | null => {
-    const idx = promotionStageOrder.indexOf(currentStage);
-    if (idx < 0 || idx >= promotionStageOrder.length - 1) return null;
-    return promotionStageOrder[idx + 1];
-  };
-
-  // ---- Table columns ----
-
-  const columns: TableColumn<Artifact>[] = [
-    {
-      key: 'name', title: '制品名称', dataIndex: 'name', width: 200, sortable: true,
-      render: (v: unknown, record: Artifact) => (
-        <Space direction="vertical" size={0}>
-          <Text strong style={{ cursor: 'pointer' }} onClick={() => openDetail(record)}>{String(v)}</Text>
-          <Text type="secondary" style={{ fontSize: 12 }}>{record.displayName || record.namespace}/{record.version}</Text>
-        </Space>
-      ),
-    },
-    {
-      key: 'type', title: '类型', width: 120,
-      render: (_: unknown, record: Artifact) => <Tag>{typeLabelMap[record.type] || record.type}</Tag>,
-    },
-    {
-      key: 'stage', title: '阶段', width: 110,
-      render: (_: unknown, record: Artifact) => (
-        <Tag color={stageColorMap[record.stage as ArtifactStage] || 'default'}>
-          {stageLabelMap[record.stage as ArtifactStage] || record.stage}
-        </Tag>
-      ),
-    },
-    {
-      key: 'status', title: '状态', width: 100,
-      render: (_: unknown, record: Artifact) => (
-        <Tag color={statusColorMap[record.status as ArtifactStatus] || 'default'}>{record.status}</Tag>
-      ),
-    },
-    {
-      key: 'size', title: '大小', width: 90,
-      render: (_: unknown, record: Artifact) => <Text type="secondary" style={{ fontSize: 12 }}>{formatSize(record.sizeBytes || 0)}</Text>,
-    },
-    {
-      key: 'security', title: '安全评分', width: 100,
-      render: (_: unknown, record: Artifact) => {
-        const scan = record.security?.scanResults;
-        if (!scan) return <Text type="secondary">-</Text>;
-        const total = scan.critical + scan.high + scan.medium + scan.low;
-        const score = total === 0 ? 100 : Math.max(0, 100 - scan.critical * 20 - scan.high * 10 - scan.medium * 3 - scan.low * 1);
-        return (
-          <Tag color={score >= 90 ? 'green' : score >= 70 ? 'orange' : 'red'}>
-            <SafetyCertificateOutlined /> {score}
-          </Tag>
-        );
-      },
-    },
-    {
-      key: 'updatedAt', title: '更新时间', dataIndex: 'updatedAt', width: 140, sortable: true,
-      render: (v: unknown) => <Text type="secondary" style={{ fontSize: 12 }}>{dayjs(String(v)).fromNow()}</Text>,
-    },
-    {
-      key: 'actions', title: '操作', width: 260,
-      render: (_: unknown, record: Artifact) => (
-        <Space size="small" wrap>
-          <Tooltip title="详情"><Button type="link" size="small" icon={<EyeOutlined />} onClick={() => openDetail(record)}>详情</Button></Tooltip>
-          <Tooltip title="编辑"><Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEdit(record)} /></Tooltip>
-          {record.status === 'available' && nextAvailableStage(record.stage) && (
-            <Tooltip title={`晋升到 ${stageLabelMap[nextAvailableStage(record.stage)!]}`}><Button type="link" size="small" icon={<RocketOutlined />} onClick={() => openPromotion(record)} /></Tooltip>
-          )}
-          {record.status === 'available' && (
-            <Tooltip title="管理标签"><Button type="link" size="small" icon={<TagOutlined />} onClick={() => openTagModal(record)} /></Tooltip>
-          )}
-          <Tooltip title="下载"><Button type="link" size="small" icon={<DownloadOutlined />} onClick={() => handleDownload(record)} /></Tooltip>
-          {record.status === 'available' && (
-            <>
-              <Tooltip title="废弃"><Popconfirm title="确认废弃该制品?" onConfirm={() => handleDeprecate(record.id)}><Button type="link" size="small" danger icon={<StopOutlined />} /></Popconfirm></Tooltip>
-              <Tooltip title="隔离"><Popconfirm title="确认隔离该制品?" onConfirm={() => handleQuarantine(record.id)}><Button type="link" size="small" danger icon={<StopOutlined />}>隔离</Button></Popconfirm></Tooltip>
-            </>
-          )}
-          <Tooltip title="删除"><Popconfirm title="确认删除?" onConfirm={() => handleDelete(record.id)}><Button type="link" size="small" danger icon={<DeleteOutlined />} /></Popconfirm></Tooltip>
-        </Space>
-      ),
-    },
-  ];
-
   const namespaceOptions = useMemo(() => [
     { label: '全部', value: 'all' },
     ...namespaces.map((n) => ({ label: n, value: n })),
   ], [namespaces]);
 
-  const filterDefs: FilterDefinition[] = [
+  const filterDefs = useMemo(() => [
     { key: 'namespace', label: '命名空间', options: namespaceOptions },
     { key: 'type', label: '类型', options: typeOptions },
     { key: 'stage', label: '阶段', options: [
@@ -544,137 +428,14 @@ const ArtifactManagement: React.FC = () => {
       { label: 'Quarantined', value: 'quarantined' },
       { label: 'Uploading', value: 'uploading' },
     ]},
-  ];
+  ], [namespaceOptions, typeOptions]);
 
-  // ---- Detail Drawer Tabs ----
+  // ---- Detail Tabs ----
 
-  const detailTabItems = useMemo(() => {
-    if (!selectedArtifact) return [];
-    const a = selectedArtifact;
-    return [
-      {
-        key: 'info', label: '基本信息',
-        children: (
-          <Descriptions column={2} bordered size="small">
-            <Descriptions.Item label="名称">{a.name}</Descriptions.Item>
-            <Descriptions.Item label="版本">{a.version}</Descriptions.Item>
-            <Descriptions.Item label="显示名称">{a.displayName || '-'}</Descriptions.Item>
-            <Descriptions.Item label="命名空间">{a.namespace}</Descriptions.Item>
-            <Descriptions.Item label="类型">{typeLabelMap[a.type] || a.type}</Descriptions.Item>
-            <Descriptions.Item label="阶段"><Tag color={stageColorMap[a.stage]}>{stageLabelMap[a.stage]}</Tag></Descriptions.Item>
-            <Descriptions.Item label="状态"><Tag color={statusColorMap[a.status]}>{a.status}</Tag></Descriptions.Item>
-            <Descriptions.Item label="大小">{formatSize(a.sizeBytes)}</Descriptions.Item>
-            <Descriptions.Item label="Digest"><Text code style={{ fontSize: 11 }}>{a.digest || '-'}</Text></Descriptions.Item>
-            <Descriptions.Item label="存储后端">{a.storageBackend || '-'}</Descriptions.Item>
-            <Descriptions.Item label="描述" span={2}>{a.description || '-'}</Descriptions.Item>
-            {a.labels && (
-              <Descriptions.Item label="标签" span={2}>
-                <Space wrap>{Object.entries(a.labels).map(([k, v]) => <Tag key={k}>{k}: {String(v)}</Tag>)}</Space>
-              </Descriptions.Item>
-            )}
-            <Descriptions.Item label="创建时间">{dayjs(a.createdAt).format('YYYY-MM-DD HH:mm:ss')}</Descriptions.Item>
-            <Descriptions.Item label="更新时间">{dayjs(a.updatedAt).format('YYYY-MM-DD HH:mm:ss')}</Descriptions.Item>
-          </Descriptions>
-        ),
-      },
-      {
-        key: 'security', label: '安全扫描',
-        children: a.security ? (
-          <div>
-            <Descriptions column={2} bordered size="small" style={{ marginBottom: 16 }}>
-              <Descriptions.Item label="已签名">{a.security.signed ? <Tag color="green">是</Tag> : <Tag color="red">否</Tag>}</Descriptions.Item>
-              <Descriptions.Item label="签名者">{a.security.signer || '-'}</Descriptions.Item>
-            </Descriptions>
-            {a.security.scanResults && (
-              <>
-                <Title level={5}>漏洞统计</Title>
-                <Row gutter={16}>
-                  <Col span={6}><Card size="small"><Statistic title="严重" value={a.security.scanResults.critical} valueStyle={{ color: a.security.scanResults.critical > 0 ? colors.error[600] : colors.success[600] }} /></Card></Col>
-                  <Col span={6}><Card size="small"><Statistic title="高危" value={a.security.scanResults.high} valueStyle={{ color: a.security.scanResults.high > 0 ? colors.error[500] : colors.success[600] }} /></Card></Col>
-                  <Col span={6}><Card size="small"><Statistic title="中危" value={a.security.scanResults.medium} valueStyle={{ color: a.security.scanResults.medium > 0 ? colors.warning[500] : colors.success[600] }} /></Card></Col>
-                  <Col span={6}><Card size="small"><Statistic title="低危" value={a.security.scanResults.low} valueStyle={{ color: colors.neutral[500] }} /></Card></Col>
-                </Row>
-              </>
-            )}
-          </div>
-        ) : <Text type="secondary">暂无安全扫描数据</Text>,
-      },
-      {
-        key: 'tests', label: '测试结果',
-        children: a.tests ? (
-          <div>
-            {a.tests.unitTests && (
-              <Descriptions column={2} bordered size="small" title="单元测试" style={{ marginBottom: 16 }}>
-                <Descriptions.Item label="通过">{a.tests.unitTests.passed}</Descriptions.Item>
-                <Descriptions.Item label="失败">{a.tests.unitTests.failed}</Descriptions.Item>
-                <Descriptions.Item label="覆盖率">{a.tests.unitTests.coverage ? `${a.tests.unitTests.coverage}%` : '-'}</Descriptions.Item>
-              </Descriptions>
-            )}
-            {a.tests.integrationTests && (
-              <Descriptions column={2} bordered size="small" title="集成测试" style={{ marginBottom: 16 }}>
-                <Descriptions.Item label="通过">{a.tests.integrationTests.passed}</Descriptions.Item>
-                <Descriptions.Item label="失败">{a.tests.integrationTests.failed}</Descriptions.Item>
-              </Descriptions>
-            )}
-          </div>
-        ) : <Text type="secondary">暂无测试数据</Text>,
-      },
-      {
-        key: 'deployments', label: '部署历史',
-        children: a.deployments && a.deployments.length > 0 ? (
-          <Timeline items={a.deployments.map((d) => ({
-            children: (
-              <Space direction="vertical" size={0}>
-                <Text strong>{d.environment}</Text>
-                <Text type="secondary">
-                  <Tag color={d.status === 'success' ? 'green' : d.status === 'failed' ? 'red' : 'orange'}>{d.status}</Tag>
-                  {dayjs(d.deployedAt).format('YYYY-MM-DD HH:mm:ss')} by {d.deployedBy}
-                </Text>
-              </Space>
-            ),
-          }))} />
-        ) : <Text type="secondary">暂无部署记录</Text>,
-      },
-      {
-        key: 'tags', label: '标签',
-        children: (
-          <div>
-            <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'space-between' }}>
-              <Text type="secondary">管理制品标签</Text>
-              <Button type="primary" size="small" icon={<TagOutlined />} onClick={() => openTagModal(a)}>添加标签</Button>
-            </div>
-            <Space wrap>
-              {tags.length > 0 ? tags.map((t) => (
-                <Tag key={t.id} closable>{t.name}</Tag>
-              )) : <Text type="secondary">暂无标签</Text>}
-            </Space>
-          </div>
-        ),
-      },
-      {
-        key: 'promotion', label: '晋升历史',
-        children: promotionHistory.length > 0 ? (
-          <Timeline items={promotionHistory.map((p) => ({
-            color: stageColorMap[p.toStage] || 'blue',
-            children: (
-              <Space direction="vertical" size={0}>
-                <Text strong>
-                  <Tag color={stageColorMap[p.fromStage]}>{stageLabelMap[p.fromStage]}</Tag>
-                  {' -> '}
-                  <Tag color={stageColorMap[p.toStage]}>{stageLabelMap[p.toStage]}</Tag>
-                </Text>
-                <Text type="secondary">
-                  {dayjs(p.promotedAt).format('YYYY-MM-DD HH:mm:ss')} by {p.promotedBy}
-                  {p.approvedBy && ` (审批: ${p.approvedBy})`}
-                </Text>
-                {p.reason && <Text type="secondary">{p.reason}</Text>}
-              </Space>
-            ),
-          }))} />
-        ) : <Text type="secondary">暂无晋升记录</Text>,
-      },
-    ];
-  }, [selectedArtifact, tags, promotionHistory]);
+  const detailTabItems = useMemo(
+    () => getArtifactTabItems(selectedArtifact, tags, promotionHistory, openTagModal),
+    [selectedArtifact, tags, promotionHistory, openTagModal],
+  );
 
   const isInitialLoading = loading && artifacts.length === 0;
 
@@ -711,48 +472,27 @@ const ArtifactManagement: React.FC = () => {
       )}
 
       {/* Stats Panel */}
-      {stats && (
-        <Card size="small" style={{ marginBottom: 16 }}>
-          <Row gutter={16}>
-            <Col span={4}>
-              <Statistic title="制品总数" value={stats.total} prefix={<FileTextOutlined />} />
-            </Col>
-            <Col span={3}>
-              <Statistic title="Snapshot" value={stats.byStage?.snapshot ?? 0} valueStyle={{ color: colors.neutral[500], fontSize: 20 }} />
-            </Col>
-            <Col span={3}>
-              <Statistic title="RC" value={stats.byStage?.release_candidate ?? 0} valueStyle={{ color: colors.primary[500], fontSize: 20 }} />
-            </Col>
-            <Col span={3}>
-              <Statistic title="Stable" value={stats.byStage?.stable ?? 0} valueStyle={{ color: colors.success[500], fontSize: 20 }} />
-            </Col>
-            <Col span={3}>
-              <Statistic title="Production" value={stats.byStage?.production ?? 0} valueStyle={{ color: colors.warning[500], fontSize: 20 }} />
-            </Col>
-            <Col span={3}>
-              <Statistic title="Archived" value={stats.byStage?.archived ?? 0} valueStyle={{ color: colors.warning[500], fontSize: 20 }} />
-            </Col>
-            <Col span={3}>
-              <Statistic title="总大小" value={formatSize(stats.totalSizeBytes || 0)} valueStyle={{ fontSize: 16 }} prefix={<ClockCircleOutlined />} />
-            </Col>
-          </Row>
-        </Card>
-      )}
+      {stats && <ArtifactStats stats={stats} />}
 
       {/* Artifact List */}
       <Card>
         <div style={{ marginBottom: 16 }}>
           <SearchFilterBar onSearch={setSearchQuery} onFilter={setFilters} filters={filterDefs} searchPlaceholder="搜索制品..." />
         </div>
-        <Table
-          columns={columns}
+        <ArtifactTable
           dataSource={filteredData}
           loading={loading}
-          rowKey="id"
-          size="middle"
-          striped
-          clientPagination={false}
-          pagination={{ current: currentPage, pageSize, total }}
+          currentPage={currentPage}
+          pageSize={pageSize}
+          total={total}
+          onDetail={openDetail}
+          onEdit={openEdit}
+          onPromote={openPromotion}
+          onTag={openTagModal}
+          onDownload={handleDownload}
+          onDeprecate={handleDeprecate}
+          onQuarantine={handleQuarantine}
+          onDelete={handleDelete}
           onPaginationChange={(page, size) => {
             setCurrentPage(page);
             setPageSize(size);
@@ -829,13 +569,18 @@ const ArtifactManagement: React.FC = () => {
           <div style={{ marginBottom: 16 }}>
             <Text>当前制品: <Text strong>{selectedArtifact.name}</Text> ({selectedArtifact.version})</Text>
             <br />
-            <Text>当前阶段: <Tag color={stageColorMap[selectedArtifact.stage]}>{stageLabelMap[selectedArtifact.stage]}</Tag></Text>
-            {nextAvailableStage(selectedArtifact.stage) && (
-              <>
-                <br />
-                <Text>目标阶段: <Tag color={stageColorMap[nextAvailableStage(selectedArtifact.stage)!]}>{stageLabelMap[nextAvailableStage(selectedArtifact.stage)!]}</Tag></Text>
-              </>
-            )}
+            <Text>当前阶段: <Tag color={selectedArtifact.stage}>{selectedArtifact.stage}</Tag></Text>
+            {(() => {
+              const idx = promotionStageOrder.indexOf(selectedArtifact.stage);
+              if (idx < 0 || idx >= promotionStageOrder.length - 1) return null;
+              const nextStage = promotionStageOrder[idx + 1];
+              return (
+                <>
+                  <br />
+                  <Text>目标阶段: <Tag color={nextStage}>{nextStage}</Tag></Text>
+                </>
+              );
+            })()}
           </div>
         )}
         <Form form={promotionForm} layout="vertical">

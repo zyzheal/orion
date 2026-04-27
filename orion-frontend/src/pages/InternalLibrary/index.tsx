@@ -4,31 +4,27 @@
  */
 import React, { useState, useMemo, useEffect } from 'react';
 import {
-  Typography, Button, Space, Tag, Card, Modal, Form, Input, Select, message, Alert,
-  Popconfirm, Tabs, Table as AntTable, Descriptions, Drawer, Tooltip, Switch,
-  DatePicker,
+  Typography, Button, Space, Modal, Form, Input, Select, message, Alert,
+  Tabs, Descriptions, Drawer, Tag, DatePicker, Card,
 } from 'antd';
 import {
-  PlusOutlined, ReloadOutlined, DeleteOutlined,
-  PlayCircleOutlined, SearchOutlined,
-  CodeOutlined, TeamOutlined,
-  RocketOutlined, StopOutlined, LinkOutlined,
-  CheckCircleOutlined, WarningOutlined,
+  PlusOutlined, ReloadOutlined, TeamOutlined,
 } from '@ant-design/icons';
-import Table, { type TableColumn } from '@/components/Table';
-import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import PageSkeleton from '@/components/PageSkeleton';
+import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import {
   getInternalLibraries, createInternalLibrary, deleteInternalLibrary,
   activateInternalLibrary, deprecateInternalLibrary,
   publishVersion, getVersions, deprecateVersion,
   getDependents, addDependent, updateDependent,
-  checkDependencies, updateDependentStats,
+  updateDependentStats,
   type InternalLibrary, type LibraryVersion, type LibraryDependent,
   type CreateLibraryInput, type PublishVersionInput, type DeprecateLibraryInput,
-  type AddDependentInput, type DependencyCheckResult,
-  type LibraryLanguage, type LibraryStatus, type VersionStatus,
+  type AddDependentInput, type LibraryLanguage,
 } from '@/api/internal-library';
+import LibraryTable from './LibraryTable';
+import CreateLibraryModal from './CreateLibraryModal';
+import { getLibraryTabItems } from './LibraryDetail';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 
@@ -38,39 +34,15 @@ const { Title, Text } = Typography;
 
 // ---- Constants ----
 
-const languageLabels: Record<LibraryLanguage, string> = {
+const languageOptions = Object.entries({
   java: 'Java',
   node: 'Node.js',
   python: 'Python',
   go: 'Go',
   rust: 'Rust',
   dotnet: '.NET',
-};
+} as Record<LibraryLanguage, string>).map(([value, label]) => ({ label, value }));
 
-const statusColorMap: Record<LibraryStatus, string> = {
-  active: 'green',
-  deprecated: 'orange',
-  archived: 'default',
-  development: 'blue',
-};
-
-const versionStatusColorMap: Record<VersionStatus, string> = {
-  snapshot: 'default',
-  alpha: 'orange',
-  beta: 'gold',
-  rc: 'purple',
-  stable: 'green',
-  deprecated: 'red',
-};
-
-const upgradeTypeColorMap: Record<string, string> = {
-  patch: 'green',
-  minor: 'blue',
-  major: 'orange',
-  breaking: 'red',
-};
-
-const languageOptions = Object.entries(languageLabels).map(([value, label]) => ({ label, value }));
 const statusOptions = [
   { label: '全部', value: 'all' },
   { label: 'Active', value: 'active' },
@@ -142,88 +114,6 @@ const MOCK_DEPENDENTS: LibraryDependent[] = [
   { repoName: 'orion-api-gateway', teamName: 'platform-team', currentVersion: '2.3.0', latestCompatibleVersion: '2.3.0', upgradeAvailable: false, lastUpdated: '2024-03-10T10:00:00Z' },
   { repoName: 'orion-frontend', teamName: 'frontend-team', currentVersion: '2.1.0', latestCompatibleVersion: '2.3.0', upgradeAvailable: true, upgradeType: 'major', lastUpdated: '2024-02-15T10:00:00Z' },
 ];
-
-const MOCK_DEP_CHECK: DependencyCheckResult[] = [
-  { libraryName: '@orion/auth', currentVersion: '2.1.0', latestVersion: '2.3.0', status: 'upgrade_available', upgradeType: 'minor', securityScore: 92, breakingChanges: [] },
-  { libraryName: '@orion/utils', currentVersion: '1.5.2', latestVersion: '1.5.2', status: 'latest', securityScore: 95, breakingChanges: [] },
-  { libraryName: 'orion-db-core', currentVersion: '2.8.0', latestVersion: '3.0.0', status: 'breaking_change', upgradeType: 'major', securityScore: 88, breakingChanges: ['API signature change', 'Migration required'], migrationGuide: 'https://docs.orion.io/db/migrate-v3' },
-];
-
-// ---- Dependency Check Tool ----
-
-const DependencyCheckTool: React.FC = () => {
-  const [repoName, setRepoName] = useState('');
-  const [results, setResults] = useState<DependencyCheckResult[] | null>(null);
-  const [checking, setChecking] = useState(false);
-
-  const handleCheck = async () => {
-    if (!repoName) { message.warning('请输入项目名称'); return; }
-    setChecking(true);
-    try {
-      const res = await checkDependencies(repoName);
-      setResults(Array.isArray(res.data?.data) ? res.data.data : []);
-    } catch {
-      setResults(MOCK_DEP_CHECK);
-    } finally {
-      setChecking(false);
-    }
-  };
-
-  const statusTag = (status: DependencyCheckResult['status']) => {
-    const map: Record<string, { color: string; text: string }> = {
-      latest: { color: 'green', text: '最新' },
-      upgrade_available: { color: 'blue', text: '可升级' },
-      breaking_change: { color: 'orange', text: 'Breaking' },
-      deprecated: { color: 'red', text: '已废弃' },
-    };
-    const { color, text } = map[status] || { color: 'default', text: status };
-    return <Tag color={color}>{text}</Tag>;
-  };
-
-  return (
-    <Card size="small" title={<Space><LinkOutlined /> 依赖检查工具</Space>} style={{ marginBottom: 16 }}>
-      <Space wrap>
-        <Input
-          placeholder="项目名称 (如: orion-platform-service)"
-          style={{ width: 300 }}
-          value={repoName}
-          onChange={(e) => setRepoName(e.target.value)}
-          onPressEnter={handleCheck}
-        />
-        <Button type="primary" icon={<SearchOutlined />} onClick={handleCheck} loading={checking}>检查</Button>
-      </Space>
-      {results && results.length > 0 && (
-        <AntTable
-          dataSource={results}
-          rowKey="libraryName"
-          size="small"
-          pagination={false}
-          style={{ marginTop: 12 }}
-          columns={[
-            { key: 'libraryName', title: '二方库', dataIndex: 'libraryName', width: 160, render: (v: unknown) => <Text code>{String(v)}</Text> },
-            { key: 'versions', title: '当前 -> 最新', width: 160,
-              render: (_: unknown, record: DependencyCheckResult) => (
-                <Text><Tag>{record.currentVersion}</Tag> <Text type="secondary">→</Text> <Tag color="blue">{record.latestVersion}</Tag></Text>
-              ),
-            },
-            { key: 'status', title: '状态', width: 120, render: (_: unknown, record: DependencyCheckResult) => statusTag(record.status) },
-            { key: 'upgradeType', title: '升级类型', width: 90,
-              render: (_: unknown, record: DependencyCheckResult) => record.upgradeType ? <Tag color={upgradeTypeColorMap[record.upgradeType]}>{record.upgradeType}</Tag> : <Text type="secondary">-</Text>,
-            },
-            { key: 'securityScore', title: '安全评分', width: 90,
-              render: (_: unknown, record: DependencyCheckResult) => record.securityScore ? <Tag color={record.securityScore >= 90 ? 'green' : record.securityScore >= 70 ? 'orange' : 'red'}>{record.securityScore}</Tag> : <Text type="secondary">-</Text>,
-            },
-            { key: 'breakingChanges', title: 'Breaking Changes', width: 200,
-              render: (_: unknown, record: DependencyCheckResult) => record.breakingChanges && record.breakingChanges.length > 0
-                ? record.breakingChanges.map((c, i) => <div key={i}><WarningOutlined /> <Text type="danger">{c}</Text></div>)
-                : <Text type="secondary">无</Text>,
-            },
-          ]}
-        />
-      )}
-    </Card>
-  );
-};
 
 // ---- Main Component ----
 
@@ -458,78 +348,6 @@ const InternalLibraryManagement: React.FC = () => {
     }
   };
 
-  // ---- Table columns ----
-
-  const columns: TableColumn<InternalLibrary>[] = [
-    {
-      key: 'displayName', title: '二方库', dataIndex: 'displayName', width: 180, sortable: true,
-      render: (v: unknown, record: InternalLibrary) => (
-        <Space direction="vertical" size={0}>
-          <Text strong style={{ cursor: 'pointer' }} onClick={() => openDetail(record)}>{String(v || record.name)}</Text>
-          <Text type="secondary" style={{ fontSize: 12 }}><CodeOutlined /> {record.name}</Text>
-        </Space>
-      ),
-    },
-    {
-      key: 'description', title: '描述', dataIndex: 'description', width: 200,
-      render: (v: unknown) => <Text type="secondary">{String(v || '-')}</Text>,
-    },
-    {
-      key: 'language', title: '语言', width: 90,
-      render: (_: unknown, record: InternalLibrary) => <Tag color="cyan">{languageLabels[record.language] || record.language}</Tag>,
-    },
-    {
-      key: 'version', title: '当前版本', width: 100,
-      render: (_: unknown, record: InternalLibrary) => <Text code>{record.currentVersion}</Text>,
-    },
-    {
-      key: 'owner', title: '团队', width: 120,
-      render: (_: unknown, record: InternalLibrary) => <Space><TeamOutlined /> <Text>{record.owner}</Text></Space>,
-    },
-    {
-      key: 'dependents', title: '依赖项目', width: 100,
-      render: (_: unknown, record: InternalLibrary) => {
-        const d = record.dependents;
-        return <Text style={{ fontSize: 12 }}>{d?.totalRepos ?? 0} 个项目<br />{d?.totalTeams ?? 0} 个团队</Text>;
-      },
-    },
-    {
-      key: 'quality', title: '质量', width: 90,
-      render: (_: unknown, record: InternalLibrary) => {
-        const q = record.quality;
-        if (!q) return <Text type="secondary">-</Text>;
-        return (
-          <Space direction="vertical" size={0}>
-            <Text style={{ fontSize: 12 }}>覆盖 {q.testCoverage ?? '-'}%</Text>
-            <Text type={q.securityScore && q.securityScore >= 90 ? 'success' : q.securityScore && q.securityScore >= 70 ? 'warning' : 'danger'} style={{ fontSize: 12 }}>安全 {q.securityScore ?? '-'}</Text>
-          </Space>
-        );
-      },
-    },
-    {
-      key: 'status', title: '状态', width: 100,
-      render: (_: unknown, record: InternalLibrary) => <Tag color={statusColorMap[record.status]}>{record.status}</Tag>,
-    },
-    {
-      key: 'updatedAt', title: '更新', width: 110,
-      render: (_: unknown, record: InternalLibrary) => <Text type="secondary" style={{ fontSize: 12 }}>{dayjs(record.updatedAt).fromNow()}</Text>,
-    },
-    {
-      key: 'actions', title: '操作', width: 200,
-      render: (_: unknown, record: InternalLibrary) => (
-        <Space size="small" wrap>
-          <Tooltip title="详情"><Button type="link" size="small" onClick={() => openDetail(record)}>详情</Button></Tooltip>
-          {record.status === 'deprecated' || record.status === 'archived' ? (
-            <Tooltip title="激活"><Popconfirm title="确认激活?" onConfirm={() => handleActivate(record.id)}><Button type="link" size="small" icon={<PlayCircleOutlined />} /></Popconfirm></Tooltip>
-          ) : record.status === 'active' ? (
-            <Tooltip title="废弃"><Popconfirm title="确认废弃?" onConfirm={() => { setSelectedLib(record); setDeprecateModalVisible(true); }}><Button type="link" size="small" danger icon={<StopOutlined />} /></Popconfirm></Tooltip>
-          ) : null}
-          <Tooltip title="删除"><Popconfirm title="确认删除?" onConfirm={() => handleDelete(record.id)}><Button type="link" size="small" danger icon={<DeleteOutlined />} /></Popconfirm></Tooltip>
-        </Space>
-      ),
-    },
-  ];
-
   const filterDefs: FilterDefinition[] = [
     { key: 'language', label: '语言', options: [
       { label: '全部', value: 'all' },
@@ -538,119 +356,29 @@ const InternalLibraryManagement: React.FC = () => {
     { key: 'status', label: '状态', options: statusOptions },
   ];
 
-  // ---- Version columns ----
-
-  const versionColumns: TableColumn<LibraryVersion>[] = [
-    { key: 'version', title: '版本', dataIndex: 'version', width: 120, render: (v: unknown) => <Text code><RocketOutlined /> {String(v)}</Text> },
-    { key: 'status', title: '状态', width: 100, render: (_: unknown, record: LibraryVersion) => <Tag color={versionStatusColorMap[record.status]}>{record.status}</Tag> },
-    { key: 'changelog', title: '变更说明', dataIndex: 'changelog', width: 200, render: (v: unknown) => <Text type="secondary">{String(v || '-')}</Text> },
-    { key: 'testCoverage', title: '测试覆盖', width: 100, render: (_: unknown, record: LibraryVersion) => record.testCoverage != null ? <Text>{record.testCoverage}%</Text> : <Text type="secondary">-</Text> },
-    { key: 'securityScore', title: '安全评分', width: 100, render: (_: unknown, record: LibraryVersion) => {
-      if (record.securityScore == null) return <Text type="secondary">-</Text>;
-      const color = record.securityScore >= 90 ? 'green' : record.securityScore >= 70 ? 'orange' : 'red';
-      return <Tag color={color}>{record.securityScore}</Tag>;
-    }},
-    { key: 'releasedAt', title: '发布时间', dataIndex: 'releasedAt', width: 140, render: (v: unknown) => <Text type="secondary" style={{ fontSize: 12 }}>{dayjs(String(v)).fromNow()}</Text> },
-    { key: 'actions', title: '操作', width: 100, render: (_: unknown, record: LibraryVersion) => (
-      record.status !== 'deprecated' ? (
-        <Popconfirm title="确认废弃此版本?" onConfirm={() => {
-          versionForm.setFieldValue('_targetVersion', record.version);
-          setDeprecateVersionModalVisible(true);
-        }}>
-          <Button type="link" size="small" danger>废弃</Button>
-        </Popconfirm>
-      ) : <Text type="secondary">已废弃</Text>
-    )},
-  ];
-
-  // ---- Dependent columns ----
-
-  const dependentColumns: TableColumn<LibraryDependent>[] = [
-    { key: 'repoName', title: '项目', dataIndex: 'repoName', width: 200, render: (v: unknown) => <Text code>{String(v)}</Text> },
-    { key: 'teamName', title: '团队', dataIndex: 'teamName', width: 120, render: (_: unknown, record: LibraryDependent) => <Space><TeamOutlined /> {record.teamName}</Space> },
-    { key: 'version', title: '当前版本', dataIndex: 'currentVersion', width: 100, render: (v: unknown) => <Text code>{String(v)}</Text> },
-    { key: 'upgradeAvailable', title: '升级', width: 100, render: (_: unknown, record: LibraryDependent) => {
-      if (!record.upgradeAvailable) return <Tag color="green">最新</Tag>;
-      return <Tag color="blue">{record.upgradeType || 'upgrade'}</Tag>;
-    }},
-    { key: 'latestVersion', title: '最新版本', dataIndex: 'latestCompatibleVersion', width: 120, render: (v: unknown) => v ? <Text code>{String(v)}</Text> : <Text type="secondary">-</Text> },
-    { key: 'lastUpdated', title: '最后更新', dataIndex: 'lastUpdated', width: 140, render: (v: unknown) => <Text type="secondary" style={{ fontSize: 12 }}>{dayjs(String(v)).fromNow()}</Text> },
-    { key: 'actions', title: '操作', width: 120, render: (_: unknown, record: LibraryDependent) => (
-      record.upgradeAvailable && record.latestCompatibleVersion ? (
-        <Popconfirm title={`确认升级到 ${record.latestCompatibleVersion}?`} onConfirm={() => handleUpdateDependent(record.repoName, record.latestCompatibleVersion!)}>
-          <Button type="link" size="small"><CheckCircleOutlined /> 升级</Button>
-        </Popconfirm>
-      ) : <Text type="secondary">-</Text>
-    )},
-  ];
-
   // ---- Detail Tabs ----
 
-  const detailTabItems = useMemo(() => [
-    {
-      key: 'info', label: '基本信息',
-      children: selectedLib ? (
-        <Descriptions column={2} bordered size="small">
-          <Descriptions.Item label="名称">{selectedLib.name}</Descriptions.Item>
-          <Descriptions.Item label="显示名称">{selectedLib.displayName || '-'}</Descriptions.Item>
-          <Descriptions.Item label="描述" span={2}>{selectedLib.description || '-'}</Descriptions.Item>
-          <Descriptions.Item label="语言"><Tag color="cyan">{languageLabels[selectedLib.language]}</Tag></Descriptions.Item>
-          <Descriptions.Item label="状态"><Tag color={statusColorMap[selectedLib.status]}>{selectedLib.status}</Tag></Descriptions.Item>
-          <Descriptions.Item label="团队"><TeamOutlined /> {selectedLib.owner}</Descriptions.Item>
-          <Descriptions.Item label="维护者">{selectedLib.maintainers?.join(', ') || '-'}</Descriptions.Item>
-          <Descriptions.Item label="仓库" span={2}><Text code>{selectedLib.repository}</Text></Descriptions.Item>
-          <Descriptions.Item label="文档">{selectedLib.documentation ? <a href={selectedLib.documentation} target="_blank" rel="noopener noreferrer">{selectedLib.documentation}</a> : '-'}</Descriptions.Item>
-          <Descriptions.Item label="当前版本"><Text code>{selectedLib.currentVersion}</Text></Descriptions.Item>
-          <Descriptions.Item label="最新稳定版"><Text code>{selectedLib.latestStableVersion}</Text></Descriptions.Item>
-          <Descriptions.Item label="测试覆盖">{selectedLib.quality?.testCoverage ?? '-'}%</Descriptions.Item>
-          <Descriptions.Item label="安全评分">{selectedLib.quality?.securityScore ?? '-'}</Descriptions.Item>
-          <Descriptions.Item label="依赖项目数">{selectedLib.dependents?.totalRepos ?? 0}</Descriptions.Item>
-          <Descriptions.Item label="依赖团队数">{selectedLib.dependents?.totalTeams ?? 0}</Descriptions.Item>
-          <Descriptions.Item label="使用最新版">{selectedLib.dependents?.reposUsingLatest ?? 0}</Descriptions.Item>
-          <Descriptions.Item label="需要升级">{selectedLib.dependents?.reposNeedingUpgrade ?? 0}</Descriptions.Item>
-          <Descriptions.Item label="创建时间">{dayjs(selectedLib.createdAt).format('YYYY-MM-DD HH:mm')}</Descriptions.Item>
-          <Descriptions.Item label="更新时间">{dayjs(selectedLib.updatedAt).format('YYYY-MM-DD HH:mm')}</Descriptions.Item>
-        </Descriptions>
-      ) : null,
+  const { items: detailTabItems, activeKey: detailActiveKey, onChange: detailTabChange } = getLibraryTabItems(
+    selectedLib,
+    versions,
+    dependents,
+    activeTab,
+    setActiveTab,
+    () => {
+      versionForm.resetFields();
+      setVersionModalVisible(true);
     },
-    {
-      key: 'versions', label: '版本管理',
-      children: (
-        <div>
-          <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'space-between' }}>
-            <Text type="secondary">管理二方库版本</Text>
-            <Button type="primary" size="small" icon={<PlusOutlined />} onClick={() => {
-              versionForm.resetFields();
-              setVersionModalVisible(true);
-            }}>发布新版本</Button>
-          </div>
-          <AntTable columns={versionColumns} dataSource={versions} rowKey="version" size="small" pagination={{ pageSize: 10 }} />
-        </div>
-      ),
+    (targetVersion: string) => {
+      versionForm.setFieldValue('_targetVersion', targetVersion);
+      setDeprecateVersionModalVisible(true);
     },
-    {
-      key: 'dependents', label: '依赖者管理',
-      children: (
-        <div>
-          <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Space>
-              <Text type="secondary">管理依赖此二方库的项目</Text>
-              <Button size="small" icon={<ReloadOutlined />} onClick={handleUpdateStats}>刷新统计</Button>
-            </Space>
-            <Button type="primary" size="small" icon={<PlusOutlined />} onClick={() => {
-              addDependentForm.resetFields();
-              setAddDependentModalVisible(true);
-            }}>添加依赖</Button>
-          </div>
-          <AntTable columns={dependentColumns} dataSource={dependents} rowKey="repoName" size="small" pagination={false} />
-        </div>
-      ),
+    handleUpdateStats,
+    () => {
+      addDependentForm.resetFields();
+      setAddDependentModalVisible(true);
     },
-    {
-      key: 'dep-check', label: '依赖检查',
-      children: <DependencyCheckTool />,
-    },
-  ], [selectedLib, versions, dependents]);
+    handleUpdateDependent,
+  );
 
   const isInitialLoading = loading && libraries.length === 0;
 
@@ -690,50 +418,24 @@ const InternalLibraryManagement: React.FC = () => {
         <div style={{ marginBottom: 16 }}>
           <SearchFilterBar onSearch={setSearchQuery} onFilter={setFilters} filters={filterDefs} searchPlaceholder="搜索二方库..." />
         </div>
-        <Table columns={columns} dataSource={filteredData} loading={loading} rowKey="id" size="middle" striped />
+        <LibraryTable
+          dataSource={filteredData}
+          loading={loading}
+          onDetail={openDetail}
+          onActivate={handleActivate}
+          onDeprecate={(record) => { setSelectedLib(record); setDeprecateModalVisible(true); }}
+          onDelete={handleDelete}
+        />
       </Card>
 
-      {/* Create Modal */}
-      <Modal
-        title="创建二方库" open={createModalVisible} onCancel={() => setCreateModalVisible(false)}
-        onOk={handleCreate} confirmLoading={submitting} width={640} destroyOnClose
-      >
-        <Form form={createForm} layout="vertical">
-          <Form.Item name="name" label="名称 (唯一标识)" rules={[{ required: true, message: '请输入名称' }]}>
-            <Input placeholder="如: @orion/auth 或 orion-db-core" />
-          </Form.Item>
-          <Form.Item name="displayName" label="显示名称" rules={[{ required: true, message: '请输入显示名称' }]}>
-            <Input placeholder="如: Orion 认证库" />
-          </Form.Item>
-          <Form.Item name="description" label="描述">
-            <Input.TextArea rows={2} placeholder="二方库描述..." />
-          </Form.Item>
-          <Form.Item name="language" label="语言" rules={[{ required: true, message: '请选择语言' }]}>
-            <Select options={languageOptions} placeholder="选择编程语言" />
-          </Form.Item>
-          <Form.Item name="owner" label="所属团队" rules={[{ required: true, message: '请输入团队名称' }]}>
-            <Input placeholder="如: platform-team" />
-          </Form.Item>
-          <Form.Item name="maintainers" label="维护者 (逗号分隔)">
-            <Input placeholder="如: heal, alice" />
-          </Form.Item>
-          <Form.Item name="repository" label="Git 仓库地址" rules={[{ required: true, message: '请输入仓库地址' }]}>
-            <Input placeholder="https://github.com/org/repo" />
-          </Form.Item>
-          <Form.Item name="documentation" label="文档地址">
-            <Input placeholder="https://docs.example.com" />
-          </Form.Item>
-          <Form.Item name="sla" label="SLA 等级">
-            <Select options={[{ label: 'P0 - 核心', value: 'p0' }, { label: 'P1 - 重要', value: 'p1' }, { label: 'P2 - 普通', value: 'p2' }]} placeholder="选择 SLA" />
-          </Form.Item>
-          <Form.Item name="requireApproval" label="发布需要审批" valuePropName="checked">
-            <Switch />
-          </Form.Item>
-          <Form.Item name="approvers" label="审批人 (逗号分隔)">
-            <Input placeholder="如: tech-lead, qa-lead" />
-          </Form.Item>
-        </Form>
-      </Modal>
+      {/* Create Modal (extracted sub-component) */}
+      <CreateLibraryModal
+        visible={createModalVisible}
+        form={createForm}
+        submitting={submitting}
+        onCancel={() => setCreateModalVisible(false)}
+        onOk={handleCreate}
+      />
 
       {/* Deprecate Library Modal */}
       <Modal
@@ -839,14 +541,18 @@ const InternalLibraryManagement: React.FC = () => {
         {selectedLib && (
           <Descriptions size="small" style={{ marginBottom: 16 }} column={3} bordered>
             <Descriptions.Item label="名称"><Text code>{selectedLib.name}</Text></Descriptions.Item>
-            <Descriptions.Item label="语言"><Tag color="cyan">{languageLabels[selectedLib.language]}</Tag></Descriptions.Item>
-            <Descriptions.Item label="状态"><Tag color={statusColorMap[selectedLib.status]}>{selectedLib.status}</Tag></Descriptions.Item>
+            <Descriptions.Item label="语言"><Tag color="cyan">{
+              ({ java: 'Java', node: 'Node.js', python: 'Python', go: 'Go', rust: 'Rust', dotnet: '.NET' } as Record<string, string>)[selectedLib.language] || selectedLib.language
+            }</Tag></Descriptions.Item>
+            <Descriptions.Item label="状态"><Tag color={
+              { active: 'green', deprecated: 'orange', archived: 'default', development: 'blue' }[selectedLib.status] || 'default'
+            }>{selectedLib.status}</Tag></Descriptions.Item>
             <Descriptions.Item label="当前版本"><Text code>{selectedLib.currentVersion}</Text></Descriptions.Item>
             <Descriptions.Item label="团队"><TeamOutlined /> {selectedLib.owner}</Descriptions.Item>
             <Descriptions.Item label="依赖项目">{selectedLib.dependents?.totalRepos ?? 0}</Descriptions.Item>
           </Descriptions>
         )}
-        <Tabs activeKey={activeTab} onChange={setActiveTab} items={detailTabItems} />
+        <Tabs activeKey={detailActiveKey} onChange={detailTabChange} items={detailTabItems} />
       </Drawer>
         </>
       )}
