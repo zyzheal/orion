@@ -728,58 +728,636 @@ function extractPageContext(pathname: string): PageContext | null {
 
 ---
 
-## 12. 实现阶段
+## 12. AIOps 智能运维引擎
 
-### Phase 1（本期）
-- [ ] 前端：ChatTrigger 悬浮按钮（状态指示 + 上下文感知）
-- [ ] 前端：ChatPanel 侧边栏容器 + 浅色主题
-- [ ] 前端：SmartRecommend 推荐面板（告警/阻塞卡片）
-- [ ] 前端：ChatInput 输入框 + Slash 快捷命令
-- [ ] 前端：命令解析引擎（关键词匹配 + 自然语言）
-- [ ] 前端：ChatMessage + ActionCard 组件
-- [ ] 前端：chatOpsStore Zustand Store
-- [ ] 前端：通知偏好设置 UI（渠道选择 + DND + 订阅管理）
-- [ ] 前端：已读/未读状态交互（徽标 + 状态流转）
-- [ ] 后端：POST /api/chatops/execute API
-- [ ] 后端：双层权限校验中间件
-- [ ] 后端：命令路由分发（对接现有 API）
-- [ ] 后端：POST /api/chatops/recommendations API（推荐面板数据）
-- [ ] 后端：GET /api/chatops/commands API（可用命令列表）
-- [ ] 后端：chatops_sessions / messages / executions / audit_logs 表创建
-- [ ] 后端：L1 → L3 数据写入链路
-- [ ] 后端：通知偏好 CRUD API
-- [ ] 后端：DND 设置 CRUD API
-- [ ] 后端：已读状态管理 API
-- [ ] 后端：订阅管理 CRUD API
-- [ ] 后端：告警风暴降噪引擎（聚合规则）
-- [ ] 后端：升级策略引擎（定时检查未处理告警）
-- [ ] 数据库：pgcrypto 扩展启用
-- [ ] 数据库：TTL 自动清理定时任务
+> 评审发现：当前设计在交互流程、权限控制、信息接收方面完善，但 AI 智能能力几乎空白。
+> 以下 4 个模块是 ChatOps 从"通知系统"升级为"运维中枢"的核心。
 
-### Phase 2
+### 12.1 根因分析引擎 (RCA Engine)
+
+#### 12.1.1 问题定义
+
+当系统发生故障时，通常会触发多条连锁告警。当前降噪策略仅按时间/数量聚合，无法回答：
+- 哪条告警是根因？
+- 哪些是连锁反应？
+- 解决根因后，其他告警是否会自动消失？
+
+#### 12.1.2 分析流程
+
+```
+输入: 一组时间相关的告警 (同窗口内)
+  ↓
+Step 1: 从 CMDB 获取服务依赖拓扑
+  ↓
+Step 2: 构建时间-拓扑关联图
+  - 节点: 告警服务/资源
+  - 边: 服务间依赖关系 (HTTP/gRPC/DB/Queue)
+  - 权重: 告警到达时间差 (传播延迟)
+  ↓
+Step 3: 计算因果权重
+  - 上游服务先告警 + 下游服务后告警 = 高因果权重
+  - 多个下游服务同时告警 → 共同上游 = 候选根因
+  ↓
+Step 4: 输出有向因果链
+  {
+    rootCause: { service, alert, time },
+    impactChain: [{ service, alert, time, delay }],
+    confidence: 0.87
+  }
+```
+
+#### 12.1.3 数据表
+
+```sql
+-- 服务依赖拓扑 (从 CMDB 同步)
+CREATE TABLE aiops_service_topology (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  source_service TEXT NOT NULL,
+  source_namespace TEXT,
+  target_service TEXT NOT NULL,
+  target_namespace TEXT,
+  dependency_type TEXT NOT NULL CHECK (dependency_type IN ('http', 'grpc', 'database', 'queue', 'dns')),
+  is_critical BOOLEAN DEFAULT false,
+  updated_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(source_service, target_service, dependency_type)
+);
+
+-- RCA 分析结果
+CREATE TABLE aiops_rca_results (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  alert_group_id UUID NOT NULL,         -- 关联的告警组
+  root_cause_alert_id UUID,
+  root_cause_service TEXT,
+  root_cause_alert_type TEXT,           -- 原始告警类型
+  impact_chain JSONB,                   -- [{service, alert, delay_ms, causal_weight}]
+  topology_snapshot JSONB,              -- 分析时的拓扑快照
+  confidence FLOAT CHECK (confidence >= 0 AND confidence <= 1),
+  analysis_time_ms INT,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- 告警组 (用于 RCA 分组)
+CREATE TABLE aiops_alert_groups (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  trigger_alert_id UUID NOT NULL,       -- 触发分组的第一个告警
+  time_window_start TIMESTAMP NOT NULL,
+  time_window_end TIMESTAMP,
+  status TEXT NOT NULL CHECK (status IN ('open', 'analyzing', 'resolved', 'false_positive')),
+  member_alert_ids UUID[],
+  rca_result_id UUID REFERENCES aiops_rca_results(id),
+  created_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+#### 12.1.4 前端展示
+
+推荐面板中告警卡片的 RCA 增强版：
+
+```
+┌─ 根因分析完成 ──────────────────────────┐
+│ 🔴 根因: DB 连接池耗尽 (15:00:12)       │
+│                                          │
+│ 影响链:                                  │
+│   DB (根因, 15:00) ───── 置信度 87%     │
+│     ↓ 延迟 48s                          │
+│   → api-service 响应超时 (15:01)        │
+│     ↓ 延迟 32s                          │
+│   → api-service 错误率上升 (15:01:32)   │
+│     ↓ 延迟 96s                          │
+│   → frontend 502 错误 (15:03:08)        │
+│                                          │
+│ 推荐操作 (基于历史修复记录):             │
+│ [扩容连接池 (82%成功率)]                 │
+│ [回滚最近 DB 变更 (76%)]                 │
+│ [重启 api-service (45%)]                 │
+│                                          │
+│ 影响范围: 12 个服务, 3 个用户           │
+└──────────────────────────────────────────┘
+```
+
+#### 12.1.5 后端 API
+
+```
+POST /api/chatops/rca/analyze
+Request: { alertIds: string[], timeWindowSeconds?: number }
+Response: {
+  groupId: string,
+  rootCause: { service, alert, time },
+  impactChain: AlertNode[],
+  confidence: number,
+  recommendedActions: RunbookAction[]
+}
+
+GET /api/chatops/rca/groups
+Response: AlertGroup[]  -- 当前未处理的告警组
+
+GET /api/chatops/rca/groups/:id
+Response: AlertGroup + RCA result
+```
+
+#### 12.1.6 实现策略 (Phase 1: 轻量版，无 ML)
+
+- **拓扑关联**: 直接使用 CMDB 已有服务依赖数据，不做动态发现
+- **因果计算**: 基于时间差 + 拓扑方向，不使用 ML 模型
+- **置信度**: 简单规则计算 (时间一致性 × 拓扑匹配度)
+- **性能**: 单次分析 < 2 秒 (内存图计算)
+
+---
+
+### 12.2 智能 Runbook 推荐引擎
+
+#### 12.2.1 问题定义
+
+当前设计中的操作按钮是硬编码的 (`[查看日志] [诊断] [重启]`)，不同告警类型需要的操作完全不同。
+
+#### 12.2.2 分层架构
+
+```
+Phase 1: 手动 Runbook 库
+  Admin 预定义: 告警类型 → 操作步骤列表
+  匹配规则: 精确匹配 (告警类型 + 服务名)
+
+Phase 2: Vector DB 检索 (RAG)
+  历史告警 + 修复记录 → 向量化存储
+  新告警 → 向量相似度检索 → 推荐历史最成功的操作
+
+Phase 3: LLM 生成
+  结合 Runbook 库 + 历史数据 + 当前上下文
+  LLM 生成个性化操作建议
+```
+
+#### 12.2.3 Phase 1 数据表
+
+```sql
+-- Runbook 库
+CREATE TABLE aiops_runbooks (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  alert_type TEXT NOT NULL,              -- 关联的告警类型
+  service_pattern TEXT,                  -- 服务名匹配模式 (支持 *)
+  severity TEXT,                         -- 适用的告警级别
+  -- 操作步骤
+  steps JSONB NOT NULL,                  -- [{order, action, command, description, expected_result}]
+  -- 统计
+  total_executions INT DEFAULT 0,
+  success_count INT DEFAULT 0,
+  success_rate FLOAT GENERATED ALWAYS AS (
+    CASE WHEN total_executions > 0 THEN success_count::float / total_executions ELSE 0 END
+  ) STORED,
+  -- 元数据
+  created_by UUID,
+  updated_by UUID,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Runbook 执行记录
+CREATE TABLE aiops_runbook_executions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  runbook_id UUID REFERENCES aiops_runbooks(id),
+  alert_id UUID,
+  user_id UUID NOT NULL,                 -- 执行者 (或 'system' 用于自愈)
+  status TEXT NOT NULL CHECK (status IN ('success', 'failed', 'partial', 'timeout')),
+  output TEXT,
+  duration_ms INT,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+#### 12.2.4 推荐逻辑
+
+```typescript
+// Phase 1: 匹配逻辑
+function recommendRunbooks(alert: Alert): Runbook[] {
+  return aiops_runbooks
+    .where({ alert_type: alert.type })
+    .filter(r => matchServicePattern(r.service_pattern, alert.service))
+    .filter(r => !r.severity || r.severity === alert.severity)
+    .orderBy('success_rate', 'DESC')
+    .limit(5);
+}
+
+// 推荐结果格式
+interface RunbookAction {
+  action: string;        // "扩容 DB 连接池"
+  runbookId: string;
+  successRate: number;   // 0.82
+  totalExecutions: number;
+  estimatedDurationMs: number;
+  riskLevel: 'low' | 'medium' | 'high';
+}
+```
+
+#### 12.2.5 前端展示
+
+操作按钮区域动态生成：
+
+```
+[当前 - 硬编码]
+[查看日志] [诊断根因] [重启 Pod]
+
+[加入 Runbook 引擎后]
+推荐操作:
+  🔧 扩容 DB 连接池     成功率 82% (98 次)  低风险  [执行]
+  🔧 回滚最近 DB 变更   成功率 76% (45 次)  中风险  [执行]
+  🔧 重启 api-service   成功率 45% (22 次)  低风险  [执行]
+
+其他操作:
+  [查看日志] [诊断根因] [查看详情] [自定义命令]
+```
+
+#### 12.2.6 后端 API
+
+```
+GET /api/chatops/runbooks/recommend?alertType=xxx&service=xxx
+Response: RunbookAction[]
+
+POST /api/chatops/runbooks/:id/execute
+Request: { alertId: string, context: {} }
+Response: { executionId: string, status: string }
+
+GET /api/chatops/runbooks/executions/:id
+Response: { status, output, duration_ms }
+
+-- Admin 管理 (Phase 1)
+POST /api/chatops/runbooks       -- 创建 Runbook
+PUT  /api/chatops/runbooks/:id   -- 更新 Runbook
+DELETE /api/chatops/runbooks/:id -- 删除 Runbook
+GET  /api/chatops/runbooks       -- Runbook 列表
+```
+
+---
+
+### 12.3 动态基线引擎 (Baseline Engine)
+
+#### 12.3.1 问题定义
+
+固定阈值告警存在两个问题：
+1. 正常流量波动（如晚高峰）触发误报
+2. 真正的异常在低流量时段可能被忽略（如凌晨 3 点的 0.5% 错误率）
+
+#### 12.3.2 算法 (Phase 1: 轻量统计，无 ML)
+
+```
+EWMA (指数加权移动平均):
+  baseline(t) = α × value(t) + (1 - α) × baseline(t-1)
+  α = 0.3 (默认, 可配置)
+
+动态阈值:
+  upper = baseline + 3 × stdDev
+  lower = baseline - 3 × stdDev
+
+季节性修正 (Phase 2):
+  按 hour_of_day × day_of_week 分组计算基线
+  例: 周一 14:00 的基线 ≠ 周日 03:00 的基线
+```
+
+#### 12.3.3 数据表
+
+```sql
+-- 基线配置
+CREATE TABLE aiops_baseline_configs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  metric_name TEXT NOT NULL,           -- 指标名 (如 'error_rate', 'latency_p99')
+  service_name TEXT,                   -- 服务名 (NULL = 全局)
+  environment TEXT,                    -- 环境名
+  alpha FLOAT DEFAULT 0.3,             -- EWMA 平滑系数
+  sigma_multiplier FLOAT DEFAULT 3.0,  -- 标准差倍数
+  seasonality_enabled BOOLEAN DEFAULT false, -- Phase 2
+  min_data_points INT DEFAULT 100,     -- 最少数据点数
+  enabled BOOLEAN DEFAULT true,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- 基线快照 (定期更新)
+CREATE TABLE aiops_baseline_snapshots (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  metric_name TEXT NOT NULL,
+  service_name TEXT,
+  environment TEXT,
+  baseline_value FLOAT,
+  std_dev FLOAT,
+  upper_threshold FLOAT,
+  lower_threshold FLOAT,
+  data_points_count INT,
+  computed_at TIMESTAMP DEFAULT NOW()
+);
+
+-- 异常检测记录
+CREATE TABLE aiops_anomaly_records (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  metric_name TEXT NOT NULL,
+  service_name TEXT,
+  actual_value FLOAT NOT NULL,
+  baseline_value FLOAT,
+  deviation FLOAT,                     -- 偏离标准差倍数
+  is_anomaly BOOLEAN NOT NULL,
+  alert_generated BOOLEAN DEFAULT false, -- 是否触发了告警
+  created_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+#### 12.3.4 使用方式
+
+```
+推荐面板的告警生成逻辑变更:
+
+[当前]  monitoring.alerts WHERE error_rate > 1.0  → 推送
+[加入基线后]
+  1. 获取当前 error_rate = 0.8%
+  2. 查询基线: baseline = 0.3%, stdDev = 0.1%, upper = 0.6%
+  3. 判断: 0.8% > 0.6% → 偏离 5σ → 异常!
+  4. 推送告警，附带基线对比:
+     "当前错误率 0.8%，基线 0.3% ± 0.1%，偏离 5σ"
+```
+
+#### 12.3.5 后端 API
+
+```
+POST /api/chatops/baseline/check
+Request: { metric: string, service: string, value: number }
+Response: {
+  isAnomaly: boolean,
+  actualValue: number,
+  baseline: number,
+  deviation: number,
+  upperThreshold: number,
+  lowerThreshold: number
+}
+
+GET /api/chatops/baseline/:metric?service=xxx&env=xxx
+Response: { baseline, stdDev, thresholds, history: [{time, value}] }
+```
+
+---
+
+### 12.4 变更影响分析引擎 (Change Impact Analyzer)
+
+#### 12.4.1 问题定义
+
+80% 的生产故障由变更引起。当前设计在部署前/后没有影响分析能力。
+
+#### 12.4.2 分析维度
+
+```
+输入: 即将部署的版本 + 目标环境
+  ↓
+Step 1: 查询 CMDB 拓扑 → 该环境的所有下游依赖服务
+  ↓
+Step 2: 对比变更范围
+  - API 变更: OpenAPI/Swagger diff
+  - 配置变更: ConfigMap/环境变量 diff
+  - 资源变更: CPU/内存/副本数 diff
+  ↓
+Step 3: 评估影响面
+  - 直接依赖: 调用此服务的上游服务
+  - 间接依赖: 上游服务的上游 (传递闭包)
+  - 数据层: 涉及的数据库/缓存变更
+  ↓
+Step 4: 输出影响报告
+```
+
+#### 12.4.3 数据表
+
+```sql
+-- 变更影响分析记录
+CREATE TABLE aiops_change_impact_analyses (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  change_type TEXT NOT NULL CHECK (change_type IN ('deployment', 'config_change', 'infra_change')),
+  source_version TEXT,                 -- 变更前的版本
+  target_version TEXT,                 -- 变更后的版本
+  target_environment TEXT NOT NULL,
+  target_service TEXT NOT NULL,
+  -- 分析结果
+  affected_services JSONB,             -- [{name, dependency_depth, impact_level}]
+  risk_level TEXT CHECK (risk_level IN ('low', 'medium', 'high', 'critical')),
+  risk_factors TEXT[],                 -- 风险因素列表
+  rollback_available BOOLEAN,
+  rollback_point TEXT,                 -- 可回滚的版本/快照
+  analysis_summary TEXT,
+  created_by UUID,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- 历史变更后果记录 (用于预测)
+CREATE TABLE aiops_change_history (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  change_type TEXT NOT NULL,
+  service_name TEXT NOT NULL,
+  version_from TEXT,
+  version_to TEXT,
+  environment TEXT,
+  -- 后果
+  caused_incident BOOLEAN DEFAULT false,
+  incident_severity TEXT,              -- 如果导致了故障
+  incident_description TEXT,
+  recovery_time_minutes INT,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+#### 12.4.4 前端展示
+
+部署前的 ChatOps 智能提示：
+
+```
+┌─ 变更影响分析 ──────────────────────────────┐
+│ 📋 部署 v2.2.0 → production (api-service)   │
+│                                               │
+│ 风险等级: 🟡 中等                            │
+│                                               │
+│ 影响服务 (8 个):                             │
+│   🔴 直接影响 (3):                           │
+│     • frontend-web (调用 /api/users)         │
+│     • mobile-backend (调用 /api/auth)        │
+│     • notification-service (调用 /api/events) │
+│   🟡 间接影响 (5):                           │
+│     • email-worker, push-service, ...        │
+│                                               │
+│ 变更对比:                                     │
+│   • API: 2 个新接口, 1 个废弃接口 ⚠️         │
+│   • 配置: DB_POOL_SIZE 50 → 100              │
+│   • 资源: CPU 2 → 4, Memory 4G → 8G          │
+│                                               │
+│ 历史参考: 该服务上次部署导致了 1 次 P1 故障  │
+│                                               │
+│ 回滚点: v2.1.0 (稳定运行 14 天)              │
+│                                               │
+│ [确认部署] [查看详情] [取消]                  │
+└───────────────────────────────────────────────┘
+```
+
+#### 12.4.5 后端 API
+
+```
+POST /api/chatops/change/analyze
+Request: {
+  changeType: 'deployment',
+  service: string,
+  fromVersion: string,
+  toVersion: string,
+  environment: string
+}
+Response: ChangeImpactReport
+
+GET /api/chatops/change/history?service=xxx
+Response: ChangeHistoryEntry[]  -- 历史变更及后果
+```
+
+---
+
+### 12.5 AIOps 模块间协作关系
+
+```
+                    ┌─────────────────────┐
+                    │   告警/事件到达       │
+                    └──────────┬──────────┘
+                               │
+                    ┌──────────▼──────────┐
+                    │  动态基线引擎        │ ← 判断是否为真正异常
+                    │  (是否偏离基线?)     │
+                    └──────────┬──────────┘
+                               │ 是异常
+                    ┌──────────▼──────────┐
+                    │  根因分析引擎        │ ← 找到根因 + 影响链
+                    │  (谁是根因?)         │
+                    └──────────┬──────────┘
+                               │
+                    ┌──────────▼──────────┐
+                    │  Runbook 推荐引擎   │ ← 推荐修复操作
+                    │  (怎么修?)          │
+                    └──────────┬──────────┘
+                               │
+                    ┌──────────▼──────────┐
+                    │  ChatOps 面板展示    │
+                    │  (告警 + 根因 + 操作) │
+                    └─────────────────────┘
+
+部署/变更前:
+  变更影响分析引擎 → 评估影响 → ChatOps 展示影响报告 → 用户确认 → 执行部署
+```
+
+---
+
+## 13. 实现阶段
+
+### Phase 1（本期）— 基础 + 轻量 AIOps
+
+**前端 (12 项)**:
+- [ ] ChatTrigger 悬浮按钮（状态指示 + 上下文感知 + 徽标）
+- [ ] ChatPanel 侧边栏容器 + 浅色主题
+- [ ] SmartRecommend 推荐面板（告警/阻塞卡片 + 根因链展示）
+- [ ] ChatInput 输入框 + Slash 快捷命令
+- [ ] 命令解析引擎（关键词匹配 + 自然语言）
+- [ ] ChatMessage + ActionCard 组件（动态操作按钮）
+- [ ] chatOpsStore Zustand Store
+- [ ] 通知偏好设置 UI（渠道选择 + DND + 订阅管理）
+- [ ] 已读/未读状态交互（徽标 + 状态流转）
+- [ ] Runbook 执行结果卡片（成功率 + 风险标签）
+- [ ] 变更影响报告展示组件
+- [ ] RCA 影响链可视化组件
+
+**后端 (20 项)**:
+- [ ] POST /api/chatops/execute API（命令执行）
+- [ ] 双层权限校验中间件
+- [ ] 命令路由分发（对接现有 API）
+- [ ] POST /api/chatops/recommendations API（推荐面板数据）
+- [ ] GET /api/chatops/commands API（可用命令列表）
+- [ ] chatops_sessions / messages / executions / audit_logs 表创建
+- [ ] L1 → L3 数据写入链路
+- [ ] 通知偏好 CRUD API
+- [ ] DND 设置 CRUD API
+- [ ] 已读状态管理 API
+- [ ] 订阅管理 CRUD API
+- [ ] 告警风暴降噪引擎（聚合规则）
+- [ ] 升级策略引擎（定时检查未处理告警）
+
+**AIOps 引擎 (14 项)**:
+- [ ] RCA 引擎基础版（时间 + 拓扑关联，无 ML）
+- [ ] POST /api/chatops/rca/analyze API
+- [ ] GET /api/chatops/rca/groups API
+- [ ] aiops_service_topology / aiops_rca_results / aiops_alert_groups 表
+- [ ] 拓扑数据同步（从 CMDB 读取）
+- [ ] Runbook 推荐引擎（手动库 + 匹配逻辑）
+- [ ] GET /api/chatops/runbooks/recommend API
+- [ ] POST /api/chatops/runbooks/:id/execute API
+- [ ] Runbook CRUD API（Admin 管理）
+- [ ] aiops_runbooks / aiops_runbook_executions 表
+- [ ] 动态基线引擎（EWMA 算法）
+- [ ] POST /api/chatops/baseline/check API
+- [ ] aiops_baseline_configs / aiops_baseline_snapshots / aiops_anomaly_records 表
+- [ ] 变更影响分析引擎（拓扑依赖分析）
+- [ ] POST /api/chatops/change/analyze API
+- [ ] aiops_change_impact_analyses / aiops_change_history 表
+
+**数据库 (3 项)**:
+- [ ] pgcrypto 扩展启用
+- [ ] TTL 自动清理定时任务
+- [ ] AIOps 表迁移脚本
+
+**Phase 1 总计: 51 个任务**
+
+### Phase 2 — 数据驱动
 - [ ] 后端：Redis 缓存层 (L2)
 - [ ] 前端：WebSocket 实时进度推送
 - [ ] 后端：对话原文加密存储 (pgcrypto)
 - [ ] 前端：跳转详情页高亮
 - [ ] 后端：降噪规则管理 API
 - [ ] 后端：升级策略管理 API
+- [ ] 后端：Vector DB 集成（接入 vector-store-routes）
+- [ ] 后端：历史事件知识库（RAG 检索）
+- [ ] 后端：动态基线增强（季节性分解）
+- [ ] 后端：RCA 引擎增强（时间序列相关性分析）
+- [ ] 后端：Runbook 自动学习（从执行记录更新成功率）
 
-### Phase 3
+### Phase 3 — AI 驱动
 - [ ] 后端：LLM 意图解析接口
 - [ ] 外部 IM 适配器（Slack/飞书/钉钉）
 - [ ] 前端：语音输入
 - [ ] 后端：对话分析（操作模式识别）
+- [ ] 后端：LLM 生成个性化 Runbook
+- [ ] 后端：变更影响预测（基于历史变更后果）
+- [ ] 后端：容量预测引擎
+- [ ] 后端：自动 Postmortem 生成
 
 ---
 
-## 13. 风险与依赖
+## 14. 风险与依赖
 
-| 风险 | 缓解 |
-|------|------|
-| pgcrypto 扩展未启用 | 数据库迁移脚本中检查并启用 |
-| Redis 未部署 | Phase 1 可跳过 L2，直接 L1 → L3 |
-| WebSocket 连接不稳定 | 降级为纯轮询模式 |
-| 命令解析覆盖率不足 | 预留 LLM fallback 接口 |
-| 权限模型与现有 RBAC 不一致 | 复用现有 role/user_resources 表 |
-| 告警风暴导致数据库写入压力 | 降噪聚合后再写入，减少 80%+ 写入量 |
-| 升级策略与 OnCall 系统冲突 | 升级策略读取 OnCall 排班表，避免重复通知 |
+| 风险 | 影响 | 缓解 |
+|------|------|------|
+| pgcrypto 扩展未启用 | 对话加密失效 | 数据库迁移脚本中检查并启用 |
+| Redis 未部署 | L2 缓存不可用 | Phase 1 跳过，直接 L1 → L3 |
+| WebSocket 连接不稳定 | 实时推送延迟 | 降级为纯轮询模式 |
+| 命令解析覆盖率不足 | 用户自然语言无法识别 | 预留 LLM fallback 接口 |
+| 权限模型与现有 RBAC 不一致 | 权限校验失效 | 复用现有 role/user_resources 表 |
+| 告警风暴导致数据库写入压力 | 数据库性能下降 | 降噪聚合后再写入，减少 80%+ |
+| 升级策略与 OnCall 系统冲突 | 重复通知 | 升级策略读取 OnCall 排班表 |
+| **CMDB 拓扑数据不完整** | **RCA 因果链分析准确率下降** | **Phase 1 使用已知依赖 + 手动补充** |
+| **历史数据不足** | **基线引擎初期误报** | **冷启动期使用固定阈值，积累数据后切换** |
+| **AIOps 推荐操作被误执行** | **生产事故** | **所有操作仍需用户确认 + 双层权限校验** |
+
+## 15. AIOps 能力成熟度路线图
+
+```
+Phase 1 (当前): 规则驱动 AIOps
+  根因分析: 拓扑关联 + 时间差 → 因果链 (无 ML)
+  Runbook: 手动库 + 精确匹配
+  基线: EWMA 统计算法 (无 ML)
+  变更影响: 拓扑依赖分析 (无 ML)
+  → 目标: 告警卡片从"发生了什么"变为"为什么发生 + 怎么修"
+
+Phase 2: 数据驱动 AIOps
+  根因分析: 加入时间序列相关性 (Pearson/DTW)
+  Runbook: Vector DB RAG 检索 (历史修复记录)
+  基线: 季节性分解 (按小时/星期分组)
+  变更影响: 基于历史后果预测
+  → 目标: 推荐准确率 > 70%，减少人工 Runbook 维护
+
+Phase 3: AI 驱动 AIOps
+  根因分析: LLM 辅助解释复杂因果链
+  Runbook: LLM 生成个性化操作建议
+  基线: 异常检测 ML 模型 (Isolation Forest)
+  容量预测: 趋势预测 + 预警
+  → 目标: 运维人员从"排查问题"变为"确认 AI 建议"
+```
