@@ -162,36 +162,113 @@ export class ChatOpsController {
 
   // ==================== Webhook ====================
 
+  /**
+   * 接收 IM 平台 Webhook 消息
+   *
+   * 流程：
+   * 1. 飞书 Challenge 验证：特殊处理，返回 challenge
+   * 2. 签名验证：生产环境强制验证，开发环境可跳过
+   * 3. 验证失败返回 403
+   * 4. 验证成功后从签名上下文中提取 userId（而非从 body 读）
+   */
   async receiveMessage(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const body = request.body as Record<string, unknown>;
-      // P2-4: Use unified getUser(), fallback for webhook scenarios
-      const user = (request as any).user as { userId: string } | undefined;
-      const userId = user?.userId || (body.user_id || body.userId || 'anonymous') as string;
-      const platform = (body.platform || 'webhook') as string;
-      const channel = (body.channel || 'default') as string;
+      const query = (request.query ?? {}) as Record<string, string | undefined>;
+      const headers: Record<string, string | undefined> = {};
+      // 提取关键请求头
+      const headerKeys = ['x-im-platform', 'X-IM-Platform'];
+      for (const key of headerKeys) {
+        const value = (request.headers as Record<string, string | undefined>)[key];
+        if (value) headers[key] = value;
+      }
 
-      // Parse incoming IM message
-      const text = (body.text || body.message || '') as string;
-      const { command, params } = await this.commandService.parseCommand(text);
-
-      if (!command) {
-        await reply.status(400).send({
-          success: false,
-          error: 'Unknown command. Use /help for available commands.',
-        });
+      // --- 飞书 Challenge 验证（URL 配置阶段） ---
+      if (isFeishuChallenge(body)) {
+        if (!WebhookVerifier.shouldVerify()) {
+          // 开发/测试环境：直接返回 challenge
+          await reply.send({ challenge: body.challenge });
+          return;
+        }
+        // 生产环境：需通过 token 验证
+        const result = WebhookVerifier.verifyFeishu(body);
+        if (!result.valid) {
+          await reply.status(403).send({
+            success: false,
+            error: result.error,
+          });
+          return;
+        }
+        await reply.send({ challenge: body.challenge });
         return;
       }
 
-      const execution = await this.executionService.execute({
-        commandId: command.name,
-        userId,
-        platform,
-        channel,
-        params: params as Record<string, unknown>,
-      });
+      // --- 签名验证 ---
+      if (WebhookVerifier.shouldVerify()) {
+        const result = WebhookVerifier.verify(body, query, headers);
+        if (!result.valid) {
+          await reply.status(403).send({
+            success: false,
+            error: `Webhook signature verification failed: ${result.error}`,
+          });
+          return;
+        }
 
-      await reply.status(201).send({ success: true, data: execution, command });
+        // 验证成功，使用签名上下文中的 userId
+        const userId = result.userId || 'webhook-anonymous';
+        const platform = result.platform;
+        const channel = (body.channel || 'default') as string;
+
+        // Parse incoming IM message
+        const text = (body.text || body.message || '') as string;
+        const { command, params } = await this.commandService.parseCommand(text);
+
+        if (!command) {
+          await reply.status(400).send({
+            success: false,
+            error: 'Unknown command. Use /help for available commands.',
+          });
+          return;
+        }
+
+        const execution = await this.executionService.execute({
+          commandId: command.name,
+          userId,
+          platform,
+          channel,
+          params: params as Record<string, unknown>,
+        });
+
+        await reply.status(201).send({ success: true, data: execution, command });
+      } else {
+        // 开发/测试环境：跳过签名验证
+        const user = (request as any).user as { userId: string } | undefined;
+        const userId = user?.userId || (body.user_id || body.userId || 'anonymous') as string;
+        const platform = (body.platform || 'webhook') as string;
+        const channel = (body.channel || 'default') as string;
+
+        // Parse incoming IM message
+        const text = (body.text || body.message || '') as string;
+        const { command, params } = await this.commandService.parseCommand(text);
+
+        if (!command) {
+          await reply.status(400).send({
+            success: false,
+            error: 'Unknown command. Use /help for available commands.',
+          });
+          return;
+        }
+
+        const execution = await this.executionService.execute({
+          commandId: command.name,
+          userId,
+          platform,
+          channel,
+          params: params as Record<string, unknown>,
+        });
+
+        await reply.status(201).send({ success: true, data: execution, command });
+      }
     } catch (err) {
       await reply.status(400).send({
         success: false,
