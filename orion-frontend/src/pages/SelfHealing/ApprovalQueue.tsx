@@ -30,9 +30,12 @@ const ApprovalQueue: React.FC = () => {
       const res = await getApprovals({ status: statusFilter, page, pageSize });
       setData(res.data.data?.items || []);
       setTotal(res.data.data?.total || 0);
-    } catch (error) {
-      console.error('Failed to load approvals:', error);
-      message.error('加载审批队列失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`加载审批队列失败：${error.message}`);
+      } else {
+        message.error('加载审批队列失败，请稍后重试');
+      }
     } finally {
       setLoading(false);
     }
@@ -60,8 +63,12 @@ const ApprovalQueue: React.FC = () => {
       setRespondModalOpen(false);
       respondForm.resetFields();
       loadData();
-    } catch (error) {
-      message.error('提交审批失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`提交审批失败：${error.message}`);
+      } else {
+        message.error('提交审批失败，请稍后重试');
+      }
     } finally {
       setRespondLoading(false);
     }

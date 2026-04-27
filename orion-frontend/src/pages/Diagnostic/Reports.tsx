@@ -27,9 +27,12 @@ const DiagnosticReports: React.FC = () => {
       const response = await getReports();
       const apiData = response.data.data;
       setReports(Array.isArray(apiData) ? apiData : []);
-    } catch (error) {
-      console.error('Failed to load reports:', error);
-      message.error('加载报告失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`加载报告失败：${error.message}`);
+      } else {
+        message.error('加载报告失败，请稍后重试');
+      }
     } finally {
       setLoading(false);
     }
@@ -58,8 +61,12 @@ const DiagnosticReports: React.FC = () => {
     try {
       const res = await getReport(report.id);
       setSelectedReport(res.data.data);
-    } catch (error) {
-      message.error('加载报告详情失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`加载报告详情失败：${error.message}`);
+      } else {
+        message.error('加载报告详情失败，请稍后重试');
+      }
     }
   };
 

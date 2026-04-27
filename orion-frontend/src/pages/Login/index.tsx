@@ -32,8 +32,11 @@ const Login: React.FC = () => {
         window.location.href = from;
       }, 100);
     } else {
-      console.error('[Login] Login failed:', result.error);
-      message.error('登录失败，请检查用户名和密码');
+      if (result.error && typeof result.error === 'object' && 'message' in result.error) {
+        message.error(`登录失败：${(result.error as Error).message}`);
+      } else {
+        message.error('登录失败，请检查用户名和密码');
+      }
     }
   };
 

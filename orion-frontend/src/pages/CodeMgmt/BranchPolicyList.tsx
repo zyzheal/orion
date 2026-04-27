@@ -29,9 +29,12 @@ const BranchPolicyList: React.FC = () => {
       const response = await getBranchPolicies();
       const data = response.data.data as BranchPolicy[];
       setPolicies(Array.isArray(data) ? data : []);
-    } catch (error) {
-      console.error('Failed to load branch policies:', error);
-      message.error('加载分支策略失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`加载分支策略失败：${error.message}`);
+      } else {
+        message.error('加载分支策略失败，请稍后重试');
+      }
     } finally {
       setLoading(false);
     }
@@ -92,9 +95,12 @@ const BranchPolicyList: React.FC = () => {
       setModalVisible(false);
       form.resetFields();
       loadPolicies();
-    } catch (error) {
-      console.error('Failed to save policy:', error);
-      message.error(editingPolicy ? '更新策略失败' : '创建策略失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(editingPolicy ? `更新策略失败：${error.message}` : `创建策略失败：${error.message}`);
+      } else {
+        message.error(editingPolicy ? '更新策略失败，请稍后重试' : '创建策略失败，请稍后重试');
+      }
     }
   };
 

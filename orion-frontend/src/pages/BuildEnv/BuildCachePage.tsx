@@ -40,9 +40,12 @@ const BuildCachePage: React.FC = () => {
       const response = await getBuildCacheConfigs();
       const apiData = response.data.data;
       setConfigs(Array.isArray(apiData) ? apiData : []);
-    } catch (error) {
-      console.error('Failed to load cache configs:', error);
-      message.error('Failed to load cache configs');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`加载缓存配置失败：${error.message}`);
+      } else {
+        message.error('加载缓存配置失败，请稍后重试');
+      }
     } finally {
       setLoadingConfigs(false);
     }
@@ -54,9 +57,12 @@ const BuildCachePage: React.FC = () => {
       const response = await getBuildCacheEntries();
       const apiData = response.data.data;
       setEntries(Array.isArray(apiData) ? apiData : []);
-    } catch (error) {
-      console.error('Failed to load cache entries:', error);
-      message.error('Failed to load cache entries');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`加载缓存条目失败：${error.message}`);
+      } else {
+        message.error('加载缓存条目失败，请稍后重试');
+      }
     } finally {
       setLoadingEntries(false);
     }
@@ -81,10 +87,14 @@ const BuildCachePage: React.FC = () => {
       setEditingConfig(null);
       form.resetFields();
       loadConfigs();
-    } catch (error: any) {
-      if (error.errorFields) return;
-      console.error('Failed to save cache config:', error);
-      message.error('Failed to save cache config');
+    } catch (error: unknown) {
+      const err = error as { errorFields?: unknown };
+      if (err.errorFields) return;
+      if (error instanceof Error) {
+        message.error(`保存缓存配置失败：${error.message}`);
+      } else {
+        message.error('保存缓存配置失败，请稍后重试');
+      }
     }
   };
 
@@ -93,9 +103,12 @@ const BuildCachePage: React.FC = () => {
       await deleteBuildCacheConfig(id);
       message.success('Cache config deleted');
       loadConfigs();
-    } catch (error) {
-      console.error('Failed to delete cache config:', error);
-      message.error('Failed to delete cache config');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`删除缓存配置失败：${error.message}`);
+      } else {
+        message.error('删除缓存配置失败，请稍后重试');
+      }
     }
   };
 
@@ -104,9 +117,12 @@ const BuildCachePage: React.FC = () => {
       await deleteBuildCacheEntry(id);
       message.success('Cache entry deleted');
       loadEntries();
-    } catch (error) {
-      console.error('Failed to delete cache entry:', error);
-      message.error('Failed to delete cache entry');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`删除缓存条目失败：${error.message}`);
+      } else {
+        message.error('删除缓存条目失败，请稍后重试');
+      }
     }
   };
 
@@ -116,9 +132,12 @@ const BuildCachePage: React.FC = () => {
       message.success('Expired cache cleaned up');
       loadConfigs();
       loadEntries();
-    } catch (error) {
-      console.error('Failed to cleanup expired cache:', error);
-      message.error('Failed to cleanup cache');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`清理缓存失败：${error.message}`);
+      } else {
+        message.error('清理缓存失败，请稍后重试');
+      }
     }
   };
 
@@ -127,9 +146,12 @@ const BuildCachePage: React.FC = () => {
       await clearCacheConfig(id);
       message.success('Cache config cleared');
       loadEntries();
-    } catch (error) {
-      console.error('Failed to clear cache config:', error);
-      message.error('Failed to clear cache');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`清除缓存配置失败：${error.message}`);
+      } else {
+        message.error('清除缓存配置失败，请稍后重试');
+      }
     }
   };
 

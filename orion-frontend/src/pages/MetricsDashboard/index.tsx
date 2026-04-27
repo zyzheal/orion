@@ -164,7 +164,6 @@ const MetricsDashboard: React.FC = () => {
         setUsingMockData(false);
       }
     } catch (error: unknown) {
-      console.error('Failed to load metrics dashboard data:', error);
       // Fallback to mock data
       setMetricSummary(MOCK_METRIC_SUMMARY);
       setServiceHealth(MOCK_SERVICE_HEALTH);

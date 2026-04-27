@@ -8,7 +8,7 @@
  * - Detail link
  */
 import React, { useState, useMemo, useEffect } from 'react';
-import { Typography, Button, Space, Tag } from 'antd';
+import { Typography, Button, Space, Tag, message } from 'antd';
 import { colors, spacing } from '@/tokens';
 import { ReloadOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
@@ -50,8 +50,12 @@ const DeploymentList: React.FC = () => {
       const response = await getDeployments();
       const apiData = response.data.data;
       setDeployments(Array.isArray(apiData) ? apiData : (apiData as any).items || []);
-    } catch (error) {
-      console.error('Failed to load deployments:', error);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`加载部署列表失败：${error.message}`);
+      } else {
+        message.error('加载部署列表失败，请稍后重试');
+      }
     } finally {
       setLoading(false);
     }

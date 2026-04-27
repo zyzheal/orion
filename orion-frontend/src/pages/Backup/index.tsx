@@ -337,8 +337,12 @@ const BackupManagement: React.FC = () => {
       setRestoreModalVisible(false);
       loadData();
       loadStats();
-    } catch {
-      message.error('恢复失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`恢复失败：${error.message}`);
+      } else {
+        message.error('恢复失败');
+      }
     } finally {
       setSubmitting(false);
     }
@@ -351,8 +355,12 @@ const BackupManagement: React.FC = () => {
       message.success('备份已删除');
       loadData();
       loadStats();
-    } catch {
-      message.error('删除失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`删除失败：${error.message}`);
+      } else {
+        message.error('删除失败');
+      }
     }
   };
 

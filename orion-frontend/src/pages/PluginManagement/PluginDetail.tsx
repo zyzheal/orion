@@ -16,6 +16,7 @@ import {
   Divider,
   Space,
   Tag,
+  message,
 } from 'antd';
 import {
   type ApiPlugin,
@@ -63,8 +64,13 @@ const PluginDetailDrawer: React.FC<PluginDetailDrawerProps> = ({
       setSaving(true);
       await onSaveConfig?.(values);
       setSaving(false);
-    } catch {
+    } catch (error: unknown) {
       setSaving(false);
+      if (error instanceof Error) {
+        message.error(`保存配置失败：${error.message}`);
+      } else {
+        message.error('保存配置失败，请稍后重试');
+      }
     }
   };
 

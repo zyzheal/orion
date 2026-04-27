@@ -32,9 +32,12 @@ const BuildPodList: React.FC = () => {
       const response = await getBuildPods();
       const apiData = response.data.data;
       setPods(Array.isArray(apiData) ? apiData : (apiData as any).items || []);
-    } catch (error) {
-      console.error('Failed to load build pods:', error);
-      message.error('Failed to load build pods');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`加载构建 Pod 失败：${error.message}`);
+      } else {
+        message.error('加载构建 Pod 失败，请稍后重试');
+      }
     } finally {
       setLoading(false);
     }
@@ -66,9 +69,12 @@ const BuildPodList: React.FC = () => {
       await cancelBuildPod(id);
       message.success('Build pod cancelled');
       loadPods();
-    } catch (error) {
-      console.error('Failed to cancel build pod:', error);
-      message.error('Failed to cancel build pod');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`取消构建 Pod 失败：${error.message}`);
+      } else {
+        message.error('取消构建 Pod 失败，请稍后重试');
+      }
     }
   };
 

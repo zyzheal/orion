@@ -98,9 +98,12 @@ const AgentRunDetail: React.FC = () => {
       setRun((runRes as any).data?.data || null);
       setDecisions((decisionsRes as any).data?.data || []);
       setApprovals((((approvalsRes as any).data?.data as AgentApproval[]) || []).filter((a: AgentApproval) => a.runId === runId));
-    } catch (err: any) {
-      console.error('Failed to load run data:', err);
-      message.error('加载运行数据失败');
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        message.error(`加载运行数据失败：${err.message}`);
+      } else {
+        message.error('加载运行数据失败');
+      }
     } finally {
       setLoading(false);
     }

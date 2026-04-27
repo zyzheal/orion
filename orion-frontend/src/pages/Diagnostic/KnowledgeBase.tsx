@@ -42,9 +42,12 @@ const DiagnosticKnowledgeBase: React.FC = () => {
       const patternsData = patternsRes.data.data;
       setPatterns(Array.isArray(patternsData) ? patternsData : []);
       setStats(statsRes.data.data);
-    } catch (error) {
-      console.error('Failed to load knowledge base data:', error);
-      message.error('加载知识库失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`加载知识库失败：${error.message}`);
+      } else {
+        message.error('加载知识库失败，请稍后重试');
+      }
     } finally {
       setLoading(false);
     }
@@ -63,8 +66,12 @@ const DiagnosticKnowledgeBase: React.FC = () => {
       const response = await searchPatterns(params);
       const apiData = response.data.data;
       setPatterns(Array.isArray(apiData) ? apiData : []);
-    } catch (error) {
-      message.error('搜索模式失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`搜索模式失败：${error.message}`);
+      } else {
+        message.error('搜索模式失败，请稍后重试');
+      }
     }
   };
 
@@ -92,8 +99,12 @@ const DiagnosticKnowledgeBase: React.FC = () => {
       const response = await searchPatterns(params);
       const apiData = response.data.data;
       setPatterns(Array.isArray(apiData) ? apiData : []);
-    } catch (error) {
-      message.error('筛选失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`筛选失败：${error.message}`);
+      } else {
+        message.error('筛选失败，请稍后重试');
+      }
     }
   };
 
@@ -103,8 +114,12 @@ const DiagnosticKnowledgeBase: React.FC = () => {
     try {
       const res = await getPattern(pattern.id);
       setSelectedPattern(res.data.data);
-    } catch (error) {
-      message.error('加载模式详情失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`加载模式详情失败：${error.message}`);
+      } else {
+        message.error('加载模式详情失败，请稍后重试');
+      }
     }
   };
 
@@ -121,8 +136,12 @@ const DiagnosticKnowledgeBase: React.FC = () => {
       setAddModalVisible(false);
       addForm.resetFields();
       loadData();
-    } catch (error) {
-      message.error('添加模式失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`添加模式失败：${error.message}`);
+      } else {
+        message.error('添加模式失败，请稍后重试');
+      }
     }
   };
 

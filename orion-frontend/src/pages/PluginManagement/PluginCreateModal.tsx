@@ -44,9 +44,11 @@ const PluginCreateModal: React.FC<PluginCreateModalProps> = ({
           setAvailablePlugins(res.data?.data || []);
         })
         .catch((err: unknown) => {
-          const msg = err instanceof Error ? err.message : '加载可用插件失败';
-          console.error('Failed to load available plugins:', err);
-          message.error(msg);
+          if (err instanceof Error) {
+            message.error(`加载可用插件失败：${err.message}`);
+          } else {
+            message.error('加载可用插件失败，请稍后重试');
+          }
         });
     }
   }, [open]);
@@ -69,8 +71,11 @@ const PluginCreateModal: React.FC<PluginCreateModalProps> = ({
       const errObj = err as { response?: { status?: number }; errorFields?: unknown };
       if (errObj.response?.status === 400) return;
       if (errObj.errorFields) return;
-      const msg = err instanceof Error ? err.message : '安装失败';
-      message.error(`安装失败：${msg}`);
+      if (err instanceof Error) {
+        message.error(`安装失败：${err.message}`);
+      } else {
+        message.error('安装失败，请稍后重试');
+      }
     }
   };
 

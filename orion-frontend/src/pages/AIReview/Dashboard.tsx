@@ -33,9 +33,12 @@ const AIReviewDashboard: React.FC = () => {
     try {
       const res = await getReviewHistory({ pageSize: 10 });
       setRecentReviews(res.data.data?.items || []);
-    } catch (error) {
-      console.error('Failed to load review history:', error);
-      message.error('加载评审历史失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`加载评审历史失败：${error.message}`);
+      } else {
+        message.error('加载评审历史失败，请稍后重试');
+      }
     } finally {
       setLoading(false);
     }
@@ -57,8 +60,12 @@ const AIReviewDashboard: React.FC = () => {
       setTriggerModalOpen(false);
       triggerForm.resetFields();
       loadData();
-    } catch (error) {
-      message.error('触发评审失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`触发评审失败：${error.message}`);
+      } else {
+        message.error('触发评审失败，请稍后重试');
+      }
     } finally {
       setTriggerLoading(false);
     }

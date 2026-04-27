@@ -40,9 +40,12 @@ const MonitoringChannels: React.FC = () => {
       const response = await getChannels();
       const apiData = response.data.data;
       setChannels(Array.isArray(apiData) ? apiData : []);
-    } catch (error) {
-      console.error('Failed to load channels:', error);
-      message.error('加载通知渠道失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`加载通知渠道失败：${error.message}`);
+      } else {
+        message.error('加载通知渠道失败，请稍后重试');
+      }
     } finally {
       setLoading(false);
     }
@@ -53,8 +56,12 @@ const MonitoringChannels: React.FC = () => {
       const response = await getEscalationPolicies();
       const apiData = response.data.data;
       setEscalationPolicies(Array.isArray(apiData) ? apiData : []);
-    } catch (error) {
-      console.error('Failed to load escalation policies:', error);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`加载升级策略失败：${error.message}`);
+      } else {
+        message.error('加载升级策略失败，请稍后重试');
+      }
     }
   };
 
@@ -84,8 +91,12 @@ const MonitoringChannels: React.FC = () => {
       setChannelModalVisible(false);
       channelForm.resetFields();
       loadChannels();
-    } catch (error) {
-      message.error('创建通知渠道失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`创建通知渠道失败：${error.message}`);
+      } else {
+        message.error('创建通知渠道失败，请稍后重试');
+      }
     }
   };
 
@@ -96,8 +107,12 @@ const MonitoringChannels: React.FC = () => {
         prev.map((c) => (c.id === id ? { ...c, enabled: res.data.data?.enabled ?? !c.enabled } : c))
       );
       message.success('渠道状态已切换');
-    } catch (error) {
-      message.error('切换渠道状态失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`切换渠道状态失败：${error.message}`);
+      } else {
+        message.error('切换渠道状态失败，请稍后重试');
+      }
     }
   };
 
@@ -114,8 +129,12 @@ const MonitoringChannels: React.FC = () => {
       setEscalationModalVisible(false);
       escalationForm.resetFields();
       loadEscalationPolicies();
-    } catch (error) {
-      message.error('创建升级策略失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`创建升级策略失败：${error.message}`);
+      } else {
+        message.error('创建升级策略失败，请稍后重试');
+      }
     }
   };
 

@@ -32,9 +32,12 @@ const EffectivenessDashboard: React.FC = () => {
       ]);
       setEffectiveness(effRes.data.data || null);
       setRecentHistory(histRes.data.data?.items || []);
-    } catch (error) {
-      console.error('Failed to load effectiveness data:', error);
-      message.error('加载效能数据失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`加载效能数据失败：${error.message}`);
+      } else {
+        message.error('加载效能数据失败，请稍后重试');
+      }
     } finally {
       setLoading(false);
     }

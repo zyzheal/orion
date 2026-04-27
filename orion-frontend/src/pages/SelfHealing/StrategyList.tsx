@@ -39,9 +39,11 @@ const StrategyList: React.FC = () => {
       const res = await getStrategies();
       setData(res.data.data?.items || []);
     } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : '加载策略列表失败';
-      console.error('Failed to load strategies:', error);
-      message.error(msg);
+      if (error instanceof Error) {
+        message.error(`加载策略列表失败：${error.message}`);
+      } else {
+        message.error('加载策略列表失败，请稍后重试');
+      }
     } finally {
       setLoading(false);
     }
@@ -57,8 +59,11 @@ const StrategyList: React.FC = () => {
       message.success('策略状态已切换');
       loadData();
     } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : '切换策略状态失败';
-      message.error(msg);
+      if (error instanceof Error) {
+        message.error(`切换策略状态失败：${error.message}`);
+      } else {
+        message.error('切换策略状态失败，请稍后重试');
+      }
     }
   };
 
@@ -96,8 +101,11 @@ const StrategyList: React.FC = () => {
       setModalOpen(false);
       loadData();
     } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : (editingStrategy ? '更新策略失败' : '创建策略失败');
-      message.error(msg);
+      if (error instanceof Error) {
+        message.error(editingStrategy ? `更新策略失败：${error.message}` : `创建策略失败：${error.message}`);
+      } else {
+        message.error(editingStrategy ? '更新策略失败，请稍后重试' : '创建策略失败，请稍后重试');
+      }
     } finally {
       setFormLoading(false);
     }

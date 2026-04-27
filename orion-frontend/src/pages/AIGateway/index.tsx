@@ -3,7 +3,7 @@
  * AI model routing, degradation handling, and rule engine monitoring
  */
 import React, { useState, useEffect } from 'react';
-import { Typography, Card, Row, Col, Table, Tag, Space, Button, Statistic, Progress } from 'antd';
+import { Typography, Card, Row, Col, Table, Tag, Space, Button, Statistic, Progress, message } from 'antd';
 import { colors } from '@/tokens';
 import {
   ThunderboltOutlined,
@@ -55,8 +55,12 @@ const AIGatewayPage: React.FC = () => {
       setGatewayStatus(statusRes.data.data);
       setEngineStatus(engineRes.data.data);
       setRules(rulesRes.data.data.rules);
-    } catch (error) {
-      console.error('Failed to load AI Gateway data:', error);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`加载 AI Gateway 数据失败：${error.message}`);
+      } else {
+        message.error('加载 AI Gateway 数据失败，请稍后重试');
+      }
     } finally {
       setLoading(false);
     }

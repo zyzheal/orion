@@ -36,9 +36,12 @@ const DiagnosticSessionDetail: React.FC = () => {
       ]);
       setSession(sessionRes.data.data);
       setComplexity(complexityRes.data.data);
-    } catch (error) {
-      console.error('Failed to load session detail:', error);
-      message.error('加载会话详情失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`加载会话详情失败：${error.message}`);
+      } else {
+        message.error('加载会话详情失败');
+      }
     } finally {
       setLoading(false);
     }

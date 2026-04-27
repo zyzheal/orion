@@ -27,9 +27,12 @@ const WebhookLog: React.FC = () => {
       const response = await getWebhookLogs();
       const data = response.data.data as WebhookEvent[];
       setEvents(Array.isArray(data) ? data : []);
-    } catch (error) {
-      console.error('Failed to load webhook logs:', error);
-      message.error('加载 Webhook 日志失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`加载 Webhook 日志失败：${error.message}`);
+      } else {
+        message.error('加载 Webhook 日志失败，请稍后重试');
+      }
     } finally {
       setLoading(false);
     }

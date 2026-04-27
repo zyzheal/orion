@@ -137,9 +137,12 @@ const TicketList: React.FC = () => {
       const response = await getTickets(params);
       const apiData = response.data.data;
       setTickets(Array.isArray(apiData) ? apiData : (apiData as any).items || []);
-    } catch (error) {
-      message.error('加载工单列表失败');
-      console.error('Failed to load tickets:', error);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`加载工单列表失败：${error.message}`);
+      } else {
+        message.error('加载工单列表失败');
+      }
     } finally {
       setLoading(false);
     }

@@ -42,9 +42,12 @@ const MonitoringRules: React.FC = () => {
       const response = await getAlertRules();
       const apiData = response.data.data;
       setRules(Array.isArray(apiData) ? apiData : []);
-    } catch (error) {
-      console.error('Failed to load alert rules:', error);
-      message.error('加载告警规则失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`加载告警规则失败：${error.message}`);
+      } else {
+        message.error('加载告警规则失败，请稍后重试');
+      }
     } finally {
       setLoading(false);
     }
@@ -102,8 +105,12 @@ const MonitoringRules: React.FC = () => {
       }
       setModalVisible(false);
       loadData();
-    } catch (error) {
-      message.error(editingRule ? '更新规则失败' : '创建规则失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(editingRule ? `更新规则失败：${error.message}` : `创建规则失败：${error.message}`);
+      } else {
+        message.error(editingRule ? '更新规则失败，请稍后重试' : '创建规则失败，请稍后重试');
+      }
     }
   };
 
@@ -116,8 +123,12 @@ const MonitoringRules: React.FC = () => {
           await deleteAlertRule(id);
           message.success('规则已删除');
           loadData();
-        } catch (error) {
-          message.error('删除规则失败');
+        } catch (error: unknown) {
+          if (error instanceof Error) {
+            message.error(`删除规则失败：${error.message}`);
+          } else {
+            message.error('删除规则失败，请稍后重试');
+          }
         }
       },
     });
@@ -130,8 +141,12 @@ const MonitoringRules: React.FC = () => {
         prev.map((r) => (r.id === id ? { ...r, enabled: res.data.data?.enabled ?? !r.enabled } : r))
       );
       message.success('规则状态已切换');
-    } catch (error) {
-      message.error('切换规则状态失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`切换规则状态失败：${error.message}`);
+      } else {
+        message.error('切换规则状态失败，请稍后重试');
+      }
     }
   };
 

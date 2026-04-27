@@ -30,9 +30,12 @@ const IncidentList: React.FC = () => {
       const res = await getHealingHistory({ ...filters, page, pageSize });
       setData(res.data.data?.items || []);
       setTotal(res.data.data?.total || 0);
-    } catch (error) {
-      console.error('Failed to load incidents:', error);
-      message.error('加载事件列表失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`加载事件列表失败：${error.message}`);
+      } else {
+        message.error('加载事件列表失败，请稍后重试');
+      }
     } finally {
       setLoading(false);
     }
@@ -50,8 +53,12 @@ const IncidentList: React.FC = () => {
       setCreateModalOpen(false);
       createForm.resetFields();
       loadData();
-    } catch (error) {
-      message.error('创建事件失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`创建事件失败：${error.message}`);
+      } else {
+        message.error('创建事件失败，请稍后重试');
+      }
     } finally {
       setCreateLoading(false);
     }

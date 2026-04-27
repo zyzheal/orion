@@ -206,9 +206,12 @@ const TicketDetail: React.FC = () => {
     try {
       const response = await getTicket(id!);
       setTicket((response as any).data?.data || null);
-    } catch (err) {
-      message.error('加载工单详情失败');
-      console.error('Failed to load ticket detail:', err);
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        message.error(`加载工单详情失败：${err.message}`);
+      } else {
+        message.error('加载工单详情失败，请稍后重试');
+      }
     } finally {
       setLoading(false);
     }
@@ -266,10 +269,13 @@ const TicketDetail: React.FC = () => {
       setAssignModalOpen(false);
       assignForm.resetFields();
       loadTicket();
-    } catch (error) {
+    } catch (error: unknown) {
       if (error !== true) {
-        message.error('分配失败');
-        console.error('Failed to assign ticket:', error);
+        if (error instanceof Error) {
+          message.error(`分配失败：${error.message}`);
+        } else {
+          message.error('分配失败，请稍后重试');
+        }
       }
     }
   };
@@ -298,9 +304,13 @@ const TicketDetail: React.FC = () => {
       setResolveModalOpen(false);
       resolveForm.resetFields();
       loadTicket();
-    } catch (error) {
+    } catch (error: unknown) {
       if (error !== true) {
-        message.error('解决失败');
+        if (error instanceof Error) {
+          message.error(`解决失败：${error.message}`);
+        } else {
+          message.error('解决失败，请稍后重试');
+        }
       }
     }
   };
@@ -317,9 +327,13 @@ const TicketDetail: React.FC = () => {
       setTransferModalOpen(false);
       transferForm.resetFields();
       loadTicket();
-    } catch (error) {
+    } catch (error: unknown) {
       if (error !== true) {
-        message.error('转交失败');
+        if (error instanceof Error) {
+          message.error(`转交失败：${error.message}`);
+        } else {
+          message.error('转交失败，请稍后重试');
+        }
       }
     }
   };
@@ -329,9 +343,12 @@ const TicketDetail: React.FC = () => {
       await closeTicket(ticket!.id, { performedBy: 'current-user' });
       message.success('工单已关闭');
       loadTicket();
-    } catch (error) {
-      message.error('关闭失败');
-      console.error('Failed to close ticket:', error);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`关闭失败：${error.message}`);
+      } else {
+        message.error('关闭失败，请稍后重试');
+      }
     }
   };
 

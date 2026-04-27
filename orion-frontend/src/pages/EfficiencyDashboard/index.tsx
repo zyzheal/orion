@@ -99,7 +99,6 @@ const EfficiencyDashboard: React.FC = () => {
       setClickHouseStatus(statusRes.data.data);
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : '加载效能数据失败';
-      console.error('Failed to load efficiency data:', error);
       message.error(msg);
     } finally {
       setLoading(false);

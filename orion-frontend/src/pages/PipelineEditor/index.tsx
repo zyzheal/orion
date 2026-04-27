@@ -121,9 +121,12 @@ const PipelineEditor: React.FC = () => {
             setStages(loadedStages);
           }
         }
-      }).catch((error) => {
-        message.error('加载 Pipeline 失败');
-        console.error('Failed to load pipeline:', error);
+      }).catch((error: unknown) => {
+        if (error instanceof Error) {
+          message.error(`加载 Pipeline 失败：${error.message}`);
+        } else {
+          message.error('加载 Pipeline 失败');
+        }
       });
     }
   }, [id]);
@@ -305,9 +308,12 @@ const PipelineEditor: React.FC = () => {
       }
 
       navigate('/pipelines');
-    } catch (error) {
-      message.error('保存失败，请重试');
-      console.error('Failed to save pipeline:', error);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`保存失败：${error.message}`);
+      } else {
+        message.error('保存失败，请重试');
+      }
     } finally {
       setSaving(false);
     }

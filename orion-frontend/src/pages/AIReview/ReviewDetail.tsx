@@ -30,9 +30,12 @@ const AIReviewDetail: React.FC = () => {
     try {
       const res = await getReviewDetail(reviewId);
       setDetail(res.data.data || null);
-    } catch (error) {
-      console.error('Failed to load review detail:', error);
-      message.error('加载评审详情失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`加载评审详情失败：${error.message}`);
+      } else {
+        message.error('加载评审详情失败，请稍后重试');
+      }
     } finally {
       setLoading(false);
     }

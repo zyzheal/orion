@@ -5,7 +5,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import {
   Typography, Button, Space, Tag, Card, Alert, Select, Input, Tooltip, Drawer,
-  Descriptions,
+  Descriptions, message,
 } from 'antd';
 import {
   ReloadOutlined, FilterOutlined, ClockCircleOutlined, CheckCircleOutlined,
@@ -156,8 +156,11 @@ const EventBusMonitoring: React.FC = () => {
       setStats(MOCK_STATS);
     } catch (error: unknown) {
       setUsingMockData(true);
-      const errMsg = error instanceof Error ? error.message : 'Unknown error';
-      console.error('Failed to load event bus data:', errMsg);
+      if (error instanceof Error) {
+        message.error(`加载 EventBus 数据失败：${error.message}`);
+      } else {
+        message.error('加载 EventBus 数据失败，使用模拟数据');
+      }
       setEvents(MOCK_EVENTS);
       setStats(MOCK_STATS);
     } finally {

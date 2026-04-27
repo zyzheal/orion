@@ -27,9 +27,12 @@ const AIReviewHistory: React.FC = () => {
       const res = await getReviewHistory({ ...filters, page, pageSize });
       setData(res.data.data?.items || []);
       setTotal(res.data.data?.total || 0);
-    } catch (error) {
-      console.error('Failed to load history:', error);
-      message.error('加载评审历史失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`加载评审历史失败：${error.message}`);
+      } else {
+        message.error('加载评审历史失败，请稍后重试');
+      }
     } finally {
       setLoading(false);
     }

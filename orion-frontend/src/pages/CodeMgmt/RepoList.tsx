@@ -33,8 +33,10 @@ const RepoList: React.FC = () => {
       const response = await getCodeRepoAdapters();
       const data = response.data.data as AdapterOption[];
       setAdapters(Array.isArray(data) ? data : []);
-    } catch (error) {
-      console.error('Failed to load adapters:', error);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`加载适配器列表失败：${error.message}`);
+      }
     }
   }, []);
 
@@ -46,9 +48,12 @@ const RepoList: React.FC = () => {
       const response = await getCodeRepos(adapterId);
       const data = response.data.data as CodeRepo[];
       setRepos(Array.isArray(data) ? data : []);
-    } catch (error) {
-      console.error('Failed to load repos:', error);
-      message.error('加载仓库列表失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`加载仓库列表失败：${error.message}`);
+      } else {
+        message.error('加载仓库列表失败，请稍后重试');
+      }
     } finally {
       setLoading(false);
     }

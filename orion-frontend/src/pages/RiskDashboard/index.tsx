@@ -68,9 +68,12 @@ const RiskDashboardPage: React.FC = () => {
       setAssessments(assessmentsRes.data.data.assessments || []);
       setEvents(eventsRes.data.data.events || []);
       setStatus(statusRes.data.data);
-    } catch (error) {
-      console.error('Failed to load risk data:', error);
-      message.error('加载风险数据失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`加载风险数据失败：${error.message}`);
+      } else {
+        message.error('加载风险数据失败，请稍后重试');
+      }
     } finally {
       setLoading(false);
     }
@@ -87,8 +90,12 @@ const RiskDashboardPage: React.FC = () => {
       message.success('风险评估已启动');
       setAssessModalOpen(false);
       loadData();
-    } catch (error) {
-      message.error('风险评估失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`风险评估失败：${error.message}`);
+      } else {
+        message.error('风险评估失败，请稍后重试');
+      }
     }
   };
 
@@ -97,8 +104,12 @@ const RiskDashboardPage: React.FC = () => {
       await runHealthCheck(checkType);
       message.success('健康检查已完成');
       loadData();
-    } catch (error) {
-      message.error('健康检查失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`健康检查失败：${error.message}`);
+      } else {
+        message.error('健康检查失败，请稍后重试');
+      }
     }
   };
 
@@ -107,8 +118,12 @@ const RiskDashboardPage: React.FC = () => {
       await acknowledgeRiskEvent(id);
       message.success('风险事件已确认');
       loadData();
-    } catch (error) {
-      message.error('确认失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`确认失败：${error.message}`);
+      } else {
+        message.error('确认失败，请稍后重试');
+      }
     }
   };
 

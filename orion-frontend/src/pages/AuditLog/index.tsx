@@ -58,9 +58,12 @@ const AuditLogPage: React.FC = () => {
       setAuditLogs(logsRes.data.data.entries || []);
       setChainInfo(chainRes.data.data);
       setStorageStats(storageRes.data.data);
-    } catch (error) {
-      console.error('Failed to load audit data:', error);
-      message.error('加载审计日志失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`加载审计日志失败：${error.message}`);
+      } else {
+        message.error('加载审计日志失败，请稍后重试');
+      }
     } finally {
       setLoading(false);
     }
@@ -74,8 +77,12 @@ const AuditLogPage: React.FC = () => {
       } else {
         message.warning(`发现 ${result.data.data.result.breaks?.length || 0} 处链断裂`);
       }
-    } catch (error) {
-      message.error('验证失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`验证失败：${error.message}`);
+      } else {
+        message.error('验证失败，请稍后重试');
+      }
     }
   };
 
@@ -83,8 +90,12 @@ const AuditLogPage: React.FC = () => {
     try {
       await generateReport();
       message.success('完整性报告已生成');
-    } catch (error) {
-      message.error('生成报告失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`生成报告失败：${error.message}`);
+      } else {
+        message.error('生成报告失败，请稍后重试');
+      }
     }
   };
 

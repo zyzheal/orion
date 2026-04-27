@@ -39,9 +39,12 @@ const BuilderImageList: React.FC = () => {
       const response = await getBuilderImages();
       const apiData = response.data.data;
       setImages(Array.isArray(apiData) ? apiData : (apiData as any).items || []);
-    } catch (error) {
-      console.error('Failed to load builder images:', error);
-      message.error('Failed to load builder images');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`加载构建镜像失败：${error.message}`);
+      } else {
+        message.error('加载构建镜像失败，请稍后重试');
+      }
     } finally {
       setLoading(false);
     }
@@ -85,10 +88,14 @@ const BuilderImageList: React.FC = () => {
       setEditingImage(null);
       form.resetFields();
       loadImages();
-    } catch (error: any) {
-      if (error.errorFields) return;
-      console.error('Failed to save builder image:', error);
-      message.error('Failed to save builder image');
+    } catch (error: unknown) {
+      const err = error as { errorFields?: unknown };
+      if (err.errorFields) return;
+      if (error instanceof Error) {
+        message.error(`保存构建镜像失败：${error.message}`);
+      } else {
+        message.error('保存构建镜像失败，请稍后重试');
+      }
     }
   };
 
@@ -97,9 +104,12 @@ const BuilderImageList: React.FC = () => {
       await deleteBuilderImage(id);
       message.success('Builder image deleted');
       loadImages();
-    } catch (error) {
-      console.error('Failed to delete builder image:', error);
-      message.error('Failed to delete builder image');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`删除构建镜像失败：${error.message}`);
+      } else {
+        message.error('删除构建镜像失败，请稍后重试');
+      }
     }
   };
 
@@ -113,9 +123,12 @@ const BuilderImageList: React.FC = () => {
         message.success('Builder image deprecated');
       }
       loadImages();
-    } catch (error) {
-      console.error('Failed to toggle deprecated status:', error);
-      message.error('Failed to update status');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`更新状态失败：${error.message}`);
+      } else {
+        message.error('更新状态失败，请稍后重试');
+      }
     }
   };
 

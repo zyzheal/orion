@@ -139,8 +139,12 @@ const CITablePage: React.FC = () => {
           await deleteCI(id);
           message.success('删除成功');
           loadData();
-        } catch {
-          message.error('删除失败');
+        } catch (error: unknown) {
+          if (error instanceof Error) {
+            message.error(`删除失败：${error.message}`);
+          } else {
+            message.error('删除失败');
+          }
         }
       },
     });
@@ -177,8 +181,12 @@ const CITablePage: React.FC = () => {
       editForm.resetFields();
       setEditingCI(null);
       loadData();
-    } catch {
-      message.error('更新配置项失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`更新配置项失败：${error.message}`);
+      } else {
+        message.error('更新配置项失败');
+      }
     }
   };
 
@@ -890,8 +898,12 @@ const IntegrationPage: React.FC = () => {
       await startK8sSync();
       message.success('K8s 同步已启动');
       loadData();
-    } catch {
-      message.error('同步启动失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`同步启动失败：${error.message}`);
+      } else {
+        message.error('同步启动失败');
+      }
     } finally {
       setSyncing(false);
     }

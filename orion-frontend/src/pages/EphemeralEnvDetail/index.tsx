@@ -90,9 +90,12 @@ const EphemeralEnvDetail: React.FC = () => {
     try {
       const envRes = await getEphemeralEnv(envId).catch(() => null);
       setEnv(envRes || null);
-    } catch (err: any) {
-      console.error('Failed to load environment:', err);
-      message.error('加载环境详情失败');
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        message.error(`加载环境详情失败：${err.message}`);
+      } else {
+        message.error('加载环境详情失败');
+      }
     } finally {
       setLoading(false);
     }

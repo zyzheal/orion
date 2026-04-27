@@ -62,9 +62,12 @@ const MonitoringMetrics: React.FC = () => {
       const response = await getMetrics();
       const apiData = response.data.data;
       setMetrics(Array.isArray(apiData) ? apiData : []);
-    } catch (error) {
-      console.error('Failed to load metrics:', error);
-      message.error('加载指标失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`加载指标失败：${error.message}`);
+      } else {
+        message.error('加载指标失败，请稍后重试');
+      }
     } finally {
       setLoading(false);
     }

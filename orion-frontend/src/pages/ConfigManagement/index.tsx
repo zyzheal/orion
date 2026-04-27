@@ -176,9 +176,12 @@ const ConfigManagementPage: React.FC = () => {
       ]);
       setConfigs(configsRes.data.data.configs || []);
       setGitOpsConfig(gitOpsRes.data.data);
-    } catch (error) {
-      console.error('Failed to load config data:', error);
-      message.error('加载配置失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`加载配置失败：${error.message}`);
+      } else {
+        message.error('加载配置失败，请稍后重试');
+      }
     } finally {
       setLoading(false);
     }
@@ -194,8 +197,12 @@ const ConfigManagementPage: React.FC = () => {
       message.success('配置创建成功');
       setCreateModalOpen(false);
       loadData();
-    } catch (error) {
-      message.error('创建配置失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`创建配置失败：${error.message}`);
+      } else {
+        message.error('创建配置失败，请稍后重试');
+      }
     }
   };
 
@@ -204,8 +211,12 @@ const ConfigManagementPage: React.FC = () => {
       await syncFromGit();
       message.success('Git 同步成功');
       loadData();
-    } catch (error) {
-      message.error('同步失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`同步失败：${error.message}`);
+      } else {
+        message.error('同步失败，请稍后重试');
+      }
     }
   };
 
@@ -213,8 +224,12 @@ const ConfigManagementPage: React.FC = () => {
     try {
       await submitForApproval(id, ['admin']);
       message.success('已提交审批');
-    } catch (error) {
-      message.error('提交失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`提交失败：${error.message}`);
+      } else {
+        message.error('提交失败，请稍后重试');
+      }
     }
   };
 
@@ -233,8 +248,12 @@ const ConfigManagementPage: React.FC = () => {
       const res = await compareEnvironments(sourceEnv, targetEnv);
       setEnvDiffResult(res.data.data);
       message.success('环境对比完成');
-    } catch {
-      message.error('环境对比失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`环境对比失败：${error.message}`);
+      } else {
+        message.error('环境对比失败，请稍后重试');
+      }
     } finally {
       setEnvDiffLoading(false);
     }
@@ -259,8 +278,12 @@ const ConfigManagementPage: React.FC = () => {
       const res = await compareConfigs(versionDiffConfigId, versionA, versionB);
       setVersionDiffResult(res.data.data);
       message.success('版本对比完成');
-    } catch {
-      message.error('版本对比失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`版本对比失败：${error.message}`);
+      } else {
+        message.error('版本对比失败，请稍后重试');
+      }
     } finally {
       setVersionDiffLoading(false);
     }
@@ -282,8 +305,12 @@ const ConfigManagementPage: React.FC = () => {
         })),
       });
       message.success('报告生成成功');
-    } catch {
-      message.error('生成报告失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`生成报告失败：${error.message}`);
+      } else {
+        message.error('生成报告失败，请稍后重试');
+      }
     } finally {
       setReportLoading(false);
     }
@@ -300,8 +327,12 @@ const ConfigManagementPage: React.FC = () => {
       } else {
         message.success('未检测到配置漂移');
       }
-    } catch {
-      message.error('漂移检测失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`漂移检测失败：${error.message}`);
+      } else {
+        message.error('漂移检测失败，请稍后重试');
+      }
     } finally {
       setDriftLoading(false);
     }

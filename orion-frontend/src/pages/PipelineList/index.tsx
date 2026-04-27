@@ -9,7 +9,7 @@
  * - Pagination support
  */
 import React, { useState, useMemo, useEffect } from 'react';
-import { Typography, Button, Space, Tag } from 'antd';
+import { Typography, Button, Space, Tag, message } from 'antd';
 import { colors, spacing } from '@/tokens';
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
@@ -38,8 +38,12 @@ const PipelineList: React.FC = () => {
       const response = await getPipelines();
       const apiData = response.data.data;
       setPipelines(Array.isArray(apiData) ? apiData : (apiData as any).items || []);
-    } catch (error) {
-      console.error('Failed to load pipelines:', error);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`加载 Pipeline 列表失败：${error.message}`);
+      } else {
+        message.error('加载 Pipeline 列表失败，请稍后重试');
+      }
     } finally {
       setLoading(false);
     }

@@ -58,9 +58,12 @@ const AlertList: React.FC = () => {
       const response = await getAlerts();
       const apiData = response.data.data;
       setAlerts(Array.isArray(apiData) ? apiData : (apiData as any).items || []);
-    } catch (error) {
-      message.error('加载告警列表失败');
-      console.error('Failed to load alerts:', error);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`加载告警列表失败：${error.message}`);
+      } else {
+        message.error('加载告警列表失败，请稍后重试');
+      }
     } finally {
       setLoading(false);
     }
@@ -152,9 +155,12 @@ const AlertList: React.FC = () => {
         )
       );
       message.success('告警已确认');
-    } catch (error) {
-      message.error('确认告警失败');
-      console.error('Failed to acknowledge alert:', error);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`确认告警失败：${error.message}`);
+      } else {
+        message.error('确认告警失败，请稍后重试');
+      }
     }
   };
 
@@ -175,9 +181,12 @@ const AlertList: React.FC = () => {
         )
       );
       message.success('告警已解决');
-    } catch (error) {
-      message.error('解决告警失败');
-      console.error('Failed to resolve alert:', error);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`解决告警失败：${error.message}`);
+      } else {
+        message.error('解决告警失败，请稍后重试');
+      }
     }
   };
 

@@ -83,9 +83,12 @@ const DeploymentDetail: React.FC = () => {
       const response = await getDeployment(id);
       const data = response.data.data || response.data;
       setDeployment(data as Deployment);
-    } catch (error) {
-      console.error('Failed to load deployment:', error);
-      message.error('加载部署详情失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`加载部署详情失败：${error.message}`);
+      } else {
+        message.error('加载部署详情失败');
+      }
     } finally {
       setLoading(false);
     }
@@ -105,9 +108,12 @@ const DeploymentDetail: React.FC = () => {
       message.success('回滚操作已触发，正在执行中...');
       // Reload to get updated status
       await loadDeployment();
-    } catch (error) {
-      console.error('Failed to rollback:', error);
-      message.error('回滚操作失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`回滚操作失败：${error.message}`);
+      } else {
+        message.error('回滚操作失败');
+      }
     } finally {
       setIsRollingBack(false);
     }

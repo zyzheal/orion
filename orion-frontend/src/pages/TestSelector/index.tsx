@@ -168,7 +168,6 @@ const TestSelector: React.FC = () => {
       });
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : '加载测试数据失败';
-      console.error('Failed to load test data:', error);
       message.error(msg);
     } finally {
       setLoading(false);

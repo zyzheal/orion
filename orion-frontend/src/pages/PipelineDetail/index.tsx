@@ -57,9 +57,12 @@ const PipelineDetail: React.FC = () => {
         const response = await getPipelineRun(id!);
         const apiData = response.data.data;
         setPipeline(apiData || mockPipelines[0]);
-      } catch (error) {
-        message.error('加载 Pipeline 详情失败');
-        console.error('Failed to load pipeline detail:', error);
+      } catch (error: unknown) {
+        if (error instanceof Error) {
+          message.error(`加载 Pipeline 详情失败：${error.message}`);
+        } else {
+          message.error('加载 Pipeline 详情失败，请稍后重试');
+        }
         // Fallback to mock data
         setPipeline(mockPipelines[0]);
       } finally {
@@ -94,9 +97,12 @@ const PipelineDetail: React.FC = () => {
       // Reload pipeline detail after re-run
       const response = await getPipelineRun(id!);
       setPipeline(response.data.data);
-    } catch (error) {
-      message.error('重新运行失败');
-      console.error('Failed to rerun pipeline:', error);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`重新运行 Pipeline 失败：${error.message}`);
+      } else {
+        message.error('重新运行 Pipeline 失败，请稍后重试');
+      }
     } finally {
       setIsRerunning(false);
     }

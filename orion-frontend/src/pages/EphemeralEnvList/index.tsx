@@ -292,7 +292,6 @@ const EphemeralEnvList: React.FC = () => {
       setEnvs(Array.isArray(response) ? response : []);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : '加载环境列表失败';
-      console.error('Failed to load environments:', err);
       message.error(msg);
     } finally {
       setLoading(false);

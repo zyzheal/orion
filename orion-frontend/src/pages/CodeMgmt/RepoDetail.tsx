@@ -65,8 +65,12 @@ const RepoDetail: React.FC = () => {
           // continue to next adapter
         }
       }
-    } catch (error) {
-      console.error('Failed to resolve adapter:', error);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`解析适配器信息失败：${error.message}`);
+      } else {
+        message.error('解析适配器信息失败，请稍后重试');
+      }
     } finally {
       setRepoLoading(false);
     }
@@ -79,9 +83,12 @@ const RepoDetail: React.FC = () => {
       const response = await getCodeRepoBranches(adapterId, id);
       const data = response.data.data as Branch[];
       setBranches(Array.isArray(data) ? data : []);
-    } catch (error) {
-      console.error('Failed to load branches:', error);
-      message.error('加载分支列表失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`加载分支列表失败：${error.message}`);
+      } else {
+        message.error('加载分支列表失败，请稍后重试');
+      }
     } finally {
       setLoading(false);
     }
@@ -94,9 +101,12 @@ const RepoDetail: React.FC = () => {
       const response = await getPullRequests(adapterId, id);
       const data = response.data.data as PullRequest[];
       setPullRequests(Array.isArray(data) ? data : []);
-    } catch (error) {
-      console.error('Failed to load pull requests:', error);
-      message.error('加载 Pull Request 列表失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`加载 Pull Request 列表失败：${error.message}`);
+      } else {
+        message.error('加载 Pull Request 列表失败，请稍后重试');
+      }
     } finally {
       setLoading(false);
     }
@@ -120,9 +130,12 @@ const RepoDetail: React.FC = () => {
       setCreateBranchModal(false);
       branchForm.resetFields();
       loadBranches();
-    } catch (error) {
-      console.error('Failed to create branch:', error);
-      message.error('创建分支失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`创建分支失败：${error.message}`);
+      } else {
+        message.error('创建分支失败，请稍后重试');
+      }
     }
   };
 
@@ -151,9 +164,12 @@ const RepoDetail: React.FC = () => {
       setCreatePrModal(false);
       prForm.resetFields();
       loadPullRequests();
-    } catch (error) {
-      console.error('Failed to create PR:', error);
-      message.error('创建 Pull Request 失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`创建 Pull Request 失败：${error.message}`);
+      } else {
+        message.error('创建 Pull Request 失败，请稍后重试');
+      }
     }
   };
 

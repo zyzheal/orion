@@ -31,9 +31,12 @@ const ArtifactList: React.FC = () => {
       const response = await getArtifacts();
       const apiData = response.data.data;
       setArtifacts(Array.isArray(apiData) ? apiData : (apiData as any).items || []);
-    } catch (error) {
-      console.error('Failed to load artifacts:', error);
-      message.error('Failed to load artifacts');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`加载构建产物失败：${error.message}`);
+      } else {
+        message.error('加载构建产物失败，请稍后重试');
+      }
     } finally {
       setLoading(false);
     }
@@ -71,9 +74,12 @@ const ArtifactList: React.FC = () => {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
       message.success(`Downloading ${artifact.name}`);
-    } catch (error) {
-      console.error('Failed to download artifact:', error);
-      message.error('Failed to download artifact');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`下载构建产物失败：${error.message}`);
+      } else {
+        message.error('下载构建产物失败，请稍后重试');
+      }
     }
   };
 
@@ -82,9 +88,12 @@ const ArtifactList: React.FC = () => {
       await deleteArtifact(id);
       message.success('Artifact deleted');
       loadArtifacts();
-    } catch (error) {
-      console.error('Failed to delete artifact:', error);
-      message.error('Failed to delete artifact');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`删除构建产物失败：${error.message}`);
+      } else {
+        message.error('删除构建产物失败，请稍后重试');
+      }
     }
   };
 
@@ -93,9 +102,12 @@ const ArtifactList: React.FC = () => {
       await cleanupExpiredArtifacts();
       message.success('Expired artifacts cleaned up');
       loadArtifacts();
-    } catch (error) {
-      console.error('Failed to cleanup expired artifacts:', error);
-      message.error('Failed to cleanup artifacts');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`清理构建产物失败：${error.message}`);
+      } else {
+        message.error('清理构建产物失败，请稍后重试');
+      }
     }
   };
 

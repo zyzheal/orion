@@ -171,8 +171,6 @@ const SessionManagement: React.FC = () => {
       setStats(MOCK_STATS);
     } catch (error: unknown) {
       setUsingMockData(true);
-      const errMsg = error instanceof Error ? error.message : 'Unknown error';
-      console.error('Failed to load session data:', errMsg);
       setSessions(MOCK_SESSIONS);
       setStats(MOCK_STATS);
     } finally {

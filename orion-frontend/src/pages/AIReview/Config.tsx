@@ -25,9 +25,12 @@ const AIReviewConfig: React.FC = () => {
       if (config) {
         form.setFieldsValue(config);
       }
-    } catch (error) {
-      console.error('Failed to load config:', error);
-      message.error('加载配置失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`加载配置失败：${error.message}`);
+      } else {
+        message.error('加载配置失败，请稍后重试');
+      }
     } finally {
       setLoading(false);
     }
@@ -42,8 +45,12 @@ const AIReviewConfig: React.FC = () => {
     try {
       await updateReviewConfig(values);
       message.success('配置已保存');
-    } catch (error) {
-      message.error('保存配置失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`保存配置失败：${error.message}`);
+      } else {
+        message.error('保存配置失败，请稍后重试');
+      }
     } finally {
       setSaving(false);
     }

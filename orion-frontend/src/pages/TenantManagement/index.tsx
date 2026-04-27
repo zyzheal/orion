@@ -60,9 +60,12 @@ const TenantManagementPage: React.FC = () => {
       setQuota(quotaRes.data.data);
       setPoolStatus(poolRes.data.data);
       setNamespaces(namespacesRes.data.data.namespaces || []);
-    } catch (error) {
-      console.error('Failed to load tenant data:', error);
-      message.error('加载租户数据失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`加载租户数据失败：${error.message}`);
+      } else {
+        message.error('加载租户数据失败，请稍后重试');
+      }
     } finally {
       setLoading(false);
     }
@@ -78,8 +81,12 @@ const TenantManagementPage: React.FC = () => {
       message.success('配额更新成功');
       setQuotaModalOpen(false);
       loadData();
-    } catch (error) {
-      message.error('更新配额失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`更新配额失败：${error.message}`);
+      } else {
+        message.error('更新配额失败，请稍后重试');
+      }
     }
   };
 
@@ -88,8 +95,12 @@ const TenantManagementPage: React.FC = () => {
       await allocateNamespace(1);
       message.success('Namespace 分配成功');
       loadData();
-    } catch (error) {
-      message.error('分配 Namespace 失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`分配 Namespace 失败：${error.message}`);
+      } else {
+        message.error('分配 Namespace 失败，请稍后重试');
+      }
     }
   };
 

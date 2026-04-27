@@ -98,9 +98,12 @@ const FinOpsDashboard: React.FC = () => {
       setCostByService(Array.isArray(costByServiceRes) ? costByServiceRes : []);
       setOptimizations(Array.isArray(optimizationsRes) ? optimizationsRes : []);
       setBudgetAlerts(Array.isArray(budgetAlertsRes) ? budgetAlertsRes : []);
-    } catch (error) {
-      message.error('加载成本数据失败');
-      console.error('Failed to load finops data:', error);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`加载成本数据失败：${error.message}`);
+      } else {
+        message.error('加载成本数据失败');
+      }
     } finally {
       setLoading(false);
     }
@@ -128,9 +131,12 @@ const FinOpsDashboard: React.FC = () => {
         prev.map((opt) => (opt.key === key ? { ...opt, status: 'applied' as const } : opt))
       );
       message.success('优化建议已应用');
-    } catch (error) {
-      message.error('应用优化建议失败');
-      console.error('Failed to apply optimization:', error);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`应用优化建议失败：${error.message}`);
+      } else {
+        message.error('应用优化建议失败');
+      }
     }
   };
 
@@ -139,9 +145,12 @@ const FinOpsDashboard: React.FC = () => {
     try {
       await apiExportCostReport({});
       message.success('报表导出中，请稍后在通知中心查看');
-    } catch (error) {
-      message.error('导出报表失败');
-      console.error('Failed to export report:', error);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`导出报表失败：${error.message}`);
+      } else {
+        message.error('导出报表失败');
+      }
     }
   };
 
