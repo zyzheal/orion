@@ -45,10 +45,19 @@
 │  │ ChatOps API  │→ │ 双层权限校验 (命令级+资源级)   │  │
 │  │ /api/chatops│  └──────────────┬───────────────┘  │
 │  └─────────────┘                 │                   │
-│         ↕ 路由分发                 ↕ 权限通过          │
+│         ↕ 命令路由分发             ↕ 权限通过          │
 │  ┌─────┐┌─────┐┌─────────┐┌────┐┌────────────┐     │
 │  │Pipe ││Deploy││Monitoring││CMDB││SelfHealing │ ... │
 │  └─────┘└─────┘└─────────┘└────┘└────────────┘     │
+├─────────────────────────────────────────────────────┤
+│              事件总线层 (EventBus)                     │
+│  ┌─────────────────────────────────────────────┐    │
+│  │ EventBus (Phase 1: 内存 | Phase 2: NATS)    │    │
+│  │ 订阅事件: alert.created, pipeline.updated,   │    │
+│  │          deploy.finished, selfhealing.failed │    │
+│  │ → 触发推荐面板实时更新 (替代轮询)              │    │
+│  │ → 触发自愈策略 (ChatOps 推荐"确认自愈")       │    │
+│  └─────────────────────────────────────────────┘    │
 ├─────────────────────────────────────────────────────┤
 │                    数据层                             │
 │  L1: Zustand Store (当前会话内存)                    │
@@ -60,21 +69,59 @@
 └─────────────────────────────────────────────────────┘
 ```
 
-### 2.2 数据流
+### 2.2 EventBus 集成策略
+
+推荐面板的实时数据通过 EventBus 驱动，替代原有的 30s 轮询：
+
+```
+事件订阅 (Phase 1: 内存 EventBus, Phase 2: NATS):
+  alert.created      → 推荐面板新增告警卡片 + 悬浮按钮徽标+1
+  alert.acknowledged → 推荐面板移除该告警 + 徽标-1
+  pipeline.updated   → 更新阻塞任务状态
+  deploy.finished    → 推送部署结果卡片
+  selfhealing.failed → 推荐"手动干预"卡片
+
+推荐面板刷新:
+  初始加载: HTTP GET /api/chatops/recommendations (全量)
+  后续更新: EventBus 事件驱动 (增量)
+  兜底: 每 60s 轮询同步 (防止事件丢失)
+```
+
+### 2.3 SelfHealing 集成
+
+ChatOps 与自愈合系统的交互：
+
+```
+推荐面板中的自愈场景:
+  1. SelfHealing 自动修复成功 → 推送"已自动修复"卡片
+  2. SelfHealing 自动修复失败 → 推荐"手动干预"按钮
+  3. ChatOps 用户点击"触发自愈" → 调用 SelfHealing API 执行策略
+
+API 交互:
+  POST /api/chatops/selfhealing/trigger
+    Request: { policyId: string, alertId: string, context: {} }
+    → 转发至 SelfHealing /api/selfhealing/execute
+    → 双层权限校验后执行
+
+  自愈执行结果通过 EventBus 推送回 ChatOps 面板
+```
+
+### 2.4 数据流
 
 ```
 用户输入 (自然语言 / Slash 命令)
   → 前端命令解析引擎 (关键词匹配 → 结构化参数)
-  → POST /api/chatops/execute { command, params, context }
+  → 前端输入安全校验 (白名单 + 特殊字符过滤)
+  → POST /api/chatops/execute { command, params, context, idempotency_key }
+  → 后端幂等性检查 (相同 idempotency_key 返回缓存结果)
   → 权限层:
     Step 1: 命令级校验 (用户角色 → 可执行操作类型?)
     Step 2: 资源级校验 (用户资源范围 → 可操作该资源?)
   → 路由分发 (对应业务 API)
   → 执行操作
-  → 实时反馈 (WebSocket 推送 / 轮询获取状态)
+  → 实时反馈 (WebSocket 推送 / EventBus 事件)
   → 结果返回 → Chat 侧边栏展示
   → 数据存储 (L1 → L2 → L3 异步写入)
-```
 
 ---
 
@@ -82,7 +129,9 @@
 
 ### 3.1 悬浮按钮组件 `ChatTrigger`
 
-**位置**：全局右下角固定，`position: fixed; right: 24px; bottom: 24px; z-index: 9999`
+**位置**：全局右下角固定，`position: fixed; right: 24px; bottom: 24px; z-index: var(--z-index-overlay)`
+
+**z-index 策略**：使用 Orion Design Token `--z-index-overlay`，避免与 Ant Design Modal (z-index 1000) 和 Drawer 冲突。
 
 **状态指示**：
 
@@ -98,7 +147,14 @@
 
 ### 3.2 侧边栏组件 `ChatPanel`
 
-**尺寸**：宽度 400px，从右侧滑入，`box-shadow: -4px 0 16px rgba(0,0,0,0.06)`
+**尺寸**：响应式宽度 — 最小 360px (≤1366px 屏幕)，默认 400px，最大 480px (≥1920px 屏幕)。支持鼠标拖拽右侧边缘调整宽度。从右侧滑入动画，`box-shadow: -4px 0 16px rgba(0,0,0,0.06)`
+
+**滚动行为**：
+- 默认自动滚动到底部 (最新消息)
+- 用户手动向上滚动超过 50px → 暂停自动滚动，显示底部 "↓ 新消息" 浮动按钮
+- 点击浮动按钮或发送新消息 → 恢复自动滚动
+
+**推荐面板空状态**：无告警/阻塞任务时，显示 "✅ 当前无异常" 占位卡片 + 快捷命令入口，避免空白面板。
 
 **结构**（从上到下）：
 
@@ -191,6 +247,53 @@ interface ChatOpsState {
 用户输入: "查看 staging 错误率"
   → 匹配规则: /查看|查询|get/ + 指标名 + 环境名
   → 结构化: { command: 'metrics', metric: 'error_rate', environment: 'staging' }
+```
+
+### 4.1.1 输入安全校验 (防命令注入)
+
+**白名单校验**: 所有命令参数必须通过预定义的允许值集合校验：
+
+```typescript
+// 参数白名单
+const ALLOWED_VALUES: Record<string, string[]> = {
+  environment: ['development', 'staging', 'production', 'testing'],
+  resource: /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/, // 仅小写字母数字和连字符
+  version: /^v?\d+\.\d+\.\d+(-[a-z0-9.]+)?$/,  // 语义化版本号
+  namespace: /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/,
+  metric: ['error_rate', 'latency_p99', 'cpu_usage', 'memory_usage', 'request_count'],
+};
+```
+
+**特殊字符拦截**: 拒绝包含以下字符的输入：
+- Shell 元字符: `; | & $ ` ( ) { } [ ] < > \ ! # ~`
+- 路径遍历: `../` `..\\`
+- 引号闭合: `" '` (防止参数注入)
+
+**JSON Schema 校验**: 结构化后的命令对象必须通过对应命令的 JSON Schema 验证，确保:
+- 所有 required 字段存在
+- 字段类型正确 (string/number)
+- 字符串长度限制 (version ≤ 20, namespace ≤ 63)
+- 枚举值在允许范围内
+
+```typescript
+// 校验流程
+function validateCommand(cmd: ParsedCommand): ValidationResult {
+  // 1. 命令白名单: 仅允许 §4.2 中定义的 7 种命令
+  if (!VALID_COMMANDS.has(cmd.command)) return { valid: false, error: '未知命令' };
+
+  // 2. 参数 Schema 校验
+  const schema = COMMAND_SCHEMAS[cmd.command];
+  const result = ajv.validate(schema, cmd.params);
+  if (!result) return { valid: false, error: ajv.errorsText() };
+
+  // 3. 敏感值检查: 拒绝包含 password/secret/token/key 的参数
+  const sensitiveKeys = ['password', 'secret', 'token', 'key', 'credential'];
+  for (const key of sensitiveKeys) {
+    if (key in cmd.params) return { valid: false, error: `不允许使用敏感参数: ${key}` };
+  }
+
+  return { valid: true };
+}
 ```
 
 ### 4.2 支持的命令集（Phase 1）
@@ -366,8 +469,10 @@ CREATE TABLE chatops_messages (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   session_id UUID REFERENCES chatops_sessions(id),
   role TEXT NOT NULL CHECK (role IN ('user', 'assistant', 'system')),
-  content_encrypted TEXT NOT NULL, -- PGP 加密
-  parsed_command JSONB,            -- 结构化命令 (明文，用于分析)
+  content_encrypted TEXT NOT NULL,         -- PGP 加密
+  encryption_key_version INT DEFAULT 1,    -- 密钥版本,支持轮换
+  parsed_command JSONB,                    -- 结构化命令 (脱敏后明文)
+  parsed_command_sanitized JSONB DEFAULT true, -- 是否已脱敏
   created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -427,11 +532,93 @@ WHERE expires_at < NOW();
 2. 优先级：项目策略 > 角色策略 > 全局策略
 3. `expires_at = NOW() + ttl_days`
 
+### 7.3 TTL 自动清理
+
+```sql
+-- 定期清理任务 (pg_cron 或应用层定时任务)
+-- 分批删除，避免锁表 (每批 1000 条)
+DO $$
+DECLARE
+  batch_size INT := 1000;
+  deleted INT;
+BEGIN
+  LOOP
+    DELETE FROM chatops_messages
+    WHERE session_id IN (
+      SELECT id FROM chatops_sessions WHERE expires_at < NOW() LIMIT batch_size
+    );
+    GET DIAGNOSTICS deleted = ROW_COUNT;
+    EXIT WHEN deleted = 0;
+    PERFORM pg_sleep(0.1); -- 避免 IO 压力
+  END LOOP;
+
+  DELETE FROM chatops_sessions
+  WHERE expires_at < NOW()
+    AND id NOT IN (SELECT session_id FROM chatops_messages LIMIT 10000);
+END $$;
+```
+
+### 7.5 数据库索引
+
+```sql
+-- 核心 ChatOps 表
+CREATE INDEX idx_chatops_sessions_user ON chatops_sessions(user_id);
+CREATE INDEX idx_chatops_sessions_expires ON chatops_sessions(expires_at);
+CREATE INDEX idx_chatops_messages_session ON chatops_messages(session_id);
+CREATE INDEX idx_chatops_messages_created ON chatops_messages(created_at);
+CREATE INDEX idx_chatops_executions_user_time ON chatops_executions(user_id, created_at);
+CREATE INDEX idx_chatops_audit_user_time ON chatops_audit_logs(user_id, created_at);
+
+-- 通知与告警
+CREATE INDEX idx_chatops_notif_pref_user ON chatops_notification_preferences(user_id, alert_level);
+CREATE INDEX idx_chatops_alert_states_user ON chatops_alert_states(user_id, state);
+CREATE INDEX idx_chatops_dnd_user ON chatops_dnd_settings(user_id);
+
+-- AIOps 表
+CREATE INDEX idx_aiops_topology_source ON aiops_service_topology(source_service, target_service);
+CREATE INDEX idx_aiops_rca_group ON aiops_rca_results(alert_group_id);
+CREATE INDEX idx_aiops_alert_groups_status ON aiops_alert_groups(status);
+CREATE INDEX idx_aiops_group_members_alert ON aiops_group_members(alert_id);
+CREATE INDEX idx_aiops_runbooks_alert ON aiops_runbooks(alert_type, service_pattern);
+CREATE INDEX idx_aiops_baseline_metric ON aiops_baseline_snapshots(metric_name, service_name, environment);
+CREATE INDEX idx_aiops_change_service ON aiops_change_impact_analyses(target_service, target_environment);
+```
+
+### 7.6 执行 API 幂等性
+
+```
+POST /api/chatops/execute
+Request Headers:
+  X-Idempotency-Key: <uuid>
+
+后端:
+  1. Redis 检查: GET idempotency:{key} → 存在则返回缓存结果
+  2. 不存在 → 执行 → SET idempotency:{key} {result} EX 3600
+  3. Redis 不可用: 降级为命令级去重 (5s 内相同命令 → 拒绝)
+
+前端:
+  1. 发送按钮 debounce 3s
+  2. 生成 uuid 作为 idempotency_key
+  3. 收到响应后恢复按钮
+```
+
 ### 7.4 加密方案
 
 - 使用 `pgcrypto` 扩展的 `pgp_sym_encrypt` / `pgp_sym_decrypt`
 - 对称密钥存储在环境变量 `CHATOPS_ENCRYPTION_KEY`
 - 解密仅限审计接口，普通对话读取不展示加密内容
+
+**密钥轮换机制**:
+1. `CHATOPS_ENCRYPTION_KEY` 包含版本号: `v1:base64key...`
+2. 写入消息时，使用最新版本加密，记录 `encryption_key_version`
+3. 轮换时生成新密钥 (v2)，更新环境变量
+4. 后台定时任务遍历旧版本记录，用新密钥重新加密
+5. 读取时根据 `encryption_key_version` 选择对应密钥解密
+
+**parsed_command 脱敏策略**:
+- `parsed_command` 中禁止存储任何包含 `password`, `secret`, `token`, `key`, `credential` 字段的值
+- 如果参数值匹配敏感模式 (如 `AKIA*`, `ghp_*`)，替换为 `"***REDACTED***"`
+- `parsed_command_sanitized` 标记是否已完成脱敏，未脱敏的记录拒绝读取
 
 ---
 
@@ -463,9 +650,28 @@ WHERE expires_at < NOW();
 
 ### 8.3 刷新策略
 
-- 初始加载：打开面板时请求 `/api/chatops/recommendations`
-- 定时刷新：每 30s 轮询
-- 实时推送：WebSocket `chatops:alert` 事件立即更新
+- 初始加载：打开面板时请求 `/api/chatops/recommendations` (全量)
+- **事件驱动更新** (Phase 1: 内存 EventBus, Phase 2: NATS):
+  - `alert.created` → 新增告警卡片
+  - `alert.acknowledged` → 移除已确认告警
+  - `pipeline.updated` → 更新阻塞任务状态
+  - `deploy.finished` → 推送部署结果
+- **兜底轮询**: 每 60s 同步一次 (防止事件丢失)
+- **ChatOps 自身监控**: 通过 `/api/chatops/metrics` 暴露: 推荐面板加载次数、平均响应时间、事件丢弃率
+
+### 8.4 推荐数据聚合来源
+
+`/api/chatops/recommendations` 从以下内部服务接口聚合数据 (直接 DB 查询或内部 API 调用):
+
+| 数据类型 | 数据来源 | 获取方式 | 缓存策略 |
+|---------|---------|---------|---------|
+| 活跃告警 | Monitoring 服务 | 内部 API: `GET /internal/monitoring/active-alerts` | 内存缓存 30s |
+| 阻塞任务 | Pipeline 服务 | 内部 API: `GET /internal/pipelines/blocked` | 内存缓存 60s |
+| 部署状态 | Deploy 服务 | EventBus 事件订阅 | 实时 |
+| 自愈状态 | SelfHealing 服务 | 内部 API: `GET /internal/selfhealing/failed` | 内存缓存 60s |
+| 成本异常 | FinOps 服务 | 内部 API: `GET /internal/finops/anomalies` | 内存缓存 5min |
+
+聚合后按用户权限过滤 (命令级 + 资源级)，再按 DND/订阅/降噪规则筛选。
 
 ---
 
@@ -528,7 +734,26 @@ CREATE TABLE chatops_dnd_settings (
 **DND 期间行为**：
 - 推荐面板仅显示 Critical（如果 `allow_critical = true`）
 - 悬浮按钮徽标不增加，但仍显示总数（打开后可见）
-- 所有通知延迟到 DND 结束后统一推送摘要
+- 所有非 Critical 通知延迟到 DND 结束后统一推送摘要
+
+**DND 结束后摘要格式**：
+```
+┌─ DND 期间摘要 (22:00 - 08:00) ───────────────┐
+│ 共收到 23 条通知，按严重程度排序:              │
+│                                              │
+│ 🔴 Critical (2): 已自动标记为未读             │
+│   • DB connection pool 使用率 98%            │
+│   • api-service 502 错误率 5.2%              │
+│                                              │
+│ 🟡 Warning (8): 已聚合                        │
+│   • staging 环境 8 条告警 (已降噪聚合)       │
+│                                              │
+│ ℹ️ Info (13): 已归档到历史                    │
+│   • 5 次 Pipeline 完成, 3 次部署, 5 其他     │
+│                                              │
+│ [查看全部] [仅看 Critical] [忽略全部]         │
+└──────────────────────────────────────────────┘
+```
 
 ### 9.3 告警风暴降噪
 
@@ -536,12 +761,17 @@ CREATE TABLE chatops_dnd_settings (
 
 **聚合规则**：
 
-| 条件 | 策略 |
-|------|------|
-| 同一资源 5 分钟内 > 3 条告警 | 合并为一条 "X 资源在 5 分钟内产生 N 条告警" |
-| 同一项目 5 分钟内 > 10 条告警 | 合并为一条 "X 项目告警风暴 (N 条)" |
-| 相同告警内容 > 5 个目标 | 合并为一条 "N 个实例触发相同告警" |
-| Critical 告警 | 不合并，逐条推送 |
+| 条件 | 静态阈值 (Phase 1) | 动态阈值 (Phase 2) |
+|------|-------------------|-------------------|
+| 同一资源告警 | 5 分钟内 > 3 条 | 根据该资源历史告警密度自适应 |
+| 同一项目告警 | 5 分钟内 > 10 条 | 根据项目规模和活跃告警数自适应 |
+| 相同告警内容 | > 5 个目标 | 根据实例总数比例 (如 > 20%) |
+| Critical 告警 | 不合并，逐条推送 | 不合并 (固定规则) |
+
+**Phase 2 动态阈值算法**:
+- 滑动窗口内计算告警密度: `density = count / (window_seconds * log(entity_count + 1))`
+- 当 `density > baseline_density * 2` 时触发降噪
+- baseline_density 按小时/星期分组统计
 
 ```sql
 -- 降噪规则表 (Admin 可配置)
@@ -565,10 +795,15 @@ CREATE TABLE chatops_suppressed_alerts (
 );
 ```
 
-**前端交互**：
-- 聚合后的卡片显示 "收起 12 条类似告警" 可展开
-- 降噪摘要卡片显示 "过去 5 分钟降噪 47 条告警"
-- 用户可手动调整降噪阈值
+**告警组分组策略** (触发 RCA 分析的前置条件):
+
+| 分组条件 | 时间窗口 | 触发 RCA |
+|---------|---------|---------|
+| 同一服务 > 2 条不同指标告警 | 3 分钟 | 是 |
+| 拓扑关联的多个服务告警 | 5 分钟 | 是 |
+| 同项目 > 5 条告警 (任意服务) | 5 分钟 | 是 |
+| 单条 Critical 告警 | 立即 | 是 (单节点分析) |
+| 单条 Warning/Info 告警 | 不分组 | 否 (独立推送) |
 
 ### 9.4 已读/未读状态管理
 
@@ -640,14 +875,21 @@ CREATE TABLE chatops_escalation_logs (
   reason TEXT,
   created_at TIMESTAMP DEFAULT NOW()
 );
+
+-- 告警状态扩展 (增加升级停止标志)
+ALTER TABLE chatops_alert_states ADD COLUMN escalation_stopped BOOLEAN DEFAULT false;
+ALTER TABLE chatops_alert_states ADD COLUMN escalation_current_level INT DEFAULT 0;
+ALTER TABLE chatops_alert_states ADD COLUMN escalation_last_checked_at TIMESTAMP;
 ```
 
-**升级触发条件**：
+**升级触发条件**:
 1. 告警推送后开始计时
-2. 用户标记为 `acknowledged` 或 `dismissed` → 停止计时
-3. 超过 level1 时间 → 通知直属 Leader（ChatOps + 邮件）
-4. 超过 level2 时间 → 通知 Admin（ChatOps + 邮件）
-5. 超过 level3 时间 → 通知 OnCall 团队（ChatOps + 邮件 + IM）
+2. 用户标记为 `acknowledged` 或 `dismissed` → 设置 `escalation_stopped = true` → **停止所有后续升级**
+3. 超过 level1 时间且 `escalation_stopped = false` → 通知直属 Leader + `escalation_current_level = 1`
+4. 超过 level2 时间且 `escalation_current_level < 2` → 通知 Admin + `escalation_current_level = 2`
+5. 超过 level3 时间且 `escalation_current_level < 3` → 通知 OnCall 团队 + `escalation_current_level = 3`
+
+**定时任务**: 每 2 分钟检查一次 (与 level1 的 15min 粒度匹配，最多 7.5 次检查才触发升级，避免误判)
 
 **Admin 管理入口**：`/settings/chatops/escalation` 配置升级策略
 
@@ -686,7 +928,7 @@ CREATE TABLE chatops_subscriptions (
 
 ## 10. 跳转详情页
 
-### 9.1 跳转映射
+### 10.1 跳转映射
 
 对话中的操作结果和推荐卡片，点击后跳转到对应实际页面：
 
@@ -698,7 +940,7 @@ CREATE TABLE chatops_subscriptions (
 | 查看详情 | `/pipelines/${id}` | — |
 | 回滚 | `/deploy` → 历史版本 | `?action=rollback&version=${ver}` |
 
-### 9.2 实现方式
+### 10.2 实现方式
 
 - 使用 `react-router-dom` 的 `useNavigate`
 - 跳转前标记面板为折叠状态
@@ -728,7 +970,97 @@ function extractPageContext(pathname: string): PageContext | null {
 
 ---
 
-## 12. AIOps 智能运维引擎
+## 12. 聊天历史与通知历史 — 浏览器端资源管理
+
+> 评审补充: 长周期使用后，对话消息和通知列表可能堆积数百/数千条，直接渲染会导致浏览器内存溢出和渲染卡顿。
+
+### 12.1 前端虚拟滚动 (Virtual Scrolling)
+
+**实现策略**: 使用 Ant Design `VirtualList` 或 `react-window` 的 `FixedSizeList`
+
+```typescript
+// 仅渲染可视区域的 DOM 节点
+const VISIBLE_COUNT = 50;   // 可视区域消息数
+const BUFFER_COUNT = 10;    // 上下缓冲区
+const ITEM_HEIGHT = 80;     // 每条消息预估高度
+
+// 无论对话历史有多长，DOM 中始终只有 ~60 个节点
+<FixedSizeList
+  height={600}
+  itemCount={messages.length}
+  itemSize={ITEM_HEIGHT}
+  overscanCount={BUFFER_COUNT}
+>
+  {({ index, style }) => (
+    <ChatMessage message={messages[index]} style={style} />
+  )}
+</FixedSizeList>
+```
+
+**内存控制**:
+- 前端 Zustand Store 最多保留最近 500 条消息
+- 超过 500 条 → 最早的消息从内存中移除 (已持久化到 L3 PostgreSQL)
+- 用户滚动到顶部时，按需从 API 加载历史 (分页: 每次 50 条)
+
+### 12.2 分页加载策略
+
+```typescript
+// 对话历史 API 支持分页
+GET /api/chatops/sessions/:id/messages?limit=50&cursor=<timestamp>
+
+// 前端: 滚动到顶部时触发
+function onLoadMore() {
+  if (isLoadingMore || messages.length >= 500) return; // 最多 500 条
+  const oldestMessage = messages[0];
+  fetchMoreMessages(oldestMessage.created_at);
+}
+```
+
+### 12.3 推荐面板通知历史回收
+
+**自动清理**:
+- 已确认 (acknowledged) 的通知: 保留 24h 后从面板移除
+- 已忽略 (dismissed) 的通知: 保留 24h 后从面板移除
+- 过期的通知: 保留 7 天后自动归档到"历史"Tab
+
+**"历史" Tab 分页**:
+- 仅保留最近 100 条归档通知
+- 超过 100 条 → 最旧的通知从前端内存移除 (仍在 DB 中)
+- 用户可按需查询更早历史: "查看更早的历史记录" → API 分页查询
+
+### 12.4 浏览器内存监控
+
+```typescript
+// 监控浏览器内存使用
+useEffect(() => {
+  const interval = setInterval(() => {
+    if (performance.memory) {
+      const heapUsedMB = performance.memory.usedJSHeapSize / 1024 / 1024;
+      if (heapUsedMB > 100) {
+        // 内存超过 100MB → 主动清理旧消息
+        chatOpsStore.getState().trimOldMessages(200); // 保留最近 200 条
+      }
+    }
+  }, 30000); // 每 30s 检查一次
+  return () => clearInterval(interval);
+}, []);
+```
+
+### 12.5 数据生命周期总览
+
+```
+消息状态         │ 存储位置    │ 前端保留  │ 后端保留
+─────────────────┼────────────┼───────────┼──────────
+当前会话 (活跃)  │ L1 + L2/L3 │ 最多 500 条│ TTL 策略
+已加载的历史     │ L1 (分页)  │ 按需加载  │ TTL 策略
+已过期 (TTL)     │ —         │ 已清除    │ 已删除
+已归档通知       │ L3         │ 最多 100 条│ 7 天 (可配置)
+审计记录         │ L3         │ 不加载到前端│ 永久
+```
+
+---
+
+## 13. AIOps 智能运维引擎
 
 > 评审发现：当前设计在交互流程、权限控制、信息接收方面完善，但 AI 智能能力几乎空白。
 > 以下 4 个模块是 ChatOps 从"通知系统"升级为"运维中枢"的核心。
@@ -785,7 +1117,7 @@ CREATE TABLE aiops_service_topology (
 -- RCA 分析结果
 CREATE TABLE aiops_rca_results (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  alert_group_id UUID NOT NULL,         -- 关联的告警组
+  alert_group_id UUID NOT NULL REFERENCES aiops_alert_groups(id),
   root_cause_alert_id UUID,
   root_cause_service TEXT,
   root_cause_alert_type TEXT,           -- 原始告警类型
@@ -803,10 +1135,19 @@ CREATE TABLE aiops_alert_groups (
   time_window_start TIMESTAMP NOT NULL,
   time_window_end TIMESTAMP,
   status TEXT NOT NULL CHECK (status IN ('open', 'analyzing', 'resolved', 'false_positive')),
-  member_alert_ids UUID[],
   rca_result_id UUID REFERENCES aiops_rca_results(id),
   created_at TIMESTAMP DEFAULT NOW()
 );
+
+-- 告警组成员 (替代 UUID[] 数组)
+CREATE TABLE aiops_group_members (
+  group_id UUID NOT NULL REFERENCES aiops_alert_groups(id) ON DELETE CASCADE,
+  alert_id UUID NOT NULL,
+  added_at TIMESTAMP DEFAULT NOW(),
+  PRIMARY KEY (group_id, alert_id)
+);
+
+CREATE INDEX idx_aiops_group_members_alert ON aiops_group_members(alert_id);
 ```
 
 #### 12.1.4 前端展示
@@ -857,10 +1198,60 @@ Response: AlertGroup + RCA result
 
 #### 12.1.6 实现策略 (Phase 1: 轻量版，无 ML)
 
-- **拓扑关联**: 直接使用 CMDB 已有服务依赖数据，不做动态发现
-- **因果计算**: 基于时间差 + 拓扑方向，不使用 ML 模型
-- **置信度**: 简单规则计算 (时间一致性 × 拓扑匹配度)
-- **性能**: 单次分析 < 2 秒 (内存图计算)
+**拓扑关联**: 直接使用 CMDB 已有服务依赖数据。同步机制：
+- 初始化: 全量从 CMDB `GET /api/cmdb/dependencies` 拉取
+- 增量更新: 订阅 CMDB `cmdb.topology_changed` EventBus 事件
+- 本地缓存: 内存中维护邻接表，查询 < 1ms
+- 兜底: 每 5 分钟全量同步一次 (防止事件丢失)
+
+**因果权重计算公式**:
+
+```typescript
+function calculateCausalWeight(upstream: AlertNode, downstream: AlertNode, topology: TopologyEdge): number {
+  // 时间一致性分数: 上游先告警且传播延迟合理
+  const delay = downstream.time - upstream.time;
+  const timeScore = delay > 0 && delay < MAX_PROPAGATION_DELAY_MS
+    ? 1 - (delay / MAX_PROPAGAGION_DELAY_MS)  // 延迟越短分数越高
+    : 0;
+
+  // 拓扑匹配分数
+  const topologyScore = topology
+    ? (topology.is_critical ? 1.0 : 0.7)  // 关键依赖分数更高
+    : 0;
+
+  // 历史相关性 (Phase 2 加入)
+  const historicalScore = getHistoricalCorrelation(upstream.service, downstream.service);
+
+  // 加权组合
+  return 0.4 * timeScore + 0.4 * topologyScore + 0.2 * historicalScore;
+}
+```
+
+**多根因支持**: 当存在多个独立故障源时（如 DB 问题 + 网络问题同时发生），输出多个根因：
+```typescript
+interface RCAResult {
+  rootCauses: RootCause[];  // 支持多根因
+  isMultiRoot: boolean;
+  impactChains: AlertNode[][];  // 每条因果链
+  overallConfidence: number;
+}
+
+interface RootCause {
+  service: string;
+  alert: string;
+  time: Date;
+  weight: number;        // 该根因在总因果中的权重
+  affectedServices: string[];
+  confidence: number;
+}
+```
+
+**置信度**: `confidence = 0.4 * timeConsistency + 0.4 * topologyMatch + 0.2 * historicalCorrelation`
+- timeConsistency: 告警时间顺序与拓扑方向的一致性 (0-1)
+- topologyMatch: 根因服务是否为其他告警服务的上游依赖 (0/0.7/1.0)
+- historicalCorrelation: 历史相同/相似因果链出现频率 (Phase 2: 0-1, Phase 1: 0)
+
+**性能**: 单次分析 < 2 秒 (内存图计算，邻接表 BFS)
 
 ---
 
@@ -898,18 +1289,24 @@ CREATE TABLE aiops_runbooks (
   severity TEXT,                         -- 适用的告警级别
   -- 操作步骤
   steps JSONB NOT NULL,                  -- [{order, action, command, description, expected_result}]
+  -- 版本管理
+  version INT DEFAULT 1,
+  previous_version_id UUID REFERENCES aiops_runbooks(id),
+  is_active BOOLEAN DEFAULT true,        -- 当前版本是否启用
   -- 统计
   total_executions INT DEFAULT 0,
   success_count INT DEFAULT 0,
-  success_rate FLOAT GENERATED ALWAYS AS (
-    CASE WHEN total_executions > 0 THEN success_count::float / total_executions ELSE 0 END
-  ) STORED,
-  -- 元数据
+  wilson_lower_bound FLOAT DEFAULT 0,    -- Wilson 置信区间下界
   created_by UUID,
   updated_by UUID,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
+
+-- Wilson Score 计算 (PostgreSQL)
+-- wilson_lower_bound = (p + z²/(2n) - z × sqrt((p(1-p)+z²/(4n))/n)) / (1+z²/n)
+-- z = 1.96 (95% 置信度), p = success_rate, n = total_executions
+-- 样本量不足时 (n < 10), wilson_lower_bound 会显著低于简单比率，自动降低排名
 
 -- Runbook 执行记录
 CREATE TABLE aiops_runbook_executions (
@@ -1040,8 +1437,18 @@ CREATE TABLE aiops_baseline_snapshots (
   upper_threshold FLOAT,
   lower_threshold FLOAT,
   data_points_count INT,
-  computed_at TIMESTAMP DEFAULT NOW()
+  computed_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(metric_name, COALESCE(service_name, ''), COALESCE(environment, ''), DATE(computed_at))
 );
+
+-- EWMA 数据质量检查:
+-- 1. 异常值过滤: 使用 IQR 方法过滤极端值后再计算 EWMA
+--    Q1 = 25th percentile, Q3 = 75th percentile
+--    IQR = Q3 - Q1
+--    有效范围: [Q1 - 1.5*IQR, Q3 + 1.5*IQR]
+--    超出范围的数据点不参与 EWMA 计算
+-- 2. 数据点不足: min_data_points < 100 时，降级为固定阈值
+-- 3. 冷启动: 新服务/新指标前 24h 使用固定阈值，积累足够数据后自动切换
 
 -- 异常检测记录
 CREATE TABLE aiops_anomaly_records (
@@ -1105,16 +1512,27 @@ Response: { baseline, stdDev, thresholds, history: [{time, value}] }
 Step 1: 查询 CMDB 拓扑 → 该环境的所有下游依赖服务
   ↓
 Step 2: 对比变更范围
-  - API 变更: OpenAPI/Swagger diff
-  - 配置变更: ConfigMap/环境变量 diff
-  - 资源变更: CPU/内存/副本数 diff
+  - API 变更: 从 Git diff 获取 OpenAPI spec 差异
+    * 数据源: Git repo 中 OpenAPI spec 文件的版本对比
+    * 工具: openapi-diff 库或 GitLab/GitHub API 的 commit diff
+    * 输出: 新增/修改/废弃的 API 端点列表
+  - 配置变更: 从 Pipeline artifact 获取 ConfigMap 差异
+    * 数据源: Pipeline 构建产物中的 config diff
+    * 输出: 环境变量/ConfigMap 的 key 变更 (值脱敏)
+  - 资源变更: 从部署清单获取资源差异
+    * 数据源: Kubernetes Deployment spec diff
+    * 输出: CPU/内存/副本数/镜像版本变更
   ↓
 Step 3: 评估影响面
   - 直接依赖: 调用此服务的上游服务
   - 间接依赖: 上游服务的上游 (传递闭包)
   - 数据层: 涉及的数据库/缓存变更
   ↓
-Step 4: 输出影响报告
+Step 4: 结合历史变更后果 (aiops_change_history)
+  - 该服务上次部署是否导致故障?
+  - 类似变更 (同服务/同环境) 的成功率?
+  ↓
+Step 5: 输出影响报告
 ```
 
 #### 12.4.3 数据表
@@ -1239,63 +1657,151 @@ Response: ChangeHistoryEntry[]  -- 历史变更及后果
 
 ---
 
-## 13. 实现阶段
+## 14. ChatOps 统一配置面板
 
-### Phase 1（本期）— 基础 + 轻量 AIOps
+> 评审补充: 当前设计涉及 8+ 类配置 (通知偏好、DND、降噪、升级、订阅、基线、Runbook、TTL)，需要统一的配置入口和 UI。
 
-**前端 (12 项)**:
-- [ ] ChatTrigger 悬浮按钮（状态指示 + 上下文感知 + 徽标）
-- [ ] ChatPanel 侧边栏容器 + 浅色主题
-- [ ] SmartRecommend 推荐面板（告警/阻塞卡片 + 根因链展示）
-- [ ] ChatInput 输入框 + Slash 快捷命令
-- [ ] 命令解析引擎（关键词匹配 + 自然语言）
+### 13.1 配置入口
+
+**入口 1: Chat 面板设置按钮**
+- Chat 面板 Header → 齿轮图标 → 弹出配置 Drawer
+- 适用于: 用户级配置 (通知偏好、DND、订阅)
+
+**入口 2: 独立管理页面**
+- `/settings/chatops` → 全量配置管理 (Admin)
+- 适用于: 系统级配置 (降噪规则、升级策略、Runbook 库、基线配置、TTL 策略)
+
+### 13.2 配置面板结构
+
+```
+┌─ ChatOps 设置 ──────────────────────────────────┐
+│ [← 返回]                                        │
+│                                                 │
+│ ┌─ 侧边导航 ─┐  ┌─ 配置内容区 ──────────────────┐│
+│ │ 通知偏好    │  │ 通知渠道设置                   ││
+│ │ 免打扰      │  │                                ││
+│ │ 我的订阅    │  │ ┌─────────────────────────┐   ││
+│ │             │  │ │ 告警级别 │ Chat │ 邮件 │   ││
+│ │ ── Admin 区 ─│  │ ├─────────────────────────┤   ││
+│ │ 降噪规则    │  │ │ Critical  │ ☑  │ ☐  │   ││
+│ │ 升级策略    │  │ │ Warning   │ ☑  │ ☐  │   ││
+│ │ Runbook 库  │  │ │ Info      │ ☐  │ ☐  │   ││
+│ │ 基线配置    │  │ └─────────────────────────┘   ││
+│ │ TTL 策略    │  │                                ││
+│ │             │  │ [保存] [重置默认]              ││
+│ └────────────┘  └────────────────────────────────┘│
+└────────────────────────────────────────────────────┘
+```
+
+### 13.3 配置项清单
+
+| Tab | 配置项 | 范围 | 默认值 | 权限 |
+|-----|-------|------|-------|------|
+| 通知偏好 | 各告警级别的通知渠道 | 用户级 | ChatOps 开启, 其余关闭 | 所有用户 |
+| 免打扰 | DND 时段 + 重复 + Critical 例外 | 用户级 | 关闭 | 所有用户 |
+| 我的订阅 | 资源订阅列表 | 用户级 | 空 | 所有用户 |
+| 降噪规则 | 聚合阈值 + 规则启用/禁用 | 系统级 | 静态阈值 | Admin |
+| 升级策略 | 升级阶梯 (时间 + 目标) | 系统级 | 15/30/60min | Admin |
+| Runbook 库 | 告警类型 → 操作步骤 CRUD | 系统级 | 空 | Admin |
+| 基线配置 | 指标 EWMA 参数 + 冷启动策略 | 系统级 | α=0.3, σ=3.0 | Admin + SRE |
+| TTL 策略 | 全局/角色/项目/告警级别 TTL | 系统级 | 90 天 | Admin |
+
+### 13.4 配置持久化
+
+所有配置变更后：
+1. 写入对应数据库表
+2. 发布 EventBus 事件 `chatops.config_changed`
+3. 前端 Zustand Store 订阅事件，热更新配置 (无需刷新页面)
+4. 操作审计: 写入 `chatops_audit_logs` (谁、何时、改了什么)
+
+---
+
+## 15. 实现阶段
+
+### Phase 1a（优先）— ChatOps 核心交互
+
+**前端 (14 项)**:
+- [ ] ChatTrigger 悬浮按钮（状态指示 + 上下文感知 + 徽标 + z-index token）
+- [ ] ChatPanel 侧边栏容器 + 浅色主题 + 响应式宽度 (360-480px)
+- [ ] SmartRecommend 推荐面板（告警/阻塞卡片 + 空状态处理）
+- [ ] ChatInput 输入框 + Slash 快捷命令 + AutoComplete 交互
+- [ ] 命令解析引擎（关键词匹配 + 白名单 + JSON Schema 校验 + 特殊字符拦截）
 - [ ] ChatMessage + ActionCard 组件（动态操作按钮）
+- [ ] 滚动行为管理（自动滚动到底部 + 暂停 + "新消息"按钮）
 - [ ] chatOpsStore Zustand Store
-- [ ] 通知偏好设置 UI（渠道选择 + DND + 订阅管理）
+- [ ] 通知偏好设置 UI（渠道选择）
+- [ ] DND 设置 UI（时段 + 快捷开关）
 - [ ] 已读/未读状态交互（徽标 + 状态流转）
-- [ ] Runbook 执行结果卡片（成功率 + 风险标签）
-- [ ] 变更影响报告展示组件
-- [ ] RCA 影响链可视化组件
+- [ ] 虚拟滚动集成（react-window / VirtualList）
+- [ ] 浏览器内存监控（超过 100MB 主动清理）
+- [ ] 分页加载（按需拉取历史，最多 500 条内存保留）
 
-**后端 (20 项)**:
-- [ ] POST /api/chatops/execute API（命令执行）
+**后端 (15 项)**:
+- [ ] POST /api/chatops/execute API（命令执行 + 幂等性 + idempotency_key）
+- [ ] 命令输入安全校验（白名单 + 特殊字符过滤 + JSON Schema + 敏感参数拦截）
 - [ ] 双层权限校验中间件
-- [ ] 命令路由分发（对接现有 API）
-- [ ] POST /api/chatops/recommendations API（推荐面板数据）
+- [ ] 命令路由分发（对接现有 API + SelfHealing 集成）
+- [ ] POST /api/chatops/recommendations API（推荐面板数据聚合）
 - [ ] GET /api/chatops/commands API（可用命令列表）
-- [ ] chatops_sessions / messages / executions / audit_logs 表创建
-- [ ] L1 → L3 数据写入链路
+- [ ] GET /api/chatops/sessions/:id/messages API（分页查询）
+- [ ] EventBus 事件订阅（alert.created, pipeline.updated, deploy.finished, selfhealing.failed）
 - [ ] 通知偏好 CRUD API
 - [ ] DND 设置 CRUD API
 - [ ] 已读状态管理 API
-- [ ] 订阅管理 CRUD API
-- [ ] 告警风暴降噪引擎（聚合规则）
-- [ ] 升级策略引擎（定时检查未处理告警）
+- [ ] chatops_sessions / messages / executions / audit_logs 表创建 + 索引
+- [ ] L1 → L3 数据写入链路
+- [ ] 执行 API 幂等性 (Redis idempotency_key + 降级策略)
+- [ ] EventBus 驱动推荐面板实时更新 (替代轮询)
 
-**AIOps 引擎 (14 项)**:
-- [ ] RCA 引擎基础版（时间 + 拓扑关联，无 ML）
+**数据库 (2 项)**:
+- [ ] pgcrypto 扩展启用
+- [ ] 核心表索引创建
+
+**Phase 1a 总计: 31 个任务**
+
+### Phase 1b — 信息控制 + 轻量 AIOps
+
+**信息控制 (10 项)**:
+- [ ] 订阅管理 CRUD API + 前端 UI
+- [ ] 告警风暴降噪引擎（聚合规则 + 动态阈值）
+- [ ] 升级策略引擎（定时检查 + 已确认停止 + 2min 间隔）
+- [ ] DND 结束后摘要推送
+- [ ] 通知历史归档 + 分页（最多 100 条前端保留）
+
+**AIOps 引擎 (15 项)**:
+- [ ] RCA 引擎基础版（时间 + 拓扑关联 + 多根因 + 因果权重公式）
 - [ ] POST /api/chatops/rca/analyze API
 - [ ] GET /api/chatops/rca/groups API
-- [ ] aiops_service_topology / aiops_rca_results / aiops_alert_groups 表
-- [ ] 拓扑数据同步（从 CMDB 读取）
-- [ ] Runbook 推荐引擎（手动库 + 匹配逻辑）
+- [ ] aiops_service_topology / aiops_rca_results / aiops_alert_groups / aiops_group_members 表
+- [ ] CMDB 拓扑数据同步（全量初始化 + EventBus 增量 + 5min 兜底）
+- [ ] RCA 影响链可视化组件（垂直时间线 + 折叠）
+- [ ] Runbook 推荐引擎（手动库 + 匹配逻辑 + Wilson Score）
 - [ ] GET /api/chatops/runbooks/recommend API
 - [ ] POST /api/chatops/runbooks/:id/execute API
 - [ ] Runbook CRUD API（Admin 管理）
-- [ ] aiops_runbooks / aiops_runbook_executions 表
-- [ ] 动态基线引擎（EWMA 算法）
+- [ ] aiops_runbooks (含版本管理) / aiops_runbook_executions 表
+- [ ] 动态基线引擎（EWMA + IQR 异常值过滤 + 冷启动降级）
 - [ ] POST /api/chatops/baseline/check API
 - [ ] aiops_baseline_configs / aiops_baseline_snapshots / aiops_anomaly_records 表
-- [ ] 变更影响分析引擎（拓扑依赖分析）
+- [ ] 变更影响分析引擎（拓扑依赖 + Git diff + Pipeline artifact）
 - [ ] POST /api/chatops/change/analyze API
 - [ ] aiops_change_impact_analyses / aiops_change_history 表
 
-**数据库 (3 项)**:
-- [ ] pgcrypto 扩展启用
-- [ ] TTL 自动清理定时任务
-- [ ] AIOps 表迁移脚本
+**配置面板 (8 项)**:
+- [ ] 统一配置面板前端（侧边导航 + 配置内容区）
+- [ ] 通知偏好 + DND + 订阅 Tab
+- [ ] Admin 配置面板（降噪规则 + 升级策略 + Runbook + 基线 + TTL）
+- [ ] 配置热更新（EventBus config_changed → Zustand 订阅）
+- [ ] 配置变更审计
+- [ ] POST /api/chatops/metrics API（ChatOps 自身可观测性）
 
-**Phase 1 总计: 51 个任务**
+**数据库 (2 项)**:
+- [ ] AIOps 表迁移脚本 + 索引
+- [ ] TTL 自动清理定时任务（分批删除）
+
+**Phase 1b 总计: 35 个任务**
+
+**Phase 1 总计: 66 个任务 (1a: 31 + 1b: 35)**
 
 ### Phase 2 — 数据驱动
 - [ ] 后端：Redis 缓存层 (L2)
@@ -1322,22 +1828,24 @@ Response: ChangeHistoryEntry[]  -- 历史变更及后果
 
 ---
 
-## 14. 风险与依赖
+## 16. 风险与依赖
 
 | 风险 | 影响 | 缓解 |
 |------|------|------|
 | pgcrypto 扩展未启用 | 对话加密失效 | 数据库迁移脚本中检查并启用 |
-| Redis 未部署 | L2 缓存不可用 | Phase 1 跳过，直接 L1 → L3 |
-| WebSocket 连接不稳定 | 实时推送延迟 | 降级为纯轮询模式 |
-| 命令解析覆盖率不足 | 用户自然语言无法识别 | 预留 LLM fallback 接口 |
+| Redis 不可用 | L2 缓存 + 幂等性降级 | Phase 1a 跳过 L2，幂等性降级为命令去重 |
+| EventBus 不稳定 | 推荐面板实时推送失效 | 降级为 60s 兜底轮询 |
+| 命令解析覆盖率不足 | 用户自然语言无法识别 | 白名单快速失败 + 预留 LLM fallback |
 | 权限模型与现有 RBAC 不一致 | 权限校验失效 | 复用现有 role/user_resources 表 |
-| 告警风暴导致数据库写入压力 | 数据库性能下降 | 降噪聚合后再写入，减少 80%+ |
-| 升级策略与 OnCall 系统冲突 | 重复通知 | 升级策略读取 OnCall 排班表 |
-| **CMDB 拓扑数据不完整** | **RCA 因果链分析准确率下降** | **Phase 1 使用已知依赖 + 手动补充** |
-| **历史数据不足** | **基线引擎初期误报** | **冷启动期使用固定阈值，积累数据后切换** |
-| **AIOps 推荐操作被误执行** | **生产事故** | **所有操作仍需用户确认 + 双层权限校验** |
+| 告警风暴导致数据库写入压力 | 数据库性能下降 | 降噪聚合后再写入 + 分批删除 |
+| 升级策略与 OnCall 系统冲突 | 重复通知 | 升级策略读取 OnCall 排班表，避免重复 |
+| CMDB 拓扑数据不完整 | RCA 因果链分析准确率下降 | Phase 1 使用已知依赖 + 手动补充 |
+| 历史数据不足 | 基线引擎初期误报 | 冷启动期使用固定阈值，积累数据后切换 |
+| AIOps 推荐操作被误执行 | 生产事故 | 所有操作仍需用户确认 + 双层权限校验 |
+| 浏览器内存溢出 | 页面卡顿/崩溃 | 虚拟滚动 + 500 条内存上限 + 自动清理 |
+| 虚拟滚动与变高消息不兼容 | 消息重叠/空白 | 使用 DynamicSizeList + ResizeObserver 测量实际高度 |
 
-## 15. AIOps 能力成熟度路线图
+## 17. AIOps 能力成熟度路线图
 
 ```
 Phase 1 (当前): 规则驱动 AIOps
