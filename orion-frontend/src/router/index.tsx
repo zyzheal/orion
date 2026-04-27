@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
-import { routes } from './routes';
+import { routes, type AppRoute } from './routes';
 import { Layout } from '@/components/Layout';
 import { Loading } from '@/components/Loading';
 import { useAuthStore } from '@/stores/authStore';
+import { message } from 'antd';
 
 // 检查用户是否已登录
 const checkIsAuthenticated = (): boolean => {
@@ -24,11 +25,20 @@ const checkIsAuthenticated = (): boolean => {
   return true;
 };
 
+// 检查用户角色是否满足路由要求
+const checkRoleAccess = (userRole: string | undefined, requiredRole: string | string[] | undefined): boolean => {
+  if (!requiredRole) return true; // 无角色限制
+  if (!userRole) return false;
+
+  const roles = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
+  return roles.includes(userRole);
+};
+
 // 路由守卫组件
-const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+const ProtectedRoute: React.FC<{ children: React.ReactNode; route: AppRoute }> = ({ children, route }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { isAuthenticated: _storeAuthenticated } = useAuthStore();
+  const { user, isAuthenticated: _storeAuthenticated } = useAuthStore();
   const [isChecking, setIsChecking] = useState(true);
   const [authorized, setAuthorized] = useState(false);
 
@@ -36,11 +46,19 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
     const auth = checkIsAuthenticated();
     if (!auth) {
       navigate('/login', { state: { from: location }, replace: true });
-    } else {
-      setAuthorized(true);
+      return;
     }
+
+    // 检查角色权限
+    if (!checkRoleAccess(user?.role, route.requiredRole)) {
+      message.error('您没有权限访问此页面');
+      navigate('/dashboard', { replace: true });
+      return;
+    }
+
+    setAuthorized(true);
     setIsChecking(false);
-  }, [navigate, location]);
+  }, [navigate, location, user, route.requiredRole]);
 
   useEffect(() => {
     checkAuth();
@@ -65,7 +83,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   }
 
   if (!authorized) {
-    return null; // 会跳转到登录页
+    return null; // 会跳转到登录页或仪表盘
   }
 
   return <>{children}</>;
@@ -124,7 +142,7 @@ const AppRoutes: React.FC = () => {
             key={route.path}
             path={route.path}
             element={
-              <ProtectedRoute>
+              <ProtectedRoute route={route}>
                 <Layout>{element}</Layout>
               </ProtectedRoute>
             }

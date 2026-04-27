@@ -3,8 +3,10 @@ import type { FC } from 'react';
 
 export interface AppRoute {
   path: string;
-  element: React.LazyExoticComponent<FC<any>>;
+  element: React.LazyExoticComponent<FC<Record<string, unknown>>>;
   protected?: boolean;
+  /** Required user role(s) to access this route. If string, must match exactly. If array, any match grants access. */
+  requiredRole?: string | string[];
   children?: AppRoute[];
 }
 
@@ -38,26 +40,31 @@ export const routes: AppRoute[] = [
     path: '/console',
     element: React.lazy(() => import('@/pages/Console')),
     protected: true,
+    requiredRole: ['admin', 'platform_admin'],
   },
   {
     path: '/console/plugins',
     element: React.lazy(() => import('@/pages/PluginManagement')),
     protected: true,
+    requiredRole: ['admin', 'platform_admin'],
   },
   {
     path: '/console/plugins/:id',
     element: React.lazy(() => import('@/pages/PluginManagement')),
     protected: true,
+    requiredRole: ['admin', 'platform_admin'],
   },
   {
     path: '/console/settings',
     element: React.lazy(() => import('@/pages/Console')),
     protected: true,
+    requiredRole: ['admin', 'platform_admin'],
   },
   {
     path: '/console/users',
     element: React.lazy(() => import('@/pages/UserManagement')),
     protected: true,
+    requiredRole: ['admin', 'platform_admin'],
   },
   {
     path: '/projects',
@@ -138,12 +145,14 @@ export const routes: AppRoute[] = [
     path: '/audit-log',
     element: React.lazy(() => import('@/pages/AuditLog')),
     protected: true,
+    requiredRole: ['admin', 'platform_admin'],
   },
   // Tenant Management
   {
     path: '/tenant-management',
     element: React.lazy(() => import('@/pages/TenantManagement')),
     protected: true,
+    requiredRole: ['admin', 'platform_admin'],
   },
   // Config Management
   {
@@ -249,11 +258,12 @@ export const routes: AppRoute[] = [
     path: '/console/iac',
     element: React.lazy(() => import('@/pages/IacManagement')),
     protected: true,
+    requiredRole: ['admin', 'platform_admin'],
     children: [
-      { path: '/console/iac/workspaces', element: React.lazy(() => import('@/pages/IacManagement/WorkspaceList')), protected: true },
-      { path: '/console/iac/plans', element: React.lazy(() => import('@/pages/IacManagement/PlanViewer')), protected: true },
-      { path: '/console/iac/state', element: React.lazy(() => import('@/pages/IacManagement/StateBrowser')), protected: true },
-      { path: '/console/iac/modules', element: React.lazy(() => import('@/pages/IacManagement/ModuleRegistry')), protected: true },
+      { path: '/console/iac/workspaces', element: React.lazy(() => import('@/pages/IacManagement/WorkspaceList')), protected: true, requiredRole: ['admin', 'platform_admin'] },
+      { path: '/console/iac/plans', element: React.lazy(() => import('@/pages/IacManagement/PlanViewer')), protected: true, requiredRole: ['admin', 'platform_admin'] },
+      { path: '/console/iac/state', element: React.lazy(() => import('@/pages/IacManagement/StateBrowser')), protected: true, requiredRole: ['admin', 'platform_admin'] },
+      { path: '/console/iac/modules', element: React.lazy(() => import('@/pages/IacManagement/ModuleRegistry')), protected: true, requiredRole: ['admin', 'platform_admin'] },
     ],
   },
   // Manual Confirmation (M34)
@@ -261,12 +271,13 @@ export const routes: AppRoute[] = [
     path: '/console/confirmations',
     element: React.lazy(() => import('@/pages/ConfirmationWorkbench')),
     protected: true,
+    requiredRole: ['admin', 'platform_admin'],
     children: [
-      { path: '/console/confirmations/pending', element: React.lazy(() => import('@/pages/ConfirmationWorkbench/PendingList')), protected: true },
-      { path: '/console/confirmations/:id', element: React.lazy(() => import('@/pages/ConfirmationWorkbench/ConfirmationDetail')), protected: true },
-      { path: '/console/confirmations/batch', element: React.lazy(() => import('@/pages/ConfirmationWorkbench/BatchConfirmation')), protected: true },
-      { path: '/console/confirmations/notifications', element: React.lazy(() => import('@/pages/ConfirmationWorkbench/NotificationSettings')), protected: true },
-      { path: '/console/confirmations/audit', element: React.lazy(() => import('@/pages/ConfirmationWorkbench/PendingList')), protected: true },
+      { path: '/console/confirmations/pending', element: React.lazy(() => import('@/pages/ConfirmationWorkbench/PendingList')), protected: true, requiredRole: ['admin', 'platform_admin'] },
+      { path: '/console/confirmations/:id', element: React.lazy(() => import('@/pages/ConfirmationWorkbench/ConfirmationDetail')), protected: true, requiredRole: ['admin', 'platform_admin'] },
+      { path: '/console/confirmations/batch', element: React.lazy(() => import('@/pages/ConfirmationWorkbench/BatchConfirmation')), protected: true, requiredRole: ['admin', 'platform_admin'] },
+      { path: '/console/confirmations/notifications', element: React.lazy(() => import('@/pages/ConfirmationWorkbench/NotificationSettings')), protected: true, requiredRole: ['admin', 'platform_admin'] },
+      { path: '/console/confirmations/audit', element: React.lazy(() => import('@/pages/ConfirmationWorkbench/PendingList')), protected: true, requiredRole: ['admin', 'platform_admin'] },
     ],
   },
   // ChatOps (M35)
@@ -274,11 +285,12 @@ export const routes: AppRoute[] = [
     path: '/console/chatops',
     element: React.lazy(() => import('@/pages/ChatOps')),
     protected: true,
+    requiredRole: ['admin', 'platform_admin'],
     children: [
-      { path: '/console/chatops/commands', element: React.lazy(() => import('@/pages/ChatOps/CommandBrowser')), protected: true },
-      { path: '/console/chatops/executions', element: React.lazy(() => import('@/pages/ChatOps/ExecutionDashboard')), protected: true },
-      { path: '/console/chatops/audit', element: React.lazy(() => import('@/pages/ChatOps/AuditLogViewer')), protected: true },
-      { path: '/console/chatops/settings', element: React.lazy(() => import('@/pages/ChatOps/ChatOpsSettings')), protected: true },
+      { path: '/console/chatops/commands', element: React.lazy(() => import('@/pages/ChatOps/CommandBrowser')), protected: true, requiredRole: ['admin', 'platform_admin'] },
+      { path: '/console/chatops/executions', element: React.lazy(() => import('@/pages/ChatOps/ExecutionDashboard')), protected: true, requiredRole: ['admin', 'platform_admin'] },
+      { path: '/console/chatops/audit', element: React.lazy(() => import('@/pages/ChatOps/AuditLogViewer')), protected: true, requiredRole: ['admin', 'platform_admin'] },
+      { path: '/console/chatops/settings', element: React.lazy(() => import('@/pages/ChatOps/ChatOpsSettings')), protected: true, requiredRole: ['admin', 'platform_admin'] },
     ],
   },
   // AI Cost Dashboard (M36)
@@ -286,12 +298,13 @@ export const routes: AppRoute[] = [
     path: '/console/ai-cost',
     element: React.lazy(() => import('@/pages/AICostDashboard')),
     protected: true,
+    requiredRole: ['admin', 'platform_admin'],
     children: [
-      { path: '/console/ai-cost/overview', element: React.lazy(() => import('@/pages/AICostDashboard/CostOverview')), protected: true },
-      { path: '/console/ai-cost/budgets', element: React.lazy(() => import('@/pages/AICostDashboard/BudgetManagement')), protected: true },
-      { path: '/console/ai-cost/details', element: React.lazy(() => import('@/pages/AICostDashboard/CostDetail')), protected: true },
-      { path: '/console/ai-cost/roi', element: React.lazy(() => import('@/pages/AICostDashboard/ROIReport')), protected: true },
-      { path: '/console/ai-cost/alerts', element: React.lazy(() => import('@/pages/AICostDashboard/AlertConfig')), protected: true },
+      { path: '/console/ai-cost/overview', element: React.lazy(() => import('@/pages/AICostDashboard/CostOverview')), protected: true, requiredRole: ['admin', 'platform_admin'] },
+      { path: '/console/ai-cost/budgets', element: React.lazy(() => import('@/pages/AICostDashboard/BudgetManagement')), protected: true, requiredRole: ['admin', 'platform_admin'] },
+      { path: '/console/ai-cost/details', element: React.lazy(() => import('@/pages/AICostDashboard/CostDetail')), protected: true, requiredRole: ['admin', 'platform_admin'] },
+      { path: '/console/ai-cost/roi', element: React.lazy(() => import('@/pages/AICostDashboard/ROIReport')), protected: true, requiredRole: ['admin', 'platform_admin'] },
+      { path: '/console/ai-cost/alerts', element: React.lazy(() => import('@/pages/AICostDashboard/AlertConfig')), protected: true, requiredRole: ['admin', 'platform_admin'] },
     ],
   },
   // AI Doc Management (M37)
@@ -299,12 +312,13 @@ export const routes: AppRoute[] = [
     path: '/console/ai-docs',
     element: React.lazy(() => import('@/pages/AIDocManagement')),
     protected: true,
+    requiredRole: ['admin', 'platform_admin'],
     children: [
-      { path: '/console/ai-docs/spaces', element: React.lazy(() => import('@/pages/AIDocManagement/SpaceList')), protected: true },
-      { path: '/console/ai-docs/documents', element: React.lazy(() => import('@/pages/AIDocManagement/DocumentList')), protected: true },
-      { path: '/console/ai-docs/editor/:id?', element: React.lazy(() => import('@/pages/AIDocManagement/DocumentEditor')), protected: true },
-      { path: '/console/ai-docs/rag', element: React.lazy(() => import('@/pages/AIDocManagement/RAGQuery')), protected: true },
-      { path: '/console/ai-docs/graph', element: React.lazy(() => import('@/pages/AIDocManagement/SpaceList')), protected: true },
+      { path: '/console/ai-docs/spaces', element: React.lazy(() => import('@/pages/AIDocManagement/SpaceList')), protected: true, requiredRole: ['admin', 'platform_admin'] },
+      { path: '/console/ai-docs/documents', element: React.lazy(() => import('@/pages/AIDocManagement/DocumentList')), protected: true, requiredRole: ['admin', 'platform_admin'] },
+      { path: '/console/ai-docs/editor/:id?', element: React.lazy(() => import('@/pages/AIDocManagement/DocumentEditor')), protected: true, requiredRole: ['admin', 'platform_admin'] },
+      { path: '/console/ai-docs/rag', element: React.lazy(() => import('@/pages/AIDocManagement/RAGQuery')), protected: true, requiredRole: ['admin', 'platform_admin'] },
+      { path: '/console/ai-docs/graph', element: React.lazy(() => import('@/pages/AIDocManagement/SpaceList')), protected: true, requiredRole: ['admin', 'platform_admin'] },
     ],
   },
 
@@ -313,14 +327,15 @@ export const routes: AppRoute[] = [
     path: '/console/build-env',
     element: React.lazy(() => import('@/pages/BuildEnv')),
     protected: true,
+    requiredRole: ['admin', 'platform_admin'],
     children: [
-      { path: '/console/build-env/images', element: React.lazy(() => import('@/pages/BuildEnv/BuilderImageList')), protected: true },
-      { path: '/console/build-env/cache', element: React.lazy(() => import('@/pages/BuildEnv/BuildCachePage')), protected: true },
-      { path: '/console/build-env/pods', element: React.lazy(() => import('@/pages/BuildEnv/BuildPodList')), protected: true },
-      { path: '/console/build-env/pods/:id', element: React.lazy(() => import('@/pages/BuildEnv/BuildPodDetail')), protected: true },
-      { path: '/console/build-env/logs', element: React.lazy(() => import('@/pages/BuildEnv/BuildLogList')), protected: true },
-      { path: '/console/build-env/logs/:id', element: React.lazy(() => import('@/pages/BuildEnv/BuildLogViewer')), protected: true },
-      { path: '/console/build-env/artifacts', element: React.lazy(() => import('@/pages/BuildEnv/ArtifactList')), protected: true },
+      { path: '/console/build-env/images', element: React.lazy(() => import('@/pages/BuildEnv/BuilderImageList')), protected: true, requiredRole: ['admin', 'platform_admin'] },
+      { path: '/console/build-env/cache', element: React.lazy(() => import('@/pages/BuildEnv/BuildCachePage')), protected: true, requiredRole: ['admin', 'platform_admin'] },
+      { path: '/console/build-env/pods', element: React.lazy(() => import('@/pages/BuildEnv/BuildPodList')), protected: true, requiredRole: ['admin', 'platform_admin'] },
+      { path: '/console/build-env/pods/:id', element: React.lazy(() => import('@/pages/BuildEnv/BuildPodDetail')), protected: true, requiredRole: ['admin', 'platform_admin'] },
+      { path: '/console/build-env/logs', element: React.lazy(() => import('@/pages/BuildEnv/BuildLogList')), protected: true, requiredRole: ['admin', 'platform_admin'] },
+      { path: '/console/build-env/logs/:id', element: React.lazy(() => import('@/pages/BuildEnv/BuildLogViewer')), protected: true, requiredRole: ['admin', 'platform_admin'] },
+      { path: '/console/build-env/artifacts', element: React.lazy(() => import('@/pages/BuildEnv/ArtifactList')), protected: true, requiredRole: ['admin', 'platform_admin'] },
     ],
   },
   // Code Management
@@ -328,12 +343,13 @@ export const routes: AppRoute[] = [
     path: '/console/code-mgmt',
     element: React.lazy(() => import('@/pages/CodeMgmt')),
     protected: true,
+    requiredRole: ['admin', 'platform_admin'],
     children: [
-      { path: '/console/code-mgmt/repos', element: React.lazy(() => import('@/pages/CodeMgmt/RepoList')), protected: true },
-      { path: '/console/code-mgmt/repos/:adapterId/:repoId', element: React.lazy(() => import('@/pages/CodeMgmt/RepoDetail')), protected: true },
-      { path: '/console/code-mgmt/policies', element: React.lazy(() => import('@/pages/CodeMgmt/BranchPolicyList')), protected: true },
-      { path: '/console/code-mgmt/ownership', element: React.lazy(() => import('@/pages/CodeMgmt/CodeOwnersPage')), protected: true },
-      { path: '/console/code-mgmt/webhooks', element: React.lazy(() => import('@/pages/CodeMgmt/WebhookLog')), protected: true },
+      { path: '/console/code-mgmt/repos', element: React.lazy(() => import('@/pages/CodeMgmt/RepoList')), protected: true, requiredRole: ['admin', 'platform_admin'] },
+      { path: '/console/code-mgmt/repos/:adapterId/:repoId', element: React.lazy(() => import('@/pages/CodeMgmt/RepoDetail')), protected: true, requiredRole: ['admin', 'platform_admin'] },
+      { path: '/console/code-mgmt/policies', element: React.lazy(() => import('@/pages/CodeMgmt/BranchPolicyList')), protected: true, requiredRole: ['admin', 'platform_admin'] },
+      { path: '/console/code-mgmt/ownership', element: React.lazy(() => import('@/pages/CodeMgmt/CodeOwnersPage')), protected: true, requiredRole: ['admin', 'platform_admin'] },
+      { path: '/console/code-mgmt/webhooks', element: React.lazy(() => import('@/pages/CodeMgmt/WebhookLog')), protected: true, requiredRole: ['admin', 'platform_admin'] },
     ],
   },
   // AI Review
@@ -341,12 +357,13 @@ export const routes: AppRoute[] = [
     path: '/console/ai-review',
     element: React.lazy(() => import('@/pages/AIReview')),
     protected: true,
+    requiredRole: ['admin', 'platform_admin'],
     children: [
-      { path: '/console/ai-review/dashboard', element: React.lazy(() => import('@/pages/AIReview/Dashboard')), protected: true },
-      { path: '/console/ai-review/history', element: React.lazy(() => import('@/pages/AIReview/History')), protected: true },
-      { path: '/console/ai-review/history/:id', element: React.lazy(() => import('@/pages/AIReview/ReviewDetail')), protected: true },
-      { path: '/console/ai-review/rules', element: React.lazy(() => import('@/pages/AIReview/Rules')), protected: true },
-      { path: '/console/ai-review/config', element: React.lazy(() => import('@/pages/AIReview/Config')), protected: true },
+      { path: '/console/ai-review/dashboard', element: React.lazy(() => import('@/pages/AIReview/Dashboard')), protected: true, requiredRole: ['admin', 'platform_admin'] },
+      { path: '/console/ai-review/history', element: React.lazy(() => import('@/pages/AIReview/History')), protected: true, requiredRole: ['admin', 'platform_admin'] },
+      { path: '/console/ai-review/history/:id', element: React.lazy(() => import('@/pages/AIReview/ReviewDetail')), protected: true, requiredRole: ['admin', 'platform_admin'] },
+      { path: '/console/ai-review/rules', element: React.lazy(() => import('@/pages/AIReview/Rules')), protected: true, requiredRole: ['admin', 'platform_admin'] },
+      { path: '/console/ai-review/config', element: React.lazy(() => import('@/pages/AIReview/Config')), protected: true, requiredRole: ['admin', 'platform_admin'] },
     ],
   },
   // Self-Healing
@@ -354,13 +371,14 @@ export const routes: AppRoute[] = [
     path: '/console/self-healing',
     element: React.lazy(() => import('@/pages/SelfHealing')),
     protected: true,
+    requiredRole: ['admin', 'platform_admin'],
     children: [
-      { path: '/console/self-healing/incidents', element: React.lazy(() => import('@/pages/SelfHealing/IncidentList')), protected: true },
-      { path: '/console/self-healing/incidents/:id', element: React.lazy(() => import('@/pages/SelfHealing/IncidentDetail')), protected: true },
-      { path: '/console/self-healing/history', element: React.lazy(() => import('@/pages/SelfHealing/History')), protected: true },
-      { path: '/console/self-healing/strategies', element: React.lazy(() => import('@/pages/SelfHealing/StrategyList')), protected: true },
-      { path: '/console/self-healing/approvals', element: React.lazy(() => import('@/pages/SelfHealing/ApprovalQueue')), protected: true },
-      { path: '/console/self-healing/effectiveness', element: React.lazy(() => import('@/pages/SelfHealing/EffectivenessDashboard')), protected: true },
+      { path: '/console/self-healing/incidents', element: React.lazy(() => import('@/pages/SelfHealing/IncidentList')), protected: true, requiredRole: ['admin', 'platform_admin'] },
+      { path: '/console/self-healing/incidents/:id', element: React.lazy(() => import('@/pages/SelfHealing/IncidentDetail')), protected: true, requiredRole: ['admin', 'platform_admin'] },
+      { path: '/console/self-healing/history', element: React.lazy(() => import('@/pages/SelfHealing/History')), protected: true, requiredRole: ['admin', 'platform_admin'] },
+      { path: '/console/self-healing/strategies', element: React.lazy(() => import('@/pages/SelfHealing/StrategyList')), protected: true, requiredRole: ['admin', 'platform_admin'] },
+      { path: '/console/self-healing/approvals', element: React.lazy(() => import('@/pages/SelfHealing/ApprovalQueue')), protected: true, requiredRole: ['admin', 'platform_admin'] },
+      { path: '/console/self-healing/effectiveness', element: React.lazy(() => import('@/pages/SelfHealing/EffectivenessDashboard')), protected: true, requiredRole: ['admin', 'platform_admin'] },
     ],
   },
   // Monitoring
@@ -368,12 +386,13 @@ export const routes: AppRoute[] = [
     path: '/console/monitoring',
     element: React.lazy(() => import('@/pages/Monitoring')),
     protected: true,
+    requiredRole: ['admin', 'platform_admin'],
     children: [
-      { path: '/console/monitoring/dashboard', element: React.lazy(() => import('@/pages/Monitoring/Dashboard')), protected: true },
-      { path: '/console/monitoring/metrics', element: React.lazy(() => import('@/pages/Monitoring/Metrics')), protected: true },
-      { path: '/console/monitoring/alerts', element: React.lazy(() => import('@/pages/Monitoring/Alerts')), protected: true },
-      { path: '/console/monitoring/rules', element: React.lazy(() => import('@/pages/Monitoring/Rules')), protected: true },
-      { path: '/console/monitoring/channels', element: React.lazy(() => import('@/pages/Monitoring/Channels')), protected: true },
+      { path: '/console/monitoring/dashboard', element: React.lazy(() => import('@/pages/Monitoring/Dashboard')), protected: true, requiredRole: ['admin', 'platform_admin'] },
+      { path: '/console/monitoring/metrics', element: React.lazy(() => import('@/pages/Monitoring/Metrics')), protected: true, requiredRole: ['admin', 'platform_admin'] },
+      { path: '/console/monitoring/alerts', element: React.lazy(() => import('@/pages/Monitoring/Alerts')), protected: true, requiredRole: ['admin', 'platform_admin'] },
+      { path: '/console/monitoring/rules', element: React.lazy(() => import('@/pages/Monitoring/Rules')), protected: true, requiredRole: ['admin', 'platform_admin'] },
+      { path: '/console/monitoring/channels', element: React.lazy(() => import('@/pages/Monitoring/Channels')), protected: true, requiredRole: ['admin', 'platform_admin'] },
     ],
   },
   // Diagnostic
@@ -381,12 +400,13 @@ export const routes: AppRoute[] = [
     path: '/console/diagnostic',
     element: React.lazy(() => import('@/pages/Diagnostic')),
     protected: true,
+    requiredRole: ['admin', 'platform_admin'],
     children: [
-      { path: '/console/diagnostic/sessions', element: React.lazy(() => import('@/pages/Diagnostic/Sessions')), protected: true },
-      { path: '/console/diagnostic/sessions/:id', element: React.lazy(() => import('@/pages/Diagnostic/SessionDetail')), protected: true },
-      { path: '/console/diagnostic/reports', element: React.lazy(() => import('@/pages/Diagnostic/Reports')), protected: true },
-      { path: '/console/diagnostic/knowledge', element: React.lazy(() => import('@/pages/Diagnostic/KnowledgeBase')), protected: true },
-      { path: '/console/diagnostic/trigger', element: React.lazy(() => import('@/pages/Diagnostic/Trigger')), protected: true },
+      { path: '/console/diagnostic/sessions', element: React.lazy(() => import('@/pages/Diagnostic/Sessions')), protected: true, requiredRole: ['admin', 'platform_admin'] },
+      { path: '/console/diagnostic/sessions/:id', element: React.lazy(() => import('@/pages/Diagnostic/SessionDetail')), protected: true, requiredRole: ['admin', 'platform_admin'] },
+      { path: '/console/diagnostic/reports', element: React.lazy(() => import('@/pages/Diagnostic/Reports')), protected: true, requiredRole: ['admin', 'platform_admin'] },
+      { path: '/console/diagnostic/knowledge', element: React.lazy(() => import('@/pages/Diagnostic/KnowledgeBase')), protected: true, requiredRole: ['admin', 'platform_admin'] },
+      { path: '/console/diagnostic/trigger', element: React.lazy(() => import('@/pages/Diagnostic/Trigger')), protected: true, requiredRole: ['admin', 'platform_admin'] },
     ],
   },
   // AI Agent Orchestration
@@ -434,6 +454,7 @@ export const routes: AppRoute[] = [
     path: '/roles',
     element: React.lazy(() => import('@/pages/RoleManagement')),
     protected: true,
+    requiredRole: ['admin', 'platform_admin'],
   },
   // OnCall Management
   {
