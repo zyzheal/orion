@@ -109,7 +109,7 @@ const TableSkeletonRow: React.FC<{ animated?: boolean }> = React.memo(
         gap: 24,
         alignItems: 'center',
         padding: '12px 0',
-        borderBottom: '1px solid var(--border-color-split, #f0f0f0)',
+        borderBottom: '1px solid var(--border-light, transparent)',
       }}
     >
       <Skeleton.Input active={animated} size="small" style={{ width: 140, height: 16 }} />
@@ -171,10 +171,10 @@ const PageSkeleton: React.FC<PageSkeletonProps> = React.memo(
 
         <div
           style={{
-            background: 'var(--bg-color-light, #fff)',
+            background: 'var(--bg-tertiary, transparent)',
             borderRadius: 8,
             padding: 16,
-            border: '1px solid var(--border-color-base, #f0f0f0)',
+            border: '1px solid var(--border-light, transparent)',
           }}
         >
           {searchBar && <SearchBarSkeleton animated={animated} />}
