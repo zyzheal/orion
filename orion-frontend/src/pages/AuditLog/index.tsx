@@ -17,6 +17,7 @@ import {
   message,
 } from 'antd';
 import { colors } from '@/tokens';
+import PageSkeleton from '@/components/PageSkeleton';
 import {
   ReloadOutlined,
   SafetyCertificateOutlined,
@@ -144,8 +145,15 @@ const AuditLogPage: React.FC = () => {
     key: log.id,
   }));
 
+  const isInitialLoading = loading && auditLogs.length === 0;
+
   return (
     <DashboardLayout>
+      {isInitialLoading ? (
+        <div style={{ padding: 24 }}>
+          <PageSkeleton cards={3} rows={10} />
+        </div>
+      ) : (
       <div style={{ padding: 24 }}>
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
@@ -281,6 +289,7 @@ const AuditLogPage: React.FC = () => {
           )}
         </Drawer>
       </div>
+      )}
     </DashboardLayout>
   );
 };

@@ -15,6 +15,7 @@ import {
 } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
+import PageSkeleton from '@/components/PageSkeleton';
 import {
   getArtifacts, createArtifact, updateArtifact, deleteArtifact,
   getArtifactTags, addArtifactTags, downloadArtifact,
@@ -675,8 +676,15 @@ const ArtifactManagement: React.FC = () => {
     ];
   }, [selectedArtifact, tags, promotionHistory]);
 
+  const isInitialLoading = loading && artifacts.length === 0;
+
   return (
     <div style={{ padding: 0 }}>
+      {/* Page loading skeleton (initial load) */}
+      {isInitialLoading && <PageSkeleton cards={7} rows={8} />}
+
+      {isInitialLoading ? null : (
+        <>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
         <div>
@@ -862,6 +870,8 @@ const ArtifactManagement: React.FC = () => {
       >
         <Tabs items={detailTabItems} />
       </Drawer>
+        </>
+      )}
     </div>
   );
 };

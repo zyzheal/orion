@@ -309,10 +309,7 @@ function OrionTable<T extends object>({
         onRow={onRow}
         size={size}
         scroll={scroll}
-        loading={loading ? {
-          indicator: null,
-          tip: '加载中...',
-        } : undefined}
+        loading={loading}
         rowClassName={
           striped ? (_record, index) => (index % 2 === 1 ? 'orion-table-row-stripe' : '') : undefined
         }

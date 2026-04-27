@@ -57,3 +57,6 @@ export type { CardPanelProps } from './CardPanel';
 
 export { default as SplitPane } from './SplitPane';
 export type { SplitPaneProps, SplitDirection } from './SplitPane';
+
+export { default as PageSkeleton } from './PageSkeleton';
+export type { PageSkeletonProps } from './PageSkeleton';

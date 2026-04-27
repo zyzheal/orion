@@ -24,6 +24,7 @@ import {
   Tabs,
 } from 'antd';
 import { colors } from '@/tokens';
+import PageSkeleton from '@/components/PageSkeleton';
 import {
   ReloadOutlined,
   PlusOutlined,
@@ -234,8 +235,15 @@ const CITablePage: React.FC = () => {
     },
   ];
 
+  const isInitialLoading = loading && cis.length === 0;
+
   return (
     <div>
+      {/* Page loading skeleton (initial load) */}
+      {isInitialLoading && <PageSkeleton cards={5} rows={8} />}
+
+      {isInitialLoading ? null : (
+        <>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
           <Title level={4}>配置项管理</Title>
@@ -448,6 +456,8 @@ const CITablePage: React.FC = () => {
           </Descriptions>
         )}
       </Drawer>
+        </>
+      )}
     </div>
   );
 };
@@ -477,8 +487,15 @@ const TopologyPage: React.FC = () => {
     loadData();
   }, []);
 
+  const isInitialLoading = loading && !topology;
+
   return (
     <div>
+      {/* Page loading skeleton (initial load) */}
+      {isInitialLoading && <PageSkeleton rows={6} />}
+
+      {isInitialLoading ? null : (
+        <>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
           <Title level={4}>拓扑图</Title>
@@ -508,6 +525,8 @@ const TopologyPage: React.FC = () => {
           </div>
         )}
       </Card>
+        </>
+      )}
     </div>
   );
 };
@@ -598,8 +617,15 @@ const IntegrationPage: React.FC = () => {
     },
   ];
 
+  const isInitialLoading = loading && hosts.length === 0 && k8sResources.length === 0;
+
   return (
     <div>
+      {/* Page loading skeleton (initial load) */}
+      {isInitialLoading && <PageSkeleton cards={3} rows={8} />}
+
+      {isInitialLoading ? null : (
+        <>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
           <Title level={4}>集成资源</Title>
@@ -649,6 +675,8 @@ const IntegrationPage: React.FC = () => {
           pagination={{ pageSize: 10 }}
         />
       </Card>
+        </>
+      )}
     </div>
   );
 };

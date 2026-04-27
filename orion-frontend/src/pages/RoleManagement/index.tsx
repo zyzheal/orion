@@ -12,6 +12,7 @@ import {
   TeamOutlined, KeyOutlined,
 } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
+import PageSkeleton from '@/components/PageSkeleton';
 import {
   getRoles, createRole, deleteRole,
   type Role, type CreateRoleInput,
@@ -284,8 +285,15 @@ const RoleManagement: React.FC = () => {
     );
   };
 
+  const isInitialLoading = loading && roles.length === 0;
+
   return (
     <div style={{ padding: 0 }}>
+      {/* Page loading skeleton (initial load) */}
+      {isInitialLoading && <PageSkeleton rows={8} />}
+
+      {isInitialLoading ? null : (
+        <>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
         <div>
@@ -404,6 +412,8 @@ const RoleManagement: React.FC = () => {
           </>
         )}
       </Drawer>
+        </>
+      )}
     </div>
   );
 };

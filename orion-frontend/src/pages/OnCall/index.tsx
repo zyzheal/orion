@@ -22,6 +22,7 @@ import {
   type CurrentOnCallResult,
 } from '@/api/oncall';
 import { listUsers, type User } from '@/api/users';
+import PageSkeleton from '@/components/PageSkeleton';
 import { colors } from '@/tokens/colors';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -520,8 +521,15 @@ const OnCallManagement: React.FC = () => {
     );
   };
 
+  const isInitialLoading = loading && schedules.length === 0;
+
   return (
     <div style={{ padding: 0 }}>
+      {/* Page loading skeleton (initial load) */}
+      {isInitialLoading && <PageSkeleton rows={8} />}
+
+      {isInitialLoading ? null : (
+        <>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
         <div>
@@ -652,6 +660,8 @@ const OnCallManagement: React.FC = () => {
       >
         {renderDetailContent()}
       </Drawer>
+        </>
+      )}
     </div>
   );
 };

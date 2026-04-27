@@ -14,6 +14,7 @@ import {
 } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
+import PageSkeleton from '@/components/PageSkeleton';
 import {
   listUsers, createUser, updateUser, deleteUser,
   type User, type CreateUserInput, type UpdateUserInput,
@@ -420,8 +421,15 @@ const UserManagement: React.FC = () => {
 
   const roleOptions = Object.entries(roleLabelMap).map(([v, l]) => ({ label: l, value: v }));
 
+  const isInitialLoading = loading && users.length === 0;
+
   return (
     <div style={{ padding: 0 }}>
+      {/* Page loading skeleton (initial load) */}
+      {isInitialLoading && <PageSkeleton cards={4} rows={8} />}
+
+      {isInitialLoading ? null : (
+        <>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
         <div>
@@ -558,6 +566,8 @@ const UserManagement: React.FC = () => {
           )}
         </div>
       </Drawer>
+        </>
+      )}
     </div>
   );
 };

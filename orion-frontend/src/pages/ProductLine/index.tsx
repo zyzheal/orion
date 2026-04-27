@@ -14,6 +14,7 @@ import {
 } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
+import PageSkeleton from '@/components/PageSkeleton';
 import {
   getProductLines, createProductLine, updateProductLine, deleteProductLine,
   activateProductLine, suspendProductLine,
@@ -609,8 +610,15 @@ const ProductLineManagement: React.FC = () => {
     },
   ], [selectedPL, releaseTrains, hotfixChannels]);
 
+  const isInitialLoading = loading && productLines.length === 0;
+
   return (
     <div style={{ padding: 0 }}>
+      {/* Page loading skeleton (initial load) */}
+      {isInitialLoading && <PageSkeleton rows={8} />}
+
+      {isInitialLoading ? null : (
+        <>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
         <div>
           <Title level={3} style={{ margin: 0 }}>多分支产品线</Title>
@@ -770,6 +778,8 @@ const ProductLineManagement: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
+        </>
+      )}
     </div>
   );
 };
