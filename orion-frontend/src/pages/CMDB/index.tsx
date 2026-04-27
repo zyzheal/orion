@@ -90,9 +90,16 @@ const CITablePage: React.FC = () => {
     try {
       const res = await getCIs({ pageSize: 50 });
       setCIs((res.data as any).data || []);
-    } catch (error) {
-      console.error('Failed to load CIs:', error);
-      message.error('加载配置项失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        if (error.message.includes('401') || error.message.includes('403')) {
+          message.error('权限不足，请重新登录或联系管理员');
+        } else {
+          message.error(`加载配置项失败：${error.message}`);
+        }
+      } else {
+        message.error('加载配置项失败，请稍后重试');
+      }
     } finally {
       setLoading(false);
     }
@@ -653,9 +660,16 @@ const TopologyPage: React.FC = () => {
         setNodes(flowNodes);
         setEdges(flowEdges);
       }
-    } catch (error) {
-      console.error('Failed to load topology:', error);
-      message.error('加载拓扑图失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        if (error.message.includes('401') || error.message.includes('403')) {
+          message.error('权限不足，请重新登录或联系管理员');
+        } else {
+          message.error(`加载拓扑图失败：${error.message}`);
+        }
+      } else {
+        message.error('加载拓扑图失败，请稍后重试');
+      }
     } finally {
       setLoading(false);
     }
@@ -851,9 +865,16 @@ const IntegrationPage: React.FC = () => {
       ]);
       setHosts((hostsRes.data as any).data || []);
       setK8sResources((k8sRes.data as any).data || []);
-    } catch (error) {
-      console.error('Failed to load integration data:', error);
-      message.error('加载集成数据失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        if (error.message.includes('401') || error.message.includes('403')) {
+          message.error('权限不足，请重新登录或联系管理员');
+        } else {
+          message.error(`加载集成数据失败：${error.message}`);
+        }
+      } else {
+        message.error('加载集成数据失败，请稍后重试');
+      }
     } finally {
       setLoading(false);
     }

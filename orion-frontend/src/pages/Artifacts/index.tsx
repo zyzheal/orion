@@ -19,30 +19,19 @@ import {
   deprecateArtifact, quarantineArtifact,
   getArtifactStats, getNamespaces,
   type Artifact, type CreateArtifactInput, type UpdateArtifactInput,
-  type ArtifactStage, type PromotionRecord, type Tag as TagType,
+  type PromotionRecord, type Tag as TagType,
   type ArtifactStats as ArtifactStatsType,
 } from '@/api/artifacts';
 import ArtifactStats from './ArtifactStats';
 import ArtifactTable from './ArtifactTable';
 import { getArtifactTabItems } from './ArtifactDetail';
+import { typeLabelMap, promotionStageOrder } from './constants';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 
 dayjs.extend(relativeTime);
 
 const { Title, Text } = Typography;
-
-// ---- Type label map (used in create form) ----
-
-const typeLabelMap: Record<string, string> = {
-  container_image: '容器镜像', base_image: '基础镜像', builder_image: '构建镜像',
-  jar_artifact: 'JAR', war_artifact: 'WAR', npm_package: 'NPM', python_wheel: 'Python',
-  go_module: 'Go', rust_crate: 'Rust', helm_chart: 'Helm Chart', terraform_module: 'Terraform',
-  k8s_manifest: 'K8s Manifest', docker_compose: 'Docker Compose',
-  test_report: '测试报告', coverage_report: '覆盖率报告', performance_report: '性能报告',
-  sbom: 'SBOM', signature: '签名', security_scan_report: '安全扫描',
-  api_doc: 'API 文档', changelog: '变更日志', release_notes: '发布说明',
-};
 
 // ---- Mock data ----
 
@@ -116,8 +105,6 @@ const MOCK_STATS: ArtifactStats = {
   avgSecurityScore: 92,
 };
 
-const promotionStageOrder: ArtifactStage[] = ['snapshot', 'release_candidate', 'stable', 'production'];
-
 // ---- Main Component ----
 
 const ArtifactManagement: React.FC = () => {
@@ -170,8 +157,19 @@ const ArtifactManagement: React.FC = () => {
         setArtifacts([]);
         setTotal(0);
       }
-    } catch {
+    } catch (error: unknown) {
       setUsingMockData(true);
+      if (error instanceof Error) {
+        if (error.message.includes('401') || error.message.includes('403')) {
+          message.error('权限不足，请重新登录或联系管理员');
+        } else if (error.message.includes('fetch') || error.message.includes('network')) {
+          message.error('网络异常，请检查连接');
+        } else {
+          message.error(`加载制品数据失败：${error.message}`);
+        }
+      } else {
+        message.error('加载制品数据失败，请稍后重试');
+      }
       // For mock data, apply client-side pagination slice
       setTotal(MOCK_ARTIFACTS.length);
       const start = (p - 1) * s;

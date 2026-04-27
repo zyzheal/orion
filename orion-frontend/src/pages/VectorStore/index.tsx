@@ -68,8 +68,19 @@ const VectorStorePage: React.FC = () => {
     try {
       const res = await getCollections();
       setCollections(Array.isArray(res.data?.data) ? res.data.data : MOCK_COLLECTIONS);
-    } catch {
+    } catch (error: unknown) {
       setUsingMockData(true);
+      if (error instanceof Error) {
+        if (error.message.includes('401') || error.message.includes('403')) {
+          message.error('权限不足，请重新登录或联系管理员');
+        } else if (error.message.includes('fetch') || error.message.includes('network')) {
+          message.error('网络异常，请检查连接');
+        } else {
+          message.error(`加载集合数据失败：${error.message}`);
+        }
+      } else {
+        message.error('加载集合数据失败，请稍后重试');
+      }
       setCollections(MOCK_COLLECTIONS);
     } finally {
       setLoading(false);
@@ -80,8 +91,13 @@ const VectorStorePage: React.FC = () => {
     try {
       const res = await getVectorStats();
       setStats(res.data?.data || MOCK_STATS);
-    } catch {
+    } catch (error: unknown) {
       setUsingMockData(true);
+      if (error instanceof Error) {
+        message.error(`加载统计信息失败：${error.message}`);
+      } else {
+        message.error('加载统计信息失败，请稍后重试');
+      }
       setStats(MOCK_STATS);
     }
   };
@@ -111,8 +127,12 @@ const VectorStorePage: React.FC = () => {
       message.success('集合已删除');
       await loadData();
       await loadStats();
-    } catch {
-      message.error('删除失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`删除失败：${error.message}`);
+      } else {
+        message.error('删除失败，请稍后重试');
+      }
     }
   };
 
@@ -127,7 +147,12 @@ const VectorStorePage: React.FC = () => {
     try {
       const res = await getCollectionDocuments(name);
       setCollectionDocs(Array.isArray(res.data?.data) ? res.data.data : MOCK_DOCUMENTS);
-    } catch {
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`加载文档列表失败：${error.message}`);
+      } else {
+        message.error('加载文档列表失败，请稍后重试');
+      }
       setCollectionDocs(MOCK_DOCUMENTS);
     } finally {
       setDocsLoading(false);
@@ -139,8 +164,12 @@ const VectorStorePage: React.FC = () => {
       await deleteDocument(id);
       message.success('文档已删除');
       if (selectedCollection) await loadCollectionDocs(selectedCollection.name);
-    } catch {
-      message.error('删除失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`删除失败：${error.message}`);
+      } else {
+        message.error('删除失败，请稍后重试');
+      }
     }
   };
 
@@ -157,7 +186,12 @@ const VectorStorePage: React.FC = () => {
         topK: searchTopK,
       });
       setSearchResults(Array.isArray(res.data?.data) ? res.data.data : MOCK_SEARCH_RESULTS);
-    } catch {
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`语义搜索失败：${error.message}`);
+      } else {
+        message.error('语义搜索失败，请稍后重试');
+      }
       setSearchResults(MOCK_SEARCH_RESULTS);
     } finally {
       setSearchLoading(false);
@@ -190,8 +224,12 @@ const VectorStorePage: React.FC = () => {
       setUploadContent('');
       setUploadMetadata('');
       await loadStats();
-    } catch {
-      message.error('上传失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`上传失败：${error.message}`);
+      } else {
+        message.error('上传失败，请稍后重试');
+      }
     } finally {
       setUploadLoading(false);
     }

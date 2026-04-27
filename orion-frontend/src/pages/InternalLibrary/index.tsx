@@ -145,8 +145,19 @@ const InternalLibraryManagement: React.FC = () => {
     try {
       const res = await getInternalLibraries();
       setLibraries(Array.isArray(res.data?.data) ? res.data.data : []);
-    } catch {
+    } catch (error: unknown) {
       setUsingMockData(true);
+      if (error instanceof Error) {
+        if (error.message.includes('401') || error.message.includes('403')) {
+          message.error('权限不足，请重新登录或联系管理员');
+        } else if (error.message.includes('fetch') || error.message.includes('network')) {
+          message.error('网络异常，请检查连接');
+        } else {
+          message.error(`加载二方库数据失败：${error.message}`);
+        }
+      } else {
+        message.error('加载二方库数据失败，请稍后重试');
+      }
       setLibraries(MOCK_LIBRARIES);
     } finally {
       setLoading(false);

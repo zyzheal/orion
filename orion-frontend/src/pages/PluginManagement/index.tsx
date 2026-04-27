@@ -58,9 +58,15 @@ const PluginManagement: React.FC = () => {
       const response = await getInstalledPlugins({});
       setPlugins(response.data.data || []);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : '加载插件列表失败';
-      console.error('Failed to load plugins:', err);
-      message.error(msg);
+      if (err instanceof Error) {
+        if (err.message.includes('401') || err.message.includes('403')) {
+          message.error('权限不足，请重新登录或联系管理员');
+        } else {
+          message.error(`加载插件列表失败：${err.message}`);
+        }
+      } else {
+        message.error('加载插件列表失败，请稍后重试');
+      }
     } finally {
       setLoading(false);
     }
@@ -75,8 +81,12 @@ const PluginManagement: React.FC = () => {
     try {
       const response = await getPlugin(plugin.id);
       setSelectedPlugin(response.data.data as ApiPlugin);
-    } catch {
-      console.error('Failed to load plugin details');
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        message.error(`加载插件详情失败：${err.message}`);
+      } else {
+        message.error('加载插件详情失败，请稍后重试');
+      }
     }
   };
 

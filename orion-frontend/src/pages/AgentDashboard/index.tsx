@@ -63,8 +63,15 @@ const AgentDashboard: React.FC = () => {
       const approvalsData = await getAgentApprovals({ status: 'pending' });
       setApprovals(approvalsData);
     } catch (err: unknown) {
-      console.error('Failed to load data:', err);
-      message.error('加载数据失败');
+      if (err instanceof Error) {
+        if (err.message.includes('401') || err.message.includes('403')) {
+          message.error('权限不足，请重新登录或联系管理员');
+        } else {
+          message.error(`加载数据失败：${err.message}`);
+        }
+      } else {
+        message.error('加载数据失败，请稍后重试');
+      }
     } finally {
       setLoading(false);
     }
