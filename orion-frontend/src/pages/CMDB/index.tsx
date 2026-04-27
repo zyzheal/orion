@@ -27,6 +27,7 @@ import { colors } from '@/tokens';
 import {
   ReloadOutlined,
   PlusOutlined,
+  EditOutlined,
   CloudServerOutlined,
   DeploymentUnitOutlined,
   ClusterOutlined,
@@ -36,6 +37,7 @@ import {
 import {
   getCIs,
   createCI,
+  updateCI,
   deleteCI,
   getTopology,
   getHosts,
@@ -45,6 +47,7 @@ import {
   type TopologyData,
   type HostInfo,
   type K8sResource,
+  type UpdateCIInput,
 } from '@/api/cmdb';
 
 const { Title, Text } = Typography;
@@ -58,8 +61,11 @@ const CITablePage: React.FC = () => {
   const [cis, setCIs] = useState<CIItem[]>([]);
   const [selectedCI, setSelectedCI] = useState<CIItem | null>(null);
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editingCI, setEditingCI] = useState<CIItem | null>(null);
   const [detailDrawerOpen, setDetailDrawerOpen] = useState(false);
   const [form] = Form.useForm();
+  const [editForm] = Form.useForm();
 
   const loadData = async () => {
     setLoading(true);
@@ -113,6 +119,42 @@ const CITablePage: React.FC = () => {
         }
       },
     });
+  };
+
+  const openEdit = (ci: CIItem) => {
+    setEditingCI(ci);
+    editForm.setFieldsValue({
+      name: ci.name,
+      type: ci.type,
+      subtype: ci.subtype,
+      environment: ci.environment,
+      owner: ci.owner,
+      status: ci.status,
+      tags: ci.tags?.join(', ') || '',
+    });
+    setEditModalOpen(true);
+  };
+
+  const handleUpdate = async (values: any) => {
+    if (!editingCI) return;
+    try {
+      const payload: UpdateCIInput = {
+        name: values.name,
+        status: values.status,
+        owner: values.owner,
+        environment: values.environment,
+        tags: values.tags?.split(',').map((t: string) => t.trim()).filter(Boolean) || [],
+        attributes: editingCI.attributes,
+      };
+      await updateCI(editingCI.id, payload);
+      message.success('配置项更新成功');
+      setEditModalOpen(false);
+      editForm.resetFields();
+      setEditingCI(null);
+      loadData();
+    } catch {
+      message.error('更新配置项失败');
+    }
   };
 
   const typeIconMap: Record<string, React.ReactNode> = {
@@ -180,6 +222,9 @@ const CITablePage: React.FC = () => {
         <Space>
           <Button type="link" size="small" onClick={() => { setSelectedCI(record); setDetailDrawerOpen(true); }}>
             详情
+          </Button>
+          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEdit(record)}>
+            编辑
           </Button>
           <Button type="link" size="small" danger onClick={() => handleDelete(record.id)}>
             删除
@@ -301,6 +346,67 @@ const CITablePage: React.FC = () => {
           <Form.Item label="标签" name="tags">
             <Input placeholder="逗号分隔，例如：web,api,v2" />
           </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Edit Modal */}
+      <Modal
+        title="编辑配置项"
+        open={editModalOpen}
+        onCancel={() => { setEditModalOpen(false); editForm.resetFields(); setEditingCI(null); }}
+        onOk={() => editForm.submit()}
+        width={600}
+      >
+        <Form form={editForm} layout="vertical" onFinish={handleUpdate}>
+          <Form.Item label="名称" name="name" rules={[{ required: true }]}>
+            <Input placeholder="例如：prod-api-server-01" />
+          </Form.Item>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item label="类型" name="type">
+                <Input disabled />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item label="子类型" name="subtype">
+                <Input placeholder="可选" />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item label="环境" name="environment">
+                <Select>
+                  <Select.Option value="development">development</Select.Option>
+                  <Select.Option value="testing">testing</Select.Option>
+                  <Select.Option value="staging">staging</Select.Option>
+                  <Select.Option value="production">production</Select.Option>
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item label="负责人" name="owner">
+                <Input placeholder="可选" />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item label="状态" name="status">
+                <Select>
+                  <Select.Option value="active">active</Select.Option>
+                  <Select.Option value="inactive">inactive</Select.Option>
+                  <Select.Option value="maintenance">maintenance</Select.Option>
+                  <Select.Option value="deprecated">deprecated</Select.Option>
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item label="标签" name="tags">
+                <Input placeholder="逗号分隔，例如：web,api,v2" />
+              </Form.Item>
+            </Col>
+          </Row>
         </Form>
       </Modal>
 
