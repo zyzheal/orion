@@ -16,7 +16,7 @@ import {
   SaveOutlined,
   FileTextOutlined,
 } from '@ant-design/icons';
-import type { StageConfig } from './index';
+import type { StageConfig } from './types';
 
 const { Text } = Typography;
 

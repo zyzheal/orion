@@ -4,7 +4,7 @@
 import React, { useEffect, useState } from 'react';
 import { Modal, Form, Input, InputNumber, Select, Space, Divider, Switch, Button, Card } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
-import type { StageConfig } from './index';
+import type { StageConfig } from './types';
 
 const { TextArea } = Input;
 
