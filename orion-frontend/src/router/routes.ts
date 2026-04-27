@@ -501,6 +501,24 @@ export const routes: AppRoute[] = [
     protected: true,
   },
   // 404 页面
+  // Backup Management (P1)
+  {
+    path: '/backup',
+    element: React.lazy(() => import('@/pages/Backup')),
+    protected: true,
+  },
+  // Plugin SPI - Extension Point Management (P1)
+  {
+    path: '/plugin-spi',
+    element: React.lazy(() => import('@/pages/PluginSPI')),
+    protected: true,
+  },
+  // AI Security (P1)
+  {
+    path: '/ai-security',
+    element: React.lazy(() => import('@/pages/AISecurity')),
+    protected: true,
+  },
   {
     path: '*',
     element: React.lazy(() => import('@/pages/NotFound')),
