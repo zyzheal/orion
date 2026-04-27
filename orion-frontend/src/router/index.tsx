@@ -38,7 +38,7 @@ const checkRoleAccess = (userRole: string | undefined, requiredRole: string | st
 const ProtectedRoute: React.FC<{ children: React.ReactNode; route: AppRoute }> = ({ children, route }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, isAuthenticated: _storeAuthenticated } = useAuthStore();
+  const userRole = useAuthStore(state => state.user?.role);
   const [isChecking, setIsChecking] = useState(true);
   const [authorized, setAuthorized] = useState(false);
 
@@ -50,7 +50,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; route: AppRoute }> =
     }
 
     // 检查角色权限
-    if (!checkRoleAccess(user?.role, route.requiredRole)) {
+    if (!checkRoleAccess(userRole, route.requiredRole)) {
       message.error('您没有权限访问此页面');
       navigate('/dashboard', { replace: true });
       return;
@@ -58,7 +58,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; route: AppRoute }> =
 
     setAuthorized(true);
     setIsChecking(false);
-  }, [navigate, location, user, route.requiredRole]);
+  }, [navigate, location.pathname, userRole, route.requiredRole]);
 
   useEffect(() => {
     checkAuth();
