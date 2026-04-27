@@ -82,7 +82,9 @@ export interface ConfigFilters {
 // ==================== Config CRUD ====================
 
 export function getConfigs(filters?: ConfigFilters) {
-  return api.get<{ configs: ConfigItem[]; total: number }>('/v1/config/configs', { params: filters });
+  return api.get<{ configs: ConfigItem[]; total: number }>('/v1/config/configs', {
+    params: filters,
+  });
 }
 
 export function getConfig(id: string) {
@@ -156,12 +158,76 @@ export function getApprovalWorkflow(id: string) {
   return api.get<ApprovalWorkflow>(`/v1/config/change-requests/${id}`);
 }
 
+// ==================== Environment Diff ====================
+
+export interface EnvDiffResult {
+  sourceEnv: string;
+  targetEnv: string;
+  totalConfigs: number;
+  onlyInSource: string[];
+  onlyInTarget: string[];
+  differences: ConfigChange[];
+  identical: number;
+}
+
+export function compareEnvironments(sourceEnv: string, targetEnv: string) {
+  return api.get<EnvDiffResult>(`/v1/config/diff/${sourceEnv}/${targetEnv}`);
+}
+
+// ==================== Diff Report ====================
+
+export interface DiffReportItem {
+  configId: string;
+  key: string;
+  environment: string;
+  latestVersion: number;
+  comparedVersions: number[];
+  changes: ConfigChange[];
+}
+
+export interface DiffReport {
+  reportId: string;
+  generatedAt: string;
+  environments: string[];
+  totalConfigs: number;
+  items: DiffReportItem[];
+  summary: {
+    totalDifferences: number;
+    byEnvironment: Record<string, number>;
+  };
+}
+
+export function getDiffReport(configId?: string) {
+  const params = configId ? { configId } : {};
+  return api.get<DiffReport>('/v1/config/diff/report', { params });
+}
+
+// ==================== Config Drift ====================
+
+export interface DriftItem {
+  key: string;
+  environment: string;
+  localValue: any;
+  remoteValue: any;
+  change: ConfigChange;
+}
+
+export interface DriftResult {
+  driftDetected: boolean;
+  itemCount: number;
+  items: DriftItem[];
+}
+
+export function detectDrift() {
+  return api.get<DriftResult>('/v1/config/gitops/drift');
+}
+
 // ==================== Config Diff ====================
 
 export function compareConfigs(id: string, version1: number, version2: number) {
   // Backend uses /configs/:configId/versions/diff
   return api.get<ConfigDiff>(`/v1/config/configs/${id}/versions/diff`, {
-    params: { version1, version2 },
+    params: { fromVersion: version1, toVersion: version2 },
   });
 }
 
