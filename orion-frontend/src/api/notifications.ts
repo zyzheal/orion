@@ -382,3 +382,35 @@ export const updateNotificationSettings = async (
     throw error;
   }
 };
+
+/**
+ * 广播通知给多个用户
+ * POST /v1/notifications/broadcast
+ */
+export interface BroadcastInput {
+  tenantId: string;
+  userIds: string[];
+  type: string;
+  title: string;
+  message: string;
+}
+
+export interface BroadcastResult {
+  sent: number;
+}
+
+export const broadcastNotification = async (
+  input: BroadcastInput
+): Promise<BroadcastResult> => {
+  const response = await api.post('/v1/notifications/broadcast', {
+    tenant_id: input.tenantId,
+    user_ids: input.userIds,
+    type: input.type,
+    title: input.title,
+    message: input.message,
+  });
+  const data = (response.data?.data as unknown as Record<string, unknown>) || {};
+  return {
+    sent: Number(data?.sent ?? 0),
+  };
+};

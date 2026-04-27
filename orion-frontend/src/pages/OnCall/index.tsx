@@ -21,6 +21,7 @@ import {
   type CreateScheduleInput, type CreateOverrideInput,
   type CurrentOnCallResult,
 } from '@/api/oncall';
+import { listUsers, type User } from '@/api/users';
 import { colors } from '@/tokens/colors';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -57,8 +58,9 @@ const timezoneOptions = [
   { label: 'UTC', value: 'UTC' },
 ];
 
-// Mock team members for display
-const MOCK_USERS: Record<string, string> = {
+// ---- User Map State ----
+// Fallback users in case the API fails, matching the historical MOCK_USERS shape
+const FALLBACK_USERS: Record<string, string> = {
   'dev-001': '张三',
   'dev-002': '李四',
   'dev-003': '王五',
@@ -68,8 +70,6 @@ const MOCK_USERS: Record<string, string> = {
   'ops-001': '运维-甲',
   'ops-002': '运维-乙',
 };
-
-const resolveUserName = (userId: string): string => MOCK_USERS[userId] || userId;
 
 // ---- Mock data ----
 
@@ -140,6 +140,38 @@ const OnCallManagement: React.FC = () => {
   const [memberInput, setMemberInput] = useState('');
   const [usingMockData, setUsingMockData] = useState(false);
 
+  // ---- User Map (fetched from real API) ----
+  const [userMap, setUserMap] = useState<Record<string, string>>(FALLBACK_USERS);
+  const [usersLoading, setUsersLoading] = useState(false);
+
+  /**
+   * Resolve a user ID to display name using the fetched user map.
+   * Falls back to the user ID itself if not found.
+   */
+  const resolveUserName = (userId: string): string => userMap[userId] || userId;
+
+  // ---- Data Loading ----
+
+  const loadUsers = async () => {
+    setUsersLoading(true);
+    try {
+      const res = await listUsers({ limit: 200 });
+      const users: User[] = res.data?.data?.data || [];
+      if (users.length > 0) {
+        const map: Record<string, string> = {};
+        for (const u of users) {
+          map[u.id] = u.name || u.username || u.id;
+        }
+        setUserMap(map);
+      }
+    } catch {
+      // Use fallback users if API fails
+      setUserMap(FALLBACK_USERS);
+    } finally {
+      setUsersLoading(false);
+    }
+  };
+
   // ---- Data Loading ----
 
   const loadData = async () => {
@@ -173,6 +205,7 @@ const OnCallManagement: React.FC = () => {
 
   useEffect(() => {
     loadData();
+    loadUsers();
   }, []);
 
   useEffect(() => {
@@ -590,7 +623,8 @@ const OnCallManagement: React.FC = () => {
           </Form.Item>
           <Form.Item name="overrideUserId" label="代班人员" rules={[{ required: true, message: '请选择代班人员' }]}>
             <Select
-              options={Object.entries(MOCK_USERS)
+              loading={usersLoading}
+              options={Object.entries(userMap)
                 .filter(([uid]) => selectedSchedule?.teamMembers.includes(uid))
                 .map(([uid, name]) => ({ label: name, value: uid }))}
               placeholder="选择代班人员"

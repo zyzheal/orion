@@ -5,6 +5,8 @@
  * - Notification list with expandable content, priority indicators, type icons
  * - Mark all as read, Clear read notifications actions
  * - Empty state for no notifications
+ * - Admin broadcast modal (broadcast messages to multiple users)
+ * - User notification settings drawer (toggle notification preferences)
  */
 import React, { useState, useEffect } from 'react';
 import {
@@ -21,6 +23,14 @@ import {
   Empty,
   message,
   Popconfirm,
+  Modal,
+  Form,
+  Input,
+  Select,
+  Switch,
+  Drawer,
+  Divider,
+  Spin,
 } from 'antd';
 import { colors, spacing } from '@/tokens';
 import {
@@ -36,6 +46,8 @@ import {
   DeleteOutlined,
   CheckOutlined,
   ClearOutlined,
+  SoundOutlined,
+  SettingOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -46,7 +58,13 @@ import {
   markAllAsRead,
   deleteNotification,
   getNotificationStats,
+  getNotificationSettings,
+  updateNotificationSettings,
+  broadcastNotification,
+  type NotificationSettings,
+  type BroadcastInput,
 } from '@/api/notifications';
+import { listUsers, type User } from '@/api/users';
 import type { MockNotification } from '@/pages/__mocks__/mockNotificationData';
 
 dayjs.extend(relativeTime);
@@ -109,6 +127,27 @@ const NotificationCenter: React.FC = () => {
   const [activeTab, setActiveTab] = useState('all');
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [stats, setStats] = useState({ unread: 0, critical: 0, today: 0, thisWeek: 0 });
+
+  // Broadcast modal state (admin only)
+  const [broadcastModalVisible, setBroadcastModalVisible] = useState(false);
+  const [broadcastForm] = Form.useForm();
+  const [broadcastSubmitting, setBroadcastSubmitting] = useState(false);
+  const [broadcastAudience, setBroadcastAudience] = useState<'all' | 'specific'>('all');
+  const [selectedBroadcastUsers, setSelectedBroadcastUsers] = useState<string[]>([]);
+  const [availableUsers, setAvailableUsers] = useState<User[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+
+  // Notification settings drawer state
+  const [settingsDrawerVisible, setSettingsDrawerVisible] = useState(false);
+  const [notificationSettings, setNotificationSettings] = useState<NotificationSettings | null>(null);
+  const [settingsLoading, setSettingsLoading] = useState(false);
+  const [settingsSaving, setSettingsSaving] = useState(false);
+
+  // Check if current user is admin (from localStorage or auth store)
+  const isAdmin = (): boolean => {
+    const role = localStorage.getItem('user_role');
+    return role === 'admin';
+  };
 
   // Fetch notifications
   const fetchNotifications = async () => {
@@ -222,6 +261,112 @@ const NotificationCenter: React.FC = () => {
     setNotifications((prev) => prev.filter((n) => !n.read));
     message.success('已清除已读通知');
     fetchStats();
+  };
+
+  // ---- Broadcast Handlers ----
+
+  /** Load available users for broadcast targeting */
+  const loadAvailableUsers = async () => {
+    setUsersLoading(true);
+    try {
+      const res = await listUsers({ limit: 200 });
+      const users: User[] = res.data?.data?.data || [];
+      setAvailableUsers(users);
+    } catch {
+      setAvailableUsers([]);
+    } finally {
+      setUsersLoading(false);
+    }
+  };
+
+  /** Open broadcast modal */
+  const openBroadcastModal = () => {
+    setBroadcastModalVisible(true);
+    setBroadcastAudience('all');
+    setSelectedBroadcastUsers([]);
+    broadcastForm.resetFields();
+    loadAvailableUsers();
+  };
+
+  /** Submit broadcast */
+  const handleBroadcastSubmit = async () => {
+    try {
+      const values = await broadcastForm.validateFields();
+      setBroadcastSubmitting(true);
+
+      const tenantId = localStorage.getItem('tenant_id') || 'default';
+      const userIds = broadcastAudience === 'all'
+        ? availableUsers.map((u) => u.id)
+        : selectedBroadcastUsers;
+
+      if (userIds.length === 0) {
+        message.warning('没有可选用户');
+        return;
+      }
+
+      // Map priority to notification type
+      const typeMap: Record<string, string> = {
+        critical: 'system_alert',
+        high: 'system_alert',
+        medium: 'system_alert',
+        low: 'system_alert',
+      };
+
+      const payload: BroadcastInput = {
+        tenantId,
+        userIds,
+        type: typeMap[values.priority] || 'system_alert',
+        title: values.title,
+        message: values.message,
+      };
+
+      const result = await broadcastNotification(payload);
+      message.success(`广播发送成功，已发送至 ${result.sent} 个用户`);
+      setBroadcastModalVisible(false);
+      broadcastForm.resetFields();
+    } catch (error) {
+      console.error('Broadcast failed:', error);
+      // Form validation errors are handled by Ant Design
+      if (!(error as any)?.errorFields) {
+        message.error('广播发送失败');
+      }
+    } finally {
+      setBroadcastSubmitting(false);
+    }
+  };
+
+  // ---- Notification Settings Handlers ----
+
+  /** Open settings drawer and load current settings */
+  const openSettingsDrawer = async () => {
+    setSettingsDrawerVisible(true);
+    setSettingsLoading(true);
+    try {
+      const settings = await getNotificationSettings();
+      setNotificationSettings(settings);
+    } catch {
+      message.error('获取通知设置失败');
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
+
+  /** Toggle a specific notification setting */
+  const handleToggleSetting = async (key: keyof NotificationSettings) => {
+    if (!notificationSettings) return;
+    setSettingsSaving(true);
+    try {
+      const newSettings = {
+        ...notificationSettings,
+        [key]: !notificationSettings[key],
+      };
+      const result = await updateNotificationSettings({ [key]: newSettings[key] });
+      setNotificationSettings(result);
+    } catch {
+      message.error('保存设置失败');
+    } finally {
+      setSettingsSaving(false);
+    }
   };
 
   // Tab change handler
@@ -448,6 +593,20 @@ const NotificationCenter: React.FC = () => {
           </Text>
         </div>
         <Space>
+          {isAdmin() && (
+            <Button
+              icon={<SoundOutlined />}
+              onClick={openBroadcastModal}
+            >
+              广播通知
+            </Button>
+          )}
+          <Button
+            icon={<SettingOutlined />}
+            onClick={openSettingsDrawer}
+          >
+            通知设置
+          </Button>
           <Button
             type="primary"
             ghost
@@ -491,6 +650,186 @@ const NotificationCenter: React.FC = () => {
         renderItem={renderNotificationItem}
         locale={{ emptyText: renderEmptyState() }}
       />
+
+      {/* Broadcast Modal (admin only) */}
+      <Modal
+        title={<Space><SoundOutlined /> 广播通知</Space>}
+        open={broadcastModalVisible}
+        onCancel={() => setBroadcastModalVisible(false)}
+        onOk={handleBroadcastSubmit}
+        confirmLoading={broadcastSubmitting}
+        width={560}
+        destroyOnClose
+      >
+        <Form form={broadcastForm} layout="vertical" style={{ marginTop: 16 }}>
+          <Form.Item name="title" label="标题" rules={[{ required: true, message: '请输入广播标题' }]}>
+            <Input placeholder="如: 系统维护通知" />
+          </Form.Item>
+          <Form.Item name="message" label="消息内容" rules={[{ required: true, message: '请输入消息内容' }]}>
+            <Input.TextArea rows={4} placeholder="请输入广播消息内容..." />
+          </Form.Item>
+          <Form.Item label="目标受众" initialValue="all">
+            <Select
+              value={broadcastAudience}
+              onChange={(val) => {
+                setBroadcastAudience(val);
+                if (val === 'all') setSelectedBroadcastUsers([]);
+              }}
+              options={[
+                { label: '全体用户', value: 'all' },
+                { label: '指定用户', value: 'specific' },
+              ]}
+            />
+          </Form.Item>
+          {broadcastAudience === 'specific' && (
+            <Form.Item label="选择用户">
+              <Select
+                mode="multiple"
+                loading={usersLoading}
+                value={selectedBroadcastUsers}
+                onChange={setSelectedBroadcastUsers}
+                options={availableUsers.map((u) => ({
+                  label: u.name || u.username,
+                  value: u.id,
+                }))}
+                placeholder="搜索并选择用户"
+                filterOption={(input, option) =>
+                  (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                }
+              />
+            </Form.Item>
+          )}
+          <Form.Item name="priority" label="优先级" initialValue="medium">
+            <Select
+              options={[
+                { label: '紧急', value: 'critical' },
+                { label: '高', value: 'high' },
+                { label: '中', value: 'medium' },
+                { label: '低', value: 'low' },
+              ]}
+            />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Notification Settings Drawer */}
+      <Drawer
+        title={<Space><SettingOutlined /> 通知设置</Space>}
+        open={settingsDrawerVisible}
+        onClose={() => setSettingsDrawerVisible(false)}
+        width={480}
+        destroyOnClose
+      >
+        {settingsLoading ? (
+          <div style={{ textAlign: 'center', padding: '48px 0' }}>
+            <Spin size="large" />
+          </div>
+        ) : notificationSettings ? (
+          <div>
+            {/* Channel Settings */}
+            <Title level={5}>通知渠道</Title>
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <Text>邮件通知</Text>
+                <Switch
+                  checked={notificationSettings.emailEnabled}
+                  onChange={() => handleToggleSetting('emailEnabled')}
+                  loading={settingsSaving}
+                />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <Text>声音提醒</Text>
+                <Switch
+                  checked={notificationSettings.soundEnabled}
+                  onChange={() => handleToggleSetting('soundEnabled')}
+                  loading={settingsSaving}
+                />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <Text>桌面推送</Text>
+                <Switch
+                  checked={notificationSettings.desktopEnabled}
+                  onChange={() => handleToggleSetting('desktopEnabled')}
+                  loading={settingsSaving}
+                />
+              </div>
+            </div>
+
+            <Divider />
+
+            {/* Event Type Settings */}
+            <Title level={5}>通知类型</Title>
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <Text>工单分配</Text>
+                <Switch
+                  checked={notificationSettings.ticketAssigned}
+                  onChange={() => handleToggleSetting('ticketAssigned')}
+                  loading={settingsSaving}
+                />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <Text>工单升级</Text>
+                <Switch
+                  checked={notificationSettings.ticketEscalated}
+                  onChange={() => handleToggleSetting('ticketEscalated')}
+                  loading={settingsSaving}
+                />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <Text>SLA 警告</Text>
+                <Switch
+                  checked={notificationSettings.slaWarning}
+                  onChange={() => handleToggleSetting('slaWarning')}
+                  loading={settingsSaving}
+                />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <Text>SLA 违约</Text>
+                <Switch
+                  checked={notificationSettings.slaBreached}
+                  onChange={() => handleToggleSetting('slaBreached')}
+                  loading={settingsSaving}
+                />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <Text>Pipeline 完成</Text>
+                <Switch
+                  checked={notificationSettings.pipelineCompleted}
+                  onChange={() => handleToggleSetting('pipelineCompleted')}
+                  loading={settingsSaving}
+                />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <Text>系统告警</Text>
+                <Switch
+                  checked={notificationSettings.systemAlert}
+                  onChange={() => handleToggleSetting('systemAlert')}
+                  loading={settingsSaving}
+                />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <Text>评论提及</Text>
+                <Switch
+                  checked={notificationSettings.commentMention}
+                  onChange={() => handleToggleSetting('commentMention')}
+                  loading={settingsSaving}
+                />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <Text>转派请求</Text>
+                <Switch
+                  checked={notificationSettings.transferRequest}
+                  onChange={() => handleToggleSetting('transferRequest')}
+                  loading={settingsSaving}
+                />
+              </div>
+            </div>
+          </div>
+        ) : (
+          <Empty description="无法加载通知设置" />
+        )}
+      </Drawer>
     </div>
   );
 };
