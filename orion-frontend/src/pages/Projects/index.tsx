@@ -132,9 +132,14 @@ const ProjectManagement: React.FC = () => {
         setUsingMockData(true);
         setProjects(MOCK_PROJECTS);
       }
-    } catch {
+    } catch (error: unknown) {
       setUsingMockData(true);
       setProjects(MOCK_PROJECTS);
+      if (error instanceof Error) {
+        message.error(`加载项目数据失败：${error.message}`);
+      } else {
+        message.error('加载项目数据失败，请稍后重试');
+      }
     } finally {
       setLoading(false);
     }
@@ -178,8 +183,12 @@ const ProjectManagement: React.FC = () => {
       setCreateModalVisible(false);
       createForm.resetFields();
       loadData();
-    } catch {
-      message.error('创建失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`创建失败：${error.message}`);
+      } else {
+        message.error('创建失败');
+      }
     } finally {
       setSubmitting(false);
     }
@@ -205,8 +214,15 @@ const ProjectManagement: React.FC = () => {
       message.success('项目更新成功');
       setEditModalVisible(false);
       loadData();
-    } catch {
-      message.error('更新失败');
+    } catch (error: unknown) {
+      const err = error as { errorFields?: unknown };
+      if (!err.errorFields) {
+        if (error instanceof Error) {
+          message.error(`更新失败：${error.message}`);
+        } else {
+          message.error('更新失败');
+        }
+      }
     } finally {
       setSubmitting(false);
     }
@@ -217,8 +233,12 @@ const ProjectManagement: React.FC = () => {
       await deleteProject(id);
       message.success('项目已删除');
       loadData();
-    } catch {
-      message.error('删除失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`删除失败：${error.message}`);
+      } else {
+        message.error('删除失败');
+      }
     }
   };
 
@@ -244,7 +264,7 @@ const ProjectManagement: React.FC = () => {
     try {
       const res = await getProjectResources(projectId);
       setProjectResources(Array.isArray(res.data?.data) ? res.data.data : []);
-    } catch {
+    } catch (error: unknown) {
       setUsingMockData(true);
       setProjectResources(MOCK_RESOURCES.filter((r) => r.projectId === projectId));
     }
