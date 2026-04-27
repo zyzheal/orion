@@ -241,9 +241,16 @@ export class ChatOpsController {
 
         await reply.status(201).send({ success: true, data: execution, command });
       } else {
-        // 开发/测试环境：跳过签名验证
+        // 开发/测试环境：从 JWT middleware 获取 userId，不允许从 body 伪造
         const user = (request as any).user as { userId: string } | undefined;
-        const userId = user?.userId || (body.user_id || body.userId || 'anonymous') as string;
+        const userId = user?.userId;
+        if (!userId) {
+          await reply.status(401).send({
+            success: false,
+            error: 'Webhook 未配置认证信息',
+          });
+          return;
+        }
         const platform = (body.platform || 'webhook') as string;
         const channel = (body.channel || 'default') as string;
 
@@ -315,6 +322,13 @@ export class ChatOpsController {
 
   async exportAuditLogs(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
+      // 安全修复: H-NEW-4 - 添加认证守卫，防止未认证用户导出审计日志
+      const user = this.getUser(request);
+      if (!user) {
+        await reply.status(401).send({ success: false, error: 'UNAUTHORIZED' });
+        return;
+      }
+
       const body = request.body as Record<string, unknown> | undefined;
       const logs = await this.executionService.exportAuditLogs({
         traceId: body?.traceId as string | undefined,
@@ -438,6 +452,11 @@ export class ChatOpsController {
       { id: connId, userId: user.userId, listener, connectedAt: new Date() },
       reply,
     );
+
+    // 安全修复: H-NEW-1 - 客户端断开时立即清理 listener，不等待 30s 心跳
+    reply.raw.on('close', () => {
+      connectionManager?.removeConnection(connId);
+    });
   }
 
   // ==================== Notification Preferences (Phase 1a) ====================
