@@ -165,7 +165,7 @@ const OnCallManagement: React.FC = () => {
         }
         setUserMap(map);
       }
-    } catch {
+    } catch (error: unknown) {
       // Use fallback users if API fails
       setUserMap(FALLBACK_USERS);
     } finally {
@@ -181,9 +181,14 @@ const OnCallManagement: React.FC = () => {
       const res = await getSchedules();
       const data = res.data?.data?.schedules;
       setSchedules(Array.isArray(data) && data.length > 0 ? data : MOCK_SCHEDULES);
-    } catch {
+    } catch (error: unknown) {
       setUsingMockData(true);
       setSchedules(MOCK_SCHEDULES);
+      if (error instanceof Error) {
+        message.error(`加载值班排班失败：${error.message}`);
+      } else {
+        message.error('加载值班排班失败，请稍后重试');
+      }
     } finally {
       setLoading(false);
     }
@@ -198,7 +203,7 @@ const OnCallManagement: React.FC = () => {
       } else {
         setCurrentOnCall((prev) => ({ ...prev, [scheduleId]: MOCK_CURRENT_ONCALL[scheduleId] || { isOnCall: false } }));
       }
-    } catch {
+    } catch (error: unknown) {
       setUsingMockData(true);
       setCurrentOnCall((prev) => ({ ...prev, [scheduleId]: MOCK_CURRENT_ONCALL[scheduleId] || { isOnCall: false } }));
     }
@@ -244,8 +249,15 @@ const OnCallManagement: React.FC = () => {
       createForm.resetFields();
       setMemberInput('');
       loadData();
-    } catch {
-      message.error('创建失败');
+    } catch (error: unknown) {
+      const err = error as { errorFields?: unknown };
+      if (!err.errorFields) {
+        if (error instanceof Error) {
+          message.error(`创建失败：${error.message}`);
+        } else {
+          message.error('创建失败');
+        }
+      }
     } finally {
       setSubmitting(false);
     }
@@ -256,8 +268,12 @@ const OnCallManagement: React.FC = () => {
       await deleteSchedule(id);
       message.success('值班排班已删除');
       loadData();
-    } catch {
-      message.error('删除失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`删除失败：${error.message}`);
+      } else {
+        message.error('删除失败');
+      }
     }
   };
 
@@ -286,8 +302,15 @@ const OnCallManagement: React.FC = () => {
       message.success('代班创建成功');
       setOverrideModalVisible(false);
       overrideForm.resetFields();
-    } catch {
-      message.error('代班创建失败');
+    } catch (error: unknown) {
+      const err = error as { errorFields?: unknown };
+      if (!err.errorFields) {
+        if (error instanceof Error) {
+          message.error(`代班创建失败：${error.message}`);
+        } else {
+          message.error('代班创建失败');
+        }
+      }
     } finally {
       setSubmitting(false);
     }

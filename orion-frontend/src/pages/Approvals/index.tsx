@@ -147,9 +147,14 @@ const ApprovalManagement: React.FC = () => {
       const res = await getApprovals();
       const list = res.data?.data?.approvals;
       setApprovals(Array.isArray(list) ? list : []);
-    } catch {
+    } catch (error: unknown) {
       setUsingMockData(true);
       setApprovals(MOCK_APPROVALS);
+      if (error instanceof Error) {
+        message.error(`加载审批数据失败：${error.message}`);
+      } else {
+        message.error('加载审批数据失败，请稍后重试');
+      }
     } finally {
       setLoading(false);
     }
@@ -197,8 +202,15 @@ const ApprovalManagement: React.FC = () => {
       setCreateModalVisible(false);
       createForm.resetFields();
       loadData();
-    } catch {
-      message.error('创建失败');
+    } catch (error: unknown) {
+      const err = error as { errorFields?: unknown };
+      if (!err.errorFields) {
+        if (error instanceof Error) {
+          message.error(`创建失败：${error.message}`);
+        } else {
+          message.error('创建失败');
+        }
+      }
     } finally {
       setSubmitting(false);
     }
@@ -210,8 +222,12 @@ const ApprovalManagement: React.FC = () => {
       message.success('审批通过');
       loadData();
       if (selectedApproval?.id === id) loadDetail(id);
-    } catch {
-      message.error('审批操作失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`审批操作失败：${error.message}`);
+      } else {
+        message.error('审批操作失败');
+      }
     }
   };
 
@@ -221,8 +237,12 @@ const ApprovalManagement: React.FC = () => {
       message.success('已拒绝');
       loadData();
       if (selectedApproval?.id === id) loadDetail(id);
-    } catch {
-      message.error('拒绝操作失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`拒绝操作失败：${error.message}`);
+      } else {
+        message.error('拒绝操作失败');
+      }
     }
   };
 
@@ -260,7 +280,7 @@ const ApprovalManagement: React.FC = () => {
       const detail = res.data?.data;
       if (detail) setSelectedApproval(detail);
     } catch {
-      // Keep existing data
+      // Keep existing data - optional detail refresh
     }
   };
 
