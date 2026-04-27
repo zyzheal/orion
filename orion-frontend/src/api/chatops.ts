@@ -37,13 +37,24 @@ export interface CommandExecutionInput {
   channel?: string;
 }
 
+/** 后端 AuditLog 中 actor 字段的实际结构 */
+export interface AuditLogActor {
+  userId: string;
+  platform?: string;
+}
+
+/** 后端 AuditLog 中 action 字段的实际结构 */
+export interface AuditLogAction {
+  command: string;
+  params?: Record<string, unknown>;
+}
+
 export interface AuditLog {
   id: string;
-  command: string;
-  userId: string;
-  platform: string;
-  action: string;
+  actor: AuditLogActor | string;
+  action: AuditLogAction | string;
   timestamp: string;
+  result?: 'success' | 'failed';
   details?: string;
 }
 
@@ -256,6 +267,9 @@ interface SSEConnectionState {
 
 let sseState: SSEConnectionState | null = null;
 
+/** SSE 最大重连次数，超过后停止重试 */
+const MAX_RECONNECT_ATTEMPTS = 20;
+
 /**
  * 计算指数退避延迟 (1s, 2s, 4s, 8s, ... 最大 30s)
  */
@@ -316,6 +330,14 @@ export function connectSSE(options: SSEConnectionOptions): void {
 
         // 立即递增 attempt，确保退避延迟正确递增
         sseState!.attempt++;
+
+        // 超过最大重试次数，停止重试
+        if (sseState!.attempt >= MAX_RECONNECT_ATTEMPTS) {
+          options.onError?.(new Error('SSE 连接失败，已达最大重试次数'));
+          sseState!.disposed = true;
+          return;
+        }
+
         const delay = getReconnectDelay(sseState!.attempt);
         options.onError?.(new Error(`SSE 连接断开，${delay}ms 后重试 (第 ${sseState!.attempt} 次)`));
 
