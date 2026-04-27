@@ -88,7 +88,7 @@ const PipelineList: React.FC = () => {
   ];
 
   // Table column definitions
-  const columns: TableColumn<any>[] = [
+  const columns: TableColumn<Pipeline>[] = [
     {
       key: 'name',
       title: 'Pipeline',

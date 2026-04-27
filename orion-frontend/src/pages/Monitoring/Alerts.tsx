@@ -123,7 +123,7 @@ const MonitoringAlerts: React.FC = () => {
     }
   };
 
-  const columns: TableColumn<any>[] = [
+  const columns: TableColumn<Alert>[] = [
     {
       key: 'severity',
       title: '级别',

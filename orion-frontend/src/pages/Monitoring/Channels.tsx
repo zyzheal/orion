@@ -119,7 +119,7 @@ const MonitoringChannels: React.FC = () => {
     }
   };
 
-  const channelColumns: TableColumn<any>[] = [
+  const channelColumns: TableColumn<NotificationChannel>[] = [
     {
       key: 'name',
       title: '渠道名称',
@@ -173,7 +173,7 @@ const MonitoringChannels: React.FC = () => {
     },
   ];
 
-  const escalationColumns: TableColumn<any>[] = [
+  const escalationColumns: TableColumn<EscalationPolicy>[] = [
     {
       key: 'name',
       title: '策略名称',

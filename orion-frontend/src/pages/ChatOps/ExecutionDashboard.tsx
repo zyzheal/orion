@@ -74,7 +74,7 @@ const ExecutionDashboard: React.FC = () => {
   const failedCount = executions.filter((e) => e.status === 'failed').length;
   const runningCount = executions.filter((e) => e.status === 'running').length;
 
-  const columns: TableColumn<any>[] = [
+  const columns: TableColumn<ChatOpsExecution>[] = [
     {
       key: 'command',
       title: '命令',
@@ -171,7 +171,7 @@ const ExecutionDashboard: React.FC = () => {
             <div style={{ marginBottom: 16 }}>
               <SearchFilterBar onSearch={setSearchQuery} onFilter={setFilters} filters={filterDefs} searchPlaceholder="搜索执行记录..." />
             </div>
-            <Table columns={columns} dataSource={filteredExecutions as unknown as Record<string, unknown>[]} loading={loading} rowKey="id" size="middle" striped />
+            <Table columns={columns} dataSource={filteredExecutions} loading={loading} rowKey="id" size="middle" striped />
           </Card>
         </Col>
         <Col span={8}>

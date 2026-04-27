@@ -126,7 +126,7 @@ const DiagnosticKnowledgeBase: React.FC = () => {
     }
   };
 
-  const columns: TableColumn<any>[] = [
+  const columns: TableColumn<DiagnosticPattern>[] = [
     {
       key: 'name',
       title: '模式名称',

@@ -126,7 +126,7 @@ const BranchPolicyList: React.FC = () => {
     }
   };
 
-  const columns: TableColumn<any>[] = [
+  const columns: TableColumn<BranchPolicy>[] = [
     {
       key: 'branchPattern',
       title: '分支匹配',

@@ -108,7 +108,7 @@ const BuildPodList: React.FC = () => {
     },
   ];
 
-  const columns: TableColumn<any>[] = [
+  const columns: TableColumn<BuildPod>[] = [
     {
       key: 'name',
       title: 'Pod Name',

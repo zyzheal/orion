@@ -88,7 +88,7 @@ const AlertConfig: React.FC = () => {
     }
   };
 
-  const alertColumns: TableColumn<any>[] = [
+  const alertColumns: TableColumn<CostAlert>[] = [
     { key: 'severity', title: '级别', dataIndex: 'severity', width: 80, render: (v: unknown) => <Tag color={severityColorMap[String(v)]}>{String(v)}</Tag> },
     { key: 'message', title: '消息', dataIndex: 'message', width: 300, render: (v: unknown) => <Text>{String(v)}</Text> },
     { key: 'currentUsage', title: '当前使用', dataIndex: 'currentUsage', width: 100, render: (v: unknown) => <Text strong>{Number(v)}%</Text> },
@@ -96,7 +96,7 @@ const AlertConfig: React.FC = () => {
     { key: 'createdAt', title: '触发时间', dataIndex: 'createdAt', width: 160, render: (v: unknown) => <Text type="secondary">{dayjs(String(v)).fromNow()}</Text> },
   ];
 
-  const ruleColumns: TableColumn<any>[] = [
+  const ruleColumns: TableColumn<AlertRule>[] = [
     { key: 'name', title: '规则名称', dataIndex: 'name', width: 200, render: (v: unknown) => <Text strong>{String(v)}</Text> },
     { key: 'metric', title: '指标', dataIndex: 'metric', width: 120, render: (v: unknown) => <Tag>{String(v)}</Tag> },
     { key: 'condition', title: '条件', dataIndex: 'operator', width: 120, render: (_: unknown, record: any) => <Text code>{record.operator} {record.threshold}</Text> },
@@ -125,13 +125,13 @@ const AlertConfig: React.FC = () => {
       </div>
 
       <Card title={<Space><BellOutlined />活跃告警</Space>} style={{ marginBottom: 16 }}>
-        <Table columns={alertColumns} dataSource={alerts as unknown as Record<string, unknown>[]} loading={loading} rowKey="id" size="middle" striped />
+        <Table columns={alertColumns} dataSource={alerts} loading={loading} rowKey="id" size="middle" striped />
       </Card>
 
       <Card title="告警规则" extra={
         <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalVisible(true)}>创建规则</Button>
       }>
-        <Table columns={ruleColumns} dataSource={rules as unknown as Record<string, unknown>[]} rowKey="id" size="middle" striped />
+        <Table columns={ruleColumns} dataSource={rules} rowKey="id" size="middle" striped />
       </Card>
 
       {/* Create Rule Modal */}

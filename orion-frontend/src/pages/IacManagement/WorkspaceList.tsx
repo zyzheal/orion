@@ -121,7 +121,7 @@ const WorkspaceList: React.FC = () => {
     setEditModalVisible(true);
   };
 
-  const columns: TableColumn<any>[] = [
+  const columns: TableColumn<IaCWorkspace>[] = [
     {
       key: 'name',
       title: '工作空间',
@@ -233,7 +233,7 @@ const WorkspaceList: React.FC = () => {
         <div style={{ marginBottom: spacing[4] }}>
           <SearchFilterBar onSearch={setSearchQuery} onFilter={setFilters} filters={filterDefs} searchPlaceholder="搜索工作空间..." />
         </div>
-        <Table columns={columns} dataSource={filteredWorkspaces as unknown as Record<string, unknown>[]} loading={loading} rowKey="id" size="middle" striped />
+        <Table columns={columns} dataSource={filteredWorkspaces} loading={loading} rowKey="id" size="middle" striped />
       </Card>
 
       {/* Create Modal */}

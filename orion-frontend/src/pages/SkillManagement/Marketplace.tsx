@@ -87,7 +87,7 @@ const SkillMarketplace: React.FC = () => {
     setDetailModalVisible(true);
   };
 
-  const columns: TableColumn<any>[] = [
+  const columns: TableColumn<SkillPackage>[] = [
     {
       key: 'name',
       title: '技能名称',
@@ -217,7 +217,7 @@ const SkillMarketplace: React.FC = () => {
             searchPlaceholder="搜索技能名称、描述、作者..."
           />
         </div>
-        <Table columns={columns} dataSource={filteredSkills as unknown as Record<string, unknown>[]} loading={loading} rowKey="id" size="middle" striped />
+        <Table columns={columns} dataSource={filteredSkills} loading={loading} rowKey="id" size="middle" striped />
       </Card>
 
       {/* Skill Detail Modal */}

@@ -93,7 +93,7 @@ const WebhookLog: React.FC = () => {
     },
   ];
 
-  const columns: TableColumn<any>[] = [
+  const columns: TableColumn<WebhookEvent>[] = [
     {
       key: 'id',
       title: '事件 ID',

@@ -82,7 +82,7 @@ const PlanViewer: React.FC = () => {
   const updateCount = (changes: IaCResourceChange[]) => changes.filter((c) => c.action === 'update').length;
   const deleteCount = (changes: IaCResourceChange[]) => changes.filter((c) => c.action === 'delete').length;
 
-  const columns: TableColumn<any>[] = [
+  const columns: TableColumn<IaCPlan>[] = [
     {
       key: 'id',
       title: '计划 ID',
@@ -226,7 +226,7 @@ const PlanViewer: React.FC = () => {
         <div style={{ marginBottom: 16 }}>
           <SearchFilterBar onSearch={setSearchQuery} onFilter={setFilters} filters={filterDefs} searchPlaceholder="搜索计划..." />
         </div>
-        <Table columns={columns} dataSource={filteredPlans as unknown as Record<string, unknown>[]} loading={loading} rowKey="id" size="middle" striped />
+        <Table columns={columns} dataSource={filteredPlans} loading={loading} rowKey="id" size="middle" striped />
       </Card>
 
       {/* Plan Detail Modal */}

@@ -243,7 +243,7 @@ const EnvironmentManagement: React.FC = () => {
 
   // ---- Table columns ----
 
-  const columns: TableColumn<any>[] = [
+  const columns: TableColumn<Environment>[] = [
     {
       key: 'name', title: '环境名称', dataIndex: 'name', width: 180, sortable: true,
       render: (v: unknown, record: Environment) => (
@@ -407,7 +407,7 @@ const EnvironmentManagement: React.FC = () => {
         </div>
         <Table
           columns={columns}
-          dataSource={filteredData as unknown as Record<string, unknown>[]}
+          dataSource={filteredData}
           loading={loading}
           rowKey="id"
           size="middle"

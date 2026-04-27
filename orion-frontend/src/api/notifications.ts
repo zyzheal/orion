@@ -125,7 +125,7 @@ export const getNotifications = async (
       params: { limit: params?.pageSize || 50 },
     });
 
-    const backendNotifications: BackendNotification[] = (response.data?.data as any) || [];
+    const backendNotifications: BackendNotification[] = (response.data?.data as unknown as BackendNotification[]) || [];
     let notifications: MockNotification[] = backendNotifications.map(mapBackendToNotification);
 
     // Apply client-side filtering for tabs that backend doesn't support directly
@@ -216,7 +216,7 @@ export const markAllAsRead = async (): Promise<void> => {
   try {
     const userId = getCurrentUserId();
     const response = await api.get(`/v1/notifications/${userId}`, { params: { limit: 100 } });
-    const notifications: BackendNotification[] = (response.data?.data as any) || [];
+    const notifications: BackendNotification[] = (response.data?.data as BackendNotification[]) || [];
 
     // Mark each unread notification as read
     for (const n of notifications) {
@@ -250,11 +250,11 @@ export const getNotificationStats = async (): Promise<NotificationStats> => {
 
     // Get unread count from backend
     const unreadRes = await api.get(`/v1/notifications/${userId}/unread-count`);
-    const unreadCount = (unreadRes.data as any)?.unreadCount || 0;
+    const unreadCount = Number((unreadRes.data as unknown as Record<string, unknown>)?.unreadCount) || 0;
 
     // Fetch recent notifications for other stats
     const response = await api.get(`/v1/notifications/${userId}`, { params: { limit: 100 } });
-    const backendNotifications: BackendNotification[] = (response.data?.data as any) || [];
+    const backendNotifications: BackendNotification[] = (response.data?.data as BackendNotification[]) || [];
     const notifications: MockNotification[] = backendNotifications.map(mapBackendToNotification);
 
     const now = new Date();
@@ -294,20 +294,20 @@ export const getNotificationSettings = async (): Promise<NotificationSettings> =
     const response = await api.get(`/v1/notifications/settings/${userId}`, {
       params: { tenantId },
     });
-    const data: Record<string, any> = (response.data?.data as any) || response.data || {};
+    const data = (response.data?.data as unknown as Record<string, unknown>) || response.data as unknown as Record<string, unknown> || {};
 
     return {
-      emailEnabled: data?.email_enabled ?? true,
-      soundEnabled: data?.sms_enabled ?? false,
-      desktopEnabled: data?.webhook_enabled ?? false,
-      ticketAssigned: data?.ticket_assigned ?? true,
-      ticketEscalated: data?.ticket_escalated ?? true,
-      slaWarning: data?.sla_warning ?? true,
-      slaBreached: data?.sla_breached ?? true,
-      pipelineCompleted: data?.pipeline_completed ?? true,
-      systemAlert: data?.system_alert ?? true,
-      commentMention: data?.comment_mention ?? true,
-      transferRequest: data?.transfer_request ?? true,
+      emailEnabled: Boolean(data?.email_enabled ?? true),
+      soundEnabled: Boolean(data?.sms_enabled ?? false),
+      desktopEnabled: Boolean(data?.webhook_enabled ?? false),
+      ticketAssigned: Boolean(data?.ticket_assigned ?? true),
+      ticketEscalated: Boolean(data?.ticket_escalated ?? true),
+      slaWarning: Boolean(data?.sla_warning ?? true),
+      slaBreached: Boolean(data?.sla_breached ?? true),
+      pipelineCompleted: Boolean(data?.pipeline_completed ?? true),
+      systemAlert: Boolean(data?.system_alert ?? true),
+      commentMention: Boolean(data?.comment_mention ?? true),
+      transferRequest: Boolean(data?.transfer_request ?? true),
     };
   } catch (error) {
     console.warn('Backend getNotificationSettings failed, using default:', error);
@@ -362,20 +362,20 @@ export const updateNotificationSettings = async (
     const response = await api.put(`/v1/notifications/settings/${userId}`, backendUpdates, {
       params: { tenantId },
     });
-    const data: Record<string, any> = (response.data?.data as any) || response.data || {};
+    const data = (response.data?.data as unknown as Record<string, unknown>) || response.data as unknown as Record<string, unknown> || {};
 
     return {
-      emailEnabled: data?.email_enabled ?? true,
-      soundEnabled: data?.sms_enabled ?? false,
-      desktopEnabled: data?.webhook_enabled ?? false,
-      ticketAssigned: data?.ticket_assigned ?? true,
-      ticketEscalated: data?.ticket_escalated ?? true,
-      slaWarning: data?.sla_warning ?? true,
-      slaBreached: data?.sla_breached ?? true,
-      pipelineCompleted: data?.pipeline_completed ?? true,
-      systemAlert: data?.system_alert ?? true,
-      commentMention: data?.comment_mention ?? true,
-      transferRequest: data?.transfer_request ?? true,
+      emailEnabled: Boolean(data?.email_enabled ?? true),
+      soundEnabled: Boolean(data?.sms_enabled ?? false),
+      desktopEnabled: Boolean(data?.webhook_enabled ?? false),
+      ticketAssigned: Boolean(data?.ticket_assigned ?? true),
+      ticketEscalated: Boolean(data?.ticket_escalated ?? true),
+      slaWarning: Boolean(data?.sla_warning ?? true),
+      slaBreached: Boolean(data?.sla_breached ?? true),
+      pipelineCompleted: Boolean(data?.pipeline_completed ?? true),
+      systemAlert: Boolean(data?.system_alert ?? true),
+      commentMention: Boolean(data?.comment_mention ?? true),
+      transferRequest: Boolean(data?.transfer_request ?? true),
     };
   } catch (error) {
     console.warn('Backend updateNotificationSettings failed:', error);

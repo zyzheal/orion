@@ -69,7 +69,7 @@ const DiagnosticReports: React.FC = () => {
     return { color: 'red', label: '低' };
   };
 
-  const columns: TableColumn<any>[] = [
+  const columns: TableColumn<DiagnosticReport>[] = [
     {
       key: 'id',
       title: '报告ID',

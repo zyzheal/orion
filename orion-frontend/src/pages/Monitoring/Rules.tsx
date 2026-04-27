@@ -135,7 +135,7 @@ const MonitoringRules: React.FC = () => {
     }
   };
 
-  const columns: TableColumn<any>[] = [
+  const columns: TableColumn<AlertRule>[] = [
     {
       key: 'name',
       title: '规则名称',

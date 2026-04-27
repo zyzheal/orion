@@ -25,6 +25,11 @@ interface RepoOption {
   adapterId: string;
 }
 
+interface CodeOwnerRecommendation {
+  filePath: string;
+  approvers: string[];
+}
+
 const CodeOwnersPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -203,7 +208,7 @@ const CodeOwnersPage: React.FC = () => {
 
   const isDirty = content !== savedContent;
 
-  const recommendationColumns: TableColumn<any>[] = [
+  const recommendationColumns: TableColumn<CodeOwnerRecommendation>[] = [
     {
       key: 'filePath',
       title: '文件路径',

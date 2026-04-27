@@ -70,7 +70,7 @@ const AuditLogViewer: React.FC = () => {
     }
   };
 
-  const columns: TableColumn<any>[] = [
+  const columns: TableColumn<AuditLog>[] = [
     {
       key: 'id',
       title: '日志 ID',
@@ -173,7 +173,7 @@ const AuditLogViewer: React.FC = () => {
             <div style={{ marginBottom: 16 }}>
               <SearchFilterBar onSearch={setSearchQuery} onFilter={setFilters} filters={filterDefs} searchPlaceholder="搜索审计日志..." />
             </div>
-            <Table columns={columns} dataSource={filteredLogs as unknown as Record<string, unknown>[]} loading={loading} rowKey="id" size="middle" striped />
+            <Table columns={columns} dataSource={filteredLogs} loading={loading} rowKey="id" size="middle" striped />
           </Card>
         </Col>
         <Col span={8}>

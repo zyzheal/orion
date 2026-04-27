@@ -138,7 +138,7 @@ const DiagnosticSessions: React.FC = () => {
     });
   };
 
-  const columns: TableColumn<any>[] = [
+  const columns: TableColumn<DiagnosticSession>[] = [
     {
       key: 'id',
       title: '会话ID',

@@ -76,7 +76,7 @@ const MySkills: React.FC = () => {
     });
   };
 
-  const columns: TableColumn<any>[] = [
+  const columns: TableColumn<SkillPackage>[] = [
     {
       key: 'name',
       title: '技能名称',
@@ -208,7 +208,7 @@ const MySkills: React.FC = () => {
             searchPlaceholder="搜索已安装的技能..."
           />
         </div>
-        <Table columns={columns} dataSource={filteredSkills as unknown as Record<string, unknown>[]} loading={loading} rowKey="id" size="middle" striped />
+        <Table columns={columns} dataSource={filteredSkills} loading={loading} rowKey="id" size="middle" striped />
       </Card>
     </div>
   );

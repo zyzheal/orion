@@ -66,7 +66,7 @@ const StateBrowser: React.FC = () => {
 
   const selectedWsName = workspaces.find((w) => w.id === selectedWorkspaceId)?.name || '';
 
-  const versionColumns: TableColumn<any>[] = [
+  const versionColumns: TableColumn<IaCStateVersion>[] = [
     {
       key: 'version',
       title: '版本',
@@ -119,7 +119,7 @@ const StateBrowser: React.FC = () => {
     },
   ];
 
-  const resourceColumns: TableColumn<any>[] = [
+  const resourceColumns: TableColumn<IaCStateResource>[] = [
     {
       key: 'address',
       title: '资源地址',
@@ -201,12 +201,12 @@ const StateBrowser: React.FC = () => {
               <Button size="small" icon={<DiffOutlined />} onClick={() => setDiffModalVisible(true)}>差异</Button>
             </Space>
           }>
-            <Table columns={resourceColumns} dataSource={resources as unknown as Record<string, unknown>[]} loading={loading} rowKey="address" size="middle" striped />
+            <Table columns={resourceColumns} dataSource={resources} loading={loading} rowKey="address" size="middle" striped />
           </Card>
         </Col>
         <Col span={10}>
           <Card title="版本历史">
-            <Table columns={versionColumns} dataSource={stateVersions as unknown as Record<string, unknown>[]} loading={loading} rowKey="id" size="small" striped pagination={{ pageSize: 8, current: 1, total: stateVersions.length } as any} />
+            <Table columns={versionColumns} dataSource={stateVersions} loading={loading} rowKey="id" size="small" striped pagination={{ pageSize: 8, current: 1, total: stateVersions.length } as any} />
           </Card>
         </Col>
       </Row>

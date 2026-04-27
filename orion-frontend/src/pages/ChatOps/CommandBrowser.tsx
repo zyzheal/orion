@@ -64,7 +64,7 @@ const CommandBrowser: React.FC = () => {
     setDetailModalVisible(true);
   };
 
-  const columns: TableColumn<any>[] = [
+  const columns: TableColumn<ChatOpsCommand>[] = [
     {
       key: 'name',
       title: '命令',
@@ -135,7 +135,7 @@ const CommandBrowser: React.FC = () => {
         <div style={{ marginBottom: 16 }}>
           <SearchFilterBar onSearch={setSearchQuery} onFilter={setFilters} filters={filterDefs} searchPlaceholder="搜索命令..." />
         </div>
-        <Table columns={columns} dataSource={filteredCommands as unknown as Record<string, unknown>[]} loading={loading} rowKey="id" size="middle" striped />
+        <Table columns={columns} dataSource={filteredCommands} loading={loading} rowKey="id" size="middle" striped />
       </Card>
 
       {/* Detail Modal */}

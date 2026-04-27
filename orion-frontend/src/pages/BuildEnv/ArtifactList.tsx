@@ -124,7 +124,7 @@ const ArtifactList: React.FC = () => {
     },
   ];
 
-  const columns: TableColumn<any>[] = [
+  const columns: TableColumn<Artifact>[] = [
     {
       key: 'name',
       title: 'Name',

@@ -190,7 +190,7 @@ const RoleManagement: React.FC = () => {
 
   // ---- Table columns ----
 
-  const columns: TableColumn<any>[] = [
+  const columns: TableColumn<Role>[] = [
     {
       key: 'name', title: '角色名称', dataIndex: 'name', width: 180, sortable: true,
       render: (v: unknown, record: Role) => (
@@ -317,7 +317,7 @@ const RoleManagement: React.FC = () => {
         />
         <Table
           columns={columns}
-          dataSource={filteredData as unknown as Record<string, unknown>[]}
+          dataSource={filteredData}
           loading={loading}
           rowKey="id"
           size="middle"

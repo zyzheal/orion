@@ -23,6 +23,19 @@ dayjs.extend(relativeTime);
 
 const { Title, Text } = Typography;
 
+interface DeploymentRecord {
+  id: string;
+  appName: string;
+  version: string;
+  environment: string;
+  strategy: string;
+  status: string;
+  triggeredBy: string;
+  duration?: number;
+  startTime: string;
+  commit?: string;
+}
+
 const DeploymentList: React.FC = () => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
@@ -122,7 +135,7 @@ const DeploymentList: React.FC = () => {
   };
 
   // Table column definitions
-  const columns: TableColumn<any>[] = [
+  const columns: TableColumn<DeploymentRecord>[] = [
     {
       key: 'appName',
       title: '应用',

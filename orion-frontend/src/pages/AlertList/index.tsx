@@ -193,7 +193,7 @@ const AlertList: React.FC = () => {
   };
 
   // Table column definitions
-  const columns: TableColumn<any>[] = [
+  const columns: TableColumn<Alert>[] = [
     {
       key: 'severity',
       title: '级别',

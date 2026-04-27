@@ -83,7 +83,7 @@ const BuildLogList: React.FC = () => {
     },
   ];
 
-  const columns: TableColumn<any>[] = [
+  const columns: TableColumn<BuildLog>[] = [
     {
       key: 'id',
       title: 'Log ID',

@@ -830,3 +830,25 @@ Replaced 6 hardcoded color values in `orion-frontend/src/components/Layout/index
 
 ### Commit
 - `ff45f17` - refactor(frontend): replace hardcoded gradient and dark colors in Layout with Design Tokens
+
+## Dashboard File Cleanup (COMPLETED - 2026-04-27)
+
+### Completed Work
+
+Removed redundant Dashboard files, keeping only the 2 versions actively used by routes:
+
+1. **Deleted** `src/pages/Dashboard.tsx` (95 lines) -- Legacy placeholder, only referenced by dead `/settings` route
+2. **Deleted** `src/pages/Dashboard/index.tsx` (167 lines) -- Completely orphaned, no routes referenced it
+
+**Retained versions:**
+- `src/pages/DashboardNew/index.tsx` -- Primary Dashboard, served at `/dashboard`
+- `src/pages/DashboardCore/index.tsx` -- Alternative Dashboard, served at `/dashboard-core`
+
+Note: The `/settings` -> `@/pages/Dashboard` dead route was already removed in commit `ff45f17`.
+
+### Verification
+- TypeScript type-check: 0 new errors introduced
+- No broken imports remaining
+
+## Next Steps
+1. Continue closing remaining frontend-backend gaps

@@ -161,7 +161,7 @@ const BuilderImageList: React.FC = () => {
     },
   ];
 
-  const columns: TableColumn<any>[] = [
+  const columns: TableColumn<BuilderImage>[] = [
     {
       key: 'name',
       title: 'Name',

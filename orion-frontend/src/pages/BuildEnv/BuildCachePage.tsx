@@ -156,7 +156,7 @@ const BuildCachePage: React.FC = () => {
     setConfigModalOpen(true);
   };
 
-  const configColumns: TableColumn<any>[] = [
+  const configColumns: TableColumn<BuildCacheConfig>[] = [
     {
       key: 'name',
       title: 'Name',
@@ -257,7 +257,7 @@ const BuildCachePage: React.FC = () => {
     },
   ];
 
-  const entryColumns: TableColumn<any>[] = [
+  const entryColumns: TableColumn<BuildCacheEntry>[] = [
     {
       key: 'key',
       title: 'Cache Key',

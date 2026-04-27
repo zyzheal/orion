@@ -459,7 +459,7 @@ const InternalLibraryManagement: React.FC = () => {
 
   // ---- Table columns ----
 
-  const columns: TableColumn<any>[] = [
+  const columns: TableColumn<InternalLibrary>[] = [
     {
       key: 'displayName', title: '二方库', dataIndex: 'displayName', width: 180, sortable: true,
       render: (v: unknown, record: InternalLibrary) => (
@@ -682,7 +682,7 @@ const InternalLibraryManagement: React.FC = () => {
         <div style={{ marginBottom: 16 }}>
           <SearchFilterBar onSearch={setSearchQuery} onFilter={setFilters} filters={filterDefs} searchPlaceholder="搜索二方库..." />
         </div>
-        <Table columns={columns} dataSource={filteredData as unknown as Record<string, unknown>[]} loading={loading} rowKey="id" size="middle" striped />
+        <Table columns={columns} dataSource={filteredData} loading={loading} rowKey="id" size="middle" striped />
       </Card>
 
       {/* Create Modal */}

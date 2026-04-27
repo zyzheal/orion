@@ -82,7 +82,7 @@ const BatchConfirmation: React.FC = () => {
     }
   };
 
-  const columns: TableColumn<any>[] = [
+  const columns: TableColumn<ConfirmationRequest>[] = [
     {
       key: 'select',
       title: '选择',
@@ -165,7 +165,7 @@ const BatchConfirmation: React.FC = () => {
           批量确认 ({selectedIds.length})
         </Button>
       }>
-        <Table columns={columns} dataSource={filteredConfirmations as unknown as Record<string, unknown>[]} loading={loading} rowKey="id" size="middle" striped />
+        <Table columns={columns} dataSource={filteredConfirmations} loading={loading} rowKey="id" size="middle" striped />
       </Card>
     </div>
   );

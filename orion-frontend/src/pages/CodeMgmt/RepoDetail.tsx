@@ -157,7 +157,7 @@ const RepoDetail: React.FC = () => {
     }
   };
 
-  const branchColumns: TableColumn<any>[] = [
+  const branchColumns: TableColumn<Branch>[] = [
     {
       key: 'name',
       title: '分支名称',
@@ -217,7 +217,7 @@ const RepoDetail: React.FC = () => {
     },
   ];
 
-  const prColumns: TableColumn<any>[] = [
+  const prColumns: TableColumn<PullRequest>[] = [
     {
       key: 'title',
       title: 'Pull Request',

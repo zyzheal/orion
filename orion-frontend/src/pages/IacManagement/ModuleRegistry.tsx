@@ -94,7 +94,7 @@ const ModuleRegistry: React.FC = () => {
     }
   };
 
-  const columns: TableColumn<any>[] = [
+  const columns: TableColumn<IaCModule>[] = [
     {
       key: 'name',
       title: '模块名称',
@@ -189,7 +189,7 @@ const ModuleRegistry: React.FC = () => {
         <div style={{ marginBottom: 16 }}>
           <SearchFilterBar onSearch={setSearchQuery} onFilter={setFilters} filters={filterDefs} searchPlaceholder="搜索模块..." />
         </div>
-        <Table columns={columns} dataSource={filteredModules as unknown as Record<string, unknown>[]} loading={loading} rowKey="id" size="middle" striped />
+        <Table columns={columns} dataSource={filteredModules} loading={loading} rowKey="id" size="middle" striped />
       </Card>
 
       {/* Create Modal */}

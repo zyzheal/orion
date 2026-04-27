@@ -22,6 +22,37 @@ import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
 
+interface SbomPackage {
+  id: string;
+  name: string;
+  version: string;
+  license?: string;
+  purl?: string;
+  supplier?: string;
+}
+
+interface SbomVulnResult {
+  id: string;
+  scanner: string;
+  totalVulns: number;
+  criticalCount: number;
+  highCount: number;
+  mediumCount: number;
+  lowCount: number;
+  gatePassed: boolean;
+  scannedAt: string;
+}
+
+interface SbomVulnDetail {
+  id: string;
+  cveId: string;
+  severity: string;
+  cvssScore?: number;
+  affectedPackage: string;
+  fixedVersion?: string;
+  description?: string;
+}
+
 const SbomDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -93,7 +124,7 @@ const SbomDetail: React.FC = () => {
     }
   };
 
-  const packageColumns: TableColumn<any>[] = [
+  const packageColumns: TableColumn<SbomPackage>[] = [
     {
       title: '包名',
       dataIndex: 'name',
@@ -135,7 +166,7 @@ const SbomDetail: React.FC = () => {
     },
   ];
 
-  const vulnColumns: TableColumn<any>[] = [
+  const vulnColumns: TableColumn<SbomVulnResult>[] = [
     {
       title: '扫描器',
       dataIndex: 'scanner',
@@ -216,7 +247,7 @@ const SbomDetail: React.FC = () => {
     },
   ];
 
-  const vulnDetailColumns: TableColumn<any>[] = [
+  const vulnDetailColumns: TableColumn<SbomVulnDetail>[] = [
     {
       title: 'CVE ID',
       dataIndex: 'cveId',

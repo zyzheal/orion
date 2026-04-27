@@ -133,7 +133,7 @@ const DocumentListPage: React.FC = () => {
 
   const getSpaceName = (spaceId: string) => spaces.find((s) => s.id === spaceId)?.name || spaceId;
 
-  const columns: TableColumn<any>[] = [
+  const columns: TableColumn<Document>[] = [
     { key: 'title', title: '标题', dataIndex: 'title', width: 220, sortable: true, render: (v: unknown) => <Text strong>{String(v)}</Text> },
     { key: 'space', title: '知识库', dataIndex: 'spaceId', width: 140, render: (v: unknown) => <Tag color="blue">{getSpaceName(String(v))}</Tag> },
     { key: 'version', title: '版本', dataIndex: 'version', width: 60, render: (v: unknown) => <Tag>v{String(v)}</Tag> },
@@ -181,7 +181,7 @@ const DocumentListPage: React.FC = () => {
         <div style={{ marginBottom: 16 }}>
           <SearchFilterBar onSearch={setSearchQuery} onFilter={setFilters} filters={filterDefs} searchPlaceholder="搜索文档..." />
         </div>
-        <Table columns={columns} dataSource={filteredDocuments as unknown as Record<string, unknown>[]} loading={loading} rowKey="id" size="middle" striped />
+        <Table columns={columns} dataSource={filteredDocuments} loading={loading} rowKey="id" size="middle" striped />
       </Card>
 
       {/* Create Modal */}

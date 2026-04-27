@@ -265,7 +265,7 @@ const UserManagement: React.FC = () => {
 
   // ---- Table columns ----
 
-  const columns: TableColumn<any>[] = [
+  const columns: TableColumn<User>[] = [
     {
       key: 'user', title: '用户', width: 200,
       render: (_: unknown, record: User) => (
@@ -457,7 +457,7 @@ const UserManagement: React.FC = () => {
         <div style={{ marginBottom: 16 }}>
           <SearchFilterBar onSearch={setSearchQuery} onFilter={setFilters} filters={filterDefs} searchPlaceholder="搜索用户名、邮箱或姓名..." />
         </div>
-        <Table columns={columns} dataSource={filteredData as unknown as Record<string, unknown>[]} loading={loading} rowKey="id" size="middle" striped />
+        <Table columns={columns} dataSource={filteredData} loading={loading} rowKey="id" size="middle" striped />
       </Card>
 
       {/* Create Modal */}

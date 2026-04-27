@@ -126,7 +126,7 @@ const BudgetManagement: React.FC = () => {
     }
   };
 
-  const columns: TableColumn<any>[] = [
+  const columns: TableColumn<Budget>[] = [
     {
       key: 'name',
       title: '预算名称',
@@ -233,7 +233,7 @@ const BudgetManagement: React.FC = () => {
         <div style={{ marginBottom: 16 }}>
           <SearchFilterBar onSearch={setSearchQuery} onFilter={setFilters} filters={filterDefs} searchPlaceholder="搜索预算..." />
         </div>
-        <Table columns={columns} dataSource={filteredBudgets as unknown as Record<string, unknown>[]} loading={loading} rowKey="id" size="middle" striped />
+        <Table columns={columns} dataSource={filteredBudgets} loading={loading} rowKey="id" size="middle" striped />
       </Card>
 
       {/* Create Modal */}

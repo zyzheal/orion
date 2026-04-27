@@ -126,7 +126,7 @@ const SpaceList: React.FC = () => {
     setEditModalVisible(true);
   };
 
-  const columns: TableColumn<any>[] = [
+  const columns: TableColumn<SpaceType>[] = [
     { key: 'name', title: '知识库名称', dataIndex: 'name', width: 180, sortable: true, render: (v: unknown) => <Text strong>{String(v)}</Text> },
     { key: 'type', title: '类型', dataIndex: 'type', width: 80, render: (v: unknown) => <Tag color={typeColorMap[String(v)]}>{String(v)}</Tag> },
     { key: 'description', title: '描述', dataIndex: 'description', width: 200, render: (v: unknown) => <Text type="secondary">{String(v || '-')}</Text> },
@@ -164,7 +164,7 @@ const SpaceList: React.FC = () => {
         <div style={{ marginBottom: 16 }}>
           <SearchFilterBar onSearch={setSearchQuery} onFilter={setFilters} filters={filterDefs} searchPlaceholder="搜索知识库..." />
         </div>
-        <Table columns={columns} dataSource={filteredSpaces as unknown as Record<string, unknown>[]} loading={loading} rowKey="id" size="middle" striped />
+        <Table columns={columns} dataSource={filteredSpaces} loading={loading} rowKey="id" size="middle" striped />
       </Card>
 
       {/* Create Modal */}
