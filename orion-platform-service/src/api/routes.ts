@@ -3,6 +3,8 @@
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { roleGuard } from '../middleware/roleGuard';
 import { PipelineController } from './controllers/PipelineController';
 import { PipelineRunController } from './controllers/PipelineRunController';
 import { StageController } from './controllers/StageController';
@@ -73,6 +75,35 @@ import agentRoutes from '../routes-agent';
 export interface ApiRoutesOptions {
   eventBus?: EventBusService;
   database?: DatabasePool;
+}
+
+// 角色常量 — 集中管理受保护路由所需的角色
+const ADMIN_ROLES = ['admin', 'platform_admin'] as const;
+
+/**
+ * 为路由模块注册带 JWT 认证 + 角色校验的封装插件。
+ *
+ * Fastify 的插件封装机制确保 addHook 注册的 onRequest 钩子
+ * 仅作用于该插件内部注册的路由，不影响其他路由。
+ *
+ * @param app - Fastify 实例
+ * @param routeModule - 路由模块函数
+ * @param prefix - 路由前缀（如 '/users'）
+ * @param routeOptions - 传递给路由模块的自定义选项（不含 prefix）
+ * @param requiredRoles - 所需角色列表
+ */
+async function registerWithRoleGuard(
+  app: FastifyInstance,
+  routeModule: (instance: FastifyInstance, opts?: any) => Promise<void>,
+  prefix: string,
+  routeOptions?: Record<string, unknown>,
+  requiredRoles: readonly string[] = ADMIN_ROLES
+): Promise<void> {
+  await app.register(async (instance: FastifyInstance) => {
+    instance.addHook('onRequest', authenticateUser);
+    instance.addHook('onRequest', roleGuard([...requiredRoles]));
+    await instance.register(routeModule, { prefix, ...routeOptions });
+  });
 }
 
 export default async function apiRoutes(app: FastifyInstance, options: ApiRoutesOptions): Promise<void> {
@@ -218,10 +249,10 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // ==================== 构建环境管理路由 ====================
 
   // 注册 Build Environment API 路由 (PostgreSQL backed for BuildCache)
-  await app.register(buildRoutes, { prefix: '/build', database: options.database });
+  await registerWithRoleGuard(app, buildRoutes, '/build', { database: options.database });
 
   // 注册 Code Repository Integration API 路由
-  await app.register(codeRepoRoutes, { prefix: '/code-repo' });
+  await registerWithRoleGuard(app, codeRepoRoutes, '/code-repo');
 
   // 注册 Configuration Management API 路由 (PostgreSQL backed)
   await app.register(configRoutes, { prefix: '/config', database: options.database });
@@ -236,10 +267,10 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await app.register(finopsV2Routes, { prefix: '/finops', database: options.database });
 
   // 注册 AI Code Review API 路由 (TASK-302)
-  await app.register(aiReviewRoutes, { prefix: '/ai-review' });
+  await registerWithRoleGuard(app, aiReviewRoutes, '/ai-review');
 
   // 注册诊断 Agent API 路由 (TASK-305) - PostgreSQL backed
-  await app.register(diagnosticRoutes, { prefix: '/diagnostic', database: options.database });
+  await registerWithRoleGuard(app, diagnosticRoutes, '/diagnostic', { database: options.database });
 
   // 注册智能测试选择器 API 路由 (TASK-303)
   await app.register(testSelectorRoutes, { prefix: '/test-selector' });
@@ -248,13 +279,13 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await app.register(deployRoutes, { prefix: '/deploy', database: options.database });
 
   // 注册监控告警 API 路由 (TASK-703)
-  await app.register(monitoringRoutes, { prefix: '/monitoring', database: options.database });
+  await registerWithRoleGuard(app, monitoringRoutes, '/monitoring', { database: options.database });
 
   // 注册智能工单 API 路由 (TASK-801) - PostgreSQL backed
   await app.register(ticketingRoutes, { prefix: '/tickets', database: options.database });
 
   // Register self-healing API routes (TASK-702) - PostgreSQL backed
-  await app.register(selfHealingRoutes, { prefix: '/self-healing', database: options.database });
+  await registerWithRoleGuard(app, selfHealingRoutes, '/self-healing', { database: options.database });
 
   // 注册备份恢复 API 路由 (TASK-704) - PostgreSQL backed
   await app.register(backupRoutes, { prefix: '/backup', database: options.database });
@@ -263,7 +294,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await app.register(pluginSpiRoutes, { prefix: '/plugins-spi' });
 
   // 注册 Plugin Management API 路由
-  await app.register(pluginRoutes, { prefix: '/plugins' });
+  await registerWithRoleGuard(app, pluginRoutes, '/plugins');
 
   // 注册 AI 安全加固 API 路由 (TASK-1004)
   await app.register(aiSecurityRoutes, { prefix: '/ai-security' });
@@ -275,10 +306,10 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await app.register(alertRoutes, { prefix: '/alert' });
 
   // 注册审计 API 路由
-  await app.register(auditRoutes, { prefix: '/audit', database: options.database });
+  await registerWithRoleGuard(app, auditRoutes, '/audit', { database: options.database });
 
   // 注册租户管理 API 路由 (PostgreSQL backed)
-  await app.register(tenantRoutes, { prefix: '/tenant', database: options.database });
+  await registerWithRoleGuard(app, tenantRoutes, '/tenant', { database: options.database });
 
   // 注册效能分析 API 路由
   await app.register(efficiencyRoutes, { prefix: '/efficiency' });
@@ -299,16 +330,16 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await app.register(skillRoutes, { prefix: '/skills', database: options.database });
 
   // 注册 AI Cost Optimization API 路由 (M36)
-  await app.register(aiCostRoutes, { prefix: '/ai-cost' });
+  await registerWithRoleGuard(app, aiCostRoutes, '/ai-cost');
 
   // 注册 IaC Management API 路由 (M20) - PostgreSQL backed
-  await app.register(iacRoutes, { prefix: '/iac', eventBus: options.eventBus, database: options.database });
+  await registerWithRoleGuard(app, iacRoutes, '/iac', { eventBus: options.eventBus, database: options.database });
 
   // 注册 ChatOps API 路由 (M35) - PostgreSQL backed
-  await app.register(chatopsRoutes, { prefix: '/chatops', eventBus: options.eventBus, database: options.database });
+  await registerWithRoleGuard(app, chatopsRoutes, '/chatops', { eventBus: options.eventBus, database: options.database });
 
   // 注册 Manual Confirmation API 路由 (P0-6)
-  await app.register(confirmationRoutes, { prefix: '/confirmations' });
+  await registerWithRoleGuard(app, confirmationRoutes, '/confirmations');
 
   // 注册 Artifact Registry API 路由
   await app.register(artifactRoutes, { prefix: '/artifacts' });
@@ -335,7 +366,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await app.register(notificationRoutes, { prefix: '/notifications' });
 
   // 注册 Role Management API 路由 (RBAC) - PostgreSQL backed
-  await app.register(roleRoutes, { prefix: '/roles', database: options.database });
+  await registerWithRoleGuard(app, roleRoutes, '/roles', { database: options.database });
 
   // 注册 Session Management API 路由 - PostgreSQL backed
   await app.register(sessionRoutes, { prefix: '/sessions', database: options.database });
@@ -359,7 +390,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await app.register(metricsRoutes, { prefix: '/metrics', database: options.database });
 
   // 注册 User Management API 路由 - PostgreSQL backed
-  await app.register(userRoutes, { prefix: '/users', database: options.database });
+  await registerWithRoleGuard(app, userRoutes, '/users', { database: options.database });
 
   // 注册 Agent Orchestration API 路由 - PostgreSQL backed
   await app.register(agentRoutes, { prefix: '/', eventBus: options.eventBus, database: options.database });
