@@ -668,6 +668,52 @@ Added Ant Design `Alert` (type="warning") banners to 9 frontend pages that fall 
 ### Commit
 - `98905d4` - EventBus and Sessions management pages (P1)
 
+## P1 Missing Pages - Metrics Dashboard & Test Selector (COMPLETED - 2026-04-27)
+
+### Completed Work
+
+1. **Metrics Dashboard** (`orion-frontend/src/pages/MetricsDashboard/index.tsx`)
+   - Page header: "Metrics Overview" with subtitle "全局指标概览"
+   - Dashboard cards: Request Rate, Error Rate, Latency (P50), Throughput
+   - Latency Breakdown: P50/P95/P99 cards with color-coded thresholds
+   - Service Health Summary table: Service Name, Status, Request Rate, Error Rate, Latency
+   - Filter by service (Select dropdown)
+   - Time range selector (5m, 15m, 1h, 6h, 24h, 7d)
+   - Refresh button with loading state
+   - Uses existing monitoring APIs (getMonitoringHealth, getMetrics, getDashboardData)
+   - Mock data fallback with warning Alert banner
+   - Trend placeholder for future ECharts integration
+
+2. **Test Selector** (`orion-frontend/src/pages/TestSelector/index.tsx`)
+   - Page header: "Test Selector" with subtitle "测试用例选择与管理"
+   - Stats cards: Total Tests, Passed, Failed, Skipped with pass rate
+   - Test case table: Test Name, Suite, Status, Duration, Last Run, Tags
+   - SearchFilterBar: search by name, filter by status/suite/tags
+   - Row selection with "Run Selected" bulk action
+   - Per-row actions: Run test, View detail
+   - Mock data with warning Alert banner (no dedicated test API exists yet)
+   - 18 mock test cases across 8 test suites
+
+3. **Route Registration** (`orion-frontend/src/router/routes.ts`)
+   - Added `/metrics-dashboard` route
+   - Added `/test-selector` route
+   - Both routes protected (require authentication)
+
+### Acceptance Criteria
+- [x] Metrics Dashboard page created with all required features
+- [x] Test Selector page created with all required features
+- [x] No `any` types used in either page
+- [x] `catch (error: unknown)` with `error instanceof Error` type guards
+- [x] Mock data warning banners (`Alert type="warning"`) included
+- [x] Design tokens used (colors, spacing) - no hardcoded colors
+- [x] Existing components reused (MetricCard, Table, SearchFilterBar, DashboardLayout)
+- [x] Routes registered in routes.ts
+- [x] TypeScript type-check passes (no new errors introduced)
+
+### Commit
+- `d092b98` - feat(frontend): add Metrics Dashboard and Test Selector pages (P1)
+
 ## Next Steps
 1. Continue implementing remaining P1/P2 missing pages
-2. Consider adding backend API clients for EventBus and Sessions when available
+2. Consider adding backend API clients for Metrics Dashboard and Test Selector when available
+3. Integrate ECharts for trend visualization in Metrics Dashboard
