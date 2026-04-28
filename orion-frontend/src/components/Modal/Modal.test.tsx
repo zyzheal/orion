@@ -88,9 +88,7 @@ describe('OrionModal', () => {
   });
 
   it('should use custom okText and cancelText', () => {
-    render(
-      <Modal {...defaultProps} okText="Yes" cancelText="No" type="confirm" />
-    );
+    render(<Modal {...defaultProps} okText="Yes" cancelText="No" type="confirm" />);
     expect(screen.getByText('Yes')).toBeInTheDocument();
     expect(screen.getByText('No')).toBeInTheDocument();
   });
@@ -101,12 +99,7 @@ describe('OrionModal', () => {
   });
 
   it('should render custom icon', () => {
-    render(
-      <Modal
-        {...defaultProps}
-        icon={<span data-testid="custom-icon">!</span>}
-      />
-    );
+    render(<Modal {...defaultProps} icon={<span data-testid="custom-icon">!</span>} />);
     expect(screen.getByTestId('custom-icon')).toBeInTheDocument();
   });
 });

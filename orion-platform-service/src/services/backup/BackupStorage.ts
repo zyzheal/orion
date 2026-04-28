@@ -75,7 +75,7 @@ export class BackupStorage extends EventEmitter {
     const shouldEncrypt = options?.encrypt ?? this.encryptBackups;
 
     let processedData = data;
-    let originalSize = data.length;
+    const originalSize = data.length;
     let compressionRatio = 1.0;
 
     // Compress

@@ -9,11 +9,7 @@ import { ReloadOutlined, StopOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
-import {
-  getBuildPods,
-  cancelBuildPod,
-  type BuildPod,
-} from '@/api/build-env';
+import { getBuildPods, cancelBuildPod, type BuildPod } from '@/api/build-env';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 
@@ -51,7 +47,9 @@ const BuildPodList: React.FC = () => {
     return pods.filter((pod) => {
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
-        const searchable = [pod.name, pod.namespace, pod.runId, pod.stageId].join(' ').toLowerCase();
+        const searchable = [pod.name, pod.namespace, pod.runId, pod.stageId]
+          .join(' ')
+          .toLowerCase();
         if (!searchable.includes(query)) return false;
       }
       const runIdFilter = filters.runId;
@@ -84,10 +82,12 @@ const BuildPodList: React.FC = () => {
       label: 'Run ID',
       options: [
         { label: 'All', value: 'all' },
-        ...Array.from(new Set(pods.map((p) => p.runId))).slice(0, 10).map((id) => ({
-          label: id,
-          value: id,
-        })),
+        ...Array.from(new Set(pods.map((p) => p.runId)))
+          .slice(0, 10)
+          .map((id) => ({
+            label: id,
+            value: id,
+          })),
       ],
     },
     {
@@ -95,10 +95,12 @@ const BuildPodList: React.FC = () => {
       label: 'Stage ID',
       options: [
         { label: 'All', value: 'all' },
-        ...Array.from(new Set(pods.map((p) => p.stageId))).slice(0, 10).map((id) => ({
-          label: id,
-          value: id,
-        })),
+        ...Array.from(new Set(pods.map((p) => p.stageId)))
+          .slice(0, 10)
+          .map((id) => ({
+            label: id,
+            value: id,
+          })),
       ],
     },
     {
@@ -136,21 +138,33 @@ const BuildPodList: React.FC = () => {
       title: 'Namespace',
       dataIndex: 'namespace',
       width: 160,
-      render: (value) => <Text code style={{ fontSize: spacing[3] }}>{String(value)}</Text>,
+      render: (value) => (
+        <Text code style={{ fontSize: spacing[3] }}>
+          {String(value)}
+        </Text>
+      ),
     },
     {
       key: 'runId',
       title: 'Run ID',
       dataIndex: 'runId',
       width: 160,
-      render: (value) => <Text type="secondary" style={{ fontSize: spacing[3] }}>{String(value)}</Text>,
+      render: (value) => (
+        <Text type="secondary" style={{ fontSize: spacing[3] }}>
+          {String(value)}
+        </Text>
+      ),
     },
     {
       key: 'stageId',
       title: 'Stage ID',
       dataIndex: 'stageId',
       width: 160,
-      render: (value) => <Text type="secondary" style={{ fontSize: spacing[3] }}>{String(value)}</Text>,
+      render: (value) => (
+        <Text type="secondary" style={{ fontSize: spacing[3] }}>
+          {String(value)}
+        </Text>
+      ),
     },
     {
       key: 'status',
@@ -224,9 +238,18 @@ const BuildPodList: React.FC = () => {
 
   return (
     <div style={{ padding: 0 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          marginBottom: 24,
+        }}
+      >
         <div>
-          <Title level={3} style={{ margin: 0 }}>Build Pods</Title>
+          <Title level={3} style={{ margin: 0 }}>
+            Build Pods
+          </Title>
           <Text type="secondary">{filteredPods.length} build pods</Text>
         </div>
         <Button icon={<ReloadOutlined />} onClick={loadPods} loading={loading}>
@@ -243,7 +266,14 @@ const BuildPodList: React.FC = () => {
         />
       </div>
 
-      <Table columns={columns} dataSource={filteredPods} loading={loading} rowKey="id" size="middle" striped />
+      <Table
+        columns={columns}
+        dataSource={filteredPods}
+        loading={loading}
+        rowKey="id"
+        size="middle"
+        striped
+      />
     </div>
   );
 };

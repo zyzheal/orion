@@ -8,9 +8,12 @@ export function useAutoScroll(
   const [autoScroll, setAutoScroll] = useState(true);
   const [showScrollButton, setShowScrollButton] = useState(false);
 
-  const isNearBottom = useCallback((el: HTMLDivElement) => {
-    return el.scrollHeight - el.scrollTop - el.clientHeight < threshold;
-  }, [threshold]);
+  const isNearBottom = useCallback(
+    (el: HTMLDivElement) => {
+      return el.scrollHeight - el.scrollTop - el.clientHeight < threshold;
+    },
+    [threshold]
+  );
 
   useEffect(() => {
     const el = containerRef.current;

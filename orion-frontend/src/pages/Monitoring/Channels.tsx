@@ -3,7 +3,19 @@
  * Manage notification channels (email, webhook, slack) and escalation policies
  */
 import React, { useState, useEffect } from 'react';
-import { Typography, Button, Space, Tag, Modal, Form, Input, Select, Switch, Tabs, message } from 'antd';
+import {
+  Typography,
+  Button,
+  Space,
+  Tag,
+  Modal,
+  Form,
+  Input,
+  Select,
+  Switch,
+  Tabs,
+  message,
+} from 'antd';
 import { PlusOutlined, ReloadOutlined, MailOutlined } from '@ant-design/icons';
 import { spacing } from '@/tokens';
 import Table, { type TableColumn } from '@/components/Table';
@@ -154,7 +166,11 @@ const MonitoringChannels: React.FC = () => {
       width: 100,
       render: (v: unknown) => {
         const cfg = typeConfig[String(v)];
-        return <Tag color={cfg.color}>{cfg.icon} {cfg.label}</Tag>;
+        return (
+          <Tag color={cfg.color}>
+            {cfg.icon} {cfg.label}
+          </Tag>
+        );
       },
     },
     {
@@ -162,7 +178,17 @@ const MonitoringChannels: React.FC = () => {
       title: '配置',
       dataIndex: 'config',
       render: (v: unknown) => (
-        <Text code style={{ fontSize: spacing[2], maxWidth: 300, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <Text
+          code
+          style={{
+            fontSize: spacing[2],
+            maxWidth: 300,
+            display: 'block',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
           {JSON.stringify(v)}
         </Text>
       ),
@@ -172,9 +198,7 @@ const MonitoringChannels: React.FC = () => {
       title: '状态',
       dataIndex: 'enabled',
       width: 80,
-      render: (v: unknown) => (
-        <Tag color={v ? 'green' : 'default'}>{v ? '已启用' : '已禁用'}</Tag>
-      ),
+      render: (v: unknown) => <Tag color={v ? 'green' : 'default'}>{v ? '已启用' : '已禁用'}</Tag>,
     },
     {
       key: 'actions',
@@ -219,15 +243,20 @@ const MonitoringChannels: React.FC = () => {
       title: '状态',
       dataIndex: 'enabled',
       width: 80,
-      render: (v: unknown) => (
-        <Tag color={v ? 'green' : 'default'}>{v ? '已启用' : '已禁用'}</Tag>
-      ),
+      render: (v: unknown) => <Tag color={v ? 'green' : 'default'}>{v ? '已启用' : '已禁用'}</Tag>,
     },
   ];
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: 24,
+        }}
+      >
         <div>
           <Title level={3} style={{ margin: 0 }}>
             <MailOutlined style={{ marginRight: 8 }} />
@@ -243,7 +272,11 @@ const MonitoringChannels: React.FC = () => {
       <Tabs defaultActiveKey="channels">
         <TabPane tab={`通知渠道 (${channels.length})`} key="channels">
           <div style={{ marginBottom: 16, textAlign: 'right' }}>
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => setChannelModalVisible(true)}>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => setChannelModalVisible(true)}
+            >
               创建渠道
             </Button>
           </div>
@@ -258,7 +291,11 @@ const MonitoringChannels: React.FC = () => {
         </TabPane>
         <TabPane tab={`升级策略 (${escalationPolicies.length})`} key="escalation">
           <div style={{ marginBottom: 16, textAlign: 'right' }}>
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => setEscalationModalVisible(true)}>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => setEscalationModalVisible(true)}
+            >
               创建策略
             </Button>
           </div>
@@ -282,7 +319,11 @@ const MonitoringChannels: React.FC = () => {
         width={480}
       >
         <Form form={channelForm} layout="vertical" onFinish={handleCreateChannel}>
-          <Form.Item name="name" label="渠道名称" rules={[{ required: true, message: '请输入渠道名称' }]}>
+          <Form.Item
+            name="name"
+            label="渠道名称"
+            rules={[{ required: true, message: '请输入渠道名称' }]}
+          >
             <Input placeholder="例如：team-email" />
           </Form.Item>
           <Form.Item name="type" label="类型" rules={[{ required: true, message: '请选择类型' }]}>
@@ -294,7 +335,11 @@ const MonitoringChannels: React.FC = () => {
               ]}
             />
           </Form.Item>
-          <Form.Item name="config" label="配置 (JSON)" rules={[{ required: true, message: '请输入配置' }]}>
+          <Form.Item
+            name="config"
+            label="配置 (JSON)"
+            rules={[{ required: true, message: '请输入配置' }]}
+          >
             <Input.TextArea
               rows={4}
               placeholder='email: {"to": "team@example.com"}\nwebhook: {"url": "https://hooks..."}\nslack: {"channel": "#alerts", "webhook_url": "..."}'
@@ -304,7 +349,9 @@ const MonitoringChannels: React.FC = () => {
             <Switch checkedChildren="启用" unCheckedChildren="禁用" />
           </Form.Item>
           <Form.Item>
-            <Button type="primary" htmlType="submit" block>创建</Button>
+            <Button type="primary" htmlType="submit" block>
+              创建
+            </Button>
           </Form.Item>
         </Form>
       </Modal>
@@ -318,10 +365,18 @@ const MonitoringChannels: React.FC = () => {
         width={560}
       >
         <Form form={escalationForm} layout="vertical" onFinish={handleCreateEscalation}>
-          <Form.Item name="name" label="策略名称" rules={[{ required: true, message: '请输入策略名称' }]}>
+          <Form.Item
+            name="name"
+            label="策略名称"
+            rules={[{ required: true, message: '请输入策略名称' }]}
+          >
             <Input placeholder="例如：critical-escalation" />
           </Form.Item>
-          <Form.Item name="steps" label="升级步骤 (JSON)" rules={[{ required: true, message: '请输入升级步骤' }]}>
+          <Form.Item
+            name="steps"
+            label="升级步骤 (JSON)"
+            rules={[{ required: true, message: '请输入升级步骤' }]}
+          >
             <Input.TextArea
               rows={6}
               placeholder='[{"order": 1, "channel": "email-alerts", "delayMs": 300000}, {"order": 2, "channel": "slack-oncall", "delayMs": 900000}]'
@@ -331,7 +386,9 @@ const MonitoringChannels: React.FC = () => {
             <Switch checkedChildren="启用" unCheckedChildren="禁用" />
           </Form.Item>
           <Form.Item>
-            <Button type="primary" htmlType="submit" block>创建</Button>
+            <Button type="primary" htmlType="submit" block>
+              创建
+            </Button>
           </Form.Item>
         </Form>
       </Modal>

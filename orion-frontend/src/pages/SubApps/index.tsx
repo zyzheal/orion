@@ -99,9 +99,7 @@ const SubApps: React.FC = () => {
                   marginBottom: 16,
                 }}
               >
-                <div style={{ fontSize: spacing[8], color: app.color }}>
-                  {app.icon}
-                </div>
+                <div style={{ fontSize: spacing[8], color: app.color }}>{app.icon}</div>
               </div>
 
               <Title level={4} style={{ marginBottom: 8 }}>
@@ -159,9 +157,13 @@ const SubApps: React.FC = () => {
         <Title level={5}>🏗️ 微前端架构说明</Title>
         <Paragraph style={{ fontSize: spacing[4], color: colors.neutral[500] }}>
           <ul style={{ paddingLeft: 20 }}>
-            <li>采用 <strong>Wujie（无界）</strong> 微前端框架，实现子系统间完全隔离</li>
+            <li>
+              采用 <strong>Wujie（无界）</strong> 微前端框架，实现子系统间完全隔离
+            </li>
             <li>支持子系统独立开发、独立部署、技术栈无关</li>
-            <li>通过 <strong>eventBus</strong> 实现主子应用通信</li>
+            <li>
+              通过 <strong>eventBus</strong> 实现主子应用通信
+            </li>
             <li>共享用户认证状态、主题配置等全局状态</li>
             <li>支持子应用预加载和保活模式，提升切换体验</li>
           </ul>

@@ -3,13 +3,22 @@
  * Strategy management with CRUD and toggle
  */
 import React, { useState, useEffect } from 'react';
-import { Typography, Card, Table, Tag, Space, Button, Modal, Form, Input, Select, message, Switch } from 'antd';
-import { PlusOutlined, ReloadOutlined, EditOutlined } from '@ant-design/icons';
 import {
-  getStrategies,
-  createStrategy,
-  toggleStrategy,
-} from '@/api/self-healing';
+  Typography,
+  Card,
+  Table,
+  Tag,
+  Space,
+  Button,
+  Modal,
+  Form,
+  Input,
+  Select,
+  message,
+  Switch,
+} from 'antd';
+import { PlusOutlined, ReloadOutlined, EditOutlined } from '@ant-design/icons';
+import { getStrategies, createStrategy, toggleStrategy } from '@/api/self-healing';
 import type { SelfHealingStrategy } from '@/api/self-healing';
 
 const { Title, Text } = Typography;
@@ -87,7 +96,13 @@ const StrategyList: React.FC = () => {
     try {
       const payload = {
         ...values,
-        actions: typeof values.actions === 'string' ? values.actions.split(',').map((a: string) => a.trim()).filter(Boolean) : values.actions,
+        actions:
+          typeof values.actions === 'string'
+            ? values.actions
+                .split(',')
+                .map((a: string) => a.trim())
+                .filter(Boolean)
+            : values.actions,
         enabled: editingStrategy?.enabled ?? true,
         confidence: values.confidence ? Number(values.confidence) : undefined,
       };
@@ -102,7 +117,9 @@ const StrategyList: React.FC = () => {
       loadData();
     } catch (error: unknown) {
       if (error instanceof Error) {
-        message.error(editingStrategy ? `更新策略失败：${error.message}` : `创建策略失败：${error.message}`);
+        message.error(
+          editingStrategy ? `更新策略失败：${error.message}` : `创建策略失败：${error.message}`
+        );
       } else {
         message.error(editingStrategy ? '更新策略失败，请稍后重试' : '创建策略失败，请稍后重试');
       }
@@ -113,7 +130,12 @@ const StrategyList: React.FC = () => {
 
   const columns = [
     { title: '策略 ID', dataIndex: 'id', key: 'id', width: 120, ellipsis: true },
-    { title: '名称', dataIndex: 'name', key: 'name', render: (text: string) => <Text strong>{text}</Text> },
+    {
+      title: '名称',
+      dataIndex: 'name',
+      key: 'name',
+      render: (text: string) => <Text strong>{text}</Text>,
+    },
     { title: '触发类型', dataIndex: 'triggerType', key: 'triggerType', width: 140 },
     {
       title: '操作',
@@ -121,7 +143,9 @@ const StrategyList: React.FC = () => {
       key: 'actions',
       render: (actions: string[]) => (
         <Space wrap>
-          {actions.slice(0, 3).map((a, i) => <Tag key={i}>{a}</Tag>)}
+          {actions.slice(0, 3).map((a, i) => (
+            <Tag key={i}>{a}</Tag>
+          ))}
           {actions.length > 3 && <Tag>+{actions.length - 3}</Tag>}
         </Space>
       ),
@@ -131,7 +155,7 @@ const StrategyList: React.FC = () => {
       dataIndex: 'confidence',
       key: 'confidence',
       width: 100,
-      render: (confidence?: number) => confidence ? `${Math.round(confidence * 100)}%` : '-',
+      render: (confidence?: number) => (confidence ? `${Math.round(confidence * 100)}%` : '-'),
     },
     { title: '描述', dataIndex: 'description', key: 'description', ellipsis: true },
     {
@@ -149,7 +173,14 @@ const StrategyList: React.FC = () => {
       width: 120,
       render: (_: unknown, record: SelfHealingStrategy) => (
         <Space>
-          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEditModal(record)}>编辑</Button>
+          <Button
+            type="link"
+            size="small"
+            icon={<EditOutlined />}
+            onClick={() => openEditModal(record)}
+          >
+            编辑
+          </Button>
         </Space>
       ),
     },
@@ -161,15 +192,21 @@ const StrategyList: React.FC = () => {
     <div style={{ padding: 24 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
         <div>
-          <Title level={3} style={{ margin: 0 }}>策略列表</Title>
+          <Title level={3} style={{ margin: 0 }}>
+            策略列表
+          </Title>
           <Text type="secondary">管理自愈合策略</Text>
         </div>
-        <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>添加策略</Button>
+        <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>
+          添加策略
+        </Button>
       </div>
 
       <Card style={{ marginBottom: 16 }}>
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={loadData}>刷新</Button>
+          <Button icon={<ReloadOutlined />} onClick={loadData}>
+            刷新
+          </Button>
         </Space>
       </Card>
 
@@ -192,10 +229,18 @@ const StrategyList: React.FC = () => {
         width={600}
       >
         <Form form={form} layout="vertical" onFinish={handleSubmit}>
-          <Form.Item name="name" label="策略名称" rules={[{ required: true, message: '请输入策略名称' }]}>
+          <Form.Item
+            name="name"
+            label="策略名称"
+            rules={[{ required: true, message: '请输入策略名称' }]}
+          >
             <Input placeholder="例如：auto-restart-pod" />
           </Form.Item>
-          <Form.Item name="triggerType" label="触发类型" rules={[{ required: true, message: '请输入触发类型' }]}>
+          <Form.Item
+            name="triggerType"
+            label="触发类型"
+            rules={[{ required: true, message: '请输入触发类型' }]}
+          >
             <Select>
               <Select.Option value="metric">指标触发</Select.Option>
               <Select.Option value="alert">告警触发</Select.Option>
@@ -203,8 +248,15 @@ const StrategyList: React.FC = () => {
               <Select.Option value="manual">手动触发</Select.Option>
             </Select>
           </Form.Item>
-          <Form.Item name="actions" label="操作列表" rules={[{ required: true, message: '请输入操作列表' }]}>
-            <TextArea rows={4} placeholder="每行一个操作，用逗号分隔，例如：restart-pod, scale-up, notify" />
+          <Form.Item
+            name="actions"
+            label="操作列表"
+            rules={[{ required: true, message: '请输入操作列表' }]}
+          >
+            <TextArea
+              rows={4}
+              placeholder="每行一个操作，用逗号分隔，例如：restart-pod, scale-up, notify"
+            />
           </Form.Item>
           <Form.Item name="confidence" label="置信度">
             <Input type="number" min={0} max={1} step={0.1} placeholder="0.0 - 1.0" />

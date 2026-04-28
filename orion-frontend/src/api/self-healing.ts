@@ -89,7 +89,9 @@ export function getIncident(id: string) {
 // ==================== Healing History ====================
 
 export function getHealingHistory(params?: IncidentListParams) {
-  return api.get<{ items: SelfHealingIncident[]; total: number }>('/v1/self-healing/history', { params });
+  return api.get<{ items: SelfHealingIncident[]; total: number }>('/v1/self-healing/history', {
+    params,
+  });
 }
 
 // ==================== Effectiveness ====================
@@ -119,7 +121,9 @@ export function toggleStrategy(id: string) {
 // ==================== Approvals ====================
 
 export function getApprovals(params?: ApprovalListParams) {
-  return api.get<{ items: SelfHealingApproval[]; total: number }>('/v1/self-healing/approvals', { params });
+  return api.get<{ items: SelfHealingApproval[]; total: number }>('/v1/self-healing/approvals', {
+    params,
+  });
 }
 
 export function getApproval(id: string) {

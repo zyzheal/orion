@@ -2,7 +2,19 @@
  * ChatOps Settings - Platform config, notification preferences, DND settings
  */
 import React, { useState, useEffect } from 'react';
-import { Typography, Button, Space, Card, Form, Input, Switch, Select, message, TimePicker, Checkbox } from 'antd';
+import {
+  Typography,
+  Button,
+  Space,
+  Card,
+  Form,
+  Input,
+  Switch,
+  Select,
+  message,
+  TimePicker,
+  Checkbox,
+} from 'antd';
 import { SaveOutlined, LinkOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import {
@@ -185,7 +197,9 @@ const ChatOpsSettings: React.FC = () => {
   return (
     <div style={{ padding: 0 }}>
       <div style={{ marginBottom: 24 }}>
-        <Title level={3} style={{ margin: 0 }}>设置</Title>
+        <Title level={3} style={{ margin: 0 }}>
+          设置
+        </Title>
         <Text type="secondary">ChatOps 平台配置与 Webhook 管理</Text>
       </div>
 
@@ -194,25 +208,47 @@ const ChatOpsSettings: React.FC = () => {
         {platforms.map((platform, index) => (
           <Card
             key={platform.platform}
-            title={<Space><LinkOutlined />{platformLabels[platform.platform]}</Space>}
+            title={
+              <Space>
+                <LinkOutlined />
+                {platformLabels[platform.platform]}
+              </Space>
+            }
             style={{ marginBottom: 16 }}
             extra={
-              <Form.Item name={`platform_${index}_enabled`} valuePropName="checked" initialValue={platform.enabled}>
+              <Form.Item
+                name={`platform_${index}_enabled`}
+                valuePropName="checked"
+                initialValue={platform.enabled}
+              >
                 <Switch size="small" />
               </Form.Item>
             }
           >
-            <Form.Item name={`platform_${index}_webhook`} label="Webhook URL" initialValue={platform.webhook}>
+            <Form.Item
+              name={`platform_${index}_webhook`}
+              label="Webhook URL"
+              initialValue={platform.webhook}
+            >
               <Input placeholder="https://oapi.dingtalk.com/robot/send?access_token=..." />
             </Form.Item>
-            <Form.Item name={`platform_${index}_token`} label="Access Token" initialValue={platform.token}>
+            <Form.Item
+              name={`platform_${index}_token`}
+              label="Access Token"
+              initialValue={platform.token}
+            >
               <Input.Password placeholder="输入访问令牌" />
             </Form.Item>
           </Card>
         ))}
 
         <Form.Item>
-          <Button type="primary" icon={<SaveOutlined />} onClick={handlePlatformSave} loading={platformSaving}>
+          <Button
+            type="primary"
+            icon={<SaveOutlined />}
+            onClick={handlePlatformSave}
+            loading={platformSaving}
+          >
             保存平台配置
           </Button>
         </Form.Item>
@@ -222,12 +258,14 @@ const ChatOpsSettings: React.FC = () => {
       <Form form={form} layout="vertical" style={{ maxWidth: 700 }}>
         <Card title="全局设置" style={{ marginBottom: 16 }}>
           <Form.Item name="defaultPlatform" label="默认平台" initialValue="dingtalk">
-            <Select options={[
-              { label: '钉钉', value: 'dingtalk' },
-              { label: '企业微信', value: 'wecom' },
-              { label: '飞书', value: 'feishu' },
-              { label: 'Slack', value: 'slack' },
-            ]} />
+            <Select
+              options={[
+                { label: '钉钉', value: 'dingtalk' },
+                { label: '企业微信', value: 'wecom' },
+                { label: '飞书', value: 'feishu' },
+                { label: 'Slack', value: 'slack' },
+              ]}
+            />
           </Form.Item>
           <Form.Item name="commandPrefix" label="命令前缀" initialValue="/">
             <Input style={{ width: 80 }} />
@@ -245,9 +283,11 @@ const ChatOpsSettings: React.FC = () => {
       </Form>
 
       {/* 免打扰设置 */}
-      <Card title="免打扰 (DND)" style={{ maxWidth: 700 }} extra={
-        <Switch checked={dndEnabled} onChange={handleDNDToggle} />
-      }>
+      <Card
+        title="免打扰 (DND)"
+        style={{ maxWidth: 700 }}
+        extra={<Switch checked={dndEnabled} onChange={handleDNDToggle} />}
+      >
         <Form form={dndForm} layout="vertical">
           <Form.Item label="免打扰时段">
             <Space>
@@ -262,7 +302,7 @@ const ChatOpsSettings: React.FC = () => {
           </Form.Item>
 
           <Form.Item name="repeatDays" label="重复日期" initialValue={[1, 2, 3, 4, 5]}>
-            <Checkbox.Group options={WEEKDAYS.map(d => ({ label: d.label, value: d.value }))} />
+            <Checkbox.Group options={WEEKDAYS.map((d) => ({ label: d.label, value: d.value }))} />
           </Form.Item>
 
           <Form.Item name="allowCritical" valuePropName="checked" initialValue={true}>
@@ -270,7 +310,12 @@ const ChatOpsSettings: React.FC = () => {
           </Form.Item>
 
           <Form.Item>
-            <Button type="primary" icon={<SaveOutlined />} onClick={handleDNDSave} loading={dndSaving}>
+            <Button
+              type="primary"
+              icon={<SaveOutlined />}
+              onClick={handleDNDSave}
+              loading={dndSaving}
+            >
               保存免打扰设置
             </Button>
           </Form.Item>

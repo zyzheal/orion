@@ -7,12 +7,30 @@ import { api } from './client';
 // ---- Types ----
 
 export type ExtendedArtifactType =
-  | 'container_image' | 'base_image' | 'builder_image'
-  | 'jar_artifact' | 'war_artifact' | 'npm_package' | 'python_wheel' | 'go_module' | 'rust_crate'
-  | 'helm_chart' | 'terraform_module' | 'k8s_manifest' | 'docker_compose'
-  | 'test_report' | 'coverage_report' | 'performance_report' | 'test_artifact'
-  | 'sbom' | 'signature' | 'security_scan_report' | 'compliance_report'
-  | 'api_doc' | 'changelog' | 'release_notes';
+  | 'container_image'
+  | 'base_image'
+  | 'builder_image'
+  | 'jar_artifact'
+  | 'war_artifact'
+  | 'npm_package'
+  | 'python_wheel'
+  | 'go_module'
+  | 'rust_crate'
+  | 'helm_chart'
+  | 'terraform_module'
+  | 'k8s_manifest'
+  | 'docker_compose'
+  | 'test_report'
+  | 'coverage_report'
+  | 'performance_report'
+  | 'test_artifact'
+  | 'sbom'
+  | 'signature'
+  | 'security_scan_report'
+  | 'compliance_report'
+  | 'api_doc'
+  | 'changelog'
+  | 'release_notes';
 
 export type ArtifactStage = 'snapshot' | 'release_candidate' | 'stable' | 'production' | 'archived';
 export type ArtifactStatus = 'uploading' | 'available' | 'deprecated' | 'quarantined' | 'deleted';
@@ -224,7 +242,10 @@ export function getDownloadHistory(id: string) {
 
 // ---- Promotion ----
 
-export function promoteArtifact(id: string, data: { promotedBy: string; approvedBy?: string; reason?: string }) {
+export function promoteArtifact(
+  id: string,
+  data: { promotedBy: string; approvedBy?: string; reason?: string }
+) {
   return api.post<PromotionRecord>(`/v1/artifacts/${id}/promote`, data);
 }
 

@@ -47,12 +47,9 @@ const WebhookLog: React.FC = () => {
       // Search filter
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
-        const searchable = [
-          event.eventType,
-          event.repoType,
-          event.repoName,
-          event.id,
-        ].join(' ').toLowerCase();
+        const searchable = [event.eventType, event.repoType, event.repoName, event.id]
+          .join(' ')
+          .toLowerCase();
         if (!searchable.includes(query)) return false;
       }
 
@@ -209,9 +206,7 @@ const WebhookLog: React.FC = () => {
           <Title level={3} style={{ margin: 0 }}>
             Webhook 日志
           </Title>
-          <Text type="secondary">
-            共 {displayEvents.length} 条 Webhook 事件记录
-          </Text>
+          <Text type="secondary">共 {displayEvents.length} 条 Webhook 事件记录</Text>
         </div>
         <Button icon={<ReloadOutlined />} onClick={handleRefresh} loading={loading}>
           刷新

@@ -42,13 +42,13 @@ import {
 } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import dayjs from 'dayjs';
+import { getTicket, assignTicket, resolveTicket, closeTicket } from '@/api/ticketing';
 import {
-  getTicket,
-  assignTicket,
-  resolveTicket,
-  closeTicket,
-} from '@/api/ticketing';
-import { mockEngineers, mockTicketHistory, mockTicketRelations, mockTransferHistory } from '@/pages/__mocks__/mockTicketData';
+  mockEngineers,
+  mockTicketHistory,
+  mockTicketRelations,
+  mockTransferHistory,
+} from '@/pages/__mocks__/mockTicketData';
 import TicketComments from './TicketComments';
 import { colors, spacing } from '@/tokens';
 
@@ -217,10 +217,7 @@ const TicketDetail: React.FC = () => {
     }
   };
 
-  const history = useMemo(
-    () => (id ? mockTicketHistory[id] || [] : []),
-    [id]
-  );
+  const history = useMemo(() => (id ? mockTicketHistory[id] || [] : []), [id]);
 
   const relations = useMemo(
     () => (id ? mockTicketRelations.filter((r) => r.ticketId === id) : []),
@@ -264,7 +261,11 @@ const TicketDetail: React.FC = () => {
   const handleAssign = async () => {
     try {
       const values = await assignForm.validateFields();
-      await assignTicket(ticket!.id, { assignee: values.assignee, assignedBy: 'current-user', reason: values.reason });
+      await assignTicket(ticket!.id, {
+        assignee: values.assignee,
+        assignedBy: 'current-user',
+        reason: values.reason,
+      });
       message.success(`工单已分配给 ${values.assignee}`);
       setAssignModalOpen(false);
       assignForm.resetFields();
@@ -388,7 +389,10 @@ const TicketDetail: React.FC = () => {
             {pConfig.label}
           </Tag>
         </div>
-        <Title level={4} style={{ margin: '8px 0 0', fontWeight: 'normal', color: colors.neutral[600] }}>
+        <Title
+          level={4}
+          style={{ margin: '8px 0 0', fontWeight: 'normal', color: colors.neutral[600] }}
+        >
           {ticket.title}
         </Title>
       </div>
@@ -426,11 +430,7 @@ const TicketDetail: React.FC = () => {
             </Button>
           )}
           {canClose && (
-            <Button
-              icon={<CloseCircleOutlined />}
-              onClick={handleClose}
-              data-testid="action-close"
-            >
+            <Button icon={<CloseCircleOutlined />} onClick={handleClose} data-testid="action-close">
               关闭
             </Button>
           )}
@@ -477,7 +477,12 @@ const TicketDetail: React.FC = () => {
 
           {/* SLA section */}
           {sla && (
-            <Card title="SLA 信息" size="small" style={{ marginBottom: 16 }} data-testid="sla-section">
+            <Card
+              title="SLA 信息"
+              size="small"
+              style={{ marginBottom: 16 }}
+              data-testid="sla-section"
+            >
               <div style={{ marginBottom: 12 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                   <Text>已用时间: {sla.elapsed}</Text>
@@ -498,7 +503,13 @@ const TicketDetail: React.FC = () => {
                 </Descriptions.Item>
                 <Descriptions.Item label="SLA 状态">
                   <Tag color={slaStatusColors[sla.status]}>
-                    {sla.overdue ? '已超时' : sla.status === 'danger' ? '高风险' : sla.status === 'warning' ? '警告' : '正常'}
+                    {sla.overdue
+                      ? '已超时'
+                      : sla.status === 'danger'
+                        ? '高风险'
+                        : sla.status === 'warning'
+                          ? '警告'
+                          : '正常'}
                   </Tag>
                 </Descriptions.Item>
                 <Descriptions.Item label="升级级别">
@@ -626,9 +637,7 @@ const TicketDetail: React.FC = () => {
             {ticket.assignee ? (
               <Space direction="vertical" style={{ width: '100%' }}>
                 <Space>
-                  <Avatar style={{ background: colors.primary[500] }}>
-                    {ticket.assignee[0]}
-                  </Avatar>
+                  <Avatar style={{ background: colors.primary[500] }}>{ticket.assignee[0]}</Avatar>
                   <Text strong>{ticket.assignee}</Text>
                 </Space>
               </Space>
@@ -672,10 +681,10 @@ const TicketDetail: React.FC = () => {
                   entry.action === 'created'
                     ? 'green'
                     : entry.action === 'resolved'
-                    ? 'blue'
-                    : entry.action === 'escalated'
-                    ? 'red'
-                    : 'gray',
+                      ? 'blue'
+                      : entry.action === 'escalated'
+                        ? 'red'
+                        : 'gray',
                 children: (
                   <div>
                     <Text strong>{historyActionLabels[entry.action] || entry.action}</Text>
@@ -702,9 +711,7 @@ const TicketDetail: React.FC = () => {
                 ),
               }))}
             />
-            {history.length === 0 && (
-              <Text type="secondary">暂无历史记录</Text>
-            )}
+            {history.length === 0 && <Text type="secondary">暂无历史记录</Text>}
           </Card>
         </Col>
       </Row>
@@ -715,7 +722,10 @@ const TicketDetail: React.FC = () => {
       <Modal
         title="分配工单"
         open={assignModalOpen}
-        onCancel={() => { setAssignModalOpen(false); assignForm.resetFields(); }}
+        onCancel={() => {
+          setAssignModalOpen(false);
+          assignForm.resetFields();
+        }}
         onOk={handleAssign}
         okText="确认分配"
         cancelText="取消"
@@ -729,7 +739,13 @@ const TicketDetail: React.FC = () => {
             <Select placeholder="选择工程师">
               {mockEngineers.map((e) => (
                 <Select.Option key={e.id} value={e.name}>
-                  {e.name} ({e.availability === 'available' ? '可用' : e.availability === 'busy' ? '忙碌' : '离开'})
+                  {e.name} (
+                  {e.availability === 'available'
+                    ? '可用'
+                    : e.availability === 'busy'
+                      ? '忙碌'
+                      : '离开'}
+                  )
                 </Select.Option>
               ))}
             </Select>
@@ -744,7 +760,10 @@ const TicketDetail: React.FC = () => {
       <Modal
         title="升级工单"
         open={escalateModalOpen}
-        onCancel={() => { setEscalateModalOpen(false); escalateForm.resetFields(); }}
+        onCancel={() => {
+          setEscalateModalOpen(false);
+          escalateForm.resetFields();
+        }}
         onOk={handleEscalate}
         okText="确认升级"
         cancelText="取消"
@@ -764,7 +783,10 @@ const TicketDetail: React.FC = () => {
       <Modal
         title="解决工单"
         open={resolveModalOpen}
-        onCancel={() => { setResolveModalOpen(false); resolveForm.resetFields(); }}
+        onCancel={() => {
+          setResolveModalOpen(false);
+          resolveForm.resetFields();
+        }}
         onOk={handleResolve}
         okText="确认解决"
         cancelText="取消"
@@ -780,7 +802,10 @@ const TicketDetail: React.FC = () => {
       <Modal
         title="转交工单"
         open={transferModalOpen}
-        onCancel={() => { setTransferModalOpen(false); transferForm.resetFields(); }}
+        onCancel={() => {
+          setTransferModalOpen(false);
+          transferForm.resetFields();
+        }}
         onOk={handleTransfer}
         okText="确认转交"
         cancelText="取消"

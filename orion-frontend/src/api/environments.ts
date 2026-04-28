@@ -6,7 +6,14 @@ import { api } from './client';
 
 // ---- Types ----
 
-export type EnvironmentType = 'dev' | 'staging' | 'prod' | 'testing' | 'pre-prod' | 'production' | 'development';
+export type EnvironmentType =
+  | 'dev'
+  | 'staging'
+  | 'prod'
+  | 'testing'
+  | 'pre-prod'
+  | 'production'
+  | 'development';
 export type EnvironmentStatus = 'active' | 'inactive' | 'maintenance' | 'deprecated';
 
 export interface Environment {

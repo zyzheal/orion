@@ -3,7 +3,23 @@
  * Overview of recent reviews, issue statistics, and quick actions
  */
 import React, { useState, useEffect } from 'react';
-import { Typography, Card, Row, Col, Table, Tag, Space, Button, Statistic, Progress, Modal, Form, Input, Select, message } from 'antd';
+import {
+  Typography,
+  Card,
+  Row,
+  Col,
+  Table,
+  Tag,
+  Space,
+  Button,
+  Statistic,
+  Progress,
+  Modal,
+  Form,
+  Input,
+  Select,
+  message,
+} from 'antd';
 import {
   ReloadOutlined,
   PlayCircleOutlined,
@@ -73,26 +89,36 @@ const AIReviewDashboard: React.FC = () => {
 
   const totalIssues = recentReviews.reduce((sum, r) => sum + r.totalIssues, 0);
   const totalCritical = recentReviews.reduce((sum, r) => sum + r.criticalCount, 0);
-  const avgPassRate = recentReviews.length > 0
-    ? recentReviews.reduce((sum, r) => sum + r.passRate, 0) / recentReviews.length
-    : 0;
+  const avgPassRate =
+    recentReviews.length > 0
+      ? recentReviews.reduce((sum, r) => sum + r.passRate, 0) / recentReviews.length
+      : 0;
 
   const statusColor = (status: string) => {
     switch (status) {
-      case 'completed': return 'green';
-      case 'running': return 'blue';
-      case 'failed': return 'red';
-      default: return 'default';
+      case 'completed':
+        return 'green';
+      case 'running':
+        return 'blue';
+      case 'failed':
+        return 'red';
+      default:
+        return 'default';
     }
   };
 
   const statusText = (status: string) => {
     switch (status) {
-      case 'completed': return '已完成';
-      case 'running': return '运行中';
-      case 'failed': return '失败';
-      case 'pending': return '等待中';
-      default: return status;
+      case 'completed':
+        return '已完成';
+      case 'running':
+        return '运行中';
+      case 'failed':
+        return '失败';
+      case 'pending':
+        return '等待中';
+      default:
+        return status;
     }
   };
 
@@ -113,13 +139,15 @@ const AIReviewDashboard: React.FC = () => {
       title: '严重问题',
       dataIndex: 'criticalCount',
       key: 'criticalCount',
-      render: (count: number) => count > 0 ? <Tag color="red">{count}</Tag> : <Tag color="default">{count}</Tag>,
+      render: (count: number) =>
+        count > 0 ? <Tag color="red">{count}</Tag> : <Tag color="default">{count}</Tag>,
     },
     {
       title: '警告',
       dataIndex: 'warningCount',
       key: 'warningCount',
-      render: (count: number) => count > 0 ? <Tag color="orange">{count}</Tag> : <Tag color="default">{count}</Tag>,
+      render: (count: number) =>
+        count > 0 ? <Tag color="orange">{count}</Tag> : <Tag color="default">{count}</Tag>,
     },
     {
       title: '通过率',
@@ -128,7 +156,9 @@ const AIReviewDashboard: React.FC = () => {
       render: (rate: number) => (
         <Progress
           percent={Math.round(rate * 100)}
-          strokeColor={rate > 0.8 ? colors.success[500] : rate > 0.5 ? colors.warning[500] : colors.error[500]}
+          strokeColor={
+            rate > 0.8 ? colors.success[500] : rate > 0.5 ? colors.warning[500] : colors.error[500]
+          }
           size="small"
         />
       ),
@@ -143,7 +173,11 @@ const AIReviewDashboard: React.FC = () => {
       title: '操作',
       key: 'action',
       render: (_: any, record: AIReviewResult) => (
-        <Button type="link" size="small" onClick={() => navigate(`/ai-review/detail?id=${record.id}`)}>
+        <Button
+          type="link"
+          size="small"
+          onClick={() => navigate(`/ai-review/detail?id=${record.id}`)}
+        >
           详情
         </Button>
       ),
@@ -157,12 +191,20 @@ const AIReviewDashboard: React.FC = () => {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
-          <Title level={3} style={{ margin: 0 }}>AI Review Dashboard</Title>
+          <Title level={3} style={{ margin: 0 }}>
+            AI Review Dashboard
+          </Title>
           <Text type="secondary">AI 代码评审概览与快速操作</Text>
         </div>
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>刷新</Button>
-          <Button type="primary" icon={<PlayCircleOutlined />} onClick={() => setTriggerModalOpen(true)}>
+          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+            刷新
+          </Button>
+          <Button
+            type="primary"
+            icon={<PlayCircleOutlined />}
+            onClick={() => setTriggerModalOpen(true)}
+          >
             触发评审
           </Button>
         </Space>
@@ -177,17 +219,33 @@ const AIReviewDashboard: React.FC = () => {
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="总问题数" value={totalIssues} valueStyle={{ color: colors.error[500] }} prefix={<CloseCircleOutlined />} />
+            <Statistic
+              title="总问题数"
+              value={totalIssues}
+              valueStyle={{ color: colors.error[500] }}
+              prefix={<CloseCircleOutlined />}
+            />
           </Card>
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="严重问题" value={totalCritical} valueStyle={{ color: colors.warning[500] }} prefix={<WarningOutlined />} />
+            <Statistic
+              title="严重问题"
+              value={totalCritical}
+              valueStyle={{ color: colors.warning[500] }}
+              prefix={<WarningOutlined />}
+            />
           </Card>
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="平均通过率" value={Math.round(avgPassRate * 100)} suffix="%" valueStyle={{ color: colors.success[500] }} prefix={<CheckCircleOutlined />} />
+            <Statistic
+              title="平均通过率"
+              value={Math.round(avgPassRate * 100)}
+              suffix="%"
+              valueStyle={{ color: colors.success[500] }}
+              prefix={<CheckCircleOutlined />}
+            />
           </Card>
         </Col>
       </Row>
@@ -211,10 +269,18 @@ const AIReviewDashboard: React.FC = () => {
         footer={null}
       >
         <Form form={triggerForm} layout="vertical" onFinish={handleTriggerReview}>
-          <Form.Item name="prId" label="PR ID" rules={[{ required: true, message: '请输入 PR ID' }]}>
+          <Form.Item
+            name="prId"
+            label="PR ID"
+            rules={[{ required: true, message: '请输入 PR ID' }]}
+          >
             <Input placeholder="例如：PR-1234" />
           </Form.Item>
-          <Form.Item name="repoId" label="仓库 ID" rules={[{ required: true, message: '请输入仓库 ID' }]}>
+          <Form.Item
+            name="repoId"
+            label="仓库 ID"
+            rules={[{ required: true, message: '请输入仓库 ID' }]}
+          >
             <Input placeholder="例如：my-org/my-repo" />
           </Form.Item>
           <Form.Item name="mode" label="评审模式" initialValue="review">

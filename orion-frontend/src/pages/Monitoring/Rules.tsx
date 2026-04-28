@@ -3,7 +3,19 @@
  * Manage alert rules with CRUD operations, toggle enable/disable, suppress/unsuppress
  */
 import React, { useState, useEffect } from 'react';
-import { Typography, Button, Space, Tag, Modal, Form, Input, InputNumber, Select, Switch, message } from 'antd';
+import {
+  Typography,
+  Button,
+  Space,
+  Tag,
+  Modal,
+  Form,
+  Input,
+  InputNumber,
+  Select,
+  Switch,
+  message,
+} from 'antd';
 import { PlusOutlined, ReloadOutlined, AlertOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
@@ -107,7 +119,9 @@ const MonitoringRules: React.FC = () => {
       loadData();
     } catch (error: unknown) {
       if (error instanceof Error) {
-        message.error(editingRule ? `更新规则失败：${error.message}` : `创建规则失败：${error.message}`);
+        message.error(
+          editingRule ? `更新规则失败：${error.message}` : `创建规则失败：${error.message}`
+        );
       } else {
         message.error(editingRule ? '更新规则失败，请稍后重试' : '创建规则失败，请稍后重试');
       }
@@ -172,7 +186,9 @@ const MonitoringRules: React.FC = () => {
       dataIndex: 'condition',
       width: 100,
       render: (v: unknown, record: AlertRule) => (
-        <Text>{String(v)} {record.threshold}</Text>
+        <Text>
+          {String(v)} {record.threshold}
+        </Text>
       ),
     },
     {
@@ -181,7 +197,11 @@ const MonitoringRules: React.FC = () => {
       dataIndex: 'severity',
       width: 90,
       render: (v: unknown) => {
-        const colorMap: Record<string, string> = { critical: 'red', warning: 'orange', info: 'blue' };
+        const colorMap: Record<string, string> = {
+          critical: 'red',
+          warning: 'orange',
+          info: 'blue',
+        };
         return <Tag color={colorMap[String(v)]}>{String(v)}</Tag>;
       },
     },
@@ -190,9 +210,7 @@ const MonitoringRules: React.FC = () => {
       title: '状态',
       dataIndex: 'enabled',
       width: 80,
-      render: (v: unknown) => (
-        <Tag color={v ? 'green' : 'default'}>{v ? '已启用' : '已禁用'}</Tag>
-      ),
+      render: (v: unknown) => <Tag color={v ? 'green' : 'default'}>{v ? '已启用' : '已禁用'}</Tag>,
     },
     {
       key: 'actions',
@@ -220,7 +238,14 @@ const MonitoringRules: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: 24,
+        }}
+      >
         <div>
           <Title level={3} style={{ margin: 0 }}>
             <AlertOutlined style={{ marginRight: 8 }} />
@@ -265,19 +290,39 @@ const MonitoringRules: React.FC = () => {
         width={560}
       >
         <Form form={form} layout="vertical" onFinish={handleSubmit}>
-          <Form.Item name="name" label="规则名称" rules={[{ required: true, message: '请输入规则名称' }]}>
+          <Form.Item
+            name="name"
+            label="规则名称"
+            rules={[{ required: true, message: '请输入规则名称' }]}
+          >
             <Input placeholder="例如：CPU使用率过高" />
           </Form.Item>
-          <Form.Item name="metric" label="监控指标" rules={[{ required: true, message: '请输入指标名称' }]}>
+          <Form.Item
+            name="metric"
+            label="监控指标"
+            rules={[{ required: true, message: '请输入指标名称' }]}
+          >
             <Input placeholder="例如：cpu_usage_percent" />
           </Form.Item>
-          <Form.Item name="condition" label="条件" rules={[{ required: true, message: '请选择条件' }]}>
+          <Form.Item
+            name="condition"
+            label="条件"
+            rules={[{ required: true, message: '请选择条件' }]}
+          >
             <Select options={conditionOptions} />
           </Form.Item>
-          <Form.Item name="threshold" label="阈值" rules={[{ required: true, message: '请输入阈值' }]}>
+          <Form.Item
+            name="threshold"
+            label="阈值"
+            rules={[{ required: true, message: '请输入阈值' }]}
+          >
             <InputNumber style={{ width: '100%' }} />
           </Form.Item>
-          <Form.Item name="severity" label="严重级别" rules={[{ required: true, message: '请选择级别' }]}>
+          <Form.Item
+            name="severity"
+            label="严重级别"
+            rules={[{ required: true, message: '请选择级别' }]}
+          >
             <Select
               options={[
                 { label: '严重 (Critical)', value: 'critical' },

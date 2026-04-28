@@ -5,15 +5,23 @@
 import React, { useState, useCallback } from 'react';
 import { Typography, Button, Space, Select, Input, message, Card, Alert } from 'antd';
 import {
-  SaveOutlined, CheckCircleOutlined, ReloadOutlined,
-  DeleteOutlined, ThunderboltOutlined,
+  SaveOutlined,
+  CheckCircleOutlined,
+  ReloadOutlined,
+  DeleteOutlined,
+  ThunderboltOutlined,
 } from '@ant-design/icons';
 import { spacing } from '@/tokens';
 import Table, { type TableColumn } from '@/components/Table';
 import { Modal, Tag } from 'antd';
 import {
-  getCodeOwners, registerCodeOwners, deleteCodeOwners, validateCodeOwners, recommendCodeOwnersApprovers,
-  getCodeRepoAdapters, getCodeRepos,
+  getCodeOwners,
+  registerCodeOwners,
+  deleteCodeOwners,
+  validateCodeOwners,
+  recommendCodeOwnersApprovers,
+  getCodeRepoAdapters,
+  getCodeRepos,
 } from '@/api/code-mgmt';
 
 const { Title, Text } = Typography;
@@ -241,7 +249,9 @@ const CodeOwnersPage: React.FC = () => {
       render: (value: unknown) => (
         <Space wrap>
           {(Array.isArray(value) ? value : []).map((user: string, idx: number) => (
-            <Tag key={idx} color="blue">@{user}</Tag>
+            <Tag key={idx} color="blue">
+              @{user}
+            </Tag>
           ))}
         </Space>
       ),
@@ -263,9 +273,7 @@ const CodeOwnersPage: React.FC = () => {
           <Title level={3} style={{ margin: 0 }}>
             CODEOWNERS
           </Title>
-          <Text type="secondary">
-            配置代码仓库的 CODEOWNERS 文件，定义文件/目录的负责人
-          </Text>
+          <Text type="secondary">配置代码仓库的 CODEOWNERS 文件，定义文件/目录的负责人</Text>
         </div>
         <Space>
           <Button
@@ -323,11 +331,7 @@ const CodeOwnersPage: React.FC = () => {
             >
               获取推荐
             </Button>
-            <Button
-              icon={<CheckCircleOutlined />}
-              onClick={handleValidate}
-              loading={validating}
-            >
+            <Button icon={<CheckCircleOutlined />} onClick={handleValidate} loading={validating}>
               验证
             </Button>
             <Button

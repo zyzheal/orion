@@ -18,12 +18,7 @@ import {
   Tag,
   message,
 } from 'antd';
-import {
-  type ApiPlugin,
-  type PluginConfig,
-  categoryLabels,
-  healthStatusLabels,
-} from './types';
+import { type ApiPlugin, type PluginConfig, categoryLabels, healthStatusLabels } from './types';
 import { healthConfig } from './constants';
 import { colors } from '@/tokens';
 import dayjs from 'dayjs';
@@ -84,21 +79,12 @@ const PluginDetailDrawer: React.FC<PluginDetailDrawerProps> = ({
       data-testid="plugin-detail-drawer"
     >
       {/* Plugin metadata */}
-      <Descriptions
-        title="基本信息"
-        column={1}
-        bordered
-        size="small"
-        style={{ marginBottom: 24 }}
-      >
+      <Descriptions title="基本信息" column={1} bordered size="small" style={{ marginBottom: 24 }}>
         <Descriptions.Item label="插件名称">{plugin.name}</Descriptions.Item>
         <Descriptions.Item label="当前版本">{plugin.version}</Descriptions.Item>
         {plugin.latestVersion && (
           <Descriptions.Item label="最新版本">
-            <Badge
-              count="可更新"
-              style={{ backgroundColor: colors.primary[500] }}
-            >
+            <Badge count="可更新" style={{ backgroundColor: colors.primary[500] }}>
               <Tag color="blue">{plugin.latestVersion}</Tag>
             </Badge>
           </Descriptions.Item>
@@ -106,9 +92,7 @@ const PluginDetailDrawer: React.FC<PluginDetailDrawerProps> = ({
         <Descriptions.Item label="描述">{plugin.description}</Descriptions.Item>
         <Descriptions.Item label="作者">{plugin.author}</Descriptions.Item>
         <Descriptions.Item label="分类">
-          <Tag color="cyan">
-            {plugin.category ? categoryLabels[plugin.category] : plugin.type}
-          </Tag>
+          <Tag color="cyan">{plugin.category ? categoryLabels[plugin.category] : plugin.type}</Tag>
         </Descriptions.Item>
         <Descriptions.Item label="安装时间">
           {plugin.installedAt ? dayjs(plugin.installedAt).format('YYYY-MM-DD HH:mm') : '-'}
@@ -139,33 +123,32 @@ const PluginDetailDrawer: React.FC<PluginDetailDrawerProps> = ({
         initialValues={plugin.config || {}}
         style={{ marginBottom: 24 }}
       >
-        {plugin.configSchema && Object.entries(plugin.configSchema).map(([key, field]) => (
-          <Form.Item
-            key={key}
-            label={(field as { description?: string }).description || key}
-            name={key}
-            rules={[{ required: (field as { required?: boolean }).required }]}
-            initialValue={(field as { default?: unknown }).default}
-          >
-            {(field as { type?: string }).type === 'boolean' ? (
-              <Switch />
-            ) : (field as { enum?: string[] }).enum ? (
-              <Select>
-                {(field as { enum: string[] }).enum.map((val) => (
-                  <Select.Option key={val} value={val}>{val}</Select.Option>
-                ))}
-              </Select>
-            ) : (
-              <Input placeholder={`输入 ${key} 的值`} />
-            )}
-          </Form.Item>
-        ))}
+        {plugin.configSchema &&
+          Object.entries(plugin.configSchema).map(([key, field]) => (
+            <Form.Item
+              key={key}
+              label={(field as { description?: string }).description || key}
+              name={key}
+              rules={[{ required: (field as { required?: boolean }).required }]}
+              initialValue={(field as { default?: unknown }).default}
+            >
+              {(field as { type?: string }).type === 'boolean' ? (
+                <Switch />
+              ) : (field as { enum?: string[] }).enum ? (
+                <Select>
+                  {(field as { enum: string[] }).enum.map((val) => (
+                    <Select.Option key={val} value={val}>
+                      {val}
+                    </Select.Option>
+                  ))}
+                </Select>
+              ) : (
+                <Input placeholder={`输入 ${key} 的值`} />
+              )}
+            </Form.Item>
+          ))}
         <Form.Item>
-          <Button
-            type="primary"
-            onClick={handleSaveConfig}
-            loading={saving}
-          >
+          <Button type="primary" onClick={handleSaveConfig} loading={saving}>
             保存配置
           </Button>
         </Form.Item>

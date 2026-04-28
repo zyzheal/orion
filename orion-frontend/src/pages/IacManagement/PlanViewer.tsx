@@ -2,9 +2,26 @@
  * IaC Plan Viewer - Plan list with resource changes, cost estimate, AI review score
  */
 import React, { useState, useMemo, useEffect } from 'react';
-import { Typography, Button, Space, Tag, Card, Row, Col, Statistic, Descriptions, Progress, message } from 'antd';
+import {
+  Typography,
+  Button,
+  Space,
+  Tag,
+  Card,
+  Row,
+  Col,
+  Statistic,
+  Descriptions,
+  Progress,
+  message,
+} from 'antd';
 import { colors, spacing } from '@/tokens';
-import { ReloadOutlined, CheckCircleOutlined, CloseCircleOutlined, InfoCircleOutlined } from '@ant-design/icons';
+import {
+  ReloadOutlined,
+  CheckCircleOutlined,
+  CloseCircleOutlined,
+  InfoCircleOutlined,
+} from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
@@ -71,9 +88,11 @@ const PlanViewer: React.FC = () => {
     return plans.filter((plan) => {
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
-        if (!plan.id.toLowerCase().includes(q) && !plan.workspaceId.toLowerCase().includes(q)) return false;
+        if (!plan.id.toLowerCase().includes(q) && !plan.workspaceId.toLowerCase().includes(q))
+          return false;
       }
-      if (filters.status && filters.status !== 'all' && plan.status !== filters.status) return false;
+      if (filters.status && filters.status !== 'all' && plan.status !== filters.status)
+        return false;
       return true;
     });
   }, [searchQuery, filters, plans]);
@@ -82,9 +101,12 @@ const PlanViewer: React.FC = () => {
     return workspaces.find((w) => w.id === workspaceId)?.name || workspaceId;
   };
 
-  const createCount = (changes: IaCResourceChange[]) => changes.filter((c) => c.action === 'create').length;
-  const updateCount = (changes: IaCResourceChange[]) => changes.filter((c) => c.action === 'update').length;
-  const deleteCount = (changes: IaCResourceChange[]) => changes.filter((c) => c.action === 'delete').length;
+  const createCount = (changes: IaCResourceChange[]) =>
+    changes.filter((c) => c.action === 'create').length;
+  const updateCount = (changes: IaCResourceChange[]) =>
+    changes.filter((c) => c.action === 'update').length;
+  const deleteCount = (changes: IaCResourceChange[]) =>
+    changes.filter((c) => c.action === 'delete').length;
 
   const columns: TableColumn<IaCPlan>[] = [
     {
@@ -93,7 +115,11 @@ const PlanViewer: React.FC = () => {
       dataIndex: 'id',
       width: 180,
       sortable: true,
-      render: (v: unknown) => <Text code style={{ fontSize: spacing[3] }}>{String(v).slice(0, 12)}...</Text>,
+      render: (v: unknown) => (
+        <Text code style={{ fontSize: spacing[3] }}>
+          {String(v).slice(0, 12)}...
+        </Text>
+      ),
     },
     {
       key: 'workspace',
@@ -132,13 +158,14 @@ const PlanViewer: React.FC = () => {
       dataIndex: 'costEstimate',
       width: 120,
       sortable: true,
-      render: (v: unknown) => (
+      render: (v: unknown) =>
         v !== null && v !== undefined ? (
           <Text strong style={{ color: Number(v) > 100 ? colors.error[600] : colors.success[600] }}>
             ${Number(v).toFixed(2)}
           </Text>
-        ) : <Text type="secondary">N/A</Text>
-      ),
+        ) : (
+          <Text type="secondary">N/A</Text>
+        ),
     },
     {
       key: 'aiReview',
@@ -154,7 +181,13 @@ const PlanViewer: React.FC = () => {
             type="circle"
             size={32}
             percent={score}
-            strokeColor={score >= 80 ? colors.success[500] : score >= 60 ? colors.warning[500] : colors.error[400]}
+            strokeColor={
+              score >= 80
+                ? colors.success[500]
+                : score >= 60
+                  ? colors.warning[500]
+                  : colors.error[400]
+            }
             format={() => `${score}`}
           />
         );
@@ -167,7 +200,9 @@ const PlanViewer: React.FC = () => {
       width: 160,
       sortable: true,
       render: (v: unknown) => (
-        <Text type="secondary" style={{ fontSize: spacing[3] }}>{dayjs(String(v)).fromNow()}</Text>
+        <Text type="secondary" style={{ fontSize: spacing[3] }}>
+          {dayjs(String(v)).fromNow()}
+        </Text>
       ),
     },
     {
@@ -176,11 +211,27 @@ const PlanViewer: React.FC = () => {
       width: 160,
       render: (_: unknown, record: any) => (
         <Space size="small">
-          <Button type="link" size="small" icon={<InfoCircleOutlined />} onClick={() => setSelectedPlan(record)}>详情</Button>
+          <Button
+            type="link"
+            size="small"
+            icon={<InfoCircleOutlined />}
+            onClick={() => setSelectedPlan(record)}
+          >
+            详情
+          </Button>
           {record.status === 'pending' && (
             <>
-              <Button type="link" size="small" icon={<CheckCircleOutlined />} style={{ color: colors.success[500] }}>应用</Button>
-              <Button type="link" size="small" icon={<CloseCircleOutlined />} danger>丢弃</Button>
+              <Button
+                type="link"
+                size="small"
+                icon={<CheckCircleOutlined />}
+                style={{ color: colors.success[500] }}
+              >
+                应用
+              </Button>
+              <Button type="link" size="small" icon={<CloseCircleOutlined />} danger>
+                丢弃
+              </Button>
             </>
           )}
         </Space>
@@ -203,44 +254,98 @@ const PlanViewer: React.FC = () => {
 
   return (
     <div style={{ padding: 0 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          marginBottom: 24,
+        }}
+      >
         <div>
-          <Title level={3} style={{ margin: 0 }}>计划查看</Title>
+          <Title level={3} style={{ margin: 0 }}>
+            计划查看
+          </Title>
           <Text type="secondary">IaC 变更计划与审查</Text>
         </div>
-        <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>刷新</Button>
+        <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+          刷新
+        </Button>
       </div>
 
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col span={6}>
-          <Card><Statistic title="总计划数" value={plans.length} /></Card>
+          <Card>
+            <Statistic title="总计划数" value={plans.length} />
+          </Card>
         </Col>
         <Col span={6}>
-          <Card><Statistic title="待处理" value={plans.filter((p) => p.status === 'pending').length} /></Card>
+          <Card>
+            <Statistic title="待处理" value={plans.filter((p) => p.status === 'pending').length} />
+          </Card>
         </Col>
         <Col span={6}>
-          <Card><Statistic title="已应用" value={plans.filter((p) => p.status === 'applied').length} /></Card>
+          <Card>
+            <Statistic title="已应用" value={plans.filter((p) => p.status === 'applied').length} />
+          </Card>
         </Col>
         <Col span={6}>
-          <Card><Statistic title="平均 AI 评分" value={plans.filter((p) => p.aiReview).length > 0 ? (plans.filter((p) => p.aiReview).reduce((sum, p) => sum + (p.aiReview?.score || 0), 0) / plans.filter((p) => p.aiReview).length).toFixed(0) : 'N/A'} suffix="分" /></Card>
+          <Card>
+            <Statistic
+              title="平均 AI 评分"
+              value={
+                plans.filter((p) => p.aiReview).length > 0
+                  ? (
+                      plans
+                        .filter((p) => p.aiReview)
+                        .reduce((sum, p) => sum + (p.aiReview?.score || 0), 0) /
+                      plans.filter((p) => p.aiReview).length
+                    ).toFixed(0)
+                  : 'N/A'
+              }
+              suffix="分"
+            />
+          </Card>
         </Col>
       </Row>
 
       <Card>
         <div style={{ marginBottom: 16 }}>
-          <SearchFilterBar onSearch={setSearchQuery} onFilter={setFilters} filters={filterDefs} searchPlaceholder="搜索计划..." />
+          <SearchFilterBar
+            onSearch={setSearchQuery}
+            onFilter={setFilters}
+            filters={filterDefs}
+            searchPlaceholder="搜索计划..."
+          />
         </div>
-        <Table columns={columns} dataSource={filteredPlans} loading={loading} rowKey="id" size="middle" striped />
+        <Table
+          columns={columns}
+          dataSource={filteredPlans}
+          loading={loading}
+          rowKey="id"
+          size="middle"
+          striped
+        />
       </Card>
 
       {/* Plan Detail Modal */}
       {selectedPlan && (
-        <Card title="计划详情" style={{ marginTop: 16 }} extra={<Button onClick={() => setSelectedPlan(null)}>关闭</Button>}>
+        <Card
+          title="计划详情"
+          style={{ marginTop: 16 }}
+          extra={<Button onClick={() => setSelectedPlan(null)}>关闭</Button>}
+        >
           <Descriptions column={2} bordered>
             <Descriptions.Item label="计划 ID">{selectedPlan.id}</Descriptions.Item>
-            <Descriptions.Item label="状态"><StatusBadge status={selectedPlan.status as any} /></Descriptions.Item>
-            <Descriptions.Item label="工作空间">{getWorkspaceName(selectedPlan.workspaceId)}</Descriptions.Item>
-            <Descriptions.Item label="费用预估">{selectedPlan.costEstimate ? `$${selectedPlan.costEstimate.toFixed(2)}` : 'N/A'}</Descriptions.Item>
+            <Descriptions.Item label="状态">
+              <StatusBadge status={selectedPlan.status as any} />
+            </Descriptions.Item>
+            <Descriptions.Item label="工作空间">
+              {getWorkspaceName(selectedPlan.workspaceId)}
+            </Descriptions.Item>
+            <Descriptions.Item label="费用预估">
+              {selectedPlan.costEstimate ? `$${selectedPlan.costEstimate.toFixed(2)}` : 'N/A'}
+            </Descriptions.Item>
           </Descriptions>
 
           {selectedPlan.aiReview && (
@@ -253,13 +358,23 @@ const PlanViewer: React.FC = () => {
                   {selectedPlan.aiReview.risks.length > 0 && (
                     <div style={{ marginBottom: 8 }}>
                       <Text strong>风险:</Text>
-                      <ul>{selectedPlan.aiReview.risks.map((r, i) => <li key={i}><Text type="danger">{r}</Text></li>)}</ul>
+                      <ul>
+                        {selectedPlan.aiReview.risks.map((r, i) => (
+                          <li key={i}>
+                            <Text type="danger">{r}</Text>
+                          </li>
+                        ))}
+                      </ul>
                     </div>
                   )}
                   {selectedPlan.aiReview.suggestions.length > 0 && (
                     <div>
                       <Text strong>建议:</Text>
-                      <ul>{selectedPlan.aiReview.suggestions.map((s, i) => <li key={i}>{s}</li>)}</ul>
+                      <ul>
+                        {selectedPlan.aiReview.suggestions.map((s, i) => (
+                          <li key={i}>{s}</li>
+                        ))}
+                      </ul>
                     </div>
                   )}
                 </Col>
@@ -271,9 +386,26 @@ const PlanViewer: React.FC = () => {
             <Card title="资源变更" style={{ marginTop: 16 }} size="small">
               <Table
                 columns={[
-                  { key: 'address', title: '资源', dataIndex: 'address', render: (v: unknown) => <Text code>{String(v)}</Text> },
-                  { key: 'action', title: '操作', dataIndex: 'action', render: (v: unknown) => <Tag color={actionColorMap[String(v)] || 'default'}>{String(v)}</Tag> },
-                  { key: 'type', title: '类型', dataIndex: 'type', render: (v: unknown) => <Tag>{String(v)}</Tag> },
+                  {
+                    key: 'address',
+                    title: '资源',
+                    dataIndex: 'address',
+                    render: (v: unknown) => <Text code>{String(v)}</Text>,
+                  },
+                  {
+                    key: 'action',
+                    title: '操作',
+                    dataIndex: 'action',
+                    render: (v: unknown) => (
+                      <Tag color={actionColorMap[String(v)] || 'default'}>{String(v)}</Tag>
+                    ),
+                  },
+                  {
+                    key: 'type',
+                    title: '类型',
+                    dataIndex: 'type',
+                    render: (v: unknown) => <Tag>{String(v)}</Tag>,
+                  },
                 ]}
                 dataSource={selectedPlan.resourceChanges as unknown as Record<string, unknown>[]}
                 rowKey="address"

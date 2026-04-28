@@ -3,7 +3,20 @@
  * Pending approvals for self-healing actions
  */
 import React, { useState, useEffect } from 'react';
-import { Typography, Card, Table, Tag, Space, Button, Modal, Form, Input, Select, message, Radio } from 'antd';
+import {
+  Typography,
+  Card,
+  Table,
+  Tag,
+  Space,
+  Button,
+  Modal,
+  Form,
+  Input,
+  Select,
+  message,
+  Radio,
+} from 'antd';
 import { CheckOutlined, CloseOutlined, ReloadOutlined } from '@ant-design/icons';
 import { getApprovals, respondToApproval } from '@/api/self-healing';
 import type { SelfHealingApproval } from '@/api/self-healing';
@@ -76,19 +89,27 @@ const ApprovalQueue: React.FC = () => {
 
   const statusColor = (status: string) => {
     switch (status) {
-      case 'approved': return 'green';
-      case 'rejected': return 'red';
-      case 'pending': return 'orange';
-      default: return 'default';
+      case 'approved':
+        return 'green';
+      case 'rejected':
+        return 'red';
+      case 'pending':
+        return 'orange';
+      default:
+        return 'default';
     }
   };
 
   const statusText = (status: string) => {
     switch (status) {
-      case 'approved': return '已批准';
-      case 'rejected': return '已拒绝';
-      case 'pending': return '待审批';
-      default: return status;
+      case 'approved':
+        return '已批准';
+      case 'rejected':
+        return '已拒绝';
+      case 'pending':
+        return '待审批';
+      default:
+        return status;
     }
   };
 
@@ -103,7 +124,13 @@ const ApprovalQueue: React.FC = () => {
       width: 100,
       render: (status: string) => <Tag color={statusColor(status)}>{statusText(status)}</Tag>,
     },
-    { title: '审批人', dataIndex: 'respondedBy', key: 'respondedBy', width: 100, render: (text?: string) => text || '-' },
+    {
+      title: '审批人',
+      dataIndex: 'respondedBy',
+      key: 'respondedBy',
+      width: 100,
+      render: (text?: string) => text || '-',
+    },
     {
       title: '创建时间',
       dataIndex: 'createdAt',
@@ -119,15 +146,27 @@ const ApprovalQueue: React.FC = () => {
         <Space>
           {record.status === 'pending' && (
             <>
-              <Button type="primary" size="small" icon={<CheckOutlined />} onClick={() => openRespondModal(record, 'approved')}>
+              <Button
+                type="primary"
+                size="small"
+                icon={<CheckOutlined />}
+                onClick={() => openRespondModal(record, 'approved')}
+              >
                 批准
               </Button>
-              <Button danger size="small" icon={<CloseOutlined />} onClick={() => openRespondModal(record, 'rejected')}>
+              <Button
+                danger
+                size="small"
+                icon={<CloseOutlined />}
+                onClick={() => openRespondModal(record, 'rejected')}
+              >
                 拒绝
               </Button>
             </>
           )}
-          {record.status !== 'pending' && <Tag color={statusColor(record.status)}>{statusText(record.status)}</Tag>}
+          {record.status !== 'pending' && (
+            <Tag color={statusColor(record.status)}>{statusText(record.status)}</Tag>
+          )}
         </Space>
       ),
     },
@@ -141,12 +180,16 @@ const ApprovalQueue: React.FC = () => {
     <div style={{ padding: 24 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
         <div>
-          <Title level={3} style={{ margin: 0 }}>审批队列</Title>
+          <Title level={3} style={{ margin: 0 }}>
+            审批队列
+          </Title>
           <Text type="secondary">
             待审批: <Tag color="orange">{pendingCount}</Tag>
           </Text>
         </div>
-        <Button icon={<ReloadOutlined />} onClick={loadData}>刷新</Button>
+        <Button icon={<ReloadOutlined />} onClick={loadData}>
+          刷新
+        </Button>
       </div>
 
       {/* Filter */}
@@ -156,7 +199,10 @@ const ApprovalQueue: React.FC = () => {
             placeholder="状态"
             allowClear
             value={statusFilter}
-            onChange={(value) => { setStatusFilter(value); setPage(1); }}
+            onChange={(value) => {
+              setStatusFilter(value);
+              setPage(1);
+            }}
             style={{ width: 140 }}
           >
             <Select.Option value="pending">待审批</Select.Option>
@@ -178,7 +224,10 @@ const ApprovalQueue: React.FC = () => {
             total,
             showSizeChanger: true,
             showTotal: (t) => `共 ${t} 条`,
-            onChange: (p, ps) => { setPage(p); setPageSize(ps); },
+            onChange: (p, ps) => {
+              setPage(p);
+              setPageSize(ps);
+            },
           }}
           size="small"
         />
@@ -192,7 +241,11 @@ const ApprovalQueue: React.FC = () => {
         footer={null}
       >
         <Form form={respondForm} layout="vertical" onFinish={handleRespond}>
-          <Form.Item name="action" label="审批结果" rules={[{ required: true, message: '请选择审批结果' }]}>
+          <Form.Item
+            name="action"
+            label="审批结果"
+            rules={[{ required: true, message: '请选择审批结果' }]}
+          >
             <Radio.Group>
               <Radio.Button value="approved">批准</Radio.Button>
               <Radio.Button value="rejected">拒绝</Radio.Button>

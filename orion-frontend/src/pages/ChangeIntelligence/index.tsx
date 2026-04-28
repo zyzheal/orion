@@ -3,7 +3,21 @@
  * Reports list with risk scores, analysis trigger form, report detail with blast radius visualization
  */
 import React, { useState, useMemo, useEffect } from 'react';
-import { Typography, Button, Space, Tag, Card, Row, Col, Statistic, Modal, Form, Input, message, Descriptions } from 'antd';
+import {
+  Typography,
+  Button,
+  Space,
+  Tag,
+  Card,
+  Row,
+  Col,
+  Statistic,
+  Modal,
+  Form,
+  Input,
+  message,
+  Descriptions,
+} from 'antd';
 import { colors, spacing } from '@/tokens';
 import { ReloadOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
@@ -50,7 +64,8 @@ const ChangeIntelligence: React.FC = () => {
       setReports(Array.isArray(reportRes.data.data) ? reportRes.data.data : []);
       setTrends(Array.isArray(trendRes.data.data) ? trendRes.data.data : []);
     } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : 'Failed to load change intelligence data';
+      const msg =
+        error instanceof Error ? error.message : 'Failed to load change intelligence data';
       message.error(msg);
     } finally {
       setLoading(false);
@@ -69,17 +84,20 @@ const ChangeIntelligence: React.FC = () => {
           !r.prId.toLowerCase().includes(q) &&
           !r.repoId.toLowerCase().includes(q) &&
           !r.commitSha.toLowerCase().includes(q)
-        ) return false;
+        )
+          return false;
       }
-      if (filters.riskLevel && filters.riskLevel !== 'all' && r.riskLevel !== filters.riskLevel) return false;
+      if (filters.riskLevel && filters.riskLevel !== 'all' && r.riskLevel !== filters.riskLevel)
+        return false;
       return true;
     });
   }, [searchQuery, filters, reports]);
 
-  const highRiskCount = reports.filter((r) => r.riskLevel === 'high' || r.riskLevel === 'critical').length;
-  const avgRiskScore = reports.length > 0
-    ? reports.reduce((sum, r) => sum + r.riskScore, 0) / reports.length
-    : 0;
+  const highRiskCount = reports.filter(
+    (r) => r.riskLevel === 'high' || r.riskLevel === 'critical'
+  ).length;
+  const avgRiskScore =
+    reports.length > 0 ? reports.reduce((sum, r) => sum + r.riskScore, 0) / reports.length : 0;
 
   const handleAnalyze = async (values: ChangeAnalyzeInput) => {
     try {
@@ -101,7 +119,9 @@ const ChangeIntelligence: React.FC = () => {
         getChangeReportDetail(report.id),
         getBlastRadius(report.id),
       ]);
-      const detailData = detailRes.data.data as { affectedServices?: AffectedService[] } | undefined;
+      const detailData = detailRes.data.data as
+        | { affectedServices?: AffectedService[] }
+        | undefined;
       const svcList = detailData?.affectedServices;
       setAffectedServices(Array.isArray(svcList) ? svcList : []);
       setBlastRadius((blastRes.data.data as BlastRadiusData) || null);
@@ -131,7 +151,9 @@ const ChangeIntelligence: React.FC = () => {
           <Text strong style={{ color: colors.primary[500] }}>
             PR #{record.prId}
           </Text>
-          <Text type="secondary" style={{ fontSize: spacing[3] }}>{record.repoId}</Text>
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
+            {record.repoId}
+          </Text>
         </Space>
       ),
     },
@@ -141,7 +163,9 @@ const ChangeIntelligence: React.FC = () => {
       dataIndex: 'commitSha',
       width: 140,
       render: (value: unknown) => (
-        <Text code style={{ fontSize: spacing[3] }}>{String(value).slice(0, 7)}</Text>
+        <Text code style={{ fontSize: spacing[3] }}>
+          {String(value).slice(0, 7)}
+        </Text>
       ),
     },
     {
@@ -152,8 +176,17 @@ const ChangeIntelligence: React.FC = () => {
       sortable: true,
       render: (value: unknown) => {
         const score = Number(value);
-        const color = score >= 0.8 ? colors.error[600] : score >= 0.5 ? colors.warning[500] : colors.success[600];
-        return <Text strong style={{ color, fontSize: spacing[4] }}>{(score * 100).toFixed(0)}%</Text>;
+        const color =
+          score >= 0.8
+            ? colors.error[600]
+            : score >= 0.5
+              ? colors.warning[500]
+              : colors.success[600];
+        return (
+          <Text strong style={{ color, fontSize: spacing[4] }}>
+            {(score * 100).toFixed(0)}%
+          </Text>
+        );
       },
     },
     {
@@ -162,9 +195,7 @@ const ChangeIntelligence: React.FC = () => {
       dataIndex: 'riskLevel',
       width: 120,
       render: (value: unknown) => (
-        <Tag color={riskLevelColor[String(value)] || 'default'}>
-          {String(value).toUpperCase()}
-        </Tag>
+        <Tag color={riskLevelColor[String(value)] || 'default'}>{String(value).toUpperCase()}</Tag>
       ),
     },
     {
@@ -241,7 +272,11 @@ const ChangeIntelligence: React.FC = () => {
           <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
             刷新
           </Button>
-          <Button type="primary" icon={<ThunderboltOutlined />} onClick={() => setAnalyzeModalVisible(true)}>
+          <Button
+            type="primary"
+            icon={<ThunderboltOutlined />}
+            onClick={() => setAnalyzeModalVisible(true)}
+          >
             触发分析
           </Button>
         </Space>
@@ -261,7 +296,11 @@ const ChangeIntelligence: React.FC = () => {
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="高风险变更" value={highRiskCount} valueStyle={{ color: colors.error[600] }} />
+            <Statistic
+              title="高风险变更"
+              value={highRiskCount}
+              valueStyle={{ color: colors.error[600] }}
+            />
           </Card>
         </Col>
         <Col span={6}>
@@ -329,11 +368,21 @@ const ChangeIntelligence: React.FC = () => {
             <Descriptions bordered column={3} style={{ marginBottom: 24 }}>
               <Descriptions.Item label="PR ID">{selectedReport.prId}</Descriptions.Item>
               <Descriptions.Item label="仓库">{selectedReport.repoId}</Descriptions.Item>
-              <Descriptions.Item label="Commit">{selectedReport.commitSha.slice(0, 7)}</Descriptions.Item>
+              <Descriptions.Item label="Commit">
+                {selectedReport.commitSha.slice(0, 7)}
+              </Descriptions.Item>
               <Descriptions.Item label="风险评分">
-                <Text strong style={{
-                  color: selectedReport.riskScore >= 0.8 ? colors.error[600] : selectedReport.riskScore >= 0.5 ? colors.warning[500] : colors.success[600],
-                }}>
+                <Text
+                  strong
+                  style={{
+                    color:
+                      selectedReport.riskScore >= 0.8
+                        ? colors.error[600]
+                        : selectedReport.riskScore >= 0.5
+                          ? colors.warning[500]
+                          : colors.success[600],
+                  }}
+                >
                   {(selectedReport.riskScore * 100).toFixed(1)}%
                 </Text>
               </Descriptions.Item>
@@ -342,38 +391,51 @@ const ChangeIntelligence: React.FC = () => {
                   {selectedReport.riskLevel.toUpperCase()}
                 </Tag>
               </Descriptions.Item>
-              <Descriptions.Item label="影响服务">{selectedReport.affectedServices}</Descriptions.Item>
+              <Descriptions.Item label="影响服务">
+                {selectedReport.affectedServices}
+              </Descriptions.Item>
             </Descriptions>
 
             {/* SHAP Factors */}
             {selectedReport.shapFactors && selectedReport.shapFactors.length > 0 && (
               <Card title="SHAP 风险因子" size="small" style={{ marginBottom: 16 }}>
-                {selectedReport.shapFactors.map((f: { factor: string; value: number; contribution: number }, i: number) => (
-                  <Row key={i} style={{ marginBottom: 8 }}>
-                    <Col span={6}><Text strong>{f.factor}</Text></Col>
-                    <Col span={4}><Text>{f.value.toFixed(3)}</Text></Col>
-                    <Col span={6}>
-                      <div style={{
-                        height: 8,
-                        borderRadius: 4,
-                        background: colors.light.border.light,
-                        overflow: 'hidden',
-                      }}>
-                        <div style={{
-                          width: `${Math.min(Math.abs(f.contribution) * 100, 100)}%`,
-                          height: '100%',
-                          borderRadius: 4,
-                          background: f.contribution > 0 ? colors.error[400] : colors.success[500],
-                        }} />
-                      </div>
-                    </Col>
-                    <Col span={4}>
-                      <Text type={f.contribution > 0 ? 'danger' : 'success'}>
-                        {(f.contribution * 100).toFixed(1)}%
-                      </Text>
-                    </Col>
-                  </Row>
-                ))}
+                {selectedReport.shapFactors.map(
+                  (f: { factor: string; value: number; contribution: number }, i: number) => (
+                    <Row key={i} style={{ marginBottom: 8 }}>
+                      <Col span={6}>
+                        <Text strong>{f.factor}</Text>
+                      </Col>
+                      <Col span={4}>
+                        <Text>{f.value.toFixed(3)}</Text>
+                      </Col>
+                      <Col span={6}>
+                        <div
+                          style={{
+                            height: 8,
+                            borderRadius: 4,
+                            background: colors.light.border.light,
+                            overflow: 'hidden',
+                          }}
+                        >
+                          <div
+                            style={{
+                              width: `${Math.min(Math.abs(f.contribution) * 100, 100)}%`,
+                              height: '100%',
+                              borderRadius: 4,
+                              background:
+                                f.contribution > 0 ? colors.error[400] : colors.success[500],
+                            }}
+                          />
+                        </div>
+                      </Col>
+                      <Col span={4}>
+                        <Text type={f.contribution > 0 ? 'danger' : 'success'}>
+                          {(f.contribution * 100).toFixed(1)}%
+                        </Text>
+                      </Col>
+                    </Row>
+                  )
+                )}
               </Card>
             )}
 
@@ -385,10 +447,15 @@ const ChangeIntelligence: React.FC = () => {
                     <Tag
                       key={node.id}
                       color={
-                        node.type === 'file' ? 'blue' :
-                        node.type === 'service' ? 'green' :
-                        node.type === 'capability' ? 'purple' :
-                        node.type === 'slo' ? 'red' : 'default'
+                        node.type === 'file'
+                          ? 'blue'
+                          : node.type === 'service'
+                            ? 'green'
+                            : node.type === 'capability'
+                              ? 'purple'
+                              : node.type === 'slo'
+                                ? 'red'
+                                : 'default'
                       }
                       style={{ margin: 0, padding: '4px 8px' }}
                     >
@@ -419,7 +486,7 @@ const ChangeIntelligence: React.FC = () => {
                       title: '层级',
                       dataIndex: 'serviceTier',
                       width: 100,
-                      render: (value: unknown) => value ? <Tag>{String(value)}</Tag> : '-',
+                      render: (value: unknown) => (value ? <Tag>{String(value)}</Tag> : '-'),
                     },
                     {
                       key: 'impactType',
@@ -427,8 +494,14 @@ const ChangeIntelligence: React.FC = () => {
                       dataIndex: 'impactType',
                       width: 120,
                       render: (value: unknown) => {
-                        const colorMap: Record<string, string> = { direct: 'red', dependency: 'orange', indirect: 'default' };
-                        return <Tag color={colorMap[String(value)] || 'default'}>{String(value)}</Tag>;
+                        const colorMap: Record<string, string> = {
+                          direct: 'red',
+                          dependency: 'orange',
+                          indirect: 'default',
+                        };
+                        return (
+                          <Tag color={colorMap[String(value)] || 'default'}>{String(value)}</Tag>
+                        );
                       },
                     },
                     {
@@ -437,8 +510,18 @@ const ChangeIntelligence: React.FC = () => {
                       dataIndex: 'sloRisk',
                       width: 100,
                       render: (value: unknown) => {
-                        const statusMap: Record<string, string> = { none: 'success', low: 'warning', medium: 'failed', high: 'failed' };
-                        return <StatusBadge status={(statusMap[String(value)] || 'unknown') as StatusType} size="small" />;
+                        const statusMap: Record<string, string> = {
+                          none: 'success',
+                          low: 'warning',
+                          medium: 'failed',
+                          high: 'failed',
+                        };
+                        return (
+                          <StatusBadge
+                            status={(statusMap[String(value)] || 'unknown') as StatusType}
+                            size="small"
+                          />
+                        );
                       },
                     },
                     {
@@ -447,9 +530,7 @@ const ChangeIntelligence: React.FC = () => {
                       dataIndex: 'recommendedReviewers',
                       width: 160,
                       render: (value: unknown) => (
-                        <Text type="secondary">
-                          {value ? (value as string[]).join(', ') : '-'}
-                        </Text>
+                        <Text type="secondary">{value ? (value as string[]).join(', ') : '-'}</Text>
                       ),
                     },
                   ]}

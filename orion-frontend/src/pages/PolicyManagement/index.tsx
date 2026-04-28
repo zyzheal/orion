@@ -3,7 +3,22 @@
  * Policy list with CRUD, violations dashboard, evaluate modal
  */
 import React, { useState, useMemo, useEffect } from 'react';
-import { Typography, Button, Space, Tag, Card, Row, Col, Statistic, Modal, Form, Input, Select, message, Tabs } from 'antd';
+import {
+  Typography,
+  Button,
+  Space,
+  Tag,
+  Card,
+  Row,
+  Col,
+  Statistic,
+  Modal,
+  Form,
+  Input,
+  Select,
+  message,
+  Tabs,
+} from 'antd';
 import { colors, spacing } from '@/tokens';
 import { PlusOutlined, ReloadOutlined, SyncOutlined, PlayCircleOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
@@ -49,10 +64,7 @@ const PolicyManagement: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [policyRes, violationRes] = await Promise.all([
-        getPolicies(),
-        getPolicyViolations(),
-      ]);
+      const [policyRes, violationRes] = await Promise.all([getPolicies(), getPolicyViolations()]);
       setPolicies(Array.isArray(policyRes.data.data) ? policyRes.data.data : []);
       setViolations(Array.isArray(violationRes.data.data) ? violationRes.data.data : []);
     } catch (error: unknown) {
@@ -74,10 +86,13 @@ const PolicyManagement: React.FC = () => {
     return policies.filter((p) => {
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
-        if (!p.name.toLowerCase().includes(q) && !(p.description || '').toLowerCase().includes(q)) return false;
+        if (!p.name.toLowerCase().includes(q) && !(p.description || '').toLowerCase().includes(q))
+          return false;
       }
-      if (filters.category && filters.category !== 'all' && p.category !== filters.category) return false;
-      if (filters.severity && filters.severity !== 'all' && p.severity !== filters.severity) return false;
+      if (filters.category && filters.category !== 'all' && p.category !== filters.category)
+        return false;
+      if (filters.severity && filters.severity !== 'all' && p.severity !== filters.severity)
+        return false;
       return true;
     });
   }, [searchQuery, filters, policies]);
@@ -184,7 +199,9 @@ const PolicyManagement: React.FC = () => {
       render: (value: unknown, record: PolicyDefinition) => (
         <Space direction="vertical" size={0}>
           <Text strong>{String(value)}</Text>
-          <Text type="secondary" style={{ fontSize: spacing[3] }}>{record.description || '-'}</Text>
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
+            {record.description || '-'}
+          </Text>
         </Space>
       ),
     },
@@ -194,7 +211,12 @@ const PolicyManagement: React.FC = () => {
       dataIndex: 'category',
       width: 120,
       render: (value: unknown) => {
-        const colorMap: Record<string, string> = { security: 'red', cost: 'green', quality: 'blue', governance: 'purple' };
+        const colorMap: Record<string, string> = {
+          security: 'red',
+          cost: 'green',
+          quality: 'blue',
+          governance: 'purple',
+        };
         return <Tag color={colorMap[String(value)] || 'default'}>{String(value)}</Tag>;
       },
     },
@@ -204,7 +226,11 @@ const PolicyManagement: React.FC = () => {
       dataIndex: 'severity',
       width: 120,
       render: (value: unknown) => {
-        const colorMap: Record<string, string> = { block: 'red', warning: 'orange', info: 'default' };
+        const colorMap: Record<string, string> = {
+          block: 'red',
+          warning: 'orange',
+          info: 'default',
+        };
         return <Tag color={colorMap[String(value)] || 'default'}>{String(value)}</Tag>;
       },
     },
@@ -213,7 +239,8 @@ const PolicyManagement: React.FC = () => {
       title: '门禁',
       dataIndex: 'gateId',
       width: 140,
-      render: (value: unknown) => value ? <Tag>{String(value)}</Tag> : <Text type="secondary">-</Text>,
+      render: (value: unknown) =>
+        value ? <Tag>{String(value)}</Tag> : <Text type="secondary">-</Text>,
     },
     {
       key: 'regoPath',
@@ -237,11 +264,15 @@ const PolicyManagement: React.FC = () => {
       width: 200,
       render: (_: unknown, record: PolicyDefinition) => (
         <Space size="small">
-          <Button type="link" size="small" onClick={() => {
-            setEditingPolicy(record);
-            form.setFieldsValue(record);
-            setPolicyModalVisible(true);
-          }}>
+          <Button
+            type="link"
+            size="small"
+            onClick={() => {
+              setEditingPolicy(record);
+              form.setFieldsValue(record);
+              setPolicyModalVisible(true);
+            }}
+          >
             编辑
           </Button>
           <Button type="link" size="small" onClick={() => handleTogglePolicy(record)}>
@@ -268,7 +299,11 @@ const PolicyManagement: React.FC = () => {
       title: '消息',
       dataIndex: 'message',
       width: 300,
-      render: (value: unknown) => <Text ellipsis={{ tooltip: String(value) }} style={{ maxWidth: 300 }}>{String(value)}</Text>,
+      render: (value: unknown) => (
+        <Text ellipsis={{ tooltip: String(value) }} style={{ maxWidth: 300 }}>
+          {String(value)}
+        </Text>
+      ),
     },
     {
       key: 'severity',
@@ -276,7 +311,11 @@ const PolicyManagement: React.FC = () => {
       dataIndex: 'severity',
       width: 100,
       render: (value: unknown) => {
-        const colorMap: Record<string, string> = { block: 'red', warning: 'orange', info: 'default' };
+        const colorMap: Record<string, string> = {
+          block: 'red',
+          warning: 'orange',
+          info: 'default',
+        };
         return <Tag color={colorMap[String(value)] || 'default'}>{String(value)}</Tag>;
       },
     },
@@ -285,7 +324,12 @@ const PolicyManagement: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       width: 100,
-      render: (value: unknown) => <StatusBadge status={value === 'open' ? 'warning' : value === 'resolved' ? 'success' : 'pending'} size="small" />,
+      render: (value: unknown) => (
+        <StatusBadge
+          status={value === 'open' ? 'warning' : value === 'resolved' ? 'success' : 'pending'}
+          size="small"
+        />
+      ),
     },
     {
       key: 'createdAt',
@@ -361,11 +405,15 @@ const PolicyManagement: React.FC = () => {
           <Button icon={<PlayCircleOutlined />} onClick={() => setEvaluateModalVisible(true)}>
             评估策略
           </Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => {
-            setEditingPolicy(null);
-            form.resetFields();
-            setPolicyModalVisible(true);
-          }}>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => {
+              setEditingPolicy(null);
+              form.resetFields();
+              setPolicyModalVisible(true);
+            }}
+          >
             创建策略
           </Button>
         </Space>
@@ -380,17 +428,29 @@ const PolicyManagement: React.FC = () => {
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="启用中" value={policies.filter((p) => p.enabled).length} valueStyle={{ color: colors.success[600] }} />
+            <Statistic
+              title="启用中"
+              value={policies.filter((p) => p.enabled).length}
+              valueStyle={{ color: colors.success[600] }}
+            />
           </Card>
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="活跃违规" value={openViolations} valueStyle={{ color: colors.error[600] }} />
+            <Statistic
+              title="活跃违规"
+              value={openViolations}
+              valueStyle={{ color: colors.error[600] }}
+            />
           </Card>
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="阻断违规" value={blockedViolations} valueStyle={{ color: colors.error[600] }} />
+            <Statistic
+              title="阻断违规"
+              value={blockedViolations}
+              valueStyle={{ color: colors.error[600] }}
+            />
           </Card>
         </Col>
       </Row>
@@ -444,7 +504,10 @@ const PolicyManagement: React.FC = () => {
       <Modal
         title={editingPolicy ? '编辑策略' : '创建策略'}
         open={policyModalVisible}
-        onCancel={() => { setPolicyModalVisible(false); setEditingPolicy(null); }}
+        onCancel={() => {
+          setPolicyModalVisible(false);
+          setEditingPolicy(null);
+        }}
         onOk={() => form.submit()}
         width={600}
         destroyOnClose
@@ -457,19 +520,23 @@ const PolicyManagement: React.FC = () => {
             <Input.TextArea rows={2} placeholder="策略描述" />
           </Form.Item>
           <Form.Item name="category" label="分类" rules={[{ required: true }]}>
-            <Select options={[
-              { label: 'Security', value: 'security' },
-              { label: 'Cost', value: 'cost' },
-              { label: 'Quality', value: 'quality' },
-              { label: 'Governance', value: 'governance' },
-            ]} />
+            <Select
+              options={[
+                { label: 'Security', value: 'security' },
+                { label: 'Cost', value: 'cost' },
+                { label: 'Quality', value: 'quality' },
+                { label: 'Governance', value: 'governance' },
+              ]}
+            />
           </Form.Item>
           <Form.Item name="severity" label="严重级别" rules={[{ required: true }]}>
-            <Select options={[
-              { label: 'Block', value: 'block' },
-              { label: 'Warning', value: 'warning' },
-              { label: 'Info', value: 'info' },
-            ]} />
+            <Select
+              options={[
+                { label: 'Block', value: 'block' },
+                { label: 'Warning', value: 'warning' },
+                { label: 'Info', value: 'info' },
+              ]}
+            />
           </Form.Item>
           <Form.Item name="regoPath" label="Rego 路径" rules={[{ required: true }]}>
             <Input placeholder="policies/security/require-mfa.rego" />

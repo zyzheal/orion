@@ -4,16 +4,47 @@
  */
 import React, { useState, useEffect, useMemo } from 'react';
 import {
-  Typography, Button, Space, Tag, Card, Modal, Form, Input, Select, message, Alert,
-  Popconfirm, Drawer, Descriptions, Tooltip, Statistic, Row, Col, Table as AntTable,
+  Typography,
+  Button,
+  Space,
+  Tag,
+  Card,
+  Modal,
+  Form,
+  Input,
+  Select,
+  message,
+  Alert,
+  Popconfirm,
+  Drawer,
+  Descriptions,
+  Tooltip,
+  Statistic,
+  Row,
+  Col,
+  Table as AntTable,
 } from 'antd';
 import {
-  PlusOutlined, ReloadOutlined, EyeOutlined, ClockCircleOutlined, CheckCircleOutlined,
-  CloseCircleOutlined, SyncOutlined, InboxOutlined,
+  PlusOutlined,
+  ReloadOutlined,
+  EyeOutlined,
+  ClockCircleOutlined,
+  CheckCircleOutlined,
+  CloseCircleOutlined,
+  SyncOutlined,
+  InboxOutlined,
 } from '@ant-design/icons';
 import {
-  listJobs, enqueueJob, dequeueJob, completeJob, failJob, getQueueStats,
-  type QueueJob, type JobStatus, type EnqueueInput, type QueueStats,
+  listJobs,
+  enqueueJob,
+  dequeueJob,
+  completeJob,
+  failJob,
+  getQueueStats,
+  type QueueJob,
+  type JobStatus,
+  type EnqueueInput,
+  type QueueStats,
 } from '@/api/queue';
 import { colors } from '@/tokens/colors';
 import dayjs from 'dayjs';
@@ -57,44 +88,76 @@ const MOCK_STATS: QueueStats = {
 
 const MOCK_JOBS: QueueJob[] = [
   {
-    id: 'job-001', tenant_id: 'tenant-1', queue: 'pipeline-execution',
+    id: 'job-001',
+    tenant_id: 'tenant-1',
+    queue: 'pipeline-execution',
     payload: { pipelineId: 'pipe-101', action: 'build', branch: 'main' },
-    status: 'pending', attempts: 0, created_at: '2024-03-20T10:30:00Z',
+    status: 'pending',
+    attempts: 0,
+    created_at: '2024-03-20T10:30:00Z',
   },
   {
-    id: 'job-002', tenant_id: 'tenant-1', queue: 'deployment',
+    id: 'job-002',
+    tenant_id: 'tenant-1',
+    queue: 'deployment',
     payload: { appId: 'orion-core', env: 'staging', version: '2.5.0' },
-    status: 'processing', attempts: 1, created_at: '2024-03-20T10:25:00Z',
+    status: 'processing',
+    attempts: 1,
+    created_at: '2024-03-20T10:25:00Z',
   },
   {
-    id: 'job-003', tenant_id: 'tenant-2', queue: 'notification',
+    id: 'job-003',
+    tenant_id: 'tenant-2',
+    queue: 'notification',
     payload: { type: 'email', recipients: ['dev@orion.io'], template: 'build-success' },
-    status: 'completed', attempts: 1, created_at: '2024-03-20T10:20:00Z',
+    status: 'completed',
+    attempts: 1,
+    created_at: '2024-03-20T10:20:00Z',
   },
   {
-    id: 'job-004', tenant_id: 'tenant-1', queue: 'pipeline-execution',
+    id: 'job-004',
+    tenant_id: 'tenant-1',
+    queue: 'pipeline-execution',
     payload: { pipelineId: 'pipe-102', action: 'test', branch: 'develop' },
-    status: 'failed', attempts: 3, created_at: '2024-03-20T10:15:00Z',
+    status: 'failed',
+    attempts: 3,
+    created_at: '2024-03-20T10:15:00Z',
   },
   {
-    id: 'job-005', tenant_id: 'tenant-1', queue: 'artifact-scan',
+    id: 'job-005',
+    tenant_id: 'tenant-1',
+    queue: 'artifact-scan',
     payload: { artifactId: 'art-1', scanType: 'security' },
-    status: 'completed', attempts: 1, created_at: '2024-03-20T10:10:00Z',
+    status: 'completed',
+    attempts: 1,
+    created_at: '2024-03-20T10:10:00Z',
   },
   {
-    id: 'job-006', tenant_id: 'tenant-2', queue: 'deployment',
+    id: 'job-006',
+    tenant_id: 'tenant-2',
+    queue: 'deployment',
     payload: { appId: 'orion-ai', env: 'production', version: '1.3.0' },
-    status: 'pending', attempts: 0, created_at: '2024-03-20T10:05:00Z',
+    status: 'pending',
+    attempts: 0,
+    created_at: '2024-03-20T10:05:00Z',
   },
   {
-    id: 'job-007', tenant_id: 'tenant-1', queue: 'notification',
+    id: 'job-007',
+    tenant_id: 'tenant-1',
+    queue: 'notification',
     payload: { type: 'slack', channel: '#deployments', message: 'Deploy started' },
-    status: 'completed', attempts: 1, created_at: '2024-03-20T09:50:00Z',
+    status: 'completed',
+    attempts: 1,
+    created_at: '2024-03-20T09:50:00Z',
   },
   {
-    id: 'job-008', tenant_id: 'tenant-2', queue: 'pipeline-execution',
+    id: 'job-008',
+    tenant_id: 'tenant-2',
+    queue: 'pipeline-execution',
     payload: { pipelineId: 'pipe-103', action: 'deploy', branch: 'release/v2.5' },
-    status: 'processing', attempts: 2, created_at: '2024-03-20T09:45:00Z',
+    status: 'processing',
+    attempts: 2,
+    created_at: '2024-03-20T09:45:00Z',
   },
 ];
 
@@ -161,7 +224,10 @@ const QueueManagement: React.FC = () => {
     }
   };
 
-  useEffect(() => { loadData(); loadStats(); }, [statusFilter, queueFilter]);
+  useEffect(() => {
+    loadData();
+    loadStats();
+  }, [statusFilter, queueFilter]);
 
   // Extract unique queue names from jobs
   const queueNames = useMemo(() => {
@@ -276,7 +342,11 @@ const QueueManagement: React.FC = () => {
       dataIndex: 'id',
       key: 'id',
       width: 120,
-      render: (v: string) => <Text code style={{ fontSize: 12 }}>{v}</Text>,
+      render: (v: string) => (
+        <Text code style={{ fontSize: 12 }}>
+          {v}
+        </Text>
+      ),
     },
     {
       title: '队列名称',
@@ -301,9 +371,7 @@ const QueueManagement: React.FC = () => {
       dataIndex: 'attempts',
       key: 'attempts',
       width: 80,
-      render: (v: number) => (
-        <Text type={v > 2 ? 'danger' : 'secondary'}>{v}</Text>
-      ),
+      render: (v: number) => <Text type={v > 2 ? 'danger' : 'secondary'}>{v}</Text>,
     },
     {
       title: 'Payload',
@@ -379,13 +447,29 @@ const QueueManagement: React.FC = () => {
   return (
     <div style={{ padding: 0 }}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          marginBottom: 24,
+        }}
+      >
         <div>
-          <Title level={3} style={{ margin: 0 }}>队列管理</Title>
+          <Title level={3} style={{ margin: 0 }}>
+            队列管理
+          </Title>
           <Text type="secondary">管理异步任务队列，监控任务执行状态</Text>
         </div>
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={() => { loadData(); loadStats(); }} loading={loading}>
+          <Button
+            icon={<ReloadOutlined />}
+            onClick={() => {
+              loadData();
+              loadStats();
+            }}
+            loading={loading}
+          >
             刷新
           </Button>
           <Button icon={<InboxOutlined />} onClick={openDequeue}>
@@ -487,7 +571,11 @@ const QueueManagement: React.FC = () => {
           loading={loading}
           rowKey="id"
           size="middle"
-          pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (total: number) => `共 ${total} 个任务` }}
+          pagination={{
+            pageSize: 20,
+            showSizeChanger: true,
+            showTotal: (total: number) => `共 ${total} 个任务`,
+          }}
         />
       </Card>
 
@@ -608,7 +696,10 @@ const QueueManagement: React.FC = () => {
                 <Tag color="blue">{selectedJob.queue}</Tag>
               </Descriptions.Item>
               <Descriptions.Item label="状态">
-                <Tag color={statusColorMap[selectedJob.status]} icon={statusIconMap[selectedJob.status]}>
+                <Tag
+                  color={statusColorMap[selectedJob.status]}
+                  icon={statusIconMap[selectedJob.status]}
+                >
                   {statusLabelMap[selectedJob.status]}
                 </Tag>
               </Descriptions.Item>
@@ -621,16 +712,18 @@ const QueueManagement: React.FC = () => {
                 </Text>
               </Descriptions.Item>
               <Descriptions.Item label="Payload" span={2}>
-                <pre style={{
-                  background: colors.neutral[100],
-                  padding: 12,
-                  borderRadius: 4,
-                  fontSize: 12,
-                  fontFamily: 'monospace',
-                  maxHeight: 300,
-                  overflow: 'auto',
-                  margin: 0,
-                }}>
+                <pre
+                  style={{
+                    background: colors.neutral[100],
+                    padding: 12,
+                    borderRadius: 4,
+                    fontSize: 12,
+                    fontFamily: 'monospace',
+                    maxHeight: 300,
+                    overflow: 'auto',
+                    margin: 0,
+                  }}
+                >
                   {formatPayload(selectedJob.payload)}
                 </pre>
               </Descriptions.Item>
@@ -640,11 +733,27 @@ const QueueManagement: React.FC = () => {
             {selectedJob.status === 'processing' && (
               <div style={{ marginTop: 16 }}>
                 <Space>
-                  <Popconfirm title="确认标记为完成?" onConfirm={() => { handleComplete(selectedJob.id); setDetailDrawerVisible(false); }}>
-                    <Button type="primary" icon={<CheckCircleOutlined />}>标记完成</Button>
+                  <Popconfirm
+                    title="确认标记为完成?"
+                    onConfirm={() => {
+                      handleComplete(selectedJob.id);
+                      setDetailDrawerVisible(false);
+                    }}
+                  >
+                    <Button type="primary" icon={<CheckCircleOutlined />}>
+                      标记完成
+                    </Button>
                   </Popconfirm>
-                  <Popconfirm title="确认标记为失败?" onConfirm={() => { handleFail(selectedJob.id); setDetailDrawerVisible(false); }}>
-                    <Button danger icon={<CloseCircleOutlined />}>标记失败</Button>
+                  <Popconfirm
+                    title="确认标记为失败?"
+                    onConfirm={() => {
+                      handleFail(selectedJob.id);
+                      setDetailDrawerVisible(false);
+                    }}
+                  >
+                    <Button danger icon={<CloseCircleOutlined />}>
+                      标记失败
+                    </Button>
                   </Popconfirm>
                 </Space>
               </div>

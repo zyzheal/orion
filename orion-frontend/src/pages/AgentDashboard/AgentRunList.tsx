@@ -5,11 +5,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Typography, Button, Space, Tag } from 'antd';
 import { spacing, colors } from '@/tokens';
-import {
-  CheckCircleOutlined,
-  CloseCircleOutlined,
-  PauseCircleOutlined,
-} from '@ant-design/icons';
+import { CheckCircleOutlined, CloseCircleOutlined, PauseCircleOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
 import type { AgentRun, AgentApproval } from '@/api/agents';
@@ -25,12 +21,7 @@ interface AgentRunListProps {
   onReject: (approval: AgentApproval) => void;
 }
 
-const AgentRunList: React.FC<AgentRunListProps> = ({
-  runs,
-  approvals,
-  onApprove,
-  onReject,
-}) => {
+const AgentRunList: React.FC<AgentRunListProps> = ({ runs, approvals, onApprove, onReject }) => {
   const navigate = useNavigate();
 
   const runColumns: TableColumn<AgentRun>[] = [
@@ -40,11 +31,7 @@ const AgentRunList: React.FC<AgentRunListProps> = ({
       dataIndex: 'id',
       width: 120,
       render: (value: unknown) => (
-        <Button
-          type="link"
-          size="small"
-          onClick={() => navigate(`/agent-runs/${String(value)}`)}
-        >
+        <Button type="link" size="small" onClick={() => navigate(`/agent-runs/${String(value)}`)}>
           {String(value).slice(0, 8)}...
         </Button>
       ),
@@ -95,7 +82,11 @@ const AgentRunList: React.FC<AgentRunListProps> = ({
       title: '审批 ID',
       dataIndex: 'id',
       width: 120,
-      render: (v: unknown) => <Text code style={{ fontSize: spacing[2] }}>{String(v).slice(0, 8)}</Text>,
+      render: (v: unknown) => (
+        <Text code style={{ fontSize: spacing[2] }}>
+          {String(v).slice(0, 8)}
+        </Text>
+      ),
     },
     {
       key: 'agentId',

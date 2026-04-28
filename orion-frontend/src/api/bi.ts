@@ -15,39 +15,29 @@ import type {
  * Fetch executive dashboard overview data
  */
 export function getExecutiveDashboard(params?: { days?: number }) {
-  return api.get<ExecutiveDashboardData>(
-    '/v1/efficiency/dashboard',
-    { params }
-  );
+  return api.get<ExecutiveDashboardData>('/v1/efficiency/dashboard', { params });
 }
 
 /**
  * Fetch manager dashboard team data
  */
 export function getManagerDashboard(params?: { teamId?: string; days?: number }) {
-  return api.get<ManagerDashboardData>(
-    '/v1/efficiency/dashboard',
-    { params }
-  );
+  return api.get<ManagerDashboardData>('/v1/efficiency/dashboard', { params });
 }
 
 /**
  * Fetch engineer personal dashboard data
  */
 export function getEngineerDashboard(engineerId: string, params?: { days?: number }) {
-  return api.get<EngineerDashboardData>(
-    `/v1/efficiency/dashboard`,
-    { params: { ...params, engineerId } }
-  );
+  return api.get<EngineerDashboardData>(`/v1/efficiency/dashboard`, {
+    params: { ...params, engineerId },
+  });
 }
 
 /**
  * Fetch efficiency score for an engineer
  */
-export function getEfficiencyScore(
-  engineerId: string,
-  params?: { start?: string; end?: string }
-) {
+export function getEfficiencyScore(engineerId: string, params?: { start?: string; end?: string }) {
   return api.get(`/v1/efficiency/score`, { params: { ...params, engineerId } });
 }
 

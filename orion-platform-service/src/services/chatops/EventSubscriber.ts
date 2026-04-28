@@ -425,7 +425,7 @@ export class ChatOpsEventSubscriber {
     clearInterval(this.cleanupTimer);
 
     for (const unsub of this.unsubscribeFns) {
-      try { await unsub(); } catch {}
+      try { await unsub(); } catch { /* intentionally empty - ignore unsubscribe errors */ }
     }
     this.unsubscribeFns = [];
     this.localBus.removeAllListeners();

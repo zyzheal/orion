@@ -13,13 +13,24 @@
  */
 import React, { useState, useMemo, useEffect } from 'react';
 import { Typography, Button, Space, Card, Alert, Row, Col, Statistic, message } from 'antd';
-import { PlusOutlined, ReloadOutlined, DatabaseOutlined, FileTextOutlined, RocketOutlined } from '@ant-design/icons';
+import {
+  PlusOutlined,
+  ReloadOutlined,
+  DatabaseOutlined,
+  FileTextOutlined,
+  RocketOutlined,
+} from '@ant-design/icons';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import type { VectorCollection, VectorDocument, SearchHit, VectorStats } from '@/api/vector-store';
 import {
-  getCollections, deleteCollection, getCollectionDocuments,
-  addDocument, deleteDocument, searchVectors, getVectorStats,
+  getCollections,
+  deleteCollection,
+  getCollectionDocuments,
+  addDocument,
+  deleteDocument,
+  searchVectors,
+  getVectorStats,
 } from '@/api/vector-store';
 
 // Sub-components
@@ -102,7 +113,10 @@ const VectorStorePage: React.FC = () => {
     }
   };
 
-  useEffect(() => { loadData(); loadStats(); }, []);
+  useEffect(() => {
+    loadData();
+    loadStats();
+  }, []);
 
   const filteredCollections = useMemo(() => {
     if (!searchQuery) return collections;
@@ -238,7 +252,14 @@ const VectorStorePage: React.FC = () => {
   return (
     <div style={{ padding: 0 }}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          marginBottom: 24,
+        }}
+      >
         <div>
           <Title level={3} style={{ margin: 0 }}>
             <DatabaseOutlined style={{ marginRight: 8 }} />
@@ -247,10 +268,21 @@ const VectorStorePage: React.FC = () => {
           <Text type="secondary">管理向量集合、文档上传和语义相似度检索</Text>
         </div>
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={() => { loadData(); loadStats(); }} loading={loading}>
+          <Button
+            icon={<ReloadOutlined />}
+            onClick={() => {
+              loadData();
+              loadStats();
+            }}
+            loading={loading}
+          >
             刷新
           </Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalVisible(true)}>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => setCreateModalVisible(true)}
+          >
             创建集合
           </Button>
         </Space>
@@ -274,13 +306,25 @@ const VectorStorePage: React.FC = () => {
         <Card size="small" style={{ marginBottom: 16 }}>
           <Row gutter={16}>
             <Col span={6}>
-              <Statistic title="文档总数" value={stats.documentCount} prefix={<FileTextOutlined />} />
+              <Statistic
+                title="文档总数"
+                value={stats.documentCount}
+                prefix={<FileTextOutlined />}
+              />
             </Col>
             <Col span={6}>
-              <Statistic title="集合数量" value={stats.collectionCount ?? 0} prefix={<DatabaseOutlined />} />
+              <Statistic
+                title="集合数量"
+                value={stats.collectionCount ?? 0}
+                prefix={<DatabaseOutlined />}
+              />
             </Col>
             <Col span={6}>
-              <Statistic title="向量嵌入数" value={stats.totalEmbeddings ?? 0} prefix={<RocketOutlined />} />
+              <Statistic
+                title="向量嵌入数"
+                value={stats.totalEmbeddings ?? 0}
+                prefix={<RocketOutlined />}
+              />
             </Col>
             <Col span={6}>
               <Statistic title="平均维度" value={stats.avgDimensions ?? 0} />

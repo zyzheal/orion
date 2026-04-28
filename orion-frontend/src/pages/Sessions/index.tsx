@@ -4,13 +4,30 @@
  */
 import React, { useState, useMemo, useEffect } from 'react';
 import {
-  Typography, Button, Space, Tag, Card, Alert, Select, Input, message,
-  Popconfirm, Tooltip, Descriptions, Drawer,
+  Typography,
+  Button,
+  Space,
+  Tag,
+  Card,
+  Alert,
+  Select,
+  Input,
+  message,
+  Popconfirm,
+  Tooltip,
+  Descriptions,
+  Drawer,
 } from 'antd';
 import {
-  ReloadOutlined, DeleteOutlined, EyeOutlined, ClockCircleOutlined,
-  UserOutlined, CheckCircleOutlined, StopOutlined,
-  SearchOutlined, FilterOutlined,
+  ReloadOutlined,
+  DeleteOutlined,
+  EyeOutlined,
+  ClockCircleOutlined,
+  UserOutlined,
+  CheckCircleOutlined,
+  StopOutlined,
+  SearchOutlined,
+  FilterOutlined,
 } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import MetricCard from '@/components/MetricCard';
@@ -79,64 +96,114 @@ const MOCK_STATS: SessionStats = {
 
 const MOCK_SESSIONS: UserSession[] = [
   {
-    id: 'sess-001', userId: 'admin@orion.io', sessionId: 'a1b2c3d4e5f6',
-    ipAddress: '192.168.1.100', userAgent: 'Chrome 122 / macOS',
-    startedAt: '2024-03-20T08:00:00Z', lastActive: '2024-03-20T10:30:00Z',
-    status: 'active', duration: 9000,
+    id: 'sess-001',
+    userId: 'admin@orion.io',
+    sessionId: 'a1b2c3d4e5f6',
+    ipAddress: '192.168.1.100',
+    userAgent: 'Chrome 122 / macOS',
+    startedAt: '2024-03-20T08:00:00Z',
+    lastActive: '2024-03-20T10:30:00Z',
+    status: 'active',
+    duration: 9000,
   },
   {
-    id: 'sess-002', userId: 'dev-001@orion.io', sessionId: 'g7h8i9j0k1l2',
-    ipAddress: '10.0.0.45', userAgent: 'Firefox 124 / Windows',
-    startedAt: '2024-03-20T09:15:00Z', lastActive: '2024-03-20T10:25:00Z',
-    status: 'active', duration: 4200,
+    id: 'sess-002',
+    userId: 'dev-001@orion.io',
+    sessionId: 'g7h8i9j0k1l2',
+    ipAddress: '10.0.0.45',
+    userAgent: 'Firefox 124 / Windows',
+    startedAt: '2024-03-20T09:15:00Z',
+    lastActive: '2024-03-20T10:25:00Z',
+    status: 'active',
+    duration: 4200,
   },
   {
-    id: 'sess-003', userId: 'ops-002@orion.io', sessionId: 'm3n4o5p6q7r8',
-    ipAddress: '172.16.0.23', userAgent: 'Safari 17 / macOS',
-    startedAt: '2024-03-19T14:00:00Z', lastActive: '2024-03-19T18:30:00Z',
-    status: 'expired', duration: 16200,
+    id: 'sess-003',
+    userId: 'ops-002@orion.io',
+    sessionId: 'm3n4o5p6q7r8',
+    ipAddress: '172.16.0.23',
+    userAgent: 'Safari 17 / macOS',
+    startedAt: '2024-03-19T14:00:00Z',
+    lastActive: '2024-03-19T18:30:00Z',
+    status: 'expired',
+    duration: 16200,
   },
   {
-    id: 'sess-004', userId: 'sec-001@orion.io', sessionId: 's9t0u1v2w3x4',
-    ipAddress: '10.0.1.88', userAgent: 'Chrome 122 / Linux',
-    startedAt: '2024-03-20T07:30:00Z', lastActive: '2024-03-20T07:45:00Z',
-    status: 'revoked', duration: 900,
+    id: 'sess-004',
+    userId: 'sec-001@orion.io',
+    sessionId: 's9t0u1v2w3x4',
+    ipAddress: '10.0.1.88',
+    userAgent: 'Chrome 122 / Linux',
+    startedAt: '2024-03-20T07:30:00Z',
+    lastActive: '2024-03-20T07:45:00Z',
+    status: 'revoked',
+    duration: 900,
   },
   {
-    id: 'sess-005', userId: 'dev-002@orion.io', sessionId: 'y5z6a7b8c9d0',
-    ipAddress: '192.168.2.55', userAgent: 'Edge 122 / Windows',
-    startedAt: '2024-03-20T10:00:00Z', lastActive: '2024-03-20T10:28:00Z',
-    status: 'active', duration: 1680,
+    id: 'sess-005',
+    userId: 'dev-002@orion.io',
+    sessionId: 'y5z6a7b8c9d0',
+    ipAddress: '192.168.2.55',
+    userAgent: 'Edge 122 / Windows',
+    startedAt: '2024-03-20T10:00:00Z',
+    lastActive: '2024-03-20T10:28:00Z',
+    status: 'active',
+    duration: 1680,
   },
   {
-    id: 'sess-006', userId: 'admin@orion.io', sessionId: 'e1f2g3h4i5j6',
-    ipAddress: '192.168.1.100', userAgent: 'Chrome 122 / macOS',
-    startedAt: '2024-03-19T09:00:00Z', lastActive: '2024-03-19T17:00:00Z',
-    status: 'expired', duration: 28800,
+    id: 'sess-006',
+    userId: 'admin@orion.io',
+    sessionId: 'e1f2g3h4i5j6',
+    ipAddress: '192.168.1.100',
+    userAgent: 'Chrome 122 / macOS',
+    startedAt: '2024-03-19T09:00:00Z',
+    lastActive: '2024-03-19T17:00:00Z',
+    status: 'expired',
+    duration: 28800,
   },
   {
-    id: 'sess-007', userId: 'qa-001@orion.io', sessionId: 'k7l8m9n0o1p2',
-    ipAddress: '10.0.3.12', userAgent: 'Chrome 122 / Windows',
-    startedAt: '2024-03-20T08:30:00Z', lastActive: '2024-03-20T10:15:00Z',
-    status: 'active', duration: 6300,
+    id: 'sess-007',
+    userId: 'qa-001@orion.io',
+    sessionId: 'k7l8m9n0o1p2',
+    ipAddress: '10.0.3.12',
+    userAgent: 'Chrome 122 / Windows',
+    startedAt: '2024-03-20T08:30:00Z',
+    lastActive: '2024-03-20T10:15:00Z',
+    status: 'active',
+    duration: 6300,
   },
   {
-    id: 'sess-008', userId: 'dev-003@orion.io', sessionId: 'q3r4s5t6u7v8',
-    ipAddress: '172.16.1.99', userAgent: 'Firefox 124 / Linux',
-    startedAt: '2024-03-20T06:00:00Z', lastActive: '2024-03-20T06:10:00Z',
-    status: 'revoked', duration: 600,
+    id: 'sess-008',
+    userId: 'dev-003@orion.io',
+    sessionId: 'q3r4s5t6u7v8',
+    ipAddress: '172.16.1.99',
+    userAgent: 'Firefox 124 / Linux',
+    startedAt: '2024-03-20T06:00:00Z',
+    lastActive: '2024-03-20T06:10:00Z',
+    status: 'revoked',
+    duration: 600,
   },
   {
-    id: 'sess-009', userId: 'ops-001@orion.io', sessionId: 'w9x0y1z2a3b4',
-    ipAddress: '10.0.0.10', userAgent: 'Chrome 122 / macOS',
-    startedAt: '2024-03-20T09:45:00Z', lastActive: '2024-03-20T10:30:00Z',
-    status: 'active', duration: 2700,
+    id: 'sess-009',
+    userId: 'ops-001@orion.io',
+    sessionId: 'w9x0y1z2a3b4',
+    ipAddress: '10.0.0.10',
+    userAgent: 'Chrome 122 / macOS',
+    startedAt: '2024-03-20T09:45:00Z',
+    lastActive: '2024-03-20T10:30:00Z',
+    status: 'active',
+    duration: 2700,
   },
   {
-    id: 'sess-010', userId: 'dev-001@orion.io', sessionId: 'c5d6e7f8g9h0',
-    ipAddress: '10.0.0.45', userAgent: 'Firefox 124 / Windows',
-    startedAt: '2024-03-19T10:00:00Z', lastActive: '2024-03-19T12:00:00Z',
-    status: 'expired', duration: 7200,
+    id: 'sess-010',
+    userId: 'dev-001@orion.io',
+    sessionId: 'c5d6e7f8g9h0',
+    ipAddress: '10.0.0.45',
+    userAgent: 'Firefox 124 / Windows',
+    startedAt: '2024-03-19T10:00:00Z',
+    lastActive: '2024-03-19T12:00:00Z',
+    status: 'expired',
+    duration: 7200,
   },
 ];
 
@@ -178,7 +245,9 @@ const SessionManagement: React.FC = () => {
     }
   };
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    loadData();
+  }, []);
 
   const filteredSessions = useMemo(() => {
     return sessions.filter((s) => {
@@ -189,7 +258,8 @@ const SessionManagement: React.FC = () => {
           !s.userId.toLowerCase().includes(q) &&
           !s.sessionId.toLowerCase().includes(q) &&
           !s.ipAddress.toLowerCase().includes(q)
-        ) return false;
+        )
+          return false;
       }
       return true;
     });
@@ -207,15 +277,11 @@ const SessionManagement: React.FC = () => {
         prev.map((s) => (s.id === id ? { ...s, status: 'revoked' as const } : s))
       );
       setStats((prev) =>
-        prev
-          ? { ...prev, activeSessions: Math.max(0, prev.activeSessions - 1) }
-          : prev
+        prev ? { ...prev, activeSessions: Math.max(0, prev.activeSessions - 1) } : prev
       );
       message.success('会话已撤销');
       if (selectedSession?.id === id) {
-        setSelectedSession((prev) =>
-          prev ? { ...prev, status: 'revoked' as const } : prev
-        );
+        setSelectedSession((prev) => (prev ? { ...prev, status: 'revoked' as const } : prev));
       }
     } catch (error: unknown) {
       const errMsg = error instanceof Error ? error.message : '撤销失败';
@@ -234,7 +300,9 @@ const SessionManagement: React.FC = () => {
       render: (v: unknown) => (
         <Space>
           <UserOutlined style={{ color: colors.neutral[400] }} />
-          <Text strong style={{ fontSize: 13 }}>{String(v)}</Text>
+          <Text strong style={{ fontSize: 13 }}>
+            {String(v)}
+          </Text>
         </Space>
       ),
     },
@@ -244,7 +312,9 @@ const SessionManagement: React.FC = () => {
       dataIndex: 'sessionId',
       width: 140,
       render: (v: unknown) => (
-        <Text code style={{ fontSize: 11 }}>{String(v).substring(0, 8)}...</Text>
+        <Text code style={{ fontSize: 11 }}>
+          {String(v).substring(0, 8)}...
+        </Text>
       ),
     },
     {
@@ -307,7 +377,12 @@ const SessionManagement: React.FC = () => {
       render: (_: unknown, record: UserSession) => (
         <Space size="small" wrap>
           <Tooltip title="详情">
-            <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => openDetail(record)}>
+            <Button
+              type="link"
+              size="small"
+              icon={<EyeOutlined />}
+              onClick={() => openDetail(record)}
+            >
               详情
             </Button>
           </Tooltip>
@@ -328,9 +403,18 @@ const SessionManagement: React.FC = () => {
   return (
     <div style={{ padding: 0 }}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing.lg }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          marginBottom: spacing.lg,
+        }}
+      >
         <div>
-          <Title level={3} style={{ margin: 0 }}>Session Management</Title>
+          <Title level={3} style={{ margin: 0 }}>
+            Session Management
+          </Title>
           <Text type="secondary">用户会话管理</Text>
         </div>
         <Space>
@@ -355,7 +439,14 @@ const SessionManagement: React.FC = () => {
 
       {/* Stats Cards */}
       {stats && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: spacing.md, marginBottom: spacing.lg }}>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(4, 1fr)',
+            gap: spacing.md,
+            marginBottom: spacing.lg,
+          }}
+        >
           <MetricCard
             title="活跃会话"
             value={stats.activeSessions}
@@ -398,7 +489,9 @@ const SessionManagement: React.FC = () => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
-          <Text><FilterOutlined /> 状态:</Text>
+          <Text>
+            <FilterOutlined /> 状态:
+          </Text>
           <Select
             style={{ width: 130 }}
             value={statusFilter}
@@ -435,61 +528,64 @@ const SessionManagement: React.FC = () => {
       >
         {selectedSession && (
           <>
-          <Descriptions column={2} bordered size="small">
-            <Descriptions.Item label="用户" span={2}>
-              <Space>
-                <UserOutlined style={{ color: colors.neutral[400] }} />
-                <Text strong>{selectedSession.userId}</Text>
-              </Space>
-            </Descriptions.Item>
-            <Descriptions.Item label="Session ID" span={2}>
-              <Text code>{selectedSession.sessionId}</Text>
-            </Descriptions.Item>
-            <Descriptions.Item label="IP 地址">
-              <Text style={{ fontFamily: 'monospace' }}>{selectedSession.ipAddress}</Text>
-            </Descriptions.Item>
-            <Descriptions.Item label="状态">
-              <Tag color={statusColorMap[selectedSession.status]} icon={statusIconMap[selectedSession.status]}>
-                {statusLabelMap[selectedSession.status]}
-              </Tag>
-            </Descriptions.Item>
-            <Descriptions.Item label="浏览器" span={2}>
-              {selectedSession.userAgent}
-            </Descriptions.Item>
-            <Descriptions.Item label="开始时间" span={2}>
-              {dayjs(selectedSession.startedAt).format('YYYY-MM-DD HH:mm:ss')}
-              <Text type="secondary" style={{ marginLeft: spacing.sm }}>
-                ({dayjs(selectedSession.startedAt).fromNow()})
-              </Text>
-            </Descriptions.Item>
-            <Descriptions.Item label="最后活跃" span={2}>
-              {dayjs(selectedSession.lastActive).format('YYYY-MM-DD HH:mm:ss')}
-              <Text type="secondary" style={{ marginLeft: spacing.sm }}>
-                ({dayjs(selectedSession.lastActive).fromNow()})
-              </Text>
-            </Descriptions.Item>
-            <Descriptions.Item label="会话时长">
-              {formatDuration(selectedSession.duration)}
-            </Descriptions.Item>
-          </Descriptions>
+            <Descriptions column={2} bordered size="small">
+              <Descriptions.Item label="用户" span={2}>
+                <Space>
+                  <UserOutlined style={{ color: colors.neutral[400] }} />
+                  <Text strong>{selectedSession.userId}</Text>
+                </Space>
+              </Descriptions.Item>
+              <Descriptions.Item label="Session ID" span={2}>
+                <Text code>{selectedSession.sessionId}</Text>
+              </Descriptions.Item>
+              <Descriptions.Item label="IP 地址">
+                <Text style={{ fontFamily: 'monospace' }}>{selectedSession.ipAddress}</Text>
+              </Descriptions.Item>
+              <Descriptions.Item label="状态">
+                <Tag
+                  color={statusColorMap[selectedSession.status]}
+                  icon={statusIconMap[selectedSession.status]}
+                >
+                  {statusLabelMap[selectedSession.status]}
+                </Tag>
+              </Descriptions.Item>
+              <Descriptions.Item label="浏览器" span={2}>
+                {selectedSession.userAgent}
+              </Descriptions.Item>
+              <Descriptions.Item label="开始时间" span={2}>
+                {dayjs(selectedSession.startedAt).format('YYYY-MM-DD HH:mm:ss')}
+                <Text type="secondary" style={{ marginLeft: spacing.sm }}>
+                  ({dayjs(selectedSession.startedAt).fromNow()})
+                </Text>
+              </Descriptions.Item>
+              <Descriptions.Item label="最后活跃" span={2}>
+                {dayjs(selectedSession.lastActive).format('YYYY-MM-DD HH:mm:ss')}
+                <Text type="secondary" style={{ marginLeft: spacing.sm }}>
+                  ({dayjs(selectedSession.lastActive).fromNow()})
+                </Text>
+              </Descriptions.Item>
+              <Descriptions.Item label="会话时长">
+                {formatDuration(selectedSession.duration)}
+              </Descriptions.Item>
+            </Descriptions>
 
-          {/* Action button for active sessions */}
-          {selectedSession.status === 'active' && (
-            <div style={{ marginTop: spacing.lg }}>
-              <Popconfirm
-                title="确认撤销该会话？"
-                description="撤销后用户需要重新登录"
-                onConfirm={() => {
-                  handleRevoke(selectedSession.id);
-                  setDetailDrawerVisible(false);
-                }}
-              >
-                <Button danger icon={<DeleteOutlined />}>
-                  撤销会话
-                </Button>
-              </Popconfirm>
-            </div>
-          )}
+            {/* Action button for active sessions */}
+            {selectedSession.status === 'active' && (
+              <div style={{ marginTop: spacing.lg }}>
+                <Popconfirm
+                  title="确认撤销该会话？"
+                  description="撤销后用户需要重新登录"
+                  onConfirm={() => {
+                    handleRevoke(selectedSession.id);
+                    setDetailDrawerVisible(false);
+                  }}
+                >
+                  <Button danger icon={<DeleteOutlined />}>
+                    撤销会话
+                  </Button>
+                </Popconfirm>
+              </div>
+            )}
           </>
         )}
       </Drawer>

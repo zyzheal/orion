@@ -10,9 +10,9 @@ const isDev = import.meta.env.DEV;
 // 子应用基础 URL 配置
 const APP_BASE_URLS: Record<string, string> = {
   // 本地开发使用 localhost
-  'dba': isDev ? 'http://localhost:3001' : '/orion-dba',
-  'knowledge': isDev ? 'http://localhost:3002' : '/orion-knowledge',
-  'visor': isDev ? 'http://localhost:3003' : '/orion-visor',
+  dba: isDev ? 'http://localhost:3001' : '/orion-dba',
+  knowledge: isDev ? 'http://localhost:3002' : '/orion-knowledge',
+  visor: isDev ? 'http://localhost:3003' : '/orion-visor',
 };
 
 /**

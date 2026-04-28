@@ -13,7 +13,7 @@ export interface LoginRequest {
 export interface LoginResponse {
   accessToken: string;
   refreshToken: string;
-  expiresAt: number;  // 过期时间戳（毫秒）
+  expiresAt: number; // 过期时间戳（毫秒）
   user: UserInfo;
 }
 

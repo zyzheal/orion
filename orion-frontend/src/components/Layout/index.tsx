@@ -510,7 +510,10 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     };
     const label = labelMap[e.key];
     if (label) {
-      setBreadcrumbs([{ title: '控制台', path: '/console' }, { title: label, path: e.key }]);
+      setBreadcrumbs([
+        { title: '控制台', path: '/console' },
+        { title: label, path: e.key },
+      ]);
     }
   };
 
@@ -552,7 +555,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             }}
             onClick={() => navigate('/dashboard')}
             onMouseEnter={(e) => {
-              e.currentTarget.style.background = theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.04)';
+              e.currentTarget.style.background =
+                theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.04)';
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.background = 'transparent';
@@ -644,7 +648,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                 transition: 'all 0.3s',
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.04)';
+                e.currentTarget.style.background =
+                  theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.04)';
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.background = 'transparent';
@@ -697,9 +702,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           borderRadius: 12,
           padding: 24,
           minHeight: 'calc(100vh - 180px)',
-          boxShadow: theme === 'dark'
-            ? '0 2px 8px rgba(0,0,0,0.3)'
-            : '0 2px 8px rgba(0,0,0,0.08)',
+          boxShadow: theme === 'dark' ? '0 2px 8px rgba(0,0,0,0.3)' : '0 2px 8px rgba(0,0,0,0.08)',
         }}
       >
         {children}
@@ -709,11 +712,13 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       <ChatPanel />
 
       {/* 页脚 */}
-      <Footer style={{
-        textAlign: 'center',
-        background: 'transparent',
-        color: theme === 'dark' ? colors.dark.text.tertiary : colors.neutral[400],
-      }}>
+      <Footer
+        style={{
+          textAlign: 'center',
+          background: 'transparent',
+          color: theme === 'dark' ? colors.dark.text.tertiary : colors.neutral[400],
+        }}
+      >
         Orion Platform ©{new Date().getFullYear()} Created by Orion Team
       </Footer>
     </AntLayout>

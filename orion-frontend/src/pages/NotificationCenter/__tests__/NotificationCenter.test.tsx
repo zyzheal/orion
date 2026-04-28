@@ -25,14 +25,14 @@ vi.mock('dayjs', async () => {
 });
 
 vi.mock('dayjs/plugin/relativeTime', async (importOriginal) => {
-  const actual = await importOriginal() as any;
+  const actual = (await importOriginal()) as any;
   return {
     default: actual?.default || vi.fn(),
   };
 });
 
 vi.mock('dayjs/locale/zh-cn', async (importOriginal) => {
-  const actual = await importOriginal() as any;
+  const actual = (await importOriginal()) as any;
   return {
     ...actual,
   };
@@ -75,16 +75,22 @@ describe('NotificationCenter', () => {
 
   it('should display notification list', async () => {
     renderWithRouter(<NotificationCenter />);
-    await waitFor(() => {
-      expect(screen.getByText('新工单分配')).toBeInTheDocument();
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        expect(screen.getByText('新工单分配')).toBeInTheDocument();
+      },
+      { timeout: 3000 }
+    );
   });
 
   it('should show notification types', async () => {
     renderWithRouter(<NotificationCenter />);
-    await waitFor(() => {
-      expect(screen.getByText('工单升级提醒')).toBeInTheDocument();
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        expect(screen.getByText('工单升级提醒')).toBeInTheDocument();
+      },
+      { timeout: 3000 }
+    );
     expect(screen.getAllByText('Pipeline 完成')[0]).toBeInTheDocument();
     expect(screen.getByText('工单转派请求')).toBeInTheDocument();
     expect(screen.getAllByText('系统告警')[0]).toBeInTheDocument();
@@ -102,46 +108,67 @@ describe('NotificationCenter', () => {
 
   it('should show stats cards', async () => {
     renderWithRouter(<NotificationCenter />);
-    await waitFor(() => {
-      expect(screen.getByText('紧急')).toBeInTheDocument();
-      expect(screen.getByText('今日')).toBeInTheDocument();
-      expect(screen.getByText('本周')).toBeInTheDocument();
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        expect(screen.getByText('紧急')).toBeInTheDocument();
+        expect(screen.getByText('今日')).toBeInTheDocument();
+        expect(screen.getByText('本周')).toBeInTheDocument();
+      },
+      { timeout: 3000 }
+    );
   });
 
   it('should filter by tab - unread', async () => {
     renderWithRouter(<NotificationCenter />);
-    await waitFor(() => {
-      expect(screen.getByText('新工单分配')).toBeInTheDocument();
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        expect(screen.getByText('新工单分配')).toBeInTheDocument();
+      },
+      { timeout: 3000 }
+    );
     const unreadTab = screen.getByRole('tab', { name: '未读' });
     fireEvent.click(unreadTab);
-    await waitFor(() => {
-      expect(screen.getByText('新工单分配')).toBeInTheDocument();
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        expect(screen.getByText('新工单分配')).toBeInTheDocument();
+      },
+      { timeout: 3000 }
+    );
   });
 
   it('should filter by tab - tickets', async () => {
     renderWithRouter(<NotificationCenter />);
-    await waitFor(() => {
-      expect(screen.getByText('新工单分配')).toBeInTheDocument();
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        expect(screen.getByText('新工单分配')).toBeInTheDocument();
+      },
+      { timeout: 3000 }
+    );
     const ticketsTab = screen.getByRole('tab', { name: '工单' });
     fireEvent.click(ticketsTab);
-    await waitFor(() => {
-      expect(screen.getByText('新工单分配')).toBeInTheDocument();
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        expect(screen.getByText('新工单分配')).toBeInTheDocument();
+      },
+      { timeout: 3000 }
+    );
   });
 
   it('should filter by tab - system', async () => {
     renderWithRouter(<NotificationCenter />);
-    await waitFor(() => {
-      expect(screen.getByText('新工单分配')).toBeInTheDocument();
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        expect(screen.getByText('新工单分配')).toBeInTheDocument();
+      },
+      { timeout: 3000 }
+    );
     const systemTab = screen.getByRole('tab', { name: '系统' });
     fireEvent.click(systemTab);
-    await waitFor(() => {
-      expect(screen.getAllByText('SLA 警告')[0]).toBeInTheDocument();
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        expect(screen.getAllByText('SLA 警告')[0]).toBeInTheDocument();
+      },
+      { timeout: 3000 }
+    );
   });
 });

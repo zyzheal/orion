@@ -9,12 +9,7 @@ import { ApiOutlined, LinkOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import { colors } from '@/tokens';
-import {
-  type SPIExtensionPoint,
-  statusColorMap,
-  statusLabelMap,
-  spiTypeLabelMap,
-} from './types';
+import { type SPIExtensionPoint, statusColorMap, statusLabelMap, spiTypeLabelMap } from './types';
 import dayjs from 'dayjs';
 
 // ============================================================================
@@ -55,7 +50,8 @@ const ExtensionPointList: React.FC<ExtensionPointListProps> = ({
           return false;
         }
       }
-      if (filters.spiType && filters.spiType !== 'all' && ep.spiType !== filters.spiType) return false;
+      if (filters.spiType && filters.spiType !== 'all' && ep.spiType !== filters.spiType)
+        return false;
       if (filters.status && filters.status !== 'all' && ep.status !== filters.status) return false;
       return true;
     });
@@ -119,9 +115,7 @@ const ExtensionPointList: React.FC<ExtensionPointListProps> = ({
       title: 'SPI 类型',
       width: 120,
       render: (_: unknown, record: SPIExtensionPoint) => (
-        <Tag color="purple">
-          {spiTypeLabelMap[record.spiType] || record.spiType}
-        </Tag>
+        <Tag color="purple">{spiTypeLabelMap[record.spiType] || record.spiType}</Tag>
       ),
     },
     {
@@ -130,9 +124,7 @@ const ExtensionPointList: React.FC<ExtensionPointListProps> = ({
       dataIndex: 'registeredPlugins',
       width: 110,
       sortable: true,
-      render: (value: unknown) => (
-        <Tag icon={<LinkOutlined />}>{String(value)} 个</Tag>
-      ),
+      render: (value: unknown) => <Tag icon={<LinkOutlined />}>{String(value)} 个</Tag>,
     },
     {
       key: 'status',

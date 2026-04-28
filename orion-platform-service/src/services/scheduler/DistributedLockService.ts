@@ -247,6 +247,7 @@ export class DistributedLockService {
    */
   private createRedisClient(): any {
     try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
       const redis = require('redis');
       return redis.createClient({
         url: process.env.REDIS_URL || 'redis://localhost:6379'

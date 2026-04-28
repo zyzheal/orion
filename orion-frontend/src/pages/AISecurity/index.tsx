@@ -408,10 +408,7 @@ const AISecurityPage: React.FC = () => {
     return policies.filter((p) => {
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
-        if (
-          !p.name.toLowerCase().includes(q) &&
-          !p.description.toLowerCase().includes(q)
-        ) {
+        if (!p.name.toLowerCase().includes(q) && !p.description.toLowerCase().includes(q)) {
           return false;
         }
       }
@@ -483,9 +480,7 @@ const AISecurityPage: React.FC = () => {
       setPolicies((prev) =>
         prev.map((p) => (p.id === record.id ? { ...p, enabled: newEnabled } : p))
       );
-      message.success(
-        `策略 "${record.name}" 已${newEnabled ? '启用' : '禁用'}`
-      );
+      message.success(`策略 "${record.name}" 已${newEnabled ? '启用' : '禁用'}`);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`状态更新失败：${error.message}`);
@@ -565,9 +560,7 @@ const AISecurityPage: React.FC = () => {
       title: '严重级别',
       width: 100,
       render: (_: unknown, record: SecurityPolicy) => (
-        <Tag color={severityColorMap[record.severity]}>
-          {severityLabelMap[record.severity]}
-        </Tag>
+        <Tag color={severityColorMap[record.severity]}>{severityLabelMap[record.severity]}</Tag>
       ),
     },
     {
@@ -575,9 +568,7 @@ const AISecurityPage: React.FC = () => {
       title: '状态',
       width: 100,
       render: (_: unknown, record: SecurityPolicy) => (
-        <Tag color={statusColorMap[record.status]}>
-          {statusLabelMap[record.status]}
-        </Tag>
+        <Tag color={statusColorMap[record.status]}>{statusLabelMap[record.status]}</Tag>
       ),
     },
     {
@@ -586,13 +577,14 @@ const AISecurityPage: React.FC = () => {
       dataIndex: 'violations',
       width: 100,
       sortable: true,
-      render: (value: unknown, record: SecurityPolicy) => (
+      render: (value: unknown, record: SecurityPolicy) =>
         record.status === 'violated' ? (
-          <Tag icon={<WarningOutlined />} color="red">{String(value)}</Tag>
+          <Tag icon={<WarningOutlined />} color="red">
+            {String(value)}
+          </Tag>
         ) : (
           <Text type="secondary">{String(value)}</Text>
-        )
-      ),
+        ),
     },
     {
       key: 'enabled',
@@ -642,10 +634,7 @@ const AISecurityPage: React.FC = () => {
               onClick={() => openEdit(record)}
             />
           </Tooltip>
-          <Popconfirm
-            title="确认删除该策略?"
-            onConfirm={() => handleDelete(record.id)}
-          >
+          <Popconfirm title="确认删除该策略?" onConfirm={() => handleDelete(record.id)}>
             <Tooltip title="删除">
               <Button type="link" size="small" danger icon={<DeleteOutlined />} />
             </Tooltip>
@@ -721,10 +710,7 @@ const AISecurityPage: React.FC = () => {
           >
             刷新
           </Button>
-          <Button
-            icon={<ThunderboltOutlined />}
-            onClick={() => setEvaluateModalVisible(true)}
-          >
+          <Button icon={<ThunderboltOutlined />} onClick={() => setEvaluateModalVisible(true)}>
             评估策略
           </Button>
           <Button
@@ -781,7 +767,11 @@ const AISecurityPage: React.FC = () => {
             <MetricCard
               title="合规评分"
               value={`${stats.complianceScore}%`}
-              icon={<SafetyOutlined style={{ fontSize: 20, color: getComplianceColor(stats.complianceScore) }} />}
+              icon={
+                <SafetyOutlined
+                  style={{ fontSize: 20, color: getComplianceColor(stats.complianceScore) }}
+                />
+              }
               color={getComplianceColor(stats.complianceScore)}
             />
           </Col>
@@ -857,12 +847,7 @@ const AISecurityPage: React.FC = () => {
           <Form.Item name="rules" label="规则 (逗号分隔)">
             <Input.TextArea rows={2} placeholder="如: block_sql_keywords, escape_special_chars" />
           </Form.Item>
-          <Form.Item
-            name="enabled"
-            label="启用状态"
-            valuePropName="checked"
-            initialValue={true}
-          >
+          <Form.Item name="enabled" label="启用状态" valuePropName="checked" initialValue={true}>
             <Select>
               <Select.Option value={true}>启用</Select.Option>
               <Select.Option value={false}>禁用</Select.Option>
@@ -922,11 +907,7 @@ const AISecurityPage: React.FC = () => {
           <Form.Item name="rules" label="规则 (逗号分隔)">
             <Input.TextArea rows={2} />
           </Form.Item>
-          <Form.Item
-            name="enabled"
-            label="启用状态"
-            valuePropName="checked"
-          >
+          <Form.Item name="enabled" label="启用状态" valuePropName="checked">
             <Select>
               <Select.Option value={true}>启用</Select.Option>
               <Select.Option value={false}>禁用</Select.Option>
@@ -967,13 +948,20 @@ const AISecurityPage: React.FC = () => {
               title: '结果',
               key: 'result',
               render: (_: unknown, record: PolicyEvaluation) => {
-                const config: Record<string, { color: string; icon: React.ReactNode; text: string }> = {
+                const config: Record<
+                  string,
+                  { color: string; icon: React.ReactNode; text: string }
+                > = {
                   pass: { color: 'green', icon: <CheckCircleOutlined />, text: '通过' },
                   fail: { color: 'red', icon: <CloseCircleOutlined />, text: '失败' },
                   warning: { color: 'orange', icon: <WarningOutlined />, text: '警告' },
                 };
                 const c = config[record.result];
-                return <Tag color={c.color} icon={c.icon}>{c.text}</Tag>;
+                return (
+                  <Tag color={c.color} icon={c.icon}>
+                    {c.text}
+                  </Tag>
+                );
               },
             },
             {
@@ -1001,7 +989,13 @@ const AISecurityPage: React.FC = () => {
           setSelectedPolicy(null);
         }}
         footer={[
-          <Button key="close" onClick={() => { setDetailModalVisible(false); setSelectedPolicy(null); }}>
+          <Button
+            key="close"
+            onClick={() => {
+              setDetailModalVisible(false);
+              setSelectedPolicy(null);
+            }}
+          >
             关闭
           </Button>,
         ]}
@@ -1027,7 +1021,13 @@ const AISecurityPage: React.FC = () => {
                 </Tag>
               </Descriptions.Item>
               <Descriptions.Item label="违规次数">
-                <Badge count={selectedPolicy.violations} style={{ backgroundColor: selectedPolicy.violations > 0 ? colors.error[500] : colors.success[500] }} />
+                <Badge
+                  count={selectedPolicy.violations}
+                  style={{
+                    backgroundColor:
+                      selectedPolicy.violations > 0 ? colors.error[500] : colors.success[500],
+                  }}
+                />
               </Descriptions.Item>
               <Descriptions.Item label="启用状态">
                 {selectedPolicy.enabled ? (
@@ -1048,7 +1048,9 @@ const AISecurityPage: React.FC = () => {
               <Title level={5}>策略规则</Title>
               <Space wrap>
                 {selectedPolicy.rules.map((rule, idx) => (
-                  <Tag key={idx} icon={<SecurityScanOutlined />}>{rule}</Tag>
+                  <Tag key={idx} icon={<SecurityScanOutlined />}>
+                    {rule}
+                  </Tag>
                 ))}
               </Space>
             </div>

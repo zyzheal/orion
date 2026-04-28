@@ -235,7 +235,7 @@ export class DispatchAnalytics {
     periodStart?: Date;
     periodEnd?: Date;
   }): DispatchMetrics {
-    let results = this.filterByPeriod(options?.periodStart, options?.periodEnd);
+    const results = this.filterByPeriod(options?.periodStart, options?.periodEnd);
 
     const total = results.length;
     const successful = results.filter((r) => r.accepted);

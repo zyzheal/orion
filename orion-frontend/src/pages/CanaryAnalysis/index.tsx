@@ -3,7 +3,23 @@
  * Analysis runs list, run detail with metrics, force promote/rollback, config management
  */
 import React, { useState, useMemo, useEffect } from 'react';
-import { Typography, Button, Space, Tag, Card, Row, Col, Statistic, Modal, Form, Input, message, Select, Descriptions, Alert } from 'antd';
+import {
+  Typography,
+  Button,
+  Space,
+  Tag,
+  Card,
+  Row,
+  Col,
+  Statistic,
+  Modal,
+  Form,
+  Input,
+  message,
+  Select,
+  Descriptions,
+  Alert,
+} from 'antd';
 import { colors, spacing } from '@/tokens';
 import { ReloadOutlined, SettingOutlined, PlayCircleOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
@@ -190,7 +206,9 @@ const CanaryAnalysis: React.FC = () => {
       render: (_value: unknown, record: CanaryAnalysisRun) => (
         <Space direction="vertical" size={0}>
           <Text strong>Deployment #{record.deploymentId}</Text>
-          <Text type="secondary" style={{ fontSize: spacing[3] }}>Run #{record.runNumber}</Text>
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
+            Run #{record.runNumber}
+          </Text>
         </Space>
       ),
     },
@@ -206,7 +224,12 @@ const CanaryAnalysis: React.FC = () => {
           rollback: 'failed',
           inconclusive: 'warning',
         };
-        return <StatusBadge status={(statusMap[String(value)] || 'unknown') as StatusType} size="small" />;
+        return (
+          <StatusBadge
+            status={(statusMap[String(value)] || 'unknown') as StatusType}
+            size="small"
+          />
+        );
       },
     },
     {
@@ -243,8 +266,16 @@ const CanaryAnalysis: React.FC = () => {
       dataIndex: 'decision',
       width: 120,
       render: (value: unknown) => {
-        const colorMap: Record<string, string> = { promote: 'green', rollback: 'red', continue: 'gold' };
-        return value ? <Tag color={colorMap[String(value)] || 'default'}>{String(value)}</Tag> : <Text type="secondary">-</Text>;
+        const colorMap: Record<string, string> = {
+          promote: 'green',
+          rollback: 'red',
+          continue: 'gold',
+        };
+        return value ? (
+          <Tag color={colorMap[String(value)] || 'default'}>{String(value)}</Tag>
+        ) : (
+          <Text type="secondary">-</Text>
+        );
       },
     },
     {
@@ -323,17 +354,29 @@ const CanaryAnalysis: React.FC = () => {
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="运行中" value={runningCount} valueStyle={{ color: colors.primary[500] }} />
+            <Statistic
+              title="运行中"
+              value={runningCount}
+              valueStyle={{ color: colors.primary[500] }}
+            />
           </Card>
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="已升级" value={promotedCount} valueStyle={{ color: colors.success[600] }} />
+            <Statistic
+              title="已升级"
+              value={promotedCount}
+              valueStyle={{ color: colors.success[600] }}
+            />
           </Card>
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="已回滚" value={rolledbackCount} valueStyle={{ color: colors.error[600] }} />
+            <Statistic
+              title="已回滚"
+              value={rolledbackCount}
+              valueStyle={{ color: colors.error[600] }}
+            />
           </Card>
         </Col>
       </Row>
@@ -401,7 +444,16 @@ const CanaryAnalysis: React.FC = () => {
               <Descriptions.Item label="部署">{selectedRun.deploymentId}</Descriptions.Item>
               <Descriptions.Item label="轮次">{selectedRun.runNumber}</Descriptions.Item>
               <Descriptions.Item label="状态">
-                <StatusBadge status={selectedRun.status === 'running' ? 'running' : selectedRun.status === 'promote' ? 'success' : 'failed'} size="small" />
+                <StatusBadge
+                  status={
+                    selectedRun.status === 'running'
+                      ? 'running'
+                      : selectedRun.status === 'promote'
+                        ? 'success'
+                        : 'failed'
+                  }
+                  size="small"
+                />
               </Descriptions.Item>
               <Descriptions.Item label="置信度">
                 {selectedRun.confidence ? `${(selectedRun.confidence * 100).toFixed(1)}%` : '-'}
@@ -431,21 +483,21 @@ const CanaryAnalysis: React.FC = () => {
                       title: '类别',
                       dataIndex: 'category',
                       width: 100,
-                      render: (value: unknown) => value ? <Tag>{String(value)}</Tag> : '-',
+                      render: (value: unknown) => (value ? <Tag>{String(value)}</Tag> : '-'),
                     },
                     {
                       key: 'baselineValue',
                       title: 'Baseline',
                       dataIndex: 'baselineValue',
                       width: 100,
-                      render: (value: unknown) => value ? String(value) : '-',
+                      render: (value: unknown) => (value ? String(value) : '-'),
                     },
                     {
                       key: 'canaryValue',
                       title: 'Canary',
                       dataIndex: 'canaryValue',
                       width: 100,
-                      render: (value: unknown) => value ? String(value) : '-',
+                      render: (value: unknown) => (value ? String(value) : '-'),
                     },
                     {
                       key: 'mannWhitneyP',
@@ -464,8 +516,19 @@ const CanaryAnalysis: React.FC = () => {
                       dataIndex: 'verdict',
                       width: 100,
                       render: (value: unknown) => {
-                        const statusMap: Record<string, string> = { pass: 'success', warn: 'warning', fail: 'failed' };
-                        return value ? <StatusBadge status={(statusMap[String(value)] || 'unknown') as StatusType} size="small" /> : '-';
+                        const statusMap: Record<string, string> = {
+                          pass: 'success',
+                          warn: 'warning',
+                          fail: 'failed',
+                        };
+                        return value ? (
+                          <StatusBadge
+                            status={(statusMap[String(value)] || 'unknown') as StatusType}
+                            size="small"
+                          />
+                        ) : (
+                          '-'
+                        );
                       },
                     },
                   ]}
@@ -483,10 +546,18 @@ const CanaryAnalysis: React.FC = () => {
             {mlResults.length > 0 && (
               <Card title="ML 分析结果" size="small">
                 {mlResults.map((ml) => (
-                  <Descriptions key={ml.id} bordered column={3} size="small" style={{ marginBottom: 8 }}>
+                  <Descriptions
+                    key={ml.id}
+                    bordered
+                    column={3}
+                    size="small"
+                    style={{ marginBottom: 8 }}
+                  >
                     <Descriptions.Item label="模型">{ml.modelName}</Descriptions.Item>
                     <Descriptions.Item label="预测">
-                      <Tag color={ml.prediction === 'healthy' ? 'green' : 'red'}>{ml.prediction}</Tag>
+                      <Tag color={ml.prediction === 'healthy' ? 'green' : 'red'}>
+                        {ml.prediction}
+                      </Tag>
                     </Descriptions.Item>
                     <Descriptions.Item label="置信度">
                       {ml.confidence ? `${(ml.confidence * 100).toFixed(1)}%` : '-'}
@@ -531,11 +602,13 @@ const CanaryAnalysis: React.FC = () => {
             <Input placeholder="my-service" />
           </Form.Item>
           <Form.Item name="environment" label="环境" rules={[{ required: true }]}>
-            <Select options={[
-              { label: 'Development', value: 'development' },
-              { label: 'Staging', value: 'staging' },
-              { label: 'Production', value: 'production' },
-            ]} />
+            <Select
+              options={[
+                { label: 'Development', value: 'development' },
+                { label: 'Staging', value: 'staging' },
+                { label: 'Production', value: 'production' },
+              ]}
+            />
           </Form.Item>
           <Row gutter={16}>
             <Col span={12}>
@@ -568,7 +641,7 @@ const CanaryAnalysis: React.FC = () => {
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="rollbackThreshold" label="回滚阈值" initialValue={0.60}>
+              <Form.Item name="rollbackThreshold" label="回滚阈值" initialValue={0.6}>
                 <Input type="number" step={0.01} min={0} max={1} />
               </Form.Item>
             </Col>

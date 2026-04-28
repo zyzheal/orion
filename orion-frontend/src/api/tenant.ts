@@ -109,7 +109,9 @@ export function releaseNamespace(namespaceName: string) {
 }
 
 export function getTenantNamespaces(tenantId: number) {
-  return api.get<{ namespaces: NamespacePoolEntry[]; count: number }>(`/v1/tenant/namespace/${tenantId}`);
+  return api.get<{ namespaces: NamespacePoolEntry[]; count: number }>(
+    `/v1/tenant/namespace/${tenantId}`
+  );
 }
 
 // ==================== Middleware Config ====================

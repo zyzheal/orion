@@ -3,12 +3,27 @@
  * Table display with Modal CRUD for branch protection policies
  */
 import React, { useState, useEffect, useCallback } from 'react';
-import { Typography, Button, Space, Tag, Switch, Modal, Form, Input, InputNumber, Checkbox, message } from 'antd';
+import {
+  Typography,
+  Button,
+  Space,
+  Tag,
+  Switch,
+  Modal,
+  Form,
+  Input,
+  InputNumber,
+  Checkbox,
+  message,
+} from 'antd';
 import { PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { spacing } from '@/tokens';
 import Table, { type TableColumn } from '@/components/Table';
 import {
-  getBranchPolicies, createBranchPolicy, updateBranchPolicy, deleteBranchPolicy,
+  getBranchPolicies,
+  createBranchPolicy,
+  updateBranchPolicy,
+  deleteBranchPolicy,
   type BranchPolicy,
   type CreateBranchPolicyInput,
   type UpdateBranchPolicyInput,
@@ -97,7 +112,9 @@ const BranchPolicyList: React.FC = () => {
       loadPolicies();
     } catch (error: unknown) {
       if (error instanceof Error) {
-        message.error(editingPolicy ? `更新策略失败：${error.message}` : `创建策略失败：${error.message}`);
+        message.error(
+          editingPolicy ? `更新策略失败：${error.message}` : `创建策略失败：${error.message}`
+        );
       } else {
         message.error(editingPolicy ? '更新策略失败，请稍后重试' : '创建策略失败，请稍后重试');
       }
@@ -150,7 +167,9 @@ const BranchPolicyList: React.FC = () => {
       filterable: true,
       render: (value: unknown, record: any) => (
         <Space direction="vertical" size={0}>
-          <Text code strong>{String(value)}</Text>
+          <Text code strong>
+            {String(value)}
+          </Text>
           <Text type="secondary" style={{ fontSize: spacing[3] }}>
             仓库: {record.repoId}
           </Text>
@@ -163,9 +182,7 @@ const BranchPolicyList: React.FC = () => {
       dataIndex: 'minApprovals',
       width: 100,
       sortable: true,
-      render: (value: unknown) => (
-        <Tag color="blue">{String(value)} 人</Tag>
-      ),
+      render: (value: unknown) => <Tag color="blue">{String(value)} 人</Tag>,
     },
     {
       key: 'requireBuildPass',
@@ -173,9 +190,7 @@ const BranchPolicyList: React.FC = () => {
       dataIndex: 'requireBuildPass',
       width: 100,
       render: (value: unknown) => (
-        <Tag color={value ? 'green' : 'default'}>
-          {value ? '是' : '否'}
-        </Tag>
+        <Tag color={value ? 'green' : 'default'}>{value ? '是' : '否'}</Tag>
       ),
     },
     {
@@ -184,9 +199,7 @@ const BranchPolicyList: React.FC = () => {
       dataIndex: 'requireTestPass',
       width: 100,
       render: (value: unknown) => (
-        <Tag color={value ? 'green' : 'default'}>
-          {value ? '是' : '否'}
-        </Tag>
+        <Tag color={value ? 'green' : 'default'}>{value ? '是' : '否'}</Tag>
       ),
     },
     {
@@ -257,9 +270,7 @@ const BranchPolicyList: React.FC = () => {
           <Title level={3} style={{ margin: 0 }}>
             分支策略
           </Title>
-          <Text type="secondary">
-            管理分支保护策略和合并规则
-          </Text>
+          <Text type="secondary">管理分支保护策略和合并规则</Text>
         </div>
         <Space>
           <Button icon={<ReloadOutlined />} onClick={loadPolicies} loading={loading}>
@@ -292,12 +303,7 @@ const BranchPolicyList: React.FC = () => {
         onOk={() => form.submit()}
         width={600}
       >
-        <Form
-          form={form}
-          onFinish={handleSave}
-          layout="vertical"
-          style={{ marginTop: 16 }}
-        >
+        <Form form={form} onFinish={handleSave} layout="vertical" style={{ marginTop: 16 }}>
           <Form.Item
             label="分支匹配模式"
             name="branchPattern"

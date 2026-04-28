@@ -25,10 +25,7 @@ const DiagnosticTrigger: React.FC = () => {
   const [symptoms, setSymptoms] = useState<SymptomFormItem[]>([]);
 
   const addSymptom = () => {
-    setSymptoms([
-      ...symptoms,
-      { type: '', source: '', description: '', severity: 'medium' },
-    ]);
+    setSymptoms([...symptoms, { type: '', source: '', description: '', severity: 'medium' }]);
   };
 
   const removeSymptom = (index: number) => {
@@ -73,7 +70,11 @@ const DiagnosticTrigger: React.FC = () => {
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
-        <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/diagnostic/sessions')}>
+        <Button
+          type="text"
+          icon={<ArrowLeftOutlined />}
+          onClick={() => navigate('/diagnostic/sessions')}
+        >
           返回
         </Button>
         <div style={{ flex: 1 }}>
@@ -121,7 +122,14 @@ const DiagnosticTrigger: React.FC = () => {
           </Form.Item>
 
           {/* Symptoms */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: 16,
+            }}
+          >
             <Title level={5} style={{ margin: 0 }}>
               症状列表
               {symptoms.length > 0 && (
@@ -215,9 +223,7 @@ const DiagnosticTrigger: React.FC = () => {
               >
                 {submitting ? '提交中...' : '触发诊断'}
               </Button>
-              <Button onClick={() => triggerForm.resetFields()}>
-                重置
-              </Button>
+              <Button onClick={() => triggerForm.resetFields()}>重置</Button>
             </Space>
           </Form.Item>
         </Form>

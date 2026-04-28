@@ -165,6 +165,7 @@ describe('UserService', () => {
   describe('authenticate', () => {
     it('should authenticate with correct credentials', async () => {
       // Use SHA-256 hash of 'password123' which is what our hashPassword produces
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
       const crypto = require('crypto');
       const hash = crypto.createHash('sha256');
       hash.update('correctpassword');
@@ -185,6 +186,7 @@ describe('UserService', () => {
     });
 
     it('should fail with wrong password', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
       const crypto = require('crypto');
       const hash = crypto.createHash('sha256');
       hash.update('correctpassword');
@@ -202,6 +204,7 @@ describe('UserService', () => {
     });
 
     it('should fail for inactive user', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
       const crypto = require('crypto');
       const hash = crypto.createHash('sha256');
       hash.update('password123');

@@ -4,7 +4,11 @@
 import React, { useState, useEffect } from 'react';
 import { Typography, Button, Card, Form, Switch, Select, Input, TimePicker, message } from 'antd';
 import { SaveOutlined } from '@ant-design/icons';
-import { getNotificationSettings, updateNotificationSettings, type NotificationSettings } from '@/api/confirmations';
+import {
+  getNotificationSettings,
+  updateNotificationSettings,
+  type NotificationSettings,
+} from '@/api/confirmations';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -66,7 +70,9 @@ const NotificationSettingsPage: React.FC = () => {
   return (
     <div style={{ padding: 0 }}>
       <div style={{ marginBottom: 24 }}>
-        <Title level={3} style={{ margin: 0 }}>通知设置</Title>
+        <Title level={3} style={{ margin: 0 }}>
+          通知设置
+        </Title>
         <Text type="secondary">配置确认通知渠道和自动化规则</Text>
       </div>
 
@@ -89,7 +95,12 @@ const NotificationSettingsPage: React.FC = () => {
         </Card>
 
         <Card title="自动确认规则" style={{ marginTop: 16 }}>
-          <Form.Item name="autoApproveP3" label="自动确认 P3 请求" valuePropName="checked" initialValue={false}>
+          <Form.Item
+            name="autoApproveP3"
+            label="自动确认 P3 请求"
+            valuePropName="checked"
+            initialValue={false}
+          >
             <Switch />
           </Form.Item>
           <Form.Item name="autoApproveAfterMinutes" label="超时自动确认（分钟）" initialValue={30}>

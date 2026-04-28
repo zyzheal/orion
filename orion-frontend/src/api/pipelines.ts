@@ -137,7 +137,10 @@ export function validatePipelineYaml(yamlDefinition: string) {
 
 // ---- Pipeline Execution ----
 
-export function triggerPipeline(id: string, data?: { branch?: string; variables?: Record<string, string> }) {
+export function triggerPipeline(
+  id: string,
+  data?: { branch?: string; variables?: Record<string, string> }
+) {
   return api.post(`/v1/pipelines/${id}/runs`, data);
 }
 

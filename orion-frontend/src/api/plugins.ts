@@ -115,7 +115,15 @@ export interface ExecutePluginInput {
 
 export interface PluginExecutionResult {
   taskId: string;
-  status: 'PENDING' | 'RUNNING' | 'SUCCESS' | 'FAILED' | 'TIMEOUT' | 'CANCELLED' | 'QUOTA_EXCEEDED' | 'VALIDATION_FAILED';
+  status:
+    | 'PENDING'
+    | 'RUNNING'
+    | 'SUCCESS'
+    | 'FAILED'
+    | 'TIMEOUT'
+    | 'CANCELLED'
+    | 'QUOTA_EXCEEDED'
+    | 'VALIDATION_FAILED';
   exitCode: number;
   stdout?: string;
   stderr?: string;

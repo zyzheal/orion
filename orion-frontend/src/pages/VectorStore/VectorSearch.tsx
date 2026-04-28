@@ -50,7 +50,9 @@ const VectorSearch: React.FC<VectorSearchProps> = ({
             allowClear
             value={searchCollection}
             onChange={onCollectionChange}
-            options={collections.filter((c) => c.status === 'active').map((c) => ({ label: c.displayName, value: c.name }))}
+            options={collections
+              .filter((c) => c.status === 'active')
+              .map((c) => ({ label: c.displayName, value: c.name }))}
           />
         </Form.Item>
         <Form.Item label="返回数量 (Top K)">
@@ -66,7 +68,13 @@ const VectorSearch: React.FC<VectorSearchProps> = ({
           />
         </Form.Item>
         <Form.Item>
-          <Button type="primary" icon={<SearchOutlined />} onClick={onSearch} loading={searchLoading} block>
+          <Button
+            type="primary"
+            icon={<SearchOutlined />}
+            onClick={onSearch}
+            loading={searchLoading}
+            block
+          >
             语义搜索
           </Button>
         </Form.Item>
@@ -74,10 +82,19 @@ const VectorSearch: React.FC<VectorSearchProps> = ({
 
       {searchResults.length > 0 && (
         <div style={{ marginTop: 12 }}>
-          <Text strong style={{ marginBottom: 8, display: 'block' }}>搜索结果 ({searchResults.length} 条)</Text>
+          <Text strong style={{ marginBottom: 8, display: 'block' }}>
+            搜索结果 ({searchResults.length} 条)
+          </Text>
           {searchResults.map((hit, idx) => (
             <Card size="small" key={hit.id} style={{ marginBottom: 8 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: 4,
+                }}
+              >
                 <Tag color={idx === 0 ? 'green' : idx === 1 ? 'blue' : 'default'}>
                   相似度 {(hit.score * 100).toFixed(1)}%
                 </Tag>

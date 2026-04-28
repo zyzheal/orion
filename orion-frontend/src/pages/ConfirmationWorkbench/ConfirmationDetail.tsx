@@ -2,10 +2,29 @@
  * Confirmation Detail - Full detail with AI suggestion, confidence meter, countdown timer, approve/reject/comment
  */
 import React, { useState, useEffect } from 'react';
-import { Typography, Button, Space, Tag, Card, Progress, Input, message, Descriptions, Statistic, Row, Col, Divider } from 'antd';
+import {
+  Typography,
+  Button,
+  Space,
+  Tag,
+  Card,
+  Progress,
+  Input,
+  message,
+  Descriptions,
+  Statistic,
+  Row,
+  Col,
+  Divider,
+} from 'antd';
 import { colors } from '@/tokens';
 import { CheckOutlined, CloseOutlined, ArrowLeftOutlined } from '@ant-design/icons';
-import { getConfirmation, approveConfirmation, rejectConfirmation, type ConfirmationRequest } from '@/api/confirmations';
+import {
+  getConfirmation,
+  approveConfirmation,
+  rejectConfirmation,
+  type ConfirmationRequest,
+} from '@/api/confirmations';
 import { useNavigate, useParams } from 'react-router-dom';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -89,8 +108,16 @@ const ConfirmationDetail: React.FC = () => {
   return (
     <div style={{ padding: 0 }}>
       <div style={{ marginBottom: 24 }}>
-        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)} style={{ marginBottom: 16 }}>返回</Button>
-        <Title level={3} style={{ margin: 0 }}>确认详情</Title>
+        <Button
+          icon={<ArrowLeftOutlined />}
+          onClick={() => navigate(-1)}
+          style={{ marginBottom: 16 }}
+        >
+          返回
+        </Button>
+        <Title level={3} style={{ margin: 0 }}>
+          确认详情
+        </Title>
       </div>
 
       <Card style={{ marginBottom: 16 }}>
@@ -105,18 +132,32 @@ const ConfirmationDetail: React.FC = () => {
             </Tag>
           </Descriptions.Item>
           <Descriptions.Item label="状态">
-            <Tag color={confirmation.status === 'pending' ? 'processing' : confirmation.status === 'confirmed' ? 'success' : 'error'}>
+            <Tag
+              color={
+                confirmation.status === 'pending'
+                  ? 'processing'
+                  : confirmation.status === 'confirmed'
+                    ? 'success'
+                    : 'error'
+              }
+            >
               {confirmation.status}
             </Tag>
           </Descriptions.Item>
-          <Descriptions.Item label="推送时间">{dayjs(confirmation.pushTime).format('YYYY-MM-DD HH:mm:ss')}</Descriptions.Item>
+          <Descriptions.Item label="推送时间">
+            {dayjs(confirmation.pushTime).format('YYYY-MM-DD HH:mm:ss')}
+          </Descriptions.Item>
           <Descriptions.Item label="响应时间">
-            {confirmation.responseTime ? dayjs(confirmation.responseTime).format('YYYY-MM-DD HH:mm:ss') : '未响应'}
+            {confirmation.responseTime
+              ? dayjs(confirmation.responseTime).format('YYYY-MM-DD HH:mm:ss')
+              : '未响应'}
           </Descriptions.Item>
           <Descriptions.Item label="响应人">{confirmation.responder || '-'}</Descriptions.Item>
           {confirmation.status === 'pending' && (
             <Descriptions.Item label="已等待">
-              <Text type="danger">{minutes}分{seconds}秒</Text>
+              <Text type="danger">
+                {minutes}分{seconds}秒
+              </Text>
             </Descriptions.Item>
           )}
         </Descriptions>
@@ -132,24 +173,48 @@ const ConfirmationDetail: React.FC = () => {
           <Col span={12}>
             <Progress
               percent={confirmation.aiConfidence}
-              strokeColor={confirmation.aiConfidence >= 80 ? colors.success[500] : confirmation.aiConfidence >= 60 ? colors.warning[500] : colors.error[400]}
+              strokeColor={
+                confirmation.aiConfidence >= 80
+                  ? colors.success[500]
+                  : confirmation.aiConfidence >= 60
+                    ? colors.warning[500]
+                    : colors.error[400]
+              }
             />
           </Col>
         </Row>
       </Card>
 
       {confirmation.comment && (
-        <Card title="备注" style={{ marginBottom: 16 }}><Text>{confirmation.comment}</Text></Card>
+        <Card title="备注" style={{ marginBottom: 16 }}>
+          <Text>{confirmation.comment}</Text>
+        </Card>
       )}
 
       {confirmation.status === 'pending' && (
         <Card title="操作">
-          <Input.TextArea value={comment} onChange={(e) => setComment(e.target.value)} rows={3} placeholder="输入备注..." style={{ marginBottom: 16 }} />
+          <Input.TextArea
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            rows={3}
+            placeholder="输入备注..."
+            style={{ marginBottom: 16 }}
+          />
           <Space>
-            <Button type="primary" icon={<CheckOutlined />} onClick={() => handleAction('approve')} loading={processing}>
+            <Button
+              type="primary"
+              icon={<CheckOutlined />}
+              onClick={() => handleAction('approve')}
+              loading={processing}
+            >
               确认
             </Button>
-            <Button danger icon={<CloseOutlined />} onClick={() => handleAction('reject')} loading={processing}>
+            <Button
+              danger
+              icon={<CloseOutlined />}
+              onClick={() => handleAction('reject')}
+              loading={processing}
+            >
               拒绝
             </Button>
           </Space>

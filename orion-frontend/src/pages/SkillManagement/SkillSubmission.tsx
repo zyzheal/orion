@@ -69,13 +69,27 @@ const SkillSubmission: React.FC = () => {
   return (
     <div style={{ padding: 0 }}>
       <div style={{ marginBottom: spacing[6] }}>
-        <Title level={3} style={{ margin: 0 }}>技能提交</Title>
+        <Title level={3} style={{ margin: 0 }}>
+          技能提交
+        </Title>
         <Text type="secondary">提交新的技能包到社区市场</Text>
       </div>
 
-      <Card title={<Space><PlusOutlined />提交新技能</Space>} style={{ marginBottom: spacing[6] }}>
+      <Card
+        title={
+          <Space>
+            <PlusOutlined />
+            提交新技能
+          </Space>
+        }
+        style={{ marginBottom: spacing[6] }}
+      >
         <Form form={form} layout="vertical" style={{ maxWidth: 700 }}>
-          <Form.Item name="name" label="技能名称" rules={[{ required: true, message: '请输入技能名称' }]}>
+          <Form.Item
+            name="name"
+            label="技能名称"
+            rules={[{ required: true, message: '请输入技能名称' }]}
+          >
             <Input placeholder="例如: Kubernetes 健康检查" />
           </Form.Item>
 
@@ -83,14 +97,20 @@ const SkillSubmission: React.FC = () => {
             <Input placeholder="1.0.0" />
           </Form.Item>
 
-          <Form.Item name="category" label="分类" rules={[{ required: true, message: '请选择分类' }]}>
+          <Form.Item
+            name="category"
+            label="分类"
+            rules={[{ required: true, message: '请选择分类' }]}
+          >
             <Select placeholder="选择分类" options={categoryOptions} />
           </Form.Item>
 
           <Form.Item label="标签">
             <Space wrap>
               {tags.map((tag) => (
-                <Tag key={tag} closable onClose={() => handleRemoveTag(tag)}>{tag}</Tag>
+                <Tag key={tag} closable onClose={() => handleRemoveTag(tag)}>
+                  {tag}
+                </Tag>
               ))}
               <Input
                 value={tagInput}
@@ -103,7 +123,11 @@ const SkillSubmission: React.FC = () => {
             </Space>
           </Form.Item>
 
-          <Form.Item name="description" label="描述" rules={[{ required: true, message: '请输入描述' }]}>
+          <Form.Item
+            name="description"
+            label="描述"
+            rules={[{ required: true, message: '请输入描述' }]}
+          >
             <TextArea rows={3} placeholder="详细描述技能的功能和使用场景..." />
           </Form.Item>
 
@@ -112,7 +136,12 @@ const SkillSubmission: React.FC = () => {
           </Form.Item>
 
           <Form.Item>
-            <Button type="primary" icon={<SendOutlined />} onClick={handleSubmit} loading={submitting}>
+            <Button
+              type="primary"
+              icon={<SendOutlined />}
+              onClick={handleSubmit}
+              loading={submitting}
+            >
               提交技能
             </Button>
           </Form.Item>
@@ -123,7 +152,17 @@ const SkillSubmission: React.FC = () => {
       {submittedSkills.length > 0 && (
         <Card title="提交历史" extra={<Text type="secondary">本次会话提交</Text>}>
           {submittedSkills.map((skill, index) => (
-            <div key={index} style={{ marginBottom: spacing[3], paddingBottom: spacing[3], borderBottom: index < submittedSkills.length - 1 ? `1px solid ${colors.light.border.light}` : 'none' }}>
+            <div
+              key={index}
+              style={{
+                marginBottom: spacing[3],
+                paddingBottom: spacing[3],
+                borderBottom:
+                  index < submittedSkills.length - 1
+                    ? `1px solid ${colors.light.border.light}`
+                    : 'none',
+              }}
+            >
               <Space>
                 <Text strong>{skill.name}</Text>
                 <Tag>v{skill.version}</Tag>

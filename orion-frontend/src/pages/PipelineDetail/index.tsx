@@ -139,7 +139,11 @@ const PipelineDetail: React.FC = () => {
             {pipeline.name} #{pipeline.runNumber}
           </Title>
           <Text type="secondary">
-            {pipeline.commit && <Tag color="default" style={{ marginRight: 8 }}>{pipeline.commit}</Tag>}
+            {pipeline.commit && (
+              <Tag color="default" style={{ marginRight: 8 }}>
+                {pipeline.commit}
+              </Tag>
+            )}
             分支: {pipeline.branch}
           </Text>
         </div>
@@ -164,12 +168,7 @@ const PipelineDetail: React.FC = () => {
         <CardPanel>Loading...</CardPanel>
       ) : (
         <CardPanel>
-          <Descriptions
-            column={4}
-            size="small"
-            bordered
-            labelStyle={{ width: 120 }}
-          >
+          <Descriptions column={4} size="small" bordered labelStyle={{ width: 120 }}>
             <Descriptions.Item label="状态">
               <StatusBadge status={pipeline.status} size="small" />
             </Descriptions.Item>
@@ -185,25 +184,24 @@ const PipelineDetail: React.FC = () => {
             <Descriptions.Item label="开始时间">
               <Space>
                 <ClockCircleOutlined />
-                <Text type="secondary">{dayjs(pipeline.startTime).format('YYYY-MM-DD HH:mm:ss')}</Text>
+                <Text type="secondary">
+                  {dayjs(pipeline.startTime).format('YYYY-MM-DD HH:mm:ss')}
+                </Text>
               </Space>
             </Descriptions.Item>
             <Descriptions.Item label="结束时间">
               {pipeline.endTime ? (
-                <Text type="secondary">{dayjs(pipeline.endTime).format('YYYY-MM-DD HH:mm:ss')}</Text>
+                <Text type="secondary">
+                  {dayjs(pipeline.endTime).format('YYYY-MM-DD HH:mm:ss')}
+                </Text>
               ) : (
                 <Text type="secondary">-</Text>
               )}
             </Descriptions.Item>
-            <Descriptions.Item label="耗时">
-              {formatDuration(pipeline.duration)}
-            </Descriptions.Item>
+            <Descriptions.Item label="耗时">{formatDuration(pipeline.duration)}</Descriptions.Item>
             <Descriptions.Item label="进度">
               <Space>
-                <Badge
-                  status="processing"
-                  text={`${completedStages}/${totalStages} 阶段完成`}
-                />
+                <Badge status="processing" text={`${completedStages}/${totalStages} 阶段完成`} />
                 <Text type="secondary">({progressPercent}%)</Text>
               </Space>
             </Descriptions.Item>
@@ -213,237 +211,245 @@ const PipelineDetail: React.FC = () => {
 
       {/* Tabbed content: Stages / Logs */}
       {loading || !pipeline ? null : (
-        <Tabs
-          activeKey={activeTab}
-          onChange={setActiveTab}
-          style={{ marginBottom: 16 }}
-        >
-        <TabPane
-          tab={
-            <Space>
-              <PlayCircleOutlined />
-              阶段详情
-            </Space>
-          }
-          key="stages"
-        >
-          {/* Stage timeline visualization */}
-          <CardPanel title="执行阶段">
-            <Space direction="vertical" style={{ width: '100%' }} size={16}>
-              {/* Stage progress bar */}
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 4,
-                  padding: '8px 0',
-                }}
-              >
-                {pipeline.stages?.map((stage: any, index: number) => (
-                  <React.Fragment key={stage.name}>
-                    {/* Stage node */}
-                    <div
-                      style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        gap: 4,
-                        flex: 1,
-                      }}
-                    >
+        <Tabs activeKey={activeTab} onChange={setActiveTab} style={{ marginBottom: 16 }}>
+          <TabPane
+            tab={
+              <Space>
+                <PlayCircleOutlined />
+                阶段详情
+              </Space>
+            }
+            key="stages"
+          >
+            {/* Stage timeline visualization */}
+            <CardPanel title="执行阶段">
+              <Space direction="vertical" style={{ width: '100%' }} size={16}>
+                {/* Stage progress bar */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    padding: '8px 0',
+                  }}
+                >
+                  {pipeline.stages?.map((stage: any, index: number) => (
+                    <React.Fragment key={stage.name}>
+                      {/* Stage node */}
                       <div
                         style={{
-                          width: 32,
-                          height: 32,
-                          borderRadius: '50%',
-                          backgroundColor: stageStatusColors[stage.status] || colors.neutral[300],
                           display: 'flex',
+                          flexDirection: 'column',
                           alignItems: 'center',
-                          justifyContent: 'center',
-                          color: colors.neutral[0],
-                          fontSize: spacing[4],
-                          fontWeight: 600,
-                          boxShadow:
-                            stage.status === 'running'
-                              ? '0 0 0 4px rgba(24,144,255,0.2)'
-                              : 'none',
-                          animation:
-                            stage.status === 'running'
-                              ? 'status-pulse 1.5s ease-in-out infinite'
-                              : 'none',
-                        }}
-                      >
-                        {stage.status === 'success' ? '\u2713' : stage.status === 'failed' ? '\u2717' : index + 1}
-                      </div>
-                      <Text
-                        style={{
-                          fontSize: spacing[2],
-                          textAlign: 'center',
-                          maxWidth: 80,
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                        }}
-                        title={stage.name}
-                      >
-                        {stage.name}
-                      </Text>
-                      {stage.duration && (
-                        <Text type="secondary" style={{ fontSize: spacing[2] }}>
-                          {formatDuration(stage.duration)}
-                        </Text>
-                      )}
-                    </div>
-                    {/* Connector line */}
-                    {index < (pipeline.stages?.length || 0) - 1 && (
-                      <div
-                        style={{
+                          gap: 4,
                           flex: 1,
-                          height: 3,
-                          backgroundColor:
-                            pipeline.stages![index + 1].status === 'pending'
-                              ? colors.light.border.light
-                              : stageStatusColors[pipeline.stages![index].status] || colors.neutral[300],
-                          borderRadius: 2,
-                          marginTop: -16,
                         }}
-                      />
-                    )}
-                  </React.Fragment>
-                ))}
-              </div>
-
-              {/* Stage details table */}
-              {pipeline.stages && pipeline.stages.length > 0 && (
-                <div style={{ marginTop: 8 }}>
-                  {pipeline.stages.map((stage: any, index: number) => (
-                    <Card
-                      key={stage.name}
-                      size="small"
-                      style={{ marginBottom: 8 }}
-                      title={
-                        <Space>
-                          <StatusBadge status={stage.status} size="small" />
-                          <Text strong>
-                            {index + 1}. {stage.name}
+                      >
+                        <div
+                          style={{
+                            width: 32,
+                            height: 32,
+                            borderRadius: '50%',
+                            backgroundColor: stageStatusColors[stage.status] || colors.neutral[300],
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: colors.neutral[0],
+                            fontSize: spacing[4],
+                            fontWeight: 600,
+                            boxShadow:
+                              stage.status === 'running'
+                                ? '0 0 0 4px rgba(24,144,255,0.2)'
+                                : 'none',
+                            animation:
+                              stage.status === 'running'
+                                ? 'status-pulse 1.5s ease-in-out infinite'
+                                : 'none',
+                          }}
+                        >
+                          {stage.status === 'success'
+                            ? '\u2713'
+                            : stage.status === 'failed'
+                              ? '\u2717'
+                              : index + 1}
+                        </div>
+                        <Text
+                          style={{
+                            fontSize: spacing[2],
+                            textAlign: 'center',
+                            maxWidth: 80,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          }}
+                          title={stage.name}
+                        >
+                          {stage.name}
+                        </Text>
+                        {stage.duration && (
+                          <Text type="secondary" style={{ fontSize: spacing[2] }}>
+                            {formatDuration(stage.duration)}
                           </Text>
-                        </Space>
-                      }
-                      extra={
-                        stage.duration && (
-                          <Text type="secondary" style={{ fontSize: spacing[3] }}>
-                            耗时: {formatDuration(stage.duration)}
-                          </Text>
-                        )
-                      }
-                    >
-                      {/* Steps within the stage */}
-                      {stage.steps && stage.steps.length > 0 && (
-                        <Space direction="vertical" size={4}>
-                          {stage.steps.map((step: any) => (
-                            <div
-                              key={step.name}
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 8,
-                                fontSize: spacing[3],
-                              }}
-                            >
-                              <StatusBadge status={step.status} size="small" variant="subtle" />
-                              <Text>{step.name}</Text>
-                              {step.duration && (
-                                <Text type="secondary" style={{ fontSize: spacing[2], marginLeft: 'auto' }}>
-                                  {formatDuration(step.duration)}
-                                </Text>
-                              )}
-                            </div>
-                          ))}
-                        </Space>
-                      )}
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </Space>
-          </CardPanel>
-        </TabPane>
-
-        <TabPane
-          tab={
-            <Space>
-              <CodeOutlined />
-              执行日志
-            </Space>
-          }
-          key="logs"
-        >
-          {/* Log viewer */}
-          <CardPanel title="日志输出">
-            <div
-              style={{
-                background: colors.neutral[900],
-                borderRadius: 6,
-                padding: 16,
-                fontFamily: 'Menlo, Monaco, "Courier New", monospace',
-                fontSize: spacing[3],
-                lineHeight: 1.6,
-                maxHeight: 500,
-                overflowY: 'auto',
-                color: colors.neutral[300],
-              }}
-            >
-              {pipeline.stages?.map((stage: any) => (
-                <div key={stage.name} style={{ marginBottom: 16 }}>
-                  {/* Stage header */}
-                  <div
-                    style={{
-                      color: stageStatusColors[stage.status],
-                      fontWeight: 600,
-                      marginBottom: 8,
-                      borderBottom: '1px solid #333',
-                      paddingBottom: 4,
-                    }}
-                  >
-                    [{dayjs(stage.startTime || pipeline.startTime).format('HH:mm:ss')}]
-                    {' '}=== Stage: {stage.name} ===
-                  </div>
-                  {/* Stage logs */}
-                  {stage.logs && stage.logs.length > 0 ? (
-                    stage.logs.map((log: any, index: number) => (
-                      <div key={index} style={{ paddingLeft: 16 }}>
-                        {log.includes('FAIL') ? (
-                          <span style={{ color: colors.error[500] }}>{log}</span>
-                        ) : log.includes('passed') || log.includes('successful') || log.includes('Success') ? (
-                          <span style={{ color: colors.success[600] }}>{log}</span>
-                        ) : (
-                          log
                         )}
                       </div>
-                    ))
-                  ) : (
-                    <div style={{ paddingLeft: 16, color: colors.neutral[500] }}>
-                      {stage.status === 'pending' ? '[Waiting to start...]' : '[No logs available]'}
-                    </div>
-                  )}
+                      {/* Connector line */}
+                      {index < (pipeline.stages?.length || 0) - 1 && (
+                        <div
+                          style={{
+                            flex: 1,
+                            height: 3,
+                            backgroundColor:
+                              pipeline.stages![index + 1].status === 'pending'
+                                ? colors.light.border.light
+                                : stageStatusColors[pipeline.stages![index].status] ||
+                                  colors.neutral[300],
+                            borderRadius: 2,
+                            marginTop: -16,
+                          }}
+                        />
+                      )}
+                    </React.Fragment>
+                  ))}
                 </div>
-              ))}
-              {/* Cursor indicator */}
-              {pipeline.status === 'running' && (
-                <span
-                  style={{
-                    display: 'inline-block',
-                    width: 8,
-                    height: 16,
-                    backgroundColor: colors.neutral[300],
-                    animation: 'blink 1s step-end infinite',
-                  }}
-                />
-              )}
-            </div>
-          </CardPanel>
-        </TabPane>
-      </Tabs>
+
+                {/* Stage details table */}
+                {pipeline.stages && pipeline.stages.length > 0 && (
+                  <div style={{ marginTop: 8 }}>
+                    {pipeline.stages.map((stage: any, index: number) => (
+                      <Card
+                        key={stage.name}
+                        size="small"
+                        style={{ marginBottom: 8 }}
+                        title={
+                          <Space>
+                            <StatusBadge status={stage.status} size="small" />
+                            <Text strong>
+                              {index + 1}. {stage.name}
+                            </Text>
+                          </Space>
+                        }
+                        extra={
+                          stage.duration && (
+                            <Text type="secondary" style={{ fontSize: spacing[3] }}>
+                              耗时: {formatDuration(stage.duration)}
+                            </Text>
+                          )
+                        }
+                      >
+                        {/* Steps within the stage */}
+                        {stage.steps && stage.steps.length > 0 && (
+                          <Space direction="vertical" size={4}>
+                            {stage.steps.map((step: any) => (
+                              <div
+                                key={step.name}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 8,
+                                  fontSize: spacing[3],
+                                }}
+                              >
+                                <StatusBadge status={step.status} size="small" variant="subtle" />
+                                <Text>{step.name}</Text>
+                                {step.duration && (
+                                  <Text
+                                    type="secondary"
+                                    style={{ fontSize: spacing[2], marginLeft: 'auto' }}
+                                  >
+                                    {formatDuration(step.duration)}
+                                  </Text>
+                                )}
+                              </div>
+                            ))}
+                          </Space>
+                        )}
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </Space>
+            </CardPanel>
+          </TabPane>
+
+          <TabPane
+            tab={
+              <Space>
+                <CodeOutlined />
+                执行日志
+              </Space>
+            }
+            key="logs"
+          >
+            {/* Log viewer */}
+            <CardPanel title="日志输出">
+              <div
+                style={{
+                  background: colors.neutral[900],
+                  borderRadius: 6,
+                  padding: 16,
+                  fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+                  fontSize: spacing[3],
+                  lineHeight: 1.6,
+                  maxHeight: 500,
+                  overflowY: 'auto',
+                  color: colors.neutral[300],
+                }}
+              >
+                {pipeline.stages?.map((stage: any) => (
+                  <div key={stage.name} style={{ marginBottom: 16 }}>
+                    {/* Stage header */}
+                    <div
+                      style={{
+                        color: stageStatusColors[stage.status],
+                        fontWeight: 600,
+                        marginBottom: 8,
+                        borderBottom: '1px solid #333',
+                        paddingBottom: 4,
+                      }}
+                    >
+                      [{dayjs(stage.startTime || pipeline.startTime).format('HH:mm:ss')}] === Stage:{' '}
+                      {stage.name} ===
+                    </div>
+                    {/* Stage logs */}
+                    {stage.logs && stage.logs.length > 0 ? (
+                      stage.logs.map((log: any, index: number) => (
+                        <div key={index} style={{ paddingLeft: 16 }}>
+                          {log.includes('FAIL') ? (
+                            <span style={{ color: colors.error[500] }}>{log}</span>
+                          ) : log.includes('passed') ||
+                            log.includes('successful') ||
+                            log.includes('Success') ? (
+                            <span style={{ color: colors.success[600] }}>{log}</span>
+                          ) : (
+                            log
+                          )}
+                        </div>
+                      ))
+                    ) : (
+                      <div style={{ paddingLeft: 16, color: colors.neutral[500] }}>
+                        {stage.status === 'pending'
+                          ? '[Waiting to start...]'
+                          : '[No logs available]'}
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {/* Cursor indicator */}
+                {pipeline.status === 'running' && (
+                  <span
+                    style={{
+                      display: 'inline-block',
+                      width: 8,
+                      height: 16,
+                      backgroundColor: colors.neutral[300],
+                      animation: 'blink 1s step-end infinite',
+                    }}
+                  />
+                )}
+              </div>
+            </CardPanel>
+          </TabPane>
+        </Tabs>
       )}
     </div>
   );

@@ -67,8 +67,10 @@ const SkillMarketplace: React.FC = () => {
           return false;
         }
       }
-      if (filters.category && filters.category !== 'all' && skill.category !== filters.category) return false;
-      if (filters.status && filters.status !== 'all' && skill.status !== filters.status) return false;
+      if (filters.category && filters.category !== 'all' && skill.category !== filters.category)
+        return false;
+      if (filters.status && filters.status !== 'all' && skill.status !== filters.status)
+        return false;
       return true;
     });
   }, [searchQuery, filters, skills]);
@@ -104,10 +106,16 @@ const SkillMarketplace: React.FC = () => {
       sortable: true,
       render: (v: unknown, record: any) => (
         <Space direction="vertical" size={0}>
-          <Text strong style={{ cursor: 'pointer', color: colors.primary[500] }} onClick={() => handleViewDetail(record)}>
+          <Text
+            strong
+            style={{ cursor: 'pointer', color: colors.primary[500] }}
+            onClick={() => handleViewDetail(record)}
+          >
             {String(v)}
           </Text>
-          <Text type="secondary" style={{ fontSize: spacing[3] }}>{record.description.slice(0, 40)}...</Text>
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
+            {record.description.slice(0, 40)}...
+          </Text>
         </Space>
       ),
     },
@@ -166,7 +174,9 @@ const SkillMarketplace: React.FC = () => {
       width: 140,
       sortable: true,
       render: (v: unknown) => (
-        <Text type="secondary" style={{ fontSize: spacing[3] }}>{dayjs(String(v)).fromNow()}</Text>
+        <Text type="secondary" style={{ fontSize: spacing[3] }}>
+          {dayjs(String(v)).fromNow()}
+        </Text>
       ),
     },
     {
@@ -175,7 +185,13 @@ const SkillMarketplace: React.FC = () => {
       width: 120,
       render: (_: unknown, record: SkillPackage) => (
         <Space size="small">
-          <Button type="link" size="small" icon={<DownloadOutlined />} onClick={() => handleInstall(record)} loading={installing}>
+          <Button
+            type="link"
+            size="small"
+            icon={<DownloadOutlined />}
+            onClick={() => handleInstall(record)}
+            loading={installing}
+          >
             安装
           </Button>
           <Button type="link" size="small" onClick={() => handleViewDetail(record)}>
@@ -206,13 +222,24 @@ const SkillMarketplace: React.FC = () => {
 
   return (
     <div style={{ padding: 0 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          marginBottom: 24,
+        }}
+      >
         <div>
-          <Title level={3} style={{ margin: 0 }}>技能市场</Title>
+          <Title level={3} style={{ margin: 0 }}>
+            技能市场
+          </Title>
           <Text type="secondary">浏览和安装社区共享的技能包</Text>
         </div>
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>刷新</Button>
+          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+            刷新
+          </Button>
         </Space>
       </div>
 
@@ -225,7 +252,14 @@ const SkillMarketplace: React.FC = () => {
             searchPlaceholder="搜索技能名称、描述、作者..."
           />
         </div>
-        <Table columns={columns} dataSource={filteredSkills} loading={loading} rowKey="id" size="middle" striped />
+        <Table
+          columns={columns}
+          dataSource={filteredSkills}
+          loading={loading}
+          rowKey="id"
+          size="middle"
+          striped
+        />
       </Card>
 
       {/* Skill Detail Modal */}
@@ -234,9 +268,16 @@ const SkillMarketplace: React.FC = () => {
         open={detailModalVisible}
         onCancel={() => setDetailModalVisible(false)}
         footer={[
-          <Button key="close" onClick={() => setDetailModalVisible(false)}>关闭</Button>,
-          <Button key="install" type="primary" icon={<DownloadOutlined />} loading={installing}
-            onClick={() => selectedSkill && handleInstall(selectedSkill)}>
+          <Button key="close" onClick={() => setDetailModalVisible(false)}>
+            关闭
+          </Button>,
+          <Button
+            key="install"
+            type="primary"
+            icon={<DownloadOutlined />}
+            loading={installing}
+            onClick={() => selectedSkill && handleInstall(selectedSkill)}
+          >
             安装
           </Button>,
         ]}
@@ -254,18 +295,24 @@ const SkillMarketplace: React.FC = () => {
             <div style={{ marginTop: 16 }}>
               <Text strong>标签: </Text>
               <Space size={4}>
-                {selectedSkill.tags.map((tag) => <Tag key={tag}>{tag}</Tag>)}
+                {selectedSkill.tags.map((tag) => (
+                  <Tag key={tag}>{tag}</Tag>
+                ))}
               </Space>
             </div>
             <div style={{ marginTop: 8 }}>
-              <Text strong>作者: </Text><Text>{selectedSkill.author}</Text>
+              <Text strong>作者: </Text>
+              <Text>{selectedSkill.author}</Text>
             </div>
             <div style={{ marginTop: 8 }}>
-              <Text strong>版本: </Text><Text>v{selectedSkill.version}</Text>
+              <Text strong>版本: </Text>
+              <Text>v{selectedSkill.version}</Text>
             </div>
             <div style={{ marginTop: 8 }}>
               <Text strong>发布时间: </Text>
-              <Text type="secondary">{dayjs(selectedSkill.createdAt).format('YYYY-MM-DD HH:mm')}</Text>
+              <Text type="secondary">
+                {dayjs(selectedSkill.createdAt).format('YYYY-MM-DD HH:mm')}
+              </Text>
             </div>
           </div>
         )}

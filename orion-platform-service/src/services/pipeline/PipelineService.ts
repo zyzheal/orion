@@ -508,6 +508,7 @@ export class PipelineService {
   async validate(yamlDefinition: string): Promise<{ valid: boolean; errors: string[] }> {
     try {
       // Basic validation - check required fields
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
       const yamlModule = require('js-yaml');
       const parsed = yamlModule.load(yamlDefinition) as any;
 

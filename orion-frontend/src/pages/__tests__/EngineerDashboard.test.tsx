@@ -82,9 +82,7 @@ describe('EngineerDashboard', () => {
     expect(screen.getByText('待提升领域')).toBeInTheDocument();
     expect(screen.getByText('安全')).toBeInTheDocument();
     expect(screen.getByText('性能')).toBeInTheDocument();
-    expect(
-      screen.getByText(/建议参加安全工单处理培训/)
-    ).toBeInTheDocument();
+    expect(screen.getByText(/建议参加安全工单处理培训/)).toBeInTheDocument();
     expect(screen.getByText(/建议与性能专家结对处理/)).toBeInTheDocument();
   });
 
@@ -109,9 +107,7 @@ describe('EngineerDashboard', () => {
 
   it('should display ticket titles in active list', () => {
     renderWithRouter(<EngineerDashboard />);
-    expect(
-      screen.getByText(/生产数据库CPU使用率过高/)
-    ).toBeInTheDocument();
+    expect(screen.getByText(/生产数据库CPU使用率过高/)).toBeInTheDocument();
     expect(screen.getByText(/应用部署失败回滚/)).toBeInTheDocument();
     expect(screen.getByText(/服务器磁盘空间不足/)).toBeInTheDocument();
     expect(screen.getByText(/API网关响应延迟/)).toBeInTheDocument();

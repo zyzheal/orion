@@ -5,7 +5,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Typography, Button, Input, Space, Card } from 'antd';
 import { spacing, colors } from '@/tokens';
-import { PauseCircleOutlined, PlayCircleOutlined, SearchOutlined, ClearOutlined } from '@ant-design/icons';
+import {
+  PauseCircleOutlined,
+  PlayCircleOutlined,
+  SearchOutlined,
+  ClearOutlined,
+} from '@ant-design/icons';
 import { getBuildLogStreamUrl } from '@/api/build-env';
 
 const { Text } = Typography;
@@ -18,7 +23,11 @@ interface BuildLogViewerProps {
   autoStart?: boolean;
 }
 
-const BuildLogViewer: React.FC<BuildLogViewerProps> = ({ logId, height = 500, autoStart = true }) => {
+const BuildLogViewer: React.FC<BuildLogViewerProps> = ({
+  logId,
+  height = 500,
+  autoStart = true,
+}) => {
   const [lines, setLines] = useState<string[]>([]);
   const [paused, setPaused] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -125,10 +134,14 @@ const BuildLogViewer: React.FC<BuildLogViewerProps> = ({ logId, height = 500, au
         <Space>
           <Text code>Log: {logId}</Text>
           {connected && (
-            <Text type="success" style={{ fontSize: spacing[3] }}>Streaming</Text>
+            <Text type="success" style={{ fontSize: spacing[3] }}>
+              Streaming
+            </Text>
           )}
           {paused && (
-            <Text type="warning" style={{ fontSize: spacing[3] }}>Paused</Text>
+            <Text type="warning" style={{ fontSize: spacing[3] }}>
+              Paused
+            </Text>
           )}
         </Space>
       }
@@ -203,7 +216,10 @@ const BuildLogViewer: React.FC<BuildLogViewerProps> = ({ logId, height = 500, au
                   parts.push(line.slice(lastIndex, idx));
                 }
                 parts.push(
-                  <span key={`${index}-${idx}`} style={{ background: colors.warning[700], color: colors.warning[200] }}>
+                  <span
+                    key={`${index}-${idx}`}
+                    style={{ background: colors.warning[700], color: colors.warning[200] }}
+                  >
                     {line.slice(idx, idx + searchTerm.length)}
                   </span>
                 );
@@ -215,7 +231,16 @@ const BuildLogViewer: React.FC<BuildLogViewerProps> = ({ logId, height = 500, au
               }
               return (
                 <div key={index} style={{ minHeight: 20 }}>
-                  <span style={{ color: colors.neutral[500], userSelect: 'none', marginRight: 8, display: 'inline-block', width: 40, textAlign: 'right' }}>
+                  <span
+                    style={{
+                      color: colors.neutral[500],
+                      userSelect: 'none',
+                      marginRight: 8,
+                      display: 'inline-block',
+                      width: 40,
+                      textAlign: 'right',
+                    }}
+                  >
                     {index + 1}
                   </span>
                   {parts}
@@ -224,7 +249,16 @@ const BuildLogViewer: React.FC<BuildLogViewerProps> = ({ logId, height = 500, au
             }
             return (
               <div key={index} style={{ minHeight: 20 }}>
-                <span style={{ color: colors.neutral[500], userSelect: 'none', marginRight: 8, display: 'inline-block', width: 40, textAlign: 'right' }}>
+                <span
+                  style={{
+                    color: colors.neutral[500],
+                    userSelect: 'none',
+                    marginRight: 8,
+                    display: 'inline-block',
+                    width: 40,
+                    textAlign: 'right',
+                  }}
+                >
                   {index + 1}
                 </span>
                 {line}

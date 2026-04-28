@@ -62,9 +62,7 @@ describe('OrionForm', () => {
   });
 
   it('should show required validation error', async () => {
-    const fields: FormField[] = [
-      { name: 'name', label: 'Name', type: 'text', required: true },
-    ];
+    const fields: FormField[] = [{ name: 'name', label: 'Name', type: 'text', required: true }];
     render(<Form fields={fields} onSubmit={vi.fn()} />);
 
     // Click submit without filling required field
@@ -116,17 +114,13 @@ describe('OrionForm', () => {
   });
 
   it('should support switch field type', () => {
-    const fields: FormField[] = [
-      { name: 'active', label: 'Active', type: 'switch' },
-    ];
+    const fields: FormField[] = [{ name: 'active', label: 'Active', type: 'switch' }];
     render(<Form fields={fields} onSubmit={vi.fn()} />);
     expect(screen.getByText('Active')).toBeInTheDocument();
   });
 
   it('should set initial values', () => {
-    const fields: FormField[] = [
-      { name: 'name', label: 'Name', type: 'text' },
-    ];
+    const fields: FormField[] = [{ name: 'name', label: 'Name', type: 'text' }];
     render(<Form fields={fields} onSubmit={vi.fn()} initialValues={{ name: 'John' }} />);
     expect(screen.getByDisplayValue('John')).toBeInTheDocument();
   });

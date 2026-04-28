@@ -2,12 +2,31 @@
  * Space List - Knowledge base spaces, create/edit, type badges
  */
 import React, { useState, useMemo, useEffect } from 'react';
-import { Typography, Button, Space, Tag, Card, Modal, Form, Input, Select, message, Popconfirm } from 'antd';
+import {
+  Typography,
+  Button,
+  Space,
+  Tag,
+  Card,
+  Modal,
+  Form,
+  Input,
+  Select,
+  message,
+  Popconfirm,
+} from 'antd';
 import { PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { spacing } from '@/tokens';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
-import { getSpaces, createSpace, updateSpace, deleteSpace, type Space as SpaceType, type SpaceInput } from '@/api/ai-docs';
+import {
+  getSpaces,
+  createSpace,
+  updateSpace,
+  deleteSpace,
+  type Space as SpaceType,
+  type SpaceInput,
+} from '@/api/ai-docs';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 
@@ -48,9 +67,37 @@ const SpaceList: React.FC = () => {
     } catch {
       // Mock data
       setSpaces([
-        { id: 's1', name: '技术文档库', type: 'public', ownerId: 'admin', documentCount: 45, description: '公共技术文档', createdAt: '2024-01-01', updatedAt: '2024-03-15' },
-        { id: 's2', name: '团队知识库', type: 'internal', ownerId: 'team-lead', teamId: 'team-a', documentCount: 28, description: '团队内部知识', createdAt: '2024-02-01', updatedAt: '2024-03-10' },
-        { id: 's3', name: '项目笔记', type: 'private', ownerId: 'user-001', documentCount: 12, description: '个人项目笔记', createdAt: '2024-03-01', updatedAt: '2024-03-20' },
+        {
+          id: 's1',
+          name: '技术文档库',
+          type: 'public',
+          ownerId: 'admin',
+          documentCount: 45,
+          description: '公共技术文档',
+          createdAt: '2024-01-01',
+          updatedAt: '2024-03-15',
+        },
+        {
+          id: 's2',
+          name: '团队知识库',
+          type: 'internal',
+          ownerId: 'team-lead',
+          teamId: 'team-a',
+          documentCount: 28,
+          description: '团队内部知识',
+          createdAt: '2024-02-01',
+          updatedAt: '2024-03-10',
+        },
+        {
+          id: 's3',
+          name: '项目笔记',
+          type: 'private',
+          ownerId: 'user-001',
+          documentCount: 12,
+          description: '个人项目笔记',
+          createdAt: '2024-03-01',
+          updatedAt: '2024-03-20',
+        },
       ]);
     } finally {
       setLoading(false);
@@ -65,7 +112,11 @@ const SpaceList: React.FC = () => {
     return spaces.filter((s) => {
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
-        if (!s.name.toLowerCase().includes(q) && !(s.description && s.description.toLowerCase().includes(q))) return false;
+        if (
+          !s.name.toLowerCase().includes(q) &&
+          !(s.description && s.description.toLowerCase().includes(q))
+        )
+          return false;
       }
       if (filters.type && filters.type !== 'all' && s.type !== filters.type) return false;
       return true;
@@ -99,7 +150,11 @@ const SpaceList: React.FC = () => {
     try {
       const values = await editForm.validateFields();
       setSubmitting(true);
-      await updateSpace(editingSpace.id, { name: values.name, type: values.type, description: values.description });
+      await updateSpace(editingSpace.id, {
+        name: values.name,
+        type: values.type,
+        description: values.description,
+      });
       message.success('知识库更新成功');
       setEditModalVisible(false);
       loadData();
@@ -127,62 +182,166 @@ const SpaceList: React.FC = () => {
   };
 
   const columns: TableColumn<SpaceType>[] = [
-    { key: 'name', title: '知识库名称', dataIndex: 'name', width: 180, sortable: true, render: (v: unknown) => <Text strong>{String(v)}</Text> },
-    { key: 'type', title: '类型', dataIndex: 'type', width: 80, render: (v: unknown) => <Tag color={typeColorMap[String(v)]}>{String(v)}</Tag> },
-    { key: 'description', title: '描述', dataIndex: 'description', width: 200, render: (v: unknown) => <Text type="secondary">{String(v || '-')}</Text> },
-    { key: 'documentCount', title: '文档数', dataIndex: 'documentCount', width: 80, render: (v: unknown) => <Text>{String(v)}</Text> },
-    { key: 'ownerId', title: '所有者', dataIndex: 'ownerId', width: 120, render: (v: unknown) => <Text>{String(v)}</Text> },
-    { key: 'updatedAt', title: '更新时间', dataIndex: 'updatedAt', width: 160, sortable: true, render: (v: unknown) => <Text type="secondary" style={{ fontSize: spacing[3] }}>{dayjs(String(v)).fromNow()}</Text> },
-    { key: 'actions', title: '操作', width: 160, render: (_: unknown, record: any) => (
-      <Space size="small">
-        <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEdit(record)}>编辑</Button>
-        <Popconfirm title="确认删除?" onConfirm={() => handleDelete(record.id)}>
-          <Button type="link" size="small" danger icon={<DeleteOutlined />}>删除</Button>
-        </Popconfirm>
-      </Space>
-    )},
+    {
+      key: 'name',
+      title: '知识库名称',
+      dataIndex: 'name',
+      width: 180,
+      sortable: true,
+      render: (v: unknown) => <Text strong>{String(v)}</Text>,
+    },
+    {
+      key: 'type',
+      title: '类型',
+      dataIndex: 'type',
+      width: 80,
+      render: (v: unknown) => <Tag color={typeColorMap[String(v)]}>{String(v)}</Tag>,
+    },
+    {
+      key: 'description',
+      title: '描述',
+      dataIndex: 'description',
+      width: 200,
+      render: (v: unknown) => <Text type="secondary">{String(v || '-')}</Text>,
+    },
+    {
+      key: 'documentCount',
+      title: '文档数',
+      dataIndex: 'documentCount',
+      width: 80,
+      render: (v: unknown) => <Text>{String(v)}</Text>,
+    },
+    {
+      key: 'ownerId',
+      title: '所有者',
+      dataIndex: 'ownerId',
+      width: 120,
+      render: (v: unknown) => <Text>{String(v)}</Text>,
+    },
+    {
+      key: 'updatedAt',
+      title: '更新时间',
+      dataIndex: 'updatedAt',
+      width: 160,
+      sortable: true,
+      render: (v: unknown) => (
+        <Text type="secondary" style={{ fontSize: spacing[3] }}>
+          {dayjs(String(v)).fromNow()}
+        </Text>
+      ),
+    },
+    {
+      key: 'actions',
+      title: '操作',
+      width: 160,
+      render: (_: unknown, record: any) => (
+        <Space size="small">
+          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEdit(record)}>
+            编辑
+          </Button>
+          <Popconfirm title="确认删除?" onConfirm={() => handleDelete(record.id)}>
+            <Button type="link" size="small" danger icon={<DeleteOutlined />}>
+              删除
+            </Button>
+          </Popconfirm>
+        </Space>
+      ),
+    },
   ];
 
-  const filterDefs: FilterDefinition[] = [
-    { key: 'type', label: '类型', options: typeOptions },
-  ];
+  const filterDefs: FilterDefinition[] = [{ key: 'type', label: '类型', options: typeOptions }];
 
   return (
     <div style={{ padding: 0 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          marginBottom: 24,
+        }}
+      >
         <div>
-          <Title level={3} style={{ margin: 0 }}>知识库</Title>
+          <Title level={3} style={{ margin: 0 }}>
+            知识库
+          </Title>
           <Text type="secondary">管理知识库空间</Text>
         </div>
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>刷新</Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalVisible(true)}>创建知识库</Button>
+          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+            刷新
+          </Button>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => setCreateModalVisible(true)}
+          >
+            创建知识库
+          </Button>
         </Space>
       </div>
 
       <Card>
         <div style={{ marginBottom: 16 }}>
-          <SearchFilterBar onSearch={setSearchQuery} onFilter={setFilters} filters={filterDefs} searchPlaceholder="搜索知识库..." />
+          <SearchFilterBar
+            onSearch={setSearchQuery}
+            onFilter={setFilters}
+            filters={filterDefs}
+            searchPlaceholder="搜索知识库..."
+          />
         </div>
-        <Table columns={columns} dataSource={filteredSpaces} loading={loading} rowKey="id" size="middle" striped />
+        <Table
+          columns={columns}
+          dataSource={filteredSpaces}
+          loading={loading}
+          rowKey="id"
+          size="middle"
+          striped
+        />
       </Card>
 
       {/* Create Modal */}
-      <Modal title="创建知识库" open={createModalVisible} onCancel={() => setCreateModalVisible(false)} onOk={handleCreate} confirmLoading={submitting}>
+      <Modal
+        title="创建知识库"
+        open={createModalVisible}
+        onCancel={() => setCreateModalVisible(false)}
+        onOk={handleCreate}
+        confirmLoading={submitting}
+      >
         <Form form={createForm} layout="vertical">
-          <Form.Item name="name" label="名称" rules={[{ required: true }]}><Input placeholder="知识库名称" /></Form.Item>
-          <Form.Item name="type" label="类型" rules={[{ required: true }]}><Select options={typeOptions.slice(1)} /></Form.Item>
-          <Form.Item name="description" label="描述"><Input.TextArea rows={2} placeholder="知识库描述..." /></Form.Item>
-          <Form.Item name="teamId" label="团队 ID"><Input placeholder="team-id (可选)" /></Form.Item>
+          <Form.Item name="name" label="名称" rules={[{ required: true }]}>
+            <Input placeholder="知识库名称" />
+          </Form.Item>
+          <Form.Item name="type" label="类型" rules={[{ required: true }]}>
+            <Select options={typeOptions.slice(1)} />
+          </Form.Item>
+          <Form.Item name="description" label="描述">
+            <Input.TextArea rows={2} placeholder="知识库描述..." />
+          </Form.Item>
+          <Form.Item name="teamId" label="团队 ID">
+            <Input placeholder="team-id (可选)" />
+          </Form.Item>
         </Form>
       </Modal>
 
       {/* Edit Modal */}
-      <Modal title="编辑知识库" open={editModalVisible} onCancel={() => setEditModalVisible(false)} onOk={handleEdit} confirmLoading={submitting}>
+      <Modal
+        title="编辑知识库"
+        open={editModalVisible}
+        onCancel={() => setEditModalVisible(false)}
+        onOk={handleEdit}
+        confirmLoading={submitting}
+      >
         <Form form={editForm} layout="vertical">
-          <Form.Item name="name" label="名称" rules={[{ required: true }]}><Input /></Form.Item>
-          <Form.Item name="type" label="类型" rules={[{ required: true }]}><Select options={typeOptions.slice(1)} /></Form.Item>
-          <Form.Item name="description" label="描述"><Input.TextArea rows={2} /></Form.Item>
+          <Form.Item name="name" label="名称" rules={[{ required: true }]}>
+            <Input />
+          </Form.Item>
+          <Form.Item name="type" label="类型" rules={[{ required: true }]}>
+            <Select options={typeOptions.slice(1)} />
+          </Form.Item>
+          <Form.Item name="description" label="描述">
+            <Input.TextArea rows={2} />
+          </Form.Item>
         </Form>
       </Modal>
     </div>

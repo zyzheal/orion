@@ -3,13 +3,7 @@
  * Execute plugin task with configuration (taskId, pipelineRunId, stageId, config, env, timeout)
  */
 import React, { useState } from 'react';
-import {
-  Modal,
-  Form,
-  Input,
-  Space,
-  message,
-} from 'antd';
+import { Modal, Form, Input, Space, message } from 'antd';
 import { PlayCircleOutlined } from '@ant-design/icons';
 import { executePlugin, type PluginExecutionResult } from '@/api/plugins';
 import { type ApiPlugin } from './types';
@@ -89,50 +83,24 @@ const PluginLifecycleModal: React.FC<PluginLifecycleModalProps> = ({
           <Input placeholder="例如：task-001" />
         </Form.Item>
 
-        <Form.Item
-          label="流水线运行 ID"
-          name="pipelineRunId"
-          rules={[{ required: false }]}
-        >
+        <Form.Item label="流水线运行 ID" name="pipelineRunId" rules={[{ required: false }]}>
           <Input placeholder="可选，例如：run-123" />
         </Form.Item>
 
-        <Form.Item
-          label="阶段 ID"
-          name="stageId"
-          rules={[{ required: false }]}
-        >
+        <Form.Item label="阶段 ID" name="stageId" rules={[{ required: false }]}>
           <Input placeholder="可选，例如：stage-456" />
         </Form.Item>
 
-        <Form.Item
-          label="超时时间 (ms)"
-          name="timeout"
-          rules={[{ required: false }]}
-        >
+        <Form.Item label="超时时间 (ms)" name="timeout" rules={[{ required: false }]}>
           <Input placeholder="默认 60000ms" type="number" />
         </Form.Item>
 
-        <Form.Item
-          label="配置 (JSON)"
-          name="config"
-          rules={[{ required: false }]}
-        >
-          <Input.TextArea
-            rows={4}
-            placeholder='{"key": "value"}'
-          />
+        <Form.Item label="配置 (JSON)" name="config" rules={[{ required: false }]}>
+          <Input.TextArea rows={4} placeholder='{"key": "value"}' />
         </Form.Item>
 
-        <Form.Item
-          label="环境变量 (JSON)"
-          name="env"
-          rules={[{ required: false }]}
-        >
-          <Input.TextArea
-            rows={4}
-            placeholder='{"ENV": "production"}'
-          />
+        <Form.Item label="环境变量 (JSON)" name="env" rules={[{ required: false }]}>
+          <Input.TextArea rows={4} placeholder='{"ENV": "production"}' />
         </Form.Item>
       </Form>
     </Modal>

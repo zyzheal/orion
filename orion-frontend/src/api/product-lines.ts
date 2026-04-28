@@ -67,7 +67,11 @@ export interface ProductLine {
       lastCommit?: { sha: string; message: string; author: string; time: string };
       branches?: Array<{ name: string; lastCommit: string; protected: boolean }>;
     };
-    environments?: Array<{ name: string; phase: string; lastDeployment?: { version: string; time: string; status: string } }>;
+    environments?: Array<{
+      name: string;
+      phase: string;
+      lastDeployment?: { version: string; time: string; status: string };
+    }>;
   };
   createdAt: string;
   updatedAt: string;
@@ -196,15 +200,22 @@ export function suspendProductLine(id: string) {
 // ---- Branch-Environment Mapping ----
 
 export function resolveEnvironment(productLineId: string, branch: string) {
-  return api.get<EnvironmentName>(`/v1/product-lines/${productLineId}/resolve-environment`, { params: { branch } });
+  return api.get<EnvironmentName>(`/v1/product-lines/${productLineId}/resolve-environment`, {
+    params: { branch },
+  });
 }
 
 export function requiresApproval(productLineId: string, branch: string) {
-  return api.get<{ requiresApproval: boolean }>(`/v1/product-lines/${productLineId}/requires-approval`, { params: { branch } });
+  return api.get<{ requiresApproval: boolean }>(
+    `/v1/product-lines/${productLineId}/requires-approval`,
+    { params: { branch } }
+  );
 }
 
 export function isHotfix(productLineId: string, branch: string) {
-  return api.get<{ isHotfix: boolean }>(`/v1/product-lines/${productLineId}/is-hotfix`, { params: { branch } });
+  return api.get<{ isHotfix: boolean }>(`/v1/product-lines/${productLineId}/is-hotfix`, {
+    params: { branch },
+  });
 }
 
 // ---- ReleaseTrain ----

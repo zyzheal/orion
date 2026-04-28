@@ -4,9 +4,21 @@
  */
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Typography, Button, Space, Card, Row, Col, Tag, message, Modal } from 'antd';
-import { ReloadOutlined, EyeOutlined, DeleteOutlined, BranchesOutlined, MergeOutlined } from '@ant-design/icons';
+import {
+  ReloadOutlined,
+  EyeOutlined,
+  DeleteOutlined,
+  BranchesOutlined,
+  MergeOutlined,
+} from '@ant-design/icons';
 import { spacing } from '@/tokens';
-import { getCodeRepoAdapters, getCodeRepos, getCodeRepoBranches, getPullRequests, type CodeRepo } from '@/api/code-mgmt';
+import {
+  getCodeRepoAdapters,
+  getCodeRepos,
+  getCodeRepoBranches,
+  getPullRequests,
+  type CodeRepo,
+} from '@/api/code-mgmt';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 
@@ -91,9 +103,12 @@ const RepoList: React.FC = () => {
     }
   }, []);
 
-  const handleAdapterChange = useCallback((adapterId: string) => {
-    setSelectedAdapter(adapterId === selectedAdapter ? undefined : adapterId);
-  }, [selectedAdapter]);
+  const handleAdapterChange = useCallback(
+    (adapterId: string) => {
+      setSelectedAdapter(adapterId === selectedAdapter ? undefined : adapterId);
+    },
+    [selectedAdapter]
+  );
 
   const handleDeleteRepo = useCallback((repo: CodeRepo) => {
     Modal.confirm({
@@ -132,9 +147,7 @@ const RepoList: React.FC = () => {
           <Title level={3} style={{ margin: 0 }}>
             代码仓库
           </Title>
-          <Text type="secondary">
-            管理所有代码仓库、分支和 Pull Request
-          </Text>
+          <Text type="secondary">管理所有代码仓库、分支和 Pull Request</Text>
         </div>
         <Button icon={<ReloadOutlined />} onClick={handleRefresh} loading={loading}>
           刷新

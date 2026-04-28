@@ -34,7 +34,10 @@ const AgentDetailDrawer: React.FC<AgentDetailDrawerProps> = ({ agent, open, onCl
         </Descriptions.Item>
         <Descriptions.Item label="描述">{agent.description || '-'}</Descriptions.Item>
         <Descriptions.Item label="状态">
-          <Badge status={agent.enabled ? 'success' : 'default'} text={agent.enabled ? '已启用' : '已禁用'} />
+          <Badge
+            status={agent.enabled ? 'success' : 'default'}
+            text={agent.enabled ? '已启用' : '已禁用'}
+          />
         </Descriptions.Item>
         <Descriptions.Item label="创建时间">
           {dayjs(agent.createdAt).format('YYYY-MM-DD HH:mm')}
@@ -56,7 +59,9 @@ const AgentDetailDrawer: React.FC<AgentDetailDrawerProps> = ({ agent, open, onCl
               title: '权限',
               dataIndex: 'permission',
               width: 100,
-              render: (v: unknown) => <Tag color={String(v) === 'read' ? 'green' : 'orange'}>{String(v)}</Tag>,
+              render: (v: unknown) => (
+                <Tag color={String(v) === 'read' ? 'green' : 'orange'}>{String(v)}</Tag>
+              ),
             },
           ]}
           dataSource={agent.tools}
@@ -74,8 +79,12 @@ const AgentDetailDrawer: React.FC<AgentDetailDrawerProps> = ({ agent, open, onCl
           <Title level={5}>LLM 配置</Title>
           <Descriptions column={2} size="small" bordered>
             <Descriptions.Item label="模型">{agent.llmConfig.model || '-'}</Descriptions.Item>
-            <Descriptions.Item label="Temperature">{agent.llmConfig.temperature ?? '-'}</Descriptions.Item>
-            <Descriptions.Item label="Max Tokens">{agent.llmConfig.maxTokens ?? '-'}</Descriptions.Item>
+            <Descriptions.Item label="Temperature">
+              {agent.llmConfig.temperature ?? '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="Max Tokens">
+              {agent.llmConfig.maxTokens ?? '-'}
+            </Descriptions.Item>
           </Descriptions>
         </>
       )}
@@ -85,9 +94,15 @@ const AgentDetailDrawer: React.FC<AgentDetailDrawerProps> = ({ agent, open, onCl
           <Divider />
           <Title level={5}>能力配置</Title>
           <Descriptions column={3} size="small" bordered>
-            <Descriptions.Item label="最大步骤">{agent.capabilities.maxSteps ?? '-'}</Descriptions.Item>
-            <Descriptions.Item label="超时(秒)">{agent.capabilities.timeoutSec ?? '-'}</Descriptions.Item>
-            <Descriptions.Item label="重试次数">{agent.capabilities.retryCount ?? '-'}</Descriptions.Item>
+            <Descriptions.Item label="最大步骤">
+              {agent.capabilities.maxSteps ?? '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="超时(秒)">
+              {agent.capabilities.timeoutSec ?? '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="重试次数">
+              {agent.capabilities.retryCount ?? '-'}
+            </Descriptions.Item>
           </Descriptions>
         </>
       )}

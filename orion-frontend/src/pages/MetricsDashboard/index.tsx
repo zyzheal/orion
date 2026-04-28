@@ -13,7 +13,12 @@
  */
 import React, { useState, useEffect, useCallback } from 'react';
 import { Typography, Card, Tag, Space, Button, Select, Alert, message } from 'antd';
-import { ReloadOutlined, DashboardOutlined, ArrowUpOutlined, SyncOutlined } from '@ant-design/icons';
+import {
+  ReloadOutlined,
+  DashboardOutlined,
+  ArrowUpOutlined,
+  SyncOutlined,
+} from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
 import DashboardLayout from '@/components/DashboardLayout';
 import MetricCard from '@/components/MetricCard';
@@ -61,12 +66,54 @@ const MOCK_METRIC_SUMMARY: MetricSummary = {
 };
 
 const MOCK_SERVICE_HEALTH: ServiceHealthRow[] = [
-  { key: 'api-gateway', serviceName: 'API Gateway', status: 'healthy', requestRate: '4,230/min', errorRate: '0.12%', latency: '23ms' },
-  { key: 'platform-service', serviceName: 'Platform Service', status: 'healthy', requestRate: '3,120/min', errorRate: '0.28%', latency: '45ms' },
-  { key: 'ai-service', serviceName: 'AI Service', status: 'degraded', requestRate: '1,890/min', errorRate: '1.45%', latency: '320ms' },
-  { key: 'pipeline-engine', serviceName: 'Pipeline Engine', status: 'healthy', requestRate: '980/min', errorRate: '0.05%', latency: '15ms' },
-  { key: 'auth-service', serviceName: 'Auth Service', status: 'healthy', requestRate: '2,320/min', errorRate: '0.08%', latency: '12ms' },
-  { key: 'notification-svc', serviceName: 'Notification Service', status: 'unhealthy', requestRate: '540/min', errorRate: '5.23%', latency: '890ms' },
+  {
+    key: 'api-gateway',
+    serviceName: 'API Gateway',
+    status: 'healthy',
+    requestRate: '4,230/min',
+    errorRate: '0.12%',
+    latency: '23ms',
+  },
+  {
+    key: 'platform-service',
+    serviceName: 'Platform Service',
+    status: 'healthy',
+    requestRate: '3,120/min',
+    errorRate: '0.28%',
+    latency: '45ms',
+  },
+  {
+    key: 'ai-service',
+    serviceName: 'AI Service',
+    status: 'degraded',
+    requestRate: '1,890/min',
+    errorRate: '1.45%',
+    latency: '320ms',
+  },
+  {
+    key: 'pipeline-engine',
+    serviceName: 'Pipeline Engine',
+    status: 'healthy',
+    requestRate: '980/min',
+    errorRate: '0.05%',
+    latency: '15ms',
+  },
+  {
+    key: 'auth-service',
+    serviceName: 'Auth Service',
+    status: 'healthy',
+    requestRate: '2,320/min',
+    errorRate: '0.08%',
+    latency: '12ms',
+  },
+  {
+    key: 'notification-svc',
+    serviceName: 'Notification Service',
+    status: 'unhealthy',
+    requestRate: '540/min',
+    errorRate: '5.23%',
+    latency: '890ms',
+  },
 ];
 
 const SERVICE_OPTIONS = [
@@ -135,7 +182,9 @@ const MetricsDashboard: React.FC = () => {
       if (dashboardData) {
         setMetricSummary({
           requestRate: dashboardData.metrics?.rate ?? MOCK_METRIC_SUMMARY.requestRate,
-          errorRate: dashboardData.alerts?.total ? (dashboardData.alerts.active / dashboardData.alerts.total) * 100 : MOCK_METRIC_SUMMARY.errorRate,
+          errorRate: dashboardData.alerts?.total
+            ? (dashboardData.alerts.active / dashboardData.alerts.total) * 100
+            : MOCK_METRIC_SUMMARY.errorRate,
           latencyP50: MOCK_METRIC_SUMMARY.latencyP50,
           latencyP95: MOCK_METRIC_SUMMARY.latencyP95,
           latencyP99: MOCK_METRIC_SUMMARY.latencyP99,
@@ -146,14 +195,21 @@ const MetricsDashboard: React.FC = () => {
       }
 
       // Build service health from metrics
-      const healthRows: ServiceHealthRow[] = metricsData.map((m: { name?: string; value?: number; unit?: string; lastUpdated?: string }, i: number) => ({
-        key: `metric-${i}`,
-        serviceName: m.name || `Service ${i + 1}`,
-        status: m.value !== undefined && m.value > 0.9 ? 'unhealthy' : m.value !== undefined && m.value > 0.5 ? 'degraded' : 'healthy',
-        requestRate: `${Math.round((m.value || 0) * 1000)}/min`,
-        errorRate: `${(m.value || 0).toFixed(2)}%`,
-        latency: `${Math.round((m.value || 0) * 100)}ms`,
-      }));
+      const healthRows: ServiceHealthRow[] = metricsData.map(
+        (m: { name?: string; value?: number; unit?: string; lastUpdated?: string }, i: number) => ({
+          key: `metric-${i}`,
+          serviceName: m.name || `Service ${i + 1}`,
+          status:
+            m.value !== undefined && m.value > 0.9
+              ? 'unhealthy'
+              : m.value !== undefined && m.value > 0.5
+                ? 'degraded'
+                : 'healthy',
+          requestRate: `${Math.round((m.value || 0) * 1000)}/min`,
+          errorRate: `${(m.value || 0).toFixed(2)}%`,
+          latency: `${Math.round((m.value || 0) * 100)}ms`,
+        })
+      );
 
       setServiceHealth(healthRows.length > 0 ? healthRows : MOCK_SERVICE_HEALTH);
 
@@ -185,9 +241,10 @@ const MetricsDashboard: React.FC = () => {
   }, [loadData]);
 
   // Filter service health by selected service
-  const filteredServiceHealth = selectedService === 'all'
-    ? serviceHealth
-    : serviceHealth.filter((s) => s.key === selectedService);
+  const filteredServiceHealth =
+    selectedService === 'all'
+      ? serviceHealth
+      : serviceHealth.filter((s) => s.key === selectedService);
 
   // Table columns for service health
   const serviceColumns: TableColumn<ServiceHealthRow>[] = [
@@ -196,9 +253,7 @@ const MetricsDashboard: React.FC = () => {
       title: 'Service Name',
       dataIndex: 'serviceName',
       sortable: true,
-      render: (value: unknown) => (
-        <Text strong>{String(value)}</Text>
-      ),
+      render: (value: unknown) => <Text strong>{String(value)}</Text>,
     },
     {
       key: 'status',
@@ -223,7 +278,16 @@ const MetricsDashboard: React.FC = () => {
       render: (value: unknown) => {
         const rate = parseFloat(String(value).replace('%', '')) || 0;
         return (
-          <Text style={{ color: rate > 1 ? colors.error[500] : rate > 0.5 ? colors.warning[500] : colors.success[500] }}>
+          <Text
+            style={{
+              color:
+                rate > 1
+                  ? colors.error[500]
+                  : rate > 0.5
+                    ? colors.warning[500]
+                    : colors.success[500],
+            }}
+          >
             {String(value)}
           </Text>
         );
@@ -237,7 +301,12 @@ const MetricsDashboard: React.FC = () => {
       render: (value: unknown) => {
         const ms = parseInt(String(value).replace('ms', ''), 10) || 0;
         return (
-          <Text style={{ color: ms > 500 ? colors.error[500] : ms > 200 ? colors.warning[500] : colors.success[500] }}>
+          <Text
+            style={{
+              color:
+                ms > 500 ? colors.error[500] : ms > 200 ? colors.warning[500] : colors.success[500],
+            }}
+          >
             {String(value)}
           </Text>
         );
@@ -258,7 +327,14 @@ const MetricsDashboard: React.FC = () => {
   return (
     <div>
       {/* Page Header */}
-      <div style={{ marginBottom: spacing[6], display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+      <div
+        style={{
+          marginBottom: spacing[6],
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+        }}
+      >
         <div>
           <Title level={3} style={{ margin: 0 }}>
             <DashboardOutlined style={{ marginRight: spacing[2], color: colors.primary[500] }} />
@@ -313,7 +389,9 @@ const MetricsDashboard: React.FC = () => {
             unit="req/min"
             trend="up"
             trendPercent={8.2}
-            previousValue={metricSummary?.requestRate ? Math.round(metricSummary.requestRate * 0.92) : 0}
+            previousValue={
+              metricSummary?.requestRate ? Math.round(metricSummary.requestRate * 0.92) : 0
+            }
             loading={loading}
             icon={<SyncOutlined style={{ color: colors.success[500] }} />}
           />
@@ -323,9 +401,13 @@ const MetricsDashboard: React.FC = () => {
             unit="%"
             trend="down"
             trendPercent={15.3}
-            previousValue={metricSummary?.errorRate ? (metricSummary.errorRate * 1.15).toFixed(2) : '0.38'}
+            previousValue={
+              metricSummary?.errorRate ? (metricSummary.errorRate * 1.15).toFixed(2) : '0.38'
+            }
             loading={loading}
-            color={metricSummary && metricSummary.errorRate > 1 ? colors.error[500] : colors.success[500]}
+            color={
+              metricSummary && metricSummary.errorRate > 1 ? colors.error[500] : colors.success[500]
+            }
           />
           <MetricCard
             title="Latency (P50)"
@@ -333,7 +415,9 @@ const MetricsDashboard: React.FC = () => {
             unit="ms"
             trend="stable"
             trendPercent={2.1}
-            previousValue={metricSummary?.latencyP50 ? Math.round(metricSummary.latencyP50 * 0.98) : 44}
+            previousValue={
+              metricSummary?.latencyP50 ? Math.round(metricSummary.latencyP50 * 0.98) : 44
+            }
             loading={loading}
           />
           <MetricCard
@@ -342,7 +426,9 @@ const MetricsDashboard: React.FC = () => {
             unit="ops/min"
             trend="up"
             trendPercent={5.7}
-            previousValue={metricSummary?.throughput ? Math.round(metricSummary.throughput * 0.94) : 0}
+            previousValue={
+              metricSummary?.throughput ? Math.round(metricSummary.throughput * 0.94) : 0
+            }
             loading={loading}
             icon={<ArrowUpOutlined style={{ color: colors.success[500] }} />}
           />
@@ -359,7 +445,9 @@ const MetricsDashboard: React.FC = () => {
             unit="ms"
             trend="down"
             trendPercent={3.2}
-            previousValue={metricSummary?.latencyP50 ? Math.round(metricSummary.latencyP50 * 1.03) : 46}
+            previousValue={
+              metricSummary?.latencyP50 ? Math.round(metricSummary.latencyP50 * 1.03) : 46
+            }
             loading={loading}
             size="small"
           />
@@ -369,10 +457,14 @@ const MetricsDashboard: React.FC = () => {
             unit="ms"
             trend="stable"
             trendPercent={1.1}
-            previousValue={metricSummary?.latencyP95 ? Math.round(metricSummary.latencyP95 * 0.99) : 0}
+            previousValue={
+              metricSummary?.latencyP95 ? Math.round(metricSummary.latencyP95 * 0.99) : 0
+            }
             loading={loading}
             size="small"
-            color={metricSummary && metricSummary.latencyP95 > 200 ? colors.warning[500] : undefined}
+            color={
+              metricSummary && metricSummary.latencyP95 > 200 ? colors.warning[500] : undefined
+            }
           />
           <MetricCard
             title="P99 Latency"
@@ -380,7 +472,9 @@ const MetricsDashboard: React.FC = () => {
             unit="ms"
             trend="up"
             trendPercent={8.5}
-            previousValue={metricSummary?.latencyP99 ? Math.round(metricSummary.latencyP99 * 0.92) : 0}
+            previousValue={
+              metricSummary?.latencyP99 ? Math.round(metricSummary.latencyP99 * 0.92) : 0
+            }
             loading={loading}
             size="small"
             color={metricSummary && metricSummary.latencyP99 > 400 ? colors.error[500] : undefined}
@@ -412,14 +506,11 @@ const MetricsDashboard: React.FC = () => {
       </Card>
 
       {/* Trend Placeholder */}
-      <Card
-        title="Metric Trends"
-        size="small"
-        style={{ marginTop: spacing[4] }}
-      >
+      <Card title="Metric Trends" size="small" style={{ marginTop: spacing[4] }}>
         <div style={{ textAlign: 'center', padding: spacing[6] }}>
           <Text type="secondary">
-            趋势图表区域（集成 ECharts 后展示 Request Rate / Error Rate / Latency 历史趋势曲线，时间范围: {selectedTimeRange}）
+            趋势图表区域（集成 ECharts 后展示 Request Rate / Error Rate / Latency
+            历史趋势曲线，时间范围: {selectedTimeRange}）
           </Text>
         </div>
       </Card>

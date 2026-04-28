@@ -165,141 +165,149 @@ const AuditLogPage: React.FC = () => {
           <PageSkeleton cards={3} rows={10} />
         </div>
       ) : (
-      <div style={{ padding: 24 }}>
-        {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
-          <div>
-            <Title level={2}>审计日志</Title>
-            <Text type="secondary">不可逆审计链、完整性验证</Text>
+        <div style={{ padding: 24 }}>
+          {/* Header */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+            <div>
+              <Title level={2}>审计日志</Title>
+              <Text type="secondary">不可逆审计链、完整性验证</Text>
+            </div>
+            <Space>
+              <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+                刷新
+              </Button>
+              <Button icon={<SafetyCertificateOutlined />} onClick={handleVerify}>
+                验证完整性
+              </Button>
+              <Button icon={<FileTextOutlined />} onClick={handleGenerateReport}>
+                生成报告
+              </Button>
+            </Space>
           </div>
-          <Space>
-            <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
-              刷新
-            </Button>
-            <Button icon={<SafetyCertificateOutlined />} onClick={handleVerify}>
-              验证完整性
-            </Button>
-            <Button icon={<FileTextOutlined />} onClick={handleGenerateReport}>
-              生成报告
-            </Button>
-          </Space>
-        </div>
 
-        {/* Summary Cards */}
-        <Row gutter={16} style={{ marginBottom: 24 }}>
-          <Col span={6}>
-            <Card>
-              <Statistic
-                title="审计条目总数"
-                value={chainInfo?.totalEntries || 0}
-                prefix={<FileTextOutlined />}
-              />
-            </Card>
-          </Col>
-          <Col span={6}>
-            <Card>
-              <Statistic
-                title="最早序列号"
-                value={chainInfo?.firstSequence || 0}
-                valueStyle={{ color: colors.primary[500] }}
-              />
-            </Card>
-          </Col>
-          <Col span={6}>
-            <Card>
-              <Statistic
-                title="最新序列号"
-                value={chainInfo?.lastSequence || 0}
-                valueStyle={{ color: colors.success[500] }}
-              />
-            </Card>
-          </Col>
-          <Col span={6}>
-            <Card>
-              <Statistic
-                title="存储条目数"
-                value={storageStats?.totalEntries || 0}
-                prefix={<CheckCircleOutlined />}
-              />
-            </Card>
-          </Col>
-        </Row>
-
-        {/* Chain Hash Info */}
-        <Card title="链信息" style={{ marginBottom: 24 }}>
-          <Row gutter={16}>
-            <Col span={12}>
-              <Text type="secondary">创世 Hash:</Text>
-              <Text code style={{ marginLeft: 8 }} copyable>
-                {chainInfo?.genesisHash || 'N/A'}
-              </Text>
+          {/* Summary Cards */}
+          <Row gutter={16} style={{ marginBottom: 24 }}>
+            <Col span={6}>
+              <Card>
+                <Statistic
+                  title="审计条目总数"
+                  value={chainInfo?.totalEntries || 0}
+                  prefix={<FileTextOutlined />}
+                />
+              </Card>
             </Col>
-            <Col span={12}>
-              <Text type="secondary">最新链 Hash:</Text>
-              <Text code style={{ marginLeft: 8 }} copyable>
-                {chainInfo?.lastChainHash || 'N/A'}
-              </Text>
+            <Col span={6}>
+              <Card>
+                <Statistic
+                  title="最早序列号"
+                  value={chainInfo?.firstSequence || 0}
+                  valueStyle={{ color: colors.primary[500] }}
+                />
+              </Card>
+            </Col>
+            <Col span={6}>
+              <Card>
+                <Statistic
+                  title="最新序列号"
+                  value={chainInfo?.lastSequence || 0}
+                  valueStyle={{ color: colors.success[500] }}
+                />
+              </Card>
+            </Col>
+            <Col span={6}>
+              <Card>
+                <Statistic
+                  title="存储条目数"
+                  value={storageStats?.totalEntries || 0}
+                  prefix={<CheckCircleOutlined />}
+                />
+              </Card>
             </Col>
           </Row>
-        </Card>
 
-        {/* Audit Log Table */}
-        <Card title="审计日志列表">
-          <Table
-            columns={columns}
-            dataSource={tableData}
-            loading={loading}
-            pagination={{ pageSize: 10 }}
-            size="small"
-          />
-        </Card>
+          {/* Chain Hash Info */}
+          <Card title="链信息" style={{ marginBottom: 24 }}>
+            <Row gutter={16}>
+              <Col span={12}>
+                <Text type="secondary">创世 Hash:</Text>
+                <Text code style={{ marginLeft: 8 }} copyable>
+                  {chainInfo?.genesisHash || 'N/A'}
+                </Text>
+              </Col>
+              <Col span={12}>
+                <Text type="secondary">最新链 Hash:</Text>
+                <Text code style={{ marginLeft: 8 }} copyable>
+                  {chainInfo?.lastChainHash || 'N/A'}
+                </Text>
+              </Col>
+            </Row>
+          </Card>
 
-        {/* Detail Drawer */}
-        <Drawer
-          title="审计日志详情"
-          placement="right"
-          width={700}
-          open={drawerOpen}
-          onClose={() => setDrawerOpen(false)}
-        >
-          {selectedLog && (
-            <Descriptions column={1} bordered>
-              <Descriptions.Item label="ID">{selectedLog.id}</Descriptions.Item>
-              <Descriptions.Item label="序列号">{selectedLog.sequenceNumber}</Descriptions.Item>
-              <Descriptions.Item label="操作">{selectedLog.action}</Descriptions.Item>
-              <Descriptions.Item label="用户 ID">{selectedLog.userId}</Descriptions.Item>
-              <Descriptions.Item label="租户 ID">{selectedLog.tenantId || '-'}</Descriptions.Item>
-              <Descriptions.Item label="资源类型">{selectedLog.resourceType || '-'}</Descriptions.Item>
-              <Descriptions.Item label="资源 ID">{selectedLog.resourceId || '-'}</Descriptions.Item>
-              <Descriptions.Item label="IP 地址">{selectedLog.ipAddress || '-'}</Descriptions.Item>
-              <Descriptions.Item label="时间戳">
-                {dayjs(selectedLog.timestamp).format('YYYY-MM-DD HH:mm:ss')}
-              </Descriptions.Item>
-              <Descriptions.Item label="内容 Hash">
-                <Text code copyable>
-                  {selectedLog.contentHash}
-                </Text>
-              </Descriptions.Item>
-              <Descriptions.Item label="链 Hash">
-                <Text code copyable>
-                  {selectedLog.chainHash}
-                </Text>
-              </Descriptions.Item>
-              <Descriptions.Item label="前 Hash">
-                <Text code copyable>
-                  {selectedLog.prevHash}
-                </Text>
-              </Descriptions.Item>
-              <Descriptions.Item label="签名">{selectedLog.signature || '未签名'}</Descriptions.Item>
-              <Descriptions.Item label="详情">
-                <pre style={{ maxHeight: 200, overflow: 'auto' }}>
-                  {JSON.stringify(selectedLog.details, null, 2)}
-                </pre>
-              </Descriptions.Item>
-            </Descriptions>
-          )}
-        </Drawer>
-      </div>
+          {/* Audit Log Table */}
+          <Card title="审计日志列表">
+            <Table
+              columns={columns}
+              dataSource={tableData}
+              loading={loading}
+              pagination={{ pageSize: 10 }}
+              size="small"
+            />
+          </Card>
+
+          {/* Detail Drawer */}
+          <Drawer
+            title="审计日志详情"
+            placement="right"
+            width={700}
+            open={drawerOpen}
+            onClose={() => setDrawerOpen(false)}
+          >
+            {selectedLog && (
+              <Descriptions column={1} bordered>
+                <Descriptions.Item label="ID">{selectedLog.id}</Descriptions.Item>
+                <Descriptions.Item label="序列号">{selectedLog.sequenceNumber}</Descriptions.Item>
+                <Descriptions.Item label="操作">{selectedLog.action}</Descriptions.Item>
+                <Descriptions.Item label="用户 ID">{selectedLog.userId}</Descriptions.Item>
+                <Descriptions.Item label="租户 ID">{selectedLog.tenantId || '-'}</Descriptions.Item>
+                <Descriptions.Item label="资源类型">
+                  {selectedLog.resourceType || '-'}
+                </Descriptions.Item>
+                <Descriptions.Item label="资源 ID">
+                  {selectedLog.resourceId || '-'}
+                </Descriptions.Item>
+                <Descriptions.Item label="IP 地址">
+                  {selectedLog.ipAddress || '-'}
+                </Descriptions.Item>
+                <Descriptions.Item label="时间戳">
+                  {dayjs(selectedLog.timestamp).format('YYYY-MM-DD HH:mm:ss')}
+                </Descriptions.Item>
+                <Descriptions.Item label="内容 Hash">
+                  <Text code copyable>
+                    {selectedLog.contentHash}
+                  </Text>
+                </Descriptions.Item>
+                <Descriptions.Item label="链 Hash">
+                  <Text code copyable>
+                    {selectedLog.chainHash}
+                  </Text>
+                </Descriptions.Item>
+                <Descriptions.Item label="前 Hash">
+                  <Text code copyable>
+                    {selectedLog.prevHash}
+                  </Text>
+                </Descriptions.Item>
+                <Descriptions.Item label="签名">
+                  {selectedLog.signature || '未签名'}
+                </Descriptions.Item>
+                <Descriptions.Item label="详情">
+                  <pre style={{ maxHeight: 200, overflow: 'auto' }}>
+                    {JSON.stringify(selectedLog.details, null, 2)}
+                  </pre>
+                </Descriptions.Item>
+              </Descriptions>
+            )}
+          </Drawer>
+        </div>
       )}
     </DashboardLayout>
   );

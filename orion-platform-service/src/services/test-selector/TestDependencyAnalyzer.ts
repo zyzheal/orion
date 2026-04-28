@@ -319,7 +319,7 @@ export class TestDependencyAnalyzer {
     const extensions = ['.ts', '.tsx', '.js', '.jsx', '.index.ts', '.index.tsx'];
 
     for (const imp of imports) {
-      let sourcePath = imp.source;
+      const sourcePath = imp.source;
 
       // 解析相对路径
       if (sourcePath.startsWith('.')) {
@@ -406,7 +406,7 @@ export class TestDependencyAnalyzer {
     sourceFiles: string[]
   ): TestCase[] {
     const cases: TestCase[] = [];
-    const testRegex = /\b(?:it|test)\s*[\(](?:\s*['"`]([^'"`]+)['"`])/g;
+    const testRegex = /\b(?:it|test)\s*\((?:\s*['"`]([^'"`]+)['"`])/g;
     let match;
 
     while ((match = testRegex.exec(content)) !== null) {

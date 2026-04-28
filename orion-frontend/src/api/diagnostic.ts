@@ -43,18 +43,29 @@ export interface DiagnosticPattern {
 
 // ==================== Diagnostic Trigger ====================
 
-export function triggerDiagnostic(data: { triggerType: string; triggerId: string; symptoms?: DiagnosticSymptom[] }) {
+export function triggerDiagnostic(data: {
+  triggerType: string;
+  triggerId: string;
+  symptoms?: DiagnosticSymptom[];
+}) {
   return api.post<{ sessionId: string; status: string }>('/v1/diagnostic/trigger', data);
 }
 
 // ==================== Sessions ====================
 
-export function getSessions(params?: { status?: string; triggerType?: string; from?: string; to?: string }) {
+export function getSessions(params?: {
+  status?: string;
+  triggerType?: string;
+  from?: string;
+  to?: string;
+}) {
   return api.get<DiagnosticSession[]>('/v1/diagnostic/sessions', { params });
 }
 
 export function getSession(id: string) {
-  return api.get<DiagnosticSession & { symptoms: DiagnosticSymptom[] }>(`/v1/diagnostic/sessions/${id}`);
+  return api.get<DiagnosticSession & { symptoms: DiagnosticSymptom[] }>(
+    `/v1/diagnostic/sessions/${id}`
+  );
 }
 
 export function addSymptom(id: string, data: DiagnosticSymptom) {
@@ -62,11 +73,15 @@ export function addSymptom(id: string, data: DiagnosticSymptom) {
 }
 
 export function completeSession(id: string) {
-  return api.post<{ completed: boolean; reportId: string }>(`/v1/diagnostic/sessions/${id}/complete`);
+  return api.post<{ completed: boolean; reportId: string }>(
+    `/v1/diagnostic/sessions/${id}/complete`
+  );
 }
 
 export function getSessionComplexity(id: string) {
-  return api.get<{ complexity: string; factors: string[]; score: number }>(`/v1/diagnostic/sessions/${id}/complexity`);
+  return api.get<{ complexity: string; factors: string[]; score: number }>(
+    `/v1/diagnostic/sessions/${id}/complexity`
+  );
 }
 
 // ==================== Reports ====================
@@ -76,9 +91,11 @@ export function getReports(params?: { sessionId?: string; from?: string; to?: st
 }
 
 export function getReport(id: string) {
-  return api.get<DiagnosticReport & { findings: Array<{ pattern: string; confidence: number; description: string }> }>(
-    `/v1/diagnostic/reports/${id}`
-  );
+  return api.get<
+    DiagnosticReport & {
+      findings: Array<{ pattern: string; confidence: number; description: string }>;
+    }
+  >(`/v1/diagnostic/reports/${id}`);
 }
 
 // ==================== Knowledge Base ====================
@@ -96,16 +113,15 @@ export function addPattern(data: Omit<DiagnosticPattern, 'id' | 'frequency'>) {
 }
 
 export function getKnowledgeStats() {
-  return api.get<{ totalPatterns: number; categories: Record<string, number>; avgConfidence: number }>(
-    '/v1/diagnostic/knowledge/stats'
-  );
+  return api.get<{
+    totalPatterns: number;
+    categories: Record<string, number>;
+    avgConfidence: number;
+  }>('/v1/diagnostic/knowledge/stats');
 }
 
 export function recordOutcome(data: { sessionId: string; success: boolean; notes?: string }) {
-  return api.post<{ recorded: boolean }>(
-    '/v1/diagnostic/knowledge/outcomes',
-    data
-  );
+  return api.post<{ recorded: boolean }>('/v1/diagnostic/knowledge/outcomes', data);
 }
 
 // ==================== Status ====================

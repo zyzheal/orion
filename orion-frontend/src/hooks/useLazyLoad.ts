@@ -28,11 +28,7 @@ export const useLazyLoad = (
   onLoad?: () => void,
   options: UseLazyLoadOptions = {}
 ): UseLazyLoadReturn => {
-  const {
-    rootMargin = '100px',
-    threshold = 0.01,
-    preload = false,
-  } = options;
+  const { rootMargin = '100px', threshold = 0.01, preload = false } = options;
 
   const [isLoaded, setIsLoaded] = useState(false);
   const [isInView, setIsInView] = useState(false);
@@ -48,11 +44,14 @@ export const useLazyLoad = (
       if (entry.isIntersecting && !isLoaded && !loading) {
         setLoading(true);
         // 模拟加载延迟（实际场景中可能是图片加载、组件加载等）
-        setTimeout(() => {
-          setLoading(false);
-          setIsLoaded(true);
-          onLoad?.();
-        }, preload ? 100 : 0);
+        setTimeout(
+          () => {
+            setLoading(false);
+            setIsLoaded(true);
+            onLoad?.();
+          },
+          preload ? 100 : 0
+        );
       }
     },
     [isLoaded, loading, onLoad, preload]

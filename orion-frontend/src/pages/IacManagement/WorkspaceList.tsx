@@ -2,12 +2,38 @@
  * IaC Workspace List - Workspace table with create/edit, environment filter, lock status
  */
 import React, { useState, useMemo, useEffect } from 'react';
-import { Typography, Button, Space, Tag, Card, Modal, Form, Input, Select, message, Popconfirm } from 'antd';
-import { PlusOutlined, ReloadOutlined, PlayCircleOutlined, LockOutlined, UnlockOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import {
+  Typography,
+  Button,
+  Space,
+  Tag,
+  Card,
+  Modal,
+  Form,
+  Input,
+  Select,
+  message,
+  Popconfirm,
+} from 'antd';
+import {
+  PlusOutlined,
+  ReloadOutlined,
+  PlayCircleOutlined,
+  LockOutlined,
+  UnlockOutlined,
+  EditOutlined,
+  DeleteOutlined,
+} from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
-import { getWorkspaces, createWorkspace, updateWorkspace, type IaCWorkspace, type WorkspaceInput } from '@/api/iac';
+import {
+  getWorkspaces,
+  createWorkspace,
+  updateWorkspace,
+  type IaCWorkspace,
+  type WorkspaceInput,
+} from '@/api/iac';
 import { colors, spacing } from '@/tokens';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -71,10 +97,17 @@ const WorkspaceList: React.FC = () => {
     return workspaces.filter((ws) => {
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
-        if (!ws.name.toLowerCase().includes(q) && !ws.projectId.toLowerCase().includes(q)) return false;
+        if (!ws.name.toLowerCase().includes(q) && !ws.projectId.toLowerCase().includes(q))
+          return false;
       }
-      if (filters.environment && filters.environment !== 'all' && ws.environment !== filters.environment) return false;
-      if (filters.provider && filters.provider !== 'all' && ws.provider !== filters.provider) return false;
+      if (
+        filters.environment &&
+        filters.environment !== 'all' &&
+        ws.environment !== filters.environment
+      )
+        return false;
+      if (filters.provider && filters.provider !== 'all' && ws.provider !== filters.provider)
+        return false;
       if (filters.status && filters.status !== 'all' && ws.status !== filters.status) return false;
       return true;
     });
@@ -172,12 +205,16 @@ const WorkspaceList: React.FC = () => {
         v ? (
           <Space>
             <LockOutlined style={{ color: colors.warning[500] }} />
-            <Text type="secondary" style={{ fontSize: spacing[3] }}>{String(v)}</Text>
+            <Text type="secondary" style={{ fontSize: spacing[3] }}>
+              {String(v)}
+            </Text>
           </Space>
         ) : (
           <Space>
             <UnlockOutlined style={{ color: colors.success[500] }} />
-            <Text type="secondary" style={{ fontSize: spacing[3] }}>未锁定</Text>
+            <Text type="secondary" style={{ fontSize: spacing[3] }}>
+              未锁定
+            </Text>
           </Space>
         ),
     },
@@ -195,7 +232,9 @@ const WorkspaceList: React.FC = () => {
       width: 160,
       sortable: true,
       render: (v: unknown) => (
-        <Text type="secondary" style={{ fontSize: spacing[3] }}>{dayjs(String(v)).fromNow()}</Text>
+        <Text type="secondary" style={{ fontSize: spacing[3] }}>
+          {dayjs(String(v)).fromNow()}
+        </Text>
       ),
     },
     {
@@ -204,11 +243,19 @@ const WorkspaceList: React.FC = () => {
       width: 200,
       render: (_: unknown, record: any) => (
         <Space size="small">
-          <Button type="link" size="small" icon={<PlayCircleOutlined />}>Plan</Button>
-          <Button type="link" size="small" icon={<PlayCircleOutlined />}>Apply</Button>
-          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEdit(record)}>编辑</Button>
+          <Button type="link" size="small" icon={<PlayCircleOutlined />}>
+            Plan
+          </Button>
+          <Button type="link" size="small" icon={<PlayCircleOutlined />}>
+            Apply
+          </Button>
+          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEdit(record)}>
+            编辑
+          </Button>
           <Popconfirm title="确认删除?" onConfirm={() => message.info('删除功能待后端支持')}>
-            <Button type="link" size="small" danger icon={<DeleteOutlined />}>删除</Button>
+            <Button type="link" size="small" danger icon={<DeleteOutlined />}>
+              删除
+            </Button>
           </Popconfirm>
         </Space>
       ),
@@ -217,53 +264,116 @@ const WorkspaceList: React.FC = () => {
 
   const filterDefs: FilterDefinition[] = [
     { key: 'environment', label: '环境', options: environmentOptions },
-    { key: 'provider', label: '引擎', options: [{ label: '全部', value: 'all' }, ...providerOptions] },
-    { key: 'status', label: '状态', options: [
-      { label: '全部', value: 'all' },
-      { label: 'Idle', value: 'idle' },
-      { label: 'Planning', value: 'planning' },
-      { label: 'Applying', value: 'applying' },
-      { label: 'Error', value: 'error' },
-      { label: 'Locked', value: 'locked' },
-    ]},
+    {
+      key: 'provider',
+      label: '引擎',
+      options: [{ label: '全部', value: 'all' }, ...providerOptions],
+    },
+    {
+      key: 'status',
+      label: '状态',
+      options: [
+        { label: '全部', value: 'all' },
+        { label: 'Idle', value: 'idle' },
+        { label: 'Planning', value: 'planning' },
+        { label: 'Applying', value: 'applying' },
+        { label: 'Error', value: 'error' },
+        { label: 'Locked', value: 'locked' },
+      ],
+    },
   ];
 
   return (
     <div style={{ padding: 0 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing[6] }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          marginBottom: spacing[6],
+        }}
+      >
         <div>
-          <Title level={3} style={{ margin: 0 }}>工作空间</Title>
+          <Title level={3} style={{ margin: 0 }}>
+            工作空间
+          </Title>
           <Text type="secondary">管理 IaC 工作空间</Text>
         </div>
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>刷新</Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalVisible(true)}>创建工作空间</Button>
+          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+            刷新
+          </Button>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => setCreateModalVisible(true)}
+          >
+            创建工作空间
+          </Button>
         </Space>
       </div>
 
       <Card>
         <div style={{ marginBottom: spacing[4] }}>
-          <SearchFilterBar onSearch={setSearchQuery} onFilter={setFilters} filters={filterDefs} searchPlaceholder="搜索工作空间..." />
+          <SearchFilterBar
+            onSearch={setSearchQuery}
+            onFilter={setFilters}
+            filters={filterDefs}
+            searchPlaceholder="搜索工作空间..."
+          />
         </div>
-        <Table columns={columns} dataSource={filteredWorkspaces} loading={loading} rowKey="id" size="middle" striped />
+        <Table
+          columns={columns}
+          dataSource={filteredWorkspaces}
+          loading={loading}
+          rowKey="id"
+          size="middle"
+          striped
+        />
       </Card>
 
       {/* Create Modal */}
-      <Modal title="创建工作空间" open={createModalVisible} onCancel={() => setCreateModalVisible(false)} onOk={handleCreate} confirmLoading={submitting}>
+      <Modal
+        title="创建工作空间"
+        open={createModalVisible}
+        onCancel={() => setCreateModalVisible(false)}
+        onOk={handleCreate}
+        confirmLoading={submitting}
+      >
         <Form form={createForm} layout="vertical">
-          <Form.Item name="name" label="名称" rules={[{ required: true }]}><Input placeholder="my-infra-workspace" /></Form.Item>
-          <Form.Item name="projectId" label="项目 ID" rules={[{ required: true }]}><Input placeholder="project-123" /></Form.Item>
-          <Form.Item name="environment" label="环境" rules={[{ required: true }]}><Select options={environmentOptions.slice(1)} /></Form.Item>
-          <Form.Item name="provider" label="引擎" rules={[{ required: true }]}><Select options={providerOptions} /></Form.Item>
-          <Form.Item name="config" label="配置"><Input.TextArea rows={3} placeholder="工作空间配置 (JSON/YAML)" /></Form.Item>
+          <Form.Item name="name" label="名称" rules={[{ required: true }]}>
+            <Input placeholder="my-infra-workspace" />
+          </Form.Item>
+          <Form.Item name="projectId" label="项目 ID" rules={[{ required: true }]}>
+            <Input placeholder="project-123" />
+          </Form.Item>
+          <Form.Item name="environment" label="环境" rules={[{ required: true }]}>
+            <Select options={environmentOptions.slice(1)} />
+          </Form.Item>
+          <Form.Item name="provider" label="引擎" rules={[{ required: true }]}>
+            <Select options={providerOptions} />
+          </Form.Item>
+          <Form.Item name="config" label="配置">
+            <Input.TextArea rows={3} placeholder="工作空间配置 (JSON/YAML)" />
+          </Form.Item>
         </Form>
       </Modal>
 
       {/* Edit Modal */}
-      <Modal title="编辑工作空间" open={editModalVisible} onCancel={() => setEditModalVisible(false)} onOk={handleEdit} confirmLoading={submitting}>
+      <Modal
+        title="编辑工作空间"
+        open={editModalVisible}
+        onCancel={() => setEditModalVisible(false)}
+        onOk={handleEdit}
+        confirmLoading={submitting}
+      >
         <Form form={editForm} layout="vertical">
-          <Form.Item name="name" label="名称" rules={[{ required: true }]}><Input /></Form.Item>
-          <Form.Item name="config" label="配置"><Input.TextArea rows={3} placeholder="更新配置..." /></Form.Item>
+          <Form.Item name="name" label="名称" rules={[{ required: true }]}>
+            <Input />
+          </Form.Item>
+          <Form.Item name="config" label="配置">
+            <Input.TextArea rows={3} placeholder="更新配置..." />
+          </Form.Item>
         </Form>
       </Modal>
     </div>

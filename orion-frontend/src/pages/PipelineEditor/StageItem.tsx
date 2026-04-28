@@ -46,14 +46,9 @@ const StageItem: React.FC<StageItemProps> = ({
   onDelete,
   // availableDependencies 保留用于未来扩展
 }) => {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id,
+  });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -146,12 +141,7 @@ const StageItem: React.FC<StageItemProps> = ({
           {/* 操作按钮 */}
           <Space>
             <Tooltip title="编辑">
-              <Button
-                type="text"
-                icon={<EditOutlined />}
-                onClick={onEdit}
-                aria-label="编辑"
-              />
+              <Button type="text" icon={<EditOutlined />} onClick={onEdit} aria-label="编辑" />
             </Tooltip>
             <Tooltip title="删除">
               <Button

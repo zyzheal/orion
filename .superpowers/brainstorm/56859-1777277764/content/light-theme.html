@@ -1,0 +1,166 @@
+<h2>ChatOps 浅色面板 — 基于 Orion Design Token</h2>
+<p class="subtitle">使用 #ffffff / #fafafa / #f5f5f5 等浅色背景，配合 #1890ff 主色</p>
+
+<div class="mockup">
+  <div class="mockup-header">ChatOps 展开面板（浅色主题）</div>
+  <div class="mockup-body" style="padding: 0; font-size: 12px; display: flex; min-height: 600px; background: #f0f2f5;">
+
+    <!-- 左侧：页面模拟背景 -->
+    <div style="flex: 1; background: #f0f2f5; padding: 30px; position: relative;">
+      <div style="background: #ffffff; border-radius: 12px; padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.08);">
+        <div style="width: 80px; height: 8px; background: #d9d9d9; border-radius: 4px; margin-bottom: 12px;"></div>
+        <div style="width: 70%; height: 8px; background: #f0f0f0; border-radius: 4px; margin-bottom: 8px;"></div>
+        <div style="width: 50%; height: 8px; background: #f0f0f0; border-radius: 4px;"></div>
+      </div>
+      <div style="display: flex; gap: 16px;">
+        <div style="flex: 1; background: #ffffff; border-radius: 10px; padding: 16px; height: 200px; box-shadow: 0 1px 4px rgba(0,0,0,0.08);">
+          <div style="width: 40%; height: 8px; background: #d9d9d9; border-radius: 4px; margin-bottom: 16px;"></div>
+          <div style="display: flex; gap: 10px; margin-top: 40px;">
+            <div style="width: 48px; height: 48px; background: #f6ffed; border: 1px solid #b7eb8f; border-radius: 10px;"></div>
+            <div style="width: 48px; height: 48px; background: #fff1f0; border: 1px solid #ffa39e; border-radius: 10px;"></div>
+            <div style="width: 48px; height: 48px; background: #e6f7ff; border: 1px solid #91d5ff; border-radius: 10px;"></div>
+          </div>
+        </div>
+        <div style="flex: 1; background: #ffffff; border-radius: 10px; padding: 16px; height: 200px; box-shadow: 0 1px 4px rgba(0,0,0,0.08);">
+          <div style="width: 50%; height: 8px; background: #d9d9d9; border-radius: 4px; margin-bottom: 12px;"></div>
+          <div style="width: 80%; height: 80px; background: #fafafa; border-radius: 8px; margin-top: 20px;"></div>
+        </div>
+      </div>
+
+      <!-- 悬浮按钮 -->
+      <div style="position: absolute; right: 24px; bottom: 24px;">
+        <!-- 脉冲光环 -->
+        <div style="position: absolute; top: -6px; left: -6px; width: 64px; height: 64px; border-radius: 50%; border: 2px solid rgba(245,34,45,0.3);"></div>
+        <!-- 主按钮 -->
+        <div style="width: 52px; height: 52px; border-radius: 50%; background: linear-gradient(135deg, #ff4d4f 0%, #f5222d 100%); display: flex; align-items: center; justify-content: center; color: white; font-size: 22px; box-shadow: 0 6px 20px rgba(245,34,45,0.35), 0 2px 6px rgba(0,0,0,0.1); cursor: pointer; position: relative;">
+          🔔
+          <span style="position: absolute; top: -2px; right: -2px; background: linear-gradient(135deg, #faad14 0%, #f5222d 100%); color: white; font-size: 11px; font-weight: bold; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border: 2px solid white;">3</span>
+        </div>
+        <!-- 提示气泡 -->
+        <div style="position: absolute; right: 62px; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.75); color: white; padding: 6px 12px; border-radius: 6px; font-size: 11px; white-space: nowrap;">
+          3 条待处理告警
+          <div style="position: absolute; right: -4px; top: 50%; transform: translateY(-50%); width: 8px; height: 8px; background: rgba(0,0,0,0.75); transform: rotate(45deg);"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 右侧：ChatOps 展开面板（浅色） -->
+    <div style="width: 400px; background: #ffffff; border-left: 1px solid #f0f0f0; display: flex; flex-direction: column; box-shadow: -4px 0 16px rgba(0,0,0,0.06);">
+
+      <!-- Header -->
+      <div style="padding: 16px 20px; background: #ffffff; border-bottom: 1px solid #f0f0f0;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <div style="width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg, #1890ff 0%, #40a9ff 100%); display: flex; align-items: center; justify-content: center; font-size: 16px; color: white;">⚡</div>
+            <div>
+              <strong style="color: #1f1f1f; font-size: 14px;">ChatOps</strong>
+              <div style="font-size: 10px; color: #1890ff;">AI 运维助手</div>
+            </div>
+          </div>
+          <div style="width: 28px; height: 28px; border-radius: 6px; background: #fafafa; display: flex; align-items: center; justify-content: center; color: #bfbfbf; cursor: pointer; font-size: 14px;">✕</div>
+        </div>
+      </div>
+
+      <!-- 智能推荐区 -->
+      <div style="padding: 14px 16px; background: #fff7e6; border-bottom: 1px solid #ffe58f;">
+        <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 10px;">
+          <span style="font-size: 14px;">🔥</span>
+          <span style="font-size: 11px; font-weight: 600; color: #fa8c16; text-transform: uppercase; letter-spacing: 0.5px;">需要立即关注</span>
+        </div>
+
+        <!-- 告警卡片 - Critical -->
+        <div style="padding: 12px; background: #ffffff; border: 1px solid #ffccc7; border-radius: 10px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(245,34,45,0.08);">
+          <div style="display: flex; align-items: start; gap: 8px;">
+            <div style="width: 32px; height: 32px; border-radius: 8px; background: #fff1f0; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0;">🔴</div>
+            <div style="flex: 1;">
+              <div style="color: #f5222d; font-weight: 600; font-size: 13px;">Staging 错误率异常</div>
+              <div style="color: #8c8c8c; font-size: 11px; margin-top: 2px;">
+                <span style="color: #f5222d; font-weight: 600;">2.1%</span> / 阈值 1.0% · 持续 5min
+              </div>
+              <div style="color: #bfbfbf; font-size: 10px; margin-top: 4px;">影响: api-service · staging-ns</div>
+            </div>
+          </div>
+          <div style="display: flex; gap: 6px; margin-top: 10px;">
+            <span style="padding: 5px 10px; background: linear-gradient(135deg, #1890ff 0%, #40a9ff 100%); color: white; border-radius: 6px; font-size: 11px; font-weight: 500; cursor: pointer;">查看日志</span>
+            <span style="padding: 5px 10px; background: #f5f5f5; color: #595959; border-radius: 6px; font-size: 11px; cursor: pointer;">诊断根因</span>
+            <span style="padding: 5px 10px; background: #fff1f0; color: #f5222d; border: 1px solid #ffa39e; border-radius: 6px; font-size: 11px; cursor: pointer;">重启 Pod</span>
+          </div>
+        </div>
+
+        <!-- 阻塞卡片 - Warning -->
+        <div style="padding: 12px; background: #ffffff; border: 1px solid #ffe58f; border-radius: 10px; box-shadow: 0 1px 3px rgba(250,173,20,0.08);">
+          <div style="display: flex; align-items: start; gap: 8px;">
+            <div style="width: 32px; height: 32px; border-radius: 8px; background: #fffbe6; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0;">⏸️</div>
+            <div style="flex: 1;">
+              <div style="color: #d48806; font-weight: 600; font-size: 13px;">Pipeline #1234 等待确认</div>
+              <div style="color: #8c8c8c; font-size: 11px; margin-top: 2px;">deploy-to-prod 阶段</div>
+              <div style="color: #bfbfbf; font-size: 10px; margin-top: 4px;">已等待 12 分钟</div>
+            </div>
+          </div>
+          <div style="display: flex; gap: 6px; margin-top: 10px;">
+            <span style="padding: 5px 10px; background: linear-gradient(135deg, #52c41a 0%, #73d13d 100%); color: white; border-radius: 6px; font-size: 11px; font-weight: 500; cursor: pointer;">批准</span>
+            <span style="padding: 5px 10px; background: #fff1f0; color: #f5222d; border: 1px solid #ffa39e; border-radius: 6px; font-size: 11px; cursor: pointer;">拒绝</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 对话区 -->
+      <div style="flex: 1; padding: 14px 16px; overflow: auto; background: #fafafa;">
+        <!-- 系统时间 -->
+        <div style="text-align: center; margin-bottom: 14px;">
+          <span style="font-size: 10px; color: #bfbfbf; background: #f0f0f0; padding: 3px 10px; border-radius: 10px;">今天 14:32</span>
+        </div>
+
+        <!-- 用户消息 -->
+        <div style="display: flex; justify-content: flex-end; margin-bottom: 10px;">
+          <div style="max-width: 80%; padding: 10px 14px; background: linear-gradient(135deg, #1890ff 0%, #40a9ff 100%); border-radius: 14px 14px 2px 14px; color: white; font-size: 12px; box-shadow: 0 2px 6px rgba(24,144,255,0.25);">
+            部署 v2.1 到 staging
+          </div>
+        </div>
+
+        <!-- AI 回复 -->
+        <div style="display: flex; margin-bottom: 10px;">
+          <div style="max-width: 85%;">
+            <div style="padding: 10px 14px; background: #ffffff; border: 1px solid #f0f0f0; border-radius: 14px 14px 14px 2px; color: #434343; font-size: 12px;">
+              <div style="margin-bottom: 6px;">🚀 Pipeline #1235 已触发</div>
+              <div style="display: flex; gap: 12px; font-size: 10px; color: #bfbfbf;">
+                <span>目标: staging-ns</span>
+                <span>预计 2min</span>
+              </div>
+            </div>
+            <!-- 成功卡片 -->
+            <div style="margin-top: 8px; padding: 10px 14px; background: #f6ffed; border: 1px solid #b7eb8f; border-radius: 10px;">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="color: #52c41a; font-weight: 600; font-size: 12px;">✅ 部署成功</span>
+                <span style="font-size: 10px; color: #8c8c8c;">45s</span>
+              </div>
+              <div style="margin-top: 6px; display: flex; gap: 12px;">
+                <span style="font-size: 10px; color: #1890ff; cursor: pointer; text-decoration: underline;">查看详情 →</span>
+                <span style="font-size: 10px; color: #faad14; cursor: pointer; text-decoration: underline;">回滚</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 输入区 -->
+      <div style="padding: 12px 14px; border-top: 1px solid #f0f0f0; background: #ffffff;">
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <div style="width: 32px; height: 32px; border-radius: 8px; background: #fafafa; display: flex; align-items: center; justify-content: center; color: #8c8c8c; cursor: pointer; font-size: 14px; border: 1px solid #f0f0f0;">/</div>
+          <div style="flex: 1; padding: 8px 12px; background: #fafafa; border: 1px solid #f0f0f0; border-radius: 10px; color: #bfbfbf; font-size: 12px;">
+            输入命令，如 <span style="color: #1890ff;">/deploy v2.2 prod</span>
+          </div>
+          <div style="width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg, #1890ff 0%, #40a9ff 100%); display: flex; align-items: center; justify-content: center; color: white; cursor: pointer; font-size: 14px;">↑</div>
+        </div>
+        <!-- Slash 快捷命令 -->
+        <div style="margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap;">
+          <span style="padding: 3px 8px; background: #f5f5f5; border-radius: 4px; color: #8c8c8c; font-size: 10px; cursor: pointer;">/deploy</span>
+          <span style="padding: 3px 8px; background: #f5f5f5; border-radius: 4px; color: #8c8c8c; font-size: 10px; cursor: pointer;">/logs</span>
+          <span style="padding: 3px 8px; background: #f5f5f5; border-radius: 4px; color: #8c8c8c; font-size: 10px; cursor: pointer;">/restart</span>
+          <span style="padding: 3px 8px; background: #f5f5f5; border-radius: 4px; color: #8c8c8c; font-size: 10px; cursor: pointer;">/status</span>
+          <span style="padding: 3px 8px; background: #f5f5f5; border-radius: 4px; color: #8c8c8c; font-size: 10px; cursor: pointer;">/rollback</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

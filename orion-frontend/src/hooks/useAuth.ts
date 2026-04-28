@@ -18,7 +18,7 @@ export const useAuth = () => {
         console.log('[Auth] Login successful, token received:', {
           accessToken: accessToken ? 'yes' : 'no',
           expiresAt,
-          user: userData?.username
+          user: userData?.username,
         });
 
         // 保存 token 到 store 和 localStorage

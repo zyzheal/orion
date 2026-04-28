@@ -142,7 +142,7 @@ class MockEntryRepository extends BuildCacheEntryRepository {
     limit?: number;
     offset?: number;
   }): Promise<CacheEntry[]> {
-    let result = Array.from(this.store.values()).filter(e => e.configId === configId);
+    const result = Array.from(this.store.values()).filter(e => e.configId === configId);
     result.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
     const offset = options?.offset || 0;
     const limit = options?.limit || 100;

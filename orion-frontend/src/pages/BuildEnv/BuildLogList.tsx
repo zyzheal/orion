@@ -9,10 +9,7 @@ import { ReloadOutlined, EyeOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
-import {
-  getBuildLogs,
-  type BuildLog,
-} from '@/api/build-env';
+import { getBuildLogs, type BuildLog } from '@/api/build-env';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 
@@ -67,10 +64,12 @@ const BuildLogList: React.FC = () => {
       label: 'Run ID',
       options: [
         { label: 'All', value: 'all' },
-        ...Array.from(new Set(logs.map((l) => l.runId))).slice(0, 10).map((id) => ({
-          label: id,
-          value: id,
-        })),
+        ...Array.from(new Set(logs.map((l) => l.runId)))
+          .slice(0, 10)
+          .map((id) => ({
+            label: id,
+            value: id,
+          })),
       ],
     },
     {
@@ -78,10 +77,12 @@ const BuildLogList: React.FC = () => {
       label: 'Stage ID',
       options: [
         { label: 'All', value: 'all' },
-        ...Array.from(new Set(logs.map((l) => l.stageId))).slice(0, 10).map((id) => ({
-          label: id,
-          value: id,
-        })),
+        ...Array.from(new Set(logs.map((l) => l.stageId)))
+          .slice(0, 10)
+          .map((id) => ({
+            label: id,
+            value: id,
+          })),
       ],
     },
   ];
@@ -93,28 +94,44 @@ const BuildLogList: React.FC = () => {
       dataIndex: 'id',
       width: 200,
       sortable: true,
-      render: (value) => <Text code style={{ fontSize: spacing[3] }}>{String(value)}</Text>,
+      render: (value) => (
+        <Text code style={{ fontSize: spacing[3] }}>
+          {String(value)}
+        </Text>
+      ),
     },
     {
       key: 'runId',
       title: 'Run ID',
       dataIndex: 'runId',
       width: 160,
-      render: (value) => <Text type="secondary" style={{ fontSize: spacing[3] }}>{String(value)}</Text>,
+      render: (value) => (
+        <Text type="secondary" style={{ fontSize: spacing[3] }}>
+          {String(value)}
+        </Text>
+      ),
     },
     {
       key: 'stageId',
       title: 'Stage ID',
       dataIndex: 'stageId',
       width: 160,
-      render: (value) => <Text type="secondary" style={{ fontSize: spacing[3] }}>{String(value)}</Text>,
+      render: (value) => (
+        <Text type="secondary" style={{ fontSize: spacing[3] }}>
+          {String(value)}
+        </Text>
+      ),
     },
     {
       key: 'podId',
       title: 'Pod ID',
       dataIndex: 'podId',
       width: 200,
-      render: (value) => <Text type="secondary" style={{ fontSize: spacing[3] }}>{String(value)}</Text>,
+      render: (value) => (
+        <Text type="secondary" style={{ fontSize: spacing[3] }}>
+          {String(value)}
+        </Text>
+      ),
     },
     {
       key: 'status',
@@ -169,9 +186,18 @@ const BuildLogList: React.FC = () => {
 
   return (
     <div style={{ padding: 0 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          marginBottom: 24,
+        }}
+      >
         <div>
-          <Title level={3} style={{ margin: 0 }}>Build Logs</Title>
+          <Title level={3} style={{ margin: 0 }}>
+            Build Logs
+          </Title>
           <Text type="secondary">{filteredLogs.length} build logs</Text>
         </div>
         <Button icon={<ReloadOutlined />} onClick={loadLogs} loading={loading}>
@@ -188,7 +214,14 @@ const BuildLogList: React.FC = () => {
         />
       </div>
 
-      <Table columns={columns} dataSource={filteredLogs} loading={loading} rowKey="id" size="middle" striped />
+      <Table
+        columns={columns}
+        dataSource={filteredLogs}
+        loading={loading}
+        rowKey="id"
+        size="middle"
+        striped
+      />
     </div>
   );
 };

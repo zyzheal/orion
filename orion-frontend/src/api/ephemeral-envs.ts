@@ -29,7 +29,12 @@ export interface EnvironmentTemplate {
   id: string;
   name: string;
   description?: string;
-  services: Array<{ name: string; image: string; replicas: number; resources?: Record<string, any> }>;
+  services: Array<{
+    name: string;
+    image: string;
+    replicas: number;
+    resources?: Record<string, any>;
+  }>;
   resourceLimits?: { cpuLimit: string; memoryLimit: string; storageLimit: string };
   createdAt: string;
   updatedAt: string;

@@ -1,0 +1,132 @@
+<h2>Chat 侧边栏布局方案</h2>
+<p class="subtitle">选择一个最符合你操作习惯的布局</p>
+
+<div class="cards">
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="display: flex; flex-direction: column; height: 100%;">
+        <div class="mock-nav" style="padding: 8px 12px; background: #f0f0f0; font-size: 12px;">
+          <strong>ChatOps</strong> <span style="float:right; color: #999;">✕</span>
+        </div>
+        <div style="flex: 1; overflow: auto; padding: 12px; font-size: 11px; background: #fafafa;">
+          <div style="margin-bottom: 12px; text-align: right;">
+            <span style="display: inline-block; background: #1677ff; color: white; padding: 6px 10px; border-radius: 8px 8px 0 8px; max-width: 85%;">帮我部署 v2.1 到 staging</span>
+          </div>
+          <div style="margin-bottom: 12px; text-align: left;">
+            <span style="display: inline-block; background: white; border: 1px solid #d0d7de; padding: 6px 10px; border-radius: 8px 8px 8px 0; max-width: 85%;">
+              ✅ 部署成功！Pipeline #1234<br>
+              <span style="color: #999;">耗时 45s | 目标: staging-ns</span>
+            </span>
+          </div>
+          <div style="margin-bottom: 12px; text-align: right;">
+            <span style="display: inline-block; background: #1677ff; color: white; padding: 6px 10px; border-radius: 8px 8px 0 8px; max-width: 85%;">查看 staging 错误率</span>
+          </div>
+          <div style="margin-bottom: 12px; text-align: left;">
+            <span style="display: inline-block; background: white; border: 1px solid #d0d7de; padding: 6px 10px; border-radius: 8px 8px 8px 0; max-width: 85%;">
+              📊 当前错误率: 0.3%<br>
+              <span style="color: green;">↓ SLO 预算充足 (剩余 98.5%)</span>
+            </span>
+          </div>
+        </div>
+        <div style="padding: 12px; border-top: 1px solid #e0e0e0; background: white;">
+          <div style="display: flex; gap: 8px;">
+            <input class="mock-input" style="flex: 1; margin: 0;" placeholder="输入命令或自然语言...">
+            <button class="mock-button" style="margin: 0; padding: 6px 16px;">发送</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>纯对话模式</h3>
+      <p>简洁的对话流，操作结果以对话气泡内嵌展示，类似 ChatGPT</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="display: flex; flex-direction: column; height: 100%;">
+        <div class="mock-nav" style="padding: 8px 12px; background: #f0f0f0; font-size: 12px;">
+          <strong>ChatOps</strong> <span style="float:right; color: #999;">✕</span>
+        </div>
+        <div style="display: flex; flex: 1; overflow: hidden;">
+          <div style="width: 55%; overflow: auto; padding: 12px; font-size: 11px; border-right: 1px solid #e0e0e0; background: #fafafa;">
+            <div style="margin-bottom: 12px; text-align: right;">
+              <span style="display: inline-block; background: #1677ff; color: white; padding: 6px 10px; border-radius: 8px 8px 0 8px; max-width: 90%;">部署 v2.1</span>
+            </div>
+            <div style="margin-bottom: 12px; text-align: left;">
+              <span style="display: inline-block; background: white; border: 1px solid #d0d7de; padding: 6px 10px; border-radius: 8px 8px 8px 0; max-width: 90%;">
+                🚀 正在部署到 staging...
+              </span>
+            </div>
+          </div>
+          <div style="flex: 1; padding: 12px; background: white; overflow: auto;">
+            <div style="padding: 8px; margin-bottom: 8px; background: #f6f8fa; border-radius: 6px; font-size: 11px;">
+              <strong>Pipeline #1234</strong><br>
+              Status: <span style="color: green;">✅ Success</span><br>
+              Duration: 45s
+            </div>
+            <div style="padding: 8px; margin-bottom: 8px; background: #f6f8fa; border-radius: 6px; font-size: 11px;">
+              <strong>日志输出</strong><br>
+              <span style="font-family: monospace; color: #666;">Building... Deploying... Done.</span>
+            </div>
+            <div style="padding: 8px; background: #f6f8fa; border-radius: 6px; font-size: 11px;">
+              <strong>资源状态</strong><br>
+              Pods: 3/3 Running
+            </div>
+          </div>
+        </div>
+        <div style="padding: 12px; border-top: 1px solid #e0e0e0; background: white;">
+          <div style="display: flex; gap: 8px;">
+            <input class="mock-input" style="flex: 1; margin: 0;" placeholder="输入命令或自然语言...">
+            <button class="mock-button" style="margin: 0; padding: 6px 16px;">发送</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>对话 + 操作面板 (推荐)</h3>
+      <p>左侧对话，右侧实时展示操作详情/日志/状态，适合长结果场景</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="display: flex; flex-direction: column; height: 100%;">
+        <div class="mock-nav" style="padding: 8px 12px; background: #f0f0f0; font-size: 12px;">
+          <strong>ChatOps</strong> <span style="float:right; color: #999;">✕</span>
+        </div>
+        <div style="padding: 0; border-bottom: 1px solid #e0e0e0;">
+          <div style="display: flex; gap: 0;">
+            <div style="padding: 8px 12px; background: #1677ff; color: white; font-size: 12px; cursor: pointer;">对话</div>
+            <div style="padding: 8px 12px; background: white; color: #333; font-size: 12px; cursor: pointer; border-bottom: 2px solid #1677ff;">快捷命令</div>
+            <div style="padding: 8px 12px; background: white; color: #333; font-size: 12px; cursor: pointer;">历史记录</div>
+          </div>
+        </div>
+        <div style="flex: 1; overflow: auto; padding: 12px; font-size: 11px; background: #fafafa;">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px;">
+            <div style="padding: 8px; background: white; border: 1px solid #d0d7de; border-radius: 6px; font-size: 11px; text-align: center; cursor: pointer;">🚀 部署</div>
+            <div style="padding: 8px; background: white; border: 1px solid #d0d7de; border-radius: 6px; font-size: 11px; text-align: center; cursor: pointer;">🔍 查看日志</div>
+            <div style="padding: 8px; background: white; border: 1px solid #d0d7de; border-radius: 6px; font-size: 11px; text-align: center; cursor: pointer;">🔄 重启</div>
+            <div style="padding: 8px; background: white; border: 1px solid #d0d7de; border-radius: 6px; font-size: 11px; text-align: center; cursor: pointer;">📊 监控指标</div>
+          </div>
+          <div style="margin-bottom: 12px; text-align: right;">
+            <span style="display: inline-block; background: #1677ff; color: white; padding: 6px 10px; border-radius: 8px 8px 0 8px; max-width: 85%;">部署 v2.1</span>
+          </div>
+          <div style="margin-bottom: 12px; text-align: left;">
+            <span style="display: inline-block; background: white; border: 1px solid #d0d7de; padding: 6px 10px; border-radius: 8px 8px 8px 0; max-width: 85%;">✅ 部署成功！</span>
+          </div>
+        </div>
+        <div style="padding: 12px; border-top: 1px solid #e0e0e0; background: white;">
+          <div style="display: flex; gap: 8px;">
+            <input class="mock-input" style="flex: 1; margin: 0;" placeholder="输入命令或自然语言...">
+            <button class="mock-button" style="margin: 0; padding: 6px 16px;">发送</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Tab 式多功能</h3>
+      <p>对话 / 快捷命令 / 历史分 Tab，快捷命令面板可一键触发常用操作</p>
+    </div>
+  </div>
+</div>

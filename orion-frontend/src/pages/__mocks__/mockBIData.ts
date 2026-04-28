@@ -207,13 +207,28 @@ export const mockEngineerDashboard: EngineerDashboardData = {
     return data;
   })(),
   strengths: [
-    { category: 'infrastructure', resolvedCount: 18, slaComplianceRate: 0.98, proficiencyScore: 95 },
+    {
+      category: 'infrastructure',
+      resolvedCount: 18,
+      slaComplianceRate: 0.98,
+      proficiencyScore: 95,
+    },
     { category: 'network', resolvedCount: 12, slaComplianceRate: 0.96, proficiencyScore: 88 },
     { category: 'database', resolvedCount: 8, slaComplianceRate: 0.92, proficiencyScore: 82 },
   ],
   weaknesses: [
-    { category: 'security', resolvedCount: 3, slaComplianceRate: 0.67, suggestion: '建议参加安全工单处理培训' },
-    { category: 'performance', resolvedCount: 2, slaComplianceRate: 0.5, suggestion: '建议与性能专家结对处理' },
+    {
+      category: 'security',
+      resolvedCount: 3,
+      slaComplianceRate: 0.67,
+      suggestion: '建议参加安全工单处理培训',
+    },
+    {
+      category: 'performance',
+      resolvedCount: 2,
+      slaComplianceRate: 0.5,
+      suggestion: '建议与性能专家结对处理',
+    },
   ],
   activeTickets: [
     {

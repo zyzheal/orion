@@ -94,11 +94,7 @@ function DashboardLayout({
   return (
     <>
       {responsiveCSS && <style>{responsiveCSS}</style>}
-      <div
-        className="orion-dashboard-grid"
-        style={style}
-        data-testid="orion-dashboard-layout"
-      >
+      <div className="orion-dashboard-grid" style={style} data-testid="orion-dashboard-layout">
         {children}
       </div>
     </>

@@ -432,10 +432,11 @@ export class TicketReportService {
     switch (granularity) {
       case 'hour':
         return date.toISOString().slice(0, 13); // YYYY-MM-DDTHH
-      case 'week':
+      case 'week': {
         const weekStart = new Date(date);
         weekStart.setDate(date.getDate() - date.getDay());
         return weekStart.toISOString().slice(0, 10); // YYYY-MM-DD
+      }
       case 'month':
         return date.toISOString().slice(0, 7); // YYYY-MM
       default:

@@ -54,7 +54,10 @@ import dayjs from 'dayjs';
 const { Title, Text, Paragraph } = Typography;
 const { Panel } = Collapse;
 
-const statusToBadge: Record<string, 'running' | 'pending' | 'success' | 'failed' | 'warning' | 'cancelled' | 'unknown'> = {
+const statusToBadge: Record<
+  string,
+  'running' | 'pending' | 'success' | 'failed' | 'warning' | 'cancelled' | 'unknown'
+> = {
   running: 'running',
   completed: 'success',
   failed: 'failed',
@@ -97,7 +100,11 @@ const AgentRunDetail: React.FC = () => {
       ]);
       setRun((runRes as any).data?.data || null);
       setDecisions((decisionsRes as any).data?.data || []);
-      setApprovals((((approvalsRes as any).data?.data as AgentApproval[]) || []).filter((a: AgentApproval) => a.runId === runId));
+      setApprovals(
+        (((approvalsRes as any).data?.data as AgentApproval[]) || []).filter(
+          (a: AgentApproval) => a.runId === runId
+        )
+      );
     } catch (err: unknown) {
       if (err instanceof Error) {
         message.error(`加载运行数据失败：${err.message}`);
@@ -208,10 +215,15 @@ const AgentRunDetail: React.FC = () => {
         style={{
           marginBottom: 24,
           borderLeft: `4px solid ${
-            run.status === 'completed' ? colors.success[500] :
-            run.status === 'failed' ? colors.error[500] :
-            run.status === 'running' ? colors.primary[500] :
-            run.status === 'waiting_approval' ? colors.warning[500] : colors.neutral[400]
+            run.status === 'completed'
+              ? colors.success[500]
+              : run.status === 'failed'
+                ? colors.error[500]
+                : run.status === 'running'
+                  ? colors.primary[500]
+                  : run.status === 'waiting_approval'
+                    ? colors.warning[500]
+                    : colors.neutral[400]
           }`,
         }}
       >
@@ -282,9 +294,7 @@ const AgentRunDetail: React.FC = () => {
           <Descriptions.Item label="运行 ID">
             <Text code>{run.id}</Text>
           </Descriptions.Item>
-          <Descriptions.Item label="工作流 ID">
-            {run.workflowId || '-'}
-          </Descriptions.Item>
+          <Descriptions.Item label="工作流 ID">{run.workflowId || '-'}</Descriptions.Item>
           <Descriptions.Item label="触发事件">
             <Tag>{run.triggerEvent}</Tag>
           </Descriptions.Item>
@@ -304,14 +314,16 @@ const AgentRunDetail: React.FC = () => {
           <>
             <Divider style={{ margin: '12px 0' }} />
             <Title level={5}>触发载荷</Title>
-            <pre style={{
-              background: colors.neutral[50],
-              padding: 12,
-              borderRadius: 4,
-              fontSize: spacing[3],
-              overflow: 'auto',
-              maxHeight: 200,
-            }}>
+            <pre
+              style={{
+                background: colors.neutral[50],
+                padding: 12,
+                borderRadius: 4,
+                fontSize: spacing[3],
+                overflow: 'auto',
+                maxHeight: 200,
+              }}
+            >
               {JSON.stringify(run.triggerPayload, null, 2)}
             </pre>
           </>
@@ -348,10 +360,10 @@ const AgentRunDetail: React.FC = () => {
                   header={
                     <Space>
                       {actionIconMap[decision.action] || <ThunderboltOutlined />}
-                      <Text strong>步骤 {decision.stepNumber}: {decision.action}</Text>
-                      {decision.error && (
-                        <Tag color="red">错误</Tag>
-                      )}
+                      <Text strong>
+                        步骤 {decision.stepNumber}: {decision.action}
+                      </Text>
+                      {decision.error && <Tag color="red">错误</Tag>}
                     </Space>
                   }
                 >
@@ -361,20 +373,44 @@ const AgentRunDetail: React.FC = () => {
                     </Descriptions.Item>
                     <Descriptions.Item label="操作">{decision.action}</Descriptions.Item>
                     <Descriptions.Item label="输入">
-                      <pre style={{ margin: 0, fontSize: spacing[3], background: colors.neutral[50], padding: 8, borderRadius: 4 }}>
+                      <pre
+                        style={{
+                          margin: 0,
+                          fontSize: spacing[3],
+                          background: colors.neutral[50],
+                          padding: 8,
+                          borderRadius: 4,
+                        }}
+                      >
                         {JSON.stringify(decision.actionInput, null, 2)}
                       </pre>
                     </Descriptions.Item>
                     {decision.actionOutput && (
                       <Descriptions.Item label="输出">
-                        <pre style={{ margin: 0, fontSize: spacing[3], background: colors.neutral[50], padding: 8, borderRadius: 4 }}>
+                        <pre
+                          style={{
+                            margin: 0,
+                            fontSize: spacing[3],
+                            background: colors.neutral[50],
+                            padding: 8,
+                            borderRadius: 4,
+                          }}
+                        >
                           {JSON.stringify(decision.actionOutput, null, 2)}
                         </pre>
                       </Descriptions.Item>
                     )}
                     {decision.toolResult && (
                       <Descriptions.Item label="工具结果">
-                        <pre style={{ margin: 0, fontSize: spacing[3], background: colors.neutral[50], padding: 8, borderRadius: 4 }}>
+                        <pre
+                          style={{
+                            margin: 0,
+                            fontSize: spacing[3],
+                            background: colors.neutral[50],
+                            padding: 8,
+                            borderRadius: 4,
+                          }}
+                        >
                           {JSON.stringify(decision.toolResult, null, 2)}
                         </pre>
                       </Descriptions.Item>
@@ -386,7 +422,12 @@ const AgentRunDetail: React.FC = () => {
                     )}
                     {decision.error && (
                       <Descriptions.Item label="错误">
-                        <Alert message={decision.error} type="error" showIcon style={{ fontSize: spacing[3] }} />
+                        <Alert
+                          message={decision.error}
+                          type="error"
+                          showIcon
+                          style={{ fontSize: spacing[3] }}
+                        />
                       </Descriptions.Item>
                     )}
                     <Descriptions.Item label="创建时间">
@@ -418,12 +459,18 @@ const AgentRunDetail: React.FC = () => {
                 <Descriptions.Item label="状态">
                   <Badge
                     status={
-                      approval.status === 'approved' ? 'success' :
-                      approval.status === 'rejected' ? 'error' : 'warning'
+                      approval.status === 'approved'
+                        ? 'success'
+                        : approval.status === 'rejected'
+                          ? 'error'
+                          : 'warning'
                     }
                     text={
-                      approval.status === 'approved' ? '已通过' :
-                      approval.status === 'rejected' ? '已拒绝' : '待审批'
+                      approval.status === 'approved'
+                        ? '已通过'
+                        : approval.status === 'rejected'
+                          ? '已拒绝'
+                          : '待审批'
                     }
                   />
                 </Descriptions.Item>
@@ -467,9 +514,7 @@ const AgentRunDetail: React.FC = () => {
               style={{ marginBottom: 12 }}
             />
           )}
-          {run.result.summary && (
-            <Paragraph>{run.result.summary as string}</Paragraph>
-          )}
+          {run.result.summary && <Paragraph>{run.result.summary as string}</Paragraph>}
           {run.result.errorMessage && (
             <Alert
               message="失败原因"
@@ -479,14 +524,16 @@ const AgentRunDetail: React.FC = () => {
               style={{ marginBottom: 12 }}
             />
           )}
-          <pre style={{
-            background: colors.neutral[50],
-            padding: 12,
-            borderRadius: 4,
-            fontSize: spacing[3],
-            overflow: 'auto',
-            maxHeight: 300,
-          }}>
+          <pre
+            style={{
+              background: colors.neutral[50],
+              padding: 12,
+              borderRadius: 4,
+              fontSize: spacing[3],
+              overflow: 'auto',
+              maxHeight: 300,
+            }}
+          >
             {JSON.stringify(run.result, null, 2)}
           </pre>
         </Card>

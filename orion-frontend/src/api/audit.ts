@@ -85,7 +85,9 @@ export interface AuditLogFilters {
 // ==================== Audit Log CRUD ====================
 
 export function getAuditLogs(filters?: AuditLogFilters) {
-  return api.get<{ entries: AuditLogEntry[]; total: number }>('/v1/audit/logs', { params: filters });
+  return api.get<{ entries: AuditLogEntry[]; total: number }>('/v1/audit/logs', {
+    params: filters,
+  });
 }
 
 export function getAuditLog(id: string) {
@@ -110,7 +112,10 @@ export function verifyAuditLog(id: string) {
 // ==================== Chain Verification ====================
 
 export function verifyChain(params?: { fromSequence?: number; toSequence?: number }) {
-  return api.post<{ result: ChainVerificationResult; verifiedAt: string }>('/v1/audit/verify', params);
+  return api.post<{ result: ChainVerificationResult; verifiedAt: string }>(
+    '/v1/audit/verify',
+    params
+  );
 }
 
 // ==================== Chain Info ====================

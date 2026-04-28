@@ -44,12 +44,13 @@ const CodeMgmtLayout: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false);
 
   // Determine selected key based on current path
-  const selectedKey = menuItems.find((item) => {
-    if (item.key === '/code-mgmt') {
-      return location.pathname === '/code-mgmt';
-    }
-    return location.pathname.startsWith(item.key);
-  })?.key || '/code-mgmt';
+  const selectedKey =
+    menuItems.find((item) => {
+      if (item.key === '/code-mgmt') {
+        return location.pathname === '/code-mgmt';
+      }
+      return location.pathname.startsWith(item.key);
+    })?.key || '/code-mgmt';
 
   const handleMenuClick = ({ key }: { key: string }) => {
     navigate(key);

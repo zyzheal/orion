@@ -246,10 +246,11 @@ export class ProductLineService {
     switch (patternType) {
       case 'exact':
         return branchName === pattern;
-      case 'glob':
+      case 'glob': {
         // 简化的 glob 匹配：只支持 * 通配符
         const globRegex = pattern.replace(/\*/g, '.*').replace(/\?/g, '.');
         return new RegExp(`^${globRegex}$`).test(branchName);
+      }
       case 'regex':
         return new RegExp(pattern).test(branchName);
       default:

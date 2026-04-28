@@ -2,12 +2,30 @@
  * IaC Module Registry - Module browser, search, version management
  */
 import React, { useState, useMemo, useEffect } from 'react';
-import { Typography, Button, Space, Tag, Card, Modal, Form, Input, Select, message, Popconfirm } from 'antd';
+import {
+  Typography,
+  Button,
+  Space,
+  Tag,
+  Card,
+  Modal,
+  Form,
+  Input,
+  Select,
+  message,
+  Popconfirm,
+} from 'antd';
 import { spacing } from '@/tokens';
 import { PlusOutlined, ReloadOutlined, DeleteOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
-import { getModules, createModule, deleteModule, type IaCModule, type ModuleInput } from '@/api/iac';
+import {
+  getModules,
+  createModule,
+  deleteModule,
+  type IaCModule,
+  type ModuleInput,
+} from '@/api/iac';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 
@@ -57,9 +75,11 @@ const ModuleRegistry: React.FC = () => {
     return modules.filter((mod) => {
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
-        if (!mod.name.toLowerCase().includes(q) && !mod.description.toLowerCase().includes(q)) return false;
+        if (!mod.name.toLowerCase().includes(q) && !mod.description.toLowerCase().includes(q))
+          return false;
       }
-      if (filters.provider && filters.provider !== 'all' && mod.provider !== filters.provider) return false;
+      if (filters.provider && filters.provider !== 'all' && mod.provider !== filters.provider)
+        return false;
       return true;
     });
   }, [searchQuery, filters, modules]);
@@ -120,7 +140,11 @@ const ModuleRegistry: React.FC = () => {
       title: '描述',
       dataIndex: 'description',
       width: 240,
-      render: (v: unknown) => <Text type="secondary" style={{ fontSize: spacing[3] }}>{String(v)}</Text>,
+      render: (v: unknown) => (
+        <Text type="secondary" style={{ fontSize: spacing[3] }}>
+          {String(v)}
+        </Text>
+      ),
     },
     {
       key: 'provider',
@@ -136,7 +160,11 @@ const ModuleRegistry: React.FC = () => {
       width: 160,
       render: (v: unknown) => (
         <Space size={4} wrap>
-          {Array.isArray(v) ? v.slice(-3).map((ver) => <Tag key={ver}>{ver}</Tag>) : <Tag>{String(v)}</Tag>}
+          {Array.isArray(v) ? (
+            v.slice(-3).map((ver) => <Tag key={ver}>{ver}</Tag>)
+          ) : (
+            <Tag>{String(v)}</Tag>
+          )}
         </Space>
       ),
     },
@@ -145,7 +173,11 @@ const ModuleRegistry: React.FC = () => {
       title: '来源',
       dataIndex: 'source',
       width: 200,
-      render: (v: unknown) => <Text code style={{ fontSize: spacing[3] }}>{String(v)}</Text>,
+      render: (v: unknown) => (
+        <Text code style={{ fontSize: spacing[3] }}>
+          {String(v)}
+        </Text>
+      ),
     },
     {
       key: 'downloadCount',
@@ -162,7 +194,9 @@ const ModuleRegistry: React.FC = () => {
       width: 160,
       sortable: true,
       render: (v: unknown) => (
-        <Text type="secondary" style={{ fontSize: spacing[3] }}>{dayjs(String(v)).fromNow()}</Text>
+        <Text type="secondary" style={{ fontSize: spacing[3] }}>
+          {dayjs(String(v)).fromNow()}
+        </Text>
       ),
     },
     {
@@ -171,9 +205,13 @@ const ModuleRegistry: React.FC = () => {
       width: 120,
       render: (_: unknown, record: any) => (
         <Space size="small">
-          <Button type="link" size="small">查看</Button>
+          <Button type="link" size="small">
+            查看
+          </Button>
           <Popconfirm title="确认删除?" onConfirm={() => handleDelete(record.id)}>
-            <Button type="link" size="small" danger icon={<DeleteOutlined />}>删除</Button>
+            <Button type="link" size="small" danger icon={<DeleteOutlined />}>
+              删除
+            </Button>
           </Popconfirm>
         </Space>
       ),
@@ -186,33 +224,80 @@ const ModuleRegistry: React.FC = () => {
 
   return (
     <div style={{ padding: 0 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          marginBottom: 24,
+        }}
+      >
         <div>
-          <Title level={3} style={{ margin: 0 }}>模块注册</Title>
+          <Title level={3} style={{ margin: 0 }}>
+            模块注册
+          </Title>
           <Text type="secondary">IaC 模块浏览与版本管理</Text>
         </div>
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>刷新</Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalVisible(true)}>注册模块</Button>
+          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+            刷新
+          </Button>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => setCreateModalVisible(true)}
+          >
+            注册模块
+          </Button>
         </Space>
       </div>
 
       <Card>
         <div style={{ marginBottom: 16 }}>
-          <SearchFilterBar onSearch={setSearchQuery} onFilter={setFilters} filters={filterDefs} searchPlaceholder="搜索模块..." />
+          <SearchFilterBar
+            onSearch={setSearchQuery}
+            onFilter={setFilters}
+            filters={filterDefs}
+            searchPlaceholder="搜索模块..."
+          />
         </div>
-        <Table columns={columns} dataSource={filteredModules} loading={loading} rowKey="id" size="middle" striped />
+        <Table
+          columns={columns}
+          dataSource={filteredModules}
+          loading={loading}
+          rowKey="id"
+          size="middle"
+          striped
+        />
       </Card>
 
       {/* Create Modal */}
-      <Modal title="注册模块" open={createModalVisible} onCancel={() => setCreateModalVisible(false)} onOk={handleCreate} confirmLoading={submitting}>
+      <Modal
+        title="注册模块"
+        open={createModalVisible}
+        onCancel={() => setCreateModalVisible(false)}
+        onOk={handleCreate}
+        confirmLoading={submitting}
+      >
         <Form form={createForm} layout="vertical">
-          <Form.Item name="name" label="模块名称" rules={[{ required: true }]}><Input placeholder="vpc-module" /></Form.Item>
-          <Form.Item name="description" label="描述" rules={[{ required: true }]}><Input placeholder="VPC 网络模块" /></Form.Item>
-          <Form.Item name="provider" label="Provider" rules={[{ required: true }]}><Select options={providerOptions.slice(1)} /></Form.Item>
-          <Form.Item name="version" label="版本" initialValue="1.0.0"><Input placeholder="1.0.0" /></Form.Item>
-          <Form.Item name="source" label="来源" rules={[{ required: true }]}><Input placeholder="git::https://..." /></Form.Item>
-          <Form.Item name="config" label="配置"><Input.TextArea rows={3} placeholder="模块配置..." /></Form.Item>
+          <Form.Item name="name" label="模块名称" rules={[{ required: true }]}>
+            <Input placeholder="vpc-module" />
+          </Form.Item>
+          <Form.Item name="description" label="描述" rules={[{ required: true }]}>
+            <Input placeholder="VPC 网络模块" />
+          </Form.Item>
+          <Form.Item name="provider" label="Provider" rules={[{ required: true }]}>
+            <Select options={providerOptions.slice(1)} />
+          </Form.Item>
+          <Form.Item name="version" label="版本" initialValue="1.0.0">
+            <Input placeholder="1.0.0" />
+          </Form.Item>
+          <Form.Item name="source" label="来源" rules={[{ required: true }]}>
+            <Input placeholder="git::https://..." />
+          </Form.Item>
+          <Form.Item name="config" label="配置">
+            <Input.TextArea rows={3} placeholder="模块配置..." />
+          </Form.Item>
         </Form>
       </Modal>
     </div>

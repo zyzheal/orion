@@ -3,7 +3,23 @@
  * Search and manage diagnostic patterns, view knowledge base stats
  */
 import React, { useState, useEffect } from 'react';
-import { Typography, Button, Space, Tag, Modal, Form, Input, Select, message, Drawer, Descriptions, Statistic, Row, Col, Card } from 'antd';
+import {
+  Typography,
+  Button,
+  Space,
+  Tag,
+  Modal,
+  Form,
+  Input,
+  Select,
+  message,
+  Drawer,
+  Descriptions,
+  Statistic,
+  Row,
+  Col,
+  Card,
+} from 'antd';
 import { colors, spacing } from '@/tokens';
 import { PlusOutlined, ReloadOutlined, BookOutlined, SearchOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
@@ -35,10 +51,7 @@ const DiagnosticKnowledgeBase: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [patternsRes, statsRes] = await Promise.all([
-        searchPatterns(),
-        getKnowledgeStats(),
-      ]);
+      const [patternsRes, statsRes] = await Promise.all([searchPatterns(), getKnowledgeStats()]);
       const patternsData = patternsRes.data.data;
       setPatterns(Array.isArray(patternsData) ? patternsData : []);
       setStats(statsRes.data.data);
@@ -95,7 +108,8 @@ const DiagnosticKnowledgeBase: React.FC = () => {
     try {
       const params: any = {};
       if (searchQuery) params.keyword = searchQuery;
-      if (newFilters.category && newFilters.category !== 'all') params.category = newFilters.category;
+      if (newFilters.category && newFilters.category !== 'all')
+        params.category = newFilters.category;
       const response = await searchPatterns(params);
       const apiData = response.data.data;
       setPatterns(Array.isArray(apiData) ? apiData : []);
@@ -155,15 +169,15 @@ const DiagnosticKnowledgeBase: React.FC = () => {
       render: (v: unknown, record: any) => {
         const value = v as string;
         return (
-        <Text
-          strong
-          style={{ color: colors.purple[500], cursor: 'pointer' }}
-          onClick={() => showDetail(record)}
-        >
-          {value}
-        </Text>
-      );
-    },
+          <Text
+            strong
+            style={{ color: colors.purple[500], cursor: 'pointer' }}
+            onClick={() => showDetail(record)}
+          >
+            {value}
+          </Text>
+        );
+      },
     },
     {
       key: 'category',
@@ -185,7 +199,9 @@ const DiagnosticKnowledgeBase: React.FC = () => {
         return (
           <Space wrap>
             {symptoms.slice(0, 3).map((s, idx) => (
-              <Tag key={idx} style={{ fontSize: spacing[2] }}>{s}</Tag>
+              <Tag key={idx} style={{ fontSize: spacing[2] }}>
+                {s}
+              </Tag>
             ))}
             {symptoms.length > 3 && <Tag>+{symptoms.length - 3}</Tag>}
           </Space>
@@ -204,7 +220,11 @@ const DiagnosticKnowledgeBase: React.FC = () => {
       key: 'rootCause',
       title: '根因',
       dataIndex: 'rootCause',
-      render: (v: unknown) => <Text type="secondary" style={{ fontSize: spacing[3] }}>{v as string}</Text>,
+      render: (v: unknown) => (
+        <Text type="secondary" style={{ fontSize: spacing[3] }}>
+          {v as string}
+        </Text>
+      ),
     },
     {
       key: 'actions',
@@ -220,7 +240,14 @@ const DiagnosticKnowledgeBase: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: 24,
+        }}
+      >
         <div>
           <Title level={3} style={{ margin: 0 }}>
             <BookOutlined style={{ marginRight: 8 }} />
@@ -243,13 +270,24 @@ const DiagnosticKnowledgeBase: React.FC = () => {
         <Card style={{ marginBottom: 16 }}>
           <Row gutter={16}>
             <Col span={8}>
-              <Statistic title="模式总数" value={stats.totalPatterns || 0} prefix={<SearchOutlined />} />
+              <Statistic
+                title="模式总数"
+                value={stats.totalPatterns || 0}
+                prefix={<SearchOutlined />}
+              />
             </Col>
             <Col span={8}>
-              <Statistic title="平均置信度" value={stats.avgConfidence ? (stats.avgConfidence * 100).toFixed(1) : 0} suffix="%" />
+              <Statistic
+                title="平均置信度"
+                value={stats.avgConfidence ? (stats.avgConfidence * 100).toFixed(1) : 0}
+                suffix="%"
+              />
             </Col>
             <Col span={8}>
-              <Statistic title="分类数" value={stats.categories ? Object.keys(stats.categories).length : 0} />
+              <Statistic
+                title="分类数"
+                value={stats.categories ? Object.keys(stats.categories).length : 0}
+              />
             </Col>
           </Row>
           {stats.categories && (
@@ -293,10 +331,18 @@ const DiagnosticKnowledgeBase: React.FC = () => {
         width={560}
       >
         <Form form={addForm} layout="vertical" onFinish={handleAddPattern}>
-          <Form.Item name="name" label="模式名称" rules={[{ required: true, message: '请输入模式名称' }]}>
+          <Form.Item
+            name="name"
+            label="模式名称"
+            rules={[{ required: true, message: '请输入模式名称' }]}
+          >
             <Input placeholder="例如：数据库连接池耗尽" />
           </Form.Item>
-          <Form.Item name="category" label="分类" rules={[{ required: true, message: '请选择分类' }]}>
+          <Form.Item
+            name="category"
+            label="分类"
+            rules={[{ required: true, message: '请选择分类' }]}
+          >
             <Select
               options={[
                 { label: '性能', value: 'performance' },
@@ -307,17 +353,31 @@ const DiagnosticKnowledgeBase: React.FC = () => {
               ]}
             />
           </Form.Item>
-          <Form.Item name="symptoms" label="症状 (逗号分隔)" rules={[{ required: true, message: '请输入症状' }]}>
+          <Form.Item
+            name="symptoms"
+            label="症状 (逗号分隔)"
+            rules={[{ required: true, message: '请输入症状' }]}
+          >
             <Input placeholder="例如：high_latency, connection_timeout, error_rate" />
           </Form.Item>
-          <Form.Item name="rootCause" label="根因" rules={[{ required: true, message: '请输入根因' }]}>
+          <Form.Item
+            name="rootCause"
+            label="根因"
+            rules={[{ required: true, message: '请输入根因' }]}
+          >
             <Input.TextArea rows={2} placeholder="描述根本原因..." />
           </Form.Item>
-          <Form.Item name="solution" label="解决方案" rules={[{ required: true, message: '请输入解决方案' }]}>
+          <Form.Item
+            name="solution"
+            label="解决方案"
+            rules={[{ required: true, message: '请输入解决方案' }]}
+          >
             <Input.TextArea rows={3} placeholder="描述解决方案..." />
           </Form.Item>
           <Form.Item>
-            <Button type="primary" htmlType="submit" block>添加</Button>
+            <Button type="primary" htmlType="submit" block>
+              添加
+            </Button>
           </Form.Item>
         </Form>
       </Modal>
@@ -346,7 +406,9 @@ const DiagnosticKnowledgeBase: React.FC = () => {
               <Title level={5}>症状</Title>
               <Space wrap>
                 {selectedPattern.symptoms.map((s: string, idx: number) => (
-                  <Tag key={idx} color="purple">{s}</Tag>
+                  <Tag key={idx} color="purple">
+                    {s}
+                  </Tag>
                 ))}
               </Space>
             </div>

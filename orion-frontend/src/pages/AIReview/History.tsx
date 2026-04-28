@@ -54,20 +54,29 @@ const AIReviewHistory: React.FC = () => {
 
   const statusColor = (status: string) => {
     switch (status) {
-      case 'completed': return 'green';
-      case 'running': return 'blue';
-      case 'failed': return 'red';
-      default: return 'default';
+      case 'completed':
+        return 'green';
+      case 'running':
+        return 'blue';
+      case 'failed':
+        return 'red';
+      default:
+        return 'default';
     }
   };
 
   const statusText = (status: string) => {
     switch (status) {
-      case 'completed': return '已完成';
-      case 'running': return '运行中';
-      case 'failed': return '失败';
-      case 'pending': return '等待中';
-      default: return status;
+      case 'completed':
+        return '已完成';
+      case 'running':
+        return '运行中';
+      case 'failed':
+        return '失败';
+      case 'pending':
+        return '等待中';
+      default:
+        return status;
     }
   };
 
@@ -91,13 +100,13 @@ const AIReviewHistory: React.FC = () => {
       title: '严重',
       dataIndex: 'criticalCount',
       key: 'criticalCount',
-      render: (count: number) => count > 0 ? <Tag color="red">{count}</Tag> : count,
+      render: (count: number) => (count > 0 ? <Tag color="red">{count}</Tag> : count),
     },
     {
       title: '警告',
       dataIndex: 'warningCount',
       key: 'warningCount',
-      render: (count: number) => count > 0 ? <Tag color="orange">{count}</Tag> : count,
+      render: (count: number) => (count > 0 ? <Tag color="orange">{count}</Tag> : count),
     },
     {
       title: '通过率',
@@ -115,7 +124,12 @@ const AIReviewHistory: React.FC = () => {
       title: '操作',
       key: 'action',
       render: (_: any, record: AIReviewResult) => (
-        <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => navigate(`/ai-review/detail?id=${record.id}`)}>
+        <Button
+          type="link"
+          size="small"
+          icon={<EyeOutlined />}
+          onClick={() => navigate(`/ai-review/detail?id=${record.id}`)}
+        >
           查看
         </Button>
       ),
@@ -126,8 +140,12 @@ const AIReviewHistory: React.FC = () => {
 
   return (
     <div style={{ padding: 24 }}>
-      <Title level={3} style={{ marginBottom: 16 }}>评审历史</Title>
-      <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>查看所有 AI 评审记录</Text>
+      <Title level={3} style={{ marginBottom: 16 }}>
+        评审历史
+      </Title>
+      <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
+        查看所有 AI 评审记录
+      </Text>
 
       {/* Filter Bar */}
       <Card style={{ marginBottom: 16 }}>
@@ -152,8 +170,12 @@ const AIReviewHistory: React.FC = () => {
             <Select.Option value="completed">已完成</Select.Option>
             <Select.Option value="failed">失败</Select.Option>
           </Select>
-          <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>搜索</Button>
-          <Button icon={<ReloadOutlined />} onClick={handleReset}>重置</Button>
+          <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>
+            搜索
+          </Button>
+          <Button icon={<ReloadOutlined />} onClick={handleReset}>
+            重置
+          </Button>
         </Space>
       </Card>
 
@@ -169,7 +191,10 @@ const AIReviewHistory: React.FC = () => {
             total,
             showSizeChanger: true,
             showTotal: (t) => `共 ${t} 条`,
-            onChange: (p, ps) => { setPage(p); setPageSize(ps); },
+            onChange: (p, ps) => {
+              setPage(p);
+              setPageSize(ps);
+            },
           }}
           size="small"
         />

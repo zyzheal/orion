@@ -221,7 +221,13 @@ export function getVersion(id: string, version: string) {
 }
 
 /** Deprecate a specific version */
-export function deprecateVersion(id: string, version: string, reason: string, eolDate: string, migrationGuide?: string) {
+export function deprecateVersion(
+  id: string,
+  version: string,
+  reason: string,
+  eolDate: string,
+  migrationGuide?: string
+) {
   return api.post<LibraryVersion>(`/internal-libraries/${id}/versions/${version}/deprecate`, {
     reason,
     eolDate,

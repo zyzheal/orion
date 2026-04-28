@@ -24,14 +24,14 @@ vi.mock('dayjs', async () => {
 
 // Mock dayjs plugins
 vi.mock('dayjs/plugin/duration', async (importOriginal) => {
-  const actual = await importOriginal() as any;
+  const actual = (await importOriginal()) as any;
   return {
     ...actual,
     default: actual?.default || vi.fn(),
   };
 });
 vi.mock('dayjs/plugin/relativeTime', async (importOriginal) => {
-  const actual = await importOriginal() as any;
+  const actual = (await importOriginal()) as any;
   return {
     ...actual,
     default: actual?.default || vi.fn(),

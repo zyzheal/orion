@@ -8,11 +8,19 @@ export interface MockNotification {
   id: string;
   title: string;
   content: string;
-  type: 'ticket_assigned' | 'ticket_escalated' | 'sla_warning' | 'sla_breached' | 'pipeline_completed' | 'system_alert' | 'comment_mention' | 'transfer_request';
+  type:
+    | 'ticket_assigned'
+    | 'ticket_escalated'
+    | 'sla_warning'
+    | 'sla_breached'
+    | 'pipeline_completed'
+    | 'system_alert'
+    | 'comment_mention'
+    | 'transfer_request';
   priority: 'critical' | 'high' | 'medium' | 'low';
   read: boolean;
   createdAt: string;
-  relatedId?: string;  // ticket ID, pipeline ID, etc.
+  relatedId?: string; // ticket ID, pipeline ID, etc.
   sender: string;
   actions?: Array<{ label: string; type: string }>;
 }
@@ -84,7 +92,10 @@ export const mockNotifications: MockNotification[] = [
     createdAt: '2026-04-13T07:45:00Z',
     relatedId: 'TKT-003',
     sender: '李娜',
-    actions: [{ label: '接受', type: 'primary' }, { label: '拒绝', type: 'default' }],
+    actions: [
+      { label: '接受', type: 'primary' },
+      { label: '拒绝', type: 'default' },
+    ],
   },
   {
     id: 'N007',

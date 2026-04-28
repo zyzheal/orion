@@ -61,9 +61,7 @@ const DashboardCore: React.FC = () => {
         <Title level={3} style={{ margin: 0 }}>
           工作台
         </Title>
-        <Text type="secondary">
-          平台运行概览 — {dayjs().format('YYYY-MM-DD HH:mm')}
-        </Text>
+        <Text type="secondary">平台运行概览 — {dayjs().format('YYYY-MM-DD HH:mm')}</Text>
       </div>
 
       {/* KPI Cards */}
@@ -151,7 +149,12 @@ const DashboardCore: React.FC = () => {
                   }}
                 >
                   <Space>
-                    <StatusBadge status={item.status} size="small" showDot={false} variant="subtle" />
+                    <StatusBadge
+                      status={item.status}
+                      size="small"
+                      showDot={false}
+                      variant="subtle"
+                    />
                     <Text>{item.name}</Text>
                   </Space>
                   <Text type="secondary" style={{ fontSize: spacing[3] }}>

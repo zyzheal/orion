@@ -244,7 +244,7 @@ export class AIDegradationRouter {
           confidence: 0,
         };
 
-      default:
+      default: {
         // 检查是否有自定义处理器
         const handler = this.degradationHandlers.get(strategy);
         if (handler) {
@@ -256,6 +256,7 @@ export class AIDegradationRouter {
           reason: `Unknown strategy: ${strategy}`,
           confidence: 0,
         };
+      }
     }
   }
 

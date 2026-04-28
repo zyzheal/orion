@@ -97,18 +97,21 @@ const AgentDashboard: React.FC = () => {
 
   // Summary metrics
   const activeAgentCount = agents.filter((a) => a.enabled).length;
-  const todayRunCount = runs.filter((r) => dayjs(r.startedAt).isAfter(dayjs().startOf('day'))).length;
+  const todayRunCount = runs.filter((r) =>
+    dayjs(r.startedAt).isAfter(dayjs().startOf('day'))
+  ).length;
   const completedRuns = runs.filter((r) => r.status === 'completed');
   const successRate = runs.length > 0 ? Math.round((completedRuns.length / runs.length) * 100) : 0;
-  const avgDuration = completedRuns.length > 0
-    ? Math.round(
-        completedRuns.reduce((acc, r) => {
-          const start = dayjs(r.startedAt);
-          const end = r.completedAt ? dayjs(r.completedAt) : dayjs();
-          return acc + end.diff(start, 'second');
-        }, 0) / completedRuns.length
-      )
-    : 0;
+  const avgDuration =
+    completedRuns.length > 0
+      ? Math.round(
+          completedRuns.reduce((acc, r) => {
+            const start = dayjs(r.startedAt);
+            const end = r.completedAt ? dayjs(r.completedAt) : dayjs();
+            return acc + end.diff(start, 'second');
+          }, 0) / completedRuns.length
+        )
+      : 0;
 
   const handleToggleAgent = async (agent: AgentProfile) => {
     try {
@@ -166,7 +169,10 @@ const AgentDashboard: React.FC = () => {
       cancelText: '取消',
       onOk: async () => {
         try {
-          await respondToApproval(approval.id, { approved: false, rejectionReason: 'Rejected via dashboard' });
+          await respondToApproval(approval.id, {
+            approved: false,
+            rejectionReason: 'Rejected via dashboard',
+          });
           message.success('审批已拒绝');
           await loadData();
         } catch (err: unknown) {

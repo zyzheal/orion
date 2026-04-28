@@ -136,9 +136,7 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
   // Filtered engineers for mention autocomplete
   const mentionCandidates = useMemo(() => {
     if (!mentionSearch) return mockEngineers;
-    return mockEngineers.filter((e) =>
-      e.name.toLowerCase().includes(mentionSearch.toLowerCase())
-    );
+    return mockEngineers.filter((e) => e.name.toLowerCase().includes(mentionSearch.toLowerCase()));
   }, [mentionSearch]);
 
   // Character count
@@ -267,7 +265,8 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
                   gap: 12,
                   padding: 12,
                   borderRadius: 8,
-                  background: comment.type === 'internal-note' ? colors.warning[50] : colors.neutral[50],
+                  background:
+                    comment.type === 'internal-note' ? colors.warning[50] : colors.neutral[50],
                   border:
                     comment.type === 'internal-note'
                       ? `1px solid ${colors.warning[100]}`
@@ -278,7 +277,8 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
                 <Avatar
                   size={36}
                   style={{
-                    background: comment.author === '内部' ? colors.warning[500] : colors.primary[500],
+                    background:
+                      comment.author === '内部' ? colors.warning[500] : colors.primary[500],
                     flexShrink: 0,
                   }}
                 >
@@ -303,7 +303,12 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
                     {comment.type === 'internal-note' && (
                       <Tag
                         color="gold"
-                        style={{ margin: 0, fontSize: spacing[2], padding: '0 4px', lineHeight: '16px' }}
+                        style={{
+                          margin: 0,
+                          fontSize: spacing[2],
+                          padding: '0 4px',
+                          lineHeight: '16px',
+                        }}
                         data-testid={`internal-badge-${comment.id}`}
                       >
                         内部备注
@@ -315,16 +320,25 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
                   </div>
 
                   {/* Content text with @mention highlighting */}
-                  <div style={{ fontSize: spacing[4], lineHeight: 1.6 }} data-testid={`comment-content-${comment.id}`}>
+                  <div
+                    style={{ fontSize: spacing[4], lineHeight: 1.6 }}
+                    data-testid={`comment-content-${comment.id}`}
+                  >
                     {renderContentWithMentions(comment.content)}
                   </div>
 
                   {/* Mention list */}
                   {comment.mentions.length > 0 && (
                     <div style={{ marginTop: 6 }}>
-                      <UserOutlined style={{ fontSize: spacing[3], color: colors.neutral[400], marginRight: 4 }} />
+                      <UserOutlined
+                        style={{ fontSize: spacing[3], color: colors.neutral[400], marginRight: 4 }}
+                      />
                       {comment.mentions.map((m) => (
-                        <Tag key={m} color="blue" style={{ margin: '0 4px 0 0', fontSize: spacing[3] }}>
+                        <Tag
+                          key={m}
+                          color="blue"
+                          style={{ margin: '0 4px 0 0', fontSize: spacing[3] }}
+                        >
                           {m}
                         </Tag>
                       ))}
@@ -335,7 +349,10 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
             ))}
           </div>
         ) : (
-          <Text type="secondary" style={{ display: 'block', textAlign: 'center', padding: '24px 0' }}>
+          <Text
+            type="secondary"
+            style={{ display: 'block', textAlign: 'center', padding: '24px 0' }}
+          >
             暂无{activeTab === 'comment' ? '评论' : '内部备注'}
           </Text>
         )}
@@ -446,8 +463,8 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
                   {engineer.availability === 'available'
                     ? '可用'
                     : engineer.availability === 'busy'
-                    ? '忙碌'
-                    : '离开'}
+                      ? '忙碌'
+                      : '离开'}
                 </Text>
               </div>
             ))}

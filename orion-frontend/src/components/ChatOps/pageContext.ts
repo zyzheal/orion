@@ -54,5 +54,5 @@ export function extractPageContext(pathname: string): PageContext {
  * 获取当前路由的模式列表（用于调试/测试）
  */
 export function getRoutePatterns(): string[] {
-  return ROUTE_CONTEXT_MAP.map(r => r.pattern.source);
+  return ROUTE_CONTEXT_MAP.map((r) => r.pattern.source);
 }

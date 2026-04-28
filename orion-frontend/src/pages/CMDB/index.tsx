@@ -118,7 +118,11 @@ const CITablePage: React.FC = () => {
         subtype: values.subtype,
         environment: values.environment,
         owner: values.owner,
-        tags: values.tags?.split(',').map((t: string) => t.trim()).filter(Boolean) || [],
+        tags:
+          values.tags
+            ?.split(',')
+            .map((t: string) => t.trim())
+            .filter(Boolean) || [],
         attributes: {},
       });
       message.success('配置项创建成功');
@@ -176,7 +180,11 @@ const CITablePage: React.FC = () => {
         status: values.status,
         owner: values.owner,
         environment: values.environment,
-        tags: values.tags?.split(',').map((t: string) => t.trim()).filter(Boolean) || [],
+        tags:
+          values.tags
+            ?.split(',')
+            .map((t: string) => t.trim())
+            .filter(Boolean) || [],
         attributes: editingCI.attributes,
       };
       await updateCI(editingCI.id, payload);
@@ -230,7 +238,12 @@ const CITablePage: React.FC = () => {
       title: '环境',
       dataIndex: 'environment',
       key: 'environment',
-      render: (env: unknown) => env ? <Tag color={String(env) === 'production' ? 'red' : 'geekblue'}>{String(env)}</Tag> : '-',
+      render: (env: unknown) =>
+        env ? (
+          <Tag color={String(env) === 'production' ? 'red' : 'geekblue'}>{String(env)}</Tag>
+        ) : (
+          '-'
+        ),
     },
     {
       title: '状态',
@@ -244,7 +257,7 @@ const CITablePage: React.FC = () => {
       title: '负责人',
       dataIndex: 'owner',
       key: 'owner',
-      render: (owner: unknown) => owner ? String(owner) : '-',
+      render: (owner: unknown) => (owner ? String(owner) : '-'),
     },
     {
       title: '更新时间',
@@ -257,7 +270,14 @@ const CITablePage: React.FC = () => {
       key: 'action',
       render: (_: any, record: CIItem) => (
         <Space>
-          <Button type="link" size="small" onClick={() => { setSelectedCI(record); setDetailDrawerOpen(true); }}>
+          <Button
+            type="link"
+            size="small"
+            onClick={() => {
+              setSelectedCI(record);
+              setDetailDrawerOpen(true);
+            }}
+          >
             详情
           </Button>
           <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEdit(record)}>
@@ -280,218 +300,226 @@ const CITablePage: React.FC = () => {
 
       {isInitialLoading ? null : (
         <>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
-        <div>
-          <Title level={4}>配置项管理</Title>
-          <Text type="secondary">管理所有配置项 (CI) 及其生命周期</Text>
-        </div>
-        <Space>
-          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
-            刷新
-          </Button>
-          <Button icon={<PlusOutlined />} type="primary" onClick={() => setCreateModalOpen(true)}>
-            新建配置项
-          </Button>
-        </Space>
-      </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+            <div>
+              <Title level={4}>配置项管理</Title>
+              <Text type="secondary">管理所有配置项 (CI) 及其生命周期</Text>
+            </div>
+            <Space>
+              <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+                刷新
+              </Button>
+              <Button
+                icon={<PlusOutlined />}
+                type="primary"
+                onClick={() => setCreateModalOpen(true)}
+              >
+                新建配置项
+              </Button>
+            </Space>
+          </div>
 
-      {/* Summary */}
-      <Row gutter={16} style={{ marginBottom: 24 }}>
-        <Col span={6}>
-          <Card>
-            <Statistic title="配置项总数" value={cis.length} />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card>
-            <Statistic
-              title="活跃"
-              value={cis.filter((c) => c.status === 'active').length}
-              valueStyle={{ color: colors.success[500] }}
-            />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card>
-            <Statistic
-              title="维护中"
-              value={cis.filter((c) => c.status === 'maintenance').length}
-              valueStyle={{ color: colors.warning[500] }}
-            />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card>
-            <Statistic
-              title="已废弃"
-              value={cis.filter((c) => c.status === 'deprecated').length}
-              valueStyle={{ color: colors.error[500] }}
-            />
-          </Card>
-        </Col>
-      </Row>
-
-      <Table
-        columns={columns}
-        dataSource={cis}
-        loading={loading}
-        rowKey="id"
-        pagination={{ pageSize: 10 }}
-      />
-
-      {/* Create Modal */}
-      <Modal
-        title="新建配置项"
-        open={createModalOpen}
-        onCancel={() => setCreateModalOpen(false)}
-        onOk={() => form.submit()}
-        width={600}
-      >
-        <Form form={form} layout="vertical" onFinish={handleCreate}>
-          <Form.Item label="名称" name="name" rules={[{ required: true }]}>
-            <Input placeholder="例如：prod-api-server-01" />
-          </Form.Item>
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item label="类型" name="type" rules={[{ required: true }]}>
-                <Select>
-                  <Select.Option value="host">Host</Select.Option>
-                  <Select.Option value="k8s">K8s</Select.Option>
-                  <Select.Option value="service">Service</Select.Option>
-                  <Select.Option value="application">Application</Select.Option>
-                  <Select.Option value="database">Database</Select.Option>
-                  <Select.Option value="cache">Cache</Select.Option>
-                </Select>
-              </Form.Item>
+          {/* Summary */}
+          <Row gutter={16} style={{ marginBottom: 24 }}>
+            <Col span={6}>
+              <Card>
+                <Statistic title="配置项总数" value={cis.length} />
+              </Card>
             </Col>
-            <Col span={12}>
-              <Form.Item label="子类型" name="subtype">
-                <Input placeholder="可选" />
-              </Form.Item>
+            <Col span={6}>
+              <Card>
+                <Statistic
+                  title="活跃"
+                  value={cis.filter((c) => c.status === 'active').length}
+                  valueStyle={{ color: colors.success[500] }}
+                />
+              </Card>
+            </Col>
+            <Col span={6}>
+              <Card>
+                <Statistic
+                  title="维护中"
+                  value={cis.filter((c) => c.status === 'maintenance').length}
+                  valueStyle={{ color: colors.warning[500] }}
+                />
+              </Card>
+            </Col>
+            <Col span={6}>
+              <Card>
+                <Statistic
+                  title="已废弃"
+                  value={cis.filter((c) => c.status === 'deprecated').length}
+                  valueStyle={{ color: colors.error[500] }}
+                />
+              </Card>
             </Col>
           </Row>
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item label="环境" name="environment">
-                <Select>
-                  <Select.Option value="development">development</Select.Option>
-                  <Select.Option value="testing">testing</Select.Option>
-                  <Select.Option value="staging">staging</Select.Option>
-                  <Select.Option value="production">production</Select.Option>
-                </Select>
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item label="负责人" name="owner">
-                <Input placeholder="可选" />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Form.Item label="标签" name="tags">
-            <Input placeholder="逗号分隔，例如：web,api,v2" />
-          </Form.Item>
-        </Form>
-      </Modal>
 
-      {/* Edit Modal */}
-      <Modal
-        title="编辑配置项"
-        open={editModalOpen}
-        onCancel={() => { setEditModalOpen(false); editForm.resetFields(); setEditingCI(null); }}
-        onOk={() => editForm.submit()}
-        width={600}
-      >
-        <Form form={editForm} layout="vertical" onFinish={handleUpdate}>
-          <Form.Item label="名称" name="name" rules={[{ required: true }]}>
-            <Input placeholder="例如：prod-api-server-01" />
-          </Form.Item>
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item label="类型" name="type">
-                <Input disabled />
+          <Table
+            columns={columns}
+            dataSource={cis}
+            loading={loading}
+            rowKey="id"
+            pagination={{ pageSize: 10 }}
+          />
+
+          {/* Create Modal */}
+          <Modal
+            title="新建配置项"
+            open={createModalOpen}
+            onCancel={() => setCreateModalOpen(false)}
+            onOk={() => form.submit()}
+            width={600}
+          >
+            <Form form={form} layout="vertical" onFinish={handleCreate}>
+              <Form.Item label="名称" name="name" rules={[{ required: true }]}>
+                <Input placeholder="例如：prod-api-server-01" />
               </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item label="子类型" name="subtype">
-                <Input placeholder="可选" />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item label="环境" name="environment">
-                <Select>
-                  <Select.Option value="development">development</Select.Option>
-                  <Select.Option value="testing">testing</Select.Option>
-                  <Select.Option value="staging">staging</Select.Option>
-                  <Select.Option value="production">production</Select.Option>
-                </Select>
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item label="负责人" name="owner">
-                <Input placeholder="可选" />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item label="状态" name="status">
-                <Select>
-                  <Select.Option value="active">active</Select.Option>
-                  <Select.Option value="inactive">inactive</Select.Option>
-                  <Select.Option value="maintenance">maintenance</Select.Option>
-                  <Select.Option value="deprecated">deprecated</Select.Option>
-                </Select>
-              </Form.Item>
-            </Col>
-            <Col span={12}>
+              <Row gutter={16}>
+                <Col span={12}>
+                  <Form.Item label="类型" name="type" rules={[{ required: true }]}>
+                    <Select>
+                      <Select.Option value="host">Host</Select.Option>
+                      <Select.Option value="k8s">K8s</Select.Option>
+                      <Select.Option value="service">Service</Select.Option>
+                      <Select.Option value="application">Application</Select.Option>
+                      <Select.Option value="database">Database</Select.Option>
+                      <Select.Option value="cache">Cache</Select.Option>
+                    </Select>
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item label="子类型" name="subtype">
+                    <Input placeholder="可选" />
+                  </Form.Item>
+                </Col>
+              </Row>
+              <Row gutter={16}>
+                <Col span={12}>
+                  <Form.Item label="环境" name="environment">
+                    <Select>
+                      <Select.Option value="development">development</Select.Option>
+                      <Select.Option value="testing">testing</Select.Option>
+                      <Select.Option value="staging">staging</Select.Option>
+                      <Select.Option value="production">production</Select.Option>
+                    </Select>
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item label="负责人" name="owner">
+                    <Input placeholder="可选" />
+                  </Form.Item>
+                </Col>
+              </Row>
               <Form.Item label="标签" name="tags">
                 <Input placeholder="逗号分隔，例如：web,api,v2" />
               </Form.Item>
-            </Col>
-          </Row>
-        </Form>
-      </Modal>
+            </Form>
+          </Modal>
 
-      {/* Detail Drawer */}
-      <Drawer
-        title="配置项详情"
-        placement="right"
-        width={700}
-        open={detailDrawerOpen}
-        onClose={() => setDetailDrawerOpen(false)}
-      >
-        {selectedCI && (
-          <Descriptions column={1} bordered>
-            <Descriptions.Item label="ID">{selectedCI.id}</Descriptions.Item>
-            <Descriptions.Item label="名称">{selectedCI.name}</Descriptions.Item>
-            <Descriptions.Item label="类型">{selectedCI.type}</Descriptions.Item>
-            <Descriptions.Item label="子类型">{selectedCI.subtype || '-'}</Descriptions.Item>
-            <Descriptions.Item label="环境">{selectedCI.environment || '-'}</Descriptions.Item>
-            <Descriptions.Item label="状态">
-              <Tag color={statusColorMap[selectedCI.status]}>{selectedCI.status}</Tag>
-            </Descriptions.Item>
-            <Descriptions.Item label="负责人">{selectedCI.owner || '-'}</Descriptions.Item>
-            <Descriptions.Item label="标签">
-              <Space>
-                {(selectedCI.tags || []).map((tag) => (
-                  <Tag key={tag}>{tag}</Tag>
-                ))}
-              </Space>
-            </Descriptions.Item>
-            <Descriptions.Item label="属性">
-              <pre>{JSON.stringify(selectedCI.attributes, null, 2)}</pre>
-            </Descriptions.Item>
-            <Descriptions.Item label="创建时间">
-              {new Date(selectedCI.created_at).toLocaleString()}
-            </Descriptions.Item>
-            <Descriptions.Item label="更新时间">
-              {new Date(selectedCI.updated_at).toLocaleString()}
-            </Descriptions.Item>
-          </Descriptions>
-        )}
-      </Drawer>
+          {/* Edit Modal */}
+          <Modal
+            title="编辑配置项"
+            open={editModalOpen}
+            onCancel={() => {
+              setEditModalOpen(false);
+              editForm.resetFields();
+              setEditingCI(null);
+            }}
+            onOk={() => editForm.submit()}
+            width={600}
+          >
+            <Form form={editForm} layout="vertical" onFinish={handleUpdate}>
+              <Form.Item label="名称" name="name" rules={[{ required: true }]}>
+                <Input placeholder="例如：prod-api-server-01" />
+              </Form.Item>
+              <Row gutter={16}>
+                <Col span={12}>
+                  <Form.Item label="类型" name="type">
+                    <Input disabled />
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item label="子类型" name="subtype">
+                    <Input placeholder="可选" />
+                  </Form.Item>
+                </Col>
+              </Row>
+              <Row gutter={16}>
+                <Col span={12}>
+                  <Form.Item label="环境" name="environment">
+                    <Select>
+                      <Select.Option value="development">development</Select.Option>
+                      <Select.Option value="testing">testing</Select.Option>
+                      <Select.Option value="staging">staging</Select.Option>
+                      <Select.Option value="production">production</Select.Option>
+                    </Select>
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item label="负责人" name="owner">
+                    <Input placeholder="可选" />
+                  </Form.Item>
+                </Col>
+              </Row>
+              <Row gutter={16}>
+                <Col span={12}>
+                  <Form.Item label="状态" name="status">
+                    <Select>
+                      <Select.Option value="active">active</Select.Option>
+                      <Select.Option value="inactive">inactive</Select.Option>
+                      <Select.Option value="maintenance">maintenance</Select.Option>
+                      <Select.Option value="deprecated">deprecated</Select.Option>
+                    </Select>
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item label="标签" name="tags">
+                    <Input placeholder="逗号分隔，例如：web,api,v2" />
+                  </Form.Item>
+                </Col>
+              </Row>
+            </Form>
+          </Modal>
+
+          {/* Detail Drawer */}
+          <Drawer
+            title="配置项详情"
+            placement="right"
+            width={700}
+            open={detailDrawerOpen}
+            onClose={() => setDetailDrawerOpen(false)}
+          >
+            {selectedCI && (
+              <Descriptions column={1} bordered>
+                <Descriptions.Item label="ID">{selectedCI.id}</Descriptions.Item>
+                <Descriptions.Item label="名称">{selectedCI.name}</Descriptions.Item>
+                <Descriptions.Item label="类型">{selectedCI.type}</Descriptions.Item>
+                <Descriptions.Item label="子类型">{selectedCI.subtype || '-'}</Descriptions.Item>
+                <Descriptions.Item label="环境">{selectedCI.environment || '-'}</Descriptions.Item>
+                <Descriptions.Item label="状态">
+                  <Tag color={statusColorMap[selectedCI.status]}>{selectedCI.status}</Tag>
+                </Descriptions.Item>
+                <Descriptions.Item label="负责人">{selectedCI.owner || '-'}</Descriptions.Item>
+                <Descriptions.Item label="标签">
+                  <Space>
+                    {(selectedCI.tags || []).map((tag) => (
+                      <Tag key={tag}>{tag}</Tag>
+                    ))}
+                  </Space>
+                </Descriptions.Item>
+                <Descriptions.Item label="属性">
+                  <pre>{JSON.stringify(selectedCI.attributes, null, 2)}</pre>
+                </Descriptions.Item>
+                <Descriptions.Item label="创建时间">
+                  {new Date(selectedCI.created_at).toLocaleString()}
+                </Descriptions.Item>
+                <Descriptions.Item label="更新时间">
+                  {new Date(selectedCI.updated_at).toLocaleString()}
+                </Descriptions.Item>
+              </Descriptions>
+            )}
+          </Drawer>
         </>
       )}
     </div>
@@ -699,10 +727,7 @@ const TopologyPage: React.FC = () => {
     setEdges((eds) => applyEdgeChanges(changes, eds));
 
   // 节点点击事件：显示 CI 详情
-  const onNodeClick = (
-    _event: React.MouseEvent,
-    node: Node,
-  ) => {
+  const onNodeClick = (_event: React.MouseEvent, node: Node) => {
     const topologyNode = topology?.nodes?.find((n) => n.id === node.id);
     if (topologyNode) {
       setSelectedNode(topologyNode);
@@ -730,128 +755,117 @@ const TopologyPage: React.FC = () => {
 
       {isInitialLoading ? null : (
         <>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
-        <div>
-          <Title level={4}>拓扑图</Title>
-          <Text type="secondary">可视化资源配置依赖关系</Text>
-        </div>
-        <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
-          刷新
-        </Button>
-      </div>
-
-      <Card
-        loading={loading}
-        styles={{ body: { padding: 0, height: 600 } }}
-      >
-        {topology ? (
-          <div style={{ width: '100%', height: 600 }}>
-            {/* 顶部信息栏 */}
-            <div
-              style={{
-                padding: '12px 16px',
-                borderBottom: `1px solid ${colors.neutral[200]}`,
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-              }}
-            >
-              <Space>
-                <Tag color="blue" icon={<CloudServerOutlined />}>
-                  节点: {topology.nodes?.length || 0}
-                </Tag>
-                <Tag icon={<LinkOutlined />}>
-                  连接: {topology.edges?.length || 0}
-                </Tag>
-              </Space>
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                点击节点查看配置项详情 | 支持缩放、拖拽
-              </Text>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+            <div>
+              <Title level={4}>拓扑图</Title>
+              <Text type="secondary">可视化资源配置依赖关系</Text>
             </div>
-            {/* ReactFlow 画布 */}
-            <ReactFlow
-              nodes={typedNodes}
-              edges={edges}
-              onNodesChange={onNodesChange}
-              onEdgesChange={onEdgesChange}
-              onNodeClick={onNodeClick}
-              nodeTypes={nodeTypes}
-              fitView
-              fitViewOptions={{ padding: 0.2 }}
-              minZoom={0.1}
-              maxZoom={2}
-              defaultEdgeOptions={{
-                type: 'smoothstep',
-                animated: true,
-              }}
-            >
-              <Background
-                color={colors.neutral[200]}
-                gap={16}
-                size={1}
-              />
-              <Controls
-                style={{
-                  background: colors.neutral[0],
-                  border: `1px solid ${colors.neutral[200]}`,
-                  borderRadius: 8,
-                }}
-              />
-              <MiniMap
-                nodeColor={(node) => {
-                  const nodeData = node.data as CINodeData;
-                  return typeColorMap[nodeData?.type] || colors.primary[500];
-                }}
-                nodeStrokeColor={colors.neutral[300]}
-                nodeBorderRadius={8}
-                maskColor="rgba(0, 0, 0, 0.1)"
-                pannable
-                zoomable
-              />
-            </ReactFlow>
+            <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+              刷新
+            </Button>
           </div>
-        ) : (
-          <div style={{ textAlign: 'center', padding: 40, color: colors.neutral[400] }}>
-            暂无拓扑数据
-          </div>
-        )}
-      </Card>
 
-      {/* CI 详情 Drawer */}
-      <Drawer
-        title="配置项详情"
-        placement="right"
-        width={700}
-        open={detailDrawerOpen}
-        onClose={() => setDetailDrawerOpen(false)}
-      >
-        {selectedNode && (
-          <Descriptions column={1} bordered>
-            <Descriptions.Item label="ID">{selectedNode.id}</Descriptions.Item>
-            <Descriptions.Item label="名称">{selectedNode.name}</Descriptions.Item>
-            <Descriptions.Item label="类型">
-              <Space>
-                {typeIconMap[selectedNode.type] || <CloudServerOutlined />}
-                <Tag color={typeColorMap[selectedNode.type] || 'blue'}>
-                  {selectedNode.type}
-                </Tag>
-              </Space>
-            </Descriptions.Item>
-            <Descriptions.Item label="状态">
-              <Tag color={statusColorMap[selectedNode.status] || 'default'}>
-                {selectedNode.status}
-              </Tag>
-            </Descriptions.Item>
-            {selectedNode.data && (
-              <Descriptions.Item label="扩展属性">
-                <pre style={{ fontSize: 12, maxHeight: 300, overflow: 'auto' }}>
-                  {JSON.stringify(selectedNode.data, null, 2)}
-                </pre>
-              </Descriptions.Item>
+          <Card loading={loading} styles={{ body: { padding: 0, height: 600 } }}>
+            {topology ? (
+              <div style={{ width: '100%', height: 600 }}>
+                {/* 顶部信息栏 */}
+                <div
+                  style={{
+                    padding: '12px 16px',
+                    borderBottom: `1px solid ${colors.neutral[200]}`,
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                  }}
+                >
+                  <Space>
+                    <Tag color="blue" icon={<CloudServerOutlined />}>
+                      节点: {topology.nodes?.length || 0}
+                    </Tag>
+                    <Tag icon={<LinkOutlined />}>连接: {topology.edges?.length || 0}</Tag>
+                  </Space>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    点击节点查看配置项详情 | 支持缩放、拖拽
+                  </Text>
+                </div>
+                {/* ReactFlow 画布 */}
+                <ReactFlow
+                  nodes={typedNodes}
+                  edges={edges}
+                  onNodesChange={onNodesChange}
+                  onEdgesChange={onEdgesChange}
+                  onNodeClick={onNodeClick}
+                  nodeTypes={nodeTypes}
+                  fitView
+                  fitViewOptions={{ padding: 0.2 }}
+                  minZoom={0.1}
+                  maxZoom={2}
+                  defaultEdgeOptions={{
+                    type: 'smoothstep',
+                    animated: true,
+                  }}
+                >
+                  <Background color={colors.neutral[200]} gap={16} size={1} />
+                  <Controls
+                    style={{
+                      background: colors.neutral[0],
+                      border: `1px solid ${colors.neutral[200]}`,
+                      borderRadius: 8,
+                    }}
+                  />
+                  <MiniMap
+                    nodeColor={(node) => {
+                      const nodeData = node.data as CINodeData;
+                      return typeColorMap[nodeData?.type] || colors.primary[500];
+                    }}
+                    nodeStrokeColor={colors.neutral[300]}
+                    nodeBorderRadius={8}
+                    maskColor="rgba(0, 0, 0, 0.1)"
+                    pannable
+                    zoomable
+                  />
+                </ReactFlow>
+              </div>
+            ) : (
+              <div style={{ textAlign: 'center', padding: 40, color: colors.neutral[400] }}>
+                暂无拓扑数据
+              </div>
             )}
-          </Descriptions>
-        )}
-      </Drawer>
+          </Card>
+
+          {/* CI 详情 Drawer */}
+          <Drawer
+            title="配置项详情"
+            placement="right"
+            width={700}
+            open={detailDrawerOpen}
+            onClose={() => setDetailDrawerOpen(false)}
+          >
+            {selectedNode && (
+              <Descriptions column={1} bordered>
+                <Descriptions.Item label="ID">{selectedNode.id}</Descriptions.Item>
+                <Descriptions.Item label="名称">{selectedNode.name}</Descriptions.Item>
+                <Descriptions.Item label="类型">
+                  <Space>
+                    {typeIconMap[selectedNode.type] || <CloudServerOutlined />}
+                    <Tag color={typeColorMap[selectedNode.type] || 'blue'}>{selectedNode.type}</Tag>
+                  </Space>
+                </Descriptions.Item>
+                <Descriptions.Item label="状态">
+                  <Tag color={statusColorMap[selectedNode.status] || 'default'}>
+                    {selectedNode.status}
+                  </Tag>
+                </Descriptions.Item>
+                {selectedNode.data && (
+                  <Descriptions.Item label="扩展属性">
+                    <pre style={{ fontSize: 12, maxHeight: 300, overflow: 'auto' }}>
+                      {JSON.stringify(selectedNode.data, null, 2)}
+                    </pre>
+                  </Descriptions.Item>
+                )}
+              </Descriptions>
+            )}
+          </Drawer>
         </>
       )}
     </div>
@@ -871,10 +885,7 @@ const IntegrationPage: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [hostsRes, k8sRes] = await Promise.all([
-        getHosts({ pageSize: 20 }),
-        getK8sResources(),
-      ]);
+      const [hostsRes, k8sRes] = await Promise.all([getHosts({ pageSize: 20 }), getK8sResources()]);
       setHosts((hostsRes.data as any).data || []);
       setK8sResources((k8sRes.data as any).data || []);
     } catch (error: unknown) {
@@ -945,7 +956,7 @@ const IntegrationPage: React.FC = () => {
       title: '副本',
       dataIndex: 'replicas',
       key: 'replicas',
-      render: (r: any) => r ? `${r.current}/${r.desired}` : '-',
+      render: (r: any) => (r ? `${r.current}/${r.desired}` : '-'),
     },
     {
       title: '状态',
@@ -964,55 +975,59 @@ const IntegrationPage: React.FC = () => {
 
       {isInitialLoading ? null : (
         <>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
-        <div>
-          <Title level={4}>集成资源</Title>
-          <Text type="secondary">主机、K8s、CI/CD 资源同步状态</Text>
-        </div>
-        <Button icon={<SyncOutlined spin={syncing} />} onClick={handleSync} loading={syncing}>
-          K8s 同步
-        </Button>
-      </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+            <div>
+              <Title level={4}>集成资源</Title>
+              <Text type="secondary">主机、K8s、CI/CD 资源同步状态</Text>
+            </div>
+            <Button icon={<SyncOutlined spin={syncing} />} onClick={handleSync} loading={syncing}>
+              K8s 同步
+            </Button>
+          </div>
 
-      <Row gutter={16} style={{ marginBottom: 24 }}>
-        <Col span={8}>
-          <Card>
-            <Statistic title="主机数量" value={hosts.length} prefix={<CloudServerOutlined />} />
-          </Card>
-        </Col>
-        <Col span={8}>
-          <Card>
-            <Statistic title="K8s 资源" value={k8sResources.length} prefix={<ClusterOutlined />} />
-          </Card>
-        </Col>
-        <Col span={8}>
-          <Card>
-            <Statistic
-              title="运行中主机"
-              value={hosts.filter((h) => h.status === 'running').length}
-              valueStyle={{ color: colors.success[500] }}
+          <Row gutter={16} style={{ marginBottom: 24 }}>
+            <Col span={8}>
+              <Card>
+                <Statistic title="主机数量" value={hosts.length} prefix={<CloudServerOutlined />} />
+              </Card>
+            </Col>
+            <Col span={8}>
+              <Card>
+                <Statistic
+                  title="K8s 资源"
+                  value={k8sResources.length}
+                  prefix={<ClusterOutlined />}
+                />
+              </Card>
+            </Col>
+            <Col span={8}>
+              <Card>
+                <Statistic
+                  title="运行中主机"
+                  value={hosts.filter((h) => h.status === 'running').length}
+                  valueStyle={{ color: colors.success[500] }}
+                />
+              </Card>
+            </Col>
+          </Row>
+
+          <Card title="主机列表" style={{ marginBottom: 16 }} loading={loading}>
+            <Table
+              columns={hostColumns}
+              dataSource={hosts}
+              rowKey="ci_id"
+              pagination={{ pageSize: 10 }}
             />
           </Card>
-        </Col>
-      </Row>
 
-      <Card title="主机列表" style={{ marginBottom: 16 }} loading={loading}>
-        <Table
-          columns={hostColumns}
-          dataSource={hosts}
-          rowKey="ci_id"
-          pagination={{ pageSize: 10 }}
-        />
-      </Card>
-
-      <Card title="K8s 资源" loading={loading}>
-        <Table
-          columns={k8sColumns}
-          dataSource={k8sResources}
-          rowKey={(r) => `${r.kind}-${r.namespace}-${r.name}`}
-          pagination={{ pageSize: 10 }}
-        />
-      </Card>
+          <Card title="K8s 资源" loading={loading}>
+            <Table
+              columns={k8sColumns}
+              dataSource={k8sResources}
+              rowKey={(r) => `${r.kind}-${r.namespace}-${r.name}`}
+              pagination={{ pageSize: 10 }}
+            />
+          </Card>
         </>
       )}
     </div>

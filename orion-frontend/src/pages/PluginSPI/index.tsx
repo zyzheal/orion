@@ -9,15 +9,7 @@
  * - Add/edit SPI configuration modal
  */
 import React, { useState, useEffect, useCallback } from 'react';
-import {
-  Typography,
-  Button,
-  Form,
-  message,
-  Alert,
-  Row,
-  Col,
-} from 'antd';
+import { Typography, Button, Form, message, Alert, Row, Col } from 'antd';
 import {
   ReloadOutlined,
   ApiOutlined,
@@ -115,17 +107,20 @@ const PluginSPIPage: React.FC = () => {
     }
   };
 
-  const openEditConfig = useCallback((config: SPIConfigType) => {
-    setEditingConfig(config);
-    configForm.setFieldsValue({
-      spiType: config.spiType,
-      enabled: config.enabled,
-      maxPlugins: config.maxPlugins,
-      timeout: config.timeout,
-      fallbackStrategy: config.fallbackStrategy,
-    });
-    setConfigModalVisible(true);
-  }, [configForm]);
+  const openEditConfig = useCallback(
+    (config: SPIConfigType) => {
+      setEditingConfig(config);
+      configForm.setFieldsValue({
+        spiType: config.spiType,
+        enabled: config.enabled,
+        maxPlugins: config.maxPlugins,
+        timeout: config.timeout,
+        fallbackStrategy: config.fallbackStrategy,
+      });
+      setConfigModalVisible(true);
+    },
+    [configForm]
+  );
 
   const handleDeleteConfig = async (_id: string) => {
     try {
@@ -143,9 +138,7 @@ const PluginSPIPage: React.FC = () => {
       setPluginRegistrations((prev) =>
         prev.map((p) => (p.id === record.id ? { ...p, status: newStatus } : p))
       );
-      message.success(
-        `插件 "${record.pluginName}" 已${newStatus === 'enabled' ? '启用' : '禁用'}`
-      );
+      message.success(`插件 "${record.pluginName}" 已${newStatus === 'enabled' ? '启用' : '禁用'}`);
     } catch {
       message.error('状态更新失败');
     }

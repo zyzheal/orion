@@ -6,16 +6,7 @@
  * Uses mock data initially; real API integration will be added later.
  */
 import React, { useMemo } from 'react';
-import {
-  Row,
-  Col,
-  Statistic,
-  Tag,
-  Progress,
-  Table,
-  Typography,
-  Space,
-} from 'antd';
+import { Row, Col, Statistic, Tag, Progress, Table, Typography, Space } from 'antd';
 import { colors, spacing } from '@/tokens';
 import type { ColumnsType } from 'antd/es/table';
 import {
@@ -108,9 +99,7 @@ const gradeColor = (grade: string): string => {
 /**
  * Trend icon and color
  */
-const TrendIndicator: React.FC<{ trend: 'improving' | 'stable' | 'declining' }> = ({
-  trend,
-}) => {
+const TrendIndicator: React.FC<{ trend: 'improving' | 'stable' | 'declining' }> = ({ trend }) => {
   if (trend === 'improving') {
     return <ArrowUpOutlined style={{ color: COLORS.success }} />;
   }
@@ -169,7 +158,8 @@ const ManagerDashboard: React.FC = () => {
             分配 <Text strong>{record.workload.totalAssigned}</Text>
           </Text>
           <Text style={{ fontSize: spacing[3] }}>
-            解决 <Text strong style={{ color: COLORS.success }}>
+            解决{' '}
+            <Text strong style={{ color: COLORS.success }}>
               {record.workload.totalResolved}
             </Text>
           </Text>
@@ -185,9 +175,7 @@ const ManagerDashboard: React.FC = () => {
           <Text style={{ fontSize: spacing[3] }}>
             平均 {msToHours(record.efficiency.avgResolutionTimeMs)}
           </Text>
-          <Text style={{ fontSize: spacing[3] }}>
-            {record.efficiency.ticketsPerDay} 单/天
-          </Text>
+          <Text style={{ fontSize: spacing[3] }}>{record.efficiency.ticketsPerDay} 单/天</Text>
         </Space>
       ),
     },
@@ -199,7 +187,12 @@ const ManagerDashboard: React.FC = () => {
         <Space direction="vertical" size={2}>
           <Text style={{ fontSize: spacing[3] }}>
             SLA{' '}
-            <Text strong style={{ color: record.quality.slaComplianceRate >= 0.9 ? COLORS.success : COLORS.error }}>
+            <Text
+              strong
+              style={{
+                color: record.quality.slaComplianceRate >= 0.9 ? COLORS.success : COLORS.error,
+              }}
+            >
               {(record.quality.slaComplianceRate * 100).toFixed(0)}%
             </Text>
           </Text>
@@ -244,7 +237,10 @@ const ManagerDashboard: React.FC = () => {
       key: 'performanceGrade',
       width: 70,
       render: (grade: string) => (
-        <Tag color={gradeColor(grade)} style={{ fontWeight: 700, minWidth: 30, textAlign: 'center' }}>
+        <Tag
+          color={gradeColor(grade)}
+          style={{ fontWeight: 700, minWidth: 30, textAlign: 'center' }}
+        >
           {grade}
         </Tag>
       ),
@@ -272,7 +268,11 @@ const ManagerDashboard: React.FC = () => {
       sorter: (a, b) => a.count - b.count,
       render: (count: number) => (
         <Space>
-          <SimpleBar value={count} max={data.transferAnalysis.topTransferReasons[0]?.count || 1} color={COLORS.warning} />
+          <SimpleBar
+            value={count}
+            max={data.transferAnalysis.topTransferReasons[0]?.count || 1}
+            color={COLORS.warning}
+          />
           <Text strong>{count}</Text>
         </Space>
       ),
@@ -287,9 +287,7 @@ const ManagerDashboard: React.FC = () => {
           <TeamOutlined style={{ marginRight: 8, color: COLORS.info }} />
           经理看板
         </Title>
-        <Text type="secondary">
-          团队管理与成员效能分析 — {dayjs().format('YYYY-MM-DD HH:mm')}
-        </Text>
+        <Text type="secondary">团队管理与成员效能分析 — {dayjs().format('YYYY-MM-DD HH:mm')}</Text>
       </div>
 
       {/* Team Overview Cards */}
@@ -362,11 +360,7 @@ const ManagerDashboard: React.FC = () => {
               <Progress
                 percent={data.teamOverview.teamLoadPercentage}
                 size="small"
-                strokeColor={
-                  data.teamOverview.teamLoadPercentage > 85
-                    ? COLORS.error
-                    : COLORS.info
-                }
+                strokeColor={data.teamOverview.teamLoadPercentage > 85 ? COLORS.error : COLORS.info}
                 showInfo={false}
                 style={{ marginTop: 8 }}
               />
@@ -434,7 +428,10 @@ const ManagerDashboard: React.FC = () => {
 
       {/* Member Metrics Table */}
       <div style={{ marginBottom: 24 }}>
-        <CardPanel title="成员效能明细" extra={<Tag color="blue">{data.memberMetrics.length} 人</Tag>}>
+        <CardPanel
+          title="成员效能明细"
+          extra={<Tag color="blue">{data.memberMetrics.length} 人</Tag>}
+        >
           <Table
             dataSource={data.memberMetrics}
             columns={memberColumns}

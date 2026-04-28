@@ -3,13 +3,7 @@
  * Form to install a new plugin from available plugins
  */
 import React, { useState, useEffect } from 'react';
-import {
-  Modal,
-  Form,
-  Select,
-  Space,
-  message,
-} from 'antd';
+import { Modal, Form, Select, Space, message } from 'antd';
 import { CloudDownloadOutlined } from '@ant-design/icons';
 import { getAvailablePlugins, installPlugin, type Plugin } from '@/api/plugins';
 
@@ -27,11 +21,7 @@ interface PluginCreateModalProps {
 // Component
 // ============================================================================
 
-const PluginCreateModal: React.FC<PluginCreateModalProps> = ({
-  open,
-  onCancel,
-  onSuccess,
-}) => {
+const PluginCreateModal: React.FC<PluginCreateModalProps> = ({ open, onCancel, onSuccess }) => {
   const [form] = Form.useForm();
   const [installing, setInstalling] = useState(false);
   const [availablePlugins, setAvailablePlugins] = useState<Plugin[]>([]);
@@ -101,10 +91,7 @@ const PluginCreateModal: React.FC<PluginCreateModalProps> = ({
           name="pluginId"
           rules={[{ required: true, message: '请选择插件' }]}
         >
-          <Select
-            placeholder="选择要安装的插件"
-            data-testid="plugin-select"
-          >
+          <Select placeholder="选择要安装的插件" data-testid="plugin-select">
             {availablePlugins.map((plugin) => (
               <Select.Option key={plugin.id} value={plugin.id}>
                 {plugin.name} ({plugin.version})

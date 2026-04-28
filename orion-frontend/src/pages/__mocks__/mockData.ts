@@ -457,9 +457,7 @@ export const mockDeployments: Deployment[] = [
       { name: 'deploy', status: 'success' },
       { name: 'health-check', status: 'success' },
     ],
-    healthChecks: [
-      { name: 'API /health', status: 'healthy', latency: 20 },
-    ],
+    healthChecks: [{ name: 'API /health', status: 'healthy', latency: 20 }],
   },
 ];
 

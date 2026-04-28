@@ -23,7 +23,8 @@ const CreateAgentModal: React.FC<CreateAgentModalProps> = ({ open, onCancel, onS
       setCreating(true);
 
       const toolsStr = values.tools || '[]';
-      let tools: Array<{ toolName: string; permission: string; config?: Record<string, unknown> }> = [];
+      let tools: Array<{ toolName: string; permission: string; config?: Record<string, unknown> }> =
+        [];
       try {
         tools = JSON.parse(toolsStr);
       } catch {
@@ -79,7 +80,11 @@ const CreateAgentModal: React.FC<CreateAgentModalProps> = ({ open, onCancel, onS
       data-testid="create-agent-modal"
     >
       <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
-        <Form.Item label="Agent 名称" name="name" rules={[{ required: true, message: '请输入名称' }]}>
+        <Form.Item
+          label="Agent 名称"
+          name="name"
+          rules={[{ required: true, message: '请输入名称' }]}
+        >
           <Input placeholder="例如：BugFixer-v1" />
         </Form.Item>
 
@@ -91,11 +96,12 @@ const CreateAgentModal: React.FC<CreateAgentModalProps> = ({ open, onCancel, onS
           <Input.TextArea rows={2} placeholder="Agent 的描述信息" />
         </Form.Item>
 
-        <Form.Item label="工具集 (JSON 数组)" name="tools" rules={[{ required: true, message: '请配置工具集' }]}>
-          <Input.TextArea
-            rows={3}
-            placeholder='[{"toolName": "git_read", "permission": "read"}]'
-          />
+        <Form.Item
+          label="工具集 (JSON 数组)"
+          name="tools"
+          rules={[{ required: true, message: '请配置工具集' }]}
+        >
+          <Input.TextArea rows={3} placeholder='[{"toolName": "git_read", "permission": "read"}]' />
         </Form.Item>
 
         <Form.Item label="LLM 模型" name="llmModel">
@@ -116,11 +122,17 @@ const CreateAgentModal: React.FC<CreateAgentModalProps> = ({ open, onCancel, onS
         </Form.Item>
 
         <Form.Item label="能力配置 (JSON)" name="capabilities">
-          <Input.TextArea rows={2} placeholder='{"maxSteps": 20, "timeoutSec": 3600, "retryCount": 3}' />
+          <Input.TextArea
+            rows={2}
+            placeholder='{"maxSteps": 20, "timeoutSec": 3600, "retryCount": 3}'
+          />
         </Form.Item>
 
         <Form.Item label="约束配置 (JSON)" name="constraints">
-          <Input.TextArea rows={2} placeholder='{"maxTokens": 8192, "allowedBranches": ["main", "develop"]}' />
+          <Input.TextArea
+            rows={2}
+            placeholder='{"maxTokens": 8192, "allowedBranches": ["main", "develop"]}'
+          />
         </Form.Item>
 
         <Form.Item label="启用" name="enabled" valuePropName="checked" initialValue={true}>

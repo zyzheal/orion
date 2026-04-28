@@ -58,10 +58,8 @@ const SubAppRoute: React.FC = () => {
       getApiBase: () => import.meta.env.VITE_API_BASE_URL || '/api',
       eventBus: {
         emit: (event: string, data: unknown) => eventBus.emit(event, data),
-        on: (event: string, handler: (data: unknown) => void) =>
-          eventBus.on(event, handler),
-        off: (event: string, handler: (data: unknown) => void) =>
-          eventBus.off(event, handler),
+        on: (event: string, handler: (data: unknown) => void) => eventBus.on(event, handler),
+        off: (event: string, handler: (data: unknown) => void) => eventBus.off(event, handler),
       },
     };
 

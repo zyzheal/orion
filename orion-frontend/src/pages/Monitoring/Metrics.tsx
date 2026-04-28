@@ -3,11 +3,29 @@
  * View and manage metrics, record new metrics, view metric series and summaries
  */
 import React, { useState, useEffect } from 'react';
-import { Typography, Button, Space, Modal, Form, Input, InputNumber, Select, message, Tag, Drawer } from 'antd';
+import {
+  Typography,
+  Button,
+  Space,
+  Modal,
+  Form,
+  Input,
+  InputNumber,
+  Select,
+  message,
+  Tag,
+  Drawer,
+} from 'antd';
 import { PlusOutlined, ReloadOutlined, LineChartOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
-import { getMetrics, recordMetric, registerMetric, getMetricSeries, getMetricSummary } from '@/api/monitoring';
+import {
+  getMetrics,
+  recordMetric,
+  registerMetric,
+  getMetricSeries,
+  getMetricSummary,
+} from '@/api/monitoring';
 import type { Metric } from '@/api/monitoring';
 import { colors, spacing } from '@/tokens';
 import dayjs from 'dayjs';
@@ -151,10 +169,14 @@ const MonitoringMetrics: React.FC = () => {
       sortable: true,
       filterable: true,
       render: (v: unknown) => (
-        <Text strong style={{ color: colors.primary[500], cursor: 'pointer' }} onClick={() => {
-          const m = metrics.find((item) => item.name === String(v));
-          if (m) showDetail(m);
-        }}>
+        <Text
+          strong
+          style={{ color: colors.primary[500], cursor: 'pointer' }}
+          onClick={() => {
+            const m = metrics.find((item) => item.name === String(v));
+            if (m) showDetail(m);
+          }}
+        >
           {String(v)}
         </Text>
       ),
@@ -181,14 +203,17 @@ const MonitoringMetrics: React.FC = () => {
       render: (v: unknown) => {
         const tags = v as Record<string, string> | undefined;
         return (
-        <Space wrap>
-          {tags && Object.entries(tags).slice(0, 3).map(([k, val]) => (
-            <Tag key={k} style={{ fontSize: spacing[2] }}>{k}:{val}</Tag>
-          ))}
-          {tags && Object.keys(tags).length > 3 && (
-            <Tag>+{Object.keys(tags).length - 3}</Tag>
-          )}
-        </Space>
+          <Space wrap>
+            {tags &&
+              Object.entries(tags)
+                .slice(0, 3)
+                .map(([k, val]) => (
+                  <Tag key={k} style={{ fontSize: spacing[2] }}>
+                    {k}:{val}
+                  </Tag>
+                ))}
+            {tags && Object.keys(tags).length > 3 && <Tag>+{Object.keys(tags).length - 3}</Tag>}
+          </Space>
         );
       },
     },
@@ -208,7 +233,14 @@ const MonitoringMetrics: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: 24,
+        }}
+      >
         <div>
           <Title level={3} style={{ margin: 0 }}>
             <LineChartOutlined style={{ marginRight: 8 }} />
@@ -217,7 +249,11 @@ const MonitoringMetrics: React.FC = () => {
           <Text type="secondary">共 {metrics.length} 个指标</Text>
         </div>
         <Space>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setRecordModalVisible(true)}>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => setRecordModalVisible(true)}
+          >
             记录指标
           </Button>
           <Button icon={<PlusOutlined />} onClick={() => setRegisterModalVisible(true)}>
@@ -255,17 +291,27 @@ const MonitoringMetrics: React.FC = () => {
         width={480}
       >
         <Form form={recordForm} layout="vertical" onFinish={handleRecord}>
-          <Form.Item name="name" label="指标名称" rules={[{ required: true, message: '请输入指标名称' }]}>
+          <Form.Item
+            name="name"
+            label="指标名称"
+            rules={[{ required: true, message: '请输入指标名称' }]}
+          >
             <Input placeholder="例如：http_requests_total" />
           </Form.Item>
-          <Form.Item name="value" label="指标值" rules={[{ required: true, message: '请输入指标值' }]}>
+          <Form.Item
+            name="value"
+            label="指标值"
+            rules={[{ required: true, message: '请输入指标值' }]}
+          >
             <InputNumber style={{ width: '100%' }} placeholder="数值" />
           </Form.Item>
           <Form.Item name="tags" label="标签 (JSON)">
             <TextArea rows={3} placeholder='{"method": "GET", "path": "/api"}' />
           </Form.Item>
           <Form.Item>
-            <Button type="primary" htmlType="submit" block>提交</Button>
+            <Button type="primary" htmlType="submit" block>
+              提交
+            </Button>
           </Form.Item>
         </Form>
       </Modal>
@@ -279,16 +325,22 @@ const MonitoringMetrics: React.FC = () => {
         width={480}
       >
         <Form form={registerForm} layout="vertical" onFinish={handleRegister}>
-          <Form.Item name="name" label="指标名称" rules={[{ required: true, message: '请输入指标名称' }]}>
+          <Form.Item
+            name="name"
+            label="指标名称"
+            rules={[{ required: true, message: '请输入指标名称' }]}
+          >
             <Input placeholder="例如：http_requests_total" />
           </Form.Item>
           <Form.Item name="type" label="类型" rules={[{ required: true, message: '请选择类型' }]}>
-            <Select options={[
-              { label: 'Counter', value: 'counter' },
-              { label: 'Gauge', value: 'gauge' },
-              { label: 'Histogram', value: 'histogram' },
-              { label: 'Summary', value: 'summary' },
-            ]} />
+            <Select
+              options={[
+                { label: 'Counter', value: 'counter' },
+                { label: 'Gauge', value: 'gauge' },
+                { label: 'Histogram', value: 'histogram' },
+                { label: 'Summary', value: 'summary' },
+              ]}
+            />
           </Form.Item>
           <Form.Item name="unit" label="单位" rules={[{ required: true, message: '请输入单位' }]}>
             <Input placeholder="例如：requests, ms, bytes" />
@@ -297,7 +349,9 @@ const MonitoringMetrics: React.FC = () => {
             <TextArea rows={3} placeholder='{"service": "api"}' />
           </Form.Item>
           <Form.Item>
-            <Button type="primary" htmlType="submit" block>注册</Button>
+            <Button type="primary" htmlType="submit" block>
+              注册
+            </Button>
           </Form.Item>
         </Form>
       </Modal>
@@ -315,11 +369,31 @@ const MonitoringMetrics: React.FC = () => {
             <Title level={5}>统计摘要</Title>
             <Space direction="vertical" style={{ width: '100%', marginBottom: 24 }}>
               <Space size="large">
-                <div><Text type="secondary">平均:</Text><br /><Text strong>{summaryData.avg?.toFixed(2)}</Text></div>
-                <div><Text type="secondary">最小:</Text><br /><Text strong>{summaryData.min?.toFixed(2)}</Text></div>
-                <div><Text type="secondary">最大:</Text><br /><Text strong>{summaryData.max?.toFixed(2)}</Text></div>
-                <div><Text type="secondary">P95:</Text><br /><Text strong>{summaryData.p95?.toFixed(2)}</Text></div>
-                <div><Text type="secondary">计数:</Text><br /><Text strong>{summaryData.count}</Text></div>
+                <div>
+                  <Text type="secondary">平均:</Text>
+                  <br />
+                  <Text strong>{summaryData.avg?.toFixed(2)}</Text>
+                </div>
+                <div>
+                  <Text type="secondary">最小:</Text>
+                  <br />
+                  <Text strong>{summaryData.min?.toFixed(2)}</Text>
+                </div>
+                <div>
+                  <Text type="secondary">最大:</Text>
+                  <br />
+                  <Text strong>{summaryData.max?.toFixed(2)}</Text>
+                </div>
+                <div>
+                  <Text type="secondary">P95:</Text>
+                  <br />
+                  <Text strong>{summaryData.p95?.toFixed(2)}</Text>
+                </div>
+                <div>
+                  <Text type="secondary">计数:</Text>
+                  <br />
+                  <Text strong>{summaryData.count}</Text>
+                </div>
               </Space>
             </Space>
           </>
@@ -327,12 +401,23 @@ const MonitoringMetrics: React.FC = () => {
         <Title level={5}>时间序列</Title>
         {seriesData.length > 0 ? (
           <Space direction="vertical" style={{ width: '100%' }}>
-            {seriesData.slice(-20).reverse().map((point: MetricSeriesPoint, idx: number) => (
-              <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: `1px solid ${colors.light.border.light}` }}>
-                <Text type="secondary">{dayjs(point.timestamp).format('HH:mm:ss')}</Text>
-                <Text strong>{point.value}</Text>
-              </div>
-            ))}
+            {seriesData
+              .slice(-20)
+              .reverse()
+              .map((point: MetricSeriesPoint, idx: number) => (
+                <div
+                  key={idx}
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    padding: '4px 0',
+                    borderBottom: `1px solid ${colors.light.border.light}`,
+                  }}
+                >
+                  <Text type="secondary">{dayjs(point.timestamp).format('HH:mm:ss')}</Text>
+                  <Text strong>{point.value}</Text>
+                </div>
+              ))}
           </Space>
         ) : (
           <Text type="secondary">暂无时间序列数据</Text>

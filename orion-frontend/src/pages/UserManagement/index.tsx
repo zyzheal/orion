@@ -4,20 +4,49 @@
  */
 import React, { useState, useMemo, useEffect } from 'react';
 import {
-  Typography, Button, Space, Tag, Card, Modal, Form, Input, Select, message,
-  Popconfirm, Descriptions, Drawer, Tooltip, Statistic, Row, Col, Avatar,
+  Typography,
+  Button,
+  Space,
+  Tag,
+  Card,
+  Modal,
+  Form,
+  Input,
+  Select,
+  message,
+  Popconfirm,
+  Descriptions,
+  Drawer,
+  Tooltip,
+  Statistic,
+  Row,
+  Col,
+  Avatar,
 } from 'antd';
 import {
-  PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined,
-  UserOutlined, CheckCircleOutlined, StopOutlined,
-  EyeOutlined, UnlockOutlined, LockOutlined, KeyOutlined,
+  PlusOutlined,
+  ReloadOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  UserOutlined,
+  CheckCircleOutlined,
+  StopOutlined,
+  EyeOutlined,
+  UnlockOutlined,
+  LockOutlined,
+  KeyOutlined,
 } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import PageSkeleton from '@/components/PageSkeleton';
 import {
-  listUsers, createUser, updateUser, deleteUser,
-  type User, type CreateUserInput, type UpdateUserInput,
+  listUsers,
+  createUser,
+  updateUser,
+  deleteUser,
+  type User,
+  type CreateUserInput,
+  type UpdateUserInput,
 } from '@/api/users';
 import { colors } from '@/tokens/colors';
 import dayjs from 'dayjs';
@@ -60,39 +89,79 @@ const statusLabelMap: Record<string, string> = {
 
 const MOCK_USERS: User[] = [
   {
-    id: 'u-1', username: 'admin', email: 'admin@orion.dev', name: '系统管理员',
-    avatar_url: null, role: 'admin', status: 'active',
-    last_login_at: '2024-03-20T10:00:00Z', last_login_ip: '10.0.0.1',
+    id: 'u-1',
+    username: 'admin',
+    email: 'admin@orion.dev',
+    name: '系统管理员',
+    avatar_url: null,
+    role: 'admin',
+    status: 'active',
+    last_login_at: '2024-03-20T10:00:00Z',
+    last_login_ip: '10.0.0.1',
     settings: { language: 'zh-CN', theme: 'light' },
-    created_at: '2024-01-01T08:00:00Z', updated_at: '2024-03-20T10:00:00Z', created_by: null,
+    created_at: '2024-01-01T08:00:00Z',
+    updated_at: '2024-03-20T10:00:00Z',
+    created_by: null,
   },
   {
-    id: 'u-2', username: 'zhangsan', email: 'zhangsan@orion.dev', name: '张三',
-    avatar_url: null, role: 'developer', status: 'active',
-    last_login_at: '2024-03-19T14:30:00Z', last_login_ip: '10.0.0.2',
+    id: 'u-2',
+    username: 'zhangsan',
+    email: 'zhangsan@orion.dev',
+    name: '张三',
+    avatar_url: null,
+    role: 'developer',
+    status: 'active',
+    last_login_at: '2024-03-19T14:30:00Z',
+    last_login_ip: '10.0.0.2',
     settings: { language: 'zh-CN', theme: 'dark' },
-    created_at: '2024-01-15T08:00:00Z', updated_at: '2024-03-19T14:30:00Z', created_by: 'admin',
+    created_at: '2024-01-15T08:00:00Z',
+    updated_at: '2024-03-19T14:30:00Z',
+    created_by: 'admin',
   },
   {
-    id: 'u-3', username: 'lisi', email: 'lisi@orion.dev', name: '李四',
-    avatar_url: null, role: 'manager', status: 'active',
-    last_login_at: '2024-03-18T09:00:00Z', last_login_ip: '10.0.0.3',
+    id: 'u-3',
+    username: 'lisi',
+    email: 'lisi@orion.dev',
+    name: '李四',
+    avatar_url: null,
+    role: 'manager',
+    status: 'active',
+    last_login_at: '2024-03-18T09:00:00Z',
+    last_login_ip: '10.0.0.3',
     settings: { language: 'zh-CN', theme: 'light' },
-    created_at: '2024-02-01T08:00:00Z', updated_at: '2024-03-18T09:00:00Z', created_by: 'admin',
+    created_at: '2024-02-01T08:00:00Z',
+    updated_at: '2024-03-18T09:00:00Z',
+    created_by: 'admin',
   },
   {
-    id: 'u-4', username: 'wangwu', email: 'wangwu@orion.dev', name: '王五',
-    avatar_url: null, role: 'viewer', status: 'inactive',
-    last_login_at: '2024-02-15T16:00:00Z', last_login_ip: '10.0.0.4',
+    id: 'u-4',
+    username: 'wangwu',
+    email: 'wangwu@orion.dev',
+    name: '王五',
+    avatar_url: null,
+    role: 'viewer',
+    status: 'inactive',
+    last_login_at: '2024-02-15T16:00:00Z',
+    last_login_ip: '10.0.0.4',
     settings: { language: 'en-US', theme: 'light' },
-    created_at: '2024-02-10T08:00:00Z', updated_at: '2024-02-28T10:00:00Z', created_by: 'lisi',
+    created_at: '2024-02-10T08:00:00Z',
+    updated_at: '2024-02-28T10:00:00Z',
+    created_by: 'lisi',
   },
   {
-    id: 'u-5', username: 'zhaoliu', email: 'zhaoliu@orion.dev', name: '赵六',
-    avatar_url: null, role: 'developer', status: 'active',
-    last_login_at: '2024-03-20T08:00:00Z', last_login_ip: '10.0.0.5',
+    id: 'u-5',
+    username: 'zhaoliu',
+    email: 'zhaoliu@orion.dev',
+    name: '赵六',
+    avatar_url: null,
+    role: 'developer',
+    status: 'active',
+    last_login_at: '2024-03-20T08:00:00Z',
+    last_login_ip: '10.0.0.5',
     settings: { language: 'zh-CN', theme: 'light' },
-    created_at: '2024-03-01T08:00:00Z', updated_at: '2024-03-20T08:00:00Z', created_by: 'zhangsan',
+    created_at: '2024-03-01T08:00:00Z',
+    updated_at: '2024-03-20T08:00:00Z',
+    created_by: 'zhangsan',
   },
 ];
 
@@ -137,7 +206,9 @@ const UserManagement: React.FC = () => {
     }
   };
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    loadData();
+  }, []);
 
   // ---- Filtering ----
 
@@ -254,7 +325,9 @@ const UserManagement: React.FC = () => {
   const handleChangePassword = async () => {
     if (!selectedUser) return;
     try {
-      await changePwForm.validateFields().catch(() => { throw new Error('Validation failed'); });
+      await changePwForm.validateFields().catch(() => {
+        throw new Error('Validation failed');
+      });
       setSubmitting(true);
       // Backend API for change-password requires user's current password
       // For admin reset, we use update with a direct password update path
@@ -296,27 +369,53 @@ const UserManagement: React.FC = () => {
 
   const columns: TableColumn<User>[] = [
     {
-      key: 'user', title: '用户', width: 200,
+      key: 'user',
+      title: '用户',
+      width: 200,
       render: (_: unknown, record: User) => (
         <Space>
-          <Avatar size="small" icon={<UserOutlined />}
-            style={{ backgroundColor: roleColorMap[record.role] === 'red' ? colors.error[500] : roleColorMap[record.role] === 'blue' ? colors.primary[500] : roleColorMap[record.role] === 'gold' ? colors.warning[500] : colors.neutral[300] }}
+          <Avatar
+            size="small"
+            icon={<UserOutlined />}
+            style={{
+              backgroundColor:
+                roleColorMap[record.role] === 'red'
+                  ? colors.error[500]
+                  : roleColorMap[record.role] === 'blue'
+                    ? colors.primary[500]
+                    : roleColorMap[record.role] === 'gold'
+                      ? colors.warning[500]
+                      : colors.neutral[300],
+            }}
           >
             {record.name ? record.name.charAt(0) : record.username.charAt(0).toUpperCase()}
           </Avatar>
           <Space direction="vertical" size={0}>
-            <Text strong style={{ cursor: 'pointer' }} onClick={() => openDetail(record)}>{record.name || record.username}</Text>
-            <Text type="secondary" style={{ fontSize: 12 }}>{record.username}</Text>
+            <Text strong style={{ cursor: 'pointer' }} onClick={() => openDetail(record)}>
+              {record.name || record.username}
+            </Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              {record.username}
+            </Text>
           </Space>
         </Space>
       ),
     },
     {
-      key: 'email', title: '邮箱', dataIndex: 'email', width: 200,
-      render: (v: unknown) => <Text type="secondary" style={{ fontSize: 12 }}>{v ? String(v) : '-'}</Text>,
+      key: 'email',
+      title: '邮箱',
+      dataIndex: 'email',
+      width: 200,
+      render: (v: unknown) => (
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          {v ? String(v) : '-'}
+        </Text>
+      ),
     },
     {
-      key: 'role', title: '角色', width: 100,
+      key: 'role',
+      title: '角色',
+      width: 100,
       render: (_: unknown, record: User) => (
         <Tag color={roleColorMap[record.role] || 'default'}>
           {roleLabelMap[record.role] || record.role}
@@ -324,7 +423,9 @@ const UserManagement: React.FC = () => {
       ),
     },
     {
-      key: 'status', title: '状态', width: 90,
+      key: 'status',
+      title: '状态',
+      width: 90,
       render: (_: unknown, record: User) => (
         <Tag color={statusColorMap[record.status] || 'default'}>
           {statusLabelMap[record.status] || record.status}
@@ -332,42 +433,80 @@ const UserManagement: React.FC = () => {
       ),
     },
     {
-      key: 'lastLogin', title: '最后登录', width: 160,
+      key: 'lastLogin',
+      title: '最后登录',
+      width: 160,
       render: (_: unknown, record: User) => (
         <Text type="secondary" style={{ fontSize: 12 }}>
-          {record.last_login_at ? dayjs(record.last_login_at).format('YYYY-MM-DD HH:mm') : '从未登录'}
+          {record.last_login_at
+            ? dayjs(record.last_login_at).format('YYYY-MM-DD HH:mm')
+            : '从未登录'}
         </Text>
       ),
     },
     {
-      key: 'createdAt', title: '创建时间', dataIndex: 'created_at', width: 140, sortable: true,
-      render: (v: unknown) => <Text type="secondary" style={{ fontSize: 12 }}>{dayjs(String(v)).format('YYYY-MM-DD')}</Text>,
+      key: 'createdAt',
+      title: '创建时间',
+      dataIndex: 'created_at',
+      width: 140,
+      sortable: true,
+      render: (v: unknown) => (
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          {dayjs(String(v)).format('YYYY-MM-DD')}
+        </Text>
+      ),
     },
     {
-      key: 'actions', title: '操作', width: 260,
+      key: 'actions',
+      title: '操作',
+      width: 260,
       render: (_: unknown, record: User) => (
         <Space size="small" wrap>
           <Tooltip title="详情">
-            <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => openDetail(record)}>详情</Button>
+            <Button
+              type="link"
+              size="small"
+              icon={<EyeOutlined />}
+              onClick={() => openDetail(record)}
+            >
+              详情
+            </Button>
           </Tooltip>
           <Tooltip title="编辑">
-            <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEdit(record)} />
+            <Button
+              type="link"
+              size="small"
+              icon={<EditOutlined />}
+              onClick={() => openEdit(record)}
+            />
           </Tooltip>
           {record.status === 'active' ? (
             <Tooltip title="禁用">
               <Popconfirm title="确认禁用该用户?" onConfirm={() => handleDisable(record.id)}>
-                <Button type="link" size="small" danger icon={<LockOutlined />}>禁用</Button>
+                <Button type="link" size="small" danger icon={<LockOutlined />}>
+                  禁用
+                </Button>
               </Popconfirm>
             </Tooltip>
           ) : record.status !== 'deleted' ? (
             <Tooltip title="启用">
               <Popconfirm title="确认启用该用户?" onConfirm={() => handleEnable(record.id)}>
-                <Button type="link" size="small" icon={<UnlockOutlined />}>启用</Button>
+                <Button type="link" size="small" icon={<UnlockOutlined />}>
+                  启用
+                </Button>
               </Popconfirm>
             </Tooltip>
           ) : null}
           <Tooltip title="重置密码">
-            <Button type="link" size="small" icon={<KeyOutlined />} onClick={() => { setSelectedUser(record); setChangePwModalVisible(true); }} />
+            <Button
+              type="link"
+              size="small"
+              icon={<KeyOutlined />}
+              onClick={() => {
+                setSelectedUser(record);
+                setChangePwModalVisible(true);
+              }}
+            />
           </Tooltip>
           {record.role !== 'admin' && (
             <Tooltip title="删除">
@@ -384,30 +523,41 @@ const UserManagement: React.FC = () => {
   // ---- Filter definitions ----
 
   const filterDefs: FilterDefinition[] = [
-    { key: 'role', label: '角色', options: [
-      { label: '全部', value: 'all' },
-      { label: '管理员', value: 'admin' },
-      { label: '开发者', value: 'developer' },
-      { label: '经理', value: 'manager' },
-      { label: '观察者', value: 'viewer' },
-      { label: '普通用户', value: 'user' },
-    ]},
-    { key: 'status', label: '状态', options: [
-      { label: '全部', value: 'all' },
-      { label: '已启用', value: 'active' },
-      { label: '已禁用', value: 'inactive' },
-      { label: '已锁定', value: 'locked' },
-    ]},
+    {
+      key: 'role',
+      label: '角色',
+      options: [
+        { label: '全部', value: 'all' },
+        { label: '管理员', value: 'admin' },
+        { label: '开发者', value: 'developer' },
+        { label: '经理', value: 'manager' },
+        { label: '观察者', value: 'viewer' },
+        { label: '普通用户', value: 'user' },
+      ],
+    },
+    {
+      key: 'status',
+      label: '状态',
+      options: [
+        { label: '全部', value: 'all' },
+        { label: '已启用', value: 'active' },
+        { label: '已禁用', value: 'inactive' },
+        { label: '已锁定', value: 'locked' },
+      ],
+    },
   ];
 
   // ---- Stats ----
 
-  const stats = useMemo(() => ({
-    total: users.length,
-    active: users.filter((u) => u.status === 'active').length,
-    inactive: users.filter((u) => u.status !== 'active').length,
-    admins: users.filter((u) => u.role === 'admin').length,
-  }), [users]);
+  const stats = useMemo(
+    () => ({
+      total: users.length,
+      active: users.filter((u) => u.status === 'active').length,
+      inactive: users.filter((u) => u.status !== 'active').length,
+      admins: users.filter((u) => u.role === 'admin').length,
+    }),
+    [users]
+  );
 
   // ---- Detail Drawer ----
 
@@ -420,9 +570,7 @@ const UserManagement: React.FC = () => {
         <Descriptions.Item label="显示名称">{u.name || '-'}</Descriptions.Item>
         <Descriptions.Item label="邮箱">{u.email || '-'}</Descriptions.Item>
         <Descriptions.Item label="角色">
-          <Tag color={roleColorMap[u.role] || 'default'}>
-            {roleLabelMap[u.role] || u.role}
-          </Tag>
+          <Tag color={roleColorMap[u.role] || 'default'}>{roleLabelMap[u.role] || u.role}</Tag>
         </Descriptions.Item>
         <Descriptions.Item label="状态">
           <Tag color={statusColorMap[u.status] || 'default'}>
@@ -430,15 +578,23 @@ const UserManagement: React.FC = () => {
           </Tag>
         </Descriptions.Item>
         <Descriptions.Item label="创建者">{u.created_by || '-'}</Descriptions.Item>
-        <Descriptions.Item label="最后登录">{u.last_login_at ? dayjs(u.last_login_at).format('YYYY-MM-DD HH:mm:ss') : '从未登录'}</Descriptions.Item>
+        <Descriptions.Item label="最后登录">
+          {u.last_login_at ? dayjs(u.last_login_at).format('YYYY-MM-DD HH:mm:ss') : '从未登录'}
+        </Descriptions.Item>
         <Descriptions.Item label="登录IP">{u.last_login_ip || '-'}</Descriptions.Item>
-        <Descriptions.Item label="创建时间">{dayjs(u.created_at).format('YYYY-MM-DD HH:mm:ss')}</Descriptions.Item>
-        <Descriptions.Item label="更新时间">{dayjs(u.updated_at).format('YYYY-MM-DD HH:mm:ss')}</Descriptions.Item>
+        <Descriptions.Item label="创建时间">
+          {dayjs(u.created_at).format('YYYY-MM-DD HH:mm:ss')}
+        </Descriptions.Item>
+        <Descriptions.Item label="更新时间">
+          {dayjs(u.updated_at).format('YYYY-MM-DD HH:mm:ss')}
+        </Descriptions.Item>
         {u.settings && Object.keys(u.settings).length > 0 && (
           <Descriptions.Item label="用户设置" span={2}>
             <Space wrap>
               {Object.entries(u.settings).map(([k, v]) => (
-                <Tag key={k}>{k}: {String(v)}</Tag>
+                <Tag key={k}>
+                  {k}: {String(v)}
+                </Tag>
               ))}
             </Space>
           </Descriptions.Item>
@@ -458,142 +614,274 @@ const UserManagement: React.FC = () => {
 
       {isInitialLoading ? null : (
         <>
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
-        <div>
-          <Title level={3} style={{ margin: 0 }}>用户管理</Title>
-          <Text type="secondary">管理系统用户、角色分配和账户状态</Text>
-        </div>
-        <Space>
-          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>刷新</Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalVisible(true)}>创建用户</Button>
-        </Space>
-      </div>
-
-      {/* Stats Panel */}
-      <Card size="small" style={{ marginBottom: 16 }}>
-        <Row gutter={16}>
-          <Col span={6}>
-            <Statistic title="用户总数" value={stats.total} prefix={<UserOutlined />} />
-          </Col>
-          <Col span={6}>
-            <Statistic title="已启用" value={stats.active} valueStyle={{ color: colors.success[500] }} prefix={<CheckCircleOutlined />} />
-          </Col>
-          <Col span={6}>
-            <Statistic title="已禁用/锁定" value={stats.inactive} valueStyle={{ color: colors.warning[500] }} prefix={<StopOutlined />} />
-          </Col>
-          <Col span={6}>
-            <Statistic title="管理员" value={stats.admins} valueStyle={{ color: colors.error[500] }} />
-          </Col>
-        </Row>
-      </Card>
-
-      {/* User List */}
-      <Card>
-        <div style={{ marginBottom: 16 }}>
-          <SearchFilterBar onSearch={setSearchQuery} onFilter={setFilters} filters={filterDefs} searchPlaceholder="搜索用户名、邮箱或姓名..." />
-        </div>
-        <Table columns={columns} dataSource={filteredData} loading={loading} rowKey="id" size="middle" striped />
-      </Card>
-
-      {/* Create Modal */}
-      <Modal
-        title="创建用户" open={createModalVisible} onCancel={() => setCreateModalVisible(false)}
-        onOk={handleCreate} confirmLoading={submitting} width={560} destroyOnClose
-      >
-        <Form form={createForm} layout="vertical" initialValues={{ role: 'user' }}>
-          <Form.Item name="username" label="用户名" rules={[{ required: true, message: '请输入用户名' }, { pattern: /^[a-zA-Z0-9_-]+$/, message: '用户名只能包含字母、数字、连字符和下划线' }]}>
-            <Input placeholder="如: zhangsan" />
-          </Form.Item>
-          <Form.Item name="password" label="密码" rules={[{ required: true, message: '请输入密码' }, { min: 8, message: '密码至少8个字符' }]}>
-            <Input.Password placeholder="至少8个字符" />
-          </Form.Item>
-          <Form.Item name="name" label="显示名称">
-            <Input placeholder="用户显示名称" />
-          </Form.Item>
-          <Form.Item name="email" label="邮箱" rules={[{ type: 'email', message: '请输入有效的邮箱地址' }]}>
-            <Input placeholder="user@example.com" />
-          </Form.Item>
-          <Form.Item name="role" label="角色" rules={[{ required: true, message: '请选择角色' }]}>
-            <Select options={roleOptions} />
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      {/* Edit Modal */}
-      <Modal
-        title="编辑用户" open={editModalVisible} onCancel={() => setEditModalVisible(false)}
-        onOk={handleEdit} confirmLoading={submitting} width={560} destroyOnClose
-      >
-        <Form form={editForm} layout="vertical">
-          <Form.Item name="username" label="用户名" rules={[{ required: true, message: '请输入用户名' }]}>
-            <Input />
-          </Form.Item>
-          <Form.Item name="name" label="显示名称">
-            <Input />
-          </Form.Item>
-          <Form.Item name="email" label="邮箱" rules={[{ type: 'email', message: '请输入有效的邮箱地址' }]}>
-            <Input />
-          </Form.Item>
-          <Form.Item name="role" label="角色" rules={[{ required: true, message: '请选择角色' }]}>
-            <Select options={roleOptions} />
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      {/* Change Password Modal */}
-      <Modal
-        title="重置密码" open={changePwModalVisible} onCancel={() => setChangePwModalVisible(false)}
-        onOk={handleChangePassword} confirmLoading={submitting} width={480}
-      >
-        {selectedUser && (
-          <div style={{ marginBottom: 16 }}>
-            <Text>用户: <Text strong>{selectedUser.name || selectedUser.username}</Text> ({selectedUser.username})</Text>
+          {/* Header */}
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'flex-start',
+              marginBottom: 24,
+            }}
+          >
+            <div>
+              <Title level={3} style={{ margin: 0 }}>
+                用户管理
+              </Title>
+              <Text type="secondary">管理系统用户、角色分配和账户状态</Text>
+            </div>
+            <Space>
+              <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+                刷新
+              </Button>
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={() => setCreateModalVisible(true)}
+              >
+                创建用户
+              </Button>
+            </Space>
           </div>
-        )}
-        <Form form={changePwForm} layout="vertical">
-          <Form.Item name="oldPassword" label="当前密码" rules={[{ required: true, message: '请输入当前密码' }]}>
-            <Input.Password placeholder="输入当前密码" />
-          </Form.Item>
-          <Form.Item name="newPassword" label="新密码" rules={[{ required: true, message: '请输入新密码' }, { min: 8, message: '密码至少8个字符' }]}>
-            <Input.Password placeholder="至少8个字符" />
-          </Form.Item>
-          <Form.Item name="confirmPassword" label="确认新密码" dependencies={['newPassword']} rules={[
-            { required: true, message: '请确认新密码' },
-            ({ getFieldValue }) => ({
-              validator(_, value) {
-                if (!value || getFieldValue('newPassword') === value) {
-                  return Promise.resolve();
-                }
-                return Promise.reject(new Error('两次输入的密码不一致'));
-              },
-            }),
-          ]}>
-            <Input.Password placeholder="再次输入新密码" />
-          </Form.Item>
-        </Form>
-      </Modal>
 
-      {/* Detail Drawer */}
-      <Drawer
-        title={selectedUser ? `${selectedUser.name || selectedUser.username} (${selectedUser.username})` : '用户详情'}
-        open={detailDrawerVisible} onClose={() => setDetailDrawerVisible(false)} width={720} destroyOnClose
-      >
-        {detailItems}
-        <div style={{ marginTop: 24, display: 'flex', gap: 8 }}>
-          <Button icon={<EditOutlined />} onClick={() => { setDetailDrawerVisible(false); if (selectedUser) openEdit(selectedUser); }}>编辑</Button>
-          {selectedUser && selectedUser.status === 'active' && (
-            <Popconfirm title="确认禁用?" onConfirm={() => handleDisable(selectedUser.id)}>
-              <Button danger icon={<LockOutlined />}>禁用</Button>
-            </Popconfirm>
-          )}
-          {selectedUser && selectedUser.status !== 'active' && selectedUser.status !== 'deleted' && (
-            <Popconfirm title="确认启用?" onConfirm={() => handleEnable(selectedUser.id)}>
-              <Button icon={<UnlockOutlined />}>启用</Button>
-            </Popconfirm>
-          )}
-        </div>
-      </Drawer>
+          {/* Stats Panel */}
+          <Card size="small" style={{ marginBottom: 16 }}>
+            <Row gutter={16}>
+              <Col span={6}>
+                <Statistic title="用户总数" value={stats.total} prefix={<UserOutlined />} />
+              </Col>
+              <Col span={6}>
+                <Statistic
+                  title="已启用"
+                  value={stats.active}
+                  valueStyle={{ color: colors.success[500] }}
+                  prefix={<CheckCircleOutlined />}
+                />
+              </Col>
+              <Col span={6}>
+                <Statistic
+                  title="已禁用/锁定"
+                  value={stats.inactive}
+                  valueStyle={{ color: colors.warning[500] }}
+                  prefix={<StopOutlined />}
+                />
+              </Col>
+              <Col span={6}>
+                <Statistic
+                  title="管理员"
+                  value={stats.admins}
+                  valueStyle={{ color: colors.error[500] }}
+                />
+              </Col>
+            </Row>
+          </Card>
+
+          {/* User List */}
+          <Card>
+            <div style={{ marginBottom: 16 }}>
+              <SearchFilterBar
+                onSearch={setSearchQuery}
+                onFilter={setFilters}
+                filters={filterDefs}
+                searchPlaceholder="搜索用户名、邮箱或姓名..."
+              />
+            </div>
+            <Table
+              columns={columns}
+              dataSource={filteredData}
+              loading={loading}
+              rowKey="id"
+              size="middle"
+              striped
+            />
+          </Card>
+
+          {/* Create Modal */}
+          <Modal
+            title="创建用户"
+            open={createModalVisible}
+            onCancel={() => setCreateModalVisible(false)}
+            onOk={handleCreate}
+            confirmLoading={submitting}
+            width={560}
+            destroyOnClose
+          >
+            <Form form={createForm} layout="vertical" initialValues={{ role: 'user' }}>
+              <Form.Item
+                name="username"
+                label="用户名"
+                rules={[
+                  { required: true, message: '请输入用户名' },
+                  {
+                    pattern: /^[a-zA-Z0-9_-]+$/,
+                    message: '用户名只能包含字母、数字、连字符和下划线',
+                  },
+                ]}
+              >
+                <Input placeholder="如: zhangsan" />
+              </Form.Item>
+              <Form.Item
+                name="password"
+                label="密码"
+                rules={[
+                  { required: true, message: '请输入密码' },
+                  { min: 8, message: '密码至少8个字符' },
+                ]}
+              >
+                <Input.Password placeholder="至少8个字符" />
+              </Form.Item>
+              <Form.Item name="name" label="显示名称">
+                <Input placeholder="用户显示名称" />
+              </Form.Item>
+              <Form.Item
+                name="email"
+                label="邮箱"
+                rules={[{ type: 'email', message: '请输入有效的邮箱地址' }]}
+              >
+                <Input placeholder="user@example.com" />
+              </Form.Item>
+              <Form.Item
+                name="role"
+                label="角色"
+                rules={[{ required: true, message: '请选择角色' }]}
+              >
+                <Select options={roleOptions} />
+              </Form.Item>
+            </Form>
+          </Modal>
+
+          {/* Edit Modal */}
+          <Modal
+            title="编辑用户"
+            open={editModalVisible}
+            onCancel={() => setEditModalVisible(false)}
+            onOk={handleEdit}
+            confirmLoading={submitting}
+            width={560}
+            destroyOnClose
+          >
+            <Form form={editForm} layout="vertical">
+              <Form.Item
+                name="username"
+                label="用户名"
+                rules={[{ required: true, message: '请输入用户名' }]}
+              >
+                <Input />
+              </Form.Item>
+              <Form.Item name="name" label="显示名称">
+                <Input />
+              </Form.Item>
+              <Form.Item
+                name="email"
+                label="邮箱"
+                rules={[{ type: 'email', message: '请输入有效的邮箱地址' }]}
+              >
+                <Input />
+              </Form.Item>
+              <Form.Item
+                name="role"
+                label="角色"
+                rules={[{ required: true, message: '请选择角色' }]}
+              >
+                <Select options={roleOptions} />
+              </Form.Item>
+            </Form>
+          </Modal>
+
+          {/* Change Password Modal */}
+          <Modal
+            title="重置密码"
+            open={changePwModalVisible}
+            onCancel={() => setChangePwModalVisible(false)}
+            onOk={handleChangePassword}
+            confirmLoading={submitting}
+            width={480}
+          >
+            {selectedUser && (
+              <div style={{ marginBottom: 16 }}>
+                <Text>
+                  用户: <Text strong>{selectedUser.name || selectedUser.username}</Text> (
+                  {selectedUser.username})
+                </Text>
+              </div>
+            )}
+            <Form form={changePwForm} layout="vertical">
+              <Form.Item
+                name="oldPassword"
+                label="当前密码"
+                rules={[{ required: true, message: '请输入当前密码' }]}
+              >
+                <Input.Password placeholder="输入当前密码" />
+              </Form.Item>
+              <Form.Item
+                name="newPassword"
+                label="新密码"
+                rules={[
+                  { required: true, message: '请输入新密码' },
+                  { min: 8, message: '密码至少8个字符' },
+                ]}
+              >
+                <Input.Password placeholder="至少8个字符" />
+              </Form.Item>
+              <Form.Item
+                name="confirmPassword"
+                label="确认新密码"
+                dependencies={['newPassword']}
+                rules={[
+                  { required: true, message: '请确认新密码' },
+                  ({ getFieldValue }) => ({
+                    validator(_, value) {
+                      if (!value || getFieldValue('newPassword') === value) {
+                        return Promise.resolve();
+                      }
+                      return Promise.reject(new Error('两次输入的密码不一致'));
+                    },
+                  }),
+                ]}
+              >
+                <Input.Password placeholder="再次输入新密码" />
+              </Form.Item>
+            </Form>
+          </Modal>
+
+          {/* Detail Drawer */}
+          <Drawer
+            title={
+              selectedUser
+                ? `${selectedUser.name || selectedUser.username} (${selectedUser.username})`
+                : '用户详情'
+            }
+            open={detailDrawerVisible}
+            onClose={() => setDetailDrawerVisible(false)}
+            width={720}
+            destroyOnClose
+          >
+            {detailItems}
+            <div style={{ marginTop: 24, display: 'flex', gap: 8 }}>
+              <Button
+                icon={<EditOutlined />}
+                onClick={() => {
+                  setDetailDrawerVisible(false);
+                  if (selectedUser) openEdit(selectedUser);
+                }}
+              >
+                编辑
+              </Button>
+              {selectedUser && selectedUser.status === 'active' && (
+                <Popconfirm title="确认禁用?" onConfirm={() => handleDisable(selectedUser.id)}>
+                  <Button danger icon={<LockOutlined />}>
+                    禁用
+                  </Button>
+                </Popconfirm>
+              )}
+              {selectedUser &&
+                selectedUser.status !== 'active' &&
+                selectedUser.status !== 'deleted' && (
+                  <Popconfirm title="确认启用?" onConfirm={() => handleEnable(selectedUser.id)}>
+                    <Button icon={<UnlockOutlined />}>启用</Button>
+                  </Popconfirm>
+                )}
+            </div>
+          </Drawer>
         </>
       )}
     </div>

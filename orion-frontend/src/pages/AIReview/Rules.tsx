@@ -3,8 +3,28 @@
  * Review rule management with CRUD operations
  */
 import React, { useState, useEffect } from 'react';
-import { Typography, Card, Table, Tag, Space, Button, Input, Select, Modal, Form, message, Popconfirm, Switch } from 'antd';
-import { SearchOutlined, PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import {
+  Typography,
+  Card,
+  Table,
+  Tag,
+  Space,
+  Button,
+  Input,
+  Select,
+  Modal,
+  Form,
+  message,
+  Popconfirm,
+  Switch,
+} from 'antd';
+import {
+  SearchOutlined,
+  PlusOutlined,
+  ReloadOutlined,
+  EditOutlined,
+  DeleteOutlined,
+} from '@ant-design/icons';
 import {
   getReviewRules,
   createReviewRule,
@@ -101,7 +121,9 @@ const AIReviewRules: React.FC = () => {
       loadData();
     } catch (error: unknown) {
       if (error instanceof Error) {
-        message.error(editingRule ? `更新规则失败：${error.message}` : `创建规则失败：${error.message}`);
+        message.error(
+          editingRule ? `更新规则失败：${error.message}` : `创建规则失败：${error.message}`
+        );
       } else {
         message.error(editingRule ? '更新规则失败，请稍后重试' : '创建规则失败，请稍后重试');
       }
@@ -112,15 +134,22 @@ const AIReviewRules: React.FC = () => {
 
   const severityColor = (severity: string) => {
     switch (severity) {
-      case 'critical': return 'red';
-      case 'warning': return 'orange';
-      case 'info': return 'blue';
-      default: return 'default';
+      case 'critical':
+        return 'red';
+      case 'warning':
+        return 'orange';
+      case 'info':
+        return 'blue';
+      default:
+        return 'default';
     }
   };
 
   const filteredData = data.filter((rule) => {
-    const matchSearch = !searchText || rule.name.toLowerCase().includes(searchText.toLowerCase()) || rule.description.toLowerCase().includes(searchText.toLowerCase());
+    const matchSearch =
+      !searchText ||
+      rule.name.toLowerCase().includes(searchText.toLowerCase()) ||
+      rule.description.toLowerCase().includes(searchText.toLowerCase());
     const matchCategory = !categoryFilter || rule.category === categoryFilter;
     return matchSearch && matchCategory;
   });
@@ -129,7 +158,12 @@ const AIReviewRules: React.FC = () => {
 
   const columns = [
     { title: '规则 ID', dataIndex: 'id', key: 'id', width: 120, ellipsis: true },
-    { title: '名称', dataIndex: 'name', key: 'name', render: (text: string) => <Text strong>{text}</Text> },
+    {
+      title: '名称',
+      dataIndex: 'name',
+      key: 'name',
+      render: (text: string) => <Text strong>{text}</Text>,
+    },
     { title: '分类', dataIndex: 'category', key: 'category', width: 100 },
     {
       title: '严重程度',
@@ -154,7 +188,14 @@ const AIReviewRules: React.FC = () => {
       width: 120,
       render: (_: any, record: AIReviewRule) => (
         <Space>
-          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEditModal(record)}>编辑</Button>
+          <Button
+            type="link"
+            size="small"
+            icon={<EditOutlined />}
+            onClick={() => openEditModal(record)}
+          >
+            编辑
+          </Button>
           <Popconfirm title="确认删除此规则？" onConfirm={() => handleDelete(record.id)}>
             <Button type="link" size="small" danger icon={<DeleteOutlined />} />
           </Popconfirm>
@@ -169,10 +210,14 @@ const AIReviewRules: React.FC = () => {
     <div style={{ padding: 24 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
         <div>
-          <Title level={3} style={{ margin: 0 }}>评审规则</Title>
+          <Title level={3} style={{ margin: 0 }}>
+            评审规则
+          </Title>
           <Text type="secondary">管理 AI 代码评审规则</Text>
         </div>
-        <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>添加规则</Button>
+        <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>
+          添加规则
+        </Button>
       </div>
 
       {/* Filter Bar */}
@@ -192,9 +237,15 @@ const AIReviewRules: React.FC = () => {
             onChange={setCategoryFilter}
             style={{ width: 150 }}
           >
-            {categories.map((c) => <Select.Option key={c} value={c}>{c}</Select.Option>)}
+            {categories.map((c) => (
+              <Select.Option key={c} value={c}>
+                {c}
+              </Select.Option>
+            ))}
           </Select>
-          <Button icon={<ReloadOutlined />} onClick={loadData}>刷新</Button>
+          <Button icon={<ReloadOutlined />} onClick={loadData}>
+            刷新
+          </Button>
         </Space>
       </Card>
 
@@ -218,10 +269,18 @@ const AIReviewRules: React.FC = () => {
         width={600}
       >
         <Form form={form} layout="vertical" onFinish={handleSubmit}>
-          <Form.Item name="name" label="规则名称" rules={[{ required: true, message: '请输入规则名称' }]}>
+          <Form.Item
+            name="name"
+            label="规则名称"
+            rules={[{ required: true, message: '请输入规则名称' }]}
+          >
             <Input placeholder="例如：no-console-log" />
           </Form.Item>
-          <Form.Item name="category" label="分类" rules={[{ required: true, message: '请选择分类' }]}>
+          <Form.Item
+            name="category"
+            label="分类"
+            rules={[{ required: true, message: '请选择分类' }]}
+          >
             <Select placeholder="选择分类">
               <Select.Option value="best-practice">最佳实践</Select.Option>
               <Select.Option value="security">安全</Select.Option>
@@ -230,17 +289,29 @@ const AIReviewRules: React.FC = () => {
               <Select.Option value="bug-prevention">Bug 预防</Select.Option>
             </Select>
           </Form.Item>
-          <Form.Item name="severity" label="严重程度" rules={[{ required: true, message: '请选择严重程度' }]}>
+          <Form.Item
+            name="severity"
+            label="严重程度"
+            rules={[{ required: true, message: '请选择严重程度' }]}
+          >
             <Select>
               <Select.Option value="critical">Critical</Select.Option>
               <Select.Option value="warning">Warning</Select.Option>
               <Select.Option value="info">Info</Select.Option>
             </Select>
           </Form.Item>
-          <Form.Item name="pattern" label="模式" rules={[{ required: true, message: '请输入匹配模式' }]}>
+          <Form.Item
+            name="pattern"
+            label="模式"
+            rules={[{ required: true, message: '请输入匹配模式' }]}
+          >
             <Input placeholder="例如：console\\.log" />
           </Form.Item>
-          <Form.Item name="description" label="描述" rules={[{ required: true, message: '请输入描述' }]}>
+          <Form.Item
+            name="description"
+            label="描述"
+            rules={[{ required: true, message: '请输入描述' }]}
+          >
             <TextArea rows={3} placeholder="规则描述..." />
           </Form.Item>
           <Form.Item name="suggestion" label="修复建议">

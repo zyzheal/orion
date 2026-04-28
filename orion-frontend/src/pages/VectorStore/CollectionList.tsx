@@ -38,8 +38,12 @@ const CollectionList: React.FC<CollectionListProps> = ({
       width: 180,
       render: (text: string, record) => (
         <Space direction="vertical" size={0}>
-          <Text strong style={{ cursor: 'pointer' }} onClick={() => onOpenDetail(record)}>{text}</Text>
-          <Text type="secondary" style={{ fontSize: 12 }}>{record.name}</Text>
+          <Text strong style={{ cursor: 'pointer' }} onClick={() => onOpenDetail(record)}>
+            {text}
+          </Text>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            {record.name}
+          </Text>
         </Space>
       ),
     },
@@ -48,7 +52,11 @@ const CollectionList: React.FC<CollectionListProps> = ({
       dataIndex: 'description',
       key: 'description',
       ellipsis: true,
-      render: (text: string) => <Text type="secondary" style={{ fontSize: 12 }}>{text || '-'}</Text>,
+      render: (text: string) => (
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          {text || '-'}
+        </Text>
+      ),
     },
     {
       title: '文档数',
@@ -96,7 +104,11 @@ const CollectionList: React.FC<CollectionListProps> = ({
       key: 'updatedAt',
       width: 140,
       sorter: (a, b) => dayjs(a.updatedAt).unix() - dayjs(b.updatedAt).unix(),
-      render: (val: string) => <Text type="secondary" style={{ fontSize: 12 }}>{dayjs(val).fromNow()}</Text>,
+      render: (val: string) => (
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          {dayjs(val).fromNow()}
+        </Text>
+      ),
     },
     {
       title: '操作',
@@ -105,10 +117,20 @@ const CollectionList: React.FC<CollectionListProps> = ({
       render: (_, record) => (
         <Space size="small">
           <Tooltip title="详情">
-            <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => onOpenDetail(record)}>详情</Button>
+            <Button
+              type="link"
+              size="small"
+              icon={<EyeOutlined />}
+              onClick={() => onOpenDetail(record)}
+            >
+              详情
+            </Button>
           </Tooltip>
           <Tooltip title="删除">
-            <Popconfirm title="确认删除该集合？此操作不可撤销。" onConfirm={() => onDeleteCollection(record.name)}>
+            <Popconfirm
+              title="确认删除该集合？此操作不可撤销。"
+              onConfirm={() => onDeleteCollection(record.name)}
+            >
               <Button type="link" size="small" danger icon={<DeleteOutlined />} />
             </Popconfirm>
           </Tooltip>

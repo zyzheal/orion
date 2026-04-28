@@ -3,7 +3,18 @@
  * CRUD table for builder images with search, filters, modal form, and actions.
  */
 import React, { useState, useMemo, useEffect } from 'react';
-import { Typography, Button, Space, Tag, Modal, Form, Input, Select, Popconfirm, message } from 'antd';
+import {
+  Typography,
+  Button,
+  Space,
+  Tag,
+  Modal,
+  Form,
+  Input,
+  Select,
+  Popconfirm,
+  message,
+} from 'antd';
 import { colors, spacing } from '@/tokens';
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
@@ -58,7 +69,9 @@ const BuilderImageList: React.FC = () => {
     return images.filter((image) => {
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
-        const searchable = [image.name, image.type, image.baseImage, image.version].join(' ').toLowerCase();
+        const searchable = [image.name, image.type, image.baseImage, image.version]
+          .join(' ')
+          .toLowerCase();
         if (!searchable.includes(query)) return false;
       }
       const typeFilter = filters.type;
@@ -208,7 +221,11 @@ const BuilderImageList: React.FC = () => {
       title: 'Base Image',
       dataIndex: 'baseImage',
       width: 250,
-      render: (value) => <Text code style={{ fontSize: spacing[3] }}>{String(value)}</Text>,
+      render: (value) => (
+        <Text code style={{ fontSize: spacing[3] }}>
+          {String(value)}
+        </Text>
+      ),
     },
     {
       key: 'version',
@@ -252,11 +269,7 @@ const BuilderImageList: React.FC = () => {
           <Button type="link" size="small" onClick={() => openEditModal(record)}>
             Edit
           </Button>
-          <Button
-            type="link"
-            size="small"
-            onClick={() => handleToggleDeprecated(record)}
-          >
+          <Button type="link" size="small" onClick={() => handleToggleDeprecated(record)}>
             {record.status === 'deprecated' ? 'Restore' : 'Deprecate'}
           </Button>
           <Popconfirm
@@ -277,9 +290,18 @@ const BuilderImageList: React.FC = () => {
 
   return (
     <div style={{ padding: 0 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          marginBottom: 24,
+        }}
+      >
         <div>
-          <Title level={3} style={{ margin: 0 }}>Builder Images</Title>
+          <Title level={3} style={{ margin: 0 }}>
+            Builder Images
+          </Title>
           <Text type="secondary">{filteredImages.length} builder images</Text>
         </div>
         <Space>
@@ -301,21 +323,40 @@ const BuilderImageList: React.FC = () => {
         />
       </div>
 
-      <Table columns={columns} dataSource={filteredImages} loading={loading} rowKey="id" size="middle" striped />
+      <Table
+        columns={columns}
+        dataSource={filteredImages}
+        loading={loading}
+        rowKey="id"
+        size="middle"
+        striped
+      />
 
       <Modal
         title={editingImage ? 'Edit Builder Image' : 'Add Builder Image'}
         open={modalOpen}
         onOk={handleSave}
-        onCancel={() => { setModalOpen(false); setEditingImage(null); form.resetFields(); }}
+        onCancel={() => {
+          setModalOpen(false);
+          setEditingImage(null);
+          form.resetFields();
+        }}
         okText={editingImage ? 'Update' : 'Create'}
         width={520}
       >
         <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
-          <Form.Item name="name" label="Name" rules={[{ required: true, message: 'Please enter a name' }]}>
+          <Form.Item
+            name="name"
+            label="Name"
+            rules={[{ required: true, message: 'Please enter a name' }]}
+          >
             <Input placeholder="e.g. node-builder" />
           </Form.Item>
-          <Form.Item name="type" label="Type" rules={[{ required: true, message: 'Please select a type' }]}>
+          <Form.Item
+            name="type"
+            label="Type"
+            rules={[{ required: true, message: 'Please select a type' }]}
+          >
             <Select placeholder="Select type">
               <Select.Option value="nodejs">Node.js</Select.Option>
               <Select.Option value="go">Go</Select.Option>
@@ -324,10 +365,18 @@ const BuilderImageList: React.FC = () => {
               <Select.Option value="custom">Custom</Select.Option>
             </Select>
           </Form.Item>
-          <Form.Item name="baseImage" label="Base Image" rules={[{ required: true, message: 'Please enter a base image' }]}>
+          <Form.Item
+            name="baseImage"
+            label="Base Image"
+            rules={[{ required: true, message: 'Please enter a base image' }]}
+          >
             <Input placeholder="e.g. node:20-alpine" />
           </Form.Item>
-          <Form.Item name="version" label="Version" rules={[{ required: true, message: 'Please enter a version' }]}>
+          <Form.Item
+            name="version"
+            label="Version"
+            rules={[{ required: true, message: 'Please enter a version' }]}
+          >
             <Input placeholder="e.g. 1.0.0" />
           </Form.Item>
         </Form>

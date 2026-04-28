@@ -3,7 +3,19 @@
  * AI model routing, degradation handling, and rule engine monitoring
  */
 import React, { useState, useEffect } from 'react';
-import { Typography, Card, Row, Col, Table, Tag, Space, Button, Statistic, Progress, message } from 'antd';
+import {
+  Typography,
+  Card,
+  Row,
+  Col,
+  Table,
+  Tag,
+  Space,
+  Button,
+  Statistic,
+  Progress,
+  message,
+} from 'antd';
 import { colors } from '@/tokens';
 import {
   ThunderboltOutlined,
@@ -14,12 +26,7 @@ import {
   SettingOutlined,
 } from '@ant-design/icons';
 import DashboardLayout from '@/components/DashboardLayout';
-import {
-  getAllHealth,
-  getRules,
-  getGatewayStatus,
-  getEngineStatus,
-} from '@/api/ai-gateway';
+import { getAllHealth, getRules, getGatewayStatus, getEngineStatus } from '@/api/ai-gateway';
 import type { AIGatewayHealth } from '@/api/ai-gateway';
 
 const { Title, Text } = Typography;
@@ -39,7 +46,10 @@ const AIGatewayPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [healthData, setHealthData] = useState<AIGatewayHealth[]>([]);
   const [gatewayStatus, setGatewayStatus] = useState<{ status: string } | null>(null);
-  const [engineStatus, setEngineStatus] = useState<{ cacheEnabled: boolean; auditEnabled: boolean } | null>(null);
+  const [engineStatus, setEngineStatus] = useState<{
+    cacheEnabled: boolean;
+    auditEnabled: boolean;
+  } | null>(null);
   const [rules, setRules] = useState<any>(null);
 
   const loadData = async () => {
@@ -111,9 +121,13 @@ const AIGatewayPage: React.FC = () => {
       key: 'isHealthy',
       render: (healthy: boolean) =>
         healthy ? (
-          <Tag color="green"><CheckCircleOutlined /> 健康</Tag>
+          <Tag color="green">
+            <CheckCircleOutlined /> 健康
+          </Tag>
         ) : (
-          <Tag color="red"><CloseCircleOutlined /> 异常</Tag>
+          <Tag color="red">
+            <CloseCircleOutlined /> 异常
+          </Tag>
         ),
     },
     {
@@ -128,7 +142,13 @@ const AIGatewayPage: React.FC = () => {
       render: (rate: number) => (
         <Progress
           percent={(rate || 0) * 100}
-          strokeColor={rate > 0.15 ? colors.error[500] : rate > 0.05 ? colors.warning[500] : colors.success[500]}
+          strokeColor={
+            rate > 0.15
+              ? colors.error[500]
+              : rate > 0.05
+                ? colors.warning[500]
+                : colors.success[500]
+          }
           format={(percent) => `${((percent ?? 0) / 100).toFixed(2)}`}
           size="small"
         />
@@ -246,12 +266,7 @@ const AIGatewayPage: React.FC = () => {
 
         {/* Health Table */}
         <Card title="场景健康监控">
-          <Table
-            columns={columns}
-            dataSource={tableData}
-            loading={loading}
-            pagination={false}
-          />
+          <Table columns={columns} dataSource={tableData} loading={loading} pagination={false} />
         </Card>
 
         {/* Rules Info */}
@@ -261,7 +276,9 @@ const AIGatewayPage: React.FC = () => {
               <Text>内置降级规则覆盖 {rules.scenarios?.length || 15} 个 AI 场景</Text>
               <div style={{ marginTop: 12 }}>
                 {rules.scenarios?.map((s: string) => (
-                  <Tag key={s} style={{ marginBottom: 8 }}>{s}</Tag>
+                  <Tag key={s} style={{ marginBottom: 8 }}>
+                    {s}
+                  </Tag>
                 ))}
               </div>
             </div>

@@ -4,7 +4,13 @@
  */
 import React, { useState, useEffect } from 'react';
 import { Typography, Button, Space, Tag, Modal, Form, Input, message } from 'antd';
-import { ReloadOutlined, BellOutlined, CheckOutlined, CloseOutlined, ArrowUpOutlined } from '@ant-design/icons';
+import {
+  ReloadOutlined,
+  BellOutlined,
+  CheckOutlined,
+  CloseOutlined,
+  ArrowUpOutlined,
+} from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import { getAlerts, acknowledgeAlert, resolveAlert, escalateAlert } from '@/api/monitoring';
@@ -162,7 +168,11 @@ const MonitoringAlerts: React.FC = () => {
       title: '规则ID',
       dataIndex: 'ruleId',
       width: 120,
-      render: (v: unknown) => <Text code style={{ fontSize: spacing[3] }}>{v as string}</Text>,
+      render: (v: unknown) => (
+        <Text code style={{ fontSize: spacing[3] }}>
+          {v as string}
+        </Text>
+      ),
     },
     {
       key: 'status',
@@ -194,18 +204,34 @@ const MonitoringAlerts: React.FC = () => {
         <Space size="small">
           {record.status === 'active' && (
             <>
-              <Button type="link" size="small" icon={<CheckOutlined />} onClick={() => handleAcknowledge(record.id)}>
+              <Button
+                type="link"
+                size="small"
+                icon={<CheckOutlined />}
+                onClick={() => handleAcknowledge(record.id)}
+              >
                 确认
               </Button>
-              <Button type="link" size="small" danger icon={<CloseOutlined />} onClick={() => handleResolve(record.id)}>
+              <Button
+                type="link"
+                size="small"
+                danger
+                icon={<CloseOutlined />}
+                onClick={() => handleResolve(record.id)}
+              >
                 解决
               </Button>
             </>
           )}
-          <Button type="link" size="small" icon={<ArrowUpOutlined />} onClick={() => {
-            setSelectedAlert(record);
-            setEscalateModalVisible(true);
-          }}>
+          <Button
+            type="link"
+            size="small"
+            icon={<ArrowUpOutlined />}
+            onClick={() => {
+              setSelectedAlert(record);
+              setEscalateModalVisible(true);
+            }}
+          >
             升级
           </Button>
         </Space>
@@ -215,7 +241,14 @@ const MonitoringAlerts: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: 24,
+        }}
+      >
         <div>
           <Title level={3} style={{ margin: 0 }}>
             <BellOutlined style={{ marginRight: 8 }} />
@@ -264,14 +297,20 @@ const MonitoringAlerts: React.FC = () => {
               </Tag>
             </div>
             <Form form={escalateForm} layout="vertical" onFinish={handleEscalate}>
-              <Form.Item name="reason" label="升级原因" rules={[{ required: true, message: '请输入升级原因' }]}>
+              <Form.Item
+                name="reason"
+                label="升级原因"
+                rules={[{ required: true, message: '请输入升级原因' }]}
+              >
                 <Input.TextArea rows={3} placeholder="请描述升级原因..." />
               </Form.Item>
               <Form.Item name="target" label="目标人员">
                 <Input placeholder="可选，指定升级目标" />
               </Form.Item>
               <Form.Item>
-                <Button type="primary" htmlType="submit" block>提交升级</Button>
+                <Button type="primary" htmlType="submit" block>
+                  提交升级
+                </Button>
               </Form.Item>
             </Form>
           </>

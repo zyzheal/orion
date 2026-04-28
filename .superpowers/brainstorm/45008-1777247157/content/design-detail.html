@@ -1,0 +1,42 @@
+<h2>详细设计：新页面菜单集成方案 C</h2>
+<p class="subtitle">仅修改 Layout 组件和路由，7 个页面已有路由保持不变</p>
+
+<div class="section">
+  <h3>1. 运维中心（现有 + 3 项）</h3>
+</div>
+<div style="background:#fafafa;padding:12px;border-radius:8px;font-size:13px;">
+  <b>现有</b>: 流水线 / 部署 / 告警 / 成本分析 / 监控中心 / 诊断中心 / 自愈系统 / 灰度分析 / 变更智能 <br>
+  <b style="color:#1890ff;">新增</b>:
+  <span style="color:#1890ff;">事件总线</span> (/eventbus) → <code>DeploymentUnitOutlined</code> <br>
+  <span style="color:#1890ff;">指标看板</span> (/metrics-dashboard) → <code>BarChartOutlined</code> <br>
+  <span style="color:#1890ff;">测试管理</span> (/test-selector) → <code>ExperimentOutlined</code>
+</div>
+
+<div class="section" style="margin-top:16px;">
+  <h3>2. 治理（现有 + 3 项）</h3>
+</div>
+<div style="background:#fafafa;padding:12px;border-radius:8px;font-size:13px;">
+  <b>现有</b>: 策略 / 审计日志 / 租户 / 角色 / 配置 / CMDB / Skill / SBOM / 审批 / 值班 <br>
+  <b style="color:#722ed1;">新增</b>:
+  <span style="color:#722ed1;">会话管理</span> (/sessions) → <code>UserSwitchOutlined</code> <br>
+  <span style="color:#722ed1;">备份恢复</span> (/backup) → <code>CloudUploadOutlined</code> <br>
+  <span style="color:#722ed1;">插件框架</span> (/plugin-spi) → <code>ApiOutlined</code>
+</div>
+
+<div class="section" style="margin-top:16px;">
+  <h3>3. AI 能力（现有 + 1 项）</h3>
+</div>
+<div style="background:#fafafa;padding:12px;border-radius:8px;font-size:13px;">
+  <b>现有</b>: AI 网关 / Agent 调度 / AI Review / AI 知识库 / AI 文档 / ChatOps <br>
+  <b style="color:#13c2c2;">新增</b>:
+  <span style="color:#13c2c2;">AI 安全</span> (/ai-security) → <code>SecurityScanOutlined</code>
+</div>
+
+<div class="section" style="margin-top:16px;">
+  <h3>4. 修改文件</h3>
+</div>
+<div style="background:#fafafa;padding:12px;border-radius:8px;font-size:13px;">
+  <b>仅修改 1 个文件</b>: <code>orion-frontend/src/components/Layout/index.tsx</code><br>
+  在对应的父菜单子项中插入新的菜单项（约 21 行新增代码）<br>
+  路由已存在，无需修改
+</div>

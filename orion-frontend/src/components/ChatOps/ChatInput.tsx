@@ -40,20 +40,22 @@ export const ChatInput: React.FC = () => {
       ];
     }
     // 已加载: 取前 6 个
-    return commands.slice(0, 6).map(cmd => ({
+    return commands.slice(0, 6).map((cmd) => ({
       label: `/${cmd.name}`,
       value: `/${cmd.name}`,
     }));
   }, [commands]);
 
   return (
-    <div style={{
-      padding: '12px 16px',
-      borderTop: `1px solid ${colors.light.border.light}`,
-      background: colors.light.bg.primary,
-    }}>
+    <div
+      style={{
+        padding: '12px 16px',
+        borderTop: `1px solid ${colors.light.border.light}`,
+        background: colors.light.bg.primary,
+      }}
+    >
       <Space style={{ marginBottom: 8 }} wrap>
-        {quickCommands.map(cmd => (
+        {quickCommands.map((cmd) => (
           <Tag
             key={cmd.value}
             style={{ cursor: 'pointer' }}
@@ -68,11 +70,14 @@ export const ChatInput: React.FC = () => {
       </Space>
 
       <AutoComplete
-        options={suggestions.map(s => ({ value: s, label: s }))}
+        options={suggestions.map((s) => ({ value: s, label: s }))}
         open={showSuggestions && suggestions.length > 0}
         value={input}
         onChange={setInput}
-        onSelect={(value) => { setInput(value); setShowSuggestions(false); }}
+        onSelect={(value) => {
+          setInput(value);
+          setShowSuggestions(false);
+        }}
       >
         <Input.TextArea
           ref={inputRef}

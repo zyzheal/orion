@@ -86,14 +86,14 @@ const SimpleBar: React.FC<{
  * KPI icon mapping
  */
 const kpiIcons: Record<string, React.ReactNode> = {
-  '总工单数': <BarChartOutlined />,
-  '已解决': <CheckCircleOutlined />,
-  '待处理': <ClockCircleOutlined />,
-  '解决率': <RiseOutlined />,
-  '平均解决时间': <ClockCircleOutlined />,
-  'SLA合规率': <CheckCircleOutlined />,
-  '工程师总数': <TeamOutlined />,
-  '活跃工程师': <FireOutlined />,
+  总工单数: <BarChartOutlined />,
+  已解决: <CheckCircleOutlined />,
+  待处理: <ClockCircleOutlined />,
+  解决率: <RiseOutlined />,
+  平均解决时间: <ClockCircleOutlined />,
+  SLA合规率: <CheckCircleOutlined />,
+  工程师总数: <TeamOutlined />,
+  活跃工程师: <FireOutlined />,
 };
 
 const ExecutiveDashboard: React.FC = () => {
@@ -159,14 +159,14 @@ const ExecutiveDashboard: React.FC = () => {
 
   // KPI card color mapping
   const kpiColors: Record<string, string> = {
-    '总工单数': COLORS.info,
-    '已解决': COLORS.success,
-    '待处理': COLORS.warning,
-    '解决率': COLORS.success,
-    '平均解决时间': COLORS.cyan,
-    'SLA合规率': COLORS.success,
-    '工程师总数': COLORS.purple,
-    '活跃工程师': COLORS.info,
+    总工单数: COLORS.info,
+    已解决: COLORS.success,
+    待处理: COLORS.warning,
+    解决率: COLORS.success,
+    平均解决时间: COLORS.cyan,
+    SLA合规率: COLORS.success,
+    工程师总数: COLORS.purple,
+    活跃工程师: COLORS.info,
   };
 
   // Team ranking table columns
@@ -179,7 +179,12 @@ const ExecutiveDashboard: React.FC = () => {
         <Badge
           count={index + 1}
           style={{
-            backgroundColor: index === 0 ? colors.warning[500] : index === 1 ? colors.neutral[400] : colors.warning[700],
+            backgroundColor:
+              index === 0
+                ? colors.warning[500]
+                : index === 1
+                  ? colors.neutral[400]
+                  : colors.warning[700],
           }}
         />
       ),
@@ -285,9 +290,7 @@ const ExecutiveDashboard: React.FC = () => {
           <TrophyOutlined style={{ marginRight: 8, color: COLORS.warning }} />
           总览看板
         </Title>
-        <Text type="secondary">
-          全局工单系统运行指标 — {dayjs().format('YYYY-MM-DD HH:mm')}
-        </Text>
+        <Text type="secondary">全局工单系统运行指标 — {dayjs().format('YYYY-MM-DD HH:mm')}</Text>
       </div>
 
       {/* KPI Cards - 8 cards in a 4x2 grid */}
@@ -339,11 +342,7 @@ const ExecutiveDashboard: React.FC = () => {
                               metric.trend.direction === 'up' ? COLORS.success : COLORS.warning,
                           }}
                         >
-                          {metric.trend.direction === 'up' ? (
-                            <RiseOutlined />
-                          ) : (
-                            <FallOutlined />
-                          )}{' '}
+                          {metric.trend.direction === 'up' ? <RiseOutlined /> : <FallOutlined />}{' '}
                           {metric.trend.value}%
                         </Text>
                       )}
@@ -361,7 +360,15 @@ const ExecutiveDashboard: React.FC = () => {
         {/* Ticket Volume Trend */}
         <Col xs={24} xl={12}>
           <CardPanel title="工单量趋势（近14天）" extra={<Tag color="blue">30天数据</Tag>}>
-            <div style={{ height: 200, display: 'flex', alignItems: 'flex-end', gap: 4, padding: '0 8px' }}>
+            <div
+              style={{
+                height: 200,
+                display: 'flex',
+                alignItems: 'flex-end',
+                gap: 4,
+                padding: '0 8px',
+              }}
+            >
               {recentVolumeTrend.map((d, i) => (
                 <div
                   key={i}
@@ -406,11 +413,20 @@ const ExecutiveDashboard: React.FC = () => {
             <Divider style={{ margin: '12px 0 8px' }} />
             <Space size={24}>
               <Space size={4}>
-                <div style={{ width: 10, height: 10, backgroundColor: COLORS.info, borderRadius: 2 }} />
+                <div
+                  style={{ width: 10, height: 10, backgroundColor: COLORS.info, borderRadius: 2 }}
+                />
                 <Text style={{ fontSize: spacing[3] }}>创建</Text>
               </Space>
               <Space size={4}>
-                <div style={{ width: 10, height: 10, backgroundColor: COLORS.success, borderRadius: 2 }} />
+                <div
+                  style={{
+                    width: 10,
+                    height: 10,
+                    backgroundColor: COLORS.success,
+                    borderRadius: 2,
+                  }}
+                />
                 <Text style={{ fontSize: spacing[3] }}>解决</Text>
               </Space>
             </Space>
@@ -420,10 +436,19 @@ const ExecutiveDashboard: React.FC = () => {
         {/* SLA Compliance Trend */}
         <Col xs={24} xl={12}>
           <CardPanel title="SLA合规率趋势（近14天）" extra={<Tag color="green">{'目标 >90%'}</Tag>}>
-            <div style={{ height: 200, display: 'flex', alignItems: 'flex-end', gap: 4, padding: '0 8px' }}>
+            <div
+              style={{
+                height: 200,
+                display: 'flex',
+                alignItems: 'flex-end',
+                gap: 4,
+                padding: '0 8px',
+              }}
+            >
               {data.trends.slaComplianceTrend.slice(-14).map((d, i) => {
                 const rate = d.rate;
-                const barColor = rate >= 90 ? COLORS.success : rate >= 80 ? COLORS.warning : COLORS.error;
+                const barColor =
+                  rate >= 90 ? COLORS.success : rate >= 80 ? COLORS.warning : COLORS.error;
                 return (
                   <div
                     key={i}
@@ -459,15 +484,31 @@ const ExecutiveDashboard: React.FC = () => {
             {/* 90% threshold line reference */}
             <Space size={16}>
               <Space size={4}>
-                <div style={{ width: 10, height: 10, backgroundColor: COLORS.success, borderRadius: 2 }} />
+                <div
+                  style={{
+                    width: 10,
+                    height: 10,
+                    backgroundColor: COLORS.success,
+                    borderRadius: 2,
+                  }}
+                />
                 <Text style={{ fontSize: spacing[3] }}>{'达标 (>=90%)'}</Text>
               </Space>
               <Space size={4}>
-                <div style={{ width: 10, height: 10, backgroundColor: COLORS.warning, borderRadius: 2 }} />
+                <div
+                  style={{
+                    width: 10,
+                    height: 10,
+                    backgroundColor: COLORS.warning,
+                    borderRadius: 2,
+                  }}
+                />
                 <Text style={{ fontSize: spacing[3] }}>预警 (80-90%)</Text>
               </Space>
               <Space size={4}>
-                <div style={{ width: 10, height: 10, backgroundColor: COLORS.error, borderRadius: 2 }} />
+                <div
+                  style={{ width: 10, height: 10, backgroundColor: COLORS.error, borderRadius: 2 }}
+                />
                 <Text style={{ fontSize: spacing[3] }}>{'违规 (<80%)'}</Text>
               </Space>
             </Space>
@@ -577,7 +618,12 @@ const ExecutiveDashboard: React.FC = () => {
       <Row gutter={[16, 16]}>
         {/* Category Distribution */}
         <Col xs={24} xl={14}>
-          <CardPanel title="工单分类分布" extra={<Tag color="purple">{Object.keys(data.distribution.byCategory).length}个分类</Tag>}>
+          <CardPanel
+            title="工单分类分布"
+            extra={
+              <Tag color="purple">{Object.keys(data.distribution.byCategory).length}个分类</Tag>
+            }
+          >
             <Space direction="vertical" style={{ width: '100%' }} size={12}>
               {Object.entries(data.distribution.byCategory).map(([key, val]) => (
                 <div
@@ -600,9 +646,7 @@ const ExecutiveDashboard: React.FC = () => {
                     width={160}
                   />
                   <Space size={16}>
-                    <Text style={{ minWidth: 40, textAlign: 'right' }}>
-                      {val.count} 个
-                    </Text>
+                    <Text style={{ minWidth: 40, textAlign: 'right' }}>{val.count} 个</Text>
                     <Text type="secondary" style={{ minWidth: 60, fontSize: spacing[3] }}>
                       平均 {val.avgResolutionHours}h
                     </Text>
@@ -636,9 +680,7 @@ const ExecutiveDashboard: React.FC = () => {
                     </Space>
                   </div>
                   <Progress
-                    percent={
-                      val.count > 0 ? Math.round((val.resolved / val.count) * 100) : 0
-                    }
+                    percent={val.count > 0 ? Math.round((val.resolved / val.count) * 100) : 0}
                     size="small"
                     strokeColor={priorityColors[key]}
                     format={(percent) => `${percent}% 已解决`}

@@ -54,24 +54,15 @@ export function assignTicket(
   return api.post(`/v1/tickets/${id}/assign`, data);
 }
 
-export function escalateTicket(
-  id: string,
-  data: { escalatedBy: string; reason?: string }
-) {
+export function escalateTicket(id: string, data: { escalatedBy: string; reason?: string }) {
   return api.post(`/v1/tickets/${id}/escalate`, data);
 }
 
-export function resolveTicket(
-  id: string,
-  data: { performedBy: string; resolutionNote?: string }
-) {
+export function resolveTicket(id: string, data: { performedBy: string; resolutionNote?: string }) {
   return api.post(`/v1/tickets/${id}/resolve`, data);
 }
 
-export function closeTicket(
-  id: string,
-  data: { performedBy: string; reason?: string }
-) {
+export function closeTicket(id: string, data: { performedBy: string; reason?: string }) {
   return api.post(`/v1/tickets/${id}/close`, data);
 }
 

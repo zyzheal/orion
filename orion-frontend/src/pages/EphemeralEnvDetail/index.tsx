@@ -52,7 +52,10 @@ import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
 
-const statusToBadge: Record<string, 'running' | 'pending' | 'success' | 'failed' | 'warning' | 'cancelled' | 'unknown'> = {
+const statusToBadge: Record<
+  string,
+  'running' | 'pending' | 'success' | 'failed' | 'warning' | 'cancelled' | 'unknown'
+> = {
   provisioning: 'pending',
   running: 'running',
   idle: 'warning',
@@ -257,7 +260,11 @@ const EphemeralEnvDetail: React.FC = () => {
       dataIndex: 'image',
       key: 'image',
       ellipsis: true,
-      render: (value: string) => <Text code style={{ fontSize: spacing[2] }}>{value}</Text>,
+      render: (value: string) => (
+        <Text code style={{ fontSize: spacing[2] }}>
+          {value}
+        </Text>
+      ),
     },
     {
       title: '副本数',
@@ -280,14 +287,39 @@ const EphemeralEnvDetail: React.FC = () => {
     },
   ];
 
-  const services = env.status === 'destroyed'
-    ? []
-    : [
-        { key: '1', name: 'frontend', image: `frontend:${env.commitSha?.slice(0, 7)}`, replicas: 1, health: env.status === 'running' ? 'healthy' : 'pending' },
-        { key: '2', name: 'backend', image: `backend:${env.commitSha?.slice(0, 7)}`, replicas: 1, health: env.status === 'running' ? 'healthy' : 'pending' },
-        { key: '3', name: 'database', image: 'postgres:15-alpine', replicas: 1, health: env.status === 'running' ? 'healthy' : 'pending' },
-        { key: '4', name: 'cache', image: 'redis:7-alpine', replicas: 1, health: env.status === 'running' ? 'healthy' : 'pending' },
-      ];
+  const services =
+    env.status === 'destroyed'
+      ? []
+      : [
+          {
+            key: '1',
+            name: 'frontend',
+            image: `frontend:${env.commitSha?.slice(0, 7)}`,
+            replicas: 1,
+            health: env.status === 'running' ? 'healthy' : 'pending',
+          },
+          {
+            key: '2',
+            name: 'backend',
+            image: `backend:${env.commitSha?.slice(0, 7)}`,
+            replicas: 1,
+            health: env.status === 'running' ? 'healthy' : 'pending',
+          },
+          {
+            key: '3',
+            name: 'database',
+            image: 'postgres:15-alpine',
+            replicas: 1,
+            health: env.status === 'running' ? 'healthy' : 'pending',
+          },
+          {
+            key: '4',
+            name: 'cache',
+            image: 'redis:7-alpine',
+            replicas: 1,
+            health: env.status === 'running' ? 'healthy' : 'pending',
+          },
+        ];
 
   return (
     <div style={{ padding: 0 }} data-testid="ephemeral-env-detail-page">
@@ -308,10 +340,15 @@ const EphemeralEnvDetail: React.FC = () => {
         style={{
           marginBottom: 24,
           borderLeft: `4px solid ${
-            env.status === 'running' ? colors.success[500] :
-            env.status === 'provisioning' ? colors.primary[500] :
-            env.status === 'idle' ? colors.warning[500] :
-            env.status === 'destroyed' ? colors.error[500] : colors.neutral[400]
+            env.status === 'running'
+              ? colors.success[500]
+              : env.status === 'provisioning'
+                ? colors.primary[500]
+                : env.status === 'idle'
+                  ? colors.warning[500]
+                  : env.status === 'destroyed'
+                    ? colors.error[500]
+                    : colors.neutral[400]
           }`,
         }}
       >
@@ -321,7 +358,10 @@ const EphemeralEnvDetail: React.FC = () => {
               <Title level={4} style={{ margin: 0 }}>
                 {env.namespace}
               </Title>
-              <StatusBadge status={statusToBadge[env.status] || 'unknown'} label={statusLabel[env.status]} />
+              <StatusBadge
+                status={statusToBadge[env.status] || 'unknown'}
+                label={statusLabel[env.status]}
+              />
             </Space>
             <Text type="secondary">
               PR #{env.prId} · {env.repoId} · <Tag>{env.branchName}</Tag>
@@ -329,11 +369,7 @@ const EphemeralEnvDetail: React.FC = () => {
           </div>
           <Space>
             {env.previewUrl && env.status === 'running' && (
-              <Button
-                type="primary"
-                icon={<LinkOutlined />}
-                onClick={handleOpenPreview}
-              >
+              <Button type="primary" icon={<LinkOutlined />} onClick={handleOpenPreview}>
                 打开 Preview
               </Button>
             )}
@@ -355,11 +391,7 @@ const EphemeralEnvDetail: React.FC = () => {
                 cancelText="取消"
                 okButtonProps={{ danger: true }}
               >
-                <Button
-                  danger
-                  icon={<PoweroffOutlined />}
-                  loading={actionLoading === 'teardown'}
-                >
+                <Button danger icon={<PoweroffOutlined />} loading={actionLoading === 'teardown'}>
                   销毁
                 </Button>
               </Popconfirm>
@@ -386,7 +418,9 @@ const EphemeralEnvDetail: React.FC = () => {
       <Card title="环境信息" size="small" style={{ marginBottom: 24 }}>
         <Descriptions column={3} size="small" bordered>
           <Descriptions.Item label="环境 ID">
-            <Text code style={{ fontSize: spacing[2] }}>{env.id}</Text>
+            <Text code style={{ fontSize: spacing[2] }}>
+              {env.id}
+            </Text>
           </Descriptions.Item>
           <Descriptions.Item label="Namespace">{env.namespace}</Descriptions.Item>
           <Descriptions.Item label="PR ID">#{env.prId}</Descriptions.Item>
@@ -395,7 +429,9 @@ const EphemeralEnvDetail: React.FC = () => {
             <Tag>{env.branchName}</Tag>
           </Descriptions.Item>
           <Descriptions.Item label="Commit SHA">
-            <Text code style={{ fontSize: spacing[2] }}>{env.commitSha}</Text>
+            <Text code style={{ fontSize: spacing[2] }}>
+              {env.commitSha}
+            </Text>
           </Descriptions.Item>
           <Descriptions.Item label="创建者">{env.createdBy || '-'}</Descriptions.Item>
           <Descriptions.Item label="创建时间">
@@ -526,15 +562,19 @@ const EphemeralEnvDetail: React.FC = () => {
                 <Text strong>{cost.networkCost.toFixed(2)}</Text>
               </Descriptions.Item>
             </Descriptions>
-            <div style={{
-              marginTop: 16,
-              padding: 12,
-              background: colors.success[50],
-              borderRadius: 6,
-              textAlign: 'center',
-              border: `1px solid ${colors.success[200]}`,
-            }}>
-              <Text type="secondary" style={{ fontSize: spacing[3] }}>总成本</Text>
+            <div
+              style={{
+                marginTop: 16,
+                padding: 12,
+                background: colors.success[50],
+                borderRadius: 6,
+                textAlign: 'center',
+                border: `1px solid ${colors.success[200]}`,
+              }}
+            >
+              <Text type="secondary" style={{ fontSize: spacing[3] }}>
+                总成本
+              </Text>
               <br />
               <Text strong style={{ fontSize: spacing[5], color: colors.success[500] }}>
                 {cost.totalCost.toFixed(2)} {cost.currency}

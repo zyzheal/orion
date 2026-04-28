@@ -26,7 +26,10 @@ const checkIsAuthenticated = (): boolean => {
 };
 
 // 检查用户角色是否满足路由要求
-const checkRoleAccess = (userRole: string | undefined, requiredRole: string | string[] | undefined): boolean => {
+const checkRoleAccess = (
+  userRole: string | undefined,
+  requiredRole: string | string[] | undefined
+): boolean => {
   if (!requiredRole) return true; // 无角色限制
   if (!userRole) return false;
 
@@ -35,10 +38,13 @@ const checkRoleAccess = (userRole: string | undefined, requiredRole: string | st
 };
 
 // 路由守卫组件
-const ProtectedRoute: React.FC<{ children: React.ReactNode; route: AppRoute }> = ({ children, route }) => {
+const ProtectedRoute: React.FC<{ children: React.ReactNode; route: AppRoute }> = ({
+  children,
+  route,
+}) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const userRole = useAuthStore(state => state.user?.role);
+  const userRole = useAuthStore((state) => state.user?.role);
   const [isChecking, setIsChecking] = useState(true);
   const [authorized, setAuthorized] = useState(false);
 

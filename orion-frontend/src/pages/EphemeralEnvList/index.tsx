@@ -146,15 +146,19 @@ const CostDrawer: React.FC<CostDrawerProps> = ({ env, open, onClose }) => {
             </Descriptions.Item>
           </Descriptions>
 
-          <div style={{
-            marginTop: 24,
-            padding: 16,
-            background: colors.success[50],
-            borderRadius: 8,
-            textAlign: 'center',
-            border: `1px solid ${colors.success[200]}`,
-          }}>
-            <Text type="secondary" style={{ fontSize: spacing[3] }}>总成本</Text>
+          <div
+            style={{
+              marginTop: 24,
+              padding: 16,
+              background: colors.success[50],
+              borderRadius: 8,
+              textAlign: 'center',
+              border: `1px solid ${colors.success[200]}`,
+            }}
+          >
+            <Text type="secondary" style={{ fontSize: spacing[3] }}>
+              总成本
+            </Text>
             <br />
             <Text strong style={{ fontSize: spacing[6], color: colors.success[500] }}>
               {cost.totalCost.toFixed(2)} {cost.currency}
@@ -241,15 +245,27 @@ const CreateEnvModal: React.FC<CreateEnvModalProps> = ({ open, onCancel, onSucce
           <Input placeholder="例如：123" />
         </Form.Item>
 
-        <Form.Item label="仓库 ID" name="repoId" rules={[{ required: true, message: '请输入仓库 ID' }]}>
+        <Form.Item
+          label="仓库 ID"
+          name="repoId"
+          rules={[{ required: true, message: '请输入仓库 ID' }]}
+        >
           <Input placeholder="例如：org/repo" />
         </Form.Item>
 
-        <Form.Item label="分支名称" name="branchName" rules={[{ required: true, message: '请输入分支名称' }]}>
+        <Form.Item
+          label="分支名称"
+          name="branchName"
+          rules={[{ required: true, message: '请输入分支名称' }]}
+        >
           <Input placeholder="例如：feature/my-feature" />
         </Form.Item>
 
-        <Form.Item label="Commit SHA" name="commitSha" rules={[{ required: true, message: '请输入 Commit SHA' }]}>
+        <Form.Item
+          label="Commit SHA"
+          name="commitSha"
+          rules={[{ required: true, message: '请输入 Commit SHA' }]}
+        >
           <Input placeholder="例如：abc1234" />
         </Form.Item>
 
@@ -302,13 +318,9 @@ const EphemeralEnvList: React.FC = () => {
     return envs.filter((env) => {
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
-        const searchable = [
-          env.prId,
-          env.repoId,
-          env.branchName,
-          env.namespace,
-          env.commitSha,
-        ].join(' ').toLowerCase();
+        const searchable = [env.prId, env.repoId, env.branchName, env.namespace, env.commitSha]
+          .join(' ')
+          .toLowerCase();
         if (!searchable.includes(query)) return false;
       }
 
@@ -436,7 +448,9 @@ const EphemeralEnvList: React.FC = () => {
         const status = String(value);
         return (
           <Badge
-            status={statusToColor[status] as 'success' | 'processing' | 'default' | 'error' | 'warning'}
+            status={
+              statusToColor[status] as 'success' | 'processing' | 'default' | 'error' | 'warning'
+            }
             text={statusLabel[status] || status}
           />
         );
@@ -549,12 +563,7 @@ const EphemeralEnvList: React.FC = () => {
                 cancelText="取消"
                 okButtonProps={{ danger: true }}
               >
-                <Button
-                  type="link"
-                  size="small"
-                  danger
-                  icon={<PoweroffOutlined />}
-                >
+                <Button type="link" size="small" danger icon={<PoweroffOutlined />}>
                   销毁
                 </Button>
               </Popconfirm>
@@ -580,9 +589,7 @@ const EphemeralEnvList: React.FC = () => {
           <Title level={3} style={{ margin: 0 }}>
             临时开发环境
           </Title>
-          <Text type="secondary">
-            共 {filteredEnvs.length} 个环境
-          </Text>
+          <Text type="secondary">共 {filteredEnvs.length} 个环境</Text>
         </div>
         <Space>
           <Button icon={<ReloadOutlined />} onClick={loadEnvs} loading={loading}>

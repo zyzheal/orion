@@ -2,12 +2,29 @@
  * Audit Log Viewer - Filterable log table, export, statistics
  */
 import React, { useState, useEffect, useCallback } from 'react';
-import { Typography, Button, Space, Tag, Card, Row, Col, Statistic, message, DatePicker } from 'antd';
+import {
+  Typography,
+  Button,
+  Space,
+  Tag,
+  Card,
+  Row,
+  Col,
+  Statistic,
+  message,
+  DatePicker,
+} from 'antd';
 import { spacing } from '@/tokens';
 import { ReloadOutlined, DownloadOutlined, BarChartOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
-import { getAuditLogs, getAuditStats, exportAuditLogs, type AuditLog, type AuditStats } from '@/api/chatops';
+import {
+  getAuditLogs,
+  getAuditStats,
+  exportAuditLogs,
+  type AuditLog,
+  type AuditStats,
+} from '@/api/chatops';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 
@@ -44,10 +61,7 @@ const AuditLogViewer: React.FC = () => {
         params.endDate = dateRange[1].format('YYYY-MM-DD');
       }
 
-      const [logRes, statsRes] = await Promise.all([
-        getAuditLogs(params),
-        getAuditStats(params),
-      ]);
+      const [logRes, statsRes] = await Promise.all([getAuditLogs(params), getAuditStats(params)]);
       setLogs(Array.isArray(logRes.data.data) ? logRes.data.data : []);
       setStats(statsRes.data.data as AuditStats | null);
     } catch (error: unknown) {
@@ -68,7 +82,9 @@ const AuditLogViewer: React.FC = () => {
   const handleExport = async () => {
     setExporting(true);
     try {
-      const startDate = dateRange ? dateRange[0].format('YYYY-MM-DD') : dayjs().subtract(30, 'day').format('YYYY-MM-DD');
+      const startDate = dateRange
+        ? dateRange[0].format('YYYY-MM-DD')
+        : dayjs().subtract(30, 'day').format('YYYY-MM-DD');
       const endDate = dateRange ? dateRange[1].format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD');
       await exportAuditLogs({ startDate, endDate, format: 'csv' });
       message.success('导出成功');
@@ -89,7 +105,11 @@ const AuditLogViewer: React.FC = () => {
       title: '日志 ID',
       dataIndex: 'id',
       width: 180,
-      render: (v: unknown) => <Text code style={{ fontSize: spacing[3] }}>{String(v).slice(0, 12)}...</Text>,
+      render: (v: unknown) => (
+        <Text code style={{ fontSize: spacing[3] }}>
+          {String(v).slice(0, 12)}...
+        </Text>
+      ),
     },
     {
       key: 'command',
@@ -98,7 +118,10 @@ const AuditLogViewer: React.FC = () => {
       width: 140,
       render: (v: unknown) => {
         // action 可能是对象 { command, params } 或字符串
-        const cmd = typeof v === 'object' && v !== null ? (v as { command?: string }).command || '-' : String(v || '-');
+        const cmd =
+          typeof v === 'object' && v !== null
+            ? (v as { command?: string }).command || '-'
+            : String(v || '-');
         return <Text code>/{cmd}</Text>;
       },
     },
@@ -109,7 +132,10 @@ const AuditLogViewer: React.FC = () => {
       width: 120,
       render: (v: unknown) => {
         // actor 可能是对象 { userId, platform } 或字符串
-        const uid = typeof v === 'object' && v !== null ? (v as { userId?: string }).userId || '-' : String(v || '-');
+        const uid =
+          typeof v === 'object' && v !== null
+            ? (v as { userId?: string }).userId || '-'
+            : String(v || '-');
         return <Text>{uid}</Text>;
       },
     },
@@ -120,7 +146,10 @@ const AuditLogViewer: React.FC = () => {
       width: 100,
       render: (v: unknown) => {
         // actor 可能是对象 { userId, platform } 或字符串
-        const p = typeof v === 'object' && v !== null ? (v as { platform?: string }).platform || '-' : String(v || '-');
+        const p =
+          typeof v === 'object' && v !== null
+            ? (v as { platform?: string }).platform || '-'
+            : String(v || '-');
         return <Tag>{p}</Tag>;
       },
     },
@@ -152,54 +181,91 @@ const AuditLogViewer: React.FC = () => {
       render: (v: unknown) => {
         const ts = String(v || '');
         const formatted = dayjs(ts).isValid() ? dayjs(ts).fromNow() : ts;
-        return <Text type="secondary" style={{ fontSize: spacing[3] }}>{formatted}</Text>;
+        return (
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
+            {formatted}
+          </Text>
+        );
       },
     },
   ];
 
   const filterDefs: FilterDefinition[] = [
-    { key: 'platform', label: '平台', options: [
-      { label: '全部', value: 'all' },
-      { label: '钉钉', value: 'dingtalk' },
-      { label: '企业微信', value: 'wecom' },
-      { label: '飞书', value: 'feishu' },
-      { label: 'CLI', value: 'cli' },
-    ]},
-    { key: 'status', label: '状态', options: [
-      { label: '全部', value: 'all' },
-      { label: '成功', value: 'success' },
-      { label: '失败', value: 'failed' },
-    ]},
+    {
+      key: 'platform',
+      label: '平台',
+      options: [
+        { label: '全部', value: 'all' },
+        { label: '钉钉', value: 'dingtalk' },
+        { label: '企业微信', value: 'wecom' },
+        { label: '飞书', value: 'feishu' },
+        { label: 'CLI', value: 'cli' },
+      ],
+    },
+    {
+      key: 'status',
+      label: '状态',
+      options: [
+        { label: '全部', value: 'all' },
+        { label: '成功', value: 'success' },
+        { label: '失败', value: 'failed' },
+      ],
+    },
   ];
 
   return (
     <div style={{ padding: 0 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          marginBottom: 24,
+        }}
+      >
         <div>
-          <Title level={3} style={{ margin: 0 }}>审计日志</Title>
+          <Title level={3} style={{ margin: 0 }}>
+            审计日志
+          </Title>
           <Text type="secondary">ChatOps 命令执行审计与统计</Text>
         </div>
         <Space>
-          <Button icon={<DownloadOutlined />} onClick={handleExport} loading={exporting}>导出</Button>
-          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>刷新</Button>
+          <Button icon={<DownloadOutlined />} onClick={handleExport} loading={exporting}>
+            导出
+          </Button>
+          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+            刷新
+          </Button>
         </Space>
       </div>
 
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col span={6}>
-          <Card><Statistic title="总执行数" value={stats?.totalExecutions || logs.length} /></Card>
-        </Col>
-        <Col span={6}>
-          <Card><Statistic title="成功率" value={stats?.successRate || 0} precision={1} suffix="%" /></Card>
-        </Col>
-        <Col span={6}>
           <Card>
-            <Statistic title="最常用命令" value={stats?.topCommands?.[0]?.command || '-'} valueStyle={{ fontSize: spacing[4] }} />
+            <Statistic title="总执行数" value={stats?.totalExecutions || logs.length} />
           </Card>
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="最活跃用户" value={stats?.topUsers?.[0]?.userId || '-'} valueStyle={{ fontSize: spacing[4] }} />
+            <Statistic title="成功率" value={stats?.successRate || 0} precision={1} suffix="%" />
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card>
+            <Statistic
+              title="最常用命令"
+              value={stats?.topCommands?.[0]?.command || '-'}
+              valueStyle={{ fontSize: spacing[4] }}
+            />
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card>
+            <Statistic
+              title="最活跃用户"
+              value={stats?.topUsers?.[0]?.userId || '-'}
+              valueStyle={{ fontSize: spacing[4] }}
+            />
           </Card>
         </Col>
       </Row>
@@ -210,7 +276,9 @@ const AuditLogViewer: React.FC = () => {
           <span style={{ fontSize: spacing[3] }}>日期范围：</span>
           <RangePicker
             value={dateRange}
-            onChange={(dates) => setDateRange(dates && dates[0] && dates[1] ? [dates[0], dates[1]] : null)}
+            onChange={(dates) =>
+              setDateRange(dates && dates[0] && dates[1] ? [dates[0], dates[1]] : null)
+            }
             format="YYYY-MM-DD"
           />
         </Space>
@@ -220,25 +288,58 @@ const AuditLogViewer: React.FC = () => {
         <Col span={16}>
           <Card>
             <div style={{ marginBottom: 16 }}>
-              <SearchFilterBar onSearch={setSearchQuery} onFilter={setFilters} filters={filterDefs} searchPlaceholder="搜索命令、用户..." />
+              <SearchFilterBar
+                onSearch={setSearchQuery}
+                onFilter={setFilters}
+                filters={filterDefs}
+                searchPlaceholder="搜索命令、用户..."
+              />
             </div>
-            <Table columns={columns} dataSource={logs} loading={loading} rowKey="id" size="middle" striped />
+            <Table
+              columns={columns}
+              dataSource={logs}
+              loading={loading}
+              rowKey="id"
+              size="middle"
+              striped
+            />
           </Card>
         </Col>
         <Col span={8}>
           {stats && (
             <>
-              <Card title={<Space><BarChartOutlined />平台分布</Space>} style={{ marginBottom: 16 }}>
+              <Card
+                title={
+                  <Space>
+                    <BarChartOutlined />
+                    平台分布
+                  </Space>
+                }
+                style={{ marginBottom: 16 }}
+              >
                 {stats.platformBreakdown?.map((item, index) => (
-                  <div key={index} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <div
+                    key={index}
+                    style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}
+                  >
                     <Tag>{item.platform}</Tag>
                     <Text>{item.count} 次</Text>
                   </div>
                 ))}
               </Card>
-              <Card title={<Space><BarChartOutlined />Top 命令</Space>}>
+              <Card
+                title={
+                  <Space>
+                    <BarChartOutlined />
+                    Top 命令
+                  </Space>
+                }
+              >
                 {stats.topCommands?.map((item, index) => (
-                  <div key={index} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <div
+                    key={index}
+                    style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}
+                  >
                     <Text code>/{item.command}</Text>
                     <Text>{item.count} 次</Text>
                   </div>

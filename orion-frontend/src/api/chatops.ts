@@ -161,7 +161,10 @@ export interface ChatMessage {
   metadata?: Record<string, unknown>;
 }
 
-export function getSessionMessages(sessionId: string, params?: { limit?: number; cursor?: string }) {
+export function getSessionMessages(
+  sessionId: string,
+  params?: { limit?: number; cursor?: string }
+) {
   return api.get(`/v1/chatops/sessions/${sessionId}/messages`, { params });
 }
 
@@ -209,13 +212,15 @@ export function getDNDSettings() {
   return api.get('/v1/chatops/settings/dnd');
 }
 
-export function updateDNDSettings(data: Partial<{
-  enabled: boolean;
-  startTime: string;
-  endTime: string;
-  repeatDays: number[];
-  allowCritical: boolean;
-}>) {
+export function updateDNDSettings(
+  data: Partial<{
+    enabled: boolean;
+    startTime: string;
+    endTime: string;
+    repeatDays: number[];
+    allowCritical: boolean;
+  }>
+) {
   return api.put('/v1/chatops/settings/dnd', data);
 }
 
@@ -288,10 +293,10 @@ export interface SSEConnectionConfig {
 
 /** ARCH-005: 默认 SSE 配置 */
 const DEFAULT_SSE_CONFIG: SSEConnectionConfig = {
-  maxReconnectAttempts: 20,  // 与后端 NATS 默认对齐
-  initialDelayMs: 2000,      // 与后端 reconnectTimeWait 对齐
+  maxReconnectAttempts: 20, // 与后端 NATS 默认对齐
+  initialDelayMs: 2000, // 与后端 reconnectTimeWait 对齐
   maxDelayMs: 30000,
-  healthCheckIntervalMs: 10000,  // 每 10s 检查后端健康状态
+  healthCheckIntervalMs: 10000, // 每 10s 检查后端健康状态
 };
 
 export interface SSEConnectionOptions {
@@ -386,7 +391,7 @@ export function connectSSE(options: SSEConnectionOptions): void {
     // ARCH-005: 后端恢复健康且有连接问题时立即重试
     if (health.healthy && !sseState?.eventSource && sseState?.attempt > 0) {
       console.log('[SSE] Backend recovered, attempting immediate reconnect');
-      sseState!.attempt = 0;  // 重置重试计数
+      sseState!.attempt = 0; // 重置重试计数
       doConnect();
     }
   }, config.healthCheckIntervalMs);
@@ -458,10 +463,12 @@ export function connectSSE(options: SSEConnectionOptions): void {
 
         // ARCH-005: 后端 fallback 时使用固定延迟而非指数退避
         const delay = sseState!.backendFallback
-          ? config.initialDelayMs * 2  // Fallback 时使用固定较长延迟
+          ? config.initialDelayMs * 2 // Fallback 时使用固定较长延迟
           : getReconnectDelay(sseState!.attempt);
 
-        options.onError?.(new Error(`SSE 连接断开，${delay}ms 后重试 (第 ${sseState!.attempt} 次)`));
+        options.onError?.(
+          new Error(`SSE 连接断开，${delay}ms 后重试 (第 ${sseState!.attempt} 次)`)
+        );
 
         sseState!.reconnectTimer = setTimeout(() => {
           if (sseState!.disposed) return;
@@ -519,7 +526,8 @@ export function getSSEState(): {
     return { connected: false, attempt: 0, backendHealthy: false, backendFallback: false };
   }
   return {
-    connected: sseState.eventSource !== null && sseState.eventSource.readyState === EventSource.OPEN,
+    connected:
+      sseState.eventSource !== null && sseState.eventSource.readyState === EventSource.OPEN,
     attempt: sseState.attempt,
     backendHealthy: sseState.backendHealthy,
     backendFallback: sseState.backendFallback,

@@ -24,7 +24,7 @@ export const ActionCard: React.FC<{
         </div>
       )}
       <Space wrap>
-        {actions.map(action => (
+        {actions.map((action) => (
           <Button
             key={action.label}
             size="small"

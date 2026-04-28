@@ -45,8 +45,10 @@ export interface TablePagination {
   total: number;
 }
 
-export interface OrionTableProps<T extends object>
-  extends Omit<TableProps<T>, 'columns' | 'pagination'> {
+export interface OrionTableProps<T extends object> extends Omit<
+  TableProps<T>,
+  'columns' | 'pagination'
+> {
   /** Column definitions */
   columns: TableColumn<T>[];
   /** Data source */
@@ -288,12 +290,7 @@ function OrionTable<T extends object>({
           }}
         >
           {hasActiveFilters && (
-            <Button
-              size="small"
-              icon={<ClearOutlined />}
-              onClick={clearAllFilters}
-              type="link"
-            >
+            <Button size="small" icon={<ClearOutlined />} onClick={clearAllFilters} type="link">
               Clear All Filters
             </Button>
           )}
@@ -311,7 +308,9 @@ function OrionTable<T extends object>({
         scroll={scroll}
         loading={loading}
         rowClassName={
-          striped ? (_record, index) => (index % 2 === 1 ? 'orion-table-row-stripe' : '') : undefined
+          striped
+            ? (_record, index) => (index % 2 === 1 ? 'orion-table-row-stripe' : '')
+            : undefined
         }
         locale={{
           emptyText: 'No data available',
@@ -330,19 +329,27 @@ function OrionTable<T extends object>({
           }}
         >
           <Pagination
-            current={externalPagination && typeof externalPagination === 'object' ? externalPagination.current : page}
-            pageSize={externalPagination && typeof externalPagination === 'object' ? externalPagination.pageSize : pageSize}
-            total={externalPagination && typeof externalPagination === 'object' ? externalPagination.total : processedData.length}
+            current={
+              externalPagination && typeof externalPagination === 'object'
+                ? externalPagination.current
+                : page
+            }
+            pageSize={
+              externalPagination && typeof externalPagination === 'object'
+                ? externalPagination.pageSize
+                : pageSize
+            }
+            total={
+              externalPagination && typeof externalPagination === 'object'
+                ? externalPagination.total
+                : processedData.length
+            }
             onChange={handlePaginationChange}
             onShowSizeChange={(_, size) => handlePaginationChange(1, size)}
             pageSizeOptions={pageSizeOptions.map(String)}
             showSizeChanger
             showQuickJumper={showQuickJumper}
-            showTotal={
-              showTotal
-                ? (total) => `Total ${total} items`
-                : undefined
-            }
+            showTotal={showTotal ? (total) => `Total ${total} items` : undefined}
           />
         </div>
       )}

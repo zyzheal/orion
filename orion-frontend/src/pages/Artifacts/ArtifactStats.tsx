@@ -3,9 +3,7 @@
  */
 import React from 'react';
 import { Statistic, Row, Col, Card } from 'antd';
-import {
-  FileTextOutlined, ClockCircleOutlined,
-} from '@ant-design/icons';
+import { FileTextOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import { colors } from '@/tokens/colors';
 import type { ArtifactStats } from '@/api/artifacts';
 
@@ -27,22 +25,47 @@ const ArtifactStats: React.FC<ArtifactStatsProps> = ({ stats }) => (
         <Statistic title="制品总数" value={stats.total} prefix={<FileTextOutlined />} />
       </Col>
       <Col span={3}>
-        <Statistic title="Snapshot" value={stats.byStage?.snapshot ?? 0} valueStyle={{ color: colors.neutral[500], fontSize: 20 }} />
+        <Statistic
+          title="Snapshot"
+          value={stats.byStage?.snapshot ?? 0}
+          valueStyle={{ color: colors.neutral[500], fontSize: 20 }}
+        />
       </Col>
       <Col span={3}>
-        <Statistic title="RC" value={stats.byStage?.release_candidate ?? 0} valueStyle={{ color: colors.primary[500], fontSize: 20 }} />
+        <Statistic
+          title="RC"
+          value={stats.byStage?.release_candidate ?? 0}
+          valueStyle={{ color: colors.primary[500], fontSize: 20 }}
+        />
       </Col>
       <Col span={3}>
-        <Statistic title="Stable" value={stats.byStage?.stable ?? 0} valueStyle={{ color: colors.success[500], fontSize: 20 }} />
+        <Statistic
+          title="Stable"
+          value={stats.byStage?.stable ?? 0}
+          valueStyle={{ color: colors.success[500], fontSize: 20 }}
+        />
       </Col>
       <Col span={3}>
-        <Statistic title="Production" value={stats.byStage?.production ?? 0} valueStyle={{ color: colors.warning[500], fontSize: 20 }} />
+        <Statistic
+          title="Production"
+          value={stats.byStage?.production ?? 0}
+          valueStyle={{ color: colors.warning[500], fontSize: 20 }}
+        />
       </Col>
       <Col span={3}>
-        <Statistic title="Archived" value={stats.byStage?.archived ?? 0} valueStyle={{ color: colors.warning[500], fontSize: 20 }} />
+        <Statistic
+          title="Archived"
+          value={stats.byStage?.archived ?? 0}
+          valueStyle={{ color: colors.warning[500], fontSize: 20 }}
+        />
       </Col>
       <Col span={3}>
-        <Statistic title="总大小" value={formatSize(stats.totalSizeBytes || 0)} valueStyle={{ fontSize: 16 }} prefix={<ClockCircleOutlined />} />
+        <Statistic
+          title="总大小"
+          value={formatSize(stats.totalSizeBytes || 0)}
+          valueStyle={{ fontSize: 16 }}
+          prefix={<ClockCircleOutlined />}
+        />
       </Col>
     </Row>
   </Card>

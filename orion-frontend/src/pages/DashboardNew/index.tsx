@@ -3,7 +3,19 @@
  * 展示待处理事项、系统状态、快速入口
  */
 import React from 'react';
-import { Card, Row, Col, Statistic, Progress, Tag, Table, Typography, Badge, Button, Space } from 'antd';
+import {
+  Card,
+  Row,
+  Col,
+  Statistic,
+  Progress,
+  Tag,
+  Table,
+  Typography,
+  Badge,
+  Button,
+  Space,
+} from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { colors, spacing } from '@/tokens';
 import {
@@ -77,19 +89,89 @@ const pipelineStats = {
 };
 
 const recentPipelines: PipelineRecord[] = [
-  { key: '1', name: 'frontend-deploy', status: 'running', duration: '2m 30s', trigger: 'heal', time: '2 分钟前' },
-  { key: '2', name: 'api-service-build', status: 'success', duration: '5m 12s', trigger: 'ci-bot', time: '10 分钟前' },
-  { key: '3', name: 'database-migration', status: 'pending', duration: '-', trigger: 'heal', time: '15 分钟前' },
-  { key: '4', name: 'test-suite', status: 'failed', duration: '1m 45s', trigger: 'ci-bot', time: '1 小时前' },
-  { key: '5', name: 'docs-build', status: 'success', duration: '3m 20s', trigger: 'heal', time: '2 小时前' },
+  {
+    key: '1',
+    name: 'frontend-deploy',
+    status: 'running',
+    duration: '2m 30s',
+    trigger: 'heal',
+    time: '2 分钟前',
+  },
+  {
+    key: '2',
+    name: 'api-service-build',
+    status: 'success',
+    duration: '5m 12s',
+    trigger: 'ci-bot',
+    time: '10 分钟前',
+  },
+  {
+    key: '3',
+    name: 'database-migration',
+    status: 'pending',
+    duration: '-',
+    trigger: 'heal',
+    time: '15 分钟前',
+  },
+  {
+    key: '4',
+    name: 'test-suite',
+    status: 'failed',
+    duration: '1m 45s',
+    trigger: 'ci-bot',
+    time: '1 小时前',
+  },
+  {
+    key: '5',
+    name: 'docs-build',
+    status: 'success',
+    duration: '3m 20s',
+    trigger: 'heal',
+    time: '2 小时前',
+  },
 ];
 
 const tasks: TaskRecord[] = [
-  { key: '1', title: '完成 F206 子应用联调测试', priority: 'high', status: 'in-progress', assignee: 'heal', due: '今天' },
-  { key: '2', title: '修复 Pipeline 执行超时问题', priority: 'high', status: 'todo', assignee: 'heal', due: '明天' },
-  { key: '3', title: '更新 API 文档', priority: 'medium', status: 'todo', assignee: 'team', due: '本周' },
-  { key: '4', title: '代码审查 - PR #128', priority: 'medium', status: 'in-progress', assignee: 'heal', due: '今天' },
-  { key: '5', title: '性能优化 - 启动速度', priority: 'low', status: 'todo', assignee: 'team', due: '下周' },
+  {
+    key: '1',
+    title: '完成 F206 子应用联调测试',
+    priority: 'high',
+    status: 'in-progress',
+    assignee: 'heal',
+    due: '今天',
+  },
+  {
+    key: '2',
+    title: '修复 Pipeline 执行超时问题',
+    priority: 'high',
+    status: 'todo',
+    assignee: 'heal',
+    due: '明天',
+  },
+  {
+    key: '3',
+    title: '更新 API 文档',
+    priority: 'medium',
+    status: 'todo',
+    assignee: 'team',
+    due: '本周',
+  },
+  {
+    key: '4',
+    title: '代码审查 - PR #128',
+    priority: 'medium',
+    status: 'in-progress',
+    assignee: 'heal',
+    due: '今天',
+  },
+  {
+    key: '5',
+    title: '性能优化 - 启动速度',
+    priority: 'low',
+    status: 'todo',
+    assignee: 'team',
+    due: '下周',
+  },
 ];
 
 const systemHealth: SystemHealthItem[] = [
@@ -101,17 +183,46 @@ const systemHealth: SystemHealthItem[] = [
 ];
 
 const quickActions: QuickAction[] = [
-  { name: '创建 Pipeline', icon: <RocketOutlined />, color: colors.primary[500], path: '/pipelines/create' },
+  {
+    name: '创建 Pipeline',
+    icon: <RocketOutlined />,
+    color: colors.primary[500],
+    path: '/pipelines/create',
+  },
   { name: '查看日志', icon: <CodeOutlined />, color: colors.success[500], path: '/logs' },
   { name: '运行任务', icon: <PlayCircleOutlined />, color: colors.purple[500], path: '/tasks' },
   { name: '历史记录', icon: <HistoryOutlined />, color: colors.warning[500], path: '/history' },
 ];
 
 const dashboardLinks: DashboardLink[] = [
-  { name: '总览看板', icon: <DashboardOutlined />, color: colors.primary[500], path: '/dashboard/executive', desc: '全局 KPI、趋势、排行' },
-  { name: '经理看板', icon: <TeamOutlined />, color: colors.purple[500], path: '/dashboard/manager', desc: '团队明细、周环比' },
-  { name: '个人看板', icon: <UserSwitchOutlined />, color: colors.success[500], path: '/dashboard/engineer', desc: '个人效能、在手工单' },
-  { name: '告警中心', icon: <AlertOutlined />, color: colors.error[400], path: '/alerts', desc: '告警列表、确认处理' },
+  {
+    name: '总览看板',
+    icon: <DashboardOutlined />,
+    color: colors.primary[500],
+    path: '/dashboard/executive',
+    desc: '全局 KPI、趋势、排行',
+  },
+  {
+    name: '经理看板',
+    icon: <TeamOutlined />,
+    color: colors.purple[500],
+    path: '/dashboard/manager',
+    desc: '团队明细、周环比',
+  },
+  {
+    name: '个人看板',
+    icon: <UserSwitchOutlined />,
+    color: colors.success[500],
+    path: '/dashboard/engineer',
+    desc: '个人效能、在手工单',
+  },
+  {
+    name: '告警中心',
+    icon: <AlertOutlined />,
+    color: colors.error[400],
+    path: '/alerts',
+    desc: '告警列表、确认处理',
+  },
 ];
 
 const statusColors: Record<string, string> = {
@@ -136,8 +247,8 @@ const DashboardNew: React.FC = () => {
   // 任务统计
   const taskStats = {
     total: tasks.length,
-    inProgress: tasks.filter(t => t.status === 'in-progress').length,
-    todo: tasks.filter(t => t.status === 'todo').length,
+    inProgress: tasks.filter((t) => t.status === 'in-progress').length,
+    todo: tasks.filter((t) => t.status === 'todo').length,
     completed: 12,
   };
 
@@ -151,7 +262,9 @@ const DashboardNew: React.FC = () => {
           <Text strong>{text}</Text>
           <Space size={8} style={{ marginTop: 4 }}>
             <Tag color={priorityColors[record.priority]}>{record.priority.toUpperCase()}</Tag>
-            <Text type="secondary" style={{ fontSize: spacing[3] }}>截止：{record.due}</Text>
+            <Text type="secondary" style={{ fontSize: spacing[3] }}>
+              截止：{record.due}
+            </Text>
           </Space>
         </Space>
       ),
@@ -163,11 +276,16 @@ const DashboardNew: React.FC = () => {
       render: (status: string) => {
         const config: Record<string, { text: string; color: string }> = {
           'in-progress': { text: '进行中', color: 'blue' },
-          'todo': { text: '待开始', color: 'default' },
-          'done': { text: '已完成', color: 'green' },
+          todo: { text: '待开始', color: 'default' },
+          done: { text: '已完成', color: 'green' },
         };
         const { text, color } = config[status] || { text: status, color: 'default' };
-        return <Badge status={color as 'success' | 'processing' | 'error' | 'default' | 'warning'} text={text} />;
+        return (
+          <Badge
+            status={color as 'success' | 'processing' | 'error' | 'default' | 'warning'}
+            text={text}
+          />
+        );
       },
     },
     {
@@ -175,13 +293,19 @@ const DashboardNew: React.FC = () => {
       dataIndex: 'assignee',
       key: 'assignee',
       render: (assignee: string) => (
-        <Text code style={{ fontSize: spacing[3] }}>{assignee}</Text>
+        <Text code style={{ fontSize: spacing[3] }}>
+          {assignee}
+        </Text>
       ),
     },
     {
       title: '操作',
       key: 'action',
-      render: () => <Button type="link" size="small">处理</Button>,
+      render: () => (
+        <Button type="link" size="small">
+          处理
+        </Button>
+      ),
     },
   ];
 
@@ -197,7 +321,11 @@ const DashboardNew: React.FC = () => {
       dataIndex: 'status',
       key: 'status',
       render: (status: string) => (
-        <Badge status={statusColors[status] as 'success' | 'processing' | 'error' | 'default' | 'warning'} />
+        <Badge
+          status={
+            statusColors[status] as 'success' | 'processing' | 'error' | 'default' | 'warning'
+          }
+        />
       ),
     },
     {
@@ -218,7 +346,7 @@ const DashboardNew: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      render: (_: unknown, record: typeof recentPipelines[0]) => (
+      render: (_: unknown, record: (typeof recentPipelines)[0]) => (
         <Button type="link" size="small" disabled={record.status === 'pending'}>
           {record.status === 'running' ? '查看' : '重试'}
         </Button>
@@ -307,10 +435,7 @@ const DashboardNew: React.FC = () => {
           </Card>
 
           {/* 最近 Pipeline */}
-          <Card
-            title="最近 Pipeline 执行"
-            extra={<Button type="link">查看全部</Button>}
-          >
+          <Card title="最近 Pipeline 执行" extra={<Button type="link">查看全部</Button>}>
             <Table
               columns={pipelineColumns}
               dataSource={recentPipelines}
@@ -324,8 +449,17 @@ const DashboardNew: React.FC = () => {
         <Col xs={24} xl={8}>
           {/* 效能看板入口 */}
           <Card
-            title={<Space><BarChartOutlined />效能看板</Space>}
-            extra={<Button type="link" size="small" onClick={() => navigate('/dashboard/executive')}>查看全部</Button>}
+            title={
+              <Space>
+                <BarChartOutlined />
+                效能看板
+              </Space>
+            }
+            extra={
+              <Button type="link" size="small" onClick={() => navigate('/dashboard/executive')}>
+                查看全部
+              </Button>
+            }
             style={{ marginBottom: 16 }}
           >
             <Row gutter={[12, 12]}>
@@ -350,8 +484,12 @@ const DashboardNew: React.FC = () => {
                     <div style={{ fontSize: spacing[6], color: link.color, marginBottom: 6 }}>
                       {link.icon}
                     </div>
-                    <Text strong style={{ fontSize: spacing[3] }}>{link.name}</Text>
-                    <Text type="secondary" style={{ fontSize: spacing[2], marginTop: 2 }}>{link.desc}</Text>
+                    <Text strong style={{ fontSize: spacing[3] }}>
+                      {link.name}
+                    </Text>
+                    <Text type="secondary" style={{ fontSize: spacing[2], marginTop: 2 }}>
+                      {link.desc}
+                    </Text>
                   </Card>
                 </Col>
               ))}
@@ -359,10 +497,7 @@ const DashboardNew: React.FC = () => {
           </Card>
 
           {/* 系统健康状态 */}
-          <Card
-            title="系统健康状态"
-            style={{ marginBottom: 16 }}
-          >
+          <Card title="系统健康状态" style={{ marginBottom: 16 }}>
             <Space direction="vertical" style={{ width: '100%' }} size={12}>
               {systemHealth.map((item) => (
                 <div
@@ -380,8 +515,12 @@ const DashboardNew: React.FC = () => {
                     <Text>{item.name}</Text>
                   </Space>
                   <Space>
-                    <Text type="secondary" style={{ fontSize: spacing[3] }}>{item.latency}</Text>
-                    <Text type="secondary" style={{ fontSize: spacing[3] }}>{item.uptime}</Text>
+                    <Text type="secondary" style={{ fontSize: spacing[3] }}>
+                      {item.latency}
+                    </Text>
+                    <Text type="secondary" style={{ fontSize: spacing[3] }}>
+                      {item.uptime}
+                    </Text>
                   </Space>
                 </div>
               ))}

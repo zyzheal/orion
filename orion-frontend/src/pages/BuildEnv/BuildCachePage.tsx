@@ -3,7 +3,20 @@
  * Two tabs: Cache Configs and Cache Entries, with CRUD and cleanup actions.
  */
 import React, { useState, useEffect } from 'react';
-import { Typography, Button, Space, Tag, Tabs, Modal, Form, Input, Select, Switch, Popconfirm, message } from 'antd';
+import {
+  Typography,
+  Button,
+  Space,
+  Tag,
+  Tabs,
+  Modal,
+  Form,
+  Input,
+  Select,
+  Switch,
+  Popconfirm,
+  message,
+} from 'antd';
 import { spacing } from '@/tokens';
 import { ReloadOutlined, DeleteOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
@@ -192,7 +205,11 @@ const BuildCachePage: React.FC = () => {
       title: 'Pipeline',
       dataIndex: 'pipeline',
       width: 160,
-      render: (value) => <Text code style={{ fontSize: spacing[3] }}>{String(value)}</Text>,
+      render: (value) => (
+        <Text code style={{ fontSize: spacing[3] }}>
+          {String(value)}
+        </Text>
+      ),
     },
     {
       key: 'stage',
@@ -207,7 +224,11 @@ const BuildCachePage: React.FC = () => {
       dataIndex: 'strategy',
       width: 120,
       render: (value) => {
-        const colorMap: Record<string, string> = { volume: 'blue', s3: 'orange', registry: 'purple' };
+        const colorMap: Record<string, string> = {
+          volume: 'blue',
+          s3: 'orange',
+          registry: 'purple',
+        };
         return <Tag color={colorMap[String(value)] || 'default'}>{String(value)}</Tag>;
       },
     },
@@ -221,7 +242,9 @@ const BuildCachePage: React.FC = () => {
         return (
           <Space wrap size={4}>
             {paths.slice(0, 3).map((p, i) => (
-              <Tag key={i} style={{ margin: 0 }}>{p}</Tag>
+              <Tag key={i} style={{ margin: 0 }}>
+                {p}
+              </Tag>
             ))}
             {paths.length > 3 && <Tag>+{paths.length - 3}</Tag>}
           </Space>
@@ -241,7 +264,12 @@ const BuildCachePage: React.FC = () => {
       dataIndex: 'enabled',
       width: 100,
       render: (value) => (
-        <StatusBadge status={value ? 'success' : 'cancelled'} label={value ? 'Yes' : 'No'} size="small" showDot={false} />
+        <StatusBadge
+          status={value ? 'success' : 'cancelled'}
+          label={value ? 'Yes' : 'No'}
+          size="small"
+          showDot={false}
+        />
       ),
     },
     {
@@ -286,14 +314,22 @@ const BuildCachePage: React.FC = () => {
       dataIndex: 'key',
       width: 300,
       sortable: true,
-      render: (value) => <Text code style={{ fontSize: spacing[3] }}>{String(value)}</Text>,
+      render: (value) => (
+        <Text code style={{ fontSize: spacing[3] }}>
+          {String(value)}
+        </Text>
+      ),
     },
     {
       key: 'configId',
       title: 'Config ID',
       dataIndex: 'configId',
       width: 140,
-      render: (value) => <Text type="secondary" style={{ fontSize: spacing[3] }}>{String(value)}</Text>,
+      render: (value) => (
+        <Text type="secondary" style={{ fontSize: spacing[3] }}>
+          {String(value)}
+        </Text>
+      ),
     },
     {
       key: 'size',
@@ -359,7 +395,12 @@ const BuildCachePage: React.FC = () => {
         <div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
             <Space>
-              <Button icon={<ReloadOutlined />} onClick={loadConfigs} loading={loadingConfigs} size="small">
+              <Button
+                icon={<ReloadOutlined />}
+                onClick={loadConfigs}
+                loading={loadingConfigs}
+                size="small"
+              >
                 Refresh
               </Button>
               <Button icon={<ThunderboltOutlined />} onClick={handleCleanupExpired} size="small">
@@ -367,7 +408,14 @@ const BuildCachePage: React.FC = () => {
               </Button>
             </Space>
           </div>
-          <Table columns={configColumns} dataSource={configs} loading={loadingConfigs} rowKey="id" size="middle" striped />
+          <Table
+            columns={configColumns}
+            dataSource={configs}
+            loading={loadingConfigs}
+            rowKey="id"
+            size="middle"
+            striped
+          />
         </div>
       ),
     },
@@ -378,7 +426,12 @@ const BuildCachePage: React.FC = () => {
         <div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
             <Space>
-              <Button icon={<ReloadOutlined />} onClick={loadEntries} loading={loadingEntries} size="small">
+              <Button
+                icon={<ReloadOutlined />}
+                onClick={loadEntries}
+                loading={loadingEntries}
+                size="small"
+              >
                 Refresh
               </Button>
               <Button icon={<ThunderboltOutlined />} onClick={handleCleanupExpired} size="small">
@@ -386,7 +439,14 @@ const BuildCachePage: React.FC = () => {
               </Button>
             </Space>
           </div>
-          <Table columns={entryColumns} dataSource={entries} loading={loadingEntries} rowKey="id" size="middle" striped />
+          <Table
+            columns={entryColumns}
+            dataSource={entries}
+            loading={loadingEntries}
+            rowKey="id"
+            size="middle"
+            striped
+          />
         </div>
       ),
     },
@@ -394,9 +454,18 @@ const BuildCachePage: React.FC = () => {
 
   return (
     <div style={{ padding: 0 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          marginBottom: 24,
+        }}
+      >
         <div>
-          <Title level={3} style={{ margin: 0 }}>Build Cache</Title>
+          <Title level={3} style={{ margin: 0 }}>
+            Build Cache
+          </Title>
           <Text type="secondary">Manage cache configurations and cached build artifacts</Text>
         </div>
         <Button type="primary" onClick={openCreateConfigModal}>
@@ -410,18 +479,34 @@ const BuildCachePage: React.FC = () => {
         title={editingConfig ? 'Edit Cache Config' : 'Add Cache Config'}
         open={configModalOpen}
         onOk={handleSaveConfig}
-        onCancel={() => { setConfigModalOpen(false); setEditingConfig(null); form.resetFields(); }}
+        onCancel={() => {
+          setConfigModalOpen(false);
+          setEditingConfig(null);
+          form.resetFields();
+        }}
         okText={editingConfig ? 'Update' : 'Create'}
         width={560}
       >
         <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
-          <Form.Item name="name" label="Name" rules={[{ required: true, message: 'Please enter a name' }]}>
+          <Form.Item
+            name="name"
+            label="Name"
+            rules={[{ required: true, message: 'Please enter a name' }]}
+          >
             <Input placeholder="e.g. node-modules-cache" />
           </Form.Item>
-          <Form.Item name="pipeline" label="Pipeline" rules={[{ required: true, message: 'Please enter a pipeline' }]}>
+          <Form.Item
+            name="pipeline"
+            label="Pipeline"
+            rules={[{ required: true, message: 'Please enter a pipeline' }]}
+          >
             <Input placeholder="e.g. build-pipeline" />
           </Form.Item>
-          <Form.Item name="stage" label="Stage" rules={[{ required: true, message: 'Please enter a stage' }]}>
+          <Form.Item
+            name="stage"
+            label="Stage"
+            rules={[{ required: true, message: 'Please enter a stage' }]}
+          >
             <Input placeholder="e.g. build" />
           </Form.Item>
           <Form.Item name="strategy" label="Strategy" rules={[{ required: true }]}>
@@ -431,10 +516,18 @@ const BuildCachePage: React.FC = () => {
               <Select.Option value="registry">Registry</Select.Option>
             </Select>
           </Form.Item>
-          <Form.Item name="paths" label="Paths" rules={[{ required: true, message: 'Please enter paths' }]}>
+          <Form.Item
+            name="paths"
+            label="Paths"
+            rules={[{ required: true, message: 'Please enter paths' }]}
+          >
             <Select mode="tags" placeholder="Enter cache paths (e.g., node_modules/, .cache/)" />
           </Form.Item>
-          <Form.Item name="ttlDays" label="TTL (days)" rules={[{ required: true, message: 'Please enter TTL' }]}>
+          <Form.Item
+            name="ttlDays"
+            label="TTL (days)"
+            rules={[{ required: true, message: 'Please enter TTL' }]}
+          >
             <Input type="number" min={1} />
           </Form.Item>
           <Form.Item name="enabled" label="Enabled" valuePropName="checked">

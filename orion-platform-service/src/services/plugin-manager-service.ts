@@ -216,7 +216,7 @@ export class PluginManagerService extends EventEmitter {
 
     // 获取插件元数据（从注册表）
     const availablePlugins = await this.listAvailablePlugins();
-    let plugin = availablePlugins.find((p) => p.id === pluginId);
+    const plugin = availablePlugins.find((p) => p.id === pluginId);
 
     if (!plugin) {
       throw new Error(`Plugin ${pluginId} not found`);

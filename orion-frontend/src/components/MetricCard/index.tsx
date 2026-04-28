@@ -44,10 +44,7 @@ export interface MetricCardProps {
 // Helper: Calculate trend percentage
 // ============================================================================
 
-function calculateTrendPercent(
-  current: number | string,
-  previous: number | string
-): number {
+function calculateTrendPercent(current: number | string, previous: number | string): number {
   const curr = typeof current === 'string' ? parseFloat(current) : current;
   const prev = typeof previous === 'string' ? parseFloat(previous) : previous;
 

@@ -21,8 +21,10 @@ vi.mock('react-router-dom', () => ({
     state: null,
     key: 'test-key',
   }),
-  BrowserRouter: ({ children }: { children: React.ReactNode }) => React.createElement('div', null, children),
-  Routes: ({ children }: { children: React.ReactNode }) => React.createElement('div', null, children),
+  BrowserRouter: ({ children }: { children: React.ReactNode }) =>
+    React.createElement('div', null, children),
+  Routes: ({ children }: { children: React.ReactNode }) =>
+    React.createElement('div', null, children),
   Route: ({ children }: { children: React.ReactNode }) => children,
 }));
 
@@ -66,7 +68,11 @@ vi.mock('@/stores/appStore', () => ({
 // Mock Loading component
 vi.mock('@/components/Loading', () => ({
   Loading: ({ fullscreen }: { fullscreen?: boolean }) =>
-    React.createElement('div', { 'data-testid': 'loading', 'data-fullscreen': fullscreen }, 'Loading'),
+    React.createElement(
+      'div',
+      { 'data-testid': 'loading', 'data-fullscreen': fullscreen },
+      'Loading'
+    ),
 }));
 
 describe('SubAppRoute', () => {

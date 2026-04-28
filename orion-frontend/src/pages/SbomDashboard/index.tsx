@@ -3,9 +3,29 @@
  * SBOM coverage stats, vulnerability trends, compliance score, SBOM list
  */
 import React, { useState, useMemo, useEffect } from 'react';
-import { Typography, Button, Space, Tag, Card, Row, Col, Statistic, Modal, Form, Input, Select, message } from 'antd';
+import {
+  Typography,
+  Button,
+  Space,
+  Tag,
+  Card,
+  Row,
+  Col,
+  Statistic,
+  Modal,
+  Form,
+  Input,
+  Select,
+  message,
+} from 'antd';
 import { colors, spacing } from '@/tokens';
-import { PlusOutlined, ReloadOutlined, DownloadOutlined, EyeOutlined, FileTextOutlined } from '@ant-design/icons';
+import {
+  PlusOutlined,
+  ReloadOutlined,
+  DownloadOutlined,
+  EyeOutlined,
+  FileTextOutlined,
+} from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge, { type StatusType } from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
@@ -52,8 +72,8 @@ const SbomDashboard: React.FC = () => {
         getSbomWaivers(),
         getSbomComplianceReport(),
       ]);
-      setDocuments(Array.isArray(docRes.data.data) ? docRes.data.data as SbomDocument[] : []);
-      setWaivers(Array.isArray(waiverRes.data.data) ? waiverRes.data.data as SbomWaiver[] : []);
+      setDocuments(Array.isArray(docRes.data.data) ? (docRes.data.data as SbomDocument[]) : []);
+      setWaivers(Array.isArray(waiverRes.data.data) ? (waiverRes.data.data as SbomWaiver[]) : []);
       setCompliance((compRes.data.data as SbomComplianceReport) || null);
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -150,7 +170,9 @@ const SbomDashboard: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       width: 120,
-      render: (value: unknown) => <StatusBadge status={sbomStatusToBadge[String(value)] || 'unknown'} size="small" />,
+      render: (value: unknown) => (
+        <StatusBadge status={sbomStatusToBadge[String(value)] || 'unknown'} size="small" />
+      ),
     },
     {
       key: 'createdAt',
@@ -178,11 +200,7 @@ const SbomDashboard: React.FC = () => {
           >
             查看
           </Button>
-          <Button
-            type="link"
-            size="small"
-            icon={<DownloadOutlined />}
-          >
+          <Button type="link" size="small" icon={<DownloadOutlined />}>
             下载
           </Button>
         </Space>
@@ -251,7 +269,12 @@ const SbomDashboard: React.FC = () => {
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="覆盖率" value={(activeDocs / Math.max(documents.length, 1)) * 100} precision={1} suffix="%" />
+            <Statistic
+              title="覆盖率"
+              value={(activeDocs / Math.max(documents.length, 1)) * 100}
+              precision={1}
+              suffix="%"
+            />
           </Card>
         </Col>
         <Col span={6}>
@@ -266,7 +289,10 @@ const SbomDashboard: React.FC = () => {
               value={compliance?.complianceRate || 0}
               precision={1}
               suffix="%"
-              valueStyle={{ color: (compliance?.complianceRate || 0) >= 90 ? colors.success[600] : colors.error[600] }}
+              valueStyle={{
+                color:
+                  (compliance?.complianceRate || 0) >= 90 ? colors.success[600] : colors.error[600],
+              }}
             />
           </Card>
         </Col>
@@ -315,7 +341,11 @@ const SbomDashboard: React.FC = () => {
               <Statistic title="合规数" value={compliance.compliantSboms || 0} />
             </Col>
             <Col span={6}>
-              <Statistic title="严重漏洞" value={compliance.criticalVulns || 0} valueStyle={{ color: colors.error[600] }} />
+              <Statistic
+                title="严重漏洞"
+                value={compliance.criticalVulns || 0}
+                valueStyle={{ color: colors.error[600] }}
+              />
             </Col>
             <Col span={6}>
               <Statistic title="活跃豁免" value={waivers.length} />
@@ -348,11 +378,13 @@ const SbomDashboard: React.FC = () => {
             <Input.TextArea rows={3} placeholder="说明豁免理由..." />
           </Form.Item>
           <Form.Item name="scope" label="范围" rules={[{ required: true }]} initialValue="global">
-            <Select options={[
-              { label: '全局', value: 'global' },
-              { label: '项目', value: 'project' },
-              { label: '环境', value: 'environment' },
-            ]} />
+            <Select
+              options={[
+                { label: '全局', value: 'global' },
+                { label: '项目', value: 'project' },
+                { label: '环境', value: 'environment' },
+              ]}
+            />
           </Form.Item>
           <Form.Item name="expiresAt" label="有效期至" rules={[{ required: true }]}>
             <Input type="date" />

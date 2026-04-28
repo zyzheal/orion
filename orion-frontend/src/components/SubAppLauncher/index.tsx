@@ -67,9 +67,7 @@ const SubAppLauncher: React.FC = () => {
     <div style={{ minWidth: 320 }}>
       <div style={{ padding: '12px 16px', borderBottom: '1px solid #f0f0f0' }}>
         <div style={{ fontWeight: 600, fontSize: 16 }}>子系统应用</div>
-        <div style={{ fontSize: 12, color: '#999', marginTop: 4 }}>
-          点击图标进入相应的子系统
-        </div>
+        <div style={{ fontSize: 12, color: '#999', marginTop: 4 }}>点击图标进入相应的子系统</div>
       </div>
 
       <div style={{ padding: 16 }}>
@@ -143,14 +141,10 @@ const SubAppLauncher: React.FC = () => {
             {/* 信息 */}
             <div style={{ flex: 1, position: 'relative', zIndex: 1 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontWeight: 600, fontSize: 15, color: '#333' }}>
-                  {app.name}
-                </span>
+                <span style={{ fontWeight: 600, fontSize: 15, color: '#333' }}>{app.name}</span>
                 <Badge status="success" style={{ marginRight: 0 }} />
               </div>
-              <div style={{ fontSize: 13, color: '#666', marginTop: 4 }}>
-                {app.description}
-              </div>
+              <div style={{ fontSize: 13, color: '#666', marginTop: 4 }}>{app.description}</div>
             </div>
 
             {/* 未读消息 */}
@@ -178,7 +172,8 @@ const SubAppLauncher: React.FC = () => {
           color: '#999',
         }}
       >
-        按 <kbd style={{ padding: '2px 6px', background: '#f5f5f5', borderRadius: 4 }}>Esc</kbd> 关闭
+        按 <kbd style={{ padding: '2px 6px', background: '#f5f5f5', borderRadius: 4 }}>Esc</kbd>{' '}
+        关闭
       </div>
     </div>
   );

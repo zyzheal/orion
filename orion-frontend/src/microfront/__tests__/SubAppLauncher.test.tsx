@@ -19,7 +19,11 @@ vi.mock('antd', async () => {
     Popover: ({ children, content, open, onOpenChange }: any) =>
       React.createElement('div', { 'data-testid': 'popover', 'data-open': open }, children),
     Badge: ({ count, status }: any) =>
-      React.createElement('span', { 'data-testid': 'badge', 'data-count': count, 'data-status': status }),
+      React.createElement('span', {
+        'data-testid': 'badge',
+        'data-count': count,
+        'data-status': status,
+      }),
   };
 });
 

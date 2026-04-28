@@ -253,7 +253,9 @@ const EngineerDashboard: React.FC = () => {
                     排名 #{data.personalOverview.rank}/{data.personalOverview.totalInTeam}
                   </Tag>
                   <Tag
-                    color={gradeColorMap[data.personalOverview.performanceGrade] || colors.neutral[400]}
+                    color={
+                      gradeColorMap[data.personalOverview.performanceGrade] || colors.neutral[400]
+                    }
                     style={{ fontWeight: 700, fontSize: spacing[4], padding: '4px 12px' }}
                   >
                     等级 {data.personalOverview.performanceGrade}
@@ -301,7 +303,10 @@ const EngineerDashboard: React.FC = () => {
                     valueStyle={{
                       fontSize: spacing[6],
                       fontWeight: 600,
-                      color: data.personalOverview.slaComplianceRate >= 95 ? COLORS.success : COLORS.warning,
+                      color:
+                        data.personalOverview.slaComplianceRate >= 95
+                          ? COLORS.success
+                          : COLORS.warning,
                     }}
                   />
                 </Col>
@@ -314,7 +319,15 @@ const EngineerDashboard: React.FC = () => {
       {/* Personal Trend Chart */}
       <div style={{ marginBottom: 24 }}>
         <CardPanel title="个人趋势（近14天）" extra={<Tag color="cyan">解决数 & 耗时</Tag>}>
-          <div style={{ height: 200, display: 'flex', alignItems: 'flex-end', gap: 4, padding: '0 8px' }}>
+          <div
+            style={{
+              height: 200,
+              display: 'flex',
+              alignItems: 'flex-end',
+              gap: 4,
+              padding: '0 8px',
+            }}
+          >
             {recentTrend.map((d, i) => (
               <div
                 key={i}
@@ -348,7 +361,9 @@ const EngineerDashboard: React.FC = () => {
           <Divider style={{ margin: '12px 0 8px' }} />
           <Space size={24}>
             <Space size={4}>
-              <div style={{ width: 10, height: 10, backgroundColor: COLORS.success, borderRadius: 2 }} />
+              <div
+                style={{ width: 10, height: 10, backgroundColor: COLORS.success, borderRadius: 2 }}
+              />
               <Text style={{ fontSize: spacing[3] }}>每日解决数</Text>
             </Space>
           </Space>
@@ -373,9 +388,7 @@ const EngineerDashboard: React.FC = () => {
                   >
                     <Tag color={COLORS.success}>{categoryName(s.category)}</Tag>
                     <Space>
-                      <Text style={{ fontSize: spacing[3] }}>
-                        解决 {s.resolvedCount} 个
-                      </Text>
+                      <Text style={{ fontSize: spacing[3] }}>解决 {s.resolvedCount} 个</Text>
                       <Text style={{ fontSize: spacing[3] }}>
                         SLA {(s.slaComplianceRate * 100).toFixed(0)}%
                       </Text>
@@ -395,7 +408,10 @@ const EngineerDashboard: React.FC = () => {
 
         {/* Weaknesses */}
         <Col xs={24} xl={12}>
-          <CardPanel title="待提升领域" extra={<WarningOutlined style={{ color: COLORS.warning }} />}>
+          <CardPanel
+            title="待提升领域"
+            extra={<WarningOutlined style={{ color: COLORS.warning }} />}
+          >
             <Space direction="vertical" style={{ width: '100%' }} size={16}>
               {data.weaknesses.map((w) => (
                 <Card
@@ -419,9 +435,7 @@ const EngineerDashboard: React.FC = () => {
                       {categoryName(w.category)}
                     </Tag>
                     <Space>
-                      <Text style={{ fontSize: spacing[3] }}>
-                        解决 {w.resolvedCount} 个
-                      </Text>
+                      <Text style={{ fontSize: spacing[3] }}>解决 {w.resolvedCount} 个</Text>
                       <Text style={{ fontSize: spacing[3] }}>
                         SLA {(w.slaComplianceRate * 100).toFixed(0)}%
                       </Text>
@@ -451,10 +465,7 @@ const EngineerDashboard: React.FC = () => {
         <CardPanel
           title="活跃工单"
           extra={
-            <Badge
-              count={data.activeTickets.length}
-              style={{ backgroundColor: COLORS.info }}
-            >
+            <Badge count={data.activeTickets.length} style={{ backgroundColor: COLORS.info }}>
               <Tag>处理中</Tag>
             </Badge>
           }

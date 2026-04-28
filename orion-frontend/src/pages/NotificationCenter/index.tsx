@@ -79,10 +79,16 @@ const { Title, Text, Paragraph } = Typography;
 // Icon mapping for notification types
 const typeIconMap: Record<string, React.ReactElement> = {
   ticket_assigned: <UserAddOutlined style={{ color: colors.primary[500], fontSize: spacing[5] }} />,
-  ticket_escalated: <ArrowUpOutlined style={{ color: colors.warning[500], fontSize: spacing[5] }} />,
+  ticket_escalated: (
+    <ArrowUpOutlined style={{ color: colors.warning[500], fontSize: spacing[5] }} />
+  ),
   sla_warning: <WarningOutlined style={{ color: colors.warning[500], fontSize: spacing[5] }} />,
-  sla_breached: <ExclamationCircleOutlined style={{ color: colors.error[500], fontSize: spacing[5] }} />,
-  pipeline_completed: <CheckCircleOutlined style={{ color: colors.success[500], fontSize: spacing[5] }} />,
+  sla_breached: (
+    <ExclamationCircleOutlined style={{ color: colors.error[500], fontSize: spacing[5] }} />
+  ),
+  pipeline_completed: (
+    <CheckCircleOutlined style={{ color: colors.success[500], fontSize: spacing[5] }} />
+  ),
   comment_mention: <MessageOutlined style={{ color: colors.purple[500], fontSize: spacing[5] }} />,
   transfer_request: <SwapOutlined style={{ color: colors.info[500], fontSize: spacing[5] }} />,
   system_alert: <AlertOutlined style={{ color: colors.error[500], fontSize: spacing[5] }} />,
@@ -139,7 +145,9 @@ const NotificationCenter: React.FC = () => {
 
   // Notification settings drawer state
   const [settingsDrawerVisible, setSettingsDrawerVisible] = useState(false);
-  const [notificationSettings, setNotificationSettings] = useState<NotificationSettings | null>(null);
+  const [notificationSettings, setNotificationSettings] = useState<NotificationSettings | null>(
+    null
+  );
   const [settingsLoading, setSettingsLoading] = useState(false);
   const [settingsSaving, setSettingsSaving] = useState(false);
 
@@ -226,9 +234,7 @@ const NotificationCenter: React.FC = () => {
   const handleMarkAsRead = async (id: string) => {
     try {
       await markAsRead(id);
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, read: true } : n))
-      );
+      setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
       fetchStats();
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -308,9 +314,8 @@ const NotificationCenter: React.FC = () => {
       setBroadcastSubmitting(true);
 
       const tenantId = localStorage.getItem('tenant_id') || 'default';
-      const userIds = broadcastAudience === 'all'
-        ? availableUsers.map((u) => u.id)
-        : selectedBroadcastUsers;
+      const userIds =
+        broadcastAudience === 'all' ? availableUsers.map((u) => u.id) : selectedBroadcastUsers;
 
       if (userIds.length === 0) {
         message.warning('没有可选用户');
@@ -403,7 +408,10 @@ const NotificationCenter: React.FC = () => {
           <Statistic
             title="未读"
             value={stats.unread}
-            valueStyle={{ color: stats.unread > 0 ? colors.error[500] : undefined, fontSize: spacing[6] }}
+            valueStyle={{
+              color: stats.unread > 0 ? colors.error[500] : undefined,
+              fontSize: spacing[6],
+            }}
             prefix={<BellOutlined />}
           />
         </Card>
@@ -413,7 +421,10 @@ const NotificationCenter: React.FC = () => {
           <Statistic
             title="紧急"
             value={stats.critical}
-            valueStyle={{ color: stats.critical > 0 ? colors.error[500] : undefined, fontSize: spacing[6] }}
+            valueStyle={{
+              color: stats.critical > 0 ? colors.error[500] : undefined,
+              fontSize: spacing[6],
+            }}
             prefix={<ExclamationCircleOutlined />}
           />
         </Card>
@@ -450,10 +461,12 @@ const NotificationCenter: React.FC = () => {
 
     // Background color for priority (only critical and high)
     const hasPriorityBg = item.priority === 'critical' || item.priority === 'high';
-    const bgColor = hasPriorityBg ? priorityConf.bg : (item.read ? 'transparent' : 'rgba(24, 144, 255, 0.02)');
-    const borderLeft = item.read
-      ? '3px solid transparent'
-      : `3px solid ${priorityConf.color}`;
+    const bgColor = hasPriorityBg
+      ? priorityConf.bg
+      : item.read
+        ? 'transparent'
+        : 'rgba(24, 144, 255, 0.02)';
+    const borderLeft = item.read ? '3px solid transparent' : `3px solid ${priorityConf.color}`;
 
     return (
       <List.Item
@@ -538,7 +551,11 @@ const NotificationCenter: React.FC = () => {
             {/* Expanded actions */}
             {isExpanded && (
               <div
-                style={{ marginTop: spacing[3], borderTop: `1px solid ${colors.light.border.light}`, paddingTop: spacing[3] }}
+                style={{
+                  marginTop: spacing[3],
+                  borderTop: `1px solid ${colors.light.border.light}`,
+                  paddingTop: spacing[3],
+                }}
                 onClick={(e) => e.stopPropagation()}
               >
                 {item.actions && item.actions.length > 0 && (
@@ -546,7 +563,15 @@ const NotificationCenter: React.FC = () => {
                     {item.actions.map((action, idx) => (
                       <Button
                         key={idx}
-                        type={action.type as 'primary' | 'default' | 'link' | 'text' | 'dashed' | undefined}
+                        type={
+                          action.type as
+                            | 'primary'
+                            | 'default'
+                            | 'link'
+                            | 'text'
+                            | 'dashed'
+                            | undefined
+                        }
                         size="small"
                       >
                         {action.label}
@@ -608,23 +633,15 @@ const NotificationCenter: React.FC = () => {
             <BellOutlined style={{ marginRight: 8 }} />
             通知中心
           </Title>
-          <Text type="secondary">
-            共 {notifications.length} 条通知
-          </Text>
+          <Text type="secondary">共 {notifications.length} 条通知</Text>
         </div>
         <Space>
           {isAdmin() && (
-            <Button
-              icon={<SoundOutlined />}
-              onClick={openBroadcastModal}
-            >
+            <Button icon={<SoundOutlined />} onClick={openBroadcastModal}>
               广播通知
             </Button>
           )}
-          <Button
-            icon={<SettingOutlined />}
-            onClick={openSettingsDrawer}
-          >
+          <Button icon={<SettingOutlined />} onClick={openSettingsDrawer}>
             通知设置
           </Button>
           <Button
@@ -642,7 +659,10 @@ const NotificationCenter: React.FC = () => {
             okText="确定"
             cancelText="取消"
           >
-            <Button icon={<ClearOutlined />} disabled={notifications.filter((n) => n.read).length === 0}>
+            <Button
+              icon={<ClearOutlined />}
+              disabled={notifications.filter((n) => n.read).length === 0}
+            >
               清除已读
             </Button>
           </Popconfirm>
@@ -673,7 +693,11 @@ const NotificationCenter: React.FC = () => {
 
       {/* Broadcast Modal (admin only) */}
       <Modal
-        title={<Space><SoundOutlined /> 广播通知</Space>}
+        title={
+          <Space>
+            <SoundOutlined /> 广播通知
+          </Space>
+        }
         open={broadcastModalVisible}
         onCancel={() => setBroadcastModalVisible(false)}
         onOk={handleBroadcastSubmit}
@@ -682,10 +706,18 @@ const NotificationCenter: React.FC = () => {
         destroyOnClose
       >
         <Form form={broadcastForm} layout="vertical" style={{ marginTop: 16 }}>
-          <Form.Item name="title" label="标题" rules={[{ required: true, message: '请输入广播标题' }]}>
+          <Form.Item
+            name="title"
+            label="标题"
+            rules={[{ required: true, message: '请输入广播标题' }]}
+          >
             <Input placeholder="如: 系统维护通知" />
           </Form.Item>
-          <Form.Item name="message" label="消息内容" rules={[{ required: true, message: '请输入消息内容' }]}>
+          <Form.Item
+            name="message"
+            label="消息内容"
+            rules={[{ required: true, message: '请输入消息内容' }]}
+          >
             <Input.TextArea rows={4} placeholder="请输入广播消息内容..." />
           </Form.Item>
           <Form.Item label="目标受众" initialValue="all">
@@ -734,7 +766,11 @@ const NotificationCenter: React.FC = () => {
 
       {/* Notification Settings Drawer */}
       <Drawer
-        title={<Space><SettingOutlined /> 通知设置</Space>}
+        title={
+          <Space>
+            <SettingOutlined /> 通知设置
+          </Space>
+        }
         open={settingsDrawerVisible}
         onClose={() => setSettingsDrawerVisible(false)}
         width={480}
@@ -749,7 +785,14 @@ const NotificationCenter: React.FC = () => {
             {/* Channel Settings */}
             <Title level={5}>通知渠道</Title>
             <div style={{ marginBottom: 16 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: 12,
+                }}
+              >
                 <Text>邮件通知</Text>
                 <Switch
                   checked={notificationSettings.emailEnabled}
@@ -757,7 +800,14 @@ const NotificationCenter: React.FC = () => {
                   loading={settingsSaving}
                 />
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: 12,
+                }}
+              >
                 <Text>声音提醒</Text>
                 <Switch
                   checked={notificationSettings.soundEnabled}
@@ -765,7 +815,14 @@ const NotificationCenter: React.FC = () => {
                   loading={settingsSaving}
                 />
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: 12,
+                }}
+              >
                 <Text>桌面推送</Text>
                 <Switch
                   checked={notificationSettings.desktopEnabled}
@@ -780,7 +837,14 @@ const NotificationCenter: React.FC = () => {
             {/* Event Type Settings */}
             <Title level={5}>通知类型</Title>
             <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: 12,
+                }}
+              >
                 <Text>工单分配</Text>
                 <Switch
                   checked={notificationSettings.ticketAssigned}
@@ -788,7 +852,14 @@ const NotificationCenter: React.FC = () => {
                   loading={settingsSaving}
                 />
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: 12,
+                }}
+              >
                 <Text>工单升级</Text>
                 <Switch
                   checked={notificationSettings.ticketEscalated}
@@ -796,7 +867,14 @@ const NotificationCenter: React.FC = () => {
                   loading={settingsSaving}
                 />
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: 12,
+                }}
+              >
                 <Text>SLA 警告</Text>
                 <Switch
                   checked={notificationSettings.slaWarning}
@@ -804,7 +882,14 @@ const NotificationCenter: React.FC = () => {
                   loading={settingsSaving}
                 />
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: 12,
+                }}
+              >
                 <Text>SLA 违约</Text>
                 <Switch
                   checked={notificationSettings.slaBreached}
@@ -812,7 +897,14 @@ const NotificationCenter: React.FC = () => {
                   loading={settingsSaving}
                 />
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: 12,
+                }}
+              >
                 <Text>Pipeline 完成</Text>
                 <Switch
                   checked={notificationSettings.pipelineCompleted}
@@ -820,7 +912,14 @@ const NotificationCenter: React.FC = () => {
                   loading={settingsSaving}
                 />
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: 12,
+                }}
+              >
                 <Text>系统告警</Text>
                 <Switch
                   checked={notificationSettings.systemAlert}
@@ -828,7 +927,14 @@ const NotificationCenter: React.FC = () => {
                   loading={settingsSaving}
                 />
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: 12,
+                }}
+              >
                 <Text>评论提及</Text>
                 <Switch
                   checked={notificationSettings.commentMention}
@@ -836,7 +942,14 @@ const NotificationCenter: React.FC = () => {
                   loading={settingsSaving}
                 />
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: 12,
+                }}
+              >
                 <Text>转派请求</Text>
                 <Switch
                   checked={notificationSettings.transferRequest}

@@ -1,0 +1,101 @@
+<h2>ChatOps 全局架构 — 系统组件与数据流</h2>
+<p class="subtitle">展示 Chat UI 如何与现有 Orion 平台各模块交互</p>
+
+<div class="mockup">
+  <div class="mockup-header">ChatOps 架构总览</div>
+  <div class="mockup-body" style="padding: 20px; font-size: 13px;">
+
+    <!-- 前端层 -->
+    <div class="section">
+      <h3>前端层</h3>
+      <div style="display: flex; gap: 12px;">
+        <div class="card" style="flex: 0 0 280px; padding: 12px; background: #f6f8fa; border: 1px solid #d0d7de; border-radius: 8px;">
+          <strong>全局悬浮 Chat 按钮</strong><br>
+          <span class="subtitle">右下角固定 → 展开侧边栏</span>
+        </div>
+        <div class="card" style="flex: 0 0 320px; padding: 12px; background: #f6f8fa; border: 1px solid #d0d7de; border-radius: 8px;">
+          <strong>Chat UI 侧边栏</strong><br>
+          <span class="subtitle">对话区 + 操作结果面板</span><br>
+          <span class="label">命令解析引擎 (A阶段: 关键词)</span><br>
+          <span class="label">预留 LLM 接口 (B阶段)</span>
+        </div>
+        <div class="card" style="flex: 0 0 260px; padding: 12px; background: #f6f8fa; border: 1px solid #d0d7de; border-radius: 8px;">
+          <strong>WebSocket Store</strong><br>
+          <span class="subtitle">实时事件推送</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 权限层 -->
+    <div class="section" style="border-top: 2px dashed #e0e0e0; padding-top: 16px;">
+      <h3>双层权限校验</h3>
+      <div style="display: flex; gap: 12px;">
+        <div class="card" style="flex: 1; padding: 12px; background: #fff3e0; border: 2px solid #ff9800; border-radius: 8px;">
+          <strong>Step 1: 命令级权限</strong><br>
+          <span class="subtitle">用户角色 → 可执行操作类型</span><br>
+          <span class="label">部署? 重启? 查看日志? 修改配置?</span>
+        </div>
+        <div class="card" style="flex: 1; padding: 12px; background: #e8f5e9; border: 2px solid #4caf50; border-radius: 8px;">
+          <strong>Step 2: 资源级权限</strong><br>
+          <span class="subtitle">用户范围 → 可操作资源</span><br>
+          <span class="label">namespace / environment / project</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 后端层 -->
+    <div class="section" style="border-top: 2px dashed #e0e0e0; padding-top: 16px;">
+      <h3>后端服务层 (orion-platform-service)</h3>
+      <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+        <div class="card" style="flex: 0 0 150px; padding: 8px; background: #e3f2fd; border: 1px solid #90caf9; border-radius: 6px; text-align: center;">
+          ChatOps API<br><span class="subtitle">/api/chatops</span>
+        </div>
+        <div class="card" style="flex: 0 0 130px; padding: 8px; background: #e3f2fd; border: 1px solid #90caf9; border-radius: 6px; text-align: center;">
+          Pipeline<br><span class="subtitle">触发/状态</span>
+        </div>
+        <div class="card" style="flex: 0 0 130px; padding: 8px; background: #e3f2fd; border: 1px solid #90caf9; border-radius: 6px; text-align: center;">
+          Deploy<br><span class="subtitle">部署/回滚</span>
+        </div>
+        <div class="card" style="flex: 0 0 130px; padding: 8px; background: #e3f2fd; border: 1px solid #90caf9; border-radius: 6px; text-align: center;">
+          SelfHealing<br><span class="subtitle">自愈触发</span>
+        </div>
+        <div class="card" style="flex: 0 0 130px; padding: 8px; background: #e3f2fd; border: 1px solid #90caf9; border-radius: 6px; text-align: center;">
+          Monitoring<br><span class="subtitle">指标查询</span>
+        </div>
+        <div class="card" style="flex: 0 0 130px; padding: 8px; background: #e3f2fd; border: 1px solid #90caf9; border-radius: 6px; text-align: center;">
+          CMDB<br><span class="subtitle">资源查询</span>
+        </div>
+        <div class="card" style="flex: 0 0 130px; padding: 8px; background: #e3f2fd; border: 1px solid #90caf9; border-radius: 6px; text-align: center;">
+          AI Gateway<br><span class="subtitle">意图理解</span>
+        </div>
+        <div class="card" style="flex: 0 0 130px; padding: 8px; background: #e3f2fd; border: 1px solid #90caf9; border-radius: 6px; text-align: center;">
+          EventBus<br><span class="subtitle">事件广播</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 外部集成 -->
+    <div class="section" style="border-top: 2px dashed #e0e0e0; padding-top: 16px;">
+      <h3>外部 IM 转发层 (可选)</h3>
+      <div style="display: flex; gap: 12px;">
+        <div class="card" style="flex: 1; padding: 8px; background: #f3e5f5; border: 1px solid #ce93d8; border-radius: 6px; text-align: center;">
+          Slack Adapter<br><span class="subtitle">Bot → Orion API</span>
+        </div>
+        <div class="card" style="flex: 1; padding: 8px; background: #f3e5f5; border: 1px solid #ce93d8; border-radius: 6px; text-align: center;">
+          飞书 Adapter<br><span class="subtitle">Bot → Orion API</span>
+        </div>
+        <div class="card" style="flex: 1; padding: 8px; background: #f3e5f5; border: 1px solid #ce93d8; border-radius: 6px; text-align: center;">
+          DingTalk Adapter<br><span class="subtitle">Bot → Orion API</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 数据流说明 -->
+    <div class="section" style="border-top: 2px dashed #e0e0e0; padding-top: 16px;">
+      <h3>数据流</h3>
+      <p><strong>用户输入</strong> → 命令解析 → 权限校验 (命令级 → 资源级) → 路由到对应服务 → 执行 → 实时反馈 (WebSocket / 轮询) → Chat 展示结果</p>
+      <p><strong>外部 IM</strong> → Adapter 解析 → 复用同一套权限校验 + 服务路由 → 结果回推 IM</p>
+    </div>
+
+  </div>
+</div>

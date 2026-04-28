@@ -59,11 +59,9 @@ const PipelineList: React.FC = () => {
       // Search filter
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
-        const searchable = [
-          pipeline.name,
-          pipeline.version,
-          pipeline.description || '',
-        ].join(' ').toLowerCase();
+        const searchable = [pipeline.name, pipeline.version, pipeline.description || '']
+          .join(' ')
+          .toLowerCase();
         if (!searchable.includes(query)) return false;
       }
 
@@ -163,18 +161,10 @@ const PipelineList: React.FC = () => {
       width: 180,
       render: (_: unknown, record) => (
         <Space size="small">
-          <Button
-            type="link"
-            size="small"
-            onClick={() => navigate(`/pipelines/${record.id}`)}
-          >
+          <Button type="link" size="small" onClick={() => navigate(`/pipelines/${record.id}`)}>
             查看
           </Button>
-          <Button
-            type="link"
-            size="small"
-            onClick={() => navigate(`/pipelines/${record.id}/edit`)}
-          >
+          <Button type="link" size="small" onClick={() => navigate(`/pipelines/${record.id}/edit`)}>
             编辑
           </Button>
           <Button
@@ -209,9 +199,7 @@ const PipelineList: React.FC = () => {
           <Title level={3} style={{ margin: 0 }}>
             Pipeline 列表
           </Title>
-          <Text type="secondary">
-            共 {filteredPipelines.length} 个 Pipeline
-          </Text>
+          <Text type="secondary">共 {filteredPipelines.length} 个 Pipeline</Text>
         </div>
         <Space>
           <Button icon={<ReloadOutlined />} onClick={handleRefresh} loading={loading}>

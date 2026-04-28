@@ -313,21 +313,17 @@ export function createDeploySagaDefinition(
         // 如果有真实的 DeployService，则使用它
         let previousVersion: string | undefined;
         if (deployService) {
-          try {
-            const result = await deployService.promote({
-              deploymentId,
-              service: input.service,
-              environment: input.environment,
-              strategy: deployment.strategy,
-            });
-            previousVersion = result.previousVersion;
+          const result = await deployService.promote({
+            deploymentId,
+            service: input.service,
+            environment: input.environment,
+            strategy: deployment.strategy,
+          });
+          previousVersion = result.previousVersion;
 
-            // 保存 previousVersion 到部署记录
-            deployment.previousVersion = previousVersion;
-            deployments.set(deploymentId, deployment);
-          } catch (error) {
-            throw error;
-          }
+          // 保存 previousVersion 到部署记录
+          deployment.previousVersion = previousVersion;
+          deployments.set(deploymentId, deployment);
         }
 
         deployment.status = DeploySagaStatus.COMPLETED;

@@ -51,7 +51,9 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({
             allowClear
             value={uploadCollection}
             onChange={onCollectionChange}
-            options={collections.filter((c) => c.status === 'active').map((c) => ({ label: c.displayName, value: c.name }))}
+            options={collections
+              .filter((c) => c.status === 'active')
+              .map((c) => ({ label: c.displayName, value: c.name }))}
           />
         </Form.Item>
         <Form.Item label="文档内容">

@@ -45,96 +45,79 @@ const StatCardSkeleton: React.FC<{
 StatCardSkeleton.displayName = 'StatCardSkeleton';
 
 /** 搜索/筛选栏骨架 */
-const SearchBarSkeleton: React.FC<{ animated?: boolean }> = React.memo(
-  ({ animated = true }) => (
-    <div
-      style={{
-        display: 'flex',
-        gap: 12,
-        alignItems: 'center',
-        marginBottom: 16,
-      }}
-    >
-      <Skeleton.Input
-        active={animated}
-        size="large"
-        style={{ width: 280, height: 32, borderRadius: 6 }}
-      />
-      <Skeleton.Input active={animated} size="small" style={{ width: 120, height: 32 }} />
-      <Skeleton.Input active={animated} size="small" style={{ width: 120, height: 32 }} />
-      <Skeleton.Input active={animated} size="small" style={{ width: 80, height: 32 }} />
-    </div>
-  )
-);
+const SearchBarSkeleton: React.FC<{ animated?: boolean }> = React.memo(({ animated = true }) => (
+  <div
+    style={{
+      display: 'flex',
+      gap: 12,
+      alignItems: 'center',
+      marginBottom: 16,
+    }}
+  >
+    <Skeleton.Input
+      active={animated}
+      size="large"
+      style={{ width: 280, height: 32, borderRadius: 6 }}
+    />
+    <Skeleton.Input active={animated} size="small" style={{ width: 120, height: 32 }} />
+    <Skeleton.Input active={animated} size="small" style={{ width: 120, height: 32 }} />
+    <Skeleton.Input active={animated} size="small" style={{ width: 80, height: 32 }} />
+  </div>
+));
 SearchBarSkeleton.displayName = 'SearchBarSkeleton';
 
 /** 页面标题骨架 */
-const HeaderSkeleton: React.FC<{ animated?: boolean }> = React.memo(
-  ({ animated = true }) => (
-    <div
-      style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        marginBottom: 24,
-      }}
-    >
-      <div>
-        <Skeleton.Input
-          active={animated}
-          size="small"
-          style={{ width: 160, height: 28, marginBottom: 8 }}
-        />
-        <Skeleton.Input
-          active={animated}
-          size="small"
-          style={{ width: 240, height: 16 }}
-        />
-      </div>
-      <Space>
-        <Skeleton.Button active={animated} size="default" style={{ width: 80, height: 32 }} />
-        <Skeleton.Button active={animated} size="default" style={{ width: 100, height: 32 }} />
-      </Space>
+const HeaderSkeleton: React.FC<{ animated?: boolean }> = React.memo(({ animated = true }) => (
+  <div
+    style={{
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      marginBottom: 24,
+    }}
+  >
+    <div>
+      <Skeleton.Input
+        active={animated}
+        size="small"
+        style={{ width: 160, height: 28, marginBottom: 8 }}
+      />
+      <Skeleton.Input active={animated} size="small" style={{ width: 240, height: 16 }} />
     </div>
-  )
-);
+    <Space>
+      <Skeleton.Button active={animated} size="default" style={{ width: 80, height: 32 }} />
+      <Skeleton.Button active={animated} size="default" style={{ width: 100, height: 32 }} />
+    </Space>
+  </div>
+));
 HeaderSkeleton.displayName = 'HeaderSkeleton';
 
 /** 表格骨架行 */
-const TableSkeletonRow: React.FC<{ animated?: boolean }> = React.memo(
-  ({ animated = true }) => (
-    <div
-      style={{
-        display: 'flex',
-        gap: 24,
-        alignItems: 'center',
-        padding: '12px 0',
-        borderBottom: '1px solid var(--border-light, transparent)',
-      }}
-    >
-      <Skeleton.Input active={animated} size="small" style={{ width: 140, height: 16 }} />
-      <Skeleton.Input active={animated} size="small" style={{ width: 80, height: 20 }} />
-      <Skeleton.Input active={animated} size="small" style={{ width: 70, height: 20 }} />
-      <Skeleton.Input active={animated} size="small" style={{ width: 60, height: 20 }} />
-      <Skeleton.Input active={animated} size="small" style={{ width: 80, height: 16 }} />
-      <Skeleton.Input active={animated} size="small" style={{ width: 120, height: 16 }} />
-      <Skeleton.Button active={animated} size="small" style={{ width: 160, height: 24 }} />
-    </div>
-  )
-);
+const TableSkeletonRow: React.FC<{ animated?: boolean }> = React.memo(({ animated = true }) => (
+  <div
+    style={{
+      display: 'flex',
+      gap: 24,
+      alignItems: 'center',
+      padding: '12px 0',
+      borderBottom: '1px solid var(--border-light, transparent)',
+    }}
+  >
+    <Skeleton.Input active={animated} size="small" style={{ width: 140, height: 16 }} />
+    <Skeleton.Input active={animated} size="small" style={{ width: 80, height: 20 }} />
+    <Skeleton.Input active={animated} size="small" style={{ width: 70, height: 20 }} />
+    <Skeleton.Input active={animated} size="small" style={{ width: 60, height: 20 }} />
+    <Skeleton.Input active={animated} size="small" style={{ width: 80, height: 16 }} />
+    <Skeleton.Input active={animated} size="small" style={{ width: 120, height: 16 }} />
+    <Skeleton.Button active={animated} size="small" style={{ width: 160, height: 24 }} />
+  </div>
+));
 TableSkeletonRow.displayName = 'TableSkeletonRow';
 
 // ---- Main Component ----
 
 const PageSkeleton: React.FC<PageSkeletonProps> = React.memo(
-  ({
-    cards = 0,
-    rows = 8,
-    searchBar = true,
-    header = true,
-    cardLines,
-    animated = true,
-  }) => {
+  ({ cards = 0, rows = 8, searchBar = true, header = true, cardLines, animated = true }) => {
     const statCardSkeletons = useMemo(
       () =>
         Array.from({ length: cards }, (_, i) => (

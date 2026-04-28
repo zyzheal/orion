@@ -8,16 +8,8 @@
  * - Execute plugin task modal (taskId, pipelineRunId, stageId, config, env, timeout)
  */
 import React, { useState, useEffect } from 'react';
-import {
-  Typography,
-  Button,
-  Space,
-  message,
-} from 'antd';
-import {
-  PlusOutlined,
-  ReloadOutlined,
-} from '@ant-design/icons';
+import { Typography, Button, Space, message } from 'antd';
+import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 import {
   getInstalledPlugins,
   getPlugin,
@@ -145,9 +137,7 @@ const PluginManagement: React.FC = () => {
           <Title level={3} style={{ margin: 0 }}>
             插件管理
           </Title>
-          <Text type="secondary">
-            共 {plugins.length} 个插件
-          </Text>
+          <Text type="secondary">共 {plugins.length} 个插件</Text>
         </div>
         <Space>
           <Button icon={<ReloadOutlined />} onClick={handleRefresh} loading={loading}>

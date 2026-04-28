@@ -2,12 +2,7 @@
  * PluginManagement - Shared Types & Constants
  * Type definitions, label maps, and plugin category mapping
  */
-import type {
-  Plugin,
-  PluginType,
-  PluginCategory,
-  PluginExecutionResult,
-} from '@/api/plugins';
+import type { Plugin, PluginType, PluginCategory, PluginExecutionResult } from '@/api/plugins';
 import type { PluginHealthStatus } from '@/api/plugins';
 export type { PluginHealthStatus };
 import { categoryLabels, healthStatusLabels } from '@/pages/__mocks__/mockPluginData';

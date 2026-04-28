@@ -415,7 +415,7 @@ export class CodeRepoWebhookService extends EventEmitter {
             return WebhookEventType.PR_MERGED;
           case 'close':
             return WebhookEventType.PR_CLOSED;
-          default:
+          default: {
             // 根据状态判断
             const state = payload.object_attributes?.state;
             switch (state) {
@@ -424,6 +424,7 @@ export class CodeRepoWebhookService extends EventEmitter {
               case 'closed': return WebhookEventType.PR_CLOSED;
               default: return WebhookEventType.PR_UPDATED;
             }
+          }
         }
       case 'push':
         return WebhookEventType.PUSH;

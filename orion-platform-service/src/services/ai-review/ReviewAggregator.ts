@@ -221,7 +221,7 @@ export class ReviewAggregator {
       // 统计分类
       // 需要通过 ruleId 查找规则分类
       const category = this.inferCategory(comment);
-      if (category && summary.categoryBreakdown.hasOwnProperty(category)) {
+      if (category && Object.prototype.hasOwnProperty.call(summary.categoryBreakdown, category)) {
         summary.categoryBreakdown[category]++;
       }
 

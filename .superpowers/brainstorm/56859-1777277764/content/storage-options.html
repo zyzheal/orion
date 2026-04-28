@@ -1,0 +1,50 @@
+<h2>ChatOps 交互数据管理方案</h2>
+<p class="subtitle">三种存储策略的对比与选择</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>PostgreSQL 持久化存储</h3>
+      <p><strong>方案：</strong>每次对话写入 PostgreSQL，类似 Session 管理模式</p>
+      <p><strong>数据结构：</strong>conversation_id → messages[] → 操作记录 → 权限审计日志</p>
+      <p><strong>优点：</strong>支持历史回溯、审计合规、跨设备同步、多端一致</p>
+      <p><strong>缺点：</strong>写入开销大，长对话时查询性能下降</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>适用场景</h4><ul><li>需要审计追踪的操作</li><li>跨团队协作场景</li><li>需要分析对话模式</li></ul></div>
+        <div class="cons"><h4>注意</h4><ul><li>需要数据过期策略（如 30 天自动清理）</li><li>敏感命令日志需脱敏</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Redis 缓存 + 轻量持久化</h3>
+      <p><strong>方案：</strong>活跃对话存 Redis（TTL 7 天），只有操作执行记录写 PostgreSQL</p>
+      <p><strong>分层策略：</strong>对话内容 → Redis | 操作结果/权限审计 → PostgreSQL</p>
+      <p><strong>优点：</strong>高性能、低成本、对话数据自动过期</p>
+      <p><strong>缺点：</strong>Redis 过期后对话不可回溯，跨设备只能看到操作记录</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>适用场景</h4><ul><li>对话以临时操作为主</li><li>重点是操作审计而非对话内容</li><li>对历史回溯需求弱</li></ul></div>
+        <div class="cons"><h4>注意</h4><ul><li>Redis 内存需监控</li><li>TTL 策略需要根据使用数据调整</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>分层混合存储（推荐）</h3>
+      <p><strong>方案：</strong>三层存储策略</p>
+      <p><strong>L1 内存（Zustand）：</strong>当前会话对话，实时渲染，页面刷新丢失</p>
+      <p><strong>L2 Redis：</strong>活跃对话 24h TTL，支持多标签页共享</p>
+      <p><strong>L3 PostgreSQL：</strong>操作执行记录 + 权限审计日志永久存储，对话内容摘要（非完整内容）</p>
+      <p><strong>优点：</strong>成本最优、性能最佳、审计完整、对话隐私可控</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>适用场景</h4><ul><li>大部分运维场景</li><li>既需要实时体验又需要审计合规</li><li>对话内容敏感性需要分层控制</li></ul></div>
+        <div class="cons"><h4>注意</h4><ul><li>三层数据一致性需要处理</li><li>对话摘要生成需要策略</li></ul></div>
+      </div>
+    </div>
+  </div>
+</div>

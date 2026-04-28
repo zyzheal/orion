@@ -1,10 +1,5 @@
 import { api } from './client';
-import type {
-  LoginRequest,
-  LoginResponse,
-  RefreshTokenResponse,
-  UserInfo,
-} from './types';
+import type { LoginRequest, LoginResponse, RefreshTokenResponse, UserInfo } from './types';
 
 /**
  * 用户登录
@@ -33,7 +28,9 @@ export const refreshToken = async (refreshToken: string): Promise<RefreshTokenRe
 /**
  * 刷新 Token 的简化调用
  */
-export const refreshAuthTokenApi = async (token: string): Promise<{
+export const refreshAuthTokenApi = async (
+  token: string
+): Promise<{
   accessToken: string;
   refreshToken?: string;
   expiresAt: number;

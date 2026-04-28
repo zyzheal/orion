@@ -44,7 +44,8 @@ const ExecutionDashboard: React.FC = () => {
       const res = await getExecutions({
         commandId: searchQuery || undefined,
         status: filters.status && filters.status !== 'all' ? String(filters.status) : undefined,
-        platform: filters.platform && filters.platform !== 'all' ? String(filters.platform) : undefined,
+        platform:
+          filters.platform && filters.platform !== 'all' ? String(filters.platform) : undefined,
         page: 1,
         perPage: 50,
       });
@@ -72,7 +73,9 @@ const ExecutionDashboard: React.FC = () => {
 
   const successCount = executions.filter((e) => e.status === 'completed').length;
   const failedCount = executions.filter((e) => e.status === 'failed').length;
-  const runningCount = executions.filter((e) => e.status === 'running' || e.status === 'pending').length;
+  const runningCount = executions.filter(
+    (e) => e.status === 'running' || e.status === 'pending'
+  ).length;
 
   const columns: TableColumn<ChatOpsExecution>[] = [
     {
@@ -88,7 +91,9 @@ const ExecutionDashboard: React.FC = () => {
       title: '平台',
       dataIndex: 'platform',
       width: 100,
-      render: (v: unknown) => <Tag color={platformColorMap[String(v)] || 'default'}>{String(v)}</Tag>,
+      render: (v: unknown) => (
+        <Tag color={platformColorMap[String(v)] || 'default'}>{String(v)}</Tag>
+      ),
     },
     {
       key: 'userId',
@@ -111,7 +116,9 @@ const ExecutionDashboard: React.FC = () => {
       width: 160,
       sortable: true,
       render: (v: unknown) => (
-        <Text type="secondary" style={{ fontSize: spacing[3] }}>{dayjs(String(v)).fromNow()}</Text>
+        <Text type="secondary" style={{ fontSize: spacing[3] }}>
+          {dayjs(String(v)).fromNow()}
+        </Text>
       ),
     },
     {
@@ -119,62 +126,137 @@ const ExecutionDashboard: React.FC = () => {
       title: '操作',
       width: 100,
       render: (_: unknown) => (
-        <Button type="link" size="small" icon={<PlayCircleOutlined />}>查看</Button>
+        <Button type="link" size="small" icon={<PlayCircleOutlined />}>
+          查看
+        </Button>
       ),
     },
   ];
 
   const filterDefs: FilterDefinition[] = [
-    { key: 'status', label: '状态', options: [
-      { label: '全部', value: 'all' },
-      { label: '待执行', value: 'pending' },
-      { label: '运行中', value: 'running' },
-      { label: '已完成', value: 'completed' },
-      { label: '失败', value: 'failed' },
-      { label: '已取消', value: 'cancelled' },
-    ]},
-    { key: 'platform', label: '平台', options: [
-      { label: '全部', value: 'all' },
-      { label: '钉钉', value: 'dingtalk' },
-      { label: '企业微信', value: 'wecom' },
-      { label: '飞书', value: 'feishu' },
-      { label: 'Slack', value: 'slack' },
-      { label: 'CLI', value: 'cli' },
-      { label: 'Web', value: 'web' },
-    ]},
+    {
+      key: 'status',
+      label: '状态',
+      options: [
+        { label: '全部', value: 'all' },
+        { label: '待执行', value: 'pending' },
+        { label: '运行中', value: 'running' },
+        { label: '已完成', value: 'completed' },
+        { label: '失败', value: 'failed' },
+        { label: '已取消', value: 'cancelled' },
+      ],
+    },
+    {
+      key: 'platform',
+      label: '平台',
+      options: [
+        { label: '全部', value: 'all' },
+        { label: '钉钉', value: 'dingtalk' },
+        { label: '企业微信', value: 'wecom' },
+        { label: '飞书', value: 'feishu' },
+        { label: 'Slack', value: 'slack' },
+        { label: 'CLI', value: 'cli' },
+        { label: 'Web', value: 'web' },
+      ],
+    },
   ];
 
   return (
     <div style={{ padding: 0 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          marginBottom: 24,
+        }}
+      >
         <div>
-          <Title level={3} style={{ margin: 0 }}>执行监控</Title>
+          <Title level={3} style={{ margin: 0 }}>
+            执行监控
+          </Title>
           <Text type="secondary">最近命令执行记录与状态跟踪</Text>
         </div>
-        <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>刷新</Button>
+        <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+          刷新
+        </Button>
       </div>
 
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-        <Col span={6}><Card><Statistic title="总执行" value={executions.length} /></Card></Col>
-        <Col span={6}><Card><Statistic title="成功" value={successCount} valueStyle={{ color: colors.success[500] }} /></Card></Col>
-        <Col span={6}><Card><Statistic title="失败" value={failedCount} valueStyle={{ color: colors.error[400] }} /></Card></Col>
-        <Col span={6}><Card><Statistic title="运行中" value={runningCount} valueStyle={{ color: colors.primary[500] }} /></Card></Col>
+        <Col span={6}>
+          <Card>
+            <Statistic title="总执行" value={executions.length} />
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card>
+            <Statistic
+              title="成功"
+              value={successCount}
+              valueStyle={{ color: colors.success[500] }}
+            />
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card>
+            <Statistic title="失败" value={failedCount} valueStyle={{ color: colors.error[400] }} />
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card>
+            <Statistic
+              title="运行中"
+              value={runningCount}
+              valueStyle={{ color: colors.primary[500] }}
+            />
+          </Card>
+        </Col>
       </Row>
 
       <Row gutter={16}>
         <Col span={16}>
           <Card>
             <div style={{ marginBottom: 16 }}>
-              <SearchFilterBar onSearch={setSearchQuery} onFilter={setFilters} filters={filterDefs} searchPlaceholder="搜索执行记录..." />
+              <SearchFilterBar
+                onSearch={setSearchQuery}
+                onFilter={setFilters}
+                filters={filterDefs}
+                searchPlaceholder="搜索执行记录..."
+              />
             </div>
-            <Table columns={columns} dataSource={filteredExecutions} loading={loading} rowKey="id" size="middle" striped />
+            <Table
+              columns={columns}
+              dataSource={filteredExecutions}
+              loading={loading}
+              rowKey="id"
+              size="middle"
+              striped
+            />
           </Card>
         </Col>
         <Col span={8}>
-          <Card title={<Space><ClockCircleOutlined />执行时间线</Space>}>
+          <Card
+            title={
+              <Space>
+                <ClockCircleOutlined />
+                执行时间线
+              </Space>
+            }
+          >
             <Timeline>
               {executions.slice(0, 8).map((exec) => (
-                <Timeline.Item key={exec.id} color={exec.status === 'completed' ? 'green' : exec.status === 'failed' ? 'red' : exec.status === 'running' ? 'blue' : 'gray'}>
+                <Timeline.Item
+                  key={exec.id}
+                  color={
+                    exec.status === 'completed'
+                      ? 'green'
+                      : exec.status === 'failed'
+                        ? 'red'
+                        : exec.status === 'running'
+                          ? 'blue'
+                          : 'gray'
+                  }
+                >
                   <Text strong>/{exec.commandId}</Text>
                   <br />
                   <Text type="secondary" style={{ fontSize: spacing[3] }}>

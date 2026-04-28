@@ -93,9 +93,7 @@ export const getCostByService = async (
 /**
  * 获取成本趋势
  */
-export const getCostTrend = async (
-  params?: CostTrendParams
-): Promise<CostTrendItem[]> => {
+export const getCostTrend = async (params?: CostTrendParams): Promise<CostTrendItem[]> => {
   const response = await api.post<CostTrendItem[]>('/v1/cost/trend', params);
   return response.data.data;
 };
@@ -112,10 +110,9 @@ export const getOptimizations = async (): Promise<OptimizationItem[]> => {
  * 应用优化建议
  */
 export const applyOptimization = async (id: string): Promise<{ success: boolean }> => {
-  const response = await api.patch<{ success: boolean }>(
-    `/v1/finops/optimize/${id}/status`,
-    { status: 'applied' }
-  );
+  const response = await api.patch<{ success: boolean }>(`/v1/finops/optimize/${id}/status`, {
+    status: 'applied',
+  });
   return response.data.data;
 };
 
@@ -130,9 +127,7 @@ export const getBudgetAlerts = async (): Promise<BudgetAlertItem[]> => {
 /**
  * 导出成本报表
  */
-export const exportCostReport = async (
-  params: CostReportParams
-): Promise<Blob> => {
+export const exportCostReport = async (params: CostReportParams): Promise<Blob> => {
   // Backend doesn't have a direct export endpoint; use chargeback report
   const response = await api.get('/v1/finops/chargeback', {
     params,

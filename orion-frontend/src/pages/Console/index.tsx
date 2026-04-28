@@ -252,7 +252,7 @@ const Console: React.FC = () => {
   // 统计信息
   const stats = {
     totalPlugins: plugins.length,
-    activePlugins: plugins.filter(p => p.status === 'active').length,
+    activePlugins: plugins.filter((p) => p.status === 'active').length,
     totalUsers: users.length,
     onlineUsers: 12,
   };
@@ -289,36 +289,30 @@ const Console: React.FC = () => {
 
   // 处理插件开关
   const handlePluginToggle = (pluginKey: string, checked: boolean) => {
-    setPluginData(prev =>
-      prev.map(p =>
-        p.key === pluginKey ? { ...p, status: checked ? 'active' : 'inactive' } : p
-      )
+    setPluginData((prev) =>
+      prev.map((p) => (p.key === pluginKey ? { ...p, status: checked ? 'active' : 'inactive' } : p))
     );
-    const plugin = pluginData.find(p => p.key === pluginKey);
+    const plugin = pluginData.find((p) => p.key === pluginKey);
     message.success(`插件 "${plugin?.name}" 已${checked ? '启用' : '禁用'}`);
   };
 
   // 处理配置开关
   const handleConfigToggle = (configKey: string, checked: boolean) => {
-    const config = configData.find(c => c.key === configKey);
+    const config = configData.find((c) => c.key === configKey);
     if (config?.requiresRestart) {
       Modal.confirm({
         title: '需要重启服务',
         content: `${config.name} 的更改需要重启服务才能生效，是否继续？`,
         onOk: () => {
-          setConfigData(prev =>
-            prev.map(c =>
-              c.key === configKey ? { ...c, enabled: checked } : c
-            )
+          setConfigData((prev) =>
+            prev.map((c) => (c.key === configKey ? { ...c, enabled: checked } : c))
           );
           message.success('配置已更新，服务将在 5 秒后重启');
         },
       });
     } else {
-      setConfigData(prev =>
-        prev.map(c =>
-          c.key === configKey ? { ...c, enabled: checked } : c
-        )
+      setConfigData((prev) =>
+        prev.map((c) => (c.key === configKey ? { ...c, enabled: checked } : c))
       );
       message.success(`${config?.name} 已${checked ? '启用' : '禁用'}`);
     }
@@ -384,11 +378,7 @@ const Console: React.FC = () => {
             />
           </Tooltip>
           <Tooltip title="详情">
-            <Button
-              type="text"
-              size="small"
-              icon={<EditOutlined />}
-            />
+            <Button type="text" size="small" icon={<EditOutlined />} />
           </Tooltip>
           <Switch
             size="small"
@@ -465,9 +455,7 @@ const Console: React.FC = () => {
       title: '角色',
       dataIndex: 'role',
       key: 'role',
-      render: (role: string) => (
-        <Tag color={getRoleColor(role)}>{role.toUpperCase()}</Tag>
-      ),
+      render: (role: string) => <Tag color={getRoleColor(role)}>{role.toUpperCase()}</Tag>,
     },
     {
       title: '状态',
@@ -493,9 +481,13 @@ const Console: React.FC = () => {
       key: 'action',
       render: (_: unknown, record: User) => (
         <Space size="small">
-          <Button type="link" size="small">编辑</Button>
+          <Button type="link" size="small">
+            编辑
+          </Button>
           {record.status !== 'locked' && (
-            <Button type="link" size="small" danger>锁定</Button>
+            <Button type="link" size="small" danger>
+              锁定
+            </Button>
           )}
         </Space>
       ),
@@ -510,9 +502,7 @@ const Console: React.FC = () => {
           <ControlOutlined style={{ marginRight: spacing[3], color: colors.purple[500] }} />
           系统控制台
         </Title>
-        <Paragraph type="secondary">
-          管理系统插件、配置和功能开关
-        </Paragraph>
+        <Paragraph type="secondary">管理系统插件、配置和功能开关</Paragraph>
       </div>
 
       {/* 统计卡片区 */}
@@ -598,12 +588,8 @@ const Console: React.FC = () => {
                 <Button type="primary" icon={<PlusOutlined />}>
                   安装插件
                 </Button>
-                <Button icon={<SyncOutlined />}>
-                  检查更新
-                </Button>
-                <Button icon={<RocketOutlined />}>
-                  插件市场
-                </Button>
+                <Button icon={<SyncOutlined />}>检查更新</Button>
+                <Button icon={<RocketOutlined />}>插件市场</Button>
               </Space>
             </div>
             <Table
@@ -626,7 +612,7 @@ const Console: React.FC = () => {
             <div style={{ marginBottom: 16 }}>
               <Alert
                 message="配置说明"
-                description='修改带“需重启”标签的配置项后，需要重启服务才能生效'
+                description="修改带“需重启”标签的配置项后，需要重启服务才能生效"
                 type="info"
                 showIcon
               />
@@ -653,9 +639,7 @@ const Console: React.FC = () => {
                 <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsModalOpen(true)}>
                   添加用户
                 </Button>
-                <Button icon={<ThunderboltOutlined />}>
-                  批量操作
-                </Button>
+                <Button icon={<ThunderboltOutlined />}>批量操作</Button>
               </Space>
             </div>
             <Table

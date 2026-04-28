@@ -171,11 +171,46 @@ export interface MockEngineer {
 }
 
 export const mockEngineers: MockEngineer[] = [
-  { id: 'E001', name: '张伟', expertise: ['database', 'infrastructure', 'network'], availability: 'available', currentLoad: 3, maxCapacity: 8 },
-  { id: 'E002', name: '李娜', expertise: ['application', 'deployment', 'pipeline'], availability: 'available', currentLoad: 2, maxCapacity: 6 },
-  { id: 'E003', name: '王强', expertise: ['infrastructure', 'network', 'security'], availability: 'busy', currentLoad: 5, maxCapacity: 6 },
-  { id: 'E004', name: '赵敏', expertise: ['application', 'performance', 'database'], availability: 'available', currentLoad: 1, maxCapacity: 7 },
-  { id: 'E005', name: '陈浩', expertise: ['deployment', 'pipeline', 'infrastructure'], availability: 'away', currentLoad: 4, maxCapacity: 5 },
+  {
+    id: 'E001',
+    name: '张伟',
+    expertise: ['database', 'infrastructure', 'network'],
+    availability: 'available',
+    currentLoad: 3,
+    maxCapacity: 8,
+  },
+  {
+    id: 'E002',
+    name: '李娜',
+    expertise: ['application', 'deployment', 'pipeline'],
+    availability: 'available',
+    currentLoad: 2,
+    maxCapacity: 6,
+  },
+  {
+    id: 'E003',
+    name: '王强',
+    expertise: ['infrastructure', 'network', 'security'],
+    availability: 'busy',
+    currentLoad: 5,
+    maxCapacity: 6,
+  },
+  {
+    id: 'E004',
+    name: '赵敏',
+    expertise: ['application', 'performance', 'database'],
+    availability: 'available',
+    currentLoad: 1,
+    maxCapacity: 7,
+  },
+  {
+    id: 'E005',
+    name: '陈浩',
+    expertise: ['deployment', 'pipeline', 'infrastructure'],
+    availability: 'away',
+    currentLoad: 4,
+    maxCapacity: 5,
+  },
 ];
 
 // ============================================================================
@@ -214,7 +249,14 @@ export interface MockSLAAlert {
 }
 
 export const mockSLAAlerts: MockSLAAlert[] = [
-  { id: 'SA-001', ticketId: 'TKT-005', alertType: 'sla-warning', timeRemainingMs: 3600000, message: 'TKT-005 即将超过 SLA 时限', generatedAt: '2026-04-13T09:00:00Z' },
+  {
+    id: 'SA-001',
+    ticketId: 'TKT-005',
+    alertType: 'sla-warning',
+    timeRemainingMs: 3600000,
+    message: 'TKT-005 即将超过 SLA 时限',
+    generatedAt: '2026-04-13T09:00:00Z',
+  },
 ];
 
 // ============================================================================
@@ -233,16 +275,68 @@ export interface MockTicketHistoryEntry {
 
 export const mockTicketHistory: Record<string, MockTicketHistoryEntry[]> = {
   'TKT-001': [
-    { id: 'h1', action: 'created', toStatus: 'open', performedBy: 'system', timestamp: '2026-04-13T08:30:00Z' },
-    { id: 'h2', action: 'assigned', toStatus: 'assigned', performedBy: '调度系统', reason: '自动分配给数据库专家', timestamp: '2026-04-13T08:31:00Z' },
-    { id: 'h3', action: 'transitioned', fromStatus: 'assigned', toStatus: 'in-progress', performedBy: '张伟', timestamp: '2026-04-13T08:45:00Z' },
-    { id: 'h4', action: 'escalated', performedBy: '张伟', reason: '需要 DBA 团队协助', timestamp: '2026-04-13T09:15:00Z' },
+    {
+      id: 'h1',
+      action: 'created',
+      toStatus: 'open',
+      performedBy: 'system',
+      timestamp: '2026-04-13T08:30:00Z',
+    },
+    {
+      id: 'h2',
+      action: 'assigned',
+      toStatus: 'assigned',
+      performedBy: '调度系统',
+      reason: '自动分配给数据库专家',
+      timestamp: '2026-04-13T08:31:00Z',
+    },
+    {
+      id: 'h3',
+      action: 'transitioned',
+      fromStatus: 'assigned',
+      toStatus: 'in-progress',
+      performedBy: '张伟',
+      timestamp: '2026-04-13T08:45:00Z',
+    },
+    {
+      id: 'h4',
+      action: 'escalated',
+      performedBy: '张伟',
+      reason: '需要 DBA 团队协助',
+      timestamp: '2026-04-13T09:15:00Z',
+    },
   ],
   'TKT-008': [
-    { id: 'h5', action: 'created', toStatus: 'open', performedBy: '监控', timestamp: '2026-04-12T22:00:00Z' },
-    { id: 'h6', action: 'assigned', toStatus: 'assigned', performedBy: '调度系统', timestamp: '2026-04-12T22:01:00Z' },
-    { id: 'h7', action: 'transitioned', fromStatus: 'assigned', toStatus: 'in-progress', performedBy: '张伟', timestamp: '2026-04-12T22:10:00Z' },
-    { id: 'h8', action: 'resolved', toStatus: 'resolved', performedBy: '张伟', reason: '重启节点后恢复正常', timestamp: '2026-04-13T02:00:00Z' },
+    {
+      id: 'h5',
+      action: 'created',
+      toStatus: 'open',
+      performedBy: '监控',
+      timestamp: '2026-04-12T22:00:00Z',
+    },
+    {
+      id: 'h6',
+      action: 'assigned',
+      toStatus: 'assigned',
+      performedBy: '调度系统',
+      timestamp: '2026-04-12T22:01:00Z',
+    },
+    {
+      id: 'h7',
+      action: 'transitioned',
+      fromStatus: 'assigned',
+      toStatus: 'in-progress',
+      performedBy: '张伟',
+      timestamp: '2026-04-12T22:10:00Z',
+    },
+    {
+      id: 'h8',
+      action: 'resolved',
+      toStatus: 'resolved',
+      performedBy: '张伟',
+      reason: '重启节点后恢复正常',
+      timestamp: '2026-04-13T02:00:00Z',
+    },
   ],
 };
 
@@ -259,7 +353,13 @@ export interface MockTicketRelation {
 }
 
 export const mockTicketRelations: MockTicketRelation[] = [
-  { relationId: 'r1', ticketId: 'TKT-001', relatedTicketId: 'TKT-007', relatedTicketTitle: '应用响应延迟 P99 > 2s', relationType: 'related' },
+  {
+    relationId: 'r1',
+    ticketId: 'TKT-001',
+    relatedTicketId: 'TKT-007',
+    relatedTicketTitle: '应用响应延迟 P99 > 2s',
+    relationType: 'related',
+  },
 ];
 
 // ============================================================================
@@ -277,23 +377,34 @@ export interface MockTransferEntry {
 }
 
 export const mockTransferHistory: MockTransferEntry[] = [
-  { id: 'tr1', ticketId: 'TKT-001', fromEngineer: '李娜', toEngineer: '张伟', reason: '需要数据库专业知识', initiatedBy: '李娜', timestamp: '2026-04-13T08:35:00Z' },
+  {
+    id: 'tr1',
+    ticketId: 'TKT-001',
+    fromEngineer: '李娜',
+    toEngineer: '张伟',
+    reason: '需要数据库专业知识',
+    initiatedBy: '李娜',
+    timestamp: '2026-04-13T08:35:00Z',
+  },
 ];
 
 // ============================================================================
 // Ticket Comments Mock Data
 // ============================================================================
 
-export const mockTicketComments: Record<string, Array<{
-  id: string;
-  ticketId: string;
-  author: string;
-  content: string;
-  type: 'comment' | 'internal-note';
-  createdAt: string;
-  mentions: string[];
-  attachments?: string[];
-}>> = {
+export const mockTicketComments: Record<
+  string,
+  Array<{
+    id: string;
+    ticketId: string;
+    author: string;
+    content: string;
+    type: 'comment' | 'internal-note';
+    createdAt: string;
+    mentions: string[];
+    attachments?: string[];
+  }>
+> = {
   'TKT-001': [
     {
       id: 'C001',
@@ -340,21 +451,51 @@ export const mockTicketComments: Record<string, Array<{
 // Ticket Attachments Mock Data
 // ============================================================================
 
-export const mockTicketAttachments: Record<string, Array<{
-  id: string;
-  ticketId: string;
-  name: string;
-  size: string;
-  type: string;
-  uploadedBy: string;
-  uploadedAt: string;
-  url: string;
-}>> = {
+export const mockTicketAttachments: Record<
+  string,
+  Array<{
+    id: string;
+    ticketId: string;
+    name: string;
+    size: string;
+    type: string;
+    uploadedBy: string;
+    uploadedAt: string;
+    url: string;
+  }>
+> = {
   'TKT-001': [
-    { id: 'A001', ticketId: 'TKT-001', name: 'cpu-graph.png', size: '2.3 MB', type: 'image/png', uploadedBy: '张伟', uploadedAt: '2026-04-13T09:05:00Z', url: '#' },
-    { id: 'A002', ticketId: 'TKT-001', name: 'slow-query.log', size: '156 KB', type: 'text/plain', uploadedBy: '张伟', uploadedAt: '2026-04-13T09:10:00Z', url: '#' },
+    {
+      id: 'A001',
+      ticketId: 'TKT-001',
+      name: 'cpu-graph.png',
+      size: '2.3 MB',
+      type: 'image/png',
+      uploadedBy: '张伟',
+      uploadedAt: '2026-04-13T09:05:00Z',
+      url: '#',
+    },
+    {
+      id: 'A002',
+      ticketId: 'TKT-001',
+      name: 'slow-query.log',
+      size: '156 KB',
+      type: 'text/plain',
+      uploadedBy: '张伟',
+      uploadedAt: '2026-04-13T09:10:00Z',
+      url: '#',
+    },
   ],
   'TKT-002': [
-    { id: 'A003', ticketId: 'TKT-002', name: 'error-trace.log', size: '89 KB', type: 'text/plain', uploadedBy: '王磊', uploadedAt: '2026-04-13T09:20:00Z', url: '#' },
+    {
+      id: 'A003',
+      ticketId: 'TKT-002',
+      name: 'error-trace.log',
+      size: '89 KB',
+      type: 'text/plain',
+      uploadedBy: '王磊',
+      uploadedAt: '2026-04-13T09:20:00Z',
+      url: '#',
+    },
   ],
 };

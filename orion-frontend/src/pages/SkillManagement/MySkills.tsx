@@ -2,7 +2,19 @@
  * My Skills - Installed skills list, upgrade available, uninstall
  */
 import React, { useState, useMemo, useEffect } from 'react';
-import { Typography, Button, Space, Tag, Card, Rate, Modal, message, Row, Col, Statistic } from 'antd';
+import {
+  Typography,
+  Button,
+  Space,
+  Tag,
+  Card,
+  Rate,
+  Modal,
+  message,
+  Row,
+  Col,
+  Statistic,
+} from 'antd';
 import { ReloadOutlined, DeleteOutlined, ReloadOutlined as ReloadIcon } from '@ant-design/icons';
 import { spacing } from '@/tokens';
 import Table, { type TableColumn } from '@/components/Table';
@@ -47,14 +59,12 @@ const MySkills: React.FC = () => {
     return skills.filter((skill) => {
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
-        if (
-          !skill.name.toLowerCase().includes(q) &&
-          !skill.description.toLowerCase().includes(q)
-        ) {
+        if (!skill.name.toLowerCase().includes(q) && !skill.description.toLowerCase().includes(q)) {
           return false;
         }
       }
-      if (filters.category && filters.category !== 'all' && skill.category !== filters.category) return false;
+      if (filters.category && filters.category !== 'all' && skill.category !== filters.category)
+        return false;
       return true;
     });
   }, [searchQuery, filters, skills]);
@@ -136,7 +146,9 @@ const MySkills: React.FC = () => {
       width: 160,
       sortable: true,
       render: (v: unknown) => (
-        <Text type="secondary" style={{ fontSize: spacing[3] }}>{dayjs(String(v)).fromNow()}</Text>
+        <Text type="secondary" style={{ fontSize: spacing[3] }}>
+          {dayjs(String(v)).fromNow()}
+        </Text>
       ),
     },
     {
@@ -181,12 +193,23 @@ const MySkills: React.FC = () => {
 
   return (
     <div style={{ padding: 0 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          marginBottom: 24,
+        }}
+      >
         <div>
-          <Title level={3} style={{ margin: 0 }}>我的技能</Title>
+          <Title level={3} style={{ margin: 0 }}>
+            我的技能
+          </Title>
           <Text type="secondary">已安装的技能包管理</Text>
         </div>
-        <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>刷新</Button>
+        <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+          刷新
+        </Button>
       </div>
 
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
@@ -197,12 +220,23 @@ const MySkills: React.FC = () => {
         </Col>
         <Col span={8}>
           <Card>
-            <Statistic title="活跃技能" value={skills.filter((s) => s.status === 'published').length} suffix="个" />
+            <Statistic
+              title="活跃技能"
+              value={skills.filter((s) => s.status === 'published').length}
+              suffix="个"
+            />
           </Card>
         </Col>
         <Col span={8}>
           <Card>
-            <Statistic title="平均评分" value={skills.length > 0 ? (skills.reduce((sum, s) => sum + s.rating, 0) / skills.length) : 0} precision={1} suffix="分" />
+            <Statistic
+              title="平均评分"
+              value={
+                skills.length > 0 ? skills.reduce((sum, s) => sum + s.rating, 0) / skills.length : 0
+              }
+              precision={1}
+              suffix="分"
+            />
           </Card>
         </Col>
       </Row>
@@ -216,7 +250,14 @@ const MySkills: React.FC = () => {
             searchPlaceholder="搜索已安装的技能..."
           />
         </div>
-        <Table columns={columns} dataSource={filteredSkills} loading={loading} rowKey="id" size="middle" striped />
+        <Table
+          columns={columns}
+          dataSource={filteredSkills}
+          loading={loading}
+          rowKey="id"
+          size="middle"
+          striped
+        />
       </Card>
     </div>
   );

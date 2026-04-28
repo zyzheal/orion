@@ -85,8 +85,7 @@ const RiskDashboardPage: React.FC = () => {
 
   const handleAssess = async (values: any) => {
     try {
-      await assessDeploymentRisk(values.targetId, {
-      });
+      await assessDeploymentRisk(values.targetId, {});
       message.success('风险评估已启动');
       setAssessModalOpen(false);
       loadData();
@@ -156,9 +155,7 @@ const RiskDashboardPage: React.FC = () => {
       title: '风险等级',
       dataIndex: 'riskLevel',
       key: 'riskLevel',
-      render: (level: string) => (
-        <Tag color={riskLevelColor[level]}>{level.toUpperCase()}</Tag>
-      ),
+      render: (level: string) => <Tag color={riskLevelColor[level]}>{level.toUpperCase()}</Tag>,
     },
     {
       title: '风险评分',
@@ -167,7 +164,9 @@ const RiskDashboardPage: React.FC = () => {
       render: (score: number) => (
         <Progress
           percent={score}
-          strokeColor={score > 70 ? colors.error[500] : score > 40 ? colors.warning[500] : colors.success[500]}
+          strokeColor={
+            score > 70 ? colors.error[500] : score > 40 ? colors.warning[500] : colors.success[500]
+          }
           format={(percent) => `${(percent ?? 0).toFixed(0)}`}
           size="small"
         />
@@ -235,9 +234,7 @@ const RiskDashboardPage: React.FC = () => {
       title: '风险等级',
       dataIndex: 'riskLevel',
       key: 'riskLevel',
-      render: (level: string) => (
-        <Tag color={riskLevelColor[level]}>{level.toUpperCase()}</Tag>
-      ),
+      render: (level: string) => <Tag color={riskLevelColor[level]}>{level.toUpperCase()}</Tag>,
     },
     {
       title: '创建时间',
@@ -280,10 +277,17 @@ const RiskDashboardPage: React.FC = () => {
             <Button icon={<SafetyOutlined />} onClick={() => handleHealthCheck('basic')}>
               快速检查
             </Button>
-            <Button icon={<ExclamationCircleOutlined />} onClick={() => handleHealthCheck('comprehensive')}>
+            <Button
+              icon={<ExclamationCircleOutlined />}
+              onClick={() => handleHealthCheck('comprehensive')}
+            >
               全面检查
             </Button>
-            <Button icon={<WarningOutlined />} type="primary" onClick={() => setAssessModalOpen(true)}>
+            <Button
+              icon={<WarningOutlined />}
+              type="primary"
+              onClick={() => setAssessModalOpen(true)}
+            >
               风险评估
             </Button>
           </Space>
@@ -404,16 +408,22 @@ const RiskDashboardPage: React.FC = () => {
             <>
               <Descriptions column={1} bordered>
                 <Descriptions.Item label="ID">{selectedAssessment.id}</Descriptions.Item>
-                <Descriptions.Item label="目标类型">{selectedAssessment.targetType}</Descriptions.Item>
+                <Descriptions.Item label="目标类型">
+                  {selectedAssessment.targetType}
+                </Descriptions.Item>
                 <Descriptions.Item label="目标 ID">{selectedAssessment.targetId}</Descriptions.Item>
                 <Descriptions.Item label="风险等级">
                   <Tag color={riskLevelColor[selectedAssessment.riskLevel]}>
                     {selectedAssessment.riskLevel.toUpperCase()}
                   </Tag>
                 </Descriptions.Item>
-                <Descriptions.Item label="风险评分">{selectedAssessment.riskScore.toFixed(0)}</Descriptions.Item>
+                <Descriptions.Item label="风险评分">
+                  {selectedAssessment.riskScore.toFixed(0)}
+                </Descriptions.Item>
                 <Descriptions.Item label="状态">{selectedAssessment.status}</Descriptions.Item>
-                <Descriptions.Item label="评估者">{selectedAssessment.assessedBy}</Descriptions.Item>
+                <Descriptions.Item label="评估者">
+                  {selectedAssessment.assessedBy}
+                </Descriptions.Item>
                 <Descriptions.Item label="评估时间">
                   {new Date(selectedAssessment.assessedAt).toLocaleString()}
                 </Descriptions.Item>
@@ -426,16 +436,26 @@ const RiskDashboardPage: React.FC = () => {
                 {selectedAssessment.factors.map((factor, index) => (
                   <Timeline.Item
                     key={index}
-                    color={factor.status === 'pass' ? 'green' : factor.status === 'warning' ? 'orange' : 'red'}
+                    color={
+                      factor.status === 'pass'
+                        ? 'green'
+                        : factor.status === 'warning'
+                          ? 'orange'
+                          : 'red'
+                    }
                   >
                     <div>
                       <Text strong>{factor.name}</Text>
-                      <div style={{ fontSize: spacing[3], color: colors.neutral[400] }}>{factor.category}</div>
+                      <div style={{ fontSize: spacing[3], color: colors.neutral[400] }}>
+                        {factor.category}
+                      </div>
                       <div style={{ marginTop: 4 }}>
                         <Text type="secondary">{factor.description}</Text>
                       </div>
                       <div style={{ marginTop: 4 }}>
-                        <Text>评分：{factor.score} | 权重：{factor.weight}</Text>
+                        <Text>
+                          评分：{factor.score} | 权重：{factor.weight}
+                        </Text>
                       </div>
                     </div>
                   </Timeline.Item>

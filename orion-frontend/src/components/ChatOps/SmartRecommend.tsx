@@ -41,7 +41,13 @@ export const SmartRecommend: React.FC = () => {
 
   if (recommendations.length === 0) {
     return (
-      <div style={{ padding: '12px 16px', background: colors.light.bg.primary, borderBottom: `1px solid ${colors.light.border.light}` }}>
+      <div
+        style={{
+          padding: '12px 16px',
+          background: colors.light.bg.primary,
+          borderBottom: `1px solid ${colors.light.border.light}`,
+        }}
+      >
         <Empty
           image={Empty.PRESENTED_IMAGE_SIMPLE}
           description="当前无异常"
@@ -61,7 +67,7 @@ export const SmartRecommend: React.FC = () => {
         borderBottom: `1px solid ${colors.warning[200]}`,
       }}
     >
-      {recommendations.map(rec => {
+      {recommendations.map((rec) => {
         const cfg = severityConfig[rec.severity] ?? severityConfig.info;
         return (
           <Card
@@ -83,7 +89,7 @@ export const SmartRecommend: React.FC = () => {
               {rec.description}
             </p>
             <Space>
-              {rec.actions.map(action => (
+              {rec.actions.map((action) => (
                 <Button
                   key={action.label}
                   size="small"

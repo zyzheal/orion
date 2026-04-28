@@ -40,13 +40,17 @@ const initTokenFromStorage = (): {
   };
 };
 
-const { accessToken: initAccessToken, refreshToken: initRefreshToken, tokenExpiresAt: initExpiresAt } = initTokenFromStorage();
+const {
+  accessToken: initAccessToken,
+  refreshToken: initRefreshToken,
+  tokenExpiresAt: initExpiresAt,
+} = initTokenFromStorage();
 
 export const useAuthStore = create<AuthState>()(
   subscribeWithSelector((set, get) => ({
     user: null,
     isAuthenticated: false,
-    isLoading: false,  // 初始值为 false，表示没有在进行中的操作
+    isLoading: false, // 初始值为 false，表示没有在进行中的操作
     accessToken: initAccessToken,
     refreshToken: initRefreshToken,
     tokenExpiresAt: initExpiresAt,

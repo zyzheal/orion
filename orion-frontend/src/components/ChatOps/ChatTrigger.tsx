@@ -18,18 +18,43 @@ const ChatTrigger: React.FC = () => {
 
   if (isOpen) return null;
 
-  const effectiveLevel = unreadAlerts > 0
-    ? (alertLevel === 'normal' ? 'warning' : alertLevel)
-    : 'normal';
+  const effectiveLevel =
+    unreadAlerts > 0 ? (alertLevel === 'normal' ? 'warning' : alertLevel) : 'normal';
 
   const statusConfig = {
-    normal: { icon: <MessageOutlined />, color: colors.primary[500], gradient: `linear-gradient(135deg, ${colors.primary[400]}, ${colors.primary[600]})` },
-    warning: { icon: <BellOutlined />, color: colors.warning[500], gradient: `linear-gradient(135deg, ${colors.warning[400]}, ${colors.warning[600]})` },
-    critical: { icon: <BellOutlined />, color: colors.error[400], gradient: `linear-gradient(135deg, ${colors.error[400]}, ${colors.error[500]})`, pulse: true },
-    executing: { icon: <LoadingOutlined spin />, color: colors.warning[500], gradient: `linear-gradient(135deg, ${colors.warning[400]}, ${colors.warning[600]})` },
+    normal: {
+      icon: <MessageOutlined />,
+      color: colors.primary[500],
+      gradient: `linear-gradient(135deg, ${colors.primary[400]}, ${colors.primary[600]})`,
+    },
+    warning: {
+      icon: <BellOutlined />,
+      color: colors.warning[500],
+      gradient: `linear-gradient(135deg, ${colors.warning[400]}, ${colors.warning[600]})`,
+    },
+    critical: {
+      icon: <BellOutlined />,
+      color: colors.error[400],
+      gradient: `linear-gradient(135deg, ${colors.error[400]}, ${colors.error[500]})`,
+      pulse: true,
+    },
+    executing: {
+      icon: <LoadingOutlined spin />,
+      color: colors.warning[500],
+      gradient: `linear-gradient(135deg, ${colors.warning[400]}, ${colors.warning[600]})`,
+    },
   };
 
-  const config = statusConfig[effectiveLevel === 'executing' ? 'executing' : effectiveLevel === 'critical' ? 'critical' : effectiveLevel === 'warning' ? 'warning' : 'normal'];
+  const config =
+    statusConfig[
+      effectiveLevel === 'executing'
+        ? 'executing'
+        : effectiveLevel === 'critical'
+          ? 'critical'
+          : effectiveLevel === 'warning'
+            ? 'warning'
+            : 'normal'
+    ];
 
   return (
     <Tooltip title={unreadAlerts > 0 ? `${unreadAlerts} 条待处理告警` : '打开 ChatOps'}>

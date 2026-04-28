@@ -102,7 +102,9 @@ export const PERMISSION_GROUPS = [
   },
   {
     group: '监控告警 (Monitoring & Alert)',
-    permissions: COMMON_PERMISSIONS.filter((p) => p.value.startsWith('monitoring:') || p.value.startsWith('alert:')),
+    permissions: COMMON_PERMISSIONS.filter(
+      (p) => p.value.startsWith('monitoring:') || p.value.startsWith('alert:')
+    ),
   },
   {
     group: '配置管理 (Config)',
@@ -114,7 +116,9 @@ export const PERMISSION_GROUPS = [
   },
   {
     group: '用户角色 (User & Role)',
-    permissions: COMMON_PERMISSIONS.filter((p) => p.value.startsWith('user:') || p.value.startsWith('role:')),
+    permissions: COMMON_PERMISSIONS.filter(
+      (p) => p.value.startsWith('user:') || p.value.startsWith('role:')
+    ),
   },
   {
     group: '成本优化 (FinOps)',

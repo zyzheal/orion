@@ -43,7 +43,10 @@ const KEYWORD_RULES: Array<{
     paramExtractor: (input) => {
       const resourceMatch = input.match(/(\S+)\s*(日志|错误)/);
       const envMatch = input.match(/(staging|production|development|testing)/i);
-      return { resource: resourceMatch?.[1] || '', environment: envMatch?.[1]?.toLowerCase() || '' };
+      return {
+        resource: resourceMatch?.[1] || '',
+        environment: envMatch?.[1]?.toLowerCase() || '',
+      };
     },
   },
   {
@@ -141,7 +144,7 @@ export class CommandParser {
 
   private parseNaturalLanguage(input: string): ParseResult {
     for (const rule of KEYWORD_RULES) {
-      if (rule.keywords.some(re => re.test(input))) {
+      if (rule.keywords.some((re) => re.test(input))) {
         const params = rule.paramExtractor(input);
         return { success: true, parsed: { command: rule.command, params, rawInput: input } };
       }
@@ -151,6 +154,6 @@ export class CommandParser {
 
   private formatAjvErrors(errors: AjvErrorObject[] | null): string {
     if (!errors || errors.length === 0) return '参数校验失败';
-    return errors.map(e => `${(e as any).instancePath || '参数'}: ${e.message}`).join('; ');
+    return errors.map((e) => `${(e as any).instancePath || '参数'}: ${e.message}`).join('; ');
   }
 }

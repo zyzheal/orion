@@ -5,19 +5,45 @@
  */
 import React, { useState, useMemo, useEffect } from 'react';
 import {
-  Typography, Button, Space, Tag, Card, Modal, Form, Input, Select, message, Alert,
-  Descriptions, Drawer, Tooltip, Progress, Avatar,
+  Typography,
+  Button,
+  Space,
+  Tag,
+  Card,
+  Modal,
+  Form,
+  Input,
+  Select,
+  message,
+  Alert,
+  Descriptions,
+  Drawer,
+  Tooltip,
+  Progress,
+  Avatar,
 } from 'antd';
 import {
-  PlusOutlined, ReloadOutlined, CheckOutlined, CloseOutlined,
-  EyeOutlined, ClockCircleOutlined, UserOutlined,
-  CheckCircleOutlined, StopOutlined,
+  PlusOutlined,
+  ReloadOutlined,
+  CheckOutlined,
+  CloseOutlined,
+  EyeOutlined,
+  ClockCircleOutlined,
+  UserOutlined,
+  CheckCircleOutlined,
+  StopOutlined,
 } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import PageSkeleton from '@/components/PageSkeleton';
 import {
-  getApprovals, getApproval, createApproval, approveApproval, rejectApproval,
-  type ApprovalRequest, type CreateApprovalInput, type ApprovalStatus,
+  getApprovals,
+  getApproval,
+  createApproval,
+  approveApproval,
+  rejectApproval,
+  type ApprovalRequest,
+  type CreateApprovalInput,
+  type ApprovalStatus,
   type ApprovalComment,
 } from '@/api/approvals';
 import { colors } from '@/tokens/colors';
@@ -50,7 +76,8 @@ const MOCK_APPROVALS: ApprovalRequest[] = [
   {
     id: 'appr-1',
     title: '生产环境部署审批',
-    description: 'orion-core 服务 v2.5.0 部署到生产环境需要审批。该版本已通过所有测试，包含性能优化和安全修复。',
+    description:
+      'orion-core 服务 v2.5.0 部署到生产环境需要审批。该版本已通过所有测试，包含性能优化和安全修复。',
     requesterId: 'dev-001',
     approverIds: ['tech-lead', 'ops-manager', 'security-lead'],
     status: 'pending',
@@ -59,7 +86,12 @@ const MOCK_APPROVALS: ApprovalRequest[] = [
     requiredApprovals: 2,
     createdAt: '2024-03-20T10:00:00Z',
     updatedAt: '2024-03-20T14:00:00Z',
-    metadata: { resourceType: 'deployment', environment: 'production', service: 'orion-core', version: '2.5.0' },
+    metadata: {
+      resourceType: 'deployment',
+      environment: 'production',
+      service: 'orion-core',
+      version: '2.5.0',
+    },
   },
   {
     id: 'appr-2',
@@ -115,7 +147,13 @@ const MOCK_APPROVALS: ApprovalRequest[] = [
     requiredApprovals: 2,
     createdAt: '2024-03-21T08:00:00Z',
     updatedAt: '2024-03-21T09:30:00Z',
-    metadata: { resourceType: 'infrastructure', action: 'scale_up', service: 'orion-api', fromReplicas: 3, toReplicas: 6 },
+    metadata: {
+      resourceType: 'infrastructure',
+      action: 'scale_up',
+      service: 'orion-api',
+      fromReplicas: 3,
+      toReplicas: 6,
+    },
   },
 ];
 
@@ -160,7 +198,9 @@ const ApprovalManagement: React.FC = () => {
     }
   };
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    loadData();
+  }, []);
 
   const filteredData = useMemo(() => {
     return approvals.filter((a) => {
@@ -171,24 +211,31 @@ const ApprovalManagement: React.FC = () => {
           !a.title.toLowerCase().includes(q) &&
           !(a.description && a.description.toLowerCase().includes(q)) &&
           !a.requesterId.toLowerCase().includes(q)
-        ) return false;
+        )
+          return false;
       }
       return true;
     });
   }, [searchQuery, statusFilter, approvals]);
 
-  const stats = useMemo(() => ({
-    total: approvals.length,
-    pending: approvals.filter(a => a.status === 'pending').length,
-    approved: approvals.filter(a => a.status === 'approved').length,
-    rejected: approvals.filter(a => a.status === 'rejected').length,
-  }), [approvals]);
+  const stats = useMemo(
+    () => ({
+      total: approvals.length,
+      pending: approvals.filter((a) => a.status === 'pending').length,
+      approved: approvals.filter((a) => a.status === 'approved').length,
+      rejected: approvals.filter((a) => a.status === 'rejected').length,
+    }),
+    [approvals]
+  );
 
   const handleCreate = async () => {
     try {
       const values = await createForm.validateFields();
       setSubmitting(true);
-      const approverList = values.approverIds.split(',').map((s: string) => s.trim()).filter(Boolean);
+      const approverList = values.approverIds
+        .split(',')
+        .map((s: string) => s.trim())
+        .filter(Boolean);
       const payload: CreateApprovalInput = {
         title: values.title,
         description: values.description,
@@ -300,10 +347,13 @@ const ApprovalManagement: React.FC = () => {
       width: 260,
       render: (v: unknown, record: ApprovalRequest) => (
         <Space direction="vertical" size={0}>
-          <Text strong style={{ cursor: 'pointer' }} onClick={() => openDetail(record)}>{String(v)}</Text>
+          <Text strong style={{ cursor: 'pointer' }} onClick={() => openDetail(record)}>
+            {String(v)}
+          </Text>
           <Text type="secondary" style={{ fontSize: 12 }}>
             申请人: {record.requesterId}
-            {record.metadata?.resourceType != null && ` | 类型: ${record.metadata.resourceType as string}`}
+            {record.metadata?.resourceType != null &&
+              ` | 类型: ${record.metadata.resourceType as string}`}
           </Text>
         </Space>
       ),
@@ -327,7 +377,13 @@ const ApprovalManagement: React.FC = () => {
           <Progress
             percent={approvalProgress(record)}
             size="small"
-            status={record.status === 'rejected' ? 'exception' : record.status === 'approved' ? 'success' : 'active'}
+            status={
+              record.status === 'rejected'
+                ? 'exception'
+                : record.status === 'approved'
+                  ? 'success'
+                  : 'active'
+            }
             format={() => `${record.approvals.length}/${record.requiredApprovals}`}
           />
           <Text type="secondary" style={{ fontSize: 11 }}>
@@ -346,12 +402,19 @@ const ApprovalManagement: React.FC = () => {
             const hasApproved = record.approvals.includes(uid);
             const hasRejected = record.rejections.includes(uid);
             return (
-              <Tooltip key={uid} title={`${uid}${hasApproved ? ' (已通过)' : hasRejected ? ' (已拒绝)' : ''}`}>
+              <Tooltip
+                key={uid}
+                title={`${uid}${hasApproved ? ' (已通过)' : hasRejected ? ' (已拒绝)' : ''}`}
+              >
                 <Avatar
                   size="small"
                   icon={<UserOutlined />}
                   style={{
-                    backgroundColor: hasApproved ? colors.success[500] : hasRejected ? colors.error[400] : colors.neutral[300],
+                    backgroundColor: hasApproved
+                      ? colors.success[500]
+                      : hasRejected
+                        ? colors.error[400]
+                        : colors.neutral[300],
                     fontSize: 10,
                   }}
                 >
@@ -361,7 +424,9 @@ const ApprovalManagement: React.FC = () => {
             );
           })}
           {record.approverIds.length > 3 && (
-            <Text type="secondary" style={{ fontSize: 11 }}>+{record.approverIds.length - 3}</Text>
+            <Text type="secondary" style={{ fontSize: 11 }}>
+              +{record.approverIds.length - 3}
+            </Text>
           )}
         </Space>
       ),
@@ -372,7 +437,11 @@ const ApprovalManagement: React.FC = () => {
       dataIndex: 'createdAt',
       width: 140,
       sortable: true,
-      render: (v: unknown) => <Text type="secondary" style={{ fontSize: 12 }}>{dayjs(String(v)).fromNow()}</Text>,
+      render: (v: unknown) => (
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          {dayjs(String(v)).fromNow()}
+        </Text>
+      ),
     },
     {
       key: 'actions',
@@ -381,7 +450,12 @@ const ApprovalManagement: React.FC = () => {
       render: (_: unknown, record: ApprovalRequest) => (
         <Space size="small" wrap>
           <Tooltip title="详情">
-            <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => openDetail(record)}>
+            <Button
+              type="link"
+              size="small"
+              icon={<EyeOutlined />}
+              onClick={() => openDetail(record)}
+            >
               详情
             </Button>
           </Tooltip>
@@ -424,13 +498,17 @@ const ApprovalManagement: React.FC = () => {
     return (
       <div>
         <Descriptions column={2} bordered size="small">
-          <Descriptions.Item label="标题" span={2}>{a.title}</Descriptions.Item>
+          <Descriptions.Item label="标题" span={2}>
+            {a.title}
+          </Descriptions.Item>
           <Descriptions.Item label="状态">
             <Tag color={statusColorMap[a.status]}>{statusLabelMap[a.status]}</Tag>
           </Descriptions.Item>
           <Descriptions.Item label="申请人">{a.requesterId}</Descriptions.Item>
           <Descriptions.Item label="所需审批数">{a.requiredApprovals}</Descriptions.Item>
-          <Descriptions.Item label="创建时间">{dayjs(a.createdAt).format('YYYY-MM-DD HH:mm:ss')}</Descriptions.Item>
+          <Descriptions.Item label="创建时间">
+            {dayjs(a.createdAt).format('YYYY-MM-DD HH:mm:ss')}
+          </Descriptions.Item>
           <Descriptions.Item label="更新时间" span={2}>
             {dayjs(a.updatedAt).format('YYYY-MM-DD HH:mm:ss')} ({dayjs(a.updatedAt).fromNow()})
           </Descriptions.Item>
@@ -446,11 +524,18 @@ const ApprovalManagement: React.FC = () => {
           <Space direction="vertical" style={{ width: '100%' }}>
             <Progress
               percent={approvalProgress(a)}
-              status={a.status === 'rejected' ? 'exception' : a.status === 'approved' ? 'success' : 'active'}
+              status={
+                a.status === 'rejected'
+                  ? 'exception'
+                  : a.status === 'approved'
+                    ? 'success'
+                    : 'active'
+              }
               format={() => `${a.approvals.length} / ${a.requiredApprovals}`}
             />
             <Text type="secondary" style={{ fontSize: 12 }}>
-              已获得 {a.approvals.length} 个通过, {a.rejections.length} 个拒绝 (需要 {a.requiredApprovals} 个通过)
+              已获得 {a.approvals.length} 个通过, {a.rejections.length} 个拒绝 (需要{' '}
+              {a.requiredApprovals} 个通过)
             </Text>
           </Space>
         </Card>
@@ -472,12 +557,24 @@ const ApprovalManagement: React.FC = () => {
               }
               return (
                 <Space key={uid} style={{ padding: '4px 0' }}>
-                  <Avatar size="small" icon={<UserOutlined />} style={{ backgroundColor: hasApproved ? colors.success[500] : hasRejected ? colors.error[400] : colors.neutral[300] }}>
+                  <Avatar
+                    size="small"
+                    icon={<UserOutlined />}
+                    style={{
+                      backgroundColor: hasApproved
+                        ? colors.success[500]
+                        : hasRejected
+                          ? colors.error[400]
+                          : colors.neutral[300],
+                    }}
+                  >
                     {uid.substring(0, 2)}
                   </Avatar>
                   <Text>{uid}</Text>
                   {statusIcon}
-                  <Text type="secondary" style={{ fontSize: 12 }}>{statusText}</Text>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    {statusText}
+                  </Text>
                 </Space>
               );
             })}
@@ -489,10 +586,24 @@ const ApprovalManagement: React.FC = () => {
           <Card size="small" title="审批评论" style={{ marginTop: 16 }}>
             <Space direction="vertical" style={{ width: '100%' }}>
               {a.comments.map((c: ApprovalComment, idx: number) => (
-                <div key={idx} style={{ padding: '8px 0', borderBottom: idx < a.comments!.length - 1 ? `1px solid ${colors.neutral[200]}` : 'none' }}>
+                <div
+                  key={idx}
+                  style={{
+                    padding: '8px 0',
+                    borderBottom:
+                      idx < a.comments!.length - 1 ? `1px solid ${colors.neutral[200]}` : 'none',
+                  }}
+                >
                   <Space style={{ width: '100%', justifyContent: 'space-between' }}>
                     <Space>
-                      <Avatar size="small" icon={<UserOutlined />} style={{ backgroundColor: c.action === 'approved' ? colors.success[500] : colors.error[400] }}>
+                      <Avatar
+                        size="small"
+                        icon={<UserOutlined />}
+                        style={{
+                          backgroundColor:
+                            c.action === 'approved' ? colors.success[500] : colors.error[400],
+                        }}
+                      >
                         {c.userId.substring(0, 2)}
                       </Avatar>
                       <Text strong>{c.userId}</Text>
@@ -500,10 +611,14 @@ const ApprovalManagement: React.FC = () => {
                         {c.action === 'approved' ? '通过' : '拒绝'}
                       </Tag>
                     </Space>
-                    <Text type="secondary" style={{ fontSize: 12 }}>{dayjs(c.createdAt).fromNow()}</Text>
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      {dayjs(c.createdAt).fromNow()}
+                    </Text>
                   </Space>
                   {c.comment && (
-                    <Text style={{ display: 'block', marginTop: 4, fontSize: 13 }}>{c.comment}</Text>
+                    <Text style={{ display: 'block', marginTop: 4, fontSize: 13 }}>
+                      {c.comment}
+                    </Text>
                   )}
                 </div>
               ))}
@@ -516,7 +631,9 @@ const ApprovalManagement: React.FC = () => {
           <Card size="small" title="元数据" style={{ marginTop: 16 }}>
             <Descriptions column={2} size="small">
               {Object.entries(a.metadata).map(([key, value]) => (
-                <Descriptions.Item key={key} label={key}>{String(value)}</Descriptions.Item>
+                <Descriptions.Item key={key} label={key}>
+                  {String(value)}
+                </Descriptions.Item>
               ))}
             </Descriptions>
           </Card>
@@ -555,178 +672,210 @@ const ApprovalManagement: React.FC = () => {
 
       {isInitialLoading ? null : (
         <>
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
-        <div>
-          <Title level={3} style={{ margin: 0 }}>审批管理</Title>
-          <Text type="secondary">管理多级审批流程，包括创建、审批和跟踪</Text>
-        </div>
-        <Space>
-          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>刷新</Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalVisible(true)}>
-            创建审批
-          </Button>
-        </Space>
-      </div>
-
-      {/* Mock data warning banner */}
-      {usingMockData && (
-        <Alert
-          message="使用模拟数据"
-          description="后端服务暂时不可用，当前显示的是模拟数据，可能不是最新状态。"
-          type="warning"
-          showIcon
-          closable
-          style={{ marginBottom: 16 }}
-          onClose={() => setUsingMockData(false)}
-        />
-      )}
-
-      {/* Stats Panel */}
-      <Card size="small" style={{ marginBottom: 16 }}>
-        <Space size="large">
-          <Space>
-            <Text type="secondary">总计:</Text>
-            <Text strong>{stats.total}</Text>
-          </Space>
-          <Space>
-            <ClockCircleOutlined style={{ color: colors.primary[500] }} />
-            <Text type="secondary">待审批:</Text>
-            <Text strong style={{ color: colors.primary[500] }}>{stats.pending}</Text>
-          </Space>
-          <Space>
-            <CheckCircleOutlined style={{ color: colors.success[500] }} />
-            <Text type="secondary">已通过:</Text>
-            <Text strong style={{ color: colors.success[500] }}>{stats.approved}</Text>
-          </Space>
-          <Space>
-            <StopOutlined style={{ color: colors.error[400] }} />
-            <Text type="secondary">已拒绝:</Text>
-            <Text strong style={{ color: colors.error[400] }}>{stats.rejected}</Text>
-          </Space>
-        </Space>
-      </Card>
-
-      {/* Filters */}
-      <Card>
-        <div style={{ display: 'flex', gap: 16, marginBottom: 16 }}>
-          <Input.Search
-            placeholder="搜索审批标题、描述或申请人..."
-            allowClear
-            style={{ width: 320 }}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onSearch={setSearchQuery}
-          />
-          <Select
-            style={{ width: 140 }}
-            value={statusFilter}
-            onChange={(v) => setStatusFilter(v)}
-            options={[
-              { label: '全部状态', value: 'all' },
-              { label: '待审批', value: 'pending' },
-              { label: '已通过', value: 'approved' },
-              { label: '已拒绝', value: 'rejected' },
-              { label: '已取消', value: 'cancelled' },
-            ]}
-          />
-        </div>
-
-        {/* Approval Table */}
-        <Table
-          columns={columns}
-          dataSource={filteredData}
-          loading={loading}
-          rowKey="id"
-          size="middle"
-          striped
-        />
-      </Card>
-
-      {/* Create Modal */}
-      <Modal
-        title="创建审批请求"
-        open={createModalVisible}
-        onCancel={() => setCreateModalVisible(false)}
-        onOk={handleCreate}
-        confirmLoading={submitting}
-        width={600}
-        destroyOnClose
-      >
-        <Form form={createForm} layout="vertical">
-          <Form.Item name="title" label="审批标题" rules={[{ required: true, message: '请输入审批标题' }]}>
-            <Input placeholder="如: 生产环境部署审批" />
-          </Form.Item>
-          <Form.Item name="description" label="描述">
-            <Input.TextArea rows={3} placeholder="详细说明审批原因和背景..." />
-          </Form.Item>
-          <Form.Item name="requesterId" label="申请人">
-            <Input placeholder="申请人 ID (默认当前用户)" />
-          </Form.Item>
-          <Form.Item
-            name="approverIds"
-            label="审批人列表 (逗号分隔)"
-            rules={[{ required: true, message: '请输入审批人列表' }]}
+          {/* Header */}
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'flex-start',
+              marginBottom: 24,
+            }}
           >
-            <Input placeholder="如: tech-lead, ops-manager, security-lead" />
-          </Form.Item>
-          <Form.Item name="requiredApprovals" label="所需通过数">
-            <Input type="number" placeholder="默认 1" min={1} />
-          </Form.Item>
-          <Form.Item name="metadata" label="资源类型">
-            <Select
-              placeholder="选择关联资源类型"
-              options={[
-                { label: '部署 (deployment)', value: 'deployment' },
-                { label: '数据库 (database)', value: 'database' },
-                { label: '服务 (service)', value: 'service' },
-                { label: '安全 (security)', value: 'security' },
-                { label: '基础设施 (infrastructure)', value: 'infrastructure' },
-                { label: '通用 (generic)', value: 'generic' },
-              ]}
+            <div>
+              <Title level={3} style={{ margin: 0 }}>
+                审批管理
+              </Title>
+              <Text type="secondary">管理多级审批流程，包括创建、审批和跟踪</Text>
+            </div>
+            <Space>
+              <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+                刷新
+              </Button>
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={() => setCreateModalVisible(true)}
+              >
+                创建审批
+              </Button>
+            </Space>
+          </div>
+
+          {/* Mock data warning banner */}
+          {usingMockData && (
+            <Alert
+              message="使用模拟数据"
+              description="后端服务暂时不可用，当前显示的是模拟数据，可能不是最新状态。"
+              type="warning"
+              showIcon
+              closable
+              style={{ marginBottom: 16 }}
+              onClose={() => setUsingMockData(false)}
             />
-          </Form.Item>
-        </Form>
-      </Modal>
+          )}
 
-      {/* Detail Drawer */}
-      <Drawer
-        title={selectedApproval ? selectedApproval.title : '审批详情'}
-        open={detailDrawerVisible}
-        onClose={() => setDetailDrawerVisible(false)}
-        width={720}
-        destroyOnClose
-      >
-        {detailContent}
-      </Drawer>
+          {/* Stats Panel */}
+          <Card size="small" style={{ marginBottom: 16 }}>
+            <Space size="large">
+              <Space>
+                <Text type="secondary">总计:</Text>
+                <Text strong>{stats.total}</Text>
+              </Space>
+              <Space>
+                <ClockCircleOutlined style={{ color: colors.primary[500] }} />
+                <Text type="secondary">待审批:</Text>
+                <Text strong style={{ color: colors.primary[500] }}>
+                  {stats.pending}
+                </Text>
+              </Space>
+              <Space>
+                <CheckCircleOutlined style={{ color: colors.success[500] }} />
+                <Text type="secondary">已通过:</Text>
+                <Text strong style={{ color: colors.success[500] }}>
+                  {stats.approved}
+                </Text>
+              </Space>
+              <Space>
+                <StopOutlined style={{ color: colors.error[400] }} />
+                <Text type="secondary">已拒绝:</Text>
+                <Text strong style={{ color: colors.error[400] }}>
+                  {stats.rejected}
+                </Text>
+              </Space>
+            </Space>
+          </Card>
 
-      {/* Comment Modal */}
-      <Modal
-        title={commentAction === 'approve' ? '通过审批' : '拒绝审批'}
-        open={commentModalVisible}
-        onCancel={() => setCommentModalVisible(false)}
-        onOk={handleCommentSubmit}
-        confirmLoading={commentSubmitting}
-        okText={commentAction === 'approve' ? '通过' : '拒绝'}
-        okButtonProps={{
-          danger: commentAction === 'reject',
-          style: commentAction === 'approve' ? { backgroundColor: colors.success[500], borderColor: colors.success[500] } : undefined,
-        }}
-      >
-        <div style={{ marginBottom: 8 }}>
-          <Text type="secondary">
-            {commentAction === 'approve' ? '确认通过该审批？可填写评论理由（可选）。' : '确认拒绝该审批？请填写拒绝理由（可选）。'}
-          </Text>
-        </div>
-        <Input.TextArea
-          rows={4}
-          placeholder={commentAction === 'reject' ? '请输入拒绝理由...' : '请输入评论/理由（可选）...'}
-          value={commentText}
-          onChange={(e) => setCommentText(e.target.value)}
-          maxLength={500}
-          showCount
-        />
-      </Modal>
+          {/* Filters */}
+          <Card>
+            <div style={{ display: 'flex', gap: 16, marginBottom: 16 }}>
+              <Input.Search
+                placeholder="搜索审批标题、描述或申请人..."
+                allowClear
+                style={{ width: 320 }}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onSearch={setSearchQuery}
+              />
+              <Select
+                style={{ width: 140 }}
+                value={statusFilter}
+                onChange={(v) => setStatusFilter(v)}
+                options={[
+                  { label: '全部状态', value: 'all' },
+                  { label: '待审批', value: 'pending' },
+                  { label: '已通过', value: 'approved' },
+                  { label: '已拒绝', value: 'rejected' },
+                  { label: '已取消', value: 'cancelled' },
+                ]}
+              />
+            </div>
+
+            {/* Approval Table */}
+            <Table
+              columns={columns}
+              dataSource={filteredData}
+              loading={loading}
+              rowKey="id"
+              size="middle"
+              striped
+            />
+          </Card>
+
+          {/* Create Modal */}
+          <Modal
+            title="创建审批请求"
+            open={createModalVisible}
+            onCancel={() => setCreateModalVisible(false)}
+            onOk={handleCreate}
+            confirmLoading={submitting}
+            width={600}
+            destroyOnClose
+          >
+            <Form form={createForm} layout="vertical">
+              <Form.Item
+                name="title"
+                label="审批标题"
+                rules={[{ required: true, message: '请输入审批标题' }]}
+              >
+                <Input placeholder="如: 生产环境部署审批" />
+              </Form.Item>
+              <Form.Item name="description" label="描述">
+                <Input.TextArea rows={3} placeholder="详细说明审批原因和背景..." />
+              </Form.Item>
+              <Form.Item name="requesterId" label="申请人">
+                <Input placeholder="申请人 ID (默认当前用户)" />
+              </Form.Item>
+              <Form.Item
+                name="approverIds"
+                label="审批人列表 (逗号分隔)"
+                rules={[{ required: true, message: '请输入审批人列表' }]}
+              >
+                <Input placeholder="如: tech-lead, ops-manager, security-lead" />
+              </Form.Item>
+              <Form.Item name="requiredApprovals" label="所需通过数">
+                <Input type="number" placeholder="默认 1" min={1} />
+              </Form.Item>
+              <Form.Item name="metadata" label="资源类型">
+                <Select
+                  placeholder="选择关联资源类型"
+                  options={[
+                    { label: '部署 (deployment)', value: 'deployment' },
+                    { label: '数据库 (database)', value: 'database' },
+                    { label: '服务 (service)', value: 'service' },
+                    { label: '安全 (security)', value: 'security' },
+                    { label: '基础设施 (infrastructure)', value: 'infrastructure' },
+                    { label: '通用 (generic)', value: 'generic' },
+                  ]}
+                />
+              </Form.Item>
+            </Form>
+          </Modal>
+
+          {/* Detail Drawer */}
+          <Drawer
+            title={selectedApproval ? selectedApproval.title : '审批详情'}
+            open={detailDrawerVisible}
+            onClose={() => setDetailDrawerVisible(false)}
+            width={720}
+            destroyOnClose
+          >
+            {detailContent}
+          </Drawer>
+
+          {/* Comment Modal */}
+          <Modal
+            title={commentAction === 'approve' ? '通过审批' : '拒绝审批'}
+            open={commentModalVisible}
+            onCancel={() => setCommentModalVisible(false)}
+            onOk={handleCommentSubmit}
+            confirmLoading={commentSubmitting}
+            okText={commentAction === 'approve' ? '通过' : '拒绝'}
+            okButtonProps={{
+              danger: commentAction === 'reject',
+              style:
+                commentAction === 'approve'
+                  ? { backgroundColor: colors.success[500], borderColor: colors.success[500] }
+                  : undefined,
+            }}
+          >
+            <div style={{ marginBottom: 8 }}>
+              <Text type="secondary">
+                {commentAction === 'approve'
+                  ? '确认通过该审批？可填写评论理由（可选）。'
+                  : '确认拒绝该审批？请填写拒绝理由（可选）。'}
+              </Text>
+            </div>
+            <Input.TextArea
+              rows={4}
+              placeholder={
+                commentAction === 'reject' ? '请输入拒绝理由...' : '请输入评论/理由（可选）...'
+              }
+              value={commentText}
+              onChange={(e) => setCommentText(e.target.value)}
+              maxLength={500}
+              showCount
+            />
+          </Modal>
         </>
       )}
     </div>

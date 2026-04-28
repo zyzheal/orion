@@ -23,7 +23,7 @@ vi.mock('dayjs', async () => {
 });
 
 vi.mock('dayjs/plugin/duration', async (importOriginal) => {
-  const actual = await importOriginal() as any;
+  const actual = (await importOriginal()) as any;
   return {
     ...actual,
     default: actual?.default || vi.fn(),
@@ -31,11 +31,7 @@ vi.mock('dayjs/plugin/duration', async (importOriginal) => {
 });
 
 const renderWithRouter = (ui: React.ReactElement) => {
-  return render(
-    <MemoryRouter initialEntries={['/pipelines/pl-001']}>
-      {ui}
-    </MemoryRouter>
-  );
+  return render(<MemoryRouter initialEntries={['/pipelines/pl-001']}>{ui}</MemoryRouter>);
 };
 
 describe('PipelineDetail', () => {

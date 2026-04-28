@@ -28,10 +28,7 @@ export function debounce<T extends (...args: any[]) => any>(
 /**
  * 节流函数
  */
-export function throttle<T extends (...args: any[]) => any>(
-  func: T,
-  limit: number
-): T {
+export function throttle<T extends (...args: any[]) => any>(func: T, limit: number): T {
   let inThrottle: boolean;
 
   return function (this: any, ...args: Parameters<T>) {

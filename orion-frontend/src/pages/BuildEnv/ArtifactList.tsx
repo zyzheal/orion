@@ -5,7 +5,12 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Typography, Button, Space, Tag, Popconfirm, message } from 'antd';
 import { spacing } from '@/tokens';
-import { ReloadOutlined, DownloadOutlined, DeleteOutlined, ThunderboltOutlined } from '@ant-design/icons';
+import {
+  ReloadOutlined,
+  DownloadOutlined,
+  DeleteOutlined,
+  ThunderboltOutlined,
+} from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import {
@@ -50,13 +55,16 @@ const ArtifactList: React.FC = () => {
     return artifacts.filter((artifact) => {
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
-        const searchable = [artifact.name, artifact.type, artifact.pipelineRunId, artifact.stageId].join(' ').toLowerCase();
+        const searchable = [artifact.name, artifact.type, artifact.pipelineRunId, artifact.stageId]
+          .join(' ')
+          .toLowerCase();
         if (!searchable.includes(query)) return false;
       }
       const typeFilter = filters.type;
       if (typeFilter && typeFilter !== 'all' && artifact.type !== typeFilter) return false;
       const runIdFilter = filters.pipelineRunId;
-      if (runIdFilter && runIdFilter !== 'all' && artifact.pipelineRunId !== runIdFilter) return false;
+      if (runIdFilter && runIdFilter !== 'all' && artifact.pipelineRunId !== runIdFilter)
+        return false;
       return true;
     });
   }, [searchQuery, filters, artifacts]);
@@ -64,7 +72,9 @@ const ArtifactList: React.FC = () => {
   const handleDownload = async (artifact: Artifact) => {
     try {
       const response = await downloadArtifact(artifact.id);
-      const blob = new Blob([response.data as unknown as BlobPart], { type: 'application/octet-stream' });
+      const blob = new Blob([response.data as unknown as BlobPart], {
+        type: 'application/octet-stream',
+      });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -128,10 +138,12 @@ const ArtifactList: React.FC = () => {
       label: 'Run ID',
       options: [
         { label: 'All', value: 'all' },
-        ...Array.from(new Set(artifacts.map((a) => a.pipelineRunId))).slice(0, 10).map((id) => ({
-          label: id,
-          value: id,
-        })),
+        ...Array.from(new Set(artifacts.map((a) => a.pipelineRunId)))
+          .slice(0, 10)
+          .map((id) => ({
+            label: id,
+            value: id,
+          })),
       ],
     },
   ];
@@ -160,7 +172,8 @@ const ArtifactList: React.FC = () => {
       sortable: true,
       render: (value) => {
         const bytes = Number(value);
-        if (bytes >= 1024 * 1024 * 1024) return <Text>{(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB</Text>;
+        if (bytes >= 1024 * 1024 * 1024)
+          return <Text>{(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB</Text>;
         if (bytes >= 1024 * 1024) return <Text>{(bytes / (1024 * 1024)).toFixed(1)} MB</Text>;
         if (bytes >= 1024) return <Text>{(bytes / 1024).toFixed(1)} KB</Text>;
         return <Text>{bytes} B</Text>;
@@ -171,14 +184,22 @@ const ArtifactList: React.FC = () => {
       title: 'Run ID',
       dataIndex: 'pipelineRunId',
       width: 180,
-      render: (value) => <Text type="secondary" style={{ fontSize: spacing[3] }}>{String(value)}</Text>,
+      render: (value) => (
+        <Text type="secondary" style={{ fontSize: spacing[3] }}>
+          {String(value)}
+        </Text>
+      ),
     },
     {
       key: 'stageId',
       title: 'Stage ID',
       dataIndex: 'stageId',
       width: 160,
-      render: (value) => <Text type="secondary" style={{ fontSize: spacing[3] }}>{String(value)}</Text>,
+      render: (value) => (
+        <Text type="secondary" style={{ fontSize: spacing[3] }}>
+          {String(value)}
+        </Text>
+      ),
     },
     {
       key: 'expiresAt',
@@ -239,9 +260,18 @@ const ArtifactList: React.FC = () => {
 
   return (
     <div style={{ padding: 0 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          marginBottom: 24,
+        }}
+      >
         <div>
-          <Title level={3} style={{ margin: 0 }}>Artifacts</Title>
+          <Title level={3} style={{ margin: 0 }}>
+            Artifacts
+          </Title>
           <Text type="secondary">{filteredArtifacts.length} artifacts</Text>
         </div>
         <Space>
@@ -263,7 +293,14 @@ const ArtifactList: React.FC = () => {
         />
       </div>
 
-      <Table columns={columns} dataSource={filteredArtifacts} loading={loading} rowKey="id" size="middle" striped />
+      <Table
+        columns={columns}
+        dataSource={filteredArtifacts}
+        loading={loading}
+        rowKey="id"
+        size="middle"
+        striped
+      />
     </div>
   );
 };

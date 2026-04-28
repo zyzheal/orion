@@ -100,6 +100,7 @@ export function createPipeline(input: PipelineCreateInput): Pipeline {
 }
 
 export function parsePipelineYaml(yaml: string): { spec: PipelineSpec; metadata: PipelineMetadata } {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
   const yamlModule = require('js-yaml');
   const parsed = yamlModule.load(yaml) as {
     apiVersion: string;

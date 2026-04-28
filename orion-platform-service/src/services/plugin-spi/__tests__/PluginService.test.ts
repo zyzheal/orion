@@ -341,6 +341,7 @@ describe('PluginService (Integration)', () => {
       await service.registerPlugin(createManifest({ name: 'plugin-with-missing' }));
 
       // Use the dependency resolver directly to check missing deps scenario
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
       const { PluginDependencyResolver } = require('../PluginDependencyResolver');
       const resolver = new PluginDependencyResolver();
       const result = resolver.resolveDependencies([

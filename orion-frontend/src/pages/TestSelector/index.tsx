@@ -14,7 +14,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Typography, Card, Tag, Space, Button, Alert, message } from 'antd';
 import { Table as AntTable } from 'antd';
-import { ExperimentOutlined, CheckCircleOutlined, CloseCircleOutlined, MinusCircleOutlined, AppstoreOutlined, PlayCircleOutlined, EyeOutlined } from '@ant-design/icons';
+import {
+  ExperimentOutlined,
+  CheckCircleOutlined,
+  CloseCircleOutlined,
+  MinusCircleOutlined,
+  AppstoreOutlined,
+  PlayCircleOutlined,
+  EyeOutlined,
+} from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
 import DashboardLayout from '@/components/DashboardLayout';
 import MetricCard from '@/components/MetricCard';
@@ -50,34 +58,176 @@ interface TestStats {
 // ============================================================================
 
 const MOCK_TEST_CASES: TestCase[] = [
-  { key: 'test-001', name: 'User login with valid credentials', suite: 'Auth Suite', status: 'passed', duration: '234ms', lastRun: '2026-04-27 10:30', tags: ['smoke', 'auth'] },
-  { key: 'test-002', name: 'User login with invalid password', suite: 'Auth Suite', status: 'passed', duration: '189ms', lastRun: '2026-04-27 10:30', tags: ['smoke', 'auth'] },
-  { key: 'test-003', name: 'User login with expired token', suite: 'Auth Suite', status: 'failed', duration: '512ms', lastRun: '2026-04-27 09:15', tags: ['regression', 'auth'] },
-  { key: 'test-004', name: 'Create pipeline with valid config', suite: 'Pipeline Suite', status: 'passed', duration: '1,203ms', lastRun: '2026-04-27 10:28', tags: ['smoke', 'pipeline'] },
-  { key: 'test-005', name: 'Create pipeline with invalid YAML', suite: 'Pipeline Suite', status: 'passed', duration: '98ms', lastRun: '2026-04-27 10:28', tags: ['smoke', 'pipeline'] },
-  { key: 'test-006', name: 'Deploy to staging environment', suite: 'Deploy Suite', status: 'passed', duration: '3,450ms', lastRun: '2026-04-27 10:25', tags: ['e2e', 'deploy'] },
-  { key: 'test-007', name: 'Deploy with rollback trigger', suite: 'Deploy Suite', status: 'failed', duration: '4,102ms', lastRun: '2026-04-27 08:45', tags: ['e2e', 'deploy', 'regression'] },
-  { key: 'test-008', name: 'Query metrics by time range', suite: 'Metrics Suite', status: 'passed', duration: '67ms', lastRun: '2026-04-27 10:30', tags: ['api', 'metrics'] },
-  { key: 'test-009', name: 'Query metrics with invalid filters', suite: 'Metrics Suite', status: 'skipped', duration: '-', lastRun: '2026-04-26 16:00', tags: ['api', 'metrics'] },
-  { key: 'test-010', name: 'Alert rule creation and trigger', suite: 'Alert Suite', status: 'passed', duration: '890ms', lastRun: '2026-04-27 10:20', tags: ['e2e', 'alert'] },
-  { key: 'test-011', name: 'Alert rule escalation path', suite: 'Alert Suite', status: 'pending', duration: '-', lastRun: 'Never', tags: ['e2e', 'alert'] },
-  { key: 'test-012', name: 'Self-healing strategy execution', suite: 'SelfHealing Suite', status: 'passed', duration: '2,340ms', lastRun: '2026-04-27 09:50', tags: ['e2e', 'self-healing'] },
-  { key: 'test-013', name: 'Self-healing approval workflow', suite: 'SelfHealing Suite', status: 'failed', duration: '1,890ms', lastRun: '2026-04-27 08:30', tags: ['regression', 'self-healing'] },
-  { key: 'test-014', name: 'Config management CRUD', suite: 'Config Suite', status: 'passed', duration: '156ms', lastRun: '2026-04-27 10:15', tags: ['api', 'config'] },
-  { key: 'test-015', name: 'Config rollback to previous version', suite: 'Config Suite', status: 'skipped', duration: '-', lastRun: '2026-04-26 14:00', tags: ['regression', 'config'] },
-  { key: 'test-016', name: 'Multi-tenant data isolation', suite: 'Tenant Suite', status: 'passed', duration: '789ms', lastRun: '2026-04-27 10:10', tags: ['e2e', 'tenant'] },
-  { key: 'test-017', name: 'Cost estimation accuracy', suite: 'FinOps Suite', status: 'passed', duration: '345ms', lastRun: '2026-04-27 10:05', tags: ['api', 'finops'] },
-  { key: 'test-018', name: 'Budget alert threshold trigger', suite: 'FinOps Suite', status: 'failed', duration: '567ms', lastRun: '2026-04-27 07:30', tags: ['regression', 'finops'] },
+  {
+    key: 'test-001',
+    name: 'User login with valid credentials',
+    suite: 'Auth Suite',
+    status: 'passed',
+    duration: '234ms',
+    lastRun: '2026-04-27 10:30',
+    tags: ['smoke', 'auth'],
+  },
+  {
+    key: 'test-002',
+    name: 'User login with invalid password',
+    suite: 'Auth Suite',
+    status: 'passed',
+    duration: '189ms',
+    lastRun: '2026-04-27 10:30',
+    tags: ['smoke', 'auth'],
+  },
+  {
+    key: 'test-003',
+    name: 'User login with expired token',
+    suite: 'Auth Suite',
+    status: 'failed',
+    duration: '512ms',
+    lastRun: '2026-04-27 09:15',
+    tags: ['regression', 'auth'],
+  },
+  {
+    key: 'test-004',
+    name: 'Create pipeline with valid config',
+    suite: 'Pipeline Suite',
+    status: 'passed',
+    duration: '1,203ms',
+    lastRun: '2026-04-27 10:28',
+    tags: ['smoke', 'pipeline'],
+  },
+  {
+    key: 'test-005',
+    name: 'Create pipeline with invalid YAML',
+    suite: 'Pipeline Suite',
+    status: 'passed',
+    duration: '98ms',
+    lastRun: '2026-04-27 10:28',
+    tags: ['smoke', 'pipeline'],
+  },
+  {
+    key: 'test-006',
+    name: 'Deploy to staging environment',
+    suite: 'Deploy Suite',
+    status: 'passed',
+    duration: '3,450ms',
+    lastRun: '2026-04-27 10:25',
+    tags: ['e2e', 'deploy'],
+  },
+  {
+    key: 'test-007',
+    name: 'Deploy with rollback trigger',
+    suite: 'Deploy Suite',
+    status: 'failed',
+    duration: '4,102ms',
+    lastRun: '2026-04-27 08:45',
+    tags: ['e2e', 'deploy', 'regression'],
+  },
+  {
+    key: 'test-008',
+    name: 'Query metrics by time range',
+    suite: 'Metrics Suite',
+    status: 'passed',
+    duration: '67ms',
+    lastRun: '2026-04-27 10:30',
+    tags: ['api', 'metrics'],
+  },
+  {
+    key: 'test-009',
+    name: 'Query metrics with invalid filters',
+    suite: 'Metrics Suite',
+    status: 'skipped',
+    duration: '-',
+    lastRun: '2026-04-26 16:00',
+    tags: ['api', 'metrics'],
+  },
+  {
+    key: 'test-010',
+    name: 'Alert rule creation and trigger',
+    suite: 'Alert Suite',
+    status: 'passed',
+    duration: '890ms',
+    lastRun: '2026-04-27 10:20',
+    tags: ['e2e', 'alert'],
+  },
+  {
+    key: 'test-011',
+    name: 'Alert rule escalation path',
+    suite: 'Alert Suite',
+    status: 'pending',
+    duration: '-',
+    lastRun: 'Never',
+    tags: ['e2e', 'alert'],
+  },
+  {
+    key: 'test-012',
+    name: 'Self-healing strategy execution',
+    suite: 'SelfHealing Suite',
+    status: 'passed',
+    duration: '2,340ms',
+    lastRun: '2026-04-27 09:50',
+    tags: ['e2e', 'self-healing'],
+  },
+  {
+    key: 'test-013',
+    name: 'Self-healing approval workflow',
+    suite: 'SelfHealing Suite',
+    status: 'failed',
+    duration: '1,890ms',
+    lastRun: '2026-04-27 08:30',
+    tags: ['regression', 'self-healing'],
+  },
+  {
+    key: 'test-014',
+    name: 'Config management CRUD',
+    suite: 'Config Suite',
+    status: 'passed',
+    duration: '156ms',
+    lastRun: '2026-04-27 10:15',
+    tags: ['api', 'config'],
+  },
+  {
+    key: 'test-015',
+    name: 'Config rollback to previous version',
+    suite: 'Config Suite',
+    status: 'skipped',
+    duration: '-',
+    lastRun: '2026-04-26 14:00',
+    tags: ['regression', 'config'],
+  },
+  {
+    key: 'test-016',
+    name: 'Multi-tenant data isolation',
+    suite: 'Tenant Suite',
+    status: 'passed',
+    duration: '789ms',
+    lastRun: '2026-04-27 10:10',
+    tags: ['e2e', 'tenant'],
+  },
+  {
+    key: 'test-017',
+    name: 'Cost estimation accuracy',
+    suite: 'FinOps Suite',
+    status: 'passed',
+    duration: '345ms',
+    lastRun: '2026-04-27 10:05',
+    tags: ['api', 'finops'],
+  },
+  {
+    key: 'test-018',
+    name: 'Budget alert threshold trigger',
+    suite: 'FinOps Suite',
+    status: 'failed',
+    duration: '567ms',
+    lastRun: '2026-04-27 07:30',
+    tags: ['regression', 'finops'],
+  },
 ];
 
-const SUITE_OPTIONS = MOCK_TEST_CASES
-  .map((t) => t.suite)
+const SUITE_OPTIONS = MOCK_TEST_CASES.map((t) => t.suite)
   .filter((v, i, a) => a.indexOf(v) === i)
   .sort()
   .map((s) => ({ label: s, value: s }));
 
-const TAG_OPTIONS = MOCK_TEST_CASES
-  .flatMap((t) => t.tags)
+const TAG_OPTIONS = MOCK_TEST_CASES.flatMap((t) => t.tags)
   .filter((v, i, a) => a.indexOf(v) === i)
   .sort()
   .map((t) => ({ label: t, value: t }));
@@ -141,7 +291,13 @@ const TestSelector: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [usingMockData, setUsingMockData] = useState(true);
   const [testCases, setTestCases] = useState<TestCase[]>([]);
-  const [testStats, setTestStats] = useState<TestStats>({ total: 0, passed: 0, failed: 0, skipped: 0, passRate: '0%' });
+  const [testStats, setTestStats] = useState<TestStats>({
+    total: 0,
+    passed: 0,
+    failed: 0,
+    skipped: 0,
+    passRate: '0%',
+  });
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -180,7 +336,8 @@ const TestSelector: React.FC = () => {
 
   // Filter test cases based on search and filters
   const filteredCases = testCases.filter((test) => {
-    const matchesSearch = !searchQuery || test.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch =
+      !searchQuery || test.name.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === 'all' || test.status === statusFilter;
     const matchesSuite = !suiteFilter || test.suite === suiteFilter;
     const matchesTag = !tagFilter || test.tags.includes(tagFilter);
@@ -195,7 +352,17 @@ const TestSelector: React.FC = () => {
       dataIndex: 'name',
       sortable: true,
       render: (value: unknown) => (
-        <Text strong style={{ maxWidth: 320, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={String(value)}>
+        <Text
+          strong
+          style={{
+            maxWidth: 320,
+            display: 'block',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+          title={String(value)}
+        >
           {String(value)}
         </Text>
       ),
@@ -206,9 +373,7 @@ const TestSelector: React.FC = () => {
       dataIndex: 'suite',
       sortable: true,
       filterable: true,
-      render: (value: unknown) => (
-        <Tag color={colors.primary[400]}>{String(value)}</Tag>
-      ),
+      render: (value: unknown) => <Tag color={colors.primary[400]}>{String(value)}</Tag>,
     },
     {
       key: 'status',
@@ -241,7 +406,9 @@ const TestSelector: React.FC = () => {
       render: (value: unknown) => (
         <Space size={4} wrap>
           {(value as string[]).map((tag) => (
-            <Tag key={tag} color={colors.neutral[300]} style={{ fontSize: 11 }}>{tag}</Tag>
+            <Tag key={tag} color={colors.neutral[300]} style={{ fontSize: 11 }}>
+              {tag}
+            </Tag>
           ))}
         </Space>
       ),
@@ -306,13 +473,25 @@ const TestSelector: React.FC = () => {
       return;
     }
     const selectedTests = testCases.filter((t) => selectedRowKeys.includes(t.key));
-    message.success(`Starting ${selectedTests.length} test(s): ${selectedTests.map((t) => t.name).join(', ').substring(0, 80)}...`);
+    message.success(
+      `Starting ${selectedTests.length} test(s): ${selectedTests
+        .map((t) => t.name)
+        .join(', ')
+        .substring(0, 80)}...`
+    );
   }, [selectedRowKeys, testCases]);
 
   return (
     <div>
       {/* Page Header */}
-      <div style={{ marginBottom: spacing[6], display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+      <div
+        style={{
+          marginBottom: spacing[6],
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+        }}
+      >
         <div>
           <Title level={3} style={{ margin: 0 }}>
             <ExperimentOutlined style={{ marginRight: spacing[2], color: colors.purple[500] }} />

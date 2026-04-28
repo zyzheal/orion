@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * WebSocket 前后端联调测试
  *
@@ -273,7 +272,7 @@ describe('WebSocket 前后端联调测试', () => {
   describe('消息队列持久化测试', () => {
     it('未连接时消息应该被队列化', () => {
       const messageQueue: string[] = [];
-      let isConnected = false;
+      const isConnected = false;
 
       function sendMessage(data: object): boolean {
         const message = JSON.stringify(data);
@@ -299,7 +298,7 @@ describe('WebSocket 前后端联调测试', () => {
         JSON.stringify({ type: 'test2', data: 'world' }),
       ];
       const sentMessages: string[] = [];
-      let isConnected = true;
+      const isConnected = true;
 
       function flushQueue() {
         while (messageQueue.length > 0) {
@@ -347,7 +346,14 @@ describe('WebSocket Store 状态同步测试', () => {
     const states = ['disconnected', 'connecting', 'connected', 'reconnecting', 'error', 'closed'];
 
     states.forEach((state) => {
-      expect(['disconnected', 'connecting', 'connected', 'reconnecting', 'error', 'closed']).toContain(state);
+      expect([
+        'disconnected',
+        'connecting',
+        'connected',
+        'reconnecting',
+        'error',
+        'closed',
+      ]).toContain(state);
     });
   });
 

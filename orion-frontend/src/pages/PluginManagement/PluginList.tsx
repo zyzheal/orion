@@ -3,15 +3,7 @@
  * Plugin table with columns, filtering, and summary metrics
  */
 import React, { useMemo } from 'react';
-import {
-  Typography,
-  Button,
-  Space,
-  Tag,
-  Badge,
-  Modal,
-  message,
-} from 'antd';
+import { Typography, Button, Space, Tag, Badge, Modal, message } from 'antd';
 import {
   SettingOutlined,
   CloudDownloadOutlined,
@@ -91,7 +83,9 @@ const PluginList: React.FC<PluginListProps> = ({
           plugin.author,
           plugin.type,
           plugin.category,
-        ].join(' ').toLowerCase();
+        ]
+          .join(' ')
+          .toLowerCase();
         if (!searchable.includes(query)) return false;
       }
 
@@ -242,10 +236,7 @@ const PluginList: React.FC<PluginListProps> = ({
       render: (value: unknown) => {
         const isActive = value === 'ACTIVE';
         return (
-          <Badge
-            status={isActive ? 'success' : 'default'}
-            text={isActive ? '已启用' : '已禁用'}
-          />
+          <Badge status={isActive ? 'success' : 'default'} text={isActive ? '已启用' : '已禁用'} />
         );
       },
     },

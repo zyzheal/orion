@@ -2,11 +2,7 @@
  * Mock data for Efficiency Dashboard (TASK-402)
  */
 import React from 'react';
-import {
-  ThunderboltOutlined,
-  ClockCircleOutlined,
-  CheckCircleOutlined,
-} from '@ant-design/icons';
+import { ThunderboltOutlined, ClockCircleOutlined, CheckCircleOutlined } from '@ant-design/icons';
 
 export interface DoraMetric {
   key: string;

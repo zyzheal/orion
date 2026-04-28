@@ -4,14 +4,28 @@
  */
 import React, { useState, useCallback } from 'react';
 import {
-  Typography, Button, Space, Card, message, Modal, Form,
-  Input, Divider, Tag, Alert, Drawer
+  Typography,
+  Button,
+  Space,
+  Card,
+  message,
+  Modal,
+  Form,
+  Input,
+  Divider,
+  Tag,
+  Alert,
+  Drawer,
 } from 'antd';
 import { spacing } from '@/tokens';
 import {
-  PlusOutlined, SaveOutlined,
-  UndoOutlined, DragOutlined, CodeOutlined,
-  ArrowLeftOutlined, CopyOutlined
+  PlusOutlined,
+  SaveOutlined,
+  UndoOutlined,
+  DragOutlined,
+  CodeOutlined,
+  ArrowLeftOutlined,
+  CopyOutlined,
 } from '@ant-design/icons';
 import { DndContext, closestCenter } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
@@ -92,42 +106,47 @@ const PipelineEditor: React.FC = () => {
   // 加载现有 Pipeline（编辑模式）
   React.useEffect(() => {
     if (id) {
-      getPipeline(id).then((response) => {
-        const pipeline: any = response.data.data;
-        if (pipeline) {
-          setPipelineInfo({
-            name: pipeline.name,
-            version: pipeline.version || '1.0.0',
-            description: pipeline.description || '',
-          });
-          // 从 spec.stages 加载 Stage，支持后端格式和前端格式
-          if (pipeline.spec?.stages) {
-            const loadedStages: StageConfig[] = pipeline.spec.stages.map((s: any, idx: number) => {
-              // 后端格式: { name, runsOn, steps: [{ name, uses, with }], timeout, retries, ... }
-              const stepType = s.steps?.[0]?.uses?.split('@')[0]?.replace('orion/', '') || s.type || 'custom';
-              const stepConfig = s.steps?.[0]?.with || s.config || {};
-              return {
-                id: `stage-${idx}-${Date.now()}`,
-                name: s.name,
-                type: stepType,
-                timeout: s.timeout,
-                retryCount: s.retries ?? s.retryCount,
-                dependsOn: s.dependsOn || [],
-                config: stepConfig,
-                cache: s.cache,
-                artifacts: s.artifacts,
-              };
+      getPipeline(id)
+        .then((response) => {
+          const pipeline: any = response.data.data;
+          if (pipeline) {
+            setPipelineInfo({
+              name: pipeline.name,
+              version: pipeline.version || '1.0.0',
+              description: pipeline.description || '',
             });
-            setStages(loadedStages);
+            // 从 spec.stages 加载 Stage，支持后端格式和前端格式
+            if (pipeline.spec?.stages) {
+              const loadedStages: StageConfig[] = pipeline.spec.stages.map(
+                (s: any, idx: number) => {
+                  // 后端格式: { name, runsOn, steps: [{ name, uses, with }], timeout, retries, ... }
+                  const stepType =
+                    s.steps?.[0]?.uses?.split('@')[0]?.replace('orion/', '') || s.type || 'custom';
+                  const stepConfig = s.steps?.[0]?.with || s.config || {};
+                  return {
+                    id: `stage-${idx}-${Date.now()}`,
+                    name: s.name,
+                    type: stepType,
+                    timeout: s.timeout,
+                    retryCount: s.retries ?? s.retryCount,
+                    dependsOn: s.dependsOn || [],
+                    config: stepConfig,
+                    cache: s.cache,
+                    artifacts: s.artifacts,
+                  };
+                }
+              );
+              setStages(loadedStages);
+            }
           }
-        }
-      }).catch((error: unknown) => {
-        if (error instanceof Error) {
-          message.error(`加载 Pipeline 失败：${error.message}`);
-        } else {
-          message.error('加载 Pipeline 失败');
-        }
-      });
+        })
+        .catch((error: unknown) => {
+          if (error instanceof Error) {
+            message.error(`加载 Pipeline 失败：${error.message}`);
+          } else {
+            message.error('加载 Pipeline 失败');
+          }
+        });
     }
   }, [id]);
 
@@ -148,9 +167,10 @@ const PipelineEditor: React.FC = () => {
     for (const stage of stages) {
       const stepUses = stage.config?.uses || `orion/${stage.type}@v1`;
       const stepName = `${stage.name}-step`;
-      const stepWith = stage.config && Object.keys(stage.config).length > 0
-        ? `\n        with: ${JSON.stringify(stage.config)}`
-        : '';
+      const stepWith =
+        stage.config && Object.keys(stage.config).length > 0
+          ? `\n        with: ${JSON.stringify(stage.config)}`
+          : '';
 
       const stageLines = [
         `    - name: ${stage.name}`,
@@ -213,46 +233,52 @@ const PipelineEditor: React.FC = () => {
   }, []);
 
   // 保存 Stage
-  const handleSaveStage = useCallback((values: StageConfig) => {
-    if (editingIndex !== null && editingStage) {
-      // 编辑现有 Stage
-      const newStages = [...stages];
-      newStages[editingIndex] = values;
-      setStages(newStages);
-      message.success('阶段已更新');
-    } else {
-      // 添加新 Stage
-      setStages([...stages, values]);
-      message.success('阶段已添加');
-    }
-    setStageModalVisible(false);
-    setEditingStage(null);
-    setEditingIndex(null);
-  }, [stages, editingIndex, editingStage]);
+  const handleSaveStage = useCallback(
+    (values: StageConfig) => {
+      if (editingIndex !== null && editingStage) {
+        // 编辑现有 Stage
+        const newStages = [...stages];
+        newStages[editingIndex] = values;
+        setStages(newStages);
+        message.success('阶段已更新');
+      } else {
+        // 添加新 Stage
+        setStages([...stages, values]);
+        message.success('阶段已添加');
+      }
+      setStageModalVisible(false);
+      setEditingStage(null);
+      setEditingIndex(null);
+    },
+    [stages, editingIndex, editingStage]
+  );
 
   // 删除 Stage
-  const handleDeleteStage = useCallback((index: number) => {
-    const stage = stages[index];
-    Modal.confirm({
-      title: '确认删除',
-      content: `确定要删除阶段 "${stage.name}" 吗？`,
-      onOk: () => {
-        const newStages = stages.filter((_, i) => i !== index);
-        // 同时更新其他 Stage 的依赖关系
-        newStages.forEach(s => {
-          if (s.dependsOn?.includes(stage.name)) {
-            s.dependsOn = s.dependsOn.filter(d => d !== stage.name);
-          }
-        });
-        setStages(newStages);
-        message.success('阶段已删除');
-      },
-    });
-  }, [stages]);
+  const handleDeleteStage = useCallback(
+    (index: number) => {
+      const stage = stages[index];
+      Modal.confirm({
+        title: '确认删除',
+        content: `确定要删除阶段 "${stage.name}" 吗？`,
+        onOk: () => {
+          const newStages = stages.filter((_, i) => i !== index);
+          // 同时更新其他 Stage 的依赖关系
+          newStages.forEach((s) => {
+            if (s.dependsOn?.includes(stage.name)) {
+              s.dependsOn = s.dependsOn.filter((d) => d !== stage.name);
+            }
+          });
+          setStages(newStages);
+          message.success('阶段已删除');
+        },
+      });
+    },
+    [stages]
+  );
 
   // 验证 Stage 依赖
   const validateDependencies = useCallback((): boolean => {
-    const stageNames = new Set(stages.map(s => s.name));
+    const stageNames = new Set(stages.map((s) => s.name));
     for (const stage of stages) {
       if (stage.dependsOn) {
         for (const dep of stage.dependsOn) {
@@ -327,11 +353,14 @@ const PipelineEditor: React.FC = () => {
   }, [generateYaml]);
 
   // 可用的依赖选项（当前 Stage 之前的所有 Stage）
-  const getAvailableDependencies = useCallback((currentIndex: number) => {
-    return stages
-      .filter((_, index) => index < currentIndex)
-      .map(s => ({ label: s.name, value: s.name }));
-  }, [stages]);
+  const getAvailableDependencies = useCallback(
+    (currentIndex: number) => {
+      return stages
+        .filter((_, index) => index < currentIndex)
+        .map((s) => ({ label: s.name, value: s.name }));
+    },
+    [stages]
+  );
 
   return (
     <div style={{ padding: 0, maxWidth: 1200, margin: '0 auto' }}>
@@ -344,20 +373,14 @@ const PipelineEditor: React.FC = () => {
           marginBottom: 24,
         }}
       >
-        <Button
-          type="text"
-          icon={<ArrowLeftOutlined />}
-          onClick={() => navigate('/pipelines')}
-        >
+        <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/pipelines')}>
           返回列表
         </Button>
         <div style={{ flex: 1 }}>
           <Title level={3} style={{ margin: 0 }}>
             {id ? '编辑 Pipeline' : '创建 Pipeline'}
           </Title>
-          <Text type="secondary">
-            可视化编排您的 CI/CD 流水线
-          </Text>
+          <Text type="secondary">可视化编排您的 CI/CD 流水线</Text>
         </div>
         <Space>
           <Button
@@ -391,11 +414,7 @@ const PipelineEditor: React.FC = () => {
 
       {/* Pipeline 基本信息 */}
       <Card style={{ marginBottom: 24 }} title="基本信息">
-        <Form
-          form={form}
-          layout="inline"
-          requiredMark
-        >
+        <Form form={form} layout="inline" requiredMark>
           <Form.Item
             label="名称"
             name="name"
@@ -405,7 +424,7 @@ const PipelineEditor: React.FC = () => {
               placeholder="例如：build-deploy-pipeline"
               style={{ width: 250 }}
               value={pipelineInfo.name}
-              onChange={e => setPipelineInfo({ ...pipelineInfo, name: e.target.value })}
+              onChange={(e) => setPipelineInfo({ ...pipelineInfo, name: e.target.value })}
             />
           </Form.Item>
           <Form.Item
@@ -417,14 +436,14 @@ const PipelineEditor: React.FC = () => {
               placeholder="例如：1.0.0"
               style={{ width: 120 }}
               value={pipelineInfo.version}
-              onChange={e => setPipelineInfo({ ...pipelineInfo, version: e.target.value })}
+              onChange={(e) => setPipelineInfo({ ...pipelineInfo, version: e.target.value })}
             />
           </Form.Item>
           <Form.Item label="描述" style={{ flex: 1 }}>
             <Input
               placeholder="可选描述..."
               value={pipelineInfo.description}
-              onChange={e => setPipelineInfo({ ...pipelineInfo, description: e.target.value })}
+              onChange={(e) => setPipelineInfo({ ...pipelineInfo, description: e.target.value })}
               style={{ width: 300 }}
             />
           </Form.Item>
@@ -441,11 +460,7 @@ const PipelineEditor: React.FC = () => {
           </Space>
         }
         extra={
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => openStageModal()}
-          >
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => openStageModal()}>
             添加阶段
           </Button>
         }
@@ -459,10 +474,7 @@ const PipelineEditor: React.FC = () => {
           />
         ) : (
           <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            <SortableContext
-              items={stages.map(s => s.id)}
-              strategy={verticalListSortingStrategy}
-            >
+            <SortableContext items={stages.map((s) => s.id)} strategy={verticalListSortingStrategy}>
               <Space direction="vertical" style={{ width: '100%' }} size={16}>
                 {stages.map((stage, index) => (
                   <StageItem
@@ -484,8 +496,12 @@ const PipelineEditor: React.FC = () => {
       {/* Stage 类型说明 */}
       <Card style={{ marginTop: 24 }} title="阶段类型说明">
         <Space wrap>
-          {STAGE_TYPES.map(type => (
-            <Tag key={type.value} color="default" style={{ fontSize: spacing[3], padding: '4px 12px' }}>
+          {STAGE_TYPES.map((type) => (
+            <Tag
+              key={type.value}
+              color="default"
+              style={{ fontSize: spacing[3], padding: '4px 12px' }}
+            >
               {type.icon} {type.label}
             </Tag>
           ))}
@@ -506,7 +522,7 @@ const PipelineEditor: React.FC = () => {
           availableDependencies={
             editingIndex !== null
               ? getAvailableDependencies(editingIndex)
-              : stages.map(s => ({ label: s.name, value: s.name }))
+              : stages.map((s) => ({ label: s.name, value: s.name }))
           }
           onSave={handleSaveStage}
           onCancel={() => {

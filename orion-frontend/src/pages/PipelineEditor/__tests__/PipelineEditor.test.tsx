@@ -7,11 +7,7 @@ import { BrowserRouter } from 'react-router-dom';
 import PipelineEditor from '@/pages/PipelineEditor';
 
 const renderWithRouter = (component: React.ReactElement) => {
-  return render(
-    <BrowserRouter>
-      {component}
-    </BrowserRouter>
-  );
+  return render(<BrowserRouter>{component}</BrowserRouter>);
 };
 
 describe('PipelineEditor', () => {

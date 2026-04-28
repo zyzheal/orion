@@ -3,7 +3,18 @@
  * Detailed view of a single self-healing incident
  */
 import React, { useState, useEffect } from 'react';
-import { Typography, Card, Descriptions, Tag, Spin, Space, Button, Alert, Timeline, message } from 'antd';
+import {
+  Typography,
+  Card,
+  Descriptions,
+  Tag,
+  Spin,
+  Space,
+  Button,
+  Alert,
+  Timeline,
+  message,
+} from 'antd';
 import { ArrowLeftOutlined, ReloadOutlined } from '@ant-design/icons';
 import { getIncident } from '@/api/self-healing';
 import type { SelfHealingIncident } from '@/api/self-healing';
@@ -66,20 +77,29 @@ const IncidentDetail: React.FC = () => {
 
   const severityColor = (severity: string) => {
     switch (severity) {
-      case 'critical': return 'red';
-      case 'warning': return 'orange';
-      case 'info': return 'blue';
-      default: return 'default';
+      case 'critical':
+        return 'red';
+      case 'warning':
+        return 'orange';
+      case 'info':
+        return 'blue';
+      default:
+        return 'default';
     }
   };
 
   const statusColor = (status: string) => {
     switch (status) {
-      case 'resolved': return 'green';
-      case 'healing': return 'blue';
-      case 'pending': return 'orange';
-      case 'failed': return 'red';
-      default: return 'default';
+      case 'resolved':
+        return 'green';
+      case 'healing':
+        return 'blue';
+      case 'pending':
+        return 'orange';
+      case 'failed':
+        return 'red';
+      default:
+        return 'default';
     }
   };
 
@@ -89,9 +109,15 @@ const IncidentDetail: React.FC = () => {
     <div style={{ padding: 24 }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
-        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/self-healing')}>返回</Button>
-        <Title level={3} style={{ margin: 0 }}>事件详情</Title>
-        <Button icon={<ReloadOutlined />} onClick={loadDetail}>刷新</Button>
+        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/self-healing')}>
+          返回
+        </Button>
+        <Title level={3} style={{ margin: 0 }}>
+          事件详情
+        </Title>
+        <Button icon={<ReloadOutlined />} onClick={loadDetail}>
+          刷新
+        </Button>
       </div>
 
       {/* Status Alert */}
@@ -102,7 +128,13 @@ const IncidentDetail: React.FC = () => {
             <Tag color={severityColor(incident.severity)}>{incident.severity}</Tag>
           </Space>
         }
-        type={incident.status === 'resolved' ? 'success' : incident.status === 'failed' ? 'error' : 'info'}
+        type={
+          incident.status === 'resolved'
+            ? 'success'
+            : incident.status === 'failed'
+              ? 'error'
+              : 'info'
+        }
         style={{ marginBottom: 24 }}
       />
 
@@ -114,9 +146,15 @@ const IncidentDetail: React.FC = () => {
           <Descriptions.Item label="应用">{incident.appName}</Descriptions.Item>
           <Descriptions.Item label="环境">{incident.environment}</Descriptions.Item>
           <Descriptions.Item label="策略">{incident.strategy || '未分配'}</Descriptions.Item>
-          <Descriptions.Item label="处理耗时">{duration > 0 ? `${duration} 分钟` : '< 1 分钟'}</Descriptions.Item>
-          <Descriptions.Item label="创建时间">{dayjs(incident.createdAt).format('YYYY-MM-DD HH:mm:ss')}</Descriptions.Item>
-          <Descriptions.Item label="更新时间">{dayjs(incident.updatedAt).format('YYYY-MM-DD HH:mm:ss')}</Descriptions.Item>
+          <Descriptions.Item label="处理耗时">
+            {duration > 0 ? `${duration} 分钟` : '< 1 分钟'}
+          </Descriptions.Item>
+          <Descriptions.Item label="创建时间">
+            {dayjs(incident.createdAt).format('YYYY-MM-DD HH:mm:ss')}
+          </Descriptions.Item>
+          <Descriptions.Item label="更新时间">
+            {dayjs(incident.updatedAt).format('YYYY-MM-DD HH:mm:ss')}
+          </Descriptions.Item>
         </Descriptions>
       </Card>
 
@@ -124,9 +162,18 @@ const IncidentDetail: React.FC = () => {
       <Card title="事件时间线">
         <Timeline
           items={[
-            { color: 'blue', children: `事件触发 (${dayjs(incident.createdAt).format('HH:mm:ss')})` },
-            { color: 'orange', children: incident.strategy ? `策略 ${incident.strategy} 已分配` : '等待策略分配' },
-            { color: incident.status === 'resolved' ? 'green' : 'blue', children: incident.status === 'resolved' ? '事件已解决' : '处理中...' },
+            {
+              color: 'blue',
+              children: `事件触发 (${dayjs(incident.createdAt).format('HH:mm:ss')})`,
+            },
+            {
+              color: 'orange',
+              children: incident.strategy ? `策略 ${incident.strategy} 已分配` : '等待策略分配',
+            },
+            {
+              color: incident.status === 'resolved' ? 'green' : 'blue',
+              children: incident.status === 'resolved' ? '事件已解决' : '处理中...',
+            },
           ]}
         />
       </Card>

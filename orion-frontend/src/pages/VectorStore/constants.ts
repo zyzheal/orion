@@ -94,46 +94,71 @@ export const MOCK_COLLECTIONS: VectorCollection[] = [
 // Mock documents data
 export const MOCK_DOCUMENTS: VectorDocument[] = [
   {
-    id: 'doc-1', content: 'Orion 平台使用 Tekton 进行 CI/CD 流水线编排，支持多阶段构建和部署...',
+    id: 'doc-1',
+    content: 'Orion 平台使用 Tekton 进行 CI/CD 流水线编排，支持多阶段构建和部署...',
     metadata: { source: 'tekton-guide.md', category: 'pipeline' },
-    collection: 'orion-knowledge', dimensions: 1536, status: 'active',
-    createdAt: '2026-04-20T10:00:00Z', updatedAt: '2026-04-20T10:00:00Z',
+    collection: 'orion-knowledge',
+    dimensions: 1536,
+    status: 'active',
+    createdAt: '2026-04-20T10:00:00Z',
+    updatedAt: '2026-04-20T10:00:00Z',
   },
   {
-    id: 'doc-2', content: 'Knative 自动扩缩容配置：通过设置 minScale 和 maxScale 控制实例数量...',
+    id: 'doc-2',
+    content: 'Knative 自动扩缩容配置：通过设置 minScale 和 maxScale 控制实例数量...',
     metadata: { source: 'knative-scaling.md', category: 'deployment' },
-    collection: 'orion-knowledge', dimensions: 1536, status: 'active',
-    createdAt: '2026-04-21T14:00:00Z', updatedAt: '2026-04-21T14:00:00Z',
+    collection: 'orion-knowledge',
+    dimensions: 1536,
+    status: 'active',
+    createdAt: '2026-04-21T14:00:00Z',
+    updatedAt: '2026-04-21T14:00:00Z',
   },
   {
-    id: 'doc-3', content: 'Prometheus 告警规则配置示例：针对 CPU 使用率、内存占用和磁盘空间的监控...',
+    id: 'doc-3',
+    content: 'Prometheus 告警规则配置示例：针对 CPU 使用率、内存占用和磁盘空间的监控...',
     metadata: { source: 'prometheus-alerts.md', category: 'monitoring' },
-    collection: 'orion-knowledge', dimensions: 1536, status: 'active',
-    createdAt: '2026-04-22T09:00:00Z', updatedAt: '2026-04-22T09:00:00Z',
+    collection: 'orion-knowledge',
+    dimensions: 1536,
+    status: 'active',
+    createdAt: '2026-04-22T09:00:00Z',
+    updatedAt: '2026-04-22T09:00:00Z',
   },
   {
-    id: 'doc-4', content: '数据库连接池优化建议：使用 PgBouncer 进行连接复用，设置合适的 pool_size...',
+    id: 'doc-4',
+    content: '数据库连接池优化建议：使用 PgBouncer 进行连接复用，设置合适的 pool_size...',
     metadata: { source: 'db-optimization.md', category: 'database' },
-    collection: 'orion-knowledge', dimensions: 1536, status: 'processing',
-    createdAt: '2026-04-25T16:00:00Z', updatedAt: '2026-04-25T16:00:00Z',
+    collection: 'orion-knowledge',
+    dimensions: 1536,
+    status: 'processing',
+    createdAt: '2026-04-25T16:00:00Z',
+    updatedAt: '2026-04-25T16:00:00Z',
   },
 ];
 
 // Mock search results
 export const MOCK_SEARCH_RESULTS: SearchHit[] = [
   {
-    id: 'doc-1', content: 'Orion 平台使用 Tekton 进行 CI/CD 流水线编排，支持多阶段构建和部署。Tekton 提供了原生的 Kubernetes 资源定义，使流水线可以无缝集成到集群环境中。',
-    score: 0.92, metadata: { source: 'tekton-guide.md', category: 'pipeline' },
+    id: 'doc-1',
+    content:
+      'Orion 平台使用 Tekton 进行 CI/CD 流水线编排，支持多阶段构建和部署。Tekton 提供了原生的 Kubernetes 资源定义，使流水线可以无缝集成到集群环境中。',
+    score: 0.92,
+    metadata: { source: 'tekton-guide.md', category: 'pipeline' },
     collection: 'orion-knowledge',
   },
   {
-    id: 'doc-2', content: 'Knative 自动扩缩容配置：通过设置 minScale 和 maxScale 控制实例数量，配合 HPA 实现基于请求量的弹性伸缩。',
-    score: 0.85, metadata: { source: 'knative-scaling.md', category: 'deployment' },
+    id: 'doc-2',
+    content:
+      'Knative 自动扩缩容配置：通过设置 minScale 和 maxScale 控制实例数量，配合 HPA 实现基于请求量的弹性伸缩。',
+    score: 0.85,
+    metadata: { source: 'knative-scaling.md', category: 'deployment' },
     collection: 'orion-knowledge',
   },
   {
-    id: 'doc-3', content: 'Prometheus 告警规则配置示例：针对 CPU 使用率、内存占用和磁盘空间的监控，设置合理的阈值和告警策略。',
-    score: 0.78, metadata: { source: 'prometheus-alerts.md', category: 'monitoring' },
+    id: 'doc-3',
+    content:
+      'Prometheus 告警规则配置示例：针对 CPU 使用率、内存占用和磁盘空间的监控，设置合理的阈值和告警策略。',
+    score: 0.78,
+    metadata: { source: 'prometheus-alerts.md', category: 'monitoring' },
     collection: 'orion-knowledge',
   },
 ];

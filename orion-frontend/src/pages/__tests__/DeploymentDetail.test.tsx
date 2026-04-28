@@ -32,11 +32,7 @@ vi.mock('antd', async () => {
 });
 
 const renderWithRouter = (ui: React.ReactElement) => {
-  return render(
-    <MemoryRouter initialEntries={['/deployments/dep-001']}>
-      {ui}
-    </MemoryRouter>
-  );
+  return render(<MemoryRouter initialEntries={['/deployments/dep-001']}>{ui}</MemoryRouter>);
 };
 
 describe('DeploymentDetail', () => {

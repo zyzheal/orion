@@ -187,11 +187,7 @@ const TenantManagementPage: React.FC = () => {
         <Row gutter={16} style={{ marginBottom: 24 }}>
           <Col span={6}>
             <Card>
-              <Statistic
-                title="租户 ID"
-                value={quota?.tenantId || 0}
-                prefix={<TeamOutlined />}
-              />
+              <Statistic title="租户 ID" value={quota?.tenantId || 0} prefix={<TeamOutlined />} />
             </Card>
           </Col>
           <Col span={6}>
@@ -221,7 +217,10 @@ const TenantManagementPage: React.FC = () => {
                 precision={1}
                 suffix="%"
                 valueStyle={{
-                  color: (poolStatus?.utilizationPercent || 0) > 80 ? colors.error[500] : colors.success[500],
+                  color:
+                    (poolStatus?.utilizationPercent || 0) > 80
+                      ? colors.error[500]
+                      : colors.success[500],
                 }}
               />
             </Card>
@@ -265,7 +264,10 @@ const TenantManagementPage: React.FC = () => {
               percent={poolStatus?.utilizationPercent || 0}
               strokeColor={{
                 '0%': colors.success[500],
-                '100%': poolStatus?.utilizationPercent && poolStatus.utilizationPercent > 80 ? colors.error[500] : colors.primary[500],
+                '100%':
+                  poolStatus?.utilizationPercent && poolStatus.utilizationPercent > 80
+                    ? colors.error[500]
+                    : colors.primary[500],
               }}
               format={(percent) => `${(percent ?? 0).toFixed(1)}% 已使用`}
             />
@@ -291,7 +293,12 @@ const TenantManagementPage: React.FC = () => {
           onOk={() => form.submit()}
           width={600}
         >
-          <Form form={form} layout="vertical" initialValues={quota || {}} onFinish={handleUpdateQuota}>
+          <Form
+            form={form}
+            layout="vertical"
+            initialValues={quota || {}}
+            onFinish={handleUpdateQuota}
+          >
             <Row gutter={16}>
               <Col span={12}>
                 <Form.Item label="最大 Pipeline 数" name="maxPipelines">

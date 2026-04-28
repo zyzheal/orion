@@ -3,21 +3,43 @@
  * Tabs for Branches and Pull Requests with table views
  */
 import React, { useState, useEffect, useCallback } from 'react';
-import { Typography, Tabs, Button, Space, Tag, Modal, Form, Input, message, Spin, Select } from 'antd';
+import {
+  Typography,
+  Tabs,
+  Button,
+  Space,
+  Tag,
+  Modal,
+  Form,
+  Input,
+  message,
+  Spin,
+  Select,
+} from 'antd';
 import { colors, spacing } from '@/tokens';
 import {
-  ArrowLeftOutlined, ReloadOutlined, PlusOutlined,
-  DeleteOutlined, LockOutlined, UnlockOutlined,
+  ArrowLeftOutlined,
+  ReloadOutlined,
+  PlusOutlined,
+  DeleteOutlined,
+  LockOutlined,
+  UnlockOutlined,
 } from '@ant-design/icons';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
 import {
-  getCodeRepos, getCodeRepoAdapters,
-  getCodeRepoBranches, createCodeRepoBranch, deleteCodeRepoBranch,
-  getPullRequests, createPullRequest,
-  type Branch, type PullRequest,
-  type CreateBranchInput, type CreatePullRequestInput,
+  getCodeRepos,
+  getCodeRepoAdapters,
+  getCodeRepoBranches,
+  createCodeRepoBranch,
+  deleteCodeRepoBranch,
+  getPullRequests,
+  createPullRequest,
+  type Branch,
+  type PullRequest,
+  type CreateBranchInput,
+  type CreatePullRequestInput,
 } from '@/api/code-mgmt';
 import dayjs from 'dayjs';
 
@@ -52,7 +74,11 @@ const RepoDetail: React.FC = () => {
       for (const adapter of adapters) {
         try {
           const reposResp = await getCodeRepos(adapter.id);
-          const repos = reposResp.data.data as Array<{ id: string; name: string; adapterId: string }>;
+          const repos = reposResp.data.data as Array<{
+            id: string;
+            name: string;
+            adapterId: string;
+          }>;
           if (Array.isArray(repos)) {
             const found = repos.find((r) => r.id === id);
             if (found) {
@@ -204,9 +230,7 @@ const RepoDetail: React.FC = () => {
       dataIndex: 'lastCommitDate',
       width: 200,
       sortable: true,
-      render: (value: unknown) => (
-        <Text type="secondary">{dayjs(String(value)).fromNow()}</Text>
-      ),
+      render: (value: unknown) => <Text type="secondary">{dayjs(String(value)).fromNow()}</Text>,
     },
     {
       key: 'actions',
@@ -338,11 +362,7 @@ const RepoDetail: React.FC = () => {
       children: (
         <>
           <div style={{ marginBottom: 16 }}>
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => setCreatePrModal(true)}
-            >
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreatePrModal(true)}>
               创建 Pull Request
             </Button>
           </div>
@@ -376,11 +396,7 @@ const RepoDetail: React.FC = () => {
           marginBottom: 24,
         }}
       >
-        <Button
-          type="text"
-          icon={<ArrowLeftOutlined />}
-          onClick={() => navigate('/code-mgmt')}
-        >
+        <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/code-mgmt')}>
           返回
         </Button>
         <div style={{ flex: 1 }}>
@@ -455,14 +471,20 @@ const RepoDetail: React.FC = () => {
             name="sourceBranch"
             rules={[{ required: true, message: '请选择源分支' }]}
           >
-            <Select placeholder="选择源分支" options={branches.map((b) => ({ label: b.name, value: b.name }))} />
+            <Select
+              placeholder="选择源分支"
+              options={branches.map((b) => ({ label: b.name, value: b.name }))}
+            />
           </Form.Item>
           <Form.Item
             label="目标分支"
             name="targetBranch"
             rules={[{ required: true, message: '请选择目标分支' }]}
           >
-            <Select placeholder="选择目标分支" options={branches.map((b) => ({ label: b.name, value: b.name }))} />
+            <Select
+              placeholder="选择目标分支"
+              options={branches.map((b) => ({ label: b.name, value: b.name }))}
+            />
           </Form.Item>
         </Form>
       </Modal>

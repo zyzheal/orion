@@ -76,9 +76,7 @@ describe('OrionTable', () => {
 
   it('should call onRowClick when row is clicked', () => {
     const handleClick = vi.fn();
-    render(
-      <Table columns={sampleColumns} dataSource={sampleData} onRowClick={handleClick} />
-    );
+    render(<Table columns={sampleColumns} dataSource={sampleData} onRowClick={handleClick} />);
     // Click first row
     const rows = screen.getAllByRole('row');
     // First row is header, second is first data row

@@ -15,7 +15,9 @@ export class LocalArtifactStorage implements ArtifactStorage {
   }
 
   async upload(file: Buffer, metadata: CreateArtifactInput): Promise<any> {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const fs = require('fs').promises;
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const path = require('path');
     
     // 确保存储目录存在
@@ -34,7 +36,9 @@ export class LocalArtifactStorage implements ArtifactStorage {
   }
 
   async download(id: string): Promise<Buffer> {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const fs = require('fs').promises;
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const path = require('path');
     
     // 从数据库获取存储路径
@@ -51,7 +55,9 @@ export class LocalArtifactStorage implements ArtifactStorage {
   }
 
   async delete(id: string): Promise<void> {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const fs = require('fs').promises;
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const path = require('path');
     
     // 从数据库获取存储路径
@@ -74,7 +80,9 @@ export class LocalArtifactStorage implements ArtifactStorage {
   }
 
   async exists(id: string): Promise<boolean> {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const fs = require('fs').promises;
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const path = require('path');
     
     try {
@@ -113,6 +121,7 @@ export class S3ArtifactStorage implements ArtifactStorage {
   private bucket: string;
 
   constructor(bucket: string, region: string = 'us-east-1') {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const AWS = require('aws-sdk');
     this.s3 = new AWS.S3({ region });
     this.bucket = bucket;

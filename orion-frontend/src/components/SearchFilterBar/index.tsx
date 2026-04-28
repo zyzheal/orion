@@ -65,9 +65,8 @@ function SearchFilterBar({
   extra,
 }: SearchFilterBarProps) {
   const [searchQuery, setSearchQuery] = useState(initialQuery);
-  const [activeFilters, setActiveFilters] = useState<
-    Record<string, string | string[] | undefined>
-  >(initialFilters);
+  const [activeFilters, setActiveFilters] =
+    useState<Record<string, string | string[] | undefined>>(initialFilters);
 
   // Debounced search
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);

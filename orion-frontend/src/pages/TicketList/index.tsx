@@ -110,10 +110,20 @@ function calculateSLA(ticket: MockTicket): {
   const percent = Math.max(0, Math.round((remainingMs / totalMs) * 100));
 
   if (percent < 25) {
-    return { percent, color: colors.warning[600], text: `${Math.round(remainingMs / 3600000)}h`, overdue: false };
+    return {
+      percent,
+      color: colors.warning[600],
+      text: `${Math.round(remainingMs / 3600000)}h`,
+      overdue: false,
+    };
   }
 
-  return { percent, color: colors.success[500], text: `${Math.round(remainingMs / 3600000)}h`, overdue: false };
+  return {
+    percent,
+    color: colors.success[500],
+    text: `${Math.round(remainingMs / 3600000)}h`,
+    overdue: false,
+  };
 }
 
 // ============================================================================
@@ -164,7 +174,9 @@ const TicketList: React.FC = () => {
           ticket.assignee || '',
           ticket.reporter,
           ticket.category,
-        ].join(' ').toLowerCase();
+        ]
+          .join(' ')
+          .toLowerCase();
         if (!searchable.includes(query)) return false;
       }
 
@@ -280,7 +292,14 @@ const TicketList: React.FC = () => {
             {String(value)}
           </Text>
           <Text type="secondary" style={{ fontSize: spacing[3] }}>
-            来源: {record.source === 'alert' ? '告警' : record.source === 'incident' ? '事件' : record.source === 'api' ? 'API' : '手动'}
+            来源:{' '}
+            {record.source === 'alert'
+              ? '告警'
+              : record.source === 'incident'
+                ? '事件'
+                : record.source === 'api'
+                  ? 'API'
+                  : '手动'}
           </Text>
         </Space>
       ),
@@ -432,9 +451,7 @@ const TicketList: React.FC = () => {
           <Title level={3} style={{ margin: 0 }}>
             工单管理
           </Title>
-          <Text type="secondary">
-            共 {filteredTickets.length} 个工单
-          </Text>
+          <Text type="secondary">共 {filteredTickets.length} 个工单</Text>
         </div>
         <Space>
           <Button icon={<ReloadOutlined />} onClick={handleRefresh} loading={loading}>
@@ -521,10 +538,7 @@ const TicketList: React.FC = () => {
       />
 
       {/* Dispatch panel */}
-      <DispatchPanel
-        open={dispatchPanelOpen}
-        onClose={() => setDispatchPanelOpen(false)}
-      />
+      <DispatchPanel open={dispatchPanelOpen} onClose={() => setDispatchPanelOpen(false)} />
     </div>
   );
 };

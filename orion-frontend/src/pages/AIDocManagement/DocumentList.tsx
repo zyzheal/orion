@@ -2,13 +2,39 @@
  * Document List - Document table with search, filter by space/tag, CRUD
  */
 import React, { useState, useMemo, useEffect } from 'react';
-import { Typography, Button, Space, Tag, Card, Modal, Form, Input, Select, message, Popconfirm } from 'antd';
+import {
+  Typography,
+  Button,
+  Space,
+  Tag,
+  Card,
+  Modal,
+  Form,
+  Input,
+  Select,
+  message,
+  Popconfirm,
+} from 'antd';
 import { colors, spacing } from '@/tokens';
-import { PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons';
+import {
+  PlusOutlined,
+  ReloadOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  EyeOutlined,
+} from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
-import { getDocs, createDoc, updateDoc, deleteDoc, getSpaces, type Document, type DocumentInput } from '@/api/ai-docs';
+import {
+  getDocs,
+  createDoc,
+  updateDoc,
+  deleteDoc,
+  getSpaces,
+  type Document,
+  type DocumentInput,
+} from '@/api/ai-docs';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 
@@ -43,11 +69,48 @@ const DocumentListPage: React.FC = () => {
     } catch (error: unknown) {
       // Mock data
       setDocuments([
-        { id: 'd1', spaceId: 's1', title: 'API 设计最佳实践', content: '本文档介绍了 RESTful API 的设计原则...', status: 'published', version: 3, tags: ['api', 'design'], authorId: 'admin', createdAt: '2024-01-15', updatedAt: '2024-03-10' },
-        { id: 'd2', spaceId: 's1', title: 'Kubernetes 运维手册', content: 'K8s 日常运维操作指南...', status: 'published', version: 5, tags: ['k8s', 'ops'], authorId: 'admin', createdAt: '2024-02-01', updatedAt: '2024-03-15' },
-        { id: 'd3', spaceId: 's2', title: '团队开发规范', content: '代码规范和 review 流程...', status: 'draft', version: 1, tags: ['guide'], authorId: 'team-lead', createdAt: '2024-03-01', updatedAt: '2024-03-05' },
+        {
+          id: 'd1',
+          spaceId: 's1',
+          title: 'API 设计最佳实践',
+          content: '本文档介绍了 RESTful API 的设计原则...',
+          status: 'published',
+          version: 3,
+          tags: ['api', 'design'],
+          authorId: 'admin',
+          createdAt: '2024-01-15',
+          updatedAt: '2024-03-10',
+        },
+        {
+          id: 'd2',
+          spaceId: 's1',
+          title: 'Kubernetes 运维手册',
+          content: 'K8s 日常运维操作指南...',
+          status: 'published',
+          version: 5,
+          tags: ['k8s', 'ops'],
+          authorId: 'admin',
+          createdAt: '2024-02-01',
+          updatedAt: '2024-03-15',
+        },
+        {
+          id: 'd3',
+          spaceId: 's2',
+          title: '团队开发规范',
+          content: '代码规范和 review 流程...',
+          status: 'draft',
+          version: 1,
+          tags: ['guide'],
+          authorId: 'team-lead',
+          createdAt: '2024-03-01',
+          updatedAt: '2024-03-05',
+        },
       ]);
-      setSpaces([{ id: 's1', name: '技术文档库' }, { id: 's2', name: '团队知识库' }, { id: 's3', name: '项目笔记' }]);
+      setSpaces([
+        { id: 's1', name: '技术文档库' },
+        { id: 's2', name: '团队知识库' },
+        { id: 's3', name: '项目笔记' },
+      ]);
       if (error instanceof Error) {
         message.warning(`加载文档数据失败，使用模拟数据：${error.message}`);
       }
@@ -66,7 +129,8 @@ const DocumentListPage: React.FC = () => {
         const q = searchQuery.toLowerCase();
         if (!doc.title.toLowerCase().includes(q)) return false;
       }
-      if (filters.spaceId && filters.spaceId !== 'all' && doc.spaceId !== filters.spaceId) return false;
+      if (filters.spaceId && filters.spaceId !== 'all' && doc.spaceId !== filters.spaceId)
+        return false;
       if (filters.status && filters.status !== 'all' && doc.status !== filters.status) return false;
       return true;
     });
@@ -111,7 +175,11 @@ const DocumentListPage: React.FC = () => {
     try {
       const values = await editForm.validateFields();
       setSubmitting(true);
-      await updateDoc(editingDoc.id, { title: values.title, content: values.content, status: values.status });
+      await updateDoc(editingDoc.id, {
+        title: values.title,
+        content: values.content,
+        status: values.status,
+      });
       message.success('文档更新成功');
       setEditModalVisible(false);
       loadData();
@@ -149,82 +217,238 @@ const DocumentListPage: React.FC = () => {
   const getSpaceName = (spaceId: string) => spaces.find((s) => s.id === spaceId)?.name || spaceId;
 
   const columns: TableColumn<Document>[] = [
-    { key: 'title', title: '标题', dataIndex: 'title', width: 220, sortable: true, render: (v: unknown) => <Text strong>{String(v)}</Text> },
-    { key: 'space', title: '知识库', dataIndex: 'spaceId', width: 140, render: (v: unknown) => <Tag color="blue">{getSpaceName(String(v))}</Tag> },
-    { key: 'version', title: '版本', dataIndex: 'version', width: 60, render: (v: unknown) => <Tag>v{String(v)}</Tag> },
-    { key: 'tags', title: '标签', dataIndex: 'tags', width: 160, render: (v: unknown) => <Space size={4} wrap>{Array.isArray(v) ? v.map((t) => <Tag key={t}>{t}</Tag>) : null}</Space> },
-    { key: 'status', title: '状态', dataIndex: 'status', width: 100, render: (v: unknown) => <StatusBadge status={v as any} size="small" /> },
-    { key: 'authorId', title: '作者', dataIndex: 'authorId', width: 100, render: (v: unknown) => <Text>{String(v)}</Text> },
-    { key: 'updatedAt', title: '更新时间', dataIndex: 'updatedAt', width: 160, sortable: true, render: (v: unknown) => <Text type="secondary" style={{ fontSize: spacing[3] }}>{dayjs(String(v)).fromNow()}</Text> },
-    { key: 'actions', title: '操作', width: 180, render: (_: unknown, record: any) => (
-      <Space size="small">
-        <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => { setViewingDoc(record); setViewModalVisible(true); }}>查看</Button>
-        <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEdit(record)}>编辑</Button>
-        <Popconfirm title="确认删除?" onConfirm={() => handleDelete(record.id)}>
-          <Button type="link" size="small" danger icon={<DeleteOutlined />}>删除</Button>
-        </Popconfirm>
-      </Space>
-    )},
+    {
+      key: 'title',
+      title: '标题',
+      dataIndex: 'title',
+      width: 220,
+      sortable: true,
+      render: (v: unknown) => <Text strong>{String(v)}</Text>,
+    },
+    {
+      key: 'space',
+      title: '知识库',
+      dataIndex: 'spaceId',
+      width: 140,
+      render: (v: unknown) => <Tag color="blue">{getSpaceName(String(v))}</Tag>,
+    },
+    {
+      key: 'version',
+      title: '版本',
+      dataIndex: 'version',
+      width: 60,
+      render: (v: unknown) => <Tag>v{String(v)}</Tag>,
+    },
+    {
+      key: 'tags',
+      title: '标签',
+      dataIndex: 'tags',
+      width: 160,
+      render: (v: unknown) => (
+        <Space size={4} wrap>
+          {Array.isArray(v) ? v.map((t) => <Tag key={t}>{t}</Tag>) : null}
+        </Space>
+      ),
+    },
+    {
+      key: 'status',
+      title: '状态',
+      dataIndex: 'status',
+      width: 100,
+      render: (v: unknown) => <StatusBadge status={v as any} size="small" />,
+    },
+    {
+      key: 'authorId',
+      title: '作者',
+      dataIndex: 'authorId',
+      width: 100,
+      render: (v: unknown) => <Text>{String(v)}</Text>,
+    },
+    {
+      key: 'updatedAt',
+      title: '更新时间',
+      dataIndex: 'updatedAt',
+      width: 160,
+      sortable: true,
+      render: (v: unknown) => (
+        <Text type="secondary" style={{ fontSize: spacing[3] }}>
+          {dayjs(String(v)).fromNow()}
+        </Text>
+      ),
+    },
+    {
+      key: 'actions',
+      title: '操作',
+      width: 180,
+      render: (_: unknown, record: any) => (
+        <Space size="small">
+          <Button
+            type="link"
+            size="small"
+            icon={<EyeOutlined />}
+            onClick={() => {
+              setViewingDoc(record);
+              setViewModalVisible(true);
+            }}
+          >
+            查看
+          </Button>
+          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEdit(record)}>
+            编辑
+          </Button>
+          <Popconfirm title="确认删除?" onConfirm={() => handleDelete(record.id)}>
+            <Button type="link" size="small" danger icon={<DeleteOutlined />}>
+              删除
+            </Button>
+          </Popconfirm>
+        </Space>
+      ),
+    },
   ];
 
-  const spaceOptions = [{ label: '全部', value: 'all' }, ...spaces.map((s) => ({ label: s.name, value: s.id }))];
+  const spaceOptions = [
+    { label: '全部', value: 'all' },
+    ...spaces.map((s) => ({ label: s.name, value: s.id })),
+  ];
 
   const filterDefs: FilterDefinition[] = [
     { key: 'spaceId', label: '知识库', options: spaceOptions },
-    { key: 'status', label: '状态', options: [
-      { label: '全部', value: 'all' },
-      { label: 'Draft', value: 'draft' },
-      { label: 'Published', value: 'published' },
-      { label: 'Archived', value: 'archived' },
-    ]},
+    {
+      key: 'status',
+      label: '状态',
+      options: [
+        { label: '全部', value: 'all' },
+        { label: 'Draft', value: 'draft' },
+        { label: 'Published', value: 'published' },
+        { label: 'Archived', value: 'archived' },
+      ],
+    },
   ];
 
   return (
     <div style={{ padding: 0 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          marginBottom: 24,
+        }}
+      >
         <div>
-          <Title level={3} style={{ margin: 0 }}>文档管理</Title>
+          <Title level={3} style={{ margin: 0 }}>
+            文档管理
+          </Title>
           <Text type="secondary">知识库文档浏览与管理</Text>
         </div>
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>刷新</Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalVisible(true)}>创建文档</Button>
+          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+            刷新
+          </Button>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => setCreateModalVisible(true)}
+          >
+            创建文档
+          </Button>
         </Space>
       </div>
 
       <Card>
         <div style={{ marginBottom: 16 }}>
-          <SearchFilterBar onSearch={setSearchQuery} onFilter={setFilters} filters={filterDefs} searchPlaceholder="搜索文档..." />
+          <SearchFilterBar
+            onSearch={setSearchQuery}
+            onFilter={setFilters}
+            filters={filterDefs}
+            searchPlaceholder="搜索文档..."
+          />
         </div>
-        <Table columns={columns} dataSource={filteredDocuments} loading={loading} rowKey="id" size="middle" striped />
+        <Table
+          columns={columns}
+          dataSource={filteredDocuments}
+          loading={loading}
+          rowKey="id"
+          size="middle"
+          striped
+        />
       </Card>
 
       {/* Create Modal */}
-      <Modal title="创建文档" open={createModalVisible} onCancel={() => setCreateModalVisible(false)} onOk={handleCreate} confirmLoading={submitting} width={600}>
+      <Modal
+        title="创建文档"
+        open={createModalVisible}
+        onCancel={() => setCreateModalVisible(false)}
+        onOk={handleCreate}
+        confirmLoading={submitting}
+        width={600}
+      >
         <Form form={createForm} layout="vertical">
-          <Form.Item name="spaceId" label="知识库" rules={[{ required: true }]}><Select options={spaces.map((s) => ({ label: s.name, value: s.id }))} /></Form.Item>
-          <Form.Item name="title" label="标题" rules={[{ required: true }]}><Input placeholder="文档标题" /></Form.Item>
+          <Form.Item name="spaceId" label="知识库" rules={[{ required: true }]}>
+            <Select options={spaces.map((s) => ({ label: s.name, value: s.id }))} />
+          </Form.Item>
+          <Form.Item name="title" label="标题" rules={[{ required: true }]}>
+            <Input placeholder="文档标题" />
+          </Form.Item>
           <Form.Item label="标签">
             <Space wrap>
-              {tags.map((tag) => <Tag key={tag} closable onClose={() => setTags(tags.filter((t) => t !== tag))}>{tag}</Tag>)}
-              <Input value={tagInput} onChange={(e) => setTagInput(e.target.value)} onPressEnter={handleAddTag} style={{ width: 100 }} placeholder="+ 标签" size="small" />
+              {tags.map((tag) => (
+                <Tag key={tag} closable onClose={() => setTags(tags.filter((t) => t !== tag))}>
+                  {tag}
+                </Tag>
+              ))}
+              <Input
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onPressEnter={handleAddTag}
+                style={{ width: 100 }}
+                placeholder="+ 标签"
+                size="small"
+              />
             </Space>
           </Form.Item>
-          <Form.Item name="content" label="内容" rules={[{ required: true }]}><Input.TextArea rows={6} placeholder="文档内容 (支持 Markdown)..." /></Form.Item>
+          <Form.Item name="content" label="内容" rules={[{ required: true }]}>
+            <Input.TextArea rows={6} placeholder="文档内容 (支持 Markdown)..." />
+          </Form.Item>
         </Form>
       </Modal>
 
       {/* Edit Modal */}
-      <Modal title="编辑文档" open={editModalVisible} onCancel={() => setEditModalVisible(false)} onOk={handleEdit} confirmLoading={submitting} width={600}>
+      <Modal
+        title="编辑文档"
+        open={editModalVisible}
+        onCancel={() => setEditModalVisible(false)}
+        onOk={handleEdit}
+        confirmLoading={submitting}
+        width={600}
+      >
         <Form form={editForm} layout="vertical">
-          <Form.Item name="title" label="标题" rules={[{ required: true }]}><Input /></Form.Item>
-          <Form.Item name="status" label="状态"><Select options={[{ label: 'Draft', value: 'draft' }, { label: 'Published', value: 'published' }, { label: 'Archived', value: 'archived' }]} /></Form.Item>
-          <Form.Item name="content" label="内容" rules={[{ required: true }]}><Input.TextArea rows={8} /></Form.Item>
+          <Form.Item name="title" label="标题" rules={[{ required: true }]}>
+            <Input />
+          </Form.Item>
+          <Form.Item name="status" label="状态">
+            <Select
+              options={[
+                { label: 'Draft', value: 'draft' },
+                { label: 'Published', value: 'published' },
+                { label: 'Archived', value: 'archived' },
+              ]}
+            />
+          </Form.Item>
+          <Form.Item name="content" label="内容" rules={[{ required: true }]}>
+            <Input.TextArea rows={8} />
+          </Form.Item>
         </Form>
       </Modal>
 
       {/* View Modal */}
-      <Modal title={viewingDoc?.title} open={viewModalVisible} onCancel={() => setViewModalVisible(false)} footer={<Button onClick={() => setViewModalVisible(false)}>关闭</Button>} width={700}>
+      <Modal
+        title={viewingDoc?.title}
+        open={viewModalVisible}
+        onCancel={() => setViewModalVisible(false)}
+        footer={<Button onClick={() => setViewModalVisible(false)}>关闭</Button>}
+        width={700}
+      >
         {viewingDoc && (
           <div>
             <Space style={{ marginBottom: 16 }}>
@@ -233,9 +457,20 @@ const DocumentListPage: React.FC = () => {
               <Tag>v{viewingDoc.version}</Tag>
             </Space>
             <Space size={4} style={{ marginBottom: 16 }}>
-              {viewingDoc.tags.map((t) => <Tag key={t}>{t}</Tag>)}
+              {viewingDoc.tags.map((t) => (
+                <Tag key={t}>{t}</Tag>
+              ))}
             </Space>
-            <pre style={{ whiteSpace: 'pre-wrap', background: colors.neutral[50], padding: 16, borderRadius: 4 }}>{viewingDoc.content}</pre>
+            <pre
+              style={{
+                whiteSpace: 'pre-wrap',
+                background: colors.neutral[50],
+                padding: 16,
+                borderRadius: 4,
+              }}
+            >
+              {viewingDoc.content}
+            </pre>
           </div>
         )}
       </Modal>

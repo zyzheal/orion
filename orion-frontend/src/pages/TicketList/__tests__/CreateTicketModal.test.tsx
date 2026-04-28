@@ -69,9 +69,12 @@ describe('CreateTicketModal', () => {
     fireEvent.click(submitButton);
 
     // Validation should prevent submission - onSuccess should NOT be called
-    await waitFor(() => {
-      expect(props.onSuccess).not.toHaveBeenCalled();
-    }, { timeout: 2000 });
+    await waitFor(
+      () => {
+        expect(props.onSuccess).not.toHaveBeenCalled();
+      },
+      { timeout: 2000 }
+    );
   });
 
   it('should show validation error for short description', async () => {
@@ -82,9 +85,12 @@ describe('CreateTicketModal', () => {
     const submitButton = screen.getByTestId('create-ticket-submit');
     fireEvent.click(submitButton);
 
-    await waitFor(() => {
-      expect(props.onSuccess).not.toHaveBeenCalled();
-    }, { timeout: 2000 });
+    await waitFor(
+      () => {
+        expect(props.onSuccess).not.toHaveBeenCalled();
+      },
+      { timeout: 2000 }
+    );
   });
 
   it('should show duplicate preview when title matches existing tickets', async () => {

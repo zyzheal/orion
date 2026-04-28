@@ -11,15 +11,14 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Typography, Button, Space, Tag, Modal, message } from 'antd';
 import { colors, spacing } from '@/tokens';
-import {
-  ReloadOutlined,
-  CheckOutlined,
-  CloseOutlined,
-  BellOutlined,
-} from '@ant-design/icons';
+import { ReloadOutlined, CheckOutlined, CloseOutlined, BellOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
-import { getAlerts, acknowledgeAlert as apiAcknowledgeAlert, resolveAlert as apiResolveAlert } from '@/api/alerts';
+import {
+  getAlerts,
+  acknowledgeAlert as apiAcknowledgeAlert,
+  resolveAlert as apiResolveAlert,
+} from '@/api/alerts';
 import type { Alert, AlertSeverity, AlertStatus } from '@/types/pages';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -79,12 +78,9 @@ const AlertList: React.FC = () => {
       // Search filter
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
-        const searchable = [
-          alert.metric,
-          alert.source,
-          alert.message,
-          alert.value,
-        ].join(' ').toLowerCase();
+        const searchable = [alert.metric, alert.source, alert.message, alert.value]
+          .join(' ')
+          .toLowerCase();
         if (!searchable.includes(query)) return false;
       }
 
@@ -322,11 +318,7 @@ const AlertList: React.FC = () => {
                 解决
               </Button>
             )}
-            <Button
-              type="link"
-              size="small"
-              onClick={() => showDetail(record)}
-            >
+            <Button type="link" size="small" onClick={() => showDetail(record)}>
               详情
             </Button>
           </Space>
@@ -351,9 +343,7 @@ const AlertList: React.FC = () => {
             <BellOutlined style={{ marginRight: 8 }} />
             监控告警
           </Title>
-          <Text type="secondary">
-            共 {filteredAlerts.length} 条告警记录
-          </Text>
+          <Text type="secondary">共 {filteredAlerts.length} 条告警记录</Text>
           {/* Active alert summary */}
           {(severityCounts.critical > 0 || severityCounts.warning > 0) && (
             <div style={{ marginTop: 8 }}>
@@ -364,15 +354,9 @@ const AlertList: React.FC = () => {
                   </Tag>
                 )}
                 {severityCounts.warning > 0 && (
-                  <Tag color="orange">
-                    {severityCounts.warning} 个警告
-                  </Tag>
+                  <Tag color="orange">{severityCounts.warning} 个警告</Tag>
                 )}
-                {severityCounts.info > 0 && (
-                  <Tag color="blue">
-                    {severityCounts.info} 个提示
-                  </Tag>
-                )}
+                {severityCounts.info > 0 && <Tag color="blue">{severityCounts.info} 个提示</Tag>}
               </Space>
             </div>
           )}
@@ -454,15 +438,12 @@ const AlertList: React.FC = () => {
                   selectedAlert.severity === 'critical'
                     ? 'rgba(245, 34, 45, 0.06)'
                     : selectedAlert.severity === 'warning'
-                    ? 'rgba(250, 140, 22, 0.06)'
-                    : 'rgba(24, 144, 255, 0.06)',
+                      ? 'rgba(250, 140, 22, 0.06)'
+                      : 'rgba(24, 144, 255, 0.06)',
                 borderRadius: 6,
               }}
             >
-              <Tag
-                color={severityConfig[selectedAlert.severity].color}
-                style={{ fontWeight: 600 }}
-              >
+              <Tag color={severityConfig[selectedAlert.severity].color} style={{ fontWeight: 600 }}>
                 {severityConfig[selectedAlert.severity].icon}{' '}
                 {severityConfig[selectedAlert.severity].label}
               </Tag>

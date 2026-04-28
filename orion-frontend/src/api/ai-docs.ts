@@ -128,7 +128,12 @@ export interface RAGResponse {
 // Space CRUD
 // ============================================================================
 
-export const getSpaces = async (params?: { type?: string; search?: string; page?: number; perPage?: number }) => {
+export const getSpaces = async (params?: {
+  type?: string;
+  search?: string;
+  page?: number;
+  perPage?: number;
+}) => {
   return api.get<Space[]>('/v1/knowledge/v1/spaces', { params });
 };
 
@@ -152,7 +157,15 @@ export const deleteSpace = async (id: string) => {
 // Document CRUD
 // ============================================================================
 
-export const getDocs = async (params?: { spaceId?: string; page?: number; pageSize?: number; status?: string; tag?: string; search?: string; perPage?: number }) => {
+export const getDocs = async (params?: {
+  spaceId?: string;
+  page?: number;
+  pageSize?: number;
+  status?: string;
+  tag?: string;
+  search?: string;
+  perPage?: number;
+}) => {
   return api.get<Document[]>('/v1/knowledge/v1/docs', { params });
 };
 
@@ -180,15 +193,11 @@ export const getDocVersions = async (id: string) => {
 // RAG API (for future use)
 // ============================================================================
 
-export const ragRetrieve = async (
-  data: { query: string; spaceId?: string; topK?: number }
-) => {
+export const ragRetrieve = async (data: { query: string; spaceId?: string; topK?: number }) => {
   return api.post<RagRetrieveResponse>('/v1/knowledge/v1/rag/retrieve', data);
 };
 
-export const ragQuery = async (
-  data: { query: string; spaceId?: string; topK?: number }
-) => {
+export const ragQuery = async (data: { query: string; spaceId?: string; topK?: number }) => {
   return api.post<RAGResponse>('/v1/knowledge/v1/rag/query', data);
 };
 

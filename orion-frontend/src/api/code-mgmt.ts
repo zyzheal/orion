@@ -187,7 +187,12 @@ export function createPullRequest(adapterId: string, repoId: string, data: Creat
   return api.post(`/v1/code-repo/${adapterId}/repos/${repoId}/pulls`, data);
 }
 
-export function mergePullRequest(adapterId: string, repoId: string, prId: string, data?: MergePullRequestInput) {
+export function mergePullRequest(
+  adapterId: string,
+  repoId: string,
+  prId: string,
+  data?: MergePullRequestInput
+) {
   return api.post(`/v1/code-repo/${adapterId}/repos/${repoId}/pulls/${prId}/merge`, data);
 }
 
@@ -195,7 +200,12 @@ export function closePullRequest(adapterId: string, repoId: string, prId: string
   return api.post(`/v1/code-repo/${adapterId}/repos/${repoId}/pulls/${prId}/close`);
 }
 
-export function addPullRequestReview(adapterId: string, repoId: string, prId: string, data: AddReviewInput) {
+export function addPullRequestReview(
+  adapterId: string,
+  repoId: string,
+  prId: string,
+  data: AddReviewInput
+) {
   return api.post(`/v1/code-repo/${adapterId}/repos/${repoId}/pulls/${prId}/reviews`, data);
 }
 

@@ -69,12 +69,7 @@ describe('SearchFilterBar', () => {
   });
 
   it('should display active filter tags', () => {
-    render(
-      <SearchFilterBar
-        filters={sampleFilters}
-        initialFilters={{ status: 'active' }}
-      />
-    );
+    render(<SearchFilterBar filters={sampleFilters} initialFilters={{ status: 'active' }} />);
     expect(screen.getByTestId('filter-tag-status')).toBeInTheDocument();
   });
 
@@ -96,12 +91,7 @@ describe('SearchFilterBar', () => {
   });
 
   it('should show clear all button when filters are active', () => {
-    render(
-      <SearchFilterBar
-        filters={sampleFilters}
-        initialFilters={{ status: 'active' }}
-      />
-    );
+    render(<SearchFilterBar filters={sampleFilters} initialFilters={{ status: 'active' }} />);
     expect(screen.getByTestId('clear-all-filters')).toBeInTheDocument();
   });
 
@@ -130,9 +120,7 @@ describe('SearchFilterBar', () => {
   });
 
   it('should render extra content', () => {
-    render(
-      <SearchFilterBar extra={<button data-testid="extra-btn">Extra</button>} />
-    );
+    render(<SearchFilterBar extra={<button data-testid="extra-btn">Extra</button>} />);
     expect(screen.getByTestId('extra-btn')).toBeInTheDocument();
   });
 

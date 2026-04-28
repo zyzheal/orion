@@ -81,7 +81,9 @@ export function assessChangeRisk(changeId: string) {
 }
 
 export function getRiskAssessments(filters?: RiskFilters) {
-  return api.get<{ assessments: RiskAssessment[]; total: number }>('/v1/risk/assessments', { params: filters });
+  return api.get<{ assessments: RiskAssessment[]; total: number }>('/v1/risk/assessments', {
+    params: filters,
+  });
 }
 
 export function getRiskAssessment(id: string) {

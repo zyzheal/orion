@@ -87,12 +87,13 @@ const FinOpsDashboard: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [costSummaryRes, costByServiceRes, optimizationsRes, budgetAlertsRes] = await Promise.all([
-        getCostSummary(),
-        getCostByService(),
-        getOptimizations(),
-        getBudgetAlerts(),
-      ]);
+      const [costSummaryRes, costByServiceRes, optimizationsRes, budgetAlertsRes] =
+        await Promise.all([
+          getCostSummary(),
+          getCostByService(),
+          getOptimizations(),
+          getBudgetAlerts(),
+        ]);
 
       setCostSummary(costSummaryRes);
       setCostByService(Array.isArray(costByServiceRes) ? costByServiceRes : []);
@@ -120,7 +121,10 @@ const FinOpsDashboard: React.FC = () => {
 
   // Calculate month-over-month change
   const momChange = costSummary
-    ? (((costSummary.totalMonthly - costSummary.previousMonth) / costSummary.previousMonth) * 100).toFixed(1)
+    ? (
+        ((costSummary.totalMonthly - costSummary.previousMonth) / costSummary.previousMonth) *
+        100
+      ).toFixed(1)
     : '0.0';
 
   // Handle apply optimization
@@ -233,9 +237,7 @@ const FinOpsDashboard: React.FC = () => {
             <DollarOutlined style={{ marginRight: 8 }} />
             成本分析
           </Title>
-          <Text type="secondary">
-            数据更新时间：{dataTimestamp}
-          </Text>
+          <Text type="secondary">数据更新时间：{dataTimestamp}</Text>
         </div>
       </div>
 
@@ -256,10 +258,7 @@ const FinOpsDashboard: React.FC = () => {
                 valueStyle={{ color: colors.primary[500], fontSize: spacing[8] }}
               />
               <div style={{ marginTop: 8 }}>
-                <Text
-                  type="secondary"
-                  style={{ fontSize: spacing[3] }}
-                >
+                <Text type="secondary" style={{ fontSize: spacing[3] }}>
                   较上月{' '}
                   <Text
                     style={{
@@ -290,7 +289,12 @@ const FinOpsDashboard: React.FC = () => {
                 suffix="%"
                 precision={0}
                 valueStyle={{
-                  color: budgetUsagePercent > 90 ? colors.error[400] : budgetUsagePercent > 70 ? colors.warning[500] : colors.success[500],
+                  color:
+                    budgetUsagePercent > 90
+                      ? colors.error[400]
+                      : budgetUsagePercent > 70
+                        ? colors.warning[500]
+                        : colors.success[500],
                   fontSize: spacing[8],
                 }}
               />
@@ -305,8 +309,8 @@ const FinOpsDashboard: React.FC = () => {
                     budgetUsagePercent > 90
                       ? colors.error[400]
                       : budgetUsagePercent > 70
-                      ? colors.warning[500]
-                      : colors.success[500]
+                        ? colors.warning[500]
+                        : colors.success[500]
                   }
                   style={{ marginTop: 4 }}
                 />
@@ -404,12 +408,7 @@ const FinOpsDashboard: React.FC = () => {
           </Card>
 
           {/* Budget Alerts */}
-          <Card
-            title="预算告警"
-            bordered={false}
-            style={{ borderRadius: 8 }}
-            loading={loading}
-          >
+          <Card title="预算告警" bordered={false} style={{ borderRadius: 8 }} loading={loading}>
             <Space direction="vertical" style={{ width: '100%' }} size={12}>
               {budgetAlerts.map((alert) => (
                 <Alert
@@ -431,9 +430,7 @@ const FinOpsDashboard: React.FC = () => {
                         percent={alert.current}
                         size="small"
                         strokeColor={
-                          alert.status === 'exceeded'
-                            ? colors.error[400]
-                            : colors.warning[500]
+                          alert.status === 'exceeded' ? colors.error[400] : colors.warning[500]
                         }
                         style={{ marginTop: 8 }}
                       />
@@ -479,7 +476,13 @@ const FinOpsDashboard: React.FC = () => {
                   }
                 >
                   <Space direction="vertical" size={4} style={{ width: '100%' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                      }}
+                    >
                       <Text strong>{opt.title}</Text>
                       <Tag color={effortConfig[opt.effort].color}>
                         {effortConfig[opt.effort].label}
@@ -498,12 +501,7 @@ const FinOpsDashboard: React.FC = () => {
           </Card>
 
           {/* Quick Actions */}
-          <Card
-            title="快捷操作"
-            bordered={false}
-            style={{ borderRadius: 8 }}
-            loading={loading}
-          >
+          <Card title="快捷操作" bordered={false} style={{ borderRadius: 8 }} loading={loading}>
             <Space direction="vertical" style={{ width: '100%' }} size={8}>
               <Button
                 icon={<ExportOutlined />}
@@ -513,18 +511,10 @@ const FinOpsDashboard: React.FC = () => {
               >
                 导出报表
               </Button>
-              <Button
-                icon={<SettingOutlined />}
-                block
-                style={{ textAlign: 'left' }}
-              >
+              <Button icon={<SettingOutlined />} block style={{ textAlign: 'left' }}>
                 设置预算
               </Button>
-              <Button
-                icon={<FileSearchOutlined />}
-                block
-                style={{ textAlign: 'left' }}
-              >
+              <Button icon={<FileSearchOutlined />} block style={{ textAlign: 'left' }}>
                 查看明细
               </Button>
             </Space>

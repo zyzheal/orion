@@ -76,7 +76,9 @@ const DeploymentList: React.FC = () => {
           deployment.version,
           deployment.triggeredBy,
           deployment.commit || '',
-        ].join(' ').toLowerCase();
+        ]
+          .join(' ')
+          .toLowerCase();
         if (!searchable.includes(query)) return false;
       }
 
@@ -227,9 +229,7 @@ const DeploymentList: React.FC = () => {
       sortable: true,
       render: (value: unknown) => (
         <Space direction="vertical" size={0}>
-          <Text style={{ fontSize: spacing[3] }}>
-            {dayjs(String(value)).format('MM-DD HH:mm')}
-          </Text>
+          <Text style={{ fontSize: spacing[3] }}>{dayjs(String(value)).format('MM-DD HH:mm')}</Text>
           <Text type="secondary" style={{ fontSize: spacing[2] }}>
             {dayjs(String(value)).fromNow()}
           </Text>
@@ -242,11 +242,7 @@ const DeploymentList: React.FC = () => {
       width: 120,
       render: (_: unknown, record: any) => (
         <Space size="small">
-          <Button
-            type="link"
-            size="small"
-            onClick={() => navigate(`/deployments/${record.id}`)}
-          >
+          <Button type="link" size="small" onClick={() => navigate(`/deployments/${record.id}`)}>
             详情
           </Button>
           {record.status === 'success' && (
@@ -278,9 +274,7 @@ const DeploymentList: React.FC = () => {
           <Title level={3} style={{ margin: 0 }}>
             部署管理
           </Title>
-          <Text type="secondary">
-            共 {filteredDeployments.length} 条部署记录
-          </Text>
+          <Text type="secondary">共 {filteredDeployments.length} 条部署记录</Text>
         </div>
         <Button icon={<ReloadOutlined />} onClick={handleRefresh} loading={loading}>
           刷新

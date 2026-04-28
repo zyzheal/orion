@@ -61,7 +61,7 @@ export class DoraMetricsService {
   buildTimeWindow(window: TimeWindow, size: number = 1, referenceDate: Date = new Date()): TimeWindowConfig {
     const now = referenceDate;
     let start: Date;
-    let end: Date = new Date(now);
+    const end: Date = new Date(now);
 
     switch (window) {
       case 'day':

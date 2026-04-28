@@ -57,10 +57,18 @@ const CreateCollectionModal: React.FC<CreateCollectionModalProps> = ({
       destroyOnClose
     >
       <Form form={form} layout="vertical">
-        <Form.Item name="name" label="集合名称 (唯一标识)" rules={[{ required: true, message: '请输入集合名称' }]}>
+        <Form.Item
+          name="name"
+          label="集合名称 (唯一标识)"
+          rules={[{ required: true, message: '请输入集合名称' }]}
+        >
           <Input placeholder="如: my-knowledge-base" />
         </Form.Item>
-        <Form.Item name="displayName" label="显示名称" rules={[{ required: true, message: '请输入显示名称' }]}>
+        <Form.Item
+          name="displayName"
+          label="显示名称"
+          rules={[{ required: true, message: '请输入显示名称' }]}
+        >
           <Input placeholder="如: 我的知识库" />
         </Form.Item>
         <Form.Item name="description" label="描述">
@@ -72,28 +80,34 @@ const CreateCollectionModal: React.FC<CreateCollectionModalProps> = ({
           rules={[{ required: true, message: '请输入向量维度' }]}
           tooltip="OpenAI embeddings 使用 1536 维度"
         >
-          <Select options={[
-            { label: '384 (all-MiniLM)', value: '384' },
-            { label: '768 (BGE-base)', value: '768' },
-            { label: '1024 (BGE-large)', value: '1024' },
-            { label: '1536 (OpenAI/Ada)', value: '1536' },
-            { label: '3072 (GTE-large)', value: '3072' },
-          ]} />
+          <Select
+            options={[
+              { label: '384 (all-MiniLM)', value: '384' },
+              { label: '768 (BGE-base)', value: '768' },
+              { label: '1024 (BGE-large)', value: '1024' },
+              { label: '1536 (OpenAI/Ada)', value: '1536' },
+              { label: '3072 (GTE-large)', value: '3072' },
+            ]}
+          />
         </Form.Item>
         <Form.Item name="indexType" label="索引类型" initialValue="hnsw">
-          <Select options={[
-            { label: 'HNSW (推荐)', value: 'hnsw' },
-            { label: 'IVF_FLAT', value: 'ivf_flat' },
-            { label: 'FLAT (精确)', value: 'flat' },
-            { label: 'Annoy', value: 'annoy' },
-          ]} />
+          <Select
+            options={[
+              { label: 'HNSW (推荐)', value: 'hnsw' },
+              { label: 'IVF_FLAT', value: 'ivf_flat' },
+              { label: 'FLAT (精确)', value: 'flat' },
+              { label: 'Annoy', value: 'annoy' },
+            ]}
+          />
         </Form.Item>
         <Form.Item name="distanceMetric" label="距离度量" initialValue="cosine">
-          <Select options={[
-            { label: '余弦相似度', value: 'cosine' },
-            { label: '欧氏距离', value: 'euclidean' },
-            { label: '点积', value: 'dot_product' },
-          ]} />
+          <Select
+            options={[
+              { label: '余弦相似度', value: 'cosine' },
+              { label: '欧氏距离', value: 'euclidean' },
+              { label: '点积', value: 'dot_product' },
+            ]}
+          />
         </Form.Item>
       </Form>
     </Modal>

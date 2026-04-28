@@ -2,7 +2,18 @@
  * StageModal - Stage 配置弹窗
  */
 import React, { useEffect, useState } from 'react';
-import { Modal, Form, Input, InputNumber, Select, Space, Divider, Switch, Button, Card } from 'antd';
+import {
+  Modal,
+  Form,
+  Input,
+  InputNumber,
+  Select,
+  Space,
+  Divider,
+  Switch,
+  Button,
+  Card,
+} from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import type { StageConfig } from './types';
 
@@ -80,15 +91,17 @@ const StageModal: React.FC<StageModalProps> = ({
           env: values.env,
         },
         // 缓存配置
-        cache: values.cacheEnabled ? {
-          enabled: true,
-          key: values.cacheKey,
-          paths: cachePaths.filter(p => p.trim()),
-          restoreKeys: values.cacheRestoreKeys?.split('\n').filter((k: string) => k.trim()),
-        } : undefined,
+        cache: values.cacheEnabled
+          ? {
+              enabled: true,
+              key: values.cacheKey,
+              paths: cachePaths.filter((p) => p.trim()),
+              restoreKeys: values.cacheRestoreKeys?.split('\n').filter((k: string) => k.trim()),
+            }
+          : undefined,
         // Artifact 配置
         artifacts: {
-          upload: artifactPaths.filter(p => p.trim()),
+          upload: artifactPaths.filter((p) => p.trim()),
           expiry: values.artifactExpiry,
         },
       };
@@ -134,7 +147,9 @@ const StageModal: React.FC<StageModalProps> = ({
       footer={
         <Space>
           <Button onClick={onCancel}>取消</Button>
-          <Button type="primary" onClick={handleOk}>保存</Button>
+          <Button type="primary" onClick={handleOk}>
+            保存
+          </Button>
         </Space>
       }
     >
@@ -165,19 +180,14 @@ const StageModal: React.FC<StageModalProps> = ({
           name="type"
           rules={[{ required: true, message: '请选择阶段类型' }]}
         >
-          <Select
-            placeholder="选择类型"
-            options={STAGE_TYPES}
-          />
+          <Select placeholder="选择类型" options={STAGE_TYPES} />
         </Form.Item>
 
-        <Divider orientation="left" orientationMargin={0}>高级设置</Divider>
+        <Divider orientation="left" orientationMargin={0}>
+          高级设置
+        </Divider>
 
-        <Form.Item
-          label="超时时间 (秒)"
-          name="timeout"
-          tooltip="超过此时间后阶段将被终止"
-        >
+        <Form.Item label="超时时间 (秒)" name="timeout" tooltip="超过此时间后阶段将被终止">
           <InputNumber
             min={0}
             max={7200}
@@ -189,24 +199,11 @@ const StageModal: React.FC<StageModalProps> = ({
           />
         </Form.Item>
 
-        <Form.Item
-          label="重试次数"
-          name="retryCount"
-          tooltip="失败后自动重试的次数"
-        >
-          <InputNumber
-            min={0}
-            max={5}
-            style={{ width: '100%' }}
-            placeholder="默认 0 次"
-          />
+        <Form.Item label="重试次数" name="retryCount" tooltip="失败后自动重试的次数">
+          <InputNumber min={0} max={5} style={{ width: '100%' }} placeholder="默认 0 次" />
         </Form.Item>
 
-        <Form.Item
-          label="依赖阶段"
-          name="dependsOn"
-          tooltip="当前阶段执行前需要完成的阶段"
-        >
+        <Form.Item label="依赖阶段" name="dependsOn" tooltip="当前阶段执行前需要完成的阶段">
           <Select
             mode="multiple"
             placeholder="选择依赖的阶段"
@@ -216,13 +213,11 @@ const StageModal: React.FC<StageModalProps> = ({
           />
         </Form.Item>
 
-        <Divider orientation="left" orientationMargin={0}>执行配置</Divider>
+        <Divider orientation="left" orientationMargin={0}>
+          执行配置
+        </Divider>
 
-        <Form.Item
-          label="脚本内容"
-          name="script"
-          tooltip="Shell 脚本内容"
-        >
+        <Form.Item label="脚本内容" name="script" tooltip="Shell 脚本内容">
           <TextArea
             rows={4}
             placeholder="#!/bin/bash&#10;echo 'Hello, World!'"
@@ -250,19 +245,11 @@ const StageModal: React.FC<StageModalProps> = ({
           <Input placeholder="例如：npm run build" />
         </Form.Item>
 
-        <Form.Item
-          label="Docker 镜像"
-          name="image"
-          tooltip="执行此阶段的 Docker 镜像"
-        >
+        <Form.Item label="Docker 镜像" name="image" tooltip="执行此阶段的 Docker 镜像">
           <Input placeholder="例如：node:18-alpine" />
         </Form.Item>
 
-        <Form.Item
-          label="环境变量"
-          name="env"
-          tooltip="格式：KEY=VALUE，每行一个"
-        >
+        <Form.Item label="环境变量" name="env" tooltip="格式：KEY=VALUE，每行一个">
           <TextArea
             rows={3}
             placeholder="NODE_ENV=production&#10;API_URL=https://api.example.com"
@@ -281,65 +268,63 @@ const StageModal: React.FC<StageModalProps> = ({
         </Divider>
 
         <Form.Item noStyle shouldUpdate>
-          {(formInstance) => formInstance.getFieldValue('cacheEnabled') && (
-            <Card size="small" style={{ marginBottom: 16 }}>
-              <Form.Item
-                label="缓存 Key"
-                name="cacheKey"
-                tooltip="缓存的唯一标识，可使用表达式如 ${{ hashFiles('package-lock.json') }}"
-                rules={[{ required: true, message: '请输入缓存 Key' }]}
-              >
-                <Input placeholder="例如：npm-${{ hashFiles('package-lock.json') }}" />
-              </Form.Item>
+          {(formInstance) =>
+            formInstance.getFieldValue('cacheEnabled') && (
+              <Card size="small" style={{ marginBottom: 16 }}>
+                <Form.Item
+                  label="缓存 Key"
+                  name="cacheKey"
+                  tooltip="缓存的唯一标识，可使用表达式如 ${{ hashFiles('package-lock.json') }}"
+                  rules={[{ required: true, message: '请输入缓存 Key' }]}
+                >
+                  <Input placeholder="例如：npm-${{ hashFiles('package-lock.json') }}" />
+                </Form.Item>
 
-              <Form.Item label="缓存路径" required>
-                <Space direction="vertical" style={{ width: '100%' }} size={8}>
-                  {cachePaths.map((path, index) => (
-                    <Space key={index} style={{ width: '100%' }}>
-                      <Input
-                        value={path}
-                        onChange={(e) => handleUpdateCachePath(index, e.target.value)}
-                        placeholder="例如：node_modules, .npm/cache"
-                        style={{ flex: 1 }}
-                      />
-                      <Button
-                        icon={<PlusOutlined />}
-                        onClick={handleAddCachePath}
-                      />
-                      <Button
-                        danger
-                        icon={<DeleteOutlined />}
-                        onClick={() => handleRemoveCachePath(index)}
-                        disabled={cachePaths.length === 1}
-                      />
-                    </Space>
-                  ))}
-                </Space>
-              </Form.Item>
+                <Form.Item label="缓存路径" required>
+                  <Space direction="vertical" style={{ width: '100%' }} size={8}>
+                    {cachePaths.map((path, index) => (
+                      <Space key={index} style={{ width: '100%' }}>
+                        <Input
+                          value={path}
+                          onChange={(e) => handleUpdateCachePath(index, e.target.value)}
+                          placeholder="例如：node_modules, .npm/cache"
+                          style={{ flex: 1 }}
+                        />
+                        <Button icon={<PlusOutlined />} onClick={handleAddCachePath} />
+                        <Button
+                          danger
+                          icon={<DeleteOutlined />}
+                          onClick={() => handleRemoveCachePath(index)}
+                          disabled={cachePaths.length === 1}
+                        />
+                      </Space>
+                    ))}
+                  </Space>
+                </Form.Item>
 
-              <Form.Item
-                label="恢复 Key 前缀"
-                name="cacheRestoreKeys"
-                tooltip="用于匹配缓存的前缀列表，每行一个"
-              >
-                <TextArea
-                  rows={2}
-                  placeholder="npm-&#10;build-"
-                  style={{ fontFamily: 'monospace' }}
-                />
-              </Form.Item>
-            </Card>
-          )}
+                <Form.Item
+                  label="恢复 Key 前缀"
+                  name="cacheRestoreKeys"
+                  tooltip="用于匹配缓存的前缀列表，每行一个"
+                >
+                  <TextArea
+                    rows={2}
+                    placeholder="npm-&#10;build-"
+                    style={{ fontFamily: 'monospace' }}
+                  />
+                </Form.Item>
+              </Card>
+            )
+          }
         </Form.Item>
 
         {/* Artifact 配置 */}
-        <Divider orientation="left" orientationMargin={0}>构建产物 (Artifact)</Divider>
+        <Divider orientation="left" orientationMargin={0}>
+          构建产物 (Artifact)
+        </Divider>
 
         <Card size="small" style={{ marginBottom: 16 }}>
-          <Form.Item
-            label="上传路径"
-            required
-          >
+          <Form.Item label="上传路径" required>
             <Space direction="vertical" style={{ width: '100%' }} size={8}>
               {artifactPaths.map((path, index) => (
                 <Space key={index} style={{ width: '100%' }}>
@@ -349,10 +334,7 @@ const StageModal: React.FC<StageModalProps> = ({
                     placeholder="例如：dist/, build/*.jar"
                     style={{ flex: 1 }}
                   />
-                  <Button
-                    icon={<PlusOutlined />}
-                    onClick={handleAddArtifactPath}
-                  />
+                  <Button icon={<PlusOutlined />} onClick={handleAddArtifactPath} />
                   <Button
                     danger
                     icon={<DeleteOutlined />}
@@ -369,12 +351,7 @@ const StageModal: React.FC<StageModalProps> = ({
             name="artifactExpiry"
             tooltip="构建产物保留天数，0 表示永久保存"
           >
-            <InputNumber
-              min={0}
-              max={365}
-              style={{ width: '100%' }}
-              placeholder="默认 7 天"
-            />
+            <InputNumber min={0} max={365} style={{ width: '100%' }} placeholder="默认 7 天" />
           </Form.Item>
         </Card>
       </Form>

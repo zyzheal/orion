@@ -7,20 +7,8 @@
  * - Submit button with loading state
  */
 import React, { useState, useMemo, useCallback } from 'react';
-import {
-  Modal,
-  Form,
-  Input,
-  Select,
-  Radio,
-  Typography,
-  message,
-  Space,
-} from 'antd';
-import {
-  WarningOutlined,
-  FileSearchOutlined,
-} from '@ant-design/icons';
+import { Modal, Form, Input, Select, Radio, Typography, message, Space } from 'antd';
+import { WarningOutlined, FileSearchOutlined } from '@ant-design/icons';
 import { mockTickets } from '@/pages/__mocks__/mockTicketData';
 import { colors, spacing } from '@/tokens';
 
@@ -109,11 +97,7 @@ function findPotentialDuplicates(title: string): string[] {
 // Component
 // ============================================================================
 
-const CreateTicketModal: React.FC<CreateTicketModalProps> = ({
-  open,
-  onCancel,
-  onSuccess,
-}) => {
+const CreateTicketModal: React.FC<CreateTicketModalProps> = ({ open, onCancel, onSuccess }) => {
   const [form] = Form.useForm<CreateTicketFormValues>();
   const [submitting, setSubmitting] = useState(false);
   const [titleValue, setTitleValue] = useState('');
@@ -238,10 +222,7 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({
             name="priority"
             rules={[{ required: true, message: '请选择优先级' }]}
           >
-            <Radio.Group
-              data-testid="create-ticket-priority"
-              style={{ display: 'flex', gap: 8 }}
-            >
+            <Radio.Group data-testid="create-ticket-priority" style={{ display: 'flex', gap: 8 }}>
               {(['critical', 'high', 'medium', 'low'] as const).map((p) => (
                 <Radio.Button
                   key={p}
@@ -289,11 +270,7 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({
         </Form.Item>
 
         {/* Source */}
-        <Form.Item
-          label="来源"
-          name="source"
-          rules={[{ required: true, message: '请选择来源' }]}
-        >
+        <Form.Item label="来源" name="source" rules={[{ required: true, message: '请选择来源' }]}>
           <Select
             placeholder="请选择来源"
             options={sourceOptions}
@@ -314,11 +291,7 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({
 
         {source === 'incident' && (
           <Form.Item label="关联事件 ID" name="incidentId">
-            <Input
-              placeholder="请输入事件 ID"
-              data-testid="create-ticket-incident-id"
-              allowClear
-            />
+            <Input placeholder="请输入事件 ID" data-testid="create-ticket-incident-id" allowClear />
           </Form.Item>
         )}
       </Form>

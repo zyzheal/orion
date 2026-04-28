@@ -4,10 +4,7 @@
  * - Maps backend Notification schema to frontend MockNotification format
  */
 import { api } from './client';
-import {
-  mockNotifications,
-  type MockNotification,
-} from '@/pages/__mocks__/mockNotificationData';
+import { mockNotifications, type MockNotification } from '@/pages/__mocks__/mockNotificationData';
 
 // ============================================================================
 // Types
@@ -125,7 +122,8 @@ export const getNotifications = async (
       params: { limit: params?.pageSize || 50 },
     });
 
-    const backendNotifications: BackendNotification[] = (response.data?.data as unknown as BackendNotification[]) || [];
+    const backendNotifications: BackendNotification[] =
+      (response.data?.data as unknown as BackendNotification[]) || [];
     let notifications: MockNotification[] = backendNotifications.map(mapBackendToNotification);
 
     // Apply client-side filtering for tabs that backend doesn't support directly
@@ -216,7 +214,8 @@ export const markAllAsRead = async (): Promise<void> => {
   try {
     const userId = getCurrentUserId();
     const response = await api.get(`/v1/notifications/${userId}`, { params: { limit: 100 } });
-    const notifications: BackendNotification[] = (response.data?.data as BackendNotification[]) || [];
+    const notifications: BackendNotification[] =
+      (response.data?.data as BackendNotification[]) || [];
 
     // Mark each unread notification as read
     for (const n of notifications) {
@@ -250,11 +249,13 @@ export const getNotificationStats = async (): Promise<NotificationStats> => {
 
     // Get unread count from backend
     const unreadRes = await api.get(`/v1/notifications/${userId}/unread-count`);
-    const unreadCount = Number((unreadRes.data as unknown as Record<string, unknown>)?.unreadCount) || 0;
+    const unreadCount =
+      Number((unreadRes.data as unknown as Record<string, unknown>)?.unreadCount) || 0;
 
     // Fetch recent notifications for other stats
     const response = await api.get(`/v1/notifications/${userId}`, { params: { limit: 100 } });
-    const backendNotifications: BackendNotification[] = (response.data?.data as BackendNotification[]) || [];
+    const backendNotifications: BackendNotification[] =
+      (response.data?.data as BackendNotification[]) || [];
     const notifications: MockNotification[] = backendNotifications.map(mapBackendToNotification);
 
     const now = new Date();
@@ -294,7 +295,10 @@ export const getNotificationSettings = async (): Promise<NotificationSettings> =
     const response = await api.get(`/v1/notifications/settings/${userId}`, {
       params: { tenantId },
     });
-    const data = (response.data?.data as unknown as Record<string, unknown>) || response.data as unknown as Record<string, unknown> || {};
+    const data =
+      (response.data?.data as unknown as Record<string, unknown>) ||
+      (response.data as unknown as Record<string, unknown>) ||
+      {};
 
     return {
       emailEnabled: Boolean(data?.email_enabled ?? true),
@@ -362,7 +366,10 @@ export const updateNotificationSettings = async (
     const response = await api.put(`/v1/notifications/settings/${userId}`, backendUpdates, {
       params: { tenantId },
     });
-    const data = (response.data?.data as unknown as Record<string, unknown>) || response.data as unknown as Record<string, unknown> || {};
+    const data =
+      (response.data?.data as unknown as Record<string, unknown>) ||
+      (response.data as unknown as Record<string, unknown>) ||
+      {};
 
     return {
       emailEnabled: Boolean(data?.email_enabled ?? true),
@@ -399,9 +406,7 @@ export interface BroadcastResult {
   sent: number;
 }
 
-export const broadcastNotification = async (
-  input: BroadcastInput
-): Promise<BroadcastResult> => {
+export const broadcastNotification = async (input: BroadcastInput): Promise<BroadcastResult> => {
   const response = await api.post('/v1/notifications/broadcast', {
     tenant_id: input.tenantId,
     user_ids: input.userIds,

@@ -2,11 +2,29 @@
  * IaC State Browser - State version history, resource list, state diff
  */
 import React, { useState, useEffect } from 'react';
-import { Typography, Button, Space, Tag, Card, Row, Col, Statistic, message, Select, Modal } from 'antd';
+import {
+  Typography,
+  Button,
+  Space,
+  Tag,
+  Card,
+  Row,
+  Col,
+  Statistic,
+  message,
+  Select,
+  Modal,
+} from 'antd';
 import { colors, spacing } from '@/tokens';
 import { ReloadOutlined, DiffOutlined, EyeOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
-import { getWorkspaces, getWorkspaceStateVersions, getWorkspaceResources, type IaCStateVersion, type IaCStateResource } from '@/api/iac';
+import {
+  getWorkspaces,
+  getWorkspaceStateVersions,
+  getWorkspaceResources,
+  type IaCStateVersion,
+  type IaCStateResource,
+} from '@/api/iac';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 
@@ -112,7 +130,9 @@ const StateBrowser: React.FC = () => {
       width: 160,
       sortable: true,
       render: (v: unknown) => (
-        <Text type="secondary" style={{ fontSize: spacing[3] }}>{dayjs(String(v)).fromNow()}</Text>
+        <Text type="secondary" style={{ fontSize: spacing[3] }}>
+          {dayjs(String(v)).fromNow()}
+        </Text>
       ),
     },
     {
@@ -121,7 +141,9 @@ const StateBrowser: React.FC = () => {
       width: 120,
       render: (_: unknown) => (
         <Space size="small">
-          <Button type="link" size="small" icon={<EyeOutlined />}>查看</Button>
+          <Button type="link" size="small" icon={<EyeOutlined />}>
+            查看
+          </Button>
         </Space>
       ),
     },
@@ -134,7 +156,11 @@ const StateBrowser: React.FC = () => {
       dataIndex: 'address',
       width: 300,
       sortable: true,
-      render: (v: unknown) => <Text code style={{ fontSize: spacing[3] }}>{String(v)}</Text>,
+      render: (v: unknown) => (
+        <Text code style={{ fontSize: spacing[3] }}>
+          {String(v)}
+        </Text>
+      ),
     },
     {
       key: 'type',
@@ -161,9 +187,18 @@ const StateBrowser: React.FC = () => {
 
   return (
     <div style={{ padding: 0 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          marginBottom: 24,
+        }}
+      >
         <div>
-          <Title level={3} style={{ margin: 0 }}>状态浏览</Title>
+          <Title level={3} style={{ margin: 0 }}>
+            状态浏览
+          </Title>
           <Text type="secondary">IaC 状态版本历史与资源查看</Text>
         </div>
         <Space>
@@ -174,25 +209,52 @@ const StateBrowser: React.FC = () => {
             options={workspaces.map((w) => ({ label: w.name, value: w.id }))}
             placeholder="选择工作空间"
           />
-          <Button icon={<ReloadOutlined />} onClick={() => loadWorkspaceData(selectedWorkspaceId)} loading={loading}>刷新</Button>
+          <Button
+            icon={<ReloadOutlined />}
+            onClick={() => loadWorkspaceData(selectedWorkspaceId)}
+            loading={loading}
+          >
+            刷新
+          </Button>
         </Space>
       </div>
 
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col span={6}>
-          <Card><Statistic title="状态版本数" value={stateVersions.length} /></Card>
+          <Card>
+            <Statistic title="状态版本数" value={stateVersions.length} />
+          </Card>
         </Col>
         <Col span={6}>
-          <Card><Statistic title="资源总数" value={resources.length} /></Card>
+          <Card>
+            <Statistic title="资源总数" value={resources.length} />
+          </Card>
         </Col>
         <Col span={6}>
-          <Card><Statistic title="最新版本" value={stateVersions.length > 0 ? Math.max(...stateVersions.map((v) => v.version)) : 0} /></Card>
+          <Card>
+            <Statistic
+              title="最新版本"
+              value={
+                stateVersions.length > 0 ? Math.max(...stateVersions.map((v) => v.version)) : 0
+              }
+            />
+          </Card>
         </Col>
         <Col span={6}>
           <Card>
             <Statistic
               title="最新资源数"
-              value={stateVersions.length > 0 ? stateVersions.reduce((max, v) => v.version === Math.max(...stateVersions.map((vv) => vv.version)) ? v.resourcesCount : max, 0) : 0}
+              value={
+                stateVersions.length > 0
+                  ? stateVersions.reduce(
+                      (max, v) =>
+                        v.version === Math.max(...stateVersions.map((vv) => vv.version))
+                          ? v.resourcesCount
+                          : max,
+                      0
+                    )
+                  : 0
+              }
             />
           </Card>
         </Col>
@@ -200,30 +262,75 @@ const StateBrowser: React.FC = () => {
 
       <Row gutter={16}>
         <Col span={14}>
-          <Card title="资源列表" extra={
-            <Space>
-              <Select size="small" value={diffVersionA} onChange={setDiffVersionA} style={{ width: 80 }}
-                options={stateVersions.map((v) => ({ label: `v${v.version}`, value: v.version }))} placeholder="版本A" />
-              <Select size="small" value={diffVersionB} onChange={setDiffVersionB} style={{ width: 80 }}
-                options={stateVersions.map((v) => ({ label: `v${v.version}`, value: v.version }))} placeholder="版本B" />
-              <Button size="small" icon={<DiffOutlined />} onClick={() => setDiffModalVisible(true)}>差异</Button>
-            </Space>
-          }>
-            <Table columns={resourceColumns} dataSource={resources} loading={loading} rowKey="address" size="middle" striped />
+          <Card
+            title="资源列表"
+            extra={
+              <Space>
+                <Select
+                  size="small"
+                  value={diffVersionA}
+                  onChange={setDiffVersionA}
+                  style={{ width: 80 }}
+                  options={stateVersions.map((v) => ({ label: `v${v.version}`, value: v.version }))}
+                  placeholder="版本A"
+                />
+                <Select
+                  size="small"
+                  value={diffVersionB}
+                  onChange={setDiffVersionB}
+                  style={{ width: 80 }}
+                  options={stateVersions.map((v) => ({ label: `v${v.version}`, value: v.version }))}
+                  placeholder="版本B"
+                />
+                <Button
+                  size="small"
+                  icon={<DiffOutlined />}
+                  onClick={() => setDiffModalVisible(true)}
+                >
+                  差异
+                </Button>
+              </Space>
+            }
+          >
+            <Table
+              columns={resourceColumns}
+              dataSource={resources}
+              loading={loading}
+              rowKey="address"
+              size="middle"
+              striped
+            />
           </Card>
         </Col>
         <Col span={10}>
           <Card title="版本历史">
-            <Table columns={versionColumns} dataSource={stateVersions} loading={loading} rowKey="id" size="small" striped pagination={{ pageSize: 8, current: 1, total: stateVersions.length } as any} />
+            <Table
+              columns={versionColumns}
+              dataSource={stateVersions}
+              loading={loading}
+              rowKey="id"
+              size="small"
+              striped
+              pagination={{ pageSize: 8, current: 1, total: stateVersions.length } as any}
+            />
           </Card>
         </Col>
       </Row>
 
       {/* Diff Modal */}
-      <Modal title="状态差异" open={diffModalVisible} onCancel={() => setDiffModalVisible(false)} footer={<Button onClick={() => setDiffModalVisible(false)}>关闭</Button>}>
-        <p>比较版本 v{diffVersionA} 与 v{diffVersionB} 的状态差异</p>
+      <Modal
+        title="状态差异"
+        open={diffModalVisible}
+        onCancel={() => setDiffModalVisible(false)}
+        footer={<Button onClick={() => setDiffModalVisible(false)}>关闭</Button>}
+      >
+        <p>
+          比较版本 v{diffVersionA} 与 v{diffVersionB} 的状态差异
+        </p>
         <Text type="secondary">工作空间: {selectedWsName}</Text>
-        <div style={{ marginTop: 16, padding: 16, background: colors.neutral[50], borderRadius: 4 }}>
+        <div
+          style={{ marginTop: 16, padding: 16, background: colors.neutral[50], borderRadius: 4 }}
+        >
           <Text>差异对比结果将在此显示</Text>
         </div>
       </Modal>

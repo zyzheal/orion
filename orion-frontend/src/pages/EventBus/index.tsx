@@ -4,12 +4,28 @@
  */
 import React, { useState, useMemo, useEffect } from 'react';
 import {
-  Typography, Button, Space, Tag, Card, Alert, Select, Input, Tooltip, Drawer,
-  Descriptions, message,
+  Typography,
+  Button,
+  Space,
+  Tag,
+  Card,
+  Alert,
+  Select,
+  Input,
+  Tooltip,
+  Drawer,
+  Descriptions,
+  message,
 } from 'antd';
 import {
-  ReloadOutlined, FilterOutlined, ClockCircleOutlined, CheckCircleOutlined,
-  CloseCircleOutlined, WarningOutlined, SwapOutlined, InfoCircleOutlined,
+  ReloadOutlined,
+  FilterOutlined,
+  ClockCircleOutlined,
+  CheckCircleOutlined,
+  CloseCircleOutlined,
+  WarningOutlined,
+  SwapOutlined,
+  InfoCircleOutlined,
   EyeOutlined,
 } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
@@ -80,54 +96,114 @@ const MOCK_STATS: EventBusStats = {
 
 const MOCK_EVENTS: EventBusEvent[] = [
   {
-    id: 'evt-001', eventType: 'pipeline.run.completed', source: 'pipeline-engine',
-    timestamp: '2024-03-20T10:30:00Z', status: 'delivered', payloadSize: 2048,
-    subscriberCount: 3, topic: 'pipeline.run.completed', traceId: 'trace-a1b2c3',
+    id: 'evt-001',
+    eventType: 'pipeline.run.completed',
+    source: 'pipeline-engine',
+    timestamp: '2024-03-20T10:30:00Z',
+    status: 'delivered',
+    payloadSize: 2048,
+    subscriberCount: 3,
+    topic: 'pipeline.run.completed',
+    traceId: 'trace-a1b2c3',
   },
   {
-    id: 'evt-002', eventType: 'deployment.started', source: 'deployment-service',
-    timestamp: '2024-03-20T10:28:00Z', status: 'delivered', payloadSize: 1024,
-    subscriberCount: 2, topic: 'deployment.started', traceId: 'trace-d4e5f6',
+    id: 'evt-002',
+    eventType: 'deployment.started',
+    source: 'deployment-service',
+    timestamp: '2024-03-20T10:28:00Z',
+    status: 'delivered',
+    payloadSize: 1024,
+    subscriberCount: 2,
+    topic: 'deployment.started',
+    traceId: 'trace-d4e5f6',
   },
   {
-    id: 'evt-003', eventType: 'code.pr.opened', source: 'code-repo-adapter',
-    timestamp: '2024-03-20T10:25:00Z', status: 'failed', payloadSize: 4096,
-    subscriberCount: 1, topic: 'code.pr.opened', traceId: 'trace-g7h8i9',
+    id: 'evt-003',
+    eventType: 'code.pr.opened',
+    source: 'code-repo-adapter',
+    timestamp: '2024-03-20T10:25:00Z',
+    status: 'failed',
+    payloadSize: 4096,
+    subscriberCount: 1,
+    topic: 'code.pr.opened',
+    traceId: 'trace-g7h8i9',
   },
   {
-    id: 'evt-004', eventType: 'alert.triggered', source: 'monitoring-service',
-    timestamp: '2024-03-20T10:22:00Z', status: 'delivered', payloadSize: 512,
-    subscriberCount: 4, topic: 'alert.triggered', traceId: 'trace-j0k1l2',
+    id: 'evt-004',
+    eventType: 'alert.triggered',
+    source: 'monitoring-service',
+    timestamp: '2024-03-20T10:22:00Z',
+    status: 'delivered',
+    payloadSize: 512,
+    subscriberCount: 4,
+    topic: 'alert.triggered',
+    traceId: 'trace-j0k1l2',
   },
   {
-    id: 'evt-005', eventType: 'pipeline.run.failed', source: 'pipeline-engine',
-    timestamp: '2024-03-20T10:20:00Z', status: 'retried', payloadSize: 1536,
-    subscriberCount: 3, topic: 'pipeline.run.failed', traceId: 'trace-m3n4o5',
+    id: 'evt-005',
+    eventType: 'pipeline.run.failed',
+    source: 'pipeline-engine',
+    timestamp: '2024-03-20T10:20:00Z',
+    status: 'retried',
+    payloadSize: 1536,
+    subscriberCount: 3,
+    topic: 'pipeline.run.failed',
+    traceId: 'trace-m3n4o5',
   },
   {
-    id: 'evt-006', eventType: 'cost.collected', source: 'finops-service',
-    timestamp: '2024-03-20T10:18:00Z', status: 'delivered', payloadSize: 768,
-    subscriberCount: 2, topic: 'cost.collected', traceId: 'trace-p6q7r8',
+    id: 'evt-006',
+    eventType: 'cost.collected',
+    source: 'finops-service',
+    timestamp: '2024-03-20T10:18:00Z',
+    status: 'delivered',
+    payloadSize: 768,
+    subscriberCount: 2,
+    topic: 'cost.collected',
+    traceId: 'trace-p6q7r8',
   },
   {
-    id: 'evt-007', eventType: 'config.changed', source: 'config-service',
-    timestamp: '2024-03-20T10:15:00Z', status: 'pending', payloadSize: 256,
-    subscriberCount: 5, topic: 'config.changed', traceId: 'trace-s9t0u1',
+    id: 'evt-007',
+    eventType: 'config.changed',
+    source: 'config-service',
+    timestamp: '2024-03-20T10:15:00Z',
+    status: 'pending',
+    payloadSize: 256,
+    subscriberCount: 5,
+    topic: 'config.changed',
+    traceId: 'trace-s9t0u1',
   },
   {
-    id: 'evt-008', eventType: 'deployment.completed', source: 'deployment-service',
-    timestamp: '2024-03-20T10:12:00Z', status: 'delivered', payloadSize: 1280,
-    subscriberCount: 3, topic: 'deployment.completed', traceId: 'trace-v2w3x4',
+    id: 'evt-008',
+    eventType: 'deployment.completed',
+    source: 'deployment-service',
+    timestamp: '2024-03-20T10:12:00Z',
+    status: 'delivered',
+    payloadSize: 1280,
+    subscriberCount: 3,
+    topic: 'deployment.completed',
+    traceId: 'trace-v2w3x4',
   },
   {
-    id: 'evt-009', eventType: 'selfhealing.action.triggered', source: 'self-healing-engine',
-    timestamp: '2024-03-20T10:10:00Z', status: 'delivered', payloadSize: 896,
-    subscriberCount: 2, topic: 'selfhealing.action.triggered', traceId: 'trace-y5z6a7',
+    id: 'evt-009',
+    eventType: 'selfhealing.action.triggered',
+    source: 'self-healing-engine',
+    timestamp: '2024-03-20T10:10:00Z',
+    status: 'delivered',
+    payloadSize: 896,
+    subscriberCount: 2,
+    topic: 'selfhealing.action.triggered',
+    traceId: 'trace-y5z6a7',
   },
   {
-    id: 'evt-010', eventType: 'pipeline.run.completed', source: 'pipeline-engine',
-    timestamp: '2024-03-20T10:08:00Z', status: 'failed', payloadSize: 2048,
-    subscriberCount: 3, topic: 'pipeline.run.completed', traceId: 'trace-b8c9d0',
+    id: 'evt-010',
+    eventType: 'pipeline.run.completed',
+    source: 'pipeline-engine',
+    timestamp: '2024-03-20T10:08:00Z',
+    status: 'failed',
+    payloadSize: 2048,
+    subscriberCount: 3,
+    topic: 'pipeline.run.completed',
+    traceId: 'trace-b8c9d0',
   },
 ];
 
@@ -168,7 +244,9 @@ const EventBusMonitoring: React.FC = () => {
     }
   };
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    loadData();
+  }, []);
 
   const filteredEvents = useMemo(() => {
     return events.filter((e) => {
@@ -181,7 +259,8 @@ const EventBusMonitoring: React.FC = () => {
           !e.source.toLowerCase().includes(q) &&
           !e.traceId.toLowerCase().includes(q) &&
           !e.topic.toLowerCase().includes(q)
-        ) return false;
+        )
+          return false;
       }
       return true;
     });
@@ -208,7 +287,11 @@ const EventBusMonitoring: React.FC = () => {
       width: 220,
       render: (_v: unknown, record: EventBusEvent) => (
         <Space direction="vertical" size={0}>
-          <Text strong style={{ fontSize: 13, cursor: 'pointer' }} onClick={() => openDetail(record)}>
+          <Text
+            strong
+            style={{ fontSize: 13, cursor: 'pointer' }}
+            onClick={() => openDetail(record)}
+          >
             {record.eventType}
           </Text>
           <Text type="secondary" style={{ fontSize: 11 }}>
@@ -223,7 +306,9 @@ const EventBusMonitoring: React.FC = () => {
       dataIndex: 'source',
       width: 140,
       render: (v: unknown) => (
-        <Tag color="blue" style={{ fontSize: 11 }}>{String(v)}</Tag>
+        <Tag color="blue" style={{ fontSize: 11 }}>
+          {String(v)}
+        </Tag>
       ),
     },
     {
@@ -242,9 +327,7 @@ const EventBusMonitoring: React.FC = () => {
       title: '订阅数',
       dataIndex: 'subscriberCount',
       width: 80,
-      render: (v: unknown) => (
-        <Text type="secondary">{String(v)}</Text>
-      ),
+      render: (v: unknown) => <Text type="secondary">{String(v)}</Text>,
     },
     {
       key: 'payloadSize',
@@ -275,7 +358,12 @@ const EventBusMonitoring: React.FC = () => {
       width: 80,
       render: (_: unknown, record: EventBusEvent) => (
         <Tooltip title="详情">
-          <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => openDetail(record)}>
+          <Button
+            type="link"
+            size="small"
+            icon={<EyeOutlined />}
+            onClick={() => openDetail(record)}
+          >
             详情
           </Button>
         </Tooltip>
@@ -286,9 +374,18 @@ const EventBusMonitoring: React.FC = () => {
   return (
     <div style={{ padding: 0 }}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing.lg }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          marginBottom: spacing.lg,
+        }}
+      >
         <div>
-          <Title level={3} style={{ margin: 0 }}>EventBus</Title>
+          <Title level={3} style={{ margin: 0 }}>
+            EventBus
+          </Title>
           <Text type="secondary">事件总线监控</Text>
         </div>
         <Space>
@@ -313,7 +410,14 @@ const EventBusMonitoring: React.FC = () => {
 
       {/* Stats Cards */}
       {stats && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: spacing.md, marginBottom: spacing.lg }}>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(4, 1fr)',
+            gap: spacing.md,
+            marginBottom: spacing.lg,
+          }}
+        >
           <MetricCard
             title="总事件数"
             value={stats.totalEvents}
@@ -357,7 +461,9 @@ const EventBusMonitoring: React.FC = () => {
             onChange={(e) => setSearchQuery(e.target.value)}
             onSearch={setSearchQuery}
           />
-          <Text><FilterOutlined /> 状态:</Text>
+          <Text>
+            <FilterOutlined /> 状态:
+          </Text>
           <Select
             style={{ width: 120 }}
             value={statusFilter}
@@ -418,16 +524,17 @@ const EventBusMonitoring: React.FC = () => {
               <Tag color="blue">{selectedEvent.source}</Tag>
             </Descriptions.Item>
             <Descriptions.Item label="状态">
-              <Tag color={statusColorMap[selectedEvent.status]} icon={statusIconMap[selectedEvent.status]}>
+              <Tag
+                color={statusColorMap[selectedEvent.status]}
+                icon={statusIconMap[selectedEvent.status]}
+              >
                 {statusLabelMap[selectedEvent.status]}
               </Tag>
             </Descriptions.Item>
             <Descriptions.Item label="Trace ID">
               <Text code>{selectedEvent.traceId}</Text>
             </Descriptions.Item>
-            <Descriptions.Item label="订阅数">
-              {selectedEvent.subscriberCount}
-            </Descriptions.Item>
+            <Descriptions.Item label="订阅数">{selectedEvent.subscriberCount}</Descriptions.Item>
             <Descriptions.Item label="Payload 大小">
               <Text code>{formatPayloadSize(selectedEvent.payloadSize)}</Text>
             </Descriptions.Item>

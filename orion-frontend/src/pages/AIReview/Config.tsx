@@ -64,11 +64,15 @@ const AIReviewConfig: React.FC = () => {
     <div style={{ padding: 24 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
-          <Title level={3} style={{ margin: 0 }}>评审配置</Title>
+          <Title level={3} style={{ margin: 0 }}>
+            评审配置
+          </Title>
           <Text type="secondary">配置 AI Review 的模型、提示模板和评审范围</Text>
         </div>
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={handleReset} loading={loading}>重置</Button>
+          <Button icon={<ReloadOutlined />} onClick={handleReset} loading={loading}>
+            重置
+          </Button>
         </Space>
       </div>
 
@@ -80,7 +84,11 @@ const AIReviewConfig: React.FC = () => {
           disabled={loading}
           initialValues={{ model: 'gpt-4', reviewScope: 'diff' }}
         >
-          <Form.Item name="model" label="AI 模型" rules={[{ required: true, message: '请选择 AI 模型' }]}>
+          <Form.Item
+            name="model"
+            label="AI 模型"
+            rules={[{ required: true, message: '请选择 AI 模型' }]}
+          >
             <Select placeholder="选择模型">
               <Select.Option value="gpt-4">GPT-4</Select.Option>
               <Select.Option value="gpt-4-turbo">GPT-4 Turbo</Select.Option>
@@ -92,7 +100,11 @@ const AIReviewConfig: React.FC = () => {
             </Select>
           </Form.Item>
 
-          <Form.Item name="reviewScope" label="评审范围" rules={[{ required: true, message: '请选择评审范围' }]}>
+          <Form.Item
+            name="reviewScope"
+            label="评审范围"
+            rules={[{ required: true, message: '请选择评审范围' }]}
+          >
             <Select>
               <Select.Option value="diff">仅 Diff</Select.Option>
               <Select.Option value="files">修改的文件</Select.Option>
@@ -102,7 +114,11 @@ const AIReviewConfig: React.FC = () => {
 
           <Divider />
 
-          <Form.Item name="promptTemplate" label="提示模板" rules={[{ required: true, message: '请输入提示模板' }]}>
+          <Form.Item
+            name="promptTemplate"
+            label="提示模板"
+            rules={[{ required: true, message: '请输入提示模板' }]}
+          >
             <TextArea
               rows={12}
               placeholder="请输入 AI Review 的提示模板..."
@@ -121,9 +137,18 @@ const AIReviewConfig: React.FC = () => {
       {/* Config Tips */}
       <Card title="配置说明" style={{ marginTop: 16 }}>
         <ul style={{ paddingLeft: 20, margin: 0 }}>
-          <li><Text strong>AI 模型：</Text>选择用于代码评审的 AI 模型，不同模型在速度和准确性上有所差异</li>
-          <li><Text strong>评审范围：</Text>决定 AI 审查的代码范围，Diff 模式只审查变更行，完整仓库模式审查整个代码库</li>
-          <li><Text strong>提示模板：</Text>自定义 AI 评审的提示词，可用变量包括 {'{'}diff{'}'}, {'{'}file{'}'}, {'{'}language{'}'} 等</li>
+          <li>
+            <Text strong>AI 模型：</Text>选择用于代码评审的 AI
+            模型，不同模型在速度和准确性上有所差异
+          </li>
+          <li>
+            <Text strong>评审范围：</Text>决定 AI 审查的代码范围，Diff
+            模式只审查变更行，完整仓库模式审查整个代码库
+          </li>
+          <li>
+            <Text strong>提示模板：</Text>自定义 AI 评审的提示词，可用变量包括 {'{'}diff{'}'}, {'{'}
+            file{'}'}, {'{'}language{'}'} 等
+          </li>
         </ul>
       </Card>
     </div>

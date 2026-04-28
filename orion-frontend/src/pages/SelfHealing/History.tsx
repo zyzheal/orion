@@ -17,7 +17,9 @@ const HealingHistory: React.FC = () => {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [filters, setFilters] = useState<{ severity?: string; status?: string; appName?: string }>({});
+  const [filters, setFilters] = useState<{ severity?: string; status?: string; appName?: string }>(
+    {}
+  );
 
   const loadData = async () => {
     setLoading(true);
@@ -42,20 +44,29 @@ const HealingHistory: React.FC = () => {
 
   const severityColor = (severity: string) => {
     switch (severity) {
-      case 'critical': return 'red';
-      case 'warning': return 'orange';
-      case 'info': return 'blue';
-      default: return 'default';
+      case 'critical':
+        return 'red';
+      case 'warning':
+        return 'orange';
+      case 'info':
+        return 'blue';
+      default:
+        return 'default';
     }
   };
 
   const statusColor = (status: string) => {
     switch (status) {
-      case 'resolved': return 'green';
-      case 'healing': return 'blue';
-      case 'pending': return 'orange';
-      case 'failed': return 'red';
-      default: return 'default';
+      case 'resolved':
+        return 'green';
+      case 'healing':
+        return 'blue';
+      case 'pending':
+        return 'orange';
+      case 'failed':
+        return 'red';
+      default:
+        return 'default';
     }
   };
 
@@ -71,7 +82,13 @@ const HealingHistory: React.FC = () => {
     },
     { title: '应用', dataIndex: 'appName', key: 'appName', width: 150 },
     { title: '环境', dataIndex: 'environment', key: 'environment', width: 120 },
-    { title: '策略', dataIndex: 'strategy', key: 'strategy', width: 120, render: (text?: string) => text || '-' },
+    {
+      title: '策略',
+      dataIndex: 'strategy',
+      key: 'strategy',
+      width: 120,
+      render: (text?: string) => text || '-',
+    },
     {
       title: '状态',
       dataIndex: 'status',
@@ -92,8 +109,12 @@ const HealingHistory: React.FC = () => {
 
   return (
     <div style={{ padding: 24 }}>
-      <Title level={3} style={{ marginBottom: 16 }}>愈合历史</Title>
-      <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>查看自愈合历史记录和结果</Text>
+      <Title level={3} style={{ marginBottom: 16 }}>
+        愈合历史
+      </Title>
+      <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
+        查看自愈合历史记录和结果
+      </Text>
 
       {/* Filter Bar */}
       <Card style={{ marginBottom: 16 }}>
@@ -102,14 +123,20 @@ const HealingHistory: React.FC = () => {
             placeholder="搜索应用名称"
             prefix={<SearchOutlined />}
             value={filters.appName}
-            onChange={(e) => { setFilters({ ...filters, appName: e.target.value }); setPage(1); }}
+            onChange={(e) => {
+              setFilters({ ...filters, appName: e.target.value });
+              setPage(1);
+            }}
             style={{ width: 200 }}
           />
           <Select
             placeholder="严重程度"
             allowClear
             value={filters.severity}
-            onChange={(value) => { setFilters({ ...filters, severity: value }); setPage(1); }}
+            onChange={(value) => {
+              setFilters({ ...filters, severity: value });
+              setPage(1);
+            }}
             style={{ width: 140 }}
           >
             <Select.Option value="critical">Critical</Select.Option>
@@ -120,7 +147,10 @@ const HealingHistory: React.FC = () => {
             placeholder="状态"
             allowClear
             value={filters.status}
-            onChange={(value) => { setFilters({ ...filters, status: value }); setPage(1); }}
+            onChange={(value) => {
+              setFilters({ ...filters, status: value });
+              setPage(1);
+            }}
             style={{ width: 140 }}
           >
             <Select.Option value="pending">待处理</Select.Option>
@@ -128,7 +158,9 @@ const HealingHistory: React.FC = () => {
             <Select.Option value="resolved">已解决</Select.Option>
             <Select.Option value="failed">修复失败</Select.Option>
           </Select>
-          <Button icon={<ReloadOutlined />} onClick={loadData}>刷新</Button>
+          <Button icon={<ReloadOutlined />} onClick={loadData}>
+            刷新
+          </Button>
         </Space>
       </Card>
 
@@ -144,7 +176,10 @@ const HealingHistory: React.FC = () => {
             total,
             showSizeChanger: true,
             showTotal: (t) => `共 ${t} 条`,
-            onChange: (p, ps) => { setPage(p); setPageSize(ps); },
+            onChange: (p, ps) => {
+              setPage(p);
+              setPageSize(ps);
+            },
           }}
           size="small"
         />

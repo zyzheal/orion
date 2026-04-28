@@ -4,22 +4,42 @@
  */
 import React, { useState, useMemo, useEffect } from 'react';
 import {
-  Typography, Button, Space, Modal, Form, Input, Select, message, Alert,
-  Tabs, Drawer, Tag, Card,
+  Typography,
+  Button,
+  Space,
+  Modal,
+  Form,
+  Input,
+  Select,
+  message,
+  Alert,
+  Tabs,
+  Drawer,
+  Tag,
+  Card,
 } from 'antd';
-import {
-  PlusOutlined, ReloadOutlined,
-} from '@ant-design/icons';
+import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 import SearchFilterBar from '@/components/SearchFilterBar';
 import PageSkeleton from '@/components/PageSkeleton';
 import {
-  getArtifacts, createArtifact, updateArtifact, deleteArtifact,
-  getArtifactTags, addArtifactTags, downloadArtifact,
-  promoteArtifact, getPromotionHistory,
-  deprecateArtifact, quarantineArtifact,
-  getArtifactStats, getNamespaces,
-  type Artifact, type CreateArtifactInput, type UpdateArtifactInput,
-  type PromotionRecord, type Tag as TagType,
+  getArtifacts,
+  createArtifact,
+  updateArtifact,
+  deleteArtifact,
+  getArtifactTags,
+  addArtifactTags,
+  downloadArtifact,
+  promoteArtifact,
+  getPromotionHistory,
+  deprecateArtifact,
+  quarantineArtifact,
+  getArtifactStats,
+  getNamespaces,
+  type Artifact,
+  type CreateArtifactInput,
+  type UpdateArtifactInput,
+  type PromotionRecord,
+  type Tag as TagType,
   type ArtifactStats as ArtifactStatsType,
 } from '@/api/artifacts';
 import ArtifactStats from './ArtifactStats';
@@ -37,57 +57,158 @@ const { Title, Text } = Typography;
 
 const MOCK_ARTIFACTS: Artifact[] = [
   {
-    id: 'art-1', name: 'orion-core', namespace: 'platform', version: '2.5.0',
-    type: 'container_image', stage: 'stable', status: 'available',
-    displayName: 'Orion 核心服务镜像', description: 'Orion 核心平台 Docker 镜像',
-    sizeBytes: 256000000, digest: 'sha256:abc123def456', storagePath: '/storage/images/orion-core',
-    storageBackend: 'harbor', labels: { team: 'platform', tier: 'core' },
-    build: { pipelineRunId: 'run-1', gitCommit: 'a1b2c3d', gitBranch: 'main', gitTag: 'v2.5.0', buildTime: '2024-03-20T10:00:00Z', buildDuration: 180 },
-    security: { signed: true, signer: 'platform-signer', scanResults: { critical: 0, high: 1, medium: 3, low: 5 } },
-    tests: { unitTests: { passed: 450, failed: 2, coverage: 87 }, integrationTests: { passed: 89, failed: 0 } },
-    deployments: [{ environment: 'staging', deployedAt: '2024-03-20T12:00:00Z', deployedBy: 'ci-bot', status: 'success' }],
-    createdAt: '2024-01-15T08:00:00Z', updatedAt: '2024-03-20T12:00:00Z',
+    id: 'art-1',
+    name: 'orion-core',
+    namespace: 'platform',
+    version: '2.5.0',
+    type: 'container_image',
+    stage: 'stable',
+    status: 'available',
+    displayName: 'Orion 核心服务镜像',
+    description: 'Orion 核心平台 Docker 镜像',
+    sizeBytes: 256000000,
+    digest: 'sha256:abc123def456',
+    storagePath: '/storage/images/orion-core',
+    storageBackend: 'harbor',
+    labels: { team: 'platform', tier: 'core' },
+    build: {
+      pipelineRunId: 'run-1',
+      gitCommit: 'a1b2c3d',
+      gitBranch: 'main',
+      gitTag: 'v2.5.0',
+      buildTime: '2024-03-20T10:00:00Z',
+      buildDuration: 180,
+    },
+    security: {
+      signed: true,
+      signer: 'platform-signer',
+      scanResults: { critical: 0, high: 1, medium: 3, low: 5 },
+    },
+    tests: {
+      unitTests: { passed: 450, failed: 2, coverage: 87 },
+      integrationTests: { passed: 89, failed: 0 },
+    },
+    deployments: [
+      {
+        environment: 'staging',
+        deployedAt: '2024-03-20T12:00:00Z',
+        deployedBy: 'ci-bot',
+        status: 'success',
+      },
+    ],
+    createdAt: '2024-01-15T08:00:00Z',
+    updatedAt: '2024-03-20T12:00:00Z',
   },
   {
-    id: 'art-2', name: 'orion-ai-service', namespace: 'ai', version: '1.3.0-rc.1',
-    type: 'container_image', stage: 'release_candidate', status: 'available',
-    displayName: 'AI 服务镜像', description: 'AI 算法引擎 Docker 镜像',
-    sizeBytes: 512000000, digest: 'sha256:def789ghi012', storagePath: '/storage/images/orion-ai',
-    storageBackend: 'harbor', labels: { team: 'ai', tier: 'service' },
-    build: { pipelineRunId: 'run-2', gitCommit: 'e4f5g6h', gitBranch: 'release/1.3', buildTime: '2024-03-19T14:00:00Z', buildDuration: 300 },
+    id: 'art-2',
+    name: 'orion-ai-service',
+    namespace: 'ai',
+    version: '1.3.0-rc.1',
+    type: 'container_image',
+    stage: 'release_candidate',
+    status: 'available',
+    displayName: 'AI 服务镜像',
+    description: 'AI 算法引擎 Docker 镜像',
+    sizeBytes: 512000000,
+    digest: 'sha256:def789ghi012',
+    storagePath: '/storage/images/orion-ai',
+    storageBackend: 'harbor',
+    labels: { team: 'ai', tier: 'service' },
+    build: {
+      pipelineRunId: 'run-2',
+      gitCommit: 'e4f5g6h',
+      gitBranch: 'release/1.3',
+      buildTime: '2024-03-19T14:00:00Z',
+      buildDuration: 300,
+    },
     security: { signed: true, scanResults: { critical: 0, high: 0, medium: 2, low: 8 } },
-    createdAt: '2024-02-01T08:00:00Z', updatedAt: '2024-03-19T14:00:00Z',
+    createdAt: '2024-02-01T08:00:00Z',
+    updatedAt: '2024-03-19T14:00:00Z',
   },
   {
-    id: 'art-3', name: '@orion/sdk', namespace: 'frontend', version: '0.9.0',
-    type: 'npm_package', stage: 'snapshot', status: 'available',
-    displayName: 'Orion 前端 SDK', description: '前端微应用 SDK 包',
-    sizeBytes: 1200000, digest: 'sha256:jkl345mno678', storagePath: '/storage/npm/orion-sdk',
-    storageBackend: 'nexus', labels: { team: 'frontend' },
-    createdAt: '2024-03-10T08:00:00Z', updatedAt: '2024-03-18T10:00:00Z',
+    id: 'art-3',
+    name: '@orion/sdk',
+    namespace: 'frontend',
+    version: '0.9.0',
+    type: 'npm_package',
+    stage: 'snapshot',
+    status: 'available',
+    displayName: 'Orion 前端 SDK',
+    description: '前端微应用 SDK 包',
+    sizeBytes: 1200000,
+    digest: 'sha256:jkl345mno678',
+    storagePath: '/storage/npm/orion-sdk',
+    storageBackend: 'nexus',
+    labels: { team: 'frontend' },
+    createdAt: '2024-03-10T08:00:00Z',
+    updatedAt: '2024-03-18T10:00:00Z',
   },
   {
-    id: 'art-4', name: 'orion-platform-chart', namespace: 'infra', version: '3.0.0',
-    type: 'helm_chart', stage: 'production', status: 'available',
-    displayName: '平台 Helm Chart', description: 'Orion 平台 Helm 部署模板',
-    sizeBytes: 500000, digest: 'sha256:pqr901stu234', storagePath: '/storage/helm/platform-chart',
-    storageBackend: 'harbor', labels: { team: 'infra' },
-    build: { pipelineRunId: 'run-3', gitCommit: 'i7j8k9l', gitBranch: 'main', gitTag: 'chart-v3.0.0', buildTime: '2024-03-15T09:00:00Z', buildDuration: 30 },
+    id: 'art-4',
+    name: 'orion-platform-chart',
+    namespace: 'infra',
+    version: '3.0.0',
+    type: 'helm_chart',
+    stage: 'production',
+    status: 'available',
+    displayName: '平台 Helm Chart',
+    description: 'Orion 平台 Helm 部署模板',
+    sizeBytes: 500000,
+    digest: 'sha256:pqr901stu234',
+    storagePath: '/storage/helm/platform-chart',
+    storageBackend: 'harbor',
+    labels: { team: 'infra' },
+    build: {
+      pipelineRunId: 'run-3',
+      gitCommit: 'i7j8k9l',
+      gitBranch: 'main',
+      gitTag: 'chart-v3.0.0',
+      buildTime: '2024-03-15T09:00:00Z',
+      buildDuration: 30,
+    },
     security: { signed: true, scanResults: { critical: 0, high: 0, medium: 0, low: 2 } },
-    createdAt: '2024-01-01T08:00:00Z', updatedAt: '2024-03-15T09:00:00Z',
+    createdAt: '2024-01-01T08:00:00Z',
+    updatedAt: '2024-03-15T09:00:00Z',
   },
   {
-    id: 'art-5', name: 'legacy-service', namespace: 'platform', version: '1.0.0',
-    type: 'jar_artifact', stage: 'archived', status: 'deprecated',
-    displayName: '遗留服务 JAR', description: '已废弃的旧版服务',
-    sizeBytes: 45000000, digest: 'sha256:vwx567yza890', storagePath: '/storage/jars/legacy',
-    storageBackend: 'nexus', createdAt: '2023-06-01T08:00:00Z', updatedAt: '2024-01-10T08:00:00Z',
+    id: 'art-5',
+    name: 'legacy-service',
+    namespace: 'platform',
+    version: '1.0.0',
+    type: 'jar_artifact',
+    stage: 'archived',
+    status: 'deprecated',
+    displayName: '遗留服务 JAR',
+    description: '已废弃的旧版服务',
+    sizeBytes: 45000000,
+    digest: 'sha256:vwx567yza890',
+    storagePath: '/storage/jars/legacy',
+    storageBackend: 'nexus',
+    createdAt: '2023-06-01T08:00:00Z',
+    updatedAt: '2024-01-10T08:00:00Z',
   },
 ];
 
 const MOCK_PROMOTION_HISTORY: PromotionRecord[] = [
-  { id: 'p1', artifactId: 'art-1', fromStage: 'snapshot', toStage: 'release_candidate', promotedBy: 'dev-001', promotedAt: '2024-03-18T10:00:00Z', reason: 'CI 通过' },
-  { id: 'p2', artifactId: 'art-1', fromStage: 'release_candidate', toStage: 'stable', promotedBy: 'tech-lead', approvedBy: 'qa-lead', promotedAt: '2024-03-19T14:00:00Z', reason: '测试通过，代码审查完成' },
+  {
+    id: 'p1',
+    artifactId: 'art-1',
+    fromStage: 'snapshot',
+    toStage: 'release_candidate',
+    promotedBy: 'dev-001',
+    promotedAt: '2024-03-18T10:00:00Z',
+    reason: 'CI 通过',
+  },
+  {
+    id: 'p2',
+    artifactId: 'art-1',
+    fromStage: 'release_candidate',
+    toStage: 'stable',
+    promotedBy: 'tech-lead',
+    approvedBy: 'qa-lead',
+    promotedAt: '2024-03-19T14:00:00Z',
+    reason: '测试通过，代码审查完成',
+  },
 ];
 
 const MOCK_TAGS: TagType[] = [
@@ -135,10 +256,15 @@ const ArtifactManagement: React.FC = () => {
   const [pageSize, setPageSize] = useState(20);
   const [total, setTotal] = useState(0);
 
-  const typeOptions = useMemo(() => [
-    { label: '全部', value: 'all' },
-    ...Object.entries(typeLabelMap).slice(0, 8).map(([v, l]) => ({ label: l, value: v })),
-  ], []);
+  const typeOptions = useMemo(
+    () => [
+      { label: '全部', value: 'all' },
+      ...Object.entries(typeLabelMap)
+        .slice(0, 8)
+        .map(([v, l]) => ({ label: l, value: v })),
+    ],
+    []
+  );
 
   const loadData = async (page?: number, size?: number) => {
     const p = page ?? currentPage;
@@ -199,18 +325,28 @@ const ArtifactManagement: React.FC = () => {
     }
   };
 
-  useEffect(() => { loadData(); loadStats(); loadNamespaces(); }, []);
+  useEffect(() => {
+    loadData();
+    loadStats();
+    loadNamespaces();
+  }, []);
 
   const filteredData = useMemo(() => {
     return artifacts.filter((a) => {
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
-        if (!a.name.toLowerCase().includes(q) && !(a.displayName && a.displayName.toLowerCase().includes(q)) && !(a.description && a.description.toLowerCase().includes(q))) return false;
+        if (
+          !a.name.toLowerCase().includes(q) &&
+          !(a.displayName && a.displayName.toLowerCase().includes(q)) &&
+          !(a.description && a.description.toLowerCase().includes(q))
+        )
+          return false;
       }
       if (filters.type && filters.type !== 'all' && a.type !== filters.type) return false;
       if (filters.stage && filters.stage !== 'all' && a.stage !== filters.stage) return false;
       if (filters.status && filters.status !== 'all' && a.status !== filters.status) return false;
-      if (filters.namespace && filters.namespace !== 'all' && a.namespace !== filters.namespace) return false;
+      if (filters.namespace && filters.namespace !== 'all' && a.namespace !== filters.namespace)
+        return false;
       return true;
     });
   }, [searchQuery, filters, artifacts]);
@@ -229,7 +365,11 @@ const ArtifactManagement: React.FC = () => {
         storagePath: values.storagePath,
         storageBackend: values.storageBackend || 'local',
         sizeBytes: 0,
-        labels: values.labels ? Object.fromEntries(values.labels.split(',').map((s: string) => s.split(':').map((x: string) => x.trim()))) : undefined,
+        labels: values.labels
+          ? Object.fromEntries(
+              values.labels.split(',').map((s: string) => s.split(':').map((x: string) => x.trim()))
+            )
+          : undefined,
       };
       await createArtifact(payload);
       message.success('制品创建成功');
@@ -376,7 +516,10 @@ const ArtifactManagement: React.FC = () => {
     try {
       const values = await tagForm.validateFields();
       setSubmitting(true);
-      const tagList = values.tags.split(',').map((s: string) => s.trim()).filter(Boolean);
+      const tagList = values.tags
+        .split(',')
+        .map((s: string) => s.trim())
+        .filter(Boolean);
       await addArtifactTags(selectedArtifact.id, tagList);
       message.success('标签添加成功');
       setTagModalVisible(false);
@@ -428,7 +571,9 @@ const ArtifactManagement: React.FC = () => {
   const loadTags = async (id: string) => {
     try {
       const res = await getArtifactTags(id);
-      setTags(Array.isArray(res.data?.data) ? res.data.data : MOCK_TAGS.filter((t) => t.artifactId === id));
+      setTags(
+        Array.isArray(res.data?.data) ? res.data.data : MOCK_TAGS.filter((t) => t.artifactId === id)
+      );
     } catch (error: unknown) {
       setTags(MOCK_TAGS.filter((t) => t.artifactId === id));
     }
@@ -437,7 +582,11 @@ const ArtifactManagement: React.FC = () => {
   const loadPromotionHistory = async (id: string) => {
     try {
       const res = await getPromotionHistory(id);
-      setPromotionHistory(Array.isArray(res.data?.data) ? res.data.data : MOCK_PROMOTION_HISTORY.filter((p) => p.artifactId === id));
+      setPromotionHistory(
+        Array.isArray(res.data?.data)
+          ? res.data.data
+          : MOCK_PROMOTION_HISTORY.filter((p) => p.artifactId === id)
+      );
     } catch (error: unknown) {
       setPromotionHistory(MOCK_PROMOTION_HISTORY.filter((p) => p.artifactId === id));
     }
@@ -447,36 +596,47 @@ const ArtifactManagement: React.FC = () => {
     // Backend API not yet returning download records
   };
 
-  const namespaceOptions = useMemo(() => [
-    { label: '全部', value: 'all' },
-    ...namespaces.map((n) => ({ label: n, value: n })),
-  ], [namespaces]);
+  const namespaceOptions = useMemo(
+    () => [{ label: '全部', value: 'all' }, ...namespaces.map((n) => ({ label: n, value: n }))],
+    [namespaces]
+  );
 
-  const filterDefs = useMemo(() => [
-    { key: 'namespace', label: '命名空间', options: namespaceOptions },
-    { key: 'type', label: '类型', options: typeOptions },
-    { key: 'stage', label: '阶段', options: [
-      { label: '全部', value: 'all' },
-      { label: 'Snapshot', value: 'snapshot' },
-      { label: 'RC', value: 'release_candidate' },
-      { label: 'Stable', value: 'stable' },
-      { label: 'Production', value: 'production' },
-      { label: 'Archived', value: 'archived' },
-    ]},
-    { key: 'status', label: '状态', options: [
-      { label: '全部', value: 'all' },
-      { label: 'Available', value: 'available' },
-      { label: 'Deprecated', value: 'deprecated' },
-      { label: 'Quarantined', value: 'quarantined' },
-      { label: 'Uploading', value: 'uploading' },
-    ]},
-  ], [namespaceOptions, typeOptions]);
+  const filterDefs = useMemo(
+    () => [
+      { key: 'namespace', label: '命名空间', options: namespaceOptions },
+      { key: 'type', label: '类型', options: typeOptions },
+      {
+        key: 'stage',
+        label: '阶段',
+        options: [
+          { label: '全部', value: 'all' },
+          { label: 'Snapshot', value: 'snapshot' },
+          { label: 'RC', value: 'release_candidate' },
+          { label: 'Stable', value: 'stable' },
+          { label: 'Production', value: 'production' },
+          { label: 'Archived', value: 'archived' },
+        ],
+      },
+      {
+        key: 'status',
+        label: '状态',
+        options: [
+          { label: '全部', value: 'all' },
+          { label: 'Available', value: 'available' },
+          { label: 'Deprecated', value: 'deprecated' },
+          { label: 'Quarantined', value: 'quarantined' },
+          { label: 'Uploading', value: 'uploading' },
+        ],
+      },
+    ],
+    [namespaceOptions, typeOptions]
+  );
 
   // ---- Detail Tabs ----
 
   const detailTabItems = useMemo(
     () => getArtifactTabItems(selectedArtifact, tags, promotionHistory, openTagModal),
-    [selectedArtifact, tags, promotionHistory, openTagModal],
+    [selectedArtifact, tags, promotionHistory, openTagModal]
   );
 
   const isInitialLoading = loading && artifacts.length === 0;
@@ -488,175 +648,257 @@ const ArtifactManagement: React.FC = () => {
 
       {isInitialLoading ? null : (
         <>
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
-        <div>
-          <Title level={3} style={{ margin: 0 }}>制品管理</Title>
-          <Text type="secondary">管理制品仓库、生命周期晋升、标签和安全扫描</Text>
-        </div>
-        <Space>
-          <Button icon={<ReloadOutlined />} onClick={() => { loadData(); loadStats(); }} loading={loading}>刷新</Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalVisible(true)}>创建制品</Button>
-        </Space>
-      </div>
-
-      {/* Mock data warning banner */}
-      {usingMockData && (
-        <Alert
-          message="使用模拟数据"
-          description="后端服务暂时不可用，当前显示的是模拟数据，可能不是最新状态。"
-          type="warning"
-          showIcon
-          closable
-          style={{ marginBottom: 16 }}
-          onClose={() => setUsingMockData(false)}
-        />
-      )}
-
-      {/* Stats Panel */}
-      {stats && <ArtifactStats stats={stats} />}
-
-      {/* Artifact List */}
-      <Card>
-        <div style={{ marginBottom: 16 }}>
-          <SearchFilterBar onSearch={setSearchQuery} onFilter={setFilters} filters={filterDefs} searchPlaceholder="搜索制品..." />
-        </div>
-        <ArtifactTable
-          dataSource={filteredData}
-          loading={loading}
-          currentPage={currentPage}
-          pageSize={pageSize}
-          total={total}
-          onDetail={openDetail}
-          onEdit={openEdit}
-          onPromote={openPromotion}
-          onTag={openTagModal}
-          onDownload={handleDownload}
-          onDeprecate={handleDeprecate}
-          onQuarantine={handleQuarantine}
-          onDelete={handleDelete}
-          onPaginationChange={(page, size) => {
-            setCurrentPage(page);
-            setPageSize(size);
-            loadData(page, size);
-          }}
-        />
-      </Card>
-
-      {/* Create Modal */}
-      <Modal
-        title="创建制品" open={createModalVisible} onCancel={() => setCreateModalVisible(false)}
-        onOk={handleCreate} confirmLoading={submitting} width={640} destroyOnClose
-      >
-        <Form form={createForm} layout="vertical">
-          <Form.Item name="name" label="名称 (唯一标识)" rules={[{ required: true, message: '请输入名称' }]}>
-            <Input placeholder="如: orion-core" />
-          </Form.Item>
-          <Form.Item name="namespace" label="命名空间" rules={[{ required: true, message: '请选择命名空间' }]}>
-            <Select options={namespaces.map((n) => ({ label: n, value: n }))} placeholder="选择命名空间" />
-          </Form.Item>
-          <Form.Item name="version" label="版本" rules={[{ required: true, message: '请输入版本号' }]}>
-            <Input placeholder="如: 1.0.0" />
-          </Form.Item>
-          <Form.Item name="type" label="类型" rules={[{ required: true, message: '请选择类型' }]}>
-            <Select options={Object.entries(typeLabelMap).map(([v, l]) => ({ label: l, value: v }))} />
-          </Form.Item>
-          <Form.Item name="displayName" label="显示名称">
-            <Input placeholder="制品显示名称" />
-          </Form.Item>
-          <Form.Item name="description" label="描述">
-            <Input.TextArea rows={2} placeholder="制品描述..." />
-          </Form.Item>
-          <Form.Item name="storagePath" label="存储路径">
-            <Input placeholder="/storage/path" />
-          </Form.Item>
-          <Form.Item name="storageBackend" label="存储后端">
-            <Select options={[
-              { label: 'Local', value: 'local' },
-              { label: 'Harbor', value: 'harbor' },
-              { label: 'Nexus', value: 'nexus' },
-              { label: 'S3', value: 's3' },
-            ]} />
-          </Form.Item>
-          <Form.Item name="labels" label="标签 (key:value, 逗号分隔)">
-            <Input placeholder="team:platform, tier:core" />
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      {/* Edit Modal */}
-      <Modal
-        title="编辑制品" open={editModalVisible} onCancel={() => setEditModalVisible(false)}
-        onOk={handleEdit} confirmLoading={submitting} width={640} destroyOnClose
-      >
-        <Form form={editForm} layout="vertical">
-          <Form.Item name="displayName" label="显示名称">
-            <Input />
-          </Form.Item>
-          <Form.Item name="description" label="描述">
-            <Input.TextArea rows={2} />
-          </Form.Item>
-          <Form.Item name="retentionDays" label="保留天数">
-            <Input type="number" placeholder="如: 90" />
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      {/* Promotion Modal */}
-      <Modal
-        title="制品晋升" open={promotionModalVisible} onCancel={() => setPromotionModalVisible(false)}
-        onOk={handlePromote} confirmLoading={submitting} width={480}
-      >
-        {selectedArtifact && (
-          <div style={{ marginBottom: 16 }}>
-            <Text>当前制品: <Text strong>{selectedArtifact.name}</Text> ({selectedArtifact.version})</Text>
-            <br />
-            <Text>当前阶段: <Tag color={selectedArtifact.stage}>{selectedArtifact.stage}</Tag></Text>
-            {(() => {
-              const idx = promotionStageOrder.indexOf(selectedArtifact.stage);
-              if (idx < 0 || idx >= promotionStageOrder.length - 1) return null;
-              const nextStage = promotionStageOrder[idx + 1];
-              return (
-                <>
-                  <br />
-                  <Text>目标阶段: <Tag color={nextStage}>{nextStage}</Tag></Text>
-                </>
-              );
-            })()}
+          {/* Header */}
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'flex-start',
+              marginBottom: 24,
+            }}
+          >
+            <div>
+              <Title level={3} style={{ margin: 0 }}>
+                制品管理
+              </Title>
+              <Text type="secondary">管理制品仓库、生命周期晋升、标签和安全扫描</Text>
+            </div>
+            <Space>
+              <Button
+                icon={<ReloadOutlined />}
+                onClick={() => {
+                  loadData();
+                  loadStats();
+                }}
+                loading={loading}
+              >
+                刷新
+              </Button>
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={() => setCreateModalVisible(true)}
+              >
+                创建制品
+              </Button>
+            </Space>
           </div>
-        )}
-        <Form form={promotionForm} layout="vertical">
-          <Form.Item name="promotedBy" label="操作人" rules={[{ required: true }]}>
-            <Input placeholder="用户名" />
-          </Form.Item>
-          <Form.Item name="approvedBy" label="审批人 (可选)">
-            <Input placeholder="审批人用户名" />
-          </Form.Item>
-          <Form.Item name="reason" label="晋升原因">
-            <Input.TextArea rows={2} placeholder="晋升原因..." />
-          </Form.Item>
-        </Form>
-      </Modal>
 
-      {/* Tag Modal */}
-      <Modal
-        title="添加标签" open={tagModalVisible} onCancel={() => setTagModalVisible(false)}
-        onOk={handleAddTags} confirmLoading={submitting}
-      >
-        <Form form={tagForm} layout="vertical">
-          <Form.Item name="tags" label="标签 (逗号分隔)" rules={[{ required: true }]}>
-            <Input placeholder="如: stable, v2.5, production-ready" />
-          </Form.Item>
-        </Form>
-      </Modal>
+          {/* Mock data warning banner */}
+          {usingMockData && (
+            <Alert
+              message="使用模拟数据"
+              description="后端服务暂时不可用，当前显示的是模拟数据，可能不是最新状态。"
+              type="warning"
+              showIcon
+              closable
+              style={{ marginBottom: 16 }}
+              onClose={() => setUsingMockData(false)}
+            />
+          )}
 
-      {/* Detail Drawer */}
-      <Drawer
-        title={selectedArtifact ? `${selectedArtifact.displayName || selectedArtifact.name} (${selectedArtifact.version})` : '制品详情'}
-        open={detailDrawerVisible} onClose={() => setDetailDrawerVisible(false)} width={800} destroyOnClose
-      >
-        <Tabs items={detailTabItems} />
-      </Drawer>
+          {/* Stats Panel */}
+          {stats && <ArtifactStats stats={stats} />}
+
+          {/* Artifact List */}
+          <Card>
+            <div style={{ marginBottom: 16 }}>
+              <SearchFilterBar
+                onSearch={setSearchQuery}
+                onFilter={setFilters}
+                filters={filterDefs}
+                searchPlaceholder="搜索制品..."
+              />
+            </div>
+            <ArtifactTable
+              dataSource={filteredData}
+              loading={loading}
+              currentPage={currentPage}
+              pageSize={pageSize}
+              total={total}
+              onDetail={openDetail}
+              onEdit={openEdit}
+              onPromote={openPromotion}
+              onTag={openTagModal}
+              onDownload={handleDownload}
+              onDeprecate={handleDeprecate}
+              onQuarantine={handleQuarantine}
+              onDelete={handleDelete}
+              onPaginationChange={(page, size) => {
+                setCurrentPage(page);
+                setPageSize(size);
+                loadData(page, size);
+              }}
+            />
+          </Card>
+
+          {/* Create Modal */}
+          <Modal
+            title="创建制品"
+            open={createModalVisible}
+            onCancel={() => setCreateModalVisible(false)}
+            onOk={handleCreate}
+            confirmLoading={submitting}
+            width={640}
+            destroyOnClose
+          >
+            <Form form={createForm} layout="vertical">
+              <Form.Item
+                name="name"
+                label="名称 (唯一标识)"
+                rules={[{ required: true, message: '请输入名称' }]}
+              >
+                <Input placeholder="如: orion-core" />
+              </Form.Item>
+              <Form.Item
+                name="namespace"
+                label="命名空间"
+                rules={[{ required: true, message: '请选择命名空间' }]}
+              >
+                <Select
+                  options={namespaces.map((n) => ({ label: n, value: n }))}
+                  placeholder="选择命名空间"
+                />
+              </Form.Item>
+              <Form.Item
+                name="version"
+                label="版本"
+                rules={[{ required: true, message: '请输入版本号' }]}
+              >
+                <Input placeholder="如: 1.0.0" />
+              </Form.Item>
+              <Form.Item
+                name="type"
+                label="类型"
+                rules={[{ required: true, message: '请选择类型' }]}
+              >
+                <Select
+                  options={Object.entries(typeLabelMap).map(([v, l]) => ({ label: l, value: v }))}
+                />
+              </Form.Item>
+              <Form.Item name="displayName" label="显示名称">
+                <Input placeholder="制品显示名称" />
+              </Form.Item>
+              <Form.Item name="description" label="描述">
+                <Input.TextArea rows={2} placeholder="制品描述..." />
+              </Form.Item>
+              <Form.Item name="storagePath" label="存储路径">
+                <Input placeholder="/storage/path" />
+              </Form.Item>
+              <Form.Item name="storageBackend" label="存储后端">
+                <Select
+                  options={[
+                    { label: 'Local', value: 'local' },
+                    { label: 'Harbor', value: 'harbor' },
+                    { label: 'Nexus', value: 'nexus' },
+                    { label: 'S3', value: 's3' },
+                  ]}
+                />
+              </Form.Item>
+              <Form.Item name="labels" label="标签 (key:value, 逗号分隔)">
+                <Input placeholder="team:platform, tier:core" />
+              </Form.Item>
+            </Form>
+          </Modal>
+
+          {/* Edit Modal */}
+          <Modal
+            title="编辑制品"
+            open={editModalVisible}
+            onCancel={() => setEditModalVisible(false)}
+            onOk={handleEdit}
+            confirmLoading={submitting}
+            width={640}
+            destroyOnClose
+          >
+            <Form form={editForm} layout="vertical">
+              <Form.Item name="displayName" label="显示名称">
+                <Input />
+              </Form.Item>
+              <Form.Item name="description" label="描述">
+                <Input.TextArea rows={2} />
+              </Form.Item>
+              <Form.Item name="retentionDays" label="保留天数">
+                <Input type="number" placeholder="如: 90" />
+              </Form.Item>
+            </Form>
+          </Modal>
+
+          {/* Promotion Modal */}
+          <Modal
+            title="制品晋升"
+            open={promotionModalVisible}
+            onCancel={() => setPromotionModalVisible(false)}
+            onOk={handlePromote}
+            confirmLoading={submitting}
+            width={480}
+          >
+            {selectedArtifact && (
+              <div style={{ marginBottom: 16 }}>
+                <Text>
+                  当前制品: <Text strong>{selectedArtifact.name}</Text> ({selectedArtifact.version})
+                </Text>
+                <br />
+                <Text>
+                  当前阶段: <Tag color={selectedArtifact.stage}>{selectedArtifact.stage}</Tag>
+                </Text>
+                {(() => {
+                  const idx = promotionStageOrder.indexOf(selectedArtifact.stage);
+                  if (idx < 0 || idx >= promotionStageOrder.length - 1) return null;
+                  const nextStage = promotionStageOrder[idx + 1];
+                  return (
+                    <>
+                      <br />
+                      <Text>
+                        目标阶段: <Tag color={nextStage}>{nextStage}</Tag>
+                      </Text>
+                    </>
+                  );
+                })()}
+              </div>
+            )}
+            <Form form={promotionForm} layout="vertical">
+              <Form.Item name="promotedBy" label="操作人" rules={[{ required: true }]}>
+                <Input placeholder="用户名" />
+              </Form.Item>
+              <Form.Item name="approvedBy" label="审批人 (可选)">
+                <Input placeholder="审批人用户名" />
+              </Form.Item>
+              <Form.Item name="reason" label="晋升原因">
+                <Input.TextArea rows={2} placeholder="晋升原因..." />
+              </Form.Item>
+            </Form>
+          </Modal>
+
+          {/* Tag Modal */}
+          <Modal
+            title="添加标签"
+            open={tagModalVisible}
+            onCancel={() => setTagModalVisible(false)}
+            onOk={handleAddTags}
+            confirmLoading={submitting}
+          >
+            <Form form={tagForm} layout="vertical">
+              <Form.Item name="tags" label="标签 (逗号分隔)" rules={[{ required: true }]}>
+                <Input placeholder="如: stable, v2.5, production-ready" />
+              </Form.Item>
+            </Form>
+          </Modal>
+
+          {/* Detail Drawer */}
+          <Drawer
+            title={
+              selectedArtifact
+                ? `${selectedArtifact.displayName || selectedArtifact.name} (${selectedArtifact.version})`
+                : '制品详情'
+            }
+            open={detailDrawerVisible}
+            onClose={() => setDetailDrawerVisible(false)}
+            width={800}
+            destroyOnClose
+          >
+            <Tabs items={detailTabItems} />
+          </Drawer>
         </>
       )}
     </div>

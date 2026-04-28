@@ -3,11 +3,7 @@
  * Extracted from types.ts to allow types.ts to use .ts extension
  */
 import React from 'react';
-import {
-  CheckCircleOutlined,
-  WarningOutlined,
-  CloseCircleOutlined,
-} from '@ant-design/icons';
+import { CheckCircleOutlined, WarningOutlined, CloseCircleOutlined } from '@ant-design/icons';
 import { colors } from '@/tokens';
 
 export const healthConfig: Record<string, { color: string; icon: React.ReactNode }> = {

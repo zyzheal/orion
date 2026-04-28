@@ -4,7 +4,18 @@
  */
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Typography, Card, Button, Space, Tag, Spin, message, Descriptions, Table, Alert } from 'antd';
+import {
+  Typography,
+  Card,
+  Button,
+  Space,
+  Tag,
+  Spin,
+  message,
+  Descriptions,
+  Table,
+  Alert,
+} from 'antd';
 import { ArrowLeftOutlined, CheckCircleOutlined, ReloadOutlined } from '@ant-design/icons';
 import { getSession, completeSession, getSessionComplexity } from '@/api/diagnostic';
 import type { DiagnosticSymptom } from '@/api/diagnostic';
@@ -84,7 +95,12 @@ const DiagnosticSessionDetail: React.FC = () => {
       width: 100,
       render: (v: unknown) => {
         const value = v as string;
-        const colorMap: Record<string, string> = { low: 'blue', medium: 'orange', high: 'red', critical: 'magenta' };
+        const colorMap: Record<string, string> = {
+          low: 'blue',
+          medium: 'orange',
+          high: 'red',
+          critical: 'magenta',
+        };
         return <Tag color={colorMap[value] || 'default'}>{value}</Tag>;
       },
     },
@@ -118,14 +134,20 @@ const DiagnosticSessionDetail: React.FC = () => {
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
-        <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/diagnostic/sessions')}>
+        <Button
+          type="text"
+          icon={<ArrowLeftOutlined />}
+          onClick={() => navigate('/diagnostic/sessions')}
+        >
           返回
         </Button>
         <div style={{ flex: 1 }}>
           <Title level={3} style={{ margin: 0 }}>
             会话详情
           </Title>
-          <Text type="secondary" code>{session.id}</Text>
+          <Text type="secondary" code>
+            {session.id}
+          </Text>
         </div>
         <Space>
           {session.status === 'running' && (
@@ -148,7 +170,9 @@ const DiagnosticSessionDetail: React.FC = () => {
             </Tag>
           </Descriptions.Item>
           <Descriptions.Item label="触发类型">{session.triggerType}</Descriptions.Item>
-          <Descriptions.Item label="触发器ID"><Text code>{session.triggerId}</Text></Descriptions.Item>
+          <Descriptions.Item label="触发器ID">
+            <Text code>{session.triggerId}</Text>
+          </Descriptions.Item>
           <Descriptions.Item label="症状数">{session.symptomCount}</Descriptions.Item>
           <Descriptions.Item label="开始时间">
             {dayjs(session.startTime).format('YYYY-MM-DD HH:mm:ss')}
@@ -166,7 +190,15 @@ const DiagnosticSessionDetail: React.FC = () => {
         <Card title="复杂度分析" style={{ marginBottom: 16 }}>
           <Descriptions column={3} size="small">
             <Descriptions.Item label="复杂度等级">
-              <Tag color={complexity.complexity === 'high' ? 'red' : complexity.complexity === 'medium' ? 'orange' : 'green'}>
+              <Tag
+                color={
+                  complexity.complexity === 'high'
+                    ? 'red'
+                    : complexity.complexity === 'medium'
+                      ? 'orange'
+                      : 'green'
+                }
+              >
                 {complexity.complexity}
               </Tag>
             </Descriptions.Item>

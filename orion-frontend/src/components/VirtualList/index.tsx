@@ -30,7 +30,7 @@ export interface VirtualListProps<T = any> {
   style?: React.CSSProperties;
 }
 
-export const VirtualList = <T = any>({
+export const VirtualList = <T = any,>({
   items,
   itemHeight = 60,
   containerHeight = 400,
@@ -112,7 +112,13 @@ export const VirtualList = <T = any>({
     return (
       <div
         className={className}
-        style={{ ...style, height: containerHeight, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        style={{
+          ...style,
+          height: containerHeight,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
       >
         <Spin size="large" tip="加载中..." />
       </div>
@@ -123,7 +129,13 @@ export const VirtualList = <T = any>({
     return (
       <div
         className={className}
-        style={{ ...style, height: containerHeight, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        style={{
+          ...style,
+          height: containerHeight,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
       >
         <span style={{ color: '#999' }}>{emptyText}</span>
       </div>

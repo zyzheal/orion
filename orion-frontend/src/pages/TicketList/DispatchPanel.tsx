@@ -64,7 +64,10 @@ const priorityConfig: Record<string, { color: string; label: string }> = {
   low: { color: colors.neutral[500], label: '低' },
 };
 
-const availabilityConfig: Record<string, { color: string; label: string; status: 'success' | 'processing' | 'default' }> = {
+const availabilityConfig: Record<
+  string,
+  { color: string; label: string; status: 'success' | 'processing' | 'default' }
+> = {
   available: { color: colors.success[500], label: '可用', status: 'success' },
   busy: { color: colors.warning[600], label: '忙碌', status: 'processing' },
   away: { color: colors.neutral[500], label: '离开', status: 'default' },
@@ -98,7 +101,11 @@ const DispatchPanel: React.FC<DispatchPanelProps> = ({ open, onClose }) => {
       dataIndex: 'id',
       key: 'id',
       width: 90,
-      render: (value: string) => <Text strong style={{ color: colors.primary[500] }}>{value}</Text>,
+      render: (value: string) => (
+        <Text strong style={{ color: colors.primary[500] }}>
+          {value}
+        </Text>
+      ),
     },
     {
       title: '标题',
@@ -136,7 +143,9 @@ const DispatchPanel: React.FC<DispatchPanelProps> = ({ open, onClose }) => {
         const hours = Math.floor(waitMs / 3600000);
         return (
           <Space>
-            <ClockCircleOutlined style={{ color: hours > 4 ? colors.error[400] : colors.success[500] }} />
+            <ClockCircleOutlined
+              style={{ color: hours > 4 ? colors.error[400] : colors.success[500] }}
+            />
             <Text>{hours}h</Text>
           </Space>
         );
@@ -183,7 +192,10 @@ const DispatchPanel: React.FC<DispatchPanelProps> = ({ open, onClose }) => {
   };
 
   // SLA alert type config
-  const slaAlertConfig: Record<string, { icon: React.ReactNode; color: string; label: string; bg: string }> = {
+  const slaAlertConfig: Record<
+    string,
+    { icon: React.ReactNode; color: string; label: string; bg: string }
+  > = {
     'sla-warning': {
       icon: <WarningOutlined />,
       color: colors.warning[500],
@@ -248,20 +260,30 @@ const DispatchPanel: React.FC<DispatchPanelProps> = ({ open, onClose }) => {
         </Row>
         <Divider style={{ margin: '12px 0' }} />
         <Space size="small" wrap>
-          {Object.entries(mockQueueStatus.byPriority).map(([key, val]) => (
-            val > 0 && (
-              <Tag key={key} color={priorityConfig[key]?.color || 'default'}>
-                {priorityConfig[key]?.label || key}: {val}
-              </Tag>
-            )
-          ))}
+          {Object.entries(mockQueueStatus.byPriority).map(
+            ([key, val]) =>
+              val > 0 && (
+                <Tag key={key} color={priorityConfig[key]?.color || 'default'}>
+                  {priorityConfig[key]?.label || key}: {val}
+                </Tag>
+              )
+          )}
         </Space>
       </Card>
 
       {/* Queue Entries */}
       <div style={{ marginBottom: 16 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-          <Title level={5} style={{ margin: 0 }}>队列工单</Title>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 8,
+          }}
+        >
+          <Title level={5} style={{ margin: 0 }}>
+            队列工单
+          </Title>
           <Button
             type="primary"
             icon={<ThunderboltOutlined />}
@@ -340,7 +362,11 @@ const DispatchPanel: React.FC<DispatchPanelProps> = ({ open, onClose }) => {
                       percent={loadPercent}
                       size="small"
                       strokeColor={
-                        loadPercent > 80 ? colors.error[400] : loadPercent > 60 ? colors.warning[600] : colors.success[500]
+                        loadPercent > 80
+                          ? colors.error[400]
+                          : loadPercent > 60
+                            ? colors.warning[600]
+                            : colors.success[500]
                       }
                       format={() => `${engineer.currentLoad}/${engineer.maxCapacity}`}
                     />

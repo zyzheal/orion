@@ -22,7 +22,10 @@ export const TRIGGER_EVENT_OPTIONS = [
 ];
 
 // Status to badge mapping
-export const statusToBadge: Record<string, 'running' | 'pending' | 'success' | 'failed' | 'warning' | 'cancelled' | 'unknown'> = {
+export const statusToBadge: Record<
+  string,
+  'running' | 'pending' | 'success' | 'failed' | 'warning' | 'cancelled' | 'unknown'
+> = {
   running: 'running',
   completed: 'success',
   failed: 'failed',

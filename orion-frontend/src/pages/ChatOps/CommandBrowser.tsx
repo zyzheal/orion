@@ -58,7 +58,12 @@ const CommandBrowser: React.FC = () => {
           return false;
         }
       }
-      if (filters.permissionLevel && filters.permissionLevel !== 'all' && cmd.permissionLevel !== filters.permissionLevel) return false;
+      if (
+        filters.permissionLevel &&
+        filters.permissionLevel !== 'all' &&
+        cmd.permissionLevel !== filters.permissionLevel
+      )
+        return false;
       return true;
     });
   }, [searchQuery, filters, commands]);
@@ -77,7 +82,9 @@ const CommandBrowser: React.FC = () => {
       sortable: true,
       render: (v: unknown, record: any) => (
         <Space>
-          <Text strong><CodeOutlined /> /{String(v)}</Text>
+          <Text strong>
+            <CodeOutlined /> /{String(v)}
+          </Text>
           {record.subcommand && <Tag>{record.subcommand}</Tag>}
         </Space>
       ),
@@ -87,7 +94,9 @@ const CommandBrowser: React.FC = () => {
       title: '权限',
       dataIndex: 'permissionLevel',
       width: 100,
-      render: (v: unknown) => <Tag color={permissionLevelColorMap[String(v)] || 'default'}>{String(v)}</Tag>,
+      render: (v: unknown) => (
+        <Tag color={permissionLevelColorMap[String(v)] || 'default'}>{String(v)}</Tag>
+      ),
     },
     {
       key: 'description',
@@ -108,7 +117,12 @@ const CommandBrowser: React.FC = () => {
       title: '操作',
       width: 100,
       render: (_: unknown, record: any) => (
-        <Button type="link" size="small" icon={<InfoCircleOutlined />} onClick={() => handleViewDetail(record)}>
+        <Button
+          type="link"
+          size="small"
+          icon={<InfoCircleOutlined />}
+          onClick={() => handleViewDetail(record)}
+        >
           详情
         </Button>
       ),
@@ -116,54 +130,116 @@ const CommandBrowser: React.FC = () => {
   ];
 
   const filterDefs: FilterDefinition[] = [
-    { key: 'permissionLevel', label: '权限', options: [
-      { label: '全部', value: 'all' },
-      { label: 'Admin', value: 'admin' },
-      { label: 'Maintainer', value: 'maintainer' },
-      { label: 'Developer', value: 'developer' },
-      { label: 'Viewer', value: 'viewer' },
-    ]},
+    {
+      key: 'permissionLevel',
+      label: '权限',
+      options: [
+        { label: '全部', value: 'all' },
+        { label: 'Admin', value: 'admin' },
+        { label: 'Maintainer', value: 'maintainer' },
+        { label: 'Developer', value: 'developer' },
+        { label: 'Viewer', value: 'viewer' },
+      ],
+    },
   ];
 
   return (
     <div style={{ padding: 0 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          marginBottom: 24,
+        }}
+      >
         <div>
-          <Title level={3} style={{ margin: 0 }}>命令浏览</Title>
+          <Title level={3} style={{ margin: 0 }}>
+            命令浏览
+          </Title>
           <Text type="secondary">ChatOps 命令目录与使用文档</Text>
         </div>
-        <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>刷新</Button>
+        <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+          刷新
+        </Button>
       </div>
 
       <Card>
         <div style={{ marginBottom: 16 }}>
-          <SearchFilterBar onSearch={setSearchQuery} onFilter={setFilters} filters={filterDefs} searchPlaceholder="搜索命令..." />
+          <SearchFilterBar
+            onSearch={setSearchQuery}
+            onFilter={setFilters}
+            filters={filterDefs}
+            searchPlaceholder="搜索命令..."
+          />
         </div>
-        <Table columns={columns} dataSource={filteredCommands} loading={loading} rowKey="id" size="middle" striped />
+        <Table
+          columns={columns}
+          dataSource={filteredCommands}
+          loading={loading}
+          rowKey="id"
+          size="middle"
+          striped
+        />
       </Card>
 
       {/* Detail Modal */}
-      <Modal title="命令详情" open={detailModalVisible} onCancel={() => setDetailModalVisible(false)} footer={<Button onClick={() => setDetailModalVisible(false)}>关闭</Button>} width={700}>
+      <Modal
+        title="命令详情"
+        open={detailModalVisible}
+        onCancel={() => setDetailModalVisible(false)}
+        footer={<Button onClick={() => setDetailModalVisible(false)}>关闭</Button>}
+        width={700}
+      >
         {selectedCommand && (
           <div>
             <Space style={{ marginBottom: 16 }}>
-              <Text strong style={{ fontSize: spacing[4] }}>/{selectedCommand.name}</Text>
+              <Text strong style={{ fontSize: spacing[4] }}>
+                /{selectedCommand.name}
+              </Text>
               {selectedCommand.subcommand && <Tag>{selectedCommand.subcommand}</Tag>}
-              <Tag color={permissionLevelColorMap[selectedCommand.permissionLevel]}>{selectedCommand.permissionLevel}</Tag>
+              <Tag color={permissionLevelColorMap[selectedCommand.permissionLevel]}>
+                {selectedCommand.permissionLevel}
+              </Tag>
             </Space>
-            <p><Text strong>描述:</Text> {selectedCommand.description}</p>
+            <p>
+              <Text strong>描述:</Text> {selectedCommand.description}
+            </p>
 
             {selectedCommand.parameters && Object.keys(selectedCommand.parameters).length > 0 && (
               <>
                 <Title level={5}>参数</Title>
                 <Table
                   columns={[
-                    { key: 'name', title: '参数', dataIndex: 'name', render: (v: unknown) => <Text code>{String(v)}</Text> },
-                    { key: 'type', title: '类型', dataIndex: 'type', render: (v: unknown) => <Tag>{String(v)}</Tag> },
-                    { key: 'required', title: '必填', dataIndex: 'required', render: (v: unknown) => String(v) ? <Tag color="red">是</Tag> : '否' },
-                    { key: 'description', title: '描述', dataIndex: 'description', render: (v: unknown) => <Text>{String(v)}</Text> },
+                    {
+                      key: 'name',
+                      title: '参数',
+                      dataIndex: 'name',
+                      render: (v: unknown) => <Text code>{String(v)}</Text>,
+                    },
+                    {
+                      key: 'type',
+                      title: '类型',
+                      dataIndex: 'type',
+                      render: (v: unknown) => <Tag>{String(v)}</Tag>,
+                    },
+                    {
+                      key: 'required',
+                      title: '必填',
+                      dataIndex: 'required',
+                      render: (v: unknown) => (String(v) ? <Tag color="red">是</Tag> : '否'),
+                    },
+                    {
+                      key: 'description',
+                      title: '描述',
+                      dataIndex: 'description',
+                      render: (v: unknown) => <Text>{String(v)}</Text>,
+                    },
                   ]}
-                  dataSource={Object.entries(selectedCommand.parameters).map(([name, def]) => ({ name, ...def }))}
+                  dataSource={Object.entries(selectedCommand.parameters).map(([name, def]) => ({
+                    name,
+                    ...def,
+                  }))}
                   rowKey="name"
                   size="small"
                   pagination={false as any}
@@ -171,9 +247,15 @@ const CommandBrowser: React.FC = () => {
               </>
             )}
 
-            <Title level={5} style={{ marginTop: 16 }}>使用示例</Title>
+            <Title level={5} style={{ marginTop: 16 }}>
+              使用示例
+            </Title>
             {selectedCommand.examples.map((example, index) => (
-              <Card key={index} size="small" style={{ marginBottom: 8, background: colors.neutral[50] }}>
+              <Card
+                key={index}
+                size="small"
+                style={{ marginBottom: 8, background: colors.neutral[50] }}
+              >
                 <Text code>{example}</Text>
               </Card>
             ))}

@@ -2,12 +2,41 @@
  * Budget Management - Create/edit budgets, budget hierarchy, emergency top-up
  */
 import React, { useState, useMemo, useEffect } from 'react';
-import { Typography, Button, Space, Tag, Card, Modal, Form, Input, Select, InputNumber, message, Popconfirm, Row, Col, Statistic } from 'antd';
-import { PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined, ThunderboltOutlined } from '@ant-design/icons';
+import {
+  Typography,
+  Button,
+  Space,
+  Tag,
+  Card,
+  Modal,
+  Form,
+  Input,
+  Select,
+  InputNumber,
+  message,
+  Popconfirm,
+  Row,
+  Col,
+  Statistic,
+} from 'antd';
+import {
+  PlusOutlined,
+  ReloadOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  ThunderboltOutlined,
+} from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
-import { getBudgets, createBudget, updateBudget, restoreBudget, type Budget, type BudgetInput } from '@/api/ai-cost';
+import {
+  getBudgets,
+  createBudget,
+  updateBudget,
+  restoreBudget,
+  type Budget,
+  type BudgetInput,
+} from '@/api/ai-cost';
 import { colors, spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
@@ -47,9 +76,42 @@ const BudgetManagement: React.FC = () => {
     } catch (error: unknown) {
       // Demo mock data
       setBudgets([
-        { id: 'b1', name: 'GPT-4 月度预算', type: 'model', scope: 'gpt-4', period: 'monthly', amount: 5000, thresholds: { warning: 80, critical: 95 }, status: 'active', createdAt: '2024-01-01', updatedAt: '2024-01-15' },
-        { id: 'b2', name: '租户 Alpha 预算', type: 'tenant', scope: 'tenant-alpha', period: 'monthly', amount: 2000, thresholds: { warning: 75, critical: 90 }, status: 'active', createdAt: '2024-01-05', updatedAt: '2024-01-10' },
-        { id: 'b3', name: '用户预算', type: 'user', scope: 'user-001', period: 'monthly', amount: 500, thresholds: { warning: 80, critical: 95 }, status: 'exceeded', createdAt: '2024-02-01', updatedAt: '2024-02-20' },
+        {
+          id: 'b1',
+          name: 'GPT-4 月度预算',
+          type: 'model',
+          scope: 'gpt-4',
+          period: 'monthly',
+          amount: 5000,
+          thresholds: { warning: 80, critical: 95 },
+          status: 'active',
+          createdAt: '2024-01-01',
+          updatedAt: '2024-01-15',
+        },
+        {
+          id: 'b2',
+          name: '租户 Alpha 预算',
+          type: 'tenant',
+          scope: 'tenant-alpha',
+          period: 'monthly',
+          amount: 2000,
+          thresholds: { warning: 75, critical: 90 },
+          status: 'active',
+          createdAt: '2024-01-05',
+          updatedAt: '2024-01-10',
+        },
+        {
+          id: 'b3',
+          name: '用户预算',
+          type: 'user',
+          scope: 'user-001',
+          period: 'monthly',
+          amount: 500,
+          thresholds: { warning: 80, critical: 95 },
+          status: 'exceeded',
+          createdAt: '2024-02-01',
+          updatedAt: '2024-02-20',
+        },
       ]);
       if (error instanceof Error) {
         message.warning(`加载预算数据失败，使用模拟数据：${error.message}`);
@@ -161,7 +223,11 @@ const BudgetManagement: React.FC = () => {
       title: '范围',
       dataIndex: 'scope',
       width: 140,
-      render: (v: unknown) => <Text code style={{ fontSize: spacing[3] }}>{String(v)}</Text>,
+      render: (v: unknown) => (
+        <Text code style={{ fontSize: spacing[3] }}>
+          {String(v)}
+        </Text>
+      ),
     },
     {
       key: 'period',
@@ -185,7 +251,12 @@ const BudgetManagement: React.FC = () => {
       width: 140,
       render: (v: unknown) => {
         const t = v as { warning: number; critical: number };
-        return t ? <Space><Tag color="orange">警告 {t.warning}%</Tag><Tag color="red">严重 {t.critical}%</Tag></Space> : null;
+        return t ? (
+          <Space>
+            <Tag color="orange">警告 {t.warning}%</Tag>
+            <Tag color="red">严重 {t.critical}%</Tag>
+          </Space>
+        ) : null;
       },
     },
     {
@@ -201,12 +272,37 @@ const BudgetManagement: React.FC = () => {
       width: 200,
       render: (_: unknown, record: any) => (
         <Space size="small">
-          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => { setEditingBudget(record); editForm.setFieldsValue({ name: record.name, amount: record.amount, warningThreshold: record.thresholds.warning, criticalThreshold: record.thresholds.critical }); setEditModalVisible(true); }}>编辑</Button>
+          <Button
+            type="link"
+            size="small"
+            icon={<EditOutlined />}
+            onClick={() => {
+              setEditingBudget(record);
+              editForm.setFieldsValue({
+                name: record.name,
+                amount: record.amount,
+                warningThreshold: record.thresholds.warning,
+                criticalThreshold: record.thresholds.critical,
+              });
+              setEditModalVisible(true);
+            }}
+          >
+            编辑
+          </Button>
           {record.status === 'exceeded' && (
-            <Button type="link" size="small" icon={<ThunderboltOutlined />} onClick={() => handleRestore(record.id)}>重置</Button>
+            <Button
+              type="link"
+              size="small"
+              icon={<ThunderboltOutlined />}
+              onClick={() => handleRestore(record.id)}
+            >
+              重置
+            </Button>
           )}
           <Popconfirm title="确认删除?" onConfirm={() => message.info('删除功能待后端支持')}>
-            <Button type="link" size="small" danger icon={<DeleteOutlined />}>删除</Button>
+            <Button type="link" size="small" danger icon={<DeleteOutlined />}>
+              删除
+            </Button>
           </Popconfirm>
         </Space>
       ),
@@ -215,62 +311,157 @@ const BudgetManagement: React.FC = () => {
 
   const filterDefs: FilterDefinition[] = [
     { key: 'type', label: '类型', options: [{ label: '全部', value: 'all' }, ...typeOptions] },
-    { key: 'status', label: '状态', options: [
-      { label: '全部', value: 'all' },
-      { label: 'Active', value: 'active' },
-      { label: 'Paused', value: 'paused' },
-      { label: 'Exceeded', value: 'exceeded' },
-      { label: 'Restored', value: 'restored' },
-    ]},
+    {
+      key: 'status',
+      label: '状态',
+      options: [
+        { label: '全部', value: 'all' },
+        { label: 'Active', value: 'active' },
+        { label: 'Paused', value: 'paused' },
+        { label: 'Exceeded', value: 'exceeded' },
+        { label: 'Restored', value: 'restored' },
+      ],
+    },
   ];
 
   return (
     <div style={{ padding: 0 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing[6] }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          marginBottom: spacing[6],
+        }}
+      >
         <div>
-          <Title level={3} style={{ margin: 0 }}>预算管理</Title>
+          <Title level={3} style={{ margin: 0 }}>
+            预算管理
+          </Title>
           <Text type="secondary">创建和管理 AI 调用预算</Text>
         </div>
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>刷新</Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalVisible(true)}>创建预算</Button>
+          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+            刷新
+          </Button>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => setCreateModalVisible(true)}
+          >
+            创建预算
+          </Button>
         </Space>
       </div>
 
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-        <Col span={6}><Card><Statistic title="总预算" value={budgets.length} /></Card></Col>
-        <Col span={6}><Card><Statistic title="活跃" value={budgets.filter((b) => b.status === 'active').length} valueStyle={{ color: colors.success[500] }} /></Card></Col>
-        <Col span={6}><Card><Statistic title="已超支" value={budgets.filter((b) => b.status === 'exceeded').length} valueStyle={{ color: colors.error[400] }} /></Card></Col>
-        <Col span={6}><Card><Statistic title="总预算金额" value={budgets.reduce((sum, b) => sum + b.amount, 0)} prefix="$" /></Card></Col>
+        <Col span={6}>
+          <Card>
+            <Statistic title="总预算" value={budgets.length} />
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card>
+            <Statistic
+              title="活跃"
+              value={budgets.filter((b) => b.status === 'active').length}
+              valueStyle={{ color: colors.success[500] }}
+            />
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card>
+            <Statistic
+              title="已超支"
+              value={budgets.filter((b) => b.status === 'exceeded').length}
+              valueStyle={{ color: colors.error[400] }}
+            />
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card>
+            <Statistic
+              title="总预算金额"
+              value={budgets.reduce((sum, b) => sum + b.amount, 0)}
+              prefix="$"
+            />
+          </Card>
+        </Col>
       </Row>
 
       <Card>
         <div style={{ marginBottom: 16 }}>
-          <SearchFilterBar onSearch={setSearchQuery} onFilter={setFilters} filters={filterDefs} searchPlaceholder="搜索预算..." />
+          <SearchFilterBar
+            onSearch={setSearchQuery}
+            onFilter={setFilters}
+            filters={filterDefs}
+            searchPlaceholder="搜索预算..."
+          />
         </div>
-        <Table columns={columns} dataSource={filteredBudgets} loading={loading} rowKey="id" size="middle" striped />
+        <Table
+          columns={columns}
+          dataSource={filteredBudgets}
+          loading={loading}
+          rowKey="id"
+          size="middle"
+          striped
+        />
       </Card>
 
       {/* Create Modal */}
-      <Modal title="创建预算" open={createModalVisible} onCancel={() => setCreateModalVisible(false)} onOk={handleCreate} confirmLoading={submitting}>
+      <Modal
+        title="创建预算"
+        open={createModalVisible}
+        onCancel={() => setCreateModalVisible(false)}
+        onOk={handleCreate}
+        confirmLoading={submitting}
+      >
         <Form form={createForm} layout="vertical">
-          <Form.Item name="name" label="预算名称" rules={[{ required: true }]}><Input placeholder="GPT-4 月度预算" /></Form.Item>
-          <Form.Item name="type" label="类型" rules={[{ required: true }]}><Select options={typeOptions} /></Form.Item>
-          <Form.Item name="scope" label="范围" rules={[{ required: true }]}><Input placeholder="tenant-id / project-id / user-id" /></Form.Item>
-          <Form.Item name="period" label="周期" rules={[{ required: true }]}><Select options={periodOptions} /></Form.Item>
-          <Form.Item name="amount" label="金额" rules={[{ required: true }]}><InputNumber prefix="$" style={{ width: '100%' }} min={0} /></Form.Item>
-          <Form.Item name="warningThreshold" label="警告阈值 (%)" initialValue={80}><InputNumber style={{ width: '100%' }} min={0} max={100} /></Form.Item>
-          <Form.Item name="criticalThreshold" label="严重阈值 (%)" initialValue={95}><InputNumber style={{ width: '100%' }} min={0} max={100} /></Form.Item>
+          <Form.Item name="name" label="预算名称" rules={[{ required: true }]}>
+            <Input placeholder="GPT-4 月度预算" />
+          </Form.Item>
+          <Form.Item name="type" label="类型" rules={[{ required: true }]}>
+            <Select options={typeOptions} />
+          </Form.Item>
+          <Form.Item name="scope" label="范围" rules={[{ required: true }]}>
+            <Input placeholder="tenant-id / project-id / user-id" />
+          </Form.Item>
+          <Form.Item name="period" label="周期" rules={[{ required: true }]}>
+            <Select options={periodOptions} />
+          </Form.Item>
+          <Form.Item name="amount" label="金额" rules={[{ required: true }]}>
+            <InputNumber prefix="$" style={{ width: '100%' }} min={0} />
+          </Form.Item>
+          <Form.Item name="warningThreshold" label="警告阈值 (%)" initialValue={80}>
+            <InputNumber style={{ width: '100%' }} min={0} max={100} />
+          </Form.Item>
+          <Form.Item name="criticalThreshold" label="严重阈值 (%)" initialValue={95}>
+            <InputNumber style={{ width: '100%' }} min={0} max={100} />
+          </Form.Item>
         </Form>
       </Modal>
 
       {/* Edit Modal */}
-      <Modal title="编辑预算" open={editModalVisible} onCancel={() => setEditModalVisible(false)} onOk={handleEdit} confirmLoading={submitting}>
+      <Modal
+        title="编辑预算"
+        open={editModalVisible}
+        onCancel={() => setEditModalVisible(false)}
+        onOk={handleEdit}
+        confirmLoading={submitting}
+      >
         <Form form={editForm} layout="vertical">
-          <Form.Item name="name" label="预算名称" rules={[{ required: true }]}><Input /></Form.Item>
-          <Form.Item name="amount" label="金额" rules={[{ required: true }]}><InputNumber prefix="$" style={{ width: '100%' }} min={0} /></Form.Item>
-          <Form.Item name="warningThreshold" label="警告阈值 (%)"><InputNumber style={{ width: '100%' }} min={0} max={100} /></Form.Item>
-          <Form.Item name="criticalThreshold" label="严重阈值 (%)"><InputNumber style={{ width: '100%' }} min={0} max={100} /></Form.Item>
+          <Form.Item name="name" label="预算名称" rules={[{ required: true }]}>
+            <Input />
+          </Form.Item>
+          <Form.Item name="amount" label="金额" rules={[{ required: true }]}>
+            <InputNumber prefix="$" style={{ width: '100%' }} min={0} />
+          </Form.Item>
+          <Form.Item name="warningThreshold" label="警告阈值 (%)">
+            <InputNumber style={{ width: '100%' }} min={0} max={100} />
+          </Form.Item>
+          <Form.Item name="criticalThreshold" label="严重阈值 (%)">
+            <InputNumber style={{ width: '100%' }} min={0} max={100} />
+          </Form.Item>
         </Form>
       </Modal>
     </div>

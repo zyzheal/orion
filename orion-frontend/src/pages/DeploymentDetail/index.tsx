@@ -35,7 +35,12 @@ import {
 } from '@ant-design/icons';
 import StatusBadge from '@/components/StatusBadge';
 import CardPanel from '@/components/CardPanel';
-import { getDeployment, rollbackDeployment, type Deployment, type HealthCheckResult } from '@/api/deployments';
+import {
+  getDeployment,
+  rollbackDeployment,
+  type Deployment,
+  type HealthCheckResult,
+} from '@/api/deployments';
 import { useNavigate, useParams } from 'react-router-dom';
 import dayjs from 'dayjs';
 
@@ -142,7 +147,10 @@ const DeploymentDetail: React.FC = () => {
     );
   }
 
-  const env = envConfig[deployment.environment] || { color: 'default', label: deployment.environment };
+  const env = envConfig[deployment.environment] || {
+    color: 'default',
+    label: deployment.environment,
+  };
 
   const formatDuration = (seconds?: number) => {
     if (!seconds) return '-';
@@ -171,11 +179,7 @@ const DeploymentDetail: React.FC = () => {
           marginBottom: 24,
         }}
       >
-        <Button
-          type="text"
-          icon={<ArrowLeftOutlined />}
-          onClick={() => navigate('/deployments')}
-        >
+        <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/deployments')}>
           返回列表
         </Button>
         <div style={{ flex: 1 }}>
@@ -221,12 +225,7 @@ const DeploymentDetail: React.FC = () => {
 
       {/* Deployment info card */}
       <CardPanel>
-        <Descriptions
-          column={4}
-          size="small"
-          bordered
-          labelStyle={{ width: 120 }}
-        >
+        <Descriptions column={4} size="small" bordered labelStyle={{ width: 120 }}>
           <Descriptions.Item label="应用名称">
             <Text strong>{deployment.appName}</Text>
           </Descriptions.Item>
@@ -243,18 +242,14 @@ const DeploymentDetail: React.FC = () => {
             <Text code>{deployment.triggeredBy}</Text>
           </Descriptions.Item>
           <Descriptions.Item label="开始时间">
-            {deployment.startTime
-              ? dayjs(deployment.startTime).format('YYYY-MM-DD HH:mm:ss')
-              : '-'}
+            {deployment.startTime ? dayjs(deployment.startTime).format('YYYY-MM-DD HH:mm:ss') : '-'}
           </Descriptions.Item>
           <Descriptions.Item label="结束时间">
             {deployment.endTime
               ? dayjs(deployment.endTime).format('YYYY-MM-DD HH:mm:ss')
               : '进行中...'}
           </Descriptions.Item>
-          <Descriptions.Item label="耗时">
-            {formatDuration(deployment.duration)}
-          </Descriptions.Item>
+          <Descriptions.Item label="耗时">{formatDuration(deployment.duration)}</Descriptions.Item>
           {deployment.commit && (
             <Descriptions.Item label="提交 Hash">
               <Tag color="default">{deployment.commit}</Tag>
@@ -347,14 +342,12 @@ const DeploymentDetail: React.FC = () => {
                         check.status === 'healthy'
                           ? 'rgba(82, 196, 26, 0.04)'
                           : check.status === 'unhealthy'
-                          ? 'rgba(245, 34, 45, 0.04)'
-                          : 'rgba(250, 173, 20, 0.04)',
+                            ? 'rgba(245, 34, 45, 0.04)'
+                            : 'rgba(250, 173, 20, 0.04)',
                       borderRadius: 6,
                     }}
                   >
-                    <span style={{ fontSize: spacing[5] }}>
-                      {healthCheckIcon[check.status]}
-                    </span>
+                    <span style={{ fontSize: spacing[5] }}>{healthCheckIcon[check.status]}</span>
                     <div style={{ flex: 1 }}>
                       <Text strong style={{ fontSize: spacing[4] }}>
                         {check.name}
@@ -369,7 +362,9 @@ const DeploymentDetail: React.FC = () => {
                     </div>
                     {check.latency !== undefined && (
                       <Tag
-                        color={check.latency < 50 ? 'green' : check.latency < 200 ? 'orange' : 'red'}
+                        color={
+                          check.latency < 50 ? 'green' : check.latency < 200 ? 'orange' : 'red'
+                        }
                       >
                         {check.latency}ms
                       </Tag>

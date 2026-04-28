@@ -69,7 +69,11 @@ const TriggerRunModal: React.FC<TriggerRunModalProps> = ({ open, onCancel, onSuc
       data-testid="trigger-run-modal"
     >
       <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
-        <Form.Item label="触发事件" name="triggerEvent" rules={[{ required: true, message: '请选择触发事件' }]}>
+        <Form.Item
+          label="触发事件"
+          name="triggerEvent"
+          rules={[{ required: true, message: '请选择触发事件' }]}
+        >
           <Select placeholder="选择触发事件" options={TRIGGER_EVENT_OPTIONS} />
         </Form.Item>
 

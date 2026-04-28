@@ -20,7 +20,12 @@ import {
 } from '@ant-design/icons';
 import DashboardLayout from '@/components/DashboardLayout';
 import MetricCard from '@/components/MetricCard';
-import { getDoraMetrics, getDoraBenchmarks, getEfficiencyDashboard, getClickHouseStatus } from '@/api/efficiency';
+import {
+  getDoraMetrics,
+  getDoraBenchmarks,
+  getEfficiencyDashboard,
+  getClickHouseStatus,
+} from '@/api/efficiency';
 
 const { Title, Text } = Typography;
 const { TabPane } = Tabs;
@@ -149,7 +154,10 @@ const EfficiencyDashboard: React.FC = () => {
       dataIndex: 'currentValue',
       key: 'currentValue',
       render: (value: unknown, record: MetricRow) => (
-        <Text strong style={{ color: record.trend === 'up' ? colors.success[500] : colors.warning[500] }}>
+        <Text
+          strong
+          style={{ color: record.trend === 'up' ? colors.success[500] : colors.warning[500] }}
+        >
           {String(value)}
         </Text>
       ),
@@ -174,13 +182,21 @@ const EfficiencyDashboard: React.FC = () => {
       render: (_: unknown, record: MetricRow) => {
         if (!benchmarks) return '-';
         const benchmarkKey = record.benchmarkKey;
-        const category = (benchmarks as unknown as Record<string, DoraBenchmarkCategory>)[benchmarkKey];
+        const category = (benchmarks as unknown as Record<string, DoraBenchmarkCategory>)[
+          benchmarkKey
+        ];
         if (!category) return '-';
         return (
           <Space direction="vertical" size={0}>
-            <Text><Tag color="colors.success[500]">Elite</Tag> {category.elite}</Text>
-            <Text><Tag color="colors.primary[500]">High</Tag> {category.high}</Text>
-            <Text><Tag color="colors.warning[500]">Med</Tag> {category.medium}</Text>
+            <Text>
+              <Tag color="colors.success[500]">Elite</Tag> {category.elite}
+            </Text>
+            <Text>
+              <Tag color="colors.primary[500]">High</Tag> {category.high}
+            </Text>
+            <Text>
+              <Tag color="colors.warning[500]">Med</Tag> {category.medium}
+            </Text>
           </Space>
         );
       },
@@ -312,18 +328,28 @@ const EfficiencyDashboard: React.FC = () => {
               </div>
               <div>
                 <Text type="secondary">最后同步:</Text>{' '}
-                {clickHouseStatus?.lastSyncAt ? new Date(clickHouseStatus.lastSyncAt).toLocaleString() : '从未'}
+                {clickHouseStatus?.lastSyncAt
+                  ? new Date(clickHouseStatus.lastSyncAt).toLocaleString()
+                  : '从未'}
               </div>
             </Space>
           </Card>
 
           {/* 改进建议 */}
           <Card title="改进建议">
-            <div style={{ padding: '12px 16px', background: 'rgba(24, 144, 255, 0.04)', borderRadius: 8, borderLeft: `3px solid ${colors.primary[500]}` }}>
+            <div
+              style={{
+                padding: '12px 16px',
+                background: 'rgba(24, 144, 255, 0.04)',
+                borderRadius: 8,
+                borderLeft: `3px solid ${colors.primary[500]}`,
+              }}
+            >
               <Space>
                 <TrophyOutlined style={{ color: colors.primary[500] }} />
                 <Text>
-                  {dashboardData?.dora?.deploymentFrequency && dashboardData.dora.deploymentFrequency < 10
+                  {dashboardData?.dora?.deploymentFrequency &&
+                  dashboardData.dora.deploymentFrequency < 10
                     ? '建议提高发布频率，向 Elite 级别（每天多次）看齐'
                     : '保持当前发布频率，继续优化其他指标'}
                 </Text>

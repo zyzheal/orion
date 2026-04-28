@@ -13,7 +13,13 @@ import {
   CheckCircleOutlined,
   LineChartOutlined,
 } from '@ant-design/icons';
-import { getDashboardData, getMonitoringHealth, startMonitoring, stopMonitoring, getAnomalySummary } from '@/api/monitoring';
+import {
+  getDashboardData,
+  getMonitoringHealth,
+  startMonitoring,
+  stopMonitoring,
+  getAnomalySummary,
+} from '@/api/monitoring';
 import { colors, spacing } from '@/tokens';
 import dayjs from 'dayjs';
 
@@ -98,7 +104,14 @@ const MonitoringDashboard: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: 24,
+        }}
+      >
         <div>
           <Title level={3} style={{ margin: 0 }}>
             <DashboardOutlined style={{ marginRight: 8 }} />
@@ -107,15 +120,23 @@ const MonitoringDashboard: React.FC = () => {
           <Text type="secondary">监控中心运行状态与关键指标</Text>
         </div>
         <Space>
-          <Tag color={monitoring ? 'green' : 'red'}>
-            {monitoring ? '运行中' : '已停止'}
-          </Tag>
+          <Tag color={monitoring ? 'green' : 'red'}>{monitoring ? '运行中' : '已停止'}</Tag>
           {monitoring ? (
-            <Button danger icon={<PauseCircleOutlined />} onClick={handleStop} loading={actionLoading}>
+            <Button
+              danger
+              icon={<PauseCircleOutlined />}
+              onClick={handleStop}
+              loading={actionLoading}
+            >
               停止监控
             </Button>
           ) : (
-            <Button type="primary" icon={<PlayCircleOutlined />} onClick={handleStart} loading={actionLoading}>
+            <Button
+              type="primary"
+              icon={<PlayCircleOutlined />}
+              onClick={handleStart}
+              loading={actionLoading}
+            >
               启动监控
             </Button>
           )}
@@ -135,7 +156,8 @@ const MonitoringDashboard: React.FC = () => {
               prefix={<AlertOutlined />}
             />
             <Text type="secondary" style={{ fontSize: spacing[3] }}>
-              活跃 {dashboardData?.alerts?.active || 0} / 已解决 {dashboardData?.alerts?.resolved || 0}
+              活跃 {dashboardData?.alerts?.active || 0} / 已解决{' '}
+              {dashboardData?.alerts?.resolved || 0}
             </Text>
           </Card>
         </Col>
@@ -182,15 +204,20 @@ const MonitoringDashboard: React.FC = () => {
         <Space size="large">
           <div>
             <Text type="secondary">状态:</Text>{' '}
-            <Tag color={health?.status === 'ok' ? 'green' : 'orange'}>{health?.status || 'unknown'}</Tag>
+            <Tag color={health?.status === 'ok' ? 'green' : 'orange'}>
+              {health?.status || 'unknown'}
+            </Tag>
           </div>
           <div>
             <Text type="secondary">运行时间:</Text>{' '}
-            <Text strong>{health?.uptime ? `${Math.floor(health.uptime / 3600)}h ${Math.floor((health.uptime % 3600) / 60)}m` : '-'}</Text>
+            <Text strong>
+              {health?.uptime
+                ? `${Math.floor(health.uptime / 3600)}h ${Math.floor((health.uptime % 3600) / 60)}m`
+                : '-'}
+            </Text>
           </div>
           <div>
-            <Text type="secondary">指标计数:</Text>{' '}
-            <Text strong>{health?.metricsCount || 0}</Text>
+            <Text type="secondary">指标计数:</Text> <Text strong>{health?.metricsCount || 0}</Text>
           </div>
         </Space>
       </Card>
@@ -200,9 +227,21 @@ const MonitoringDashboard: React.FC = () => {
         {anomalies?.anomalies && anomalies.anomalies.length > 0 ? (
           <Space direction="vertical" style={{ width: '100%' }}>
             {anomalies.anomalies.slice(0, 10).map((a: any, idx: number) => (
-              <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: `1px solid ${colors.light.border.light}` }}>
+              <div
+                key={idx}
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  padding: '8px 0',
+                  borderBottom: `1px solid ${colors.light.border.light}`,
+                }}
+              >
                 <Space>
-                  <Tag color={a.severity === 'high' ? 'red' : a.severity === 'medium' ? 'orange' : 'blue'}>
+                  <Tag
+                    color={
+                      a.severity === 'high' ? 'red' : a.severity === 'medium' ? 'orange' : 'blue'
+                    }
+                  >
                     {a.severity}
                   </Tag>
                   <Text>{a.metric}</Text>

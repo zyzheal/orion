@@ -11,19 +11,24 @@ describe('VirtualList', () => {
     data: { title: `Item ${i}`, description: `Description ${i}` },
   }));
 
-  const renderMock = vi.fn((item) => (
-    <div data-testid={`item-${item.id}`}>
-      {item.data.title}
-    </div>
-  ));
+  const renderMock = vi.fn((item) => <div data-testid={`item-${item.id}`}>{item.data.title}</div>);
 
   it('should render without crashing', () => {
-    render(<VirtualList items={mockItems.slice(0, 5)} renderItem={renderMock} containerHeight={200} />);
+    render(
+      <VirtualList items={mockItems.slice(0, 5)} renderItem={renderMock} containerHeight={200} />
+    );
     expect(screen.getByText('Item 0')).toBeInTheDocument();
   });
 
   it('should only render visible items', () => {
-    render(<VirtualList items={mockItems} renderItem={renderMock} containerHeight={200} itemHeight={50} />);
+    render(
+      <VirtualList
+        items={mockItems}
+        renderItem={renderMock}
+        containerHeight={200}
+        itemHeight={50}
+      />
+    );
     // With overscanCount=3 and containerHeight=200, should render ~7-10 items
     const renderedItems = screen.getAllByTestId(/^item-/);
     expect(renderedItems.length).toBeLessThan(mockItems.length);
@@ -41,7 +46,9 @@ describe('VirtualList', () => {
   });
 
   it('should show loading state', () => {
-    const { container } = render(<VirtualList items={mockItems} renderItem={renderMock} loading={true} />);
+    const { container } = render(
+      <VirtualList items={mockItems} renderItem={renderMock} loading={true} />
+    );
     // Spin component renders an ant-spin container
     expect(container.querySelector('.ant-spin')).toBeInTheDocument();
   });

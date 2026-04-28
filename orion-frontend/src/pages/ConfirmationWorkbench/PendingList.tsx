@@ -2,13 +2,37 @@
  * Pending Confirmations - Priority color coding, filter, approve/reject actions
  */
 import React, { useState, useMemo, useEffect } from 'react';
-import { Typography, Button, Space, Tag, Card, Row, Col, Statistic, Modal, Form, Input, message, Progress } from 'antd';
+import {
+  Typography,
+  Button,
+  Space,
+  Tag,
+  Card,
+  Row,
+  Col,
+  Statistic,
+  Modal,
+  Form,
+  Input,
+  message,
+  Progress,
+} from 'antd';
 import { colors, spacing } from '@/tokens';
-import { ReloadOutlined, CheckOutlined, CloseOutlined, InfoCircleOutlined } from '@ant-design/icons';
+import {
+  ReloadOutlined,
+  CheckOutlined,
+  CloseOutlined,
+  InfoCircleOutlined,
+} from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
-import { getConfirmations, approveConfirmation, rejectConfirmation, type ConfirmationRequest } from '@/api/confirmations';
+import {
+  getConfirmations,
+  approveConfirmation,
+  rejectConfirmation,
+  type ConfirmationRequest,
+} from '@/api/confirmations';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 
@@ -37,7 +61,9 @@ const PendingList: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<Record<string, string | string[] | undefined>>({});
   const [detailModalVisible, setDetailModalVisible] = useState(false);
-  const [selectedConfirmation, setSelectedConfirmation] = useState<ConfirmationRequest | null>(null);
+  const [selectedConfirmation, setSelectedConfirmation] = useState<ConfirmationRequest | null>(
+    null
+  );
   const [commentModalVisible, setCommentModalVisible] = useState(false);
   const [actionType, setActionType] = useState<'approve' | 'reject'>('approve');
   const [comment, setComment] = useState('');
@@ -65,9 +91,11 @@ const PendingList: React.FC = () => {
         const q = searchQuery.toLowerCase();
         if (!c.id.toLowerCase().includes(q) && !c.sceneType.toLowerCase().includes(q)) return false;
       }
-      if (filters.priority && filters.priority !== 'all' && c.priority !== filters.priority) return false;
+      if (filters.priority && filters.priority !== 'all' && c.priority !== filters.priority)
+        return false;
       if (filters.status && filters.status !== 'all' && c.status !== filters.status) return false;
-      if (filters.sceneType && filters.sceneType !== 'all' && c.sceneType !== filters.sceneType) return false;
+      if (filters.sceneType && filters.sceneType !== 'all' && c.sceneType !== filters.sceneType)
+        return false;
       return true;
     });
   }, [searchQuery, filters, confirmations]);
@@ -129,7 +157,11 @@ const PendingList: React.FC = () => {
       dataIndex: 'id',
       width: 180,
       sortable: true,
-      render: (v: unknown) => <Text code style={{ fontSize: spacing[3] }}>{String(v).slice(0, 16)}...</Text>,
+      render: (v: unknown) => (
+        <Text code style={{ fontSize: spacing[3] }}>
+          {String(v).slice(0, 16)}...
+        </Text>
+      ),
     },
     {
       key: 'aiSuggestion',
@@ -147,7 +179,13 @@ const PendingList: React.FC = () => {
         <Progress
           percent={Number(v)}
           size="small"
-          strokeColor={Number(v) >= 80 ? colors.success[500] : Number(v) >= 60 ? colors.warning[500] : colors.error[400]}
+          strokeColor={
+            Number(v) >= 80
+              ? colors.success[500]
+              : Number(v) >= 60
+                ? colors.warning[500]
+                : colors.error[400]
+          }
           format={() => `${Number(v)}%`}
         />
       ),
@@ -166,7 +204,9 @@ const PendingList: React.FC = () => {
       width: 160,
       sortable: true,
       render: (v: unknown) => (
-        <Text type="secondary" style={{ fontSize: spacing[3] }}>{dayjs(String(v)).fromNow()}</Text>
+        <Text type="secondary" style={{ fontSize: spacing[3] }}>
+          {dayjs(String(v)).fromNow()}
+        </Text>
       ),
     },
     {
@@ -176,23 +216,47 @@ const PendingList: React.FC = () => {
       render: (_: unknown, record: any) =>
         record.status === 'pending' ? (
           <Space size="small">
-            <Button type="link" size="small" icon={<CheckOutlined />} style={{ color: colors.success[500] }}
-              onClick={() => openCommentModal(record, 'approve')}>
+            <Button
+              type="link"
+              size="small"
+              icon={<CheckOutlined />}
+              style={{ color: colors.success[500] }}
+              onClick={() => openCommentModal(record, 'approve')}
+            >
               确认
             </Button>
-            <Button type="link" size="small" icon={<CloseOutlined />} danger
-              onClick={() => openCommentModal(record, 'reject')}>
+            <Button
+              type="link"
+              size="small"
+              icon={<CloseOutlined />}
+              danger
+              onClick={() => openCommentModal(record, 'reject')}
+            >
               拒绝
             </Button>
-            <Button type="link" size="small" icon={<InfoCircleOutlined />}
-              onClick={() => { setSelectedConfirmation(record); setDetailModalVisible(true); }}>
+            <Button
+              type="link"
+              size="small"
+              icon={<InfoCircleOutlined />}
+              onClick={() => {
+                setSelectedConfirmation(record);
+                setDetailModalVisible(true);
+              }}
+            >
               详情
             </Button>
           </Space>
         ) : (
           <Space size="small">
-            <Button type="link" size="small" icon={<InfoCircleOutlined />}
-              onClick={() => { setSelectedConfirmation(record); setDetailModalVisible(true); }}>
+            <Button
+              type="link"
+              size="small"
+              icon={<InfoCircleOutlined />}
+              onClick={() => {
+                setSelectedConfirmation(record);
+                setDetailModalVisible(true);
+              }}
+            >
               详情
             </Button>
           </Space>
@@ -201,71 +265,137 @@ const PendingList: React.FC = () => {
   ];
 
   const filterDefs: FilterDefinition[] = [
-    { key: 'priority', label: '优先级', options: [
-      { label: '全部', value: 'all' },
-      { label: 'P0', value: 'P0' },
-      { label: 'P1', value: 'P1' },
-      { label: 'P2', value: 'P2' },
-      { label: 'P3', value: 'P3' },
-    ]},
+    {
+      key: 'priority',
+      label: '优先级',
+      options: [
+        { label: '全部', value: 'all' },
+        { label: 'P0', value: 'P0' },
+        { label: 'P1', value: 'P1' },
+        { label: 'P2', value: 'P2' },
+        { label: 'P3', value: 'P3' },
+      ],
+    },
     { key: 'sceneType', label: '场景', options: sceneTypeOptions },
-    { key: 'status', label: '状态', options: [
-      { label: '全部', value: 'all' },
-      { label: 'Pending', value: 'pending' },
-      { label: 'Confirmed', value: 'confirmed' },
-      { label: 'Rejected', value: 'rejected' },
-      { label: 'Expired', value: 'expired' },
-    ]},
+    {
+      key: 'status',
+      label: '状态',
+      options: [
+        { label: '全部', value: 'all' },
+        { label: 'Pending', value: 'pending' },
+        { label: 'Confirmed', value: 'confirmed' },
+        { label: 'Rejected', value: 'rejected' },
+        { label: 'Expired', value: 'expired' },
+      ],
+    },
   ];
 
   return (
     <div style={{ padding: 0 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          marginBottom: 24,
+        }}
+      >
         <div>
-          <Title level={3} style={{ margin: 0 }}>确认工作台</Title>
+          <Title level={3} style={{ margin: 0 }}>
+            确认工作台
+          </Title>
           <Text type="secondary">待确认的 AI 操作建议</Text>
         </div>
-        <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>刷新</Button>
+        <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+          刷新
+        </Button>
       </div>
 
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col span={6}>
-          <Card><Statistic title="待确认" value={pendingCount} valueStyle={{ color: colors.primary[500] }} /></Card>
+          <Card>
+            <Statistic
+              title="待确认"
+              value={pendingCount}
+              valueStyle={{ color: colors.primary[500] }}
+            />
+          </Card>
         </Col>
         <Col span={6}>
-          <Card><Statistic title="P0 紧急" value={p0Count} valueStyle={{ color: priorityColorMap.P0 }} /></Card>
+          <Card>
+            <Statistic
+              title="P0 紧急"
+              value={p0Count}
+              valueStyle={{ color: priorityColorMap.P0 }}
+            />
+          </Card>
         </Col>
         <Col span={6}>
-          <Card><Statistic title="P1 高" value={p1Count} valueStyle={{ color: priorityColorMap.P1 }} /></Card>
+          <Card>
+            <Statistic title="P1 高" value={p1Count} valueStyle={{ color: priorityColorMap.P1 }} />
+          </Card>
         </Col>
         <Col span={6}>
-          <Card><Statistic title="总计" value={confirmations.length} /></Card>
+          <Card>
+            <Statistic title="总计" value={confirmations.length} />
+          </Card>
         </Col>
       </Row>
 
       <Card>
         <div style={{ marginBottom: 16 }}>
-          <SearchFilterBar onSearch={setSearchQuery} onFilter={setFilters} filters={filterDefs} searchPlaceholder="搜索确认请求..." />
+          <SearchFilterBar
+            onSearch={setSearchQuery}
+            onFilter={setFilters}
+            filters={filterDefs}
+            searchPlaceholder="搜索确认请求..."
+          />
         </div>
-        <Table columns={columns} dataSource={filteredConfirmations} loading={loading} rowKey="id" size="middle" striped />
+        <Table
+          columns={columns}
+          dataSource={filteredConfirmations}
+          loading={loading}
+          rowKey="id"
+          size="middle"
+          striped
+        />
       </Card>
 
       {/* Detail Modal */}
-      <Modal title="确认详情" open={detailModalVisible} onCancel={() => setDetailModalVisible(false)} footer={<Button onClick={() => setDetailModalVisible(false)}>关闭</Button>}>
+      <Modal
+        title="确认详情"
+        open={detailModalVisible}
+        onCancel={() => setDetailModalVisible(false)}
+        footer={<Button onClick={() => setDetailModalVisible(false)}>关闭</Button>}
+      >
         {selectedConfirmation && (
           <div>
             <Space style={{ marginBottom: 16 }}>
-              <Tag color={priorityColorMap[selectedConfirmation.priority]}>{selectedConfirmation.priority}</Tag>
+              <Tag color={priorityColorMap[selectedConfirmation.priority]}>
+                {selectedConfirmation.priority}
+              </Tag>
               <StatusBadge status={selectedConfirmation.status as any} />
             </Space>
-            <p><Text strong>AI 建议:</Text> {selectedConfirmation.aiSuggestion}</p>
-            <p><Text strong>置信度:</Text> {selectedConfirmation.aiConfidence}%</p>
-            <p><Text strong>推送时间:</Text> {dayjs(selectedConfirmation.pushTime).format('YYYY-MM-DD HH:mm:ss')}</p>
+            <p>
+              <Text strong>AI 建议:</Text> {selectedConfirmation.aiSuggestion}
+            </p>
+            <p>
+              <Text strong>置信度:</Text> {selectedConfirmation.aiConfidence}%
+            </p>
+            <p>
+              <Text strong>推送时间:</Text>{' '}
+              {dayjs(selectedConfirmation.pushTime).format('YYYY-MM-DD HH:mm:ss')}
+            </p>
             {selectedConfirmation.responseTime && (
-              <p><Text strong>响应时间:</Text> {dayjs(selectedConfirmation.responseTime).format('YYYY-MM-DD HH:mm:ss')}</p>
+              <p>
+                <Text strong>响应时间:</Text>{' '}
+                {dayjs(selectedConfirmation.responseTime).format('YYYY-MM-DD HH:mm:ss')}
+              </p>
             )}
             {selectedConfirmation.comment && (
-              <p><Text strong>备注:</Text> {selectedConfirmation.comment}</p>
+              <p>
+                <Text strong>备注:</Text> {selectedConfirmation.comment}
+              </p>
             )}
           </div>
         )}
@@ -288,7 +418,14 @@ const PendingList: React.FC = () => {
           <Text strong>AI 建议:</Text> {selectedConfirmation?.aiSuggestion}
         </p>
         <Form layout="vertical">
-          <Form.Item label="备注"><Input.TextArea value={comment} onChange={(e) => setComment(e.target.value)} rows={3} placeholder="输入备注..." /></Form.Item>
+          <Form.Item label="备注">
+            <Input.TextArea
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              rows={3}
+              placeholder="输入备注..."
+            />
+          </Form.Item>
         </Form>
       </Modal>
     </div>

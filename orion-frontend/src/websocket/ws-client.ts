@@ -293,11 +293,14 @@ export class OrionWebSocketClient {
     this.reconnectAttempts++;
 
     // 指数退避：delay = base * 2^(attempt-1) + random jitter
-    const exponentialDelay = Math.pow(2, this.reconnectAttempts - 1) * this.config.initialReconnectDelay;
+    const exponentialDelay =
+      Math.pow(2, this.reconnectAttempts - 1) * this.config.initialReconnectDelay;
     const jitter = Math.random() * 1000; // 0-1 秒的随机抖动
     const delay = Math.min(exponentialDelay + jitter, this.config.maxReconnectDelay);
 
-    console.log(`[WS] Scheduling reconnect in ${Math.round(delay)}ms (attempt ${this.reconnectAttempts})`);
+    console.log(
+      `[WS] Scheduling reconnect in ${Math.round(delay)}ms (attempt ${this.reconnectAttempts})`
+    );
 
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;

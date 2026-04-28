@@ -10,14 +10,14 @@ export const zIndex = {
   base: 0,
 
   // ============ 组件层级 (0-1000) ============
-  dropdown: 1000,     // 下拉菜单
-  sticky: 1020,       // 吸顶元素
-  fixed: 1030,        // 固定定位
-  backdrop: 1040,     // 遮罩层
-  modal: 1050,        // 弹窗
-  popover: 1060,      // 弹出框
-  tooltip: 1070,      // 提示
-  toast: 1080,        // 消息提示
+  dropdown: 1000, // 下拉菜单
+  sticky: 1020, // 吸顶元素
+  fixed: 1030, // 固定定位
+  backdrop: 1040, // 遮罩层
+  modal: 1050, // 弹窗
+  popover: 1060, // 弹出框
+  tooltip: 1070, // 提示
+  toast: 1080, // 消息提示
   notification: 1090, // 通知
 
   // ============ 特殊层级 ============

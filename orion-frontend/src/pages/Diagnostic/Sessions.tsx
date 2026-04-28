@@ -5,7 +5,12 @@
 import React, { useState, useEffect } from 'react';
 import { Typography, Button, Space, Tag, Modal, Form, Input, Select, message, Drawer } from 'antd';
 import { colors, spacing } from '@/tokens';
-import { PlusOutlined, ReloadOutlined, SearchOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import {
+  PlusOutlined,
+  ReloadOutlined,
+  SearchOutlined,
+  CheckCircleOutlined,
+} from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import { getSessions, getSession, addSymptom, completeSession } from '@/api/diagnostic';
@@ -161,18 +166,18 @@ const DiagnosticSessions: React.FC = () => {
       render: (v: unknown) => {
         const value = v as string;
         return (
-        <Text
-          code
-          style={{ fontSize: spacing[3], color: colors.purple[500], cursor: 'pointer' }}
-          onClick={() => {
-            const s = sessions.find((item) => item.id === value);
-            if (s) showSessionDetail(s);
-          }}
-        >
-          {value}
-        </Text>
-      );
-    },
+          <Text
+            code
+            style={{ fontSize: spacing[3], color: colors.purple[500], cursor: 'pointer' }}
+            onClick={() => {
+              const s = sessions.find((item) => item.id === value);
+              if (s) showSessionDetail(s);
+            }}
+          >
+            {value}
+          </Text>
+        );
+      },
     },
     {
       key: 'triggerType',
@@ -186,7 +191,11 @@ const DiagnosticSessions: React.FC = () => {
       title: '触发器ID',
       dataIndex: 'triggerId',
       width: 140,
-      render: (v: unknown) => <Text code style={{ fontSize: spacing[2] }}>{v as string}</Text>,
+      render: (v: unknown) => (
+        <Text code style={{ fontSize: spacing[2] }}>
+          {v as string}
+        </Text>
+      ),
     },
     {
       key: 'symptomCount',
@@ -226,7 +235,11 @@ const DiagnosticSessions: React.FC = () => {
       render: (v: unknown) => {
         const value = v as number | undefined;
         if (!value) return <Text type="secondary">-</Text>;
-        return <Text>{Math.floor(value / 60000)}m {Math.floor((value % 60000) / 1000)}s</Text>;
+        return (
+          <Text>
+            {Math.floor(value / 60000)}m {Math.floor((value % 60000) / 1000)}s
+          </Text>
+        );
       },
     },
     {
@@ -255,7 +268,14 @@ const DiagnosticSessions: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: 24,
+        }}
+      >
         <div>
           <Title level={3} style={{ margin: 0 }}>
             <SearchOutlined style={{ marginRight: 8 }} />
@@ -264,7 +284,11 @@ const DiagnosticSessions: React.FC = () => {
           <Text type="secondary">共 {sessions.length} 个会话</Text>
         </div>
         <Space>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/diagnostic/trigger')}>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => navigate('/diagnostic/trigger')}
+          >
             新诊断
           </Button>
           <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
@@ -300,7 +324,11 @@ const DiagnosticSessions: React.FC = () => {
         width={480}
       >
         <Form form={symptomForm} layout="vertical" onFinish={handleAddSymptom}>
-          <Form.Item name="type" label="症状类型" rules={[{ required: true, message: '请输入症状类型' }]}>
+          <Form.Item
+            name="type"
+            label="症状类型"
+            rules={[{ required: true, message: '请输入症状类型' }]}
+          >
             <Input placeholder="例如：high_latency, error_rate" />
           </Form.Item>
           <Form.Item name="source" label="来源" rules={[{ required: true, message: '请输入来源' }]}>
@@ -317,11 +345,17 @@ const DiagnosticSessions: React.FC = () => {
               defaultValue="medium"
             />
           </Form.Item>
-          <Form.Item name="description" label="描述" rules={[{ required: true, message: '请输入描述' }]}>
+          <Form.Item
+            name="description"
+            label="描述"
+            rules={[{ required: true, message: '请输入描述' }]}
+          >
             <Input.TextArea rows={3} placeholder="详细描述症状..." />
           </Form.Item>
           <Form.Item>
-            <Button type="primary" htmlType="submit" block>添加</Button>
+            <Button type="primary" htmlType="submit" block>
+              添加
+            </Button>
           </Form.Item>
         </Form>
       </Modal>
@@ -343,11 +377,16 @@ const DiagnosticSessions: React.FC = () => {
               </Tag>
             </div>
             <div>
-              <Text type="secondary">触发类型:</Text> <Tag color="purple">{sessionDetail.triggerType}</Tag>
-              <Text type="secondary" style={{ marginLeft: 16 }}>触发器ID:</Text> <Text code>{sessionDetail.triggerId}</Text>
+              <Text type="secondary">触发类型:</Text>{' '}
+              <Tag color="purple">{sessionDetail.triggerType}</Tag>
+              <Text type="secondary" style={{ marginLeft: 16 }}>
+                触发器ID:
+              </Text>{' '}
+              <Text code>{sessionDetail.triggerId}</Text>
             </div>
             <div>
-              <Text type="secondary">症状数量:</Text> <Text strong>{sessionDetail.symptomCount}</Text>
+              <Text type="secondary">症状数量:</Text>{' '}
+              <Text strong>{sessionDetail.symptomCount}</Text>
             </div>
             <div>
               <Text type="secondary">开始时间:</Text>{' '}
@@ -355,8 +394,8 @@ const DiagnosticSessions: React.FC = () => {
             </div>
             {sessionDetail.duration && (
               <div>
-                <Text type="secondary">持续时间:</Text>{' '}
-                {Math.floor(sessionDetail.duration / 60000)}m {Math.floor((sessionDetail.duration % 60000) / 1000)}s
+                <Text type="secondary">持续时间:</Text> {Math.floor(sessionDetail.duration / 60000)}
+                m {Math.floor((sessionDetail.duration % 60000) / 1000)}s
               </div>
             )}
             {/* Symptoms List */}
@@ -365,7 +404,10 @@ const DiagnosticSessions: React.FC = () => {
                 <Title level={5}>症状列表</Title>
                 <Space direction="vertical" style={{ width: '100%' }}>
                   {sessionDetail.symptoms.map((symptom: DiagnosticSymptom, idx: number) => (
-                    <div key={idx} style={{ padding: 12, background: colors.neutral[50], borderRadius: 6 }}>
+                    <div
+                      key={idx}
+                      style={{ padding: 12, background: colors.neutral[50], borderRadius: 6 }}
+                    >
                       <Space>
                         <Tag color="purple">{symptom.type}</Tag>
                         <Text strong>{symptom.source}</Text>

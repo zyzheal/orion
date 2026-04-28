@@ -3,7 +3,18 @@
  * SBOM document detail with package list, vulnerability scan results, attestation status
  */
 import React, { useState, useEffect } from 'react';
-import { Typography, Button, Space, Tag, Card, Descriptions, Table as AntTable, Modal, message, Spin } from 'antd';
+import {
+  Typography,
+  Button,
+  Space,
+  Tag,
+  Card,
+  Descriptions,
+  Table as AntTable,
+  Modal,
+  message,
+  Spin,
+} from 'antd';
 import { colors, spacing } from '@/tokens';
 import { ArrowLeftOutlined, DownloadOutlined, ReloadOutlined } from '@ant-design/icons';
 import StatusBadge from '@/components/StatusBadge';
@@ -144,7 +155,8 @@ const SbomDetail: React.FC = () => {
       dataIndex: 'license',
       key: 'license',
       width: 120,
-      render: (value: unknown) => value ? <Tag>{String(value)}</Tag> : <Text type="secondary">-</Text>,
+      render: (value: unknown) =>
+        value ? <Tag>{String(value)}</Tag> : <Text type="secondary">-</Text>,
     },
     {
       title: 'PURL',
@@ -188,7 +200,11 @@ const SbomDetail: React.FC = () => {
       width: 80,
       render: (value: unknown) => {
         const v = Number(value);
-        return v > 0 ? <Text style={{ color: colors.error[600] }}>{String(v)}</Text> : <Text type="secondary">0</Text>;
+        return v > 0 ? (
+          <Text style={{ color: colors.error[600] }}>{String(v)}</Text>
+        ) : (
+          <Text type="secondary">0</Text>
+        );
       },
     },
     {
@@ -198,7 +214,11 @@ const SbomDetail: React.FC = () => {
       width: 80,
       render: (value: unknown) => {
         const v = Number(value);
-        return v > 0 ? <Text style={{ color: colors.warning[500] }}>{String(v)}</Text> : <Text type="secondary">0</Text>;
+        return v > 0 ? (
+          <Text style={{ color: colors.warning[500] }}>{String(v)}</Text>
+        ) : (
+          <Text type="secondary">0</Text>
+        );
       },
     },
     {
@@ -253,7 +273,11 @@ const SbomDetail: React.FC = () => {
       dataIndex: 'cveId',
       key: 'cveId',
       width: 160,
-      render: (value: unknown) => <Text code style={{ color: colors.primary[500] }}>{String(value)}</Text>,
+      render: (value: unknown) => (
+        <Text code style={{ color: colors.primary[500] }}>
+          {String(value)}
+        </Text>
+      ),
     },
     {
       title: '严重级别',
@@ -261,7 +285,12 @@ const SbomDetail: React.FC = () => {
       key: 'severity',
       width: 100,
       render: (value: unknown) => {
-        const colorMap: Record<string, string> = { critical: 'red', high: 'orange', medium: 'gold', low: 'default' };
+        const colorMap: Record<string, string> = {
+          critical: 'red',
+          high: 'orange',
+          medium: 'gold',
+          low: 'default',
+        };
         return <Tag color={colorMap[String(value)] || 'default'}>{String(value)}</Tag>;
       },
     },
@@ -270,7 +299,7 @@ const SbomDetail: React.FC = () => {
       dataIndex: 'cvssScore',
       key: 'cvssScore',
       width: 80,
-      render: (value: unknown) => value ? String(value) : '-',
+      render: (value: unknown) => (value ? String(value) : '-'),
     },
     {
       title: '受影响包',
@@ -284,7 +313,8 @@ const SbomDetail: React.FC = () => {
       dataIndex: 'fixedVersion',
       key: 'fixedVersion',
       width: 120,
-      render: (value: unknown) => value ? <Tag color="green">{String(value)}</Tag> : <Text type="secondary">无</Text>,
+      render: (value: unknown) =>
+        value ? <Tag color="green">{String(value)}</Tag> : <Text type="secondary">无</Text>,
     },
     {
       title: '描述',
@@ -302,10 +332,16 @@ const SbomDetail: React.FC = () => {
     <Spin spinning={loading}>
       <div style={{ padding: 0 }}>
         <div style={{ marginBottom: 24 }}>
-          <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/sbom')} style={{ marginBottom: 16 }}>
+          <Button
+            icon={<ArrowLeftOutlined />}
+            onClick={() => navigate('/sbom')}
+            style={{ marginBottom: 16 }}
+          >
             返回
           </Button>
-          <Title level={3} style={{ margin: 0 }}>SBOM 详情</Title>
+          <Title level={3} style={{ margin: 0 }}>
+            SBOM 详情
+          </Title>
         </div>
 
         {doc && (
@@ -346,9 +382,13 @@ const SbomDetail: React.FC = () => {
               <Descriptions.Item label="验证状态">
                 <StatusBadge status={attestation.verified ? 'success' : 'warning'} size="small" />
               </Descriptions.Item>
-              <Descriptions.Item label="签名时间">{dayjs(attestation.signedAt).format('YYYY-MM-DD HH:mm')}</Descriptions.Item>
+              <Descriptions.Item label="签名时间">
+                {dayjs(attestation.signedAt).format('YYYY-MM-DD HH:mm')}
+              </Descriptions.Item>
               <Descriptions.Item label="验证时间">
-                {attestation.verifiedAt ? dayjs(attestation.verifiedAt).format('YYYY-MM-DD HH:mm') : '-'}
+                {attestation.verifiedAt
+                  ? dayjs(attestation.verifiedAt).format('YYYY-MM-DD HH:mm')
+                  : '-'}
               </Descriptions.Item>
             </Descriptions>
           </Card>
@@ -368,12 +408,7 @@ const SbomDetail: React.FC = () => {
         {/* Vulnerability Scan Results */}
         <Card title="漏洞扫描结果" style={{ marginBottom: 24 }}>
           {vulnResults.length > 0 ? (
-            <AntTable
-              columns={vulnColumns}
-              dataSource={vulnResults}
-              rowKey="id"
-              size="small"
-            />
+            <AntTable columns={vulnColumns} dataSource={vulnResults} rowKey="id" size="small" />
           ) : (
             <Text type="secondary">暂无漏洞扫描数据</Text>
           )}

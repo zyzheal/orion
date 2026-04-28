@@ -17,10 +17,21 @@ const SkillManagementLayout: React.FC = () => {
   const location = useLocation();
   return (
     <Layout style={{ minHeight: '100%' }}>
-      <Sider width={200} theme="light" style={{ borderRight: `1px solid ${colors.light.border.light}` }}>
-        <Menu mode="inline" selectedKeys={[location.pathname]} items={menuItems} onClick={({ key }) => navigate(key)} />
+      <Sider
+        width={200}
+        theme="light"
+        style={{ borderRight: `1px solid ${colors.light.border.light}` }}
+      >
+        <Menu
+          mode="inline"
+          selectedKeys={[location.pathname]}
+          items={menuItems}
+          onClick={({ key }) => navigate(key)}
+        />
       </Sider>
-      <Content style={{ padding: spacing[6], background: colors.light.bg.primary }}><Outlet /></Content>
+      <Content style={{ padding: spacing[6], background: colors.light.bg.primary }}>
+        <Outlet />
+      </Content>
     </Layout>
   );
 };

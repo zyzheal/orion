@@ -94,7 +94,11 @@ const DiagnosticReports: React.FC = () => {
       key: 'sessionId',
       title: '会话ID',
       dataIndex: 'sessionId',
-      render: (v: unknown) => <Text code style={{ fontSize: spacing[3] }}>{v as string}</Text>,
+      render: (v: unknown) => (
+        <Text code style={{ fontSize: spacing[3] }}>
+          {v as string}
+        </Text>
+      ),
     },
     {
       key: 'patternMatches',
@@ -113,7 +117,11 @@ const DiagnosticReports: React.FC = () => {
       render: (v: unknown) => {
         const value = v as number;
         const tag = getConfidenceTag(value);
-        return <Tag color={tag.color}>{(value * 100).toFixed(1)}% ({tag.label})</Tag>;
+        return (
+          <Tag color={tag.color}>
+            {(value * 100).toFixed(1)}% ({tag.label})
+          </Tag>
+        );
       },
     },
     {
@@ -142,7 +150,14 @@ const DiagnosticReports: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: 24,
+        }}
+      >
         <div>
           <Title level={3} style={{ margin: 0 }}>
             <FileTextOutlined style={{ marginRight: 8 }} />
@@ -183,8 +198,7 @@ const DiagnosticReports: React.FC = () => {
         {selectedReport && (
           <Space direction="vertical" style={{ width: '100%' }} size={16}>
             <div>
-              <Text type="secondary">会话ID:</Text>{' '}
-              <Text code>{selectedReport.sessionId}</Text>
+              <Text type="secondary">会话ID:</Text> <Text code>{selectedReport.sessionId}</Text>
             </div>
             <div>
               <Text type="secondary">模式匹配:</Text>{' '}

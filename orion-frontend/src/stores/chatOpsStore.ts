@@ -72,8 +72,12 @@ interface ChatOpsState {
 
   // 命令
   commands: Array<{
-    id: string; name: string; subcommand: string; aliases: string[];
-    schema: Record<string, unknown>; examples: string[];
+    id: string;
+    name: string;
+    subcommand: string;
+    aliases: string[];
+    schema: Record<string, unknown>;
+    examples: string[];
   }>;
 
   // 分页
@@ -134,7 +138,7 @@ export const useChatOpsStore = create<ChatOpsState>()(
     memoryCheckEnabled: true,
     isExecuting: false,
 
-    toggle: () => set(state => ({ isOpen: !state.isOpen })),
+    toggle: () => set((state) => ({ isOpen: !state.isOpen })),
     open: () => set({ isOpen: true }),
     close: () => set({ isOpen: false }),
 
@@ -165,7 +169,7 @@ export const useChatOpsStore = create<ChatOpsState>()(
           content: parseResult.error || '无法识别命令',
           timestamp: new Date(),
         };
-        set(state => ({
+        set((state) => ({
           messages: [...state.messages, errMsg],
           isTyping: false,
         }));
@@ -175,7 +179,8 @@ export const useChatOpsStore = create<ChatOpsState>()(
       try {
         const { command, params } = parseResult.parsed!;
         // TE-10: 从 authStore 获取 userId，替代 localStorage
-        const userId = useAuthStore.getState().user?.id || useAuthStore.getState().user?.email || 'anonymous';
+        const userId =
+          useAuthStore.getState().user?.id || useAuthStore.getState().user?.email || 'anonymous';
 
         const response = await executeCommandAPI({
           command,
@@ -196,18 +201,21 @@ export const useChatOpsStore = create<ChatOpsState>()(
         };
 
         // TE-11: 函数式更新，基于当前 state 追加
-        set(state => ({
+        set((state) => ({
           messages: [...state.messages, aiMsg].slice(-500),
           isTyping: false,
         }));
       } catch (err) {
-        set(state => ({
-          messages: [...state.messages, {
-            id: crypto.randomUUID(),
-            role: 'system',
-            content: `执行失败: ${err instanceof Error ? err.message : '未知错误'}`,
-            timestamp: new Date(),
-          }],
+        set((state) => ({
+          messages: [
+            ...state.messages,
+            {
+              id: crypto.randomUUID(),
+              role: 'system',
+              content: `执行失败: ${err instanceof Error ? err.message : '未知错误'}`,
+              timestamp: new Date(),
+            },
+          ],
           isTyping: false,
         }));
       }
@@ -226,7 +234,7 @@ export const useChatOpsStore = create<ChatOpsState>()(
       try {
         const response = await executeCommandAPI({
           command,
-          params,      // 直接传递结构化对象
+          params, // 直接传递结构化对象
           userId,
           platform: 'web',
           channel: 'chatops-panel',
@@ -242,20 +250,23 @@ export const useChatOpsStore = create<ChatOpsState>()(
           actions: extractActionsFromResult(execData),
         };
 
-        set(state => ({
+        set((state) => ({
           messages: [...state.messages, aiMsg].slice(-500),
           isTyping: false,
           alertLevel: 'normal',
           isExecuting: false,
         }));
       } catch (err) {
-        set(state => ({
-          messages: [...state.messages, {
-            id: crypto.randomUUID(),
-            role: 'system',
-            content: `操作失败: ${err instanceof Error ? err.message : '未知错误'}`,
-            timestamp: new Date(),
-          }],
+        set((state) => ({
+          messages: [
+            ...state.messages,
+            {
+              id: crypto.randomUUID(),
+              role: 'system',
+              content: `操作失败: ${err instanceof Error ? err.message : '未知错误'}`,
+              timestamp: new Date(),
+            },
+          ],
           isTyping: false,
           alertLevel: 'normal',
           isExecuting: false,
@@ -264,8 +275,8 @@ export const useChatOpsStore = create<ChatOpsState>()(
     },
 
     dismissRecommendation: (id: string) => {
-      set(state => ({
-        recommendations: state.recommendations.filter(r => r.id !== id),
+      set((state) => ({
+        recommendations: state.recommendations.filter((r) => r.id !== id),
       }));
     },
 
@@ -273,8 +284,13 @@ export const useChatOpsStore = create<ChatOpsState>()(
       set({ isRecommendationLoading: true });
       try {
         const response = await fetchRecommendations({});
-        const recs = ((response.data as any)?.data) || [];
-        set({ recommendations: recs, unreadAlerts: recs.filter((r: any) => r.severity === 'critical' || r.severity === 'warning').length });
+        const recs = (response.data as any)?.data || [];
+        set({
+          recommendations: recs,
+          unreadAlerts: recs.filter(
+            (r: any) => r.severity === 'critical' || r.severity === 'warning'
+          ).length,
+        });
       } catch (err) {
         console.error('[ChatOps] Failed to fetch recommendations:', err);
       } finally {
@@ -310,7 +326,7 @@ export const useChatOpsStore = create<ChatOpsState>()(
     },
 
     trimOldMessages: (maxCount: number) => {
-      set(state => ({
+      set((state) => ({
         messages: state.messages.slice(-maxCount),
       }));
     },
@@ -318,7 +334,7 @@ export const useChatOpsStore = create<ChatOpsState>()(
     markAlertRead: async (alertId: string) => {
       try {
         await markAlertReadAPI(alertId);
-        set(state => ({
+        set((state) => ({
           unreadAlerts: Math.max(0, state.unreadAlerts - 1),
         }));
       } catch (err) {
@@ -329,7 +345,7 @@ export const useChatOpsStore = create<ChatOpsState>()(
     markAlertAcknowledged: async (alertId: string) => {
       try {
         await markAlertAckAPI(alertId);
-        set(state => ({
+        set((state) => ({
           unreadAlerts: Math.max(0, state.unreadAlerts - 1),
         }));
       } catch (err) {
@@ -340,7 +356,7 @@ export const useChatOpsStore = create<ChatOpsState>()(
     markAlertDismissed: async (alertId: string) => {
       try {
         await markAlertDismissedAPI(alertId);
-        set(state => ({
+        set((state) => ({
           unreadAlerts: Math.max(0, state.unreadAlerts - 1),
         }));
       } catch (err) {
@@ -356,9 +372,7 @@ export const useChatOpsStore = create<ChatOpsState>()(
 function extractActionsFromResult(result: any): ChatMessage['actions'] {
   if (!result) return undefined;
   if (result.actions) return result.actions;
-  return [
-    { label: '查看详情', command: 'status', params: {} },
-  ];
+  return [{ label: '查看详情', command: 'status', params: {} }];
 }
 
 // TE-9: 延迟初始化函数 (替代 IIFE)

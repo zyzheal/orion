@@ -440,9 +440,10 @@ export class ReadTrafficManager extends EventEmitter {
         return this.selectNodeLeastConnections();
       case RoutingStrategy.RANDOM:
         return this.selectNodeRandom();
-      case RoutingStrategy.REPLICA_PREFERRED:
+      case RoutingStrategy.REPLICA_PREFERRED: {
         const replica = this.selectReplica();
         return replica && replica.healthy ? replica : this.config.primaryNode;
+      }
       default:
         return this.selectNodeWeighted();
     }

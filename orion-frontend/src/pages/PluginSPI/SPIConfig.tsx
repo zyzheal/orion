@@ -7,11 +7,7 @@ import { Typography, Space, Tag, Badge, Button, Tooltip, Modal, Form, Input, Sel
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import { spacing } from '@/tokens';
-import {
-  type SPIConfig,
-  spiTypeLabelMap,
-  fallbackStrategies,
-} from './types';
+import { type SPIConfig, spiTypeLabelMap, fallbackStrategies } from './types';
 
 const { Text } = Typography;
 
@@ -123,11 +119,7 @@ const SPIConfig: React.FC<SPIConfigProps> = ({
   return (
     <>
       <div style={{ marginBottom: spacing[4] }}>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={onOpenAddConfig}
-        >
+        <Button type="primary" icon={<PlusOutlined />} onClick={onOpenAddConfig}>
           添加 SPI 配置
         </Button>
       </div>
@@ -158,16 +150,13 @@ const SPIConfig: React.FC<SPIConfigProps> = ({
           >
             <Select>
               {Object.entries(spiTypeLabelMap).map(([k, v]) => (
-                <Select.Option key={k} value={k}>{v}</Select.Option>
+                <Select.Option key={k} value={k}>
+                  {v}
+                </Select.Option>
               ))}
             </Select>
           </Form.Item>
-          <Form.Item
-            name="enabled"
-            label="启用状态"
-            valuePropName="checked"
-            initialValue={true}
-          >
+          <Form.Item name="enabled" label="启用状态" valuePropName="checked" initialValue={true}>
             <Select>
               <Select.Option value={true}>已启用</Select.Option>
               <Select.Option value={false}>已禁用</Select.Option>
@@ -197,7 +186,9 @@ const SPIConfig: React.FC<SPIConfigProps> = ({
           >
             <Select>
               {fallbackStrategies.map((s) => (
-                <Select.Option key={s.value} value={s.value}>{s.label}</Select.Option>
+                <Select.Option key={s.value} value={s.value}>
+                  {s.label}
+                </Select.Option>
               ))}
             </Select>
           </Form.Item>

@@ -1,0 +1,64 @@
+<h2>7 个新页面菜单集成方案</h2>
+<p class="subtitle">当前顶部导航结构 + 新页面建议位置</p>
+
+<div class="section">
+  <h3>当前导航结构（9 个主菜单）</h3>
+</div>
+
+<div style="background:#fafafa;padding:16px;border-radius:8px;font-size:13px;line-height:1.8;">
+  <b>工作台</b> → /dashboard<br>
+  <b>运维中心</b> → 流水线 / 部署 / 告警 / 成本分析 / 监控中心 / 诊断中心 / 自愈系统 / 灰度分析 / 变更智能 <br>
+  <b>工单</b> → /tickets<br>
+  <b>效能看板</b> → 总览 / 经理看板 / 个人看板 / 效能分析 / 风险看板 <br>
+  <b>子系统</b> → DBA / 知识库 / 运维监控 <br>
+  <b>产品线</b> → /product-lines<br>
+  <b>制品管理</b> → /artifacts<br>
+  <b>二方库</b> → /internal-libraries<br>
+  <b>项目</b> → /projects<br>
+  <b>AI 能力</b> → AI 网关 / Agent / AI Review / AI 知识库 / AI 文档 / ChatOps <br>
+  <b>治理</b> → 策略 / 审计日志 / 租户 / 角色 / 配置 / CMDB / Skill / SBOM / 审批 / 值班 <br>
+  <b>环境</b> → 环境 / 临时环境 / 构建环境 / IaC / 代码管理 / 队列 / 向量存储
+</div>
+
+<div class="section" style="margin-top:24px;">
+  <h3>7 个新页面建议位置</h3>
+  <p class="subtitle">高亮 = 需要你做决策</p>
+</div>
+
+<div class="cards">
+  <div class="card" data-choice="menu-1">
+    <div class="card-image" style="background:#e6f7ff;padding:12px;text-align:center;">
+      <div style="font-weight:600;color:#1890ff;">方案 A: 归入现有分组</div>
+    </div>
+    <div class="card-body">
+      <table style="font-size:12px;width:100%;border-collapse:collapse;">
+        <tr style="border-bottom:1px solid #eee;"><td><b>页面</b></td><td><b>归入</b></td></tr>
+        <tr><td>EventBus</td><td>运维中心 / 监控中心 同级</td></tr>
+        <tr><td>Sessions</td><td>治理（新增"会话管理"）</td></tr>
+        <tr><td>MetricsDashboard</td><td>效能看板 同级 或 运维中心</td></tr>
+        <tr><td>TestSelector</td><td>运维中心（新增"测试管理"）</td></tr>
+        <tr><td>Backup</td><td>治理 或 环境 同级</td></tr>
+        <tr><td>PluginSPI</td><td>子系统（插件框架页）</td></tr>
+        <tr><td>AISecurity</td><td>AI 能力（AI 安全策略）</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="card" data-choice="menu-2">
+    <div class="card-image" style="background:#f6ffed;padding:12px;text-align:center;">
+      <div style="font-weight:600;color:#52c41a;">方案 B: 新增独立菜单</div>
+    </div>
+    <div class="card-body">
+      <table style="font-size:12px;width:100%;border-collapse:collapse;">
+        <tr style="border-bottom:1px solid #eee;"><td><b>页面</b></td><td><b>新菜单</b></td></tr>
+        <tr><td>EventBus</td><td>运维中心下新增"事件总线"</td></tr>
+        <tr><td>Sessions</td><td>治理下新增"会话管理"</td></tr>
+        <tr><td>MetricsDashboard</td><td>新增"监控"主菜单（含监控中心+指标看板）</td></tr>
+        <tr><td>TestSelector</td><td>运维中心下新增"测试"</td></tr>
+        <tr><td>Backup</td><td>治理下新增"备份恢复"</td></tr>
+        <tr><td>PluginSPI</td><td>治理下新增"插件框架"</td></tr>
+        <tr><td>AISecurity</td><td>AI 能力下新增"AI 安全"</td></tr>
+      </table>
+    </div>
+  </div>
+</div>

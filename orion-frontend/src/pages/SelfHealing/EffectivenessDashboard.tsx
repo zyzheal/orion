@@ -49,11 +49,16 @@ const EffectivenessDashboard: React.FC = () => {
 
   const statusColor = (status: string) => {
     switch (status) {
-      case 'resolved': return 'green';
-      case 'healing': return 'blue';
-      case 'pending': return 'orange';
-      case 'failed': return 'red';
-      default: return 'default';
+      case 'resolved':
+        return 'green';
+      case 'healing':
+        return 'blue';
+      case 'pending':
+        return 'orange';
+      case 'failed':
+        return 'red';
+      default:
+        return 'default';
     }
   };
 
@@ -61,7 +66,13 @@ const EffectivenessDashboard: React.FC = () => {
     { title: '事件 ID', dataIndex: 'id', key: 'id', width: 140, ellipsis: true },
     { title: '类型', dataIndex: 'type', key: 'type' },
     { title: '应用', dataIndex: 'appName', key: 'appName', width: 150 },
-    { title: '策略', dataIndex: 'strategy', key: 'strategy', width: 120, render: (text?: string) => text || '-' },
+    {
+      title: '策略',
+      dataIndex: 'strategy',
+      key: 'strategy',
+      width: 120,
+      render: (text?: string) => text || '-',
+    },
     {
       title: '状态',
       dataIndex: 'status',
@@ -84,10 +95,14 @@ const EffectivenessDashboard: React.FC = () => {
     <div style={{ padding: 24 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
-          <Title level={3} style={{ margin: 0 }}>效能仪表盘</Title>
+          <Title level={3} style={{ margin: 0 }}>
+            效能仪表盘
+          </Title>
           <Text type="secondary">自愈合系统效能分析与趋势</Text>
         </div>
-        <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>刷新</Button>
+        <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+          刷新
+        </Button>
       </div>
 
       {/* Summary Cards */}
@@ -151,12 +166,34 @@ const EffectivenessDashboard: React.FC = () => {
                   { title: '值', dataIndex: 'value', key: 'value' },
                 ]}
                 dataSource={[
-                  { key: '1', metric: '自愈合率', value: `${(effectiveness.healingRate * 100).toFixed(1)}%` },
-                  { key: '2', metric: '平均修复时间 (MTTR)', value: `${effectiveness.avgMttr.toFixed(1)} 分钟` },
+                  {
+                    key: '1',
+                    metric: '自愈合率',
+                    value: `${(effectiveness.healingRate * 100).toFixed(1)}%`,
+                  },
+                  {
+                    key: '2',
+                    metric: '平均修复时间 (MTTR)',
+                    value: `${effectiveness.avgMttr.toFixed(1)} 分钟`,
+                  },
                   { key: '3', metric: '总事件数', value: effectiveness.totalIncidents },
-                  { key: '4', metric: '成功率', value: `${(effectiveness.successRate * 100).toFixed(1)}%` },
-                  { key: '5', metric: '自动处理事件', value: Math.round(effectiveness.totalIncidents * effectiveness.healingRate) },
-                  { key: '6', metric: '需要人工干预', value: Math.round(effectiveness.totalIncidents * (1 - effectiveness.healingRate)) },
+                  {
+                    key: '4',
+                    metric: '成功率',
+                    value: `${(effectiveness.successRate * 100).toFixed(1)}%`,
+                  },
+                  {
+                    key: '5',
+                    metric: '自动处理事件',
+                    value: Math.round(effectiveness.totalIncidents * effectiveness.healingRate),
+                  },
+                  {
+                    key: '6',
+                    metric: '需要人工干预',
+                    value: Math.round(
+                      effectiveness.totalIncidents * (1 - effectiveness.healingRate)
+                    ),
+                  },
                 ]}
               />
             ) : (
@@ -167,7 +204,8 @@ const EffectivenessDashboard: React.FC = () => {
         <Col span={12}>
           <Card title="趋势分析">
             <Text type="secondary">
-              自愈合系统持续运行中。当前自动处理率为 {effectiveness ? `${(effectiveness.healingRate * 100).toFixed(1)}%` : '0%'}，
+              自愈合系统持续运行中。当前自动处理率为{' '}
+              {effectiveness ? `${(effectiveness.healingRate * 100).toFixed(1)}%` : '0%'}，
               平均修复时间为 {effectiveness ? `${effectiveness.avgMttr.toFixed(1)}` : '0'} 分钟。
             </Text>
             <div style={{ marginTop: 16 }}>

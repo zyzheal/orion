@@ -121,13 +121,7 @@ function SplitPane({
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [
-    resizable,
-    direction,
-    onSplitChange,
-    minFirstSize,
-    minSecondSize,
-  ]);
+  }, [resizable, direction, onSplitChange, minFirstSize, minSecondSize]);
 
   const isVertical = direction === 'vertical';
 
@@ -177,11 +171,7 @@ function SplitPane({
       </div>
 
       {/* Splitter */}
-      <div
-        style={splitterStyle}
-        onMouseDown={handleMouseDown}
-        data-testid="split-pane-splitter"
-      >
+      <div style={splitterStyle} onMouseDown={handleMouseDown} data-testid="split-pane-splitter">
         {/* Visual indicator */}
         {resizable && (
           <div

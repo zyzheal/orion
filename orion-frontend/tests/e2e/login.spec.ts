@@ -34,7 +34,9 @@ test.describe('Login Flow', () => {
     await submitButton.click();
 
     // 5. 等待按钮 loading 状态消失（表示登录请求完成）
-    await page.waitForSelector('button[type="submit"]:not(:has(.anticon-loading))', { timeout: 10000 }).catch(() => {});
+    await page
+      .waitForSelector('button[type="submit"]:not(:has(.anticon-loading))', { timeout: 10000 })
+      .catch(() => {});
     await page.waitForTimeout(1000);
 
     // 6. 验证 - 检查是否还在登录页（如果登录成功应该离开）
@@ -43,8 +45,14 @@ test.describe('Login Flow', () => {
 
     // 检查是否已离开登录页或出现 Dashboard 文本
     const isNotOnLoginPage = !currentUrl.includes('/login');
-    const hasDashboardText = await page.locator('text=Dashboard').isVisible().catch(() => false);
-    const hasWelcomeText = await page.locator('text=欢迎使用').isVisible().catch(() => false);
+    const hasDashboardText = await page
+      .locator('text=Dashboard')
+      .isVisible()
+      .catch(() => false);
+    const hasWelcomeText = await page
+      .locator('text=欢迎使用')
+      .isVisible()
+      .catch(() => false);
 
     expect(isNotOnLoginPage || hasDashboardText || hasWelcomeText).toBeTruthy();
   });
@@ -62,7 +70,9 @@ test.describe('Login Flow', () => {
     await submitButton.click();
 
     // 3. 等待 loading 消失
-    await page.waitForSelector('button[type="submit"]:not(:has(.anticon-loading))', { timeout: 10000 }).catch(() => {});
+    await page
+      .waitForSelector('button[type="submit"]:not(:has(.anticon-loading))', { timeout: 10000 })
+      .catch(() => {});
     await page.waitForTimeout(500);
 
     // 4. 验证 - 应该还在登录页

@@ -16,11 +16,7 @@
 
 // Base Components
 export { default as Table } from './Table';
-export type {
-  TableColumn,
-  TablePagination,
-  OrionTableProps,
-} from './Table';
+export type { TableColumn, TablePagination, OrionTableProps } from './Table';
 
 export { default as Form } from './Form';
 export type { FormField, FieldType, OrionFormProps } from './Form';
@@ -39,11 +35,7 @@ export { default as MetricCard } from './MetricCard';
 export type { MetricCardProps, TrendDirection } from './MetricCard';
 
 export { default as SearchFilterBar } from './SearchFilterBar';
-export type {
-  FilterOption,
-  FilterDefinition,
-  SearchFilterBarProps,
-} from './SearchFilterBar';
+export type { FilterOption, FilterDefinition, SearchFilterBarProps } from './SearchFilterBar';
 
 // Layout Components
 export { default as PageLayout } from './PageLayout';

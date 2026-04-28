@@ -134,7 +134,10 @@ function OrionModal({
       okText={resolvedOkText}
       cancelText={resolvedCancelText}
       okButtonProps={{ loading: isLoading }}
-      cancelButtonProps={{ disabled: isLoading, style: showCancel ? undefined : { display: 'none' } }}
+      cancelButtonProps={{
+        disabled: isLoading,
+        style: showCancel ? undefined : { display: 'none' },
+      }}
       confirmLoading={isLoading}
       maskClosable={maskClosable}
       destroyOnClose={destroyOnClose}

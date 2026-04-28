@@ -194,7 +194,7 @@ export class AuditLogChain {
     logger.info({ start, end }, 'Starting chain verification');
 
     let prevHash = this.config.genesisHash;
-    let expectedSequence = start;
+    const expectedSequence = start;
 
     for (let seq = start; seq <= end; seq++) {
       const entry = this.entriesBySequence.get(seq);

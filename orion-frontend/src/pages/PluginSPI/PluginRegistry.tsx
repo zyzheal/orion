@@ -8,11 +8,7 @@ import { BlockOutlined, CheckCircleOutlined, SafetyOutlined } from '@ant-design/
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import { colors } from '@/tokens';
-import {
-  type PluginRegistration,
-  pluginStatusColorMap,
-  pluginStatusLabelMap,
-} from './types';
+import { type PluginRegistration, pluginStatusColorMap, pluginStatusLabelMap } from './types';
 import dayjs from 'dayjs';
 
 const { Text } = Typography;
@@ -93,7 +89,9 @@ const PluginRegistry: React.FC<PluginRegistryProps> = ({
       dataIndex: 'spiPoint',
       width: 180,
       render: (value: unknown) => (
-        <Text code style={{ fontSize: 12 }}>{String(value)}</Text>
+        <Text code style={{ fontSize: 12 }}>
+          {String(value)}
+        </Text>
       ),
     },
     {
@@ -102,7 +100,9 @@ const PluginRegistry: React.FC<PluginRegistryProps> = ({
       dataIndex: 'provider',
       width: 160,
       render: (value: unknown) => (
-        <Text type="secondary" style={{ fontSize: 12 }}>{String(value)}</Text>
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          {String(value)}
+        </Text>
       ),
     },
     {
@@ -120,9 +120,7 @@ const PluginRegistry: React.FC<PluginRegistryProps> = ({
       title: '状态',
       width: 100,
       render: (_: unknown, record: PluginRegistration) => (
-        <Tag color={pluginStatusColorMap[record.status]}>
-          {pluginStatusLabelMap[record.status]}
-        </Tag>
+        <Tag color={pluginStatusColorMap[record.status]}>{pluginStatusLabelMap[record.status]}</Tag>
       ),
     },
     {
@@ -154,9 +152,7 @@ const PluginRegistry: React.FC<PluginRegistryProps> = ({
             <Button
               type="link"
               size="small"
-              icon={
-                record.status === 'enabled' ? <BlockOutlined /> : <CheckCircleOutlined />
-              }
+              icon={record.status === 'enabled' ? <BlockOutlined /> : <CheckCircleOutlined />}
               onClick={() => onTogglePlugin(record)}
             />
           </Tooltip>

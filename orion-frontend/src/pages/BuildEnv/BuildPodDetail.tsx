@@ -75,7 +75,12 @@ const BuildPodDetail: React.FC = () => {
   if (!pod && !loading) {
     return (
       <div>
-        <Button type="link" icon={<ArrowLeftOutlined />} onClick={() => navigate('/console/build-env/pods')} style={{ marginBottom: 16 }}>
+        <Button
+          type="link"
+          icon={<ArrowLeftOutlined />}
+          onClick={() => navigate('/console/build-env/pods')}
+          style={{ marginBottom: 16 }}
+        >
           Back to Pods
         </Button>
         <Text type="secondary">Build pod not found</Text>
@@ -86,16 +91,36 @@ const BuildPodDetail: React.FC = () => {
   return (
     <Spin spinning={loading}>
       <div style={{ padding: 0 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'flex-start',
+            marginBottom: 24,
+          }}
+        >
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <Button type="link" icon={<ArrowLeftOutlined />} onClick={() => navigate('/console/build-env/pods')}>
+            <Button
+              type="link"
+              icon={<ArrowLeftOutlined />}
+              onClick={() => navigate('/console/build-env/pods')}
+            >
               Back
             </Button>
-            <Title level={3} style={{ margin: 0 }}>{pod?.name || 'Build Pod'}</Title>
+            <Title level={3} style={{ margin: 0 }}>
+              {pod?.name || 'Build Pod'}
+            </Title>
             {pod && <StatusBadge status={pod.status as any} size="small" />}
           </div>
           <Space>
-            <Button icon={<ReloadOutlined />} onClick={() => { loadPod(); loadLogs(); }} loading={loading}>
+            <Button
+              icon={<ReloadOutlined />}
+              onClick={() => {
+                loadPod();
+                loadLogs();
+              }}
+              loading={loading}
+            >
               Refresh
             </Button>
             {pod?.status === 'running' && (

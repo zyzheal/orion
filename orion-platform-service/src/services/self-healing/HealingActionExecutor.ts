@@ -120,7 +120,7 @@ export class HealingActionExecutor {
             timeout
           );
           break;
-        case 'scale':
+        case 'scale': {
           // Rollback of scale = reverse scale
           const direction = originalAction.params.direction === 'up' ? 'down' : 'up';
           result = await this.executeScale(
@@ -131,6 +131,7 @@ export class HealingActionExecutor {
             timeout
           );
           break;
+        }
         case 'failover':
           // Rollback of failover = failback to original
           result = await this.executeFailover(

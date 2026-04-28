@@ -57,10 +57,7 @@ const AgentTable: React.FC<AgentTableProps> = ({
     {
       key: 'role',
       label: '角色',
-      options: [
-        { label: '全部', value: 'all' },
-        ...ROLE_OPTIONS,
-      ],
+      options: [{ label: '全部', value: 'all' }, ...ROLE_OPTIONS],
     },
   ];
 
@@ -98,7 +95,9 @@ const AgentTable: React.FC<AgentTableProps> = ({
       title: '工具数',
       dataIndex: 'tools',
       width: 80,
-      render: (value: unknown) => <Tag>{(value as Array<{ toolName: string; permission: string }>).length}</Tag>,
+      render: (value: unknown) => (
+        <Tag>{(value as Array<{ toolName: string; permission: string }>).length}</Tag>
+      ),
     },
     {
       key: 'llmModel',

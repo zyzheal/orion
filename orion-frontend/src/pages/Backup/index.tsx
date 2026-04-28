@@ -425,15 +425,14 @@ const BackupManagement: React.FC = () => {
       key: 'duration',
       title: '耗时',
       width: 90,
-      render: (_: unknown, record: BackupRecord) => (
+      render: (_: unknown, record: BackupRecord) =>
         record.duration ? (
           <Text type="secondary" style={{ fontSize: 12 }}>
             {formatDuration(record.duration)}
           </Text>
         ) : (
           <Text type="secondary">-</Text>
-        )
-      ),
+        ),
     },
     {
       key: 'createdAt',
@@ -453,7 +452,9 @@ const BackupManagement: React.FC = () => {
       dataIndex: 'createdBy',
       width: 90,
       render: (value: unknown) => (
-        <Text type="secondary" style={{ fontSize: 12 }}>{String(value)}</Text>
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          {String(value)}
+        </Text>
       ),
     },
     {
@@ -607,11 +608,7 @@ const BackupManagement: React.FC = () => {
           <Col span={6}>
             <MetricCard
               title="上次备份"
-              value={
-                stats.lastBackupTime
-                  ? dayjs(stats.lastBackupTime).fromNow()
-                  : '暂无数据'
-              }
+              value={stats.lastBackupTime ? dayjs(stats.lastBackupTime).fromNow() : '暂无数据'}
               icon={<ClockCircleOutlined style={{ fontSize: 20, color: colors.warning[500] }} />}
               color={colors.warning[500]}
             />
@@ -705,9 +702,7 @@ const BackupManagement: React.FC = () => {
                 </div>
                 <div>
                   <Text type="secondary">创建时间: </Text>
-                  <Text>
-                    {dayjs(selectedBackup.createdAt).format('YYYY-MM-DD HH:mm:ss')}
-                  </Text>
+                  <Text>{dayjs(selectedBackup.createdAt).format('YYYY-MM-DD HH:mm:ss')}</Text>
                 </div>
                 <div>
                   <Text type="secondary">备份大小: </Text>
