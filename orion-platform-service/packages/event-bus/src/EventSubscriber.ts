@@ -2,12 +2,12 @@
  * 事件订阅器
  */
 
-import { JetStreamClient } from 'nats';
+import { JetStreamClient, JetStreamManager, AckPolicy, DeliverPolicy } from 'nats';
 import { CloudEvent } from './CloudEvent';
-import { EventHandler, EventContext, Subscription, SubscriptionOptions } from './types';
+import { EventHandler, EventContext, Subscription } from './types';
 import { EventPublisher } from './EventPublisher';
 
-export interface SubscriptionOptions {
+export interface SubscriberOptions {
   /** 流名称 */
   streamName?: string;
   /** 持久化订阅名称 */
@@ -32,11 +32,20 @@ export interface SubscriptionOptions {
 
 export class EventSubscriber {
   private jsClient: JetStreamClient;
+  private jsManager?: JetStreamManager;
   private publisher: EventPublisher;
 
-  constructor(jsClient: JetStreamClient, publisher: EventPublisher) {
+  constructor(jsClient: JetStreamClient, publisher: EventPublisher, jsManager?: JetStreamManager) {
     this.jsClient = jsClient;
+    this.jsManager = jsManager;
     this.publisher = publisher;
+  }
+
+  /**
+   * 设置 JetStream Manager（用于消费者管理操作）
+   */
+  setJetStreamManager(jsm: JetStreamManager): void {
+    this.jsManager = jsm;
   }
 
   /**
@@ -45,7 +54,7 @@ export class EventSubscriber {
   async subscribe<T>(
     eventType: string,
     handler: EventHandler<T>,
-    options?: SubscriptionOptions
+    options?: SubscriberOptions
   ): Promise<Subscription> {
     const streamName = options?.streamName || this.inferStreamName(eventType);
     const durableName = options?.durableName || `orion-sub-${eventType}-${Date.now()}`;
@@ -58,18 +67,31 @@ export class EventSubscriber {
     });
 
     try {
-      // 获取或创建消费者
-      const consumer = await this.jsClient.consumers.get(streamName, {
-        durable_name: durableName,
-        filter_subject: subject,
-        ack_policy: options?.autoAck ? 0 : 2, // 0 = None, 2 = Explicit
-        max_ack_pending: options?.maxAckPending || 100,
-        max_batch: options?.batchSize || 10,
-        idle_heartbeat: options?.idleHeartbeat || 30000,
-        deliver_policy: this.mapDeliverPolicy(options?.deliverPolicy),
-        opt_start_seq: options?.optStartSeq,
-        opt_start_time: options?.optStartTime?.toISOString(),
-      });
+      // 如果有 jsManager，先创建 consumer
+      if (this.jsManager) {
+        const consumerConfig = {
+          durable_name: durableName,
+          filter_subject: subject,
+          ack_policy: options?.autoAck ? AckPolicy.None : AckPolicy.Explicit,
+          max_ack_pending: options?.maxAckPending || 100,
+          idle_heartbeat: options?.idleHeartbeat ? options.idleHeartbeat * 1000000 : 30000000000,
+          deliver_policy: this.mapDeliverPolicy(options?.deliverPolicy),
+          opt_start_seq: options?.optStartSeq,
+          opt_start_time: options?.optStartTime?.toISOString(),
+        };
+
+        try {
+          await this.jsManager.consumers.add(streamName, consumerConfig);
+        } catch (error: any) {
+          // Consumer may already exist, ignore the error
+          if (!error.message?.includes('consumer name already in use')) {
+            console.warn('[EventSubscriber] Failed to create consumer, may already exist:', error.message);
+          }
+        }
+      }
+
+      // 通过 JetStreamClient 获取 consumer
+      const consumer = await this.jsClient.consumers.get(streamName, durableName);
 
       // 开始消费
       const subscription = await consumer.consume({
@@ -102,7 +124,8 @@ export class EventSubscriber {
           subscription.stop();
         },
         drain: async () => {
-          await subscription.drain();
+          // ConsumerMessages 没有 drain 方法，使用 stop 替代
+          subscription.stop();
         },
         isClosed: false,
       };
@@ -117,7 +140,7 @@ export class EventSubscriber {
    */
   async subscribeToPipelineEvents<T>(
     handler: EventHandler<T>,
-    options?: SubscriptionOptions
+    options?: SubscriberOptions
   ): Promise<Subscription> {
     return this.subscribe('pipeline.run.>', handler, {
       ...options,
@@ -130,7 +153,7 @@ export class EventSubscriber {
    */
   async subscribeToDeploymentEvents<T>(
     handler: EventHandler<T>,
-    options?: SubscriptionOptions
+    options?: SubscriberOptions
   ): Promise<Subscription> {
     return this.subscribe('deployment.>', handler, {
       ...options,
@@ -143,7 +166,7 @@ export class EventSubscriber {
    */
   async subscribeToCodeEvents<T>(
     handler: EventHandler<T>,
-    options?: SubscriptionOptions
+    options?: SubscriberOptions
   ): Promise<Subscription> {
     return this.subscribe('code.>', handler, {
       ...options,
@@ -156,7 +179,7 @@ export class EventSubscriber {
    */
   async subscribeToConfigEvents<T>(
     handler: EventHandler<T>,
-    options?: SubscriptionOptions
+    options?: SubscriberOptions
   ): Promise<Subscription> {
     return this.subscribe('config.>', handler, {
       ...options,
@@ -178,16 +201,16 @@ export class EventSubscriber {
   /**
    * 映射投递策略
    */
-  private mapDeliverPolicy(policy?: string): number {
-    if (!policy) return 0; // all
-    const map: Record<string, number> = {
-      all: 0,
-      last: 1,
-      new: 2,
-      byStartSequence: 3,
-      byStartTime: 4,
+  private mapDeliverPolicy(policy?: string): DeliverPolicy {
+    if (!policy) return DeliverPolicy.All;
+    const map: Record<string, DeliverPolicy> = {
+      all: DeliverPolicy.All,
+      last: DeliverPolicy.Last,
+      new: DeliverPolicy.New,
+      byStartSequence: DeliverPolicy.StartSequence,
+      byStartTime: DeliverPolicy.StartTime,
     };
-    return map[policy] || 0;
+    return map[policy] || DeliverPolicy.All;
   }
 
   /**

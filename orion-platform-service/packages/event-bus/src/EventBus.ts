@@ -4,36 +4,20 @@
  * 提供 NATS JetStream 的事件发布/订阅能力
  */
 
-import { connect, ConnectionOptions, NatsConnection, JetStreamManager, JetStreamClient, AckPolicy } from 'nats';
+import {
+  connect,
+  ConnectionOptions,
+  NatsConnection,
+  JetStreamManager,
+  JetStreamClient,
+  AckPolicy,
+  StorageType,
+  RetentionPolicy,
+  DeliverPolicy,
+} from 'nats';
 import { CloudEvent, CloudEventBuilder } from './CloudEvent';
-import { EventHandler, EventContext, Subscription, SubscriptionOptions, EventBusConfig, RetryConfig, StreamConfig } from './types';
+import { EventHandler, EventContext, Subscription, SubscriptionOptions, RetryConfig, StreamConfig, EventBusConfig } from './types';
 import { DeadLetterQueue } from './DeadLetterQueue';
-
-export interface EventBusConfig {
-  /** NATS 服务器 URL 列表 */
-  servers: string[];
-  /** 用户认证 */
-  user?: string;
-  /** 密码认证 */
-  pass?: string;
-  /** Token 认证 */
-  token?: string;
-  /** 连接超时 (ms) */
-  timeout?: number;
-  /** 重连配置 */
-  reconnect?: {
-    enabled: boolean;
-    maxRetries: number;
-    interval: number;
-  };
-  /** 日志配置 */
-  logging?: {
-    level: 'debug' | 'info' | 'warn' | 'error';
-    logger?: (level: string, message: string, ...args: any[]) => void;
-  };
-  /** 重试配置 */
-  retry?: RetryConfig;
-}
 
 export class EventBus {
   private connection?: NatsConnection;
@@ -100,7 +84,8 @@ export class EventBus {
         this.deadLetterQueue = new DeadLetterQueue(
           this.jsClient,
           'orion.dlq',
-          this.config.retry
+          this.config.retry,
+          this.jsManager
         );
       }
     } catch (error) {
@@ -123,13 +108,13 @@ export class EventBus {
       await this.jsManager.streams.add({
         name: config.name,
         subjects: config.subjects,
-        replicas: config.replicas || 3,
-        storage: config.storage === 'memory' ? 0 : 1, // 0 = Memory, 1 = File
+        num_replicas: config.replicas || 3,
+        storage: config.storage === 'memory' ? StorageType.Memory : StorageType.File,
         retention: this.mapRetention(config.retention),
-        max_msgs: config.maxMsgs,
-        max_bytes: config.maxBytes,
+        max_msgs: config.maxMsgs ?? -1,
+        max_bytes: config.maxBytes ?? -1,
         max_age: config.maxAge ? this.parseDuration(config.maxAge) : 0,
-        max_msg_size: config.maxMsgSize,
+        max_msg_size: config.maxMsgSize ?? -1,
       });
 
       this.log('info', `Stream ${config.name} created successfully`);
@@ -163,17 +148,12 @@ export class EventBus {
     this.log('debug', `Publishing event: ${subject}`, { id: event.id });
 
     try {
-      const ack = await this.jsClient.publish(subject, payload, {
-        id: event.id,
-        expect: {
-          lastSequence: 0, // 可选：期望的序列号
-        },
-      });
+      const ack = await this.jsClient.publish(subject, payload);
 
-      if (ack.sequence) {
+      if (ack.seq) {
         this.log('debug', `Event published successfully`, {
           id: event.id,
-          sequence: ack.sequence,
+          sequence: ack.seq,
         });
       }
 
@@ -192,7 +172,7 @@ export class EventBus {
     handler: EventHandler<T>,
     options?: SubscriptionOptions
   ): Promise<Subscription> {
-    if (!this.jsClient) {
+    if (!this.jsClient || !this.jsManager) {
       throw new Error('JetStream client not initialized. Call connect() first.');
     }
 
@@ -206,17 +186,29 @@ export class EventBus {
     });
 
     try {
-      const consumer = await this.jsClient.consumers.get(streamName, {
+      // 先通过 JetStreamManager 创建 consumer
+      const consumerConfig = {
         durable_name: durableName,
         filter_subject: subject,
         ack_policy: options?.autoAck ? AckPolicy.None : AckPolicy.Explicit,
         max_ack_pending: options?.maxAckPending || 100,
-        max_batch: options?.batchSize || 10,
-        idle_heartbeat: options?.idleHeartbeat || 30000,
+        idle_heartbeat: options?.idleHeartbeat ? options.idleHeartbeat * 1000000 : 30000000000,
         deliver_policy: this.mapDeliverPolicy(options?.deliverPolicy),
         opt_start_seq: options?.optStartSeq,
         opt_start_time: options?.optStartTime?.toISOString(),
-      });
+      };
+
+      try {
+        await this.jsManager.consumers.add(streamName, consumerConfig);
+      } catch (error: any) {
+        // Consumer may already exist, ignore the error
+        if (!error.message?.includes('consumer name already in use')) {
+          this.log('warn', `Failed to create consumer, may already exist: ${error.message}`);
+        }
+      }
+
+      // 通过 JetStreamClient 获取已创建的 consumer
+      const consumer = await this.jsClient.consumers.get(streamName, durableName);
 
       const subscription = await consumer.consume({
         callback: async (message) => {
@@ -249,7 +241,8 @@ export class EventBus {
           this.log('info', `Subscription ${durableName} unsubscribed`);
         },
         drain: async () => {
-          await subscription.drain();
+          // ConsumerMessages 没有 drain 方法，使用 stop 替代
+          subscription.stop();
           this.subscriptions.delete(durableName);
         },
         isClosed: false,
@@ -351,28 +344,28 @@ export class EventBus {
   /**
    * 映射保留策略
    */
-  private mapRetention(retention: string): number {
-    const map: Record<string, number> = {
-      limits: 0,
-      interest: 1,
-      workqueue: 2,
+  private mapRetention(retention: string): RetentionPolicy {
+    const map: Record<string, RetentionPolicy> = {
+      limits: RetentionPolicy.Limits,
+      interest: RetentionPolicy.Interest,
+      workqueue: RetentionPolicy.Workqueue,
     };
-    return map[retention] || 0;
+    return map[retention] || RetentionPolicy.Limits;
   }
 
   /**
    * 映射投递策略
    */
-  private mapDeliverPolicy(policy?: string): number {
-    if (!policy) return 0; // all
-    const map: Record<string, number> = {
-      all: 0,
-      last: 1,
-      new: 2,
-      byStartSequence: 3,
-      byStartTime: 4,
+  private mapDeliverPolicy(policy?: string): DeliverPolicy {
+    if (!policy) return DeliverPolicy.All;
+    const map: Record<string, DeliverPolicy> = {
+      all: DeliverPolicy.All,
+      last: DeliverPolicy.Last,
+      new: DeliverPolicy.New,
+      byStartSequence: DeliverPolicy.StartSequence,
+      byStartTime: DeliverPolicy.StartTime,
     };
-    return map[policy] || 0;
+    return map[policy] || DeliverPolicy.All;
   }
 
   /**

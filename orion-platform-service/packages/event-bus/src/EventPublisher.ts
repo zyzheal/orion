@@ -4,9 +4,8 @@
 
 import { JetStreamClient, PubAck } from 'nats';
 import { CloudEvent, CloudEventBuilder, CloudEventType } from './CloudEvent';
-import { PublishOptions } from './types';
 
-export interface PublishOptions {
+export interface PublisherOptions {
   /** 事件 ID (可选，自动生成) */
   id?: string;
   /** 事件源 (可选，默认从配置获取) */
@@ -36,15 +35,21 @@ export class EventPublisher {
   async publish<T>(
     type: CloudEventType,
     data: T,
-    options?: PublishOptions
+    options?: PublisherOptions
   ): Promise<PubAck> {
-    const event = new CloudEventBuilder<T>()
+    const builder = new CloudEventBuilder<T>()
       .withType(type)
       .withSource(options?.source || this.defaultSource)
-      .withData(data)
-      .withId(options?.id)
-      .withExtensions(options?.extensions)
-      .build();
+      .withData(data);
+
+    if (options?.id) {
+      builder.withId(options.id);
+    }
+    if (options?.extensions) {
+      builder.withExtensions(options.extensions);
+    }
+
+    const event = builder.build();
 
     // 验证事件
     event.validate();
@@ -62,7 +67,7 @@ export class EventPublisher {
   async publishPipelineEvent<T>(
     action: 'created' | 'started' | 'completed' | 'failed' | 'cancelled',
     data: T,
-    options?: PublishOptions
+    options?: PublisherOptions
   ): Promise<PubAck> {
     return this.publish(`pipeline.run.${action}`, data, options);
   }
@@ -73,7 +78,7 @@ export class EventPublisher {
   async publishStageEvent<T>(
     action: 'started' | 'completed' | 'failed' | 'skipped',
     data: T,
-    options?: PublishOptions
+    options?: PublisherOptions
   ): Promise<PubAck> {
     return this.publish(`pipeline.stage.${action}`, data, options);
   }
@@ -84,7 +89,7 @@ export class EventPublisher {
   async publishDeploymentEvent<T>(
     action: 'started' | 'completed' | 'failed' | 'rolled_back',
     data: T,
-    options?: PublishOptions
+    options?: PublisherOptions
   ): Promise<PubAck> {
     return this.publish(`deployment.${action}`, data, options);
   }
@@ -95,7 +100,7 @@ export class EventPublisher {
   async publishCodeEvent<T>(
     action: 'pr.opened' | 'pr.merged' | 'pr.closed' | 'push' | 'tag',
     data: T,
-    options?: PublishOptions
+    options?: PublisherOptions
   ): Promise<PubAck> {
     return this.publish(`code.${action}`, data, options);
   }
@@ -106,7 +111,7 @@ export class EventPublisher {
   async publishConfigEvent<T>(
     action: 'changed' | 'drift.detected' | 'reverted',
     data: T,
-    options?: PublishOptions
+    options?: PublisherOptions
   ): Promise<PubAck> {
     return this.publish(`config.${action}`, data, options);
   }
@@ -117,7 +122,7 @@ export class EventPublisher {
   async publishAlertEvent<T>(
     action: 'triggered' | 'resolved' | 'acknowledged',
     data: T,
-    options?: PublishOptions
+    options?: PublisherOptions
   ): Promise<PubAck> {
     return this.publish(`alert.${action}`, data, options);
   }
@@ -129,7 +134,7 @@ export class EventPublisher {
     domain: string,
     action: string,
     data: T,
-    options?: PublishOptions
+    options?: PublisherOptions
   ): Promise<PubAck> {
     return this.publish(`${domain}.${action}`, data, options);
   }

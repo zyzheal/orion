@@ -247,8 +247,10 @@ export class CloudEventBuilder<T = any> {
   /**
    * 设置事件 ID
    */
-  withId(id: string): CloudEventBuilder<T> {
-    this.id = id;
+  withId(id?: string): CloudEventBuilder<T> {
+    if (id) {
+      this.id = id;
+    }
     return this;
   }
 
@@ -295,8 +297,10 @@ export class CloudEventBuilder<T = any> {
   /**
    * 设置扩展属性
    */
-  withExtensions(extensions: CloudEventExtensions): CloudEventBuilder<T> {
-    this.extensions = extensions;
+  withExtensions(extensions?: CloudEventExtensions): CloudEventBuilder<T> {
+    if (extensions) {
+      this.extensions = extensions;
+    }
     return this;
   }
 
