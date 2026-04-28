@@ -22,9 +22,15 @@ interface KnowledgeRoutesOptions {
 /**
  * Extract tenant ID from request (from auth context or header).
  * In production this comes from JWT claims.
+ * Throws 400 if x-tenant-id header is missing.
  */
-function getTenantId(request: FastifyRequest): string {
-  return (request.headers as any)['x-tenant-id'] || '00000000-0000-0000-0000-000000000001';
+function getTenantId(request: FastifyRequest, reply: FastifyReply): string {
+  const tenantId = (request.headers as any)['x-tenant-id'];
+  if (!tenantId) {
+    reply.status(400).send({ error: 'MISSING_TENANT', message: 'x-tenant-id header is required' });
+    throw new Error('Tenant missing'); // to satisfy return type
+  }
+  return tenantId;
 }
 
 export default async function knowledgeRoutes(
@@ -59,7 +65,7 @@ export default async function knowledgeRoutes(
       }>,
       reply: FastifyReply
     ) => {
-      const tenantId = getTenantId(request);
+      const tenantId = getTenantId(request, reply);
       const { type, search, page, perPage } = request.query;
       const p = page ? parseInt(page, 10) : 1;
       const pp = perPage ? parseInt(perPage, 10) : 50;
@@ -90,7 +96,7 @@ export default async function knowledgeRoutes(
       }>,
       reply: FastifyReply
     ) => {
-      const tenantId = getTenantId(request);
+      const tenantId = getTenantId(request, reply);
       const { name, type, description, teamId, ownerId } = request.body;
 
       if (!name) {
@@ -194,7 +200,7 @@ export default async function knowledgeRoutes(
       }>,
       reply: FastifyReply
     ) => {
-      const tenantId = getTenantId(request);
+      const tenantId = getTenantId(request, reply);
       const { spaceId, status, tag, search, page, pageSize, perPage } = request.query;
       const p = page ? parseInt(page, 10) : 1;
       const pp = pageSize || perPage ? parseInt(pageSize || perPage || '50', 10) : 50;
@@ -227,7 +233,7 @@ export default async function knowledgeRoutes(
       }>,
       reply: FastifyReply
     ) => {
-      const tenantId = getTenantId(request);
+      const tenantId = getTenantId(request, reply);
       const { title, content, spaceId, tags, status, authorId } = request.body;
 
       if (!title || !content || !spaceId) {
@@ -356,7 +362,7 @@ export default async function knowledgeRoutes(
       }>,
       reply: FastifyReply
     ) => {
-      const tenantId = getTenantId(request);
+      const tenantId = getTenantId(request, reply);
       const { query, spaceId, topK } = request.body;
 
       if (!query) {
@@ -397,7 +403,7 @@ export default async function knowledgeRoutes(
       }>,
       reply: FastifyReply
     ) => {
-      const tenantId = getTenantId(request);
+      const tenantId = getTenantId(request, reply);
       const { query, spaceId, topK } = request.body;
 
       if (!query) {
@@ -406,9 +412,23 @@ export default async function knowledgeRoutes(
 
       try {
         const results = await service.retrieve(tenantId, query, { spaceId, topK });
+
+        // Generate answer from retrieved sources
+        let answer = '';
+        if (results.length > 0) {
+          const sourceContents = results
+            .filter(r => r.similarity > 0.3)
+            .map(r => r.content.substring(0, 500))
+            .join('\n\n---\n\n');
+
+          answer = `Based on ${results.length} retrieved knowledge source(s):\n\n${sourceContents.substring(0, 2000)}`;
+        } else {
+          answer = 'No relevant knowledge sources found for the query.';
+        }
+
         return reply.send({
           data: {
-            answer: `[RAG placeholder] Based on ${results.length} sources for: ${query}`,
+            answer,
             sources: results.map(r => ({
               documentId: r.id,
               title: r.title,
@@ -442,7 +462,7 @@ export default async function knowledgeRoutes(
       request: FastifyRequest<{ Querystring: { spaceId?: string } }>,
       reply: FastifyReply
     ) => {
-      const tenantId = getTenantId(request);
+      const tenantId = getTenantId(request, reply);
       const { spaceId } = request.query;
 
       try {

@@ -10,6 +10,7 @@ export interface ApprovalEntity {
   requestedBy: string | null;
   currentStep: number;
   totalSteps: number;
+  requiredApprovals: number;
   result: Record<string, any> | null;
   completedAt: Date | null;
   createdAt: Date;
@@ -113,6 +114,7 @@ export class ApprovalRepository extends BaseRepository<ApprovalEntity> {
       requestedBy: row.requested_by,
       currentStep: row.current_step ?? 0,
       totalSteps: row.total_steps ?? 1,
+      requiredApprovals: row.required_approvals ?? 1,
       result: row.result,
       completedAt: row.completed_at,
       createdAt: row.created_at,

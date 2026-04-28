@@ -10,6 +10,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
+import { AuditRepository, CreateAuditLogInput } from './audit/AuditRepository';
 
 // ============================================================================
 // Type Definitions
@@ -60,26 +61,26 @@ const defaultConfig: AISecurityConfig = {
   maxOutputLength: 50000,
   allowedPatterns: [],
   blockedPatterns: [
-    /<script[^>]*>[\s\S]*?<\/script>/gi,
-    /javascript:/gi,
-    /data:text\/html/gi,
-    /on\w+\s*=/gi,
-    /<iframe[^>]*>/gi,
-    /<object[^>]*>/gi,
-    /<embed[^>]*>/gi,
-    /eval\s*\(/gi,
-    /Function\s*\(/gi,
-    /setTimeout\s*\(/gi,
-    /setInterval\s*\(/gi,
-    /document\.cookie/gi,
-    /localStorage\./gi,
-    /sessionStorage\./gi,
-    /XMLHttpRequest/gi,
-    /fetch\s*\(/gi,
-    /\bimport\s*\(/gi,
-    /require\s*\(/gi,
-    /process\.env/gi,
-    /global\./gi,
+    /<script[^>]*>[\s\S]*?<\/script>/i,
+    /javascript:/i,
+    /data:text\/html/i,
+    /on\w+\s*=/i,
+    /<iframe[^>]*>/i,
+    /<object[^>]*>/i,
+    /<embed[^>]*>/i,
+    /eval\s*\(/i,
+    /Function\s*\(/i,
+    /setTimeout\s*\(/i,
+    /setInterval\s*\(/i,
+    /document\.cookie/i,
+    /localStorage\./i,
+    /sessionStorage\./i,
+    /XMLHttpRequest/i,
+    /fetch\s*\(/i,
+    /\bimport\s*\(/i,
+    /require\s*\(/i,
+    /process\.env/i,
+    /global\./i,
   ],
 };
 
@@ -111,8 +112,10 @@ export function sanitizeInput(input: string, config: AISecurityConfig = defaultC
 
   // 检查阻止模式
   for (const pattern of config.blockedPatterns) {
+    pattern.lastIndex = 0; // Reset stateful lastIndex for /g patterns
     if (pattern.test(sanitized)) {
       violations.push(`检测到阻止模式：${pattern.source}`);
+      pattern.lastIndex = 0;
       sanitized = sanitized.replace(pattern, '');
     }
   }
@@ -280,14 +283,18 @@ export class ExecutionSandbox {
 
   /**
    * 在沙箱中运行代码
+   *
+   * NOTE: Uses Node.js vm module for basic isolation.
+   * For production-grade security, replace with 'isolated-vm' package.
    */
   private async runInSandbox(code: string, sandbox: any): Promise<any> {
-    // 使用 Function 构造器创建隔离函数
-    const keys = Object.keys(sandbox);
-    const values = keys.map((key) => sandbox[key]);
-
-    const runCode = new Function(...keys, `'use strict'; return (async () => { ${code} })();`);
-    return runCode(...values);
+    const vm = await import('vm');
+    const context = vm.createContext(sandbox);
+    const wrappedCode = `(async () => { ${code} })()`;
+    return vm.runInContext(wrappedCode, context, {
+      timeout: this.timeout,
+      displayErrors: false,
+    });
   }
 
   /**
@@ -548,11 +555,13 @@ export class AISecurityService {
   private readonly config: AISecurityConfig;
   private readonly sandbox: ExecutionSandbox;
   private readonly auditLogger: AuditLogger;
+  private readonly auditRepository?: AuditRepository;
 
-  constructor(config: Partial<AISecurityConfig> = {}) {
+  constructor(config: Partial<AISecurityConfig> = {}, options?: { auditRepository?: AuditRepository }) {
     this.config = { ...defaultConfig, ...config };
     this.sandbox = new ExecutionSandbox();
     this.auditLogger = new AuditLogger();
+    this.auditRepository = options?.auditRepository;
   }
 
   /**
@@ -564,7 +573,7 @@ export class AISecurityService {
     // 1. 输入清洗
     const inputCheck = sanitizeInput(input, this.config);
     if (!inputCheck.passed) {
-      this.auditLogger.log({
+      await this.logAuditEvent({
         action: 'input_sanitized',
         userId,
         sessionId,
@@ -586,7 +595,7 @@ export class AISecurityService {
 
     // 3. 输出验证
     const outputCheck = validateOutput(inputCheck.sanitizedInput || input, this.config);
-    this.auditLogger.log({
+    await this.logAuditEvent({
       action: 'output_validated',
       userId,
       sessionId,
@@ -603,16 +612,139 @@ export class AISecurityService {
   }
 
   /**
-   * 获取审计日志
+   * 记录审计事件（优先写入 PostgreSQL，回退内存）
    */
-  getAuditLogs(filters?: any): AuditLogEntry[] {
+  private async logAuditEvent(event: {
+    action: AuditLogEntry['action'];
+    userId: string;
+    sessionId: string;
+    details: AuditLogEntry['details'];
+  }): Promise<void> {
+    if (this.auditRepository) {
+      const input: CreateAuditLogInput = {
+        tenant_id: 'ai-security',
+        user_id: event.userId,
+        action: `ai_security:${event.action}`,
+        resource_type: 'ai_security_session',
+        resource_id: event.sessionId,
+        request_body: event.details as Record<string, any>,
+      };
+      await this.auditRepository.create(input);
+    } else {
+      this.auditLogger.log(event);
+    }
+  }
+
+  /**
+   * @deprecated Use getAuditLogsAsync() instead.
+   * When using PostgreSQL repository, this sync method cannot perform DB queries
+   * and returns only in-memory logs. Always prefer the async version.
+   */
+  getAuditLogs(filters?: {
+    action?: AuditLogEntry['action'];
+    userId?: string;
+    sessionId?: string;
+    startTime?: Date;
+    endTime?: Date;
+  }): AuditLogEntry[] {
+    if (this.auditRepository) {
+      // Repository returns AuditLog format; we need to map to AuditLogEntry
+      const dbFilters: { tenantId?: string; userId?: string; action?: string } = {
+        tenantId: 'ai-security',
+      };
+      if (filters?.userId) dbFilters.userId = filters.userId;
+      if (filters?.action) dbFilters.action = `ai_security:${filters.action}`;
+
+      const logs = this.auditRepository.findAll({ ...dbFilters, limit: 1000 });
+      // Note: async call — return empty as repository queries are async;
+      // This is a sync method, so we can't properly await.
+      // For full async support, callers should use getAuditLogsAsync instead.
+      return [];
+    }
     return this.auditLogger.query(filters || {});
   }
 
   /**
-   * 导出审计日志
+   * 获取审计日志（异步版本，支持 PostgreSQL）
+   */
+  async getAuditLogsAsync(filters?: {
+    action?: AuditLogEntry['action'];
+    userId?: string;
+    sessionId?: string;
+    startTime?: Date;
+    endTime?: Date;
+  }): Promise<AuditLogEntry[]> {
+    if (this.auditRepository) {
+      const dbFilters: { tenantId?: string; userId?: string; action?: string; resourceId?: string } = {
+        tenantId: 'ai-security',
+      };
+      if (filters?.userId) dbFilters.userId = filters.userId;
+      if (filters?.action) dbFilters.action = `ai_security:${filters.action}`;
+      if (filters?.sessionId) dbFilters.resourceId = filters.sessionId;
+
+      const logs = await this.auditRepository.findAll({ ...dbFilters, limit: 1000 });
+      let result = logs.map((log) => ({
+        id: log.id,
+        timestamp: log.created_at,
+        action: log.action.startsWith('ai_security:')
+          ? log.action.slice('ai_security:'.length) as AuditLogEntry['action']
+          : log.action as AuditLogEntry['action'],
+        userId: log.user_id || undefined,
+        sessionId: log.resource_id || '',
+        details: log.request_body || {},
+      }));
+
+      // Client-side time filtering (repository doesn't support time range yet)
+      if (filters?.startTime) result = result.filter(l => l.timestamp >= filters.startTime!);
+      if (filters?.endTime) result = result.filter(l => l.timestamp <= filters.endTime!);
+
+      return result;
+    }
+    return this.auditLogger.query(filters || {});
+  }
+
+  /**
+   * @deprecated Use exportAuditLogsAsync() instead.
+   * When using PostgreSQL repository, this sync method cannot perform DB queries
+   * and returns empty data. Always prefer the async version.
    */
   exportAuditLogs(format: 'json' | 'csv' = 'json'): string {
+    if (this.auditRepository) {
+      const logs = this.auditRepository.findAll({ tenantId: 'ai-security', limit: 10000 });
+      // Sync limitation: returns "[]" — use exportAuditLogsAsync for real data
+      return format === 'json' ? '[]' : '';
+    }
+    return this.auditLogger.export(format);
+  }
+
+  /**
+   * 导出审计日志（异步版本，支持 PostgreSQL）
+   */
+  async exportAuditLogsAsync(format: 'json' | 'csv' = 'json'): Promise<string> {
+    if (this.auditRepository) {
+      const logs = await this.auditRepository.findAll({ tenantId: 'ai-security', limit: 10000 });
+      const entries = logs.map((log) => ({
+        id: log.id,
+        timestamp: log.created_at.toISOString(),
+        action: log.action.replace('ai_security:', ''),
+        userId: log.user_id,
+        sessionId: log.resource_id,
+        details: log.request_body,
+      }));
+      if (format === 'json') {
+        return JSON.stringify(entries, null, 2);
+      }
+      const headers = ['id', 'timestamp', 'action', 'userId', 'sessionId', 'details'];
+      const rows = entries.map((e) => [
+        e.id,
+        e.timestamp,
+        e.action,
+        e.userId,
+        e.sessionId,
+        JSON.stringify(e.details),
+      ]);
+      return [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    }
     return this.auditLogger.export(format);
   }
 }

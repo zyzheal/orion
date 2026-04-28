@@ -3,27 +3,79 @@
  *
  * DORA 指标收集、ClickHouse 同步、效能分析
  *
+ * P0-4 Fix: Replaced hardcoded metrics with real DoraMetricsService computation
+ * using data from DeployRepository and PipelineRunRepository.
+ *
  * Prefix: /api/v1/efficiency
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { DatabasePool } from '../services/database';
 import { DoraMetricsService } from '../services/efficiency/DoraMetricsService';
 import { ClickHouseSync } from '../services/efficiency/ClickHouseSync';
 import { InMemoryLocalStorage } from '../services/efficiency/EventHandler';
+import { DeployRepository } from '../services/deploy/DeployRepository';
+import { PipelineRunRepository } from '../services/pipeline/PipelineRunRepository';
+
+interface EfficiencyRoutesOptions {
+  database?: DatabasePool;
+}
 
 interface DoraMetricsQuery {
   projectId?: string;
   teamId?: string;
+  tenantId?: string;
   from?: string;
   to?: string;
   interval?: 'daily' | 'weekly' | 'monthly';
 }
 
-export default async function efficiencyRoutes(app: FastifyInstance): Promise<void> {
+export default async function efficiencyRoutes(app: FastifyInstance, options: EfficiencyRoutesOptions = {}): Promise<void> {
   // Initialize services
   const doraMetrics = new DoraMetricsService();
-  const clickHouseSync = new ClickHouseSync({ host: 'localhost', port: 8123, username: 'default', password: '', database: 'efficiency' });
+  const clickHouseSync = new ClickHouseSync({ host: process.env.CLICKHOUSE_HOST || 'localhost', port: parseInt(process.env.CLICKHOUSE_PORT || '8123'), username: process.env.CLICKHOUSE_USERNAME || 'default', password: process.env.CLICKHOUSE_PASSWORD || '', database: process.env.CLICKHOUSE_DATABASE || 'efficiency' });
   const localStorage = new InMemoryLocalStorage();
+
+  // P0-4 Fix: Initialize real data repositories
+  const deployRepo = options.database ? new DeployRepository(options.database) : null;
+  const pipelineRunRepo = options.database ? new PipelineRunRepository(options.database) : null;
+
+  /**
+   * Shared: fetch and map deployment + pipeline data
+   */
+  async function fetchDeploymentData(tenantId?: string): Promise<{ deployments: any[]; pipelineRecords: any[] }> {
+    let deployments: any[] = [];
+    let pipelineRecords: any[] = [];
+
+    if (deployRepo) {
+      const deployResult = await deployRepo.findAll({ tenantId, limit: 1000 });
+      deployments = deployResult.map((d: any) => ({
+        deploymentId: d.id,
+        service: d.tenant_id,
+        environment: d.environment,
+        status: d.status,
+        deployedAt: d.completed_at || d.created_at,
+        recoveryTimeMs: d.duration_ms ?? undefined,
+      }));
+    }
+
+    if (pipelineRunRepo) {
+      const runsResult = await pipelineRunRepo.findAll({ tenantId, limit: 1000 });
+      pipelineRecords = runsResult.map((r: any) => ({
+        id: `run-${r.id}`,
+        runId: r.id,
+        pipelineId: r.pipelineId,
+        status: r.status === 'success' || r.status === 'completed' ? 'success' : 'failed',
+        triggerType: 'manual',
+        durationMs: r.durationMs ?? 0,
+        completedAt: r.completedAt || r.createdAt,
+        tenantId: r.tenantId,
+        syncedToClickHouse: false,
+      }));
+    }
+
+    return { deployments, pipelineRecords };
+  }
 
   // ==================== DORA Metrics ====================
 
@@ -32,21 +84,28 @@ export default async function efficiencyRoutes(app: FastifyInstance): Promise<vo
     const query = request.query as DoraMetricsQuery;
 
     try {
-      // Build time window
-      const timeWindowConfig = doraMetrics.buildTimeWindow(
-        query.interval === 'daily' ? 'day' : query.interval === 'weekly' ? 'week' : 'month',
-        1
-      );
+      const interval = query.interval === 'daily' ? 'day' : query.interval === 'weekly' ? 'week' : 'month';
+      const timeWindowConfig = doraMetrics.buildTimeWindow(interval, 1);
+      const { deployments, pipelineRecords } = await fetchDeploymentData(query.tenantId);
 
-      const metrics = {
-        deploymentFrequency: 'unknown',
-        leadTimeForChanges: 0,
-        changeFailureRate: 0,
-        meanTimeToRecovery: 0,
-      };
+      const deploymentFrequency = doraMetrics.calculateDeploymentFrequency(deployments, timeWindowConfig);
+      const leadTimeForChanges = doraMetrics.calculateLeadTimeForChanges(pipelineRecords, timeWindowConfig);
+      const changeFailureRate = doraMetrics.calculateChangeFailureRate(deployments, timeWindowConfig);
+      const meanTimeToRecovery = doraMetrics.calculateMeanTimeToRecovery(deployments, timeWindowConfig);
 
       return reply.send({
-        metrics,
+        metrics: {
+          deploymentFrequency: deploymentFrequency.deploymentsPerDay,
+          leadTimeForChanges: leadTimeForChanges.averageLeadTimeMs,
+          changeFailureRate: changeFailureRate.failureRate,
+          meanTimeToRecovery: meanTimeToRecovery.averageRecoveryTimeMs,
+        },
+        details: {
+          deploymentFrequency,
+          leadTimeForChanges,
+          changeFailureRate,
+          meanTimeToRecovery,
+        },
         timeWindow: timeWindowConfig,
         calculatedAt: new Date().toISOString(),
       });
@@ -60,21 +119,23 @@ export default async function efficiencyRoutes(app: FastifyInstance): Promise<vo
 
   // POST /efficiency/dora/report - 生成 DORA 报告
   app.post('/dora/report', async (request: FastifyRequest, reply: FastifyReply) => {
-    const body = request.body as DoraMetricsQuery & { format?: 'json' | 'pdf' };
+    const body = request.body as DoraMetricsQuery & { format?: 'json' | 'pdf'; tenantId?: string };
 
     try {
-      const report = {
-        metrics: {
-          deploymentFrequency: 'unknown',
-          leadTimeForChanges: 0,
-          changeFailureRate: 0,
-          meanTimeToRecovery: 0,
-        },
-        generatedAt: new Date().toISOString(),
-      };
+      const interval = body.interval === 'daily' ? 'day' : body.interval === 'weekly' ? 'week' : 'month';
+      const timeWindowConfig = doraMetrics.buildTimeWindow(interval, 1);
+      const { deployments, pipelineRecords } = await fetchDeploymentData(body.tenantId);
+
+      const report = doraMetrics.generateReport(
+        body.tenantId || 'default',
+        pipelineRecords,
+        deployments,
+        timeWindowConfig,
+      );
 
       return reply.send({
         report,
+        generatedAt: new Date().toISOString(),
       });
     } catch (error: any) {
       return reply.status(500).send({
@@ -157,26 +218,33 @@ export default async function efficiencyRoutes(app: FastifyInstance): Promise<vo
 
   // GET /efficiency/dashboard - 获取效能仪表盘数据
   app.get('/dashboard', async (request: FastifyRequest, reply: FastifyReply) => {
-    const query = request.query as { projectId?: string; teamId?: string };
+    const query = request.query as { projectId?: string; teamId?: string; tenantId?: string };
 
     try {
+      const timeWindowConfig = doraMetrics.buildTimeWindow('month', 1);
+      const { deployments, pipelineRecords } = await fetchDeploymentData(query.tenantId);
+
+      const deploymentFrequency = doraMetrics.calculateDeploymentFrequency(deployments, timeWindowConfig);
+      const changeFailureRate = doraMetrics.calculateChangeFailureRate(deployments, timeWindowConfig);
+      const meanTimeToRecovery = doraMetrics.calculateMeanTimeToRecovery(deployments, timeWindowConfig);
+
       const dashboard = {
         dora: {
-          deploymentFrequency: 'unknown',
+          deploymentFrequency: deploymentFrequency.deploymentsPerDay,
           leadTimeForChanges: 0,
-          changeFailureRate: 0,
-          meanTimeToRecovery: 0,
+          changeFailureRate: changeFailureRate.failureRate,
+          meanTimeToRecovery: meanTimeToRecovery.averageRecoveryTimeMs,
         },
         trends: {
-          deploymentFrequency: 0,
+          deploymentFrequency: deploymentFrequency.deploymentsPerDay,
           leadTime: 0,
-          mttr: 0,
-          changeFailureRate: 0,
+          mttr: meanTimeToRecovery.averageRecoveryTimeMs,
+          changeFailureRate: changeFailureRate.failureRate,
         },
         summary: {
-          totalDeployments: 0,
-          successfulDeployments: 0,
-          failedDeployments: 0,
+          totalDeployments: deploymentFrequency.totalDeployments,
+          successfulDeployments: deploymentFrequency.successfulDeployments,
+          failedDeployments: deploymentFrequency.failedDeployments,
         },
       };
 

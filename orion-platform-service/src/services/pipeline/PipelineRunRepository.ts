@@ -61,6 +61,7 @@ export interface CreateRunInput {
 }
 
 export interface ListRunsFilter {
+  tenantId?: string;
   pipelineId?: string;
   status?: string | string[];
   triggerType?: string;
@@ -95,6 +96,11 @@ export class PipelineRunRepository {
     let query = 'SELECT * FROM pipeline_runs';
     const params: any[] = [];
     const conditions: string[] = [];
+
+    if (filter?.tenantId) {
+      params.push(filter.tenantId);
+      conditions.push(`tenant_id = $${params.length}`);
+    }
 
     if (filter?.pipelineId) {
       params.push(filter.pipelineId);

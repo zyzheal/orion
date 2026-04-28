@@ -1,8 +1,11 @@
 /**
  * AI Security API Routes (TASK-1004)
  * AI 安全加固接口
+ *
+ * P1-15 Fix: Connected to PostgreSQL via AuditRepository for audit log persistence.
  */
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { DatabasePool } from '../services/database';
 import {
   AISecurityService,
   sanitizeInput,
@@ -10,10 +13,19 @@ import {
   ExecutionSandbox,
   SecurityError,
 } from '../services/ai-security';
+import { AuditRepository } from '../services/audit/AuditRepository';
 
-const securityService = new AISecurityService();
+interface AISecurityRoutesOptions {
+  database?: DatabasePool;
+}
 
-export default async function aiSecurityRoutes(app: FastifyInstance): Promise<void> {
+export default async function aiSecurityRoutes(
+  app: FastifyInstance,
+  options: AISecurityRoutesOptions = {}
+): Promise<void> {
+  const auditRepository = options.database ? new AuditRepository(options.database) : undefined;
+  const securityService = new AISecurityService({}, { auditRepository });
+
   /**
    * POST /api/v1/ai-security/check-input
    * 检查输入内容安全性
@@ -130,7 +142,7 @@ export default async function aiSecurityRoutes(app: FastifyInstance): Promise<vo
     try {
       const { action, userId, sessionId, startTime, endTime } = request.query;
 
-      const logs = securityService.getAuditLogs({
+      const logs = await securityService.getAuditLogsAsync({
         action: action as any,
         userId,
         sessionId,
@@ -164,12 +176,13 @@ export default async function aiSecurityRoutes(app: FastifyInstance): Promise<vo
   ) => {
     try {
       const { format = 'json' } = request.query;
-      const data = securityService.exportAuditLogs(format);
+      const data = await securityService.exportAuditLogsAsync(format);
 
-      reply.header('Content-Type', format === 'json' ? 'application/json' : 'text/csv');
+      const contentType = format === 'json' ? 'application/json' : 'text/csv';
+      reply.header('Content-Type', contentType);
       reply.header('Content-Disposition', `attachment; filename=audit-logs.${format}`);
-
-      return data;
+      reply.type(contentType).send(data);
+      return reply;
     } catch (error) {
       return reply.code(500).send({
         success: false,

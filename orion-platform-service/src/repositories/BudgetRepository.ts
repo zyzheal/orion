@@ -35,6 +35,20 @@ export class BudgetRepository extends BaseRepository<BudgetEntity> {
     );
   }
 
+  async updateSpentWithClient(id: string, spent: number, client: any): Promise<void> {
+    await client.query(
+      `UPDATE budgets SET spent = $1, updated_at = NOW() WHERE id = $2`,
+      [spent, id],
+    );
+  }
+
+  async updateWithClient(id: string, updates: { status?: string; updatedAt?: Date }, client: any): Promise<void> {
+    await client.query(
+      `UPDATE budgets SET status = $1, updated_at = $2 WHERE id = $3`,
+      [updates.status, updates.updatedAt, id],
+    );
+  }
+
   protected mapRowToEntity(row: any): BudgetEntity {
     return {
       id: row.id,

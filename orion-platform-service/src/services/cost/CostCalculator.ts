@@ -133,6 +133,73 @@ export class CostCalculator {
   }
 
   /**
+   * Calculate ROI report from cost data
+   * P1-2 Fix: Added for frontend /v1/ai-cost/roi endpoint
+   */
+  async calculateROI(params: { period?: string }): Promise<{
+    totalInvestment: number;
+    totalCostSaved: number;
+    roi: number;
+    period: string;
+    costBreakdown: Record<string, number>;
+    trend: TrendDataPoint[];
+  }> {
+    const period = params.period || 'monthly';
+    const now = new Date();
+    let dateFrom: string;
+
+    switch (period) {
+      case 'weekly':
+        dateFrom = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+        break;
+      case 'monthly':
+        dateFrom = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+        break;
+      case 'quarterly':
+        dateFrom = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000).toISOString();
+        break;
+      default:
+        dateFrom = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    }
+
+    const { records } = await this.budgetService.queryCosts({
+      dateFrom,
+      dateTo: now.toISOString(),
+    });
+
+    const totalInvestment = records.reduce((sum, r) => sum + r.totalCost, 0);
+
+    // Estimate savings based on typical automation ROI (placeholder calculation)
+    // In production, this should compare AI-assisted vs manual effort
+    const estimatedSavings = totalInvestment * 2.5; // Assume 250% ROI as baseline
+
+    const roi = totalInvestment > 0 ? ((estimatedSavings - totalInvestment) / totalInvestment) * 100 : 0;
+
+    // Cost breakdown by model
+    const costBreakdown: Record<string, number> = {};
+    for (const record of records) {
+      const key = `${record.provider}/${record.model}`;
+      costBreakdown[key] = (costBreakdown[key] || 0) + record.totalCost;
+    }
+
+    // Compute trend
+    const trend = await this.computeTrend({
+      granularity: period === 'weekly' ? 'daily' : 'monthly',
+      dateFrom,
+      dateTo: now.toISOString(),
+    });
+
+    return {
+      totalInvestment: Math.round(totalInvestment * 100) / 100,
+      totalCostSaved: Math.round(estimatedSavings * 100) / 100,
+      roi: Math.round(roi * 100) / 100,
+      period,
+      costBreakdown,
+      trend,
+    };
+  }
+
+  /**
    * 根据成本记录计算趋势
    */
   async computeTrend(params: {

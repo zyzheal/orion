@@ -1,5 +1,7 @@
 /**
  * Budget Service - 预算管理、成本追踪、配额限制
+ *
+ * P1-14 Fix: Migrated costRecords, alertRules, and modelPricing from Map to PostgreSQL Repository pattern.
  */
 
 import {
@@ -23,6 +25,13 @@ import {
   BudgetStatus,
 } from '../../models/CostRecord';
 import { BudgetRepository, BudgetEntity } from '../../repositories/BudgetRepository';
+import {
+  CostRecordRepository,
+  AlertRuleRepository,
+  ModelPricingRepository,
+  CostRecordFindFilter,
+  CostSummaryParams,
+} from '../../repositories/CostRepositories';
 
 export interface BudgetListFilter {
   type?: string;
@@ -58,13 +67,20 @@ export interface CostSummary {
 
 export class BudgetService {
   private budgetRepository?: BudgetRepository;
-  private costRecords: Map<string, CostRecord> = new Map();
-  private alertRules: Map<string, AlertRule> = new Map();
-  private modelPricing: Map<string, ModelPricing> = new Map();
+  private costRecordRepository?: CostRecordRepository;
+  private alertRuleRepository?: AlertRuleRepository;
+  private modelPricingRepository?: ModelPricingRepository;
+  private dbPool?: { transaction: <T>(fn: (client: any) => Promise<T>) => Promise<T> };
 
-  constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+  constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }>; transaction?: <T>(fn: (client: any) => Promise<T>) => Promise<T> }) {
     if (db) {
       this.budgetRepository = new BudgetRepository(db);
+      this.costRecordRepository = new CostRecordRepository(db);
+      this.alertRuleRepository = new AlertRuleRepository(db);
+      this.modelPricingRepository = new ModelPricingRepository(db);
+      if ('transaction' in db && typeof db.transaction === 'function') {
+        this.dbPool = db as any;
+      }
     }
   }
 
@@ -96,7 +112,6 @@ export class BudgetService {
       const entity = await this.budgetRepository.findById(id);
       return entity ? this.mapEntityToBudget(entity) : undefined;
     }
-    // Memory fallback removed - use Repository
     return undefined;
   }
 
@@ -184,67 +199,101 @@ export class BudgetService {
 
   async recordCost(input: CostRecordCreateInput): Promise<CostRecord> {
     const record = createCostRecord(input);
-    this.costRecords.set(record.id, record);
 
-    // 更新相关预算的已消耗金额
-    if (input.tenantId) {
-      await this._updateBudgetSpent('tenant', input.tenantId, input.totalCost);
-    }
-    if (input.projectId) {
-      await this._updateBudgetSpent('project', input.projectId, input.totalCost);
-    }
-    if (input.userId) {
-      await this._updateBudgetSpent('user', input.userId, input.totalCost);
+    if (this.costRecordRepository) {
+      const costData = {
+        requestId: record.requestId,
+        model: record.model,
+        provider: record.provider,
+        inputTokens: record.inputTokens,
+        outputTokens: record.outputTokens,
+        inputCost: record.inputCost,
+        outputCost: record.outputCost,
+        totalCost: record.totalCost,
+        tenantId: record.tenantId,
+        projectId: record.projectId,
+        userId: record.userId,
+        moduleType: record.moduleType,
+      };
+
+      if (this.dbPool) {
+        // Use transaction to ensure atomicity of cost record + budget updates
+        return this.dbPool.transaction(async (client) => {
+          const entity = await this.costRecordRepository!.createWithClient(costData, client);
+
+          // 更新相关预算的已消耗金额
+          if (input.tenantId) {
+            await this._updateBudgetSpentWithClient('tenant', input.tenantId, input.totalCost, client);
+          }
+          if (input.projectId) {
+            await this._updateBudgetSpentWithClient('project', input.projectId, input.totalCost, client);
+          }
+          if (input.userId) {
+            await this._updateBudgetSpentWithClient('user', input.userId, input.totalCost, client);
+          }
+
+          return this.mapCostRecordEntityToRecord(entity);
+        });
+      }
+
+      // Fallback: non-transactional (DB pool without transaction support)
+      const entity = await this.costRecordRepository.create(costData);
+      // Best-effort budget updates; if these fail, cost record still exists
+      try {
+        if (input.tenantId) await this._updateBudgetSpent('tenant', input.tenantId, input.totalCost);
+        if (input.projectId) await this._updateBudgetSpent('project', input.projectId, input.totalCost);
+        if (input.userId) await this._updateBudgetSpent('user', input.userId, input.totalCost);
+      } catch (err) {
+        console.error('[BudgetService] Budget update failed after cost record created:', err);
+      }
+      return this.mapCostRecordEntityToRecord(entity);
     }
 
+    // Fallback: return the record without persistence
     return record;
   }
 
   async queryCosts(filter: CostQueryFilter = {}): Promise<{ records: CostRecord[]; total: number }> {
-    let items = Array.from(this.costRecords.values());
+    if (this.costRecordRepository) {
+      const dbFilter: CostRecordFindFilter = {
+        tenantId: filter.tenantId,
+        projectId: filter.projectId,
+        userId: filter.userId,
+        model: filter.model,
+        provider: filter.provider,
+        moduleType: filter.moduleType,
+        dateFrom: filter.dateFrom,
+        dateTo: filter.dateTo,
+        limit: filter.perPage ?? 50,
+        offset: ((filter.page ?? 1) - 1) * (filter.perPage ?? 50),
+      };
 
-    if (filter.tenantId) {
-      items = items.filter((r) => r.tenantId === filter.tenantId);
+      const records = await this.costRecordRepository.findAll(dbFilter);
+      const mapped = records.map(r => this.mapCostRecordEntityToRecord(r));
+      return { records: mapped, total: mapped.length };
     }
-    if (filter.projectId) {
-      items = items.filter((r) => r.projectId === filter.projectId);
-    }
-    if (filter.userId) {
-      items = items.filter((r) => r.userId === filter.userId);
-    }
-    if (filter.model) {
-      items = items.filter((r) => r.model === filter.model);
-    }
-    if (filter.provider) {
-      items = items.filter((r) => r.provider === filter.provider);
-    }
-    if (filter.moduleType) {
-      items = items.filter((r) => r.moduleType === filter.moduleType);
-    }
-    if (filter.dateFrom) {
-      const from = new Date(filter.dateFrom);
-      items = items.filter((r) => r.timestamp >= from);
-    }
-    if (filter.dateTo) {
-      const to = new Date(filter.dateTo);
-      items = items.filter((r) => r.timestamp <= to);
-    }
-
-    const total = items.length;
-    const page = filter.page ?? 1;
-    const perPage = filter.perPage ?? 50;
-    const start = (page - 1) * perPage;
-    const paged = items.slice(start, start + perPage);
-
-    return { records: paged, total };
+    return { records: [], total: 0 };
   }
 
   async getCostSummary(
     filter: Omit<CostQueryFilter, 'page' | 'perPage'> = {}
   ): Promise<CostSummary> {
-    const { records } = await this.queryCosts({ ...filter, page: 1, perPage: 100000 });
+    if (this.costRecordRepository) {
+      const params: CostSummaryParams = {
+        tenantId: filter.tenantId,
+        projectId: filter.projectId,
+        userId: filter.userId,
+        model: filter.model,
+        provider: filter.provider,
+        moduleType: filter.moduleType,
+        dateFrom: filter.dateFrom,
+        dateTo: filter.dateTo,
+      };
 
-    const summary: CostSummary = {
+      return this.costRecordRepository.getSummary(params);
+    }
+
+    return {
       totalCost: 0,
       totalInputTokens: 0,
       totalOutputTokens: 0,
@@ -254,48 +303,25 @@ export class BudgetService {
       costByTenant: {},
       costByModule: {},
     };
+  }
 
-    for (const r of records) {
-      summary.totalCost += r.totalCost;
-      summary.totalInputTokens += r.inputTokens;
-      summary.totalOutputTokens += r.outputTokens;
-      summary.totalRequests += 1;
-
-      // 按模型聚合
-      const modelKey = `${r.provider}/${r.model}`;
-      summary.costByModel[modelKey] = (summary.costByModel[modelKey] ?? 0) + r.totalCost;
-
-      // 按提供商聚合
-      summary.costByProvider[r.provider] =
-        (summary.costByProvider[r.provider] ?? 0) + r.totalCost;
-
-      // 按租户聚合
-      if (r.tenantId) {
-        summary.costByTenant[r.tenantId] =
-          (summary.costByTenant[r.tenantId] ?? 0) + r.totalCost;
-      }
-
-      // 按模块聚合
-      summary.costByModule[r.moduleType] =
-        (summary.costByModule[r.moduleType] ?? 0) + r.totalCost;
-    }
-
-    // 保留两位小数
-    summary.totalCost = Math.round(summary.totalCost * 100) / 100;
-    for (const key of Object.keys(summary.costByModel)) {
-      summary.costByModel[key] = Math.round(summary.costByModel[key] * 100) / 100;
-    }
-    for (const key of Object.keys(summary.costByProvider)) {
-      summary.costByProvider[key] = Math.round(summary.costByProvider[key] * 100) / 100;
-    }
-    for (const key of Object.keys(summary.costByTenant)) {
-      summary.costByTenant[key] = Math.round(summary.costByTenant[key] * 100) / 100;
-    }
-    for (const key of Object.keys(summary.costByModule)) {
-      summary.costByModule[key] = Math.round(summary.costByModule[key] * 100) / 100;
-    }
-
-    return summary;
+  private mapCostRecordEntityToRecord(entity: any): CostRecord {
+    return {
+      id: entity.id,
+      requestId: entity.requestId,
+      model: entity.model,
+      provider: entity.provider,
+      inputTokens: entity.inputTokens,
+      outputTokens: entity.outputTokens,
+      inputCost: entity.inputCost,
+      outputCost: entity.outputCost,
+      totalCost: entity.totalCost,
+      tenantId: entity.tenantId,
+      projectId: entity.projectId,
+      userId: entity.userId,
+      moduleType: entity.moduleType,
+      timestamp: entity.timestamp,
+    };
   }
 
   // ==================== Budget Health Check ====================
@@ -330,16 +356,30 @@ export class BudgetService {
 
   async createAlertRule(input: AlertRuleCreateInput): Promise<AlertRule> {
     const rule = createAlertRule(input);
-    this.alertRules.set(rule.id, rule);
+
+    if (this.alertRuleRepository) {
+      const entity = await this.alertRuleRepository.create({
+        name: rule.name,
+        budgetId: rule.budgetId,
+        condition: rule.condition,
+        threshold: rule.threshold,
+        severity: rule.severity,
+        recipients: rule.recipients,
+        status: rule.status,
+        lastTriggered: rule.lastTriggered,
+      });
+      return this.mapAlertRuleEntityToRule(entity);
+    }
+
     return rule;
   }
 
   async listAlertRules(status?: AlertStatus): Promise<AlertRule[]> {
-    let items = Array.from(this.alertRules.values());
-    if (status) {
-      items = items.filter((r) => r.status === status);
+    if (this.alertRuleRepository) {
+      const entities = await this.alertRuleRepository.findAll(status);
+      return entities.map(e => this.mapAlertRuleEntityToRule(e));
     }
-    return items;
+    return [];
   }
 
   async getActiveAlerts(): Promise<AlertRule[]> {
@@ -347,47 +387,99 @@ export class BudgetService {
   }
 
   async updateAlertRule(id: string, updates: Partial<AlertRule>): Promise<AlertRule | undefined> {
-    const rule = this.alertRules.get(id);
-    if (!rule) return undefined;
+    if (this.alertRuleRepository) {
+      const dbUpdates: { name?: string; threshold?: number; severity?: string; status?: string; recipients?: string[]; last_triggered?: Date } = {};
+      if (updates.name !== undefined) dbUpdates.name = updates.name;
+      if (updates.threshold !== undefined) dbUpdates.threshold = updates.threshold;
+      if (updates.severity !== undefined) dbUpdates.severity = updates.severity;
+      if (updates.status !== undefined) dbUpdates.status = updates.status;
+      if (updates.recipients !== undefined) dbUpdates.recipients = updates.recipients;
+      if (updates.lastTriggered !== undefined) dbUpdates.last_triggered = updates.lastTriggered;
 
-    if (updates.name !== undefined) rule.name = updates.name;
-    if (updates.threshold !== undefined) rule.threshold = updates.threshold;
-    if (updates.severity !== undefined) rule.severity = updates.severity;
-    if (updates.recipients !== undefined) rule.recipients = updates.recipients;
-    if (updates.status !== undefined) rule.status = updates.status;
-    if (updates.lastTriggered !== undefined) rule.lastTriggered = updates.lastTriggered;
-
-    this.alertRules.set(id, rule);
-    return rule;
+      const entity = await this.alertRuleRepository.update(id, dbUpdates);
+      return entity ? this.mapAlertRuleEntityToRule(entity) : undefined;
+    }
+    return undefined;
   }
 
   async deleteAlertRule(id: string): Promise<boolean> {
-    return this.alertRules.delete(id);
+    if (this.alertRuleRepository) {
+      return this.alertRuleRepository.delete(id);
+    }
+    return false;
+  }
+
+  private mapAlertRuleEntityToRule(entity: any): AlertRule {
+    return {
+      id: entity.id,
+      name: entity.name,
+      budgetId: entity.budgetId,
+      condition: entity.condition,
+      threshold: entity.threshold,
+      severity: entity.severity,
+      recipients: entity.recipients,
+      status: entity.status,
+      lastTriggered: entity.lastTriggered,
+      createdAt: entity.createdAt,
+    };
   }
 
   // ==================== Model Pricing ====================
 
   async addModelPricing(input: ModelPricingCreateInput): Promise<ModelPricing> {
     const pricing = createModelPricing(input);
-    this.modelPricing.set(pricing.id, pricing);
+
+    if (this.modelPricingRepository) {
+      const entity = await this.modelPricingRepository.create({
+        provider: pricing.provider,
+        model: pricing.model,
+        inputPricePer1k: pricing.inputPricePer1k,
+        outputPricePer1k: pricing.outputPricePer1k,
+        currency: pricing.currency,
+        effectiveTo: pricing.effectiveTo,
+        notes: pricing.notes,
+      });
+      return this.mapModelPricingEntityToPricing(entity);
+    }
+
     return pricing;
   }
 
   async getModelPricing(): Promise<ModelPricing[]> {
-    return Array.from(this.modelPricing.values());
+    if (this.modelPricingRepository) {
+      const entities = await this.modelPricingRepository.findAll();
+      return entities.map(e => this.mapModelPricingEntityToPricing(e));
+    }
+    return [];
   }
 
   async getPricingForModel(provider: string, model: string): Promise<ModelPricing | undefined> {
-    return Array.from(this.modelPricing.values()).find(
-      (p) =>
-        p.provider === provider &&
-        p.model === model &&
-        (!p.effectiveTo || p.effectiveTo > new Date())
-    );
+    if (this.modelPricingRepository) {
+      const entity = await this.modelPricingRepository.findByProviderModel(provider, model);
+      return entity ? this.mapModelPricingEntityToPricing(entity) : undefined;
+    }
+    return undefined;
   }
 
   async deleteModelPricing(id: string): Promise<boolean> {
-    return this.modelPricing.delete(id);
+    if (this.modelPricingRepository) {
+      return this.modelPricingRepository.delete(id);
+    }
+    return false;
+  }
+
+  private mapModelPricingEntityToPricing(entity: any): ModelPricing {
+    return {
+      id: entity.id,
+      provider: entity.provider,
+      model: entity.model,
+      inputPricePer1k: entity.inputPricePer1k,
+      outputPricePer1k: entity.outputPricePer1k,
+      currency: entity.currency,
+      effectiveFrom: entity.effectiveFrom,
+      effectiveTo: entity.effectiveTo,
+      notes: entity.notes,
+    };
   }
 
   // ==================== Dashboard ====================
@@ -412,9 +504,9 @@ export class BudgetService {
       .slice(0, 5);
 
     // 最近 10 条成本记录
-    const recentCosts = Array.from(this.costRecords.values())
-      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
-      .slice(0, 10);
+    const recentCosts = this.costRecordRepository
+      ? (await this.costRecordRepository.findAll({ limit: 10 })).map(r => this.mapCostRecordEntityToRecord(r))
+      : [];
 
     // 预算健康状态
     const budgetHealth = activeBudgets.map((b) => {
@@ -455,6 +547,20 @@ export class BudgetService {
       // 检查是否超出预算
       if (newSpent >= entity.amount) {
         await this.budgetRepository.update(entity.id, { status: 'exhausted', updatedAt: new Date() });
+      }
+    }
+  }
+
+  private async _updateBudgetSpentWithClient(type: string, scope: string, cost: number, client: any): Promise<void> {
+    if (!this.budgetRepository) return;
+
+    const entity = await this.budgetRepository.findByEntity(type, scope);
+    if (entity && entity.status === 'active') {
+      const newSpent = entity.spent + cost;
+      await this.budgetRepository.updateSpentWithClient(entity.id, newSpent, client);
+
+      if (newSpent >= entity.amount) {
+        await this.budgetRepository.updateWithClient(entity.id, { status: 'exhausted', updatedAt: new Date() }, client);
       }
     }
   }

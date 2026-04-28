@@ -1,5 +1,8 @@
 /**
  * Approval Service - Multi-level approval workflow
+ *
+ * P0-7 Fix: Migrated from Map-based primary storage to ApprovalRepository-based storage.
+ * Map is no longer used - all data is persisted to PostgreSQL.
  */
 import pino from 'pino';
 import { v4 as uuidv4 } from 'uuid';
@@ -30,13 +33,10 @@ export interface ApprovalRequest {
 }
 
 export class ApprovalService {
-  private requests: Map<string, ApprovalRequest> = new Map();
-  private repository?: ApprovalRepository;
+  private repository: ApprovalRepository;
 
-  constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
-    if (db) {
-      this.repository = new ApprovalRepository(db);
-    }
+  constructor(db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+    this.repository = new ApprovalRepository(db);
   }
 
   /**
@@ -50,180 +50,158 @@ export class ApprovalService {
     description?: string,
     metadata?: Record<string, any>,
   ): Promise<ApprovalRequest> {
-    const request: ApprovalRequest = {
-      id: `approval_${uuidv4()}`,
-      title,
-      description,
-      requesterId,
-      approverIds,
-      status: ApprovalStatus.PENDING,
-      approvals: [],
-      rejections: [],
-      requiredApprovals,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      metadata,
-    };
-    this.requests.set(request.id, request);
+    const id = `approval_${uuidv4()}`;
+    const now = new Date();
 
-    // Store in repository if available
-    if (this.repository) {
-      const entity = await this.repository.create({
-        tenantId: metadata?.tenantId ?? 'default',
-        definitionId: null,
-        resourceType: metadata?.resourceType ?? 'generic',
-        resourceId: metadata?.resourceId ?? request.id,
+    const entity = await this.repository.create({
+      tenantId: metadata?.tenantId ?? 'default',
+      definitionId: null,
+      resourceType: metadata?.resourceType ?? 'generic',
+      resourceId: metadata?.resourceId ?? id,
+      status: 'pending',
+      requestedBy: requesterId,
+      currentStep: 0,
+      totalSteps: approverIds.length,
+      requiredApprovals: requiredApprovals,
+      result: null,
+      completedAt: null,
+      createdAt: now,
+    });
+
+    // Create approval steps for each approver
+    for (let i = 0; i < approverIds.length; i++) {
+      await this.repository.createStep({
+        approvalId: entity.id,
+        stepIndex: i,
+        approverId: approverIds[i],
         status: 'pending',
-        requestedBy: requesterId,
-        currentStep: 0,
-        totalSteps: approverIds.length,
-        result: null,
-        completedAt: null,
-        createdAt: new Date(),
+        comment: null,
+        actedAt: null,
       });
-
-      // Create approval steps for each approver
-      for (let i = 0; i < approverIds.length; i++) {
-        await this.repository.createStep({
-          approvalId: entity.id,
-          stepIndex: i,
-          approverId: approverIds[i],
-          status: 'pending',
-          comment: null,
-          actedAt: null,
-        });
-      }
     }
 
-    logger.info({ approvalId: request.id }, 'Approval request created');
-    return request;
+    logger.info({ approvalId: entity.id }, 'Approval request created');
+
+    return this.entityToRequest(entity, approverIds);
   }
 
   /**
    * Approve
    */
   async approve(approvalId: string, userId: string): Promise<ApprovalRequest> {
-    const request = this.requests.get(approvalId);
-    if (!request) throw new Error(`Approval not found: ${approvalId}`);
-    if (request.status !== ApprovalStatus.PENDING) throw new Error('Approval not pending');
-    if (!request.approverIds.includes(userId)) throw new Error('Not authorized to approve');
+    const entity = await this.repository.findById(approvalId);
+    if (!entity) throw new Error(`Approval not found: ${approvalId}`);
+    if (entity.status !== 'pending') throw new Error('Approval not pending');
 
-    // Deduplicate approvals
-    if (!request.approvals.includes(userId)) {
-      request.approvals.push(userId);
-    }
-    request.updatedAt = new Date();
-
-    if (request.approvals.length >= request.requiredApprovals) {
-      request.status = ApprovalStatus.APPROVED;
+    const steps = await this.repository.findStepsByApproval(approvalId);
+    const matchingStep = steps.find(s => s.approverId === userId);
+    if (!matchingStep) throw new Error('Not authorized to approve');
+    if (matchingStep.status === 'approved') {
+      // Already approved, return current state
+      return this.entityToRequestWithSteps(entity, steps);
     }
 
-    // Update repository if available
-    if (this.repository) {
-      const approverIndex = request.approverIds.indexOf(userId);
-      const steps = await this.repository.findStepsByApproval(approvalId);
-      if (steps.length > approverIndex) {
-        await this.repository.updateStepStatus(steps[approverIndex].id, 'approved', undefined, new Date());
-      }
-      await this.repository.advanceStep(approvalId);
-      if (request.status === ApprovalStatus.APPROVED) {
-        await this.repository.updateStatus(approvalId, 'approved');
-      }
+    await this.repository.updateStepStatus(matchingStep.id, 'approved', undefined, new Date());
+    await this.repository.advanceStep(approvalId);
+
+    const updatedSteps = await this.repository.findStepsByApproval(approvalId);
+    const approvedCount = updatedSteps.filter(s => s.status === 'approved').length;
+
+    if (approvedCount >= entity.requiredApprovals) {
+      await this.repository.updateStatus(approvalId, 'approved');
     }
 
-    return request;
+    const updatedEntity = await this.repository.findById(approvalId);
+    return this.entityToRequestWithSteps(updatedEntity!, updatedSteps);
   }
 
   /**
    * Reject
    */
   async reject(approvalId: string, userId: string): Promise<ApprovalRequest> {
-    const request = this.requests.get(approvalId);
-    if (!request) throw new Error(`Approval not found: ${approvalId}`);
-    if (request.status !== ApprovalStatus.PENDING) throw new Error('Approval not pending');
-    if (!request.approverIds.includes(userId)) throw new Error('Not authorized to reject');
+    const entity = await this.repository.findById(approvalId);
+    if (!entity) throw new Error(`Approval not found: ${approvalId}`);
+    if (entity.status !== 'pending') throw new Error('Approval not pending');
 
-    // Deduplicate rejections
-    if (!request.rejections.includes(userId)) {
-      request.rejections.push(userId);
-    }
-    request.status = ApprovalStatus.REJECTED;
-    request.updatedAt = new Date();
+    const steps = await this.repository.findStepsByApproval(approvalId);
+    const matchingStep = steps.find(s => s.approverId === userId);
+    if (!matchingStep) throw new Error('Not authorized to reject');
 
-    // Update repository if available
-    if (this.repository) {
-      const approverIndex = request.approverIds.indexOf(userId);
-      const steps = await this.repository.findStepsByApproval(approvalId);
-      if (steps.length > approverIndex) {
-        await this.repository.updateStepStatus(steps[approverIndex].id, 'rejected', undefined, new Date());
-      }
-      await this.repository.updateStatus(approvalId, 'rejected');
-    }
+    await this.repository.updateStepStatus(matchingStep.id, 'rejected', undefined, new Date());
+    await this.repository.updateStatus(approvalId, 'rejected');
 
-    return request;
+    const updatedSteps = await this.repository.findStepsByApproval(approvalId);
+    const updatedEntity = await this.repository.findById(approvalId);
+    return this.entityToRequestWithSteps(updatedEntity!, updatedSteps);
   }
 
   /**
    * Get approval request
    */
   async getApproval(id: string): Promise<ApprovalRequest | undefined> {
-    // First check in-memory cache
-    const cached = this.requests.get(id);
-    if (cached) return cached;
+    const entity = await this.repository.findById(id);
+    if (!entity) return undefined;
 
-    // Try to load from repository
-    if (this.repository) {
-      const entity = await this.repository.findById(id);
-      if (entity) {
-        const steps = await this.repository.findStepsByApproval(id);
-        const request: ApprovalRequest = {
-          id: entity.id,
-          title: `Approval for ${entity.resourceType}`,
-          requesterId: entity.requestedBy ?? '',
-          approverIds: steps.map(s => s.approverId ?? ''),
-          status: entity.status as ApprovalStatus,
-          approvals: steps.filter(s => s.status === 'approved').map(s => s.approverId ?? ''),
-          rejections: steps.filter(s => s.status === 'rejected').map(s => s.approverId ?? ''),
-          requiredApprovals: entity.totalSteps,
-          createdAt: entity.createdAt,
-          updatedAt: entity.completedAt ?? entity.createdAt,
-        };
-        this.requests.set(id, request);
-        return request;
-      }
-    }
-    return undefined;
+    const steps = await this.repository.findStepsByApproval(id);
+    const approverIds = steps.map(s => s.approverId ?? '');
+    return this.entityToRequest(entity, approverIds, steps);
   }
 
   /**
    * List pending approvals
    */
   async listPending(tenantId?: string): Promise<ApprovalRequest[]> {
-    const cachedPending = Array.from(this.requests.values()).filter(r => r.status === ApprovalStatus.PENDING);
-
-    // Also fetch from repository if available
-    if (this.repository && tenantId) {
-      const entities = await this.repository.findPendingByTenant(tenantId);
-      for (const entity of entities) {
-        if (!this.requests.has(entity.id)) {
+    if (!tenantId) {
+      // Without tenant, return all pending
+      const entities = await this.repository.findAll({ limit: 100 });
+      const result: ApprovalRequest[] = [];
+      for (const entity of entities.entities) {
+        if (entity.status === 'pending') {
           const steps = await this.repository.findStepsByApproval(entity.id);
-          const request: ApprovalRequest = {
-            id: entity.id,
-            title: `Approval for ${entity.resourceType}`,
-            requesterId: entity.requestedBy ?? '',
-            approverIds: steps.map(s => s.approverId ?? ''),
-            status: entity.status as ApprovalStatus,
-            approvals: steps.filter(s => s.status === 'approved').map(s => s.approverId ?? ''),
-            rejections: steps.filter(s => s.status === 'rejected').map(s => s.approverId ?? ''),
-            requiredApprovals: entity.totalSteps,
-            createdAt: entity.createdAt,
-            updatedAt: entity.completedAt ?? entity.createdAt,
-          };
-          this.requests.set(entity.id, request);
+          result.push(this.entityToRequestWithSteps(entity, steps));
         }
       }
+      return result;
     }
 
-    return Array.from(this.requests.values()).filter(r => r.status === ApprovalStatus.PENDING);
+    const entities = await this.repository.findPendingByTenant(tenantId);
+    const result: ApprovalRequest[] = [];
+    for (const entity of entities) {
+      const steps = await this.repository.findStepsByApproval(entity.id);
+      result.push(this.entityToRequestWithSteps(entity, steps));
+    }
+    return result;
+  }
+
+  // ==================== Helper Methods ====================
+
+  private entityToRequest(
+    entity: ApprovalEntity,
+    approverIds: string[],
+    steps?: ApprovalStepEntity[],
+  ): ApprovalRequest {
+    const approvals = steps?.filter(s => s.status === 'approved').map(s => s.approverId ?? '') ?? [];
+    const rejections = steps?.filter(s => s.status === 'rejected').map(s => s.approverId ?? '') ?? [];
+
+    return {
+      id: entity.id,
+      title: `Approval for ${entity.resourceType}`,
+      requesterId: entity.requestedBy ?? '',
+      approverIds,
+      status: entity.status as ApprovalStatus,
+      approvals,
+      rejections,
+      requiredApprovals: entity.requiredApprovals,
+      createdAt: entity.createdAt,
+      updatedAt: entity.completedAt ?? entity.createdAt,
+    };
+  }
+
+  private entityToRequestWithSteps(
+    entity: ApprovalEntity,
+    steps: ApprovalStepEntity[],
+  ): ApprovalRequest {
+    const approverIds = steps.map(s => s.approverId ?? '');
+    return this.entityToRequest(entity, approverIds, steps);
   }
 }

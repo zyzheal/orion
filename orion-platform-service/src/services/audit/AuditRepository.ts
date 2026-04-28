@@ -48,7 +48,7 @@ export class AuditRepository {
     return result.rows[0] || null;
   }
 
-  async findAll(options?: { tenantId?: string; userId?: string; action?: string; resourceType?: string; limit?: number; offset?: number }): Promise<AuditLog[]> {
+  async findAll(options?: { tenantId?: string; userId?: string; action?: string; resourceType?: string; resourceId?: string; limit?: number; offset?: number }): Promise<AuditLog[]> {
     let query = 'SELECT * FROM audit_logs';
     const params: any[] = [];
     const conditions: string[] = [];
@@ -57,6 +57,7 @@ export class AuditRepository {
     if (options?.userId) { params.push(options.userId); conditions.push(`user_id = $${params.length}`); }
     if (options?.action) { params.push(options.action); conditions.push(`action = $${params.length}`); }
     if (options?.resourceType) { params.push(options.resourceType); conditions.push(`resource_type = $${params.length}`); }
+    if (options?.resourceId) { params.push(options.resourceId); conditions.push(`resource_id = $${params.length}`); }
 
     if (conditions.length > 0) query += ' WHERE ' + conditions.join(' AND ');
     query += ' ORDER BY created_at DESC';
