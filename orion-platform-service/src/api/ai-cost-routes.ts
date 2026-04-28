@@ -5,12 +5,17 @@
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { DatabasePool } from '../services/database';
 import { BudgetService } from '../services/cost/BudgetService';
 import { CostCalculator } from '../services/cost/CostCalculator';
 import { CostController } from './controllers/CostController';
 
-export default async function aiCostRoutes(app: FastifyInstance): Promise<void> {
-  const budgetService = new BudgetService();
+interface AiCostRoutesOptions {
+  database?: DatabasePool;
+}
+
+export default async function aiCostRoutes(app: FastifyInstance, options: AiCostRoutesOptions = {}): Promise<void> {
+  const budgetService = new BudgetService(options.database);
   const calculator = new CostCalculator(budgetService);
   const controller = new CostController(budgetService, calculator);
 
@@ -74,8 +79,17 @@ export default async function aiCostRoutes(app: FastifyInstance): Promise<void> 
 
   // ==================== Model Pricing ====================
 
-  // GET /api/v1/ai-cost/models/pricing — pricing table
-  app.get('/models/pricing', async (request: FastifyRequest, reply: FastifyReply) => {
+  // GET /api/v1/ai-cost/pricing — pricing table
+  // P1-2 Fix: Changed from /models/pricing to /pricing to match frontend
+  app.get('/pricing', async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.getPricing(request, reply);
+  });
+
+  // ==================== ROI Reports ====================
+
+  // GET /api/v1/ai-cost/roi — ROI report
+  // P1-2 Fix: Added missing /roi route that frontend calls
+  app.get('/roi', async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.getROIReport(request, reply);
   });
 }

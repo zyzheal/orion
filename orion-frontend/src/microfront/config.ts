@@ -2,7 +2,10 @@
  * wujie 微前端主应用配置
  */
 import { setupApp, preloadApp } from 'wujie';
-import { subAppConfigs, getSubAppConfig } from './apps';
+import { subAppConfigs, getSubAppConfig, getEnabledApps } from './apps';
+
+// Re-export for direct access
+export { subAppConfigs, getSubAppConfig, getEnabledApps };
 
 // 扩展 window 类型以包含 $orion
 declare global {

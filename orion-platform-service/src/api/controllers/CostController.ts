@@ -254,4 +254,21 @@ export class CostController {
       });
     }
   }
+
+  // ==================== ROI Reports ====================
+
+  async getROIReport(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    try {
+      const query = request.query as Record<string, string | undefined>;
+      const roiData = await this.calculator.calculateROI({
+        period: query.period || 'monthly',
+      });
+      await reply.send({ success: true, data: roiData });
+    } catch (err) {
+      await reply.status(500).send({
+        success: false,
+        error: err instanceof Error ? err.message : 'Internal server error',
+      });
+    }
+  }
 }

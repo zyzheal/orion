@@ -2,7 +2,18 @@
  * 事件发布器统一导出
  *
  * 符合 CloudEvents 1.0 规范
+ * ARCH-010: 添加 EventBusAdapter 统一接口
  */
+
+// EventBusAdapter (新增)
+export {
+  EventBusAdapter,
+  EventBusAdapterConfig,
+  PublishOptions,
+  PublishResult,
+  CloudEvent,
+  createEventBusAdapter,
+} from './EventBusAdapter';
 
 // Pipeline 事件
 export { PipelineEventPublisher, PipelineEventPublisherConfig, pipelineEventPublisher } from './PipelineEventPublisher';

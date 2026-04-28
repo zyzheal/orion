@@ -5,8 +5,8 @@
 import Fastify, { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import fastifyCors from '@fastify/cors';
 import fastifyHelmet from '@fastify/helmet';
+import fastifyRateLimit from '@fastify/rate-limit';
 import { v4 as uuidv4 } from 'uuid';
-import pino from 'pino';
 
 import { getConfig } from './config';
 import { HealthChecker, HealthStatus } from './services/health';
@@ -16,14 +16,6 @@ import { EventBusService } from './services/event-bus-service';
 import { NatsServiceRegistry } from './services/nats-registry';
 import apiRoutes from './api/routes';
 import authRoutes from './api/routes-auth';
-
-const logger = pino({
-  level: process.env.LOG_LEVEL || 'info',
-  formatters: {
-    level: (label) => ({ level: label }),
-  },
-  timestamp: pino.stdTimeFunctions.isoTime,
-});
 
 export interface PlatformAppOptions {
   redis?: RedisCache;
@@ -57,6 +49,8 @@ export async function createApp(options: PlatformAppOptions = {}): Promise<{
     },
     requestIdHeader: 'x-request-id',
     genReqId: () => uuidv4(),
+    // A3 Fix: Global body size limit to prevent oversized payloads
+    bodyLimit: 10 * 1024 * 1024, // 10MB
   });
 
   // ==================== 注册插件 ====================
@@ -75,6 +69,27 @@ export async function createApp(options: PlatformAppOptions = {}): Promise<{
     crossOriginEmbedderPolicy: false,
   });
 
+  // 3. A5 Fix: Rate limiting to prevent DoS abuse
+  // Default: 1000 requests per 60s per IP, with stricter limits for write operations
+  await app.register(fastifyRateLimit, {
+    max: 1000,
+    timeWindow: '1 minute',
+    ban: 300, // Ban for 5 minutes after exceeding rate limit 300 times
+    keyGenerator: (request: FastifyRequest) => {
+      // Use IP address only — custom headers can be spoofed by clients
+      return request.ip;
+    },
+    errorResponseBuilder: (_request: FastifyRequest, context: { after: string; max: number; ttl: number }) => {
+      return {
+        success: false,
+        error: 'RATE_LIMIT_EXCEEDED',
+        code: '42900',
+        message: `Too many requests. Try again ${context.after}`,
+        retryAfter: context.ttl,
+      };
+    },
+  });
+
   // ==================== 健康检查 ====================
 
   const healthChecker = new HealthChecker(config.serviceName);
@@ -90,11 +105,12 @@ export async function createApp(options: PlatformAppOptions = {}): Promise<{
     });
   }
 
-  // 注册数据库健康检查
+  // 注册数据库健康检查（数据库是关键依赖，标记为 readiness 检查）
   if (options.database) {
     healthChecker.registerCheck('database', async () => {
       return await options.database!.checkHealth();
     });
+    healthChecker.markAsReadyCheck('database');
   }
 
   // 注册 EventBus 健康检查
@@ -104,24 +120,35 @@ export async function createApp(options: PlatformAppOptions = {}): Promise<{
     });
   }
 
-  // 健康检查端点
+  // 存活检查端点 — 仅检查进程是否存活（最快，用于 K8s liveness probe）
+  app.get('/livez', async (_request: FastifyRequest, reply: FastifyReply) => {
+    return reply.send({
+      status: 'alive',
+      timestamp: new Date().toISOString(),
+      service: config.serviceName,
+      pid: process.pid,
+      uptime: process.uptime(),
+    });
+  });
+
+  // 就绪检查端点 — 检查关键依赖是否就绪（用于 K8s readiness probe）
+  app.get('/readyz', async (_request: FastifyRequest, reply: FastifyReply) => {
+    const readyResult = await healthChecker.checkReady();
+
+    return reply.status(readyResult.ready ? 200 : 503).send({
+      status: readyResult.ready ? 'ready' : 'not_ready',
+      timestamp: new Date().toISOString(),
+      service: config.serviceName,
+      checks: readyResult.checks,
+    });
+  });
+
+  // 综合健康检查端点 — 检查所有依赖（用于人工查看或监控系统）
   app.get('/healthz', async (request: FastifyRequest, reply: FastifyReply) => {
     const health = await healthChecker.check();
     const statusCode = health.status === 'healthy' ? 200 :
                        health.status === 'degraded' ? 200 : 503;
     return reply.status(statusCode).send(health);
-  });
-
-  // 就绪检查端点
-  app.get('/readyz', async (request: FastifyRequest, reply: FastifyReply) => {
-    const health = await healthChecker.check();
-    const isReady = health.status !== 'unhealthy';
-
-    return reply.status(isReady ? 200 : 503).send({
-      status: isReady ? 'ready' : 'not_ready',
-      timestamp: new Date().toISOString(),
-      service: config.serviceName,
-    });
   });
 
   // 版本信息端点
@@ -154,29 +181,75 @@ export async function createApp(options: PlatformAppOptions = {}): Promise<{
 
   // ==================== 错误处理 ====================
 
+  // A4 Fix: Unified global error handler with consistent response format
+  // All uncaught errors return the same envelope: { success, error, code, message, timestamp, path }
   app.setErrorHandler((error: Error, request, reply) => {
+    const statusCode = (reply.statusCode >= 400 && reply.statusCode < 600) ? reply.statusCode : 500;
+
+    // Structured error logging with request context
     app.log.error({
-      error: error.message,
+      error: error.name,
+      message: error.message,
       stack: error.stack,
       url: request.url,
       method: request.method,
+      requestId: request.id,
+      statusCode,
     }, 'Unhandled error');
 
-    return reply.status(500).send({
-      error: 'INTERNAL_ERROR',
-      code: '50000',
-      message: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error',
+    // Map common error types to consistent responses
+    const isDev = process.env.NODE_ENV === 'development';
+
+    // Fastify validation errors
+    if ((error as any).validation) {
+      return reply.status(400).send({
+        success: false,
+        error: 'VALIDATION_ERROR',
+        code: '40001',
+        message: 'Request validation failed',
+        details: (error as any).validation,
+        timestamp: new Date().toISOString(),
+        path: request.url,
+        requestId: request.id,
+      });
+    }
+
+    // Fastify parsing errors
+    if (statusCode === 413 || error.message.includes('body size')) {
+      return reply.status(413).send({
+        success: false,
+        error: 'PAYLOAD_TOO_LARGE',
+        code: '41300',
+        message: 'Request body exceeds maximum allowed size (10MB)',
+        timestamp: new Date().toISOString(),
+        path: request.url,
+        requestId: request.id,
+      });
+    }
+
+    // Default error response
+    return reply.status(statusCode).send({
+      success: false,
+      error: statusCode === 500 ? 'INTERNAL_ERROR' : error.name || 'REQUEST_ERROR',
+      code: statusCode === 500 ? '50000' : `${statusCode}00`,
+      message: isDev ? error.message : 'An unexpected error occurred',
+      details: isDev ? { stack: error.stack } : undefined,
       timestamp: new Date().toISOString(),
+      path: request.url,
+      requestId: request.id,
     });
   });
 
-  // 404 处理
+  // 404 处理 — 格式与全局错误处理器保持一致
   app.setNotFoundHandler((request, reply) => {
     return reply.status(404).send({
+      success: false,
       error: 'NOT_FOUND',
-      code: '10102',
+      code: '40400',
       message: `Cannot ${request.method} ${request.url}`,
       timestamp: new Date().toISOString(),
+      path: request.url,
+      requestId: request.id,
     });
   });
 

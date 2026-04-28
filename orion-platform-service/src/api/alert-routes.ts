@@ -253,9 +253,11 @@ export default async function alertRoutes(app: FastifyInstance): Promise<void> {
   });
 
   // GET /alert/suppression/alerts - 获取活跃告警
+  // P0-6 Fix: Return active alerts instead of stats
   app.get('/suppression/alerts', async (request: FastifyRequest, reply: FastifyReply) => {
-    const stats = suppressionService.getStats();
-    return reply.send({ stats });
+    const groups = deduplication.getActiveGroups();
+    const allAlerts: Alert[] = groups.flatMap(g => g.alerts);
+    return reply.send({ alerts: allAlerts, total: allAlerts.length });
   });
 
   // ==================== Alert List ====================

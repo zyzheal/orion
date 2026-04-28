@@ -3,9 +3,11 @@
  *
  * Migrated to PostgreSQL Repository pattern.
  * All state is persisted to database; no in-memory Map storage.
+ *
+ * ARCH-004: 事件发布添加完整错误处理
  */
 
-import { EventBusService } from '../event-bus-service';
+import { EventBusService, EventBusError } from '../event-bus-service';
 import {
   ChatOpsExecution,
   ChatOpsExecutionCreateInput,
@@ -19,6 +21,8 @@ import {
   createChatOpsAuditLog,
 } from '../../models/ChatOps';
 import { CommandService } from './CommandService';
+import { CommandRouter } from './CommandRouter';
+import { InputValidator, ParsedCommand } from './InputValidator';
 import {
   ChatOpsExecutionRepository,
   ChatOpsSessionRepository,
@@ -26,6 +30,14 @@ import {
   ChatOpsExecutionEntity,
   ChatOpsAuditLogEntity,
 } from '../../repositories/ChatOpsRepository';
+
+/** ARCH-004: 事件发布结果 */
+interface EventPublishResult {
+  success: boolean;
+  eventId?: string;
+  fallback?: boolean;
+  error?: string;
+}
 
 export interface ChatOpsExecutionListFilter {
   commandId?: string;
@@ -53,6 +65,10 @@ export class ExecutionService {
   private auditRepo: ChatOpsAuditLogRepository;
   private commandService: CommandService;
   private eventBus?: EventBusService;
+  /** 命令路由器 (可选，用于路由到真实命令处理器) */
+  private commandRouter?: CommandRouter;
+  /** 输入校验器 (可选，用于安全校验) */
+  private inputValidator?: InputValidator;
 
   constructor(options: {
     commandService: CommandService;
@@ -60,12 +76,16 @@ export class ExecutionService {
     executionRepo: ChatOpsExecutionRepository;
     sessionRepo: ChatOpsSessionRepository;
     auditRepo: ChatOpsAuditLogRepository;
+    commandRouter?: CommandRouter;
+    inputValidator?: InputValidator;
   }) {
     this.commandService = options.commandService;
     this.eventBus = options.eventBus;
     this.executionRepo = options.executionRepo;
     this.sessionRepo = options.sessionRepo;
     this.auditRepo = options.auditRepo;
+    this.commandRouter = options.commandRouter;
+    this.inputValidator = options.inputValidator;
   }
 
   // ==================== Entity -> Model mapping ====================
@@ -101,6 +121,23 @@ export class ExecutionService {
   // ==================== Execution ====================
 
   async execute(input: ChatOpsExecutionCreateInput): Promise<ChatOpsExecution> {
+    // SE-1: 输入安全校验 (若有 InputValidator)
+    if (this.inputValidator) {
+      const parsed: ParsedCommand = {
+        command: input.commandId,
+        params: input.params ?? {},
+      };
+      // 构造原始输入字符串用于危险字符检查
+      const rawInput = `/${input.commandId} ${Object.entries(input.params ?? {})
+        .map(([k, v]) => `${k}=${String(v)}`)
+        .join(' ')}`;
+
+      const validation = this.inputValidator.validate(rawInput, parsed);
+      if (!validation.valid) {
+        throw new Error(`输入校验失败: ${validation.error}`);
+      }
+    }
+
     const execution = createChatOpsExecution(input);
 
     // Persist initial state
@@ -120,18 +157,30 @@ export class ExecutionService {
     // Look up command for additional context
     const command = await this.commandService.getByName(input.commandId);
 
-    // Simulate completion
     const endTime = new Date();
     try {
+      let executionResult: Record<string, unknown>;
+
+      // 如果有 commandRouter，通过路由器执行命令；否则使用 mock 行为 (向后兼容)
+      if (this.commandRouter) {
+        executionResult = await this.commandRouter.routeAndExecute(
+          input.commandId,
+          input.params ?? {},
+        );
+      } else {
+        // 向后兼容: 保持原有 mock 行为
+        executionResult = {
+          output: `Command ${input.commandId} executed successfully`,
+          exitCode: 0,
+          durationMs: endTime.getTime() - execution.startTime.getTime(),
+        };
+      }
+
       await this.executionRepo.updateStatus(
         execution.id,
         'completed',
         endTime,
-        {
-          output: `Command ${input.commandId} executed successfully`,
-          exitCode: 0,
-          durationMs: endTime.getTime() - execution.startTime.getTime(),
-        },
+        executionResult,
       );
 
       await this.executionRepo.update(execution.id, {
@@ -169,15 +218,67 @@ export class ExecutionService {
       });
     }
 
-    await this.eventBus?.publish('chatops.execution.completed', {
+    // ARCH-004: 事件发布添加完整错误处理
+    const eventResult = await this.publishExecutionEvent('chatops.execution.completed', {
       executionId: execution.id,
       commandId: execution.commandId,
       status: 'completed',
+      userId: input.userId,
+      platform: input.platform,
     });
+
+    // ARCH-004: 记录事件发布失败（但不阻塞执行）
+    if (!eventResult.success) {
+      console.warn('[ExecutionService] Event publish failed:', eventResult.error);
+      if (eventResult.fallback) {
+        console.log('[ExecutionService] Event persisted for fallback retry, eventId:', eventResult.eventId);
+      }
+    }
 
     // Return updated execution from DB
     const updated = await this.executionRepo.findById(execution.id);
     return this.entityToExecution(updated!);
+  }
+
+  /**
+   * ARCH-004: 安全发布事件，支持 fallback 模式
+   */
+  private async publishExecutionEvent(
+    eventType: string,
+    payload: Record<string, unknown>,
+  ): Promise<EventPublishResult> {
+    if (!this.eventBus) {
+      return {
+        success: false,
+        error: 'EventBus not available',
+      };
+    }
+
+    try {
+      const eventId = await this.eventBus.publish(eventType, payload, {
+        source: 'execution-service',
+        publishedBy: 'ExecutionService',
+      });
+
+      // ARCH-004: 检查是否为 fallback 发布
+      const isFallback = eventId.startsWith('fallback:');
+      return {
+        success: true,
+        eventId,
+        fallback: isFallback,
+      };
+    } catch (err: unknown) {
+      // ARCH-004: 区分错误类型
+      const errorMsg = err instanceof EventBusError
+        ? `${err.code}: ${err.message}`
+        : (err instanceof Error ? err.message : 'Unknown error');
+
+      return {
+        success: false,
+        error: errorMsg,
+        fallback: err instanceof EventBusError && err.recoverable,
+      };
+    }
   }
 
   async getById(id: string): Promise<ChatOpsExecution | undefined> {

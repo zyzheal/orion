@@ -12,7 +12,7 @@
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { PluginSpiController } from './controllers/PluginSpiController';
+import { PluginSpiController, initPluginSpiController } from './controllers/PluginSpiController';
 import { PluginService } from '../services/plugin-spi/PluginService';
 
 export default async function pluginSpiRoutes(app: FastifyInstance): Promise<void> {
@@ -24,6 +24,9 @@ export default async function pluginSpiRoutes(app: FastifyInstance): Promise<voi
     // Log but don't fail startup - plugins may not exist yet
     console.warn('Plugin SPI service initialization failed:', err.message);
   });
+
+  // P1-12 Fix: Wire the service to the controller (was missing before)
+  initPluginSpiController(pluginService);
 
   const controller = new PluginSpiController();
 

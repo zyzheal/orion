@@ -3,6 +3,9 @@
  *
  * AI 服务网关，提供模型路由、降级处理、规则引擎功能
  *
+ * P0-3 Fix: Replaced placeholder LLM caller with real fetch-based implementation
+ * supporting Anthropic Claude and OpenAI-compatible APIs via environment variables.
+ *
  * Prefix: /api/v1/ai-gateway
  */
 
@@ -10,7 +13,7 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { AIGateway } from '../services/ai/AIGateway';
 import { AIDegradationRouter } from '../services/ai/AIDegradationRouter';
 import { RuleEngine } from '../services/ai/RuleEngine';
-import { AIRequest, AIScenario } from '../services/ai/types';
+import { AIRequest, AIScenario, AIResponse } from '../services/ai/types';
 
 interface AIRequestCreate {
   scenario: AIScenario;
@@ -28,23 +31,131 @@ interface AIRequestCreate {
   };
 }
 
+/**
+ * Real LLM caller using native fetch (Node.js 20+)
+ * Supports Anthropic Claude API (default) and OpenAI-compatible APIs
+ */
+async function createRealLLMCaller(): Promise<(request: AIRequest) => Promise<AIResponse<unknown>>> {
+  const provider = process.env.AI_LLM_PROVIDER || 'anthropic';
+  const apiKey = process.env.AI_LLM_API_KEY || '';
+  const model = process.env.AI_LLM_MODEL || 'claude-sonnet-4-6-20250514';
+  const baseUrl = process.env.AI_LLM_BASE_URL || (provider === 'anthropic' ? 'https://api.anthropic.com' : '');
+
+  return async (request: AIRequest): Promise<AIResponse<unknown>> => {
+    if (!apiKey) {
+      throw new Error('AI_LLM_API_KEY not configured');
+    }
+
+    const startTime = Date.now();
+
+    if (provider === 'anthropic') {
+      const messages = buildAnthropicMessages(request);
+      const response = await fetch(`${baseUrl}/v1/messages`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model,
+          max_tokens: 4096,
+          messages,
+          system: (request.input.systemPrompt as string) || undefined,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Anthropic API error (${response.status}): ${errorText}`);
+      }
+
+      const data = await response.json() as { content?: Array<{ text?: string }> };
+      const content = data.content?.[0]?.text ?? '';
+      const latency = Date.now() - startTime;
+
+      return {
+        success: true,
+        data: { content },
+        confidence: 0.85,
+        source: 'llm',
+        latency,
+      };
+    }
+
+    // OpenAI-compatible
+    const messages = buildOpenAIMessages(request);
+    const apiUrl = `${baseUrl || 'https://api.openai.com'}/v1/chat/completions`;
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages,
+        max_tokens: 4096,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`LLM API error (${response.status}): ${errorText}`);
+    }
+
+    const data = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
+    const content = data.choices?.[0]?.message?.content ?? '';
+    const latency = Date.now() - startTime;
+
+    return {
+      success: true,
+      data: { content },
+      confidence: 0.85,
+      source: 'llm',
+      latency,
+    };
+  };
+}
+
+function buildAnthropicMessages(request: AIRequest): Array<{ role: string; content: string }> {
+  const inputText = typeof request.input.prompt === 'string'
+    ? request.input.prompt
+    : JSON.stringify(request.input);
+
+  return [{ role: 'user', content: inputText }];
+}
+
+function buildOpenAIMessages(request: AIRequest): Array<{ role: string; content: string }> {
+  const inputText = typeof request.input.prompt === 'string'
+    ? request.input.prompt
+    : JSON.stringify(request.input);
+
+  return [{ role: 'user', content: inputText }];
+}
+
 export default async function aiGatewayRoutes(app: FastifyInstance): Promise<void> {
   // Initialize services
   const degradationRouter = new AIDegradationRouter();
   const ruleEngine = new RuleEngine();
   const aiGateway = new AIGateway({} as any, degradationRouter);
 
-  // Set LLM caller placeholder
-  aiGateway.setLLMCaller(async (request: AIRequest) => {
-    // TODO: Integrate with actual AI API (Anthropic, OpenAI, etc.)
-    return {
-      success: true,
-      data: { content: 'AI response placeholder' },
-      confidence: 0.8,
-      source: 'llm',
-      latency: 100,
-    };
-  });
+  // P0-3 Fix: Set real LLM caller if API key is configured
+  if (process.env.AI_LLM_API_KEY) {
+    const llmCaller = await createRealLLMCaller();
+    aiGateway.setLLMCaller(llmCaller);
+  } else {
+    // Fallback placeholder for development without API key
+    aiGateway.setLLMCaller(async (request: AIRequest) => {
+      return {
+        success: true,
+        data: { content: 'AI_LLM_API_KEY not configured. Set environment variable to enable real LLM calls.' },
+        confidence: 0.8,
+        source: 'llm',
+        latency: 100,
+      };
+    });
+  }
 
   // ==================== AI Gateway Core ====================
 

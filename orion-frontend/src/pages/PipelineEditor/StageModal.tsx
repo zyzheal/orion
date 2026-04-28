@@ -93,7 +93,7 @@ const StageModal: React.FC<StageModalProps> = ({
         },
       };
       onSave(stageConfig);
-    } catch (error) {
+    } catch (error: unknown) {
       // 验证失败，不处理
     }
   };

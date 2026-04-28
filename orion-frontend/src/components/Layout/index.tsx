@@ -46,6 +46,8 @@ import { useAuth } from '@/hooks/useAuth';
 import SubAppLauncher from '@/components/SubAppLauncher';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { NotificationBell } from '@/components/NotificationBell';
+import { ChatTrigger, ChatPanel } from '@/components/ChatOps';
+import { initializeChatOpsStore } from '@/stores/chatOpsStore';
 import { colors } from '@/tokens/colors';
 
 type ItemType = GetProp<MenuProps, 'items'>[number];
@@ -62,6 +64,11 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { theme, setTheme, breadcrumbs, setBreadcrumbs } = useAppStore();
   const { user, logout } = useAuth();
   const isAdmin = user?.role === 'admin';
+
+  // Initialize ChatOps store on mount
+  React.useEffect(() => {
+    initializeChatOpsStore();
+  }, []);
 
   // 根据当前路由动态计算菜单激活态
   const selectedKeys = React.useMemo(() => {
@@ -621,6 +628,9 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           {/* 通知铃铛 */}
           <NotificationBell />
 
+          {/* ChatOps 触发器 */}
+          <ChatTrigger />
+
           {/* 用户菜单 */}
           <Dropdown menu={{ items: userMenuItems }} placement="bottomRight" trigger={['click']}>
             <div
@@ -694,6 +704,9 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       >
         {children}
       </Content>
+
+      {/* ChatOps 面板 - 固定在右下角 */}
+      <ChatPanel />
 
       {/* 页脚 */}
       <Footer style={{

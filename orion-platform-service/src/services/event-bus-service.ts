@@ -7,14 +7,43 @@
  * - 配置信息持久化到 event_bus_config 表
  *
  * Migrated from in-memory only to PostgreSQL Repository pattern (M24)
+ * Architecture Review 2026-04: Fixed connection state semantics (ARCH-001)
  */
 
 import { EventEmitter } from 'events';
+import pino from 'pino';
 import {
   EventBusConfigRepository,
   EventSubscriptionRepository,
   EventBusEventRepository,
 } from '../repositories/EventBusRepository';
+
+/**
+ * 连接状态枚举 - 明确区分各种状态
+ * ARCH-001: 使用状态枚举而非 boolean，避免语义混乱
+ */
+export type ConnectionState = 'disabled' | 'connected' | 'disconnected' | 'fallback';
+
+/**
+ * EventBus 连接状态详情
+ */
+export interface ConnectionStatus {
+  state: ConnectionState;
+  message?: string;
+  natsAvailable: boolean;
+  reconnectAttempts: number;
+  lastError?: string;
+}
+
+/**
+ * EventBus 错误类型
+ */
+export class EventBusError extends Error {
+  constructor(message: string, public code: string, public recoverable: boolean = true) {
+    super(message);
+    this.name = 'EventBusError';
+  }
+}
 
 export interface EventBusServiceConfig {
   servers?: string[];
@@ -47,11 +76,26 @@ export interface EventBusRepositories {
   eventRepo?: EventBusEventRepository;
 }
 
+const logger = pino({ name: 'event-bus-service' });
+
 export class EventBusService extends EventEmitter {
   private config: EventBusServiceConfig;
-  private isConnected: boolean = false;
+  /** ARCH-001: 使用状态枚举而非 boolean */
+  private connectionState: ConnectionState = 'disconnected';
   private natsConnection: any = null;
   private repos: EventBusRepositories;
+  /** 重连尝试次数 */
+  private reconnectAttempts: number = 0;
+  /** 最后错误信息 */
+  private lastError?: string;
+  /** 监控指标 */
+  private metrics = {
+    publishSuccess: 0,
+    publishFailed: 0,
+    subscribeSuccess: 0,
+    subscribeFailed: 0,
+    mockCalls: 0,
+  };
 
   constructor(config: EventBusServiceConfig, repos?: EventBusRepositories) {
     super();
@@ -61,6 +105,57 @@ export class EventBusService extends EventEmitter {
       ...config,
     };
     this.repos = repos || {};
+
+    // ARCH-001: disabled 配置时立即设置状态
+    if (!this.config.enabled) {
+      this.connectionState = 'disabled';
+    }
+  }
+
+  /**
+   * ARCH-001: 获取完整连接状态（用于健康检查和监控）
+   */
+  getConnectionStatus(): ConnectionStatus {
+    return {
+      state: this.connectionState,
+      message: this.getStatusMessage(),
+      natsAvailable: this.natsConnection !== null,
+      reconnectAttempts: this.reconnectAttempts,
+      lastError: this.lastError,
+    };
+  }
+
+  /**
+   * ARCH-001: 状态转可读消息
+   */
+  private getStatusMessage(): string {
+    switch (this.connectionState) {
+      case 'disabled': return 'EventBus disabled by config';
+      case 'connected': return 'Connected to NATS';
+      case 'disconnected': return 'Not connected to NATS';
+      case 'fallback': return 'Running in fallback mode (NATS unavailable)';
+      default: return 'Unknown state';
+    }
+  }
+
+  /**
+   * 获取监控指标（用于 Prometheus 导出）
+   */
+  getMetrics(): typeof this.metrics {
+    return { ...this.metrics };
+  }
+
+  /**
+   * 重置监控指标
+   */
+  resetMetrics(): void {
+    this.metrics = {
+      publishSuccess: 0,
+      publishFailed: 0,
+      subscribeSuccess: 0,
+      subscribeFailed: 0,
+      mockCalls: 0,
+    };
   }
 
   /**
@@ -79,22 +174,28 @@ export class EventBusService extends EventEmitter {
 
   /**
    * 连接事件总线
+   * ARCH-001: 明确状态转换，不再混淆 isConnected
    */
   async connect(): Promise<void> {
     if (!this.config.enabled) {
-      console.log('[EventBusService] Disabled, skipping connection');
+      this.connectionState = 'disabled';
+      logger.info('Disabled, skipping connection');
       return;
     }
 
-    console.log('[EventBusService] Connecting to NATS...');
+    logger.info('Connecting to NATS...');
+    this.connectionState = 'disconnected';
 
     try {
       // 动态导入 NATS
       const { connect } = await import('nats').catch(() => ({ connect: null }));
 
       if (!connect) {
-        console.warn('[EventBusService] NATS module not available, running without event bus');
-        this.isConnected = true;
+        // ARCH-001: NATS 模块不可用时进入 fallback 状态，而非 isConnected=true
+        logger.warn('NATS module not available, entering fallback mode');
+        this.connectionState = 'fallback';
+        this.lastError = 'NATS module not available';
+        this.emit('fallback', { reason: 'module_unavailable' });
         return;
       }
 
@@ -109,24 +210,38 @@ export class EventBusService extends EventEmitter {
         reconnectTimeWait: this.config.reconnect?.interval || 2000,
       });
 
-      this.isConnected = true;
+      // ARCH-001: 连接成功明确设置 connected
+      this.connectionState = 'connected';
+      this.reconnectAttempts = 0;
+      this.lastError = undefined;
       this.emit('connect');
-      console.log('[EventBusService] Connected to NATS');
+      logger.info('Connected to NATS');
+
+      // SRE: 从 fallback 恢复后自动重试 pending 事件
+      if (this.repos.eventRepo) {
+        this.retryPendingEvents().catch(err => {
+          logger.warn({ err: String(err) }, 'Failed to retry pending events after reconnect');
+        });
+      }
 
       // 持久化连接配置
       await this.persistConfig();
 
       // 监听连接状态
       this.natsConnection.closed().then(() => {
-        this.isConnected = false;
+        this.connectionState = 'disconnected';
         this.emit('close');
-        console.log('[EventBusService] NATS connection closed');
+        logger.info('NATS connection closed');
       });
-    } catch (error) {
-      console.warn('[EventBusService] Connection failed:', error);
+    } catch (error: unknown) {
+      // ARCH-001: 连接失败明确设置 disconnected 或 fallback
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+      logger.warn({ error: errorMsg }, 'Connection failed');
+      this.lastError = errorMsg;
+      this.connectionState = 'fallback';
       this.emit('error', error);
-      // 不抛出错误，允许服务在没有事件总线的情况下运行
-      this.isConnected = true;
+      this.emit('fallback', { reason: 'connection_failed', error: errorMsg });
+      // 不抛出错误，允许服务在没有事件总线的情况下运行（降级模式）
     }
   }
 
@@ -142,7 +257,7 @@ export class EventBusService extends EventEmitter {
         'NATS connection configuration',
       );
     } catch (err) {
-      console.warn('[EventBusService] Failed to persist config:', err);
+      logger.warn({ err: String(err) }, 'Failed to persist config');
     }
   }
 
@@ -162,7 +277,7 @@ export class EventBusService extends EventEmitter {
     }
   ): Promise<void> {
     if (!this.natsConnection) {
-      console.warn('[EventBusService] NATS not connected, skipping stream creation');
+      logger.warn('NATS not connected, skipping stream creation');
       return;
     }
 
@@ -176,18 +291,19 @@ export class EventBusService extends EventEmitter {
         storage: options?.storage === 'memory' ? 0 : 1,
       });
 
-      console.log(`[EventBusService] Stream ${name} created`);
+      logger.info({ stream: name }, 'Stream created');
     } catch (error: any) {
       if (error.message?.includes('already in use')) {
-        console.log(`[EventBusService] Stream ${name} already exists`);
+        logger.info({ stream: name }, 'Stream already exists');
       } else {
-        console.warn('[EventBusService] Failed to create stream:', error);
+        logger.warn({ error: String(error) }, 'Failed to create stream');
       }
     }
   }
 
   /**
    * 发布事件（同时记录到 PostgreSQL）
+   * ARCH-002: Fallback 模式下事件写入 PostgreSQL，后台 Job 可重试
    */
   async publish<T = any>(
     type: string,
@@ -200,10 +316,12 @@ export class EventBusService extends EventEmitter {
       publishedBy?: string;
     }
   ): Promise<string> {
-    const subject = options?.subject || type.replace(/\./g, '.');
+    const subject = options?.subject || type;  // S1 Fix: removed no-op replace(/\./g, '.')
     const source = options?.source || 'orion-platform-service';
 
-    // 先持久化事件记录（即使 NATS 未连接也记录）
+    // C3 Fix: Always persist first with 'pending_published', then try NATS.
+    // This eliminates the race condition where connection drops between persist and publish.
+    // If NATS publish fails, the event remains in 'pending_published' and can be retried.
     let eventRecord: any = null;
     if (this.repos.eventRepo) {
       try {
@@ -213,18 +331,30 @@ export class EventBusService extends EventEmitter {
           subject,
           source,
           payload: { data },
-          status: 'published',
+          status: 'pending_published',  // Always start as pending until NATS confirms
           published_by: options?.publishedBy,
           published_at: new Date(),
         });
       } catch (err) {
-        console.warn('[EventBusService] Failed to persist event record:', err);
+        logger.warn({ err: String(err) }, 'Failed to persist event record');
       }
     }
 
-    if (!this.natsConnection) {
-      console.warn('[EventBusService] NATS not connected, event not published:', type);
-      throw new Error(`NATS not connected, cannot publish event: ${type}`);
+    // If not connected, return fallback ID — event is safely persisted for retry
+    if (this.connectionState !== 'connected' || !this.natsConnection) {
+      logger.warn({ type }, 'NATS not connected, event persisted for retry');
+      this.metrics.publishFailed++;
+
+      if (eventRecord) {
+        this.emit('fallback_publish', { eventId: eventRecord.id, type, subject });
+        return `fallback:${eventRecord.id}`;
+      }
+
+      throw new EventBusError(
+        `NATS not connected (state: ${this.connectionState}), cannot publish event: ${type}`,
+        'NOT_CONNECTED',
+        true
+      );
     }
 
     try {
@@ -235,35 +365,42 @@ export class EventBusService extends EventEmitter {
         timestamp: new Date().toISOString(),
       });
 
-      const pubAck = await this.natsConnection.publish(subject, new TextEncoder().encode(message));
-      const seq = pubAck?.seq?.toString() || type;
+      await this.natsConnection.publish(subject, new TextEncoder().encode(message));
 
-      // 更新事件状态为 delivered
+      // NATS publish succeeded — update status to delivered
       if (eventRecord && this.repos.eventRepo) {
         try {
           await this.repos.eventRepo.updateStatus(eventRecord.id, 'delivered');
         } catch (err) {
-          console.warn('[EventBusService] Failed to update event status:', err);
+          logger.warn({ err: String(err) }, 'Failed to update event status');
         }
       }
 
-      return seq;
+      this.metrics.publishSuccess++;
+      return eventRecord?.id || type;
     } catch (error) {
-      // 标记为 failed
+      // NATS publish failed — event stays as 'pending_published' for retry
+      // Update to 'failed' only for non-recoverable errors
       if (eventRecord && this.repos.eventRepo) {
         try {
-          await this.repos.eventRepo.updateStatus(eventRecord.id, 'failed');
+          const isRecoverable = this.connectionState === 'connected';
+          if (!isRecoverable) {
+            await this.repos.eventRepo.updateStatus(eventRecord.id, 'failed');
+          }
+          // Otherwise leave as 'pending_published' for automatic retry on reconnect
         } catch (err) {
-          console.warn('[EventBusService] Failed to update event status:', err);
+          logger.warn({ err: String(err) }, 'Failed to update event status');
         }
       }
-      console.error('[EventBusService] Failed to publish event:', error);
+      this.metrics.publishFailed++;
+      logger.error({ error: String(error) }, 'Failed to publish event');
       throw error;
     }
   }
 
   /**
    * 订阅事件（同时持久化订阅信息）
+   * ARCH-003: 订阅失败明确上报，不再静默返回空函数
    */
   async subscribe<T = any>(
     eventType: string,
@@ -276,9 +413,22 @@ export class EventBusService extends EventEmitter {
       tenantId?: string;
     }
   ): Promise<() => Promise<void>> {
-    if (!this.natsConnection) {
-      console.warn('[EventBusService] NATS not connected, cannot subscribe');
-      return async () => {};
+    // ARCH-003: Fallback 模式下抛出明确错误，而非静默返回空函数
+    if (this.connectionState === 'disabled') {
+      throw new EventBusError(
+        'EventBus disabled, cannot subscribe',
+        'DISABLED',
+        false  // 不可恢复
+      );
+    }
+
+    if (this.connectionState === 'fallback' || !this.natsConnection) {
+      // ARCH-003: Fallback 模式下抛出可恢复错误，调用方可选择降级策略
+      throw new EventBusError(
+        `NATS not connected (state: ${this.connectionState}), cannot subscribe to ${eventType}`,
+        'NOT_CONNECTED',
+        true  // 可恢复，等待重连
+      );
     }
 
     try {
@@ -301,7 +451,7 @@ export class EventBusService extends EventEmitter {
             metadata: { streamName: options?.streamName },
           });
         } catch (err) {
-          console.warn('[EventBusService] Failed to persist subscription:', err);
+          logger.warn({ err: String(err) }, 'Failed to persist subscription');
         }
       }
 
@@ -322,7 +472,7 @@ export class EventBusService extends EventEmitter {
             });
             msg.ack();
           } catch (error) {
-            console.error('[EventBusService] Error handling message:', error);
+            logger.error({ error: String(error) }, 'Error handling message');
             // Nak the message so it can be redelivered (with DLQ handling in JetStream)
             if (msg.nak) {
               msg.nak();
@@ -330,9 +480,11 @@ export class EventBusService extends EventEmitter {
           }
         }
       })().catch((err) => {
-        console.error('[EventBusService] Subscription error:', err);
+        logger.error({ err: String(err) }, 'Subscription error');
+        this.metrics.subscribeFailed++;
       });
 
+      this.metrics.subscribeSuccess++;
       this.emit('subscribe', { eventType, subscriptionId: subject });
 
       // 返回取消订阅函数
@@ -343,33 +495,48 @@ export class EventBusService extends EventEmitter {
           try {
             await this.repos.subscriptionRepo.updateStatus(subRecord.id, 'deleted');
           } catch (err) {
-            console.warn('[EventBusService] Failed to update subscription status:', err);
+            logger.warn({ err: String(err) }, 'Failed to update subscription status');
           }
         }
       };
-    } catch (error) {
-      console.warn('[EventBusService] Failed to subscribe:', error);
-      return async () => {};
+    } catch (error: unknown) {
+      this.metrics.subscribeFailed++;
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+      // ARCH-003: 记录错误而非静默返回空函数
+      logger.warn({ eventType, error: errorMsg }, 'Failed to subscribe');
+      this.emit('subscribe_failed', { eventType, error: errorMsg });
+      throw new EventBusError(
+        `Failed to subscribe to ${eventType}: ${errorMsg}`,
+        'SUBSCRIBE_FAILED',
+        true
+      );
     }
   }
 
   /**
    * 检查连接健康
+   * ARCH-001: 使用 connectionState 而非 isConnected
+   * 兼容原有 HealthChecker 接口 (status: 'up' | 'down')
    */
-  async checkHealth(): Promise<{ status: 'up' | 'down'; message?: string }> {
-    if (!this.config.enabled) {
-      return { status: 'up', message: 'EventBus disabled' };
+  async checkHealth(): Promise<{ status: 'up' | 'down'; message?: string; state?: ConnectionState; latency?: number }> {
+    if (this.connectionState === 'disabled') {
+      return { status: 'up', message: 'EventBus disabled', state: 'disabled' };
+    }
+
+    if (this.connectionState === 'fallback') {
+      // ARCH-001: Fallback 模式下返回 'up' (服务可用但降级)
+      return { status: 'up', message: 'Running in fallback mode (NATS unavailable)', state: 'fallback' };
     }
 
     if (!this.natsConnection) {
-      return { status: 'down', message: 'Not connected' };
+      return { status: 'down', message: 'Not connected', state: 'disconnected' };
     }
 
     if (this.natsConnection.isClosed()) {
-      return { status: 'down', message: 'Connection closed' };
+      return { status: 'down', message: 'Connection closed', state: 'disconnected' };
     }
 
-    return { status: 'up' };
+    return { status: 'up', message: 'Connected to NATS', state: 'connected' };
   }
 
   /**
@@ -377,27 +544,43 @@ export class EventBusService extends EventEmitter {
    */
   async close(): Promise<void> {
     if (this.natsConnection) {
-      console.log('[EventBusService] Closing NATS connection...');
+      logger.info('Closing NATS connection...');
       try {
         await this.natsConnection.drain();
         await this.natsConnection.close();
       } catch (error) {
-        console.warn('[EventBusService] Error closing NATS:', error);
+        logger.warn({ error: String(error) }, 'Error closing NATS');
       }
       this.natsConnection = null;
-      this.isConnected = false;
+      this.connectionState = 'disconnected';
       this.emit('close');
     }
   }
 
   /**
    * 检查服务状态
+   * ARCH-001: connected 和 fallback 都返回 true（降级模式仍可服务）
    */
   isHealthy(): boolean {
-    if (!this.config.enabled) {
+    if (this.connectionState === 'disabled') {
       return true;
     }
-    return this.isConnected;
+    return this.connectionState === 'connected' || this.connectionState === 'fallback';
+  }
+
+  /**
+   * 检查是否为连接状态（仅 NATS 真正连接）
+   * ARCH-001: 区分 "健康" 和 "已连接"
+   */
+  isConnected(): boolean {
+    return this.connectionState === 'connected';
+  }
+
+  /**
+   * 检查是否为 fallback 模式
+   */
+  isFallback(): boolean {
+    return this.connectionState === 'fallback';
   }
 
   /**
@@ -446,12 +629,96 @@ export class EventBusService extends EventEmitter {
     if (!this.repos.eventRepo) {
       throw new Error('Event repository not available');
     }
-    const [published, delivered, failed, deadLetter] = await Promise.all([
+    const [published, pendingFallback, delivered, failed, deadLetter] = await Promise.all([
       this.repos.eventRepo.countByStatus('published'),
+      this.repos.eventRepo.countByStatus('pending_fallback'),
       this.repos.eventRepo.countByStatus('delivered'),
       this.repos.eventRepo.countByStatus('failed'),
       this.repos.eventRepo.countByStatus('dead_letter'),
     ]);
-    return { published, delivered, failed, deadLetter };
+    return { published, pendingFallback, delivered, failed, deadLetter };
+  }
+
+  /**
+   * 重试 pending_fallback 事件
+   * 当 NATS 从 fallback 恢复为 connected 时调用
+   *
+   * SRE: 确保 fallback 期间积累的事件不会丢失
+   * I3 Fix: Adds exponential backoff delay between retries
+   * I4 Fix: Uses returned entity from incrementRetryCount for accurate count
+   */
+  async retryPendingEvents(options?: {
+    limit?: number;
+    maxRetryCount?: number;
+    onProgress?: (eventId: string, success: boolean) => void;
+  }): Promise<{ retried: number; succeeded: number; failed: number }> {
+    if (!this.repos.eventRepo) {
+      throw new Error('Event repository not available');
+    }
+    if (this.connectionState !== 'connected' || !this.natsConnection) {
+      throw new EventBusError('NATS not connected, cannot retry events', 'NOT_CONNECTED', true);
+    }
+
+    const limit = options?.limit ?? 100;
+    const maxRetryCount = options?.maxRetryCount ?? 3;
+
+    const pendingEvents = await this.repos.eventRepo.findPendingFallbackEvents(limit, maxRetryCount);
+    if (pendingEvents.length === 0) {
+      return { retried: 0, succeeded: 0, failed: 0 };
+    }
+
+    logger.info({ count: pendingEvents.length }, 'Retrying pending fallback events');
+
+    let succeeded = 0;
+    let failed = 0;
+
+    for (let i = 0; i < pendingEvents.length; i++) {
+      const event = pendingEvents[i];
+
+      // I3 Fix: Exponential backoff between retries (100ms, 200ms, 400ms, ...)
+      if (i > 0) {
+        const delayMs = Math.min(100 * Math.pow(2, i - 1), 5000);
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      }
+
+      try {
+        const message = JSON.stringify({
+          type: event.eventType,
+          source: event.source,
+          data: event.payload.data,
+          timestamp: new Date().toISOString(),
+        });
+
+        await this.natsConnection.publish(event.subject, new TextEncoder().encode(message));
+
+        // I4 Fix: Get the updated entity to know the actual retry count
+        const updatedEvent = await this.repos.eventRepo.incrementRetryCount(event.id);
+        await this.repos.eventRepo.updateStatus(event.id, 'delivered');
+
+        succeeded++;
+        options?.onProgress?.(event.id, true);
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+        logger.warn({ eventId: event.id, error: errorMsg }, 'Retry failed for event');
+
+        // I4 Fix: Use returned entity for accurate retry count
+        const updatedEvent = await this.repos.eventRepo.incrementRetryCount(event.id);
+        const actualRetryCount = updatedEvent?.retryCount ?? 1;
+
+        // If max retries exceeded, mark as dead_letter
+        if (actualRetryCount >= maxRetryCount) {
+          await this.repos.eventRepo.updateStatus(event.id, 'dead_letter');
+        }
+
+        failed++;
+        options?.onProgress?.(event.id, false);
+      }
+    }
+
+    logger.info(
+      { succeeded, failed, total: pendingEvents.length },
+      'Retry complete'
+    );
+    return { retried: pendingEvents.length, succeeded, failed };
   }
 }

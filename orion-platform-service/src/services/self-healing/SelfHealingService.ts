@@ -13,6 +13,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { SelfHealingRepository, HealingIncidentRow, ApprovalRequestRow } from './SelfHealingRepository';
 import { HealingStrategyEngine } from './HealingStrategyEngine';
 import { HealingActionExecutor } from './HealingActionExecutor';
+import { SelfHealingGuardian, HealingRiskLevel, StormSuppressionRule, DualApprovalConfig, DEFAULT_STORM_RULES, DEFAULT_DUAL_APPROVAL_CONFIG } from './SelfHealingGuardian';
 import {
   HealingStrategy,
   HealingIncident,
@@ -35,11 +36,15 @@ import {
 export interface SelfHealingServiceOptions {
   approvalExpirationMs?: number;
   autoExecuteOnApproval?: boolean;
+  stormRules?: StormSuppressionRule[];
+  dualApprovalConfig?: DualApprovalConfig;
 }
 
 const DEFAULT_OPTIONS: Required<SelfHealingServiceOptions> = {
   approvalExpirationMs: 300000, // 5 minutes
   autoExecuteOnApproval: true,
+  stormRules: DEFAULT_STORM_RULES,
+  dualApprovalConfig: DEFAULT_DUAL_APPROVAL_CONFIG,
 };
 
 // ==================== Service ====================
@@ -55,6 +60,7 @@ export class SelfHealingService {
   private repository: SelfHealingRepository;
   private strategyEngine: HealingStrategyEngine;
   private actionExecutor: HealingActionExecutor;
+  private guardian: SelfHealingGuardian;
   private options: Required<SelfHealingServiceOptions>;
 
   constructor(
@@ -64,7 +70,21 @@ export class SelfHealingService {
     this.repository = repository;
     this.strategyEngine = new HealingStrategyEngine();
     this.actionExecutor = new HealingActionExecutor();
-    this.options = { ...DEFAULT_OPTIONS, ...options };
+    this.guardian = new SelfHealingGuardian({
+      stormRules: options?.stormRules,
+      dualApprovalConfig: options?.dualApprovalConfig,
+    });
+    this.options = {
+      ...DEFAULT_OPTIONS,
+      ...options,
+    };
+  }
+
+  /**
+   * SRE: Expose guardian for audit/storm status queries
+   */
+  getGuardian(): SelfHealingGuardian {
+    return this.guardian;
   }
 
   // Expose strategy engine for strategy management
@@ -78,6 +98,36 @@ export class SelfHealingService {
    * Handle an incoming alert and create a healing incident
    */
   async handleAlert(alert: MonitoringAlertEvent): Promise<HealingIncident> {
+    // SRE: Storm suppression check before creating incident
+    const shouldSuppress = this.guardian.shouldSuppress({
+      appName: alert.tags.app || 'unknown',
+      environment: alert.tags.env || 'unknown',
+      alertType: alert.metric,
+    });
+
+    if (shouldSuppress) {
+      console.log(
+        `[SelfHealingService] Storm suppressed alert: ${alert.metric} in ${alert.tags.app} (${alert.tags.env})`
+      );
+      // Still create the incident but mark as suppressed
+      const row = await this.repository.createIncident({
+        alert_id: alert.alertId,
+        type: this.mapMetricToIncidentType(alert.metric),
+        severity: alert.severity,
+        app_name: alert.tags.app || 'unknown',
+        environment: alert.tags.env || 'unknown',
+        actions: [],
+        status: 'escalated',
+        tags: alert.tags,
+      });
+
+      // Update with suppression reason
+      await this.repository.updateIncident(row.id, {
+        error: 'Storm suppressed - same alert triggered recently',
+      });
+      return this.mapRowToIncident(row);
+    }
+
     const incidentId = uuidv4();
     const now = new Date();
 
@@ -386,14 +436,14 @@ export class SelfHealingService {
     }
 
     if (response.approved) {
-      // Execute healing actions
+      // Execute healing actions with approver info
       const strategy = this.strategyEngine.getStrategy(incident.strategy_id || '');
       if (strategy) {
         await this.repository.updateIncident(incident.id, {
           approval_status: 'approved',
           status: 'healing',
         });
-        const result = await this.executeHealingActions(strategy, incident);
+        const result = await this.executeHealingActions(strategy, incident, [response.respondedBy]);
         return result;
       }
 
@@ -425,18 +475,48 @@ export class SelfHealingService {
 
   /**
    * Execute healing actions for an incident
+   * S7 Fix: Accepts approvers array and passes to audit log
    */
   private async executeHealingActions(
     strategy: HealingStrategy,
-    incidentRow: HealingIncidentRow
+    incidentRow: HealingIncidentRow,
+    approvers: string[] = []
   ): Promise<HealingIncident> {
     const startTime = Date.now();
     const actionResults: HealingActionResult[] = [];
     let allSuccess = true;
 
     for (const action of strategy.actions) {
+      // SRE: Audit log each action
+      await this.guardian.recordAudit({
+        incidentId: incidentRow.id,
+        actionType: action.type,
+        target: action.params?.target || 'unknown',
+        environment: incidentRow.environment,
+        riskLevel: this.mapSeverityToRiskLevel(incidentRow.severity as IncidentSeverity),
+        approvers, // S7 Fix: Populated from approval response
+        executor: 'system',
+        status: 'executed',
+        reason: `Auto-healing via strategy: ${strategy.name}`,
+      });
+
       const result = await this.actionExecutor.executeAction(action);
       actionResults.push(result);
+
+      // Update audit entry with result
+      await this.guardian.recordAudit({
+        incidentId: incidentRow.id,
+        actionType: action.type,
+        target: action.params?.target || 'unknown',
+        environment: incidentRow.environment,
+        riskLevel: this.mapSeverityToRiskLevel(incidentRow.severity as IncidentSeverity),
+        approvers, // S7 Fix: Populated from approval response
+        executor: 'system',
+        status: result.success ? 'executed' : 'blocked',
+        reason: result.message || result.error || '',
+        result: result.success ? 'success' : 'failed',
+      });
+
       if (!result.success) {
         allSuccess = false;
         // If action supports rollback and failed, rollback
@@ -589,5 +669,17 @@ export class SelfHealingService {
     if (env === 'production' || env === 'prod') return 'high';
     if (env === 'staging' || env === 'pre-prod') return 'medium';
     return 'low';
+  }
+
+  /**
+   * Map IncidentSeverity to HealingRiskLevel (for audit logging)
+   */
+  private mapSeverityToRiskLevel(severity: IncidentSeverity): HealingRiskLevel {
+    switch (severity) {
+      case 'critical': return 'critical';
+      case 'warning': return 'high';
+      case 'info': return 'low';
+      default: return 'medium';
+    }
   }
 }

@@ -115,8 +115,12 @@ const BranchPolicyList: React.FC = () => {
           await deleteBranchPolicy(policy.id);
           message.success('策略已删除');
           loadPolicies();
-        } catch (error) {
-          message.error('删除策略失败');
+        } catch (error: unknown) {
+          if (error instanceof Error) {
+            message.error(`删除策略失败：${error.message}`);
+          } else {
+            message.error('删除策略失败');
+          }
         }
       },
     });
@@ -127,8 +131,12 @@ const BranchPolicyList: React.FC = () => {
       await updateBranchPolicy(policy.id, { enabled });
       message.success(enabled ? '策略已启用' : '策略已禁用');
       loadPolicies();
-    } catch (error) {
-      message.error('更新状态失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`更新状态失败：${error.message}`);
+      } else {
+        message.error('更新状态失败');
+      }
     }
   };
 

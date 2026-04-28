@@ -2,9 +2,11 @@
  * Internal Library Routes - 二方库管理 API 路由
  *
  * 基于 M30 二方库管理设计
+ * D5/D7 Fix: Accept database pool via options, remove hardcoded /api/ prefix
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { DatabasePool } from '../services/database';
 import { InternalLibraryService } from '../services/internal-library/InternalLibraryService';
 import {
   CreateLibraryInput,
@@ -13,16 +15,21 @@ import {
   LibraryQueryOptions,
 } from '../models/InternalLibrary';
 
-const libraryService = new InternalLibraryService();
+interface InternalLibraryRoutesOptions {
+  database?: DatabasePool;
+}
 
-export async function internalLibraryRoutes(app: FastifyInstance) {
+export async function internalLibraryRoutes(app: FastifyInstance, options: InternalLibraryRoutesOptions = {}) {
+  // D7 Fix: Initialize with PostgreSQL Repository if database is available
+  const libraryService = new InternalLibraryService(options.database);
+
   // ==================== CRUD ====================
 
   /**
    * 创建二方库
-   * POST /api/internal-libraries
+   * POST /internal-libraries
    */
-  app.post('/api/internal-libraries', async (request: FastifyRequest<{ Body: CreateLibraryInput }>, reply: FastifyReply) => {
+  app.post('/', async (request: FastifyRequest<{ Body: CreateLibraryInput }>, reply: FastifyReply) => {
     try {
       const input = request.body;
       const library = await libraryService.create(input);
@@ -34,20 +41,19 @@ export async function internalLibraryRoutes(app: FastifyInstance) {
 
   /**
    * 列出二方库
-   * GET /api/internal-libraries
-   * Query params: language, status, owner, name
+   * GET /internal-libraries
    */
-  app.get('/api/internal-libraries', async (request: FastifyRequest<{ Querystring: LibraryQueryOptions }>, reply: FastifyReply) => {
-    const options = request.query;
-    const libraries = await libraryService.list(options);
+  app.get('/', async (request: FastifyRequest<{ Querystring: LibraryQueryOptions }>, reply: FastifyReply) => {
+    const opts = request.query;
+    const libraries = await libraryService.list(opts);
     reply.send(libraries);
   });
 
   /**
    * 获取二方库详情
-   * GET /api/internal-libraries/:id
+   * GET /internal-libraries/:id
    */
-  app.get('/api/internal-libraries/:id', async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+  app.get('/:id', async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
     const { id } = request.params;
     const library = await libraryService.getById(id);
     if (!library) {
@@ -59,9 +65,9 @@ export async function internalLibraryRoutes(app: FastifyInstance) {
 
   /**
    * 按名称获取二方库
-   * GET /api/internal-libraries/name/:name
+   * GET /internal-libraries/name/:name
    */
-  app.get('/api/internal-libraries/name/:name', async (request: FastifyRequest<{ Params: { name: string } }>, reply: FastifyReply) => {
+  app.get('/name/:name', async (request: FastifyRequest<{ Params: { name: string } }>, reply: FastifyReply) => {
     const { name } = request.params;
     const library = await libraryService.getByName(name);
     if (!library) {
@@ -73,9 +79,9 @@ export async function internalLibraryRoutes(app: FastifyInstance) {
 
   /**
    * 按语言列出二方库
-   * GET /api/internal-libraries/language/:language
+   * GET /internal-libraries/language/:language
    */
-  app.get('/api/internal-libraries/language/:language', async (request: FastifyRequest<{ Params: { language: string } }>, reply: FastifyReply) => {
+  app.get('/language/:language', async (request: FastifyRequest<{ Params: { language: string } }>, reply: FastifyReply) => {
     const { language } = request.params;
     const libraries = await libraryService.listByLanguage(language as any);
     reply.send(libraries);
@@ -83,9 +89,9 @@ export async function internalLibraryRoutes(app: FastifyInstance) {
 
   /**
    * 按团队列出二方库
-   * GET /api/internal-libraries/owner/:owner
+   * GET /internal-libraries/owner/:owner
    */
-  app.get('/api/internal-libraries/owner/:owner', async (request: FastifyRequest<{ Params: { owner: string } }>, reply: FastifyReply) => {
+  app.get('/owner/:owner', async (request: FastifyRequest<{ Params: { owner: string } }>, reply: FastifyReply) => {
     const { owner } = request.params;
     const libraries = await libraryService.listByOwner(owner);
     reply.send(libraries);
@@ -93,9 +99,9 @@ export async function internalLibraryRoutes(app: FastifyInstance) {
 
   /**
    * 删除二方库
-   * DELETE /api/internal-libraries/:id
+   * DELETE /internal-libraries/:id
    */
-  app.delete('/api/internal-libraries/:id', async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+  app.delete('/:id', async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
     const { id } = request.params;
     const deleted = await libraryService.delete(id);
     if (!deleted) {
@@ -109,9 +115,9 @@ export async function internalLibraryRoutes(app: FastifyInstance) {
 
   /**
    * 发布新版本
-   * POST /api/internal-libraries/:id/versions
+   * POST /internal-libraries/:id/versions
    */
-  app.post('/api/internal-libraries/:id/versions', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/:id/versions', async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = request.params as { id: string };
     const body = request.body as any;
     try {
@@ -134,9 +140,9 @@ export async function internalLibraryRoutes(app: FastifyInstance) {
 
   /**
    * 获取版本列表
-   * GET /api/internal-libraries/:id/versions
+   * GET /internal-libraries/:id/versions
    */
-  app.get('/api/internal-libraries/:id/versions', async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+  app.get('/:id/versions', async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
     const { id } = request.params;
     const versions = await libraryService.getVersions(id);
     reply.send(versions);
@@ -144,9 +150,9 @@ export async function internalLibraryRoutes(app: FastifyInstance) {
 
   /**
    * 获取特定版本
-   * GET /api/internal-libraries/:id/versions/:version
+   * GET /internal-libraries/:id/versions/:version
    */
-  app.get('/api/internal-libraries/:id/versions/:version', async (request: FastifyRequest<{ Params: { id: string; version: string } }>, reply: FastifyReply) => {
+  app.get('/:id/versions/:version', async (request: FastifyRequest<{ Params: { id: string; version: string } }>, reply: FastifyReply) => {
     const { id, version } = request.params;
     const versionInfo = await libraryService.getVersion(id, version);
     if (!versionInfo) {
@@ -158,9 +164,9 @@ export async function internalLibraryRoutes(app: FastifyInstance) {
 
   /**
    * 废弃版本
-   * POST /api/internal-libraries/:id/versions/:version/deprecate
+   * POST /internal-libraries/:id/versions/:version/deprecate
    */
-  app.post('/api/internal-libraries/:id/versions/:version/deprecate', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/:id/versions/:version/deprecate', async (request: FastifyRequest, reply: FastifyReply) => {
     const { id, version } = request.params as { id: string; version: string };
     const body = request.body as any;
     const result = await libraryService.deprecateVersion(id, version, body.reason, new Date(body.eolDate), body.migrationGuide);
@@ -175,9 +181,9 @@ export async function internalLibraryRoutes(app: FastifyInstance) {
 
   /**
    * 废弃二方库
-   * POST /api/internal-libraries/:id/deprecate
+   * POST /internal-libraries/:id/deprecate
    */
-  app.post('/api/internal-libraries/:id/deprecate', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/:id/deprecate', async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = request.params as { id: string };
     const body = request.body as any;
     try {
@@ -201,9 +207,9 @@ export async function internalLibraryRoutes(app: FastifyInstance) {
 
   /**
    * 激活二方库
-   * POST /api/internal-libraries/:id/activate
+   * POST /internal-libraries/:id/activate
    */
-  app.post('/api/internal-libraries/:id/activate', async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+  app.post('/:id/activate', async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
     const { id } = request.params;
     const library = await libraryService.activate(id);
     if (!library) {
@@ -217,9 +223,9 @@ export async function internalLibraryRoutes(app: FastifyInstance) {
 
   /**
    * 获取依赖者列表
-   * GET /api/internal-libraries/:id/dependents
+   * GET /internal-libraries/:id/dependents
    */
-  app.get('/api/internal-libraries/:id/dependents', async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+  app.get('/:id/dependents', async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
     const { id } = request.params;
     const dependents = await libraryService.getDependents(id);
     reply.send(dependents);
@@ -227,9 +233,9 @@ export async function internalLibraryRoutes(app: FastifyInstance) {
 
   /**
    * 添加依赖关系
-   * POST /api/internal-libraries/:id/dependents
+   * POST /internal-libraries/:id/dependents
    */
-  app.post('/api/internal-libraries/:id/dependents', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/:id/dependents', async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = request.params as { id: string };
     const body = request.body as any;
     try {
@@ -242,9 +248,9 @@ export async function internalLibraryRoutes(app: FastifyInstance) {
 
   /**
    * 更新依赖版本
-   * PUT /api/internal-libraries/:id/dependents/:repoName
+   * PUT /internal-libraries/:id/dependents/:repoName
    */
-  app.put('/api/internal-libraries/:id/dependents/:repoName', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.put('/:id/dependents/:repoName', async (request: FastifyRequest, reply: FastifyReply) => {
     const { id, repoName } = request.params as { id: string; repoName: string };
     const body = request.body as any;
     const success = await libraryService.updateDependentVersion(id, repoName, body.version);
@@ -257,9 +263,9 @@ export async function internalLibraryRoutes(app: FastifyInstance) {
 
   /**
    * 检查项目依赖
-   * GET /api/repositories/:repoName/dependencies
+   * GET /internal-libraries/dependencies/:repoName
    */
-  app.get('/api/repositories/:repoName/dependencies', async (request: FastifyRequest<{ Params: { repoName: string } }>, reply: FastifyReply) => {
+  app.get('/dependencies/:repoName', async (request: FastifyRequest<{ Params: { repoName: string } }>, reply: FastifyReply) => {
     const { repoName } = request.params;
     const dependencies = await libraryService.checkDependencies(repoName);
     reply.send(dependencies);
@@ -267,9 +273,9 @@ export async function internalLibraryRoutes(app: FastifyInstance) {
 
   /**
    * 更新依赖统计
-   * POST /api/internal-libraries/:id/update-stats
+   * POST /internal-libraries/:id/update-stats
    */
-  app.post('/api/internal-libraries/:id/update-stats', async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+  app.post('/:id/update-stats', async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
     const { id } = request.params;
     await libraryService.updateDependentsStats(id);
     reply.send({ success: true });

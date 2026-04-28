@@ -1,21 +1,31 @@
 /**
  * Vector Store API Routes
  * Semantic search and vector document management
+ *
+ * P0-G2 Fix: Connected to PostgreSQL pgvector backend when database is available.
  * Prefix: /api/v1/vector-store
  */
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { DatabasePool } from '../services/database';
 import { VectorStore } from '../services/ai/VectorStore';
 import { VectorStoreConfig } from '../services/ai/types';
 
-export default async function vectorStoreRoutes(app: FastifyInstance): Promise<void> {
+interface VectorStoreRoutesOptions {
+  database?: DatabasePool;
+}
+
+export default async function vectorStoreRoutes(app: FastifyInstance, options: VectorStoreRoutesOptions = {}): Promise<void> {
   const config: VectorStoreConfig = {
     host: process.env.VECTOR_STORE_HOST || 'localhost',
     port: parseInt(process.env.VECTOR_STORE_PORT || '19530') || 19530,
     collectionName: process.env.VECTOR_STORE_COLLECTION || 'orion',
     dimension: parseInt(process.env.VECTOR_STORE_DIMENSION || '1536') || 1536,
+    apiKey: process.env.OPENAI_API_KEY,
+    embeddingProvider: (process.env.VECTOR_EMBEDDING_PROVIDER as any) || 'hash',
+    embeddingModel: process.env.VECTOR_EMBEDDING_MODEL || 'text-embedding-ada-002',
   };
 
-  const vectorStore = new VectorStore(config);
+  const vectorStore = new VectorStore(config, options.database);
 
   // POST /vector-store/documents - Add document
   app.post('/documents', async (request: FastifyRequest, reply: FastifyReply) => {
@@ -23,7 +33,7 @@ export default async function vectorStoreRoutes(app: FastifyInstance): Promise<v
     if (!content) return reply.status(400).send({ error: 'CONTENT_REQUIRED' });
 
     const id = await vectorStore.addDocument(content, metadata);
-    return reply.send({ id });
+    return reply.send({ id, persistent: vectorStore.isPersistent });
   });
 
   // POST /vector-store/search - Semantic search
@@ -49,6 +59,9 @@ export default async function vectorStoreRoutes(app: FastifyInstance): Promise<v
 
   // GET /vector-store/stats - Get stats
   app.get('/stats', async (_request: FastifyRequest, reply: FastifyReply) => {
-    return reply.send({ documentCount: vectorStore.documentCount });
+    return reply.send({
+      documentCount: vectorStore.documentCount,
+      persistent: vectorStore.isPersistent,
+    });
   });
 }

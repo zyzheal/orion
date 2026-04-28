@@ -30,3 +30,10 @@ export {
   SelfHealingServiceError,
   type SelfHealingServiceOptions,
 } from './SelfHealingService';
+export {
+  SelfHealingGuardian,
+  type HealingAuditEntry,
+  type StormSuppressionRule,
+  type DualApprovalConfig,
+  type HealingRiskLevel,
+} from './SelfHealingGuardian';

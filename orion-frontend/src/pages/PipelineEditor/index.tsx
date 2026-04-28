@@ -275,7 +275,7 @@ const PipelineEditor: React.FC = () => {
   const handleSavePipeline = useCallback(async () => {
     try {
       await form.validateFields();
-    } catch (e) {
+    } catch (error: unknown) {
       message.error('请填写完整的 Pipeline 信息');
       return;
     }

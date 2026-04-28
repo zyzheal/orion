@@ -19,6 +19,7 @@
     "@fastify/cors": "^10.1.0",
     "@fastify/helmet": "^12.0.1",
     "@fastify/jwt": "^9.0.1",
+    "@fastify/rate-limit": "^10.3.0",
     "@kubernetes/client-node": "^1.4.0",
     "@orion/event-bus": "file:./packages/event-bus",
     "ajv": "^8.18.0",

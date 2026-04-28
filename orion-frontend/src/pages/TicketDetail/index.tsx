@@ -286,9 +286,14 @@ const TicketDetail: React.FC = () => {
       message.success(`工单已升级: ${values.reason || '无理由'}`);
       setEscalateModalOpen(false);
       escalateForm.resetFields();
-    } catch (error) {
-      if (error !== true) {
-        message.error('升级失败');
+    } catch (error: unknown) {
+      const err = error as { errorFields?: unknown };
+      if (!err.errorFields) {
+        if (error instanceof Error) {
+          message.error(`升级失败：${error.message}`);
+        } else {
+          message.error('升级失败');
+        }
       }
     }
   };

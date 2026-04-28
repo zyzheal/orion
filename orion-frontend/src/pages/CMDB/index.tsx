@@ -125,8 +125,12 @@ const CITablePage: React.FC = () => {
       setCreateModalOpen(false);
       form.resetFields();
       loadData();
-    } catch (error) {
-      message.error('创建配置项失败');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`创建配置项失败：${error.message}`);
+      } else {
+        message.error('创建配置项失败');
+      }
     }
   };
 

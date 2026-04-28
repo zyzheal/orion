@@ -135,7 +135,7 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({
       setTitleValue('');
       setSubmitting(false);
       onSuccess();
-    } catch {
+    } catch (error: unknown) {
       setSubmitting(false);
       // Form validation error - no need to show additional message
     }

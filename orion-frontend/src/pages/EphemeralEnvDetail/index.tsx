@@ -106,7 +106,7 @@ const EphemeralEnvDetail: React.FC = () => {
     try {
       const costRes = await getEphemeralEnvCost(envId).catch(() => null);
       setCost(costRes || null);
-    } catch {
+    } catch (error: unknown) {
       setCost(null);
     } finally {
       setCostLoading(false);
@@ -120,8 +120,12 @@ const EphemeralEnvDetail: React.FC = () => {
       await wakeEphemeralEnv(env.id);
       message.success('环境已唤醒');
       await loadData(env.id);
-    } catch (err: any) {
-      message.error(`唤醒失败：${err.message}`);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`唤醒失败：${error.message}`);
+      } else {
+        message.error('唤醒失败');
+      }
     } finally {
       setActionLoading(null);
     }
@@ -134,8 +138,12 @@ const EphemeralEnvDetail: React.FC = () => {
       await teardownEphemeralEnv(env.id);
       message.success('环境销毁已触发');
       await loadData(env.id);
-    } catch (err: any) {
-      message.error(`销毁失败：${err.message}`);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`销毁失败：${error.message}`);
+      } else {
+        message.error('销毁失败');
+      }
     } finally {
       setActionLoading(null);
     }

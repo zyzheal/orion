@@ -45,7 +45,9 @@ CREATE TABLE IF NOT EXISTS event_bus_events (
     published_by VARCHAR(100),
     published_at TIMESTAMP DEFAULT NOW(),
     created_at TIMESTAMP DEFAULT NOW(),
-    CONSTRAINT chk_event_status CHECK (status IN ('published', 'delivered', 'failed', 'dead_letter'))
+    retry_count INTEGER DEFAULT 0,
+    last_retry_at TIMESTAMP,
+    CONSTRAINT chk_event_status CHECK (status IN ('published', 'pending_fallback', 'pending_published', 'delivered', 'failed', 'dead_letter'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_event_bus_events_tenant ON event_bus_events(tenant_id);

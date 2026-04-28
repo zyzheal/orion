@@ -2,8 +2,8 @@
 
 > 版本：v2.1 | 创建日期：2026-04-10 | 状态：**44+ 模块 260+ 功能**
 > 变更日志：[CHANGELOG.md](CHANGELOG.md) | 管理规范：[docs/文档管理规范.md](docs/文档管理规范.md)
-> **最新更新**: 2026-04-25 — 过期文档清理，M25 持久化迁移完成，M6/M29/M30 前端实现
-> **实现进度**: 后端 ~78% | 前端 ~85% | API 一致性 ~95% | 数据库 68 migrations
+> **最新更新**: 2026-04-28 — 新增当前系统架构文档和最小系统启动指南，陈旧架构文档添加过期标记
+> **实现进度**: 后端 ~78% | 前端 ~85% | API 一致性 ~95% | 数据库 70 migrations
 
 ---
 
@@ -37,12 +37,12 @@
 
 | 维度 | 数量 | 说明 |
 |------|------|------|
-| **后端服务目录** | 48 个 | `orion-platform-service/src/services/` 含子服务文件 |
+| **后端服务目录** | 70+ 个 | `orion-platform-service/src/services/` 含子服务文件 |
 | **后端服务模块** | 35+ 个 | `services/*/index.ts` 独立服务包 (30+ 已迁移 PostgreSQL) |
 | **前端页面** | 57+ 个 | `orion-frontend/src/pages/` |
 | **API 客户端** | 39 个 | `orion-frontend/src/api/` |
 | **后端路由** | 48 个 | `orion-platform-service/src/api/*-routes.ts` |
-| **数据库迁移** | 68 个 (001-049) | `orion-platform-service/src/db/migrations/` |
+| **数据库迁移** | 70 个 (001-055) | `orion-platform-service/src/db/migrations/` |
 | **设计文档** | 170+ 份 | 含架构/AI/安全/前端/SRE 等 |
 
 > 注：30+ 服务已从 `Map()` 迁移至 PostgreSQL Repository 模式。API 路径不匹配已修复 (~95% 一致)。
@@ -95,17 +95,21 @@
 
 ### 🏗️ 架构设计
 
-| 文档 | 行数 | 说明 |
-|------|------|------|
-| [架构设计详解](docs/architecture/架构设计详解.md) | ~1000 | 分层架构、部署架构、技术选型 |
-| [架构重构设计](docs/architecture/架构重构设计.md) | ~600 | 核心域 + 支撑域重构方案 |
-| [微服务与微前端架构](docs/architecture/微服务与微前端架构设计.md) | ~800 | 服务拆分、前端模块化 |
-| [服务拆分与数据库划分](docs/architecture/服务拆分与数据库划分详解.md) | ~1100 | 12 个微服务 + 数据库分配 |
-| [多租户隔离设计](docs/architecture/多租户隔离设计.md) | ~400 | 四隔离模型 |
-| [开放平台基座能力规则](docs/architecture/开放平台基座能力规则设计.md) | ~500 | 插件 SPI 规范 |
-| [跨时代颠覆性亮点设计](docs/architecture/跨时代颠覆性亮点设计.md) | ~700 | 自主事件指挥官等 6 大亮点 |
-| [外部组件集成架构](docs/architecture/外部组件集成架构设计.md) | ~300 | 第三方系统集成 |
-| [外部服务集成清单](docs/architecture/外部服务集成清单.md) | ~200 | 集成列表 |
+| 文档 | 行数 | 说明 | 状态 |
+|------|------|------|------|
+| [**当前系统架构**](docs/architecture/当前系统架构.md) | ~300 | **当前实际架构（Node.js 单体 + wujie）** | ✅ 最新 |
+| [**最小系统启动指南**](docs/architecture/最小系统启动指南.md) | ~200 | **从零启动 Orion 的完整步骤** | ✅ 最新 |
+| [架构设计详解](docs/architecture/架构设计详解.md) | ~1000 | 分层架构、技术选型 | ⚠️ 理想态 |
+| [架构重构设计](docs/architecture/架构重构设计.md) | ~600 | 核心域 + 支撑域重构方案 | ⚠️ 未实施 |
+| [微服务与微前端架构](docs/architecture/微服务与微前端架构设计.md) | ~800 | 8 微服务 + 7 前端子应用 | ⚠️ 未实现 |
+| [服务拆分与数据库划分](docs/architecture/服务拆分与数据库划分详解.md) | ~1100 | 12 个微服务 + 数据库分配 | ⚠️ 未实现 |
+| [平台服务拆分设计](docs/architecture/platform-service-split-design.md) | ~880 | orion-platform-service 拆分为 3 个服务 | ⚠️ 未实施 |
+| [服务拆分实施方案](docs/architecture/platform-service-split-implementation.md) | ~800 | 4 服务拆分方案 | ⚠️ 未实施 |
+| [多租户隔离设计](docs/architecture/多租户隔离设计.md) | ~400 | 四隔离模型 | |
+| [开放平台基座能力规则](docs/architecture/开放平台基座能力规则设计.md) | ~500 | 插件 SPI 规范 | |
+| [跨时代颠覆性亮点设计](docs/architecture/跨时代颠覆性亮点设计.md) | ~700 | 自主事件指挥官等 6 大亮点 | |
+| [外部组件集成架构](docs/architecture/外部组件集成架构设计.md) | ~300 | 第三方系统集成 | |
+| [外部服务集成清单](docs/architecture/外部服务集成清单.md) | ~200 | 集成列表 | |
 | [Plugin SPI 示例](docs/architecture/plugin-spi-examples.md) | ~300 | 代码示例 |
 | [平台服务拆分设计](docs/architecture/platform-service-split-design.md) | ~880 | orion-platform-service 拆分为 3 个服务 |
 | [gRPC 集成设计](docs/architecture/grpc-integration-design.md) | ~700 | gRPC vs REST 决策矩阵 |

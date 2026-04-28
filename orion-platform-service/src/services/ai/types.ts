@@ -264,4 +264,7 @@ export interface VectorStoreConfig {
   collectionName: string;
   dimension: number;
   apiKey?: string;
+  embeddingProvider?: 'hash' | 'openai' | 'custom';
+  embeddingModel?: string;
+  embeddingFn?: (text: string) => Promise<number[]>;
 }

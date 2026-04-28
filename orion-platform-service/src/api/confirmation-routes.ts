@@ -9,15 +9,21 @@
  * - Notification settings
  *
  * Prefix: /api/v1/confirmations
+ * D7 Fix: Migrated to PostgreSQL Repository pattern
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { DatabasePool } from '../services/database';
 import { ConfirmationService } from '../services/confirmation/ConfirmationService';
 import { ConfirmationController } from './controllers/ConfirmationController';
 
-export default async function confirmationRoutes(app: FastifyInstance): Promise<void> {
-  // Initialize service and controller
-  const service = new ConfirmationService();
+interface ConfirmationRoutesOptions {
+  database?: DatabasePool;
+}
+
+export default async function confirmationRoutes(app: FastifyInstance, options: ConfirmationRoutesOptions = {}): Promise<void> {
+  // D7 Fix: Initialize with PostgreSQL Repository if database is available
+  const service = new ConfirmationService(options.database);
   const controller = new ConfirmationController(service);
 
   // GET /confirmations - List confirmations

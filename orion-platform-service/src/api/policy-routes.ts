@@ -65,7 +65,9 @@ export default async function policyRoutes(
     return policyController.deletePolicy(request, reply);
   });
 
-  app.post('/evaluate', async (request: FastifyRequest, reply: FastifyReply) => {
+  // ==================== Evaluation Endpoints ====================
+  // PolicyController.evaluate — evaluate policy against a resource
+  app.post('/evaluate-policy', async (request: FastifyRequest, reply: FastifyReply) => {
     return policyController.evaluatePolicy(request, reply);
   });
 
@@ -73,13 +75,12 @@ export default async function policyRoutes(
     return policyController.getEvaluationHistory(request, reply);
   });
 
-  // ==================== Evaluation Service ====================
-
+  // PolicyEvaluationController — evaluate policy for a specific run
   app.post('/evaluate', async (request: FastifyRequest, reply: FastifyReply) => {
     return evalController.evaluate(request, reply);
   });
 
-  app.get('/evaluations', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/evaluations/runs', async (request: FastifyRequest, reply: FastifyReply) => {
     return evalController.listEvaluations(request, reply);
   });
 

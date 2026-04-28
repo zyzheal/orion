@@ -24,6 +24,8 @@ export class SSEConnectionManager {
   private connections: Map<string, SSEConnection> = new Map();
   private localBus: EventEmitter;
   private readonly HEARTBEAT_INTERVAL_MS = 30_000;
+  private readonly MAX_CONNECTIONS_PER_USER = 5;
+  private readonly MAX_TOTAL_CONNECTIONS = 500;
 
   constructor(localBus: EventEmitter) {
     this.localBus = localBus;
@@ -33,6 +35,32 @@ export class SSEConnectionManager {
    * 添加新 SSE 连接
    */
   addConnection(conn: Omit<SSEConnection, 'heartbeatTimer'>, reply: FastifyReply): void {
+    // 限制: 单用户最大连接数
+    let userCount = 0;
+    for (const c of this.connections.values()) {
+      if (c.userId === conn.userId) userCount++;
+    }
+    if (userCount >= this.MAX_CONNECTIONS_PER_USER) {
+      // 清理该用户最早的连接
+      for (const [id, c] of this.connections.entries()) {
+        if (c.userId === conn.userId) {
+          this.removeConnection(id);
+          break;
+        }
+      }
+    }
+
+    // 限制: 全局最大连接数
+    if (this.connections.size >= this.MAX_TOTAL_CONNECTIONS) {
+      const oldestId = this.connections.keys().next().value;
+      if (oldestId) this.removeConnection(oldestId);
+    }
+
+    // 若同一 connId 已存在，先清理旧连接（含 heartbeat timer）
+    if (this.connections.has(conn.id)) {
+      this.removeConnection(conn.id);
+    }
+
     const heartbeatTimer = setInterval(() => {
       const existing = this.connections.get(conn.id);
       if (!existing) return;
@@ -48,6 +76,11 @@ export class SSEConnectionManager {
         }
       }
     }, this.HEARTBEAT_INTERVAL_MS);
+
+    // R-3: 确保 heartbeat timer 不阻塞进程退出
+    if (typeof heartbeatTimer.unref === 'function') {
+      heartbeatTimer.unref();
+    }
 
     const fullConn: SSEConnection = { ...conn, heartbeatTimer, reply: conn.reply ?? reply };
     this.connections.set(conn.id, fullConn);

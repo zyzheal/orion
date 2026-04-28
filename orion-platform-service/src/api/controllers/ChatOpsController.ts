@@ -2,6 +2,7 @@
  * ChatOps Controller - Fastify HTTP request/response handlers
  *
  * Phase 1a: Added recommendations, sessions/messages, settings, alerts, SSE
+ * ARCH-005: Added health check endpoint for SSE client awareness
  */
 
 import { FastifyRequest, FastifyReply } from 'fastify';
@@ -11,6 +12,7 @@ import { RecommendationService } from '../../services/chatops/RecommendationServ
 import { NotificationPreferenceService } from '../../services/chatops/NotificationPreferenceService';
 import { DNDService } from '../../services/chatops/DNDService';
 import { AlertStateService } from '../../services/chatops/AlertStateService';
+import { PlatformConfigService } from '../../services/chatops/PlatformConfigService';
 import { ChatOpsMessageRepository } from '../../repositories/ChatOpsRepository';
 import { ChatOpsEventSubscriber } from '../../services/chatops/EventSubscriber';
 import { SSEConnectionManager } from '../../services/chatops/SSEConnectionManager';
@@ -18,6 +20,8 @@ import {
   WebhookVerifier,
   isFeishuChallenge,
 } from '../../services/chatops/WebhookVerifier';
+import { ChatOpsExecutionStatus } from '../../models/ChatOps';
+import { EventBusService } from '../../services/event-bus-service';
 
 export class ChatOpsController {
   private commandService: CommandService;
@@ -27,8 +31,11 @@ export class ChatOpsController {
   private notifPrefService: NotificationPreferenceService;
   private dndService: DNDService;
   private alertStateService: AlertStateService;
+  private platformConfigService: PlatformConfigService;
   // 可选的 eventSubscriber，用于按角色过滤推荐面板
   private eventSubscriber: ChatOpsEventSubscriber | null;
+  /** ARCH-005: EventBus 实例，用于健康检查 */
+  private eventBus: EventBusService | null;
 
   constructor(options: {
     commandService: CommandService;
@@ -38,7 +45,10 @@ export class ChatOpsController {
     notifPrefService: NotificationPreferenceService;
     dndService: DNDService;
     alertStateService: AlertStateService;
+    platformConfigService: PlatformConfigService;
     eventSubscriber?: ChatOpsEventSubscriber | null;
+    /** ARCH-005: EventBus 实例 */
+    eventBus?: EventBusService | null;
   }) {
     this.commandService = options.commandService;
     this.executionService = options.executionService;
@@ -47,7 +57,9 @@ export class ChatOpsController {
     this.notifPrefService = options.notifPrefService;
     this.dndService = options.dndService;
     this.alertStateService = options.alertStateService;
+    this.platformConfigService = options.platformConfigService;
     this.eventSubscriber = options.eventSubscriber ?? null;
+    this.eventBus = options.eventBus ?? null;
   }
 
   // ==================== Helpers ====================
@@ -152,6 +164,34 @@ export class ChatOpsController {
         return;
       }
       await reply.send({ success: true, data: execution });
+    } catch (err) {
+      await reply.status(500).send({
+        success: false,
+        error: err instanceof Error ? err.message : 'Internal server error',
+      });
+    }
+  }
+
+  async listExecutions(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    try {
+      // F-2: 添加认证检查
+      const user = this.getUser(request);
+      if (!user) {
+        await reply.status(401).send({ success: false, error: 'UNAUTHORIZED' });
+        return;
+      }
+      const query = request.query as Record<string, string | undefined>;
+      // 若未指定 userId，使用当前用户的 userId
+      const filterUserId = query.userId || user.userId;
+      const { executions, total } = await this.executionService.list({
+        commandId: query.commandId,
+        userId: filterUserId,
+        status: query.status as ChatOpsExecutionStatus,
+        platform: query.platform,
+        page: query.page ? parseInt(query.page) : undefined,
+        perPage: query.perPage ? parseInt(query.perPage) : undefined,
+      });
+      await reply.send({ success: true, data: executions, total });
     } catch (err) {
       await reply.status(500).send({
         success: false,
@@ -564,6 +604,52 @@ export class ChatOpsController {
     }
   }
 
+  // ==================== Platform Config ====================
+
+  async getPlatformConfigs(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    try {
+      const user = this.getUser(request);
+      if (!user) {
+        await reply.status(401).send({ success: false, error: 'UNAUTHORIZED' });
+        return;
+      }
+      const configs = await this.platformConfigService.getByUserId(user.userId);
+      await reply.send({ success: true, data: configs });
+    } catch (err) {
+      await reply.status(500).send({
+        success: false,
+        error: err instanceof Error ? err.message : 'Internal server error',
+      });
+    }
+  }
+
+  async updatePlatformConfigs(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    try {
+      const user = this.getUser(request);
+      if (!user) {
+        await reply.status(401).send({ success: false, error: 'UNAUTHORIZED' });
+        return;
+      }
+      const body = request.body as { platforms: Array<{
+        platform: string;
+        enabled: boolean;
+        webhook: string;
+        token: string;
+      }> };
+      if (!body.platforms || !Array.isArray(body.platforms)) {
+        await reply.status(400).send({ success: false, error: 'platforms 数组必填' });
+        return;
+      }
+      const configs = await this.platformConfigService.batchUpdate(user.userId, body.platforms as any);
+      await reply.send({ success: true, data: configs });
+    } catch (err) {
+      await reply.status(400).send({
+        success: false,
+        error: err instanceof Error ? err.message : 'Internal server error',
+      });
+    }
+  }
+
   // ==================== Alert States (Phase 1a) ====================
 
   async getAlertStates(request: FastifyRequest, reply: FastifyReply): Promise<void> {
@@ -631,6 +717,52 @@ export class ChatOpsController {
       await reply.send({ success: true });
     } catch (err) {
       await reply.status(400).send({
+        success: false,
+        error: err instanceof Error ? err.message : 'Internal server error',
+      });
+    }
+  }
+
+  // ==================== Health Check (ARCH-005) ====================
+
+  /**
+   * ARCH-005: 健康检查端点，用于 SSE 客户端感知后端状态
+   * 返回 EventBus 连接状态、SSE 连接数、订阅失败数等
+   */
+  async healthCheck(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    try {
+      const eventBusStatus = this.eventBus?.getConnectionStatus() ?? {
+        state: 'disabled',
+        message: 'EventBus not initialized',
+        natsAvailable: false,
+        reconnectAttempts: 0,
+      };
+
+      const sseConnections = this.eventSubscriber?.isFallbackMode() ? 0 : 1;  // 简化
+      const subscriptionFailures = this.eventSubscriber?.getSubscriptionFailures() ?? [];
+
+      await reply.send({
+        success: true,
+        eventBus: {
+          status: eventBusStatus.state === 'connected' ? 'up' :
+                  eventBusStatus.state === 'fallback' ? 'fallback' : 'down',
+          state: eventBusStatus.state,
+          message: eventBusStatus.message,
+          natsAvailable: eventBusStatus.natsAvailable,
+          reconnectAttempts: eventBusStatus.reconnectAttempts,
+        },
+        sse: {
+          activeConnections: sseConnections,
+          fallbackMode: this.eventSubscriber?.isFallbackMode() ?? false,
+        },
+        subscriptions: {
+          failures: subscriptionFailures.length,
+          details: subscriptionFailures.slice(0, 5),  // 只返回前 5 个失败详情
+        },
+        metrics: this.eventBus?.getMetrics() ?? {},
+      });
+    } catch (err) {
+      await reply.status(500).send({
         success: false,
         error: err instanceof Error ? err.message : 'Internal server error',
       });

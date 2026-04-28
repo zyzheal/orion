@@ -80,4 +80,6 @@ class MicroFrontendEventBus {
 // 创建全局事件总线实例
 export const eventBus = new MicroFrontendEventBus();
 
+export { MicroFrontendEventBus };
+
 export default eventBus;

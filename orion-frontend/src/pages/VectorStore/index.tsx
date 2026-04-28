@@ -209,7 +209,7 @@ const VectorStorePage: React.FC = () => {
       if (uploadMetadata.trim()) {
         try {
           metadataObj = JSON.parse(uploadMetadata);
-        } catch {
+        } catch (error: unknown) {
           message.error('元数据 JSON 格式错误');
           setUploadLoading(false);
           return;

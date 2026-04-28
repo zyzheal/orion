@@ -6,9 +6,8 @@ import { Typography, Button, Space, Tag, Card, Row, Col, Statistic, Timeline, me
 import { colors, spacing } from '@/tokens';
 import { ReloadOutlined, PlayCircleOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
-import StatusBadge from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
-import { getCommands, type ChatOpsExecution } from '@/api/chatops';
+import { getExecutions, type ChatOpsExecution } from '@/api/chatops';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 
@@ -22,6 +21,15 @@ const platformColorMap: Record<string, string> = {
   feishu: colors.primary[600],
   slack: colors.purple[800],
   cli: 'default',
+  web: colors.primary[300],
+};
+
+const statusColorMap: Record<string, string> = {
+  pending: 'default',
+  running: 'blue',
+  completed: 'green',
+  failed: 'red',
+  cancelled: 'orange',
 };
 
 const ExecutionDashboard: React.FC = () => {
@@ -33,25 +41,20 @@ const ExecutionDashboard: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const res = await getCommands();
-      // Demo: create mock execution data from command data
-      const cmdData = Array.isArray(res.data.data) ? res.data.data : [];
-      const mockExecutions: ChatOpsExecution[] = cmdData.slice(0, 10).map((cmd: { id: string; name: string }, index: number) => ({
-        id: `exec-${cmd.id}`,
-        command: cmd.name,
-        userId: `user-${index % 3 + 1}`,
-        platform: ['dingtalk', 'wecom', 'feishu', 'cli'][index % 4] as ChatOpsExecution['platform'],
-        status: ['running', 'success', 'failed', 'timeout', 'success'][index % 5] as ChatOpsExecution['status'],
-        startTime: dayjs().subtract(index * 5, 'minute').toISOString(),
-        endTime: index % 5 !== 0 ? dayjs().subtract(index * 5 - 2, 'minute').toISOString() : undefined,
-        durationMs: index % 5 !== 0 ? (index * 1000 + 500) : undefined,
-      }));
-      setExecutions(mockExecutions);
+      const res = await getExecutions({
+        commandId: searchQuery || undefined,
+        status: filters.status && filters.status !== 'all' ? String(filters.status) : undefined,
+        platform: filters.platform && filters.platform !== 'all' ? String(filters.platform) : undefined,
+        page: 1,
+        perPage: 50,
+      });
+      const data = Array.isArray(res.data.data) ? res.data.data : [];
+      setExecutions(data);
     } catch (error: unknown) {
       if (error instanceof Error) {
-        message.error(`Failed to load executions：${error.message}`);
+        message.error(`加载失败：${error.message}`);
       } else {
-        message.error('Failed to load executions');
+        message.error('加载执行记录失败');
       }
     } finally {
       setLoading(false);
@@ -60,29 +63,22 @@ const ExecutionDashboard: React.FC = () => {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [filters.status, filters.platform, searchQuery]);
 
   const filteredExecutions = useMemo(() => {
-    return executions.filter((exec) => {
-      if (searchQuery) {
-        const q = searchQuery.toLowerCase();
-        if (!exec.command.toLowerCase().includes(q) && !exec.userId.toLowerCase().includes(q)) return false;
-      }
-      if (filters.status && filters.status !== 'all' && exec.status !== filters.status) return false;
-      if (filters.platform && filters.platform !== 'all' && exec.platform !== filters.platform) return false;
-      return true;
-    });
-  }, [searchQuery, filters, executions]);
+    // 后端已根据 searchQuery(commandId) 和 filters 过滤，这里只做前端二次过滤（可选）
+    return executions;
+  }, [executions]);
 
-  const successCount = executions.filter((e) => e.status === 'success').length;
+  const successCount = executions.filter((e) => e.status === 'completed').length;
   const failedCount = executions.filter((e) => e.status === 'failed').length;
-  const runningCount = executions.filter((e) => e.status === 'running').length;
+  const runningCount = executions.filter((e) => e.status === 'running' || e.status === 'pending').length;
 
   const columns: TableColumn<ChatOpsExecution>[] = [
     {
-      key: 'command',
+      key: 'commandId',
       title: '命令',
-      dataIndex: 'command',
+      dataIndex: 'commandId',
       width: 160,
       sortable: true,
       render: (v: unknown) => <Text code>/{String(v)}</Text>,
@@ -106,14 +102,7 @@ const ExecutionDashboard: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       width: 100,
-      render: (v: unknown) => <StatusBadge status={v as any} size="small" />,
-    },
-    {
-      key: 'duration',
-      title: '耗时',
-      dataIndex: 'durationMs',
-      width: 100,
-      render: (v: unknown) => v ? <Text>{(Number(v) / 1000).toFixed(1)}s</Text> : <Text type="secondary">-</Text>,
+      render: (v: unknown) => <Tag color={statusColorMap[String(v)] || 'default'}>{String(v)}</Tag>,
     },
     {
       key: 'startTime',
@@ -138,17 +127,20 @@ const ExecutionDashboard: React.FC = () => {
   const filterDefs: FilterDefinition[] = [
     { key: 'status', label: '状态', options: [
       { label: '全部', value: 'all' },
-      { label: 'Running', value: 'running' },
-      { label: 'Success', value: 'success' },
-      { label: 'Failed', value: 'failed' },
-      { label: 'Timeout', value: 'timeout' },
+      { label: '待执行', value: 'pending' },
+      { label: '运行中', value: 'running' },
+      { label: '已完成', value: 'completed' },
+      { label: '失败', value: 'failed' },
+      { label: '已取消', value: 'cancelled' },
     ]},
     { key: 'platform', label: '平台', options: [
       { label: '全部', value: 'all' },
       { label: '钉钉', value: 'dingtalk' },
       { label: '企业微信', value: 'wecom' },
       { label: '飞书', value: 'feishu' },
+      { label: 'Slack', value: 'slack' },
       { label: 'CLI', value: 'cli' },
+      { label: 'Web', value: 'web' },
     ]},
   ];
 
@@ -182,8 +174,8 @@ const ExecutionDashboard: React.FC = () => {
           <Card title={<Space><ClockCircleOutlined />执行时间线</Space>}>
             <Timeline>
               {executions.slice(0, 8).map((exec) => (
-                <Timeline.Item key={exec.id} color={exec.status === 'success' ? 'green' : exec.status === 'failed' ? 'red' : exec.status === 'running' ? 'blue' : 'gray'}>
-                  <Text strong>/{exec.command}</Text>
+                <Timeline.Item key={exec.id} color={exec.status === 'completed' ? 'green' : exec.status === 'failed' ? 'red' : exec.status === 'running' ? 'blue' : 'gray'}>
+                  <Text strong>/{exec.commandId}</Text>
                   <br />
                   <Text type="secondary" style={{ fontSize: spacing[3] }}>
                     {exec.platform} - {dayjs(exec.startTime).fromNow()}

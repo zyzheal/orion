@@ -1,12 +1,19 @@
 /**
  * OnCall Scheduling API Routes
  * Prefix: /api/v1/oncall
+ * G5 Fix: Migrated to PostgreSQL Repository pattern
  */
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { DatabasePool } from '../services/database';
 import { OnCallService } from '../services/scheduler/OnCallService';
 
-export default async function oncallRoutes(app: FastifyInstance): Promise<void> {
-  const oncallService = new OnCallService();
+interface OnCallRoutesOptions {
+  database?: DatabasePool;
+}
+
+export default async function oncallRoutes(app: FastifyInstance, options: OnCallRoutesOptions = {}): Promise<void> {
+  // G5 Fix: Initialize with PostgreSQL Repository if database is available
+  const oncallService = new OnCallService(options.database);
 
   // POST /oncall/schedules - Create schedule
   app.post('/schedules', async (request: FastifyRequest, reply: FastifyReply) => {

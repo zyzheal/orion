@@ -45,9 +45,11 @@ export interface EventBusEventEntity {
   source: string;
   payload: Record<string, any>;
   sequenceNum?: number;
-  status: 'published' | 'delivered' | 'failed' | 'dead_letter';
+  status: 'published' | 'pending_fallback' | 'pending_published' | 'delivered' | 'failed' | 'dead_letter';
   publishedBy?: string;
   publishedAt: Date;
+  retryCount?: number;
+  lastRetryAt?: Date;
   createdAt: Date;
 }
 
@@ -230,10 +232,39 @@ export class EventBusEventRepository extends BaseRepository<EventBusEventEntity>
     return result.rows.map(row => this.mapRowToEntity(row));
   }
 
-  async updateStatus(id: string, status: 'published' | 'delivered' | 'failed' | 'dead_letter'): Promise<EventBusEventEntity | null> {
+  async updateStatus(id: string, status: 'published' | 'pending_fallback' | 'pending_published' | 'delivered' | 'failed' | 'dead_letter'): Promise<EventBusEventEntity | null> {
     const result = await this.db.query(
       `UPDATE event_bus_events SET status = $1 WHERE id = $2 RETURNING *`,
       [status, id],
+    );
+    if (result.rows.length === 0) return null;
+    return this.mapRowToEntity(result.rows[0]);
+  }
+
+  /**
+   * Fetch pending events for retry (both pending_fallback and pending_published)
+   * Ordered by age, limited by maxRetryCount
+   */
+  async findPendingFallbackEvents(limit: number = 100, maxRetryCount: number = 3): Promise<EventBusEventEntity[]> {
+    const result = await this.db.query(
+      `SELECT * FROM event_bus_events
+       WHERE status IN ('pending_fallback', 'pending_published') AND retry_count < $1
+       ORDER BY published_at ASC
+       LIMIT $2`,
+      [maxRetryCount, limit],
+    );
+    return result.rows.map(row => this.mapRowToEntity(row));
+  }
+
+  /**
+   * Increment retry count and update last retry timestamp
+   */
+  async incrementRetryCount(id: string): Promise<EventBusEventEntity | null> {
+    const result = await this.db.query(
+      `UPDATE event_bus_events
+       SET retry_count = retry_count + 1, last_retry_at = NOW()
+       WHERE id = $1 RETURNING *`,
+      [id],
     );
     if (result.rows.length === 0) return null;
     return this.mapRowToEntity(result.rows[0]);
@@ -291,6 +322,8 @@ export class EventBusEventRepository extends BaseRepository<EventBusEventEntity>
       status: row.status ?? 'published',
       publishedBy: row.published_by,
       publishedAt: row.published_at,
+      retryCount: row.retry_count ?? 0,
+      lastRetryAt: row.last_retry_at,
       createdAt: row.created_at,
     };
   }

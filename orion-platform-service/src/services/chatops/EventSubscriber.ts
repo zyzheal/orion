@@ -6,10 +6,14 @@
  * - 内层: EventEmitter (localBus) → 内部组件通信 (SSE 推荐面板)
  *
  * ChatOpsEventSubscriber 作为桥梁: NATS 事件 → localBus 分发
+ *
+ * ARCH-003: 订阅失败不再静默，而是采用 fallback 策略：
+ * 1. NATS 不可用：定时轮询数据库事件表（fallback_poll 模式）
+ * 2. 订阅失败：记录失败并等待 NATS 重连后重新订阅
  */
 
 import { EventEmitter } from 'events';
-import { EventBusService } from '../event-bus-service';
+import { EventBusService, EventBusError, ConnectionState } from '../event-bus-service';
 
 export interface ChatOpsRecommendation {
   id: string;
@@ -31,14 +35,28 @@ interface EventBusPayload {
   [key: string]: unknown;
 }
 
+/** 订阅失败记录 */
+interface SubscriptionFailure {
+  event: string;
+  error: string;
+  timestamp: Date;
+  retryCount: number;
+}
+
 export class ChatOpsEventSubscriber {
   private eventBus: EventBusService;
   private localBus: EventEmitter = new EventEmitter();
   private activeRecommendations: Map<string, ChatOpsRecommendation> = new Map();
   private unsubscribeFns: Array<() => Promise<void>> = [];
+  /** ARCH-003: 记录订阅失败 */
+  private subscriptionFailures: Map<string, SubscriptionFailure> = new Map();
+  /** ARCH-003: Fallback 轮询定时器 */
+  private fallbackPollTimer: ReturnType<typeof setInterval> | null = null;
 
   private readonly RECOMMENDATION_TTL_MS = 30 * 60 * 1000; // 推荐项 TTL: 30 分钟
   private cleanupTimer: ReturnType<typeof setInterval>;
+  /** ARCH-003: Fallback 轮询间隔 */
+  private readonly FALLBACK_POLL_INTERVAL_MS = 5_000;
 
   constructor(eventBus: EventBusService) {
     this.eventBus = eventBus;
@@ -48,10 +66,24 @@ export class ChatOpsEventSubscriber {
     if (typeof this.cleanupTimer.unref === 'function') {
       this.cleanupTimer.unref();
     }
+
+    // ARCH-003: 监听 EventBus 状态变化，自动切换 fallback 模式
+    this.eventBus.on('fallback', () => {
+      console.log('[ChatOpsEventSubscriber] EventBus in fallback mode, starting fallback polling');
+      this.startFallbackPolling();
+    });
+
+    this.eventBus.on('connect', () => {
+      console.log('[ChatOpsEventSubscriber] EventBus connected, stopping fallback polling');
+      this.stopFallbackPolling();
+      // ARCH-003: 重连后重试失败的订阅
+      this.retryFailedSubscriptions();
+    });
   }
 
   /**
    * 初始化: 订阅所有相关外部事件
+   * ARCH-003: 订阅失败记录并等待重连后重试
    */
   async initialize(): Promise<void> {
     const subscriptions: Array<{ event: string; handler: (data: EventBusPayload) => void }> = [
@@ -73,8 +105,149 @@ export class ChatOpsEventSubscriber {
           handler(payload);
         });
         this.unsubscribeFns.push(unsub);
+        // ARCH-003: 订阅成功后清除失败记录
+        this.subscriptionFailures.delete(event);
+      } catch (err: unknown) {
+        // ARCH-003: 记录订阅失败，而非静默忽略
+        const errorMsg = err instanceof EventBusError
+          ? `${err.code}: ${err.message}`
+          : (err instanceof Error ? err.message : 'Unknown error');
+
+        const existing = this.subscriptionFailures.get(event);
+        this.subscriptionFailures.set(event, {
+          event,
+          error: errorMsg,
+          timestamp: new Date(),
+          retryCount: existing ? existing.retryCount + 1 : 1,
+        });
+
+        console.warn(`[ChatOpsEventSubscriber] Failed to subscribe to ${event}:`, errorMsg);
+
+        // ARCH-003: 根据错误类型决定策略
+        if (err instanceof EventBusError) {
+          if (err.code === 'DISABLED') {
+            // EventBus 禁用，无需 fallback
+            console.log(`[ChatOpsEventSubscriber] EventBus disabled, skipping subscription to ${event}`);
+          } else if (err.code === 'NOT_CONNECTED' && err.recoverable) {
+            // NATS 未连接但可恢复，启动 fallback 轮询
+            this.startFallbackPolling();
+          }
+        }
+      }
+    }
+
+    // ARCH-003: 如果有订阅失败且处于 fallback 模式，启动轮询
+    if (this.subscriptionFailures.size > 0 && this.eventBus.isFallback()) {
+      this.startFallbackPolling();
+    }
+  }
+
+  /**
+   * ARCH-003: 启动 fallback 轮询（从数据库读取事件）
+   */
+  private startFallbackPolling(): void {
+    if (this.fallbackPollTimer) return;  // 已启动
+
+    console.log('[ChatOpsEventSubscriber] Starting fallback polling for events');
+    this.fallbackPollTimer = setInterval(async () => {
+      await this.pollEventsFromDB();
+    }, this.FALLBACK_POLL_INTERVAL_MS);
+
+    if (typeof this.fallbackPollTimer.unref === 'function') {
+      this.fallbackPollTimer.unref();
+    }
+  }
+
+  /**
+   * ARCH-003: 停止 fallback 轮询
+   */
+  private stopFallbackPolling(): void {
+    if (this.fallbackPollTimer) {
+      clearInterval(this.fallbackPollTimer);
+      this.fallbackPollTimer = null;
+      console.log('[ChatOpsEventSubscriber] Stopped fallback polling');
+    }
+  }
+
+  /**
+   * ARCH-003: 从数据库轮询 pending_fallback 状态的事件
+   */
+  private async pollEventsFromDB(): Promise<void> {
+    try {
+      const repos = this.eventBus.getRepositories();
+      if (!repos.eventRepo) return;
+
+      // 查询 pending_fallback 状态的事件
+      const pendingEvents = await repos.eventRepo.findByStatus('pending_fallback', { limit: 10 });
+      for (const event of pendingEvents) {
+        try {
+          const payload = event.payload as EventBusPayload;
+          const handler = this.getHandlerForEvent(event.eventType);  // 使用 eventType 属性
+          if (handler) {
+            handler(payload.data || payload);
+          }
+          // 更新状态为 delivered
+          await repos.eventRepo.updateStatus(event.id, 'delivered');
+        } catch (err) {
+          console.warn('[ChatOpsEventSubscriber] Failed to process fallback event:', err);
+        }
+      }
+    } catch (err) {
+      console.warn('[ChatOpsEventSubscriber] Fallback poll failed:', err);
+    }
+  }
+
+  /**
+   * ARCH-003: 根据事件类型获取 handler
+   */
+  private getHandlerForEvent(eventType: string): ((data: EventBusPayload) => void) | null {
+    const handlerMap: Record<string, (data: EventBusPayload) => void> = {
+      'alert.created': (d) => this.handleAlertCreated(d),
+      'alert.acknowledged': (d) => this.handleAlertAcknowledged(d),
+      'alert.dismissed': (d) => this.handleAlertDismissed(d),
+      'pipeline.run.completed': (d) => this.handlePipelineCompleted(d),
+      'pipeline.run.blocked': (d) => this.handlePipelineBlocked(d),
+      'deploy.finished': (d) => this.handleDeployFinished(d),
+      'selfhealing.failed': (d) => this.handleSelfHealingFailed(d),
+    };
+    return handlerMap[eventType] || null;
+  }
+
+  /**
+   * ARCH-003: 重连后重试失败的订阅
+   */
+  private async retryFailedSubscriptions(): Promise<void> {
+    if (this.subscriptionFailures.size === 0) return;
+
+    console.log('[ChatOpsEventSubscriber] Retrying failed subscriptions after reconnect');
+    const failures = Array.from(this.subscriptionFailures.values());
+
+    for (const failure of failures) {
+      if (failure.retryCount >= 3) {
+        console.warn(`[ChatOpsEventSubscriber] Subscription ${failure.event} has exceeded max retries, skipping`);
+        continue;
+      }
+
+      try {
+        const handler = this.getHandlerForEvent(failure.event);
+        if (!handler) continue;
+
+        const unsub = await this.eventBus.subscribe(failure.event, async (rawEvent: EventBusPayload) => {
+          const payload = rawEvent.data || rawEvent;
+          handler(payload);
+        });
+        this.unsubscribeFns.push(unsub);
+        this.subscriptionFailures.delete(failure.event);
+        console.log(`[ChatOpsEventSubscriber] Successfully re-subscribed to ${failure.event}`);
       } catch (err) {
-        console.warn(`[ChatOpsEventSubscriber] Failed to subscribe to ${event}:`, err);
+        const errorMsg = err instanceof Error ? err.message : 'Unknown error';
+        this.subscriptionFailures.set(failure.event, {
+          ...failure,
+          error: errorMsg,
+          timestamp: new Date(),
+          retryCount: failure.retryCount + 1,
+        });
+        console.warn(`[ChatOpsEventSubscriber] Re-subscription attempt ${failure.retryCount + 1} failed for ${failure.event}:`, errorMsg);
       }
     }
   }
@@ -245,13 +418,32 @@ export class ChatOpsEventSubscriber {
 
   /** 清理所有订阅 */
   async cleanup(): Promise<void> {
+    // ARCH-003: 停止 fallback 轮询
+    this.stopFallbackPolling();
+
     // 停止 TTL 清理定时器
     clearInterval(this.cleanupTimer);
+
     for (const unsub of this.unsubscribeFns) {
       try { await unsub(); } catch {}
     }
     this.unsubscribeFns = [];
     this.localBus.removeAllListeners();
     this.activeRecommendations.clear();
+    this.subscriptionFailures.clear();
+  }
+
+  /**
+   * ARCH-003: 获取订阅失败状态（用于监控）
+   */
+  getSubscriptionFailures(): SubscriptionFailure[] {
+    return Array.from(this.subscriptionFailures.values());
+  }
+
+  /**
+   * ARCH-003: 获取是否在 fallback 模式运行
+   */
+  isFallbackMode(): boolean {
+    return this.fallbackPollTimer !== null;
   }
 }

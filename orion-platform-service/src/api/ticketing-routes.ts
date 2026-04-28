@@ -3,7 +3,10 @@
  *
  * Provides endpoints for ticket CRUD, workflow management,
  * assignment, relations, SLA-tracking, and reporting.
- * Registered under /api/v1/tickets and /api/v1/ticketing prefixes.
+ * Registered under /api/v1/tickets prefix.
+ *
+ * P0-5 Fix: Changed all hardcoded `/tickets/` paths to relative paths
+ * to avoid double prefix issue (/tickets/tickets).
  *
  * Migrated to PostgreSQL Repository pattern:
  * - Core ticket CRUD uses TicketingRepository + TicketingService
@@ -61,60 +64,60 @@ export default async function ticketingRoutes(
 
   // ==================== Ticket CRUD ====================
 
-  // POST /tickets - Create a ticket
-  app.post('/tickets', async (request: FastifyRequest, reply: FastifyReply) => {
+  // POST / - Create a ticket
+  app.post('/', async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.createTicket(request, reply);
   });
 
-  // POST /tickets/from-alert - Create ticket from alert
-  app.post('/tickets/from-alert', async (request: FastifyRequest, reply: FastifyReply) => {
+  // POST /from-alert - Create ticket from alert
+  app.post('/from-alert', async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.createTicketFromAlert(request, reply);
   });
 
-  // POST /tickets/from-incident - Create ticket from incident
-  app.post('/tickets/from-incident', async (request: FastifyRequest, reply: FastifyReply) => {
+  // POST /from-incident - Create ticket from incident
+  app.post('/from-incident', async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.createTicketFromIncident(request, reply);
   });
 
-  // GET /tickets - List tickets
-  app.get('/tickets', async (request: FastifyRequest, reply: FastifyReply) => {
+  // GET / - List tickets
+  app.get('/', async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.listTickets(request, reply);
   });
 
-  // GET /tickets/:id - Get a ticket
-  app.get('/tickets/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+  // GET /:id - Get a ticket
+  app.get('/:id', async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.getTicket(request, reply);
   });
 
   // ==================== Workflow ====================
 
-  // POST /tickets/:id/transition - Transition ticket status
-  app.post('/tickets/:id/transition', async (request: FastifyRequest, reply: FastifyReply) => {
+  // POST /:id/transition - Transition ticket status
+  app.post('/:id/transition', async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.transitionStatus(request, reply);
   });
 
-  // POST /tickets/:id/assign - Assign a ticket
-  app.post('/tickets/:id/assign', async (request: FastifyRequest, reply: FastifyReply) => {
+  // POST /:id/assign - Assign a ticket
+  app.post('/:id/assign', async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.assignTicket(request, reply);
   });
 
-  // POST /tickets/:id/escalate - Escalate a ticket
-  app.post('/tickets/:id/escalate', async (request: FastifyRequest, reply: FastifyReply) => {
+  // POST /:id/escalate - Escalate a ticket
+  app.post('/:id/escalate', async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.escalateTicket(request, reply);
   });
 
-  // POST /tickets/:id/resolve - Resolve a ticket
-  app.post('/tickets/:id/resolve', async (request: FastifyRequest, reply: FastifyReply) => {
+  // POST /:id/resolve - Resolve a ticket
+  app.post('/:id/resolve', async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.resolveTicket(request, reply);
   });
 
-  // POST /tickets/:id/close - Close a ticket
-  app.post('/tickets/:id/close', async (request: FastifyRequest, reply: FastifyReply) => {
+  // POST /:id/close - Close a ticket
+  app.post('/:id/close', async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.closeTicket(request, reply);
   });
 
-  // GET /tickets/:id/history - Get workflow history
-  app.get('/tickets/:id/history', async (request: FastifyRequest, reply: FastifyReply) => {
+  // GET /:id/history - Get workflow history
+  app.get('/:id/history', async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.getWorkflowHistory(request, reply);
   });
 
@@ -137,28 +140,28 @@ export default async function ticketingRoutes(
 
   // ==================== Relations ====================
 
-  // POST /tickets/:id/relations - Add ticket relation
-  app.post('/tickets/:id/relations', async (request: FastifyRequest, reply: FastifyReply) => {
+  // POST /:id/relations - Add ticket relation
+  app.post('/:id/relations', async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.addRelation(request, reply);
   });
 
-  // GET /tickets/:id/relations - Get relations for a ticket
-  app.get('/tickets/:id/relations', async (request: FastifyRequest, reply: FastifyReply) => {
+  // GET /:id/relations - Get relations for a ticket
+  app.get('/:id/relations', async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.getRelations(request, reply);
   });
 
-  // GET /tickets/:id/related - Find related tickets
-  app.get('/tickets/:id/related', async (request: FastifyRequest, reply: FastifyReply) => {
+  // GET /:id/related - Find related tickets
+  app.get('/:id/related', async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.findRelatedTickets(request, reply);
   });
 
-  // GET /tickets/:id/duplicates - Detect duplicates
-  app.get('/tickets/:id/duplicates', async (request: FastifyRequest, reply: FastifyReply) => {
+  // GET /:id/duplicates - Detect duplicates
+  app.get('/:id/duplicates', async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.detectDuplicates(request, reply);
   });
 
-  // POST /tickets/correlate - Correlate root cause
-  app.post('/tickets/correlate', async (request: FastifyRequest, reply: FastifyReply) => {
+  // POST /correlate - Correlate root cause
+  app.post('/correlate', async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.correlateRootCause(request, reply);
   });
 
@@ -169,8 +172,8 @@ export default async function ticketingRoutes(
     return controller.addSLATarget(request, reply);
   });
 
-  // GET /tickets/:id/sla - Get SLA for a ticket
-  app.get('/tickets/:id/sla', async (request: FastifyRequest, reply: FastifyReply) => {
+  // GET /:id/sla - Get SLA for a ticket
+  app.get('/:id/sla', async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.getTicketSLA(request, reply);
   });
 
