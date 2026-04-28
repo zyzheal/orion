@@ -183,35 +183,35 @@ describe('RiskAssessmentService', () => {
       });
     });
 
-    it('should return all assessments by default', () => {
-      const history = service.getAssessmentHistory();
+    it('should return all assessments by default', async () => {
+      const history = await service.getAssessmentHistory();
       expect(history.length).toBe(3);
     });
 
-    it('should filter by targetType', () => {
-      const history = service.getAssessmentHistory({ targetType: 'deployment' });
+    it('should filter by targetType', async () => {
+      const history = await service.getAssessmentHistory({ targetType: 'deployment' });
       expect(history.length).toBe(2);
       history.forEach((a) => expect(a.targetType).toBe('deployment'));
     });
 
-    it('should filter by tenantId', () => {
-      const history = service.getAssessmentHistory({ tenantId: 'tenant-a' });
+    it('should filter by tenantId', async () => {
+      const history = await service.getAssessmentHistory({ tenantId: 'tenant-a' });
       expect(history.length).toBe(2);
     });
 
-    it('should filter by targetId', () => {
-      const history = service.getAssessmentHistory({ targetId: 'deploy-h1' });
+    it('should filter by targetId', async () => {
+      const history = await service.getAssessmentHistory({ targetId: 'deploy-h1' });
       expect(history.length).toBe(1);
       expect(history[0].targetId).toBe('deploy-h1');
     });
 
-    it('should limit results', () => {
-      const history = service.getAssessmentHistory({ limit: 2 });
+    it('should limit results', async () => {
+      const history = await service.getAssessmentHistory({ limit: 2 });
       expect(history.length).toBe(2);
     });
 
-    it('should return sorted by createdAt desc', () => {
-      const history = service.getAssessmentHistory();
+    it('should return sorted by createdAt desc', async () => {
+      const history = await service.getAssessmentHistory();
       for (let i = 1; i < history.length; i++) {
         expect(history[i].createdAt.getTime()).toBeLessThanOrEqual(
           history[i - 1].createdAt.getTime()
@@ -235,13 +235,13 @@ describe('RiskAssessmentService', () => {
         },
       });
 
-      const found = service.getAssessmentById(assessment.id);
+      const found = await service.getAssessmentById(assessment.id);
       expect(found).toBeDefined();
       expect(found!.id).toBe(assessment.id);
     });
 
-    it('should return undefined for non-existent ID', () => {
-      const found = service.getAssessmentById('non-existent');
+    it('should return undefined for non-existent ID', async () => {
+      const found = await service.getAssessmentById('non-existent');
       expect(found).toBeUndefined();
     });
   });
@@ -364,8 +364,8 @@ describe('RiskAssessmentService', () => {
       expect(reports.length).toBe(2);
     });
 
-    it('should filter by assessmentId', () => {
-      const assessments = service.getAssessmentHistory({ targetId: 'deploy-rh1' });
+    it('should filter by assessmentId', async () => {
+      const assessments = await service.getAssessmentHistory({ targetId: 'deploy-rh1' });
       const reports = service.getReportHistory({ assessmentId: assessments[0].id });
       expect(reports.length).toBe(1);
     });
@@ -438,11 +438,11 @@ describe('RiskAssessmentService', () => {
         },
       });
 
-      expect(service.getAssessmentHistory().length).toBe(1);
+      expect((await service.getAssessmentHistory()).length).toBe(1);
 
       service.clearHistory();
 
-      expect(service.getAssessmentHistory().length).toBe(0);
+      expect((await service.getAssessmentHistory()).length).toBe(0);
       expect(service.getReportHistory().length).toBe(0);
     });
   });

@@ -71,7 +71,7 @@ describe('AlertSuppressionService', () => {
   });
 
   describe('Suppression Rule 1: Maintenance Window', () => {
-    it('should suppress alerts during maintenance window', () => {
+    it('should suppress alerts during maintenance window', async () => {
       // Add maintenance window covering app-001
       const window = suppression.addMaintenanceWindow({
         name: 'Scheduled Maintenance',
@@ -86,14 +86,14 @@ describe('AlertSuppressionService', () => {
 
       const alert = createAlert('alert-001', 'app-001', AlertSourceType.APPLICATION);
 
-      const result = suppression.processAlert(alert);
+      const result = await suppression.processAlert(alert);
 
       expect(result.suppressed).toBe(true);
       expect(result.ruleType).toBe(SuppressionRuleType.MAINTENANCE_WINDOW);
       expect(result.maintenanceWindowId).toBe(window.id);
     });
 
-    it('should not suppress alerts outside maintenance window', () => {
+    it('should not suppress alerts outside maintenance window', async () => {
       // Add maintenance window that has ended
       suppression.addMaintenanceWindow({
         name: 'Past Maintenance',
@@ -108,12 +108,12 @@ describe('AlertSuppressionService', () => {
 
       const alert = createAlert('alert-001', 'app-001', AlertSourceType.APPLICATION);
 
-      const result = suppression.processAlert(alert);
+      const result = await suppression.processAlert(alert);
 
       expect(result.suppressed).toBe(false);
     });
 
-    it('should filter by source types in maintenance window', () => {
+    it('should filter by source types in maintenance window', async () => {
       suppression.addMaintenanceWindow({
         name: 'DB Maintenance',
         tenantId: 'tenant-001',
@@ -128,14 +128,14 @@ describe('AlertSuppressionService', () => {
       const dbAlert = createAlert('alert-db', 'db-001', AlertSourceType.DATABASE);
       const appAlert = createAlert('alert-app', 'app-001', AlertSourceType.APPLICATION);
 
-      const dbResult = suppression.processAlert(dbAlert);
-      const appResult = suppression.processAlert(appAlert);
+      const dbResult = await suppression.processAlert(dbAlert);
+      const appResult = await suppression.processAlert(appAlert);
 
       expect(dbResult.suppressed).toBe(true);
       expect(appResult.suppressed).toBe(false);
     });
 
-    it('should filter by labels in maintenance window', () => {
+    it('should filter by labels in maintenance window', async () => {
       suppression.addMaintenanceWindow({
         name: 'Production Maintenance',
         tenantId: 'tenant-001',
@@ -150,8 +150,8 @@ describe('AlertSuppressionService', () => {
       const prodAlert = createAlert('alert-prod', 'app-001', AlertSourceType.APPLICATION, AlertSeverity.HIGH, { environment: 'production' });
       const devAlert = createAlert('alert-dev', 'app-001', AlertSourceType.APPLICATION, AlertSeverity.HIGH, { environment: 'development' });
 
-      const prodResult = suppression.processAlert(prodAlert);
-      const devResult = suppression.processAlert(devAlert);
+      const prodResult = await suppression.processAlert(prodAlert);
+      const devResult = await suppression.processAlert(devAlert);
 
       expect(prodResult.suppressed).toBe(true);
       expect(devResult.suppressed).toBe(false);
@@ -159,7 +159,7 @@ describe('AlertSuppressionService', () => {
   });
 
   describe('Suppression Rule 2: Known Issue', () => {
-    it('should suppress alerts matching known issue', () => {
+    it('should suppress alerts matching known issue', async () => {
       suppression.addKnownIssue({
         title: 'Known Database Connection Issue',
         description: 'Temporary connection issue',
@@ -172,14 +172,14 @@ describe('AlertSuppressionService', () => {
 
       const alert = createAlert('alert-001', 'db-001', AlertSourceType.DATABASE, AlertSeverity.HIGH, { issue: 'db-connection' });
 
-      const result = suppression.processAlert(alert);
+      const result = await suppression.processAlert(alert);
 
       expect(result.suppressed).toBe(true);
       expect(result.ruleType).toBe(SuppressionRuleType.KNOWN_ISSUE);
       expect(result.silencedUntil).toBeDefined();
     });
 
-    it('should not suppress alerts when issue is resolved', () => {
+    it('should not suppress alerts when issue is resolved', async () => {
       const issue = suppression.addKnownIssue({
         title: 'Resolved Issue',
         tenantId: 'tenant-001',
@@ -194,14 +194,14 @@ describe('AlertSuppressionService', () => {
 
       const alert = createAlert('alert-001', 'app-001', AlertSourceType.APPLICATION, AlertSeverity.HIGH, { issue: 'resolved' });
 
-      const result = suppression.processAlert(alert);
+      const result = await suppression.processAlert(alert);
 
       expect(result.suppressed).toBe(false);
     });
   });
 
   describe('Suppression Rule 3: Duplication', () => {
-    it('should suppress duplicate alerts', () => {
+    it('should suppress duplicate alerts', async () => {
       // Same name, same source, same labels = duplicate
       const alert1 = createAlert('alert-001', 'app-001', AlertSourceType.APPLICATION);
       const alert2 = createAlert('alert-002', 'app-001', AlertSourceType.APPLICATION);
@@ -211,21 +211,21 @@ describe('AlertSuppressionService', () => {
       alert2.name = 'HighCPU';
 
       // First alert - not duplicate
-      const result1 = suppression.processAlert(alert1);
+      const result1 = await suppression.processAlert(alert1);
       expect(result1.suppressed).toBe(false);
 
       // Second alert - duplicate (same name, same source, same labels)
-      const result2 = suppression.processAlert(alert2);
+      const result2 = await suppression.processAlert(alert2);
       expect(result2.suppressed).toBe(true);
       expect(result2.ruleType).toBe(SuppressionRuleType.DUPLICATION);
     });
 
-    it('should not suppress alerts from different sources', () => {
+    it('should not suppress alerts from different sources', async () => {
       const alert1 = createAlert('alert-001', 'app-001', AlertSourceType.APPLICATION);
       const alert2 = createAlert('alert-002', 'app-002', AlertSourceType.APPLICATION);
 
-      const result1 = suppression.processAlert(alert1);
-      const result2 = suppression.processAlert(alert2);
+      const result1 = await suppression.processAlert(alert1);
+      const result2 = await suppression.processAlert(alert2);
 
       expect(result1.suppressed).toBe(false);
       expect(result2.suppressed).toBe(false);
@@ -233,7 +233,7 @@ describe('AlertSuppressionService', () => {
   });
 
   describe('Suppression Rule 4: Root Cause (Cascade)', () => {
-    it('should suppress downstream alerts when root cause exists', () => {
+    it('should suppress downstream alerts when root cause exists', async () => {
       // Create database alert (root cause)
       const dbAlert = createAlert('alert-db', 'db-001', AlertSourceType.DATABASE, AlertSeverity.CRITICAL);
 
@@ -242,7 +242,7 @@ describe('AlertSuppressionService', () => {
       const appAlert2 = createAlert('alert-app2', 'app-002', AlertSourceType.APPLICATION, AlertSeverity.HIGH);
 
       // Batch process with root cause analysis
-      const result = suppression.batchProcess([dbAlert, appAlert1, appAlert2]);
+      const result = await suppression.batchProcess([dbAlert, appAlert1, appAlert2]);
 
       expect(result.rootCauseAnalysis).toBeDefined();
       expect(result.rootCauseAnalysis!.rootCauseAlertId).toBe('alert-db');
@@ -251,65 +251,65 @@ describe('AlertSuppressionService', () => {
   });
 
   describe('Suppression Rule 5: Node Failure', () => {
-    it('should suppress alerts from services on failed node', () => {
+    it('should suppress alerts from services on failed node', async () => {
       // Create node failure alert first
       const nodeAlert = createAlert('alert-node', 'node-001', AlertSourceType.NODE, AlertSeverity.CRITICAL);
-      suppression.processAlert(nodeAlert);
+      await suppression.processAlert(nodeAlert);
 
       // Create application alert on same node
       const appAlert = createAlert('alert-app', 'app-001', AlertSourceType.APPLICATION, AlertSeverity.HIGH);
 
-      const result = suppression.processAlert(appAlert);
+      const result = await suppression.processAlert(appAlert);
 
       // app-001 runs on node-001, should be suppressed
       expect(result.suppressed).toBe(true);
       expect(result.ruleType).toBe(SuppressionRuleType.NODE_FAILURE);
     });
 
-    it('should not suppress node alerts themselves', () => {
+    it('should not suppress node alerts themselves', async () => {
       const nodeAlert = createAlert('alert-node', 'node-001', AlertSourceType.NODE, AlertSeverity.CRITICAL);
 
-      const result = suppression.processAlert(nodeAlert);
+      const result = await suppression.processAlert(nodeAlert);
 
       expect(result.suppressed).toBe(false);
     });
   });
 
   describe('Suppression Rule 6: Database Failure', () => {
-    it('should suppress application alerts when database fails', () => {
+    it('should suppress application alerts when database fails', async () => {
       // Create database failure alert first
       const dbAlert = createAlert('alert-db', 'db-001', AlertSourceType.DATABASE, AlertSeverity.CRITICAL);
-      suppression.processAlert(dbAlert);
+      await suppression.processAlert(dbAlert);
 
       // Create application alert that depends on database
       const appAlert = createAlert('alert-app', 'app-001', AlertSourceType.APPLICATION, AlertSeverity.HIGH);
 
-      const result = suppression.processAlert(appAlert);
+      const result = await suppression.processAlert(appAlert);
 
       // app-001 depends on db-001, should be suppressed
       expect(result.suppressed).toBe(true);
       expect(result.ruleType).toBe(SuppressionRuleType.DATABASE_FAILURE);
     });
 
-    it('should not suppress database alerts themselves', () => {
+    it('should not suppress database alerts themselves', async () => {
       const dbAlert = createAlert('alert-db', 'db-001', AlertSourceType.DATABASE, AlertSeverity.CRITICAL);
 
-      const result = suppression.processAlert(dbAlert);
+      const result = await suppression.processAlert(dbAlert);
 
       expect(result.suppressed).toBe(false);
     });
   });
 
   describe('Suppression Rule 7: Network Failure', () => {
-    it('should suppress downstream alerts when network fails', () => {
+    it('should suppress downstream alerts when network fails', async () => {
       // Create network failure alert first
       const networkAlert = createAlert('alert-network', 'network-001', AlertSourceType.NETWORK, AlertSeverity.CRITICAL);
-      suppression.processAlert(networkAlert);
+      await suppression.processAlert(networkAlert);
 
       // Create application alert that depends on network
       const appAlert = createAlert('alert-app', 'app-001', AlertSourceType.APPLICATION, AlertSeverity.HIGH);
 
-      const result = suppression.processAlert(appAlert);
+      const result = await suppression.processAlert(appAlert);
 
       // app-001 connected to network-001, should be suppressed
       expect(result.suppressed).toBe(true);
@@ -318,7 +318,7 @@ describe('AlertSuppressionService', () => {
   });
 
   describe('batchProcess', () => {
-    it('should process multiple alerts with root cause analysis', () => {
+    it('should process multiple alerts with root cause analysis', async () => {
       const alerts: Alert[] = [
         createAlert('alert-node', 'node-001', AlertSourceType.NODE, AlertSeverity.CRITICAL),
         createAlert('alert-db', 'db-001', AlertSourceType.DATABASE, AlertSeverity.HIGH),
@@ -326,20 +326,20 @@ describe('AlertSuppressionService', () => {
         createAlert('alert-service', 'service-001', AlertSourceType.SERVICE, AlertSeverity.MEDIUM),
       ];
 
-      const result = suppression.batchProcess(alerts);
+      const result = await suppression.batchProcess(alerts);
 
       expect(result.processed).toBe(4);
       expect(result.rootCauseAnalysis).toBeDefined();
       expect(result.rootCauseAnalysis!.rootCauseAlertId).toBe('alert-node'); // Node is highest priority
     });
 
-    it('should return results for each alert', () => {
+    it('should return results for each alert', async () => {
       const alerts: Alert[] = [
         createAlert('alert-1', 'app-001', AlertSourceType.APPLICATION),
         createAlert('alert-2', 'app-002', AlertSourceType.APPLICATION),
       ];
 
-      const result = suppression.batchProcess(alerts);
+      const result = await suppression.batchProcess(alerts);
 
       expect(result.results).toHaveLength(2);
       expect(result.results[0].alertId).toBe('alert-1');
@@ -391,7 +391,7 @@ describe('AlertSuppressionService', () => {
       expect(remainingIssues).toHaveLength(0);
     });
 
-    it('should track suppression log', () => {
+    it('should track suppression log', async () => {
       suppression.addMaintenanceWindow({
         name: 'Test Window',
         tenantId: 'tenant-001',
@@ -402,7 +402,7 @@ describe('AlertSuppressionService', () => {
       });
 
       const alert = createAlert('alert-001', 'app-001', AlertSourceType.APPLICATION);
-      suppression.processAlert(alert);
+      await suppression.processAlert(alert);
 
       const log = suppression.getSuppressionLog();
 
@@ -411,7 +411,7 @@ describe('AlertSuppressionService', () => {
       expect(log[0].ruleType).toBe(SuppressionRuleType.MAINTENANCE_WINDOW);
     });
 
-    it('should return correct stats', () => {
+    it('should return correct stats', async () => {
       // Add some data
       suppression.addMaintenanceWindow({
         name: 'Window',
@@ -431,7 +431,7 @@ describe('AlertSuppressionService', () => {
       });
 
       const alert = createAlert('alert-001', 'app-001', AlertSourceType.APPLICATION);
-      suppression.processAlert(alert);
+      await suppression.processAlert(alert);
 
       const stats = suppression.getStats();
 
@@ -442,9 +442,9 @@ describe('AlertSuppressionService', () => {
   });
 
   describe('clearAlert', () => {
-    it('should clear resolved alerts', () => {
+    it('should clear resolved alerts', async () => {
       const alert = createAlert('alert-001', 'app-001', AlertSourceType.APPLICATION);
-      suppression.processAlert(alert);
+      await suppression.processAlert(alert);
 
       expect(suppression.getStats().activeAlerts).toBe(1);
 
@@ -456,7 +456,7 @@ describe('AlertSuppressionService', () => {
   });
 
   describe('Priority of suppression rules', () => {
-    it('should apply maintenance window before other rules', () => {
+    it('should apply maintenance window before other rules', async () => {
       // Add maintenance window
       suppression.addMaintenanceWindow({
         name: 'Window',
@@ -469,19 +469,19 @@ describe('AlertSuppressionService', () => {
 
       // Create database alert that would normally suppress app alerts
       const dbAlert = createAlert('alert-db', 'db-001', AlertSourceType.DATABASE, AlertSeverity.CRITICAL);
-      suppression.processAlert(dbAlert);
+      await suppression.processAlert(dbAlert);
 
       // Create app alert - should be suppressed by maintenance window, not database
       const appAlert = createAlert('alert-app', 'app-001', AlertSourceType.APPLICATION, AlertSeverity.HIGH);
 
-      const result = suppression.processAlert(appAlert);
+      const result = await suppression.processAlert(appAlert);
 
       expect(result.ruleType).toBe(SuppressionRuleType.MAINTENANCE_WINDOW);
     });
   });
 
   describe('Configuration', () => {
-    it('should respect disabled configuration', () => {
+    it('should respect disabled configuration', async () => {
       const customSuppression = new AlertSuppressionService(undefined, undefined, {
         maintenanceWindowCheckEnabled: false,
       });
@@ -502,7 +502,7 @@ describe('AlertSuppressionService', () => {
 
       const alert = createAlert('alert-001', 'app-001', AlertSourceType.APPLICATION);
 
-      const result = customSuppression.processAlert(alert);
+      const result = await customSuppression.processAlert(alert);
 
       // Maintenance window check disabled, should not suppress
       expect(result.suppressed).toBe(false);
