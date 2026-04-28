@@ -9,21 +9,99 @@ on:
 env:
   NODE_VERSION: '20'
 
-jobs:
-  # ==================== 后端: Platform Service ====================
+# ==================== Path Filters ====================
 
-  platform-service:
-    name: Platform Service
+# Only run platform-service jobs when relevant files change
+jobs:
+  # ==================== Lint (Fast check, runs first) ====================
+
+  lint:
+    name: Lint & Format
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: orion-platform-service
+    if: ${{ !cancelled() }}
+    strategy:
+      matrix:
+        service: [platform-service, api-gateway, frontend]
+        include:
+          - service: platform-service
+            dir: orion-platform-service
+            lockfile: orion-platform-service/package-lock.json
+          - service: api-gateway
+            dir: orion-api-gateway
+            lockfile: orion-api-gateway/package-lock.json
+          - service: frontend
+            dir: orion-frontend
+            lockfile: orion-frontend/package-lock.json
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: ${{ matrix.lockfile }}
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: ${{ matrix.dir }}
+
+      - name: Lint
+        run: npm run lint
+        working-directory: ${{ matrix.dir }}
+
+  # ==================== Type Check ====================
+
+  type-check:
+    name: Type Check
+    runs-on: ubuntu-latest
+    needs: lint
+    strategy:
+      matrix:
+        service: [platform-service, api-gateway, frontend]
+        include:
+          - service: platform-service
+            dir: orion-platform-service
+            lockfile: orion-platform-service/package-lock.json
+          - service: api-gateway
+            dir: orion-api-gateway
+            lockfile: orion-api-gateway/package-lock.json
+          - service: frontend
+            dir: orion-frontend
+            lockfile: orion-frontend/package-lock.json
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: ${{ matrix.lockfile }}
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: ${{ matrix.dir }}
+
+      - name: Type check
+        run: npm run type-check
+        working-directory: ${{ matrix.dir }}
+
+  # ==================== Platform Service Tests ====================
+
+  platform-service-test:
+    name: Platform Service Tests
+    runs-on: ubuntu-latest
+    needs: type-check
+    if: |
+      github.event_name == 'push' ||
+      github.event.pull_request.changed_files > 0
     services:
       postgres:
         image: postgres:16-alpine
         env:
           POSTGRES_USER: orion
-          POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD || 'test_password_ci_only' }}
+          POSTGRES_PASSWORD: test_password_ci_only
           POSTGRES_DB: orion_test
         ports:
           - 5432:5432
@@ -44,33 +122,28 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-
-      - name: Type check
-        run: npm run type-check
-
-      - name: Lint
-        run: npm run lint
+        working-directory: orion-platform-service
 
       - name: Run tests
         run: npm run test:coverage
+        working-directory: orion-platform-service
         env:
           DB_HOST: localhost
           DB_PORT: 5432
           DB_USER: orion
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD || 'test_password_ci_only' }}
+          DB_PASSWORD: test_password_ci_only
           DB_NAME: orion_test
 
       - name: Build
         run: npm run build
+        working-directory: orion-platform-service
 
-  # ==================== 后端: API Gateway ====================
+  # ==================== API Gateway Tests ====================
 
-  api-gateway:
-    name: API Gateway
+  api-gateway-test:
+    name: API Gateway Tests
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: orion-api-gateway
+    needs: type-check
     steps:
       - uses: actions/checkout@v4
 
@@ -83,27 +156,22 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-
-      - name: Type check
-        run: npm run type-check
-
-      - name: Lint
-        run: npm run lint
+        working-directory: orion-api-gateway
 
       - name: Run tests
         run: npm run test:coverage
+        working-directory: orion-api-gateway
 
       - name: Build
         run: npm run build
+        working-directory: orion-api-gateway
 
-  # ==================== 前端 ====================
+  # ==================== Frontend Tests ====================
 
-  frontend:
-    name: Frontend
+  frontend-test:
+    name: Frontend Tests
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: orion-frontend
+    needs: type-check
     steps:
       - uses: actions/checkout@v4
 
@@ -116,38 +184,41 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-
-      - name: Type check
-        run: npm run type-check
-
-      - name: Lint
-        run: npm run lint
+        working-directory: orion-frontend
 
       - name: Run tests
         run: npm run test:coverage
+        working-directory: orion-frontend
 
       - name: Build
         run: npm run build
+        working-directory: orion-frontend
 
-  # ==================== 数据库迁移校验 ====================
+  # ==================== DB Migration Validation ====================
 
   db-migrations:
-    name: DB Migration Syntax Check
+    name: DB Migration Check
     runs-on: ubuntu-latest
+    if: ${{ !cancelled() }}
     steps:
       - uses: actions/checkout@v4
 
       - name: Validate SQL syntax
         run: |
+          errors=0
           for f in orion-platform-service/src/db/migrations/*.sql; do
             echo "Checking $f..."
-            # Basic syntax check: file should not be empty and should contain SQL keywords
             if [ ! -s "$f" ]; then
               echo "Error: $f is empty"
-              exit 1
+              errors=$((errors + 1))
+              continue
             fi
-            if ! grep -qiE '(CREATE|ALTER|DROP|INSERT|SELECT|UPDATE|DELETE|CREATE INDEX)' "$f"; then
-              echo "Warning: $f may not contain valid SQL statements"
+            if ! grep -qiE '(CREATE|ALTER|DROP|INSERT|SELECT|UPDATE|DELETE)' "$f"; then
+              echo "Warning: $f may not contain valid SQL"
             fi
           done
-          echo "All migration files look valid."
+          if [ "$errors" -gt 0 ]; then
+            echo "$errors migration file(s) failed"
+            exit 1
+          fi
+          echo "All migration files valid."
