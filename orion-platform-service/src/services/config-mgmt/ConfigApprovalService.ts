@@ -59,7 +59,7 @@ export class ConfigApprovalService {
   async createChangeRequest(
     input: CreateChangeRequestInput
   ): Promise<ConfigChangeRequest> {
-    const config = await this.configService.getConfig('default', input.configId);
+    const config = await this.configService.getConfigById(input.configId);
     if (!config) {
       throw new Error(`Config '${input.configId}' not found`);
     }

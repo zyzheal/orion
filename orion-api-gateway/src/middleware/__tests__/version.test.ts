@@ -317,6 +317,7 @@ describe('VersionMiddleware', () => {
       expect(mw).toBeInstanceOf(VersionMiddleware);
 
       // Check global instance
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
       const globalMw = require('../version').versionMiddleware;
       expect(globalMw).toBe(mw);
     });

@@ -13,7 +13,7 @@ class MockWebSocket {
   static CLOSED = 3;
 
   readyState = MockWebSocket.OPEN;
-  binaryType: 'nodebuffer' = 'nodebuffer';
+  binaryType = 'nodebuffer' as const;
   bufferedAmount = 0;
   extensions = '';
   protocol = '';

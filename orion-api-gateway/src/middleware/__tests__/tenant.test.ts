@@ -271,6 +271,7 @@ describe('TenantMiddleware', () => {
   });
 
   describe('辅助函数', () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { getTenantId, getTenantContext, isTenantTier, hasQuota } = require('../tenant');
 
     beforeEach(() => {
