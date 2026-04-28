@@ -32,7 +32,7 @@ export interface ConfigHistory {
   changed_by: string | null;
   changedBy?: string;
   old_value: Record<string, any> | null;
-  oldValue?: Record<string, any>;
+  oldValue?: Record<string, any> | null;
   new_value: Record<string, any>;
   newValue?: Record<string, any>;
   key?: string;
@@ -64,8 +64,13 @@ export class ConfigRepository {
 
   async findByKey(tenantId: string, key: string): Promise<ConfigEntry | null> {
     if (!this.isDbAvailable()) {
-      const key_ = `${tenantId}:${key}`;
-      return this.inMemory.get(key_) || null;
+      // Find first entry with matching tenantId and key (regardless of environment)
+      for (const entry of this.inMemory.values()) {
+        if (entry.tenant_id === tenantId && entry.key === key) {
+          return entry;
+        }
+      }
+      return null;
     }
     return (await this.pool!.query(
       'SELECT * FROM config_entries WHERE tenant_id = $1 AND key = $2',
@@ -85,12 +90,13 @@ export class ConfigRepository {
 
   async set(tenantId: string, key: string, value: Record<string, any>, changedBy?: string): Promise<ConfigEntry> {
     const now = new Date();
-    const key_ = `${tenantId}:${key}`;
-    
+    const env = value.environment || 'default';
+    const key_ = `${tenantId}:${key}:${env}`;
+
     if (!this.isDbAvailable()) {
       const existing = this.inMemory.get(key_);
       const entry: ConfigEntry = {
-        id: existing?.id || `config-${Date.now()}`,
+        id: existing?.id || `config-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         tenant_id: tenantId,
         key,
         value,
@@ -141,8 +147,17 @@ export class ConfigRepository {
 
   async delete(tenantId: string, key: string): Promise<boolean> {
     if (!this.isDbAvailable()) {
-      const key_ = `${tenantId}:${key}`;
-      return this.inMemory.delete(key_);
+      // Delete all entries with matching tenantId and key
+      const keysToDelete = [];
+      for (const [k, entry] of this.inMemory) {
+        if (entry.tenant_id === tenantId && entry.key === key) {
+          keysToDelete.push(k);
+        }
+      }
+      for (const k of keysToDelete) {
+        this.inMemory.delete(k);
+      }
+      return keysToDelete.length > 0;
     }
     const result = await this.pool!.query(
       'DELETE FROM config_entries WHERE tenant_id = $1 AND key = $2',

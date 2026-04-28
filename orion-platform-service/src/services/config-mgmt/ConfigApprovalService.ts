@@ -67,12 +67,16 @@ export class ConfigApprovalService {
     const now = new Date();
     const id = uuidv4();
 
+    // Extract actual value (may be nested due to repository storage format)
+    const rawValue = config.value as any;
+    const actualValue = rawValue?.value !== undefined ? rawValue.value : rawValue;
+
     const changeRequest: ConfigChangeRequest = {
       id,
       configId: input.configId,
       configKey: config.key,
       environment: (config.environment as ConfigEnvironment) || 'dev',
-      oldValue: typeof config.value === 'string' ? config.value : JSON.stringify(config.value),
+      oldValue: typeof actualValue === 'string' ? actualValue : JSON.stringify(actualValue),
       newValue: input.newValue,
       reason: input.reason,
       requester: input.requester,
@@ -289,10 +293,8 @@ export class ConfigApprovalService {
   private async applyChange(changeRequest: ConfigChangeRequest): Promise<void> {
     try {
       await this.configService.updateConfig(
-        'default',
         changeRequest.configId,
-        { value: changeRequest.newValue },
-        `approval:${changeRequest.id}`,
+        { value: changeRequest.newValue, updatedBy: `approval:${changeRequest.id}` },
       );
 
       changeRequest.status = 'applied';

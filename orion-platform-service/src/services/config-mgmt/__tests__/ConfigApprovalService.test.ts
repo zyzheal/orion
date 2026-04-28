@@ -522,13 +522,14 @@ describe('ConfigApprovalService', () => {
 
     it('should filter by environment', async () => {
       const devConfig = await configService.createConfig({
-        key: 'test.key',
+        key: 'test.dev.key',
         value: 'value',
         environment: 'dev',
         createdBy: 'admin',
       });
+      await new Promise(r => setTimeout(r, 10)); // Ensure unique timestamps for IDs
       const prodConfig = await configService.createConfig({
-        key: 'test.key',
+        key: 'test.prod.key',
         value: 'value',
         environment: 'prod',
         createdBy: 'admin',

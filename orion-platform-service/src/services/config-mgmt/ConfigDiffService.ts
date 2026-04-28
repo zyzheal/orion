@@ -12,7 +12,8 @@
  */
 
 import { ConfigService } from './ConfigService';
-import { ConfigEntry, ConfigHistory } from './ConfigRepository';
+import { ConfigHistory } from './ConfigRepository';
+import type { ConfigItem } from './types';
 import {
   ConfigDiff,
   DiffReport,
@@ -47,10 +48,13 @@ export class ConfigDiffService {
     const diffs: ConfigDiff[] = [];
 
     // Build a map for target configs for quick lookup
-    const targetMap = new Map<string, ConfigEntry>();
+    const targetMap = new Map<string, ConfigItem>();
     for (const tc of targetConfigs) {
       targetMap.set(tc.key, tc);
     }
+
+    // Helper to get string value for comparison
+    const stringify = (v: any): string => typeof v === 'string' ? v : JSON.stringify(v);
 
     // Check source configs against target
     for (const sc of sourceConfigs) {
@@ -60,23 +64,23 @@ export class ConfigDiffService {
         diffs.push({
           key: sc.key,
           environment: targetEnv as any,
-          oldValue: JSON.stringify(sc.value),
+          oldValue: stringify(sc.value),
           changeType: 'added',
         });
-      } else if (JSON.stringify(sc.value) !== JSON.stringify(targetConfig.value)) {
+      } else if (stringify(sc.value) !== stringify(targetConfig.value)) {
         // Value differs
         diffs.push({
           key: sc.key,
           environment: targetEnv as any,
-          oldValue: JSON.stringify(sc.value),
-          newValue: JSON.stringify(targetConfig.value),
+          oldValue: stringify(sc.value),
+          newValue: stringify(targetConfig.value),
           changeType: 'modified',
         });
       }
     }
 
     // Check target configs against source (for removed items)
-    const sourceMap = new Map<string, ConfigEntry>();
+    const sourceMap = new Map<string, ConfigItem>();
     for (const sc of sourceConfigs) {
       sourceMap.set(sc.key, sc);
     }
@@ -86,7 +90,7 @@ export class ConfigDiffService {
         diffs.push({
           key: tc.key,
           environment: targetEnv as any,
-          newValue: JSON.stringify(tc.value),
+          newValue: stringify(tc.value),
           changeType: 'removed',
         });
       }
@@ -135,14 +139,29 @@ export class ConfigDiffService {
       );
     }
 
+    const valToString = (v: any): string => {
+      if (typeof v === 'string') return v;
+      // Handle nested { value: ... } structure
+      if (v?.value !== undefined) return typeof v.value === 'string' ? v.value : JSON.stringify(v.value);
+      return JSON.stringify(v);
+    };
+
+    // Get the config to find its key
+    const config = await this.configService.getConfigById2(configId);
+    const configKey = config?.key || fromVersionRecord.key || configId;
+
+    // For oldValue, if old_value is null (initial version), use new_value instead
+    const fromOldValue = fromVersionRecord.old_value ?? fromVersionRecord.oldValue;
+    const effectiveOldValue = fromOldValue !== null && fromOldValue !== undefined ? fromOldValue : (fromVersionRecord.new_value ?? fromVersionRecord.newValue ?? {});
+
     return {
       configId,
-      key: fromVersionRecord.key ?? configId,
+      key: configKey,
       environment: 'dev' as any,
       fromVersion,
       toVersion,
-      oldValue: JSON.stringify(fromVersionRecord.old_value ?? fromVersionRecord.oldValue ?? {}),
-      newValue: JSON.stringify(toVersionRecord.new_value ?? toVersionRecord.newValue ?? {}),
+      oldValue: valToString(effectiveOldValue),
+      newValue: valToString(toVersionRecord.new_value ?? toVersionRecord.newValue ?? {}),
       generatedAt: new Date(),
     };
   }
@@ -211,7 +230,7 @@ export class ConfigDiffService {
       return null;
     }
 
-    const currentValueStr = JSON.stringify(config.value);
+    const currentValueStr = typeof config.value === 'string' ? config.value : JSON.stringify(config.value);
     if (currentValueStr === proposedValue) {
       return null;
     }
@@ -250,8 +269,8 @@ export class ConfigDiffService {
       targetEnv
     );
 
-    const sourceKeys = new Set(sourceConfigs.map((c: ConfigEntry) => c.key));
-    const targetKeys = new Set(targetConfigs.map((c: ConfigEntry) => c.key));
+    const sourceKeys = new Set(sourceConfigs.map((c: ConfigItem) => c.key));
+    const targetKeys = new Set(targetConfigs.map((c: ConfigItem) => c.key));
 
     const onlyInSource = [...sourceKeys].filter((k) => !targetKeys.has(k));
     const onlyInTarget = [...targetKeys].filter((k) => !sourceKeys.has(k));

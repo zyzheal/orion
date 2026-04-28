@@ -236,16 +236,24 @@ export class GitOpsService {
 
         // Apply configs if auto-apply is enabled
         if (gitConfig.autoApply) {
-          const importResult = await this.configService.importConfig(
-            'default',
-            parsedConfigs.reduce((acc, pc) => {
-              acc[pc.key] = pc.value;
-              return acc;
-            }, {} as Record<string, any>),
-            'gitops-sync'
-          );
-
-          syncStatus.itemsSynced += importResult;
+          let imported = 0;
+          for (const pc of parsedConfigs) {
+            try {
+              await this.configService.createConfig({
+                key: pc.key,
+                value: pc.value,
+                environment: pc.environment,
+                description: pc.description,
+                encrypted: pc.encrypted,
+                tags: pc.tags,
+                createdBy: 'gitops-sync',
+              });
+              imported++;
+            } catch {
+              // Skip duplicates
+            }
+          }
+          syncStatus.itemsSynced += imported;
         } else {
           syncStatus.itemsSynced = parsedConfigs.length;
         }
@@ -462,9 +470,9 @@ export class GitOpsService {
       const env = gc.environment as any;
       if (!['dev', 'staging', 'prod'].includes(env)) continue;
 
-      const platformConfig = await this.configService.getConfig(
-        'default',
-        gc.key
+      const platformConfig = await this.configService.getConfigByKey(
+        gc.key,
+        env
       );
 
       if (!platformConfig) {
@@ -475,20 +483,25 @@ export class GitOpsService {
           newValue: gc.value,
           changeType: 'added',
         });
-      } else if (JSON.stringify(platformConfig.value) !== gc.value) {
-        // Value mismatch
-        driftItems.push({
-          key: gc.key,
-          environment: env,
-          oldValue: JSON.stringify(platformConfig.value),
-          newValue: gc.value,
-          changeType: 'modified',
-        });
+      } else {
+        const platformValue = typeof platformConfig.value === 'string'
+          ? platformConfig.value
+          : JSON.stringify(platformConfig.value);
+        if (platformValue !== gc.value) {
+          // Value mismatch
+          driftItems.push({
+            key: gc.key,
+            environment: env,
+            oldValue: platformValue,
+            newValue: gc.value,
+            changeType: 'modified',
+          });
+        }
       }
     }
 
     // Check for configs in platform but not in Git
-    const allPlatformConfigs = await this.configService.listConfigs('default');
+    const allPlatformConfigs = await this.configService.listConfigs();
     for (const pc of allPlatformConfigs) {
       const gitMatch = gitConfigs.find(
         (gc) => gc.key === pc.key
