@@ -1,0 +1,10 @@
+export { ChatTrigger } from './ChatTrigger';
+export { ChatPanel } from './ChatPanel';
+export { SmartRecommend } from './SmartRecommend';
+export { ChatInput } from './ChatInput';
+export { ChatMessage } from './ChatMessage';
+export { ActionCard } from './ActionCard';
+export { MessageArea } from './MessageArea';
+export { CommandParser } from './CommandParser';
+export { extractPageContext } from './pageContext';
+export type { PageContext } from './pageContext';

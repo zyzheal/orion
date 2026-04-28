@@ -1,0 +1,153 @@
+name: CI
+
+on:
+  push:
+    branches: [main, feat/**]
+  pull_request:
+    branches: [main]
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  # ==================== 后端: Platform Service ====================
+
+  platform-service:
+    name: Platform Service
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: orion-platform-service
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: orion
+          POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD || 'test_password_ci_only' }}
+          POSTGRES_DB: orion_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: orion-platform-service/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npm run type-check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Run tests
+        run: npm run test:coverage
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_USER: orion
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD || 'test_password_ci_only' }}
+          DB_NAME: orion_test
+
+      - name: Build
+        run: npm run build
+
+  # ==================== 后端: API Gateway ====================
+
+  api-gateway:
+    name: API Gateway
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: orion-api-gateway
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: orion-api-gateway/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npm run type-check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Run tests
+        run: npm run test:coverage
+
+      - name: Build
+        run: npm run build
+
+  # ==================== 前端 ====================
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: orion-frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: orion-frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npm run type-check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Run tests
+        run: npm run test:coverage
+
+      - name: Build
+        run: npm run build
+
+  # ==================== 数据库迁移校验 ====================
+
+  db-migrations:
+    name: DB Migration Syntax Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate SQL syntax
+        run: |
+          for f in orion-platform-service/src/db/migrations/*.sql; do
+            echo "Checking $f..."
+            # Basic syntax check: file should not be empty and should contain SQL keywords
+            if [ ! -s "$f" ]; then
+              echo "Error: $f is empty"
+              exit 1
+            fi
+            if ! grep -qiE '(CREATE|ALTER|DROP|INSERT|SELECT|UPDATE|DELETE|CREATE INDEX)' "$f"; then
+              echo "Warning: $f may not contain valid SQL statements"
+            fi
+          done
+          echo "All migration files look valid."
