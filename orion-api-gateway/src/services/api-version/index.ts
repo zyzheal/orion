@@ -10,11 +10,11 @@ export {
   DeprecationNotice,
   ApiVersionRegistryConfig,
   versionRegistry,
-} from './ApiVersionRegistry';
+} from '../ApiVersionRegistry';
 
 export {
   ApiVersionManager,
   VersionNegotiationResult,
   VersionNegotiationOptions,
   VersionWarningHeaders,
-} from './ApiVersionManager';
+} from '../ApiVersionManager';

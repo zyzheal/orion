@@ -2,8 +2,16 @@
  * 租户配额管理服务单元测试
  */
 
-import { TenantQuotaService, QuotaUsage } from './tenant-quota.service';
-import { DEFAULT_QUOTAS, TenantTier } from '../middleware/tenant';
+import { TenantQuotaService, QuotaUsage } from '../tenant-quota.service';
+import { DEFAULT_QUOTAS, TenantTier } from '../../middleware/tenant';
+
+// Mock Redis module before importing
+jest.mock('../../utils/redis', () => ({
+  redisClient: {
+    getClient: jest.fn().mockReturnValue(null),
+    isConnected: jest.fn().mockReturnValue(false),
+  },
+}));
 
 // Mock Redis
 const mockRedis = {

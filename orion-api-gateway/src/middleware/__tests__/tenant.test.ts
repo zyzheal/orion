@@ -4,6 +4,15 @@
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { TenantMiddleware, TenantContext, TenantTier, DEFAULT_QUOTAS } from '../tenant';
+
+// Mock Redis module
+jest.mock('../../utils/redis', () => ({
+  redisClient: {
+    getClient: jest.fn(),
+    isConnected: jest.fn().mockReturnValue(true),
+  },
+}));
+
 import { redisClient } from '../../utils/redis';
 
 // Mock Redis
