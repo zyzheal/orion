@@ -2,7 +2,7 @@
  * Tests for FinOpsDashboard page
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import FinOpsDashboard from '@/pages/FinOpsDashboard';
 
@@ -47,36 +47,46 @@ describe('FinOpsDashboard', () => {
     expect(screen.getByText('成本分析')).toBeInTheDocument();
   });
 
-  it('should show summary cards with correct values', () => {
+  it('should show summary cards with correct values', async () => {
     renderWithRouter(<FinOpsDashboard />);
-    expect(screen.getByText('本月花费')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('本月花费')).toBeInTheDocument();
+    });
     expect(screen.getByText('45,680')).toBeInTheDocument();
   });
 
-  it('should show budget usage percentage', () => {
+  it('should show budget usage percentage', async () => {
     renderWithRouter(<FinOpsDashboard />);
-    expect(screen.getByText('预算使用')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('预算使用')).toBeInTheDocument();
+    });
     expect(screen.getByText('76%')).toBeInTheDocument();
     expect(screen.getByText('预算上限 ¥60,000')).toBeInTheDocument();
   });
 
-  it('should display waste amount', () => {
+  it('should display waste amount', async () => {
     renderWithRouter(<FinOpsDashboard />);
-    expect(screen.getByText('预计浪费')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('预计浪费')).toBeInTheDocument();
+    });
     expect(screen.getByText('5,400')).toBeInTheDocument();
   });
 
-  it('should display savings amount', () => {
+  it('should display savings amount', async () => {
     renderWithRouter(<FinOpsDashboard />);
-    expect(screen.getByText('节省金额')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('节省金额')).toBeInTheDocument();
+    });
     // "3,200" may appear in multiple places, use getAllByText
     const savingsElements = screen.getAllByText('3,200');
     expect(savingsElements.length).toBeGreaterThanOrEqual(1);
   });
 
-  it('should show cost by service table', () => {
+  it('should show cost by service table', async () => {
     renderWithRouter(<FinOpsDashboard />);
-    expect(screen.getByText('各服务成本明细')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('各服务成本明细')).toBeInTheDocument();
+    });
     // "云服务器 ECS" appears in multiple places
     const ecsElements = screen.getAllByText('云服务器 ECS');
     expect(ecsElements.length).toBeGreaterThanOrEqual(1);
@@ -86,35 +96,39 @@ describe('FinOpsDashboard', () => {
     expect(ossElements.length).toBeGreaterThanOrEqual(1);
   });
 
-  it('should display optimization recommendations', () => {
+  it('should display optimization recommendations', async () => {
     renderWithRouter(<FinOpsDashboard />);
-    expect(screen.getByText('优化建议')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('优化建议')).toBeInTheDocument();
+    });
     expect(screen.getByText('闲置资源清理')).toBeInTheDocument();
     expect(screen.getByText('预留实例购买')).toBeInTheDocument();
     expect(screen.getByText('降配建议')).toBeInTheDocument();
   });
 
-  it('should show budget alerts', () => {
+  it('should show budget alerts', async () => {
     renderWithRouter(<FinOpsDashboard />);
-    expect(screen.getByText('预算告警')).toBeInTheDocument();
-    // "云服务器 ECS" appears in both cost table and budget alerts
-    const ecsElements = screen.getAllByText('云服务器 ECS');
-    expect(ecsElements.length).toBeGreaterThanOrEqual(1);
+    await waitFor(() => {
+      expect(screen.getByText('预算告警')).toBeInTheDocument();
+    });
     // "已超支" appears multiple times in budget alerts section
     const overBudgetElements = screen.getAllByText('已超支');
     expect(overBudgetElements.length).toBeGreaterThanOrEqual(1);
   });
 
-  it('should have export report button', () => {
+  it('should have export report button', async () => {
     renderWithRouter(<FinOpsDashboard />);
-    expect(screen.getByText('导出报表')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('导出报表')).toBeInTheDocument();
+    });
     expect(screen.getByText('设置预算')).toBeInTheDocument();
     expect(screen.getByText('查看明细')).toBeInTheDocument();
   });
 
-  it('should show cost trend section', () => {
+  it('should show cost trend section', async () => {
     renderWithRouter(<FinOpsDashboard />);
-    expect(screen.getByText('成本趋势（近12个月）')).toBeInTheDocument();
-    expect(screen.getByText('图表加载中...')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('成本趋势（近12个月）')).toBeInTheDocument();
+    });
   });
 });

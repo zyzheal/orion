@@ -606,4 +606,60 @@ export const handlers = [
       },
     });
   }),
+
+  // FinOps API - Cost Summary
+  http.get('/api/v1/cost/summary', () => {
+    return HttpResponse.json({
+      code: 0,
+      message: 'success',
+      data: {
+        totalMonthly: 45680,
+        budgetLimit: 60000,
+        previousMonth: 42000,
+        projectedMonthly: 48000,
+        savings: 3200,
+        waste: 5400,
+      },
+    });
+  }),
+
+  // FinOps API - Cost by Service Breakdown
+  http.get('/api/v1/cost/breakdown', () => {
+    return HttpResponse.json({
+      code: 0,
+      message: 'success',
+      data: [
+        { key: 'ecs', service: '云服务器 ECS', cost: 18000, percent: 39.4, trend: 'up' },
+        { key: 'rds', service: '数据库 RDS', cost: 12000, percent: 26.3, trend: 'stable' },
+        { key: 'oss', service: '对象存储 OSS', cost: 6000, percent: 13.2, trend: 'down' },
+        { key: 'cdn', service: 'CDN', cost: 3000, percent: 6.6, trend: 'stable' },
+        { key: 'slb', service: '负载均衡 SLB', cost: 2000, percent: 4.4, trend: 'stable' },
+      ],
+    });
+  }),
+
+  // FinOps API - Optimization Suggestions
+  http.get('/api/v1/finops/optimize/suggestions', () => {
+    return HttpResponse.json({
+      code: 0,
+      message: 'success',
+      data: [
+        { key: 'opt-1', title: '闲置资源清理', description: '发现3台未使用的ECS实例', savings: 2000, effort: 'low', status: 'pending' },
+        { key: 'opt-2', title: '预留实例购买', description: '购买预留实例可节省成本', savings: 1500, effort: 'medium', status: 'pending' },
+        { key: 'opt-3', title: '降配建议', description: '部分实例配置过高', savings: 800, effort: 'low', status: 'pending' },
+      ],
+    });
+  }),
+
+  // FinOps API - Budget Alerts
+  http.get('/api/v1/finops/budget/check-alerts', () => {
+    return HttpResponse.json({
+      code: 0,
+      message: 'success',
+      data: [
+        { key: 'alert-1', service: '云服务器 ECS', threshold: 15000, current: 18000, status: 'exceeded' },
+        { key: 'alert-2', service: '数据库 RDS', threshold: 10000, current: 12000, status: 'exceeded' },
+      ],
+    });
+  }),
 ];
