@@ -30,7 +30,7 @@ function createMockDataSource(overrides?: { deployments?: DeploymentRecord[]; pi
 
 function createMockTicketService() {
   return {
-    getSLACompliance: jest.fn().mockReturnValue({ complianceRate: 85, breached: 3, totalTickets: 20 }),
+    getSLACompliance: jest.fn().mockReturnValue({ complianceRate: 85, breachedTickets: 3, totalTickets: 20 }),
     getResolutionStats: jest.fn().mockReturnValue({ meanResolutionTimeMs: 7200000, medianResolutionTimeMs: 5400000, byPriority: { critical: 1800000, high: 3600000, medium: 7200000 } }),
     getBacklogAnalysis: jest.fn().mockReturnValue({ openCount: 8, overdueCount: 2, averageAgeMs: 172800000, oldestTicketAgeMs: 604800000 }),
     getTrendReport: jest.fn().mockReturnValue({
@@ -134,7 +134,7 @@ describe('WeeklyReportService', () => {
     });
     const badTicket = {
       ...createMockTicketService(),
-      getSLACompliance: jest.fn().mockReturnValue({ complianceRate: 40, breached: 12, totalTickets: 20 }),
+      getSLACompliance: jest.fn().mockReturnValue({ complianceRate: 40, breachedTickets: 12, totalTickets: 20 }),
       getBacklogAnalysis: jest.fn().mockReturnValue({ openCount: 20, overdueCount: 10, averageAgeMs: 604800000, oldestTicketAgeMs: 1209600000 }),
     };
 
@@ -166,7 +166,7 @@ describe('WeeklyReportService', () => {
     });
     const goodTicket = {
       ...createMockTicketService(),
-      getSLACompliance: jest.fn().mockReturnValue({ complianceRate: 99, breached: 0, totalTickets: 50 }),
+      getSLACompliance: jest.fn().mockReturnValue({ complianceRate: 99, breachedTickets: 0, totalTickets: 50 }),
       getBacklogAnalysis: jest.fn().mockReturnValue({ openCount: 2, overdueCount: 0, averageAgeMs: 86400000, oldestTicketAgeMs: 86400000 }),
     };
 

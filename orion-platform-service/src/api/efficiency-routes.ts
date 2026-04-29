@@ -271,7 +271,7 @@ export default async function efficiencyRoutes(app: FastifyInstance, options: Ef
     const teamId = body?.teamId || 'default';
 
     try {
-      const weeklyReport = getWeeklyReportService(options.database);
+      const weeklyReport = getWeeklyReportService(options.database, localStorage);
       const report = await weeklyReport.generateReport({ weekStart, teamId });
 
       return reply.send({
@@ -291,7 +291,7 @@ export default async function efficiencyRoutes(app: FastifyInstance, options: Ef
     const query = request.query as { week_start?: string; team_id?: string };
 
     try {
-      const weeklyReport = getWeeklyReportService(options.database);
+      const weeklyReport = getWeeklyReportService(options.database, localStorage);
       const weekStart = query.week_start ? new Date(query.week_start) : undefined;
 
       // Generate new report
@@ -314,7 +314,7 @@ export default async function efficiencyRoutes(app: FastifyInstance, options: Ef
     const query = request.query as { team_id?: string; limit?: string };
 
     try {
-      const weeklyReport = getWeeklyReportService(options.database);
+      const weeklyReport = getWeeklyReportService(options.database, localStorage);
       const history = await weeklyReport.listHistory({
         teamId: query.team_id,
         limit: query.limit ? parseInt(query.limit, 10) : 12,
@@ -337,13 +337,13 @@ export default async function efficiencyRoutes(app: FastifyInstance, options: Ef
 
 let _weeklyReportService: WeeklyReportService | null = null;
 
-function getWeeklyReportService(db?: DatabasePool): WeeklyReportService {
+function getWeeklyReportService(db?: DatabasePool, sharedLocalStorage?: InMemoryLocalStorage): WeeklyReportService {
   if (_weeklyReportService) return _weeklyReportService;
 
   const doraService = new DoraMetricsService();
 
-  // Data source: use InMemoryLocalStorage (populated by EventHandler)
-  const localStorage = new InMemoryLocalStorage();
+  // Use shared localStorage if provided (populated by EventHandler), otherwise create empty fallback
+  const localStorage = sharedLocalStorage || new InMemoryLocalStorage();
   const dataSource = {
     getPipelineRecords: async (filter?: { since?: Date }) => {
       return localStorage.getPipelineRecords(filter);

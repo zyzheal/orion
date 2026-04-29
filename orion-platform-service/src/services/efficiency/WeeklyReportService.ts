@@ -11,7 +11,7 @@
 
 import { v4 as uuidv4 } from 'uuid';
 import { DoraMetricsService } from './DoraMetricsService';
-import { PipelineCompletionRecord, DeploymentRecord, TimeWindow } from './types';
+import { PipelineCompletionRecord, DeploymentRecord, TimeWindow, DoraMetricsReport } from './types';
 
 // Loose TicketService interface to avoid circular imports
 interface TicketServiceLike {
@@ -100,7 +100,7 @@ export class WeeklyReportService {
     const executiveSummary = this.buildExecutiveSummary(doraReport, {
       slaComplianceRate: slaCompliance.complianceRate,
       breachedTickets: slaCompliance.breachedTickets,
-      totalTickets: slaCompliance.totalTickets,
+      totalCreated: trendReport.totalCreated,
       overdue: backlogAnalysis.overdueCount,
       totalBacklog: backlogAnalysis.openCount,
     });
@@ -273,14 +273,14 @@ export class WeeklyReportService {
 
   // ==================== Internal Methods ====================
 
-  private buildExecutiveSummary(dora: any, tickets: { slaComplianceRate: number; breachedTickets: number; totalTickets: number; overdue: number; totalBacklog: number }): string {
+  private buildExecutiveSummary(dora: DoraMetricsReport, tickets: { slaComplianceRate: number; breachedTickets: number; totalCreated: number; overdue: number; totalBacklog: number }): string {
     const lines = [
       `- **Deployments:** ${dora.deploymentFrequency.totalDeployments} (${dora.deploymentFrequency.deploymentsPerDay.toFixed(1)}/day) — DORA: ${this.levelLabel(dora.deploymentFrequency.frequencyLevel)}`,
       `- **Change Failure Rate:** ${dora.changeFailureRate.failureRate.toFixed(1)}% — DORA: ${this.levelLabel(dora.changeFailureRate.failureRateLevel)}`,
       `- **Lead Time (median):** ${this.formatDuration(dora.leadTimeForChanges.medianLeadTimeMs)}`,
       `- **MTTR (median):** ${this.formatDuration(dora.meanTimeToRecovery.medianRecoveryTimeMs)}`,
       '',
-      `- **Tickets Created:** ${tickets.totalTickets}`,
+      `- **Tickets Created:** ${tickets.totalCreated}`,
       `- **SLA Compliance:** ${tickets.slaComplianceRate.toFixed(1)}% (${tickets.breachedTickets} breached)`,
       `- **Backlog:** ${tickets.totalBacklog} (${tickets.overdue} overdue)`,
     ];
@@ -288,7 +288,7 @@ export class WeeklyReportService {
     return lines.join('\n');
   }
 
-  private buildDoraSection(dora: any): string {
+  private buildDoraSection(dora: DoraMetricsReport): string {
     return [
       '| Metric | Value | DORA Level |',
       '|--------|-------|------------|',
@@ -357,7 +357,7 @@ export class WeeklyReportService {
     return lines.join('\n');
   }
 
-  private computeHealthScore(dora: any, tickets: { slaComplianceRate: number; breachedTickets: number; overdue: number }): 'green' | 'yellow' | 'red' {
+  private computeHealthScore(dora: DoraMetricsReport, tickets: { slaComplianceRate: number; breachedTickets: number; overdue: number }): 'green' | 'yellow' | 'red' {
     let score = 0;
 
     // DORA failure rate
@@ -381,18 +381,23 @@ export class WeeklyReportService {
 
   private async persistReport(report: WeeklyReport): Promise<void> {
     if (!this.db) return;
-    await this.db.query(
-      `INSERT INTO weekly_reports (id, team_id, week_start, week_end, report_data)
-       VALUES ($1, $2, $3, $4, $5)
-       ON CONFLICT (id) DO NOTHING`,
-      [
-        report.reportId,
-        report.teamId,
-        report.weekStart,
-        report.weekEnd,
-        { ...report.json, markdown: report.markdown },
-      ],
-    );
+    try {
+      await this.db.query(
+        `INSERT INTO weekly_reports (id, team_id, week_start, week_end, report_data)
+         VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (id) DO NOTHING`,
+        [
+          report.reportId,
+          report.teamId,
+          report.weekStart,
+          report.weekEnd,
+          { ...report.json, markdown: report.markdown },
+        ],
+      );
+    } catch (err) {
+      console.warn(`[WeeklyReportService] Failed to persist report: ${err}`);
+      // Report generation still succeeds; only persistence fails
+    }
   }
 
   private formatDate(d: Date): string {
