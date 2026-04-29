@@ -14,10 +14,9 @@
 import { Worker } from 'worker_threads';
 import { v4 as uuidv4 } from 'uuid';
 import * as path from 'path';
-import * as url from 'url';
 
-// Resolve worker file path correctly in ESM
-const __dirname = url.fileURLToPath(new URL('.', import.meta.url));
+// Use Node.js provided __dirname in CommonJS module
+// Note: __dirname is automatically available in commonjs context
 
 // ==================== Types ====================
 
