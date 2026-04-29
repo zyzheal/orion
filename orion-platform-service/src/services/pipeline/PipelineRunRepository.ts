@@ -65,6 +65,7 @@ export interface ListRunsFilter {
   pipelineId?: string;
   status?: string | string[];
   triggerType?: string;
+  since?: Date;
   limit?: number;
   offset?: number;
 }
@@ -122,6 +123,11 @@ export class PipelineRunRepository {
     if (filter?.triggerType) {
       params.push(filter.triggerType);
       conditions.push(`trigger_type = $${params.length}`);
+    }
+
+    if (filter?.since) {
+      params.push(filter.since);
+      conditions.push(`created_at >= $${params.length}`);
     }
 
     if (conditions.length > 0) {

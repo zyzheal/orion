@@ -122,14 +122,23 @@ export class DatabasePool extends EventEmitter {
     }
 
     const client = await this.pool.connect();
+    let transactionStarted = false;
 
     try {
       await client.query('BEGIN');
+      transactionStarted = true;
       const result = await fn(client);
       await client.query('COMMIT');
       return result;
     } catch (error) {
-      await client.query('ROLLBACK');
+      // Only ROLLBACK if BEGIN succeeded — otherwise the connection isn't in a transaction
+      if (transactionStarted) {
+        try {
+          await client.query('ROLLBACK');
+        } catch (rollbackError) {
+          console.error('[DatabasePool] Transaction rollback failed:', rollbackError);
+        }
+      }
       throw error;
     } finally {
       client.release();

@@ -2,7 +2,7 @@
  * ApiKeyService - Business logic layer for API Key
  */
 import { ApiKeyRepository, ApiKey } from './ApiKeyRepository';
-import { randomBytes } from 'crypto';
+import { randomBytes, createHash } from 'crypto';
 
 export class ApiKeyServiceError extends Error {
   constructor(message: string, public code: string) { super(message); this.name = 'ApiKeyServiceError'; }
@@ -16,7 +16,7 @@ export class ApiKeyService {
     if (!tenantId || !name) throw new ApiKeyServiceError('Tenant ID and name required', 'INVALID_INPUT');
     
     const rawKey = randomBytes(32).toString('hex');
-    const keyHash = rawKey.slice(0, 8) + '...'; // Simple hash for demo
+    const keyHash = createHash('sha256').update(rawKey).digest('hex');
     
     const expiresAt = expiresInDays ? new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000) : undefined;
     

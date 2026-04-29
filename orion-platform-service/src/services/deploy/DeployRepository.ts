@@ -64,6 +64,7 @@ interface FindAllOptions {
   projectId?: string;
   environment?: string;
   status?: string;
+  since?: Date;
   limit?: number;
   offset?: number;
 }
@@ -114,6 +115,11 @@ export class DeployRepository {
     if (options?.status) {
       params.push(options.status);
       conditions.push(`status = $${params.length}`);
+    }
+
+    if (options?.since) {
+      params.push(options.since);
+      conditions.push(`created_at >= $${params.length}`);
     }
 
     if (conditions.length > 0) {

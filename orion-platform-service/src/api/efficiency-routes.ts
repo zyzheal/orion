@@ -17,6 +17,7 @@ import { InMemoryLocalStorage, EfficiencyEventHandler } from '../services/effici
 import { WeeklyReportService } from '../services/efficiency/WeeklyReportService';
 import { DeployRepository } from '../services/deploy/DeployRepository';
 import { PipelineRunRepository } from '../services/pipeline/PipelineRunRepository';
+import { TicketAnalyticsService } from '../services/ticketing/TicketAnalyticsService';
 import { TicketService } from '../services/ticketing/TicketService';
 
 interface EfficiencyRoutesOptions {
@@ -45,12 +46,12 @@ export default async function efficiencyRoutes(app: FastifyInstance, options: Ef
   /**
    * Shared: fetch and map deployment + pipeline data
    */
-  async function fetchDeploymentData(tenantId?: string): Promise<{ deployments: any[]; pipelineRecords: any[] }> {
+  async function fetchDeploymentData(tenantId?: string, since?: Date): Promise<{ deployments: any[]; pipelineRecords: any[] }> {
     let deployments: any[] = [];
     let pipelineRecords: any[] = [];
 
     if (deployRepo) {
-      const deployResult = await deployRepo.findAll({ tenantId, limit: 1000 });
+      const deployResult = await deployRepo.findAll({ tenantId, since, limit: 1000 });
       deployments = deployResult.map((d: any) => ({
         deploymentId: d.id,
         service: d.tenant_id,
@@ -62,16 +63,16 @@ export default async function efficiencyRoutes(app: FastifyInstance, options: Ef
     }
 
     if (pipelineRunRepo) {
-      const runsResult = await pipelineRunRepo.findAll({ tenantId, limit: 1000 });
+      const runsResult = await pipelineRunRepo.findAll({ tenantId, since, limit: 1000 });
       pipelineRecords = runsResult.map((r: any) => ({
         id: `run-${r.id}`,
         runId: r.id,
-        pipelineId: r.pipelineId,
+        pipelineId: r.pipeline_id,
         status: r.status === 'success' || r.status === 'completed' ? 'success' : 'failed',
-        triggerType: 'manual',
-        durationMs: r.durationMs ?? 0,
-        completedAt: r.completedAt || r.createdAt,
-        tenantId: r.tenantId,
+        triggerType: r.trigger_type,
+        durationMs: r.duration_ms ?? 0,
+        completedAt: r.completed_at || r.created_at,
+        tenantId: r.tenant_id,
         syncedToClickHouse: false,
       }));
     }
@@ -88,7 +89,7 @@ export default async function efficiencyRoutes(app: FastifyInstance, options: Ef
     try {
       const interval = query.interval === 'daily' ? 'day' : query.interval === 'weekly' ? 'week' : 'month';
       const timeWindowConfig = doraMetrics.buildTimeWindow(interval, 1);
-      const { deployments, pipelineRecords } = await fetchDeploymentData(query.tenantId);
+      const { deployments, pipelineRecords } = await fetchDeploymentData(query.tenantId, timeWindowConfig.start);
 
       const deploymentFrequency = doraMetrics.calculateDeploymentFrequency(deployments, timeWindowConfig);
       const leadTimeForChanges = doraMetrics.calculateLeadTimeForChanges(pipelineRecords, timeWindowConfig);
@@ -126,7 +127,7 @@ export default async function efficiencyRoutes(app: FastifyInstance, options: Ef
     try {
       const interval = body.interval === 'daily' ? 'day' : body.interval === 'weekly' ? 'week' : 'month';
       const timeWindowConfig = doraMetrics.buildTimeWindow(interval, 1);
-      const { deployments, pipelineRecords } = await fetchDeploymentData(body.tenantId);
+      const { deployments, pipelineRecords } = await fetchDeploymentData(body.tenantId, timeWindowConfig.start);
 
       const report = doraMetrics.generateReport(
         body.tenantId || 'default',
@@ -195,9 +196,11 @@ export default async function efficiencyRoutes(app: FastifyInstance, options: Ef
     const body = request.body as { full?: boolean };
 
     try {
+      const result = await clickHouseSync.flushPendingRecords();
       return reply.send({
         status: 'synced',
         syncedAt: new Date().toISOString(),
+        flushed: result,
       });
     } catch (error: any) {
       return reply.status(500).send({
@@ -224,7 +227,7 @@ export default async function efficiencyRoutes(app: FastifyInstance, options: Ef
 
     try {
       const timeWindowConfig = doraMetrics.buildTimeWindow('month', 1);
-      const { deployments, pipelineRecords } = await fetchDeploymentData(query.tenantId);
+      const { deployments, pipelineRecords } = await fetchDeploymentData(query.tenantId, timeWindowConfig.start);
 
       const deploymentFrequency = doraMetrics.calculateDeploymentFrequency(deployments, timeWindowConfig);
       const changeFailureRate = doraMetrics.calculateChangeFailureRate(deployments, timeWindowConfig);
@@ -294,6 +297,26 @@ export default async function efficiencyRoutes(app: FastifyInstance, options: Ef
       const weeklyReport = getWeeklyReportService(options.database, localStorage);
       const weekStart = query.week_start ? new Date(query.week_start) : undefined;
 
+      // If DB available, check if report already exists for this week (idempotent)
+      if (options.database && weekStart) {
+        const { start, end } = weeklyReport.getWeekBoundaries(weekStart);
+        const existing = await weeklyReport.listHistory({
+          teamId: query.team_id,
+          limit: 1,
+        });
+        // listHistory returns reports ordered by week_start DESC; check if first matches
+        const match = existing.find(r => {
+          const rStart = new Date(r.weekStart);
+          return Math.abs(rStart.getTime() - start.getTime()) < 86400000; // same day
+        });
+        if (match) {
+          const fullReport = await weeklyReport.getReport(match.id);
+          if (fullReport) {
+            return reply.send({ success: true, data: fullReport, cached: true });
+          }
+        }
+      }
+
       // Generate new report
       const report = await weeklyReport.generateReport({ weekStart, teamId: query.team_id });
 
@@ -355,10 +378,25 @@ function getWeeklyReportService(db?: DatabasePool, sharedLocalStorage?: InMemory
 
   _weeklyReportService = new WeeklyReportService({
     doraService,
-    ticketService: new TicketService(),
+    ticketService: db ? new TicketAnalyticsService(db) : createFallbackTicketService(),
     dataSource,
     db,
   });
 
   return _weeklyReportService;
+}
+
+/**
+ * Fallback in-memory ticket service for when DB is not available.
+ * Wraps the old TicketService to match TicketServiceLike interface.
+ */
+function createFallbackTicketService() {
+  const oldService = new TicketService();
+  return {
+    getSLACompliance: (periodStart?: Date, periodEnd?: Date) => oldService.getSLACompliance(periodStart, periodEnd),
+    getResolutionStats: () => oldService.getResolutionStats(),
+    getBacklogAnalysis: () => oldService.getBacklogAnalysis(),
+    getTrendReport: (options?: { days?: number; granularity?: string }) => oldService.getTrendReport({ days: options?.days }),
+    getStatistics: () => oldService.getStatistics(),
+  };
 }

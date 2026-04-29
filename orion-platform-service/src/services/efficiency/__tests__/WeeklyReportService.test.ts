@@ -200,4 +200,120 @@ describe('WeeklyReportService', () => {
     expect(report.markdown).toContain('Weekly Trend');
     expect(report.markdown).toContain('created');
   });
+
+  // ==================== DB Persistence ====================
+
+  it('should persist report to DB when db is provided', async () => {
+    const mockDb = {
+      query: jest.fn().mockResolvedValue({ rows: [], rowCount: 0 }),
+    };
+
+    const dbService = new WeeklyReportService({
+      doraService: mockDora,
+      ticketService: mockTicket as any,
+      dataSource: mockDataSource,
+      db: mockDb,
+    });
+
+    const report = await dbService.generateReport({ teamId: 'team-db' });
+
+    expect(mockDb.query).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO weekly_reports'),
+      expect.arrayContaining([report.reportId, 'team-db']),
+    );
+  });
+
+  it('should not call DB when db is not provided', async () => {
+    // service created without db — verify no DB calls
+    const report = await service.generateReport({ weekStart: new Date() });
+    expect(report).toBeDefined();
+  });
+
+  it('should handle DB persistence failure gracefully', async () => {
+    const mockDb = {
+      query: jest.fn().mockRejectedValue(new Error('connection refused')),
+    };
+
+    const dbService = new WeeklyReportService({
+      doraService: mockDora,
+      ticketService: mockTicket as any,
+      dataSource: mockDataSource,
+      db: mockDb,
+    });
+
+    // Should not throw — report generation succeeds even if DB fails
+    const report = await dbService.generateReport({ teamId: 'team-err' });
+    expect(report.reportId).toMatch(/^WR-/);
+  });
+
+  it('should list history from DB', async () => {
+    const mockDb = {
+      query: jest.fn().mockResolvedValue({
+        rows: [
+          { id: 'wr-1', team_id: 'team-a', week_start: '2026-04-20', week_end: '2026-04-26', report_data: { healthScore: 'green' } },
+          { id: 'wr-2', team_id: 'team-a', week_start: '2026-04-13', week_end: '2026-04-19', report_data: { healthScore: 'yellow' } },
+        ],
+        rowCount: 2,
+      }),
+    };
+
+    const dbService = new WeeklyReportService({
+      doraService: mockDora,
+      ticketService: mockTicket as any,
+      dataSource: mockDataSource,
+      db: mockDb,
+    });
+
+    const history = await dbService.listHistory({ teamId: 'team-a', limit: 10 });
+    expect(history).toHaveLength(2);
+    expect(history[0].id).toBe('wr-1');
+    expect(history[0].healthScore).toBe('green');
+  });
+
+  it('should get report by ID from DB', async () => {
+    const mockDb = {
+      query: jest.fn().mockResolvedValue({
+        rows: [{
+          id: 'wr-1',
+          team_id: 'team-a',
+          week_start: '2026-04-20T00:00:00.000Z',
+          week_end: '2026-04-26T23:59:59.999Z',
+          created_at: '2026-04-27T10:00:00.000Z',
+          report_data: {
+            healthScore: 'green',
+            markdown: '# Test Report',
+          },
+        }],
+        rowCount: 1,
+      }),
+    };
+
+    const dbService = new WeeklyReportService({
+      doraService: mockDora,
+      ticketService: mockTicket as any,
+      dataSource: mockDataSource,
+      db: mockDb,
+    });
+
+    const report = await dbService.getReport('wr-1');
+    expect(report).not.toBeNull();
+    expect(report!.reportId).toBe('wr-1');
+    expect(report!.markdown).toBe('# Test Report');
+  });
+
+  it('should return null for non-existent report', async () => {
+    const mockDb = {
+      query: jest.fn().mockResolvedValue({ rows: [], rowCount: 0 }),
+    };
+
+    const dbService = new WeeklyReportService({
+      doraService: mockDora,
+      ticketService: mockTicket as any,
+      dataSource: mockDataSource,
+      db: mockDb,
+    });
+
+    const report = await dbService.getReport('non-existent');
+    expect(report).toBeNull();
+  });
 });

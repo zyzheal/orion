@@ -178,24 +178,26 @@ export class UserRepository {
    */
   async create(input: CreateUserInput): Promise<User> {
     const { username, email, passwordHash, name, avatar_url, role, created_by } = input;
-    
-    const result = await this.pool.query(
-      `INSERT INTO users (username, email, password_hash, name, avatar_url, role, status, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, 'active', $7)
-       RETURNING *`,
-      [username, email || null, passwordHash, name || null, avatar_url || null, role || 'user', created_by || null]
-    );
 
-    // If tenantId provided, create tenant-user mapping
-    if (input.tenantId) {
-      await this.pool.query(
-        `INSERT INTO tenant_users (tenant_id, user_id, role)
-         VALUES ($1, $2, 'member')`,
-        [input.tenantId, result.rows[0].id]
+    return this.pool.transaction(async (client) => {
+      const result = await client.query(
+        `INSERT INTO users (username, email, password_hash, name, avatar_url, role, status, created_by)
+         VALUES ($1, $2, $3, $4, $5, $6, 'active', $7)
+         RETURNING *`,
+        [username, email || null, passwordHash, name || null, avatar_url || null, role || 'user', created_by || null]
       );
-    }
-    
-    return result.rows[0];
+
+      // If tenantId provided, create tenant-user mapping within same transaction
+      if (input.tenantId) {
+        await client.query(
+          `INSERT INTO tenant_users (tenant_id, user_id, role)
+           VALUES ($1, $2, 'member')`,
+          [input.tenantId, result.rows[0].id]
+        );
+      }
+
+      return result.rows[0];
+    });
   }
 
   /**

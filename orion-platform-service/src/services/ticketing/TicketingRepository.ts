@@ -79,7 +79,7 @@ export class TicketingRepository {
     const params: any[] = [];
     if (options?.tenantId || options?.status || options?.assigneeId) {
       const conditions: string[] = [];
-      if (options?.tenantId) { params.push(options.tenantId); conditions.push('tenant_id = $1'); }
+      if (options?.tenantId) { params.push(options.tenantId); conditions.push(`tenant_id = $${params.length}`); }
       if (options?.status) { params.push(options.status); conditions.push(`status = $${params.length}`); }
       if (options?.assigneeId) { params.push(options.assigneeId); conditions.push(`assignee_id = $${params.length}`); }
       query += ' WHERE ' + conditions.join(' AND ');

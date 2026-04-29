@@ -224,54 +224,52 @@ export class TicketReportService {
    */
   getBacklogAnalysis(tickets: Ticket[]): BacklogAnalysis {
     const now = Date.now();
+    const DAY_MS = 24 * 60 * 60 * 1000;
 
-    const openTickets = tickets.filter(t =>
-      ['open', 'assigned', 'in-progress'].includes(t.status)
-    );
-
-    const openCount = tickets.filter(t => t.status === 'open').length;
-    const assignedCount = tickets.filter(t => t.status === 'assigned').length;
-    const inProgressCount = tickets.filter(t => t.status === 'in-progress').length;
-
-    // Overdue = created + target time has passed
-    const overdueTickets = openTickets.filter(t => {
-      if (t.dueDate) {
-        return t.dueDate.getTime() < now;
-      }
-      // No due date, use 24h default
-      return (now - t.createdAt.getTime()) > 24 * 60 * 60 * 1000;
-    });
-
-    // Calculate ages
-    const ages = openTickets.map(t => now - t.createdAt.getTime());
-    const averageAge = ages.length > 0
-      ? ages.reduce((sum, v) => sum + v, 0) / ages.length
-      : 0;
-    const oldestAge = ages.length > 0 ? Math.max(...ages) : 0;
-
-    // By priority
-    const byPriority: Record<TicketPriority, number> = {
-      critical: 0,
-      high: 0,
-      medium: 0,
-      low: 0,
-    };
-
-    for (const ticket of openTickets) {
-      byPriority[ticket.priority]++;
-    }
-
-    // By category
+    let openCount = 0;
+    let assignedCount = 0;
+    let inProgressCount = 0;
+    let overdueCount = 0;
+    let totalAge = 0;
+    let oldestAge = 0;
+    const byPriority: Record<TicketPriority, number> = { critical: 0, high: 0, medium: 0, low: 0 };
     const byCategory: Record<string, number> = {};
-    for (const ticket of openTickets) {
-      byCategory[ticket.category] = (byCategory[ticket.category] || 0) + 1;
+
+    for (const t of tickets) {
+      const isOpen = t.status === 'open';
+      const isAssigned = t.status === 'assigned';
+      const isInProgress = t.status === 'in-progress';
+      if (!isOpen && !isAssigned && !isInProgress) continue;
+
+      // Count by status
+      if (isOpen) openCount++;
+      if (isAssigned) assignedCount++;
+      if (isInProgress) inProgressCount++;
+
+      // Check overdue
+      const isOverdue = t.dueDate
+        ? t.dueDate.getTime() < now
+        : (now - t.createdAt.getTime()) > DAY_MS;
+      if (isOverdue) overdueCount++;
+
+      // Calculate age
+      const age = now - t.createdAt.getTime();
+      totalAge += age;
+      if (age > oldestAge) oldestAge = age;
+
+      // Count by priority and category
+      byPriority[t.priority]++;
+      byCategory[t.category] = (byCategory[t.category] || 0) + 1;
     }
+
+    const totalOpen = openCount + assignedCount + inProgressCount;
+    const averageAge = totalOpen > 0 ? totalAge / totalOpen : 0;
 
     return {
       openCount,
       assignedCount,
       inProgressCount,
-      overdueCount: overdueTickets.length,
+      overdueCount: overdueCount,
       averageAgeMs: Math.round(averageAge),
       oldestTicketAgeMs: oldestAge,
       byPriority,

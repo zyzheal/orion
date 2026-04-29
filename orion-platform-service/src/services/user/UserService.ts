@@ -264,32 +264,44 @@ export class UserService {
   }
 
   /**
-   * Hash a password
-   * Note: In production, use bcrypt or argon2. This is a simple SHA-256 based hash for MVP.
+   * Hash a password using PBKDF2 with random salt
+   * Format: pbkdf2$salt$iterations$hash
    */
   private async hashPassword(password: string): Promise<string> {
-    // Simple hash for MVP - in production use bcrypt/argon2
     const crypto = await import('crypto');
-    const hash = crypto.createHash('sha256');
-    hash.update(password);
-    return hash.digest('hex');
+    const salt = crypto.randomBytes(16).toString('hex');
+    return new Promise((resolve, reject) => {
+      crypto.pbkdf2(password, salt, 100000, 64, 'sha256', (err, derivedKey) => {
+        if (err) reject(err);
+        else resolve(`pbkdf2$${salt}$100000$${derivedKey.toString('hex')}`);
+      });
+    });
   }
 
   /**
-   * Compare password with hash
+   * Compare password with hash (supports PBKDF2 and legacy SHA-256)
    */
   private async comparePassword(password: string, hash: string): Promise<boolean> {
-    // Try SHA-256 comparison first (MVP)
-    const crypto = await import('crypto');
-    const hash256 = crypto.createHash('sha256');
-    hash256.update(password);
-    const passwordHash = hash256.digest('hex');
-    
-    if (passwordHash === hash) {
-      return true;
+    // PBKDF2 format: pbkdf2$salt$iterations$hash
+    if (hash.startsWith('pbkdf2$')) {
+      const [_, salt, iterationsStr, expectedHash] = hash.split('$');
+      const iterations = parseInt(iterationsStr, 10);
+      const crypto = await import('crypto');
+      return new Promise((resolve, reject) => {
+        crypto.pbkdf2(password, salt, iterations, 64, 'sha256', (err, derivedKey) => {
+          if (err) reject(err);
+          else resolve(derivedKey.toString('hex') === expectedHash);
+        });
+      });
     }
-    
-    // Fall back to plain comparison for migration
+
+    // Legacy SHA-256 (migration compatibility)
+    const crypto = await import('crypto');
+    const sha256Hash = crypto.createHash('sha256');
+    sha256Hash.update(password);
+    if (sha256Hash.digest('hex') === hash) return true;
+
+    // Plain text fallback
     return password === hash;
   }
 

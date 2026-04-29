@@ -14,12 +14,13 @@ import { DoraMetricsService } from './DoraMetricsService';
 import { PipelineCompletionRecord, DeploymentRecord, TimeWindow, DoraMetricsReport } from './types';
 
 // Loose TicketService interface to avoid circular imports
+// Supports both sync (in-memory fallback) and async (PostgreSQL-backed) implementations
 interface TicketServiceLike {
-  getSLACompliance(periodStart?: Date, periodEnd?: Date): { complianceRate: number; breachedTickets: number; totalTickets: number };
-  getResolutionStats(): { meanResolutionTimeMs: number; medianResolutionTimeMs: number };
-  getBacklogAnalysis(): { openCount: number; overdueCount: number; averageAgeMs: number; oldestTicketAgeMs: number };
-  getTrendReport(options?: { days?: number; granularity?: string }): { dataPoints: Array<{ period: string; created: number; resolved: number; open: number }>; totalCreated: number; totalResolved: number; trend: string };
-  getStatistics(): { totalTickets: number; byStatus: Record<string, number>; byPriority: Record<string, number>; byCategory: Record<string, number>; averageResolutionTimeMs: number; slaComplianceRate: number };
+  getSLACompliance(periodStart?: Date, periodEnd?: Date): { complianceRate: number; breachedTickets: number; totalTickets: number } | Promise<{ complianceRate: number; breachedTickets: number; totalTickets: number }>;
+  getResolutionStats(): { meanResolutionTimeMs: number; medianResolutionTimeMs: number } | Promise<{ meanResolutionTimeMs: number; medianResolutionTimeMs: number }>;
+  getBacklogAnalysis(): { openCount: number; overdueCount: number; averageAgeMs: number; oldestTicketAgeMs: number } | Promise<{ openCount: number; overdueCount: number; averageAgeMs: number; oldestTicketAgeMs: number }>;
+  getTrendReport(options?: { days?: number; granularity?: string }): { dataPoints: Array<{ period: string; created: number; resolved: number; open: number }>; totalCreated: number; totalResolved: number; trend: string } | Promise<{ dataPoints: Array<{ period: string; created: number; resolved: number; open: number }>; totalCreated: number; totalResolved: number; trend: string }>;
+  getStatistics(): { totalTickets: number; byStatus: Record<string, number>; byPriority: Record<string, number>; byCategory: Record<string, number>; averageResolutionTimeMs: number; slaComplianceRate: number } | Promise<{ totalTickets: number; byStatus: Record<string, number>; byPriority: Record<string, number>; byCategory: Record<string, number>; averageResolutionTimeMs: number; slaComplianceRate: number }>;
 }
 
 // Data source for DORA raw records
@@ -83,11 +84,13 @@ export class WeeklyReportService {
     const windowConfig = this.doraService.buildTimeWindow('week', 1, weekEnd);
     const doraReport = this.doraService.generateReport(teamId, pipelineRecords, deploymentRecords, windowConfig);
 
-    const slaCompliance = this.ticketService.getSLACompliance(weekStart, weekEnd);
-    const resolutionStats = this.ticketService.getResolutionStats();
-    const backlogAnalysis = this.ticketService.getBacklogAnalysis();
-    const trendReport = this.ticketService.getTrendReport({ days: 7 });
-    const statistics = this.ticketService.getStatistics();
+    const [slaCompliance, resolutionStats, backlogAnalysis, trendReport, statistics] = await Promise.all([
+      this.ticketService.getSLACompliance(weekStart, weekEnd),
+      this.ticketService.getResolutionStats(),
+      this.ticketService.getBacklogAnalysis(),
+      this.ticketService.getTrendReport({ days: 7 }),
+      this.ticketService.getStatistics(),
+    ]);
 
     // Compute health score
     const healthScore = this.computeHealthScore(doraReport, {
@@ -395,9 +398,24 @@ export class WeeklyReportService {
         ],
       );
     } catch (err) {
-      console.warn(`[WeeklyReportService] Failed to persist report: ${err}`);
+      console.error(`[WeeklyReportService] Failed to persist report ${report.reportId} (team=${report.teamId}, week=${this.formatDate(report.weekStart)}):`, err);
       // Report generation still succeeds; only persistence fails
+      // Emit error event for monitoring systems
+      this.emitPersistenceError(report, err);
     }
+  }
+
+  private emitPersistenceError(report: WeeklyReport, error: unknown): void {
+    // Log structured error for monitoring/alerting
+    const errorDetails = {
+      event: 'weekly_report.persistence_failed',
+      reportId: report.reportId,
+      teamId: report.teamId,
+      weekStart: report.weekStart.toISOString(),
+      error: error instanceof Error ? error.message : String(error),
+      timestamp: new Date().toISOString(),
+    };
+    console.error('[WeeklyReportService]', JSON.stringify(errorDetails));
   }
 
   private formatDate(d: Date): string {

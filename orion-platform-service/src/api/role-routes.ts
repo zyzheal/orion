@@ -24,33 +24,46 @@ export default async function roleRoutes(
     ? new RoleRepository(options.database)
     : undefined;
 
-  if (!repository) {
-    console.warn('[RoleRoutes] No database pool provided, role routes will not be functional');
-    return;
+  let controller: RoleController | null = null;
+  if (repository) {
+    const service = new RoleService(repository);
+    controller = new RoleController(service);
+  } else {
+    console.warn('[RoleRoutes] No database pool provided, role routes will return 503');
   }
 
-  const service = new RoleService(repository);
-  const controller = new RoleController(service);
+  // Handler for when DB is unavailable
+  const unavailableHandler = async (request: FastifyRequest, reply: FastifyReply) => {
+    return reply.status(503).send({
+      error: 'SERVICE_UNAVAILABLE',
+      message: 'Role management requires database connection',
+    });
+  };
+
+  const listHandler = controller
+    ? (request: FastifyRequest, reply: FastifyReply) => controller!.list(request, reply)
+    : unavailableHandler;
+  const getHandler = controller
+    ? (request: FastifyRequest, reply: FastifyReply) => controller!.getDetail(request, reply)
+    : unavailableHandler;
+  const createHandler = controller
+    ? (request: FastifyRequest, reply: FastifyReply) => controller!.create(request, reply)
+    : unavailableHandler;
+  const deleteHandler = controller
+    ? (request: FastifyRequest, reply: FastifyReply) => controller!.delete(request, reply)
+    : unavailableHandler;
 
   // ==================== Role CRUD ====================
 
   // GET /api/v1/roles?tenantId=xxx — list roles for a tenant
-  app.get('/', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.list(request, reply);
-  });
+  app.get('/', listHandler);
 
   // GET /api/v1/roles/:id — role detail
-  app.get('/:id', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.getDetail(request, reply);
-  });
+  app.get('/:id', getHandler);
 
   // POST /api/v1/roles — create role
-  app.post('/', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.create(request, reply);
-  });
+  app.post('/', createHandler);
 
   // DELETE /api/v1/roles/:id — delete role
-  app.delete('/:id', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.delete(request, reply);
-  });
+  app.delete('/:id', deleteHandler);
 }
