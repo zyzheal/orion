@@ -96,7 +96,7 @@ export default async function tenantRoutes(
     }
 
     const tenantId = parseInt(tenantIdHeader, 10);
-    const quota = quotaService.getQuota(tenantId);
+    const quota = await quotaService.getQuota(tenantId);
 
     return reply.send({
       quota,
@@ -118,14 +118,14 @@ export default async function tenantRoutes(
     const tenantId = parseInt(tenantIdHeader, 10);
 
     try {
-      const currentQuota = quotaService.getQuota(tenantId);
+      const currentQuota = await quotaService.getQuota(tenantId);
       const updatedQuota: TenantQuota = {
         ...currentQuota,
         ...body,
         tenantId,
       };
 
-      quotaService.setQuota(updatedQuota);
+      await quotaService.setQuota(updatedQuota);
 
       return reply.send({
         quota: updatedQuota,

@@ -8,6 +8,7 @@
  */
 
 import { EventEmitter } from 'events';
+import { TenantQuotaRepository, TenantQuotaEntity } from '../../repositories/TenantQuotaRepository';
 
 export interface TenantQuota {
   tenantId: number;
@@ -71,30 +72,87 @@ const ALERT_THRESHOLD_PERCENT = 80;
  * TenantQuotaService - 租户配额服务
  */
 export class TenantQuotaService extends EventEmitter {
+  private repository: TenantQuotaRepository | null = null;
+  // in-memory fallback for tests and environments without DB
   private quotas: Map<number, TenantQuota> = new Map();
+  // usage map kept for rate limiting (in-memory by design)
   private usage: Map<string, TenantUsage> = new Map();
   private alertThreshold: number = ALERT_THRESHOLD_PERCENT;
 
-  constructor() {
+  constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
     super();
+    if (db) {
+      this.repository = new TenantQuotaRepository(db);
+    }
   }
 
   /**
    * 获取租户配额配置
    */
-  getQuota(tenantId: number): TenantQuota {
-    const quota = this.quotas.get(tenantId);
-    if (!quota) {
-      return { ...DEFAULT_QUOTA, tenantId };
+  async getQuota(tenantId: number): Promise<TenantQuota> {
+    if (this.repository) {
+      const entity = await this.repository.findByTenantId(String(tenantId));
+      if (entity) {
+        return this.mapEntityToQuota(entity);
+      }
     }
-    return quota;
+    // in-memory fallback (tests / no-DB environments)
+    const cached = this.quotas.get(tenantId);
+    if (cached) {
+      return cached;
+    }
+    return { ...DEFAULT_QUOTA, tenantId };
+  }
+
+  private mapEntityToQuota(entity: TenantQuotaEntity): TenantQuota {
+    return {
+      tenantId: Number(entity.tenantId),
+      maxPipelines: entity.maxPipelines,
+      maxPipelineRunsPerDay: entity.maxApiCallsPerHour,
+      maxConcurrentRuns: entity.maxConcurrentBuilds,
+      maxTasksPerPipeline: 50,
+      maxRunners: entity.maxConcurrentBuilds,
+      maxCpuCores: 16,
+      maxMemoryGb: 32,
+      maxStorageGb: Math.floor(entity.maxStorageMb / 1024),
+      maxNamespaces: entity.maxProjects,
+      apiRateLimit: entity.maxApiCallsPerHour,
+      apiRateLimitWindowSeconds: 3600,
+    };
   }
 
   /**
    * 设置租户配额配置
    */
-  setQuota(quota: TenantQuota): void {
-    this.quotas.set(quota.tenantId, quota);
+  async setQuota(quota: TenantQuota): Promise<void> {
+    if (this.repository) {
+      const existing = await this.repository.findByTenantId(String(quota.tenantId));
+      if (existing) {
+        await this.repository.update(existing.id, {
+          maxPipelines: quota.maxPipelines,
+          maxApiCallsPerHour: quota.maxPipelineRunsPerDay,
+          maxConcurrentBuilds: quota.maxConcurrentRuns,
+          maxProjects: quota.maxNamespaces,
+          maxStorageMb: quota.maxStorageGb * 1024,
+          usage: existing.usage,
+        });
+      } else {
+        await this.repository.create({
+          id: `quota_${quota.tenantId}`,
+          tenantId: String(quota.tenantId),
+          maxPipelines: quota.maxPipelines,
+          maxApiCallsPerHour: quota.maxPipelineRunsPerDay,
+          maxConcurrentBuilds: quota.maxConcurrentRuns,
+          maxProjects: quota.maxNamespaces,
+          maxStorageMb: quota.maxStorageGb * 1024,
+          maxUsers: 100,
+          usage: {},
+        } as any);
+      }
+    } else {
+      // in-memory fallback (tests / no-DB environments)
+      this.quotas.set(quota.tenantId, quota);
+    }
     this.emit('quota:updated', quota);
   }
 
@@ -106,7 +164,7 @@ export class TenantQuotaService extends EventEmitter {
     resourceType: string,
     requestedValue: number = 1
   ): Promise<QuotaCheckResult> {
-    const quota = this.getQuota(tenantId);
+    const quota = await this.getQuota(tenantId);
     const currentUsage = await this.getCurrentUsage(tenantId, resourceType);
     const limit = this.getQuotaLimit(quota, resourceType);
     const remaining = limit - currentUsage;
@@ -166,7 +224,7 @@ export class TenantQuotaService extends EventEmitter {
    * 检查 API 速率限制
    */
   async checkApiRateLimit(tenantId: number): Promise<QuotaCheckResult> {
-    const quota = this.getQuota(tenantId);
+    const quota = await this.getQuota(tenantId);
     const windowIndex = Math.floor(Date.now() / (quota.apiRateLimitWindowSeconds * 1000));
     const key = `${tenantId}:api_rate:${windowIndex}`;
 
@@ -310,12 +368,12 @@ export class TenantQuotaService extends EventEmitter {
   /**
    * 获取租户资源使用报告
    */
-  getUsageReport(tenantId: number): {
+  async getUsageReport(tenantId: number): Promise<{
     quota: TenantQuota;
     usage: Record<string, number>;
     alerts: QuotaAlert[];
-  } {
-    const quota = this.getQuota(tenantId);
+  }> {
+    const quota = await this.getQuota(tenantId);
     const usage: Record<string, number> = {};
 
     // Calculate usage for each resource type

@@ -17,8 +17,8 @@ describe('TenantQuotaService', () => {
   });
 
   describe('getQuota and setQuota', () => {
-    it('should return default quota when not configured', () => {
-      const quota = quotaService.getQuota(100);
+    it('should return default quota when not configured', async () => {
+      const quota = await quotaService.getQuota(100);
 
       expect(quota.tenantId).toBe(100);
       expect(quota.maxPipelines).toBe(100);
@@ -26,7 +26,7 @@ describe('TenantQuotaService', () => {
       expect(quota.maxRunners).toBe(5);
     });
 
-    it('should set and retrieve custom quota', () => {
+    it('should set and retrieve custom quota', async () => {
       const customQuota: TenantQuota = {
         tenantId: 100,
         maxPipelines: 50,
@@ -42,22 +42,21 @@ describe('TenantQuotaService', () => {
         apiRateLimitWindowSeconds: 60,
       };
 
-      quotaService.setQuota(customQuota);
-      const quota = quotaService.getQuota(100);
+      await quotaService.setQuota(customQuota);
+      const quota = await quotaService.getQuota(100);
 
       expect(quota.maxPipelines).toBe(50);
       expect(quota.maxConcurrentRuns).toBe(5);
       expect(quota.maxRunners).toBe(3);
     });
 
-    it('should emit quota:updated event', (done) => {
+    it('should emit quota:updated event', async () => {
       quotaService.on('quota:updated', (quota: TenantQuota) => {
         expect(quota.tenantId).toBe(100);
         expect(quota.maxPipelines).toBe(50);
-        done();
       });
 
-      quotaService.setQuota({
+      await quotaService.setQuota({
         tenantId: 100,
         maxPipelines: 50,
         maxConcurrentRuns: 10,
@@ -135,7 +134,7 @@ describe('TenantQuotaService', () => {
 
     it('should deny when rate limit exceeded', async () => {
       // Get the quota first to determine window
-      const quota = quotaService.getQuota(100);
+      const quota = await quotaService.getQuota(100);
       const windowIndex = Math.floor(Date.now() / (quota.apiRateLimitWindowSeconds * 1000));
 
       // Record usage at the limit using the correct key format: tenantId:resourceType:resourceKey
@@ -156,7 +155,7 @@ describe('TenantQuotaService', () => {
   });
 
   describe('recordUsage and incrementUsage', () => {
-    it('should record resource usage', () => {
+    it('should record resource usage', async () => {
       quotaService.recordUsage(
         100,
         'pipelines',
@@ -166,7 +165,7 @@ describe('TenantQuotaService', () => {
         new Date(Date.now() + 3600000)
       );
 
-      const result = quotaService.getUsageReport(100);
+      const result = await quotaService.getUsageReport(100);
       expect(result.usage.pipelines).toBe(1);
     });
 
@@ -191,22 +190,22 @@ describe('TenantQuotaService', () => {
   });
 
   describe('getUsageReport', () => {
-    it('should generate usage report', () => {
+    it('should generate usage report', async () => {
       quotaService.recordUsage(100, 'pipelines', 'p1', 30, new Date(), new Date());
       quotaService.recordUsage(100, 'runners', 'r1', 4, new Date(), new Date());
 
-      const report = quotaService.getUsageReport(100);
+      const report = await quotaService.getUsageReport(100);
 
       expect(report.quota.tenantId).toBe(100);
       expect(report.usage.pipelines).toBe(30);
       expect(report.usage.runners).toBe(4);
     });
 
-    it('should include alerts when usage is high', () => {
+    it('should include alerts when usage is high', async () => {
       quotaService.setAlertThreshold(80);
       quotaService.recordUsage(100, 'runners', 'r1', 4, new Date(), new Date()); // 80% of 5
 
-      const report = quotaService.getUsageReport(100);
+      const report = await quotaService.getUsageReport(100);
 
       expect(report.alerts.length).toBeGreaterThan(0);
       expect(report.alerts[0].resourceType).toBe('runners');
@@ -229,7 +228,7 @@ describe('TenantQuotaService', () => {
   });
 
   describe('cleanupExpiredUsage', () => {
-    it('should cleanup expired usage records', () => {
+    it('should cleanup expired usage records', async () => {
       // Add expired usage
       quotaService.recordUsage(
         100,
@@ -253,18 +252,18 @@ describe('TenantQuotaService', () => {
       const cleaned = quotaService.cleanupExpiredUsage();
 
       expect(cleaned).toBeGreaterThan(0);
-      expect(quotaService.getUsageReport(100).usage.pipelines).toBe(1);
+      expect((await quotaService.getUsageReport(100)).usage.pipelines).toBe(1);
     });
   });
 
   describe('resetTenantUsage', () => {
-    it('should reset all usage for a tenant', () => {
+    it('should reset all usage for a tenant', async () => {
       quotaService.recordUsage(100, 'pipelines', 'p1', 10, new Date(), new Date());
       quotaService.recordUsage(100, 'runners', 'r1', 3, new Date(), new Date());
 
       quotaService.resetTenantUsage(100);
 
-      const report = quotaService.getUsageReport(100);
+      const report = await quotaService.getUsageReport(100);
       expect(report.usage.pipelines).toBe(0);
       expect(report.usage.runners).toBe(0);
     });
@@ -299,7 +298,7 @@ describe('TenantQuotaService', () => {
         apiRateLimitWindowSeconds: 60,
       };
 
-      quotaService.setQuota(customQuota);
+      await quotaService.setQuota(customQuota);
 
       quotaService.recordUsage(200, 'runners', 'active', 1, new Date(), new Date());
 
