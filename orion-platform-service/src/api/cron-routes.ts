@@ -9,7 +9,7 @@
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { DatabasePool } from '../services/database';
-import { CronSchedulerService } from '../services/scheduler/CronSchedulerService';
+import { CronSchedulerService, CronJobExecution } from '../services/scheduler/CronSchedulerService';
 
 interface CronRoutesOptions {
   database?: DatabasePool;
@@ -162,8 +162,8 @@ export default async function cronRoutes(app: FastifyInstance, options: CronRout
   app.get('/executions/:executionId', async (request: FastifyRequest, reply: FastifyReply) => {
     const { executionId } = request.params as { executionId: string };
 
-    const executions = cronSchedulerService.getExecutionHistory();
-    const execution = executions.find(exec => exec.executionId === executionId);
+    const executions = await cronSchedulerService.getExecutionHistory();
+    const execution = executions.find((exec: CronJobExecution) => exec.executionId === executionId);
 
     if (!execution) {
       reply.code(404).send({ error: 'Execution not found' });

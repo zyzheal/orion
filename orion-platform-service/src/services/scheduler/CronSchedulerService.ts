@@ -8,6 +8,7 @@ import { EventEmitter } from 'events';
 import { DistributedLockService } from './DistributedLockService';
 import { EventBusService } from '../event-bus-service';
 import { CronJobRepository, CronJobEntity } from '../../repositories/CronJobRepository';
+import { CronExecutionRepository } from '../../repositories/CronExecutionRepository';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -42,6 +43,7 @@ export class CronSchedulerService extends EventEmitter {
   private taskHandlers: Map<string, () => Promise<void>> = new Map(); // Keep task handlers in memory
   private executions: Map<string, CronJobExecution> = new Map();
   private cronJobRepository?: CronJobRepository;
+  private executionRepository?: CronExecutionRepository;
   private lockService: DistributedLockService;
   private eventBus?: EventBusService;
   private runningJobs: Set<string> = new Set();
@@ -51,6 +53,7 @@ export class CronSchedulerService extends EventEmitter {
     this.eventBus = eventBus;
     if (db) {
       this.cronJobRepository = new CronJobRepository(db);
+      this.executionRepository = new CronExecutionRepository(db);
     }
     this.lockService = new DistributedLockService(config?.redisUrl ?
       { url: config?.redisUrl } : undefined);
@@ -170,6 +173,22 @@ export class CronSchedulerService extends EventEmitter {
       status: 'running',
     };
 
+    // Persist execution record
+    let dbExecutionId: string | undefined;
+    if (this.executionRepository) {
+      try {
+        const dbExec = await this.executionRepository.create({
+          id: executionId,
+          jobId,
+          startedAt: execution.startTime,
+          status: 'running',
+        });
+        dbExecutionId = dbExec.id;
+      } catch (err) {
+        logger.warn({ err }, 'Failed to persist execution record');
+      }
+    }
+
     this.executions.set(executionId, execution);
     this.runningJobs.add(jobId);
 
@@ -189,6 +208,9 @@ export class CronSchedulerService extends EventEmitter {
             if (this.cronJobRepository) {
               await this.cronJobRepository.updateLastRun(jobId, execution.startTime, 'completed', new Date());
             }
+            if (this.executionRepository && dbExecutionId) {
+              await this.executionRepository.complete(dbExecutionId, 'completed');
+            }
 
             logger.info({ jobId, executionId }, 'Cron job completed successfully');
           } catch (error) {
@@ -199,6 +221,9 @@ export class CronSchedulerService extends EventEmitter {
             // Update repository with failed status
             if (this.cronJobRepository) {
               await this.cronJobRepository.updateLastRun(jobId, execution.startTime, 'failed', new Date());
+            }
+            if (this.executionRepository && dbExecutionId) {
+              await this.executionRepository.complete(dbExecutionId, 'failed', undefined, execution.error);
             }
 
             logger.error({
@@ -233,11 +258,33 @@ export class CronSchedulerService extends EventEmitter {
   /**
    * 获取任务执行历史
    */
-  getExecutionHistory(jobId?: string): CronJobExecution[] {
-    if (jobId) {
-      return Array.from(this.executions.values()).filter(exec => exec.jobId === jobId);
+  async getExecutionHistory(jobId?: string): Promise<CronJobExecution[]> {
+    const history: CronJobExecution[] = [];
+
+    if (this.executionRepository) {
+      const dbExecutions = jobId
+        ? await this.executionRepository.findByJobId(jobId)
+        : await this.executionRepository.findAll().then(r => r.entities);
+      for (const dbExec of dbExecutions) {
+        history.push({
+          jobId: dbExec.jobId,
+          executionId: dbExec.id,
+          startTime: dbExec.startedAt,
+          endTime: dbExec.completedAt,
+          status: dbExec.status,
+          error: dbExec.errorMessage,
+          result: dbExec.result,
+        });
+      }
     }
-    return Array.from(this.executions.values());
+
+    // Also include in-memory executions (active/recent)
+    const memExecutions = jobId
+      ? Array.from(this.executions.values()).filter(exec => exec.jobId === jobId)
+      : Array.from(this.executions.values());
+    history.push(...memExecutions);
+
+    return history;
   }
 
   /**
