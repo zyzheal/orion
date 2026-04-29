@@ -132,4 +132,48 @@ export default async function eventbusRoutes(
       return reply.status(500).send({ error: err.message });
     }
   });
+
+  // GET /eventbus/jetstream/metrics - Get JetStream metrics overview
+  app.get('/jetstream/metrics', async (_request: FastifyRequest, reply: FastifyReply) => {
+    if (!service.isJetStreamAvailable()) {
+      return reply.send({ available: false, reason: 'JetStream not initialized' });
+    }
+    try {
+      const metrics = await service.getJetStreamMetrics();
+      return reply.send({ available: true, metrics });
+    } catch (err: any) {
+      return reply.status(500).send({ error: err.message });
+    }
+  });
+
+  // GET /eventbus/jetstream/streams/:name/consumers - List consumers for a stream
+  app.get('/jetstream/streams/:name/consumers', async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!service.isJetStreamAvailable()) {
+      return reply.send({ available: false, reason: 'JetStream not initialized' });
+    }
+    try {
+      const { name } = request.params as { name: string };
+      const consumers = await service.listConsumers(name);
+      return reply.send({ stream: name, consumers });
+    } catch (err: any) {
+      return reply.status(500).send({ error: err.message });
+    }
+  });
+
+  // GET /eventbus/dlq - Get DLQ message count and recent messages
+  app.get('/dlq', async (request: FastifyRequest, reply: FastifyReply) => {
+    const { limit } = request.query as { limit?: string };
+    try {
+      const events = await service.getEventHistory({
+        status: 'failed',
+        limit: limit ? parseInt(limit, 10) : 50,
+      }) as any[];
+      return reply.send({
+        total: events.length,
+        events,
+      });
+    } catch (err: any) {
+      return reply.status(500).send({ error: err.message });
+    }
+  });
 }

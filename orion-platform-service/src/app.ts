@@ -116,7 +116,12 @@ export async function createApp(options: PlatformAppOptions = {}): Promise<{
   // 注册 EventBus 健康检查
   if (options.eventBus) {
     healthChecker.registerCheck('eventbus', async () => {
-      return await options.eventBus!.checkHealth();
+      const health = await options.eventBus!.checkHealth();
+      // Add JetStream status
+      if (options.eventBus!.isJetStreamAvailable()) {
+        (health as any).jetstream = 'up';
+      }
+      return health;
     });
   }
 

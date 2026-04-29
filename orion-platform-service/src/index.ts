@@ -73,9 +73,27 @@ async function main() {
       try {
         await eventBus.connect();
 
-        // 创建默认事件流
-        for (const stream of config.eventBus.streams) {
-          await eventBus.createStream(stream.name, stream.subjects);
+        // Initialize JetStream streams
+        if (eventBus.isJetStreamAvailable()) {
+          console.log('Initializing JetStream streams...');
+          for (const stream of config.eventBus.streams) {
+            try {
+              await eventBus.ensureStream(stream);
+              console.log(`  OK JetStream stream: ${stream.name}`);
+            } catch (error) {
+              console.warn(`  WARN Failed to ensure JetStream stream ${stream.name}:`, error);
+            }
+          }
+
+          // Initialize JetStream consumers
+          for (const consumer of config.eventBus.consumers) {
+            try {
+              await eventBus.ensureConsumer(consumer.stream, consumer as any);
+              console.log(`  OK JetStream consumer: ${consumer.name}`);
+            } catch (error) {
+              console.warn(`  WARN Failed to ensure JetStream consumer ${consumer.name}:`, error);
+            }
+          }
         }
       } catch (error) {
         console.warn('⚠️  Event Bus connection failed, continuing without Event Bus');

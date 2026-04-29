@@ -39,6 +39,21 @@ export interface AppConfig {
       name: string;
       subjects: string[];
     }[];
+    consumers: {
+      stream: string;
+      name: string;
+      filterSubject?: string;
+      deliverPolicy?: string;
+      ackPolicy?: string;
+      ackWait?: string;
+      maxDeliver?: number;
+      maxAckPending?: number;
+      replayPolicy?: string;
+    }[];
+    dlq: {
+      maxDeliver: number;
+      ackWait: string;
+    };
   };
 }
 
@@ -72,10 +87,57 @@ const defaultConfig: AppConfig = {
     enabled: process.env.EVENT_BUS_ENABLED !== 'false',
     streams: [
       {
-        name: 'orion-platform-stream',
-        subjects: ['orion.platform.*'],
+        name: 'ORION_PLATFORM',
+        subjects: ['orion.code.*', 'orion.deploy.*', 'orion.config.*', 'orion.incident.*'],
+      },
+      {
+        name: 'ORION_PIPELINE',
+        subjects: ['orion.pipeline.run.*', 'orion.pipeline.stage.*', 'orion.pipeline.task.*'],
+      },
+      {
+        name: 'ORION_DLQ',
+        subjects: ['*.dlq.>'],
       },
     ],
+    consumers: [
+      {
+        stream: 'ORION_PLATFORM',
+        name: 'platform-all',
+        filterSubject: 'orion.*',
+        deliverPolicy: 'new',
+        ackPolicy: 'explicit',
+        ackWait: '30s',
+        maxDeliver: 5,
+        maxAckPending: 100,
+        replayPolicy: 'instant',
+      },
+      {
+        stream: 'ORION_PIPELINE',
+        name: 'pipeline-run',
+        filterSubject: 'orion.pipeline.run.*',
+        deliverPolicy: 'new',
+        ackPolicy: 'explicit',
+        ackWait: '60s',
+        maxDeliver: 5,
+        maxAckPending: 200,
+        replayPolicy: 'instant',
+      },
+      {
+        stream: 'ORION_PIPELINE',
+        name: 'pipeline-stage',
+        filterSubject: 'orion.pipeline.stage.*',
+        deliverPolicy: 'new',
+        ackPolicy: 'explicit',
+        ackWait: '30s',
+        maxDeliver: 3,
+        maxAckPending: 500,
+        replayPolicy: 'instant',
+      },
+    ],
+    dlq: {
+      maxDeliver: 5,
+      ackWait: '30s',
+    },
   },
 };
 
@@ -117,10 +179,57 @@ export function reloadConfig(): AppConfig {
       enabled: process.env.EVENT_BUS_ENABLED !== 'false',
       streams: [
         {
-          name: 'orion-platform-stream',
-          subjects: ['orion.platform.*'],
+          name: 'ORION_PLATFORM',
+          subjects: ['orion.code.*', 'orion.deploy.*', 'orion.config.*', 'orion.incident.*'],
+        },
+        {
+          name: 'ORION_PIPELINE',
+          subjects: ['orion.pipeline.run.*', 'orion.pipeline.stage.*', 'orion.pipeline.task.*'],
+        },
+        {
+          name: 'ORION_DLQ',
+          subjects: ['*.dlq.>'],
         },
       ],
+      consumers: [
+        {
+          stream: 'ORION_PLATFORM',
+          name: 'platform-all',
+          filterSubject: 'orion.*',
+          deliverPolicy: 'new',
+          ackPolicy: 'explicit',
+          ackWait: '30s',
+          maxDeliver: 5,
+          maxAckPending: 100,
+          replayPolicy: 'instant',
+        },
+        {
+          stream: 'ORION_PIPELINE',
+          name: 'pipeline-run',
+          filterSubject: 'orion.pipeline.run.*',
+          deliverPolicy: 'new',
+          ackPolicy: 'explicit',
+          ackWait: '60s',
+          maxDeliver: 5,
+          maxAckPending: 200,
+          replayPolicy: 'instant',
+        },
+        {
+          stream: 'ORION_PIPELINE',
+          name: 'pipeline-stage',
+          filterSubject: 'orion.pipeline.stage.*',
+          deliverPolicy: 'new',
+          ackPolicy: 'explicit',
+          ackWait: '30s',
+          maxDeliver: 3,
+          maxAckPending: 500,
+          replayPolicy: 'instant',
+        },
+      ],
+      dlq: {
+        maxDeliver: 5,
+        ackWait: '30s',
+      },
     },
   };
   return currentConfig;
