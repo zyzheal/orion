@@ -35,11 +35,8 @@ describe('NamespacePoolService', () => {
     });
 
     it('should emit pool:initialized event', () => {
-      // Create service with pre-configured listener
       const newService = new NamespacePoolService();
 
-      // Since the event is emitted during initialization, we need to verify by checking the pool
-      // which was created during initialization
       const status = newService.getPoolStatus();
 
       expect(status.total).toBe(100);
@@ -48,8 +45,8 @@ describe('NamespacePoolService', () => {
   });
 
   describe('allocateNamespace', () => {
-    it('should allocate namespace to tenant', () => {
-      const result = poolService.allocateNamespace(100);
+    it('should allocate namespace to tenant', async () => {
+      const result = await poolService.allocateNamespace(100);
 
       expect(result.success).toBe(true);
       expect(result.namespace).toBeDefined();
@@ -57,9 +54,9 @@ describe('NamespacePoolService', () => {
       expect(result.namespace?.status).toBe('allocated');
     });
 
-    it('should update pool status after allocation', () => {
-      poolService.allocateNamespace(100);
-      poolService.allocateNamespace(200);
+    it('should update pool status after allocation', async () => {
+      await poolService.allocateNamespace(100);
+      await poolService.allocateNamespace(200);
 
       const status = poolService.getPoolStatus();
 
@@ -69,45 +66,45 @@ describe('NamespacePoolService', () => {
       expect(status.tenantAllocations.get(200)).toBe(1);
     });
 
-    it('should emit namespace:allocated event', (done) => {
-      poolService.on('namespace:allocated', (data) => {
-        expect(data.tenantId).toBe(100);
-        expect(data.namespace.tenantId).toBe(100);
-        done();
+    it('should emit namespace:allocated event', async () => {
+      const eventPromise = new Promise<void>((resolve) => {
+        poolService.on('namespace:allocated', (data) => {
+          expect(data.tenantId).toBe(100);
+          expect(data.namespace.tenantId).toBe(100);
+          resolve();
+        });
       });
 
-      poolService.allocateNamespace(100);
+      await poolService.allocateNamespace(100);
+      await eventPromise;
     });
 
-    it('should fail when tenant reaches max namespaces', () => {
-      // Allocate 10 namespaces (max per tenant = poolSize/10 = 10)
+    it('should fail when tenant reaches max namespaces', async () => {
       for (let i = 0; i < 10; i++) {
-        poolService.allocateNamespace(100);
+        await poolService.allocateNamespace(100);
       }
 
-      // Try to allocate one more
-      const result = poolService.allocateNamespace(100);
+      const result = await poolService.allocateNamespace(100);
 
       expect(result.success).toBe(false);
       expect(result.error).toContain('maximum namespace allocation');
     });
 
-    it('should fail when pool exhausted', () => {
-      // Exhaust pool by allocating to different tenants
+    it('should fail when pool exhausted', async () => {
       for (let tenantId = 1; tenantId <= 10; tenantId++) {
         for (let i = 0; i < 10; i++) {
-          poolService.allocateNamespace(tenantId);
+          await poolService.allocateNamespace(tenantId);
         }
       }
 
-      const result = poolService.allocateNamespace(999);
+      const result = await poolService.allocateNamespace(999);
 
       expect(result.success).toBe(false);
       expect(result.error).toContain('No available namespaces');
     });
 
-    it('should add tenant-specific labels', () => {
-      const result = poolService.allocateNamespace(100, {
+    it('should add tenant-specific labels', async () => {
+      const result = await poolService.allocateNamespace(100, {
         purpose: 'production',
         labels: { 'env': 'prod' },
       });
@@ -119,24 +116,24 @@ describe('NamespacePoolService', () => {
   });
 
   describe('releaseNamespace', () => {
-    it('should release allocated namespace', () => {
-      const allocationResult = poolService.allocateNamespace(100);
+    it('should release allocated namespace', async () => {
+      const allocationResult = await poolService.allocateNamespace(100);
       const namespaceName = allocationResult.namespace?.namespaceName;
 
       if (!namespaceName) {
         throw new Error('Allocation failed');
       }
 
-      const releaseResult = poolService.releaseNamespace(namespaceName);
+      const releaseResult = await poolService.releaseNamespace(namespaceName);
 
       expect(releaseResult.success).toBe(true);
       expect(releaseResult.namespace?.status).toBe('available');
       expect(releaseResult.namespace?.tenantId).toBeNull();
     });
 
-    it('should update pool status after release', () => {
-      const allocationResult = poolService.allocateNamespace(100);
-      poolService.releaseNamespace(allocationResult.namespace?.namespaceName || '');
+    it('should update pool status after release', async () => {
+      const allocationResult = await poolService.allocateNamespace(100);
+      await poolService.releaseNamespace(allocationResult.namespace?.namespaceName || '');
 
       const status = poolService.getPoolStatus();
 
@@ -145,26 +142,29 @@ describe('NamespacePoolService', () => {
       expect(status.tenantAllocations.get(100)).toBeUndefined();
     });
 
-    it('should emit namespace:released event', (done) => {
-      poolService.on('namespace:released', (data) => {
-        expect(data.tenantId).toBe(100);
-        expect(data.namespace.status).toBe('available');
-        done();
+    it('should emit namespace:released event', async () => {
+      const eventPromise = new Promise<void>((resolve) => {
+        poolService.on('namespace:released', (data) => {
+          expect(data.tenantId).toBe(100);
+          expect(data.namespace.status).toBe('available');
+          resolve();
+        });
       });
 
-      const result = poolService.allocateNamespace(100);
-      poolService.releaseNamespace(result.namespace?.namespaceName || '');
+      const result = await poolService.allocateNamespace(100);
+      await poolService.releaseNamespace(result.namespace?.namespaceName || '');
+      await eventPromise;
     });
 
-    it('should fail for non-existent namespace', () => {
-      const result = poolService.releaseNamespace('non-existent-ns');
+    it('should fail for non-existent namespace', async () => {
+      const result = await poolService.releaseNamespace('non-existent-ns');
 
       expect(result.success).toBe(false);
       expect(result.error).toContain('not found');
     });
 
-    it('should fail for already available namespace', () => {
-      const result = poolService.releaseNamespace('orion-ns-001');
+    it('should fail for already available namespace', async () => {
+      const result = await poolService.releaseNamespace('orion-ns-001');
 
       expect(result.success).toBe(false);
       expect(result.error).toContain('already available');
@@ -172,21 +172,18 @@ describe('NamespacePoolService', () => {
   });
 
   describe('allocateNamespaces (batch)', () => {
-    it('should allocate multiple namespaces', () => {
-      const results = poolService.allocateNamespaces(100, 3);
+    it('should allocate multiple namespaces', async () => {
+      const results = await poolService.allocateNamespaces(100, 3);
 
       expect(results.length).toBe(3);
       expect(results.every(r => r.success)).toBe(true);
     });
 
-    it('should stop when quota reached', () => {
-      // Already allocated 8 namespaces
-      poolService.allocateNamespaces(100, 8);
+    it('should stop when quota reached', async () => {
+      await poolService.allocateNamespaces(100, 8);
 
-      // Try to allocate 5 more (max is 10)
-      const results = poolService.allocateNamespaces(100, 5);
+      const results = await poolService.allocateNamespaces(100, 5);
 
-      // Should get 2 successful + 1 failed = 3 total results
       expect(results.length).toBe(3);
       expect(results[0].success).toBe(true);
       expect(results[1].success).toBe(true);
@@ -195,9 +192,9 @@ describe('NamespacePoolService', () => {
   });
 
   describe('getTenantNamespaces', () => {
-    it('should return tenant allocated namespaces', () => {
-      poolService.allocateNamespaces(100, 3);
-      poolService.allocateNamespace(200);
+    it('should return tenant allocated namespaces', async () => {
+      await poolService.allocateNamespaces(100, 3);
+      await poolService.allocateNamespace(200);
 
       const tenant100Namespaces = poolService.getTenantNamespaces(100);
       const tenant200Namespaces = poolService.getTenantNamespaces(200);
@@ -229,10 +226,10 @@ describe('NamespacePoolService', () => {
   });
 
   describe('getPoolStatus', () => {
-    it('should return correct pool statistics', () => {
-      poolService.allocateNamespace(100);
-      poolService.allocateNamespace(200);
-      poolService.allocateNamespace(300);
+    it('should return correct pool statistics', async () => {
+      await poolService.allocateNamespace(100);
+      await poolService.allocateNamespace(200);
+      await poolService.allocateNamespace(300);
 
       const status = poolService.getPoolStatus();
 
@@ -245,22 +242,22 @@ describe('NamespacePoolService', () => {
   });
 
   describe('validateNamespaceAccess', () => {
-    it('should allow tenant access to their namespace', () => {
-      const result = poolService.allocateNamespace(100);
+    it('should allow tenant access to their namespace', async () => {
+      const result = await poolService.allocateNamespace(100);
       const namespaceName = result.namespace?.namespaceName || '';
 
       expect(poolService.validateNamespaceAccess(namespaceName, 100)).toBe(true);
     });
 
-    it('should deny tenant access to other namespace', () => {
-      const result = poolService.allocateNamespace(100);
+    it('should deny tenant access to other namespace', async () => {
+      const result = await poolService.allocateNamespace(100);
       const namespaceName = result.namespace?.namespaceName || '';
 
       expect(poolService.validateNamespaceAccess(namespaceName, 200)).toBe(false);
     });
 
-    it('should allow system tenant to access any namespace', () => {
-      const result = poolService.allocateNamespace(100);
+    it('should allow system tenant to access any namespace', async () => {
+      const result = await poolService.allocateNamespace(100);
       const namespaceName = result.namespace?.namespaceName || '';
 
       expect(poolService.validateNamespaceAccess(namespaceName, 0)).toBe(true);
@@ -272,8 +269,8 @@ describe('NamespacePoolService', () => {
   });
 
   describe('updateNamespaceStatus', () => {
-    it('should update namespace status', () => {
-      poolService.allocateNamespace(100);
+    it('should update namespace status', async () => {
+      await poolService.allocateNamespace(100);
       const namespace = poolService.getTenantNamespaces(100)[0];
 
       const updated = poolService.updateNamespaceStatus(
@@ -313,9 +310,9 @@ describe('NamespacePoolService', () => {
       expect(namespace).toBeDefined();
     });
 
-    it('should clear all allocations when reinitialized', () => {
-      poolService.allocateNamespace(100);
-      poolService.allocateNamespace(200);
+    it('should clear all allocations when reinitialized', async () => {
+      await poolService.allocateNamespace(100);
+      await poolService.allocateNamespace(200);
 
       poolService.reinitialize({ poolSize: 100 });
 
@@ -341,12 +338,12 @@ describe('NamespacePoolService', () => {
       expect(status.reserved).toBe(2);
     });
 
-    it('should not allow releasing reserved namespace', () => {
+    it('should not allow releasing reserved namespace', async () => {
       const reservedService = new NamespacePoolService({
         reservedNamespaces: ['orion-ns-001'],
       });
 
-      const result = reservedService.releaseNamespace('orion-ns-001');
+      const result = await reservedService.releaseNamespace('orion-ns-001');
 
       expect(result.success).toBe(false);
       expect(result.error).toContain('Cannot release reserved namespace');

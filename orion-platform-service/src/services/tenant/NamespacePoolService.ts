@@ -8,6 +8,7 @@
  */
 
 import { EventEmitter } from 'events';
+import { NamespaceAllocationRepository, NamespaceAllocationEntity } from '../../repositories/NamespaceAllocationRepository';
 
 export interface NamespacePoolEntry {
   id: string;
@@ -47,19 +48,75 @@ const DEFAULT_CONFIG: NamespacePoolConfig = {
  */
 export class NamespacePoolService extends EventEmitter {
   private config: NamespacePoolConfig;
+  private repository: NamespaceAllocationRepository | null = null;
   private pool: Map<string, NamespacePoolEntry> = new Map();
   private tenantAllocations: Map<number, Set<string>> = new Map();
 
-  constructor(config: Partial<NamespacePoolConfig> = {}) {
+  constructor(config: Partial<NamespacePoolConfig> = {}, db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
     super();
     this.config = { ...DEFAULT_CONFIG, ...config };
-    this.initializePool();
+    if (db) {
+      this.repository = new NamespaceAllocationRepository(db);
+    }
+    // For non-DB mode, initialize synchronously
+    // For DB mode, call initialize() explicitly
+    if (!db) {
+      this.initializePoolInMemory();
+    }
+  }
+
+  /**
+   * Initialize pool from database (call when DB is provided)
+   */
+  async initialize(): Promise<void> {
+    await this.initializePoolFromDB();
+  }
+
+  private entityToPoolEntry(entity: NamespaceAllocationEntity): NamespacePoolEntry {
+    return {
+      id: entity.id,
+      namespaceName: entity.namespaceName,
+      clusterId: entity.clusterId,
+      tenantId: entity.tenantId,
+      status: entity.status,
+      purpose: entity.purpose,
+      labels: entity.labels,
+      allocatedAt: entity.allocatedAt,
+      createdAt: entity.createdAt,
+      updatedAt: entity.updatedAt,
+    };
   }
 
   /**
    * 初始化 Namespace 池
    */
-  private initializePool(): void {
+  private async initializePool(): Promise<void> {
+    if (this.repository) {
+      await this.initializePoolFromDB();
+    } else {
+      this.initializePoolInMemory();
+    }
+  }
+
+  private async initializePoolFromDB(): Promise<void> {
+    const result = await this.repository!.db.query(
+      `SELECT * FROM namespace_allocations ORDER BY id ASC`,
+    );
+    for (const row of result.rows) {
+      const entity = this.repository!.mapRowToEntity(row);
+      const entry = this.entityToPoolEntry(entity);
+      this.pool.set(entry.namespaceName, entry);
+      if (entry.status === 'allocated' && entry.tenantId != null) {
+        if (!this.tenantAllocations.has(entry.tenantId)) {
+          this.tenantAllocations.set(entry.tenantId, new Set());
+        }
+        this.tenantAllocations.get(entry.tenantId)!.add(entry.namespaceName);
+      }
+    }
+    this.emit('pool:initialized', this.pool.size);
+  }
+
+  private initializePoolInMemory(): void {
     // Create 100 namespaces for the pool
     for (let i = 1; i <= this.config.poolSize; i++) {
       const namespaceName = `${this.config.namespacePrefix}${i.toString().padStart(3, '0')}`;
@@ -96,10 +153,10 @@ export class NamespacePoolService extends EventEmitter {
   /**
    * 分配 Namespace 给租户
    */
-  allocateNamespace(
+  async allocateNamespace(
     tenantId: number,
     options: { purpose?: string; labels?: Record<string, string> } = {}
-  ): NamespaceAllocationResult {
+  ): Promise<NamespaceAllocationResult> {
     // Check tenant quota first
     const tenantNamespaces = this.tenantAllocations.get(tenantId) || new Set();
     if (tenantNamespaces.size >= this.getMaxNamespacesPerTenant()) {
@@ -118,7 +175,34 @@ export class NamespacePoolService extends EventEmitter {
       };
     }
 
-    // Allocate the namespace
+    // Persist allocation
+    if (this.repository) {
+      try {
+        const labels = {
+          ...availableEntry.labels,
+          ...options.labels,
+          'orion.io/tenant': tenantId.toString(),
+        };
+        const entity = await this.repository.allocate(
+          availableEntry.id,
+          tenantId,
+          options.purpose || 'tenant-workspace',
+          labels,
+        );
+        const allocatedEntry = this.entityToPoolEntry(entity);
+        this.pool.set(allocatedEntry.namespaceName, allocatedEntry);
+        if (!this.tenantAllocations.has(tenantId)) {
+          this.tenantAllocations.set(tenantId, new Set());
+        }
+        this.tenantAllocations.get(tenantId)!.add(allocatedEntry.namespaceName);
+        this.emit('namespace:allocated', { tenantId, namespace: allocatedEntry });
+        return { success: true, namespace: allocatedEntry };
+      } catch (err) {
+        return { success: false, error: `Failed to allocate namespace: ${err}` };
+      }
+    }
+
+    // in-memory fallback
     const allocatedEntry: NamespacePoolEntry = {
       ...availableEntry,
       tenantId,
@@ -133,15 +217,11 @@ export class NamespacePoolService extends EventEmitter {
       updatedAt: new Date(),
     };
 
-    // Update pool
     this.pool.set(allocatedEntry.namespaceName, allocatedEntry);
-
-    // Update tenant allocations
     if (!this.tenantAllocations.has(tenantId)) {
       this.tenantAllocations.set(tenantId, new Set());
     }
     this.tenantAllocations.get(tenantId)!.add(allocatedEntry.namespaceName);
-
     this.emit('namespace:allocated', { tenantId, namespace: allocatedEntry });
 
     return {
@@ -153,7 +233,7 @@ export class NamespacePoolService extends EventEmitter {
   /**
    * 释放 Namespace
    */
-  releaseNamespace(namespaceName: string): NamespaceAllocationResult {
+  async releaseNamespace(namespaceName: string): Promise<NamespaceAllocationResult> {
     const entry = this.pool.get(namespaceName);
     if (!entry) {
       return {
@@ -178,7 +258,30 @@ export class NamespacePoolService extends EventEmitter {
 
     const tenantId = entry.tenantId;
 
-    // Release the namespace
+    // Persist release
+    if (this.repository) {
+      try {
+        const entity = await this.repository.release(entry.id);
+        const releasedEntry = this.entityToPoolEntry(entity);
+        releasedEntry.labels = {
+          'orion.io/pool': 'true',
+          'orion.io/index': entry.labels['orion.io.index'] || '',
+        };
+        this.pool.set(namespaceName, releasedEntry);
+        if (tenantId && this.tenantAllocations.has(tenantId)) {
+          this.tenantAllocations.get(tenantId)!.delete(namespaceName);
+          if (this.tenantAllocations.get(tenantId)!.size === 0) {
+            this.tenantAllocations.delete(tenantId);
+          }
+        }
+        this.emit('namespace:released', { tenantId, namespace: releasedEntry });
+        return { success: true, namespace: releasedEntry };
+      } catch (err) {
+        return { success: false, error: `Failed to release namespace: ${err}` };
+      }
+    }
+
+    // in-memory fallback
     const releasedEntry: NamespacePoolEntry = {
       ...entry,
       tenantId: null,
@@ -192,10 +295,7 @@ export class NamespacePoolService extends EventEmitter {
       updatedAt: new Date(),
     };
 
-    // Update pool
     this.pool.set(namespaceName, releasedEntry);
-
-    // Update tenant allocations
     if (tenantId && this.tenantAllocations.has(tenantId)) {
       this.tenantAllocations.get(tenantId)!.delete(namespaceName);
       if (this.tenantAllocations.get(tenantId)!.size === 0) {
@@ -214,15 +314,15 @@ export class NamespacePoolService extends EventEmitter {
   /**
    * 批量分配 Namespace 给租户
    */
-  allocateNamespaces(
+  async allocateNamespaces(
     tenantId: number,
     count: number,
     options: { purpose?: string; labels?: Record<string, string> } = {}
-  ): NamespaceAllocationResult[] {
+  ): Promise<NamespaceAllocationResult[]> {
     const results: NamespaceAllocationResult[] = [];
 
     for (let i = 0; i < count; i++) {
-      const result = this.allocateNamespace(tenantId, options);
+      const result = await this.allocateNamespace(tenantId, options);
       results.push(result);
 
       if (!result.success) {
