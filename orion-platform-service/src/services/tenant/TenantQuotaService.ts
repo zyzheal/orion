@@ -108,16 +108,16 @@ export class TenantQuotaService extends EventEmitter {
     return {
       tenantId: Number(entity.tenantId),
       maxPipelines: entity.maxPipelines,
-      maxPipelineRunsPerDay: entity.maxApiCallsPerHour,
+      maxPipelineRunsPerDay: entity.maxPipelineRunsPerDay,
       maxConcurrentRuns: entity.maxConcurrentBuilds,
-      maxTasksPerPipeline: 50,
-      maxRunners: entity.maxConcurrentBuilds,
-      maxCpuCores: 16,
-      maxMemoryGb: 32,
-      maxStorageGb: Math.floor(entity.maxStorageMb / 1024),
+      maxTasksPerPipeline: entity.maxTasksPerPipeline,
+      maxRunners: entity.maxRunners,
+      maxCpuCores: entity.maxCpuCores,
+      maxMemoryGb: entity.maxMemoryGb,
+      maxStorageGb: entity.maxStorageMb / 1024,
       maxNamespaces: entity.maxProjects,
-      apiRateLimit: entity.maxApiCallsPerHour,
-      apiRateLimitWindowSeconds: 3600,
+      apiRateLimit: entity.apiRateLimit,
+      apiRateLimitWindowSeconds: entity.apiRateLimitWindowSeconds,
     };
   }
 
@@ -127,27 +127,32 @@ export class TenantQuotaService extends EventEmitter {
   async setQuota(quota: TenantQuota): Promise<void> {
     if (this.repository) {
       const existing = await this.repository.findByTenantId(String(quota.tenantId));
+      const entityData = {
+        maxPipelines: quota.maxPipelines,
+        maxApiCallsPerHour: quota.maxPipelineRunsPerDay,
+        maxConcurrentBuilds: quota.maxConcurrentRuns,
+        maxProjects: quota.maxNamespaces,
+        maxStorageMb: quota.maxStorageGb * 1024,
+        maxCpuCores: quota.maxCpuCores,
+        maxMemoryGb: quota.maxMemoryGb,
+        maxTasksPerPipeline: quota.maxTasksPerPipeline,
+        maxRunners: quota.maxRunners,
+        apiRateLimit: quota.apiRateLimit,
+        apiRateLimitWindowSeconds: quota.apiRateLimitWindowSeconds,
+        maxPipelineRunsPerDay: quota.maxPipelineRunsPerDay,
+        usage: existing?.usage ?? {},
+      };
       if (existing) {
-        await this.repository.update(existing.id, {
-          maxPipelines: quota.maxPipelines,
-          maxApiCallsPerHour: quota.maxPipelineRunsPerDay,
-          maxConcurrentBuilds: quota.maxConcurrentRuns,
-          maxProjects: quota.maxNamespaces,
-          maxStorageMb: quota.maxStorageGb * 1024,
-          usage: existing.usage,
-        });
+        await this.repository.update(existing.id, entityData);
       } else {
         await this.repository.create({
           id: `quota_${quota.tenantId}`,
           tenantId: String(quota.tenantId),
-          maxPipelines: quota.maxPipelines,
-          maxApiCallsPerHour: quota.maxPipelineRunsPerDay,
-          maxConcurrentBuilds: quota.maxConcurrentRuns,
-          maxProjects: quota.maxNamespaces,
-          maxStorageMb: quota.maxStorageGb * 1024,
           maxUsers: 100,
-          usage: {},
-        } as any);
+          ...entityData,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
       }
     } else {
       // in-memory fallback (tests / no-DB environments)
