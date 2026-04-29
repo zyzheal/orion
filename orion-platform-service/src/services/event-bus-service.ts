@@ -17,7 +17,8 @@ import {
   EventSubscriptionRepository,
   EventBusEventRepository,
 } from '../repositories/EventBusRepository';
-import { TypedEnvelope, JetStreamConfig, ConsumerConfig } from './types/event-types';
+export { TypedEnvelope } from './types/event-types';
+import { JetStreamConfig, ConsumerConfig } from './types/event-types';
 import type { JetStreamClient, JetStreamManager } from 'nats';
 
 /**
