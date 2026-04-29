@@ -196,6 +196,19 @@ describe('JetStreamManagerService', () => {
         expect.objectContaining({ durable_name: 'test-consumer' }),
       );
     });
+
+    it('should propagate error when streams.add throws', async () => {
+      mockJsm.streams.info.mockRejectedValue(new Error('not found'));
+      const addError = new Error('failed to create stream');
+      mockJsm.streams.add.mockRejectedValue(addError);
+
+      await expect(
+        service.ensureStream({
+          name: 'FAIL_STREAM',
+          subjects: ['fail.*'],
+        }),
+      ).rejects.toThrow('failed to create stream');
+    });
   });
 
   describe('ensureConsumer', () => {
@@ -228,6 +241,18 @@ describe('JetStreamManagerService', () => {
           max_deliver: 5,
         }),
       );
+    });
+
+    it('should propagate error when consumers.add throws', async () => {
+      mockJsm.consumers.info.mockRejectedValue(new Error('not found'));
+      const addError = new Error('failed to create consumer');
+      mockJsm.consumers.add.mockRejectedValue(addError);
+
+      await expect(
+        service.ensureConsumer('TEST_STREAM', {
+          name: 'fail-consumer',
+        }),
+      ).rejects.toThrow('failed to create consumer');
     });
   });
 

@@ -42,6 +42,16 @@ export function toNanoseconds(duration: string): number {
 }
 
 /**
+ * Minimal interface for consumer info from the JetStream API.
+ * The NATS SDK returns ConsumerInfo which includes num_pending, but the
+ * typed interface may not expose it directly in all SDK versions.
+ */
+interface ConsumerInfoMinimal {
+  name: string;
+  num_pending?: number;
+}
+
+/**
  * JetStreamManagerService — manages JetStream stream and consumer lifecycle.
  * Ensures streams and consumers exist with the desired configuration.
  */
@@ -95,6 +105,10 @@ export class JetStreamManagerService {
         max_ack_pending: def.maxAckPending || 100,
         backoff: backoffNanos.length > 0 ? backoffNanos : undefined,
         replay_policy: this.mapReplayPolicy(def.replayPolicy),
+        // The NATS SDK v2.17.0 uses `Nanos` branded type for duration fields.
+        // Our toNanoseconds() returns number which is structurally identical.
+        // The snake_case JS API accepts raw numbers, but the typed ConsumerConfig
+        // interface uses the Nanos branded type — hence the cast.
       } as ConsumerConfig);
     }
   }
@@ -119,7 +133,7 @@ export class JetStreamManagerService {
     const consumers = await this.jsm.consumers.list(streamName);
     const result: Array<{ name: string; pending: number }> = [];
     for await (const consumer of consumers) {
-      result.push({ name: consumer.name, pending: (consumer as any).num_pending || 0 });
+      result.push({ name: consumer.name, pending: (consumer as ConsumerInfoMinimal).num_pending || 0 });
     }
     return result;
   }
