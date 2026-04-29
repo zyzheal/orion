@@ -17,6 +17,8 @@ import {
   EventSubscriptionRepository,
   EventBusEventRepository,
 } from '../repositories/EventBusRepository';
+import { TypedEnvelope, JetStreamConfig, ConsumerConfig } from './types/event-types';
+import type { JetStreamClient, JetStreamManager } from 'nats';
 
 /**
  * 连接状态枚举 - 明确区分各种状态
@@ -83,6 +85,8 @@ export class EventBusService extends EventEmitter {
   /** ARCH-001: 使用状态枚举而非 boolean */
   private connectionState: ConnectionState = 'disconnected';
   private natsConnection: any = null;
+  private jetStream: JetStreamClient | null = null;
+  private jetStreamManager: JetStreamManager | null = null;
   private repos: EventBusRepositories;
   /** 重连尝试次数 */
   private reconnectAttempts: number = 0;
@@ -214,6 +218,12 @@ export class EventBusService extends EventEmitter {
       this.connectionState = 'connected';
       this.reconnectAttempts = 0;
       this.lastError = undefined;
+
+      // Initialize JetStream client and manager
+      this.jetStream = this.natsConnection.jetstream();
+      this.jetStreamManager = this.natsConnection.jetstreamManager();
+      logger.info('JetStream initialized');
+
       this.emit('connect');
       logger.info('Connected to NATS');
 
@@ -365,19 +375,22 @@ export class EventBusService extends EventEmitter {
         timestamp: new Date().toISOString(),
       });
 
-      await this.natsConnection.publish(subject, new TextEncoder().encode(message));
-
-      // NATS publish succeeded — update status to delivered
-      if (eventRecord && this.repos.eventRepo) {
-        try {
-          await this.repos.eventRepo.updateStatus(eventRecord.id, 'delivered');
-        } catch (err) {
-          logger.warn({ err: String(err) }, 'Failed to update event status');
+      if (this.isJetStreamAvailable()) {
+        const payload = new TextEncoder().encode(JSON.stringify({ type, source, data, timestamp: new Date().toISOString() }));
+        const ack = await this.jetStream!.publish(subject, payload);
+        if (eventRecord && this.repos.eventRepo) {
+          try { await this.repos.eventRepo.updateStatus(eventRecord.id, 'delivered'); } catch (err) { logger.warn({ err: String(err) }, 'Failed to update event status after JetStream ack'); }
         }
+        this.metrics.publishSuccess++;
+        return eventRecord?.id || type;
+      } else {
+        await this.natsConnection.publish(subject, new TextEncoder().encode(message));
+        if (eventRecord && this.repos.eventRepo) {
+          try { await this.repos.eventRepo.updateStatus(eventRecord.id, 'delivered'); } catch (err) { logger.warn({ err: String(err) }, 'Failed to update event status'); }
+        }
+        this.metrics.publishSuccess++;
+        return eventRecord?.id || type;
       }
-
-      this.metrics.publishSuccess++;
-      return eventRecord?.id || type;
     } catch (error) {
       // NATS publish failed — event stays as 'pending_published' for retry
       // Update to 'failed' only for non-recoverable errors
@@ -455,6 +468,53 @@ export class EventBusService extends EventEmitter {
         }
       }
 
+      // JetStream path: use consumers.get + fetch when streamName and durableName provided
+      if (options?.streamName && options?.durableName && this.isJetStreamAvailable()) {
+        const consumer = await this.jetStream!.consumers.get(options.streamName, options.durableName);
+
+        // Start message processing in background
+        (async () => {
+          try {
+            const messages = await consumer.fetch({ max_messages: 100 });
+            for await (const msg of messages as AsyncIterable<any>) {
+              try {
+                const data = JSON.parse(new TextDecoder().decode(msg.data));
+                await handler({
+                  type: eventType,
+                  data: data.data,
+                  source: data.source,
+                  timestamp: data.timestamp,
+                });
+                msg.ack();
+              } catch (error) {
+                logger.error({ error: String(error) }, 'Error handling message');
+                if (msg.nak) {
+                  msg.nak();
+                }
+              }
+            }
+          } catch (err) {
+            logger.error({ err: String(err) }, 'JetStream subscription error');
+            this.metrics.subscribeFailed++;
+          }
+        })();
+
+        this.metrics.subscribeSuccess++;
+        this.emit('subscribe', { eventType, subscriptionId: `${options.streamName}:${options.durableName}` });
+
+        return async () => {
+          // Update subscription status
+          if (subRecord && this.repos.subscriptionRepo) {
+            try {
+              await this.repos.subscriptionRepo.updateStatus(subRecord.id, 'deleted');
+            } catch (err) {
+              logger.warn({ err: String(err) }, 'Failed to update subscription status');
+            }
+          }
+        };
+      }
+
+      // Core NATS path (fallback)
       const subscription = this.natsConnection.subscribe(subject, {
         queue,
       });
@@ -543,6 +603,8 @@ export class EventBusService extends EventEmitter {
    * 关闭连接
    */
   async close(): Promise<void> {
+    this.jetStream = null;
+    this.jetStreamManager = null;
     if (this.natsConnection) {
       logger.info('Closing NATS connection...');
       try {
@@ -720,5 +782,57 @@ export class EventBusService extends EventEmitter {
       'Retry complete'
     );
     return { retried: pendingEvents.length, succeeded, failed };
+  }
+
+  // ============================================================
+  // JetStream Methods (Task 2: JetStream Upgrade)
+  // ============================================================
+
+  isJetStreamAvailable(): boolean {
+    return this.jetStream !== null && this.connectionState === 'connected';
+  }
+
+  getJetStreamClient(): JetStreamClient | null {
+    return this.jetStream;
+  }
+
+  getJetStreamManager(): JetStreamManager | null {
+    return this.jetStreamManager;
+  }
+
+  async ensureStream(config: JetStreamConfig): Promise<void> {
+    if (!this.jetStreamManager) return;
+    const jsmService = new (await import('./jetstream-manager')).JetStreamManagerService(this.jetStreamManager);
+    await jsmService.ensureStream({
+      name: config.name, subjects: config.subjects, retention: config.retention,
+      maxMsgs: config.maxMsgs, maxAge: config.maxAge, storage: config.storage, replicas: config.replicas,
+    });
+  }
+
+  async ensureConsumer(streamName: string, config: ConsumerConfig): Promise<void> {
+    if (!this.jetStreamManager) return;
+    const jsmService = new (await import('./jetstream-manager')).JetStreamManagerService(this.jetStreamManager);
+    await jsmService.ensureConsumer(streamName, config);
+  }
+
+  async getJetStreamMetrics(streamName?: string): Promise<Record<string, unknown>> {
+    if (!this.jetStreamManager) return { available: false };
+    const jsmService = new (await import('./jetstream-manager')).JetStreamManagerService(this.jetStreamManager);
+    if (streamName) {
+      const metrics = await jsmService.getMetrics(streamName);
+      return { available: true, stream: streamName, ...metrics };
+    }
+    const { ORION_STREAMS } = await import('./types/event-types');
+    const results: Record<string, unknown> = { available: true };
+    for (const [key, stream] of Object.entries(ORION_STREAMS)) {
+      try { results[key] = await jsmService.getMetrics(stream.name); } catch { results[key] = { error: 'stream not found' }; }
+    }
+    return results;
+  }
+
+  async listConsumers(streamName: string): Promise<Array<{ name: string; pending: number }>> {
+    if (!this.jetStreamManager) return [];
+    const jsmService = new (await import('./jetstream-manager')).JetStreamManagerService(this.jetStreamManager);
+    return jsmService.listConsumers(streamName);
   }
 }
