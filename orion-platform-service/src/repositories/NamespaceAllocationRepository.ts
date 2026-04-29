@@ -70,6 +70,13 @@ export class NamespaceAllocationRepository extends BaseRepository<NamespaceAlloc
     return this.mapRowToEntity(result.rows[0]);
   }
 
+  async findAllEntries(): Promise<NamespaceAllocationEntity[]> {
+    const result = await this.db.query(
+      `SELECT * FROM namespace_allocations ORDER BY id ASC`,
+    );
+    return result.rows.map(row => this.mapRowToEntity(row));
+  }
+
   async countByStatus(status: string): Promise<number> {
     const result = await this.db.query(
       `SELECT COUNT(*) as count FROM namespace_allocations WHERE status = $1`,
