@@ -201,20 +201,29 @@ const mockDeployments = [
   },
 ];
 
-// Mock tickets data
+// Mock tickets data with all fields for TicketDetail tests
 const mockTickets = [
   {
     id: 'TKT-001',
     title: '生产数据库 CPU 使用率过高 (95%)',
-    status: 'open',
+    status: 'in-progress',
     priority: 'critical',
     category: 'database',
-    source: 'monitoring',
+    source: 'alert',
     reporter: '系统',
-    assignee: null,
+    assignee: '张伟',
+    description: '监控显示 prod-db-01 的 CPU 使用率持续超过 95%，已持续30分钟，需要立即处理以避免服务中断。',
     createdAt: '2026-04-12T15:00:00Z',
     dueDate: '2026-04-12T18:00:00Z',
     escalationLevel: 1,
+    tags: { host: 'prod-db-01', severity: 'high', region: 'cn-north' },
+    workflowHistory: [
+      { action: 'created', performedBy: '系统', timestamp: '2026-04-12T15:00:00Z', note: '创建工单' },
+      { action: 'assigned', performedBy: '系统', timestamp: '2026-04-12T15:05:00Z', note: '分配工单给张伟' },
+      { action: 'status_change', performedBy: '张伟', timestamp: '2026-04-12T15:10:00Z', note: '状态变更为处理中' },
+      { action: 'escalated', performedBy: '系统', timestamp: '2026-04-12T15:30:00Z', note: '升级工单到 L1' },
+    ],
+    relations: ['TKT-007'],
   },
   {
     id: 'TKT-002',
@@ -225,9 +234,15 @@ const mockTickets = [
     source: 'alert',
     reporter: '运维',
     assignee: '张工',
+    description: 'API网关502错误率从0.1%上升到5%，影响多个下游服务。',
     createdAt: '2026-04-12T14:00:00Z',
     dueDate: '2026-04-12T17:00:00Z',
     escalationLevel: 0,
+    tags: { service: 'api-gateway', error: '502' },
+    workflowHistory: [
+      { action: 'created', performedBy: '运维', timestamp: '2026-04-12T14:00:00Z', note: '创建工单' },
+      { action: 'assigned', performedBy: '运维主管', timestamp: '2026-04-12T14:05:00Z', note: '分配工单' },
+    ],
   },
   {
     id: 'TKT-003',
@@ -238,9 +253,14 @@ const mockTickets = [
     source: 'ci',
     reporter: '开发',
     assignee: '李工',
+    description: 'Jenkins构建任务失败，错误信息显示依赖下载失败。',
     createdAt: '2026-04-12T13:00:00Z',
     dueDate: '2026-04-12T16:00:00Z',
     escalationLevel: 0,
+    tags: { pipeline: 'main-build', branch: 'develop' },
+    workflowHistory: [
+      { action: 'created', performedBy: '开发', timestamp: '2026-04-12T13:00:00Z', note: '创建工单' },
+    ],
   },
   {
     id: 'TKT-004',
@@ -251,9 +271,11 @@ const mockTickets = [
     source: 'user',
     reporter: '用户',
     assignee: null,
+    description: '用户反馈首页加载时间超过5秒。',
     createdAt: '2026-04-12T12:00:00Z',
     dueDate: '2026-04-12T20:00:00Z',
     escalationLevel: 0,
+    tags: { page: 'home', loadTime: '5s' },
   },
   {
     id: 'TKT-005',
@@ -264,9 +286,15 @@ const mockTickets = [
     source: 'scan',
     reporter: '安全',
     assignee: '王工',
+    description: '扫描发现3个高危漏洞需要修复。',
     createdAt: '2026-04-12T11:00:00Z',
     dueDate: '2026-04-12T14:00:00Z',
     escalationLevel: 0,
+    tags: { scanType: 'security', severity: 'high' },
+    workflowHistory: [
+      { action: 'created', performedBy: '安全', timestamp: '2026-04-12T11:00:00Z', note: '创建工单' },
+      { action: 'resolved', performedBy: '王工', timestamp: '2026-04-12T14:00:00Z', note: '漏洞已修复' },
+    ],
   },
   {
     id: 'TKT-006',
