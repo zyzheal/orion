@@ -190,7 +190,7 @@ export function createInternalLibrary(data: CreateLibraryInput) {
 
 /** Delete an internal library */
 export function deleteInternalLibrary(id: string) {
-  return api.delete(`/internal-libraries/${id}`);
+  return api.delete(`/v1/internal-libraries/${id}`);
 }
 
 /** Deprecate an internal library */
@@ -249,7 +249,7 @@ export function addDependent(id: string, data: AddDependentInput) {
 
 /** Update dependent version */
 export function updateDependent(id: string, repoName: string, version: string) {
-  return api.put(`/internal-libraries/${id}/dependents/${repoName}`, { version });
+  return api.put(`/v1/internal-libraries/${id}/dependents/${repoName}`, { version });
 }
 
 /** Check project dependencies */
@@ -259,5 +259,5 @@ export function checkDependencies(repoName: string) {
 
 /** Update dependency statistics */
 export function updateDependentStats(id: string) {
-  return api.post(`/internal-libraries/${id}/update-stats`);
+  return api.post(`/v1/internal-libraries/${id}/update-stats`);
 }

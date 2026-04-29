@@ -119,23 +119,23 @@ export interface CreateRelationInput {
 // ============================================================================
 
 export const getCIs = async (params?: ListCIsParams) => {
-  return api.get('/cmdb/cis', { params });
+  return api.get('/v1/cmdb/cis', { params });
 };
 
 export const getCI = async (id: string) => {
-  return api.get(`/cmdb/cis/${id}`);
+  return api.get(`/v1/cmdb/cis/${id}`);
 };
 
 export const createCI = async (input: CreateCIInput) => {
-  return api.post('/cmdb/cis', input);
+  return api.post('/v1/cmdb/cis', input);
 };
 
 export const updateCI = async (id: string, input: UpdateCIInput) => {
-  return api.put(`/cmdb/cis/${id}`, input);
+  return api.put(`/v1/cmdb/cis/${id}`, input);
 };
 
 export const deleteCI = async (id: string) => {
-  return api.delete(`/cmdb/cis/${id}`);
+  return api.delete(`/v1/cmdb/cis/${id}`);
 };
 
 // ============================================================================
@@ -143,15 +143,15 @@ export const deleteCI = async (id: string) => {
 // ============================================================================
 
 export const getCIRelations = async (ciId: string) => {
-  return api.get(`/cmdb/cis/${ciId}/relations`);
+  return api.get(`/v1/cmdb/cis/${ciId}/relations`);
 };
 
 export const createRelation = async (input: CreateRelationInput) => {
-  return api.post('/cmdb/relations', input);
+  return api.post('/v1/cmdb/relations', input);
 };
 
 export const deleteRelation = async (id: string) => {
-  return api.delete(`/cmdb/relations/${id}`);
+  return api.delete(`/v1/cmdb/relations/${id}`);
 };
 
 // ============================================================================
@@ -159,23 +159,23 @@ export const deleteRelation = async (id: string) => {
 // ============================================================================
 
 export const getHosts = async (params?: { page?: number; pageSize?: number }) => {
-  return api.get('/cmdb/hosts', { params });
+  return api.get('/v1/cmdb/hosts', { params });
 };
 
 export const getHost = async (ciId: string) => {
-  return api.get(`/cmdb/hosts/${ciId}`);
+  return api.get(`/v1/cmdb/hosts/${ciId}`);
 };
 
 export const getK8sResources = async (params?: { kind?: string; namespace?: string }) => {
-  return api.get('/cmdb/k8s', { params });
+  return api.get('/v1/cmdb/k8s', { params });
 };
 
 export const getCICDResources = async () => {
-  return api.get('/cmdb/cicd');
+  return api.get('/v1/cmdb/cicd');
 };
 
 export const getTopology = async (params?: { type?: string }) => {
-  return api.get('/cmdb/topology', { params });
+  return api.get('/v1/cmdb/topology', { params });
 };
 
 // ============================================================================
@@ -183,11 +183,11 @@ export const getTopology = async (params?: { type?: string }) => {
 // ============================================================================
 
 export const startK8sSync = async () => {
-  return api.post('/cmdb/k8s/sync/start');
+  return api.post('/v1/cmdb/k8s/sync/start');
 };
 
 export const stopK8sSync = async () => {
-  return api.post('/cmdb/k8s/sync/stop');
+  return api.post('/v1/cmdb/k8s/sync/stop');
 };
 
 // ============================================================================
@@ -199,5 +199,5 @@ export const executeScript = async (input: {
   script: string;
   timeout?: number;
 }) => {
-  return api.post('/cmdb/execute', input);
+  return api.post('/v1/cmdb/execute', input);
 };
