@@ -100,11 +100,15 @@ export default async function eventbusRoutes(
       status?: string;
       limit?: string;
     };
+    const limitNum = limit ? parseInt(limit, 10) : 50;
+    if (limit && isNaN(limitNum)) {
+      return reply.status(400).send({ error: 'INVALID_LIMIT', message: 'limit must be a valid number' });
+    }
     try {
       const events = await service.getEventHistory({
         eventType,
         status,
-        limit: limit ? parseInt(limit, 10) : 50,
+        limit: limitNum,
       });
       return reply.send({ events });
     } catch (err: any) {
@@ -163,10 +167,14 @@ export default async function eventbusRoutes(
   // GET /eventbus/dlq - Get DLQ message count and recent messages
   app.get('/dlq', async (request: FastifyRequest, reply: FastifyReply) => {
     const { limit } = request.query as { limit?: string };
+    const limitNum = limit ? parseInt(limit, 10) : 50;
+    if (limit && isNaN(limitNum)) {
+      return reply.status(400).send({ error: 'INVALID_LIMIT', message: 'limit must be a valid number' });
+    }
     try {
       const events = await service.getEventHistory({
         status: 'failed',
-        limit: limit ? parseInt(limit, 10) : 50,
+        limit: limitNum,
       }) as any[];
       return reply.send({
         total: events.length,

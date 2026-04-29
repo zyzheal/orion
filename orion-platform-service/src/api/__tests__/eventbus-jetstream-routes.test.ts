@@ -4,7 +4,7 @@
  * Tests for the JetStream metrics, consumer listing, and DLQ endpoints.
  */
 
-import { describe, it, expect, beforeEach, jest } from '@jest/globals';
+import { describe, it, expect, jest } from '@jest/globals';
 import Fastify, { FastifyInstance } from 'fastify';
 import type { EventBusService } from '../../services/event-bus-service';
 

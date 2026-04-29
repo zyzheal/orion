@@ -119,7 +119,7 @@ export async function createApp(options: PlatformAppOptions = {}): Promise<{
       const health = await options.eventBus!.checkHealth();
       // Add JetStream status
       if (options.eventBus!.isJetStreamAvailable()) {
-        (health as any).jetstream = 'up';
+        return { ...health, jetstream: 'up' };
       }
       return health;
     });
