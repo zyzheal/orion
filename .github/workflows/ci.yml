@@ -69,15 +69,25 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: Build local packages (platform-service)
+      - name: Install dependencies (platform-service)
         if: ${{ matrix.service == 'platform-service' }}
         run: |
+          npm install
           cd packages/event-bus && npm install && npm run build
         working-directory: orion-platform-service
 
       - name: Install dependencies
+        if: ${{ matrix.service != 'platform-service' }}
         run: npm install
         working-directory: ${{ matrix.dir }}
+
+      - name: Debug - Check build files (platform-service)
+        if: ${{ matrix.service == 'platform-service' }}
+        run: |
+          echo "=== Checking build service files ==="
+          ls -la src/services/build/ || echo "services/build not found"
+          ls -la src/api/controllers/build/ || echo "controllers/build not found"
+        working-directory: orion-platform-service
 
       - name: Type check
         run: npm run type-check
