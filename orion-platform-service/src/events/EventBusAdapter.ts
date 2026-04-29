@@ -71,6 +71,10 @@ export interface PublishResult {
   success: boolean;
   eventId?: string;
   fallback?: boolean;
+  /** JetStream delivery mode */
+  deliveryMode?: 'jetstream' | 'fallback' | 'disabled';
+  /** JetStream ack sequence number */
+  jetStreamSeq?: number;
   error?: string;
 }
 
@@ -112,12 +116,16 @@ export class EventBusAdapter {
       return {
         success: false,
         error: 'EventBus not available',
+        deliveryMode: 'disabled',
       };
     }
 
     const event = this.createCloudEvent(type, data, options);
 
     try {
+      // 检查 JetStream 是否可用以确定投递模式
+      const isJetStream = this.eventBus.isJetStreamAvailable?.() ?? false;
+
       // ARCH-010: 直接使用 EventBusService 的 publish 方法
       // EventBusService 已统一接口: publish(type, data, options)
       const eventId = await this.eventBus.publish(type, event.data, {
@@ -133,6 +141,7 @@ export class EventBusAdapter {
         success: true,
         eventId,
         fallback: isFallback,
+        deliveryMode: isJetStream ? 'jetstream' : (isFallback ? 'fallback' : 'disabled'),
       };
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Unknown error';
@@ -140,6 +149,7 @@ export class EventBusAdapter {
       return {
         success: false,
         error: errorMsg,
+        deliveryMode: 'disabled',
       };
     }
   }

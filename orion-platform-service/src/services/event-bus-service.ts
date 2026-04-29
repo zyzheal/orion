@@ -471,95 +471,11 @@ export class EventBusService extends EventEmitter {
 
       // JetStream path: use consumers.get + fetch when streamName and durableName provided
       if (options?.streamName && options?.durableName && this.isJetStreamAvailable()) {
-        const consumer = await this.jetStream!.consumers.get(options.streamName, options.durableName);
-
-        // Start message processing in background
-        (async () => {
-          try {
-            const messages = await consumer.fetch({ max_messages: 100 });
-            for await (const msg of messages as AsyncIterable<any>) {
-              try {
-                const data = JSON.parse(new TextDecoder().decode(msg.data));
-                await handler({
-                  type: eventType,
-                  data: data.data,
-                  source: data.source,
-                  timestamp: data.timestamp,
-                });
-                msg.ack();
-              } catch (error) {
-                logger.error({ error: String(error) }, 'Error handling message');
-                if (msg.nak) {
-                  msg.nak();
-                }
-              }
-            }
-          } catch (err) {
-            logger.error({ err: String(err) }, 'JetStream subscription error');
-            this.metrics.subscribeFailed++;
-          }
-        })();
-
-        this.metrics.subscribeSuccess++;
-        this.emit('subscribe', { eventType, subscriptionId: `${options.streamName}:${options.durableName}` });
-
-        return async () => {
-          // Update subscription status
-          if (subRecord && this.repos.subscriptionRepo) {
-            try {
-              await this.repos.subscriptionRepo.updateStatus(subRecord.id, 'deleted');
-            } catch (err) {
-              logger.warn({ err: String(err) }, 'Failed to update subscription status');
-            }
-          }
-        };
+        return this.subscribeViaJetStream(eventType, handler, options, subRecord);
       }
 
       // Core NATS path (fallback)
-      const subscription = this.natsConnection.subscribe(subject, {
-        queue,
-      });
-
-      // 处理消息
-      (async () => {
-        for await (const msg of subscription) {
-          try {
-            const data = JSON.parse(new TextDecoder().decode(msg.data));
-            await handler({
-              type: eventType,
-              data: data.data,
-              source: data.source,
-              timestamp: data.timestamp,
-            });
-            msg.ack();
-          } catch (error) {
-            logger.error({ error: String(error) }, 'Error handling message');
-            // Nak the message so it can be redelivered (with DLQ handling in JetStream)
-            if (msg.nak) {
-              msg.nak();
-            }
-          }
-        }
-      })().catch((err) => {
-        logger.error({ err: String(err) }, 'Subscription error');
-        this.metrics.subscribeFailed++;
-      });
-
-      this.metrics.subscribeSuccess++;
-      this.emit('subscribe', { eventType, subscriptionId: subject });
-
-      // 返回取消订阅函数
-      return async () => {
-        await subscription.drain();
-        // 更新订阅状态
-        if (subRecord && this.repos.subscriptionRepo) {
-          try {
-            await this.repos.subscriptionRepo.updateStatus(subRecord.id, 'deleted');
-          } catch (err) {
-            logger.warn({ err: String(err) }, 'Failed to update subscription status');
-          }
-        }
-      };
+      return this.subscribeViaCoreNats(eventType, handler, subject, queue, subRecord);
     } catch (error: unknown) {
       this.metrics.subscribeFailed++;
       const errorMsg = error instanceof Error ? error.message : 'Unknown error';
@@ -572,6 +488,146 @@ export class EventBusService extends EventEmitter {
         true
       );
     }
+  }
+
+  /**
+   * JetStream Pull Consumer 订阅路径
+   * - 通过 consumers.get(streamName, durableName) 获取消费者
+   * - 使用 fetch 循环拉取消息 (maxMessages: 100, expires: 30s)
+   * - 成功 ack, 失败 nak
+   * - 返回 unsubscribe 函数，通过设置 running = false 停止循环
+   */
+  private async subscribeViaJetStream<T = any>(
+    eventType: string,
+    handler: (event: any) => Promise<void>,
+    options: {
+      streamName?: string;
+      durableName?: string;
+      autoAck?: boolean;
+      filterSubject?: string;
+      tenantId?: string;
+    },
+    subRecord: any,
+  ): Promise<() => Promise<void>> {
+    const streamName = options.streamName!;
+    const durableName = options.durableName!;
+    const consumer = await this.jetStream!.consumers.get(streamName, durableName);
+
+    let running = true;
+
+    // 后台拉取消息循环
+    (async () => {
+      while (running) {
+        try {
+          const messages = await consumer.fetch({
+            max_messages: 100,
+            expires: 30_000_000_000, // 30s in nanoseconds
+          });
+          if (!messages) {
+            // No messages returned, wait briefly before next fetch
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            continue;
+          }
+          for await (const msg of messages as AsyncIterable<any>) {
+            if (!running) break;
+            try {
+              const data = JSON.parse(new TextDecoder().decode(msg.data));
+              await handler({
+                type: eventType,
+                data: data.data,
+                source: data.source,
+                timestamp: data.timestamp,
+              });
+              msg.ack();
+            } catch (error) {
+              logger.error({ error: String(error) }, 'Error handling JetStream message');
+              if (msg.nak) {
+                msg.nak();
+              }
+            }
+          }
+        } catch (err) {
+          if (running) {
+            logger.error({ err: String(err) }, 'JetStream fetch error');
+            this.metrics.subscribeFailed++;
+            // Backoff on error to avoid tight spin loop
+            await new Promise(resolve => setTimeout(resolve, 2000));
+          }
+        }
+      }
+    })();
+
+    this.metrics.subscribeSuccess++;
+    this.emit('subscribe', { eventType, subscriptionId: `${streamName}:${durableName}` });
+
+    return async () => {
+      running = false;
+      // 更新订阅状态
+      if (subRecord && this.repos.subscriptionRepo) {
+        try {
+          await this.repos.subscriptionRepo.updateStatus(subRecord.id, 'deleted');
+        } catch (err) {
+          logger.warn({ err: String(err) }, 'Failed to update JetStream subscription status');
+        }
+      }
+    };
+  }
+
+  /**
+   * Core NATS 订阅路径（向后兼容）
+   * - 使用标准 NATS subscribe
+   * - 处理消息并 ack/nak
+   * - 返回 unsubscribe 函数，通过 subscription.drain() 取消订阅
+   */
+  private async subscribeViaCoreNats<T = any>(
+    eventType: string,
+    handler: (event: any) => Promise<void>,
+    subject: string,
+    queue: string,
+    subRecord: any,
+  ): Promise<() => Promise<void>> {
+    const subscription = this.natsConnection.subscribe(subject, {
+      queue,
+    });
+
+    // 处理消息
+    (async () => {
+      for await (const msg of subscription) {
+        try {
+          const data = JSON.parse(new TextDecoder().decode(msg.data));
+          await handler({
+            type: eventType,
+            data: data.data,
+            source: data.source,
+            timestamp: data.timestamp,
+          });
+          msg.ack();
+        } catch (error) {
+          logger.error({ error: String(error) }, 'Error handling Core NATS message');
+          if (msg.nak) {
+            msg.nak();
+          }
+        }
+      }
+    })().catch((err) => {
+      logger.error({ err: String(err) }, 'Core NATS subscription error');
+      this.metrics.subscribeFailed++;
+    });
+
+    this.metrics.subscribeSuccess++;
+    this.emit('subscribe', { eventType, subscriptionId: subject });
+
+    return async () => {
+      await subscription.drain();
+      // 更新订阅状态
+      if (subRecord && this.repos.subscriptionRepo) {
+        try {
+          await this.repos.subscriptionRepo.updateStatus(subRecord.id, 'deleted');
+        } catch (err) {
+          logger.warn({ err: String(err) }, 'Failed to update Core NATS subscription status');
+        }
+      }
+    };
   }
 
   /**
