@@ -75,6 +75,10 @@ export {
   ConfigEventExtensions,
 } from './types/config';
 
+// JetStream consumer framework (new)
+export { JetStreamEventConsumer, ConsumerHandler } from './JetStreamEventConsumer';
+export { EventSubscriber, SubscriptionRule, TypedSubscriptionRule } from './EventSubscriber';
+
 // Incident 类型
 export {
   IncidentEventType,
