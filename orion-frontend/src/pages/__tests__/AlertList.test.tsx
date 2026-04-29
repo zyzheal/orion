@@ -2,7 +2,7 @@
  * Tests for AlertList page (TASK-905)
  */
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import AlertList from '@/pages/AlertList';
 
@@ -61,20 +61,26 @@ describe('AlertList', () => {
     expect(screen.getAllByText('状态')[0]).toBeInTheDocument();
   });
 
-  it('should display alert data', () => {
+  it('should display alert data', async () => {
     renderWithRouter(<AlertList />);
-    expect(screen.getByText('error_rate')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('error_rate')).toBeInTheDocument();
+    });
     expect(screen.getByText('response_time_p99')).toBeInTheDocument();
   });
 
-  it('should display active alert summary', () => {
+  it('should display active alert summary', async () => {
     renderWithRouter(<AlertList />);
-    expect(screen.getByText(/.*个严重告警/)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText(/.*个严重告警/)).toBeInTheDocument();
+    });
   });
 
-  it('should display action buttons for active alerts', () => {
+  it('should display action buttons for active alerts', async () => {
     renderWithRouter(<AlertList />);
-    expect(screen.getAllByText('确认').length).toBeGreaterThan(0);
+    await waitFor(() => {
+      expect(screen.getAllByText('确认').length).toBeGreaterThan(0);
+    });
     expect(screen.getAllByText('解决').length).toBeGreaterThan(0);
   });
 });
