@@ -6,17 +6,24 @@ import pino from 'pino';
 import { v4 as uuidv4 } from 'uuid';
 import { OnCallSchedule, OnCallAssignment, OnCallOverride, OnCallCheckResult, EscalationRule } from './types';
 import { OnCallScheduleRepository, OnCallScheduleEntity } from '../../repositories/OnCallScheduleRepository';
+import { OnCallAssignmentRepository, OnCallAssignmentEntity } from '../../repositories/OnCallAssignmentRepository';
+import { OnCallOverrideRepository, OnCallOverrideEntity } from '../../repositories/OnCallOverrideRepository';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
 export class OnCallService {
   private scheduleRepository?: OnCallScheduleRepository;
+  private assignmentRepository?: OnCallAssignmentRepository;
+  private overrideRepository?: OnCallOverrideRepository;
+  // in-memory fallback for tests and environments without DB
   private assignments: Map<string, OnCallAssignment> = new Map();
   private overrides: Map<string, OnCallOverride> = new Map();
 
   constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
     if (db) {
       this.scheduleRepository = new OnCallScheduleRepository(db);
+      this.assignmentRepository = new OnCallAssignmentRepository(db);
+      this.overrideRepository = new OnCallOverrideRepository(db);
     }
   }
 
@@ -50,7 +57,7 @@ export class OnCallService {
         updatedAt: now,
       });
       const schedule = this.mapEntityToSchedule(entity, escalations);
-      this.generateAssignments(schedule);
+      await this.generateAssignments(schedule);
       logger.info({ scheduleId: schedule.id }, 'OnCall schedule created');
       return schedule;
     }
@@ -68,7 +75,7 @@ export class OnCallService {
       createdAt: now,
       updatedAt: now,
     };
-    this.generateAssignments(schedule);
+    await this.generateAssignments(schedule);
     logger.info({ scheduleId: schedule.id }, 'OnCall schedule created');
     return schedule;
   }
@@ -76,21 +83,36 @@ export class OnCallService {
   /**
    * Generate rotation assignments
    */
-  private generateAssignments(schedule: OnCallSchedule): void {
+  private async generateAssignments(schedule: OnCallSchedule): Promise<void> {
     const now = new Date();
     let current = new Date(now);
 
     for (let i = 0; i < schedule.teamMembers.length; i++) {
       const userId = schedule.teamMembers[i % schedule.teamMembers.length];
+      const endTime = this.getEndOfRotation(schedule.rotationType, current);
       const assignment: OnCallAssignment = {
         id: `assign_${uuidv4()}`,
         scheduleId: schedule.id,
         userId,
         startTime: new Date(current),
-        endTime: this.getEndOfRotation(schedule.rotationType, current),
+        endTime,
       };
+
+      if (this.assignmentRepository) {
+        try {
+          await this.assignmentRepository.create({
+            id: assignment.id,
+            scheduleId: assignment.scheduleId,
+            userId: assignment.userId,
+            startTime: assignment.startTime,
+            endTime: assignment.endTime,
+          });
+        } catch (err) {
+          logger.warn({ err }, 'Failed to persist assignment, falling back to in-memory');
+        }
+      }
       this.assignments.set(assignment.id, assignment);
-      current = this.getEndOfRotation(schedule.rotationType, current);
+      current = endTime;
     }
   }
 
@@ -113,7 +135,7 @@ export class OnCallService {
 
     // For simplicity, return first team member as current (production would use time-based rotation)
     const now = new Date();
-    const activeOverride = this.getOverride(scheduleId, now);
+    const activeOverride = await this.getOverride(scheduleId, now);
     if (activeOverride) {
       return {
         isOnCall: true,
@@ -123,6 +145,17 @@ export class OnCallService {
     }
 
     // Find assignment covering current time
+    if (this.assignmentRepository) {
+      const dbAssignment = await this.assignmentRepository.findByScheduleAndTime(scheduleId, now);
+      if (dbAssignment) {
+        return {
+          isOnCall: true,
+          primaryUserId: dbAssignment.userId,
+          escalationTargets: this.getEscalationTargets(schedule, dbAssignment.userId),
+        };
+      }
+    }
+
     for (const [, assignment] of this.assignments) {
       if (assignment.scheduleId === scheduleId &&
           assignment.startTime <= now && assignment.endTime > now) {
@@ -146,13 +179,30 @@ export class OnCallService {
   /**
    * Get active override
    */
-  getOverride(scheduleId: string, time: Date): OnCallOverride | undefined {
+  async getOverride(scheduleId: string, time: Date): Promise<OnCallOverride | undefined> {
+    if (this.overrideRepository) {
+      const dbOverride = await this.overrideRepository.findActiveAtTime(scheduleId, time);
+      if (dbOverride) return this.mapOverrideEntityToDomain(dbOverride);
+    }
+    // in-memory fallback
     for (const [, o] of this.overrides) {
       if (o.scheduleId === scheduleId && o.startTime <= time && o.endTime > time) {
         return o;
       }
     }
     return undefined;
+  }
+
+  private mapOverrideEntityToDomain(entity: OnCallOverrideEntity): OnCallOverride {
+    return {
+      id: entity.id,
+      scheduleId: entity.scheduleId,
+      originalUserId: entity.originalUserId,
+      overrideUserId: entity.overrideUserId,
+      startTime: entity.startTime,
+      endTime: entity.endTime,
+      reason: entity.reason,
+    };
   }
 
   /**
@@ -175,6 +225,22 @@ export class OnCallService {
       endTime,
       reason,
     };
+
+    if (this.overrideRepository) {
+      try {
+        await this.overrideRepository.create({
+          id: override.id,
+          scheduleId,
+          originalUserId,
+          overrideUserId,
+          startTime,
+          endTime,
+          reason,
+        });
+      } catch (err) {
+        logger.warn({ err }, 'Failed to persist override, falling back to in-memory');
+      }
+    }
     this.overrides.set(override.id, override);
     logger.info({ overrideId: override.id }, 'OnCall override created');
     return override;
@@ -216,11 +282,17 @@ export class OnCallService {
     if (this.scheduleRepository) {
       const deleted = await this.scheduleRepository.delete(id);
       if (deleted) {
-        // Clean up associated assignments
+        // Clean up DB
+        if (this.assignmentRepository) {
+          await this.assignmentRepository.deleteByScheduleId(id);
+        }
+        if (this.overrideRepository) {
+          await this.overrideRepository.deleteByScheduleId(id);
+        }
+        // Clean up in-memory
         for (const [key, assign] of this.assignments) {
           if (assign.scheduleId === id) this.assignments.delete(key);
         }
-        // Clean up associated overrides
         for (const [key, override] of this.overrides) {
           if (override.scheduleId === id) this.overrides.delete(key);
         }
