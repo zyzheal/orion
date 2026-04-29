@@ -35,7 +35,7 @@ describe('PromotionService', () => {
     service.setStage('artifact1', PromotionStage.DEVELOPMENT);
     await service.promote('artifact1', 'user1');
     await service.promote('artifact1', 'user1');
-    const history = service.getHistory('artifact1');
+    const history = await service.getHistory('artifact1');
     expect(history.length).toBe(2);
   });
 

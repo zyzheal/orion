@@ -98,6 +98,8 @@ function toDomain(entity: DeploymentHistoryEntity): Deployment {
 export class DeploymentHistoryService {
   private deploymentRepository?: DeploymentHistoryRepository;
   private auditTrail: AuditTrailEntry[] = [];
+  // Memory storage for deployments (when no database)
+  private memoryDeployments: Map<string, Deployment> = new Map();
 
   constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
     if (db) {
@@ -111,6 +113,9 @@ export class DeploymentHistoryService {
   async recordDeployment(deployment: Deployment): Promise<Deployment> {
     if (this.deploymentRepository) {
       await this.deploymentRepository.create(toEntity(deployment));
+    } else {
+      // Store in memory
+      this.memoryDeployments.set(deployment.id, deployment);
     }
 
     // Add audit trail entry
@@ -146,6 +151,13 @@ export class DeploymentHistoryService {
           updates.error,
         );
       }
+    } else {
+      // Update in memory
+      const deployment = this.memoryDeployments.get(deploymentId);
+      if (deployment) {
+        const updated = { ...deployment, ...updates };
+        this.memoryDeployments.set(deploymentId, updated);
+      }
     }
 
     // Add audit trail entry
@@ -159,7 +171,8 @@ export class DeploymentHistoryService {
       },
     });
 
-    return null; // Repository handles persistence
+    // Return updated deployment
+    return this.memoryDeployments.get(deploymentId) || null;
   }
 
   /**
@@ -170,7 +183,7 @@ export class DeploymentHistoryService {
       const entity = await this.deploymentRepository.findById(deploymentId);
       return entity ? toDomain(entity) : null;
     }
-    return null;
+    return this.memoryDeployments.get(deploymentId) || null;
   }
 
   /**
@@ -187,6 +200,12 @@ export class DeploymentHistoryService {
       }
       if (query.status) {
         entities = entities.filter(d => d.status === query.status);
+      }
+      if (query.strategy) {
+        entities = entities.filter(d => d.strategy === query.strategy);
+      }
+      if (query.appName) {
+        entities = entities.filter(e => (e.config?.appName as string | undefined) === query.appName);
       }
 
       // Sort by start time (most recent first)
@@ -205,7 +224,37 @@ export class DeploymentHistoryService {
       };
     }
 
-    return { data: [], total: 0, limit: 20, offset: 0 };
+    // Memory mode
+    let deployments = Array.from(this.memoryDeployments.values());
+
+    // Apply filters
+    if (query.environment) {
+      deployments = deployments.filter(d => d.environment === query.environment);
+    }
+    if (query.status) {
+      deployments = deployments.filter(d => d.status === query.status);
+    }
+    if (query.strategy) {
+      deployments = deployments.filter(d => d.strategy === query.strategy);
+    }
+    if (query.appName) {
+      deployments = deployments.filter(d => d.appName === query.appName);
+    }
+
+    // Sort by start time (most recent first)
+    deployments.sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime());
+
+    const total = deployments.length;
+    const limit = query.limit || 20;
+    const offset = query.offset || 0;
+    const data = deployments.slice(offset, offset + limit);
+
+    return {
+      data,
+      total,
+      limit,
+      offset,
+    };
   }
 
   /**
@@ -238,14 +287,62 @@ export class DeploymentHistoryService {
   /**
    * Get deployment metrics summary
    */
-  async getMetrics(_filters?: {
+  async getMetrics(filters?: {
     appName?: string;
     environment?: string;
     startDate?: Date;
     endDate?: Date;
   }): Promise<DeploymentMetrics> {
     if (!this.deploymentRepository) {
-      return this._emptyMetrics();
+      // Memory mode
+      let deployments = Array.from(this.memoryDeployments.values());
+
+      // Apply filters
+      if (filters?.appName) {
+        deployments = deployments.filter(d => d.appName === filters.appName);
+      }
+      if (filters?.environment) {
+        deployments = deployments.filter(d => d.environment === filters.environment);
+      }
+
+      const total = deployments.length;
+      const successful = deployments.filter(d => d.status === 'completed').length;
+      const failed = deployments.filter(d => d.status === 'failed').length;
+      const rolledBack = deployments.filter(d => d.status === 'rolled_back').length;
+
+      const durations = deployments
+        .filter(d => d.completedAt && d.startedAt)
+        .map(d => d.completedAt!.getTime() - d.startedAt!.getTime());
+
+      const avgDuration = durations.length > 0
+        ? durations.reduce((a, b) => a + b, 0) / durations.length
+        : 0;
+      const medianDuration = durations.length > 0
+        ? this.calculateMedian(durations)
+        : 0;
+
+      const byStrategy: Record<string, number> = {};
+      const byEnvironment: Record<string, number> = {};
+      const byStatus: Record<string, number> = {};
+      for (const d of deployments) {
+        byStrategy[d.strategy] = (byStrategy[d.strategy] || 0) + 1;
+        byEnvironment[d.environment] = (byEnvironment[d.environment] || 0) + 1;
+        byStatus[d.status] = (byStatus[d.status] || 0) + 1;
+      }
+
+      return {
+        totalDeployments: total,
+        successfulDeployments: successful,
+        failedDeployments: failed,
+        rolledBackDeployments: rolledBack,
+        successRate: total > 0 ? Math.round((successful / total) * 100) : 0,
+        averageDurationMs: Math.round(avgDuration),
+        medianDurationMs: medianDuration,
+        rollbackRate: total > 0 ? Math.round((rolledBack / total) * 100) : 0,
+        byStrategy,
+        byEnvironment,
+        byStatus,
+      };
     }
     const result = await this.deploymentRepository.findAll({ limit: 10000 });
     const deployments = result.entities.map(toDomain);
@@ -317,27 +414,62 @@ export class DeploymentHistoryService {
    * Get deployments by app name (stored in config)
    */
   async getByAppName(appName: string): Promise<Deployment[]> {
-    if (!this.deploymentRepository) return [];
-    const result = await this.deploymentRepository.findAll({ limit: 1000 });
-    return result.entities
-      .filter(e => (e.config?.appName as string | undefined) === appName)
-      .map(toDomain);
+    if (this.deploymentRepository) {
+      const result = await this.deploymentRepository.findAll({ limit: 1000 });
+      return result.entities
+        .filter(e => (e.config?.appName as string | undefined) === appName)
+        .map(toDomain);
+    }
+    // Memory mode
+    return Array.from(this.memoryDeployments.values())
+      .filter(d => d.appName === appName);
   }
 
   /**
    * Get latest deployment for an app in an environment
    */
   async getLatestDeployment(appName: string, environment: string): Promise<Deployment | null> {
-    if (!this.deploymentRepository) return null;
-    const result = await this.deploymentRepository.findAll({ limit: 1000 });
-    const matching = result.entities
-      .filter(e =>
-        (e.config?.appName as string | undefined) === appName &&
-        e.environment === environment
-      )
-      .sort((a, b) => (b.createdAt?.getTime() ?? 0) - (a.createdAt?.getTime() ?? 0));
+    if (this.deploymentRepository) {
+      const result = await this.deploymentRepository.findAll({ limit: 1000 });
+      const matching = result.entities
+        .filter(e =>
+          (e.config?.appName as string | undefined) === appName &&
+          e.environment === environment
+        )
+        .sort((a, b) => (b.createdAt?.getTime() ?? 0) - (a.createdAt?.getTime() ?? 0));
 
-    return matching.length > 0 ? toDomain(matching[0]) : null;
+      return matching.length > 0 ? toDomain(matching[0]) : null;
+    }
+    // Memory mode
+    const matching = Array.from(this.memoryDeployments.values())
+      .filter(d => d.appName === appName && d.environment === environment)
+      .sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime());
+
+    return matching.length > 0 ? matching[0] : null;
+  }
+
+  /**
+   * Get last successful deployment for an app in an environment
+   */
+  async getLastSuccessfulDeployment(appName: string, environment: string): Promise<Deployment | null> {
+    if (this.deploymentRepository) {
+      const result = await this.deploymentRepository.findAll({ limit: 1000 });
+      const matching = result.entities
+        .filter(e =>
+          (e.config?.appName as string | undefined) === appName &&
+          e.environment === environment &&
+          e.status === 'completed'
+        )
+        .sort((a, b) => (b.createdAt?.getTime() ?? 0) - (a.createdAt?.getTime() ?? 0));
+
+      return matching.length > 0 ? toDomain(matching[0]) : null;
+    }
+    // Memory mode
+    const matching = Array.from(this.memoryDeployments.values())
+      .filter(d => d.appName === appName && d.environment === environment && d.status === 'completed')
+      .sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime());
+
+    return matching.length > 0 ? matching[0] : null;
   }
 
   /**

@@ -368,6 +368,9 @@ describe('EfficiencyEventHandler', () => {
     it('should generate DORA report from stored records', async () => {
       await handler.start();
 
+      // Use a reference date that the test data will be within
+      const referenceDate = new Date('2026-04-13T00:00:00Z');
+
       // First add some records
       const storage = handler.getLocalStorage();
       await storage.savePipelineRecord({
@@ -393,7 +396,7 @@ describe('EfficiencyEventHandler', () => {
         tenantId: 'tenant-001',
       });
 
-      const report = await handler.getDoraReport('tenant-001', 'week', 1);
+      const report = await handler.getDoraReport('tenant-001', 'week', 1, referenceDate);
 
       expect(report).toBeDefined();
       expect(report.reportId).toBeDefined();

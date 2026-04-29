@@ -132,6 +132,7 @@ export class EventBusAdapter {
         source: event.source,
         tenantId: event.tenantid,
         publishedBy: event.userid,
+        traceId: event.traceid,
       });
 
       // 检查是否为 fallback 发布

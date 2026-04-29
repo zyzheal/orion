@@ -525,13 +525,13 @@ describe('RollbackService', () => {
         'test-user'
       );
 
-      const history = rollbackService.getRollbackHistory('deploy-rollback-1');
+      const history = await rollbackService.getRollbackHistory('deploy-rollback-1');
 
       expect(history.length).toBe(2);
     });
 
-    it('should return empty array for no history', () => {
-      const history = rollbackService.getRollbackHistory('non-existent');
+    it('should return empty array for no history', async () => {
+      const history = await rollbackService.getRollbackHistory('non-existent');
       expect(history).toEqual([]);
     });
   });

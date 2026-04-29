@@ -328,6 +328,7 @@ export class EventBusService extends EventEmitter {
       headers?: Record<string, string>;
       tenantId?: string;
       publishedBy?: string;
+      traceId?: string;
     }
   ): Promise<string> {
     const subject = options?.subject || type;  // S1 Fix: removed no-op replace(/\./g, '.')

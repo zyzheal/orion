@@ -115,13 +115,20 @@ export class MonitoringService {
     if (this.evaluationTimer) clearInterval(this.evaluationTimer);
   }
 
-  getHealthStatus(): { running: boolean; uptime: string; metricsCount: number; rulesCount: number; activeAlerts: number } {
+  getHealthStatus(): { running: boolean; uptime: string; metricsCount: number; rulesCount: number; activeAlerts: number; alertsCount?: number; status?: string } {
+    const activeAlerts = this.alertRuleEngine.getActiveAlerts().length;
+    let status = 'healthy';
+    if (activeAlerts > 5) status = 'degraded';
+    if (activeAlerts > 10) status = 'unhealthy';
+
     return {
       running: this.running,
       uptime: this.running ? 'running' : 'stopped',
       metricsCount: this.metricCollector.getRegisteredMetrics().length,
       rulesCount: this.alertRuleEngine.getAllRules().length,
-      activeAlerts: this.alertRuleEngine.getActiveAlerts().length,
+      activeAlerts,
+      alertsCount: activeAlerts,
+      status,
     };
   }
 
@@ -200,7 +207,16 @@ export class MonitoringService {
   }
 
   async acknowledgeAlert(id: string, userId: string): Promise<Alert> {
-    if (!this.repository) throw new MonitoringServiceError('Database not configured', 'NO_DATABASE');
+    if (!this.repository) {
+      // In-memory mode: acknowledge in alertRuleEngine
+      const alerts = this.alertRuleEngine.getActiveAlerts();
+      const alert = alerts.find(a => a.id === id);
+      if (!alert) throw new MonitoringServiceError(`Alert not found: ${id}`, 'ALERT_NOT_FOUND');
+      alert.status = 'acknowledged';
+      alert.acknowledgedBy = userId;
+      alert.acknowledgedAt = new Date();
+      return alert as unknown as Alert;
+    }
     const alert = await this.repository.findAlertById(id);
     if (!alert) throw new MonitoringServiceError(`Alert not found: ${id}`, 'ALERT_NOT_FOUND');
     const updated = await this.repository.acknowledgeAlert(id, userId);
@@ -209,7 +225,15 @@ export class MonitoringService {
   }
 
   async resolveAlert(id: string): Promise<Alert> {
-    if (!this.repository) throw new MonitoringServiceError('Database not configured', 'NO_DATABASE');
+    if (!this.repository) {
+      // In-memory mode: resolve in alertRuleEngine
+      const alerts = this.alertRuleEngine.getActiveAlerts();
+      const alert = alerts.find(a => a.id === id);
+      if (!alert) throw new MonitoringServiceError(`Alert not found: ${id}`, 'ALERT_NOT_FOUND');
+      alert.status = 'resolved';
+      alert.resolvedAt = new Date();
+      return alert as unknown as Alert;
+    }
     const alert = await this.repository.findAlertById(id);
     if (!alert) throw new MonitoringServiceError(`Alert not found: ${id}`, 'ALERT_NOT_FOUND');
     const updated = await this.repository.resolveAlert(id);
@@ -381,6 +405,14 @@ export class MonitoringService {
   }
 
   /**
+   * Remove a rule from the in-memory engine (for legacy compatibility).
+   * Prefer deleteRule() for database-backed persistence.
+   */
+  removeRule(id: string): void {
+    this.alertRuleEngine.removeRule(id);
+  }
+
+  /**
    * Get alerts from in-memory engine (for legacy compatibility).
    * Prefer listAlerts() for database-backed persistence.
    */
@@ -393,6 +425,16 @@ export class MonitoringService {
    */
   getActiveAlerts(): any[] {
     return this.alertRuleEngine.getActiveAlerts();
+  }
+
+  /**
+   * Get registered metrics from the metric collector (for legacy compatibility).
+   */
+  getMetrics(metricName?: string): { dataPoints: any[] } | string[] {
+    if (metricName) {
+      return this.metricCollector.getMetricSeries({ name: metricName });
+    }
+    return this.metricCollector.getRegisteredMetrics();
   }
 
   // ==================== Private Helpers ====================

@@ -12,23 +12,34 @@ class MockEventBus {
   public publishedEvents: any[] = [];
 
   async publish(subject: string, data: any, options?: any): Promise<string> {
-    // 根据实际代码，事件结构是：
-    // { specversion, id, type, source, time, data, ...extensions }
+    const eventId = `event-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+    // EventBusAdapter 传递 event.data 和包含 tenantId 的 options
+    // 模拟创建完整的 CloudEvent 结构，与 EventBusAdapter.createCloudEvent 一致
     const event = {
       specversion: '1.0',
-      id: `event-${Date.now()}`,
+      id: eventId,
       type: subject,
-      source: 'pipeline-service',
+      source: options?.source || 'pipeline-service',
       time: new Date().toISOString(),
       data: data,
-      ...options?.extensions,
+      tenantid: options?.tenantId,
+      userid: options?.publishedBy,
+      traceid: options?.traceId ?? eventId, // 从 options 获取或使用默认值
     };
     this.publishedEvents.push({ subject, data: event, options });
-    return 'mock-event-id';
+    return eventId;
   }
 
   isHealthy(): boolean {
     return true;
+  }
+
+  isJetStreamAvailable(): boolean {
+    return true;
+  }
+
+  getConnectionStatus(): { state: string } {
+    return { state: 'connected' };
   }
 }
 
@@ -84,9 +95,10 @@ describe('PipelineEventPublisher', () => {
       });
 
       const event = mockEventBus.publishedEvents[0];
-      expect(event.data.tenantId).toBe('tenant-001');
-      expect(event.data.userId).toBe('user-001');
-      expect(event.data.traceId).toBe('trace-abc');
+      // CloudEvents 扩展属性使用小写
+      expect(event.data.tenantid).toBe('tenant-001');
+      expect(event.data.userid).toBe('user-001');
+      expect(event.data.traceid).toBe('trace-abc');
     });
 
     it('应使用默认的租户和用户 ID', async () => {
@@ -99,9 +111,10 @@ describe('PipelineEventPublisher', () => {
       await publisher.publishRunCreated(run);
 
       const event = mockEventBus.publishedEvents[0];
-      expect(event.data.tenantId).toBe('tenant-001');
-      expect(event.data.userId).toBe('user-001');
-      expect(event.data.traceId).toBeDefined();
+      // 使用默认值
+      expect(event.data.tenantid).toBe('tenant-001');
+      expect(event.data.userid).toBe('user-001');
+      expect(event.data.traceid).toBeDefined();
     });
   });
 

@@ -9,6 +9,8 @@ import {
   AlertStatus,
   AlertSourceType,
   SuppressionRuleType,
+  MaintenanceWindow,
+  KnownIssue,
 } from '../AlertTypes';
 
 describe('AlertSuppressionService', () => {

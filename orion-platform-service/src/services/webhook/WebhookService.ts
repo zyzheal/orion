@@ -5,7 +5,10 @@
 import { WebhookRepository, Webhook, WebhookDelivery } from './WebhookRepository';
 
 export class WebhookServiceError extends Error {
-  constructor(message: string, public code: string) { super(message); this.name = 'WebhookServiceError'; }
+  constructor(message: string, public code: string) {
+    super(`${message} (${code})`);
+    this.name = 'WebhookServiceError';
+  }
 }
 
 export class WebhookService {

@@ -34,6 +34,8 @@ export class RiskAssessmentService {
   private eventBus: any;
   private assessmentRepository?: RiskAssessmentRepository;
   private reportHistory: Map<string, RiskReport>;
+  // 内存模式存储（用于测试和无 db 场景）
+  private assessmentHistory: Map<string, RiskAssessment> = new Map();
 
   constructor(config?: RiskAssessmentServiceConfig, db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
     this.scoringEngine = new RiskScoringEngine();
@@ -112,7 +114,7 @@ export class RiskAssessmentService {
       metadata: healthCheckResult ? { healthCheckResult } : undefined,
     };
 
-    // 存储评估到 Repository
+    // 存储评估到 Repository 或内存
     if (this.assessmentRepository) {
       await this.assessmentRepository.create({
         tenantId: tenantId ?? 'default',
@@ -126,6 +128,9 @@ export class RiskAssessmentService {
         status: 'completed',
         createdAt: new Date(),
       });
+    } else {
+      // 内存模式：直接存储评估对象
+      this.assessmentHistory.set(assessmentId, assessment);
     }
 
     // 发布风险评估事件
@@ -164,6 +169,8 @@ export class RiskAssessmentService {
       tenantId,
     };
 
+    const assessmentId = assessment.id;
+
     if (this.assessmentRepository) {
       await this.assessmentRepository.create({
         tenantId: tenantId ?? 'default',
@@ -177,6 +184,9 @@ export class RiskAssessmentService {
         status: 'completed',
         createdAt: new Date(),
       });
+    } else {
+      // 内存模式：直接存储评估对象
+      this.assessmentHistory.set(assessmentId, assessment);
     }
 
     await this.publishRiskAssessmentEvent(assessment);
@@ -209,7 +219,33 @@ export class RiskAssessmentService {
 
       return entities.map(e => this.mapEntityToAssessment(e));
     }
-    return [];
+
+    // 内存模式：从内存存储中获取
+    let results = Array.from(this.assessmentHistory.values());
+
+    if (filter?.targetType) {
+      results = results.filter((a) => a.targetType === filter.targetType);
+    }
+    if (filter?.targetId) {
+      results = results.filter((a) => a.targetId === filter.targetId);
+    }
+    if (filter?.tenantId) {
+      results = results.filter((a) => a.tenantId === filter.tenantId);
+    }
+    if (filter?.riskLevel) {
+      results = results.filter((a) => a.riskLevel === filter.riskLevel);
+    }
+    if (filter?.since) {
+      results = results.filter((a) => a.createdAt >= filter.since!);
+    }
+
+    results.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
+    if (filter?.limit) {
+      results = results.slice(0, filter.limit);
+    }
+
+    return results;
   }
 
   /**
@@ -220,7 +256,9 @@ export class RiskAssessmentService {
       const entity = await this.assessmentRepository.findById(assessmentId);
       return entity ? this.mapEntityToAssessment(entity) : undefined;
     }
-    return undefined;
+
+    // 内存模式：从内存存储中获取
+    return this.assessmentHistory.get(assessmentId);
   }
 
   private mapEntityToAssessment(entity: RiskAssessmentEntity): RiskAssessment {
@@ -327,11 +365,12 @@ export class RiskAssessmentService {
   }
 
   /**
-   * 清空报告历史（用于测试）
+   * 清空历史（用于测试）
    * 注意：评估记录存储在数据库中，需要通过 Repository 删除
    */
   clearHistory(): void {
     this.reportHistory.clear();
+    this.assessmentHistory.clear();
   }
 
   // ==================== 私有方法 ====================

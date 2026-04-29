@@ -354,9 +354,10 @@ export class EfficiencyEventHandler {
   async getDoraReport(
     tenantId: string,
     window: TimeWindow = 'week',
-    size: number = 1
+    size: number = 1,
+    referenceDate?: Date
   ): Promise<any> {
-    const windowConfig = this.doraMetricsService.buildTimeWindow(window, size);
+    const windowConfig = this.doraMetricsService.buildTimeWindow(window, size, referenceDate);
     const pipelineRecords = await this.localStorage.getPipelineRecords({ tenantId, since: windowConfig.start });
     const deployments = await this.localStorage.getDeploymentRecords({ tenantId, since: windowConfig.start });
 

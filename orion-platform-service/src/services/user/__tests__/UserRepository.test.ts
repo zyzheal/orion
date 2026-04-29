@@ -7,6 +7,13 @@ import { UserRepository, User, CreateUserInput, UpdateUserInput } from '../UserR
 // Mock DatabasePool
 class MockDatabasePool {
   query = jest.fn();
+
+  // Mock transaction method
+  async transaction<T>(callback: (client: { query: jest.Mock }) => Promise<T>): Promise<T> {
+    // Create a mock client with query method
+    const mockClient = { query: jest.fn() };
+    return callback(mockClient);
+  }
 }
 
 describe('UserRepository', () => {
@@ -153,24 +160,27 @@ describe('UserRepository', () => {
         passwordHash: 'hashed_password',
         name: 'New User',
       };
-      
+
       const createdUser = {
         id: 'new-uuid',
-        ...input,
+        username: 'newuser',
+        email: 'new@example.com',
+        password_hash: 'hashed_password',
+        name: 'New User',
         role: 'user',
         status: 'active',
         created_at: new Date(),
         updated_at: new Date(),
       };
-      
-      (mockPool.query as jest.Mock).mockResolvedValue({
-        rows: [createdUser],
-        rowCount: 1,
-      });
+
+      // Mock the transaction client's query
+      const mockClient = { query: jest.fn().mockResolvedValue({ rows: [createdUser], rowCount: 1 }) };
+      mockPool.transaction = jest.fn().mockImplementation(async (cb) => cb(mockClient));
 
       const result = await repository.create(input);
-      
+
       expect(result.username).toBe('newuser');
+      expect(result.email).toBe('new@example.com');
     });
   });
 

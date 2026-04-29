@@ -160,7 +160,7 @@ describe('RiskEventSubscriber', () => {
       await subscriber.handlePipelineEvent(event, context);
 
       // Verify assessment was created
-      const history = riskAssessmentService.getAssessmentHistory({ targetId: 'run-1' });
+      const history = await riskAssessmentService.getAssessmentHistory({ targetId: 'run-1' });
       expect(history.length).toBe(1);
     });
 
@@ -194,7 +194,7 @@ describe('RiskEventSubscriber', () => {
 
       await subNoAuto.handlePipelineEvent(event, context);
 
-      const history = riskAssessmentService.getAssessmentHistory({ targetId: 'run-2' });
+      const history = await riskAssessmentService.getAssessmentHistory({ targetId: 'run-2' });
       expect(history.length).toBe(0);
     });
   });
@@ -230,7 +230,7 @@ describe('RiskEventSubscriber', () => {
 
       await subscriber.handlePipelineFailedEvent(event, context);
 
-      const history = riskAssessmentService.getAssessmentHistory({ targetId: 'run-failed-1' });
+      const history = await riskAssessmentService.getAssessmentHistory({ targetId: 'run-failed-1' });
       expect(history.length).toBe(1);
       expect(history[0].riskScore).toBeGreaterThan(0);
     });
@@ -266,7 +266,7 @@ describe('RiskEventSubscriber', () => {
 
       await subscriber.handleCodePRMergedEvent(event, context);
 
-      const history = riskAssessmentService.getAssessmentHistory({ targetId: 'pr-1' });
+      const history = await riskAssessmentService.getAssessmentHistory({ targetId: 'pr-1' });
       expect(history.length).toBe(1);
       expect(history[0].targetType).toBe('change');
     });
@@ -300,7 +300,7 @@ describe('RiskEventSubscriber', () => {
 
       await subNoAuto.handleCodePRMergedEvent(event, context);
 
-      const history = riskAssessmentService.getAssessmentHistory({ targetId: 'pr-skip-1' });
+      const history = await riskAssessmentService.getAssessmentHistory({ targetId: 'pr-skip-1' });
       expect(history.length).toBe(0);
     });
   });
@@ -333,7 +333,7 @@ describe('RiskEventSubscriber', () => {
 
       await subscriber.handleDeploymentEvent(event, context);
 
-      const history = riskAssessmentService.getAssessmentHistory({ targetId: 'deploy-1' });
+      const history = await riskAssessmentService.getAssessmentHistory({ targetId: 'deploy-1' });
       expect(history.length).toBe(1);
     });
   });
@@ -366,7 +366,7 @@ describe('RiskEventSubscriber', () => {
 
       await subscriber.handlePipelineEvent(saturdayEvent, context);
 
-      const history = riskAssessmentService.getAssessmentHistory({ targetId: 'run-sat' });
+      const history = await riskAssessmentService.getAssessmentHistory({ targetId: 'run-sat' });
       expect(history.length).toBe(1);
       // Weekend should have higher risk due to time factor
       expect(history[0].riskScore).toBeGreaterThanOrEqual(0);
@@ -397,7 +397,7 @@ describe('RiskEventSubscriber', () => {
 
       await subscriber.handlePipelineEvent(fridayEvent, context);
 
-      const history = riskAssessmentService.getAssessmentHistory({ targetId: 'run-fri' });
+      const history = await riskAssessmentService.getAssessmentHistory({ targetId: 'run-fri' });
       expect(history.length).toBe(1);
     });
   });

@@ -300,7 +300,7 @@ export class PipelineService {
   /**
    * Trigger a new pipeline run
    */
-  async triggerRun(pipelineId: string, input: {
+  async triggerRun(pipelineId: string, input?: {
     trigger_type?: string;
     trigger_by?: string;
   }): Promise<PipelineRun> {
@@ -323,8 +323,8 @@ export class PipelineService {
     const runInput: CreatePipelineRunInput = {
       tenant_id: pipeline.tenant_id,
       pipeline_id: pipelineId,
-      trigger_type: input.trigger_type || 'manual',
-      trigger_by: input.trigger_by,
+      trigger_type: input?.trigger_type || 'manual',
+      trigger_by: input?.trigger_by,
       config_snapshot: configSnapshot,
     };
 
@@ -525,6 +525,20 @@ export class PipelineService {
       }
       if (!parsed.spec || !parsed.spec.stages || !Array.isArray(parsed.spec.stages)) {
         errors.push('Missing or invalid spec.stages');
+      }
+
+      // Validate stage dependencies
+      if (parsed.spec?.stages && Array.isArray(parsed.spec.stages)) {
+        const stageNames = parsed.spec.stages.map((s: any) => s.name);
+        for (const stage of parsed.spec.stages) {
+          if (stage.dependsOn && Array.isArray(stage.dependsOn)) {
+            for (const dep of stage.dependsOn) {
+              if (!stageNames.includes(dep)) {
+                errors.push(`Stage "${stage.name}" depends on unknown stage "${dep}"`);
+              }
+            }
+          }
+        }
       }
 
       return {
