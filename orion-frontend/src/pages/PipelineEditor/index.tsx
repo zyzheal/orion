@@ -44,7 +44,7 @@ export interface StageConfig {
   timeout?: number;
   retryCount?: number;
   dependsOn?: string[];
-  config: Record<string, any>;
+  config?: Record<string, any>;
   cache?: CacheConfig;
   artifacts?: ArtifactConfig;
 }

@@ -8,7 +8,7 @@
  * - 消息队列持久化
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 // 模拟环境配置
 const WS_URL = process.env.WS_TEST_URL || 'ws://localhost:3000/ws';
@@ -17,70 +17,8 @@ const TEST_TOKEN = process.env.WS_TEST_TOKEN || 'test-jwt-token';
 // 仅在集成测试环境运行
 const shouldRunIntegrationTests = process.env.RUN_INTEGRATION_TESTS === 'true';
 
-// Mock WebSocket 用于单元测试
-class MockWebSocket {
-  static CONNECTING = 0;
-  static OPEN = 1;
-  static CLOSING = 2;
-  static CLOSED = 3;
-
-  static instances: MockWebSocket[] = [];
-
-  readyState = MockWebSocket.CONNECTING;
-  url: string;
-  protocol: string;
-  onopen: ((event: Event) => void) | null = null;
-  onclose: ((event: CloseEvent) => void) | null = null;
-  onerror: ((event: Event) => void) | null = null;
-  onmessage: ((event: MessageEvent) => void) | null = null;
-  private sentMessages: string[] = [];
-
-  constructor(url: string, protocols?: string | string[]) {
-    this.url = url;
-    this.protocol = typeof protocols === 'string' ? protocols : protocols?.[0] || '';
-    MockWebSocket.instances.push(this);
-
-    // 模拟异步连接
-    setTimeout(() => {
-      this.readyState = MockWebSocket.OPEN;
-      this.onopen?.({ type: 'open' } as Event);
-    }, 10);
-  }
-
-  send(data: string): void {
-    if (this.readyState !== MockWebSocket.OPEN) {
-      throw new Error('WebSocket is not open');
-    }
-    this.sentMessages.push(data);
-  }
-
-  close(code: number = 1000, reason: string = ''): void {
-    this.readyState = MockWebSocket.CLOSED;
-    this.onclose?.({ code, reason, wasClean: true } as CloseEvent);
-  }
-
-  // 测试辅助方法
-  getSentMessages(): string[] {
-    return [...this.sentMessages];
-  }
-
-  simulateMessage(data: object): void {
-    this.onmessage?.({ data: JSON.stringify(data) } as MessageEvent);
-  }
-
-  simulateError(error: Error): void {
-    this.onerror?.({ error } as unknown as Event);
-  }
-
-  simulateClose(code: number, reason: string): void {
-    this.readyState = MockWebSocket.CLOSED;
-    this.onclose?.({ code, reason, wasClean: false } as CloseEvent);
-  }
-
-  static reset(): void {
-    MockWebSocket.instances = [];
-  }
-}
+// Mock WebSocket 占位符（用于类型声明）
+// 当 RUN_INTEGRATION_TESTS=true 时会使用 ws 库进行实际测试
 
 describe('WebSocket 前后端联调测试', () => {
   describe('消息协议验证', () => {
@@ -402,41 +340,40 @@ describe('WebSocket Store 状态同步测试', () => {
 
 // 条件性运行实际 WebSocket 连接测试
 (shouldRunIntegrationTests ? describe : describe.skip)('实际 WebSocket 连接测试', () => {
-  let WebSocket: typeof import('ws').WebSocket;
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const WebSocket = require('ws');
 
-  beforeAll(async () => {
-    // 在 Node.js 环境中使用 ws 库
-    const wsModule = await import('ws');
-    WebSocket = wsModule.WebSocket;
-  });
+  it('应该能够连接到服务器', async () => {
+    await new Promise<void>((resolve, reject) => {
+      const client = new WebSocket(`${WS_URL}?token=${TEST_TOKEN}`);
 
-  it('应该能够连接到服务器', (done) => {
-    const client = new WebSocket(`${WS_URL}?token=${TEST_TOKEN}`);
+      client.on('open', () => {
+        expect(client.readyState).toBe(WebSocket.OPEN);
+        client.close();
+        resolve();
+      });
 
-    client.on('open', () => {
-      expect(client.readyState).toBe(WebSocket.OPEN);
-      client.close();
-      done();
-    });
-
-    client.on('error', (error) => {
-      done(error);
+      client.on('error', (error: Error) => {
+        reject(error);
+      });
     });
   }, 10000);
 
-  it('应该接收欢迎消息', (done) => {
-    const client = new WebSocket(`${WS_URL}?token=${TEST_TOKEN}`);
+  it('应该接收欢迎消息', async () => {
+    await new Promise<void>((resolve, reject) => {
+      const client = new WebSocket(`${WS_URL}?token=${TEST_TOKEN}`);
 
-    client.on('message', (data) => {
-      const message = JSON.parse(data.toString());
-      expect(message.type).toBe('connected');
-      expect(message.clientId).toBeDefined();
-      client.close();
-      done();
-    });
+      client.on('message', (data: Buffer) => {
+        const message = JSON.parse(data.toString());
+        expect(message.type).toBe('connected');
+        expect(message.clientId).toBeDefined();
+        client.close();
+        resolve();
+      });
 
-    client.on('error', (error) => {
-      done(error);
+      client.on('error', (error: Error) => {
+        reject(error);
+      });
     });
   }, 10000);
 });

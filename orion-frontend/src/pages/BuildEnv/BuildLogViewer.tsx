@@ -11,12 +11,14 @@ import {
   SearchOutlined,
   ClearOutlined,
 } from '@ant-design/icons';
+import { useParams } from 'react-router-dom';
 import { getBuildLogStreamUrl } from '@/api/build-env';
 
 const { Text } = Typography;
 
 interface BuildLogViewerProps {
-  logId: string;
+  /** Log ID - can be passed via prop or extracted from route params */
+  logId?: string;
   /** Optional height for the log container (default: 500) */
   height?: number;
   /** Whether to auto-connect on mount (default: true) */
@@ -24,10 +26,14 @@ interface BuildLogViewerProps {
 }
 
 const BuildLogViewer: React.FC<BuildLogViewerProps> = ({
-  logId,
+  logId: propLogId,
   height = 500,
   autoStart = true,
 }) => {
+  // Get logId from route params if not passed via prop
+  const { id: routeLogId } = useParams<{ id: string }>();
+  const logId = propLogId || routeLogId || '';
+
   const [lines, setLines] = useState<string[]>([]);
   const [paused, setPaused] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -43,6 +49,7 @@ const BuildLogViewer: React.FC<BuildLogViewerProps> = ({
   }, [paused]);
 
   const connect = useCallback(() => {
+    if (!logId) return;
     if (eventSourceRef.current) {
       eventSourceRef.current.close();
     }

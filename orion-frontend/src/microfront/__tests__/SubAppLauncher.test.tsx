@@ -2,7 +2,7 @@
  * SubAppLauncher 组件测试
  */
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock react-router-dom
@@ -16,7 +16,7 @@ vi.mock('antd', async () => {
   const actual = await vi.importActual('antd');
   return {
     ...actual,
-    Popover: ({ children, content, open, onOpenChange }: any) =>
+    Popover: ({ children, content: _content, open, onOpenChange: _onOpenChange }: any) =>
       React.createElement('div', { 'data-testid': 'popover', 'data-open': open }, children),
     Badge: ({ count, status }: any) =>
       React.createElement('span', {
@@ -43,7 +43,7 @@ describe('SubAppLauncher', () => {
 
   it('should show 3 sub apps in the launcher when opened', async () => {
     const SubAppLauncher = (await import('@/components/SubAppLauncher')).default;
-    const { container, rerender } = render(React.createElement(SubAppLauncher));
+    const { container } = render(React.createElement(SubAppLauncher));
 
     // The Popover content is not rendered in the DOM when closed.
     // We verify the sub apps are configured correctly by checking the component renders
@@ -59,9 +59,8 @@ describe('SubAppLauncher', () => {
     const SubAppLauncher = (await import('@/components/SubAppLauncher')).default;
     const { container } = render(React.createElement(SubAppLauncher));
 
-    // Find and click dba app
-    const dbaButton = container.querySelector('div');
     // Since the component uses Popover with custom structure, verify navigation logic exists
+    expect(container.firstChild).toBeTruthy();
     expect(mockNavigate).not.toHaveBeenCalled();
   });
 

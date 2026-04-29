@@ -73,34 +73,38 @@ describe('OrionWebSocketClient', () => {
     client.destroy();
   });
 
-  it('应该能够连接和断开', (done) => {
-    const client = new OrionWebSocketClient({
-      url: 'ws://localhost:3000/ws',
-      accessToken: 'test-token',
-      reconnectEnabled: false,
-      onStateChange: (state) => {
-        if (state === 'connected') {
-          expect(client.isConnected()).toBe(true);
-          client.disconnect();
-          expect(client.getState()).toBe('disconnected');
-          done();
-        }
-      },
+  it('应该能够连接和断开', async () => {
+    await new Promise<void>((resolve) => {
+      const client = new OrionWebSocketClient({
+        url: 'ws://localhost:3000/ws',
+        accessToken: 'test-token',
+        reconnectEnabled: false,
+        onStateChange: (state) => {
+          if (state === 'connected') {
+            expect(client.isConnected()).toBe(true);
+            client.disconnect();
+            expect(client.getState()).toBe('disconnected');
+            resolve();
+          }
+        },
+      });
     });
   });
 
-  it('应该能够发送消息', (done) => {
-    const client = new OrionWebSocketClient({
-      url: 'ws://localhost:3000/ws',
-      accessToken: 'test-token',
-      reconnectEnabled: false,
-      onStateChange: (state) => {
-        if (state === 'connected') {
-          const result = client.send({ type: 'test', data: 'hello' });
-          expect(result).toBe(true);
-          done();
-        }
-      },
+  it('应该能够发送消息', async () => {
+    await new Promise<void>((resolve) => {
+      const client = new OrionWebSocketClient({
+        url: 'ws://localhost:3000/ws',
+        accessToken: 'test-token',
+        reconnectEnabled: false,
+        onStateChange: (state) => {
+          if (state === 'connected') {
+            const result = client.send({ type: 'test', data: 'hello' });
+            expect(result).toBe(true);
+            resolve();
+          }
+        },
+      });
     });
   });
 
@@ -117,60 +121,61 @@ describe('OrionWebSocketClient', () => {
     client.destroy();
   });
 
-  it('应该能够接收消息', (done) => {
-    const receivedMessages: any[] = [];
-
-    const client = new OrionWebSocketClient({
-      url: 'ws://localhost:3000/ws',
-      accessToken: 'test-token',
-      reconnectEnabled: false,
-      onMessage: (data) => {
-        receivedMessages.push(data);
-        if (receivedMessages.length === 1) {
+  it('应该能够接收消息', async () => {
+    await new Promise<void>((resolve) => {
+      const client = new OrionWebSocketClient({
+        url: 'ws://localhost:3000/ws',
+        accessToken: 'test-token',
+        reconnectEnabled: false,
+        onMessage: (data) => {
           expect(data.type).toBe('server-message');
-          done();
-        }
-      },
-    });
+          resolve();
+        },
+      });
 
-    // 模拟接收消息
-    setTimeout(() => {
-      const ws = (client as any).ws as MockWebSocket;
-      ws.receive(JSON.stringify({ type: 'server-message', data: 'test' }));
-    }, 50);
-  });
-
-  it('应该能够处理 ping 消息并回复 pong', (done) => {
-    const client = new OrionWebSocketClient({
-      url: 'ws://localhost:3000/ws',
-      accessToken: 'test-token',
-      reconnectEnabled: false,
-      onStateChange: (state) => {
-        if (state === 'connected') {
-          // 模拟接收 ping
-          const ws = (client as any).ws as MockWebSocket;
-          ws.receive(JSON.stringify({ type: 'ping', timestamp: Date.now() }));
-          done();
-        }
-      },
+      // 模拟接收消息
+      setTimeout(() => {
+        const ws = (client as any).ws as MockWebSocket;
+        ws.receive(JSON.stringify({ type: 'server-message', data: 'test' }));
+      }, 50);
     });
   });
 
-  it('状态变化应该触发回调', (done) => {
-    const states: ConnectionState[] = [];
+  it('应该能够处理 ping 消息并回复 pong', async () => {
+    await new Promise<void>((resolve) => {
+      const client = new OrionWebSocketClient({
+        url: 'ws://localhost:3000/ws',
+        accessToken: 'test-token',
+        reconnectEnabled: false,
+        onStateChange: (state) => {
+          if (state === 'connected') {
+            // 模拟接收 ping
+            const ws = (client as any).ws as MockWebSocket;
+            ws.receive(JSON.stringify({ type: 'ping', timestamp: Date.now() }));
+            resolve();
+          }
+        },
+      });
+    });
+  });
 
-    const client = new OrionWebSocketClient({
-      url: 'ws://localhost:3000/ws',
-      accessToken: 'test-token',
-      reconnectEnabled: false,
-      onStateChange: (state) => {
-        states.push(state);
-        if (state === 'connected') {
-          expect(states).toContain('connecting');
-          expect(states).toContain('connected');
-          done();
-        }
-      },
+  it('状态变化应该触发回调', async () => {
+    await new Promise<void>((resolve) => {
+      const states: ConnectionState[] = [];
+
+      new OrionWebSocketClient({
+        url: 'ws://localhost:3000/ws',
+        accessToken: 'test-token',
+        reconnectEnabled: false,
+        onStateChange: (state) => {
+          states.push(state);
+          if (state === 'connected') {
+            expect(states).toContain('connecting');
+            expect(states).toContain('connected');
+            resolve();
+          }
+        },
+      });
     });
   });
 

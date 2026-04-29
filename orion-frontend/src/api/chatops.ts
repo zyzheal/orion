@@ -322,9 +322,6 @@ interface SSEConnectionState {
 
 let sseState: SSEConnectionState | null = null;
 
-/** SSE 最大重连次数，超过后停止重试 */
-const MAX_RECONNECT_ATTEMPTS = 20;
-
 /**
  * 计算指数退避延迟 (1s, 2s, 4s, 8s, ... 最大 30s)
  */
@@ -389,7 +386,7 @@ export function connectSSE(options: SSEConnectionOptions): void {
     }
 
     // ARCH-005: 后端恢复健康且有连接问题时立即重试
-    if (health.healthy && !sseState?.eventSource && sseState?.attempt > 0) {
+    if (health.healthy && !sseState?.eventSource && (sseState?.attempt ?? 0) > 0) {
       console.log('[SSE] Backend recovered, attempting immediate reconnect');
       sseState!.attempt = 0; // 重置重试计数
       doConnect();
