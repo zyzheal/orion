@@ -262,7 +262,7 @@ export class NamespacePoolService extends EventEmitter {
         const releasedEntry = this.entityToPoolEntry(entity);
         releasedEntry.labels = {
           'orion.io/pool': 'true',
-          'orion.io/index': entry.labels['orion.io.index'] || '',
+          'orion.io/index': entry.labels['orion.io/index'] || '',
         };
         this.pool.set(namespaceName, releasedEntry);
         if (tenantId && this.tenantAllocations.has(tenantId)) {
@@ -470,11 +470,15 @@ export class NamespacePoolService extends EventEmitter {
   /**
    * 重新初始化池（用于配置变更）
    */
-  reinitialize(config: Partial<NamespacePoolConfig>): void {
+  async reinitialize(config: Partial<NamespacePoolConfig>): Promise<void> {
     this.config = { ...DEFAULT_CONFIG, ...config };
     this.pool.clear();
     this.tenantAllocations.clear();
-    this.initializePool();
+    if (this.repository) {
+      await this.initializePoolFromDB();
+    } else {
+      this.initializePoolInMemory();
+    }
     this.emit('pool:reinitialized', this.config.poolSize);
   }
 }

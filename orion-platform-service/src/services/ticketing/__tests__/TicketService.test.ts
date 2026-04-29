@@ -212,17 +212,17 @@ describe('TicketService', () => {
       ticketId = ticket.id;
     });
 
-    it('should transition status', () => {
-      const result = service.transitionStatus(ticketId, 'assigned', 'user-2');
+    it('should transition status', async () => {
+      const result = await service.transitionStatus(ticketId, 'assigned', 'user-2');
       expect('ticket' in result).toBe(true);
       expect(result.ticket.status).toBe('assigned');
     });
 
-    it('should emit status change event', () => {
+    it('should emit status change event', async () => {
       let statusChanged: any = null;
       service.on('ticket:status_changed', (data) => { statusChanged = data; });
 
-      service.transitionStatus(ticketId, 'assigned', 'user-2');
+      await service.transitionStatus(ticketId, 'assigned', 'user-2');
 
       expect(statusChanged).not.toBeNull();
       expect(statusChanged.ticket.status).toBe('assigned');
@@ -260,34 +260,34 @@ describe('TicketService', () => {
       expect(escalated.ticket.escalationLevel).toBe(1);
     });
 
-    it('should resolve ticket', () => {
-      service.transitionStatus(ticketId, 'assigned', 'user-1');
-      service.transitionStatus(ticketId, 'in-progress', 'user-1');
+    it('should resolve ticket', async () => {
+      await service.transitionStatus(ticketId, 'assigned', 'user-1');
+      await service.transitionStatus(ticketId, 'in-progress', 'user-1');
 
-      const result = service.resolveTicket(ticketId, 'user-1', 'Fixed');
+      const result = await service.resolveTicket(ticketId, 'user-1', 'Fixed');
       expect('ticket' in result).toBe(true);
       expect(result.ticket.status).toBe('resolved');
     });
 
-    it('should emit resolution event', () => {
-      service.transitionStatus(ticketId, 'assigned', 'user-1');
-      service.transitionStatus(ticketId, 'in-progress', 'user-1');
+    it('should emit resolution event', async () => {
+      await service.transitionStatus(ticketId, 'assigned', 'user-1');
+      await service.transitionStatus(ticketId, 'in-progress', 'user-1');
 
       let resolved: any = null;
       service.on('ticket:resolved', (data) => { resolved = data; });
 
-      service.resolveTicket(ticketId, 'user-1');
+      await service.resolveTicket(ticketId, 'user-1');
 
       expect(resolved).not.toBeNull();
       expect(resolved.status).toBe('resolved');
     });
 
-    it('should close ticket', () => {
-      service.transitionStatus(ticketId, 'assigned', 'user-1');
-      service.transitionStatus(ticketId, 'in-progress', 'user-1');
-      service.transitionStatus(ticketId, 'resolved', 'user-1');
+    it('should close ticket', async () => {
+      await service.transitionStatus(ticketId, 'assigned', 'user-1');
+      await service.transitionStatus(ticketId, 'in-progress', 'user-1');
+      await service.transitionStatus(ticketId, 'resolved', 'user-1');
 
-      const result = service.closeTicket(ticketId, 'user-1', 'Confirmed');
+      const result = await service.closeTicket(ticketId, 'user-1', 'Confirmed');
       expect('ticket' in result).toBe(true);
       expect(result.ticket.status).toBe('closed');
     });

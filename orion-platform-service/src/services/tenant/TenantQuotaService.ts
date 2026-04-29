@@ -129,7 +129,7 @@ export class TenantQuotaService extends EventEmitter {
       const existing = await this.repository.findByTenantId(String(quota.tenantId));
       const entityData = {
         maxPipelines: quota.maxPipelines,
-        maxApiCallsPerHour: quota.maxPipelineRunsPerDay,
+        maxApiCallsPerHour: quota.apiRateLimit,
         maxConcurrentBuilds: quota.maxConcurrentRuns,
         maxProjects: quota.maxNamespaces,
         maxStorageMb: quota.maxStorageGb * 1024,

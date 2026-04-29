@@ -20,6 +20,7 @@ import {
   createLogEntry,
   parseLogLine,
 } from '../../models/BuildLog';
+import { BuildLogRepository } from '../../repositories/BuildLogRepository';
 
 /**
  * 日志订阅者（用于 WebSocket/SSE 推送）
@@ -35,10 +36,14 @@ interface LogSubscriber {
 export class BuildLogService {
   private subscribers: Map<string, LogSubscriber>;
   private logs: Map<string, BuildLog>;
+  private repository?: BuildLogRepository;
 
-  constructor() {
+  constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
     this.subscribers = new Map();
     this.logs = new Map();
+    if (db) {
+      this.repository = new BuildLogRepository(db);
+    }
   }
 
   /**
@@ -53,7 +58,22 @@ export class BuildLogService {
     containerName?: string;
   }): Promise<BuildLog> {
     const log = createBuildLog(options);
-this.logs.set(log.id, log);
+    this.logs.set(log.id, log);
+
+    if (this.repository) {
+      try {
+        await this.repository.create({
+          id: log.id,
+          buildId: log.runId || log.id,
+          projectId: options?.taskId,
+          stage: options?.stageId || 'default',
+          logContent: '',
+          createdAt: log.createdAt,
+        });
+      } catch (err) {
+        console.warn(`[BuildLogService] Failed to persist log record: ${err}`);
+      }
+    }
     return log;
   }
 
@@ -61,7 +81,29 @@ this.logs.set(log.id, log);
    * 获取日志
    */
   async getLog(id: string): Promise<BuildLog | null> {
-    return this.logs.get(id) || null;
+    const memLog = this.logs.get(id);
+    if (memLog) return memLog;
+
+    if (this.repository) {
+      const dbLogs = await this.repository.findByBuildId(id);
+      if (dbLogs.length > 0) {
+        const dbLog = dbLogs[0];
+        // Parse logContent string into LogEntry[]
+        const entries: LogEntry[] = dbLog.logContent
+          ? dbLog.logContent.split('\n').filter(line => line.trim()).map(line => parseLogLine(line))
+          : [];
+
+        return {
+          id: dbLog.id,
+          runId: dbLog.buildId,
+          entries,
+          isComplete: false,
+          totalLines: entries.length,
+          createdAt: dbLog.createdAt,
+        };
+      }
+    }
+    return null;
   }
 
   /**

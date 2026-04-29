@@ -56,7 +56,7 @@ export class CronExecutionRepository extends BaseRepository<CronExecutionEntity>
       startedAt: row.started_at,
       completedAt: row.completed_at,
       status: row.status as 'running' | 'completed' | 'failed' | 'cancelled',
-      result: row.result,
+      result: typeof row.result === 'string' ? JSON.parse(row.result) : row.result,
       errorMessage: row.error_message,
     };
   }

@@ -423,13 +423,13 @@ export class TicketService extends EventEmitter {
   /**
    * Transition ticket status
    */
-  transitionStatus(
+  async transitionStatus(
     ticketId: string,
     toStatus: TicketStatus,
     performedBy: string,
     reason?: string
-  ): { ticket: Ticket } | { error: string } {
-    const result = this.workflow.transitionStatus(ticketId, toStatus, performedBy, reason);
+  ): Promise<{ ticket: Ticket } | { error: string }> {
+    const result = await this.workflow.transitionStatus(ticketId, toStatus, performedBy, reason);
 
     if ('ticket' in result) {
       this.emit('ticket:status_changed', {
@@ -492,8 +492,8 @@ export class TicketService extends EventEmitter {
   /**
    * Resolve a ticket
    */
-  resolveTicket(ticketId: string, performedBy: string, resolutionNote?: string): { ticket: Ticket } | { error: string } {
-    const result = this.workflow.resolveTicket(ticketId, performedBy, resolutionNote);
+  async resolveTicket(ticketId: string, performedBy: string, resolutionNote?: string): Promise<{ ticket: Ticket } | { error: string }> {
+    const result = await this.workflow.resolveTicket(ticketId, performedBy, resolutionNote);
 
     if ('ticket' in result) {
       this.emit('ticket:resolved', result.ticket);
@@ -509,14 +509,14 @@ export class TicketService extends EventEmitter {
   /**
    * Close a ticket
    */
-  closeTicket(ticketId: string, performedBy: string, reason?: string): { ticket: Ticket } | { error: string } {
+  async closeTicket(ticketId: string, performedBy: string, reason?: string): Promise<{ ticket: Ticket } | { error: string }> {
     return this.workflow.closeTicket(ticketId, performedBy, reason);
   }
 
   /**
    * Get workflow history for a ticket
    */
-  getWorkflowHistory(ticketId: string) {
+  async getWorkflowHistory(ticketId: string) {
     return this.workflow.getWorkflowHistory(ticketId);
   }
 

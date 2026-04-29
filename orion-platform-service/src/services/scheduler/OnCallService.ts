@@ -6,6 +6,14 @@ import pino from 'pino';
 import { v4 as uuidv4 } from 'uuid';
 import { OnCallSchedule, OnCallAssignment, OnCallOverride, OnCallCheckResult, EscalationRule } from './types';
 import { OnCallScheduleRepository, OnCallScheduleEntity } from '../../repositories/OnCallScheduleRepository';
+
+/**
+ * Raw escalation format stored in OnCallScheduleEntity
+ */
+interface RawEntityEscalation {
+  userId: string;
+  delay: number;
+}
 import { OnCallAssignmentRepository, OnCallAssignmentEntity } from '../../repositories/OnCallAssignmentRepository';
 import { OnCallOverrideRepository, OnCallOverrideEntity } from '../../repositories/OnCallOverrideRepository';
 
@@ -311,7 +319,7 @@ export class OnCallService {
       rotationStartHour: entity.rotationStartHour,
       teamMembers: entity.teamMembers,
       startDate: entity.startDate,
-      escalations: escalations ?? entity.escalations.map((e: any) => ({
+      escalations: escalations ?? entity.escalations.map((e: RawEntityEscalation) => ({
         level: 0,
         timeoutMinutes: e.delay ?? 0,
         targets: e.userId ? [e.userId] : [],

@@ -46,11 +46,11 @@ describe('TicketWorkflowService', () => {
       expect(created.status).toBe('open');
     });
 
-    it('should create workflow history on creation', () => {
+    it('should create workflow history on creation', async () => {
       const ticket = createTestTicket();
       workflow.createTicket(ticket);
 
-      const history = workflow.getWorkflowHistory(ticket.id);
+      const history = await workflow.getWorkflowHistory(ticket.id);
       expect(history.length).toBe(1);
       expect(history[0].fromStatus).toBe('open');
       expect(history[0].toStatus).toBe('open');
@@ -138,63 +138,63 @@ describe('TicketWorkflowService', () => {
   // ==================== transitionStatus ====================
 
   describe('transitionStatus', () => {
-    it('should transition open -> assigned', () => {
+    it('should transition open -> assigned', async () => {
       const ticket = createTestTicket();
       workflow.createTicket(ticket);
 
-      const result = workflow.transitionStatus(ticket.id, 'assigned', 'user-1');
+      const result = await workflow.transitionStatus(ticket.id, 'assigned', 'user-1');
       expect('ticket' in result).toBe(true);
       expect(result.ticket.status).toBe('assigned');
     });
 
-    it('should transition assigned -> in-progress', () => {
+    it('should transition assigned -> in-progress', async () => {
       const ticket = createTestTicket();
       workflow.createTicket(ticket);
-      workflow.transitionStatus(ticket.id, 'assigned', 'user-1');
+      await workflow.transitionStatus(ticket.id, 'assigned', 'user-1');
 
-      const result = workflow.transitionStatus(ticket.id, 'in-progress', 'user-1');
+      const result = await workflow.transitionStatus(ticket.id, 'in-progress', 'user-1');
       expect('ticket' in result).toBe(true);
       expect(result.ticket.status).toBe('in-progress');
     });
 
-    it('should transition in-progress -> resolved', () => {
+    it('should transition in-progress -> resolved', async () => {
       const ticket = createTestTicket();
       workflow.createTicket(ticket);
-      workflow.transitionStatus(ticket.id, 'assigned', 'user-1');
-      workflow.transitionStatus(ticket.id, 'in-progress', 'user-1');
+      await workflow.transitionStatus(ticket.id, 'assigned', 'user-1');
+      await workflow.transitionStatus(ticket.id, 'in-progress', 'user-1');
 
-      const result = workflow.transitionStatus(ticket.id, 'resolved', 'user-1');
+      const result = await workflow.transitionStatus(ticket.id, 'resolved', 'user-1');
       expect('ticket' in result).toBe(true);
       expect(result.ticket.status).toBe('resolved');
     });
 
-    it('should transition resolved -> closed', () => {
+    it('should transition resolved -> closed', async () => {
       const ticket = createTestTicket();
       workflow.createTicket(ticket);
-      workflow.transitionStatus(ticket.id, 'assigned', 'user-1');
-      workflow.transitionStatus(ticket.id, 'in-progress', 'user-1');
-      workflow.transitionStatus(ticket.id, 'resolved', 'user-1');
+      await workflow.transitionStatus(ticket.id, 'assigned', 'user-1');
+      await workflow.transitionStatus(ticket.id, 'in-progress', 'user-1');
+      await workflow.transitionStatus(ticket.id, 'resolved', 'user-1');
 
-      const result = workflow.transitionStatus(ticket.id, 'closed', 'user-1');
+      const result = await workflow.transitionStatus(ticket.id, 'closed', 'user-1');
       expect('ticket' in result).toBe(true);
       expect(result.ticket.status).toBe('closed');
     });
 
-    it('should reject invalid transition', () => {
+    it('should reject invalid transition', async () => {
       const ticket = createTestTicket();
       workflow.createTicket(ticket);
 
       // Cannot go from open directly to resolved
-      const result = workflow.transitionStatus(ticket.id, 'resolved', 'user-1');
+      const result = await workflow.transitionStatus(ticket.id, 'resolved', 'user-1');
       expect('error' in result).toBe(true);
     });
 
-    it('should record workflow history', () => {
+    it('should record workflow history', async () => {
       const ticket = createTestTicket();
       workflow.createTicket(ticket);
-      workflow.transitionStatus(ticket.id, 'assigned', 'user-1', 'Auto-assigned');
+      await workflow.transitionStatus(ticket.id, 'assigned', 'user-1', 'Auto-assigned');
 
-      const history = workflow.getWorkflowHistory(ticket.id);
+      const history = await workflow.getWorkflowHistory(ticket.id);
       expect(history.length).toBe(2); // creation + transition
       expect(history[1].fromStatus).toBe('open');
       expect(history[1].toStatus).toBe('assigned');
@@ -202,8 +202,8 @@ describe('TicketWorkflowService', () => {
       expect(history[1].reason).toBe('Auto-assigned');
     });
 
-    it('should return error for non-existent ticket', () => {
-      const result = workflow.transitionStatus('non-existent', 'assigned', 'user-1');
+    it('should return error for non-existent ticket', async () => {
+      const result = await workflow.transitionStatus('non-existent', 'assigned', 'user-1');
       expect('error' in result).toBe(true);
     });
   });
@@ -428,26 +428,26 @@ describe('TicketWorkflowService', () => {
   // ==================== resolveTicket ====================
 
   describe('resolveTicket', () => {
-    it('should resolve a ticket', () => {
+    it('should resolve a ticket', async () => {
       const ticket = createTestTicket();
       workflow.createTicket(ticket);
-      workflow.transitionStatus(ticket.id, 'assigned', 'user-1');
-      workflow.transitionStatus(ticket.id, 'in-progress', 'user-1');
+      await workflow.transitionStatus(ticket.id, 'assigned', 'user-1');
+      await workflow.transitionStatus(ticket.id, 'in-progress', 'user-1');
 
-      const result = workflow.resolveTicket(ticket.id, 'user-1', 'Fixed the issue');
+      const result = await workflow.resolveTicket(ticket.id, 'user-1', 'Fixed the issue');
       expect('ticket' in result).toBe(true);
       expect(result.ticket.status).toBe('resolved');
       expect(result.ticket.resolutionNote).toBe('Fixed the issue');
     });
 
-    it('should record SLA resolution time', () => {
+    it('should record SLA resolution time', async () => {
       const pastDate = new Date(Date.now() - 5000); // 5 seconds ago
       const ticket = createTestTicket({ priority: 'critical', createdAt: pastDate, updatedAt: pastDate });
       workflow.createTicket(ticket);
-      workflow.transitionStatus(ticket.id, 'assigned', 'user-1');
-      workflow.transitionStatus(ticket.id, 'in-progress', 'user-1');
+      await workflow.transitionStatus(ticket.id, 'assigned', 'user-1');
+      await workflow.transitionStatus(ticket.id, 'in-progress', 'user-1');
 
-      workflow.resolveTicket(ticket.id, 'user-1');
+      await workflow.resolveTicket(ticket.id, 'user-1');
       const sla = workflow.getTicketSLA(ticket.id);
 
       expect(sla).toBeDefined();
@@ -455,7 +455,7 @@ describe('TicketWorkflowService', () => {
       expect(sla!.actualResolutionTimeMs).toBeGreaterThanOrEqual(5000);
     });
 
-    it('should mark SLA as breached if overdue', () => {
+    it('should mark SLA as breached if overdue', async () => {
       const pastDate = new Date(Date.now() - 10 * 60 * 60 * 1000); // 10 hours ago
       const ticket = createTestTicket({
         priority: 'critical',
@@ -463,10 +463,10 @@ describe('TicketWorkflowService', () => {
         updatedAt: pastDate,
       });
       workflow.createTicket(ticket);
-      workflow.transitionStatus(ticket.id, 'assigned', 'user-1');
-      workflow.transitionStatus(ticket.id, 'in-progress', 'user-1');
+      await workflow.transitionStatus(ticket.id, 'assigned', 'user-1');
+      await workflow.transitionStatus(ticket.id, 'in-progress', 'user-1');
 
-      workflow.resolveTicket(ticket.id, 'user-1');
+      await workflow.resolveTicket(ticket.id, 'user-1');
       const sla = workflow.getTicketSLA(ticket.id);
 
       expect(sla!.breached).toBe(true);
@@ -476,14 +476,14 @@ describe('TicketWorkflowService', () => {
   // ==================== closeTicket ====================
 
   describe('closeTicket', () => {
-    it('should close a resolved ticket', () => {
+    it('should close a resolved ticket', async () => {
       const ticket = createTestTicket();
       workflow.createTicket(ticket);
-      workflow.transitionStatus(ticket.id, 'assigned', 'user-1');
-      workflow.transitionStatus(ticket.id, 'in-progress', 'user-1');
-      workflow.transitionStatus(ticket.id, 'resolved', 'user-1');
+      await workflow.transitionStatus(ticket.id, 'assigned', 'user-1');
+      await workflow.transitionStatus(ticket.id, 'in-progress', 'user-1');
+      await workflow.transitionStatus(ticket.id, 'resolved', 'user-1');
 
-      const result = workflow.closeTicket(ticket.id, 'user-1', 'Confirmed fixed');
+      const result = await workflow.closeTicket(ticket.id, 'user-1', 'Confirmed fixed');
       expect('ticket' in result).toBe(true);
       expect(result.ticket.status).toBe('closed');
     });

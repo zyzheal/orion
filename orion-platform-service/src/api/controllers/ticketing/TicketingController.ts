@@ -406,7 +406,7 @@ export class TicketingController {
       return;
     }
 
-    const result = this.ticketService.transitionStatus(params.id, toStatus, performedBy, reason);
+    const result = await this.ticketService.transitionStatus(params.id, toStatus, performedBy, reason);
 
     if ('error' in result) {
       await reply.status(400).send({
@@ -505,7 +505,7 @@ export class TicketingController {
       return;
     }
 
-    const result = this.ticketService.resolveTicket(params.id, performedBy, resolutionNote);
+    const result = await this.ticketService.resolveTicket(params.id, performedBy, resolutionNote);
 
     if ('error' in result) {
       await reply.status(400).send({
@@ -538,7 +538,7 @@ export class TicketingController {
       return;
     }
 
-    const result = this.ticketService.closeTicket(params.id, performedBy, reason);
+    const result = await this.ticketService.closeTicket(params.id, performedBy, reason);
 
     if ('error' in result) {
       await reply.status(400).send({
@@ -560,7 +560,7 @@ export class TicketingController {
    */
   async getWorkflowHistory(request: FastifyRequest, reply: FastifyReply) {
     const params = request.params as any;
-    const history = this.ticketService.getWorkflowHistory(params.id);
+    const history = await this.ticketService.getWorkflowHistory(params.id);
 
     await reply.status(200).send({
       success: true,

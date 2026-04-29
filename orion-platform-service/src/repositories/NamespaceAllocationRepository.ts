@@ -61,7 +61,7 @@ export class NamespaceAllocationRepository extends BaseRepository<NamespaceAlloc
 
   async release(id: string): Promise<NamespaceAllocationEntity> {
     const result = await this.db.query(
-      `UPDATE namespace_allocations SET tenant_id = NULL, status = 'available', purpose = NULL, labels = '{"orion.io/pool": "true"}'::jsonb || COALESCE(labels, '{}'::jsonb) - 'orion.io/tenant' - 'orion.io/purpose', allocated_at = NULL, updated_at = NOW() WHERE id = $1 RETURNING *`,
+      `UPDATE namespace_allocations SET tenant_id = NULL, status = 'available', purpose = NULL, labels = labels - 'orion.io/tenant', allocated_at = NULL, updated_at = NOW() WHERE id = $1 RETURNING *`,
       [id],
     );
     if (result.rows.length === 0) {

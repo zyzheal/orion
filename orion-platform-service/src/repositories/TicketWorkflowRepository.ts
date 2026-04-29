@@ -98,7 +98,6 @@ export class TicketSLARepository extends BaseRepository<TicketSLAEntity> {
 
     if (setParts.length === 0) return;
 
-    setParts.push(`updated_at = NOW()`);
     values.push(ticketId);
 
     await this.db.query(

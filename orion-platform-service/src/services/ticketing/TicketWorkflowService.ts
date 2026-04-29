@@ -18,6 +18,7 @@ import {
   SLATarget,
   TicketSLA,
 } from './types';
+import { TicketWorkflowRepository, TicketSLARepository } from '../../repositories/TicketWorkflowRepository';
 
 /**
  * Valid workflow transitions matrix
@@ -73,8 +74,19 @@ export class TicketWorkflowService {
   /** SLA tracking */
   private slaTracking: Map<string, TicketSLA> = new Map();
 
+  /** Repository injection */
+  private workflowRepository?: TicketWorkflowRepository;
+  private slaRepository?: TicketSLARepository;
+
   /** Escalation timer */
   private escalationTimer?: NodeJS.Timeout;
+
+  constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+    if (db) {
+      this.workflowRepository = new TicketWorkflowRepository(db);
+      this.slaRepository = new TicketSLARepository(db);
+    }
+  }
 
   /** Escalation intervals (ms per priority) */
   private escalationIntervals: Record<TicketPriority, number> = {
@@ -195,12 +207,12 @@ export class TicketWorkflowService {
   /**
    * Transition a ticket to a new status
    */
-  transitionStatus(
+  async transitionStatus(
     ticketId: string,
     toStatus: TicketStatus,
     performedBy: string,
     reason?: string
-  ): { ticket: Ticket; history: WorkflowHistory } | { error: string } {
+  ): Promise<{ ticket: Ticket; history: WorkflowHistory } | { error: string }> {
     const ticket = this.tickets.get(ticketId);
     if (!ticket) {
       return { error: `Ticket ${ticketId} not found` };
@@ -228,6 +240,22 @@ export class TicketWorkflowService {
     const histList = this.workflowHistory.get(ticketId) || [];
     histList.push(history);
     this.workflowHistory.set(ticketId, histList);
+
+    // Persist to repository
+    if (this.workflowRepository) {
+      try {
+        await this.workflowRepository.createEntry({
+          ticketId,
+          fromStatus: history.fromStatus,
+          toStatus: history.toStatus,
+          triggeredBy: history.performedBy,
+          triggeredType: 'manual',
+          comment: history.reason,
+        });
+      } catch (err) {
+        console.warn(`[TicketWorkflowService] Failed to persist workflow history: ${err}`);
+      }
+    }
 
     // Update SLA tracking on resolution
     if (toStatus === 'resolved' || toStatus === 'closed') {
@@ -478,7 +506,19 @@ export class TicketWorkflowService {
   /**
    * Get workflow history for a ticket
    */
-  getWorkflowHistory(ticketId: string): WorkflowHistory[] {
+  async getWorkflowHistory(ticketId: string): Promise<WorkflowHistory[]> {
+    if (this.workflowRepository) {
+      const entities = await this.workflowRepository.findByTicketId(ticketId);
+      return entities.map(e => ({
+        id: e.id,
+        ticketId: e.ticketId,
+        fromStatus: e.fromStatus as TicketStatus,
+        toStatus: e.toStatus as TicketStatus,
+        performedBy: e.triggeredBy ?? 'system',
+        performedAt: e.createdAt,
+        reason: e.comment,
+      }));
+    }
     return this.workflowHistory.get(ticketId) || [];
   }
 
@@ -526,8 +566,8 @@ export class TicketWorkflowService {
   /**
    * Resolve a ticket with notes
    */
-  resolveTicket(ticketId: string, performedBy: string, resolutionNote?: string): { ticket: Ticket } | { error: string } {
-    const result = this.transitionStatus(ticketId, 'resolved', performedBy, resolutionNote);
+  async resolveTicket(ticketId: string, performedBy: string, resolutionNote?: string): Promise<{ ticket: Ticket } | { error: string }> {
+    const result = await this.transitionStatus(ticketId, 'resolved', performedBy, resolutionNote);
     if ('error' in result) return result;
 
     const ticket = result.ticket;
@@ -542,8 +582,8 @@ export class TicketWorkflowService {
   /**
    * Close a ticket
    */
-  closeTicket(ticketId: string, performedBy: string, reason?: string): { ticket: Ticket } | { error: string } {
-    const result = this.transitionStatus(ticketId, 'closed', performedBy, reason);
+  async closeTicket(ticketId: string, performedBy: string, reason?: string): Promise<{ ticket: Ticket } | { error: string }> {
+    const result = await this.transitionStatus(ticketId, 'closed', performedBy, reason);
     if ('error' in result) return result;
     return { ticket: result.ticket };
   }
