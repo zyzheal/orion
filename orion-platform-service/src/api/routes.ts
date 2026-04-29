@@ -244,163 +244,163 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // ==================== CMDB 路由 ====================
 
   // 注册 CMDB API 路由
-  await app.register(cmdbRoutes, { prefix: '/cmdb', database: options.database });
+  await app.register(cmdbRoutes, { prefix: '/v1/cmdb', database: options.database });
 
   // ==================== 构建环境管理路由 ====================
 
   // 注册 Build Environment API 路由 (PostgreSQL backed for BuildCache)
-  await registerWithRoleGuard(app, buildRoutes, '/build', { database: options.database });
+  await registerWithRoleGuard(app, buildRoutes, '/v1/build', { database: options.database });
 
   // 注册 Code Repository Integration API 路由
-  await registerWithRoleGuard(app, codeRepoRoutes, '/code-repo');
+  await registerWithRoleGuard(app, codeRepoRoutes, '/v1/code-repo');
 
   // 注册 Configuration Management API 路由 (PostgreSQL backed)
-  await app.register(configRoutes, { prefix: '/config', database: options.database });
+  await app.register(configRoutes, { prefix: '/v1/config', database: options.database });
 
   // 注册 FinOps 成本管理 API 路由
-  await app.register(costRoutes, { prefix: '/cost', database: options.database });
+  await app.register(costRoutes, { prefix: '/v1/cost', database: options.database });
 
   // 注册风险评估 API 路由
-  await app.register(riskRoutes, { prefix: '/risk' });
+  await app.register(riskRoutes, { prefix: '/v1/risk' });
 
   // 注册 FinOps 成本追踪与 ROI API 路由 (TASK-502) - PostgreSQL backed
-  await app.register(finopsV2Routes, { prefix: '/finops', database: options.database });
+  await app.register(finopsV2Routes, { prefix: '/v1/finops', database: options.database });
 
   // 注册 AI Code Review API 路由 (TASK-302)
-  await registerWithRoleGuard(app, aiReviewRoutes, '/ai-review');
+  await registerWithRoleGuard(app, aiReviewRoutes, '/v1/ai-review');
 
   // 注册诊断 Agent API 路由 (TASK-305) - PostgreSQL backed
-  await registerWithRoleGuard(app, diagnosticRoutes, '/diagnostic', { database: options.database });
+  await registerWithRoleGuard(app, diagnosticRoutes, '/v1/diagnostic', { database: options.database });
 
   // 注册智能测试选择器 API 路由 (TASK-303)
-  await app.register(testSelectorRoutes, { prefix: '/test-selector' });
+  await app.register(testSelectorRoutes, { prefix: '/v1/test-selector' });
 
   // 注册智能部署 API 路由 (TASK-701) - PostgreSQL backed
-  await app.register(deployRoutes, { prefix: '/deploy', database: options.database });
+  await app.register(deployRoutes, { prefix: '/v1/deploy', database: options.database });
 
   // 注册监控告警 API 路由 (TASK-703)
-  await registerWithRoleGuard(app, monitoringRoutes, '/monitoring', { database: options.database });
+  await registerWithRoleGuard(app, monitoringRoutes, '/v1/monitoring', { database: options.database });
 
   // 注册智能工单 API 路由 (TASK-801) - PostgreSQL backed
-  await app.register(ticketingRoutes, { prefix: '/tickets', database: options.database });
+  await app.register(ticketingRoutes, { prefix: '/v1/tickets', database: options.database });
 
   // Register self-healing API routes (TASK-702) - PostgreSQL backed
-  await registerWithRoleGuard(app, selfHealingRoutes, '/self-healing', { database: options.database });
+  await registerWithRoleGuard(app, selfHealingRoutes, '/v1/self-healing', { database: options.database });
 
   // 注册备份恢复 API 路由 (TASK-704) - PostgreSQL backed
-  await app.register(backupRoutes, { prefix: '/backup', database: options.database });
+  await app.register(backupRoutes, { prefix: '/v1/backup', database: options.database });
 
   // 注册 Plugin SPI API 路由 (TASK-104)
-  await app.register(pluginSpiRoutes, { prefix: '/plugins-spi' });
+  await app.register(pluginSpiRoutes, { prefix: '/v1/plugins-spi' });
 
   // 注册 Plugin Management API 路由
-  await registerWithRoleGuard(app, pluginRoutes, '/plugins');
+  await registerWithRoleGuard(app, pluginRoutes, '/v1/plugins');
 
   // 注册 AI 安全加固 API 路由 (TASK-1004) — P1-15 Fix: pass database for audit log persistence
-  await registerWithRoleGuard(app, aiSecurityRoutes, '/ai-security', { database: options.database });
+  await registerWithRoleGuard(app, aiSecurityRoutes, '/v1/ai-security', { database: options.database });
 
   // 注册 AI 网关 API 路由
-  await app.register(aiGatewayRoutes, { prefix: '/ai-gateway' });
+  await app.register(aiGatewayRoutes, { prefix: '/v1/ai-gateway' });
 
   // 注册告警管理 API 路由
-  await app.register(alertRoutes, { prefix: '/alert' });
+  await app.register(alertRoutes, { prefix: '/v1/alert' });
 
   // 注册审计 API 路由
-  await registerWithRoleGuard(app, auditRoutes, '/audit', { database: options.database });
+  await registerWithRoleGuard(app, auditRoutes, '/v1/audit', { database: options.database });
 
   // 注册租户管理 API 路由 (PostgreSQL backed)
-  await registerWithRoleGuard(app, tenantRoutes, '/tenant', { database: options.database });
+  await registerWithRoleGuard(app, tenantRoutes, '/v1/tenant', { database: options.database });
 
   // 注册效能分析 API 路由 — P0-4 Fix: pass database for real DORA metrics
-  await app.register(efficiencyRoutes, { prefix: '/efficiency', database: options.database });
+  await app.register(efficiencyRoutes, { prefix: '/v1/efficiency', database: options.database });
 
   // 注册 SBOM Attestation API 路由 (P0) - migrated to PostgreSQL
-  await app.register(sbomRoutes, { prefix: '/sbom', eventBus: options.eventBus, database: options.database });
+  await app.register(sbomRoutes, { prefix: '/v1/sbom', eventBus: options.eventBus, database: options.database });
 
   // 注册 OPA Policy Engine API 路由 (P0) - PostgreSQL backed
-  await app.register(policyRoutes, { prefix: '/policies', database: options.database, eventBus: options.eventBus });
+  await app.register(policyRoutes, { prefix: '/v1/policies', database: options.database, eventBus: options.eventBus });
 
   // 注册 AI Change Intelligence API 路由 (P0)
-  await app.register(changeIntelligenceRoutes, { prefix: '/change-intelligence', eventBus: options.eventBus });
+  await app.register(changeIntelligenceRoutes, { prefix: '/v1/change-intelligence', eventBus: options.eventBus });
 
   // 注册 ML Canary Analysis API 路由 (P0)
-  await app.register(canaryAnalysisRoutes, { prefix: '/canary-analysis', eventBus: options.eventBus });
+  await app.register(canaryAnalysisRoutes, { prefix: '/v1/canary-analysis', eventBus: options.eventBus });
 
   // 注册 Skill Management API 路由 (M12)
-  await app.register(skillRoutes, { prefix: '/skills', database: options.database });
+  await app.register(skillRoutes, { prefix: '/v1/skills', database: options.database });
 
   // 注册 AI Cost Optimization API 路由 (M36)
-  await registerWithRoleGuard(app, aiCostRoutes, '/ai-cost', { database: options.database });
+  await registerWithRoleGuard(app, aiCostRoutes, '/v1/ai-cost', { database: options.database });
 
   // 注册 IaC Management API 路由 (M20) - PostgreSQL backed
-  await registerWithRoleGuard(app, iacRoutes, '/iac', { eventBus: options.eventBus, database: options.database });
+  await registerWithRoleGuard(app, iacRoutes, '/v1/iac', { eventBus: options.eventBus, database: options.database });
 
   // 注册 ChatOps API 路由 (M35) - PostgreSQL backed
-  await registerWithRoleGuard(app, chatopsRoutes, '/chatops', {
+  await registerWithRoleGuard(app, chatopsRoutes, '/v1/chatops', {
     eventBus: options.eventBus,
     database: options.database,
     pipelineService,
   });
 
   // 注册 Manual Confirmation API 路由 (P0-6)
-  await registerWithRoleGuard(app, confirmationRoutes, '/confirmations', { database: options.database, eventBus: options.eventBus });
+  await registerWithRoleGuard(app, confirmationRoutes, '/v1/confirmations', { database: options.database, eventBus: options.eventBus });
 
   // 注册 Artifact Registry API 路由
-  await app.register(artifactRoutes, { prefix: '/artifacts' });
+  await app.register(artifactRoutes, { prefix: '/v1/artifacts' });
 
   // 注册 Vector Store API 路由 (P0-G2 - pgvector backed) — admin only
-  await registerWithRoleGuard(app, vectorStoreRoutes, '/vector-store', { database: options.database });
+  await registerWithRoleGuard(app, vectorStoreRoutes, '/v1/vector-store', { database: options.database });
 
   // 注册 OnCall 排班 API 路由 (P0 - SRE scheduling)
-  await app.register(oncallRoutes, { prefix: '/oncall', database: options.database, eventBus: options.eventBus });
+  await app.register(oncallRoutes, { prefix: '/v1/oncall', database: options.database, eventBus: options.eventBus });
 
   // 注册审批 API 路由 (P0 - multi-level approval) — P0-7 Fix: requires database
   if (options.database) {
-    await app.register(approvalRoutes, { prefix: '/approvals', database: options.database });
+    await app.register(approvalRoutes, { prefix: '/v1/approvals', database: options.database });
   }
 
   // 注册 Cron Scheduler API 路由 (P0-1 Fix: was missing)
-  await app.register(cronRoutes, { prefix: '/cron', database: options.database });
+  await app.register(cronRoutes, { prefix: '/v1/cron', database: options.database });
 
   // 注册 EventBus API 路由 (M24 - PostgreSQL backed) — admin only
-  await registerWithRoleGuard(app, eventbusRoutes, '/eventbus', { database: options.database, eventBus: options.eventBus });
+  await registerWithRoleGuard(app, eventbusRoutes, '/v1/eventbus', { database: options.database, eventBus: options.eventBus });
 
   // 注册 ProductLine 多分支产品线 API 路由 (M6) — P0-2 Fix: pass database
-  await app.register(productLineRoutes, { prefix: '/product-lines', database: options.database });
+  await app.register(productLineRoutes, { prefix: '/v1/product-lines', database: options.database });
 
   // 注册 Internal Library 二方库管理 API 路由 (M30)
-  await app.register(internalLibraryRoutes, { prefix: '/internal-libraries', database: options.database });
+  await app.register(internalLibraryRoutes, { prefix: '/v1/internal-libraries', database: options.database });
 
   // 注册 Notification API 路由 (M8/M33)
-  await app.register(notificationRoutes, { prefix: '/notifications' });
+  await app.register(notificationRoutes, { prefix: '/v1/notifications' });
 
   // 注册 Role Management API 路由 (RBAC) - PostgreSQL backed
-  await registerWithRoleGuard(app, roleRoutes, '/roles', { database: options.database });
+  await registerWithRoleGuard(app, roleRoutes, '/v1/roles', { database: options.database });
 
   // 注册 Session Management API 路由 - PostgreSQL backed
-  await app.register(sessionRoutes, { prefix: '/sessions', database: options.database });
+  await app.register(sessionRoutes, { prefix: '/v1/sessions', database: options.database });
 
   // 注册 Webhook Management API 路由 (M1) - PostgreSQL backed
-  await app.register(webhookRoutes, { prefix: '/webhooks', database: options.database });
+  await app.register(webhookRoutes, { prefix: '/v1/webhooks', database: options.database });
 
   // 注册 Project Management API 路由 - PostgreSQL backed
-  await app.register(projectRoutes, { prefix: '/projects', database: options.database });
+  await app.register(projectRoutes, { prefix: '/v1/projects', database: options.database });
 
   // 注册 Environment Management API 路由 - PostgreSQL backed
-  await app.register(environmentRoutes, { prefix: '/environments', database: options.database });
+  await app.register(environmentRoutes, { prefix: '/v1/environments', database: options.database });
 
   // 注册 Queue Management API 路由 (M24) - PostgreSQL backed
-  await app.register(queueRoutes, { prefix: '/queue', database: options.database });
+  await app.register(queueRoutes, { prefix: '/v1/queue', database: options.database });
 
   // 注册 Knowledge Base API 路由 (M28) - PostgreSQL backed
-  await app.register(knowledgeRoutes, { prefix: '/knowledge', database: options.database });
+  await app.register(knowledgeRoutes, { prefix: '/v1/knowledge', database: options.database });
 
   // 注册 Metrics API 路由 - PostgreSQL backed
-  await app.register(metricsRoutes, { prefix: '/metrics', database: options.database });
+  await app.register(metricsRoutes, { prefix: '/v1/metrics', database: options.database });
 
   // 注册 User Management API 路由 - PostgreSQL backed
-  await registerWithRoleGuard(app, userRoutes, '/users', { database: options.database });
+  await registerWithRoleGuard(app, userRoutes, '/v1/users', { database: options.database });
 
   // 注册 Agent Orchestration API 路由 - PostgreSQL backed
-  await app.register(agentRoutes, { prefix: '/', eventBus: options.eventBus, database: options.database });
+  await app.register(agentRoutes, { prefix: '/v1/', eventBus: options.eventBus, database: options.database });
 }
