@@ -18,8 +18,9 @@ import {
   EventBusEventRepository,
 } from '../repositories/EventBusRepository';
 export { TypedEnvelope } from './types/event-types';
-import { JetStreamConfig, ConsumerConfig } from './types/event-types';
+import { JetStreamConfig, ConsumerConfig, TypedEnvelope } from './types/event-types';
 import type { JetStreamClient, JetStreamManager } from 'nats';
+import { JetStreamManagerService } from './jetstream-manager';
 
 /**
  * 连接状态枚举 - 明确区分各种状态
@@ -88,6 +89,7 @@ export class EventBusService extends EventEmitter {
   private natsConnection: any = null;
   private jetStream: JetStreamClient | null = null;
   private jetStreamManager: JetStreamManager | null = null;
+  private jsmService: JetStreamManagerService | null = null;
   private repos: EventBusRepositories;
   /** 重连尝试次数 */
   private reconnectAttempts: number = 0;
@@ -223,6 +225,7 @@ export class EventBusService extends EventEmitter {
       // Initialize JetStream client and manager
       this.jetStream = this.natsConnection.jetstream();
       this.jetStreamManager = this.natsConnection.jetstreamManager();
+      this.jsmService = new JetStreamManagerService(this.jetStreamManager!);
       logger.info('JetStream initialized');
 
       this.emit('connect');
@@ -369,15 +372,22 @@ export class EventBusService extends EventEmitter {
     }
 
     try {
-      const message = JSON.stringify({
-        type,
+      // C1 Fix: Build proper CloudEvents 1.0 TypedEnvelope for both JetStream and Core NATS paths
+      const envelope: TypedEnvelope<T> = {
+        id: `evt-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
         source,
+        specversion: '1.0',
+        type,
+        datacontenttype: 'application/json',
         data,
-        timestamp: new Date().toISOString(),
-      });
+        time: new Date().toISOString(),
+        tenantid: options?.tenantId,
+      };
+
+      const message = JSON.stringify(envelope);
 
       if (this.isJetStreamAvailable()) {
-        const payload = new TextEncoder().encode(JSON.stringify({ type, source, data, timestamp: new Date().toISOString() }));
+        const payload = new TextEncoder().encode(message);
         const ack = await this.jetStream!.publish(subject, payload);
         if (eventRecord && this.repos.eventRepo) {
           try { await this.repos.eventRepo.updateStatus(eventRecord.id, 'delivered'); } catch (err) { logger.warn({ err: String(err) }, 'Failed to update event status after JetStream ack'); }
@@ -418,7 +428,7 @@ export class EventBusService extends EventEmitter {
    */
   async subscribe<T = any>(
     eventType: string,
-    handler: (event: any) => Promise<void>,
+    handler: (event: TypedEnvelope<T>) => Promise<void>,
     options?: {
       streamName?: string;
       durableName?: string;
@@ -437,12 +447,11 @@ export class EventBusService extends EventEmitter {
     }
 
     if (this.connectionState === 'fallback' || !this.natsConnection) {
-      // ARCH-003: Fallback 模式下抛出可恢复错误，调用方可选择降级策略
-      throw new EventBusError(
-        `NATS not connected (state: ${this.connectionState}), cannot subscribe to ${eventType}`,
-        'NOT_CONNECTED',
-        true  // 可恢复，等待重连
-      );
+      // I2 Fix: In fallback mode, log warning and return no-op unsubscribe (backward compatible)
+      logger.warn({ eventType }, 'NATS not connected, subscription deferred until reconnection');
+      this.emit('subscribe_deferred', { eventType });
+      // Return a no-op unsubscribe that does nothing
+      return async () => {};
     }
 
     try {
@@ -499,7 +508,7 @@ export class EventBusService extends EventEmitter {
    */
   private async subscribeViaJetStream<T = any>(
     eventType: string,
-    handler: (event: any) => Promise<void>,
+    handler: (event: TypedEnvelope<T>) => Promise<void>,
     options: {
       streamName?: string;
       durableName?: string;
@@ -522,7 +531,7 @@ export class EventBusService extends EventEmitter {
           const messages = await consumer.fetch({
             max_messages: 100,
             expires: 30_000_000_000, // 30s in nanoseconds
-          });
+          } as any);
           if (!messages) {
             // No messages returned, wait briefly before next fetch
             await new Promise(resolve => setTimeout(resolve, 1000));
@@ -531,13 +540,18 @@ export class EventBusService extends EventEmitter {
           for await (const msg of messages as AsyncIterable<any>) {
             if (!running) break;
             try {
-              const data = JSON.parse(new TextDecoder().decode(msg.data));
-              await handler({
-                type: eventType,
-                data: data.data,
-                source: data.source,
-                timestamp: data.timestamp,
-              });
+              const envelope = JSON.parse(new TextDecoder().decode(msg.data)) as TypedEnvelope<T>;
+              // C3 Fix: Inject JetStream metadata into envelope
+              const msgInfo = msg.info;
+              envelope._jsmeta = {
+                stream: streamName,
+                consumer: durableName,
+                sequence: msgInfo?.streamSequence ?? 0,
+                delivered: msgInfo?.deliveryCount ?? 1,
+                timestamp: msgInfo?.timestampNanos ?? Date.now() * 1_000_000,
+                pending: (msg as any).pending ?? 0,
+              };
+              await handler(envelope);
               msg.ack();
             } catch (error) {
               logger.error({ error: String(error) }, 'Error handling JetStream message');
@@ -581,7 +595,7 @@ export class EventBusService extends EventEmitter {
    */
   private async subscribeViaCoreNats<T = any>(
     eventType: string,
-    handler: (event: any) => Promise<void>,
+    handler: (event: TypedEnvelope<T>) => Promise<void>,
     subject: string,
     queue: string,
     subRecord: any,
@@ -594,13 +608,8 @@ export class EventBusService extends EventEmitter {
     (async () => {
       for await (const msg of subscription) {
         try {
-          const data = JSON.parse(new TextDecoder().decode(msg.data));
-          await handler({
-            type: eventType,
-            data: data.data,
-            source: data.source,
-            timestamp: data.timestamp,
-          });
+          const envelope = JSON.parse(new TextDecoder().decode(msg.data)) as TypedEnvelope<T>;
+          await handler(envelope);
           msg.ack();
         } catch (error) {
           logger.error({ error: String(error) }, 'Error handling Core NATS message');
@@ -662,6 +671,7 @@ export class EventBusService extends EventEmitter {
   async close(): Promise<void> {
     this.jetStream = null;
     this.jetStreamManager = null;
+    this.jsmService = null;
     if (this.natsConnection) {
       logger.info('Closing NATS connection...');
       try {
@@ -859,8 +869,8 @@ export class EventBusService extends EventEmitter {
 
   async ensureStream(config: JetStreamConfig): Promise<void> {
     if (!this.jetStreamManager) return;
-    const jsmService = new (await import('./jetstream-manager')).JetStreamManagerService(this.jetStreamManager);
-    await jsmService.ensureStream({
+    if (!this.jsmService) this.jsmService = new JetStreamManagerService(this.jetStreamManager);
+    await this.jsmService.ensureStream({
       name: config.name, subjects: config.subjects, retention: config.retention,
       maxMsgs: config.maxMsgs, maxAge: config.maxAge, storage: config.storage, replicas: config.replicas,
     });
@@ -868,28 +878,28 @@ export class EventBusService extends EventEmitter {
 
   async ensureConsumer(streamName: string, config: ConsumerConfig): Promise<void> {
     if (!this.jetStreamManager) return;
-    const jsmService = new (await import('./jetstream-manager')).JetStreamManagerService(this.jetStreamManager);
-    await jsmService.ensureConsumer(streamName, config);
+    if (!this.jsmService) this.jsmService = new JetStreamManagerService(this.jetStreamManager);
+    await this.jsmService.ensureConsumer(streamName, config);
   }
 
   async getJetStreamMetrics(streamName?: string): Promise<Record<string, unknown>> {
     if (!this.jetStreamManager) return { available: false };
-    const jsmService = new (await import('./jetstream-manager')).JetStreamManagerService(this.jetStreamManager);
+    if (!this.jsmService) this.jsmService = new JetStreamManagerService(this.jetStreamManager);
     if (streamName) {
-      const metrics = await jsmService.getMetrics(streamName);
+      const metrics = await this.jsmService.getMetrics(streamName);
       return { available: true, stream: streamName, ...metrics };
     }
     const { ORION_STREAMS } = await import('./types/event-types');
     const results: Record<string, unknown> = { available: true };
     for (const [key, stream] of Object.entries(ORION_STREAMS)) {
-      try { results[key] = await jsmService.getMetrics(stream.name); } catch { results[key] = { error: 'stream not found' }; }
+      try { results[key] = await this.jsmService.getMetrics(stream.name); } catch { results[key] = { error: 'stream not found' }; }
     }
     return results;
   }
 
   async listConsumers(streamName: string): Promise<Array<{ name: string; pending: number }>> {
     if (!this.jetStreamManager) return [];
-    const jsmService = new (await import('./jetstream-manager')).JetStreamManagerService(this.jetStreamManager);
-    return jsmService.listConsumers(streamName);
+    if (!this.jsmService) this.jsmService = new JetStreamManagerService(this.jetStreamManager);
+    return this.jsmService.listConsumers(streamName);
   }
 }

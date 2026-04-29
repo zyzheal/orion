@@ -68,9 +68,13 @@ describe('EventBusService JetStream', () => {
   });
 
   describe('JetStream subscribe', () => {
-    it('should throw EventBusError when not connected', async () => {
+    it('should return no-op unsubscribe when not connected (fallback)', async () => {
       const eventBus = new EventBusServiceClass({ enabled: true, autoConnect: false });
-      await expect(eventBus.subscribe('test.event', async () => {})).rejects.toMatchObject({ code: 'NOT_CONNECTED' });
+      // In fallback mode, subscribe returns a no-op unsubscribe instead of throwing
+      const unsub = await eventBus.subscribe('test.event', async () => {});
+      expect(typeof unsub).toBe('function');
+      // Calling the no-op should not throw
+      await expect(unsub()).resolves.toBeUndefined();
     });
 
     it('should accept streamName and durableName options', async () => {

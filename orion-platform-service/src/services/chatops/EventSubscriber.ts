@@ -98,10 +98,9 @@ export class ChatOpsEventSubscriber {
 
     for (const { event, handler } of subscriptions) {
       try {
-        const unsub = await this.eventBus.subscribe(event, async (rawEvent: EventBusPayload) => {
-          // NATS 事件格式: { type, data, source, timestamp }
-          // data 在 payload.data 中，若不存在则整个 payload 就是 data
-          const payload = rawEvent.data || rawEvent;
+        const unsub = await this.eventBus.subscribe(event, async (typedEvent) => {
+          // TypedEnvelope format: { type, data, source, time, specversion, ... }
+          const payload = typedEvent.data || typedEvent;
           handler(payload);
         });
         this.unsubscribeFns.push(unsub);
@@ -232,8 +231,8 @@ export class ChatOpsEventSubscriber {
         const handler = this.getHandlerForEvent(failure.event);
         if (!handler) continue;
 
-        const unsub = await this.eventBus.subscribe(failure.event, async (rawEvent: EventBusPayload) => {
-          const payload = rawEvent.data || rawEvent;
+        const unsub = await this.eventBus.subscribe(failure.event, async (typedEvent) => {
+          const payload = typedEvent.data || typedEvent;
           handler(payload);
         });
         this.unsubscribeFns.push(unsub);
