@@ -99,11 +99,8 @@ export class NamespacePoolService extends EventEmitter {
   }
 
   private async initializePoolFromDB(): Promise<void> {
-    const result = await this.repository!.db.query(
-      `SELECT * FROM namespace_allocations ORDER BY id ASC`,
-    );
-    for (const row of result.rows) {
-      const entity = this.repository!.mapRowToEntity(row);
+    const entities = await this.repository!.findAllEntries();
+    for (const entity of entities) {
       const entry = this.entityToPoolEntry(entity);
       this.pool.set(entry.namespaceName, entry);
       if (entry.status === 'allocated' && entry.tenantId != null) {
