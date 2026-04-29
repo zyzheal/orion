@@ -4,6 +4,7 @@
 
 export * from './types';
 export { DoraMetricsService } from './DoraMetricsService';
+export { WeeklyReportService } from './WeeklyReportService';
 export { ClickHouseSync, type ClickHouseConfig, type ClickHouseClient } from './ClickHouseSync';
 export {
   EfficiencyEventHandler,

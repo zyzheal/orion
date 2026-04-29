@@ -13,9 +13,11 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { DatabasePool } from '../services/database';
 import { DoraMetricsService } from '../services/efficiency/DoraMetricsService';
 import { ClickHouseSync } from '../services/efficiency/ClickHouseSync';
-import { InMemoryLocalStorage } from '../services/efficiency/EventHandler';
+import { InMemoryLocalStorage, EfficiencyEventHandler } from '../services/efficiency/EventHandler';
+import { WeeklyReportService } from '../services/efficiency/WeeklyReportService';
 import { DeployRepository } from '../services/deploy/DeployRepository';
 import { PipelineRunRepository } from '../services/pipeline/PipelineRunRepository';
+import { TicketService } from '../services/ticketing/TicketService';
 
 interface EfficiencyRoutesOptions {
   database?: DatabasePool;
@@ -259,4 +261,104 @@ export default async function efficiencyRoutes(app: FastifyInstance, options: Ef
       });
     }
   });
+
+  // ==================== Weekly Reports ====================
+
+  // POST /efficiency/reports/weekly/generate - Generate a new weekly report
+  app.post('/reports/weekly/generate', async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = request.body as { weekStart?: string; teamId?: string } | undefined;
+    const weekStart = body?.weekStart ? new Date(body.weekStart) : undefined;
+    const teamId = body?.teamId || 'default';
+
+    try {
+      const weeklyReport = getWeeklyReportService(options.database);
+      const report = await weeklyReport.generateReport({ weekStart, teamId });
+
+      return reply.send({
+        success: true,
+        data: report,
+      });
+    } catch (error: any) {
+      return reply.status(500).send({
+        error: 'REPORT_GENERATION_ERROR',
+        message: error.message,
+      });
+    }
+  });
+
+  // GET /efficiency/reports/weekly - Get or generate weekly report for a given week
+  app.get('/reports/weekly', async (request: FastifyRequest, reply: FastifyReply) => {
+    const query = request.query as { week_start?: string; team_id?: string };
+
+    try {
+      const weeklyReport = getWeeklyReportService(options.database);
+      const weekStart = query.week_start ? new Date(query.week_start) : undefined;
+
+      // Generate new report
+      const report = await weeklyReport.generateReport({ weekStart, teamId: query.team_id });
+
+      return reply.send({
+        success: true,
+        data: report,
+      });
+    } catch (error: any) {
+      return reply.status(500).send({
+        error: 'REPORT_ERROR',
+        message: error.message,
+      });
+    }
+  });
+
+  // GET /efficiency/reports/weekly/history - List past weekly reports
+  app.get('/reports/weekly/history', async (request: FastifyRequest, reply: FastifyReply) => {
+    const query = request.query as { team_id?: string; limit?: string };
+
+    try {
+      const weeklyReport = getWeeklyReportService(options.database);
+      const history = await weeklyReport.listHistory({
+        teamId: query.team_id,
+        limit: query.limit ? parseInt(query.limit, 10) : 12,
+      });
+
+      return reply.send({
+        success: true,
+        data: history,
+      });
+    } catch (error: any) {
+      return reply.status(500).send({
+        error: 'REPORT_HISTORY_ERROR',
+        message: error.message,
+      });
+    }
+  });
+}
+
+// ==================== Weekly Report Service Factory ====================
+
+let _weeklyReportService: WeeklyReportService | null = null;
+
+function getWeeklyReportService(db?: DatabasePool): WeeklyReportService {
+  if (_weeklyReportService) return _weeklyReportService;
+
+  const doraService = new DoraMetricsService();
+
+  // Data source: use InMemoryLocalStorage (populated by EventHandler)
+  const localStorage = new InMemoryLocalStorage();
+  const dataSource = {
+    getPipelineRecords: async (filter?: { since?: Date }) => {
+      return localStorage.getPipelineRecords(filter);
+    },
+    getDeploymentRecords: async (filter?: { since?: Date }) => {
+      return localStorage.getDeploymentRecords(filter);
+    },
+  };
+
+  _weeklyReportService = new WeeklyReportService({
+    doraService,
+    ticketService: new TicketService(),
+    dataSource,
+    db,
+  });
+
+  return _weeklyReportService;
 }
