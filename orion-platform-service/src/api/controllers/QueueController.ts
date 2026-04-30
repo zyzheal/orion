@@ -27,7 +27,7 @@ export class QueueController {
     try {
       const params = request.params as { queueName: string };
       const body = request.body as any || {};
-      const { tenantId, payload } = body;
+      const { tenantId, payload, priority, maxAttempts } = body;
 
       if (!tenantId || !payload) {
         await reply.status(400).send({
@@ -37,7 +37,10 @@ export class QueueController {
         return;
       }
 
-      const job = await this.queueService.push(tenantId, params.queueName, payload);
+      const job = await this.queueService.push(tenantId, params.queueName, payload, {
+        priority: typeof priority === 'number' ? priority : undefined,
+        maxAttempts: typeof maxAttempts === 'number' ? maxAttempts : undefined,
+      });
 
       await reply.status(201).send({
         success: true,
@@ -111,16 +114,53 @@ export class QueueController {
   async fail(request: FastifyRequest, reply: FastifyReply) {
     try {
       const params = request.params as { id: string };
+      const body = request.body as any || {};
+      const error = body.error || 'Unknown error';
 
-      await this.queueService.fail(params.id);
+      const result = await this.queueService.fail(params.id, error);
 
       await reply.status(200).send({
         success: true,
-        message: `Job ${params.id} marked as failed`,
+        data: result,
+        message: result.shouldRetry
+          ? `Job ${params.id} marked as failed, will retry in ${result.delaySeconds}s`
+          : `Job ${params.id} marked as failed (max attempts reached)`,
       });
     } catch (error: any) {
       await reply.status(500).send({
         error: 'FAIL_ERROR',
+        message: error.message,
+      });
+    }
+  }
+
+  /**
+   * Retry a failed job
+   * POST /api/v1/queue/jobs/:id/retry
+   */
+  async retry(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const params = request.params as { id: string };
+      const body = request.body as any || {};
+      const delaySeconds = body.delaySeconds ? parseInt(body.delaySeconds, 10) : undefined;
+
+      const job = await this.queueService.retry(params.id, delaySeconds);
+
+      await reply.status(200).send({
+        success: true,
+        data: { job },
+        message: `Job ${params.id} queued for retry`,
+      });
+    } catch (error: any) {
+      if (error instanceof QueueServiceError) {
+        await reply.status(400).send({
+          error: error.code,
+          message: error.message,
+        });
+        return;
+      }
+      await reply.status(500).send({
+        error: 'RETRY_ERROR',
         message: error.message,
       });
     }

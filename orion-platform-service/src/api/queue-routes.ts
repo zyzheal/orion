@@ -56,6 +56,11 @@ export default async function queueRoutes(
     return controller.fail(request, reply);
   });
 
+  // POST /queue/jobs/:id/retry - Retry a failed job
+  app.post('/jobs/:id/retry', async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.retry(request, reply);
+  });
+
   // ==================== Query Operations ====================
 
   // GET /queue/jobs - List jobs (with optional filters)
