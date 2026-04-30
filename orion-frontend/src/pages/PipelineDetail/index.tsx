@@ -76,8 +76,8 @@ const PipelineDetail: React.FC = () => {
   }, [id]);
 
   // Calculate progress percentage
-  const totalStages = pipeline.stages?.length || 0;
-  const completedStages = pipeline.stages?.filter((s: any) => s.status === 'success').length || 0;
+  const totalStages = pipeline?.stages?.length || 0;
+  const completedStages = pipeline?.stages?.filter((s: any) => s.status === 'success').length || 0;
   const progressPercent = totalStages > 0 ? Math.round((completedStages / totalStages) * 100) : 0;
 
   // Format duration
@@ -114,6 +114,15 @@ const PipelineDetail: React.FC = () => {
     schedule: '定时触发',
     api: 'API 触发',
   };
+
+  // Loading state
+  if (loading || !pipeline) {
+    return (
+      <div style={{ padding: 0 }}>
+        <CardPanel>Loading...</CardPanel>
+      </div>
+    );
+  }
 
   return (
     <div style={{ padding: 0 }}>
@@ -164,10 +173,7 @@ const PipelineDetail: React.FC = () => {
       </div>
 
       {/* Pipeline info card */}
-      {loading || !pipeline ? (
-        <CardPanel>Loading...</CardPanel>
-      ) : (
-        <CardPanel>
+      <CardPanel>
           <Descriptions column={4} size="small" bordered labelStyle={{ width: 120 }}>
             <Descriptions.Item label="状态">
               <StatusBadge status={pipeline.status} size="small" />
@@ -207,11 +213,9 @@ const PipelineDetail: React.FC = () => {
             </Descriptions.Item>
           </Descriptions>
         </CardPanel>
-      )}
 
       {/* Tabbed content: Stages / Logs */}
-      {loading || !pipeline ? null : (
-        <Tabs activeKey={activeTab} onChange={setActiveTab} style={{ marginBottom: 16 }}>
+      <Tabs activeKey={activeTab} onChange={setActiveTab} style={{ marginBottom: 16 }}>
           <TabPane
             tab={
               <Space>
@@ -450,7 +454,6 @@ const PipelineDetail: React.FC = () => {
             </CardPanel>
           </TabPane>
         </Tabs>
-      )}
     </div>
   );
 };

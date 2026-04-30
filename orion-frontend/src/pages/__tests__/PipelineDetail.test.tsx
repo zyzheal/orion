@@ -2,8 +2,8 @@
  * Tests for PipelineDetail page (TASK-905)
  */
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import PipelineDetail from '@/pages/PipelineDetail';
 
 // Mock dayjs
@@ -30,29 +30,54 @@ vi.mock('dayjs/plugin/duration', async (importOriginal) => {
   };
 });
 
+// Mock API calls - fail so component falls back to mock data
+vi.mock('@/api/pipelines', () => ({
+  getPipelineRun: vi.fn().mockRejectedValue(new Error('Network error')),
+  retryPipelineRun: vi.fn().mockResolvedValue({}),
+}));
+
+// Mock window.location to prevent navigation errors
+Object.defineProperty(window, 'location', {
+  value: { href: '' },
+  writable: true,
+});
+
 const renderWithRouter = (ui: React.ReactElement) => {
-  return render(<MemoryRouter initialEntries={['/pipelines/pl-001']}>{ui}</MemoryRouter>);
+  return render(
+    <MemoryRouter initialEntries={['/pipelines/pl-001']}>
+      <Routes>
+        <Route path="/pipelines/:id" element={ui} />
+      </Routes>
+    </MemoryRouter>
+  );
 };
 
 describe('PipelineDetail', () => {
-  it('should render without crashing', () => {
+  it('should render without crashing', async () => {
     renderWithRouter(<PipelineDetail />);
-    expect(screen.getByText(/#142/)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText(/#142/)).toBeInTheDocument();
+    });
   });
 
-  it('should display pipeline name and run number', () => {
+  it('should display pipeline name and run number', async () => {
     renderWithRouter(<PipelineDetail />);
-    // Text is "frontend-deploy #142", match by pattern
-    expect(screen.getByText(/frontend-deploy/)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText(/frontend-deploy/)).toBeInTheDocument();
+    });
   });
 
-  it('should display re-run button', () => {
+  it('should display re-run button', async () => {
     renderWithRouter(<PipelineDetail />);
-    expect(screen.getByText('重新运行')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('重新运行')).toBeInTheDocument();
+    });
   });
 
-  it('should display back button', () => {
+  it('should display back button', async () => {
     renderWithRouter(<PipelineDetail />);
-    expect(screen.getByText('返回列表')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('返回列表')).toBeInTheDocument();
+    });
   });
 });
