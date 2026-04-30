@@ -147,7 +147,7 @@ export class ConfigDiffService {
     };
 
     // Get the config to find its key
-    const config = await this.configService.getConfigById2(configId);
+    const config = await this.configService.getConfigById(configId);
     const configKey = config?.key || fromVersionRecord.key || configId;
 
     // For oldValue, if old_value is null (initial version), use new_value instead
@@ -225,7 +225,7 @@ export class ConfigDiffService {
     configId: string,
     proposedValue: string
   ): Promise<ConfigDiff | null> {
-    const config = await this.configService.getConfigById2(configId);
+    const config = await this.configService.getConfigById(configId);
     if (!config) {
       return null;
     }

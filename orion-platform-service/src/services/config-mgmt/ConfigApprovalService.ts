@@ -24,12 +24,15 @@ import {
   IEventPublisher,
   ConfigEvents,
 } from './types';
+import { ConfigApprovalRepository } from '../../repositories/ConfigApprovalRepository';
 
 export interface ConfigApprovalServiceConfig {
   configService: ConfigService;
   eventPublisher?: IEventPublisher;
   /** Auto-apply approved changes (default: true) */
   autoApply?: boolean;
+  /** Optional PostgreSQL repository for persistence */
+  repository?: ConfigApprovalRepository;
 }
 
 export class ConfigApprovalService {
@@ -37,12 +40,14 @@ export class ConfigApprovalService {
   private configService: ConfigService;
   private eventPublisher: IEventPublisher | null;
   private autoApply: boolean;
+  private repository?: ConfigApprovalRepository;
 
   constructor(config: ConfigApprovalServiceConfig) {
     this.changeRequests = new Map();
     this.configService = config.configService;
     this.eventPublisher = config.eventPublisher || null;
     this.autoApply = config.autoApply !== false;
+    this.repository = config.repository;
   }
 
   setEventPublisher(publisher: IEventPublisher): void {
@@ -87,7 +92,27 @@ export class ConfigApprovalService {
       updatedAt: now,
     };
 
-    this.changeRequests.set(id, changeRequest);
+    // Persist to PostgreSQL if repository is available, otherwise use in-memory fallback
+    if (this.repository) {
+      try {
+        await this.repository.create({
+          id: changeRequest.id,
+          configId: changeRequest.configId,
+          configKey: changeRequest.configKey,
+          environment: changeRequest.environment,
+          oldValue: changeRequest.oldValue,
+          newValue: changeRequest.newValue,
+          reason: changeRequest.reason,
+          requester: changeRequest.requester,
+          requiredApprovals: changeRequest.requiredApprovals,
+        });
+      } catch (err) {
+        console.error('[ConfigApprovalService] Failed to persist change request to DB, falling back to memory:', err);
+        this.changeRequests.set(id, changeRequest);
+      }
+    } else {
+      this.changeRequests.set(id, changeRequest);
+    }
 
     return { ...changeRequest };
   }
