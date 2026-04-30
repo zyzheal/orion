@@ -194,26 +194,15 @@ export class ConfigService {
   }
 
   async getConfigVersions(tenantIdOrId: string, key?: string): Promise<ConfigHistory[]> {
-    if (key) {
-      // Called as getConfigVersions(tenantId, key) - find config by key first
-      const entry = await this.repository.findByKey(tenantIdOrId, key);
-      if (!entry) return [];
-      return this.getConfigVersions(entry.id);
+    if (!this.repository) return [];
+    // If called with configId directly
+    if (!key) {
+      return this.repository.getHistoryByConfigId(tenantIdOrId);
     }
-    // Called as getConfigVersions(configId)
-    return this.getConfigVersions2(tenantIdOrId);
-  }
-
-  async getConfigVersions2(configId: string): Promise<ConfigHistory[]> {
-    if (!this.isDbAvailable()) {
-      const records = this.history.get(configId) || [];
-      // Unpack value from {value: "..."} to "..." for test compatibility
-      return records.map(r => ({
-        ...r,
-        value: typeof r.value === 'string' ? r.value : (r.value as any)?.value || r.value,
-      }));
-    }
-    return this.repository.getHistoryByConfigId(configId);
+    // If called with tenantId and key
+    const entry = await this.repository.findByKey(tenantIdOrId, key);
+    if (!entry) return [];
+    return this.repository.getHistoryByConfigId(entry.id);
   }
 
   async rollbackConfig(configId: string, targetVersion: number, changedBy: string): Promise<ConfigItem> {
@@ -279,7 +268,7 @@ export class ConfigService {
 
   // Alias for ConfigController compatibility
   async list(tenantId: string, options?: ListConfigsFilter): Promise<ConfigItem[]> {
-    return this.listConfigs2(tenantId, options);
+    return this.listConfigs(options);
   }
 
   async set(tenantId: string, key: string, value: Record<string, any>, changedBy?: string): Promise<ConfigItem> {
@@ -301,10 +290,6 @@ export class ConfigService {
     return this.repository.delete(tenantId, key);
   }
 
-  async deleteConfig2(tenantId: string, key: string): Promise<boolean> {
-    return this.delete(tenantId, key);
-  }
-
   async getHistory(tenantId: string, key: string, limit?: number): Promise<ConfigHistory[]> {
     return this.repository.getHistory(tenantId, key, limit);
   }
@@ -323,52 +308,12 @@ export class ConfigService {
     return entry ? entryToItem(entry) : null;
   }
 
-  async listConfigs2(tenantId: string, optionsOrEnv?: { environment?: string; status?: string; keyPrefix?: string; tags?: string[]; limit?: number; offset?: number } | string, status?: string, keyPrefix?: string, tags?: string[], limit?: number, offset?: number): Promise<ConfigItem[]> {
-    const options = typeof optionsOrEnv === 'object' && optionsOrEnv !== null ? optionsOrEnv : { environment: optionsOrEnv, status, keyPrefix, tags, limit, offset };
-    const all = await this.getAll(tenantId);
-    let filtered = all;
-    if (options.environment) filtered = filtered.filter(c => c.environment === options.environment);
-    if (options.status) filtered = filtered.filter(c => c.status === options.status);
-    if (options.keyPrefix) filtered = filtered.filter(c => c.key.startsWith(options.keyPrefix!));
-    if (options.tags && options.tags.length > 0) filtered = filtered.filter(c => c.tags?.some(tag => options.tags!.includes(tag)));
-    if (options.offset) filtered = filtered.slice(options.offset);
-    if (options.limit) filtered = filtered.slice(0, options.limit);
-    return filtered;
-  }
-
-  async getConfig2(tenantId: string, key: string): Promise<ConfigItem | null> {
-    return this.get(tenantId, key);
-  }
-
   async getConfigById(id: string): Promise<ConfigItem | null> {
-    return this.getConfig(id);
-  }
-
-  async getConfigById2(id: string): Promise<ConfigItem | null> {
     return this.getConfig(id);
   }
 
   async getConfigVersionsById(configId: string, limit?: number): Promise<ConfigHistory[]> {
     return this.getConfigVersions(configId);
-  }
-
-  async rollbackConfig2(tenantId: string, key: string, version: number): Promise<ConfigItem | null> {
-    const history = await this.getHistory(tenantId, key, version);
-    if (history && history.length > 0) {
-      const targetVersion = history[Math.max(0, history.length - version)];
-      if (targetVersion) {
-        return this.set(tenantId, key, targetVersion.old_value || targetVersion.oldValue || {});
-      }
-    }
-    return null;
-  }
-
-  async cloneConfig2(tenantId: string, sourceKey: string, targetKey: string): Promise<ConfigItem | null> {
-    const source = await this.get(tenantId, sourceKey);
-    if (source) {
-      return this.set(tenantId, targetKey, { value: source.value });
-    }
-    return null;
   }
 
   // ==================== Internal Methods ====================
