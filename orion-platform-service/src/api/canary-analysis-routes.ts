@@ -73,4 +73,28 @@ export default async function canaryAnalysisRoutes(
   app.post('/force-rollback', async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.forceRollback(request, reply);
   });
+
+  // ==================== Metric Discovery ====================
+
+  app.get('/metrics/discover', async (request: FastifyRequest, reply: FastifyReply) => {
+    const query = request.query as { serviceName?: string };
+    try {
+      const metrics = await service.discoverMetrics(query.serviceName);
+      return reply.send({ code: 200, message: 'OK', data: metrics });
+    } catch (error: any) {
+      return reply.status(500).send({ code: 500, message: error.message });
+    }
+  });
+
+  // ==================== Model Management ====================
+
+  app.post('/models/retrain', async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = request.body as { modelName?: string } | undefined;
+    try {
+      const result = await service.retrainModel(body?.modelName);
+      return reply.send({ code: 200, message: 'OK', data: result });
+    } catch (error: any) {
+      return reply.status(500).send({ code: 500, message: error.message });
+    }
+  });
 }

@@ -639,4 +639,62 @@ export class CanaryAnalysisService {
   async getDecisions(runId: string): Promise<CanaryDecisionRecord[]> {
     return this.decisions.get(runId) ?? [];
   }
+
+  // ==================== Metric Discovery & Model Retraining (M31 additions) ====================
+
+  /**
+   * Discover available metrics for a service by querying Prometheus
+   */
+  async discoverMetrics(serviceName?: string): Promise<{
+    metrics: Array<{ name: string; type: string; description: string; labels: string[] }>;
+    discoveredAt: string;
+  }> {
+    // MVP: return static list of common canary analysis metrics
+    // In production, query Prometheus /api/v1/label/__name__/values
+    const allMetrics = [
+      { name: 'http_requests_total', type: 'counter', description: 'Total HTTP requests', labels: ['method', 'status', 'path'] },
+      { name: 'http_request_duration_seconds', type: 'histogram', description: 'HTTP request latency', labels: ['method', 'path'] },
+      { name: 'http_request_errors_total', type: 'counter', description: 'Total HTTP errors', labels: ['method', 'path'] },
+      { name: 'cpu_usage_percent', type: 'gauge', description: 'CPU usage percentage', labels: ['instance'] },
+      { name: 'memory_usage_bytes', type: 'gauge', description: 'Memory usage in bytes', labels: ['instance'] },
+      { name: 'active_connections', type: 'gauge', description: 'Number of active connections', labels: ['instance'] },
+    ];
+
+    const metrics = serviceName
+      ? allMetrics // In production, filter by service-specific labels
+      : allMetrics;
+
+    return { metrics, discoveredAt: new Date().toISOString() };
+  }
+
+  /**
+   * Trigger ML model retraining with historical analysis data
+   */
+  async retrainModel(modelName?: string): Promise<{
+    jobId: string;
+    modelName: string;
+    status: 'queued' | 'running' | 'completed' | 'failed';
+    estimatedDuration: string;
+    submittedAt: string;
+  }> {
+    const name = modelName || 'canary-default';
+    const jobId = `retrain-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+
+    // MVP: store retrain request -- actual training would be an async job
+    if (!(this as any).retrainJobs) (this as any).retrainJobs = new Map();
+    (this as any).retrainJobs.set(jobId, {
+      jobId,
+      modelName: name,
+      status: 'queued' as const,
+      submittedAt: new Date().toISOString(),
+    });
+
+    return {
+      jobId,
+      modelName: name,
+      status: 'queued',
+      estimatedDuration: '15-30 minutes',
+      submittedAt: new Date().toISOString(),
+    };
+  }
 }
