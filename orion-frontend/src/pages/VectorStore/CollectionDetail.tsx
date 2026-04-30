@@ -10,7 +10,7 @@ import { Typography, Popconfirm, Button } from 'antd';
 import { DeleteOutlined } from '@ant-design/icons';
 import type { VectorCollection, VectorDocument } from '@/api/vector-store';
 import dayjs from 'dayjs';
-import { statusColorMap, indexTypeLabelMap, metricLabelMap } from './constants';
+import { statusColorMap, indexTypeLabelMap, metricLabelMap } from './utils';
 
 const { Paragraph, Text } = Typography;
 

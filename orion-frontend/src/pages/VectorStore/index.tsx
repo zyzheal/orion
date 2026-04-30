@@ -9,10 +9,10 @@
  * - VectorSearch.tsx: Similarity search panel
  * - DocumentManager.tsx: Document upload panel
  * - CreateCollectionModal.tsx: Create collection modal
- * - constants.ts: Shared constants and mock data
+ * - utils.ts: Shared display utility maps
  */
 import React, { useState, useMemo, useEffect } from 'react';
-import { Typography, Button, Space, Card, Alert, Row, Col, Statistic, message } from 'antd';
+import { Typography, Button, Space, Card, Row, Col, Statistic, message } from 'antd';
 import {
   PlusOutlined,
   ReloadOutlined,
@@ -39,7 +39,6 @@ import CollectionDetail from './CollectionDetail';
 import VectorSearch from './VectorSearch';
 import DocumentManager from './DocumentManager';
 import CreateCollectionModal from './CreateCollectionModal';
-import { MOCK_COLLECTIONS, MOCK_DOCUMENTS, MOCK_SEARCH_RESULTS, MOCK_STATS } from './constants';
 
 dayjs.extend(relativeTime);
 
@@ -59,7 +58,6 @@ const VectorStorePage: React.FC = () => {
   const [collectionDocs, setCollectionDocs] = useState<VectorDocument[]>([]);
   const [docsLoading, setDocsLoading] = useState(false);
   const [stats, setStats] = useState<VectorStats | null>(null);
-  const [usingMockData, setUsingMockData] = useState(false);
 
   // Search tab state
   const [searchText, setSearchText] = useState('');
@@ -78,21 +76,10 @@ const VectorStorePage: React.FC = () => {
     setLoading(true);
     try {
       const res = await getCollections();
-      setCollections(Array.isArray(res.data?.data) ? res.data.data : MOCK_COLLECTIONS);
+      setCollections(Array.isArray(res.data?.data) ? res.data.data : []);
     } catch (error: unknown) {
-      setUsingMockData(true);
-      if (error instanceof Error) {
-        if (error.message.includes('401') || error.message.includes('403')) {
-          message.error('权限不足，请重新登录或联系管理员');
-        } else if (error.message.includes('fetch') || error.message.includes('network')) {
-          message.error('网络异常，请检查连接');
-        } else {
-          message.error(`加载集合数据失败：${error.message}`);
-        }
-      } else {
-        message.error('加载集合数据失败，请稍后重试');
-      }
-      setCollections(MOCK_COLLECTIONS);
+      setCollections([]);
+      message.error(`加载集合数据失败: ${(error as Error).message}`);
     } finally {
       setLoading(false);
     }
@@ -101,15 +88,9 @@ const VectorStorePage: React.FC = () => {
   const loadStats = async () => {
     try {
       const res = await getVectorStats();
-      setStats(res.data?.data || MOCK_STATS);
+      setStats(res.data?.data || null);
     } catch (error: unknown) {
-      setUsingMockData(true);
-      if (error instanceof Error) {
-        message.error(`加载统计信息失败：${error.message}`);
-      } else {
-        message.error('加载统计信息失败，请稍后重试');
-      }
-      setStats(MOCK_STATS);
+      setStats(null);
     }
   };
 
@@ -160,14 +141,10 @@ const VectorStorePage: React.FC = () => {
     setDocsLoading(true);
     try {
       const res = await getCollectionDocuments(name);
-      setCollectionDocs(Array.isArray(res.data?.data) ? res.data.data : MOCK_DOCUMENTS);
+      setCollectionDocs(Array.isArray(res.data?.data) ? res.data.data : []);
     } catch (error: unknown) {
-      if (error instanceof Error) {
-        message.error(`加载文档列表失败：${error.message}`);
-      } else {
-        message.error('加载文档列表失败，请稍后重试');
-      }
-      setCollectionDocs(MOCK_DOCUMENTS);
+      setCollectionDocs([]);
+      message.error(`加载文档列表失败: ${(error as Error).message}`);
     } finally {
       setDocsLoading(false);
     }
@@ -188,25 +165,16 @@ const VectorStorePage: React.FC = () => {
   };
 
   const handleSearch = async () => {
-    if (!searchText.trim()) {
-      message.warning('请输入搜索内容');
-      return;
-    }
+    if (!searchText.trim()) { message.warning('请输入搜索内容'); return; }
     setSearchLoading(true);
     try {
       const res = await searchVectors({
-        query: searchText,
-        collection: searchCollection,
-        topK: searchTopK,
+        query: searchText, collection: searchCollection, topK: searchTopK,
       });
-      setSearchResults(Array.isArray(res.data?.data) ? res.data.data : MOCK_SEARCH_RESULTS);
+      setSearchResults(Array.isArray(res.data?.data) ? res.data.data : []);
     } catch (error: unknown) {
-      if (error instanceof Error) {
-        message.error(`语义搜索失败：${error.message}`);
-      } else {
-        message.error('语义搜索失败，请稍后重试');
-      }
-      setSearchResults(MOCK_SEARCH_RESULTS);
+      setSearchResults([]);
+      message.error(`语义搜索失败: ${(error as Error).message}`);
     } finally {
       setSearchLoading(false);
     }
@@ -287,19 +255,6 @@ const VectorStorePage: React.FC = () => {
           </Button>
         </Space>
       </div>
-
-      {/* Mock data warning banner */}
-      {usingMockData && (
-        <Alert
-          message="使用模拟数据"
-          description="后端服务暂时不可用，当前显示的是模拟数据，可能不是最新状态。"
-          type="warning"
-          showIcon
-          closable
-          style={{ marginBottom: 16 }}
-          onClose={() => setUsingMockData(false)}
-        />
-      )}
 
       {/* Stats Panel */}
       {stats && (
