@@ -18,6 +18,7 @@ import {
   OwnershipRule,
   OwnershipRecommendation,
 } from './types';
+import { CodeOwnershipRepository } from '../../repositories/CodeOwnershipRepository';
 
 /** 解析 CODEOWNERS 文件的结果 */
 export interface ParseResult {
@@ -36,6 +37,12 @@ const codeOwnersFiles = new Map<string, CodeOwnersFile>();
 const codeOwnersByRepo = new Map<string, string>(); // repoId -> fileId
 
 export class CodeOwnershipService {
+  private repository: CodeOwnershipRepository | null = null;
+
+  constructor(repository?: CodeOwnershipRepository) {
+    this.repository = repository ?? null;
+  }
+
   /**
    * 注册/更新 CODEOWNERS 文件
    *
@@ -65,6 +72,17 @@ export class CodeOwnershipService {
       rawContent,
     };
 
+    // Persist to repository if available
+    if (this.repository) {
+      const existing = await this.repository.findByRepo(repoId);
+      if (existing) {
+        await this.repository.update(repoId, { filePath, rules: parseResult.rules, rawContent });
+      } else {
+        const id = uuidv4();
+        await this.repository.create({ id, repoId, filePath, rules: parseResult.rules, rawContent });
+      }
+    }
+
     const existingId = codeOwnersByRepo.get(repoId);
     if (existingId) {
       // 更新已有文件
@@ -83,6 +101,17 @@ export class CodeOwnershipService {
    * 获取仓库的 CODEOWNERS 文件
    */
   async getCodeOwnersFile(repoId: string): Promise<CodeOwnersFile | null> {
+    // Try repository first if available
+    if (this.repository) {
+      const dbFile = await this.repository.findByRepo(repoId);
+      if (dbFile) {
+        // Sync to memory
+        codeOwnersFiles.set(repoId, dbFile);
+        codeOwnersByRepo.set(repoId, repoId);
+      }
+      return dbFile;
+    }
+
     const fileId = codeOwnersByRepo.get(repoId);
     if (!fileId) {
       return null;
@@ -94,6 +123,12 @@ export class CodeOwnershipService {
    * 删除仓库的 CODEOWNERS 文件
    */
   async removeCodeOwnersFile(repoId: string): Promise<boolean> {
+    // Delete from repository if available
+    if (this.repository) {
+      const deleted = await this.repository.delete(repoId);
+      if (!deleted) return false;
+    }
+
     const fileId = codeOwnersByRepo.get(repoId);
     if (!fileId) {
       return false;
