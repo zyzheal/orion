@@ -129,15 +129,16 @@ describe('ReadTrafficManager', () => {
         canUseStaleData: true,
       };
 
-      // 多次选择，大约 80% 应该去主库
+      // 多次选择，大约 80% 应该去主库（由于随机性，使用更大的样本和更宽松的阈值）
       const selections: string[] = [];
-      for (let i = 0; i < 100; i++) {
+      for (let i = 0; i < 500; i++) {
         const decision = manager.selectNode(context);
         selections.push(decision.targetNode.id);
       }
 
       const primaryCount = selections.filter((id) => id === 'primary').length;
-      expect(primaryCount).toBeGreaterThan(70); // 大约 80% 应该去主库
+      // 500 次中选择主库的次数应该大于 350 (70%)，由于随机性给予一定容错
+      expect(primaryCount).toBeGreaterThan(350); // 大约 80% 应该去主库
     });
 
     it('L3 模式下所有流量应该路由到主库', () => {
