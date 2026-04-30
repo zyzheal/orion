@@ -23,6 +23,30 @@ export default async function riskRoutes(
 ): Promise<void> {
   const service = options.riskAssessmentService || new RiskAssessmentService();
 
+  // In-memory stores for risk events and health check history (MVP)
+  const riskEventsStore: Array<{
+    id: string;
+    eventType: 'risk_detected' | 'risk_escalated' | 'risk_mitigated';
+    riskLevel: 'low' | 'medium' | 'high' | 'critical';
+    title: string;
+    description: string;
+    targetType: string;
+    targetId: string;
+    acknowledged: boolean;
+    acknowledgedBy?: string;
+    acknowledgedAt?: string;
+    createdAt: Date;
+  }> = [];
+
+  const healthCheckHistory: Array<{
+    id: string;
+    checkType: 'pre-deployment' | 'basic' | 'comprehensive';
+    status: 'healthy' | 'degraded' | 'unhealthy';
+    checks: Array<{ name: string; status: string; message?: string }>;
+    executedAt: Date;
+    duration: number;
+  }> = [];
+
   // ==================== 风险评估 ====================
 
   /**
@@ -307,6 +331,16 @@ export default async function riskRoutes(
         dependencies,
       });
 
+      // Also store in health check history
+      healthCheckHistory.push({
+        id: `hc-${Date.now()}`,
+        checkType: 'pre-deployment',
+        status: (result as any).overallStatus || 'healthy',
+        checks: (result as any).checks || [],
+        executedAt: new Date(),
+        duration: (result as any).duration || 0,
+      });
+
       return reply.send({
         data: result,
         meta: {
@@ -357,5 +391,64 @@ export default async function riskRoutes(
       assessmentsCount: assessments.length,
       reportsCount: service.getReportHistory().length,
     });
+  });
+
+  // ==================== Risk Events ====================
+
+  // GET /events - List risk events
+  app.get('/events', async (request: FastifyRequest, reply: FastifyReply) => {
+    const query = request.query as { status?: string };
+    try {
+      let events = [...riskEventsStore];
+      if (query.status === 'acknowledged') {
+        events = events.filter((e) => e.acknowledged);
+      } else if (query.status === 'unacknowledged') {
+        events = events.filter((e) => !e.acknowledged);
+      }
+      return reply.send({
+        code: 200,
+        message: 'OK',
+        data: {
+          events: events.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()),
+          total: events.length,
+        },
+      });
+    } catch (error: any) {
+      return reply.status(500).send({ code: 500, message: error.message });
+    }
+  });
+
+  // POST /events/:id/acknowledge - Acknowledge a risk event
+  app.post('/events/:id/acknowledge', async (request: FastifyRequest, reply: FastifyReply) => {
+    const params = request.params as { id: string };
+    try {
+      const event = riskEventsStore.find((e) => e.id === params.id);
+      if (!event) {
+        return reply.status(404).send({ code: 404, message: 'Risk event not found' });
+      }
+      event.acknowledged = true;
+      event.acknowledgedAt = new Date().toISOString();
+      return reply.send({ code: 200, message: 'OK', data: { acknowledged: true, acknowledgedAt: event.acknowledgedAt } });
+    } catch (error: any) {
+      return reply.status(500).send({ code: 500, message: error.message });
+    }
+  });
+
+  // ==================== Health Check History ====================
+
+  // GET /health-check/history - Get health check history
+  app.get('/health-check/history', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      return reply.send({
+        code: 200,
+        message: 'OK',
+        data: {
+          checks: healthCheckHistory.sort((a, b) => b.executedAt.getTime() - a.executedAt.getTime()),
+          total: healthCheckHistory.length,
+        },
+      });
+    } catch (error: any) {
+      return reply.status(500).send({ code: 500, message: error.message });
+    }
   });
 }
