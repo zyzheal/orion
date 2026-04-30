@@ -16,6 +16,7 @@ import {
   MergeStrategy,
   PullRequest,
 } from './types';
+import { BranchPolicyRepository } from '../../repositories/BranchPolicyRepository';
 
 /** 创建分支策略的输入 */
 export interface BranchPolicyCreateInput {
@@ -70,6 +71,12 @@ const branchPolicies = new Map<string, BranchPolicy>();
 const policiesByRepo = new Map<string, string[]>(); // repoId -> [policyIds]
 
 export class BranchPolicyService {
+  private repository?: BranchPolicyRepository;
+
+  constructor(repository?: BranchPolicyRepository) {
+    this.repository = repository;
+  }
+
   /**
    * 创建分支保护策略
    */
@@ -112,12 +119,33 @@ export class BranchPolicyService {
       updatedAt: now,
     };
 
-    branchPolicies.set(policy.id, policy);
+    // Persist to PostgreSQL if repository is available, otherwise use in-memory fallback
+    if (this.repository) {
+      try {
+        await this.repository.create({
+          id: policy.id,
+          repoId: policy.repoId,
+          branchPattern: policy.branchPattern,
+          preventForcePush: policy.preventForcePush,
+          preventDeletion: policy.preventDeletion,
+          mergeStrategy: policy.mergeStrategy,
+          approvalRules: policy.approvalRules,
+          requiredChecks: policy.requiredChecks,
+          requireCodeOwners: policy.requireCodeOwners,
+          linearHistory: policy.linearHistory,
+          allowAdminOverride: policy.allowAdminOverride,
+        });
+      } catch (err) {
+        console.error('[BranchPolicyService] Failed to persist policy to DB, falling back to memory:', err);
+      }
+    } else {
+      branchPolicies.set(policy.id, policy);
 
-    // 维护仓库索引
-    const repoPolicyIds = policiesByRepo.get(input.repoId) || [];
-    repoPolicyIds.push(policy.id);
-    policiesByRepo.set(input.repoId, repoPolicyIds);
+      // 维护仓库索引
+      const repoPolicyIds = policiesByRepo.get(input.repoId) || [];
+      repoPolicyIds.push(policy.id);
+      policiesByRepo.set(input.repoId, repoPolicyIds);
+    }
 
     return policy;
   }
@@ -126,6 +154,15 @@ export class BranchPolicyService {
    * 获取分支策略详情
    */
   async getById(id: string): Promise<BranchPolicy | null> {
+    // Try PostgreSQL first if repository is available
+    if (this.repository) {
+      try {
+        const policy = await this.repository.findById(id);
+        if (policy) return policy;
+      } catch (err) {
+        console.error('[BranchPolicyService] DB findById failed, falling back to memory:', err);
+      }
+    }
     return branchPolicies.get(id) || null;
   }
 
@@ -133,6 +170,14 @@ export class BranchPolicyService {
    * 获取仓库的所有分支策略
    */
   async listByRepo(repoId: string): Promise<BranchPolicy[]> {
+    // Try PostgreSQL first if repository is available
+    if (this.repository) {
+      try {
+        return await this.repository.findByRepo(repoId);
+      } catch (err) {
+        console.error('[BranchPolicyService] DB findByRepo failed, falling back to memory:', err);
+      }
+    }
     const policyIds = policiesByRepo.get(repoId) || [];
     return policyIds
       .map(id => branchPolicies.get(id))
@@ -144,6 +189,28 @@ export class BranchPolicyService {
    * 更新分支策略
    */
   async update(id: string, input: BranchPolicyUpdateInput): Promise<BranchPolicy | null> {
+    // Try PostgreSQL first if repository is available
+    if (this.repository) {
+      try {
+        const existing = await this.repository.findById(id);
+        if (!existing) return null;
+        // Transform approvalRules to include generated IDs for repository layer
+        const repoInput = {
+          ...input,
+          approvalRules: input.approvalRules?.map(rule => ({
+            id: uuidv4(),
+            name: rule.name,
+            requiredApprovals: rule.requiredApprovals,
+            approvers: rule.approvers,
+            allowAuthorApproval: rule.allowAuthorApproval ?? false,
+            requiredRoles: rule.requiredRoles,
+          })),
+        };
+        return await this.repository.update(id, repoInput);
+      } catch (err) {
+        console.error('[BranchPolicyService] DB update failed, falling back to memory:', err);
+      }
+    }
     const policy = branchPolicies.get(id);
     if (!policy) {
       return null;
@@ -183,6 +250,29 @@ export class BranchPolicyService {
    * 删除分支策略
    */
   async delete(id: string): Promise<boolean> {
+    // Try PostgreSQL first if repository is available
+    if (this.repository) {
+      try {
+        const result = await this.repository.delete(id);
+        if (result) {
+          // Also clean up in-memory cache for consistency
+          const policy = branchPolicies.get(id);
+          if (policy) {
+            branchPolicies.delete(id);
+            const repoPolicyIds = policiesByRepo.get(policy.repoId) || [];
+            const updatedIds = repoPolicyIds.filter(pid => pid !== id);
+            if (updatedIds.length === 0) {
+              policiesByRepo.delete(policy.repoId);
+            } else {
+              policiesByRepo.set(policy.repoId, updatedIds);
+            }
+          }
+        }
+        return result;
+      } catch (err) {
+        console.error('[BranchPolicyService] DB delete failed, falling back to memory:', err);
+      }
+    }
     const policy = branchPolicies.get(id);
     if (!policy) {
       return false;
