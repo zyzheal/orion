@@ -212,16 +212,37 @@ const mockTickets = [
     source: 'alert',
     reporter: '系统',
     assignee: '张伟',
-    description: '监控显示 prod-db-01 的 CPU 使用率持续超过 95%，已持续30分钟，需要立即处理以避免服务中断。',
+    description:
+      '监控显示 prod-db-01 的 CPU 使用率持续超过 95%，已持续30分钟，需要立即处理以避免服务中断。',
     createdAt: '2026-04-12T15:00:00Z',
     dueDate: '2026-04-12T18:00:00Z',
     escalationLevel: 1,
     tags: { host: 'prod-db-01', severity: 'high', region: 'cn-north' },
     workflowHistory: [
-      { action: 'created', performedBy: '系统', timestamp: '2026-04-12T15:00:00Z', note: '创建工单' },
-      { action: 'assigned', performedBy: '系统', timestamp: '2026-04-12T15:05:00Z', note: '分配工单给张伟' },
-      { action: 'status_change', performedBy: '张伟', timestamp: '2026-04-12T15:10:00Z', note: '状态变更为处理中' },
-      { action: 'escalated', performedBy: '系统', timestamp: '2026-04-12T15:30:00Z', note: '升级工单到 L1' },
+      {
+        action: 'created',
+        performedBy: '系统',
+        timestamp: '2026-04-12T15:00:00Z',
+        note: '创建工单',
+      },
+      {
+        action: 'assigned',
+        performedBy: '系统',
+        timestamp: '2026-04-12T15:05:00Z',
+        note: '分配工单给张伟',
+      },
+      {
+        action: 'status_change',
+        performedBy: '张伟',
+        timestamp: '2026-04-12T15:10:00Z',
+        note: '状态变更为处理中',
+      },
+      {
+        action: 'escalated',
+        performedBy: '系统',
+        timestamp: '2026-04-12T15:30:00Z',
+        note: '升级工单到 L1',
+      },
     ],
     relations: ['TKT-007'],
   },
@@ -240,8 +261,18 @@ const mockTickets = [
     escalationLevel: 0,
     tags: { service: 'api-gateway', error: '502' },
     workflowHistory: [
-      { action: 'created', performedBy: '运维', timestamp: '2026-04-12T14:00:00Z', note: '创建工单' },
-      { action: 'assigned', performedBy: '运维主管', timestamp: '2026-04-12T14:05:00Z', note: '分配工单' },
+      {
+        action: 'created',
+        performedBy: '运维',
+        timestamp: '2026-04-12T14:00:00Z',
+        note: '创建工单',
+      },
+      {
+        action: 'assigned',
+        performedBy: '运维主管',
+        timestamp: '2026-04-12T14:05:00Z',
+        note: '分配工单',
+      },
     ],
   },
   {
@@ -259,7 +290,12 @@ const mockTickets = [
     escalationLevel: 0,
     tags: { pipeline: 'main-build', branch: 'develop' },
     workflowHistory: [
-      { action: 'created', performedBy: '开发', timestamp: '2026-04-12T13:00:00Z', note: '创建工单' },
+      {
+        action: 'created',
+        performedBy: '开发',
+        timestamp: '2026-04-12T13:00:00Z',
+        note: '创建工单',
+      },
     ],
   },
   {
@@ -292,8 +328,18 @@ const mockTickets = [
     escalationLevel: 0,
     tags: { scanType: 'security', severity: 'high' },
     workflowHistory: [
-      { action: 'created', performedBy: '安全', timestamp: '2026-04-12T11:00:00Z', note: '创建工单' },
-      { action: 'resolved', performedBy: '王工', timestamp: '2026-04-12T14:00:00Z', note: '漏洞已修复' },
+      {
+        action: 'created',
+        performedBy: '安全',
+        timestamp: '2026-04-12T11:00:00Z',
+        note: '创建工单',
+      },
+      {
+        action: 'resolved',
+        performedBy: '王工',
+        timestamp: '2026-04-12T14:00:00Z',
+        note: '漏洞已修复',
+      },
     ],
   },
   {
@@ -439,7 +485,10 @@ export const handlers = [
         data: plugin,
       });
     }
-    return HttpResponse.json({ code: 404, message: 'Plugin not found', data: null }, { status: 404 });
+    return HttpResponse.json(
+      { code: 404, message: 'Plugin not found', data: null },
+      { status: 404 }
+    );
   }),
 
   http.post('/api/v1/plugins/:pluginId/toggle', ({ params }) => {
@@ -452,7 +501,10 @@ export const handlers = [
         data: plugin,
       });
     }
-    return HttpResponse.json({ code: 404, message: 'Plugin not found', data: null }, { status: 404 });
+    return HttpResponse.json(
+      { code: 404, message: 'Plugin not found', data: null },
+      { status: 404 }
+    );
   }),
 
   http.delete('/api/v1/plugins/:pluginId', ({ params }) => {
@@ -465,7 +517,10 @@ export const handlers = [
         data: { success: true },
       });
     }
-    return HttpResponse.json({ code: 404, message: 'Plugin not found', data: null }, { status: 404 });
+    return HttpResponse.json(
+      { code: 404, message: 'Plugin not found', data: null },
+      { status: 404 }
+    );
   }),
 
   // Alerts API
@@ -488,7 +543,10 @@ export const handlers = [
         data: alert,
       });
     }
-    return HttpResponse.json({ code: 404, message: 'Alert not found', data: null }, { status: 404 });
+    return HttpResponse.json(
+      { code: 404, message: 'Alert not found', data: null },
+      { status: 404 }
+    );
   }),
 
   http.post('/api/v1/alert/:alertId/resolve', ({ params }) => {
@@ -502,7 +560,10 @@ export const handlers = [
         data: alert,
       });
     }
-    return HttpResponse.json({ code: 404, message: 'Alert not found', data: null }, { status: 404 });
+    return HttpResponse.json(
+      { code: 404, message: 'Alert not found', data: null },
+      { status: 404 }
+    );
   }),
 
   // Pipelines API
@@ -526,7 +587,10 @@ export const handlers = [
         data: pipeline,
       });
     }
-    return HttpResponse.json({ code: 404, message: 'Pipeline not found', data: null }, { status: 404 });
+    return HttpResponse.json(
+      { code: 404, message: 'Pipeline not found', data: null },
+      { status: 404 }
+    );
   }),
 
   // Deployments API
@@ -550,7 +614,10 @@ export const handlers = [
         data: deployment,
       });
     }
-    return HttpResponse.json({ code: 404, message: 'Deployment not found', data: null }, { status: 404 });
+    return HttpResponse.json(
+      { code: 404, message: 'Deployment not found', data: null },
+      { status: 404 }
+    );
   }),
 
   // Tickets API
@@ -574,7 +641,10 @@ export const handlers = [
         data: ticket,
       });
     }
-    return HttpResponse.json({ code: 404, message: 'Ticket not found', data: null }, { status: 404 });
+    return HttpResponse.json(
+      { code: 404, message: 'Ticket not found', data: null },
+      { status: 404 }
+    );
   }),
 
   // FinOps API
@@ -644,9 +714,30 @@ export const handlers = [
       code: 0,
       message: 'success',
       data: [
-        { key: 'opt-1', title: '闲置资源清理', description: '发现3台未使用的ECS实例', savings: 2000, effort: 'low', status: 'pending' },
-        { key: 'opt-2', title: '预留实例购买', description: '购买预留实例可节省成本', savings: 1500, effort: 'medium', status: 'pending' },
-        { key: 'opt-3', title: '降配建议', description: '部分实例配置过高', savings: 800, effort: 'low', status: 'pending' },
+        {
+          key: 'opt-1',
+          title: '闲置资源清理',
+          description: '发现3台未使用的ECS实例',
+          savings: 2000,
+          effort: 'low',
+          status: 'pending',
+        },
+        {
+          key: 'opt-2',
+          title: '预留实例购买',
+          description: '购买预留实例可节省成本',
+          savings: 1500,
+          effort: 'medium',
+          status: 'pending',
+        },
+        {
+          key: 'opt-3',
+          title: '降配建议',
+          description: '部分实例配置过高',
+          savings: 800,
+          effort: 'low',
+          status: 'pending',
+        },
       ],
     });
   }),
@@ -657,8 +748,20 @@ export const handlers = [
       code: 0,
       message: 'success',
       data: [
-        { key: 'alert-1', service: '云服务器 ECS', threshold: 15000, current: 18000, status: 'exceeded' },
-        { key: 'alert-2', service: '数据库 RDS', threshold: 10000, current: 12000, status: 'exceeded' },
+        {
+          key: 'alert-1',
+          service: '云服务器 ECS',
+          threshold: 15000,
+          current: 18000,
+          status: 'exceeded',
+        },
+        {
+          key: 'alert-2',
+          service: '数据库 RDS',
+          threshold: 10000,
+          current: 12000,
+          status: 'exceeded',
+        },
       ],
     });
   }),
