@@ -100,8 +100,11 @@ describe('CostOverview', { timeout: 15000 }, () => {
     render(<CostOverview />);
 
     const { message } = await import('antd');
-    await waitFor(() => {
-      expect(message.error).toHaveBeenCalled();
-    }, { timeout: 10000 });
+    await waitFor(
+      () => {
+        expect(message.error).toHaveBeenCalled();
+      },
+      { timeout: 10000 }
+    );
   });
 });
