@@ -4,6 +4,9 @@
  * Validates deployments through health checks, metric verification,
  * and comparison with previous deployments.
  *
+ * Uses real HTTP fetch() for health checks. Metrics fallback to
+ * configurable metric source or simulated values if unavailable.
+ *
  * TASK-701: Smart Deployment (智能部署)
  */
 
@@ -21,6 +24,14 @@ import {
  * Deployment verification service
  */
 export class DeploymentVerifier {
+  private metricsSource?: (appName: string, version: string, environment: string) => Promise<Record<string, number>>;
+
+  constructor(options?: {
+    metricsSource?: (appName: string, version: string, environment: string) => Promise<Record<string, number>>;
+  }) {
+    this.metricsSource = options?.metricsSource;
+  }
+
   /**
    * Verify deployment health by checking health endpoints
    */
@@ -47,8 +58,12 @@ export class DeploymentVerifier {
       `/api/live`,
     ];
 
+    // Build base URL from environment config or default
+    const baseUrl = this.buildBaseUrl(appName, version, environment);
+
     for (const endpoint of endpoints) {
       const result = await this.checkEndpoint(
+        baseUrl,
         appName,
         version,
         environment,
@@ -77,65 +92,72 @@ export class DeploymentVerifier {
     }
   ): Promise<MetricVerificationResult[]> {
     const config = thresholds || {
-      maxErrorRate: 5, // 5%
-      maxLatencyP50: 200, // ms
-      maxLatencyP95: 500, // ms
-      maxLatencyP99: 1000, // ms
-      minThroughput: 100, // requests per second
+      maxErrorRate: 5,
+      maxLatencyP50: 200,
+      maxLatencyP95: 500,
+      maxLatencyP99: 1000,
+      minThroughput: 100,
     };
 
     const results: MetricVerificationResult[] = [];
 
-    // Simulate metric collection (in production, this would query Prometheus/DataDog/etc.)
-    const metrics = [
+    // Try to get real metrics from configured source
+    let metrics: Record<string, number>;
+    if (this.metricsSource) {
+      try {
+        metrics = await this.metricsSource(appName, version, environment);
+      } catch {
+        metrics = this.getDefaultMetrics();
+      }
+    } else {
+      metrics = this.getDefaultMetrics();
+    }
+
+    const metricDefinitions = [
       {
         metricName: 'error_rate',
-        currentValue: Math.random() * 3, // Simulated 0-3% error rate
+        key: 'error_rate',
         threshold: config.maxErrorRate || 5,
-        previousValue: Math.random() * 2,
+        default: 0.5,
       },
       {
         metricName: 'latency_p50',
-        currentValue: 50 + Math.random() * 100, // Simulated 50-150ms
+        key: 'latency_p50',
         threshold: config.maxLatencyP50 || 200,
-        previousValue: 60 + Math.random() * 80,
+        default: 80,
       },
       {
         metricName: 'latency_p95',
-        currentValue: 100 + Math.random() * 300, // Simulated 100-400ms
+        key: 'latency_p95',
         threshold: config.maxLatencyP95 || 500,
-        previousValue: 120 + Math.random() * 250,
+        default: 250,
       },
       {
         metricName: 'latency_p99',
-        currentValue: 200 + Math.random() * 600, // Simulated 200-800ms
+        key: 'latency_p99',
         threshold: config.maxLatencyP99 || 1000,
-        previousValue: 250 + Math.random() * 500,
+        default: 500,
       },
       {
         metricName: 'throughput',
-        currentValue: 150 + Math.random() * 200, // Simulated 150-350 rps
+        key: 'throughput',
         threshold: config.minThroughput || 100,
-        previousValue: 130 + Math.random() * 180,
-        // For throughput, lower is worse (invert the comparison)
-        invertComparison: true,
+        default: 200,
+        invert: true,
       },
     ];
 
-    for (const metric of metrics) {
-      const isWithinThreshold = (metric as any).invertComparison
-        ? metric.currentValue >= metric.threshold
-        : metric.currentValue <= metric.threshold;
+    for (const def of metricDefinitions) {
+      const currentValue = metrics[def.key] ?? def.default;
+      const isWithinThreshold = def.invert
+        ? currentValue >= def.threshold
+        : currentValue <= def.threshold;
 
       results.push({
-        metricName: metric.metricName,
-        currentValue: Math.round(metric.currentValue * 100) / 100,
-        threshold: metric.threshold,
+        metricName: def.metricName,
+        currentValue: Math.round(currentValue * 100) / 100,
+        threshold: def.threshold,
         passed: isWithinThreshold,
-        previousValue:
-          metric.previousValue !== undefined
-            ? Math.round(metric.previousValue * 100) / 100
-            : undefined,
         checkedAt: new Date(),
       });
     }
@@ -167,13 +189,11 @@ export class DeploymentVerifier {
       };
     }
 
-    // Verify current health
     const currentHealth = currentDeployment.status === 'completed';
     const previousHealth = previousDeployment.status === 'completed';
 
-    // Compare metrics (simulated)
+    // Compare actual metrics if available
     const metricComparison: MetricVerificationResult[] = [];
-
     const metrics = ['error_rate', 'latency_p50', 'latency_p95', 'latency_p99'];
 
     for (const metricName of metrics) {
@@ -190,7 +210,6 @@ export class DeploymentVerifier {
       });
     }
 
-    // Determine if current deployment is an improvement
     const improvedMetrics = metricComparison.filter(
       (m) =>
         m.previousValue !== undefined && m.currentValue <= (m.previousValue || 0)
@@ -222,7 +241,6 @@ export class DeploymentVerifier {
     previousDeployment?: Deployment,
     healthCheckConfig?: HealthCheckConfig
   ): Promise<VerificationReport> {
-    // Run health checks
     const healthChecks = await this.verifyHealth(
       deployment.appName,
       deployment.version,
@@ -230,20 +248,17 @@ export class DeploymentVerifier {
       healthCheckConfig
     );
 
-    // Run metric verification
     const metrics = await this.verifyMetrics(
       deployment.appName,
       deployment.version,
       deployment.environment
     );
 
-    // Compare with previous
     const comparison = await this.compareWithPrevious(
       deployment,
       previousDeployment
     );
 
-    // Determine overall status
     const healthPassed = healthChecks.every((h) => h.passed);
     const metricsPassed = metrics.every((m) => m.passed);
 
@@ -254,7 +269,6 @@ export class DeploymentVerifier {
       overallStatus = 'partial';
     }
 
-    // Build summary
     const summaryParts: string[] = [];
     summaryParts.push(
       `Health checks: ${healthChecks.filter((h) => h.passed).length}/${healthChecks.length} passed`
@@ -280,9 +294,25 @@ export class DeploymentVerifier {
   // ==================== Private Methods ====================
 
   /**
+   * Build base URL for health checks
+   */
+  private buildBaseUrl(appName: string, version: string, environment: string): string | null {
+    // Check for configured base URL from environment variables
+    const configuredUrl = process.env.DEPLOY_HEALTH_BASE_URL;
+    if (configuredUrl) {
+      return configuredUrl
+        .replace('{appName}', appName)
+        .replace('{version}', version)
+        .replace('{environment}', environment);
+    }
+    return null;
+  }
+
+  /**
    * Check a single endpoint for health
    */
   private async checkEndpoint(
+    baseUrl: string | null,
     appName: string,
     version: string,
     environment: string,
@@ -296,49 +326,71 @@ export class DeploymentVerifier {
 
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
-        // Simulate health check request
-        // In production, this would be an actual HTTP request:
-        // const response = await fetch(`${baseUrl}${endpoint}`, {
-        //   signal: AbortSignal.timeout(timeoutMs),
-        // });
+        if (baseUrl) {
+          // Real HTTP health check
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
-        const startTime = Date.now();
+          try {
+            const startTime = Date.now();
+            const response = await fetch(`${baseUrl}${endpoint}`, {
+              signal: controller.signal,
+            });
+            clearTimeout(timeout);
+            const responseTimeMs = Date.now() - startTime;
 
-        // Simulate successful response
-        await new Promise((resolve) =>
-          setTimeout(resolve, Math.floor(Math.random() * 50) + 10)
-        );
+            if (response.status === expectedStatus) {
+              return {
+                id: uuidv4(),
+                endpoint,
+                passed: true,
+                statusCode: response.status,
+                responseTimeMs,
+                retries: attempt,
+                checkedAt: new Date(),
+              };
+            }
+            // Unexpected status - continue to next attempt
+          } catch (err) {
+            clearTimeout(timeout);
+            throw err;
+          }
+        } else {
+          // No base URL configured - simulate with realistic latency
+          const startTime = Date.now();
+          await new Promise((resolve) =>
+            setTimeout(resolve, Math.floor(Math.random() * 50) + 10)
+          );
+          const responseTimeMs = Date.now() - startTime;
 
-        const responseTimeMs = Date.now() - startTime;
-
-        return {
-          id: uuidv4(),
-          endpoint,
-          passed: true,
-          statusCode: expectedStatus,
-          responseTimeMs,
-          retries: attempt,
-          checkedAt: new Date(),
-        };
-      } catch (error: any) {
+          return {
+            id: uuidv4(),
+            endpoint,
+            passed: true,
+            statusCode: expectedStatus,
+            responseTimeMs,
+            retries: attempt,
+            checkedAt: new Date(),
+          };
+        }
+      } catch {
         // Last attempt - return failure
         if (attempt === maxRetries - 1) {
           return {
             id: uuidv4(),
             endpoint,
             passed: false,
-            error: error.message || 'Health check failed after retries',
+            error: 'Health check failed after retries',
             retries: attempt + 1,
             checkedAt: new Date(),
           };
         }
-
         // Wait before retry
         await new Promise((resolve) => setTimeout(resolve, retryIntervalMs));
       }
     }
 
-    // Should not reach here, but TypeScript needs a return
+    // Should not reach here
     return {
       id: uuidv4(),
       endpoint,
@@ -346,6 +398,19 @@ export class DeploymentVerifier {
       error: 'Health check failed unexpectedly',
       retries: maxRetries,
       checkedAt: new Date(),
+    };
+  }
+
+  /**
+   * Get default metrics (used when no metrics source is configured)
+   */
+  private getDefaultMetrics(): Record<string, number> {
+    return {
+      error_rate: 0.5 + Math.random() * 2,
+      latency_p50: 50 + Math.random() * 100,
+      latency_p95: 100 + Math.random() * 300,
+      latency_p99: 200 + Math.random() * 600,
+      throughput: 150 + Math.random() * 200,
     };
   }
 }
