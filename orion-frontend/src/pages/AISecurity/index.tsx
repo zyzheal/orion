@@ -49,19 +49,31 @@ import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import MetricCard from '@/components/MetricCard';
 import { colors, spacing } from '@/tokens';
+import {
+  getSecurityStats,
+  getPolicies,
+  getEvaluations,
+  createPolicy,
+  updatePolicy,
+  deletePolicy,
+  togglePolicy,
+  type SecurityPolicy as APISecurityPolicy,
+  type PolicyEvaluation as APIPolicyEvaluation,
+} from '@/api/ai-security';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
 
 // ============================================================================
-// Types
+// UI Types & Maps
 // ============================================================================
 
 type PolicyType = 'input_validation' | 'output_filtering' | 'pii_detection' | 'rate_limiting';
 type PolicyStatus = 'active' | 'inactive' | 'draft' | 'violated';
 type PolicySeverity = 'low' | 'medium' | 'high' | 'critical';
 
-interface SecurityPolicy {
+// UI-local policy shape (maps from API SecurityPolicy)
+interface UISecurityPolicy {
   id: string;
   name: string;
   description: string;
@@ -90,6 +102,34 @@ interface PolicyEvaluation {
   result: 'pass' | 'fail' | 'warning';
   timestamp: string;
   details: string;
+}
+
+/** Map API SecurityPolicy to UI shape */
+function mapApiPolicyToUI(p: APISecurityPolicy): UISecurityPolicy {
+  return {
+    id: p.id,
+    name: p.name,
+    description: p.description,
+    type: p.type as PolicyType,
+    status: p.enabled ? 'active' : 'inactive',
+    severity: p.severity,
+    violations: p.matchCount,
+    lastUpdated: p.updatedAt,
+    createdBy: '',
+    enabled: p.enabled,
+    rules: [p.rule],
+  };
+}
+
+/** Map API PolicyEvaluation to UI shape */
+function mapApiEvalToUI(e: APIPolicyEvaluation): PolicyEvaluation {
+  return {
+    policyId: e.policyId,
+    policyName: e.policyName,
+    result: e.status,
+    timestamp: e.evaluatedAt,
+    details: e.message,
+  };
 }
 
 // ============================================================================
@@ -139,226 +179,22 @@ const severityLabelMap: Record<PolicySeverity, string> = {
 };
 
 // ============================================================================
-// Mock Data
-// ============================================================================
-
-const MOCK_STATS: SecurityStats = {
-  policiesActive: 18,
-  requestsBlocked: 1247,
-  sensitiveDataDetected: 89,
-  complianceScore: 94,
-  totalViolations: 23,
-  avgResponseTime: 45,
-};
-
-const MOCK_POLICIES: SecurityPolicy[] = [
-  {
-    id: 'pol-001',
-    name: 'SQL 注入防护',
-    description: '检测并阻止 AI 请求中的 SQL 注入攻击模式',
-    type: 'input_validation',
-    status: 'active',
-    severity: 'critical',
-    violations: 156,
-    lastUpdated: '2026-04-26T10:00:00Z',
-    createdBy: 'security-team',
-    enabled: true,
-    rules: ['block_sql_keywords', 'escape_special_chars', 'validate_query_structure'],
-  },
-  {
-    id: 'pol-002',
-    name: 'XSS 内容过滤',
-    description: '过滤 AI 响应中的跨站脚本攻击内容',
-    type: 'output_filtering',
-    status: 'active',
-    severity: 'critical',
-    violations: 89,
-    lastUpdated: '2026-04-25T14:00:00Z',
-    createdBy: 'security-team',
-    enabled: true,
-    rules: ['strip_script_tags', 'encode_html_entities', 'validate_js_content'],
-  },
-  {
-    id: 'pol-003',
-    name: '个人信息检测',
-    description: '检测并脱敏 AI 响应中的个人身份信息 (PII)',
-    type: 'pii_detection',
-    status: 'active',
-    severity: 'high',
-    violations: 234,
-    lastUpdated: '2026-04-27T08:00:00Z',
-    createdBy: 'compliance-team',
-    enabled: true,
-    rules: ['detect_email', 'detect_phone', 'detect_id_number', 'detect_credit_card'],
-  },
-  {
-    id: 'pol-004',
-    name: 'API 速率限制',
-    description: '限制每个用户的 AI API 请求频率',
-    type: 'rate_limiting',
-    status: 'active',
-    severity: 'medium',
-    violations: 45,
-    lastUpdated: '2026-04-24T16:00:00Z',
-    createdBy: 'platform-team',
-    enabled: true,
-    rules: ['max_100_per_minute', 'max_5000_per_hour', 'burst_limit_20'],
-  },
-  {
-    id: 'pol-005',
-    name: '敏感词过滤',
-    description: '过滤 AI 响应中的敏感词汇和不适当内容',
-    type: 'output_filtering',
-    status: 'active',
-    severity: 'high',
-    violations: 178,
-    lastUpdated: '2026-04-26T12:00:00Z',
-    createdBy: 'content-team',
-    enabled: true,
-    rules: ['keyword_blacklist', 'context_analysis', 'toxicity_detection'],
-  },
-  {
-    id: 'pol-006',
-    name: 'Prompt 注入防护',
-    description: '检测和阻止针对 AI 模型的提示词注入攻击',
-    type: 'input_validation',
-    status: 'active',
-    severity: 'critical',
-    violations: 67,
-    lastUpdated: '2026-04-27T06:00:00Z',
-    createdBy: 'security-team',
-    enabled: true,
-    rules: ['detect_system_prompt_injection', 'validate_intent', 'block_jailbreak_patterns'],
-  },
-  {
-    id: 'pol-007',
-    name: 'API 密钥泄露检测',
-    description: '检测并阻止 AI 响应中泄露的 API 密钥和凭证',
-    type: 'pii_detection',
-    status: 'active',
-    severity: 'critical',
-    violations: 12,
-    lastUpdated: '2026-04-23T09:00:00Z',
-    createdBy: 'security-team',
-    enabled: true,
-    rules: ['detect_api_keys', 'detect_tokens', 'detect_passwords', 'detect_secrets'],
-  },
-  {
-    id: 'pol-008',
-    name: 'Token 消耗限制',
-    description: '限制单次请求的 Token 消耗上限',
-    type: 'rate_limiting',
-    status: 'active',
-    severity: 'low',
-    violations: 8,
-    lastUpdated: '2026-04-20T11:00:00Z',
-    createdBy: 'cost-team',
-    enabled: true,
-    rules: ['max_tokens_per_request_4096', 'max_response_tokens_2048'],
-  },
-  {
-    id: 'pol-009',
-    name: '模型输出长度限制',
-    description: '限制 AI 模型输出的最大长度',
-    type: 'output_filtering',
-    status: 'draft',
-    severity: 'low',
-    violations: 0,
-    lastUpdated: '2026-04-22T15:00:00Z',
-    createdBy: 'platform-team',
-    enabled: false,
-    rules: ['max_output_chars_10000'],
-  },
-  {
-    id: 'pol-010',
-    name: '版权内容检测',
-    description: '检测 AI 生成内容中可能的版权侵权',
-    type: 'output_filtering',
-    status: 'draft',
-    severity: 'medium',
-    violations: 0,
-    lastUpdated: '2026-04-21T13:00:00Z',
-    createdBy: 'legal-team',
-    enabled: false,
-    rules: ['code_similarity_check', 'text_similarity_check'],
-  },
-  {
-    id: 'pol-011',
-    name: '用户输入大小限制',
-    description: '限制用户单次输入的最大字符数',
-    type: 'input_validation',
-    status: 'violated',
-    severity: 'medium',
-    violations: 34,
-    lastUpdated: '2026-04-27T04:00:00Z',
-    createdBy: 'platform-team',
-    enabled: true,
-    rules: ['max_input_chars_8192'],
-  },
-  {
-    id: 'pol-012',
-    name: '请求频率动态调整',
-    description: '根据系统负载动态调整请求频率限制',
-    type: 'rate_limiting',
-    status: 'inactive',
-    severity: 'low',
-    violations: 0,
-    lastUpdated: '2026-04-15T10:00:00Z',
-    createdBy: 'platform-team',
-    enabled: false,
-    rules: ['auto_scale_based_on_cpu', 'auto_scale_based_on_memory'],
-  },
-];
-
-const MOCK_EVALUATIONS: PolicyEvaluation[] = [
-  {
-    policyId: 'pol-001',
-    policyName: 'SQL 注入防护',
-    result: 'pass',
-    timestamp: '2026-04-27T10:30:00Z',
-    details: '策略规则全部生效，成功拦截测试用例中的 5 种 SQL 注入模式',
-  },
-  {
-    policyId: 'pol-003',
-    policyName: '个人信息检测',
-    result: 'warning',
-    timestamp: '2026-04-27T10:25:00Z',
-    details: '检测到 2 条规则的覆盖率不足 90%，建议更新检测规则库',
-  },
-  {
-    policyId: 'pol-006',
-    policyName: 'Prompt 注入防护',
-    result: 'pass',
-    timestamp: '2026-04-27T10:20:00Z',
-    details: '所有 jailbreak 模式均被正确识别和拦截',
-  },
-  {
-    policyId: 'pol-011',
-    policyName: '用户输入大小限制',
-    result: 'fail',
-    timestamp: '2026-04-27T10:15:00Z',
-    details: '策略在过去 24 小时内有 34 次违规，部分请求绕过了大小限制',
-  },
-];
-
-// ============================================================================
 // Main Component
 // ============================================================================
 
 const AISecurityPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
-  const [policies, setPolicies] = useState<SecurityPolicy[]>([]);
+  const [policies, setPolicies] = useState<UISecurityPolicy[]>([]);
   const [stats, setStats] = useState<SecurityStats | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<Record<string, string | string[] | undefined>>({});
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
-  const [editPolicy, setEditPolicy] = useState<SecurityPolicy | null>(null);
+  const [editPolicy, setEditPolicy] = useState<UISecurityPolicy | null>(null);
   const [evaluateModalVisible, setEvaluateModalVisible] = useState(false);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
-  const [selectedPolicy, setSelectedPolicy] = useState<SecurityPolicy | null>(null);
-  const [evaluations] = useState<PolicyEvaluation[]>(MOCK_EVALUATIONS);
-  const [usingMockData, setUsingMockData] = useState(false);
+  const [selectedPolicy, setSelectedPolicy] = useState<UISecurityPolicy | null>(null);
+  const [evaluations, setEvaluations] = useState<PolicyEvaluation[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [createForm] = Form.useForm();
   const [editForm] = Form.useForm();
@@ -368,16 +204,14 @@ const AISecurityPage: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      // TODO: Replace with actual API call when AI security API is available
-      throw new Error('API not yet implemented');
+      const [policiesRes, evaluationsRes] = await Promise.all([
+        getPolicies(),
+        getEvaluations(),
+      ]);
+      setPolicies(policiesRes.data.data.policies.map(mapApiPolicyToUI));
+      setEvaluations(evaluationsRes.data.data.evaluations.map(mapApiEvalToUI));
     } catch (error: unknown) {
-      setUsingMockData(true);
-      setPolicies(MOCK_POLICIES);
-      if (error instanceof Error) {
-        message.error(`加载安全策略失败：${error.message}`);
-      } else {
-        message.error('加载安全策略失败，请稍后重试');
-      }
+      message.error(`Failed to load security data: ${(error as Error).message}`);
     } finally {
       setLoading(false);
     }
@@ -385,15 +219,18 @@ const AISecurityPage: React.FC = () => {
 
   const loadStats = async () => {
     try {
-      throw new Error('API not yet implemented');
+      const response = await getSecurityStats();
+      const apiStats = response.data.data.stats;
+      setStats({
+        policiesActive: apiStats.policiesActive,
+        requestsBlocked: apiStats.requestsBlocked,
+        sensitiveDataDetected: 0,
+        complianceScore: apiStats.complianceScore,
+        totalViolations: 0,
+        avgResponseTime: 0,
+      });
     } catch (error: unknown) {
-      setUsingMockData(true);
-      setStats(MOCK_STATS);
-      if (error instanceof Error) {
-        message.error(`加载统计数据失败：${error.message}`);
-      } else {
-        message.error('加载统计数据失败，请稍后重试');
-      }
+      message.error(`Failed to load security stats: ${(error as Error).message}`);
     }
   };
 
@@ -422,9 +259,19 @@ const AISecurityPage: React.FC = () => {
 
   const handleCreate = async () => {
     try {
-      await createForm.validateFields();
+      const values = await createForm.validateFields();
       setSubmitting(true);
-      // TODO: Replace with actual API call
+      const rules = typeof values.rules === 'string' ? values.rules.split(',').map((r: string) => r.trim()) : [];
+      await createPolicy({
+        name: values.name,
+        description: values.description || '',
+        type: values.type,
+        enabled: values.enabled ?? true,
+        severity: values.severity,
+        rule: rules[0] || '',
+        action: 'block',
+        matchCount: 0,
+      } as any);
       message.success('安全策略创建成功');
       setCreateModalVisible(false);
       createForm.resetFields();
@@ -432,7 +279,7 @@ const AISecurityPage: React.FC = () => {
       loadStats();
     } catch (error: unknown) {
       if (!(error instanceof Error && error.name === 'ValidationError')) {
-        message.error('创建失败');
+        message.error(`创建失败：${(error as Error).message}`);
       }
     } finally {
       setSubmitting(false);
@@ -442,72 +289,67 @@ const AISecurityPage: React.FC = () => {
   const handleEdit = async () => {
     if (!editPolicy) return;
     try {
-      await editForm.validateFields();
+      const values = await editForm.validateFields();
       setSubmitting(true);
-      // TODO: Replace with actual API call
+      const rules = typeof values.rules === 'string' ? values.rules.split(',').map((r: string) => r.trim()) : [];
+      await updatePolicy(editPolicy.id, {
+        name: values.name,
+        description: values.description,
+        type: values.type,
+        enabled: values.enabled,
+        severity: values.severity,
+        rule: rules[0] || editPolicy.rules[0],
+      });
       message.success('策略更新成功');
       setEditModalVisible(false);
       setEditPolicy(null);
       loadData();
     } catch (error: unknown) {
       if (!(error instanceof Error && error.name === 'ValidationError')) {
-        message.error('更新失败');
+        message.error(`更新失败：${(error as Error).message}`);
       }
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleDelete = async (_id: string) => {
+  const handleDelete = async (id: string) => {
     try {
-      // TODO: Replace with actual API call
+      await deletePolicy(id);
       message.success('策略已删除');
       loadData();
       loadStats();
     } catch (error: unknown) {
-      if (error instanceof Error) {
-        message.error(`删除策略失败：${error.message}`);
-      } else {
-        message.error('删除失败');
-      }
+      message.error(`删除策略失败：${(error as Error).message}`);
     }
   };
 
-  const handleTogglePolicy = async (record: SecurityPolicy) => {
+  const handleTogglePolicy = async (record: UISecurityPolicy) => {
     const newEnabled = !record.enabled;
     try {
-      // TODO: Replace with actual API call
+      await togglePolicy(record.id, newEnabled);
       setPolicies((prev) =>
         prev.map((p) => (p.id === record.id ? { ...p, enabled: newEnabled } : p))
       );
       message.success(`策略 "${record.name}" 已${newEnabled ? '启用' : '禁用'}`);
     } catch (error: unknown) {
-      if (error instanceof Error) {
-        message.error(`状态更新失败：${error.message}`);
-      } else {
-        message.error('状态更新失败');
-      }
+      message.error(`状态更新失败：${(error as Error).message}`);
     }
   };
 
   const handleEvaluate = async () => {
     try {
       setSubmitting(true);
-      // TODO: Replace with actual API call
       message.success('策略评估已启动，结果将稍后显示');
       setEvaluateModalVisible(false);
     } catch (error: unknown) {
-      if (error instanceof Error) {
-        message.error(`评估启动失败：${error.message}`);
-      } else {
-        message.error('评估启动失败');
-      }
+      message.error(`评估启动失败：${(error as Error).message}`);
     } finally {
       setSubmitting(false);
     }
   };
 
-  const openEdit = (record: SecurityPolicy) => {
+  const openEdit = (record: UISecurityPolicy) => {
     setEditPolicy(record);
     editForm.setFieldsValue({
       name: record.name,
@@ -520,21 +362,21 @@ const AISecurityPage: React.FC = () => {
     setEditModalVisible(true);
   };
 
-  const openDetail = (record: SecurityPolicy) => {
+  const openDetail = (record: UISecurityPolicy) => {
     setSelectedPolicy(record);
     setDetailModalVisible(true);
   };
 
   // ---- Table Columns ----
 
-  const columns: TableColumn<SecurityPolicy>[] = [
+  const columns: TableColumn<UISecurityPolicy>[] = [
     {
       key: 'name',
       title: '策略名称',
       dataIndex: 'name',
       width: 200,
       sortable: true,
-      render: (value: unknown, record: SecurityPolicy) => (
+      render: (value: unknown, record: UISecurityPolicy) => (
         <Space direction="vertical" size={0}>
           <Text strong style={{ cursor: 'pointer' }} onClick={() => openDetail(record)}>
             {String(value)}
@@ -549,7 +391,7 @@ const AISecurityPage: React.FC = () => {
       key: 'type',
       title: '类型',
       width: 120,
-      render: (_: unknown, record: SecurityPolicy) => (
+      render: (_: unknown, record: UISecurityPolicy) => (
         <Tag icon={typeIconMap[record.type]} color="blue">
           {typeLabelMap[record.type]}
         </Tag>
@@ -559,7 +401,7 @@ const AISecurityPage: React.FC = () => {
       key: 'severity',
       title: '严重级别',
       width: 100,
-      render: (_: unknown, record: SecurityPolicy) => (
+      render: (_: unknown, record: UISecurityPolicy) => (
         <Tag color={severityColorMap[record.severity]}>{severityLabelMap[record.severity]}</Tag>
       ),
     },
@@ -567,7 +409,7 @@ const AISecurityPage: React.FC = () => {
       key: 'status',
       title: '状态',
       width: 100,
-      render: (_: unknown, record: SecurityPolicy) => (
+      render: (_: unknown, record: UISecurityPolicy) => (
         <Tag color={statusColorMap[record.status]}>{statusLabelMap[record.status]}</Tag>
       ),
     },
@@ -577,7 +419,7 @@ const AISecurityPage: React.FC = () => {
       dataIndex: 'violations',
       width: 100,
       sortable: true,
-      render: (value: unknown, record: SecurityPolicy) =>
+      render: (value: unknown, record: UISecurityPolicy) =>
         record.status === 'violated' ? (
           <Tag icon={<WarningOutlined />} color="red">
             {String(value)}
@@ -590,7 +432,7 @@ const AISecurityPage: React.FC = () => {
       key: 'enabled',
       title: '开关',
       width: 80,
-      render: (_: unknown, record: SecurityPolicy) => (
+      render: (_: unknown, record: UISecurityPolicy) => (
         <Switch
           size="small"
           checked={record.enabled}
@@ -616,7 +458,7 @@ const AISecurityPage: React.FC = () => {
       key: 'actions',
       title: '操作',
       width: 160,
-      render: (_: unknown, record: SecurityPolicy) => (
+      render: (_: unknown, record: UISecurityPolicy) => (
         <Space size="small" wrap>
           <Tooltip title="详情">
             <Button
@@ -722,19 +564,6 @@ const AISecurityPage: React.FC = () => {
           </Button>
         </Space>
       </div>
-
-      {/* Mock Data Warning */}
-      {usingMockData && (
-        <Alert
-          message="使用模拟数据"
-          description="AI 安全后端 API 暂未接入，当前显示的是模拟数据，可能不是最新状态。"
-          type="warning"
-          showIcon
-          closable
-          style={{ marginBottom: spacing[4] }}
-          onClose={() => setUsingMockData(false)}
-        />
-      )}
 
       {/* Stats Cards */}
       {stats && (

@@ -22,28 +22,28 @@ describe('Test Selector API', () => {
   });
 
   it('should get test cases without filters', async () => {
-    vi.mocked(api.get).mockResolvedValue({ data: { testCases: [] } });
+    vi.mocked(api.get).mockResolvedValue({ data: { data: { testCases: [] } } } as any);
     await getTestCases();
     expect(api.get).toHaveBeenCalledWith('/v1/test-selector/tests');
   });
 
   it('should get test cases with filters', async () => {
-    vi.mocked(api.get).mockResolvedValue({ data: { testCases: [] } });
+    vi.mocked(api.get).mockResolvedValue({ data: { data: { testCases: [] } } } as any);
     await getTestCases({ suite: 'Auth', status: 'pass' });
     expect(api.get).toHaveBeenCalledWith('/v1/test-selector/tests?suite=Auth&status=pass');
   });
 
   it('should get test stats', async () => {
-    vi.mocked(api.get).mockResolvedValue({ data: { stats: { total: 100, passed: 90, failed: 5, skipped: 5, passRate: 90, suites: [] } } });
+    vi.mocked(api.get).mockResolvedValue({ data: { data: { stats: { total: 100, passed: 90, failed: 5, skipped: 5, passRate: 90, suites: [] } } } } as any);
     const result = await getTestStats();
     expect(api.get).toHaveBeenCalledWith('/v1/test-selector/stats');
-    expect(result.data.stats.passRate).toBe(90);
+    expect(result.data.data.stats.passRate).toBe(90);
   });
 
   it('should run tests', async () => {
-    vi.mocked(api.post).mockResolvedValue({ data: { runId: 'run-1' } });
+    vi.mocked(api.post).mockResolvedValue({ data: { data: { runId: 'run-1' } } } as any);
     const result = await runTests(['t1', 't2']);
     expect(api.post).toHaveBeenCalledWith('/v1/test-selector/run', { testIds: ['t1', 't2'] });
-    expect(result.data.runId).toBe('run-1');
+    expect(result.data.data.runId).toBe('run-1');
   });
 });

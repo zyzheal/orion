@@ -9,7 +9,7 @@
  * - Add/edit SPI configuration modal
  */
 import React, { useState, useEffect, useCallback } from 'react';
-import { Typography, Button, Form, message, Alert, Row, Col } from 'antd';
+import { Typography, Button, Form, message, Row, Col } from 'antd';
 import {
   ReloadOutlined,
   ApiOutlined,
@@ -25,17 +25,78 @@ import ExtensionPointList from './ExtensionPointList';
 import PluginRegistry from './PluginRegistry';
 import SPIConfig from './SPIConfig';
 import {
+  getSPIStats,
+  getExtensionPoints,
+  getPluginRegistrations,
+  getSPIConfigs,
+  createSPIConfig,
+  updateSPIConfig,
+  deleteSPIConfig,
+  toggleRegistration,
+  type SPIStats as APISPIStats,
+  type SPIExtensionPoint as APISPIExtensionPoint,
+  type PluginRegistration as APIPluginRegistration,
+  type SPIConfig as APISPIConfig,
+} from '@/api/plugin-spi';
+import {
   type SPIExtensionPoint,
   type PluginRegistration,
   type SPIConfig as SPIConfigType,
   type SPIStats,
-  MOCK_STATS,
-  MOCK_EXTENSION_POINTS,
-  MOCK_PLUGIN_REGISTRATIONS,
-  MOCK_SPI_CONFIGS,
 } from './types';
 
 const { Title, Text } = Typography;
+
+/** Map API SPIExtensionPoint to UI shape */
+function mapApiExtensionPoint(p: APISPIExtensionPoint): SPIExtensionPoint {
+  return {
+    id: p.id,
+    name: p.name,
+    description: p.description,
+    spiType: p.id, // Use id as placeholder, real mapping depends on backend
+    registeredPlugins: p.registrationCount,
+    status: p.enabled ? 'active' : 'inactive',
+    interfaceName: p.interface,
+    version: '1.0.0',
+    lastUpdated: p.createdAt,
+  };
+}
+
+/** Map API PluginRegistration to UI shape */
+function mapApiRegistration(r: APIPluginRegistration): PluginRegistration {
+  return {
+    id: r.id,
+    pluginName: r.pluginName,
+    spiPoint: r.extensionPointName,
+    provider: '',
+    priority: 0,
+    status: r.enabled ? 'enabled' : 'disabled',
+    version: r.version,
+    registeredAt: r.createdAt,
+  };
+}
+
+/** Map API SPIConfig to UI shape */
+function mapApiSPIConfig(c: APISPIConfig): SPIConfigType {
+  return {
+    id: c.id,
+    spiType: c.key,
+    enabled: true,
+    maxPlugins: 10,
+    timeout: 5000,
+    fallbackStrategy: 'default',
+  };
+}
+
+/** Map API stats to UI stats */
+function mapApiStats(s: APISPIStats): SPIStats {
+  return {
+    totalExtensionPoints: s.totalExtensionPoints,
+    activePoints: s.activePoints,
+    totalRegistrations: s.totalRegistrations,
+    enabledPlugins: 0,
+  };
+}
 
 // ============================================================================
 // Main Component
@@ -52,7 +113,6 @@ const PluginSPIPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'extensions' | 'plugins' | 'config'>('extensions');
   const [configModalVisible, setConfigModalVisible] = useState(false);
   const [editingConfig, setEditingConfig] = useState<SPIConfigType | null>(null);
-  const [usingMockData, setUsingMockData] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [configForm] = Form.useForm();
 
@@ -61,13 +121,16 @@ const PluginSPIPage: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      // TODO: Replace with actual API call when SPI API is available
-      throw new Error('API not yet implemented');
-    } catch {
-      setUsingMockData(true);
-      setExtensionPoints(MOCK_EXTENSION_POINTS);
-      setPluginRegistrations(MOCK_PLUGIN_REGISTRATIONS);
-      setSpiConfigs(MOCK_SPI_CONFIGS);
+      const [extRes, regRes, cfgRes] = await Promise.all([
+        getExtensionPoints(),
+        getPluginRegistrations(),
+        getSPIConfigs(),
+      ]);
+      setExtensionPoints(extRes.data.data.extensionPoints.map(mapApiExtensionPoint));
+      setPluginRegistrations(regRes.data.data.registrations.map(mapApiRegistration));
+      setSpiConfigs(cfgRes.data.data.configs.map(mapApiSPIConfig));
+    } catch (error: unknown) {
+      message.error(`Failed to load SPI data: ${(error as Error).message}`);
     } finally {
       setLoading(false);
     }
@@ -75,10 +138,10 @@ const PluginSPIPage: React.FC = () => {
 
   const loadStats = async () => {
     try {
-      throw new Error('API not yet implemented');
-    } catch {
-      setUsingMockData(true);
-      setStats(MOCK_STATS);
+      const response = await getSPIStats();
+      setStats(mapApiStats(response.data.data.stats));
+    } catch (error: unknown) {
+      message.error(`Failed to load SPI stats: ${(error as Error).message}`);
     }
   };
 
@@ -88,24 +151,6 @@ const PluginSPIPage: React.FC = () => {
   }, []);
 
   // ---- Actions ----
-
-  const handleSaveConfig = async () => {
-    try {
-      await configForm.validateFields();
-      setSubmitting(true);
-      // TODO: Replace with actual API call
-      message.success(editingConfig ? 'SPI 配置已更新' : 'SPI 配置已添加');
-      setConfigModalVisible(false);
-      configForm.resetFields();
-      setEditingConfig(null);
-    } catch (error: unknown) {
-      if (!(error instanceof Error && error.name === 'ValidationError')) {
-        message.error('保存配置失败');
-      }
-    } finally {
-      setSubmitting(false);
-    }
-  };
 
   const openEditConfig = useCallback(
     (config: SPIConfigType) => {
@@ -122,25 +167,62 @@ const PluginSPIPage: React.FC = () => {
     [configForm]
   );
 
-  const handleDeleteConfig = async (_id: string) => {
+  const handleSaveConfig = async () => {
     try {
-      // TODO: Replace with actual API call
+      const values = await configForm.validateFields();
+      setSubmitting(true);
+      if (editingConfig) {
+        await updateSPIConfig(editingConfig.id, {
+          key: values.spiType || editingConfig.id,
+          value: String(values.maxPlugins || ''),
+          description: `SPI config for ${values.spiType}`,
+          category: values.spiType || 'general',
+          encrypted: false,
+        });
+        message.success('SPI 配置已更新');
+      } else {
+        await createSPIConfig({
+          key: values.spiType || 'new-config',
+          value: String(values.maxPlugins || ''),
+          description: 'New SPI config',
+          category: values.spiType || 'general',
+          encrypted: false,
+        });
+        message.success('SPI 配置已添加');
+      }
+      setConfigModalVisible(false);
+      configForm.resetFields();
+      setEditingConfig(null);
+      loadData();
+    } catch (error: unknown) {
+      if (!(error instanceof Error && error.name === 'ValidationError')) {
+        message.error(`保存配置失败：${(error as Error).message}`);
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDeleteConfig = async (id: string) => {
+    try {
+      await deleteSPIConfig(id);
       message.success('配置已删除');
-    } catch {
-      message.error('删除失败');
+      loadData();
+    } catch (error: unknown) {
+      message.error(`删除配置失败：${(error as Error).message}`);
     }
   };
 
   const handleTogglePlugin = async (record: PluginRegistration) => {
-    const newStatus = record.status === 'enabled' ? 'disabled' : 'enabled';
+    const newEnabled = record.status === 'enabled' ? 'disabled' : 'enabled';
     try {
-      // TODO: Replace with actual API call
+      await toggleRegistration(record.id, newEnabled === 'enabled');
       setPluginRegistrations((prev) =>
-        prev.map((p) => (p.id === record.id ? { ...p, status: newStatus } : p))
+        prev.map((p) => (p.id === record.id ? { ...p, status: newEnabled } : p))
       );
-      message.success(`插件 "${record.pluginName}" 已${newStatus === 'enabled' ? '启用' : '禁用'}`);
-    } catch {
-      message.error('状态更新失败');
+      message.success(`插件 "${record.pluginName}" 已${newEnabled === 'enabled' ? '启用' : '禁用'}`);
+    } catch (error: unknown) {
+      message.error(`状态更新失败：${(error as Error).message}`);
     }
   };
 
@@ -183,19 +265,6 @@ const PluginSPIPage: React.FC = () => {
           刷新
         </Button>
       </div>
-
-      {/* Mock Data Warning */}
-      {usingMockData && (
-        <Alert
-          message="使用模拟数据"
-          description="Plugin SPI 后端 API 暂未接入，当前显示的是模拟数据。"
-          type="warning"
-          showIcon
-          closable
-          style={{ marginBottom: spacing[4] }}
-          onClose={() => setUsingMockData(false)}
-        />
-      )}
 
       {/* Stats Cards */}
       {stats && (

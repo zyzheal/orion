@@ -43,6 +43,15 @@ import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import MetricCard from '@/components/MetricCard';
 import { colors, spacing } from '@/tokens';
+import {
+  getBackupStats,
+  getBackups,
+  createBackup,
+  restoreBackup,
+  deleteBackup,
+  type BackupRecord as APIBackupRecord,
+  type BackupStats as APIBackupStats,
+} from '@/api/backup';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -108,117 +117,35 @@ const statusLabelMap: Record<BackupStatus, string> = {
 };
 
 // ============================================================================
-// Mock Data
-// ============================================================================
-
-const MOCK_STATS: BackupStats = {
-  total: 42,
-  successful: 38,
-  failed: 2,
-  lastBackupTime: '2026-04-27T02:00:00Z',
-  totalSize: 15728640000,
-};
-
-const MOCK_BACKUPS: BackupRecord[] = [
-  {
-    id: 'bk-001',
-    name: 'daily-backup-2026-04-27',
-    type: 'full',
-    size: 8589934592,
-    status: 'success',
-    createdAt: '2026-04-27T02:00:00Z',
-    completedAt: '2026-04-27T02:45:00Z',
-    duration: 2700,
-    description: '每日全量自动备份',
-    createdBy: 'system',
-  },
-  {
-    id: 'bk-002',
-    name: 'db-backup-2026-04-26',
-    type: 'database',
-    size: 4294967296,
-    status: 'success',
-    createdAt: '2026-04-26T02:00:00Z',
-    completedAt: '2026-04-26T02:30:00Z',
-    duration: 1800,
-    description: '数据库每日备份',
-    createdBy: 'system',
-  },
-  {
-    id: 'bk-003',
-    name: 'config-backup-2026-04-26',
-    type: 'config',
-    size: 52428800,
-    status: 'success',
-    createdAt: '2026-04-26T03:00:00Z',
-    completedAt: '2026-04-26T03:05:00Z',
-    duration: 300,
-    description: '配置文件备份',
-    createdBy: 'system',
-  },
-  {
-    id: 'bk-004',
-    name: 'manual-backup-pre-release',
-    type: 'full',
-    size: 8589934592,
-    status: 'failed',
-    createdAt: '2026-04-25T18:00:00Z',
-    completedAt: '2026-04-25T18:02:00Z',
-    duration: 120,
-    description: '发布前手动全量备份',
-    createdBy: 'admin',
-  },
-  {
-    id: 'bk-005',
-    name: 'db-backup-2026-04-25',
-    type: 'database',
-    size: 4194304000,
-    status: 'success',
-    createdAt: '2026-04-25T02:00:00Z',
-    completedAt: '2026-04-25T02:28:00Z',
-    duration: 1680,
-    description: '数据库每日备份',
-    createdBy: 'system',
-  },
-  {
-    id: 'bk-006',
-    name: 'config-backup-2026-04-25',
-    type: 'config',
-    size: 49152000,
-    status: 'success',
-    createdAt: '2026-04-25T03:00:00Z',
-    completedAt: '2026-04-25T03:04:00Z',
-    duration: 240,
-    description: '配置文件备份',
-    createdBy: 'system',
-  },
-  {
-    id: 'bk-007',
-    name: 'db-backup-2026-04-24',
-    type: 'database',
-    size: 4100000000,
-    status: 'restored',
-    createdAt: '2026-04-24T02:00:00Z',
-    completedAt: '2026-04-24T02:25:00Z',
-    duration: 1500,
-    description: '数据库每日备份 (已用于恢复测试)',
-    createdBy: 'system',
-  },
-  {
-    id: 'bk-008',
-    name: 'pending-backup-2026-04-28',
-    type: 'full',
-    size: 0,
-    status: 'pending',
-    createdAt: '2026-04-27T10:00:00Z',
-    description: '计划中的全量备份',
-    createdBy: 'admin',
-  },
-];
-
-// ============================================================================
 // Utility Functions
 // ============================================================================
+
+/** Map API BackupRecord to UI shape */
+function mapApiBackup(b: APIBackupRecord): BackupRecord {
+  return {
+    id: b.id,
+    name: b.name,
+    type: b.type,
+    size: b.size,
+    status: b.status === 'completed' ? 'success' : b.status === 'in_progress' ? 'running' : b.status === 'scheduled' ? 'pending' : b.status === 'failed' ? 'failed' : 'restored',
+    createdAt: b.createdAt,
+    completedAt: b.completedAt,
+    duration: 0,
+    description: b.errorMessage || undefined,
+    createdBy: 'system',
+  };
+}
+
+/** Map API stats to UI shape */
+function mapApiStats(s: APIBackupStats): BackupStats {
+  return {
+    total: s.total,
+    successful: s.successful,
+    failed: s.failed,
+    lastBackupTime: undefined,
+    totalSize: 0,
+  };
+}
 
 const formatSize = (bytes: number): string => {
   if (bytes >= 1073741824) return `${(bytes / 1073741824).toFixed(1)} GB`;
@@ -250,7 +177,6 @@ const BackupManagement: React.FC = () => {
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [restoreModalVisible, setRestoreModalVisible] = useState(false);
   const [selectedBackup, setSelectedBackup] = useState<BackupRecord | null>(null);
-  const [usingMockData, setUsingMockData] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [createForm] = Form.useForm();
 
@@ -259,13 +185,10 @@ const BackupManagement: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      // TODO: Replace with actual API call when backup API is available
-      // const res = await getBackups();
-      // setBackups(res.data?.data || []);
-      throw new Error('API not yet implemented');
-    } catch {
-      setUsingMockData(true);
-      setBackups(MOCK_BACKUPS);
+      const response = await getBackups();
+      setBackups(response.data.data.backups.map(mapApiBackup));
+    } catch (error: unknown) {
+      message.error(`Failed to load backups: ${(error as Error).message}`);
     } finally {
       setLoading(false);
     }
@@ -273,11 +196,10 @@ const BackupManagement: React.FC = () => {
 
   const loadStats = async () => {
     try {
-      // TODO: Replace with actual API call
-      throw new Error('API not yet implemented');
-    } catch {
-      setUsingMockData(true);
-      setStats(MOCK_STATS);
+      const response = await getBackupStats();
+      setStats(mapApiStats(response.data.data.stats));
+    } catch (error: unknown) {
+      message.error(`Failed to load backup stats: ${(error as Error).message}`);
     }
   };
 
@@ -309,10 +231,9 @@ const BackupManagement: React.FC = () => {
 
   const handleCreate = async () => {
     try {
-      await createForm.validateFields();
+      const values = await createForm.validateFields();
       setSubmitting(true);
-      // TODO: Replace with actual API call
-      // await createBackup(values);
+      await createBackup({ name: values.name, type: values.type });
       message.success('备份任务已创建');
       setCreateModalVisible(false);
       createForm.resetFields();
@@ -320,7 +241,7 @@ const BackupManagement: React.FC = () => {
       loadStats();
     } catch (error: unknown) {
       if (!(error instanceof Error && error.name === 'ValidationError')) {
-        message.error('创建备份失败');
+        message.error(`创建备份失败：${(error as Error).message}`);
       }
     } finally {
       setSubmitting(false);
@@ -331,36 +252,26 @@ const BackupManagement: React.FC = () => {
     if (!selectedBackup) return;
     try {
       setSubmitting(true);
-      // TODO: Replace with actual API call
-      // await restoreBackup(selectedBackup.id);
+      await restoreBackup(selectedBackup.id);
       message.success(`备份 "${selectedBackup.name}" 恢复任务已启动`);
       setRestoreModalVisible(false);
       loadData();
       loadStats();
     } catch (error: unknown) {
-      if (error instanceof Error) {
-        message.error(`恢复失败：${error.message}`);
-      } else {
-        message.error('恢复失败');
-      }
+      message.error(`恢复失败：${(error as Error).message}`);
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleDelete = async (_id: string) => {
+  const handleDelete = async (id: string) => {
     try {
-      // TODO: Replace with actual API call
-      // await deleteBackup(id);
+      await deleteBackup(id);
       message.success('备份已删除');
       loadData();
       loadStats();
     } catch (error: unknown) {
-      if (error instanceof Error) {
-        message.error(`删除失败：${error.message}`);
-      } else {
-        message.error('删除失败');
-      }
+      message.error(`删除失败：${(error as Error).message}`);
     }
   };
 
@@ -564,19 +475,6 @@ const BackupManagement: React.FC = () => {
           </Button>
         </Space>
       </div>
-
-      {/* Mock Data Warning */}
-      {usingMockData && (
-        <Alert
-          message="使用模拟数据"
-          description="备份管理后端 API 暂未接入，当前显示的是模拟数据，可能不是最新状态。"
-          type="warning"
-          showIcon
-          closable
-          style={{ marginBottom: spacing[4] }}
-          onClose={() => setUsingMockData(false)}
-        />
-      )}
 
       {/* Stats Cards */}
       {stats && (

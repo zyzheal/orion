@@ -12,7 +12,7 @@
  * Uses mock data with warning banner (no dedicated test API exists yet).
  */
 import React, { useState, useEffect, useCallback } from 'react';
-import { Typography, Card, Tag, Space, Button, Alert, message } from 'antd';
+import { Typography, Card, Tag, Space, Button, message } from 'antd';
 import { Table as AntTable } from 'antd';
 import {
   ExperimentOutlined,
@@ -28,6 +28,13 @@ import DashboardLayout from '@/components/DashboardLayout';
 import MetricCard from '@/components/MetricCard';
 import Table, { TableColumn } from '@/components/Table';
 import SearchFilterBar, { FilterDefinition } from '@/components/SearchFilterBar';
+import {
+  getTestCases,
+  getTestStats,
+  runTests,
+  type TestCase as APITestCase,
+  type TestStats as APITestStats,
+} from '@/api/test-selector';
 
 const { Title, Text } = Typography;
 
@@ -53,184 +60,39 @@ interface TestStats {
   passRate: string;
 }
 
+/** Map API TestCase to UI shape */
+function mapApiTestCase(t: APITestCase): TestCase {
+  const statusMap: Record<string, TestCase['status']> = {
+    pass: 'passed',
+    fail: 'failed',
+    skipped: 'skipped',
+    pending: 'pending',
+  };
+  return {
+    key: t.id,
+    name: t.name,
+    suite: t.suite,
+    status: statusMap[t.status] ?? 'pending',
+    duration: t.duration ? `${t.duration}ms` : '-',
+    lastRun: t.lastRunAt ? new Date(t.lastRunAt).toLocaleString() : 'Never',
+    tags: [],
+  };
+}
+
+/** Map API TestStats to UI shape */
+function mapApiTestStats(s: APITestStats): TestStats {
+  return {
+    total: s.total,
+    passed: s.passed,
+    failed: s.failed,
+    skipped: s.skipped,
+    passRate: `${s.passRate.toFixed(1)}%`,
+  };
+}
+
 // ============================================================================
-// Mock Data
+// Filter Options (static until API provides them)
 // ============================================================================
-
-const MOCK_TEST_CASES: TestCase[] = [
-  {
-    key: 'test-001',
-    name: 'User login with valid credentials',
-    suite: 'Auth Suite',
-    status: 'passed',
-    duration: '234ms',
-    lastRun: '2026-04-27 10:30',
-    tags: ['smoke', 'auth'],
-  },
-  {
-    key: 'test-002',
-    name: 'User login with invalid password',
-    suite: 'Auth Suite',
-    status: 'passed',
-    duration: '189ms',
-    lastRun: '2026-04-27 10:30',
-    tags: ['smoke', 'auth'],
-  },
-  {
-    key: 'test-003',
-    name: 'User login with expired token',
-    suite: 'Auth Suite',
-    status: 'failed',
-    duration: '512ms',
-    lastRun: '2026-04-27 09:15',
-    tags: ['regression', 'auth'],
-  },
-  {
-    key: 'test-004',
-    name: 'Create pipeline with valid config',
-    suite: 'Pipeline Suite',
-    status: 'passed',
-    duration: '1,203ms',
-    lastRun: '2026-04-27 10:28',
-    tags: ['smoke', 'pipeline'],
-  },
-  {
-    key: 'test-005',
-    name: 'Create pipeline with invalid YAML',
-    suite: 'Pipeline Suite',
-    status: 'passed',
-    duration: '98ms',
-    lastRun: '2026-04-27 10:28',
-    tags: ['smoke', 'pipeline'],
-  },
-  {
-    key: 'test-006',
-    name: 'Deploy to staging environment',
-    suite: 'Deploy Suite',
-    status: 'passed',
-    duration: '3,450ms',
-    lastRun: '2026-04-27 10:25',
-    tags: ['e2e', 'deploy'],
-  },
-  {
-    key: 'test-007',
-    name: 'Deploy with rollback trigger',
-    suite: 'Deploy Suite',
-    status: 'failed',
-    duration: '4,102ms',
-    lastRun: '2026-04-27 08:45',
-    tags: ['e2e', 'deploy', 'regression'],
-  },
-  {
-    key: 'test-008',
-    name: 'Query metrics by time range',
-    suite: 'Metrics Suite',
-    status: 'passed',
-    duration: '67ms',
-    lastRun: '2026-04-27 10:30',
-    tags: ['api', 'metrics'],
-  },
-  {
-    key: 'test-009',
-    name: 'Query metrics with invalid filters',
-    suite: 'Metrics Suite',
-    status: 'skipped',
-    duration: '-',
-    lastRun: '2026-04-26 16:00',
-    tags: ['api', 'metrics'],
-  },
-  {
-    key: 'test-010',
-    name: 'Alert rule creation and trigger',
-    suite: 'Alert Suite',
-    status: 'passed',
-    duration: '890ms',
-    lastRun: '2026-04-27 10:20',
-    tags: ['e2e', 'alert'],
-  },
-  {
-    key: 'test-011',
-    name: 'Alert rule escalation path',
-    suite: 'Alert Suite',
-    status: 'pending',
-    duration: '-',
-    lastRun: 'Never',
-    tags: ['e2e', 'alert'],
-  },
-  {
-    key: 'test-012',
-    name: 'Self-healing strategy execution',
-    suite: 'SelfHealing Suite',
-    status: 'passed',
-    duration: '2,340ms',
-    lastRun: '2026-04-27 09:50',
-    tags: ['e2e', 'self-healing'],
-  },
-  {
-    key: 'test-013',
-    name: 'Self-healing approval workflow',
-    suite: 'SelfHealing Suite',
-    status: 'failed',
-    duration: '1,890ms',
-    lastRun: '2026-04-27 08:30',
-    tags: ['regression', 'self-healing'],
-  },
-  {
-    key: 'test-014',
-    name: 'Config management CRUD',
-    suite: 'Config Suite',
-    status: 'passed',
-    duration: '156ms',
-    lastRun: '2026-04-27 10:15',
-    tags: ['api', 'config'],
-  },
-  {
-    key: 'test-015',
-    name: 'Config rollback to previous version',
-    suite: 'Config Suite',
-    status: 'skipped',
-    duration: '-',
-    lastRun: '2026-04-26 14:00',
-    tags: ['regression', 'config'],
-  },
-  {
-    key: 'test-016',
-    name: 'Multi-tenant data isolation',
-    suite: 'Tenant Suite',
-    status: 'passed',
-    duration: '789ms',
-    lastRun: '2026-04-27 10:10',
-    tags: ['e2e', 'tenant'],
-  },
-  {
-    key: 'test-017',
-    name: 'Cost estimation accuracy',
-    suite: 'FinOps Suite',
-    status: 'passed',
-    duration: '345ms',
-    lastRun: '2026-04-27 10:05',
-    tags: ['api', 'finops'],
-  },
-  {
-    key: 'test-018',
-    name: 'Budget alert threshold trigger',
-    suite: 'FinOps Suite',
-    status: 'failed',
-    duration: '567ms',
-    lastRun: '2026-04-27 07:30',
-    tags: ['regression', 'finops'],
-  },
-];
-
-const SUITE_OPTIONS = MOCK_TEST_CASES.map((t) => t.suite)
-  .filter((v, i, a) => a.indexOf(v) === i)
-  .sort()
-  .map((s) => ({ label: s, value: s }));
-
-const TAG_OPTIONS = MOCK_TEST_CASES.flatMap((t) => t.tags)
-  .filter((v, i, a) => a.indexOf(v) === i)
-  .sort()
-  .map((t) => ({ label: t, value: t }));
 
 const STATUS_OPTIONS = [
   { label: 'All Statuses', value: 'all' },
@@ -239,6 +101,9 @@ const STATUS_OPTIONS = [
   { label: 'Skipped', value: 'skipped' },
   { label: 'Pending', value: 'pending' },
 ];
+
+const SUITE_OPTIONS: { label: string; value: string }[] = [];
+const TAG_OPTIONS: { label: string; value: string }[] = [];
 
 // ============================================================================
 // Helpers
@@ -289,7 +154,6 @@ function getStatusIcon(status: TestCase['status']): React.ReactNode {
 
 const TestSelector: React.FC = () => {
   const [loading, setLoading] = useState(true);
-  const [usingMockData, setUsingMockData] = useState(true);
   const [testCases, setTestCases] = useState<TestCase[]>([]);
   const [testStats, setTestStats] = useState<TestStats>({
     total: 0,
@@ -307,24 +171,14 @@ const TestSelector: React.FC = () => {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      // No dedicated test API exists yet, using mock data
-      setTestCases(MOCK_TEST_CASES);
-
-      const passed = MOCK_TEST_CASES.filter((t) => t.status === 'passed').length;
-      const failed = MOCK_TEST_CASES.filter((t) => t.status === 'failed').length;
-      const skipped = MOCK_TEST_CASES.filter((t) => t.status === 'skipped').length;
-      const total = MOCK_TEST_CASES.length;
-
-      setTestStats({
-        total,
-        passed,
-        failed,
-        skipped,
-        passRate: `${((passed / total) * 100).toFixed(1)}%`,
-      });
+      const [testsRes, statsRes] = await Promise.all([
+        getTestCases(),
+        getTestStats(),
+      ]);
+      setTestCases(testsRes.data.data.testCases.map(mapApiTestCase));
+      setTestStats(mapApiTestStats(statsRes.data.data.stats));
     } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : '加载测试数据失败';
-      message.error(msg);
+      message.error(`Failed to load test data: ${(error as Error).message}`);
     } finally {
       setLoading(false);
     }
@@ -467,19 +321,18 @@ const TestSelector: React.FC = () => {
     },
   ];
 
-  const handleRunSelected = useCallback(() => {
+  const handleRunSelected = useCallback(async () => {
     if (selectedRowKeys.length === 0) {
       message.warning('Please select at least one test to run');
       return;
     }
-    const selectedTests = testCases.filter((t) => selectedRowKeys.includes(t.key));
-    message.success(
-      `Starting ${selectedTests.length} test(s): ${selectedTests
-        .map((t) => t.name)
-        .join(', ')
-        .substring(0, 80)}...`
-    );
-  }, [selectedRowKeys, testCases]);
+    try {
+      const response = await runTests(selectedRowKeys as string[]);
+      message.success(`Test run started: ${response.data.data.runId}`);
+    } catch (error: unknown) {
+      message.error(`Failed to run tests: ${(error as Error).message}`);
+    }
+  }, [selectedRowKeys]);
 
   return (
     <div>
@@ -510,18 +363,6 @@ const TestSelector: React.FC = () => {
           </Button>
         </Space>
       </div>
-
-      {/* Mock Data Warning */}
-      {usingMockData && (
-        <Alert
-          type="warning"
-          closable
-          message="使用模拟数据"
-          description="当前测试数据为演示用模拟数据，测试服务 API 尚未完全接入。"
-          style={{ marginBottom: spacing[4] }}
-          onClose={() => setUsingMockData(false)}
-        />
-      )}
 
       {/* Stats Cards */}
       <div style={{ marginBottom: spacing[6] }}>

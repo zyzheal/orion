@@ -22,28 +22,28 @@ describe('API Key API', () => {
   });
 
   it('should get API keys', async () => {
-    vi.mocked(api.get).mockResolvedValue({ data: { keys: [] } });
+    vi.mocked(api.get).mockResolvedValue({ data: { data: { keys: [] } } } as any);
     const result = await getApiKeys();
     expect(api.get).toHaveBeenCalledWith('/v1/api-keys');
-    expect(Array.isArray(result.data.keys)).toBe(true);
+    expect(Array.isArray(result.data.data.keys)).toBe(true);
   });
 
   it('should create an API key', async () => {
-    vi.mocked(api.post).mockResolvedValue({ data: { key: { id: '1', name: 'test' } } });
+    vi.mocked(api.post).mockResolvedValue({ data: { data: { key: { id: '1', name: 'test' } } } } as any);
     const result = await createApiKey({ name: 'test' });
     expect(api.post).toHaveBeenCalledWith('/v1/api-keys', { name: 'test' });
-    expect(result.data.key.name).toBe('test');
+    expect(result.data.data.key.name).toBe('test');
   });
 
   it('should revoke an API key', async () => {
-    vi.mocked(api.delete).mockResolvedValue({ data: undefined });
+    vi.mocked(api.delete).mockResolvedValue({ data: { data: undefined } } as any);
     await revokeApiKey('1');
     expect(api.delete).toHaveBeenCalledWith('/v1/api-keys/1');
   });
 
   it('should get API key stats', async () => {
-    vi.mocked(api.get).mockResolvedValue({ data: { stats: { total: 10, active: 8, expired: 2 } } });
+    vi.mocked(api.get).mockResolvedValue({ data: { data: { stats: { total: 10, active: 8, expired: 2 } } } } as any);
     const result = await getApiKeyStats();
-    expect(result.data.stats.active).toBe(8);
+    expect(result.data.data.stats.active).toBe(8);
   });
 });
