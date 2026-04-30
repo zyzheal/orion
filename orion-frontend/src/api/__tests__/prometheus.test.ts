@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { queryMetrics, queryRangeMetrics, getDashboardData } from '../metrics';
+import { queryMetrics, queryRangeMetrics, getDashboardData } from '../prometheus';
 import { api } from '../client';
 
 vi.mock('../client', () => ({

@@ -1,7 +1,12 @@
 /**
- * Metrics API Client
+ * Prometheus Query API Client
+ *
+ * Provides direct Prometheus query/range-query endpoints.
+ * This is SEPARATE from api/monitoring.ts which wraps the internal
+ * monitoring subsystem.
  *
  * Backend routes: orion-platform-service/src/api/metrics-routes.ts
+ * (Prometheus proxy layer)
  */
 
 import { api } from './client';
