@@ -12,7 +12,6 @@ import {
   Input,
   Select,
   message,
-  Alert,
   Tabs,
   Descriptions,
   Drawer,
@@ -74,186 +73,6 @@ const statusOptions = [
   { label: 'Archived', value: 'archived' },
 ];
 
-// ---- Mock data ----
-
-const MOCK_LIBRARIES: InternalLibrary[] = [
-  {
-    id: 'lib-1',
-    name: '@orion/auth',
-    displayName: 'Orion 认证库',
-    description: '统一认证与权限管理',
-    language: 'node',
-    status: 'active',
-    owner: 'platform-team',
-    maintainers: ['heal', 'alice'],
-    repository: 'https://github.com/orion/auth-lib',
-    documentation: 'https://docs.orion.io/auth',
-    currentVersion: '2.3.0',
-    latestStableVersion: '2.3.0',
-    versions: [
-      {
-        version: '2.3.0',
-        status: 'stable',
-        releasedAt: '2024-03-15T10:00:00Z',
-        changelog: 'Add OIDC support',
-        testCoverage: 85,
-        securityScore: 92,
-      },
-      {
-        version: '2.2.1',
-        status: 'stable',
-        releasedAt: '2024-02-20T10:00:00Z',
-        changelog: 'Fix token refresh bug',
-        testCoverage: 82,
-        securityScore: 90,
-      },
-      {
-        version: '2.1.0',
-        status: 'deprecated',
-        releasedAt: '2024-01-10T10:00:00Z',
-        changelog: 'Add JWT support',
-        deprecationReason: 'Replaced by 2.3.0',
-        eolDate: '2024-06-01T00:00:00Z',
-      },
-    ],
-    dependents: { totalRepos: 12, totalTeams: 4, reposUsingLatest: 8, reposNeedingUpgrade: 4 },
-    quality: { testCoverage: 85, securityScore: 92, openIssues: 3, openPRs: 1, lastReleaseAge: 10 },
-    createdAt: '2023-06-01T08:00:00Z',
-    updatedAt: '2024-03-15T10:00:00Z',
-  },
-  {
-    id: 'lib-2',
-    name: '@orion/utils',
-    displayName: 'Orion 工具库',
-    description: '通用工具函数集合',
-    language: 'node',
-    status: 'active',
-    owner: 'frontend-team',
-    maintainers: ['bob'],
-    repository: 'https://github.com/orion/utils-lib',
-    currentVersion: '1.5.2',
-    latestStableVersion: '1.5.2',
-    versions: [
-      {
-        version: '1.5.2',
-        status: 'stable',
-        releasedAt: '2024-03-10T10:00:00Z',
-        changelog: 'Add date utils',
-        testCoverage: 90,
-        securityScore: 95,
-      },
-      {
-        version: '1.4.0',
-        status: 'stable',
-        releasedAt: '2024-01-20T10:00:00Z',
-        changelog: 'Add string utils',
-        testCoverage: 88,
-        securityScore: 94,
-      },
-    ],
-    dependents: { totalRepos: 20, totalTeams: 6, reposUsingLatest: 15, reposNeedingUpgrade: 5 },
-    quality: { testCoverage: 90, securityScore: 95, openIssues: 1, openPRs: 0, lastReleaseAge: 15 },
-    createdAt: '2023-03-15T08:00:00Z',
-    updatedAt: '2024-03-10T10:00:00Z',
-  },
-  {
-    id: 'lib-3',
-    name: 'orion-db-core',
-    displayName: 'Orion 数据库核心',
-    description: '数据库连接池与 ORM 封装',
-    language: 'java',
-    status: 'active',
-    owner: 'data-team',
-    maintainers: ['charlie', 'dave'],
-    repository: 'https://github.com/orion/db-core',
-    currentVersion: '3.0.0',
-    latestStableVersion: '3.0.0',
-    versions: [
-      {
-        version: '3.0.0',
-        status: 'stable',
-        releasedAt: '2024-03-01T10:00:00Z',
-        changelog: 'Migrate to Hibernate 6',
-        testCoverage: 78,
-        securityScore: 88,
-      },
-      {
-        version: '2.8.0',
-        status: 'deprecated',
-        releasedAt: '2023-11-15T10:00:00Z',
-        deprecationReason: 'Breaking changes in 3.0',
-        eolDate: '2024-09-01T00:00:00Z',
-      },
-    ],
-    dependents: { totalRepos: 8, totalTeams: 3, reposUsingLatest: 5, reposNeedingUpgrade: 3 },
-    quality: { testCoverage: 78, securityScore: 88, openIssues: 5, openPRs: 2, lastReleaseAge: 24 },
-    createdAt: '2022-09-01T08:00:00Z',
-    updatedAt: '2024-03-01T10:00:00Z',
-  },
-  {
-    id: 'lib-4',
-    name: 'orion-config-go',
-    displayName: 'Orion Go 配置库',
-    description: 'Go 微服务配置管理',
-    language: 'go',
-    status: 'development',
-    owner: 'infra-team',
-    maintainers: ['eve'],
-    repository: 'https://github.com/orion/config-go',
-    currentVersion: '0.5.0',
-    latestStableVersion: '0.4.2',
-    versions: [
-      {
-        version: '0.5.0',
-        status: 'beta',
-        releasedAt: '2024-03-18T10:00:00Z',
-        changelog: 'Add hot-reload support',
-        testCoverage: 60,
-      },
-      {
-        version: '0.4.2',
-        status: 'stable',
-        releasedAt: '2024-02-05T10:00:00Z',
-        changelog: 'Bug fixes',
-        testCoverage: 58,
-      },
-    ],
-    dependents: { totalRepos: 3, totalTeams: 1, reposUsingLatest: 1, reposNeedingUpgrade: 2 },
-    quality: { testCoverage: 60, securityScore: 75, openIssues: 8, openPRs: 3, lastReleaseAge: 7 },
-    createdAt: '2024-01-10T08:00:00Z',
-    updatedAt: '2024-03-18T10:00:00Z',
-  },
-];
-
-const MOCK_DEPENDENTS: LibraryDependent[] = [
-  {
-    repoName: 'orion-platform-service',
-    teamName: 'platform-team',
-    currentVersion: '2.2.1',
-    latestCompatibleVersion: '2.3.0',
-    upgradeAvailable: true,
-    upgradeType: 'minor',
-    lastUpdated: '2024-03-01T10:00:00Z',
-  },
-  {
-    repoName: 'orion-api-gateway',
-    teamName: 'platform-team',
-    currentVersion: '2.3.0',
-    latestCompatibleVersion: '2.3.0',
-    upgradeAvailable: false,
-    lastUpdated: '2024-03-10T10:00:00Z',
-  },
-  {
-    repoName: 'orion-frontend',
-    teamName: 'frontend-team',
-    currentVersion: '2.1.0',
-    latestCompatibleVersion: '2.3.0',
-    upgradeAvailable: true,
-    upgradeType: 'major',
-    lastUpdated: '2024-02-15T10:00:00Z',
-  },
-];
-
 // ---- Main Component ----
 
 const InternalLibraryManagement: React.FC = () => {
@@ -277,7 +96,6 @@ const InternalLibraryManagement: React.FC = () => {
   const [addDependentForm] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState('info');
-  const [usingMockData, setUsingMockData] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -285,19 +103,8 @@ const InternalLibraryManagement: React.FC = () => {
       const res = await getInternalLibraries();
       setLibraries(Array.isArray(res.data?.data) ? res.data.data : []);
     } catch (error: unknown) {
-      setUsingMockData(true);
-      if (error instanceof Error) {
-        if (error.message.includes('401') || error.message.includes('403')) {
-          message.error('权限不足，请重新登录或联系管理员');
-        } else if (error.message.includes('fetch') || error.message.includes('network')) {
-          message.error('网络异常，请检查连接');
-        } else {
-          message.error(`加载二方库数据失败：${error.message}`);
-        }
-      } else {
-        message.error('加载二方库数据失败，请稍后重试');
-      }
-      setLibraries(MOCK_LIBRARIES);
+      setLibraries([]);
+      message.error(`加载二方库数据失败: ${(error as Error).message}`);
     } finally {
       setLoading(false);
     }
@@ -560,19 +367,14 @@ const InternalLibraryManagement: React.FC = () => {
     setActiveTab('info');
     try {
       const [verRes, depRes] = await Promise.all([
-        getVersions(lib.id).catch(() => null),
-        getDependents(lib.id).catch(() => null),
+        getVersions(lib.id),
+        getDependents(lib.id),
       ]);
-      setVersions(
-        verRes?.data?.data ||
-          lib.versions ||
-          MOCK_LIBRARIES.find((m) => m.id === lib.id)?.versions ||
-          []
-      );
-      setDependents(depRes?.data?.data || lib.dependents?.list || MOCK_DEPENDENTS);
+      setVersions(verRes?.data?.data || []);
+      setDependents(depRes?.data?.data || []);
     } catch (error: unknown) {
-      setVersions(lib.versions || []);
-      setDependents(lib.dependents?.list || MOCK_DEPENDENTS);
+      setVersions([]);
+      setDependents([]);
     }
   };
 
@@ -652,19 +454,6 @@ const InternalLibraryManagement: React.FC = () => {
               </Button>
             </Space>
           </div>
-
-          {/* Mock data warning banner */}
-          {usingMockData && (
-            <Alert
-              message="使用模拟数据"
-              description="后端服务暂时不可用，当前显示的是模拟数据，可能不是最新状态。"
-              type="warning"
-              showIcon
-              closable
-              style={{ marginBottom: 16 }}
-              onClose={() => setUsingMockData(false)}
-            />
-          )}
 
           {/* Library List */}
           <Card>
