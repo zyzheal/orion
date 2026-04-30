@@ -29,4 +29,12 @@ export class ProjectService {
   async deleteProject(id: string): Promise<boolean> {
     return this.repository.delete(id);
   }
+
+  async updateProject(id: string, input: { name?: string; description?: string }): Promise<Project> {
+    const existing = await this.repository.findById(id);
+    if (!existing) throw new ProjectServiceError(`Project not found: ${id}`, 'NOT_FOUND');
+    const updated = await this.repository.update(id, input);
+    if (!updated) throw new ProjectServiceError(`Failed to update project: ${id}`, 'UPDATE_FAILED');
+    return updated;
+  }
 }

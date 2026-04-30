@@ -39,4 +39,25 @@ export class ProjectRepository {
     const result = await this.pool.query('DELETE FROM projects WHERE id = $1', [id]);
     return result.rowCount > 0;
   }
+
+  async update(id: string, input: { name?: string; description?: string }): Promise<Project | null> {
+    const updates: string[] = [];
+    const params: unknown[] = [];
+    let idx = 1;
+    if (input.name !== undefined) {
+      updates.push(`name = $${idx++}`);
+      params.push(input.name);
+      const slug = (input.name as string).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      updates.push(`slug = $${idx++}`);
+      params.push(slug);
+    }
+    if (input.description !== undefined) { updates.push(`description = $${idx++}`); params.push(input.description); }
+    if (updates.length === 0) return this.findById(id);
+    params.push(id);
+    const result = await this.pool.query(
+      `UPDATE projects SET ${updates.join(', ')} WHERE id = $${idx} RETURNING *`,
+      params
+    );
+    return result.rows[0] || null;
+  }
 }

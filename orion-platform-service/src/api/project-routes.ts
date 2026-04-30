@@ -20,6 +20,11 @@ interface CreateProjectBody {
   description?: string;
 }
 
+interface UpdateProjectBody {
+  name?: string;
+  description?: string;
+}
+
 export default async function projectRoutes(
   app: FastifyInstance,
   options: ProjectRoutesOptions
@@ -125,6 +130,28 @@ export default async function projectRoutes(
     } catch (error: any) {
       return reply.status(500).send({
         error: 'DELETE_ERROR',
+        message: error.message,
+      });
+    }
+  });
+
+  // PUT /api/v1/projects/:id — update project
+  app.put('/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.params as { id: string };
+    const body = request.body as UpdateProjectBody;
+
+    try {
+      const project = await service.updateProject(id, body);
+      return reply.send(project);
+    } catch (error: any) {
+      if (error instanceof ProjectServiceError && error.code === 'NOT_FOUND') {
+        return reply.status(404).send({
+          error: 'PROJECT_NOT_FOUND',
+          message: error.message,
+        });
+      }
+      return reply.status(500).send({
+        error: 'UPDATE_ERROR',
         message: error.message,
       });
     }
