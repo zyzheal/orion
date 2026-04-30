@@ -7,6 +7,7 @@ import pino from 'pino';
 import { EventEmitter } from 'events';
 import { DistributedLockService } from './DistributedLockService';
 import { EventBusService } from '../event-bus-service';
+import { CronExpressionParser } from 'cron-parser';
 import { CronJobRepository, CronJobEntity } from '../../repositories/CronJobRepository';
 import { CronExecutionRepository } from '../../repositories/CronExecutionRepository';
 
@@ -47,6 +48,7 @@ export class CronSchedulerService extends EventEmitter {
   private lockService: DistributedLockService;
   private eventBus?: EventBusService;
   private runningJobs: Set<string> = new Set();
+  private intervalId?: ReturnType<typeof setInterval>;
 
   constructor(config?: CronSchedulerConfig, eventBus?: EventBusService, db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
     super();
@@ -312,9 +314,9 @@ export class CronSchedulerService extends EventEmitter {
    */
   start(): void {
     logger.info('Cron scheduler started');
-    
+
     // 定期检查和执行任务
-    setInterval(() => {
+    this.intervalId = setInterval(() => {
       this.checkAndExecuteJobs();
     }, 60000); // 每分钟检查一次
   }
@@ -323,7 +325,11 @@ export class CronSchedulerService extends EventEmitter {
    * 停止调度器
    */
   stop(): void {
-    logger.info('Cron scheduler stopped');
+    if (this.intervalId) {
+      clearInterval(this.intervalId);
+      this.intervalId = undefined;
+      logger.info('Cron scheduler stopped');
+    }
   }
 
   /**
@@ -356,8 +362,20 @@ export class CronSchedulerService extends EventEmitter {
    * 判断是否应该执行任务
    */
   private shouldExecuteJob(job: CronJob, now: Date): boolean {
-    // 这里应该解析 Cron 表达式并判断是否应该执行
-    // 简化实现：总是返回 true 用于演示
-    return true;
+    if (!job.enabled) return false;
+
+    try {
+      const interval = CronExpressionParser.parse(job.schedule, {
+        currentDate: now,
+        tz: 'UTC',
+      });
+      const prev = interval.prev();
+      const diff = now.getTime() - prev.getTime();
+      // If the previous scheduled time is within the poll interval (60s), execute
+      return diff < 60_000;
+    } catch (error) {
+      logger.error({ jobId: job.id, schedule: job.schedule, error }, 'Invalid cron expression');
+      return false;
+    }
   }
 }
