@@ -366,10 +366,7 @@ const InternalLibraryManagement: React.FC = () => {
     setDetailDrawerVisible(true);
     setActiveTab('info');
     try {
-      const [verRes, depRes] = await Promise.all([
-        getVersions(lib.id),
-        getDependents(lib.id),
-      ]);
+      const [verRes, depRes] = await Promise.all([getVersions(lib.id), getDependents(lib.id)]);
       setVersions(verRes?.data?.data || []);
       setDependents(depRes?.data?.data || []);
     } catch (error: unknown) {

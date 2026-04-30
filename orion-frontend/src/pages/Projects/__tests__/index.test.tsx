@@ -58,7 +58,7 @@ describe('Projects Page', () => {
             total: mockProjects.length,
           },
         });
-      }),
+      })
     );
 
     render(<ProjectsPage />);
@@ -74,9 +74,9 @@ describe('Projects Page', () => {
       http.get('/api/v1/projects', () => {
         return HttpResponse.json(
           { code: 500, message: 'Internal Server Error', data: null },
-          { status: 500 },
+          { status: 500 }
         );
-      }),
+      })
     );
 
     render(<ProjectsPage />);
@@ -111,7 +111,7 @@ describe('Projects Page', () => {
           message: 'success',
           data: mockResources,
         });
-      }),
+      })
     );
 
     render(<ProjectsPage />);
@@ -131,7 +131,6 @@ describe('Projects Page', () => {
   });
 
   it('shows empty resources on resource API failure', async () => {
-
     server.use(
       http.get('/api/v1/projects', () => {
         return HttpResponse.json({
@@ -146,9 +145,9 @@ describe('Projects Page', () => {
       http.get('/api/v1/projects/:projectId/resources', () => {
         return HttpResponse.json(
           { code: 500, message: 'Internal Server Error', data: null },
-          { status: 500 },
+          { status: 500 }
         );
-      }),
+      })
     );
 
     render(<ProjectsPage />);

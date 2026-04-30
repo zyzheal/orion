@@ -136,9 +136,7 @@ describe('SpaceList', () => {
     });
 
     await waitFor(() => {
-      expect(mockMessage.error).toHaveBeenCalledWith(
-        expect.stringContaining('加载知识库数据失败'),
-      );
+      expect(mockMessage.error).toHaveBeenCalledWith(expect.stringContaining('加载知识库数据失败'));
     });
 
     const rowCount = screen.getByTestId('row-count');

@@ -146,9 +146,7 @@ describe('EnvironmentManagement', () => {
     });
 
     await waitFor(() => {
-      expect(mockMessage.error).toHaveBeenCalledWith(
-        expect.stringContaining('加载环境列表失败'),
-      );
+      expect(mockMessage.error).toHaveBeenCalledWith(expect.stringContaining('加载环境列表失败'));
     });
 
     // Table should be empty (no mock data)

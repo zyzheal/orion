@@ -84,18 +84,18 @@ vi.mock('antd', async () => {
       warning: vi.fn(),
     },
     Card: ({ children, ...props }: any) => (
-      <div data-testid="card" {...props}>{children}</div>
+      <div data-testid="card" {...props}>
+        {children}
+      </div>
     ),
-    Tabs: ({ items, ...props }: any) => (
-      <div data-testid="tabs">{items?.length} tabs</div>
-    ),
-    Drawer: ({ children, open, ...props }: any) =>
-      open ? <div data-testid="drawer">{children}</div> : null,
+    Tabs: ({ items }: any) => <div data-testid="tabs">{items?.length} tabs</div>,
+    Drawer: ({ children, open }: any) => (open ? <div data-testid="drawer">{children}</div> : null),
     Tag: ({ children, color, ...props }: any) => (
-      <span data-testid="tag" data-color={color} {...props}>{children}</span>
+      <span data-testid="tag" data-color={color} {...props}>
+        {children}
+      </span>
     ),
-    Modal: ({ children, open, ...props }: any) =>
-      open ? <div data-testid="modal">{children}</div> : null,
+    Modal: ({ children, open }: any) => (open ? <div data-testid="modal">{children}</div> : null),
     Select: ({ children, ...restProps }: any) => <select {...restProps}>{children}</select>,
     Form: Object.assign(
       ({ children, ...restProps }: any) => <form {...restProps}>{children}</form>,
@@ -110,10 +110,9 @@ vi.mock('antd', async () => {
         ],
       }
     ),
-    Input: Object.assign(
-      ({ ...props }: any) => <input {...props} />,
-      { TextArea: ({ ...props }: any) => <textarea {...props} /> }
-    ),
+    Input: Object.assign(({ ...props }: any) => <input {...props} />, {
+      TextArea: ({ ...props }: any) => <textarea {...props} />,
+    }),
     Button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
     Space: ({ children, ...props }: any) => <div {...props}>{children}</div>,
     Alert: ({ children, ...props }: any) => <div {...props}>{children}</div>,
@@ -177,7 +176,7 @@ describe('Artifacts Page', () => {
     const mockNamespaces = ['platform', 'ai'];
 
     vi.mocked(artifactApi.getArtifacts).mockResolvedValue({
-      data: { code: 200, message: 'success', data: mockArtifacts, total: 2 },
+      data: { code: 200, message: 'success', data: mockArtifacts as any, total: 2 } as any,
       status: 200,
       statusText: 'OK',
       headers: {},
@@ -225,15 +224,9 @@ describe('Artifacts Page', () => {
   });
 
   it('shows error on API failure and clears data', async () => {
-    vi.mocked(artifactApi.getArtifacts).mockRejectedValue(
-      new Error('Network error')
-    );
-    vi.mocked(artifactApi.getArtifactStats).mockRejectedValue(
-      new Error('Stats API unavailable')
-    );
-    vi.mocked(artifactApi.getNamespaces).mockRejectedValue(
-      new Error('Namespaces API unavailable')
-    );
+    vi.mocked(artifactApi.getArtifacts).mockRejectedValue(new Error('Network error'));
+    vi.mocked(artifactApi.getArtifactStats).mockRejectedValue(new Error('Stats API unavailable'));
+    vi.mocked(artifactApi.getNamespaces).mockRejectedValue(new Error('Namespaces API unavailable'));
 
     const ArtifactManagement = (await import('../index')).default;
 
@@ -245,9 +238,7 @@ describe('Artifacts Page', () => {
 
     const { message } = await import('antd');
     await waitFor(() => {
-      expect(message.error).toHaveBeenCalledWith(
-        expect.stringContaining('加载制品数据失败')
-      );
+      expect(message.error).toHaveBeenCalledWith(expect.stringContaining('加载制品数据失败'));
     });
 
     // Verify empty state (no mock data fallback)

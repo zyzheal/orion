@@ -56,13 +56,7 @@ vi.mock('dayjs/plugin/relativeTime', async (importOriginal) => {
 });
 
 vi.mock('../CollectionList', () => ({
-  default: ({
-    filteredCollections,
-    loading,
-  }: {
-    filteredCollections: any[];
-    loading: boolean;
-  }) => (
+  default: ({ filteredCollections, loading }: { filteredCollections: any[]; loading: boolean }) => (
     <div data-testid="collection-list" data-loading={loading}>
       <div data-testid="row-count">{filteredCollections?.length || 0}</div>
       {filteredCollections?.map((item: any) => (
@@ -175,9 +169,7 @@ describe('VectorStorePage', () => {
     });
 
     await waitFor(() => {
-      expect(mockMessage.error).toHaveBeenCalledWith(
-        expect.stringContaining('加载集合数据失败'),
-      );
+      expect(mockMessage.error).toHaveBeenCalledWith(expect.stringContaining('加载集合数据失败'));
     });
 
     // Table should be empty (no mock data)

@@ -107,7 +107,7 @@ describe('BackupManagement', () => {
       window.open(url, '_blank');
       expect(window.open).toHaveBeenCalledWith(
         'https://example.com/download/backup.tar.gz',
-        '_blank',
+        '_blank'
       );
     }
   });

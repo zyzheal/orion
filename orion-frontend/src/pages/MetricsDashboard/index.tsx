@@ -422,9 +422,7 @@ const MetricsDashboard: React.FC = () => {
       {/* Trend Placeholder */}
       <Card title="Metric Trends" size="small" style={{ marginTop: spacing[4] }}>
         <div style={{ textAlign: 'center', padding: spacing[6] }}>
-          <Text type="secondary">
-            趋势图表区域 -- 待集成 ECharts 后展示历史趋势曲线
-          </Text>
+          <Text type="secondary">趋势图表区域 -- 待集成 ECharts 后展示历史趋势曲线</Text>
         </div>
       </Card>
     </div>

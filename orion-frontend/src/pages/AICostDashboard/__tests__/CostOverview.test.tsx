@@ -95,12 +95,8 @@ describe('CostOverview', () => {
   });
 
   it('shows error on failure', async () => {
-    vi.mocked(aiCostApi.getDashboardData).mockRejectedValue(
-      new Error('Network error')
-    );
-    vi.mocked(aiCostApi.getModelPricing).mockRejectedValue(
-      new Error('Network error')
-    );
+    vi.mocked(aiCostApi.getDashboardData).mockRejectedValue(new Error('Network error'));
+    vi.mocked(aiCostApi.getModelPricing).mockRejectedValue(new Error('Network error'));
 
     const CostOverview = (await import('../CostOverview')).default;
 
@@ -114,9 +110,7 @@ describe('CostOverview', () => {
 
     const { message } = await import('antd');
     await waitFor(() => {
-      expect(message.error).toHaveBeenCalledWith(
-        expect.stringContaining('加载成本数据失败')
-      );
+      expect(message.error).toHaveBeenCalledWith(expect.stringContaining('加载成本数据失败'));
     });
   });
 });

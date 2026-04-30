@@ -121,10 +121,7 @@ const EventBusMonitoring: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [eventsRes, statsRes] = await Promise.all([
-        getEvents({ limit: 100 }),
-        getStats(),
-      ]);
+      const [eventsRes, statsRes] = await Promise.all([getEvents({ limit: 100 }), getStats()]);
       const eventsData = eventsRes.data?.data?.events || [];
       const statsData = statsRes.data?.data?.stats || {};
       setEvents(eventsData.map(mapApiEvent));
@@ -142,8 +139,8 @@ const EventBusMonitoring: React.FC = () => {
     loadData();
   }, []);
 
-  const eventTypes = useMemo(() =>
-    Array.from(new Set(events.map((e) => e.eventType))).sort(),
+  const eventTypes = useMemo(
+    () => Array.from(new Set(events.map((e) => e.eventType))).sort(),
     [events]
   );
 

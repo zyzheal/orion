@@ -165,11 +165,16 @@ const VectorStorePage: React.FC = () => {
   };
 
   const handleSearch = async () => {
-    if (!searchText.trim()) { message.warning('请输入搜索内容'); return; }
+    if (!searchText.trim()) {
+      message.warning('请输入搜索内容');
+      return;
+    }
     setSearchLoading(true);
     try {
       const res = await searchVectors({
-        query: searchText, collection: searchCollection, topK: searchTopK,
+        query: searchText,
+        collection: searchCollection,
+        topK: searchTopK,
       });
       setSearchResults(Array.isArray(res.data?.data) ? res.data.data : []);
     } catch (error: unknown) {

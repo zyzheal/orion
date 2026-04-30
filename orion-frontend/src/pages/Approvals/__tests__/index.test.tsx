@@ -119,9 +119,7 @@ describe('Approvals Page', () => {
   });
 
   it('shows error on API failure', async () => {
-    vi.mocked(approvalApi.getApprovals).mockRejectedValue(
-      new Error('Network error')
-    );
+    vi.mocked(approvalApi.getApprovals).mockRejectedValue(new Error('Network error'));
 
     const ApprovalManagement = (await import('../index')).default;
 
@@ -135,9 +133,7 @@ describe('Approvals Page', () => {
 
     const { message } = await import('antd');
     await waitFor(() => {
-      expect(message.error).toHaveBeenCalledWith(
-        expect.stringContaining('加载审批数据失败')
-      );
+      expect(message.error).toHaveBeenCalledWith(expect.stringContaining('加载审批数据失败'));
     });
 
     // Verify table is empty (no mock fallback)

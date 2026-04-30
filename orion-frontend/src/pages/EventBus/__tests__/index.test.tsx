@@ -117,7 +117,7 @@ describe('EventBusMonitoring', () => {
 
     await waitFor(() => {
       expect(mockMessage.error).toHaveBeenCalledWith(
-        expect.stringContaining('加载 EventBus 数据失败'),
+        expect.stringContaining('加载 EventBus 数据失败')
       );
     });
 

@@ -27,54 +27,60 @@ vi.mock('antd', async () => {
       info: vi.fn(),
     },
     Card: ({ children, ...props }: any) => (
-      <div data-testid="card" {...props}>{children}</div>
+      <div data-testid="card" {...props}>
+        {children}
+      </div>
     ),
-    Table: ({ dataSource, loading, ...props }: any) => (
+    Table: ({ dataSource, loading }: any) => (
       <div data-testid="table" data-loading={loading}>
         <div data-testid="row-count">{dataSource?.length || 0}</div>
       </div>
     ),
     Tag: ({ children, color, ...props }: any) => (
-      <span data-testid="tag" data-color={color} {...props}>{children}</span>
+      <span data-testid="tag" data-color={color} {...props}>
+        {children}
+      </span>
     ),
     Button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
     Space: ({ children, ...props }: any) => <div {...props}>{children}</div>,
     Select: ({ children, value, onChange, ...props }: any) => (
-      <select data-testid="select" value={value} onChange={(e) => onChange?.(e.target.value)} {...props}>
+      <select
+        data-testid="select"
+        value={value}
+        onChange={(e) => onChange?.(e.target.value)}
+        {...props}
+      >
         {children}
       </select>
     ),
-    Form: Object.assign(
-      ({ children, ...props }: any) => <form {...props}>{children}</form>,
-      {
-        Item: ({ children, ...props }: any) => <div {...props}>{children}</div>,
-        useForm: () => [
-          {
-            validateFields: vi.fn(),
-            resetFields: vi.fn(),
-            setFieldsValue: vi.fn(),
-          },
-        ],
-      }
-    ),
-    Input: Object.assign(
-      ({ ...props }: any) => <input {...props} />,
-      { TextArea: ({ ...props }: any) => <textarea {...props} /> }
-    ),
-    Modal: ({ children, open, ...props }: any) =>
-      open ? <div data-testid="modal">{children}</div> : null,
+    Form: Object.assign(({ children, ...props }: any) => <form {...props}>{children}</form>, {
+      Item: ({ children, ...props }: any) => <div {...props}>{children}</div>,
+      useForm: () => [
+        {
+          validateFields: vi.fn(),
+          resetFields: vi.fn(),
+          setFieldsValue: vi.fn(),
+        },
+      ],
+    }),
+    Input: Object.assign(({ ...props }: any) => <input {...props} />, {
+      TextArea: ({ ...props }: any) => <textarea {...props} />,
+    }),
+    Modal: ({ children, open }: any) => (open ? <div data-testid="modal">{children}</div> : null),
     Popconfirm: ({ children, onConfirm, ...props }: any) => (
-      <div data-testid="popconfirm" {...props}>{children}</div>
+      <div data-testid="popconfirm" {...props}>
+        {children}
+      </div>
     ),
-    Drawer: ({ children, open, ...props }: any) =>
-      open ? <div data-testid="drawer">{children}</div> : null,
-    Descriptions: Object.assign(
-      ({ children, ...props }: any) => <div {...props}>{children}</div>,
-      { Item: ({ children, ...props }: any) => <div {...props}>{children}</div> }
-    ),
+    Drawer: ({ children, open }: any) => (open ? <div data-testid="drawer">{children}</div> : null),
+    Descriptions: Object.assign(({ children, ...props }: any) => <div {...props}>{children}</div>, {
+      Item: ({ children, ...props }: any) => <div {...props}>{children}</div>,
+    }),
     Tooltip: ({ children, ...props }: any) => <div {...props}>{children}</div>,
     Statistic: ({ children, value, ...props }: any) => (
-      <div data-testid="statistic" data-value={value} {...props}>{children}</div>
+      <div data-testid="statistic" data-value={value} {...props}>
+        {children}
+      </div>
     ),
     Row: ({ children, ...props }: any) => <div {...props}>{children}</div>,
     Col: ({ children, ...props }: any) => <div {...props}>{children}</div>,
@@ -160,12 +166,8 @@ describe('Queue Page', () => {
   });
 
   it('shows error on API failure and sets empty jobs list', async () => {
-    vi.mocked(queueApi.listJobs).mockRejectedValue(
-      new Error('Network error')
-    );
-    vi.mocked(queueApi.getQueueStats).mockRejectedValue(
-      new Error('Stats API unavailable')
-    );
+    vi.mocked(queueApi.listJobs).mockRejectedValue(new Error('Network error'));
+    vi.mocked(queueApi.getQueueStats).mockRejectedValue(new Error('Stats API unavailable'));
 
     const QueueManagement = (await import('../index')).default;
 
@@ -177,9 +179,7 @@ describe('Queue Page', () => {
 
     const { message } = await import('antd');
     await waitFor(() => {
-      expect(message.error).toHaveBeenCalledWith(
-        expect.stringContaining('加载任务数据失败')
-      );
+      expect(message.error).toHaveBeenCalledWith(expect.stringContaining('加载任务数据失败'));
     });
 
     // Verify empty state (no mock data fallback)

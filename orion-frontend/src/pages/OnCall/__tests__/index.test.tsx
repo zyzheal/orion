@@ -92,9 +92,7 @@ describe('OnCallManagement', () => {
     } as any);
 
     await act(async () => {
-      render(
-        React.createElement(await import('@/pages/OnCall').then((m) => m.default)),
-      );
+      render(React.createElement(await import('@/pages/OnCall').then((m) => m.default)));
     });
 
     await waitFor(() => {
@@ -110,9 +108,7 @@ describe('OnCallManagement', () => {
     } as any);
 
     await act(async () => {
-      render(
-        React.createElement(await import('@/pages/OnCall').then((m) => m.default)),
-      );
+      render(React.createElement(await import('@/pages/OnCall').then((m) => m.default)));
     });
 
     await waitFor(() => {

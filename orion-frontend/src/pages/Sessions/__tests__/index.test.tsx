@@ -136,12 +136,8 @@ describe('Sessions Page', () => {
   });
 
   it('shows error on API failure', async () => {
-    vi.mocked(sessionApi.getSessions).mockRejectedValue(
-      new Error('Network error')
-    );
-    vi.mocked(sessionApi.getSessionStats).mockRejectedValue(
-      new Error('Network error')
-    );
+    vi.mocked(sessionApi.getSessions).mockRejectedValue(new Error('Network error'));
+    vi.mocked(sessionApi.getSessionStats).mockRejectedValue(new Error('Network error'));
 
     const SessionManagement = (await import('../index')).default;
 
@@ -155,9 +151,7 @@ describe('Sessions Page', () => {
 
     const { message } = await import('antd');
     await waitFor(() => {
-      expect(message.error).toHaveBeenCalledWith(
-        expect.stringContaining('加载 Session 数据失败')
-      );
+      expect(message.error).toHaveBeenCalledWith(expect.stringContaining('加载 Session 数据失败'));
     });
   });
 });

@@ -138,10 +138,7 @@ const SessionManagement: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [sessionsRes, statsRes] = await Promise.all([
-        getSessions(),
-        getSessionStats(),
-      ]);
+      const [sessionsRes, statsRes] = await Promise.all([getSessions(), getSessionStats()]);
       const sessionsData = sessionsRes.data?.data?.sessions || sessionsRes.data?.data || [];
       const statsData = statsRes.data?.data?.stats || statsRes.data?.data || {};
       setSessions(Array.isArray(sessionsData) ? sessionsData.map(mapApiSession) : []);

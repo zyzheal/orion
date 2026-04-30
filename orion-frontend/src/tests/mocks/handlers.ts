@@ -801,7 +801,16 @@ export const handlers = [
     return HttpResponse.json({
       code: 0,
       message: 'success',
-      data: { backup: { id: 'bak-new', name: 'new-backup', type: 'full', status: 'completed', size: 0, createdAt: new Date().toISOString() } },
+      data: {
+        backup: {
+          id: 'bak-new',
+          name: 'new-backup',
+          type: 'full',
+          status: 'completed',
+          size: 0,
+          createdAt: new Date().toISOString(),
+        },
+      },
     });
   }),
 

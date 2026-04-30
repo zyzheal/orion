@@ -62,7 +62,14 @@ vi.mock('@/components/SearchFilterBar', () => ({
 const mockDashboardData = {
   data: {
     data: {
-      metrics: { total: 10, rate: 12540, latencyP50: 45, latencyP95: 180, latencyP99: 420, throughput: 8920 },
+      metrics: {
+        total: 10,
+        rate: 12540,
+        latencyP50: 45,
+        latencyP95: 180,
+        latencyP99: 420,
+        throughput: 8920,
+      },
       alerts: { total: 20, active: 3, resolved: 17 },
       rules: { total: 5, enabled: 4 },
       channels: { total: 3, active: 2 },
@@ -163,9 +170,7 @@ describe('MetricsDashboard', () => {
 
     // Error message should be shown
     await waitFor(() => {
-      expect(mockMessage.error).toHaveBeenCalledWith(
-        expect.stringContaining('加载指标数据失败'),
-      );
+      expect(mockMessage.error).toHaveBeenCalledWith(expect.stringContaining('加载指标数据失败'));
     });
 
     // Table should be empty (no mock data fallback)

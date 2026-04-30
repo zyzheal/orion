@@ -443,10 +443,7 @@ const ProductLineManagement: React.FC = () => {
     setSelectedPL(pl);
     setDetailDrawerVisible(true);
     try {
-      const [rtRes, hfRes] = await Promise.all([
-        getReleaseTrains(pl.id),
-        getHotfixChannels(pl.id),
-      ]);
+      const [rtRes, hfRes] = await Promise.all([getReleaseTrains(pl.id), getHotfixChannels(pl.id)]);
       setReleaseTrains(rtRes?.data?.data || []);
       setHotfixChannels(hfRes?.data?.data || []);
     } catch (error: unknown) {
