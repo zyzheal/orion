@@ -33,6 +33,9 @@ import {
 } from '@ant-design/icons';
 import CardPanel from '@/components/CardPanel';
 import { mockEngineerDashboard } from '@/pages/__mocks__/mockBIData';
+import { useBiDashboard } from '@/hooks/useBiDashboard';
+import type { EngineerDashboardData } from '@/types/pages';
+import { Spin, Alert } from 'antd';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -109,7 +112,11 @@ const categoryName = (category: string): string => {
 };
 
 const EngineerDashboard: React.FC = () => {
-  const data = mockEngineerDashboard;
+  const { data: apiData, loading, error } = useBiDashboard('engineer');
+
+  // Fallback to mock data when API is unavailable
+  const data = (apiData as EngineerDashboardData | undefined) ?? mockEngineerDashboard;
+  const showMockWarning = !apiData;
 
   // Grade color
   const gradeColorMap: Record<string, string> = {
@@ -200,6 +207,33 @@ const EngineerDashboard: React.FC = () => {
 
   return (
     <div style={{ padding: 0 }}>
+      {/* Loading state */}
+      {loading && !data && (
+        <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}>
+          <Spin tip="加载效能数据..." size="large" />
+        </div>
+      )}
+      {/* Mock data warning */}
+      {showMockWarning && (
+        <Alert
+          message="API 不可用"
+          description="个人效能仪表盘 API 尚未部署，当前显示模拟数据。"
+          type="warning"
+          showIcon
+          closable
+          style={{ marginBottom: 16 }}
+        />
+      )}
+      {/* Error state */}
+      {error && (
+        <Alert
+          message="加载失败"
+          description={error.message}
+          type="error"
+          showIcon
+          style={{ marginBottom: 16 }}
+        />
+      )}
       {/* Page header */}
       <div style={{ marginBottom: 24 }}>
         <Title level={3} style={{ margin: 0 }}>
