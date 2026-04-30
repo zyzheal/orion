@@ -14,7 +14,6 @@ import {
   Input,
   Select,
   message,
-  Alert,
   Popconfirm,
   Drawer,
   Descriptions,
@@ -77,90 +76,6 @@ const statusIconMap: Record<JobStatus, React.ReactNode> = {
   failed: <CloseCircleOutlined />,
 };
 
-// ---- Mock data ----
-
-const MOCK_STATS: QueueStats = {
-  pending: 12,
-  processing: 3,
-  completed: 156,
-  failed: 7,
-};
-
-const MOCK_JOBS: QueueJob[] = [
-  {
-    id: 'job-001',
-    tenant_id: 'tenant-1',
-    queue: 'pipeline-execution',
-    payload: { pipelineId: 'pipe-101', action: 'build', branch: 'main' },
-    status: 'pending',
-    attempts: 0,
-    created_at: '2024-03-20T10:30:00Z',
-  },
-  {
-    id: 'job-002',
-    tenant_id: 'tenant-1',
-    queue: 'deployment',
-    payload: { appId: 'orion-core', env: 'staging', version: '2.5.0' },
-    status: 'processing',
-    attempts: 1,
-    created_at: '2024-03-20T10:25:00Z',
-  },
-  {
-    id: 'job-003',
-    tenant_id: 'tenant-2',
-    queue: 'notification',
-    payload: { type: 'email', recipients: ['dev@orion.io'], template: 'build-success' },
-    status: 'completed',
-    attempts: 1,
-    created_at: '2024-03-20T10:20:00Z',
-  },
-  {
-    id: 'job-004',
-    tenant_id: 'tenant-1',
-    queue: 'pipeline-execution',
-    payload: { pipelineId: 'pipe-102', action: 'test', branch: 'develop' },
-    status: 'failed',
-    attempts: 3,
-    created_at: '2024-03-20T10:15:00Z',
-  },
-  {
-    id: 'job-005',
-    tenant_id: 'tenant-1',
-    queue: 'artifact-scan',
-    payload: { artifactId: 'art-1', scanType: 'security' },
-    status: 'completed',
-    attempts: 1,
-    created_at: '2024-03-20T10:10:00Z',
-  },
-  {
-    id: 'job-006',
-    tenant_id: 'tenant-2',
-    queue: 'deployment',
-    payload: { appId: 'orion-ai', env: 'production', version: '1.3.0' },
-    status: 'pending',
-    attempts: 0,
-    created_at: '2024-03-20T10:05:00Z',
-  },
-  {
-    id: 'job-007',
-    tenant_id: 'tenant-1',
-    queue: 'notification',
-    payload: { type: 'slack', channel: '#deployments', message: 'Deploy started' },
-    status: 'completed',
-    attempts: 1,
-    created_at: '2024-03-20T09:50:00Z',
-  },
-  {
-    id: 'job-008',
-    tenant_id: 'tenant-2',
-    queue: 'pipeline-execution',
-    payload: { pipelineId: 'pipe-103', action: 'deploy', branch: 'release/v2.5' },
-    status: 'processing',
-    attempts: 2,
-    created_at: '2024-03-20T09:45:00Z',
-  },
-];
-
 const formatPayload = (payload: Record<string, any>): string => {
   return JSON.stringify(payload, null, 2);
 };
@@ -180,35 +95,19 @@ const QueueManagement: React.FC = () => {
   const [enqueueForm] = Form.useForm();
   const [dequeueForm] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
-  const [usingMockData, setUsingMockData] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
     try {
       const params: { status?: JobStatus; queue?: string } = {};
-      if (statusFilter !== 'all') {
-        params.status = statusFilter as JobStatus;
-      }
-      if (queueFilter !== 'all') {
-        params.queue = queueFilter;
-      }
+      if (statusFilter !== 'all') params.status = statusFilter as JobStatus;
+      if (queueFilter !== 'all') params.queue = queueFilter;
       const res = await listJobs(params);
-      setJobs(Array.isArray(res.data?.data?.jobs) ? res.data.data.jobs : []);
+      const jobsData = res.data?.data?.jobs;
+      setJobs(Array.isArray(jobsData) ? jobsData : []);
     } catch (error: unknown) {
-      setUsingMockData(true);
-      let filtered = [...MOCK_JOBS];
-      if (statusFilter !== 'all') {
-        filtered = filtered.filter((j) => j.status === statusFilter);
-      }
-      if (queueFilter !== 'all') {
-        filtered = filtered.filter((j) => j.queue === queueFilter);
-      }
-      setJobs(filtered);
-      if (error instanceof Error) {
-        message.error(`加载任务数据失败：${error.message}`);
-      } else {
-        message.error('加载任务数据失败，请稍后重试');
-      }
+      setJobs([]);
+      message.error(`加载任务数据失败: ${(error as Error).message}`);
     } finally {
       setLoading(false);
     }
@@ -217,10 +116,9 @@ const QueueManagement: React.FC = () => {
   const loadStats = async () => {
     try {
       const res = await getQueueStats();
-      setStats(res.data?.data || MOCK_STATS);
+      setStats(res.data?.data || null);
     } catch (error: unknown) {
-      setUsingMockData(true);
-      setStats(MOCK_STATS);
+      setStats(null);
     }
   };
 
@@ -480,19 +378,6 @@ const QueueManagement: React.FC = () => {
           </Button>
         </Space>
       </div>
-
-      {/* Mock data warning banner */}
-      {usingMockData && (
-        <Alert
-          message="使用模拟数据"
-          description="后端服务暂时不可用，当前显示的是模拟数据，可能不是最新状态。"
-          type="warning"
-          showIcon
-          closable
-          style={{ marginBottom: 16 }}
-          onClose={() => setUsingMockData(false)}
-        />
-      )}
 
       {/* Stats Panel */}
       {stats && (
