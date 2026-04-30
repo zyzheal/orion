@@ -6,6 +6,7 @@ export interface ApprovalEntity {
   definitionId: string | null;
   resourceType: string;
   resourceId: string;
+  title: string | null;
   status: string;
   requestedBy: string | null;
   currentStep: number;

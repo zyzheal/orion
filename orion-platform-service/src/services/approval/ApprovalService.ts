@@ -58,6 +58,7 @@ export class ApprovalService {
       definitionId: null,
       resourceType: metadata?.resourceType ?? 'generic',
       resourceId: metadata?.resourceId ?? id,
+      title,
       status: 'pending',
       requestedBy: requesterId,
       currentStep: 0,
@@ -185,7 +186,7 @@ export class ApprovalService {
 
     return {
       id: entity.id,
-      title: `Approval for ${entity.resourceType}`,
+      title: entity.title || `Approval for ${entity.resourceType}`,
       requesterId: entity.requestedBy ?? '',
       approverIds,
       status: entity.status as ApprovalStatus,
