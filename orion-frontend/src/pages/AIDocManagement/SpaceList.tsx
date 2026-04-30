@@ -64,41 +64,9 @@ const SpaceList: React.FC = () => {
     try {
       const res = await getSpaces();
       setSpaces(Array.isArray(res.data.data) ? res.data.data : []);
-    } catch {
-      // Mock data
-      setSpaces([
-        {
-          id: 's1',
-          name: '技术文档库',
-          type: 'public',
-          ownerId: 'admin',
-          documentCount: 45,
-          description: '公共技术文档',
-          createdAt: '2024-01-01',
-          updatedAt: '2024-03-15',
-        },
-        {
-          id: 's2',
-          name: '团队知识库',
-          type: 'internal',
-          ownerId: 'team-lead',
-          teamId: 'team-a',
-          documentCount: 28,
-          description: '团队内部知识',
-          createdAt: '2024-02-01',
-          updatedAt: '2024-03-10',
-        },
-        {
-          id: 's3',
-          name: '项目笔记',
-          type: 'private',
-          ownerId: 'user-001',
-          documentCount: 12,
-          description: '个人项目笔记',
-          createdAt: '2024-03-01',
-          updatedAt: '2024-03-20',
-        },
-      ]);
+    } catch (error: unknown) {
+      setSpaces([]);
+      message.error(`加载知识库数据失败: ${(error as Error).message}`);
     } finally {
       setLoading(false);
     }

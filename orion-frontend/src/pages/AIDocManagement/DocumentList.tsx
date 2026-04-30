@@ -67,53 +67,9 @@ const DocumentListPage: React.FC = () => {
       const spaceList = Array.isArray(spaceRes.data.data) ? spaceRes.data.data : [];
       setSpaces(spaceList.map((s: { id: string; name: string }) => ({ id: s.id, name: s.name })));
     } catch (error: unknown) {
-      // Mock data
-      setDocuments([
-        {
-          id: 'd1',
-          spaceId: 's1',
-          title: 'API 设计最佳实践',
-          content: '本文档介绍了 RESTful API 的设计原则...',
-          status: 'published',
-          version: 3,
-          tags: ['api', 'design'],
-          authorId: 'admin',
-          createdAt: '2024-01-15',
-          updatedAt: '2024-03-10',
-        },
-        {
-          id: 'd2',
-          spaceId: 's1',
-          title: 'Kubernetes 运维手册',
-          content: 'K8s 日常运维操作指南...',
-          status: 'published',
-          version: 5,
-          tags: ['k8s', 'ops'],
-          authorId: 'admin',
-          createdAt: '2024-02-01',
-          updatedAt: '2024-03-15',
-        },
-        {
-          id: 'd3',
-          spaceId: 's2',
-          title: '团队开发规范',
-          content: '代码规范和 review 流程...',
-          status: 'draft',
-          version: 1,
-          tags: ['guide'],
-          authorId: 'team-lead',
-          createdAt: '2024-03-01',
-          updatedAt: '2024-03-05',
-        },
-      ]);
-      setSpaces([
-        { id: 's1', name: '技术文档库' },
-        { id: 's2', name: '团队知识库' },
-        { id: 's3', name: '项目笔记' },
-      ]);
-      if (error instanceof Error) {
-        message.warning(`加载文档数据失败，使用模拟数据：${error.message}`);
-      }
+      setDocuments([]);
+      setSpaces([]);
+      message.error(`加载文档数据失败: ${(error as Error).message}`);
     } finally {
       setLoading(false);
     }

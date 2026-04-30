@@ -46,14 +46,8 @@ const RAGQueryPage: React.FC = () => {
       const spaceList = Array.isArray(res.data.data) ? res.data.data : [];
       setSpaces(spaceList.map((s: { id: string; name: string }) => ({ id: s.id, name: s.name })));
     } catch (error: unknown) {
-      setSpaces([
-        { id: 'all', name: '全部知识库' },
-        { id: 's1', name: '技术文档库' },
-        { id: 's2', name: '团队知识库' },
-      ]);
-      if (error instanceof Error) {
-        message.warning('加载知识库列表失败，使用模拟数据');
-      }
+      setSpaces([]);
+      message.error(`加载知识库列表失败: ${(error as Error).message}`);
     }
   };
 
@@ -91,32 +85,13 @@ const RAGQueryPage: React.FC = () => {
       };
       setMessages((prev) => [...prev, assistantMessage]);
     } catch (error: unknown) {
-      // Mock response
-      const mockSources: RAGResult[] = [
-        {
-          documentId: 'd1',
-          title: 'API 设计最佳实践',
-          snippet: 'RESTful API 应该遵循资源命名规范...',
-          relevanceScore: 0.92,
-          spaceId: 's1',
-        },
-        {
-          documentId: 'd2',
-          title: 'Kubernetes 运维手册',
-          snippet: '部署时需要注意资源配置...',
-          relevanceScore: 0.78,
-          spaceId: 's1',
-        },
-      ];
-      const assistantMessage: ChatMessage = {
+      const errorMessage: ChatMessage = {
         id: `msg-${Date.now() + 1}`,
         role: 'assistant',
-        content: `根据知识库检索，关于"${currentQuery}"，我找到以下相关信息：\n\n1. API 设计应该遵循 RESTful 原则，使用名词作为资源路径。\n2. 部署配置需要注意资源限制和健康检查。`,
-        sources: mockSources,
-        confidence: 85,
+        content: `查询失败: ${(error as Error).message}`,
         timestamp: dayjs().toISOString(),
       };
-      setMessages((prev) => [...prev, assistantMessage]);
+      setMessages((prev) => [...prev, errorMessage]);
     } finally {
       setLoading(false);
     }
