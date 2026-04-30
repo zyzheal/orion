@@ -111,6 +111,7 @@ export class ApprovalRepository extends BaseRepository<ApprovalEntity> {
       definitionId: row.definition_id,
       resourceType: row.resource_type,
       resourceId: row.resource_id,
+      title: row.title,
       status: row.status ?? 'pending',
       requestedBy: row.requested_by,
       currentStep: row.current_step ?? 0,
