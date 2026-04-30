@@ -72,6 +72,7 @@ import environmentRoutes from './environment-routes';
 import queueRoutes from './queue-routes';
 import projectRoutes from './project-routes';
 import agentRoutes from '../routes-agent';
+import apiKeyRoutes from './api-key-routes';
 
 export interface ApiRoutesOptions {
   eventBus?: EventBusService;
@@ -346,7 +347,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await registerWithRoleGuard(app, confirmationRoutes, '/v1/confirmations', { database: options.database, eventBus: options.eventBus });
 
   // 注册 Artifact Registry API 路由
-  await app.register(artifactRoutes, { prefix: '/v1/artifacts' });
+  await app.register(artifactRoutes, { prefix: '/v1/artifacts', database: options.database });
 
   // 注册 Vector Store API 路由 (P0-G2 - pgvector backed) — admin only
   await registerWithRoleGuard(app, vectorStoreRoutes, '/v1/vector-store', { database: options.database });
@@ -403,4 +404,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // 注册 Agent Orchestration API 路由 - PostgreSQL backed
   await app.register(agentRoutes, { prefix: '/v1/', eventBus: options.eventBus, database: options.database });
+
+  // 注册 API Key Management API 路由 - PostgreSQL backed
+  await registerWithRoleGuard(app, apiKeyRoutes, '/v1/api-keys', { database: options.database });
 }
