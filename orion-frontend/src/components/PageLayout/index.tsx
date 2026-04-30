@@ -129,6 +129,7 @@ function PageLayout({
                   borderBottom: '1px solid var(--border-light, #f0f0f0)',
                 }}
                 onClick={handleToggle}
+                data-testid="collapse-toggle"
               >
                 {isCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
               </div>

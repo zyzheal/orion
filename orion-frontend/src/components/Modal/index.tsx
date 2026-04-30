@@ -119,6 +119,7 @@ function OrionModal({
 
   const resolvedOkText = okText || defaultTexts[type].ok;
   const resolvedCancelText = cancelText || defaultTexts[type].cancel;
+  const shouldShowCancel = showCancel && (defaultTexts[type].cancel !== '' || cancelText);
 
   return (
     <AntModal
@@ -136,7 +137,7 @@ function OrionModal({
       okButtonProps={{ loading: isLoading }}
       cancelButtonProps={{
         disabled: isLoading,
-        style: showCancel ? undefined : { display: 'none' },
+        style: shouldShowCancel ? undefined : { display: 'none' },
       }}
       confirmLoading={isLoading}
       maskClosable={maskClosable}

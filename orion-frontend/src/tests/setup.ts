@@ -3,6 +3,9 @@ import { afterAll, afterEach, beforeAll } from 'vitest';
 import { cleanup } from '@testing-library/react';
 import { server } from './mocks/server';
 
+// Force UTC timezone for consistent test results
+process.env.TZ = 'UTC';
+
 // 清理测试环境
 afterEach(() => {
   cleanup();

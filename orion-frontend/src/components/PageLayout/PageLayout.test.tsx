@@ -87,7 +87,7 @@ describe('PageLayout', () => {
     );
 
     // Find and click the toggle
-    const toggle = screen.getByRole('presentation');
+    const toggle = screen.getByTestId('collapse-toggle');
     toggle.click();
     expect(handleCollapse).toHaveBeenCalledWith(true);
   });

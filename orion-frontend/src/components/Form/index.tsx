@@ -232,7 +232,7 @@ function OrionForm({
       {showSubmit && (
         <AntForm.Item>
           <Space>
-            <Button type="primary" htmlType="submit" loading={submitting}>
+            <Button type="primary" htmlType="submit" loading={submitting} aria-busy={submitting || undefined}>
               {submitText}
             </Button>
             {cancelText && onCancel && (

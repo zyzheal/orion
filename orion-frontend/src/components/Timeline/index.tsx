@@ -91,6 +91,7 @@ function OrionTimeline({
   showMore = true,
   onShowMore,
   pending = false,
+  pendingText,
   mode = 'left',
 }: TimelineProps) {
   const displayEvents = maxItems ? events.slice(0, maxItems) : events;
@@ -166,7 +167,7 @@ function OrionTimeline({
       <AntTimeline
         mode={mode}
         reverse={reverse}
-        pending={pending}
+        pending={pending ? pendingText : false}
         pendingDot={
           <span
             style={{

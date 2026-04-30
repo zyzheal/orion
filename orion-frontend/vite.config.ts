@@ -2,6 +2,9 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 
+// Force UTC timezone for consistent test results
+process.env.TZ = 'UTC';
+
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],

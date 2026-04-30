@@ -48,8 +48,8 @@ describe('OrionTimeline', () => {
 
   it('should render status badges', () => {
     render(<Timeline events={sampleEvents} />);
-    expect(screen.getByText('Success')).toBeInTheDocument();
-    expect(screen.getAllByText('Success').length).toBeGreaterThanOrEqual(1);
+    const successBadges = screen.getAllByText('Success');
+    expect(successBadges.length).toBeGreaterThanOrEqual(1);
   });
 
   it('should limit events when maxItems is set', () => {

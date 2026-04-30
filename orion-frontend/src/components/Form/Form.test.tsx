@@ -127,7 +127,8 @@ describe('OrionForm', () => {
 
   it('should show loading state on submit button', () => {
     render(<Form fields={baseFields} onSubmit={vi.fn()} submitting={true} />);
-    expect(screen.getByText('Submit')).toHaveAttribute('aria-busy');
+    const submitBtn = screen.getByRole('button', { name: /submit/i });
+    expect(submitBtn).toHaveAttribute('aria-busy');
   });
 
   it('should hide submit button when showSubmit is false', () => {
