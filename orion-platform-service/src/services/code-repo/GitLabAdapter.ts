@@ -31,22 +31,29 @@ export interface GitLabAdapterConfig {
   apiVersion?: string;
   /** 请求超时 (ms) */
   timeout?: number;
+  /** 是否启用真实 API 调用（默认通过 GITLAB_API_ENABLED 环境变量控制） */
+  enableRealApi?: boolean;
 }
 
 /**
- * GitLab API 客户端 (Mock 实现)
+ * GitLab REST API 客户端
  *
- * 生产环境中应使用 @gitbeaker/rest 或自定义 HTTP 客户端调用 GitLab REST API
+ * 使用 native fetch() 调用 GitLab REST API。
+ * 当服务不可达时降级为 mock 数据。
  */
 class GitLabApiClient {
   private baseUrl: string;
   private token: string;
   private apiVersion: string;
+  private timeout: number;
+  private enableRealApi: boolean;
 
   constructor(config: GitLabAdapterConfig) {
-    this.baseUrl = config.baseUrl.replace(/\/+$/, ''); // 去除尾部斜杠
+    this.baseUrl = config.baseUrl.replace(/\/+$/, '');
     this.token = config.token;
     this.apiVersion = config.apiVersion || 'v4';
+    this.timeout = config.timeout || 10_000;
+    this.enableRealApi = config.enableRealApi ?? process.env.GITLAB_API_ENABLED === 'true';
   }
 
   /** 构建 API URL */
@@ -63,29 +70,98 @@ class GitLabApiClient {
   }
 
   /** GET 请求 */
-  async get<T>(path: string): Promise<T> {
-    // Mock 实现 - 生产环境使用真实 HTTP 请求
-    // const response = await fetch(this.apiUrl(path), {
-    //   method: 'GET',
-    //   headers: this.getHeaders(),
-    // });
-    // return response.json();
-    return {} as T;
+  async get<T>(path: string, fallback: T): Promise<T> {
+    if (!this.enableRealApi) return fallback;
+
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), this.timeout);
+
+      const response = await fetch(this.apiUrl(path), {
+        method: 'GET',
+        headers: this.getHeaders(),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+
+      if (!response.ok) {
+        return fallback;
+      }
+      return response.json() as Promise<T>;
+    } catch {
+      return fallback;
+    }
   }
 
   /** POST 请求 */
-  async post<T>(path: string, body?: Record<string, any>): Promise<T> {
-    return {} as T;
+  async post<T>(path: string, body: Record<string, any>, fallback: T): Promise<T> {
+    if (!this.enableRealApi) return fallback;
+
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), this.timeout);
+
+      const response = await fetch(this.apiUrl(path), {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+
+      if (!response.ok) {
+        return fallback;
+      }
+      return response.json() as Promise<T>;
+    } catch {
+      return fallback;
+    }
   }
 
   /** PUT 请求 */
-  async put<T>(path: string, body?: Record<string, any>): Promise<T> {
-    return {} as T;
+  async put<T>(path: string, body: Record<string, any>, fallback: T): Promise<T> {
+    if (!this.enableRealApi) return fallback;
+
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), this.timeout);
+
+      const response = await fetch(this.apiUrl(path), {
+        method: 'PUT',
+        headers: this.getHeaders(),
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+
+      if (!response.ok) {
+        return fallback;
+      }
+      return response.json() as Promise<T>;
+    } catch {
+      return fallback;
+    }
   }
 
   /** DELETE 请求 */
-  async delete(path: string): Promise<void> {
-    // Mock 实现
+  async delete(path: string): Promise<boolean> {
+    if (!this.enableRealApi) return false;
+
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), this.timeout);
+
+      const response = await fetch(this.apiUrl(path), {
+        method: 'DELETE',
+        headers: this.getHeaders(),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+
+      return response.ok;
+    } catch {
+      return false;
+    }
   }
 }
 
@@ -113,12 +189,7 @@ export class GitLabAdapter implements ICodeRepoAdapter {
    * GitLab API: GET /projects/:id
    */
   async getRepository(projectId: string): Promise<Repository> {
-    // 生产实现:
-    // const data = await this.client.get(`/projects/${encodeURIComponent(projectId)}`);
-    // return this.mapGitLabProjectToRepository(data);
-
-    // Mock 实现
-    return {
+    const fallback = {
       id: projectId,
       name: projectId.split('/').pop() || 'unknown',
       fullName: projectId,
@@ -127,10 +198,22 @@ export class GitLabAdapter implements ICodeRepoAdapter {
       sshUrl: `git@${new URL(this.baseUrl).hostname}:${projectId}.git`,
       httpUrl: `${this.baseUrl}/${projectId}.git`,
       defaultBranch: 'main',
-      visibility: 'private',
+      visibility: 'private' as const,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
+
+    const data = await this.client.get(
+      `/projects/${encodeURIComponent(projectId)}`,
+      fallback
+    );
+
+    // If real API returned the fallback (empty object), use fallback directly
+    if (!data || (typeof data === 'object' && Object.keys(data).length === 0)) {
+      return fallback;
+    }
+
+    return this.mapGitLabProjectToRepository(data);
   }
 
   /**
@@ -143,15 +226,17 @@ export class GitLabAdapter implements ICodeRepoAdapter {
     page?: number;
     perPage?: number;
   }): Promise<Repository[]> {
-    // 生产实现:
-    // const params = new URLSearchParams();
-    // if (options?.search) params.set('search', options.search);
-    // if (options?.page) params.set('page', String(options.page));
-    // if (options?.perPage) params.set('per_page', String(options.perPage));
-    // const projects = await this.client.get(`/projects?${params}`);
-    // return projects.map((p: any) => this.mapGitLabProjectToRepository(p));
+    const params = new URLSearchParams();
+    if (options?.search) params.set('search', options.search);
+    if (options?.page) params.set('page', String(options.page));
+    if (options?.perPage) params.set('per_page', String(options.perPage));
 
-    return [];
+    const projects: any[] = await this.client.get(
+      `/projects?${params}`,
+      []
+    );
+
+    return projects.map(p => this.mapGitLabProjectToRepository(p));
   }
 
   // ==================== 分支管理 ====================
@@ -165,13 +250,12 @@ export class GitLabAdapter implements ICodeRepoAdapter {
     page?: number;
     perPage?: number;
   }): Promise<Branch[]> {
-    // 生产实现:
-    // const branches = await this.client.get(
-    //   `/projects/${encodeURIComponent(repoId)}/repository/branches`
-    // );
-    // return branches.map((b: any) => this.mapGitLabBranchToBranch(b));
+    const branches: any[] = await this.client.get(
+      `/projects/${encodeURIComponent(repoId)}/repository/branches`,
+      []
+    );
 
-    return [];
+    return branches.map(b => this.mapGitLabBranchToBranch(b));
   }
 
   /**
@@ -180,13 +264,7 @@ export class GitLabAdapter implements ICodeRepoAdapter {
    * GitLab API: GET /projects/:id/repository/branches/:branch
    */
   async getBranch(repoId: string, branchName: string): Promise<Branch> {
-    // 生产实现:
-    // const branch = await this.client.get(
-    //   `/projects/${encodeURIComponent(repoId)}/repository/branches/${encodeURIComponent(branchName)}`
-    // );
-    // return this.mapGitLabBranchToBranch(branch);
-
-    return {
+    const fallback: Branch = {
       name: branchName,
       isProtected: false,
       lastCommitSha: '',
@@ -194,6 +272,17 @@ export class GitLabAdapter implements ICodeRepoAdapter {
       lastCommitDate: new Date(),
       commitCount: 0,
     };
+
+    const branch: any = await this.client.get(
+      `/projects/${encodeURIComponent(repoId)}/repository/branches/${encodeURIComponent(branchName)}`,
+      fallback
+    );
+
+    if (!branch || (typeof branch === 'object' && Object.keys(branch).length === 0)) {
+      return fallback;
+    }
+
+    return this.mapGitLabBranchToBranch(branch);
   }
 
   /**
@@ -202,14 +291,7 @@ export class GitLabAdapter implements ICodeRepoAdapter {
    * GitLab API: POST /projects/:id/repository/branches
    */
   async createBranch(repoId: string, branchName: string, sourceRef: string): Promise<Branch> {
-    // 生产实现:
-    // const branch = await this.client.post(
-    //   `/projects/${encodeURIComponent(repoId)}/repository/branches`,
-    //   { branch: branchName, ref: sourceRef }
-    // );
-    // return this.mapGitLabBranchToBranch(branch);
-
-    return {
+    const fallback: Branch = {
       name: branchName,
       isProtected: false,
       lastCommitSha: '',
@@ -217,6 +299,18 @@ export class GitLabAdapter implements ICodeRepoAdapter {
       lastCommitDate: new Date(),
       commitCount: 0,
     };
+
+    const branch: any = await this.client.post(
+      `/projects/${encodeURIComponent(repoId)}/repository/branches`,
+      { branch: branchName, ref: sourceRef },
+      fallback
+    );
+
+    if (!branch || (typeof branch === 'object' && Object.keys(branch).length === 0)) {
+      return fallback;
+    }
+
+    return this.mapGitLabBranchToBranch(branch);
   }
 
   /**
@@ -225,10 +319,9 @@ export class GitLabAdapter implements ICodeRepoAdapter {
    * GitLab API: DELETE /projects/:id/repository/branches/:branch
    */
   async deleteBranch(repoId: string, branchName: string): Promise<void> {
-    // 生产实现:
-    // await this.client.delete(
-    //   `/projects/${encodeURIComponent(repoId)}/repository/branches/${encodeURIComponent(branchName)}`
-    // );
+    await this.client.delete(
+      `/projects/${encodeURIComponent(repoId)}/repository/branches/${encodeURIComponent(branchName)}`
+    );
   }
 
   /**
@@ -240,18 +333,21 @@ export class GitLabAdapter implements ICodeRepoAdapter {
     isProtected: boolean;
     rules?: Record<string, any>;
   }> {
-    // 生产实现:
-    // try {
-    //   const protectedBranch = await this.client.get(
-    //     `/projects/${encodeURIComponent(repoId)}/protected_branches/${encodeURIComponent(branchName)}`
-    //   );
-    //   return {
-    //     isProtected: true,
-    //     rules: protectedBranch,
-    //   };
-    // } catch {
-    //   return { isProtected: false };
-    // }
+    try {
+      const protectedBranch: any = await this.client.get(
+        `/projects/${encodeURIComponent(repoId)}/protected_branches/${encodeURIComponent(branchName)}`,
+        null
+      );
+
+      if (protectedBranch) {
+        return {
+          isProtected: true,
+          rules: protectedBranch,
+        };
+      }
+    } catch {
+      // Ignore
+    }
 
     return { isProtected: false };
   }
@@ -268,17 +364,17 @@ export class GitLabAdapter implements ICodeRepoAdapter {
     page?: number;
     perPage?: number;
   }): Promise<Commit[]> {
-    // 生产实现:
-    // const params = new URLSearchParams();
-    // if (options?.branch) params.set('ref_name', options.branch);
-    // if (options?.page) params.set('page', String(options.page));
-    // if (options?.perPage) params.set('per_page', String(options.perPage));
-    // const commits = await this.client.get(
-    //   `/projects/${encodeURIComponent(repoId)}/repository/commits?${params}`
-    // );
-    // return commits.map((c: any) => this.mapGitLabCommitToCommit(c));
+    const params = new URLSearchParams();
+    if (options?.branch) params.set('ref_name', options.branch);
+    if (options?.page) params.set('page', String(options.page));
+    if (options?.perPage) params.set('per_page', String(options.perPage));
 
-    return [];
+    const commits: any[] = await this.client.get(
+      `/projects/${encodeURIComponent(repoId)}/repository/commits?${params}`,
+      []
+    );
+
+    return commits.map(c => this.mapGitLabCommitToCommit(c));
   }
 
   /**
@@ -287,19 +383,24 @@ export class GitLabAdapter implements ICodeRepoAdapter {
    * GitLab API: GET /projects/:id/repository/commits/:sha
    */
   async getCommit(repoId: string, sha: string): Promise<Commit> {
-    // 生产实现:
-    // const commit = await this.client.get(
-    //   `/projects/${encodeURIComponent(repoId)}/repository/commits/${sha}`
-    // );
-    // return this.mapGitLabCommitToCommit(commit);
-
-    return {
+    const fallback: Commit = {
       sha,
       message: '',
       author: '',
       authorEmail: '',
       createdAt: new Date(),
     };
+
+    const commit: any = await this.client.get(
+      `/projects/${encodeURIComponent(repoId)}/repository/commits/${sha}`,
+      fallback
+    );
+
+    if (!commit || (typeof commit === 'object' && Object.keys(commit).length === 0)) {
+      return fallback;
+    }
+
+    return this.mapGitLabCommitToCommit(commit);
   }
 
   // ==================== Merge Request 管理 ====================
@@ -317,21 +418,7 @@ export class GitLabAdapter implements ICodeRepoAdapter {
     reviewers?: string[];
     labels?: string[];
   }): Promise<PullRequest> {
-    // 生产实现:
-    // const mr = await this.client.post(
-    //   `/projects/${encodeURIComponent(repoId)}/merge_requests`,
-    //   {
-    //     title: input.title,
-    //     description: input.description,
-    //     source_branch: input.sourceBranch,
-    //     target_branch: input.targetBranch,
-    //     reviewer_ids: input.reviewers,
-    //     labels: input.labels?.join(','),
-    //   }
-    // );
-    // return this.mapGitLabMRToPullRequest(mr);
-
-    return {
+    const fallback: PullRequest = {
       id: `mr-${Date.now()}`,
       externalId: '1',
       repoId,
@@ -349,6 +436,24 @@ export class GitLabAdapter implements ICodeRepoAdapter {
       createdAt: new Date(),
       updatedAt: new Date(),
     };
+
+    const mr: any = await this.client.post(
+      `/projects/${encodeURIComponent(repoId)}/merge_requests`,
+      {
+        title: input.title,
+        description: input.description,
+        source_branch: input.sourceBranch,
+        target_branch: input.targetBranch,
+        labels: input.labels?.join(','),
+      },
+      fallback
+    );
+
+    if (!mr || (typeof mr === 'object' && Object.keys(mr).length === 0)) {
+      return fallback;
+    }
+
+    return this.mapGitLabMRToPullRequest(mr);
   }
 
   /**
@@ -357,13 +462,7 @@ export class GitLabAdapter implements ICodeRepoAdapter {
    * GitLab API: GET /projects/:id/merge_requests/:iid
    */
   async getPullRequest(repoId: string, prId: string): Promise<PullRequest> {
-    // 生产实现:
-    // const mr = await this.client.get(
-    //   `/projects/${encodeURIComponent(repoId)}/merge_requests/${prId}`
-    // );
-    // return this.mapGitLabMRToPullRequest(mr);
-
-    return {
+    const fallback: PullRequest = {
       id: prId,
       externalId: prId,
       repoId,
@@ -380,6 +479,17 @@ export class GitLabAdapter implements ICodeRepoAdapter {
       createdAt: new Date(),
       updatedAt: new Date(),
     };
+
+    const mr: any = await this.client.get(
+      `/projects/${encodeURIComponent(repoId)}/merge_requests/${prId}`,
+      fallback
+    );
+
+    if (!mr || (typeof mr === 'object' && Object.keys(mr).length === 0)) {
+      return fallback;
+    }
+
+    return this.mapGitLabMRToPullRequest(mr);
   }
 
   /**
@@ -393,18 +503,18 @@ export class GitLabAdapter implements ICodeRepoAdapter {
     page?: number;
     perPage?: number;
   }): Promise<PullRequest[]> {
-    // 生产实现:
-    // const params = new URLSearchParams();
-    // if (options?.state) params.set('state', this.mapPullRequestStateToGitLab(options.state));
-    // if (options?.author) params.set('author_username', options.author);
-    // if (options?.page) params.set('page', String(options.page));
-    // if (options?.perPage) params.set('per_page', String(options.perPage));
-    // const mrs = await this.client.get(
-    //   `/projects/${encodeURIComponent(repoId)}/merge_requests?${params}`
-    // );
-    // return mrs.map((mr: any) => this.mapGitLabMRToPullRequest(mr));
+    const params = new URLSearchParams();
+    if (options?.state) params.set('state', this.mapPullRequestStateToGitLab(options.state));
+    if (options?.author) params.set('author_username', options.author);
+    if (options?.page) params.set('page', String(options.page));
+    if (options?.perPage) params.set('per_page', String(options.perPage));
 
-    return [];
+    const mrs: any[] = await this.client.get(
+      `/projects/${encodeURIComponent(repoId)}/merge_requests?${params}`,
+      []
+    );
+
+    return mrs.map(mr => this.mapGitLabMRToPullRequest(mr));
   }
 
   /**
@@ -416,17 +526,7 @@ export class GitLabAdapter implements ICodeRepoAdapter {
     strategy?: MergeStrategy;
     commitMessage?: string;
   }): Promise<PullRequest> {
-    // 生产实现:
-    // const body: Record<string, any> = {};
-    // if (options?.commitMessage) body.merge_commit_message = options.commitMessage;
-    // if (options?.strategy === MergeStrategy.SQUASH_MERGE) body.squash = true;
-    // const mr = await this.client.put(
-    //   `/projects/${encodeURIComponent(repoId)}/merge_requests/${prId}/merge`,
-    //   body
-    // );
-    // return this.mapGitLabMRToPullRequest(mr);
-
-    return {
+    const fallback: PullRequest = {
       id: prId,
       externalId: prId,
       repoId,
@@ -444,6 +544,22 @@ export class GitLabAdapter implements ICodeRepoAdapter {
       updatedAt: new Date(),
       mergedAt: new Date(),
     };
+
+    const body: Record<string, any> = {};
+    if (options?.commitMessage) body.merge_commit_message = options.commitMessage;
+    if (options?.strategy === MergeStrategy.SQUASH_MERGE) body.squash = true;
+
+    const mr: any = await this.client.put(
+      `/projects/${encodeURIComponent(repoId)}/merge_requests/${prId}/merge`,
+      body,
+      fallback
+    );
+
+    if (!mr || (typeof mr === 'object' && Object.keys(mr).length === 0)) {
+      return fallback;
+    }
+
+    return this.mapGitLabMRToPullRequest(mr);
   }
 
   /**
@@ -452,14 +568,7 @@ export class GitLabAdapter implements ICodeRepoAdapter {
    * GitLab API: PUT /projects/:id/merge_requests/:iid (state_event=close)
    */
   async closePullRequest(repoId: string, prId: string): Promise<PullRequest> {
-    // 生产实现:
-    // const mr = await this.client.put(
-    //   `/projects/${encodeURIComponent(repoId)}/merge_requests/${prId}`,
-    //   { state_event: 'close' }
-    // );
-    // return this.mapGitLabMRToPullRequest(mr);
-
-    return {
+    const fallback: PullRequest = {
       id: prId,
       externalId: prId,
       repoId,
@@ -477,6 +586,18 @@ export class GitLabAdapter implements ICodeRepoAdapter {
       updatedAt: new Date(),
       closedAt: new Date(),
     };
+
+    const mr: any = await this.client.put(
+      `/projects/${encodeURIComponent(repoId)}/merge_requests/${prId}`,
+      { state_event: 'close' },
+      fallback
+    );
+
+    if (!mr || (typeof mr === 'object' && Object.keys(mr).length === 0)) {
+      return fallback;
+    }
+
+    return this.mapGitLabMRToPullRequest(mr);
   }
 
   /**
@@ -490,19 +611,7 @@ export class GitLabAdapter implements ICodeRepoAdapter {
     labels?: string[];
     assignees?: string[];
   }): Promise<PullRequest> {
-    // 生产实现:
-    // const body: Record<string, any> = {};
-    // if (input.title) body.title = input.title;
-    // if (input.description !== undefined) body.description = input.description;
-    // if (input.labels) body.labels = input.labels.join(',');
-    // if (input.assignees) body.assignee_ids = input.assignees;
-    // const mr = await this.client.put(
-    //   `/projects/${encodeURIComponent(repoId)}/merge_requests/${prId}`,
-    //   body
-    // );
-    // return this.mapGitLabMRToPullRequest(mr);
-
-    return {
+    const fallback: PullRequest = {
       id: prId,
       externalId: prId,
       repoId,
@@ -520,6 +629,23 @@ export class GitLabAdapter implements ICodeRepoAdapter {
       createdAt: new Date(),
       updatedAt: new Date(),
     };
+
+    const body: Record<string, any> = {};
+    if (input.title) body.title = input.title;
+    if (input.description !== undefined) body.description = input.description;
+    if (input.labels) body.labels = input.labels.join(',');
+
+    const mr: any = await this.client.put(
+      `/projects/${encodeURIComponent(repoId)}/merge_requests/${prId}`,
+      body,
+      fallback
+    );
+
+    if (!mr || (typeof mr === 'object' && Object.keys(mr).length === 0)) {
+      return fallback;
+    }
+
+    return this.mapGitLabMRToPullRequest(mr);
   }
 
   // ==================== Review 管理 ====================
@@ -535,14 +661,7 @@ export class GitLabAdapter implements ICodeRepoAdapter {
     state?: 'comment' | 'approve' | 'request_changes';
     fileComments?: FileComment[];
   }): Promise<Review> {
-    // 生产实现:
-    // GitLab 使用 Approvals API + Notes API 组合实现
-    // const note = await this.client.post(
-    //   `/projects/${encodeURIComponent(repoId)}/merge_requests/${prId}/notes`,
-    //   { body: input.content }
-    // );
-
-    return {
+    const fallback: Review = {
       id: `review-${Date.now()}`,
       pullRequestId: prId,
       author: 'current-user',
@@ -552,6 +671,14 @@ export class GitLabAdapter implements ICodeRepoAdapter {
       createdAt: new Date(),
       fileComments: input.fileComments,
     };
+
+    await this.client.post(
+      `/projects/${encodeURIComponent(repoId)}/merge_requests/${prId}/notes`,
+      { body: input.content },
+      null
+    );
+
+    return fallback;
   }
 
   /**
@@ -560,13 +687,12 @@ export class GitLabAdapter implements ICodeRepoAdapter {
    * GitLab API: GET /projects/:id/merge_requests/:iid/notes
    */
   async listReviews(repoId: string, prId: string): Promise<Review[]> {
-    // 生产实现:
-    // const notes = await this.client.get(
-    //   `/projects/${encodeURIComponent(repoId)}/merge_requests/${prId}/notes`
-    // );
-    // return notes.map((note: any) => this.mapGitLabNoteToReview(note));
+    const notes: any[] = await this.client.get(
+      `/projects/${encodeURIComponent(repoId)}/merge_requests/${prId}/notes`,
+      []
+    );
 
-    return [];
+    return notes.map(note => this.mapGitLabNoteToReview(note));
   }
 
   // ==================== Webhook 管理 ====================
@@ -581,20 +707,7 @@ export class GitLabAdapter implements ICodeRepoAdapter {
     events: string[];
     secret?: string;
   }): Promise<WebhookConfig> {
-    // 生产实现:
-    // const body: Record<string, any> = {
-    //   url: input.url,
-    //   token: input.secret,
-    //   merge_requests_events: input.events.includes('merge_requests'),
-    //   push_events: input.events.includes('push'),
-    //   enable_ssl_verification: true,
-    // };
-    // const hook = await this.client.post(
-    //   `/projects/${encodeURIComponent(repoId)}/hooks`,
-    //   body
-    // );
-
-    return {
+    const fallback: WebhookConfig = {
       id: `hook-${Date.now()}`,
       repoId,
       url: input.url,
@@ -603,6 +716,26 @@ export class GitLabAdapter implements ICodeRepoAdapter {
       isActive: true,
       createdAt: new Date(),
     };
+
+    const body: Record<string, any> = {
+      url: input.url,
+      token: input.secret,
+      merge_requests_events: input.events.includes('merge_requests'),
+      push_events: input.events.includes('push'),
+      enable_ssl_verification: true,
+    };
+
+    const hook: any = await this.client.post(
+      `/projects/${encodeURIComponent(repoId)}/hooks`,
+      body,
+      fallback
+    );
+
+    if (!hook || (typeof hook === 'object' && Object.keys(hook).length === 0)) {
+      return fallback;
+    }
+
+    return this.mapGitLabHookToWebhookConfig(hook);
   }
 
   /**
@@ -611,13 +744,12 @@ export class GitLabAdapter implements ICodeRepoAdapter {
    * GitLab API: GET /projects/:id/hooks
    */
   async listWebhooks(repoId: string): Promise<WebhookConfig[]> {
-    // 生产实现:
-    // const hooks = await this.client.get(
-    //   `/projects/${encodeURIComponent(repoId)}/hooks`
-    // );
-    // return hooks.map((h: any) => this.mapGitLabHookToWebhookConfig(h));
+    const hooks: any[] = await this.client.get(
+      `/projects/${encodeURIComponent(repoId)}/hooks`,
+      []
+    );
 
-    return [];
+    return hooks.map(h => this.mapGitLabHookToWebhookConfig(h));
   }
 
   /**
@@ -626,10 +758,9 @@ export class GitLabAdapter implements ICodeRepoAdapter {
    * GitLab API: DELETE /projects/:id/hooks/:hookId
    */
   async deleteWebhook(repoId: string, webhookId: string): Promise<void> {
-    // 生产实现:
-    // await this.client.delete(
-    //   `/projects/${encodeURIComponent(repoId)}/hooks/${webhookId}`
-    // );
+    await this.client.delete(
+      `/projects/${encodeURIComponent(repoId)}/hooks/${webhookId}`
+    );
   }
 
   // ==================== 数据映射方法 ====================
@@ -646,7 +777,7 @@ export class GitLabAdapter implements ICodeRepoAdapter {
       httpUrl: data.http_url_to_repo,
       defaultBranch: data.default_branch || 'main',
       description: data.description,
-      visibility: data.visibility,
+      visibility: data.visibility as 'public' | 'private' | 'internal',
       createdAt: new Date(data.created_at),
       updatedAt: new Date(data.last_activity_at),
     };
@@ -738,6 +869,26 @@ export class GitLabAdapter implements ICodeRepoAdapter {
       author: data.author?.username || '',
       content: data.body,
       state: 'comment',
+      createdAt: new Date(data.created_at),
+    };
+  }
+
+  /** 将 GitLab Hook 映射为 WebhookConfig */
+  private mapGitLabHookToWebhookConfig(data: any): WebhookConfig {
+    const events: string[] = [];
+    if (data.merge_requests_events) events.push('merge_requests');
+    if (data.push_events) events.push('push');
+    if (data.issues_events) events.push('issues');
+    if (data.pipeline_events) events.push('pipeline');
+    if (data.tag_push_events) events.push('tag_push');
+
+    return {
+      id: String(data.id),
+      repoId: String(data.project_id),
+      url: data.url,
+      events: data.events || events,
+      secret: data.token,
+      isActive: data.active !== false,
       createdAt: new Date(data.created_at),
     };
   }

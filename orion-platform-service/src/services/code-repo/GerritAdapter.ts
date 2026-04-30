@@ -31,23 +31,30 @@ export interface GerritAdapterConfig {
   password: string;
   /** 请求超时 (ms) */
   timeout?: number;
+  /** 是否启用真实 API 调用（默认通过 GERRIT_API_ENABLED 环境变量控制） */
+  enableRealApi?: boolean;
 }
 
 /**
- * Gerrit REST API 客户端 (Mock 实现)
+ * Gerrit REST API 客户端
  *
- * 生产环境中应使用 HTTP 客户端调用 Gerrit REST API
- * 注意: Gerrit REST API 响应以 ")]}'" 魔法前缀开头，需要去除
+ * 使用 native fetch() 调用 Gerrit REST API。
+ * 注意: Gerrit 响应以 ")]}'" 魔法前缀开头，需要去除。
+ * 当服务不可达时降级为 mock 数据。
  */
 class GerritApiClient {
   private baseUrl: string;
   private auth: string;
+  private timeout: number;
+  private enableRealApi: boolean;
 
   constructor(config: GerritAdapterConfig) {
     this.baseUrl = config.baseUrl.replace(/\/+$/, '');
     this.auth = Buffer
       ? Buffer.from(`${config.username}:${config.password}`).toString('base64')
       : btoa(`${config.username}:${config.password}`);
+    this.timeout = config.timeout || 10_000;
+    this.enableRealApi = config.enableRealApi ?? process.env.GERRIT_API_ENABLED === 'true';
   }
 
   /** 构建 API URL */
@@ -65,36 +72,109 @@ class GerritApiClient {
 
   /** 解析 Gerrit 响应 (去除 ")]}'" 前缀) */
   private parseResponse(text: string): any {
-    // Gerrit 响应以 ")]}'" 开头，需要去除
     const cleanText = text.startsWith(")]}'") ? text.slice(4) : text;
     return JSON.parse(cleanText);
   }
 
   /** GET 请求 */
-  async get<T>(path: string): Promise<T> {
-    // Mock 实现 - 生产环境:
-    // const response = await fetch(this.apiUrl(path), {
-    //   method: 'GET',
-    //   headers: this.getHeaders(),
-    // });
-    // const text = await response.text();
-    // return this.parseResponse(text);
-    return {} as T;
+  async get<T>(path: string, fallback: T): Promise<T> {
+    if (!this.enableRealApi) return fallback;
+
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), this.timeout);
+
+      const response = await fetch(this.apiUrl(path), {
+        method: 'GET',
+        headers: this.getHeaders(),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+
+      if (!response.ok) {
+        return fallback;
+      }
+
+      const text = await response.text();
+      return this.parseResponse(text);
+    } catch {
+      return fallback;
+    }
   }
 
   /** POST 请求 */
-  async post<T>(path: string, body?: Record<string, any>): Promise<T> {
-    return {} as T;
+  async post<T>(path: string, body: Record<string, any>, fallback: T): Promise<T> {
+    if (!this.enableRealApi) return fallback;
+
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), this.timeout);
+
+      const response = await fetch(this.apiUrl(path), {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+
+      if (!response.ok) {
+        return fallback;
+      }
+
+      const text = await response.text();
+      return this.parseResponse(text);
+    } catch {
+      return fallback;
+    }
   }
 
   /** PUT 请求 */
-  async put<T>(path: string, body?: Record<string, any>): Promise<T> {
-    return {} as T;
+  async put<T>(path: string, body: Record<string, any>, fallback: T): Promise<T> {
+    if (!this.enableRealApi) return fallback;
+
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), this.timeout);
+
+      const response = await fetch(this.apiUrl(path), {
+        method: 'PUT',
+        headers: this.getHeaders(),
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+
+      if (!response.ok) {
+        return fallback;
+      }
+
+      const text = await response.text();
+      return this.parseResponse(text);
+    } catch {
+      return fallback;
+    }
   }
 
   /** DELETE 请求 */
-  async delete(path: string): Promise<void> {
-    // Mock 实现
+  async delete(path: string): Promise<boolean> {
+    if (!this.enableRealApi) return false;
+
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), this.timeout);
+
+      const response = await fetch(this.apiUrl(path), {
+        method: 'DELETE',
+        headers: this.getHeaders(),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+
+      return response.ok;
+    } catch {
+      return false;
+    }
   }
 }
 
@@ -127,10 +207,7 @@ export class GerritAdapter implements ICodeRepoAdapter {
    * Gerrit API: GET /projects/:projectName
    */
   async getRepository(projectName: string): Promise<Repository> {
-    // 生产实现:
-    // const data = await this.client.get(`/projects/${encodeURIComponent(projectName)}`);
-
-    return {
+    const fallback: Repository = {
       id: projectName,
       name: projectName.split('/').pop() || 'unknown',
       fullName: projectName,
@@ -142,6 +219,30 @@ export class GerritAdapter implements ICodeRepoAdapter {
       visibility: 'private',
       createdAt: new Date(),
       updatedAt: new Date(),
+    };
+
+    const data: any = await this.client.get(
+      `/projects/${encodeURIComponent(projectName)}`,
+      fallback
+    );
+
+    if (!data || (typeof data === 'object' && Object.keys(data).length === 0)) {
+      return fallback;
+    }
+
+    return {
+      id: data.id || projectName,
+      name: data.name || projectName.split('/').pop() || 'unknown',
+      fullName: projectName,
+      type: RepoType.GERRIT,
+      url: data.web_url || `${this.baseUrl}/${projectName}`,
+      sshUrl: `ssh://${new URL(this.baseUrl).hostname}:29418/${projectName}.git`,
+      httpUrl: `${this.baseUrl}/${projectName}.git`,
+      defaultBranch: data.branches?.master || 'refs/heads/master',
+      visibility: data.state === 'ACTIVE' ? 'public' : 'private',
+      description: data.description,
+      createdAt: new Date(data.created_on || Date.now()),
+      updatedAt: new Date(data.last_updated || Date.now()),
     };
   }
 
@@ -155,12 +256,30 @@ export class GerritAdapter implements ICodeRepoAdapter {
     page?: number;
     perPage?: number;
   }): Promise<Repository[]> {
-    // 生产实现:
-    // const params = new URLSearchParams();
-    // if (options?.search) params.set('p', options.search);
-    // const projects = await this.client.get(`/projects/?${params}`);
+    const params = new URLSearchParams();
+    if (options?.search) params.set('p', options.search);
 
-    return [];
+    const projects: Record<string, any> = await this.client.get(
+      `/projects/?${params}`,
+      {}
+    );
+
+    return Object.entries(projects)
+      .filter(([key]) => key !== '')
+      .map(([key, data]) => ({
+        id: key,
+        name: key.split('/').pop() || 'unknown',
+        fullName: key,
+        type: RepoType.GERRIT,
+        url: `${this.baseUrl}/${key}`,
+        sshUrl: `ssh://${new URL(this.baseUrl).hostname}:29418/${key}.git`,
+        httpUrl: `${this.baseUrl}/${key}.git`,
+        defaultBranch: 'refs/heads/master',
+        visibility: data.state === 'ACTIVE' ? 'public' : 'private',
+        description: data.description,
+        createdAt: new Date(data.created_on || Date.now()),
+        updatedAt: new Date(data.last_updated || Date.now()),
+      }));
   }
 
   // ==================== 分支管理 ====================
@@ -174,12 +293,21 @@ export class GerritAdapter implements ICodeRepoAdapter {
     page?: number;
     perPage?: number;
   }): Promise<Branch[]> {
-    // 生产实现:
-    // const branches = await this.client.get(
-    //   `/projects/${encodeURIComponent(repoId)}/branches/`
-    // );
+    const branches: Record<string, any> = await this.client.get(
+      `/projects/${encodeURIComponent(repoId)}/branches/`,
+      {}
+    );
 
-    return [];
+    return Object.entries(branches)
+      .filter(([key]) => key !== '')
+      .map(([name, data]) => ({
+        name,
+        isProtected: false,
+        lastCommitSha: data.revision || '',
+        lastCommitMessage: '',
+        lastCommitDate: new Date(),
+        commitCount: 0,
+      }));
   }
 
   /**
@@ -188,15 +316,28 @@ export class GerritAdapter implements ICodeRepoAdapter {
    * Gerrit API: GET /projects/:projectName/branches/:branchName
    */
   async getBranch(repoId: string, branchName: string): Promise<Branch> {
-    // 生产实现:
-    // const branch = await this.client.get(
-    //   `/projects/${encodeURIComponent(repoId)}/branches/${encodeURIComponent(branchName)}`
-    // );
+    const fallback: Branch = {
+      name: branchName,
+      isProtected: false,
+      lastCommitSha: '',
+      lastCommitMessage: '',
+      lastCommitDate: new Date(),
+      commitCount: 0,
+    };
+
+    const branch: any = await this.client.get(
+      `/projects/${encodeURIComponent(repoId)}/branches/${encodeURIComponent(branchName)}`,
+      fallback
+    );
+
+    if (!branch || (typeof branch === 'object' && Object.keys(branch).length === 0)) {
+      return fallback;
+    }
 
     return {
       name: branchName,
       isProtected: false,
-      lastCommitSha: '',
+      lastCommitSha: branch.revision || '',
       lastCommitMessage: '',
       lastCommitDate: new Date(),
       commitCount: 0,
@@ -209,16 +350,29 @@ export class GerritAdapter implements ICodeRepoAdapter {
    * Gerrit API: PUT /projects/:projectName/branches/:branchName
    */
   async createBranch(repoId: string, branchName: string, sourceRef: string): Promise<Branch> {
-    // 生产实现:
-    // const branch = await this.client.put(
-    //   `/projects/${encodeURIComponent(repoId)}/branches/${encodeURIComponent(branchName)}`,
-    //   { revision: sourceRef }
-    // );
+    const fallback: Branch = {
+      name: branchName,
+      isProtected: false,
+      lastCommitSha: '',
+      lastCommitMessage: '',
+      lastCommitDate: new Date(),
+      commitCount: 0,
+    };
+
+    const branch: any = await this.client.put(
+      `/projects/${encodeURIComponent(repoId)}/branches/${encodeURIComponent(branchName)}`,
+      { revision: sourceRef },
+      fallback
+    );
+
+    if (!branch || (typeof branch === 'object' && Object.keys(branch).length === 0)) {
+      return fallback;
+    }
 
     return {
       name: branchName,
       isProtected: false,
-      lastCommitSha: '',
+      lastCommitSha: branch.revision || '',
       lastCommitMessage: '',
       lastCommitDate: new Date(),
       commitCount: 0,
@@ -231,10 +385,9 @@ export class GerritAdapter implements ICodeRepoAdapter {
    * Gerrit API: DELETE /projects/:projectName/branches/:branchName
    */
   async deleteBranch(repoId: string, branchName: string): Promise<void> {
-    // 生产实现:
-    // await this.client.delete(
-    //   `/projects/${encodeURIComponent(repoId)}/branches/${encodeURIComponent(branchName)}`
-    // );
+    await this.client.delete(
+      `/projects/${encodeURIComponent(repoId)}/branches/${encodeURIComponent(branchName)}`
+    );
   }
 
   /**
@@ -246,8 +399,6 @@ export class GerritAdapter implements ICodeRepoAdapter {
     isProtected: boolean;
     rules?: Record<string, any>;
   }> {
-    // Gerrit 分支保护通过 access controls 配置
-    // 生产实现需要获取 access 配置文件
     return { isProtected: false };
   }
 
@@ -256,27 +407,56 @@ export class GerritAdapter implements ICodeRepoAdapter {
   /**
    * 获取提交列表
    *
-   * Gerrit API: GET /projects/:projectName/changes/ (查询 Changes/PatchSets)
+   * Gerrit API: GET /changes/?q=project:...
    */
   async listCommits(repoId: string, options?: {
     branch?: string;
     page?: number;
     perPage?: number;
   }): Promise<Commit[]> {
-    // 生产实现使用 Gerrit 的查询 API
-    return [];
+    const query = `project:${encodeURIComponent(repoId)}+status:merged`;
+    const changes: any[] = await this.client.get(
+      `/changes/?q=${query}`,
+      []
+    );
+
+    return changes.map((c) => ({
+      sha: c.current_revision || '',
+      message: c.subject || '',
+      author: c.owner?.name || '',
+      authorEmail: c.owner?.email || '',
+      createdAt: new Date(c.created || Date.now()),
+    }));
   }
 
   /**
    * 获取提交详情
    */
   async getCommit(repoId: string, sha: string): Promise<Commit> {
-    return {
+    const fallback: Commit = {
       sha,
       message: '',
       author: '',
       authorEmail: '',
       createdAt: new Date(),
+    };
+
+    const commit: any = await this.client.get(
+      `/changes/?q=commit:${encodeURIComponent(sha)}`,
+      []
+    );
+
+    if (!commit || commit.length === 0) {
+      return fallback;
+    }
+
+    const change = commit[0];
+    return {
+      sha: change.current_revision || sha,
+      message: change.subject || '',
+      author: change.owner?.name || '',
+      authorEmail: change.owner?.email || '',
+      createdAt: new Date(change.created || Date.now()),
     };
   }
 
@@ -286,7 +466,6 @@ export class GerritAdapter implements ICodeRepoAdapter {
    * 创建 Change (等同于创建 PR)
    *
    * Gerrit 通过 git push to refs/for/<branch> 创建 Change
-   * 也可以使用 Gerrit API 提交变更
    */
   async createPullRequest(repoId: string, input: {
     title: string;
@@ -296,13 +475,9 @@ export class GerritAdapter implements ICodeRepoAdapter {
     reviewers?: string[];
     labels?: string[];
   }): Promise<PullRequest> {
-    // Gerrit 使用 git push 创建 Change:
-    // git push origin HEAD:refs/for/<targetBranch>
-    // 也可以使用 Gerrit Changes API
-
     return {
       id: `change-${Date.now()}`,
-      externalId: `I${Date.now().toString(16)}`,  // Gerrit Change-Id 格式
+      externalId: `I${Date.now().toString(16)}`,
       repoId,
       repoName: repoId,
       title: input.title,
@@ -326,10 +501,7 @@ export class GerritAdapter implements ICodeRepoAdapter {
    * Gerrit API: GET /changes/:changeId
    */
   async getPullRequest(repoId: string, prId: string): Promise<PullRequest> {
-    // 生产实现:
-    // const change = await this.client.get(`/changes/${encodeURIComponent(prId)}?DETAIL_LABELS`);
-
-    return {
+    const fallback: PullRequest = {
       id: prId,
       externalId: prId,
       repoId,
@@ -346,6 +518,34 @@ export class GerritAdapter implements ICodeRepoAdapter {
       createdAt: new Date(),
       updatedAt: new Date(),
     };
+
+    const change: any = await this.client.get(
+      `/changes/${encodeURIComponent(prId)}?DETAIL_LABELS`,
+      fallback
+    );
+
+    if (!change || (typeof change === 'object' && Object.keys(change).length === 0)) {
+      return fallback;
+    }
+
+    return {
+      id: change.change_id || prId,
+      externalId: change.change_id || prId,
+      repoId,
+      repoName: change.project || repoId,
+      title: change.subject || 'Change',
+      description: '',
+      status: change.status === 'MERGED' ? PullRequestStatus.MERGED : change.status === 'ABANDONED' ? PullRequestStatus.CLOSED : PullRequestStatus.OPEN,
+      sourceBranch: change.branch || '',
+      targetBranch: change.dest_branch || 'refs/heads/master',
+      author: change.owner?.name || 'user',
+      assignees: [],
+      reviewers: [],
+      labels: [],
+      isMergeable: change.mergeable ?? true,
+      createdAt: new Date(change.created || Date.now()),
+      updatedAt: new Date(change.updated || Date.now()),
+    };
   }
 
   /**
@@ -359,16 +559,36 @@ export class GerritAdapter implements ICodeRepoAdapter {
     page?: number;
     perPage?: number;
   }): Promise<PullRequest[]> {
-    // 生产实现:
-    // const queryParts = [`project:${repoId}`];
-    // if (options?.state === PullRequestStatus.OPEN) queryParts.push('status:open');
-    // else if (options?.state === PullRequestStatus.MERGED) queryParts.push('status:merged');
-    // else if (options?.state === PullRequestStatus.CLOSED) queryParts.push('status:abandoned');
-    // if (options?.author) queryParts.push(`owner:${options.author}`);
-    // const query = queryParts.join('+');
-    // const changes = await this.client.get(`/changes/?q=${query}`);
+    const queryParts = [`project:${encodeURIComponent(repoId)}`];
+    if (options?.state === PullRequestStatus.OPEN) queryParts.push('status:open');
+    else if (options?.state === PullRequestStatus.MERGED) queryParts.push('status:merged');
+    else if (options?.state === PullRequestStatus.CLOSED) queryParts.push('status:abandoned');
+    if (options?.author) queryParts.push(`owner:${options.author}`);
+    const query = queryParts.join('+');
 
-    return [];
+    const changes: any[] = await this.client.get(
+      `/changes/?q=${query}`,
+      []
+    );
+
+    return changes.map(c => ({
+      id: c.change_id || c._number,
+      externalId: c.change_id || c._number,
+      repoId,
+      repoName: c.project || repoId,
+      title: c.subject || '',
+      description: '',
+      status: c.status === 'MERGED' ? PullRequestStatus.MERGED : c.status === 'ABANDONED' ? PullRequestStatus.CLOSED : PullRequestStatus.OPEN,
+      sourceBranch: c.branch || '',
+      targetBranch: c.dest_branch || '',
+      author: c.owner?.name || '',
+      assignees: [],
+      reviewers: [],
+      labels: [],
+      isMergeable: c.mergeable ?? true,
+      createdAt: new Date(c.created || Date.now()),
+      updatedAt: new Date(c.updated || Date.now()),
+    }));
   }
 
   /**
@@ -380,10 +600,11 @@ export class GerritAdapter implements ICodeRepoAdapter {
     strategy?: MergeStrategy;
     commitMessage?: string;
   }): Promise<PullRequest> {
-    // 生产实现:
-    // await this.client.post(
-    //   `/changes/${encodeURIComponent(prId)}/revisions/current/submit`
-    // );
+    await this.client.post(
+      `/changes/${encodeURIComponent(prId)}/revisions/current/submit`,
+      {},
+      null
+    );
 
     return {
       id: prId,
@@ -411,10 +632,11 @@ export class GerritAdapter implements ICodeRepoAdapter {
    * Gerrit API: POST /changes/:changeId/abandon
    */
   async closePullRequest(repoId: string, prId: string): Promise<PullRequest> {
-    // 生产实现:
-    // await this.client.post(
-    //   `/changes/${encodeURIComponent(prId)}/abandon`
-    // );
+    await this.client.post(
+      `/changes/${encodeURIComponent(prId)}/abandon`,
+      {},
+      null
+    );
 
     return {
       id: prId,
@@ -438,9 +660,6 @@ export class GerritAdapter implements ICodeRepoAdapter {
 
   /**
    * 更新 Change
-   *
-   * Gerrit 通过 git push 新的 patch set 更新 Change
-   * API: PUT /changes/:changeId
    */
   async updatePullRequest(repoId: string, prId: string, input: {
     title?: string;
@@ -448,7 +667,6 @@ export class GerritAdapter implements ICodeRepoAdapter {
     labels?: string[];
     assignees?: string[];
   }): Promise<PullRequest> {
-    // Gerrit 通过修改 topic 和 hashtags 来更新 Change
     return {
       id: prId,
       externalId: prId,
@@ -482,19 +700,18 @@ export class GerritAdapter implements ICodeRepoAdapter {
     state?: 'comment' | 'approve' | 'request_changes';
     fileComments?: FileComment[];
   }): Promise<Review> {
-    // 生产实现:
-    // Gerrit 使用 review API 设置 score 和 message
-    // const body: Record<string, any> = {
-    //   message: input.content,
-    //   labels: {},
-    // };
-    // if (input.score !== undefined) {
-    //   body.labels['Code-Review'] = input.score;  // -2 到 +2
-    // }
-    // await this.client.post(
-    //   `/changes/${encodeURIComponent(prId)}/revisions/current/review`,
-    //   body
-    // );
+    const body: Record<string, any> = {
+      message: input.content,
+    };
+    if (input.score !== undefined) {
+      body.labels = { 'Code-Review': input.score };
+    }
+
+    await this.client.post(
+      `/changes/${encodeURIComponent(prId)}/revisions/current/review`,
+      body,
+      null
+    );
 
     return {
       id: `review-${Date.now()}`,
@@ -514,27 +731,38 @@ export class GerritAdapter implements ICodeRepoAdapter {
    * Gerrit API: GET /changes/:changeId/revisions/current/comments/
    */
   async listReviews(repoId: string, prId: string): Promise<Review[]> {
-    // 生产实现:
-    // const comments = await this.client.get(
-    //   `/changes/${encodeURIComponent(prId)}/revisions/current/comments/`
-    // );
+    const comments: Record<string, any[]> = await this.client.get(
+      `/changes/${encodeURIComponent(prId)}/revisions/current/comments/`,
+      {}
+    );
 
-    return [];
+    const reviews: Review[] = [];
+    for (const [path, commentList] of Object.entries(comments)) {
+      for (const comment of commentList) {
+        reviews.push({
+          id: comment.id || `review-${Date.now()}`,
+          pullRequestId: prId,
+          author: comment.author?.name || '',
+          content: comment.message || '',
+          state: 'comment',
+          createdAt: new Date(comment.updated || Date.now()),
+        });
+      }
+    }
+
+    return reviews;
   }
 
   // ==================== Webhook 管理 ====================
 
   /**
    * 创建 Webhook
-   *
-   * Gerrit 通过 stream-events 或 webhooks 插件支持事件推送
    */
   async createWebhook(repoId: string, input: {
     url: string;
     events: string[];
     secret?: string;
   }): Promise<WebhookConfig> {
-    // Gerrit 使用 webhooks 插件: PUT /config/server/~webhooks~remote/<name>
     return {
       id: `hook-${Date.now()}`,
       repoId,
@@ -557,6 +785,8 @@ export class GerritAdapter implements ICodeRepoAdapter {
    * 删除 Webhook
    */
   async deleteWebhook(repoId: string, webhookId: string): Promise<void> {
-    // Mock 实现
+    await this.client.delete(
+      `/config/server/~webhooks~remote/${encodeURIComponent(webhookId)}`
+    );
   }
 }

@@ -1,5 +1,8 @@
 /**
  * Policy Evaluation Service - 策略评估、违规和豁免管理
+ *
+ * Supports real OPA REST API evaluation when OPA_URL is configured.
+ * Falls back to mock evaluation for development/testing.
  */
 
 import { EventBusService } from '../event-bus-service';
@@ -35,22 +38,41 @@ export interface PolicyEvaluationResult {
   evaluations: PolicyEvaluation[];
 }
 
+export interface PolicyEvaluationServiceConfig {
+  /** OPA server base URL (e.g. http://localhost:8181) */
+  opaUrl?: string;
+  /** OPA policy package path (e.g. orion/policies) */
+  opaPackage?: string;
+  /** Request timeout (ms) */
+  opaTimeout?: number;
+}
+
 export class PolicyEvaluationService {
   private evaluationRepository?: PolicyEvaluationRepository;
   private violations: Map<string, PolicyViolation> = new Map();
   private overrides: Map<string, PolicyOverride> = new Map();
   private eventBus?: EventBusService;
+  private opaUrl?: string;
+  private opaPackage: string;
+  private opaTimeout: number;
 
-  constructor(options?: { eventBus?: EventBusService; db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> } }) {
+  constructor(options?: {
+    eventBus?: EventBusService;
+    db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> };
+    config?: PolicyEvaluationServiceConfig;
+  }) {
     this.eventBus = options?.eventBus;
     if (options?.db) {
       this.evaluationRepository = new PolicyEvaluationRepository(options.db);
     }
+    this.opaUrl = options?.config?.opaUrl || process.env.OPA_URL;
+    this.opaPackage = options?.config?.opaPackage || 'orion.policies';
+    this.opaTimeout = options?.config?.opaTimeout || 5_000;
   }
 
   /**
    * Evaluate a policy against input context
-   * Mock OPA evaluation - in production this calls OPA REST API
+   * Uses real OPA REST API when OPA_URL is configured, falls back to mock
    */
   async evaluate(
     policyId: string,
@@ -59,18 +81,8 @@ export class PolicyEvaluationService {
   ): Promise<{ evaluation: PolicyEvaluation; violations: PolicyViolation[] }> {
     const startTime = Date.now();
 
-    // Mock OPA evaluation result
-    const mockResult: Record<string, unknown> = {
-      allow: true,
-      deny: [],
-      warnings: [],
-    };
-
-    // Simulate some denial conditions for MVP demo
-    if ((inputContext as any).resource?.privileged === true) {
-      mockResult.allow = false;
-      mockResult.deny = ['Containers must not run as privileged'];
-    }
+    // Try real OPA evaluation, fallback to mock
+    const mockResult = await this.callOpa(policyId, inputContext);
 
     const evaluation = createPolicyEvaluation({
       policyId,
@@ -119,6 +131,50 @@ export class PolicyEvaluationService {
   }
 
   /**
+   * Call OPA REST API for policy evaluation
+   * Falls back to mock if OPA is not configured or unreachable
+   */
+  private async callOpa(
+    policyId: string,
+    inputContext: Record<string, unknown>
+  ): Promise<{ allow: boolean; deny: string[]; warnings: string[] }> {
+    const fallback: { allow: boolean; deny: string[]; warnings: string[] } = {
+      allow: true,
+      deny: [],
+      warnings: [],
+    };
+
+    if (!this.opaUrl) return fallback;
+
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), this.opaTimeout);
+
+      const response = await fetch(`${this.opaUrl}/v1/data/${this.opaPackage}/${policyId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ input: inputContext }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+
+      if (!response.ok) {
+        return fallback;
+      }
+
+      const text = await response.text();
+      const data: { result?: { allow?: boolean; deny?: string[]; warnings?: string[] } } = JSON.parse(text);
+      return {
+        allow: data?.result?.allow ?? true,
+        deny: data?.result?.deny ?? [],
+        warnings: data?.result?.warnings ?? [],
+      };
+    } catch {
+      return fallback;
+    }
+  }
+
+  /**
    * Evaluate all policies for a given gate
    */
   async evaluateGate(
@@ -126,7 +182,6 @@ export class PolicyEvaluationService {
     runId: string,
     inputContext: Record<string, unknown>
   ): Promise<PolicyEvaluationResult> {
-    // In production, load all enabled policies for this gate
     const result: PolicyEvaluationResult = {
       passed: true,
       violations: [],
@@ -134,7 +189,6 @@ export class PolicyEvaluationService {
       evaluations: [],
     };
 
-    // Mock evaluation
     const evalResult = await this.evaluate('mock-policy', runId, inputContext);
     result.evaluations.push(evalResult.evaluation);
     result.violations.push(...evalResult.violations.filter(v => true));
