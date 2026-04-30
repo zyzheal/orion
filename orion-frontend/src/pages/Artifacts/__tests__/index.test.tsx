@@ -1,5 +1,4 @@
-import React from 'react';
-import { render, screen, waitFor, act } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock API - must be before other imports
@@ -97,11 +96,11 @@ vi.mock('antd', async () => {
     ),
     Modal: ({ children, open, ...props }: any) =>
       open ? <div data-testid="modal">{children}</div> : null,
-    Select: ({ children, ...props }: any) => <select {...props}>{children}</select>,
+    Select: ({ children, ...restProps }: any) => <select {...restProps}>{children}</select>,
     Form: Object.assign(
-      ({ children, ...props }: any) => <form {...props}>{children}</form>,
+      ({ children, ...restProps }: any) => <form {...restProps}>{children}</form>,
       {
-        Item: ({ children, ...props }: any) => <div {...props}>{children}</div>,
+        Item: ({ children, ...restProps }: any) => <div {...restProps}>{children}</div>,
         useForm: () => [
           {
             validateFields: vi.fn(),
@@ -178,7 +177,7 @@ describe('Artifacts Page', () => {
     const mockNamespaces = ['platform', 'ai'];
 
     vi.mocked(artifactApi.getArtifacts).mockResolvedValue({
-      data: { data: mockArtifacts, total: 2 },
+      data: { code: 200, message: 'success', data: mockArtifacts, total: 2 },
       status: 200,
       statusText: 'OK',
       headers: {},
@@ -186,7 +185,7 @@ describe('Artifacts Page', () => {
     });
 
     vi.mocked(artifactApi.getArtifactStats).mockResolvedValue({
-      data: { data: mockStats },
+      data: { code: 200, message: 'success', data: mockStats },
       status: 200,
       statusText: 'OK',
       headers: {},
@@ -194,7 +193,7 @@ describe('Artifacts Page', () => {
     });
 
     vi.mocked(artifactApi.getNamespaces).mockResolvedValue({
-      data: { data: mockNamespaces },
+      data: { code: 200, message: 'success', data: mockNamespaces },
       status: 200,
       statusText: 'OK',
       headers: {},

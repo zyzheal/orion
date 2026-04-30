@@ -62,7 +62,12 @@ export async function connectEventBus() {
   return api.post<void>('/v1/eventbus/connect');
 }
 
-export async function publishEvent(subject: string, data: unknown, tenantId?: string, publishedBy?: string) {
+export async function publishEvent(
+  subject: string,
+  data: unknown,
+  tenantId?: string,
+  publishedBy?: string
+) {
   return api.post<void>('/v1/eventbus/publish', { subject, data, tenantId, publishedBy });
 }
 

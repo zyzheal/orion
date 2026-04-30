@@ -51,7 +51,9 @@ describe('Session API', () => {
   });
 
   it('should get session stats', async () => {
-    vi.mocked(api.get).mockResolvedValue({ data: { data: { stats: { total: 50, active: 30, expired: 20 } } } } as any);
+    vi.mocked(api.get).mockResolvedValue({
+      data: { data: { stats: { total: 50, active: 30, expired: 20 } } },
+    } as any);
 
     const result = await getSessionStats();
     expect(result.data.data.stats.active).toBe(30);

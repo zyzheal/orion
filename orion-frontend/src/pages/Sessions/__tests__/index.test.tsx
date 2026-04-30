@@ -1,8 +1,6 @@
-import React from 'react';
 import { render, screen, waitFor, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as sessionApi from '@/api/session';
-import dayjs from 'dayjs';
 
 // Mock all antd components and hooks
 vi.mock('antd', async () => {
@@ -21,7 +19,7 @@ vi.mock('antd', async () => {
 });
 
 vi.mock('@/components/Table', () => ({
-  default: ({ dataSource, loading, columns, rowKey }: any) => (
+  default: ({ dataSource, loading, rowKey }: any) => (
     <div data-testid="table" data-loading={loading}>
       <div data-testid="row-count">{dataSource?.length || 0}</div>
       {dataSource?.map((item: any) => (
@@ -101,7 +99,7 @@ describe('Sessions Page', () => {
     };
 
     vi.mocked(sessionApi.getSessions).mockResolvedValue({
-      data: { data: mockSessions },
+      data: { code: 200, message: 'success', data: mockSessions },
       status: 200,
       statusText: 'OK',
       headers: {},
@@ -109,7 +107,7 @@ describe('Sessions Page', () => {
     });
 
     vi.mocked(sessionApi.getSessionStats).mockResolvedValue({
-      data: { data: mockStats },
+      data: { code: 200, message: 'success', data: mockStats },
       status: 200,
       statusText: 'OK',
       headers: {},

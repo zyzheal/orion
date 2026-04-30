@@ -29,7 +29,9 @@ describe('AI Security API', () => {
   });
 
   it('should get security stats', async () => {
-    vi.mocked(api.get).mockResolvedValue({ data: { data: { stats: { policiesActive: 18, requestsBlocked: 1247, complianceScore: 94 } } } } as any);
+    vi.mocked(api.get).mockResolvedValue({
+      data: { data: { stats: { policiesActive: 18, requestsBlocked: 1247, complianceScore: 94 } } },
+    } as any);
     const result = await getSecurityStats();
     expect(api.get).toHaveBeenCalledWith('/v1/ai-security/stats');
     expect(result.data.data.stats.policiesActive).toBe(18);
@@ -43,7 +45,9 @@ describe('AI Security API', () => {
   });
 
   it('should create a policy', async () => {
-    vi.mocked(api.post).mockResolvedValue({ data: { data: { policy: { id: '1', name: 'SQL Injection' } } } } as any);
+    vi.mocked(api.post).mockResolvedValue({
+      data: { data: { policy: { id: '1', name: 'SQL Injection' } } },
+    } as any);
     await createPolicy({
       name: 'SQL Injection',
       description: 'Block SQL injection',
@@ -54,7 +58,10 @@ describe('AI Security API', () => {
       action: 'block',
       matchCount: 0,
     } as any);
-    expect(api.post).toHaveBeenCalledWith('/v1/ai-security/policies', expect.objectContaining({ name: 'SQL Injection' }));
+    expect(api.post).toHaveBeenCalledWith(
+      '/v1/ai-security/policies',
+      expect.objectContaining({ name: 'SQL Injection' })
+    );
   });
 
   it('should update a policy', async () => {

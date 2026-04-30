@@ -122,10 +122,10 @@ const MetricsDashboard: React.FC = () => {
           errorRate: dashboardData.alerts?.total
             ? (dashboardData.alerts.active / dashboardData.alerts.total) * 100
             : 0,
-          latencyP50: dashboardData.metrics?.latencyP50 ?? 0,
-          latencyP95: dashboardData.metrics?.latencyP95 ?? 0,
-          latencyP99: dashboardData.metrics?.latencyP99 ?? 0,
-          throughput: dashboardData.metrics?.throughput ?? 0,
+          latencyP50: (dashboardData.metrics as any)?.latencyP50 ?? 0,
+          latencyP95: (dashboardData.metrics as any)?.latencyP95 ?? 0,
+          latencyP99: (dashboardData.metrics as any)?.latencyP99 ?? 0,
+          throughput: (dashboardData.metrics as any)?.throughput ?? 0,
         });
       } else {
         setMetricSummary(null);

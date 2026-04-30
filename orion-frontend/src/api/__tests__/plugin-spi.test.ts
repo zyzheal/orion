@@ -27,7 +27,11 @@ describe('Plugin SPI API', () => {
   });
 
   it('should get SPI stats', async () => {
-    vi.mocked(api.get).mockResolvedValue({ data: { data: { stats: { totalExtensionPoints: 12, activePoints: 8, totalRegistrations: 34 } } } } as any);
+    vi.mocked(api.get).mockResolvedValue({
+      data: {
+        data: { stats: { totalExtensionPoints: 12, activePoints: 8, totalRegistrations: 34 } },
+      },
+    } as any);
     const result = await getSPIStats();
     expect(api.get).toHaveBeenCalledWith('/v1/plugin-spi/stats');
     expect(result.data.data.stats.activePoints).toBe(8);

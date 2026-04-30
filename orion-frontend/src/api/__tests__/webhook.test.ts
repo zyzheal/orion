@@ -3,7 +3,14 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { getWebhooks, createWebhook, updateWebhook, deleteWebhook, testWebhook, getWebhookLogs } from '../webhook';
+import {
+  getWebhooks,
+  createWebhook,
+  updateWebhook,
+  deleteWebhook,
+  testWebhook,
+  getWebhookLogs,
+} from '../webhook';
 import { api } from '../client';
 
 vi.mock('../client', () => ({
@@ -30,10 +37,17 @@ describe('Webhook API', () => {
   });
 
   it('should create a webhook', async () => {
-    vi.mocked(api.post).mockResolvedValue({ data: { data: { webhook: { id: '1', url: 'https://example.com', events: ['test'], enabled: true } } } } as any);
+    vi.mocked(api.post).mockResolvedValue({
+      data: {
+        data: { webhook: { id: '1', url: 'https://example.com', events: ['test'], enabled: true } },
+      },
+    } as any);
 
     const result = await createWebhook({ url: 'https://example.com', events: ['test'] });
-    expect(api.post).toHaveBeenCalledWith('/v1/webhooks', { url: 'https://example.com', events: ['test'] });
+    expect(api.post).toHaveBeenCalledWith('/v1/webhooks', {
+      url: 'https://example.com',
+      events: ['test'],
+    });
     expect(result.data.data.webhook.url).toBe('https://example.com');
   });
 

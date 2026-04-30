@@ -60,7 +60,9 @@ export async function getSPIConfigs() {
   return api.get<{ configs: SPIConfig[] }>('/v1/plugin-spi/configs');
 }
 
-export async function createExtensionPoint(input: Omit<SPIExtensionPoint, 'id' | 'registrationCount' | 'createdAt'>) {
+export async function createExtensionPoint(
+  input: Omit<SPIExtensionPoint, 'id' | 'registrationCount' | 'createdAt'>
+) {
   return api.post<{ extensionPoint: SPIExtensionPoint }>('/v1/plugin-spi/extension-points', input);
 }
 
@@ -69,7 +71,10 @@ export async function deleteExtensionPoint(id: string) {
 }
 
 export async function toggleExtensionPoint(id: string, enabled: boolean) {
-  return api.patch<{ extensionPoint: SPIExtensionPoint }>(`/v1/plugin-spi/extension-points/${id}/toggle`, { enabled });
+  return api.patch<{ extensionPoint: SPIExtensionPoint }>(
+    `/v1/plugin-spi/extension-points/${id}/toggle`,
+    { enabled }
+  );
 }
 
 export async function createRegistration(input: Omit<PluginRegistration, 'id' | 'createdAt'>) {
@@ -81,7 +86,10 @@ export async function deleteRegistration(id: string) {
 }
 
 export async function toggleRegistration(id: string, enabled: boolean) {
-  return api.patch<{ registration: PluginRegistration }>(`/v1/plugin-spi/registrations/${id}/toggle`, { enabled });
+  return api.patch<{ registration: PluginRegistration }>(
+    `/v1/plugin-spi/registrations/${id}/toggle`,
+    { enabled }
+  );
 }
 
 export async function createSPIConfig(input: Omit<SPIConfig, 'id' | 'createdAt' | 'updatedAt'>) {

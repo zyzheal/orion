@@ -34,7 +34,13 @@ describe('Test Selector API', () => {
   });
 
   it('should get test stats', async () => {
-    vi.mocked(api.get).mockResolvedValue({ data: { data: { stats: { total: 100, passed: 90, failed: 5, skipped: 5, passRate: 90, suites: [] } } } } as any);
+    vi.mocked(api.get).mockResolvedValue({
+      data: {
+        data: {
+          stats: { total: 100, passed: 90, failed: 5, skipped: 5, passRate: 90, suites: [] },
+        },
+      },
+    } as any);
     const result = await getTestStats();
     expect(api.get).toHaveBeenCalledWith('/v1/test-selector/stats');
     expect(result.data.data.stats.passRate).toBe(90);

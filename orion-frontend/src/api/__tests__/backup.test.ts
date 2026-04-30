@@ -22,7 +22,9 @@ describe('Backup API', () => {
   });
 
   it('should get backup stats', async () => {
-    vi.mocked(api.get).mockResolvedValue({ data: { data: { stats: { total: 42, successful: 38, failed: 2 } } } } as any);
+    vi.mocked(api.get).mockResolvedValue({
+      data: { data: { stats: { total: 42, successful: 38, failed: 2 } } },
+    } as any);
     const result = await getBackupStats();
     expect(api.get).toHaveBeenCalledWith('/v1/backup/stats');
     expect(result.data.data.stats.total).toBe(42);
@@ -36,7 +38,9 @@ describe('Backup API', () => {
   });
 
   it('should create a backup', async () => {
-    vi.mocked(api.post).mockResolvedValue({ data: { data: { backup: { id: '1', name: 'db-backup' } } } } as any);
+    vi.mocked(api.post).mockResolvedValue({
+      data: { data: { backup: { id: '1', name: 'db-backup' } } },
+    } as any);
     await createBackup({ name: 'db-backup', type: 'database' });
     expect(api.post).toHaveBeenCalledWith('/v1/backup', { name: 'db-backup', type: 'database' });
   });

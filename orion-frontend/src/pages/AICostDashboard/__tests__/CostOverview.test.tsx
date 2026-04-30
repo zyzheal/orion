@@ -1,8 +1,7 @@
 /**
  * Tests for CostOverview page
  */
-import React from 'react';
-import { render, screen, waitFor, act } from '@testing-library/react';
+import { render, waitFor, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as aiCostApi from '@/api/ai-cost';
 
@@ -56,6 +55,8 @@ describe('CostOverview', () => {
   it('loads from API on mount', async () => {
     vi.mocked(aiCostApi.getDashboardData).mockResolvedValue({
       data: {
+        code: 200,
+        message: 'success',
         data: {
           todayCost: 100.0,
           totalTokens: 1000000,
@@ -74,7 +75,7 @@ describe('CostOverview', () => {
     });
 
     vi.mocked(aiCostApi.getModelPricing).mockResolvedValue({
-      data: { data: [] },
+      data: { code: 200, message: 'success', data: [] },
       status: 200,
       statusText: 'OK',
       headers: {},

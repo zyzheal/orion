@@ -204,10 +204,7 @@ const AISecurityPage: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [policiesRes, evaluationsRes] = await Promise.all([
-        getPolicies(),
-        getEvaluations(),
-      ]);
+      const [policiesRes, evaluationsRes] = await Promise.all([getPolicies(), getEvaluations()]);
       setPolicies(policiesRes.data.data.policies.map(mapApiPolicyToUI));
       setEvaluations(evaluationsRes.data.data.evaluations.map(mapApiEvalToUI));
     } catch (error: unknown) {
@@ -261,7 +258,10 @@ const AISecurityPage: React.FC = () => {
     try {
       const values = await createForm.validateFields();
       setSubmitting(true);
-      const rules = typeof values.rules === 'string' ? values.rules.split(',').map((r: string) => r.trim()) : [];
+      const rules =
+        typeof values.rules === 'string'
+          ? values.rules.split(',').map((r: string) => r.trim())
+          : [];
       await createPolicy({
         name: values.name,
         description: values.description || '',
@@ -291,7 +291,10 @@ const AISecurityPage: React.FC = () => {
     try {
       const values = await editForm.validateFields();
       setSubmitting(true);
-      const rules = typeof values.rules === 'string' ? values.rules.split(',').map((r: string) => r.trim()) : [];
+      const rules =
+        typeof values.rules === 'string'
+          ? values.rules.split(',').map((r: string) => r.trim())
+          : [];
       await updatePolicy(editPolicy.id, {
         name: values.name,
         description: values.description,

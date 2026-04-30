@@ -1,5 +1,4 @@
-import React from 'react';
-import { render, screen, waitFor, act } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock API - must be before other imports
@@ -85,9 +84,9 @@ vi.mock('antd', async () => {
 
 // Mock dayjs
 vi.mock('dayjs', () => {
-  const mockDayjs = (v: any) => ({
+  const mockDayjs = (_v: any) => ({
     fromNow: () => '2 hours ago',
-    format: (fmt: string) => '2024-03-20 10:30:00',
+    format: (_fmt: string) => '2024-03-20 10:30:00',
   });
   mockDayjs.extend = vi.fn();
   return { default: mockDayjs };
@@ -131,7 +130,7 @@ describe('Queue Page', () => {
     };
 
     vi.mocked(queueApi.listJobs).mockResolvedValue({
-      data: { data: { jobs: mockJobs, count: 2 } },
+      data: { code: 200, message: 'success', data: { jobs: mockJobs, count: 2 } },
       status: 200,
       statusText: 'OK',
       headers: {},
@@ -139,7 +138,7 @@ describe('Queue Page', () => {
     });
 
     vi.mocked(queueApi.getQueueStats).mockResolvedValue({
-      data: { data: mockStats },
+      data: { code: 200, message: 'success', data: mockStats },
       status: 200,
       statusText: 'OK',
       headers: {},

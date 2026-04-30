@@ -1,4 +1,3 @@
-import React from 'react';
 import { render, screen, waitFor, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as approvalApi from '@/api/approvals';
@@ -20,7 +19,7 @@ vi.mock('antd', async () => {
 });
 
 vi.mock('@/components/Table', () => ({
-  default: ({ dataSource, loading, columns, rowKey }: any) => (
+  default: ({ dataSource, loading, rowKey }: any) => (
     <div data-testid="table" data-loading={loading}>
       <div data-testid="row-count">{dataSource?.length || 0}</div>
       {dataSource?.map((item: any) => (
@@ -50,7 +49,7 @@ vi.mock('@/api/approvals', () => ({
 }));
 
 vi.mock('dayjs', () => {
-  const fakeDayjs = (date: any) => ({
+  const fakeDayjs = (_date: any) => ({
     fromNow: () => '2 days ago',
     format: () => '2024-03-20 10:00:00',
   });
@@ -97,7 +96,7 @@ describe('Approvals Page', () => {
     };
 
     vi.mocked(approvalApi.getApprovals).mockResolvedValue({
-      data: { data: mockApprovals },
+      data: { code: 200, message: 'success', data: mockApprovals },
       status: 200,
       statusText: 'OK',
       headers: {},

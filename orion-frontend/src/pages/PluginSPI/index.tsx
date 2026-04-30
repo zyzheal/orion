@@ -220,7 +220,9 @@ const PluginSPIPage: React.FC = () => {
       setPluginRegistrations((prev) =>
         prev.map((p) => (p.id === record.id ? { ...p, status: newEnabled } : p))
       );
-      message.success(`插件 "${record.pluginName}" 已${newEnabled === 'enabled' ? '启用' : '禁用'}`);
+      message.success(
+        `插件 "${record.pluginName}" 已${newEnabled === 'enabled' ? '启用' : '禁用'}`
+      );
     } catch (error: unknown) {
       message.error(`状态更新失败：${(error as Error).message}`);
     }

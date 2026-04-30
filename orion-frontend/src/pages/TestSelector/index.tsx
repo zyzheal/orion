@@ -171,10 +171,7 @@ const TestSelector: React.FC = () => {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [testsRes, statsRes] = await Promise.all([
-        getTestCases(),
-        getTestStats(),
-      ]);
+      const [testsRes, statsRes] = await Promise.all([getTestCases(), getTestStats()]);
       setTestCases(testsRes.data.data.testCases.map(mapApiTestCase));
       setTestStats(mapApiTestStats(statsRes.data.data.stats));
     } catch (error: unknown) {

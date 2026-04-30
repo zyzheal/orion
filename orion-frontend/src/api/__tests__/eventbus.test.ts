@@ -73,7 +73,9 @@ describe('EventBus API', () => {
   });
 
   it('should get jetstream metrics', async () => {
-    vi.mocked(api.get).mockResolvedValue({ data: { data: { available: true, metrics: {} } } } as any);
+    vi.mocked(api.get).mockResolvedValue({
+      data: { data: { available: true, metrics: {} } },
+    } as any);
 
     const result = await getJetStreamMetrics();
     expect(api.get).toHaveBeenCalledWith('/v1/eventbus/jetstream/metrics');

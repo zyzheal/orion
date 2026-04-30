@@ -44,7 +44,9 @@ export async function getPolicies() {
   return api.get<{ policies: SecurityPolicy[] }>('/v1/ai-security/policies');
 }
 
-export async function createPolicy(input: Omit<SecurityPolicy, 'id' | 'matchCount' | 'createdAt' | 'updatedAt'>) {
+export async function createPolicy(
+  input: Omit<SecurityPolicy, 'id' | 'matchCount' | 'createdAt' | 'updatedAt'>
+) {
   return api.post<{ policy: SecurityPolicy }>('/v1/ai-security/policies', input);
 }
 
@@ -57,7 +59,9 @@ export async function deletePolicy(id: string) {
 }
 
 export async function togglePolicy(id: string, enabled: boolean) {
-  return api.patch<{ policy: SecurityPolicy }>(`/v1/ai-security/policies/${id}/toggle`, { enabled });
+  return api.patch<{ policy: SecurityPolicy }>(`/v1/ai-security/policies/${id}/toggle`, {
+    enabled,
+  });
 }
 
 export async function getEvaluations(policyId?: string) {

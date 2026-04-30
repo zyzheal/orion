@@ -29,7 +29,9 @@ describe('API Key API', () => {
   });
 
   it('should create an API key', async () => {
-    vi.mocked(api.post).mockResolvedValue({ data: { data: { key: { id: '1', name: 'test' } } } } as any);
+    vi.mocked(api.post).mockResolvedValue({
+      data: { data: { key: { id: '1', name: 'test' } } },
+    } as any);
     const result = await createApiKey({ name: 'test' });
     expect(api.post).toHaveBeenCalledWith('/v1/api-keys', { name: 'test' });
     expect(result.data.data.key.name).toBe('test');
@@ -42,7 +44,9 @@ describe('API Key API', () => {
   });
 
   it('should get API key stats', async () => {
-    vi.mocked(api.get).mockResolvedValue({ data: { data: { stats: { total: 10, active: 8, expired: 2 } } } } as any);
+    vi.mocked(api.get).mockResolvedValue({
+      data: { data: { stats: { total: 10, active: 8, expired: 2 } } },
+    } as any);
     const result = await getApiKeyStats();
     expect(result.data.data.stats.active).toBe(8);
   });
