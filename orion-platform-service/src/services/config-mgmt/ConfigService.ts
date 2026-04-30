@@ -354,7 +354,7 @@ export class ConfigService {
         new_value: buildRecordValue(newValue),
         newValue: buildRecordValue(newValue),
         key: configKey,
-        value: newValue,
+        value: newValue as unknown as Record<string, any>,
         version: versionNum,
         changeLog,
         createdBy: changedBy,
