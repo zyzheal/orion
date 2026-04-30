@@ -2,7 +2,7 @@
  * Tests for EfficiencyDashboard page (TASK-402)
  */
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import EfficiencyDashboard from '@/pages/EfficiencyDashboard';
 

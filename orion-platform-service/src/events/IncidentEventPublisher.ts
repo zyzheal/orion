@@ -1,9 +1,11 @@
 /**
  * Incident Event Publisher - 发布事故相关事件
  *
- * 使用 @orion/event-bus SDK，符合 CloudEvents 1.0 规范
+ * 使用 EventBusAdapter 统一接口，符合 CloudEvents 1.0 规范
+ * ARCH-010: 重构使用 EventBusAdapter 消除接口适配冗余
  */
 
+import { EventBusAdapter, PublishOptions, PublishResult } from './EventBusAdapter';
 import {
   IncidentEventType,
   IncidentSeverity,
@@ -14,17 +16,14 @@ import {
   IncidentEscalatedEventData,
   IncidentEventExtensions,
 } from './types/incident';
+import { EventBusService } from '../services/event-bus-service';
 
 /**
  * 事件发布器配置
  */
 export interface IncidentEventPublisherConfig {
-  /** 事件总线实例 */
-  eventBus?: {
-    publish?: (subject: string, data: any, options?: any) => Promise<any>;
-    isHealthy?: () => boolean;
-    [key: string]: any;
-  } | null;
+  /** EventBusService 实例 (ARCH-010: 统一使用 EventBusService 类型) */
+  eventBus?: EventBusService | null;
   /** 事件源标识 */
   source?: string;
   /** 默认租户 ID */
@@ -36,33 +35,40 @@ export interface IncidentEventPublisherConfig {
 /**
  * Incident 事件发布器
  *
+ * ARCH-010: 使用 EventBusAdapter 统一接口
  * 负责将事故检测相关事件发布到 NATS JetStream 事件总线
  */
 export class IncidentEventPublisher {
-  private eventBus: any | null;
+  private adapter: EventBusAdapter;
   private source: string;
   private defaultTenantId?: string;
   private defaultUserId?: string;
 
   constructor(config?: IncidentEventPublisherConfig) {
-    this.eventBus = config?.eventBus || null;
-    this.source = config?.source || 'orion-platform-service';
+    this.source = config?.source || 'incident-service';
     this.defaultTenantId = config?.defaultTenantId;
     this.defaultUserId = config?.defaultUserId;
+    this.adapter = new EventBusAdapter({
+      eventBus: config?.eventBus,
+      defaultSource: this.source,
+      defaultTenantId: this.defaultTenantId,
+      defaultUserId: this.defaultUserId,
+    });
   }
 
   /**
    * 设置事件总线
+   * ARCH-010: 通过 Adapter 设置
    */
-  setEventBus(eventBus: any): void {
-    this.eventBus = eventBus;
+  setEventBus(eventBus: EventBusService): void {
+    this.adapter.setEventBus(eventBus);
   }
 
   /**
-   * 获取事件总线
+   * 获取 Adapter (用于检查连接状态)
    */
-  getEventBus(): any {
-    return this.eventBus;
+  getAdapter(): EventBusAdapter {
+    return this.adapter;
   }
 
   /**
@@ -81,11 +87,11 @@ export class IncidentEventPublisher {
       rootCause?: string;
     },
     extensions?: IncidentEventExtensions
-  ): Promise<void> {
-    await this.publish<IncidentDetectedEventData>('incident.detected', {
+  ): Promise<PublishResult> {
+    return this.adapter.publish('incident.detected', {
       ...data,
       timestamp: new Date().toISOString(),
-    }, extensions);
+    }, this.toPublishOptions(extensions));
   }
 
   /**
@@ -99,11 +105,11 @@ export class IncidentEventPublisher {
       acknowledgedAt?: string;
     },
     extensions?: IncidentEventExtensions
-  ): Promise<void> {
-    await this.publish<IncidentAcknowledgedEventData>('incident.acknowledged', {
+  ): Promise<PublishResult> {
+    return this.adapter.publish('incident.acknowledged', {
       ...data,
       timestamp: new Date().toISOString(),
-    }, extensions);
+    }, this.toPublishOptions(extensions));
   }
 
   /**
@@ -118,11 +124,11 @@ export class IncidentEventPublisher {
       durationMs?: number;
     },
     extensions?: IncidentEventExtensions
-  ): Promise<void> {
-    await this.publish<IncidentResolvedEventData>('incident.resolved', {
+  ): Promise<PublishResult> {
+    return this.adapter.publish('incident.resolved', {
       ...data,
       timestamp: new Date().toISOString(),
-    }, extensions);
+    }, this.toPublishOptions(extensions));
   }
 
   /**
@@ -137,90 +143,39 @@ export class IncidentEventPublisher {
       escalatedTo?: string;
     },
     extensions?: IncidentEventExtensions
-  ): Promise<void> {
-    await this.publish<IncidentEscalatedEventData>('incident.escalated', {
+  ): Promise<PublishResult> {
+    return this.adapter.publish('incident.escalated', {
       ...data,
       timestamp: new Date().toISOString(),
-    }, extensions);
+    }, this.toPublishOptions(extensions));
   }
 
   /**
-   * 发布通用 Incident 事件
-   *
-   * @param type 事件类型
-   * @param data 事件数据
-   * @param extensions 扩展属性（租户/用户/追踪上下文）
+   * 转换 IncidentEventExtensions 为 PublishOptions
    */
-  async publish<T extends IncidentDetectedEventData | IncidentAcknowledgedEventData | IncidentResolvedEventData | IncidentEscalatedEventData>(
-    type: IncidentEventType,
-    data: T,
-    extensions?: IncidentEventExtensions
-  ): Promise<void> {
-    if (!this.eventBus) {
-      console.log(`[IncidentEventPublisher] Event Bus not connected, skipping event: ${type}`);
-      return;
-    }
-
-    try {
-      // 构建扩展属性，合并默认值
-      const eventExtensions: IncidentEventExtensions = {
-        tenantId: extensions?.tenantId || this.defaultTenantId || 'default-tenant',
-        userId: extensions?.userId || this.defaultUserId || 'system',
-        traceId: extensions?.traceId || this.generateTraceId(),
-        version: extensions?.version || 'v1',
-        priority: extensions?.priority || 'normal',
-      };
-
-      // 构建符合 CloudEvents 1.0 规范的事件
-      const event = {
-        specversion: '1.0',
-        id: this.generateEventId(),
-        type,
-        source: this.source,
-        time: new Date().toISOString(),
-        data,
-        ...eventExtensions,
-      };
-
-      // 发布事件 - 支持 EventBus 和 EventBusService 两种接口
-      if (typeof this.eventBus.publish === 'function') {
-        // 检查是否是 EventBus 实例（有 publish(event) 方法）
-        if (this.eventBus.publish.length === 1) {
-          await this.eventBus.publish(event);
-        } else {
-          // EventBusService 接口：publish(subject, data)
-          await this.eventBus.publish(type, data, { extensions: eventExtensions });
-        }
-      }
-
-      console.log(`[IncidentEventPublisher] Published event: ${type}`, {
-        id: event.id,
-        incidentId: (data as any).incidentId,
-        service: (data as any).service,
-        severity: (data as any).severity,
-      });
-    } catch (error) {
-      console.error(`[IncidentEventPublisher] Failed to publish event ${type}:`, error);
-      throw error;
-    }
+  private toPublishOptions(extensions?: IncidentEventExtensions): PublishOptions {
+    return {
+      source: this.source,
+      tenantId: extensions?.tenantId || this.defaultTenantId,
+      userId: extensions?.userId || this.defaultUserId,
+      traceId: extensions?.traceId,
+      priority: extensions?.priority,
+      version: extensions?.version,
+    };
   }
 
   /**
-   * 生成追踪 ID
+   * 检查连接是否可用
    */
-  private generateTraceId(): string {
-    const timestamp = Date.now().toString(36);
-    const random = Math.random().toString(36).substring(2, 15);
-    return `trace-${timestamp}-${random}`;
+  isAvailable(): boolean {
+    return this.adapter.isAvailable();
   }
 
   /**
-   * 生成事件 ID
+   * 获取连接状态
    */
-  private generateEventId(): string {
-    const timestamp = Date.now().toString(36);
-    const random = Math.random().toString(36).substring(2, 15);
-    return `${timestamp}-${random}`;
+  getConnectionState(): string {
+    return this.adapter.getConnectionState();
   }
 }
 

@@ -1,9 +1,11 @@
 /**
  * Code Event Publisher - 发布代码相关事件
  *
- * 使用 @orion/event-bus SDK，符合 CloudEvents 1.0 规范
+ * 使用 EventBusAdapter 统一接口，符合 CloudEvents 1.0 规范
+ * ARCH-010: 重构使用 EventBusAdapter 消除接口适配冗余
  */
 
+import { EventBusAdapter, PublishOptions, PublishResult } from './EventBusAdapter';
 import {
   CodeEventType,
   PROpenedEventData,
@@ -12,17 +14,14 @@ import {
   PRUpdatedEventData,
   CodeEventExtensions,
 } from './types/code';
+import { EventBusService } from '../services/event-bus-service';
 
 /**
  * 事件发布器配置
  */
 export interface CodeEventPublisherConfig {
-  /** 事件总线实例 */
-  eventBus?: {
-    publish?: (subject: string, data: any, options?: any) => Promise<any>;
-    isHealthy?: () => boolean;
-    [key: string]: any;
-  } | null;
+  /** EventBusService 实例 (ARCH-010: 统一使用 EventBusService 类型) */
+  eventBus?: EventBusService | null;
   /** 事件源标识 */
   source?: string;
   /** 默认租户 ID */
@@ -34,33 +33,40 @@ export interface CodeEventPublisherConfig {
 /**
  * Code 事件发布器
  *
+ * ARCH-010: 使用 EventBusAdapter 统一接口
  * 负责将 PR 相关事件发布到 NATS JetStream 事件总线
  */
 export class CodeEventPublisher {
-  private eventBus: any | null;
+  private adapter: EventBusAdapter;
   private source: string;
   private defaultTenantId?: string;
   private defaultUserId?: string;
 
   constructor(config?: CodeEventPublisherConfig) {
-    this.eventBus = config?.eventBus || null;
-    this.source = config?.source || 'orion-platform-service';
+    this.source = config?.source || 'code-service';
     this.defaultTenantId = config?.defaultTenantId;
     this.defaultUserId = config?.defaultUserId;
+    this.adapter = new EventBusAdapter({
+      eventBus: config?.eventBus,
+      defaultSource: this.source,
+      defaultTenantId: this.defaultTenantId,
+      defaultUserId: this.defaultUserId,
+    });
   }
 
   /**
    * 设置事件总线
+   * ARCH-010: 通过 Adapter 设置
    */
-  setEventBus(eventBus: any): void {
-    this.eventBus = eventBus;
+  setEventBus(eventBus: EventBusService): void {
+    this.adapter.setEventBus(eventBus);
   }
 
   /**
-   * 获取事件总线
+   * 获取 Adapter (用于检查连接状态)
    */
-  getEventBus(): any {
-    return this.eventBus;
+  getAdapter(): EventBusAdapter {
+    return this.adapter;
   }
 
   /**
@@ -77,11 +83,11 @@ export class CodeEventPublisher {
       description?: string;
     },
     extensions?: CodeEventExtensions
-  ): Promise<void> {
-    await this.publish<PROpenedEventData>('code.pr.opened', {
+  ): Promise<PublishResult> {
+    return this.adapter.publish('code.pr.opened', {
       ...data,
       timestamp: new Date().toISOString(),
-    }, extensions);
+    }, this.toPublishOptions(extensions));
   }
 
   /**
@@ -96,11 +102,11 @@ export class CodeEventPublisher {
       mergeCommitSha?: string;
     },
     extensions?: CodeEventExtensions
-  ): Promise<void> {
-    await this.publish<PRMergedEventData>('code.pr.merged', {
+  ): Promise<PublishResult> {
+    return this.adapter.publish('code.pr.merged', {
       ...data,
       timestamp: new Date().toISOString(),
-    }, extensions);
+    }, this.toPublishOptions(extensions));
   }
 
   /**
@@ -114,11 +120,11 @@ export class CodeEventPublisher {
       reason?: string;
     },
     extensions?: CodeEventExtensions
-  ): Promise<void> {
-    await this.publish<PRClosedEventData>('code.pr.closed', {
+  ): Promise<PublishResult> {
+    return this.adapter.publish('code.pr.closed', {
       ...data,
       timestamp: new Date().toISOString(),
-    }, extensions);
+    }, this.toPublishOptions(extensions));
   }
 
   /**
@@ -132,88 +138,39 @@ export class CodeEventPublisher {
       updateType: 'title' | 'description' | 'commits' | 'files';
     },
     extensions?: CodeEventExtensions
-  ): Promise<void> {
-    await this.publish<PRUpdatedEventData>('code.pr.updated', {
+  ): Promise<PublishResult> {
+    return this.adapter.publish('code.pr.updated', {
       ...data,
       timestamp: new Date().toISOString(),
-    }, extensions);
+    }, this.toPublishOptions(extensions));
   }
 
   /**
-   * 发布通用 Code 事件
-   *
-   * @param type 事件类型
-   * @param data 事件数据
-   * @param extensions 扩展属性（租户/用户/追踪上下文）
+   * 转换 CodeEventExtensions 为 PublishOptions
    */
-  async publish<T extends PROpenedEventData | PRMergedEventData | PRClosedEventData | PRUpdatedEventData>(
-    type: CodeEventType,
-    data: T,
-    extensions?: CodeEventExtensions
-  ): Promise<void> {
-    if (!this.eventBus) {
-      console.log(`[CodeEventPublisher] Event Bus not connected, skipping event: ${type}`);
-      return;
-    }
-
-    try {
-      // 构建扩展属性，合并默认值
-      const eventExtensions: CodeEventExtensions = {
-        tenantId: extensions?.tenantId || this.defaultTenantId || 'default-tenant',
-        userId: extensions?.userId || this.defaultUserId || 'system',
-        traceId: extensions?.traceId || this.generateTraceId(),
-        version: extensions?.version || 'v1',
-        priority: extensions?.priority || 'normal',
-      };
-
-      // 构建符合 CloudEvents 1.0 规范的事件
-      const event = {
-        specversion: '1.0',
-        id: this.generateEventId(),
-        type,
-        source: this.source,
-        time: new Date().toISOString(),
-        data,
-        ...eventExtensions,
-      };
-
-      // 发布事件 - 支持 EventBus 和 EventBusService 两种接口
-      if (typeof this.eventBus.publish === 'function') {
-        // 检查是否是 EventBus 实例（有 publish(event) 方法）
-        if (this.eventBus.publish.length === 1) {
-          await this.eventBus.publish(event);
-        } else {
-          // EventBusService 接口：publish(subject, data)
-          await this.eventBus.publish(type, data, { extensions: eventExtensions });
-        }
-      }
-
-      console.log(`[CodeEventPublisher] Published event: ${type}`, {
-        id: event.id,
-        prId: (data as any).prId,
-      });
-    } catch (error) {
-      console.error(`[CodeEventPublisher] Failed to publish event ${type}:`, error);
-      throw error;
-    }
+  private toPublishOptions(extensions?: CodeEventExtensions): PublishOptions {
+    return {
+      source: this.source,
+      tenantId: extensions?.tenantId || this.defaultTenantId,
+      userId: extensions?.userId || this.defaultUserId,
+      traceId: extensions?.traceId,
+      priority: extensions?.priority,
+      version: extensions?.version,
+    };
   }
 
   /**
-   * 生成追踪 ID
+   * 检查连接是否可用
    */
-  private generateTraceId(): string {
-    const timestamp = Date.now().toString(36);
-    const random = Math.random().toString(36).substring(2, 15);
-    return `trace-${timestamp}-${random}`;
+  isAvailable(): boolean {
+    return this.adapter.isAvailable();
   }
 
   /**
-   * 生成事件 ID
+   * 获取连接状态
    */
-  private generateEventId(): string {
-    const timestamp = Date.now().toString(36);
-    const random = Math.random().toString(36).substring(2, 15);
-    return `${timestamp}-${random}`;
+  getConnectionState(): string {
+    return this.adapter.getConnectionState();
   }
 }
 

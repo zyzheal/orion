@@ -1,0 +1,37 @@
+# Orion Platform - Docker Compose (Development)
+#
+# 本地开发环境：挂载源码 + 热重载 + NATS JetStream
+# 用法: docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+
+services:
+  # ==================== NATS JetStream ====================
+
+  nats:
+    ports:
+      - "4222:4222"
+      - "8222:8222"   # Monitoring UI: http://localhost:8222
+    command: >
+      --jetstream
+      --store_dir /data/jetstream
+      --max_payload 1MB
+      --http_port 8222
+      --server_name orion-nats
+      --log
+
+  # ==================== 后端服务 (开发模式) ====================
+
+  platform-service:
+    build:
+      context: ./orion-platform-service
+      dockerfile: Dockerfile.dev
+    environment:
+      NODE_ENV: development
+      DB_HOST: postgres
+      REDIS_HOST: redis
+      NATS_SERVERS: nats://nats:4222
+      EVENT_BUS_ENABLED: "true"
+      LOG_LEVEL: debug
+    volumes:
+      - ./orion-platform-service:/app
+      - /app/node_modules
+    command: npm run dev

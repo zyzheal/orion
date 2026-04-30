@@ -1,52 +1,45 @@
 /**
  * CodeEventPublisher 单元测试
+ *
+ * ARCH-010: Updated to use EventBusAdapter pattern
  */
 
+let mockPublish: jest.Mock;
+let mockIsAvailable: jest.Mock;
+let mockGetConnectionState: jest.Mock;
+
+jest.mock('../EventBusAdapter', () => ({
+  EventBusAdapter: jest.fn(),
+}));
+
 import { CodeEventPublisher } from '../CodeEventPublisher';
-
-// 模拟 EventBus
-class MockEventBus {
-  public publishedEvents: any[] = [];
-
-  async publish(subject: string, data: any, options?: any): Promise<string> {
-    const event = {
-      specversion: '1.0',
-      id: `event-${Date.now()}`,
-      type: subject,
-      source: 'orion-platform-service',
-      time: new Date().toISOString(),
-      data: data,
-      ...options?.extensions,
-    };
-    this.publishedEvents.push({ subject, data: event, options });
-    return 'mock-event-id';
-  }
-
-  isHealthy(): boolean {
-    return true;
-  }
-}
+import { EventBusAdapter } from '../EventBusAdapter';
 
 describe('CodeEventPublisher', () => {
   let publisher: CodeEventPublisher;
-  let mockEventBus: MockEventBus;
 
   beforeEach(() => {
-    mockEventBus = new MockEventBus();
+    jest.clearAllMocks();
+    mockPublish = jest.fn().mockResolvedValue({ success: true, eventId: 'mock-id', deliveryMode: 'jetstream' });
+    mockIsAvailable = jest.fn().mockReturnValue(true);
+    mockGetConnectionState = jest.fn().mockReturnValue('connected');
+
+    (EventBusAdapter as jest.Mock).mockImplementation(() => ({
+      publish: mockPublish,
+      isAvailable: mockIsAvailable,
+      getConnectionState: mockGetConnectionState,
+      setEventBus: jest.fn(),
+    }));
+
     publisher = new CodeEventPublisher({
-      eventBus: mockEventBus,
-      source: 'orion-platform-service',
+      source: 'code-service',
       defaultTenantId: 'tenant-001',
       defaultUserId: 'user-001',
     });
   });
 
-  afterEach(() => {
-    mockEventBus.publishedEvents = [];
-  });
-
-  describe('CloudEvents 1.0 合规性', () => {
-    it('发布的事件应包含所有必需字段', async () => {
+  describe('Publish Methods', () => {
+    it('should publish code.pr.opened event', async () => {
       await publisher.publishPROpened({
         prId: 'pr-001',
         repoId: 'repo-001',
@@ -55,115 +48,51 @@ describe('CodeEventPublisher', () => {
         targetBranch: 'main',
       });
 
-      const event = mockEventBus.publishedEvents[0];
-      expect(event.data.specversion).toBe('1.0');
-      expect(event.data.id).toBeDefined();
-      expect(event.data.type).toBe('code.pr.opened');
-      expect(event.data.source).toBe('orion-platform-service');
-      expect(event.data.time).toBeDefined();
-      expect(event.data.data).toBeDefined();
-    });
-
-    it('发布的事件应包含扩展属性', async () => {
-      await publisher.publishPROpened(
-        {
+      expect(mockPublish).toHaveBeenCalledWith(
+        'code.pr.opened',
+        expect.objectContaining({
           prId: 'pr-001',
-          repoId: 'repo-001',
           author: 'developer-001',
-          sourceBranch: 'feature/new-feature',
-          targetBranch: 'main',
-        },
-        {
+          timestamp: expect.any(String),
+        }),
+        expect.objectContaining({
+          source: 'code-service',
           tenantId: 'tenant-001',
           userId: 'user-001',
-          traceId: 'trace-abc',
-        }
+        }),
       );
-
-      const event = mockEventBus.publishedEvents[0];
-      expect(event.data.tenantId).toBe('tenant-001');
-      expect(event.data.userId).toBe('user-001');
-      expect(event.data.traceId).toBe('trace-abc');
     });
 
-    it('应使用默认的租户和用户 ID', async () => {
-      await publisher.publishPROpened({
-        prId: 'pr-001',
-        repoId: 'repo-001',
-        author: 'developer-001',
-        sourceBranch: 'feature/new-feature',
-        targetBranch: 'main',
-      });
-
-      const event = mockEventBus.publishedEvents[0];
-      expect(event.data.tenantId).toBe('tenant-001');
-      expect(event.data.userId).toBe('user-001');
-      expect(event.data.traceId).toBeDefined();
-    });
-  });
-
-  describe('PR 事件', () => {
-    it('发布 code.pr.opened 事件', async () => {
-      await publisher.publishPROpened({
-        prId: 'pr-001',
-        repoId: 'repo-001',
-        author: 'developer-001',
-        sourceBranch: 'feature/new-feature',
-        targetBranch: 'main',
-        title: 'Add new feature',
-        description: 'This PR adds a new feature',
-      });
-
-      expect(mockEventBus.publishedEvents).toHaveLength(1);
-      const event = mockEventBus.publishedEvents[0];
-      expect(event.subject).toBe('code.pr.opened');
-      expect(event.data.data.prId).toBe('pr-001');
-      expect(event.data.data.repoId).toBe('repo-001');
-      expect(event.data.data.author).toBe('developer-001');
-      expect(event.data.data.sourceBranch).toBe('feature/new-feature');
-      expect(event.data.data.targetBranch).toBe('main');
-      expect(event.data.data.title).toBe('Add new feature');
-      expect(event.data.data.timestamp).toBeDefined();
-    });
-
-    it('发布 code.pr.merged 事件', async () => {
+    it('should publish code.pr.merged event', async () => {
       await publisher.publishPRMerged({
         prId: 'pr-001',
         repoId: 'repo-001',
         mergedBy: 'reviewer-001',
         targetBranch: 'main',
-        mergeCommitSha: 'abc123def456',
       });
 
-      expect(mockEventBus.publishedEvents).toHaveLength(1);
-      const event = mockEventBus.publishedEvents[0];
-      expect(event.subject).toBe('code.pr.merged');
-      expect(event.data.data.prId).toBe('pr-001');
-      expect(event.data.data.repoId).toBe('repo-001');
-      expect(event.data.data.mergedBy).toBe('reviewer-001');
-      expect(event.data.data.targetBranch).toBe('main');
-      expect(event.data.data.mergeCommitSha).toBe('abc123def456');
-      expect(event.data.data.timestamp).toBeDefined();
+      expect(mockPublish).toHaveBeenCalledWith(
+        'code.pr.merged',
+        expect.objectContaining({ prId: 'pr-001', mergedBy: 'reviewer-001' }),
+        expect.any(Object),
+      );
     });
 
-    it('发布 code.pr.closed 事件', async () => {
+    it('should publish code.pr.closed event', async () => {
       await publisher.publishPRClosed({
         prId: 'pr-001',
         repoId: 'repo-001',
         closedBy: 'developer-001',
-        reason: 'Changes not needed',
       });
 
-      expect(mockEventBus.publishedEvents).toHaveLength(1);
-      const event = mockEventBus.publishedEvents[0];
-      expect(event.subject).toBe('code.pr.closed');
-      expect(event.data.data.prId).toBe('pr-001');
-      expect(event.data.data.closedBy).toBe('developer-001');
-      expect(event.data.data.reason).toBe('Changes not needed');
-      expect(event.data.data.timestamp).toBeDefined();
+      expect(mockPublish).toHaveBeenCalledWith(
+        'code.pr.closed',
+        expect.objectContaining({ prId: 'pr-001' }),
+        expect.any(Object),
+      );
     });
 
-    it('发布 code.pr.updated 事件', async () => {
+    it('should publish code.pr.updated event', async () => {
       await publisher.publishPRUpdated({
         prId: 'pr-001',
         repoId: 'repo-001',
@@ -171,19 +100,45 @@ describe('CodeEventPublisher', () => {
         updateType: 'commits',
       });
 
-      expect(mockEventBus.publishedEvents).toHaveLength(1);
-      const event = mockEventBus.publishedEvents[0];
-      expect(event.subject).toBe('code.pr.updated');
-      expect(event.data.data.prId).toBe('pr-001');
-      expect(event.data.data.updatedBy).toBe('developer-001');
-      expect(event.data.data.updateType).toBe('commits');
-      expect(event.data.data.timestamp).toBeDefined();
+      expect(mockPublish).toHaveBeenCalledWith(
+        'code.pr.updated',
+        expect.objectContaining({ prId: 'pr-001', updateType: 'commits' }),
+        expect.any(Object),
+      );
     });
   });
 
-  describe('事件数据类型验证', () => {
-    it('PR Opened 事件应包含所有必需字段', async () => {
-      await publisher.publishPROpened({
+  describe('Extensions merge', () => {
+    it('should merge custom extensions with defaults', async () => {
+      await publisher.publishPROpened(
+        { prId: 'pr-001', repoId: 'repo-001', author: 'dev', sourceBranch: 'feat', targetBranch: 'main' },
+        { tenantId: 'custom-tenant', userId: 'custom-user', traceId: 'trace-abc', priority: 'high' },
+      );
+
+      expect(mockPublish).toHaveBeenCalledWith(
+        'code.pr.opened',
+        expect.any(Object),
+        expect.objectContaining({ tenantId: 'custom-tenant', priority: 'high' }),
+      );
+    });
+  });
+
+  describe('Status methods', () => {
+    it('should return adapter availability', () => {
+      expect(publisher.isAvailable()).toBe(true);
+    });
+
+    it('should return adapter connection state', () => {
+      expect(publisher.getConnectionState()).toBe('connected');
+    });
+  });
+
+  describe('No EventBus', () => {
+    it('should gracefully degrade when EventBus is not available', async () => {
+      mockIsAvailable.mockReturnValue(false);
+      mockPublish.mockResolvedValue({ success: false, deliveryMode: 'disabled' });
+
+      const result = await publisher.publishPROpened({
         prId: 'pr-001',
         repoId: 'repo-001',
         author: 'developer-001',
@@ -191,56 +146,7 @@ describe('CodeEventPublisher', () => {
         targetBranch: 'main',
       });
 
-      const event = mockEventBus.publishedEvents[0];
-      expect(event.data.data).toHaveProperty('prId');
-      expect(event.data.data).toHaveProperty('repoId');
-      expect(event.data.data).toHaveProperty('author');
-      expect(event.data.data).toHaveProperty('sourceBranch');
-      expect(event.data.data).toHaveProperty('targetBranch');
-      expect(event.data.data).toHaveProperty('timestamp');
-    });
-
-    it('PR Merged 事件应包含所有必需字段', async () => {
-      await publisher.publishPRMerged({
-        prId: 'pr-001',
-        repoId: 'repo-001',
-        mergedBy: 'reviewer-001',
-        targetBranch: 'main',
-      });
-
-      const event = mockEventBus.publishedEvents[0];
-      expect(event.data.data).toHaveProperty('prId');
-      expect(event.data.data).toHaveProperty('repoId');
-      expect(event.data.data).toHaveProperty('mergedBy');
-      expect(event.data.data).toHaveProperty('targetBranch');
-      expect(event.data.data).toHaveProperty('timestamp');
-    });
-  });
-
-  describe('无 EventBus 时的行为', () => {
-    it('EventBus 未连接时应优雅降级', async () => {
-      const publisherWithoutBus = new CodeEventPublisher();
-
-      // 不应抛出错误
-      await expect(
-        publisherWithoutBus.publishPROpened({
-          prId: 'pr-001',
-          repoId: 'repo-001',
-          author: 'developer-001',
-          sourceBranch: 'feature/new-feature',
-          targetBranch: 'main',
-        })
-      ).resolves.not.toThrow();
-    });
-  });
-
-  describe('setEventBus 和 getEventBus', () => {
-    it('应该能够动态设置和获取 EventBus', () => {
-      const newPublisher = new CodeEventPublisher();
-      expect(newPublisher.getEventBus()).toBeNull();
-
-      newPublisher.setEventBus(mockEventBus);
-      expect(newPublisher.getEventBus()).toBe(mockEventBus);
+      expect(result.success).toBe(false);
     });
   });
 });
