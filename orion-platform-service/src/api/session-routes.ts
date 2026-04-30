@@ -60,4 +60,14 @@ export default async function sessionRoutes(
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.cleanup(request, reply);
   });
+
+  // GET /api/v1/sessions/user/:userId — list user sessions
+  app.get('/user/:userId', async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.listByUser(request, reply);
+  });
+
+  // POST /api/v1/sessions/:token/refresh — refresh session token
+  app.post('/:token/refresh', async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.refreshToken(request, reply);
+  });
 }

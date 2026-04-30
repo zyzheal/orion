@@ -140,4 +140,54 @@ export class SessionController {
       });
     }
   }
+
+  /**
+   * GET /api/v1/sessions/user/:userId — List user sessions
+   */
+  async listByUser(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    try {
+      const params = request.params as Record<string, string>;
+      const query = request.query as Record<string, string>;
+      const sessions = await this.service.listByUser(params.userId, query.tenantId);
+      return reply.send({
+        success: true,
+        data: sessions.map(s => ({
+          sessionId: s.id,
+          userId: s.user_id,
+          tenantId: s.tenant_id,
+          expiresAt: s.expires_at,
+          createdAt: s.created_at,
+        })),
+      });
+    } catch (err) {
+      return reply.status(500).send({
+        success: false,
+        error: err instanceof Error ? err.message : 'Failed to list sessions',
+      });
+    }
+  }
+
+  /**
+   * POST /api/v1/sessions/:token/refresh — Refresh session token
+   */
+  async refreshToken(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    try {
+      const params = request.params as Record<string, string>;
+      const body = request.body as Record<string, unknown>;
+      const extendHours = body.extendHours ? parseInt(body.extendHours as string, 10) : 24;
+      const session = await this.service.refreshToken(params.token, extendHours);
+      if (!session) {
+        return reply.status(404).send({ success: false, error: 'Session not found' });
+      }
+      return reply.send({
+        success: true,
+        data: { sessionId: session.id, expiresAt: session.expires_at },
+      });
+    } catch (err) {
+      return reply.status(500).send({
+        success: false,
+        error: err instanceof Error ? err.message : 'Failed to refresh session',
+      });
+    }
+  }
 }

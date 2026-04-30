@@ -41,4 +41,28 @@ export class SessionRepository {
     const result = await this.pool.query('DELETE FROM sessions WHERE expires_at < NOW()');
     return result.rowCount;
   }
+
+  async findByUser(userId: string, tenantId?: string): Promise<Session[]> {
+    if (tenantId) {
+      const result = await this.pool.query(
+        'SELECT * FROM sessions WHERE user_id = $1 AND tenant_id = $2 AND expires_at > NOW() ORDER BY created_at DESC',
+        [userId, tenantId]
+      );
+      return result.rows;
+    }
+    const result = await this.pool.query(
+      'SELECT * FROM sessions WHERE user_id = $1 AND expires_at > NOW() ORDER BY created_at DESC',
+      [userId]
+    );
+    return result.rows;
+  }
+
+  async refresh(token: string, extendHours: number = 24): Promise<Session | null> {
+    const expiresAt = new Date(Date.now() + extendHours * 60 * 60 * 1000);
+    const result = await this.pool.query(
+      'UPDATE sessions SET expires_at = $2 WHERE token = $1 AND expires_at > NOW() RETURNING *',
+      [token, expiresAt]
+    );
+    return result.rows[0] || null;
+  }
 }

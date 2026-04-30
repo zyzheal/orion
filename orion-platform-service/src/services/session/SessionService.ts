@@ -30,4 +30,14 @@ export class SessionService {
   async cleanup(): Promise<number> {
     return this.repository.cleanup();
   }
+
+  async listByUser(userId: string, tenantId?: string): Promise<Session[]> {
+    return this.repository.findByUser(userId, tenantId);
+  }
+
+  async refreshToken(token: string, extendHours: number = 24): Promise<Session | null> {
+    const session = await this.repository.findByToken(token);
+    if (!session) throw new SessionServiceError('Session not found or expired', 'NOT_FOUND');
+    return this.repository.refresh(token, extendHours);
+  }
 }
