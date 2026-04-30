@@ -40,10 +40,32 @@ vi.mock('dayjs/plugin/relativeTime', async (importOriginal) => {
 
 // Mock API to return mock data
 vi.mock('@/api/pipelines', () => ({
-  getPipelines: vi.fn().mockResolvedValue({ data: { data: [
-    { id: 'pl-001', name: 'frontend-deploy', version: '1.0.0', status: 'active', description: '', spec: { stages: [] }, createdAt: new Date(), updatedAt: new Date() },
-    { id: 'pl-002', name: 'api-service-build', version: '2.0.0', status: 'active', description: '', spec: { stages: [] }, createdAt: new Date(), updatedAt: new Date() },
-  ]}}),
+  getPipelines: vi.fn().mockResolvedValue({
+    data: {
+      data: [
+        {
+          id: 'pl-001',
+          name: 'frontend-deploy',
+          version: '1.0.0',
+          status: 'active',
+          description: '',
+          spec: { stages: [] },
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        {
+          id: 'pl-002',
+          name: 'api-service-build',
+          version: '2.0.0',
+          status: 'active',
+          description: '',
+          spec: { stages: [] },
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ],
+    },
+  }),
 }));
 
 const renderWithRouter = (ui: React.ReactElement) => {

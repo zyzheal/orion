@@ -35,7 +35,7 @@ describe('OrionModal', () => {
     expect(screen.getByText('OK')).toBeInTheDocument();
     // For info type, cancel text is empty (button may still exist but empty text)
     const buttons = screen.getAllByRole('button');
-    const cancelButton = buttons.find(btn => btn.textContent?.trim() === '');
+    const cancelButton = buttons.find((btn) => btn.textContent?.trim() === '');
     expect(cancelButton).toBeDefined();
   });
 

@@ -14,7 +14,6 @@ jest.mock('../EventBusAdapter', () => ({
 
 import { ConfigEventPublisher } from '../ConfigEventPublisher';
 import { EventBusAdapter } from '../EventBusAdapter';
-import { DriftType, DriftSeverity } from '../types/config';
 
 describe('ConfigEventPublisher', () => {
   let publisher: ConfigEventPublisher;
@@ -46,12 +45,12 @@ describe('ConfigEventPublisher', () => {
         resourceType: 'kubernetes.deployment',
         expected: { replicas: 3 },
         actual: { replicas: 2 },
-        driftType: DriftType.MODIFICATION,
+        driftType: 'modified',
       });
 
       expect(mockPublish).toHaveBeenCalledWith(
         'config.drift.detected',
-        expect.objectContaining({ configId: 'config-001', driftType: DriftType.MODIFICATION }),
+        expect.objectContaining({ configId: 'config-001', driftType: 'modified' }),
         expect.objectContaining({ source: 'config-service', tenantId: 'tenant-001' }),
       );
     });
@@ -104,12 +103,12 @@ describe('ConfigEventPublisher', () => {
         resourceType: 'kubernetes.configmap',
         expected: {},
         actual: { newKey: 'newValue' },
-        driftType: DriftType.ADDITION,
+        driftType: 'added',
       });
 
       expect(mockPublish).toHaveBeenCalledWith(
         'config.drift.detected',
-        expect.objectContaining({ driftType: DriftType.ADDITION }),
+        expect.objectContaining({ driftType: 'added' }),
         expect.any(Object),
       );
     });
@@ -120,12 +119,12 @@ describe('ConfigEventPublisher', () => {
         resourceType: 'kubernetes.configmap',
         expected: { oldKey: 'oldValue' },
         actual: {},
-        driftType: DriftType.REMOVAL,
+        driftType: 'removed',
       });
 
       expect(mockPublish).toHaveBeenCalledWith(
         'config.drift.detected',
-        expect.objectContaining({ driftType: DriftType.REMOVAL }),
+        expect.objectContaining({ driftType: 'removed' }),
         expect.any(Object),
       );
     });
