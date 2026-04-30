@@ -1,6 +1,11 @@
 /**
  * Knowledge API Client
  *
+ * @deprecated This client is reserved for future native integration.
+ * The current /knowledge route loads the orion-knowledge micro-frontend
+ * application via wujie. If the team decides to replace the micro-frontend
+ * with a native React page, this API client is ready to use.
+ *
  * Backend routes: orion-platform-service/src/api/knowledge-routes.ts
  */
 
