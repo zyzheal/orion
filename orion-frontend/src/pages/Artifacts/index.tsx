@@ -12,7 +12,6 @@ import {
   Input,
   Select,
   message,
-  Alert,
   Tabs,
   Drawer,
   Tag,
@@ -53,179 +52,6 @@ dayjs.extend(relativeTime);
 
 const { Title, Text } = Typography;
 
-// ---- Mock data ----
-
-const MOCK_ARTIFACTS: Artifact[] = [
-  {
-    id: 'art-1',
-    name: 'orion-core',
-    namespace: 'platform',
-    version: '2.5.0',
-    type: 'container_image',
-    stage: 'stable',
-    status: 'available',
-    displayName: 'Orion 核心服务镜像',
-    description: 'Orion 核心平台 Docker 镜像',
-    sizeBytes: 256000000,
-    digest: 'sha256:abc123def456',
-    storagePath: '/storage/images/orion-core',
-    storageBackend: 'harbor',
-    labels: { team: 'platform', tier: 'core' },
-    build: {
-      pipelineRunId: 'run-1',
-      gitCommit: 'a1b2c3d',
-      gitBranch: 'main',
-      gitTag: 'v2.5.0',
-      buildTime: '2024-03-20T10:00:00Z',
-      buildDuration: 180,
-    },
-    security: {
-      signed: true,
-      signer: 'platform-signer',
-      scanResults: { critical: 0, high: 1, medium: 3, low: 5 },
-    },
-    tests: {
-      unitTests: { passed: 450, failed: 2, coverage: 87 },
-      integrationTests: { passed: 89, failed: 0 },
-    },
-    deployments: [
-      {
-        environment: 'staging',
-        deployedAt: '2024-03-20T12:00:00Z',
-        deployedBy: 'ci-bot',
-        status: 'success',
-      },
-    ],
-    createdAt: '2024-01-15T08:00:00Z',
-    updatedAt: '2024-03-20T12:00:00Z',
-  },
-  {
-    id: 'art-2',
-    name: 'orion-ai-service',
-    namespace: 'ai',
-    version: '1.3.0-rc.1',
-    type: 'container_image',
-    stage: 'release_candidate',
-    status: 'available',
-    displayName: 'AI 服务镜像',
-    description: 'AI 算法引擎 Docker 镜像',
-    sizeBytes: 512000000,
-    digest: 'sha256:def789ghi012',
-    storagePath: '/storage/images/orion-ai',
-    storageBackend: 'harbor',
-    labels: { team: 'ai', tier: 'service' },
-    build: {
-      pipelineRunId: 'run-2',
-      gitCommit: 'e4f5g6h',
-      gitBranch: 'release/1.3',
-      buildTime: '2024-03-19T14:00:00Z',
-      buildDuration: 300,
-    },
-    security: { signed: true, scanResults: { critical: 0, high: 0, medium: 2, low: 8 } },
-    createdAt: '2024-02-01T08:00:00Z',
-    updatedAt: '2024-03-19T14:00:00Z',
-  },
-  {
-    id: 'art-3',
-    name: '@orion/sdk',
-    namespace: 'frontend',
-    version: '0.9.0',
-    type: 'npm_package',
-    stage: 'snapshot',
-    status: 'available',
-    displayName: 'Orion 前端 SDK',
-    description: '前端微应用 SDK 包',
-    sizeBytes: 1200000,
-    digest: 'sha256:jkl345mno678',
-    storagePath: '/storage/npm/orion-sdk',
-    storageBackend: 'nexus',
-    labels: { team: 'frontend' },
-    createdAt: '2024-03-10T08:00:00Z',
-    updatedAt: '2024-03-18T10:00:00Z',
-  },
-  {
-    id: 'art-4',
-    name: 'orion-platform-chart',
-    namespace: 'infra',
-    version: '3.0.0',
-    type: 'helm_chart',
-    stage: 'production',
-    status: 'available',
-    displayName: '平台 Helm Chart',
-    description: 'Orion 平台 Helm 部署模板',
-    sizeBytes: 500000,
-    digest: 'sha256:pqr901stu234',
-    storagePath: '/storage/helm/platform-chart',
-    storageBackend: 'harbor',
-    labels: { team: 'infra' },
-    build: {
-      pipelineRunId: 'run-3',
-      gitCommit: 'i7j8k9l',
-      gitBranch: 'main',
-      gitTag: 'chart-v3.0.0',
-      buildTime: '2024-03-15T09:00:00Z',
-      buildDuration: 30,
-    },
-    security: { signed: true, scanResults: { critical: 0, high: 0, medium: 0, low: 2 } },
-    createdAt: '2024-01-01T08:00:00Z',
-    updatedAt: '2024-03-15T09:00:00Z',
-  },
-  {
-    id: 'art-5',
-    name: 'legacy-service',
-    namespace: 'platform',
-    version: '1.0.0',
-    type: 'jar_artifact',
-    stage: 'archived',
-    status: 'deprecated',
-    displayName: '遗留服务 JAR',
-    description: '已废弃的旧版服务',
-    sizeBytes: 45000000,
-    digest: 'sha256:vwx567yza890',
-    storagePath: '/storage/jars/legacy',
-    storageBackend: 'nexus',
-    createdAt: '2023-06-01T08:00:00Z',
-    updatedAt: '2024-01-10T08:00:00Z',
-  },
-];
-
-const MOCK_PROMOTION_HISTORY: PromotionRecord[] = [
-  {
-    id: 'p1',
-    artifactId: 'art-1',
-    fromStage: 'snapshot',
-    toStage: 'release_candidate',
-    promotedBy: 'dev-001',
-    promotedAt: '2024-03-18T10:00:00Z',
-    reason: 'CI 通过',
-  },
-  {
-    id: 'p2',
-    artifactId: 'art-1',
-    fromStage: 'release_candidate',
-    toStage: 'stable',
-    promotedBy: 'tech-lead',
-    approvedBy: 'qa-lead',
-    promotedAt: '2024-03-19T14:00:00Z',
-    reason: '测试通过，代码审查完成',
-  },
-];
-
-const MOCK_TAGS: TagType[] = [
-  { id: 't1', artifactId: 'art-1', name: 'stable-release', createdAt: '2024-03-20T12:00:00Z' },
-  { id: 't2', artifactId: 'art-1', name: 'v2.5', createdAt: '2024-03-20T12:00:00Z' },
-  { id: 't3', artifactId: 'art-1', name: 'deployed-to-staging', createdAt: '2024-03-20T12:00:00Z' },
-];
-
-const MOCK_STATS: ArtifactStats = {
-  total: 5,
-  byStage: { snapshot: 1, release_candidate: 1, stable: 1, production: 1, archived: 1 },
-  byStatus: { uploading: 0, available: 4, deprecated: 1, quarantined: 0, deleted: 0 },
-  byType: { container_image: 2, npm_package: 1, helm_chart: 1, jar_artifact: 1 },
-  totalSizeBytes: 813700000,
-  avgSecurityScore: 92,
-};
-
 // ---- Main Component ----
 
 const ArtifactManagement: React.FC = () => {
@@ -244,7 +70,6 @@ const ArtifactManagement: React.FC = () => {
   const [namespaces, setNamespaces] = useState<string[]>([]);
   const [tags, setTags] = useState<TagType[]>([]);
   const [promotionHistory, setPromotionHistory] = useState<PromotionRecord[]>([]);
-  const [usingMockData, setUsingMockData] = useState(false);
   const [createForm] = Form.useForm();
   const [editForm] = Form.useForm();
   const [promotionForm] = Form.useForm();
@@ -272,11 +97,9 @@ const ArtifactManagement: React.FC = () => {
     setLoading(true);
     try {
       const res = await getArtifacts({ page: p, perPage: s });
-      // Backend may return either { data: Artifact[], total: number } or just Artifact[]
       const raw = res.data?.data;
       if (Array.isArray(raw)) {
         setArtifacts(raw);
-        // If response includes total count use it, otherwise estimate from mock data length
         const respTotal = (res.data as any)?.total ?? raw.length;
         setTotal(respTotal);
       } else {
@@ -284,22 +107,9 @@ const ArtifactManagement: React.FC = () => {
         setTotal(0);
       }
     } catch (error: unknown) {
-      setUsingMockData(true);
-      if (error instanceof Error) {
-        if (error.message.includes('401') || error.message.includes('403')) {
-          message.error('权限不足，请重新登录或联系管理员');
-        } else if (error.message.includes('fetch') || error.message.includes('network')) {
-          message.error('网络异常，请检查连接');
-        } else {
-          message.error(`加载制品数据失败：${error.message}`);
-        }
-      } else {
-        message.error('加载制品数据失败，请稍后重试');
-      }
-      // For mock data, apply client-side pagination slice
-      setTotal(MOCK_ARTIFACTS.length);
-      const start = (p - 1) * s;
-      setArtifacts(MOCK_ARTIFACTS.slice(start, start + s));
+      setArtifacts([]);
+      setTotal(0);
+      message.error(`加载制品数据失败: ${(error as Error).message}`);
     } finally {
       setLoading(false);
     }
@@ -308,10 +118,9 @@ const ArtifactManagement: React.FC = () => {
   const loadStats = async () => {
     try {
       const res = await getArtifactStats();
-      setStats(res.data?.data || MOCK_STATS);
+      setStats(res.data?.data || null);
     } catch (error: unknown) {
-      setUsingMockData(true);
-      setStats(MOCK_STATS);
+      setStats(null);
     }
   };
 
@@ -320,8 +129,7 @@ const ArtifactManagement: React.FC = () => {
       const res = await getNamespaces();
       setNamespaces(res.data?.data || []);
     } catch (error: unknown) {
-      setUsingMockData(true);
-      setNamespaces(['platform', 'ai', 'frontend', 'infra']);
+      setNamespaces([]);
     }
   };
 
@@ -381,7 +189,7 @@ const ArtifactManagement: React.FC = () => {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         if (error instanceof Error) {
-          message.error(`创建失败：${error.message}`);
+          message.error(`创建失败: ${error.message}`);
         } else {
           message.error('创建失败');
         }
@@ -409,7 +217,7 @@ const ArtifactManagement: React.FC = () => {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         if (error instanceof Error) {
-          message.error(`更新失败：${error.message}`);
+          message.error(`更新失败: ${error.message}`);
         } else {
           message.error('更新失败');
         }
@@ -427,7 +235,7 @@ const ArtifactManagement: React.FC = () => {
       loadStats();
     } catch (error: unknown) {
       if (error instanceof Error) {
-        message.error(`删除失败：${error.message}`);
+        message.error(`删除失败: ${error.message}`);
       } else {
         message.error('删除失败');
       }
@@ -441,7 +249,7 @@ const ArtifactManagement: React.FC = () => {
       loadData();
     } catch (error: unknown) {
       if (error instanceof Error) {
-        message.error(`废弃失败：${error.message}`);
+        message.error(`废弃失败: ${error.message}`);
       } else {
         message.error('废弃失败');
       }
@@ -455,7 +263,7 @@ const ArtifactManagement: React.FC = () => {
       loadData();
     } catch (error: unknown) {
       if (error instanceof Error) {
-        message.error(`隔离失败：${error.message}`);
+        message.error(`隔离失败: ${error.message}`);
       } else {
         message.error('隔离失败');
       }
@@ -474,7 +282,7 @@ const ArtifactManagement: React.FC = () => {
       }
     } catch (error: unknown) {
       if (error instanceof Error) {
-        message.error(`下载失败：${error.message}`);
+        message.error(`下载失败: ${error.message}`);
       } else {
         message.error('下载失败');
       }
@@ -501,7 +309,7 @@ const ArtifactManagement: React.FC = () => {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         if (error instanceof Error) {
-          message.error(`晋升失败：${error.message}`);
+          message.error(`晋升失败: ${error.message}`);
         } else {
           message.error('晋升失败');
         }
@@ -529,7 +337,7 @@ const ArtifactManagement: React.FC = () => {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         if (error instanceof Error) {
-          message.error(`添加标签失败：${error.message}`);
+          message.error(`添加标签失败: ${error.message}`);
         } else {
           message.error('添加标签失败');
         }
@@ -571,29 +379,23 @@ const ArtifactManagement: React.FC = () => {
   const loadTags = async (id: string) => {
     try {
       const res = await getArtifactTags(id);
-      setTags(
-        Array.isArray(res.data?.data) ? res.data.data : MOCK_TAGS.filter((t) => t.artifactId === id)
-      );
+      setTags(Array.isArray(res.data?.data) ? res.data.data : []);
     } catch (error: unknown) {
-      setTags(MOCK_TAGS.filter((t) => t.artifactId === id));
+      setTags([]);
     }
   };
 
   const loadPromotionHistory = async (id: string) => {
     try {
       const res = await getPromotionHistory(id);
-      setPromotionHistory(
-        Array.isArray(res.data?.data)
-          ? res.data.data
-          : MOCK_PROMOTION_HISTORY.filter((p) => p.artifactId === id)
-      );
+      setPromotionHistory(Array.isArray(res.data?.data) ? res.data.data : []);
     } catch (error: unknown) {
-      setPromotionHistory(MOCK_PROMOTION_HISTORY.filter((p) => p.artifactId === id));
+      setPromotionHistory([]);
     }
   };
 
   const loadDownloadHistory = async () => {
-    // Backend API not yet returning download records
+    // Placeholder for future download history API integration
   };
 
   const namespaceOptions = useMemo(
@@ -683,19 +485,6 @@ const ArtifactManagement: React.FC = () => {
               </Button>
             </Space>
           </div>
-
-          {/* Mock data warning banner */}
-          {usingMockData && (
-            <Alert
-              message="使用模拟数据"
-              description="后端服务暂时不可用，当前显示的是模拟数据，可能不是最新状态。"
-              type="warning"
-              showIcon
-              closable
-              style={{ marginBottom: 16 }}
-              onClose={() => setUsingMockData(false)}
-            />
-          )}
 
           {/* Stats Panel */}
           {stats && <ArtifactStats stats={stats} />}
