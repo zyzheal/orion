@@ -9,7 +9,6 @@ import {
   Space,
   Tag,
   Card,
-  Alert,
   Select,
   Input,
   message,
@@ -36,6 +35,8 @@ import { spacing } from '@/tokens/spacing';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import duration from 'dayjs/plugin/duration';
+import { getSessions, getSessionStats, deleteSession as apiDeleteSession } from '@/api/session';
+import type { Session as ApiSession, SessionStats as ApiSessionStats } from '@/api/session';
 
 dayjs.extend(relativeTime);
 dayjs.extend(duration);
@@ -85,127 +86,33 @@ const statusIconMap: Record<SessionStatus, React.ReactNode> = {
   revoked: <StopOutlined />,
 };
 
-// ---- Mock data ----
+// ---- API mapping helpers ----
 
-const MOCK_STATS: SessionStats = {
-  activeSessions: 42,
-  totalUsers: 28,
-  expiredSessions: 156,
-  avgDuration: 3720, // ~62 minutes
+const deriveStatus = (session: ApiSession): 'active' | 'expired' | 'revoked' => {
+  if (session.expiresAt && dayjs(session.expiresAt).isBefore(dayjs())) {
+    return 'expired';
+  }
+  return 'active';
 };
 
-const MOCK_SESSIONS: UserSession[] = [
-  {
-    id: 'sess-001',
-    userId: 'admin@orion.io',
-    sessionId: 'a1b2c3d4e5f6',
-    ipAddress: '192.168.1.100',
-    userAgent: 'Chrome 122 / macOS',
-    startedAt: '2024-03-20T08:00:00Z',
-    lastActive: '2024-03-20T10:30:00Z',
-    status: 'active',
-    duration: 9000,
-  },
-  {
-    id: 'sess-002',
-    userId: 'dev-001@orion.io',
-    sessionId: 'g7h8i9j0k1l2',
-    ipAddress: '10.0.0.45',
-    userAgent: 'Firefox 124 / Windows',
-    startedAt: '2024-03-20T09:15:00Z',
-    lastActive: '2024-03-20T10:25:00Z',
-    status: 'active',
-    duration: 4200,
-  },
-  {
-    id: 'sess-003',
-    userId: 'ops-002@orion.io',
-    sessionId: 'm3n4o5p6q7r8',
-    ipAddress: '172.16.0.23',
-    userAgent: 'Safari 17 / macOS',
-    startedAt: '2024-03-19T14:00:00Z',
-    lastActive: '2024-03-19T18:30:00Z',
-    status: 'expired',
-    duration: 16200,
-  },
-  {
-    id: 'sess-004',
-    userId: 'sec-001@orion.io',
-    sessionId: 's9t0u1v2w3x4',
-    ipAddress: '10.0.1.88',
-    userAgent: 'Chrome 122 / Linux',
-    startedAt: '2024-03-20T07:30:00Z',
-    lastActive: '2024-03-20T07:45:00Z',
-    status: 'revoked',
-    duration: 900,
-  },
-  {
-    id: 'sess-005',
-    userId: 'dev-002@orion.io',
-    sessionId: 'y5z6a7b8c9d0',
-    ipAddress: '192.168.2.55',
-    userAgent: 'Edge 122 / Windows',
-    startedAt: '2024-03-20T10:00:00Z',
-    lastActive: '2024-03-20T10:28:00Z',
-    status: 'active',
-    duration: 1680,
-  },
-  {
-    id: 'sess-006',
-    userId: 'admin@orion.io',
-    sessionId: 'e1f2g3h4i5j6',
-    ipAddress: '192.168.1.100',
-    userAgent: 'Chrome 122 / macOS',
-    startedAt: '2024-03-19T09:00:00Z',
-    lastActive: '2024-03-19T17:00:00Z',
-    status: 'expired',
-    duration: 28800,
-  },
-  {
-    id: 'sess-007',
-    userId: 'qa-001@orion.io',
-    sessionId: 'k7l8m9n0o1p2',
-    ipAddress: '10.0.3.12',
-    userAgent: 'Chrome 122 / Windows',
-    startedAt: '2024-03-20T08:30:00Z',
-    lastActive: '2024-03-20T10:15:00Z',
-    status: 'active',
-    duration: 6300,
-  },
-  {
-    id: 'sess-008',
-    userId: 'dev-003@orion.io',
-    sessionId: 'q3r4s5t6u7v8',
-    ipAddress: '172.16.1.99',
-    userAgent: 'Firefox 124 / Linux',
-    startedAt: '2024-03-20T06:00:00Z',
-    lastActive: '2024-03-20T06:10:00Z',
-    status: 'revoked',
-    duration: 600,
-  },
-  {
-    id: 'sess-009',
-    userId: 'ops-001@orion.io',
-    sessionId: 'w9x0y1z2a3b4',
-    ipAddress: '10.0.0.10',
-    userAgent: 'Chrome 122 / macOS',
-    startedAt: '2024-03-20T09:45:00Z',
-    lastActive: '2024-03-20T10:30:00Z',
-    status: 'active',
-    duration: 2700,
-  },
-  {
-    id: 'sess-010',
-    userId: 'dev-001@orion.io',
-    sessionId: 'c5d6e7f8g9h0',
-    ipAddress: '10.0.0.45',
-    userAgent: 'Firefox 124 / Windows',
-    startedAt: '2024-03-19T10:00:00Z',
-    lastActive: '2024-03-19T12:00:00Z',
-    status: 'expired',
-    duration: 7200,
-  },
-];
+const mapApiSession = (apiSession: ApiSession): UserSession => ({
+  id: apiSession.id,
+  userId: apiSession.userId,
+  sessionId: apiSession.token?.substring(0, 12) || apiSession.id,
+  ipAddress: apiSession.ipAddress || 'unknown',
+  userAgent: apiSession.userAgent || 'unknown',
+  startedAt: apiSession.createdAt,
+  lastActive: apiSession.lastAccessedAt,
+  status: deriveStatus(apiSession),
+  duration: dayjs(apiSession.lastAccessedAt).diff(dayjs(apiSession.createdAt), 'second'),
+});
+
+const mapApiStats = (apiStats: ApiSessionStats): SessionStats => ({
+  activeSessions: apiStats.active || 0,
+  totalUsers: apiStats.total || 0,
+  expiredSessions: apiStats.expired || 0,
+  avgDuration: 0,
+});
 
 // ---- Helper: Format duration ----
 
@@ -227,19 +134,22 @@ const SessionManagement: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [detailDrawerVisible, setDetailDrawerVisible] = useState(false);
   const [selectedSession, setSelectedSession] = useState<UserSession | null>(null);
-  const [usingMockData, setUsingMockData] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
     try {
-      // No session API client exists yet — use mock data
-      setUsingMockData(true);
-      setSessions(MOCK_SESSIONS);
-      setStats(MOCK_STATS);
+      const [sessionsRes, statsRes] = await Promise.all([
+        getSessions(),
+        getSessionStats(),
+      ]);
+      const sessionsData = sessionsRes.data?.data?.sessions || sessionsRes.data?.data || [];
+      const statsData = statsRes.data?.data?.stats || statsRes.data?.data || {};
+      setSessions(Array.isArray(sessionsData) ? sessionsData.map(mapApiSession) : []);
+      setStats(mapApiStats(statsData as ApiSessionStats));
     } catch (error: unknown) {
-      setUsingMockData(true);
-      setSessions(MOCK_SESSIONS);
-      setStats(MOCK_STATS);
+      message.error(`加载 Session 数据失败: ${(error as Error).message}`);
+      setSessions([]);
+      setStats(null);
     } finally {
       setLoading(false);
     }
@@ -272,20 +182,16 @@ const SessionManagement: React.FC = () => {
 
   const handleRevoke = async (id: string) => {
     try {
-      // In production: call revokeSession API
+      await apiDeleteSession(id);
       setSessions((prev) =>
         prev.map((s) => (s.id === id ? { ...s, status: 'revoked' as const } : s))
-      );
-      setStats((prev) =>
-        prev ? { ...prev, activeSessions: Math.max(0, prev.activeSessions - 1) } : prev
       );
       message.success('会话已撤销');
       if (selectedSession?.id === id) {
         setSelectedSession((prev) => (prev ? { ...prev, status: 'revoked' as const } : prev));
       }
     } catch (error: unknown) {
-      const errMsg = error instanceof Error ? error.message : '撤销失败';
-      message.error(errMsg);
+      message.error(`撤销失败: ${(error as Error).message}`);
     }
   };
 
@@ -423,19 +329,6 @@ const SessionManagement: React.FC = () => {
           </Button>
         </Space>
       </div>
-
-      {/* Mock data warning banner */}
-      {usingMockData && (
-        <Alert
-          message="使用模拟数据"
-          description="Session API 尚未集成，当前显示的是模拟数据。"
-          type="warning"
-          showIcon
-          closable
-          style={{ marginBottom: spacing.md }}
-          onClose={() => setUsingMockData(false)}
-        />
-      )}
 
       {/* Stats Cards */}
       {stats && (
