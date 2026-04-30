@@ -15,7 +15,6 @@ import {
   Input,
   Select,
   message,
-  Alert,
   Descriptions,
   Drawer,
   Tooltip,
@@ -70,93 +69,6 @@ const statusLabelMap: Record<ApprovalStatus, string> = {
   cancelled: '已取消',
 };
 
-// ---- Mock data ----
-
-const MOCK_APPROVALS: ApprovalRequest[] = [
-  {
-    id: 'appr-1',
-    title: '生产环境部署审批',
-    description:
-      'orion-core 服务 v2.5.0 部署到生产环境需要审批。该版本已通过所有测试，包含性能优化和安全修复。',
-    requesterId: 'dev-001',
-    approverIds: ['tech-lead', 'ops-manager', 'security-lead'],
-    status: 'pending',
-    approvals: ['tech-lead'],
-    rejections: [],
-    requiredApprovals: 2,
-    createdAt: '2024-03-20T10:00:00Z',
-    updatedAt: '2024-03-20T14:00:00Z',
-    metadata: {
-      resourceType: 'deployment',
-      environment: 'production',
-      service: 'orion-core',
-      version: '2.5.0',
-    },
-  },
-  {
-    id: 'appr-2',
-    title: '数据库结构变更审批',
-    description: '新增用户表索引，预计影响线上查询性能 30 分钟。需要运维团队审批。',
-    requesterId: 'dev-002',
-    approverIds: ['dba-lead', 'ops-manager'],
-    status: 'pending',
-    approvals: [],
-    rejections: [],
-    requiredApprovals: 2,
-    createdAt: '2024-03-19T08:00:00Z',
-    updatedAt: '2024-03-19T08:00:00Z',
-    metadata: { resourceType: 'database', changeType: 'index', table: 'users' },
-  },
-  {
-    id: 'appr-3',
-    title: '新服务上线审批',
-    description: 'orion-ai-gateway 新服务申请上线，已准备好灰度发布策略。',
-    requesterId: 'dev-003',
-    approverIds: ['arch-lead', 'ops-manager'],
-    status: 'approved',
-    approvals: ['arch-lead', 'ops-manager'],
-    rejections: [],
-    requiredApprovals: 2,
-    createdAt: '2024-03-18T09:00:00Z',
-    updatedAt: '2024-03-19T16:00:00Z',
-    metadata: { resourceType: 'service', serviceName: 'orion-ai-gateway' },
-  },
-  {
-    id: 'appr-4',
-    title: '安全策略变更审批',
-    description: '申请修改 API 网关的 WAF 规则，允许新的第三方回调地址。',
-    requesterId: 'sec-001',
-    approverIds: ['security-lead', 'ops-manager'],
-    status: 'rejected',
-    approvals: ['security-lead'],
-    rejections: ['ops-manager'],
-    requiredApprovals: 2,
-    createdAt: '2024-03-17T11:00:00Z',
-    updatedAt: '2024-03-18T10:00:00Z',
-    metadata: { resourceType: 'security', changeType: 'waf_rule' },
-  },
-  {
-    id: 'appr-5',
-    title: '资源扩容审批',
-    description: '申请将 orion-api 服务的 K8s 副本数从 3 扩容到 6，应对促销活动流量峰值。',
-    requesterId: 'ops-001',
-    approverIds: ['cost-lead', 'arch-lead'],
-    status: 'pending',
-    approvals: ['cost-lead'],
-    rejections: [],
-    requiredApprovals: 2,
-    createdAt: '2024-03-21T08:00:00Z',
-    updatedAt: '2024-03-21T09:30:00Z',
-    metadata: {
-      resourceType: 'infrastructure',
-      action: 'scale_up',
-      service: 'orion-api',
-      fromReplicas: 3,
-      toReplicas: 6,
-    },
-  },
-];
-
 // ---- Main Component ----
 
 const ApprovalManagement: React.FC = () => {
@@ -170,7 +82,6 @@ const ApprovalManagement: React.FC = () => {
   const [createForm] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
   const [currentUserId] = useState('current-user');
-  const [usingMockData, setUsingMockData] = useState(false);
 
   // ---- Comment modal state ----
   const [commentModalVisible, setCommentModalVisible] = useState(false);
@@ -186,13 +97,8 @@ const ApprovalManagement: React.FC = () => {
       const list = res.data?.data?.approvals;
       setApprovals(Array.isArray(list) ? list : []);
     } catch (error: unknown) {
-      setUsingMockData(true);
-      setApprovals(MOCK_APPROVALS);
-      if (error instanceof Error) {
-        message.error(`加载审批数据失败：${error.message}`);
-      } else {
-        message.error('加载审批数据失败，请稍后重试');
-      }
+      setApprovals([]);
+      message.error(`加载审批数据失败: ${(error as Error).message}`);
     } finally {
       setLoading(false);
     }
@@ -700,19 +606,6 @@ const ApprovalManagement: React.FC = () => {
               </Button>
             </Space>
           </div>
-
-          {/* Mock data warning banner */}
-          {usingMockData && (
-            <Alert
-              message="使用模拟数据"
-              description="后端服务暂时不可用，当前显示的是模拟数据，可能不是最新状态。"
-              type="warning"
-              showIcon
-              closable
-              style={{ marginBottom: 16 }}
-              onClose={() => setUsingMockData(false)}
-            />
-          )}
 
           {/* Stats Panel */}
           <Card size="small" style={{ marginBottom: 16 }}>
