@@ -52,40 +52,9 @@ const ROIFeatureReport: React.FC = () => {
       setRoiData(Array.isArray(data?.features) ? data.features : []);
       setSuggestions(Array.isArray(data?.suggestions) ? data.suggestions : []);
     } catch (error: unknown) {
-      // Mock data
-      setRoiData([
-        { feature: '代码审查', cost: 120.5, timeSaved: 45, qualityScore: 85, roi: 3.2 },
-        { feature: '测试生成', cost: 89.3, timeSaved: 30, qualityScore: 78, roi: 2.8 },
-        { feature: '文档编写', cost: 45.2, timeSaved: 20, qualityScore: 72, roi: 2.1 },
-        { feature: 'Bug 诊断', cost: 67.8, timeSaved: 25, qualityScore: 90, roi: 3.5 },
-        { feature: '配置管理', cost: 34.1, timeSaved: 15, qualityScore: 68, roi: 1.8 },
-      ]);
-      setSuggestions([
-        {
-          id: 's1',
-          category: '模型选择',
-          description: '将简单任务从 GPT-4 切换到 GPT-3.5-turbo',
-          potentialSaving: 350,
-          priority: 'high',
-        },
-        {
-          id: 's2',
-          category: '缓存优化',
-          description: '启用响应缓存减少重复调用',
-          potentialSaving: 200,
-          priority: 'high',
-        },
-        {
-          id: 's3',
-          category: 'Token 优化',
-          description: '优化 prompt 减少不必要的上下文',
-          potentialSaving: 120,
-          priority: 'medium',
-        },
-      ]);
-      if (error instanceof Error) {
-        message.warning(`加载ROI数据失败，使用模拟数据：${error.message}`);
-      }
+      setRoiData([]);
+      setSuggestions([]);
+      message.error(`加载ROI数据失败: ${(error as Error).message}`);
     } finally {
       setLoading(false);
     }

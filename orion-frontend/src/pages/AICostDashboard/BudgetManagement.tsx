@@ -34,6 +34,7 @@ import {
   createBudget,
   updateBudget,
   restoreBudget,
+  deleteBudget,
   type Budget,
   type BudgetInput,
 } from '@/api/ai-cost';
@@ -74,48 +75,8 @@ const BudgetManagement: React.FC = () => {
       const res = await getBudgets();
       setBudgets(Array.isArray(res.data.data) ? res.data.data : []);
     } catch (error: unknown) {
-      // Demo mock data
-      setBudgets([
-        {
-          id: 'b1',
-          name: 'GPT-4 月度预算',
-          type: 'model',
-          scope: 'gpt-4',
-          period: 'monthly',
-          amount: 5000,
-          thresholds: { warning: 80, critical: 95 },
-          status: 'active',
-          createdAt: '2024-01-01',
-          updatedAt: '2024-01-15',
-        },
-        {
-          id: 'b2',
-          name: '租户 Alpha 预算',
-          type: 'tenant',
-          scope: 'tenant-alpha',
-          period: 'monthly',
-          amount: 2000,
-          thresholds: { warning: 75, critical: 90 },
-          status: 'active',
-          createdAt: '2024-01-05',
-          updatedAt: '2024-01-10',
-        },
-        {
-          id: 'b3',
-          name: '用户预算',
-          type: 'user',
-          scope: 'user-001',
-          period: 'monthly',
-          amount: 500,
-          thresholds: { warning: 80, critical: 95 },
-          status: 'exceeded',
-          createdAt: '2024-02-01',
-          updatedAt: '2024-02-20',
-        },
-      ]);
-      if (error instanceof Error) {
-        message.warning(`加载预算数据失败，使用模拟数据：${error.message}`);
-      }
+      setBudgets([]);
+      message.error(`加载预算数据失败: ${(error as Error).message}`);
     } finally {
       setLoading(false);
     }
@@ -199,6 +160,20 @@ const BudgetManagement: React.FC = () => {
         message.error(`预算重置失败：${error.message}`);
       } else {
         message.error('重置失败');
+      }
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteBudget(id);
+      message.success('预算已删除');
+      loadData();
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`预算删除失败：${error.message}`);
+      } else {
+        message.error('删除失败');
       }
     }
   };
@@ -299,7 +274,7 @@ const BudgetManagement: React.FC = () => {
               重置
             </Button>
           )}
-          <Popconfirm title="确认删除?" onConfirm={() => message.info('删除功能待后端支持')}>
+          <Popconfirm title="确认删除?" onConfirm={() => handleDelete(record.id)}>
             <Button type="link" size="small" danger icon={<DeleteOutlined />}>
               删除
             </Button>

@@ -53,25 +53,8 @@ const CostDetail: React.FC = () => {
       });
       setCosts(Array.isArray(res.data.data) ? res.data.data : []);
     } catch (error: unknown) {
-      // Mock data
-      const mockCosts: CostRecord[] = Array.from({ length: 20 }, (_, i) => ({
-        id: `cost-${i}`,
-        model: ['gpt-4', 'gpt-3.5-turbo', 'claude-3'][i % 3],
-        provider: ['openai', 'anthropic'][i % 2],
-        inputTokens: Math.floor(Math.random() * 10000 + 1000),
-        outputTokens: Math.floor(Math.random() * 5000 + 500),
-        totalCost: Math.random() * 50 + 1,
-        tenantId: `tenant-${['alpha', 'beta', 'gamma'][i % 3]}`,
-        projectId: `project-${(i % 5) + 1}`,
-        userId: `user-${String((i % 10) + 1).padStart(3, '0')}`,
-        timestamp: dayjs()
-          .subtract(i * 2, 'hour')
-          .toISOString(),
-      }));
-      setCosts(mockCosts);
-      if (error instanceof Error) {
-        message.warning(`加载成本数据失败，使用模拟数据：${error.message}`);
-      }
+      setCosts([]);
+      message.error(`加载成本数据失败: ${(error as Error).message}`);
     } finally {
       setLoading(false);
     }

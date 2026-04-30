@@ -22,8 +22,6 @@ import {
   type ModelPricing,
 } from '@/api/ai-cost';
 import { colors, spacing } from '@/tokens';
-import dayjs from 'dayjs';
-
 const { Title, Text } = Typography;
 
 const CostOverview: React.FC = () => {
@@ -38,40 +36,9 @@ const CostOverview: React.FC = () => {
       setDashboard(dashRes.data.data as DashboardData | null);
       setPricing(Array.isArray(pricingRes.data.data) ? pricingRes.data.data : []);
     } catch (error: unknown) {
-      // Set mock data for demo
-      setDashboard({
-        todayCost: 128.45,
-        totalTokens: 4523000,
-        totalRequests: 1247,
-        budgetUsage: 67.3,
-        dailyTrend: Array.from({ length: 7 }, (_, i) => ({
-          date: dayjs()
-            .subtract(6 - i, 'day')
-            .format('MM-DD'),
-          cost: Math.random() * 200 + 50,
-          tokens: Math.floor(Math.random() * 500000 + 100000),
-        })),
-        topTenants: [
-          { tenantId: 'tenant-alpha', cost: 342.1 },
-          { tenantId: 'tenant-beta', cost: 218.55 },
-          { tenantId: 'tenant-gamma', cost: 156.8 },
-        ],
-        topUsers: [
-          { userId: 'user-001', cost: 89.2 },
-          { userId: 'user-003', cost: 67.4 },
-          { userId: 'user-007', cost: 45.1 },
-        ],
-        modelDistribution: [
-          { model: 'gpt-4', cost: 420.0 },
-          { model: 'gpt-3.5-turbo', cost: 180.0 },
-          { model: 'claude-3', cost: 120.0 },
-        ],
-      });
-      if (error instanceof Error) {
-        message.warning(`加载成本数据失败，使用模拟数据：${error.message}`);
-      } else {
-        message.warning('加载成本数据失败，使用模拟数据');
-      }
+      setDashboard(null);
+      setPricing([]);
+      message.error(`加载成本数据失败: ${(error as Error).message}`);
     } finally {
       setLoading(false);
     }
