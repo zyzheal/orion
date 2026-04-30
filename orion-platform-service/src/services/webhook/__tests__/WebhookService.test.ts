@@ -5,6 +5,19 @@
 import { WebhookService, WebhookServiceError } from '../WebhookService';
 import { WebhookRepository, Webhook, WebhookDelivery } from '../WebhookRepository';
 
+// Mock global.fetch to prevent real HTTP calls in tests
+const mockFetch = jest.fn().mockResolvedValue({
+  ok: true,
+  status: 200,
+  statusText: 'OK',
+  text: jest.fn().mockResolvedValue('{}'),
+});
+global.fetch = mockFetch;
+
+beforeEach(() => {
+  mockFetch.mockClear();
+});
+
 // Mock repository
 function createMockRepo(): jest.Mocked<WebhookRepository> {
   return {

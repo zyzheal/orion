@@ -194,15 +194,30 @@ export class ConfigService {
   }
 
   async getConfigVersions(tenantIdOrId: string, key?: string): Promise<ConfigHistory[]> {
-    if (!this.repository) return [];
-    // If called with configId directly
     if (!key) {
-      return this.repository.getHistoryByConfigId(tenantIdOrId);
+      // Called with configId directly - check in-memory first
+      const inMemory = this.history.get(tenantIdOrId);
+      if (inMemory && inMemory.length > 0) return inMemory;
+      // Fall back to repository
+      if (this.repository) {
+        return this.repository.getHistoryByConfigId(tenantIdOrId);
+      }
+      return [];
     }
-    // If called with tenantId and key
+    // Called with tenantId and key
     const entry = await this.repository.findByKey(tenantIdOrId, key);
-    if (!entry) return [];
-    return this.repository.getHistoryByConfigId(entry.id);
+    if (!entry) {
+      // Check in-memory history as fallback
+      for (const [configId, records] of this.history) {
+        const match = records.find(r => (r as any).key === key);
+        if (match) return records;
+      }
+      return [];
+    }
+    // Check in-memory first
+    const inMemory = this.history.get(entry.id);
+    if (inMemory && inMemory.length > 0) return inMemory;
+    return this.repository.getHistory(entry.tenant_id, entry.key);
   }
 
   async rollbackConfig(configId: string, targetVersion: number, changedBy: string): Promise<ConfigItem> {
@@ -339,7 +354,7 @@ export class ConfigService {
         new_value: buildRecordValue(newValue),
         newValue: buildRecordValue(newValue),
         key: configKey,
-        value: buildRecordValue(newValue),
+        value: newValue,
         version: versionNum,
         changeLog,
         createdBy: changedBy,
