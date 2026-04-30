@@ -44,6 +44,10 @@ export async function restoreBackup(id: string) {
   return api.post<void>(`/v1/backup/${id}/restore`);
 }
 
+export async function getBackupDownloadUrl(id: string) {
+  return api.post<{ url: string }>(`/v1/backups/${id}/download`);
+}
+
 export async function deleteBackup(id: string) {
   return api.delete<void>(`/v1/backup/${id}`);
 }

@@ -49,6 +49,7 @@ import {
   createBackup,
   restoreBackup,
   deleteBackup,
+  getBackupDownloadUrl,
   type BackupRecord as APIBackupRecord,
   type BackupStats as APIBackupStats,
 } from '@/api/backup';
@@ -127,7 +128,16 @@ function mapApiBackup(b: APIBackupRecord): BackupRecord {
     name: b.name,
     type: b.type,
     size: b.size,
-    status: b.status === 'completed' ? 'success' : b.status === 'in_progress' ? 'running' : b.status === 'scheduled' ? 'pending' : b.status === 'failed' ? 'failed' : 'restored',
+    status:
+      b.status === 'completed'
+        ? 'success'
+        : b.status === 'in_progress'
+          ? 'running'
+          : b.status === 'scheduled'
+            ? 'pending'
+            : b.status === 'failed'
+              ? 'failed'
+              : 'restored',
     createdAt: b.createdAt,
     completedAt: b.completedAt,
     duration: 0,
@@ -275,9 +285,18 @@ const BackupManagement: React.FC = () => {
     }
   };
 
-  const handleDownload = (record: BackupRecord) => {
-    // TODO: Replace with actual download URL generation
-    message.info(`下载链接已生成: ${record.name}`);
+  const handleDownload = async (record: BackupRecord) => {
+    try {
+      const res = await getBackupDownloadUrl(record.id);
+      const url = res.data?.data?.url;
+      if (url) {
+        window.open(url, '_blank');
+      } else {
+        message.warning('未获取到下载链接');
+      }
+    } catch (error: unknown) {
+      message.error(`下载失败: ${(error as Error).message}`);
+    }
   };
 
   const openRestore = (record: BackupRecord) => {

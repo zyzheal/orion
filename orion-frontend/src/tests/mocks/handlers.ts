@@ -765,4 +765,59 @@ export const handlers = [
       ],
     });
   }),
+
+  // Backup API
+  http.get('/api/v1/backup', () => {
+    return HttpResponse.json({
+      code: 0,
+      message: 'success',
+      data: {
+        backups: [
+          {
+            id: 'bak-001',
+            name: 'test-backup',
+            type: 'full',
+            status: 'completed',
+            size: 1048576,
+            createdAt: '2026-04-12T15:00:00Z',
+            completedAt: '2026-04-12T15:05:00Z',
+          },
+        ],
+      },
+    });
+  }),
+
+  http.get('/api/v1/backup/stats', () => {
+    return HttpResponse.json({
+      code: 0,
+      message: 'success',
+      data: {
+        stats: { total: 1, successful: 1, failed: 0 },
+      },
+    });
+  }),
+
+  http.post('/api/v1/backup', () => {
+    return HttpResponse.json({
+      code: 0,
+      message: 'success',
+      data: { backup: { id: 'bak-new', name: 'new-backup', type: 'full', status: 'completed', size: 0, createdAt: new Date().toISOString() } },
+    });
+  }),
+
+  http.post('/api/v1/backup/:id/restore', () => {
+    return HttpResponse.json({ code: 0, message: 'success', data: null });
+  }),
+
+  http.delete('/api/v1/backup/:id', () => {
+    return HttpResponse.json({ code: 0, message: 'success', data: null });
+  }),
+
+  http.post('/api/v1/backups/:id/download', () => {
+    return HttpResponse.json({
+      code: 0,
+      message: 'success',
+      data: { url: 'https://example.com/download/test-backup' },
+    });
+  }),
 ];
