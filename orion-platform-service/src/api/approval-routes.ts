@@ -8,6 +8,20 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { DatabasePool } from '../services/database';
 import { ApprovalService } from '../services/approval/ApprovalService';
+import { z } from 'zod';
+
+const createApprovalSchema = z.object({
+  title: z.string().min(1, 'Title is required'),
+  description: z.string().optional(),
+  requesterId: z.string().min(1, 'Requester ID is required'),
+  approverIds: z.array(z.string()).min(1, 'At least one approver is required'),
+  requiredApprovals: z.number().min(1).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+});
+
+const approveRejectSchema = z.object({
+  userId: z.string().min(1, 'User ID is required'),
+});
 
 interface ApprovalRoutesOptions {
   database: DatabasePool;
@@ -18,7 +32,14 @@ export default async function approvalRoutes(app: FastifyInstance, options: Appr
 
   // POST / - Create approval
   app.post('/', async (request: FastifyRequest, reply: FastifyReply) => {
-    const { title, description, requesterId, approverIds, requiredApprovals, metadata } = request.body as any;
+    const parseResult = createApprovalSchema.safeParse(request.body);
+    if (!parseResult.success) {
+      return reply.status(400).send({
+        error: 'VALIDATION_ERROR',
+        details: parseResult.error.issues,
+      });
+    }
+    const { title, description, requesterId, approverIds, requiredApprovals, metadata } = parseResult.data;
     const req = await approvalService.createApproval(title, requesterId, approverIds, requiredApprovals || 1, description, metadata);
     return reply.send(req);
   });
@@ -40,7 +61,11 @@ export default async function approvalRoutes(app: FastifyInstance, options: Appr
   // POST /:id/approve - Approve
   app.post('/:id/approve', async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = request.params as { id: string };
-    const { userId } = request.body as any;
+    const parseResult = approveRejectSchema.safeParse(request.body);
+    if (!parseResult.success) {
+      return reply.status(400).send({ error: 'VALIDATION_ERROR', details: parseResult.error.issues });
+    }
+    const { userId } = parseResult.data;
     try {
       const result = await approvalService.approve(id, userId);
       return reply.send(result);
@@ -52,7 +77,11 @@ export default async function approvalRoutes(app: FastifyInstance, options: Appr
   // POST /:id/reject - Reject
   app.post('/:id/reject', async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = request.params as { id: string };
-    const { userId } = request.body as any;
+    const parseResult = approveRejectSchema.safeParse(request.body);
+    if (!parseResult.success) {
+      return reply.status(400).send({ error: 'VALIDATION_ERROR', details: parseResult.error.issues });
+    }
+    const { userId } = parseResult.data;
     try {
       const result = await approvalService.reject(id, userId);
       return reply.send(result);

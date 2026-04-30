@@ -101,7 +101,6 @@ export class EventBusService extends EventEmitter {
     publishFailed: 0,
     subscribeSuccess: 0,
     subscribeFailed: 0,
-    mockCalls: 0,
   };
 
   constructor(config: EventBusServiceConfig, repos?: EventBusRepositories) {
@@ -161,7 +160,6 @@ export class EventBusService extends EventEmitter {
       publishFailed: 0,
       subscribeSuccess: 0,
       subscribeFailed: 0,
-      mockCalls: 0,
     };
   }
 
