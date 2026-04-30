@@ -808,6 +808,27 @@ export const routes: AppRoute[] = [
     element: React.lazy(() => import('@/pages/TestSelector')),
     protected: true,
   },
+  // Cron Management
+  {
+    path: '/console/cron',
+    element: React.lazy(() => import('@/pages/CronManagement')),
+    protected: true,
+    requiredRole: ['admin', 'platform_admin'],
+  },
+  // Webhook Management
+  {
+    path: '/console/webhooks',
+    element: React.lazy(() => import('@/pages/WebhookManagement')),
+    protected: true,
+    requiredRole: ['admin', 'platform_admin'],
+  },
+  // API Key Management
+  {
+    path: '/console/api-keys',
+    element: React.lazy(() => import('@/pages/ApiKeyManagement')),
+    protected: true,
+    requiredRole: ['admin', 'platform_admin'],
+  },
   // 404 页面
   // Backup Management (P1)
   {
