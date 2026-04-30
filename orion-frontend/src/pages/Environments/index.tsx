@@ -14,7 +14,6 @@ import {
   Input,
   Select,
   message,
-  Alert,
   Popconfirm,
   Drawer,
   Tooltip,
@@ -83,83 +82,6 @@ const statusLabelMap: Record<EnvironmentStatus, string> = {
   deprecated: '已废弃',
 };
 
-// ---- Mock data ----
-
-const MOCK_ENVIRONMENTS: Environment[] = [
-  {
-    id: 'env-1',
-    project_id: 'proj-1',
-    name: 'dev-default',
-    type: 'dev',
-    cluster: 'k8s-dev-01',
-    namespace: 'default',
-    status: 'active',
-    config: { replicas: 1, resources: { cpu: '100m', memory: '256Mi' } },
-    created_at: '2024-01-15T08:00:00Z',
-    updated_at: '2024-03-20T10:00:00Z',
-  },
-  {
-    id: 'env-2',
-    project_id: 'proj-1',
-    name: 'staging',
-    type: 'staging',
-    cluster: 'k8s-staging-01',
-    namespace: 'staging',
-    status: 'active',
-    config: { replicas: 2, resources: { cpu: '500m', memory: '1Gi' } },
-    created_at: '2024-01-15T08:00:00Z',
-    updated_at: '2024-03-18T14:00:00Z',
-  },
-  {
-    id: 'env-3',
-    project_id: 'proj-1',
-    name: 'production',
-    type: 'prod',
-    cluster: 'k8s-prod-01',
-    namespace: 'production',
-    status: 'active',
-    config: { replicas: 3, resources: { cpu: '1', memory: '2Gi' }, autoscaling: true },
-    created_at: '2024-01-15T08:00:00Z',
-    updated_at: '2024-03-20T12:00:00Z',
-  },
-  {
-    id: 'env-4',
-    project_id: 'proj-2',
-    name: 'testing-env',
-    type: 'testing',
-    cluster: 'k8s-test-01',
-    namespace: 'test',
-    status: 'active',
-    config: { replicas: 1, resources: { cpu: '200m', memory: '512Mi' } },
-    created_at: '2024-02-01T08:00:00Z',
-    updated_at: '2024-03-10T10:00:00Z',
-  },
-  {
-    id: 'env-5',
-    project_id: 'proj-2',
-    name: 'pre-prod',
-    type: 'pre-prod',
-    cluster: 'k8s-preprod-01',
-    namespace: 'preprod',
-    status: 'maintenance',
-    config: { replicas: 2, resources: { cpu: '500m', memory: '1Gi' } },
-    created_at: '2024-02-15T08:00:00Z',
-    updated_at: '2024-03-19T09:00:00Z',
-  },
-  {
-    id: 'env-6',
-    project_id: 'proj-3',
-    name: 'legacy-prod',
-    type: 'production',
-    cluster: 'k8s-legacy-01',
-    namespace: 'legacy',
-    status: 'deprecated',
-    config: { replicas: 1 },
-    created_at: '2023-06-01T08:00:00Z',
-    updated_at: '2024-01-10T08:00:00Z',
-  },
-];
-
 // ---- Main Component ----
 
 const EnvironmentManagement: React.FC = () => {
@@ -175,7 +97,6 @@ const EnvironmentManagement: React.FC = () => {
   const [createForm] = Form.useForm();
   const [editForm] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
-  const [usingMockData, setUsingMockData] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -183,13 +104,8 @@ const EnvironmentManagement: React.FC = () => {
       const res = await getEnvironments();
       setEnvironments(Array.isArray(res.data?.data) ? res.data.data : []);
     } catch (error: unknown) {
-      setUsingMockData(true);
-      setEnvironments(MOCK_ENVIRONMENTS);
-      if (error instanceof Error) {
-        message.error(`加载环境列表失败：${error.message}`);
-      } else {
-        message.error('加载环境列表失败，请稍后重试');
-      }
+      setEnvironments([]);
+      message.error(`加载环境列表失败: ${(error as Error).message}`);
     } finally {
       setLoading(false);
     }
@@ -533,19 +449,6 @@ const EnvironmentManagement: React.FC = () => {
           </Button>
         </Space>
       </div>
-
-      {/* Mock data warning banner */}
-      {usingMockData && (
-        <Alert
-          message="使用模拟数据"
-          description="后端服务暂时不可用，当前显示的是模拟数据，可能不是最新状态。"
-          type="warning"
-          showIcon
-          closable
-          style={{ marginBottom: 16 }}
-          onClose={() => setUsingMockData(false)}
-        />
-      )}
 
       {/* Environment List */}
       <Card>
