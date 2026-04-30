@@ -227,3 +227,124 @@ jobs:
             exit 1
           fi
           echo "All migration files valid."
+
+  # ==================== Orion DB Client Tests ====================
+
+  orion-db-test:
+    name: Orion DB Client Tests
+    runs-on: ubuntu-latest
+    if: ${{ !cancelled() }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies
+        run: npm install
+        working-directory: orion-db
+
+      - name: Check syntax
+        run: node --check src/index.js
+        working-directory: orion-db
+
+  # ==================== Orion DBA Frontend Build ====================
+
+  orion-dba-frontend-build:
+    name: Orion DBA Frontend Build
+    runs-on: ubuntu-latest
+    if: ${{ !cancelled() }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'  # DBA frontend requires Node 14+
+
+      - name: Install dependencies
+        run: npm install
+        working-directory: orion-dba/frontend
+
+      - name: Build (with type check)
+        run: npm run build
+        working-directory: orion-dba/frontend
+
+  # ==================== Orion Knowledge Backend (Go) ====================
+
+  orion-knowledge-backend-build:
+    name: Orion Knowledge Backend Build
+    runs-on: ubuntu-latest
+    if: ${{ !cancelled() }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Download dependencies
+        run: go mod download
+        working-directory: orion-knowledge/backend
+
+      - name: Build
+        run: go build ./...
+        working-directory: orion-knowledge/backend
+
+      - name: Vet
+        run: go vet ./...
+        working-directory: orion-knowledge/backend
+
+  # ==================== Orion Knowledge Web (pnpm) ====================
+
+  orion-knowledge-web-build:
+    name: Orion Knowledge Web Build
+    runs-on: ubuntu-latest
+    if: ${{ !cancelled() }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.12.1
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: orion-knowledge/web
+
+      - name: Build
+        run: pnpm build
+        working-directory: orion-knowledge/web
+
+  # ==================== Orion Visor (Java/Maven) ====================
+
+  orion-visor-build:
+    name: Orion Visor Build
+    runs-on: ubuntu-latest
+    if: ${{ !cancelled() }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '8'
+          cache: 'maven'
+
+      - name: Build with Maven
+        run: mvn compile -DskipTests -B
+        working-directory: orion-visor
+
+      - name: Run tests
+        run: mvn test -B
+        working-directory: orion-visor
