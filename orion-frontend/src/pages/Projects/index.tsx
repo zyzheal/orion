@@ -13,7 +13,6 @@ import {
   Form,
   Input,
   message,
-  Alert,
   Popconfirm,
   Drawer,
   Tooltip,
@@ -78,138 +77,6 @@ const resourceTypeLabelMap: Record<string, string> = {
   secret: '密钥',
 };
 
-// ---- Mock data ----
-
-const MOCK_PROJECTS: Project[] = [
-  {
-    id: 'proj-1',
-    tenantId: 'tenant-1',
-    name: 'orion-platform',
-    slug: 'orion-platform',
-    description: 'Orion 核心平台项目，包含所有微服务组件',
-    status: 'active',
-    teamLead: '张伟',
-    teamMembers: ['张伟', '李娜', '王磊', '赵敏'],
-    productLineId: 'pl-1',
-    environments: ['dev', 'staging', 'production'],
-    createdAt: '2024-01-15T08:00:00Z',
-    updatedAt: '2024-04-20T10:00:00Z',
-  },
-  {
-    id: 'proj-2',
-    tenantId: 'tenant-1',
-    name: 'orion-ai-service',
-    slug: 'orion-ai-service',
-    description: 'AI 算法引擎与智能分析服务',
-    status: 'active',
-    teamLead: '陈思',
-    teamMembers: ['陈思', '刘洋'],
-    productLineId: 'pl-1',
-    environments: ['dev', 'staging'],
-    createdAt: '2024-02-01T08:00:00Z',
-    updatedAt: '2024-04-18T14:00:00Z',
-  },
-  {
-    id: 'proj-3',
-    tenantId: 'tenant-1',
-    name: 'frontend-app',
-    slug: 'frontend-app',
-    description: '前端微应用与组件库',
-    status: 'active',
-    teamLead: '孙艺',
-    teamMembers: ['孙艺', '周涛', '吴欣'],
-    productLineId: 'pl-2',
-    environments: ['dev', 'staging', 'production'],
-    createdAt: '2024-03-01T08:00:00Z',
-    updatedAt: '2024-04-15T09:00:00Z',
-  },
-  {
-    id: 'proj-4',
-    tenantId: 'tenant-1',
-    name: 'data-pipeline',
-    slug: 'data-pipeline',
-    description: '数据处理管道与 ETL 服务',
-    status: 'suspended',
-    teamLead: '马超',
-    teamMembers: ['马超', '郑丽'],
-    productLineId: 'pl-2',
-    environments: ['dev'],
-    createdAt: '2024-03-15T08:00:00Z',
-    updatedAt: '2024-04-10T11:00:00Z',
-  },
-  {
-    id: 'proj-5',
-    tenantId: 'tenant-1',
-    name: 'legacy-migration',
-    slug: 'legacy-migration',
-    description: '旧系统迁移项目（已归档）',
-    status: 'archived',
-    teamLead: '黄强',
-    teamMembers: ['黄强'],
-    productLineId: 'pl-3',
-    environments: ['production'],
-    createdAt: '2023-06-01T08:00:00Z',
-    updatedAt: '2024-01-10T08:00:00Z',
-  },
-];
-
-const MOCK_RESOURCES: ProjectResource[] = [
-  {
-    id: 'r1',
-    projectId: 'proj-1',
-    type: 'repository',
-    name: 'orion-platform-service',
-    externalId: 'repo-101',
-    status: 'active',
-    createdAt: '2024-01-15T08:00:00Z',
-  },
-  {
-    id: 'r2',
-    projectId: 'proj-1',
-    type: 'pipeline',
-    name: 'platform-ci',
-    externalId: 'pipe-201',
-    status: 'active',
-    createdAt: '2024-01-16T08:00:00Z',
-  },
-  {
-    id: 'r3',
-    projectId: 'proj-1',
-    type: 'deployment',
-    name: 'platform-deploy-prod',
-    externalId: 'dep-301',
-    status: 'active',
-    createdAt: '2024-01-17T08:00:00Z',
-  },
-  {
-    id: 'r4',
-    projectId: 'proj-1',
-    type: 'monitoring',
-    name: 'platform-prometheus',
-    externalId: 'mon-401',
-    status: 'active',
-    createdAt: '2024-01-18T08:00:00Z',
-  },
-  {
-    id: 'r5',
-    projectId: 'proj-2',
-    type: 'repository',
-    name: 'orion-ai-service',
-    externalId: 'repo-102',
-    status: 'active',
-    createdAt: '2024-02-01T08:00:00Z',
-  },
-  {
-    id: 'r6',
-    projectId: 'proj-2',
-    type: 'pipeline',
-    name: 'ai-ci',
-    externalId: 'pipe-202',
-    status: 'active',
-    createdAt: '2024-02-02T08:00:00Z',
-  },
-];
-
 // ---- Main Component ----
 
 const ProjectManagement: React.FC = () => {
@@ -226,7 +93,6 @@ const ProjectManagement: React.FC = () => {
   const [createForm] = Form.useForm();
   const [editForm] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
-  const [usingMockData, setUsingMockData] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -238,17 +104,11 @@ const ProjectManagement: React.FC = () => {
       } else if (Array.isArray(data?.data)) {
         setProjects(data.data);
       } else {
-        setUsingMockData(true);
-        setProjects(MOCK_PROJECTS);
+        setProjects([]);
       }
     } catch (error: unknown) {
-      setUsingMockData(true);
-      setProjects(MOCK_PROJECTS);
-      if (error instanceof Error) {
-        message.error(`加载项目数据失败：${error.message}`);
-      } else {
-        message.error('加载项目数据失败，请稍后重试');
-      }
+      setProjects([]);
+      message.error(`加载项目数据失败: ${(error as Error).message}`);
     } finally {
       setLoading(false);
     }
@@ -389,8 +249,7 @@ const ProjectManagement: React.FC = () => {
       const res = await getProjectResources(projectId);
       setProjectResources(Array.isArray(res.data?.data) ? res.data.data : []);
     } catch (error: unknown) {
-      setUsingMockData(true);
-      setProjectResources(MOCK_RESOURCES.filter((r) => r.projectId === projectId));
+      setProjectResources([]);
     }
   };
 
@@ -616,19 +475,6 @@ const ProjectManagement: React.FC = () => {
               </Button>
             </Space>
           </div>
-
-          {/* Mock data warning banner */}
-          {usingMockData && (
-            <Alert
-              message="使用模拟数据"
-              description="后端服务暂时不可用，当前显示的是模拟数据，可能不是最新状态。"
-              type="warning"
-              showIcon
-              closable
-              style={{ marginBottom: 16 }}
-              onClose={() => setUsingMockData(false)}
-            />
-          )}
 
           {/* Project List */}
           <Card>
