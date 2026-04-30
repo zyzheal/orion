@@ -1,4 +1,4 @@
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { server } from '@/tests/mocks/server';
 import ProjectsPage from '../index';
@@ -35,10 +35,10 @@ describe('Projects Page', { timeout: 15000 }, () => {
       })
     );
 
-    render(<ProjectsPage />);
+    const { queryByText } = render(<ProjectsPage />);
 
     await waitFor(() => {
-      expect(screen.queryByText('项目管理')).toBeInTheDocument();
+      expect(queryByText('项目管理')).toBeInTheDocument();
     });
   });
 
@@ -52,10 +52,10 @@ describe('Projects Page', { timeout: 15000 }, () => {
       })
     );
 
-    render(<ProjectsPage />);
+    const { queryByText } = render(<ProjectsPage />);
 
     await waitFor(() => {
-      expect(screen.queryByText('项目管理')).toBeInTheDocument();
+      expect(queryByText('项目管理')).toBeInTheDocument();
     });
   });
 });
