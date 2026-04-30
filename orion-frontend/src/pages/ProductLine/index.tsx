@@ -14,7 +14,6 @@ import {
   Input,
   Select,
   message,
-  Alert,
   Popconfirm,
   Tabs,
   Table as AntTable,
@@ -106,177 +105,6 @@ const gitProviderOptions = [
   { label: 'GitLab', value: 'gitlab' },
   { label: 'Gitea', value: 'gitea' },
   { label: 'Azure DevOps', value: 'azure-devops' },
-];
-
-// ---- Mock data for fallback ----
-
-const MOCK_PRODUCT_LINES: ProductLine[] = [
-  {
-    id: 'pl-1',
-    name: 'core-platform',
-    displayName: '核心平台',
-    description: 'Orion 核心平台产品线',
-    gitRepo: {
-      url: 'https://github.com/orion/core-platform',
-      provider: 'github',
-      defaultBranch: 'main',
-    },
-    branchPolicies: {
-      mode: 'gitflow',
-      protectedBranches: [
-        { pattern: 'main', patternType: 'exact', requirePullRequest: true, requiredReviewers: 2 },
-      ],
-    },
-    environmentMappings: {
-      defaultEnvironment: 'dev',
-      mappings: [
-        { branch: 'main', patternType: 'exact', environment: 'prod', requireApproval: true },
-        { branch: 'release/*', patternType: 'glob', environment: 'staging', requireApproval: true },
-        { branch: 'develop', patternType: 'exact', environment: 'test', requireApproval: false },
-        { branch: 'feature/*', patternType: 'glob', environment: 'dev', requireApproval: false },
-      ],
-    },
-    status: {
-      phase: 'Active',
-      statistics: {
-        totalPipelines: 156,
-        activePipelines: 12,
-        successfulPipelines: 140,
-        failedPipelines: 16,
-        totalDeployments: 89,
-      },
-      gitStatus: {
-        lastSyncTime: '2024-03-20T10:00:00Z',
-        lastCommit: {
-          sha: 'abc1234',
-          message: 'fix: update config',
-          author: 'heal',
-          time: '2024-03-20T09:55:00Z',
-        },
-        branches: [{ name: 'main', lastCommit: 'abc1234', protected: true }],
-      },
-    },
-    createdAt: '2024-01-15T08:00:00Z',
-    updatedAt: '2024-03-20T10:00:00Z',
-    tenantId: 't1',
-  },
-  {
-    id: 'pl-2',
-    name: 'ai-service',
-    displayName: 'AI 服务',
-    description: 'AI 算法引擎产品线',
-    gitRepo: {
-      url: 'https://github.com/orion/ai-service',
-      provider: 'github',
-      defaultBranch: 'main',
-    },
-    branchPolicies: {
-      mode: 'github-flow',
-      protectedBranches: [
-        { pattern: 'main', patternType: 'exact', requirePullRequest: true, requiredReviewers: 1 },
-      ],
-    },
-    environmentMappings: {
-      defaultEnvironment: 'dev',
-      mappings: [
-        { branch: 'main', patternType: 'exact', environment: 'prod', requireApproval: true },
-        { branch: 'develop', patternType: 'exact', environment: 'test', requireApproval: false },
-      ],
-    },
-    status: {
-      phase: 'Active',
-      statistics: {
-        totalPipelines: 89,
-        activePipelines: 5,
-        successfulPipelines: 80,
-        failedPipelines: 9,
-        totalDeployments: 45,
-      },
-      gitStatus: { lastSyncTime: '2024-03-19T14:00:00Z', branches: [] },
-    },
-    createdAt: '2024-02-01T08:00:00Z',
-    updatedAt: '2024-03-19T14:00:00Z',
-    tenantId: 't1',
-  },
-  {
-    id: 'pl-3',
-    name: 'frontend-app',
-    displayName: '前端应用',
-    description: '前端微应用产品线',
-    gitRepo: {
-      url: 'https://github.com/orion/frontend-app',
-      provider: 'gitlab',
-      defaultBranch: 'main',
-    },
-    branchPolicies: { mode: 'trunk-based', protectedBranches: [] },
-    environmentMappings: {
-      defaultEnvironment: 'dev',
-      mappings: [
-        { branch: 'main', patternType: 'exact', environment: 'prod', requireApproval: true },
-        { branch: 'develop', patternType: 'exact', environment: 'test', requireApproval: false },
-      ],
-    },
-    status: {
-      phase: 'Pending',
-      statistics: {
-        totalPipelines: 0,
-        activePipelines: 0,
-        successfulPipelines: 0,
-        failedPipelines: 0,
-        totalDeployments: 0,
-      },
-    },
-    createdAt: '2024-03-10T08:00:00Z',
-    updatedAt: '2024-03-10T08:00:00Z',
-    tenantId: 't1',
-  },
-];
-
-const MOCK_RELEASE_TRAINS: ReleaseTrain[] = [
-  {
-    id: 'rt-1',
-    productLineId: 'pl-1',
-    name: 'Weekly Release',
-    schedule: '0 10 * * 4',
-    targetBranch: 'main',
-    sourceBranch: 'develop',
-    autoPromote: false,
-    approvalRequired: true,
-    approvers: ['tech-lead', 'qa-lead'],
-    preChecks: [
-      { name: 'Unit Tests', type: 'test', required: true },
-      { name: 'Security Scan', type: 'security', required: true },
-    ],
-    postActions: [{ name: 'Notify Slack', type: 'notify', config: { channel: '#releases' } }],
-    status: {
-      state: 'Idle',
-      lastRun: '2024-03-14T10:00:00Z',
-      nextRun: '2024-03-21T10:00:00Z',
-      lastRelease: 'v2.5.0',
-    },
-    createdAt: '2024-01-20T08:00:00Z',
-    updatedAt: '2024-03-14T10:05:00Z',
-  },
-];
-
-const MOCK_HOTFIX_CHANNELS: HotfixChannel[] = [
-  {
-    id: 'hc-1',
-    productLineId: 'pl-1',
-    name: 'Production Hotfix',
-    enabled: true,
-    branchPattern: '^hotfix/.*$',
-    skipStages: ['perf-test'],
-    requiredStages: ['unit-test', 'security-scan'],
-    approvalRequired: true,
-    approvalTimeout: 30,
-    autoMerge: false,
-    notifyOnCall: true,
-    maxDuration: 60,
-    status: { activeHotfixes: 1, lastHotfix: 'hotfix/CVE-2024-001' },
-    createdAt: '2024-01-20T08:00:00Z',
-    updatedAt: '2024-03-18T14:00:00Z',
-  },
 ];
 
 // ---- Branch Resolver Tool ----
@@ -425,7 +253,6 @@ const ProductLineManagement: React.FC = () => {
   const [rtForm] = Form.useForm();
   const [hfForm] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
-  const [usingMockData, setUsingMockData] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -433,13 +260,8 @@ const ProductLineManagement: React.FC = () => {
       const res = await getProductLines();
       setProductLines(Array.isArray(res.data?.data) ? res.data.data : []);
     } catch (error: unknown) {
-      setUsingMockData(true);
-      setProductLines(MOCK_PRODUCT_LINES);
-      if (error instanceof Error) {
-        message.error(`加载产品线数据失败：${error.message}`);
-      } else {
-        message.error('加载产品线数据失败，请稍后重试');
-      }
+      setProductLines([]);
+      message.error(`加载产品线数据失败: ${(error as Error).message}`);
     } finally {
       setLoading(false);
     }
@@ -620,21 +442,16 @@ const ProductLineManagement: React.FC = () => {
   const openDetail = async (pl: ProductLine) => {
     setSelectedPL(pl);
     setDetailDrawerVisible(true);
-    // Load release trains and hotfix channels
     try {
       const [rtRes, hfRes] = await Promise.all([
-        getReleaseTrains(pl.id).catch(() => null),
-        getHotfixChannels(pl.id).catch(() => null),
+        getReleaseTrains(pl.id),
+        getHotfixChannels(pl.id),
       ]);
-      setReleaseTrains(
-        rtRes?.data?.data || MOCK_RELEASE_TRAINS.filter((r) => r.productLineId === pl.id)
-      );
-      setHotfixChannels(
-        hfRes?.data?.data || MOCK_HOTFIX_CHANNELS.filter((h) => h.productLineId === pl.id)
-      );
+      setReleaseTrains(rtRes?.data?.data || []);
+      setHotfixChannels(hfRes?.data?.data || []);
     } catch (error: unknown) {
-      setReleaseTrains(MOCK_RELEASE_TRAINS.filter((r) => r.productLineId === pl.id));
-      setHotfixChannels(MOCK_HOTFIX_CHANNELS.filter((h) => h.productLineId === pl.id));
+      setReleaseTrains([]);
+      setHotfixChannels([]);
     }
   };
 
@@ -1118,19 +935,6 @@ const ProductLineManagement: React.FC = () => {
               </Button>
             </Space>
           </div>
-
-          {/* Mock data warning banner */}
-          {usingMockData && (
-            <Alert
-              message="使用模拟数据"
-              description="后端服务暂时不可用，当前显示的是模拟数据，可能不是最新状态。"
-              type="warning"
-              showIcon
-              closable
-              style={{ marginBottom: 16 }}
-              onClose={() => setUsingMockData(false)}
-            />
-          )}
 
           {/* Branch Resolver Tool */}
           <BranchResolver productLines={productLines} />
