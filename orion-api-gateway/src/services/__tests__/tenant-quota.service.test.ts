@@ -174,17 +174,27 @@ describe('TenantQuotaService', () => {
   });
 
   describe('incrementApiCalls / getCurrentQps', () => {
-    it('应该增加 API 调用计数', async () => {
-      mockRedis.incr.mockResolvedValue(50);
+    it('应该增加 API 调用计数并设置过期时间（首次调用）', async () => {
+      mockRedis.incr.mockResolvedValue(1); // 首次调用返回 1
 
       const result = await service.incrementApiCalls('t001');
 
-      expect(result).toBe(50);
+      expect(result).toBe(1);
       expect(mockRedis.incr).toHaveBeenCalled();
       expect(mockRedis.expire).toHaveBeenCalledWith(
         expect.stringContaining('api:qps'),
         1
       );
+    });
+
+    it('应该增加 API 调用计数（非首次调用不设置过期）', async () => {
+      mockRedis.incr.mockResolvedValue(50); // 非首次调用
+
+      const result = await service.incrementApiCalls('t001');
+
+      expect(result).toBe(50);
+      expect(mockRedis.incr).toHaveBeenCalled();
+      expect(mockRedis.expire).not.toHaveBeenCalled();
     });
 
     it('应该获取当前 QPS', async () => {
@@ -348,7 +358,7 @@ describe('TenantQuotaService', () => {
         tenantId: 't001',
         cpuUsed: 0,
         memoryUsed: 0,
-        runnersActive: 9, // 9/10 = 90%
+        runnersActive: 2, // 2/2 = 100% (free tier concurrentRunners is 2)
         queueDepth: 0,
         tokenUsed: 0,
         apiCalls: 0,
@@ -360,7 +370,7 @@ describe('TenantQuotaService', () => {
 
       expect(result).toHaveLength(1);
       expect(result[0].quotaType).toBe('concurrentRunners');
-      expect(result[0].usagePercent).toBe(90);
+      expect(result[0].usagePercent).toBe(100);
     });
 
     it('当使用率低于 85% 时不生成预警', async () => {

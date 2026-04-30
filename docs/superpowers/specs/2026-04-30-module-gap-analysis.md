@@ -32,15 +32,17 @@
 
 ### 2.2 构建服务 (`build/`)
 
-| # | 缺失功能 | 严重性 | 详细说明 | 文件位置 |
-|---|---------|--------|---------|---------|
-| 1 | Build 执行未接入 Docker/K8s | P0 | `executeBuild()` 使用 `setTimeout(500)` 模拟构建，无真实 Docker build | `BuildService.ts` |
-| 2 | 制品上传/下载未接入对象存储 | P0 | `ArtifactService` 全部操作使用内存 Map，无 S3/Harbor 集成 | `BuildService.ts`, `ArtifactService.ts` |
-| 3 | 构建日志未接入 Elasticsearch/Loki | P1 | `BuildLogService` 使用内存存储，无持久化日志查询 | `BuildLogService.ts` |
-| 4 | K8s Build Executor 使用 mock 客户端 | P1 | `K8sBuildExecutor` 初始化传入 mock K8s client | `K8sBuildExecutor.ts` |
-| 5 | Buildx 不可用时直接报错 | P2 | `createBuilder()` 在 buildx 不存在时抛错，无降级策略 | `BuildxBuilderService.ts` |
-| 6 | 缺少构建队列/限流机制 | P1 | 无并发构建限制，无构建排队系统 | — |
-| 7 | 缺少 Build 模块完整测试覆盖 | P2 | 部分子服务有测试，但 BuildService 主服务无测试 | — |
+> 评审日期：2026-04-30
+
+| # | 缺失功能 | 严重性 | 详细说明 | 文件位置 | 评审结果 |
+|---|---------|--------|---------|---------|---------|
+| 1 | Build 执行未接入 Docker/K8s | P0 | `executeBuild()` 使用 `setTimeout(500)` 模拟构建，无真实 Docker build | `BuildService.ts:219` | ✅ 保留 — L219 确认 setTimeout 模拟 |
+| 2 | 制品上传/下载未接入对象存储 | P0 | `ArtifactService` 全部操作使用内存 Map，无 S3/Harbor 集成 | `ArtifactService.ts:116` | ✅ 保留 — L116 `private artifacts: Map` |
+| 3 | 构建日志未接入 Elasticsearch/Loki | P1 | `BuildLogService` 使用内存存储，无持久化日志查询 | `BuildLogService.ts:38` | ✅ 保留 — L38 `private logs: Map` |
+| 4 | K8s Build Executor 使用 mock 客户端 | P1 | `K8sBuildExecutor` 初始化传入 mock K8s client | `K8sBuildExecutor.ts:229` | ✅ 保留 — L229 `new MockK8sClient()` |
+| 5 | Buildx 不可用时直接报错 | ~~P2~~ → P3 | `createBuilder()` 在 buildx 不存在时抛错，无降级策略 | `BuildxBuilderService.ts:319-324` | ⬇️ 降级为 P3 — buildx 是强依赖，抛错是合理行为 |
+| 6 | 缺少构建队列/限流机制 | P1 | 无并发构建限制，无构建排队系统 | — | ✅ 保留 — 全局无信号量/队列控制 |
+| 7 | 缺少 Build 模块完整测试覆盖 | P2 | 子服务有 4 个测试文件，但 `BuildService` 主服务无测试 | — | ✅ 保留 — 缺 `BuildService.test.ts` |
 
 ### 2.3 部署服务 (`deploy/`)
 
@@ -56,26 +58,30 @@
 
 ### 2.4 配置管理 (`config-mgmt/`)
 
-| # | 缺失功能 | 严重性 | 详细说明 | 文件位置 |
-|---|---------|--------|---------|---------|
-| 1 | Git 客户端为 Mock 实现 | P1 | `GitOpsService` 使用 `MockGitClient`，无真实 Git clone/pull | `GitOpsService.ts` |
-| 2 | YAML 解析器过于简陋 | P2 | `parseYamlConfig()` 使用逐行解析，无法处理嵌套 YAML | `GitOpsService.ts` |
-| 3 | GitOps 配置存储在内存 Map 中 | P1 | 未持久化到数据库，重启丢失 | `GitOpsService.ts` |
-| 4 | 配置加密未实现 | P1 | `encrypted` 标志存在但无实际加密/解密逻辑 | `ConfigService.ts` |
-| 5 | 存在重复方法名 | P2 | `getConfig`/`getConfig2`, `deleteConfig`/`deleteConfig2` 等，表明迁移未完成 | `ConfigService.ts` |
-| 6 | Config Approval 使用内存 Map | P1 | 变更请求未持久化到数据库 | `ConfigApprovalService.ts` |
-| 7 | 缺少配置模板管理 | P2 | 无配置模板 CRUD | — |
+> 评审日期：2026-04-30
+
+| # | 缺失功能 | 严重性 | 详细说明 | 文件位置 | 评审结果 |
+|---|---------|--------|---------|---------|---------|
+| 1 | Git 客户端为 Mock 实现 | P1 | `GitOpsService` 使用 `MockGitClient`，无真实 Git clone/pull | `GitOpsService.ts:97-102` | ✅ 保留 — L102 `new MockGitClient()`，所有方法空操作 |
+| 2 | YAML 解析器过于简陋 | P2 | `parseYamlConfig()` 使用逐行正则，仅支持 dev/staging/prod 扁平 key-value | `GitOpsService.ts:411-441` | ✅ 保留 — 不支持嵌套 YAML |
+| 3 | GitOps 配置存储在内存 Map 中 | P1 | 未持久化到数据库，重启丢失 | `GitOpsService.ts:89` | ✅ 保留 — `private gitOpsConfigs: Map` |
+| 4 | 配置加密未实现 | P1 | `encrypted` 标志存在但无实际加密/解密逻辑 | `ConfigService.ts` | ✅ 保留 — 仅传递布尔值 |
+| 5 | 存在重复方法名 | P2 | `getConfig`/`getConfig2`, `deleteConfig`/`deleteConfig2` 等 7 对，表明迁移未完成 | `ConfigService.ts` | ✅ 保留 — 7 对重复方法名 |
+| 6 | Config Approval 使用内存 Map | P1 | 变更请求未持久化到数据库 | `ConfigApprovalService.ts:36` | ✅ 保留 — `private changeRequests: Map` |
+| 7 | 缺少配置模板管理 | ~~P2~~ → P3 | 无配置模板 CRUD | — | ⬇️ 降级为 P3 — 模板是独立功能增强 |
 
 ### 2.5 代码仓库 (`code-repo/`)
 
-| # | 缺失功能 | 严重性 | 详细说明 | 文件位置 |
-|---|---------|--------|---------|---------|
-| 1 | **GitLab API 全部返回 mock 数据** | P0 | `GitLabApiClient.get/post/put/delete` 返回 `{}` 或 `[]`，无真实 HTTP 调用 | `GitLabAdapter.ts` |
-| 2 | Gerrit API 同样全部 mock | P0 | 所有方法返回硬编码 mock 数据 | `GerritAdapter.ts` |
-| 3 | 缺少 GitHub Adapter | P1 | 代码引用 GitHubClient 但不存在对应适配器 | — |
-| 4 | 仓库/分支/Commit 列表返回空数组 | P0 | `listRepositories()`, `listBranches()`, `listCommits()` 等全部返回 `[]` | `GitLabAdapter.ts` |
-| 5 | BranchPolicy 存储在内存 Map | P1 | 分支策略未持久化 | `BranchPolicyService.ts` |
-| 6 | CodeOwnership 不从 Git 解析 | P1 | 使用内存 Map 而非解析实际 CODEOWNERS 文件 | `CodeOwnershipService.ts` |
+> 评审日期：2026-04-30
+
+| # | 缺失功能 | 严重性 | 详细说明 | 文件位置 | 评审结果 |
+|---|---------|--------|---------|---------|---------|
+| 1 | **GitLab API 全部返回 mock 数据** | P0 | `GitLabApiClient.get/post/put/delete` 返回 `{}` 或 `[]`，真实 HTTP 调用被注释 | `GitLabAdapter.ts:41-90` | ✅ 保留 — L68-73 真实 fetch 被注释 |
+| 2 | **Gerrit API 同样全部 mock** | P0 | 所有方法返回硬编码 mock 数据 | `GerritAdapter.ts:42-99` | ✅ 保留 — L75-82 真实 fetch 被注释 |
+| 3 | 缺少 GitHub Adapter | P1 | 代码引用 GitHubClient 但不存在对应适配器 | — | ✅ 保留 — 全局搜索无 `GitHubAdapter` 文件 |
+| 4 | **仓库/分支/Commit 列表返回空数组** | P0 | `listRepositories()`/`listBranches()`/`listCommits()` 等全部返回 `[]` | `GitLabAdapter.ts` | ✅ 保留 — L154/174/281 确认 |
+| 5 | BranchPolicy 存储在内存 Map | P1 | 分支策略未持久化 | `BranchPolicyService.ts:69-70` | ✅ 保留 — 模块级 `new Map()` |
+| 6 | CodeOwnership 不从 Git 解析 | P1 | 使用内存 Map 而非解析实际 CODEOWNERS 文件 | `CodeOwnershipService.ts:35-36` | ✅ 保留 — 需手动 `registerCodeOwnersFile()` |
 
 ### 2.6 智能部署 (`smart-deploy/`)
 
