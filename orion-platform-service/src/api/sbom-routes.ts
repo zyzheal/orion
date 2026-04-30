@@ -135,4 +135,106 @@ export default async function sbomRoutes(
   app.delete('/waivers/:id', async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.deleteWaiver(request, reply);
   });
+
+  // ==================== Compliance Reports ====================
+
+  app.get('/compliance/report', async (request: FastifyRequest, reply: FastifyReply) => {
+    const query = request.query as { scope?: string; startDate?: string; endDate?: string };
+    try {
+      const report = await documentService.getComplianceReport({
+        scope: query.scope,
+        startDate: query.startDate ? new Date(query.startDate) : undefined,
+        endDate: query.endDate ? new Date(query.endDate) : undefined,
+      });
+      return reply.send({ code: 200, message: 'OK', data: report });
+    } catch (error: any) {
+      return reply.status(500).send({ code: 500, message: error.message });
+    }
+  });
+
+  app.get('/compliance/eo14028', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const compliance = await documentService.getEO14028Compliance();
+      return reply.send({ code: 200, message: 'OK', data: compliance });
+    } catch (error: any) {
+      return reply.status(500).send({ code: 500, message: error.message });
+    }
+  });
+
+  app.get('/compliance/eu-cra', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const compliance = await documentService.getEUCRACompliance();
+      return reply.send({ code: 200, message: 'OK', data: compliance });
+    } catch (error: any) {
+      return reply.status(500).send({ code: 500, message: error.message });
+    }
+  });
+
+  // ==================== Provenance ====================
+
+  app.post('/provenance', async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = request.body as {
+      buildId: string;
+      provenanceType: string;
+      content: Record<string, unknown>;
+      signature: string;
+      builderId: string;
+      buildTrigger: string;
+      sourceUri: string;
+    };
+    try {
+      const provenance = await documentService.createProvenance(body);
+      return reply.status(201).send({ code: 201, message: 'Created', data: provenance });
+    } catch (error: any) {
+      return reply.status(500).send({ code: 500, message: error.message });
+    }
+  });
+
+  app.get('/provenance', async (request: FastifyRequest, reply: FastifyReply) => {
+    const query = request.query as { buildId?: string };
+    try {
+      const provenances = await documentService.listProvenance(query.buildId);
+      return reply.send({ code: 200, message: 'OK', data: provenances });
+    } catch (error: any) {
+      return reply.status(500).send({ code: 500, message: error.message });
+    }
+  });
+
+  app.get('/provenance/:id/verify', async (request: FastifyRequest, reply: FastifyReply) => {
+    const params = request.params as { id: string };
+    try {
+      const result = await documentService.verifyProvenance(params.id);
+      return reply.send({ code: 200, message: 'OK', data: result });
+    } catch (error: any) {
+      if (error.message.includes('not found')) {
+        return reply.status(404).send({ code: 404, message: error.message });
+      }
+      return reply.status(500).send({ code: 500, message: error.message });
+    }
+  });
+
+  // ==================== Gate ====================
+
+  app.post('/gate/evaluate', async (request: FastifyRequest, reply: FastifyReply) => {
+    const query = request.query as { buildId: string };
+    if (!query.buildId) {
+      return reply.status(400).send({ code: 400, message: 'buildId query parameter is required' });
+    }
+    try {
+      const result = await documentService.evaluateGate(query.buildId);
+      return reply.send({ code: 200, message: 'OK', data: result });
+    } catch (error: any) {
+      return reply.status(500).send({ code: 500, message: error.message });
+    }
+  });
+
+  app.get('/gate/history', async (request: FastifyRequest, reply: FastifyReply) => {
+    const query = request.query as { buildId?: string };
+    try {
+      const history = await documentService.getGateHistory(query.buildId);
+      return reply.send({ code: 200, message: 'OK', data: history });
+    } catch (error: any) {
+      return reply.status(500).send({ code: 500, message: error.message });
+    }
+  });
 }
