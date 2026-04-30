@@ -29,4 +29,12 @@ export class RoleService {
   async deleteRole(id: string): Promise<boolean> {
     return this.repository.delete(id);
   }
+
+  async updateRole(id: string, input: { name?: string; description?: string; permissions?: string[] }): Promise<Role> {
+    const existing = await this.repository.findById(id);
+    if (!existing) throw new RoleServiceError(`Role not found: ${id}`, 'NOT_FOUND');
+    const updated = await this.repository.update(id, input);
+    if (!updated) throw new RoleServiceError(`Failed to update role: ${id}`, 'UPDATE_FAILED');
+    return updated;
+  }
 }

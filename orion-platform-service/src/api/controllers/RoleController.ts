@@ -101,4 +101,23 @@ export class RoleController {
       });
     }
   }
+
+  async update(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const params = request.params as Record<string, string>;
+    const body = request.body as Record<string, unknown>;
+    try {
+      const input: { name?: string; description?: string; permissions?: string[] } = {};
+      if (body.name !== undefined) input.name = body.name as string;
+      if (body.description !== undefined) input.description = body.description as string;
+      if (Array.isArray(body.permissions)) input.permissions = body.permissions as string[];
+      const role = await this.service.updateRole(params.id, input);
+      await reply.send(role);
+    } catch (error: any) {
+      if (error instanceof RoleServiceError && error.code === 'NOT_FOUND') {
+        await reply.status(404).send({ success: false, error: error.message });
+        return;
+      }
+      await reply.status(500).send({ error: 'UPDATE_ERROR', message: error.message });
+    }
+  }
 }

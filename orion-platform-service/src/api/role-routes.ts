@@ -53,6 +53,10 @@ export default async function roleRoutes(
     ? (request: FastifyRequest, reply: FastifyReply) => controller!.delete(request, reply)
     : unavailableHandler;
 
+  const updateHandler = controller
+    ? (request: FastifyRequest, reply: FastifyReply) => controller!.update(request, reply)
+    : unavailableHandler;
+
   // ==================== Role CRUD ====================
 
   // GET /api/v1/roles?tenantId=xxx — list roles for a tenant
@@ -66,4 +70,7 @@ export default async function roleRoutes(
 
   // DELETE /api/v1/roles/:id — delete role
   app.delete('/:id', deleteHandler);
+
+  // PUT /api/v1/roles/:id — update role
+  app.put('/:id', updateHandler);
 }
