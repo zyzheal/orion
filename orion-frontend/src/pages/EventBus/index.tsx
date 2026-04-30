@@ -9,7 +9,6 @@ import {
   Space,
   Tag,
   Card,
-  Alert,
   Select,
   Input,
   Tooltip,
@@ -32,6 +31,8 @@ import Table, { type TableColumn } from '@/components/Table';
 import MetricCard from '@/components/MetricCard';
 import { colors } from '@/tokens/colors';
 import { spacing } from '@/tokens/spacing';
+import { getEvents, getStats } from '@/api/eventbus';
+import type { EventBusEvent as ApiEventBusEvent } from '@/api/eventbus';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 
@@ -85,131 +86,6 @@ const statusIconMap: Record<EventStatus, React.ReactNode> = {
   retried: <SwapOutlined />,
 };
 
-// ---- Mock data ----
-
-const MOCK_STATS: EventBusStats = {
-  totalEvents: 15842,
-  activeSubscribers: 23,
-  failedEvents: 47,
-  eventRate: 128,
-};
-
-const MOCK_EVENTS: EventBusEvent[] = [
-  {
-    id: 'evt-001',
-    eventType: 'pipeline.run.completed',
-    source: 'pipeline-engine',
-    timestamp: '2024-03-20T10:30:00Z',
-    status: 'delivered',
-    payloadSize: 2048,
-    subscriberCount: 3,
-    topic: 'pipeline.run.completed',
-    traceId: 'trace-a1b2c3',
-  },
-  {
-    id: 'evt-002',
-    eventType: 'deployment.started',
-    source: 'deployment-service',
-    timestamp: '2024-03-20T10:28:00Z',
-    status: 'delivered',
-    payloadSize: 1024,
-    subscriberCount: 2,
-    topic: 'deployment.started',
-    traceId: 'trace-d4e5f6',
-  },
-  {
-    id: 'evt-003',
-    eventType: 'code.pr.opened',
-    source: 'code-repo-adapter',
-    timestamp: '2024-03-20T10:25:00Z',
-    status: 'failed',
-    payloadSize: 4096,
-    subscriberCount: 1,
-    topic: 'code.pr.opened',
-    traceId: 'trace-g7h8i9',
-  },
-  {
-    id: 'evt-004',
-    eventType: 'alert.triggered',
-    source: 'monitoring-service',
-    timestamp: '2024-03-20T10:22:00Z',
-    status: 'delivered',
-    payloadSize: 512,
-    subscriberCount: 4,
-    topic: 'alert.triggered',
-    traceId: 'trace-j0k1l2',
-  },
-  {
-    id: 'evt-005',
-    eventType: 'pipeline.run.failed',
-    source: 'pipeline-engine',
-    timestamp: '2024-03-20T10:20:00Z',
-    status: 'retried',
-    payloadSize: 1536,
-    subscriberCount: 3,
-    topic: 'pipeline.run.failed',
-    traceId: 'trace-m3n4o5',
-  },
-  {
-    id: 'evt-006',
-    eventType: 'cost.collected',
-    source: 'finops-service',
-    timestamp: '2024-03-20T10:18:00Z',
-    status: 'delivered',
-    payloadSize: 768,
-    subscriberCount: 2,
-    topic: 'cost.collected',
-    traceId: 'trace-p6q7r8',
-  },
-  {
-    id: 'evt-007',
-    eventType: 'config.changed',
-    source: 'config-service',
-    timestamp: '2024-03-20T10:15:00Z',
-    status: 'pending',
-    payloadSize: 256,
-    subscriberCount: 5,
-    topic: 'config.changed',
-    traceId: 'trace-s9t0u1',
-  },
-  {
-    id: 'evt-008',
-    eventType: 'deployment.completed',
-    source: 'deployment-service',
-    timestamp: '2024-03-20T10:12:00Z',
-    status: 'delivered',
-    payloadSize: 1280,
-    subscriberCount: 3,
-    topic: 'deployment.completed',
-    traceId: 'trace-v2w3x4',
-  },
-  {
-    id: 'evt-009',
-    eventType: 'selfhealing.action.triggered',
-    source: 'self-healing-engine',
-    timestamp: '2024-03-20T10:10:00Z',
-    status: 'delivered',
-    payloadSize: 896,
-    subscriberCount: 2,
-    topic: 'selfhealing.action.triggered',
-    traceId: 'trace-y5z6a7',
-  },
-  {
-    id: 'evt-010',
-    eventType: 'pipeline.run.completed',
-    source: 'pipeline-engine',
-    timestamp: '2024-03-20T10:08:00Z',
-    status: 'failed',
-    payloadSize: 2048,
-    subscriberCount: 3,
-    topic: 'pipeline.run.completed',
-    traceId: 'trace-b8c9d0',
-  },
-];
-
-// Unique event types for filter dropdown
-const EVENT_TYPES = Array.from(new Set(MOCK_EVENTS.map((e) => e.eventType))).sort();
-
 // ---- Main Component ----
 
 const EventBusMonitoring: React.FC = () => {
@@ -221,24 +97,42 @@ const EventBusMonitoring: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [detailDrawerVisible, setDetailDrawerVisible] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<EventBusEvent | null>(null);
-  const [usingMockData, setUsingMockData] = useState(false);
+
+  // Type mapping: API event type -> UI event type
+  const mapApiEvent = (apiEvent: ApiEventBusEvent): EventBusEvent => ({
+    id: apiEvent.id,
+    eventType: apiEvent.subject,
+    source: apiEvent.source || apiEvent.publishedBy || 'unknown',
+    timestamp: apiEvent.publishedAt || apiEvent.createdAt,
+    status: (apiEvent.status as EventBusEvent['status']) || 'pending',
+    payloadSize: JSON.stringify(apiEvent.payload || {}).length,
+    subscriberCount: 0,
+    topic: apiEvent.subject,
+    traceId: apiEvent.id.substring(0, 12),
+  });
+
+  const mapApiStats = (rawStats: Record<string, number>): EventBusStats => ({
+    totalEvents: rawStats.total || 0,
+    activeSubscribers: rawStats.activeSubscribers || 0,
+    failedEvents: rawStats.failed || rawStats.failedEvents || 0,
+    eventRate: rawStats.eventRate || 0,
+  });
 
   const loadData = async () => {
     setLoading(true);
     try {
-      // Attempt to fetch from API — no eventbus API client exists yet
-      setUsingMockData(true);
-      setEvents(MOCK_EVENTS);
-      setStats(MOCK_STATS);
+      const [eventsRes, statsRes] = await Promise.all([
+        getEvents({ limit: 100 }),
+        getStats(),
+      ]);
+      const eventsData = eventsRes.data?.data?.events || [];
+      const statsData = statsRes.data?.data?.stats || {};
+      setEvents(eventsData.map(mapApiEvent));
+      setStats(mapApiStats(statsData));
     } catch (error: unknown) {
-      setUsingMockData(true);
-      if (error instanceof Error) {
-        message.error(`加载 EventBus 数据失败：${error.message}`);
-      } else {
-        message.error('加载 EventBus 数据失败，使用模拟数据');
-      }
-      setEvents(MOCK_EVENTS);
-      setStats(MOCK_STATS);
+      message.error(`加载 EventBus 数据失败: ${(error as Error).message}`);
+      setEvents([]);
+      setStats(null);
     } finally {
       setLoading(false);
     }
@@ -247,6 +141,11 @@ const EventBusMonitoring: React.FC = () => {
   useEffect(() => {
     loadData();
   }, []);
+
+  const eventTypes = useMemo(() =>
+    Array.from(new Set(events.map((e) => e.eventType))).sort(),
+    [events]
+  );
 
   const filteredEvents = useMemo(() => {
     return events.filter((e) => {
@@ -395,19 +294,6 @@ const EventBusMonitoring: React.FC = () => {
         </Space>
       </div>
 
-      {/* Mock data warning banner */}
-      {usingMockData && (
-        <Alert
-          message="使用模拟数据"
-          description="EventBus API 尚未集成，当前显示的是模拟数据。"
-          type="warning"
-          showIcon
-          closable
-          style={{ marginBottom: spacing.md }}
-          onClose={() => setUsingMockData(false)}
-        />
-      )}
-
       {/* Stats Cards */}
       {stats && (
         <div
@@ -483,7 +369,7 @@ const EventBusMonitoring: React.FC = () => {
             onChange={setTypeFilter}
             options={[
               { label: '全部', value: 'all' },
-              ...EVENT_TYPES.map((t) => ({ label: t, value: t })),
+              ...eventTypes.map((t) => ({ label: t, value: t })),
             ]}
           />
         </Space>
