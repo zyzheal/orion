@@ -9,10 +9,10 @@
  * - Filter by service and time range
  * - Refresh button
  *
- * Uses existing monitoring APIs where available, falls back to mock data with warning banner.
+ * Uses existing monitoring APIs for all data sources.
  */
 import React, { useState, useEffect, useCallback } from 'react';
-import { Typography, Card, Tag, Space, Button, Select, Alert, message } from 'antd';
+import { Typography, Card, Tag, Space, Button, Select, message } from 'antd';
 import {
   ReloadOutlined,
   DashboardOutlined,
@@ -53,68 +53,8 @@ interface MetricSummary {
 type TimeRange = '5m' | '15m' | '1h' | '6h' | '24h' | '7d';
 
 // ============================================================================
-// Mock Data
+// Service Options
 // ============================================================================
-
-const MOCK_METRIC_SUMMARY: MetricSummary = {
-  requestRate: 12540,
-  errorRate: 0.32,
-  latencyP50: 45,
-  latencyP95: 180,
-  latencyP99: 420,
-  throughput: 8920,
-};
-
-const MOCK_SERVICE_HEALTH: ServiceHealthRow[] = [
-  {
-    key: 'api-gateway',
-    serviceName: 'API Gateway',
-    status: 'healthy',
-    requestRate: '4,230/min',
-    errorRate: '0.12%',
-    latency: '23ms',
-  },
-  {
-    key: 'platform-service',
-    serviceName: 'Platform Service',
-    status: 'healthy',
-    requestRate: '3,120/min',
-    errorRate: '0.28%',
-    latency: '45ms',
-  },
-  {
-    key: 'ai-service',
-    serviceName: 'AI Service',
-    status: 'degraded',
-    requestRate: '1,890/min',
-    errorRate: '1.45%',
-    latency: '320ms',
-  },
-  {
-    key: 'pipeline-engine',
-    serviceName: 'Pipeline Engine',
-    status: 'healthy',
-    requestRate: '980/min',
-    errorRate: '0.05%',
-    latency: '15ms',
-  },
-  {
-    key: 'auth-service',
-    serviceName: 'Auth Service',
-    status: 'healthy',
-    requestRate: '2,320/min',
-    errorRate: '0.08%',
-    latency: '12ms',
-  },
-  {
-    key: 'notification-svc',
-    serviceName: 'Notification Service',
-    status: 'unhealthy',
-    requestRate: '540/min',
-    errorRate: '5.23%',
-    latency: '890ms',
-  },
-];
 
 const SERVICE_OPTIONS = [
   { label: 'All Services', value: 'all' },
@@ -159,7 +99,6 @@ function getStatusLabel(status: ServiceHealthRow['status']): string {
 const MetricsDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [usingMockData, setUsingMockData] = useState(false);
   const [selectedService, setSelectedService] = useState<string>('all');
   const [selectedTimeRange, setSelectedTimeRange] = useState<TimeRange>('1h');
   const [metricSummary, setMetricSummary] = useState<MetricSummary | null>(null);
@@ -174,27 +113,24 @@ const MetricsDashboard: React.FC = () => {
         getDashboardData(),
       ]);
 
-      // Build metric summary from API responses
       const metricsData = metricsRes.data.data || [];
-
-      // Use dashboard data for overview
       const dashboardData = dashboardRes.data.data;
+
       if (dashboardData) {
         setMetricSummary({
-          requestRate: dashboardData.metrics?.rate ?? MOCK_METRIC_SUMMARY.requestRate,
+          requestRate: dashboardData.metrics?.rate ?? 0,
           errorRate: dashboardData.alerts?.total
             ? (dashboardData.alerts.active / dashboardData.alerts.total) * 100
-            : MOCK_METRIC_SUMMARY.errorRate,
-          latencyP50: MOCK_METRIC_SUMMARY.latencyP50,
-          latencyP95: MOCK_METRIC_SUMMARY.latencyP95,
-          latencyP99: MOCK_METRIC_SUMMARY.latencyP99,
-          throughput: MOCK_METRIC_SUMMARY.throughput,
+            : 0,
+          latencyP50: dashboardData.metrics?.latencyP50 ?? 0,
+          latencyP95: dashboardData.metrics?.latencyP95 ?? 0,
+          latencyP99: dashboardData.metrics?.latencyP99 ?? 0,
+          throughput: dashboardData.metrics?.throughput ?? 0,
         });
       } else {
-        setMetricSummary(MOCK_METRIC_SUMMARY);
+        setMetricSummary(null);
       }
 
-      // Build service health from metrics
       const healthRows: ServiceHealthRow[] = metricsData.map(
         (m: { name?: string; value?: number; unit?: string; lastUpdated?: string }, i: number) => ({
           key: `metric-${i}`,
@@ -210,21 +146,11 @@ const MetricsDashboard: React.FC = () => {
           latency: `${Math.round((m.value || 0) * 100)}ms`,
         })
       );
-
-      setServiceHealth(healthRows.length > 0 ? healthRows : MOCK_SERVICE_HEALTH);
-
-      // If we got minimal data, also show warning
-      if (healthRows.length === 0) {
-        setUsingMockData(true);
-      } else {
-        setUsingMockData(false);
-      }
+      setServiceHealth(healthRows);
     } catch (error: unknown) {
-      // Fallback to mock data
-      setMetricSummary(MOCK_METRIC_SUMMARY);
-      setServiceHealth(MOCK_SERVICE_HEALTH);
-      setUsingMockData(true);
-      message.warning(error instanceof Error ? error.message : 'API 不可用，显示模拟数据');
+      setMetricSummary(null);
+      setServiceHealth([]);
+      message.error(`加载指标数据失败: ${(error as Error).message}`);
     } finally {
       setLoading(false);
     }
@@ -367,18 +293,6 @@ const MetricsDashboard: React.FC = () => {
         </Space>
       </div>
 
-      {/* Mock Data Warning */}
-      {usingMockData && (
-        <Alert
-          type="warning"
-          closable
-          message="使用模拟数据"
-          description="当前指标数据为演示用模拟数据，后端监控服务尚未完全接入。"
-          style={{ marginBottom: spacing[4] }}
-          onClose={() => setUsingMockData(false)}
-        />
-      )}
-
       {/* Metric Cards */}
       <div style={{ marginBottom: spacing[6] }}>
         <Title level={5}>Key Metrics</Title>
@@ -509,8 +423,7 @@ const MetricsDashboard: React.FC = () => {
       <Card title="Metric Trends" size="small" style={{ marginTop: spacing[4] }}>
         <div style={{ textAlign: 'center', padding: spacing[6] }}>
           <Text type="secondary">
-            趋势图表区域（集成 ECharts 后展示 Request Rate / Error Rate / Latency
-            历史趋势曲线，时间范围: {selectedTimeRange}）
+            趋势图表区域 -- 待集成 ECharts 后展示历史趋势曲线
           </Text>
         </div>
       </Card>
