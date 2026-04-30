@@ -354,6 +354,100 @@ export default async function efficiencyRoutes(app: FastifyInstance, options: Ef
       });
     }
   });
+
+  // ==================== Efficiency Score ====================
+
+  app.post('/score', async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = request.body as {
+      teamId?: string;
+      projectId?: string;
+      period?: { from: string; to: string };
+    };
+    try {
+      const tenantId = body.teamId || body.projectId;
+      const since = body.period?.from ? new Date(body.period.from) : undefined;
+      const { deployments, pipelineRecords } = await fetchDeploymentData(tenantId, since);
+
+      // Calculate composite efficiency score using existing DoraMetricsService
+      const timeWindowConfig = doraMetrics.buildTimeWindow('month', 1);
+      const deploymentFrequency = doraMetrics.calculateDeploymentFrequency(deployments, timeWindowConfig);
+      const changeFailureRate = doraMetrics.calculateChangeFailureRate(deployments, timeWindowConfig);
+      const meanTimeToRecovery = doraMetrics.calculateMeanTimeToRecovery(deployments, timeWindowConfig);
+
+      // Scoring model: weighted combination of DORA metrics (0-100)
+      const frequencyScore = Math.min(deploymentFrequency.deploymentsPerDay / 10, 1) * 30;
+      const failureScore = Math.max(0, 1 - changeFailureRate.failureRate) * 30;
+      const mttrScore = Math.max(0, 1 - meanTimeToRecovery.averageRecoveryTimeMs / (24 * 60 * 60 * 1000)) * 20;
+      const leadTimeScore = 20; // placeholder -- needs lead time data
+
+      const totalScore = Math.round((frequencyScore + failureScore + mttrScore + leadTimeScore) * 100) / 100;
+
+      return reply.send({
+        code: 200,
+        message: 'OK',
+        data: {
+          score: totalScore,
+          grade: totalScore >= 80 ? 'A' : totalScore >= 60 ? 'B' : totalScore >= 40 ? 'C' : 'D',
+          breakdown: {
+            deploymentFrequency: Math.round(frequencyScore * 100) / 100,
+            changeFailureRate: Math.round(failureScore * 100) / 100,
+            meanTimeToRecovery: Math.round(mttrScore * 100) / 100,
+            leadTimeForChanges: leadTimeScore,
+          },
+          period: body.period || { from: timeWindowConfig.start.toISOString(), to: timeWindowConfig.end.toISOString() },
+        },
+      });
+    } catch (error: any) {
+      return reply.status(500).send({ code: 500, message: error.message });
+    }
+  });
+
+  // ==================== Export ====================
+
+  app.post('/export', async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = request.body as {
+      format?: 'csv' | 'json';
+      teamId?: string;
+      projectId?: string;
+      period?: { from: string; to: string };
+    };
+    try {
+      const format = body.format || 'json';
+      const tenantId = body.teamId || body.projectId;
+      const since = body.period?.from ? new Date(body.period.from) : undefined;
+      const { deployments, pipelineRecords } = await fetchDeploymentData(tenantId, since);
+
+      if (format === 'csv') {
+        const headers = 'date,deployment_count,success_rate,avg_lead_time_ms,mttr_ms\n';
+        const rows = deployments
+          .map((d: any) => {
+            const date = d.deployedAt ? new Date(d.deployedAt).toISOString().split('T')[0] : '';
+            const success = d.status === 'success' ? 1 : 0;
+            return `${date},1,${success},${0},${d.recoveryTimeMs || 0}`;
+          })
+          .join('\n');
+
+        reply.header('Content-Type', 'text/csv');
+        reply.header('Content-Disposition', 'attachment; filename=efficiency-report.csv');
+        return reply.send(headers + rows);
+      }
+
+      return reply.send({
+        code: 200,
+        message: 'OK',
+        data: {
+          format: 'json',
+          exportedAt: new Date().toISOString(),
+          deploymentCount: deployments.length,
+          pipelineRunCount: pipelineRecords.length,
+          deployments,
+          pipelineRecords,
+        },
+      });
+    } catch (error: any) {
+      return reply.status(500).send({ code: 500, message: error.message });
+    }
+  });
 }
 
 // ==================== Weekly Report Service Factory ====================
