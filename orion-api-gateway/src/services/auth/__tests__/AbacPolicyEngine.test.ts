@@ -420,9 +420,9 @@ describe('AbacPolicyEngine', () => {
 
   describe('Time Range Checks', () => {
     it('should check working hours correctly', () => {
-      // 工作时间内 (假设 9-18)
+      // 工作时间内 (假设 9-18 UTC)
       const workHour = new Date();
-      workHour.setHours(10, 0, 0, 0);
+      workHour.setUTCHours(10, 0, 0, 0);
 
       const workContext: AbacContext = {
         user: { id: 'user1', role: 'developer' },
@@ -435,9 +435,9 @@ describe('AbacPolicyEngine', () => {
       const workResult = engine.evaluate(workContext);
       expect(workResult.denied).toBe(false);
 
-      // 非工作时间
+      // 非工作时间 (UTC 22:00)
       const offHour = new Date();
-      offHour.setHours(22, 0, 0, 0);
+      offHour.setUTCHours(22, 0, 0, 0);
 
       const offContext: AbacContext = {
         user: { id: 'user1', role: 'developer' },
