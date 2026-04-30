@@ -32,8 +32,10 @@ import {
   BarChartOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import type { KPIMetric } from '@/types/pages';
+import type { KPIMetric, ExecutiveDashboardData } from '@/types/pages';
 import { mockExecutiveDashboard } from '@/pages/__mocks__/mockBIData';
+import { useBiDashboard } from '@/hooks/useBiDashboard';
+import { Spin, Alert } from 'antd';
 import CardPanel from '@/components/CardPanel';
 import dayjs from 'dayjs';
 
@@ -97,7 +99,11 @@ const kpiIcons: Record<string, React.ReactNode> = {
 };
 
 const ExecutiveDashboard: React.FC = () => {
-  const data = mockExecutiveDashboard;
+  const { data: apiData, loading, error } = useBiDashboard('executive');
+
+  // Fallback to mock data when API is unavailable
+  const data = (apiData as ExecutiveDashboardData | undefined) ?? mockExecutiveDashboard;
+  const showMockWarning = !apiData;
 
   // Build KPI metrics from mock data
   const kpiMetrics: KPIMetric[] = useMemo(
@@ -284,6 +290,33 @@ const ExecutiveDashboard: React.FC = () => {
 
   return (
     <div style={{ padding: 0 }}>
+      {/* Loading state */}
+      {loading && !data && (
+        <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}>
+          <Spin tip="加载效能数据..." size="large" />
+        </div>
+      )}
+      {/* Mock data warning */}
+      {showMockWarning && (
+        <Alert
+          message="API 不可用"
+          description="效能仪表盘 API 尚未部署，当前显示模拟数据。"
+          type="warning"
+          showIcon
+          closable
+          style={{ marginBottom: 16 }}
+        />
+      )}
+      {/* Error state */}
+      {error && (
+        <Alert
+          message="加载失败"
+          description={error.message}
+          type="error"
+          showIcon
+          style={{ marginBottom: 16 }}
+        />
+      )}
       {/* Page header */}
       <div style={{ marginBottom: 24 }}>
         <Title level={3} style={{ margin: 0 }}>
