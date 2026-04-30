@@ -250,7 +250,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // ==================== 构建环境管理路由 ====================
 
   // 注册 Build Environment API 路由 (PostgreSQL backed for BuildCache)
-  await registerWithRoleGuard(app, buildRoutes, '/v1/build', { database: options.database });
+  await registerWithRoleGuard(app, buildRoutes, '/v1/', { database: options.database });
 
   // 注册 Code Repository Integration API 路由
   await registerWithRoleGuard(app, codeRepoRoutes, '/v1/code-repo');

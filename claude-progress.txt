@@ -1120,3 +1120,69 @@ Eliminated ALL `TableColumn<any>` type annotations and `as any` assertions acros
 ## Next Steps
 1. Continue implementing remaining frontend gaps
 2. Wire SSE recommendations to SmartRecommend panel for real-time updates
+
+## Sub-project C: Cron + Webhook Implementation (COMPLETED - 2026-04-30)
+
+### Completed Work
+
+1. **Task 1: Cron Expression Parser** (`src/services/scheduler/CronSchedulerService.ts`)
+   - Added `cron-parser` dependency to package.json
+   - Replaced mock `shouldExecuteJob()` (always returned true) with real `CronExpressionParser.parse()`
+   - Cron expression parsed with UTC timezone, executes if previous scheduled time is within 60s poll interval
+   - Invalid cron expressions logged and return false (skip execution)
+   - Fixed `stop()` method: added `intervalId` property, `start()` captures interval ID, `stop()` calls `clearInterval()`
+
+2. **Task 2: Real HTTP Webhook Delivery** (`src/services/webhook/WebhookService.ts`)
+   - Replaced `setTimeout` mock with real `fetch()` HTTP POST
+   - Request body: `{ event, payload, timestamp }` as JSON
+   - 10s timeout via AbortController
+   - Retry logic: 3 attempts with exponential backoff (1s, 2s, 4s)
+   - HTTP errors (non-2xx) and network errors both trigger retry
+   - All retries failed: records delivery with status 500 and error message
+
+### Verification
+- TypeScript type-check: 0 errors in CronSchedulerService.ts and WebhookService.ts
+- Pre-existing errors in other files (approval-routes.ts, BranchPolicyService.ts) unchanged
+
+### Commits
+- `b1cd336` - feat(scheduler): implement real cron expression parsing with cron-parser
+- `0951974` - feat(webhook): implement real HTTP delivery with retry and exponential backoff
+
+## Sub-project A: API Completeness (COMPLETED - 2026-04-30)
+
+### Completed Work
+
+Added 6 missing API endpoints across 4 services:
+
+1. **Role Update Endpoint** (PUT /api/v1/roles/:id)
+   - RoleRepository.update() - dynamic SQL UPDATE with optional name/description/permissions
+   - RoleService.updateRole() - validates existence before update
+   - RoleController.update() - HTTP handler with proper error codes
+   - role-routes.ts - registered PUT /:id
+
+2. **Project Update Endpoint** (PUT /api/v1/projects/:id)
+   - ProjectRepository.update() - dynamic SQL UPDATE with name+slug auto-generation
+   - ProjectService.updateProject() - validates existence before update
+   - project-routes.ts - PUT /:id with ProjectServiceError handling
+
+3. **Session List + Refresh** (GET /api/v1/sessions/user/:userId, POST /api/v1/sessions/:token/refresh)
+   - SessionRepository.findByUser() - list active sessions by user with optional tenant filter
+   - SessionRepository.refresh() - extend session expiration
+   - SessionService.listByUser() / refreshToken()
+   - SessionController.listByUser() / refreshToken()
+   - session-routes.ts - 2 new routes
+
+4. **API Key Routes** (GET/POST/DELETE /api/v1/api-keys)
+   - Created api-key-routes.ts with 3 endpoints (list, create, delete)
+   - Registered in routes.ts with role guard protection
+   - Database availability guard (returns 503 if DB unavailable)
+
+### Commits
+- `0dbda96` - feat(role): add updateRole endpoint PUT /api/v1/roles/:id
+- `7d758b4` - feat(project): add updateProject endpoint PUT /api/v1/projects/:id
+- `82591ed` - feat(session): add listByUser and refreshToken endpoints
+- `87dabc3` - feat(api-key): add API key routes GET/POST/DELETE /api/v1/api-keys
+
+### Verification
+- TypeScript type-check: 0 new errors in modified files
+- Pre-existing error in CronSchedulerService.ts unchanged
