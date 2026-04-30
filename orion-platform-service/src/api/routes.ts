@@ -73,6 +73,7 @@ import queueRoutes from './queue-routes';
 import projectRoutes from './project-routes';
 import agentRoutes from '../routes-agent';
 import apiKeyRoutes from './api-key-routes';
+import ephemeralEnvRoutes from './ephemeral-env-routes';
 
 export interface ApiRoutesOptions {
   eventBus?: EventBusService;
@@ -335,6 +336,12 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // 注册 IaC Management API 路由 (M20) - PostgreSQL backed
   await registerWithRoleGuard(app, iacRoutes, '/v1/iac', { eventBus: options.eventBus, database: options.database });
+
+  // Register Ephemeral Dev Environments API routes (M31)
+  await app.register(ephemeralEnvRoutes, {
+    prefix: '/v1/ephemeral-envs',
+    eventBus: options.eventBus,
+  });
 
   // 注册 ChatOps API 路由 (M35) - PostgreSQL backed
   await registerWithRoleGuard(app, chatopsRoutes, '/v1/chatops', {
