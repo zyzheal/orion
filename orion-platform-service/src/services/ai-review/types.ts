@@ -149,6 +149,13 @@ export interface ReviewConfig {
   similarityThreshold: number;
   /** 是否发布评论到 PR */
   postCommentsToPR: boolean;
+  /** LLM 配置 */
+  llm?: {
+    provider: 'openai' | 'anthropic' | 'mock';
+    apiKey?: string;
+    model?: string;
+    temperature?: number;
+  };
   /** GitLab 配置 */
   gitlab?: {
     apiUrl: string;

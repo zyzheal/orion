@@ -27,6 +27,7 @@ import { DiffAnalyzer } from './DiffAnalyzer';
 import { ReviewRuleEngine } from './ReviewRuleEngine';
 import { ReviewAggregator } from './ReviewAggregator';
 import { ReviewIntegrationService } from './ReviewIntegrationService';
+import { createLLMClient, LLMClient } from './LLMClient';
 
 /** 审查历史记录存储 (内存版，生产环境应使用数据库) */
 interface ReviewHistoryEntry {
@@ -42,6 +43,7 @@ export class AIReviewService {
   private ruleEngine: ReviewRuleEngine;
   private diffAnalyzer: DiffAnalyzer;
   private integrationService: ReviewIntegrationService;
+  private llmClient: LLMClient;
   private reviewHistory: ReviewHistoryEntry[];
   private config: ReviewConfig;
   private eventBus: any; // EventBusService
@@ -73,6 +75,7 @@ export class AIReviewService {
     this.integrationService = new ReviewIntegrationService(this.config);
     this.reviewHistory = [];
     this.eventBus = options?.eventBus;
+    this.llmClient = createLLMClient(options?.config?.llm);
 
     // 如果提供了事件总线，订阅 code.pr.opened 事件
     if (this.eventBus) {
@@ -106,9 +109,9 @@ export class AIReviewService {
       const aggregator = new ReviewAggregator(this.config);
       aggregator.addComments(ruleComments);
 
-      // 4. 如果有 AI API 评论 (TODO: 集成 AI API)，也添加进来
-      // const aiComments = await this.callAIReview(request.diff);
-      // aggregator.addComments(aiComments);
+      // 4. Call AI review (falls back to empty if LLM unavailable)
+      const aiComments = await this.callAIReview(request.diff);
+      aggregator.addComments(aiComments);
 
       // 5. 生成最终结果
       const duration = Date.now() - startTime;
@@ -321,6 +324,14 @@ export class AIReviewService {
   }
 
   // ==================== 内部方法 ====================
+
+  /**
+   * Call LLM API for AI code review
+   * Falls back to empty array if LLM is unavailable
+   */
+  private async callAIReview(diff: string): Promise<ReviewComment[]> {
+    return this.llmClient.reviewDiff(diff);
+  }
 
   /**
    * 订阅 NATS 事件

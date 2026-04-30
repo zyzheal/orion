@@ -13,6 +13,16 @@ import {
 describe('AIReviewService', () => {
   let service: AIReviewService;
 
+  beforeEach(() => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+    });
+    service = new AIReviewService();
+  });
+
+  afterEach(() => jest.restoreAllMocks());
+
   const sampleDiff = `diff --git a/src/config.ts b/src/config.ts
 --- a/src/config.ts
 +++ b/src/config.ts
@@ -31,10 +41,6 @@ diff --git a/src/utils.ts b/src/utils.ts
    return input;
  }
 `;
-
-  beforeEach(() => {
-    service = new AIReviewService();
-  });
 
   describe('reviewPR', () => {
     it('应该成功审查 PR', async () => {
