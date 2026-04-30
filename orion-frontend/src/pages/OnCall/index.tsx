@@ -14,7 +14,6 @@ import {
   Input,
   Select,
   message,
-  Alert,
   Popconfirm,
   Descriptions,
   Drawer,
@@ -45,7 +44,6 @@ import {
   type OnCallSchedule,
   type OnCallAssignment,
   type OnCallOverride,
-  type EscalationRule,
   type RotationType,
   type CreateScheduleInput,
   type CreateOverrideInput,
@@ -102,121 +100,6 @@ const FALLBACK_USERS: Record<string, string> = {
   'ops-002': '运维-乙',
 };
 
-// ---- Mock data ----
-
-const MOCK_ESCALATIONS: EscalationRule[][] = [
-  [
-    { level: 1, timeoutMinutes: 15, targets: ['dev-002'] },
-    { level: 2, timeoutMinutes: 30, targets: ['dev-003'] },
-  ],
-  [{ level: 1, timeoutMinutes: 10, targets: ['ops-002'] }],
-];
-
-const MOCK_SCHEDULES: OnCallSchedule[] = [
-  {
-    id: 'sched-1',
-    name: '平台核心服务',
-    timezone: 'Asia/Shanghai',
-    rotationType: 'weekly',
-    rotationStartHour: 9,
-    teamMembers: ['dev-001', 'dev-002', 'dev-003'],
-    startDate: '2024-03-01T09:00:00Z',
-    escalations: MOCK_ESCALATIONS[0],
-    createdAt: '2024-01-15T08:00:00Z',
-    updatedAt: '2024-03-15T10:00:00Z',
-  },
-  {
-    id: 'sched-2',
-    name: 'AI 算法服务',
-    timezone: 'Asia/Shanghai',
-    rotationType: 'daily',
-    rotationStartHour: 10,
-    teamMembers: ['dev-004', 'dev-005'],
-    startDate: '2024-03-10T10:00:00Z',
-    escalations: [],
-    createdAt: '2024-02-01T08:00:00Z',
-    updatedAt: '2024-03-18T14:00:00Z',
-  },
-  {
-    id: 'sched-3',
-    name: '运维值班',
-    timezone: 'Asia/Shanghai',
-    rotationType: 'monthly',
-    rotationStartHour: 0,
-    teamMembers: ['ops-001', 'ops-002', 'dev-006'],
-    startDate: '2024-01-01T00:00:00Z',
-    escalations: MOCK_ESCALATIONS[1],
-    createdAt: '2024-01-01T00:00:00Z',
-    updatedAt: '2024-02-01T00:00:00Z',
-  },
-];
-
-const MOCK_ASSIGNMENTS: OnCallAssignment[] = [
-  {
-    id: 'assign-1',
-    scheduleId: 'sched-1',
-    userId: 'dev-001',
-    startTime: '2024-03-18T09:00:00Z',
-    endTime: '2024-03-25T09:00:00Z',
-  },
-  {
-    id: 'assign-2',
-    scheduleId: 'sched-1',
-    userId: 'dev-002',
-    startTime: '2024-03-25T09:00:00Z',
-    endTime: '2024-04-01T09:00:00Z',
-  },
-  {
-    id: 'assign-3',
-    scheduleId: 'sched-1',
-    userId: 'dev-003',
-    startTime: '2024-04-01T09:00:00Z',
-    endTime: '2024-04-08T09:00:00Z',
-  },
-  {
-    id: 'assign-4',
-    scheduleId: 'sched-2',
-    userId: 'dev-004',
-    startTime: '2024-03-20T10:00:00Z',
-    endTime: '2024-03-21T10:00:00Z',
-  },
-  {
-    id: 'assign-5',
-    scheduleId: 'sched-2',
-    userId: 'dev-005',
-    startTime: '2024-03-21T10:00:00Z',
-    endTime: '2024-03-22T10:00:00Z',
-  },
-  {
-    id: 'assign-6',
-    scheduleId: 'sched-3',
-    userId: 'ops-001',
-    startTime: '2024-03-01T00:00:00Z',
-    endTime: '2024-04-01T00:00:00Z',
-  },
-  {
-    id: 'assign-7',
-    scheduleId: 'sched-3',
-    userId: 'ops-002',
-    startTime: '2024-04-01T00:00:00Z',
-    endTime: '2024-05-01T00:00:00Z',
-  },
-];
-
-const MOCK_CURRENT_ONCALL: Record<string, CurrentOnCallResult> = {
-  'sched-1': {
-    isOnCall: true,
-    primaryUserId: 'dev-001',
-    escalationTargets: ['dev-002', 'dev-003'],
-  },
-  'sched-2': { isOnCall: true, primaryUserId: 'dev-004', escalationTargets: ['dev-005'] },
-  'sched-3': {
-    isOnCall: true,
-    primaryUserId: 'ops-001',
-    escalationTargets: ['ops-002', 'dev-006'],
-  },
-};
-
 // ---- Main Component ----
 
 const OnCallManagement: React.FC = () => {
@@ -232,7 +115,6 @@ const OnCallManagement: React.FC = () => {
   const [overrideForm] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
   const [memberInput, setMemberInput] = useState('');
-  const [usingMockData, setUsingMockData] = useState(false);
 
   // ---- User Map (fetched from real API) ----
   const [userMap, setUserMap] = useState<Record<string, string>>(FALLBACK_USERS);
@@ -273,15 +155,10 @@ const OnCallManagement: React.FC = () => {
     try {
       const res = await getSchedules();
       const data = res.data?.data?.schedules;
-      setSchedules(Array.isArray(data) && data.length > 0 ? data : MOCK_SCHEDULES);
+      setSchedules(Array.isArray(data) && data.length > 0 ? data : []);
     } catch (error: unknown) {
-      setUsingMockData(true);
-      setSchedules(MOCK_SCHEDULES);
-      if (error instanceof Error) {
-        message.error(`加载值班排班失败：${error.message}`);
-      } else {
-        message.error('加载值班排班失败，请稍后重试');
-      }
+      setSchedules([]);
+      message.error(`加载值班排班失败: ${(error as Error).message}`);
     } finally {
       setLoading(false);
     }
@@ -296,14 +173,13 @@ const OnCallManagement: React.FC = () => {
       } else {
         setCurrentOnCall((prev) => ({
           ...prev,
-          [scheduleId]: MOCK_CURRENT_ONCALL[scheduleId] || { isOnCall: false },
+          [scheduleId]: { isOnCall: false },
         }));
       }
     } catch (error: unknown) {
-      setUsingMockData(true);
       setCurrentOnCall((prev) => ({
         ...prev,
-        [scheduleId]: MOCK_CURRENT_ONCALL[scheduleId] || { isOnCall: false },
+        [scheduleId]: { isOnCall: false },
       }));
     }
   };
@@ -428,8 +304,8 @@ const OnCallManagement: React.FC = () => {
 
   // ---- Computed ----
 
-  const getAssignmentsForSchedule = (scheduleId: string): OnCallAssignment[] => {
-    return MOCK_ASSIGNMENTS.filter((a) => a.scheduleId === scheduleId);
+  const getAssignmentsForSchedule = (_scheduleId: string): OnCallAssignment[] => {
+    return [];
   };
 
   const getOverridesForSchedule = (scheduleId: string): OnCallOverride[] => {
@@ -769,19 +645,6 @@ const OnCallManagement: React.FC = () => {
               </Button>
             </Space>
           </div>
-
-          {/* Mock data warning banner */}
-          {usingMockData && (
-            <Alert
-              message="使用模拟数据"
-              description="后端服务暂时不可用，当前显示的是模拟数据，可能不是最新状态。"
-              type="warning"
-              showIcon
-              closable
-              style={{ marginBottom: 16 }}
-              onClose={() => setUsingMockData(false)}
-            />
-          )}
 
           {/* Schedule List */}
           <Card>
