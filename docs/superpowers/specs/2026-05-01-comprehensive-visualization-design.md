@@ -8,7 +8,7 @@
 
 ---
 
-## Part 1: 图表组件库扩
+## Part 1: 图表组件库扩展
 
 ### 1.1 新增 5 个 ECharts 组件
 
@@ -91,6 +91,12 @@ interface TimelineChartProps {
 }
 ```
 
+**TimelineChart 实现策略：**
+- 时间轴范围：自动从 events 中计算 min(start) 和 max(end)，左右各 padding 5%
+- 实现方式：使用 `custom` series + `renderItem` 函数将 start/end 映射为矩形条
+- 泳道分组：当 `showGroup=true` 时，yAxis 使用 `category` 类型，数据按 `group` 字段分组排列；`showGroup=false` 时所有事件排列在同一行
+- 颜色映射：按 `status` 字段自动着色（success=success色, error=error色, warning=warning色, info=info色）
+
 #### SankeyChart
 
 ```typescript
@@ -137,6 +143,41 @@ interface TreeMapChartProps {
 
 ---
 
+### 1.3 ECharts 子模块注册清单
+
+每个新组件需要在 `echarts-init.ts` 中注册对应的 ECharts 子模块：
+
+| 新组件 | 需要的 echarts/charts | 需要的 echarts/components |
+|--------|----------------------|--------------------------|
+| **ScatterChart** | `ScatterChart` | `GridComponent`, `TooltipComponent` |
+| **RadarChart** | `RadarChart` | `RadarComponent`, `TooltipComponent`, `LegendComponent` |
+| **TimelineChart** | `CustomSeries` (via `registerChart`) | `GridComponent`, `TooltipComponent`, `DatasetComponent` |
+| **SankeyChart** | `SankeyChart` | `TooltipComponent`, `LegendComponent` |
+| **TreeMap** | `TreemapChart` | `TooltipComponent` |
+
+注册代码变更（`echarts-init.ts`）：
+
+```typescript
+// echarts/charts — 新增
+import { ScatterChart, RadarChart, SankeyChart, TreemapChart } from 'echarts/charts';
+
+// echarts/components — 新增
+import { RadarComponent, DatasetComponent } from 'echarts/components';
+
+echarts.use([
+  // ... 已有注册 ...
+  // 新增
+  ScatterChart,
+  RadarChart,
+  SankeyChart,
+  TreemapChart,
+  RadarComponent,
+  DatasetComponent,
+]);
+```
+
+---
+
 ## Part 2: 剩余 Dashboard 收尾
 
 ### 2.1 需要替换的 Dashboard 页面
@@ -152,6 +193,8 @@ interface TreeMapChartProps {
 | **DashboardNew** | 9 | StatCard + TrendLineChart | ~400 |
 
 ### 2.2 各页面图表映射
+
+> **注意：** ManagerDashboard 已有 13 个测试通过，替换图表时需保持 mock 数据结构兼容。每个 Dashboard 页面重构后需确保原有测试仍能通过或同步更新 mock。
 
 #### EngineerDashboard（个人效能看板）
 - 当前：4× Statistic（工单/代码/部署/缺陷） → StatCard
@@ -317,3 +360,5 @@ Phase 4: 其余页面渐进式（7 个页面）
 3. 5 个核心非 Dashboard 页面有可视化元素
 4. `npx vitest run` 全部通过
 5. `npx tsc --noEmit` 无新增类型错误
+6. ECharts bundle 增量 < 100KB gzip（Phase 1 新增组件的按需导入，不含已有组件）
+7. 所有页面重构后原有测试仍能通过
