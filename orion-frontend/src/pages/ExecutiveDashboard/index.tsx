@@ -7,15 +7,11 @@
  */
 import React, { useMemo } from 'react';
 import {
-  Card,
   Row,
   Col,
-  Statistic,
   Tag,
-  Progress,
   Table,
   Typography,
-  Space,
   Badge,
 } from 'antd';
 import { colors, spacing } from '@/tokens';
@@ -40,8 +36,10 @@ import {
   PieChart,
   GaugeChart,
   StatCard,
+  BarChart,
   type TrendDataPoint,
   type PieDataItem,
+  type BarDataItem,
 } from '@/components/charts';
 import dayjs from 'dayjs';
 
@@ -208,14 +206,6 @@ const ExecutiveDashboard: React.FC = () => {
     },
   ];
 
-  // Priority color mapping
-  const priorityColors: Record<string, string> = {
-    critical: COLORS.error,
-    high: colors.warning[500],
-    medium: COLORS.warning,
-    low: COLORS.info,
-  };
-
   // Category display names
   const categoryNames: Record<string, string> = {
     infrastructure: '基础设施',
@@ -242,7 +232,7 @@ const ExecutiveDashboard: React.FC = () => {
   return (
     <div style={{ padding: 0 }}>
       {/* Loading state */}
-      {loading && !data && (
+      {loading && !apiData && (
         <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}>
           <Spin tip="加载效能数据..." size="large" />
         </div>
@@ -358,51 +348,22 @@ const ExecutiveDashboard: React.FC = () => {
         {/* Bottom Performers - Need Attention */}
         <Col xs={24} xl={10}>
           <CardPanel title="需关注工程师" extra={<Tag color="orange">Attention</Tag>}>
-            <Space direction="vertical" style={{ width: '100%' }} size={16}>
+            <BarChart
+              data={data.teamRanking.bottomPerformers.map(
+                (m): BarDataItem => ({ label: m.name, value: m.score })
+              )}
+              height={200}
+            />
+            <div style={{ marginTop: 8, padding: `0 ${spacing[2]}` }}>
               {data.teamRanking.bottomPerformers.map((member) => (
-                <Card
-                  key={member.engineerId}
-                  size="small"
-                  style={{
-                    borderLeft: `3px solid ${member.score < 60 ? COLORS.error : COLORS.warning}`,
-                  }}
-                >
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                    }}
-                  >
-                    <div>
-                      <Text strong>{member.name}</Text>
-                      <Text type="secondary" style={{ marginLeft: 8, fontSize: spacing[3] }}>
-                        {member.engineerId}
-                      </Text>
-                    </div>
-                    <Tag
-                      color={member.score < 60 ? 'error' : 'warning'}
-                      style={{ fontWeight: 600 }}
-                    >
-                      {member.score}分
-                    </Tag>
-                  </div>
-                  <div style={{ marginTop: 8 }}>
-                    <Text type="warning" style={{ fontSize: spacing[3] }}>
-                      <WarningOutlined style={{ marginRight: 4 }} />
-                      {member.needsAttention}
-                    </Text>
-                  </div>
-                  <Progress
-                    percent={member.score}
-                    size="small"
-                    strokeColor={member.score < 60 ? COLORS.error : COLORS.warning}
-                    showInfo={false}
-                    style={{ marginTop: 8 }}
-                  />
-                </Card>
+                <div key={member.engineerId} style={{ marginBottom: spacing[2] }}>
+                  <Text type="warning" style={{ fontSize: spacing[3] }}>
+                    <WarningOutlined style={{ marginRight: 4 }} />
+                    {member.needsAttention}
+                  </Text>
+                </div>
               ))}
-            </Space>
+            </div>
           </CardPanel>
         </Col>
       </Row>
@@ -425,25 +386,13 @@ const ExecutiveDashboard: React.FC = () => {
           <Row gutter={[16, 16]}>
             {alertCards.map((alert) => (
               <Col xs={24} sm={12} lg={6} key={alert.title}>
-                <Card
-                  size="small"
-                  style={{
-                    borderLeft: `3px solid ${alert.color}`,
-                    backgroundColor: `${alert.color}08`,
-                  }}
-                >
-                  <Statistic
-                    title={
-                      <Space>
-                        <span style={{ color: alert.color }}>{alert.icon}</span>
-                        {alert.title}
-                      </Space>
-                    }
-                    value={alert.value}
-                    suffix={alert.suffix}
-                    valueStyle={{ color: alert.color, fontSize: 28 }}
-                  />
-                </Card>
+                <StatCard
+                  title={alert.title}
+                  value={alert.value}
+                  suffix={alert.suffix}
+                  icon={<span style={{ color: alert.color }}>{alert.icon}</span>}
+                  color={alert.color}
+                />
               </Col>
             ))}
           </Row>
@@ -478,34 +427,16 @@ const ExecutiveDashboard: React.FC = () => {
         {/* Priority Distribution */}
         <Col xs={24} xl={10}>
           <CardPanel title="优先级分布">
-            <Space direction="vertical" style={{ width: '100%' }} size={16}>
-              {Object.entries(data.distribution.byPriority).map(([key, val]) => (
-                <Card key={key} size="small">
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      marginBottom: 8,
-                    }}
-                  >
-                    <Tag color={priorityColors[key]} style={{ fontWeight: 600 }}>
-                      {priorityNames[key] || key}
-                    </Tag>
-                    <Space>
-                      <Text>总数: {val.count}</Text>
-                      <Text type="secondary">已解决: {val.resolved}</Text>
-                    </Space>
-                  </div>
-                  <Progress
-                    percent={val.count > 0 ? Math.round((val.resolved / val.count) * 100) : 0}
-                    size="small"
-                    strokeColor={priorityColors[key]}
-                    format={(percent) => `${percent}% 已解决`}
-                  />
-                </Card>
-              ))}
-            </Space>
+            <BarChart
+              data={Object.entries(data.distribution.byPriority).flatMap(
+                ([key, val]): BarDataItem[] => [
+                  { label: priorityNames[key] || key, value: val.count, series: '总数' },
+                  { label: priorityNames[key] || key, value: val.resolved, series: '已解决' },
+                ]
+              )}
+              stacked={false}
+              height={240}
+            />
           </CardPanel>
         </Col>
       </Row>

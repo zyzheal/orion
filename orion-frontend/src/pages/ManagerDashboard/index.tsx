@@ -14,8 +14,6 @@ import {
   ArrowDownOutlined,
   MinusOutlined,
   TeamOutlined,
-  ClockCircleOutlined,
-  CheckCircleOutlined,
   SwapOutlined,
 } from '@ant-design/icons';
 import CardPanel from '@/components/CardPanel';
@@ -24,7 +22,7 @@ import { useBiDashboard } from '@/hooks/useBiDashboard';
 import type { ManagerDashboardData } from '@/types/pages';
 import { Spin, Alert } from 'antd';
 import dayjs from 'dayjs';
-import { BarChart, GaugeChart, PieChart, StatCard, TrendLineChart } from '@/components/charts';
+import { BarChart, GaugeChart, PieChart, StatCard } from '@/components/charts';
 
 const { Title, Text } = Typography;
 
@@ -246,7 +244,7 @@ const ManagerDashboard: React.FC = () => {
   return (
     <div style={{ padding: 0 }}>
       {/* Loading state */}
-      {loading && !data && (
+      {loading && !apiData && (
         <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}>
           <Spin tip="加载效能数据..." size="large" />
         </div>
@@ -339,55 +337,24 @@ const ManagerDashboard: React.FC = () => {
       <div style={{ marginBottom: 24 }}>
         <CardPanel title="环比变化（vs 上周）" extra={<Tag color="cyan">周环比</Tag>}>
           <Row gutter={[16, 16]}>
-            {wowMetrics.map((metric) => (
-              <Col xs={24} sm={12} lg={6} key={metric.label}>
-                <div
-                  style={{
-                    padding: '12px 16px',
-                    borderRadius: 8,
-                    backgroundColor: colors.neutral[50],
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                  }}
-                >
-                  <div>
-                    <Text type="secondary" style={{ fontSize: spacing[3] }}>
-                      {metric.label}
-                    </Text>
-                    <div
-                      style={{
-                        fontSize: spacing[6],
-                        fontWeight: 600,
-                        color:
-                          metric.value > 0
-                            ? metric.label === '平均解决时间'
-                              ? COLORS.error
-                              : COLORS.success
-                            : metric.value < 0
-                              ? metric.label === '平均解决时间'
-                                ? COLORS.success
-                                : COLORS.error
-                              : colors.neutral[400],
-                      }}
-                    >
-                      {metric.value > 0 ? '+' : ''}
-                      {metric.value}
-                      {metric.suffix}
-                    </div>
-                  </div>
-                  <div style={{ fontSize: spacing[6] }}>
-                    {metric.value > 0 ? (
-                      <ArrowUpOutlined style={{ color: COLORS.success }} />
-                    ) : metric.value < 0 ? (
-                      <ArrowDownOutlined style={{ color: COLORS.error }} />
-                    ) : (
-                      <MinusOutlined style={{ color: colors.neutral[400] }} />
-                    )}
-                  </div>
-                </div>
-              </Col>
-            ))}
+            {wowMetrics.map((metric) => {
+              const isGoodUp = !['平均解决时间'].includes(metric.label);
+              const trendDir = metric.value > 0 ? 'up' : metric.value < 0 ? 'down' : 'flat';
+              return (
+                <Col xs={24} sm={12} lg={6} key={metric.label}>
+                  <StatCard
+                    title={metric.label}
+                    value={`${metric.value > 0 ? '+' : ''}${metric.value}`}
+                    suffix={metric.suffix}
+                    trend={{
+                      value: Math.abs(metric.value),
+                      direction: trendDir,
+                      good: isGoodUp ? 'up' : 'down',
+                    }}
+                  />
+                </Col>
+              );
+            })}
           </Row>
         </CardPanel>
       </div>
