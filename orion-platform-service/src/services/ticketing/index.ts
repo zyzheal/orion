@@ -9,7 +9,7 @@
 export * from './types';
 
 // Database-backed services (NEW)
-export { TicketingRepository, Ticket, TicketComment, CreateTicketInput, UpdateTicketInput } from './TicketingRepository';
+export { TicketingRepository, TicketRecord, TicketCommentRecord, CreateTicketInput, UpdateTicketInput } from './TicketingRepository';
 export { TicketingService, TicketingServiceError } from './TicketingService';
 
 // Services

@@ -8,6 +8,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { TicketService } from '../../../services/ticketing/TicketService';
 import { TicketingService, TicketingServiceError } from '../../../services/ticketing/TicketingService';
+import { TicketingRepository } from '../../../services/ticketing/TicketingRepository';
 import type { CreateTicketInput } from '../../../services/ticketing/TicketingRepository';
 import {
   TicketStatus,
@@ -36,11 +37,11 @@ export class TicketingController {
   private ticketService: TicketService;
   private ticketingService?: TicketingService;
 
-  constructor(ticketService?: TicketService, ticketingService?: TicketingService) {
+  constructor(ticketService?: TicketService, ticketingService?: TicketingService, repository?: TicketingRepository) {
     if (ticketService) {
       this.ticketService = ticketService;
     } else {
-      this.ticketService = new TicketService();
+      this.ticketService = new TicketService({}, repository);
     }
     this.ticketingService = ticketingService;
   }
@@ -90,7 +91,7 @@ export class TicketingController {
    * GET /api/v1/ticketing/health
    */
   async healthCheck(request: FastifyRequest, reply: FastifyReply) {
-    const health = this.ticketService.getHealthStatus();
+    const health = await this.ticketService.getHealthStatus();
     await reply.status(200).send({
       success: true,
       data: { health },
@@ -365,7 +366,7 @@ export class TicketingController {
     }
 
     // Fallback to in-memory TicketService
-    const tickets = this.ticketService.listTickets({
+    const tickets = await this.ticketService.listTickets({
       status: query.status as TicketStatus,
       priority: query.priority as TicketPriority,
       category: query.category as TicketCategory,
@@ -439,7 +440,7 @@ export class TicketingController {
       return;
     }
 
-    const result = this.ticketService.assignTicket(params.id, assignee, assignedBy, reason);
+    const result = await this.ticketService.assignTicket(params.id, assignee, assignedBy, reason);
 
     if ('error' in result) {
       await reply.status(400).send({
@@ -472,7 +473,7 @@ export class TicketingController {
       return;
     }
 
-    const result = this.ticketService.escalateTicket(params.id, escalatedBy, reason);
+    const result = await this.ticketService.escalateTicket(params.id, escalatedBy, reason);
 
     if ('error' in result) {
       await reply.status(400).send({
@@ -716,7 +717,7 @@ export class TicketingController {
     const params = request.params as any;
     const query = request.query as any;
 
-    const related = this.ticketService.findRelatedTickets(params.id, {
+    const related = await this.ticketService.findRelatedTickets(params.id, {
       maxResults: query.maxResults ? parseInt(query.maxResults) : undefined,
       minConfidence: query.minConfidence ? parseFloat(query.minConfidence) : undefined,
     });
@@ -735,7 +736,7 @@ export class TicketingController {
     const params = request.params as any;
     const query = request.query as any;
 
-    const duplicates = this.ticketService.detectDuplicates(
+    const duplicates = await this.ticketService.detectDuplicates(
       params.id,
       query.threshold ? parseFloat(query.threshold) : undefined
     );
@@ -988,7 +989,7 @@ export class TicketingController {
    * GET /api/v1/tickets/dispatch/engineers
    */
   async listEngineers(request: FastifyRequest, reply: FastifyReply) {
-    const engineers = this.ticketService.dispatchEngine.listEngineers();
+    const engineers = await this.ticketService.dispatchEngine.listEngineers();
 
     await reply.status(200).send({
       success: true,
@@ -1090,7 +1091,7 @@ export class TicketingController {
    */
   async findBestMatch(request: FastifyRequest, reply: FastifyReply) {
     const params = request.params as any;
-    const result = this.ticketService.findBestEngineerForTicket(params.ticketId);
+    const result = await this.ticketService.findBestEngineerForTicket(params.ticketId);
 
     if (!result) {
       await reply.status(404).send({
@@ -1413,7 +1414,7 @@ export class TicketingController {
       return;
     }
 
-    const result = this.ticketService.transferTicket(
+    const result = await this.ticketService.transferTicket(
       params.ticketId,
       toEngineer,
       initiatedBy,
@@ -1603,13 +1604,13 @@ export class TicketingController {
 
     let suspensions;
     if (status === 'active') {
-      suspensions = this.ticketService.getActiveSuspensions();
+      suspensions = await this.ticketService.getActiveSuspensions();
     } else if (status === 'scheduled') {
-      suspensions = this.ticketService.getScheduledSuspensions();
+      suspensions = await this.ticketService.getScheduledSuspensions();
     } else {
       // Return all: combine active + scheduled + completed + cancelled
-      const active = this.ticketService.getActiveSuspensions();
-      const scheduled = this.ticketService.getScheduledSuspensions();
+      const active = await this.ticketService.getActiveSuspensions();
+      const scheduled = await this.ticketService.getScheduledSuspensions();
       suspensions = [...active, ...scheduled];
     }
 
@@ -1647,7 +1648,7 @@ export class TicketingController {
    */
   async getEngineerSuspensions(request: FastifyRequest, reply: FastifyReply) {
     const params = request.params as any;
-    const suspensions = this.ticketService.getEngineerSuspensions(params.engineerId);
+    const suspensions = await this.ticketService.getEngineerSuspensions(params.engineerId);
 
     await reply.status(200).send({
       success: true,

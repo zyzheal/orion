@@ -19,6 +19,7 @@ import { LoadBalancer } from './LoadBalancer';
 import { DispatchAnalytics } from './DispatchAnalytics';
 import { TicketTransferService } from './TicketTransferService';
 import { EngineerSuspendService } from './EngineerSuspendService';
+import { TicketingRepository } from './TicketingRepository';
 import {
   Ticket,
   TicketStatus,
@@ -56,6 +57,7 @@ import {
   EfficiencyScore,
   PeriodComparison,
   BIExportData,
+  TicketAssignment,
 } from './types';
 import type { DispatchMetrics, AssignmentSuccessMetrics, TimeToAssignmentStats, EngineerPerformance } from './DispatchAnalytics';
 
@@ -143,26 +145,40 @@ export class TicketService extends EventEmitter {
   /** NATS unsubscribe handler */
   private natsUnsubscribe?: () => Promise<void>;
 
-  constructor(config?: Partial<TicketingConfig>) {
+  /** Repository (shared across sub-services) */
+  private repository: TicketingRepository | undefined;
+
+  constructor(config?: Partial<TicketingConfig>, repository?: TicketingRepository) {
     super();
 
     this.config = { ...DEFAULT_CONFIG, ...config };
+    this.repository = repository;
 
     // Initialize components
     this.generator = new TicketGenerator();
-    this.workflow = new TicketWorkflowService();
-    this.analyzer = new TicketRelationAnalyzer();
+    this.workflow = repository
+      ? new TicketWorkflowService({ ticketingRepository: repository })
+      : new TicketWorkflowService({ ticketingRepository: undefined as any });
+    this.analyzer = repository
+      ? new TicketRelationAnalyzer({ ticketingRepository: repository })
+      : new TicketRelationAnalyzer({ ticketingRepository: undefined as any });
     this.reporter = new TicketReportService();
 
-    // TASK-802: Initialize dispatch components
-    this.dispatchEngine = new DispatchEngine();
+    // TASK-802: Initialize dispatch components with repository
+    this.dispatchEngine = repository
+      ? new DispatchEngine({ ticketingRepository: repository })
+      : new DispatchEngine({ ticketingRepository: undefined as any }); // will throw if used without repo
     this.dispatchQueue = new DispatchQueueManager();
-    this.loadBalancer = new LoadBalancer();
+    this.loadBalancer = repository
+      ? new LoadBalancer({ ticketingRepository: repository })
+      : new LoadBalancer({ ticketingRepository: undefined as any });
     this.dispatchAnalytics = new DispatchAnalytics();
 
     // TASK-TICKET-XFER: Initialize transfer and suspend services
     this.transfer = new TicketTransferService();
-    this.suspend = new EngineerSuspendService();
+    this.suspend = repository
+      ? new EngineerSuspendService({ ticketingRepository: repository })
+      : new EngineerSuspendService({ ticketingRepository: undefined as any });
 
     // TASK-TICKET-BI: Initialize BI analytics service
     this.bi = new TicketBIService();
@@ -267,7 +283,7 @@ export class TicketService extends EventEmitter {
   /**
    * Create a ticket manually
    */
-  createTicket(data: {
+  async createTicket(data: {
     title: string;
     description: string;
     category: TicketCategory;
@@ -278,7 +294,7 @@ export class TicketService extends EventEmitter {
     source?: TicketSource;
     sourceAlertId?: string;
     sourceIncidentId?: string;
-  }): Ticket {
+  }): Promise<Ticket> {
     const now = new Date();
     const ticket: Ticket = {
       id: `TKT-${uuidv4()}`,
@@ -298,7 +314,7 @@ export class TicketService extends EventEmitter {
       metadata: data.metadata,
     };
 
-    const created = this.workflow.createTicket(ticket);
+    const created = await this.workflow.createTicket(ticket);
     this.analyzer.registerTicket(created);
 
     // TASK-802: Record for dispatch analytics
@@ -309,7 +325,7 @@ export class TicketService extends EventEmitter {
 
     // Try auto-assignment (TASK-801: rule-based)
     if (this.config.enableAutoAssignment) {
-      const result = this.workflow.autoAssignTicket(created.id);
+      const result = await this.workflow.autoAssignTicket(created.id);
       if (result && 'assignment' in result) {
         this.emit('ticket:auto-assigned', result);
         this.publishNatsEvent('ticket.assigned', {
@@ -344,7 +360,7 @@ export class TicketService extends EventEmitter {
     const tempTicket = this.generator.generateFromAlert(source);
     this.analyzer.registerTicket(tempTicket);
 
-    const duplicates = this.analyzer.detectDuplicates(
+    const duplicates = await this.analyzer.detectDuplicates(
       tempTicket.id,
       this.config.duplicateDetectionThreshold
     );
@@ -375,7 +391,7 @@ export class TicketService extends EventEmitter {
   /**
    * Create a ticket from an incident
    */
-  createTicketFromIncident(source: IncidentTicketSource): Ticket {
+  async createTicketFromIncident(source: IncidentTicketSource): Promise<Ticket> {
     const ticket = this.generator.generateFromIncident(source);
 
     return this.createTicket({
@@ -394,27 +410,27 @@ export class TicketService extends EventEmitter {
   /**
    * Get a ticket by ID
    */
-  getTicket(ticketId: string): Ticket | undefined {
+  async getTicket(ticketId: string): Promise<Ticket | undefined> {
     return this.workflow.getTicket(ticketId);
   }
 
   /**
    * List tickets with filters
    */
-  listTickets(filter?: {
+  async listTickets(filter?: {
     status?: TicketStatus;
     priority?: TicketPriority;
     category?: TicketCategory;
     assignee?: string;
     reporter?: string;
-  }): Ticket[] {
+  }): Promise<Ticket[]> {
     return this.workflow.listTickets(filter);
   }
 
   /**
    * Update a ticket
    */
-  updateTicket(ticketId: string, updates: Partial<Ticket>): Ticket | null {
+  async updateTicket(ticketId: string, updates: Partial<Ticket>): Promise<Ticket | null> {
     return this.workflow.updateTicket(ticketId, updates);
   }
 
@@ -449,13 +465,13 @@ export class TicketService extends EventEmitter {
   /**
    * Assign ticket to a user
    */
-  assignTicket(
+  async assignTicket(
     ticketId: string,
     assignee: string,
     assignedBy: string,
     reason?: string
-  ): { ticket: Ticket } | { error: string } {
-    const result = this.workflow.assignTicket(ticketId, assignee, assignedBy, reason);
+  ): Promise<{ ticket: Ticket; assignment: TicketAssignment } | { error: string }> {
+    const result = await this.workflow.assignTicket(ticketId, assignee, assignedBy, reason);
 
     if ('ticket' in result) {
       this.emit('ticket:assigned', result);
@@ -471,12 +487,12 @@ export class TicketService extends EventEmitter {
   /**
    * Escalate a ticket
    */
-  escalateTicket(
+  async escalateTicket(
     ticketId: string,
     escalatedBy: string,
     reason?: string
-  ): { ticket: Ticket } | { error: string } {
-    const result = this.workflow.escalateTicket(ticketId, escalatedBy, reason);
+  ): Promise<{ ticket: Ticket } | { error: string }> {
+    const result = await this.workflow.escalateTicket(ticketId, escalatedBy, reason);
 
     if ('ticket' in result) {
       this.emit('ticket:escalated', result);
@@ -548,32 +564,34 @@ export class TicketService extends EventEmitter {
   /**
    * Register an engineer for dispatch
    */
-  registerEngineer(profile: EngineerProfile): void {
-    this.dispatchEngine.registerEngineer(profile);
-    this.loadBalancer.registerEngineer(profile);
+  async registerEngineer(profile: EngineerProfile): Promise<EngineerProfile> {
+    await this.dispatchEngine.registerEngineer(profile);
+    await this.loadBalancer.registerEngineer(profile);
     this.dispatchAnalytics.registerEngineer(profile);
+    return profile;
   }
 
   /**
    * Update an engineer profile
    */
-  updateEngineer(id: string, updates: Partial<EngineerProfile>): boolean {
-    return this.dispatchEngine.updateEngineer(id, updates) &&
-      this.loadBalancer.updateEngineer(id, updates);
+  async updateEngineer(id: string, updates: Partial<EngineerProfile>): Promise<EngineerProfile | null> {
+    const result = await this.dispatchEngine.updateEngineer(id, updates);
+    await this.loadBalancer.updateEngineer(id, updates);
+    return result;
   }
 
   /**
    * Auto-dispatch a ticket to the best engineer
    */
-  autoDispatch(
+  async autoDispatch(
     ticketId: string,
     options?: {
       assignedBy?: string;
       weights?: Partial<DispatchWeights>;
       forceDispatch?: boolean;
     }
-  ): DispatchResult | null {
-    const ticket = this.workflow.getTicket(ticketId);
+  ): Promise<DispatchResult | null> {
+    const ticket = await this.workflow.getTicket(ticketId);
     if (!ticket) return null;
 
     if (ticket.assignee && ticket.status !== 'open') {
@@ -584,7 +602,7 @@ export class TicketService extends EventEmitter {
     this.dispatchQueue.recordDispatchAttempt(ticketId);
 
     // Use dispatch engine to find best engineer
-    const result = this.dispatchEngine.dispatchTicket(ticket, {
+    const result = await this.dispatchEngine.dispatchTicket(ticket, {
       assignedBy: options?.assignedBy,
       weights: options?.weights,
       forceDispatch: options?.forceDispatch,
@@ -593,7 +611,7 @@ export class TicketService extends EventEmitter {
     if (!result) return null;
 
     // Assign the ticket
-    const assignResult = this.workflow.assignTicket(
+    const assignResult = await this.workflow.assignTicket(
       ticketId,
       result.assignee,
       options?.assignedBy || 'dispatch-engine',
@@ -602,7 +620,7 @@ export class TicketService extends EventEmitter {
 
     if ('ticket' in assignResult) {
       // Record in load balancer
-      this.loadBalancer.recordAssignment({
+      await this.loadBalancer.recordAssignment({
         ticketId,
         engineerId: result.assignee,
         category: ticket.category,
@@ -629,8 +647,8 @@ export class TicketService extends EventEmitter {
   /**
    * Attempt auto-dispatch for a ticket (internal)
    */
-  private attemptAutoDispatch(ticketId: string): void {
-    const result = this.autoDispatch(ticketId);
+  private async attemptAutoDispatch(ticketId: string): Promise<void> {
+    const result = await this.autoDispatch(ticketId);
     if (result) {
       console.log(`[TicketService] Auto-dispatched ticket ${ticketId} to ${result.assignee} (score: ${result.score})`);
     }
@@ -639,16 +657,16 @@ export class TicketService extends EventEmitter {
   /**
    * Manually dispatch a ticket to a specific engineer
    */
-  manualDispatch(
+  async manualDispatch(
     ticketId: string,
     engineerId: string,
     assignedBy: string,
     reason?: string
-  ): DispatchResult | null {
-    const ticket = this.workflow.getTicket(ticketId);
+  ): Promise<DispatchResult | null> {
+    const ticket = await this.workflow.getTicket(ticketId);
     if (!ticket) return null;
 
-    const engineer = this.dispatchEngine.getEngineer(engineerId);
+    const engineer = await this.dispatchEngine.getEngineer(engineerId);
     if (!engineer) return null;
 
     const dispatchResult: DispatchResult = {
@@ -663,7 +681,7 @@ export class TicketService extends EventEmitter {
     };
 
     this.dispatchEngine['dispatchHistory'].push(dispatchResult);
-    this.loadBalancer.recordAssignment({
+    await this.loadBalancer.recordAssignment({
       ticketId,
       engineerId,
       category: ticket.category,
@@ -671,7 +689,7 @@ export class TicketService extends EventEmitter {
     this.dispatchAnalytics.recordDispatch(dispatchResult);
     this.dispatchQueue.markDispatched(ticketId);
 
-    const assignResult = this.workflow.assignTicket(
+    const assignResult = await this.workflow.assignTicket(
       ticketId,
       engineerId,
       assignedBy,
@@ -743,8 +761,8 @@ export class TicketService extends EventEmitter {
   /**
    * Find the best engineer for a ticket (without assigning)
    */
-  findBestEngineerForTicket(ticketId: string) {
-    const ticket = this.workflow.getTicket(ticketId);
+  async findBestEngineerForTicket(ticketId: string) {
+    const ticket = await this.workflow.getTicket(ticketId);
     if (!ticket) return null;
     return this.dispatchEngine.findBestEngineer(ticket);
   }
@@ -752,10 +770,10 @@ export class TicketService extends EventEmitter {
   /**
    * Calculate dispatch score for a ticket-engineer pair
    */
-  calculateDispatchScore(ticketId: string, engineerId: string) {
-    const ticket = this.workflow.getTicket(ticketId);
+  async calculateDispatchScore(ticketId: string, engineerId: string) {
+    const ticket = await this.workflow.getTicket(ticketId);
     if (!ticket) return null;
-    const engineer = this.dispatchEngine.getEngineer(engineerId);
+    const engineer = await this.dispatchEngine.getEngineer(engineerId);
     if (!engineer) return null;
     return this.dispatchEngine.calculateDispatchScore(ticket, engineer);
   }
@@ -763,14 +781,14 @@ export class TicketService extends EventEmitter {
   /**
    * Get load balancing report
    */
-  getLoadBalancingReport(): LoadBalancingReport {
+  async getLoadBalancingReport(): Promise<LoadBalancingReport> {
     return this.loadBalancer.getBalancingReport();
   }
 
   /**
    * Get reassignment suggestions
    */
-  getSuggestedReassignments(): ReassignmentSuggestion[] {
+  async getSuggestedReassignments(): Promise<ReassignmentSuggestion[]> {
     return this.loadBalancer.suggestReassignments();
   }
 
@@ -835,7 +853,7 @@ export class TicketService extends EventEmitter {
   /**
    * Record dispatch for a ticket (internal helper)
    */
-  private recordDispatchForTicket(ticket: Ticket, type: 'rule' | 'auto' | 'manual'): void {
+  private async recordDispatchForTicket(ticket: Ticket, type: 'rule' | 'auto' | 'manual'): Promise<void> {
     const result: DispatchResult = {
       id: `DISP-${ticket.id}-${Date.now()}`,
       ticketId: ticket.id,
@@ -850,7 +868,7 @@ export class TicketService extends EventEmitter {
     this.dispatchAnalytics.recordDispatch(result);
 
     if (ticket.assignee) {
-      this.loadBalancer.recordAssignment({
+      await this.loadBalancer.recordAssignment({
         ticketId: ticket.id,
         engineerId: ticket.assignee,
         category: ticket.category,
@@ -863,13 +881,13 @@ export class TicketService extends EventEmitter {
   /**
    * Transfer a ticket to another engineer
    */
-  transferTicket(
+  async transferTicket(
     ticketId: string,
     toEngineer: string,
     initiatedBy: string,
     reason: string
-  ): { transfer: TicketTransfer; holdDurationMs: number } | { error: string } {
-    const ticket = this.workflow.getTicket(ticketId);
+  ): Promise<{ transfer: TicketTransfer; holdDurationMs: number } | { error: string }> {
+    const ticket = await this.workflow.getTicket(ticketId);
     if (!ticket) {
       return { error: `Ticket ${ticketId} not found` };
     }
@@ -917,8 +935,8 @@ export class TicketService extends EventEmitter {
   /**
    * Reassign tickets for a suspended engineer (internal helper)
    */
-  private reassignTicketsForSuspend(suspend: EngineerSuspend): void {
-    const tickets = this.workflow.listTickets({ assignee: suspend.engineerId });
+  private async reassignTicketsForSuspend(suspend: EngineerSuspend): Promise<void> {
+    const tickets = await this.workflow.listTickets({ assignee: suspend.engineerId });
     let reassigned = 0;
 
     for (const ticket of tickets) {
@@ -933,7 +951,7 @@ export class TicketService extends EventEmitter {
         }
       } else {
         // Try to find a new engineer via dispatch
-        const dispatchResult = this.autoDispatch(ticket.id, {
+        const dispatchResult = await this.autoDispatch(ticket.id, {
           assignedBy: suspend.createdBy,
           forceDispatch: true,
         });
@@ -944,7 +962,7 @@ export class TicketService extends EventEmitter {
     }
 
     // Update the suspend record
-    const updated = this.suspend.getSuspend(suspend.id);
+    const updated = await this.suspend.getSuspend(suspend.id);
     if (updated) {
       (updated as any).ticketsReassigned = reassigned;
     }
@@ -953,7 +971,7 @@ export class TicketService extends EventEmitter {
   /**
    * Create a new engineer suspension
    */
-  createSuspend(input: {
+  async createSuspend(input: {
     engineerId: string;
     reason: SuspendReason;
     startTime: Date;
@@ -963,85 +981,85 @@ export class TicketService extends EventEmitter {
     pauseSLAForPending?: boolean;
     notes?: string;
     createdBy: string;
-  }): EngineerSuspend {
+  }): Promise<EngineerSuspend> {
     return this.suspend.createSuspend(input);
   }
 
   /**
    * Activate a suspension
    */
-  activateSuspend(suspendId: string): EngineerSuspend | null {
+  async activateSuspend(suspendId: string): Promise<EngineerSuspend | null> {
     return this.suspend.activateSuspend(suspendId);
   }
 
   /**
    * End a suspension
    */
-  endSuspend(suspendId: string): EngineerSuspend | null {
+  async endSuspend(suspendId: string): Promise<EngineerSuspend | null> {
     return this.suspend.endSuspend(suspendId);
   }
 
   /**
    * Cancel a scheduled suspension
    */
-  cancelSuspend(suspendId: string): EngineerSuspend | null {
+  async cancelSuspend(suspendId: string): Promise<EngineerSuspend | null> {
     return this.suspend.cancelSuspend(suspendId);
   }
 
   /**
    * Check if an engineer is currently suspended
    */
-  isEngineerSuspended(engineerId: string): boolean {
+  async isEngineerSuspended(engineerId: string): Promise<boolean> {
     return this.suspend.isSuspended(engineerId);
   }
 
   /**
    * Get active suspensions
    */
-  getActiveSuspensions(): EngineerSuspend[] {
+  async getActiveSuspensions(): Promise<EngineerSuspend[]> {
     return this.suspend.getActiveSuspensions();
   }
 
   /**
    * Get scheduled suspensions
    */
-  getScheduledSuspensions(): EngineerSuspend[] {
+  async getScheduledSuspensions(): Promise<EngineerSuspend[]> {
     return this.suspend.getScheduledSuspensions();
   }
 
   /**
    * Get suspension by ID
    */
-  getSuspend(suspendId: string): EngineerSuspend | null {
+  async getSuspend(suspendId: string): Promise<EngineerSuspend | null> {
     return this.suspend.getSuspend(suspendId);
   }
 
   /**
    * Get suspensions for an engineer
    */
-  getEngineerSuspensions(engineerId: string): EngineerSuspend[] {
+  async getEngineerSuspensions(engineerId: string): Promise<EngineerSuspend[]> {
     return this.suspend.getEngineerSuspensions(engineerId);
   }
 
   /**
    * Analyze suspension impact on tickets
    */
-  analyzeSuspendImpact(suspendId: string): SuspensionImpact {
-    const tickets = this.workflow.listTickets();
+  async analyzeSuspendImpact(suspendId: string): Promise<SuspensionImpact> {
+    const tickets = await this.workflow.listTickets();
     return this.suspend.analyzeImpact(suspendId, tickets);
   }
 
   /**
    * Check and auto-activate scheduled suspensions
    */
-  checkAutoActivateSuspensions(): EngineerSuspend[] {
+  async checkAutoActivateSuspensions(): Promise<EngineerSuspend[]> {
     return this.suspend.checkAutoActivate();
   }
 
   /**
    * Check and auto-end expired suspensions
    */
-  checkAutoEndSuspensions(): EngineerSuspend[] {
+  async checkAutoEndSuspensions(): Promise<EngineerSuspend[]> {
     return this.suspend.checkAutoEnd();
   }
 
@@ -1064,21 +1082,21 @@ export class TicketService extends EventEmitter {
   /**
    * Load data into BI service for analysis
    */
-  loadBIData(data: {
+  async loadBIData(data: {
     tickets?: Ticket[];
     slaRecords?: any[];
     dispatchResults?: DispatchResult[];
     transferRecords?: TransferRecord[];
     commentRecords?: CommentRecord[];
     engineerProfiles?: EngineerProfile[];
-  }): void {
+  }): Promise<void> {
     this.bi.loadData({
-      tickets: data.tickets || this.workflow.listTickets(),
-      slaRecords: data.slaRecords || this.workflow.getAllSLARecords(),
+      tickets: data.tickets || await this.workflow.listTickets(),
+      slaRecords: data.slaRecords || await this.workflow.getAllSLARecords(),
       dispatchResults: data.dispatchResults,
       transferRecords: data.transferRecords,
       commentRecords: data.commentRecords,
-      engineerProfiles: data.engineerProfiles || Array.from(this.dispatchEngine.listEngineers()),
+      engineerProfiles: data.engineerProfiles || await this.dispatchEngine.listEngineers(),
     });
   }
 
@@ -1169,11 +1187,11 @@ export class TicketService extends EventEmitter {
   /**
    * Sync current service data into BI service
    */
-  private syncBIData(): void {
+  private async syncBIData(): Promise<void> {
     this.bi.loadData({
-      tickets: this.workflow.listTickets(),
-      slaRecords: this.workflow.getAllSLARecords(),
-      engineerProfiles: this.dispatchEngine.listEngineers(),
+      tickets: await this.workflow.listTickets(),
+      slaRecords: await this.workflow.getAllSLARecords(),
+      engineerProfiles: await this.dispatchEngine.listEngineers(),
     });
   }
 
@@ -1217,50 +1235,50 @@ export class TicketService extends EventEmitter {
   /**
    * Get SLA compliance report
    */
-  getSLACompliance(periodStart?: Date, periodEnd?: Date): SLAComplianceReport {
-    const tickets = this.workflow.listTickets();
-    const slaRecords = this.workflow.getAllSLARecords();
+  async getSLACompliance(periodStart?: Date, periodEnd?: Date): Promise<SLAComplianceReport> {
+    const tickets = await this.workflow.listTickets();
+    const slaRecords = await this.workflow.getAllSLARecords();
     return this.reporter.getSLACompliance(tickets, slaRecords, periodStart, periodEnd);
   }
 
   /**
    * Get resolution time statistics
    */
-  getResolutionStats(): ResolutionStats {
-    const tickets = this.workflow.listTickets();
+  async getResolutionStats(): Promise<ResolutionStats> {
+    const tickets = await this.workflow.listTickets();
     return this.reporter.getResolutionStats(tickets);
   }
 
   /**
    * Get backlog analysis
    */
-  getBacklogAnalysis(): BacklogAnalysis {
-    const tickets = this.workflow.listTickets();
+  async getBacklogAnalysis(): Promise<BacklogAnalysis> {
+    const tickets = await this.workflow.listTickets();
     return this.reporter.getBacklogAnalysis(tickets);
   }
 
   /**
    * Get trend report
    */
-  getTrendReport(options?: { days?: number; granularity?: 'hour' | 'day' | 'week' | 'month' }): TrendReport {
-    const tickets = this.workflow.listTickets();
+  async getTrendReport(options?: { days?: number; granularity?: 'hour' | 'day' | 'week' | 'month' }): Promise<TrendReport> {
+    const tickets = await this.workflow.listTickets();
     return this.reporter.getTrendReport(tickets, options);
   }
 
   /**
    * Get overall statistics
    */
-  getStatistics(): {
+  async getStatistics(): Promise<{
     totalTickets: number;
     byStatus: Record<TicketStatus, number>;
     byPriority: Record<TicketPriority, number>;
     byCategory: Record<string, number>;
     averageResolutionTimeMs: number;
     slaComplianceRate: number;
-  } {
-    const tickets = this.workflow.listTickets();
-    const countsByStatus = this.workflow.getCountsByStatus();
-    const slaReport = this.getSLACompliance();
+  }> {
+    const tickets = await this.workflow.listTickets();
+    const countsByStatus = await this.workflow.getCountsByStatus();
+    const slaReport = await this.getSLACompliance();
 
     const byPriority: Record<TicketPriority, number> = { critical: 0, high: 0, medium: 0, low: 0 };
     const byCategory: Record<string, number> = {};
@@ -1270,7 +1288,7 @@ export class TicketService extends EventEmitter {
       byCategory[ticket.category] = (byCategory[ticket.category] || 0) + 1;
     }
 
-    const resolutionStats = this.getResolutionStats();
+    const resolutionStats = await this.getResolutionStats();
 
     return {
       totalTickets: tickets.length,
@@ -1423,23 +1441,24 @@ export class TicketService extends EventEmitter {
   /**
    * Get service health status
    */
-  getHealthStatus(): {
+  async getHealthStatus(): Promise<{
     status: 'healthy' | 'degraded' | 'unhealthy';
     isRunning: boolean;
     totalTickets: number;
     openTickets: number;
     overdueTickets: number;
-  } {
-    const backlog = this.getBacklogAnalysis();
+  }> {
+    const backlog = await this.getBacklogAnalysis();
 
     let status: 'healthy' | 'degraded' | 'unhealthy' = 'healthy';
     if (backlog.overdueCount > 20) status = 'unhealthy';
     else if (backlog.overdueCount > 5) status = 'degraded';
 
+    const totalTickets = await this.workflow.getTotalCount();
     return {
       status,
       isRunning: this.isRunning,
-      totalTickets: this.workflow.getTotalCount(),
+      totalTickets,
       openTickets: backlog.openCount + backlog.assignedCount + backlog.inProgressCount,
       overdueTickets: backlog.overdueCount,
     };

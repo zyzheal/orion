@@ -3,6 +3,8 @@
  *
  * Manages ticket state machine, status transitions,
  * auto-assignment, and escalation for overdue tickets.
+ *
+ * Uses PostgreSQL Repository pattern via TicketingRepository.
  */
 
 import { v4 as uuidv4 } from 'uuid';
@@ -11,6 +13,7 @@ import {
   TicketStatus,
   TicketPriority,
   TicketCategory,
+  TicketSource,
   WorkflowTransition,
   WorkflowHistory,
   TicketAssignment,
@@ -19,6 +22,7 @@ import {
   TicketSLA,
 } from './types';
 import { TicketWorkflowRepository, TicketSLARepository } from '../../repositories/TicketWorkflowRepository';
+import { TicketingRepository, TicketRecord } from './TicketingRepository';
 
 /**
  * Valid workflow transitions matrix
@@ -56,35 +60,36 @@ const DEFAULT_SLA_TARGETS: SLATarget[] = [
  * - Escalation for overdue tickets
  */
 export class TicketWorkflowService {
-  /** Ticket storage */
-  private tickets: Map<string, Ticket> = new Map();
-
-  /** Workflow history */
-  private workflowHistory: Map<string, WorkflowHistory[]> = new Map();
-
-  /** Assignment records */
-  private assignments: Map<string, TicketAssignment[]> = new Map();
-
-  /** Assignment rules */
+  /** Assignment rules (in-memory, no DB table yet) */
   private assignmentRules: AssignmentRule[] = [];
 
-  /** SLA targets */
+  /** SLA targets (in-memory configuration) */
   private slaTargets: SLATarget[] = [...DEFAULT_SLA_TARGETS];
-
-  /** SLA tracking */
-  private slaTracking: Map<string, TicketSLA> = new Map();
 
   /** Repository injection */
   private workflowRepository?: TicketWorkflowRepository;
   private slaRepository?: TicketSLARepository;
+  private ticketingRepository: TicketingRepository;
+
+  /** In-memory cache for tickets (refreshed from DB) */
+  private ticketsCache: Map<string, Ticket> = new Map();
 
   /** Escalation timer */
   private escalationTimer?: NodeJS.Timeout;
 
-  constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+  constructor(options?: {
+    db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> };
+    ticketingRepository?: TicketingRepository;
+  }) {
+    const db = typeof options === 'object' ? options.db : undefined;
     if (db) {
       this.workflowRepository = new TicketWorkflowRepository(db);
       this.slaRepository = new TicketSLARepository(db);
+    }
+    if (options && options.ticketingRepository) {
+      this.ticketingRepository = options.ticketingRepository;
+    } else {
+      throw new Error('TicketingRepository is required for TicketWorkflowService');
     }
   }
 
@@ -99,9 +104,7 @@ export class TicketWorkflowService {
   /**
    * Create a new ticket
    */
-  createTicket(ticket: Ticket): Ticket {
-    this.tickets.set(ticket.id, { ...ticket });
-
+  async createTicket(ticket: Ticket): Promise<Ticket> {
     // Create initial workflow history
     const history: WorkflowHistory = {
       id: `WH-${uuidv4()}`,
@@ -112,79 +115,138 @@ export class TicketWorkflowService {
       performedAt: new Date(),
       reason: 'Ticket created',
     };
-    this.workflowHistory.set(ticket.id, [history]);
 
     // Create SLA tracking
     const slaTarget = this.getSLATarget(ticket.priority);
     if (slaTarget) {
-      const sla: TicketSLA = {
-        id: `SLA-${uuidv4()}`,
-        ticketId: ticket.id,
-        slaTargetId: slaTarget.id,
-        targetResolutionTimeMs: slaTarget.targetResolutionTimeMs,
-        breached: false,
-        responseBreached: false,
-      };
-      this.slaTracking.set(ticket.id, sla);
-
-      // Set due date
       const dueDate = new Date(ticket.createdAt.getTime() + slaTarget.targetResolutionTimeMs);
-      const t = this.tickets.get(ticket.id)!;
-      t.dueDate = dueDate;
-      this.tickets.set(ticket.id, t);
+      ticket.dueDate = dueDate;
     }
 
-    return this.tickets.get(ticket.id)!;
+    // Persist to repository
+    try {
+      await this.ticketingRepository.createWorkflowHistory(
+        ticket.id, 'open', ticket.status, ticket.reporter, 'Ticket created'
+      );
+      if (slaTarget) {
+        await this.ticketingRepository.createSLA(
+          ticket.id, ticket.priority, slaTarget.targetResolutionTimeMs
+        );
+      }
+    } catch (err) {
+      console.warn(`[TicketWorkflowService] Failed to persist ticket to repository: ${err}`);
+    }
+
+    // Update cache
+    this.ticketsCache.set(ticket.id, { ...ticket });
+
+    return { ...ticket };
   }
 
   /**
    * Get a ticket by ID
    */
-  getTicket(ticketId: string): Ticket | undefined {
-    return this.tickets.get(ticketId);
+  async getTicket(ticketId: string): Promise<Ticket | undefined> {
+    // Check cache first
+    const cached = this.ticketsCache.get(ticketId);
+    if (cached) return cached;
+
+    // Fetch from repository
+    try {
+      const record = await this.ticketingRepository.findById(ticketId);
+      if (record) {
+        const ticket = this.mapRecordToTicket(record);
+        this.ticketsCache.set(ticketId, ticket);
+        return ticket;
+      }
+    } catch (err) {
+      console.warn(`[TicketWorkflowService] Repository getTicket failed: ${err}`);
+    }
+    return undefined;
   }
 
   /**
    * List tickets with optional filters
    */
-  listTickets(filter?: {
+  async listTickets(filter?: {
     status?: TicketStatus;
     priority?: TicketPriority;
     category?: TicketCategory;
     assignee?: string;
     reporter?: string;
-  }): Ticket[] {
-    let tickets = Array.from(this.tickets.values());
+  }): Promise<Ticket[]> {
+    try {
+      const records = await this.ticketingRepository.findAll({
+        status: filter?.status,
+        assigneeId: filter?.assignee,
+      });
+      let tickets = records.map(r => this.mapRecordToTicket(r));
+      if (filter?.priority) tickets = tickets.filter(t => t.priority === filter.priority);
+      if (filter?.reporter) tickets = tickets.filter(t => t.reporter === filter.reporter);
 
-    if (filter?.status) {
-      tickets = tickets.filter(t => t.status === filter.status);
+      // Update cache
+      for (const t of tickets) {
+        this.ticketsCache.set(t.id, t);
+      }
+      return tickets;
+    } catch (err) {
+      console.warn(`[TicketWorkflowService] Repository list failed: ${err}`);
+      // Fallback to cache
+      let tickets = Array.from(this.ticketsCache.values());
+      if (filter?.status) tickets = tickets.filter(t => t.status === filter.status);
+      if (filter?.priority) tickets = tickets.filter(t => t.priority === filter.priority);
+      if (filter?.category) tickets = tickets.filter(t => t.category === filter.category);
+      if (filter?.assignee) tickets = tickets.filter(t => t.assignee === filter.assignee);
+      if (filter?.reporter) tickets = tickets.filter(t => t.reporter === filter.reporter);
+      return tickets.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
     }
-    if (filter?.priority) {
-      tickets = tickets.filter(t => t.priority === filter.priority);
-    }
-    if (filter?.category) {
-      tickets = tickets.filter(t => t.category === filter.category);
-    }
-    if (filter?.assignee) {
-      tickets = tickets.filter(t => t.assignee === filter.assignee);
-    }
-    if (filter?.reporter) {
-      tickets = tickets.filter(t => t.reporter === filter.reporter);
-    }
+  }
 
-    // Sort by creation date (newest first)
-    return tickets.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  /** Map database record to Ticket interface */
+  private mapRecordToTicket(record: TicketRecord): Ticket {
+    return {
+      id: record.id,
+      title: record.title,
+      description: record.description || '',
+      category: (record.type as TicketCategory) || 'other',
+      priority: (record.priority as TicketPriority) || 'medium',
+      status: record.status as TicketStatus,
+      assignee: record.assignee_id || undefined,
+      reporter: record.reporter_id || '',
+      source: (record.source as TicketSource) || 'manual',
+      sourceAlertId: record.source_id || undefined,
+      createdAt: record.created_at,
+      updatedAt: record.updated_at,
+      escalationLevel: 0,
+      tags: Array.isArray(record.tags)
+        ? Object.fromEntries(record.tags.map((t: string) => [t, '']))
+        : (record.tags as Record<string, string> || {}),
+      dueDate: record.resolved_at ? new Date(record.resolved_at.getTime() + 24 * 60 * 60 * 1000) : undefined,
+    };
   }
 
   /**
    * Update an existing ticket
    */
-  updateTicket(ticketId: string, updates: Partial<Ticket>): Ticket | null {
-    const existing = this.tickets.get(ticketId);
+  async updateTicket(ticketId: string, updates: Partial<Ticket>): Promise<Ticket | null> {
+    const existing = await this.getTicket(ticketId);
     if (!existing) return null;
 
+    // Persist to repository
+    try {
+      const dbUpdates: any = {};
+      if (updates.title) dbUpdates.title = updates.title;
+      if (updates.description) dbUpdates.description = updates.description;
+      if (updates.priority) dbUpdates.priority = updates.priority;
+      if (updates.status) dbUpdates.status = updates.status;
+      if (updates.assignee) dbUpdates.assignee_id = updates.assignee;
+      await this.ticketingRepository.update(ticketId, dbUpdates);
+    } catch (err) {
+      console.warn(`[TicketWorkflowService] Failed to persist update: ${err}`);
+    }
+
     const updated = { ...existing, ...updates, updatedAt: new Date() };
-    this.tickets.set(ticketId, updated);
+    this.ticketsCache.set(ticketId, updated);
     return updated;
   }
 
@@ -213,7 +275,7 @@ export class TicketWorkflowService {
     performedBy: string,
     reason?: string
   ): Promise<{ ticket: Ticket; history: WorkflowHistory } | { error: string }> {
-    const ticket = this.tickets.get(ticketId);
+    const ticket = await this.getTicket(ticketId);
     if (!ticket) {
       return { error: `Ticket ${ticketId} not found` };
     }
@@ -237,51 +299,37 @@ export class TicketWorkflowService {
       reason,
     };
 
-    const histList = this.workflowHistory.get(ticketId) || [];
-    histList.push(history);
-    this.workflowHistory.set(ticketId, histList);
-
     // Persist to repository
-    if (this.workflowRepository) {
-      try {
-        await this.workflowRepository.createEntry({
-          ticketId,
-          fromStatus: history.fromStatus,
-          toStatus: history.toStatus,
-          triggeredBy: history.performedBy,
-          triggeredType: 'manual',
-          comment: history.reason,
-        });
-      } catch (err) {
-        console.warn(`[TicketWorkflowService] Failed to persist workflow history: ${err}`);
-      }
+    try {
+      await this.ticketingRepository.createWorkflowHistory(
+        ticketId, fromStatus, toStatus, performedBy, reason
+      );
+    } catch (err) {
+      console.warn(`[TicketWorkflowService] Failed to persist workflow history: ${err}`);
     }
 
     // Update SLA tracking on resolution
     if (toStatus === 'resolved' || toStatus === 'closed') {
-      const sla = this.slaTracking.get(ticketId);
-      if (sla) {
-        sla.resolvedAt = new Date();
-        sla.actualResolutionTimeMs = sla.resolvedAt.getTime() - ticket.createdAt.getTime();
-        sla.breached = sla.actualResolutionTimeMs > sla.targetResolutionTimeMs;
-        if (sla.breached) {
-          sla.breachedAt = sla.resolvedAt;
-        }
+      try {
+        await this.ticketingRepository.updateSLA(ticketId, { resolvedAt: new Date() });
+      } catch (err) {
+        console.warn(`[TicketWorkflowService] Failed to update SLA: ${err}`);
       }
     }
 
     // Re-open: reset SLA breach status
     if (toStatus === 'open' && fromStatus === 'resolved') {
-      const sla = this.slaTracking.get(ticketId);
-      if (sla) {
-        sla.resolvedAt = undefined;
-        sla.actualResolutionTimeMs = undefined;
-        sla.breached = false;
-        sla.breachedAt = undefined;
+      try {
+        await this.ticketingRepository.updateSLA(ticketId, {
+          responseBreached: false,
+          resolutionBreached: false,
+        });
+      } catch (err) {
+        console.warn(`[TicketWorkflowService] Failed to reset SLA: ${err}`);
       }
     }
 
-    this.tickets.set(ticketId, ticket);
+    this.ticketsCache.set(ticketId, ticket);
 
     return { ticket, history };
   }
@@ -289,13 +337,13 @@ export class TicketWorkflowService {
   /**
    * Assign a ticket to a user
    */
-  assignTicket(
+  async assignTicket(
     ticketId: string,
     assignee: string,
     assignedBy: string,
     reason?: string
-  ): { ticket: Ticket; assignment: TicketAssignment } | { error: string } {
-    const ticket = this.tickets.get(ticketId);
+  ): Promise<{ ticket: Ticket; assignment: TicketAssignment } | { error: string }> {
+    const ticket = await this.getTicket(ticketId);
     if (!ticket) {
       return { error: `Ticket ${ticketId} not found` };
     }
@@ -313,10 +361,6 @@ export class TicketWorkflowService {
       reason: reason || 'Manual assignment',
     };
 
-    const assignList = this.assignments.get(ticketId) || [];
-    assignList.push(assignment);
-    this.assignments.set(ticketId, assignList);
-
     const prevStatus = ticket.status;
     ticket.assignee = assignee;
     ticket.updatedAt = new Date();
@@ -324,22 +368,24 @@ export class TicketWorkflowService {
     // Auto-transition from open to assigned
     if (ticket.status === 'open') {
       ticket.status = 'assigned';
-
-      const history: WorkflowHistory = {
-        id: `WH-${uuidv4()}`,
-        ticketId,
-        fromStatus: prevStatus,
-        toStatus: 'assigned',
-        performedBy: assignedBy,
-        performedAt: new Date(),
-        reason: 'Auto-transitioned on assignment',
-      };
-      const histList = this.workflowHistory.get(ticketId) || [];
-      histList.push(history);
-      this.workflowHistory.set(ticketId, histList);
     }
 
-    this.tickets.set(ticketId, ticket);
+    // Persist to repository
+    try {
+      await this.ticketingRepository.update(ticketId, { status: ticket.status, assignee_id: assignee });
+      await this.ticketingRepository.createAssignment({
+        ticketId, assignee, assignedBy, reason: reason || 'Manual assignment',
+      });
+      if (prevStatus === 'open') {
+        await this.ticketingRepository.createWorkflowHistory(
+          ticketId, prevStatus, 'assigned', assignedBy, 'Auto-transitioned on assignment'
+        );
+      }
+    } catch (err) {
+      console.warn(`[TicketWorkflowService] Failed to persist assignment: ${err}`);
+    }
+
+    this.ticketsCache.set(ticketId, ticket);
 
     return { ticket, assignment };
   }
@@ -372,11 +418,11 @@ export class TicketWorkflowService {
   /**
    * Auto-assign a ticket based on rules
    */
-  autoAssignTicket(
+  async autoAssignTicket(
     ticketId: string,
     assignedBy: string = 'system'
-  ): { ticket: Ticket; assignment: TicketAssignment } | { error: string } | null {
-    const ticket = this.tickets.get(ticketId);
+  ): Promise<{ ticket: Ticket; assignment: TicketAssignment } | { error: string } | null> {
+    const ticket = await this.getTicket(ticketId);
     if (!ticket) {
       return { error: `Ticket ${ticketId} not found` };
     }
@@ -405,12 +451,12 @@ export class TicketWorkflowService {
   /**
    * Escalate a ticket
    */
-  escalateTicket(
+  async escalateTicket(
     ticketId: string,
     escalatedBy: string,
     reason?: string
-  ): { ticket: Ticket } | { error: string } {
-    const ticket = this.tickets.get(ticketId);
+  ): Promise<{ ticket: Ticket } | { error: string }> {
+    const ticket = await this.getTicket(ticketId);
     if (!ticket) {
       return { error: `Ticket ${ticketId} not found` };
     }
@@ -437,11 +483,20 @@ export class TicketWorkflowService {
       reason: reason || `Escalated to level ${ticket.escalationLevel}`,
     };
 
-    const histList = this.workflowHistory.get(ticketId) || [];
-    histList.push(history);
-    this.workflowHistory.set(ticketId, histList);
+    this.ticketsCache.set(ticketId, ticket);
 
-    this.tickets.set(ticketId, ticket);
+    // Persist to repository
+    try {
+      await this.ticketingRepository.update(ticketId, {
+        priority: ticket.priority,
+      });
+      await this.ticketingRepository.createWorkflowHistory(
+        ticketId, ticket.status, ticket.status, escalatedBy,
+        reason || `Escalated to level ${ticket.escalationLevel}`
+      );
+    } catch (err) {
+      console.warn(`[TicketWorkflowService] Failed to persist escalation: ${err}`);
+    }
 
     return { ticket };
   }
@@ -449,25 +504,27 @@ export class TicketWorkflowService {
   /**
    * Check and auto-escalate overdue tickets
    */
-  checkAndEscalateOverdue(): Ticket[] {
+  async checkAndEscalateOverdue(): Promise<Ticket[]> {
     const escalated: Ticket[] = [];
     const now = Date.now();
 
-    for (const ticket of this.tickets.values()) {
+    const tickets = await this.listTickets();
+
+    for (const ticket of tickets) {
       // Skip closed/resolved tickets
       if (ticket.status === 'closed' || ticket.status === 'resolved') continue;
 
       // Skip already highly escalated
       if (ticket.escalationLevel >= 3) continue;
 
-      const sla = this.slaTracking.get(ticket.id);
+      const sla = await this.ticketingRepository.getSLA(ticket.id);
       if (!sla) continue;
 
       const age = now - ticket.createdAt.getTime();
       const escalationThreshold = this.escalationIntervals[ticket.priority];
 
       if (age > escalationThreshold) {
-        const result = this.escalateTicket(ticket.id, 'system', `Auto-escalated: exceeded ${ticket.priority} threshold`);
+        const result = await this.escalateTicket(ticket.id, 'system', `Auto-escalated: exceeded ${ticket.priority} threshold`);
         if ('ticket' in result) {
           escalated.push(result.ticket);
         }
@@ -485,8 +542,8 @@ export class TicketWorkflowService {
       clearInterval(this.escalationTimer);
     }
 
-    this.escalationTimer = setInterval(() => {
-      const escalated = this.checkAndEscalateOverdue();
+    this.escalationTimer = setInterval(async () => {
+      const escalated = await this.checkAndEscalateOverdue();
       if (escalated.length > 0) {
         console.log(`[TicketWorkflowService] Auto-escalated ${escalated.length} overdue tickets`);
       }
@@ -519,14 +576,24 @@ export class TicketWorkflowService {
         reason: e.comment,
       }));
     }
-    return this.workflowHistory.get(ticketId) || [];
+    try {
+      return await this.ticketingRepository.getWorkflowHistory(ticketId);
+    } catch (err) {
+      console.warn(`[TicketWorkflowService] Repository getWorkflowHistory failed: ${err}`);
+      return [];
+    }
   }
 
   /**
    * Get assignment history for a ticket
    */
-  getAssignmentHistory(ticketId: string): TicketAssignment[] {
-    return this.assignments.get(ticketId) || [];
+  async getAssignmentHistory(ticketId: string): Promise<TicketAssignment[]> {
+    try {
+      return await this.ticketingRepository.getAssignmentsByTicket(ticketId);
+    } catch (err) {
+      console.warn(`[TicketWorkflowService] Repository getAssignmentHistory failed: ${err}`);
+      return [];
+    }
   }
 
   /**
@@ -552,15 +619,26 @@ export class TicketWorkflowService {
   /**
    * Get SLA tracking for a ticket
    */
-  getTicketSLA(ticketId: string): TicketSLA | undefined {
-    return this.slaTracking.get(ticketId);
+  async getTicketSLA(ticketId: string): Promise<TicketSLA | undefined> {
+    try {
+      const sla = await this.ticketingRepository.getSLA(ticketId);
+      return sla || undefined;
+    } catch (err) {
+      console.warn(`[TicketWorkflowService] Repository getTicketSLA failed: ${err}`);
+      return undefined;
+    }
   }
 
   /**
    * Get all SLA tracking records
    */
-  getAllSLARecords(): TicketSLA[] {
-    return Array.from(this.slaTracking.values());
+  async getAllSLARecords(): Promise<TicketSLA[]> {
+    try {
+      return await this.ticketingRepository.getAllSLA();
+    } catch (err) {
+      console.warn(`[TicketWorkflowService] Repository getAllSLARecords failed: ${err}`);
+      return [];
+    }
   }
 
   /**
@@ -573,7 +651,7 @@ export class TicketWorkflowService {
     const ticket = result.ticket;
     if (resolutionNote) {
       ticket.resolutionNote = resolutionNote;
-      this.tickets.set(ticketId, ticket);
+      this.ticketsCache.set(ticketId, ticket);
     }
 
     return { ticket };
@@ -591,7 +669,7 @@ export class TicketWorkflowService {
   /**
    * Get ticket count by status
    */
-  getCountsByStatus(): Record<TicketStatus, number> {
+  async getCountsByStatus(): Promise<Record<TicketStatus, number>> {
     const counts: Record<string, number> = {
       'open': 0,
       'assigned': 0,
@@ -600,7 +678,8 @@ export class TicketWorkflowService {
       'closed': 0,
     };
 
-    for (const ticket of this.tickets.values()) {
+    const tickets = await this.listTickets();
+    for (const ticket of tickets) {
       counts[ticket.status] = (counts[ticket.status] || 0) + 1;
     }
 
@@ -610,18 +689,20 @@ export class TicketWorkflowService {
   /**
    * Get total ticket count
    */
-  getTotalCount(): number {
-    return this.tickets.size;
+  async getTotalCount(): Promise<number> {
+    try {
+      return await this.ticketingRepository.count();
+    } catch (err) {
+      console.warn(`[TicketWorkflowService] Repository count failed: ${err}`);
+      return this.ticketsCache.size;
+    }
   }
 
   /**
-   * Clear all data (for testing)
+   * Clear cache (for testing)
    */
   clearAll(): void {
-    this.tickets.clear();
-    this.workflowHistory.clear();
-    this.assignments.clear();
-    this.slaTracking.clear();
+    this.ticketsCache.clear();
     this.assignmentRules = [];
     this.stopEscalationChecks();
   }

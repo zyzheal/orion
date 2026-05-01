@@ -4,6 +4,8 @@
  * Tracks engineer capacity and current load,
  * prevents overload situations, and provides
  * capacity-based reassignment recommendations.
+ *
+ * Uses PostgreSQL Repository pattern via TicketingRepository.
  */
 
 import { v4 as uuidv4 } from 'uuid';
@@ -16,6 +18,18 @@ import {
   TicketCategory,
   TicketAssignment,
 } from './types';
+import { TicketingRepository } from './TicketingRepository';
+
+/**
+ * Ticket load record for tracking assignments
+ */
+interface TicketLoadRecord {
+  ticketId: string;
+  engineerId: string;
+  category: TicketCategory;
+  assignedAt: Date;
+  estimatedEffortHours?: number;
+}
 
 /**
  * Overload threshold - percentage of capacity at which
@@ -30,27 +44,16 @@ const DEFAULT_OVERLOAD_THRESHOLD = 0.85; // 85% capacity
 const DEFAULT_UNDERUTILIZATION_THRESHOLD = 0.25; // 25% capacity
 
 /**
- * Ticket load record for tracking assignments
- */
-interface TicketLoadRecord {
-  ticketId: string;
-  engineerId: string;
-  category: TicketCategory;
-  assignedAt: Date;
-  estimatedEffortHours?: number;
-}
-
-/**
  * Load Balancer
  *
  * Monitors and balances work distribution across team members
  * to prevent overload and ensure even capacity utilization.
  */
 export class LoadBalancer {
-  /** Engineer profiles */
-  private engineers: Map<string, EngineerProfile> = new Map();
+  /** Repository for engineer profiles */
+  private ticketingRepository: TicketingRepository;
 
-  /** Ticket load records */
+  /** Ticket load records (in-memory, tracks current assignments) */
   private ticketLoads: Map<string, TicketLoadRecord> = new Map();
 
   /** Assignment history */
@@ -62,63 +65,72 @@ export class LoadBalancer {
   /** Underutilization threshold */
   private underutilizationThreshold: number;
 
-  constructor(options?: {
-    overloadThreshold?: number;
-    underutilizationThreshold?: number;
-  }) {
-    this.overloadThreshold = options?.overloadThreshold ?? DEFAULT_OVERLOAD_THRESHOLD;
-    this.underutilizationThreshold = options?.underutilizationThreshold ?? DEFAULT_UNDERUTILIZATION_THRESHOLD;
+  constructor(options: { ticketingRepository: TicketingRepository; overloadThreshold?: number; underutilizationThreshold?: number }) {
+    this.ticketingRepository = options.ticketingRepository;
+    this.overloadThreshold = options.overloadThreshold ?? DEFAULT_OVERLOAD_THRESHOLD;
+    this.underutilizationThreshold = options.underutilizationThreshold ?? DEFAULT_UNDERUTILIZATION_THRESHOLD;
   }
 
   // ==================== Engineer Management ====================
 
   /**
-   * Register an engineer
+   * Register an engineer (delegated to repository via DispatchEngine)
    */
-  registerEngineer(profile: EngineerProfile): void {
-    this.engineers.set(profile.id, { ...profile });
+  async registerEngineer(profile: EngineerProfile): Promise<EngineerProfile> {
+    return this.ticketingRepository.createEngineerProfile({
+      id: profile.id,
+      name: profile.name,
+      expertise: profile.expertise,
+      currentLoad: profile.currentLoad,
+      maxCapacity: profile.maxCapacity,
+      availability: profile.availability,
+      team: profile.team,
+      onCall: profile.onCall,
+    });
   }
 
   /**
    * Update an engineer's profile
    */
-  updateEngineer(id: string, updates: Partial<EngineerProfile>): boolean {
-    const existing = this.engineers.get(id);
-    if (!existing) return false;
-
-    const updated = { ...existing, ...updates };
-    this.engineers.set(id, updated);
-
-    // Recalculate load if capacity changed
-    this.recalculateEngineerLoad(id);
-    return true;
+  async updateEngineer(id: string, updates: Partial<EngineerProfile>): Promise<EngineerProfile | null> {
+    return this.ticketingRepository.updateEngineerProfile(id, {
+      name: updates.name,
+      expertise: updates.expertise,
+      currentLoad: updates.currentLoad,
+      maxCapacity: updates.maxCapacity,
+      availability: updates.availability,
+      team: updates.team,
+      onCall: updates.onCall,
+      skills: updates.skills,
+    });
   }
 
   /**
    * Remove an engineer
    */
-  removeEngineer(id: string): boolean {
+  async removeEngineer(id: string): Promise<boolean> {
     // Remove their ticket loads
     for (const [ticketId, record] of this.ticketLoads.entries()) {
       if (record.engineerId === id) {
         this.ticketLoads.delete(ticketId);
       }
     }
-    return this.engineers.delete(id);
+    return this.ticketingRepository.deleteEngineerProfile(id);
   }
 
   /**
    * Get an engineer
    */
-  getEngineer(id: string): EngineerProfile | undefined {
-    return this.engineers.get(id);
+  async getEngineer(id: string): Promise<EngineerProfile | undefined> {
+    const profile = await this.ticketingRepository.findEngineerProfileById(id);
+    return profile || undefined;
   }
 
   /**
    * List all engineers
    */
-  listEngineers(): EngineerProfile[] {
-    return Array.from(this.engineers.values());
+  async listEngineers(): Promise<EngineerProfile[]> {
+    return this.ticketingRepository.findAllEngineerProfiles();
   }
 
   // ==================== Load Tracking ====================
@@ -126,12 +138,12 @@ export class LoadBalancer {
   /**
    * Record a ticket assignment to an engineer
    */
-  recordAssignment(assignment: {
+  async recordAssignment(assignment: {
     ticketId: string;
     engineerId: string;
     category: TicketCategory;
     estimatedEffortHours?: number;
-  }): void {
+  }): Promise<void> {
     const record: TicketLoadRecord = {
       ticketId: assignment.ticketId,
       engineerId: assignment.engineerId,
@@ -142,29 +154,39 @@ export class LoadBalancer {
 
     this.ticketLoads.set(assignment.ticketId, record);
 
-    // Update engineer load
-    this.recalculateEngineerLoad(assignment.engineerId);
+    // Update engineer load in repository
+    const engineer = await this.getEngineer(assignment.engineerId);
+    if (engineer) {
+      await this.ticketingRepository.updateEngineerProfile(assignment.engineerId, {
+        currentLoad: engineer.currentLoad + 1,
+      });
+    }
   }
 
   /**
    * Remove a ticket assignment (e.g., when resolved)
    */
-  removeAssignment(ticketId: string): boolean {
+  async removeAssignment(ticketId: string): Promise<boolean> {
     const record = this.ticketLoads.get(ticketId);
     if (!record) return false;
 
     this.ticketLoads.delete(ticketId);
 
-    // Update engineer load
-    this.recalculateEngineerLoad(record.engineerId);
+    // Update engineer load in repository
+    const engineer = await this.getEngineer(record.engineerId);
+    if (engineer) {
+      await this.ticketingRepository.updateEngineerProfile(record.engineerId, {
+        currentLoad: Math.max(0, engineer.currentLoad - 1),
+      });
+    }
     return true;
   }
 
   /**
    * Get current load for an engineer
    */
-  getEngineerLoad(engineerId: string): EngineerLoadInfo | null {
-    const engineer = this.engineers.get(engineerId);
+  async getEngineerLoad(engineerId: string): Promise<EngineerLoadInfo | null> {
+    const engineer = await this.getEngineer(engineerId);
     if (!engineer) return null;
 
     return this.buildLoadInfo(engineer);
@@ -173,15 +195,16 @@ export class LoadBalancer {
   /**
    * Get all engineer loads
    */
-  getAllLoads(): EngineerLoadInfo[] {
-    return Array.from(this.engineers.values()).map((e) => this.buildLoadInfo(e));
+  async getAllLoads(): Promise<EngineerLoadInfo[]> {
+    const engineers = await this.listEngineers();
+    return engineers.map((e) => this.buildLoadInfo(e));
   }
 
   /**
    * Check if an engineer is overloaded
    */
-  isOverloaded(engineerId: string): boolean {
-    const load = this.getEngineerLoad(engineerId);
+  async isOverloaded(engineerId: string): Promise<boolean> {
+    const load = await this.getEngineerLoad(engineerId);
     if (!load) return false;
     return load.isOverloaded;
   }
@@ -207,9 +230,9 @@ export class LoadBalancer {
   /**
    * Generate a full load balancing report
    */
-  getBalancingReport(): LoadBalancingReport {
-    const loads = this.getAllLoads();
-    const suggestions = this.suggestReassignments();
+  async getBalancingReport(): Promise<LoadBalancingReport> {
+    const loads = await this.getAllLoads();
+    const suggestions = await this.suggestReassignments();
 
     // Calculate balance score
     const balanceScore = this.calculateBalanceScore(loads);
@@ -234,9 +257,9 @@ export class LoadBalancer {
   /**
    * Suggest reassignments to balance workload
    */
-  suggestReassignments(): ReassignmentSuggestion[] {
+  async suggestReassignments(): Promise<ReassignmentSuggestion[]> {
     const suggestions: ReassignmentSuggestion[] = [];
-    const loads = this.getAllLoads();
+    const loads = await this.getAllLoads();
 
     // Find overloaded engineers
     const overloaded = loads.filter((l) => l.isOverloaded);
@@ -266,7 +289,7 @@ export class LoadBalancer {
         const ticket = tickets[i];
 
         // Find best target engineer
-        const target = this.findBestReassignmentTarget(
+        const target = await this.findBestReassignmentTarget(
           ticket,
           over.engineerId,
           underutilized.map((l) => l.engineerId)
@@ -274,7 +297,7 @@ export class LoadBalancer {
 
         if (target) {
           const currentUtil = over.utilizationPercent;
-          const targetEngineer = this.engineers.get(target.engineerId);
+          const targetEngineer = await this.getEngineer(target.engineerId);
           const targetUtil = targetEngineer
             ? (targetEngineer.currentLoad / targetEngineer.maxCapacity) * 100
             : 0;
@@ -302,11 +325,11 @@ export class LoadBalancer {
   /**
    * Find the best engineer for a new assignment based on current load
    */
-  findLeastLoadedEngineer(
+  async findLeastLoadedEngineer(
     category: TicketCategory,
     excludeEngineers?: string[]
-  ): EngineerProfile | null {
-    const candidates = Array.from(this.engineers.values()).filter((e) => {
+  ): Promise<EngineerProfile | null> {
+    const candidates = (await this.listEngineers()).filter((e) => {
       if (excludeEngineers?.includes(e.id)) return false;
       if (e.currentLoad >= e.maxCapacity) return false;
       return true;
@@ -334,8 +357,8 @@ export class LoadBalancer {
    * Force rebalance workload across all engineers
    * Returns suggested reassignments (does not automatically reassign)
    */
-  balanceWorkload(): ReassignmentSuggestion[] {
-    const loads = this.getAllLoads();
+  async balanceWorkload(): Promise<ReassignmentSuggestion[]> {
+    const loads = await this.getAllLoads();
 
     if (loads.length === 0) return [];
 
@@ -364,15 +387,15 @@ export class LoadBalancer {
   /**
    * Get team capacity summary
    */
-  getTeamCapacity(): {
+  async getTeamCapacity(): Promise<{
     totalCapacity: number;
     totalLoad: number;
     availableCapacity: number;
     utilizationRate: number;
     engineerCount: number;
     availableEngineers: number;
-  } {
-    const loads = this.getAllLoads();
+  }> {
+    const loads = await this.getAllLoads();
 
     const totalCapacity = loads.reduce((sum, l) => sum + l.maxCapacity, 0);
     const totalLoad = loads.reduce((sum, l) => sum + l.currentLoad, 0);
@@ -394,16 +417,17 @@ export class LoadBalancer {
   /**
    * Check if the team can handle additional tickets
    */
-  canAcceptMoreTickets(count: number = 1): boolean {
-    const capacity = this.getTeamCapacity();
+  async canAcceptMoreTickets(count: number = 1): Promise<boolean> {
+    const capacity = await this.getTeamCapacity();
     return capacity.availableCapacity >= count;
   }
 
   /**
    * Get engineers who can accept more work
    */
-  getAvailableEngineers(maxLoad?: number): EngineerProfile[] {
-    return Array.from(this.engineers.values()).filter((e) => {
+  async getAvailableEngineers(maxLoad?: number): Promise<EngineerProfile[]> {
+    const all = await this.listEngineers();
+    return all.filter((e) => {
       const limit = maxLoad ?? e.maxCapacity;
       return e.currentLoad < limit &&
         e.availability !== 'offline' &&
@@ -484,15 +508,15 @@ export class LoadBalancer {
   /**
    * Find best target engineer for reassignment
    */
-  private findBestReassignmentTarget(
+  private async findBestReassignmentTarget(
     ticket: TicketLoadRecord,
     fromEngineerId: string,
     candidateIds: string[]
-  ): { engineerId: string; engineerName: string } | null {
+  ): Promise<{ engineerId: string; engineerName: string } | null> {
     let best: { engineerId: string; engineerName: string; score: number } | null = null;
 
     for (const id of candidateIds) {
-      const engineer = this.engineers.get(id);
+      const engineer = await this.getEngineer(id);
       if (!engineer) continue;
       if (engineer.currentLoad >= engineer.maxCapacity) continue;
 
@@ -518,28 +542,12 @@ export class LoadBalancer {
     return { engineerId: best.engineerId, engineerName: best.engineerName };
   }
 
-  /**
-   * Recalculate engineer load from ticket records
-   */
-  private recalculateEngineerLoad(engineerId: string): void {
-    const engineer = this.engineers.get(engineerId);
-    if (!engineer) return;
-
-    const tickets = Array.from(this.ticketLoads.values()).filter(
-      (r) => r.engineerId === engineerId
-    );
-
-    engineer.currentLoad = tickets.length;
-    this.engineers.set(engineerId, engineer);
-  }
-
   // ==================== Clear ====================
 
   /**
    * Clear all data (for testing)
    */
   clearAll(): void {
-    this.engineers.clear();
     this.ticketLoads.clear();
     this.assignmentHistory = [];
   }

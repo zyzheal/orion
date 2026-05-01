@@ -5,6 +5,8 @@
  * - Find related tickets by similarity
  * - Duplicate detection
  * - Root cause correlation across tickets
+ *
+ * Uses PostgreSQL Repository pattern via TicketingRepository.
  */
 
 import { v4 as uuidv4 } from 'uuid';
@@ -15,6 +17,7 @@ import {
   TicketCategory,
   TicketPriority,
 } from './types';
+import { TicketingRepository, TicketRecord } from './TicketingRepository';
 
 /**
  * Ticket Relation Analyzer
@@ -25,24 +28,71 @@ import {
  * - Root cause correlation across multiple related tickets
  */
 export class TicketRelationAnalyzer {
-  /** Stored relations */
+  /** Repository for ticket data */
+  private ticketingRepository: TicketingRepository;
+
+  /** Stored relations (managed via Repository) */
   private relations: TicketRelation[] = [];
 
-  /** Ticket store for lookups */
-  private tickets: Map<string, Ticket> = new Map();
+  /** Local ticket cache for similarity analysis */
+  private ticketsCache: Map<string, Ticket> = new Map();
+
+  constructor(options: { ticketingRepository: TicketingRepository }) {
+    this.ticketingRepository = options.ticketingRepository;
+  }
 
   /**
-   * Register a ticket for analysis
+   * Register a ticket for analysis (caches it)
    */
   registerTicket(ticket: Ticket): void {
-    this.tickets.set(ticket.id, ticket);
+    this.ticketsCache.set(ticket.id, ticket);
   }
 
   /**
    * Remove a ticket from analysis
    */
   unregisterTicket(ticketId: string): void {
-    this.tickets.delete(ticketId);
+    this.ticketsCache.delete(ticketId);
+  }
+
+  /**
+   * Load tickets from repository into cache for analysis
+   */
+  async loadTicketsFromRepository(options?: {
+    status?: string;
+    limit?: number;
+  }): Promise<void> {
+    try {
+      const tickets = await this.ticketingRepository.findAll({
+        status: options?.status,
+        limit: options?.limit,
+      });
+      for (const record of tickets) {
+        this.ticketsCache.set(record.id, this.mapRecordToTicket(record));
+      }
+    } catch (err) {
+      console.warn(`[TicketRelationAnalyzer] Failed to load tickets from repository: ${err}`);
+    }
+  }
+
+  /**
+   * Get a ticket from cache or repository
+   */
+  async getTicket(ticketId: string): Promise<Ticket | undefined> {
+    const cached = this.ticketsCache.get(ticketId);
+    if (cached) return cached;
+
+    try {
+      const record = await this.ticketingRepository.findById(ticketId);
+      if (record) {
+        const ticket = this.mapRecordToTicket(record);
+        this.ticketsCache.set(ticketId, ticket);
+        return ticket;
+      }
+    } catch (err) {
+      console.warn(`[TicketRelationAnalyzer] Failed to fetch ticket: ${err}`);
+    }
+    return undefined;
   }
 
   /**
@@ -68,13 +118,6 @@ export class TicketRelationAnalyzer {
     };
 
     this.relations.push(relation);
-
-    // Register tickets if not already
-    const t1 = this.tickets.get(ticketId);
-    const t2 = this.tickets.get(relatedTicketId);
-    if (t1) this.registerTicket(t1);
-    if (t2) this.registerTicket(t2);
-
     return relation;
   }
 
@@ -87,20 +130,25 @@ export class TicketRelationAnalyzer {
    - Text similarity in title/description
    - Temporal proximity
    */
-  findRelatedTickets(ticketId: string, options?: {
+  async findRelatedTickets(ticketId: string, options?: {
     maxResults?: number;
     minConfidence?: number;
     excludeTypes?: TicketRelationType[];
-  }): { ticket: Ticket; relation: TicketRelation; confidence: number }[] {
-    const ticket = this.tickets.get(ticketId);
+  }): Promise<{ ticket: Ticket; relation: TicketRelation; confidence: number }[]> {
+    const ticket = await this.getTicket(ticketId);
     if (!ticket) return [];
 
     const maxResults = options?.maxResults ?? 10;
     const minConfidence = options?.minConfidence ?? 0.1;
 
+    // Ensure cache is populated
+    if (this.ticketsCache.size < 2) {
+      await this.loadTicketsFromRepository();
+    }
+
     const candidates: { ticket: Ticket; score: number }[] = [];
 
-    for (const other of this.tickets.values()) {
+    for (const other of this.ticketsCache.values()) {
       if (other.id === ticketId) continue;
 
       let score = 0;
@@ -176,13 +224,18 @@ export class TicketRelationAnalyzer {
    * Returns tickets with high similarity scores
    * that might be duplicates of the given ticket.
    */
-  detectDuplicates(ticketId: string, threshold: number = 0.7): { ticket: Ticket; confidence: number }[] {
-    const ticket = this.tickets.get(ticketId);
+  async detectDuplicates(ticketId: string, threshold: number = 0.7): Promise<{ ticket: Ticket; confidence: number }[]> {
+    const ticket = await this.getTicket(ticketId);
     if (!ticket) return [];
+
+    // Ensure cache is populated
+    if (this.ticketsCache.size < 2) {
+      await this.loadTicketsFromRepository({ status: 'open' });
+    }
 
     const duplicates: { ticket: Ticket; confidence: number }[] = [];
 
-    for (const other of this.tickets.values()) {
+    for (const other of this.ticketsCache.values()) {
       if (other.id === ticketId) continue;
       // Only compare with open/assigned/in-progress tickets
       if (!['open', 'assigned', 'in-progress'].includes(other.status)) continue;
@@ -237,15 +290,17 @@ export class TicketRelationAnalyzer {
    * root cause tickets based on temporal ordering and
    * causal relationships.
    */
-  correlateRootCause(ticketIds: string[]): {
+  async correlateRootCause(ticketIds: string[]): Promise<{
     rootCauseTicket?: Ticket;
     affectedTickets: Ticket[];
     reasoning: string[];
     confidence: number;
-  } {
-    const tickets = ticketIds
-      .map(id => this.tickets.get(id))
-      .filter((t): t is Ticket => t !== undefined);
+  }> {
+    const tickets: Ticket[] = [];
+    for (const id of ticketIds) {
+      const t = await this.getTicket(id);
+      if (t) tickets.push(t);
+    }
 
     if (tickets.length === 0) {
       return { affectedTickets: [], reasoning: ['No tickets provided'], confidence: 0 };
@@ -317,7 +372,7 @@ export class TicketRelationAnalyzer {
       }
     }
 
-    const rootCauseTicket = this.tickets.get(rootCauseId);
+    const rootCauseTicket = await this.getTicket(rootCauseId);
     const affectedTickets = tickets.filter(t => t.id !== rootCauseId);
 
     // Auto-create caused-by relations
@@ -379,7 +434,29 @@ export class TicketRelationAnalyzer {
    */
   clearAll(): void {
     this.relations = [];
-    this.tickets.clear();
+    this.ticketsCache.clear();
+  }
+
+  /** Map database record to Ticket interface */
+  private mapRecordToTicket(record: TicketRecord): Ticket {
+    return {
+      id: record.id,
+      title: record.title,
+      description: record.description || '',
+      category: (record.type as TicketCategory) || 'other',
+      priority: (record.priority as TicketPriority) || 'medium',
+      status: record.status as any,
+      assignee: record.assignee_id || undefined,
+      reporter: record.reporter_id || '',
+      source: (record.source as any) || 'manual',
+      sourceAlertId: record.source_id || undefined,
+      createdAt: record.created_at,
+      updatedAt: record.updated_at,
+      escalationLevel: 0,
+      tags: Array.isArray(record.tags)
+        ? Object.fromEntries(record.tags.map((t: string) => [t, '']))
+        : (record.tags as Record<string, string> || {}),
+    };
   }
 
   // ==================== Private Utility Methods ====================

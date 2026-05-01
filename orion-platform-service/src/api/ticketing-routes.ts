@@ -38,10 +38,10 @@ export default async function ticketingRoutes(
     : undefined;
 
   // Initialize controller with both services
-  // - TicketService (Map-based, for advanced features)
+  // - TicketService (PostgreSQL-backed via TicketingRepository)
   // - TicketingService (PostgreSQL-backed, for core CRUD)
   const controller = new TicketingController(
-    new TicketService(),
+    new TicketService({}, repository),
     ticketingService
   );
 

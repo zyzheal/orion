@@ -12,9 +12,10 @@
  * - Auto-reassign unstarted tickets on suspend activation
  * - Backup engineer assignment
  * - SLA pause for pending tickets
+ *
+ * Uses PostgreSQL Repository pattern via TicketingRepository.
  */
 
-import { v4 as uuidv4 } from 'uuid';
 import {
   EngineerSuspend,
   SuspendStatus,
@@ -24,6 +25,7 @@ import {
   SuspensionImpact,
   EngineerAvailability,
 } from './types';
+import { TicketingRepository } from './TicketingRepository';
 
 /**
  * Engineer Suspend Service
@@ -35,16 +37,19 @@ import {
  * - Extended offline periods
  */
 export class EngineerSuspendService {
-  private suspensions: Map<string, EngineerSuspend> = new Map();
-  private engineerSuspends: Map<string, string[]> = new Map(); // engineerId -> suspend IDs
+  private ticketingRepository: TicketingRepository;
   private suspendCheckTimer?: NodeJS.Timeout;
   private onActivateCallback?: (suspend: EngineerSuspend) => void;
   private onEndCallback?: (suspend: EngineerSuspend) => void;
 
+  constructor(options: { ticketingRepository: TicketingRepository }) {
+    this.ticketingRepository = options.ticketingRepository;
+  }
+
   /**
    * Create a new suspension record
    */
-  createSuspend(input: {
+  async createSuspend(input: {
     engineerId: string;
     reason: SuspendReason;
     startTime: Date;
@@ -54,28 +59,18 @@ export class EngineerSuspendService {
     pauseSLAForPending?: boolean;
     notes?: string;
     createdBy: string;
-  }): EngineerSuspend {
-    const suspend: EngineerSuspend = {
-      id: `SUSP-${uuidv4()}`,
+  }): Promise<EngineerSuspend> {
+    const suspend = await this.ticketingRepository.createSuspend({
       engineerId: input.engineerId,
       reason: input.reason,
-      status: input.startTime <= new Date() ? 'active' : 'scheduled',
       startTime: input.startTime,
       endTime: input.endTime,
       backupEngineerId: input.backupEngineerId,
-      autoReassignPending: input.autoReassignPending ?? true,
-      pauseSLAForPending: input.pauseSLAForPending ?? false,
+      autoReassignPending: input.autoReassignPending,
+      pauseSLAForPending: input.pauseSLAForPending,
       notes: input.notes,
       createdBy: input.createdBy,
-      createdAt: new Date(),
-      ticketsReassigned: 0,
-    };
-
-    this.suspensions.set(suspend.id, suspend);
-
-    const existingIds = this.engineerSuspends.get(input.engineerId) || [];
-    existingIds.push(suspend.id);
-    this.engineerSuspends.set(input.engineerId, existingIds);
+    });
 
     return suspend;
   }
@@ -83,97 +78,91 @@ export class EngineerSuspendService {
   /**
    * Activate a scheduled suspension
    */
-  activateSuspend(suspendId: string): EngineerSuspend | null {
-    const suspend = this.suspensions.get(suspendId);
+  async activateSuspend(suspendId: string): Promise<EngineerSuspend | null> {
+    const suspend = await this.ticketingRepository.findSuspendById(suspendId);
     if (!suspend) return null;
 
-    suspend.status = 'active';
-    suspend.startTime = new Date(); // Update to actual activation time
-    this.suspensions.set(suspendId, suspend);
+    await this.ticketingRepository.updateSuspendStatus(suspendId, 'active');
+    const updated = await this.ticketingRepository.findSuspendById(suspendId);
 
-    this.onActivateCallback?.(suspend);
-    return suspend;
+    if (updated) {
+      this.onActivateCallback?.(updated);
+    }
+    return updated;
   }
 
   /**
    * End a suspension and restore engineer availability
    */
-  endSuspend(suspendId: string): EngineerSuspend | null {
-    const suspend = this.suspensions.get(suspendId);
+  async endSuspend(suspendId: string): Promise<EngineerSuspend | null> {
+    const suspend = await this.ticketingRepository.findSuspendById(suspendId);
     if (!suspend) return null;
     if (suspend.status !== 'active') return null;
 
-    suspend.status = 'completed';
-    suspend.actualEndTime = new Date();
-    this.suspensions.set(suspendId, suspend);
+    const actualEndTime = new Date();
+    await this.ticketingRepository.updateSuspendStatus(suspendId, 'completed', actualEndTime);
+    const updated = await this.ticketingRepository.findSuspendById(suspendId);
 
-    this.onEndCallback?.(suspend);
-    return suspend;
+    if (updated) {
+      this.onEndCallback?.(updated);
+    }
+    return updated;
   }
 
   /**
    * Cancel a scheduled suspension
    */
-  cancelSuspend(suspendId: string): EngineerSuspend | null {
-    const suspend = this.suspensions.get(suspendId);
+  async cancelSuspend(suspendId: string): Promise<EngineerSuspend | null> {
+    const suspend = await this.ticketingRepository.findSuspendById(suspendId);
     if (!suspend) return null;
     if (suspend.status !== 'scheduled') return null;
 
-    suspend.status = 'cancelled';
-    this.suspensions.set(suspendId, suspend);
-    return suspend;
+    await this.ticketingRepository.updateSuspendStatus(suspendId, 'cancelled');
+    return await this.ticketingRepository.findSuspendById(suspendId);
   }
 
   /**
    * Get active suspensions
    */
-  getActiveSuspensions(): EngineerSuspend[] {
-    return Array.from(this.suspensions.values())
-      .filter(s => s.status === 'active')
-      .sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
+  async getActiveSuspensions(): Promise<EngineerSuspend[]> {
+    return this.ticketingRepository.getActiveSuspensions();
   }
 
   /**
    * Get scheduled (future) suspensions
    */
-  getScheduledSuspensions(): EngineerSuspend[] {
-    return Array.from(this.suspensions.values())
-      .filter(s => s.status === 'scheduled')
-      .sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
+  async getScheduledSuspensions(): Promise<EngineerSuspend[]> {
+    return this.ticketingRepository.getScheduledSuspensions();
   }
 
   /**
    * Get suspension by ID
    */
-  getSuspend(suspendId: string): EngineerSuspend | null {
-    const s = this.suspensions.get(suspendId);
-    return s ? { ...s } : null;
+  async getSuspend(suspendId: string): Promise<EngineerSuspend | null> {
+    return this.ticketingRepository.findSuspendById(suspendId);
   }
 
   /**
    * Get suspensions for an engineer
    */
-  getEngineerSuspensions(engineerId: string): EngineerSuspend[] {
-    const suspendIds = this.engineerSuspends.get(engineerId) || [];
-    return suspendIds
-      .map(id => this.suspensions.get(id))
-      .filter((s): s is EngineerSuspend => s !== undefined)
-      .sort((a, b) => b.startTime.getTime() - a.startTime.getTime());
+  async getEngineerSuspensions(engineerId: string): Promise<EngineerSuspend[]> {
+    return this.ticketingRepository.getSuspensionsByEngineer(engineerId);
   }
 
   /**
    * Check if an engineer is currently suspended
    */
-  isSuspended(engineerId: string): boolean {
-    const activeSuspends = this.getActiveSuspensions();
+  async isSuspended(engineerId: string): Promise<boolean> {
+    const activeSuspends = await this.getActiveSuspensions();
     return activeSuspends.some(s => s.engineerId === engineerId);
   }
 
   /**
    * Get backup engineer for a suspended engineer
    */
-  getBackupEngineer(engineerId: string, allEngineers: EngineerProfile[]): EngineerProfile | null {
-    const activeSuspend = this.getActiveSuspensions().find(s => s.engineerId === engineerId);
+  async getBackupEngineer(engineerId: string, allEngineers: EngineerProfile[]): Promise<EngineerProfile | null> {
+    const activeSuspends = await this.getActiveSuspensions();
+    const activeSuspend = activeSuspends.find(s => s.engineerId === engineerId);
     if (!activeSuspend?.backupEngineerId) return null;
 
     return allEngineers.find(e => e.id === activeSuspend.backupEngineerId) || null;
@@ -182,8 +171,8 @@ export class EngineerSuspendService {
   /**
    * Analyze suspension impact on tickets
    */
-  analyzeImpact(suspendId: string, tickets: Ticket[]): SuspensionImpact {
-    const suspend = this.suspensions.get(suspendId);
+  async analyzeImpact(suspendId: string, tickets: Ticket[]): Promise<SuspensionImpact> {
+    const suspend = await this.ticketingRepository.findSuspendById(suspendId);
     if (!suspend) {
       throw new Error(`Suspend ${suspendId} not found`);
     }
@@ -208,14 +197,17 @@ export class EngineerSuspendService {
   /**
    * Check and auto-activate scheduled suspensions
    */
-  checkAutoActivate(): EngineerSuspend[] {
+  async checkAutoActivate(): Promise<EngineerSuspend[]> {
     const now = new Date();
+    const scheduled = await this.getScheduledSuspensions();
     const toActivate: EngineerSuspend[] = [];
 
-    for (const suspend of this.suspensions.values()) {
-      if (suspend.status === 'scheduled' && suspend.startTime <= now) {
-        this.activateSuspend(suspend.id);
-        toActivate.push(suspend);
+    for (const suspend of scheduled) {
+      if (suspend.startTime <= now) {
+        const activated = await this.activateSuspend(suspend.id);
+        if (activated) {
+          toActivate.push(activated);
+        }
       }
     }
 
@@ -225,14 +217,17 @@ export class EngineerSuspendService {
   /**
    * Check and auto-end expired suspensions
    */
-  checkAutoEnd(): EngineerSuspend[] {
+  async checkAutoEnd(): Promise<EngineerSuspend[]> {
     const now = new Date();
+    const active = await this.getActiveSuspensions();
     const toEnd: EngineerSuspend[] = [];
 
-    for (const suspend of this.suspensions.values()) {
-      if (suspend.status === 'active' && suspend.endTime <= now) {
-        this.endSuspend(suspend.id);
-        toEnd.push(suspend);
+    for (const suspend of active) {
+      if (suspend.endTime <= now) {
+        const ended = await this.endSuspend(suspend.id);
+        if (ended) {
+          toEnd.push(ended);
+        }
       }
     }
 
@@ -244,9 +239,9 @@ export class EngineerSuspendService {
    */
   startAutoChecks(intervalMs: number = 5 * 60 * 1000): void {
     this.stopAutoChecks();
-    this.suspendCheckTimer = setInterval(() => {
-      const activated = this.checkAutoActivate();
-      const ended = this.checkAutoEnd();
+    this.suspendCheckTimer = setInterval(async () => {
+      const activated = await this.checkAutoActivate();
+      const ended = await this.checkAutoEnd();
       if (activated.length > 0 || ended.length > 0) {
         console.log(`[EngineerSuspendService] Auto-activated: ${activated.length}, Auto-ended: ${ended.length}`);
       }
@@ -278,11 +273,9 @@ export class EngineerSuspendService {
   }
 
   /**
-   * Clear all data (for testing)
+   * Clear (for testing - no-op in repository mode)
    */
   clearAll(): void {
-    this.suspensions.clear();
-    this.engineerSuspends.clear();
     this.stopAutoChecks();
   }
 }

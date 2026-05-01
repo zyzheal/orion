@@ -2,7 +2,7 @@
  * TicketingService - Business logic layer for Ticketing operations
  */
 
-import { TicketingRepository, Ticket, TicketComment, CreateTicketInput, UpdateTicketInput } from './TicketingRepository';
+import { TicketingRepository, TicketRecord, TicketCommentRecord, CreateTicketInput, UpdateTicketInput } from './TicketingRepository';
 
 export interface ListTicketsOptions {
   page?: number;
@@ -29,13 +29,13 @@ export class TicketingService {
   private repository: TicketingRepository;
   constructor(repository: TicketingRepository) { this.repository = repository; }
 
-  async getTicket(id: string): Promise<Ticket> {
+  async getTicket(id: string): Promise<TicketRecord> {
     const ticket = await this.repository.findById(id);
     if (!ticket) throw new TicketingServiceError(`Ticket not found: ${id}`, 'NOT_FOUND');
     return ticket;
   }
 
-  async listTickets(options: ListTicketsOptions = {}): Promise<PaginatedResult<Ticket>> {
+  async listTickets(options: ListTicketsOptions = {}): Promise<PaginatedResult<TicketRecord>> {
     const { page = 1, limit = 20, tenantId, status, assigneeId, priority } = options;
     const offset = (page - 1) * limit;
     const [tickets, total] = await Promise.all([
@@ -45,13 +45,13 @@ export class TicketingService {
     return { data: tickets, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
-  async createTicket(input: CreateTicketInput): Promise<Ticket> {
+  async createTicket(input: CreateTicketInput): Promise<TicketRecord> {
     if (!input.tenant_id) throw new TicketingServiceError('Tenant ID required', 'INVALID_INPUT');
     if (!input.title) throw new TicketingServiceError('Title required', 'INVALID_INPUT');
     return this.repository.create(input);
   }
 
-  async updateTicket(id: string, input: UpdateTicketInput): Promise<Ticket> {
+  async updateTicket(id: string, input: UpdateTicketInput): Promise<TicketRecord> {
     const existing = await this.repository.findById(id);
     if (!existing) throw new TicketingServiceError(`Ticket not found: ${id}`, 'NOT_FOUND');
     const updated = await this.repository.update(id, input);
@@ -59,25 +59,25 @@ export class TicketingService {
     return updated;
   }
 
-  async assignTicket(id: string, assigneeId: string): Promise<Ticket> {
+  async assignTicket(id: string, assigneeId: string): Promise<TicketRecord> {
     return this.updateTicket(id, { assignee_id: assigneeId, status: 'assigned' });
   }
 
-  async resolveTicket(id: string): Promise<Ticket> {
+  async resolveTicket(id: string): Promise<TicketRecord> {
     return this.updateTicket(id, { status: 'resolved' });
   }
 
-  async closeTicket(id: string): Promise<Ticket> {
+  async closeTicket(id: string): Promise<TicketRecord> {
     return this.updateTicket(id, { status: 'closed' });
   }
 
-  async addComment(ticketId: string, authorId: string | null, content: string, isInternal?: boolean): Promise<TicketComment> {
+  async addComment(ticketId: string, authorId: string | null, content: string, isInternal?: boolean): Promise<TicketCommentRecord> {
     const ticket = await this.repository.findById(ticketId);
     if (!ticket) throw new TicketingServiceError(`Ticket not found: ${ticketId}`, 'NOT_FOUND');
     return this.repository.addComment(ticketId, authorId, content, isInternal);
   }
 
-  async getComments(ticketId: string): Promise<TicketComment[]> {
+  async getComments(ticketId: string): Promise<TicketCommentRecord[]> {
     return this.repository.getComments(ticketId);
   }
 }

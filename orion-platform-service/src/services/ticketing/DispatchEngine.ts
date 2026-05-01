@@ -4,6 +4,8 @@
  * Scores and matches tickets to the best engineers based on
  * expertise, workload, availability, and historical resolution rates.
  * Uses configurable multi-factor weighted scoring.
+ *
+ * Uses PostgreSQL Repository pattern via TicketingRepository.
  */
 
 import { v4 as uuidv4 } from 'uuid';
@@ -18,6 +20,7 @@ import {
   DispatchRule,
   EngineerAvailability,
 } from './types';
+import { TicketingRepository, CreateEngineerProfileInput, UpdateEngineerProfileInput } from './TicketingRepository';
 
 /**
  * Default scoring weights
@@ -64,8 +67,8 @@ const CATEGORY_EXPERTISE: Record<TicketCategory, TicketCategory[]> = {
  * multi-factor scoring to find the best match.
  */
 export class DispatchEngine {
-  /** Registered engineer profiles */
-  private engineers: Map<string, EngineerProfile> = new Map();
+  /** Repository for engineer profiles */
+  private ticketingRepository: TicketingRepository;
 
   /** Dispatch rules */
   private rules: DispatchRule[] = [];
@@ -79,8 +82,9 @@ export class DispatchEngine {
   /** Set of suspended engineer IDs (managed externally) */
   private suspendedEngineers: Set<string> = new Set();
 
-  constructor(weights?: Partial<DispatchWeights>) {
-    this.weights = { ...DEFAULT_WEIGHTS, ...weights };
+  constructor(options: { ticketingRepository: TicketingRepository; weights?: Partial<DispatchWeights> }) {
+    this.ticketingRepository = options.ticketingRepository;
+    this.weights = { ...DEFAULT_WEIGHTS, ...options.weights };
   }
 
   // ==================== Engineer Management ====================
@@ -88,49 +92,64 @@ export class DispatchEngine {
   /**
    * Register an engineer profile
    */
-  registerEngineer(profile: EngineerProfile): void {
-    this.engineers.set(profile.id, { ...profile });
+  async registerEngineer(profile: EngineerProfile): Promise<EngineerProfile> {
+    const input: CreateEngineerProfileInput = {
+      id: profile.id,
+      name: profile.name,
+      expertise: profile.expertise,
+      currentLoad: profile.currentLoad,
+      maxCapacity: profile.maxCapacity,
+      availability: profile.availability,
+      team: profile.team,
+      onCall: profile.onCall,
+    };
+    return this.ticketingRepository.createEngineerProfile(input);
   }
 
   /**
    * Update an engineer profile
    */
-  updateEngineer(id: string, updates: Partial<EngineerProfile>): boolean {
-    const existing = this.engineers.get(id);
-    if (!existing) return false;
-
-    this.engineers.set(id, { ...existing, ...updates });
-    return true;
+  async updateEngineer(id: string, updates: Partial<EngineerProfile>): Promise<EngineerProfile | null> {
+    const repoUpdates: UpdateEngineerProfileInput = {};
+    if (updates.name !== undefined) repoUpdates.name = updates.name;
+    if (updates.expertise !== undefined) repoUpdates.expertise = updates.expertise;
+    if (updates.currentLoad !== undefined) repoUpdates.currentLoad = updates.currentLoad;
+    if (updates.maxCapacity !== undefined) repoUpdates.maxCapacity = updates.maxCapacity;
+    if (updates.availability !== undefined) repoUpdates.availability = updates.availability;
+    if (updates.team !== undefined) repoUpdates.team = updates.team;
+    if (updates.onCall !== undefined) repoUpdates.onCall = updates.onCall;
+    if (updates.skills !== undefined) repoUpdates.skills = updates.skills;
+    return this.ticketingRepository.updateEngineerProfile(id, repoUpdates);
   }
 
   /**
    * Remove an engineer
    */
-  removeEngineer(id: string): boolean {
-    return this.engineers.delete(id);
+  async removeEngineer(id: string): Promise<boolean> {
+    return this.ticketingRepository.deleteEngineerProfile(id);
   }
 
   /**
    * Get an engineer by ID
    */
-  getEngineer(id: string): EngineerProfile | undefined {
-    return this.engineers.get(id);
+  async getEngineer(id: string): Promise<EngineerProfile | undefined> {
+    const profile = await this.ticketingRepository.findEngineerProfileById(id);
+    return profile || undefined;
   }
 
   /**
    * List all registered engineers
    */
-  listEngineers(): EngineerProfile[] {
-    return Array.from(this.engineers.values());
+  async listEngineers(): Promise<EngineerProfile[]> {
+    return this.ticketingRepository.findAllEngineerProfiles();
   }
 
   /**
    * Get available engineers (not offline/away/suspended)
    */
-  getAvailableEngineers(): EngineerProfile[] {
-    return Array.from(this.engineers.values()).filter(
-      (e) => e.availability !== 'offline' && e.availability !== 'away' && !this.suspendedEngineers.has(e.id)
-    );
+  async getAvailableEngineers(): Promise<EngineerProfile[]> {
+    const profiles = await this.ticketingRepository.getAvailableEngineers();
+    return profiles.filter(e => !this.suspendedEngineers.has(e.id));
   }
 
   /**
@@ -186,7 +205,7 @@ export class DispatchEngine {
   /**
    * Find the best engineer for a ticket using multi-factor scoring
    */
-  findBestEngineer(
+  async findBestEngineer(
     ticket: Ticket,
     options?: {
       /** Override weights for this dispatch */
@@ -196,9 +215,9 @@ export class DispatchEngine {
       /** Only consider specific engineers */
       onlyEngineers?: string[];
     }
-  ): { engineer: EngineerProfile; score: number; breakdown: DispatchScoreBreakdown } | null {
+  ): Promise<{ engineer: EngineerProfile; score: number; breakdown: DispatchScoreBreakdown } | null> {
     const weights = { ...this.weights, ...options?.weights };
-    const candidates = this.getAvailableEngineers().filter((e) => {
+    const candidates = (await this.getAvailableEngineers()).filter((e) => {
       if (options?.excludeEngineers?.includes(e.id)) return false;
       if (options?.onlyEngineers && options.onlyEngineers.length > 0 && !options.onlyEngineers.includes(e.id)) {
         return false;
@@ -236,11 +255,11 @@ export class DispatchEngine {
   /**
    * Calculate the full dispatch score for a ticket-engineer pair
    */
-  calculateDispatchScore(
+  async calculateDispatchScore(
     ticket: Ticket,
     engineer: EngineerProfile,
     weights?: Partial<DispatchWeights>
-  ): { score: number; breakdown: DispatchScoreBreakdown } {
+  ): Promise<{ score: number; breakdown: DispatchScoreBreakdown }> {
     const w = { ...this.weights, ...weights };
     const slaUrgency = this.calculateSLAUrgency(ticket);
     const breakdown = this.calculateScoreBreakdown(ticket, engineer, slaUrgency, w);
@@ -252,7 +271,7 @@ export class DispatchEngine {
   /**
    * Dispatch a ticket to the best available engineer
    */
-  dispatchTicket(
+  async dispatchTicket(
     ticket: Ticket,
     options?: {
       assignedBy?: string;
@@ -260,11 +279,11 @@ export class DispatchEngine {
       /** Force dispatch even to overloaded engineers */
       forceDispatch?: boolean;
     }
-  ): DispatchResult | null {
+  ): Promise<DispatchResult | null> {
     // First check dispatch rules
     const ruleResult = this.matchRule(ticket);
     if (ruleResult && ruleResult.assignee !== 'best-match') {
-      const engineer = this.engineers.get(ruleResult.assignee);
+      const engineer = await this.getEngineer(ruleResult.assignee);
       if (engineer && (!this.isOverloaded(engineer) || options?.forceDispatch)) {
         const result: DispatchResult = {
           id: `DISP-${uuidv4()}`,
@@ -277,17 +296,17 @@ export class DispatchEngine {
           accepted: true,
         };
         this.dispatchHistory.push(result);
-        this.updateEngineerLoad(ruleResult.assignee, 1);
+        await this.updateEngineerLoad(ruleResult.assignee, 1);
         return result;
       }
     }
 
     // Fall back to scoring-based dispatch
-    const best = this.findBestEngineer(ticket, { weights: options?.weights });
+    const best = await this.findBestEngineer(ticket, { weights: options?.weights });
     if (!best) return null;
 
     // Update engineer load
-    this.updateEngineerLoad(best.engineer.id, 1);
+    await this.updateEngineerLoad(best.engineer.id, 1);
 
     const result: DispatchResult = {
       id: `DISP-${uuidv4()}`,
@@ -315,8 +334,7 @@ export class DispatchEngine {
     const dispatch = this.dispatchHistory[idx];
     dispatch.accepted = false;
 
-    // Reduce engineer load
-    this.updateEngineerLoad(dispatch.assignee, -1);
+    // Reduce engineer load (handled via service layer)
     return true;
   }
 
@@ -500,12 +518,12 @@ export class DispatchEngine {
   /**
    * Update engineer load (positive to add, negative to remove)
    */
-  private updateEngineerLoad(engineerId: string, delta: number): void {
-    const engineer = this.engineers.get(engineerId);
+  private async updateEngineerLoad(engineerId: string, delta: number): Promise<void> {
+    const engineer = await this.getEngineer(engineerId);
     if (!engineer) return;
 
-    engineer.currentLoad = Math.max(0, engineer.currentLoad + delta);
-    this.engineers.set(engineerId, engineer);
+    const newLoad = Math.max(0, engineer.currentLoad + delta);
+    await this.ticketingRepository.updateEngineerProfile(engineerId, { currentLoad: newLoad });
   }
 
   /**
@@ -638,7 +656,6 @@ export class DispatchEngine {
    * Clear all data (for testing)
    */
   clearAll(): void {
-    this.engineers.clear();
     this.rules = [];
     this.dispatchHistory = [];
     this.suspendedEngineers.clear();
