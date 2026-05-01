@@ -16,13 +16,10 @@ import {
   Table,
   Typography,
   Space,
-  Divider,
   Badge,
 } from 'antd';
 import { colors, spacing } from '@/tokens';
 import {
-  RiseOutlined,
-  FallOutlined,
   TrophyOutlined,
   WarningOutlined,
   ClockCircleOutlined,
@@ -30,6 +27,7 @@ import {
   TeamOutlined,
   FireOutlined,
   BarChartOutlined,
+  RiseOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { KPIMetric, ExecutiveDashboardData } from '@/types/pages';
@@ -37,6 +35,14 @@ import { mockExecutiveDashboard } from '@/pages/__mocks__/mockBIData';
 import { useBiDashboard } from '@/hooks/useBiDashboard';
 import { Spin, Alert } from 'antd';
 import CardPanel from '@/components/CardPanel';
+import {
+  TrendLineChart,
+  PieChart,
+  GaugeChart,
+  StatCard,
+  type TrendDataPoint,
+  type PieDataItem,
+} from '@/components/charts';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -49,39 +55,6 @@ const COLORS = {
   info: colors.primary[500],
   purple: colors.purple[500],
   cyan: colors.info[500],
-};
-
-/**
- * Simple bar visualization using div elements
- */
-const SimpleBar: React.FC<{
-  value: number;
-  max: number;
-  color: string;
-  width?: number;
-}> = ({ value, max, color, width = 120 }) => {
-  const percentage = max > 0 ? (value / max) * 100 : 0;
-  return (
-    <div
-      style={{
-        width,
-        height: 8,
-        backgroundColor: colors.light.border.light,
-        borderRadius: 4,
-        overflow: 'hidden',
-      }}
-    >
-      <div
-        style={{
-          width: `${Math.min(percentage, 100)}%`,
-          height: '100%',
-          backgroundColor: color,
-          borderRadius: 4,
-          transition: 'width 0.3s ease',
-        }}
-      />
-    </div>
-  );
 };
 
 /**
@@ -163,18 +136,6 @@ const ExecutiveDashboard: React.FC = () => {
     [data]
   );
 
-  // KPI card color mapping
-  const kpiColors: Record<string, string> = {
-    总工单数: COLORS.info,
-    已解决: COLORS.success,
-    待处理: COLORS.warning,
-    解决率: COLORS.success,
-    平均解决时间: COLORS.cyan,
-    SLA合规率: COLORS.success,
-    工程师总数: COLORS.purple,
-    活跃工程师: COLORS.info,
-  };
-
   // Team ranking table columns
   const topPerformerColumns: ColumnsType<(typeof data.teamRanking.topPerformers)[0]> = [
     {
@@ -208,12 +169,9 @@ const ExecutiveDashboard: React.FC = () => {
       key: 'score',
       sorter: (a, b) => a.score - b.score,
       render: (score: number) => (
-        <Space>
-          <SimpleBar value={score} max={100} color={score >= 90 ? COLORS.success : COLORS.info} />
-          <Text strong style={{ color: score >= 90 ? COLORS.success : COLORS.info }}>
-            {score}
-          </Text>
-        </Space>
+        <Text strong style={{ color: score >= 90 ? COLORS.success : COLORS.info }}>
+          {score}
+        </Text>
       ),
     },
   ];
@@ -250,12 +208,6 @@ const ExecutiveDashboard: React.FC = () => {
     },
   ];
 
-  // Category distribution - find max count for bar scaling
-  const maxCategoryCount = useMemo(
-    () => Math.max(...Object.values(data.distribution.byCategory).map((c) => c.count)),
-    [data]
-  );
-
   // Priority color mapping
   const priorityColors: Record<string, string> = {
     critical: COLORS.error,
@@ -286,7 +238,6 @@ const ExecutiveDashboard: React.FC = () => {
 
   // Trend chart - last 14 days of volume data
   const recentVolumeTrend = data.trends.ticketVolumeTrend.slice(-14);
-  const maxVolume = Math.max(...recentVolumeTrend.map((d) => Math.max(d.created, d.resolved)), 1);
 
   return (
     <div style={{ padding: 0 }}>
@@ -327,224 +278,64 @@ const ExecutiveDashboard: React.FC = () => {
       </div>
 
       {/* KPI Cards - 8 cards in a 4x2 grid */}
-      <div style={{ marginBottom: 24 }}>
-        <Row gutter={[16, 16]}>
-          {kpiMetrics.map((metric) => (
-            <Col xs={24} sm={12} lg={8} xl={6} key={metric.title}>
-              <CardPanel>
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <div
-                      style={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: 8,
-                        backgroundColor: `${kpiColors[metric.title]}15`,
-                        color: kpiColors[metric.title],
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: spacing[5],
-                      }}
-                    >
-                      {kpiIcons[metric.title]}
-                    </div>
-                    <div>
-                      <Text type="secondary" style={{ fontSize: spacing[3] }}>
-                        {metric.title}
-                      </Text>
-                      <div style={{ fontSize: spacing[6], fontWeight: 600, lineHeight: 1.2 }}>
-                        {metric.value}
-                        {metric.suffix && (
-                          <Text type="secondary" style={{ fontSize: spacing[4], marginLeft: 4 }}>
-                            {metric.suffix}
-                          </Text>
-                        )}
-                      </div>
-                      {metric.trend && (
-                        <Text
-                          style={{
-                            fontSize: spacing[3],
-                            color:
-                              metric.trend.direction === 'up' ? COLORS.success : COLORS.warning,
-                          }}
-                        >
-                          {metric.trend.direction === 'up' ? <RiseOutlined /> : <FallOutlined />}{' '}
-                          {metric.trend.value}%
-                        </Text>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </CardPanel>
-            </Col>
-          ))}
-        </Row>
-      </div>
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        {kpiMetrics.map((metric) => (
+          <Col xs={24} sm={12} lg={8} xl={6} key={metric.title}>
+            <StatCard
+              title={metric.title}
+              value={metric.value}
+              suffix={metric.suffix}
+              icon={kpiIcons[metric.title]}
+              trend={
+                'trend' in metric && metric.trend
+                  ? {
+                      value: metric.trend.value,
+                      direction: metric.trend.direction as 'up' | 'down' | 'flat',
+                      good: ['解决率', 'SLA合规率', '已解决'].includes(metric.title)
+                        ? 'up'
+                        : 'down',
+                    }
+                  : undefined
+              }
+            />
+          </Col>
+        ))}
+      </Row>
 
       {/* Trend Charts Section */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         {/* Ticket Volume Trend */}
         <Col xs={24} xl={12}>
           <CardPanel title="工单量趋势（近14天）" extra={<Tag color="blue">30天数据</Tag>}>
-            <div
-              style={{
-                height: 200,
-                display: 'flex',
-                alignItems: 'flex-end',
-                gap: 4,
-                padding: '0 8px',
-              }}
-            >
-              {recentVolumeTrend.map((d, i) => (
-                <div
-                  key={i}
-                  style={{
-                    flex: 1,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: 4,
-                  }}
-                >
-                  <div style={{ display: 'flex', gap: 2, alignItems: 'flex-end', height: 160 }}>
-                    <div
-                      style={{
-                        width: 10,
-                        height: `${(d.created / maxVolume) * 100}%`,
-                        backgroundColor: COLORS.info,
-                        borderRadius: '4px 4px 0 0',
-                        opacity: 0.8,
-                        minWidth: 6,
-                      }}
-                      title={`创建: ${d.created}`}
-                    />
-                    <div
-                      style={{
-                        width: 10,
-                        height: `${(d.resolved / maxVolume) * 100}%`,
-                        backgroundColor: COLORS.success,
-                        borderRadius: '4px 4px 0 0',
-                        opacity: 0.8,
-                        minWidth: 6,
-                      }}
-                      title={`解决: ${d.resolved}`}
-                    />
-                  </div>
-                  <Text style={{ fontSize: spacing[2], color: colors.neutral[400] }}>
-                    {dayjs(d.period).format('MM/DD')}
-                  </Text>
-                </div>
-              ))}
-            </div>
-            <Divider style={{ margin: '12px 0 8px' }} />
-            <Space size={24}>
-              <Space size={4}>
-                <div
-                  style={{ width: 10, height: 10, backgroundColor: COLORS.info, borderRadius: 2 }}
-                />
-                <Text style={{ fontSize: spacing[3] }}>创建</Text>
-              </Space>
-              <Space size={4}>
-                <div
-                  style={{
-                    width: 10,
-                    height: 10,
-                    backgroundColor: COLORS.success,
-                    borderRadius: 2,
-                  }}
-                />
-                <Text style={{ fontSize: spacing[3] }}>解决</Text>
-              </Space>
-            </Space>
+            <TrendLineChart
+              title="工单量趋势（近14天）"
+              data={[
+                recentVolumeTrend.map(
+                  (d): TrendDataPoint => ({ period: d.period, value: d.created, label: '创建' })
+                ),
+                recentVolumeTrend.map(
+                  (d): TrendDataPoint => ({ period: d.period, value: d.resolved, label: '解决' })
+                ),
+              ]}
+              height={240}
+            />
           </CardPanel>
         </Col>
 
         {/* SLA Compliance Trend */}
         <Col xs={24} xl={12}>
           <CardPanel title="SLA合规率趋势（近14天）" extra={<Tag color="green">{'目标 >90%'}</Tag>}>
-            <div
-              style={{
-                height: 200,
-                display: 'flex',
-                alignItems: 'flex-end',
-                gap: 4,
-                padding: '0 8px',
-              }}
-            >
-              {data.trends.slaComplianceTrend.slice(-14).map((d, i) => {
-                const rate = d.rate;
-                const barColor =
-                  rate >= 90 ? COLORS.success : rate >= 80 ? COLORS.warning : COLORS.error;
-                return (
-                  <div
-                    key={i}
-                    style={{
-                      flex: 1,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      gap: 4,
-                    }}
-                  >
-                    <div style={{ height: 160, display: 'flex', alignItems: 'flex-end' }}>
-                      <div
-                        style={{
-                          width: 16,
-                          height: `${rate}%`,
-                          backgroundColor: barColor,
-                          borderRadius: '4px 4px 0 0',
-                          opacity: 0.8,
-                          minWidth: 10,
-                        }}
-                        title={`SLA: ${rate}%`}
-                      />
-                    </div>
-                    <Text style={{ fontSize: spacing[2], color: colors.neutral[400] }}>
-                      {dayjs(d.period).format('MM/DD')}
-                    </Text>
-                  </div>
-                );
-              })}
-            </div>
-            <Divider style={{ margin: '12px 0 8px' }} />
-            {/* 90% threshold line reference */}
-            <Space size={16}>
-              <Space size={4}>
-                <div
-                  style={{
-                    width: 10,
-                    height: 10,
-                    backgroundColor: COLORS.success,
-                    borderRadius: 2,
-                  }}
-                />
-                <Text style={{ fontSize: spacing[3] }}>{'达标 (>=90%)'}</Text>
-              </Space>
-              <Space size={4}>
-                <div
-                  style={{
-                    width: 10,
-                    height: 10,
-                    backgroundColor: COLORS.warning,
-                    borderRadius: 2,
-                  }}
-                />
-                <Text style={{ fontSize: spacing[3] }}>预警 (80-90%)</Text>
-              </Space>
-              <Space size={4}>
-                <div
-                  style={{ width: 10, height: 10, backgroundColor: COLORS.error, borderRadius: 2 }}
-                />
-                <Text style={{ fontSize: spacing[3] }}>{'违规 (<80%)'}</Text>
-              </Space>
-            </Space>
+            <TrendLineChart
+              title="SLA合规率趋势（近14天）"
+              data={[
+                data.trends.slaComplianceTrend
+                  .slice(-14)
+                  .map((d): TrendDataPoint => ({ period: d.period, value: d.rate, label: 'SLA' })),
+              ]}
+              height={240}
+              showArea={true}
+              smooth={true}
+            />
           </CardPanel>
         </Col>
       </Row>
@@ -619,6 +410,18 @@ const ExecutiveDashboard: React.FC = () => {
       {/* Alerts Section */}
       <div style={{ marginBottom: 24 }}>
         <CardPanel title="告警中心" extra={<Tag color="red">需立即处理</Tag>}>
+          <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+            <Col xs={24} sm={8}>
+              <div style={{ display: 'flex', justifyContent: 'center' }}>
+                <GaugeChart
+                  title="SLA合规率"
+                  value={data.overview.slaComplianceRate}
+                  thresholds={{ warning: 85, danger: 90 }}
+                  size={160}
+                />
+              </div>
+            </Col>
+          </Row>
           <Row gutter={[16, 16]}>
             {alertCards.map((alert) => (
               <Col xs={24} sm={12} lg={6} key={alert.title}>
@@ -657,36 +460,18 @@ const ExecutiveDashboard: React.FC = () => {
               <Tag color="purple">{Object.keys(data.distribution.byCategory).length}个分类</Tag>
             }
           >
-            <Space direction="vertical" style={{ width: '100%' }} size={12}>
-              {Object.entries(data.distribution.byCategory).map(([key, val]) => (
-                <div
-                  key={key}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '8px 0',
-                    borderBottom: `1px solid ${colors.light.border.light}`,
-                  }}
-                >
-                  <Space style={{ minWidth: 100 }}>
-                    <Tag color={COLORS.info}>{categoryNames[key] || key}</Tag>
-                  </Space>
-                  <SimpleBar
-                    value={val.count}
-                    max={maxCategoryCount}
-                    color={COLORS.info}
-                    width={160}
-                  />
-                  <Space size={16}>
-                    <Text style={{ minWidth: 40, textAlign: 'right' }}>{val.count} 个</Text>
-                    <Text type="secondary" style={{ minWidth: 60, fontSize: spacing[3] }}>
-                      平均 {val.avgResolutionHours}h
-                    </Text>
-                  </Space>
-                </div>
-              ))}
-            </Space>
+            <PieChart
+              title="工单分类分布"
+              data={Object.entries(data.distribution.byCategory).map(
+                ([key, val]): PieDataItem => ({
+                  name: categoryNames[key] || key,
+                  value: val.count,
+                })
+              )}
+              variant="donut"
+              centerLabel={true}
+              height={240}
+            />
           </CardPanel>
         </Col>
 

@@ -4,7 +4,38 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
+import { ChartProvider } from '@/components/charts';
 import ExecutiveDashboard from '@/pages/ExecutiveDashboard';
+
+// Mock chart components that use echarts-for-react (not available in jsdom)
+vi.mock('@/components/charts', async () => {
+  const actual = await vi.importActual('@/components/charts');
+  return {
+    ...(actual as Record<string, unknown>),
+    ChartProvider: ({ children }: { children: React.ReactNode }) => children,
+    TrendLineChart: ({ data }: { data: unknown[][] }) => (
+      <div data-testid="trend-chart">
+        {data.flat().map((d: { label?: string }, i: number) => (
+          <span key={i}>{d.label}</span>
+        ))}
+      </div>
+    ),
+    PieChart: ({ data }: { data: { name: string }[] }) => (
+      <div data-testid="pie-chart">
+        {data.map((d: { name: string }) => (
+          <span key={d.name}>{d.name}</span>
+        ))}
+      </div>
+    ),
+    GaugeChart: () => <div data-testid="gauge-chart" />,
+    StatCard: ({ title, value }: { title: string; value: string | number }) => (
+      <div data-testid="stat-card">
+        <span>{title}</span>
+        <span>{value}</span>
+      </div>
+    ),
+  };
+});
 
 // Mock dayjs
 vi.mock('dayjs', async () => {
@@ -18,7 +49,11 @@ vi.mock('dayjs', async () => {
 vi.mock('dayjs/plugin/relativeTime', () => ({}));
 
 const renderWithRouter = (ui: React.ReactElement) => {
-  return render(<BrowserRouter>{ui}</BrowserRouter>);
+  return render(
+    <BrowserRouter>
+      <ChartProvider>{ui}</ChartProvider>
+    </BrowserRouter>
+  );
 };
 
 describe('ExecutiveDashboard', () => {
