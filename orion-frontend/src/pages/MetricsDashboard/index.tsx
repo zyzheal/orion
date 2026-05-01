@@ -24,6 +24,8 @@ import DashboardLayout from '@/components/DashboardLayout';
 import MetricCard from '@/components/MetricCard';
 import Table, { TableColumn } from '@/components/Table';
 import SearchFilterBar, { FilterDefinition } from '@/components/SearchFilterBar';
+import { TrendLineChart, GaugeChart } from '@/components/charts';
+import type { TrendDataPoint } from '@/components/charts';
 import { getMonitoringHealth, getMetrics, getDashboardData } from '@/api/monitoring';
 
 const { Title, Text } = Typography;
@@ -103,6 +105,8 @@ const MetricsDashboard: React.FC = () => {
   const [selectedTimeRange, setSelectedTimeRange] = useState<TimeRange>('1h');
   const [metricSummary, setMetricSummary] = useState<MetricSummary | null>(null);
   const [serviceHealth, setServiceHealth] = useState<ServiceHealthRow[]>([]);
+  const [trendData, setTrendData] = useState<TrendDataPoint[][]>([]);
+  const [systemHealthScore, setSystemHealthScore] = useState<number>(0);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -147,9 +151,41 @@ const MetricsDashboard: React.FC = () => {
         })
       );
       setServiceHealth(healthRows);
+
+      // Compute trend data from metrics
+      const now = Date.now();
+      const trendPoints: TrendDataPoint[] = metricsData.map(
+        (m: { name?: string; value?: number; lastUpdated?: string }, i: number) => ({
+          period: m.lastUpdated || new Date(now - (metricsData.length - i) * 60000).toISOString(),
+          value: m.value ?? 0,
+          label: m.name || `Metric ${i + 1}`,
+        })
+      );
+      // Group by label into separate series
+      const seriesMap = new Map<string, TrendDataPoint[]>();
+      for (const point of trendPoints) {
+        const key = point.label || 'unknown';
+        if (!seriesMap.has(key)) seriesMap.set(key, []);
+        seriesMap.get(key)!.push(point);
+      }
+      setTrendData(Array.from(seriesMap.values()));
+
+      // Compute system health score (weighted average of service health)
+      if (healthRows.length > 0) {
+        const scoreMap = { healthy: 95, degraded: 60, unhealthy: 25 };
+        const total = healthRows.reduce(
+          (sum, row) => sum + scoreMap[row.status],
+          0
+        );
+        setSystemHealthScore(Math.round(total / healthRows.length));
+      } else {
+        setSystemHealthScore(0);
+      }
     } catch (error: unknown) {
       setMetricSummary(null);
       setServiceHealth([]);
+      setTrendData([]);
+      setSystemHealthScore(0);
       message.error(`加载指标数据失败: ${(error as Error).message}`);
     } finally {
       setLoading(false);
@@ -396,6 +432,26 @@ const MetricsDashboard: React.FC = () => {
         </DashboardLayout>
       </div>
 
+      {/* Metric Trends & Health */}
+      <div style={{ marginBottom: spacing[6], display: 'flex', gap: spacing[4] }}>
+        <Card title="系统指标趋势" size="small" style={{ flex: 3 }}>
+          <TrendLineChart
+            data={trendData}
+            height={240}
+            smooth={true}
+            showArea={true}
+          />
+        </Card>
+        <Card title="系统健康度" size="small" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <GaugeChart
+            title="Health"
+            value={systemHealthScore}
+            thresholds={{ warning: 70, danger: 85 }}
+            size={160}
+          />
+        </Card>
+      </div>
+
       {/* Service Health Table */}
       <Card title="Service Health Summary" size="small">
         {/* Filter Bar */}
@@ -419,12 +475,6 @@ const MetricsDashboard: React.FC = () => {
         />
       </Card>
 
-      {/* Trend Placeholder */}
-      <Card title="Metric Trends" size="small" style={{ marginTop: spacing[4] }}>
-        <div style={{ textAlign: 'center', padding: spacing[6] }}>
-          <Text type="secondary">趋势图表区域 -- 待集成 ECharts 后展示历史趋势曲线</Text>
-        </div>
-      </Card>
     </div>
   );
 };
