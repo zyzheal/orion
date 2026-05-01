@@ -79,4 +79,86 @@ export default async function iacRoutes(
   app.post('/modules', async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.createModule(request, reply);
   });
+
+  // ==================== Plan Details ====================
+
+  app.get('/workspaces/:id/plans', async (request: FastifyRequest, reply: FastifyReply) => {
+    const params = request.params as { id: string };
+    try {
+      const plans = await planService.listByWorkspace(params.id);
+      return reply.send({ code: 200, message: 'OK', data: plans });
+    } catch (error: any) {
+      return reply.status(500).send({ code: 500, message: error.message });
+    }
+  });
+
+  app.get('/workspaces/:workspaceId/plans/:planId', async (request: FastifyRequest, reply: FastifyReply) => {
+    const params = request.params as { workspaceId: string; planId: string };
+    try {
+      const plan = await planService.getById(params.planId);
+      if (!plan || plan.workspaceId !== params.workspaceId) {
+        return reply.status(404).send({ code: 404, message: 'Plan not found' });
+      }
+      return reply.send({ code: 200, message: 'OK', data: plan });
+    } catch (error: any) {
+      return reply.status(500).send({ code: 500, message: error.message });
+    }
+  });
+
+  // ==================== State Versions ====================
+
+  app.get('/workspaces/:id/state/versions', async (request: FastifyRequest, reply: FastifyReply) => {
+    const params = request.params as { id: string };
+    try {
+      const versions = await workspaceService.listStateVersions(params.id);
+      return reply.send({ code: 200, message: 'OK', data: versions });
+    } catch (error: any) {
+      if (error.message.includes('not found')) {
+        return reply.status(404).send({ code: 404, message: error.message });
+      }
+      return reply.status(500).send({ code: 500, message: error.message });
+    }
+  });
+
+  app.get('/workspaces/:id/state/diff', async (request: FastifyRequest, reply: FastifyReply) => {
+    const params = request.params as { id: string };
+    const query = request.query as { versionA: string; versionB: string };
+    if (!query.versionA || !query.versionB) {
+      return reply.status(400).send({ code: 400, message: 'versionA and versionB query parameters are required' });
+    }
+    try {
+      const diff = await workspaceService.getStateDiff(params.id, query.versionA, query.versionB);
+      return reply.send({ code: 200, message: 'OK', data: diff });
+    } catch (error: any) {
+      return reply.status(500).send({ code: 500, message: error.message });
+    }
+  });
+
+  // ==================== Module Details ====================
+
+  app.get('/modules/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+    const params = request.params as { id: string };
+    try {
+      const module = await workspaceService.getModuleById(params.id);
+      if (!module) {
+        return reply.status(404).send({ code: 404, message: 'Module not found' });
+      }
+      return reply.send({ code: 200, message: 'OK', data: module });
+    } catch (error: any) {
+      return reply.status(500).send({ code: 500, message: error.message });
+    }
+  });
+
+  app.delete('/modules/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+    const params = request.params as { id: string };
+    try {
+      await workspaceService.deleteModule(params.id);
+      return reply.send({ code: 200, message: 'OK', data: { deleted: true } });
+    } catch (error: any) {
+      if (error.message.includes('not found')) {
+        return reply.status(404).send({ code: 404, message: error.message });
+      }
+      return reply.status(500).send({ code: 500, message: error.message });
+    }
+  });
 }

@@ -383,4 +383,31 @@ export class WorkspaceService {
     }
     return false;
   }
+
+  // ==================== State Version Operations ====================
+
+  async listStateVersions(workspaceId: string): Promise<Array<{ version: number; createdAt: string; serial: number; lineage: string }>> {
+    const workspace = await this.getById(workspaceId);
+    if (!workspace) throw new Error(`Workspace ${workspaceId} not found`);
+
+    const history = await this.getStateHistory(workspaceId);
+    return history.map((sv, index) => ({
+      version: history.length - index,
+      createdAt: sv.createdAt,
+      serial: sv.serialNumber ?? index + 1,
+      lineage: sv.lineage ?? `lineage-${workspaceId}`,
+    }));
+  }
+
+  async getStateDiff(workspaceId: string, versionA: string, versionB: string): Promise<{
+    workspaceId: string;
+    versionA: string;
+    versionB: string;
+    added: string[];
+    modified: string[];
+    removed: string[];
+  }> {
+    // MVP: return empty diff -- in production, compare terraform state JSON
+    return { workspaceId, versionA, versionB, added: [], modified: [], removed: [] };
+  }
 }

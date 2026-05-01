@@ -110,6 +110,14 @@ export class PlanService {
     return { plans: [], total: 0 };
   }
 
+  async listByWorkspace(workspaceId: string): Promise<IaCPlanEntity[]> {
+    if (this.planRepository) {
+      const result = await this.planRepository.findAll();
+      return result.entities.filter(p => p.name === workspaceId || (p as any).workspaceId === workspaceId);
+    }
+    return [];
+  }
+
   async delete(id: string): Promise<boolean> {
     if (this.planRepository) {
       return await this.planRepository.delete(id);
