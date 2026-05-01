@@ -10,13 +10,10 @@ import {
   Card,
   Row,
   Col,
-  Statistic,
   Tag,
-  Progress,
   Table,
   Typography,
   Space,
-  Divider,
   Badge,
 } from 'antd';
 import { colors, spacing } from '@/tokens';
@@ -32,6 +29,7 @@ import {
   UserOutlined,
 } from '@ant-design/icons';
 import CardPanel from '@/components/CardPanel';
+import { StatCard, TrendLineChart, GaugeChart, BarChart } from '@/components/charts';
 import { mockEngineerDashboard } from '@/pages/__mocks__/mockBIData';
 import { useBiDashboard } from '@/hooks/useBiDashboard';
 import type { EngineerDashboardData } from '@/types/pages';
@@ -302,46 +300,38 @@ const EngineerDashboard: React.FC = () => {
             <Col xs={24} sm={16} md={18}>
               <Row gutter={[16, 16]}>
                 <Col xs={12} sm={6}>
-                  <Statistic
+                  <StatCard
                     title="当前负载"
                     value={data.personalOverview.currentLoad}
                     suffix="个"
-                    prefix={<ClockCircleOutlined />}
-                    valueStyle={{ fontSize: spacing[6], fontWeight: 600 }}
+                    icon={<ClockCircleOutlined />}
                   />
                 </Col>
                 <Col xs={12} sm={6}>
-                  <Statistic
+                  <StatCard
                     title="已解决总数"
                     value={data.personalOverview.totalResolved}
                     suffix="个"
-                    prefix={<CheckCircleOutlined style={{ color: COLORS.success }} />}
-                    valueStyle={{ fontSize: spacing[6], fontWeight: 600, color: COLORS.success }}
+                    icon={<CheckCircleOutlined />}
+                    trend={{ value: 12, direction: 'up', good: 'up' }}
+                    sparklineData={recentTrend.map(d => d.resolved)}
                   />
                 </Col>
                 <Col xs={12} sm={6}>
-                  <Statistic
+                  <StatCard
                     title="平均解决时间"
                     value={data.personalOverview.avgResolutionTimeHours}
                     suffix="h"
-                    prefix={<ThunderboltOutlined />}
-                    valueStyle={{ fontSize: spacing[6], fontWeight: 600 }}
+                    icon={<ThunderboltOutlined />}
+                    trend={{ value: 5, direction: 'down', good: 'down' }}
                   />
                 </Col>
                 <Col xs={12} sm={6}>
-                  <Statistic
+                  <StatCard
                     title="SLA合规率"
                     value={data.personalOverview.slaComplianceRate}
                     suffix="%"
-                    prefix={<FlagOutlined style={{ color: COLORS.info }} />}
-                    valueStyle={{
-                      fontSize: spacing[6],
-                      fontWeight: 600,
-                      color:
-                        data.personalOverview.slaComplianceRate >= 95
-                          ? COLORS.success
-                          : COLORS.warning,
-                    }}
+                    icon={<FlagOutlined />}
                   />
                 </Col>
               </Row>
@@ -353,54 +343,13 @@ const EngineerDashboard: React.FC = () => {
       {/* Personal Trend Chart */}
       <div style={{ marginBottom: 24 }}>
         <CardPanel title="个人趋势（近14天）" extra={<Tag color="cyan">解决数 & 耗时</Tag>}>
-          <div
-            style={{
-              height: 200,
-              display: 'flex',
-              alignItems: 'flex-end',
-              gap: 4,
-              padding: '0 8px',
-            }}
-          >
-            {recentTrend.map((d, i) => (
-              <div
-                key={i}
-                style={{
-                  flex: 1,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: 4,
-                }}
-              >
-                <div style={{ height: 160, display: 'flex', alignItems: 'flex-end' }}>
-                  <div
-                    style={{
-                      width: 16,
-                      height: `${(d.resolved / maxResolved) * 100}%`,
-                      backgroundColor: COLORS.success,
-                      borderRadius: '4px 4px 0 0',
-                      opacity: 0.8,
-                      minWidth: 10,
-                    }}
-                    title={`解决: ${d.resolved}, 平均: ${d.avgResolutionHours}h`}
-                  />
-                </div>
-                <Text style={{ fontSize: spacing[2], color: colors.neutral[400] }}>
-                  {dayjs(d.period).format('MM/DD')}
-                </Text>
-              </div>
-            ))}
-          </div>
-          <Divider style={{ margin: '12px 0 8px' }} />
-          <Space size={24}>
-            <Space size={4}>
-              <div
-                style={{ width: 10, height: 10, backgroundColor: COLORS.success, borderRadius: 2 }}
-              />
-              <Text style={{ fontSize: spacing[3] }}>每日解决数</Text>
-            </Space>
-          </Space>
+          <TrendLineChart
+            title=""
+            data={[recentTrend.map(d => ({ period: dayjs(d.period).format('MM/DD'), value: d.resolved, label: '解决数' }))]}
+            height={200}
+            showArea={true}
+            smooth={false}
+          />
         </CardPanel>
       </div>
 
@@ -428,12 +377,7 @@ const EngineerDashboard: React.FC = () => {
                       </Text>
                     </Space>
                   </div>
-                  <Progress
-                    percent={s.proficiencyScore}
-                    size="small"
-                    strokeColor={COLORS.success}
-                    format={() => `熟练度 ${s.proficiencyScore}`}
-                  />
+                  <GaugeChart value={s.proficiencyScore} title={`熟练度 ${s.proficiencyScore}%`} max={100} size={120} unit="%" />
                 </Card>
               ))}
             </Space>
@@ -475,11 +419,13 @@ const EngineerDashboard: React.FC = () => {
                       </Text>
                     </Space>
                   </div>
-                  <Progress
-                    percent={Math.round(w.slaComplianceRate * 100)}
-                    size="small"
-                    strokeColor={w.slaComplianceRate < 0.6 ? COLORS.error : COLORS.warning}
-                    format={() => `SLA ${(w.slaComplianceRate * 100).toFixed(0)}%`}
+                  <GaugeChart
+                    value={Math.round(w.slaComplianceRate * 100)}
+                    title={`SLA ${Math.round(w.slaComplianceRate * 100)}%`}
+                    max={100}
+                    size={120}
+                    unit="%"
+                    thresholds={{ warning: 70, danger: 60 }}
                   />
                   <div style={{ marginTop: 8 }}>
                     <Text type="secondary" style={{ fontSize: spacing[3] }}>
@@ -493,6 +439,20 @@ const EngineerDashboard: React.FC = () => {
           </CardPanel>
         </Col>
       </Row>
+
+      {/* Ability Distribution */}
+      <div style={{ marginBottom: 24 }}>
+        <CardPanel title="能力分布">
+          <BarChart
+            title="各类别熟练度"
+            data={[
+              ...data.strengths.map(s => ({ label: categoryName(s.category), value: s.proficiencyScore, series: '优势' })),
+              ...data.weaknesses.map(w => ({ label: categoryName(w.category), value: Math.round(w.slaComplianceRate * 100), series: '待提升' })),
+            ]}
+            height={200}
+          />
+        </CardPanel>
+      </div>
 
       {/* Active Tickets */}
       <div style={{ marginBottom: 24 }}>

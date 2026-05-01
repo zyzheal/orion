@@ -4,7 +4,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
+import { ChartProvider } from '@/components/charts';
 import EngineerDashboard from '@/pages/EngineerDashboard';
+
+vi.mock('echarts-for-react', () => ({
+  default: (props: Record<string, unknown>) => (
+    <div data-testid="echarts-wrapper" data-option={JSON.stringify(props.option)} />
+  ),
+}));
 
 // Mock dayjs
 vi.mock('dayjs', async () => {
@@ -18,7 +25,11 @@ vi.mock('dayjs', async () => {
 vi.mock('dayjs/plugin/relativeTime', () => ({}));
 
 const renderWithRouter = (ui: React.ReactElement) => {
-  return render(<BrowserRouter>{ui}</BrowserRouter>);
+  return render(
+    <BrowserRouter>
+      <ChartProvider>{ui}</ChartProvider>
+    </BrowserRouter>
+  );
 };
 
 describe('EngineerDashboard', () => {
@@ -124,5 +135,11 @@ describe('EngineerDashboard', () => {
     expect(screen.getByText('紧急')).toBeInTheDocument();
     expect(screen.getAllByText('高').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('中')).toBeInTheDocument();
+  });
+
+  it('should render ECharts components', () => {
+    renderWithRouter(<EngineerDashboard />);
+    const charts = screen.getAllByTestId('echarts-wrapper');
+    expect(charts.length).toBeGreaterThan(0);
   });
 });
