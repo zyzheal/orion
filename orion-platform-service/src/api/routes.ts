@@ -140,113 +140,125 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   const stageController = new StageController(runService, stageExecutor);
   const taskController = new TaskController(runService);
 
-  // ==================== Pipeline 路由 ====================
+  // ==================== Pipeline 路由 (auth protected) ====================
+  await app.register(async (instance: FastifyInstance) => {
+    instance.addHook('onRequest', authenticateUser);
 
-  // POST /api/v1/pipelines - 创建 Pipeline
-  app.post('/v1/pipelines', async (request: FastifyRequest, reply: FastifyReply) => {
-    return pipelineController.create(request, reply);
+    // POST /api/v1/pipelines - 创建 Pipeline
+    instance.post('/v1/pipelines', async (request: FastifyRequest, reply: FastifyReply) => {
+      return pipelineController.create(request, reply);
+    });
+
+    // GET /api/v1/pipelines - 获取 Pipeline 列表
+    instance.get('/v1/pipelines', async (request: FastifyRequest, reply: FastifyReply) => {
+      return pipelineController.list(request, reply);
+    });
+
+    // GET /api/v1/pipelines/:id - 获取 Pipeline 详情
+    instance.get('/v1/pipelines/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+      return pipelineController.getById(request, reply);
+    });
+
+    // GET /api/v1/pipelines/:id/versions - 获取 Pipeline 所有版本
+    instance.get('/v1/pipelines/:id/versions', async (request: FastifyRequest, reply: FastifyReply) => {
+      return pipelineController.getVersions(request, reply);
+    });
+
+    // PUT /api/v1/pipelines/:id - 更新 Pipeline
+    instance.put('/v1/pipelines/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+      return pipelineController.update(request, reply);
+    });
+
+    // DELETE /api/v1/pipelines/:id - 删除 Pipeline
+    instance.delete('/v1/pipelines/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+      return pipelineController.delete(request, reply);
+    });
+
+    // POST /api/v1/pipelines/validate - 验证 Pipeline YAML
+    instance.post('/v1/pipelines/validate', async (request: FastifyRequest, reply: FastifyReply) => {
+      return pipelineController.validate(request, reply);
+    });
   });
 
-  // GET /api/v1/pipelines - 获取 Pipeline 列表
-  app.get('/v1/pipelines', async (request: FastifyRequest, reply: FastifyReply) => {
-    return pipelineController.list(request, reply);
+  // ==================== PipelineRun 路由 (auth protected) ====================
+  await app.register(async (instance: FastifyInstance) => {
+    instance.addHook('onRequest', authenticateUser);
+
+    // POST /api/v1/pipelines/:id/runs - 触发 Pipeline 执行
+    instance.post('/v1/pipelines/:id/runs', async (request: FastifyRequest, reply: FastifyReply) => {
+      return pipelineRunController.trigger(request, reply);
+    });
+
+    // GET /api/v1/pipeline-runs - 获取 PipelineRun 列表
+    instance.get('/v1/pipeline-runs', async (request: FastifyRequest, reply: FastifyReply) => {
+      return pipelineRunController.list(request, reply);
+    });
+
+    // GET /api/v1/pipeline-runs/:id - 获取 PipelineRun 详情
+    instance.get('/v1/pipeline-runs/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+      return pipelineRunController.getById(request, reply);
+    });
+
+    // POST /api/v1/pipeline-runs/:id/cancel - 取消 PipelineRun
+    instance.post('/v1/pipeline-runs/:id/cancel', async (request: FastifyRequest, reply: FastifyReply) => {
+      return pipelineRunController.cancel(request, reply);
+    });
+
+    // GET /api/v1/pipeline-runs/:id/stages - 获取 PipelineRun 的 Stages
+    instance.get('/v1/pipeline-runs/:id/stages', async (request: FastifyRequest, reply: FastifyReply) => {
+      return pipelineRunController.getStages(request, reply);
+    });
+
+    // GET /api/v1/pipeline-runs/:id/tasks - 获取 PipelineRun 的 Tasks
+    instance.get('/v1/pipeline-runs/:id/tasks', async (request: FastifyRequest, reply: FastifyReply) => {
+      return pipelineRunController.getTasks(request, reply);
+    });
   });
 
-  // GET /api/v1/pipelines/:id - 获取 Pipeline 详情
-  app.get('/v1/pipelines/:id', async (request: FastifyRequest, reply: FastifyReply) => {
-    return pipelineController.getById(request, reply);
+  // ==================== Stage 路由 (auth protected) ====================
+  await app.register(async (instance: FastifyInstance) => {
+    instance.addHook('onRequest', authenticateUser);
+
+    // GET /api/v1/stages/:id - 获取 Stage 详情
+    instance.get('/v1/stages/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+      return stageController.getById(request, reply);
+    });
+
+    // GET /api/v1/stages/:id/tasks - 获取 Stage 下的 Tasks
+    instance.get('/v1/stages/:id/tasks', async (request: FastifyRequest, reply: FastifyReply) => {
+      return stageController.getTasks(request, reply);
+    });
+
+    // POST /api/v1/stages/:id/retry - 重试 Stage
+    instance.post('/v1/stages/:id/retry', async (request: FastifyRequest, reply: FastifyReply) => {
+      return stageController.retry(request, reply);
+    });
   });
 
-  // GET /api/v1/pipelines/:id/versions - 获取 Pipeline 所有版本
-  app.get('/v1/pipelines/:id/versions', async (request: FastifyRequest, reply: FastifyReply) => {
-    return pipelineController.getVersions(request, reply);
-  });
+  // ==================== Task 路由 (auth protected) ====================
+  await app.register(async (instance: FastifyInstance) => {
+    instance.addHook('onRequest', authenticateUser);
 
-  // PUT /api/v1/pipelines/:id - 更新 Pipeline
-  app.put('/v1/pipelines/:id', async (request: FastifyRequest, reply: FastifyReply) => {
-    return pipelineController.update(request, reply);
-  });
+    // GET /api/v1/tasks/:id - 获取 Task 详情
+    instance.get('/v1/tasks/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+      return taskController.getById(request, reply);
+    });
 
-  // DELETE /api/v1/pipelines/:id - 删除 Pipeline
-  app.delete('/v1/pipelines/:id', async (request: FastifyRequest, reply: FastifyReply) => {
-    return pipelineController.delete(request, reply);
-  });
+    // GET /api/v1/tasks/:id/log - 获取 Task 日志
+    instance.get('/v1/tasks/:id/log', async (request: FastifyRequest, reply: FastifyReply) => {
+      return taskController.getLog(request, reply);
+    });
 
-  // POST /api/v1/pipelines/validate - 验证 Pipeline YAML
-  app.post('/v1/pipelines/validate', async (request: FastifyRequest, reply: FastifyReply) => {
-    return pipelineController.validate(request, reply);
-  });
-
-  // ==================== PipelineRun 路由 ====================
-
-  // POST /api/v1/pipelines/:id/runs - 触发 Pipeline 执行
-  app.post('/v1/pipelines/:id/runs', async (request: FastifyRequest, reply: FastifyReply) => {
-    return pipelineRunController.trigger(request, reply);
-  });
-
-  // GET /api/v1/pipeline-runs - 获取 PipelineRun 列表
-  app.get('/v1/pipeline-runs', async (request: FastifyRequest, reply: FastifyReply) => {
-    return pipelineRunController.list(request, reply);
-  });
-
-  // GET /api/v1/pipeline-runs/:id - 获取 PipelineRun 详情
-  app.get('/v1/pipeline-runs/:id', async (request: FastifyRequest, reply: FastifyReply) => {
-    return pipelineRunController.getById(request, reply);
-  });
-
-  // POST /api/v1/pipeline-runs/:id/cancel - 取消 PipelineRun
-  app.post('/v1/pipeline-runs/:id/cancel', async (request: FastifyRequest, reply: FastifyReply) => {
-    return pipelineRunController.cancel(request, reply);
-  });
-
-  // GET /api/v1/pipeline-runs/:id/stages - 获取 PipelineRun 的 Stages
-  app.get('/v1/pipeline-runs/:id/stages', async (request: FastifyRequest, reply: FastifyReply) => {
-    return pipelineRunController.getStages(request, reply);
-  });
-
-  // GET /api/v1/pipeline-runs/:id/tasks - 获取 PipelineRun 的 Tasks
-  app.get('/v1/pipeline-runs/:id/tasks', async (request: FastifyRequest, reply: FastifyReply) => {
-    return pipelineRunController.getTasks(request, reply);
-  });
-
-  // ==================== Stage 路由 ====================
-
-  // GET /api/v1/stages/:id - 获取 Stage 详情
-  app.get('/v1/stages/:id', async (request: FastifyRequest, reply: FastifyReply) => {
-    return stageController.getById(request, reply);
-  });
-
-  // GET /api/v1/stages/:id/tasks - 获取 Stage 下的 Tasks
-  app.get('/v1/stages/:id/tasks', async (request: FastifyRequest, reply: FastifyReply) => {
-    return stageController.getTasks(request, reply);
-  });
-
-  // POST /api/v1/stages/:id/retry - 重试 Stage
-  app.post('/v1/stages/:id/retry', async (request: FastifyRequest, reply: FastifyReply) => {
-    return stageController.retry(request, reply);
-  });
-
-  // ==================== Task 路由 ====================
-
-  // GET /api/v1/tasks/:id - 获取 Task 详情
-  app.get('/v1/tasks/:id', async (request: FastifyRequest, reply: FastifyReply) => {
-    return taskController.getById(request, reply);
-  });
-
-  // GET /api/v1/tasks/:id/log - 获取 Task 日志
-  app.get('/v1/tasks/:id/log', async (request: FastifyRequest, reply: FastifyReply) => {
-    return taskController.getLog(request, reply);
-  });
-
-  // POST /api/v1/tasks/:id/retry - 重试 Task
-  app.post('/v1/tasks/:id/retry', async (request: FastifyRequest, reply: FastifyReply) => {
-    return taskController.retry(request, reply);
+    // POST /api/v1/tasks/:id/retry - 重试 Task
+    instance.post('/v1/tasks/:id/retry', async (request: FastifyRequest, reply: FastifyReply) => {
+      return taskController.retry(request, reply);
+    });
   });
 
   // ==================== CMDB 路由 ====================
 
   // 注册 CMDB API 路由
-  await app.register(cmdbRoutes, { prefix: '/v1/cmdb', database: options.database });
+  await registerWithRoleGuard(app, cmdbRoutes, '/v1/cmdb', { database: options.database });
 
   // ==================== 构建环境管理路由 ====================
 
@@ -257,16 +269,16 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await registerWithRoleGuard(app, codeRepoRoutes, '/v1/code-repo');
 
   // 注册 Configuration Management API 路由 (PostgreSQL backed)
-  await app.register(configRoutes, { prefix: '/v1/config', database: options.database });
+  await registerWithRoleGuard(app, configRoutes, '/v1/config', { database: options.database });
 
   // 注册 FinOps 成本管理 API 路由
-  await app.register(costRoutes, { prefix: '/v1/cost', database: options.database });
+  await registerWithRoleGuard(app, costRoutes, '/v1/cost', { database: options.database });
 
   // 注册风险评估 API 路由
-  await app.register(riskRoutes, { prefix: '/v1/risk' });
+  await registerWithRoleGuard(app, riskRoutes, '/v1/risk');
 
   // 注册 FinOps 成本追踪与 ROI API 路由 (TASK-502) - PostgreSQL backed
-  await app.register(finopsV2Routes, { prefix: '/v1/finops', database: options.database });
+  await registerWithRoleGuard(app, finopsV2Routes, '/v1/finops', { database: options.database });
 
   // 注册 AI Code Review API 路由 (TASK-302)
   await registerWithRoleGuard(app, aiReviewRoutes, '/v1/ai-review');
@@ -275,25 +287,25 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await registerWithRoleGuard(app, diagnosticRoutes, '/v1/diagnostic', { database: options.database });
 
   // 注册智能测试选择器 API 路由 (TASK-303)
-  await app.register(testSelectorRoutes, { prefix: '/v1/test-selector' });
+  await registerWithRoleGuard(app, testSelectorRoutes, '/v1/test-selector');
 
   // 注册智能部署 API 路由 (TASK-701) - PostgreSQL backed
-  await app.register(deployRoutes, { prefix: '/v1/deploy', database: options.database });
+  await registerWithRoleGuard(app, deployRoutes, '/v1/deploy', { database: options.database });
 
   // 注册监控告警 API 路由 (TASK-703)
   await registerWithRoleGuard(app, monitoringRoutes, '/v1/monitoring', { database: options.database });
 
   // 注册智能工单 API 路由 (TASK-801) - PostgreSQL backed
-  await app.register(ticketingRoutes, { prefix: '/v1/tickets', database: options.database });
+  await registerWithRoleGuard(app, ticketingRoutes, '/v1/tickets', { database: options.database });
 
   // Register self-healing API routes (TASK-702) - PostgreSQL backed
   await registerWithRoleGuard(app, selfHealingRoutes, '/v1/self-healing', { database: options.database });
 
   // 注册备份恢复 API 路由 (TASK-704) - PostgreSQL backed
-  await app.register(backupRoutes, { prefix: '/v1/backup', database: options.database });
+  await registerWithRoleGuard(app, backupRoutes, '/v1/backup', { database: options.database });
 
   // 注册 Plugin SPI API 路由 (TASK-104)
-  await app.register(pluginSpiRoutes, { prefix: '/v1/plugins-spi' });
+  await registerWithRoleGuard(app, pluginSpiRoutes, '/v1/plugins-spi');
 
   // 注册 Plugin Management API 路由
   await registerWithRoleGuard(app, pluginRoutes, '/v1/plugins');
@@ -302,10 +314,10 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await registerWithRoleGuard(app, aiSecurityRoutes, '/v1/ai-security', { database: options.database });
 
   // 注册 AI 网关 API 路由
-  await app.register(aiGatewayRoutes, { prefix: '/v1/ai-gateway' });
+  await registerWithRoleGuard(app, aiGatewayRoutes, '/v1/ai-gateway');
 
   // 注册告警管理 API 路由
-  await app.register(alertRoutes, { prefix: '/v1/alert' });
+  await registerWithRoleGuard(app, alertRoutes, '/v1/alert');
 
   // 注册审计 API 路由
   await registerWithRoleGuard(app, auditRoutes, '/v1/audit', { database: options.database });
@@ -314,22 +326,22 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await registerWithRoleGuard(app, tenantRoutes, '/v1/tenant', { database: options.database });
 
   // 注册效能分析 API 路由 — P0-4 Fix: pass database for real DORA metrics
-  await app.register(efficiencyRoutes, { prefix: '/v1/efficiency', database: options.database });
+  await registerWithRoleGuard(app, efficiencyRoutes, '/v1/efficiency', { database: options.database });
 
   // 注册 SBOM Attestation API 路由 (P0) - migrated to PostgreSQL
-  await app.register(sbomRoutes, { prefix: '/v1/sbom', eventBus: options.eventBus, database: options.database });
+  await registerWithRoleGuard(app, sbomRoutes, '/v1/sbom', { eventBus: options.eventBus, database: options.database });
 
   // 注册 OPA Policy Engine API 路由 (P0) - PostgreSQL backed
-  await app.register(policyRoutes, { prefix: '/v1/policies', database: options.database, eventBus: options.eventBus });
+  await registerWithRoleGuard(app, policyRoutes, '/v1/policies', { database: options.database, eventBus: options.eventBus });
 
   // 注册 AI Change Intelligence API 路由 (P0)
-  await app.register(changeIntelligenceRoutes, { prefix: '/v1/change-intelligence', eventBus: options.eventBus });
+  await registerWithRoleGuard(app, changeIntelligenceRoutes, '/v1/change-intelligence', { eventBus: options.eventBus });
 
   // 注册 ML Canary Analysis API 路由 (P0)
-  await app.register(canaryAnalysisRoutes, { prefix: '/v1/canary-analysis', eventBus: options.eventBus });
+  await registerWithRoleGuard(app, canaryAnalysisRoutes, '/v1/canary-analysis', { eventBus: options.eventBus });
 
   // 注册 Skill Management API 路由 (M12)
-  await app.register(skillRoutes, { prefix: '/v1/skills', database: options.database });
+  await registerWithRoleGuard(app, skillRoutes, '/v1/skills', { database: options.database });
 
   // 注册 AI Cost Optimization API 路由 (M36)
   await registerWithRoleGuard(app, aiCostRoutes, '/v1/ai-cost', { database: options.database });
@@ -338,8 +350,8 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await registerWithRoleGuard(app, iacRoutes, '/v1/iac', { eventBus: options.eventBus, database: options.database });
 
   // Register Ephemeral Dev Environments API routes (M31)
-  await app.register(ephemeralEnvRoutes, {
-    prefix: '/v1/ephemeral-envs',
+  await registerWithRoleGuard(app, ephemeralEnvRoutes, '/v1/ephemeral-envs', {
+    
     eventBus: options.eventBus,
   });
 
@@ -354,63 +366,63 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await registerWithRoleGuard(app, confirmationRoutes, '/v1/confirmations', { database: options.database, eventBus: options.eventBus });
 
   // 注册 Artifact Registry API 路由
-  await app.register(artifactRoutes, { prefix: '/v1/artifacts', database: options.database });
+  await registerWithRoleGuard(app, artifactRoutes, '/v1/artifacts', { database: options.database });
 
   // 注册 Vector Store API 路由 (P0-G2 - pgvector backed) — admin only
   await registerWithRoleGuard(app, vectorStoreRoutes, '/v1/vector-store', { database: options.database });
 
   // 注册 OnCall 排班 API 路由 (P0 - SRE scheduling)
-  await app.register(oncallRoutes, { prefix: '/v1/oncall', database: options.database, eventBus: options.eventBus });
+  await registerWithRoleGuard(app, oncallRoutes, '/v1/oncall', { database: options.database, eventBus: options.eventBus });
 
   // 注册审批 API 路由 (P0 - multi-level approval) — P0-7 Fix: requires database
   if (options.database) {
-    await app.register(approvalRoutes, { prefix: '/v1/approvals', database: options.database });
+    await registerWithRoleGuard(app, approvalRoutes, '/v1/approvals', { database: options.database });
   }
 
   // 注册 Cron Scheduler API 路由 (P0-1 Fix: was missing)
-  await app.register(cronRoutes, { prefix: '/v1/cron', database: options.database });
+  await registerWithRoleGuard(app, cronRoutes, '/v1/cron', { database: options.database });
 
   // 注册 EventBus API 路由 (M24 - PostgreSQL backed) — admin only
   await registerWithRoleGuard(app, eventbusRoutes, '/v1/eventbus', { database: options.database, eventBus: options.eventBus });
 
   // 注册 ProductLine 多分支产品线 API 路由 (M6) — P0-2 Fix: pass database
-  await app.register(productLineRoutes, { prefix: '/v1/product-lines', database: options.database });
+  await registerWithRoleGuard(app, productLineRoutes, '/v1/product-lines', { database: options.database });
 
   // 注册 Internal Library 二方库管理 API 路由 (M30)
-  await app.register(internalLibraryRoutes, { prefix: '/v1/internal-libraries', database: options.database });
+  await registerWithRoleGuard(app, internalLibraryRoutes, '/v1/internal-libraries', { database: options.database });
 
   // 注册 Notification API 路由 (M8/M33)
-  await app.register(notificationRoutes, { prefix: '/v1/notifications' });
+  await registerWithRoleGuard(app, notificationRoutes, '/v1/notifications');
 
   // 注册 Role Management API 路由 (RBAC) - PostgreSQL backed
   await registerWithRoleGuard(app, roleRoutes, '/v1/roles', { database: options.database });
 
   // 注册 Session Management API 路由 - PostgreSQL backed
-  await app.register(sessionRoutes, { prefix: '/v1/sessions', database: options.database });
+  await registerWithRoleGuard(app, sessionRoutes, '/v1/sessions', { database: options.database });
 
   // 注册 Webhook Management API 路由 (M1) - PostgreSQL backed
-  await app.register(webhookRoutes, { prefix: '/v1/webhooks', database: options.database });
+  await registerWithRoleGuard(app, webhookRoutes, '/v1/webhooks', { database: options.database });
 
   // 注册 Project Management API 路由 - PostgreSQL backed
-  await app.register(projectRoutes, { prefix: '/v1/projects', database: options.database });
+  await registerWithRoleGuard(app, projectRoutes, '/v1/projects', { database: options.database });
 
   // 注册 Environment Management API 路由 - PostgreSQL backed
-  await app.register(environmentRoutes, { prefix: '/v1/environments', database: options.database });
+  await registerWithRoleGuard(app, environmentRoutes, '/v1/environments', { database: options.database });
 
   // 注册 Queue Management API 路由 (M24) - PostgreSQL backed
-  await app.register(queueRoutes, { prefix: '/v1/queue', database: options.database });
+  await registerWithRoleGuard(app, queueRoutes, '/v1/queue', { database: options.database });
 
   // 注册 Knowledge Base API 路由 (M28) - PostgreSQL backed
-  await app.register(knowledgeRoutes, { prefix: '/v1/knowledge', database: options.database });
+  await registerWithRoleGuard(app, knowledgeRoutes, '/v1/knowledge', { database: options.database });
 
   // 注册 Metrics API 路由 - PostgreSQL backed
-  await app.register(metricsRoutes, { prefix: '/v1/metrics', database: options.database });
+  await registerWithRoleGuard(app, metricsRoutes, '/v1/metrics', { database: options.database });
 
   // 注册 User Management API 路由 - PostgreSQL backed
   await registerWithRoleGuard(app, userRoutes, '/v1/users', { database: options.database });
 
   // 注册 Agent Orchestration API 路由 - PostgreSQL backed
-  await app.register(agentRoutes, { prefix: '/v1/', eventBus: options.eventBus, database: options.database });
+  await registerWithRoleGuard(app, agentRoutes, '/v1/', { eventBus: options.eventBus, database: options.database });
 
   // 注册 API Key Management API 路由 - PostgreSQL backed
   await registerWithRoleGuard(app, apiKeyRoutes, '/v1/api-keys', { database: options.database });
