@@ -49,14 +49,28 @@ vi.mock('@/components/Table', () => ({
   ),
 }));
 
-vi.mock('@/components/MetricCard', () => ({
-  default: ({ title, value }: any) => (
-    <div data-testid="metric-card">
-      <span data-testid="metric-title">{title}</span>
-      <span data-testid="metric-value">{value}</span>
-    </div>
-  ),
-}));
+vi.mock('@/components/charts', async () => {
+  const actual = await vi.importActual<typeof import('@/components/charts')>('@/components/charts');
+  return {
+    ...actual,
+    StatCard: ({ title, value, suffix }: any) => (
+      <div data-testid="metric-card">
+        <span data-testid="metric-title">{title}</span>
+        <span data-testid="metric-value">{value === '-' ? '-' : `${value}${suffix ? ` ${suffix}` : ''}`}</span>
+      </div>
+    ),
+    TrendLineChart: ({ title, data, style }: any) => (
+      <div data-testid="trend-line-chart" data-title={title}>
+        {JSON.stringify(data?.length ?? 0)} series
+      </div>
+    ),
+    GaugeChart: ({ title, value }: any) => (
+      <div data-testid="gauge-chart">
+        <span>{title}: {value}</span>
+      </div>
+    ),
+  };
+});
 
 vi.mock('@/components/DashboardLayout', () => ({
   default: ({ children }: any) => <div data-testid="dashboard-layout">{children}</div>,
@@ -146,7 +160,7 @@ describe('MetricsDashboard', () => {
     expect(metricValues.length).toBeGreaterThan(0);
 
     // Request rate should be 12540 from API
-    expect(screen.getByText('12540')).toBeInTheDocument();
+    expect(screen.getByText(/12540/)).toBeInTheDocument();
 
     // Service health table should show 3 rows from API
     await waitFor(() => {
