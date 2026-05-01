@@ -11,7 +11,6 @@ import {
   Card,
   Row,
   Col,
-  Statistic,
   Modal,
   Form,
   Input,
@@ -26,7 +25,7 @@ import {
   EyeOutlined,
   FileTextOutlined,
 } from '@ant-design/icons';
-import { PieChart, BarChart, type PieDataItem, type BarDataItem } from '@/components/charts';
+import { PieChart, BarChart, StatCard, GaugeChart, TreeMap, type PieDataItem, type BarDataItem, type TreeMapNode } from '@/components/charts';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge, { type StatusType } from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
@@ -282,38 +281,27 @@ const SbomDashboard: React.FC = () => {
       {/* Stats Cards */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col span={6}>
-          <Card>
-            <Statistic title="SBOM 总数" value={documents.length} suffix="个" />
-          </Card>
+          <StatCard title="SBOM 总数" value={documents.length} suffix="个" />
         </Col>
         <Col span={6}>
-          <Card>
-            <Statistic
-              title="覆盖率"
-              value={(activeDocs / Math.max(documents.length, 1)) * 100}
-              precision={1}
-              suffix="%"
-            />
-          </Card>
+          <StatCard
+            title="覆盖率"
+            value={Math.round((activeDocs / Math.max(documents.length, 1)) * 100)}
+            suffix="%"
+          />
         </Col>
         <Col span={6}>
-          <Card>
-            <Statistic title="总包数" value={totalVulns} />
-          </Card>
+          <StatCard title="总包数" value={totalVulns} />
         </Col>
         <Col span={6}>
-          <Card>
-            <Statistic
-              title="合规评分"
-              value={compliance?.complianceRate || 0}
-              precision={1}
-              suffix="%"
-              valueStyle={{
-                color:
-                  (compliance?.complianceRate || 0) >= 90 ? colors.success[600] : colors.error[600],
-              }}
-            />
-          </Card>
+          <GaugeChart
+            value={compliance?.complianceRate || 0}
+            title="合规评分"
+            max={100}
+            thresholds={{ warning: 80, danger: 60 }}
+            size={140}
+            unit="%"
+          />
         </Col>
       </Row>
 
@@ -356,25 +344,21 @@ const SbomDashboard: React.FC = () => {
           <Space direction="vertical" size="large" style={{ width: '100%' }}>
             <Row gutter={16}>
               <Col span={6}>
-                <Statistic title="总 SBOM" value={compliance.totalSboms || 0} />
+                <StatCard title="总 SBOM" value={compliance.totalSboms || 0} />
               </Col>
               <Col span={6}>
-                <Statistic title="合规数" value={compliance.compliantSboms || 0} />
+                <StatCard title="合规数" value={compliance.compliantSboms || 0} />
               </Col>
               <Col span={6}>
-                <Statistic
-                  title="严重漏洞"
-                  value={compliance.criticalVulns || 0}
-                  valueStyle={{ color: colors.error[600] }}
-                />
+                <StatCard title="严重漏洞" value={compliance.criticalVulns || 0} />
               </Col>
               <Col span={6}>
-                <Statistic title="活跃豁免" value={waivers.length} />
+                <StatCard title="活跃豁免" value={waivers.length} />
               </Col>
             </Row>
 
             <Row gutter={16}>
-              <Col span={12}>
+              <Col span={8}>
                 <PieChart
                   title="许可证分布"
                   data={licenseDistribution}
@@ -382,10 +366,20 @@ const SbomDashboard: React.FC = () => {
                   height={200}
                 />
               </Col>
-              <Col span={12}>
+              <Col span={8}>
                 <BarChart
                   title="组件数量按文档"
                   data={componentByDoc}
+                  height={200}
+                />
+              </Col>
+              <Col span={8}>
+                <TreeMap
+                  title="组件风险分布"
+                  data={documents.map(d => ({
+                    name: d.format,
+                    value: d.packageCount,
+                  }))}
                   height={200}
                 />
               </Col>
