@@ -16,5 +16,8 @@ export type { GaugeChartProps } from './GaugeChart';
 export { HeatmapChart } from './HeatmapChart';
 export type { HeatmapChartProps, HeatmapCell } from './HeatmapChart';
 
+export { ScatterChart } from './ScatterChart';
+export type { ScatterChartProps, ScatterDataPoint } from './ScatterChart';
+
 export { StatCard } from './StatCard';
 export type { StatCardProps } from './StatCard';
