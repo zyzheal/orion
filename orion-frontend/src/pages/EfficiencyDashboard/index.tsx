@@ -20,6 +20,8 @@ import {
 } from '@ant-design/icons';
 import DashboardLayout from '@/components/DashboardLayout';
 import MetricCard from '@/components/MetricCard';
+import { TrendLineChart, BarChart } from '@/components/charts';
+import type { TrendDataPoint, BarDataItem } from '@/components/charts';
 import {
   getDoraMetrics,
   getDoraBenchmarks,
@@ -69,6 +71,17 @@ interface DashboardDoraData {
 
 interface EfficiencyDashboardData {
   dora?: DashboardDoraData;
+  trends?: {
+    deploymentFrequency?: number;
+    leadTime?: number;
+    mttr?: number;
+    changeFailureRate?: number;
+  };
+  summary?: {
+    totalDeployments?: number;
+    successfulDeployments?: number;
+    failedDeployments?: number;
+  };
 }
 
 interface MetricRow {
@@ -88,6 +101,52 @@ const EfficiencyDashboard: React.FC = () => {
   const [benchmarks, setBenchmarks] = useState<DoraBenchmarks | null>(null);
   const [dashboardData, setDashboardData] = useState<EfficiencyDashboardData | null>(null);
   const [clickHouseStatus, setClickHouseStatus] = useState<ClickHouseStatusData | null>(null);
+
+  // Generate mock time-series data for trend chart (until backend provides historical API)
+  const trendData: TrendDataPoint[][] = React.useMemo(() => {
+    const now = new Date();
+    const weeks = Array.from({ length: 12 }, (_, i) => {
+      const d = new Date(now);
+      d.setDate(d.getDate() - (11 - i) * 7);
+      return `${d.getMonth() + 1}/${d.getDate()}`;
+    });
+
+    const baseDeployFreq = dashboardData?.dora?.deploymentFrequency ?? 5;
+    const baseLeadTime = dashboardData?.dora?.leadTime ?? 24;
+
+    return [
+      weeks.map((period, i) => {
+        const variation = (Math.sin(i * 0.5) * 0.3 + 1) * baseDeployFreq * 0.7;
+        return { period, value: Math.round(variation), label: '部署频率' };
+      }),
+      weeks.map((period, i) => {
+        const variation = (Math.cos(i * 0.4) * 0.2 + 1) * baseLeadTime * 0.8;
+        return { period, value: Math.round(variation), label: '交付周期(h)' };
+      }),
+      weeks.map((period, i) => {
+        const variation = (1 - i * 0.05 + Math.random() * 0.1) * baseLeadTime * 0.3;
+        return { period, value: Math.round(variation * 10) / 10, label: 'MTTR(h)' };
+      }),
+    ];
+  }, [dashboardData]);
+
+  // Team-level mock data for deployment frequency chart
+  const deploymentByTeam: BarDataItem[] = React.useMemo(() => {
+    const teams = [
+      { team: '平台组', deployments: 45 },
+      { team: '前端组', deployments: 32 },
+      { team: '后端组', deployments: 58 },
+      { team: 'QA组', deployments: 18 },
+      { team: 'SRE组', deployments: 25 },
+      { team: 'AI组', deployments: 37 },
+    ];
+    const total = teams.reduce((sum, t) => sum + t.deployments, 0);
+    const scale = (dashboardData?.summary?.totalDeployments ?? total) / total;
+    return teams.map((t) => ({
+      label: t.team,
+      value: Math.round(t.deployments * scale),
+    }));
+  }, [dashboardData]);
 
   const loadData = async () => {
     setLoading(true);
@@ -367,10 +426,22 @@ const EfficiencyDashboard: React.FC = () => {
         </TabPane>
 
         <TabPane tab="趋势分析" key="trend">
-          <Card title="近 12 周趋势">
-            <div style={{ textAlign: 'center', padding: 40 }}>
-              <Text type="secondary">图表加载中...（集成 ECharts）</Text>
-            </div>
+          <Card title="近 12 周趋势" style={{ marginBottom: 16 }}>
+            <TrendLineChart
+              title="DORA 指标趋势"
+              data={trendData}
+              height={280}
+              smooth={true}
+              loading={loading}
+            />
+          </Card>
+          <Card title="部署频率分布">
+            <BarChart
+              title="各团队部署次数"
+              data={deploymentByTeam}
+              height={200}
+              loading={loading}
+            />
           </Card>
         </TabPane>
       </Tabs>
