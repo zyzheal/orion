@@ -7,8 +7,6 @@ import {
   Card,
   Row,
   Col,
-  Statistic,
-  Progress,
   Tag,
   Table,
   Typography,
@@ -18,6 +16,7 @@ import {
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { colors, spacing } from '@/tokens';
+import { StatCard } from '@/components/charts';
 import {
   ClockCircleOutlined,
   CheckCircleOutlined,
@@ -359,60 +358,20 @@ const DashboardNew: React.FC = () => {
       {/* 顶部统计卡片 */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} sm={12} lg={6}>
-          <Card>
-            <Statistic
-              title="Pipeline 总数"
-              value={pipelineStats.total}
-              prefix={<ThunderboltOutlined />}
-              valueStyle={{ color: colors.primary[500] }}
-            />
-            <Progress
-              percent={75}
-              strokeColor="colors.primary[500]"
-              size="small"
-              style={{ marginTop: 16 }}
-              format={() => '本周完成率 75%'}
-            />
-          </Card>
+          <StatCard
+            title="Pipeline 总数"
+            value={pipelineStats.total}
+            trend={{ value: 75, direction: 'up', good: 'up' }}
+          />
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card>
-            <Statistic
-              title="运行中"
-              value={pipelineStats.running}
-              prefix={<ClockCircleOutlined />}
-              valueStyle={{ color: colors.warning[500] }}
-            />
-            <div style={{ marginTop: 16 }}>
-              <Tag color="processing">3 个任务执行中</Tag>
-            </div>
-          </Card>
+          <StatCard title="运行中" value={pipelineStats.running} />
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card>
-            <Statistic
-              title="成功"
-              value={pipelineStats.success}
-              prefix={<CheckCircleOutlined />}
-              valueStyle={{ color: colors.success[500] }}
-            />
-            <div style={{ marginTop: 16 }}>
-              <Tag color="success">成功率 95%</Tag>
-            </div>
-          </Card>
+          <StatCard title="成功" value={pipelineStats.success} />
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card>
-            <Statistic
-              title="待处理任务"
-              value={taskStats.todo}
-              prefix={<WarningOutlined />}
-              valueStyle={{ color: colors.error[400] }}
-            />
-            <div style={{ marginTop: 16 }}>
-              <Tag color="red">{taskStats.inProgress} 进行中</Tag>
-            </div>
-          </Card>
+          <StatCard title="待处理任务" value={taskStats.todo} />
         </Col>
       </Row>
 
