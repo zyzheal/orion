@@ -38,15 +38,18 @@ import {
   ThunderboltOutlined,
 } from '@ant-design/icons';
 import TableComponent, { type TableColumn } from '@/components/Table';
+import { TrendLineChart, PieChart } from '@/components/charts';
 import {
   getCostSummary,
   getCostByService,
+  getCostTrend,
   getOptimizations,
   getBudgetAlerts,
   applyOptimization as apiApplyOptimization,
   exportCostReport as apiExportCostReport,
   type CostSummary,
   type CostByServiceItem,
+  type CostTrendItem,
   type OptimizationItem,
   type BudgetAlertItem,
 } from '@/api/finops';
@@ -81,22 +84,25 @@ const FinOpsDashboard: React.FC = () => {
   const [optimizations, setOptimizations] = useState<OptimizationItem[]>([]);
   const [costSummary, setCostSummary] = useState<CostSummary | null>(null);
   const [costByService, setCostByService] = useState<CostByServiceItem[]>([]);
+  const [costTrend, setCostTrend] = useState<CostTrendItem[]>([]);
   const [budgetAlerts, setBudgetAlerts] = useState<BudgetAlertItem[]>([]);
 
   // Load data from API
   const loadData = async () => {
     setLoading(true);
     try {
-      const [costSummaryRes, costByServiceRes, optimizationsRes, budgetAlertsRes] =
+      const [costSummaryRes, costByServiceRes, costTrendRes, optimizationsRes, budgetAlertsRes] =
         await Promise.all([
           getCostSummary(),
           getCostByService(),
+          getCostTrend(),
           getOptimizations(),
           getBudgetAlerts(),
         ]);
 
       setCostSummary(costSummaryRes);
       setCostByService(Array.isArray(costByServiceRes) ? costByServiceRes : []);
+      setCostTrend(Array.isArray(costTrendRes) ? costTrendRes : []);
       setOptimizations(Array.isArray(optimizationsRes) ? optimizationsRes : []);
       setBudgetAlerts(Array.isArray(budgetAlertsRes) ? budgetAlertsRes : []);
     } catch (error: unknown) {
@@ -362,7 +368,7 @@ const FinOpsDashboard: React.FC = () => {
       <Row gutter={[16, 16]}>
         {/* Left Column (wide) */}
         <Col xs={24} lg={16}>
-          {/* Cost Trend Chart Placeholder */}
+          {/* Cost Trend Chart */}
           <Card
             title={
               <Space>
@@ -374,21 +380,33 @@ const FinOpsDashboard: React.FC = () => {
             style={{ borderRadius: 8, marginBottom: 16 }}
             loading={loading}
           >
-            <div
-              style={{
-                height: 280,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: colors.neutral[50],
-                borderRadius: 6,
-                border: `1px dashed ${colors.neutral[300]}`,
-              }}
-            >
-              <Text type="secondary" style={{ fontSize: spacing[4] }}>
-                图表加载中...
-              </Text>
-            </div>
+            {costTrend.length > 0 ? (
+              <TrendLineChart
+                title="成本趋势（近12个月）"
+                data={[
+                  costTrend.map((d) => ({ period: d.month, value: d.cost, label: '实际成本' })),
+                ]}
+                height={280}
+                showArea={true}
+                smooth={true}
+              />
+            ) : (
+              <div
+                style={{
+                  height: 280,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: colors.neutral[50],
+                  borderRadius: 6,
+                  border: `1px dashed ${colors.neutral[300]}`,
+                }}
+              >
+                <Text type="secondary" style={{ fontSize: spacing[4] }}>
+                  暂无趋势数据
+                </Text>
+              </div>
+            )}
           </Card>
 
           {/* Cost by Service Table */}
@@ -446,6 +464,39 @@ const FinOpsDashboard: React.FC = () => {
 
         {/* Right Column (narrow) */}
         <Col xs={24} lg={8}>
+          {/* Budget Allocation PieChart */}
+          <Card
+            title="预算分配"
+            bordered={false}
+            style={{ borderRadius: 8, marginBottom: 16 }}
+            loading={loading}
+          >
+            {costByService.length > 0 ? (
+              <PieChart
+                title="预算分配"
+                data={costByService.map((c) => ({ name: c.service, value: c.cost }))}
+                variant="donut"
+                centerLabel={true}
+                height={200}
+              />
+            ) : (
+              <div
+                style={{
+                  height: 200,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: colors.neutral[50],
+                  borderRadius: 6,
+                }}
+              >
+                <Text type="secondary" style={{ fontSize: spacing[3] }}>
+                  暂无预算分配数据
+                </Text>
+              </div>
+            )}
+          </Card>
+
           {/* Optimization Recommendations */}
           <Card
             title="优化建议"
