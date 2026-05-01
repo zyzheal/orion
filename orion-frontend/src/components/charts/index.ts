@@ -27,3 +27,6 @@ export type { RadarChartProps, RadarIndicator, RadarSeries } from './RadarChart'
 
 export { TimelineChart } from './TimelineChart';
 export type { TimelineChartProps, TimelineEvent } from './TimelineChart';
+
+export { SankeyChart } from './SankeyChart';
+export type { SankeyChartProps, SankeyNode, SankeyLink } from './SankeyChart';
