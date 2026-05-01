@@ -26,6 +26,7 @@ import {
   EyeOutlined,
   FileTextOutlined,
 } from '@ant-design/icons';
+import { PieChart, BarChart, type PieDataItem, type BarDataItem } from '@/components/charts';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge, { type StatusType } from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
@@ -110,6 +111,24 @@ const SbomDashboard: React.FC = () => {
 
   const totalVulns = documents.reduce((sum: number, d: SbomDocument) => sum + d.packageCount, 0);
   const activeDocs = documents.filter((d: SbomDocument) => d.status === 'active').length;
+
+  // License distribution: group documents by format as a proxy for license/type distribution
+  const licenseDistribution: PieDataItem[] = useMemo(() => {
+    const counts = new Map<string, number>();
+    documents.forEach((d) => {
+      const key = d.format.toUpperCase();
+      counts.set(key, (counts.get(key) || 0) + d.packageCount);
+    });
+    return Array.from(counts.entries()).map(([name, value]) => ({ name, value }));
+  }, [documents]);
+
+  // Component count by SBOM document (bar chart)
+  const componentByDoc: BarDataItem[] = useMemo(() => {
+    return documents.slice(0, 10).map((d) => ({
+      label: d.documentId.length > 20 ? d.documentId.slice(0, 20) + '…' : d.documentId,
+      value: d.packageCount,
+    }));
+  }, [documents]);
 
   const handleCreateWaiver = async (_values: SbomWaiverInput) => {
     try {
@@ -331,26 +350,47 @@ const SbomDashboard: React.FC = () => {
             导出 PDF
           </Button>
         }
+        style={{ marginBottom: 24 }}
       >
         {compliance ? (
-          <Row gutter={16}>
-            <Col span={6}>
-              <Statistic title="总 SBOM" value={compliance.totalSboms || 0} />
-            </Col>
-            <Col span={6}>
-              <Statistic title="合规数" value={compliance.compliantSboms || 0} />
-            </Col>
-            <Col span={6}>
-              <Statistic
-                title="严重漏洞"
-                value={compliance.criticalVulns || 0}
-                valueStyle={{ color: colors.error[600] }}
-              />
-            </Col>
-            <Col span={6}>
-              <Statistic title="活跃豁免" value={waivers.length} />
-            </Col>
-          </Row>
+          <Space direction="vertical" size="large" style={{ width: '100%' }}>
+            <Row gutter={16}>
+              <Col span={6}>
+                <Statistic title="总 SBOM" value={compliance.totalSboms || 0} />
+              </Col>
+              <Col span={6}>
+                <Statistic title="合规数" value={compliance.compliantSboms || 0} />
+              </Col>
+              <Col span={6}>
+                <Statistic
+                  title="严重漏洞"
+                  value={compliance.criticalVulns || 0}
+                  valueStyle={{ color: colors.error[600] }}
+                />
+              </Col>
+              <Col span={6}>
+                <Statistic title="活跃豁免" value={waivers.length} />
+              </Col>
+            </Row>
+
+            <Row gutter={16}>
+              <Col span={12}>
+                <PieChart
+                  title="许可证分布"
+                  data={licenseDistribution}
+                  variant="donut"
+                  height={200}
+                />
+              </Col>
+              <Col span={12}>
+                <BarChart
+                  title="组件数量按文档"
+                  data={componentByDoc}
+                  height={200}
+                />
+              </Col>
+            </Row>
+          </Space>
         ) : (
           <Text type="secondary">暂无合规报告数据</Text>
         )}
