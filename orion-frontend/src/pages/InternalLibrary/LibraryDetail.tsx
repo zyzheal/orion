@@ -79,36 +79,6 @@ const DependencyCheckTool: React.FC = () => {
   const [results, setResults] = useState<DependencyCheckResult[] | null>(null);
   const [checking, setChecking] = useState(false);
 
-  const MOCK_DEP_CHECK: DependencyCheckResult[] = [
-    {
-      libraryName: '@orion/auth',
-      currentVersion: '2.1.0',
-      latestVersion: '2.3.0',
-      status: 'upgrade_available',
-      upgradeType: 'minor',
-      securityScore: 92,
-      breakingChanges: [],
-    },
-    {
-      libraryName: '@orion/utils',
-      currentVersion: '1.5.2',
-      latestVersion: '1.5.2',
-      status: 'latest',
-      securityScore: 95,
-      breakingChanges: [],
-    },
-    {
-      libraryName: 'orion-db-core',
-      currentVersion: '2.8.0',
-      latestVersion: '3.0.0',
-      status: 'breaking_change',
-      upgradeType: 'major',
-      securityScore: 88,
-      breakingChanges: ['API signature change', 'Migration required'],
-      migrationGuide: 'https://docs.orion.io/db/migrate-v3',
-    },
-  ];
-
   const handleCheck = async () => {
     if (!repoName) {
       message.warning('请输入项目名称');
@@ -119,10 +89,8 @@ const DependencyCheckTool: React.FC = () => {
       const res = await checkDependencies(repoName);
       setResults(Array.isArray(res.data?.data) ? res.data.data : []);
     } catch (error: unknown) {
-      setResults(MOCK_DEP_CHECK);
-      if (error instanceof Error) {
-        message.error(`依赖检查失败：${error.message}`);
-      }
+      setResults([]);
+      message.error(`依赖检查失败：${(error as Error).message}`);
     } finally {
       setChecking(false);
     }
