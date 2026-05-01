@@ -19,7 +19,14 @@ export interface TreeMapChartProps {
   loading?: boolean;
 }
 
-const convertNode = (node: TreeMapNode, idx: number, palette: string[]) => ({
+interface TreeNode {
+  name: string;
+  value: number;
+  children?: TreeNode[];
+  itemStyle?: { color: string };
+}
+
+const convertNode = (node: TreeMapNode, idx: number, palette: string[]): TreeNode => ({
   name: node.name,
   value: node.value,
   children: node.children?.map((c, i) => convertNode(c, i, palette)),

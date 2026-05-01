@@ -4,7 +4,7 @@ import { BarChart } from '../BarChart';
 import { ChartProvider } from '../ChartProvider';
 
 vi.mock('echarts-for-react', () => ({
-  default: (props: Record<string, unknown>) => (
+  default: (props: Record<string, any>) => (
     <div data-testid="bar-chart" data-option={JSON.stringify(props.option)}>
       {props.option?.title?.text}
       {props.option?.legend?.data?.map((name: string) => (

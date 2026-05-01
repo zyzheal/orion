@@ -97,9 +97,12 @@ export const TimelineChart: React.FC<TimelineChartProps> = ({
       series: [
         {
           type: 'custom' as const,
-          renderItem: (_params: unknown, api: { value: (i: number, j: number) => number; coord: (i: number, t: number) => number[] }) => {
-            const start = api.coord([api.value(0), api.value(1)]);
-            const end = api.coord([api.value(0), api.value(2)]);
+          renderItem: (params: Record<string, unknown>, api: Record<string, unknown>) => {
+            const apiValue = api.value as (p: number, d?: number) => number;
+            const apiCoord = api.coord as (v: [number, number]) => [number, number];
+            const dataIndex = params.dataIndex as number;
+            const start = apiCoord([apiValue(0, dataIndex), apiValue(1, dataIndex)]);
+            const end = apiCoord([apiValue(0, dataIndex), apiValue(2, dataIndex)]);
             const barHeight = 20;
             return {
               type: 'rect' as const,
@@ -110,7 +113,9 @@ export const TimelineChart: React.FC<TimelineChartProps> = ({
                 height: barHeight,
                 r: 3,
               },
-              style: api.style(),
+              style: {
+                fill: (params as { itemStyle?: { color?: string } }).itemStyle?.color ?? theme.info,
+              },
             };
           },
           data,

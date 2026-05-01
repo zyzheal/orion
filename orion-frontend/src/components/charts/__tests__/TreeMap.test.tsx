@@ -4,7 +4,7 @@ import { TreeMap } from '../TreeMap';
 import { ChartProvider } from '../ChartProvider';
 
 vi.mock('echarts-for-react', () => ({
-  default: (props: Record<string, unknown>) => (
+  default: (props: Record<string, any>) => (
     <div data-testid="treemap-chart" data-option={JSON.stringify(props.option)}>
       {props.option?.title?.text}
     </div>

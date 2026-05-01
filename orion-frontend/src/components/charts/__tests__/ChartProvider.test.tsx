@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getChartTheme, extractColorPalette, ChartProvider } from '../ChartProvider';
+import { getChartTheme, extractColorPalette } from '../ChartProvider';
 import { colors } from '@/tokens/colors';
 
 describe('ChartProvider', () => {
