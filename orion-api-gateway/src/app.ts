@@ -123,7 +123,7 @@ export async function createApp(options: AppOptions = {}): Promise<{
   // ==================== 注册认证路由 ====================
 
   // 注册认证路由（在 registerRoutes 之前，因为需要公开 /api/v1/auth/*路径）
-  const authRoutes = new AuthRoutes(app, tokenService);
+  const authRoutes = new AuthRoutes(app);
 
   // ==================== 注册租户管理路由 ====================
 
