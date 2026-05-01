@@ -5,6 +5,7 @@ import zhCN from 'antd/locale/zh_CN';
 import AppRouter from './router';
 import { useAppStore } from './stores/appStore';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { AuthInitializer } from './components/AuthInitializer';
 import '@/assets/styles/global.css';
 
 const AppContent: React.FC = () => {
@@ -29,7 +30,9 @@ const AppContent: React.FC = () => {
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <ErrorBoundary>
-      <AppContent />
+      <AuthInitializer>
+        <AppContent />
+      </AuthInitializer>
     </ErrorBoundary>
   </React.StrictMode>
 );

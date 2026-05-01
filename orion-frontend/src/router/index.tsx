@@ -5,6 +5,7 @@ import { Layout } from '@/components/Layout';
 import { Loading } from '@/components/Loading';
 import { useAuthStore } from '@/stores/authStore';
 import { message } from 'antd';
+import { getCurrentUser } from '@/api/auth';
 
 // 检查用户是否已登录
 const checkIsAuthenticated = (): boolean => {
@@ -37,7 +38,7 @@ const checkRoleAccess = (
   return roles.includes(userRole);
 };
 
-// 路由守卫组件
+// 路由守卫组件 — 带服务端 token 验证
 const ProtectedRoute: React.FC<{ children: React.ReactNode; route: AppRoute }> = ({
   children,
   route,
@@ -45,14 +46,39 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; route: AppRoute }> =
   const location = useLocation();
   const navigate = useNavigate();
   const userRole = useAuthStore((state) => state.user?.role);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const [isChecking, setIsChecking] = useState(true);
   const [authorized, setAuthorized] = useState(false);
 
-  const checkAuth = useCallback(() => {
-    const auth = checkIsAuthenticated();
+  const checkAuth = useCallback(async () => {
+    // 优先使用 authStore 的状态（已由 AuthInitializer 初始化）
+    let auth = isAuthenticated;
     if (!auth) {
-      navigate('/login', { state: { from: location }, replace: true });
-      return;
+      // 首次加载时 authStore 可能未填充，做服务端验证
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        navigate('/login', { state: { from: location }, replace: true });
+        return;
+      }
+      try {
+        const response = await getCurrentUser();
+        useAuthStore.getState().setUser({
+          id: response.id,
+          username: response.username,
+          email: response.email,
+          role: response.role,
+          avatar: response.avatar,
+        });
+        useAuthStore.getState().setAuthenticated(true);
+        auth = true;
+      } catch {
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        localStorage.removeItem('token_expires_at');
+        useAuthStore.getState().logout();
+        navigate('/login', { state: { from: location }, replace: true });
+        return;
+      }
     }
 
     // 检查角色权限
@@ -64,7 +90,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; route: AppRoute }> =
 
     setAuthorized(true);
     setIsChecking(false);
-  }, [navigate, location.pathname, userRole, route.requiredRole]);
+  }, [navigate, location, userRole, route.requiredRole, isAuthenticated]);
 
   useEffect(() => {
     checkAuth();
