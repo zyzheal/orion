@@ -37,12 +37,12 @@ import { TicketingRepository } from './TicketingRepository';
  * - Extended offline periods
  */
 export class EngineerSuspendService {
-  private ticketingRepository: TicketingRepository;
+  private ticketingRepository?: TicketingRepository;
   private suspendCheckTimer?: NodeJS.Timeout;
   private onActivateCallback?: (suspend: EngineerSuspend) => void;
   private onEndCallback?: (suspend: EngineerSuspend) => void;
 
-  constructor(options: { ticketingRepository: TicketingRepository }) {
+  constructor(options: { ticketingRepository?: TicketingRepository }) {
     this.ticketingRepository = options.ticketingRepository;
   }
 
@@ -60,7 +60,7 @@ export class EngineerSuspendService {
     notes?: string;
     createdBy: string;
   }): Promise<EngineerSuspend> {
-    const suspend = await this.ticketingRepository.createSuspend({
+    const suspend = await this.ticketingRepository!.createSuspend({
       engineerId: input.engineerId,
       reason: input.reason,
       startTime: input.startTime,
@@ -79,11 +79,11 @@ export class EngineerSuspendService {
    * Activate a scheduled suspension
    */
   async activateSuspend(suspendId: string): Promise<EngineerSuspend | null> {
-    const suspend = await this.ticketingRepository.findSuspendById(suspendId);
+    const suspend = await this.ticketingRepository!.findSuspendById(suspendId);
     if (!suspend) return null;
 
-    await this.ticketingRepository.updateSuspendStatus(suspendId, 'active');
-    const updated = await this.ticketingRepository.findSuspendById(suspendId);
+    await this.ticketingRepository!.updateSuspendStatus(suspendId, 'active');
+    const updated = await this.ticketingRepository!.findSuspendById(suspendId);
 
     if (updated) {
       this.onActivateCallback?.(updated);
@@ -95,13 +95,13 @@ export class EngineerSuspendService {
    * End a suspension and restore engineer availability
    */
   async endSuspend(suspendId: string): Promise<EngineerSuspend | null> {
-    const suspend = await this.ticketingRepository.findSuspendById(suspendId);
+    const suspend = await this.ticketingRepository!.findSuspendById(suspendId);
     if (!suspend) return null;
     if (suspend.status !== 'active') return null;
 
     const actualEndTime = new Date();
-    await this.ticketingRepository.updateSuspendStatus(suspendId, 'completed', actualEndTime);
-    const updated = await this.ticketingRepository.findSuspendById(suspendId);
+    await this.ticketingRepository!.updateSuspendStatus(suspendId, 'completed', actualEndTime);
+    const updated = await this.ticketingRepository!.findSuspendById(suspendId);
 
     if (updated) {
       this.onEndCallback?.(updated);
@@ -113,40 +113,40 @@ export class EngineerSuspendService {
    * Cancel a scheduled suspension
    */
   async cancelSuspend(suspendId: string): Promise<EngineerSuspend | null> {
-    const suspend = await this.ticketingRepository.findSuspendById(suspendId);
+    const suspend = await this.ticketingRepository!.findSuspendById(suspendId);
     if (!suspend) return null;
     if (suspend.status !== 'scheduled') return null;
 
-    await this.ticketingRepository.updateSuspendStatus(suspendId, 'cancelled');
-    return await this.ticketingRepository.findSuspendById(suspendId);
+    await this.ticketingRepository!.updateSuspendStatus(suspendId, 'cancelled');
+    return await this.ticketingRepository!.findSuspendById(suspendId);
   }
 
   /**
    * Get active suspensions
    */
   async getActiveSuspensions(): Promise<EngineerSuspend[]> {
-    return this.ticketingRepository.getActiveSuspensions();
+    return this.ticketingRepository!.getActiveSuspensions();
   }
 
   /**
    * Get scheduled (future) suspensions
    */
   async getScheduledSuspensions(): Promise<EngineerSuspend[]> {
-    return this.ticketingRepository.getScheduledSuspensions();
+    return this.ticketingRepository!.getScheduledSuspensions();
   }
 
   /**
    * Get suspension by ID
    */
   async getSuspend(suspendId: string): Promise<EngineerSuspend | null> {
-    return this.ticketingRepository.findSuspendById(suspendId);
+    return this.ticketingRepository!.findSuspendById(suspendId);
   }
 
   /**
    * Get suspensions for an engineer
    */
   async getEngineerSuspensions(engineerId: string): Promise<EngineerSuspend[]> {
-    return this.ticketingRepository.getSuspensionsByEngineer(engineerId);
+    return this.ticketingRepository!.getSuspensionsByEngineer(engineerId);
   }
 
   /**
@@ -172,7 +172,7 @@ export class EngineerSuspendService {
    * Analyze suspension impact on tickets
    */
   async analyzeImpact(suspendId: string, tickets: Ticket[]): Promise<SuspensionImpact> {
-    const suspend = await this.ticketingRepository.findSuspendById(suspendId);
+    const suspend = await this.ticketingRepository!.findSuspendById(suspendId);
     if (!suspend) {
       throw new Error(`Suspend ${suspendId} not found`);
     }

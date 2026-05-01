@@ -158,27 +158,27 @@ export class TicketService extends EventEmitter {
     this.generator = new TicketGenerator();
     this.workflow = repository
       ? new TicketWorkflowService({ ticketingRepository: repository })
-      : new TicketWorkflowService({ ticketingRepository: undefined as any });
+      : new TicketWorkflowService({ ticketingRepository: undefined });
     this.analyzer = repository
       ? new TicketRelationAnalyzer({ ticketingRepository: repository })
-      : new TicketRelationAnalyzer({ ticketingRepository: undefined as any });
+      : new TicketRelationAnalyzer({ ticketingRepository: undefined });
     this.reporter = new TicketReportService();
 
     // TASK-802: Initialize dispatch components with repository
     this.dispatchEngine = repository
       ? new DispatchEngine({ ticketingRepository: repository })
-      : new DispatchEngine({ ticketingRepository: undefined as any }); // will throw if used without repo
+      : new DispatchEngine({ ticketingRepository: undefined }); // will throw if used without repo
     this.dispatchQueue = new DispatchQueueManager();
     this.loadBalancer = repository
       ? new LoadBalancer({ ticketingRepository: repository })
-      : new LoadBalancer({ ticketingRepository: undefined as any });
+      : new LoadBalancer({ ticketingRepository: undefined });
     this.dispatchAnalytics = new DispatchAnalytics();
 
     // TASK-TICKET-XFER: Initialize transfer and suspend services
     this.transfer = new TicketTransferService();
     this.suspend = repository
       ? new EngineerSuspendService({ ticketingRepository: repository })
-      : new EngineerSuspendService({ ticketingRepository: undefined as any });
+      : new EngineerSuspendService({ ticketingRepository: undefined });
 
     // TASK-TICKET-BI: Initialize BI analytics service
     this.bi = new TicketBIService();

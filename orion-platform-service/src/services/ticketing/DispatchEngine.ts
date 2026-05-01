@@ -68,7 +68,7 @@ const CATEGORY_EXPERTISE: Record<TicketCategory, TicketCategory[]> = {
  */
 export class DispatchEngine {
   /** Repository for engineer profiles */
-  private ticketingRepository: TicketingRepository;
+  private ticketingRepository?: TicketingRepository;
 
   /** Dispatch rules */
   private rules: DispatchRule[] = [];
@@ -82,7 +82,7 @@ export class DispatchEngine {
   /** Set of suspended engineer IDs (managed externally) */
   private suspendedEngineers: Set<string> = new Set();
 
-  constructor(options: { ticketingRepository: TicketingRepository; weights?: Partial<DispatchWeights> }) {
+  constructor(options: { ticketingRepository?: TicketingRepository; weights?: Partial<DispatchWeights> }) {
     this.ticketingRepository = options.ticketingRepository;
     this.weights = { ...DEFAULT_WEIGHTS, ...options.weights };
   }
@@ -103,7 +103,7 @@ export class DispatchEngine {
       team: profile.team,
       onCall: profile.onCall,
     };
-    return this.ticketingRepository.createEngineerProfile(input);
+    return this.ticketingRepository!.createEngineerProfile(input);
   }
 
   /**
@@ -119,21 +119,21 @@ export class DispatchEngine {
     if (updates.team !== undefined) repoUpdates.team = updates.team;
     if (updates.onCall !== undefined) repoUpdates.onCall = updates.onCall;
     if (updates.skills !== undefined) repoUpdates.skills = updates.skills;
-    return this.ticketingRepository.updateEngineerProfile(id, repoUpdates);
+    return this.ticketingRepository!.updateEngineerProfile(id, repoUpdates);
   }
 
   /**
    * Remove an engineer
    */
   async removeEngineer(id: string): Promise<boolean> {
-    return this.ticketingRepository.deleteEngineerProfile(id);
+    return this.ticketingRepository!.deleteEngineerProfile(id);
   }
 
   /**
    * Get an engineer by ID
    */
   async getEngineer(id: string): Promise<EngineerProfile | undefined> {
-    const profile = await this.ticketingRepository.findEngineerProfileById(id);
+    const profile = await this.ticketingRepository!.findEngineerProfileById(id);
     return profile || undefined;
   }
 
@@ -141,14 +141,14 @@ export class DispatchEngine {
    * List all registered engineers
    */
   async listEngineers(): Promise<EngineerProfile[]> {
-    return this.ticketingRepository.findAllEngineerProfiles();
+    return this.ticketingRepository!.findAllEngineerProfiles();
   }
 
   /**
    * Get available engineers (not offline/away/suspended)
    */
   async getAvailableEngineers(): Promise<EngineerProfile[]> {
-    const profiles = await this.ticketingRepository.getAvailableEngineers();
+    const profiles = await this.ticketingRepository!.getAvailableEngineers();
     return profiles.filter(e => !this.suspendedEngineers.has(e.id));
   }
 
@@ -523,7 +523,7 @@ export class DispatchEngine {
     if (!engineer) return;
 
     const newLoad = Math.max(0, engineer.currentLoad + delta);
-    await this.ticketingRepository.updateEngineerProfile(engineerId, { currentLoad: newLoad });
+    await this.ticketingRepository!.updateEngineerProfile(engineerId, { currentLoad: newLoad });
   }
 
   /**

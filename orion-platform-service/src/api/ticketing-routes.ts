@@ -28,14 +28,13 @@ export default async function ticketingRoutes(
   app: FastifyInstance,
   options: TicketingRoutesOptions
 ): Promise<void> {
-  // Initialize Repository and Service with database pool
-  const repository = options.database
-    ? new TicketingRepository(options.database)
-    : undefined;
+  if (!options.database) {
+    throw new Error('Ticketing routes require a database connection');
+  }
 
-  const ticketingService = repository
-    ? new TicketingService(repository)
-    : undefined;
+  // Initialize Repository and Service with database pool
+  const repository = new TicketingRepository(options.database);
+  const ticketingService = new TicketingService(repository);
 
   // Initialize controller with both services
   // - TicketService (PostgreSQL-backed via TicketingRepository)

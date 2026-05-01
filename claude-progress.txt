@@ -1186,3 +1186,21 @@ Added 6 missing API endpoints across 4 services:
 ### Verification
 - TypeScript type-check: 0 new errors in modified files
 - Pre-existing error in CronSchedulerService.ts unchanged
+
+---
+
+## 2026-05-01: Frontend Mock-to-API Migration Audit & Fix
+
+### refactor(frontend): verify and complete mock-to-API migration for all 21 target pages (COMPLETED)
+- Commit: 77f7a7a
+- Reviewed all 21 pages listed in the migration task across all severity levels
+- **Finding**: 20 of 21 pages were already fully migrated to real API integration:
+  - Severity 4: Backup/index.tsx - using getBackupStats, getBackups, createBackup, restoreBackup, deleteBackup, getBackupDownloadUrl
+  - Severity 1: EventBus/index.tsx - using getEvents, getStats; Sessions/index.tsx - using getSessions, getSessionStats, deleteSession
+  - Severity 2: Approvals, Artifacts, Environments, InternalLibrary (index), MetricsDashboard, OnCall, ProductLine, Projects, Queue, VectorStore - all using real API
+  - Severity 3: All AICostDashboard sub-pages (CostOverview, CostDetail, BudgetManagement, ROIReport, AlertConfig) and AIDocManagement sub-pages (SpaceList, DocumentList, RAGQuery) - all using real API
+- **One remaining mock pattern fixed**: InternalLibrary/LibraryDetail.tsx - removed MOCK_DEP_CHECK mock data fallback from DependencyCheckTool catch block
+  - Replaced `setResults(MOCK_DEP_CHECK)` with `setResults([])` + `message.error()`
+- Tests: All InternalLibrary tests pass (3/3)
+- TypeScript: No new errors introduced
+- Pre-existing error in CronSchedulerService.ts unchanged

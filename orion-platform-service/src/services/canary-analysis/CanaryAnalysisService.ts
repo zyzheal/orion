@@ -36,6 +36,11 @@ import {
   CanaryMLResultRepository,
   CanaryAnalysisConfigRepository,
   CanaryDecisionRepository,
+  CanaryAnalysisRunEntity,
+  CanaryMetricResultEntity,
+  CanaryMLResultEntity,
+  CanaryAnalysisConfigEntity,
+  CanaryDecisionEntity,
 } from '../../repositories/CanaryAnalysisRepository';
 import { createPrometheusClient, PrometheusClient, CanaryPromQL } from './PrometheusClient';
 
@@ -76,16 +81,16 @@ export class CanaryAnalysisService {
     const run = createCanaryAnalysisRun(input);
 
     const entity = await this.runRepository.create({
-      deployment_id: input.deploymentId,
-      run_number: input.runNumber ?? 1,
-      traffic_split: input.trafficSplit ?? { canary: 10, baseline: 90 },
+      deploymentId: input.deploymentId,
+      runNumber: input.runNumber ?? 1,
+      trafficSplit: ((input.trafficSplit ?? { canary: 10, baseline: 90 }) as unknown) as Record<string, number>,
       status: 'running',
       confidence: null,
       decision: null,
-      started_at: run.startedAt,
-      completed_at: null,
-      duration_ms: null,
-    } as any);
+      startedAt: run.startedAt,
+      completedAt: null,
+      durationMs: null,
+    });
 
     await this.eventBus?.publish('canary-analysis.run.started', {
       runId: run.id,
@@ -149,28 +154,28 @@ export class CanaryAnalysisService {
     // Store metrics in repository
     if (metrics.length > 0) {
       await this.metricRepository.batchCreate(metrics.map(m => ({
-        run_id: runId,
-        metric_name: m.metricName,
-        baseline_value: m.baselineValue ?? 0,
-        canary_value: m.canaryValue ?? 0,
-        mann_whitney_p: m.mannWhitneyP ?? 0,
-        ks_statistic: m.ksStatistic ?? 0,
-        cliff_delta: m.cliffDelta ?? 0,
+        runId: runId,
+        metricName: m.metricName,
+        baselineValue: m.baselineValue ?? 0,
+        canaryValue: m.canaryValue ?? 0,
+        mannWhitneyP: m.mannWhitneyP ?? 0,
+        ksStatistic: m.ksStatistic ?? 0,
+        cliffDelta: m.cliffDelta ?? 0,
         verdict: m.verdict ?? 'pass',
         category: m.category ?? 'unknown',
-      }) as any));
+      })));
     }
 
     // Store ML results in repository
     if (mlResults.length > 0) {
       await this.mlRepository.batchCreate(mlResults.map(ml => ({
-        run_id: runId,
-        model_name: ml.modelName,
+        runId: runId,
+        modelName: ml.modelName,
         prediction: ml.prediction ?? 'unknown',
         confidence: ml.confidence ?? 0,
-        shap_explanation: ml.shapExplanation ? JSON.stringify(ml.shapExplanation) : null,
-        cluster_id: ml.clusterId ?? 0,
-      }) as any));
+        shapExplanation: ml.shapExplanation ? (typeof ml.shapExplanation === 'string' ? JSON.parse(ml.shapExplanation) : ml.shapExplanation) : null,
+        clusterId: ml.clusterId ?? null,
+      })));
     }
 
     // Record decision in repository
@@ -180,13 +185,13 @@ export class CanaryAnalysisService {
       reason: `Auto-decided based on analysis status: ${status}`,
     });
     await this.decisionRepository.create({
-      run_id: runId,
-      decision: decision,
+      runId,
+      decision,
       reason: `Auto-decided based on analysis status: ${status}`,
-      overridden_by: null,
-      override_reason: null,
-      decided_at: decisionInput.decidedAt,
-    } as any);
+      overriddenBy: null,
+      overrideReason: null,
+      decidedAt: decisionInput.decidedAt,
+    });
 
     await this.eventBus?.publish('canary-analysis.run.completed', {
       runId,
@@ -379,20 +384,20 @@ export class CanaryAnalysisService {
     const config = createCanaryAnalysisConfig(input);
 
     const entity = await this.configRepository.create({
-      service_name: input.serviceName,
+      serviceName: input.serviceName,
       environment: input.environment,
-      analysis_interval_sec: input.analysisIntervalSec ?? 300,
-      max_rounds: input.maxRounds ?? 5,
-      warmup_period_sec: input.warmupPeriodSec ?? 600,
-      promote_threshold: input.promoteThreshold ?? 0.75,
-      rollback_threshold: input.rollbackThreshold ?? 0.60,
-      traffic_step: input.trafficStep ?? 20,
-      metric_weights: input.metricWeights ?? null,
-      excluded_metrics: input.excludedMetrics ?? [],
-      slo_metrics: input.sloMetrics ?? [],
-      created_at: config.createdAt,
-      updated_at: config.updatedAt,
-    } as any);
+      analysisIntervalSec: input.analysisIntervalSec ?? 300,
+      maxRounds: input.maxRounds ?? 5,
+      warmupPeriodSec: input.warmupPeriodSec ?? 600,
+      promoteThreshold: input.promoteThreshold ?? 0.75,
+      rollbackThreshold: input.rollbackThreshold ?? 0.60,
+      trafficStep: input.trafficStep ?? 20,
+      metricWeights: input.metricWeights ?? null,
+      excludedMetrics: input.excludedMetrics ?? [],
+      sloMetrics: input.sloMetrics ?? [],
+      createdAt: config.createdAt,
+      updatedAt: config.updatedAt,
+    });
 
     await this.eventBus?.publish('canary-analysis.config.created', {
       configId: config.id,
@@ -468,13 +473,13 @@ export class CanaryAnalysisService {
     await this.runRepository.updateRunStatus(runId, 'promote', 'promote', 1.0, new Date());
 
     await this.decisionRepository.create({
-      run_id: runId,
+      runId,
       decision: 'promote',
       reason: `Force promoted: ${reason}`,
-      overridden_by: 'admin',
-      override_reason: reason,
-      decided_at: new Date(),
-    } as any);
+      overriddenBy: 'admin',
+      overrideReason: reason,
+      decidedAt: new Date(),
+    });
 
     await this.eventBus?.publish('canary-analysis.force-promoted', { runId, reason });
 
@@ -490,13 +495,13 @@ export class CanaryAnalysisService {
     await this.runRepository.updateRunStatus(runId, 'rollback', 'rollback', 1.0, new Date());
 
     await this.decisionRepository.create({
-      run_id: runId,
+      runId,
       decision: 'rollback',
       reason: `Force rollback: ${reason}`,
-      overridden_by: 'admin',
-      override_reason: reason,
-      decided_at: new Date(),
-    } as any);
+      overriddenBy: 'admin',
+      overrideReason: reason,
+      decidedAt: new Date(),
+    });
 
     await this.eventBus?.publish('canary-analysis.force-rollback', { runId, reason });
 

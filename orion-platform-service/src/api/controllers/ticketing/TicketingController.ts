@@ -8,8 +8,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { TicketService } from '../../../services/ticketing/TicketService';
 import { TicketingService, TicketingServiceError } from '../../../services/ticketing/TicketingService';
-import { TicketingRepository } from '../../../services/ticketing/TicketingRepository';
-import type { CreateTicketInput } from '../../../services/ticketing/TicketingRepository';
 import {
   TicketStatus,
   TicketPriority,
@@ -35,14 +33,10 @@ const VALID_RELATION_TYPES: TicketRelationType[] = [
 
 export class TicketingController {
   private ticketService: TicketService;
-  private ticketingService?: TicketingService;
+  private ticketingService: TicketingService;
 
-  constructor(ticketService?: TicketService, ticketingService?: TicketingService, repository?: TicketingRepository) {
-    if (ticketService) {
-      this.ticketService = ticketService;
-    } else {
-      this.ticketService = new TicketService({}, repository);
-    }
+  constructor(ticketService: TicketService, ticketingService: TicketingService) {
+    this.ticketService = ticketService;
     this.ticketingService = ticketingService;
   }
 
@@ -133,36 +127,25 @@ export class TicketingController {
         return;
       }
 
-      // Use PostgreSQL-backed TicketingService when available
-      if (this.ticketingService) {
-        const input: CreateTicketInput = {
-          tenant_id: (body as any).tenantId || 'default',
-          title,
-          description,
-          type: category,
-          priority,
-          reporter_id: reporter,
-          tags: tags ? (Array.isArray(tags) ? tags : [tags]) : undefined,
-        };
-        const ticket = await this.ticketingService.createTicket(input);
-        await reply.status(201).send({
-          success: true,
-          data: { ticket },
-        });
-        return;
-      }
-
-      // Fallback to in-memory TicketService
-      const ticket = this.ticketService.createTicket({
+      // Use PostgreSQL-backed TicketingService
+      const input: {
+        tenant_id: string;
+        title: string;
+        description: string;
+        type: string;
+        priority: string;
+        reporter_id: string;
+        tags?: string[];
+      } = {
+        tenant_id: (body as any).tenantId || 'default',
         title,
         description,
-        category,
+        type: category,
         priority,
-        reporter,
-        tags,
-        metadata,
-      });
-
+        reporter_id: reporter,
+        tags: tags ? (Array.isArray(tags) ? tags : [tags]) : undefined,
+      };
+      const ticket = await this.ticketingService.createTicket(input);
       await reply.status(201).send({
         success: true,
         data: { ticket },
@@ -285,45 +268,25 @@ export class TicketingController {
   async getTicket(request: FastifyRequest, reply: FastifyReply) {
     const params = request.params as any;
 
-    // Use PostgreSQL-backed TicketingService when available
-    if (this.ticketingService) {
-      try {
-        const ticket = await this.ticketingService.getTicket(params.id);
-        await reply.status(200).send({
-          success: true,
-          data: { ticket },
-        });
-      } catch (error: any) {
-        if (error instanceof TicketingServiceError && error.code === 'NOT_FOUND') {
-          await reply.status(404).send({
-            error: 'NOT_FOUND',
-            message: `Ticket ${params.id} not found`,
-          });
-        } else {
-          await reply.status(500).send({
-            error: 'FETCH_ERROR',
-            message: error.message,
-          });
-        }
-      }
-      return;
-    }
-
-    // Fallback to in-memory TicketService
-    const ticket = this.ticketService.getTicket(params.id);
-
-    if (!ticket) {
-      await reply.status(404).send({
-        error: 'NOT_FOUND',
-        message: `Ticket ${params.id} not found`,
+    try {
+      const ticket = await this.ticketingService.getTicket(params.id);
+      await reply.status(200).send({
+        success: true,
+        data: { ticket },
       });
-      return;
+    } catch (error: any) {
+      if (error instanceof TicketingServiceError && error.code === 'NOT_FOUND') {
+        await reply.status(404).send({
+          error: 'NOT_FOUND',
+          message: `Ticket ${params.id} not found`,
+        });
+      } else {
+        await reply.status(500).send({
+          error: 'FETCH_ERROR',
+          message: error.message,
+        });
+      }
     }
-
-    await reply.status(200).send({
-      success: true,
-      data: { ticket },
-    });
   }
 
   /**
@@ -335,49 +298,31 @@ export class TicketingController {
     const page = query.page ? parseInt(query.page) : 1;
     const limit = query.limit ? parseInt(query.limit) : 20;
 
-    // Use PostgreSQL-backed TicketingService when available
-    if (this.ticketingService) {
-      try {
-        const result = await this.ticketingService.listTickets({
-          page,
-          limit,
-          tenantId: query.tenantId,
-          status: query.status,
-          assigneeId: query.assignee,
-          priority: query.priority,
-        });
-        await reply.status(200).send({
-          success: true,
-          data: {
-            tickets: result.data,
-            count: result.total,
-            page: result.page,
-            limit: result.limit,
-            totalPages: result.totalPages,
-          },
-        });
-      } catch (error: any) {
-        await reply.status(500).send({
-          error: 'LIST_ERROR',
-          message: error.message,
-        });
-      }
-      return;
+    try {
+      const result = await this.ticketingService.listTickets({
+        page,
+        limit,
+        tenantId: query.tenantId,
+        status: query.status,
+        assigneeId: query.assignee,
+        priority: query.priority,
+      });
+      await reply.status(200).send({
+        success: true,
+        data: {
+          tickets: result.data,
+          count: result.total,
+          page: result.page,
+          limit: result.limit,
+          totalPages: result.totalPages,
+        },
+      });
+    } catch (error: any) {
+      await reply.status(500).send({
+        error: 'LIST_ERROR',
+        message: error.message,
+      });
     }
-
-    // Fallback to in-memory TicketService
-    const tickets = await this.ticketService.listTickets({
-      status: query.status as TicketStatus,
-      priority: query.priority as TicketPriority,
-      category: query.category as TicketCategory,
-      assignee: query.assignee,
-      reporter: query.reporter,
-    });
-
-    await reply.status(200).send({
-      success: true,
-      data: { tickets, count: tickets.length },
-    });
   }
 
   // ==================== Workflow ====================

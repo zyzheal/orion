@@ -326,6 +326,7 @@ jobs:
         working-directory: orion-knowledge/web
 
   # ==================== Orion Visor (Java/Maven) ====================
+  # Note: orion-visor is from gitee.com/dromara/orion-visor.git but exists in this repo
 
   orion-visor-build:
     name: Orion Visor Build

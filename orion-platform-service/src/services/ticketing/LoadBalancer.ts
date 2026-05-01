@@ -51,7 +51,7 @@ const DEFAULT_UNDERUTILIZATION_THRESHOLD = 0.25; // 25% capacity
  */
 export class LoadBalancer {
   /** Repository for engineer profiles */
-  private ticketingRepository: TicketingRepository;
+  private ticketingRepository?: TicketingRepository;
 
   /** Ticket load records (in-memory, tracks current assignments) */
   private ticketLoads: Map<string, TicketLoadRecord> = new Map();
@@ -65,7 +65,7 @@ export class LoadBalancer {
   /** Underutilization threshold */
   private underutilizationThreshold: number;
 
-  constructor(options: { ticketingRepository: TicketingRepository; overloadThreshold?: number; underutilizationThreshold?: number }) {
+  constructor(options: { ticketingRepository?: TicketingRepository; overloadThreshold?: number; underutilizationThreshold?: number }) {
     this.ticketingRepository = options.ticketingRepository;
     this.overloadThreshold = options.overloadThreshold ?? DEFAULT_OVERLOAD_THRESHOLD;
     this.underutilizationThreshold = options.underutilizationThreshold ?? DEFAULT_UNDERUTILIZATION_THRESHOLD;
@@ -77,7 +77,7 @@ export class LoadBalancer {
    * Register an engineer (delegated to repository via DispatchEngine)
    */
   async registerEngineer(profile: EngineerProfile): Promise<EngineerProfile> {
-    return this.ticketingRepository.createEngineerProfile({
+    return this.ticketingRepository!.createEngineerProfile({
       id: profile.id,
       name: profile.name,
       expertise: profile.expertise,
@@ -93,7 +93,7 @@ export class LoadBalancer {
    * Update an engineer's profile
    */
   async updateEngineer(id: string, updates: Partial<EngineerProfile>): Promise<EngineerProfile | null> {
-    return this.ticketingRepository.updateEngineerProfile(id, {
+    return this.ticketingRepository!.updateEngineerProfile(id, {
       name: updates.name,
       expertise: updates.expertise,
       currentLoad: updates.currentLoad,
@@ -115,14 +115,14 @@ export class LoadBalancer {
         this.ticketLoads.delete(ticketId);
       }
     }
-    return this.ticketingRepository.deleteEngineerProfile(id);
+    return this.ticketingRepository!.deleteEngineerProfile(id);
   }
 
   /**
    * Get an engineer
    */
   async getEngineer(id: string): Promise<EngineerProfile | undefined> {
-    const profile = await this.ticketingRepository.findEngineerProfileById(id);
+    const profile = await this.ticketingRepository!.findEngineerProfileById(id);
     return profile || undefined;
   }
 
@@ -130,7 +130,7 @@ export class LoadBalancer {
    * List all engineers
    */
   async listEngineers(): Promise<EngineerProfile[]> {
-    return this.ticketingRepository.findAllEngineerProfiles();
+    return this.ticketingRepository!.findAllEngineerProfiles();
   }
 
   // ==================== Load Tracking ====================
@@ -157,7 +157,7 @@ export class LoadBalancer {
     // Update engineer load in repository
     const engineer = await this.getEngineer(assignment.engineerId);
     if (engineer) {
-      await this.ticketingRepository.updateEngineerProfile(assignment.engineerId, {
+      await this.ticketingRepository!.updateEngineerProfile(assignment.engineerId, {
         currentLoad: engineer.currentLoad + 1,
       });
     }
@@ -175,7 +175,7 @@ export class LoadBalancer {
     // Update engineer load in repository
     const engineer = await this.getEngineer(record.engineerId);
     if (engineer) {
-      await this.ticketingRepository.updateEngineerProfile(record.engineerId, {
+      await this.ticketingRepository!.updateEngineerProfile(record.engineerId, {
         currentLoad: Math.max(0, engineer.currentLoad - 1),
       });
     }

@@ -29,7 +29,7 @@ import { TicketingRepository, TicketRecord } from './TicketingRepository';
  */
 export class TicketRelationAnalyzer {
   /** Repository for ticket data */
-  private ticketingRepository: TicketingRepository;
+  private ticketingRepository?: TicketingRepository;
 
   /** Stored relations (managed via Repository) */
   private relations: TicketRelation[] = [];
@@ -37,7 +37,7 @@ export class TicketRelationAnalyzer {
   /** Local ticket cache for similarity analysis */
   private ticketsCache: Map<string, Ticket> = new Map();
 
-  constructor(options: { ticketingRepository: TicketingRepository }) {
+  constructor(options: { ticketingRepository?: TicketingRepository }) {
     this.ticketingRepository = options.ticketingRepository;
   }
 
@@ -63,7 +63,7 @@ export class TicketRelationAnalyzer {
     limit?: number;
   }): Promise<void> {
     try {
-      const tickets = await this.ticketingRepository.findAll({
+      const tickets = await this.ticketingRepository!.findAll({
         status: options?.status,
         limit: options?.limit,
       });
@@ -83,7 +83,7 @@ export class TicketRelationAnalyzer {
     if (cached) return cached;
 
     try {
-      const record = await this.ticketingRepository.findById(ticketId);
+      const record = await this.ticketingRepository!.findById(ticketId);
       if (record) {
         const ticket = this.mapRecordToTicket(record);
         this.ticketsCache.set(ticketId, ticket);
@@ -121,7 +121,7 @@ export class TicketRelationAnalyzer {
 
     // Persist to repository
     try {
-      await this.ticketingRepository.createRelation({
+      await this.ticketingRepository!.createRelation({
         ticketId,
         relatedTicketId,
         relationType,
