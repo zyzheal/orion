@@ -2,12 +2,22 @@ import Fastify from 'fastify';
 import { FastifyInstance } from 'fastify';
 import ephemeralEnvRoutes from '../ephemeral-env-routes';
 
+// Mock DatabasePool that returns empty results
+class MockDatabasePool {
+  query = jest.fn().mockResolvedValue({ rows: [], rowCount: 0 });
+  on = jest.fn();
+  connect = jest.fn().mockResolvedValue({ query: jest.fn(), release: jest.fn() });
+}
+
 describe('Ephemeral Environment Endpoints', () => {
   let app: FastifyInstance;
 
   beforeAll(async () => {
     app = Fastify({ logger: false });
-    await app.register(ephemeralEnvRoutes, { prefix: '/v1/ephemeral-envs' });
+    // Decorate the mock database to fastify instance so routes can use it
+    const mockDb = new MockDatabasePool() as any;
+    // Register routes without database - the service handles missing DB gracefully for list
+    await app.register(ephemeralEnvRoutes, { prefix: '/v1/ephemeral-envs', database: mockDb });
     await app.ready();
   });
 

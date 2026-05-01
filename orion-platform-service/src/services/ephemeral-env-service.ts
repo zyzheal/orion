@@ -23,6 +23,8 @@ import {
 } from '../models/EphemeralEnvironment';
 import { K8sProvisionerService } from './k8s-provisioner-service';
 import { EventBusService } from './event-bus-service';
+import { DatabasePool } from './database';
+import { EphemeralEnvRepository } from './ephemeral-env/EphemeralEnvRepository';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -34,16 +36,22 @@ const COST_RATES = {
 };
 
 export class EphemeralEnvService {
-  private environments: Map<string, EphemeralEnvironment> = new Map();
+  private repository: EphemeralEnvRepository;
   private k8sProvisioner: K8sProvisionerService;
   private eventBus?: EventBusService;
 
   constructor(options: {
     k8sProvisioner: K8sProvisionerService;
     eventBus?: EventBusService;
+    database?: DatabasePool;
   }) {
     this.k8sProvisioner = options.k8sProvisioner;
     this.eventBus = options.eventBus;
+    if (options.database) {
+      this.repository = new EphemeralEnvRepository(options.database);
+    } else {
+      this.repository = new EphemeralEnvRepository(null as unknown as DatabasePool);
+    }
   }
 
   /**
@@ -56,9 +64,7 @@ export class EphemeralEnvService {
     );
 
     // Check for duplicate PR
-    const existing = Array.from(this.environments.values()).find(
-      (e) => e.prId === input.prId && e.repoId === input.repoId && e.status !== 'destroyed'
-    );
+    const existing = await this.repository.findByPrAndRepo(input.prId, input.repoId, ['destroyed']);
     if (existing) {
       throw new Error(
         `Ephemeral environment already exists for PR ${input.prId} in ${input.repoId} (status: ${existing.status})`
@@ -66,7 +72,7 @@ export class EphemeralEnvService {
     }
 
     const env = createEphemeralEnvironment(input);
-    this.environments.set(env.id, env);
+    await this.repository.create(input, env);
 
     await this.publishEvent('ephemeral-env.created', {
       envId: env.id,
@@ -79,6 +85,12 @@ export class EphemeralEnvService {
       const result = await this.k8sProvisioner.provision(env);
       markRunning(env, result.services);
       env.previewUrl = result.previewUrl;
+
+      await this.repository.update(env.id, {
+        status: 'running',
+        previewUrl: env.previewUrl,
+        services: env.services,
+      });
 
       await this.publishEvent('ephemeral-env.provisioned', {
         envId: env.id,
@@ -107,29 +119,14 @@ export class EphemeralEnvService {
     repoId?: string;
     statusFilter?: EphemeralEnvStatus;
   }): Promise<EphemeralEnvironment[]> {
-    let envs = Array.from(this.environments.values());
-
-    if (options?.prId) {
-      envs = envs.filter((e) => e.prId === options.prId);
-    }
-
-    if (options?.repoId) {
-      envs = envs.filter((e) => e.repoId === options.repoId);
-    }
-
-    if (options?.statusFilter) {
-      envs = envs.filter((e) => e.status === options.statusFilter);
-    }
-
-    envs.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-    return envs;
+    return this.repository.findAll(options);
   }
 
   /**
    * 获取环境详情
    */
   async getById(id: string): Promise<EphemeralEnvironment> {
-    const env = this.environments.get(id);
+    const env = await this.repository.findById(id);
     if (!env) {
       throw new Error(`Ephemeral environment "${id}" not found`);
     }
@@ -140,16 +137,13 @@ export class EphemeralEnvService {
    * 唤醒空闲环境
    */
   async wake(id: string): Promise<EphemeralEnvironment> {
-    const env = this.environments.get(id);
-    if (!env) {
-      throw new Error(`Ephemeral environment "${id}" not found`);
-    }
-
+    const env = await this.getById(id);
     if (env.status !== 'idle') {
       throw new Error(`Environment is not idle (status: ${env.status})`);
     }
 
     wakeEnvironment(env);
+    await this.repository.update(id, { status: 'running', idleSince: undefined });
 
     await this.publishEvent('ephemeral-env.woken', { envId: env.id });
     logger.info({ envId: env.id }, 'Environment woken up');
@@ -160,21 +154,24 @@ export class EphemeralEnvService {
    * 销毁环境
    */
   async teardown(id: string, reason: string = 'manual'): Promise<EphemeralEnvironment> {
-    const env = this.environments.get(id);
-    if (!env) {
-      throw new Error(`Ephemeral environment "${id}" not found`);
-    }
+    const env = await this.getById(id);
 
     if (env.status === 'destroyed') {
       throw new Error(`Environment already destroyed`);
     }
 
     markTearingDown(env, reason);
+    await this.repository.update(id, { status: 'tearing_down', destroyReason: reason });
 
     // Teardown K8s resources
     await this.k8sProvisioner.teardown(env.namespace);
 
     markDestroyed(env, reason);
+    await this.repository.update(id, {
+      status: 'destroyed',
+      destroyReason: reason,
+      destroyedAt: env.destroyedAt,
+    });
 
     await this.publishEvent('ephemeral-env.destroyed', {
       envId: env.id,
@@ -190,12 +187,8 @@ export class EphemeralEnvService {
    * 自动销毁空闲超时的环境
    */
   async cleanupIdleEnvironments(maxIdleHours: number = 2): Promise<string[]> {
-    const idleEnvs = Array.from(this.environments.values()).filter(
-      (e) => e.status === 'idle' && e.idleSince
-    );
-
     const cutoff = new Date(Date.now() - maxIdleHours * 60 * 60 * 1000);
-    const toDestroy = idleEnvs.filter((e) => e.idleSince! < cutoff);
+    const toDestroy = await this.repository.findIdleBefore(cutoff);
 
     const destroyed: string[] = [];
     for (const env of toDestroy) {
@@ -277,16 +270,14 @@ export class EphemeralEnvService {
    * 设置环境为空闲状态
    */
   async setIdle(id: string): Promise<EphemeralEnvironment> {
-    const env = this.environments.get(id);
-    if (!env) {
-      throw new Error(`Ephemeral environment "${id}" not found`);
-    }
+    const env = await this.getById(id);
 
     if (env.status !== 'running') {
       throw new Error(`Environment must be running to set idle (status: ${env.status})`);
     }
 
     markIdle(env);
+    await this.repository.update(id, { status: 'idle', idleSince: env.idleSince! });
     logger.info({ envId: env.id }, 'Environment marked as idle');
     return env;
   }

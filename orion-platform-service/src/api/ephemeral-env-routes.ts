@@ -9,10 +9,11 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { EphemeralEnvService } from '../services/ephemeral-env-service';
 import { K8sProvisionerService } from '../services/k8s-provisioner-service';
 import { EventBusService } from '../services/event-bus-service';
+import { DatabasePool } from '../services/database';
 
 interface EphemeralEnvRoutesOptions {
   eventBus?: EventBusService;
-  database?: any;
+  database?: DatabasePool;
 }
 
 export default async function ephemeralEnvRoutes(
@@ -23,6 +24,7 @@ export default async function ephemeralEnvRoutes(
   const service = new EphemeralEnvService({
     k8sProvisioner,
     eventBus: options?.eventBus,
+    database: options?.database,
   });
 
   // ==================== Environment Lifecycle ====================
