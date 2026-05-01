@@ -38,7 +38,10 @@ export const TreeMap: React.FC<TreeMapChartProps> = ({
 }) => {
   const theme = useChartTheme();
 
-  const option = useMemo(() => ({
+  const option = useMemo(() => {
+    if (data.length === 0) return {};
+
+    return {
     title: title
       ? { text: title, left: 'center', textStyle: { fontSize: 14, fontWeight: 600 } }
       : undefined,
@@ -58,7 +61,8 @@ export const TreeMap: React.FC<TreeMapChartProps> = ({
         itemStyle: { borderColor: theme.borderColor, borderWidth: 1, gapWidth: 2 },
       },
     ],
-  }), [data, title, showLabel, leafDepth, theme]);
+    };
+  }, [data, title, showLabel, leafDepth, theme]);
 
   if (loading) {
     return (

@@ -54,4 +54,24 @@ describe('TreeMap', () => {
     const spinner = document.querySelector('[aria-busy="true"]');
     expect(spinner).toBeTruthy();
   });
+
+  it('hides labels when showLabel is false', () => {
+    render(wrap(<TreeMap data={sampleData} showLabel={false} />));
+    const chart = screen.getByTestId('treemap-chart');
+    const option = JSON.parse(chart.getAttribute('data-option') || '{}');
+    expect(option.series[0].label).toBeUndefined();
+  });
+
+  it('respects leafDepth configuration', () => {
+    render(wrap(<TreeMap data={nestedData} leafDepth={2} />));
+    const chart = screen.getByTestId('treemap-chart');
+    const option = JSON.parse(chart.getAttribute('data-option') || '{}');
+    expect(option.series[0].leafDepth).toBe(2);
+  });
+
+  it('handles empty data gracefully', () => {
+    render(wrap(<TreeMap data={[]} />));
+    const chart = screen.getByTestId('treemap-chart');
+    expect(chart).toBeTruthy();
+  });
 });
