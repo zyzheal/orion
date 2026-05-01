@@ -40,6 +40,7 @@ import {
   acknowledgeRiskEvent,
   getRiskStatus,
   type RiskAssessment,
+  type RiskAssessmentInput,
   type RiskEvent,
 } from '@/api/risk';
 
@@ -50,7 +51,12 @@ const RiskDashboardPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [assessments, setAssessments] = useState<RiskAssessment[]>([]);
   const [events, setEvents] = useState<RiskEvent[]>([]);
-  const [status, setStatus] = useState<any>(null);
+  const [status, setStatus] = useState<{
+    status: string;
+    totalAssessments: number;
+    pendingAssessments: number;
+    highRiskCount: number;
+  } | null>(null);
   const [selectedAssessment, setSelectedAssessment] = useState<RiskAssessment | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [assessModalOpen, setAssessModalOpen] = useState(false);
@@ -82,7 +88,7 @@ const RiskDashboardPage: React.FC = () => {
     loadData();
   }, []);
 
-  const handleAssess = async (values: any) => {
+  const handleAssess = async (values: RiskAssessmentInput) => {
     try {
       await assessDeploymentRisk(values.targetId, {});
       message.success('风险评估已启动');

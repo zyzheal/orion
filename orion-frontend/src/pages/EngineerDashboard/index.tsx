@@ -206,7 +206,7 @@ const EngineerDashboard: React.FC = () => {
   return (
     <div style={{ padding: 0 }}>
       {/* Loading state */}
-      {loading && !data && (
+      {loading && !apiData && (
         <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}>
           <Spin tip="加载效能数据..." size="large" />
         </div>

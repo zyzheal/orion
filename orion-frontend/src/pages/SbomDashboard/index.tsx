@@ -108,7 +108,7 @@ const SbomDashboard: React.FC = () => {
     });
   }, [searchQuery, filters, documents]);
 
-  const totalVulns = documents.reduce((sum: number, d: SbomDocument) => sum + d.packageCount, 0);
+  const totalPackages = documents.reduce((sum: number, d: SbomDocument) => sum + d.packageCount, 0);
   const activeDocs = documents.filter((d: SbomDocument) => d.status === 'active').length;
 
   // License distribution: group documents by format as a proxy for license/type distribution
@@ -291,7 +291,7 @@ const SbomDashboard: React.FC = () => {
           />
         </Col>
         <Col span={6}>
-          <StatCard title="总包数" value={totalVulns} />
+          <StatCard title="总包数" value={totalPackages} />
         </Col>
         <Col span={6}>
           <GaugeChart

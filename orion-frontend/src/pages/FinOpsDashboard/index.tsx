@@ -119,17 +119,14 @@ const FinOpsDashboard: React.FC = () => {
   }, []);
 
   // Calculate budget usage percentage
-  const budgetUsagePercent = costSummary
+  const budgetUsagePercent = costSummary && costSummary.budgetLimit > 0
     ? Math.round((costSummary.totalMonthly / costSummary.budgetLimit) * 100)
     : 0;
 
   // Calculate month-over-month change
-  const momChange = costSummary
-    ? (
-        ((costSummary.totalMonthly - costSummary.previousMonth) / costSummary.previousMonth) *
-        100
-      ).toFixed(1)
-    : '0.0';
+  const monthOverMonthChange = costSummary && costSummary.previousMonth > 0
+    ? Math.round(((costSummary.totalMonthly - costSummary.previousMonth) / costSummary.previousMonth) * 100)
+    : 0;
 
   // Handle apply optimization
   const handleApplyOptimization = async (key: string) => {
@@ -248,9 +245,9 @@ const FinOpsDashboard: React.FC = () => {
               value={costSummary.totalMonthly}
               suffix="¥"
               trend={{
-                value: Math.abs(parseFloat(momChange)),
-                direction: parseFloat(momChange) > 0 ? 'up' : 'down',
-                good: parseFloat(momChange) > 0 ? 'down' : 'up',
+                value: Math.abs(monthOverMonthChange),
+                direction: monthOverMonthChange > 0 ? 'up' : 'down',
+                good: monthOverMonthChange > 0 ? 'down' : 'up',
               }}
             />
           </Col>
