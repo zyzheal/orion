@@ -18,8 +18,6 @@ import {
   Typography,
   Button,
   Space,
-  Progress,
-  Statistic,
   Alert,
   message,
   Tooltip,
@@ -38,7 +36,7 @@ import {
   ThunderboltOutlined,
 } from '@ant-design/icons';
 import TableComponent, { type TableColumn } from '@/components/Table';
-import { TrendLineChart, PieChart } from '@/components/charts';
+import { TrendLineChart, PieChart, StatCard, GaugeChart, BarChart } from '@/components/charts';
 import {
   getCostSummary,
   getCostByService,
@@ -188,18 +186,9 @@ const FinOpsDashboard: React.FC = () => {
       title: '占比',
       dataIndex: 'percent',
       render: (value: unknown) => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Progress
-            percent={value as number}
-            size="small"
-            strokeColor={colors.primary[500]}
-            showInfo={false}
-            style={{ flex: 1 }}
-          />
-          <Text type="secondary" style={{ fontSize: spacing[3], minWidth: 40 }}>
-            {value as number}%
-          </Text>
-        </div>
+        <Text strong style={{ color: colors.primary[500] }}>
+          {value as number}%
+        </Text>
       ),
     },
     {
@@ -254,112 +243,54 @@ const FinOpsDashboard: React.FC = () => {
         <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
           {/* Monthly Cost */}
           <Col xs={24} sm={12} lg={6}>
-            <Card bordered={false} style={{ borderRadius: 8 }}>
-              <Statistic
-                title="本月花费"
-                value={costSummary.totalMonthly}
-                prefix={<DollarOutlined style={{ color: colors.primary[500] }} />}
-                suffix="¥"
-                precision={0}
-                valueStyle={{ color: colors.primary[500], fontSize: spacing[8] }}
-              />
-              <div style={{ marginTop: 8 }}>
-                <Text type="secondary" style={{ fontSize: spacing[3] }}>
-                  较上月{' '}
-                  <Text
-                    style={{
-                      color: parseFloat(momChange) > 0 ? colors.error[400] : colors.success[500],
-                      fontWeight: 600,
-                    }}
-                  >
-                    {parseFloat(momChange) > 0 ? '+' : ''}
-                    {momChange}%{' '}
-                    {parseFloat(momChange) > 0 ? (
-                      <ArrowUpOutlined style={{ fontSize: spacing[2] }} />
-                    ) : (
-                      <ArrowDownOutlined style={{ fontSize: spacing[2] }} />
-                    )}
-                  </Text>
-                </Text>
-              </div>
-            </Card>
+            <StatCard
+              title="本月花费"
+              value={costSummary.totalMonthly}
+              suffix="¥"
+              trend={{
+                value: Math.abs(parseFloat(momChange)),
+                direction: parseFloat(momChange) > 0 ? 'up' : 'down',
+                good: parseFloat(momChange) > 0 ? 'down' : 'up',
+              }}
+            />
           </Col>
 
           {/* Budget Usage */}
           <Col xs={24} sm={12} lg={6}>
             <Card bordered={false} style={{ borderRadius: 8 }}>
-              <Statistic
-                title="预算使用"
+              <GaugeChart
                 value={budgetUsagePercent}
-                prefix={<WalletOutlined />}
-                suffix="%"
-                precision={0}
-                valueStyle={{
-                  color:
-                    budgetUsagePercent > 90
-                      ? colors.error[400]
-                      : budgetUsagePercent > 70
-                        ? colors.warning[500]
-                        : colors.success[500],
-                  fontSize: spacing[8],
-                }}
+                title="预算使用"
+                max={100}
+                thresholds={{ warning: 70, danger: 90 }}
+                size={160}
+                unit="%"
               />
-              <div style={{ marginTop: 8 }}>
+              <div style={{ textAlign: 'center' }}>
                 <Text type="secondary" style={{ fontSize: spacing[3] }}>
                   预算上限 ¥{costSummary.budgetLimit.toLocaleString()}
                 </Text>
-                <Progress
-                  percent={budgetUsagePercent}
-                  size="small"
-                  strokeColor={
-                    budgetUsagePercent > 90
-                      ? colors.error[400]
-                      : budgetUsagePercent > 70
-                        ? colors.warning[500]
-                        : colors.success[500]
-                  }
-                  style={{ marginTop: 4 }}
-                />
               </div>
             </Card>
           </Col>
 
           {/* Estimated Waste */}
           <Col xs={24} sm={12} lg={6}>
-            <Card bordered={false} style={{ borderRadius: 8 }}>
-              <Statistic
-                title="预计浪费"
-                value={costSummary.waste}
-                prefix={<FireOutlined style={{ color: colors.error[400] }} />}
-                suffix="¥"
-                precision={0}
-                valueStyle={{ color: colors.error[400], fontSize: spacing[8] }}
-              />
-              <div style={{ marginTop: 8 }}>
-                <Text type="secondary" style={{ fontSize: spacing[3] }}>
-                  闲置资源和过度配置
-                </Text>
-              </div>
-            </Card>
+            <StatCard
+              title="预计浪费"
+              value={costSummary.waste}
+              suffix="¥"
+            />
           </Col>
 
           {/* Savings */}
           <Col xs={24} sm={12} lg={6}>
-            <Card bordered={false} style={{ borderRadius: 8 }}>
-              <Statistic
-                title="节省金额"
-                value={costSummary.savings}
-                prefix={<CheckCircleOutlined style={{ color: colors.success[500] }} />}
-                suffix="¥"
-                precision={0}
-                valueStyle={{ color: colors.success[500], fontSize: spacing[8] }}
-              />
-              <div style={{ marginTop: 8 }}>
-                <Text type="secondary" style={{ fontSize: spacing[3] }}>
-                  已通过优化措施节省
-                </Text>
-              </div>
-            </Card>
+            <StatCard
+              title="节省金额"
+              value={costSummary.savings}
+              suffix="¥"
+              trend={{ value: 1, direction: 'up', good: 'up' }}
+            />
           </Col>
         </Row>
       )}
@@ -425,6 +356,38 @@ const FinOpsDashboard: React.FC = () => {
             />
           </Card>
 
+          {/* Service Cost Ranking */}
+          <Card
+            title="服务成本排行"
+            bordered={false}
+            style={{ borderRadius: 8, marginBottom: 16 }}
+            loading={loading}
+          >
+            {costByService.length > 0 ? (
+              <BarChart
+                title=""
+                data={costByService.map(c => ({ label: c.service, value: c.cost }))}
+                height={200}
+              />
+            ) : (
+              <div
+                style={{
+                  height: 200,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: colors.neutral[50],
+                  borderRadius: 6,
+                  border: `1px dashed ${colors.neutral[300]}`,
+                }}
+              >
+                <Text type="secondary" style={{ fontSize: spacing[4] }}>
+                  暂无成本排行数据
+                </Text>
+              </div>
+            )}
+          </Card>
+
           {/* Budget Alerts */}
           <Card title="预算告警" bordered={false} style={{ borderRadius: 8 }} loading={loading}>
             <Space direction="vertical" style={{ width: '100%' }} size={12}>
@@ -444,14 +407,6 @@ const FinOpsDashboard: React.FC = () => {
                       <Text type="secondary" style={{ fontSize: spacing[3] }}>
                         当前使用 {alert.current}% / 预算阈值 {alert.threshold}%
                       </Text>
-                      <Progress
-                        percent={alert.current}
-                        size="small"
-                        strokeColor={
-                          alert.status === 'exceeded' ? colors.error[400] : colors.warning[500]
-                        }
-                        style={{ marginTop: 8 }}
-                      />
                     </div>
                   }
                   type={alert.status === 'exceeded' ? 'error' : 'warning'}
