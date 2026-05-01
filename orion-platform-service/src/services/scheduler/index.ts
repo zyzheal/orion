@@ -4,7 +4,7 @@
  */
 
 // 类型导出
-export { CronJob, CronJobExecution, CronSchedulerConfig } from './CronSchedulerService';
+export { CronJob, CronJobExecution } from './CronSchedulerService';
 
 // 服务导出
 export { CronSchedulerService } from './CronSchedulerService';
