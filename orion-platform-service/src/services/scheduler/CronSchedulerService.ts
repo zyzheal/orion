@@ -66,12 +66,27 @@ export class CronSchedulerService {
 
   // ── Lifecycle ───────────────────────────────────────────────────────────
 
-  start(): void {
+  async start(): Promise<void> {
     if (this.running) {
       logger.warn('CronSchedulerService already running');
       return;
     }
     this.running = true;
+
+    // Restore enabled jobs from DB into in-memory map
+    if (this.cronJobRepository) {
+      try {
+        const enabledJobs = await this.cronJobRepository.findEnabled();
+        for (const entity of enabledJobs) {
+          const job = this.mapEntityToJob(entity);
+          this.jobs.set(job.id, job);
+        }
+        logger.info({ count: enabledJobs.length }, 'CronSchedulerService restored jobs from DB');
+      } catch (err) {
+        logger.error({ err }, 'CronSchedulerService failed to restore jobs from DB');
+      }
+    }
+
     this.intervalId = setInterval(() => {
       this.checkAndExecuteJobs().catch((err) => {
         logger.error({ err }, 'Scheduler tick error');

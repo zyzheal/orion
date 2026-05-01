@@ -134,7 +134,9 @@ export class TicketWorkflowService {
         );
       }
     } catch (err) {
-      console.warn(`[TicketWorkflowService] Failed to persist ticket to repository: ${err}`);
+      const message = `[TicketWorkflowService] Failed to persist ticket to repository: ${err}`;
+      console.error(message);
+      throw new Error(message);
     }
 
     // Update cache
@@ -152,15 +154,11 @@ export class TicketWorkflowService {
     if (cached) return cached;
 
     // Fetch from repository
-    try {
-      const record = await this.ticketingRepository.findById(ticketId);
-      if (record) {
-        const ticket = this.mapRecordToTicket(record);
-        this.ticketsCache.set(ticketId, ticket);
-        return ticket;
-      }
-    } catch (err) {
-      console.warn(`[TicketWorkflowService] Repository getTicket failed: ${err}`);
+    const record = await this.ticketingRepository.findById(ticketId);
+    if (record) {
+      const ticket = this.mapRecordToTicket(record);
+      this.ticketsCache.set(ticketId, ticket);
+      return ticket;
     }
     return undefined;
   }
@@ -190,15 +188,9 @@ export class TicketWorkflowService {
       }
       return tickets;
     } catch (err) {
-      console.warn(`[TicketWorkflowService] Repository list failed: ${err}`);
-      // Fallback to cache
-      let tickets = Array.from(this.ticketsCache.values());
-      if (filter?.status) tickets = tickets.filter(t => t.status === filter.status);
-      if (filter?.priority) tickets = tickets.filter(t => t.priority === filter.priority);
-      if (filter?.category) tickets = tickets.filter(t => t.category === filter.category);
-      if (filter?.assignee) tickets = tickets.filter(t => t.assignee === filter.assignee);
-      if (filter?.reporter) tickets = tickets.filter(t => t.reporter === filter.reporter);
-      return tickets.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      const message = `[TicketWorkflowService] Repository list failed: ${err}`;
+      console.error(message);
+      throw new Error(message);
     }
   }
 
@@ -242,7 +234,9 @@ export class TicketWorkflowService {
       if (updates.assignee) dbUpdates.assignee_id = updates.assignee;
       await this.ticketingRepository.update(ticketId, dbUpdates);
     } catch (err) {
-      console.warn(`[TicketWorkflowService] Failed to persist update: ${err}`);
+      const message = `[TicketWorkflowService] Failed to persist update: ${err}`;
+      console.error(message);
+      throw new Error(message);
     }
 
     const updated = { ...existing, ...updates, updatedAt: new Date() };
@@ -305,7 +299,9 @@ export class TicketWorkflowService {
         ticketId, fromStatus, toStatus, performedBy, reason
       );
     } catch (err) {
-      console.warn(`[TicketWorkflowService] Failed to persist workflow history: ${err}`);
+      const message = `[TicketWorkflowService] Failed to persist workflow history: ${err}`;
+      console.error(message);
+      throw new Error(message);
     }
 
     // Update SLA tracking on resolution
@@ -313,7 +309,9 @@ export class TicketWorkflowService {
       try {
         await this.ticketingRepository.updateSLA(ticketId, { resolvedAt: new Date() });
       } catch (err) {
-        console.warn(`[TicketWorkflowService] Failed to update SLA: ${err}`);
+        const message = `[TicketWorkflowService] Failed to update SLA: ${err}`;
+        console.error(message);
+        throw new Error(message);
       }
     }
 
@@ -325,7 +323,9 @@ export class TicketWorkflowService {
           resolutionBreached: false,
         });
       } catch (err) {
-        console.warn(`[TicketWorkflowService] Failed to reset SLA: ${err}`);
+        const message = `[TicketWorkflowService] Failed to reset SLA: ${err}`;
+        console.error(message);
+        throw new Error(message);
       }
     }
 
@@ -382,7 +382,9 @@ export class TicketWorkflowService {
         );
       }
     } catch (err) {
-      console.warn(`[TicketWorkflowService] Failed to persist assignment: ${err}`);
+      const message = `[TicketWorkflowService] Failed to persist assignment: ${err}`;
+      console.error(message);
+      throw new Error(message);
     }
 
     this.ticketsCache.set(ticketId, ticket);
@@ -495,7 +497,9 @@ export class TicketWorkflowService {
         reason || `Escalated to level ${ticket.escalationLevel}`
       );
     } catch (err) {
-      console.warn(`[TicketWorkflowService] Failed to persist escalation: ${err}`);
+      const message = `[TicketWorkflowService] Failed to persist escalation: ${err}`;
+      console.error(message);
+      throw new Error(message);
     }
 
     return { ticket };
@@ -579,8 +583,9 @@ export class TicketWorkflowService {
     try {
       return await this.ticketingRepository.getWorkflowHistory(ticketId);
     } catch (err) {
-      console.warn(`[TicketWorkflowService] Repository getWorkflowHistory failed: ${err}`);
-      return [];
+      const message = `[TicketWorkflowService] Repository getWorkflowHistory failed: ${err}`;
+      console.error(message);
+      throw new Error(message);
     }
   }
 
@@ -591,8 +596,9 @@ export class TicketWorkflowService {
     try {
       return await this.ticketingRepository.getAssignmentsByTicket(ticketId);
     } catch (err) {
-      console.warn(`[TicketWorkflowService] Repository getAssignmentHistory failed: ${err}`);
-      return [];
+      const message = `[TicketWorkflowService] Repository getAssignmentHistory failed: ${err}`;
+      console.error(message);
+      throw new Error(message);
     }
   }
 
@@ -624,8 +630,9 @@ export class TicketWorkflowService {
       const sla = await this.ticketingRepository.getSLA(ticketId);
       return sla || undefined;
     } catch (err) {
-      console.warn(`[TicketWorkflowService] Repository getTicketSLA failed: ${err}`);
-      return undefined;
+      const message = `[TicketWorkflowService] Repository getTicketSLA failed: ${err}`;
+      console.error(message);
+      throw new Error(message);
     }
   }
 
@@ -636,8 +643,9 @@ export class TicketWorkflowService {
     try {
       return await this.ticketingRepository.getAllSLA();
     } catch (err) {
-      console.warn(`[TicketWorkflowService] Repository getAllSLARecords failed: ${err}`);
-      return [];
+      const message = `[TicketWorkflowService] Repository getAllSLARecords failed: ${err}`;
+      console.error(message);
+      throw new Error(message);
     }
   }
 
@@ -693,8 +701,9 @@ export class TicketWorkflowService {
     try {
       return await this.ticketingRepository.count();
     } catch (err) {
-      console.warn(`[TicketWorkflowService] Repository count failed: ${err}`);
-      return this.ticketsCache.size;
+      const message = `[TicketWorkflowService] Repository count failed: ${err}`;
+      console.error(message);
+      throw new Error(message);
     }
   }
 

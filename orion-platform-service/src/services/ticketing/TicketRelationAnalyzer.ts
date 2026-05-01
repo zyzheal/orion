@@ -98,14 +98,14 @@ export class TicketRelationAnalyzer {
   /**
    * Manually add a relation between tickets
    */
-  addRelation(
+  async addRelation(
     ticketId: string,
     relatedTicketId: string,
     relationType: TicketRelationType,
     createdBy: string,
     description?: string,
     confidence?: number
-  ): TicketRelation {
+  ): Promise<TicketRelation> {
     const relation: TicketRelation = {
       id: `REL-${uuidv4()}`,
       ticketId,
@@ -118,6 +118,21 @@ export class TicketRelationAnalyzer {
     };
 
     this.relations.push(relation);
+
+    // Persist to repository
+    try {
+      await this.ticketingRepository.createRelation({
+        ticketId,
+        relatedTicketId,
+        relationType,
+        createdBy,
+        description,
+        confidence: confidence ?? 1.0,
+      });
+    } catch (err) {
+      console.warn(`[TicketRelationAnalyzer] Failed to persist relation to repository: ${err}`);
+    }
+
     return relation;
   }
 
@@ -384,7 +399,7 @@ export class TicketRelationAnalyzer {
       );
 
       if (!existing) {
-        this.addRelation(
+        await this.addRelation(
           affected.id,
           rootCauseId,
           'caused-by',

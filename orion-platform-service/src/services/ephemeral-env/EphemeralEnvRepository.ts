@@ -132,10 +132,19 @@ export class EphemeralEnvRepository {
     repoId: string,
     excludeStatuses: EphemeralEnvStatus[] = ['destroyed']
   ): Promise<EphemeralEnvironment | null> {
-    const placeholders = excludeStatuses.map((_, i) => `$${3 + i}`).join(', ');
+    const params: unknown[] = [prId, repoId];
+    let paramIdx = 3;
+    let excludeClause = '';
+
+    if (excludeStatuses.length > 0) {
+      const placeholders = excludeStatuses.map(() => `$${paramIdx++}`).join(', ');
+      excludeClause = ` AND status NOT IN (${placeholders})`;
+      params.push(...excludeStatuses);
+    }
+
     const result = await this.pool.query(
-      `SELECT * FROM ephemeral_environments WHERE pr_id = $1 AND repo_id = $2 AND status NOT IN (${placeholders}) LIMIT 1`,
-      [prId, repoId, ...excludeStatuses]
+      `SELECT * FROM ephemeral_environments WHERE pr_id = $1 AND repo_id = $2${excludeClause} LIMIT 1`,
+      params
     );
     return result.rows[0] ? toDomain(result.rows[0]) : null;
   }
