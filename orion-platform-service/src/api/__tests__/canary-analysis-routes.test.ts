@@ -7,7 +7,16 @@ describe('Canary Analysis Metric Discovery & Model Retraining', () => {
 
   beforeAll(async () => {
     app = Fastify({ logger: false });
-    await app.register(canaryAnalysisRoutes, { prefix: '/v1/canary-analysis' });
+
+    // Provide a mock database pool for routes initialization
+    const mockDb = {
+      query: async () => ({ rows: [], rowCount: 0 }),
+    };
+
+    await app.register(canaryAnalysisRoutes, {
+      prefix: '/v1/canary-analysis',
+      database: mockDb as any,
+    });
     await app.ready();
   });
 

@@ -2,18 +2,50 @@
  * ML Canary Analysis API Routes
  *
  * Routes under /api/v1/canary-analysis
+ * PostgreSQL Repository backed (replaces Map storage)
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { DatabasePool } from '../services/database';
+import {
+  CanaryAnalysisRepository,
+  CanaryMetricResultRepository,
+  CanaryMLResultRepository,
+  CanaryAnalysisConfigRepository,
+  CanaryDecisionRepository,
+} from '../repositories/CanaryAnalysisRepository';
 import { CanaryAnalysisService } from '../services/canary-analysis/CanaryAnalysisService';
 import { CanaryAnalysisController } from './controllers/CanaryAnalysisController';
 import { EventBusService } from '../services/event-bus-service';
 
+interface CanaryAnalysisOptions {
+  eventBus?: EventBusService;
+  database?: DatabasePool;
+}
+
 export default async function canaryAnalysisRoutes(
   app: FastifyInstance,
-  options?: { eventBus?: EventBusService }
+  options: CanaryAnalysisOptions
 ): Promise<void> {
-  const service = new CanaryAnalysisService({ eventBus: options?.eventBus });
+  if (!options.database) {
+    console.warn('[CanaryAnalysisRoutes] No database pool provided, routes will not be functional');
+    return;
+  }
+
+  const runRepository = new CanaryAnalysisRepository(options.database);
+  const metricRepository = new CanaryMetricResultRepository(options.database);
+  const mlRepository = new CanaryMLResultRepository(options.database);
+  const configRepository = new CanaryAnalysisConfigRepository(options.database);
+  const decisionRepository = new CanaryDecisionRepository(options.database);
+
+  const service = new CanaryAnalysisService({
+    eventBus: options.eventBus,
+    runRepository,
+    metricRepository,
+    mlRepository,
+    configRepository,
+    decisionRepository,
+  });
   const controller = new CanaryAnalysisController(service);
 
   // ==================== Runs ====================

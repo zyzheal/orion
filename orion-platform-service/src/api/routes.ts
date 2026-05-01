@@ -337,8 +337,8 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // 注册 AI Change Intelligence API 路由 (P0)
   await registerWithRoleGuard(app, changeIntelligenceRoutes, '/v1/change-intelligence', { eventBus: options.eventBus });
 
-  // 注册 ML Canary Analysis API 路由 (P0)
-  await registerWithRoleGuard(app, canaryAnalysisRoutes, '/v1/canary-analysis', { eventBus: options.eventBus });
+  // 注册 ML Canary Analysis API 路由 (P0) - PostgreSQL backed
+  await registerWithRoleGuard(app, canaryAnalysisRoutes, '/v1/canary-analysis', { eventBus: options.eventBus, database: options.database });
 
   // 注册 Skill Management API 路由 (M12)
   await registerWithRoleGuard(app, skillRoutes, '/v1/skills', { database: options.database });
