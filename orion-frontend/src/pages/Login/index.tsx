@@ -1,6 +1,5 @@
 import React from 'react';
 import { Form, Input, Button, Card, message, Typography } from 'antd';
-import { spacing } from '@/tokens';
 import { colors } from '@/tokens/colors';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { useLocation } from 'react-router-dom';
@@ -67,10 +66,6 @@ const Login: React.FC = () => {
           onFinish={handleSubmit}
           autoComplete="off"
           size="large"
-          initialValues={{
-            username: 'admin',
-            password: 'admin123',
-          }}
         >
           <Form.Item name="username" rules={[{ required: true, message: '请输入用户名' }]}>
             <Input prefix={<UserOutlined />} placeholder="用户名" autoComplete="username" />
@@ -90,12 +85,6 @@ const Login: React.FC = () => {
             </Button>
           </Form.Item>
         </Form>
-
-        <div style={{ textAlign: 'center', marginTop: 16 }}>
-          <Typography.Text type="secondary" style={{ fontSize: spacing[3] }}>
-            默认账号：admin / admin123
-          </Typography.Text>
-        </div>
       </Card>
     </div>
   );
