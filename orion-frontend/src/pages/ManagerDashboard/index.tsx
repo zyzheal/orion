@@ -24,6 +24,7 @@ import { useBiDashboard } from '@/hooks/useBiDashboard';
 import type { ManagerDashboardData } from '@/types/pages';
 import { Spin, Alert } from 'antd';
 import dayjs from 'dayjs';
+import { BarChart } from '@/components/charts';
 
 const { Title, Text } = Typography;
 
@@ -457,6 +458,22 @@ const ManagerDashboard: React.FC = () => {
               </Col>
             ))}
           </Row>
+        </CardPanel>
+      </div>
+
+      {/* Team Performance Chart */}
+      <div style={{ marginBottom: 24 }}>
+        <CardPanel
+          title="团队绩效分布"
+          extra={<Tag color="blue">{data.memberMetrics.length} 人</Tag>}
+        >
+          <BarChart
+            data={data.memberMetrics.map((m) => ({
+              label: m.engineerName,
+              value: m.workload.totalResolved,
+            }))}
+            height={280}
+          />
         </CardPanel>
       </div>
 
