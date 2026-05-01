@@ -12,8 +12,6 @@ import {
   Tag,
   Space,
   Button,
-  Statistic,
-  Progress,
   Modal,
   Form,
   Select,
@@ -33,7 +31,7 @@ import {
   FileTextOutlined,
 } from '@ant-design/icons';
 import DashboardLayout from '@/components/DashboardLayout';
-import { HeatmapChart, BarChart, HeatmapCell } from '@/components/charts';
+import { HeatmapChart, BarChart, HeatmapCell, StatCard } from '@/components/charts';
 import {
   assessDeploymentRisk,
   runHealthCheck,
@@ -163,14 +161,9 @@ const RiskDashboardPage: React.FC = () => {
       dataIndex: 'riskScore',
       key: 'riskScore',
       render: (score: number) => (
-        <Progress
-          percent={score}
-          strokeColor={
-            score > 70 ? colors.error[500] : score > 40 ? colors.warning[500] : colors.success[500]
-          }
-          format={(percent) => `${(percent ?? 0).toFixed(0)}`}
-          size="small"
-        />
+        <Tag color={score > 70 ? 'red' : score > 40 ? 'orange' : 'green'}>
+          {(score ?? 0).toFixed(0)}
+        </Tag>
       ),
     },
     {
@@ -323,42 +316,16 @@ const RiskDashboardPage: React.FC = () => {
         {/* Summary Cards */}
         <Row gutter={16} style={{ marginBottom: 24 }}>
           <Col span={6}>
-            <Card>
-              <Statistic
-                title="总评估数"
-                value={status?.totalAssessments || 0}
-                prefix={<FileTextOutlined />}
-              />
-            </Card>
+            <StatCard title="总评估数" value={status?.totalAssessments || 0} />
           </Col>
           <Col span={6}>
-            <Card>
-              <Statistic
-                title="评估中"
-                value={status?.pendingAssessments || 0}
-                valueStyle={{ color: colors.warning[500] }}
-              />
-            </Card>
+            <StatCard title="评估中" value={status?.pendingAssessments || 0} />
           </Col>
           <Col span={6}>
-            <Card>
-              <Statistic
-                title="高风险"
-                value={status?.highRiskCount || 0}
-                valueStyle={{ color: colors.error[500] }}
-                prefix={<WarningOutlined />}
-              />
-            </Card>
+            <StatCard title="高风险" value={status?.highRiskCount || 0} />
           </Col>
           <Col span={6}>
-            <Card>
-              <Statistic
-                title="未确认事件"
-                value={events.length}
-                valueStyle={{ color: events.length > 0 ? colors.error[500] : colors.success[500] }}
-                prefix={events.length > 0 ? <ExclamationCircleOutlined /> : <CheckCircleOutlined />}
-              />
-            </Card>
+            <StatCard title="未确认事件" value={events.length} />
           </Col>
         </Row>
 
