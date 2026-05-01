@@ -33,6 +33,7 @@ import {
   FileTextOutlined,
 } from '@ant-design/icons';
 import DashboardLayout from '@/components/DashboardLayout';
+import { HeatmapChart, BarChart, HeatmapCell } from '@/components/charts';
 import {
   assessDeploymentRisk,
   runHealthCheck,
@@ -261,6 +262,32 @@ const RiskDashboardPage: React.FC = () => {
     ...e,
   }));
 
+  // Heatmap data: assessments grouped by day-of-week × severity
+  const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const severityLabels = ['Low', 'Medium', 'High', 'Critical'];
+  const riskLevelToSeverity: Record<string, string> = {
+    low: 'Low',
+    medium: 'Medium',
+    high: 'High',
+    critical: 'Critical',
+  };
+  const heatmapData: HeatmapCell[] = assessments.map((a): HeatmapCell => {
+    const dayIndex = new Date(a.assessedAt).getDay();
+    return {
+      x: dayLabels[dayIndex],
+      y: riskLevelToSeverity[a.riskLevel] ?? 'Low',
+      value: 1,
+    };
+  });
+
+  // Bar chart data: risk type distribution by targetType
+  const riskTypeData = Object.entries(
+    assessments.reduce<Record<string, number>>((acc, a) => {
+      acc[a.targetType] = (acc[a.targetType] ?? 0) + 1;
+      return acc;
+    }, {}),
+  ).map(([label, value]) => ({ label, value }));
+
   return (
     <DashboardLayout>
       <div style={{ padding: 24 }}>
@@ -346,6 +373,31 @@ const RiskDashboardPage: React.FC = () => {
             </div>
           </Space>
         </Card>
+
+        {/* Charts Row */}
+        <Row gutter={16} style={{ marginBottom: 24 }}>
+          <Col span={14}>
+            <Card>
+              <HeatmapChart
+                title="风险分布（时间 × 严重性）"
+                data={heatmapData}
+                xAxis={dayLabels}
+                yAxis={severityLabels}
+                colorScale="green-red"
+                height={280}
+              />
+            </Card>
+          </Col>
+          <Col span={10}>
+            <Card>
+              <BarChart
+                title="风险类型分布"
+                data={riskTypeData}
+                height={280}
+              />
+            </Card>
+          </Col>
+        </Row>
 
         {/* Assessment Table */}
         <Card title="风险评估记录" style={{ marginBottom: 24 }}>
