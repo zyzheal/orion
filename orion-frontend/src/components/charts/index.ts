@@ -24,3 +24,6 @@ export type { StatCardProps } from './StatCard';
 
 export { RadarChart } from './RadarChart';
 export type { RadarChartProps, RadarIndicator, RadarSeries } from './RadarChart';
+
+export { TimelineChart } from './TimelineChart';
+export type { TimelineChartProps, TimelineEvent } from './TimelineChart';
