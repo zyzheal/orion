@@ -6,7 +6,7 @@
  * Uses mock data initially; real API integration will be added later.
  */
 import React, { useMemo } from 'react';
-import { Row, Col, Statistic, Tag, Progress, Table, Typography, Space } from 'antd';
+import { Row, Col, Tag, Table, Typography, Space } from 'antd';
 import { colors, spacing } from '@/tokens';
 import type { ColumnsType } from 'antd/es/table';
 import {
@@ -24,7 +24,7 @@ import { useBiDashboard } from '@/hooks/useBiDashboard';
 import type { ManagerDashboardData } from '@/types/pages';
 import { Spin, Alert } from 'antd';
 import dayjs from 'dayjs';
-import { BarChart } from '@/components/charts';
+import { BarChart, GaugeChart, PieChart, StatCard, TrendLineChart } from '@/components/charts';
 
 const { Title, Text } = Typography;
 
@@ -35,39 +35,6 @@ const COLORS = {
   error: colors.error[400],
   info: colors.primary[500],
   purple: colors.purple[500],
-};
-
-/**
- * Simple bar visualization
- */
-const SimpleBar: React.FC<{
-  value: number;
-  max: number;
-  color: string;
-  width?: number;
-}> = ({ value, max, color, width = 80 }) => {
-  const percentage = max > 0 ? (value / max) * 100 : 0;
-  return (
-    <div
-      style={{
-        width,
-        height: 6,
-        backgroundColor: colors.light.border.light,
-        borderRadius: 3,
-        overflow: 'hidden',
-      }}
-    >
-      <div
-        style={{
-          width: `${Math.min(percentage, 100)}%`,
-          height: '100%',
-          backgroundColor: color,
-          borderRadius: 3,
-          transition: 'width 0.3s ease',
-        }}
-      />
-    </div>
-  );
 };
 
 /**
@@ -229,12 +196,6 @@ const ManagerDashboard: React.FC = () => {
       defaultSortOrder: 'descend',
       render: (score: number) => (
         <Space>
-          <SimpleBar
-            value={score}
-            max={100}
-            color={score >= 90 ? COLORS.success : score >= 70 ? COLORS.info : COLORS.error}
-            width={60}
-          />
           <Text strong>{score}</Text>
         </Space>
       ),
@@ -276,11 +237,6 @@ const ManagerDashboard: React.FC = () => {
       sorter: (a, b) => a.count - b.count,
       render: (count: number) => (
         <Space>
-          <SimpleBar
-            value={count}
-            max={data.transferAnalysis.topTransferReasons[0]?.count || 1}
-            color={COLORS.warning}
-          />
           <Text strong>{count}</Text>
         </Space>
       ),
@@ -330,74 +286,49 @@ const ManagerDashboard: React.FC = () => {
         <Row gutter={[16, 16]}>
           <Col xs={24} sm={12} lg={8} xl={4}>
             <CardPanel>
-              <Statistic
+              <StatCard
                 title="总工单数"
                 value={data.teamOverview.totalTickets}
                 suffix="个"
-                valueStyle={{ fontSize: spacing[6], fontWeight: 600 }}
               />
             </CardPanel>
           </Col>
           <Col xs={24} sm={12} lg={8} xl={4}>
             <CardPanel>
-              <Statistic
+              <StatCard
                 title="已解决"
                 value={data.teamOverview.resolvedCount}
                 suffix="个"
-                valueStyle={{ fontSize: spacing[6], fontWeight: 600, color: COLORS.success }}
-                prefix={<CheckCircleOutlined />}
               />
             </CardPanel>
           </Col>
           <Col xs={24} sm={12} lg={8} xl={4}>
             <CardPanel>
-              <Statistic
+              <StatCard
                 title="平均解决时间"
                 value={data.teamOverview.avgResolutionTimeHours}
                 suffix="h"
-                valueStyle={{ fontSize: spacing[6], fontWeight: 600 }}
-                prefix={<ClockCircleOutlined />}
               />
             </CardPanel>
           </Col>
           <Col xs={24} sm={12} lg={8} xl={4}>
             <CardPanel>
-              <Statistic
+              <StatCard
                 title="SLA合规率"
                 value={data.teamOverview.slaComplianceRate}
                 suffix="%"
-                valueStyle={{
-                  fontSize: spacing[6],
-                  fontWeight: 600,
-                  color: data.teamOverview.slaComplianceRate >= 90 ? COLORS.success : COLORS.error,
-                }}
-                prefix={<CheckCircleOutlined />}
               />
             </CardPanel>
           </Col>
           <Col xs={24} sm={12} lg={8} xl={8}>
             <CardPanel>
-              <Statistic
-                title="团队负载"
+              <GaugeChart
                 value={data.teamOverview.teamLoadPercentage}
-                suffix="%"
-                valueStyle={{
-                  fontSize: spacing[6],
-                  fontWeight: 600,
-                  color:
-                    data.teamOverview.teamLoadPercentage > 85
-                      ? COLORS.error
-                      : data.teamOverview.teamLoadPercentage > 70
-                        ? COLORS.warning
-                        : COLORS.info,
-                }}
-              />
-              <Progress
-                percent={data.teamOverview.teamLoadPercentage}
-                size="small"
-                strokeColor={data.teamOverview.teamLoadPercentage > 85 ? COLORS.error : COLORS.info}
-                showInfo={false}
-                style={{ marginTop: 8 }}
+                title="团队负载"
+                max={100}
+                thresholds={{ warning: 70, danger: 90 }}
+                size={160}
+                unit="%"
               />
             </CardPanel>
           </Col>
@@ -498,23 +429,12 @@ const ManagerDashboard: React.FC = () => {
       <Row gutter={[16, 16]}>
         <Col xs={24} xl={14}>
           <CardPanel title="转派分析" extra={<SwapOutlined />}>
-            <Row gutter={[16, 16]}>
-              <Col xs={24} sm={12}>
-                <Statistic
-                  title="总转派次数"
-                  value={data.transferAnalysis.totalTransfers}
-                  valueStyle={{ fontSize: 28, fontWeight: 600 }}
-                />
-              </Col>
-              <Col xs={24} sm={12}>
-                <Statistic
-                  title="平均每工单转派"
-                  value={data.transferAnalysis.avgTransfersPerTicket}
-                  precision={2}
-                  valueStyle={{ fontSize: 28, fontWeight: 600 }}
-                />
-              </Col>
-            </Row>
+            <PieChart
+              title="转派原因分布"
+              data={data.transferAnalysis.topTransferReasons.map(r => ({ name: r.reason, value: r.count }))}
+              variant="donut"
+              height={200}
+            />
           </CardPanel>
         </Col>
         <Col xs={24} xl={10}>
