@@ -1,5 +1,5 @@
 import * as echarts from 'echarts/core';
-import { LineChart, BarChart, PieChart, GaugeChart, HeatmapChart, ScatterChart as ScatterChartModule } from 'echarts/charts';
+import { LineChart, BarChart, PieChart, GaugeChart, HeatmapChart, ScatterChart as ScatterChartModule, RadarChart as RadarChartModule } from 'echarts/charts';
 import {
   GridComponent,
   TooltipComponent,
@@ -8,6 +8,7 @@ import {
   DatasetComponent,
   TransformComponent,
   AriaComponent,
+  RadarComponent,
 } from 'echarts/components';
 import { CanvasRenderer } from 'echarts/renderers';
 
@@ -18,6 +19,8 @@ echarts.use([
   GaugeChart,
   HeatmapChart,
   ScatterChartModule,
+  RadarChartModule,
+  RadarComponent,
   GridComponent,
   TooltipComponent,
   LegendComponent,
