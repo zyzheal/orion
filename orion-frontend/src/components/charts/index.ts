@@ -21,3 +21,6 @@ export type { ScatterChartProps, ScatterDataPoint } from './ScatterChart';
 
 export { StatCard } from './StatCard';
 export type { StatCardProps } from './StatCard';
+
+export { RadarChart } from './RadarChart';
+export type { RadarChartProps, RadarIndicator, RadarSeries } from './RadarChart';
