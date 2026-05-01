@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useMemo } from 'react';
 import { colors } from '@/tokens/colors';
+import './echarts-init';
 
 export interface ChartThemeConfig {
   palette: string[];

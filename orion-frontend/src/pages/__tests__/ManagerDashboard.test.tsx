@@ -17,8 +17,14 @@ vi.mock('dayjs', async () => {
 
 vi.mock('dayjs/plugin/relativeTime', () => ({}));
 
+import { ChartProvider } from '@/components/charts';
+
 const renderWithRouter = (ui: React.ReactElement) => {
-  return render(<BrowserRouter>{ui}</BrowserRouter>);
+  return render(
+    <BrowserRouter>
+      <ChartProvider>{ui}</ChartProvider>
+    </BrowserRouter>
+  );
 };
 
 describe('ManagerDashboard', () => {

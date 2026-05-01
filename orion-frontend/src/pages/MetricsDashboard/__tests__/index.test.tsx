@@ -6,6 +6,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, act } from '@testing-library/react';
+import { ChartProvider } from '@/components/charts';
 import MetricsDashboard from '../index';
 
 const { mockMessage, mockApi } = vi.hoisted(() => ({
@@ -28,6 +29,12 @@ vi.mock('antd', async () => {
   const actual = await vi.importActual<typeof import('antd')>('antd');
   return { ...actual, message: mockMessage };
 });
+
+vi.mock('echarts-for-react', () => ({
+  default: ({ option, style, 'data-testid': testId }: any) => (
+    <div data-testid={testId} data-option={JSON.stringify(option)} style={style} />
+  ),
+}));
 
 vi.mock('@/components/Table', () => ({
   default: ({ dataSource, loading, rowKey }: any) => (
@@ -125,7 +132,7 @@ describe('MetricsDashboard', () => {
     mockApi.getDashboardData.mockResolvedValue(mockDashboardData);
 
     await act(async () => {
-      render(<MetricsDashboard />);
+      render(<ChartProvider><MetricsDashboard /></ChartProvider>);
     });
 
     await waitFor(() => {
@@ -161,7 +168,7 @@ describe('MetricsDashboard', () => {
     mockApi.getDashboardData.mockRejectedValue(new Error('Network error'));
 
     await act(async () => {
-      render(<MetricsDashboard />);
+      render(<ChartProvider><MetricsDashboard /></ChartProvider>);
     });
 
     await waitFor(() => {
@@ -194,7 +201,7 @@ describe('MetricsDashboard', () => {
     });
 
     await act(async () => {
-      render(<MetricsDashboard />);
+      render(<ChartProvider><MetricsDashboard /></ChartProvider>);
     });
 
     await waitFor(() => {
