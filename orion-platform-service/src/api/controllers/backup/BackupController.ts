@@ -16,12 +16,8 @@ import {
 export class BackupController {
   private backupService: BackupService;
 
-  constructor(backupService?: BackupService) {
-    if (backupService) {
-      this.backupService = backupService;
-    } else {
-      this.backupService = new BackupService();
-    }
+  constructor(backupService: BackupService) {
+    this.backupService = backupService;
   }
 
   // ==================== Service Control ====================

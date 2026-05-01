@@ -22,31 +22,14 @@ export interface BackupPlanRecord {
 }
 
 export class BackupPlanRepository {
-  private pool: DatabasePool | null;
-  private inMemory: Map<string, BackupPlanRecord> = new Map();
+  private pool: DatabasePool;
 
-  constructor(pool?: DatabasePool) {
-    this.pool = pool || null;
-  }
-
-  private isDbAvailable(): boolean {
-    return this.pool !== null;
+  constructor(pool: DatabasePool) {
+    this.pool = pool;
   }
 
   async create(plan: Omit<BackupPlanRecord, 'created_at' | 'updated_at'>): Promise<BackupPlanRecord> {
-    const now = new Date();
-    const record: BackupPlanRecord = {
-      ...plan,
-      created_at: now,
-      updated_at: now,
-    };
-
-    if (!this.isDbAvailable()) {
-      this.inMemory.set(plan.id, record);
-      return record;
-    }
-
-    const result = await this.pool!.query(
+    const result = await this.pool.query(
       `INSERT INTO backup_configs (id, tenant_id, name, type, target, schedule, retention_days, encryption_key, storage_config, enabled)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
       [
@@ -66,41 +49,23 @@ export class BackupPlanRepository {
   }
 
   async findById(id: string): Promise<BackupPlanRecord | null> {
-    if (!this.isDbAvailable()) {
-      return this.inMemory.get(id) || null;
-    }
-    const result = await this.pool!.query('SELECT * FROM backup_configs WHERE id = $1', [id]);
+    const result = await this.pool.query('SELECT * FROM backup_configs WHERE id = $1', [id]);
     return result.rows[0] || null;
   }
 
   async findAll(tenantId?: string): Promise<BackupPlanRecord[]> {
-    if (!this.isDbAvailable()) {
-      let plans = Array.from(this.inMemory.values());
-      if (tenantId) {
-        plans = plans.filter(p => p.tenant_id === tenantId);
-      }
-      return plans;
-    }
     if (tenantId) {
-      const result = await this.pool!.query(
+      const result = await this.pool.query(
         'SELECT * FROM backup_configs WHERE tenant_id = $1 ORDER BY created_at DESC',
         [tenantId]
       );
       return result.rows;
     }
-    const result = await this.pool!.query('SELECT * FROM backup_configs ORDER BY created_at DESC');
+    const result = await this.pool.query('SELECT * FROM backup_configs ORDER BY created_at DESC');
     return result.rows;
   }
 
   async update(id: string, updates: Partial<BackupPlanRecord>): Promise<BackupPlanRecord | null> {
-    if (!this.isDbAvailable()) {
-      const plan = this.inMemory.get(id);
-      if (!plan) return null;
-      const updated = { ...plan, ...updates, updated_at: new Date() };
-      this.inMemory.set(id, updated);
-      return updated;
-    }
-
     const existing = await this.findById(id);
     if (!existing) return null;
 
@@ -126,7 +91,7 @@ export class BackupPlanRepository {
     fields.push(`updated_at = NOW()`);
     values.push(id);
 
-    const result = await this.pool!.query(
+    const result = await this.pool.query(
       `UPDATE backup_configs SET ${fields.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
       values
     );
@@ -134,10 +99,7 @@ export class BackupPlanRepository {
   }
 
   async delete(id: string): Promise<boolean> {
-    if (!this.isDbAvailable()) {
-      return this.inMemory.delete(id);
-    }
-    const result = await this.pool!.query('DELETE FROM backup_configs WHERE id = $1', [id]);
+    const result = await this.pool.query('DELETE FROM backup_configs WHERE id = $1', [id]);
     return (result.rowCount ?? 0) > 0;
   }
 }

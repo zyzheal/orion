@@ -165,8 +165,11 @@ export class BackupService {
 
   private isRunning: boolean = false;
 
-  constructor(options?: BackupServiceOptions) {
-    const pool = options?.database;
+  constructor(options: BackupServiceOptions) {
+    const pool = options.database;
+    if (!pool) {
+      throw new BackupServiceError('Database pool is required for BackupService', 'MISSING_DATABASE');
+    }
 
     // Initialize repositories with database pool
     this.repository = new BackupRepository(pool);

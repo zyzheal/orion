@@ -14,7 +14,7 @@ import { BackupController } from './controllers/backup/BackupController';
 import { BackupService } from '../services/backup';
 
 interface BackupRoutesOptions {
-  database?: DatabasePool;
+  database: DatabasePool;
 }
 
 export default async function backupRoutes(

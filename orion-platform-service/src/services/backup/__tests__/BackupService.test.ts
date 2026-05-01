@@ -2,17 +2,206 @@
  * TASK-704: BackupService Unit Tests
  *
  * Tests the BackupService with PostgreSQL Repository pattern.
- * In-memory fallback is used when no database pool is provided.
+ * Uses an in-memory mock DatabasePool for unit testing.
  */
 
 import { BackupService } from '../BackupService';
 import { BackupPlan, RecoveryPlan } from '../../types';
+import { QueryResult } from '../../database';
+
+/**
+ * In-memory mock DatabasePool for testing.
+ * Simulates PostgreSQL query results using Maps.
+ */
+function createMockDatabasePool() {
+  const tables: Record<string, Map<string, any>> = {
+    backup_configs: new Map(),
+    backup_jobs: new Map(),
+    backup_restores: new Map(),
+  };
+
+  function runQuery(sql: string, params?: any[]): QueryResult {
+    const upper = sql.toUpperCase();
+
+    if (upper.startsWith('INSERT')) {
+      // Determine target table
+      const tableMatch = sql.match(/INTO\s+(\w+)/i);
+      if (!tableMatch) return { rows: [], rowCount: 0, fields: [] };
+      const tableName = tableMatch[1];
+      const table = tables[tableName];
+      if (!table) return { rows: [], rowCount: 0, fields: [] };
+
+      // Extract RETURNING * to know what to return
+      const returning = sql.toUpperCase().includes('RETURNING *');
+
+      // Parse VALUES clause and map to record
+      const valuesMatch = sql.match(/VALUES\s*\(([^)]+)\)/i);
+      if (!valuesMatch) return { rows: [], rowCount: 0, fields: [] };
+
+      // Get column names from INSERT clause
+      const colsMatch = sql.match(/INTO\s+\w+\s*\(([^)]+)\)/i);
+      const columns = colsMatch ? colsMatch[1].split(',').map(c => c.trim()) : [];
+
+      const record: any = {};
+      columns.forEach((col, idx) => {
+        let val = params?.[idx];
+        // Handle JSONB columns that were stringified
+        if (col === 'target' || col === 'storage_config') {
+          try { val = JSON.parse(val); } catch { /* leave as-is */ }
+        }
+        record[col] = val;
+      });
+
+      // Add default timestamps
+      record.created_at = record.created_at || new Date();
+      record.updated_at = record.updated_at || new Date();
+
+      table.set(record.id, record);
+
+      if (returning) {
+        return { rows: [record], rowCount: 1, fields: [] };
+      }
+      return { rows: [record], rowCount: 1, fields: [] };
+    }
+
+    if (upper.startsWith('SELECT')) {
+      // Determine target table
+      const tableMatch = sql.match(/FROM\s+(\w+)/i);
+      if (!tableMatch) return { rows: [], rowCount: 0, fields: [] };
+      const tableName = tableMatch[1];
+      const table = tables[tableName];
+      if (!table) return { rows: [], rowCount: 0, fields: [] };
+
+      let rows = Array.from(table.values());
+
+      // Handle WHERE clauses
+      const whereMatch = sql.match(/WHERE\s+(.+?)(?:ORDER|GROUP|LIMIT|$)/is);
+      if (whereMatch) {
+        const whereClause = whereMatch[1].trim();
+
+        if (whereClause.match(/^id\s*=\s*\$\d+$/i)) {
+          const paramIdx = parseInt(whereClause.match(/\$(\d+)/)![1]) - 1;
+          const id = params?.[paramIdx];
+          rows = rows.filter(r => r.id === id);
+        } else if (whereClause.match(/^tenant_id\s*=\s*\$\d+$/i)) {
+          const paramIdx = parseInt(whereClause.match(/\$(\d+)/)![1]) - 1;
+          const tenantId = params?.[paramIdx];
+          rows = rows.filter(r => r.tenant_id === tenantId);
+        } else if (whereClause.match(/^config_id\s*=\s*\$\d+$/i)) {
+          const paramIdx = parseInt(whereClause.match(/\$(\d+)/)![1]) - 1;
+          const configId = params?.[paramIdx];
+          rows = rows.filter(r => r.config_id === configId);
+        }
+      }
+
+      // Handle ORDER BY (simple DESC sorting)
+      if (upper.includes('ORDER BY')) {
+        const orderMatch = sql.match(/ORDER BY\s+(\w+)\s*(DESC)?/i);
+        if (orderMatch) {
+          const col = orderMatch[1];
+          const desc = orderMatch[2];
+          rows.sort((a, b) => {
+            const aVal = a[col] instanceof Date ? a[col].getTime() : a[col] || 0;
+            const bVal = b[col] instanceof Date ? b[col].getTime() : b[col] || 0;
+            return desc ? bVal - aVal : aVal - bVal;
+          });
+        }
+      }
+
+      return { rows, rowCount: rows.length, fields: [] };
+    }
+
+    if (upper.startsWith('UPDATE')) {
+      const tableMatch = sql.match(/UPDATE\s+(\w+)/i);
+      if (!tableMatch) return { rows: [], rowCount: 0, fields: [] };
+      const tableName = tableMatch[1];
+      const table = tables[tableName];
+      if (!table) return { rows: [], rowCount: 0, fields: [] };
+
+      const returning = sql.toUpperCase().includes('RETURNING *');
+      const whereMatch = sql.match(/WHERE\s+id\s*=\s*\$(\d+)/i);
+      if (!whereMatch) return { rows: [], rowCount: 0, fields: [] };
+
+      const paramIdx = parseInt(whereMatch[1]) - 1;
+      const id = params?.[paramIdx];
+      const record = table.get(id);
+      if (!record) return { rows: [], rowCount: 0, fields: [] };
+
+      // Parse SET clause and update fields
+      const setMatch = sql.match(/SET\s+(.+?)\s+WHERE/is);
+      if (setMatch) {
+        const setClause = setMatch[1];
+        const fieldMatches = setClause.matchAll(/(\w+)\s*=\s*\$(\d+)/g);
+        let valIndex = 0;
+        for (const match of fieldMatches) {
+          const field = match[1];
+          const pIdx = parseInt(match[2]) - 1;
+          if (pIdx < params!.length) {
+            let val = params![pIdx];
+            if (field === 'target' || field === 'storage_config') {
+              try { val = JSON.parse(val); } catch { /* leave as-is */ }
+            }
+            record[field] = val;
+          }
+          valIndex++;
+        }
+      }
+
+      // Handle SET with literal values (e.g., status = 'completed')
+      const literalMatches = setMatch?.[1].matchAll(/(\w+)\s*=\s*'([^']+)'/g) || [];
+      for (const match of literalMatches) {
+        record[match[1]] = match[2];
+      }
+
+      // Handle SET ... = NOW()
+      const nowMatches = setMatch?.[1].matchAll(/(\w+)\s*=\s*NOW\(\)/gi) || [];
+      for (const match of nowMatches) {
+        record[match[1]] = new Date();
+      }
+
+      record.updated_at = new Date();
+      table.set(id, record);
+
+      if (returning) {
+        return { rows: [record], rowCount: 1, fields: [] };
+      }
+      return { rows: [], rowCount: 1, fields: [] };
+    }
+
+    if (upper.startsWith('DELETE')) {
+      const tableMatch = sql.match(/FROM\s+(\w+)/i);
+      if (!tableMatch) return { rows: [], rowCount: 0, fields: [] };
+      const tableName = tableMatch[1];
+      const table = tables[tableName];
+      if (!table) return { rows: [], rowCount: 0, fields: [] };
+
+      const whereMatch = sql.match(/WHERE\s+id\s*=\s*\$(\d+)/i);
+      if (!whereMatch) return { rows: [], rowCount: 0, fields: [] };
+
+      const paramIdx = parseInt(whereMatch[1]) - 1;
+      const id = params?.[paramIdx];
+      const deleted = table.delete(id);
+
+      return { rows: [], rowCount: deleted ? 1 : 0, fields: [] };
+    }
+
+    return { rows: [], rowCount: 0, fields: [] };
+  }
+
+  return {
+    query: runQuery,
+    on: () => {},
+    emit: () => true,
+  };
+}
 
 describe('BackupService', () => {
   let service: BackupService;
 
   beforeEach(() => {
+    const mockPool = createMockDatabasePool();
     service = new BackupService({
+      database: mockPool as any,
       config: {
         storagePath: '/tmp/test-backup-service',
         scheduleCheckIntervalMs: 1000,
