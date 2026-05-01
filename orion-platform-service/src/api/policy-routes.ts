@@ -115,4 +115,78 @@ export default async function policyRoutes(
   app.post('/overrides', async (request: FastifyRequest, reply: FastifyReply) => {
     return evalController.createOverride(request, reply);
   });
+
+  // ==================== Bundle Management ====================
+
+  app.get('/bundles', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const bundles = await policyService.listBundles();
+      return reply.send({ code: 200, message: 'OK', data: bundles });
+    } catch (error: any) {
+      return reply.status(500).send({ code: 500, message: error.message });
+    }
+  });
+
+  app.get('/bundles/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+    const params = request.params as { id: string };
+    try {
+      const bundle = await policyService.getBundle(params.id);
+      if (!bundle) {
+        return reply.status(404).send({ code: 404, message: 'Bundle not found' });
+      }
+      return reply.send({ code: 200, message: 'OK', data: bundle });
+    } catch (error: any) {
+      return reply.status(500).send({ code: 500, message: error.message });
+    }
+  });
+
+  app.post('/bundles/sync', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const result = await policyService.syncBundles();
+      return reply.send({ code: 200, message: 'OK', data: result });
+    } catch (error: any) {
+      return reply.status(500).send({ code: 500, message: error.message });
+    }
+  });
+
+  // ==================== Policy Testing ====================
+
+  app.post('/test', async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = request.body as {
+      rego: string;
+      testCases: Array<Record<string, unknown>>;
+    };
+    if (!body.rego || !body.testCases) {
+      return reply.status(400).send({ code: 400, message: 'rego and testCases are required' });
+    }
+    try {
+      const results = await policyService.testPolicy(body.rego, body.testCases);
+      return reply.send({ code: 200, message: 'OK', data: results });
+    } catch (error: any) {
+      return reply.status(400).send({ code: 400, message: error.message });
+    }
+  });
+
+  app.get('/test/results/:testId', async (request: FastifyRequest, reply: FastifyReply) => {
+    const params = request.params as { testId: string };
+    return reply.status(404).send({ code: 404, message: 'Test results are ephemeral in MVP. Use POST /test to re-evaluate.' });
+  });
+
+  // ==================== Toggle Policy ====================
+
+  app.patch('/:id/toggle', async (request: FastifyRequest, reply: FastifyReply) => {
+    const params = request.params as { id: string };
+    if (['evaluate-policy', 'evaluations', 'violations', 'overrides', 'bundles', 'test'].includes(params.id)) {
+      return reply.callNotFound();
+    }
+    try {
+      const policy = await policyService.toggle(params.id);
+      return reply.send({ code: 200, message: 'OK', data: policy });
+    } catch (error: any) {
+      if (error.message.includes('not found')) {
+        return reply.status(404).send({ code: 404, message: error.message });
+      }
+      return reply.status(500).send({ code: 500, message: error.message });
+    }
+  });
 }
