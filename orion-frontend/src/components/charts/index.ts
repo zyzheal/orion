@@ -30,3 +30,6 @@ export type { TimelineChartProps, TimelineEvent } from './TimelineChart';
 
 export { SankeyChart } from './SankeyChart';
 export type { SankeyChartProps, SankeyNode, SankeyLink } from './SankeyChart';
+
+export { TreeMap } from './TreeMap';
+export type { TreeMapChartProps, TreeMapNode } from './TreeMap';

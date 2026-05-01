@@ -1,5 +1,5 @@
 import * as echarts from 'echarts/core';
-import { LineChart, BarChart, PieChart, GaugeChart, HeatmapChart, ScatterChart as ScatterChartModule, RadarChart as RadarChartModule } from 'echarts/charts';
+import { LineChart, BarChart, PieChart, GaugeChart, HeatmapChart, ScatterChart as ScatterChartModule, RadarChart as RadarChartModule, TreemapChart as TreemapChartModule } from 'echarts/charts';
 import {
   GridComponent,
   TooltipComponent,
@@ -20,6 +20,7 @@ echarts.use([
   HeatmapChart,
   ScatterChartModule,
   RadarChartModule,
+  TreemapChartModule,
   RadarComponent,
   GridComponent,
   TooltipComponent,
