@@ -34,6 +34,14 @@ vi.mock('@/components/charts', async () => {
         <span>{value}</span>
       </div>
     ),
+    BarChart: ({ data, title }: { data: unknown[]; title?: string }) => (
+      <div data-testid="bar-chart">
+        {title && <span>{title}</span>}
+        {data.map((d: any, i: number) => (
+          <span key={i}>{d.label}</span>
+        ))}
+      </div>
+    ),
   };
 });
 
@@ -142,9 +150,9 @@ describe('ExecutiveDashboard', () => {
   it('should display priority distribution section', () => {
     renderWithRouter(<ExecutiveDashboard />);
     expect(screen.getByText('优先级分布')).toBeInTheDocument();
-    expect(screen.getByText('紧急')).toBeInTheDocument();
-    expect(screen.getByText('高')).toBeInTheDocument();
-    expect(screen.getByText('中')).toBeInTheDocument();
-    expect(screen.getByText('低')).toBeInTheDocument();
+    expect(screen.getAllByText('紧急').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('高').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('中').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('低').length).toBeGreaterThanOrEqual(1);
   });
 });
