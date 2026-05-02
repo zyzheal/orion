@@ -11,10 +11,10 @@
 
 ```
 📖 完整设计方案  →  Orion-完整设计方案.md (868 行，主文档)
-📐 架构决策      →  docs/adr/ (11 份 ADR)
+📐 架构决策      →  docs/adr/ (9 份 ADR)
 🏗️ 架构设计      →  docs/architecture/ (~25 份，4 份已归档)
 🤖 AI/算法       →  docs/ai/ (20 份)
-🔒 安全          →  docs/security/ (10 份)
+🔒 安全          →  docs/security/ (8 份)
 🖥️ 前端          →  docs/frontend/ (~18 份，4 份已归档)
 📊 效能          →  docs/efficiency/ (3 份，2 份已归档)
 🗄️ 数据库        →  docs/db/ (7 份，1 份已归档)
@@ -62,7 +62,7 @@
 |------|------|
 | 总文档数 | **~200 份** (不含子项目，53 份已归档) |
 | 总行数 | **~170,000 行** (归档后) |
-| ADR 决策记录 | **11 份** |
+| ADR 决策记录 | **9 份** |
 | 评审报告 | **3 份** (2 份已归档) |
 | 高保真设计 | **23 份** |
 | 文档模板 | **2 份** |
@@ -88,8 +88,6 @@
 | [ADR-008](docs/adr/ADR-008-ProductLine-CRD%20多分支产品线设计.md) | ProductLine-CRD 多分支产品线 | 已批准 | M6 |
 | [ADR-009](docs/adr/ADR-009-依赖追踪设计.md) | 依赖追踪设计 | 已批准 | M15 |
 | [ADR-010](docs/security/ADR-010-Prompt%20注入防护设计.md) | Prompt 注入防护设计 | 已批准 | M9 |
-| [ADR-011](docs/adr/ADR-011-Plugin-SPI%20接口设计.md) | Plugin-SPI 接口设计 | 已批准 | M15 |
-| [ADR-012](docs/adr/ADR-012-API 版本管理设计.md) | API 版本管理设计 | 已批准 | 全系统 |
 
 ### 🏗️ 架构设计
 
@@ -101,17 +99,17 @@
 | [架构重构设计](docs/architecture/架构重构设计.md) | ~600 | 核心域 + 支撑域重构方案 | ⚠️ 目标设计 |
 | ⚠️ [平台服务拆分设计](docs/architecture/platform-service-split-design.md) | ~880 | orion-platform-service 拆分为 3 个服务 | ⚠️ 目标设计 |
 | ⚠️ [服务拆分实施方案](docs/architecture/platform-service-split-implementation.md) | ~800 | 4 服务拆分方案 | ⚠️ 目标设计 |
-| [多租户隔离设计](docs/architecture/多租户隔离设计.md) | ~400 | 四隔离模型 | |
-| [开放平台基座能力规则](docs/architecture/开放平台基座能力规则设计.md) | ~500 | 插件 SPI 规范 | |
-| [跨时代颠覆性亮点设计](docs/architecture/跨时代颠覆性亮点设计.md) | ~700 | 自主事件指挥官等 6 大亮点 | |
-| [外部组件集成架构](docs/architecture/外部组件集成架构设计.md) | ~300 | 第三方系统集成 | |
-| [外部服务集成清单](docs/architecture/外部服务集成清单.md) | ~200 | 集成列表 | |
-| [Plugin SPI 示例](docs/architecture/plugin-spi-examples.md) | ~300 | 代码示例 | |
-| [gRPC 集成设计](docs/architecture/grpc-integration-design.md) | ~700 | gRPC vs REST 决策矩阵 | |
+| [多租户隔离设计](docs/architecture/多租户隔离设计.md) | ~400 | 四隔离模型 |
+| [开放平台基座能力规则](docs/architecture/开放平台基座能力规则设计.md) | ~500 | 插件 SPI 规范 |
+| [跨时代颠覆性亮点设计](docs/architecture/跨时代颠覆性亮点设计.md) | ~700 | 自主事件指挥官等 6 大亮点 |
+| [外部组件集成架构](docs/architecture/外部组件集成架构设计.md) | ~300 | 第三方系统集成 |
+| [外部服务集成清单](docs/architecture/外部服务集成清单.md) | ~200 | 集成列表 |
+| [Plugin SPI 示例](docs/architecture/plugin-spi-examples.md) | ~300 | 代码示例 |
+| [gRPC 集成设计](docs/architecture/grpc-integration-design.md) | ~700 | gRPC vs REST 决策矩阵 |
 | [熔断降级设计](docs/architecture/circuit-breaker-degradation-design.md) | ~600 | L0-L3 降级级别 |
 | [数据库迁移与查询设计](docs/architecture/database-migration-and-query-design.md) | ~550 | Flyway 迁移工具 |
-| [Orion 架构流程图](docs/architecture/Onion-架构流程图.md) | ~500 | 完整架构图 (10 个) | |
-| [API Gateway 增强](docs/architecture/api-gateway-enhancement-design.md) | ~1100 | 限流/熔断/版本化/路由 | |
+| [Orion 架构流程图](docs/architecture/Onion-架构流程图.md) | ~500 | 完整架构图 (10 个) |
+| [API Gateway 增强](docs/architecture/api-gateway-enhancement-design.md) | ~1100 | 限流/熔断/版本化/路由 |
 | [配置漂移检测](docs/architecture/configuration-drift-detection-design.md) | ~950 | GitOps 漂移检测/自动回滚 |
 | [缓存层设计](docs/architecture/cache-layer-design.md) | ~1150 | Redis/失效策略/一致性 |
 | [API 版本管理](docs/architecture/api-version-management-design.md) | ~1150 | 版本化策略/生命周期 |
@@ -140,7 +138,7 @@
 | [代码表示学习](docs/ai/code-representation-learning-design.md) | ~950 | AST+Code2Vec+Transformer |
 | [**Skill 市场设计**](docs/ai/skill-marketplace-design.md) | ~1100 | **Skill 发现/安装/评分/审核** |
 
-### 🔒 安全 (新增 3 份)
+### 🔒 安全
 
 | 文档 | 行数 | 说明 |
 |------|------|------|
@@ -152,8 +150,6 @@
 | [JWT 并发刷新保护](docs/security/JWT%20并发刷新保护设计.md) | ~300 | Token 安全 |
 | [自愈引擎权限治理](docs/security/自愈引擎权限治理设计.md) | ~300 | 权限最小化 |
 | [软件供应链安全](docs/security/software-supply-chain-security-design.md) | ~900 | SLSA L3, SBOM |
-| [UEBA 行为分析](docs/security/ueba-design.md) | ~600 | 用户行为分析 |
-| [审计日志防篡改](docs/security/audit-log-tamper-proof-design.md) | ~500 | 链式 Hash 验证 |
 
 ### 🖥️ 前端 (新增 3 份)
 
@@ -167,8 +163,8 @@
 | [API 层设计规范](docs/frontend/API%20层设计规范.md) | ~300 | 前端 API 层 |
 | [WebSocket 认证集成](docs/frontend/WebSocket%20认证集成设计.md) | ~300 | 实时通信 |
 | [组件状态管理优化](docs/frontend/组件状态管理优化.md) | ~300 | 状态管理 |
-| [Micro-frontend Guide](docs/frontend/micro-frontend-development-guide.md) | ~500 | 微前端开发指南 | |
-| [WebSocket 单例管理](docs/frontend/websocket-singleton-design.md) | ~900 | 多 Tab 共享连接 | |
+| [Micro-frontend Guide](docs/frontend/micro-frontend-development-guide.md) | ~500 | 微前端开发指南 |
+| [WebSocket 单例管理](docs/frontend/websocket-singleton-design.md) | ~900 | 多 Tab 共享连接 |
 | [AI 人工确认交互设计规范](docs/frontend/AI%20人工确认交互设计规范.md) | ~1200 | P0/P1/P2/P3 分层确认 |
 
 ### 🔌 前端缺口模块设计 (新增 6 份)
@@ -202,8 +198,8 @@
 | [外部开源系统接入](docs/db/外部开源系统接入数据库扩展设计.md) | ~300 | 多数据源 |
 | [SQL 审计设计](docs/db/sql-audit-design.md) | ~200 | SQL 审计 |
 | [CMDB 数据库 Schema](docs/db/CMDB-数据库%20Schema%20设计.md) | ~200 | CMDB 表结构 |
-| [数据库迁移与查询设计](docs/db/database-migration-and-query-design.md) | ~550 | Flyway 迁移 | |
-| [缓存层设计](docs/db/cache-layer-design.md) | ~600 | Redis 使用场景 | |
+| [数据库迁移与查询设计](docs/db/database-migration-and-query-design.md) | ~550 | Flyway 迁移 |
+| [缓存层设计](docs/db/cache-layer-design.md) | ~600 | Redis 使用场景 |
 
 ### 🔧 SRE / 运维
 
@@ -212,20 +208,18 @@
 | [部署架构与监控指标](docs/sre/部署架构与监控指标设计.md) | ~400 | 部署拓扑 |
 | [可观测性设计](docs/sre/可观测性设计.md) | ~500 | 指标/日志/追踪 |
 | [灾备与备份恢复](docs/sre/灾备与备份恢复设计.md) | ~700 | 多活架构 |
-| [SRE 运维加固](docs/sre/sre-hardening-design.md) | ~600 | 监控/告警/演练 | |
-| [混沌工程方案](docs/sre/chaos-engineering-design.md) | ~700 | 故障注入测试 | |
-| [容量规划与弹性伸缩](docs/sre/capacity-planning-design.md) | ~800 | HPA/VPA/集群自动伸缩 | |
-| [**OnCall 排班系统**](docs/sre/OnCall%20排班系统设计.md) | ~2595 | **排班规则/告警路由/升级策略** | |
+| [SRE 运维加固](docs/sre/sre-hardening-design.md) | ~600 | 监控/告警/演练 |
+| [混沌工程方案](docs/sre/chaos-engineering-design.md) | ~700 | 故障注入测试 |
+| [容量规划与弹性伸缩](docs/sre/capacity-planning-design.md) | ~800 | HPA/VPA/集群自动伸缩 |
+| [**OnCall 排班系统**](docs/sre/OnCall%20排班系统设计.md) | ~2595 | **排班规则/告警路由/升级策略** |
 
-### 📦 制品管理 (新增 2 份)
+### 📦 制品管理
 
 | 文档 | 行数 | 说明 |
 |------|------|------|
 | [产物与二方库管理](docs/artifact/产物与二方库管理设计.md) | ~400 | 制品生命周期 |
 | [Artifact Promotion](docs/artifact/artifact-promotion-design.md) | ~300 | 制品晋升 |
 | [依赖追踪](docs/artifact/dependency-tracking-design.md) | ~200 | 依赖管理 |
-| [产物管理详细设计](docs/artifact/artifact-management-design.md) | ~800 | 镜像/依赖包全生命周期 |
-| [二方库管理详细设计](docs/artifact/internal-library-management-design.md) | ~700 | 内部库创建/发布/升级 |
 
 ### 🔌 第三方集成 (新增 1 份)
 
@@ -236,15 +230,14 @@
 | [Nexus Adapter](docs/integration/nexus-adapter.md) | ~300 | 依赖仓库 |
 | [Gerrit Adapter](docs/integration/gerrit-adapter.md) | ~200 | 代码审查 |
 | [External System Onboarding](docs/integration/external-system-onboarding.md) | ~300 | 接入流程 |
-| [SSO 集成设计](docs/integration/sso-integration-design.md) | ~500 | OIDC/SAML2/LDAP |
 
 ### 📊 效能度量 (新增 1 份)
 
 | 文档 | 行数 | 说明 |
 |------|------|------|
-| [DORA 指标计算](docs/efficiency/DORA%20指标计算设计.md) | ~500 | 四指标算法 | |
-| [FinOps 成本采集](docs/efficiency/FinOps-成本数据采集设计.md) | ~400 | 成本数据 | |
-| [效能看板详细设计](docs/efficiency/dashboard-design.md) | ~900 | DORA/趋势/对比/AI 建议 | |
+| [DORA 指标计算](docs/efficiency/DORA%20指标计算设计.md) | ~500 | 四指标算法 |
+| [FinOps 成本采集](docs/efficiency/FinOps-成本数据采集设计.md) | ~400 | 成本数据 |
+| [效能看板详细设计](docs/efficiency/dashboard-design.md) | ~900 | DORA/趋势/对比/AI 建议 |
 
 ### 🎨 UI/UX (新增 1 份)
 

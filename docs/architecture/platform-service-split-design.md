@@ -1,4 +1,4 @@
-> ⚠️ **本文档描述的是 orion-platform-service 拆分为 3 个服务的方案，当前未实施。** 当前为单体架构，详见 [`当前系统架构.md`](./当前系统架构.md)。
+> ⚠️ **目标设计，未实现**。当前为单体架构，详见 [`当前系统架构.md`](./当前系统架构.md)。
 
 # Orion Platform Service Split Design
 
