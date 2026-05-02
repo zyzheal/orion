@@ -29,8 +29,9 @@ import type { ColumnsType } from 'antd/es/table';
 import type { KPIMetric, ExecutiveDashboardData } from '@/types/pages';
 import { mockExecutiveDashboard } from '@/pages/__mocks__/mockBIData';
 import { useBiDashboard } from '@/hooks/useBiDashboard';
-import { Spin, Alert } from 'antd';
+import { Alert } from 'antd';
 import CardPanel from '@/components/CardPanel';
+import DataState from '@/components/DataState';
 import {
   TrendLineChart,
   PieChart,
@@ -72,9 +73,12 @@ const kpiIcons: Record<string, React.ReactNode> = {
 const ExecutiveDashboard: React.FC = () => {
   const { data: apiData, loading, error } = useBiDashboard('executive');
 
-  // Fallback to mock data when API is unavailable
+  // Fallback to mock data when API is unavailable (but not on error)
   const data = (apiData as ExecutiveDashboardData | undefined) ?? mockExecutiveDashboard;
-  const showMockWarning = !apiData;
+  const showMockWarning = !apiData && !error;
+
+  // Retry handler - reload page on error
+  const handleRetry = () => window.location.reload();
 
   // Build KPI metrics from mock data
   const kpiMetrics: KPIMetric[] = useMemo(
@@ -231,41 +235,32 @@ const ExecutiveDashboard: React.FC = () => {
 
   return (
     <div style={{ padding: 0 }}>
-      {/* Loading state */}
-      {loading && !apiData && (
-        <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}>
-          <Spin tip="加载效能数据..." size="large" />
+      <DataState
+        loading={loading && !apiData}
+        error={error}
+        empty={false}
+        loadingText="加载效能数据..."
+        retry={handleRetry}
+      >
+        {/* Mock data warning - only show when API unavailable but no error */}
+        {showMockWarning && (
+          <Alert
+            message="API 不可用"
+            description="效能仪表盘 API 尚未部署，当前显示模拟数据。"
+            type="warning"
+            showIcon
+            closable
+            style={{ marginBottom: 16 }}
+          />
+        )}
+        {/* Page header */}
+        <div style={{ marginBottom: 24 }}>
+          <Title level={3} style={{ margin: 0 }}>
+            <TrophyOutlined style={{ marginRight: 8, color: COLORS.warning }} />
+            总览看板
+          </Title>
+          <Text type="secondary">全局工单系统运行指标 — {dayjs().format('YYYY-MM-DD HH:mm')}</Text>
         </div>
-      )}
-      {/* Mock data warning */}
-      {showMockWarning && (
-        <Alert
-          message="API 不可用"
-          description="效能仪表盘 API 尚未部署，当前显示模拟数据。"
-          type="warning"
-          showIcon
-          closable
-          style={{ marginBottom: 16 }}
-        />
-      )}
-      {/* Error state */}
-      {error && (
-        <Alert
-          message="加载失败"
-          description={error.message}
-          type="error"
-          showIcon
-          style={{ marginBottom: 16 }}
-        />
-      )}
-      {/* Page header */}
-      <div style={{ marginBottom: 24 }}>
-        <Title level={3} style={{ margin: 0 }}>
-          <TrophyOutlined style={{ marginRight: 8, color: COLORS.warning }} />
-          总览看板
-        </Title>
-        <Text type="secondary">全局工单系统运行指标 — {dayjs().format('YYYY-MM-DD HH:mm')}</Text>
-      </div>
 
       {/* KPI Cards - 8 cards in a 4x2 grid */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
@@ -441,6 +436,7 @@ const ExecutiveDashboard: React.FC = () => {
           </CardPanel>
         </Col>
       </Row>
+      </DataState>
     </div>
   );
 };

@@ -10,7 +10,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Typography, Button, Space, Tag, Card, Modal, Form, Input,
-  message, Popconfirm, Tooltip, DatePicker, Alert, Spin,
+  message, Popconfirm, Tooltip, DatePicker, Alert,
 } from 'antd';
 import {
   ReloadOutlined, PlusOutlined, DeleteOutlined, KeyOutlined,
@@ -18,6 +18,7 @@ import {
 } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import MetricCard from '@/components/MetricCard';
+import DataState from '@/components/DataState';
 import { colors, spacing } from '@/tokens';
 import {
   getApiKeys, createApiKey, revokeApiKey, getApiKeyStats,
@@ -29,6 +30,7 @@ const { Title, Text } = Typography;
 
 const ApiKeyManagement: React.FC = () => {
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
   const [keys, setKeys] = useState<ApiKey[]>([]);
   const [stats, setStats] = useState<{ total: number; active: number; expired: number } | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
@@ -37,12 +39,13 @@ const ApiKeyManagement: React.FC = () => {
 
   const loadData = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const [keysRes, statsRes] = await Promise.all([getApiKeys(), getApiKeyStats()]);
       setKeys(keysRes.data.data?.keys ?? []);
       setStats(statsRes.data.data?.stats ?? null);
     } catch (err) {
-      message.error('加载 API Key 列表失败');
+      setError(err instanceof Error ? err : new Error('加载 API Key 列表失败'));
     } finally {
       setLoading(false);
     }
@@ -147,41 +150,42 @@ const ApiKeyManagement: React.FC = () => {
     },
   ];
 
-  if (loading && keys.length === 0) {
-    return (
-      <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}>
-        <Spin tip="加载 API Key..." size="large" />
-      </div>
-    );
-  }
-
   return (
     <div style={{ padding: 0 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
-        <div>
-          <Title level={3} style={{ margin: 0 }}>
-            <KeyOutlined style={{ marginRight: 8, color: colors.primary[500] }} />
-            API Key 管理
-          </Title>
-          <Text type="secondary">API Key Management</Text>
+      <DataState
+        loading={loading && keys.length === 0}
+        error={error}
+        empty={keys.length === 0 && !loading}
+        emptyText="暂无 API Key"
+        loadingText="加载 API Key..."
+        retry={loadData}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
+          <div>
+            <Title level={3} style={{ margin: 0 }}>
+              <KeyOutlined style={{ marginRight: 8, color: colors.primary[500] }} />
+              API Key 管理
+            </Title>
+            <Text type="secondary">API Key Management</Text>
+          </div>
+          <Space>
+            <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>刷新</Button>
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => { setCreatedKey(null); setModalVisible(true); }}>新建 Key</Button>
+          </Space>
         </div>
-        <Space>
-          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>刷新</Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => { setCreatedKey(null); setModalVisible(true); }}>新建 Key</Button>
-        </Space>
-      </div>
 
-      {stats && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: spacing.md, marginBottom: spacing.lg }}>
-          <MetricCard title="总数" value={stats.total} icon={<KeyOutlined />} color={colors.primary[500]} size="medium" />
-          <MetricCard title="活跃" value={stats.active} icon={<KeyOutlined />} color={colors.success[500]} size="medium" />
-          <MetricCard title="已过期" value={stats.expired} icon={<KeyOutlined />} color={colors.error[500]} size="medium" />
-        </div>
-      )}
+        {stats && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: spacing.md, marginBottom: spacing.lg }}>
+            <MetricCard title="总数" value={stats.total} icon={<KeyOutlined />} color={colors.primary[500]} size="medium" />
+            <MetricCard title="活跃" value={stats.active} icon={<KeyOutlined />} color={colors.success[500]} size="medium" />
+            <MetricCard title="已过期" value={stats.expired} icon={<KeyOutlined />} color={colors.error[500]} size="medium" />
+          </div>
+        )}
 
-      <Card>
-        <Table columns={columns} dataSource={keys} loading={loading} rowKey="id" size="middle" striped />
-      </Card>
+        <Card>
+          <Table columns={columns} dataSource={keys} loading={loading} rowKey="id" size="middle" striped />
+        </Card>
+      </DataState>
 
       <Modal
         title="新建 API Key"

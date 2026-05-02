@@ -13,7 +13,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Typography, Button, Space, Tag, Card, Modal, Form, Input,
-  Switch, message, Popconfirm, Tooltip, Select, Drawer, Spin,
+  Switch, message, Popconfirm, Tooltip, Select, Drawer,
 } from 'antd';
 import {
   ReloadOutlined, PlusOutlined, EditOutlined, DeleteOutlined,
@@ -21,6 +21,7 @@ import {
   CloseCircleOutlined,
 } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
+import DataState from '@/components/DataState';
 import { colors, spacing } from '@/tokens';
 import {
   getWebhooks, createWebhook, updateWebhook,
@@ -39,6 +40,7 @@ const EVENT_OPTIONS = [
 
 const WebhookManagement: React.FC = () => {
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
   const [webhooks, setWebhooks] = useState<Webhook[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingWebhook, setEditingWebhook] = useState<Webhook | null>(null);
@@ -49,11 +51,12 @@ const WebhookManagement: React.FC = () => {
 
   const loadWebhooks = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const res = await getWebhooks();
       setWebhooks(res.data.data?.webhooks ?? []);
     } catch (err) {
-      message.error('加载 Webhook 列表失败');
+      setError(err instanceof Error ? err : new Error('加载 Webhook 列表失败'));
     } finally {
       setLoading(false);
     }
@@ -228,33 +231,34 @@ const WebhookManagement: React.FC = () => {
     { key: 'createdAt', title: '时间', dataIndex: 'createdAt', width: 150, render: (v: unknown) => dayjs(String(v)).format('MM-DD HH:mm:ss') },
   ];
 
-  if (loading && webhooks.length === 0) {
-    return (
-      <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}>
-        <Spin tip="加载 Webhook..." size="large" />
-      </div>
-    );
-  }
-
   return (
     <div style={{ padding: 0 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
-        <div>
-          <Title level={3} style={{ margin: 0 }}>
-            <LinkOutlined style={{ marginRight: 8, color: colors.primary[500] }} />
-            Webhook 管理
-          </Title>
-          <Text type="secondary">平台 Webhook 配置与监控</Text>
+      <DataState
+        loading={loading && webhooks.length === 0}
+        error={error}
+        empty={webhooks.length === 0 && !loading}
+        emptyText="暂无 Webhook"
+        loadingText="加载 Webhook..."
+        retry={loadWebhooks}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
+          <div>
+            <Title level={3} style={{ margin: 0 }}>
+              <LinkOutlined style={{ marginRight: 8, color: colors.primary[500] }} />
+              Webhook 管理
+            </Title>
+            <Text type="secondary">平台 Webhook 配置与监控</Text>
+          </div>
+          <Space>
+            <Button icon={<ReloadOutlined />} onClick={loadWebhooks} loading={loading}>刷新</Button>
+            <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新建 Webhook</Button>
+          </Space>
         </div>
-        <Space>
-          <Button icon={<ReloadOutlined />} onClick={loadWebhooks} loading={loading}>刷新</Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新建 Webhook</Button>
-        </Space>
-      </div>
 
-      <Card>
-        <Table columns={columns} dataSource={webhooks} loading={loading} rowKey="id" size="middle" striped />
-      </Card>
+        <Card>
+          <Table columns={columns} dataSource={webhooks} loading={loading} rowKey="id" size="middle" striped />
+        </Card>
+      </DataState>
 
       {/* Create/Edit Modal */}
       <Modal

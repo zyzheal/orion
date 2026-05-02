@@ -17,10 +17,11 @@ import {
   SwapOutlined,
 } from '@ant-design/icons';
 import CardPanel from '@/components/CardPanel';
+import DataState from '@/components/DataState';
 import { mockManagerDashboard } from '@/pages/__mocks__/mockBIData';
 import { useBiDashboard } from '@/hooks/useBiDashboard';
 import type { ManagerDashboardData } from '@/types/pages';
-import { Spin, Alert } from 'antd';
+import { Alert } from 'antd';
 import dayjs from 'dayjs';
 import { BarChart, GaugeChart, PieChart, StatCard } from '@/components/charts';
 
@@ -81,9 +82,12 @@ const TrendIndicator: React.FC<{ trend: 'improving' | 'stable' | 'declining' }> 
 const ManagerDashboard: React.FC = () => {
   const { data: apiData, loading, error } = useBiDashboard('manager');
 
-  // Fallback to mock data when API is unavailable
+  // Fallback to mock data when API is unavailable (but not on error)
   const data = (apiData as ManagerDashboardData | undefined) ?? mockManagerDashboard;
-  const showMockWarning = !apiData;
+  const showMockWarning = !apiData && !error;
+
+  // Retry handler - reload page on error
+  const handleRetry = () => window.location.reload();
 
   // Week-over-week metrics
   const wowMetrics = useMemo(
@@ -243,41 +247,32 @@ const ManagerDashboard: React.FC = () => {
 
   return (
     <div style={{ padding: 0 }}>
-      {/* Loading state */}
-      {loading && !apiData && (
-        <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}>
-          <Spin tip="加载效能数据..." size="large" />
+      <DataState
+        loading={loading && !apiData}
+        error={error}
+        empty={false}
+        loadingText="加载效能数据..."
+        retry={handleRetry}
+      >
+        {/* Mock data warning - only show when API unavailable but no error */}
+        {showMockWarning && (
+          <Alert
+            message="API 不可用"
+            description="经理效能仪表盘 API 尚未部署，当前显示模拟数据。"
+            type="warning"
+            showIcon
+            closable
+            style={{ marginBottom: 16 }}
+          />
+        )}
+        {/* Page header */}
+        <div style={{ marginBottom: 24 }}>
+          <Title level={3} style={{ margin: 0 }}>
+            <TeamOutlined style={{ marginRight: 8, color: COLORS.info }} />
+            经理看板
+          </Title>
+          <Text type="secondary">团队管理与成员效能分析 — {dayjs().format('YYYY-MM-DD HH:mm')}</Text>
         </div>
-      )}
-      {/* Mock data warning */}
-      {showMockWarning && (
-        <Alert
-          message="API 不可用"
-          description="经理效能仪表盘 API 尚未部署，当前显示模拟数据。"
-          type="warning"
-          showIcon
-          closable
-          style={{ marginBottom: 16 }}
-        />
-      )}
-      {/* Error state */}
-      {error && (
-        <Alert
-          message="加载失败"
-          description={error.message}
-          type="error"
-          showIcon
-          style={{ marginBottom: 16 }}
-        />
-      )}
-      {/* Page header */}
-      <div style={{ marginBottom: 24 }}>
-        <Title level={3} style={{ margin: 0 }}>
-          <TeamOutlined style={{ marginRight: 8, color: COLORS.info }} />
-          经理看板
-        </Title>
-        <Text type="secondary">团队管理与成员效能分析 — {dayjs().format('YYYY-MM-DD HH:mm')}</Text>
-      </div>
 
       {/* Team Overview Cards */}
       <div style={{ marginBottom: 24 }}>
@@ -416,6 +411,7 @@ const ManagerDashboard: React.FC = () => {
           </CardPanel>
         </Col>
       </Row>
+      </DataState>
     </div>
   );
 };

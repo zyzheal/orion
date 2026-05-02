@@ -10,7 +10,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Typography, Button, Space, Tag, Card, Modal, Form, Input,
-  Switch, message, Popconfirm, Tooltip, Spin,
+  Switch, message, Popconfirm, Tooltip,
 } from 'antd';
 import {
   ReloadOutlined, PlusOutlined, PlayCircleOutlined,
@@ -19,6 +19,7 @@ import {
 } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import MetricCard from '@/components/MetricCard';
+import DataState from '@/components/DataState';
 import { colors, spacing } from '@/tokens';
 import {
   getCronJobs, createCronJob, updateCronJob,
@@ -40,6 +41,7 @@ const STATUS_CONFIG: Record<string, { color: string; label: string; icon: React.
 
 const CronManagement: React.FC = () => {
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
   const [jobs, setJobs] = useState<CronJob[]>([]);
   const [stats, setStats] = useState<{ running: number; total: number; enabled: number } | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
@@ -48,12 +50,13 @@ const CronManagement: React.FC = () => {
 
   const loadJobs = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const [jobsRes, statusRes] = await Promise.all([getCronJobs(), getCronStatus()]);
       setJobs(jobsRes.data.data?.jobs ?? []);
       setStats(statusRes.data.data ?? null);
     } catch (err) {
-      message.error('加载定时任务失败');
+      setError(err instanceof Error ? err : new Error('加载定时任务失败'));
     } finally {
       setLoading(false);
     }
@@ -211,44 +214,45 @@ const CronManagement: React.FC = () => {
     },
   ];
 
-  if (loading && jobs.length === 0) {
-    return (
-      <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}>
-        <Spin tip="加载定时任务..." size="large" />
-      </div>
-    );
-  }
-
   return (
     <div style={{ padding: 0 }}>
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
-        <div>
-          <Title level={3} style={{ margin: 0 }}>
-            <ClockCircleOutlined style={{ marginRight: 8, color: colors.primary[500] }} />
-            定时任务管理
-          </Title>
-          <Text type="secondary">Cron Job Management</Text>
+      <DataState
+        loading={loading && jobs.length === 0}
+        error={error}
+        empty={jobs.length === 0 && !loading}
+        emptyText="暂无定时任务"
+        loadingText="加载定时任务..."
+        retry={loadJobs}
+      >
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
+          <div>
+            <Title level={3} style={{ margin: 0 }}>
+              <ClockCircleOutlined style={{ marginRight: 8, color: colors.primary[500] }} />
+              定时任务管理
+            </Title>
+            <Text type="secondary">Cron Job Management</Text>
+          </div>
+          <Space>
+            <Button icon={<ReloadOutlined />} onClick={loadJobs} loading={loading}>刷新</Button>
+            <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新建任务</Button>
+          </Space>
         </div>
-        <Space>
-          <Button icon={<ReloadOutlined />} onClick={loadJobs} loading={loading}>刷新</Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新建任务</Button>
-        </Space>
-      </div>
 
-      {/* Stats */}
-      {stats && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: spacing.md, marginBottom: spacing.lg }}>
-          <MetricCard title="总任务数" value={stats.total} icon={<ClockCircleOutlined />} color={colors.primary[500]} size="medium" />
-          <MetricCard title="已启用" value={stats.enabled} icon={<CheckCircleOutlined />} color={colors.success[500]} size="medium" />
-          <MetricCard title="运行中" value={stats.running} icon={<PlayCircleOutlined />} color={colors.purple[500]} size="medium" />
-        </div>
-      )}
+        {/* Stats */}
+        {stats && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: spacing.md, marginBottom: spacing.lg }}>
+            <MetricCard title="总任务数" value={stats.total} icon={<ClockCircleOutlined />} color={colors.primary[500]} size="medium" />
+            <MetricCard title="已启用" value={stats.enabled} icon={<CheckCircleOutlined />} color={colors.success[500]} size="medium" />
+            <MetricCard title="运行中" value={stats.running} icon={<PlayCircleOutlined />} color={colors.purple[500]} size="medium" />
+          </div>
+        )}
 
-      {/* Job Table */}
-      <Card>
-        <Table columns={columns} dataSource={jobs} loading={loading} rowKey="id" size="middle" striped />
-      </Card>
+        {/* Job Table */}
+        <Card>
+          <Table columns={columns} dataSource={jobs} loading={loading} rowKey="id" size="middle" striped />
+        </Card>
+      </DataState>
 
       {/* Create/Edit Modal */}
       <Modal
