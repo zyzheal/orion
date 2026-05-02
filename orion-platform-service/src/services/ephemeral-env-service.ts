@@ -162,8 +162,15 @@ export class EphemeralEnvService {
     markTearingDown(env, reason);
     await this.repository.update(id, { status: 'tearing_down', destroyReason: reason });
 
-    // Teardown K8s resources
-    await this.k8sProvisioner.teardown(env.namespace);
+    try {
+      // Teardown K8s resources
+      await this.k8sProvisioner.teardown(env.namespace);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown K8s teardown error';
+      logger.error({ envId: env.id, error: message }, 'K8s teardown failed, resetting status');
+      await this.repository.update(id, { status: 'idle' });
+      throw new Error(`Failed to teardown K8s resources: ${message}`);
+    }
 
     markDestroyed(env, reason);
     await this.repository.update(id, {

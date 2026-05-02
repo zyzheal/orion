@@ -11,6 +11,10 @@ import { K8sProvisionerService } from '../services/k8s-provisioner-service';
 import { EventBusService } from '../services/event-bus-service';
 import { DatabasePool } from '../services/database';
 
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : 'Internal server error';
+}
+
 interface EphemeralEnvRoutesOptions {
   eventBus?: EventBusService;
   database?: DatabasePool;
@@ -54,8 +58,8 @@ export default async function ephemeralEnvRoutes(
         data: paginated,
         meta: { total: envs.length, page, pageSize },
       });
-    } catch (error: any) {
-      return reply.status(500).send({ code: 500, message: error.message });
+    } catch (error: unknown) {
+      return reply.status(500).send({ code: 500, message: errorMessage(error) });
     }
   });
 
@@ -65,11 +69,12 @@ export default async function ephemeralEnvRoutes(
     try {
       const env = await service.getById(params.id);
       return reply.send({ code: 200, message: 'OK', data: env });
-    } catch (error: any) {
-      if (error.message.includes('not found')) {
-        return reply.status(404).send({ code: 404, message: error.message });
+    } catch (error: unknown) {
+      const msg = errorMessage(error);
+      if (msg.includes('not found')) {
+        return reply.status(404).send({ code: 404, message: msg });
       }
-      return reply.status(500).send({ code: 500, message: error.message });
+      return reply.status(500).send({ code: 500, message: msg });
     }
   });
 
@@ -85,11 +90,12 @@ export default async function ephemeralEnvRoutes(
     try {
       const env = await service.create(body);
       return reply.status(201).send({ code: 201, message: 'Created', data: env });
-    } catch (error: any) {
-      if (error.message.includes('already exists')) {
-        return reply.status(409).send({ code: 409, message: error.message });
+    } catch (error: unknown) {
+      const msg = errorMessage(error);
+      if (msg.includes('already exists')) {
+        return reply.status(409).send({ code: 409, message: msg });
       }
-      return reply.status(500).send({ code: 500, message: error.message });
+      return reply.status(500).send({ code: 500, message: msg });
     }
   });
 
@@ -99,11 +105,12 @@ export default async function ephemeralEnvRoutes(
     try {
       const env = await service.wake(params.id);
       return reply.send({ code: 200, message: 'OK', data: env });
-    } catch (error: any) {
-      if (error.message.includes('not found')) {
-        return reply.status(404).send({ code: 404, message: error.message });
+    } catch (error: unknown) {
+      const msg = errorMessage(error);
+      if (msg.includes('not found')) {
+        return reply.status(404).send({ code: 404, message: msg });
       }
-      return reply.status(400).send({ code: 400, message: error.message });
+      return reply.status(400).send({ code: 400, message: msg });
     }
   });
 
@@ -114,11 +121,12 @@ export default async function ephemeralEnvRoutes(
     try {
       const env = await service.teardown(params.id, body?.reason);
       return reply.send({ code: 200, message: 'OK', data: env });
-    } catch (error: any) {
-      if (error.message.includes('not found')) {
-        return reply.status(404).send({ code: 404, message: error.message });
+    } catch (error: unknown) {
+      const msg = errorMessage(error);
+      if (msg.includes('not found')) {
+        return reply.status(404).send({ code: 404, message: msg });
       }
-      return reply.status(500).send({ code: 500, message: error.message });
+      return reply.status(500).send({ code: 500, message: msg });
     }
   });
 
@@ -128,11 +136,12 @@ export default async function ephemeralEnvRoutes(
     try {
       const cost = await service.getCost(params.id);
       return reply.send({ code: 200, message: 'OK', data: cost });
-    } catch (error: any) {
-      if (error.message.includes('not found')) {
-        return reply.status(404).send({ code: 404, message: error.message });
+    } catch (error: unknown) {
+      const msg = errorMessage(error);
+      if (msg.includes('not found')) {
+        return reply.status(404).send({ code: 404, message: msg });
       }
-      return reply.status(500).send({ code: 500, message: error.message });
+      return reply.status(500).send({ code: 500, message: msg });
     }
   });
 

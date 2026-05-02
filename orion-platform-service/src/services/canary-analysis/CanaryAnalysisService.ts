@@ -118,18 +118,18 @@ export class CanaryAnalysisService {
     return entities.map(e => this.entityToRun(e));
   }
 
-  private entityToRun(entity: any): CanaryAnalysisRun {
+  private entityToRun(entity: CanaryAnalysisRunEntity): CanaryAnalysisRun {
     return {
       id: entity.id,
-      deploymentId: entity.deploymentId ?? entity.deployment_id,
-      runNumber: entity.runNumber ?? entity.run_number ?? 0,
-      trafficSplit: (entity.trafficSplit ?? entity.traffic_split ?? { canary: 10, baseline: 90 }) as any,
+      deploymentId: entity.deploymentId,
+      runNumber: entity.runNumber ?? 0,
+      trafficSplit: entity.trafficSplit as unknown as CanaryAnalysisRun['trafficSplit'],
       status: (entity.status ?? 'running') as CanaryStatus,
       confidence: entity.confidence ?? 0,
       decision: (entity.decision ?? 'continue') as CanaryDecision,
-      startedAt: entity.startedAt ?? entity.started_at,
-      completedAt: entity.completedAt ?? entity.completed_at ?? undefined,
-      durationMs: entity.durationMs ?? entity.duration_ms ?? undefined,
+      startedAt: entity.startedAt,
+      completedAt: entity.completedAt ?? undefined,
+      durationMs: entity.durationMs ?? undefined,
     };
   }
 
@@ -467,22 +467,22 @@ export class CanaryAnalysisService {
     return this.configRepository.delete(id);
   }
 
-  private entityToConfig(entity: any): CanaryAnalysisConfig {
+  private entityToConfig(entity: CanaryAnalysisConfigEntity): CanaryAnalysisConfig {
     return {
       id: entity.id,
-      serviceName: entity.serviceName ?? entity.service_name,
+      serviceName: entity.serviceName,
       environment: entity.environment,
-      analysisIntervalSec: entity.analysisIntervalSec ?? entity.analysis_interval_sec ?? 300,
-      maxRounds: entity.maxRounds ?? entity.max_rounds ?? 5,
-      warmupPeriodSec: entity.warmupPeriodSec ?? entity.warmup_period_sec ?? 600,
-      promoteThreshold: entity.promoteThreshold ?? entity.promote_threshold ?? 0.75,
-      rollbackThreshold: entity.rollbackThreshold ?? entity.rollback_threshold ?? 0.60,
-      trafficStep: entity.trafficStep ?? entity.traffic_step ?? 20,
-      metricWeights: entity.metricWeights ?? entity.metric_weights,
-      excludedMetrics: entity.excludedMetrics ?? entity.excluded_metrics ?? [],
-      sloMetrics: entity.sloMetrics ?? entity.slo_metrics ?? [],
-      createdAt: entity.createdAt ?? entity.created_at,
-      updatedAt: entity.updatedAt ?? entity.updated_at,
+      analysisIntervalSec: entity.analysisIntervalSec ?? 300,
+      maxRounds: entity.maxRounds ?? 5,
+      warmupPeriodSec: entity.warmupPeriodSec ?? 600,
+      promoteThreshold: entity.promoteThreshold ?? 0.75,
+      rollbackThreshold: entity.rollbackThreshold ?? 0.60,
+      trafficStep: entity.trafficStep ?? 20,
+      metricWeights: entity.metricWeights ?? undefined,
+      excludedMetrics: entity.excludedMetrics ?? [],
+      sloMetrics: entity.sloMetrics ?? [],
+      createdAt: entity.createdAt,
+      updatedAt: entity.updatedAt,
     };
   }
 

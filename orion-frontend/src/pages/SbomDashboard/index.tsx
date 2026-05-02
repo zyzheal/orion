@@ -299,6 +299,7 @@ const SbomDashboard: React.FC = () => {
             title="合规评分"
             max={100}
             thresholds={{ warning: 80, danger: 60 }}
+            direction="descend"
             size={140}
             unit="%"
           />
