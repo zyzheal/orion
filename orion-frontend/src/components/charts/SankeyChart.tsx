@@ -41,8 +41,6 @@ export const SankeyChart: React.FC<SankeyChartProps> = ({
     series: [
       {
         type: 'sankey' as const,
-        layout: 'force' as const,
-        layoutIterations: 30,
         orient,
         data: nodes.map((n) => ({ name: n.name })),
         links: links.map((l) => ({ source: l.source, target: l.target, value: l.value })),

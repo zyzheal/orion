@@ -343,7 +343,28 @@ export class CanaryAnalysisService {
     ];
 
     // Complete the run (stores metrics, ML results, and decision to DB)
-    const completedRun = await this.completeRun(run.id, 'promote', [], []);
+    const metricInputs: CanaryMetricResultCreateInput[] = mockMetrics.map(m => ({
+      runId: m.runId,
+      metricName: m.metricName,
+      baselineValue: m.baselineValue,
+      canaryValue: m.canaryValue,
+      mannWhitneyP: m.mannWhitneyP,
+      ksStatistic: m.ksStatistic,
+      cliffDelta: m.cliffDelta,
+      verdict: m.verdict,
+      category: m.category,
+    }));
+
+    const mlInputs: CanaryMLResultCreateInput[] = mockML.map(ml => ({
+      runId: ml.runId,
+      modelName: ml.modelName,
+      prediction: ml.prediction,
+      confidence: ml.confidence,
+      shapExplanation: ml.shapExplanation,
+      clusterId: (ml as { clusterId?: number }).clusterId,
+    }));
+
+    const completedRun = await this.completeRun(run.id, 'promote', metricInputs, mlInputs);
 
     return { run: completedRun, metrics: mockMetrics, mlResults: mockML };
   }

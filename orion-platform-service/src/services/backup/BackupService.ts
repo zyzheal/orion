@@ -293,8 +293,9 @@ export class BackupService {
 
       this.verifier.registerBackups([record]);
       return record;
-    } catch (e: any) {
-      await this.repository.failJob(job.id, e.message);
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : String(e);
+      await this.repository.failJob(job.id, message);
       throw e;
     }
   }

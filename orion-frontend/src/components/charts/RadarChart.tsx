@@ -3,6 +3,15 @@ import ReactECharts from 'echarts-for-react';
 import { Spin } from 'antd';
 import { useChartTheme } from './ChartProvider';
 
+function hexToRgba(hex: string, alpha: number): string {
+  const clean = hex.replace('#', '');
+  if (clean.length !== 6) return hex;
+  const r = parseInt(clean.slice(0, 2), 16);
+  const g = parseInt(clean.slice(2, 4), 16);
+  const b = parseInt(clean.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
 export interface RadarIndicator {
   name: string;
   max: number;
@@ -60,7 +69,7 @@ export const RadarChart: React.FC<RadarChartProps> = ({
         splitLine: { lineStyle: { color: theme.borderColor, type: 'dashed' } },
         splitArea: {
           areaStyle: {
-            color: [theme.borderColor + '10', theme.borderColor + '20'],
+            color: [hexToRgba(theme.borderColor, 0.1), hexToRgba(theme.borderColor, 0.2)],
           },
         },
       },

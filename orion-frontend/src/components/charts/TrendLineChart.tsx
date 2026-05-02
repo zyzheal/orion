@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { Spin, Empty } from 'antd';
 import { useChartTheme } from './ChartProvider';
@@ -31,6 +31,8 @@ export const TrendLineChart: React.FC<TrendLineChartProps> = ({
   error = null,
 }) => {
   const theme = useChartTheme();
+  const formatterRef = useRef(tooltipFormatter);
+  formatterRef.current = tooltipFormatter;
 
   const option = useMemo(() => {
     const allPeriods = [...new Set(data.flatMap((series) => series.map((d) => d.period)))];
@@ -55,11 +57,11 @@ export const TrendLineChart: React.FC<TrendLineChartProps> = ({
         : undefined,
       tooltip: {
         trigger: 'axis' as const,
-        formatter: tooltipFormatter
+        formatter: formatterRef.current
           ? (params: unknown[]) => {
               if (!params || params.length === 0) return '';
               const first = params[0] as { name: string; data: number };
-              return tooltipFormatter({ period: first.name, value: first.data });
+              return formatterRef.current!({ period: first.name, value: first.data });
             }
           : undefined,
       },
@@ -82,7 +84,7 @@ export const TrendLineChart: React.FC<TrendLineChartProps> = ({
       },
       series: seriesList,
     };
-  }, [data, title, showArea, smooth, tooltipFormatter, theme]);
+  }, [data, title, showArea, smooth, theme]);
 
   if (error) {
     return <Empty description={error.message} image={Empty.PRESENTED_IMAGE_SIMPLE} />;
@@ -90,7 +92,7 @@ export const TrendLineChart: React.FC<TrendLineChartProps> = ({
 
   if (loading) {
     return (
-      <div style={{ height, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ height, display: 'flex', alignItems: 'center', justifyContent: 'center' }} aria-busy="true">
         <Spin tip="Loading..." />
       </div>
     );

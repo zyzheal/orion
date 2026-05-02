@@ -10,6 +10,12 @@ export interface GaugeChartProps {
     warning: number;
     danger: number;
   };
+  /**
+   * Controls threshold semantics:
+   * - 'ascend' (default): higher value = more dangerous (e.g., error rate, latency)
+   * - 'descend': higher value = safer (e.g., SLA compliance, success rate)
+   */
+  direction?: 'ascend' | 'descend';
   size?: number;
   unit?: string;
 }
@@ -19,6 +25,7 @@ export const GaugeChart: React.FC<GaugeChartProps> = ({
   title,
   max = 100,
   thresholds,
+  direction = 'ascend',
   size = 160,
   unit = '%',
 }) => {
@@ -29,10 +36,20 @@ export const GaugeChart: React.FC<GaugeChartProps> = ({
     const percentage = (value / safeMax) * 100;
     let valueColor = theme.success;
     if (thresholds) {
-      if (percentage >= thresholds.danger) {
-        valueColor = theme.error;
-      } else if (percentage >= thresholds.warning) {
-        valueColor = theme.warning;
+      if (direction === 'ascend') {
+        // Higher value = more dangerous (e.g., error rate)
+        if (percentage >= thresholds.danger) {
+          valueColor = theme.error;
+        } else if (percentage >= thresholds.warning) {
+          valueColor = theme.warning;
+        }
+      } else {
+        // Higher value = safer (e.g., SLA compliance)
+        if (percentage <= thresholds.danger) {
+          valueColor = theme.error;
+        } else if (percentage <= thresholds.warning) {
+          valueColor = theme.warning;
+        }
       }
     }
 
@@ -74,7 +91,7 @@ export const GaugeChart: React.FC<GaugeChartProps> = ({
         },
       ],
     };
-  }, [value, title, safeMax, thresholds, size, unit, theme]);
+  }, [value, title, safeMax, thresholds, direction, size, unit, theme]);
 
   return (
     <ReactECharts

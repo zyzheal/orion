@@ -29,6 +29,15 @@ import { getMonitoringHealth, getMetrics, getDashboardData } from '@/api/monitor
 
 const { Title, Text } = Typography;
 
+interface MetricSummary {
+  requestRate: number;
+  errorRate: number;
+  latencyP50: number;
+  latencyP95: number;
+  latencyP99: number;
+  throughput: number;
+}
+
 // ============================================================================
 // Type Definitions
 // ============================================================================
@@ -116,19 +125,21 @@ const MetricsDashboard: React.FC = () => {
         getDashboardData(),
       ]);
 
-      const metricsData = metricsRes.data.data || [];
-      const dashboardData = dashboardRes.data.data;
+      const metricsData = metricsRes?.data?.data || [];
+      const dashboardData = dashboardRes?.data?.data;
 
       if (dashboardData) {
+        const metrics = dashboardData.metrics;
         setMetricSummary({
-          requestRate: dashboardData.metrics?.rate ?? 0,
+          requestRate: metrics?.rate ?? 0,
           errorRate: dashboardData.alerts?.total
             ? (dashboardData.alerts.active / dashboardData.alerts.total) * 100
             : 0,
-          latencyP50: (dashboardData.metrics as any)?.latencyP50 ?? 0,
-          latencyP95: (dashboardData.metrics as any)?.latencyP95 ?? 0,
-          latencyP99: (dashboardData.metrics as any)?.latencyP99 ?? 0,
-          throughput: (dashboardData.metrics as any)?.throughput ?? 0,
+          // Latency and throughput not yet available from API — synthetic defaults
+          latencyP50: 0,
+          latencyP95: 0,
+          latencyP99: 0,
+          throughput: 0,
         });
       } else {
         setMetricSummary(null);

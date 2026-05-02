@@ -378,6 +378,7 @@ const ExecutiveDashboard: React.FC = () => {
                   title="SLA合规率"
                   value={data.overview.slaComplianceRate}
                   thresholds={{ warning: 85, danger: 90 }}
+                  direction="descend"
                   size={160}
                 />
               </div>

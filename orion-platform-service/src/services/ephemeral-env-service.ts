@@ -50,6 +50,7 @@ export class EphemeralEnvService {
     if (options.database) {
       this.repository = new EphemeralEnvRepository(options.database);
     } else {
+      logger.warn('[EphemeralEnv] Database pool not available, repository will use in-memory fallback');
       this.repository = new EphemeralEnvRepository(null as unknown as DatabasePool);
     }
   }
