@@ -1,13 +1,14 @@
 import React from 'react';
 import { colors } from '@/tokens/colors';
 import { ActionCard } from './ActionCard';
+import type { ExtendedAction } from '@/components/ChatOps/types';
 
 export interface ChatMessageData {
   id: string;
   role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: Date;
-  actions?: Array<{ label: string; command: string; params: Record<string, unknown> }>;
+  actions?: ExtendedAction[];
   status?: 'success' | 'failed' | 'running';
 }
 

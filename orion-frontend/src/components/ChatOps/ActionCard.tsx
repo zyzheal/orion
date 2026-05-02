@@ -1,8 +1,10 @@
 import React from 'react';
 import { Button, Space } from 'antd';
-import { CheckCircleOutlined, CloseCircleOutlined, LoadingOutlined } from '@ant-design/icons';
+import { CheckCircleOutlined, CloseCircleOutlined, LoadingOutlined, ArrowRightOutlined, ExportOutlined } from '@ant-design/icons';
 import { colors } from '@/tokens/colors';
-import { useChatOpsStore } from '@/stores/chatOpsStore';
+import { useActionHandler } from './useActionHandler';
+import type { ExtendedAction } from './types';
+import { hasTarget } from './types';
 
 const statusIcons = {
   success: <CheckCircleOutlined style={{ color: colors.success[500] }} />,
@@ -10,11 +12,22 @@ const statusIcons = {
   running: <LoadingOutlined style={{ color: colors.warning[500] }} />,
 };
 
+/** Get a small icon for the action type */
+function getActionIcon(action: ExtendedAction): React.ReactNode {
+  if (hasTarget(action)) {
+    if (action.target?.externalUrl) {
+      return <ExportOutlined style={{ fontSize: 10, marginLeft: 4, opacity: 0.5 }} />;
+    }
+    return <ArrowRightOutlined style={{ fontSize: 10, marginLeft: 4, opacity: 0.5 }} />;
+  }
+  return null;
+}
+
 export const ActionCard: React.FC<{
-  actions: Array<{ label: string; command: string; params: Record<string, unknown> }>;
+  actions: ExtendedAction[];
   status?: 'success' | 'failed' | 'running';
 }> = ({ actions, status }) => {
-  const { executeAction } = useChatOpsStore();
+  const handleAction = useActionHandler();
 
   return (
     <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -29,9 +42,10 @@ export const ActionCard: React.FC<{
             key={action.label}
             size="small"
             type="default"
-            onClick={() => executeAction(action.command, action.params)}
+            onClick={() => handleAction(action)}
           >
             {action.label}
+            {getActionIcon(action)}
           </Button>
         ))}
       </Space>
