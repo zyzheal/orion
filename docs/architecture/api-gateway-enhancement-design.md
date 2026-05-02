@@ -1,3 +1,5 @@
+> ⚠️ **目标设计，未实现**。详见 [`当前系统架构.md`](./当前系统架构.md)。
+
 # API Gateway Enhancement Design
 
 **文档版本**: v1.0  

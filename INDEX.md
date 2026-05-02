@@ -2,8 +2,8 @@
 
 > 版本：v2.1 | 创建日期：2026-04-10 | 状态：**44+ 模块 260+ 功能**
 > 变更日志：[CHANGELOG.md](CHANGELOG.md) | 管理规范：[docs/文档管理规范.md](docs/文档管理规范.md)
-> **最新更新**: 2026-05-02 — 文档统计数字校准 (170+ → 250+)，根目录过时文档归档
-> **实现进度**: 后端 ~78% | 前端 ~85% | API 一致性 ~95% | 数据库 70 migrations
+> **最新更新**: 2026-05-02 — 三轮文档清理完成 (53 份归档)，INDEX.md 全量校准，新增模块补全
+> **实现进度**: 后端 ~80% | 前端 ~88% | API 一致性 ~95% | 数据库 90 migrations
 
 ---
 
@@ -11,23 +11,21 @@
 
 ```
 📖 完整设计方案  →  Orion-完整设计方案.md (868 行，主文档)
-📋 任务分发      →  00-文档索引与任务分发.md (37 模块，251 功能)
 📐 架构决策      →  docs/adr/ (11 份 ADR)
-🏗️ 架构设计      →  docs/architecture/ (20 份)
-🤖 AI/算法       →  docs/ai/ (15 份)
+🏗️ 架构设计      →  docs/architecture/ (~25 份，4 份已归档)
+🤖 AI/算法       →  docs/ai/ (20 份)
 🔒 安全          →  docs/security/ (10 份)
-🖥️ 前端          →  docs/frontend/ (12 份)
-📊 效能          →  docs/efficiency/ (3 份)
-🗄️ 数据库        →  docs/db/ (8 份)
-🔧 运维/SRE      →  docs/sre/ (8 份)
+🖥️ 前端          →  docs/frontend/ (~18 份，4 份已归档)
+📊 效能          →  docs/efficiency/ (3 份，2 份已归档)
+🗄️ 数据库        →  docs/db/ (7 份，1 份已归档)
+🔧 运维/SRE      →  docs/sre/ (11 份，1 份已归档)
 🎨 UI/UX         →  docs/ui/ (3 份)
 📦 制品管理      →  docs/artifact/ (5 份)
 🔌 集成          →  docs/integration/ (6 份)
 📚 知识库        →  docs/knowledge/ (4 份)
-📝 评审报告      →  reports/ (5 份)
-📊 协作          →  docs/collaboration/ (2 份)
+📝 评审报告      →  reports/ (3 份，2 份已归档)
+📊 协作          →  docs/collaboration/ (3 份)
 🎨 高保真设计    →  design-md/ (23 份)
-📄 文档模板      →  templates/ (2 份)
 📋 需求功能汇总  →  docs/requirements/需求功能更新汇总.md
 ```
 
@@ -38,12 +36,12 @@
 | 维度 | 数量 | 说明 |
 |------|------|------|
 | **后端服务目录** | 70+ 个 | `orion-platform-service/src/services/` 含子服务文件 |
-| **后端服务模块** | 35+ 个 | `services/*/index.ts` 独立服务包 (30+ 已迁移 PostgreSQL) |
-| **前端页面** | 57+ 个 | `orion-frontend/src/pages/` |
-| **API 客户端** | 39 个 | `orion-frontend/src/api/` |
-| **后端路由** | 48 个 | `orion-platform-service/src/api/*-routes.ts` |
-| **数据库迁移** | 70 个 (001-055) | `orion-platform-service/src/db/migrations/` |
-| **设计文档** | 250+ 份 | 含架构/AI/安全/前端/SRE 等 |
+| **后端服务模块** | 45 个 | `services/*/index.ts` 独立服务包 (30+ 已迁移 PostgreSQL) |
+| **前端页面** | 70 个 | `orion-frontend/src/pages/` |
+| **API 客户端** | 56 个 | `orion-frontend/src/api/` |
+| **后端路由** | 50 个 | `orion-platform-service/src/api/*-routes.ts` |
+| **数据库迁移** | 90 个 (001-067) | `orion-platform-service/src/db/migrations/` |
+| **设计文档** | ~200 份 | 含架构/AI/安全/前端/SRE 等 (53 份已归档) |
 
 > 注：30+ 服务已从 `Map()` 迁移至 PostgreSQL Repository 模式。API 路径不匹配已修复 (~95% 一致)。
 
@@ -51,10 +49,10 @@
 
 | 状态 | 数量 | 模块 |
 |------|------|------|
-| ✅ 全栈实现 | ~31 | M1,M4,M5,M6,M7,M9-M20,M22-M23,M26,M29,M30-M31,M35-M37 + M38-M41 |
-| 🟡 部分实现 | 10+ | M2,M3,M8,M24,M25,M27,M28,M32,M33,M34, Risk Assessment, Alert, Scheduler |
+| ✅ 全栈实现 | ~31 | M1,M4-M7,M9,M11-M23,M26,M29-M31,M35-M41 |
+| 🟡 部分实现 | 10+ | M2,M3,M8,M10,M24,M25,M27,M28,M32-M34, Risk Assessment, Alert, Scheduler |
 | 🔴 未实现 | 0 | — |
-| ➕ 代码新增 | 8+ | Risk Assessment, Alert, Scheduler, Test Selector, CMDB 增强, 多个独立服务 |
+| ➕ 代码新增 | 18+ | S1-S18 (OnCall, Vector Store, API Key, Cron, Webhook, Queue, Environment, User/Role/Session, Projects, Approvals, Risk Assessment, Alert, Scheduler, Test Selector, CMDB 增强等) |
 
 ---
 
@@ -62,10 +60,10 @@
 
 | 维度 | 数量 |
 |------|------|
-| 总文档数 | **250+ 份** (不含子项目) |
-| 总行数 | **~218,000 行** |
-| ADR 决策记录 | **13 份** |
-| 评审报告 | **5 份** |
+| 总文档数 | **~200 份** (不含子项目，53 份已归档) |
+| 总行数 | **~170,000 行** (归档后) |
+| ADR 决策记录 | **11 份** |
+| 评审报告 | **3 份** (2 份已归档) |
 | 高保真设计 | **23 份** |
 | 文档模板 | **2 份** |
 | 子项目 | orion-visor, orion-knowledge, orion-dba |
@@ -100,25 +98,20 @@
 | [**当前系统架构**](docs/architecture/当前系统架构.md) | ~300 | **当前实际架构（Node.js 单体 + wujie）** | ✅ 最新 |
 | [**最小系统启动指南**](docs/architecture/最小系统启动指南.md) | ~200 | **从零启动 Orion 的完整步骤** | ✅ 最新 |
 | [架构设计详解](docs/architecture/架构设计详解.md) | ~1000 | 分层架构、技术选型 | ⚠️ 理想态 |
-| [架构重构设计](docs/architecture/架构重构设计.md) | ~600 | 核心域 + 支撑域重构方案 | ⚠️ 未实施 |
-| [微服务与微前端架构](docs/architecture/微服务与微前端架构设计.md) | ~800 | 8 微服务 + 7 前端子应用 | ⚠️ 未实现 |
-| [服务拆分与数据库划分](docs/architecture/服务拆分与数据库划分详解.md) | ~1100 | 12 个微服务 + 数据库分配 | ⚠️ 未实现 |
-| [平台服务拆分设计](docs/architecture/platform-service-split-design.md) | ~880 | orion-platform-service 拆分为 3 个服务 | ⚠️ 未实施 |
-| [服务拆分实施方案](docs/architecture/platform-service-split-implementation.md) | ~800 | 4 服务拆分方案 | ⚠️ 未实施 |
+| [架构重构设计](docs/architecture/架构重构设计.md) | ~600 | 核心域 + 支撑域重构方案 | ⚠️ 目标设计 |
+| ⚠️ [平台服务拆分设计](docs/architecture/platform-service-split-design.md) | ~880 | orion-platform-service 拆分为 3 个服务 | ⚠️ 目标设计 |
+| ⚠️ [服务拆分实施方案](docs/architecture/platform-service-split-implementation.md) | ~800 | 4 服务拆分方案 | ⚠️ 目标设计 |
 | [多租户隔离设计](docs/architecture/多租户隔离设计.md) | ~400 | 四隔离模型 | |
 | [开放平台基座能力规则](docs/architecture/开放平台基座能力规则设计.md) | ~500 | 插件 SPI 规范 | |
 | [跨时代颠覆性亮点设计](docs/architecture/跨时代颠覆性亮点设计.md) | ~700 | 自主事件指挥官等 6 大亮点 | |
 | [外部组件集成架构](docs/architecture/外部组件集成架构设计.md) | ~300 | 第三方系统集成 | |
 | [外部服务集成清单](docs/architecture/外部服务集成清单.md) | ~200 | 集成列表 | |
-| [Plugin SPI 示例](docs/architecture/plugin-spi-examples.md) | ~300 | 代码示例 |
-| [平台服务拆分设计](docs/architecture/platform-service-split-design.md) | ~880 | orion-platform-service 拆分为 3 个服务 |
-| [gRPC 集成设计](docs/architecture/grpc-integration-design.md) | ~700 | gRPC vs REST 决策矩阵 |
+| [Plugin SPI 示例](docs/architecture/plugin-spi-examples.md) | ~300 | 代码示例 | |
+| [gRPC 集成设计](docs/architecture/grpc-integration-design.md) | ~700 | gRPC vs REST 决策矩阵 | |
 | [熔断降级设计](docs/architecture/circuit-breaker-degradation-design.md) | ~600 | L0-L3 降级级别 |
 | [数据库迁移与查询设计](docs/architecture/database-migration-and-query-design.md) | ~550 | Flyway 迁移工具 |
-| [Orion 架构流程图](docs/architecture/Onion-架构流程图.md) | ~500 | 完整架构图 (10 个) |
-| [服务拆分实施方案](docs/architecture/platform-service-split-implementation.md) | ~800 | 4 服务拆分方案 |
-| [微前端统一技术栈](docs/architecture/micro-frontend-unified-stack-design.md) | ~1100 | React 18 + Ant Design 5 |
-| [API Gateway 增强](docs/architecture/api-gateway-enhancement-design.md) | ~1100 | 限流/熔断/版本化/路由 |
+| [Orion 架构流程图](docs/architecture/Onion-架构流程图.md) | ~500 | 完整架构图 (10 个) | |
+| [API Gateway 增强](docs/architecture/api-gateway-enhancement-design.md) | ~1100 | 限流/熔断/版本化/路由 | |
 | [配置漂移检测](docs/architecture/configuration-drift-detection-design.md) | ~950 | GitOps 漂移检测/自动回滚 |
 | [缓存层设计](docs/architecture/cache-layer-design.md) | ~1150 | Redis/失效策略/一致性 |
 | [API 版本管理](docs/architecture/api-version-management-design.md) | ~1150 | 版本化策略/生命周期 |
@@ -174,9 +167,8 @@
 | [API 层设计规范](docs/frontend/API%20层设计规范.md) | ~300 | 前端 API 层 |
 | [WebSocket 认证集成](docs/frontend/WebSocket%20认证集成设计.md) | ~300 | 实时通信 |
 | [组件状态管理优化](docs/frontend/组件状态管理优化.md) | ~300 | 状态管理 |
-| [Micro-frontend Guide](docs/frontend/micro-frontend-development-guide.md) | ~500 | 微前端开发指南 |
-| [微前端统一技术栈](docs/frontend/micro-frontend-unified-stack-design.md) | ~1100 | Vue 3 + qiankun |
-| [WebSocket 单例管理](docs/frontend/websocket-singleton-design.md) | ~900 | 多 Tab 共享连接 |
+| [Micro-frontend Guide](docs/frontend/micro-frontend-development-guide.md) | ~500 | 微前端开发指南 | |
+| [WebSocket 单例管理](docs/frontend/websocket-singleton-design.md) | ~900 | 多 Tab 共享连接 | |
 | [AI 人工确认交互设计规范](docs/frontend/AI%20人工确认交互设计规范.md) | ~1200 | P0/P1/P2/P3 分层确认 |
 
 ### 🔌 前端缺口模块设计 (新增 6 份)
@@ -210,9 +202,8 @@
 | [外部开源系统接入](docs/db/外部开源系统接入数据库扩展设计.md) | ~300 | 多数据源 |
 | [SQL 审计设计](docs/db/sql-audit-design.md) | ~200 | SQL 审计 |
 | [CMDB 数据库 Schema](docs/db/CMDB-数据库%20Schema%20设计.md) | ~200 | CMDB 表结构 |
-| [数据库迁移与查询设计](docs/db/database-migration-and-query-design.md) | ~550 | Flyway 迁移 |
-| [数据库迁移策略](docs/db/database-migration-strategy-design.md) | ~400 | Schema 变更流程 |
-| [缓存层设计](docs/db/cache-layer-design.md) | ~600 | Redis 使用场景 |
+| [数据库迁移与查询设计](docs/db/database-migration-and-query-design.md) | ~550 | Flyway 迁移 | |
+| [缓存层设计](docs/db/cache-layer-design.md) | ~600 | Redis 使用场景 | |
 
 ### 🔧 SRE / 运维
 
@@ -221,12 +212,10 @@
 | [部署架构与监控指标](docs/sre/部署架构与监控指标设计.md) | ~400 | 部署拓扑 |
 | [可观测性设计](docs/sre/可观测性设计.md) | ~500 | 指标/日志/追踪 |
 | [灾备与备份恢复](docs/sre/灾备与备份恢复设计.md) | ~700 | 多活架构 |
-| [SRE 运维加固](docs/sre/SRE%20运维加固设计.md) | ~400 | 运维手册 |
-| [运维手册](docs/sre/运维手册.md) | ~300 | 日常运维 |
-| [SRE 运维加固设计](docs/sre/sre-hardening-design.md) | ~600 | 监控/告警/演练 |
-| [混沌工程方案](docs/sre/chaos-engineering-design.md) | ~700 | 故障注入测试 |
-| [容量规划与弹性伸缩](docs/sre/capacity-planning-design.md) | ~800 | HPA/VPA/集群自动伸缩 |
-| [**OnCall 排班系统**](docs/sre/oncall-scheduling-design.md) | ~2595 | **排班规则/告警路由/升级策略** |
+| [SRE 运维加固](docs/sre/sre-hardening-design.md) | ~600 | 监控/告警/演练 | |
+| [混沌工程方案](docs/sre/chaos-engineering-design.md) | ~700 | 故障注入测试 | |
+| [容量规划与弹性伸缩](docs/sre/capacity-planning-design.md) | ~800 | HPA/VPA/集群自动伸缩 | |
+| [**OnCall 排班系统**](docs/sre/OnCall%20排班系统设计.md) | ~2595 | **排班规则/告警路由/升级策略** | |
 
 ### 📦 制品管理 (新增 2 份)
 
@@ -253,9 +242,9 @@
 
 | 文档 | 行数 | 说明 |
 |------|------|------|
-| [DORA 指标计算](docs/efficiency/DORA%20指标计算设计.md) | ~500 | 四指标算法 |
-| [FinOps 成本采集](docs/efficiency/FinOps-成本数据采集设计.md) | ~400 | 成本数据 |
-| [效能看板详细设计](docs/efficiency/dashboard-design.md) | ~900 | DORA/趋势/对比/AI 建议 |
+| [DORA 指标计算](docs/efficiency/DORA%20指标计算设计.md) | ~500 | 四指标算法 | |
+| [FinOps 成本采集](docs/efficiency/FinOps-成本数据采集设计.md) | ~400 | 成本数据 | |
+| [效能看板详细设计](docs/efficiency/dashboard-design.md) | ~900 | DORA/趋势/对比/AI 建议 | |
 
 ### 🎨 UI/UX (新增 1 份)
 
@@ -265,13 +254,15 @@
 | [Design-Tokens](docs/ui/Design-Tokens%20完整定义.md) | ~300 | 设计令牌 |
 | [UI 视觉交互设计评审报告](docs/ui/ui-ux-design-review.md) | ~500 | UI 评审详细 |
 
-### 📡 事件总线 (新增 1 份)
+### 📡 事件总线
 
-| 文档 | 行数 | 说明 |
-|------|------|------|
-| [NATS 事件总线功能](docs/event-bus/NATS%20事件总线功能设计.md) | ~400 | 事件格式 |
-| [NATS 高可用方案](docs/event-bus/NATS%20高可用方案设计.md) | ~300 | 集群部署 |
-| [事件 Schema 注册表](docs/event-bus/event-schema-registry-design.md) | ~1100 | CloudEvents 规范 |
+> ⚠️ 以下为目标设计，当前 EventBus 使用 fallback 模式，未接入 NATS。详见 CLAUDE.md。
+
+| 文档 | 行数 | 说明 | 状态 |
+|------|------|------|------|
+| [NATS 事件总线功能](docs/event-bus/NATS%20事件总线功能设计.md) | ~400 | 事件格式 | ⚠️ 目标设计 |
+| [NATS 高可用方案](docs/event-bus/NATS%20高可用方案设计.md) | ~300 | 集群部署 | ⚠️ 目标设计 |
+| [事件 Schema 注册表](docs/event-bus/event-schema-registry-design.md) | ~1100 | CloudEvents 规范 | ⚠️ 目标设计 |
 
 ### 🏗️ IaC 管理
 
@@ -289,12 +280,12 @@
 
 ### 📝 评审报告
 
+> 注: 2 份历史评审报告已归档至 `reports/archive/`。
+
 | 文档 | 行数 | 说明 |
 |------|------|------|
-| [评审报告](reports/评审报告.md) | ~400 | 综合评审 |
+| [26 模块多角色评审](reports/26%20模块多角色评审报告.md) | ~600 | 多角色评审 |
 | [模块功能与交互评审](reports/模块功能与交互评审报告.md) | ~500 | 交互评审 |
-| [26 模块多角色评审](reports/26%20模块多角色评审报告.md) | ~600 | 多角色评审 (已扩展为 37 模块) |
-| [多角色综合评审](reports/多角色综合评审报告.md) | ~400 | 综合评审 |
 | [UI 视觉交互评审](reports/UI%20视觉交互设计评审报告.md) | ~500 | UI 评审 |
 
 ### 📊 协作
@@ -331,7 +322,7 @@
 |------|------|----------|----------|---------|
 | M1 | 效能看板 | ✅ 全栈 | `services/efficiency/` `pages/EfficiencyDashboard/` `api/efficiency.ts` `efficiency-routes.ts` | DORA 指标计算，前端组件库，效能看板详细设计 |
 | M2 | 流水线可视化 | 🟡 前端组件 | `pages/PipelineList/` `PipelineEditor/` `PipelineDetail/` `api/pipelines.ts` `build-routes.ts` | 前端架构，WebSocket 认证 |
-| M3 | 审批工作台 | 🟡 嵌入组件 | `pages/SelfHealing/ApprovalQueue.tsx` | 审批组件库，前端架构 |
+| M3 | 审批工作台 | 🟡 全栈 | `pages/Approvals/` `approval-routes.ts` | 审批组件库 |
 | M4 | 安全审计中心 | ✅ 全栈 | `services/ai-security/` `pages/RiskDashboard/` `api/risk.ts` `ai-security-routes.ts` `risk-routes.ts` | 安全与权限，数据隐私合规，审计日志防篡改 |
 | M5 | Pipeline 引擎 | ✅ 全栈 | `services/pipeline/` `pages/PipelineList/Editor/Detail/` `api/pipelines.ts` `build-routes.ts` | 算法设计，Plugin-SPI |
 | M6 | 多分支产品线 | ✅ 全栈 | `services/product-line/` `pages/ProductLine/` `api/product-line.ts` `product-line-routes.ts` | ADR-001, ADR-008, product-line-management-design.md |
@@ -357,7 +348,7 @@
 | M26 | 可观测性 | ✅ 全栈 | `services/monitoring/` `services/diagnostic/` `pages/Monitoring/` `Diagnostic/` `api/monitoring.ts` `diagnostic.ts` `monitoring-routes.ts` `diagnostic-routes.ts` | 可观测性设计，部署架构 |
 | M27 | 插件扩展 | 🟡 与 M15 共用 | `services/plugin/` `services/plugin-spi/` `pages/PluginManagement/` `api/plugins.ts` `routes-plugin.ts` | Plugin-SPI, 开放平台基座 |
 | M28 | Orion-Knowledge | 🟡 独立子项目 | `orion-knowledge/` (Go 微服务 + Vue 前端) | 微服务改造方案，知识库基础设计，RAG 问答 |
-| M29 | 产物管理 | ✅ 全栈 | `services/artifact/` `pages/ArtifactManagement/` `api/artifact.ts` `artifact-routes.ts` | 产物管理详细设计，Artifact Promotion |
+| M29 | 产物管理 | ✅ 全栈 | `services/artifact/` `pages/Artifacts/` `api/artifact.ts` `artifact-routes.ts` | 产物管理详细设计，Artifact Promotion |
 | M30 | 二方库管理 | ✅ 全栈 | `services/internal-library/` `pages/InternalLibrary/` `api/internal-library.ts` `internal-library-routes.ts` | 二方库管理详细设计，依赖追踪 |
 | M31 | 智能工单 | ✅ 全栈 | `services/ticketing/` `pages/TicketList/Detail/` `api/ticketing.ts` `ticketing-routes.ts` | 智能工单与自动排单设计 |
 | M32 | CMDB | 🟡 后端服务 | `services/cmdb/` `services/cmdb-integration-service.ts` | CMDB 模块设计，CMDB 集成接口，CMDB Schema |
@@ -384,6 +375,21 @@
 | S7 | 策略引擎增强 | 🟡 后端 | `services/policy/` | PolicyEvaluationService |
 | S8 | SBOM 增强 | 🟡 后端 | `services/sbom/` | SbomVulnerabilityService, SbomWaiverService |
 
+### 新增模块 (全栈实现，缺设计文档)
+
+| 模块 | 名称 | 实现状态 | 代码位置 | 文档状态 |
+|------|------|----------|----------|----------|
+| S9 | OnCall 排班 | ✅ 全栈 | `oncall-routes.ts` + `pages/OnCall/` | ❌ 待补充 |
+| S10 | Vector Store | ✅ 全栈 | `vector-store-routes.ts` + `pages/VectorStore/` | ❌ 待补充 |
+| S11 | API Key 管理 | ✅ 全栈 | `api-key-routes.ts` + `pages/ApiKeyManagement/` | ❌ 待补充 |
+| S12 | Cron 管理 | ✅ 全栈 | `cron-routes.ts` + `pages/CronManagement/` | ❌ 待补充 |
+| S13 | Webhook 管理 | ✅ 全栈 | `webhook-routes.ts` + `pages/WebhookManagement/` | ❌ 待补充 |
+| S14 | Queue 管理 | ✅ 全栈 | `queue-routes.ts` + `pages/Queue/` | ❌ 待补充 |
+| S15 | 环境管理 | ✅ 全栈 | `environment-routes.ts` + `pages/Environment/` | ❌ 待补充 |
+| S16 | 用户权限 | ✅ 全栈 | `user-routes.ts` + `role-routes.ts` + `session-routes.ts` + `pages/UserManagement/RoleManagement/Sessions/` | ❌ 待补充 |
+| S17 | 项目管理 | ✅ 全栈 | `project-routes.ts` + `pages/Projects/` | ❌ 待补充 |
+| S18 | Approvals | ✅ 全栈 | `approval-routes.ts` + `pages/Approvals/` | ❌ 待补充 |
+
 > 注: 以上服务的持久化已逐步迁移至 PostgreSQL Repository 模式。
 
 ### 前端 Dashboard 变体
@@ -401,10 +407,9 @@
 
 ## 文档模板
 
-| 模板 | 用途 |
-|------|------|
-| [ADR 模板](templates/模板-ADR%20架构决策.md) | 架构决策记录 |
-| [模块技术规格](templates/模板%20-%20模块技术规格.md) | 模块详细设计 |
+> ⚠️ 文档模板目录 `templates/` 当前不存在，需创建。
+
+_模板待创建: ADR 模板、模块技术规格模板_
 
 ---
 
@@ -432,8 +437,8 @@ wc -l docs/**/*.md
 
 ---
 
-> 最近完成: M25 持久化迁移 (30+ 服务 Map() → PostgreSQL), M6/M29/M30 全栈实现, API 路径修复 (~95%)
+> 最近完成: 三轮文档清理 (53 份归档) + INDEX.md 全量校准 + 10 个新增模块登记
 
-_维护者：Orion 架构团队 | 更新频率：每次文档变更时同步更新 | 最后更新：2026-04-25_
-_实现状态 v2.2: 44+ 模块，约 31 全栈实现，10+ 部分实现，0 未实现_
-_最近里程碑: M25 持久化迁移完成, M6/M29/M30 前端实现, API 路径修复_
+_维护者：Orion 架构团队 | 更新频率：每次文档变更时同步更新 | 最后更新：2026-05-02_
+_实现状态 v3.0: ~60 模块 (41 M/S1-8 + 10 S9-18 + 其他)，约 31 全栈实现，18+ 新增模块缺设计文档_
+_最近里程碑: 文档治理 Phase 1-2-4 完成，Phase 3 (补全文档) 待执行_
