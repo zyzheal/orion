@@ -70,6 +70,8 @@ export class DeploymentWorkflow {
       notes: config.notes,
       changeRequestId: config.changeRequestId,
       riskAssessmentId: config.riskAssessmentId,
+      commitSha: config.commitSha,
+      commitCommittedAt: config.commitCommittedAt,
       startedAt: new Date(),
       createdAt: new Date(),
       updatedAt: new Date(),

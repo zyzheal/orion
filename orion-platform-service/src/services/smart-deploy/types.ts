@@ -181,6 +181,10 @@ export interface DeployConfig {
   notes?: string;
   /** Risk assessment ID (optional) */
   riskAssessmentId?: string;
+  /** Git commit SHA being deployed */
+  commitSha?: string;
+  /** Git commit timestamp */
+  commitCommittedAt?: Date;
 }
 
 /**
@@ -249,6 +253,10 @@ export interface Deployment {
   riskAssessmentId?: string;
   /** Error message if failed */
   error?: string;
+  /** Git commit SHA being deployed */
+  commitSha?: string;
+  /** Git commit timestamp */
+  commitCommittedAt?: Date;
   /** Created timestamp */
   createdAt: Date;
   /** Updated timestamp */

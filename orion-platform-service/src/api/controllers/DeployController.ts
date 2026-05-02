@@ -39,6 +39,8 @@ export class DeployController {
         initiatedBy,
         notes,
         changeRequestId,
+        commitSha,
+        commitCommittedAt,
       } = body;
 
       if (!appName || !version || !environment || !initiatedBy) {
@@ -85,6 +87,8 @@ export class DeployController {
         initiatedBy,
         notes,
         changeRequestId,
+        commitSha,
+        commitCommittedAt: commitCommittedAt ? new Date(commitCommittedAt) : undefined,
       });
 
       await reply.status(201).send({

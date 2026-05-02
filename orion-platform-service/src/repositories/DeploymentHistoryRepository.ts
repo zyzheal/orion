@@ -16,6 +16,8 @@ export interface DeploymentHistoryEntity {
   durationMs: number | null;
   errorMessage: string | null;
   rollbackTo: string | null;
+  commitSha: string | null;
+  commitCommittedAt: Date | null;
   createdAt: Date;
 }
 
@@ -92,6 +94,8 @@ export class DeploymentHistoryRepository extends BaseRepository<DeploymentHistor
       durationMs: row.duration_ms,
       errorMessage: row.error_message,
       rollbackTo: row.rollback_to,
+      commitSha: row.commit_sha,
+      commitCommittedAt: row.commit_committed_at,
       createdAt: row.created_at,
     };
   }

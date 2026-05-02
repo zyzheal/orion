@@ -56,6 +56,8 @@ function toEntity(deployment: Deployment): Omit<DeploymentHistoryEntity, 'id' | 
       : null,
     errorMessage: deployment.error ?? null,
     rollbackTo: deployment.rollbackInfo?.id ?? null,
+    commitSha: deployment.commitSha ?? null,
+    commitCommittedAt: deployment.commitCommittedAt ?? null,
     createdAt: now,
     updatedAt: now,
   };
@@ -87,6 +89,8 @@ function toDomain(entity: DeploymentHistoryEntity): Deployment {
     changeRequestId: config.changeRequestId,
     riskAssessmentId: config.riskAssessmentId,
     error: entity.errorMessage ?? undefined,
+    commitSha: entity.commitSha ?? undefined,
+    commitCommittedAt: entity.commitCommittedAt ?? undefined,
     createdAt: entity.createdAt,
     updatedAt: entity.completedAt ?? entity.createdAt,
   };
