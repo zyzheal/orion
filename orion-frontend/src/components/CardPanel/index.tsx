@@ -6,6 +6,19 @@
 import React from 'react';
 import { Card } from 'antd';
 
+// Module-level flag to ensure the deprecation warning is printed only once
+// across the entire lifetime of the application, regardless of how many
+// CardPanel instances are mounted.
+let cardPanelDeprecatedWarned = false;
+function warnDeprecation() {
+  if (import.meta.env.DEV && !cardPanelDeprecatedWarned) {
+    cardPanelDeprecatedWarned = true;
+    console.warn(
+      '[Orion] CardPanel is deprecated. Use Ant Design <Card> with ConfigProvider theme and className="orion-card" instead.'
+    );
+  }
+}
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -58,6 +71,11 @@ function CardPanel({
   collapsed: controlledCollapsed,
   onCollapse,
 }: CardPanelProps) {
+  // Emit deprecation warning once on first mount
+  React.useEffect(() => {
+    warnDeprecation();
+  }, []);
+
   const [internalCollapsed, setInternalCollapsed] = React.useState(false);
   const isCollapsed = controlledCollapsed !== undefined ? controlledCollapsed : internalCollapsed;
 
@@ -110,7 +128,7 @@ function CardPanel({
           ...bodyStyle,
         },
       }}
-      className="orion-card-panel"
+      className="orion-card-panel orion-card"
       data-testid="orion-card-panel"
     >
       {!isCollapsed && children}

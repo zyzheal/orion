@@ -292,3 +292,83 @@ body,
     opacity 300ms,
     transform 300ms;
 }
+
+/* ============================================
+   Platform Visual Unification (2026-05-02)
+   ============================================ */
+
+/* Page background consistency */
+body {
+  background-color: var(--ant-color-bg-layout, #f0f2f5);
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Section spacing standard */
+.page-section {
+  margin-bottom: 24px; /* spacing.lg */
+}
+
+.page-section:last-child {
+  margin-bottom: 0;
+}
+
+/* Card hover effect (unified) */
+.orion-card {
+  transition: box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.orion-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+}
+
+/* Button hover lift (unified) */
+.ant-btn:hover {
+  transform: translateY(-1px);
+}
+
+.ant-btn:active {
+  transform: translateY(0);
+}
+
+/* Dashboard header alignment */
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.dashboard-header h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.dashboard-header .subtitle {
+  margin-top: 4px;
+  font-size: 14px;
+  color: #666;
+}
+
+/* Scrollbar styling (webkit only) */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d9d9d9;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #bfbfbf;
+}
