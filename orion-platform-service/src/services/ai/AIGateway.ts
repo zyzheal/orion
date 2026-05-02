@@ -6,6 +6,7 @@
  * 2. 熔断器模式（CLOSED/OPEN/HALF_OPEN）
  * 3. 指标收集和监控
  * 4. 自动降级触发
+ * 5. Prompt 注入检测和清洗（安全加固）
  */
 
 import {
@@ -21,6 +22,11 @@ import {
   AIGatewayEventHandler,
 } from './types';
 import { AIDegradationRouter } from './AIDegradationRouter';
+import { PromptInjectionDetector, ExtendedPromptAnalysis } from './PromptInjectionDetector';
+import { PromptSanitizer, SanitizationResult } from './PromptSanitizer';
+import pino from 'pino';
+
+const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
 // 默认配置
 const DEFAULT_CONFIG: AIGatewayConfig = {
@@ -39,11 +45,35 @@ const DEFAULT_CONFIG: AIGatewayConfig = {
 };
 
 /**
+ * Prompt 安全配置
+ */
+export interface PromptSecurityConfig {
+  enabled: boolean;
+  riskThresholdHigh: number; // 高风险阈值，超过此值拒绝请求
+  riskThresholdMedium: number; // 中风险阈值，超过此值需要清洗
+  sanitizeOnMediumRisk: boolean; // 中风险时是否清洗
+  rejectOnHighRisk: boolean; // 高风险时是否拒绝
+  logSecurityEvents: boolean; // 是否记录安全事件
+}
+
+const DEFAULT_PROMPT_SECURITY_CONFIG: PromptSecurityConfig = {
+  enabled: true,
+  riskThresholdHigh: 70,
+  riskThresholdMedium: 30,
+  sanitizeOnMediumRisk: true,
+  rejectOnHighRisk: true,
+  logSecurityEvents: true,
+};
+
+/**
  * AI Gateway 核心
  */
 export class AIGateway {
   private config: AIGatewayConfig;
   private degradationRouter: AIDegradationRouter;
+  private promptSecurityConfig: PromptSecurityConfig;
+  private promptDetector: PromptInjectionDetector;
+  private promptSanitizer: PromptSanitizer;
 
   // 每个场景的指标
   private metrics: Map<AIScenario, AIMetrics> = new Map();
@@ -60,9 +90,19 @@ export class AIGateway {
   // 事件处理器
   private eventHandlers: AIGatewayEventHandler[] = [];
 
-  constructor(config: Partial<AIGatewayConfig> = {}, degradationRouter?: AIDegradationRouter) {
+  constructor(
+    config: Partial<AIGatewayConfig> = {},
+    degradationRouter?: AIDegradationRouter,
+    promptSecurityConfig?: Partial<PromptSecurityConfig>
+  ) {
     this.config = { ...DEFAULT_CONFIG, ...config };
     this.degradationRouter = degradationRouter || new AIDegradationRouter();
+    this.promptSecurityConfig = { ...DEFAULT_PROMPT_SECURITY_CONFIG, ...promptSecurityConfig };
+    this.promptDetector = new PromptInjectionDetector({
+      riskThresholdHigh: this.promptSecurityConfig.riskThresholdHigh,
+      riskThresholdMedium: this.promptSecurityConfig.riskThresholdMedium,
+    });
+    this.promptSanitizer = new PromptSanitizer();
   }
 
   /**
@@ -101,6 +141,76 @@ export class AIGateway {
 
     // 初始化场景指标
     this.ensureScenarioInitialized(scenario);
+
+    // ========== 新增：Prompt 安全检测 ==========
+    if (this.promptSecurityConfig.enabled) {
+      const inputText = this.extractInputText(request.input);
+      if (inputText) {
+        const securityAnalysis = this.promptDetector.analyze(inputText);
+
+        // 记录安全事件
+        if (this.promptSecurityConfig.logSecurityEvents && securityAnalysis.threats.length > 0) {
+          logger.warn({
+            msg: 'Prompt security threat detected',
+            scenario,
+            userId: request.context?.userId,
+            tenantId: request.context?.tenantId,
+            riskScore: securityAnalysis.riskScore,
+            threatCount: securityAnalysis.threats.length,
+            threatTypes: securityAnalysis.threats.map(t => t.type),
+            recommendation: securityAnalysis.recommendation,
+          });
+        }
+
+        // 高风险：拒绝请求
+        if (securityAnalysis.riskScore >= this.promptSecurityConfig.riskThresholdHigh) {
+          if (this.promptSecurityConfig.rejectOnHighRisk) {
+            logger.error({
+              msg: 'Prompt rejected due to high security risk',
+              scenario,
+              riskScore: securityAnalysis.riskScore,
+              threatTypes: securityAnalysis.attackCategories,
+            });
+
+            this.emitEvent({
+              type: 'degradation',
+              scenario,
+              timestamp: new Date(),
+              data: { reason: 'security_rejection', riskScore: securityAnalysis.riskScore },
+            });
+
+            // 返回安全拒绝响应
+            return {
+              success: false,
+              data: undefined,
+              source: 'degraded',
+              degradationReason: `Prompt security risk too high (${securityAnalysis.riskScore}/100)`,
+              latency: Date.now() - startTime,
+              error: 'SECURITY_RISK_TOO_HIGH',
+            };
+          }
+        }
+
+        // 中风险：清洗 Prompt
+        if (
+          securityAnalysis.riskScore >= this.promptSecurityConfig.riskThresholdMedium &&
+          this.promptSecurityConfig.sanitizeOnMediumRisk
+        ) {
+          const sanitization = this.promptSanitizer.sanitize(inputText, securityAnalysis.threats);
+
+          logger.info({
+            msg: 'Prompt sanitized',
+            scenario,
+            sanitizationCount: sanitization.sanitizationCount,
+            intentPreserved: sanitization.intentPreserved,
+          });
+
+          // 更新请求输入为清洗后的内容
+          request.input = this.updateInputText(request.input, sanitization.sanitizedPrompt);
+        }
+      }
+    }
+    // ========== 安全检测结束 ==========
 
     // 检查熔断器状态
     const circuitState = this.getCircuitState(scenario);
@@ -504,5 +614,96 @@ export class AIGateway {
    */
   getDegradationRouter(): AIDegradationRouter {
     return this.degradationRouter;
+  }
+
+  /**
+   * 获取 Prompt 检测器
+   */
+  getPromptDetector(): PromptInjectionDetector {
+    return this.promptDetector;
+  }
+
+  /**
+   * 获取 Prompt 清洗器
+   */
+  getPromptSanitizer(): PromptSanitizer {
+    return this.promptSanitizer;
+  }
+
+  /**
+   * 获取 Prompt 安全配置
+   */
+  getPromptSecurityConfig(): PromptSecurityConfig {
+    return { ...this.promptSecurityConfig };
+  }
+
+  /**
+   * 更新 Prompt 安全配置
+   */
+  updatePromptSecurityConfig(config: Partial<PromptSecurityConfig>): void {
+    this.promptSecurityConfig = { ...this.promptSecurityConfig, ...config };
+    this.promptDetector.updateConfig({
+      riskThresholdHigh: this.promptSecurityConfig.riskThresholdHigh,
+      riskThresholdMedium: this.promptSecurityConfig.riskThresholdMedium,
+    });
+  }
+
+  /**
+   * 从请求输入中提取文本内容
+   */
+  private extractInputText(input: Record<string, unknown>): string | null {
+    // 尝试从常见的输入字段中提取文本
+    const textFieldNames = ['prompt', 'text', 'query', 'message', 'content', 'input', 'question'];
+
+    for (const field of textFieldNames) {
+      if (typeof input[field] === 'string') {
+        return input[field] as string;
+      }
+    }
+
+    // 如果没有找到特定字段，尝试将整个输入转换为字符串
+    if (Object.keys(input).length === 1) {
+      const value = Object.values(input)[0];
+      if (typeof value === 'string') {
+        return value;
+      }
+    }
+
+    // 返回 JSON 字符串化版本
+    try {
+      return JSON.stringify(input);
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * 更新请求输入中的文本内容
+   */
+  private updateInputText(input: Record<string, unknown>, sanitizedText: string): Record<string, unknown> {
+    const textFieldNames = ['prompt', 'text', 'query', 'message', 'content', 'input', 'question'];
+
+    // 找到并更新文本字段
+    for (const field of textFieldNames) {
+      if (typeof input[field] === 'string') {
+        return { ...input, [field]: sanitizedText };
+      }
+    }
+
+    // 如果没有找到特定字段，更新第一个字符串值字段
+    for (const [key, value] of Object.entries(input)) {
+      if (typeof value === 'string') {
+        return { ...input, [key]: sanitizedText };
+      }
+    }
+
+    // 如果输入只有一个字段，直接替换
+    if (Object.keys(input).length === 1) {
+      const key = Object.keys(input)[0];
+      return { [key]: sanitizedText };
+    }
+
+    // 默认添加 sanitized_prompt 字段
+    return { ...input, sanitized_prompt: sanitizedText };
   }
 }
