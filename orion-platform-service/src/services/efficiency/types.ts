@@ -123,8 +123,44 @@ export interface MeanTimeToRecovery {
   medianRecoveryTimeMs: number;
   /** P90 恢复时间（毫秒） */
   p90RecoveryTimeMs: number;
+  /** P99 恢复时间（毫秒） */
+  p99RecoveryTimeMs?: number;
   /** 恢复时间等级 */
   recoveryTimeLevel: 'elite' | 'high' | 'medium' | 'low';
+  /** 计算方法：incidents_table（真实）或 deployment_recovery（近似） */
+  calculationMethod?: 'incidents_table' | 'deployment_recovery';
+}
+
+/**
+ * Incident 事件记录（用于 MTTR 精确计算）
+ */
+export interface IncidentRecord {
+  /** Incident ID */
+  id: string;
+  /** 租户 ID */
+  tenantId?: string;
+  /** 部署 ID */
+  deploymentId?: string;
+  /** Pipeline ID */
+  pipelineRunId?: string;
+  /** Incident 类型 */
+  type: string;
+  /** 严重程度 */
+  severity: string;
+  /** 状态 */
+  status: 'open' | 'acknowledged' | 'resolved';
+  /** 检测时间 */
+  detectedAt: Date;
+  /** 确认时间 */
+  acknowledgedAt?: Date;
+  /** 解决时间 */
+  resolvedAt?: Date;
+  /** 恢复时间（毫秒） */
+  recoveryTimeMs?: number;
+  /** 服务名称 */
+  service?: string;
+  /** 环境 */
+  environment?: string;
 }
 
 // ==================== 综合效能报告 ====================

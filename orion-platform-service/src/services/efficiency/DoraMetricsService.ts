@@ -22,6 +22,7 @@ import {
   PipelineCompletionRecord,
   DeploymentRecord,
   DeploymentFailureRecord,
+  IncidentRecord,
 } from './types';
 
 /**
@@ -266,13 +267,54 @@ export class DoraMetricsService {
   /**
    * 计算平均恢复时间 (Mean Time to Recovery)
    *
-   * 从故障/回滚到恢复的平均时间
+   * 优先使用 incidents 表的真实恢复时间
+   * 如果缺少 incidents 数据，回退到 deployments 的 recoveryTimeMs 近似值
    */
   calculateMeanTimeToRecovery(
     deployments: DeploymentRecord[],
-    windowConfig: TimeWindowConfig
+    windowConfig: TimeWindowConfig,
+    incidents?: IncidentRecord[]
   ): MeanTimeToRecovery {
-    // 筛选时间窗口内的失败/回滚事件
+    // 尝试使用真实 incidents 数据计算 MTTR
+    if (incidents && incidents.length > 0) {
+      const resolvedIncidents = incidents.filter(
+        (i) =>
+          i.status === 'resolved' &&
+          i.recoveryTimeMs !== undefined &&
+          i.detectedAt >= windowConfig.start &&
+          i.detectedAt <= windowConfig.end
+      );
+
+      if (resolvedIncidents.length > 0) {
+        const recoveryTimes = resolvedIncidents
+          .map((i) => i.recoveryTimeMs!)
+          .sort((a, b) => a - b);
+
+        const totalIncidents = incidents.filter(
+          (i) => i.detectedAt >= windowConfig.start && i.detectedAt <= windowConfig.end
+        ).length;
+
+        const averageRecoveryTimeMs = recoveryTimes.reduce((sum, t) => sum + t, 0) / recoveryTimes.length;
+        const medianRecoveryTimeMs = this.getPercentile(recoveryTimes, 50);
+        const p90RecoveryTimeMs = this.getPercentile(recoveryTimes, 90);
+        const p99RecoveryTimeMs = this.getPercentile(recoveryTimes, 99);
+        const recoveryTimeLevel = this.evaluateRecoveryTime(averageRecoveryTimeMs);
+
+        return {
+          window: windowConfig,
+          totalIncidents,
+          recoveredIncidents: resolvedIncidents.length,
+          averageRecoveryTimeMs: Math.round(averageRecoveryTimeMs),
+          medianRecoveryTimeMs: Math.round(medianRecoveryTimeMs),
+          p90RecoveryTimeMs: Math.round(p90RecoveryTimeMs),
+          p99RecoveryTimeMs: Math.round(p99RecoveryTimeMs),
+          recoveryTimeLevel,
+          calculationMethod: 'incidents_table',
+        };
+      }
+    }
+
+    // 回退：使用 deployments 的 recoveryTimeMs 近似值
     const windowIncidents = deployments.filter(
       (d) =>
         (d.status === 'failed' || d.status === 'rolled_back') &&
@@ -294,6 +336,7 @@ export class DoraMetricsService {
         medianRecoveryTimeMs: 0,
         p90RecoveryTimeMs: 0,
         recoveryTimeLevel: 'low',
+        calculationMethod: 'deployment_recovery',
       };
     }
 
@@ -302,6 +345,7 @@ export class DoraMetricsService {
     const averageRecoveryTimeMs = recoveryTimes.length > 0 ? totalRecoveryMs / recoveryTimes.length : 0;
     const medianRecoveryTimeMs = recoveryTimes.length > 0 ? this.getPercentile(recoveryTimes, 50) : 0;
     const p90RecoveryTimeMs = recoveryTimes.length > 0 ? this.getPercentile(recoveryTimes, 90) : 0;
+    const p99RecoveryTimeMs = recoveryTimes.length > 0 ? this.getPercentile(recoveryTimes, 99) : 0;
 
     const recoveryTimeLevel = this.evaluateRecoveryTime(averageRecoveryTimeMs);
 
@@ -312,7 +356,9 @@ export class DoraMetricsService {
       averageRecoveryTimeMs: Math.round(averageRecoveryTimeMs),
       medianRecoveryTimeMs: Math.round(medianRecoveryTimeMs),
       p90RecoveryTimeMs: Math.round(p90RecoveryTimeMs),
+      p99RecoveryTimeMs: Math.round(p99RecoveryTimeMs),
       recoveryTimeLevel,
+      calculationMethod: 'deployment_recovery',
     };
   }
 
