@@ -18,14 +18,12 @@ import type { ColumnsType } from 'antd/es/table';
 import { colors, spacing } from '@/tokens';
 import { StatCard } from '@/components/charts';
 import {
-  ClockCircleOutlined,
   CheckCircleOutlined,
   WarningOutlined,
   RocketOutlined,
   HistoryOutlined,
   PlayCircleOutlined,
   CodeOutlined,
-  ThunderboltOutlined,
   BarChartOutlined,
   DashboardOutlined,
   TeamOutlined,

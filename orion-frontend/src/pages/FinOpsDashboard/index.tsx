@@ -24,9 +24,6 @@ import {
 } from 'antd';
 import {
   DollarOutlined,
-  WalletOutlined,
-  FireOutlined,
-  CheckCircleOutlined,
   ExportOutlined,
   SettingOutlined,
   FileSearchOutlined,

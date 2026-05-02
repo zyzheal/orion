@@ -201,7 +201,6 @@ const EngineerDashboard: React.FC = () => {
 
   // Trend data for last 14 days
   const recentTrend = data.personalTrend.slice(-14);
-  const maxResolved = Math.max(...recentTrend.map((d) => d.resolved), 1);
 
   return (
     <div style={{ padding: 0 }}>

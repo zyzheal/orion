@@ -59,7 +59,7 @@ vi.mock('@/components/charts', async () => {
         <span data-testid="metric-value">{value === '-' ? '-' : `${value}${suffix ? ` ${suffix}` : ''}`}</span>
       </div>
     ),
-    TrendLineChart: ({ title, data, style }: any) => (
+    TrendLineChart: ({ title, data }: any) => (
       <div data-testid="trend-line-chart" data-title={title}>
         {JSON.stringify(data?.length ?? 0)} series
       </div>

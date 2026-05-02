@@ -16,7 +16,7 @@ vi.mock('@/api/webhook', () => ({
 }));
 
 vi.mock('@/components/Table', () => ({
-  default: ({ dataSource, columns, loading, rowKey }: any) => (
+  default: ({ dataSource, loading, rowKey }: any) => (
     <div data-testid="orion-table" data-loading={loading}>
       {dataSource?.map((item: any) => (
         <div key={item[rowKey]} data-testid={`row-${item[rowKey]}`}>

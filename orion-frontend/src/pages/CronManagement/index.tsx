@@ -10,7 +10,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Typography, Button, Space, Tag, Card, Modal, Form, Input,
-  Switch, message, Popconfirm, Tooltip, Alert, Spin,
+  Switch, message, Popconfirm, Tooltip, Spin,
 } from 'antd';
 import {
   ReloadOutlined, PlusOutlined, PlayCircleOutlined,

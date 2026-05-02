@@ -6,7 +6,6 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import { ChartProvider } from '@/components/charts';
 import FinOpsDashboard from '@/pages/FinOpsDashboard';
-import * as finopsApi from '@/api/finops';
 
 vi.mock('@/api/finops', async () => {
   const actual = await vi.importActual<typeof import('@/api/finops')>('@/api/finops');

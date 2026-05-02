@@ -1,5 +1,4 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import axios from 'axios';
 
 describe('API Client Interceptors', () => {
   beforeEach(() => {
@@ -15,7 +14,7 @@ describe('API Client Interceptors', () => {
 
     // Create a mock axios instance that captures the config
     const capturedConfig: any = {};
-    const mockGet = vi.fn().mockImplementation((url: string, config: any) => {
+    const mockGet = vi.fn().mockImplementation((_url: string, config: any) => {
       capturedConfig.headers = config?.headers;
       return Promise.resolve({ data: {}, config });
     });
@@ -52,8 +51,6 @@ describe('API Client Interceptors', () => {
   it('should clear tokens and redirect on 401 without refresh token', async () => {
     localStorage.setItem('access_token', 'expired-token');
     // No refresh_token set
-
-    const originalPath = window.location.pathname;
 
     // Simulate 401 response handler logic
     const refreshToken = localStorage.getItem('refresh_token');
