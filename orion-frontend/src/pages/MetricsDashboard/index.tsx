@@ -51,15 +51,6 @@ interface ServiceHealthRow {
   latency: string;
 }
 
-interface MetricSummary {
-  requestRate: number;
-  errorRate: number;
-  latencyP50: number;
-  latencyP95: number;
-  latencyP99: number;
-  throughput: number;
-}
-
 type TimeRange = '5m' | '15m' | '1h' | '6h' | '24h' | '7d';
 
 // ============================================================================

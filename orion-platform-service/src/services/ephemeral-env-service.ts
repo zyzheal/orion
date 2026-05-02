@@ -47,12 +47,10 @@ export class EphemeralEnvService {
   }) {
     this.k8sProvisioner = options.k8sProvisioner;
     this.eventBus = options.eventBus;
-    if (options.database) {
-      this.repository = new EphemeralEnvRepository(options.database);
-    } else {
-      logger.warn('[EphemeralEnv] Database pool not available, repository will use in-memory fallback');
-      this.repository = new EphemeralEnvRepository(null as unknown as DatabasePool);
+    if (!options.database) {
+      throw new Error('EphemeralEnvService requires a database connection');
     }
+    this.repository = new EphemeralEnvRepository(options.database);
   }
 
   /**
