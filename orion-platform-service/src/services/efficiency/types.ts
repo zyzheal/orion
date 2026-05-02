@@ -65,6 +65,8 @@ export interface LeadTimeForChanges {
   p99LeadTimeMs: number;
   /** 前置时间等级 */
   leadTimeLevel: 'elite' | 'high' | 'medium' | 'low';
+  /** 计算方法：commit_to_deploy（真实）或 pipeline_duration（近似） */
+  calculationMethod?: 'commit_to_deploy' | 'pipeline_duration';
 }
 
 /**
@@ -207,6 +209,10 @@ export interface DeploymentRecord {
   recoveryTimeMs?: number;
   /** 租户 ID */
   tenantId?: string;
+  /** Commit SHA */
+  commitSha?: string;
+  /** Commit 提交时间（用于精确 Lead Time 计算） */
+  commitCommittedAt?: Date;
   /** 是否已同步到 ClickHouse */
   syncedToClickHouse: boolean;
   /** 同步时间 */

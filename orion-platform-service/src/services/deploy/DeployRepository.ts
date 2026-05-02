@@ -22,6 +22,8 @@ export interface Deployment {
   duration_ms: number | null;
   error_message: string | null;
   rollback_to: string | null;
+  commit_sha: string | null;
+  commit_committed_at: Date | null;
   created_at: Date;
 }
 
@@ -43,6 +45,8 @@ export interface CreateDeploymentInput {
   strategy?: string;
   config?: Record<string, any>;
   deployed_by?: string;
+  commit_sha?: string;
+  commit_committed_at?: Date;
 }
 
 export interface UpdateDeploymentInput {
@@ -177,15 +181,15 @@ export class DeployRepository {
    * Create a new deployment
    */
   async create(input: CreateDeploymentInput): Promise<Deployment> {
-    const { tenant_id, project_id, pipeline_run_id, build_id, environment, strategy, config, deployed_by } = input;
-    
+    const { tenant_id, project_id, pipeline_run_id, build_id, environment, strategy, config, deployed_by, commit_sha, commit_committed_at } = input;
+
     const result = await this.pool.query(
-      `INSERT INTO deployments (tenant_id, project_id, pipeline_run_id, build_id, environment, strategy, config, deployed_by, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending')
+      `INSERT INTO deployments (tenant_id, project_id, pipeline_run_id, build_id, environment, strategy, config, deployed_by, status, commit_sha, commit_committed_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', $9, $10)
        RETURNING *`,
-      [tenant_id, project_id || null, pipeline_run_id || null, build_id || null, environment, strategy || 'rolling', config || {}, deployed_by || null]
+      [tenant_id, project_id || null, pipeline_run_id || null, build_id || null, environment, strategy || 'rolling', config || {}, deployed_by || null, commit_sha || null, commit_committed_at || null]
     );
-    
+
     return result.rows[0];
   }
 

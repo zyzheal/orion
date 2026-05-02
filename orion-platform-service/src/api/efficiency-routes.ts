@@ -59,6 +59,8 @@ export default async function efficiencyRoutes(app: FastifyInstance, options: Ef
         status: d.status,
         deployedAt: d.completed_at || d.created_at,
         recoveryTimeMs: d.duration_ms ?? undefined,
+        commitSha: d.commit_sha ?? undefined,
+        commitCommittedAt: d.commit_committed_at ? new Date(d.commit_committed_at) : undefined,
       }));
     }
 
@@ -92,7 +94,7 @@ export default async function efficiencyRoutes(app: FastifyInstance, options: Ef
       const { deployments, pipelineRecords } = await fetchDeploymentData(query.tenantId, timeWindowConfig.start);
 
       const deploymentFrequency = doraMetrics.calculateDeploymentFrequency(deployments, timeWindowConfig);
-      const leadTimeForChanges = doraMetrics.calculateLeadTimeForChanges(pipelineRecords, timeWindowConfig);
+      const leadTimeForChanges = doraMetrics.calculateLeadTimeForChanges(pipelineRecords, timeWindowConfig, deployments);
       const changeFailureRate = doraMetrics.calculateChangeFailureRate(deployments, timeWindowConfig);
       const meanTimeToRecovery = doraMetrics.calculateMeanTimeToRecovery(deployments, timeWindowConfig);
 
@@ -517,7 +519,7 @@ export default async function efficiencyRoutes(app: FastifyInstance, options: Ef
           const { deployments, pipelineRecords } = await fetchDeploymentData(teamId, timeWindowConfig.start);
 
           const df = doraMetrics.calculateDeploymentFrequency(deployments, timeWindowConfig);
-          const lt = doraMetrics.calculateLeadTimeForChanges(pipelineRecords, timeWindowConfig);
+          const lt = doraMetrics.calculateLeadTimeForChanges(pipelineRecords, timeWindowConfig, deployments);
           const cfr = doraMetrics.calculateChangeFailureRate(deployments, timeWindowConfig);
           const mttr = doraMetrics.calculateMeanTimeToRecovery(deployments, timeWindowConfig);
 
@@ -528,10 +530,10 @@ export default async function efficiencyRoutes(app: FastifyInstance, options: Ef
             teamId,
             teamName: teamId === 'unknown' ? '未分类团队' : `团队 ${teamId.slice(0, 8)}`,
             metrics: {
-              deploymentFrequency: df.value,
-              leadTimeMinutes: lt.medianMs ? lt.medianMs / 60000 : null,
-              mttrMinutes: mttr.medianMs ? mttr.medianMs / 60000 : null,
-              changeFailureRate: cfr.value,
+              deploymentFrequency: df.deploymentsPerDay,
+              leadTimeMinutes: lt.medianLeadTimeMs ? lt.medianLeadTimeMs / 60000 : null,
+              mttrMinutes: mttr.medianRecoveryTimeMs ? mttr.medianRecoveryTimeMs / 60000 : null,
+              changeFailureRate: cfr.failureRate,
             },
             score,
             level: getDoraLevel(score),
@@ -565,31 +567,31 @@ export default async function efficiencyRoutes(app: FastifyInstance, options: Ef
  * 计算团队综合评分（0-100）
  */
 function calculateTeamScore(
-  df: { value: number; level?: string },
-  lt: { medianMs?: number },
-  cfr: { value: number },
-  mttr: { medianMs?: number }
+  df: { deploymentsPerDay: number; deploymentLevel?: string },
+  lt: { medianLeadTimeMs?: number },
+  cfr: { failureRate: number },
+  mttr: { medianRecoveryTimeMs?: number }
 ): number {
   let score = 50; // 基础分
 
   // 部署频率加分（越高越好）
-  if (df.value >= 7) score += 20; // Elite: 每周多次
-  else if (df.value >= 1) score += 10; // High: 每周至少一次
-  else if (df.value >= 0.25) score += 5; // Medium: 每月至少一次
+  if (df.deploymentsPerDay >= 7) score += 20; // Elite: 每周多次
+  else if (df.deploymentsPerDay >= 1) score += 10; // High: 每周至少一次
+  else if (df.deploymentsPerDay >= 0.25) score += 5; // Medium: 每月至少一次
 
   // Lead Time 加分（越短越好）
-  if (lt.medianMs && lt.medianMs < 3600000) score += 15; // Elite: < 1小时
-  else if (lt.medianMs && lt.medianMs < 86400000) score += 10; // High: < 1天
-  else if (lt.medianMs && lt.medianMs < 604800000) score += 5; // Medium: < 1周
+  if (lt.medianLeadTimeMs && lt.medianLeadTimeMs < 3600000) score += 15; // Elite: < 1小时
+  else if (lt.medianLeadTimeMs && lt.medianLeadTimeMs < 86400000) score += 10; // High: < 1天
+  else if (lt.medianLeadTimeMs && lt.medianLeadTimeMs < 604800000) score += 5; // Medium: < 1周
 
   // MTTR 加分（越短越好）
-  if (mttr.medianMs && mttr.medianMs < 3600000) score += 10; // Elite: < 1小时
-  else if (mttr.medianMs && mttr.medianMs < 86400000) score += 5; // High: < 1天
+  if (mttr.medianRecoveryTimeMs && mttr.medianRecoveryTimeMs < 3600000) score += 10; // Elite: < 1小时
+  else if (mttr.medianRecoveryTimeMs && mttr.medianRecoveryTimeMs < 86400000) score += 5; // High: < 1天
 
   // 变更失败率加分（越低越好）
-  if (cfr.value < 5) score += 5; // Elite: < 5%
-  else if (cfr.value < 10) score += 3; // High: < 10%
-  else if (cfr.value < 15) score += 1; // Medium: < 15%
+  if (cfr.failureRate < 5) score += 5; // Elite: < 5%
+  else if (cfr.failureRate < 10) score += 3; // High: < 10%
+  else if (cfr.failureRate < 15) score += 1; // Medium: < 15%
 
   return Math.min(100, Math.max(0, score));
 }

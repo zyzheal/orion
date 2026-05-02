@@ -131,13 +131,55 @@ export class DoraMetricsService {
   /**
    * 计算变更前置时间 (Lead Time for Changes)
    *
-   * 从 Pipeline 开始到完成的时间作为 Lead Time 的近似
+   * 优先使用 commit_committed_at → deployed_at 真实链路时间
+   * 如果缺少 commit 时间，回退到 Pipeline durationMs 近似值
    */
   calculateLeadTimeForChanges(
     pipelineRecords: PipelineCompletionRecord[],
-    windowConfig: TimeWindowConfig
+    windowConfig: TimeWindowConfig,
+    deployments?: DeploymentRecord[]
   ): LeadTimeForChanges {
-    // 筛选时间窗口内成功的 Pipeline 记录
+    // 尝试使用真实 commit → deploy 链路计算
+    if (deployments && deployments.length > 0) {
+      const validDeployments = deployments.filter(
+        (d) =>
+          d.status === 'success' &&
+          d.commitCommittedAt &&
+          d.deployedAt >= windowConfig.start &&
+          d.deployedAt <= windowConfig.end
+      );
+
+      if (validDeployments.length > 0) {
+        // 真实 Lead Time: deployed_at - commit_committed_at
+        const leadTimes = validDeployments
+          .map((d) => {
+            const deployedAt = new Date(d.deployedAt).getTime();
+            const committedAt = new Date(d.commitCommittedAt!).getTime();
+            return deployedAt - committedAt;
+          })
+          .sort((a, b) => a - b);
+
+        const totalChanges = leadTimes.length;
+        const averageLeadTimeMs = leadTimes.reduce((sum, t) => sum + t, 0) / totalChanges;
+        const medianLeadTimeMs = this.getPercentile(leadTimes, 50);
+        const p90LeadTimeMs = this.getPercentile(leadTimes, 90);
+        const p99LeadTimeMs = this.getPercentile(leadTimes, 99);
+        const leadTimeLevel = this.evaluateLeadTime(averageLeadTimeMs);
+
+        return {
+          window: windowConfig,
+          totalChanges,
+          averageLeadTimeMs: Math.round(averageLeadTimeMs),
+          medianLeadTimeMs: Math.round(medianLeadTimeMs),
+          p90LeadTimeMs: Math.round(p90LeadTimeMs),
+          p99LeadTimeMs: Math.round(p99LeadTimeMs),
+          leadTimeLevel,
+          calculationMethod: 'commit_to_deploy',
+        };
+      }
+    }
+
+    // 回退：使用 Pipeline durationMs 近似值
     const windowRecords = pipelineRecords.filter(
       (r) =>
         r.status === 'success' &&
@@ -157,6 +199,7 @@ export class DoraMetricsService {
         p90LeadTimeMs: 0,
         p99LeadTimeMs: 0,
         leadTimeLevel: 'low',
+        calculationMethod: 'pipeline_duration',
       };
     }
 
@@ -175,6 +218,7 @@ export class DoraMetricsService {
       p90LeadTimeMs: Math.round(p90LeadTimeMs),
       p99LeadTimeMs: Math.round(p99LeadTimeMs),
       leadTimeLevel,
+      calculationMethod: 'pipeline_duration',
     };
   }
 
