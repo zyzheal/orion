@@ -97,12 +97,12 @@ export const TimelineChart: React.FC<TimelineChartProps> = ({
       series: [
         {
           type: 'custom' as const,
-          renderItem: (params: Record<string, unknown>, api: Record<string, unknown>) => {
-            const apiValue = api.value as (p: number, d?: number) => number;
-            const apiCoord = api.coord as (v: [number, number]) => [number, number];
-            const dataIndex = params.dataIndex as number;
-            const start = apiCoord([apiValue(0, dataIndex), apiValue(1, dataIndex)]);
-            const end = apiCoord([apiValue(0, dataIndex), apiValue(2, dataIndex)]);
+          renderItem: (params: { dataIndex: number; itemStyle?: { color?: string } }, api: { value: (p: number, d?: number) => number; coord: (v: [number, number]) => [number, number] }) => {
+            const xVal = api.value(1, params.dataIndex);
+            const endVal = api.value(2, params.dataIndex);
+            if (isNaN(xVal) || isNaN(endVal)) return { type: 'rect' as const, shape: { x: 0, y: 0, width: 0, height: 0 } };
+            const start = api.coord([api.value(0, params.dataIndex), xVal]);
+            const end = api.coord([api.value(0, params.dataIndex), endVal]);
             const barHeight = 20;
             return {
               type: 'rect' as const,
@@ -114,7 +114,7 @@ export const TimelineChart: React.FC<TimelineChartProps> = ({
                 r: 3,
               },
               style: {
-                fill: (params as { itemStyle?: { color?: string } }).itemStyle?.color ?? theme.info,
+                fill: params.itemStyle?.color ?? theme.info,
               },
             };
           },

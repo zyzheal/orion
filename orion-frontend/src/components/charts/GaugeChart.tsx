@@ -23,9 +23,10 @@ export const GaugeChart: React.FC<GaugeChartProps> = ({
   unit = '%',
 }) => {
   const theme = useChartTheme();
+  const safeMax = max > 0 ? max : 100;
 
   const option = useMemo(() => {
-    const percentage = (value / max) * 100;
+    const percentage = (value / safeMax) * 100;
     let valueColor = theme.success;
     if (thresholds) {
       if (percentage >= thresholds.danger) {
@@ -40,7 +41,7 @@ export const GaugeChart: React.FC<GaugeChartProps> = ({
         {
           type: 'gauge' as const,
           min: 0,
-          max,
+          max: safeMax,
           progress: {
             show: true,
             width: 12,
@@ -73,7 +74,7 @@ export const GaugeChart: React.FC<GaugeChartProps> = ({
         },
       ],
     };
-  }, [value, title, max, thresholds, size, unit, theme]);
+  }, [value, title, safeMax, thresholds, size, unit, theme]);
 
   return (
     <ReactECharts
