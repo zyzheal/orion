@@ -4,7 +4,7 @@ import { CheckCircleOutlined, CloseCircleOutlined, LoadingOutlined } from '@ant-
 import { colors } from '@/tokens/colors';
 import { useActionHandler } from './useActionHandler';
 import type { ExtendedAction } from './types';
-import { getActionIcon } from './types';
+import { getActionIcon } from './actionIcons';
 
 const statusIcons = {
   success: <CheckCircleOutlined style={{ color: colors.success[500] }} />,

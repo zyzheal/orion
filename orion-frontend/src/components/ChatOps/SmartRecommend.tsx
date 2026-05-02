@@ -10,8 +10,7 @@ import { BellFilled, WarningOutlined, CheckCircleOutlined } from '@ant-design/ic
 import { useChatOpsStore } from '@/stores/chatOpsStore';
 import { colors } from '@/tokens/colors';
 import { useActionHandler } from './useActionHandler';
-import type { ExtendedAction } from './types';
-import { getActionIcon } from './types';
+import { getActionIcon } from './actionIcons';
 
 const severityConfig = {
   critical: { color: colors.error[400], bg: colors.error[50], icon: <BellFilled /> },
@@ -93,7 +92,7 @@ export const SmartRecommend: React.FC = () => {
               {rec.description}
             </p>
             <Space>
-              {(rec.actions as ExtendedAction[]).map((action) => (
+              {rec.actions.map((action) => (
                 <Button
                   key={action.label}
                   size="small"

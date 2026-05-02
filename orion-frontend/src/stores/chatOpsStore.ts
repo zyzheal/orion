@@ -11,6 +11,7 @@
 
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
+import type { ExtendedAction } from '@/components/ChatOps/types';
 import {
   getCommands,
   executeCommand as executeCommandAPI,
@@ -30,7 +31,7 @@ export interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: Date;
-  actions?: Array<{ label: string; command: string; params: Record<string, unknown> }>;
+  actions?: ExtendedAction[];
   status?: 'success' | 'failed' | 'running';
 }
 
@@ -40,7 +41,7 @@ export interface Recommendation {
   severity: 'critical' | 'warning' | 'info';
   title: string;
   description: string;
-  actions: Array<{ label: string; command: string; params: Record<string, unknown> }>;
+  actions: ExtendedAction[];
   createdAt: Date;
   source: string;
 }
