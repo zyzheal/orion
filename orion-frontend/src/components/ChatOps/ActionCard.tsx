@@ -1,27 +1,16 @@
 import React from 'react';
 import { Button, Space } from 'antd';
-import { CheckCircleOutlined, CloseCircleOutlined, LoadingOutlined, ArrowRightOutlined, ExportOutlined } from '@ant-design/icons';
+import { CheckCircleOutlined, CloseCircleOutlined, LoadingOutlined } from '@ant-design/icons';
 import { colors } from '@/tokens/colors';
 import { useActionHandler } from './useActionHandler';
 import type { ExtendedAction } from './types';
-import { hasTarget } from './types';
+import { getActionIcon } from './types';
 
 const statusIcons = {
   success: <CheckCircleOutlined style={{ color: colors.success[500] }} />,
   failed: <CloseCircleOutlined style={{ color: colors.error[400] }} />,
   running: <LoadingOutlined style={{ color: colors.warning[500] }} />,
 };
-
-/** Get a small icon for the action type */
-function getActionIcon(action: ExtendedAction): React.ReactNode {
-  if (hasTarget(action)) {
-    if (action.target?.externalUrl) {
-      return <ExportOutlined style={{ fontSize: 10, marginLeft: 4, opacity: 0.5 }} />;
-    }
-    return <ArrowRightOutlined style={{ fontSize: 10, marginLeft: 4, opacity: 0.5 }} />;
-  }
-  return null;
-}
 
 export const ActionCard: React.FC<{
   actions: ExtendedAction[];

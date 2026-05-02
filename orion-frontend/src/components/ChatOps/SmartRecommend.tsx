@@ -6,12 +6,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { Card, Tag, Button, Empty, Space } from 'antd';
-import { BellFilled, WarningOutlined, CheckCircleOutlined, ArrowRightOutlined, ExportOutlined } from '@ant-design/icons';
+import { BellFilled, WarningOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { useChatOpsStore } from '@/stores/chatOpsStore';
 import { colors } from '@/tokens/colors';
 import { useActionHandler } from './useActionHandler';
 import type { ExtendedAction } from './types';
-import { hasTarget } from './types';
+import { getActionIcon } from './types';
 
 const severityConfig = {
   critical: { color: colors.error[400], bg: colors.error[50], icon: <BellFilled /> },
@@ -36,17 +36,6 @@ function usePanelHeight(): number {
   }, []);
 
   return maxHeight;
-}
-
-/** Get action button icon based on target type */
-function getRecActionIcon(action: ExtendedAction): React.ReactNode {
-  if (hasTarget(action)) {
-    if (action.target?.externalUrl) {
-      return <ExportOutlined style={{ fontSize: 10, marginLeft: 4, opacity: 0.5 }} />;
-    }
-    return <ArrowRightOutlined style={{ fontSize: 10, marginLeft: 4, opacity: 0.5 }} />;
-  }
-  return null;
 }
 
 export const SmartRecommend: React.FC = () => {
@@ -104,14 +93,14 @@ export const SmartRecommend: React.FC = () => {
               {rec.description}
             </p>
             <Space>
-              {rec.actions.map((action) => (
+              {(rec.actions as ExtendedAction[]).map((action) => (
                 <Button
                   key={action.label}
                   size="small"
                   onClick={() => handleAction(action)}
                 >
                   {action.label}
-                  {getRecActionIcon(action)}
+                  {getActionIcon(action)}
                 </Button>
               ))}
             </Space>

@@ -1,4 +1,5 @@
 import { renderHook, act } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { BrowserRouter } from 'react-router-dom';
 import { useActionHandler } from '../useActionHandler';
 import { useChatOpsStore } from '@/stores/chatOpsStore';
@@ -21,16 +22,15 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
 describe('useActionHandler', () => {
   const mockExecuteAction = vi.fn();
   const mockWindowOpen = vi.fn();
-  const originalOpen = window.open;
 
   beforeEach(() => {
     vi.clearAllMocks();
     (useChatOpsStore as any).mockReturnValue({ executeAction: mockExecuteAction });
-    global.window.open = mockWindowOpen;
+    vi.stubGlobal('open', mockWindowOpen);
   });
 
   afterEach(() => {
-    global.window.open = originalOpen;
+    vi.unstubAllGlobals();
   });
 
   it('executes command when action has no target', () => {
@@ -59,6 +59,24 @@ describe('useActionHandler', () => {
     });
 
     expect(window.location.pathname).toBe('/deployments/dep-123');
+    expect(mockExecuteAction).not.toHaveBeenCalled();
+  });
+
+  it('opens external URL in same window when openInNewTab is false', () => {
+    (security.isSafeExternalUrl as any).mockReturnValue(true);
+    const { result } = renderHook(() => useActionHandler(), { wrapper });
+    const action = {
+      label: 'View Docs',
+      command: 'status',
+      params: {},
+      target: { externalUrl: 'https://github.com/docs', openInNewTab: false },
+    };
+
+    act(() => {
+      result.current(action);
+    });
+
+    expect(mockWindowOpen).toHaveBeenCalledWith('https://github.com/docs', '_self');
     expect(mockExecuteAction).not.toHaveBeenCalled();
   });
 

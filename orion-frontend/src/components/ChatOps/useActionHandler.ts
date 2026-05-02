@@ -31,12 +31,14 @@ export function useActionHandler() {
             if (target.openInNewTab) {
               window.open(target.externalUrl, '_blank', 'noopener,noreferrer');
             } else {
-              window.location.href = target.externalUrl;
+              // Use window.open instead of window.location.href to maintain
+              // browser history consistency and avoid losing chat context
+              window.open(target.externalUrl, '_self');
             }
             return;
           }
           // Unsafe URL — log warning and fall through to command execution
-          console.warn(`[ChatOps] Blocked unsafe external URL: ${target.externalUrl}`);
+          console.warn('[ChatOps] Blocked unsafe external URL');
         }
 
         // Internal resource route
