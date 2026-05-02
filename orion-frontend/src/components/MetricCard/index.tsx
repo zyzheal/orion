@@ -5,7 +5,8 @@
  * - Used for dashboard KPI displays
  */
 import React, { useMemo } from 'react';
-import { ArrowUpOutlined, ArrowDownOutlined, MinusOutlined } from '@ant-design/icons';
+import { ArrowUpOutlined, ArrowDownOutlined, MinusOutlined, InfoCircleOutlined } from '@ant-design/icons';
+import { Tooltip } from 'antd';
 
 // ============================================================================
 // Types
@@ -28,6 +29,8 @@ export interface MetricCardProps {
   trendPercent?: number;
   /** Icon or visual element */
   icon?: React.ReactNode;
+  /** Tooltip content for title */
+  tooltip?: string | React.ReactNode;
   /** Additional footer content */
   footer?: React.ReactNode;
   /** Loading state */
@@ -77,6 +80,7 @@ function MetricCard({
   previousValue,
   trendPercent,
   icon,
+  tooltip,
   footer,
   loading = false,
   size = 'medium',
@@ -205,10 +209,18 @@ function MetricCard({
             fontSize: sizeConfig.titleSize,
             color: 'var(--text-secondary, #595959)',
             fontWeight: 500,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4,
           }}
           data-testid="metric-title"
         >
           {title}
+          {tooltip && (
+            <Tooltip title={tooltip} placement="top">
+              <InfoCircleOutlined style={{ fontSize: 12, color: 'var(--text-tertiary, #8c8c8c)', cursor: 'help' }} />
+            </Tooltip>
+          )}
         </span>
         {icon && <span style={{ color: color || '#1890ff' }}>{icon}</span>}
       </div>

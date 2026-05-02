@@ -9,7 +9,7 @@
  * - 改进建议
  */
 import React, { useState, useEffect } from 'react';
-import { Typography, Card, Table, Tag, Space, Tabs, message } from 'antd';
+import { Typography, Card, Table, Tag, Space, Tabs, message, Tooltip, Modal, Button, Select } from 'antd';
 import { colors } from '@/tokens';
 import {
   ClockCircleOutlined,
@@ -17,6 +17,7 @@ import {
   ThunderboltOutlined,
   TrophyOutlined,
   CloseCircleOutlined,
+  QuestionCircleOutlined,
 } from '@ant-design/icons';
 import DashboardLayout from '@/components/DashboardLayout';
 import MetricCard from '@/components/MetricCard';
@@ -27,7 +28,11 @@ import {
   getDoraBenchmarks,
   getEfficiencyDashboard,
   getClickHouseStatus,
+  getTeams,
+  getTeamComparison,
 } from '@/api/efficiency';
+import type { TeamInfo, TeamMetrics } from '@/api/efficiency';
+import { DORA_TOOLTIPS, STORAGE_KEYS, ONBOARDING_STEPS, DORA_LEVELS } from '@/constants/dora-guidance';
 
 const { Title, Text } = Typography;
 const { TabPane } = Tabs;
@@ -101,6 +106,25 @@ const EfficiencyDashboard: React.FC = () => {
   const [benchmarks, setBenchmarks] = useState<DoraBenchmarks | null>(null);
   const [dashboardData, setDashboardData] = useState<EfficiencyDashboardData | null>(null);
   const [clickHouseStatus, setClickHouseStatus] = useState<ClickHouseStatusData | null>(null);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [teams, setTeams] = useState<TeamInfo[]>([]);
+  const [teamComparison, setTeamComparison] = useState<TeamMetrics[]>([]);
+  const [selectedTeams, setSelectedTeams] = useState<string[]>([]);
+  const [comparisonLoading, setComparisonLoading] = useState(false);
+
+  // Check if user has seen onboarding
+  useEffect(() => {
+    const hasSeen = localStorage.getItem(STORAGE_KEYS.hasSeenOnboarding);
+    if (!hasSeen) {
+      setShowOnboarding(true);
+    }
+  }, []);
+
+  // Close onboarding and mark as seen
+  const handleCloseOnboarding = () => {
+    localStorage.setItem(STORAGE_KEYS.hasSeenOnboarding, 'true');
+    setShowOnboarding(false);
+  };
 
   // Generate mock time-series data for trend chart (until backend provides historical API)
   const trendData: TrendDataPoint[][] = React.useMemo(() => {
@@ -151,16 +175,18 @@ const EfficiencyDashboard: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [metricsRes, benchmarksRes, dashboardRes, statusRes] = await Promise.all([
+      const [metricsRes, benchmarksRes, dashboardRes, statusRes, teamsRes] = await Promise.all([
         getDoraMetrics(),
         getDoraBenchmarks(),
         getEfficiencyDashboard(),
         getClickHouseStatus(),
+        getTeams(),
       ]);
       setDoraMetrics(metricsRes.data.data);
       setBenchmarks(benchmarksRes.data.data);
       setDashboardData(dashboardRes.data.data as unknown as EfficiencyDashboardData | null);
       setClickHouseStatus(statusRes.data.data);
+      setTeams(teamsRes.data.data?.teams || []);
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : '加载效能数据失败';
       message.error(msg);
@@ -169,9 +195,30 @@ const EfficiencyDashboard: React.FC = () => {
     }
   };
 
+  // Load team comparison data
+  const loadTeamComparison = async (teamIds?: string[]) => {
+    setComparisonLoading(true);
+    try {
+      const res = await getTeamComparison({ teamIds: teamIds?.join(','), interval: 'weekly' });
+      setTeamComparison(res.data.data?.teams || []);
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : '加载团队对比数据失败';
+      message.error(msg);
+    } finally {
+      setComparisonLoading(false);
+    }
+  };
+
   useEffect(() => {
     loadData();
   }, []);
+
+  // Load comparison when tab changes or teams are selected
+  useEffect(() => {
+    if (activeTab === 'teams') {
+      loadTeamComparison(selectedTeams.length > 0 ? selectedTeams : undefined);
+    }
+  }, [activeTab, selectedTeams]);
 
   const getLevel = (value: unknown, metricKey: string) => {
     if (!benchmarks || value === undefined) return '-';
@@ -306,12 +353,22 @@ const EfficiencyDashboard: React.FC = () => {
   return (
     <div>
       {/* 页面标题 */}
-      <div style={{ marginBottom: 24 }}>
-        <Title level={3} style={{ margin: 0 }}>
-          <ThunderboltOutlined style={{ marginRight: 8 }} />
-          效能看板
-        </Title>
-        <Text type="secondary">DORA 指标追踪与团队效能分析</Text>
+      <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <Title level={3} style={{ margin: 0 }}>
+            <ThunderboltOutlined style={{ marginRight: 8 }} />
+            效能看板
+          </Title>
+          <Text type="secondary">DORA 指标追踪与团队效能分析</Text>
+        </div>
+        <Tooltip title="查看帮助">
+          <Button
+            type="text"
+            icon={<QuestionCircleOutlined />}
+            onClick={() => setShowOnboarding(true)}
+            style={{ fontSize: 18 }}
+          />
+        </Tooltip>
       </div>
 
       {/* DORA 指标卡片 */}
@@ -326,6 +383,7 @@ const EfficiencyDashboard: React.FC = () => {
             trendPercent={12.5}
             previousValue={156}
             loading={loading}
+            tooltip={DORA_TOOLTIPS.deploymentFrequency.description}
           />
           <MetricCard
             title="变更前置时间"
@@ -335,6 +393,7 @@ const EfficiencyDashboard: React.FC = () => {
             trendPercent={18.2}
             previousValue={28}
             loading={loading}
+            tooltip={DORA_TOOLTIPS.leadTimeForChanges.description}
           />
           <MetricCard
             title="服务恢复时间"
@@ -344,6 +403,7 @@ const EfficiencyDashboard: React.FC = () => {
             trendPercent={25.0}
             previousValue={60}
             loading={loading}
+            tooltip={DORA_TOOLTIPS.meanTimeToRecovery.description}
           />
           <MetricCard
             title="变更失败率"
@@ -353,6 +413,7 @@ const EfficiencyDashboard: React.FC = () => {
             trendPercent={2.1}
             previousValue={8.5}
             loading={loading}
+            tooltip={DORA_TOOLTIPS.changeFailureRate.description}
           />
         </DashboardLayout>
       </div>
@@ -418,10 +479,89 @@ const EfficiencyDashboard: React.FC = () => {
         </TabPane>
 
         <TabPane tab="团队对比" key="teams">
-          <Card title="团队效能对比">
-            <div style={{ textAlign: 'center', padding: 40 }}>
-              <Text type="secondary">团队对比功能开发中...</Text>
-            </div>
+          <Card title="团队效能对比" style={{ marginBottom: 16 }}>
+            <Space direction="vertical" style={{ width: '100%' }} size="large">
+              {/* 团队选择 */}
+              <div>
+                <Text type="secondary" style={{ marginRight: 8 }}>选择对比团队：</Text>
+                <Select
+                  mode="multiple"
+                  style={{ width: 400 }}
+                  placeholder="选择要对比的团队"
+                  value={selectedTeams}
+                  onChange={(values) => setSelectedTeams(values)}
+                  options={teams.map((t) => ({ label: t.teamName, value: t.teamId }))}
+                  allowClear
+                />
+              </div>
+
+              {/* 排名表格 */}
+              {teamComparison.length > 0 && (
+                <Table
+                  dataSource={teamComparison}
+                  rowKey="teamId"
+                  loading={comparisonLoading}
+                  pagination={false}
+                  columns={[
+                    {
+                      title: '排名',
+                      key: 'rank',
+                      width: 60,
+                      render: (_: unknown, __: unknown, index: number) => index + 1,
+                    },
+                    {
+                      title: '团队',
+                      dataIndex: 'teamName',
+                      key: 'teamName',
+                    },
+                    {
+                      title: '等级',
+                      dataIndex: 'level',
+                      key: 'level',
+                      render: (level: string) => {
+                        const levelInfo = DORA_LEVELS.find((l) => l.level === level);
+                        return <Tag color={levelInfo?.color || '#8c8c8c'}>{levelInfo?.name || level}</Tag>;
+                      },
+                    },
+                    {
+                      title: '评分',
+                      dataIndex: 'score',
+                      key: 'score',
+                      render: (score: number) => <Text strong>{score}</Text>,
+                    },
+                    {
+                      title: '部署频率',
+                      key: 'deploymentFrequency',
+                      render: (record: TeamMetrics) => `${record.metrics.deploymentFrequency?.toFixed(1) || '-'} 次/周`,
+                    },
+                    {
+                      title: '前置时间',
+                      key: 'leadTime',
+                      render: (record: TeamMetrics) =>
+                        record.metrics.leadTimeMinutes ? `${record.metrics.leadTimeMinutes.toFixed(1)} min` : '-',
+                    },
+                    {
+                      title: 'MTTR',
+                      key: 'mttr',
+                      render: (record: TeamMetrics) =>
+                        record.metrics.mttrMinutes ? `${record.metrics.mttrMinutes.toFixed(1)} min` : '-',
+                    },
+                    {
+                      title: '失败率',
+                      key: 'failureRate',
+                      render: (record: TeamMetrics) => `${record.metrics.changeFailureRate?.toFixed(1) || '-'}%`,
+                    },
+                  ]}
+                />
+              )}
+
+              {/* 无数据提示 */}
+              {teamComparison.length === 0 && !comparisonLoading && (
+                <div style={{ textAlign: 'center', padding: 40 }}>
+                  <Text type="secondary">暂无团队数据，请等待部署记录积累</Text>
+                </div>
+              )}
+            </Space>
           </Card>
         </TabPane>
 
@@ -445,6 +585,39 @@ const EfficiencyDashboard: React.FC = () => {
           </Card>
         </TabPane>
       </Tabs>
+
+      {/* 新手引导 Modal */}
+      <Modal
+        title="效能看板入门指南"
+        open={showOnboarding}
+        onCancel={handleCloseOnboarding}
+        footer={[
+          <Button key="skip" onClick={handleCloseOnboarding}>
+            以后再说
+          </Button>,
+          <Button key="start" type="primary" onClick={handleCloseOnboarding}>
+            开始使用
+          </Button>,
+        ]}
+        width={600}
+      >
+        <div style={{ maxHeight: 400, overflowY: 'auto' }}>
+          {ONBOARDING_STEPS.map((step, index) => (
+            <div
+              key={index}
+              style={{
+                padding: '16px 0',
+                borderBottom: index < ONBOARDING_STEPS.length - 1 ? '1px solid #f0f0f0' : 'none',
+              }}
+            >
+              <Title level={5} style={{ margin: 0, marginBottom: 8 }}>
+                {index + 1}. {step.title}
+              </Title>
+              <Text style={{ whiteSpace: 'pre-wrap' }}>{step.content}</Text>
+            </div>
+          ))}
+        </div>
+      </Modal>
     </div>
   );
 };

@@ -448,6 +448,160 @@ export default async function efficiencyRoutes(app: FastifyInstance, options: Ef
       return reply.status(500).send({ code: 500, message: error.message });
     }
   });
+
+  // ==================== Team Comparison ====================
+
+  // GET /efficiency/teams - 获取团队列表（用于团队对比下拉选择）
+  app.get('/teams', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      // 从 deployments 表提取团队列表（按 tenant_id 分组）
+      if (!deployRepo) {
+        return reply.send({
+          code: 200,
+          message: 'OK',
+          data: {
+            teams: [
+              { teamId: 'team-1', teamName: '平台组' },
+              { teamId: 'team-2', teamName: '前端组' },
+              { teamId: 'team-3', teamName: '后端组' },
+              { teamId: 'team-4', teamName: '运维组' },
+            ],
+          },
+        });
+      }
+
+      const result = await deployRepo.findAll({ limit: 1000 });
+      const teamMap = new Map<string, { teamId: string; teamName: string }>();
+
+      for (const d of result) {
+        const teamId = d.tenant_id || 'unknown';
+        if (!teamMap.has(teamId)) {
+          teamMap.set(teamId, {
+            teamId,
+            teamName: teamId === 'unknown' ? '未分类团队' : `团队 ${teamId.slice(0, 8)}`,
+          });
+        }
+      }
+
+      return reply.send({
+        code: 200,
+        message: 'OK',
+        data: {
+          teams: Array.from(teamMap.values()),
+        },
+      });
+    } catch (error: any) {
+      return reply.status(500).send({ code: 500, message: error.message });
+    }
+  });
+
+  // GET /efficiency/compare - 多团队 DORA 指标对比
+  app.get('/compare', async (request: FastifyRequest, reply: FastifyReply) => {
+    const query = request.query as { teamIds?: string; interval?: 'daily' | 'weekly' | 'monthly' };
+
+    try {
+      const teamIds = query.teamIds ? query.teamIds.split(',').filter(Boolean) : [];
+      const interval = query.interval === 'daily' ? 'day' : query.interval === 'weekly' ? 'week' : 'month';
+      const timeWindowConfig = doraMetrics.buildTimeWindow(interval, 1);
+
+      // 如果未指定团队，返回所有团队的对比
+      if (teamIds.length === 0 && deployRepo) {
+        const result = await deployRepo.findAll({ limit: 1000 });
+        const uniqueTeamIds = new Set(result.map((d: any) => d.tenant_id || 'unknown'));
+        teamIds.push(...Array.from(uniqueTeamIds));
+      }
+
+      // 计算每个团队的 DORA 指标
+      const teamMetrics = await Promise.all(
+        teamIds.map(async (teamId) => {
+          const { deployments, pipelineRecords } = await fetchDeploymentData(teamId, timeWindowConfig.start);
+
+          const df = doraMetrics.calculateDeploymentFrequency(deployments, timeWindowConfig);
+          const lt = doraMetrics.calculateLeadTimeForChanges(pipelineRecords, timeWindowConfig);
+          const cfr = doraMetrics.calculateChangeFailureRate(deployments, timeWindowConfig);
+          const mttr = doraMetrics.calculateMeanTimeToRecovery(deployments, timeWindowConfig);
+
+          // 计算综合评分（0-100）
+          const score = calculateTeamScore(df, lt, cfr, mttr);
+
+          return {
+            teamId,
+            teamName: teamId === 'unknown' ? '未分类团队' : `团队 ${teamId.slice(0, 8)}`,
+            metrics: {
+              deploymentFrequency: df.value,
+              leadTimeMinutes: lt.medianMs ? lt.medianMs / 60000 : null,
+              mttrMinutes: mttr.medianMs ? mttr.medianMs / 60000 : null,
+              changeFailureRate: cfr.value,
+            },
+            score,
+            level: getDoraLevel(score),
+          };
+        })
+      );
+
+      // 按评分排序
+      teamMetrics.sort((a, b) => b.score - a.score);
+
+      return reply.send({
+        code: 200,
+        message: 'OK',
+        data: {
+          teams: teamMetrics,
+          period: {
+            start: timeWindowConfig.start.toISOString(),
+            end: timeWindowConfig.end.toISOString(),
+          },
+        },
+      });
+    } catch (error: any) {
+      return reply.status(500).send({ code: 500, message: error.message });
+    }
+  });
+}
+
+// ==================== Helper Functions ====================
+
+/**
+ * 计算团队综合评分（0-100）
+ */
+function calculateTeamScore(
+  df: { value: number; level?: string },
+  lt: { medianMs?: number },
+  cfr: { value: number },
+  mttr: { medianMs?: number }
+): number {
+  let score = 50; // 基础分
+
+  // 部署频率加分（越高越好）
+  if (df.value >= 7) score += 20; // Elite: 每周多次
+  else if (df.value >= 1) score += 10; // High: 每周至少一次
+  else if (df.value >= 0.25) score += 5; // Medium: 每月至少一次
+
+  // Lead Time 加分（越短越好）
+  if (lt.medianMs && lt.medianMs < 3600000) score += 15; // Elite: < 1小时
+  else if (lt.medianMs && lt.medianMs < 86400000) score += 10; // High: < 1天
+  else if (lt.medianMs && lt.medianMs < 604800000) score += 5; // Medium: < 1周
+
+  // MTTR 加分（越短越好）
+  if (mttr.medianMs && mttr.medianMs < 3600000) score += 10; // Elite: < 1小时
+  else if (mttr.medianMs && mttr.medianMs < 86400000) score += 5; // High: < 1天
+
+  // 变更失败率加分（越低越好）
+  if (cfr.value < 5) score += 5; // Elite: < 5%
+  else if (cfr.value < 10) score += 3; // High: < 10%
+  else if (cfr.value < 15) score += 1; // Medium: < 15%
+
+  return Math.min(100, Math.max(0, score));
+}
+
+/**
+ * 根据评分返回 DORA 等级
+ */
+function getDoraLevel(score: number): 'elite' | 'high' | 'medium' | 'low' {
+  if (score >= 80) return 'elite';
+  if (score >= 60) return 'high';
+  if (score >= 40) return 'medium';
+  return 'low';
 }
 
 // ==================== Weekly Report Service Factory ====================

@@ -115,3 +115,39 @@ export function getClickHouseConfig() {
 export function getEfficiencyDashboard(query?: { projectId?: string; teamId?: string }) {
   return api.get<EfficiencyDashboard>('/v1/efficiency/dashboard', { params: query });
 }
+
+// ==================== Team Comparison ====================
+
+export interface TeamInfo {
+  teamId: string;
+  teamName: string;
+}
+
+export interface TeamMetrics {
+  teamId: string;
+  teamName: string;
+  metrics: {
+    deploymentFrequency: number;
+    leadTimeMinutes: number | null;
+    mttrMinutes: number | null;
+    changeFailureRate: number;
+  };
+  score: number;
+  level: 'elite' | 'high' | 'medium' | 'low';
+}
+
+export interface TeamComparisonResult {
+  teams: TeamMetrics[];
+  period: {
+    start: string;
+    end: string;
+  };
+}
+
+export function getTeams() {
+  return api.get<{ teams: TeamInfo[] }>('/v1/efficiency/teams');
+}
+
+export function getTeamComparison(query?: { teamIds?: string; interval?: 'daily' | 'weekly' | 'monthly' }) {
+  return api.get<TeamComparisonResult>('/v1/efficiency/compare', { params: query });
+}
