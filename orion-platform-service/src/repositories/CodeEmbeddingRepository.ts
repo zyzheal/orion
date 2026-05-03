@@ -7,12 +7,16 @@
  * - Metadata JSONB queries
  */
 
+import pino from 'pino';
+
 import {
   CodeEmbedding,
   CodeEmbeddingInput,
   CodeChunkType,
   CodeChunkMetadata,
 } from '../services/ai/vector-types';
+
+const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
 export interface CodeEmbeddingEntity {
   id: string;
@@ -235,7 +239,15 @@ export class CodeEmbeddingRepository {
 
     if (options?.metadataFilter) {
       for (const [key, value] of Object.entries(options.metadataFilter)) {
-        conditions.push(`metadata->>'${key}' = $${paramIndex}`);
+        // SQL injection protection: validate key format (only alphanumeric and underscore)
+        const sanitizedKey = key.replace(/[^a-zA-Z0-9_]/g, '');
+        if (sanitizedKey !== key) {
+          logger.warn(`Metadata key sanitized: ${key} -> ${sanitizedKey}`);
+        }
+        if (sanitizedKey.length === 0) {
+          continue; // Skip invalid keys
+        }
+        conditions.push(`metadata->>'${sanitizedKey}' = $${paramIndex}`);
         params.push(value);
         paramIndex++;
       }
@@ -272,10 +284,12 @@ export class CodeEmbeddingRepository {
 
     // Search in content or chunk_name
     for (let i = 0; i < keywords.length; i++) {
+      // Escape LIKE wildcards to prevent injection
+      const escapedKeyword = keywords[i].replace(/[%_]/g, '\\$&');
       conditions.push(
         `(content ILIKE $${params.length + 1} OR chunk_name ILIKE $${params.length + 1})`
       );
-      params.push(`%${keywords[i]}%`);
+      params.push(`%${escapedKeyword}%`);
     }
 
     query += conditions.join(' OR ');

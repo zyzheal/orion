@@ -9,6 +9,8 @@
  * 5. JUnit (Java)
  */
 
+import pino from 'pino';
+
 import {
   TestTemplate,
   TemplateVariable,
@@ -18,6 +20,8 @@ import {
   ChangedSymbol,
   ParameterInfo,
 } from './types';
+
+const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
 /**
  * 模板渲染上下文
@@ -553,12 +557,15 @@ class {{symbolName}}Test {
    */
   private processArrayIterations(template: string, context: TemplateContext): string {
     let result = template;
+    let iterations = 0;
+    const maxIterations = 100; // Prevent infinite loop
 
     // 匹配 {{#array}}...{{/array}} 模式
     const arrayPattern = /{{#(\w+)}}([\s\S]*?){{\/(\w+)}}/g;
 
     let match;
-    while ((match = arrayPattern.exec(result)) !== null) {
+    while ((match = arrayPattern.exec(result)) !== null && iterations < maxIterations) {
+      iterations++;
       const arrayName = match[1];
       const blockContent = match[2];
       const closingTag = match[3];
@@ -590,14 +597,22 @@ class {{symbolName}}Test {
           return block;
         });
 
-        result = result.replace(match[0], renderedBlocks.join('\n'));
+        // Replace matched block and reset lastIndex since result changed
+        const matchStart = match.index;
+        const matchEnd = matchStart + match[0].length;
+        result = result.slice(0, matchStart) + renderedBlocks.join('\n') + result.slice(matchEnd);
+        arrayPattern.lastIndex = matchStart + renderedBlocks.join('\n').length;
       } else {
         // 空数组或非数组：移除整个块
-        result = result.replace(match[0], '');
+        const matchStart = match.index;
+        const matchEnd = matchStart + match[0].length;
+        result = result.slice(0, matchStart) + result.slice(matchEnd);
+        arrayPattern.lastIndex = matchStart;
       }
+    }
 
-      // 重置正则索引
-      arrayPattern.lastIndex = 0;
+    if (iterations >= maxIterations) {
+      logger.warn(`processArrayIterations reached max iterations (${maxIterations}), possible infinite loop`);
     }
 
     return result;

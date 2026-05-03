@@ -131,9 +131,9 @@ export class SelfHealingEventPublisher {
         stack: error instanceof Error ? error.stack : undefined,
       });
 
-      // 写入 fallback 日志文件
+      // 写入 fallback 日志文件（异步）
       if (this.fallbackEnabled) {
-        this.writeToFallbackLog(eventType, data, options, error);
+        await this.writeToFallbackLogAsync(eventType, data, options, error);
       }
 
       // 返回失败结果（但不抛出异常）
@@ -148,13 +148,14 @@ export class SelfHealingEventPublisher {
   /**
    * 写入 fallback 日志文件
    * 当事件总线不可用时，将事件写入本地文件以便后续恢复
+   * Major Fix: 使用异步写入避免阻塞主线程
    */
-  private writeToFallbackLog(
+  private async writeToFallbackLogAsync(
     eventType: SelfHealingEventType,
     data: Record<string, unknown>,
     options?: PublishOptions,
     error?: unknown
-  ): void {
+  ): Promise<void> {
     try {
       const timestamp = new Date().toISOString();
       const logEntry = {
@@ -176,7 +177,7 @@ export class SelfHealingEventPublisher {
       const filePath = path.join(FALLBACK_LOG_DIR, fileName);
       const logLine = JSON.stringify(logEntry) + '\n';
 
-      fs.appendFileSync(filePath, logLine, { encoding: 'utf8' });
+      await fs.promises.appendFile(filePath, logLine, { encoding: 'utf8' });
 
       logger.info({
         msg: 'Event written to fallback log',
