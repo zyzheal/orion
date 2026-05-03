@@ -16,9 +16,21 @@ import { allTools } from '../mcp/tools';
 import { allResources } from '../mcp/resources';
 import { PipelineService } from '../services/pipeline/PipelineService';
 import { PipelineRepository } from '../services/pipeline/PipelineRepository';
+import { AuditRepository } from '../services/audit/AuditRepository';
+import pino from 'pino';
+
+const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
 interface McpRoutesOptions {
   database?: DatabasePool;
+}
+
+// 扩展 request.user 类型以包含 tenantId
+interface AuthenticatedUser {
+  userId: string;
+  username: string;
+  role: string;
+  tenantId?: string;
 }
 
 // Store SSE connections
@@ -49,19 +61,86 @@ function validateApiKey(request: FastifyRequest): { userId: string; tenantId: st
 }
 
 /**
+ * Authentication middleware for MCP routes
+ * Returns auth info if authenticated, sends 401 response and returns null if not
+ */
+async function requireAuth(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  auditRepository?: AuditRepository
+): Promise<{ userId: string; tenantId: string } | null> {
+  // Check API key first
+  const apiKeyAuth = validateApiKey(request);
+  if (apiKeyAuth) {
+    return apiKeyAuth;
+  }
+
+  // Check JWT auth（扩展类型以支持 tenantId）
+  const user = request.user as AuthenticatedUser | undefined;
+  if (user) {
+    return {
+      userId: user.userId,
+      tenantId: user.tenantId || 'default-tenant',
+    };
+  }
+
+  // Authentication failed - log and return error
+  const clientIp = request.ip;
+  const userAgent = request.headers['user-agent'] || 'unknown';
+
+  logger.warn({
+    msg: 'MCP authentication failed',
+    path: request.url,
+    method: request.method,
+    clientIp,
+    userAgent,
+    hasApiKey: !!request.headers['x-api-key'],
+    hasJwt: !!request.user,
+  });
+
+  // Record audit log for failed auth
+  if (auditRepository) {
+    try {
+      await auditRepository.create({
+        tenant_id: 'system',
+        user_id: 'anonymous',
+        action: 'mcp:auth_failed',
+        resource_type: 'mcp_endpoint',
+        resource_id: request.url,
+        request_body: {
+          method: request.method,
+          clientIp,
+          userAgent,
+        },
+      });
+    } catch (error) {
+      logger.error({ msg: 'Failed to record auth audit log', error });
+    }
+  }
+
+  reply.status(401).send({
+    error: 'Authentication required',
+    message: 'Provide x-api-key header or valid JWT token',
+  });
+
+  return null;
+}
+
+/**
  * Build MCP context from request
  */
 function buildMcpContext(request: FastifyRequest, database?: DatabasePool): McpContext {
   const auth = validateApiKey(request);
+  const user = request.user as AuthenticatedUser | undefined;
 
   // Initialize services for context
   const pipelineRepository = database ? new PipelineRepository(database) : null;
   const pipelineService = pipelineRepository ? new PipelineService(pipelineRepository) : undefined;
 
   return {
-    userId: auth?.userId || request.user?.userId,
-    tenantId: auth?.tenantId || 'default-tenant',
-    roles: request.user?.role ? [request.user.role] : [],
+    userId: auth?.userId || user?.userId,
+    tenantId: auth?.tenantId || user?.tenantId || 'default-tenant',
+    roles: user?.role ? [user.role] : [],
     apiKey: request.headers['x-api-key'] as string,
     database,
     services: {
@@ -74,6 +153,9 @@ export default async function mcpRoutes(
   app: FastifyInstance,
   options: McpRoutesOptions
 ): Promise<void> {
+  // Initialize audit repository for auth failure logging
+  const auditRepository = options.database ? new AuditRepository(options.database) : undefined;
+
   // Initialize MCP Server with context
   const createContext = (request: FastifyRequest) => buildMcpContext(request, options.database);
 
@@ -104,16 +186,10 @@ export default async function mcpRoutes(
    * Handles all MCP protocol requests
    */
   app.post('/mcp', async (request: FastifyRequest, reply: FastifyReply) => {
-    // Validate authentication
-    const auth = validateApiKey(request);
-    if (mcpConfig.authentication.required && !auth) {
-      // Also check JWT auth if API key not present
-      if (!request.user) {
-        return reply.status(401).send({
-          error: 'Authentication required',
-          message: 'Provide x-api-key header or valid JWT token',
-        });
-      }
+    // Validate authentication using middleware
+    const auth = await requireAuth(request, reply, auditRepository);
+    if (!auth) {
+      return reply; // requireAuth already sent 401 response
     }
 
     const context = createContext(request);
@@ -143,12 +219,10 @@ export default async function mcpRoutes(
    * GET /api/v1/mcp/sse - SSE connection for real-time updates
    */
   app.get('/mcp/sse', async (request: FastifyRequest, reply: FastifyReply) => {
-    // Validate authentication
-    const auth = validateApiKey(request);
-    if (mcpConfig.authentication.required && !auth && !request.user) {
-      return reply.status(401).send({
-        error: 'Authentication required',
-      });
+    // Validate authentication using middleware
+    const auth = await requireAuth(request, reply, auditRepository);
+    if (!auth) {
+      return reply; // requireAuth already sent 401 response
     }
 
     // Set SSE headers
@@ -188,8 +262,15 @@ export default async function mcpRoutes(
 
   /**
    * GET /api/v1/mcp/tools - List all available tools (debug)
+   * Requires authentication
    */
   app.get('/mcp/tools', async (request: FastifyRequest, reply: FastifyReply) => {
+    // Validate authentication
+    const auth = await requireAuth(request, reply, auditRepository);
+    if (!auth) {
+      return reply;
+    }
+
     const context = createContext(request);
     const server = createServer(context);
 
@@ -205,8 +286,15 @@ export default async function mcpRoutes(
 
   /**
    * GET /api/v1/mcp/resources - List all available resources (debug)
+   * Requires authentication
    */
   app.get('/mcp/resources', async (request: FastifyRequest, reply: FastifyReply) => {
+    // Validate authentication
+    const auth = await requireAuth(request, reply, auditRepository);
+    if (!auth) {
+      return reply;
+    }
+
     const context = createContext(request);
     const server = createServer(context);
 
@@ -233,14 +321,16 @@ export default async function mcpRoutes(
 
   /**
    * GET /api/v1/mcp/info - Server information
+   * Public endpoint - no authentication required
    */
   app.get('/mcp/info', async (request: FastifyRequest, reply: FastifyReply) => {
     return reply.send({
       server: mcpConfig,
       protocolVersion: '2024-11-05',
       documentation: '/docs/mcp',
+      authRequired: mcpConfig.authentication.required,
     });
   });
 
-  console.log('[McpRoutes] MCP routes registered');
+  console.log('[McpRoutes] MCP routes registered with authentication middleware');
 }

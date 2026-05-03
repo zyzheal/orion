@@ -3,6 +3,7 @@
  *
  * 使用 EventBusAdapter 统一接口，符合 CloudEvents 1.0 规范
  * ARCH-010: 重构使用 EventBusAdapter 消除接口适配冗余
+ * Critical Fix: 添加异常处理，防止事件发布失败中断主服务
  */
 
 import { EventBusAdapter, PublishOptions, PublishResult } from './EventBusAdapter';
@@ -22,6 +23,14 @@ import {
   SelfHealingIncidentEscalatedEventData,
   SelfHealingEventExtensions,
 } from './types/selfhealing';
+import pino from 'pino';
+import fs from 'fs';
+import path from 'path';
+
+const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+
+// Fallback 日志目录
+const FALLBACK_LOG_DIR = process.env.EVENT_FALLBACK_LOG_DIR || '/tmp/orion-events';
 
 /**
  * 事件发布器配置
@@ -42,23 +51,46 @@ export interface SelfHealingEventPublisherConfig {
  *
  * ARCH-010: 使用 EventBusAdapter 统一接口
  * 负责将自愈相关事件发布到 NATS JetStream 事件总线
+ * Critical Fix: 所有 publish 方法包含异常处理，失败时写入 fallback 日志
  */
 export class SelfHealingEventPublisher {
   private adapter: EventBusAdapter;
   private source: string;
   private defaultTenantId?: string;
   private defaultUserId?: string;
+  private fallbackEnabled: boolean;
 
   constructor(config?: SelfHealingEventPublisherConfig) {
     this.source = config?.source || 'self-healing-service';
     this.defaultTenantId = config?.defaultTenantId;
     this.defaultUserId = config?.defaultUserId;
+    this.fallbackEnabled = true; // 默认启用 fallback
     this.adapter = new EventBusAdapter({
       eventBus: config?.eventBus,
       defaultSource: this.source,
       defaultTenantId: this.defaultTenantId,
       defaultUserId: this.defaultUserId,
     });
+
+    // 确保 fallback 日志目录存在
+    this.ensureFallbackLogDir();
+  }
+
+  /**
+   * 确保 fallback 日志目录存在
+   */
+  private ensureFallbackLogDir(): void {
+    try {
+      if (!fs.existsSync(FALLBACK_LOG_DIR)) {
+        fs.mkdirSync(FALLBACK_LOG_DIR, { recursive: true });
+      }
+    } catch (error) {
+      logger.error({
+        msg: 'Failed to create fallback log directory',
+        dir: FALLBACK_LOG_DIR,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
   }
 
   /**
@@ -77,13 +109,97 @@ export class SelfHealingEventPublisher {
   }
 
   /**
+   * 安全发布事件 - 包装异常处理
+   * Critical Fix: 事件发布失败时记录日志但不中断主流程
+   */
+  private async safePublish(
+    eventType: SelfHealingEventType,
+    data: Record<string, unknown>,
+    options?: PublishOptions
+  ): Promise<PublishResult> {
+    try {
+      const result = await this.adapter.publish(eventType, data, options);
+      return result;
+    } catch (error) {
+      // 记录错误但不抛出异常
+      logger.error({
+        msg: 'Event publish failed, using fallback',
+        eventType,
+        source: options?.source || this.source,
+        tenantId: options?.tenantId || this.defaultTenantId,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+
+      // 写入 fallback 日志文件
+      if (this.fallbackEnabled) {
+        this.writeToFallbackLog(eventType, data, options, error);
+      }
+
+      // 返回失败结果（但不抛出异常）
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Event publish failed',
+        eventId: `fallback-${Date.now()}`,
+      };
+    }
+  }
+
+  /**
+   * 写入 fallback 日志文件
+   * 当事件总线不可用时，将事件写入本地文件以便后续恢复
+   */
+  private writeToFallbackLog(
+    eventType: SelfHealingEventType,
+    data: Record<string, unknown>,
+    options?: PublishOptions,
+    error?: unknown
+  ): void {
+    try {
+      const timestamp = new Date().toISOString();
+      const logEntry = {
+        timestamp,
+        eventType,
+        source: options?.source || this.source,
+        tenantId: options?.tenantId || this.defaultTenantId,
+        userId: options?.userId || this.defaultUserId,
+        traceId: options?.traceId,
+        data,
+        error: error instanceof Error ? {
+          message: error.message,
+          stack: error.stack,
+        } : String(error),
+        recovered: false,
+      };
+
+      const fileName = `events-${timestamp.split('T')[0]}.log`;
+      const filePath = path.join(FALLBACK_LOG_DIR, fileName);
+      const logLine = JSON.stringify(logEntry) + '\n';
+
+      fs.appendFileSync(filePath, logLine, { encoding: 'utf8' });
+
+      logger.info({
+        msg: 'Event written to fallback log',
+        eventType,
+        filePath,
+      });
+    } catch (fallbackError) {
+      logger.error({
+        msg: 'Failed to write fallback log',
+        eventType,
+        error: fallbackError instanceof Error ? fallbackError.message : String(fallbackError),
+      });
+    }
+  }
+
+  /**
    * 发布 self-healing.incident_detected 事件
    */
   async publishIncidentDetected(
     data: SelfHealingIncidentDetectedEventData,
     extensions?: SelfHealingEventExtensions
   ): Promise<PublishResult> {
-    return this.adapter.publish('self-healing.incident_detected', {
+    return this.safePublish('self-healing.incident_detected', {
       ...data,
       timestamp: data.timestamp || new Date().toISOString(),
     }, this.toPublishOptions(extensions));
@@ -96,7 +212,7 @@ export class SelfHealingEventPublisher {
     data: SelfHealingStartedEventData,
     extensions?: SelfHealingEventExtensions
   ): Promise<PublishResult> {
-    return this.adapter.publish('self-healing.healing_started', {
+    return this.safePublish('self-healing.healing_started', {
       ...data,
       timestamp: data.timestamp || new Date().toISOString(),
     }, this.toPublishOptions(extensions));
@@ -109,7 +225,7 @@ export class SelfHealingEventPublisher {
     data: SelfHealingActionExecutedEventData,
     extensions?: SelfHealingEventExtensions
   ): Promise<PublishResult> {
-    return this.adapter.publish('self-healing.action_executed', {
+    return this.safePublish('self-healing.action_executed', {
       ...data,
       timestamp: data.timestamp || new Date().toISOString(),
     }, this.toPublishOptions(extensions));
@@ -122,7 +238,7 @@ export class SelfHealingEventPublisher {
     data: SelfHealingCompletedEventData,
     extensions?: SelfHealingEventExtensions
   ): Promise<PublishResult> {
-    return this.adapter.publish('self-healing.healing_completed', {
+    return this.safePublish('self-healing.healing_completed', {
       ...data,
       timestamp: data.timestamp || new Date().toISOString(),
     }, this.toPublishOptions(extensions));
@@ -135,7 +251,7 @@ export class SelfHealingEventPublisher {
     data: SelfHealingFailedEventData,
     extensions?: SelfHealingEventExtensions
   ): Promise<PublishResult> {
-    return this.adapter.publish('self-healing.healing_failed', {
+    return this.safePublish('self-healing.healing_failed', {
       ...data,
       timestamp: data.timestamp || new Date().toISOString(),
     }, this.toPublishOptions(extensions));
@@ -148,7 +264,7 @@ export class SelfHealingEventPublisher {
     data: SelfHealingApprovalRequestedEventData,
     extensions?: SelfHealingEventExtensions
   ): Promise<PublishResult> {
-    return this.adapter.publish('self-healing.approval_requested', {
+    return this.safePublish('self-healing.approval_requested', {
       ...data,
       timestamp: data.timestamp || new Date().toISOString(),
     }, this.toPublishOptions(extensions));
@@ -161,7 +277,7 @@ export class SelfHealingEventPublisher {
     data: SelfHealingApprovalRespondedEventData,
     extensions?: SelfHealingEventExtensions
   ): Promise<PublishResult> {
-    return this.adapter.publish('self-healing.approval_responded', {
+    return this.safePublish('self-healing.approval_responded', {
       ...data,
       timestamp: data.timestamp || new Date().toISOString(),
     }, this.toPublishOptions(extensions));
@@ -174,7 +290,7 @@ export class SelfHealingEventPublisher {
     data: SelfHealingIncidentEscalatedEventData,
     extensions?: SelfHealingEventExtensions
   ): Promise<PublishResult> {
-    return this.adapter.publish('self-healing.incident_escalated', {
+    return this.safePublish('self-healing.incident_escalated', {
       ...data,
       timestamp: data.timestamp || new Date().toISOString(),
     }, this.toPublishOptions(extensions));
