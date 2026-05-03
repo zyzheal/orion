@@ -29,6 +29,7 @@ import finopsV2Routes from './finops-v2-routes';
 import aiReviewRoutes from './ai-review-routes';
 import diagnosticRoutes from './diagnostic-routes';
 import testSelectorRoutes from './test-selector-routes';
+import testGenerationRoutes from './test-generation-routes';
 import deployRoutes from './deploy-routes';
 import monitoringRoutes from './monitoring-routes';
 import ticketingRoutes from './ticketing-routes';
@@ -74,6 +75,8 @@ import projectRoutes from './project-routes';
 import agentRoutes from '../routes-agent';
 import apiKeyRoutes from './api-key-routes';
 import ephemeralEnvRoutes from './ephemeral-env-routes';
+import mcpRoutes from './mcp-routes';
+import { vectorRoutes } from './vector-routes';
 
 export interface ApiRoutesOptions {
   eventBus?: EventBusService;
@@ -289,6 +292,9 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // 注册智能测试选择器 API 路由 (TASK-303)
   await registerWithRoleGuard(app, testSelectorRoutes, '/v1/test-selector');
 
+  // 注册 AI 测试生成 API 路由 (AI Test Generation)
+  await registerWithRoleGuard(app, testGenerationRoutes, '/v1/test');
+
   // 注册智能部署 API 路由 (TASK-701) - PostgreSQL backed
   await registerWithRoleGuard(app, deployRoutes, '/v1/deploy', { database: options.database });
 
@@ -426,4 +432,10 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // 注册 API Key Management API 路由 - PostgreSQL backed
   await registerWithRoleGuard(app, apiKeyRoutes, '/v1/api-keys', { database: options.database });
+
+  // 注册 MCP Server API 路由 - AI assistant integration
+  await registerWithRoleGuard(app, mcpRoutes, '/v1/mcp', { database: options.database });
+
+  // 注册 Vector Embedding & Semantic Search API 路由 (pgvector backed)
+  await registerWithRoleGuard(app, vectorRoutes, '/v1/vector', { database: options.database });
 }
