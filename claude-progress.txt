@@ -6,7 +6,63 @@
 - **Initialized**: 2026-04-11
 - **Current Branch**: feat/frontend-gap-implementation
 
-## Current Status (2026-04-27)
+## Current Status (2026-05-03)
+
+### feat(events): integrate SelfHealingService with NATS EventBus (COMPLETED)
+- Commit: 0e0068e
+- 实现自愈服务与 NATS EventBus 的真实集成
+- 创建文件：
+  - `events/SelfHealingEventPublisher.ts` - 自愈事件发布器
+  - `events/types/selfhealing.ts` - 自愈事件类型定义
+  - `events/__tests__/SelfHealingEventPublisher.test.ts` - 测试文件 (13 tests)
+- 修改文件：
+  - `services/self-healing/SelfHealingService.ts` - 集成事件发布逻辑
+  - `config/index.ts` - 添加 self-healing JetStream stream 配置
+  - `events/index.ts` - 导出新类型和发布器
+- 事件类型：
+  - self-healing.incident_detected - 事故检测
+  - self-healing.healing_started - 治愈开始
+  - self-healing.action_executed - 动作执行
+  - self-healing.healing_completed - 治愈完成
+  - self-healing.healing_failed - 治愈失败
+  - self-healing.approval_requested - 审批请求
+  - self-healing.approval_responded - 审批响应
+  - self-healing.incident_escalated - 事故升级
+- NATS EventBus 现有集成状态：
+  - EventBusService 已完整实现 NATS JetStream 连接
+  - EventBusAdapter 提供统一发布接口
+  - 7 个 EventPublisher (Pipeline, Code, Deployment, Config, Incident, SelfHealing, Cost)
+  - Docker Compose 已配置 NATS 服务
+  - PostgreSQL 持久化支持 (events, subscriptions)
+  - Fallback 模式 (NATS 不可用时)
+
+### feat(mcp): implement MCP-Server AI connector for Orion (COMPLETED)
+- Commit: f5050ac
+- 实现 Model Context Protocol (MCP) Server，让 AI 助手能直接操作 Orion 研发流程
+- 核心功能：
+  - JSON-RPC 2.0 协议支持 (initialize, tools/list, tools/call, resources/list, resources/read)
+  - SSE 实时连接端点
+  - API Key 和 JWT 认证支持
+- MCP Tools (17 个工具，5 个类别)：
+  - Pipeline: pipeline_trigger, pipeline_status, pipeline_cancel, pipeline_logs
+  - Deployment: deployment_list, deployment_status, deployment_rollback
+  - Ticket: ticket_create, ticket_list, ticket_update, ticket_assign
+  - Diagnostic: diagnostic_run, diagnostic_result, selfhealing_trigger
+  - FinOps: cost_query, cost_anomaly, cost_forecast
+- MCP Resources (11 个资源，URI templates)：
+  - projects://list, projects://{id}
+  - pipelines://list, pipelines://{id}/runs, pipelines://{id}/config
+  - deployments://list, deployments://{id}, deployments://env/{env}
+  - metrics://dora, metrics://efficiency, metrics://cost
+- API 端点：
+  - POST /api/v1/mcp - JSON-RPC 端点
+  - GET /api/v1/mcp/sse - SSE 连接
+  - GET /api/v1/mcp/tools - Tools 列表 (调试)
+  - GET /api/v1/mcp/resources - Resources 列表 (调试)
+- Claude Desktop 配置示例：docs/mcp/claude-desktop-config.json
+- 测试：32 tests passing
+
+## Previous Status (2026-04-27)
 
 ### fix(stability): fix 4 High/Medium stability issues in ChatOps services (COMPLETED)
 - Commit: f9d0daa
