@@ -30,6 +30,7 @@ import {
   IncidentSeverity,
   RiskLevel,
 } from './types';
+import { SelfHealingEventPublisher } from '../../events/SelfHealingEventPublisher';
 
 // ==================== Options ====================
 
@@ -38,13 +39,16 @@ export interface SelfHealingServiceOptions {
   autoExecuteOnApproval?: boolean;
   stormRules?: StormSuppressionRule[];
   dualApprovalConfig?: DualApprovalConfig;
+  /** 事件发布器 (可选，用于发布自愈事件到 NATS) */
+  eventPublisher?: SelfHealingEventPublisher;
 }
 
-const DEFAULT_OPTIONS: Required<SelfHealingServiceOptions> = {
+const DEFAULT_OPTIONS: Required<Omit<SelfHealingServiceOptions, 'eventPublisher'>> & { eventPublisher?: SelfHealingEventPublisher } = {
   approvalExpirationMs: 300000, // 5 minutes
   autoExecuteOnApproval: true,
   stormRules: DEFAULT_STORM_RULES,
   dualApprovalConfig: DEFAULT_DUAL_APPROVAL_CONFIG,
+  eventPublisher: undefined,
 };
 
 // ==================== Service ====================
@@ -61,7 +65,8 @@ export class SelfHealingService {
   private strategyEngine: HealingStrategyEngine;
   private actionExecutor: HealingActionExecutor;
   private guardian: SelfHealingGuardian;
-  private options: Required<SelfHealingServiceOptions>;
+  private options: Required<Omit<SelfHealingServiceOptions, 'eventPublisher'>> & { eventPublisher?: SelfHealingEventPublisher };
+  private eventPublisher?: SelfHealingEventPublisher;
 
   constructor(
     repository: SelfHealingRepository,
@@ -74,10 +79,18 @@ export class SelfHealingService {
       stormRules: options?.stormRules,
       dualApprovalConfig: options?.dualApprovalConfig,
     });
+    this.eventPublisher = options?.eventPublisher;
     this.options = {
       ...DEFAULT_OPTIONS,
       ...options,
     };
+  }
+
+  /**
+   * 设置事件发布器 (用于延迟注入)
+   */
+  setEventPublisher(publisher: SelfHealingEventPublisher): void {
+    this.eventPublisher = publisher;
   }
 
   /**
@@ -125,6 +138,20 @@ export class SelfHealingService {
       await this.repository.updateIncident(row.id, {
         error: 'Storm suppressed - same alert triggered recently',
       });
+
+      // Publish incident_escalated event
+      if (this.eventPublisher) {
+        await this.eventPublisher.publishIncidentEscalated({
+          incidentId: row.id,
+          appName: alert.tags.app || 'unknown',
+          environment: alert.tags.env || 'unknown',
+          reason: 'Storm suppressed - same alert triggered recently',
+          type: this.mapMetricToIncidentType(alert.metric) as any,
+          status: 'escalated',
+          timestamp: new Date().toISOString(),
+        }).catch(err => console.warn('[SelfHealingService] Failed to publish incident_escalated event:', err));
+      }
+
       return this.mapRowToIncident(row);
     }
 
@@ -145,6 +172,20 @@ export class SelfHealingService {
       status: 'evaluating',
       tags: alert.tags,
     });
+
+    // Publish incident_detected event
+    if (this.eventPublisher) {
+      await this.eventPublisher.publishIncidentDetected({
+        incidentId: row.id,
+        alertId: alert.alertId,
+        appName: alert.tags.app || 'unknown',
+        environment: alert.tags.env || 'unknown',
+        type: incidentType as any,
+        severity: alert.severity as any,
+        tags: alert.tags,
+        timestamp: new Date().toISOString(),
+      }).catch(err => console.warn('[SelfHealingService] Failed to publish incident_detected event:', err));
+    }
 
     // Match to a strategy (include severity in context for condition matching)
     const matchContext = { ...alert.tags, severity: alert.severity };
@@ -198,8 +239,39 @@ export class SelfHealingService {
         approval_request_id: approval.id,
       });
 
+      // Publish approval_requested event
+      if (this.eventPublisher) {
+        await this.eventPublisher.publishApprovalRequested({
+          approvalRequestId: approval.id,
+          incidentId: row.id,
+          appName: alert.tags.app || 'unknown',
+          environment: alert.tags.env || 'unknown',
+          title: `Self-Healing Approval: ${incidentType} in ${alert.tags.app}`,
+          description: `Auto-healing requires approval for incident in ${alert.tags.app} (${alert.tags.env}). ${strategy.name}`,
+          riskLevel: this.assessRiskLevel(alert.tags.env || 'unknown') as any,
+          recommendedActions: strategy.actions.map(a => ({ type: a.type as any, description: a.description })),
+          expiresAt: new Date(now.getTime() + this.options.approvalExpirationMs).toISOString(),
+          timestamp: new Date().toISOString(),
+        }).catch(err => console.warn('[SelfHealingService] Failed to publish approval_requested event:', err));
+      }
+
       const final = await this.repository.findIncidentById(row.id);
       return this.mapRowToIncident(final!);
+    }
+
+    // Publish healing_started event before auto-heal
+    if (this.eventPublisher) {
+      await this.eventPublisher.publishHealingStarted({
+        incidentId: row.id,
+        appName: alert.tags.app || 'unknown',
+        environment: alert.tags.env || 'unknown',
+        strategyId: strategy.id,
+        strategyName: strategy.name,
+        actions: strategy.actions.map(a => ({ type: a.type as any, description: a.description })),
+        requiresApproval: false,
+        confidence: strategy.confidence,
+        timestamp: new Date().toISOString(),
+      }).catch(err => console.warn('[SelfHealingService] Failed to publish healing_started event:', err));
     }
 
     // Auto-heal: execute actions
@@ -435,9 +507,36 @@ export class SelfHealingService {
       throw new Error(`Associated incident not found`);
     }
 
+    // Publish approval_responded event
+    if (this.eventPublisher) {
+      await this.eventPublisher.publishApprovalResponded({
+        approvalRequestId: id,
+        incidentId: approvalRow.incident_id,
+        approved: response.approved,
+        respondedBy: response.respondedBy,
+        reason: response.reason,
+        timestamp: new Date().toISOString(),
+      }).catch(err => console.warn('[SelfHealingService] Failed to publish approval_responded event:', err));
+    }
+
     if (response.approved) {
-      // Execute healing actions with approver info
+      // Publish healing_started event before executing actions
       const strategy = this.strategyEngine.getStrategy(incident.strategy_id || '');
+      if (strategy && this.eventPublisher) {
+        await this.eventPublisher.publishHealingStarted({
+          incidentId: incident.id,
+          appName: incident.app_name,
+          environment: incident.environment,
+          strategyId: strategy.id,
+          strategyName: strategy.name,
+          actions: strategy.actions.map(a => ({ type: a.type as any, description: a.description })),
+          requiresApproval: true,
+          confidence: strategy.confidence,
+          timestamp: new Date().toISOString(),
+        }).catch(err => console.warn('[SelfHealingService] Failed to publish healing_started event:', err));
+      }
+
+      // Execute healing actions with approver info
       if (strategy) {
         await this.repository.updateIncident(incident.id, {
           approval_status: 'approved',
@@ -503,6 +602,21 @@ export class SelfHealingService {
       const result = await this.actionExecutor.executeAction(action);
       actionResults.push(result);
 
+      // Publish action_executed event
+      if (this.eventPublisher) {
+        await this.eventPublisher.publishActionExecuted({
+          incidentId: incidentRow.id,
+          actionType: action.type as any,
+          success: result.success,
+          durationMs: result.durationMs,
+          message: result.message,
+          error: result.error,
+          rollbackNeeded: result.rollbackNeeded,
+          rollbackSuccess: result.rollbackSuccess,
+          timestamp: new Date().toISOString(),
+        }).catch(err => console.warn('[SelfHealingService] Failed to publish action_executed event:', err));
+      }
+
       // Update audit entry with result
       await this.guardian.recordAudit({
         incidentId: incidentRow.id,
@@ -545,6 +659,32 @@ export class SelfHealingService {
       error: allSuccess ? undefined : 'Some healing actions failed',
       completed_at: new Date(),
     });
+
+    // Publish healing_completed or healing_failed event
+    if (this.eventPublisher) {
+      if (allSuccess) {
+        await this.eventPublisher.publishHealingCompleted({
+          incidentId: incidentRow.id,
+          appName: incidentRow.app_name,
+          environment: incidentRow.environment,
+          success: true,
+          durationMs: duration,
+          actionsExecuted: actionResults.length,
+          effectiveness: healingResult.effectiveness,
+          timestamp: new Date().toISOString(),
+        }).catch(err => console.warn('[SelfHealingService] Failed to publish healing_completed event:', err));
+      } else {
+        await this.eventPublisher.publishHealingFailed({
+          incidentId: incidentRow.id,
+          appName: incidentRow.app_name,
+          environment: incidentRow.environment,
+          error: 'Some healing actions failed',
+          attempts: incidentRow.attempts,
+          lastAction: actionResults[actionResults.length - 1]?.type as any,
+          timestamp: new Date().toISOString(),
+        }).catch(err => console.warn('[SelfHealingService] Failed to publish healing_failed event:', err));
+      }
+    }
 
     return this.mapRowToIncident(
       (await this.repository.findIncidentById(incidentRow.id))!

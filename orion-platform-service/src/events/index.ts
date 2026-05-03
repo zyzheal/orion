@@ -31,6 +31,9 @@ export { ConfigEventPublisher, ConfigEventPublisherConfig, configEventPublisher 
 // Incident 事件
 export { IncidentEventPublisher, IncidentEventPublisherConfig, incidentEventPublisher } from './IncidentEventPublisher';
 
+// Self-Healing 事件
+export { SelfHealingEventPublisher, SelfHealingEventPublisherConfig, selfHealingEventPublisher } from './SelfHealingEventPublisher';
+
 // Pipeline 类型
 export {
   PipelineEventType,
@@ -91,3 +94,21 @@ export {
   IncidentEscalatedEventData,
   IncidentEventExtensions,
 } from './types/incident';
+
+// Self-Healing 类型
+export {
+  SelfHealingEventType,
+  SelfHealingSeverity,
+  SelfHealingStatus,
+  SelfHealingActionType,
+  SelfHealingIncidentType,
+  SelfHealingIncidentDetectedEventData,
+  SelfHealingStartedEventData,
+  SelfHealingActionExecutedEventData,
+  SelfHealingCompletedEventData,
+  SelfHealingFailedEventData,
+  SelfHealingApprovalRequestedEventData,
+  SelfHealingApprovalRespondedEventData,
+  SelfHealingIncidentEscalatedEventData,
+  SelfHealingEventExtensions,
+} from './types/selfhealing';

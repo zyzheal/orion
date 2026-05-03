@@ -88,7 +88,7 @@ const defaultConfig: AppConfig = {
     streams: [
       {
         name: 'ORION_PLATFORM',
-        subjects: ['orion.code.*', 'orion.deploy.*', 'orion.config.*', 'orion.incident.*'],
+        subjects: ['orion.code.*', 'orion.deploy.*', 'orion.config.*', 'orion.incident.*', 'orion.self-healing.*'],
       },
       {
         name: 'ORION_PIPELINE',
@@ -180,7 +180,7 @@ export function reloadConfig(): AppConfig {
       streams: [
         {
           name: 'ORION_PLATFORM',
-          subjects: ['orion.code.*', 'orion.deploy.*', 'orion.config.*', 'orion.incident.*'],
+          subjects: ['orion.code.*', 'orion.deploy.*', 'orion.config.*', 'orion.incident.*', 'orion.self-healing.*'],
         },
         {
           name: 'ORION_PIPELINE',
@@ -201,6 +201,17 @@ export function reloadConfig(): AppConfig {
           ackWait: '30s',
           maxDeliver: 5,
           maxAckPending: 100,
+          replayPolicy: 'instant',
+        },
+        {
+          stream: 'ORION_PLATFORM',
+          name: 'self-healing',
+          filterSubject: 'orion.self-healing.*',
+          deliverPolicy: 'new',
+          ackPolicy: 'explicit',
+          ackWait: '60s',
+          maxDeliver: 5,
+          maxAckPending: 50,
           replayPolicy: 'instant',
         },
         {
