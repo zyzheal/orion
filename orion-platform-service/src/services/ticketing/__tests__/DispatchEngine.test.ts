@@ -10,6 +10,14 @@ import {
   TicketPriority,
 } from '../types';
 
+// Mock TicketingRepository
+const mockTicketingRepository = {
+  getEngineerProfile: jest.fn().mockResolvedValue(null),
+  updateEngineerProfile: jest.fn().mockResolvedValue(null),
+  getActiveAssignmentsByEngineer: jest.fn().mockResolvedValue([]),
+  createAssignment: jest.fn().mockResolvedValue({ id: 'assign-1' }),
+};
+
 const createTestTicket = (overrides: Partial<Ticket> = {}): Ticket => ({
   id: 'TKT-test-1',
   title: 'Test Ticket',
@@ -48,7 +56,7 @@ describe('DispatchEngine', () => {
   let engine: DispatchEngine;
 
   beforeEach(() => {
-    engine = new DispatchEngine();
+    engine = new DispatchEngine({ ticketingRepository: mockTicketingRepository as any });
   });
 
   afterEach(() => {

@@ -5,6 +5,15 @@
 import { EngineerSuspendService } from '../EngineerSuspendService';
 import { EngineerSuspend, SuspendReason, Ticket, EngineerProfile } from '../types';
 
+// Mock TicketingRepository
+const mockTicketingRepository = {
+  createEngineerSuspend: jest.fn().mockResolvedValue({ id: 'suspend-1' }),
+  getActiveSuspends: jest.fn().mockResolvedValue([]),
+  clearSuspend: jest.fn().mockResolvedValue(undefined),
+  getEngineerProfile: jest.fn().mockResolvedValue(null),
+  updateEngineerProfile: jest.fn().mockResolvedValue(null),
+};
+
 const createTestTicket = (overrides: Partial<Ticket> = {}): Ticket => ({
   id: 'TKT-test-1',
   title: 'Test Ticket',
@@ -43,7 +52,7 @@ describe('EngineerSuspendService', () => {
   let service: EngineerSuspendService;
 
   beforeEach(() => {
-    service = new EngineerSuspendService();
+    service = new EngineerSuspendService({ ticketingRepository: mockTicketingRepository as any });
   });
 
   afterEach(() => {

@@ -3,6 +3,43 @@
  */
 
 import { TicketService } from '../TicketService';
+import { TicketingRepository } from '../TicketingRepository';
+
+// Mock TicketingRepository
+const mockTicketingRepository = {
+  createTicket: jest.fn().mockResolvedValue({ id: 'TKT-test-1', title: 'Test', status: 'open' }),
+  getTicketById: jest.fn().mockResolvedValue(null),
+  updateTicket: jest.fn().mockResolvedValue(null),
+  deleteTicket: jest.fn().mockResolvedValue(undefined),
+  listTickets: jest.fn().mockResolvedValue([]),
+  addComment: jest.fn().mockResolvedValue({ id: 'comment-1' }),
+  getComments: jest.fn().mockResolvedValue([]),
+  createAssignment: jest.fn().mockResolvedValue({ id: 'assign-1' }),
+  getAssignmentsByTicket: jest.fn().mockResolvedValue([]),
+  getActiveAssignmentsByEngineer: jest.fn().mockResolvedValue([]),
+  updateAssignment: jest.fn().mockResolvedValue(null),
+  createDispatchRule: jest.fn().mockResolvedValue({ id: 'rule-1' }),
+  getDispatchRules: jest.fn().mockResolvedValue([]),
+  updateDispatchRule: jest.fn().mockResolvedValue(null),
+  deleteDispatchRule: jest.fn().mockResolvedValue(undefined),
+  createTransfer: jest.fn().mockResolvedValue({ id: 'transfer-1' }),
+  getTransfersByTicket: jest.fn().mockResolvedValue([]),
+  createEngineerSuspend: jest.fn().mockResolvedValue({ id: 'suspend-1' }),
+  getActiveSuspends: jest.fn().mockResolvedValue([]),
+  clearSuspend: jest.fn().mockResolvedValue(undefined),
+  getWorkflowHistory: jest.fn().mockResolvedValue([]),
+  addWorkflowHistory: jest.fn().mockResolvedValue({ id: 'history-1' }),
+  createWorkflowHistory: jest.fn().mockResolvedValue({ id: 'history-1' }),
+  updateWorkflowHistory: jest.fn().mockResolvedValue(null),
+  createSLA: jest.fn().mockResolvedValue({ id: 'sla-1' }),
+  getSLAByTicket: jest.fn().mockResolvedValue(null),
+  updateSLA: jest.fn().mockResolvedValue(null),
+  createRelation: jest.fn().mockResolvedValue({ id: 'relation-1' }),
+  getRelationsByTicket: jest.fn().mockResolvedValue([]),
+  getEngineerProfile: jest.fn().mockResolvedValue(null),
+  updateEngineerProfile: jest.fn().mockResolvedValue(null),
+  getEngineerStats: jest.fn().mockResolvedValue(null),
+};
 
 describe('TicketService', () => {
   let service: TicketService;
@@ -11,6 +48,7 @@ describe('TicketService', () => {
     service = new TicketService({
       enableAutoAssignment: false, // Disable for predictable tests
       enableAutoEscalation: false,
+      ticketingRepository: mockTicketingRepository as any,
     });
   });
 

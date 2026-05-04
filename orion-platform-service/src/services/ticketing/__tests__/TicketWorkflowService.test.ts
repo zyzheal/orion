@@ -5,11 +5,35 @@
 import { TicketWorkflowService } from '../TicketWorkflowService';
 import { Ticket, TicketStatus, TicketPriority, TicketCategory, AssignmentRule } from '../types';
 
+// Mock TicketingRepository
+const mockTicketingRepository = {
+  createTicket: jest.fn().mockResolvedValue({ id: 'TKT-test-1', title: 'Test', status: 'open' }),
+  getTicketById: jest.fn().mockResolvedValue(null),
+  updateTicket: jest.fn().mockResolvedValue(null),
+  deleteTicket: jest.fn().mockResolvedValue(undefined),
+  listTickets: jest.fn().mockResolvedValue([]),
+  addComment: jest.fn().mockResolvedValue({ id: 'comment-1' }),
+  getComments: jest.fn().mockResolvedValue([]),
+  createAssignment: jest.fn().mockResolvedValue({ id: 'assign-1' }),
+  getAssignmentsByTicket: jest.fn().mockResolvedValue([]),
+  getActiveAssignmentsByEngineer: jest.fn().mockResolvedValue([]),
+  updateAssignment: jest.fn().mockResolvedValue(null),
+  getWorkflowHistory: jest.fn().mockResolvedValue([]),
+  addWorkflowHistory: jest.fn().mockResolvedValue({ id: 'history-1' }),
+  createWorkflowHistory: jest.fn().mockResolvedValue({ id: 'history-1' }),
+  updateWorkflowHistory: jest.fn().mockResolvedValue(null),
+  createSLA: jest.fn().mockResolvedValue({ id: 'sla-1' }),
+  getSLAByTicket: jest.fn().mockResolvedValue(null),
+  updateSLA: jest.fn().mockResolvedValue(null),
+  createRelation: jest.fn().mockResolvedValue({ id: 'relation-1' }),
+  getRelationsByTicket: jest.fn().mockResolvedValue([]),
+};
+
 describe('TicketWorkflowService', () => {
   let workflow: TicketWorkflowService;
 
   beforeEach(() => {
-    workflow = new TicketWorkflowService();
+    workflow = new TicketWorkflowService({ ticketingRepository: mockTicketingRepository as any });
   });
 
   afterEach(() => {

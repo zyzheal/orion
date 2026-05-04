@@ -8,6 +8,13 @@ import {
   TicketCategory,
 } from '../types';
 
+// Mock TicketingRepository
+const mockTicketingRepository = {
+  getEngineerProfile: jest.fn().mockResolvedValue(null),
+  updateEngineerProfile: jest.fn().mockResolvedValue(null),
+  getActiveAssignmentsByEngineer: jest.fn().mockResolvedValue([]),
+};
+
 const createTestEngineer = (overrides: Partial<EngineerProfile> = {}): EngineerProfile => ({
   id: 'eng-1',
   name: 'Test Engineer',
@@ -30,7 +37,7 @@ describe('LoadBalancer', () => {
   let balancer: LoadBalancer;
 
   beforeEach(() => {
-    balancer = new LoadBalancer();
+    balancer = new LoadBalancer({ ticketingRepository: mockTicketingRepository as any });
   });
 
   afterEach(() => {

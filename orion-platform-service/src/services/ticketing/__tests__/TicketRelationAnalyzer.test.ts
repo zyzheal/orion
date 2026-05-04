@@ -5,11 +5,17 @@
 import { TicketRelationAnalyzer } from '../TicketRelationAnalyzer';
 import { Ticket } from '../types';
 
+// Mock TicketingRepository
+const mockTicketingRepository = {
+  createTicket: jest.fn().mockResolvedValue(null),
+  getTicketById: jest.fn().mockResolvedValue(null),
+};
+
 describe('TicketRelationAnalyzer', () => {
   let analyzer: TicketRelationAnalyzer;
 
   beforeEach(() => {
-    analyzer = new TicketRelationAnalyzer();
+    analyzer = new TicketRelationAnalyzer({ ticketingRepository: mockTicketingRepository as any });
   });
 
   // Helper to create test tickets
