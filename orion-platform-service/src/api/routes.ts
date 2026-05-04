@@ -77,6 +77,7 @@ import apiKeyRoutes from './api-key-routes';
 import ephemeralEnvRoutes from './ephemeral-env-routes';
 import mcpRoutes from './mcp-routes';
 import { vectorRoutes } from './vector-routes';
+import llmTraceRoutes from './llm-trace-routes';
 
 export interface ApiRoutesOptions {
   eventBus?: EventBusService;
@@ -438,6 +439,9 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // 注册 Vector Embedding & Semantic Search API 路由 (pgvector backed)
   await registerWithRoleGuard(app, vectorRoutes, '/v1/vector', { database: options.database });
+
+  // 注册 LLM Trace API 路由 - LLM调用链追踪与成本分析
+  await registerWithRoleGuard(app, llmTraceRoutes, '/v1/llm');
 
   // ==================== Phase 1 P0 Routes (Planned) ====================
   // TODO: Register auth-enhanced-routes once implemented
