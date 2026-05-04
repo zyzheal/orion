@@ -2,6 +2,7 @@
 import crypto from 'crypto';
 import { EventEmitter } from 'events';
 import pino from 'pino';
+import type { DatabasePool } from '../database';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -31,13 +32,15 @@ const DEFAULT_CONFIG: JwtKeyRotationConfig = {
 
 export class JwtKeyRotationService extends EventEmitter {
   private config: JwtKeyRotationConfig;
+  private dbPool: DatabasePool;
   private currentKey: JwtKey | null = null;
   private previousKey: JwtKey | null = null;
   private keys: Map<string, JwtKey> = new Map();
   private rotationTimer?: NodeJS.Timeout;
 
-  constructor(config: Partial<JwtKeyRotationConfig> = {}) {
+  constructor(dbPool: DatabasePool, config: Partial<JwtKeyRotationConfig> = {}) {
     super();
+    this.dbPool = dbPool;
     this.config = { ...DEFAULT_CONFIG, ...config };
   }
 
@@ -200,21 +203,56 @@ export class JwtKeyRotationService extends EventEmitter {
   }
 
   private async loadKeysFromDatabase(): Promise<JwtKey[]> {
-    // Placeholder - would query jwt_key_rotation table
-    // In production, this would use a repository to query the database
-    return [];
+    try {
+      const result = await this.dbPool.query(
+        `SELECT key_id, key_hash, key_strength, status, created_at, activated_at, expires_at
+         FROM jwt_key_rotation
+         WHERE status IN ('active', 'expiring')
+         ORDER BY created_at DESC`,
+      );
+
+      return result.rows.map(row => ({
+        keyId: row.key_id,
+        keyHash: row.key_hash,
+        keyStrength: row.key_strength,
+        status: row.status,
+        createdAt: row.created_at,
+        activatedAt: row.activated_at,
+        expiresAt: row.expires_at,
+      }));
+    } catch (error) {
+      logger.error('[JwtKeyRotation] Failed to load keys from database:', error);
+      return [];
+    }
   }
 
   private async storeKeyInDatabase(key: JwtKey): Promise<void> {
-    // Placeholder - would insert into jwt_key_rotation table
-    // In production, this would use a repository to insert into the database
-    logger.debug(`[JwtKeyRotation] Storing key: ${key.keyId}`);
+    try {
+      await this.dbPool.query(
+        `INSERT INTO jwt_key_rotation (key_id, key_hash, key_strength, status, created_at, rotation_trigger)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [key.keyId, key.keyHash, key.keyStrength, key.status, key.createdAt, this.config.rotationTrigger || 'scheduled'],
+      );
+      logger.debug(`[JwtKeyRotation] Stored key in database: ${key.keyId}`);
+    } catch (error) {
+      logger.error('[JwtKeyRotation] Failed to store key in database:', error);
+      throw error;
+    }
   }
 
   private async updateKeyInDatabase(key: JwtKey): Promise<void> {
-    // Placeholder - would update jwt_key_rotation table
-    // In production, this would use a repository to update the database
-    logger.debug(`[JwtKeyRotation] Updating key: ${key.keyId}`);
+    try {
+      await this.dbPool.query(
+        `UPDATE jwt_key_rotation
+         SET status = $1, activated_at = $2, expires_at = $3
+         WHERE key_id = $4`,
+        [key.status, key.activatedAt, key.expiresAt, key.keyId],
+      );
+      logger.debug(`[JwtKeyRotation] Updated key in database: ${key.keyId}`);
+    } catch (error) {
+      logger.error('[JwtKeyRotation] Failed to update key in database:', error);
+      throw error;
+    }
   }
 
   shutdown(): void {

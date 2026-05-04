@@ -1,11 +1,28 @@
 // orion-platform-service/src/services/auth/__tests__/TokenBlacklistService.test.ts
 import { TokenBlacklistService, TokenBlacklistConfig, RevokedTokenInfo } from '../TokenBlacklistService';
 
+// Mock DatabasePool for testing
+const createMockDbPool = () => ({
+  query: jest.fn().mockImplementation(async (sql: string, params?: any[]) => {
+    // Return empty result for most queries
+    return { rows: [], rowCount: 0 };
+  }),
+  connect: jest.fn(),
+  transaction: jest.fn(),
+  checkHealth: jest.fn().mockResolvedValue({ status: 'up', latency: 1 }),
+  close: jest.fn(),
+  isHealthy: jest.fn().mockReturnValue(true),
+  getPoolSize: jest.fn().mockReturnValue(10),
+  getIdleCount: jest.fn().mockReturnValue(5),
+});
+
 describe('TokenBlacklistService', () => {
   let service: TokenBlacklistService;
+  let mockDbPool: ReturnType<typeof createMockDbPool>;
 
   beforeEach(() => {
-    service = new TokenBlacklistService({
+    mockDbPool = createMockDbPool();
+    service = new TokenBlacklistService(mockDbPool as any, {
       ttlSeconds: 7 * 24 * 3600, // 7 days
       keyPrefix: 'token:blacklist:',
     });
@@ -105,7 +122,8 @@ describe('TokenBlacklistService', () => {
 
     it('should return false for expired revoked token', async () => {
       // Create service with very short TTL for testing
-      const shortTtlService = new TokenBlacklistService({
+      const shortTtlMockDbPool = createMockDbPool();
+      const shortTtlService = new TokenBlacklistService(shortTtlMockDbPool as any, {
         ttlSeconds: -1, // Already expired
         keyPrefix: 'test:',
       });
@@ -205,7 +223,9 @@ describe('TokenBlacklistService', () => {
   describe('cleanupExpired', () => {
     it('should remove expired tokens from blacklist', async () => {
       // Create service with negative TTL for immediate expiration
-      const shortTtlService = new TokenBlacklistService({
+      const shortTtlMockDbPool = createMockDbPool();
+      shortTtlMockDbPool.query.mockResolvedValueOnce({ rows: [], rowCount: 1 }); // For cleanup DELETE
+      const shortTtlService = new TokenBlacklistService(shortTtlMockDbPool as any, {
         ttlSeconds: -1,
         keyPrefix: 'cleanup:',
       });

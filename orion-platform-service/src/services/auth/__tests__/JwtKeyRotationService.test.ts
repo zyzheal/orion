@@ -1,11 +1,28 @@
 // orion-platform-service/src/services/auth/__tests__/JwtKeyRotationService.test.ts
 import { JwtKeyRotationService, JwtKeyRotationConfig, JwtKey } from '../JwtKeyRotationService';
 
+// Mock DatabasePool for testing
+const createMockDbPool = () => ({
+  query: jest.fn().mockImplementation(async (sql: string, params?: any[]) => {
+    // Return empty result for most queries
+    return { rows: [], rowCount: 0 };
+  }),
+  connect: jest.fn(),
+  transaction: jest.fn(),
+  checkHealth: jest.fn().mockResolvedValue({ status: 'up', latency: 1 }),
+  close: jest.fn(),
+  isHealthy: jest.fn().mockReturnValue(true),
+  getPoolSize: jest.fn().mockReturnValue(10),
+  getIdleCount: jest.fn().mockReturnValue(5),
+});
+
 describe('JwtKeyRotationService', () => {
   let service: JwtKeyRotationService;
+  let mockDbPool: ReturnType<typeof createMockDbPool>;
 
   beforeEach(() => {
-    service = new JwtKeyRotationService({
+    mockDbPool = createMockDbPool();
+    service = new JwtKeyRotationService(mockDbPool as any, {
       rotationIntervalDays: 90,
       overlapDays: 7,
       keyStrength: '256-bit',
@@ -121,7 +138,8 @@ describe('JwtKeyRotationService', () => {
     });
 
     it('should use configured rotation interval', () => {
-      const customService = new JwtKeyRotationService({
+      const customMockDbPool = createMockDbPool();
+      const customService = new JwtKeyRotationService(customMockDbPool as any, {
         rotationIntervalDays: 30,
         overlapDays: 7,
         keyStrength: '256-bit',
@@ -194,7 +212,8 @@ describe('JwtKeyRotationService', () => {
 
   describe('key strength options', () => {
     it('should support 128-bit keys', async () => {
-      const customService = new JwtKeyRotationService({
+      const customMockDbPool = createMockDbPool();
+      const customService = new JwtKeyRotationService(customMockDbPool as any, {
         rotationIntervalDays: 90,
         overlapDays: 7,
         keyStrength: '128-bit',
@@ -207,7 +226,8 @@ describe('JwtKeyRotationService', () => {
     });
 
     it('should support 192-bit keys', async () => {
-      const customService = new JwtKeyRotationService({
+      const customMockDbPool = createMockDbPool();
+      const customService = new JwtKeyRotationService(customMockDbPool as any, {
         rotationIntervalDays: 90,
         overlapDays: 7,
         keyStrength: '192-bit',

@@ -2,6 +2,7 @@
 import crypto from 'crypto';
 import { EventEmitter } from 'events';
 import pino from 'pino';
+import type { DatabasePool } from '../database';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -35,13 +36,15 @@ const DEFAULT_CONFIG: TokenBlacklistConfig = {
 
 export class TokenBlacklistService extends EventEmitter {
   private config: TokenBlacklistConfig;
+  private dbPool: DatabasePool;
   private redisClient: any; // Would be actual Redis client in production
   private revokedTokens: Map<string, RevokedTokenInfo> = new Map();
   private userTokenCounts: Map<string, number> = new Map();
   private tenantTokenCounts: Map<number, number> = new Map();
 
-  constructor(config: Partial<TokenBlacklistConfig> = {}) {
+  constructor(dbPool: DatabasePool, config: Partial<TokenBlacklistConfig> = {}) {
     super();
+    this.dbPool = dbPool;
     this.config = { ...DEFAULT_CONFIG, ...config };
   }
 
@@ -83,7 +86,7 @@ export class TokenBlacklistService extends EventEmitter {
       revokedBy,
     };
 
-    // Store in local cache (would also store in Redis in production)
+    // Store in local cache
     this.revokedTokens.set(tokenHash, info);
 
     // Update user token count
@@ -93,6 +96,20 @@ export class TokenBlacklistService extends EventEmitter {
     // Update tenant token count
     const tenantCount = this.tenantTokenCounts.get(tenantId) || 0;
     this.tenantTokenCounts.set(tenantId, tenantCount + 1);
+
+    // Persist to database
+    try {
+      await this.dbPool.query(
+        `INSERT INTO token_blacklist (token_hash, user_id, tenant_id, revoked_at, expires_at, revoke_reason, revoked_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         ON CONFLICT (token_hash) DO NOTHING`,
+        [tokenHash, userId, tenantId, now, expiresAt, reason, revokedBy],
+      );
+      logger.debug(`[TokenBlacklist] Token persisted to database: ${tokenHash.slice(0, 16)}...`);
+    } catch (error) {
+      logger.error('[TokenBlacklist] Failed to persist token to database:', error);
+      // Continue even if database fails - memory cache is still valid
+    }
 
     // Emit event
     this.emit('token:revoked', info);
@@ -109,7 +126,7 @@ export class TokenBlacklistService extends EventEmitter {
   async isRevoked(token: string): Promise<boolean> {
     const tokenHash = this.hashToken(token);
 
-    // Check local cache
+    // Check local cache first
     const info = this.revokedTokens.get(tokenHash);
     if (info) {
       // Check if expired (cleanup automatically)
@@ -118,6 +135,31 @@ export class TokenBlacklistService extends EventEmitter {
         return false;
       }
       return true;
+    }
+
+    // Check database as fallback
+    try {
+      const result = await this.dbPool.query(
+        `SELECT token_hash, expires_at FROM token_blacklist WHERE token_hash = $1 AND expires_at > NOW()`,
+        [tokenHash],
+      );
+
+      if (result.rows.length > 0) {
+        // Found in database, add to cache for future lookups
+        const dbRow = result.rows[0];
+        this.revokedTokens.set(tokenHash, {
+          tokenHash: dbRow.token_hash,
+          userId: '', // Not needed for isRevoked check
+          tenantId: 0,
+          revokedAt: new Date(),
+          expiresAt: dbRow.expires_at,
+          revokeReason: 'unknown',
+        });
+        return true;
+      }
+    } catch (error) {
+      logger.error('[TokenBlacklist] Failed to check database:', error);
+      // On database error, rely on memory cache only (already checked above)
     }
 
     // In production: would also check Redis
@@ -231,15 +273,31 @@ export class TokenBlacklistService extends EventEmitter {
       this.revokedTokens.delete(hash);
     }
 
+    // Cleanup expired tokens from database
+    let dbDeletedCount = 0;
+    try {
+      const dbResult = await this.dbPool.query(
+        `DELETE FROM token_blacklist WHERE expires_at < NOW()`,
+      );
+      dbDeletedCount = dbResult.rowCount ?? 0;
+      logger.debug(`[TokenBlacklist] Cleaned up ${dbDeletedCount} expired tokens from database`);
+    } catch (error) {
+      logger.error('[TokenBlacklist] Failed to cleanup database:', error);
+    }
+
+    const totalCleaned = expiredHashes.length + dbDeletedCount;
+
     // Emit cleanup event
     this.emit('cleanup:completed', {
-      cleanedCount: expiredHashes.length,
+      cleanedCount: totalCleaned,
+      memoryCleaned: expiredHashes.length,
+      dbCleaned: dbDeletedCount,
       timestamp: now,
     });
 
-    logger.info(`[TokenBlacklist] Cleanup completed: removed ${expiredHashes.length} expired tokens`);
+    logger.info(`[TokenBlacklist] Cleanup completed: removed ${expiredHashes.length} from memory, ${dbDeletedCount} from database`);
 
-    return expiredHashes.length;
+    return totalCleaned;
   }
 
   /**
