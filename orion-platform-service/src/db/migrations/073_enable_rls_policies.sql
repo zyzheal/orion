@@ -2,6 +2,9 @@
 -- Enables tenant isolation at the database layer (Layer 4 of 4-layer isolation)
 -- Tables covered: sessions, audit_logs, deployments, pipeline_runs, builds,
 --                  kb_spaces, kb_docs, knowledge_articles, knowledge_categories, agent_runs
+--
+-- SECURITY NOTE: All policies validate that app.current_tenant_id is set and non-empty
+-- before comparing with tenant_id. This prevents bypass when session variable is missing.
 
 -- ============================================================
 -- 1. SESSIONS Table RLS
@@ -11,7 +14,11 @@ ALTER TABLE sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sessions FORCE ROW LEVEL SECURITY;
 
 CREATE POLICY tenant_isolation_sessions ON sessions
-    USING (tenant_id = current_setting('app.current_tenant_id', true));
+    USING (
+        current_setting('app.current_tenant_id', true) IS NOT NULL
+        AND current_setting('app.current_tenant_id', true) != ''
+        AND tenant_id = current_setting('app.current_tenant_id')
+    );
 
 -- Ensure index exists for RLS query performance
 CREATE INDEX IF NOT EXISTS idx_sessions_tenant_rls ON sessions(tenant_id);
@@ -26,7 +33,11 @@ ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_logs FORCE ROW LEVEL SECURITY;
 
 CREATE POLICY tenant_isolation_audit_logs ON audit_logs
-    USING (tenant_id::text = current_setting('app.current_tenant_id', true));
+    USING (
+        current_setting('app.current_tenant_id', true) IS NOT NULL
+        AND current_setting('app.current_tenant_id', true) != ''
+        AND tenant_id::text = current_setting('app.current_tenant_id')
+    );
 
 -- Index already exists: idx_audit_logs_tenant
 -- Ensure additional index for RLS optimization
@@ -42,7 +53,11 @@ ALTER TABLE deployments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE deployments FORCE ROW LEVEL SECURITY;
 
 CREATE POLICY tenant_isolation_deployments ON deployments
-    USING (tenant_id::text = current_setting('app.current_tenant_id', true));
+    USING (
+        current_setting('app.current_tenant_id', true) IS NOT NULL
+        AND current_setting('app.current_tenant_id', true) != ''
+        AND tenant_id::text = current_setting('app.current_tenant_id')
+    );
 
 -- Index already exists: idx_deployments_tenant
 CREATE INDEX IF NOT EXISTS idx_deployments_tenant_rls ON deployments(tenant_id);
@@ -57,7 +72,11 @@ ALTER TABLE pipeline_runs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE pipeline_runs FORCE ROW LEVEL SECURITY;
 
 CREATE POLICY tenant_isolation_pipeline_runs ON pipeline_runs
-    USING (tenant_id::text = current_setting('app.current_tenant_id', true));
+    USING (
+        current_setting('app.current_tenant_id', true) IS NOT NULL
+        AND current_setting('app.current_tenant_id', true) != ''
+        AND tenant_id::text = current_setting('app.current_tenant_id')
+    );
 
 -- Index already exists: idx_pipeline_runs_tenant
 CREATE INDEX IF NOT EXISTS idx_pipeline_runs_tenant_rls ON pipeline_runs(tenant_id);
@@ -72,7 +91,11 @@ ALTER TABLE build_environments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE build_environments FORCE ROW LEVEL SECURITY;
 
 CREATE POLICY tenant_isolation_build_environments ON build_environments
-    USING (tenant_id::text = current_setting('app.current_tenant_id', true));
+    USING (
+        current_setting('app.current_tenant_id', true) IS NOT NULL
+        AND current_setting('app.current_tenant_id', true) != ''
+        AND tenant_id::text = current_setting('app.current_tenant_id')
+    );
 
 CREATE INDEX IF NOT EXISTS idx_build_envs_tenant_rls ON build_environments(tenant_id);
 
@@ -86,7 +109,11 @@ ALTER TABLE builds ENABLE ROW LEVEL SECURITY;
 ALTER TABLE builds FORCE ROW LEVEL SECURITY;
 
 CREATE POLICY tenant_isolation_builds ON builds
-    USING (tenant_id::text = current_setting('app.current_tenant_id', true));
+    USING (
+        current_setting('app.current_tenant_id', true) IS NOT NULL
+        AND current_setting('app.current_tenant_id', true) != ''
+        AND tenant_id::text = current_setting('app.current_tenant_id')
+    );
 
 -- Index already exists: idx_builds_tenant
 CREATE INDEX IF NOT EXISTS idx_builds_tenant_rls ON builds(tenant_id);
@@ -101,7 +128,11 @@ ALTER TABLE kb_spaces ENABLE ROW LEVEL SECURITY;
 ALTER TABLE kb_spaces FORCE ROW LEVEL SECURITY;
 
 CREATE POLICY tenant_isolation_kb_spaces ON kb_spaces
-    USING (tenant_id::text = current_setting('app.current_tenant_id', true));
+    USING (
+        current_setting('app.current_tenant_id', true) IS NOT NULL
+        AND current_setting('app.current_tenant_id', true) != ''
+        AND tenant_id::text = current_setting('app.current_tenant_id')
+    );
 
 -- Index already exists: idx_kb_spaces_tenant
 CREATE INDEX IF NOT EXISTS idx_kb_spaces_tenant_rls ON kb_spaces(tenant_id);
@@ -116,7 +147,11 @@ ALTER TABLE kb_docs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE kb_docs FORCE ROW LEVEL SECURITY;
 
 CREATE POLICY tenant_isolation_kb_docs ON kb_docs
-    USING (tenant_id::text = current_setting('app.current_tenant_id', true));
+    USING (
+        current_setting('app.current_tenant_id', true) IS NOT NULL
+        AND current_setting('app.current_tenant_id', true) != ''
+        AND tenant_id::text = current_setting('app.current_tenant_id')
+    );
 
 -- Index already exists: idx_kb_docs_tenant
 CREATE INDEX IF NOT EXISTS idx_kb_docs_tenant_rls ON kb_docs(tenant_id);
@@ -131,7 +166,11 @@ ALTER TABLE knowledge_articles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE knowledge_articles FORCE ROW LEVEL SECURITY;
 
 CREATE POLICY tenant_isolation_knowledge_articles ON knowledge_articles
-    USING (tenant_id::text = current_setting('app.current_tenant_id', true));
+    USING (
+        current_setting('app.current_tenant_id', true) IS NOT NULL
+        AND current_setting('app.current_tenant_id', true) != ''
+        AND tenant_id::text = current_setting('app.current_tenant_id')
+    );
 
 -- Index already exists: idx_kb_articles_tenant
 CREATE INDEX IF NOT EXISTS idx_knowledge_articles_tenant_rls ON knowledge_articles(tenant_id);
@@ -146,7 +185,11 @@ ALTER TABLE knowledge_categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE knowledge_categories FORCE ROW LEVEL SECURITY;
 
 CREATE POLICY tenant_isolation_knowledge_categories ON knowledge_categories
-    USING (tenant_id::text = current_setting('app.current_tenant_id', true));
+    USING (
+        current_setting('app.current_tenant_id', true) IS NOT NULL
+        AND current_setting('app.current_tenant_id', true) != ''
+        AND tenant_id::text = current_setting('app.current_tenant_id')
+    );
 
 -- Index already exists: idx_kb_categories_tenant
 CREATE INDEX IF NOT EXISTS idx_knowledge_categories_tenant_rls ON knowledge_categories(tenant_id);
@@ -162,7 +205,11 @@ ALTER TABLE agent_runs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE agent_runs FORCE ROW LEVEL SECURITY;
 
 CREATE POLICY tenant_isolation_agent_runs ON agent_runs
-    USING (tenant_id::text = current_setting('app.current_tenant_id', true));
+    USING (
+        current_setting('app.current_tenant_id', true) IS NOT NULL
+        AND current_setting('app.current_tenant_id', true) != ''
+        AND tenant_id::text = current_setting('app.current_tenant_id')
+    );
 
 CREATE INDEX IF NOT EXISTS idx_agent_runs_tenant_rls ON agent_runs(tenant_id);
 
@@ -198,6 +245,7 @@ COMMENT ON POLICY tenant_isolation_agent_runs ON agent_runs IS
 --
 -- FORCE ROW LEVEL SECURITY ensures RLS applies even to superusers
 -- app.current_tenant_id session variable must be set before queries
+-- All policies validate session variable exists and is non-empty
 --
 -- Rollback:
 -- ALTER TABLE sessions DISABLE ROW LEVEL SECURITY;
