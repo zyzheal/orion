@@ -409,6 +409,39 @@ export const routes: AppRoute[] = [
       },
     ],
   },
+  // LLM Trace Dashboard (P1)
+  {
+    path: '/console/llm-trace',
+    element: React.lazy(() => import('@/pages/LLMTraceDashboard')),
+    protected: true,
+    requiredRole: ['admin', 'platform_admin'],
+    children: [
+      {
+        path: '/console/llm-trace/overview',
+        element: React.lazy(() => import('@/pages/LLMTraceDashboard/TraceOverview')),
+        protected: true,
+        requiredRole: ['admin', 'platform_admin'],
+      },
+      {
+        path: '/console/llm-trace/traces',
+        element: React.lazy(() => import('@/pages/LLMTraceDashboard/TraceList')),
+        protected: true,
+        requiredRole: ['admin', 'platform_admin'],
+      },
+      {
+        path: '/console/llm-trace/cost',
+        element: React.lazy(() => import('@/pages/LLMTraceDashboard/CostAnalysis')),
+        protected: true,
+        requiredRole: ['admin', 'platform_admin'],
+      },
+      {
+        path: '/console/llm-trace/accuracy',
+        element: React.lazy(() => import('@/pages/LLMTraceDashboard/TrackingAccuracy')),
+        protected: true,
+        requiredRole: ['admin', 'platform_admin'],
+      },
+    ],
+  },
   // AI Doc Management (M37)
   {
     path: '/console/ai-docs',
