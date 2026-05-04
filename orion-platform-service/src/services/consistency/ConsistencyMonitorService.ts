@@ -2,6 +2,7 @@
 import crypto from 'crypto';
 import { EventEmitter } from 'events';
 import pino from 'pino';
+import { Pool } from 'pg';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -46,6 +47,7 @@ const DEFAULT_CONFIG: ConsistencyCheckConfig = {
 };
 
 export class ConsistencyMonitorService extends EventEmitter {
+  private dbPool: Pool;
   private config: ConsistencyCheckConfig;
   private timer?: NodeJS.Timeout;
   private isRunning: boolean = false;
@@ -53,8 +55,9 @@ export class ConsistencyMonitorService extends EventEmitter {
   private checkCount: number = 0;
   private violationCount: number = 0;
 
-  constructor(config: Partial<ConsistencyCheckConfig> = {}) {
+  constructor(dbPool: Pool, config: Partial<ConsistencyCheckConfig> = {}) {
     super();
+    this.dbPool = dbPool;
     this.config = { ...DEFAULT_CONFIG, ...config };
   }
 
@@ -162,35 +165,72 @@ export class ConsistencyMonitorService extends EventEmitter {
   private async checkPipelineArtifactConsistency(): Promise<ConsistencyCheckResult[]> {
     const results: ConsistencyCheckResult[] = [];
 
-    // Placeholder: In production, this would query pipeline_runs and artifacts tables
-    // and compare the expected artifact hash with the actual computed hash
-    //
-    // Example logic:
-    // 1. Query completed pipeline_runs with their artifact references
-    // 2. For each artifact, compute hash of actual content
-    // 3. Compare with expected hash stored in pipeline metadata
-    // 4. Record any mismatches
-
     logger.debug('[ConsistencyMonitor] Checking Pipeline-Artifact consistency...');
 
-    // Simulated check - would be replaced with actual database queries
-    // const pipelineRuns = await this.getCompletedPipelineRuns();
-    // for (const run of pipelineRuns) {
-    //   const artifactHash = await this.computeArtifactHash(run.artifactId);
-    //   const expectedHash = run.expectedArtifactHash;
-    //
-    //   if (artifactHash !== expectedHash) {
-    //     results.push({
-    //       checkType: 'pipeline_artifact',
-    //       resourceType: 'pipeline',
-    //       resourceId: run.id,
-    //       isConsistent: false,
-    //       expectedHash,
-    //       actualHash: artifactHash,
-    //       detectedAt: new Date(),
-    //     });
-    //   }
-    // }
+    try {
+      // Query recent completed pipeline runs with artifact references
+      const pipelineRuns = await this.dbPool.query(`
+        SELECT id, status, artifact_id, updated_at, metadata
+        FROM pipeline_runs
+        WHERE status IN ('completed', 'succeeded')
+          AND artifact_id IS NOT NULL
+          AND updated_at > NOW() - INTERVAL '24 hours'
+      `);
+
+      for (const run of pipelineRuns.rows) {
+        try {
+          // Get artifact hash
+          const artifact = await this.dbPool.query(
+            `SELECT id, content_hash, metadata FROM artifacts WHERE id = $1`,
+            [run.artifact_id]
+          );
+
+          if (artifact.rows.length === 0) {
+            // Artifact missing - record inconsistency
+            results.push({
+              checkType: 'pipeline_artifact',
+              resourceType: 'pipeline',
+              resourceId: run.id,
+              isConsistent: false,
+              expectedHash: 'artifact_exists',
+              actualHash: 'artifact_missing',
+              detectedAt: new Date(),
+              metadata: { reason: 'referenced_artifact_not_found' },
+            });
+            continue;
+          }
+
+          // Calculate expected hash from run status and metadata
+          const expectedHash = this.computeJsonHash({
+            status: run.status,
+            id: run.id,
+            metadata: run.metadata || {},
+          });
+
+          const actualHash = artifact.rows[0]?.content_hash;
+
+          if (actualHash && actualHash !== expectedHash) {
+            results.push({
+              checkType: 'pipeline_artifact',
+              resourceType: 'pipeline',
+              resourceId: run.id,
+              isConsistent: false,
+              expectedHash,
+              actualHash,
+              detectedAt: new Date(),
+              metadata: {
+                artifactId: run.artifact_id,
+                reason: 'hash_mismatch',
+              },
+            });
+          }
+        } catch (error) {
+          logger.error(`[ConsistencyMonitor] Error checking pipeline ${run.id}:`, error);
+        }
+      }
+    } catch (error) {
+      logger.error('[ConsistencyMonitor] Error querying pipeline runs:', error);
+    }
 
     return results;
   }
@@ -203,8 +243,89 @@ export class ConsistencyMonitorService extends EventEmitter {
 
     logger.debug('[ConsistencyMonitor] Checking Config sync consistency...');
 
-    // Placeholder: Check if configurations are synced across environments
-    // Would compare config versions and hashes between source and target environments
+    try {
+      // Query configs that have been synced to compare source and target hashes
+      const configSyncs = await this.dbPool.query(`
+        SELECT id, config_id, source_hash, target_hash, target_environment, updated_at
+        FROM config_syncs
+        WHERE updated_at > NOW() - INTERVAL '24 hours'
+      `);
+
+      for (const sync of configSyncs.rows) {
+        try {
+          // Check if source and target hashes match
+          if (sync.source_hash !== sync.target_hash) {
+            results.push({
+              checkType: 'config_sync',
+              resourceType: 'config',
+              resourceId: sync.config_id,
+              isConsistent: false,
+              expectedHash: sync.source_hash,
+              actualHash: sync.target_hash,
+              detectedAt: new Date(),
+              metadata: {
+                syncId: sync.id,
+                targetEnvironment: sync.target_environment,
+                reason: 'config_drift_detected',
+              },
+            });
+          }
+
+          // Also verify the current source hash matches what's stored
+          const currentConfig = await this.dbPool.query(
+            `SELECT id, content_hash FROM configs WHERE id = $1`,
+            [sync.config_id]
+          );
+
+          if (currentConfig.rows.length > 0) {
+            const currentHash = currentConfig.rows[0].content_hash;
+            if (currentHash && currentHash !== sync.source_hash) {
+              results.push({
+                checkType: 'config_sync',
+                resourceType: 'config',
+                resourceId: sync.config_id,
+                isConsistent: false,
+                expectedHash: sync.source_hash,
+                actualHash: currentHash,
+                detectedAt: new Date(),
+                metadata: {
+                  syncId: sync.id,
+                  reason: 'source_config_changed_since_sync',
+                },
+              });
+            }
+          }
+        } catch (error) {
+          logger.error(`[ConsistencyMonitor] Error checking config sync ${sync.id}:`, error);
+        }
+      }
+
+      // Check for configs that should have sync records but don't
+      const unsyncedConfigs = await this.dbPool.query(`
+        SELECT c.id, c.content_hash, c.updated_at
+        FROM configs c
+        LEFT JOIN config_syncs cs ON c.id = cs.config_id
+        WHERE c.updated_at > NOW() - INTERVAL '24 hours'
+          AND cs.id IS NULL
+      `);
+
+      for (const config of unsyncedConfigs.rows) {
+        results.push({
+          checkType: 'config_sync',
+          resourceType: 'config',
+          resourceId: config.id,
+          isConsistent: false,
+          expectedHash: 'sync_record_exists',
+          actualHash: 'no_sync_record',
+          detectedAt: new Date(),
+          metadata: {
+            reason: 'config_not_synced',
+          },
+        });
+      }
+    } catch (error) {
+      logger.error('[ConsistencyMonitor] Error querying config syncs:', error);
+    }
 
     return results;
   }
@@ -217,8 +338,96 @@ export class ConsistencyMonitorService extends EventEmitter {
 
     logger.debug('[ConsistencyMonitor] Checking Deployment state consistency...');
 
-    // Placeholder: Check if deployment records match actual cluster state
-    // Would query deployment records and verify against Kubernetes resources
+    try {
+      // Query recent deployments from database records
+      const deployments = await this.dbPool.query(`
+        SELECT id, name, namespace, status, expected_state, actual_state, cluster_name, updated_at
+        FROM deployments
+        WHERE updated_at > NOW() - INTERVAL '24 hours'
+      `);
+
+      for (const deployment of deployments.rows) {
+        try {
+          // Check if expected state matches actual state
+          if (deployment.expected_state && deployment.actual_state) {
+            const expectedStateHash = this.computeJsonHash(deployment.expected_state);
+            const actualStateHash = this.computeJsonHash(deployment.actual_state);
+
+            if (expectedStateHash !== actualStateHash) {
+              results.push({
+                checkType: 'deployment_state',
+                resourceType: 'deployment',
+                resourceId: deployment.id,
+                isConsistent: false,
+                expectedHash: expectedStateHash,
+                actualHash: actualStateHash,
+                detectedAt: new Date(),
+                metadata: {
+                  name: deployment.name,
+                  namespace: deployment.namespace,
+                  cluster: deployment.cluster_name,
+                  reason: 'state_mismatch',
+                },
+              });
+            }
+          }
+
+          // Check for deployments marked as running but with stale timestamps
+          if (deployment.status === 'running') {
+            const staleThreshold = new Date(Date.now() - 30 * 60 * 1000); // 30 minutes
+            if (deployment.updated_at < staleThreshold) {
+              results.push({
+                checkType: 'deployment_state',
+                resourceType: 'deployment',
+                resourceId: deployment.id,
+                isConsistent: false,
+                detectedAt: new Date(),
+                metadata: {
+                  name: deployment.name,
+                  namespace: deployment.namespace,
+                  cluster: deployment.cluster_name,
+                  lastUpdate: deployment.updated_at,
+                  reason: 'stale_deployment_status',
+                },
+              });
+            }
+          }
+        } catch (error) {
+          logger.error(`[ConsistencyMonitor] Error checking deployment ${deployment.id}:`, error);
+        }
+      }
+
+      // Check for deployments that exist in K8s but not in our records
+      // This would require actual K8s API calls in production
+      // For now, we query the cluster_state table for discrepancies
+      const clusterStateDiscrepancies = await this.dbPool.query(`
+        SELECT cs.deployment_id, cs.resource_name, cs.namespace, cs.cluster_name, cs.recorded_state, cs.observed_state
+        FROM cluster_state cs
+        LEFT JOIN deployments d ON cs.deployment_id = d.id
+        WHERE cs.updated_at > NOW() - INTERVAL '1 hour'
+          AND cs.recorded_state IS DISTINCT FROM cs.observed_state
+      `);
+
+      for (const state of clusterStateDiscrepancies.rows) {
+        results.push({
+          checkType: 'deployment_state',
+          resourceType: 'deployment',
+          resourceId: state.deployment_id || 'unknown',
+          isConsistent: false,
+          expectedHash: state.recorded_state ? this.computeJsonHash(state.recorded_state) : undefined,
+          actualHash: state.observed_state ? this.computeJsonHash(state.observed_state) : undefined,
+          detectedAt: new Date(),
+          metadata: {
+            resourceName: state.resource_name,
+            namespace: state.namespace,
+            cluster: state.cluster_name,
+            reason: 'cluster_state_drift',
+          },
+        });
+      }
+    } catch (error) {
+      logger.error('[ConsistencyMonitor] Error querying deployments:', error);
+    }
 
     return results;
   }
