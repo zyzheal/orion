@@ -1,7 +1,8 @@
 -- Migration 073: PostgreSQL Row Level Security (RLS) Policies
 -- Enables tenant isolation at the database layer (Layer 4 of 4-layer isolation)
 -- Tables covered: sessions, audit_logs, deployments, pipeline_runs, builds,
---                  kb_spaces, kb_docs, knowledge_articles, knowledge_categories, agent_runs
+--                  kb_spaces, kb_docs, knowledge_articles, knowledge_categories,
+--                  agent_runs, chatops_messages
 --
 -- SECURITY NOTE: All policies validate that app.current_tenant_id is set and non-empty
 -- before comparing with tenant_id. This prevents bypass when session variable is missing.
@@ -220,13 +221,23 @@ COMMENT ON POLICY tenant_isolation_agent_runs ON agent_runs IS
 -- 12. CHATOPS_MESSAGES Table RLS (AI Conversations)
 -- ============================================================
 -- chatops_messages stores AI conversation history
--- Note: chatops_messages doesn't have direct tenant_id, it references chatops_sessions
--- We apply RLS via session relationship or skip if not applicable
--- For now, we add tenant_id column if needed or rely on parent table
+-- Add tenant_id column for proper tenant isolation
+ALTER TABLE chatops_messages ADD COLUMN IF NOT EXISTS tenant_id INTEGER;
 
--- Check if chatops_messages has tenant_id column
--- If not, we would need to add it first via ALTER TABLE
--- For Phase 1, we skip chatops_messages RLS as it lacks tenant_id
+ALTER TABLE chatops_messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE chatops_messages FORCE ROW LEVEL SECURITY;
+
+CREATE POLICY tenant_isolation_chatops_messages ON chatops_messages
+    USING (
+        current_setting('app.current_tenant_id', true) IS NOT NULL
+        AND current_setting('app.current_tenant_id', true) != ''
+        AND tenant_id::text = current_setting('app.current_tenant_id')
+    );
+
+CREATE INDEX IF NOT EXISTS idx_chatops_messages_tenant_rls ON chatops_messages(tenant_id);
+
+COMMENT ON POLICY tenant_isolation_chatops_messages ON chatops_messages IS
+    'Tenant isolation RLS policy - ChatOps messages visible only to owning tenant';
 
 -- ============================================================
 -- Summary: Tables with RLS Enabled
@@ -242,6 +253,7 @@ COMMENT ON POLICY tenant_isolation_agent_runs ON agent_runs IS
 -- 9. knowledge_articles (tenant_id UUID)
 -- 10. knowledge_categories (tenant_id UUID)
 -- 11. agent_runs (tenant_id UUID)
+-- 12. chatops_messages (tenant_id INTEGER)
 --
 -- FORCE ROW LEVEL SECURITY ensures RLS applies even to superusers
 -- app.current_tenant_id session variable must be set before queries
@@ -259,6 +271,7 @@ COMMENT ON POLICY tenant_isolation_agent_runs ON agent_runs IS
 -- ALTER TABLE knowledge_articles DISABLE ROW LEVEL SECURITY;
 -- ALTER TABLE knowledge_categories DISABLE ROW LEVEL SECURITY;
 -- ALTER TABLE agent_runs DISABLE ROW LEVEL SECURITY;
+-- ALTER TABLE chatops_messages DISABLE ROW LEVEL SECURITY;
 -- DROP POLICY IF EXISTS tenant_isolation_sessions ON sessions;
 -- DROP POLICY IF EXISTS tenant_isolation_audit_logs ON audit_logs;
 -- DROP POLICY IF EXISTS tenant_isolation_deployments ON deployments;
@@ -270,3 +283,4 @@ COMMENT ON POLICY tenant_isolation_agent_runs ON agent_runs IS
 -- DROP POLICY IF EXISTS tenant_isolation_knowledge_articles ON knowledge_articles;
 -- DROP POLICY IF EXISTS tenant_isolation_knowledge_categories ON knowledge_categories;
 -- DROP POLICY IF EXISTS tenant_isolation_agent_runs ON agent_runs;
+-- DROP POLICY IF EXISTS tenant_isolation_chatops_messages ON chatops_messages;
