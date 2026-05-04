@@ -11,12 +11,13 @@ declare module 'fastify' {
   interface FastifyRequest {
     /**
      * Authenticated user information, set by authMiddleware after JWT verification.
-     * Contains userId, username, and role extracted from the JWT token payload.
+     * Contains userId, username, role, and tenantId extracted from the JWT token payload.
      */
     user?: {
       userId: string;
       username: string;
       role: string;
+      tenantId?: number;
     };
   }
 }

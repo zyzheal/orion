@@ -78,6 +78,8 @@ import ephemeralEnvRoutes from './ephemeral-env-routes';
 import mcpRoutes from './mcp-routes';
 import { vectorRoutes } from './vector-routes';
 import llmTraceRoutes from './llm-trace-routes';
+import privacyRoutes from './privacy-routes';
+import degradationRoutes from './degradation-routes';
 
 export interface ApiRoutesOptions {
   eventBus?: EventBusService;
@@ -442,6 +444,12 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // 注册 LLM Trace API 路由 - LLM调用链追踪与成本分析
   await registerWithRoleGuard(app, llmTraceRoutes, '/v1/llm');
+
+  // 注册 Privacy Policy API 路由 - 租户隐私策略管理
+  await registerWithRoleGuard(app, privacyRoutes, '/v1/privacy');
+
+  // 注册 Degradation Management API 路由 - AI Provider自动恢复
+  await registerWithRoleGuard(app, degradationRoutes, '/v1/degradation');
 
   // ==================== Phase 1 P0 Routes (Planned) ====================
   // TODO: Register auth-enhanced-routes once implemented
