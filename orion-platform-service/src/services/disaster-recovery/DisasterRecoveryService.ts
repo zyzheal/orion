@@ -1,6 +1,7 @@
 // orion-platform-service/src/services/disaster-recovery/DisasterRecoveryService.ts
 import { EventEmitter } from 'events';
 import pino from 'pino';
+import type { DatabasePool } from '../database';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -67,9 +68,11 @@ export class DisasterRecoveryService extends EventEmitter {
   private consecutiveFailures: Map<string, number> = new Map();
   private isRunning: boolean = false;
   private failoverInProgress: boolean = false;
+  private dbPool: DatabasePool | null = null;
 
-  constructor() {
+  constructor(dbPool?: DatabasePool) {
     super();
+    this.dbPool = dbPool || null;
   }
 
   /**
@@ -264,19 +267,117 @@ export class DisasterRecoveryService extends EventEmitter {
    * Check cluster health based on component type
    */
   private async checkClusterHealth(cluster: string, componentType: string): Promise<boolean> {
-    // Placeholder: In production, would perform actual health check
-    // Examples:
-    // - database: pg_isready check
-    // - api_gateway: HTTP GET /healthz
-    // - platform_service: HTTP GET /healthz
-    // - frontend: HTTP GET /healthz
-    // - ai_service: HTTP GET /healthz or model inference test
-
     logger.debug(`[DisasterRecovery] Checking health for ${componentType} at ${cluster}`);
 
-    // Simulated health check - would be replaced with actual checks
-    // For now, return true for simulation
-    return true;
+    const HEALTH_CHECK_TIMEOUT_MS = 5000;
+
+    try {
+      switch (componentType) {
+        case 'database':
+          return await this.checkDatabaseHealth(cluster, HEALTH_CHECK_TIMEOUT_MS);
+
+        case 'api_gateway':
+        case 'platform_service':
+        case 'frontend':
+          return await this.checkHttpHealth(cluster, HEALTH_CHECK_TIMEOUT_MS);
+
+        case 'ai_service':
+          return await this.checkAIServiceHealth(cluster, HEALTH_CHECK_TIMEOUT_MS);
+
+        default:
+          logger.warn(`[DisasterRecovery] Unknown component type: ${componentType}`);
+          return false;
+      }
+    } catch (error) {
+      logger.error(`[DisasterRecovery] Health check failed for ${cluster}:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Check database health using connection pool or direct query
+   */
+  private async checkDatabaseHealth(cluster: string, timeoutMs: number): Promise<boolean> {
+    try {
+      // If we have a database pool, use it to check health
+      if (this.dbPool) {
+        const healthResult = await this.withTimeout(
+          this.dbPool.checkHealth(),
+          timeoutMs,
+          'Database health check timeout'
+        );
+        return healthResult.status === 'up';
+      }
+
+      // Fallback: Try to execute a simple query via HTTP endpoint if cluster is a URL
+      if (cluster.startsWith('http://') || cluster.startsWith('https://')) {
+        return await this.checkHttpHealth(cluster, timeoutMs);
+      }
+
+      // If no pool and no URL, we cannot verify - log warning and return false
+      logger.warn('[DisasterRecovery] No database pool configured and cluster is not an HTTP URL');
+      return false;
+    } catch (error) {
+      logger.error(`[DisasterRecovery] Database health check error:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Check HTTP health endpoint
+   */
+  private async checkHttpHealth(cluster: string, timeoutMs: number): Promise<boolean> {
+    try {
+      const healthUrl = cluster.endsWith('/healthz') ? cluster : `${cluster}/healthz`;
+
+      const response = await fetch(healthUrl, {
+        method: 'GET',
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+
+      return response.ok;
+    } catch (error) {
+      logger.error(`[DisasterRecovery] HTTP health check error for ${cluster}:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Check AI service health endpoint
+   */
+  private async checkAIServiceHealth(cluster: string, timeoutMs: number): Promise<boolean> {
+    try {
+      // AI service typically exposes /healthz or /v1/models endpoint
+      const healthUrl = cluster.endsWith('/healthz') ? cluster : `${cluster}/healthz`;
+
+      const response = await fetch(healthUrl, {
+        method: 'GET',
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+
+      return response.ok;
+    } catch (error) {
+      logger.error(`[DisasterRecovery] AI service health check error for ${cluster}:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Wrap a promise with a timeout
+   */
+  private async withTimeout<T>(promise: Promise<T>, timeoutMs: number, errorMessage: string): Promise<T> {
+    let timeoutId: ReturnType<typeof setTimeout>;
+
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutId = setTimeout(() => reject(new Error(errorMessage)), timeoutMs);
+    });
+
+    try {
+      const result = await Promise.race([promise, timeoutPromise]);
+      return result;
+    } finally {
+      clearTimeout(timeoutId!);
+    }
   }
 
   /**
