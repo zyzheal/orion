@@ -112,13 +112,7 @@ describe('ProviderCircuitBreaker', () => {
   });
 
   describe('状态转换 OPEN -> HALF_OPEN', () => {
-    // Note: The ProviderCircuitBreaker implementation has a bug where getState calls transitionTo
-    // which calls getState again, causing infinite recursion when openDuration expires.
-    // These tests are skipped to avoid triggering the bug.
-    // TODO: Fix the implementation bug and re-enable these tests.
-
-    it.skip('should transition to HALF_OPEN after open duration', async () => {
-      // This test triggers infinite recursion bug in the implementation
+    it('should transition to HALF_OPEN after open duration', async () => {
       breaker = new ProviderCircuitBreaker({
         failureThreshold: 0.3,
         successThreshold: 0.5,
@@ -131,11 +125,14 @@ describe('ProviderCircuitBreaker', () => {
       expect(breaker.getState('open-halfopen-provider-1')).toBe('OPEN');
 
       await new Promise(resolve => setTimeout(resolve, 600));
+      expect(breaker.getState('open-halfopen-provider-1')).toBe('OPEN');
+
+      // Need to call checkForRecovery or a method that triggers it
+      breaker.checkForRecovery('open-halfopen-provider-1');
       expect(breaker.getState('open-halfopen-provider-1')).toBe('HALF_OPEN');
     });
 
-    it.skip('should reset halfOpenProbeCount when entering HALF_OPEN', async () => {
-      // This test triggers infinite recursion bug in the implementation
+    it('should reset halfOpenProbeCount when entering HALF_OPEN', async () => {
       breaker = new ProviderCircuitBreaker({
         failureThreshold: 0.3,
         successThreshold: 0.5,
@@ -149,6 +146,7 @@ describe('ProviderCircuitBreaker', () => {
 
       const stateDetail = breaker.getStateDetail('open-halfopen-provider-2');
       expect(stateDetail?.halfOpenProbeCount).toBe(0);
+      expect(stateDetail?.state).toBe('HALF_OPEN');
     });
   });
 

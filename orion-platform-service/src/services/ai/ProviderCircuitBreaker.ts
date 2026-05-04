@@ -124,34 +124,38 @@ export class ProviderCircuitBreaker extends EventEmitter {
   }
 
   /**
-   * 获取Provider的熔断器状态
+   * 获取Provider的熔断器状态（纯函数，不触发状态转换）
    */
   getState(providerId: string): CircuitState {
     const stateDetail = this.states.get(providerId);
-    if (!stateDetail) {
-      return 'CLOSED';
+    return stateDetail?.state || 'CLOSED';
+  }
+
+  /**
+   * 检查并执行状态恢复（OPEN -> HALF_OPEN）
+   * 应在需要检查恢复状态的操作前调用
+   */
+  checkForRecovery(providerId: string): void {
+    const stateDetail = this.states.get(providerId);
+    if (!stateDetail || stateDetail.state !== 'OPEN') {
+      return;
     }
 
-    // 如果是OPEN状态，检查是否可以转为HALF_OPEN
-    if (stateDetail.state === 'OPEN') {
-      const openStart = this.openStartTimes.get(providerId);
-      if (openStart) {
-        const elapsed = Date.now() - openStart.getTime();
-        if (elapsed >= this.config.openDuration) {
-          // 超过OPEN持续时间，转为HALF_OPEN
-          this.transitionTo(providerId, 'HALF_OPEN', 'open_duration_expired');
-        }
+    const openStart = this.openStartTimes.get(providerId);
+    if (openStart) {
+      const elapsed = Date.now() - openStart.getTime();
+      if (elapsed >= this.config.openDuration) {
+        // 超过OPEN持续时间，转为HALF_OPEN
+        this.transitionTo(providerId, 'HALF_OPEN', 'open_duration_expired');
       }
     }
-
-    return this.states.get(providerId)?.state || 'CLOSED';
   }
 
   /**
    * 获取Provider的详细状态
    */
   getStateDetail(providerId: string): ProviderCircuitStateDetail | null {
-    this.getState(providerId); // 触发状态检查
+    this.checkForRecovery(providerId); // 触发状态恢复检查
     return this.states.get(providerId) || null;
   }
 
@@ -175,6 +179,7 @@ export class ProviderCircuitBreaker extends EventEmitter {
    */
   async beforeRequest(providerId: string): Promise<boolean> {
     this.ensureProviderInitialized(providerId);
+    this.checkForRecovery(providerId); // 检查是否可以从OPEN恢复到HALF_OPEN
     const state = this.getState(providerId);
 
     if (state === 'CLOSED') {
@@ -227,6 +232,9 @@ export class ProviderCircuitBreaker extends EventEmitter {
 
     // 更新指标
     this.updateMetrics(providerId, filtered);
+
+    // 检查状态恢复
+    this.checkForRecovery(providerId);
 
     // 更新状态
     const state = this.getState(providerId);
@@ -305,6 +313,7 @@ export class ProviderCircuitBreaker extends EventEmitter {
   getOpenProviders(): string[] {
     const openProviders: string[] = [];
     for (const [providerId] of this.states) {
+      this.checkForRecovery(providerId);
       if (this.getState(providerId) === 'OPEN') {
         openProviders.push(providerId);
       }
@@ -318,6 +327,7 @@ export class ProviderCircuitBreaker extends EventEmitter {
   getHalfOpenProviders(): string[] {
     const halfOpenProviders: string[] = [];
     for (const [providerId] of this.states) {
+      this.checkForRecovery(providerId);
       if (this.getState(providerId) === 'HALF_OPEN') {
         halfOpenProviders.push(providerId);
       }
@@ -329,6 +339,7 @@ export class ProviderCircuitBreaker extends EventEmitter {
    * 检查Provider是否可用
    */
   isAvailable(providerId: string): boolean {
+    this.checkForRecovery(providerId);
     const state = this.getState(providerId);
     return state === 'CLOSED' || state === 'HALF_OPEN';
   }
@@ -388,12 +399,15 @@ export class ProviderCircuitBreaker extends EventEmitter {
    * 状态转换
    */
   private transitionTo(providerId: string, newState: CircuitState, reason: string): void {
-    const oldState = this.getState(providerId);
+    // 直接从状态Map获取旧状态，避免调用getState()导致递归
+    const oldStateDetail = this.states.get(providerId);
+    const oldState: CircuitState = oldStateDetail?.state || 'CLOSED';
+
     if (oldState === newState) {
       return;
     }
 
-    const stateDetail = this.states.get(providerId) || {
+    const stateDetail = oldStateDetail || {
       providerId,
       state: 'CLOSED',
       failureCount: 0,
@@ -475,6 +489,7 @@ export class ProviderCircuitBreaker extends EventEmitter {
       this.requestHistory.set(providerId, filtered);
 
       // 如果没有历史数据且状态不是OPEN，可以考虑清理
+      this.checkForRecovery(providerId);
       if (filtered.length === 0 && this.getState(providerId) === 'CLOSED') {
         // 保留状态，只是清理历史
       }
