@@ -438,4 +438,14 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // 注册 Vector Embedding & Semantic Search API 路由 (pgvector backed)
   await registerWithRoleGuard(app, vectorRoutes, '/v1/vector', { database: options.database });
+
+  // ==================== Phase 1 P0 Routes (Planned) ====================
+  // TODO: Register auth-enhanced-routes once implemented
+  // await registerWithRoleGuard(app, authEnhancedRoutes, '/v1/auth', { database: options.database });
+  //
+  // TODO: Register consistency-routes once implemented (Task 8)
+  // await registerWithRoleGuard(app, consistencyRoutes, '/v1/consistency', { database: options.database });
+  //
+  // TODO: Register disaster-recovery-routes once implemented (Task 9)
+  // await registerWithRoleGuard(app, disasterRecoveryRoutes, '/v1/disaster-recovery', { database: options.database });
 }
