@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import { EventEmitter } from 'events';
 import pino from 'pino';
 import type { DatabasePool } from '../database';
+import { K8sSecretKeyStorage, k8sSecretStorage } from './K8sSecretKeyStorage';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -33,20 +34,33 @@ const DEFAULT_CONFIG: JwtKeyRotationConfig = {
 export class JwtKeyRotationService extends EventEmitter {
   private config: JwtKeyRotationConfig;
   private dbPool: DatabasePool;
+  private k8sStorage: K8sSecretKeyStorage;
   private currentKey: JwtKey | null = null;
   private previousKey: JwtKey | null = null;
   private keys: Map<string, JwtKey> = new Map();
   private rotationTimer?: NodeJS.Timeout;
 
-  constructor(dbPool: DatabasePool, config: Partial<JwtKeyRotationConfig> = {}) {
+  constructor(dbPool: DatabasePool, config: Partial<JwtKeyRotationConfig> = {}, k8sStorage?: K8sSecretKeyStorage) {
     super();
     this.dbPool = dbPool;
     this.config = { ...DEFAULT_CONFIG, ...config };
+    this.k8sStorage = k8sStorage || k8sSecretStorage;
   }
 
   async initialize(): Promise<void> {
-    // Load existing keys from database
-    const storedKeys = await this.loadKeysFromDatabase();
+    // Try loading from K8s Secret first (preferred)
+    let storedKeys: JwtKey[] = [];
+
+    if (this.k8sStorage.isAvailable()) {
+      storedKeys = await this.k8sStorage.loadKeys();
+      logger.info('[JwtKeyRotation] Loaded keys from K8s Secret');
+    }
+
+    // Fallback to database if K8s Secret empty or unavailable
+    if (storedKeys.length === 0) {
+      storedKeys = await this.loadKeysFromDatabase();
+      logger.info('[JwtKeyRotation] Loaded keys from Database fallback');
+    }
 
     if (storedKeys.length === 0) {
       // Generate initial key
@@ -234,6 +248,9 @@ export class JwtKeyRotationService extends EventEmitter {
         [key.keyId, key.keyHash, key.keyStrength, key.status, key.createdAt, this.config.rotationTrigger || 'scheduled'],
       );
       logger.debug(`[JwtKeyRotation] Stored key in database: ${key.keyId}`);
+
+      // Also store in K8s Secret if available
+      await this.k8sStorage.storeKey(key);
     } catch (error) {
       logger.error('[JwtKeyRotation] Failed to store key in database:', error);
       throw error;
@@ -249,6 +266,9 @@ export class JwtKeyRotationService extends EventEmitter {
         [key.status, key.activatedAt, key.expiresAt, key.keyId],
       );
       logger.debug(`[JwtKeyRotation] Updated key in database: ${key.keyId}`);
+
+      // Also update in K8s Secret if available
+      await this.k8sStorage.updateKey(key);
     } catch (error) {
       logger.error('[JwtKeyRotation] Failed to update key in database:', error);
       throw error;

@@ -2,6 +2,7 @@
 import { EventEmitter } from 'events';
 import pino from 'pino';
 import type { DatabasePool } from '../database';
+import { FailoverExecutor, failoverExecutor } from './FailoverExecutor';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -528,8 +529,20 @@ export class DisasterRecoveryService extends EventEmitter {
    * Stop traffic to primary cluster
    */
   private async stopTrafficToPrimary(componentType: string): Promise<void> {
-    // Placeholder: In production, would update DNS, load balancer, or K8s service
-    logger.debug(`[DisasterRecovery] Stopping traffic to primary for ${componentType}`);
+    const config = this.configs.get(componentType);
+    if (!config) return;
+
+    const executorConfig = this.getFailoverConfig(componentType, config);
+
+    if (failoverExecutor.isAvailable()) {
+      const result = await failoverExecutor.stopTrafficToPrimary(executorConfig);
+      if (!result.success) {
+        throw new Error(`Failed to stop traffic: ${result.error}`);
+      }
+      logger.info(`[DisasterRecovery] Traffic stopped to primary for ${componentType} in ${result.durationMs}ms`);
+    } else {
+      logger.warn(`[DisasterRecovery] Failover executor not available, skipping traffic stop for ${componentType}`);
+    }
   }
 
   /**
@@ -539,25 +552,74 @@ export class DisasterRecoveryService extends EventEmitter {
     const config = this.configs.get(componentType);
     if (!config) return false;
 
-    // Placeholder: Check standby health
-    logger.debug(`[DisasterRecovery] Verifying standby readiness for ${componentType}`);
-    return await this.checkClusterHealth(config.standbyCluster, componentType);
+    // First check health via HTTP/database
+    const healthOk = await this.checkClusterHealth(config.standbyCluster, componentType);
+    if (!healthOk) {
+      logger.warn(`[DisasterRecovery] Standby health check failed for ${componentType}`);
+      return false;
+    }
+
+    // If K8s available, verify pods are ready
+    const executorConfig = this.getFailoverConfig(componentType, config);
+    const standbyServiceName = this.getStandbyServiceName(componentType, config);
+
+    if (failoverExecutor.isAvailable()) {
+      return await failoverExecutor.verifyPodsReady(executorConfig, standbyServiceName, 1);
+    }
+
+    return healthOk;
   }
 
   /**
    * Switch traffic to standby cluster
    */
   private async switchTrafficToStandby(componentType: string): Promise<void> {
-    // Placeholder: In production, would update DNS, load balancer, or K8s service
-    logger.debug(`[DisasterRecovery] Switching traffic to standby for ${componentType}`);
+    const config = this.configs.get(componentType);
+    if (!config) return;
+
+    const executorConfig = this.getFailoverConfig(componentType, config);
+    const standbyServiceName = this.getStandbyServiceName(componentType, config);
+
+    if (failoverExecutor.isAvailable()) {
+      const result = await failoverExecutor.switchTrafficToStandby(executorConfig, standbyServiceName);
+      if (!result.success) {
+        throw new Error(`Failed to switch traffic: ${result.error}`);
+      }
+      logger.info(`[DisasterRecovery] Traffic switched to standby for ${componentType} in ${result.durationMs}ms`);
+
+      // Update ingress if configured
+      if (executorConfig.ingressName) {
+        const ingressResult = await failoverExecutor.updateIngress(executorConfig, standbyServiceName);
+        if (!ingressResult.success) {
+          logger.warn(`[DisasterRecovery] Ingress update failed: ${ingressResult.error}`);
+        }
+      }
+    } else {
+      logger.warn(`[DisasterRecovery] Failover executor not available, skipping traffic switch for ${componentType}`);
+    }
   }
 
   /**
    * Verify services on standby are operational
    */
   private async verifyStandbyServices(componentType: string): Promise<boolean> {
-    // Placeholder: In production, would run service health checks
-    logger.debug(`[DisasterRecovery] Verifying standby services for ${componentType}`);
+    const config = this.configs.get(componentType);
+    if (!config) return false;
+
+    // Check cluster health
+    const healthOk = await this.checkClusterHealth(config.standbyCluster, componentType);
+    if (!healthOk) {
+      return false;
+    }
+
+    // Verify pods ready via K8s
+    const executorConfig = this.getFailoverConfig(componentType, config);
+    const standbyServiceName = this.getStandbyServiceName(componentType, config);
+
+    if (failoverExecutor.isAvailable()) {
+      return await failoverExecutor.verifyPodsReady(executorConfig, standbyServiceName, 2);
+    }
+
     return true;
   }
 
@@ -565,8 +627,27 @@ export class DisasterRecoveryService extends EventEmitter {
    * Check for data loss during failover
    */
   private async checkForDataLoss(componentType: string): Promise<boolean> {
-    // Placeholder: In production, would check replication lag, transaction logs, etc.
-    logger.debug(`[DisasterRecovery] Checking for data loss for ${componentType}`);
+    // Check replication lag from database
+    if (componentType === 'database' && this.dbPool) {
+      try {
+        const result = await this.dbPool.query(
+          `SELECT pg_is_in_recovery(), pg_last_xact_replay_timestamp()`
+        );
+
+        const inRecovery = result.rows[0]?.pg_is_in_recovery;
+        const replayTimestamp = result.rows[0]?.pg_last_xact_replay_timestamp;
+
+        // If standby is still in recovery mode and replay is delayed
+        if (inRecovery && replayTimestamp) {
+          const lagMs = Date.now() - new Date(replayTimestamp).getTime();
+          // Consider data loss if lag > 5 seconds
+          return lagMs > 5000;
+        }
+      } catch (error) {
+        logger.warn(`[DisasterRecovery] Could not check replication status: ${error}`);
+      }
+    }
+
     return false;
   }
 
@@ -574,26 +655,93 @@ export class DisasterRecoveryService extends EventEmitter {
    * Calculate RPO based on replication state
    */
   private async calculateRPO(componentType: string): Promise<number> {
-    // Placeholder: In production, would query replication lag from database
-    logger.debug(`[DisasterRecovery] Calculating RPO for ${componentType}`);
-    return 0; // No data loss in simulation
+    if (componentType === 'database' && this.dbPool) {
+      try {
+        const result = await this.dbPool.query(
+          `SELECT
+            CASE
+              WHEN pg_is_in_recovery() THEN
+                EXTRACT(EPOCH FROM (now() - pg_last_xact_replay_timestamp()))
+              ELSE 0
+            END as replication_lag_seconds`
+        );
+
+        return Math.round(result.rows[0]?.replication_lag_seconds || 0);
+      } catch (error) {
+        logger.warn(`[DisasterRecovery] Could not calculate RPO: ${error}`);
+      }
+    }
+
+    return 0;
   }
 
   /**
    * Rollback failed failover
    */
   private async rollbackFailover(componentType: string): Promise<void> {
-    // Placeholder: In production, would switch traffic back to primary
-    logger.debug(`[DisasterRecovery] Rolling back failover for ${componentType}`);
-    await this.switchTrafficToPrimary(componentType);
+    const config = this.configs.get(componentType);
+    if (!config) return;
+
+    const executorConfig = this.getFailoverConfig(componentType, config);
+    const primaryServiceName = executorConfig.serviceName;
+
+    if (failoverExecutor.isAvailable()) {
+      const results = await failoverExecutor.rollback(executorConfig, primaryServiceName);
+      const failedSteps = results.filter(r => !r.success);
+
+      if (failedSteps.length > 0) {
+        throw new Error(`Rollback failed: ${failedSteps.map(s => s.error).join(', ')}`);
+      }
+
+      logger.info(`[DisasterRecovery] Rollback completed for ${componentType}`);
+    } else {
+      logger.warn(`[DisasterRecovery] Failover executor not available, skipping rollback for ${componentType}`);
+    }
   }
 
   /**
    * Switch traffic back to primary cluster
    */
   private async switchTrafficToPrimary(componentType: string): Promise<void> {
-    // Placeholder: In production, would update DNS, load balancer, or K8s service
-    logger.debug(`[DisasterRecovery] Switching traffic back to primary for ${componentType}`);
+    const config = this.configs.get(componentType);
+    if (!config) return;
+
+    const executorConfig = this.getFailoverConfig(componentType, config);
+    const primaryServiceName = executorConfig.serviceName;
+
+    if (failoverExecutor.isAvailable()) {
+      const result = await failoverExecutor.switchTrafficToStandby(executorConfig, primaryServiceName);
+      if (!result.success) {
+        throw new Error(`Failed to switch back to primary: ${result.error}`);
+      }
+      logger.info(`[DisasterRecovery] Traffic switched back to primary for ${componentType}`);
+    }
+  }
+
+  /**
+   * Get failover executor config from DR config
+   */
+  private getFailoverConfig(_componentType: string, config: DisasterRecoveryConfig): {
+    namespace: string;
+    serviceName: string;
+    ingressName?: string;
+  } {
+    const namespace = process.env.K8S_NAMESPACE || 'orion';
+    const serviceName = (config.metadata?.serviceName as string) || 'orion-service';
+    const ingressName = (config.metadata?.ingressName as string) || undefined;
+
+    return {
+      namespace,
+      serviceName,
+      ingressName,
+    };
+  }
+
+  /**
+   * Get standby service name from DR config
+   */
+  private getStandbyServiceName(componentType: string, config: DisasterRecoveryConfig): string {
+    return (config.metadata?.standbyServiceName as string) || `orion-${componentType}-standby`;
   }
 
   /**
