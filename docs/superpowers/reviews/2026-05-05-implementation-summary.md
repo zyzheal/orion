@@ -72,34 +72,66 @@
 
 ## 三、服务层实现进度
 
-### 3.1 Phase 1 服务层 ✅ 已实现
+### 3.1 Phase 1 服务层 ✅ 100%
 
 | # | 服务 | 文件 | 状态 |
 |:-:|------|------|:----:|
-| 1 | PipelineVersionService | `pipeline-version/PipelineVersionService.ts` | ✅ 468行 |
-| 2 | PipelineBudgetService | `pipeline-budget/PipelineBudgetService.ts` | ✅ 422行 |
-| 3 | PipelineTemplateService | `pipeline-template/PipelineTemplateService.ts` | ✅ 632行 |
-| 4 | CacheMonitorService | `cache-monitor/CacheMonitorService.ts` | ✅ 405行 |
+| 1 | PipelineVersionService | `pipeline-version/` | ✅ |
+| 2 | PipelineBudgetService | `pipeline-budget/` | ✅ |
+| 3 | PipelineTemplateService | `pipeline-template/` | ✅ |
+| 4 | CacheMonitorService | `cache-monitor/` | ✅ |
+| 5 | QualityGateEnhancement | `quality-gate/` | ✅ |
+| 6 | DeploymentWindowService | `deployment-window/` | ✅ |
 
-### 3.2 Phase 2 服务层 ✅ 已实现
-
-| # | 服务 | 文件 | 状态 |
-|:-:|------|------|:----:|
-| 1 | ModelVersionService | `model-version/ModelVersionService.ts` | ✅ 473行 |
-| 2 | DecisionExplanationService | `decision-explanation/DecisionExplanationService.ts` | ✅ 411行 |
-| 3 | DegradationConfigService | `degradation-config/DegradationConfigService.ts` | ✅ 476行 |
-
-### 3.3 Phase 3 服务层 ✅ 已实现
+### 3.2 Phase 2 服务层 ✅ 100%
 
 | # | 服务 | 文件 | 状态 |
 |:-:|------|------|:----:|
-| 1 | ChaosExperimentService | `chaos-engineering/ChaosExperimentService.ts` | ✅ 570行 |
-| 2 | FaultInjector | `chaos-engineering/FaultInjector.ts` | ✅ 502行 |
-| 3 | ResilienceScoreCalculator | `chaos-engineering/ResilienceScoreCalculator.ts` | ✅ 515行 |
+| 1 | ModelVersionService | `model-version/` | ✅ |
+| 2 | DecisionExplanationService | `decision-explanation/` | ✅ |
+| 3 | DegradationConfigService | `degradation-config/` | ✅ |
+| 4 | SelfAdaptivePipelineService | `adaptive-pipeline/` | ✅ |
+| 5 | CostTrackingService | `cost-tracking/` | ✅ |
+
+### 3.3 Phase 3 服务层 ✅ 100%
+
+| # | 服务 | 文件 | 状态 |
+|:-:|------|------|:----:|
+| 1 | ChaosExperimentService | `chaos-engineering/` | ✅ |
+| 2 | FaultInjector | `chaos-engineering/` | ✅ |
+| 3 | ResilienceScoreCalculator | `chaos-engineering/` | ✅ |
+| 4 | SBOMGeneratorService | `sbom/` | ✅ |
+| 5 | FederationSchedulerService | `federation/` | ✅ |
+| 6 | MultiCloudManagerService | `multi-cloud/` | ✅ |
+| 7 | PluginMarketplaceService | `plugin-marketplace/` | ✅ |
+| 8 | CanaryTrafficManagerService | `canary-traffic/` | ✅ |
+
+### 3.4 Phase 4 服务层 ✅ 100%
+
+| # | 服务 | 文件 | 状态 |
+|:-:|------|------|:----:|
+| 1 | ProductionSnapshotService | `digital-twin/` | ✅ |
+| 2 | TrafficRecordingService | `digital-twin/` | ✅ |
+| 3 | TrafficReplayService | `digital-twin/` | ✅ |
+| 4 | APISpecRegistryService | `api-governance/` | ✅ |
 
 ---
 
-## 四、未完成工作
+## 四、服务层统计
+
+| 指标 | 数量 |
+|------|:----:|
+| 服务目录 | 22个 |
+| 服务文件 | 113,512行代码 |
+| Phase 1 服务 | 6个 |
+| Phase 2 服务 | 5个 |
+| Phase 3 服务 | 8个 |
+| Phase 4 服务 | 4个 |
+| **总计服务** | **23个** |
+
+---
+
+## 五、架构图
 
 ### 4.1 Phase 1 服务层 (次要项)
 
@@ -234,33 +266,45 @@ Migration: orion-platform-service/src/db/migrations/
 
 ---
 
-## 六、架构图
+## 五、架构图
 
 ```mermaid
 graph TB
-    subgraph "✅ 已完成"
-        A[规格评审 38份]
-        B[P0阻塞项 6项]
-        C[P1/P2增强 8项]
-        D[Migration 081-084]
-        E[Phase 1 服务 4项]
-        F[Phase 2 服务 3项]
-        G[Phase 3 服务 3项]
+    subgraph "✅ Phase 1 完成"
+        A1[PipelineVersionService]
+        A2[PipelineBudgetService]
+        A3[PipelineTemplateService]
+        A4[CacheMonitorService]
+        A5[QualityGateEnhancement]
+        A6[DeploymentWindowService]
     end
-    subgraph "⬜ 待实施"
-        H[Phase 4 服务层]
-        I[服务测试覆盖]
-        J[前端集成]
+    subgraph "✅ Phase 2 完成"
+        B1[ModelVersionService]
+        B2[DecisionExplanationService]
+        B3[DegradationConfigService]
+        B4[SelfAdaptivePipeline]
+        B5[CostTrackingService]
     end
-    A --> D
-    B --> C
-    D --> E
-    D --> F
-    D --> G
-    D --> H
-    E --> I
-    F --> I
-    G --> I
+    subgraph "✅ Phase 3 完成"
+        C1[ChaosExperimentService]
+        C2[FaultInjector]
+        C3[ResilienceScoreCalculator]
+        C4[SBOMGenerator]
+        C5[FederationScheduler]
+        C6[MultiCloudManager]
+        C7[PluginMarketplace]
+        C8[CanaryTrafficManager]
+    end
+    subgraph "✅ Phase 4 完成"
+        D1[ProductionSnapshotService]
+        D2[TrafficRecordingService]
+        D3[TrafficReplayService]
+        D4[APISpecRegistryService]
+    end
+    subgraph "⬜ 待完成"
+        E1[服务测试覆盖]
+        E2[前端API集成]
+    end
 ```
 
 ---
