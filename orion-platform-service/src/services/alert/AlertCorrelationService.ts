@@ -5,6 +5,8 @@
  */
 
 import pino from 'pino';
+import { AlertSourceType } from './AlertTypes';
+import type { AlertTopologyNode, AlertTopologyEdge, RootCauseAnalysis } from './AlertTypes';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -283,7 +285,7 @@ export class AlertCorrelationService {
    * Severity level for comparison
    */
   private severityLevel(severity: string): number {
-    const levels = { critical: 3, warning: 2, info: 1 };
+    const levels: Record<string, number> = { critical: 3, warning: 2, info: 1 };
     return levels[severity] || 0;
   }
 
@@ -372,6 +374,215 @@ export class AlertCorrelationService {
   clear(): void {
     this.groups.clear();
     this.alertBuffer = [];
+  }
+
+  // ==================== Topology & Dependency Management ====================
+
+  private topologyNodes: Map<string, AlertTopologyNode> = new Map();
+  private topologyEdges: AlertTopologyEdge[] = [];
+  private nodeHealth: Map<string, 'healthy' | 'degraded' | 'unhealthy'> = new Map();
+  private dependencyMap: Map<string, string[]> = new Map();
+  private impactMap: Map<string, string[]> = new Map();
+
+  /**
+   * Get the current topology
+   */
+  getTopology(): {
+    nodes: Array<{ id: string; type: string; name: string; status: string }>;
+    edges: Array<{ source: string; target: string; relationType: string }>;
+  } {
+    const nodes = Array.from(this.topologyNodes.values()).map(n => ({
+      id: n.id,
+      type: n.type,
+      name: n.name,
+      status: this.nodeHealth.get(n.id) || 'healthy',
+    }));
+    const edges = this.topologyEdges.map(e => ({
+      source: e.source,
+      target: e.target,
+      relationType: e.relationType,
+    }));
+    return { nodes, edges };
+  }
+
+  /**
+   * Set the topology graph
+   */
+  setTopology(topology: {
+    nodes: Array<{ id: string; type: AlertSourceType; name: string; parentId?: string; status?: 'healthy' | 'degraded' | 'unhealthy' }>;
+    edges: Array<{ source: string; target: string; relationType: 'depends_on' | 'runs_on' | 'connected_to' }>;
+  }): void {
+    this.topologyNodes.clear();
+    this.topologyEdges = topology.edges;
+    this.dependencyMap.clear();
+    this.impactMap.clear();
+
+    // Build node map
+    for (const node of topology.nodes) {
+      const topoNode: AlertTopologyNode = {
+        id: node.id,
+        type: node.type,
+        name: node.name,
+        status: node.status || 'healthy',
+        parentId: node.parentId,
+        childrenIds: [],
+      };
+      this.topologyNodes.set(node.id, topoNode);
+      if (!this.nodeHealth.has(node.id)) {
+        this.nodeHealth.set(node.id, 'healthy');
+      }
+    }
+
+    // Build parent-child relationships
+    for (const node of topology.nodes) {
+      if (node.parentId) {
+        const parent = this.topologyNodes.get(node.parentId);
+        if (parent && parent.childrenIds) {
+          parent.childrenIds.push(node.id);
+        }
+      }
+    }
+
+    // Build dependency and impact maps
+    for (const edge of topology.edges) {
+      // edge.source depends on edge.target
+      const deps = this.dependencyMap.get(edge.source) || [];
+      deps.push(edge.target);
+      this.dependencyMap.set(edge.source, deps);
+
+      // edge.target impacts edge.source
+      const impacts = this.impactMap.get(edge.target) || [];
+      impacts.push(edge.source);
+      this.impactMap.set(edge.target, impacts);
+    }
+
+    logger.info(
+      { nodeCount: this.topologyNodes.size, edgeCount: this.topologyEdges.length },
+      '[AlertCorrelation] Topology set'
+    );
+  }
+
+  /**
+   * Get dependencies of a node (what this node depends on)
+   */
+  getDependencies(nodeId: string): string[] {
+    return this.dependencyMap.get(nodeId) || [];
+  }
+
+  /**
+   * Get impact scope of a node (what is impacted if this node fails)
+   */
+  getImpactScope(nodeId: string): string[] {
+    return this.impactMap.get(nodeId) || [];
+  }
+
+  /**
+   * Update node health based on alerts
+   */
+  updateNodeHealth(alerts: Array<{ id: string; sourceId?: string; severity?: string; status?: string }>): void {
+    for (const alert of alerts) {
+      const sourceId = (alert as any).sourceId || alert.id;
+      const severity = (alert as any).severity || '';
+      const status = (alert as any).status || '';
+
+      if (status === 'resolved' || status === 'silenced') {
+        continue;
+      }
+
+      const currentHealth = this.nodeHealth.get(sourceId) || 'healthy';
+      let newHealth: 'healthy' | 'degraded' | 'unhealthy' = currentHealth;
+
+      if (severity === 'critical') {
+        newHealth = 'unhealthy';
+      } else if (severity === 'high' || severity === 'warning') {
+        if (currentHealth !== 'unhealthy') {
+          newHealth = 'degraded';
+        }
+      }
+
+      if (newHealth !== currentHealth) {
+        this.nodeHealth.set(sourceId, newHealth);
+        // Propagate to dependents
+        this.propagateHealthDegradation(sourceId, newHealth);
+      }
+    }
+  }
+
+  /**
+   * Propagate health degradation to impacted nodes
+   */
+  private propagateHealthDegradation(nodeId: string, health: 'healthy' | 'degraded' | 'unhealthy'): void {
+    const impacted = this.impactMap.get(nodeId) || [];
+    for (const impactedId of impacted) {
+      const currentHealth = this.nodeHealth.get(impactedId) || 'healthy';
+      const healthLevel = { healthy: 0, degraded: 1, unhealthy: 2 };
+      if (healthLevel[health] > healthLevel[currentHealth]) {
+        this.nodeHealth.set(impactedId, health);
+        // Recursively propagate
+        this.propagateHealthDegradation(impactedId, health);
+      }
+    }
+  }
+
+  /**
+   * Analyze root cause for a set of alerts
+   */
+  analyzeRootCause(alerts: Array<{ id: string; sourceId?: string; severity?: string }>): RootCauseAnalysis | null {
+    if (alerts.length === 0) return null;
+
+    // Find the most severe alert as potential root cause
+    const severityLevel: Record<string, number> = { critical: 3, high: 2, medium: 1, info: 0 };
+    let rootCauseAlert = alerts[0];
+    let maxSeverity = severityLevel[(rootCauseAlert as any).severity || 'info'] || 0;
+
+    for (const alert of alerts) {
+      const level = severityLevel[(alert as any).severity || 'info'] || 0;
+      if (level > maxSeverity) {
+        maxSeverity = level;
+        rootCauseAlert = alert;
+      }
+    }
+
+    // Check if root cause alert has upstream dependencies that are also alerting
+    const alertingSourceIds = new Set(alerts.map(a => (a as any).sourceId || a.id));
+    const rootSourceId = (rootCauseAlert as any).sourceId || rootCauseAlert.id;
+    const rootDeps = this.getDependencies(rootSourceId);
+
+    let actualRootCause = rootCauseAlert;
+    for (const depId of rootDeps) {
+      if (alertingSourceIds.has(depId)) {
+        // This dependency is also alerting, it might be the root cause
+        const depAlert = alerts.find(a => (a as any).sourceId === depId || a.id === depId);
+        if (depAlert) {
+          actualRootCause = depAlert;
+          break;
+        }
+      }
+    }
+
+    const actualRootSourceId = (actualRootCause as any).sourceId || actualRootCause.id;
+    const affectedAlertIds = alerts
+      .filter(a => a.id !== actualRootCause.id)
+      .map(a => a.id);
+
+    return {
+      rootCauseAlertId: actualRootCause.id,
+      affectedAlertIds,
+      topologyPath: [actualRootSourceId],
+      confidence: alerts.length > 1 ? 0.8 : 0.5,
+      analysis: `Root cause identified: ${actualRootCause.id} (${actualRootSourceId}). ${affectedAlertIds.length} affected alerts.`,
+    };
+  }
+
+  /**
+   * Get all node health status
+   */
+  getAllNodeHealth(): Array<{ nodeId: string; status: 'healthy' | 'degraded' | 'unhealthy' }> {
+    const result: Array<{ nodeId: string; status: 'healthy' | 'degraded' | 'unhealthy' }> = [];
+    for (const [nodeId, status] of this.nodeHealth.entries()) {
+      result.push({ nodeId, status });
+    }
+    return result;
   }
 }
 

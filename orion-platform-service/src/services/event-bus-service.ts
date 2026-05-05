@@ -901,4 +901,131 @@ export class EventBusService extends EventEmitter {
     if (!this.jsmService) this.jsmService = new JetStreamManagerService(this.jetStreamManager);
     return this.jsmService.listConsumers(streamName);
   }
+
+  /**
+   * Replay events from JetStream history.
+   *
+   * Reads persisted events from the specified stream/subject, optionally
+   * starting from a given sequence number and limiting the result count.
+   *
+   * @param subject - NATS subject pattern (e.g., 'pipeline.run.completed')
+   * @param fromSequence - Start reading from this stream sequence (default: 1)
+   * @param limit - Maximum number of events to return (default: 100)
+   * @returns Array of replayed TypedEnvelope objects
+   */
+  async replay<T = unknown>(
+    subject: string,
+    fromSequence: number = 1,
+    limit: number = 100,
+  ): Promise<Array<{ envelope: TypedEnvelope<T>; streamSeq: number }>> {
+    if (!this.isJetStreamAvailable() || !this.jetStream) {
+      throw new EventBusError(
+        'JetStream not available, cannot replay events',
+        'JETSTREAM_UNAVAILABLE',
+        false,
+      );
+    }
+
+    // Find which stream owns this subject
+    const streamName = await this.resolveStreamForSubject(subject);
+    if (!streamName) {
+      logger.warn({ subject }, 'No stream found for subject');
+      return [];
+    }
+
+    const consumer = await this.jetStream.consumers.get(streamName, {
+      durable_name: `replay-consumer-${Date.now()}`,
+      filter_subject: subject,
+      deliver_policy: {
+        deliver_by_start_sequence: { seq: fromSequence },
+      },
+      ack_policy: { explicit: {} },
+      max_ack_pending: limit,
+    } as any);
+
+    const results: Array<{ envelope: TypedEnvelope<T>; streamSeq: number }> = [];
+
+    try {
+      const messages = await consumer.fetch({
+        max_messages: limit,
+        expires: 30_000_000_000, // 30s in nanoseconds
+      } as any);
+
+      if (messages) {
+        for await (const msg of messages as AsyncIterable<any>) {
+          try {
+            const envelope = JSON.parse(new TextDecoder().decode(msg.data)) as TypedEnvelope<T>;
+            const info = msg.info;
+            results.push({
+              envelope,
+              streamSeq: info?.streamSequence ?? 0,
+            });
+            msg.ack();
+          } catch {
+            // Skip malformed messages
+            msg.ack();
+          }
+        }
+      }
+    } finally {
+      // Clean up the ephemeral consumer
+      try {
+        if (this.jetStreamManager) {
+          await this.jetStreamManager.consumers.delete(streamName, `replay-consumer-${Date.now()}`);
+        }
+      } catch {
+        // Ignore cleanup errors (consumer may have auto-deleted)
+      }
+    }
+
+    logger.info({ subject, count: results.length }, 'Replayed events');
+    return results;
+  }
+
+  /**
+   * Resolve the JetStream stream name that owns a given subject.
+   */
+  private async resolveStreamForSubject(subject: string): Promise<string | null> {
+    if (!this.jetStreamManager) return null;
+
+    const { ORION_STREAMS } = await import('./types/event-types');
+
+    for (const [_key, stream] of Object.entries(ORION_STREAMS)) {
+      // Check if any subject pattern matches
+      for (const pattern of stream.subjects) {
+        if (this.subjectMatches(subject, pattern)) {
+          return stream.name;
+        }
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Simple subject wildcard matching.
+   * '*' matches one token, '>' matches remaining tokens.
+   */
+  private subjectMatches(subject: string, pattern: string): boolean {
+    const subjectParts = subject.split('.');
+    const patternParts = pattern.split('.');
+
+    if (patternParts[patternParts.length - 1] === '>') {
+      const prefixParts = patternParts.slice(0, -1);
+      if (subjectParts.length < prefixParts.length) return false;
+      for (let i = 0; i < prefixParts.length; i++) {
+        if (prefixParts[i] !== '*' && prefixParts[i] !== subjectParts[i]) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    if (subjectParts.length !== patternParts.length) return false;
+    for (let i = 0; i < patternParts.length; i++) {
+      if (patternParts[i] !== '*' && patternParts[i] !== subjectParts[i]) {
+        return false;
+      }
+    }
+    return true;
+  }
 }

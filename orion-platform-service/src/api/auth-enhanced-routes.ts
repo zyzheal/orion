@@ -108,7 +108,7 @@ export default async function enhancedAuthRoutes(
   /**
    * POST /api/v1/auth/keys/rotate - Rotate JWT key
    */
-  app.post('/keys/rotate', async (request: RotateKeyRequest, reply: FastifyReply) => {
+  app.post('/keys/rotate', async (request: FastifyRequest<{ Body: { rotationType?: 'scheduled' | 'manual' | 'emergency'; reason?: string } }>, reply: FastifyReply) => {
     try {
       const { rotationType, reason } = request.body || {};
 
@@ -179,7 +179,7 @@ export default async function enhancedAuthRoutes(
   /**
    * POST /api/v1/auth/tokens/revoke - Revoke a single token
    */
-  app.post('/tokens/revoke', async (request: RevokeTokenRequest, reply: FastifyReply) => {
+  app.post('/tokens/revoke', async (request: FastifyRequest<{ Body: { token: string; userId: string; tenantId: number; reason: 'logout' | 'security_incident' | 'password_change' | 'admin_revocation' | 'key_rotation'; revokedBy?: string } }>, reply: FastifyReply) => {
     try {
       const { token, userId, tenantId, reason, revokedBy } = request.body;
 
@@ -216,7 +216,7 @@ export default async function enhancedAuthRoutes(
   /**
    * GET /api/v1/auth/tokens/check/:tokenHash - Check if token is revoked
    */
-  app.get('/tokens/check/:tokenHash', async (request: CheckTokenRequest, reply: FastifyReply) => {
+  app.get('/tokens/check/:tokenHash', async (request: FastifyRequest<{ Params: { tokenHash: string } }>, reply: FastifyReply) => {
     try {
       const { tokenHash } = request.params;
       // Note: In production, you'd pass the actual token, not just hash
@@ -245,7 +245,7 @@ export default async function enhancedAuthRoutes(
   /**
    * POST /api/v1/auth/tokens/revoke-batch - Batch revoke tokens for user or tenant
    */
-  app.post('/tokens/revoke-batch', async (request: BatchRevokeRequest, reply: FastifyReply) => {
+  app.post('/tokens/revoke-batch', async (request: FastifyRequest<{ Body: { targetType: 'user' | 'tenant'; targetId: string; reason: string } }>, reply: FastifyReply) => {
     try {
       const { targetType, targetId, reason } = request.body;
 

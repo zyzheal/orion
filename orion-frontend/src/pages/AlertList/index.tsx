@@ -9,7 +9,7 @@
  * - Status filtering
  */
 import React, { useState, useMemo, useEffect } from 'react';
-import { Typography, Button, Space, Tag, Modal, message } from 'antd';
+import { Typography, Button, Space, Tag, Modal, message, Popconfirm } from 'antd';
 import { colors, spacing } from '@/tokens';
 import { ReloadOutlined, CheckOutlined, CloseOutlined, BellOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
@@ -49,6 +49,7 @@ const AlertList: React.FC = () => {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
 
   // Load alerts from API
   const loadAlerts = async () => {
@@ -189,6 +190,79 @@ const AlertList: React.FC = () => {
   // Handle refresh
   const handleRefresh = () => {
     loadAlerts();
+  };
+
+  // Batch acknowledge selected alerts
+  const handleBatchAcknowledge = async () => {
+    if (selectedRowKeys.length === 0) return;
+    let successCount = 0;
+    for (const key of selectedRowKeys) {
+      try {
+        await apiAcknowledgeAlert(key as string);
+        setAlerts((prev) =>
+          prev.map((alert) =>
+            alert.id === key
+              ? {
+                  ...alert,
+                  status: 'acknowledged' as AlertStatus,
+                  acknowledgedBy: 'heal',
+                  acknowledgedAt: new Date().toISOString(),
+                }
+              : alert
+          )
+        );
+        successCount++;
+      } catch {
+        // Continue with others
+      }
+    }
+    message.success(`已批量确认 ${successCount}/${selectedRowKeys.length} 条告警`);
+    setSelectedRowKeys([]);
+  };
+
+  // Batch resolve selected alerts
+  const handleBatchResolve = async () => {
+    if (selectedRowKeys.length === 0) return;
+    let successCount = 0;
+    for (const key of selectedRowKeys) {
+      try {
+        await apiResolveAlert(key as string);
+        setAlerts((prev) =>
+          prev.map((alert) =>
+            alert.id === key
+              ? {
+                  ...alert,
+                  status: 'resolved' as AlertStatus,
+                  resolvedBy: 'heal',
+                  resolvedAt: new Date().toISOString(),
+                }
+              : alert
+          )
+        );
+        successCount++;
+      } catch {
+        // Continue with others
+      }
+    }
+    message.success(`已批量解决 ${successCount}/${selectedRowKeys.length} 条告警`);
+    setSelectedRowKeys([]);
+  };
+
+  // Count active alerts that can be batch operated
+  const batchableCount = useMemo(() => {
+    return alerts.filter(
+      (a) =>
+        selectedRowKeys.includes(a.id) && (a.status === 'active' || a.status === 'acknowledged')
+    ).length;
+  }, [alerts, selectedRowKeys]);
+
+  // Row selection config
+  const rowSelection = {
+    selectedRowKeys,
+    onChange: (keys: React.Key[]) => setSelectedRowKeys(keys),
+    getCheckboxProps: (record: Alert) => ({
+      disabled: record.status === 'resolved' || record.status === 'suppressed',
+    }),
   };
 
   // Show alert detail modal
@@ -343,7 +417,7 @@ const AlertList: React.FC = () => {
             <BellOutlined style={{ marginRight: 8 }} />
             监控告警
           </Title>
-          <Text type="secondary">共 {filteredAlerts.length} 条告警记录</Text>
+          <Text type="secondary">共 {alerts.length} 条告警记录</Text>
           {/* Active alert summary */}
           {(severityCounts.critical > 0 || severityCounts.warning > 0) && (
             <div style={{ marginTop: 8 }}>
@@ -361,9 +435,28 @@ const AlertList: React.FC = () => {
             </div>
           )}
         </div>
-        <Button icon={<ReloadOutlined />} onClick={handleRefresh} loading={loading}>
-          刷新
-        </Button>
+        <Space>
+          {selectedRowKeys.length > 0 && (
+            <>
+              <Popconfirm
+                title={`确认 ${selectedRowKeys.length} 条告警?`}
+                onConfirm={handleBatchAcknowledge}
+              >
+                <Button icon={<CheckOutlined />} type="primary" ghost>
+                  批量确认 ({selectedRowKeys.length})
+                </Button>
+              </Popconfirm>
+              <Popconfirm title={`解决 ${batchableCount} 条告警?`} onConfirm={handleBatchResolve}>
+                <Button danger icon={<CloseOutlined />}>
+                  批量解决
+                </Button>
+              </Popconfirm>
+            </>
+          )}
+          <Button icon={<ReloadOutlined />} onClick={handleRefresh} loading={loading}>
+            刷新
+          </Button>
+        </Space>
       </div>
 
       {/* Search and filter bar */}
@@ -384,6 +477,7 @@ const AlertList: React.FC = () => {
         rowKey="id"
         size="middle"
         striped
+        rowSelection={rowSelection}
       />
 
       {/* Alert detail modal */}

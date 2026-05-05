@@ -105,6 +105,9 @@ export interface IaCStateVersion {
   commitSha: string;
   author: string;
   size: number;
+  createdAt?: string;
+  serialNumber?: number;
+  lineage?: string;
 }
 
 export interface IaCStateVersionCreateInput {

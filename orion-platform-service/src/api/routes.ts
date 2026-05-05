@@ -16,6 +16,8 @@ import { PipelineService } from '../services/pipeline/PipelineService';
 import { PipelineRepository } from '../services/pipeline/PipelineRepository';
 import { PipelineRunService } from '../services/pipeline/PipelineRunService';
 import { PipelineRunRepository } from '../services/pipeline/PipelineRunRepository';
+import { PipelineVersionService } from '../services/pipeline/PipelineVersionService';
+import { PipelineBudgetService } from '../services/pipeline/PipelineBudgetService';
 import { PipelineEngine } from '../engine/PipelineEngine';
 import { StageExecutor } from '../engine/StageExecutor';
 import { TaskRunner } from '../engine/TaskRunner';
@@ -48,13 +50,19 @@ import tenantRoutes from './tenant-routes';
 import efficiencyRoutes from './efficiency-routes';
 import sbomRoutes from './sbom-routes';
 import policyRoutes from './policy-routes';
+import qualityGateRoutes from './quality-gate-routes';
+import supplyChainRoutes from './supply-chain-routes';
+import chaosEnhancedRoutes from './chaos-enhanced-routes';
 import changeIntelligenceRoutes from './change-intelligence-routes';
 import canaryAnalysisRoutes from './canary-analysis-routes';
+import pluginMarketplaceRoutes from './plugin-marketplace-routes';
+import canaryTrafficRoutes from './canary-traffic-routes';
 import iacRoutes from './iac-routes';
 import chatopsRoutes from './chatops-routes';
 import skillRoutes from './skill-routes';
 import aiCostRoutes from './ai-cost-routes';
 import artifactRoutes from './artifact-routes';
+import costOperationsRoutes from './cost-operations-routes';
 import sessionRoutes from './session-routes';
 import confirmationRoutes from './confirmation-routes';
 
@@ -83,6 +91,32 @@ import { vectorRoutes } from './vector-routes';
 import llmTraceRoutes from './llm-trace-routes';
 import privacyRoutes from './privacy-routes';
 import degradationRoutes from './degradation-routes';
+import pipelineVersionRoutes from './pipeline-version-routes';
+import pipelineBudgetRoutes from './pipeline-budget-routes';
+import pipelineTemplateRoutes from './pipeline-template-routes';
+import deployEnhancedRoutes from './deploy-enhanced-routes';
+import developerPortalRoutes from './developer-portal-routes';
+import autonomousPipelineRoutes from './autonomous-pipeline-routes';
+import aiDecisionRoutes from './ai-decision-routes';
+import observabilityRoutes from './observability-routes';
+import crossDomainRoutes from './cross-domain-routes';
+import configMgmtEnhancedRoutes from './config-mgmt-enhanced-routes';
+import securityComplianceRoutes from './security-compliance-routes';
+import multiModalTriggerRoutes from './multi-modal-trigger-routes';
+import disasterRecoveryRoutes from './disaster-recovery-routes';
+import disasterRecoveryAdvancedRoutes from './disaster-recovery-advanced-routes';
+import performanceRoutes from './performance-routes';
+import federationRoutes from './federation-routes';
+import federationAdvancedRoutes from './federation-advanced-routes';
+import multiCloudRoutes from './multi-cloud-routes';
+import multiCloudAdvancedRoutes from './multi-cloud-advanced-routes';
+import dataPipelineRoutes from './data-pipeline-routes';
+import artifactOpsRoutes from './artifact-ops-routes';
+import digitalTwinRoutes from './digital-twin-routes';
+import apiGovernanceRoutes from './api-governance-routes';
+import efficiencyEnhancedRoutes from './efficiency-enhanced-routes';
+import communityRoutes from './community-routes';
+import communityAdvancedRoutes from './community-advanced-routes';
 
 export interface ApiRoutesOptions {
   eventBus?: EventBusService;
@@ -198,9 +232,13 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   const stageExecutor = new StageExecutor(taskRunner, eventPublisher);
   const engine = new PipelineEngine(pipelineService, runService, eventPublisher, stageExecutor);
 
+  // Phase 1 P0: Initialize version and budget services
+  const versionService = options.database ? new PipelineVersionService(options.database) : null;
+  const budgetService = options.database ? new PipelineBudgetService(options.database) : null;
+
   // 初始化控制器
   const pipelineController = new PipelineController(pipelineService);
-  const pipelineRunController = new PipelineRunController(runService, engine);
+  const pipelineRunController = new PipelineRunController(runService, engine, pipelineService, budgetService);
   const stageController = new StageController(runService, stageExecutor);
   const taskController = new TaskController(runService);
 
@@ -359,6 +397,9 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // 注册智能部署 API 路由 (TASK-701) - PostgreSQL backed
   await registerWithRoleGuard(app, deployRoutes, '/v1/deploy', { database: options.database });
 
+  // 注册部署增强 API 路由 (Phase 1: Deploy Windows + Progressive + Emergency)
+  await registerWithRoleGuard(app, deployEnhancedRoutes, '/v1/deploy', { database: options.database });
+
   // 注册监控告警 API 路由 (TASK-703)
   await registerWithRoleGuard(app, monitoringRoutes, '/v1/monitoring', { database: options.database });
 
@@ -401,11 +442,20 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // 注册 OPA Policy Engine API 路由 (P0) - PostgreSQL backed
   await registerWithRoleGuard(app, policyRoutes, '/v1/policies', { database: options.database, eventBus: options.eventBus });
 
+  // 注册 Quality Gate Trend API 路由 (Phase 1) - PostgreSQL backed
+  await registerWithRoleGuard(app, qualityGateRoutes, '/v1/quality-gates', { database: options.database, eventBus: options.eventBus });
+
   // 注册 AI Change Intelligence API 路由 (P0)
   await registerWithRoleGuard(app, changeIntelligenceRoutes, '/v1/change-intelligence', { eventBus: options.eventBus });
 
   // 注册 ML Canary Analysis API 路由 (P0) - PostgreSQL backed
   await registerWithRoleGuard(app, canaryAnalysisRoutes, '/v1/canary-analysis', { eventBus: options.eventBus, database: options.database });
+
+  // 注册 Plugin Marketplace API 路由 (Phase 3) - PostgreSQL backed
+  await registerWithRoleGuard(app, pluginMarketplaceRoutes, '/v1/plugins/marketplace', { database: options.database });
+
+  // 注册 Canary Traffic Management API 路由 (Phase 3) - PostgreSQL backed
+  await registerWithRoleGuard(app, canaryTrafficRoutes, '/v1/canary/deployments', { database: options.database });
 
   // 注册 Skill Management API 路由 (M12)
   await registerWithRoleGuard(app, skillRoutes, '/v1/skills', { database: options.database });
@@ -434,6 +484,9 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // 注册 Artifact Registry API 路由
   await registerWithRoleGuard(app, artifactRoutes, '/v1/artifacts', { database: options.database });
+
+  // 注册 Cost Operations API 路由 (Phase 2 - budget guards, anomaly detection, optimization)
+  await registerWithRoleGuard(app, costOperationsRoutes, '/v1/cost-operations', { database: options.database });
 
   // 注册 Vector Store API 路由 (P0-G2 - pgvector backed) — admin only
   await registerWithRoleGuard(app, vectorStoreRoutes, '/v1/vector-store', { database: options.database });
@@ -509,13 +562,130 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // 注册 Degradation Management API 路由 - AI Provider自动恢复
   await registerWithRoleGuard(app, degradationRoutes, '/v1/degradation');
 
-  // ==================== Phase 1 P0 Routes (Planned) ====================
-  // TODO: Register auth-enhanced-routes once implemented
-  // await registerWithRoleGuard(app, authEnhancedRoutes, '/v1/auth', { database: options.database });
-  //
-  // TODO: Register consistency-routes once implemented (Task 8)
-  // await registerWithRoleGuard(app, consistencyRoutes, '/v1/consistency', { database: options.database });
-  //
-  // TODO: Register disaster-recovery-routes once implemented (Task 9)
-  // await registerWithRoleGuard(app, disasterRecoveryRoutes, '/v1/disaster-recovery', { database: options.database });
+  // ==================== Phase 1 P0 Routes ====================
+  // Pipeline Version Control (version diff, rollback, tags, baseline)
+  await app.register(async (instance: FastifyInstance) => {
+    instance.addHook('onRequest', authenticateUser);
+    await instance.register(pipelineVersionRoutes, {
+      prefix: '/v1/pipelines',
+      database: options.database,
+    });
+  });
+
+  // Pipeline Execution Budget (config, estimate, monitoring)
+  await app.register(async (instance: FastifyInstance) => {
+    instance.addHook('onRequest', authenticateUser);
+    await instance.register(pipelineBudgetRoutes, {
+      prefix: '/v1/pipelines',
+      database: options.database,
+    });
+  });
+
+  // Pipeline Template Library (CRUD, instantiation)
+  await registerWithRoleGuard(app, pipelineTemplateRoutes, '/v1/pipeline-templates', {
+    database: options.database,
+  });
+
+  // Developer Portal (document management, search, categories)
+  await registerWithRoleGuard(app, developerPortalRoutes, '/v1/developer-portal', {
+    database: options.database,
+  });
+
+  // ==================== Phase 2: Autonomous Pipeline ====================
+  // Error classification, adaptive timeout, auto-retry
+  await app.register(async (instance: FastifyInstance) => {
+    instance.addHook('onRequest', authenticateUser);
+    await instance.register(autonomousPipelineRoutes, {
+      prefix: '/v1/autonomous',
+      database: options.database,
+    });
+  });
+
+  // ==================== Phase 2: AI Decision Enhancement ====================
+  // Decision explanation, model version management
+  await registerWithRoleGuard(app, aiDecisionRoutes, '/v1');
+
+  // ==================== Phase 2: Observability Enhancement ====================
+  // Custom alert rules, RCA, silence rules
+  await registerWithRoleGuard(app, observabilityRoutes, '/v1/observability', {
+    database: options.database,
+  });
+
+  // ==================== Phase 3: Supply Chain Security ====================
+  await registerWithRoleGuard(app, supplyChainRoutes, '/v1/supply-chain', {
+    database: options.database,
+  });
+
+  // ==================== Phase 3: Chaos Engineering ====================
+  await registerWithRoleGuard(app, chaosEnhancedRoutes, '/v1/chaos', {
+    database: options.database,
+  });
+
+  // ==================== Phase 3: Cross-Domain Orchestration ====================
+  await registerWithRoleGuard(app, crossDomainRoutes, '/v1/orchestration', {
+    database: options.database,
+  });
+
+  // ==================== Phase 3: Config Management Enhancement ====================
+  await registerWithRoleGuard(app, configMgmtEnhancedRoutes, '/v1/config-mgmt', {
+    database: options.database,
+  });
+
+  // ==================== Phase 3: Security Compliance ====================
+  // Compliance routes are registered under /v1 with compliance/ prefix
+  await app.register(async (instance: FastifyInstance) => {
+    instance.addHook('onRequest', authenticateUser);
+    // Register compliance routes - the module handles /compliance/* paths
+    await instance.register(securityComplianceRoutes, {
+      prefix: '/v1',
+      database: options.database,
+    });
+  });
+
+  // ==================== Phase 3: Multi-Modal Trigger ====================
+  await registerWithRoleGuard(app, multiModalTriggerRoutes, '/v1/triggers', {
+    database: options.database,
+  });
+
+  // ==================== Community Ecosystem Services ====================
+  await registerWithRoleGuard(app, communityRoutes, '/v1/community');
+
+  // ==================== Community Ecosystem Advanced Services ====================
+  await registerWithRoleGuard(app, communityAdvancedRoutes, '/v1/community-advanced');
+
+  // ==================== Disaster Recovery ====================
+  await registerWithRoleGuard(app, disasterRecoveryRoutes, '/v1/disaster-recovery', { database: options.database });
+
+  // ==================== Disaster Recovery Advanced ====================
+  await registerWithRoleGuard(app, disasterRecoveryAdvancedRoutes, '/v1/disaster-recovery/advanced', { database: options.database });
+
+  // ==================== Performance Analysis ====================
+  await registerWithRoleGuard(app, performanceRoutes, '/v1/performance');
+
+  // ==================== Cluster Federation ====================
+  await registerWithRoleGuard(app, federationRoutes, '/v1/federation');
+
+  // ==================== Cluster Federation Advanced ====================
+  await registerWithRoleGuard(app, federationAdvancedRoutes, '/v1/federation-advanced');
+
+  // ==================== Multi-Cloud Management ====================
+  await registerWithRoleGuard(app, multiCloudRoutes, '/v1/multi-cloud');
+
+  // ==================== Multi-Cloud Advanced ====================
+  await registerWithRoleGuard(app, multiCloudAdvancedRoutes, '/v1/multi-cloud-advanced');
+
+  // ==================== Data Pipeline ====================
+  await registerWithRoleGuard(app, dataPipelineRoutes, '/v1/data-pipelines');
+
+  // ==================== Artifact Operations ====================
+  await registerWithRoleGuard(app, artifactOpsRoutes, '/v1/artifact-ops');
+
+  // ==================== Digital Twin ====================
+  await registerWithRoleGuard(app, digitalTwinRoutes, '/v1/digital-twins');
+
+  // ==================== API Governance ====================
+  await registerWithRoleGuard(app, apiGovernanceRoutes, '/v1/api-governance');
+
+  // ==================== Efficiency Enhanced ====================
+  await registerWithRoleGuard(app, efficiencyEnhancedRoutes, '/v1/efficiency');
 }

@@ -59,6 +59,9 @@ function toStateVersion(entity: IaCStateVersionEntity): IaCStateVersion {
     commitSha: entity.commitSha,
     author: entity.author,
     size: entity.size,
+    createdAt: entity.createdAt,
+    serialNumber: entity.serialNumber,
+    lineage: entity.lineage,
   };
 }
 
@@ -386,7 +389,7 @@ export class WorkspaceService {
 
   // ==================== State Version Operations ====================
 
-  async listStateVersions(workspaceId: string): Promise<Array<{ version: number; createdAt: string; serial: number; lineage: string }>> {
+  async listStateVersions(workspaceId: string): Promise<Array<{ version: number; createdAt: string | undefined; serial: number; lineage: string }>> {
     const workspace = await this.getById(workspaceId);
     if (!workspace) throw new Error(`Workspace ${workspaceId} not found`);
 

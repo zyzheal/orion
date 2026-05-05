@@ -28,21 +28,21 @@
 
 | 迁移号 | 能力域 | 描述 |
 |:------:|--------|------|
-| 101 | 混沌工程 | chaos_experiments, chaos_runs, resilience_scores |
-| 102 | 供应链安全 | build_attestations, poisoning_scan_results, supply_chain_scores, malicious_packages |
-| 103 | 联邦调度 | federation_executors, federation_runs, executor_heartbeat_log |
-| 104 | 多云混合云 | cloud_accounts, cloud_clusters, cloud_resources |
-| 105 | 插件市场 | marketplace_plugins, plugin_installations, plugin_reviews |
-| 106 | 灰度流量 | canary_deployments, canary_metrics_history |
-| 107 | 制品运营 | artifact_cleanup_policies, archived_artifacts, artifact_storage_usage |
-| 108 | 灾备演练 | dr_drills, dr_drill_steps, dr_targets |
-| 109 | 数据流水线 | data_pipeline_definitions, data_pipeline_runs, data_quality_rules |
-| 110 | 性能工程 | performance_baselines, performance_tests, performance_test_runs, performance_snapshots |
-| 111 | 社区生态 | best_practices, practice_applications, practice_submissions |
-| 112 | 多模态触发 | trigger_definitions, trigger_history |
-| 113 | 跨域编排 | cross_domain_changes, cross_domain_dependencies |
-| 114 | 配置管理 | feature_flags, config_versions, ab_experiments, config_audit_log |
-| 115 | 安全合规 | compliance_frameworks, compliance_checks, compliance_assessments, compliance_gaps, compliance_evidence |
+| 097 | 混沌工程 | chaos_experiments, chaos_runs, resilience_scores |
+| 098 | 供应链安全 | build_attestations, poisoning_scan_results, supply_chain_scores, malicious_packages |
+| 099 | 联邦调度 | federation_executors, federation_runs, executor_heartbeat_log |
+| 100 | 多云混合云 | cloud_accounts, cloud_clusters, cloud_resources |
+| 101 | 插件市场 | marketplace_plugins, plugin_installations, plugin_reviews |
+| 102 | 灰度流量 | canary_deployments, canary_metrics_history |
+| 103 | 制品运营 | artifact_cleanup_policies, archived_artifacts, artifact_storage_usage |
+| 104 | 灾备演练 | dr_drills, dr_drill_steps, dr_targets |
+| 105 | 数据流水线 | data_pipeline_definitions, data_pipeline_runs, data_quality_rules |
+| 106 | 性能工程 | performance_baselines, performance_tests, performance_test_runs, performance_snapshots |
+| 107 | 社区生态 | best_practices, practice_applications, practice_submissions |
+| 108 | 多模态触发 | trigger_definitions, trigger_history |
+| 109 | 跨域编排 | cross_domain_changes, cross_domain_dependencies |
+| 110 | 配置管理 | feature_flags, config_versions, ab_experiments, config_audit_log |
+| 111 | 安全合规 | compliance_frameworks, compliance_checks, compliance_assessments, compliance_gaps, compliance_evidence |
 
 ## 工作量汇总
 

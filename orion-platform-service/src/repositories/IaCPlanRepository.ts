@@ -3,6 +3,7 @@ import { BaseRepository } from '../db/base-repository';
 export interface IaCPlanEntity {
   id: string;
   name: string;
+  workspaceId: string;
   terraformVersion: string | null;
   planContent: Record<string, any>;
   resourcesToAdd: number;
@@ -60,6 +61,7 @@ export class IaCPlanRepository extends BaseRepository<IaCPlanEntity> {
     return {
       id: row.id,
       name: row.name,
+      workspaceId: row.workspace_id,
       terraformVersion: row.terraform_version,
       planContent: row.plan_content ?? {},
       resourcesToAdd: row.resources_to_add ?? 0,

@@ -881,6 +881,152 @@ export const routes: AppRoute[] = [
     element: React.lazy(() => import('@/pages/AISecurity')),
     protected: true,
   },
+  // ==================== Phase 3-4 Pages ====================
+
+  // Artifact Operations (Phase 3)
+  {
+    path: '/artifact-ops',
+    element: React.lazy(() => import('@/pages/artifact-ops/ArtifactOpsPage')),
+    protected: true,
+  },
+  // Canary Traffic Management (Phase 3)
+  {
+    path: '/canary-traffic',
+    element: React.lazy(() => import('@/pages/canary-traffic/CanaryTrafficPage')),
+    protected: true,
+  },
+  // Chaos Experiments (Phase 3)
+  {
+    path: '/chaos-experiments',
+    element: React.lazy(() => import('@/pages/chaos/ChaosExperimentPage')),
+    protected: true,
+  },
+  // Supply Chain Security (Phase 3)
+  {
+    path: '/supply-chain',
+    element: React.lazy(() => import('@/pages/ChaosEngineering')),
+    protected: true,
+  },
+  // Cross-Domain Orchestration (Phase 3)
+  {
+    path: '/orchestration',
+    element: React.lazy(() => import('@/pages/ChaosEngineering')),
+    protected: true,
+  },
+  // Config Management Enhanced (Phase 3)
+  {
+    path: '/config-mgmt-enhanced',
+    element: React.lazy(() => import('@/pages/ConfigManagement')),
+    protected: true,
+  },
+  // Security Compliance (Phase 3)
+  {
+    path: '/compliance',
+    element: React.lazy(() => import('@/pages/ConfigManagement')),
+    protected: true,
+  },
+  // Multi-Modal Triggers (Phase 3)
+  {
+    path: '/triggers',
+    element: React.lazy(() => import('@/pages/ChaosEngineering')),
+    protected: true,
+  },
+  // Community Ecosystem (Phase 3)
+  {
+    path: '/community',
+    element: React.lazy(() => import('@/pages/ChaosEngineering')),
+    protected: true,
+  },
+  // Disaster Recovery (Phase 4)
+  {
+    path: '/disaster-recovery',
+    element: React.lazy(() => import('@/pages/ChaosEngineering')),
+    protected: true,
+  },
+  // Performance Engineering (Phase 4)
+  {
+    path: '/performance',
+    element: React.lazy(() => import('@/pages/ChaosEngineering')),
+    protected: true,
+  },
+  // Cluster Federation (Phase 4)
+  {
+    path: '/federation',
+    element: React.lazy(() => import('@/pages/ChaosEngineering')),
+    protected: true,
+  },
+  // Multi-Cloud Management (Phase 4)
+  {
+    path: '/multi-cloud',
+    element: React.lazy(() => import('@/pages/ChaosEngineering')),
+    protected: true,
+  },
+  // Data Pipeline (Phase 4)
+  {
+    path: '/data-pipeline',
+    element: React.lazy(() => import('@/pages/ChaosEngineering')),
+    protected: true,
+  },
+  // Digital Twin (Phase 4)
+  {
+    path: '/digital-twin',
+    element: React.lazy(() => import('@/pages/DigitalTwin/DigitalTwinPage')),
+    protected: true,
+  },
+  // API Governance (Phase 4)
+  {
+    path: '/api-governance',
+    element: React.lazy(() => import('@/pages/api-governance/ApiGovernancePage')),
+    protected: true,
+  },
+  // Community Ecosystem Advanced (Phase 4)
+  {
+    path: '/community/advanced',
+    element: React.lazy(() => import('@/pages/community/CommunityAdvancedPage')),
+    protected: true,
+  },
+  // Cluster Federation Advanced (Phase 4)
+  {
+    path: '/federation/advanced',
+    element: React.lazy(() => import('@/pages/federation/FederationAdvancedPage')),
+    protected: true,
+  },
+  // Multi-Cloud Management Advanced (Phase 4)
+  {
+    path: '/multi-cloud/advanced',
+    element: React.lazy(() => import('@/pages/multi-cloud/MultiCloudAdvancedPage')),
+    protected: true,
+  },
+
+  // ==================== Phase 2: Observability Enhancement ====================
+
+  // Observability (Alert Rules, RCA, Silence)
+  {
+    path: '/console/observability',
+    element: React.lazy(() => import('@/pages/observability/ObservabilityPage')),
+    protected: true,
+  },
+  {
+    path: '/console/observability/alert-rules',
+    element: React.lazy(() => import('@/pages/observability/AlertRulesPage')),
+    protected: true,
+  },
+  {
+    path: '/console/observability/rca',
+    element: React.lazy(() => import('@/pages/observability/RootCausePage')),
+    protected: true,
+  },
+
+  // ==================== Phase 2: Cost Operations Enhancement ====================
+
+  // Budget Guard Configuration
+  {
+    path: '/console/cost/budget-guard',
+    element: React.lazy(() => import('@/pages/cost/BudgetGuardPage')),
+    protected: true,
+  },
+
+  // 404 页面
   {
     path: '*',
     element: React.lazy(() => import('@/pages/NotFound')),

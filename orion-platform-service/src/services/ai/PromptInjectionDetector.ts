@@ -56,8 +56,11 @@ export type ExtendedThreatType = ThreatType | 'encoding_bypass' | 'data_exfiltra
 /**
  * 扩展的威胁信息
  */
-export interface ExtendedPromptThreat extends PromptThreat {
+export interface ExtendedPromptThreat {
   type: ExtendedThreatType;
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  description: string;
+  matchedPattern: string;
   position?: { start: number; end: number };
   context?: string;
 }
@@ -65,8 +68,11 @@ export interface ExtendedPromptThreat extends PromptThreat {
 /**
  * 扩展的分析结果
  */
-export interface ExtendedPromptAnalysis extends PromptAnalysis {
+export interface ExtendedPromptAnalysis {
+  isSafe: boolean;
   threats: ExtendedPromptThreat[];
+  riskScore: number;
+  sanitizedPrompt: string;
   attackCategories: string[];
   recommendation: 'allow' | 'sanitize' | 'reject';
   metadata: {

@@ -176,6 +176,16 @@ export abstract class BaseController {
   }
 
   /**
+   * 获取租户ID（从请求头或user信息）
+   */
+  protected getTenantId(request: FastifyRequest): string {
+    const tenantId = request.headers['x-tenant-id'] as string;
+    if (tenantId) return tenantId;
+    const user = this.getUser(request);
+    return user?.tenantId || 'default';
+  }
+
+  /**
    * ARCH-012: 获取路径参数
    */
   protected getParams<T extends Record<string, string>>(request: FastifyRequest): T {

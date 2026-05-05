@@ -17,14 +17,20 @@
 
 ## 数据库迁移编号
 
+> **注意**: 080-084 是规格编写前已存在的独立迁移，Phase 1 能力实际对应 086-090。
+
 | 迁移号 | 能力域 | 描述 |
 |:------:|--------|------|
-| 080 | 核心流水线 | pipeline_versions, pipeline_budgets, pipeline_budget_usage, pipeline_templates, pipeline_template_versions |
-| 081 | 构建制品 | artifacts, build_architectures, build_manifests, build_file_hashes, build_cache_stats |
-| 082 | 质量门禁 | policy_overrides, policy_exemptions, quality_gate_snapshots |
-| 083 | 部署发布 | deploy_windows, deploy_emergencies, deploy_service_dependencies, deploy_progressive_stages |
-| 084 | 开发者门户 | portal_documents |
-| 085 | 环境管理 | environment_templates, environment_hibernation_log, environment_ttl_config |
+| 080 | 核心流水线 | pipeline_versions（已存在） |
+| 081 | 核心流水线 | pipeline_versions（已存在，与 080 配套） |
+| 082 | AI 模型版本 | ai_model_versions（已存在，规格前） |
+| 083 | 混沌工程 | chaos_engineering（已存在，规格前） |
+| 084 | 数字孪生 | digital_twin（已存在，规格前） |
+| **086** | 质量门禁 | policy_overrides, policy_exemptions, quality_gate_snapshots |
+| **087** | 部署发布 | deploy_windows, deploy_emergencies, deploy_service_dependencies, deploy_progressive_stages |
+| **088** | 开发者门户 | portal_documents |
+| **089** | 环境管理 | environment_templates, environment_hibernation_log, environment_ttl_config |
+| **090** | 构建制品 | artifacts |
 
 ## 工作量汇总
 

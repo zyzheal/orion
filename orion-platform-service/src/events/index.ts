@@ -112,3 +112,33 @@ export {
   SelfHealingIncidentEscalatedEventData,
   SelfHealingEventExtensions,
 } from './types/selfhealing';
+
+// NATS Connection Manager (new)
+export {
+  NatsConnectionManager,
+  createNatsConnectionManager,
+  NatsConnectionConfig,
+  NatsConnectionState,
+  ConnectionInfo,
+} from './NatsConnectionManager';
+
+// Unified Event Types (new)
+export {
+  PipelineEvents,
+  CodeEvents,
+  DeploymentEvents,
+  ConfigEvents,
+  IncidentEvents,
+  SelfHealingEvents,
+  PipelineSubjects,
+  CodeSubjects,
+  DeploymentSubjects,
+  ConfigSubjects,
+  IncidentSubjects,
+  SelfHealingSubjects,
+  EventDomain,
+  getEventDomain,
+  getEventsForDomain,
+  getAllEventTypes,
+  toSubject,
+} from './EventTypes';

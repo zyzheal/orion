@@ -7,3 +7,10 @@
 export { PolicyRepository, PolicyDefinition, PolicyBundle, PolicyEvaluation } from './PolicyRepository';
 export { PolicyService, PolicyServiceError } from './PolicyService';
 export { PolicyEvaluationService } from './PolicyEvaluationService';
+export {
+  PolicyOverrideService,
+  PolicyOverrideServiceError,
+  type PolicyOverrideInput,
+  type PolicyOverride,
+  type UpdateOverrideInput,
+} from './PolicyOverrideService';

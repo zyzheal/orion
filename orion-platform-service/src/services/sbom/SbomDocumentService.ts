@@ -349,7 +349,7 @@ export class SbomDocumentService {
       return true;
     });
 
-    const compliantCount = filtered.filter((d) => d.status === 'compliant' || (d as any).approved).length;
+    const compliantCount = filtered.filter((d) => d.status === 'active' || (d as any).approved).length;
     const eo14028Count = filtered.filter((d) => (d as any).compliance?.eo14028).length;
     const euCraCount = filtered.filter((d) => (d as any).compliance?.euCra).length;
 

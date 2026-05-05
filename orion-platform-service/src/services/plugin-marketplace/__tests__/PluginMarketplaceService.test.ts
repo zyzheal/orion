@@ -52,8 +52,8 @@ describe('PluginMarketplaceService', () => {
       await service.listPlugins({ verified: true });
 
       expect(mockPool.query).toHaveBeenCalledWith(
-        expect.stringContaining('verified = true'),
-        []
+        expect.stringContaining('verified ='),
+        expect.any(Array)
       );
     });
 

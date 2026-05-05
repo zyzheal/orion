@@ -1,5 +1,5 @@
 // orion-platform-service/src/services/disaster-recovery/FailoverExecutor.ts
-import { KubeConfig, CoreV1Api, NetworkingV1Api } from '@kubernetes/client-node';
+import { KubeConfig, CoreV1Api, NetworkingV1Api, AppsV1Api } from '@kubernetes/client-node';
 import pino from 'pino';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
@@ -21,6 +21,7 @@ export interface FailoverStepResult {
 export class FailoverExecutor {
   private k8sApi: CoreV1Api | null = null;
   private networkingApi: NetworkingV1Api | null = null;
+  private appsApi: AppsV1Api | null = null;
   private available: boolean = false;
 
   constructor() {
@@ -34,6 +35,7 @@ export class FailoverExecutor {
 
       this.k8sApi = kubeConfig.makeApiClient(CoreV1Api);
       this.networkingApi = kubeConfig.makeApiClient(NetworkingV1Api);
+      this.appsApi = kubeConfig.makeApiClient(AppsV1Api);
       this.available = true;
 
       logger.info('[FailoverExecutor] K8s client initialized');
@@ -53,7 +55,7 @@ export class FailoverExecutor {
   async stopTrafficToPrimary(config: FailoverExecutorConfig): Promise<FailoverStepResult> {
     const startTime = Date.now();
 
-    if (!this.available || !this.k8sApi) {
+    if (!this.available || !this.appsApi) {
       return {
         step: 'stop_traffic_primary',
         success: false,
@@ -67,13 +69,13 @@ export class FailoverExecutor {
       const deploymentName = config.serviceName;
 
       // Get current deployment
-      const deployment = await this.k8sApi.readNamespacedDeployment(
+      const deployment = await (this.appsApi as any).readNamespacedDeployment(
         deploymentName,
         config.namespace
       );
 
       // Scale to 0 replicas
-      await this.k8sApi.replaceNamespacedDeploymentScale(
+      await (this.appsApi as any).replaceNamespacedDeploymentScale(
         deploymentName,
         config.namespace,
         {
@@ -118,25 +120,25 @@ export class FailoverExecutor {
 
     try {
       // Update service to point to standby pods
-      const service = await this.k8sApi.readNamespacedService(
-        config.serviceName,
-        config.namespace
-      );
+      const service = await this.k8sApi.readNamespacedService({
+        name: config.serviceName,
+        namespace: config.namespace,
+      } as any) as any;
 
       // Update selector to point to standby deployment
-      await this.k8sApi.replaceNamespacedService(
-        config.serviceName,
-        config.namespace,
-        {
-          ...service.body,
+      await this.k8sApi.replaceNamespacedService({
+        name: config.serviceName,
+        namespace: config.namespace,
+        body: {
+          ...service,
           spec: {
-            ...service.body.spec,
+            ...service.spec,
             selector: {
               app: standbyServiceName,
             },
           },
-        }
-      );
+        },
+      } as any);
 
       logger.info(`[FailoverExecutor] Switched traffic to ${standbyServiceName}`);
 
@@ -172,16 +174,16 @@ export class FailoverExecutor {
     }
 
     try {
-      const ingress = await this.networkingApi.readNamespacedIngress(
-        config.ingressName,
-        config.namespace
-      );
+      const ingress = await this.networkingApi.readNamespacedIngress({
+        name: config.ingressName,
+        namespace: config.namespace,
+      } as any) as any;
 
       // Update backend service name to standby
-      const updatedRules = ingress.body.spec?.rules?.map(rule => ({
+      const updatedRules = ingress.spec?.rules?.map((rule: any) => ({
         ...rule,
         http: {
-          paths: rule.http?.paths?.map(path => ({
+          paths: rule.http?.paths?.map((path: any) => ({
             ...path,
             backend: {
               service: {
@@ -193,17 +195,17 @@ export class FailoverExecutor {
         },
       }));
 
-      await this.networkingApi.replaceNamespacedIngress(
-        config.ingressName,
-        config.namespace,
-        {
-          ...ingress.body,
+      await this.networkingApi.replaceNamespacedIngress({
+        name: config.ingressName,
+        namespace: config.namespace,
+        body: {
+          ...ingress,
           spec: {
-            ...ingress.body.spec,
+            ...ingress.spec,
             rules: updatedRules,
           },
-        }
-      );
+        },
+      } as any);
 
       logger.info(`[FailoverExecutor] Updated ingress ${config.ingressName} to ${standbyServiceName}`);
 
@@ -229,7 +231,7 @@ export class FailoverExecutor {
   async scaleStandby(config: FailoverExecutorConfig, standbyServiceName: string, replicas: number): Promise<FailoverStepResult> {
     const startTime = Date.now();
 
-    if (!this.available || !this.k8sApi) {
+    if (!this.available || !this.appsApi) {
       return {
         step: 'scale_standby',
         success: false,
@@ -239,7 +241,7 @@ export class FailoverExecutor {
     }
 
     try {
-      await this.k8sApi.replaceNamespacedDeploymentScale(
+      await (this.appsApi as any).replaceNamespacedDeploymentScale(
         standbyServiceName,
         config.namespace,
         {
@@ -274,18 +276,14 @@ export class FailoverExecutor {
     }
 
     try {
-      const pods = await this.k8sApi.listNamespacedPod(
-        config.namespace,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        `app=${serviceName}`
-      );
+      const pods = await this.k8sApi.listNamespacedPod({
+        namespace: config.namespace,
+        labelSelector: `app=${serviceName}`,
+      } as any) as any;
 
-      const readyPods = pods.body.items.filter(pod =>
+      const readyPods = pods.items.filter((pod: any) =>
         pod.status?.phase === 'Running' &&
-        pod.status?.conditions?.some(c => c.type === 'Ready' && c.status === 'True')
+        pod.status?.conditions?.some((c: any) => c.type === 'Ready' && c.status === 'True')
       );
 
       const ready = readyPods.length >= minReadyPods;

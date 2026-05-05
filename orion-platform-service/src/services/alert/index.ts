@@ -4,5 +4,8 @@
 
 export * from './AlertTypes';
 export * from './AlertDeduplication';
-export * from './AlertCorrelationService';
+export { AlertCorrelationService, CorrelationOptions } from './AlertCorrelationService';
 export * from './AlertSuppressionService';
+export * from './CustomAlertRuleService';
+export * from './RootCauseAnalysisService';
+export * from './AlertSilenceService';

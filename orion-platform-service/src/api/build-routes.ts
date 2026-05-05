@@ -28,6 +28,7 @@ import {
   BuildCacheConfigRepository,
   BuildCacheEntryRepository,
 } from '../repositories/BuildCacheRepository';
+import { BuildArtifactRepository } from '../repositories/BuildArtifactRepository';
 
 interface BuildRoutesOptions {
   database?: DatabasePool;
@@ -60,7 +61,16 @@ export default async function buildRoutes(app: FastifyInstance, opts: BuildRoute
     builderImageService
   );
   const buildLogService = new BuildLogService();
-  const artifactService = new ArtifactService();
+
+  // ArtifactService: PostgreSQL Repository backed (or Map fallback if no database)
+  let artifactService: ArtifactService;
+  if (opts.database) {
+    const artifactRepo = new BuildArtifactRepository(opts.database);
+    artifactService = new ArtifactService(artifactRepo);
+  } else {
+    // Fallback: create an in-memory version for backward compatibility
+    artifactService = new ArtifactService();
+  }
   const buildxBuilderService = new BuildxBuilderService();
 
   // 初始化控制器

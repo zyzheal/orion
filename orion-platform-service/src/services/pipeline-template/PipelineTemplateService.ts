@@ -508,7 +508,8 @@ export class PipelineTemplateService {
    */
   async updateTemplate(templateId: string, updates: Partial<CreateTemplateInput>): Promise<PipelineTemplate> {
     const template = await this.getTemplate(templateId);
-    return this.repository.update(templateId, updates);
+    const result = await this.repository.update(templateId, updates);
+    return result as PipelineTemplate;
   }
 
   /**

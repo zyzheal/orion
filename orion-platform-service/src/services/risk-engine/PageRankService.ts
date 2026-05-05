@@ -90,7 +90,7 @@ export class PageRankService {
     const { adjMatrix, nodeIndices, nodes } = this.buildAdjacencyMatrix(graph, opts.weightMode);
     
     // Run PageRank algorithm
-    const ranks = this.runPageRank(adjMatrix, nodeIndices.length, opts);
+    const ranks = this.runPageRank(adjMatrix, nodeIndices.size, opts);
     
     // Convert to results
     const results: PageRankResult[] = ranks.map((rank, i) => {
@@ -289,7 +289,7 @@ export class PageRankService {
       dependencyRanks.sort((a, b) => b.rank - a.rank);
 
       rootCause = dependencyRanks[0] || null;
-      contributingFactors = dependencyRanks.slice(1, 4);
+      contributingFactors.push(...dependencyRanks.slice(1, 4));
     }
 
     // Calculate blast radius

@@ -27,6 +27,17 @@
 审批工作流(5) ←─────────┘
 ```
 
+## 数据库迁移编号
+
+| 迁移号 | 能力域 | 描述 |
+|:------:|--------|------|
+| 091 | AI 决策引擎 | ai_decision_explanations, ai_model_versions, ai_ab_test_results |
+| 092 | 自治流水线 | pipeline_error_classification, pipeline_stage_baselines, pipeline_auto_retries |
+| 093 | 全栈可观测 | custom_alert_rules, rca_analyses, alert_silences |
+| 094 | 成本运营 | cost_budget_guards, cost_records, cost_anomalies |
+| 095 | 审批工作流 | approval_requests, approval_templates |
+| 096 | 效能运营 | developer_profiles, efficiency_metrics, efficiency_dashboard_snapshots |
+
 ## 工作量估算
 
 | 能力域 | 后端(天) | 前端(天) | 测试(天) | 合计 |

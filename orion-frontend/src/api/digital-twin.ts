@@ -45,7 +45,43 @@ export interface TrafficReplay {
   started_at: string;
 }
 
+export interface DigitalTwin {
+  id: string;
+  tenant_id: string;
+  name: string;
+  environment: string;
+  status: 'active' | 'inactive' | 'creating';
+  services: string[];
+  created_at: string;
+}
+
+export interface SandboxEnv {
+  id: string;
+  tenant_id: string;
+  name: string;
+  snapshot_id: string | null;
+  description: string | null;
+  status: 'active' | 'stopped' | 'creating';
+  created_at: string;
+}
+
 export const digitalTwinApi = {
+  // Twin Registry
+  listTwins: async (params?: { environment?: string; status?: string }) => {
+    const response = await apiClient.get('/api/v1/digital-twins', { params });
+    return response.data;
+  },
+
+  getTwin: async (twinId: string) => {
+    const response = await apiClient.get(`/api/v1/digital-twins/${twinId}`);
+    return response.data as DigitalTwin;
+  },
+
+  registerTwin: async (data: { name: string; environment: string }) => {
+    const response = await apiClient.post('/api/v1/digital-twins', data);
+    return response.data as DigitalTwin;
+  },
+
   // Snapshots
   listSnapshots: async (params?: { environment?: string; status?: string }) => {
     const response = await apiClient.get('/api/v1/digital-twin/snapshots', { params });
@@ -107,6 +143,17 @@ export const digitalTwinApi = {
   getReplayReport: async (replayId: string) => {
     const response = await apiClient.get(`/api/v1/digital-twin/traffic/replay/${replayId}/report`);
     return response.data;
+  },
+
+  listReplays: async (params?: { target_env?: string }) => {
+    const response = await apiClient.get('/api/v1/digital-twin/traffic/replays', { params });
+    return response.data;
+  },
+
+  // Sandbox
+  createSandbox: async (data: { name: string; snapshot_id?: string; description?: string }) => {
+    const response = await apiClient.post('/api/v1/digital-twins/sandbox', data);
+    return response.data as SandboxEnv;
   },
 };
 

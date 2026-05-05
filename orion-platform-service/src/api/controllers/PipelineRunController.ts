@@ -6,14 +6,28 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { PipelineRunService } from '../../services/pipeline/PipelineRunService';
 import { PipelineEngine } from '../../engine/PipelineEngine';
 import { PipelineRunStatus, TriggerType } from '../../models/PipelineRun';
+import { PipelineService } from '../../services/pipeline/PipelineService';
+import { DynamicParamsResolver, TriggerContext } from '../../services/pipeline/DynamicParamsResolver';
+import { PipelineBudgetService } from '../../services/pipeline/PipelineBudgetService';
 
 export class PipelineRunController {
   private runService: PipelineRunService;
   private engine: PipelineEngine;
+  private pipelineService: PipelineService | null;
+  private budgetService: PipelineBudgetService | null;
+  private paramsResolver: DynamicParamsResolver;
 
-  constructor(runService: PipelineRunService, engine: PipelineEngine) {
+  constructor(
+    runService: PipelineRunService,
+    engine: PipelineEngine,
+    pipelineService?: PipelineService | null,
+    budgetService?: PipelineBudgetService | null
+  ) {
     this.runService = runService;
     this.engine = engine;
+    this.pipelineService = pipelineService || null;
+    this.budgetService = budgetService || null;
+    this.paramsResolver = new DynamicParamsResolver();
   }
 
   /**
@@ -25,15 +39,78 @@ export class PipelineRunController {
       const params = request.params as any;
       const body = request.body as any || {};
       const { id: pipelineId } = params;
-      const { triggerType, triggerBy, context } = body;
+      const { triggerType, triggerBy, context, params: runtimeParams, branch, commitSha } = body;
 
       const type = (triggerType as TriggerType) || TriggerType.MANUAL;
+
+      // Dynamic parameter resolution (Phase 1 P0)
+      let injectedParams: Record<string, unknown> = {};
+      let dynamicStages: string[] = [];
+      let estimatedBudget: { timeMs: number; costCents: number } | undefined;
+
+      if (this.pipelineService) {
+        const pipeline = await this.pipelineService.getById(pipelineId);
+        if (!pipeline) {
+          await reply.status(404).send({
+            error: 'NOT_FOUND',
+            code: '30201',
+            message: `Pipeline '${pipelineId}' not found`,
+          });
+          return;
+        }
+
+        const triggerCtx: TriggerContext = {
+          triggerType: type,
+          triggerBy,
+          branch: branch || (context as any)?.branch,
+          commitSha: commitSha || (context as any)?.commitSha,
+        };
+
+        const yamlDefinition = pipeline.yamlDefinition || (pipeline.config as any)?.yamlDefinition || '';
+        const defaultParams = (pipeline.config as any)?.defaultParams || {};
+
+        try {
+          const resolved = await this.paramsResolver.resolve(
+            pipelineId,
+            runtimeParams || {},
+            defaultParams,
+            yamlDefinition,
+            triggerCtx
+          );
+          injectedParams = resolved.injectedParams;
+          dynamicStages = resolved.dynamicStages;
+        } catch (resolveError) {
+          // Log but don't fail - params resolution is optional
+          console.warn('[PipelineRun] Dynamic param resolution failed:', resolveError);
+        }
+
+        // Budget estimation
+        if (this.budgetService) {
+          try {
+            const estimate = await this.budgetService.estimateBudget(pipelineId, { triggerType: type });
+            estimatedBudget = {
+              timeMs: estimate.estimatedTimeMs,
+              costCents: estimate.estimatedCost,
+            };
+          } catch {
+            // Budget estimation is optional
+          }
+        }
+      }
+
+      // Build enhanced context with injected params
+      const enhancedContext = {
+        ...(context as any || {}),
+        injectedParams,
+        branch,
+        commitSha,
+      };
 
       const run = await this.engine.execute(
         pipelineId,
         type,
         triggerBy,
-        context
+        enhancedContext
       );
 
       if (!run) {
@@ -53,6 +130,10 @@ export class PipelineRunController {
         triggerType: run.triggerType,
         triggerBy: run.triggerBy,
         createdAt: run.createdAt,
+        // Phase 1 P0: Dynamic parameters response
+        injectedParams,
+        dynamicStages,
+        estimatedBudget,
       });
     } catch (error) {
       if (error instanceof Error) {

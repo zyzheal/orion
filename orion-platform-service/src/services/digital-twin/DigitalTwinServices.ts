@@ -301,7 +301,8 @@ export class ProductionSnapshotService {
       completed_at: new Date(),
     });
 
-    return this.repository.findSnapshotById(snapshot.id)!;
+    const updated = await this.repository.findSnapshotById(snapshot.id);
+    return updated!;
   }
 
   async getSnapshot(id: string): Promise<TwinSnapshot> {
@@ -366,10 +367,11 @@ export class TrafficRecordingService {
   }
 
   async stopRecording(id: string): Promise<TrafficRecording> {
-    return this.repository.updateRecording(id, {
+    const updated = await this.repository.updateRecording(id, {
       status: 'stopped',
       completed_at: new Date(),
-    })!;
+    });
+    return updated!;
   }
 
   async listRecordings(tenantId: string): Promise<{ data: TrafficRecording[] }> {
@@ -432,10 +434,11 @@ export class TrafficReplayService {
   }
 
   async completeReplay(id: string): Promise<TrafficReplay> {
-    return this.repository.updateReplay(id, {
+    const updated = await this.repository.updateReplay(id, {
       status: 'completed',
       progress: 100,
       completed_at: new Date(),
-    })!;
+    });
+    return updated!;
   }
 }

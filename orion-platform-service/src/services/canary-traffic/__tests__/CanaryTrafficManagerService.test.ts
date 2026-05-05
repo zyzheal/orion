@@ -343,7 +343,8 @@ describe('CanaryTrafficManagerService', () => {
     });
   });
 
-  describe('CanaryAnalysis', ()it('应该包含完整的分析信息', async () => {
+  describe('CanaryAnalysis', () => {
+    it('应该包含完整的分析信息', async () => {
       mockPool.query
         .mockResolvedValueOnce({
           rows: [{

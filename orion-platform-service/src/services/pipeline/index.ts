@@ -40,3 +40,18 @@ export {
 export {
   PipelineRunService,
 } from './PipelineRunService';
+
+// Pipeline Trigger Service
+export {
+  PipelineTriggerService,
+  PipelineTriggerServiceError,
+  type TriggerType,
+  type TriggerStatus,
+  type TriggerExecutionStatus,
+  type TriggerConfig,
+  type Trigger,
+  type TriggerEvent,
+  type TriggerExecutionRecord,
+  type CreateTriggerInput,
+  type UpdateTriggerInput,
+} from './PipelineTriggerService';

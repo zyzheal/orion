@@ -60,7 +60,9 @@ export class NERModelService {
       logger.info(`[NERModel] Loading NER model: ${this.modelPath}`);
 
       // Dynamic import - only loads if available
-      const transformers = await import('@xenova/transformers').catch(() => null);
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      // @ts-expect-error @xenova/transformers is an optional dependency
+      const transformers = await import('@xenova/transformers').catch(() => null) as any;
 
       if (!transformers) {
         logger.warn('[NERModel] @xenova/transformers not installed. Using regex fallback.');

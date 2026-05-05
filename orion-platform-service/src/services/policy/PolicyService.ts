@@ -147,6 +147,6 @@ export class PolicyService {
   async toggle(id: string): Promise<{ id: string; enabled: boolean; updatedAt: string }> {
     const policy = await this.getPolicy(id);
     const updated = await this.updatePolicy(id, { enabled: !policy.enabled });
-    return { id: updated.id, enabled: updated.enabled, updatedAt: updated.updatedAt.toISOString() };
+    return { id: updated.id, enabled: updated.enabled, updatedAt: updated.updated_at.toISOString() };
   }
 }

@@ -4,14 +4,13 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { digitalTwinApi, TwinSnapshot, TrafficRecording, TrafficReplay } from '../../api/digital-twin';
-import { Card, Table, Button, Modal, Form, Select, Input, Tag, Tabs, Progress, message, Space } from 'antd';
-import { CameraOutlined, PlayCircleOutlined, RecordOutlined } from '@ant-design/icons';
+import { digitalTwinApi, TwinSnapshot, TrafficRecording } from '../../api/digital-twin';
+import { Card, Table, Button, Modal, Form, Select, Input, Tag, Tabs, message } from 'antd';
+import { CameraOutlined, ControlOutlined } from '@ant-design/icons';
 
 const DigitalTwin: React.FC = () => {
   const [snapshots, setSnapshots] = useState<TwinSnapshot[]>([]);
   const [recordings, setRecordings] = useState<TrafficRecording[]>([]);
-  const [replays, setReplays] = useState<TrafficReplay[]>([]);
   const [loading, setLoading] = useState(false);
   const [snapshotModal, setSnapshotModal] = useState(false);
   const [recordingModal, setRecordingModal] = useState(false);
@@ -28,8 +27,8 @@ const DigitalTwin: React.FC = () => {
         digitalTwinApi.listSnapshots(),
         digitalTwinApi.listRecordings(),
       ]);
-      setSnapshots(snapRes.data || []);
-      setRecordings(recRes.data || []);
+      setSnapshots(snapRes || []);
+      setRecordings(recRes || []);
     } catch (error) {
       message.error('Failed to load data');
     }
@@ -104,7 +103,7 @@ const DigitalTwin: React.FC = () => {
     {
       title: 'Actions',
       key: 'actions',
-      render: (_, record: TrafficRecording) => (
+      render: (_: unknown, record: TrafficRecording) => (
         <Button onClick={() => handleStopRecording(record.id)} disabled={record.status !== 'recording'}>
           Stop
         </Button>
@@ -126,7 +125,7 @@ const DigitalTwin: React.FC = () => {
         },
         {
           key: 'recordings',
-          label: <><RecordOutlined /> Traffic Recording</>,
+          label: <><ControlOutlined /> Traffic Recording</>,
           children: (
             <Card extra={<Button onClick={() => setRecordingModal(true)}>Start Recording</Button>}>
               <Table columns={recordingColumns} dataSource={recordings} rowKey="id" loading={loading} />

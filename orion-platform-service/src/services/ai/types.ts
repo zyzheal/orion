@@ -57,6 +57,7 @@ export interface AIRequest {
     priority?: 'high' | 'medium' | 'low';
     requireConfidence?: number;
     fallbackEnabled?: boolean;
+    preferredProvider?: string;
   };
   context?: {
     userId?: string;

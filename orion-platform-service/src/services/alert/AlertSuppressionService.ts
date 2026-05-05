@@ -868,9 +868,9 @@ export class AlertSuppressionService {
       suppressionLogSize: this.suppressionLog.length,
       deduplicationStats: this.deduplication.getStats(),
       nodeHealthStats: {
-        healthy: nodeHealth.filter((h) => h.status === 'healthy').length,
-        degraded: nodeHealth.filter((h) => h.status === 'degraded').length,
-        unhealthy: nodeHealth.filter((h) => h.status === 'unhealthy').length,
+        healthy: nodeHealth.filter((h: { nodeId: string; status: string }) => h.status === 'healthy').length,
+        degraded: nodeHealth.filter((h: { nodeId: string; status: string }) => h.status === 'degraded').length,
+        unhealthy: nodeHealth.filter((h: { nodeId: string; status: string }) => h.status === 'unhealthy').length,
       },
     };
   }

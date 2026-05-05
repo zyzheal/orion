@@ -18,11 +18,11 @@
 
 | 迁移号 | 能力域 | 描述 |
 |:------:|--------|------|
-| 116 | 数字孪生 | twin_snapshots, traffic_recordings, traffic_replays |
-| 117 | API 治理 | api_contracts, api_versions, api_verification_runs |
-| 118 | 社区生态 | community_plugins, community_plugin_versions, community_plugin_reviews, community_contributor_profiles, community_badges |
-| 119 | 联邦调度 | federated_clusters, federated_peers, federated_dispatches, scheduling_policies |
-| 120 | 多云混合云 | multi_cloud_accounts, multi_cloud_resources, disaster_recovery_config, disaster_recovery_events |
+| 112 | 数字孪生 | twin_snapshots, traffic_recordings, traffic_replays |
+| 113 | API 治理 | api_contracts, api_versions, api_verification_runs |
+| 114 | 社区生态 | community_plugins, community_plugin_versions, community_plugin_reviews, community_contributor_profiles, community_badges |
+| 115 | 联邦调度 | federated_clusters, federated_peers, federated_dispatches, scheduling_policies |
+| 116 | 多云混合云 | multi_cloud_accounts, multi_cloud_resources, disaster_recovery_config, disaster_recovery_events |
 
 ## 工作量汇总
 

@@ -57,12 +57,12 @@ export class K8sSecretKeyStorage {
     }
 
     try {
-      const response = await this.k8sApi.readNamespacedSecret(
-        this.config.secretName,
-        this.config.namespace
-      );
+      const response = await this.k8sApi.readNamespacedSecret({
+        name: this.config.secretName,
+        namespace: this.config.namespace,
+      } as any) as any;
 
-      const secretData = response.body.data || {};
+      const secretData = response.data || {};
       const keys: JwtKey[] = [];
 
       // Parse keys from secret data
@@ -70,7 +70,7 @@ export class K8sSecretKeyStorage {
       for (const [keyId, encodedValue] of Object.entries(secretData)) {
         if (keyId.startsWith('jwt_key_')) {
           try {
-            const value = Buffer.from(encodedValue || '', 'base64').toString('utf-8');
+            const value = Buffer.from((encodedValue as string) || '', 'base64').toString('utf-8');
             const parts = value.split(',');
 
             if (parts.length >= 4) {
@@ -113,33 +113,33 @@ export class K8sSecretKeyStorage {
 
     try {
       // Check if secret exists
-      const existingSecret = await this.k8sApi.readNamespacedSecret(
-        this.config.secretName,
-        this.config.namespace
-      ).catch((e: any) => e.statusCode === 404 ? null : Promise.reject(e));
+      const existingSecret = await this.k8sApi.readNamespacedSecret({
+        name: this.config.secretName,
+        namespace: this.config.namespace,
+      } as any).catch((e: any) => e.statusCode === 404 ? null : Promise.reject(e)) as any;
 
       const keyData = this.encodeKeyData(key);
 
       if (existingSecret) {
         // Update existing secret
         const updatedData = {
-          ...existingSecret.body.data,
+          ...existingSecret.data,
           [key.keyId]: keyData,
         };
 
-        await this.k8sApi.replaceNamespacedSecret(
-          this.config.secretName,
-          this.config.namespace,
-          {
-            ...existingSecret.body,
+        await this.k8sApi.replaceNamespacedSecret({
+          name: this.config.secretName,
+          namespace: this.config.namespace,
+          body: {
+            ...existingSecret,
             data: updatedData,
-          }
-        );
+          },
+        } as any);
       } else {
         // Create new secret
-        await this.k8sApi.createNamespacedSecret(
-          this.config.namespace,
-          {
+        await this.k8sApi.createNamespacedSecret({
+          namespace: this.config.namespace,
+          body: {
             apiVersion: 'v1',
             kind: 'Secret',
             metadata: {
@@ -154,7 +154,7 @@ export class K8sSecretKeyStorage {
               [key.keyId]: keyData,
             },
           }
-        );
+        } as any);
       }
 
       logger.info(`[K8sSecretStorage] Stored key ${key.keyId} in K8s Secret`);
@@ -173,24 +173,24 @@ export class K8sSecretKeyStorage {
     }
 
     try {
-      const response = await this.k8sApi.readNamespacedSecret(
-        this.config.secretName,
-        this.config.namespace
-      );
+      const response = await this.k8sApi.readNamespacedSecret({
+        name: this.config.secretName,
+        namespace: this.config.namespace,
+      } as any) as any;
 
       const keyData = this.encodeKeyData(key);
 
-      await this.k8sApi.replaceNamespacedSecret(
-        this.config.secretName,
-        this.config.namespace,
-        {
-          ...response.body,
+      await this.k8sApi.replaceNamespacedSecret({
+        name: this.config.secretName,
+        namespace: this.config.namespace,
+        body: {
+          ...response,
           data: {
-            ...response.body.data,
+            ...response.data,
             [key.keyId]: keyData,
           },
-        }
-      );
+        },
+      } as any);
 
       logger.info(`[K8sSecretStorage] Updated key ${key.keyId} in K8s Secret`);
     } catch (error) {
@@ -208,22 +208,22 @@ export class K8sSecretKeyStorage {
     }
 
     try {
-      const response = await this.k8sApi.readNamespacedSecret(
-        this.config.secretName,
-        this.config.namespace
-      );
+      const response = await this.k8sApi.readNamespacedSecret({
+        name: this.config.secretName,
+        namespace: this.config.namespace,
+      } as any) as any;
 
-      const updatedData = { ...response.body.data };
+      const updatedData = { ...response.data };
       delete updatedData[keyId];
 
-      await this.k8sApi.replaceNamespacedSecret(
-        this.config.secretName,
-        this.config.namespace,
-        {
-          ...response.body,
+      await this.k8sApi.replaceNamespacedSecret({
+        name: this.config.secretName,
+        namespace: this.config.namespace,
+        body: {
+          ...response,
           data: updatedData,
-        }
-      );
+        },
+      } as any);
 
       logger.info(`[K8sSecretStorage] Deleted key ${keyId} from K8s Secret`);
     } catch (error) {

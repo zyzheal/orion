@@ -4,6 +4,9 @@
  * 导出所有 Deploy 相关服务：
  * - DeployRepository - 数据库访问层 (with PostgreSQL)
  * - DeployService - 业务逻辑层
+ * - DeployWindowRepository / DeployWindowService - 部署窗口管理
+ * - ProgressiveDeployRepository / ProgressiveDeployService - 渐进式部署
+ * - EmergencyDeployRepository / EmergencyDeployService - 紧急部署
  */
 
 export {
@@ -21,3 +24,47 @@ export {
   ListDeploymentsOptions,
   PaginatedResult,
 } from './DeployService';
+
+// Deploy Window
+export {
+  DeployWindowRepository,
+  DeployWindow,
+  CreateDeployWindowInput,
+  UpdateDeployWindowInput,
+} from './DeployWindowRepository';
+
+export {
+  DeployWindowService,
+  DeployWindowServiceError,
+  ListDeployWindowsOptions,
+  PaginatedResult as DeployWindowPaginatedResult,
+} from './DeployWindowService';
+
+// Progressive Deploy
+export {
+  ProgressiveDeployRepository,
+  ProgressiveStage,
+  CreateProgressiveStageInput,
+} from './ProgressiveDeployRepository';
+
+export {
+  ProgressiveDeployService,
+  ProgressiveDeployServiceError,
+  ProgressiveStageInput,
+  CreateProgressiveDeployInput,
+  DeployProgress,
+} from './ProgressiveDeployService';
+
+// Emergency Deploy
+export {
+  EmergencyDeployRepository,
+  DeployEmergency,
+  CreateEmergencyDeployInput,
+} from './EmergencyDeployRepository';
+
+export {
+  EmergencyDeployService,
+  EmergencyDeployServiceError,
+  ListEmergencyOptions,
+  PaginatedResult as EmergencyDeployPaginatedResult,
+} from './EmergencyDeployService';
