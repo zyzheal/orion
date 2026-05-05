@@ -1,9 +1,12 @@
 /**
  * SBOM Services
+ *
+ * Phase 3 - Software Bill of Materials
  */
-export { SbomRepository, Sbom, Vulnerability } from './SbomRepository';
-export { SbomService, SbomServiceError } from './SbomRepository';
 
-export { SbomDocumentService } from './SbomDocumentService';
-export { SbomVulnerabilityService } from './SbomVulnerabilityService';
-export { SbomWaiverService } from './SbomWaiverService';
+export {
+  SBOMGeneratorService,
+  SBOM,
+  SBOMComponent,
+  VulnerabilityMatch,
+} from './SBOMGeneratorService';
