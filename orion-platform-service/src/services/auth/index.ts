@@ -8,6 +8,8 @@
 
 export { JwtKeyRotationService } from './JwtKeyRotationService';
 export { TokenBlacklistService } from './TokenBlacklistService';
+export { K8sSecretKeyStorage, k8sSecretStorage } from './K8sSecretKeyStorage';
 
 export type { JwtKeyRotationConfig, JwtKey } from './JwtKeyRotationService';
 export type { TokenBlacklistConfig, RevokedTokenInfo, TokenBlacklistStats } from './TokenBlacklistService';
+export type { K8sSecretConfig } from './K8sSecretKeyStorage';
