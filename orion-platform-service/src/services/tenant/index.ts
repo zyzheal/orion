@@ -12,10 +12,13 @@
  * - TenantService - 业务逻辑层
  */
 
-export { TenantContext, TenantInfo, TenantContextConfig, tenantContext } from './TenantContext';
+export {
+  TenantContext, TenantInfo, TenantContextConfig, tenantContext
+} from './TenantContext';
 export {
   createTenantMiddleware,
   createTenantDatabaseHook,
+  createTenantDatabaseCleanupHook,
   createTenantCleanupHook,
   requireTenantMatch,
   TenantMiddlewareOptions,
@@ -30,6 +33,13 @@ export {
   createTenantValidatorMiddleware,
   TenantValidatorOptions,
 } from './TenantValidatorMiddleware';
+export {
+  RLSPolicyManager,
+  RLSPolicyConfig,
+  RLSStatusResult,
+  SessionVariableResult,
+  createRLSPolicyManager,
+} from './RLSPolicyManager';
 export {
   TenantQuotaService,
   TenantQuota,

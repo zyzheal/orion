@@ -5,10 +5,16 @@
  * - 从 JWT/Header 解析 tenant_id
  * - 设置 PostgreSQL session 变量
  * - 验证租户配额限制
+ * - 四层隔离验证集成
  */
 
 import { FastifyRequest, FastifyReply, HookHandlerDoneFunction } from 'fastify';
 import { TenantInfo, tenantContext } from './TenantContext';
+import { TenantIsolationService } from './TenantIsolationService';
+import { RLSPolicyManager } from './RLSPolicyManager';
+import pino from 'pino';
+
+const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
 export interface TenantMiddlewareOptions {
   enabled?: boolean;
@@ -115,9 +121,10 @@ function extractTenantInfo(
 }
 
 /**
- * 创建数据库 session 设置钩子
+ * 创建数据库 session 设置钩子（增强版）
+ * 使用 RLSPolicyManager 设置 PostgreSQL session 变量
  */
-export function createTenantDatabaseHook(database: unknown) {
+export function createTenantDatabaseHook(database: unknown, rlsPolicyManager?: RLSPolicyManager) {
   return async (_request: FastifyRequest, _reply: FastifyReply) => {
     if (!database || !tenantContext.isEnabled()) {
       return;
@@ -129,13 +136,47 @@ export function createTenantDatabaseHook(database: unknown) {
         // Set PostgreSQL session variables for RLS
         // This requires a real database connection
         if (typeof database === 'object' && database !== null && 'query' in database) {
-          const db = database as { query: (sql: string) => Promise<void> };
-          await db.query(tenantContext.generateSessionSetSQL());
+          const db = database as { query: (sql: string, params?: unknown[]) => Promise<{ rows: any[] }> };
+
+          // 如果有 RLSPolicyManager，使用它设置 session 变量
+          if (rlsPolicyManager) {
+            await rlsPolicyManager.setTenantSessionVariable(tenant.tenantId);
+          } else {
+            // 否则使用 TenantContext 生成的 SQL
+            await db.query(tenantContext.generateSessionSetSQL());
+          }
+
+          logger.debug(`[TenantMiddleware] Set RLS session for tenant ${tenant.tenantId}`);
         }
       } catch (error) {
         // Log error but don't fail request
-        console.error('[TenantMiddleware] Failed to set tenant session:', error);
+        logger.error('[TenantMiddleware] Failed to set tenant session:', error);
       }
+    }
+  };
+}
+
+/**
+ * 创建数据库 session 清理钩子（增强版）
+ */
+export function createTenantDatabaseCleanupHook(rlsPolicyManager?: RLSPolicyManager) {
+  return async (_request: FastifyRequest, _reply: FastifyReply) => {
+    if (!tenantContext.isEnabled()) {
+      return;
+    }
+
+    try {
+      // 如果有 RLSPolicyManager，使用它清除 session 变量
+      if (rlsPolicyManager) {
+        await rlsPolicyManager.clearTenantSessionVariable();
+      }
+
+      // Clear tenant context after response
+      tenantContext.clearTenant();
+
+      logger.debug('[TenantMiddleware] Cleared tenant session');
+    } catch (error) {
+      logger.error('[TenantMiddleware] Failed to clear tenant session:', error);
     }
   };
 }

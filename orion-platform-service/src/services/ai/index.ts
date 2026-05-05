@@ -10,3 +10,5 @@ export * from './VectorStore';
 export * from './PromptSecurity';
 export * from './PromptInjectionDetector';
 export * from './PromptSanitizer';
+export * from './ProviderCircuitBreaker';
+export * from './CircuitBreakerManager';

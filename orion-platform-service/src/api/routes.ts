@@ -5,6 +5,9 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { roleGuard } from '../middleware/roleGuard';
+import { TenantIsolationService, createTenantValidatorMiddleware } from '../services/tenant';
+import { RLSPolicyManager } from '../services/tenant/RLSPolicyManager';
+import { tenantContext } from '../services/tenant/TenantContext';
 import { PipelineController } from './controllers/PipelineController';
 import { PipelineRunController } from './controllers/PipelineRunController';
 import { StageController } from './controllers/StageController';
@@ -84,10 +87,29 @@ import degradationRoutes from './degradation-routes';
 export interface ApiRoutesOptions {
   eventBus?: EventBusService;
   database?: DatabasePool;
+  /** Enable four-layer tenant isolation */
+  enableTenantIsolation?: boolean;
 }
 
 // 角色常量 — 集中管理受保护路由所需的角色
 const ADMIN_ROLES = ['admin', 'platform_admin'] as const;
+
+/**
+ * 初始化租户隔离服务
+ */
+function initializeTenantIsolation(database: DatabasePool | undefined): {
+  isolationService: TenantIsolationService;
+  rlsPolicyManager: RLSPolicyManager | null;
+} {
+  const isolationService = new TenantIsolationService();
+
+  let rlsPolicyManager: RLSPolicyManager | null = null;
+  if (database) {
+    rlsPolicyManager = new RLSPolicyManager(database);
+  }
+
+  return { isolationService, rlsPolicyManager };
+}
 
 /**
  * 为路由模块注册带 JWT 认证 + 角色校验的封装插件。
@@ -116,6 +138,42 @@ async function registerWithRoleGuard(
 }
 
 export default async function apiRoutes(app: FastifyInstance, options: ApiRoutesOptions): Promise<void> {
+  // ==================== 租户隔离服务初始化 ====================
+  // 初始化四层租户隔离服务 (P0 Task 6)
+  const { isolationService, rlsPolicyManager } = initializeTenantIsolation(options.database);
+
+  // 注册全局租户验证中间件
+  if (options.enableTenantIsolation !== false) {
+    // Layer 1: API层 - TenantValidatorMiddleware
+    const tenantValidatorMiddleware = createTenantValidatorMiddleware(isolationService, {
+      required: true,
+      skipPaths: ['/healthz', '/readyz', '/version', '/api/v1/info', '/api/v1/public'],
+    });
+
+    app.addHook('onRequest', async (request: FastifyRequest, reply: FastifyReply) => {
+      return tenantValidatorMiddleware(request, reply, () => {});
+    });
+
+    // Layer 4: Database RLS - 设置 PostgreSQL session 变量
+    if (options.database && rlsPolicyManager) {
+      app.addHook('preHandler', async (request: FastifyRequest) => {
+        const tenant = tenantContext.getCurrentTenant();
+        if (tenant) {
+          await rlsPolicyManager.setTenantSessionVariable(tenant.tenantId);
+        }
+      });
+
+      // 清理 session 变量
+      app.addHook('onResponse', async () => {
+        await rlsPolicyManager.clearTenantSessionVariable();
+        tenantContext.clearTenant();
+      });
+    }
+
+    console.log('[Routes] Four-layer tenant isolation enabled');
+  }
+
+  // ==================== Pipeline 服务初始化 ====================
   // 初始化服务
   // ARCH-010: 直接传递 EventBusService 到 PipelineEventPublisher
   const eventPublisher = new PipelineEventPublisher({

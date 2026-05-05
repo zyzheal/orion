@@ -1,7 +1,9 @@
-import { BaseRepository } from '../db/base-repository';
+import { TenantAwareRepository, TenantAwareFindOptions } from '../db/tenant-aware-repository';
+import { tenantContext } from '../services/tenant/TenantContext';
 
 export interface BudgetEntity {
   id: string;
+  tenantId?: string;
   name: string;
   type: string;
   scope: string;
@@ -14,24 +16,26 @@ export interface BudgetEntity {
   updatedAt: Date;
 }
 
-export class BudgetRepository extends BaseRepository<BudgetEntity> {
+export class BudgetRepository extends TenantAwareRepository<BudgetEntity> {
   constructor(db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
     super(db, 'budgets');
   }
 
   async findByEntity(type: string, scope: string): Promise<BudgetEntity | undefined> {
+    const tenantId = this.getCurrentTenantId();
     const result = await this.db.query(
-      `SELECT * FROM budgets WHERE type = $1 AND scope = $2 AND status = 'active'`,
-      [type, scope],
+      `SELECT * FROM budgets WHERE type = $1 AND scope = $2 AND status = 'active' AND tenant_id = $3`,
+      [type, scope, tenantId],
     );
     if (result.rows.length === 0) return undefined;
     return this.mapRowToEntity(result.rows[0]);
   }
 
   async updateSpent(id: string, spent: number): Promise<void> {
+    const tenantId = this.getCurrentTenantId();
     await this.db.query(
-      `UPDATE budgets SET spent = $1, updated_at = NOW() WHERE id = $2`,
-      [spent, id],
+      `UPDATE budgets SET spent = $1, updated_at = NOW() WHERE id = $2 AND tenant_id = $3`,
+      [spent, id, tenantId],
     );
   }
 
@@ -52,6 +56,7 @@ export class BudgetRepository extends BaseRepository<BudgetEntity> {
   protected mapRowToEntity(row: any): BudgetEntity {
     return {
       id: row.id,
+      tenantId: row.tenant_id,
       name: row.name,
       type: row.type,
       scope: row.scope,

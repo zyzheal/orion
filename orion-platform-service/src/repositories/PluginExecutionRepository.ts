@@ -1,7 +1,9 @@
-import { BaseRepository } from '../db/base-repository';
+import { TenantAwareRepository, TenantAwareFindOptions } from '../db/tenant-aware-repository';
+import { tenantContext } from '../services/tenant/TenantContext';
 
 export interface PluginExecutionEntity {
   id: string;
+  tenantId?: string;
   pluginId: string;
   triggeredBy: string | null;
   input: Record<string, any>;
@@ -12,24 +14,26 @@ export interface PluginExecutionEntity {
   error: string | null;
 }
 
-export class PluginExecutionRepository extends BaseRepository<PluginExecutionEntity> {
+export class PluginExecutionRepository extends TenantAwareRepository<PluginExecutionEntity> {
   constructor(db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
     super(db, 'plugin_executions');
   }
 
   async findByPluginId(pluginId: string, limit?: number): Promise<PluginExecutionEntity[]> {
+    const tenantId = this.getCurrentTenantId();
     const limitValue = limit ?? 50;
     const result = await this.db.query(
-      `SELECT * FROM plugin_executions WHERE plugin_id = $1 ORDER BY started_at DESC LIMIT $2`,
-      [pluginId, limitValue],
+      `SELECT * FROM plugin_executions WHERE plugin_id = $1 AND tenant_id = $2 ORDER BY started_at DESC LIMIT $3`,
+      [pluginId, tenantId, limitValue],
     );
     return result.rows.map(row => this.mapRowToEntity(row));
   }
 
   async findByStatus(status: string): Promise<PluginExecutionEntity[]> {
+    const tenantId = this.getCurrentTenantId();
     const result = await this.db.query(
-      `SELECT * FROM plugin_executions WHERE status = $1 ORDER BY started_at DESC`,
-      [status],
+      `SELECT * FROM plugin_executions WHERE status = $1 AND tenant_id = $2 ORDER BY started_at DESC`,
+      [status, tenantId],
     );
     return result.rows.map(row => this.mapRowToEntity(row));
   }
@@ -45,9 +49,10 @@ export class PluginExecutionRepository extends BaseRepository<PluginExecutionEnt
   }
 
   async findRecent(limit: number = 100): Promise<PluginExecutionEntity[]> {
+    const tenantId = this.getCurrentTenantId();
     const result = await this.db.query(
-      `SELECT * FROM plugin_executions ORDER BY started_at DESC LIMIT $1`,
-      [limit],
+      `SELECT * FROM plugin_executions WHERE tenant_id = $1 ORDER BY started_at DESC LIMIT $2`,
+      [tenantId, limit],
     );
     return result.rows.map(row => this.mapRowToEntity(row));
   }
@@ -55,6 +60,7 @@ export class PluginExecutionRepository extends BaseRepository<PluginExecutionEnt
   protected mapRowToEntity(row: any): PluginExecutionEntity {
     return {
       id: row.id,
+      tenantId: row.tenant_id,
       pluginId: row.plugin_id,
       triggeredBy: row.triggered_by,
       input: row.input ?? {},

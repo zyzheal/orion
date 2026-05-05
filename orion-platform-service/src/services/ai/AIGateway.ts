@@ -4,9 +4,11 @@
  * 功能：
  * 1. 健康检查（超时/错误率/置信度）
  * 2. 熔断器模式（CLOSED/OPEN/HALF_OPEN）
- * 3. 指标收集和监控
- * 4. 自动降级触发
- * 5. Prompt 注入检测和清洗（安全加固）
+ * 3. 双层熔断（Provider级 + 场景级）
+ * 4. 指标收集和监控
+ * 5. 自动降级触发
+ * 6. Provider 熔断后自动降级到备用 Provider
+ * 7. Prompt 注入检测和清洗（安全加固）
  */
 
 import {
@@ -24,6 +26,7 @@ import {
 import { AIDegradationRouter } from './AIDegradationRouter';
 import { PromptInjectionDetector, ExtendedPromptAnalysis } from './PromptInjectionDetector';
 import { PromptSanitizer, SanitizationResult } from './PromptSanitizer';
+import { CircuitBreakerManager, DualCircuitState } from './CircuitBreakerManager';
 import pino from 'pino';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
@@ -74,6 +77,7 @@ export class AIGateway {
   private promptSecurityConfig: PromptSecurityConfig;
   private promptDetector: PromptInjectionDetector;
   private promptSanitizer: PromptSanitizer;
+  private circuitBreakerManager: CircuitBreakerManager;
 
   // 每个场景的指标
   private metrics: Map<AIScenario, AIMetrics> = new Map();
@@ -87,13 +91,17 @@ export class AIGateway {
   // LLM 调用函数（由外部注入）
   private llmCaller?: (request: AIRequest) => Promise<AIResponse<unknown>>;
 
+  // 当前使用的 Provider
+  private currentProvider: string;
+
   // 事件处理器
   private eventHandlers: AIGatewayEventHandler[] = [];
 
   constructor(
     config: Partial<AIGatewayConfig> = {},
     degradationRouter?: AIDegradationRouter,
-    promptSecurityConfig?: Partial<PromptSecurityConfig>
+    promptSecurityConfig?: Partial<PromptSecurityConfig>,
+    circuitBreakerManager?: CircuitBreakerManager
   ) {
     this.config = { ...DEFAULT_CONFIG, ...config };
     this.degradationRouter = degradationRouter || new AIDegradationRouter();
@@ -103,6 +111,25 @@ export class AIGateway {
       riskThresholdMedium: this.promptSecurityConfig.riskThresholdMedium,
     });
     this.promptSanitizer = new PromptSanitizer();
+    this.circuitBreakerManager = circuitBreakerManager || new CircuitBreakerManager();
+    this.currentProvider = 'openai'; // 默认 Provider
+
+    // 监听双层熔断事件
+    this.circuitBreakerManager.on('dual:circuit:event', (event) => {
+      logger.info({
+        msg: 'Dual circuit event',
+        type: event.type,
+        data: event.data,
+      });
+
+      // 发出事件给外部监听者
+      this.emitEvent({
+        type: event.type === 'provider_fallback' ? 'degradation' : 'circuit_open',
+        scenario: event.data.scenario || 'unknown',
+        timestamp: event.timestamp,
+        data: event.data,
+      });
+    });
   }
 
   /**
@@ -141,6 +168,54 @@ export class AIGateway {
 
     // 初始化场景指标
     this.ensureScenarioInitialized(scenario);
+
+    // ========== 双层熔断检查 ==========
+    const dualCircuitState = await this.circuitBreakerManager.checkDualCircuit(
+      scenario,
+      request.options?.preferredProvider || this.currentProvider
+    );
+
+    // 更新场景级熔断状态到管理器
+    const scenarioState = this.circuitStates.get(scenario);
+    if (scenarioState) {
+      this.circuitBreakerManager.updateScenarioState(scenario, scenarioState);
+    }
+
+    // 如果需要降级
+    if (dualCircuitState.shouldDegrade) {
+      if (request.options?.fallbackEnabled !== false) {
+        return this.handleDegradation<T>(request, dualCircuitState.degradationReason || 'dual_circuit_triggered');
+      }
+      throw new Error(`Dual circuit breaker triggered: ${dualCircuitState.degradationReason}`);
+    }
+
+    // 如果有建议的 Provider（Provider 级熔断后自动降级）
+    if (dualCircuitState.suggestedProvider) {
+      this.currentProvider = dualCircuitState.suggestedProvider;
+      logger.info({
+        msg: 'Provider auto-fallback',
+        fromProvider: dualCircuitState.providerId,
+        toProvider: dualCircuitState.suggestedProvider,
+        scenario,
+      });
+    }
+
+    // Provider 级请求前检查
+    const providerAllowed = await this.circuitBreakerManager.beforeProviderRequest(this.currentProvider);
+    if (!providerAllowed) {
+      // Provider 级熔断打开，尝试找备用 Provider
+      const fallbackProvider = this.circuitBreakerManager.findFallbackProvider(this.currentProvider);
+      if (fallbackProvider) {
+        this.currentProvider = fallbackProvider;
+        logger.info({ msg: 'Provider fallback on request check', toProvider: fallbackProvider });
+      } else {
+        // 没有可用的 Provider，走降级
+        if (request.options?.fallbackEnabled !== false) {
+          return this.handleDegradation<T>(request, 'no_available_provider');
+        }
+        throw new Error('No available provider');
+      }
+    }
 
     // ========== 新增：Prompt 安全检测 ==========
     if (this.promptSecurityConfig.enabled) {
@@ -240,8 +315,11 @@ export class AIGateway {
       const response = await this.callLLM<T>(request);
       const latency = Date.now() - startTime;
 
-      // 记录成功
+      // 记录场景级成功
       this.recordSuccess(scenario, latency, response.confidence);
+
+      // 记录 Provider 级成功
+      await this.circuitBreakerManager.afterProviderRequest(this.currentProvider, true, latency);
 
       // 检查置信度
       if (response.confidence !== undefined && response.confidence < this.config.confidenceThreshold) {
@@ -262,8 +340,11 @@ export class AIGateway {
     } catch (error) {
       const latency = Date.now() - startTime;
 
-      // 记录失败
+      // 记录场景级失败
       this.recordFailure(scenario, latency, error);
+
+      // 记录 Provider 级失败
+      await this.circuitBreakerManager.afterProviderRequest(this.currentProvider, false, latency);
 
       // 处理熔断器失败
       if (circuitState === 'HALF_OPEN') {
@@ -646,6 +727,56 @@ export class AIGateway {
       riskThresholdHigh: this.promptSecurityConfig.riskThresholdHigh,
       riskThresholdMedium: this.promptSecurityConfig.riskThresholdMedium,
     });
+  }
+
+  /**
+   * 获取双层熔断管理器
+   */
+  getCircuitBreakerManager(): CircuitBreakerManager {
+    return this.circuitBreakerManager;
+  }
+
+  /**
+   * 获取当前使用的 Provider
+   */
+  getCurrentProvider(): string {
+    return this.currentProvider;
+  }
+
+  /**
+   * 设置当前使用的 Provider
+   */
+  setCurrentProvider(providerId: string): void {
+    this.currentProvider = providerId;
+    logger.info({ msg: 'Current provider set', providerId });
+  }
+
+  /**
+   * 获取可用的 Provider 列表
+   */
+  getAvailableProviders(): string[] {
+    return this.circuitBreakerManager.getAvailableProviders();
+  }
+
+  /**
+   * 获取双层熔断健康状态摘要
+   */
+  getDualCircuitHealthSummary() {
+    return this.circuitBreakerManager.getHealthSummary();
+  }
+
+  /**
+   * 重置 Provider 级熔断器
+   */
+  resetProviderCircuit(providerId: string): void {
+    this.circuitBreakerManager.resetProvider(providerId);
+  }
+
+  /**
+   * 手动触发 Provider 级熔断
+   */
+  tripProviderCircuit(providerId: string, reason: string = 'manual'): void {
+    this.circuitBreakerManager.tripProvider(providerId, reason);
   }
 
   /**

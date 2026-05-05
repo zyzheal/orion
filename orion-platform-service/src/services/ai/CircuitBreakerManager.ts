@@ -23,8 +23,6 @@ import {
   CircuitState,
   AIScenario,
   CircuitBreakerState,
-  AIMetrics,
-  AIGatewayEvent,
 } from './types';
 import { ProviderCircuitBreaker, ProviderMetrics, ProviderCircuitBreakerConfig } from './ProviderCircuitBreaker';
 
@@ -85,6 +83,15 @@ export interface DualCircuitEvent {
     reason?: string;
     suggestedProvider?: string;
   };
+}
+
+/**
+ * 健康状态摘要
+ */
+export interface HealthSummary {
+  providers: Map<string, { state: CircuitState; metrics: ProviderMetrics | null }>;
+  scenarios: Map<AIScenario, CircuitState>;
+  overallHealthy: boolean;
 }
 
 const DEFAULT_PROVIDERS: LLMProvider[] = [
@@ -200,6 +207,38 @@ export class CircuitBreakerManager extends EventEmitter {
   }
 
   /**
+   * 获取默认 Provider（优先级最高的可用 Provider）
+   */
+  getDefaultProvider(): string {
+    const availableProviders = this.getAvailableProviders();
+    if (availableProviders.length === 0) {
+      return 'openai'; // 默认 fallback
+    }
+    return availableProviders[0];
+  }
+
+  /**
+   * 获取所有可用的 Provider（按优先级排序）
+   */
+  getAvailableProviders(): string[] {
+    const providers = Array.from(this.providerMap.values())
+      .filter((p) => p.enabled)
+      .sort((a, b) => a.priority - b.priority);
+
+    // 使用 ProviderCircuitBreaker 的可用性检查和排序
+    const providerIds = providers.map((p) => p.id);
+    return this.providerBreaker.getAvailableProviders(providerIds);
+  }
+
+  /**
+   * 查找备用 Provider
+   */
+  findFallbackProvider(excludedProvider: string): string | undefined {
+    const availableProviders = this.getAvailableProviders();
+    return availableProviders.find((id) => id !== excludedProvider);
+  }
+
+  /**
    * 检查请求是否可以通过双层熔断
    */
   async checkDualCircuit(
@@ -252,7 +291,127 @@ export class CircuitBreakerManager extends EventEmitter {
           type: 'provider_fallback',
           timestamp: new Date(),
           data: {
-            providerIis.providerMap) {
+            providerId: requestedProvider,
+            suggestedProvider: fallbackProvider,
+            reason: 'provider_circuit_open',
+          },
+        });
+
+        logger.info({
+          msg: 'Provider fallback triggered',
+          fromProvider: requestedProvider,
+          toProvider: fallbackProvider,
+        });
+      } else {
+        // 没有可用的备用 Provider，需要降级
+        combinedState = 'OPEN';
+        canProceed = false;
+        shouldDegrade = true;
+        degradationReason = 'no_available_provider';
+      }
+    } else if (providerState === 'HALF_OPEN' || scenarioCircuitState === 'HALF_OPEN') {
+      // 任一层处于半开状态，允许探测请求
+      combinedState = 'HALF_OPEN';
+      canProceed = true;
+      shouldDegrade = false;
+    } else {
+      // 双层都处于关闭状态，正常执行
+      combinedState = 'CLOSED';
+      canProceed = true;
+      shouldDegrade = false;
+    }
+
+    return {
+      providerId: requestedProvider,
+      providerState,
+      scenario,
+      scenarioState: scenarioCircuitState,
+      combinedState,
+      canProceed,
+      shouldDegrade,
+      degradationReason,
+      suggestedProvider,
+    };
+  }
+
+  /**
+   * Provider 请求前检查
+   */
+  async beforeProviderRequest(providerId: string): Promise<boolean> {
+    return this.providerBreaker.beforeRequest(providerId);
+  }
+
+  /**
+   * Provider 请求后记录结果
+   */
+  async afterProviderRequest(
+    providerId: string,
+    success: boolean,
+    latency: number = 0
+  ): Promise<void> {
+    return this.providerBreaker.afterRequest(providerId, success, latency);
+  }
+
+  /**
+   * 获取所有 Provider 的指标
+   */
+  getAllProviderMetrics(): ProviderMetrics[] {
+    return this.providerBreaker.getAllMetrics();
+  }
+
+  /**
+   * 获取特定 Provider 的指标
+   */
+  getProviderMetrics(providerId: string): ProviderMetrics | null {
+    return this.providerBreaker.getMetrics(providerId);
+  }
+
+  /**
+   * 手动重置 Provider 熔断器
+   */
+  resetProvider(providerId: string): void {
+    this.providerBreaker.reset(providerId);
+  }
+
+  /**
+   * 手动触发 Provider 熔断
+   */
+  tripProvider(providerId: string, reason: string = 'manual'): void {
+    this.providerBreaker.trip(providerId, reason);
+  }
+
+  /**
+   * 手动重置场景熔断器
+   */
+  resetScenario(scenario: AIScenario): void {
+    const currentState = this.scenarioStates.get(scenario);
+    if (currentState) {
+      currentState.state = 'CLOSED';
+      currentState.failureCount = 0;
+      currentState.successCount = 0;
+      currentState.halfOpenAttempts = 0;
+      currentState.lastStateChangeTime = new Date();
+      this.scenarioStates.set(scenario, currentState);
+
+      this.emit('dual:circuit:event', {
+        type: 'scenario_circuit_change',
+        timestamp: new Date(),
+        data: {
+          scenario,
+          oldState: 'OPEN',
+          newState: 'CLOSED',
+          reason: 'manual_reset',
+        },
+      });
+    }
+  }
+
+  /**
+   * 获取健康状态摘要
+   */
+  getHealthSummary(): HealthSummary {
+    const providerHealth = new Map<string, { state: CircuitState; metrics: ProviderMetrics | null }>();
+    for (const providerId of this.providerMap.keys()) {
       providerHealth.set(providerId, {
         state: this.providerBreaker.getState(providerId),
         metrics: this.providerBreaker.getMetrics(providerId),
@@ -278,6 +437,73 @@ export class CircuitBreakerManager extends EventEmitter {
       scenarios: scenarioHealth,
       overallHealthy,
     };
+  }
+
+  /**
+   * 更新配置
+   */
+  updateConfig(config: Partial<CircuitBreakerManagerConfig>): void {
+    this.config = { ...this.config, ...config };
+
+    // 更新 Provider 映射
+    if (config.providers) {
+      this.providerMap.clear();
+      for (const provider of config.providers) {
+        if (provider.enabled) {
+          this.providerMap.set(provider.id, provider);
+        }
+      }
+    }
+
+    // 更新 Provider 熔断器配置
+    if (config.providerConfig) {
+      this.providerBreaker.updateConfig(config.providerConfig);
+    }
+
+    logger.info('[CircuitBreakerManager] Config updated');
+  }
+
+  /**
+   * 获取配置
+   */
+  getConfig(): CircuitBreakerManagerConfig {
+    return { ...this.config };
+  }
+
+  /**
+   * 添加 Provider
+   */
+  addProvider(provider: LLMProvider): void {
+    if (provider.enabled) {
+      this.providerMap.set(provider.id, provider);
+      this.config.providers.push(provider);
+      logger.info({ msg: 'Provider added', providerId: provider.id });
+    }
+  }
+
+  /**
+   * 移除 Provider
+   */
+  removeProvider(providerId: string): void {
+    this.providerMap.delete(providerId);
+    this.config.providers = this.config.providers.filter((p) => p.id !== providerId);
+    logger.info({ msg: 'Provider removed', providerId });
+  }
+
+  /**
+   * 启用/禁用 Provider
+   */
+  setProviderEnabled(providerId: string, enabled: boolean): void {
+    const provider = this.providerMap.get(providerId);
+    if (provider) {
+      provider.enabled = enabled;
+      if (!enabled) {
+        this.providerMap.delete(providerId);
+      } else {
+        this.providerMap.set(providerId, provider);
+      }
+      logger.info({ msg: 'Provider enabled/disabled', providerId, enabled });
+    }
   }
 }
 

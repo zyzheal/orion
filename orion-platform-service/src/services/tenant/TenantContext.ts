@@ -187,6 +187,110 @@ export class TenantContext extends EventEmitter {
   }
 
   /**
+   * Repository 层辅助方法：获取 tenant_id 查询参数
+   * 用于构建带 tenant_id 过滤的 SQL 查询
+   */
+  getTenantQueryParam(): { tenantId: number; tenantParamIndex: number } | null {
+    if (!this.config.enabled) {
+      return null;
+    }
+
+    const tenantId = this.getCurrentTenantId();
+    if (tenantId === undefined || tenantId === null) {
+      return null;
+    }
+
+    return { tenantId, tenantParamIndex: 1 };
+  }
+
+  /**
+   * Repository 层辅助方法：构建带 tenant_id 的查询条件
+   * 返回完整的 WHERE 条件字符串和参数位置
+   */
+  buildTenantWhereClause(
+    baseWhere: string,
+    existingParamCount: number = 0
+  ): { whereClause: string; tenantParamIndex: number; tenantId: number } | null {
+    if (!this.config.enabled) {
+      return null;
+    }
+
+    const tenantId = this.getCurrentTenantId();
+    if (tenantId === undefined || tenantId === null) {
+      return null;
+    }
+
+    const tenantParamIndex = existingParamCount + 1;
+    const tenantCondition = `tenant_id = $${tenantParamIndex}`;
+
+    const whereClause = baseWhere
+      ? `${baseWhere} AND ${tenantCondition}`
+      : `WHERE ${tenantCondition}`;
+
+    return { whereClause, tenantParamIndex, tenantId };
+  }
+
+  /**
+   * Repository 层辅助方法：验证资源 tenant_id 是否匹配当前租户
+   */
+  validateResourceTenant(resourceTenantId: number | string): boolean {
+    if (!this.config.enabled) {
+      return true;
+    }
+
+    const currentTenantId = this.getCurrentTenantId();
+
+    // 系统租户可以访问所有资源
+    if (currentTenantId === 0) {
+      return true;
+    }
+
+    const resourceTenantIdNum = typeof resourceTenantId === 'string'
+      ? parseInt(resourceTenantId, 10)
+      : resourceTenantId;
+
+    return currentTenantId === resourceTenantIdNum;
+  }
+
+  /**
+   * Repository 层辅助方法：为 INSERT 语句添加 tenant_id
+   */
+  addTenantToInsertColumns(
+    columns: string[],
+    values: unknown[]
+  ): { columns: string[]; values: unknown[] } {
+    if (!this.config.enabled) {
+      return { columns, values };
+    }
+
+    const tenantId = this.getCurrentTenantId();
+    return {
+      columns: [...columns, 'tenant_id'],
+      values: [...values, tenantId],
+    };
+  }
+
+  /**
+   * Repository 层辅助方法：为 UPDATE 语句添加 tenant_id 验证条件
+   */
+  addTenantToUpdateWhere(
+    baseWhere: string,
+    existingParamCount: number = 0
+  ): { whereClause: string; tenantParamIndex: number; tenantId: number } | null {
+    return this.buildTenantWhereClause(baseWhere, existingParamCount);
+  }
+
+  /**
+   * Repository 层辅助方法：为 DELETE 语句添加 tenant_id 验证条件
+   */
+  addTenantToDeleteWhere(
+    baseWhere: string,
+    existingParamCount: number = 0
+  ): { whereClause: string; tenantParamIndex: number; tenantId: number } | null {
+    return this.buildTenantWhereClause(baseWhere, existingParamCount);
+  }
+
+  /**
    * 检查是否启用租户隔离
    */
   isEnabled(): boolean {
