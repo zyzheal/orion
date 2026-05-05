@@ -282,7 +282,8 @@ describe('MultiCloudManagerService', () => {
     });
   });
 
-  describe('MultiCloudDeployment', ()it('应该包含完整的部署信息', async () => {
+  describe('MultiCloudDeployment', () => {
+    it('应该包含完整的部署信息', async () => {
       mockPool.query
         .mockResolvedValueOnce({ rows: [{ id: 'p1', status: 'active' }] })
         .mockResolvedValueOnce({
@@ -349,6 +350,163 @@ describe('MultiCloudManagerService', () => {
       });
 
       expect(result.providers.length).toBe(0);
+    });
+  });
+
+  describe('addCloudAccount', () => {
+    it('应该添加云账户并写入数据库', async () => {
+      mockPool.query
+        .mockResolvedValueOnce({
+          rows: [{
+            id: 'acc-1',
+            tenant_id: 'tenant1',
+            account_name: 'aws-prod',
+            account_id: 'cloud-acc-001',
+            credential_type: 'access_key',
+            credential_ref: 'secret-aws-001',
+            region: 'us-east-1',
+            status: 'active',
+            monthly_budget: null,
+            current_spend: 0,
+            tags: { env: 'prod' },
+            created_by: 'system',
+            created_at: new Date(),
+            updated_at: new Date(),
+          }],
+        })
+        .mockResolvedValueOnce({ rows: [{ id: 'res-1' }] })
+        .mockResolvedValueOnce({ rows: [{ id: 'res-2' }] })
+        .mockResolvedValueOnce({ rows: [{ id: 'res-3' }] })
+        .mockResolvedValueOnce({ rows: [{ id: 'res-4' }] })
+        .mockResolvedValueOnce({ rows: [{ id: 'res-5' }] });
+
+      const result = await service.addCloudAccount('tenant1', {
+        name: 'aws-prod',
+        provider: 'aws',
+        region: 'us-east-1',
+        credentials_ref: 'secret-aws-001',
+        metadata: { env: 'prod' },
+      });
+
+      expect(result.name).toBe('aws-prod');
+      expect(result.region).toBe('us-east-1');
+    });
+
+    it('应该使用确定性值而非随机值', async () => {
+      mockPool.query
+        .mockResolvedValueOnce({
+          rows: [{
+            id: 'acc-1',
+            tenant_id: 'tenant1',
+            account_name: 'gcp-test',
+            account_id: 'cloud-acc-002',
+            credential_type: 'access_key',
+            credential_ref: 'secret-gcp',
+            region: 'us-central1',
+            status: 'active',
+            monthly_budget: null,
+            current_spend: 0,
+            tags: {},
+            created_by: 'system',
+            created_at: new Date(),
+            updated_at: new Date(),
+          }],
+        });
+      for (let i = 0; i < 5; i++) {
+        mockPool.query.mockResolvedValueOnce({ rows: [{ id: `res-${i}` }] });
+      }
+
+      const result1 = await service.addCloudAccount('tenant1', {
+        name: 'gcp-test',
+        provider: 'gcp',
+        region: 'us-central1',
+        credentials_ref: 'secret-gcp',
+      });
+
+      const result2 = await service.addCloudAccount('tenant1', {
+        name: 'gcp-test-2',
+        provider: 'gcp',
+        region: 'us-central1',
+        credentials_ref: 'secret-gcp-2',
+      });
+
+      expect(result1.provider).toBe(result2.provider);
+    });
+  });
+
+  describe('removeCloudAccount', () => {
+    it('应该删除云账户及其资源', async () => {
+      mockPool.query
+        .mockResolvedValueOnce({ rowCount: 1 })
+        .mockResolvedValueOnce({ rowCount: 5 });
+
+      const result = await service.removeCloudAccount('acc-1', 'tenant1');
+
+      expect(result).toBe(true);
+    });
+
+    it('应该返回 false 如果账户不存在', async () => {
+      mockPool.query.mockResolvedValueOnce({ rowCount: 0 });
+
+      const result = await service.removeCloudAccount('nonexistent', 'tenant1');
+
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('listCloudAccounts', () => {
+    it('应该按租户列出云账户', async () => {
+      mockPool.query.mockResolvedValue({
+        rows: [
+          {
+            id: 'acc-1',
+            tenant_id: 'tenant1',
+            account_name: 'aws-prod',
+            account_id: 'cloud-acc-001',
+            credential_type: 'access_key',
+            credential_ref: 'secret-1',
+            region: 'us-east-1',
+            status: 'active',
+            monthly_budget: null,
+            current_spend: 0,
+            tags: {},
+            created_by: 'system',
+            created_at: new Date(),
+            updated_at: new Date(),
+          },
+        ],
+      });
+
+      const result = await service.listCloudAccounts('tenant1');
+
+      expect(result.length).toBe(1);
+    });
+  });
+
+  describe('getResourceInventory', () => {
+    it('应该从数据库读取资源清单', async () => {
+      mockPool.query.mockResolvedValue({
+        rows: [{
+          id: 'res-1',
+          tenant_id: 'tenant1',
+          account_id: 'acc-1',
+          resource_type: 'vm',
+          resource_id: 'res-acc-1-vm',
+          resource_name: 'aws-vm',
+          region: 'us-east-1',
+          state: 'running',
+          spec: { instance_type: 't3.large', count: 5 },
+          monthly_cost: 350.4,
+          tags: { provider: 'aws' },
+          discovered_at: new Date(),
+          updated_at: new Date(),
+        }],
+      });
+
+      const result = await service.getResourceInventory('tenant1');
+
+      expect(result.length).toBe(1);
+      expect(result[0].resource_type).toBe('vm');
     });
   });
 });

@@ -161,40 +161,60 @@ CREATE INDEX idx_config_drift_reports_status ON config_drift_reports(drift_statu
 -- ============================================================
 
 ALTER TABLE cross_domain_orchestrations ENABLE ROW LEVEL SECURITY;
-ALTER TABLE cross_domain_orchestrations FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation_cross_domain_orchestrations ON cross_domain_orchestrations
-    USING (tenant_id = current_setting('app.current_tenant_id', true));
+    USING (
+        current_setting('app.current_tenant_id', true) IS NOT NULL
+        AND current_setting('app.current_tenant_id', true) != ''
+        AND tenant_id::text = current_setting('app.current_tenant_id')
+    );
 
 ALTER TABLE cross_domain_orchestration_steps ENABLE ROW LEVEL SECURITY;
-ALTER TABLE cross_domain_orchestration_steps FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation_cross_domain_orchestration_steps ON cross_domain_orchestration_steps
     USING (
-      orchestration_id IN (
-        SELECT id FROM cross_domain_orchestrations WHERE tenant_id = current_setting('app.current_tenant_id', true)
-      )
+        orchestration_id IN (
+            SELECT id FROM cross_domain_orchestrations
+            WHERE current_setting('app.current_tenant_id', true) IS NOT NULL
+              AND current_setting('app.current_tenant_id', true) != ''
+              AND tenant_id::text = current_setting('app.current_tenant_id')
+        )
     );
 
 ALTER TABLE domain_connectors ENABLE ROW LEVEL SECURITY;
-ALTER TABLE domain_connectors FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation_domain_connectors ON domain_connectors
-    USING (tenant_id = current_setting('app.current_tenant_id', true));
+    USING (
+        current_setting('app.current_tenant_id', true) IS NOT NULL
+        AND current_setting('app.current_tenant_id', true) != ''
+        AND tenant_id::text = current_setting('app.current_tenant_id')
+    );
 
 ALTER TABLE cross_domain_transactions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE cross_domain_transactions FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation_cross_domain_transactions ON cross_domain_transactions
-    USING (tenant_id = current_setting('app.current_tenant_id', true));
+    USING (
+        current_setting('app.current_tenant_id', true) IS NOT NULL
+        AND current_setting('app.current_tenant_id', true) != ''
+        AND tenant_id::text = current_setting('app.current_tenant_id')
+    );
 
 ALTER TABLE config_change_requests_enhanced ENABLE ROW LEVEL SECURITY;
-ALTER TABLE config_change_requests_enhanced FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation_config_change_requests_enhanced ON config_change_requests_enhanced
-    USING (tenant_id = current_setting('app.current_tenant_id', true));
+    USING (
+        current_setting('app.current_tenant_id', true) IS NOT NULL
+        AND current_setting('app.current_tenant_id', true) != ''
+        AND tenant_id::text = current_setting('app.current_tenant_id')
+    );
 
 ALTER TABLE config_change_history ENABLE ROW LEVEL SECURITY;
-ALTER TABLE config_change_history FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation_config_change_history ON config_change_history
-    USING (tenant_id = current_setting('app.current_tenant_id', true));
+    USING (
+        current_setting('app.current_tenant_id', true) IS NOT NULL
+        AND current_setting('app.current_tenant_id', true) != ''
+        AND tenant_id::text = current_setting('app.current_tenant_id')
+    );
 
 ALTER TABLE config_drift_reports ENABLE ROW LEVEL SECURITY;
-ALTER TABLE config_drift_reports FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation_config_drift_reports ON config_drift_reports
-    USING (tenant_id = current_setting('app.current_tenant_id', true));
+    USING (
+        current_setting('app.current_tenant_id', true) IS NOT NULL
+        AND current_setting('app.current_tenant_id', true) != ''
+        AND tenant_id::text = current_setting('app.current_tenant_id')
+    );

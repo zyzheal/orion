@@ -174,7 +174,12 @@ export class PluginMarketplaceService {
     return this.mapPluginRow(result.rows[0]);
   }
 
-  async installPlugin(input: InstallPluginInput): Promise<PluginInstall> {
+  async installPlugin(input: InstallPluginInput, callerTenantId?: string): Promise<PluginInstall> {
+    // Tenant authorization: caller must own the target tenant
+    if (callerTenantId && callerTenantId !== input.tenant_id) {
+      throw new Error(`Unauthorized: caller tenant (${callerTenantId}) does not match target tenant (${input.tenant_id})`);
+    }
+
     const plugin = await this.getPlugin(input.plugin_id);
     if (!plugin) {
       throw new Error('Plugin not found');
@@ -198,7 +203,12 @@ export class PluginMarketplaceService {
     return this.mapInstallRow(installResult.rows[0]);
   }
 
-  async uninstallPlugin(tenantId: string, pluginId: string): Promise<{ success: boolean }> {
+  async uninstallPlugin(tenantId: string, pluginId: string, callerTenantId?: string): Promise<{ success: boolean }> {
+    // Tenant authorization: caller must own the target tenant
+    if (callerTenantId && callerTenantId !== tenantId) {
+      throw new Error(`Unauthorized: caller tenant (${callerTenantId}) does not match target tenant (${tenantId})`);
+    }
+
     const result = await this.pool.query(
       `UPDATE plugin_installations
        SET status = 'uninstalled', updated_at = NOW()

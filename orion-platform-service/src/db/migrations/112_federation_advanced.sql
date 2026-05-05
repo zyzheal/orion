@@ -76,8 +76,20 @@ ALTER TABLE policy_engines ENABLE ROW LEVEL SECURITY;
 ALTER TABLE resource_pools ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY tenant_isolation_cross_cluster_scheduling ON cross_cluster_scheduling
-  USING (tenant_id::text = current_setting('app.current_tenant_id', true));
+  USING (
+    current_setting('app.current_tenant_id', true) IS NOT NULL
+    AND current_setting('app.current_tenant_id', true) != ''
+    AND tenant_id::text = current_setting('app.current_tenant_id')
+  );
 CREATE POLICY tenant_isolation_policy_engines ON policy_engines
-  USING (tenant_id::text = current_setting('app.current_tenant_id', true));
+  USING (
+    current_setting('app.current_tenant_id', true) IS NOT NULL
+    AND current_setting('app.current_tenant_id', true) != ''
+    AND tenant_id::text = current_setting('app.current_tenant_id')
+  );
 CREATE POLICY tenant_isolation_resource_pools ON resource_pools
-  USING (tenant_id::text = current_setting('app.current_tenant_id', true));
+  USING (
+    current_setting('app.current_tenant_id', true) IS NOT NULL
+    AND current_setting('app.current_tenant_id', true) != ''
+    AND tenant_id::text = current_setting('app.current_tenant_id')
+  );

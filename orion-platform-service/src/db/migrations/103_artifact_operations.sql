@@ -75,8 +75,20 @@ ALTER TABLE artifact_scans ENABLE ROW LEVEL SECURITY;
 ALTER TABLE artifact_retention_policies ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY tenant_isolation_artifact_operations ON artifact_operations
-  USING (tenant_id::text = current_setting('app.current_tenant_id', true));
+  USING (
+    current_setting('app.current_tenant_id', true) IS NOT NULL
+    AND current_setting('app.current_tenant_id', true) != ''
+    AND tenant_id::text = current_setting('app.current_tenant_id')
+  );
 CREATE POLICY tenant_isolation_artifact_scans ON artifact_scans
-  USING (tenant_id::text = current_setting('app.current_tenant_id', true));
+  USING (
+    current_setting('app.current_tenant_id', true) IS NOT NULL
+    AND current_setting('app.current_tenant_id', true) != ''
+    AND tenant_id::text = current_setting('app.current_tenant_id')
+  );
 CREATE POLICY tenant_isolation_artifact_retention_policies ON artifact_retention_policies
-  USING (tenant_id::text = current_setting('app.current_tenant_id', true));
+  USING (
+    current_setting('app.current_tenant_id', true) IS NOT NULL
+    AND current_setting('app.current_tenant_id', true) != ''
+    AND tenant_id::text = current_setting('app.current_tenant_id')
+  );

@@ -79,8 +79,20 @@ ALTER TABLE compliance_evaluations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_findings ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY tenant_isolation_compliance_policies ON compliance_policies
-  USING (tenant_id::text = current_setting('app.current_tenant_id', true));
+  USING (
+    current_setting('app.current_tenant_id', true) IS NOT NULL
+    AND current_setting('app.current_tenant_id', true) != ''
+    AND tenant_id::text = current_setting('app.current_tenant_id')
+  );
 CREATE POLICY tenant_isolation_compliance_evaluations ON compliance_evaluations
-  USING (tenant_id::text = current_setting('app.current_tenant_id', true));
+  USING (
+    current_setting('app.current_tenant_id', true) IS NOT NULL
+    AND current_setting('app.current_tenant_id', true) != ''
+    AND tenant_id::text = current_setting('app.current_tenant_id')
+  );
 CREATE POLICY tenant_isolation_audit_findings ON audit_findings
-  USING (tenant_id::text = current_setting('app.current_tenant_id', true));
+  USING (
+    current_setting('app.current_tenant_id', true) IS NOT NULL
+    AND current_setting('app.current_tenant_id', true) != ''
+    AND tenant_id::text = current_setting('app.current_tenant_id')
+  );

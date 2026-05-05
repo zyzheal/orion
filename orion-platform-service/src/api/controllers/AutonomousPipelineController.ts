@@ -10,6 +10,71 @@ import { ErrorClassifier, ErrorType } from '../../services/pipeline/ErrorClassif
 import { AdaptiveTimeoutService } from '../../services/pipeline/AdaptiveTimeoutService';
 import { AutoRetryService, RetryConfig } from '../../services/pipeline/AutoRetryService';
 
+// ==================== Request/Response Types ====================
+
+interface ClassifyErrorBody {
+  errorMessage?: string;
+  stageName?: string;
+  retryCount?: number;
+  maxRetries?: number;
+  previousErrors?: string[];
+}
+
+interface ErrorStatsQuery {
+  stageName?: string;
+  [key: string]: string | undefined;
+}
+
+interface RecordExecutionBody {
+  stageName?: string;
+  durationMs?: number;
+  success?: boolean;
+  timedOut?: boolean;
+}
+
+interface ConfigureRetryBody {
+  pipelineId?: string;
+  stageName?: string;
+  maxRetries?: number;
+  strategy?: 'immediate' | 'backoff' | 'skip';
+  baseDelayMs?: number;
+  maxDelayMs?: number;
+}
+
+interface RecommendSelfHealingBody {
+  errorMessage?: string;
+  stageName?: string;
+  pipelineId?: string;
+  retryCount?: number;
+}
+
+interface GetTimeoutParams {
+  stageName: string;
+  [key: string]: string;
+}
+
+interface GetRetryStatsParams {
+  pipelineId: string;
+  [key: string]: string;
+}
+
+interface SelfHealingQuery {
+  errorType?: string;
+  stageName?: string;
+}
+
+interface ErrorStatsQuery {
+  stageName?: string;
+}
+
+interface ErrorClassification {
+  type: string;
+  shouldRetry: boolean;
+  retryStrategy: string;
+  confidence: number;
+  reasoning: string;
+}
+
 export class AutonomousPipelineController extends BaseController {
   private errorClassifier: ErrorClassifier;
   private timeoutService: AdaptiveTimeoutService;
@@ -41,13 +106,7 @@ export class AutonomousPipelineController extends BaseController {
    * }
    */
   async classifyError(request: FastifyRequest, reply: FastifyReply): Promise<void> {
-    const body = request.body as {
-      errorMessage?: string;
-      stageName?: string;
-      retryCount?: number;
-      maxRetries?: number;
-      previousErrors?: string[];
-    };
+    const body = this.getBody<ClassifyErrorBody>(request);
 
     if (!body.errorMessage) {
       this.sendBadRequest(reply, 'errorMessage is required');
@@ -78,7 +137,7 @@ export class AutonomousPipelineController extends BaseController {
    * - stageName (可选): 按 stage 名称过滤
    */
   async getErrorStats(request: FastifyRequest, reply: FastifyReply): Promise<void> {
-    const query = request.query as Record<string, string | undefined>;
+    const query = this.getQuery<ErrorStatsQuery>(request);
 
     try {
       const stats = await this.errorClassifier.getErrorStats(query.stageName);
@@ -100,8 +159,8 @@ export class AutonomousPipelineController extends BaseController {
    * - pipelineId (可选): Pipeline ID
    */
   async getTimeoutForStage(request: FastifyRequest, reply: FastifyReply): Promise<void> {
-    const params = request.params as { stageName: string };
-    const query = request.query as Record<string, string | undefined>;
+    const params = this.getParams<GetTimeoutParams>(request);
+    const query = this.getQuery<ErrorStatsQuery>(request);
 
     try {
       const timeoutMs = await this.timeoutService.getTimeoutForStage(
@@ -133,12 +192,7 @@ export class AutonomousPipelineController extends BaseController {
    * }
    */
   async recordExecution(request: FastifyRequest, reply: FastifyReply): Promise<void> {
-    const body = request.body as {
-      stageName?: string;
-      durationMs?: number;
-      success?: boolean;
-      timedOut?: boolean;
-    };
+    const body = this.getBody<RecordExecutionBody>(request);
 
     if (!body.stageName || body.durationMs === undefined || body.success === undefined) {
       this.sendBadRequest(reply, 'stageName, durationMs, and success are required');
@@ -168,7 +222,7 @@ export class AutonomousPipelineController extends BaseController {
    * - pipelineId (可选): Pipeline ID，如果为 'all' 则返回全局统计
    */
   async getRetryStats(request: FastifyRequest, reply: FastifyReply): Promise<void> {
-    const params = request.params as { pipelineId: string };
+    const params = this.getParams<GetRetryStatsParams>(request);
 
     try {
       const pipelineId = params.pipelineId === 'all' ? undefined : params.pipelineId;
@@ -193,14 +247,7 @@ export class AutonomousPipelineController extends BaseController {
    * }
    */
   async configureRetry(request: FastifyRequest, reply: FastifyReply): Promise<void> {
-    const body = request.body as {
-      pipelineId?: string;
-      stageName?: string;
-      maxRetries?: number;
-      strategy?: 'immediate' | 'backoff' | 'skip';
-      baseDelayMs?: number;
-      maxDelayMs?: number;
-    };
+    const body = this.getBody<ConfigureRetryBody>(request);
 
     if (!body.pipelineId && !body.stageName) {
       this.sendBadRequest(reply, 'pipelineId or stageName is required');
@@ -237,12 +284,7 @@ export class AutonomousPipelineController extends BaseController {
    * }
    */
   async recommendSelfHealing(request: FastifyRequest, reply: FastifyReply): Promise<void> {
-    const body = request.body as {
-      errorMessage?: string;
-      stageName?: string;
-      pipelineId?: string;
-      retryCount?: number;
-    };
+    const body = this.getBody<RecommendSelfHealingBody>(request);
 
     if (!body.errorMessage) {
       this.sendBadRequest(reply, 'errorMessage is required');
@@ -288,7 +330,7 @@ export class AutonomousPipelineController extends BaseController {
     try {
       const actions = SELF_HEALING_ACTION_CATALOG.filter((action) => {
         if (query.errorType && action.applicableErrorTypes !== 'all' &&
-            !action.applicableErrorTypes.includes(query.errorType as any)) {
+            !action.applicableErrorTypes.includes(query.errorType as ErrorType)) {
           return false;
         }
         if (query.stageName && !action.applicableStages.includes(query.stageName)) {
@@ -307,7 +349,7 @@ export class AutonomousPipelineController extends BaseController {
    * 生成自修复推荐
    */
   private generateSelfHealingRecommendations(
-    classification: { type: string; shouldRetry: boolean; retryStrategy: string; confidence: number; reasoning: string },
+    classification: ErrorClassification,
     errorMessage: string,
     stageName: string
   ): Array<{ action: string; description: string; confidence: number; steps: string[] }> {

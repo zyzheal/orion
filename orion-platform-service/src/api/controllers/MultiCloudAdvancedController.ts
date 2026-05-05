@@ -104,7 +104,8 @@ export class MultiCloudAdvancedController extends BaseController {
   async removeCloudAccount(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     await this.executeAndSend(reply, async () => {
       const params = this.getParams<{ accountId: string }>(request);
-      return { removed: await this.managerService.removeCloudAccount(params.accountId) };
+      const tenantId = this.getTenantId(request);
+      return { removed: await this.managerService.removeCloudAccount(params.accountId, tenantId) };
     });
   }
 

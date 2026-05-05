@@ -82,8 +82,20 @@ ALTER TABLE config_drift_records ENABLE ROW LEVEL SECURITY;
 ALTER TABLE remediation_logs ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY tenant_isolation_config_change_requests ON config_change_requests
-  USING (tenant_id::text = current_setting('app.current_tenant_id', true));
+  USING (
+    current_setting('app.current_tenant_id', true) IS NOT NULL
+    AND current_setting('app.current_tenant_id', true) != ''
+    AND tenant_id::text = current_setting('app.current_tenant_id')
+  );
 CREATE POLICY tenant_isolation_config_drift_records ON config_drift_records
-  USING (tenant_id::text = current_setting('app.current_tenant_id', true));
+  USING (
+    current_setting('app.current_tenant_id', true) IS NOT NULL
+    AND current_setting('app.current_tenant_id', true) != ''
+    AND tenant_id::text = current_setting('app.current_tenant_id')
+  );
 CREATE POLICY tenant_isolation_remediation_logs ON remediation_logs
-  USING (tenant_id::text = current_setting('app.current_tenant_id', true));
+  USING (
+    current_setting('app.current_tenant_id', true) IS NOT NULL
+    AND current_setting('app.current_tenant_id', true) != ''
+    AND tenant_id::text = current_setting('app.current_tenant_id')
+  );

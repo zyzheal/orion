@@ -71,8 +71,20 @@ ALTER TABLE trigger_executions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE webhook_registrations ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY tenant_isolation_trigger_definitions ON trigger_definitions
-  USING (tenant_id::text = current_setting('app.current_tenant_id', true));
+  USING (
+    current_setting('app.current_tenant_id', true) IS NOT NULL
+    AND current_setting('app.current_tenant_id', true) != ''
+    AND tenant_id::text = current_setting('app.current_tenant_id')
+  );
 CREATE POLICY tenant_isolation_trigger_executions ON trigger_executions
-  USING (tenant_id::text = current_setting('app.current_tenant_id', true));
+  USING (
+    current_setting('app.current_tenant_id', true) IS NOT NULL
+    AND current_setting('app.current_tenant_id', true) != ''
+    AND tenant_id::text = current_setting('app.current_tenant_id')
+  );
 CREATE POLICY tenant_isolation_webhook_registrations ON webhook_registrations
-  USING (tenant_id::text = current_setting('app.current_tenant_id', true));
+  USING (
+    current_setting('app.current_tenant_id', true) IS NOT NULL
+    AND current_setting('app.current_tenant_id', true) != ''
+    AND tenant_id::text = current_setting('app.current_tenant_id')
+  );

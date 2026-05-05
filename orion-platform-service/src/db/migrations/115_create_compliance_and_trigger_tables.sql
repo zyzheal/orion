@@ -3,8 +3,8 @@
 -- ==================== Compliance Framework ====================
 
 CREATE TABLE IF NOT EXISTS compliance_policies (
-    id VARCHAR(64) PRIMARY KEY,
-    tenant_id VARCHAR(64) NOT NULL,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id VARCHAR(255) NOT NULL,
     name VARCHAR(255) NOT NULL,
     description TEXT,
     framework_type VARCHAR(64) NOT NULL, -- soc2, iso27001, gdpr, hipaa, pci_dss, custom
@@ -18,9 +18,9 @@ CREATE TABLE IF NOT EXISTS compliance_policies (
 );
 
 CREATE TABLE IF NOT EXISTS compliance_evaluations (
-    id VARCHAR(64) PRIMARY KEY,
-    tenant_id VARCHAR(64) NOT NULL,
-    policy_id VARCHAR(64) NOT NULL REFERENCES compliance_policies(id),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id VARCHAR(255) NOT NULL,
+    policy_id UUID NOT NULL REFERENCES compliance_policies(id),
     status VARCHAR(32) DEFAULT 'pending', -- pending, running, completed, failed
     score DECIMAL(5,2) DEFAULT 0,
     total_checks INTEGER DEFAULT 0,
@@ -33,9 +33,9 @@ CREATE TABLE IF NOT EXISTS compliance_evaluations (
 );
 
 CREATE TABLE IF NOT EXISTS compliance_remediations (
-    id VARCHAR(64) PRIMARY KEY,
-    tenant_id VARCHAR(64) NOT NULL,
-    evaluation_id VARCHAR(64) REFERENCES compliance_evaluations(id),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id VARCHAR(255) NOT NULL,
+    evaluation_id UUID REFERENCES compliance_evaluations(id),
     gap_id VARCHAR(64) NOT NULL,
     status VARCHAR(32) DEFAULT 'pending', -- pending, in_progress, completed, failed
     action_taken TEXT,
@@ -47,8 +47,8 @@ CREATE TABLE IF NOT EXISTS compliance_remediations (
 -- ==================== Security Audit ====================
 
 CREATE TABLE IF NOT EXISTS audit_plans (
-    id VARCHAR(64) PRIMARY KEY,
-    tenant_id VARCHAR(64) NOT NULL,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id VARCHAR(255) NOT NULL,
     name VARCHAR(255) NOT NULL,
     description TEXT,
     scope JSONB NOT NULL DEFAULT '{}',
@@ -63,9 +63,9 @@ CREATE TABLE IF NOT EXISTS audit_plans (
 );
 
 CREATE TABLE IF NOT EXISTS audit_executions (
-    id VARCHAR(64) PRIMARY KEY,
-    plan_id VARCHAR(64) NOT NULL REFERENCES audit_plans(id),
-    tenant_id VARCHAR(64) NOT NULL,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    plan_id UUID NOT NULL REFERENCES audit_plans(id),
+    tenant_id VARCHAR(255) NOT NULL,
     status VARCHAR(32) DEFAULT 'pending', -- pending, running, completed, failed
     started_at TIMESTAMP,
     completed_at TIMESTAMP,
@@ -74,9 +74,9 @@ CREATE TABLE IF NOT EXISTS audit_executions (
 );
 
 CREATE TABLE IF NOT EXISTS audit_findings (
-    id VARCHAR(64) PRIMARY KEY,
-    execution_id VARCHAR(64) NOT NULL REFERENCES audit_executions(id),
-    tenant_id VARCHAR(64) NOT NULL,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    execution_id UUID NOT NULL REFERENCES audit_executions(id),
+    tenant_id VARCHAR(255) NOT NULL,
     title VARCHAR(255) NOT NULL,
     description TEXT,
     severity VARCHAR(16) NOT NULL, -- critical, high, medium, low, info
@@ -93,8 +93,8 @@ CREATE TABLE IF NOT EXISTS audit_findings (
 -- ==================== Multi-Modal Trigger ====================
 
 CREATE TABLE IF NOT EXISTS triggers (
-    id VARCHAR(64) PRIMARY KEY,
-    tenant_id VARCHAR(64) NOT NULL,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id VARCHAR(255) NOT NULL,
     name VARCHAR(255) NOT NULL,
     type VARCHAR(32) NOT NULL, -- webhook, chat, schedule, event, manual
     config JSONB NOT NULL DEFAULT '{}',
@@ -109,9 +109,9 @@ CREATE TABLE IF NOT EXISTS triggers (
 );
 
 CREATE TABLE IF NOT EXISTS trigger_events (
-    id VARCHAR(64) PRIMARY KEY,
-    trigger_id VARCHAR(64) NOT NULL REFERENCES triggers(id),
-    tenant_id VARCHAR(64) NOT NULL,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    trigger_id UUID NOT NULL REFERENCES triggers(id),
+    tenant_id VARCHAR(255) NOT NULL,
     event_type VARCHAR(64) NOT NULL,
     event_payload JSONB NOT NULL DEFAULT '{}',
     evaluation_result VARCHAR(32), -- matched, not_matched, error
@@ -120,9 +120,9 @@ CREATE TABLE IF NOT EXISTS trigger_events (
 );
 
 CREATE TABLE IF NOT EXISTS webhook_endpoints (
-    id VARCHAR(64) PRIMARY KEY,
-    tenant_id VARCHAR(64) NOT NULL,
-    trigger_id VARCHAR(64) REFERENCES triggers(id),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id VARCHAR(255) NOT NULL,
+    trigger_id UUID REFERENCES triggers(id),
     path VARCHAR(255) NOT NULL,
     secret VARCHAR(255),
     allowed_ips JSONB DEFAULT '[]',
@@ -145,3 +145,77 @@ CREATE INDEX IF NOT EXISTS idx_triggers_tenant ON triggers(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_trigger_events_trigger ON trigger_events(trigger_id);
 CREATE INDEX IF NOT EXISTS idx_webhook_endpoints_tenant ON webhook_endpoints(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_webhook_endpoints_path ON webhook_endpoints(path);
+
+-- ==================== Row Level Security (RLS) Policies ====================
+
+ALTER TABLE compliance_policies ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation_compliance_policies ON compliance_policies
+    USING (
+        current_setting('app.current_tenant_id', true) IS NOT NULL
+        AND current_setting('app.current_tenant_id', true) != ''
+        AND tenant_id::text = current_setting('app.current_tenant_id')
+    );
+
+ALTER TABLE compliance_evaluations ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation_compliance_evaluations ON compliance_evaluations
+    USING (
+        current_setting('app.current_tenant_id', true) IS NOT NULL
+        AND current_setting('app.current_tenant_id', true) != ''
+        AND tenant_id::text = current_setting('app.current_tenant_id')
+    );
+
+ALTER TABLE compliance_remediations ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation_compliance_remediations ON compliance_remediations
+    USING (
+        current_setting('app.current_tenant_id', true) IS NOT NULL
+        AND current_setting('app.current_tenant_id', true) != ''
+        AND tenant_id::text = current_setting('app.current_tenant_id')
+    );
+
+ALTER TABLE audit_plans ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation_audit_plans ON audit_plans
+    USING (
+        current_setting('app.current_tenant_id', true) IS NOT NULL
+        AND current_setting('app.current_tenant_id', true) != ''
+        AND tenant_id::text = current_setting('app.current_tenant_id')
+    );
+
+ALTER TABLE audit_executions ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation_audit_executions ON audit_executions
+    USING (
+        current_setting('app.current_tenant_id', true) IS NOT NULL
+        AND current_setting('app.current_tenant_id', true) != ''
+        AND tenant_id::text = current_setting('app.current_tenant_id')
+    );
+
+ALTER TABLE audit_findings ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation_audit_findings ON audit_findings
+    USING (
+        current_setting('app.current_tenant_id', true) IS NOT NULL
+        AND current_setting('app.current_tenant_id', true) != ''
+        AND tenant_id::text = current_setting('app.current_tenant_id')
+    );
+
+ALTER TABLE triggers ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation_triggers ON triggers
+    USING (
+        current_setting('app.current_tenant_id', true) IS NOT NULL
+        AND current_setting('app.current_tenant_id', true) != ''
+        AND tenant_id::text = current_setting('app.current_tenant_id')
+    );
+
+ALTER TABLE trigger_events ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation_trigger_events ON trigger_events
+    USING (
+        current_setting('app.current_tenant_id', true) IS NOT NULL
+        AND current_setting('app.current_tenant_id', true) != ''
+        AND tenant_id::text = current_setting('app.current_tenant_id')
+    );
+
+ALTER TABLE webhook_endpoints ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation_webhook_endpoints ON webhook_endpoints
+    USING (
+        current_setting('app.current_tenant_id', true) IS NOT NULL
+        AND current_setting('app.current_tenant_id', true) != ''
+        AND tenant_id::text = current_setting('app.current_tenant_id')
+    );

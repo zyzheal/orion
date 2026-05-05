@@ -192,11 +192,46 @@ describe('PluginMarketplaceService', () => {
         ['p1']
       );
     });
+
+    it('当 callerTenantId 不匹配时应抛出 Unauthorized', async () => {
+      mockPool.query.mockResolvedValue({ rows: [] });
+
+      await expect(
+        service.installPlugin(
+          { tenant_id: 'tenant1', plugin_id: 'p1' },
+          'tenant2'
+        )
+      ).rejects.toThrow('Unauthorized');
+    });
+
+    it('当 callerTenantId 匹配时应成功', async () => {
+      mockPool.query
+        .mockResolvedValueOnce({
+          rows: [{ id: 'p1', version: '1.0.0' }],
+        })
+        .mockResolvedValueOnce({
+          rows: [{
+            id: 'i1',
+            tenant_id: 'tenant1',
+            plugin_id: 'p1',
+            version: '1.0.0',
+            status: 'installed',
+          }],
+        })
+        .mockResolvedValueOnce({ rows: [] });
+
+      const result = await service.installPlugin(
+        { tenant_id: 'tenant1', plugin_id: 'p1' },
+        'tenant1'
+      );
+
+      expect(result.status).toBe('installed');
+    });
   });
 
   describe('uninstallPlugin', () => {
     it('应该卸载插件', async () => {
-      mockPool.query.mockResolvedValue({ rowCount: 1 });
+      mockPool.query.mockResolvedValueOnce({ rowCount: 1 });
 
       const result = await service.uninstallPlugin('tenant1', 'p1');
 
@@ -204,11 +239,27 @@ describe('PluginMarketplaceService', () => {
     });
 
     it('应该返回 false 如果插件未安装', async () => {
-      mockPool.query.mockResolvedValue({ rowCount: 0 });
+      mockPool.query.mockResolvedValueOnce({ rowCount: 0 });
 
       const result = await service.uninstallPlugin('tenant1', 'p1');
 
       expect(result.success).toBe(false);
+    });
+
+    it('当 callerTenantId 不匹配时应抛出 Unauthorized', async () => {
+      mockPool.query.mockResolvedValue({ rows: [] });
+
+      await expect(
+        service.uninstallPlugin('tenant1', 'p1', 'tenant2')
+      ).rejects.toThrow('Unauthorized');
+    });
+
+    it('当 callerTenantId 匹配时应成功', async () => {
+      mockPool.query.mockResolvedValueOnce({ rowCount: 1 });
+
+      const result = await service.uninstallPlugin('tenant1', 'p1', 'tenant1');
+
+      expect(result.success).toBe(true);
     });
   });
 

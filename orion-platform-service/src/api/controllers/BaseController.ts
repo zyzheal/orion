@@ -237,7 +237,7 @@ export abstract class BaseController {
    */
   protected validateRequired(reply: FastifyReply, params: Record<string, unknown>, requiredFields: string[]): boolean {
     for (const field of requiredFields) {
-      if (!params[field]) {
+      if (params[field] === undefined || params[field] === null) {
         this.sendBadRequest(reply, `参数 ${field} 必填`, { field });
         return false;
       }

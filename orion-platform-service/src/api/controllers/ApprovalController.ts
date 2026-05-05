@@ -8,6 +8,67 @@ import { MultiLevelApprovalService, ApprovalAction, ApprovalMode, ApprovalReques
 import { EmergencyApprovalService, EmergencyReason, EmergencyApprovalInput } from '../../services/approval/EmergencyApprovalService';
 import { ApprovalTemplateService, ApprovalTemplateInput } from '../../services/approval/ApprovalTemplateService';
 
+// ==================== Request/Response Types ====================
+
+interface ApprovalRequestBody {
+  title: string;
+  description?: string;
+  requesterId: string;
+  resourceType: string;
+  resourceId: string;
+  levels: Array<{
+    levelIndex?: number;
+    approverIds?: string[];
+    requiredApprovals?: number;
+  }>;
+  mode?: ApprovalMode;
+  metadata?: Record<string, unknown>;
+  tenantId?: string;
+}
+
+interface ReviewRequestBody {
+  reviewerId: string;
+  action: 'approve' | 'reject';
+  comment?: string;
+}
+
+interface ListQueryParams {
+  tenantId?: string;
+  userId?: string;
+}
+
+interface EmergencyApprovalRequestBody {
+  title: string;
+  description: string;
+  requesterId: string;
+  resourceType: string;
+  resourceId: string;
+  reason: EmergencyReason;
+  impactDescription: string;
+  approverIds: string[] | string;
+  metadata?: Record<string, unknown>;
+  tenantId?: string;
+}
+
+interface TemplateRequestBody {
+  name: string;
+  description?: string;
+  resourceType: string;
+  levels: Array<{
+    levelIndex?: number;
+    approverIds?: string[];
+    requiredApprovals?: number;
+  }>;
+  mode?: ApprovalMode;
+  isDefault?: boolean;
+  tenantId?: string;
+}
+
+interface FastifyRequestWithAuth extends FastifyRequest {
+  tenantId?: string;
+  userId?: string;
+}
+
 export class ApprovalController {
   private multiLevelService: MultiLevelApprovalService;
   private emergencyService: EmergencyApprovalService;
@@ -31,7 +92,7 @@ export class ApprovalController {
    */
   async submitApprovalRequest(request: FastifyRequest, reply: FastifyReply) {
     try {
-      const body = request.body as any;
+      const body = request.body as ApprovalRequestBody;
       const { title, description, requesterId, resourceType, resourceId, levels, mode } = body;
 
       if (!title || !requesterId || !resourceType || !resourceId || !levels || !Array.isArray(levels) || levels.length === 0) {
@@ -41,7 +102,8 @@ export class ApprovalController {
         });
       }
 
-      const tenantId = (request as any).tenantId || body.tenantId || 'default';
+      const authRequest = request as FastifyRequestWithAuth;
+      const tenantId = authRequest.tenantId || body.tenantId || 'default';
 
       const input: ApprovalRequestInput = {
         title,
@@ -49,7 +111,7 @@ export class ApprovalController {
         requesterId,
         resourceType,
         resourceId,
-        levels: levels.map((l: any, i: number) => ({
+        levels: levels.map((l, i) => ({
           levelIndex: l.levelIndex ?? i,
           approverIds: l.approverIds || [],
           requiredApprovals: l.requiredApprovals || 1,
@@ -60,8 +122,9 @@ export class ApprovalController {
 
       const result = await this.multiLevelService.submitApprovalRequest(tenantId, input);
       return reply.status(201).send({ success: true, data: result });
-    } catch (error: any) {
-      return reply.status(500).send({ error: 'SUBMIT_ERROR', message: error.message });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'SUBMIT_ERROR';
+      return reply.status(500).send({ error: 'SUBMIT_ERROR', message });
     }
   }
 
@@ -71,8 +134,9 @@ export class ApprovalController {
    */
   async listApprovalRequests(request: FastifyRequest, reply: FastifyReply) {
     try {
-      const query = request.query as any;
-      const tenantId = query.tenantId || (request as any).tenantId || 'default';
+      const query = request.query as ListQueryParams;
+      const authRequest = request as FastifyRequestWithAuth;
+      const tenantId = query.tenantId || authRequest.tenantId || 'default';
 
       // Reuse listPending from the existing approval-routes approach
       // For full listing, we return pending approvals for the tenant
@@ -81,8 +145,9 @@ export class ApprovalController {
         success: true,
         message: 'Use /approvals/pending for pending items, /approvals/requests/:id for details',
       });
-    } catch (error: any) {
-      return reply.status(500).send({ error: 'LIST_ERROR', message: error.message });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'LIST_ERROR';
+      return reply.status(500).send({ error: 'LIST_ERROR', message });
     }
   }
 
@@ -95,11 +160,12 @@ export class ApprovalController {
       const { id } = request.params as { id: string };
       const chain = await this.multiLevelService.getApprovalChain(id);
       return reply.status(200).send({ success: true, data: chain });
-    } catch (error: any) {
-      if (error.message.includes('not found')) {
-        return reply.status(404).send({ error: 'NOT_FOUND', message: error.message });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'GET_ERROR';
+      if (message.includes('not found')) {
+        return reply.status(404).send({ error: 'NOT_FOUND', message });
       }
-      return reply.status(500).send({ error: 'GET_ERROR', message: error.message });
+      return reply.status(500).send({ error: 'GET_ERROR', message });
     }
   }
 
@@ -110,7 +176,7 @@ export class ApprovalController {
   async reviewApproval(request: FastifyRequest, reply: FastifyReply) {
     try {
       const { id } = request.params as { id: string };
-      const body = request.body as any;
+      const body = request.body as ReviewRequestBody;
       const { reviewerId, action, comment } = body;
 
       if (!reviewerId || !action) {
@@ -130,11 +196,12 @@ export class ApprovalController {
       const approvalAction = action === 'approve' ? ApprovalAction.APPROVE : ApprovalAction.REJECT;
       const result = await this.multiLevelService.review(id, reviewerId, approvalAction, comment);
       return reply.status(200).send({ success: true, data: result });
-    } catch (error: any) {
-      if (error.message.includes('not found') || error.message.includes('Not authorized') || error.message.includes('not pending')) {
-        return reply.status(400).send({ error: 'REVIEW_ERROR', message: error.message });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'REVIEW_ERROR';
+      if (message.includes('not found') || message.includes('Not authorized') || message.includes('not pending')) {
+        return reply.status(400).send({ error: 'REVIEW_ERROR', message });
       }
-      return reply.status(500).send({ error: 'REVIEW_ERROR', message: error.message });
+      return reply.status(500).send({ error: 'REVIEW_ERROR', message });
     }
   }
 
@@ -144,9 +211,10 @@ export class ApprovalController {
    */
   async getPendingApprovals(request: FastifyRequest, reply: FastifyReply) {
     try {
-      const query = request.query as any;
-      const userId = query.userId || (request as any).userId;
-      const tenantId = query.tenantId || (request as any).tenantId || 'default';
+      const query = request.query as ListQueryParams;
+      const authRequest = request as FastifyRequestWithAuth;
+      const userId = query.userId || authRequest.userId;
+      const tenantId = query.tenantId || authRequest.tenantId || 'default';
 
       if (!userId) {
         return reply.status(400).send({
@@ -157,8 +225,9 @@ export class ApprovalController {
 
       const pending = await this.multiLevelService.getPendingApprovals(userId, tenantId);
       return reply.status(200).send({ success: true, data: pending });
-    } catch (error: any) {
-      return reply.status(500).send({ error: 'PENDING_ERROR', message: error.message });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'PENDING_ERROR';
+      return reply.status(500).send({ error: 'PENDING_ERROR', message });
     }
   }
 
@@ -170,7 +239,7 @@ export class ApprovalController {
    */
   async requestEmergencyApproval(request: FastifyRequest, reply: FastifyReply) {
     try {
-      const body = request.body as any;
+      const body = request.body as EmergencyApprovalRequestBody;
       const { title, description, requesterId, resourceType, resourceId, reason, impactDescription, approverIds } = body;
 
       if (!title || !description || !requesterId || !resourceType || !resourceId || !reason || !impactDescription || !approverIds) {
@@ -180,7 +249,8 @@ export class ApprovalController {
         });
       }
 
-      const tenantId = (request as any).tenantId || body.tenantId || 'default';
+      const authRequest = request as FastifyRequestWithAuth;
+      const tenantId = authRequest.tenantId || body.tenantId || 'default';
 
       const input: EmergencyApprovalInput = {
         title,
@@ -196,8 +266,9 @@ export class ApprovalController {
 
       const result = await this.emergencyService.requestEmergencyApproval(tenantId, input);
       return reply.status(201).send({ success: true, data: result });
-    } catch (error: any) {
-      return reply.status(500).send({ error: 'EMERGENCY_ERROR', message: error.message });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'EMERGENCY_ERROR';
+      return reply.status(500).send({ error: 'EMERGENCY_ERROR', message });
     }
   }
 
@@ -209,7 +280,7 @@ export class ApprovalController {
    */
   async createTemplate(request: FastifyRequest, reply: FastifyReply) {
     try {
-      const body = request.body as any;
+      const body = request.body as TemplateRequestBody;
       const { name, description, resourceType, levels, mode, isDefault } = body;
 
       if (!name || !resourceType || !levels || !Array.isArray(levels)) {
@@ -219,13 +290,14 @@ export class ApprovalController {
         });
       }
 
-      const tenantId = (request as any).tenantId || body.tenantId || 'default';
+      const authRequest = request as FastifyRequestWithAuth;
+      const tenantId = authRequest.tenantId || body.tenantId || 'default';
 
       const input: ApprovalTemplateInput = {
         name,
         description,
         resourceType,
-        levels: levels.map((l: any, i: number) => ({
+        levels: levels.map((l, i) => ({
           levelIndex: l.levelIndex ?? i,
           approverIds: l.approverIds || [],
           requiredApprovals: l.requiredApprovals || 1,
@@ -236,8 +308,9 @@ export class ApprovalController {
 
       const template = await this.templateService.createTemplate(tenantId, input);
       return reply.status(201).send({ success: true, data: template });
-    } catch (error: any) {
-      return reply.status(500).send({ error: 'TEMPLATE_ERROR', message: error.message });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'TEMPLATE_ERROR';
+      return reply.status(500).send({ error: 'TEMPLATE_ERROR', message });
     }
   }
 
@@ -247,13 +320,15 @@ export class ApprovalController {
    */
   async getTemplates(request: FastifyRequest, reply: FastifyReply) {
     try {
-      const query = request.query as any;
-      const tenantId = query.tenantId || (request as any).tenantId || 'default';
+      const query = request.query as ListQueryParams;
+      const authRequest = request as FastifyRequestWithAuth;
+      const tenantId = query.tenantId || authRequest.tenantId || 'default';
 
       const templates = await this.templateService.getTemplates(tenantId);
       return reply.status(200).send({ success: true, data: templates });
-    } catch (error: any) {
-      return reply.status(500).send({ error: 'TEMPLATES_ERROR', message: error.message });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'TEMPLATES_ERROR';
+      return reply.status(500).send({ error: 'TEMPLATES_ERROR', message });
     }
   }
 }

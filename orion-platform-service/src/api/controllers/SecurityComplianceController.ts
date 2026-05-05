@@ -15,6 +15,73 @@ import {
   AuditPlanInput,
 } from '../../services/security/SecurityAuditService';
 
+// ==================== Request/Response Types ====================
+
+interface DefinePolicyBody {
+  name: string;
+  description?: string;
+  frameworkType: string;
+  requirements?: unknown[];
+  rules?: unknown[];
+  severityThreshold?: string;
+  createdBy?: string;
+}
+
+interface EvaluateComplianceBody {
+  policyId: string;
+}
+
+interface ListPoliciesQuery {
+  frameworkType?: string;
+}
+
+interface RemediateComplianceBody {
+  gaps: Array<{ gapId: string; evaluationId: string }>;
+}
+
+interface CreateAuditPlanBody {
+  name: string;
+  description?: string;
+  scope?: Record<string, unknown>;
+  auditType: string;
+  scheduleType?: string;
+  cronExpression?: string;
+  reviewers?: string[];
+  createdBy?: string;
+}
+
+interface AuditParams {
+  id: string;
+}
+
+interface PolicyParams {
+  policyId: string;
+}
+
+interface FrameworkParams {
+  id: string;
+}
+
+interface CloseFindingBody {
+  resolution?: string;
+}
+
+interface CollectEvidenceBody {
+  policyId: string;
+  controlId: string;
+  evidenceType: 'document' | 'screenshot' | 'log' | 'config' | 'automated';
+  description: string;
+  source?: string;
+}
+
+interface GenerateEvidenceBody {
+  frameworkId: string;
+}
+
+interface GapAnalysisBody {
+  frameworkId: string;
+}
+
 export class SecurityComplianceController {
   private complianceService: ComplianceFrameworkService;
   private auditService: SecurityAuditService;
@@ -33,7 +100,7 @@ export class SecurityComplianceController {
   async definePolicy(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
-      const body = request.body as any || {};
+      const body = request.body as DefinePolicyBody;
 
       const { name, description, frameworkType, requirements, rules, severityThreshold, createdBy } = body;
 
@@ -80,7 +147,7 @@ export class SecurityComplianceController {
   async listPolicies(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
-      const query = request.query as any;
+      const query = request.query as ListPoliciesQuery;
       const frameworkType = query?.frameworkType;
 
       const policies = await this.complianceService.listPolicies(tenantId, frameworkType);
@@ -114,7 +181,7 @@ export class SecurityComplianceController {
   async evaluateCompliance(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
-      const body = request.body as any || {};
+      const body = request.body as EvaluateComplianceBody;
       const { policyId } = body;
 
       if (!policyId) {
@@ -157,7 +224,7 @@ export class SecurityComplianceController {
   async getComplianceReport(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
-      const params = request.params as any;
+      const params = request.params as PolicyParams;
       const { policyId } = params;
 
       const report = await this.complianceService.getComplianceReport(tenantId, policyId);
@@ -227,7 +294,7 @@ export class SecurityComplianceController {
   async autoRemediateCompliance(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
-      const body = request.body as any || {};
+      const body = request.body as RemediateComplianceBody;
       const { gaps } = body;
 
       if (!gaps || !Array.isArray(gaps)) {
@@ -269,7 +336,7 @@ export class SecurityComplianceController {
   async createAuditPlan(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
-      const body = request.body as any || {};
+      const body = request.body as CreateAuditPlanBody;
 
       const { name, description, scope, auditType, scheduleType, cronExpression, reviewers, createdBy } = body;
 
@@ -350,7 +417,7 @@ export class SecurityComplianceController {
   async executeAudit(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
-      const params = request.params as any;
+      const params = request.params as AuditParams;
       const { id } = params;
 
       const execution = await this.auditService.executeAudit(tenantId, id);
@@ -382,7 +449,7 @@ export class SecurityComplianceController {
   async getAuditReport(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
-      const params = request.params as any;
+      const params = request.params as AuditParams;
       const { id } = params;
 
       const report = await this.auditService.generateAuditReport(tenantId, id);
@@ -430,7 +497,7 @@ export class SecurityComplianceController {
   async getAuditFindings(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
-      const params = request.params as any;
+      const params = request.params as AuditParams;
       const { id } = params;
 
       const findings = await this.auditService.trackAuditFindings(tenantId, id);
@@ -467,8 +534,8 @@ export class SecurityComplianceController {
   async closeFinding(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
-      const params = request.params as any;
-      const body = request.body as any || {};
+      const params = request.params as AuditParams;
+      const body = request.body as CloseFindingBody;
       const { id } = params;
       const { resolution } = body;
 
@@ -517,7 +584,7 @@ export class SecurityComplianceController {
    */
   async getFramework(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const params = request.params as any;
+      const params = request.params as FrameworkParams;
       const { id } = params;
       const framework = await this.complianceService.getFramework(id);
       if (!framework) {
@@ -545,7 +612,7 @@ export class SecurityComplianceController {
   async collectEvidence(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
-      const body = request.body as any || {};
+      const body = request.body as CollectEvidenceBody;
       const { policyId, controlId, evidenceType, description, source } = body;
 
       if (!policyId || !controlId || !evidenceType || !description) {
@@ -577,7 +644,7 @@ export class SecurityComplianceController {
    */
   async getEvidence(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const params = request.params as any;
+      const params = request.params as PolicyParams;
       const { policyId } = params;
 
       const evidence = await this.complianceService.getEvidence(policyId);
@@ -601,7 +668,7 @@ export class SecurityComplianceController {
   async generateEvidenceCollection(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
-      const body = request.body as any || {};
+      const body = request.body as GenerateEvidenceBody;
       const { frameworkId } = body;
 
       if (!frameworkId) {
@@ -634,7 +701,7 @@ export class SecurityComplianceController {
   async performGapAnalysis(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
-      const body = request.body as any || {};
+      const body = request.body as GapAnalysisBody;
       const { frameworkId } = body;
 
       if (!frameworkId) {

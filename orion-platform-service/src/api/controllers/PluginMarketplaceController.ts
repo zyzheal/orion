@@ -5,6 +5,7 @@
  */
 
 import { FastifyRequest, FastifyReply } from 'fastify';
+import { BaseController } from './BaseController';
 import {
   PluginMarketplaceService,
   ListPluginsFilter,
@@ -17,11 +18,59 @@ import {
   PluginPackage,
 } from '../../services/plugin-marketplace/PluginValidator';
 
-export class PluginMarketplaceController {
+// --- Request body interfaces ---
+
+interface PublishPluginBody {
+  name?: string;
+  description?: string;
+  author?: string;
+  category?: string;
+  version?: string;
+  tags?: string[];
+  icon_url?: string;
+  repository_url?: string;
+  documentation_url?: string;
+  price_cents?: number;
+  code?: string;
+  main?: string;
+  dependencies?: Record<string, string>;
+  platform_api_version?: string;
+  permissions?: string[];
+  config_schema?: Record<string, unknown>;
+  tenantId?: string;
+}
+
+interface InstallPluginBody {
+  version?: string;
+  tenantId?: string;
+}
+
+interface ReviewPluginBody {
+  rating?: number | string;
+  comment?: string;
+  userId?: string;
+}
+
+// --- Query / params interfaces ---
+
+interface ListPluginsQuery extends Record<string, string | undefined> {
+  category?: string;
+  verified?: string;
+  search?: string;
+  limit?: string;
+  offset?: string;
+}
+
+interface PluginIdParams extends Record<string, string> {
+  id: string;
+}
+
+export class PluginMarketplaceController extends BaseController {
   private service: PluginMarketplaceService;
   private validator: PluginValidator;
 
   constructor(service: PluginMarketplaceService, validator?: PluginValidator) {
+    super();
     this.service = service;
     this.validator = validator ?? new PluginValidator();
   }
@@ -31,21 +80,21 @@ export class PluginMarketplaceController {
    */
   async publishPlugin(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const body = request.body as any;
-      const tenantId = (request as any).user?.tenantId || body.tenantId;
+      const body = this.getBody<PublishPluginBody>(request);
+      const tenantId = this.getTenantId(request) || body.tenantId;
 
       if (!tenantId) {
-        reply.status(400).send({ success: false, error: 'tenantId is required' });
+        this.sendBadRequest(reply, 'tenantId is required');
         return;
       }
 
       const input: PublishPluginInput = {
-        name: body.name,
-        description: body.description,
-        author: body.author,
-        category: body.category,
-        version: body.version,
-        tags: body.tags,
+        name: body.name ?? '',
+        description: body.description ?? '',
+        author: body.author ?? '',
+        category: body.category ?? '',
+        version: body.version ?? '',
+        tags: body.tags ?? [],
         icon_url: body.icon_url,
         repository_url: body.repository_url,
         documentation_url: body.documentation_url,
@@ -54,10 +103,7 @@ export class PluginMarketplaceController {
 
       // Validate required fields
       if (!input.name || !input.version || !input.description || !input.category) {
-        reply.status(400).send({
-          success: false,
-          error: 'Missing required fields: name, version, description, category',
-        });
+        this.sendBadRequest(reply, 'Missing required fields: name, version, description, category');
         return;
       }
 
@@ -102,11 +148,8 @@ export class PluginMarketplaceController {
         data: plugin,
         message: 'Plugin published successfully',
       });
-    } catch (error: any) {
-      reply.status(500).send({
-        success: false,
-        error: error.message || 'Failed to publish plugin',
-      });
+    } catch (error: unknown) {
+      this.handleError(reply, error);
     }
   }
 
@@ -115,7 +158,7 @@ export class PluginMarketplaceController {
    */
   async listPlugins(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const query = request.query as any;
+      const query = this.getQuery<ListPluginsQuery>(request);
 
       const filter: ListPluginsFilter = {
         category: query.category,
@@ -134,11 +177,8 @@ export class PluginMarketplaceController {
         limit: filter.limit ?? 50,
         offset: filter.offset ?? 0,
       });
-    } catch (error: any) {
-      reply.status(500).send({
-        success: false,
-        error: error.message || 'Failed to list plugins',
-      });
+    } catch (error: unknown) {
+      this.handleError(reply, error);
     }
   }
 
@@ -147,15 +187,12 @@ export class PluginMarketplaceController {
    */
   async getPlugin(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const params = request.params as any;
+      const params = this.getParams<PluginIdParams>(request);
       const pluginId = params.id;
 
       const plugin = await this.service.getPlugin(pluginId);
       if (!plugin) {
-        reply.status(404).send({
-          success: false,
-          error: 'Plugin not found',
-        });
+        this.sendNotFound(reply, 'Plugin', pluginId);
         return;
       }
 
@@ -163,11 +200,8 @@ export class PluginMarketplaceController {
         success: true,
         data: plugin,
       });
-    } catch (error: any) {
-      reply.status(500).send({
-        success: false,
-        error: error.message || 'Failed to get plugin',
-      });
+    } catch (error: unknown) {
+      this.handleError(reply, error);
     }
   }
 
@@ -176,15 +210,12 @@ export class PluginMarketplaceController {
    */
   async installPlugin(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const params = request.params as any;
-      const body = request.body as any;
+      const params = this.getParams<PluginIdParams>(request);
+      const body = this.getBody<InstallPluginBody>(request);
 
-      const tenantId = (request as any).user?.tenantId || body.tenantId;
+      const tenantId = this.getTenantId(request) || body.tenantId;
       if (!tenantId) {
-        reply.status(400).send({
-          success: false,
-          error: 'tenantId is required',
-        });
+        this.sendBadRequest(reply, 'tenantId is required');
         return;
       }
 
@@ -194,18 +225,15 @@ export class PluginMarketplaceController {
         version: body.version,
       };
 
-      const install = await this.service.installPlugin(input);
+      const install = await this.service.installPlugin(input, tenantId);
 
       reply.status(201).send({
         success: true,
         data: install,
         message: 'Plugin installed successfully',
       });
-    } catch (error: any) {
-      reply.status(400).send({
-        success: false,
-        error: error.message || 'Failed to install plugin',
-      });
+    } catch (error: unknown) {
+      this.handleError(reply, error);
     }
   }
 
@@ -214,30 +242,25 @@ export class PluginMarketplaceController {
    */
   async ratePlugin(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const params = request.params as any;
-      const body = request.body as any;
+      const params = this.getParams<PluginIdParams>(request);
+      const body = this.getBody<ReviewPluginBody>(request);
 
-      const userId = (request as any).user?.id || body.userId;
+      const userId = this.getUser(request)?.userId || body.userId;
       if (!userId) {
-        reply.status(400).send({
-          success: false,
-          error: 'userId is required',
-        });
+        this.sendBadRequest(reply, 'userId is required');
         return;
       }
 
-      if (!body.rating || body.rating < 1 || body.rating > 5) {
-        reply.status(400).send({
-          success: false,
-          error: 'Rating must be between 1 and 5',
-        });
+      const rating = typeof body.rating === 'string' ? parseInt(body.rating, 10) : (body.rating ?? 0);
+      if (!body.rating || rating < 1 || rating > 5) {
+        this.sendBadRequest(reply, 'Rating must be between 1 and 5');
         return;
       }
 
       const input: ReviewPluginInput = {
         plugin_id: params.id,
         user_id: userId,
-        rating: parseInt(body.rating, 10),
+        rating,
         comment: body.comment,
       };
 
@@ -248,11 +271,8 @@ export class PluginMarketplaceController {
         data: review,
         message: 'Review submitted successfully',
       });
-    } catch (error: any) {
-      reply.status(400).send({
-        success: false,
-        error: error.message || 'Failed to submit review',
-      });
+    } catch (error: unknown) {
+      this.handleError(reply, error);
     }
   }
 
@@ -261,26 +281,20 @@ export class PluginMarketplaceController {
    */
   async getPluginQualityScore(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const params = request.params as any;
-      const pluginId = params.id;
+      const params = this.getParams<PluginIdParams>(request);
 
-      const score = await this.service.getPluginQualityScore(pluginId);
+      const score = await this.service.getPluginQualityScore(params.id);
 
       reply.send({
         success: true,
         data: score,
       });
-    } catch (error: any) {
-      if (error.message === 'Plugin not found') {
-        reply.status(404).send({
-          success: false,
-          error: 'Plugin not found',
-        });
+    } catch (error: unknown) {
+      if (error instanceof Error && error.message === 'Plugin not found') {
+        const params = this.getParams<PluginIdParams>(request);
+        this.sendNotFound(reply, 'Plugin', params.id);
       } else {
-        reply.status(500).send({
-          success: false,
-          error: error.message || 'Failed to get quality score',
-        });
+        this.handleError(reply, error);
       }
     }
   }

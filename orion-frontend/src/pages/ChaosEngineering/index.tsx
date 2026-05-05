@@ -78,12 +78,14 @@ const ChaosEngineering: React.FC = () => {
   const [experiments, setExperiments] = useState<ChaosExperiment[]>([]);
   const [score, setScore] = useState<ResilienceScore | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [createModal, setCreateModal] = useState(false);
   const [detailDrawer, setDetailDrawer] = useState(false);
   const [selectedExperiment, setSelectedExperiment] = useState<ChaosExperiment | null>(null);
   const [form] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
   const [runningId, setRunningId] = useState<string | null>(null);
+  const [runError, setRunError] = useState<string | null>(null);
 
   useEffect(() => {
     loadData();
@@ -91,6 +93,7 @@ const ChaosEngineering: React.FC = () => {
 
   const loadData = async () => {
     setLoading(true);
+    setError(null);
     try {
       const [expResponse, scoreData] = await Promise.all([
         chaosApi.listExperiments(),
@@ -98,8 +101,10 @@ const ChaosEngineering: React.FC = () => {
       ]);
       setExperiments(expResponse.data || []);
       setScore(scoreData);
-    } catch (error: unknown) {
-      message.error(`加载数据失败: ${(error as Error).message}`);
+    } catch (err: unknown) {
+      const errorMsg = (err as Error).message || '未知错误';
+      setError(`加载数据失败: ${errorMsg}`);
+      message.error(`加载数据失败: ${errorMsg}`);
     } finally {
       setLoading(false);
     }
@@ -107,12 +112,15 @@ const ChaosEngineering: React.FC = () => {
 
   const handleRunExperiment = async (experimentId: string) => {
     setRunningId(experimentId);
+    setRunError(null);
     try {
       await chaosApi.runExperiment(experimentId);
       message.success('混沌实验已启动');
       loadData();
-    } catch (error: unknown) {
-      message.error(`启动实验失败: ${(error as Error).message}`);
+    } catch (err: unknown) {
+      const errorMsg = (err as Error).message || '未知错误';
+      setRunError(`启动实验失败: ${errorMsg}`);
+      message.error(`启动实验失败: ${errorMsg}`);
     } finally {
       setRunningId(null);
     }
@@ -283,7 +291,43 @@ const ChaosEngineering: React.FC = () => {
           </Title>
           <Text type="secondary">故障注入实验与系统弹性测试</Text>
         </div>
+        <Space>
+          {error && (
+            <Button danger size="small" onClick={() => setError(null)}>
+              清除错误提示
+            </Button>
+          )}
+          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+            刷新
+          </Button>
+        </Space>
       </div>
+
+      {/* Error display */}
+      {error && (
+        <Alert
+          message="加载失败"
+          description={error}
+          type="error"
+          showIcon
+          closable
+          onClose={() => setError(null)}
+          style={{ marginBottom: 16 }}
+        />
+      )}
+
+      {/* Run error display */}
+      {runError && (
+        <Alert
+          message="实验运行失败"
+          description={runError}
+          type="error"
+          showIcon
+          closable
+          onClose={() => setRunError(null)}
+          style={{ marginBottom: 16 }}
+        />
+      )}
 
       {/* Resilience Score */}
       <Card

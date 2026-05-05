@@ -10,7 +10,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import {
   Card,
   Form,
@@ -62,6 +62,8 @@ const policyLabelMap: Record<string, string> = {
 
 const PipelineBudget: React.FC = () => {
   const { pipelineId } = useParams<{ pipelineId: string }>();
+  const [searchParams] = useSearchParams();
+  const runId = searchParams.get('runId') || undefined;
   const [config, setConfig] = useState<BudgetConfig | null>(null);
   const [usage, setUsage] = useState<BudgetUsage | null>(null);
   const [loading, setLoading] = useState(false);
@@ -70,7 +72,7 @@ const PipelineBudget: React.FC = () => {
 
   useEffect(() => {
     loadBudget();
-  }, [pipelineId]);
+  }, [pipelineId, runId]);
 
   const loadBudget = async () => {
     if (!pipelineId) return;
@@ -79,11 +81,26 @@ const PipelineBudget: React.FC = () => {
       const budgetConfig = await pipelineBudgetApi.get(pipelineId);
       setConfig(budgetConfig || {});
       form.setFieldsValue(budgetConfig || {});
-      setUsage(null);
+      // Load usage data if runId is available
+      if (runId) {
+        await loadUsage(runId);
+      } else {
+        setUsage(null);
+      }
     } catch (error: unknown) {
       message.error(`加载预算配置失败: ${(error as Error).message}`);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadUsage = async (rid: string) => {
+    if (!pipelineId || !rid) return;
+    try {
+      const usageData = await pipelineBudgetApi.getUsage(pipelineId, rid);
+      setUsage(usageData);
+    } catch (error: unknown) {
+      message.error(`加载预算使用数据失败: ${(error as Error).message}`);
     }
   };
 

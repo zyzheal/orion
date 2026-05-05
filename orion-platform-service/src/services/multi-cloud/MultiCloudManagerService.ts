@@ -5,6 +5,7 @@
  */
 
 import { DatabasePool } from '../database';
+import { MultiCloudRepository, CloudAccountEntity, CloudResourceEntity } from '../../repositories/MultiCloudRepository';
 
 export interface CloudProvider {
   id: string;
@@ -62,13 +63,61 @@ export interface CloudCostComparison {
   currency: string;
 }
 
+/**
+ * Deterministic resource inventory templates per provider.
+ * Replaces Math.random()-based seeding.
+ */
+const RESOURCE_TEMPLATES: Record<string, {
+  vm: { instance_type: string; cost_per_hour: number };
+  storage: { instance_type: string; cost_per_hour: number };
+  network: { instance_type: string; cost_per_hour: number };
+  database: { instance_type: string; cost_per_hour: number };
+  container: { instance_type: string; cost_per_hour: number };
+}> = {
+  aws: {
+    vm: { instance_type: 't3.large', cost_per_hour: 0.096 },
+    storage: { instance_type: 'gp3', cost_per_hour: 0.02 },
+    network: { instance_type: 'load_balancer', cost_per_hour: 0.025 },
+    database: { instance_type: 'db.r6g.large', cost_per_hour: 0.35 },
+    container: { instance_type: 'k8s_nodes', cost_per_hour: 0.15 },
+  },
+  gcp: {
+    vm: { instance_type: 'n2-standard-4', cost_per_hour: 0.084 },
+    storage: { instance_type: 'pd-ssd', cost_per_hour: 0.02 },
+    network: { instance_type: 'load_balancer', cost_per_hour: 0.025 },
+    database: { instance_type: 'db-n1-standard-4', cost_per_hour: 0.32 },
+    container: { instance_type: 'k8s_nodes', cost_per_hour: 0.14 },
+  },
+  azure: {
+    vm: { instance_type: 'Standard_D4s_v3', cost_per_hour: 0.092 },
+    storage: { instance_type: 'premium_ssd', cost_per_hour: 0.02 },
+    network: { instance_type: 'load_balancer', cost_per_hour: 0.025 },
+    database: { instance_type: 'Standard_DS3_v2', cost_per_hour: 0.34 },
+    container: { instance_type: 'aks_nodes', cost_per_hour: 0.145 },
+  },
+  alicloud: {
+    vm: { instance_type: 'ecs.s6.large', cost_per_hour: 0.072 },
+    storage: { instance_type: 'cloud_essd', cost_per_hour: 0.018 },
+    network: { instance_type: 'slb', cost_per_hour: 0.02 },
+    database: { instance_type: 'mysql.x2.large.2c', cost_per_hour: 0.28 },
+    container: { instance_type: 'ack_nodes', cost_per_hour: 0.12 },
+  },
+  private: {
+    vm: { instance_type: 'bare_metal', cost_per_hour: 0.06 },
+    storage: { instance_type: 'nfs', cost_per_hour: 0.01 },
+    network: { instance_type: 'hardware_lb', cost_per_hour: 0.015 },
+    database: { instance_type: 'self_hosted_mysql', cost_per_hour: 0.2 },
+    container: { instance_type: 'onprem_k8s', cost_per_hour: 0.1 },
+  },
+};
+
 export class MultiCloudManagerService {
   private pool: DatabasePool;
-  private cloudAccounts: Map<string, CloudAccount> = new Map();
-  private resourceInventory: Map<string, ResourceInventory> = new Map();
+  private repository: MultiCloudRepository;
 
   constructor(pool: DatabasePool) {
     this.pool = pool;
+    this.repository = new MultiCloudRepository(pool);
   }
 
   async registerProvider(input: { tenant_id: string; name: string; type: string; region: string; credentials_ref: string }): Promise<CloudProvider> {
@@ -105,7 +154,6 @@ export class MultiCloudManagerService {
   }
 
   async failover(deploymentId: string, targetProviderId: string): Promise<{ success: boolean }> {
-    // Update primary provider
     await this.pool.query(
       `UPDATE multi_cloud_deployments SET primary_provider = $2 WHERE id = $1`,
       [deploymentId, targetProviderId]
@@ -122,73 +170,97 @@ export class MultiCloudManagerService {
     credentials_ref: string;
     metadata?: Record<string, any>;
   }): Promise<CloudAccount> {
-    const id = `cloud-acc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const account: CloudAccount = {
-      id,
+    const accountId = `cloud-acc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+    const accountEntity = await this.repository.createCloudAccount({
       tenant_id: tenantId,
-      name: input.name,
-      provider: input.provider as CloudAccount['provider'],
+      account_name: input.name,
+      account_id: accountId,
+      credential_type: 'access_key',
+      credential_ref: input.credentials_ref,
       region: input.region,
-      status: 'active',
-      credentials_ref: input.credentials_ref,
-      created_at: new Date(),
-      metadata: input.metadata || {},
-    };
-    this.cloudAccounts.set(id, account);
+      tags: input.metadata || {},
+    });
 
-    // Seed mock resource inventory for this account
-    this.seedResourceInventory(id, input.provider, input.region);
+    // Seed deterministic resource inventory for this account
+    await this.seedResourceInventory(tenantId, accountEntity.id, input.provider, input.region);
 
-    return account;
+    return this.mapEntityToCloudAccount(accountEntity, input);
   }
 
-  async removeCloudAccount(accountId: string): Promise<boolean> {
-    const existed = this.cloudAccounts.delete(accountId);
-    // Also remove associated inventory
-    for (const [key, inv] of this.resourceInventory.entries()) {
-      if (inv.account_id === accountId) {
-        this.resourceInventory.delete(key);
-      }
+  async removeCloudAccount(accountId: string, tenantId: string): Promise<boolean> {
+    const deleted = await this.repository.deleteCloudAccount(accountId, tenantId);
+    if (deleted) {
+      await this.repository.deleteResourcesByAccount(accountId, tenantId);
     }
-    return existed;
+    return deleted;
   }
 
   async listCloudAccounts(tenantId: string): Promise<CloudAccount[]> {
-    return Array.from(this.cloudAccounts.values()).filter(a => a.tenant_id === tenantId);
+    const entities = await this.repository.findAccountsByTenant(tenantId);
+    return entities.map(e => this.mapEntityToCloudAccount(e, e.tags));
   }
 
   async getCloudAccount(accountId: string): Promise<CloudAccount | null> {
-    return this.cloudAccounts.get(accountId) || null;
+    const entity = await this.repository.findAccountById(accountId);
+    if (!entity) return null;
+    return this.mapEntityToCloudAccount(entity, entity.tags);
   }
 
   // ==================== Resource Inventory ====================
 
-  private seedResourceInventory(accountId: string, provider: string, region: string): void {
-    const resources: ResourceInventory[] = [
-      { id: `res-${accountId}-vm`, account_id: accountId, provider, region, resource_type: 'vm', instance_type: provider === 'aws' ? 't3.large' : provider === 'gcp' ? 'n2-standard-4' : 'ecs.s6.large', count: Math.floor(Math.random() * 10) + 2, status: 'running', cost_per_hour: 0.08 + Math.random() * 0.1 },
-      { id: `res-${accountId}-storage`, account_id: accountId, provider, region, resource_type: 'storage', instance_type: provider === 'aws' ? 'gp3' : provider === 'gcp' ? 'pd-ssd' : 'cloud_essd', count: 5, status: 'running', cost_per_hour: 0.02 },
-      { id: `res-${accountId}-network`, account_id: accountId, provider, region, resource_type: 'network', instance_type: 'load_balancer', count: 2, status: 'running', cost_per_hour: 0.025 },
-      { id: `res-${accountId}-db`, account_id: accountId, provider, region, resource_type: 'database', instance_type: provider === 'aws' ? 'db.r6g.large' : provider === 'gcp' ? 'db-n1-standard-4' : 'mysql.x2.large.2c', count: 1, status: 'running', cost_per_hour: 0.35 },
-      { id: `res-${accountId}-container`, account_id: accountId, provider, region, resource_type: 'container', instance_type: 'k8s_nodes', count: 3, status: 'running', cost_per_hour: 0.15 },
+  private async seedResourceInventory(
+    tenantId: string,
+    accountId: string,
+    provider: string,
+    region: string,
+  ): Promise<void> {
+    const templates = RESOURCE_TEMPLATES[provider] || RESOURCE_TEMPLATES.private;
+    const resourceTypes: Array<{ key: keyof typeof templates; type: ResourceInventory['resource_type']; count: number }> = [
+      { key: 'vm', type: 'vm', count: 5 },
+      { key: 'storage', type: 'storage', count: 5 },
+      { key: 'network', type: 'network', count: 2 },
+      { key: 'database', type: 'database', count: 1 },
+      { key: 'container', type: 'container', count: 3 },
     ];
-    resources.forEach(r => this.resourceInventory.set(r.id, r));
+
+    for (const rt of resourceTypes) {
+      const tpl = templates[rt.key];
+      await this.repository.createResource({
+        tenant_id: tenantId,
+        account_id: accountId,
+        resource_type: rt.type,
+        resource_id: `res-${accountId}-${rt.key}`,
+        resource_name: `${provider}-${rt.type}`,
+        region,
+        state: 'running',
+        spec: { instance_type: tpl.instance_type, count: rt.count },
+        monthly_cost: Math.round(tpl.cost_per_hour * rt.count * 730 * 100) / 100,
+        tags: { provider, resource_type: rt.type },
+      });
+    }
   }
 
   async getResourceInventory(tenantId: string, accountId?: string): Promise<ResourceInventory[]> {
-    let items = Array.from(this.resourceInventory.values());
-    if (accountId) {
-      items = items.filter(i => i.account_id === accountId);
-    }
-    // Filter by tenant - only return inventory for accounts owned by tenant
-    const tenantAccountIds = new Set(
-      Array.from(this.cloudAccounts.values())
-        .filter(a => a.tenant_id === tenantId)
-        .map(a => a.id)
-    );
-    if (!accountId) {
-      items = items.filter(i => tenantAccountIds.has(i.account_id));
-    }
-    return items;
+    const resourceEntities = await this.repository.findResourcesByTenant(tenantId, accountId);
+
+    return resourceEntities.map(r => {
+      const provider = r.tags?.provider || 'unknown';
+      const count = r.spec?.count || 1;
+      const hoursPerMonth = 730;
+      const costPerHour = r.monthly_cost > 0 ? Math.round((r.monthly_cost / hoursPerMonth / count) * 1000) / 1000 : 0;
+      return {
+        id: r.id,
+        account_id: r.account_id,
+        provider,
+        region: r.region,
+        resource_type: r.resource_type as ResourceInventory['resource_type'],
+        instance_type: r.spec?.instance_type || 'unknown',
+        count,
+        status: r.state as ResourceInventory['status'],
+        cost_per_hour: costPerHour,
+      };
+    });
   }
 
   async getResourceInventorySummary(tenantId: string): Promise<{
@@ -277,5 +349,21 @@ export class MultiCloudManagerService {
 
     comparisons.sort((a, b) => a.total_monthly - b.total_monthly);
     return comparisons;
+  }
+
+  // ==================== Mappers ====================
+
+  private mapEntityToCloudAccount(entity: CloudAccountEntity, metadata?: Record<string, any>): CloudAccount {
+    return {
+      id: entity.account_id,
+      tenant_id: entity.tenant_id,
+      name: entity.account_name,
+      provider: 'aws',
+      region: entity.region,
+      status: entity.status as CloudAccount['status'],
+      credentials_ref: entity.credential_ref,
+      created_at: entity.created_at,
+      metadata: metadata || entity.tags,
+    };
   }
 }
