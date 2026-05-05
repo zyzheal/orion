@@ -2,6 +2,25 @@
  * Disaster Recovery Service 测试
  */
 
+// Mock @kubernetes/client-node to avoid ESM import issues
+jest.mock('@kubernetes/client-node', () => ({
+  KubeConfig: jest.fn().mockImplementation(() => ({
+    loadFromDefault: jest.fn(),
+    loadFromCluster: jest.fn(),
+    makeApiClient: jest.fn().mockReturnValue({
+      readNamespacedSecret: jest.fn().mockResolvedValue({ body: { data: {} } }),
+      createNamespacedSecret: jest.fn().mockResolvedValue({ body: {} }),
+      listNamespacedSecret: jest.fn().mockResolvedValue({ body: { items: [] } }),
+      readNamespacedService: jest.fn().mockResolvedValue({ body: { spec: { type: 'ClusterIP', ports: [] } } }),
+      patchNamespacedService: jest.fn().mockResolvedValue({ body: {} }),
+      readNamespacedIngress: jest.fn().mockResolvedValue({ body: { spec: { rules: [] } } }),
+      patchNamespacedIngress: jest.fn().mockResolvedValue({ body: {} }),
+    }),
+  })),
+  CoreV1Api: jest.fn(),
+  NetworkingV1Api: jest.fn(),
+}));
+
 import {
   DisasterRecoveryService,
   DisasterRecoveryConfig,

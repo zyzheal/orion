@@ -2,13 +2,14 @@
  * Provider Circuit Breaker - Provider级熔断器
  *
  * 功能：
- * 1. 按Provider维度跟踪失败率（30%阈值触发OPEN）
- * 2. 支持三种状态：CLOSED, OPEN, HALF_OPEN
- * 3. HALF_OPEN状态允许探测请求（3个探测）
- * 4. 成功率>50%时转换到CLOSED状态
- * 5. OPEN状态持续5分钟后尝试恢复
- * 6. 按Provider维度跟踪指标
- * 7. 发出状态变更事件
+ * 1. 按Provider维度跟踪失败率（15%阈值触发OPEN）
+ * 2. 按Provider维度跟踪超时（P95 > 5s阈值触发OPEN）
+ * 3. 支持三种状态：CLOSED, OPEN, HALF_OPEN
+ * 4. HALF_OPEN状态允许探测请求（3个探测）
+ * 5. 成功率>50%时转换到CLOSED状态
+ * 6. OPEN状态持续5分钟后尝试恢复
+ * 7. 按Provider维度跟踪指标
+ * 8. 发出状态变更事件
  *
  * 与AIGateway的场景级熔断器配合使用，形成双层熔断架构：
  * - Provider级：按LLM Provider维度（如openai、claude、deepseek等）
@@ -25,10 +26,12 @@ const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
  * Provider熔断器配置
  */
 export interface ProviderCircuitBreakerConfig {
-  /** 失败率阈值，0.3 = 30%失败率触发OPEN */
+  /** 失败率阈值，0.15 = 15%失败率触发OPEN */
   failureThreshold: number;
   /** 成功率阈值，0.5 = 50%成功率恢复到CLOSED */
   successThreshold: number;
+  /** 超时阈值（毫秒），P95 > 5s 触发OPEN */
+  timeoutThreshold: number;
   /** 统计时间窗口（毫秒），默认60秒 */
   timeoutWindow: number;
   /** HALF_OPEN状态下允许的探测请求数，默认3 */
@@ -90,8 +93,9 @@ interface RequestRecord {
 }
 
 const DEFAULT_CONFIG: ProviderCircuitBreakerConfig = {
-  failureThreshold: 0.3, // 30%失败率触发OPEN
+  failureThreshold: 0.15, // 15%失败率触发OPEN
   successThreshold: 0.5, // 50%成功率恢复CLOSED
+  timeoutThreshold: 5000, // P95 > 5s 触发OPEN
   timeoutWindow: 60000, // 60秒统计窗口
   halfOpenRequests: 3, // 3个探测请求
   openDuration: 300000, // 5分钟OPEN状态
@@ -261,8 +265,13 @@ export class ProviderCircuitBreaker extends EventEmitter {
       } else if (state === 'CLOSED') {
         // CLOSED状态下失败，检查是否需要转为OPEN
         const metrics = this.metrics.get(providerId)!;
+        // 检查失败率阈值
         if (metrics.failureRate >= this.config.failureThreshold) {
           this.transitionTo(providerId, 'OPEN', 'failure_threshold_reached');
+        }
+        // 检查超时阈值 (P95 > 5s)
+        if (metrics.p95Latency >= this.config.timeoutThreshold) {
+          this.transitionTo(providerId, 'OPEN', 'timeout_threshold_reached');
         }
       }
     }

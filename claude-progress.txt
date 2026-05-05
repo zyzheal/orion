@@ -8,6 +8,39 @@
 
 ## Current Status (2026-05-03)
 
+### feat(test-generation): implement AI test case generation service (COMPLETED)
+- Commit: 9cd8fbc
+- 实现基于代码变更的 AI 测试用例生成功能
+- 创建文件（9 个文件，4350+ 行代码）：
+  - `services/test-generation/TestGeneratorService.ts` - 核心测试生成服务
+  - `services/test-generation/ChangeAnalyzer.ts` - 代码变更分析器
+  - `services/test-generation/TestTemplateEngine.ts` - 测试模板引擎
+  - `services/test-generation/types.ts` - 类型定义
+  - `services/test-generation/index.ts` - 导出入口
+  - `api/test-generation-routes.ts` - API 端点
+  - `__tests__/ChangeAnalyzer.test.ts` - 19 tests
+  - `__tests__/TestGeneratorService.test.ts` - 25 tests
+  - `__tests__/TestTemplateEngine.test.ts` - 28 tests
+- 支持语言：
+  - TypeScript/JavaScript (Jest, Vitest, Mocha)
+  - Python (pytest, unittest)
+  - Go (go-testing)
+  - Java (JUnit5, JUnit4)
+- API 端点 (prefix: /api/v1/test):
+  - POST /generate - 生成测试用例
+  - POST /analyze-change - 分析代码变更
+  - POST /suggest-coverage - 覆盖率改进建议
+  - GET /templates - 获取测试模板列表
+  - GET /history - 查看生成历史
+- 功能特性：
+  - Git diff 解析（完整格式和简化格式）
+  - 函数/类/方法符号提取
+  - 复杂度和风险评分计算
+  - 单元测试和边界测试生成
+  - Mock 和断言自动生成
+  - AI Gateway 集成支持
+- 所有 72 个单元测试通过
+
 ### feat(events): integrate SelfHealingService with NATS EventBus (COMPLETED)
 - Commit: 0e0068e
 - 实现自愈服务与 NATS EventBus 的真实集成

@@ -1,6 +1,22 @@
 // orion-platform-service/src/services/auth/__tests__/JwtKeyRotationService.test.ts
 import { JwtKeyRotationService, JwtKeyRotationConfig, JwtKey } from '../JwtKeyRotationService';
 
+// Mock @kubernetes/client-node to avoid ESM import issues
+jest.mock('@kubernetes/client-node', () => ({
+  KubeConfig: jest.fn().mockImplementation(() => ({
+    loadFromDefault: jest.fn(),
+    loadFromCluster: jest.fn(),
+    makeApiClient: jest.fn().mockReturnValue({
+      readNamespacedSecret: jest.fn().mockResolvedValue({ body: { data: {} } }),
+      createNamespacedSecret: jest.fn().mockResolvedValue({ body: {} }),
+      replaceNamespacedSecret: jest.fn().mockResolvedValue({ body: {} }),
+      deleteNamespacedSecret: jest.fn().mockResolvedValue({ body: {} }),
+      listNamespacedSecret: jest.fn().mockResolvedValue({ body: { items: [] } }),
+    }),
+  })),
+  CoreV1Api: jest.fn(),
+}));
+
 // Mock DatabasePool for testing
 const createMockDbPool = () => ({
   query: jest.fn().mockImplementation(async (sql: string, params?: any[]) => {
