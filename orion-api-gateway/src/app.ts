@@ -21,6 +21,17 @@ import { TokenService } from './services/token.service';
 import { redisClient } from './utils/redis';
 import { AuthRoutes } from './routes/auth.routes';
 import { TenantRoutes } from './routes/tenant.routes';
+import { PipelineVersionsRoutes } from './routes/pipeline-versions.routes';
+import { PipelineBudgetRoutes } from './routes/pipeline-budget.routes';
+import { PipelineTemplatesRoutes } from './routes/pipeline-templates.routes';
+import { AIModelsRoutes } from './routes/ai-models.routes';
+import { AIDecisionsRoutes } from './routes/ai-decisions.routes';
+import { AIDegradationRoutes } from './routes/ai-degradation.routes';
+import { ChaosRoutes } from './routes/chaos.routes';
+import { ResilienceScoreRoutes } from './routes/resilience-score.routes';
+import { SBOMRoutes } from './routes/sbom.routes';
+import { DigitalTwinRoutes } from './routes/digital-twin.routes';
+import { GovernanceRoutes } from './routes/governance.routes';
 import type { WebSocketServerManager } from './websocket/ws-server';
 
 export interface AppOptions {
@@ -35,6 +46,17 @@ export async function createApp(options: AppOptions = {}): Promise<{
   tokenService: TokenService;
   authRoutes: AuthRoutes;
   tenantRoutes: TenantRoutes;
+  pipelineVersionsRoutes: PipelineVersionsRoutes;
+  pipelineBudgetRoutes: PipelineBudgetRoutes;
+  pipelineTemplatesRoutes: PipelineTemplatesRoutes;
+  aiModelsRoutes: AIModelsRoutes;
+  aiDecisionsRoutes: AIDecisionsRoutes;
+  aiDegradationRoutes: AIDegradationRoutes;
+  chaosRoutes: ChaosRoutes;
+  resilienceScoreRoutes: ResilienceScoreRoutes;
+  sbomRoutes: SBOMRoutes;
+  digitalTwinRoutes: DigitalTwinRoutes;
+  governanceRoutes: GovernanceRoutes;
   wsServer: WebSocketServerManager;
 }> {
   const config = getConfig();
@@ -130,6 +152,47 @@ export async function createApp(options: AppOptions = {}): Promise<{
   const tenantRoutes = new TenantRoutes(app);
   tenantRoutes.register();
 
+  // ==================== 注册 Pipeline 相关路由 ====================
+
+  const pipelineVersionsRoutes = new PipelineVersionsRoutes(app);
+  pipelineVersionsRoutes.register();
+
+  const pipelineBudgetRoutes = new PipelineBudgetRoutes(app);
+  pipelineBudgetRoutes.register();
+
+  const pipelineTemplatesRoutes = new PipelineTemplatesRoutes(app);
+  pipelineTemplatesRoutes.register();
+
+  // ==================== 注册 AI 相关路由 ====================
+
+  const aiModelsRoutes = new AIModelsRoutes(app);
+  aiModelsRoutes.register();
+
+  const aiDecisionsRoutes = new AIDecisionsRoutes(app);
+  aiDecisionsRoutes.register();
+
+  const aiDegradationRoutes = new AIDegradationRoutes(app);
+  aiDegradationRoutes.register();
+
+  // ==================== 注册韧性工程相关路由 ====================
+
+  const chaosRoutes = new ChaosRoutes(app);
+  chaosRoutes.register();
+
+  const resilienceScoreRoutes = new ResilienceScoreRoutes(app);
+  resilienceScoreRoutes.register();
+
+  const sbomRoutes = new SBOMRoutes(app);
+  sbomRoutes.register();
+
+  // ==================== 注册高级功能路由 ====================
+
+  const digitalTwinRoutes = new DigitalTwinRoutes(app);
+  digitalTwinRoutes.register();
+
+  const governanceRoutes = new GovernanceRoutes(app);
+  governanceRoutes.register();
+
   // ==================== 错误处理 ====================
 
   app.setErrorHandler(errorMiddleware.handler.bind(errorMiddleware));
@@ -173,5 +236,5 @@ export async function createApp(options: AppOptions = {}): Promise<{
   process.on('SIGTERM', gracefulShutdown);
   process.on('SIGINT', gracefulShutdown);
 
-  return { app, authMiddleware, loggingMiddleware, tenantMiddleware, tokenService, authRoutes, tenantRoutes, wsServer };
+  return { app, authMiddleware, loggingMiddleware, tenantMiddleware, tokenService, authRoutes, tenantRoutes, pipelineVersionsRoutes, pipelineBudgetRoutes, pipelineTemplatesRoutes, aiModelsRoutes, aiDecisionsRoutes, aiDegradationRoutes, chaosRoutes, resilienceScoreRoutes, sbomRoutes, digitalTwinRoutes, governanceRoutes, wsServer };
 }
