@@ -224,7 +224,7 @@ export class ResilienceScoreCalculator {
     );
 
     // Determine trend
-    const trend = await this.calculateTrend(tenantId, serviceId, overallScore);
+    const trend = await this.calculateTrend(tenantId, overallScore, serviceId);
 
     // Create score record
     const score: ResilienceScore = {
@@ -420,8 +420,8 @@ export class ResilienceScoreCalculator {
    */
   private async calculateTrend(
     tenantId: string,
-    serviceId?: string,
-    currentScore: number
+    currentScore: number,
+    serviceId?: string
   ): Promise<'improving' | 'stable' | 'degrading'> {
     const previous = await this.repository.findLatest(tenantId, serviceId);
     if (!previous) {

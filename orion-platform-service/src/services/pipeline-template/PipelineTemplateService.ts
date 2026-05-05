@@ -202,13 +202,13 @@ spec:
         dockerfile: Dockerfile
         context: .
         tags:
-          - ${IMAGE_NAME}:${VERSION}
+          - "$IMAGE_NAME:$VERSION"
     - name: push
       type: docker
       config:
-        registry: ${REGISTRY}
+        registry: "$REGISTRY"
         tags:
-          - ${IMAGE_NAME}:${VERSION}
+          - "$IMAGE_NAME:$VERSION"
       depends_on: [build]
 `,
     parameters: [
@@ -239,8 +239,8 @@ spec:
     - name: deploy
       type: deploy
       config:
-        provider: ${PROVIDER}
-        target: ${TARGET}
+        provider: "$PROVIDER"
+        target: "$TARGET"
       depends_on: [build]
 `,
     parameters: [

@@ -134,19 +134,19 @@ export class FaultInjector extends EventEmitter {
       // Inject based on type
       switch (config.type) {
         case 'network_latency':
-          await this.injectNetworkLatency(faultId, config.target, config.config as NetworkLatencyConfig);
+          await this.injectNetworkLatency(faultId, config.target, config.config as unknown as NetworkLatencyConfig);
           break;
         case 'service_down':
-          await this.injectServiceDown(faultId, config.target, config.config as ServiceDownConfig);
+          await this.injectServiceDown(faultId, config.target, config.config as unknown as ServiceDownConfig);
           break;
         case 'cpu_stress':
-          await this.injectCPUStress(faultId, config.target, config.config as CPUStressConfig);
+          await this.injectCPUStress(faultId, config.target, config.config as unknown as CPUStressConfig);
           break;
         case 'memory_stress':
-          await this.injectMemoryStress(faultId, config.target, config.config as MemoryStressConfig);
+          await this.injectMemoryStress(faultId, config.target, config.config as unknown as MemoryStressConfig);
           break;
         case 'disk_full':
-          await this.injectDiskFull(faultId, config.target, config.config as DiskFullConfig);
+          await this.injectDiskFull(faultId, config.target, config.config as unknown as DiskFullConfig);
           break;
         default:
           throw new FaultInjectorError(`Unknown fault type: ${config.type}`, 'UNKNOWN_TYPE');
@@ -307,25 +307,25 @@ export class FaultInjector extends EventEmitter {
     // Type-specific validation
     switch (config.type) {
       case 'network_latency':
-        const latencyConfig = config.config as NetworkLatencyConfig;
+        const latencyConfig = config.config as unknown as NetworkLatencyConfig;
         if (!latencyConfig.latency_ms || latencyConfig.latency_ms < 0 || latencyConfig.latency_ms > 30000) {
           return { valid: false, error: 'latency_ms must be between 0 and 30000' };
         }
         break;
       case 'cpu_stress':
-        const cpuConfig = config.config as CPUStressConfig;
+        const cpuConfig = config.config as unknown as CPUStressConfig;
         if (!cpuConfig.stress_percent || cpuConfig.stress_percent < 0 || cpuConfig.stress_percent > 100) {
           return { valid: false, error: 'stress_percent must be between 0 and 100' };
         }
         break;
       case 'memory_stress':
-        const memConfig = config.config as MemoryStressConfig;
+        const memConfig = config.config as unknown as MemoryStressConfig;
         if (!memConfig.stress_mb && !memConfig.stress_percent) {
           return { valid: false, error: 'stress_mb or stress_percent required' };
         }
         break;
       case 'disk_full':
-        const diskConfig = config.config as DiskFullConfig;
+        const diskConfig = config.config as unknown as DiskFullConfig;
         if (!diskConfig.fill_percent || diskConfig.fill_percent < 0 || diskConfig.fill_percent > 95) {
           return { valid: false, error: 'fill_percent must be between 0 and 95' };
         }
@@ -491,7 +491,7 @@ export class FaultInjector extends EventEmitter {
     let recovered = 0;
     let failed = 0;
 
-    for (const [faultId, status] of this.activeFaults.entries()) {
+    for (const [faultId, status] of Array.from(this.activeFaults.entries())) {
       if (status.status === 'active' || status.status === 'injecting') {
         try {
           await this.recover(faultId);

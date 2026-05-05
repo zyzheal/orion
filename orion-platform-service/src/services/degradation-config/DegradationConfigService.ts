@@ -315,8 +315,8 @@ export class DegradationConfigService {
     await this.repository.createAuditLog(
       scenario,
       oldConfig ? 'update' : 'create',
-      oldConfig,
-      newConfig,
+      oldConfig ? { ...oldConfig } as Record<string, unknown> : null,
+      { ...newConfig } as Record<string, unknown>,
       userId
     );
 
@@ -339,7 +339,7 @@ export class DegradationConfigService {
       await this.repository.createAuditLog(
         scenario,
         'delete',
-        oldConfig,
+        { ...oldConfig } as Record<string, unknown>,
         null,
         userId
       );

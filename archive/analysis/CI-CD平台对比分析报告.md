@@ -92,3 +92,4 @@
 - 多租户 AI 隔离
 - 灾备多活
 分析当前系统代码并结合 docs/superpowers/specs/ 下的新设计方案进行评审和可行性分析
+ "继续 Orion Phase 1-4 实施，查看 docs/superpowers/reviews/2026-05-05-implementation-summary.md"

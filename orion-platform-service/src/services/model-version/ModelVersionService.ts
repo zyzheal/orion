@@ -394,7 +394,8 @@ export class ModelVersionService {
       );
     }
 
-    return this.activateModel(modelId, { force: true });
+    await this.activateModel(modelId, { force: true });
+    return this.getModel(modelId);
   }
 
   /**
@@ -465,8 +466,8 @@ export class ModelVersionService {
 
     const features1 = new Set(model1.features);
     const features2 = new Set(model2.features);
-    const added = [...features2].filter(f => !features1.has(f));
-    const removed = [...features1].filter(f => !features2.has(f));
+    const added = Array.from(features2).filter(f => !features1.has(f));
+    const removed = Array.from(features1).filter(f => !features2.has(f));
 
     return { model1, model2, metricsDiff, featuresDiff: { added, removed } };
   }

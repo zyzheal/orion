@@ -1,8 +1,9 @@
 # Orion CI/CD 平台 Phase 1-4 实施进度总结
 
 > **会话日期**: 2026-05-05
-> **最后更新**: 2026-05-05T08:21:27Z
+> **最后更新**: 2026-05-05T08:38:08Z
 > **Git分支**: feat/frontend-gap-implementation
+> **最新commit**: b8ebb0e (feat: implement Phase 1-4 P0/P1 services)
 
 ---
 
@@ -61,16 +62,46 @@
 | 指标 | 数量 |
 |------|:----:|
 | Migration文件 | 108个 |
-| Git commits | 20+ |
-| 新增服务 | 10+ |
-| 测试通过 | 6项 |
+| Git commits | 22+ |
+| 新增服务 | 10个 (Phase 1-4 P0/P1) |
+| 新增代码行 | 5042行 |
 | 规格文档 | 38份 |
+| 服务目录 | 8个新模块 |
 
 ---
 
-## 三、未完成工作
+## 三、服务层实现进度
 
-### 3.1 Phase 1 服务层 (未实现)
+### 3.1 Phase 1 服务层 ✅ 已实现
+
+| # | 服务 | 文件 | 状态 |
+|:-:|------|------|:----:|
+| 1 | PipelineVersionService | `pipeline-version/PipelineVersionService.ts` | ✅ 468行 |
+| 2 | PipelineBudgetService | `pipeline-budget/PipelineBudgetService.ts` | ✅ 422行 |
+| 3 | PipelineTemplateService | `pipeline-template/PipelineTemplateService.ts` | ✅ 632行 |
+| 4 | CacheMonitorService | `cache-monitor/CacheMonitorService.ts` | ✅ 405行 |
+
+### 3.2 Phase 2 服务层 ✅ 已实现
+
+| # | 服务 | 文件 | 状态 |
+|:-:|------|------|:----:|
+| 1 | ModelVersionService | `model-version/ModelVersionService.ts` | ✅ 473行 |
+| 2 | DecisionExplanationService | `decision-explanation/DecisionExplanationService.ts` | ✅ 411行 |
+| 3 | DegradationConfigService | `degradation-config/DegradationConfigService.ts` | ✅ 476行 |
+
+### 3.3 Phase 3 服务层 ✅ 已实现
+
+| # | 服务 | 文件 | 状态 |
+|:-:|------|------|:----:|
+| 1 | ChaosExperimentService | `chaos-engineering/ChaosExperimentService.ts` | ✅ 570行 |
+| 2 | FaultInjector | `chaos-engineering/FaultInjector.ts` | ✅ 502行 |
+| 3 | ResilienceScoreCalculator | `chaos-engineering/ResilienceScoreCalculator.ts` | ✅ 515行 |
+
+---
+
+## 四、未完成工作
+
+### 4.1 Phase 1 服务层 (次要项)
 
 | 能力域 | Migration | 服务待实现 | 优先级 |
 |--------|:---------:|------------|:------:|
@@ -212,12 +243,14 @@ graph TB
         B[P0阻塞项 6项]
         C[P1/P2增强 8项]
         D[Migration 081-084]
+        E[Phase 1 服务 4项]
+        F[Phase 2 服务 3项]
+        G[Phase 3 服务 3项]
     end
     subgraph "⬜ 待实施"
-        E[Phase 1 服务层]
-        F[Phase 2 服务层]
-        G[Phase 3 服务层]
         H[Phase 4 服务层]
+        I[服务测试覆盖]
+        J[前端集成]
     end
     A --> D
     B --> C
@@ -225,6 +258,9 @@ graph TB
     D --> F
     D --> G
     D --> H
+    E --> I
+    F --> I
+    G --> I
 ```
 
 ---

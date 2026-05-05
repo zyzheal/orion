@@ -309,7 +309,7 @@ export class PipelineVersionService {
     const stageNames2 = new Set(stages2.map(s => (s.name as string) || ''));
 
     // New stages in v2
-    for (const name of stageNames2) {
+    for (const name of Array.from(stageNames2)) {
       if (!stageNames1.has(name)) {
         additions.push({
           path: `stages.${name}`,
@@ -321,7 +321,7 @@ export class PipelineVersionService {
     }
 
     // Removed stages from v1
-    for (const name of stageNames1) {
+    for (const name of Array.from(stageNames1)) {
       if (!stageNames2.has(name)) {
         deletions.push({
           path: `stages.${name}`,
@@ -333,7 +333,7 @@ export class PipelineVersionService {
     }
 
     // Modified stages
-    for (const name of stageNames1) {
+    for (const name of Array.from(stageNames1)) {
       if (stageNames2.has(name)) {
         const s1 = stages1.find(s => s.name === name);
         const s2 = stages2.find(s => s.name === name);

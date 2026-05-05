@@ -157,7 +157,7 @@ export class PipelineBudgetRepository {
     }
   }
 
-  private mapRowToConfig(row: any): PipelineBudgetConfig {
+  mapRowToConfig(row: any): PipelineBudgetConfig {
     return {
       id: row.id,
       tenant_id: row.tenant_id,
