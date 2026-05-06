@@ -881,6 +881,40 @@ export const routes: AppRoute[] = [
     element: React.lazy(() => import('@/pages/AISecurity')),
     protected: true,
   },
+  // Module Manager (Workflow 5: Feature Domain Management)
+  {
+    path: '/console/modules',
+    element: React.lazy(() => import('@/pages/ModuleManager')),
+    protected: true,
+    requiredRole: ['admin', 'platform_admin'],
+  },
+  // Pipeline Template (Workflow 9: Advanced CI/CD)
+  {
+    path: '/pipeline-templates',
+    element: React.lazy(() => import('@/pages/pipeline-template/PipelineTemplatePage')),
+    protected: true,
+  },
+  // Rate Limiting (Workflow 6)
+  {
+    path: '/console/rate-limiting',
+    element: React.lazy(() => import('@/pages/rate-limiting/RateLimitingPage')),
+    protected: true,
+    requiredRole: ['admin', 'platform_admin'],
+  },
+  // Circuit Breaker (Workflow 6)
+  {
+    path: '/console/circuit-breaker',
+    element: React.lazy(() => import('@/pages/circuit-breaker/CircuitBreakerPage')),
+    protected: true,
+    requiredRole: ['admin', 'platform_admin'],
+  },
+  // Feature Flags (Workflow 10)
+  {
+    path: '/console/feature-flags',
+    element: React.lazy(() => import('@/pages/feature-flags/FeatureFlagsPage')),
+    protected: true,
+    requiredRole: ['admin', 'platform_admin'],
+  },
   // ==================== Phase 3-4 Pages ====================
 
   // Artifact Operations (Phase 3)
