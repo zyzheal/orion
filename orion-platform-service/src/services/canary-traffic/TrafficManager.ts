@@ -8,10 +8,13 @@
  * - 验证流量配置 (validateTraffic)
  *
  * Phase 3 执行引擎集成
+ * Uses PostgreSQL Repository pattern for persistence.
  */
 
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import { v4 as uuidv4 } from 'uuid';
+import { TrafficConfigRepository, TrafficHistoryRepository, TrafficConfigEntity } from '../../repositories/TrafficManagerRepository';
 
 const execAsync = promisify(exec);
 
@@ -90,9 +93,15 @@ export class TrafficManagerError extends Error {
 }
 
 export class TrafficManager {
-  private trafficConfigs: Map<string, TrafficSplitConfig> = new Map();
-  private executionHistory: Map<string, TrafficSplitResult> = new Map();
-  private configCounter: number = 0;
+  private configRepo: TrafficConfigRepository;
+  private historyRepo: TrafficHistoryRepository;
+
+  constructor(
+    db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> },
+  ) {
+    this.configRepo = new TrafficConfigRepository(db);
+    this.historyRepo = new TrafficHistoryRepository(db);
+  }
 
   /**
    * 配置 Istio VirtualService 流量分割
@@ -142,7 +151,9 @@ export class TrafficManager {
         istioConfig: config,
         phase: this.determinePhase(canaryPercent),
       };
-      this.trafficConfigs.set(canaryId, trafficConfig);
+
+      // Persist config to DB
+      await this.saveConfigToDB(canaryId, trafficConfig, config, baselinePercent, canaryPercent);
 
       // Build and apply Istio VirtualService YAML
       const yaml = this.buildIstioVirtualServiceYAML(canaryId, config);
@@ -155,8 +166,7 @@ export class TrafficManager {
           canaryId,
           result: `Istio VirtualService applied: baseline=${baselinePercent}%, canary=${canaryPercent}% for ${host}`,
         };
-        this.executionHistory.set(`${canaryId}-${Date.now()}`, result);
-
+        await this.saveHistoryToDB(canaryId, result);
         return result;
       } catch {
         // Simulated application
@@ -165,8 +175,7 @@ export class TrafficManager {
           canaryId,
           result: `[SIMULATED] Istio VirtualService: baseline=${baselinePercent}%, canary=${canaryPercent}% for ${host} (canaryId: ${canaryId})`,
         };
-        this.executionHistory.set(`${canaryId}-${Date.now()}`, result);
-
+        await this.saveHistoryToDB(canaryId, result);
         return result;
       }
     } catch (err) {
@@ -224,7 +233,9 @@ export class TrafficManager {
         nginxConfig: config,
         phase: this.determinePhase(weight),
       };
-      this.trafficConfigs.set(canaryId, trafficConfig);
+
+      // Persist config to DB
+      await this.saveConfigToDB(canaryId, trafficConfig, undefined, baselineWeight, weight, config);
 
       // Build NGINX upstream block
       const nginxConf = this.buildNGINXUpstreamConfig(upstream, config.servers);
@@ -237,8 +248,7 @@ export class TrafficManager {
           canaryId,
           result: `NGINX upstream weight applied: baseline=${baselineWeight}, canary=${weight} for ${upstream}`,
         };
-        this.executionHistory.set(`${canaryId}-${Date.now()}`, result);
-
+        await this.saveHistoryToDB(canaryId, result);
         return result;
       } catch {
         const result: TrafficSplitResult = {
@@ -246,8 +256,7 @@ export class TrafficManager {
           canaryId,
           result: `[SIMULATED] NGINX upstream: baseline=${baselineWeight}, canary=${weight} for ${upstream} (canaryId: ${canaryId})`,
         };
-        this.executionHistory.set(`${canaryId}-${Date.now()}`, result);
-
+        await this.saveHistoryToDB(canaryId, result);
         return result;
       }
     } catch (err) {
@@ -280,8 +289,6 @@ export class TrafficManager {
           'VALIDATION_FAILED'
         );
       }
-
-      this.trafficConfigs.set(canaryId, config);
 
       // Execute based on strategy
       switch (config.strategy) {
@@ -413,29 +420,69 @@ export class TrafficManager {
   /**
    * 获取配置
    */
-  getConfig(canaryId: string): TrafficSplitConfig | undefined {
-    return this.trafficConfigs.get(canaryId);
+  async getConfig(canaryId: string): Promise<TrafficSplitConfig | undefined> {
+    const entity = await this.configRepo.findByCanaryId(canaryId);
+    if (!entity) return undefined;
+    return this.entityToConfig(entity);
   }
 
   /**
    * 获取所有配置
    */
-  getAllConfigs(): TrafficSplitConfig[] {
-    return Array.from(this.trafficConfigs.values());
+  async getAllConfigs(): Promise<TrafficSplitConfig[]> {
+    const entities = await this.configRepo.findAll();
+    return entities.map(e => this.entityToConfig(e));
   }
 
   /**
    * 获取执行历史
    */
-  getExecutionHistory(canaryId?: string): TrafficSplitResult[] {
-    const all = Array.from(this.executionHistory.values());
+  async getExecutionHistory(canaryId?: string): Promise<TrafficSplitResult[]> {
     if (canaryId) {
-      return all.filter((r) => r.canaryId === canaryId);
+      const entities = await this.historyRepo.findByCanaryId(canaryId);
+      return entities.map(e => this.entityToResult(e, canaryId));
     }
-    return all;
+    const entities = await this.historyRepo.findAll();
+    return entities.map(e => this.entityToResult(e, e.canary_id));
   }
 
   // ==================== Internal Helpers ====================
+
+  private async saveConfigToDB(
+    canaryId: string,
+    config: TrafficSplitConfig,
+    istioConfig?: IstioVirtualServiceConfig,
+    baselineWeight?: number,
+    canaryWeight?: number,
+    nginxConfig?: NGINXConfig,
+  ): Promise<void> {
+    await this.configRepo.upsertConfig({
+      id: `${canaryId}-config`,
+      canary_id: canaryId,
+      strategy: config.strategy,
+      phase: config.phase,
+      host: istioConfig?.host,
+      namespace: istioConfig?.namespace,
+      upstream_name: nginxConfig?.upstream,
+      baseline_weight: baselineWeight,
+      canary_weight: canaryWeight,
+      baseline_destination: istioConfig?.routes.find(r => r.subset === 'baseline')?.destination,
+      baseline_subset: istioConfig?.routes.find(r => r.subset === 'baseline')?.subset,
+      canary_destination: istioConfig?.routes.find(r => r.subset === 'canary')?.destination,
+      canary_subset: istioConfig?.routes.find(r => r.subset === 'canary')?.subset,
+      servers: nginxConfig?.servers,
+    });
+  }
+
+  private async saveHistoryToDB(canaryId: string, result: TrafficSplitResult): Promise<void> {
+    await this.historyRepo.createEntry({
+      id: `${canaryId}-${Date.now()}`,
+      canary_id: canaryId,
+      success: result.success,
+      result: result.result,
+      error: result.error,
+    });
+  }
 
   private determinePhase(canaryPercent: number): TrafficSplitConfig['phase'] {
     if (canaryPercent === 0) return 'initial';
@@ -484,5 +531,54 @@ ${httpRoutes}`;
     return `upstream ${upstream} {
 ${serverLines}
 }`;
+  }
+
+  private entityToConfig(entity: TrafficConfigEntity): TrafficSplitConfig {
+    const config: TrafficSplitConfig = {
+      canaryId: entity.canary_id,
+      strategy: entity.strategy as 'istio' | 'nginx',
+      phase: (entity.phase as TrafficSplitConfig['phase']) || 'initial',
+    };
+
+    if (entity.strategy === 'istio' && entity.host) {
+      config.istioConfig = {
+        host: entity.host,
+        namespace: entity.namespace || 'default',
+        routes: [
+          {
+            destination: entity.baseline_destination || '',
+            subset: entity.baseline_subset,
+            weight: entity.baseline_weight || 0,
+          },
+          {
+            destination: entity.canary_destination || '',
+            subset: entity.canary_subset,
+            weight: entity.canary_weight || 0,
+          },
+        ],
+      };
+    }
+
+    if (entity.strategy === 'nginx' && entity.upstream_name) {
+      config.nginxConfig = {
+        upstream: entity.upstream_name,
+        servers: entity.servers.map(s => ({
+          server: s.server,
+          weight: s.weight,
+          backup: s.backup,
+        })),
+      };
+    }
+
+    return config;
+  }
+
+  private entityToResult(entity: { id: string; canary_id: string; success: boolean; result: string; error: string | null }, canaryId: string): TrafficSplitResult {
+    return {
+      success: entity.success,
+      canaryId,
+      result: entity.result,
+      error: entity.error ?? undefined,
+    };
   }
 }

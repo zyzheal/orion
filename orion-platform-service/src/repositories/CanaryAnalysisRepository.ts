@@ -291,3 +291,68 @@ export class CanaryDecisionRepository extends BaseRepository<CanaryDecisionEntit
     };
   }
 }
+
+// Retrain Job Repository (for ML model retraining tracking)
+export interface CanaryRetrainJobEntity {
+  id: string;
+  model_name: string;
+  status: string;
+  submitted_at: Date;
+  completed_at: Date | null;
+  error_message: string | null;
+  created_at: Date;
+}
+
+export class CanaryRetrainJobRepository extends BaseRepository<CanaryRetrainJobEntity> {
+  constructor(db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+    super(db, 'canary_retrain_jobs');
+  }
+
+  async createJob(input: { id: string; model_name: string; status: string }): Promise<CanaryRetrainJobEntity> {
+    const result = await this.db.query(
+      `INSERT INTO canary_retrain_jobs (id, model_name, status) VALUES ($1, $2, $3) RETURNING *`,
+      [input.id, input.model_name, input.status],
+    );
+    if (result.rows.length === 0) {
+      // Fallback for mock/test environments where RETURNING * may not work
+      return {
+        id: input.id,
+        model_name: input.model_name,
+        status: input.status,
+        submitted_at: new Date(),
+        completed_at: null,
+        error_message: null,
+        created_at: new Date(),
+      };
+    }
+    return this.mapRowToEntity(result.rows[0]);
+  }
+
+  async findAll(): Promise<CanaryRetrainJobEntity[]> {
+    const result = await this.db.query(
+      `SELECT * FROM canary_retrain_jobs ORDER BY submitted_at DESC`,
+    );
+    return result.rows.map(row => this.mapRowToEntity(row));
+  }
+
+  async updateStatus(id: string, status: string, errorMessage?: string): Promise<CanaryRetrainJobEntity | undefined> {
+    const result = await this.db.query(
+      `UPDATE canary_retrain_jobs SET status = $2, error_message = $3, completed_at = CASE WHEN $2 IN ('completed', 'failed') THEN NOW() ELSE completed_at END WHERE id = $1 RETURNING *`,
+      [id, status, errorMessage || null],
+    );
+    if (result.rows.length === 0) return undefined;
+    return this.mapRowToEntity(result.rows[0]);
+  }
+
+  protected mapRowToEntity(row: any): CanaryRetrainJobEntity {
+    return {
+      id: row.id,
+      model_name: row.model_name,
+      status: row.status ?? 'queued',
+      submitted_at: row.submitted_at,
+      completed_at: row.completed_at,
+      error_message: row.error_message,
+      created_at: row.created_at,
+    };
+  }
+}

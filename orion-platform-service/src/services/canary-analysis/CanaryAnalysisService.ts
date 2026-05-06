@@ -41,6 +41,7 @@ import {
   CanaryMLResultEntity,
   CanaryAnalysisConfigEntity,
   CanaryDecisionEntity,
+  CanaryRetrainJobRepository,
 } from '../../repositories/CanaryAnalysisRepository';
 import { createPrometheusClient, PrometheusClient, CanaryPromQL } from './PrometheusClient';
 
@@ -56,8 +57,8 @@ export class CanaryAnalysisService {
   private mlRepository: CanaryMLResultRepository;
   private configRepository: CanaryAnalysisConfigRepository;
   private decisionRepository: CanaryDecisionRepository;
+  private retrainJobRepository: CanaryRetrainJobRepository;
   private prometheusClient: PrometheusClient | null;
-  private retrainJobs: Map<string, any> = new Map();
 
   constructor(options: {
     eventBus?: EventBusService;
@@ -66,6 +67,7 @@ export class CanaryAnalysisService {
     mlRepository: CanaryMLResultRepository;
     configRepository: CanaryAnalysisConfigRepository;
     decisionRepository: CanaryDecisionRepository;
+    retrainJobRepository?: CanaryRetrainJobRepository;
   }) {
     this.eventBus = options.eventBus;
     this.runRepository = options.runRepository;
@@ -73,6 +75,7 @@ export class CanaryAnalysisService {
     this.mlRepository = options.mlRepository;
     this.configRepository = options.configRepository;
     this.decisionRepository = options.decisionRepository;
+    this.retrainJobRepository = options.retrainJobRepository || new CanaryRetrainJobRepository((options.runRepository as any).db);
     this.prometheusClient = createPrometheusClient();
   }
 
@@ -584,12 +587,10 @@ export class CanaryAnalysisService {
     const name = modelName || 'canary-default';
     const jobId = `retrain-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
-    // MVP: store retrain request -- actual training would be an async job
-    this.retrainJobs.set(jobId, {
-      jobId,
-      modelName: name,
-      status: 'queued' as const,
-      submittedAt: new Date().toISOString(),
+    await this.retrainJobRepository.createJob({
+      id: jobId,
+      model_name: name,
+      status: 'queued',
     });
 
     return {

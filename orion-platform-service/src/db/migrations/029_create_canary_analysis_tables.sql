@@ -76,3 +76,16 @@ CREATE TABLE IF NOT EXISTS canary_decisions (
 );
 CREATE INDEX idx_canary_decisions_run ON canary_decisions(run_id);
 CREATE INDEX idx_canary_decisions_decision ON canary_decisions(decision);
+
+-- ML 模型重训练任务
+CREATE TABLE IF NOT EXISTS canary_retrain_jobs (
+  id              VARCHAR(255) PRIMARY KEY,
+  model_name      VARCHAR(100) NOT NULL,
+  status          VARCHAR(20) NOT NULL DEFAULT 'queued',  -- queued | running | completed | failed
+  submitted_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  completed_at    TIMESTAMPTZ,
+  error_message   TEXT,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_canary_retrain_status ON canary_retrain_jobs(status);
+CREATE INDEX idx_canary_retrain_submitted ON canary_retrain_jobs(submitted_at DESC);

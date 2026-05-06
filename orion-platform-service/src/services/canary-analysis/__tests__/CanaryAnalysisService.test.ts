@@ -150,12 +150,43 @@ function makeDecisionRepository(store: any[]) {
   };
 }
 
+function makeRetrainJobRepository(store: any[]) {
+  return {
+    async createJob(input: { id: string; model_name: string; status: string }): Promise<any> {
+      const entity = {
+        id: input.id,
+        model_name: input.model_name,
+        status: input.status,
+        submitted_at: new Date(),
+        completed_at: null,
+        error_message: null,
+        created_at: new Date(),
+      };
+      store.push(entity);
+      return entity;
+    },
+    async findAll(): Promise<any[]> {
+      return [...store];
+    },
+    async updateStatus(id: string, status: string, errorMessage?: string): Promise<any | undefined> {
+      const job = store.find((r: any) => r.id === id);
+      if (job) {
+        job.status = status;
+        if (errorMessage) job.error_message = errorMessage;
+        if (status === 'completed' || status === 'failed') job.completed_at = new Date();
+      }
+      return job;
+    },
+  };
+}
+
 function createMockService() {
   const runStore: any[] = [];
   const metricStore: any[] = [];
   const mlStore: any[] = [];
   const configStore: any[] = [];
   const decisionStore: any[] = [];
+  const retrainJobStore: any[] = [];
 
   const service = new CanaryAnalysisService({
     runRepository: makeRunRepository(runStore) as unknown as CanaryAnalysisRepository,
@@ -163,8 +194,9 @@ function createMockService() {
     mlRepository: makeMLRepository(mlStore) as unknown as CanaryMLResultRepository,
     configRepository: makeConfigRepository(configStore) as unknown as CanaryAnalysisConfigRepository,
     decisionRepository: makeDecisionRepository(decisionStore) as unknown as CanaryDecisionRepository,
+    retrainJobRepository: makeRetrainJobRepository(retrainJobStore),
   });
-  return { service, runStore, metricStore, mlStore, configStore, decisionStore };
+  return { service, runStore, metricStore, mlStore, configStore, decisionStore, retrainJobStore };
 }
 
 // ==================== Tests ====================
