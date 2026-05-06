@@ -7,6 +7,15 @@ import { BrowserRouter } from 'react-router-dom';
 import { ChartProvider } from '@/components/charts';
 import ManagerDashboard from '@/pages/ManagerDashboard';
 
+// Mock the useBiDashboard hook to return mock data synchronously
+vi.mock('@/hooks/useBiDashboard', () => ({
+  useBiDashboard: () => ({
+    data: null, // null triggers mock data fallback in component
+    loading: false,
+    error: null,
+  }),
+}));
+
 vi.mock('echarts-for-react', () => ({
   default: (props: Record<string, unknown>) => (
     <div data-testid="echarts-wrapper" data-option={JSON.stringify(props.option)} />

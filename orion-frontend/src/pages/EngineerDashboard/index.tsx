@@ -210,11 +210,22 @@ const EngineerDashboard: React.FC = () => {
     <div style={{ padding: 0 }}>
       <DataState
         loading={loading && !apiData}
-        error={error}
+        error={null}
         empty={false}
         loadingText="加载效能数据..."
         retry={handleRetry}
       >
+        {/* API error banner - show when API failed but we have mock fallback */}
+        {error && (
+          <Alert
+            message="API 连接失败"
+            description={`个人效能数据 API 暂时不可用：${error.message}，当前显示模拟数据。`}
+            type="error"
+            showIcon
+            closable
+            style={{ marginBottom: 16 }}
+          />
+        )}
         {/* Mock data warning - only show when API unavailable but no error */}
         {showMockWarning && (
           <Alert

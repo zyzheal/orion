@@ -7,6 +7,15 @@ import { BrowserRouter } from 'react-router-dom';
 import { ChartProvider } from '@/components/charts';
 import ExecutiveDashboard from '@/pages/ExecutiveDashboard';
 
+// Mock the useBiDashboard hook to return mock data synchronously
+vi.mock('@/hooks/useBiDashboard', () => ({
+  useBiDashboard: () => ({
+    data: null, // null triggers mock data fallback in component
+    loading: false,
+    error: null,
+  }),
+}));
+
 // Mock chart components that use echarts-for-react (not available in jsdom)
 vi.mock('@/components/charts', async () => {
   const actual = await vi.importActual('@/components/charts');
