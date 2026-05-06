@@ -60,6 +60,10 @@ export class ModuleManager {
 
         if (domainConfig.services) {
           for (const [serviceId, serviceConfig] of Object.entries(domainConfig.services)) {
+            if (this.registry.get(`service:${serviceId}`)) {
+              logger.warn(`[ModuleManager] Service ${serviceId} already registered (possibly from another domain), skipping duplicate`);
+              continue;
+            }
             this.registerModule({
               id: `service:${serviceId}`,
               name: serviceId,
@@ -83,6 +87,10 @@ export class ModuleManager {
 
     if (config.services) {
       for (const [serviceId, rawServiceConfig] of Object.entries(config.services)) {
+        if (this.registry.get(`service:${serviceId}`)) {
+          logger.warn(`[ModuleManager] Service ${serviceId} already registered (possibly from another domain), skipping duplicate`);
+          continue;
+        }
         const serviceConfig = rawServiceConfig as ModuleConfig;
         this.registerModule({
           id: `service:${serviceId}`,
@@ -165,7 +173,15 @@ export class ModuleManager {
     const deps = mod.config.dependencies || [];
     for (const dep of deps) {
       const depMod = this.registry.get(dep);
-      if (!depMod || depMod.state !== 'active') {
+      if (!depMod) {
+        throw new Error(`Dependency ${dep} not found for module ${id}`);
+      }
+      // Skip disabled dependencies
+      if (!depMod.config.enabled) {
+        logger.warn(`[ModuleManager] Dependency ${dep} is disabled, skipping check for ${id}`);
+        continue;
+      }
+      if (depMod.state !== 'active') {
         throw new Error(`Dependency ${dep} is not active for module ${id}`);
       }
     }
@@ -224,5 +240,21 @@ export class ModuleManager {
 
   getRegistry(): ModuleRegistry {
     return this.registry;
+  }
+
+  async toggleModule(id: string, enabled: boolean): Promise<void> {
+    const mod = this.registry.get(id);
+    if (!mod) {
+      throw new Error(`Module ${id} not found`);
+    }
+    if (mod.level === 'core' && !enabled) {
+      throw new Error(`Core module ${id} cannot be disabled`);
+    }
+    mod.config.enabled = enabled;
+    if (enabled && mod.state !== 'active') {
+      await this.startModule(id);
+    } else if (!enabled && mod.state === 'active') {
+      await this.stopModule(id);
+    }
   }
 }

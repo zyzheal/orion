@@ -101,7 +101,10 @@ export class ModuleRegistry {
     const visiting = new Set<string>();
 
     const visit = (id: string): void => {
-      if (visiting.has(id)) return;
+      if (visiting.has(id)) {
+        logger.warn(`[ModuleRegistry] Circular dependency detected involving ${id} — skipping`);
+        return;
+      }
       if (visited.has(id)) return;
 
       visiting.add(id);

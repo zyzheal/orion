@@ -40,36 +40,24 @@ export default async function moduleRoutes(
       return reply.status(404).send({ error: 'MODULE_NOT_FOUND', id });
     }
 
-    if (mod.level === 'core' && !enabled) {
-      return reply.status(400).send({
-        error: 'CORE_MODULE_CANNOT_BE_DISABLED',
-        message: `Core module ${id} cannot be disabled`,
+    try {
+      await moduleManager.toggleModule(id, enabled);
+    } catch (error: any) {
+      if (error.message.includes('cannot be disabled')) {
+        return reply.status(400).send({
+          error: 'CORE_MODULE_CANNOT_BE_DISABLED',
+          message: error.message,
+        });
+      }
+      if (error.message.includes('not found')) {
+        return reply.status(404).send({ error: 'MODULE_NOT_FOUND', id });
+      }
+      return reply.status(500).send({
+        error: 'MODULE_TOGGLE_FAILED',
+        message: error.message,
       });
     }
-
-    mod.config.enabled = enabled;
-
-    if (enabled && mod.state !== 'active') {
-      try {
-        await moduleManager.startModule(id);
-      } catch (error: any) {
-        return reply.status(500).send({
-          error: 'MODULE_START_FAILED',
-          message: error.message,
-        });
-      }
-    } else if (!enabled && mod.state === 'active') {
-      try {
-        await moduleManager.stopModule(id);
-      } catch (error: any) {
-        return reply.status(500).send({
-          error: 'MODULE_STOP_FAILED',
-          message: error.message,
-        });
-      }
-    }
-
-    return reply.send({ module: mod });
+    return reply.send({ module: moduleManager.getRegistry().get(id) });
   });
 
   // GET /v1/system/modules/validate - 校验依赖
