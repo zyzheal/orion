@@ -6,12 +6,14 @@ import {
   DashboardOutlined,
   FileTextOutlined,
   SettingOutlined,
+  BulbOutlined,
 } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
 
 const { Sider, Content } = Layout;
 
 const menuItems = [
+  { key: '/console/chatops/recommend', icon: <BulbOutlined />, label: '智能推荐' },
   { key: '/console/chatops/commands', icon: <SearchOutlined />, label: '命令浏览' },
   { key: '/console/chatops/executions', icon: <DashboardOutlined />, label: '执行监控' },
   { key: '/console/chatops/audit', icon: <FileTextOutlined />, label: '审计日志' },

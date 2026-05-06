@@ -345,6 +345,12 @@ export const routes: AppRoute[] = [
     requiredRole: ['admin', 'platform_admin'],
     children: [
       {
+        path: '/console/chatops/recommend',
+        element: React.lazy(() => import('@/pages/ChatOps/SmartRecommend')),
+        protected: true,
+        requiredRole: ['admin', 'platform_admin'],
+      },
+      {
         path: '/console/chatops/commands',
         element: React.lazy(() => import('@/pages/ChatOps/CommandBrowser')),
         protected: true,
