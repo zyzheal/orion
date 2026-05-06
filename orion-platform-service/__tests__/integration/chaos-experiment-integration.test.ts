@@ -99,31 +99,28 @@ class MockChaosDb {
     }
 
     if (text.includes('UPDATE') && text.includes('chaos_runs')) {
-      // Query: UPDATE chaos_runs SET status=$1, timeline=$2, metrics=$3, ended_at=$4 WHERE id=$5
-      // The WHERE id is always the last parameter
       const runId = params[params.length - 1];
       const run = this.runs.get(runId);
       if (run) {
-        // Check each possible field in values (all params except the last one which is the id)
         const values = params.slice(0, -1);
         for (const val of values) {
           if (typeof val === 'string' && ['running', 'completed', 'failed', 'rolled_back'].includes(val)) {
             run.status = val;
-          } else if (val && typeof val === 'object') {
-            // Could be metrics or timeline or ended_at (Date)
-            if (val instanceof Date) {
-              run.ended_at = val;
-            } else if ('mttr_ms' in val || 'affected_services' in val || 'recovered' in val) {
-              run.metrics = val;
-            } else if (Array.isArray(val) || ('type' in val && 'service' in val)) {
-              run.timeline = val;
-            }
           } else if (val instanceof Date) {
             run.ended_at = val;
+          } else if (Array.isArray(val)) {
+            // Timeline is always an array of events
+            run.timeline = val;
+          } else if (val && typeof val === 'object') {
+            if ('mttr_ms' in val || 'recovered' in val) {
+              run.metrics = val;
+            }
           }
         }
+        this.runs.set(runId, run); // Ensure it's saved
         return { rows: [this.mapRunRow(run)], rowCount: 1 };
       }
+      // Debug: run not found
       return { rows: [], rowCount: 0 };
     }
 

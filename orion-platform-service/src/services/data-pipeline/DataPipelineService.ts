@@ -179,7 +179,12 @@ export class DataPipelineService {
   }
 
   private schedulePipelineInternal(pipelineId: string, cron: string): void {
-    this.unschedulePipeline(pipelineId);
+    // Only clear existing timer, don't change status (caller handles status)
+    const existingTimer = this.timers.get(pipelineId);
+    if (existingTimer) {
+      clearInterval(existingTimer);
+      this.timers.delete(pipelineId);
+    }
 
     // Simplified cron: execute every minute for demo purposes
     // In production, use a proper cron parser like `cron-parser`

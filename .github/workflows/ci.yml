@@ -93,10 +93,51 @@ jobs:
         run: npm run type-check
         working-directory: ${{ matrix.dir }}
 
-  # ==================== Platform Service Tests ====================
+  # ==================== Platform Service Unit Tests (No DB, Fast) ====================
 
-  platform-service-test:
-    name: Platform Service Tests
+  platform-service-unit-test:
+    name: Platform Service Unit Tests
+    runs-on: ubuntu-latest
+    needs: type-check
+    if: ${{ !cancelled() }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: orion-platform-service/package-lock.json
+
+      - name: Build local packages
+        run: |
+          cd packages/event-bus && npm install && npm run build
+        working-directory: orion-platform-service
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: orion-platform-service
+
+      - name: Run unit tests (no DB required)
+        run: npx jest --testPathIgnorePatterns="integration" --silent --coverage --coverageReporters=text --coverageReporters=lcov
+        working-directory: orion-platform-service
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: orion-platform-service/coverage/lcov.info
+          retention-days: 30
+
+      - name: Build
+        run: npm run build
+        working-directory: orion-platform-service
+
+  # ==================== Platform Service Integration Tests (Requires PostgreSQL) ====================
+
+  platform-service-integration-test:
+    name: Platform Service Integration Tests
     runs-on: ubuntu-latest
     needs: type-check
     if: ${{ !cancelled() }}
@@ -121,6 +162,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: orion-platform-service/package-lock.json
 
       - name: Build local packages
         run: |
@@ -128,11 +171,11 @@ jobs:
         working-directory: orion-platform-service
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
         working-directory: orion-platform-service
 
-      - name: Run tests
-        run: npm run test:coverage
+      - name: Run integration tests
+        run: npx jest __tests__/integration/ --silent --coverage --coverageReporters=text --coverageReporters=lcov
         working-directory: orion-platform-service
         env:
           DB_HOST: localhost
@@ -141,9 +184,12 @@ jobs:
           DB_PASSWORD: test_password_ci_only
           DB_NAME: orion_test
 
-      - name: Build
-        run: npm run build
-        working-directory: orion-platform-service
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-integration-coverage
+          path: orion-platform-service/coverage/lcov.info
+          retention-days: 30
 
   # ==================== API Gateway Tests ====================
 
@@ -159,14 +205,23 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: orion-api-gateway/package-lock.json
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
         working-directory: orion-api-gateway
 
       - name: Run tests
         run: npm run test:coverage
         working-directory: orion-api-gateway
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-gateway-coverage
+          path: orion-api-gateway/coverage/lcov.info
+          retention-days: 30
 
       - name: Build
         run: npm run build
@@ -186,18 +241,65 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: orion-frontend/package-lock.json
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
         working-directory: orion-frontend
 
       - name: Run tests
         run: npm run test:coverage
         working-directory: orion-frontend
 
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage
+          path: orion-frontend/coverage/lcov.info
+          retention-days: 30
+
       - name: Build
         run: npm run build
         working-directory: orion-frontend
+
+  # ==================== Coverage Gate ====================
+
+  coverage-gate:
+    name: Coverage Threshold Check
+    runs-on: ubuntu-latest
+    needs: [platform-service-unit-test, platform-service-integration-test, frontend-test, api-gateway-test]
+    if: ${{ !cancelled() }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download backend coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-coverage
+          path: coverage/backend
+
+      - name: Check backend coverage exists
+        run: |
+          if [ ! -f coverage/backend/lcov.info ]; then
+            echo "Backend coverage file not found"
+            exit 1
+          fi
+          echo "Backend coverage file found"
+
+      - name: Download frontend coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-coverage
+          path: coverage/frontend
+
+      - name: Check frontend coverage exists
+        run: |
+          if [ ! -f coverage/frontend/lcov.info ]; then
+            echo "Frontend coverage file not found"
+            exit 1
+          fi
+          echo "Frontend coverage file found"
 
   # ==================== DB Migration Validation ====================
 

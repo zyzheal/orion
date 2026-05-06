@@ -69,6 +69,9 @@ import confirmationRoutes from './confirmation-routes';
 // New P0 routes
 import vectorStoreRoutes from './vector-store-routes';
 import oncallRoutes from './oncall-routes';
+import escalationRoutes from './escalation-routes';
+import unifiedConfigRoutes from './unified-config-routes';
+import { escalationScheduler } from '../services/escalation';
 import approvalRoutes from './approval-routes';
 import cronRoutes from './cron-routes';
 import eventbusRoutes from './eventbus-routes';
@@ -489,11 +492,25 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // 注册 Cost Operations API 路由 (Phase 2 - budget guards, anomaly detection, optimization)
   await registerWithRoleGuard(app, costOperationsRoutes, '/v1/cost-operations', { database: options.database });
 
-  // 注册 Vector Store API 路由 (P0-G2 - pgvector backed) — admin only
+  // 注册统一配置中心 API (使用 /v1/system-config 前缀)
+  await registerWithRoleGuard(app, unifiedConfigRoutes, '/v1/system-config', { database: options.database });
   await registerWithRoleGuard(app, vectorStoreRoutes, '/v1/vector-store', { database: options.database });
 
   // 注册 OnCall 排班 API 路由 (P0 - SRE scheduling)
   await registerWithRoleGuard(app, oncallRoutes, '/v1/oncall', { database: options.database, eventBus: options.eventBus });
+
+  // 注册 Escalation 统一升级 API 路由 (自动升级 + 手动升级)
+  await registerWithRoleGuard(app, escalationRoutes, '/v1/escalation', { database: options.database, eventBus: options.eventBus });
+
+  // 启动自动升级调度器
+  if (options.database && options.eventBus) {
+    try {
+      await escalationScheduler.start();
+      console.log('[routes] Escalation scheduler started');
+    } catch (error) {
+      console.warn('[routes] Failed to start escalation scheduler:', error);
+    }
+  }
 
   // 注册审批 API 路由 (P0 - multi-level approval) — P0-7 Fix: requires database
   if (options.database) {
