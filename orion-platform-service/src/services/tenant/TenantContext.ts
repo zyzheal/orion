@@ -144,7 +144,13 @@ export class TenantContext extends EventEmitter {
   }
 
   /**
-   * 生成 PostgreSQL session 设置 SQL
+   * @deprecated SQL injection risk via string interpolation.
+   * This method returns raw SQL with embedded tenantId via template literals.
+   * tenantId comes from parsed JWT/headers (validated as integer), so risk is mitigated
+   * at the call site, but this pattern should NOT be used for user-controlled input.
+   * For production use, prefer the database connection's parameterized query methods
+   * (e.g., set_config($1, $2, false) via query() with parameters).
+   * Only safe for embedding in larger SQL batches where tenantId is already validated.
    */
   generateSessionSetSQL(): string {
     const tenantId = this.getCurrentTenantId();
@@ -152,7 +158,12 @@ export class TenantContext extends EventEmitter {
   }
 
   /**
-   * 生成 PostgreSQL session 清除 SQL
+   * @deprecated SQL injection risk via string interpolation.
+   * This method returns raw SQL with embedded string literals. While currently containing
+   * no user-controlled values (hardcoded empty string and 'false'), the pattern of returning
+   * raw SQL for direct execution is discouraged.
+   * For production use, prefer the parameterized clearTenantSessionVariable() method in
+   * RLSPolicyManager instead.
    */
   generateSessionClearSQL(): string {
     return `SELECT set_config('app.current_tenant', '', false), set_config('app.tenant_isolation', 'false', false)`;
@@ -169,6 +180,13 @@ export class TenantContext extends EventEmitter {
   }
 
   /**
+   * @deprecated SQL injection risk via string interpolation of tenantId into WHERE clause.
+   * This method embeds tenantId directly as `tenant_id = ${tenantId}` in the returned SQL string.
+   * While tenantId comes from validated JWT/headers (integer), this pattern should NOT be used
+   * with user-controlled input.
+   * For production use, prefer `buildTenantWhereClause()` which uses parameterized queries
+   * (e.g., `tenant_id = $1`) and is safe for all input sources.
+   *
    * 添加租户条件到 WHERE 子句
    */
   addTenantCondition(whereClause: string): string {
@@ -323,5 +341,15 @@ export class TenantContext extends EventEmitter {
   }
 }
 
-// 导出单例实例
+/**
+ * Factory function to create request-scoped TenantContext instances.
+ * Use this for per-request isolation to prevent concurrent request tenant leakage.
+ */
+export function createTenantContext(config?: Partial<TenantContextConfig>): TenantContext {
+  return new TenantContext(config);
+}
+
+// Deprecated: use createTenantContext() for request-scoped instances.
+// This singleton export is kept for backward compatibility but should NOT be used
+// in production concurrent request handling (CWE-362: race condition).
 export const tenantContext = new TenantContext();

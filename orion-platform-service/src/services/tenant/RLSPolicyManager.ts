@@ -143,11 +143,13 @@ export class RLSPolicyManager {
     }
 
     try {
-      const sql = `
-        SELECT set_config('${this.sessionVariableName}', '${tenantId}', false),
-               set_config('${this.isolationVariableName}', 'true', false)
-      `;
-      await this.db.query(sql);
+      const sql = `SELECT set_config($1, $2, false), set_config($3, $4, false)`;
+      await this.db.query(sql, [
+        this.sessionVariableName,
+        String(tenantId),
+        this.isolationVariableName,
+        'true',
+      ]);
 
       logger.debug(`[RLSPolicyManager] Set session variable ${this.sessionVariableName} = ${tenantId}`);
 
@@ -171,11 +173,13 @@ export class RLSPolicyManager {
    */
   async clearTenantSessionVariable(): Promise<void> {
     try {
-      const sql = `
-        SELECT set_config('${this.sessionVariableName}', '', false),
-               set_config('${this.isolationVariableName}', 'false', false)
-      `;
-      await this.db.query(sql);
+      const sql = `SELECT set_config($1, $2, false), set_config($3, $4, false)`;
+      await this.db.query(sql, [
+        this.sessionVariableName,
+        '',
+        this.isolationVariableName,
+        'false',
+      ]);
 
       logger.debug(`[RLSPolicyManager] Cleared session variable ${this.sessionVariableName}`);
     } catch (error) {
@@ -267,6 +271,11 @@ export class RLSPolicyManager {
     }
 
     try {
+      // Validate table name to prevent SQL injection (DDL statements cannot use parameterized queries)
+      if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(tableName)) {
+        throw new Error(`Invalid table name: ${tableName}. Must match /^[a-zA-Z_][a-zA-Z0-9_]*$/`);
+      }
+
       // 启用 RLS
       await this.db.query(`ALTER TABLE ${tableName} ENABLE ROW LEVEL SECURITY`);
 
@@ -317,6 +326,11 @@ export class RLSPolicyManager {
    */
   async disableRLSPolicy(tableName: string): Promise<boolean> {
     try {
+      // Validate table name to prevent SQL injection (DDL statements cannot use parameterized queries)
+      if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(tableName)) {
+        throw new Error(`Invalid table name: ${tableName}. Must match /^[a-zA-Z_][a-zA-Z0-9_]*$/`);
+      }
+
       await this.db.query(`ALTER TABLE ${tableName} DISABLE ROW LEVEL SECURITY`);
       logger.warn(`[RLSPolicyManager] Disabled RLS for ${tableName}`);
       return true;
@@ -331,6 +345,11 @@ export class RLSPolicyManager {
    */
   async validateRLSIsolation(tenantId: number, tableName: string): Promise<boolean> {
     try {
+      // Validate table name to prevent SQL injection (DDL/DML statements cannot use parameterized queries)
+      if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(tableName)) {
+        throw new Error(`Invalid table name: ${tableName}. Must match /^[a-zA-Z_][a-zA-Z0-9_]*$/`);
+      }
+
       // 设置 session 变量
       await this.setTenantSessionVariable(tenantId);
 
@@ -389,6 +408,9 @@ export class RLSPolicyManager {
 
   /**
    * 生成设置 session 变量的 SQL（用于连接池场景）
+   * NOTE: For direct execution, prefer the parameterized setTenantSessionVariable() method.
+   * This string-returning method is for scenarios where SQL must be embedded in a larger batch.
+   * tenantId must be validated as an integer before calling this method.
    */
   generateSessionSetSQL(tenantId: number): string {
     return `SELECT set_config('${this.sessionVariableName}', '${tenantId}', false), set_config('${this.isolationVariableName}', 'true', false)`;
