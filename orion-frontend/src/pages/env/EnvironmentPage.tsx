@@ -35,8 +35,8 @@ import {
   ClockCircleOutlined,
   CopyOutlined,
 } from '@ant-design/icons';
-import type { ColumnsType } from 'antd/es/table';
 import Table from '@/components/Table';
+import type { TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import {
   getEnvironments,
@@ -47,7 +47,6 @@ import {
   type Environment,
   type CreateEnvironmentInput,
   type UpdateEnvironmentInput,
-  type EnvironmentType,
   type EnvironmentStatus,
 } from '@/api/environments';
 import dayjs from 'dayjs';
@@ -140,22 +139,6 @@ const StatCard: React.FC<{
   </Card>
 );
 
-// ---- TTL Input Helper ----
-
-const TtlInput: React.FC<{ value?: number; onChange?: (v: number | undefined) => void }> = ({ value, onChange }) => (
-  <Space>
-    <Input
-      type="number"
-      min={0}
-      value={value}
-      onChange={(e) => onChange?.(e.target.value ? parseInt(e.target.value) : undefined)}
-      style={{ width: 100 }}
-      placeholder="小时"
-    />
-    <Text type="secondary">小时后自动销毁</Text>
-  </Space>
-);
-
 // ---- Main Component ----
 
 const EnvironmentPage: React.FC = () => {
@@ -168,7 +151,7 @@ const EnvironmentPage: React.FC = () => {
   const [editingEnv, setEditingEnv] = useState<Environment | null>(null);
   const [detailDrawerVisible, setDetailDrawerVisible] = useState(false);
   const [selectedEnv, setSelectedEnv] = useState<Environment | null>(null);
-  const [templateModalVisible, setTemplateModalVisible] = useState(false);
+  const [_templateModalVisible, setTemplateModalVisible] = useState(false);
   const [createForm] = Form.useForm();
   const [editForm] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
@@ -332,13 +315,12 @@ const EnvironmentPage: React.FC = () => {
 
   // ---- Table columns ----
 
-  const columns: ColumnsType<Environment> = [
+  const columns: TableColumn<Environment>[] = [
     {
       key: 'name',
       title: '环境名称',
       dataIndex: 'name',
       width: 180,
-      sortable: true,
       render: (v: unknown, record: Environment) => (
         <Space direction="vertical" size={0}>
           <Text strong style={{ cursor: 'pointer' }} onClick={() => openDetail(record)}>
@@ -429,7 +411,6 @@ const EnvironmentPage: React.FC = () => {
       title: '更新时间',
       dataIndex: 'updated_at',
       width: 140,
-      sortable: true,
       render: (v: unknown) => (
         <Text type="secondary" style={{ fontSize: 12 }}>
           {v ? dayjs(String(v)).format('YYYY-MM-DD HH:mm') : '-'}

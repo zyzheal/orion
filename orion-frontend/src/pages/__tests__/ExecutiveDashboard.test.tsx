@@ -15,8 +15,8 @@ vi.mock('@/components/charts', async () => {
     ChartProvider: ({ children }: { children: React.ReactNode }) => children,
     TrendLineChart: ({ data }: { data: unknown[][] }) => (
       <div data-testid="trend-chart">
-        {data.flat().map((d: { label?: string }, i: number) => (
-          <span key={i}>{d.label}</span>
+        {data.flat().map((d: unknown, i: number) => (
+          <span key={i}>{(d as { label?: string })?.label}</span>
         ))}
       </div>
     ),

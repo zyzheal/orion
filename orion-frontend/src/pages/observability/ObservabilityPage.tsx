@@ -21,9 +21,8 @@ import {
   DatePicker,
   Row,
   Col,
-  Statistic,
-  Divider,
   Timeline,
+  Progress,
 } from 'antd';
 import {
   EyeOutlined,
@@ -34,7 +33,6 @@ import {
   DeleteOutlined,
   SearchOutlined,
   ThunderboltOutlined,
-  AlertOutlined,
 } from '@ant-design/icons';
 import { colors } from '@/tokens/colors';
 import PageSkeleton from '@/components/PageSkeleton';

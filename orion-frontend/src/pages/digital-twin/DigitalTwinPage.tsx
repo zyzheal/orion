@@ -6,8 +6,8 @@
  */
 
 import React, { useState } from 'react';
-import { Table, Card, Button, Space, Tag, Modal, Form, Input, message, Tabs, Select, Descriptions, Timeline, Progress, Radio, InputNumber, Switch, Statistic, Row, Col } from 'antd';
-import { PlusOutlined, PlayCircleOutlined, PauseCircleOutlined, CameraOutlined, ReplayOutlined, SandboxOutlined, StopOutlined, CloudServerOutlined, SyncOutlined } from '@ant-design/icons';
+import { Table, Card, Button, Space, Tag, Modal, Form, Input, message, Tabs, Select, Descriptions, Timeline, Progress, InputNumber, Switch, Statistic, Row, Col } from 'antd';
+import { PlusOutlined, PlayCircleOutlined, PauseCircleOutlined, CameraOutlined, SyncOutlined, CodeSandboxOutlined, StopOutlined, CloudServerOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 
 interface DigitalTwin {
@@ -204,7 +204,7 @@ const DigitalTwinPage: React.FC = () => {
         <Space>
           <Button size="small" icon={<CameraOutlined />} onClick={() => handleSnapshot(record)}>快照</Button>
           <Button size="small" icon={<PlayCircleOutlined />} onClick={() => handleReplay(record)}>回放</Button>
-          <Button size="small" icon={<SandboxOutlined />}>沙箱</Button>
+          <Button size="small" icon={<CodeSandboxOutlined />}>沙箱</Button>
         </Space>
       ),
     },
@@ -278,7 +278,7 @@ const DigitalTwinPage: React.FC = () => {
         <Space>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>创建孪生体</Button>
           <Button icon={<SyncOutlined />} onClick={() => setRecordModalOpen(true)}>开始录制</Button>
-          <Button icon={<ReplayOutlined />} onClick={() => setReplayModalOpen(true)}>流量回放</Button>
+          <Button icon={<SyncOutlined />} onClick={() => setReplayModalOpen(true)}>流量回放</Button>
           <Button icon={<CloudServerOutlined />} onClick={() => setSandboxModalOpen(true)}>创建沙箱</Button>
         </Space>
       </div>

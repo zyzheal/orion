@@ -16,7 +16,6 @@ import {
   Input,
   Select,
   message,
-  Descriptions,
   Row,
   Col,
   Statistic,
@@ -32,7 +31,6 @@ import {
   RiseOutlined,
   FallOutlined,
   CheckCircleOutlined,
-  CloseCircleOutlined,
   SafetyOutlined,
   BulbOutlined,
 } from '@ant-design/icons';

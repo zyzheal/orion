@@ -13,13 +13,12 @@ import {
 import {
   Card, Table, Button, Modal, Form, Select, Input, Tag,
   message, Space, Statistic, Row, Col, Badge, Tabs, Descriptions,
-  Timeline, InputNumber, DatePicker, Tooltip
 } from 'antd';
 import {
   FileTextOutlined, SafetyCertificateOutlined,
   PlusOutlined, ReloadOutlined, CheckCircleOutlined,
   WarningOutlined, BranchesOutlined, StopOutlined,
-  EyeOutlined, VerifyOutlined, HistoryOutlined
+  VerifiedOutlined,
 } from '@ant-design/icons';
 
 const { TextArea } = Input;
@@ -250,7 +249,7 @@ const ApiGovernancePage: React.FC = () => {
       key: 'actions',
       render: (_: unknown, record: GovernanceContract) => (
         <Space>
-          <Button size="small" icon={<VerifyOutlined />} onClick={() => { setSelectedContract(record); setVerifyModal(true); }}>Verify</Button>
+          <Button size="small" icon={<VerifiedOutlined />} onClick={() => { setSelectedContract(record); setVerifyModal(true); }}>Verify</Button>
           <Button size="small" onClick={() => handleEvaluate(record.id)}>Evaluate</Button>
         </Space>
       ),
@@ -477,7 +476,7 @@ const ApiGovernancePage: React.FC = () => {
           },
           {
             key: 'verification',
-            label: <><VerifyOutlined /> Verification History</>,
+            label: <><VerifiedOutlined /> Verification History</>,
             children: (
               <Card title="Contract Verification History">
                 {verificationResults.length === 0 ? (

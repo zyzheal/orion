@@ -12,22 +12,6 @@ describe('API Client Interceptors', () => {
   it('should attach access_token from localStorage to request headers', async () => {
     localStorage.setItem('access_token', 'test-token');
 
-    // Create a mock axios instance that captures the config
-    const capturedConfig: any = {};
-    const mockGet = vi.fn().mockImplementation((_url: string, config: any) => {
-      capturedConfig.headers = config?.headers;
-      return Promise.resolve({ data: {}, config });
-    });
-
-    const mockInstance = {
-      interceptors: { request: { use: vi.fn() }, response: { use: vi.fn() } },
-      get: mockGet,
-      post: vi.fn(),
-      put: vi.fn(),
-      delete: vi.fn(),
-      patch: vi.fn(),
-    };
-
     // Verify the interceptor logic directly
     const token = localStorage.getItem('access_token');
     expect(token).toBe('test-token');

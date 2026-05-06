@@ -5,18 +5,17 @@
 import React, { useState, useEffect } from 'react';
 import {
   Typography, Card, Table, Tag, Space, Button, Modal, Form, Input,
-  Select, message, Descriptions, Row, Col, Switch, Drawer, Divider,
+  Select, message, Row, Col, Switch, Drawer,
 } from 'antd';
 import {
   BellOutlined, PlusOutlined, DeleteOutlined, EditOutlined,
-  ReloadOutlined, ThunderboltOutlined, TemplateOutlined,
+  ReloadOutlined, FileTextOutlined,
 } from '@ant-design/icons';
 import {
   getAlertRules, createAlertRule, updateAlertRule, deleteAlertRule,
   toggleAlertRule, getAlertRuleTemplates, createAlertRuleFromTemplate,
   type AlertRule, type AlertRuleInput, type AlertRuleTemplate,
 } from '@/api/observability';
-import PageSkeleton from '@/components/PageSkeleton';
 
 const { Title, Text } = Typography;
 
@@ -53,7 +52,8 @@ const TemplatesDrawer: React.FC<{
     setLoading(true);
     try {
       const res = await getAlertRuleTemplates(cat ? { category: cat } : undefined);
-      setTemplates(res.data?.data || []);
+      const rawData = res.data?.data;
+      setTemplates(Array.isArray(rawData) ? rawData : (rawData?.data as AlertRuleTemplate[]) || []);
     } catch (error: unknown) {
       message.error(`加载模板失败: ${(error as Error).message}`);
     } finally {
@@ -300,7 +300,7 @@ const AlertRulesPage: React.FC = () => {
           </Space>
           <Space>
             <Button icon={<ReloadOutlined />} onClick={loadRules} loading={loading}>刷新</Button>
-            <Button icon={<TemplateOutlined />} onClick={() => setTemplatesVisible(true)}>从模板创建</Button>
+            <Button icon={<FileTextOutlined />} onClick={() => setTemplatesVisible(true)}>从模板创建</Button>
             <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>创建规则</Button>
           </Space>
         </div>

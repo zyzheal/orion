@@ -333,10 +333,10 @@ const ApprovalPage: React.FC = () => {
       title: '审批标题',
       dataIndex: 'title',
       width: 260,
-      render: (v: string, record: ApprovalRequest) => (
+      render: (_: unknown, record: ApprovalRequest) => (
         <Space direction="vertical" size={0}>
           <Text strong style={{ cursor: 'pointer' }} onClick={() => openDetail(record)}>
-            {v}
+            {record.title}
           </Text>
           <Text type="secondary" style={{ fontSize: 12 }}>
             申请人: {record.requesterId}
@@ -414,7 +414,7 @@ const ApprovalPage: React.FC = () => {
       title: '创建时间',
       dataIndex: 'createdAt',
       width: 140,
-      render: (v: string) => <Text type="secondary">{dayjs(v).fromNow()}</Text>,
+      render: (v: unknown) => <Text type="secondary">{dayjs(String(v)).fromNow()}</Text>,
     },
     {
       key: 'actions',

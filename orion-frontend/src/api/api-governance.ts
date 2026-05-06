@@ -15,6 +15,7 @@ export interface GovernanceContract {
   status: 'draft' | 'active' | 'deprecated' | 'archived';
   compliance_score: number;
   violation_count: number;
+  path?: string;
   created_at: string;
   updated_at: string;
 }
@@ -120,6 +121,28 @@ export const apiGovernanceApi = {
   getReport: async (params?: { period?: string }) => {
     const response = await apiClient.get('/api/v1/api-governance/report', { params });
     return response.data as GovernanceReport;
+  },
+
+  // Phase 4: Contract verification
+  verifyContract: async (contractId: string, data?: { actualResponse?: Record<string, unknown>; endpoint?: string; method?: string }) => {
+    const response = await apiClient.post(`/api/v1/api-governance/contracts/${contractId}/verify`, data);
+    return response.data;
+  },
+
+  // Phase 4: Version management
+  registerVersion: async (data: { apiName: string; version: string; status?: string; changelog?: string }) => {
+    const response = await apiClient.post('/api/v1/api-governance/versions', data);
+    return response.data;
+  },
+
+  deprecateVersion: async (versionId: string, data?: { replacementVersion?: string; retirementDate?: string }) => {
+    const response = await apiClient.put(`/api/v1/api-governance/versions/${versionId}/deprecate`, data);
+    return response.data;
+  },
+
+  retireVersion: async (versionId: string) => {
+    const response = await apiClient.put(`/api/v1/api-governance/versions/${versionId}/retire`);
+    return response.data;
   },
 };
 

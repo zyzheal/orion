@@ -14,15 +14,12 @@ import {
   Tag,
   Space,
   Button,
-  Select,
   message,
-  Descriptions,
   Row,
   Col,
   Statistic,
   Progress,
   Avatar,
-  Tooltip,
   Alert,
 } from 'antd';
 import {
@@ -34,13 +31,10 @@ import {
   WarningOutlined,
   ClockCircleOutlined,
   CheckCircleOutlined,
-  CodeOutlined,
-  BugOutlined,
 } from '@ant-design/icons';
 import { colors } from '@/tokens/colors';
 import PageSkeleton from '@/components/PageSkeleton';
 import {
-  getDoraMetrics,
   getDoraBenchmarks,
   getEfficiencyDashboard,
   getTeamComparison,
@@ -55,10 +49,15 @@ const { Title, Text } = Typography;
 const DORAMetricsTab: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [dashboardData, setDashboardData] = useState<{
-    dora?: { deploymentFrequency?: number; leadTime?: number; mttr?: number; changeFailureRate?: number };
+    dora?: { deploymentFrequency?: string | number; leadTime?: number; mttr?: number; changeFailureRate?: number };
     summary?: { totalDeployments?: number; successfulDeployments?: number; failedDeployments?: number };
   } | null>(null);
-  const [benchmarks, setBenchmarks] = useState<Record<string, { elite: string; high: string; medium: string }> | null>(null);
+  const [benchmarks, setBenchmarks] = useState<{
+    deploymentFrequency?: { elite?: string; high?: string; medium?: string; low?: string };
+    leadTimeForChanges?: { elite?: string; high?: string; medium?: string; low?: string };
+    changeFailureRate?: { elite?: string; high?: string; medium?: string; low?: string };
+    meanTimeToRecovery?: { elite?: string; high?: string; medium?: string; low?: string };
+  } | null>(null);
 
   const loadData = async () => {
     setLoading(true);
@@ -82,7 +81,7 @@ const DORAMetricsTab: React.FC = () => {
 
   const getLevel = (value: number | undefined, metricKey: string): string => {
     if (!value || !benchmarks) return '-';
-    const category = benchmarks[metricKey];
+    const category = benchmarks[metricKey as keyof typeof benchmarks];
     if (!category) return '-';
     // Simplified: lower is better for time/rate, higher is better for frequency
     if (metricKey === 'deploymentFrequency') {
@@ -119,8 +118,8 @@ const DORAMetricsTab: React.FC = () => {
               prefix={<ThunderboltOutlined />}
             />
             <div style={{ marginTop: 8 }}>
-              <Tag color={levelColorMap[getLevel(dora.deploymentFrequency, 'deploymentFrequency')]}>
-                {getLevel(dora.deploymentFrequency, 'deploymentFrequency')}
+              <Tag color={levelColorMap[getLevel(typeof dora.deploymentFrequency === 'string' ? parseFloat(dora.deploymentFrequency) : dora.deploymentFrequency, 'deploymentFrequency')]}>
+                {getLevel(typeof dora.deploymentFrequency === 'string' ? parseFloat(dora.deploymentFrequency) : dora.deploymentFrequency, 'deploymentFrequency')}
               </Tag>
             </div>
           </Card>

@@ -20,18 +20,15 @@ import {
   Row,
   Col,
   Progress,
-  Modal,
 } from 'antd';
 import {
   RobotOutlined,
-  ReloadOutlined,
   ClockCircleOutlined,
   RedoOutlined,
   WarningOutlined,
   ThunderboltOutlined,
 } from '@ant-design/icons';
 import { colors } from '@/tokens/colors';
-import PageSkeleton from '@/components/PageSkeleton';
 import {
   getErrorStats,
   classifyError,
@@ -69,7 +66,7 @@ const severityColorMap: Record<string, string> = {
 // ---- Error Classification Tab ----
 
 const ErrorClassificationTab: React.FC = () => {
-  const [loading, setLoading] = useState(false);
+  const [_loading, setLoading] = useState(false);
   const [stats, setStats] = useState<ErrorStats | null>(null);
   const [classifyForm] = Form.useForm();
   const [classifyLoading, setClassifyLoading] = useState(false);
@@ -599,16 +596,11 @@ const AutoRetryTab: React.FC = () => {
 
 const AutonomousPipelinePage: React.FC = () => {
   const [activeTab, setActiveTab] = useState('errors');
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 500);
+    const timer = setTimeout(() => {}, 0);
     return () => clearTimeout(timer);
   }, []);
-
-  if (loading) {
-    return <PageSkeleton rows={6} />;
-  }
 
   return (
     <div>

@@ -22,14 +22,12 @@ import {
   Statistic,
   Progress,
   Tabs,
-  Tooltip,
 } from 'antd';
 import {
   ReloadOutlined,
   SafetyCertificateOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
-  MinusCircleOutlined,
   ExclamationCircleOutlined,
   EditOutlined,
 } from '@ant-design/icons';
@@ -218,7 +216,8 @@ const QualityGatePage: React.FC = () => {
       const values = await gateForm.validateFields();
       setGateLoading(true);
       const res = await evaluateGate(values.gateId, {});
-      setGateResult(res.data?.data || null);
+      const data = res.data?.data;
+      setGateResult((data && typeof data === 'object') ? data as Record<string, unknown> : null);
       message.success('门禁评估完成');
     } catch (error: unknown) {
       const err = error as { errorFields?: unknown };

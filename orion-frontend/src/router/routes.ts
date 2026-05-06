@@ -904,13 +904,13 @@ export const routes: AppRoute[] = [
   // Supply Chain Security (Phase 3)
   {
     path: '/supply-chain',
-    element: React.lazy(() => import('@/pages/ChaosEngineering')),
+    element: React.lazy(() => import('@/pages/supply-chain/SupplyChainPage')),
     protected: true,
   },
   // Cross-Domain Orchestration (Phase 3)
   {
     path: '/orchestration',
-    element: React.lazy(() => import('@/pages/ChaosEngineering')),
+    element: React.lazy(() => import('@/pages/orchestration/OrchestrationPage')),
     protected: true,
   },
   // Config Management Enhanced (Phase 3)
@@ -928,43 +928,43 @@ export const routes: AppRoute[] = [
   // Multi-Modal Triggers (Phase 3)
   {
     path: '/triggers',
-    element: React.lazy(() => import('@/pages/ChaosEngineering')),
+    element: React.lazy(() => import('@/pages/trigger/TriggerPage')),
     protected: true,
   },
   // Community Ecosystem (Phase 3)
   {
     path: '/community',
-    element: React.lazy(() => import('@/pages/ChaosEngineering')),
+    element: React.lazy(() => import('@/pages/community/CommunityPage')),
     protected: true,
   },
   // Disaster Recovery (Phase 4)
   {
     path: '/disaster-recovery',
-    element: React.lazy(() => import('@/pages/ChaosEngineering')),
+    element: React.lazy(() => import('@/pages/disaster-recovery/DisasterRecoveryPage')),
     protected: true,
   },
   // Performance Engineering (Phase 4)
   {
     path: '/performance',
-    element: React.lazy(() => import('@/pages/ChaosEngineering')),
+    element: React.lazy(() => import('@/pages/performance/PerformancePage')),
     protected: true,
   },
   // Cluster Federation (Phase 4)
   {
     path: '/federation',
-    element: React.lazy(() => import('@/pages/ChaosEngineering')),
+    element: React.lazy(() => import('@/pages/federation/FederationPage')),
     protected: true,
   },
   // Multi-Cloud Management (Phase 4)
   {
     path: '/multi-cloud',
-    element: React.lazy(() => import('@/pages/ChaosEngineering')),
+    element: React.lazy(() => import('@/pages/multi-cloud/MultiCloudPage')),
     protected: true,
   },
   // Data Pipeline (Phase 4)
   {
     path: '/data-pipeline',
-    element: React.lazy(() => import('@/pages/ChaosEngineering')),
+    element: React.lazy(() => import('@/pages/data-pipeline/DataPipelinePage')),
     protected: true,
   },
   // Digital Twin (Phase 4)
@@ -1023,6 +1023,13 @@ export const routes: AppRoute[] = [
   {
     path: '/console/cost/budget-guard',
     element: React.lazy(() => import('@/pages/cost/BudgetGuardPage')),
+    protected: true,
+  },
+
+  // Developer Portal
+  {
+    path: '/developer-portal',
+    element: React.lazy(() => import('@/pages/developer-portal/DeveloperPortalPage')),
     protected: true,
   },
 

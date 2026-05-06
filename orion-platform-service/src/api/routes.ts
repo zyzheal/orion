@@ -394,11 +394,12 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // 注册 AI 测试生成 API 路由 (AI Test Generation)
   await registerWithRoleGuard(app, testGenerationRoutes, '/v1/test');
 
-  // 注册智能部署 API 路由 (TASK-701) - PostgreSQL backed
-  await registerWithRoleGuard(app, deployRoutes, '/v1/deploy', { database: options.database });
-
-  // 注册部署增强 API 路由 (Phase 1: Deploy Windows + Progressive + Emergency)
-  await registerWithRoleGuard(app, deployEnhancedRoutes, '/v1/deploy', { database: options.database });
+  // 注册智能部署 API 路由 (TASK-701) - PostgreSQL backed + Phase 1 enhanced routes
+  // Merged deployRoutes and deployEnhancedRoutes under single prefix to avoid route override
+  await registerWithRoleGuard(app, async (app: FastifyInstance, options: any) => {
+    await deployRoutes(app, options);
+    await deployEnhancedRoutes(app, options);
+  }, '/v1/deploy', { database: options.database });
 
   // 注册监控告警 API 路由 (TASK-703)
   await registerWithRoleGuard(app, monitoringRoutes, '/v1/monitoring', { database: options.database });

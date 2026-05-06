@@ -28,7 +28,6 @@ import {
   ReloadOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
-  WarningOutlined,
 } from '@ant-design/icons';
 import { colors } from '@/tokens/colors';
 import PageSkeleton from '@/components/PageSkeleton';
@@ -36,8 +35,6 @@ import {
   explainDecision,
   getExplanationById,
   getExplanationHistory,
-  rollbackModel,
-  type DecisionExplanation,
   type ExplanationWithRules,
   type MatchedRule,
 } from '@/api/ai-decision';
@@ -189,21 +186,21 @@ const ExplainDecisionTab: React.FC = () => {
                 />
               </Descriptions.Item>
               <Descriptions.Item label="置信度等级">
-                <Tag color={confidenceLevelMap[explanation.confidenceLevel || 'medium']}>
-                  {explanation.confidenceLevel || 'medium'}
+                <Tag color={confidenceLevelMap[explanation.confidence >= 0.8 ? 'high' : explanation.confidence >= 0.6 ? 'medium' : 'low']}>
+                  {explanation.confidence >= 0.8 ? 'high' : explanation.confidence >= 0.6 ? 'medium' : 'low'}
                 </Tag>
               </Descriptions.Item>
               <Descriptions.Item label="解释说明" span={2}>
-                {explanation.overallReason}
+                {explanation.explanation}
               </Descriptions.Item>
             </Descriptions>
           </Card>
 
           {/* 特征重要性 */}
-          {explanation.featureImportance && explanation.featureImportance.length > 0 && (
+          {explanation.factors && explanation.factors.length > 0 && (
             <Card title="特征重要性 (SHAP 风格)">
               <Table
-                dataSource={explanation.featureImportance}
+                dataSource={explanation.factors}
                 rowKey="name"
                 size="small"
                 pagination={false}
@@ -214,14 +211,6 @@ const ExplainDecisionTab: React.FC = () => {
                     key: 'name',
                     width: 180,
                     render: (v: string) => <Text strong>{v}</Text>,
-                  },
-                  {
-                    title: '值',
-                    dataIndex: 'value',
-                    key: 'value',
-                    width: 100,
-                    render: (v: number | string) =>
-                      typeof v === 'number' ? `${(v * 100).toFixed(1)}%` : String(v),
                   },
                   {
                     title: '重要性',
@@ -303,12 +292,12 @@ const ExplainDecisionTab: React.FC = () => {
           )}
 
           {/* 建议 */}
-          {explanation.recommendations && explanation.recommendations.length > 0 && (
-            <Card title="建议" size="small">
+          {explanation.matchedRules && explanation.matchedRules.some((r) => r.contribution !== undefined) && (
+            <Card title="建议贡献度" size="small">
               <ul style={{ margin: 0, paddingLeft: 20 }}>
-                {explanation.recommendations.map((r, i) => (
+                {explanation.matchedRules.filter((r) => r.contribution !== undefined).map((r, i) => (
                   <li key={i}>
-                    <Text>{r}</Text>
+                    <Text>{r.name}: 贡献 {r.contribution?.toFixed(2)}</Text>
                   </li>
                 ))}
               </ul>
@@ -325,7 +314,6 @@ const ExplainDecisionTab: React.FC = () => {
 const ExplanationHistoryTab: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState<ExplanationWithRules[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<ExplanationWithRules | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [searchId, setSearchId] = useState('');
@@ -351,7 +339,6 @@ const ExplanationHistoryTab: React.FC = () => {
   }, []);
 
   const loadDetail = async (id: string) => {
-    setSelectedId(id);
     setDetailLoading(true);
     try {
       const res = await getExplanationById(id);
@@ -385,13 +372,12 @@ const ExplanationHistoryTab: React.FC = () => {
   const historyColumns = [
     {
       title: '决策 ID',
-      dataIndex: 'decisionId',
-      key: 'decisionId',
+      dataIndex: 'id',
+      key: 'id',
       width: 200,
       render: (v: string) => (
         <Text
-          type="link"
-          style={{ cursor: 'pointer' }}
+          style={{ cursor: 'pointer', color: '#1890ff' }}
           onClick={() => loadDetail(v)}
         >
           {v}
@@ -420,8 +406,8 @@ const ExplanationHistoryTab: React.FC = () => {
     },
     {
       title: '时间',
-      dataIndex: 'timestamp',
-      key: 'timestamp',
+      dataIndex: 'createdAt',
+      key: 'createdAt',
       render: (v: string) => new Date(v).toLocaleString(),
     },
   ];
@@ -473,15 +459,15 @@ const ExplanationHistoryTab: React.FC = () => {
       {detailLoading ? (
         <Card><PageSkeleton rows={4} /></Card>
       ) : detail ? (
-        <Card title={`解释详情: ${detail.decisionId}`}>
+        <Card title={`解释详情: ${detail.id}`}>
           <Descriptions bordered size="small" column={2}>
             <Descriptions.Item label="类型">{detail.decisionType}</Descriptions.Item>
             <Descriptions.Item label="结果">
               <Tag color={decisionColorMap[detail.decision]}>{detail.decision}</Tag>
             </Descriptions.Item>
             <Descriptions.Item label="置信度">{(detail.confidence * 100).toFixed(1)}%</Descriptions.Item>
-            <Descriptions.Item label="时间">{new Date(detail.timestamp).toLocaleString()}</Descriptions.Item>
-            <Descriptions.Item label="理由" span={2}>{detail.overallReason}</Descriptions.Item>
+            <Descriptions.Item label="时间">{new Date(detail.createdAt).toLocaleString()}</Descriptions.Item>
+            <Descriptions.Item label="理由" span={2}>{detail.explanation}</Descriptions.Item>
           </Descriptions>
 
           {detail.matchedRules && detail.matchedRules.length > 0 && (
@@ -514,7 +500,7 @@ const ExplanationHistoryTab: React.FC = () => {
         <Table
           columns={historyColumns}
           dataSource={history}
-          rowKey="decisionId"
+          rowKey="id"
           loading={loading}
           size="small"
           pagination={{ pageSize: 10 }}

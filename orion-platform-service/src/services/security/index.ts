@@ -25,3 +25,13 @@ export type {
   AuditPlanInput,
   AuditReport,
 } from './SecurityAuditService';
+
+// Supply Chain Security
+export { SupplyChainService } from './SupplyChainService';
+export type {
+  SBOMInput,
+  DependencyAnalysisInput,
+  MaliciousPackageInfo,
+  TyposquattingAlert,
+  DependencyPoisoningReport,
+} from './SupplyChainService';

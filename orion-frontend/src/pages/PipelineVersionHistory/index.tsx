@@ -7,7 +7,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { pipelineVersionsApi, PipelineVersion, VersionDiff } from '../../api/pipeline-versions';
 import { Card, Table, Button, Modal, Tag, Space, Tooltip, message } from 'antd';
-import { HistoryOutlined, RollbackOutlined, TagOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { HistoryOutlined, RollbackOutlined, CheckCircleOutlined } from '@ant-design/icons';
 
 const PipelineVersionHistory: React.FC = () => {
   const { pipelineId } = useParams<{ pipelineId: string }>();
@@ -98,7 +98,7 @@ const PipelineVersionHistory: React.FC = () => {
     {
       title: 'Actions',
       key: 'actions',
-      render: (_, record: PipelineVersion) => (
+      render: (_: unknown, record: PipelineVersion) => (
         <Space>
           <Tooltip title="Rollback">
             <Button icon={<RollbackOutlined />} onClick={() => handleRollback(record.id)} />

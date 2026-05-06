@@ -5,7 +5,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Typography, Card, Table, Tag, Space, Button, Form, Input,
-  Select, message, Descriptions, Row, Col, Timeline, Drawer,
+  message, Descriptions, Row, Col, Timeline, Drawer,
   Divider, Statistic, Tabs, List, Alert,
 } from 'antd';
 import {
@@ -39,15 +39,6 @@ const depTypeColorMap: Record<string, string> = {
   external: 'default',
 };
 
-const eventTypeIconMap: Record<string, string> = {
-  alert_fired: 'alert',
-  alert_resolved: 'resolve',
-  deployment: 'deploy',
-  config_change: 'config',
-  scale_event: 'scale',
-  anomaly_detected: 'anomaly',
-};
-
 // ---- Dependency Graph Tab ----
 
 const DependencyGraphTab: React.FC = () => {
@@ -60,7 +51,8 @@ const DependencyGraphTab: React.FC = () => {
     setLoading(true);
     try {
       const res = await getDependencyGraph();
-      setDeps(res.data?.data || []);
+      const rawData = res.data?.data;
+      setDeps(Array.isArray(rawData) ? rawData : (rawData?.data as ServiceDependency[]) || []);
     } catch (error: unknown) {
       message.error(`加载依赖图失败: ${(error as Error).message}`);
     } finally {
@@ -80,7 +72,8 @@ const DependencyGraphTab: React.FC = () => {
     try {
       const services = affectedServices.split(',').map((s) => s.trim()).filter(Boolean);
       const res = await analyzeDependencyRootCause(services);
-      setAnalysisResult(res.data?.data || []);
+      const rawData = res.data?.data;
+      setAnalysisResult(Array.isArray(rawData) ? rawData : (rawData?.data as string[]) || []);
       message.success('根因分析完成');
     } catch (error: unknown) {
       message.error(`分析失败: ${(error as Error).message}`);
@@ -166,7 +159,8 @@ const TemporalCorrelationTab: React.FC = () => {
       const alerts = JSON.parse(alertsJson);
       setLoading(true);
       const res = await analyzeTemporalCorrelation(alerts);
-      setResult(res.data?.data || null);
+      const rawData = res.data?.data;
+      setResult(rawData as unknown as TemporalCorrelationResult || null);
       message.success('时间关联分析完成');
     } catch (error: unknown) {
       message.error(`分析失败: ${(error as Error).message}`);
@@ -261,12 +255,12 @@ const TimelineTab: React.FC = () => {
     setLoading(true);
     try {
       const res = await getRcaTimeline(deploymentId);
-      const t = res.data?.timeline;
+      const t = (res.data as any)?.timeline || res.data?.data;
       if (t) {
         setTimeline({
           events: t.events || [],
-          totalEvents: t.totalEvents,
-          criticalEvents: t.criticalEvents,
+          totalEvents: t.totalEvents || 0,
+          criticalEvents: t.criticalEvents || 0,
         });
       }
     } catch (error: unknown) {

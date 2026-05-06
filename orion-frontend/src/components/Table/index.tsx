@@ -35,6 +35,8 @@ export interface TableColumn<T = Record<string, unknown>> {
   fixed?: 'left' | 'right';
   /** Hide column */
   hidden?: boolean;
+  /** Truncate long text with ellipsis */
+  ellipsis?: boolean;
   /** Sorter function for this column */
   sorter?: boolean | ((a: T, b: T) => number);
 }

@@ -25,7 +25,7 @@ import {
   EyeOutlined,
   FileTextOutlined,
 } from '@ant-design/icons';
-import { PieChart, BarChart, StatCard, GaugeChart, TreeMap, type PieDataItem, type BarDataItem, type TreeMapNode } from '@/components/charts';
+import { PieChart, BarChart, StatCard, GaugeChart, TreeMap, type PieDataItem, type BarDataItem } from '@/components/charts';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge, { type StatusType } from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
