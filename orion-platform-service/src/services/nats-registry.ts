@@ -5,6 +5,7 @@
  */
 
 import { EventEmitter } from 'events';
+import { ServiceInstanceRepository, ServiceInstanceEntity } from '../repositories/NatsRegistryRepository';
 
 export interface ServiceInstance {
   id: string;
@@ -24,102 +25,118 @@ export interface NatsServiceRegistryConfig {
 }
 
 export class NatsServiceRegistry extends EventEmitter {
-  private instances: Map<string, ServiceInstance> = new Map();
+  private repo: ServiceInstanceRepository;
   private config: Required<NatsServiceRegistryConfig>;
   private heartbeatTimer?: NodeJS.Timeout;
   private isConnected: boolean = false;
 
-  constructor(private natsConnection: any, config: NatsServiceRegistryConfig = {}) {
+  constructor(
+    private natsConnection: any,
+    db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> },
+    config: NatsServiceRegistryConfig = {},
+  ) {
     super();
+    this.repo = new ServiceInstanceRepository(db);
     this.config = {
-      heartbeatInterval: config.heartbeatInterval || 30000, // 30 秒
+      heartbeatInterval: config.heartbeatInterval || 30000,
       servicePrefix: config.servicePrefix || 'orion.services',
     };
   }
 
   /**
-   * 注册服务实例
+   * Register service instance
    */
   async register(instance: Omit<ServiceInstance, 'id' | 'registeredAt' | 'lastHeartbeat' | 'status'>): Promise<ServiceInstance> {
     const id = `${instance.name}-${instance.host}-${instance.port}`;
 
-    const newInstance: ServiceInstance = {
-      ...instance,
+    // Check if already registered
+    const existing = await this.repo.findById(id);
+    if (existing) {
+      await this.repo.updateHeartbeat(id);
+      const updated = await this.repo.findById(id);
+      const newInstance = this.entityToInstance(updated!);
+      await this.publishRegistration(newInstance);
+      this.emit('instance:registered', newInstance);
+      return newInstance;
+    }
+
+    const entity = await this.repo.create({
       id,
-      registeredAt: new Date(),
-      lastHeartbeat: new Date(),
-      status: 'unknown' as const,
-    };
+      name: instance.name,
+      host: instance.host,
+      port: instance.port,
+      health_url: instance.healthUrl ?? null,
+      metadata: instance.metadata ?? null,
+      registered_at: new Date(),
+      last_heartbeat: new Date(),
+      status: 'unknown',
+    });
 
-    this.instances.set(id, newInstance);
+    const newInstance = this.entityToInstance(entity);
 
-    // 发布到 NATS
     await this.publishRegistration(newInstance);
-
-    // 启动心跳
     this.startHeartbeat();
-
     this.emit('instance:registered', newInstance);
     return newInstance;
   }
 
   /**
-   * 注销服务实例
+   * Unregister service instance
    */
   async unregister(instanceId: string): Promise<void> {
-    const instance = this.instances.get(instanceId);
+    const instance = await this.repo.findById(instanceId);
     if (instance) {
-      // 发布注销消息
-      await this.publishUnregistration(instance);
-
-      this.instances.delete(instanceId);
-      this.emit('instance:unregistered', instance);
-
-      // 如果没有实例了，停止心跳
-      if (this.instances.size === 0) {
-        this.stopHeartbeat();
-      }
+      await this.publishUnregistration(this.entityToInstance(instance));
+      await this.repo.deleteById(instanceId);
+      this.emit('instance:unregistered', this.entityToInstance(instance));
     }
   }
 
   /**
-   * 获取服务实例
+   * Get service instance
    */
-  getInstance(id: string): ServiceInstance | undefined {
-    return this.instances.get(id);
+  async getInstance(id: string): Promise<ServiceInstance | undefined> {
+    const entity = await this.repo.findById(id);
+    if (!entity) return undefined;
+    return this.entityToInstance(entity);
   }
 
   /**
-   * 根据服务名获取实例列表
+   * Get instances by service name
    */
-  getInstancesByName(name: string): ServiceInstance[] {
-    return this.getAllInstances().filter((i) => i.name === name);
+  async getInstancesByName(name: string): Promise<ServiceInstance[]> {
+    const entities = await this.repo.findByName(name);
+    return entities.map(e => this.entityToInstance(e));
   }
 
   /**
-   * 获取所有实例
+   * Get all instances
    */
-  getAllInstances(): ServiceInstance[] {
-    return Array.from(this.instances.values());
+  async getAllInstances(): Promise<ServiceInstance[]> {
+    const result = await this.repo.findAll({ limit: 1000 });
+    return result.entities.map(e => this.entityToInstance(e));
   }
 
   /**
-   * 获取健康实例
+   * Get healthy instances
    */
-  getHealthyInstances(name?: string): ServiceInstance[] {
-    const instances = this.getAllInstances().filter((i) => i.status === 'healthy');
-    return name ? instances.filter((i) => i.name === name) : instances;
+  async getHealthyInstances(name?: string): Promise<ServiceInstance[]> {
+    if (name) {
+      const entities = await this.repo.findHealthyByName(name);
+      return entities.map(e => this.entityToInstance(e));
+    }
+    const entities = await this.repo.findByStatus('healthy');
+    return entities.map(e => this.entityToInstance(e));
   }
 
   /**
-   * 更新心跳
+   * Update heartbeat
    */
   async heartbeat(instanceId: string): Promise<void> {
-    const instance = this.instances.get(instanceId);
+    await this.repo.updateHeartbeat(instanceId);
+    const instance = await this.repo.findById(instanceId);
     if (instance) {
-      instance.lastHeartbeat = new Date();
-      instance.status = 'healthy';
-      await this.publishRegistration(instance);
+      await this.publishRegistration(this.entityToInstance(instance));
     }
   }
 
@@ -169,22 +186,24 @@ export class NatsServiceRegistry extends EventEmitter {
   }
 
   /**
-   * 启动心跳
+   * Start heartbeat
    */
   private startHeartbeat(): void {
     if (this.heartbeatTimer) return;
 
     this.heartbeatTimer = setInterval(async () => {
       const now = Date.now();
-      for (const [id, instance] of this.instances) {
-        const timeSinceHeartbeat = now - instance.lastHeartbeat.getTime();
+      const entities = await this.repo.findByStatus('healthy');
+      for (const entity of entities) {
+        const timeSinceHeartbeat = now - entity.last_heartbeat.getTime();
         if (timeSinceHeartbeat > this.config.heartbeatInterval * 2) {
+          await this.repo.markUnhealthy(entity.id);
+          const instance = this.entityToInstance(entity);
           instance.status = 'unhealthy';
           this.emit('instance:unhealthy', instance);
         }
       }
 
-      // 发送心跳消息
       await this.publishHeartbeat();
     }, this.config.heartbeatInterval);
   }
@@ -200,18 +219,19 @@ export class NatsServiceRegistry extends EventEmitter {
   }
 
   /**
-   * 发布心跳消息
+   * Publish heartbeat message
    */
   private async publishHeartbeat(): Promise<void> {
     if (!this.isConnected || !this.natsConnection) return;
 
+    const entities = await this.repo.findAll({ limit: 1000 });
     const subject = `${this.config.servicePrefix}.heartbeat`;
     const message = JSON.stringify({
-      instances: Array.from(this.instances.values()).map((i) => ({
+      instances: entities.entities.map((i) => ({
         id: i.id,
         name: i.name,
         status: i.status,
-        lastHeartbeat: i.lastHeartbeat.toISOString(),
+        lastHeartbeat: i.last_heartbeat.toISOString(),
       })),
     });
 
@@ -233,16 +253,28 @@ export class NatsServiceRegistry extends EventEmitter {
   }
 
   /**
-   * 关闭注册表
+   * Shutdown registry
    */
   async shutdown(): Promise<void> {
     this.stopHeartbeat();
 
-    // 注销所有实例
-    for (const [id, instance] of this.instances) {
-      await this.unregister(id);
+    const entities = await this.repo.findAll({ limit: 1000 });
+    for (const entity of entities) {
+      await this.unregister(entity.id);
     }
+  }
 
-    this.instances.clear();
+  private entityToInstance(entity: ServiceInstanceEntity): ServiceInstance {
+    return {
+      id: entity.id,
+      name: entity.name,
+      host: entity.host,
+      port: entity.port,
+      healthUrl: entity.health_url ?? undefined,
+      metadata: entity.metadata ?? undefined,
+      registeredAt: entity.registered_at,
+      lastHeartbeat: entity.last_heartbeat,
+      status: (entity.status as ServiceInstance['status']) ?? 'unknown',
+    };
   }
 }

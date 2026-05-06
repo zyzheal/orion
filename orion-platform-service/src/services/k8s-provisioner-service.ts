@@ -8,6 +8,7 @@
 
 import pino from 'pino';
 import { EphemeralEnvironment, EphemeralService } from '../models/EphemeralEnvironment';
+import { K8sNamespaceRepository } from '../repositories/K8sProvisionerRepository';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -18,10 +19,14 @@ export interface ProvisionResult {
 }
 
 export class K8sProvisionerService {
-  private namespaces: Map<string, boolean> = new Map();
+  private repo: K8sNamespaceRepository;
+
+  constructor(db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+    this.repo = new K8sNamespaceRepository(db);
+  }
 
   /**
-   * 创建 Namespace 并部署服务
+   * Create Namespace and deploy services
    */
   async provision(env: EphemeralEnvironment): Promise<ProvisionResult> {
     logger.info(
@@ -29,8 +34,16 @@ export class K8sProvisionerService {
       'Provisioning ephemeral environment'
     );
 
-    // Create namespace
-    this.namespaces.set(env.namespace, true);
+    // Create namespace record
+    await this.repo.create({
+      namespace: env.namespace,
+      pr_id: env.prId ?? null,
+      branch_name: env.branchName ?? null,
+      status: 'active',
+      preview_url: env.previewUrl ?? null,
+      created_at: new Date(),
+      destroyed_at: null,
+    });
     logger.info({ namespace: env.namespace }, 'Namespace created');
 
     // Deploy services (MVP: mock frontend + backend)
@@ -65,29 +78,35 @@ export class K8sProvisionerService {
   }
 
   /**
-   * 检查环境健康状态
+   * Check environment health status
    */
   async checkHealth(namespace: string): Promise<boolean> {
-    return this.namespaces.get(namespace) || false;
+    const entity = await this.repo.findByNamespace(namespace);
+    return entity ? entity.status === 'active' : false;
   }
 
   /**
-   * 销毁 Namespace 和所有资源
+   * Destroy Namespace and all resources
    */
   async teardown(namespace: string): Promise<void> {
     logger.info({ namespace }, 'Tearing down ephemeral environment');
 
+    const entity = await this.repo.findByNamespace(namespace);
+    if (entity) {
+      await this.repo.markDestroyed(entity.id);
+    }
+
     // Simulate teardown time
     await new Promise((r) => setTimeout(r, 100));
 
-    this.namespaces.delete(namespace);
     logger.info({ namespace }, 'Namespace and resources destroyed');
   }
 
   /**
-   * 列出所有活跃 namespace
+   * List all active namespaces
    */
-  listActiveNamespaces(): string[] {
-    return Array.from(this.namespaces.keys());
+  async listActiveNamespaces(): Promise<string[]> {
+    const entities = await this.repo.findActive();
+    return entities.map(e => e.namespace);
   }
 }

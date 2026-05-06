@@ -1,11 +1,5 @@
-/**
- * Federation Service - Phase 3
- *
- * Multi-cluster federation management: cluster registration, health monitoring,
- * and cross-cluster job orchestration.
- */
-
 import { DatabasePool } from '../database';
+import { ExecutorRepository, ExecutorHealthRepository, ExecutorEntity, ExecutorHealthEntity } from '../../repositories/FederationRepository';
 
 export interface FederationCluster {
   id: string;
@@ -118,13 +112,13 @@ export interface DispatchJobInput {
 }
 
 export class FederationService {
-  private pool: DatabasePool;
-  private executors: Map<string, ExecutorInfo> = new Map();
-  private executorHealth: Map<string, ExecutorHealth> = new Map();
+  private execRepo: ExecutorRepository;
+  private healthRepo: ExecutorHealthRepository;
   private heartbeatTimers: Map<string, NodeJS.Timeout> = new Map();
 
-  constructor(pool: DatabasePool) {
-    this.pool = pool;
+  constructor(private pool: DatabasePool) {
+    this.execRepo = new ExecutorRepository(pool);
+    this.healthRepo = new ExecutorHealthRepository(pool);
   }
 
   // ==================== Executor Management ====================
@@ -141,7 +135,8 @@ export class FederationService {
   }): Promise<ExecutorInfo> {
     const executorId = input.id || `exec-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const now = new Date();
-    const executor: ExecutorInfo = {
+
+    const entity = await this.execRepo.create({
       id: executorId,
       cluster_id: input.cluster_id,
       name: input.name,
@@ -156,9 +151,9 @@ export class FederationService {
       last_heartbeat: now,
       registered_at: now,
       labels: input.labels || {},
-    };
-    this.executors.set(executorId, executor);
-    this.executorHealth.set(executorId, {
+    });
+
+    await this.healthRepo.upsert({
       executor_id: executorId,
       status: 'healthy',
       cpu_usage_pct: 0,
@@ -169,15 +164,19 @@ export class FederationService {
       response_time_ms: 0,
       errors_last_hour: 0,
     });
-    return executor;
+
+    return this.entityToExecutor(entity);
   }
 
   async listExecutors(tenantId: string): Promise<ExecutorInfo[]> {
-    return Array.from(this.executors.values());
+    const result = await this.execRepo.findAll({ limit: 1000 });
+    return result.entities.map(e => this.entityToExecutor(e));
   }
 
   async getExecutor(executorId: string): Promise<ExecutorInfo | null> {
-    return this.executors.get(executorId) || null;
+    const entity = await this.execRepo.findById(executorId);
+    if (!entity) return null;
+    return this.entityToExecutor(entity);
   }
 
   async deregisterExecutor(executorId: string): Promise<boolean> {
@@ -186,9 +185,7 @@ export class FederationService {
       clearInterval(timer);
       this.heartbeatTimers.delete(executorId);
     }
-    this.executors.delete(executorId);
-    this.executorHealth.delete(executorId);
-    return true;
+    return this.execRepo.delete(executorId);
   }
 
   async executorHeartbeat(executorId: string, metrics: {
@@ -197,56 +194,98 @@ export class FederationService {
     running_jobs?: number;
     response_time_ms?: number;
   }): Promise<ExecutorHealth> {
-    const executor = this.executors.get(executorId);
+    const executor = await this.execRepo.findById(executorId);
     if (!executor) {
       throw new Error(`Executor '${executorId}' not found`);
     }
 
-    executor.last_heartbeat = new Date();
-    executor.cpu_used = metrics.cpu_used ?? executor.cpu_used;
-    executor.memory_used_mb = metrics.memory_used_mb ?? executor.memory_used_mb;
-    executor.running_jobs = metrics.running_jobs ?? executor.running_jobs;
+    await this.execRepo.updateHeartbeat(executorId, {
+      cpu_used: metrics.cpu_used,
+      memory_used_mb: metrics.memory_used_mb,
+      running_jobs: metrics.running_jobs,
+    });
 
-    const cpuUsagePct = executor.cpu_capacity > 0 ? (executor.cpu_used / executor.cpu_capacity) * 100 : 0;
-    const memoryUsagePct = executor.memory_capacity_mb > 0 ? (executor.memory_used_mb / executor.memory_capacity_mb) * 100 : 0;
+    const updated = await this.execRepo.findById(executorId);
+    if (!updated) throw new Error(`Executor '${executorId}' not found after update`);
+
+    const cpuUsagePct = updated.cpu_capacity > 0 ? (updated.cpu_used / updated.cpu_capacity) * 100 : 0;
+    const memoryUsagePct = updated.memory_capacity_mb > 0 ? (updated.memory_used_mb / updated.memory_capacity_mb) * 100 : 0;
 
     const health: ExecutorHealth = {
       executor_id: executorId,
       status: cpuUsagePct > 90 || memoryUsagePct > 90 ? 'degraded' : 'healthy',
       cpu_usage_pct: Math.round(cpuUsagePct * 10) / 10,
       memory_usage_pct: Math.round(memoryUsagePct * 10) / 10,
-      running_jobs: executor.running_jobs,
-      queue_depth: executor.running_jobs >= executor.max_concurrent_jobs ? Math.floor(Math.random() * 5) : 0,
-      last_heartbeat: executor.last_heartbeat!,
+      running_jobs: updated.running_jobs,
+      queue_depth: updated.running_jobs >= updated.max_concurrent_jobs ? Math.floor(Math.random() * 5) : 0,
+      last_heartbeat: updated.last_heartbeat!,
       response_time_ms: metrics.response_time_ms || Math.floor(Math.random() * 50) + 5,
       errors_last_hour: Math.floor(Math.random() * 3),
     };
-    this.executorHealth.set(executorId, health);
+    await this.healthRepo.upsert({
+      executor_id: executorId,
+      ...health,
+    });
     return health;
   }
 
   async getExecutorHealth(executorId: string): Promise<ExecutorHealth | null> {
-    return this.executorHealth.get(executorId) || null;
+    const data = await this.healthRepo.findByExecutor(executorId);
+    if (!data) return null;
+    return this.entityToHealth(data);
   }
 
   async getAllExecutorHealth(): Promise<ExecutorHealth[]> {
-    return Array.from(this.executorHealth.values());
+    const entities = await this.healthRepo.findAllLatest();
+    return entities.map(e => this.entityToHealth(e));
+  }
+
+  private entityToExecutor(entity: ExecutorEntity): ExecutorInfo {
+    return {
+      id: entity.id,
+      cluster_id: entity.cluster_id,
+      name: entity.name,
+      region: entity.region,
+      status: (entity.status as ExecutorInfo['status']) ?? 'online',
+      cpu_capacity: entity.cpu_capacity,
+      memory_capacity_mb: entity.memory_capacity_mb,
+      cpu_used: entity.cpu_used,
+      memory_used_mb: entity.memory_used_mb,
+      running_jobs: entity.running_jobs,
+      max_concurrent_jobs: entity.max_concurrent_jobs,
+      last_heartbeat: entity.last_heartbeat,
+      registered_at: entity.registered_at,
+      labels: entity.labels,
+    };
+  }
+
+  private entityToHealth(entity: ExecutorHealthEntity): ExecutorHealth {
+    return {
+      executor_id: entity.executor_id,
+      status: (entity.status as ExecutorHealth['status']) ?? 'healthy',
+      cpu_usage_pct: entity.cpu_usage_pct,
+      memory_usage_pct: entity.memory_usage_pct,
+      running_jobs: entity.running_jobs,
+      queue_depth: entity.queue_depth,
+      last_heartbeat: entity.last_heartbeat,
+      response_time_ms: entity.response_time_ms,
+      errors_last_hour: entity.errors_last_hour,
+    };
   }
 
   // ==================== Job Dispatch with Load Balancing ====================
 
-  selectBestExecutor(resourceRequirements?: { cpu?: number; memory_mb?: number }): ExecutorInfo | null {
-    const available = Array.from(this.executors.values())
-      .filter(e => e.status === 'online' && e.running_jobs < e.max_concurrent_jobs);
+  async selectBestExecutor(resourceRequirements?: { cpu?: number; memory_mb?: number }): Promise<ExecutorInfo | null> {
+    const available = await this.execRepo.findAllActive();
+    const online = available.filter(e => e.status === 'online' && e.running_jobs < e.max_concurrent_jobs);
 
-    if (available.length === 0) return null;
+    if (online.length === 0) return null;
 
-    // Load balancing: least-loaded first
-    const scored = available.map(e => {
+    const scored = online.map(e => {
       const cpuScore = e.cpu_capacity > 0 ? e.cpu_used / e.cpu_capacity : 1;
       const memScore = e.memory_capacity_mb > 0 ? e.memory_used_mb / e.memory_capacity_mb : 1;
       const jobScore = e.max_concurrent_jobs > 0 ? e.running_jobs / e.max_concurrent_jobs : 1;
-      return { executor: e, score: (cpuScore + memScore + jobScore) / 3 };
+      return { executor: this.entityToExecutor(e), score: (cpuScore + memScore + jobScore) / 3 };
     });
 
     scored.sort((a, b) => a.score - b.score);
@@ -310,8 +349,9 @@ export class FederationService {
     executors: ExecutorInfo[];
     health: ExecutorHealth[];
   }> {
-    const executors = Array.from(this.executors.values());
-    const healthList = Array.from(this.executorHealth.values());
+    const execResult = await this.execRepo.findAll({ limit: 1000 });
+    const executors = execResult.entities.map(e => this.entityToExecutor(e));
+    const healthList = await this.getAllExecutorHealth();
 
     return {
       total_executors: executors.length,
