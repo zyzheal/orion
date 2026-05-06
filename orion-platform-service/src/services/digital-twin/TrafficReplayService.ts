@@ -3,9 +3,12 @@
  *
  * Replays recorded traffic against sandbox environments for testing.
  * Supports configurable replay speed, filtering, and comparison with original responses.
+ * Uses PostgreSQL Repository pattern with in-memory fallback.
  */
 
 import { randomUUID } from 'crypto';
+import { DatabasePool } from '../database';
+import { ReplaySessionRepository } from '../../repositories/DigitalTwinEnhancedRepository';
 import { TrafficRecord } from './TrafficRecorderService';
 
 export interface ReplayConfig {
@@ -15,6 +18,7 @@ export interface ReplayConfig {
   targetEndpoint?: string;
   compareResponses?: boolean;
   stopOnFailure?: boolean;
+  tenantId?: string;
 }
 
 export interface ReplayResult {
@@ -47,7 +51,19 @@ export interface ReplaySession {
 }
 
 export class TrafficReplayService {
-  private replaySessions = new Map<string, ReplaySession>();
+  private repo?: ReplaySessionRepository;
+  private memory = new Map<string, ReplaySession>();
+
+  constructor(db?: DatabasePool) {
+    if (db) {
+      this.repo = new ReplaySessionRepository(db);
+    }
+  }
+
+  // ==================== Repository injection for testing ====================
+  setRepository(repo: ReplaySessionRepository): void {
+    this.repo = repo;
+  }
 
   async startReplay(
     twinId: string,
@@ -58,6 +74,25 @@ export class TrafficReplayService {
   ): Promise<ReplaySession> {
     const filteredRecords = this.filterRecords(records, config);
 
+    if (this.repo) {
+      const entity = await this.repo.insert({
+        tenant_id: config.tenantId ?? 'default',
+        twin_id: twinId,
+        recording_session_id: recordingSessionId,
+        sandbox_endpoint: sandboxEndpoint,
+        total_requests: filteredRecords.length,
+        config: config as Record<string, unknown>,
+      });
+
+      // Start replay asynchronously
+      this.executeReplayWithRepo(entity.id, filteredRecords).catch((err) => {
+        console.error(`Replay session ${entity.id} failed:`, err);
+      });
+
+      return this.entityToSession(entity);
+    }
+
+    // 内存回退
     const session: ReplaySession = {
       id: randomUUID(),
       twinId,
@@ -73,7 +108,7 @@ export class TrafficReplayService {
       progress: 0,
     };
 
-    this.replaySessions.set(session.id, session);
+    this.memory.set(session.id, session);
 
     // Start replay asynchronously
     this.executeReplay(session, filteredRecords).catch((err) => {
@@ -84,11 +119,33 @@ export class TrafficReplayService {
   }
 
   async getSession(sessionId: string): Promise<ReplaySession | null> {
-    return this.replaySessions.get(sessionId) ?? null;
+    if (this.repo) {
+      const entity = await this.repo.findById(sessionId);
+      return entity ? this.entityToSession(entity) : null;
+    }
+    return this.memory.get(sessionId) ?? null;
   }
 
   async listSessions(twinId?: string): Promise<ReplaySession[]> {
-    let sessions = Array.from(this.replaySessions.values());
+    if (this.repo) {
+      let entities: any[];
+      if (twinId) {
+        entities = await this.repo.findByTwin(twinId);
+      } else {
+        const result = await this.repo.findAll({ limit: 1000 });
+        entities = (result as any).entities || result;
+      }
+      return entities
+        .map(e => this.entityToSession(e))
+        .sort(
+          (a, b) =>
+            new Date(b.startedAt ?? '').getTime() -
+            new Date(a.startedAt ?? '').getTime(),
+        );
+    }
+
+    // 内存回退
+    let sessions = Array.from(this.memory.values());
     if (twinId) {
       sessions = sessions.filter((s) => s.twinId === twinId);
     }
@@ -100,7 +157,17 @@ export class TrafficReplayService {
   }
 
   async cancelSession(sessionId: string): Promise<ReplaySession | null> {
-    const session = this.replaySessions.get(sessionId);
+    if (this.repo) {
+      const session = await this.repo.findById(sessionId);
+      if (!session || session.status !== 'running') return null;
+
+      const completedAt = new Date().toISOString();
+      const updated = await this.repo.updateStatus(sessionId, 'cancelled', completedAt);
+      return updated ? this.entityToSession(updated) : null;
+    }
+
+    // 内存回退
+    const session = this.memory.get(sessionId);
     if (!session || session.status !== 'running') return null;
 
     session.status = 'cancelled';
@@ -118,6 +185,77 @@ export class TrafficReplayService {
     return records.filter((r) =>
       config.filterPaths!.some((pattern) => r.request.path.includes(pattern)),
     );
+  }
+
+  private async executeReplayWithRepo(
+    sessionId: string,
+    records: TrafficRecord[],
+  ): Promise<void> {
+    if (!this.repo) return;
+
+    const startedAt = new Date().toISOString();
+    await this.repo.setStartedAt(sessionId, startedAt);
+    await this.repo.updateStatus(sessionId, 'running');
+
+    // Get current session for config
+    const session = await this.repo.findById(sessionId);
+    if (!session) return;
+
+    const concurrency = (session.config as any)?.maxConcurrency ?? 1;
+
+    let completed = 0;
+    let matched = 0;
+    let failed = 0;
+    const results: ReplayResult[] = [];
+
+    for (let i = 0; i < records.length; i += concurrency) {
+      const batch = records.slice(i, i + concurrency);
+
+      const batchResults = await Promise.all(
+        batch.map(async (record, idx) => {
+          try {
+            const result = await this.replaySingleRequest(
+              record,
+              (session.config as any)?.targetEndpoint ?? session.sandboxEndpoint,
+              (session.config as any)?.compareResponses ?? true,
+            );
+            return result;
+          } catch (error) {
+            const errMsg = error instanceof Error ? error.message : String(error);
+            return {
+              requestIndex: i + idx,
+              recordId: record.id,
+              originalStatus: record.response.statusCode,
+              replayStatus: null,
+              originalBody: record.response.body,
+              replayBody: null,
+              latencyDiff: 0,
+              matched: false,
+              error: errMsg,
+            };
+          }
+        }),
+      );
+
+      results.push(...batchResults);
+      completed += batchResults.length;
+      matched += batchResults.filter(r => r.matched).length;
+      failed += batchResults.filter(r => !r.matched).length;
+
+      const progress = Math.round((completed / records.length) * 100);
+      await this.repo.updateProgress(sessionId, completed, matched, failed, progress);
+      await this.repo.addResults(sessionId, batchResults);
+
+      // Apply speed multiplier delay
+      const speedMultiplier = (session.config as any)?.speedMultiplier;
+      if (speedMultiplier && speedMultiplier > 0) {
+        const delay = (records[i]?.response.latencyMs ?? 0) / speedMultiplier;
+        await this.delay(delay);
+      }
+    }
+
+    const completedAt = new Date().toISOString();
+    await this.repo.updateStatus(sessionId, 'completed', completedAt);
   }
 
   private async executeReplay(
@@ -212,7 +350,6 @@ export class TrafficReplayService {
     const replayLatency = elapsed;
 
     // Simulate response matching
-    // In production, this would compare actual responses
     const statusMatched = Math.random() > 0.05;
     const bodyMatched = compareResponses ? Math.random() > 0.1 : true;
     const matched = statusMatched && bodyMatched;
@@ -231,5 +368,34 @@ export class TrafficReplayService {
 
   private delay(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, Math.max(0, ms)));
+  }
+
+  private entityToSession(entity: any): ReplaySession {
+    return {
+      id: entity.id,
+      twinId: entity.twinId,
+      recordingSessionId: entity.recordingSessionId,
+      sandboxEndpoint: entity.sandboxEndpoint,
+      status: entity.status,
+      totalRequests: entity.totalRequests ?? 0,
+      completedRequests: entity.completedRequests ?? 0,
+      matchedRequests: entity.matchedRequests ?? 0,
+      failedRequests: entity.failedRequests ?? 0,
+      results: (entity.results || []).map((r: any) => ({
+        requestIndex: r.requestIndex ?? 0,
+        recordId: r.recordId,
+        originalStatus: r.originalStatus,
+        replayStatus: r.replayStatus,
+        originalBody: r.originalBody,
+        replayBody: r.replayBody,
+        latencyDiff: r.latencyDiff ?? 0,
+        matched: r.matched,
+        error: r.error,
+      })),
+      config: entity.config ?? {},
+      startedAt: entity.startedAt,
+      completedAt: entity.completedAt,
+      progress: entity.progress ?? 0,
+    };
   }
 }

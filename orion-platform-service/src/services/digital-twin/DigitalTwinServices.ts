@@ -1,10 +1,9 @@
+import { DatabasePool } from '../database';
 /**
  * Digital Twin Services - Phase 4
  * 
  * Production environment snapshot and traffic replay capabilities
  */
-
-import { DatabasePool } from '../database';
 
 // ==================== Types ====================
 
@@ -98,11 +97,8 @@ export class DigitalTwinError extends Error {
 // ==================== Repository ====================
 
 export class DigitalTwinRepository {
-  private pool: DatabasePool;
 
-  constructor(pool: DatabasePool) {
-    this.pool = pool;
-  }
+  constructor(private pool: DatabasePool) {}
 
   // Snapshots
   async createSnapshot(input: CreateSnapshotInput): Promise<TwinSnapshot> {
@@ -267,6 +263,14 @@ export class DigitalTwinRepository {
     );
     return result.rows[0] || null;
   }
+
+  async listReplayMismatches(replayId: string): Promise<ReplayMismatch[]> {
+    const result = await this.pool.query(
+      'SELECT * FROM replay_mismatches WHERE replay_id = $1',
+      [replayId]
+    );
+    return result.rows;
+  }
 }
 
 // ==================== Services ====================
@@ -274,8 +278,8 @@ export class DigitalTwinRepository {
 export class ProductionSnapshotService {
   private repository: DigitalTwinRepository;
 
-  constructor(pool: DatabasePool) {
-    this.repository = new DigitalTwinRepository(pool);
+  constructor(private pool: DatabasePool) {
+    this.repository = new DigitalTwinRepository(this.pool);
   }
 
   async createSnapshot(input: CreateSnapshotInput): Promise<TwinSnapshot> {
@@ -343,8 +347,8 @@ export class ProductionSnapshotService {
 export class TrafficRecordingService {
   private repository: DigitalTwinRepository;
 
-  constructor(pool: DatabasePool) {
-    this.repository = new DigitalTwinRepository(pool);
+  constructor(private pool: DatabasePool) {
+    this.repository = new DigitalTwinRepository(this.pool);
   }
 
   async startRecording(input: { tenant_id: string; source_env: string; path_prefixes?: string[]; started_by?: string }): Promise<TrafficRecording> {
@@ -382,11 +386,9 @@ export class TrafficRecordingService {
 
 export class TrafficReplayService {
   private repository: DigitalTwinRepository;
-  private pool: DatabasePool;
 
-  constructor(pool: DatabasePool) {
-    this.pool = pool;
-    this.repository = new DigitalTwinRepository(pool);
+  constructor(private pool: DatabasePool) {
+    this.repository = new DigitalTwinRepository(this.pool);
   }
 
   async startReplay(input: { tenant_id: string; recording_id: string; target_env: string; speed_multiplier?: number; parallelism?: number }): Promise<TrafficReplay> {
@@ -440,5 +442,77 @@ export class TrafficReplayService {
       completed_at: new Date(),
     });
     return updated!;
+  }
+}
+
+// ==================== DigitalTwinService (Facade) ====================
+
+export class DigitalTwinService {
+  private repository: DigitalTwinRepository;
+
+  constructor(private pool: DatabasePool) {
+    this.repository = new DigitalTwinRepository(this.pool);
+  }
+
+  // Snapshot operations
+  async createSnapshot(input: CreateSnapshotInput): Promise<TwinSnapshot> {
+    return this.repository.createSnapshot(input);
+  }
+
+  async getSnapshot(id: string): Promise<TwinSnapshot | null> {
+    return this.repository.findSnapshotById(id);
+  }
+
+  async listSnapshots(tenantId: string): Promise<TwinSnapshot[]> {
+    return this.repository.listSnapshots(tenantId);
+  }
+
+  async restoreSnapshot(id: string, input: RestoreSnapshotInput): Promise<{ restore_id: string; status: string }> {
+    const snapshot = await this.repository.findSnapshotById(id);
+    if (!snapshot) {
+      throw new DigitalTwinError(`Snapshot not found: ${id}`, 'SNAPSHOT_NOT_FOUND');
+    }
+    await this.repository.updateSnapshot(id, { status: 'restoring' });
+    return { restore_id: id, status: 'restoring' };
+  }
+
+  async deleteSnapshot(id: string): Promise<boolean> {
+    return this.repository.deleteSnapshot(id);
+  }
+
+  // Recording operations
+  async startRecording(input: { tenant_id: string; source_env: string }): Promise<TrafficRecording> {
+    return this.repository.createRecording(input);
+  }
+
+  async stopRecording(id: string): Promise<TrafficRecording> {
+    const updated = await this.repository.updateRecording(id, {
+      status: 'stopped',
+      completed_at: new Date(),
+    });
+    return updated!;
+  }
+
+  // Replay operations
+  async startReplay(input: { tenant_id: string; recording_id: string; target_env: string; speed_multiplier?: number; parallelism?: number }): Promise<TrafficReplay> {
+    const recording = await this.repository.findRecordingById(input.recording_id);
+    if (!recording) {
+      throw new DigitalTwinError(`Recording not found: ${input.recording_id}`, 'RECORDING_NOT_FOUND');
+    }
+    return this.repository.createReplay({
+      tenant_id: input.tenant_id,
+      recording_id: input.recording_id,
+      target_env: input.target_env,
+      speed_multiplier: input.speed_multiplier ?? 1,
+      parallelism: input.parallelism ?? 1,
+    });
+  }
+
+  async getReplayStatus(id: string): Promise<TrafficReplay | null> {
+    return this.repository.findReplayById(id);
+  }
+
+  async getReplayMismatches(id: string): Promise<ReplayMismatch[]> {
+    return this.repository.listReplayMismatches(id);
   }
 }
