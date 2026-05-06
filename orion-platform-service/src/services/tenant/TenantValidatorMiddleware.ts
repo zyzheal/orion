@@ -10,7 +10,7 @@
 
 import { FastifyRequest, FastifyReply, HookHandlerDoneFunction } from 'fastify';
 import { TenantIsolationService } from './TenantIsolationService';
-import { tenantContext, TenantInfo } from './TenantContext';
+import { createTenantContext, TenantInfo } from './TenantContext';
 import pino from 'pino';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
@@ -101,14 +101,16 @@ export class TenantValidatorMiddleware {
         return;
       }
 
-      // 设置 TenantContext 供下游层使用
+      // 设置请求级别的 TenantContext 供下游层使用
       if (tenantId || headerTenantId) {
-        tenantContext.setTenant({
+        const ctx = createTenantContext();
+        ctx.setTenant({
           tenantId: tenantId || headerTenantId,
           userId: requestTenant?.userId || request.headers['x-user-id'] as string,
           roles: requestTenant?.roles,
           permissions: requestTenant?.permissions,
         });
+        (request as any).tenantContext = ctx;
       }
 
       done();
@@ -130,64 +132,6 @@ export function createTenantValidatorMiddleware(
   isolationService: TenantIsolationService,
   options: Partial<TenantValidatorOptions> = {}
 ) {
-  const config = { ...DEFAULT_OPTIONS, ...options };
-
-  return async (
-    request: FastifyRequest,
-    reply: FastifyReply,
-    done: HookHandlerDoneFunction
-  ) => {
-    // 跳过特定路径
-    if (config.skipPaths?.some(path => request.url.startsWith(path))) {
-      done();
-      return;
-    }
-
-    // 获取请求中的租户信息
-    const requestTenant = (request as any).tenant as TenantInfo | undefined;
-    const tenantId = requestTenant?.tenantId;
-
-    // 从 header 获取 tenant_id
-    const headerTenantId = parseInt(
-      request.headers['x-tenant-id'] as string || '0',
-      10
-    );
-
-    // 如果要求 tenant_id 但未提供（既没有 request.tenant 也没有 header）
-    if (!tenantId && !headerTenantId && config.required) {
-      reply.code(401).send({
-        error: 'MISSING_TENANT',
-        code: '40001',
-        message: 'Tenant ID is required for API layer validation',
-        timestamp: new Date().toISOString(),
-      });
-      return;
-    }
-
-    // 验证 header 中的 tenant_id 与 context 是否匹配
-    if (tenantId && headerTenantId && tenantId !== headerTenantId) {
-      logger.warn(
-        `[TenantValidator] Tenant mismatch: header=${headerTenantId} context=${tenantId}`
-      );
-      reply.code(403).send({
-        error: 'TENANT_MISMATCH',
-        code: '40301',
-        message: 'Tenant ID in header does not match authenticated tenant',
-        timestamp: new Date().toISOString(),
-      });
-      return;
-    }
-
-    // 设置 TenantContext 供下游层使用
-    if (tenantId || headerTenantId) {
-      tenantContext.setTenant({
-        tenantId: tenantId || headerTenantId,
-        userId: requestTenant?.userId || request.headers['x-user-id'] as string,
-        roles: requestTenant?.roles,
-        permissions: requestTenant?.permissions,
-      });
-    }
-
-    done();
-  };
+  const validator = new TenantValidatorMiddleware(isolationService, options);
+  return validator.getHandler();
 }

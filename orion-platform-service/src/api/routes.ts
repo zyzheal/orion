@@ -7,7 +7,6 @@ import { authenticateUser } from '../middleware/authMiddleware';
 import { roleGuard } from '../middleware/roleGuard';
 import { TenantIsolationService, createTenantValidatorMiddleware } from '../services/tenant';
 import { RLSPolicyManager } from '../services/tenant/RLSPolicyManager';
-import { tenantContext } from '../services/tenant/TenantContext';
 import { PipelineController } from './controllers/PipelineController';
 import { PipelineRunController } from './controllers/PipelineRunController';
 import { StageController } from './controllers/StageController';
@@ -253,16 +252,22 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
     // Layer 4: Database RLS - 设置 PostgreSQL session 变量
     if (options.database && rlsPolicyManager) {
       app.addHook('preHandler', async (request: FastifyRequest) => {
-        const tenant = tenantContext.getCurrentTenant();
-        if (tenant) {
-          await rlsPolicyManager.setTenantSessionVariable(tenant.tenantId);
+        const tenantCtx = (request as any).tenantContext;
+        if (tenantCtx) {
+          const tenant = tenantCtx.getCurrentTenant();
+          if (tenant) {
+            await rlsPolicyManager.setTenantSessionVariable(tenant.tenantId);
+          }
         }
       });
 
       // 清理 session 变量
-      app.addHook('onResponse', async () => {
+      app.addHook('onResponse', async (request: FastifyRequest) => {
         await rlsPolicyManager.clearTenantSessionVariable();
-        tenantContext.clearTenant();
+        const tenantCtx = (request as any).tenantContext;
+        if (tenantCtx) {
+          tenantCtx.clearTenant();
+        }
       });
     }
 
