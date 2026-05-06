@@ -163,9 +163,13 @@ describe('ResilienceScoreCalculator', () => {
 
     describe('getScoreBreakdown', () => {
       it('应该返回分数分解', async () => {
-        mockPool.query.mockResolvedValue({
-          rows: [],
-        });
+        // getCurrentScore -> calculateScore (no existing score)
+        // Query order: 1) findLatest (null) 2) getChaosMetrics JOIN 3) findLatest for trend 4) create
+        mockPool.query
+          .mockResolvedValueOnce({ rows: [] }) // findLatest from getCurrentScore -> null
+          .mockResolvedValueOnce({ rows: [{ total_runs: '0', completed_runs: '0', rolled_back_runs: '0', avg_mttr: null, avg_errors: null }] }) // getChaosMetrics JOIN
+          .mockResolvedValueOnce({ rows: [] }) // findLatest for trend (no previous)
+          .mockResolvedValueOnce({ rows: [{ id: 's1', score: 85, mttr_ms: 300000, success_rate: 0.95, error_budget: 0.8, trend: 'stable' }] }); // create
 
         const result = await service.getScoreBreakdown('tenant1');
 
@@ -181,11 +185,12 @@ describe('ResilienceScoreCalculator', () => {
     describe('getLatestScore', () => {
       it('应该返回最新分数', async () => {
         mockPool.query.mockResolvedValue({
-          rows: [{ id: 's1', score: 90 }],
+          rows: [{ id: 's1', score: 90, mttr_ms: 60000, success_rate: 0.95, error_budget: 0.8, trend: 'stable' }],
         });
 
-        const result = await service.getLatestScore('tenant1');
+        const result = await service.getCurrentScore('tenant1');
 
+        expect(result).not.toBeNull();
         expect(result!.score).toBe(90);
       });
     });
@@ -193,12 +198,12 @@ describe('ResilienceScoreCalculator', () => {
     describe('getHistory', () => {
       it('应该返回历史记录', async () => {
         mockPool.query.mockResolvedValue({
-          rows: [{ date: '2024-01-01', score: 85 }],
+          rows: [{ calculated_at: new Date('2024-01-01'), score: 85, mttr_ms: 0, success_rate: 0 }],
         });
 
         const result = await service.getHistory('tenant1');
 
-        expect(result.length).toBeGreaterThan(0);
+        expect(result.data.length).toBeGreaterThan(0);
       });
     });
 
@@ -208,12 +213,15 @@ describe('ResilienceScoreCalculator', () => {
           rows: [{
             service_id: 'service-a',
             avg_score: '80',
+            avg_mttr: '60000',
+            avg_success_rate: '0.95',
+            total_records: '5',
           }],
         });
 
-        const result = await service.getServiceSummaries('tenant1');
+        const result = await service.getTenantSummary('tenant1');
 
-        expect(result.length).toBeGreaterThan(0);
+        expect(result.services.length).toBeGreaterThan(0);
       });
     });
   });
@@ -265,17 +273,15 @@ describe('ResilienceScoreCalculator', () => {
 
     describe('Trend Analysis', () => {
       it('应该识别改进趋势', async () => {
-        mockPool.query.mockResolvedValue({
-          rows: [
-            { calculated_at: new Date('2024-01-03'), score: 95 },
-            { calculated_at: new Date('2024-01-02'), score: 90 },
-            { calculated_at: new Date('2024-01-01'), score: 85 },
-          ],
-        });
+        // calculateScore: getChaosMetrics -> findLatest(trend) -> create
+        mockPool.query
+          .mockResolvedValueOnce({ rows: [{ total_runs: '5', completed_runs: '4', rolled_back_runs: '1', avg_mttr: '60000', avg_errors: '2' }] }) // getChaosMetrics
+          .mockResolvedValueOnce({ rows: [{ score: 70 }] }) // findLatest for trend (previous score = 70, new will be higher)
+          .mockResolvedValueOnce({ rows: [{ id: 's1', score: 85, mttr_ms: 60000, success_rate: 0.95, error_budget: 0.8, trend: 'improving' }] }); // create
 
         const result = await service.calculateScore('tenant1');
 
-        expect(result.trend).toBe('improving').or.toBe('stable').or.toBe('degrading');
+        expect(['improving', 'stable', 'degrading'].includes(result.trend)).toBe(true);
       });
     });
   });

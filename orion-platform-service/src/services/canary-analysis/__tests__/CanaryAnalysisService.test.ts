@@ -40,11 +40,19 @@ function makeMockRepository<T extends { id?: string }>(tableName: string, store:
     },
     async findAll(options: any = {}): Promise<{ entities: T[]; total: number }> {
       let entities = [...store] as T[];
+      if (options.where) {
+        entities = entities.filter((e: any) => {
+          for (const [key, value] of Object.entries(options.where)) {
+            if (e[key] !== value) return false;
+          }
+          return true;
+        });
+      }
       if (options.limit) entities = entities.slice(0, options.limit);
       return { entities, total: entities.length };
     },
     async create(data: any): Promise<T> {
-      const entity = { id: `mock-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`, ...data };
+      const entity = { id: `mock-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`, ...data, created_at: new Date(), updated_at: new Date() };
       store.push(entity);
       return entity as T;
     },
@@ -62,7 +70,7 @@ function makeRunRepository(store: any[]) {
   return {
     ...base,
     async findByDeployment(deploymentId: string) {
-      return store.filter((r: any) => r.deployment_id === deploymentId);
+      return store.filter((r: any) => r.deploymentId === deploymentId);
     },
     async findByStatus(status: string) {
       return store.filter((r: any) => r.status === status);
@@ -73,7 +81,7 @@ function makeRunRepository(store: any[]) {
         run.status = status;
         run.decision = decision;
         run.confidence = confidence;
-        run.completed_at = completedAt;
+        run.completedAt = completedAt;
       }
       return run ?? null;
     },
@@ -85,7 +93,7 @@ function makeMetricRepository(store: any[]) {
   return {
     ...base,
     async findByRun(runId: string) {
-      return store.filter((r: any) => r.run_id === runId);
+      return store.filter((r: any) => r.runId === runId);
     },
     async batchCreate(metrics: any[]) {
       const results = metrics.map(m => ({ id: `mock-metric-${Math.random().toString(36).slice(2, 9)}`, ...m }));
@@ -100,7 +108,7 @@ function makeMLRepository(store: any[]) {
   return {
     ...base,
     async findByRun(runId: string) {
-      return store.filter((r: any) => r.run_id === runId);
+      return store.filter((r: any) => r.runId === runId);
     },
     async batchCreate(items: any[]) {
       const results = items.map(m => ({ id: `mock-ml-${Math.random().toString(36).slice(2, 9)}`, ...m }));
@@ -115,12 +123,12 @@ function makeConfigRepository(store: any[]) {
   return {
     ...base,
     async findByServiceEnv(serviceName: string, environment: string) {
-      return store.find((r: any) => r.service_name === serviceName && r.environment === environment);
+      return store.find((r: any) => r.serviceName === serviceName && r.environment === environment);
     },
     async updateConfig(id: string, updates: any) {
       const config = store.find((r: any) => r.id === id);
       if (config) {
-        Object.assign(config, updates, { updated_at: new Date() });
+        Object.assign(config, updates, { updatedAt: new Date() });
       }
       return config ?? null;
     },
@@ -132,7 +140,7 @@ function makeDecisionRepository(store: any[]) {
   return {
     ...base,
     async findByRun(runId: string) {
-      return store.filter((r: any) => r.run_id === runId);
+      return store.filter((r: any) => r.runId === runId);
     },
     async create(data: any): Promise<any> {
       const entity = { id: `mock-decision-${Math.random().toString(36).slice(2, 9)}`, ...data };
@@ -192,7 +200,7 @@ describe('CanaryAnalysisService', () => {
 
   describe('createRun and listRuns', () => {
     it('should create and list runs', async () => {
-      const { service } = createMockService();
+      const { service, runStore } = createMockService();
       const run = await service.createRun({
         deploymentId: 'deploy-3',
         runNumber: 1,
@@ -201,8 +209,12 @@ describe('CanaryAnalysisService', () => {
       expect(run.id).toBeDefined();
       expect(run.status).toBe('running');
 
+      // Verify run is in store
+      expect(runStore.length).toBe(1);
+      expect(runStore[0].deploymentId).toBe('deploy-3');
+
       const runs = await service.listRuns({ deploymentId: 'deploy-3' });
-      expect(runs.length).toBeGreaterThanOrEqual(1);
+      expect(runs.length).toBe(1);
     });
   });
 

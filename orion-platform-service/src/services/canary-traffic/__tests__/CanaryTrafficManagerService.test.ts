@@ -241,11 +241,11 @@ describe('CanaryTrafficManagerService', () => {
     it('应该不超过最大百分比', async () => {
       mockPool.query
         .mockResolvedValueOnce({
-          rows: {
+          rows: [{
             current_percent: 95,
             increment_percent: 10,
             max_percent: 100,
-          },
+          }],
         })
         .mockResolvedValueOnce({
           rows: [{ current_percent: 100 }],
@@ -257,7 +257,7 @@ describe('CanaryTrafficManagerService', () => {
     });
 
     it('应该拒绝不存在的 Canary', async () => {
-      mockPool.query.mockResolvedValueOnce({ rows: [] });
+      mockPool.query.mockResolvedValue({ rows: [] });
 
       await expect(service.incrementTraffic('nonexistent')).rejects.toThrow('Canary not found');
     });

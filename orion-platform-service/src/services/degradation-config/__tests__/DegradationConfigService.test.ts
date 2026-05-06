@@ -163,16 +163,16 @@ describe('DegradationConfigService', () => {
       });
     });
 
-    describe('getAuditLogs', () => {
+    describe('getAuditHistory', () => {
       it('应该返回审计日志', async () => {
         mockPool.query.mockResolvedValue({
           rows: [
-            { id: 'a1', action: 'update', created_at: new Date() },
-            { id: 'a2', action: 'create', created_at: new Date() },
+            { id: 'a1', scenario: 'risk-assessment', action: 'update', old_config: null, new_config: null, created_by: null, created_at: new Date() },
+            { id: 'a2', scenario: 'risk-assessment', action: 'create', old_config: null, new_config: null, created_by: null, created_at: new Date() },
           ],
         });
 
-        const result = await repository.getAuditLogs('risk-assessment');
+        const result = await service.getAuditHistory('risk-assessment');
 
         expect(result.length).toBe(2);
       });
@@ -211,13 +211,10 @@ describe('DegradationConfigService', () => {
         expect(result).not.toBeNull();
       });
 
-      it('应该返回默认配置如果未找到', async () => {
+      it('应该抛出错误如果配置不存在', async () => {
         mockPool.query.mockResolvedValue({ rows: [] });
 
-        const result = await service.getConfig('unknown-scenario');
-
-        // Service might return a default config or null
-        expect(result).toBeDefined();
+        await expect(service.getConfig('unknown-scenario')).rejects.toThrow('Configuration not found');
       });
     });
 
@@ -229,17 +226,17 @@ describe('DegradationConfigService', () => {
 
         const result = await service.listConfigs();
 
-        expect(result.length).toBeGreaterThan(0);
+        expect(result.data.length).toBeGreaterThan(0);
       });
     });
 
     describe('updateConfig', () => {
       it('应该更新配置', async () => {
-        mockPool.query.mockResolvedValue({
-          rows: [{ id: 'c1', strategy: 'template' }],
-        });
+        mockPool.query
+          .mockResolvedValueOnce({ rows: [] }) // findByScenario - not found, will create
+          .mockResolvedValueOnce({ rows: [{ id: 'c1', strategy: 'template' }] }); // create
 
-        const result = await service.updateConfig({
+        const result = await service.updateConfig('risk-assessment', {
           scenario: 'risk-assessment',
           strategy: 'template',
         });
@@ -250,12 +247,14 @@ describe('DegradationConfigService', () => {
 
     describe('exportConfigs', () => {
       it('应该导出配置', async () => {
-        mockPool.query.mockResolvedValue({
-          rows: [
-            { id: 'c1', scenario: 'risk-assessment' },
-            { id: 'c2', scenario: 'test-selection' },
-          ],
-        });
+        mockPool.query
+          .mockResolvedValueOnce({
+            rows: [
+              { id: 'c1', scenario: 'risk-assessment' },
+              { id: 'c2', scenario: 'test-selection' },
+            ],
+          })
+          .mockResolvedValueOnce({ rows: [] }); // audit log INSERT
 
         const result = await service.exportConfigs();
 
@@ -267,8 +266,10 @@ describe('DegradationConfigService', () => {
     describe('importConfigs', () => {
       it('应该导入配置', async () => {
         mockPool.query
-          .mockResolvedValueOnce({ rows: [] }) // findByScenario
-          .mockResolvedValueOnce({ rows: [{ id: 'c1' }] }); // create
+          .mockResolvedValueOnce({ rows: [] }) // findByScenario - not found
+          .mockResolvedValueOnce({ rows: [{ id: 'c1' }] }) // create
+          .mockResolvedValueOnce({ rows: [] }) // audit log
+          .mockResolvedValueOnce({ rows: [] }); // import audit log
 
         const configs = [{
           scenario: 'new-scenario',
@@ -282,7 +283,9 @@ describe('DegradationConfigService', () => {
       });
 
       it('应该处理导入失败', async () => {
-        mockPool.query.mockRejectedValue(new Error('Database error'));
+        mockPool.query
+          .mockRejectedValueOnce(new Error('Database error'))
+          .mockResolvedValueOnce({ rows: [] }); // import audit log
 
         const configs = [{
           scenario: 'test-scenario',
@@ -294,18 +297,11 @@ describe('DegradationConfigService', () => {
       });
     });
 
-    describe('getDefaultConfig', () => {
-      it('应该返回内置默认配置', () => {
-        const result = service.getDefaultConfig('risk-assessment');
+    describe('getConfig for unknown scenario', () => {
+      it('应该抛出错误对于未知场景', async () => {
+        mockPool.query.mockResolvedValue({ rows: [] });
 
-        expect(result).toBeDefined();
-        expect(result!.strategy).toBe('rule-engine');
-      });
-
-      it('应该返回 undefined 对于未知场景', () => {
-        const result = service.getDefaultConfig('unknown-scenario');
-
-        expect(result).toBeUndefined();
+        await expect(service.getConfig('unknown-scenario')).rejects.toThrow('Configuration not found for scenario');
       });
     });
   });

@@ -102,22 +102,28 @@ class MockChaosDb {
       const runId = params[params.length - 1];
       const run = this.runs.get(runId);
       if (run) {
-        const values = params.slice(0, -1);
-        for (const val of values) {
+        for (let i = 0; i < params.length - 1; i++) {
+          const val = params[i];
           if (typeof val === 'string' && ['running', 'completed', 'failed', 'rolled_back'].includes(val)) {
             run.status = val;
           } else if (val instanceof Date) {
+            // Could be ended_at or started_at
             run.ended_at = val;
-          } else if (Array.isArray(val)) {
-            // Timeline is always an array of events
-            run.timeline = val;
-          } else if (val && typeof val === 'object') {
-            if ('mttr_ms' in val || 'recovered' in val) {
-              run.metrics = val;
+          } else if (typeof val === 'string') {
+            // Try parsing as JSON for timeline or metrics
+            try {
+              const parsed = JSON.parse(val);
+              if (Array.isArray(parsed)) {
+                run.timeline = parsed;
+              } else if (typeof parsed === 'object' && ('mttr_ms' in parsed || 'recovered' in parsed)) {
+                run.metrics = parsed;
+              }
+            } catch {
+              // Not JSON, ignore
             }
           }
         }
-        this.runs.set(runId, run); // Ensure it's saved
+        this.runs.set(runId, run);
         return { rows: [this.mapRunRow(run)], rowCount: 1 };
       }
       // Debug: run not found
