@@ -127,9 +127,9 @@ export default async function escalationRoutes(
     if (body.defaults) {
       configService.updateGlobalConfig({
         defaults: {
-          alertTimeoutMinutes: body.defaults.alertTimeoutMinutes,
-          ticketSlaTimeoutMinutes: body.defaults.ticketSlaTimeoutMinutes,
-          incidentTimeoutMinutes: body.defaults.incidentTimeoutMinutes,
+          alertTimeoutMinutes: body.defaults.alertTimeoutMinutes ?? 30,
+          ticketSlaTimeoutMinutes: body.defaults.ticketSlaTimeoutMinutes ?? 60,
+          incidentTimeoutMinutes: body.defaults.incidentTimeoutMinutes ?? 120,
         },
         autoEscalationEnabled: body.autoEscalationEnabled,
         checkIntervalSeconds: body.checkIntervalSeconds,

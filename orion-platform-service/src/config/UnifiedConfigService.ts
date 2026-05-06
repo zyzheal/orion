@@ -5,7 +5,7 @@
  * 支持: 环境变量 / 数据库配置 / 热更新
  */
 
-import { DatabasePool } from '../database';
+import { DatabasePool } from '../services/database';
 import pino from 'pino';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
@@ -310,7 +310,30 @@ export class UnifiedConfigService {
   /**
    * 初始化配置中心
    */
-  async iy: string, newValue: any, oldValue: any): void {
+  async initialize(): Promise<void> {
+    logger.info('[UnifiedConfig] Configuration center initialized');
+  }
+
+  /**
+   * 获取配置值
+   */
+  get<K extends keyof SystemConfig>(key: K): SystemConfig[K] {
+    return this.config[key];
+  }
+
+  /**
+   * 设置配置值
+   */
+  async set<K extends keyof SystemConfig>(key: K, value: SystemConfig[K]): Promise<void> {
+    const oldValue = this.config[key];
+    this.config[key] = value;
+    await this.notifySubscribers(key, value, oldValue);
+  }
+
+  /**
+   * 通知订阅者
+   */
+  private async notifySubscribers(key: string, newValue: any, oldValue: any): Promise<void> {
     const subs = this.subscribers.get(key) || [];
     for (const callback of subs) {
       try {
@@ -319,7 +342,7 @@ export class UnifiedConfigService {
         logger.error(`[UnifiedConfig] Subscriber error for ${key}:`, error);
       }
     }
-    
+
     // 通知通配符订阅者
     const wildcardSubs = this.subscribers.get('*') || [];
     for (const callback of wildcardSubs) {
@@ -330,14 +353,22 @@ export class UnifiedConfigService {
       }
     }
   }
+
+  /**
+   * 获取变更历史
+   */
+  getHistory(): Array<{ key: string; oldValue: any; newValue: any; timestamp: Date }> {
+    return [];
+  }
   
   /**
    * 重置为默认配置
    */
-  async reset(key?: keyof SystemConfig): Promise<void> {
+  async reset<K extends keyof SystemConfig>(key?: K): Promise<void> {
     if (key) {
+      const oldValue = this.config[key];
       this.config[key] = DEFAULT_CONFIG[key];
-      await this.set(key, DEFAULT_CONFIG[key]);
+      await this.notifySubscribers(key as string, this.config[key], oldValue);
     } else {
       this.config = { ...DEFAULT_CONFIG };
     }

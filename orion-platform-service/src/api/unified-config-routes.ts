@@ -7,8 +7,8 @@
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { DatabasePool } from '../services/database';
-import { UnifiedConfigService, SystemConfig, unifiedConfig } from '../../config/UnifiedConfigService';
-import { roleGuard } from '../../middleware/roleGuard';
+import { UnifiedConfigService, SystemConfig, unifiedConfig } from '../config/UnifiedConfigService';
+import { roleGuard } from '../middleware/roleGuard';
 
 interface ConfigRoutesOptions {
   database?: DatabasePool;
