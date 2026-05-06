@@ -17,8 +17,12 @@ class MockDeployRepository {
   private deployments: Map<string, Deployment> = new Map();
   private events: Map<string, any[]> = new Map();
 
+  private _createCounter = 0;
+
   async create(input: CreateDeploymentInput): Promise<Deployment> {
     const id = `deploy-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    this._createCounter++;
+    const createdAt = new Date(Date.now() + this._createCounter);
     const deployment: Deployment = {
       id,
       tenant_id: input.tenant_id,
@@ -31,8 +35,8 @@ class MockDeployRepository {
       status: 'pending',
       deployed_by: input.deployed_by || null,
       rollback_to: null,
-      created_at: new Date(),
-      updated_at: new Date(),
+      created_at: createdAt,
+      updated_at: createdAt,
     };
     this.deployments.set(id, deployment);
     return deployment;
@@ -46,14 +50,22 @@ class MockDeployRepository {
     let results = Array.from(this.deployments.values());
     if (options?.tenantId) results = results.filter(d => d.tenant_id === options.tenantId);
     if (options?.environment) results = results.filter(d => d.environment === options.environment);
+    if (options?.environmentId) results = results.filter(d => d.environment === options.environmentId);
     if (options?.status) results = results.filter(d => d.status === options.status);
-    const offset = options?.offset || 0;
-    const limit = options?.limit || results.length;
+    const offset = options?.offset ?? 0;
+    const limit = options?.limit ?? results.length;
     return results.slice(offset, offset + limit);
   }
 
   async count(options?: any): Promise<number> {
-    return this.findAll(options).length;
+    // Count should not apply pagination - real repo runs separate COUNT(*) query
+    const { offset, limit, ...filterOptions } = options || {};
+    let results = Array.from(this.deployments.values());
+    if (filterOptions?.tenantId) results = results.filter(d => d.tenant_id === filterOptions.tenantId);
+    if (filterOptions?.environment) results = results.filter(d => d.environment === filterOptions.environment);
+    if (filterOptions?.environmentId) results = results.filter(d => d.environment === filterOptions.environmentId);
+    if (filterOptions?.status) results = results.filter(d => d.status === filterOptions.status);
+    return results.length;
   }
 
   async startDeployment(id: string): Promise<Deployment | null> {
@@ -139,6 +151,7 @@ class MockDeployRepository {
   clear(): void {
     this.deployments.clear();
     this.events.clear();
+    this._createCounter = 0;
   }
 }
 
@@ -154,11 +167,19 @@ class MockDeployWindowRepository {
     if (options?.tenantId) results = results.filter(w => w.tenant_id === options.tenantId);
     if (options?.environmentId) results = results.filter(w => w.environment_id === options.environmentId);
     if (options?.status) results = results.filter(w => w.status === options.status);
-    return results;
+    const offset = options?.offset ?? 0;
+    const limit = options?.limit ?? results.length;
+    return results.slice(offset, offset + limit);
   }
 
   async count(options?: any): Promise<number> {
-    return this.findAll(options).length;
+    // Count should not apply pagination - real repo runs separate COUNT(*) query
+    const { offset, limit, ...filterOptions } = options || {};
+    let results = Array.from(this.windows.values());
+    if (filterOptions?.tenantId) results = results.filter(w => w.tenant_id === filterOptions.tenantId);
+    if (filterOptions?.environmentId) results = results.filter(w => w.environment_id === filterOptions.environmentId);
+    if (filterOptions?.status) results = results.filter(w => w.status === filterOptions.status);
+    return results.length;
   }
 
   async create(input: CreateDeployWindowInput): Promise<DeployWindow> {
