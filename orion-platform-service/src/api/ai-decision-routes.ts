@@ -20,6 +20,7 @@
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { DatabasePool } from '../services/database';
 import { DecisionExplanationService, type DecisionFeature } from '../services/ai/DecisionExplanationService';
 import { ModelVersionService, type ModelRegistrationInput } from '../services/ai/ModelVersionService';
 import { DecisionExplanationController } from './controllers/DecisionExplanationController';
@@ -28,6 +29,7 @@ import { ModelVersionController } from './controllers/ModelVersionController';
 export interface AIDecisionRoutesOptions {
   decisionExplanationService?: DecisionExplanationService;
   modelVersionService?: ModelVersionService;
+  database?: DatabasePool;
 }
 
 export default async function aiDecisionRoutes(
@@ -35,7 +37,18 @@ export default async function aiDecisionRoutes(
   options: AIDecisionRoutesOptions
 ): Promise<void> {
   const decisionService = options.decisionExplanationService || new DecisionExplanationService();
-  const modelService = options.modelVersionService || new ModelVersionService();
+
+  // Create ModelVersionService with DB or in-memory fallback
+  let modelService: ModelVersionService;
+  if (options.modelVersionService) {
+    modelService = options.modelVersionService;
+  } else if (options.database) {
+    modelService = new ModelVersionService(options.database);
+  } else {
+    app.log.warn('ModelVersion routes: no database pool provided, using in-memory fallback');
+    const mockDb = { query: async () => ({ rows: [], rowCount: 0 }) };
+    modelService = new ModelVersionService(mockDb);
+  }
 
   const decisionController = new DecisionExplanationController(decisionService);
   const modelController = new ModelVersionController(modelService);

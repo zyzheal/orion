@@ -34,7 +34,7 @@ export class ModelVersionController {
     }
 
     try {
-      const model = this.service.registerModel(body);
+      const model = await this.service.registerModel(body);
 
       return reply.status(201).send({
         data: model,
@@ -71,7 +71,7 @@ export class ModelVersionController {
     const { status, framework, name } = request.query;
 
     try {
-      const models = this.service.listModels({
+      const models = await this.service.listModels({
         status: status as any,
         framework: framework as any,
         name,
@@ -107,7 +107,7 @@ export class ModelVersionController {
     const includeDeprecated = request.query.include_deprecated === 'true';
 
     try {
-      const versions = this.service.getModelVersions(modelName, includeDeprecated);
+      const versions = await this.service.getModelVersions(modelName, includeDeprecated);
 
       if (versions.length === 0) {
         return reply.status(404).send({
@@ -116,7 +116,7 @@ export class ModelVersionController {
         });
       }
 
-      const active = this.service.getActiveModel(modelName);
+      const active = await this.service.getActiveModel(modelName);
 
       return reply.send({
         data: versions,
@@ -145,7 +145,7 @@ export class ModelVersionController {
     const { modelId } = request.params;
 
     try {
-      const model = this.service.activateModel(modelId);
+      const model = await this.service.activateModel(modelId);
 
       return reply.send({
         data: model,
@@ -177,7 +177,7 @@ export class ModelVersionController {
     const { modelId } = request.params;
 
     try {
-      const model = this.service.deprecateModel(modelId);
+      const model = await this.service.deprecateModel(modelId);
 
       return reply.send({
         data: model,
@@ -226,7 +226,7 @@ export class ModelVersionController {
       }
 
       // 默认：获取 A/B 测试结果
-      const results = this.service.getABTestResults(modelName);
+      const results = await this.service.getABTestResults(modelName);
 
       if (!results) {
         return reply.status(404).send({
@@ -277,7 +277,7 @@ export class ModelVersionController {
       const trafficSplit: Record<string, number> = body.traffic_split;
       const targetMetrics: string[] = body.target_metrics || ['accuracy', 'errorRate', 'avgLatency'];
 
-      const abTest = this.service.createABTest({
+      const abTest = await this.service.createABTest({
         modelName: request.params.modelName,
         variants,
         trafficSplit,
@@ -311,7 +311,7 @@ export class ModelVersionController {
     const body = (request as any).body;
 
     try {
-      const result = this.service.completeABTest(request.params.modelName, body?.winner);
+      const result = await this.service.completeABTest(request.params.modelName, body?.winner);
 
       return reply.send({
         data: result,
@@ -334,7 +334,7 @@ export class ModelVersionController {
     reply: FastifyReply
   ) {
     try {
-      const abTest = this.service.pauseABTest(request.params.modelName);
+      const abTest = await this.service.pauseABTest(request.params.modelName);
 
       return reply.send({
         data: abTest,
@@ -360,7 +360,7 @@ export class ModelVersionController {
     const { modelName } = request.params;
 
     try {
-      const overview = this.service.getModelPerformanceOverview(modelName);
+      const overview = await this.service.getModelPerformanceOverview(modelName);
 
       return reply.send({
         data: overview,
@@ -385,7 +385,7 @@ export class ModelVersionController {
     const { modelId } = request.params;
 
     try {
-      const model = this.service.getModelById(modelId);
+      const model = await this.service.getModelById(modelId);
 
       if (!model) {
         return reply.status(404).send({
@@ -421,7 +421,7 @@ export class ModelVersionController {
     const targetVersion = (request.body as any)?.targetVersion;
 
     try {
-      const model = this.service.rollbackModel(modelId, targetVersion);
+      const model = await this.service.rollbackModel(modelId, targetVersion);
 
       return reply.send({
         data: model,

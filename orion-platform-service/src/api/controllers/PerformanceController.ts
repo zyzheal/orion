@@ -7,89 +7,46 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { BaseController } from './BaseController';
 import { PerformanceBaselineService } from '../../services/performance/PerformanceBaselineService';
-
-interface PerformanceBaseline {
-  id: string;
-  serviceName: string;
-  metrics: Record<string, number>;
-  createdAt: string;
-}
-
-interface PerformanceResult {
-  serviceName: string;
-  metrics: Record<string, number>;
-  score: number;
-  issues: string[];
-  timestamp: string;
-}
+import { PerformanceProfileService } from '../../services/performance/PerformanceProfileService';
 
 export class PerformanceController extends BaseController {
-  private baselines = new Map<string, PerformanceBaseline>();
-  private results: PerformanceResult[] = [];
   private baselineService: PerformanceBaselineService;
+  private profileSvc: PerformanceProfileService;
 
-  constructor() {
+  constructor(db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
     super();
-    this.baselineService = new PerformanceBaselineService();
+    this.baselineService = new PerformanceBaselineService(db);
+    this.profileSvc = new PerformanceProfileService(db);
   }
 
   async createBaseline(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     await this.tryExecute(reply, async () => {
+      const tenantId = this.getTenantId(request);
       const body = request.body as {
-        serviceName: string;
+        service: string;
         metrics: Record<string, number>;
+        thresholds?: Record<string, { min: number; max: number }>;
       };
-      const id = `baseline-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      const baseline: PerformanceBaseline = {
-        id,
-        serviceName: body.serviceName,
-        metrics: body.metrics,
-        createdAt: new Date().toISOString(),
-      };
-      this.baselines.set(id, baseline);
-      return baseline;
+      return this.baselineService.createBaseline(tenantId, body.service, body.metrics, body.thresholds);
     }, (baseline) => this.sendCreated(reply, baseline));
   }
 
   async listBaselines(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     await this.tryExecute(reply, async () => {
-      const query = request.query as { serviceName?: string };
-      let results = Array.from(this.baselines.values());
-      if (query.serviceName) {
-        results = results.filter((b) => b.serviceName === query.serviceName);
-      }
-      return results;
+      const tenantId = this.getTenantId(request);
+      return this.baselineService.listBaselines(tenantId);
     }, (baselines) => this.sendSuccess(reply, baselines));
   }
 
   async evaluatePerformance(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     await this.tryExecute(reply, async () => {
+      const tenantId = this.getTenantId(request);
       const body = request.body as {
-        serviceName: string;
+        service: string;
         metrics: Record<string, number>;
       };
-      const issues: string[] = [];
-      let totalScore = 100;
-      if (body.metrics.latency && body.metrics.latency > 500) {
-        issues.push('Latency exceeds 500ms threshold');
-        totalScore -= 20;
-      }
-      if (body.metrics.errorRate && body.metrics.errorRate > 0.01) {
-        issues.push('Error rate exceeds 1% threshold');
-        totalScore -= 30;
-      }
-      if (body.metrics.cpu && body.metrics.cpu > 80) {
-        issues.push('CPU usage exceeds 80%');
-        totalScore -= 15;
-      }
-      const result: PerformanceResult = {
-        serviceName: body.serviceName,
-        metrics: body.metrics,
-        score: Math.max(0, totalScore),
-        issues,
-        timestamp: new Date().toISOString(),
-      };
-      this.results.push(result);
+      const result = await this.baselineService.evaluatePerformance(tenantId, body.service, body.metrics);
+      if (!result) throw new Error(`No baseline found for service: ${body.service}`);
       return result;
     }, (result) => this.sendSuccess(reply, result));
   }
@@ -97,39 +54,26 @@ export class PerformanceController extends BaseController {
   async profileService(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     await this.tryExecute(reply, async () => {
       const params = request.params as { serviceName: string };
-      return {
-        serviceName: params.serviceName,
-        cpu: { usage: Math.floor(Math.random() * 60) + 10, samples: 100 },
-        memory: { usage: Math.floor(Math.random() * 70) + 10, total: '512MB' },
-        latency: { p50: Math.floor(Math.random() * 100), p95: Math.floor(Math.random() * 300), p99: Math.floor(Math.random() * 500) },
-        throughput: { rps: Math.floor(Math.random() * 1000) + 100 },
-        timestamp: new Date().toISOString(),
-      };
+      return this.profileSvc.profileService(params.serviceName, {
+        durationSeconds: 60,
+        concurrency: 10,
+      });
     }, (profile) => this.sendSuccess(reply, profile));
   }
 
   async getBottlenecks(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     await this.tryExecute(reply, async () => {
-      return {
-        bottlenecks: [
-          { service: 'api-gateway', type: 'latency', severity: 'high', detail: 'P99 latency > 500ms' },
-          { service: 'db-service', type: 'connection_pool', severity: 'medium', detail: 'Connection pool exhaustion risk' },
-          { service: 'cache-service', type: 'memory', severity: 'low', detail: 'Memory usage at 70%' },
-        ],
-        timestamp: new Date().toISOString(),
-      };
+      const params = request.params as { profileId: string };
+      const result = await this.profileSvc.analyzeBottlenecks(params.profileId);
+      if (!result) throw new Error(`Profile not found or not completed: ${params.profileId}`);
+      return result;
     }, (data) => this.sendSuccess(reply, data));
   }
 
   async getSuggestions(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     await this.tryExecute(reply, async () => {
-      return {
-        suggestions: [
-          { id: 's1', category: 'caching', description: 'Add Redis cache for frequently accessed data', impact: 'high', effort: 'medium' },
-          { id: 's2', category: 'database', description: 'Optimize slow queries with index tuning', impact: 'high', effort: 'low' },
-          { id: 's3', category: 'scaling', description: 'Enable horizontal scaling for API gateway', impact: 'medium', effort: 'medium' },
-        ],
-      };
+      const params = request.params as { serviceName: string };
+      return this.profileSvc.getOptimizationSuggestions(params.serviceName);
     }, (data) => this.sendSuccess(reply, data));
   }
 
@@ -142,7 +86,7 @@ export class PerformanceController extends BaseController {
     await this.tryExecute(reply, async () => {
       const tenantId = this.getTenantId(request);
       const body = this.getBody<{ service: string; currentMetrics: Record<string, number> }>(request);
-      const result = this.baselineService.detectRegression(tenantId, body.service, body.currentMetrics);
+      const result = await this.baselineService.detectRegression(tenantId, body.service, body.currentMetrics);
       if (!result) throw new Error(`No baseline found for service: ${body.service}`);
       return result;
     }, (result) => this.sendSuccess(reply, result));
@@ -200,7 +144,7 @@ export class PerformanceController extends BaseController {
   async getBaselineById(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     await this.tryExecute(reply, async () => {
       const params = this.getParams<{ id: string }>(request);
-      const baseline = this.baselineService.getBaselineById(params.id);
+      const baseline = await this.baselineService.getBaselineById(params.id);
       if (!baseline) throw new Error(`Baseline '${params.id}' not found`);
       return baseline;
     }, (baseline) => this.sendSuccess(reply, baseline));

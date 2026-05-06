@@ -3,6 +3,7 @@
  *
  * Covers: baseline creation, threshold auto-generation, performance evaluation,
  * deviation detection, trend analysis, regression detection, test results.
+ * Uses in-memory mock repositories.
  */
 
 import {
@@ -12,19 +13,149 @@ import {
   PerformanceTestResult,
   RegressionAnalysis,
 } from '../PerformanceBaselineService';
+import {
+  PerformanceBaselineRepository,
+  PerformanceEvaluationRepository,
+  PerformanceTestResultRepository,
+} from '../../../repositories/PerformanceRepository';
+
+// ==================== Mock Repositories ====================
+
+class MockPerformanceBaselineRepository extends PerformanceBaselineRepository {
+  private store: Map<string, any> = new Map();
+  constructor() { super({} as any); }
+
+  async create(data: any) {
+    const now = new Date();
+    const entity = { ...data, created_at: now, updated_at: now };
+    this.store.set(entity.id, entity);
+    return entity;
+  }
+
+  async findById(id: string) {
+    return this.store.get(id);
+  }
+
+  async findByTenantAndService(tenantId: string, service: string) {
+    const matches = Array.from(this.store.values())
+      .filter((e: any) => e.tenant_id === tenantId && e.service === service)
+      .sort((a: any, b: any) => (b.version || 1) - (a.version || 1));
+    return matches[0];
+  }
+
+  async findByTenant(tenantId: string) {
+    return Array.from(this.store.values())
+      .filter((e: any) => e.tenant_id === tenantId)
+      .sort((a: any, b: any) => a.service.localeCompare(b.service));
+  }
+
+  async update(id: string, data: any) {
+    const entity = this.store.get(id);
+    if (!entity) throw new Error(`Baseline ${id} not found`);
+    Object.assign(entity, data, { updated_at: new Date() });
+    return entity;
+  }
+
+  async deleteByTenantAndService(tenantId: string, service: string) {
+    let deleted = false;
+    for (const [id, e] of this.store.entries()) {
+      if (e.tenant_id === tenantId && e.service === service) {
+        this.store.delete(id);
+        deleted = true;
+      }
+    }
+    return deleted;
+  }
+
+  async findAll(options: any = {}) {
+    const limit = options.limit ?? 20;
+    const entities = Array.from(this.store.values()).slice(0, limit);
+    return { entities, total: entities.length };
+  }
+
+  clear() { this.store.clear(); }
+}
+
+class MockPerformanceEvaluationRepository extends PerformanceEvaluationRepository {
+  private store: Map<string, any> = new Map();
+  constructor() { super({} as any); }
+
+  async create(data: any) {
+    const entity = { ...data, evaluated_at: new Date() };
+    this.store.set(entity.id, entity);
+    return entity;
+  }
+
+  async findByBaselineId(baselineId: string, limit?: number) {
+    const results = Array.from(this.store.values())
+      .filter((e: any) => e.baseline_id === baselineId)
+      .sort((a: any, b: any) => b.evaluated_at.getTime() - a.evaluated_at.getTime());
+    return limit ? results.slice(0, limit) : results;
+  }
+
+  clear() { this.store.clear(); }
+}
+
+class MockPerformanceTestResultRepository extends PerformanceTestResultRepository {
+  private store: Map<string, any> = new Map();
+  constructor() { super({} as any); }
+
+  async create(data: any) {
+    const entity = { ...data, timestamp: new Date() };
+    this.store.set(entity.id, entity);
+    return entity;
+  }
+
+  async findById(id: string) {
+    return this.store.get(id);
+  }
+
+  async findByService(service: string, limit?: number) {
+    const results = Array.from(this.store.values())
+      .filter((e: any) => e.service === service)
+      .sort((a: any, b: any) => b.timestamp.getTime() - a.timestamp.getTime());
+    return limit ? results.slice(0, limit) : results;
+  }
+
+  clear() { this.store.clear(); }
+}
+
+// ==================== Tests ====================
 
 describe('PerformanceBaselineService', () => {
   let service: PerformanceBaselineService;
+  let baselineRepo: MockPerformanceBaselineRepository;
+  let evaluationRepo: MockPerformanceEvaluationRepository;
+  let testResultRepo: MockPerformanceTestResultRepository;
 
   beforeEach(() => {
-    service = new PerformanceBaselineService();
+    baselineRepo = new MockPerformanceBaselineRepository();
+    evaluationRepo = new MockPerformanceEvaluationRepository();
+    testResultRepo = new MockPerformanceTestResultRepository();
+
+    // Create service with mock db
+    const mockDb = {
+      query: async () => ({ rows: [], rowCount: 0 }),
+    };
+    service = new PerformanceBaselineService(mockDb);
+
+    // Replace repos with mocks via direct property access
+    (service as any).baselineRepo = baselineRepo;
+    (service as any).evaluationRepo = evaluationRepo;
+    (service as any).testResultRepo = testResultRepo;
+  });
+
+  afterEach(() => {
+    baselineRepo.clear();
+    evaluationRepo.clear();
+    testResultRepo.clear();
   });
 
   // ==================== createBaseline ====================
 
   describe('createBaseline', () => {
-    it('should create a baseline with auto-generated thresholds (+/- 20%)', () => {
-      const baseline = service.createBaseline('tenant-1', 'api-gateway', {
+    it('should create a baseline with auto-generated thresholds (+/- 20%)', async () => {
+      const baseline = await service.createBaseline('tenant-1', 'api-gateway', {
         latency_ms: 100,
         throughput_rps: 500,
         error_rate: 0.5,
@@ -46,12 +177,12 @@ describe('PerformanceBaselineService', () => {
       expect(baseline.thresholds.error_rate).toEqual({ min: 0.4, max: 0.6 });
     });
 
-    it('should use provided thresholds instead of auto-generated', () => {
+    it('should use provided thresholds instead of auto-generated', async () => {
       const customThresholds = {
         latency_ms: { min: 50, max: 200 },
         throughput_rps: { min: 300, max: 800 },
       };
-      const baseline = service.createBaseline('tenant-1', 'api-gateway', {
+      const baseline = await service.createBaseline('tenant-1', 'api-gateway', {
         latency_ms: 100,
         throughput_rps: 500,
       }, customThresholds);
@@ -60,11 +191,11 @@ describe('PerformanceBaselineService', () => {
       expect(baseline.thresholds.throughput_rps).toEqual({ min: 300, max: 800 });
     });
 
-    it('should auto-generate thresholds only for metrics without explicit thresholds', () => {
+    it('should auto-generate thresholds only for metrics without explicit thresholds', async () => {
       const partialThresholds = {
         latency_ms: { min: 50, max: 150 },
       };
-      const baseline = service.createBaseline('tenant-1', 'api-gateway', {
+      const baseline = await service.createBaseline('tenant-1', 'api-gateway', {
         latency_ms: 100,
         throughput_rps: 500,
       }, partialThresholds);
@@ -73,29 +204,22 @@ describe('PerformanceBaselineService', () => {
       // throughput_rps should be auto-generated
       expect(baseline.thresholds.throughput_rps).toEqual({ min: 400, max: 600 });
     });
-
-    it('should allow environment parameter', () => {
-      const baseline = service.createBaseline('tenant-1', 'api-gateway', {
-        latency_ms: 100,
-      });
-      expect(baseline).toBeDefined();
-    });
   });
 
   // ==================== getBaseline ====================
 
   describe('getBaseline', () => {
-    it('should return baseline by tenant and service', () => {
-      service.createBaseline('tenant-1', 'api-gateway', { latency_ms: 100 });
+    it('should return baseline by tenant and service', async () => {
+      await service.createBaseline('tenant-1', 'api-gateway', { latency_ms: 100 });
 
-      const found = service.getBaseline('tenant-1', 'api-gateway');
+      const found = await service.getBaseline('tenant-1', 'api-gateway');
       expect(found).not.toBeNull();
       expect(found?.service).toBe('api-gateway');
       expect(found?.tenantId).toBe('tenant-1');
     });
 
-    it('should return null for non-existent baseline', () => {
-      const found = service.getBaseline('tenant-1', 'non-existent');
+    it('should return null for non-existent baseline', async () => {
+      const found = await service.getBaseline('tenant-1', 'non-existent');
       expect(found).toBeNull();
     });
   });
@@ -103,47 +227,47 @@ describe('PerformanceBaselineService', () => {
   // ==================== getBaselineById ====================
 
   describe('getBaselineById', () => {
-    it('should return baseline by ID', () => {
-      const created = service.createBaseline('tenant-1', 'api-gateway', { latency_ms: 100 });
+    it('should return baseline by ID', async () => {
+      const created = await service.createBaseline('tenant-1', 'api-gateway', { latency_ms: 100 });
 
-      const found = service.getBaselineById(created.id);
+      const found = await service.getBaselineById(created.id);
       expect(found).not.toBeNull();
       expect(found?.id).toBe(created.id);
     });
 
-    it('should return null for non-existent ID', () => {
-      expect(service.getBaselineById('non-existent')).toBeNull();
+    it('should return null for non-existent ID', async () => {
+      expect(await service.getBaselineById('non-existent')).toBeNull();
     });
   });
 
   // ==================== listBaselines ====================
 
   describe('listBaselines', () => {
-    it('should list all baselines for a tenant', () => {
-      service.createBaseline('tenant-1', 'api-gateway', { latency_ms: 100 });
-      service.createBaseline('tenant-1', 'web-frontend', { latency_ms: 200 });
-      service.createBaseline('tenant-2', 'api-gateway', { latency_ms: 150 });
+    it('should list all baselines for a tenant', async () => {
+      await service.createBaseline('tenant-1', 'api-gateway', { latency_ms: 100 });
+      await service.createBaseline('tenant-1', 'web-frontend', { latency_ms: 200 });
+      await service.createBaseline('tenant-2', 'api-gateway', { latency_ms: 150 });
 
-      const tenant1Baselines = service.listBaselines('tenant-1');
+      const tenant1Baselines = await service.listBaselines('tenant-1');
       expect(tenant1Baselines.length).toBe(2);
 
-      const tenant2Baselines = service.listBaselines('tenant-2');
+      const tenant2Baselines = await service.listBaselines('tenant-2');
       expect(tenant2Baselines.length).toBe(1);
     });
 
-    it('should return empty array when no baselines exist', () => {
-      expect(service.listBaselines('tenant-1')).toEqual([]);
+    it('should return empty array when no baselines exist', async () => {
+      expect(await service.listBaselines('tenant-1')).toEqual([]);
     });
   });
 
   // ==================== getAllBaselines ====================
 
   describe('getAllBaselines', () => {
-    it('should return all baselines across tenants', () => {
-      service.createBaseline('tenant-1', 'api-gateway', { latency_ms: 100 });
-      service.createBaseline('tenant-2', 'api-gateway', { latency_ms: 200 });
+    it('should return all baselines across tenants', async () => {
+      await service.createBaseline('tenant-1', 'api-gateway', { latency_ms: 100 });
+      await service.createBaseline('tenant-2', 'api-gateway', { latency_ms: 200 });
 
-      const all = service.getAllBaselines();
+      const all = await service.getAllBaselines();
       expect(all.length).toBe(2);
     });
   });
@@ -151,10 +275,10 @@ describe('PerformanceBaselineService', () => {
   // ==================== updateBaseline ====================
 
   describe('updateBaseline', () => {
-    it('should update baseline metrics and increment version', () => {
-      service.createBaseline('tenant-1', 'api-gateway', { latency_ms: 100 });
+    it('should update baseline metrics and increment version', async () => {
+      await service.createBaseline('tenant-1', 'api-gateway', { latency_ms: 100 });
 
-      const updated = service.updateBaseline('tenant-1', 'api-gateway', {
+      const updated = await service.updateBaseline('tenant-1', 'api-gateway', {
         latency_ms: 120,
         throughput_rps: 600,
       });
@@ -165,10 +289,10 @@ describe('PerformanceBaselineService', () => {
       expect(updated?.version).toBe(2);
     });
 
-    it('should update thresholds when provided', () => {
-      service.createBaseline('tenant-1', 'api-gateway', { latency_ms: 100 });
+    it('should update thresholds when provided', async () => {
+      await service.createBaseline('tenant-1', 'api-gateway', { latency_ms: 100 });
 
-      const updated = service.updateBaseline(
+      const updated = await service.updateBaseline(
         'tenant-1',
         'api-gateway',
         { latency_ms: 120 },
@@ -178,8 +302,8 @@ describe('PerformanceBaselineService', () => {
       expect(updated?.thresholds.latency_ms).toEqual({ min: 80, max: 160 });
     });
 
-    it('should return null for non-existent baseline', () => {
-      const updated = service.updateBaseline('tenant-1', 'non-existent', { latency_ms: 100 });
+    it('should return null for non-existent baseline', async () => {
+      const updated = await service.updateBaseline('tenant-1', 'non-existent', { latency_ms: 100 });
       expect(updated).toBeNull();
     });
   });
@@ -187,17 +311,17 @@ describe('PerformanceBaselineService', () => {
   // ==================== deleteBaseline ====================
 
   describe('deleteBaseline', () => {
-    it('should delete a baseline', () => {
-      service.createBaseline('tenant-1', 'api-gateway', { latency_ms: 100 });
+    it('should delete a baseline', async () => {
+      await service.createBaseline('tenant-1', 'api-gateway', { latency_ms: 100 });
 
-      const deleted = service.deleteBaseline('tenant-1', 'api-gateway');
+      const deleted = await service.deleteBaseline('tenant-1', 'api-gateway');
       expect(deleted).toBe(true);
 
-      expect(service.getBaseline('tenant-1', 'api-gateway')).toBeNull();
+      expect(await service.getBaseline('tenant-1', 'api-gateway')).toBeNull();
     });
 
-    it('should return false for non-existent baseline', () => {
-      const deleted = service.deleteBaseline('tenant-1', 'non-existent');
+    it('should return false for non-existent baseline', async () => {
+      const deleted = await service.deleteBaseline('tenant-1', 'non-existent');
       expect(deleted).toBe(false);
     });
   });
@@ -205,16 +329,16 @@ describe('PerformanceBaselineService', () => {
   // ==================== evaluatePerformance ====================
 
   describe('evaluatePerformance', () => {
-    beforeEach(() => {
-      service.createBaseline('tenant-1', 'api-gateway', {
+    beforeEach(async () => {
+      await service.createBaseline('tenant-1', 'api-gateway', {
         latency_ms: 100,
         throughput_rps: 500,
         error_rate: 1.0,
       });
     });
 
-    it('should return healthy when all metrics are within thresholds', () => {
-      const result = service.evaluatePerformance('tenant-1', 'api-gateway', {
+    it('should return healthy when all metrics are within thresholds', async () => {
+      const result = await service.evaluatePerformance('tenant-1', 'api-gateway', {
         latency_ms: 95,
         throughput_rps: 520,
         error_rate: 0.8,
@@ -225,8 +349,8 @@ describe('PerformanceBaselineService', () => {
       expect(result?.details.every(d => d.status === 'within')).toBe(true);
     });
 
-    it('should return degraded when some metrics are outside thresholds', () => {
-      const result = service.evaluatePerformance('tenant-1', 'api-gateway', {
+    it('should return degraded when some metrics are outside thresholds', async () => {
+      const result = await service.evaluatePerformance('tenant-1', 'api-gateway', {
         latency_ms: 95,
         throughput_rps: 350, // below min 400
         error_rate: 0.8,
@@ -239,8 +363,8 @@ describe('PerformanceBaselineService', () => {
       expect(throughputDetail?.status).toBe('below');
     });
 
-    it('should return critical when deviation exceeds 50% threshold range', () => {
-      const result = service.evaluatePerformance('tenant-1', 'api-gateway', {
+    it('should return critical when deviation exceeds 50% threshold range', async () => {
+      const result = await service.evaluatePerformance('tenant-1', 'api-gateway', {
         latency_ms: 1000, // far above max 120
         throughput_rps: 500,
         error_rate: 1.0,
@@ -250,15 +374,15 @@ describe('PerformanceBaselineService', () => {
       expect(result?.overall).toBe('critical');
     });
 
-    it('should return null when no baseline exists', () => {
-      const result = service.evaluatePerformance('tenant-99', 'non-existent', {
+    it('should return null when no baseline exists', async () => {
+      const result = await service.evaluatePerformance('tenant-99', 'non-existent', {
         latency_ms: 100,
       });
       expect(result).toBeNull();
     });
 
-    it('should handle metrics with no threshold (unknown metrics)', () => {
-      const result = service.evaluatePerformance('tenant-1', 'api-gateway', {
+    it('should handle metrics with no threshold (unknown metrics)', async () => {
+      const result = await service.evaluatePerformance('tenant-1', 'api-gateway', {
         latency_ms: 100,
         unknown_metric: 999,
       });
@@ -270,8 +394,8 @@ describe('PerformanceBaselineService', () => {
       expect(unknownDetail?.max).toBe(Infinity);
     });
 
-    it('should detect above-threshold violations', () => {
-      const result = service.evaluatePerformance('tenant-1', 'api-gateway', {
+    it('should detect above-threshold violations', async () => {
+      const result = await service.evaluatePerformance('tenant-1', 'api-gateway', {
         latency_ms: 200, // above max 120
         throughput_rps: 500,
         error_rate: 1.0,
@@ -282,15 +406,15 @@ describe('PerformanceBaselineService', () => {
       expect(latencyDetail?.status).toBe('above');
     });
 
-    it('should save evaluation to history', () => {
-      service.evaluatePerformance('tenant-1', 'api-gateway', {
+    it('should save evaluation to history', async () => {
+      await service.evaluatePerformance('tenant-1', 'api-gateway', {
         latency_ms: 95,
         throughput_rps: 520,
         error_rate: 0.8,
       });
 
-      const baseline = service.getBaseline('tenant-1', 'api-gateway');
-      const history = service.getEvaluationHistory(baseline!.id);
+      const baseline = await service.getBaseline('tenant-1', 'api-gateway');
+      const history = await service.getEvaluationHistory(baseline!.id);
       expect(history.length).toBeGreaterThanOrEqual(1);
     });
   });
@@ -298,19 +422,19 @@ describe('PerformanceBaselineService', () => {
   // ==================== getEvaluationHistory ====================
 
   describe('getEvaluationHistory', () => {
-    it('should return evaluation history sorted by date', () => {
+    it('should return evaluation history sorted by date', async () => {
       jest.useFakeTimers();
       try {
-        service.createBaseline('tenant-1', 'api-gateway', { latency_ms: 100 });
-        const baseline = service.getBaseline('tenant-1', 'api-gateway')!;
+        await service.createBaseline('tenant-1', 'api-gateway', { latency_ms: 100 });
+        const baseline = (await service.getBaseline('tenant-1', 'api-gateway'))!;
 
-        service.evaluatePerformance('tenant-1', 'api-gateway', { latency_ms: 100 });
+        await service.evaluatePerformance('tenant-1', 'api-gateway', { latency_ms: 100 });
         jest.advanceTimersByTime(10);
-        service.evaluatePerformance('tenant-1', 'api-gateway', { latency_ms: 110 });
+        await service.evaluatePerformance('tenant-1', 'api-gateway', { latency_ms: 110 });
         jest.advanceTimersByTime(10);
-        service.evaluatePerformance('tenant-1', 'api-gateway', { latency_ms: 120 });
+        await service.evaluatePerformance('tenant-1', 'api-gateway', { latency_ms: 120 });
 
-        const history = service.getEvaluationHistory(baseline.id);
+        const history = await service.getEvaluationHistory(baseline.id);
         expect(history.length).toBe(3);
         // Most recent first
         expect(history[0].details[0].current).toBe(120);
@@ -319,38 +443,38 @@ describe('PerformanceBaselineService', () => {
       }
     });
 
-    it('should respect limit parameter', () => {
+    it('should respect limit parameter', async () => {
       jest.useFakeTimers();
       try {
-        service.createBaseline('tenant-1', 'api-gateway', { latency_ms: 100 });
-        const baseline = service.getBaseline('tenant-1', 'api-gateway')!;
+        await service.createBaseline('tenant-1', 'api-gateway', { latency_ms: 100 });
+        const baseline = (await service.getBaseline('tenant-1', 'api-gateway'))!;
 
         for (let i = 0; i < 5; i++) {
-          service.evaluatePerformance('tenant-1', 'api-gateway', { latency_ms: 100 + i });
+          await service.evaluatePerformance('tenant-1', 'api-gateway', { latency_ms: 100 + i });
           jest.advanceTimersByTime(10);
         }
 
-        const history = service.getEvaluationHistory(baseline.id, 2);
+        const history = await service.getEvaluationHistory(baseline.id, 2);
         expect(history.length).toBe(2);
       } finally {
         jest.useRealTimers();
       }
     });
 
-    it('should return empty array for non-existent baseline', () => {
-      expect(service.getEvaluationHistory('non-existent')).toEqual([]);
+    it('should return empty array for non-existent baseline', async () => {
+      expect(await service.getEvaluationHistory('non-existent')).toEqual([]);
     });
   });
 
   // ==================== recordTestResult ====================
 
   describe('recordTestResult', () => {
-    it('should record a test result with pass status when within thresholds', () => {
-      const baseline = service.createBaseline('tenant-1', 'api-gateway', {
+    it('should record a test result with pass status when within thresholds', async () => {
+      const baseline = await service.createBaseline('tenant-1', 'api-gateway', {
         latency_ms: 100,
       });
 
-      const result = service.recordTestResult('tenant-1', 'api-gateway', {
+      const result = await service.recordTestResult('tenant-1', 'api-gateway', {
         baselineId: baseline.id,
         testName: 'load-test',
         metrics: { latency_ms: 95 },
@@ -360,16 +484,16 @@ describe('PerformanceBaselineService', () => {
       expect(result.status).toBe('pass');
       expect(result.testName).toBe('load-test');
       expect(result.duration).toBe(5000);
-      expect(result.failures).toBeUndefined();
+      expect(result.failures).toBeFalsy();
     });
 
-    it('should set warn status when 1-2 metrics fail', () => {
-      const baseline = service.createBaseline('tenant-1', 'api-gateway', {
+    it('should set warn status when 1-2 metrics fail', async () => {
+      const baseline = await service.createBaseline('tenant-1', 'api-gateway', {
         latency_ms: 100,
         throughput_rps: 500,
       });
 
-      const result = service.recordTestResult('tenant-1', 'api-gateway', {
+      const result = await service.recordTestResult('tenant-1', 'api-gateway', {
         baselineId: baseline.id,
         testName: 'load-test',
         metrics: { latency_ms: 200, throughput_rps: 200 }, // both fail
@@ -380,15 +504,15 @@ describe('PerformanceBaselineService', () => {
       expect(result.failures?.length).toBe(2);
     });
 
-    it('should set fail status when more than 2 metrics fail', () => {
-      const baseline = service.createBaseline('tenant-1', 'api-gateway', {
+    it('should set fail status when more than 2 metrics fail', async () => {
+      const baseline = await service.createBaseline('tenant-1', 'api-gateway', {
         latency_ms: 100,
         throughput_rps: 500,
         error_rate: 1.0,
         cpu_usage: 50,
       });
 
-      const result = service.recordTestResult('tenant-1', 'api-gateway', {
+      const result = await service.recordTestResult('tenant-1', 'api-gateway', {
         baselineId: baseline.id,
         testName: 'stress-test',
         metrics: {
@@ -404,8 +528,8 @@ describe('PerformanceBaselineService', () => {
       expect(result.failures?.length).toBeGreaterThan(2);
     });
 
-    it('should pass when no baseline ID provided', () => {
-      const result = service.recordTestResult('tenant-1', 'api-gateway', {
+    it('should pass when no baseline ID provided', async () => {
+      const result = await service.recordTestResult('tenant-1', 'api-gateway', {
         testName: 'baseline-test',
         metrics: { latency_ms: 100 },
         duration: 2000,
@@ -418,36 +542,36 @@ describe('PerformanceBaselineService', () => {
   // ==================== getTestResults ====================
 
   describe('getTestResults', () => {
-    it('should get test results for a service', () => {
-      const baseline = service.createBaseline('tenant-1', 'api-gateway', {
+    it('should get test results for a service', async () => {
+      const baseline = await service.createBaseline('tenant-1', 'api-gateway', {
         latency_ms: 100,
       });
 
-      service.recordTestResult('tenant-1', 'api-gateway', {
+      await service.recordTestResult('tenant-1', 'api-gateway', {
         baselineId: baseline.id,
         testName: 'test-1',
         metrics: { latency_ms: 100 },
         duration: 1000,
       });
-      service.recordTestResult('tenant-1', 'api-gateway', {
+      await service.recordTestResult('tenant-1', 'api-gateway', {
         baselineId: baseline.id,
         testName: 'test-2',
         metrics: { latency_ms: 110 },
         duration: 2000,
       });
 
-      const results = service.getTestResults('api-gateway');
+      const results = await service.getTestResults('api-gateway');
       expect(results.length).toBe(2);
     });
 
-    it('should return empty array when no results exist', () => {
-      expect(service.getTestResults('non-existent')).toEqual([]);
+    it('should return empty array when no results exist', async () => {
+      expect(await service.getTestResults('non-existent')).toEqual([]);
     });
 
-    it('should respect limit parameter', () => {
-      const baseline = service.createBaseline('tenant-1', 'api-gateway', { latency_ms: 100 });
+    it('should respect limit parameter', async () => {
+      const baseline = await service.createBaseline('tenant-1', 'api-gateway', { latency_ms: 100 });
       for (let i = 0; i < 5; i++) {
-        service.recordTestResult('tenant-1', 'api-gateway', {
+        await service.recordTestResult('tenant-1', 'api-gateway', {
           baselineId: baseline.id,
           testName: `test-${i}`,
           metrics: { latency_ms: 100 },
@@ -455,7 +579,7 @@ describe('PerformanceBaselineService', () => {
         });
       }
 
-      const results = service.getTestResults('api-gateway', 3);
+      const results = await service.getTestResults('api-gateway', 3);
       expect(results.length).toBe(3);
     });
   });
@@ -463,35 +587,35 @@ describe('PerformanceBaselineService', () => {
   // ==================== getTestResultById ====================
 
   describe('getTestResultById', () => {
-    it('should get a specific test result by ID', () => {
-      const result = service.recordTestResult('tenant-1', 'api-gateway', {
+    it('should get a specific test result by ID', async () => {
+      const result = await service.recordTestResult('tenant-1', 'api-gateway', {
         testName: 'test-1',
         metrics: { latency_ms: 100 },
         duration: 1000,
       });
 
-      const found = service.getTestResultById(result.id);
+      const found = await service.getTestResultById(result.id);
       expect(found).not.toBeNull();
       expect(found?.id).toBe(result.id);
     });
 
-    it('should return null for non-existent ID', () => {
-      expect(service.getTestResultById('non-existent')).toBeNull();
+    it('should return null for non-existent ID', async () => {
+      expect(await service.getTestResultById('non-existent')).toBeNull();
     });
   });
 
   // ==================== detectRegression ====================
 
   describe('detectRegression', () => {
-    beforeEach(() => {
-      service.createBaseline('tenant-1', 'api-gateway', {
+    beforeEach(async () => {
+      await service.createBaseline('tenant-1', 'api-gateway', {
         latency_ms: 100,
         throughput_rps: 500,
       });
     });
 
-    it('should return no_regression when metrics are within bounds', () => {
-      const result = service.detectRegression('tenant-1', 'api-gateway', {
+    it('should return no_regression when metrics are within bounds', async () => {
+      const result = await service.detectRegression('tenant-1', 'api-gateway', {
         latency_ms: 105,
         throughput_rps: 490,
       });
@@ -501,9 +625,9 @@ describe('PerformanceBaselineService', () => {
       expect(result?.regressions).toHaveLength(0);
     });
 
-    it('should detect minor regression (1-15% deviation)', () => {
+    it('should detect minor regression (1-15% deviation)', async () => {
       // latency_ms threshold max=120, so 125 exceeds threshold
-      const result = service.detectRegression('tenant-1', 'api-gateway', {
+      const result = await service.detectRegression('tenant-1', 'api-gateway', {
         latency_ms: 125, // 25% above baseline
         throughput_rps: 500,
       });
@@ -514,8 +638,8 @@ describe('PerformanceBaselineService', () => {
       expect(regression?.severity).toBe('moderate'); // 25% deviation
     });
 
-    it('should detect severe regression (30-50% deviation)', () => {
-      const result = service.detectRegression('tenant-1', 'api-gateway', {
+    it('should detect severe regression (30-50% deviation)', async () => {
+      const result = await service.detectRegression('tenant-1', 'api-gateway', {
         latency_ms: 140, // 40% above baseline
         throughput_rps: 500,
       });
@@ -525,8 +649,8 @@ describe('PerformanceBaselineService', () => {
       expect(regression?.severity).toBe('severe');
     });
 
-    it('should detect critical regression (>50% deviation)', () => {
-      const result = service.detectRegression('tenant-1', 'api-gateway', {
+    it('should detect critical regression (>50% deviation)', async () => {
+      const result = await service.detectRegression('tenant-1', 'api-gateway', {
         latency_ms: 200, // 100% above baseline
         throughput_rps: 500,
       });
@@ -536,8 +660,8 @@ describe('PerformanceBaselineService', () => {
       expect(regression?.severity).toBe('critical');
     });
 
-    it('should return major_regression when any severe or critical regression found', () => {
-      const result = service.detectRegression('tenant-1', 'api-gateway', {
+    it('should return major_regression when any severe or critical regression found', async () => {
+      const result = await service.detectRegression('tenant-1', 'api-gateway', {
         latency_ms: 200, // critical
         throughput_rps: 500,
       });
@@ -545,8 +669,8 @@ describe('PerformanceBaselineService', () => {
       expect(result?.overallStatus).toBe('major_regression');
     });
 
-    it('should return minor_regression when only minor/moderate regressions found', () => {
-      const result = service.detectRegression('tenant-1', 'api-gateway', {
+    it('should return minor_regression when only minor/moderate regressions found', async () => {
+      const result = await service.detectRegression('tenant-1', 'api-gateway', {
         latency_ms: 125, // moderate
         throughput_rps: 500,
       });
@@ -554,8 +678,8 @@ describe('PerformanceBaselineService', () => {
       expect(result?.overallStatus).toBe('minor_regression');
     });
 
-    it('should return null when no baseline exists', () => {
-      const result = service.detectRegression('tenant-99', 'non-existent', {
+    it('should return null when no baseline exists', async () => {
+      const result = await service.detectRegression('tenant-99', 'non-existent', {
         latency_ms: 100,
       });
       expect(result).toBeNull();

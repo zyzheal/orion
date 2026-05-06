@@ -1,21 +1,211 @@
 /**
- * ModelVersionService 单元测试
+ * ModelVersionService Tests
+ *
+ * Covers: model registration, activation, versioning, A/B testing,
+ * performance overview, archiving.
+ * Uses in-memory mock repositories.
  */
 
-import { ModelVersionService } from '../ModelVersionService';
+import {
+  ModelVersionService,
+  ModelRegistrationInput,
+} from '../ModelVersionService';
+import {
+  ModelVersionRepository,
+  ABTestRepository,
+  ABTestMetricRepository,
+} from '../../../repositories/ModelVersionRepository';
+
+// ==================== Mock Repositories ====================
+
+class MockModelVersionRepository extends ModelVersionRepository {
+  private store: Map<string, any> = new Map();
+  constructor() { super({} as any); }
+
+  async create(data: any) {
+    const now = new Date();
+    const entity = { ...data, registered_at: now };
+    this.store.set(entity.id, entity);
+    return entity;
+  }
+
+  async findById(id: string) {
+    return this.store.get(id);
+  }
+
+  async findByNameAndVersion(name: string, version: string) {
+    return Array.from(this.store.values()).find(
+      (e: any) => e.name === name && e.version === version
+    );
+  }
+
+  async findByName(name: string, includeAll = false) {
+    let results = Array.from(this.store.values()).filter(
+      (e: any) => e.name === name
+    );
+    if (!includeAll) {
+      results = results.filter((e: any) => !['deprecated', 'archived'].includes(e.status));
+    }
+    return results.sort((a: any, b: any) => b.registered_at.getTime() - a.registered_at.getTime());
+  }
+
+  async findActiveByName(name: string) {
+    return Array.from(this.store.values()).find(
+      (e: any) => e.name === name && e.status === 'active'
+    );
+  }
+
+  async findAllActive() {
+    return Array.from(this.store.values())
+      .filter((e: any) => e.status === 'active')
+      .sort((a: any, b: any) => a.name.localeCompare(b.name));
+  }
+
+  async update(id: string, data: any) {
+    const entity = this.store.get(id);
+    if (!entity) throw new Error(`Model ${id} not found`);
+    Object.assign(entity, data);
+    return entity;
+  }
+
+  async updateMetrics(id: string, metrics: any) {
+    const entity = this.store.get(id);
+    if (!entity) throw new Error(`Model ${id} not found`);
+    entity.metrics = { ...entity.metrics, ...metrics };
+    return entity;
+  }
+
+  async clearActiveByName(name: string) {
+    for (const e of this.store.values()) {
+      if (e.name === name && e.status === 'active') {
+        e.status = 'registered';
+        e.activated_at = null;
+      }
+    }
+  }
+
+  async listAll(options?: { status?: string; framework?: string; name?: string }) {
+    let results = Array.from(this.store.values());
+    if (options?.status) {
+      results = results.filter((e: any) => e.status === options.status);
+    }
+    if (options?.framework) {
+      results = results.filter((e: any) => e.framework === options.framework);
+    }
+    if (options?.name) {
+      results = results.filter((e: any) => e.name.toLowerCase().includes(options.name!.toLowerCase()));
+    }
+    return results.sort((a: any, b: any) => b.registered_at.getTime() - a.registered_at.getTime());
+  }
+
+  clear() { this.store.clear(); }
+}
+
+class MockABTestRepository extends ABTestRepository {
+  private store: Map<string, any> = new Map();
+  constructor() { super({} as any); }
+
+  async create(data: any) {
+    const now = new Date();
+    const entity = { ...data, start_date: now };
+    this.store.set(entity.id, entity);
+    return entity;
+  }
+
+  async findById(id: string) {
+    return this.store.get(id);
+  }
+
+  async findByName(modelName: string) {
+    return Array.from(this.store.values()).find(
+      (e: any) => e.model_name === modelName
+    );
+  }
+
+  async updateStatus(id: string, status: string) {
+    const entity = this.store.get(id);
+    if (!entity) throw new Error(`AB test ${id} not found`);
+    entity.status = status;
+    return entity;
+  }
+
+  clear() { this.store.clear(); }
+}
+
+class MockABTestMetricRepository extends ABTestMetricRepository {
+  private store: Map<string, any> = new Map();
+  constructor() { super({} as any); }
+
+  async create(data: any) {
+    const entity = { ...data };
+    this.store.set(entity.id, entity);
+    return entity;
+  }
+
+  async findByABTest(abTestId: string) {
+    return Array.from(this.store.values()).filter(
+      (e: any) => e.ab_test_id === abTestId
+    );
+  }
+
+  async findByABTestAndModel(abTestId: string, modelId: string) {
+    return Array.from(this.store.values()).find(
+      (e: any) => e.ab_test_id === abTestId && e.model_id === modelId
+    );
+  }
+
+  async incrementRequestCount(id: string) {
+    const entity = this.store.get(id);
+    if (!entity) throw new Error(`AB test metric ${id} not found`);
+    entity.request_count++;
+    return entity;
+  }
+
+  async updateMetrics(id: string, metrics: any) {
+    const entity = this.store.get(id);
+    if (!entity) throw new Error(`AB test metric ${id} not found`);
+    entity.metrics = metrics;
+    return entity;
+  }
+
+  clear() { this.store.clear(); }
+}
+
+// ==================== Tests ====================
 
 describe('ModelVersionService', () => {
   let service: ModelVersionService;
+  let modelRepo: MockModelVersionRepository;
+  let abTestRepo: MockABTestRepository;
+  let abTestMetricRepo: MockABTestMetricRepository;
 
   beforeEach(() => {
-    service = new ModelVersionService();
+    modelRepo = new MockModelVersionRepository();
+    abTestRepo = new MockABTestRepository();
+    abTestMetricRepo = new MockABTestMetricRepository();
+
+    const mockDb = {
+      query: async () => ({ rows: [], rowCount: 0 }),
+    };
+    service = new ModelVersionService(mockDb);
+
+    // Replace repos with mocks
+    (service as any).modelRepo = modelRepo;
+    (service as any).abTestRepo = abTestRepo;
+    (service as any).abTestMetricRepo = abTestMetricRepo;
+  });
+
+  afterEach(() => {
+    modelRepo.clear();
+    abTestRepo.clear();
+    abTestMetricRepo.clear();
   });
 
   // ==================== registerModel ====================
 
   describe('registerModel', () => {
-    it('should register a new model', () => {
-      const model = service.registerModel({
+    it('should register a new model', async () => {
+      const model = await service.registerModel({
         name: 'code-review-model',
         version: 'v1.0.0',
         framework: 'openai',
@@ -30,24 +220,24 @@ describe('ModelVersionService', () => {
       expect(model.registeredAt).toBeInstanceOf(Date);
     });
 
-    it('should throw error for duplicate model version', () => {
-      service.registerModel({
+    it('should throw error for duplicate model version', async () => {
+      await service.registerModel({
         name: 'test-model',
         version: 'v1.0.0',
         framework: 'anthropic',
       });
 
-      expect(() =>
+      await expect(
         service.registerModel({
           name: 'test-model',
           version: 'v1.0.0',
           framework: 'openai',
         })
-      ).toThrow('already exists');
+      ).rejects.toThrow('already exists');
     });
 
-    it('should register model with metrics', () => {
-      const model = service.registerModel({
+    it('should register model with metrics', async () => {
+      const model = await service.registerModel({
         name: 'risk-model',
         version: 'v2.0.0',
         framework: 'custom',
@@ -63,8 +253,8 @@ describe('ModelVersionService', () => {
       expect(model.metrics.f1Score).toBe(0.92);
     });
 
-    it('should register model with tags', () => {
-      const model = service.registerModel({
+    it('should register model with tags', async () => {
+      const model = await service.registerModel({
         name: 'tagged-model',
         version: 'v1.0.0',
         framework: 'rule-based',
@@ -78,93 +268,93 @@ describe('ModelVersionService', () => {
   // ==================== activateModel ====================
 
   describe('activateModel', () => {
-    it('should activate a registered model', () => {
-      const model = service.registerModel({
+    it('should activate a registered model', async () => {
+      const model = await service.registerModel({
         name: 'activate-test',
         version: 'v1.0.0',
         framework: 'openai',
       });
 
-      const activated = service.activateModel(model.id);
+      const activated = await service.activateModel(model.id);
 
       expect(activated.status).toBe('active');
       expect(activated.activatedAt).toBeInstanceOf(Date);
     });
 
-    it('should deactivate previous active model of same name', () => {
-      const v1 = service.registerModel({
+    it('should deactivate previous active model of same name', async () => {
+      const v1 = await service.registerModel({
         name: 'multi-version',
         version: 'v1.0.0',
         framework: 'openai',
       });
-      service.activateModel(v1.id);
+      await service.activateModel(v1.id);
 
-      const v2 = service.registerModel({
+      const v2 = await service.registerModel({
         name: 'multi-version',
         version: 'v2.0.0',
         framework: 'openai',
       });
-      service.activateModel(v2.id);
+      await service.activateModel(v2.id);
 
-      const activeModel = service.getActiveModel('multi-version');
+      const activeModel = await service.getActiveModel('multi-version');
       expect(activeModel?.id).toBe(v2.id);
 
       // v1 should no longer be active
-      const v1Model = service.getModelById(v1.id);
+      const v1Model = await service.getModelById(v1.id);
       expect(v1Model?.status).not.toBe('active');
     });
 
-    it('should throw error for deprecated model', () => {
-      const model = service.registerModel({
+    it('should throw error for deprecated model', async () => {
+      const model = await service.registerModel({
         name: 'deprecated-test',
         version: 'v1.0.0',
         framework: 'openai',
       });
-      service.deprecateModel(model.id);
+      await service.deprecateModel(model.id);
 
-      expect(() => service.activateModel(model.id)).toThrow('deprecated');
+      await expect(service.activateModel(model.id)).rejects.toThrow('deprecated');
     });
 
-    it('should throw error for non-existent model', () => {
-      expect(() => service.activateModel('non-existent')).toThrow('not found');
+    it('should throw error for non-existent model', async () => {
+      await expect(service.activateModel('non-existent')).rejects.toThrow('not found');
     });
   });
 
   // ==================== getModelVersions ====================
 
   describe('getModelVersions', () => {
-    beforeEach(() => {
-      service.registerModel({ name: 'versioned-model', version: 'v1.0.0', framework: 'openai' });
-      service.registerModel({ name: 'versioned-model', version: 'v2.0.0', framework: 'openai' });
-      service.registerModel({ name: 'versioned-model', version: 'v3.0.0', framework: 'anthropic' });
+    beforeEach(async () => {
+      await service.registerModel({ name: 'versioned-model', version: 'v1.0.0', framework: 'openai' });
+      await service.registerModel({ name: 'versioned-model', version: 'v2.0.0', framework: 'openai' });
+      await service.registerModel({ name: 'versioned-model', version: 'v3.0.0', framework: 'anthropic' });
     });
 
-    it('should return all non-deprecated versions', () => {
-      const versions = service.getModelVersions('versioned-model');
+    it('should return all non-deprecated versions', async () => {
+      const versions = await service.getModelVersions('versioned-model');
 
       expect(versions.length).toBe(3);
     });
 
-    it('should exclude deprecated versions by default', () => {
-      const allVersions = service.getModelVersions('versioned-model');
+    it('should exclude deprecated versions by default', async () => {
+      const allVersions = await service.getModelVersions('versioned-model');
       const v1 = allVersions.find((v) => v.version === 'v1.0.0');
-      if (v1) service.deprecateModel(v1.id);
+      if (v1) await service.deprecateModel(v1.id);
 
-      const versions = service.getModelVersions('versioned-model');
+      const versions = await service.getModelVersions('versioned-model');
       expect(versions.length).toBe(2);
     });
 
-    it('should include deprecated versions when flag is set', () => {
-      const allVersions = service.getModelVersions('versioned-model');
+    it('should include deprecated versions when flag is set', async () => {
+      const allVersions = await service.getModelVersions('versioned-model');
       const v1 = allVersions.find((v) => v.version === 'v1.0.0');
-      if (v1) service.deprecateModel(v1.id);
+      if (v1) await service.deprecateModel(v1.id);
 
-      const versions = service.getModelVersions('versioned-model', true);
+      const versions = await service.getModelVersions('versioned-model', true);
       expect(versions.length).toBe(3);
     });
 
-    it('should return sorted by registeredAt desc', () => {
-      const versions = service.getModelVersions('versioned-model');
+    it('should return sorted by registeredAt desc', async () => {
+      const versions = await service.getModelVersions('versioned-model');
 
       for (let i = 1; i < versions.length; i++) {
         expect(versions[i].registeredAt.getTime()).toBeLessThanOrEqual(
@@ -177,20 +367,20 @@ describe('ModelVersionService', () => {
   // ==================== getActiveModel ====================
 
   describe('getActiveModel', () => {
-    it('should return the active model', () => {
-      const model = service.registerModel({
+    it('should return the active model', async () => {
+      const model = await service.registerModel({
         name: 'active-test',
         version: 'v1.0.0',
         framework: 'openai',
       });
-      service.activateModel(model.id);
+      await service.activateModel(model.id);
 
-      const active = service.getActiveModel('active-test');
+      const active = await service.getActiveModel('active-test');
       expect(active?.id).toBe(model.id);
     });
 
-    it('should return undefined if no active model', () => {
-      const active = service.getActiveModel('non-existent');
+    it('should return undefined if no active model', async () => {
+      const active = await service.getActiveModel('non-existent');
       expect(active).toBeUndefined();
     });
   });
@@ -198,14 +388,14 @@ describe('ModelVersionService', () => {
   // ==================== getAllActiveModels ====================
 
   describe('getAllActiveModels', () => {
-    it('should return all active models', () => {
-      const m1 = service.registerModel({ name: 'model-a', version: 'v1', framework: 'openai' });
-      const m2 = service.registerModel({ name: 'model-b', version: 'v1', framework: 'anthropic' });
+    it('should return all active models', async () => {
+      const m1 = await service.registerModel({ name: 'model-a', version: 'v1', framework: 'openai' });
+      const m2 = await service.registerModel({ name: 'model-b', version: 'v1', framework: 'anthropic' });
 
-      service.activateModel(m1.id);
-      service.activateModel(m2.id);
+      await service.activateModel(m1.id);
+      await service.activateModel(m2.id);
 
-      const allActive = service.getAllActiveModels();
+      const allActive = await service.getAllActiveModels();
       expect(allActive.length).toBe(2);
     });
   });
@@ -213,62 +403,62 @@ describe('ModelVersionService', () => {
   // ==================== deprecateModel ====================
 
   describe('deprecateModel', () => {
-    it('should deprecate a model', () => {
-      const model = service.registerModel({
+    it('should deprecate a model', async () => {
+      const model = await service.registerModel({
         name: 'deprecate-test',
         version: 'v1.0.0',
         framework: 'openai',
       });
 
-      const deprecated = service.deprecateModel(model.id);
+      const deprecated = await service.deprecateModel(model.id);
 
       expect(deprecated.status).toBe('deprecated');
       expect(deprecated.deprecatedAt).toBeInstanceOf(Date);
     });
 
-    it('should clear active status if model was active', () => {
-      const model = service.registerModel({
+    it('should clear active status if model was active', async () => {
+      const model = await service.registerModel({
         name: 'active-deprecate',
         version: 'v1.0.0',
         framework: 'openai',
       });
-      service.activateModel(model.id);
+      await service.activateModel(model.id);
 
-      service.deprecateModel(model.id);
+      await service.deprecateModel(model.id);
 
-      const active = service.getActiveModel('active-deprecate');
+      const active = await service.getActiveModel('active-deprecate');
       expect(active).toBeUndefined();
     });
 
-    it('should throw error for archived model', () => {
-      const model = service.registerModel({
+    it('should throw error for archived model', async () => {
+      const model = await service.registerModel({
         name: 'archived-test',
         version: 'v1.0.0',
         framework: 'openai',
       });
-      service.deprecateModel(model.id);
-      service.archiveModel(model.id);
+      await service.deprecateModel(model.id);
+      await service.archiveModel(model.id);
 
-      expect(() => service.deprecateModel(model.id)).toThrow('archived');
+      await expect(service.deprecateModel(model.id)).rejects.toThrow('archived');
     });
   });
 
   // ==================== getModelById ====================
 
   describe('getModelById', () => {
-    it('should return model by ID', () => {
-      const model = service.registerModel({
+    it('should return model by ID', async () => {
+      const model = await service.registerModel({
         name: 'get-by-id',
         version: 'v1.0.0',
         framework: 'openai',
       });
 
-      const found = service.getModelById(model.id);
+      const found = await service.getModelById(model.id);
       expect(found?.id).toBe(model.id);
     });
 
-    it('should return undefined for non-existent ID', () => {
-      const found = service.getModelById('non-existent');
+    it('should return undefined for non-existent ID', async () => {
+      const found = await service.getModelById('non-existent');
       expect(found).toBeUndefined();
     });
   });
@@ -276,14 +466,14 @@ describe('ModelVersionService', () => {
   // ==================== updateModelMetrics ====================
 
   describe('updateModelMetrics', () => {
-    it('should update model metrics', () => {
-      const model = service.registerModel({
+    it('should update model metrics', async () => {
+      const model = await service.registerModel({
         name: 'metrics-test',
         version: 'v1.0.0',
         framework: 'openai',
       });
 
-      const updated = service.updateModelMetrics(model.id, {
+      const updated = await service.updateModelMetrics(model.id, {
         accuracy: 0.97,
         avgLatency: 150,
         errorRate: 0.02,
@@ -294,34 +484,34 @@ describe('ModelVersionService', () => {
       expect(updated.metrics.errorRate).toBe(0.02);
     });
 
-    it('should throw error for non-existent model', () => {
-      expect(() =>
+    it('should throw error for non-existent model', async () => {
+      await expect(
         service.updateModelMetrics('non-existent', { accuracy: 0.9 })
-      ).toThrow('not found');
+      ).rejects.toThrow('not found');
     });
   });
 
   // ==================== A/B Testing ====================
 
   describe('AB Testing', () => {
-    let modelA: ReturnType<typeof service.registerModel>;
-    let modelB: ReturnType<typeof service.registerModel>;
+    let modelA: Awaited<ReturnType<typeof service.registerModel>>;
+    let modelB: Awaited<ReturnType<typeof service.registerModel>>;
 
-    beforeEach(() => {
-      modelA = service.registerModel({
+    beforeEach(async () => {
+      modelA = await service.registerModel({
         name: 'ab-test-model',
         version: 'v1.0.0',
         framework: 'openai',
       });
-      modelB = service.registerModel({
+      modelB = await service.registerModel({
         name: 'ab-test-model',
         version: 'v2.0.0',
         framework: 'anthropic',
       });
     });
 
-    it('should create an AB test', () => {
-      const abTest = service.createABTest({
+    it('should create an AB test', async () => {
+      const abTest = await service.createABTest({
         modelName: 'ab-test-model',
         variants: [
           { modelId: modelA.id, name: 'Control (v1)' },
@@ -336,8 +526,8 @@ describe('ModelVersionService', () => {
       expect(abTest.status).toBe('running');
     });
 
-    it('should throw error for invalid traffic split', () => {
-      expect(() =>
+    it('should throw error for invalid traffic split', async () => {
+      await expect(
         service.createABTest({
           modelName: 'ab-test-model',
           variants: [
@@ -347,22 +537,22 @@ describe('ModelVersionService', () => {
           trafficSplit: { [modelA.id]: 30, [modelB.id]: 30 },
           targetMetrics: ['accuracy'],
         })
-      ).toThrow('must sum to 100');
+      ).rejects.toThrow('must sum to 100');
     });
 
-    it('should throw error for non-existent variant model', () => {
-      expect(() =>
+    it('should throw error for non-existent variant model', async () => {
+      await expect(
         service.createABTest({
           modelName: 'ab-test-model',
           variants: [{ modelId: 'non-existent', name: 'Ghost' }],
           trafficSplit: { 'non-existent': 100 },
           targetMetrics: ['accuracy'],
         })
-      ).toThrow('not found');
+      ).rejects.toThrow('not found');
     });
 
-    it('should record AB test results', () => {
-      service.createABTest({
+    it('should record AB test results', async () => {
+      await service.createABTest({
         modelName: 'ab-test-model',
         variants: [
           { modelId: modelA.id, name: 'A' },
@@ -372,11 +562,11 @@ describe('ModelVersionService', () => {
         targetMetrics: ['errorRate'],
       });
 
-      service.recordABTestResult('ab-test-model', modelA.id, { success: true, latency: 100 });
-      service.recordABTestResult('ab-test-model', modelA.id, { success: false, latency: 200 });
-      service.recordABTestResult('ab-test-model', modelB.id, { success: true, latency: 150 });
+      await service.recordABTestResult('ab-test-model', modelA.id, { success: true, latency: 100 });
+      await service.recordABTestResult('ab-test-model', modelA.id, { success: false, latency: 200 });
+      await service.recordABTestResult('ab-test-model', modelB.id, { success: true, latency: 150 });
 
-      const results = service.getABTestResults('ab-test-model');
+      const results = await service.getABTestResults('ab-test-model');
       expect(results).toBeDefined();
       expect(results?.results.length).toBe(2);
 
@@ -385,8 +575,8 @@ describe('ModelVersionService', () => {
       expect(resultA?.metrics.totalPredictions).toBe(2);
     });
 
-    it('should complete AB test and determine winner', () => {
-      service.createABTest({
+    it('should complete AB test and determine winner', async () => {
+      await service.createABTest({
         modelName: 'ab-test-model',
         variants: [
           { modelId: modelA.id, name: 'A' },
@@ -398,22 +588,22 @@ describe('ModelVersionService', () => {
 
       // Model A: all success
       for (let i = 0; i < 10; i++) {
-        service.recordABTestResult('ab-test-model', modelA.id, { success: true });
+        await service.recordABTestResult('ab-test-model', modelA.id, { success: true });
       }
       // Model B: some failures
       for (let i = 0; i < 10; i++) {
-        service.recordABTestResult('ab-test-model', modelB.id, { success: i < 7 });
+        await service.recordABTestResult('ab-test-model', modelB.id, { success: i < 7 });
       }
 
-      const result = service.completeABTest('ab-test-model');
+      const result = await service.completeABTest('ab-test-model');
 
       expect(result.config.status).toBe('completed');
       expect(result.winner).toBe(modelA.id);
       expect(result.conclusion).toBeDefined();
     });
 
-    it('should pause AB test', () => {
-      service.createABTest({
+    it('should pause AB test', async () => {
+      await service.createABTest({
         modelName: 'ab-test-model',
         variants: [
           { modelId: modelA.id, name: 'A' },
@@ -423,12 +613,12 @@ describe('ModelVersionService', () => {
         targetMetrics: ['errorRate'],
       });
 
-      const paused = service.pauseABTest('ab-test-model');
+      const paused = await service.pauseABTest('ab-test-model');
       expect(paused.status).toBe('paused');
     });
 
-    it('should return undefined for non-existent AB test', () => {
-      const results = service.getABTestResults('non-existent-model');
+    it('should return undefined for non-existent AB test', async () => {
+      const results = await service.getABTestResults('non-existent-model');
       expect(results).toBeUndefined();
     });
   });
@@ -436,12 +626,12 @@ describe('ModelVersionService', () => {
   // ==================== Model Performance ====================
 
   describe('getModelPerformanceOverview', () => {
-    it('should return performance overview', () => {
-      service.registerModel({ name: 'perf-model', version: 'v1.0.0', framework: 'openai' });
-      const v2 = service.registerModel({ name: 'perf-model', version: 'v2.0.0', framework: 'openai' });
-      service.activateModel(v2.id);
+    it('should return performance overview', async () => {
+      await service.registerModel({ name: 'perf-model', version: 'v1.0.0', framework: 'openai' });
+      const v2 = await service.registerModel({ name: 'perf-model', version: 'v2.0.0', framework: 'openai' });
+      await service.activateModel(v2.id);
 
-      const overview = service.getModelPerformanceOverview('perf-model');
+      const overview = await service.getModelPerformanceOverview('perf-model');
 
       expect(overview.versions).toBe(2);
       expect(overview.activeVersion).toBe('v2.0.0');
@@ -452,29 +642,29 @@ describe('ModelVersionService', () => {
   // ==================== listModels ====================
 
   describe('listModels', () => {
-    beforeEach(() => {
-      service.registerModel({ name: 'model-a', version: 'v1', framework: 'openai' });
-      service.registerModel({ name: 'model-b', version: 'v1', framework: 'anthropic' });
-      service.registerModel({ name: 'model-c', version: 'v1', framework: 'openai' });
+    beforeEach(async () => {
+      await service.registerModel({ name: 'model-a', version: 'v1', framework: 'openai' });
+      await service.registerModel({ name: 'model-b', version: 'v1', framework: 'anthropic' });
+      await service.registerModel({ name: 'model-c', version: 'v1', framework: 'openai' });
     });
 
-    it('should return all models by default', () => {
-      const models = service.listModels();
+    it('should return all models by default', async () => {
+      const models = await service.listModels();
       expect(models.length).toBe(3);
     });
 
-    it('should filter by status', () => {
-      const models = service.listModels({ status: 'registered' });
+    it('should filter by status', async () => {
+      const models = await service.listModels({ status: 'registered' });
       expect(models.length).toBe(3);
     });
 
-    it('should filter by framework', () => {
-      const models = service.listModels({ framework: 'openai' });
+    it('should filter by framework', async () => {
+      const models = await service.listModels({ framework: 'openai' });
       expect(models.length).toBe(2);
     });
 
-    it('should filter by name', () => {
-      const models = service.listModels({ name: 'model-a' });
+    it('should filter by name', async () => {
+      const models = await service.listModels({ name: 'model-a' });
       expect(models.length).toBe(1);
       expect(models[0].name).toBe('model-a');
     });
@@ -483,27 +673,27 @@ describe('ModelVersionService', () => {
   // ==================== archiveModel ====================
 
   describe('archiveModel', () => {
-    it('should archive a deprecated model', () => {
-      const model = service.registerModel({
+    it('should archive a deprecated model', async () => {
+      const model = await service.registerModel({
         name: 'archive-test',
         version: 'v1.0.0',
         framework: 'openai',
       });
-      service.deprecateModel(model.id);
+      await service.deprecateModel(model.id);
 
-      const archived = service.archiveModel(model.id);
+      const archived = await service.archiveModel(model.id);
       expect(archived.status).toBe('archived');
     });
 
-    it('should throw error for active model', () => {
-      const model = service.registerModel({
+    it('should throw error for active model', async () => {
+      const model = await service.registerModel({
         name: 'active-archive',
         version: 'v1.0.0',
         framework: 'openai',
       });
-      service.activateModel(model.id);
+      await service.activateModel(model.id);
 
-      expect(() => service.archiveModel(model.id)).toThrow('active');
+      await expect(service.archiveModel(model.id)).rejects.toThrow('active');
     });
   });
 });

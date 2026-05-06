@@ -3,9 +3,17 @@
  *
  * Provides baseline creation, evaluation, retrieval, and update
  * for service performance metrics with tenant isolation.
- * Uses in-memory Map storage (can migrate to Repository later).
+ * Uses PostgreSQL Repository pattern for persistence.
  */
 import { v4 as uuidv4 } from 'uuid';
+import {
+  PerformanceBaselineRepository,
+  PerformanceBaselineEntity,
+  PerformanceEvaluationRepository,
+  PerformanceEvaluationEntity,
+  PerformanceTestResultRepository,
+  PerformanceTestResultEntity,
+} from '../../repositories/PerformanceRepository';
 
 export interface PerformanceBaseline {
   id: string;
@@ -64,19 +72,25 @@ export interface RegressionAnalysis {
 }
 
 export class PerformanceBaselineService {
-  private baselines: Map<string, PerformanceBaseline> = new Map();
-  private evaluations: Map<string, EvaluationResult> = new Map();
-  private testResults: Map<string, PerformanceTestResult> = new Map();
+  private baselineRepo: PerformanceBaselineRepository;
+  private evaluationRepo: PerformanceEvaluationRepository;
+  private testResultRepo: PerformanceTestResultRepository;
+
+  constructor(db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+    this.baselineRepo = new PerformanceBaselineRepository(db);
+    this.evaluationRepo = new PerformanceEvaluationRepository(db);
+    this.testResultRepo = new PerformanceTestResultRepository(db);
+  }
 
   /**
    * Create a performance baseline for a service
    */
-  createBaseline(
+  async createBaseline(
     tenantId: string,
     service: string,
     metrics: Record<string, number>,
     thresholds?: Record<string, { min: number; max: number }>
-  ): PerformanceBaseline {
+  ): Promise<PerformanceBaseline> {
     const id = uuidv4();
     const now = new Date();
 
@@ -91,30 +105,28 @@ export class PerformanceBaselineService {
       }
     }
 
-    const baseline: PerformanceBaseline = {
+    const entity = await this.baselineRepo.create({
       id,
-      tenantId,
+      tenant_id: tenantId,
       service,
+      environment: null,
       metrics,
       thresholds: computedThresholds,
-      createdAt: now,
-      updatedAt: now,
       version: 1,
-    };
+    });
 
-    this.baselines.set(id, baseline);
-    return baseline;
+    return this.mapEntityToBaseline(entity);
   }
 
   /**
    * Evaluate current performance against baseline
    */
-  evaluatePerformance(
+  async evaluatePerformance(
     tenantId: string,
     service: string,
     currentMetrics: Record<string, number>
-  ): EvaluationResult | null {
-    const baseline = this.findByTenantAndService(tenantId, service);
+  ): Promise<EvaluationResult | null> {
+    const baseline = await this.findByTenantAndService(tenantId, service);
     if (!baseline) {
       return null;
     }
@@ -163,7 +175,7 @@ export class PerformanceBaselineService {
     };
 
     // Save evaluation for history
-    this.saveEvaluation(result);
+    await this.saveEvaluation(result, tenantId);
 
     return result;
   }
@@ -171,67 +183,58 @@ export class PerformanceBaselineService {
   /**
    * Get baseline by tenant and service
    */
-  getBaseline(tenantId: string, service: string): PerformanceBaseline | null {
+  async getBaseline(tenantId: string, service: string): Promise<PerformanceBaseline | null> {
     return this.findByTenantAndService(tenantId, service);
   }
 
   /**
    * Update baseline metrics and thresholds
    */
-  updateBaseline(
+  async updateBaseline(
     tenantId: string,
     service: string,
     metrics: Record<string, number>,
     thresholds?: Record<string, { min: number; max: number }>
-  ): PerformanceBaseline | null {
-    const baseline = this.findByTenantAndService(tenantId, service);
+  ): Promise<PerformanceBaseline | null> {
+    const baseline = await this.findByTenantAndService(tenantId, service);
     if (!baseline) {
       return null;
     }
 
-    baseline.metrics = metrics;
-    if (thresholds) {
-      baseline.thresholds = thresholds;
-    }
-    baseline.updatedAt = new Date();
-    baseline.version += 1;
+    const entity = await this.baselineRepo.update(baseline.id, {
+      metrics,
+      ...(thresholds ? { thresholds } : {}),
+      updated_at: new Date(),
+      version: baseline.version + 1,
+    });
 
-    return baseline;
+    return this.mapEntityToBaseline(entity);
   }
 
   /**
    * Delete baseline
    */
-  deleteBaseline(tenantId: string, service: string): boolean {
-    for (const [id, baseline] of this.baselines.entries()) {
-      if (baseline.tenantId === tenantId && baseline.service === service) {
-        this.baselines.delete(id);
-        return true;
-      }
-    }
-    return false;
+  async deleteBaseline(tenantId: string, service: string): Promise<boolean> {
+    return this.baselineRepo.deleteByTenantAndService(tenantId, service);
   }
 
   /**
    * List all baselines for a tenant
    */
-  listBaselines(tenantId: string): PerformanceBaseline[] {
-    return Array.from(this.baselines.values()).filter((b) => b.tenantId === tenantId);
+  async listBaselines(tenantId: string): Promise<PerformanceBaseline[]> {
+    const entities = await this.baselineRepo.findByTenant(tenantId);
+    return entities.map(e => this.mapEntityToBaseline(e));
   }
 
   /**
    * Find baseline by tenant and service
    */
-  private findByTenantAndService(
+  private async findByTenantAndService(
     tenantId: string,
     service: string
-  ): PerformanceBaseline | null {
-    for (const baseline of this.baselines.values()) {
-      if (baseline.tenantId === tenantId && baseline.service === service) {
-        return baseline;
-      }
-    }
-    return null;
+  ): Promise<PerformanceBaseline | null> {
+    const entity = await this.baselineRepo.findByTenantAndService(tenantId, service);
+    return entity ? this.mapEntityToBaseline(entity) : null;
   }
 
   // ========== Evaluation History ==========
@@ -239,19 +242,30 @@ export class PerformanceBaselineService {
   /**
    * Save an evaluation result for history
    */
-  saveEvaluation(result: EvaluationResult): void {
-    const id = `eval-${result.baselineId}-${Date.now()}`;
-    this.evaluations.set(id, result);
+  async saveEvaluation(result: EvaluationResult, tenantId: string): Promise<void> {
+    await this.evaluationRepo.create({
+      id: `eval-${result.baselineId}-${Date.now()}`,
+      baseline_id: result.baselineId,
+      tenant_id: tenantId,
+      service: result.service,
+      overall: result.overall,
+      details: result.details,
+      evaluated_at: result.evaluatedAt,
+    });
   }
 
   /**
    * Get evaluation history for a baseline
    */
-  getEvaluationHistory(baselineId: string, limit?: number): EvaluationResult[] {
-    const history = Array.from(this.evaluations.values())
-      .filter(e => e.baselineId === baselineId)
-      .sort((a, b) => b.evaluatedAt.getTime() - a.evaluatedAt.getTime());
-    return limit ? history.slice(0, limit) : history;
+  async getEvaluationHistory(baselineId: string, limit?: number): Promise<EvaluationResult[]> {
+    const entities = await this.evaluationRepo.findByBaselineId(baselineId, limit);
+    return entities.map(e => ({
+      baselineId: e.baseline_id,
+      service: e.service,
+      overall: e.overall,
+      details: e.details as EvaluationResult['details'],
+      evaluatedAt: e.evaluated_at,
+    }));
   }
 
   // ========== Performance Test Results ==========
@@ -259,7 +273,7 @@ export class PerformanceBaselineService {
   /**
    * Record a performance test result
    */
-  recordTestResult(
+  async recordTestResult(
     tenantId: string,
     service: string,
     input: {
@@ -268,15 +282,16 @@ export class PerformanceBaselineService {
       metrics: Record<string, number>;
       duration: number;
     }
-  ): PerformanceTestResult {
+  ): Promise<PerformanceTestResult> {
     const id = uuidv4();
     let status: PerformanceTestResult['status'] = 'pass';
     let failures: PerformanceTestResult['failures'] | undefined;
 
     // Compare against baseline if available
     if (input.baselineId) {
-      const baseline = this.baselines.get(input.baselineId);
-      if (baseline) {
+      const baselineEntity = await this.baselineRepo.findById(input.baselineId);
+      if (baselineEntity) {
+        const baseline = this.mapEntityToBaseline(baselineEntity);
         const testFailures: { metric: string; expected: { min: number; max: number }; actual: number }[] = [];
         for (const [metric, value] of Object.entries(input.metrics)) {
           const threshold = baseline.thresholds[metric];
@@ -291,38 +306,36 @@ export class PerformanceBaselineService {
       }
     }
 
-    const result: PerformanceTestResult = {
+    const entity = await this.testResultRepo.create({
       id,
-      tenantId,
+      tenant_id: tenantId,
       service,
-      baselineId: input.baselineId,
-      testName: input.testName,
+      baseline_id: input.baselineId ?? null,
+      test_name: input.testName,
       metrics: input.metrics,
       status,
-      failures,
+      failures: failures ?? null,
       duration: input.duration,
       timestamp: new Date(),
-    };
+    });
 
-    this.testResults.set(id, result);
-    return result;
+    return this.mapEntityToTestResult(entity);
   }
 
   /**
    * Get test results for a service
    */
-  getTestResults(service: string, limit?: number): PerformanceTestResult[] {
-    const results = Array.from(this.testResults.values())
-      .filter(r => r.service === service)
-      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-    return limit ? results.slice(0, limit) : results;
+  async getTestResults(service: string, limit?: number): Promise<PerformanceTestResult[]> {
+    const entities = await this.testResultRepo.findByService(service, limit);
+    return entities.map(e => this.mapEntityToTestResult(e));
   }
 
   /**
    * Get test result by ID
    */
-  getTestResultById(testId: string): PerformanceTestResult | null {
-    return this.testResults.get(testId) || null;
+  async getTestResultById(testId: string): Promise<PerformanceTestResult | null> {
+    const entity = await this.testResultRepo.findById(testId);
+    return entity ? this.mapEntityToTestResult(entity) : null;
   }
 
   // ========== Regression Detection ==========
@@ -330,12 +343,12 @@ export class PerformanceBaselineService {
   /**
    * Detect performance regression by comparing current metrics against baseline
    */
-  detectRegression(
+  async detectRegression(
     tenantId: string,
     service: string,
     currentMetrics: Record<string, number>
-  ): RegressionAnalysis | null {
-    const baseline = this.findByTenantAndService(tenantId, service);
+  ): Promise<RegressionAnalysis | null> {
+    const baseline = await this.findByTenantAndService(tenantId, service);
     if (!baseline) return null;
 
     const regressions: RegressionAnalysis['regressions'] = [];
@@ -391,15 +404,50 @@ export class PerformanceBaselineService {
   /**
    * Get all baselines (for admin/listing)
    */
-  getAllBaselines(): PerformanceBaseline[] {
-    return Array.from(this.baselines.values());
+  async getAllBaselines(): Promise<PerformanceBaseline[]> {
+    // Note: BaseRepository.findAll requires a where clause for tenant isolation
+    // This returns all across all tenants - use with caution
+    const result = await this.baselineRepo.findAll({ limit: 1000 });
+    return result.entities.map(e => this.mapEntityToBaseline(e));
   }
 
   /**
    * Get baseline by ID
    */
-  getBaselineById(id: string): PerformanceBaseline | null {
-    return this.baselines.get(id) || null;
+  async getBaselineById(id: string): Promise<PerformanceBaseline | null> {
+    const entity = await this.baselineRepo.findById(id);
+    return entity ? this.mapEntityToBaseline(entity) : null;
+  }
+
+  // ========== Entity Mapping ==========
+
+  private mapEntityToBaseline(entity: PerformanceBaselineEntity): PerformanceBaseline {
+    return {
+      id: entity.id,
+      tenantId: entity.tenant_id,
+      service: entity.service,
+      environment: entity.environment ?? undefined,
+      metrics: entity.metrics,
+      thresholds: entity.thresholds,
+      createdAt: entity.created_at,
+      updatedAt: entity.updated_at,
+      version: entity.version,
+    };
+  }
+
+  private mapEntityToTestResult(entity: PerformanceTestResultEntity): PerformanceTestResult {
+    return {
+      id: entity.id,
+      tenantId: entity.tenant_id,
+      service: entity.service,
+      baselineId: entity.baseline_id ?? undefined,
+      testName: entity.test_name,
+      metrics: entity.metrics,
+      status: entity.status,
+      failures: entity.failures as PerformanceTestResult['failures'] | undefined,
+      duration: entity.duration,
+      timestamp: entity.timestamp,
+    };
   }
 }
 

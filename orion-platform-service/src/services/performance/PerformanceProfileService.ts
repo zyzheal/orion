@@ -3,9 +3,13 @@
  *
  * Provides performance profiling, bottleneck analysis,
  * and optimization suggestions with tenant isolation.
- * Uses in-memory Map storage (can migrate to Repository later).
+ * Uses PostgreSQL Repository pattern for persistence.
  */
 import { v4 as uuidv4 } from 'uuid';
+import {
+  PerformanceProfileRepository,
+  PerformanceProfileEntity,
+} from '../../repositories/PerformanceRepository';
 
 export interface ProfileConfig {
   durationSeconds?: number;
@@ -65,40 +69,45 @@ export interface OptimizationSuggestion {
 }
 
 export class PerformanceProfileService {
-  private profiles: Map<string, ProfileRecord> = new Map();
-  private profilesByService: Map<string, string[]> = new Map();
+  private profileRepo: PerformanceProfileRepository;
+
+  constructor(db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+    this.profileRepo = new PerformanceProfileRepository(db);
+  }
 
   /**
    * Create a performance profile for a service
    */
-  profileService(
+  async profileService(
     serviceName: string,
     testConfig: ProfileConfig
-  ): ProfileRecord {
+  ): Promise<ProfileRecord> {
     const id = uuidv4();
-    const record: ProfileRecord = {
-      id,
-      serviceName,
-      config: {
-        durationSeconds: testConfig.durationSeconds ?? 60,
-        concurrency: testConfig.concurrency ?? 10,
-        targetRps: testConfig.targetRps,
-        endpoints: testConfig.endpoints ?? [],
-        metrics: testConfig.metrics ?? ['latency', 'throughput', 'error_rate', 'cpu', 'memory'],
-      },
-      status: 'pending',
-      createdAt: new Date(),
+    const config: ProfileConfig = {
+      durationSeconds: testConfig.durationSeconds ?? 60,
+      concurrency: testConfig.concurrency ?? 10,
+      targetRps: testConfig.targetRps,
+      endpoints: testConfig.endpoints ?? [],
+      metrics: testConfig.metrics ?? ['latency', 'throughput', 'error_rate', 'cpu', 'memory'],
     };
 
-    this.profiles.set(id, record);
+    const entity = await this.profileRepo.create({
+      id,
+      tenant_id: null,
+      service_name: serviceName,
+      config,
+      status: 'pending',
+      results: null,
+      error_message: null,
+      completed_at: null,
+    });
 
-    // Index by service name
-    const serviceProfiles = this.profilesByService.get(serviceName) ?? [];
-    serviceProfiles.push(id);
-    this.profilesByService.set(serviceName, serviceProfiles);
+    const record = this.mapEntityToProfile(entity);
 
-    // Simulate running the profile
-    this.executeProfileAsync(record);
+    // Execute profile asynchronously
+    this.executeProfileAsync(record).catch(err => {
+      console.error(`[PerformanceProfile] Profile ${id} execution failed:`, err);
+    });
 
     return record;
   }
@@ -106,91 +115,23 @@ export class PerformanceProfileService {
   /**
    * Analyze bottlenecks from a completed profile
    */
-  analyzeBottlenecks(profileId: string): BottleneckAnalysis | null {
-    const profile = this.profiles.get(profileId);
-    if (!profile || profile.status !== 'completed' || !profile.results) {
+  async analyzeBottlenecks(profileId: string): Promise<BottleneckAnalysis | null> {
+    const entity = await this.profileRepo.findById(profileId);
+    if (!entity || entity.status !== 'completed' || !entity.results) {
       return null;
     }
 
-    const bottlenecks: BottleneckAnalysis['bottlenecks'] = [];
-    const results = profile.results;
-
-    // Latency bottleneck: p99 > 500ms
-    if (results.p99LatencyMs > 500) {
-      bottlenecks.push({
-        type: 'high_tail_latency',
-        severity: results.p99LatencyMs > 1000 ? 'critical' : 'high',
-        description: `P99 latency is ${results.p99LatencyMs}ms, exceeding 500ms threshold`,
-        metric: 'p99_latency_ms',
-        value: results.p99LatencyMs,
-        threshold: 500,
-      });
-    }
-
-    // Error rate bottleneck: > 1%
-    if (results.errorRate > 0.01) {
-      bottlenecks.push({
-        type: 'high_error_rate',
-        severity: results.errorRate > 0.05 ? 'critical' : 'high',
-        description: `Error rate is ${(results.errorRate * 100).toFixed(2)}%, exceeding 1% threshold`,
-        metric: 'error_rate',
-        value: results.errorRate,
-        threshold: 0.01,
-      });
-    }
-
-    // CPU bottleneck: avg > 80%
-    if (results.resourceUsage.cpuAvg > 80) {
-      bottlenecks.push({
-        type: 'high_cpu_usage',
-        severity: results.resourceUsage.cpuAvg > 95 ? 'critical' : 'high',
-        description: `Average CPU usage is ${results.resourceUsage.cpuAvg.toFixed(1)}%, exceeding 80% threshold`,
-        metric: 'cpu_avg',
-        value: results.resourceUsage.cpuAvg,
-        threshold: 80,
-      });
-    }
-
-    // Memory bottleneck: avg > 85%
-    if (results.resourceUsage.memoryAvg > 85) {
-      bottlenecks.push({
-        type: 'high_memory_usage',
-        severity: results.resourceUsage.memoryAvg > 95 ? 'critical' : 'medium',
-        description: `Average memory usage is ${results.resourceUsage.memoryAvg.toFixed(1)}%, exceeding 85% threshold`,
-        metric: 'memory_avg',
-        value: results.resourceUsage.memoryAvg,
-        threshold: 85,
-      });
-    }
-
-    // Throughput bottleneck: throughput < maxRps * 0.5
-    if (results.maxRps > 0 && results.throughputRps < results.maxRps * 0.5) {
-      bottlenecks.push({
-        type: 'throughput_degradation',
-        severity: 'medium',
-        description: `Throughput ${results.throughputRps} RPS is less than 50% of max RPS ${results.maxRps}`,
-        metric: 'throughput_rps',
-        value: results.throughputRps,
-        threshold: results.maxRps * 0.5,
-      });
-    }
-
-    return {
-      profileId,
-      bottlenecks,
-      analyzedAt: new Date(),
-    };
+    const profile = this.mapEntityToProfile(entity);
+    return this.analyzeBottlenecksFromProfile(profile);
   }
 
   /**
    * Get optimization suggestions for a service
    */
-  getOptimizationSuggestions(serviceName: string): OptimizationSuggestion[] {
+  async getOptimizationSuggestions(serviceName: string): Promise<OptimizationSuggestion[]> {
     const suggestions: OptimizationSuggestion[] = [];
-    const profileIds = this.profilesByService.get(serviceName) ?? [];
-    const completedProfiles = profileIds
-      .map((id) => this.profiles.get(id))
-      .filter((p): p is ProfileRecord => p !== undefined && p.status === 'completed' && p.results !== undefined);
+    const profiles = await this.listProfiles(serviceName);
+    const completedProfiles = profiles.filter(p => p.status === 'completed' && p.results !== undefined);
 
     if (completedProfiles.length === 0) {
       suggestions.push({
@@ -273,32 +214,29 @@ export class PerformanceProfileService {
   /**
    * Get profile by ID
    */
-  getProfile(profileId: string): ProfileRecord | null {
-    return this.profiles.get(profileId) ?? null;
+  async getProfile(profileId: string): Promise<ProfileRecord | null> {
+    const entity = await this.profileRepo.findById(profileId);
+    return entity ? this.mapEntityToProfile(entity) : null;
   }
 
   /**
    * List profiles for a service
    */
-  listProfiles(serviceName: string): ProfileRecord[] {
-    const profileIds = this.profilesByService.get(serviceName) ?? [];
-    return profileIds
-      .map((id) => this.profiles.get(id))
-      .filter((p): p is ProfileRecord => p !== undefined);
+  async listProfiles(serviceName: string): Promise<ProfileRecord[]> {
+    const entities = await this.profileRepo.findByService(serviceName);
+    return entities.map(e => this.mapEntityToProfile(e));
   }
 
   /**
    * Execute profile asynchronously (simulated)
    */
   private async executeProfileAsync(record: ProfileRecord): Promise<void> {
-    record.status = 'running';
-
     try {
-      // Simulated profile results based on config
+      // Update status to running
       const baseLatency = 50 + Math.random() * 100;
       const concurrency = record.config.concurrency ?? 10;
 
-      record.results = {
+      const results: ProfileResult = {
         avgLatencyMs: Math.round(baseLatency * 100) / 100,
         p50LatencyMs: Math.round(baseLatency * 100) / 100,
         p95LatencyMs: Math.round(baseLatency * 1.8 * 100) / 100,
@@ -318,13 +256,99 @@ export class PerformanceProfileService {
         },
       };
 
-      record.status = 'completed';
-      record.completedAt = new Date();
+      await this.profileRepo.updateResults(record.id, results, 'completed');
     } catch (error: any) {
-      record.status = 'failed';
-      record.errorMessage = error.message;
-      record.completedAt = new Date();
+      await this.profileRepo.updateResults(record.id, {}, 'failed', error.message);
     }
+  }
+
+  /**
+   * Analyze bottlenecks from a completed profile record
+   */
+  private analyzeBottlenecksFromProfile(profile: ProfileRecord): BottleneckAnalysis {
+    const bottlenecks: BottleneckAnalysis['bottlenecks'] = [];
+    const results = profile.results!;
+
+    // Latency bottleneck: p99 > 500ms
+    if (results.p99LatencyMs > 500) {
+      bottlenecks.push({
+        type: 'high_tail_latency',
+        severity: results.p99LatencyMs > 1000 ? 'critical' : 'high',
+        description: `P99 latency is ${results.p99LatencyMs}ms, exceeding 500ms threshold`,
+        metric: 'p99_latency_ms',
+        value: results.p99LatencyMs,
+        threshold: 500,
+      });
+    }
+
+    // Error rate bottleneck: > 1%
+    if (results.errorRate > 0.01) {
+      bottlenecks.push({
+        type: 'high_error_rate',
+        severity: results.errorRate > 0.05 ? 'critical' : 'high',
+        description: `Error rate is ${(results.errorRate * 100).toFixed(2)}%, exceeding 1% threshold`,
+        metric: 'error_rate',
+        value: results.errorRate,
+        threshold: 0.01,
+      });
+    }
+
+    // CPU bottleneck: avg > 80%
+    if (results.resourceUsage.cpuAvg > 80) {
+      bottlenecks.push({
+        type: 'high_cpu_usage',
+        severity: results.resourceUsage.cpuAvg > 95 ? 'critical' : 'high',
+        description: `Average CPU usage is ${results.resourceUsage.cpuAvg.toFixed(1)}%, exceeding 80% threshold`,
+        metric: 'cpu_avg',
+        value: results.resourceUsage.cpuAvg,
+        threshold: 80,
+      });
+    }
+
+    // Memory bottleneck: avg > 85%
+    if (results.resourceUsage.memoryAvg > 85) {
+      bottlenecks.push({
+        type: 'high_memory_usage',
+        severity: results.resourceUsage.memoryAvg > 95 ? 'critical' : 'medium',
+        description: `Average memory usage is ${results.resourceUsage.memoryAvg.toFixed(1)}%, exceeding 85% threshold`,
+        metric: 'memory_avg',
+        value: results.resourceUsage.memoryAvg,
+        threshold: 85,
+      });
+    }
+
+    // Throughput bottleneck: throughput < maxRps * 0.5
+    if (results.maxRps > 0 && results.throughputRps < results.maxRps * 0.5) {
+      bottlenecks.push({
+        type: 'throughput_degradation',
+        severity: 'medium',
+        description: `Throughput ${results.throughputRps} RPS is less than 50% of max RPS ${results.maxRps}`,
+        metric: 'throughput_rps',
+        value: results.throughputRps,
+        threshold: results.maxRps * 0.5,
+      });
+    }
+
+    return {
+      profileId: profile.id,
+      bottlenecks,
+      analyzedAt: new Date(),
+    };
+  }
+
+  // ========== Entity Mapping ==========
+
+  private mapEntityToProfile(entity: PerformanceProfileEntity): ProfileRecord {
+    return {
+      id: entity.id,
+      serviceName: entity.service_name,
+      config: entity.config as ProfileConfig,
+      status: entity.status,
+      results: entity.results as ProfileResult | undefined,
+      createdAt: entity.created_at,
+      completedAt: entity.completed_at ?? undefined,
+      errorMessage: entity.error_message ?? undefined,
+    };
   }
 }
 

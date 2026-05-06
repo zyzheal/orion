@@ -5,9 +5,20 @@
  * 1. 模型注册/版本管理/激活
  * 2. A/B 测试支持
  * 3. 模型性能监控
+ *
+ * Uses PostgreSQL Repository pattern for persistence.
  */
 
 import pino from 'pino';
+import { v4 as uuidv4 } from 'uuid';
+import {
+  ModelVersionRepository,
+  ModelVersionEntity,
+  ABTestRepository,
+  ABTestEntity,
+  ABTestMetricRepository,
+  ABTestMetricEntity,
+} from '../../repositories/ModelVersionRepository';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -21,19 +32,19 @@ export interface ModelMetrics {
   precision?: number;
   recall?: number;
   f1Score?: number;
-  avgLatency?: number; // ms
-  p95Latency?: number; // ms
-  p99Latency?: number; // ms
-  throughput?: number; // requests per second
-  errorRate?: number; // 0-1
+  avgLatency?: number;
+  p95Latency?: number;
+  p99Latency?: number;
+  throughput?: number;
+  errorRate?: number;
   totalPredictions?: number;
-  totalCost?: number; // 累计成本
+  totalCost?: number;
 }
 
 export interface ModelVersion {
   id: string;
-  name: string; // 模型名称 (e.g., "code-review-model")
-  version: string; // 版本号 (e.g., "v1.2.3")
+  name: string;
+  version: string;
   status: ModelStatus;
   framework: ModelFramework;
   description?: string;
@@ -52,7 +63,7 @@ export interface ModelVersion {
 export interface ABTestConfig {
   modelName: string;
   variants: ABTestVariant[];
-  trafficSplit: Record<string, number>; // modelId -> percentage (0-100)
+  trafficSplit: Record<string, number>;
   startDate: Date;
   endDate?: Date;
   targetMetrics: string[];
@@ -68,8 +79,8 @@ export interface ABTestVariant {
 export interface ABTestResult {
   config: ABTestConfig;
   results: ABTestVariantResult[];
-  winner?: string; // winning modelId
-  statisticalSignificance?: number; // p-value
+  winner?: string;
+  statisticalSignificance?: number;
   conclusion?: string;
   generatedAt: Date;
 }
@@ -80,7 +91,7 @@ export interface ABTestVariantResult {
   metrics: ModelMetrics;
   requestCount: number;
   successRate: number;
-  userFeedbackScore?: number; // 1-5
+  userFeedbackScore?: number;
 }
 
 export interface ModelRegistrationInput {
@@ -100,30 +111,22 @@ export interface ModelRegistrationInput {
 // ==================== 核心服务类 ====================
 
 export class ModelVersionService {
-  private models: Map<string, ModelVersion>; // id -> model
-  private activeModels: Map<string, string>; // modelName -> modelId
-  private abTests: Map<string, ABTestConfig>; // modelName -> config
-  private abTestMetrics: Map<string, Map<string, ModelMetrics>>; // modelName -> modelId -> metrics
-  private abTestRequestCounts: Map<string, Map<string, number>>; // modelName -> modelId -> count
+  private modelRepo: ModelVersionRepository;
+  private abTestRepo: ABTestRepository;
+  private abTestMetricRepo: ABTestMetricRepository;
 
-  constructor() {
-    this.models = new Map();
-    this.activeModels = new Map();
-    this.abTests = new Map();
-    this.abTestMetrics = new Map();
-    this.abTestRequestCounts = new Map();
+  constructor(db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+    this.modelRepo = new ModelVersionRepository(db);
+    this.abTestRepo = new ABTestRepository(db);
+    this.abTestMetricRepo = new ABTestMetricRepository(db);
   }
 
   /**
    * 注册模型版本
    */
-  registerModel(input: ModelRegistrationInput): ModelVersion {
-    const id = `model-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
-
+  async registerModel(input: ModelRegistrationInput): Promise<ModelVersion> {
     // 检查是否已存在相同名称+版本的模型
-    const existing = Array.from(this.models.values()).find(
-      (m) => m.name === input.name && m.version === input.version
-    );
+    const existing = await this.modelRepo.findByNameAndVersion(input.name, input.version);
     if (existing) {
       throw new Error(
         `Model version already exists: ${input.name}@${input.version} (id: ${existing.id})`
@@ -131,17 +134,19 @@ export class ModelVersionService {
     }
 
     const now = new Date();
-    const model: ModelVersion = {
+    const id = `model-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+
+    const entity = await this.modelRepo.create({
       id,
       name: input.name,
       version: input.version,
       status: 'registered',
       framework: input.framework,
-      description: input.description,
-      metadata: input.metadata,
-      trainingDate: input.trainingDate,
-      trainingDataSize: input.trainingDataSize,
-      hyperparameters: input.hyperparameters,
+      description: input.description ?? null,
+      metadata: input.metadata ?? null,
+      training_date: input.trainingDate ?? null,
+      training_data_size: input.trainingDataSize ?? null,
+      hyperparameters: input.hyperparameters ?? null,
       metrics: {
         accuracy: input.metrics?.accuracy,
         precision: input.metrics?.precision,
@@ -155,145 +160,130 @@ export class ModelVersionService {
         totalPredictions: input.metrics?.totalPredictions ?? 0,
         totalCost: input.metrics?.totalCost ?? 0,
       },
-      registeredAt: now,
-      registeredBy: input.registeredBy,
-      tags: input.tags,
-    };
+      registered_at: now,
+      registered_by: input.registeredBy ?? null,
+      activated_at: null,
+      deprecated_at: null,
+      tags: input.tags ?? null,
+    });
 
-    this.models.set(id, model);
     logger.info({ msg: 'Model registered', modelId: id, name: input.name, version: input.version });
-
-    return model;
+    return this.mapEntityToModel(entity);
   }
 
   /**
    * 激活模型
    */
-  activateModel(modelId: string): ModelVersion {
-    const model = this.models.get(modelId);
-    if (!model) {
+  async activateModel(modelId: string): Promise<ModelVersion> {
+    const entity = await this.modelRepo.findById(modelId);
+    if (!entity) {
       throw new Error(`Model not found: ${modelId}`);
     }
 
-    if (model.status === 'deprecated' || model.status === 'archived') {
-      throw new Error(`Cannot activate ${model.status} model: ${modelId}`);
+    if (entity.status === 'deprecated' || entity.status === 'archived') {
+      throw new Error(`Cannot activate ${entity.status} model: ${modelId}`);
     }
 
     // 将同名模型的旧活跃版本设为非活跃
-    const existingActive = this.activeModels.get(model.name);
-    if (existingActive && existingActive !== modelId) {
-      const oldModel = this.models.get(existingActive);
-      if (oldModel && oldModel.status === 'active') {
-        oldModel.status = 'registered';
-        oldModel.activatedAt = undefined;
-        logger.info({
-          msg: 'Previous active model deactivated',
-          modelId: existingActive,
-          name: model.name,
-        });
-      }
+    const existingActive = await this.modelRepo.findActiveByName(entity.name);
+    if (existingActive && existingActive.id !== modelId) {
+      await this.modelRepo.update(existingActive.id, {
+        status: 'registered',
+        activated_at: null,
+      });
+      logger.info({
+        msg: 'Previous active model deactivated',
+        modelId: existingActive.id,
+        name: entity.name,
+      });
     }
 
-    model.status = 'active';
-    model.activatedAt = new Date();
-    this.activeModels.set(model.name, modelId);
+    const updated = await this.modelRepo.update(modelId, {
+      status: 'active',
+      activated_at: new Date(),
+    });
 
-    logger.info({ msg: 'Model activated', modelId, name: model.name, version: model.version });
-
-    return model;
+    logger.info({ msg: 'Model activated', modelId, name: entity.name, version: entity.version });
+    return this.mapEntityToModel(updated);
   }
 
   /**
    * 获取模型的版本列表
    */
-  getModelVersions(modelName: string, includeDeprecated = false): ModelVersion[] {
-    const versions = Array.from(this.models.values())
-      .filter((m) => m.name === modelName)
-      .filter((m) => includeDeprecated || m.status !== 'deprecated' && m.status !== 'archived')
-      .sort((a, b) => b.registeredAt.getTime() - a.registeredAt.getTime());
-
-    return versions;
+  async getModelVersions(modelName: string, includeDeprecated = false): Promise<ModelVersion[]> {
+    const entities = await this.modelRepo.findByName(modelName, includeDeprecated);
+    return entities.map(e => this.mapEntityToModel(e));
   }
 
   /**
    * 获取当前活跃模型
    */
-  getActiveModel(modelName: string): ModelVersion | undefined {
-    const activeId = this.activeModels.get(modelName);
-    if (!activeId) return undefined;
-
-    const model = this.models.get(activeId);
-    if (!model || model.status !== 'active') {
-      this.activeModels.delete(modelName);
-      return undefined;
-    }
-
-    return model;
+  async getActiveModel(modelName: string): Promise<ModelVersion | undefined> {
+    const entity = await this.modelRepo.findActiveByName(modelName);
+    if (!entity || entity.status !== 'active') return undefined;
+    return this.mapEntityToModel(entity);
   }
 
   /**
    * 获取所有活跃模型
    */
-  getAllActiveModels(): ModelVersion[] {
-    return Array.from(this.activeModels.entries())
-      .map(([, id]) => this.models.get(id))
-      .filter((m): m is ModelVersion => m !== undefined && m.status === 'active');
+  async getAllActiveModels(): Promise<ModelVersion[]> {
+    const entities = await this.modelRepo.findAllActive();
+    return entities.map(e => this.mapEntityToModel(e));
   }
 
   /**
    * 废弃模型
    */
-  deprecateModel(modelId: string): ModelVersion {
-    const model = this.models.get(modelId);
-    if (!model) {
+  async deprecateModel(modelId: string): Promise<ModelVersion> {
+    const entity = await this.modelRepo.findById(modelId);
+    if (!entity) {
       throw new Error(`Model not found: ${modelId}`);
     }
 
-    if (model.status === 'archived') {
+    if (entity.status === 'archived') {
       throw new Error(`Cannot deprecate archived model: ${modelId}`);
     }
 
     // 如果是当前活跃模型，清除活跃标记
-    const activeId = this.activeModels.get(model.name);
-    if (activeId === modelId) {
-      this.activeModels.delete(model.name);
+    const activeEntity = await this.modelRepo.findActiveByName(entity.name);
+    if (activeEntity?.id === modelId) {
       logger.info({
         msg: 'Active model deprecated, cleared active status',
         modelId,
-        name: model.name,
+        name: entity.name,
       });
     }
 
-    model.status = 'deprecated';
-    model.deprecatedAt = new Date();
+    const updated = await this.modelRepo.update(modelId, {
+      status: 'deprecated',
+      deprecated_at: new Date(),
+    });
 
-    logger.info({ msg: 'Model deprecated', modelId, name: model.name, version: model.version });
-
-    return model;
+    logger.info({ msg: 'Model deprecated', modelId, name: entity.name, version: entity.version });
+    return this.mapEntityToModel(updated);
   }
 
   /**
    * 获取模型详情
    */
-  getModelById(modelId: string): ModelVersion | undefined {
-    return this.models.get(modelId);
+  async getModelById(modelId: string): Promise<ModelVersion | undefined> {
+    const entity = await this.modelRepo.findById(modelId);
+    return entity ? this.mapEntityToModel(entity) : undefined;
   }
 
   /**
    * 更新模型指标
    */
-  updateModelMetrics(modelId: string, metrics: Partial<ModelMetrics>): ModelVersion {
-    const model = this.models.get(modelId);
-    if (!model) {
+  async updateModelMetrics(modelId: string, metrics: Partial<ModelMetrics>): Promise<ModelVersion> {
+    const entity = await this.modelRepo.findById(modelId);
+    if (!entity) {
       throw new Error(`Model not found: ${modelId}`);
     }
 
-    model.metrics = {
-      ...model.metrics,
-      ...metrics,
-    };
-
-    return model;
+    const updatedMetrics = { ...entity.metrics, ...metrics };
+    const updated = await this.modelRepo.updateMetrics(modelId, updatedMetrics);
+    return this.mapEntityToModel(updated);
   }
 
   // ==================== A/B 测试 ====================
@@ -301,16 +291,16 @@ export class ModelVersionService {
   /**
    * 创建 A/B 测试
    */
-  createABTest(config: {
+  async createABTest(config: {
     modelName: string;
     variants: ABTestVariant[];
     trafficSplit: Record<string, number>;
     targetMetrics: string[];
     durationHours?: number;
-  }): ABTestConfig {
+  }): Promise<ABTestConfig> {
     // 验证参与 A/B 测试的模型都存在
     for (const variant of config.variants) {
-      const model = this.models.get(variant.modelId);
+      const model = await this.modelRepo.findById(variant.modelId);
       if (!model) {
         throw new Error(`Variant model not found: ${variant.modelId}`);
       }
@@ -323,38 +313,34 @@ export class ModelVersionService {
     }
 
     const now = new Date();
-    const abTest: ABTestConfig = {
-      modelName: config.modelName,
-      variants: config.variants,
-      trafficSplit: config.trafficSplit,
-      startDate: now,
-      endDate: config.durationHours
-        ? new Date(now.getTime() + config.durationHours * 60 * 60 * 1000)
-        : undefined,
-      targetMetrics: config.targetMetrics,
-      status: 'running',
-    };
+    const id = uuidv4();
 
-    this.abTests.set(config.modelName, abTest);
+    const entity = await this.abTestRepo.create({
+      id,
+      model_name: config.modelName,
+      variants: config.variants,
+      traffic_split: config.trafficSplit,
+      start_date: now,
+      end_date: config.durationHours
+        ? new Date(now.getTime() + config.durationHours * 60 * 60 * 1000)
+        : null,
+      target_metrics: config.targetMetrics,
+      status: 'running',
+    });
 
     // 初始化指标跟踪
-    if (!this.abTestMetrics.has(config.modelName)) {
-      this.abTestMetrics.set(config.modelName, new Map());
-    }
-    if (!this.abTestRequestCounts.has(config.modelName)) {
-      this.abTestRequestCounts.set(config.modelName, new Map());
-    }
-
-    const metricsMap = this.abTestMetrics.get(config.modelName)!;
-    const countsMap = this.abTestRequestCounts.get(config.modelName)!;
-
     for (const variant of config.variants) {
-      metricsMap.set(variant.modelId, {
-        totalPredictions: 0,
-        errorRate: 0,
-        avgLatency: 0,
+      await this.abTestMetricRepo.create({
+        id: `metric-${id}-${variant.modelId}`,
+        ab_test_id: id,
+        model_id: variant.modelId,
+        metrics: {
+          totalPredictions: 0,
+          errorRate: 0,
+          avgLatency: 0,
+        },
+        request_count: 0,
       });
-      countsMap.set(variant.modelId, 0);
     }
 
     logger.info({
@@ -364,39 +350,33 @@ export class ModelVersionService {
       trafficSplit: config.trafficSplit,
     });
 
-    return abTest;
+    return this.mapEntityToABTest(entity);
   }
 
   /**
    * 记录 A/B 测试请求结果
    */
-  recordABTestResult(modelName: string, modelId: string, metrics: {
+  async recordABTestResult(modelName: string, modelId: string, metrics: {
     success: boolean;
     latency?: number;
     score?: number;
-  }): void {
-    const abTest = this.abTests.get(modelName);
-    if (!abTest || abTest.status !== 'running') {
-      return; // 不在 A/B 测试期间
-    }
+  }): Promise<void> {
+    const abTest = await this.abTestRepo.findByName(modelName);
+    if (!abTest || abTest.status !== 'running') return;
 
-    const countsMap = this.abTestRequestCounts.get(modelName);
-    const metricsMap = this.abTestMetrics.get(modelName);
-    if (!countsMap || !metricsMap) return;
-
-    const count = (countsMap.get(modelId) || 0) + 1;
-    countsMap.set(modelId, count);
+    const metricEntity = await this.abTestMetricRepo.findByABTestAndModel(abTest.id, modelId);
+    if (!metricEntity) return;
 
     // 更新累积指标
-    const existing = metricsMap.get(modelId);
-    const prevPredictions = existing?.totalPredictions ?? 0;
-    const prevErrorRate = existing?.errorRate ?? 0;
-    const prevAvgLatency = existing?.avgLatency ?? 0;
+    const existing = metricEntity.metrics;
+    const prevPredictions = existing.totalPredictions ?? 0;
+    const prevErrorRate = existing.errorRate ?? 0;
+    const prevAvgLatency = existing.avgLatency ?? 0;
 
     const totalPredictions = prevPredictions + 1;
     const errorRate = ((prevErrorRate * (totalPredictions - 1)) + (metrics.success ? 0 : 1)) / totalPredictions;
 
-    const newMetrics: ModelMetrics = {
+    const newMetrics: Record<string, any> = {
       ...existing,
       totalPredictions,
       errorRate,
@@ -407,14 +387,15 @@ export class ModelVersionService {
         (prevAvgLatency * (totalPredictions - 1) + metrics.latency) / totalPredictions;
     }
 
-    metricsMap.set(modelId, newMetrics);
+    await this.abTestMetricRepo.incrementRequestCount(metricEntity.id);
+    await this.abTestMetricRepo.updateMetrics(metricEntity.id, newMetrics);
   }
 
   /**
    * 暂停 A/B 测试
    */
-  pauseABTest(modelName: string): ABTestConfig {
-    const abTest = this.abTests.get(modelName);
+  async pauseABTest(modelName: string): Promise<ABTestConfig> {
+    const abTest = await this.abTestRepo.findByName(modelName);
     if (!abTest) {
       throw new Error(`AB test not found for model: ${modelName}`);
     }
@@ -422,43 +403,40 @@ export class ModelVersionService {
       throw new Error('AB test is already completed');
     }
 
-    abTest.status = 'paused';
+    const updated = await this.abTestRepo.updateStatus(abTest.id, 'paused');
     logger.info({ msg: 'AB test paused', modelName });
 
-    return abTest;
+    return this.mapEntityToABTest(updated);
   }
 
   /**
    * 完成 A/B 测试并生成结果
    */
-  completeABTest(modelName: string, winner?: string): ABTestResult {
-    const abTest = this.abTests.get(modelName);
+  async completeABTest(modelName: string, winner?: string): Promise<ABTestResult> {
+    const abTest = await this.abTestRepo.findByName(modelName);
     if (!abTest) {
       throw new Error(`AB test not found for model: ${modelName}`);
     }
 
-    abTest.status = 'completed';
+    await this.abTestRepo.updateStatus(abTest.id, 'completed');
 
-    const metricsMap = this.abTestMetrics.get(modelName) || new Map();
+    const metricEntities = await this.abTestMetricRepo.findByABTest(abTest.id);
 
-    const results: ABTestVariantResult[] = abTest.variants.map((variant) => {
-      const metrics = metricsMap.get(variant.modelId) || {
-        totalPredictions: 0,
-        errorRate: 0,
-        avgLatency: 0,
-      };
-      const requestCount = this.abTestRequestCounts.get(modelName)?.get(variant.modelId) || 0;
+    const results: ABTestVariantResult[] = (abTest.variants as ABTestVariant[]).map((variant) => {
+      const metric = metricEntities.find(m => m.model_id === variant.modelId);
+      const m = metric ? metric.metrics : { totalPredictions: 0, errorRate: 0, avgLatency: 0 };
+      const requestCount = metric ? metric.request_count : 0;
 
       return {
         modelId: variant.modelId,
         name: variant.name,
-        metrics,
+        metrics: m as ModelMetrics,
         requestCount,
-        successRate: 1 - (metrics.errorRate || 0),
+        successRate: 1 - (m.errorRate || 0),
       };
     });
 
-    // 自动选择获胜者（如果没有手动指定）
+    // 自动选择获胜者
     let determinedWinner = winner;
     let conclusion: string | undefined;
 
@@ -467,12 +445,12 @@ export class ModelVersionService {
         (a, b) => (b.successRate - (b.metrics.errorRate ?? 0)) - (a.successRate - (a.metrics.errorRate ?? 0))
       );
       determinedWinner = sorted[0].modelId;
-      const winnerModel = this.models.get(determinedWinner);
+      const winnerModel = await this.modelRepo.findById(determinedWinner);
       conclusion = `Based on success rate analysis, ${sorted[0].name} (${winnerModel?.version || 'unknown'}) is the winner with ${(sorted[0].successRate * 100).toFixed(1)}% success rate`;
     }
 
     const result: ABTestResult = {
-      config: abTest,
+      config: this.mapEntityToABTest(abTest),
       results,
       winner: determinedWinner,
       conclusion,
@@ -492,33 +470,28 @@ export class ModelVersionService {
   /**
    * 获取 A/B 测试结果
    */
-  getABTestResults(modelName: string): ABTestResult | undefined {
-    const abTest = this.abTests.get(modelName);
-    if (!abTest) {
-      return undefined;
-    }
+  async getABTestResults(modelName: string): Promise<ABTestResult | undefined> {
+    const abTest = await this.abTestRepo.findByName(modelName);
+    if (!abTest) return undefined;
 
-    const metricsMap = this.abTestMetrics.get(modelName) || new Map();
+    const metricEntities = await this.abTestMetricRepo.findByABTest(abTest.id);
 
-    const results: ABTestVariantResult[] = abTest.variants.map((variant) => {
-      const metrics = metricsMap.get(variant.modelId) || {
-        totalPredictions: 0,
-        errorRate: 0,
-        avgLatency: 0,
-      };
-      const requestCount = this.abTestRequestCounts.get(modelName)?.get(variant.modelId) || 0;
+    const results: ABTestVariantResult[] = (abTest.variants as ABTestVariant[]).map((variant) => {
+      const metric = metricEntities.find(m => m.model_id === variant.modelId);
+      const m = metric ? metric.metrics : { totalPredictions: 0, errorRate: 0, avgLatency: 0 };
+      const requestCount = metric ? metric.request_count : 0;
 
       return {
         modelId: variant.modelId,
         name: variant.name,
-        metrics,
+        metrics: m as ModelMetrics,
         requestCount,
-        successRate: 1 - (metrics.errorRate || 0),
+        successRate: 1 - (m.errorRate || 0),
       };
     });
 
     return {
-      config: abTest,
+      config: this.mapEntityToABTest(abTest),
       results,
       generatedAt: new Date(),
     };
@@ -527,8 +500,9 @@ export class ModelVersionService {
   /**
    * 获取 A/B 测试配置
    */
-  getABTestConfig(modelName: string): ABTestConfig | undefined {
-    return this.abTests.get(modelName);
+  async getABTestConfig(modelName: string): Promise<ABTestConfig | undefined> {
+    const abTest = await this.abTestRepo.findByName(modelName);
+    return abTest ? this.mapEntityToABTest(abTest) : undefined;
   }
 
   // ==================== 模型性能监控 ====================
@@ -536,13 +510,13 @@ export class ModelVersionService {
   /**
    * 获取模型性能概览
    */
-  getModelPerformanceOverview(modelName: string): {
+  async getModelPerformanceOverview(modelName: string): Promise<{
     versions: number;
     activeVersion?: string;
     allMetrics: Array<{ version: string; status: ModelStatus; metrics: ModelMetrics }>;
-  } {
-    const versions = this.getModelVersions(modelName, true);
-    const active = this.getActiveModel(modelName);
+  }> {
+    const versions = await this.getModelVersions(modelName, true);
+    const active = await this.getActiveModel(modelName);
 
     return {
       versions: versions.length,
@@ -558,61 +532,48 @@ export class ModelVersionService {
   /**
    * 获取所有模型列表
    */
-  listModels(options?: {
+  async listModels(options?: {
     status?: ModelStatus;
     framework?: ModelFramework;
     name?: string;
-  }): ModelVersion[] {
-    let models = Array.from(this.models.values());
-
-    if (options?.status) {
-      models = models.filter((m) => m.status === options.status);
-    }
-    if (options?.framework) {
-      models = models.filter((m) => m.framework === options.framework);
-    }
-    if (options?.name) {
-      models = models.filter((m) => m.name.toLowerCase().includes(options.name!.toLowerCase()));
-    }
-
-    return models.sort((a, b) => b.registeredAt.getTime() - a.registeredAt.getTime());
+  }): Promise<ModelVersion[]> {
+    const entities = await this.modelRepo.listAll(options);
+    return entities.map(e => this.mapEntityToModel(e));
   }
 
   /**
-   * 归档模型（最终状态，不可逆）
+   * 归档模型
    */
-  archiveModel(modelId: string): ModelVersion {
-    const model = this.models.get(modelId);
-    if (!model) {
+  async archiveModel(modelId: string): Promise<ModelVersion> {
+    const entity = await this.modelRepo.findById(modelId);
+    if (!entity) {
       throw new Error(`Model not found: ${modelId}`);
     }
 
-    if (model.status === 'active') {
+    if (entity.status === 'active') {
       throw new Error('Cannot archive an active model. Deactivate it first.');
     }
 
-    model.status = 'archived';
-    logger.info({ msg: 'Model archived', modelId, name: model.name, version: model.version });
-
-    return model;
+    const updated = await this.modelRepo.update(modelId, { status: 'archived' });
+    logger.info({ msg: 'Model archived', modelId, name: entity.name, version: entity.version });
+    return this.mapEntityToModel(updated);
   }
 
   /**
-   * 回滚模型到上一个版本或指定版本
+   * 回滚模型
    */
-  rollbackModel(modelId: string, targetVersion?: string): ModelVersion {
-    const model = this.models.get(modelId);
-    if (!model) {
+  async rollbackModel(modelId: string, targetVersion?: string): Promise<ModelVersion> {
+    const entity = await this.modelRepo.findById(modelId);
+    if (!entity) {
       throw new Error(`Model not found: ${modelId}`);
     }
 
     if (targetVersion) {
       // 回滚到指定版本
-      const target = Array.from(this.models.values()).find(
-        (m) => m.name === model.name && m.version === targetVersion
-      );
+      const versions = await this.modelRepo.findByName(entity.name, false);
+      const target = versions.find(m => m.version === targetVersion);
       if (!target) {
-        throw new Error(`Target version ${targetVersion} not found for model ${model.name}`);
+        throw new Error(`Target version ${targetVersion} not found for model ${entity.name}`);
       }
       if (target.status === 'deprecated' || target.status === 'archived') {
         throw new Error(`Cannot rollback to ${target.status} version: ${targetVersion}`);
@@ -621,27 +582,58 @@ export class ModelVersionService {
     }
 
     // 自动回滚到上一个活跃版本
-    const previousVersions = Array.from(this.models.values())
-      .filter((m) =>
-        m.name === model.name &&
-        m.id !== modelId &&
-        m.status !== 'deprecated' &&
-        m.status !== 'archived'
-      )
-      .sort((a, b) => (b.activatedAt?.getTime() || 0) - (a.activatedAt?.getTime() || 0));
+    const allVersions = await this.modelRepo.findByName(entity.name, true);
+    const previousVersions = allVersions
+      .filter(m => m.id !== modelId && m.status !== 'deprecated' && m.status !== 'archived')
+      .sort((a, b) => (b.activated_at?.getTime() || 0) - (a.activated_at?.getTime() || 0));
 
     if (previousVersions.length === 0) {
-      throw new Error(`No previous version available for rollback: ${model.name}`);
+      throw new Error(`No previous version available for rollback: ${entity.name}`);
     }
 
     logger.info({
       msg: 'Rolling back model',
       modelId,
-      name: model.name,
-      fromVersion: model.version,
+      name: entity.name,
+      fromVersion: entity.version,
       toVersion: previousVersions[0].version,
     });
 
     return this.activateModel(previousVersions[0].id);
+  }
+
+  // ==================== Entity Mapping ====================
+
+  private mapEntityToModel(entity: ModelVersionEntity): ModelVersion {
+    return {
+      id: entity.id,
+      name: entity.name,
+      version: entity.version,
+      status: entity.status as ModelStatus,
+      framework: entity.framework as ModelFramework,
+      description: entity.description ?? undefined,
+      metadata: entity.metadata ?? undefined,
+      trainingDate: entity.training_date ?? undefined,
+      trainingDataSize: entity.training_data_size ?? undefined,
+      hyperparameters: entity.hyperparameters ?? undefined,
+      metrics: entity.metrics as ModelMetrics,
+      registeredAt: entity.registered_at,
+      registeredBy: entity.registered_by ?? undefined,
+      activatedAt: entity.activated_at ?? undefined,
+      deprecatedAt: entity.deprecated_at ?? undefined,
+      tags: entity.tags ?? undefined,
+    };
+  }
+
+  private mapEntityToABTest(entity: ABTestEntity): ABTestConfig {
+    return {
+      modelName: entity.model_name,
+      variants: entity.variants as ABTestVariant[],
+      trafficSplit: entity.traffic_split,
+      startDate: entity.start_date,
+      endDate: entity.end_date ?? undefined,
+      targetMetrics: entity.target_metrics,
+      status: entity.status as 'running' | 'completed' | 'paused',
+    };
   }
 }

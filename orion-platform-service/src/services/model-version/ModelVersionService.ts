@@ -1,3 +1,4 @@
+import { DatabasePool } from '../database';
 /**
  * ModelVersionService - Business logic for AI Model Version Management
  *
@@ -9,8 +10,6 @@
  *
  * Phase 2 P0 Service
  */
-
-import { DatabasePool } from '../database';
 
 // ==================== Types ====================
 
@@ -88,11 +87,8 @@ export class ModelVersionServiceError extends Error {
 // ==================== Repository ====================
 
 export class ModelVersionRepository {
-  private pool: DatabasePool;
 
-  constructor(pool: DatabasePool) {
-    this.pool = pool;
-  }
+  constructor(private pool: DatabasePool) {}
 
   async findById(id: string): Promise<AIModelVersion | null> {
     const result = await this.pool.query(
@@ -243,11 +239,9 @@ export class ModelVersionRepository {
 
 export class ModelVersionService {
   private repository: ModelVersionRepository;
-  private pool: DatabasePool;
 
-  constructor(pool: DatabasePool) {
-    this.pool = pool;
-    this.repository = new ModelVersionRepository(pool);
+  constructor(private pool: DatabasePool) {
+    this.repository = new ModelVersionRepository(this.pool);
   }
 
   /**
