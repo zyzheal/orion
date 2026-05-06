@@ -252,7 +252,7 @@ describe('SBOMGeneratorService', () => {
 
       if (result.matches.length > 0) {
         const match = result.matches[0];
-        expect(match.fixed_version).toBeDefined().or.toBeNull();
+        expect(match.fixed_version).toBeDefined();
       }
     });
   });

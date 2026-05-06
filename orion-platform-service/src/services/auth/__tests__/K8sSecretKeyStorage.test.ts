@@ -57,7 +57,7 @@ describe('K8sSecretKeyStorage', () => {
         expiresAt: new Date('2026-07-30'),
       };
 
-      // Encode key data
+      // Encode key data: keyHash,keyStrength,status,createdAt,activatedAt,expiresAt
       const keyData = Buffer.from([
         mockKey.keyHash,
         mockKey.keyStrength,
@@ -74,11 +74,16 @@ describe('K8sSecretKeyStorage', () => {
             [mockKey.keyId]: keyData,
           },
         },
+        // Also set data at top level since loadKeys reads response.data
+        data: {
+          [mockKey.keyId]: keyData,
+        },
       });
 
       const keys = await storage.loadKeys();
       expect(keys.length).toBe(1);
       expect(keys[0].keyId).toBe(mockKey.keyId);
+      expect(keys[0].keyHash).toBe(mockKey.keyHash);
       expect(keys[0].status).toBe('active');
     });
   });
@@ -100,10 +105,12 @@ describe('K8sSecretKeyStorage', () => {
       await storage.storeKey(mockKey);
 
       expect(mockApi.createNamespacedSecret).toHaveBeenCalledWith(
-        'orion',
         expect.objectContaining({
-          metadata: expect.objectContaining({
-            name: 'orion-jwt-keys',
+          namespace: 'orion',
+          body: expect.objectContaining({
+            metadata: expect.objectContaining({
+              name: 'orion-jwt-keys',
+            }),
           }),
         })
       );
@@ -123,6 +130,7 @@ describe('K8sSecretKeyStorage', () => {
         body: {
           data: { existing_key: 'existingdata' },
         },
+        data: { existing_key: 'existingdata' },
       });
       mockApi.replaceNamespacedSecret.mockResolvedValue({});
 
@@ -148,6 +156,7 @@ describe('K8sSecretKeyStorage', () => {
         body: {
           data: { [mockKey.keyId]: 'olddata' },
         },
+        data: { [mockKey.keyId]: 'olddata' },
       });
       mockApi.replaceNamespacedSecret.mockResolvedValue({});
 
@@ -167,17 +176,24 @@ describe('K8sSecretKeyStorage', () => {
             jwt_key_current: 'currentdata',
           },
         },
+        data: {
+          jwt_key_old: 'olddata',
+          jwt_key_current: 'currentdata',
+        },
       });
       mockApi.replaceNamespacedSecret.mockResolvedValue({});
 
       await storage.deleteKey('jwt_key_old');
 
+      // The API uses a single object parameter { name, namespace, body }
       expect(mockApi.replaceNamespacedSecret).toHaveBeenCalledWith(
-        'orion-jwt-keys',
-        'orion',
         expect.objectContaining({
-          data: expect.not.objectContaining({
-            jwt_key_old: expect.anything(),
+          name: 'orion-jwt-keys',
+          namespace: 'orion',
+          body: expect.objectContaining({
+            data: expect.not.objectContaining({
+              jwt_key_old: expect.anything(),
+            }),
           }),
         })
       );

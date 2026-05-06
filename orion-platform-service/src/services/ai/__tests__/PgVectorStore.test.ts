@@ -66,9 +66,9 @@ describe('PgVectorStore (VectorStore with pgvector backend)', () => {
 
       await customStore.addDocument('custom test');
 
-      // Verify custom embedding was used
+      // Verify custom embedding was used (index 5 is the embedding param, stored as string)
       const queryCall = mockPool.query.mock.calls[0];
-      expect(queryCall[1][6]).toBe('[0.5,0.6,0.7]');
+      expect(queryCall[1][5]).toBe('[0.5,0.6,0.7]');
     });
 
     it('should fallback to in-memory storage when no DB provided', async () => {
@@ -302,13 +302,13 @@ describe('PgVectorStore (VectorStore with pgvector backend)', () => {
       mockPool.query.mockResolvedValue({ rows: [{ id: 'test' }], rowCount: 1 });
 
       await hashStore.addDocument('hash test 1');
-      const call1 = mockPool.query.mock.calls[0][1][6];
+      const call1 = mockPool.query.mock.calls[mockPool.query.mock.calls.length - 1][1][5];
 
       mockPool.query.mockClear();
       mockPool.query.mockResolvedValue({ rows: [{ id: 'test' }], rowCount: 1 });
 
       await hashStore.addDocument('hash test 1');
-      const call2 = mockPool.query.mock.calls[0][1][6];
+      const call2 = mockPool.query.mock.calls[mockPool.query.mock.calls.length - 1][1][5];
 
       // Same content should produce same embedding
       expect(call1).toEqual(call2);
@@ -329,17 +329,18 @@ describe('PgVectorStore (VectorStore with pgvector backend)', () => {
       mockPool.query.mockResolvedValue({ rows: [{ id: 'test' }], rowCount: 1 });
 
       await hashStore.addDocument('content A');
-      const embedding1 = mockPool.query.mock.calls[0][1][6];
+      const embedding1 = mockPool.query.mock.calls[mockPool.query.mock.calls.length - 1][1][5];
 
       mockPool.query.mockClear();
       mockPool.query.mockResolvedValue({ rows: [{ id: 'test' }], rowCount: 1 });
 
       await hashStore.addDocument('content B');
-      const embedding2 = mockPool.query.mock.calls[1][1][6];
+      const embedding2 = mockPool.query.mock.calls[mockPool.query.mock.calls.length - 1][1][5];
 
-      // Different content should produce different embeddings (may have same length)
+      // Different content should produce different embeddings
       expect(typeof embedding1).toBe('string');
       expect(typeof embedding2).toBe('string');
+      expect(embedding1).not.toEqual(embedding2);
     });
   });
 

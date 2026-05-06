@@ -220,12 +220,12 @@ describe('DecisionExplanationService', () => {
     describe('getQualityTrend', () => {
       it('应该返回质量趋势', async () => {
         mockPool.query.mockResolvedValue({
-          rows: [{ date: '2024-01-01', accuracy: 0.8 }],
+          rows: [{ date: '2024-01-01', correct_count: '80', total_count: '100' }],
         });
 
         const result = await service.getQualityTrend('risk-assessment', 30);
 
-        expect(result.length).toBeGreaterThan(0);
+        expect(result.data.length).toBeGreaterThan(0);
       });
     });
 
@@ -254,7 +254,7 @@ describe('DecisionExplanationService', () => {
       expect(factor.feature).toBeDefined();
       expect(factor.value).toBeDefined();
       expect(factor.contribution).toBeDefined();
-      expect(factor.direction).toBe('positive').or.toBe('negative');
+      expect(factor.direction === 'positive' || factor.direction === 'negative').toBe(true);
     });
   });
 

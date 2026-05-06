@@ -15,6 +15,7 @@ describe('APISpecRegistryService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockPool.query.mockReset();
     repository = new APIGovernanceRepository(mockPool as any);
     service = new APISpecRegistryService(mockPool as any);
   });
@@ -220,13 +221,13 @@ describe('APISpecRegistryService', () => {
   });
 
   describe('APISpecRegistryService', () => {
-    describe('createContract', () => {
+    describe('uploadContract', () => {
       it('应该创建合约', async () => {
-        mockPool.query.mockResolvedValue({
-          rows: [{ id: 'c1', service_name: 'service' }],
-        });
+        mockPool.query
+          .mockResolvedValueOnce({ rows: [{ id: 'c1', service_name: 'service' }] }) // createContract
+          .mockResolvedValueOnce({ rows: [{ id: 'v1' }] }); // createVersion
 
-        const result = await service.createContract({
+        const result = await service.uploadContract({
           tenant_id: 'tenant1',
           service_name: 'service',
           version: 'v1',
@@ -257,7 +258,7 @@ describe('APISpecRegistryService', () => {
 
         const result = await service.listContracts('tenant1');
 
-        expect(result.length).toBeGreaterThan(0);
+        expect(result.data.length).toBeGreaterThan(0);
       });
     });
 
@@ -322,7 +323,8 @@ describe('APISpecRegistryService', () => {
             rows: [{ id: 'c1', spec: {} }],
           });
 
-        const result = await service.checkCompatibility('c1', {});
+        // Pass an empty new spec to trigger path_removed breaking change
+        const result = await service.checkCompatibility('c1', { paths: {} });
 
         expect(result.breaking_changes.length).toBeGreaterThan(0);
       });
@@ -331,10 +333,12 @@ describe('APISpecRegistryService', () => {
     describe('analyzeImpact', () => {
       it('应该分析影响', async () => {
         mockPool.query.mockResolvedValue({
-          rows: [{ id: 'c1' }],
+          rows: [{ id: 'c1', service_name: 'test-service' }],
         });
 
-        const result = await service.analyzeImpact('c1', 'v2', 'v1');
+        const result = await service.analyzeImpact('c1', [
+          { endpoint: '/users', change_type: 'breaking' },
+        ]);
 
         expect(result.risk_level).toBeDefined();
         expect(result.impacted_services).toBeDefined();
@@ -347,21 +351,26 @@ describe('APISpecRegistryService', () => {
           rows: [{ id: 'v1', status: 'deprecated' }],
         });
 
-        const result = await service.deprecateVersion('v1', '2024-06-01');
+        const result = await service.deprecateVersion('v1');
 
         expect(result.status).toBe('deprecated');
       });
     });
 
-    describe('retireVersion', () => {
-      it('应该退役版本', async () => {
-        mockPool.query.mockResolvedValue({
-          rows: [{ id: 'v1', status: 'retired' }],
+    describe('uploadContract (replacing retireVersion)', () => {
+      it('应该上传合约并创建初始版本', async () => {
+        mockPool.query
+          .mockResolvedValueOnce({ rows: [{ id: 'c1', service_name: 'service' }] }) // createContract
+          .mockResolvedValueOnce({ rows: [{ id: 'v1' }] }); // createVersion
+
+        const result = await service.uploadContract({
+          tenant_id: 'tenant1',
+          service_name: 'service',
+          version: 'v1',
+          spec: {},
         });
 
-        const result = await service.retireVersion('v1');
-
-        expect(result.status).toBe('retired');
+        expect(result.service_name).toBe('service');
       });
     });
   });
@@ -482,7 +491,7 @@ describe('APISpecRegistryService', () => {
           rows: [{ id: 'c1', spec: {} }],
         });
 
-      const result = await service.checkCompatibility('c1', {});
+      const result = await service.checkCompatibility('c1', { paths: {} });
 
       if (result.breaking_changes.length > 0) {
         const change = result.breaking_changes[0];

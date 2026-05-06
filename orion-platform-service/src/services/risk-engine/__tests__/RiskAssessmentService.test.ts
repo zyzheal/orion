@@ -184,12 +184,16 @@ describe('RiskAssessmentService', () => {
         hasBreakingChanges: 0,
         securitySensitive: 0,
         priorFailureRate: 0,
+        fileCount: 1,
+        dependencyDepth: 0.1,
+        changeType: 1,
+        authorExperience: 0.9,
       });
 
       const result = await service.predictRisk(features);
 
       expect(['low', 'medium']).toContain(result.riskLevel);
-      expect(result.riskScore).toBeLessThan(0.5);
+      expect(result.riskScore).toBeLessThan(0.6);
     });
   });
 

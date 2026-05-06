@@ -464,6 +464,8 @@ describe('Deploy Integration - Deploy Window + Deployment', () => {
         environment: 'staging',
         strategy: 'rolling',
       });
+      // Small delay to ensure different timestamps
+      await new Promise(r => setTimeout(r, 10));
       const latest = await deployService.createDeployment({
         tenant_id: 'tenant-1',
         environment: 'staging',

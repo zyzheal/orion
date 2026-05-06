@@ -209,7 +209,7 @@ describe('ModelVersionService', () => {
       });
     });
 
-    describe('configureABTest', () => {
+    describe('updateABTestConfig', () => {
       it('应该配置 A/B 测试', async () => {
         mockPool.query.mockResolvedValue({
           rows: [{
@@ -218,12 +218,14 @@ describe('ModelVersionService', () => {
           }],
         });
 
-        const result = await repository.configureABTest('m1', {
-          traffic_percent: 10,
-          compare_to_id: 'm2',
+        const result = await repository.updateABTestConfig('m1', {
+          trafficPercent: 10,
+          compareToId: 'm2',
+          startedAt: null,
+          results: null,
         });
 
-        expect(result.ab_test_config.trafficPercent).toBe(10);
+        expect(result!.ab_test_config.trafficPercent).toBe(10);
       });
     });
 
@@ -242,7 +244,7 @@ describe('ModelVersionService', () => {
           created_at: new Date(),
         };
 
-        const result = repository.mapRow(row);
+        const result = (repository as any).mapRow(row);
 
         expect(result.id).toBe('m1');
         expect(result.features).toContain('feature1');
@@ -254,9 +256,11 @@ describe('ModelVersionService', () => {
   describe('ModelVersionService', () => {
     describe('registerModel', () => {
       it('应该注册新模型', async () => {
-        mockPool.query.mockResolvedValue({
-          rows: [{ id: 'm1', status: 'registered' }],
-        });
+        // First query: findByTypeAndVersion (no existing model)
+        // Second query: create
+        mockPool.query
+          .mockResolvedValueOnce({ rows: [] }) // No existing model
+          .mockResolvedValueOnce({ rows: [{ id: 'm1', status: 'registered' }] });
 
         const result = await service.registerModel({
           name: 'risk-model',
@@ -304,15 +308,15 @@ describe('ModelVersionService', () => {
       });
     });
 
-    describe('deactivateModel', () => {
-      it('应该停用模型', async () => {
-        mockPool.query.mockResolvedValue({
-          rows: [{ id: 'm1', status: 'archived' }],
-        });
+    describe('archiveModel', () => {
+      it('应该归档模型', async () => {
+        mockPool.query
+          .mockResolvedValueOnce({ rows: [{ id: 'm1', status: 'testing' }] }) // getModel
+          .mockResolvedValueOnce({ rows: [], rowCount: 1 }); // softDelete (rowCount > 0)
 
-        const result = await service.deactivateModel('m1');
+        const result = await service.archiveModel('m1');
 
-        expect(result.status).toBe('archived');
+        expect(result.success).toBe(true);
       });
     });
 
@@ -331,27 +335,34 @@ describe('ModelVersionService', () => {
       });
     });
 
-    describe('rollbackModel', () => {
+    describe('rollback', () => {
       it('应该回滚到指定版本', async () => {
+        // rollback calls: getModel -> activateModel(getModel, findActiveByType, updateStatus) -> getModel
+        // Model must be in non-active, non-archived state (e.g. 'testing') to pass activation check
         mockPool.query
-          .mockResolvedValueOnce({ rows: [{ id: 'm1', status: 'active' }] }) // deactivate current
-          .mockResolvedValueOnce({ rows: [{ id: 'm2', status: 'active' }] }); // activate target
+          .mockResolvedValueOnce({ rows: [{ id: 'm1', status: 'testing' }] }) // rollback's getModel
+          .mockResolvedValueOnce({ rows: [{ id: 'm1', status: 'testing' }] }) // activateModel's getModel
+          .mockResolvedValueOnce({ rows: [] }) // findActiveByType (no active)
+          .mockResolvedValueOnce({ rows: [{ id: 'm1', status: 'active' }] }) // updateStatus to active
+          .mockResolvedValueOnce({ rows: [{ id: 'm1', status: 'active' }] }); // rollback's final getModel
 
-        const result = await service.rollbackModel('risk-assessment', 'v1.0');
+        const result = await service.rollback('m1');
 
         expect(result).toBeDefined();
+        expect(result.status).toBe('active');
       });
     });
 
     describe('listModels', () => {
       it('应该返回模型列表', async () => {
         mockPool.query
-          .mockResolvedValueOnce({ rows: [{ total: 5 }] })
-          .mockResolvedValueOnce({ rows: [{ id: 'm1' }] });
+          .mockResolvedValueOnce({ rows: [{ total: '5' }] }) // count query
+          .mockResolvedValueOnce({ rows: [{ id: 'm1', status: 'active', features: '[]', metrics: '{}', training_info: '{}', ab_test_config: '{}', created_at: new Date() }] }); // data query
 
         const result = await service.listModels({});
 
         expect(result.data.length).toBe(1);
+        expect(result.total).toBe(5);
       });
     });
   });

@@ -148,7 +148,7 @@ describe('FederationSchedulerService', () => {
 
       expect(mockPool.query).toHaveBeenCalledWith(
         expect.stringContaining('INSERT'),
-        expect.arrayContaining(['c1'])
+        expect.arrayContaining([expect.arrayContaining(['c1'])])
       );
     });
 
