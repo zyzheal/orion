@@ -8,10 +8,11 @@
  * - When K8s client is available, performs real scale-down/scale-up of Deployments
  * - Falls back to simulation mode when K8s is not accessible
  *
- * Uses Map-based in-memory storage for status tracking.
+ * Uses PostgreSQL Repository pattern for persistence.
  */
 
 import pino from 'pino';
+import { EnvironmentExecutorRepository, CreateEnvironmentExecutorStateInput } from '../../repositories/EnvironmentExecutorRepository';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -80,13 +81,25 @@ export class EnvironmentExecutorServiceError extends Error {
 }
 
 export class EnvironmentExecutorService {
-  private statuses: Map<string, EnvironmentStatus> = new Map();
+  private repository: EnvironmentExecutorRepository;
   private appsApi: any | null = null;
   private coreApi: any | null = null;
   private k8sInitialized: boolean = false;
 
-  constructor() {
+  constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+    if (db) {
+      this.repository = new EnvironmentExecutorRepository(db);
+    } else {
+      this.repository = null as unknown as EnvironmentExecutorRepository;
+    }
     this.initializeK8sClient();
+  }
+
+  /**
+   * Inject a custom repository (useful for testing with mock repos)
+   */
+  setRepository(repo: EnvironmentExecutorRepository): void {
+    this.repository = repo;
   }
 
   /**
@@ -403,7 +416,7 @@ export class EnvironmentExecutorService {
       );
     }
 
-    const status = this.getStatus(tenantId, envId);
+    const status = await this.getStatus(tenantId, envId);
 
     if (status.state === 'hibernated') {
       throw new EnvironmentExecutorServiceError(
@@ -415,6 +428,7 @@ export class EnvironmentExecutorService {
     status.state = 'hibernating';
     status.statusMessage = 'Hibernation in progress';
     status.lastCheckedAt = new Date();
+    await this.saveStatus(status);
 
     // Attempt real K8s hibernation if available and configured
     if (this.isK8sAvailable() && status.k8sConfig) {
@@ -431,6 +445,7 @@ export class EnvironmentExecutorService {
       } else {
         status.state = 'error';
         status.statusMessage = `K8s hibernation failed: ${result.operations.map(o => o.error).filter(Boolean).join('; ')}`;
+        await this.saveStatus(status);
         throw new EnvironmentExecutorServiceError(
           status.statusMessage,
           'K8S_HIBERNATION_FAILED'
@@ -454,7 +469,7 @@ export class EnvironmentExecutorService {
       status.statusMessage = 'Environment hibernated successfully (simulation mode)';
     }
 
-    this.setStatus(tenantId, envId, status);
+    await this.saveStatus(status);
     return status;
   }
 
@@ -474,7 +489,7 @@ export class EnvironmentExecutorService {
       );
     }
 
-    const status = this.getStatus(tenantId, envId);
+    const status = await this.getStatus(tenantId, envId);
 
     if (status.state !== 'hibernated') {
       throw new EnvironmentExecutorServiceError(
@@ -486,6 +501,7 @@ export class EnvironmentExecutorService {
     status.state = 'waking';
     status.statusMessage = 'Waking up environment';
     status.lastCheckedAt = new Date();
+    await this.saveStatus(status);
 
     // Determine target replica count (restore to previous or use default)
     const targetReplicas = status.previousReplicas || 3;
@@ -503,6 +519,7 @@ export class EnvironmentExecutorService {
       } else {
         status.state = 'error';
         status.statusMessage = `K8s wake-up failed: ${result.operations.map(o => o.error).filter(Boolean).join('; ')}`;
+        await this.saveStatus(status);
         throw new EnvironmentExecutorServiceError(
           status.statusMessage,
           'K8S_WAKE_FAILED'
@@ -520,7 +537,7 @@ export class EnvironmentExecutorService {
       status.statusMessage = `Environment woke up successfully (simulation mode, target: ${targetReplicas} replicas)`;
     }
 
-    this.setStatus(tenantId, envId, status);
+    await this.saveStatus(status);
     return status;
   }
 
@@ -538,15 +555,10 @@ export class EnvironmentExecutorService {
     const hibernated: EnvironmentStatus[] = [];
     const now = new Date();
 
-    for (const [key, status] of this.statuses.entries()) {
-      if (status.tenantId !== tenantId) {
-        continue;
-      }
+    const activeStatuses = await this.repository.findActiveByTenant(tenantId);
 
-      // Skip if already hibernated or not active
-      if (status.state !== 'active') {
-        continue;
-      }
+    for (const entity of activeStatuses) {
+      const status = this.entityToDomain(entity);
 
       // Skip if no TTL configured
       if (!status.ttlSeconds) {
@@ -564,7 +576,7 @@ export class EnvironmentExecutorService {
           status.state = 'error';
           status.statusMessage = `Auto-hibernate failed: exceeded TTL of ${status.ttlSeconds}s`;
           status.lastCheckedAt = now;
-          this.setStatus(tenantId, status.envId, status);
+          await this.saveStatus(status);
         }
       }
     }
@@ -595,13 +607,8 @@ export class EnvironmentExecutorService {
    * Get all environment statuses for a tenant
    */
   async getAllEnvironmentStatuses(tenantId: string): Promise<EnvironmentStatus[]> {
-    const results: EnvironmentStatus[] = [];
-    for (const status of this.statuses.values()) {
-      if (status.tenantId === tenantId) {
-        results.push({ ...status });
-      }
-    }
-    return results;
+    const entities = await this.repository.findByTenant(tenantId);
+    return entities.map(e => this.entityToDomain(e));
   }
 
   /**
@@ -625,10 +632,10 @@ export class EnvironmentExecutorService {
       );
     }
 
-    const status = this.getStatus(tenantId, envId);
+    const status = await this.getStatus(tenantId, envId);
     status.ttlSeconds = ttlSeconds;
     status.lastCheckedAt = new Date();
-    this.setStatus(tenantId, envId, status);
+    await this.saveStatus(status);
     return status;
   }
 
@@ -654,7 +661,7 @@ export class EnvironmentExecutorService {
       );
     }
 
-    const status = this.getStatus(tenantId, envId);
+    const status = await this.getStatus(tenantId, envId);
     status.k8sConfig = k8sConfig;
     status.lastCheckedAt = new Date();
 
@@ -667,7 +674,7 @@ export class EnvironmentExecutorService {
       logger.warn(`[EnvironmentExecutorService] K8s config stored for ${envId} but client unavailable`);
     }
 
-    this.setStatus(tenantId, envId, status);
+    await this.saveStatus(status);
     return status;
   }
 
@@ -692,7 +699,7 @@ export class EnvironmentExecutorService {
       );
     }
 
-    const status = this.getStatus(tenantId, envId);
+    const status = await this.getStatus(tenantId, envId);
     return {
       currentReplicas: status.state === 'hibernated' ? 0 : (status.previousReplicas || 1),
       previousReplicas: status.previousReplicas,
@@ -713,7 +720,7 @@ export class EnvironmentExecutorService {
       );
     }
 
-    const status = this.getStatus(tenantId, envId);
+    const status = await this.getStatus(tenantId, envId);
     status.lastActiveAt = new Date();
     status.lastCheckedAt = new Date();
     if (status.state === 'hibernated') {
@@ -721,38 +728,94 @@ export class EnvironmentExecutorService {
       status.hibernatedAt = undefined;
       status.statusMessage = 'Activity detected, waking up';
     }
-    this.setStatus(tenantId, envId, status);
+    await this.saveStatus(status);
     return status;
   }
 
   // ==================== Internal Helpers ====================
 
-  private getStatus(tenantId: string, envId: string): EnvironmentStatus {
-    const key = this.makeKey(tenantId, envId);
-    const existing = this.statuses.get(key);
+  /**
+   * Get or create a status entry for the given tenant+environment
+   */
+  private async getStatus(tenantId: string, envId: string): Promise<EnvironmentStatus> {
+    const existing = await this.repository.findByTenantAndEnv(tenantId, envId);
     if (existing) {
-      return existing;
+      return this.entityToDomain(existing);
     }
 
     // Create default status for unknown environment
-    const status: EnvironmentStatus = {
+    const now = new Date();
+    const input: CreateEnvironmentExecutorStateInput = {
+      id: `env-state-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
       envId,
       tenantId,
       state: 'active',
-      lastActiveAt: new Date(),
-      lastCheckedAt: new Date(),
+      lastActiveAt: now,
+      lastCheckedAt: now,
       statusMessage: 'Environment initialized',
     };
-    this.statuses.set(key, status);
-    return status;
+
+    const entity = await this.repository.upsert(input);
+    return this.entityToDomain(entity);
   }
 
-  private setStatus(tenantId: string, envId: string, status: EnvironmentStatus): void {
-    const key = this.makeKey(tenantId, envId);
-    this.statuses.set(key, status);
+  /**
+   * Persist status to the repository
+   */
+  private async saveStatus(status: EnvironmentStatus): Promise<void> {
+    const input: CreateEnvironmentExecutorStateInput & {
+      hibernatedAt?: Date;
+      wakeScheduledAt?: Date;
+    } = {
+      id: `env-state-${status.envId}-${status.tenantId}`,
+      envId: status.envId,
+      tenantId: status.tenantId,
+      state: status.state,
+      lastActiveAt: status.lastActiveAt,
+      hibernatedAt: status.hibernatedAt,
+      wakeScheduledAt: status.wakeScheduledAt,
+      ttlSeconds: status.ttlSeconds,
+      lastCheckedAt: status.lastCheckedAt,
+      statusMessage: status.statusMessage,
+      previousReplicas: status.previousReplicas,
+      originalReplicaCount: status.originalReplicaCount,
+      k8sNamespace: status.k8sConfig?.namespace,
+      k8sDeploymentName: status.k8sConfig?.deploymentName,
+      k8sLabelSelector: status.k8sConfig?.labelSelector,
+      k8sScaleStatefulSets: status.k8sConfig?.scaleStatefulSets,
+      k8sHpaName: status.k8sConfig?.hpaName,
+    };
+
+    await this.repository.upsert(input);
   }
 
-  private makeKey(tenantId: string, envId: string): string {
-    return `${tenantId}:${envId}`;
+  /**
+   * Convert repository entity to domain model
+   */
+  private entityToDomain(entity: any): EnvironmentStatus {
+    const k8sConfig: EnvironmentK8sConfig | undefined = entity.k8sDeploymentName
+      ? {
+          namespace: entity.k8sNamespace,
+          deploymentName: entity.k8sDeploymentName,
+          labelSelector: entity.k8sLabelSelector,
+          scaleStatefulSets: entity.k8sScaleStatefulSets,
+          hpaName: entity.k8sHpaName,
+        }
+      : undefined;
+
+    return {
+      envId: entity.envId,
+      tenantId: entity.tenantId,
+      state: entity.state,
+      lastActiveAt: entity.lastActiveAt,
+      hibernatedAt: entity.hibernatedAt,
+      wakeScheduledAt: entity.wakeScheduledAt,
+      ttlSeconds: entity.ttlSeconds,
+      lastCheckedAt: entity.lastCheckedAt,
+      statusMessage: entity.statusMessage,
+      previousReplicas: entity.previousReplicas,
+      originalReplicaCount: entity.originalReplicaCount,
+      k8sConfig,
+    };
   }
 }

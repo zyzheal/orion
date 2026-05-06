@@ -1,5 +1,7 @@
 /**
  * PolicyOverrideService 单元测试
+ *
+ * Uses mock repositories to test business logic without a real database.
  */
 
 import {
@@ -8,18 +10,92 @@ import {
   type PolicyOverrideInput,
   type UpdateOverrideInput,
 } from '../PolicyOverrideService';
+import { PolicyOverrideRepository, PolicyOverrideEntity } from '../../../repositories/PolicyOverrideRepository';
+
+// ==================== Mock Repository ====================
+
+function createMockRepository() {
+  const store: PolicyOverrideEntity[] = [];
+
+  const repository: PolicyOverrideRepository = {
+    async findById(id: string): Promise<PolicyOverrideEntity | undefined> {
+      return store.find(e => e.id === id);
+    },
+    async findAll(): Promise<{ entities: PolicyOverrideEntity[]; total: number }> {
+      return { entities: [...store], total: store.length };
+    },
+    async create(input: any): Promise<PolicyOverrideEntity> {
+      const entity: PolicyOverrideEntity = {
+        id: input.id,
+        tenantId: input.tenantId,
+        policyId: input.policyId,
+        pipelineId: input.pipelineId,
+        runId: input.runId,
+        reason: input.reason,
+        approvedBy: input.approvedBy,
+        status: input.status,
+        expiresAt: input.expiresAt,
+        createdAt: input.createdAt,
+        updatedAt: input.updatedAt,
+        revokedAt: input.revokedAt,
+        revokedBy: input.revokedBy,
+      };
+      store.push(entity);
+      return entity;
+    },
+    async delete(id: string): Promise<boolean> {
+      const idx = store.findIndex(e => e.id === id);
+      if (idx === -1) return false;
+      store.splice(idx, 1);
+      return true;
+    },
+    async findActiveByTenant(tenantId: string): Promise<PolicyOverrideEntity[]> {
+      return store.filter(e => e.tenantId === tenantId && e.status === 'active');
+    },
+    async findByTenant(tenantId: string): Promise<{ entities: PolicyOverrideEntity[]; total: number }> {
+      const entities = store.filter(e => e.tenantId === tenantId).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      return { entities, total: entities.length };
+    },
+    async findActiveByTenantAndPolicy(tenantId: string, policyId: string): Promise<PolicyOverrideEntity | undefined> {
+      return store.find(e => e.tenantId === tenantId && e.policyId === policyId && e.status === 'active');
+    },
+    async update(id: string, updates: any): Promise<PolicyOverrideEntity | undefined> {
+      const entity = store.find(e => e.id === id);
+      if (!entity) return undefined;
+      Object.assign(entity, updates);
+      return entity;
+    },
+    async markExpired(now: Date): Promise<number> {
+      let count = 0;
+      for (const entity of store) {
+        if (entity.status === 'active' && entity.expiresAt && entity.expiresAt < now) {
+          entity.status = 'expired';
+          entity.updatedAt = now;
+          count++;
+        }
+      }
+      return count;
+    },
+  } as unknown as PolicyOverrideRepository;
+
+  return { repository, store };
+}
+
+function createMockService() {
+  const { repository, store } = createMockRepository();
+  const service = new PolicyOverrideService();
+  service.setRepository(repository);
+  return { service, repository, store };
+}
+
+// ==================== Tests ====================
 
 describe('PolicyOverrideService', () => {
-  let service: PolicyOverrideService;
-
-  beforeEach(() => {
-    service = new PolicyOverrideService();
-  });
-
   // ==================== createOverride ====================
 
   describe('createOverride', () => {
     it('should create a new override', async () => {
+      const { service } = createMockService();
       const input: PolicyOverrideInput = {
         policyId: 'policy-1',
         pipelineId: 'pipe-1',
@@ -38,6 +114,7 @@ describe('PolicyOverrideService', () => {
     });
 
     it('should throw error for missing required fields', async () => {
+      const { service } = createMockService();
       await expect(
         service.createOverride('tenant-1', {
           policyId: '',
@@ -48,6 +125,7 @@ describe('PolicyOverrideService', () => {
     });
 
     it('should throw error for missing tenant ID', async () => {
+      const { service } = createMockService();
       await expect(
         service.createOverride('', {
           policyId: 'policy-1',
@@ -62,6 +140,7 @@ describe('PolicyOverrideService', () => {
 
   describe('getOverrideById', () => {
     it('should return override by ID', async () => {
+      const { service } = createMockService();
       const created = await service.createOverride('tenant-1', {
         policyId: 'policy-1',
         reason: 'test',
@@ -74,6 +153,7 @@ describe('PolicyOverrideService', () => {
     });
 
     it('should return null for non-existent override', async () => {
+      const { service } = createMockService();
       const found = await service.getOverrideById('non-existent');
       expect(found).toBeNull();
     });
@@ -83,6 +163,7 @@ describe('PolicyOverrideService', () => {
 
   describe('getActiveOverrides', () => {
     it('should return only active overrides', async () => {
+      const { service } = createMockService();
       await service.createOverride('tenant-1', {
         policyId: 'policy-1',
         reason: 'active override',
@@ -101,6 +182,7 @@ describe('PolicyOverrideService', () => {
     });
 
     it('should mark expired overrides', async () => {
+      const { service } = createMockService();
       await service.createOverride('tenant-1', {
         policyId: 'policy-1',
         reason: 'expired soon',
@@ -117,6 +199,7 @@ describe('PolicyOverrideService', () => {
 
   describe('getAllOverrides', () => {
     it('should return all overrides for tenant', async () => {
+      const { service } = createMockService();
       await service.createOverride('tenant-1', {
         policyId: 'policy-1',
         reason: 'first',
@@ -138,6 +221,7 @@ describe('PolicyOverrideService', () => {
     });
 
     it('should return sorted by createdAt descending', async () => {
+      const { service } = createMockService();
       await service.createOverride('tenant-1', {
         policyId: 'policy-1', reason: 'first', approvedBy: 'admin',
       });
@@ -155,6 +239,7 @@ describe('PolicyOverrideService', () => {
 
   describe('isOverridden', () => {
     it('should return true for active override', async () => {
+      const { service } = createMockService();
       await service.createOverride('tenant-1', {
         policyId: 'policy-1',
         reason: 'override',
@@ -166,6 +251,7 @@ describe('PolicyOverrideService', () => {
     });
 
     it('should return false for non-overridden policy', async () => {
+      const { service } = createMockService();
       const result = await service.isOverridden('tenant-1', 'policy-99');
       expect(result).toBe(false);
     });
@@ -175,6 +261,7 @@ describe('PolicyOverrideService', () => {
 
   describe('updateOverride', () => {
     it('should update override reason', async () => {
+      const { service } = createMockService();
       const created = await service.createOverride('tenant-1', {
         policyId: 'policy-1',
         reason: 'original reason',
@@ -188,6 +275,7 @@ describe('PolicyOverrideService', () => {
     });
 
     it('should update override expiresAt', async () => {
+      const { service } = createMockService();
       const created = await service.createOverride('tenant-1', {
         policyId: 'policy-1',
         reason: 'test',
@@ -203,6 +291,7 @@ describe('PolicyOverrideService', () => {
     });
 
     it('should update both reason and expiresAt', async () => {
+      const { service } = createMockService();
       const created = await service.createOverride('tenant-1', {
         policyId: 'policy-1',
         reason: 'original',
@@ -218,12 +307,14 @@ describe('PolicyOverrideService', () => {
     });
 
     it('should throw error for non-existent override', async () => {
+      const { service } = createMockService();
       await expect(
         service.updateOverride('non-existent', { reason: 'test' })
       ).rejects.toThrow(PolicyOverrideServiceError);
     });
 
     it('should throw error for revoked override', async () => {
+      const { service } = createMockService();
       const created = await service.createOverride('tenant-1', {
         policyId: 'policy-1',
         reason: 'test',
@@ -237,6 +328,7 @@ describe('PolicyOverrideService', () => {
     });
 
     it('should throw error if no fields provided', async () => {
+      const { service } = createMockService();
       const created = await service.createOverride('tenant-1', {
         policyId: 'policy-1',
         reason: 'test',
@@ -249,6 +341,7 @@ describe('PolicyOverrideService', () => {
     });
 
     it('should update updatedAt timestamp', async () => {
+      const { service } = createMockService();
       const created = await service.createOverride('tenant-1', {
         policyId: 'policy-1',
         reason: 'test',
@@ -267,6 +360,7 @@ describe('PolicyOverrideService', () => {
 
   describe('revokeOverride', () => {
     it('should revoke an active override', async () => {
+      const { service } = createMockService();
       const created = await service.createOverride('tenant-1', {
         policyId: 'policy-1',
         reason: 'test',
@@ -281,6 +375,7 @@ describe('PolicyOverrideService', () => {
     });
 
     it('should throw error for already revoked override', async () => {
+      const { service } = createMockService();
       const created = await service.createOverride('tenant-1', {
         policyId: 'policy-1',
         reason: 'test',
@@ -298,6 +393,7 @@ describe('PolicyOverrideService', () => {
 
   describe('cleanupExpiredOverrides', () => {
     it('should mark expired overrides', async () => {
+      const { service } = createMockService();
       await service.createOverride('tenant-1', {
         policyId: 'policy-1',
         reason: 'expired',
@@ -316,6 +412,7 @@ describe('PolicyOverrideService', () => {
     });
 
     it('should return 0 when no expired overrides', async () => {
+      const { service } = createMockService();
       await service.createOverride('tenant-1', {
         policyId: 'policy-1',
         reason: 'not expired',
