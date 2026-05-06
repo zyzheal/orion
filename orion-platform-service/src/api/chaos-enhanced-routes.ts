@@ -7,7 +7,7 @@ import { ChaosEngineeringController } from './controllers/ChaosEngineeringContro
 
 const chaosEnhancedRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
   const db = (app as any).database || (app as any).db;
-  const controller = new ChaosEngineeringController();
+  const controller = new ChaosEngineeringController(db);
 
   app.post('/chaos-experiments', controller.createExperiment.bind(controller));
   app.get('/chaos-experiments', controller.listExperiments.bind(controller));

@@ -126,8 +126,14 @@ export class ChaosEngineeringController extends BaseController {
       if (!this.chaosExperimentService) {
         return reply.status(503).send({ success: false, error: 'Chaos experiment service not available' });
       }
+      const tenantId = this.getTenantId(request);
       const { id } = request.params as { id: string };
       const body = request.body as any;
+
+      const experiment = await this.chaosExperimentService.getExperiment(id);
+      if (experiment.tenant_id !== tenantId) {
+        return reply.status(403).send({ success: false, error: 'Tenant isolation violation: experiment does not belong to your tenant' });
+      }
 
       await this.chaosExperimentService.activateExperiment(id);
 
@@ -149,11 +155,24 @@ export class ChaosEngineeringController extends BaseController {
       if (!this.faultInjector) {
         return reply.status(503).send({ success: false, error: 'Fault injector not available' });
       }
+      const tenantId = this.getTenantId(request);
       const { id } = request.params as { id: string };
       const body = request.body as any;
 
       if (!body.type || !body.target) {
         return reply.status(400).send({ success: false, error: 'type and target are required' });
+      }
+
+      // Verify experiment belongs to requesting tenant
+      if (this.chaosExperimentService) {
+        try {
+          const experiment = await this.chaosExperimentService.getExperiment(id);
+          if (experiment.tenant_id !== tenantId) {
+            return reply.status(403).send({ success: false, error: 'Tenant isolation violation: experiment does not belong to your tenant' });
+          }
+        } catch {
+          // Experiment not found; continue with injection but without tenant verification
+        }
       }
 
       const config: FaultInjectionConfig = {
@@ -191,21 +210,25 @@ export class ChaosEngineeringController extends BaseController {
       if (!this.chaosExperimentService) {
         return reply.status(503).send({ success: false, error: 'Chaos experiment service not available' });
       }
+      const tenantId = this.getTenantId(request);
       const { id } = request.params as { id: string };
       const body = request.body as any;
+
+      const experiment = await this.chaosExperimentService.getExperiment(id);
+      if (experiment.tenant_id !== tenantId) {
+        return reply.status(403).send({ success: false, error: 'Tenant isolation violation: experiment does not belong to your tenant' });
+      }
 
       // Try to rollback any running execution
       try {
         await this.chaosExperimentService.rollbackRun(id, body.reason);
       } catch {
         // If no running run exists, just mark the experiment as completed
-        const experiment = await this.chaosExperimentService.getExperiment(id);
         if (experiment.status === 'active') {
           await (this.chaosExperimentService as any).repository.updateStatus(id, 'completed');
         }
       }
 
-      const experiment = await this.chaosExperimentService.getExperiment(id);
       reply.send({ success: true, data: { id: experiment.id, status: experiment.status, stoppedAt: new Date().toISOString() } });
     } catch (error: any) {
       reply.status(500).send({ success: false, error: error.message });
@@ -217,9 +240,13 @@ export class ChaosEngineeringController extends BaseController {
       if (!this.chaosExperimentService) {
         return reply.status(503).send({ success: false, error: 'Chaos experiment service not available' });
       }
+      const tenantId = this.getTenantId(request);
       const { id } = request.params as { id: string };
 
       const experiment = await this.chaosExperimentService.getExperiment(id);
+      if (experiment.tenant_id !== tenantId) {
+        return reply.status(403).send({ success: false, error: 'Tenant isolation violation: experiment does not belong to your tenant' });
+      }
 
       // Get the latest run status
       const repo = (this.chaosExperimentService as any).repository;
