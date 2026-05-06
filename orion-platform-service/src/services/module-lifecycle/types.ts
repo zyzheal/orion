@@ -85,13 +85,22 @@ export interface DependencyValidationResult {
 }
 
 /**
+ * 功能域配置（支持嵌套的服务级配置）
+ */
+export interface DomainConfig {
+  enabled: boolean;
+  autoStart?: boolean;
+  services?: Record<string, ModuleConfig>;
+}
+
+/**
  * 模块管理器配置
  */
 export interface ModuleManagerConfig {
   /** 核心模块配置（不可禁用） */
   core?: Record<string, { enabled: boolean }>;
   /** 功能域配置 */
-  domains?: Record<string, ModuleConfig>;
+  domains?: Record<string, DomainConfig>;
   /** 服务级配置 */
   services?: Record<string, ModuleConfig>;
   /** 特性级配置 */

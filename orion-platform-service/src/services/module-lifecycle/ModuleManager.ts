@@ -7,6 +7,7 @@ import {
   ModuleLifecycle,
   ModuleRegistration,
   ModuleManagerConfig,
+  DomainConfig,
 } from './types';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
@@ -41,7 +42,8 @@ export class ModuleManager {
     }
 
     if (config.domains) {
-      for (const [domainId, domainConfig] of Object.entries(config.domains)) {
+      for (const [domainId, rawDomainConfig] of Object.entries(config.domains)) {
+        const domainConfig = rawDomainConfig as DomainConfig;
         const domainModule: ModuleDescriptor = {
           id: `domain:${domainId}`,
           name: domainId,
@@ -80,7 +82,8 @@ export class ModuleManager {
     }
 
     if (config.services) {
-      for (const [serviceId, serviceConfig] of Object.entries(config.services)) {
+      for (const [serviceId, rawServiceConfig] of Object.entries(config.services)) {
+        const serviceConfig = rawServiceConfig as ModuleConfig;
         this.registerModule({
           id: `service:${serviceId}`,
           name: serviceId,
