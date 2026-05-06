@@ -6,7 +6,73 @@
 - **Initialized**: 2026-04-11
 - **Current Branch**: feat/frontend-gap-implementation
 
-## 2026-05-06: Performance & ModelVersion Repository Migration (COMPLETED)
+## 2026-05-06: Repository Migration Batch 4 (COMPLETED)
+
+### refactor(policy): migrate PolicyOverrideService to PostgreSQL (COMPLETED)
+- Commit: 9249ba6
+- PolicyOverrideService: Replaced Map<string, PolicyOverride> with PolicyOverrideRepository
+  - Created new policy_overrides_v2 table (tenant-isolated, lifecycle-managed)
+  - Entity fields: tenantId, policyId, pipelineId, runId, reason, approvedBy, status, expiresAt, revokedAt, revokedBy
+  - All methods (createOverride, getActiveOverrides, getAllOverrides, revokeOverride, updateOverride, cleanupExpiredOverrides) use repository
+- Migration 122: policy_overrides_v2 table with indexes on tenant_id, policy_id, status
+- Repository: findByTenant, findActiveByTenant, findActiveByTenantAndPolicy, create, update, markExpired
+- Tests: Updated PolicyOverrideService.test.ts with mock repository pattern
+- 22 tests passing
+
+### refactor(environment): migrate EnvironmentExecutorService to PostgreSQL (COMPLETED)
+- Commit: 9249ba6
+- EnvironmentExecutorService: Replaced Map<string, EnvironmentStatus> with EnvironmentExecutorRepository
+  - Created environment_executor_states table with K8s config columns
+  - Entity fields: envId, tenantId, state, lastActiveAt, hibernatedAt, ttlSeconds, k8s config fields, previousReplicas
+  - All methods (hibernateEnvironment, wakeEnvironment, checkTTLAndHibernate, setEnvironmentTTL, configureK8s, recordActivity) use repository
+  - K8s scaling logic preserved unchanged
+- Migration 123: environment_executor_states table with unique index on (tenant_id, env_id)
+- Repository: findByTenantAndEnv, findByTenant, findActiveByTenant, upsert, update
+- setRepository() method added for test injection
+
+### Remaining Map-based services (assessment):
+- smart-deploy: DeploymentHistoryService/RollbackService already have repository-first with Map fallback
+- auth/TokenBlacklistService: Uses Maps as cache layer, DB is source of truth (correct pattern)
+- ai-review/ReviewRuleEngine: Map used as runtime rule registry (loaded from code defaults)
+- digital-twin: 5+ services with Maps for state tracking (requires separate migration effort)
+- chatops: Maps used as runtime caches (SSE connections, recommendations, idempotency, metrics)
+- developer-portal/product-line/pipeline-*: Already migrated to Repository pattern
+- cost-tracking/cmdb/ai-degradation: Maps used as runtime state, not primary storage
+
+### Test status: 295 suites, 5902 tests passing (19 skipped)
+
+## 2026-05-06: Repository Migration Batch 3 (COMPLETED)
+
+### refactor(multi-cloud): migrate CloudProviderService and ResourceAbstractionLayer to PostgreSQL (COMPLETED)
+- Commit: 98a7dbc
+- CloudProviderService: Replaced Map-based storage with MultiCloudRepository
+  - registerCloudAccount/listCloudAccounts/deleteCloudAccount/getCloudAccount all use repository
+  - addResource/listCloudResources use CloudResourceEntity mapping
+  - Added entityToAccount/entityToResource mapper methods
+- ResourceAbstractionLayer: Replaced Map-based storage with two new repositories
+  - Created UnifiedResourceRepository for unified_resources table
+  - Created DeploymentResultRepository for deployment_results table
+  - All read/write methods converted to async
+- SQL Migrations:
+  - 120_create_resource_abstraction_tables.sql: unified_resources + deployment_results
+  - 120_rollback_resource_abstraction_tables.sql: DROP TABLE rollback
+- Tests: 295 suites, 5902 tests passing (294 passed + 1 pre-existing timing failure)
+
+### refactor(policy): migrate PolicyEvaluationService violations and overrides to PostgreSQL (COMPLETED)
+- Commit: 41a36fd
+- Created PolicyViolationRepository for policy_violations table
+  - findByStatus, findByPolicyId, findById, updateStatus, findAllWithOptions
+- Replaced Map-based violation storage with PolicyViolationRepository
+- Replaced Map-based override storage with PolicyOverrideRepository (already existed)
+- Added entityToViolation/entityToOverride mapper methods
+- All violation/override operations now persisted to PostgreSQL
+- Tests: 295 suites, 5883 tests passing
+
+## Next Steps
+1. Continue with remaining service migrations (PolicyOverrideService, ConfigService, GitOpsService, etc.)
+2. Consider migrating services that are wired into routes first
+
+## Previous Status (2026-05-06)
 
 ### refactor(performance,model-version): migrate to PostgreSQL Repository pattern (COMPLETED)
 - Commit: c667e0b
