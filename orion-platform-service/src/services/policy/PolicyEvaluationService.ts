@@ -19,6 +19,8 @@ import {
   ViolationStatus,
 } from '../../models/PolicyDefinition';
 import { PolicyEvaluationRepository, PolicyEvaluationEntity } from '../../repositories/PolicyEvaluationRepository';
+import { PolicyViolationRepository, PolicyViolationEntity } from '../../repositories/PolicyViolationRepository';
+import { PolicyOverrideRepository, PolicyOverrideEntity } from '../../repositories/PolicyOverrideRepository';
 
 export interface PolicyEvaluationListFilter {
   runId?: string;
@@ -49,8 +51,8 @@ export interface PolicyEvaluationServiceConfig {
 
 export class PolicyEvaluationService {
   private evaluationRepository?: PolicyEvaluationRepository;
-  private violations: Map<string, PolicyViolation> = new Map();
-  private overrides: Map<string, PolicyOverride> = new Map();
+  private violationRepository?: PolicyViolationRepository;
+  private overrideRepository?: PolicyOverrideRepository;
   private eventBus?: EventBusService;
   private opaUrl?: string;
   private opaPackage: string;
@@ -64,6 +66,8 @@ export class PolicyEvaluationService {
     this.eventBus = options?.eventBus;
     if (options?.db) {
       this.evaluationRepository = new PolicyEvaluationRepository(options.db);
+      this.violationRepository = new PolicyViolationRepository(options.db);
+      this.overrideRepository = new PolicyOverrideRepository(options.db);
     }
     this.opaUrl = options?.config?.opaUrl || process.env.OPA_URL;
     this.opaPackage = options?.config?.opaPackage || 'orion.policies';
@@ -115,7 +119,17 @@ export class PolicyEvaluationService {
           resourceType: (inputContext as any).resourceType,
           resourceId: (inputContext as any).resourceId,
         });
-        this.violations.set(violation.id, violation);
+        if (this.violationRepository) {
+          await this.violationRepository.create({
+            id: violation.id,
+            evaluationId: evaluation.id,
+            policyId,
+            severity: 'block',
+            message: msg,
+            resourceType: (inputContext as any).resourceType,
+            resourceId: (inputContext as any).resourceId,
+          });
+        }
         violations.push(violation);
       }
     }
@@ -228,43 +242,41 @@ export class PolicyEvaluationService {
 
   // Violation listing
   async getViolations(filter: PolicyViolationListFilter = {}): Promise<PolicyViolation[]> {
-    let items = Array.from(this.violations.values());
-
-    if (filter.status) {
-      items = items.filter(v => v.status === filter.status);
+    if (this.violationRepository) {
+      const result = await this.violationRepository.findAllWithOptions({
+        status: filter.status,
+        severity: filter.severity,
+        policyId: filter.policyId,
+      });
+      return result.entities.map(e => this.mapEntityToViolation(e));
     }
-    if (filter.severity) {
-      items = items.filter(v => v.severity === filter.severity);
-    }
-    if (filter.policyId) {
-      items = items.filter(v => v.policyId === filter.policyId);
-    }
-
-    return items;
+    return [];
   }
 
   async getViolationById(id: string): Promise<PolicyViolation | undefined> {
-    return this.violations.get(id);
+    if (this.violationRepository) {
+      const entity = await this.violationRepository.findById(id);
+      return entity ? this.mapEntityToViolation(entity) : undefined;
+    }
+    return undefined;
   }
 
   async waiveViolation(id: string, reason: string): Promise<PolicyViolation | undefined> {
-    const violation = this.violations.get(id);
-    if (!violation) return undefined;
+    if (!this.violationRepository) return undefined;
+    const entity = await this.violationRepository.updateStatus(id, 'waived');
+    if (!entity) return undefined;
 
-    violation.status = 'waived';
-    this.violations.set(id, violation);
-
+    const violation = this.mapEntityToViolation(entity);
     await this.eventBus?.publish('policy.violation.waived', { violationId: id, reason });
     return violation;
   }
 
   async resolveViolation(id: string): Promise<PolicyViolation | undefined> {
-    const violation = this.violations.get(id);
-    if (!violation) return undefined;
+    if (!this.violationRepository) return undefined;
+    const entity = await this.violationRepository.updateStatus(id, 'resolved');
+    if (!entity) return undefined;
 
-    violation.status = 'resolved';
-    this.violations.set(id, violation);
-
+    const violation = this.mapEntityToViolation(entity);
     await this.eventBus?.publish('policy.violation.resolved', { violationId: id });
     return violation;
   }
@@ -272,7 +284,18 @@ export class PolicyEvaluationService {
   // Override management
   async createOverride(input: PolicyOverrideCreateInput): Promise<PolicyOverride> {
     const override = createPolicyOverride(input);
-    this.overrides.set(override.id, override);
+    if (this.overrideRepository) {
+      await this.overrideRepository.create({
+        id: override.id,
+        policyId: override.policyId,
+        violationId: override.violationId,
+        reason: override.reason,
+        approvedBy: override.approvedBy,
+        approvedAt: override.approvedAt,
+        expiresAt: override.expiresAt,
+        scope: override.scope,
+      });
+    }
 
     await this.eventBus?.publish('policy.override.created', {
       overrideId: override.id,
@@ -282,6 +305,39 @@ export class PolicyEvaluationService {
   }
 
   async listOverrides(): Promise<PolicyOverride[]> {
-    return Array.from(this.overrides.values());
+    if (this.overrideRepository) {
+      const result = await this.overrideRepository.findAllWithOptions();
+      return result.entities.map(e => this.mapEntityToOverride(e));
+    }
+    return [];
+  }
+
+  private mapEntityToViolation(entity: PolicyViolationEntity): PolicyViolation {
+    return {
+      id: entity.id,
+      evaluationId: entity.evaluation_id ?? undefined,
+      policyId: entity.policy_id ?? undefined,
+      severity: entity.severity,
+      message: entity.message,
+      resourceType: entity.resource_type ?? undefined,
+      resourceId: entity.resource_id ?? undefined,
+      status: (entity.status as ViolationStatus) ?? 'open',
+      createdAt: entity.created_at,
+    };
+  }
+
+  private mapEntityToOverride(entity: PolicyOverrideEntity): PolicyOverride {
+    return {
+      id: entity.id,
+      policyId: entity.policyId ?? undefined,
+      violationId: entity.violationId ?? undefined,
+      reason: entity.reason,
+      approvedBy: entity.approvedBy ?? undefined,
+      approvedAt: entity.approvedAt,
+      expiresAt: entity.expiresAt,
+      scope: entity.scope,
+      createdAt: entity.createdAt,
+      updatedAt: entity.updatedAt,
+    };
   }
 }
