@@ -123,6 +123,63 @@ import communityRoutes from './community-routes';
 import communityAdvancedRoutes from './community-advanced-routes';
 import moduleRoutes from './module-routes';
 
+import pino from 'pino';
+import { ModuleManager } from '../services/module-lifecycle/ModuleManager';
+
+const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+
+const DEFAULT_MODULE_CONFIG = {
+  core: {
+    auth: { enabled: true },
+    tenant: { enabled: true },
+    database: { enabled: true },
+    eventBus: { enabled: true },
+    audit: { enabled: true },
+    config: { enabled: true },
+    degradation: { enabled: true },
+    privacy: { enabled: true },
+  },
+  domains: {
+    pipeline: { enabled: true, autoStart: true },
+    build: { enabled: true, autoStart: true },
+    deploy: { enabled: true, autoStart: true },
+    monitoring: { enabled: true, autoStart: true },
+    alert: { enabled: true, autoStart: true },
+    security: { enabled: true, autoStart: true },
+    ai: { enabled: true, autoStart: true },
+    finops: { enabled: true, autoStart: true },
+    chaos: { enabled: true, autoStart: true },
+    backup: { enabled: true, autoStart: true },
+    disasterRecovery: { enabled: true, autoStart: true },
+    selfHealing: { enabled: true, autoStart: true },
+    ticketing: { enabled: true, autoStart: true },
+    knowledge: { enabled: true, autoStart: true },
+    plugin: { enabled: true, autoStart: true },
+    chatops: { enabled: true, autoStart: true },
+    digitalTwin: { enabled: true, autoStart: true },
+    federation: { enabled: true, autoStart: true },
+    multiCloud: { enabled: true, autoStart: true },
+    dataPipeline: { enabled: true, autoStart: true },
+    community: { enabled: true, autoStart: true },
+    efficiency: { enabled: true, autoStart: true },
+    cmdb: { enabled: true, autoStart: true },
+    iac: { enabled: true, autoStart: true },
+  },
+  services: {
+    adaptivePipeline: { enabled: true },
+    consistency: { enabled: false },
+    deploymentWindow: { enabled: true },
+    outputValidation: { enabled: false },
+    costTracking: { enabled: true },
+    riskEngine: { enabled: true },
+    modelVersion: { enabled: false },
+    agentRun: { enabled: false },
+    agentProfile: { enabled: false },
+    cmdbIntegration: { enabled: false },
+  },
+  features: {},
+};
+
 export interface ApiRoutesOptions {
   eventBus?: EventBusService;
   database?: DatabasePool;
@@ -211,6 +268,17 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
     console.log('[Routes] Four-layer tenant isolation enabled');
   }
+
+  // ==================== ModuleManager 初始化 ====================
+  const moduleManager = new ModuleManager(() => {
+    const configSvc = (options as any).config || (global as any).unifiedConfigService;
+    if (configSvc?.get) {
+      return configSvc.get('moduleConfig') || DEFAULT_MODULE_CONFIG;
+    }
+    return DEFAULT_MODULE_CONFIG;
+  });
+  moduleManager.loadFromConfig();
+  (options as any).moduleManager = moduleManager;
 
   // ==================== Pipeline 服务初始化 ====================
   // 初始化服务
@@ -530,9 +598,13 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   });
 
   // ==================== Phase 3: Chaos Engineering ====================
-  await registerWithRoleGuard(app, chaosEnhancedRoutes, '/v1/chaos', {
-    database: options.database,
-  });
+  if (moduleManager.isModuleEnabled('domain:chaos')) {
+    await registerWithRoleGuard(app, chaosEnhancedRoutes, '/v1/chaos', {
+      database: options.database,
+    });
+  } else {
+    logger.info('[routes] Chaos module disabled, skipping route registration');
+  }
 
   // ==================== Phase 3: Cross-Domain Orchestration ====================
   await registerWithRoleGuard(app, crossDomainRoutes, '/v1/orchestration', {
@@ -561,7 +633,11 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   });
 
   // ==================== Community Ecosystem Services ====================
-  await registerWithRoleGuard(app, communityRoutes, '/v1/community');
+  if (moduleManager.isModuleEnabled('domain:community')) {
+    await registerWithRoleGuard(app, communityRoutes, '/v1/community');
+  } else {
+    logger.info('[routes] Community module disabled, skipping route registration');
+  }
 
   // ==================== Community Ecosystem Advanced Services ====================
   await registerWithRoleGuard(app, communityAdvancedRoutes, '/v1/community-advanced');
@@ -576,19 +652,31 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await registerWithRoleGuard(app, performanceRoutes, '/v1/performance');
 
   // ==================== Cluster Federation ====================
-  await registerWithRoleGuard(app, federationRoutes, '/v1/federation');
+  if (moduleManager.isModuleEnabled('domain:federation')) {
+    await registerWithRoleGuard(app, federationRoutes, '/v1/federation');
+  } else {
+    logger.info('[routes] Federation module disabled, skipping route registration');
+  }
 
   // ==================== Cluster Federation Advanced ====================
   await registerWithRoleGuard(app, federationAdvancedRoutes, '/v1/federation-advanced');
 
   // ==================== Multi-Cloud Management ====================
-  await registerWithRoleGuard(app, multiCloudRoutes, '/v1/multi-cloud');
+  if (moduleManager.isModuleEnabled('domain:multiCloud')) {
+    await registerWithRoleGuard(app, multiCloudRoutes, '/v1/multi-cloud');
+  } else {
+    logger.info('[routes] Multi-Cloud module disabled, skipping route registration');
+  }
 
   // ==================== Multi-Cloud Advanced ====================
   await registerWithRoleGuard(app, multiCloudAdvancedRoutes, '/v1/multi-cloud-advanced');
 
   // ==================== Data Pipeline ====================
-  await registerWithRoleGuard(app, dataPipelineRoutes, '/v1/data-pipelines');
+  if (moduleManager.isModuleEnabled('domain:dataPipeline')) {
+    await registerWithRoleGuard(app, dataPipelineRoutes, '/v1/data-pipelines');
+  } else {
+    logger.info('[routes] Data Pipeline module disabled, skipping route registration');
+  }
 
   // ==================== Artifact Operations ====================
   await registerWithRoleGuard(app, artifactOpsRoutes, '/v1/artifact-ops');
