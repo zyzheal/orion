@@ -6,7 +6,59 @@
 - **Initialized**: 2026-04-11
 - **Current Branch**: feat/frontend-gap-implementation
 
-## Current Status (2026-05-03)
+## 2026-05-06: Performance & ModelVersion Repository Migration (COMPLETED)
+
+### refactor(performance,model-version): migrate to PostgreSQL Repository pattern (COMPLETED)
+- Commit: c667e0b
+- 2 个服务域 (performance, model-version) 从 Map() 迁移到 PostgreSQL Repository 模式
+- 创建 Repository 文件 (2 个):
+  - `PerformanceRepository.ts` - 4 个 Repository (Baseline, Evaluation, TestResult, Profile)
+  - `ModelVersionRepository.ts` - 3 个 Repository (ModelVersion, ABTest, ABTestMetric)
+- 重写 3 个服务:
+  - `PerformanceBaselineService.ts` - 三 Repository 注入, 基线管理/性能评估/回归检测
+  - `PerformanceProfileService.ts` - Profile Repository 注入, 性能分析/瓶颈分析/优化建议
+  - `ModelVersionService.ts` - 模型注册/版本管理/激活/A-B测试/性能监控
+- 更新 Controller:
+  - `PerformanceController.ts` - await 异步方法调用
+  - `ModelVersionController.ts` - await 异步方法调用
+- 更新路由:
+  - `performance-routes.ts` - DB 注入, mock 降级, 新增路由 (baselines/:id, regression, test-results)
+  - `ai-decision-routes.ts` - ModelVersionService DB 注入和 mock 降级
+- SQL 迁移:
+  - `117_create_performance_tables.sql` - performance_baselines, performance_evaluations, performance_test_results, performance_profiles
+  - `118_create_model_version_tables.sql` - model_versions, ab_tests, ab_test_metrics
+- 测试重写:
+  - `PerformanceBaselineService.test.ts` - mock repositories, async/await, 41 tests
+  - `ModelVersionService.test.ts` - mock repositories, async/await, 36 tests
+- 全量测试: 295 suites, 5902 tests passing (294 passed + 1 previously failing fixed)
+- TypeScript 编译: 0 错误
+
+## Previous Status (2026-05-06)
+
+### refactor(artifact-ops): migrate 3 artifact-ops services from Map() to PostgreSQL Repository (COMPLETED)
+- Commit: d16ff13
+- 3 个 artifact-ops 服务域从 Map() 迁移到 PostgreSQL Repository 模式
+- 创建 SQL 迁移 (migration 116):
+  - artifact_operations - 制品操作追踪表
+  - retention_policies - 保留策略表
+  - retention_evaluations - 保留评估表
+  - scan_reports - 扫描报告表
+  - scan_findings - 扫描发现表
+  - malicious_detections - 恶意检测表
+- 创建 Repository 文件 (3 个):
+  - ArtifactOperationRepository.ts - 扩展 BaseRepository, 支持 tenant 过滤和统计
+  - ArtifactRetentionRepository.ts - RetentionPolicyRepository + RetentionEvaluationRepository
+  - ArtifactScanRepository.ts - ScanReportRepository + ScanFindingRepository + MaliciousDetectionRepository
+- 重写 3 个服务:
+  - ArtifactOperationService.ts - 构造函数注入 Repository
+  - ArtifactRetentionService.ts - 双 Repository 注入, 评估结果持久化
+  - ArtifactScanService.ts - 三 Repository 注入, 扫描发现持久化
+- 更新 ArtifactOpsController: 13 个 REST 端点, 服务层注入
+- 更新 artifact-ops-routes.ts: 数据库池连接, 降级处理
+- 3 个测试套件 63 个测试全部通过
+- TypeScript 编译: 0 新错误
+
+## Previous Status (2026-05-03)
 
 ### feat(test-generation): implement AI test case generation service (COMPLETED)
 - Commit: 9cd8fbc
