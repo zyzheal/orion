@@ -158,6 +158,198 @@ export interface SystemConfig {
     };
     rlsEnabled: boolean;
   };
+
+  // 构建配置
+  build: {
+    maxParallelJobs: number;
+    defaultTimeoutMinutes: number;
+    retryAttempts: number;
+    nodePoolSize: number;
+  };
+
+  // 制品配置
+  artifact: {
+    retentionDays: number;
+    maxSizeMb: number;
+    cleanupPolicy: 'lru' | 'fifo' | 'manual';
+    storagePath: string;
+  };
+
+  // 金丝雀配置
+  canary: {
+    initialTrafficPercent: number;
+    incrementPercent: number;
+    analysisIntervalSeconds: number;
+    autoPromoteThreshold: number;
+  };
+
+  // 混沌工程配置
+  chaos: {
+    maxConcurrentExperiments: number;
+    maxBlastRadiusPercent: number;
+    allowedAttackTypes: string[];
+    requireApproval: boolean;
+  };
+
+  // 备份配置
+  backup: {
+    scheduleCron: string;
+    retentionDays: number;
+    storageLocation: string;
+    compressionEnabled: boolean;
+  };
+
+  // 事件管理配置
+  incident: {
+    severityLevels: string[];
+    autoEscalationMinutes: number;
+    slaCriticalMinutes: number;
+    slaHighMinutes: number;
+  };
+
+  // 任务调度配置
+  scheduler: {
+    maxConcurrentJobs: number;
+    retryPolicy: { maxAttempts: number; backoffMs: number };
+    staleJobTimeoutMinutes: number;
+  };
+
+  // 可观测性配置
+  observability: {
+    metricsRetentionDays: number;
+    logSamplingRate: number;
+    tracingEnabled: boolean;
+    traceSamplingRate: number;
+  };
+
+  // FinOps 配置
+  finops: {
+    budgetThresholdPercent: number;
+    alertRules: { critical: number; warning: number };
+    costCenterTagging: boolean;
+    reportScheduleCron: string;
+  };
+
+  // 安全扫描配置
+  securityScanning: {
+    sbomScanningEnabled: boolean;
+    dependencyCheckEnabled: boolean;
+    vulnerabilityThreshold: 'critical' | 'high' | 'medium' | 'low' | 'none';
+    scanOnPush: boolean;
+  };
+
+  // 合规配置
+  compliance: {
+    auditLogRetentionDays: number;
+    dataResidencyRegions: string[];
+    encryptionRequired: boolean;
+    policyEnforcementMode: 'strict' | 'warn' | 'off';
+  };
+
+  // 特性开关配置
+  featureFlag: {
+    defaultState: boolean;
+    rolloutStrategy: 'percentage' | 'user-list' | 'environment';
+    evaluationTimeoutMs: number;
+  };
+
+  // AI 决策配置
+  aiDecision: {
+    defaultModel: string;
+    confidenceThreshold: number;
+    fallbackEnabled: boolean;
+    maxDecisionTimeSeconds: number;
+  };
+
+  // Pipeline 模板配置
+  pipelineTemplate: {
+    defaultTemplates: string[];
+    validationEnabled: boolean;
+    customTemplateAllowed: boolean;
+    maxTemplateSizeKb: number;
+  };
+
+  // 审批流程配置
+  approval: {
+    maxLevels: number;
+    timeoutMinutes: number;
+    autoApproveRules: { enabled: boolean; maxRiskLevel: string };
+  };
+
+  // 弹性配置
+  resilience: {
+    scoringWeights: { availability: number; performance: number; faultTolerance: number };
+    passingThreshold: number;
+    baselineRefreshDays: number;
+  };
+
+  // 数字孪生配置
+  digitalTwin: {
+    syncIntervalSeconds: number;
+    simulationAccuracyTarget: number;
+    stateHistoryRetentionDays: number;
+  };
+
+  // 环境配置
+  environment: {
+    maxQuotaPerEnv: { cpu: number; memoryMb: number; storageGb: number };
+    isolationLevel: 'namespace' | 'cluster' | 'node';
+    maxEnvironmentsPerTenant: number;
+  };
+
+  // 插件配置
+  plugin: {
+    marketplaceUrl: string;
+    validationEnabled: boolean;
+    sandboxMode: boolean;
+    maxPluginsPerTenant: number;
+  };
+
+  // 缓存配置
+  cache: {
+    defaultTtlSeconds: number;
+    evictionPolicy: 'lru' | 'lfu' | 'fifo' | 'ttl';
+    maxMemoryMb: number;
+    keyPrefix: string;
+  };
+
+  // 队列配置
+  queue: {
+    maxDepth: number;
+    priorityWeights: { high: number; normal: number; low: number };
+    deadLetterPolicy: { enabled: boolean; retentionDays: number };
+  };
+
+  // 事件总线配置
+  eventBus: {
+    connectionPoolSize: number;
+    streamConfig: { maxMsgSizeBytes: number; maxAgeHours: number };
+    consumerGroupPrefix: string;
+  };
+
+  // RBAC 配置
+  rbac: {
+    defaultRoles: string[];
+    permissionInheritanceEnabled: boolean;
+    maxRolesPerTenant: number;
+    auditPermissionChanges: boolean;
+  };
+
+  // API 网关配置
+  apiGateway: {
+    rateLimitPerMinute: number;
+    timeoutSeconds: number;
+    corsOrigins: string[];
+    healthCheckPath: string;
+  };
+
+  // 模块配置
+  moduleConfig: {
+    core: Record<string, { enabled: boolean }>;
+    domains: Record<string, { enabled: boolean; autoStart?: boolean; services?: Record<string, { enabled: boolean; autoStart?: boolean; dependencies?: string[] }> }>;
+    services: Record<string, { enabled: boolean; autoStart?: boolean; dependencies?: string[]; priority?: number }>;
+    features: Record<string, { enabled: boolean }>;
+  };
 }
 
 // ==================== 默认配置 ====================
@@ -292,6 +484,218 @@ const DEFAULT_CONFIG: SystemConfig = {
     },
     rlsEnabled: true,
   },
+
+  build: {
+    maxParallelJobs: 20,
+    defaultTimeoutMinutes: 60,
+    retryAttempts: 2,
+    nodePoolSize: 10,
+  },
+
+  artifact: {
+    retentionDays: 90,
+    maxSizeMb: 2048,
+    cleanupPolicy: 'lru',
+    storagePath: '/data/artifacts',
+  },
+
+  canary: {
+    initialTrafficPercent: 5,
+    incrementPercent: 10,
+    analysisIntervalSeconds: 300,
+    autoPromoteThreshold: 0.99,
+  },
+
+  chaos: {
+    maxConcurrentExperiments: 3,
+    maxBlastRadiusPercent: 10,
+    allowedAttackTypes: ['network-latency', 'pod-failure', 'cpu-stress'],
+    requireApproval: true,
+  },
+
+  backup: {
+    scheduleCron: '0 2 * * *',
+    retentionDays: 30,
+    storageLocation: '/data/backups',
+    compressionEnabled: true,
+  },
+
+  incident: {
+    severityLevels: ['critical', 'high', 'medium', 'low'],
+    autoEscalationMinutes: 30,
+    slaCriticalMinutes: 60,
+    slaHighMinutes: 240,
+  },
+
+  scheduler: {
+    maxConcurrentJobs: 50,
+    retryPolicy: { maxAttempts: 3, backoffMs: 5000 },
+    staleJobTimeoutMinutes: 120,
+  },
+
+  observability: {
+    metricsRetentionDays: 30,
+    logSamplingRate: 0.5,
+    tracingEnabled: true,
+    traceSamplingRate: 0.1,
+  },
+
+  finops: {
+    budgetThresholdPercent: 80,
+    alertRules: { critical: 100, warning: 80 },
+    costCenterTagging: true,
+    reportScheduleCron: '0 8 1 * *',
+  },
+
+  securityScanning: {
+    sbomScanningEnabled: true,
+    dependencyCheckEnabled: true,
+    vulnerabilityThreshold: 'high',
+    scanOnPush: true,
+  },
+
+  compliance: {
+    auditLogRetentionDays: 730,
+    dataResidencyRegions: ['cn-north-1'],
+    encryptionRequired: true,
+    policyEnforcementMode: 'strict',
+  },
+
+  featureFlag: {
+    defaultState: false,
+    rolloutStrategy: 'percentage',
+    evaluationTimeoutMs: 100,
+  },
+
+  aiDecision: {
+    defaultModel: 'qwen-plus',
+    confidenceThreshold: 0.8,
+    fallbackEnabled: true,
+    maxDecisionTimeSeconds: 30,
+  },
+
+  pipelineTemplate: {
+    defaultTemplates: ['nodejs-build', 'java-build', 'docker-build'],
+    validationEnabled: true,
+    customTemplateAllowed: true,
+    maxTemplateSizeKb: 64,
+  },
+
+  approval: {
+    maxLevels: 3,
+    timeoutMinutes: 1440,
+    autoApproveRules: { enabled: false, maxRiskLevel: 'low' },
+  },
+
+  resilience: {
+    scoringWeights: { availability: 0.4, performance: 0.35, faultTolerance: 0.25 },
+    passingThreshold: 70,
+    baselineRefreshDays: 7,
+  },
+
+  digitalTwin: {
+    syncIntervalSeconds: 60,
+    simulationAccuracyTarget: 0.95,
+    stateHistoryRetentionDays: 14,
+  },
+
+  environment: {
+    maxQuotaPerEnv: { cpu: 4, memoryMb: 8192, storageGb: 50 },
+    isolationLevel: 'namespace',
+    maxEnvironmentsPerTenant: 20,
+  },
+
+  plugin: {
+    marketplaceUrl: 'https://plugins.orion.internal',
+    validationEnabled: true,
+    sandboxMode: true,
+    maxPluginsPerTenant: 50,
+  },
+
+  cache: {
+    defaultTtlSeconds: 3600,
+    evictionPolicy: 'lru',
+    maxMemoryMb: 512,
+    keyPrefix: 'orion:',
+  },
+
+  queue: {
+    maxDepth: 10000,
+    priorityWeights: { high: 3, normal: 2, low: 1 },
+    deadLetterPolicy: { enabled: true, retentionDays: 7 },
+  },
+
+  eventBus: {
+    connectionPoolSize: 5,
+    streamConfig: { maxMsgSizeBytes: 1048576, maxAgeHours: 168 },
+    consumerGroupPrefix: 'orion-cg-',
+  },
+
+  rbac: {
+    defaultRoles: ['viewer', 'developer', 'admin'],
+    permissionInheritanceEnabled: true,
+    maxRolesPerTenant: 50,
+    auditPermissionChanges: true,
+  },
+
+  apiGateway: {
+    rateLimitPerMinute: 1000,
+    timeoutSeconds: 30,
+    corsOrigins: ['http://localhost:5173'],
+    healthCheckPath: '/healthz',
+  },
+
+  moduleConfig: {
+    core: {
+      auth: { enabled: true },
+      tenant: { enabled: true },
+      database: { enabled: true },
+      eventBus: { enabled: true },
+      audit: { enabled: true },
+      config: { enabled: true },
+      degradation: { enabled: true },
+      privacy: { enabled: true },
+    },
+    domains: {
+      pipeline: { enabled: true, autoStart: true },
+      build: { enabled: true, autoStart: true },
+      deploy: { enabled: true, autoStart: true },
+      monitoring: { enabled: true, autoStart: true },
+      alert: { enabled: true, autoStart: true },
+      security: { enabled: true, autoStart: true },
+      ai: { enabled: true, autoStart: true },
+      finops: { enabled: true, autoStart: true },
+      chaos: { enabled: true, autoStart: true },
+      backup: { enabled: true, autoStart: true },
+      disasterRecovery: { enabled: true, autoStart: true },
+      selfHealing: { enabled: true, autoStart: true },
+      ticketing: { enabled: true, autoStart: true },
+      knowledge: { enabled: true, autoStart: true },
+      plugin: { enabled: true, autoStart: true },
+      chatops: { enabled: true, autoStart: true },
+      digitalTwin: { enabled: true, autoStart: true },
+      federation: { enabled: true, autoStart: true },
+      multiCloud: { enabled: true, autoStart: true },
+      dataPipeline: { enabled: true, autoStart: true },
+      community: { enabled: true, autoStart: true },
+      efficiency: { enabled: true, autoStart: true },
+      cmdb: { enabled: true, autoStart: true },
+      iac: { enabled: true, autoStart: true },
+    },
+    services: {
+      adaptivePipeline: { enabled: true },
+      consistency: { enabled: false },
+      deploymentWindow: { enabled: true },
+      outputValidation: { enabled: false },
+      costTracking: { enabled: true },
+      riskEngine: { enabled: true },
+      modelVersion: { enabled: false },
+      agentRun: { enabled: false },
+      agentProfile: { enabled: false },
+      cmdbIntegration: { enabled: false },
+    },
+    features: {},
+  },
 };
 
 // ==================== 配置服务 ====================
@@ -301,17 +705,44 @@ export class UnifiedConfigService {
   private config: SystemConfig;
   private cache: Map<string, any> = new Map();
   private subscribers: Map<string, Function[]> = new Map();
-  
+  private history: Array<{ key: string; oldValue: any; newValue: any; timestamp: Date; changedBy?: string }> = [];
+
   constructor(database?: DatabasePool) {
     this.db = database;
-    this.config = { ...DEFAULT_CONFIG };
+    this.config = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
   }
   
   /**
-   * 初始化配置中心
+   * 初始化配置中心，从数据库加载持久化配置
    */
   async initialize(): Promise<void> {
-    logger.info('[UnifiedConfig] Configuration center initialized');
+    if (!this.db) {
+      logger.info('[UnifiedConfig] No DB, using default configuration');
+      return;
+    }
+
+    try {
+      // Ensure table exists
+      await this.db.query(`
+        CREATE TABLE IF NOT EXISTS system_config (
+          key TEXT PRIMARY KEY,
+          value JSONB NOT NULL,
+          updated_at TIMESTAMP DEFAULT NOW()
+        )
+      `);
+
+      const result = await this.db.query('SELECT key, value FROM system_config');
+      let loaded = 0;
+      for (const row of result.rows) {
+        if (row.key in this.config) {
+          (this.config as any)[row.key] = row.value;
+          loaded++;
+        }
+      }
+      logger.info(`[UnifiedConfig] Loaded ${loaded} config(s) from database`);
+    } catch (error) {
+      logger.error('[UnifiedConfig] Failed to load config from DB, using defaults:', error);
+    }
   }
 
   /**
@@ -323,11 +754,34 @@ export class UnifiedConfigService {
 
   /**
    * 设置配置值
+   * @param changedBy 可选，记录操作人（审计用途）
    */
-  async set<K extends keyof SystemConfig>(key: K, value: SystemConfig[K]): Promise<void> {
+  async set<K extends keyof SystemConfig>(key: K, value: SystemConfig[K], changedBy?: string): Promise<void> {
     const oldValue = this.config[key];
     this.config[key] = value;
-    await this.notifySubscribers(key, value, oldValue);
+
+    // C3: 记录变更历史
+    this.history.push({
+      key: key as string,
+      oldValue,
+      newValue: value,
+      timestamp: new Date(),
+      changedBy,
+    });
+
+    // C5: 持久化到数据库
+    if (this.db) {
+      try {
+        await this.db.query(
+          'INSERT INTO system_config (key, value, updated_at) VALUES ($1, $2, NOW()) ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW()',
+          [key as string, JSON.stringify(value)]
+        );
+      } catch (error) {
+        logger.warn('[UnifiedConfig] DB persistence failed, falling back to memory-only:', error);
+      }
+    }
+
+    await this.notifySubscribers(key as string, value, oldValue);
   }
 
   /**
@@ -355,10 +809,10 @@ export class UnifiedConfigService {
   }
 
   /**
-   * 获取变更历史
+   * 获取变更历史（最近优先）
    */
-  getHistory(): Array<{ key: string; oldValue: any; newValue: any; timestamp: Date }> {
-    return [];
+  getHistory(): Array<{ key: string; oldValue: any; newValue: any; timestamp: Date; changedBy?: string }> {
+    return [...this.history].reverse();
   }
   
   /**
@@ -367,10 +821,11 @@ export class UnifiedConfigService {
   async reset<K extends keyof SystemConfig>(key?: K): Promise<void> {
     if (key) {
       const oldValue = this.config[key];
-      this.config[key] = DEFAULT_CONFIG[key];
+      // C4: 深拷贝，避免引用污染 DEFAULT_CONFIG
+      this.config[key] = JSON.parse(JSON.stringify(DEFAULT_CONFIG[key]));
       await this.notifySubscribers(key as string, this.config[key], oldValue);
     } else {
-      this.config = { ...DEFAULT_CONFIG };
+      this.config = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
     }
   }
   
@@ -424,4 +879,29 @@ export const config = {
   get pipeline() { return unifiedConfig.get('pipeline'); },
   get deploy() { return unifiedConfig.get('deploy'); },
   get tenant() { return unifiedConfig.get('tenant'); },
+  get build() { return unifiedConfig.get('build'); },
+  get artifact() { return unifiedConfig.get('artifact'); },
+  get canary() { return unifiedConfig.get('canary'); },
+  get chaos() { return unifiedConfig.get('chaos'); },
+  get backup() { return unifiedConfig.get('backup'); },
+  get incident() { return unifiedConfig.get('incident'); },
+  get scheduler() { return unifiedConfig.get('scheduler'); },
+  get observability() { return unifiedConfig.get('observability'); },
+  get finops() { return unifiedConfig.get('finops'); },
+  get securityScanning() { return unifiedConfig.get('securityScanning'); },
+  get compliance() { return unifiedConfig.get('compliance'); },
+  get featureFlag() { return unifiedConfig.get('featureFlag'); },
+  get aiDecision() { return unifiedConfig.get('aiDecision'); },
+  get pipelineTemplate() { return unifiedConfig.get('pipelineTemplate'); },
+  get approval() { return unifiedConfig.get('approval'); },
+  get resilience() { return unifiedConfig.get('resilience'); },
+  get digitalTwin() { return unifiedConfig.get('digitalTwin'); },
+  get environment() { return unifiedConfig.get('environment'); },
+  get plugin() { return unifiedConfig.get('plugin'); },
+  get cache() { return unifiedConfig.get('cache'); },
+  get queue() { return unifiedConfig.get('queue'); },
+  get eventBus() { return unifiedConfig.get('eventBus'); },
+  get rbac() { return unifiedConfig.get('rbac'); },
+  get apiGateway() { return unifiedConfig.get('apiGateway'); },
+  get moduleConfig() { return unifiedConfig.get('moduleConfig'); },
 };
