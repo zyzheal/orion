@@ -24,7 +24,7 @@ describe('PipelineVersionService', () => {
       it('应该创建新的管道版本', async () => {
         mockPool.query
           .mockResolvedValueOnce({ rows: [{ next_version: 1 }] })
-          .mockResolvedValueOnce({ rows: [{ id: 'v1', pipeline_id: 'p1', version: 1 }] });
+          .mockResolvedValueOnce({ rows: [{ id: 'v1', pipeline_id: 'pipeline1', version: 1 }] });
 
         const input = {
           tenant_id: 'tenant1',
@@ -169,7 +169,7 @@ describe('PipelineVersionService', () => {
       it('应该设置基准版本', async () => {
         mockPool.query
           .mockResolvedValueOnce({ rows: [] }) // Clear existing baseline
-          .mockResolvedValueOnce({ rows: [{ id: 'v1' }] });
+          .mockResolvedValueOnce({ rows: [{ id: 'v1' }], rowCount: 1 });
 
         const result = await repository.setBaseline('p1', 'v1', true);
 
@@ -225,20 +225,20 @@ describe('PipelineVersionService', () => {
           .mockResolvedValueOnce({ rows: [{ total: 5 }] })
           .mockResolvedValueOnce({ rows: [{ id: 'v1' }] });
 
-        const result = await service.listVersions('p1');
+        const result = await service.listVersions({ pipeline_id: 'p1' });
 
         expect(result.data).toHaveLength(1);
         expect(result.total).toBe(5);
       });
     });
 
-    describe('compareVersions', () => {
+    describe('diffVersions', () => {
       it('应该返回版本差异', async () => {
         mockPool.query
-          .mockResolvedValueOnce({ rows: [{ yaml_definition: 'old yaml', spec: {} }] })
-          .mockResolvedValueOnce({ rows: [{ yaml_definition: 'new yaml', spec: {} }] });
+          .mockResolvedValueOnce({ rows: [{ id: 'v1', yaml_definition: 'old yaml', spec: {}, pipeline_id: 'p1' }] })
+          .mockResolvedValueOnce({ rows: [{ id: 'v2', yaml_definition: 'new yaml', spec: {}, pipeline_id: 'p1' }] });
 
-        const result = await service.compareVersions('v1', 'v2');
+        const result = await service.diffVersions('v1', 'v2');
 
         expect(result).toHaveProperty('additions');
         expect(result).toHaveProperty('deletions');
@@ -249,37 +249,42 @@ describe('PipelineVersionService', () => {
 
     describe('rollback', () => {
       it('应该回滚到指定版本', async () => {
-        mockPool.query.mockResolvedValue({
-          rows: [{ id: 'v1', yaml_definition: 'yaml' }],
-        });
+        mockPool.query
+          .mockResolvedValueOnce({ rows: [{ id: 'v1', pipeline_id: 'p1', yaml_definition: 'yaml', spec: {}, tenant_id: 'tenant1', version: 1, tags: [], is_baseline: false }] })
+          .mockResolvedValueOnce({ rows: [{ next_version: 2 }] })
+          .mockResolvedValueOnce({ rows: [{ id: 'v2', pipeline_id: 'p1', version: 2 }] });
 
-        const result = await service.rollback('v1');
+        const result = await service.rollback('p1', 'v1');
 
-        expect(result.id).toBe('v1');
+        expect(result.pipeline_id).toBe('p1');
+        expect(result.version).toBe(2);
       });
     });
 
-    describe('tagVersion', () => {
+    describe('addTag', () => {
       it('应该为版本添加标签', async () => {
-        mockPool.query.mockResolvedValue({
-          rows: [{ tags: ['release'] }],
-        });
+        mockPool.query
+          .mockResolvedValueOnce({ rows: [{ id: 'v1', pipeline_id: 'p1', version: 1, tags: ['release'] }] })
+          .mockResolvedValueOnce({ rows: [{ tags: ['release', 'stable'] }] });
 
-        const result = await service.tagVersion('v1', 'release');
+        const result = await service.addTag('v1', 'stable');
 
-        expect(result).toContain('release');
+        expect(result.success).toBe(true);
+        expect(result.tags).toContain('stable');
       });
     });
 
     describe('setBaseline', () => {
       it('应该设置基准版本', async () => {
         mockPool.query
+          .mockResolvedValueOnce({ rows: [{ id: 'v1', pipeline_id: 'p1', version: 1, tags: [] }] })
           .mockResolvedValueOnce({ rows: [] })
-          .mockResolvedValueOnce({ rows: [{ id: 'v1' }] });
+          .mockResolvedValueOnce({ rows: [{ id: 'v1' }], rowCount: 1 });
 
-        const result = await service.setBaseline('p1', 'v1');
+        const result = await service.setBaseline('p1', 'v1', true);
 
-        expect(result).toBe(true);
+        expect(result.success).toBe(true);
+        expect(result.isBaseline).toBe(true);
       });
     });
   });

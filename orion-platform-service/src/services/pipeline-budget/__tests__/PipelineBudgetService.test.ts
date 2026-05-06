@@ -210,8 +210,8 @@ describe('PipelineBudgetService', () => {
       });
     });
 
-    describe('checkBudgetStatus', () => {
-      it('应该返回预算状态', async () => {
+    describe('getBudgetUsage', () => {
+      it('应该返回预算使用情况', async () => {
         mockPool.query
           .mockResolvedValueOnce({
             rows: [{
@@ -222,7 +222,7 @@ describe('PipelineBudgetService', () => {
             rows: [{ duration_ms: 1800000 }],
           });
 
-        const result = await service.checkBudgetStatus('run1', 'p1');
+        const result = await service.getBudgetUsage('run1', 'p1');
 
         expect(result).toHaveProperty('alerts');
       });

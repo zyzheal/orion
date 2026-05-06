@@ -52,7 +52,7 @@ describe('SelfAdaptivePipelineService', () => {
     it('应该建议增加超时时间', async () => {
       mockPool.query.mockResolvedValue({
         rows: [{
-          avg_duration: '600000', // > 10 min
+          avg_duration: '600001', // > 600000 (10 min)
           avg_success: '0.95',
           run_count: '10',
         }],
@@ -81,7 +81,7 @@ describe('SelfAdaptivePipelineService', () => {
     });
 
     it('应该处理空结果', async () => {
-      mockPool.query.mockResolvedValue({ rows: [] });
+      mockPool.query.mockResolvedValue({ rows: [{ avg_duration: null, avg_success: null, run_count: null }] });
 
       const result = await service.analyzePipelinePerformance('p1');
 
