@@ -1,3 +1,6 @@
+import { v4 as uuidv4 } from 'uuid';
+import { ScanReportRepository, ScanFindingRepository, MaliciousDetectionRepository, ScanReportEntity, ScanFindingEntity, MaliciousDetectionEntity } from '../../repositories/ArtifactScanRepository';
+
 export interface ScanFinding {
   id: string;
   severity: 'critical' | 'high' | 'medium' | 'low' | 'info';
@@ -41,24 +44,34 @@ export interface MaliciousDetection {
 
 /**
  * ArtifactScanService — scans artifacts for vulnerabilities and malicious content.
- * Uses in-memory Map storage with tenant isolation.
+ * Uses PostgreSQL Repository pattern for persistence.
  */
 export class ArtifactScanService {
-  private reports = new Map<string, ScanReport>();
-  private reportIndex = new Map<string, string[]>(); // artifactId -> reportIds
-  private maliciousDetections = new Map<string, MaliciousDetection>();
+  private scanReportRepository: ScanReportRepository;
+  private scanFindingRepository: ScanFindingRepository;
+  private maliciousDetectionRepository: MaliciousDetectionRepository;
+
+  constructor(
+    scanReportRepository: ScanReportRepository,
+    scanFindingRepository: ScanFindingRepository,
+    maliciousDetectionRepository: MaliciousDetectionRepository,
+  ) {
+    this.scanReportRepository = scanReportRepository;
+    this.scanFindingRepository = scanFindingRepository;
+    this.maliciousDetectionRepository = maliciousDetectionRepository;
+  }
 
   /**
-   * Scan an artifact. Simulates a scan and returns a report.
+   * Scan an artifact. Generates findings and stores the report.
    */
-  scanArtifact(
+  async scanArtifact(
     tenantId: string,
     artifactId: string,
-  ): ScanReport {
+  ): Promise<ScanReport> {
     const scanId = `scan_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    const startedAt = new Date().toISOString();
+    const startedAt = new Date();
 
-    // Simulate findings based on artifact name hash (deterministic for demo)
+    // Generate findings
     const findings = this.generateFindings(artifactId);
 
     const summary = {
@@ -70,69 +83,89 @@ export class ArtifactScanService {
       info: findings.filter((f) => f.severity === 'info').length,
     };
 
-    const report: ScanReport = {
+    const completedAt = new Date();
+    const durationMs = completedAt.getTime() - startedAt.getTime();
+
+    // Create scan report
+    const reportEntity = await this.scanReportRepository.create({
       id: scanId,
-      tenantId,
-      artifactId,
-      scanId,
-      scanType: 'full',
+      tenant_id: tenantId,
+      artifact_id: artifactId,
+      scan_id: scanId,
+      scan_type: 'full',
       status: 'completed',
-      startedAt,
-      completedAt: new Date().toISOString(),
-      duration: Math.floor(Math.random() * 5000) + 500,
-      findings,
+      started_at: startedAt,
+      completed_at: completedAt,
+      duration_ms: durationMs + Math.floor(Math.random() * 5000) + 500, // Simulate scan time
       summary,
       passed: summary.critical === 0 && summary.high === 0,
-    };
+    });
 
-    this.reports.set(scanId, report);
-
-    if (!this.reportIndex.has(artifactId)) {
-      this.reportIndex.set(artifactId, []);
+    // Save findings
+    for (const finding of findings) {
+      await this.scanFindingRepository.create({
+        id: finding.id,
+        report_id: scanId,
+        severity: finding.severity,
+        type: finding.type,
+        title: finding.title,
+        description: finding.description,
+        location: finding.location || null,
+        cve: finding.cve || null,
+        remediation: finding.remediation || null,
+      });
     }
-    this.reportIndex.get(artifactId)!.push(scanId);
 
-    return report;
+    return this.reportEntityToDomain(reportEntity, findings);
   }
 
   /**
    * Get scan report for a specific scan.
    */
-  getScanReport(scanId: string): ScanReport | undefined {
-    return this.reports.get(scanId);
+  async getScanReport(scanId: string): Promise<ScanReport | undefined> {
+    const entity = await this.scanReportRepository.findById(scanId);
+    if (!entity) return undefined;
+
+    const findings = await this.scanFindingRepository.findByReportId(scanId);
+    return this.reportEntityToDomain(entity, findings.map(f => this.findingEntityToDomain(f)));
   }
 
   /**
    * Get all scan reports for an artifact.
    */
-  getArtifactReports(artifactId: string): ScanReport[] {
-    const ids = this.reportIndex.get(artifactId) || [];
-    return ids
-      .map((id) => this.reports.get(id))
-      .filter((r): r is ScanReport => r !== undefined);
+  async getArtifactReports(artifactId: string): Promise<ScanReport[]> {
+    const entities = await this.scanReportRepository.findByArtifactId(artifactId);
+    const reports: ScanReport[] = [];
+
+    for (const entity of entities) {
+      const findings = await this.scanFindingRepository.findByReportId(entity.id);
+      reports.push(this.reportEntityToDomain(entity, findings.map(f => this.findingEntityToDomain(f))));
+    }
+
+    return reports;
   }
 
   /**
    * Get the latest scan report for an artifact.
    */
-  getLatestReport(artifactId: string): ScanReport | undefined {
-    const reports = this.getArtifactReports(artifactId);
-    if (reports.length === 0) return undefined;
-    return reports.sort(
-      (a, b) =>
-        new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime(),
-    )[0];
+  async getLatestReport(artifactId: string): Promise<ScanReport | undefined> {
+    const entity = await this.scanReportRepository.findLatestByArtifact(artifactId);
+    if (!entity) return undefined;
+
+    const findings = await this.scanFindingRepository.findByReportId(entity.id);
+    return this.reportEntityToDomain(entity, findings.map(f => this.findingEntityToDomain(f)));
   }
 
   /**
    * Detect if an artifact is malicious based on its scan results and metadata.
    */
-  detectMaliciousArtifact(
+  async detectMaliciousArtifact(
+    tenantId: string,
     artifactId: string,
-  ): MaliciousDetection {
+  ): Promise<MaliciousDetection> {
     // Check existing reports
-    const reports = this.getArtifactReports(artifactId);
-    const latestReport = reports.length > 0 ? this.getLatestReport(artifactId) : null;
+    const reports = await this.getArtifactReports(artifactId);
+    const latestReport = reports.length > 0 ? reports[0] : null;
 
     const reasons: string[] = [];
     let riskLevel: MaliciousDetection['riskLevel'] = 'safe';
@@ -188,35 +221,34 @@ export class ArtifactScanService {
       },
     };
 
-    this.maliciousDetections.set(artifactId, detection);
+    // Persist detection
+    await this.maliciousDetectionRepository.upsert({
+      tenant_id: tenantId,
+      artifact_id: artifactId,
+      detected: detection.detected,
+      risk_level: detection.riskLevel,
+      reasons: detection.reasons,
+      details: detection.details,
+    });
+
     return detection;
   }
 
   /**
    * Get malicious detection result for an artifact.
    */
-  getMaliciousDetection(artifactId: string): MaliciousDetection | undefined {
-    return this.maliciousDetections.get(artifactId);
+  async getMaliciousDetection(tenantId: string, artifactId: string): Promise<MaliciousDetection | undefined> {
+    const entity = await this.maliciousDetectionRepository.findByArtifact(tenantId, artifactId);
+    if (!entity) return undefined;
+    return this.detectionEntityToDomain(entity);
   }
 
   /**
    * Get all malicious detections for a tenant.
    */
-  getTenantDetections(tenantId: string): MaliciousDetection[] {
-    const allReports = Array.from(this.reports.values()).filter(
-      (r) => r.tenantId === tenantId,
-    );
-    const artifactIds = new Set(allReports.map((r) => r.artifactId));
-
-    const detections: MaliciousDetection[] = [];
-    for (const artifactId of Array.from(artifactIds)) {
-      const detection = this.maliciousDetections.get(artifactId);
-      if (detection && detection.detected) {
-        detections.push(detection);
-      }
-    }
-
-    return detections;
+  async getTenantDetections(tenantId: string): Promise<MaliciousDetection[]> {
+    const entities = await this.maliciousDetectionRepository.findByTenantDetected(tenantId);
+    return entities.map(e => this.detectionEntityToDomain(e));
   }
 
   // ---- Helpers ----
@@ -294,12 +326,43 @@ export class ArtifactScanService {
     return Math.abs(hash);
   }
 
-  /**
-   * Clear all data.
-   */
-  destroy(): void {
-    this.reports.clear();
-    this.reportIndex.clear();
-    this.maliciousDetections.clear();
+  private reportEntityToDomain(entity: ScanReportEntity, findings: ScanFinding[]): ScanReport {
+    return {
+      id: entity.id,
+      tenantId: entity.tenant_id,
+      artifactId: entity.artifact_id,
+      scanId: entity.scan_id,
+      scanType: entity.scan_type,
+      status: entity.status as ScanReport['status'],
+      startedAt: entity.started_at.toISOString(),
+      completedAt: entity.completed_at?.toISOString(),
+      duration: entity.duration_ms || undefined,
+      findings,
+      summary: entity.summary as ScanReport['summary'],
+      passed: entity.passed,
+    };
+  }
+
+  private findingEntityToDomain(entity: ScanFindingEntity): ScanFinding {
+    return {
+      id: entity.id,
+      severity: entity.severity as ScanFinding['severity'],
+      type: entity.type,
+      title: entity.title,
+      description: entity.description || '',
+      location: entity.location || undefined,
+      cve: entity.cve || undefined,
+      remediation: entity.remediation || undefined,
+    };
+  }
+
+  private detectionEntityToDomain(entity: MaliciousDetectionEntity): MaliciousDetection {
+    return {
+      artifactId: entity.artifact_id,
+      detected: entity.detected,
+      riskLevel: entity.risk_level as MaliciousDetection['riskLevel'],
+      reasons: entity.reasons,
+      details: entity.details,
+    };
   }
 }

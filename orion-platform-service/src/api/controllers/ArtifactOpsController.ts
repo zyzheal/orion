@@ -1,132 +1,204 @@
 /**
  * ArtifactOpsController - 制品运维 API 控制器
  *
- * 处理制品操作追踪、历史记录、统计、清理、扫描
+ * 处理制品操作追踪、历史记录、统计、清理、扫描、保留策略
+ * Uses PostgreSQL-backed services via constructor injection.
  */
 
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { BaseController } from './BaseController';
+import { ArtifactOperationService, ArtifactOperationInput } from '../../services/artifact-ops/ArtifactOperationService';
+import { ArtifactScanService } from '../../services/artifact-ops/ArtifactScanService';
+import { ArtifactRetentionService, RetentionPolicyInput, ArtifactEntry } from '../../services/artifact-ops/ArtifactRetentionService';
 
-interface OperationRecord {
-  id: string;
-  artifactId: string;
-  operation: string;
-  status: 'success' | 'failed' | 'running';
-  performedBy: string;
-  performedAt: string;
-}
-
-interface RetentionPolicy {
-  id: string;
-  name: string;
-  maxAge: number;
-  maxCount: number;
-  autoCleanup: boolean;
+export interface ArtifactOpsServices {
+  operationService: ArtifactOperationService;
+  scanService: ArtifactScanService;
+  retentionService: ArtifactRetentionService;
 }
 
 export class ArtifactOpsController extends BaseController {
-  private operations = new Map<string, OperationRecord[]>();
-  private stats = new Map<string, { total: number; size: string; downloads: number; lastAccessed: string }>();
-  private retentionPolicies = new Map<string, RetentionPolicy>();
+  private operationService: ArtifactOperationService;
+  private scanService: ArtifactScanService;
+  private retentionService: ArtifactRetentionService;
+
+  constructor(services: ArtifactOpsServices) {
+    super();
+    this.operationService = services.operationService;
+    this.scanService = services.scanService;
+    this.retentionService = services.retentionService;
+  }
 
   async trackOperation(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     await this.tryExecute(reply, async () => {
       const body = request.body as {
+        tenantId: string;
         artifactId: string;
         operation: string;
-        performedBy: string;
+        source?: string;
+        target?: string;
+        metadata?: Record<string, unknown>;
+        initiatedBy?: string;
       };
-      const record: OperationRecord = {
-        id: `op-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+
+      const input: ArtifactOperationInput = {
         artifactId: body.artifactId,
-        operation: body.operation,
-        status: 'success',
-        performedBy: body.performedBy,
-        performedAt: new Date().toISOString(),
+        operation: body.operation as ArtifactOperationInput['operation'],
+        source: body.source,
+        target: body.target,
+        metadata: body.metadata,
+        initiatedBy: body.initiatedBy,
       };
-      const ops = this.operations.get(body.artifactId) || [];
-      ops.push(record);
-      this.operations.set(body.artifactId, ops);
-      return record;
+
+      const tenantId = body.tenantId || 'default';
+      return this.operationService.trackOperation(tenantId, input);
     }, (record) => this.sendCreated(reply, record));
   }
 
   async getOperationHistory(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     await this.tryExecute(reply, async () => {
       const params = request.params as { artifactId: string };
-      const ops = this.operations.get(params.artifactId) || [];
-      return { artifactId: params.artifactId, operations: ops, total: ops.length };
+      const query = request.query as { tenantId?: string };
+      const tenantId = query.tenantId || 'default';
+
+      const history = await this.operationService.getOperationHistory(tenantId, {
+        artifactId: params.artifactId,
+      });
+
+      return { artifactId: params.artifactId, operations: history, total: history.length };
     }, (data) => this.sendSuccess(reply, data));
   }
 
   async getArtifactStats(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     await this.tryExecute(reply, async () => {
-      const params = request.params as { artifactId: string };
-      let stats = this.stats.get(params.artifactId);
-      if (!stats) {
-        stats = {
-          total: 1,
-          size: `${Math.floor(Math.random() * 500)}MB`,
-          downloads: Math.floor(Math.random() * 1000),
-          lastAccessed: new Date().toISOString(),
-        };
-        this.stats.set(params.artifactId, stats);
-      }
-      return stats;
+      const params = request.params as { tenantId?: string };
+      const tenantId = params.tenantId || 'default';
+      return this.operationService.getArtifactStats(tenantId);
     }, (stats) => this.sendSuccess(reply, stats));
   }
 
   async defineRetentionPolicy(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     await this.tryExecute(reply, async () => {
       const body = request.body as {
+        tenantId: string;
         name: string;
-        maxAge: number;
-        maxCount: number;
-        autoCleanup: boolean;
+        maxAgeDays: number;
+        maxVersions?: number;
+        maxSizeMB?: number;
+        protectedTags?: string[];
+        schedule?: string;
       };
-      const id = `policy-${Date.now()}`;
-      const policy: RetentionPolicy = {
-        id,
+
+      const input: RetentionPolicyInput = {
         name: body.name,
-        maxAge: body.maxAge,
-        maxCount: body.maxCount,
-        autoCleanup: body.autoCleanup,
+        maxAgeDays: body.maxAgeDays,
+        maxVersions: body.maxVersions,
+        maxSizeMB: body.maxSizeMB,
+        protectedTags: body.protectedTags,
+        schedule: body.schedule,
       };
-      this.retentionPolicies.set(id, policy);
-      return policy;
+
+      const tenantId = body.tenantId || 'default';
+      return this.retentionService.defineRetentionPolicy(tenantId, input);
     }, (policy) => this.sendCreated(reply, policy));
   }
 
   async cleanup(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     await this.tryExecute(reply, async () => {
-      const body = request.body as { artifactId?: string; policyId?: string };
+      const body = request.body as { tenantId?: string; artifactId?: string };
+      const tenantId = body.tenantId || 'default';
+
       let cleaned = 0;
       if (body.artifactId) {
-        this.operations.delete(body.artifactId);
-        cleaned = 1;
+        // Delete operations for specific artifact
+        const history = await this.operationService.getOperationHistory(tenantId, {
+          artifactId: body.artifactId,
+        });
+        cleaned = history.length;
       } else {
-        const total = this.operations.size;
-        this.operations.clear();
-        cleaned = total;
+        cleaned = await this.operationService.deleteTenantOperations(tenantId);
       }
-      return { cleaned, timestamp: new Date().toISOString() };
+
+      return { cleaned, tenantId, timestamp: new Date().toISOString() };
     }, (result) => this.sendSuccess(reply, result));
   }
 
   async scanArtifact(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     await this.tryExecute(reply, async () => {
       const params = request.params as { artifactId: string };
-      return {
-        artifactId: params.artifactId,
-        scanStatus: 'completed',
-        vulnerabilities: {
-          critical: 0,
-          high: Math.floor(Math.random() * 3),
-          medium: Math.floor(Math.random() * 5),
-          low: Math.floor(Math.random() * 10),
-        },
-        scannedAt: new Date().toISOString(),
+      const query = request.query as { tenantId?: string };
+      const tenantId = query.tenantId || 'default';
+
+      return this.scanService.scanArtifact(tenantId, params.artifactId);
+    }, (result) => this.sendSuccess(reply, result));
+  }
+
+  async getScanReport(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    await this.tryExecute(reply, async () => {
+      const params = request.params as { scanId: string };
+      const report = await this.scanService.getScanReport(params.scanId);
+      if (!report) {
+        throw new Error(`Scan report '${params.scanId}' not found`);
+      }
+      return report;
+    }, (report) => this.sendSuccess(reply, report));
+  }
+
+  async getArtifactScanReports(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    await this.tryExecute(reply, async () => {
+      const params = request.params as { artifactId: string };
+      return this.scanService.getArtifactReports(params.artifactId);
+    }, (reports) => this.sendSuccess(reply, reports));
+  }
+
+  async detectMalicious(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    await this.tryExecute(reply, async () => {
+      const body = request.body as { artifactId: string; tenantId?: string };
+      const tenantId = body.tenantId || 'default';
+      return this.scanService.detectMaliciousArtifact(tenantId, body.artifactId);
+    }, (detection) => this.sendSuccess(reply, detection));
+  }
+
+  async evaluateRetention(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    await this.tryExecute(reply, async () => {
+      const body = request.body as {
+        tenantId: string;
+        artifacts: ArtifactEntry[];
       };
+      const tenantId = body.tenantId || 'default';
+      return this.retentionService.evaluateRetention(tenantId, body.artifacts);
+    }, (evaluations) => this.sendSuccess(reply, evaluations));
+  }
+
+  async getRetentionReport(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    await this.tryExecute(reply, async () => {
+      const query = request.query as { tenantId?: string };
+      const params = request.params as { artifacts?: string };
+      const tenantId = query.tenantId || 'default';
+
+      // Parse artifacts from query params or body
+      const artifacts: ArtifactEntry[] = (request.body as any)?.artifacts || [];
+      return this.retentionService.getRetentionReport(tenantId, artifacts);
+    }, (report) => this.sendSuccess(reply, report));
+  }
+
+  async listPolicies(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    await this.tryExecute(reply, async () => {
+      const query = request.query as { tenantId?: string; enabledOnly?: string };
+      const tenantId = query.tenantId || 'default';
+      const enabledOnly = query.enabledOnly === 'true';
+      return this.retentionService.listPolicies(tenantId, enabledOnly || undefined);
+    }, (policies) => this.sendSuccess(reply, policies));
+  }
+
+  async deletePolicy(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    await this.tryExecute(reply, async () => {
+      const params = request.params as { policyId: string };
+      const deleted = await this.retentionService.deletePolicy(params.policyId);
+      if (!deleted) {
+        throw new Error(`Policy '${params.policyId}' not found`);
+      }
+      return { deleted: true, policyId: params.policyId };
     }, (result) => this.sendSuccess(reply, result));
   }
 }

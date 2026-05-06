@@ -1,3 +1,6 @@
+import { v4 as uuidv4 } from 'uuid';
+import { RetentionPolicyRepository, RetentionEvaluationRepository, RetentionPolicyEntity, RetentionEvaluationEntity } from '../../repositories/ArtifactRetentionRepository';
+
 export interface RetentionPolicyInput {
   name: string;
   maxAgeDays: number;
@@ -66,109 +69,108 @@ export interface RetentionReport {
 
 /**
  * ArtifactRetentionService — manages retention policies and cleanup for artifacts per tenant.
- * Uses in-memory Map storage with tenant isolation.
+ * Uses PostgreSQL Repository pattern for persistence.
+ *
+ * Note: Artifact entries are evaluated at runtime (passed as input) rather than persisted,
+ * since they come from the artifact registry service. Evaluations are persisted.
  */
 export class ArtifactRetentionService {
-  private policies = new Map<string, RetentionPolicy>();
-  private policyIndex = new Map<string, string[]>(); // tenantId -> policyIds
-  private artifacts = new Map<string, ArtifactEntry[]>(); // tenantId -> artifacts
-  private evaluations = new Map<string, RetentionEvaluation>();
+  private policyRepository: RetentionPolicyRepository;
+  private evaluationRepository: RetentionEvaluationRepository;
+
+  constructor(
+    policyRepository: RetentionPolicyRepository,
+    evaluationRepository: RetentionEvaluationRepository,
+  ) {
+    this.policyRepository = policyRepository;
+    this.evaluationRepository = evaluationRepository;
+  }
 
   /**
    * Define a new retention policy for a tenant.
    */
-  defineRetentionPolicy(
+  async defineRetentionPolicy(
     tenantId: string,
     input: RetentionPolicyInput,
-  ): RetentionPolicy {
+  ): Promise<RetentionPolicy> {
     const id = `rp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    const now = new Date().toISOString();
+    const now = new Date();
 
-    const policy: RetentionPolicy = {
+    const entity = await this.policyRepository.create({
       id,
-      tenantId,
+      tenant_id: tenantId,
       name: input.name,
-      maxAgeDays: input.maxAgeDays,
-      maxVersions: input.maxVersions,
-      maxSizeMB: input.maxSizeMB,
-      protectedTags: input.protectedTags,
-      schedule: input.schedule,
+      max_age_days: input.maxAgeDays,
+      max_versions: input.maxVersions || null,
+      max_size_mb: input.maxSizeMB || null,
+      protected_tags: input.protectedTags || [],
+      schedule: input.schedule || null,
       enabled: true,
-      createdAt: now,
-      updatedAt: now,
-    };
+    });
 
-    this.policies.set(id, policy);
-
-    if (!this.policyIndex.has(tenantId)) {
-      this.policyIndex.set(tenantId, []);
-    }
-    this.policyIndex.get(tenantId)!.push(id);
-
-    return policy;
+    return this.policyEntityToDomain(entity);
   }
 
   /**
    * Get a policy by ID.
    */
-  getPolicy(policyId: string): RetentionPolicy | undefined {
-    return this.policies.get(policyId);
+  async getPolicy(policyId: string): Promise<RetentionPolicy | undefined> {
+    const entity = await this.policyRepository.findById(policyId);
+    if (!entity) return undefined;
+    return this.policyEntityToDomain(entity);
   }
 
   /**
    * List policies for a tenant.
    */
-  listPolicies(tenantId: string): RetentionPolicy[] {
-    const ids = this.policyIndex.get(tenantId) || [];
-    return ids
-      .map((id) => this.policies.get(id))
-      .filter((p): p is RetentionPolicy => p !== undefined);
+  async listPolicies(tenantId: string, enabledOnly?: boolean): Promise<RetentionPolicy[]> {
+    const entities = enabledOnly
+      ? await this.policyRepository.findByTenantAndEnabled(tenantId)
+      : await this.policyRepository.findByTenant(tenantId);
+    return entities.map(e => this.policyEntityToDomain(e));
   }
 
   /**
    * Update a policy.
    */
-  updatePolicy(
+  async updatePolicy(
     policyId: string,
     updates: Partial<RetentionPolicyInput & { enabled: boolean }>,
-  ): RetentionPolicy | undefined {
-    const policy = this.policies.get(policyId);
-    if (!policy) return undefined;
+  ): Promise<RetentionPolicy | undefined> {
+    const entity = await this.policyRepository.findById(policyId);
+    if (!entity) return undefined;
 
-    Object.assign(policy, updates, { updatedAt: new Date().toISOString() });
-    return policy;
+    const updateData: Partial<RetentionPolicyEntity> = {};
+    if (updates.name !== undefined) updateData.name = updates.name;
+    if (updates.maxAgeDays !== undefined) updateData.max_age_days = updates.maxAgeDays;
+    if (updates.maxVersions !== undefined) updateData.max_versions = updates.maxVersions;
+    if (updates.maxSizeMB !== undefined) updateData.max_size_mb = updates.maxSizeMB;
+    if (updates.protectedTags !== undefined) updateData.protected_tags = updates.protectedTags;
+    if (updates.schedule !== undefined) updateData.schedule = updates.schedule;
+    if (updates.enabled !== undefined) updateData.enabled = updates.enabled;
+
+    const updated = await this.policyRepository.update(policyId, updateData);
+    return this.policyEntityToDomain(updated);
   }
 
   /**
    * Delete a policy.
    */
-  deletePolicy(policyId: string): boolean {
-    const policy = this.policies.get(policyId);
-    if (!policy) return false;
-
-    const ids = this.policyIndex.get(policy.tenantId);
-    if (ids) {
-      const idx = ids.indexOf(policyId);
-      if (idx !== -1) ids.splice(idx, 1);
-    }
-
-    return this.policies.delete(policyId);
-  }
-
-  /**
-   * Register artifacts for a tenant (for evaluation purposes).
-   */
-  registerArtifacts(tenantId: string, artifacts: ArtifactEntry[]): void {
-    this.artifacts.set(tenantId, artifacts);
+  async deletePolicy(policyId: string): Promise<boolean> {
+    return this.policyRepository.delete(policyId);
   }
 
   /**
    * Evaluate retention policies for a tenant.
    * Returns evaluation results for each policy.
+   *
+   * Note: Artifacts are passed as input since they come from the artifact registry service.
    */
-  evaluateRetention(tenantId: string): RetentionEvaluation[] {
-    const policies = this.listPolicies(tenantId);
-    const tenantArtifacts = this.artifacts.get(tenantId) || [];
+  async evaluateRetention(
+    tenantId: string,
+    tenantArtifacts: ArtifactEntry[],
+  ): Promise<RetentionEvaluation[]> {
+    const policies = await this.listPolicies(tenantId, true);
     const now = new Date();
     const evaluations: RetentionEvaluation[] = [];
 
@@ -227,7 +229,19 @@ export class ArtifactRetentionService {
         spaceReclaimableMB: spaceReclaimable,
       };
 
-      this.evaluations.set(`${tenantId}_${policy.id}`, evaluation);
+      // Persist evaluation
+      await this.evaluationRepository.create({
+        id: uuidv4(),
+        policy_id: policy.id,
+        tenant_id: tenantId,
+        evaluated_at: now,
+        total_artifacts: evaluation.totalArtifacts,
+        expired_count: evaluation.expiredCount,
+        protected_count: evaluation.protectedCount,
+        expired_artifacts: expired as unknown as Record<string, unknown>[],
+        space_reclaimable_mb: evaluation.spaceReclaimableMB,
+      });
+
       evaluations.push(evaluation);
     }
 
@@ -235,50 +249,25 @@ export class ArtifactRetentionService {
   }
 
   /**
-   * Simulate cleanup of expired artifacts for a tenant.
-   * Returns the list of cleaned-up artifact IDs.
+   * Get retention evaluations for a tenant.
    */
-  cleanupExpiredArtifacts(tenantId: string): {
-    cleaned: string[];
-    spaceFreedMB: number;
-  } {
-    const evaluations = this.evaluateRetention(tenantId);
-    const cleaned: string[] = [];
-    let spaceFreedMB = 0;
-
-    // Collect all expired artifact IDs across policies
-    const expiredIds = new Set<string>();
-    for (const eval_ of evaluations) {
-      for (const expired of eval_.expiredArtifacts) {
-        expiredIds.add(expired.artifactId);
-      }
-    }
-
-    // Remove from artifact list
-    const tenantArtifacts = this.artifacts.get(tenantId) || [];
-    const remaining = tenantArtifacts.filter((a) => {
-      if (expiredIds.has(a.id)) {
-        cleaned.push(a.id);
-        spaceFreedMB += a.sizeMB;
-        return false;
-      }
-      return true;
-    });
-
-    this.artifacts.set(tenantId, remaining);
-
-    return { cleaned, spaceFreedMB };
+  async getEvaluations(tenantId: string): Promise<RetentionEvaluation[]> {
+    const entities = await this.evaluationRepository.findByTenant(tenantId);
+    return entities.map(e => this.evaluationEntityToDomain(e));
   }
 
   /**
    * Generate a retention report for a tenant.
    */
-  getRetentionReport(tenantId: string): RetentionReport {
-    const policies = this.listPolicies(tenantId);
-    const evaluations = this.evaluateRetention(tenantId);
+  async getRetentionReport(
+    tenantId: string,
+    tenantArtifacts: ArtifactEntry[],
+  ): Promise<RetentionReport> {
+    const policies = await this.listPolicies(tenantId);
+    const evaluations = await this.evaluateRetention(tenantId, tenantArtifacts);
 
     const activePolicies = policies.filter((p) => p.enabled).length;
-    const totalArtifacts = this.artifacts.get(tenantId)?.length || 0;
+    const totalArtifacts = tenantArtifacts.length;
     const totalExpired = evaluations.reduce(
       (sum, e) => sum + e.expiredCount,
       0,
@@ -302,13 +291,32 @@ export class ArtifactRetentionService {
     };
   }
 
-  /**
-   * Clear all data.
-   */
-  destroy(): void {
-    this.policies.clear();
-    this.policyIndex.clear();
-    this.artifacts.clear();
-    this.evaluations.clear();
+  private policyEntityToDomain(entity: RetentionPolicyEntity): RetentionPolicy {
+    return {
+      id: entity.id,
+      tenantId: entity.tenant_id,
+      name: entity.name,
+      maxAgeDays: entity.max_age_days,
+      maxVersions: entity.max_versions || undefined,
+      maxSizeMB: entity.max_size_mb || undefined,
+      protectedTags: entity.protected_tags,
+      schedule: entity.schedule || undefined,
+      enabled: entity.enabled,
+      createdAt: entity.created_at.toISOString(),
+      updatedAt: entity.updated_at.toISOString(),
+    };
+  }
+
+  private evaluationEntityToDomain(entity: RetentionEvaluationEntity): RetentionEvaluation {
+    return {
+      policyId: entity.policy_id,
+      tenantId: entity.tenant_id,
+      evaluatedAt: entity.evaluated_at.toISOString(),
+      totalArtifacts: entity.total_artifacts,
+      expiredCount: entity.expired_count,
+      protectedCount: entity.protected_count,
+      expiredArtifacts: entity.expired_artifacts as unknown as ExpiredArtifactInfo[],
+      spaceReclaimableMB: entity.space_reclaimable_mb,
+    };
   }
 }

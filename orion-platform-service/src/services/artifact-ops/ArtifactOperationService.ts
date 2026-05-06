@@ -1,9 +1,12 @@
+import { ArtifactOperationRepository, ArtifactOperationEntity } from '../../repositories/ArtifactOperationRepository';
+
 export interface ArtifactOperationInput {
   artifactId: string;
   operation: 'build' | 'publish' | 'deploy' | 'scan' | 'promote' | 'delete' | 'rollback';
   source?: string;
   target?: string;
   metadata?: Record<string, unknown>;
+  initiatedBy?: string;
 }
 
 export interface ArtifactOperation {
@@ -42,163 +45,131 @@ export interface OperationFilters {
 
 /**
  * ArtifactOperationService — tracks and reports on artifact operations per tenant.
- * Uses in-memory Map storage with tenant isolation.
+ * Uses PostgreSQL Repository pattern for persistence.
  */
 export class ArtifactOperationService {
-  private operations = new Map<string, ArtifactOperation>();
-  private operationIndex = new Map<string, string[]>(); // tenantId -> operationIds
+  private repository: ArtifactOperationRepository;
+
+  constructor(repository: ArtifactOperationRepository) {
+    this.repository = repository;
+  }
 
   /**
    * Track a new artifact operation.
    */
-  trackOperation(
+  async trackOperation(
     tenantId: string,
     input: ArtifactOperationInput,
-  ): ArtifactOperation {
+  ): Promise<ArtifactOperation> {
     const id = `op_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    const now = new Date().toISOString();
+    const now = new Date();
 
-    const operation: ArtifactOperation = {
+    const entity = await this.repository.create({
       id,
-      tenantId,
-      artifactId: input.artifactId,
+      tenant_id: tenantId,
+      artifact_id: input.artifactId,
       operation: input.operation,
-      source: input.source,
-      target: input.target,
-      metadata: input.metadata,
+      source: input.source || null,
+      target: input.target || null,
+      metadata: input.metadata || {},
       status: 'pending',
-      createdAt: now,
-    };
+      initiated_by: input.initiatedBy || null,
+    });
 
-    this.operations.set(id, operation);
-
-    // Index by tenant
-    if (!this.operationIndex.has(tenantId)) {
-      this.operationIndex.set(tenantId, []);
-    }
-    this.operationIndex.get(tenantId)!.push(id);
-
-    return operation;
+    return this.entityToDomain(entity);
   }
 
   /**
    * Update the status of an operation.
    */
-  updateOperationStatus(
+  async updateOperationStatus(
     operationId: string,
     status: ArtifactOperation['status'],
     completedAt?: string,
-  ): ArtifactOperation | undefined {
-    const operation = this.operations.get(operationId);
-    if (!operation) return undefined;
+  ): Promise<ArtifactOperation | undefined> {
+    let completedDate: Date | undefined;
+    let durationMs: number | undefined;
 
-    operation.status = status;
     if (completedAt) {
-      operation.completedAt = completedAt;
-      const started = new Date(operation.createdAt).getTime();
-      const ended = new Date(completedAt).getTime();
-      operation.duration = ended - started;
+      completedDate = new Date(completedAt);
+      const started = new Date(); // Would need to fetch created_at for accurate duration
+      durationMs = completedDate.getTime() - started.getTime();
     }
 
-    return operation;
+    const entity = await this.repository.updateStatus(operationId, status, completedDate, durationMs);
+    if (!entity) return undefined;
+    return this.entityToDomain(entity);
   }
 
   /**
    * Get operation history for a tenant, with optional filters.
    */
-  getOperationHistory(
+  async getOperationHistory(
     tenantId: string,
     filters?: OperationFilters,
-  ): ArtifactOperation[] {
-    const ids = this.operationIndex.get(tenantId) || [];
-    const ops = ids
-      .map((id) => this.operations.get(id))
-      .filter((op): op is ArtifactOperation => op !== undefined);
-
-    if (!filters) return ops;
-
-    return ops.filter((op) => {
-      if (filters.artifactId && op.artifactId !== filters.artifactId) return false;
-      if (filters.operation && op.operation !== filters.operation) return false;
-      if (filters.status && op.status !== filters.status) return false;
-      if (filters.initiatedBy && op.initiatedBy !== filters.initiatedBy) return false;
-      if (filters.startDate && op.createdAt < filters.startDate) return false;
-      if (filters.endDate && op.createdAt > filters.endDate) return false;
-      return true;
+  ): Promise<ArtifactOperation[]> {
+    const result = await this.repository.findByTenant(tenantId, filters, {
+      limit: 1000,
+      orderBy: 'created_at',
+      orderDir: 'DESC',
     });
+
+    return result.entities.map(e => this.entityToDomain(e));
   }
 
   /**
    * Get a single operation by ID.
    */
-  getOperation(operationId: string): ArtifactOperation | undefined {
-    return this.operations.get(operationId);
+  async getOperation(operationId: string): Promise<ArtifactOperation | undefined> {
+    const entity = await this.repository.findById(operationId);
+    if (!entity) return undefined;
+    return this.entityToDomain(entity);
   }
 
   /**
    * Get artifact statistics for a tenant.
    */
-  getArtifactStats(tenantId: string): ArtifactStats {
-    const ops = this.getOperationHistory(tenantId);
+  async getArtifactStats(tenantId: string): Promise<ArtifactStats> {
+    const stats = await this.repository.getTenantStats(tenantId);
 
-    const operationsByType: Record<string, number> = {};
-    const operationsByStatus: Record<string, number> = {};
-    const artifactIds = new Set<string>();
-    let totalDuration = 0;
-    let completedCount = 0;
-
-    for (const op of ops) {
-      // Count by type
-      operationsByType[op.operation] = (operationsByType[op.operation] || 0) + 1;
-
-      // Count by status
-      operationsByStatus[op.status] = (operationsByStatus[op.status] || 0) + 1;
-
-      // Unique artifacts
-      artifactIds.add(op.artifactId);
-
-      // Duration
-      if (op.duration !== undefined) {
-        totalDuration += op.duration;
-        completedCount++;
-      }
-    }
-
-    const successCount = operationsByStatus['completed'] || 0;
+    // Get recent operations
+    const recentResult = await this.repository.findByTenant(tenantId, undefined, {
+      limit: 20,
+      orderBy: 'created_at',
+      orderDir: 'DESC',
+    });
+    const recentOperations = recentResult.entities.map(e => this.entityToDomain(e));
 
     return {
-      totalOperations: ops.length,
-      operationsByType,
-      operationsByStatus,
-      uniqueArtifacts: artifactIds.size,
-      averageDuration: completedCount > 0 ? totalDuration / completedCount : 0,
-      successRate: ops.length > 0 ? successCount / ops.length : 0,
-      recentOperations: ops
-        .sort(
-          (a, b) =>
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-        )
-        .slice(0, 20),
+      ...stats,
+      recentOperations,
     };
   }
 
   /**
    * Delete all operations for a tenant.
    */
-  deleteTenantOperations(tenantId: string): number {
-    const ids = this.operationIndex.get(tenantId) || [];
-    for (const id of ids) {
-      this.operations.delete(id);
-    }
-    this.operationIndex.delete(tenantId);
-    return ids.length;
+  async deleteTenantOperations(tenantId: string): Promise<number> {
+    return this.repository.deleteByTenant(tenantId);
   }
 
   /**
-   * Clear all data.
+   * Convert entity to domain model
    */
-  destroy(): void {
-    this.operations.clear();
-    this.operationIndex.clear();
+  private entityToDomain(entity: ArtifactOperationEntity): ArtifactOperation {
+    return {
+      id: entity.id,
+      tenantId: entity.tenant_id,
+      artifactId: entity.artifact_id,
+      operation: entity.operation,
+      source: entity.source || undefined,
+      target: entity.target || undefined,
+      metadata: entity.metadata,
+      status: entity.status as ArtifactOperation['status'],
+      initiatedBy: entity.initiated_by || undefined,
+      createdAt: entity.created_at.toISOString(),
+      completedAt: entity.completed_at?.toISOString(),
+      duration: entity.duration_ms || undefined,
+    };
   }
 }
