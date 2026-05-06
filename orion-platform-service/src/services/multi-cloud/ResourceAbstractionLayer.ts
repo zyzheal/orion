@@ -3,9 +3,10 @@
  *
  * Provides resource mapping, unified view, and multi-provider deployment
  * with tenant isolation.
- * Uses in-memory Map storage (can migrate to Repository later).
+ * Uses PostgreSQL Repository pattern for persistence.
  */
 import { v4 as uuidv4 } from 'uuid';
+import { UnifiedResourceRepository, DeploymentResultRepository, UnifiedResourceEntity, DeploymentResultEntity } from '../../repositories/ResourceAbstractionRepository';
 
 export interface ProviderResource {
   id: string;
@@ -111,10 +112,13 @@ const RESOURCE_TYPE_MAP: Record<string, Record<string, UnifiedResource['type']>>
 };
 
 export class ResourceAbstractionLayer {
-  private resources: Map<string, UnifiedResource> = new Map();
-  private deployments: Map<string, DeploymentResult> = new Map();
-  private resourcesByTenant: Map<string, string[]> = new Map();
-  private deploymentsByTenant: Map<string, string[]> = new Map();
+  private resourceRepo: UnifiedResourceRepository;
+  private deploymentRepo: DeploymentResultRepository;
+
+  constructor(db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+    this.resourceRepo = new UnifiedResourceRepository(db);
+    this.deploymentRepo = new DeploymentResultRepository(db);
+  }
 
   /**
    * Map a provider-specific resource to the unified resource model
@@ -153,41 +157,36 @@ export class ResourceAbstractionLayer {
   /**
    * Get unified resource view for a tenant
    */
-  getUnifiedResourceView(tenantId: string): UnifiedResource[] {
-    const resourceIds = this.resourcesByTenant.get(tenantId) ?? [];
-    return resourceIds
-      .map((id) => this.resources.get(id))
-      .filter((r): r is UnifiedResource => r !== undefined);
+  async getUnifiedResourceView(tenantId: string): Promise<UnifiedResource[]> {
+    const entities = await this.resourceRepo.findByTenant(tenantId);
+    return entities.map(e => this.entityToResource(e));
   }
 
   /**
    * Deploy a service to a specific cloud provider
    */
-  deployToProvider(
+  async deployToProvider(
     provider: string,
     tenantId: string,
     config: DeploymentConfig
-  ): DeploymentResult {
+  ): Promise<DeploymentResult> {
     const id = uuidv4();
-    const result: DeploymentResult = {
+    const entity = await this.deploymentRepo.createDeployment({
       id,
-      tenantId,
+      tenant_id: tenantId,
       provider,
-      serviceName: config.serviceName,
+      service_name: config.serviceName,
       status: 'deploying',
       resources: [],
-      createdAt: new Date(),
-    };
+      error_message: null,
+    });
 
-    this.deployments.set(id, result);
+    const result = this.entityToDeployment(entity);
 
-    // Index by tenant
-    const tenantDeployments = this.deploymentsByTenant.get(tenantId) ?? [];
-    tenantDeployments.push(id);
-    this.deploymentsByTenant.set(tenantId, tenantDeployments);
-
-    // Simulate deployment
-    this.executeDeploymentAsync(result, config);
+    // Simulate deployment asynchronously
+    this.executeDeploymentAsync(result, config).catch(() => {
+      // Silently handle async deployment errors
+    });
 
     return result;
   }
@@ -195,61 +194,48 @@ export class ResourceAbstractionLayer {
   /**
    * Register a unified resource directly
    */
-  registerResource(tenantId: string, resource: Omit<UnifiedResource, 'id' | 'tenantId' | 'createdAt'>): UnifiedResource {
+  async registerResource(tenantId: string, resource: Omit<UnifiedResource, 'id' | 'tenantId' | 'createdAt'>): Promise<UnifiedResource> {
     const id = uuidv4();
-    const fullResource: UnifiedResource = {
+    const entity = await this.resourceRepo.createResource({
       id,
-      tenantId,
-      createdAt: new Date(),
-      ...resource,
-    };
+      tenant_id: tenantId,
+      resource_type: resource.type,
+      name: resource.name,
+      provider: resource.provider,
+      region: resource.region,
+      status: resource.status,
+      spec: resource.spec,
+      tags: resource.tags,
+      metadata: resource.metadata,
+    });
 
-    this.resources.set(id, fullResource);
-
-    // Index by tenant
-    const tenantResources = this.resourcesByTenant.get(tenantId) ?? [];
-    tenantResources.push(id);
-    this.resourcesByTenant.set(tenantId, tenantResources);
-
-    return fullResource;
+    return this.entityToResource(entity);
   }
 
   /**
    * Get deployment by ID
    */
-  getDeployment(deploymentId: string, tenantId: string): DeploymentResult | null {
-    const deployment = this.deployments.get(deploymentId);
-    if (!deployment || deployment.tenantId !== tenantId) {
+  async getDeployment(deploymentId: string, tenantId: string): Promise<DeploymentResult | null> {
+    const entity = await this.deploymentRepo.findById(deploymentId);
+    if (!entity || entity.tenant_id !== tenantId) {
       return null;
     }
-    return deployment;
+    return this.entityToDeployment(entity);
   }
 
   /**
    * List deployments for a tenant
    */
-  listDeployments(tenantId: string): DeploymentResult[] {
-    const deploymentIds = this.deploymentsByTenant.get(tenantId) ?? [];
-    return deploymentIds
-      .map((id) => this.deployments.get(id))
-      .filter((d): d is DeploymentResult => d !== undefined);
+  async listDeployments(tenantId: string): Promise<DeploymentResult[]> {
+    const entities = await this.deploymentRepo.findByTenant(tenantId);
+    return entities.map(e => this.entityToDeployment(e));
   }
 
   /**
    * Delete a resource
    */
-  deleteResource(resourceId: string, tenantId: string): boolean {
-    const resource = this.resources.get(resourceId);
-    if (!resource || resource.tenantId !== tenantId) {
-      return false;
-    }
-
-    this.resources.delete(resourceId);
-
-    const tenantResources = this.resourcesByTenant.get(tenantId) ?? [];
-    this.resourcesByTenant.set(tenantId, tenantResources.filter((id) => id !== resourceId));
-
-    return true;
+  async deleteResource(resourceId: string, tenantId: string): Promise<boolean> {
+    return this.resourceRepo.deleteResource(resourceId, tenantId);
   }
 
   // ==================== Internal methods ====================
@@ -346,10 +332,10 @@ export class ResourceAbstractionLayer {
     try {
       // Simulate deployment steps
       const resourceId = uuidv4();
-      const unifiedResource: UnifiedResource = {
+      const entity = await this.resourceRepo.createResource({
         id: resourceId,
-        tenantId: result.tenantId,
-        type: 'container',
+        tenant_id: result.tenantId,
+        resource_type: 'container',
         name: config.serviceName,
         provider: result.provider,
         region: 'auto',
@@ -360,20 +346,53 @@ export class ResourceAbstractionLayer {
         },
         tags: { service: config.serviceName },
         metadata: { image: config.image, replicas: config.replicas },
-        createdAt: new Date(),
-      };
+      });
 
-      this.resources.set(resourceId, unifiedResource);
-      const tenantResources = this.resourcesByTenant.get(result.tenantId) ?? [];
-      tenantResources.push(resourceId);
-      this.resourcesByTenant.set(result.tenantId, tenantResources);
-
-      result.resources.push(resourceId);
-      result.status = 'active';
+      // Update deployment with created resource and active status
+      await this.deploymentRepo.updateStatus(
+        result.id,
+        'active',
+        [...result.resources, resourceId],
+      );
     } catch (error: any) {
-      result.status = 'failed';
-      result.errorMessage = error.message;
+      await this.deploymentRepo.updateStatus(
+        result.id,
+        'failed',
+        undefined,
+        error.message,
+      );
     }
+  }
+
+  // ==================== Entity to Domain Mapping ====================
+
+  private entityToResource(entity: UnifiedResourceEntity): UnifiedResource {
+    return {
+      id: entity.id,
+      tenantId: entity.tenant_id,
+      type: (entity.resource_type as UnifiedResource['type']) ?? 'other',
+      name: entity.name,
+      provider: entity.provider,
+      region: entity.region,
+      status: (entity.status as UnifiedResource['status']) ?? 'running',
+      spec: entity.spec || {},
+      tags: entity.tags || {},
+      metadata: entity.metadata || {},
+      createdAt: entity.created_at,
+    };
+  }
+
+  private entityToDeployment(entity: DeploymentResultEntity): DeploymentResult {
+    return {
+      id: entity.id,
+      tenantId: entity.tenant_id,
+      provider: entity.provider,
+      serviceName: entity.service_name,
+      status: (entity.status as DeploymentResult['status']) ?? 'deploying',
+      resources: entity.resources || [],
+      createdAt: entity.created_at,
+      errorMessage: entity.error_message ?? undefined,
+    };
   }
 }
 

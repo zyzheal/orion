@@ -3,9 +3,10 @@
  *
  * Provides cloud account registration, listing, resource queries,
  * and provider info with tenant isolation.
- * Uses in-memory Map storage (can migrate to Repository later).
+ * Uses PostgreSQL Repository pattern for persistence.
  */
 import { v4 as uuidv4 } from 'uuid';
+import { MultiCloudRepository, CloudAccountEntity, CloudResourceEntity } from '../../repositories/MultiCloudRepository';
 
 export interface CloudAccountInput {
   name: string;
@@ -51,65 +52,57 @@ export interface CloudProviderInfo {
 }
 
 export class CloudProviderService {
-  private accounts: Map<string, CloudAccount> = new Map();
-  private resources: Map<string, CloudResource> = new Map();
-  private accountsByTenant: Map<string, string[]> = new Map();
+  private repo: MultiCloudRepository;
+
+  constructor(db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+    this.repo = new MultiCloudRepository(db);
+  }
 
   /**
    * Register a new cloud account for a tenant
    */
-  registerCloudAccount(tenantId: string, input: CloudAccountInput): CloudAccount {
+  async registerCloudAccount(tenantId: string, input: CloudAccountInput): Promise<CloudAccount> {
     const id = uuidv4();
     const now = new Date();
 
-    const account: CloudAccount = {
-      id,
-      tenantId,
-      name: input.name,
-      provider: input.provider,
+    const entity = await this.repo.createCloudAccount({
+      tenant_id: tenantId,
+      account_name: input.name,
+      account_id: id,
+      credential_type: input.provider,
+      credential_ref: input.credentials ? JSON.stringify(input.credentials) : '',
       region: input.region,
-      status: 'active',
-      description: input.description,
-      createdAt: now,
-      updatedAt: now,
-    };
+      provider_id: input.provider,
+      tags: input.description ? { description: input.description } : {},
+    });
 
-    this.accounts.set(id, account);
-
-    // Index by tenant
-    const tenantAccounts = this.accountsByTenant.get(tenantId) ?? [];
-    tenantAccounts.push(id);
-    this.accountsByTenant.set(tenantId, tenantAccounts);
-
-    return account;
+    return this.entityToAccount(entity);
   }
 
   /**
    * List all cloud accounts for a tenant
    */
-  listCloudAccounts(tenantId: string): CloudAccount[] {
-    const accountIds = this.accountsByTenant.get(tenantId) ?? [];
-    return accountIds
-      .map((id) => this.accounts.get(id))
-      .filter((a): a is CloudAccount => a !== undefined);
+  async listCloudAccounts(tenantId: string): Promise<CloudAccount[]> {
+    const entities = await this.repo.findAccountsByTenant(tenantId);
+    return entities.map(e => this.entityToAccount(e));
   }
 
   /**
    * List cloud resources for a tenant with optional filters
    */
-  listCloudResources(
+  async listCloudResources(
     tenantId: string,
     filters?: { provider?: string; type?: string; region?: string; status?: string }
-  ): CloudResource[] {
-    const allResources = Array.from(this.resources.values()).filter(
-      (r) => r.tenantId === tenantId
-    );
+  ): Promise<CloudResource[]> {
+    const entities = await this.repo.findResourcesByTenant(tenantId);
+
+    let resources = entities.map(e => this.entityToResource(e));
 
     if (!filters) {
-      return allResources;
+      return resources;
     }
 
-    return allResources.filter((r) => {
+    return resources.filter((r) => {
       if (filters.provider && r.provider !== filters.provider) return false;
       if (filters.type && r.type !== filters.type) return false;
       if (filters.region && r.region !== filters.region) return false;
@@ -171,55 +164,82 @@ export class CloudProviderService {
   /**
    * Add a resource to the resource pool (simulated sync from provider)
    */
-  addResource(tenantId: string, accountId: string, resource: Omit<CloudResource, 'id' | 'tenantId' | 'accountId' | 'createdAt'>): CloudResource {
-    const id = uuidv4();
-    const fullResource: CloudResource = {
-      id,
-      tenantId,
-      accountId,
-      createdAt: new Date(),
-      ...resource,
-    };
+  async addResource(tenantId: string, accountId: string, resource: Omit<CloudResource, 'id' | 'tenantId' | 'accountId' | 'createdAt'>): Promise<CloudResource> {
+    const entityId = uuidv4();
+    const entity = await this.repo.createResource({
+      tenant_id: tenantId,
+      account_id: accountId,
+      resource_type: resource.type,
+      resource_id: entityId,
+      resource_name: resource.name,
+      region: resource.region,
+      state: resource.status,
+      spec: { ...resource.metadata, tags: resource.tags },
+      tags: resource.tags,
+    });
 
-    this.resources.set(id, fullResource);
-    return fullResource;
+    return this.entityToResource(entity);
   }
 
   /**
    * Delete a cloud account
    */
-  deleteCloudAccount(accountId: string, tenantId: string): boolean {
-    const account = this.accounts.get(accountId);
-    if (!account || account.tenantId !== tenantId) {
+  async deleteCloudAccount(accountId: string, tenantId: string): Promise<boolean> {
+    // First check the account belongs to tenant
+    const accounts = await this.repo.findAccountsByTenant(tenantId);
+    const account = accounts.find(a => a.id === accountId);
+    if (!account) {
       return false;
     }
 
     // Remove associated resources
-    for (const [id, resource] of this.resources.entries()) {
-      if (resource.accountId === accountId) {
-        this.resources.delete(id);
-      }
-    }
+    await this.repo.deleteResourcesByAccount(account.account_id, tenantId);
 
-    this.accounts.delete(accountId);
-
-    // Update tenant index
-    const tenantAccounts = this.accountsByTenant.get(tenantId) ?? [];
-    const updated = tenantAccounts.filter((id) => id !== accountId);
-    this.accountsByTenant.set(tenantId, updated);
-
-    return true;
+    // Delete the account
+    return this.repo.deleteCloudAccount(accountId, tenantId);
   }
 
   /**
    * Get account by ID
    */
-  getCloudAccount(accountId: string, tenantId: string): CloudAccount | null {
-    const account = this.accounts.get(accountId);
-    if (!account || account.tenantId !== tenantId) {
+  async getCloudAccount(accountId: string, tenantId: string): Promise<CloudAccount | null> {
+    const entity = await this.repo.findAccountById(accountId);
+    if (!entity || entity.tenant_id !== tenantId) {
       return null;
     }
-    return account;
+    return this.entityToAccount(entity);
+  }
+
+  // ==================== Entity to Domain Mapping ====================
+
+  private entityToAccount(entity: CloudAccountEntity): CloudAccount {
+    return {
+      id: entity.id,
+      tenantId: entity.tenant_id,
+      name: entity.account_name,
+      provider: entity.credential_type,
+      region: entity.region,
+      status: (entity.status as CloudAccount['status']) ?? 'active',
+      description: entity.tags?.description,
+      createdAt: entity.created_at,
+      updatedAt: entity.updated_at,
+    };
+  }
+
+  private entityToResource(entity: CloudResourceEntity): CloudResource {
+    return {
+      id: entity.id,
+      tenantId: entity.tenant_id,
+      accountId: entity.account_id,
+      provider: entity.resource_type,
+      region: entity.region,
+      type: entity.resource_type,
+      name: entity.resource_name || '',
+      status: entity.state,
+      tags: entity.tags || {},
+      metadata: entity.spec || {},
+      createdAt: entity.discovered_at,
+    };
   }
 }
 
