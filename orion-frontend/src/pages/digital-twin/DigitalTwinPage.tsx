@@ -2,284 +2,374 @@
  * DigitalTwinPage - 数字孪生管理页 (Enhanced Phase 4)
  *
  * 功能: 孪生体列表、环境快照、沙箱环境、流量录制/回放
- * Enhanced with recording session management, replay status, and sandbox lifecycle controls.
+ * Uses real API connections for all operations
  */
 
-import React, { useState } from 'react';
-import { Table, Card, Button, Space, Tag, Modal, Form, Input, message, Tabs, Select, Descriptions, Timeline, Progress, InputNumber, Switch, Statistic, Row, Col } from 'antd';
-import { PlusOutlined, PlayCircleOutlined, PauseCircleOutlined, CameraOutlined, SyncOutlined, CodeSandboxOutlined, StopOutlined, CloudServerOutlined } from '@ant-design/icons';
-import type { ColumnsType } from 'antd/es/table';
+import React, { useState, useEffect } from 'react';
+import {
+  Table, Card, Button, Space, Tag, Modal, Form, Input, message,
+  Tabs, Select, Descriptions, Timeline, Progress, InputNumber,
+  Switch, Statistic, Row, Col,
+} from 'antd';
+import {
+  PlusOutlined, PlayCircleOutlined, PauseCircleOutlined,
+  CameraOutlined, SyncOutlined, CodeSandboxOutlined,
+  StopOutlined, CloudServerOutlined,
+} from '@ant-design/icons';
+import {
+  digitalTwinApi,
+  type DigitalTwin,
+  type TwinSnapshot,
+  type TrafficRecording,
+  type TrafficReplay,
+  type SandboxEnv,
+} from '@/api/digital-twin';
 
-interface DigitalTwin {
-  id: string;
-  name: string;
-  environment: string;
-  status: 'active' | 'snapshot' | 'sandbox' | 'recording';
-  lastSnapshot: string;
-  trafficRecorded: number;
-  createdAt: string;
-}
+const statusColorMap: Record<string, string> = {
+  active: 'green',
+  inactive: 'default',
+  creating: 'blue',
+  ready: 'green',
+  failed: 'red',
+  restoring: 'processing',
+  recording: 'purple',
+  completed: 'green',
+  stopped: 'default',
+  running: 'processing',
+  pending: 'default',
+};
 
-interface Snapshot {
-  id: string;
-  twinId: string;
-  name: string;
-  createdAt: string;
-  status: 'completed' | 'in_progress' | 'failed';
-}
-
-interface RecordingSession {
-  id: string;
-  twinId: string;
-  name: string;
-  status: 'active' | 'paused' | 'completed';
-  recordCount: number;
-  startedAt: string;
-  completedAt?: string;
-}
-
-interface ReplaySession {
-  id: string;
-  twinId: string;
-  status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
-  progress: number;
-  totalRequests: number;
-  matchedRequests: number;
-  failedRequests: number;
-  startedAt?: string;
-  completedAt?: string;
-}
-
-interface SandboxEnv {
-  id: string;
-  twinId: string;
-  name: string;
-  status: 'creating' | 'running' | 'stopped' | 'error' | 'destroying';
-  endpoint: string;
-  createdAt: string;
-  healthStatus: 'healthy' | 'unhealthy' | 'unknown';
-}
-
-const MOCK_TWINS: DigitalTwin[] = [
-  { id: 'twin-1', name: 'Production Twin', environment: 'prod', status: 'active', lastSnapshot: '2026-05-05 10:00', trafficRecorded: 85, createdAt: '2026-04-01' },
-  { id: 'twin-2', name: 'Staging Twin', environment: 'staging', status: 'sandbox', lastSnapshot: '2026-05-04 18:00', trafficRecorded: 42, createdAt: '2026-04-15' },
-  { id: 'twin-3', name: 'Dev Twin', environment: 'dev', status: 'recording', lastSnapshot: '2026-05-03 12:00', trafficRecorded: 12, createdAt: '2026-05-01' },
-];
-
-const MOCK_SNAPSHOTS: Snapshot[] = [
-  { id: 'snap-1', twinId: 'twin-1', name: 'Prod Snapshot #12', createdAt: '2026-05-05 10:00', status: 'completed' },
-  { id: 'snap-2', twinId: 'twin-1', name: 'Prod Snapshot #11', createdAt: '2026-05-04 10:00', status: 'completed' },
-];
-
-const statusColor: Record<string, string> = { active: 'green', snapshot: 'blue', sandbox: 'orange', recording: 'purple' };
+const statusLabelMap: Record<string, string> = {
+  active: '活跃',
+  inactive: '未激活',
+  creating: '创建中',
+  ready: '就绪',
+  failed: '失败',
+  restoring: '恢复中',
+  recording: '录制中',
+  completed: '已完成',
+  stopped: '已停止',
+  running: '运行中',
+  pending: '等待中',
+};
 
 const DigitalTwinPage: React.FC = () => {
-  const [twins, setTwins] = useState<DigitalTwin[]>(MOCK_TWINS);
-  const [snapshots, setSnapshots] = useState<Snapshot[]>(MOCK_SNAPSHOTS);
+  const [twins, setTwins] = useState<DigitalTwin[]>([]);
+  const [snapshots, setSnapshots] = useState<TwinSnapshot[]>([]);
+  const [recordings, setRecordings] = useState<TrafficRecording[]>([]);
+  const [replays, setReplays] = useState<TrafficReplay[]>([]);
+  const [sandboxes, setSandboxes] = useState<SandboxEnv[]>([]);
+  const [loading, setLoading] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [recordModalOpen, setRecordModalOpen] = useState(false);
+  const [replayModalOpen, setReplayModalOpen] = useState(false);
+  const [sandboxModalOpen, setSandboxModalOpen] = useState(false);
   const [selectedTwin, setSelectedTwin] = useState<DigitalTwin | null>(null);
   const [form] = Form.useForm();
   const [recordForm] = Form.useForm();
   const [replayForm] = Form.useForm();
   const [sandboxForm] = Form.useForm();
 
-  // Phase 4 state
-  const [recordingSessions, setRecordingSessions] = useState<RecordingSession[]>([]);
-  const [replaySessions, setReplaySessions] = useState<ReplaySession[]>([]);
-  const [sandboxes, setSandboxes] = useState<SandboxEnv[]>([]);
-  const [recordModalOpen, setRecordModalOpen] = useState(false);
-  const [replayModalOpen, setReplayModalOpen] = useState(false);
-  const [sandboxModalOpen, setSandboxModalOpen] = useState(false);
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const [twinsRes, snapshotsRes, recordingsRes, replaysRes] = await Promise.allSettled([
+        digitalTwinApi.listTwins(),
+        digitalTwinApi.listSnapshots(),
+        digitalTwinApi.listRecordings(),
+        digitalTwinApi.listReplays(),
+      ]);
+
+      if (twinsRes.status === 'fulfilled') {
+        setTwins(Array.isArray(twinsRes.value) ? twinsRes.value : []);
+      }
+      if (snapshotsRes.status === 'fulfilled') {
+        setSnapshots(Array.isArray(snapshotsRes.value) ? snapshotsRes.value : []);
+      }
+      if (recordingsRes.status === 'fulfilled') {
+        setRecordings(Array.isArray(recordingsRes.value) ? recordingsRes.value : []);
+      }
+      if (replaysRes.status === 'fulfilled') {
+        setReplays(Array.isArray(replaysRes.value) ? replaysRes.value : []);
+      }
+    } catch (error: unknown) {
+      message.error(`加载数字孪生数据失败: ${(error as Error).message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleCreate = async (values: any) => {
-    const newTwin: DigitalTwin = {
-      id: `twin-${Date.now()}`,
-      name: values.name,
-      environment: values.environment,
-      status: 'active',
-      lastSnapshot: '-',
-      trafficRecorded: 0,
-      createdAt: new Date().toISOString().split('T')[0],
-    };
-    setTwins([...twins, newTwin]);
-    message.success('孪生体创建成功');
-    setCreateModalOpen(false);
-    form.resetFields();
+    try {
+      await digitalTwinApi.registerTwin({
+        name: values.name,
+        environment: values.environment,
+      });
+      message.success('孪生体创建成功');
+      setCreateModalOpen(false);
+      form.resetFields();
+      loadData();
+    } catch (error: unknown) {
+      message.error(`创建失败: ${(error as Error).message}`);
+    }
   };
 
   const handleSnapshot = async (twin: DigitalTwin) => {
-    const snap: Snapshot = { id: `snap-${Date.now()}`, twinId: twin.id, name: `${twin.name} Snapshot`, createdAt: new Date().toLocaleString(), status: 'completed' };
-    setSnapshots([snap, ...snapshots]);
-    message.success('快照创建成功');
+    try {
+      await digitalTwinApi.createSnapshot({
+        environment: twin.environment,
+        note: `Snapshot for ${twin.name}`,
+      });
+      message.success('快照创建成功');
+      loadData();
+    } catch (error: unknown) {
+      message.error(`快照创建失败: ${(error as Error).message}`);
+    }
   };
 
-  const handleReplay = async (twin: DigitalTwin) => {
-    message.info(`开始回放 ${twin.name} 的流量`);
-  };
-
-  // Phase 4: Recording handlers
   const handleStartRecording = async (values: any) => {
-    const session: RecordingSession = {
-      id: `rec-${Date.now()}`,
-      twinId: values.twinId,
-      name: values.name,
-      status: 'active',
-      recordCount: 0,
-      startedAt: new Date().toISOString(),
-    };
-    setRecordingSessions([...recordingSessions, session]);
-    // Update twin status
-    setTwins(twins.map((t) => t.id === values.twinId ? { ...t, status: 'recording' as const } : t));
-    message.success(`Recording "${values.name}" started`);
-    setRecordModalOpen(false);
-    recordForm.resetFields();
+    try {
+      await digitalTwinApi.startRecording({
+        source_env: values.sourceEnv,
+        path_prefixes: values.filterPatterns ? [values.filterPatterns] : undefined,
+      });
+      message.success('流量录制已启动');
+      setRecordModalOpen(false);
+      recordForm.resetFields();
+      loadData();
+    } catch (error: unknown) {
+      message.error(`启动录制失败: ${(error as Error).message}`);
+    }
   };
 
-  const handleStopRecording = async (sessionId: string) => {
-    setRecordingSessions(recordingSessions.map((s) =>
-      s.id === sessionId ? { ...s, status: 'completed' as const, completedAt: new Date().toISOString() } : s,
-    ));
-    message.success('Recording stopped');
+  const handleStopRecording = async (recordingId: string) => {
+    try {
+      await digitalTwinApi.stopRecording(recordingId);
+      message.success('录制已停止');
+      loadData();
+    } catch (error: unknown) {
+      message.error(`停止录制失败: ${(error as Error).message}`);
+    }
   };
 
-  // Phase 4: Replay handlers
   const handleStartReplay = async (values: any) => {
-    const replay: ReplaySession = {
-      id: `replay-${Date.now()}`,
-      twinId: values.twinId,
-      status: 'running',
-      progress: 0,
-      totalRequests: values.requestCount || 100,
-      matchedRequests: 0,
-      failedRequests: 0,
-      startedAt: new Date().toISOString(),
-    };
-    setReplaySessions([...replaySessions, replay]);
-    message.success(`Replay session started for twin ${values.twinId}`);
-    setReplayModalOpen(false);
-    replayForm.resetFields();
+    try {
+      await digitalTwinApi.startReplay({
+        recording_id: values.recordingId,
+        target_env: values.targetEnv,
+        speed_multiplier: values.speedMultiplier || 1,
+      });
+      message.success('流量回放已启动');
+      setReplayModalOpen(false);
+      replayForm.resetFields();
+      loadData();
+    } catch (error: unknown) {
+      message.error(`启动回放失败: ${(error as Error).message}`);
+    }
   };
 
-  // Phase 4: Sandbox handlers
   const handleCreateSandbox = async (values: any) => {
-    const sandbox: SandboxEnv = {
-      id: `sandbox-${Date.now()}`,
-      twinId: values.twinId,
-      name: values.name,
-      status: 'running',
-      endpoint: `http://sandbox-${Date.now()}.local:9000`,
-      createdAt: new Date().toISOString(),
-      healthStatus: 'healthy',
-    };
-    setSandboxes([...sandboxes, sandbox]);
-    setTwins(twins.map((t) => t.id === values.twinId ? { ...t, status: 'sandbox' as const } : t));
-    message.success(`Sandbox "${values.name}" created`);
-    setSandboxModalOpen(false);
-    sandboxForm.resetFields();
+    try {
+      await digitalTwinApi.createSandbox({
+        name: values.name,
+        snapshot_id: values.snapshotId || undefined,
+        description: values.description || undefined,
+      });
+      message.success('沙箱创建成功');
+      setSandboxModalOpen(false);
+      sandboxForm.resetFields();
+      loadData();
+    } catch (error: unknown) {
+      message.error(`创建沙箱失败: ${(error as Error).message}`);
+    }
   };
 
-  const handleStopSandbox = async (sandboxId: string) => {
-    setSandboxes(sandboxes.map((s) =>
-      s.id === sandboxId ? { ...s, status: 'stopped' as const, healthStatus: 'unknown' as const } : s,
-    ));
-    message.success('Sandbox stopped');
-  };
+  // Stats
+  const activeTwins = twins.filter((t) => t.status === 'active').length;
+  const activeRecordings = recordings.filter((r) => r.status === 'recording').length;
+  const runningReplays = replays.filter((r) => r.status === 'running').length;
 
-  const handleDestroySandbox = async (sandboxId: string) => {
-    setSandboxes(sandboxes.filter((s) => s.id !== sandboxId));
-    message.success('Sandbox destroyed');
-  };
-
-  const twinColumns: ColumnsType<DigitalTwin> = [
-    { title: '名称', dataIndex: 'name', key: 'name', render: (text: string, record) => <a onClick={() => setSelectedTwin(record)}>{text}</a> },
-    { title: '环境', dataIndex: 'environment', key: 'environment' },
-    { title: '状态', dataIndex: 'status', key: 'status', render: (s: string) => <Tag color={statusColor[s]}>{s}</Tag> },
-    { title: '最后快照', dataIndex: 'lastSnapshot', key: 'lastSnapshot' },
-    { title: '流量录制', dataIndex: 'trafficRecorded', key: 'trafficRecorded', render: (v: number) => <Progress percent={v} size="small" /> },
-    { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt' },
+  // Twin columns
+  const twinColumns = [
+    {
+      title: '名称',
+      dataIndex: 'name',
+      key: 'name',
+      width: 160,
+      render: (text: string, record: DigitalTwin) => (
+        <a onClick={() => setSelectedTwin(record)}>{text}</a>
+      ),
+    },
+    { title: '环境', dataIndex: 'environment', key: 'environment', width: 100 },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      key: 'status',
+      width: 100,
+      render: (s: string) => <Tag color={statusColorMap[s] || 'default'}>{statusLabelMap[s] || s}</Tag>,
+    },
+    {
+      title: '服务数',
+      key: 'services',
+      width: 80,
+      render: (_: unknown, record: DigitalTwin) => record.services?.length || 0,
+    },
+    {
+      title: '创建时间',
+      dataIndex: 'created_at',
+      key: 'created_at',
+      width: 160,
+      render: (v: string) => new Date(v).toLocaleString('zh-CN'),
+    },
     {
       title: '操作',
       key: 'actions',
-      render: (_, record) => (
+      width: 160,
+      render: (_: unknown, record: DigitalTwin) => (
         <Space>
-          <Button size="small" icon={<CameraOutlined />} onClick={() => handleSnapshot(record)}>快照</Button>
-          <Button size="small" icon={<PlayCircleOutlined />} onClick={() => handleReplay(record)}>回放</Button>
-          <Button size="small" icon={<CodeSandboxOutlined />}>沙箱</Button>
+          <Button size="small" icon={<CameraOutlined />} onClick={() => handleSnapshot(record)}>
+            快照
+          </Button>
         </Space>
       ),
     },
   ];
 
-  const snapshotColumns: ColumnsType<Snapshot> = [
-    { title: '快照名称', dataIndex: 'name', key: 'name' },
-    { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt' },
-    { title: '状态', dataIndex: 'status', key: 'status', render: (s: string) => <Tag color={s === 'completed' ? 'green' : s === 'failed' ? 'red' : 'blue'}>{s}</Tag> },
+  // Snapshot columns
+  const snapshotColumns = [
+    { title: '环境', dataIndex: 'environment', key: 'environment', width: 100 },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      key: 'status',
+      width: 100,
+      render: (s: string) => <Tag color={statusColorMap[s] || 'default'}>{statusLabelMap[s] || s}</Tag>,
+    },
+    {
+      title: '组件数',
+      key: 'components',
+      width: 80,
+      render: (_: unknown, record: TwinSnapshot) => record.components?.length || 0,
+    },
+    {
+      title: '大小',
+      key: 'size',
+      width: 100,
+      render: (_: unknown, record: TwinSnapshot) => {
+        const bytes = record.size_bytes || 0;
+        if (bytes > 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+        if (bytes > 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+        return `${(bytes / 1024).toFixed(1)} KB`;
+      },
+    },
+    {
+      title: '创建时间',
+      dataIndex: 'created_at',
+      key: 'created_at',
+      width: 160,
+      render: (v: string) => new Date(v).toLocaleString('zh-CN'),
+    },
   ];
 
-  const recordingColumns: ColumnsType<RecordingSession> = [
-    { title: '名称', dataIndex: 'name', key: 'name' },
-    { title: '状态', dataIndex: 'status', key: 'status', render: (s: string) => (
-      <Tag color={s === 'active' ? 'green' : s === 'paused' ? 'orange' : 'default'}>{s}</Tag>
-    )},
-    { title: '录制数量', dataIndex: 'recordCount', key: 'recordCount' },
-    { title: '开始时间', dataIndex: 'startedAt', key: 'startedAt', render: (d: string) => new Date(d).toLocaleString() },
+  // Recording columns
+  const recordingColumns = [
+    { title: '来源环境', dataIndex: 'source_env', key: 'source_env', width: 120 },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      key: 'status',
+      width: 100,
+      render: (s: string) => <Tag color={statusColorMap[s] || 'default'}>{statusLabelMap[s] || s}</Tag>,
+    },
+    {
+      title: '请求数',
+      dataIndex: 'request_count',
+      key: 'request_count',
+      width: 100,
+      render: (v: number) => v?.toLocaleString() || 0,
+    },
+    {
+      title: '开始时间',
+      dataIndex: 'started_at',
+      key: 'started_at',
+      width: 160,
+      render: (v: string) => new Date(v).toLocaleString('zh-CN'),
+    },
     {
       title: '操作',
       key: 'actions',
-      render: (_, record) => (
-        record.status === 'active' ? (
-          <Button size="small" icon={<StopOutlined />} onClick={() => handleStopRecording(record.id)}>停止</Button>
+      width: 100,
+      render: (_: unknown, record: TrafficRecording) =>
+        record.status === 'recording' ? (
+          <Button size="small" icon={<StopOutlined />} onClick={() => handleStopRecording(record.id)}>
+            停止
+          </Button>
         ) : (
           <Tag>已完成</Tag>
-        )
-      ),
+        ),
     },
   ];
 
-  const replayColumns: ColumnsType<ReplaySession> = [
-    { title: 'ID', dataIndex: 'id', key: 'id', render: (v: string) => v.slice(0, 12) + '...' },
-    { title: '状态', dataIndex: 'status', key: 'status', render: (s: string) => (
-      <Tag color={s === 'completed' ? 'green' : s === 'running' ? 'blue' : s === 'failed' ? 'red' : 'default'}>{s}</Tag>
-    )},
-    { title: '进度', dataIndex: 'progress', key: 'progress', render: (v: number) => <Progress percent={v} size="small" /> },
-    { title: '总请求', dataIndex: 'totalRequests', key: 'totalRequests' },
-    { title: '匹配', dataIndex: 'matchedRequests', key: 'matchedRequests', render: (v: number) => <Tag color="green">{v}</Tag> },
-    { title: '失败', dataIndex: 'failedRequests', key: 'failedRequests', render: (v: number) => <Tag color="red">{v}</Tag> },
-  ];
-
-  const sandboxColumns: ColumnsType<SandboxEnv> = [
-    { title: '名称', dataIndex: 'name', key: 'name' },
-    { title: '端点', dataIndex: 'endpoint', key: 'endpoint' },
-    { title: '状态', dataIndex: 'status', key: 'status', render: (s: string) => (
-      <Tag color={s === 'running' ? 'green' : s === 'stopped' ? 'orange' : 'red'}>{s}</Tag>
-    )},
-    { title: '健康', dataIndex: 'healthStatus', key: 'healthStatus', render: (s: string) => (
-      <Tag color={s === 'healthy' ? 'green' : 'default'}>{s}</Tag>
-    )},
-    { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', render: (d: string) => new Date(d).toLocaleString() },
+  // Replay columns
+  const replayColumns = [
     {
-      title: '操作',
-      key: 'actions',
-      render: (_, record) => (
-        <Space>
-          {record.status === 'running' && (
-            <Button size="small" icon={<PauseCircleOutlined />} onClick={() => handleStopSandbox(record.id)}>停止</Button>
-          )}
-          <Button size="small" danger onClick={() => handleDestroySandbox(record.id)}>销毁</Button>
-        </Space>
-      ),
+      title: '录制ID',
+      dataIndex: 'recording_id',
+      key: 'recording_id',
+      width: 140,
+      render: (v: string) => v?.slice(0, 12) + '...',
+    },
+    { title: '目标环境', dataIndex: 'target_env', key: 'target_env', width: 120 },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      key: 'status',
+      width: 100,
+      render: (s: string) => <Tag color={statusColorMap[s] || 'default'}>{statusLabelMap[s] || s}</Tag>,
+    },
+    {
+      title: '进度',
+      dataIndex: 'progress',
+      key: 'progress',
+      width: 120,
+      render: (v: number) => <Progress percent={v} size="small" />,
+    },
+    { title: '匹配', dataIndex: 'matched_count', key: 'matched_count', width: 80, render: (v: number) => <Tag color="green">{v}</Tag> },
+    { title: '不匹配', dataIndex: 'mismatched_count', key: 'mismatched_count', width: 80, render: (v: number) => <Tag color="red">{v}</Tag> },
+    {
+      title: '开始时间',
+      dataIndex: 'started_at',
+      key: 'started_at',
+      width: 160,
+      render: (v: string) => new Date(v).toLocaleString('zh-CN'),
     },
   ];
 
   return (
     <div style={{ padding: 24 }}>
+      {/* Header */}
       <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h2 style={{ margin: 0 }}>数字孪生</h2>
         <Space>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>创建孪生体</Button>
-          <Button icon={<SyncOutlined />} onClick={() => setRecordModalOpen(true)}>开始录制</Button>
-          <Button icon={<SyncOutlined />} onClick={() => setReplayModalOpen(true)}>流量回放</Button>
-          <Button icon={<CloudServerOutlined />} onClick={() => setSandboxModalOpen(true)}>创建沙箱</Button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>
+            创建孪生体
+          </Button>
+          <Button icon={<SyncOutlined />} onClick={() => setRecordModalOpen(true)}>
+            开始录制
+          </Button>
+          <Button icon={<PlayCircleOutlined />} onClick={() => setReplayModalOpen(true)}>
+            流量回放
+          </Button>
+          <Button icon={<CloudServerOutlined />} onClick={() => setSandboxModalOpen(true)}>
+            创建沙箱
+          </Button>
+          <Button icon={<CameraOutlined />} onClick={loadData} loading={loading}>
+            刷新
+          </Button>
         </Space>
       </div>
 
@@ -292,158 +382,213 @@ const DigitalTwinPage: React.FC = () => {
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="活跃录制" value={recordingSessions.filter((s) => s.status === 'active').length} valueStyle={{ color: '#52c41a' }} />
+            <Statistic title="活跃孪生体" value={activeTwins} valueStyle={{ color: '#52c41a' }} />
           </Card>
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="运行中沙箱" value={sandboxes.filter((s) => s.status === 'running').length} valueStyle={{ color: '#1890ff' }} />
+            <Statistic title="活跃录制" value={activeRecordings} valueStyle={{ color: '#1677ff' }} />
           </Card>
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="回放会话" value={replaySessions.length} />
+            <Statistic title="回放会话" value={runningReplays} valueStyle={{ color: '#722ed1' }} />
           </Card>
         </Col>
       </Row>
 
+      {/* Tabs */}
       <Tabs
         items={[
           {
             key: 'twins',
             label: '孪生体列表',
             children: (
-              <Table columns={twinColumns} dataSource={twins} rowKey="id" pagination={{ pageSize: 10 }} />
+              <Table
+                columns={twinColumns}
+                dataSource={twins}
+                rowKey="id"
+                loading={loading}
+                pagination={{ pageSize: 10 }}
+              />
             ),
           },
           {
             key: 'snapshots',
             label: '快照管理',
             children: (
-              <Table columns={snapshotColumns} dataSource={snapshots} rowKey="id" pagination={{ pageSize: 10 }} />
+              <Table
+                columns={snapshotColumns}
+                dataSource={snapshots}
+                rowKey="id"
+                loading={loading}
+                pagination={{ pageSize: 10 }}
+              />
             ),
           },
           {
             key: 'recording',
             label: '流量录制',
             children: (
-              <Card
-                title="录制会话管理"
-                extra={<Button type="primary" icon={<PlusOutlined />} onClick={() => setRecordModalOpen(true)}>新建录制</Button>}
-              >
-                <Table columns={recordingColumns} dataSource={recordingSessions} rowKey="id" pagination={{ pageSize: 10 }} />
-              </Card>
+              <Table
+                columns={recordingColumns}
+                dataSource={recordings}
+                rowKey="id"
+                loading={loading}
+                pagination={{ pageSize: 10 }}
+              />
             ),
           },
           {
             key: 'replay',
             label: '流量回放',
             children: (
-              <Card
-                title="回放会话管理"
-                extra={<Button type="primary" icon={<PlusOutlined />} onClick={() => setReplayModalOpen(true)}>新建回放</Button>}
-              >
-                <Table columns={replayColumns} dataSource={replaySessions} rowKey="id" pagination={{ pageSize: 10 }} />
-              </Card>
-            ),
-          },
-          {
-            key: 'sandboxes',
-            label: '沙箱环境',
-            children: (
-              <Card
-                title="沙箱管理"
-                extra={<Button type="primary" icon={<PlusOutlined />} onClick={() => setSandboxModalOpen(true)}>创建沙箱</Button>}
-              >
-                <Table columns={sandboxColumns} dataSource={sandboxes} rowKey="id" pagination={{ pageSize: 10 }} />
-              </Card>
+              <Table
+                columns={replayColumns}
+                dataSource={replays}
+                rowKey="id"
+                loading={loading}
+                pagination={{ pageSize: 10 }}
+              />
             ),
           },
         ]}
       />
 
+      {/* Selected Twin Detail */}
       {selectedTwin && (
-        <Card title="孪生体详情" style={{ marginTop: 16 }} extra={<Button onClick={() => setSelectedTwin(null)}>关闭</Button>}>
+        <Card
+          title="孪生体详情"
+          style={{ marginTop: 16 }}
+          extra={<Button onClick={() => setSelectedTwin(null)}>关闭</Button>}
+        >
           <Descriptions column={2}>
             <Descriptions.Item label="名称">{selectedTwin.name}</Descriptions.Item>
             <Descriptions.Item label="环境">{selectedTwin.environment}</Descriptions.Item>
-            <Descriptions.Item label="状态">{selectedTwin.status}</Descriptions.Item>
-            <Descriptions.Item label="流量录制">{selectedTwin.trafficRecorded}%</Descriptions.Item>
+            <Descriptions.Item label="状态">
+              <Tag color={statusColorMap[selectedTwin.status]}>
+                {statusLabelMap[selectedTwin.status]}
+              </Tag>
+            </Descriptions.Item>
+            <Descriptions.Item label="服务数">{selectedTwin.services?.length || 0}</Descriptions.Item>
+            <Descriptions.Item label="创建时间">
+              {new Date(selectedTwin.created_at).toLocaleString('zh-CN')}
+            </Descriptions.Item>
           </Descriptions>
-          <Timeline style={{ marginTop: 16 }}>
-            <Timeline.Item>最后快照: {selectedTwin.lastSnapshot}</Timeline.Item>
-            <Timeline.Item>创建时间: {selectedTwin.createdAt}</Timeline.Item>
-          </Timeline>
+          {selectedTwin.services && selectedTwin.services.length > 0 && (
+            <div style={{ marginTop: 16 }}>
+              <strong>关联服务:</strong>
+              <div style={{ marginTop: 8 }}>
+                {selectedTwin.services.map((s: string) => (
+                  <Tag key={s}>{s}</Tag>
+                ))}
+              </div>
+            </div>
+          )}
         </Card>
       )}
 
       {/* Create Twin Modal */}
-      <Modal title="创建孪生体" open={createModalOpen} onCancel={() => setCreateModalOpen(false)} onOk={() => form.submit()}>
+      <Modal
+        title="创建孪生体"
+        open={createModalOpen}
+        onCancel={() => setCreateModalOpen(false)}
+        onOk={() => form.submit()}
+      >
         <Form form={form} layout="vertical" onFinish={handleCreate}>
           <Form.Item name="name" label="名称" rules={[{ required: true, message: '请输入名称' }]}>
-            <Input placeholder="孪生体名称" />
+            <Input placeholder="如: Production Twin" />
           </Form.Item>
           <Form.Item name="environment" label="环境" rules={[{ required: true, message: '请选择环境' }]}>
-            <Select options={[{ label: 'Production', value: 'prod' }, { label: 'Staging', value: 'staging' }, { label: 'Development', value: 'dev' }]} />
+            <Select
+              options={[
+                { label: '生产环境', value: 'prod' },
+                { label: '预发环境', value: 'staging' },
+                { label: '开发环境', value: 'dev' },
+              ]}
+            />
           </Form.Item>
         </Form>
       </Modal>
 
       {/* Start Recording Modal */}
-      <Modal title="开始流量录制" open={recordModalOpen} onCancel={() => setRecordModalOpen(false)} onOk={() => recordForm.submit()}>
+      <Modal
+        title="开始流量录制"
+        open={recordModalOpen}
+        onCancel={() => setRecordModalOpen(false)}
+        onOk={() => recordForm.submit()}
+      >
         <Form form={recordForm} layout="vertical" onFinish={handleStartRecording}>
-          <Form.Item name="twinId" label="孪生体" rules={[{ required: true, message: '请选择孪生体' }]}>
-            <Select options={twins.map((t) => ({ label: t.name, value: t.id }))} />
-          </Form.Item>
-          <Form.Item name="name" label="录制名称" rules={[{ required: true, message: '请输入录制名称' }]}>
-            <Input placeholder="录制会话名称" />
+          <Form.Item name="sourceEnv" label="来源环境" rules={[{ required: true, message: '请选择环境' }]}>
+            <Select
+              options={[
+                { label: '生产环境', value: 'prod' },
+                { label: '预发环境', value: 'staging' },
+              ]}
+            />
           </Form.Item>
           <Form.Item name="filterPatterns" label="路径过滤">
             <Input placeholder="/api/v1/*" />
-          </Form.Item>
-          <Form.Item name="maxRecords" label="最大录制数">
-            <InputNumber min={1} max={10000} style={{ width: '100%' }} />
           </Form.Item>
         </Form>
       </Modal>
 
       {/* Start Replay Modal */}
-      <Modal title="开始流量回放" open={replayModalOpen} onCancel={() => setReplayModalOpen(false)} onOk={() => replayForm.submit()}>
+      <Modal
+        title="开始流量回放"
+        open={replayModalOpen}
+        onCancel={() => setReplayModalOpen(false)}
+        onOk={() => replayForm.submit()}
+      >
         <Form form={replayForm} layout="vertical" onFinish={handleStartReplay}>
-          <Form.Item name="twinId" label="孪生体" rules={[{ required: true, message: '请选择孪生体' }]}>
-            <Select options={twins.map((t) => ({ label: t.name, value: t.id }))} />
-          </Form.Item>
-          <Form.Item name="recordingSessionId" label="录制会话">
+          <Form.Item name="recordingId" label="录制会话" rules={[{ required: true, message: '请选择录制会话' }]}>
             <Select
-              options={recordingSessions.filter((s) => s.status === 'completed').map((s) => ({ label: s.name, value: s.id }))}
+              options={recordings
+                .filter((r) => r.status === 'completed')
+                .map((r) => ({
+                  label: `${r.source_env} - ${new Date(r.started_at).toLocaleString('zh-CN')}`,
+                  value: r.id,
+                }))}
             />
           </Form.Item>
-          <Form.Item name="sandboxEndpoint" label="沙箱端点" rules={[{ required: true, message: '请输入沙箱端点' }]}>
-            <Input placeholder="http://sandbox.local:9000" />
+          <Form.Item name="targetEnv" label="目标环境" rules={[{ required: true, message: '请选择目标环境' }]}>
+            <Select
+              options={[
+                { label: '预发环境', value: 'staging' },
+                { label: '开发环境', value: 'dev' },
+              ]}
+            />
           </Form.Item>
-          <Form.Item name="speedMultiplier" label="速度倍数">
-            <InputNumber min={0.1} max={10} defaultValue={1} step={0.5} style={{ width: '100%' }} />
-          </Form.Item>
-          <Form.Item name="compareResponses" label="响应比对" valuePropName="checked" initialValue={true}>
-            <Switch />
+          <Form.Item name="speedMultiplier" label="速度倍数" initialValue={1}>
+            <InputNumber min={0.1} max={10} step={0.5} style={{ width: '100%' }} />
           </Form.Item>
         </Form>
       </Modal>
 
       {/* Create Sandbox Modal */}
-      <Modal title="创建沙箱环境" open={sandboxModalOpen} onCancel={() => setSandboxModalOpen(false)} onOk={() => sandboxForm.submit()}>
+      <Modal
+        title="创建沙箱环境"
+        open={sandboxModalOpen}
+        onCancel={() => setSandboxModalOpen(false)}
+        onOk={() => sandboxForm.submit()}
+      >
         <Form form={sandboxForm} layout="vertical" onFinish={handleCreateSandbox}>
-          <Form.Item name="twinId" label="孪生体" rules={[{ required: true, message: '请选择孪生体' }]}>
-            <Select options={twins.map((t) => ({ label: t.name, value: t.id }))} />
-          </Form.Item>
           <Form.Item name="name" label="沙箱名称" rules={[{ required: true, message: '请输入沙箱名称' }]}>
             <Input placeholder="沙箱环境名称" />
           </Form.Item>
-          <Form.Item name="snapshotId" label="快照ID">
-            <Select options={snapshots.map((s) => ({ label: s.name, value: s.id }))} allowClear />
+          <Form.Item name="description" label="描述">
+            <Input.TextArea rows={2} placeholder="沙箱描述" />
           </Form.Item>
-          <Form.Item name="networkIsolation" label="网络隔离" valuePropName="checked" initialValue={true}>
-            <Switch />
+          <Form.Item name="snapshotId" label="快照ID">
+            <Select
+              options={snapshots
+                .filter((s) => s.status === 'ready')
+                .map((s) => ({
+                  label: `${s.environment} - ${new Date(s.created_at).toLocaleString('zh-CN')}`,
+                  value: s.id,
+                }))}
+              allowClear
+            />
           </Form.Item>
         </Form>
       </Modal>

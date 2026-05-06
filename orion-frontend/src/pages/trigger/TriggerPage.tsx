@@ -1,8 +1,13 @@
 /**
  * Multi-Modal Trigger Page
  * Phase 3 - Webhook management, event triggers, and trigger rules
+ *
+ * Features:
+ * - Webhook CRUD with test and HMAC verification
+ * - Trigger management (webhook, chat, schedule, event, manual)
+ * - Trigger statistics and execution history
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Card,
   Table,
@@ -19,6 +24,7 @@ import {
   message,
   Typography,
   Tabs,
+  InputNumber,
 } from 'antd';
 import {
   ThunderboltOutlined,
@@ -34,31 +40,49 @@ import {
   type Webhook,
   type WebhookInput,
 } from '@/api/webhook';
+import {
+  triggersApi,
+  type Trigger,
+  type TriggerStats,
+} from '@/api/triggers';
 
 const { Title, Text } = Typography;
 
-interface TriggerRule {
-  id: string;
-  name: string;
-  eventType: string;
-  condition: string;
-  action: string;
-  enabled: boolean;
-  createdAt: string;
-}
+const typeColorMap: Record<string, string> = {
+  webhook: 'blue',
+  chat: 'green',
+  schedule: 'orange',
+  event: 'purple',
+  manual: 'default',
+};
 
-const mockRules: TriggerRule[] = [
-  { id: 'tr1', name: 'Auto-deploy on Merge', eventType: 'git.push', condition: 'branch == main', action: 'trigger:deploy', enabled: true, createdAt: '2025-06-15' },
-  { id: 'tr2', name: 'Alert on Build Fail', eventType: 'build.failed', condition: 'always', action: 'alert:team', enabled: true, createdAt: '2025-07-20' },
-  { id: 'tr3', name: 'Rollback on High Error', eventType: 'monitor.threshold', condition: 'error_rate > 5%', action: 'action:rollback', enabled: false, createdAt: '2025-08-10' },
-];
+const typeLabelMap: Record<string, string> = {
+  webhook: 'Webhook',
+  chat: 'Chat',
+  schedule: '定时',
+  event: '事件',
+  manual: '手动',
+};
+
+const statusColorMap: Record<string, string> = {
+  active: 'green',
+  inactive: 'default',
+};
+
+const statusLabelMap: Record<string, string> = {
+  active: '活跃',
+  inactive: '未激活',
+};
 
 const TriggerPage: React.FC = () => {
   const [webhooks, setWebhooks] = useState<Webhook[]>([]);
-  const [rules, setRules] = useState<TriggerRule[]>(mockRules);
+  const [triggers, setTriggers] = useState<Trigger[]>([]);
+  const [triggerStats, setTriggerStats] = useState<TriggerStats | null>(null);
   const [loading, setLoading] = useState(false);
   const [createWebhookModal, setCreateWebhookModal] = useState(false);
+  const [createTriggerModal, setCreateTriggerModal] = useState(false);
   const [webhookForm] = Form.useForm();
+  const [triggerForm] = Form.useForm();
 
   useEffect(() => {
     loadData();
@@ -67,139 +91,255 @@ const TriggerPage: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const webhookRes = await getWebhooks();
-      setWebhooks((webhookRes.data as any)?.webhooks || []);
-    } catch {
-      message.error('Failed to load webhook data');
+      const [webhooksRes, triggersRes, statsRes] = await Promise.allSettled([
+        getWebhooks(),
+        triggersApi.listTriggers(),
+        triggersApi.getTriggerStats(),
+      ]);
+
+      if (webhooksRes.status === 'fulfilled') {
+        setWebhooks((webhooksRes.value.data as any)?.webhooks || []);
+      }
+      if (triggersRes.status === 'fulfilled') {
+        setTriggers(Array.isArray(triggersRes.value) ? triggersRes.value : []);
+      }
+      if (statsRes.status === 'fulfilled') {
+        setTriggerStats(statsRes.value);
+      }
+    } catch (error: unknown) {
+      message.error(`加载触发器数据失败: ${(error as Error).message}`);
     } finally {
       setLoading(false);
     }
   };
 
+  // Webhook handlers
   const handleCreateWebhook = async (values: WebhookInput) => {
     try {
       await createWebhook(values);
-      message.success('Webhook created');
+      message.success('Webhook 创建成功');
       setCreateWebhookModal(false);
       webhookForm.resetFields();
       loadData();
-    } catch {
-      message.error('Failed to create webhook');
+    } catch (error: unknown) {
+      message.error(`创建 Webhook 失败: ${(error as Error).message}`);
     }
   };
 
   const handleToggleWebhook = async (id: string, currentEnabled: boolean) => {
     try {
       await updateWebhook(id, { enabled: !currentEnabled });
-      message.success(currentEnabled ? 'Webhook disabled' : 'Webhook enabled');
+      message.success(currentEnabled ? 'Webhook 已禁用' : 'Webhook 已启用');
       loadData();
-    } catch {
-      message.error('Failed to update webhook');
+    } catch (error: unknown) {
+      message.error(`更新失败: ${(error as Error).message}`);
     }
   };
 
   const handleTestWebhook = async (id: string) => {
     try {
       await testWebhook(id);
-      message.success('Webhook test sent');
-    } catch {
-      message.error('Webhook test failed');
+      message.success('Webhook 测试已发送');
+    } catch (error: unknown) {
+      message.error(`Webhook 测试失败: ${(error as Error).message}`);
     }
   };
 
   const handleDeleteWebhook = async (id: string) => {
     try {
       await deleteWebhook(id);
-      message.success('Webhook deleted');
+      message.success('Webhook 已删除');
       loadData();
-    } catch {
-      message.error('Failed to delete webhook');
+    } catch (error: unknown) {
+      message.error(`删除失败: ${(error as Error).message}`);
     }
   };
 
-  const toggleRule = (id: string) => {
-    setRules(rules.map((r) => (r.id === id ? { ...r, enabled: !r.enabled } : r)));
-    message.success('Rule toggled');
+  // Trigger handlers
+  const handleCreateTrigger = async (values: any) => {
+    try {
+      await triggersApi.registerTrigger({
+        name: values.name,
+        type: values.type,
+        target: {
+          pipelineId: values.pipelineId || undefined,
+          action: values.action || undefined,
+        },
+        config: {
+          condition: values.condition || 'always',
+          ...values.config,
+        },
+      });
+      message.success('触发器创建成功');
+      setCreateTriggerModal(false);
+      triggerForm.resetFields();
+      loadData();
+    } catch (error: unknown) {
+      message.error(`创建触发器失败: ${(error as Error).message}`);
+    }
   };
 
+  const handleExecuteTrigger = async (id: string) => {
+    try {
+      await triggersApi.executePipeline(id);
+      message.success('触发器执行成功');
+      loadData();
+    } catch (error: unknown) {
+      message.error(`执行失败: ${(error as Error).message}`);
+    }
+  };
+
+  // Stats
+  const totalFailures = webhooks.reduce((sum, w) => sum + (w.failureCount || 0), 0);
+  const successRate = triggerStats?.successRate ? `${(triggerStats.successRate * 100).toFixed(1)}%` : '-';
+
+  // Webhook columns
   const webhookColumns = [
-    { title: 'URL', dataIndex: 'url', key: 'url', ellipsis: true },
+    { title: 'URL', dataIndex: 'url', key: 'url', ellipsis: true, width: 300 },
     {
-      title: 'Events',
+      title: '事件',
       dataIndex: 'events',
       key: 'events',
-      render: (v: string[]) => v.map((e) => <Tag key={e}>{e}</Tag>),
+      width: 200,
+      render: (v: string[]) => (v || []).slice(0, 3).map((e: string) => <Tag key={e}>{e}</Tag>),
     },
     {
-      title: 'Status',
+      title: '状态',
       key: 'status',
-      render: (_: any, record: Webhook) => (
-        <Tag color={record.enabled ? 'green' : 'default'}>{record.enabled ? 'Active' : 'Disabled'}</Tag>
+      width: 100,
+      render: (_: unknown, record: Webhook) => (
+        <Tag color={record.enabled ? 'green' : 'default'}>
+          {record.enabled ? '活跃' : '禁用'}
+        </Tag>
       ),
     },
     {
-      title: 'Last Status',
+      title: '最后状态码',
       dataIndex: 'lastStatus',
       key: 'lastStatus',
+      width: 100,
       render: (v: number) => v != null ? <Tag color={v < 300 ? 'green' : 'red'}>{v}</Tag> : '-',
     },
-    { title: 'Failures', dataIndex: 'failureCount', key: 'failureCount' },
-    { title: 'Last Triggered', dataIndex: 'lastTriggeredAt', key: 'lastTriggeredAt' },
+    { title: '失败次数', dataIndex: 'failureCount', key: 'failureCount', width: 80 },
+    { title: '最后触发', dataIndex: 'lastTriggeredAt', key: 'lastTriggeredAt', width: 160 },
     {
-      title: 'Actions',
+      title: '操作',
       key: 'actions',
-      render: (_: any, record: Webhook) => (
-        <Space>
-          <Button size="small" onClick={() => handleTestWebhook(record.id)}>Test</Button>
+      width: 200,
+      render: (_: unknown, record: Webhook) => (
+        <Space size="small">
+          <Button size="small" onClick={() => handleTestWebhook(record.id)}>测试</Button>
           <Button size="small" onClick={() => handleToggleWebhook(record.id, record.enabled)}>
-            {record.enabled ? 'Disable' : 'Enable'}
+            {record.enabled ? '禁用' : '启用'}
           </Button>
-          <Button size="small" danger onClick={() => handleDeleteWebhook(record.id)}>Delete</Button>
+          <Button size="small" danger onClick={() => handleDeleteWebhook(record.id)}>删除</Button>
         </Space>
       ),
     },
   ];
 
-  const ruleColumns = [
-    { title: 'Name', dataIndex: 'name', key: 'name' },
-    { title: 'Event', dataIndex: 'eventType', key: 'eventType', render: (v: string) => <Tag color="blue">{v}</Tag> },
-    { title: 'Condition', dataIndex: 'condition', key: 'condition', render: (v: string) => <Tag>{v}</Tag> },
-    { title: 'Action', dataIndex: 'action', key: 'action', render: (v: string) => <Tag color="green">{v}</Tag> },
+  // Trigger columns
+  const triggerColumns = [
+    { title: '名称', dataIndex: 'name', key: 'name', width: 160 },
     {
-      title: 'Enabled',
-      dataIndex: 'enabled',
-      key: 'enabled',
-      render: (v: boolean) => <Tag color={v ? 'green' : 'default'}>{v ? 'Yes' : 'No'}</Tag>,
+      title: '类型',
+      dataIndex: 'type',
+      key: 'type',
+      width: 80,
+      render: (v: string) => <Tag color={typeColorMap[v]}>{typeLabelMap[v]}</Tag>,
     },
-    { title: 'Created', dataIndex: 'createdAt', key: 'createdAt' },
     {
-      title: 'Actions',
+      title: '目标',
+      key: 'target',
+      width: 160,
+      render: (_: unknown, record: Trigger) => {
+        const parts: string[] = [];
+        if (record.target?.pipelineId) parts.push(`Pipeline: ${record.target.pipelineId.slice(0, 8)}...`);
+        if (record.target?.action) parts.push(record.target.action);
+        return parts.join(' | ') || '-';
+      },
+    },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      key: 'status',
+      width: 80,
+      render: (v: string) => <Tag color={statusColorMap[v]}>{statusLabelMap[v]}</Tag>,
+    },
+    { title: '触发次数', dataIndex: 'triggerCount', key: 'triggerCount', width: 80 },
+    {
+      title: '最后触发',
+      dataIndex: 'lastTriggeredAt',
+      key: 'lastTriggeredAt',
+      width: 160,
+      render: (v: string) => v ? new Date(v).toLocaleString('zh-CN') : '-',
+    },
+    {
+      title: '操作',
       key: 'actions',
-      render: (_: any, record: TriggerRule) => (
-        <Button size="small" onClick={() => toggleRule(record.id)}>
-          {record.enabled ? 'Disable' : 'Enable'}
+      width: 100,
+      render: (_: unknown, record: Trigger) => (
+        <Button
+          size="small"
+          type="primary"
+          disabled={record.status === 'inactive'}
+          onClick={() => handleExecuteTrigger(record.id)}
+        >
+          执行
         </Button>
       ),
     },
   ];
 
-  const totalTriggers = webhooks.reduce((s, w) => s + w.failureCount, 0);
+  const tabItems = [
+    {
+      key: 'webhooks',
+      label: `Webhooks (${webhooks.length})`,
+      children: (
+        <Table
+          columns={webhookColumns}
+          dataSource={webhooks}
+          rowKey="id"
+          loading={loading}
+          pagination={{ pageSize: 10 }}
+        />
+      ),
+    },
+    {
+      key: 'triggers',
+      label: `触发器 (${triggers.length})`,
+      children: (
+        <Table
+          columns={triggerColumns}
+          dataSource={triggers}
+          rowKey="id"
+          loading={loading}
+          pagination={{ pageSize: 10 }}
+        />
+      ),
+    },
+  ];
 
   return (
     <div style={{ padding: 24 }}>
+      {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
           <Title level={3} style={{ margin: 0 }}>
-            <ThunderboltOutlined /> Multi-Modal Triggers
+            <ThunderboltOutlined style={{ marginRight: 8 }} />
+            多模态触发器
           </Title>
-          <Text type="secondary">Webhooks, event triggers, and automation rules</Text>
+          <Text type="secondary">Webhook 管理、事件触发器和自动化规则</Text>
         </div>
         <Space>
           <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
-            Refresh
+            刷新
           </Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateWebhookModal(true)}>
-            Add Webhook
+          <Button icon={<PlusOutlined />} onClick={() => setCreateWebhookModal(true)}>
+            添加 Webhook
+          </Button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateTriggerModal(true)}>
+            添加触发器
           </Button>
         </Space>
       </div>
@@ -207,70 +347,116 @@ const TriggerPage: React.FC = () => {
       {/* Stats */}
       <Row gutter={24} style={{ marginBottom: 24 }}>
         <Col span={6}>
-          <Card><Statistic title="Webhooks" value={webhooks.length} /></Card>
+          <Card>
+            <Statistic title="Webhooks" value={webhooks.length} />
+          </Card>
         </Col>
         <Col span={6}>
-          <Card><Statistic title="Active Webhooks" value={webhooks.filter((w) => w.enabled).length} /></Card>
+          <Card>
+            <Statistic
+              title="活跃 Webhook"
+              value={webhooks.filter((w) => w.enabled).length}
+              valueStyle={{ color: '#52c41a' }}
+            />
+          </Card>
         </Col>
         <Col span={6}>
-          <Card><Statistic title="Trigger Rules" value={rules.length} /></Card>
+          <Card>
+            <Statistic title="触发器" value={triggers.length} />
+          </Card>
         </Col>
         <Col span={6}>
-          <Card><Statistic title="Total Failures" value={totalTriggers} /></Card>
+          <Card>
+            <Statistic
+              title="成功率"
+              value={successRate}
+              valueStyle={{
+                color: triggerStats && triggerStats.successRate >= 0.9 ? '#52c41a' : '#faad14',
+              }}
+            />
+          </Card>
         </Col>
       </Row>
 
+      {/* Tabs */}
       <Card>
-        <Tabs
-          defaultActiveKey="webhooks"
-          items={[
-            {
-              key: 'webhooks',
-              label: `Webhooks (${webhooks.length})`,
-              children: (
-                <Table columns={webhookColumns} dataSource={webhooks} rowKey="id" loading={loading} pagination={false} />
-              ),
-            },
-            {
-              key: 'rules',
-              label: `Trigger Rules (${rules.length})`,
-              children: (
-                <Table columns={ruleColumns} dataSource={rules} rowKey="id" loading={loading} pagination={false} />
-              ),
-            },
-          ]}
-        />
+        <Tabs items={tabItems} />
       </Card>
 
       {/* Create Webhook Modal */}
       <Modal
-        title="Create Webhook"
+        title="创建 Webhook"
         open={createWebhookModal}
         onCancel={() => setCreateWebhookModal(false)}
         onOk={() => webhookForm.submit()}
         width={600}
       >
         <Form form={webhookForm} layout="vertical" onFinish={handleCreateWebhook}>
-          <Form.Item label="URL" name="url" rules={[{ required: true, type: 'url' }]}>
+          <Form.Item label="URL" name="url" rules={[{ required: true, type: 'url', message: '请输入有效 URL' }]}>
             <Input placeholder="https://example.com/webhook" />
           </Form.Item>
-          <Form.Item label="Events" name="events" rules={[{ required: true }]}>
+          <Form.Item label="事件" name="events" rules={[{ required: true, message: '请选择事件' }]}>
             <Select
               mode="multiple"
-              placeholder="Select events"
+              placeholder="选择事件"
               options={[
                 { value: 'git.push', label: 'Git Push' },
                 { value: 'git.pull_request', label: 'Pull Request' },
-                { value: 'build.completed', label: 'Build Completed' },
-                { value: 'build.failed', label: 'Build Failed' },
-                { value: 'deploy.started', label: 'Deploy Started' },
-                { value: 'deploy.completed', label: 'Deploy Completed' },
-                { value: 'alert.triggered', label: 'Alert Triggered' },
+                { value: 'build.completed', label: '构建完成' },
+                { value: 'build.failed', label: '构建失败' },
+                { value: 'deploy.started', label: '部署开始' },
+                { value: 'deploy.completed', label: '部署完成' },
+                { value: 'alert.triggered', label: '告警触发' },
               ]}
             />
           </Form.Item>
-          <Form.Item label="Secret (optional)" name="secret">
-            <Input.Password placeholder="Webhook secret for HMAC verification" />
+          <Form.Item label="密钥 (可选)" name="secret">
+            <Input.Password placeholder="用于 HMAC 验证的密钥" />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Create Trigger Modal */}
+      <Modal
+        title="创建触发器"
+        open={createTriggerModal}
+        onCancel={() => setCreateTriggerModal(false)}
+        onOk={() => triggerForm.submit()}
+        width={600}
+      >
+        <Form form={triggerForm} layout="vertical" onFinish={handleCreateTrigger}>
+          <Form.Item label="名称" name="name" rules={[{ required: true, message: '请输入名称' }]}>
+            <Input placeholder="触发器名称" />
+          </Form.Item>
+          <Form.Item label="类型" name="type" rules={[{ required: true, message: '请选择类型' }]} initialValue="webhook">
+            <Select
+              options={[
+                { value: 'webhook', label: 'Webhook' },
+                { value: 'chat', label: 'Chat' },
+                { value: 'schedule', label: '定时触发' },
+                { value: 'event', label: '事件触发' },
+                { value: 'manual', label: '手动触发' },
+              ]}
+            />
+          </Form.Item>
+          <Form.Item label="Pipeline ID" name="pipelineId">
+            <Input placeholder="目标 Pipeline ID" />
+          </Form.Item>
+          <Form.Item label="动作" name="action" initialValue="deploy">
+            <Select
+              options={[
+                { label: '部署 (deploy)', value: 'deploy' },
+                { label: '构建 (build)', value: 'build' },
+                { label: '回滚 (rollback)', value: 'rollback' },
+                { label: '测试 (test)', value: 'test' },
+              ]}
+            />
+          </Form.Item>
+          <Form.Item label="触发条件" name="condition" initialValue="always">
+            <Input placeholder="如: branch == main" />
+          </Form.Item>
+          <Form.Item label="Cron 表达式 (定时类型)" name="cronExpression">
+            <Input placeholder="如: 0 */4 * * *" />
           </Form.Item>
         </Form>
       </Modal>

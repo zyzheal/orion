@@ -23,34 +23,25 @@ import {
 
 const { TextArea } = Input;
 
-interface ApiVersion {
+// Use API types
+type ApiVersionType = {
   id: string;
-  apiName: string;
+  contract_id: string;
   version: string;
-  status: 'active' | 'deprecated' | 'retired';
-  registeredAt: string;
-  deprecationDate?: string;
-  retirementDate?: string;
-  replacementVersion?: string;
-  changelog?: string;
-}
+  changelog: string | null;
+  breaking_changes: boolean;
+  status: 'active' | 'deprecated' | 'archived';
+  created_at: string;
+};
 
-interface VerificationResult {
+type VerificationResult = {
   contractId: string;
   passed: boolean;
   violations: string[];
   endpoint: string;
   method: string;
   verifiedAt: string;
-}
-
-const MOCK_VERSIONS: ApiVersion[] = [
-  { id: 'ver-1', apiName: 'user-service', version: 'v1.0.0', status: 'active', registeredAt: '2026-03-01' },
-  { id: 'ver-2', apiName: 'user-service', version: 'v1.1.0', status: 'active', registeredAt: '2026-04-15' },
-  { id: 'ver-3', apiName: 'order-service', version: 'v2.0.0', status: 'deprecated', registeredAt: '2026-02-01', deprecationDate: '2026-04-20', replacementVersion: 'v2.1.0' },
-  { id: 'ver-4', apiName: 'order-service', version: 'v2.1.0', status: 'active', registeredAt: '2026-04-20' },
-  { id: 'ver-5', apiName: 'payment-service', version: 'v1.0.0', status: 'retired', registeredAt: '2026-01-01', deprecationDate: '2026-03-01', retirementDate: '2026-05-01' },
-];
+};
 
 const ApiGovernancePage: React.FC = () => {
   const [contracts, setContracts] = useState<GovernanceContract[]>([]);
@@ -69,7 +60,7 @@ const ApiGovernancePage: React.FC = () => {
   const [deprecateForm] = Form.useForm();
 
   // Phase 4 state
-  const [versions, setVersions] = useState<ApiVersion[]>(MOCK_VERSIONS);
+  const [versions, setVersions] = useState<ApiVersionType[]>([]);
   const [verificationResults, setVerificationResults] = useState<VerificationResult[]>([]);
   const [selectedContract, setSelectedContract] = useState<GovernanceContract | null>(null);
   const [activeTab, setActiveTab] = useState('contracts');
@@ -91,6 +82,22 @@ const ApiGovernancePage: React.FC = () => {
       setRules(ruleRes || []);
       setViolations(violationRes || []);
       setReport(reportRes as GovernanceReport);
+
+      // Load versions for all contracts
+      const allVersions: ApiVersionType[] = [];
+      if (contractRes && contractRes.length > 0) {
+        for (const contract of contractRes) {
+          try {
+            const contractVersions = await apiGovernanceApi.listVersions(contract.id);
+            if (Array.isArray(contractVersions)) {
+              allVersions.push(...contractVersions);
+            }
+          } catch {
+            // Ignore individual version fetch failures
+          }
+        }
+      }
+      setVersions(allVersions);
     } catch {
       message.error('Failed to load data');
     }
@@ -157,16 +164,20 @@ const ApiGovernancePage: React.FC = () => {
   // Phase 4: Version management
   const handleRegisterVersion = async (values: any) => {
     try {
-      await apiGovernanceApi.registerVersion(values);
-      const newVersion: ApiVersion = {
-        id: `ver-${Date.now()}`,
+      const result = await apiGovernanceApi.registerVersion({
         apiName: values.apiName,
         version: values.version,
         status: values.status || 'active',
-        registeredAt: new Date().toISOString(),
         changelog: values.changelog,
-      };
-      setVersions([...versions, newVersion]);
+      });
+      // Reload versions from API
+      const contractId = values.contractId || '';
+      if (contractId) {
+        const contractVersions = await apiGovernanceApi.listVersions(contractId);
+        if (Array.isArray(contractVersions)) {
+          setVersions(contractVersions);
+        }
+      }
       message.success('Version registered');
       setVersionModal(false);
       versionForm.resetFields();
@@ -181,18 +192,10 @@ const ApiGovernancePage: React.FC = () => {
         replacementVersion: values.replacementVersion,
         retirementDate: values.retirementDate,
       });
-      setVersions(versions.map((v) =>
-        v.id === values.versionId ? {
-          ...v,
-          status: 'deprecated' as const,
-          deprecationDate: new Date().toISOString(),
-          replacementVersion: values.replacementVersion,
-          retirementDate: values.retirementDate,
-        } : v,
-      ));
       message.success('Version deprecated');
       setDeprecateModal(false);
       deprecateForm.resetFields();
+      loadData();
     } catch {
       message.error('Failed to deprecate version');
     }
@@ -201,18 +204,14 @@ const ApiGovernancePage: React.FC = () => {
   const handleRetireVersion = async (versionId: string) => {
     try {
       await apiGovernanceApi.retireVersion(versionId);
-      setVersions(versions.map((v) =>
-        v.id === versionId ? { ...v, status: 'retired' as const, retirementDate: new Date().toISOString() } : v,
-      ));
       message.success('Version retired');
+      loadData();
     } catch {
       message.error('Failed to retire version');
     }
   };
 
   const deprecatedCount = versions.filter((v) => v.status === 'deprecated').length;
-
-  const contractColumns = [
     { title: 'Name', dataIndex: 'name', key: 'name' },
     { title: 'Version', dataIndex: 'version', key: 'version', width: 80 },
     {
@@ -308,25 +307,27 @@ const ApiGovernancePage: React.FC = () => {
   ];
 
   const versionColumns = [
-    { title: 'API Name', dataIndex: 'apiName', key: 'apiName' },
-    { title: 'Version', dataIndex: 'version', key: 'version' },
+    { title: 'Contract', dataIndex: 'contract_id', key: 'contract_id', width: 140, render: (id: string) => id.slice(0, 12) + '...' },
+    { title: 'Version', dataIndex: 'version', key: 'version', width: 100 },
     {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
+      width: 100,
       render: (status: string) => (
         <Tag color={status === 'active' ? 'green' : status === 'deprecated' ? 'orange' : 'default'}>
           {status}
         </Tag>
       ),
     },
-    { title: 'Registered', dataIndex: 'registeredAt', key: 'registeredAt', render: (d: string) => new Date(d).toLocaleString() },
-    { title: 'Deprecation', dataIndex: 'deprecationDate', key: 'deprecationDate', render: (d?: string) => d ? new Date(d).toLocaleString() : '-' },
-    { title: 'Replacement', dataIndex: 'replacementVersion', key: 'replacementVersion', render: (v?: string) => v || '-' },
+    { title: 'Created', dataIndex: 'created_at', key: 'created_at', width: 160, render: (d: string) => new Date(d).toLocaleString() },
+    { title: 'Breaking Changes', dataIndex: 'breaking_changes', key: 'breaking_changes', width: 120, render: (v: boolean) => v ? <Tag color="red">Yes</Tag> : <Tag>No</Tag> },
+    { title: 'Changelog', dataIndex: 'changelog', key: 'changelog', ellipsis: true, render: (v: string | null) => v || '-' },
     {
       title: 'Actions',
       key: 'actions',
-      render: (_: unknown, record: ApiVersion) => (
+      width: 160,
+      render: (_: unknown, record: ApiVersionType) => (
         <Space>
           {record.status === 'active' && (
             <Button size="small" icon={<StopOutlined />} onClick={() => { deprecateForm.setFieldsValue({ versionId: record.id }); setDeprecateModal(true); }}>

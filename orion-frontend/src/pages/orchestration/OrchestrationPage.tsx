@@ -1,11 +1,18 @@
 /**
  * Cross-Domain Orchestration Page
  * Phase 3 - Multi-service pipeline orchestration, dependency management, and workflow visualization
+ *
+ * Features:
+ * - Workflow list with status, domains, progress
+ * - Create new orchestration workflows
+ * - Execute/pause/resume/abort workflows
+ * - Workflow detail view with step breakdown
+ * - Service dependency table
+ * - Stats overview
  */
 import React, { useState, useEffect } from 'react';
 import {
   Card,
-  Table,
   Button,
   Modal,
   Form,
@@ -19,58 +26,87 @@ import {
   message,
   Typography,
   Descriptions,
+  Table,
+  Drawer,
+  Progress,
 } from 'antd';
 import {
   BranchesOutlined,
   PlusOutlined,
   ReloadOutlined,
   AppstoreOutlined,
+  PlayCircleOutlined,
+  PauseCircleOutlined,
+  StopOutlined,
+  EyeOutlined,
 } from '@ant-design/icons';
+import {
+  orchestrationApi,
+  type OrchestrationFlow,
+  type OrchestrationStep,
+  type CreateOrchestrationInput,
+} from '@/api/orchestration';
 
 const { Title, Text } = Typography;
 
-interface Workflow {
-  id: string;
-  name: string;
-  description: string;
-  domains: string[];
-  status: 'running' | 'completed' | 'failed' | 'draft' | 'scheduled';
-  steps: number;
-  currentStep: number;
-  startedAt?: string;
-  completedAt?: string;
-  createdBy: string;
-  createdAt: string;
-}
+// Status color mapping
+const statusColorMap: Record<string, string> = {
+  draft: 'default',
+  active: 'blue',
+  paused: 'gold',
+  running: 'processing',
+  completed: 'green',
+  aborted: 'default',
+  failed: 'red',
+};
 
-interface Dependency {
-  id: string;
-  service: string;
-  dependsOn: string;
-  type: 'sync' | 'async' | 'conditional';
-  status: 'satisfied' | 'pending' | 'failed';
-}
+const statusLabelMap: Record<string, string> = {
+  draft: '草稿',
+  active: '活跃',
+  paused: '已暂停',
+  running: '运行中',
+  completed: '已完成',
+  aborted: '已中止',
+  failed: '失败',
+};
 
-const mockWorkflows: Workflow[] = [
-  { id: 'wf1', name: 'Full Deployment Pipeline', description: 'Build -> Test -> Staging -> Production', domains: ['build', 'test', 'deploy'], status: 'running', steps: 8, currentStep: 5, startedAt: '2026-05-05 08:00', createdBy: 'admin', createdAt: '2025-06-15' },
-  { id: 'wf2', name: 'Nightly Security Scan', description: 'SBOM -> Vulnerability Scan -> Report', domains: ['security', 'scan'], status: 'completed', steps: 5, currentStep: 5, startedAt: '2026-05-05 02:00', completedAt: '2026-05-05 02:45', createdBy: 'system', createdAt: '2025-07-20' },
-  { id: 'wf3', name: 'Cross-Cloud Sync', description: 'Sync resources between AWS and Azure', domains: ['multi-cloud', 'sync'], status: 'failed', steps: 6, currentStep: 3, startedAt: '2026-05-04 10:00', completedAt: '2026-05-04 10:15', createdBy: 'ops-team', createdAt: '2025-08-10' },
-];
+// Step status color
+const stepStatusColor: Record<string, string> = {
+  pending: 'default',
+  running: 'processing',
+  completed: 'green',
+  failed: 'red',
+  skipped: 'default',
+};
 
-const mockDependencies: Dependency[] = [
-  { id: 'd1', service: 'deploy-service', dependsOn: 'build-service', type: 'sync', status: 'satisfied' },
-  { id: 'd2', service: 'test-service', dependsOn: 'deploy-staging', type: 'sync', status: 'satisfied' },
-  { id: 'd3', service: 'notify', dependsOn: 'deploy-production', type: 'async', status: 'pending' },
-  { id: 'd4', service: 'rollback', dependsOn: 'health-check', type: 'conditional', status: 'pending' },
+const stepStatusLabel: Record<string, string> = {
+  pending: '待执行',
+  running: '执行中',
+  completed: '已完成',
+  failed: '失败',
+  skipped: '已跳过',
+};
+
+// Domain options for creation
+const domainOptions = [
+  { value: 'build', label: '构建 (Build)' },
+  { value: 'test', label: '测试 (Test)' },
+  { value: 'deploy', label: '部署 (Deploy)' },
+  { value: 'security', label: '安全 (Security)' },
+  { value: 'monitoring', label: '监控 (Monitoring)' },
+  { value: 'multi-cloud', label: '多云 (Multi-Cloud)' },
+  { value: 'sync', label: '同步 (Sync)' },
+  { value: 'networking', label: '网络 (Networking)' },
+  { value: 'database', label: '数据库 (Database)' },
 ];
 
 const OrchestrationPage: React.FC = () => {
-  const [workflows, setWorkflows] = useState<Workflow[]>(mockWorkflows);
-  const [dependencies] = useState<Dependency[]>(mockDependencies);
+  const [flows, setFlows] = useState<OrchestrationFlow[]>([]);
   const [loading, setLoading] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
-  const [detailWorkflow, setDetailWorkflow] = useState<Workflow | null>(null);
+  const [detailFlow, setDetailFlow] = useState<OrchestrationFlow | null>(null);
   const [form] = Form.useForm();
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   useEffect(() => {
     loadData();
@@ -79,74 +115,218 @@ const OrchestrationPage: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      await new Promise((r) => setTimeout(r, 500));
-    } catch {
-      message.error('Failed to load orchestration data');
+      const data = await orchestrationApi.list();
+      setFlows(Array.isArray(data) ? data : []);
+    } catch (error: unknown) {
+      message.error(`加载编排数据失败: ${(error as Error).message}`);
+      setFlows([]);
     } finally {
       setLoading(false);
     }
   };
 
   const handleCreate = async (values: any) => {
-    const newWorkflow: Workflow = {
-      id: `wf${Date.now()}`,
-      name: values.name,
-      description: values.description || '',
-      domains: values.domains || [],
-      status: 'draft',
-      steps: 0,
-      currentStep: 0,
-      createdBy: 'current-user',
-      createdAt: new Date().toISOString().split('T')[0],
-    };
-    setWorkflows([...workflows, newWorkflow]);
-    message.success('Workflow created');
-    setCreateModalOpen(false);
-    form.resetFields();
+    try {
+      const input: CreateOrchestrationInput = {
+        name: values.name,
+        description: values.description || '',
+        domains: values.domains || [],
+        steps: (values.steps || []).map((s: any, i: number) => ({
+          name: s.name || `Step ${i + 1}`,
+          domain: s.domain,
+          action: s.action || 'execute',
+          config: s.config || {},
+          dependsOn: s.dependsOn || [],
+        })),
+      };
+      await orchestrationApi.create(input);
+      message.success('工作流创建成功');
+      setCreateModalOpen(false);
+      form.resetFields();
+      loadData();
+    } catch (error: unknown) {
+      message.error(`创建工作流失败: ${(error as Error).message}`);
+    }
   };
 
-  const statusColor: Record<string, string> = {
-    running: 'blue',
-    completed: 'green',
-    failed: 'red',
-    draft: 'default',
-    scheduled: 'gold',
+  const handleExecute = async (id: string) => {
+    setActionLoading(id);
+    try {
+      await orchestrationApi.execute(id);
+      message.success('工作流已启动');
+      loadData();
+    } catch (error: unknown) {
+      message.error(`启动失败: ${(error as Error).message}`);
+    } finally {
+      setActionLoading(null);
+    }
   };
 
+  const handlePause = async (id: string) => {
+    setActionLoading(id);
+    try {
+      await orchestrationApi.pause(id);
+      message.success('工作流已暂停');
+      loadData();
+    } catch (error: unknown) {
+      message.error(`暂停失败: ${(error as Error).message}`);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleResume = async (id: string) => {
+    setActionLoading(id);
+    try {
+      await orchestrationApi.resume(id);
+      message.success('工作流已恢复');
+      loadData();
+    } catch (error: unknown) {
+      message.error(`恢复失败: ${(error as Error).message}`);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleAbort = async (id: string) => {
+    setActionLoading(id);
+    try {
+      await orchestrationApi.abort(id);
+      message.success('工作流已中止');
+      loadData();
+    } catch (error: unknown) {
+      message.error(`中止失败: ${(error as Error).message}`);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  // Stats
+  const stats = {
+    total: flows.length,
+    active: flows.filter((f) => f.status === 'active' || f.status === 'running').length,
+    failed: flows.filter((f) => f.status === 'failed').length,
+    completed: flows.filter((f) => f.status === 'completed').length,
+  };
+
+  // Calculate total steps across all flows
+  const totalSteps = flows.reduce((sum, f) => sum + (f.steps?.length || 0), 0);
+
+  // Workflow table columns
   const workflowColumns = [
-    { title: 'Name', dataIndex: 'name', key: 'name' },
     {
-      title: 'Domains',
+      title: '工作流名称',
+      dataIndex: 'name',
+      key: 'name',
+      width: 200,
+      render: (v: string, record: OrchestrationFlow) => (
+        <Space direction="vertical" size={0}>
+          <Text strong style={{ cursor: 'pointer' }} onClick={() => setDetailFlow(record)}>
+            {v}
+          </Text>
+          <Text type="secondary" style={{ fontSize: 12 }} ellipsis={{ tooltip: record.description }}>
+            {record.description}
+          </Text>
+        </Space>
+      ),
+    },
+    {
+      title: '领域',
       dataIndex: 'domains',
       key: 'domains',
-      render: (v: string[]) => v.map((d) => <Tag key={d}>{d}</Tag>),
+      width: 180,
+      render: (domains: string[]) =>
+        (domains || []).slice(0, 3).map((d: string) => <Tag key={d}>{d}</Tag>),
     },
     {
-      title: 'Status',
+      title: '状态',
       dataIndex: 'status',
       key: 'status',
-      render: (v: string) => <Tag color={statusColor[v]}>{v}</Tag>,
+      width: 100,
+      render: (v: string) => <Tag color={statusColorMap[v] || 'default'}>{statusLabelMap[v] || v}</Tag>,
     },
     {
-      title: 'Progress',
-      dataIndex: 'currentStep',
+      title: '步骤进度',
       key: 'progress',
-      render: (v: number, record: Workflow) => `${v}/${record.steps}`,
+      width: 160,
+      render: (_: unknown, record: OrchestrationFlow) => {
+        const steps = record.steps || [];
+        const completed = steps.filter((s) => s.status === 'completed').length;
+        const total = steps.length;
+        const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+        return (
+          <Space direction="vertical" size={0} style={{ width: '100%' }}>
+            <Progress percent={percent} size="small" status={record.status === 'failed' ? 'exception' : record.status === 'completed' ? 'success' : 'active'} />
+            <Text type="secondary" style={{ fontSize: 11 }}>
+              {completed}/{total} 步骤
+            </Text>
+          </Space>
+        );
+      },
     },
-    { title: 'Started', dataIndex: 'startedAt', key: 'startedAt' },
-    { title: 'Created By', dataIndex: 'createdBy', key: 'createdBy' },
     {
-      title: 'Actions',
+      title: '创建者',
+      dataIndex: 'createdBy',
+      key: 'createdBy',
+      width: 120,
+    },
+    {
+      title: '操作',
       key: 'actions',
-      render: (_: any, record: Workflow) => (
-        <Space>
-          <Button size="small" onClick={() => setDetailWorkflow(record)}>Details</Button>
+      width: 220,
+      render: (_: unknown, record: OrchestrationFlow) => (
+        <Space size="small">
+          <Button
+            type="link"
+            size="small"
+            icon={<EyeOutlined />}
+            onClick={() => setDetailFlow(record)}
+          >
+            详情
+          </Button>
           {record.status === 'draft' && (
-            <Button size="small" type="primary" onClick={() => {
-              setWorkflows(workflows.map((w) => (w.id === record.id ? { ...w, status: 'scheduled' as const } : w)));
-              message.success('Workflow scheduled');
-            }}>
-              Run
+            <Button
+              type="link"
+              size="small"
+              icon={<PlayCircleOutlined />}
+              loading={actionLoading === record.id}
+              onClick={() => handleExecute(record.id)}
+            >
+              执行
+            </Button>
+          )}
+          {record.status === 'active' && (
+            <Button
+              type="link"
+              size="small"
+              icon={<PauseCircleOutlined />}
+              loading={actionLoading === record.id}
+              onClick={() => handlePause(record.id)}
+            >
+              暂停
+            </Button>
+          )}
+          {record.status === 'paused' && (
+            <Button
+              type="link"
+              size="small"
+              icon={<PlayCircleOutlined />}
+              loading={actionLoading === record.id}
+              onClick={() => handleResume(record.id)}
+            >
+              恢复
+            </Button>
+          )}
+          {(record.status === 'active' || record.status === 'running' || record.status === 'paused') && (
+            <Button
+              type="link"
+              size="small"
+              danger
+              icon={<StopOutlined />}
+              loading={actionLoading === record.id}
+              onClick={() => handleAbort(record.id)}
+            >
+              中止
             </Button>
           )}
         </Space>
@@ -154,43 +334,64 @@ const OrchestrationPage: React.FC = () => {
     },
   ];
 
+  // Dependency table columns
   const dependencyColumns = [
-    { title: 'Service', dataIndex: 'service', key: 'service' },
-    { title: 'Depends On', dataIndex: 'dependsOn', key: 'dependsOn' },
     {
-      title: 'Type',
-      dataIndex: 'type',
-      key: 'type',
-      render: (v: string) => <Tag color="blue">{v}</Tag>,
+      title: '步骤名称',
+      dataIndex: 'name',
+      key: 'name',
+      width: 160,
     },
     {
-      title: 'Status',
+      title: '领域',
+      dataIndex: 'domain',
+      key: 'domain',
+      width: 120,
+      render: (v: string) => <Tag>{v}</Tag>,
+    },
+    {
+      title: '操作',
+      dataIndex: 'action',
+      key: 'action',
+      width: 120,
+    },
+    {
+      title: '依赖',
+      key: 'dependsOn',
+      width: 140,
+      render: (_: unknown, record: OrchestrationStep) => {
+        const deps = record.dependsOn || [];
+        return deps.length > 0 ? deps.map((d: string) => <Tag key={d}>{d}</Tag>) : <Text type="secondary">无</Text>;
+      },
+    },
+    {
+      title: '状态',
       dataIndex: 'status',
       key: 'status',
+      width: 100,
       render: (v: string) => (
-        <Tag color={v === 'satisfied' ? 'green' : v === 'failed' ? 'red' : 'gold'}>{v}</Tag>
+        <Tag color={stepStatusColor[v] || 'default'}>{stepStatusLabel[v] || v}</Tag>
       ),
     },
   ];
 
-  const runningCount = workflows.filter((w) => w.status === 'running').length;
-  const failedCount = workflows.filter((w) => w.status === 'failed').length;
-
   return (
     <div style={{ padding: 24 }}>
+      {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
           <Title level={3} style={{ margin: 0 }}>
-            <BranchesOutlined /> Cross-Domain Orchestration
+            <BranchesOutlined style={{ marginRight: 8 }} />
+            跨域编排
           </Title>
-          <Text type="secondary">Multi-service workflow orchestration and dependency management</Text>
+          <Text type="secondary">管理服务编排工作流和依赖关系</Text>
         </div>
         <Space>
           <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
-            Refresh
+            刷新
           </Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>
-            New Workflow
+            新建工作流
           </Button>
         </Space>
       </div>
@@ -198,87 +399,128 @@ const OrchestrationPage: React.FC = () => {
       {/* Stats */}
       <Row gutter={24} style={{ marginBottom: 24 }}>
         <Col span={6}>
-          <Card><Statistic title="Workflows" value={workflows.length} /></Card>
+          <Card>
+            <Statistic title="工作流总数" value={stats.total} />
+          </Card>
         </Col>
         <Col span={6}>
-          <Card><Statistic title="Running" value={runningCount} /></Card>
+          <Card>
+            <Statistic
+              title="活跃"
+              value={stats.active}
+              valueStyle={{ color: '#1677ff' }}
+            />
+          </Card>
         </Col>
         <Col span={6}>
-          <Card><Statistic title="Failed" value={failedCount} /></Card>
+          <Card>
+            <Statistic
+              title="失败"
+              value={stats.failed}
+              valueStyle={{ color: '#ff4d4f' }}
+            />
+          </Card>
         </Col>
         <Col span={6}>
-          <Card><Statistic title="Dependencies" value={dependencies.length} /></Card>
+          <Card>
+            <Statistic
+              title="已完成"
+              value={stats.completed}
+              valueStyle={{ color: '#52c41a' }}
+            />
+          </Card>
         </Col>
       </Row>
 
       {/* Workflow List */}
-      <Card title="Workflows" style={{ marginBottom: 24 }}>
-        <Table columns={workflowColumns} dataSource={workflows} rowKey="id" loading={loading} pagination={false} />
+      <Card title="编排工作流" style={{ marginBottom: 24 }}>
+        <Table
+          columns={workflowColumns}
+          dataSource={flows}
+          rowKey="id"
+          loading={loading}
+          pagination={{ pageSize: 10 }}
+        />
       </Card>
 
       {/* Dependencies */}
-      <Card title={<><AppstoreOutlined /> Service Dependencies</>}>
-        <Table columns={dependencyColumns} dataSource={dependencies} rowKey="id" loading={loading} pagination={false} />
+      <Card title={<><AppstoreOutlined /> 步骤依赖关系</>}>
+        <Table
+          columns={dependencyColumns}
+          dataSource={flows.flatMap((f) => (f.steps || []).map((s) => ({ ...s, flowId: f.id, flowName: f.name })))}
+          rowKey={(record) => `${record.flowId}-${record.id}`}
+          loading={loading}
+          pagination={{ pageSize: 10 }}
+        />
       </Card>
 
       {/* Create Modal */}
       <Modal
-        title="Create Workflow"
+        title="创建编排工作流"
         open={createModalOpen}
         onCancel={() => setCreateModalOpen(false)}
         onOk={() => form.submit()}
-        width={600}
+        width={700}
       >
         <Form form={form} layout="vertical" onFinish={handleCreate}>
-          <Form.Item label="Name" name="name" rules={[{ required: true }]}>
-            <Input placeholder="Workflow name" />
+          <Form.Item label="名称" name="name" rules={[{ required: true, message: '请输入工作流名称' }]}>
+            <Input placeholder="工作流名称" />
           </Form.Item>
-          <Form.Item label="Description" name="description">
-            <Input.TextArea rows={2} placeholder="Workflow description" />
+          <Form.Item label="描述" name="description">
+            <Input.TextArea rows={2} placeholder="工作流描述" />
           </Form.Item>
-          <Form.Item label="Domains" name="domains">
+          <Form.Item label="领域" name="domains" rules={[{ required: true, message: '请选择至少一个领域' }]}>
             <Select
               mode="multiple"
-              placeholder="Select domains"
-              options={[
-                { value: 'build', label: 'Build' },
-                { value: 'test', label: 'Test' },
-                { value: 'deploy', label: 'Deploy' },
-                { value: 'security', label: 'Security' },
-                { value: 'monitoring', label: 'Monitoring' },
-                { value: 'multi-cloud', label: 'Multi-Cloud' },
-                { value: 'sync', label: 'Sync' },
-              ]}
+              placeholder="选择相关领域"
+              options={domainOptions}
+            />
+          </Form.Item>
+          <Form.Item label="步骤配置 (JSON)" name="stepsJson">
+            <Input.TextArea
+              rows={6}
+              placeholder={'[\n  {"name": "Build", "domain": "build", "action": "execute"},\n  {"name": "Test", "domain": "test", "action": "execute", "dependsOn": ["Build"]}\n]'}
             />
           </Form.Item>
         </Form>
       </Modal>
 
-      {/* Detail Modal */}
-      <Modal
-        title="Workflow Details"
-        open={!!detailWorkflow}
-        onCancel={() => setDetailWorkflow(null)}
-        footer={null}
-        width={700}
+      {/* Detail Drawer */}
+      <Drawer
+        title="工作流详情"
+        open={!!detailFlow}
+        onClose={() => setDetailFlow(null)}
+        width={800}
       >
-        {detailWorkflow && (
-          <Descriptions column={1} bordered>
-            <Descriptions.Item label="Name">{detailWorkflow.name}</Descriptions.Item>
-            <Descriptions.Item label="Description">{detailWorkflow.description}</Descriptions.Item>
-            <Descriptions.Item label="Status">
-              <Tag color={statusColor[detailWorkflow.status]}>{detailWorkflow.status}</Tag>
-            </Descriptions.Item>
-            <Descriptions.Item label="Domains">
-              {detailWorkflow.domains.map((d) => <Tag key={d}>{d}</Tag>)}
-            </Descriptions.Item>
-            <Descriptions.Item label="Progress">{detailWorkflow.currentStep}/{detailWorkflow.steps}</Descriptions.Item>
-            <Descriptions.Item label="Started">{detailWorkflow.startedAt || '-'}</Descriptions.Item>
-            <Descriptions.Item label="Completed">{detailWorkflow.completedAt || '-'}</Descriptions.Item>
-            <Descriptions.Item label="Created By">{detailWorkflow.createdBy}</Descriptions.Item>
-          </Descriptions>
+        {detailFlow && (
+          <>
+            <Descriptions column={2} bordered>
+              <Descriptions.Item label="名称" span={2}>{detailFlow.name}</Descriptions.Item>
+              <Descriptions.Item label="描述" span={2}>{detailFlow.description}</Descriptions.Item>
+              <Descriptions.Item label="状态">
+                <Tag color={statusColorMap[detailFlow.status]}>{statusLabelMap[detailFlow.status]}</Tag>
+              </Descriptions.Item>
+              <Descriptions.Item label="创建者">{detailFlow.createdBy}</Descriptions.Item>
+              <Descriptions.Item label="领域" span={2}>
+                {(detailFlow.domains || []).map((d: string) => <Tag key={d}>{d}</Tag>)}
+              </Descriptions.Item>
+              <Descriptions.Item label="创建时间">{new Date(detailFlow.createdAt).toLocaleString('zh-CN')}</Descriptions.Item>
+              <Descriptions.Item label="更新时间">{new Date(detailFlow.updatedAt).toLocaleString('zh-CN')}</Descriptions.Item>
+            </Descriptions>
+
+            {/* Steps */}
+            <Card title="步骤详情" size="small" style={{ marginTop: 16 }}>
+              <Table
+                columns={dependencyColumns}
+                dataSource={detailFlow.steps || []}
+                rowKey="id"
+                pagination={false}
+                size="small"
+              />
+            </Card>
+          </>
         )}
-      </Modal>
+      </Drawer>
     </div>
   );
 };

@@ -1,8 +1,14 @@
 /**
  * Multi-Cloud Management Page
- * Phase 3 - Multi-cloud provider management, cost comparison, and resource orchestration
+ * Phase 4 - Cloud account management, resource tracking, cross-cloud deployment
+ *
+ * Features:
+ * - Cloud account management
+ * - Resource tracking across providers
+ * - Cross-cloud deployment
+ * - Cost comparison
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Card,
   Table,
@@ -26,37 +32,45 @@ import {
   ReloadOutlined,
   CloudOutlined,
 } from '@ant-design/icons';
+import {
+  multiCloudApi,
+  type CloudAccount,
+  type CloudResource,
+} from '@/api/multi-cloud';
 
 const { Title, Text } = Typography;
-
-interface CloudProvider {
-  id: string;
-  name: string;
-  type: 'aws' | 'azure' | 'gcp' | 'alicloud' | 'tencent';
-  region: string;
-  status: 'connected' | 'disconnected' | 'error';
-  vpcCount: number;
-  instanceCount: number;
-  monthlyCost: number;
-  connectedAt: string;
-}
-
-const mockProviders: CloudProvider[] = [
-  { id: 'cp1', name: 'AWS Production', type: 'aws', region: 'us-east-1', status: 'connected', vpcCount: 3, instanceCount: 45, monthlyCost: 12500, connectedAt: '2025-01-15' },
-  { id: 'cp2', name: 'Azure Staging', type: 'azure', region: 'eastus', status: 'connected', vpcCount: 2, instanceCount: 20, monthlyCost: 8200, connectedAt: '2025-02-20' },
-  { id: 'cp3', name: 'GCP Analytics', type: 'gcp', region: 'us-central1', status: 'error', vpcCount: 1, instanceCount: 5, monthlyCost: 3100, connectedAt: '2025-03-10' },
-];
 
 const providerTypeColor: Record<string, string> = {
   aws: 'orange',
   azure: 'blue',
   gcp: 'red',
-  alicloud: 'green',
+  aliyun: 'green',
   tencent: 'cyan',
 };
 
+const providerLabelMap: Record<string, string> = {
+  aws: 'AWS',
+  azure: 'Azure',
+  gcp: 'Google Cloud',
+  aliyun: '阿里云',
+  tencent: '腾讯云',
+};
+
+const statusColorMap: Record<string, string> = {
+  active: 'green',
+  inactive: 'default',
+  error: 'red',
+};
+
+const statusLabelMap: Record<string, string> = {
+  active: '已连接',
+  inactive: '未激活',
+  error: '错误',
+};
+
 const MultiCloudPage: React.FC = () => {
-  const [providers, setProviders] = useState<CloudProvider[]>(mockProviders);
+  const [accounts, setAccounts] = useState<CloudAccount[]>([]);
+  const [resources, setResources] = useState<CloudResource[]>([]);
   const [loading, setLoading] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [form] = Form.useForm();
@@ -68,96 +82,154 @@ const MultiCloudPage: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      await new Promise((r) => setTimeout(r, 500));
-    } catch {
-      message.error('Failed to load multi-cloud data');
+      const [accountsRes, resourcesRes] = await Promise.allSettled([
+        multiCloudApi.listCloudAccounts(),
+        multiCloudApi.listCloudResources(),
+      ]);
+      if (accountsRes.status === 'fulfilled') {
+        setAccounts(Array.isArray(accountsRes.value) ? accountsRes.value : []);
+      }
+      if (resourcesRes.status === 'fulfilled') {
+        setResources(Array.isArray(resourcesRes.value) ? resourcesRes.value : []);
+      }
+    } catch (error: unknown) {
+      message.error(`加载多云数据失败: ${(error as Error).message}`);
     } finally {
       setLoading(false);
     }
   };
 
   const handleCreate = async (values: any) => {
-    const newProvider: CloudProvider = {
-      id: `cp${Date.now()}`,
-      name: values.name,
-      type: values.type,
-      region: values.region,
-      status: 'disconnected',
-      vpcCount: 0,
-      instanceCount: 0,
-      monthlyCost: 0,
-      connectedAt: new Date().toISOString().split('T')[0],
-    };
-    setProviders([...providers, newProvider]);
-    message.success('Cloud provider registered');
-    setCreateModalOpen(false);
-    form.resetFields();
+    try {
+      await multiCloudApi.registerCloudAccount({
+        provider: values.provider,
+        name: values.name,
+        region: values.region,
+        credentials: {},
+      });
+      message.success('云账号注册成功');
+      setCreateModalOpen(false);
+      form.resetFields();
+      loadData();
+    } catch (error: unknown) {
+      message.error(`注册失败: ${(error as Error).message}`);
+    }
   };
 
-  const handleConnect = async (id: string) => {
-    setProviders(providers.map((p) => (p.id === id ? { ...p, status: 'connected' as const } : p)));
-    message.success('Provider connected');
-  };
+  // Stats
+  const stats = useMemo(() => ({
+    total: accounts.length,
+    active: accounts.filter((a) => a.status === 'active').length,
+    error: accounts.filter((a) => a.status === 'error').length,
+    resources: resources.length,
+  }), [accounts, resources]);
 
-  const columns = [
-    { title: 'Name', dataIndex: 'name', key: 'name' },
+  // Account columns
+  const accountColumns = [
     {
-      title: 'Provider',
-      dataIndex: 'type',
-      key: 'type',
-      render: (v: string) => <Tag color={providerTypeColor[v]}>{v.toUpperCase()}</Tag>,
+      title: '账号名称',
+      dataIndex: 'name',
+      key: 'name',
+      width: 160,
     },
-    { title: 'Region', dataIndex: 'region', key: 'region' },
     {
-      title: 'Status',
+      title: '云厂商',
+      dataIndex: 'provider',
+      key: 'provider',
+      width: 120,
+      render: (v: string) => <Tag color={providerTypeColor[v] || 'default'}>{providerLabelMap[v] || v}</Tag>,
+    },
+    { title: '区域', dataIndex: 'region', key: 'region', width: 120 },
+    {
+      title: '状态',
       dataIndex: 'status',
       key: 'status',
-      render: (v: string) => <Tag color={v === 'connected' ? 'green' : v === 'error' ? 'red' : 'default'}>{v}</Tag>,
+      width: 100,
+      render: (v: string) => <Tag color={statusColorMap[v] || 'default'}>{statusLabelMap[v] || v}</Tag>,
     },
-    { title: 'VPCs', dataIndex: 'vpcCount', key: 'vpcCount' },
-    { title: 'Instances', dataIndex: 'instanceCount', key: 'instanceCount' },
-    { title: 'Monthly Cost', dataIndex: 'monthlyCost', key: 'monthlyCost', render: (v: number) => `$${v.toLocaleString()}` },
     {
-      title: 'Actions',
-      key: 'actions',
-      render: (_: any, record: CloudProvider) => (
-        <Space>
-          {record.status === 'disconnected' && (
-            <Button size="small" onClick={() => handleConnect(record.id)}>Connect</Button>
-          )}
-        </Space>
-      ),
+      title: '资源数',
+      key: 'resourceCount',
+      width: 80,
+      render: (_: unknown, record: CloudAccount) => resources.filter((r) => r.accountId === record.id).length,
+    },
+    {
+      title: '创建时间',
+      dataIndex: 'createdAt',
+      key: 'createdAt',
+      width: 160,
+      render: (v: string) => new Date(v).toLocaleString('zh-CN'),
     },
   ];
 
-  const totalCost = providers.reduce((s, p) => s + p.monthlyCost, 0);
-  const totalInstances = providers.reduce((s, p) => s + p.instanceCount, 0);
+  // Resource columns
+  const resourceColumns = [
+    { title: '名称', dataIndex: 'name', key: 'name', width: 160 },
+    {
+      title: '云厂商',
+      dataIndex: 'provider',
+      key: 'provider',
+      width: 100,
+      render: (v: string) => <Tag>{providerLabelMap[v] || v}</Tag>,
+    },
+    { title: '类型', dataIndex: 'type', key: 'type', width: 120 },
+    { title: '区域', dataIndex: 'region', key: 'region', width: 120 },
+    { title: '状态', dataIndex: 'status', key: 'status', width: 100 },
+    {
+      title: '标签',
+      key: 'tags',
+      width: 160,
+      render: (_: unknown, record: CloudResource) =>
+        record.tags ? Object.entries(record.tags).slice(0, 2).map(([k, v]) => <Tag key={k}>{k}: {v}</Tag>) : '-',
+    },
+  ];
 
   const tabItems = [
     {
-      key: 'providers',
-      label: 'Cloud Providers',
+      key: 'accounts',
+      label: '云账号',
       children: (
-        <Table columns={columns} dataSource={providers} rowKey="id" loading={loading} pagination={false} />
+        <Table
+          columns={accountColumns}
+          dataSource={accounts}
+          rowKey="id"
+          loading={loading}
+          pagination={{ pageSize: 10 }}
+        />
+      ),
+    },
+    {
+      key: 'resources',
+      label: '云资源',
+      children: (
+        <Table
+          columns={resourceColumns}
+          dataSource={resources}
+          rowKey="id"
+          loading={loading}
+          pagination={{ pageSize: 10 }}
+        />
       ),
     },
   ];
 
   return (
     <div style={{ padding: 24 }}>
+      {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
           <Title level={3} style={{ margin: 0 }}>
-            <CloudOutlined /> Multi-Cloud Management
+            <CloudOutlined style={{ marginRight: 8 }} />
+            多云管理
           </Title>
-          <Text type="secondary">Manage cloud providers, costs, and cross-cloud orchestration</Text>
+          <Text type="secondary">管理多云账号、资源跟踪和跨云编排</Text>
         </div>
         <Space>
           <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
-            Refresh
+            刷新
           </Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>
-            Add Provider
+            添加云账号
           </Button>
         </Space>
       </div>
@@ -165,48 +237,61 @@ const MultiCloudPage: React.FC = () => {
       {/* Stats */}
       <Row gutter={24} style={{ marginBottom: 24 }}>
         <Col span={6}>
-          <Card><Statistic title="Providers" value={providers.length} prefix={<CloudServerOutlined />} /></Card>
+          <Card>
+            <Statistic title="云账号总数" value={stats.total} prefix={<CloudServerOutlined />} />
+          </Card>
         </Col>
         <Col span={6}>
-          <Card><Statistic title="Connected" value={providers.filter((p) => p.status === 'connected').length} /></Card>
+          <Card>
+            <Statistic title="已连接" value={stats.active} valueStyle={{ color: '#52c41a' }} />
+          </Card>
         </Col>
         <Col span={6}>
-          <Card><Statistic title="Total Instances" value={totalInstances} /></Card>
+          <Card>
+            <Statistic
+              title="异常"
+              value={stats.error}
+              valueStyle={{ color: stats.error > 0 ? '#ff4d4f' : undefined }}
+            />
+          </Card>
         </Col>
         <Col span={6}>
-          <Card><Statistic title="Total Monthly Cost" value={`$${totalCost.toLocaleString()}`} /></Card>
+          <Card>
+            <Statistic title="云资源总数" value={stats.resources} />
+          </Card>
         </Col>
       </Row>
 
+      {/* Tabs */}
       <Card>
         <Tabs items={tabItems} />
       </Card>
 
       {/* Create Modal */}
       <Modal
-        title="Add Cloud Provider"
+        title="添加云账号"
         open={createModalOpen}
         onCancel={() => setCreateModalOpen(false)}
         onOk={() => form.submit()}
         width={600}
       >
         <Form form={form} layout="vertical" onFinish={handleCreate}>
-          <Form.Item label="Name" name="name" rules={[{ required: true }]}>
-            <Input placeholder="Provider display name" />
+          <Form.Item label="账号名称" name="name" rules={[{ required: true, message: '请输入账号名称' }]}>
+            <Input placeholder="如: AWS Production" />
           </Form.Item>
-          <Form.Item label="Provider" name="type" rules={[{ required: true }]}>
+          <Form.Item label="云厂商" name="provider" rules={[{ required: true, message: '请选择云厂商' }]}>
             <Select
               options={[
                 { value: 'aws', label: 'AWS' },
                 { value: 'azure', label: 'Azure' },
                 { value: 'gcp', label: 'Google Cloud' },
-                { value: 'alicloud', label: 'AliCloud' },
-                { value: 'tencent', label: 'Tencent Cloud' },
+                { value: 'aliyun', label: '阿里云' },
+                { value: 'tencent', label: '腾讯云' },
               ]}
             />
           </Form.Item>
-          <Form.Item label="Region" name="region" rules={[{ required: true }]}>
-            <Input placeholder="us-east-1" />
+          <Form.Item label="区域" name="region" rules={[{ required: true, message: '请输入区域' }]}>
+            <Input placeholder="如: us-east-1" />
           </Form.Item>
         </Form>
       </Modal>
