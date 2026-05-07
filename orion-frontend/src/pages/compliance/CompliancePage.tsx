@@ -9,7 +9,7 @@
  * - Integrity report generation
  * - Audit plan management
  */
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   Table,
@@ -69,16 +69,9 @@ const statusLabelMap: Record<string, string> = {
   partial: '部分合规',
 };
 
-const severityColorMap: Record<string, string> = {
-  critical: 'red',
-  high: 'orange',
-  medium: 'blue',
-  low: 'default',
-};
-
 const CompliancePage: React.FC = () => {
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
-  const [complianceReports, setComplianceReports] = useState<SbomComplianceReport | null>(null);
+  const [_complianceReports, setComplianceReports] = useState<SbomComplianceReport | null>(null);
   const [integrityReports, setIntegrityReports] = useState<IntegrityReport[]>([]);
   const [policies, setPolicies] = useState<CompliancePolicy[]>([]);
   const [evaluations, setEvaluations] = useState<ComplianceEvaluation[]>([]);

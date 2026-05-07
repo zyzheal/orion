@@ -26,7 +26,6 @@ import {
   message,
   Typography,
   Tabs,
-  Descriptions,
   InputNumber,
 } from 'antd';
 import {

@@ -7,7 +7,7 @@
  * - Trigger management (webhook, chat, schedule, event, manual)
  * - Trigger statistics and execution history
  */
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   Table,
@@ -24,7 +24,6 @@ import {
   message,
   Typography,
   Tabs,
-  InputNumber,
 } from 'antd';
 import {
   ThunderboltOutlined,
@@ -190,7 +189,6 @@ const TriggerPage: React.FC = () => {
   };
 
   // Stats
-  const totalFailures = webhooks.reduce((sum, w) => sum + (w.failureCount || 0), 0);
   const successRate = triggerStats?.successRate ? `${(triggerStats.successRate * 100).toFixed(1)}%` : '-';
 
   // Webhook columns

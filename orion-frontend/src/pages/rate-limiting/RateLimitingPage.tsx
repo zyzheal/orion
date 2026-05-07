@@ -76,9 +76,9 @@ const STRATEGY_OPTIONS = [
 ];
 
 const strategyColor: Record<string, string> = {
-  fixed: colors.blue[500],
+  fixed: colors.info[500],
   sliding: colors.purple[500],
-  'token-bucket': colors.green[500],
+  'token-bucket': colors.success[500],
 };
 
 const strategyLabel: Record<string, string> = {
@@ -344,7 +344,7 @@ const RateLimitingPage: React.FC = () => {
       >
         <div>
           <Title level={3} style={{ margin: 0 }}>
-            <ThunderboltOutlined style={{ marginRight: spacing[2], color: colors.orange[500] }} />
+            <ThunderboltOutlined style={{ marginRight: spacing[2], color: colors.warning[500] }} />
             限流管理
           </Title>
           <Text type="secondary">配置和管理 API 速率限制规则</Text>
@@ -386,7 +386,7 @@ const RateLimitingPage: React.FC = () => {
               <MetricCard title="规则总数" value={stats.totalRules} />
             </Col>
             <Col span={6}>
-              <MetricCard title="活跃规则" value={stats.activeRules} color={colors.green[500]} />
+              <MetricCard title="活跃规则" value={stats.activeRules} color={colors.success[500]} />
             </Col>
             <Col span={6}>
               <MetricCard title="总请求数" value={stats.totalRequests} />

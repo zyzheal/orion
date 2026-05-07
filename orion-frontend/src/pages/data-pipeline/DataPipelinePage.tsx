@@ -27,7 +27,6 @@ import {
   Typography,
   Descriptions,
   Drawer,
-  Tree,
 } from 'antd';
 import {
   DatabaseOutlined,

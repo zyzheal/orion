@@ -83,10 +83,10 @@ const STRATEGY_OPTIONS = [
 ];
 
 const typeColor: Record<FlagType, string> = {
-  boolean: colors.blue[500],
+  boolean: colors.info[500],
   percentage: colors.purple[500],
-  string: colors.green[500],
-  number: colors.orange[500],
+  string: colors.success[500],
+  number: colors.warning[500],
 };
 
 const typeLabel: Record<FlagType, string> = {
@@ -471,7 +471,7 @@ const FeatureFlagsPage: React.FC = () => {
               <MetricCard title="开关总数" value={stats.totalFlags} />
             </Col>
             <Col span={6}>
-              <MetricCard title="已启用" value={stats.enabledFlags} color={colors.green[500]} />
+              <MetricCard title="已启用" value={stats.enabledFlags} color={colors.success[500]} />
             </Col>
             <Col span={6}>
               <MetricCard title="总评估次数" value={stats.totalEvaluations} />

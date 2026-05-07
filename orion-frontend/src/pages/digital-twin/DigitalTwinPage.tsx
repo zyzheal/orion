@@ -8,12 +8,12 @@
 import React, { useState, useEffect } from 'react';
 import {
   Table, Card, Button, Space, Tag, Modal, Form, Input, message,
-  Tabs, Select, Descriptions, Timeline, Progress, InputNumber,
-  Switch, Statistic, Row, Col,
+  Tabs, Select, Descriptions, Progress, InputNumber,
+  Statistic, Row, Col,
 } from 'antd';
 import {
-  PlusOutlined, PlayCircleOutlined, PauseCircleOutlined,
-  CameraOutlined, SyncOutlined, CodeSandboxOutlined,
+  PlusOutlined, PlayCircleOutlined,
+  CameraOutlined, SyncOutlined,
   StopOutlined, CloudServerOutlined,
 } from '@ant-design/icons';
 import {
@@ -22,7 +22,6 @@ import {
   type TwinSnapshot,
   type TrafficRecording,
   type TrafficReplay,
-  type SandboxEnv,
 } from '@/api/digital-twin';
 
 const statusColorMap: Record<string, string> = {
@@ -58,7 +57,6 @@ const DigitalTwinPage: React.FC = () => {
   const [snapshots, setSnapshots] = useState<TwinSnapshot[]>([]);
   const [recordings, setRecordings] = useState<TrafficRecording[]>([]);
   const [replays, setReplays] = useState<TrafficReplay[]>([]);
-  const [sandboxes, setSandboxes] = useState<SandboxEnv[]>([]);
   const [loading, setLoading] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [recordModalOpen, setRecordModalOpen] = useState(false);

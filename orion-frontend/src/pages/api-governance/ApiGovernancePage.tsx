@@ -164,7 +164,7 @@ const ApiGovernancePage: React.FC = () => {
   // Phase 4: Version management
   const handleRegisterVersion = async (values: any) => {
     try {
-      const result = await apiGovernanceApi.registerVersion({
+      await apiGovernanceApi.registerVersion({
         apiName: values.apiName,
         version: values.version,
         status: values.status || 'active',

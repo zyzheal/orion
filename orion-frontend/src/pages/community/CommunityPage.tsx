@@ -31,14 +31,11 @@ import {
   TeamOutlined,
   ReloadOutlined,
   StarOutlined,
-  GithubOutlined,
-  GlobalOutlined,
   PlusOutlined,
 } from '@ant-design/icons';
 import {
   communityApi,
   type Contribution,
-  type Contributor,
   type Badge,
   type Mentorship,
 } from '@/api/community';
