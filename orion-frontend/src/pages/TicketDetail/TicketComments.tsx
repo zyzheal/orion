@@ -20,7 +20,6 @@ import {
   Button,
   Space,
   Card,
-  Badge,
   Divider,
   message,
 } from 'antd';
@@ -34,6 +33,7 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { listUsers, type User } from '@/api/users';
+import { getComments, getAttachments } from '@/api/ticketing';
 import { colors, spacing } from '@/tokens';
 
 const { Text } = Typography;
@@ -118,6 +118,8 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
   const [showMentionDropdown, setShowMentionDropdown] = useState(false);
   const [mentionSearch, setMentionSearch] = useState('');
   const [engineers, setEngineers] = useState<User[]>([]);
+  const [comments, setComments] = useState<TicketComment[]>([]);
+  const [attachments, setAttachments] = useState<TicketAttachment[]>([]);
 
   // Load engineers for mention autocomplete
   React.useEffect(() => {
@@ -132,18 +134,31 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
     loadEngineers();
   }, []);
 
-  // Comments and attachments would come from dedicated APIs
-  // For now, use empty arrays with ability to add new comments
-  const comments = useMemo(() => [] as TicketComment[], [ticketId, activeTab]);
-
-  const attachments = useMemo(() => [] as TicketAttachment[], [ticketId]);
+  // Load comments and attachments from API
+  React.useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [commentsRes, attachmentsRes] = await Promise.all([
+          getComments(ticketId),
+          getAttachments(ticketId),
+        ]);
+        const commentsData = commentsRes.data?.data;
+        const attachmentsData = attachmentsRes.data?.data;
+        setComments(Array.isArray(commentsData) ? commentsData : []);
+        setAttachments(Array.isArray(attachmentsData) ? attachmentsData : []);
+      } catch {
+        setComments([]);
+        setAttachments([]);
+      }
+    };
+    loadData();
+  }, [ticketId]);
 
   // Filtered engineers for mention autocomplete
   const mentionCandidates = useMemo(() => {
-    if (!mentionSearch) return engineers.map((e) => e.name || e.username);
+    if (!mentionSearch) return engineers;
     return engineers
-      .filter((e) => (e.name || e.username).toLowerCase().includes(mentionSearch.toLowerCase()))
-      .map((e) => e.name || e.username);
+      .filter((e) => (e.name || e.username).toLowerCase().includes(mentionSearch.toLowerCase()));
   }, [mentionSearch, engineers]);
 
   // Character count
@@ -433,7 +448,7 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
             {mentionCandidates.map((engineer) => (
               <div
                 key={engineer.id}
-                onClick={() => handleSelectMention(engineer.name)}
+                onClick={() => handleSelectMention(engineer.name || engineer.username)}
                 style={{
                   padding: '6px 12px',
                   cursor: 'pointer',
@@ -451,15 +466,15 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
                 data-testid={`mention-option-${engineer.name}`}
               >
                 <Avatar size={20} style={{ background: colors.primary[500], fontSize: spacing[2] }}>
-                  {engineer.name[0]}
+                  {(engineer.name || engineer.username)?.[0] || 'U'}
                 </Avatar>
-                <Text>{engineer.name}</Text>
+                <Text>{engineer.name || engineer.username}</Text>
                 <Text type="secondary" style={{ fontSize: spacing[3], marginLeft: 'auto' }}>
-                  {engineer.availability === 'available'
+                  {engineer.status === 'active'
                     ? '可用'
-                    : engineer.availability === 'busy'
-                      ? '忙碌'
-                      : '离开'}
+                    : engineer.status === 'inactive'
+                      ? '离开'
+                      : '忙碌'}
                 </Text>
               </div>
             ))}

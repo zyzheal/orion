@@ -44,10 +44,10 @@ const stateIcon: Record<string, React.ReactNode> = {
 };
 
 const levelColor: Record<string, string> = {
-  core: colors.red[500],
+  core: colors.error[500],
   domain: colors.purple[500],
-  service: colors.blue[500],
-  feature: colors.green[500],
+  service: colors.info[500],
+  feature: colors.success[500],
 };
 
 const levelLabel: Record<string, string> = {
@@ -244,10 +244,11 @@ const DependencyGraph: React.FC<DependencyGraphProps> = ({
       <Tree
         defaultExpandAll
         showLine
-        treeData={treeData}
         selectable={false}
         style={{ maxHeight: 500, overflow: 'auto' }}
-      />
+      >
+        {treeData}
+      </Tree>
     </Card>
   );
 };

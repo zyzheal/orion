@@ -26,7 +26,6 @@ import {
   Empty,
   Alert,
   Spin,
-  Popconfirm,
   message,
   Drawer,
 } from 'antd';
@@ -34,7 +33,6 @@ import {
   BulbOutlined,
   SyncOutlined,
   ThunderboltOutlined,
-  CheckCircleOutlined,
   WarningOutlined,
   InfoCircleOutlined,
   DisconnectOutlined,
@@ -47,7 +45,6 @@ import {
   executeCommand,
   connectSSE,
   disconnectSSE,
-  getSSEState,
   type Recommendation,
   type CommandExecutionInput,
 } from '@/api/chatops';
@@ -72,9 +69,9 @@ interface RecommendationWithDismissed extends Recommendation {
 // ============================================================================
 
 const severityConfig: Record<string, { color: string; icon: React.ReactNode; label: string }> = {
-  critical: { color: colors.danger, icon: <WarningOutlined />, label: 'Critical' },
-  warning: { color: colors.warning, icon: <WarningOutlined />, label: 'Warning' },
-  info: { color: colors.info, icon: <InfoCircleOutlined />, label: 'Info' },
+  critical: { color: colors.error[500], icon: <WarningOutlined />, label: 'Critical' },
+  warning: { color: colors.warning[500], icon: <WarningOutlined />, label: 'Warning' },
+  info: { color: colors.info[500], icon: <InfoCircleOutlined />, label: 'Info' },
 };
 
 const sourceLabels: Record<string, string> = {
@@ -101,7 +98,7 @@ const RecommendationCard: React.FC<RecommendationCardProps> = ({
   onExecute,
   onDismiss,
 }) => {
-  const { type, severity, title, description, actions, createdAt, source } = recommendation;
+  const { severity, title, description, actions, createdAt, source } = recommendation;
   const config = severityConfig[severity] || severityConfig.info;
   const [executing, setExecuting] = useState<string | null>(null);
 
@@ -266,9 +263,11 @@ const SmartRecommend: React.FC = () => {
         setReconnecting(false);
         setError(null);
 
-        // Handle recommendations event
-        if (data?.type === 'recommendations' && data?.payload) {
-          const newRecs = Array.isArray(data.payload) ? data.payload : [data.payload];
+        // Handle recommendations event - type guard for SSE data
+        type SSEData = { type?: string; payload?: Recommendation | Recommendation[] };
+        const sseData = data as SSEData;
+        if (sseData?.type === 'recommendations' && sseData?.payload) {
+          const newRecs = Array.isArray(sseData.payload) ? sseData.payload : [sseData.payload];
           setRecommendations((prev) => {
             const existingIds = new Set(prev.map((r) => r.id));
             const fresh = newRecs
@@ -282,7 +281,7 @@ const SmartRecommend: React.FC = () => {
           });
         }
       },
-      onReconnect: (attempt) => {
+      onReconnect: (_attempt) => {
         setReconnecting(true);
         setConnected(false);
       },
@@ -373,7 +372,7 @@ const SmartRecommend: React.FC = () => {
       >
         <div>
           <Title level={4} style={{ margin: 0 }}>
-            <BulbOutlined style={{ marginRight: spacing[2], color: colors.warning }} />
+            <BulbOutlined style={{ marginRight: spacing[2], color: colors.warning[500] }} />
             Smart Recommendations
           </Title>
           <Text type="secondary">
@@ -404,7 +403,7 @@ const SmartRecommend: React.FC = () => {
           <Tag>Active</Tag>
         </Badge>
         {criticalCount > 0 && (
-          <Badge count={criticalCount} style={{ backgroundColor: colors.danger }}>
+          <Badge count={criticalCount} style={{ backgroundColor: colors.error[500] }}>
             <Tag color="red">Critical</Tag>
           </Badge>
         )}

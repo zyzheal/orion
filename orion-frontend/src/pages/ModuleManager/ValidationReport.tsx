@@ -14,7 +14,7 @@ import {
 import { colors, spacing } from '@/tokens';
 import type { DependencyValidationResult } from '@/api/module-manager';
 
-const { Title, Text, Paragraph } = Typography;
+const { Text, Paragraph } = Typography;
 
 // ============================================================================
 // Types

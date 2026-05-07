@@ -204,13 +204,10 @@ const OrchestrationPage: React.FC = () => {
   // Stats
   const stats = {
     total: flows.length,
-    active: flows.filter((f) => f.status === 'active' || f.status === 'running').length,
+    active: flows.filter((f) => f.status === 'active').length,
     failed: flows.filter((f) => f.status === 'failed').length,
     completed: flows.filter((f) => f.status === 'completed').length,
   };
-
-  // Calculate total steps across all flows
-  const totalSteps = flows.reduce((sum, f) => sum + (f.steps?.length || 0), 0);
 
   // Workflow table columns
   const workflowColumns = [
@@ -317,7 +314,7 @@ const OrchestrationPage: React.FC = () => {
               恢复
             </Button>
           )}
-          {(record.status === 'active' || record.status === 'running' || record.status === 'paused') && (
+          {(record.status === 'active' || record.status === 'paused') && (
             <Button
               type="link"
               size="small"

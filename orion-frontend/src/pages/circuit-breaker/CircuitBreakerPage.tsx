@@ -30,6 +30,7 @@ import {
   Alert,
   Progress,
   Descriptions,
+  Select,
 } from 'antd';
 import {
   PlusOutlined,
@@ -41,7 +42,7 @@ import {
   CheckCircleOutlined,
   CloseCircleOutlined,
   SyncOutlined,
-  ResetOutlined,
+  RestOutlined,
   EyeOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
@@ -68,9 +69,9 @@ const { Title, Text } = Typography;
 // ============================================================================
 
 const stateColor: Record<CircuitState, string> = {
-  closed: colors.green[500],
-  open: colors.red[500],
-  'half-open': colors.orange[500],
+  closed: colors.success[500],
+  open: colors.error[500],
+  'half-open': colors.warning[500],
 };
 
 const stateLabel: Record<CircuitState, string> = {
@@ -336,7 +337,7 @@ const CircuitBreakerPage: React.FC = () => {
             <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => { setSelectedBreaker(record); setDetailModalVisible(true); }} />
           </Tooltip>
           <Tooltip title="重置">
-            <Button type="link" size="small" icon={<ResetOutlined />} onClick={() => handleReset(record)} />
+            <Button type="link" size="small" icon={<RestOutlined />} onClick={() => handleReset(record)} />
           </Tooltip>
           <Tooltip title="编辑">
             <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEdit(record)} />
@@ -380,7 +381,7 @@ const CircuitBreakerPage: React.FC = () => {
       >
         <div>
           <Title level={3} style={{ margin: 0 }}>
-            <ThunderboltOutlined style={{ marginRight: spacing[2], color: colors.red[500] }} />
+            <ThunderboltOutlined style={{ marginRight: spacing[2], color: colors.error[500] }} />
             熔断器管理
           </Title>
           <Text type="secondary">配置和管理服务熔断策略，防止级联故障</Text>
@@ -422,13 +423,13 @@ const CircuitBreakerPage: React.FC = () => {
               <MetricCard title="熔断器总数" value={stats.totalBreakers} />
             </Col>
             <Col span={4}>
-              <MetricCard title="正常" value={stats.closedCount} color={colors.green[500]} />
+              <MetricCard title="正常" value={stats.closedCount} color={colors.success[500]} />
             </Col>
             <Col span={4}>
-              <MetricCard title="已熔断" value={stats.openCount} color={colors.red[500]} />
+              <MetricCard title="已熔断" value={stats.openCount} color={colors.error[500]} />
             </Col>
             <Col span={4}>
-              <MetricCard title="半开" value={stats.halfOpenCount} color={colors.orange[500]} />
+              <MetricCard title="半开" value={stats.halfOpenCount} color={colors.warning[500]} />
             </Col>
             <Col span={4}>
               <MetricCard title="总请求" value={stats.totalRequests} />

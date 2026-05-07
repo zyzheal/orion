@@ -25,9 +25,7 @@ import {
   Switch,
   message,
   Tabs,
-  Select,
   Tooltip,
-  Popconfirm,
   Row,
   Col,
   Modal,
@@ -38,7 +36,6 @@ import {
   CheckCircleOutlined,
   WarningOutlined,
   ThunderboltOutlined,
-  FilterOutlined,
   PlayCircleOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
@@ -102,10 +99,10 @@ const stateLabel: Record<ModuleState, string> = {
 };
 
 const levelColor: Record<string, string> = {
-  core: colors.red[500],
+  core: colors.error[500],
   domain: colors.purple[500],
-  service: colors.blue[500],
-  feature: colors.green[500],
+  service: colors.info[500],
+  feature: colors.success[500],
 };
 
 const levelLabel: Record<string, string> = {
@@ -406,7 +403,7 @@ const ModuleManagerPage: React.FC = () => {
       >
         <div>
           <Title level={3} style={{ margin: 0 }}>
-            <ClusterOutlined style={{ marginRight: spacing[2], color: colors.blue[500] }} />
+            <ClusterOutlined style={{ marginRight: spacing[2], color: colors.info[500] }} />
             模块管理
           </Title>
           <Text type="secondary">

@@ -61,6 +61,36 @@ interface DashboardState {
   error: Error | null;
 }
 
+/** Efficiency API response structure */
+interface EfficiencyDashboardResponse {
+  dashboard?: {
+    dora?: {
+      deploymentFrequency?: number;
+      leadTimeForChanges?: number;
+      meanTimeToRestore?: number;
+      changeFailureRate?: number;
+    };
+    summary?: {
+      totalDeployments?: number;
+      successfulDeployments?: number;
+      failedDeployments?: number;
+    };
+  };
+}
+
+/** Alerts API response structure */
+interface AlertsResponse {
+  activeCount?: number;
+  data?: Array<{
+    id?: string;
+    status?: string;
+    metric?: string;
+    message?: string;
+    created_at?: string;
+    firstTriggered?: string;
+  }>;
+}
+
 // Quick action definitions (static navigation targets)
 const quickActions: QuickActionItem[] = [
   { name: '创建 Pipeline', icon: 'RocketOutlined', path: '/pipelines', color: '#1890ff' },
@@ -106,13 +136,12 @@ const DashboardCore: React.FC = () => {
 
         // Build KPI metrics from efficiency API response
         if (efficiencyRes.status === 'fulfilled') {
-          const dashboard = efficiencyRes.value.data?.data?.dashboard;
+          const efficiencyData = efficiencyRes.value.data?.data as EfficiencyDashboardResponse | undefined;
+          const dashboard = efficiencyData?.dashboard;
           if (dashboard?.dora) {
-            const dora = dashboard.dora;
             const summary = dashboard.summary || {};
             const total = summary.totalDeployments || 0;
             const success = summary.successfulDeployments || 0;
-            const failed = summary.failedDeployments || 0;
             const successRate = total > 0 ? ((success / total) * 100).toFixed(1) : '0.0';
             const prevSuccessRate = total > 0 ? ((success / total) * 95).toFixed(1) : '0.0';
 
@@ -146,10 +175,10 @@ const DashboardCore: React.FC = () => {
 
         // Build active alerts KPI from alerts API response
         if (alertsRes.status === 'fulfilled') {
-          const alertsData = alertsRes.value.data?.data;
-          const activeCount = Array.isArray(alertsData)
-            ? alertsData.filter((a: any) => a.status === 'active').length
-            : alertsData?.activeCount ?? 0;
+          const alertsData = alertsRes.value.data?.data as AlertsResponse | undefined;
+          const activeCount = alertsData?.activeCount ?? (Array.isArray(alertsData?.data)
+            ? alertsData.data.filter((a) => a.status === 'active').length
+            : 0);
 
           kpis.push({
             id: 'active-alerts',
@@ -163,14 +192,14 @@ const DashboardCore: React.FC = () => {
           });
 
           // Use alerts as activity events
-          if (Array.isArray(alertsData)) {
-            events = alertsData.slice(0, 5).map((a: any, i: number) => ({
+          if (Array.isArray(alertsData?.data)) {
+            events = alertsData.data.slice(0, 5).map((a, i: number) => ({
               id: `alert-${a.id || i}`,
               title: `告警: ${a.metric || a.message || '未知指标'}`,
               description: a.message || '',
               time: a.created_at || a.firstTriggered || new Date().toISOString(),
-              type: 'alert' as const,
-              status: (a.status === 'active' ? 'warning' : 'success') as const,
+              type: 'alert',
+              status: a.status === 'active' ? 'warning' : 'success',
               user: 'system',
             }));
           }

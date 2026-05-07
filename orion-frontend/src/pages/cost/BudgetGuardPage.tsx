@@ -70,7 +70,7 @@ interface SummaryCardsProps {
   blockedCount: number;
 }
 
-const SummaryCards: React.FC<SummaryCardsProps> = ({ guards, forecast, evaluationCount, blockedCount }) => {
+const SummaryCards: React.FC<SummaryCardsProps> = ({ guards, forecast: _forecast, evaluationCount, blockedCount }) => {
   const activeCount = guards.filter((g) => g.status === 'active').length;
   const totalBudget = guards.reduce((sum, g) => sum + g.budgetAmount, 0);
 
@@ -112,7 +112,7 @@ const SummaryCards: React.FC<SummaryCardsProps> = ({ guards, forecast, evaluatio
             title="Blocked"
             value={blockedCount}
             prefix={<CloseCircleOutlined />}
-            valueStyle={{ color: blockedCount > 0 ? colors.danger : colors.success }}
+            valueStyle={{ color: blockedCount > 0 ? colors.error[500] : colors.success[500] }}
           />
         </Card>
       </Col>
@@ -178,7 +178,7 @@ const ForecastCard: React.FC<ForecastCardProps> = ({ forecast, loading }) => {
             value={forecast.predictedEndOfMonthCost}
             precision={2}
             prefix="¥"
-            valueStyle={{ color: isOverBudget ? colors.danger : colors.success }}
+            valueStyle={{ color: isOverBudget ? colors.error[500] : colors.success[500] }}
           />
         </Col>
         <Col span={8}>
@@ -186,9 +186,8 @@ const ForecastCard: React.FC<ForecastCardProps> = ({ forecast, loading }) => {
             title={isOverBudget ? 'Projected Overage' : 'Budget Remaining'}
             value={Math.abs(forecast.projectedOverage)}
             precision={2}
-            prefix={forecast.projectedOverage > 0 ? '+' : '-'}
             prefix="¥"
-            valueStyle={{ color: isOverBudget ? colors.danger : colors.success }}
+            valueStyle={{ color: isOverBudget ? colors.error[500] : colors.success[500] }}
           />
         </Col>
       </Row>
@@ -265,7 +264,9 @@ const BudgetGuardPage: React.FC = () => {
     setForecastLoading(true);
     try {
       const res = await getCostForecast({ days: 30 });
-      setForecast(res.data?.data || null);
+      // API returns { success: boolean; data: CostForecastResult } structure
+      const apiResponse = res.data as unknown as { data?: CostForecastResult };
+      setForecast(apiResponse?.data || null);
     } catch {
       setForecast(null);
     } finally {
@@ -329,7 +330,7 @@ const BudgetGuardPage: React.FC = () => {
     }
   };
 
-  const handleUpdate = async (values: BudgetGuardInput) => {
+  const handleUpdate = async (_values: BudgetGuardInput) => {
     if (!editingGuard) return;
     setSubmitting(true);
     try {
@@ -348,7 +349,7 @@ const BudgetGuardPage: React.FC = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (_id: string) => {
     try {
       // Note: deleteBudgetGuard would be added to API when backend supports it
       message.info('删除功能待后端支持');
@@ -386,9 +387,9 @@ const BudgetGuardPage: React.FC = () => {
     setEvalResult(null);
     try {
       const res = await evaluateBudgetGuard(values.pipelineId, values.estimatedCost);
-      setEvalResult(res.data?.data || null);
+      setEvalResult(res.data?.data?.data || null);
       setEvaluationCount((prev) => prev + 1);
-      if (res.data?.data?.passed === false) {
+      if (res.data?.data?.data?.passed === false) {
         setBlockedCount((prev) => prev + 1);
       }
     } catch (error: unknown) {
@@ -412,10 +413,10 @@ const BudgetGuardPage: React.FC = () => {
       dataIndex: 'name',
       key: 'name',
       width: 180,
-      render: (name: string, record: BudgetGuard) => (
+      render: (_: unknown, record: BudgetGuard) => (
         <Space>
           <SafetyOutlined />
-          <Text strong>{name}</Text>
+          <Text strong>{record.name}</Text>
         </Space>
       ),
     },
@@ -424,16 +425,16 @@ const BudgetGuardPage: React.FC = () => {
       dataIndex: 'description',
       key: 'description',
       ellipsis: true,
-      render: (desc: string | null) => desc || '--',
+      render: (value: unknown) => (value as string | null) || '--',
     },
     {
       title: 'Budget',
       dataIndex: 'budgetAmount',
       key: 'budgetAmount',
       width: 120,
-      render: (amount: number, record: BudgetGuard) => (
+      render: (_: unknown, record: BudgetGuard) => (
         <Text>
-          {record.currency || 'CNY'} {amount.toLocaleString()}
+          {record.currency || 'CNY'} {record.budgetAmount.toLocaleString()}
         </Text>
       ),
     },
@@ -442,7 +443,8 @@ const BudgetGuardPage: React.FC = () => {
       dataIndex: 'action',
       key: 'action',
       width: 100,
-      render: (action: 'allow' | 'block' | 'warn') => {
+      render: (value: unknown) => {
+        const action = value as 'allow' | 'block' | 'warn';
         const config = {
           allow: { color: 'success', icon: <CheckCircleOutlined />, label: 'Allow' },
           block: { color: 'error', icon: <CloseCircleOutlined />, label: 'Block' },
@@ -456,7 +458,8 @@ const BudgetGuardPage: React.FC = () => {
       dataIndex: 'scope',
       key: 'scope',
       width: 180,
-      render: (scope: BudgetGuard['scope']) => {
+      render: (value: unknown) => {
+        const scope = value as BudgetGuard['scope'];
         if (!scope) return <Text type="secondary">Global</Text>;
         const parts: string[] = [];
         if (scope.projectIds?.length) parts.push(`${scope.projectIds.length} projects`);
@@ -469,18 +472,21 @@ const BudgetGuardPage: React.FC = () => {
       dataIndex: 'status',
       key: 'status',
       width: 100,
-      render: (status: 'active' | 'inactive') => (
-        <Tag color={status === 'active' ? 'green' : 'default'}>
-          {status === 'active' ? 'Active' : 'Inactive'}
-        </Tag>
-      ),
+      render: (value: unknown) => {
+        const status = value as 'active' | 'inactive';
+        return (
+          <Tag color={status === 'active' ? 'green' : 'default'}>
+            {status === 'active' ? 'Active' : 'Inactive'}
+          </Tag>
+        );
+      },
     },
     {
       title: 'Created',
       dataIndex: 'createdAt',
       key: 'createdAt',
       width: 160,
-      render: (date: string) => new Date(date).toLocaleDateString(),
+      render: (value: unknown) => new Date(value as string).toLocaleDateString(),
     },
     {
       title: 'Actions',

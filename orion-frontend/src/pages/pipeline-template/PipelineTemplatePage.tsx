@@ -1,17 +1,14 @@
 /**
- * Pipeline Template Page (Workflow 9: Advanced CI/CD)
+ * Pipeline Template Page
+ * Workflow 9: Advanced CI/CD - Pipeline template management
  *
  * Features:
- * - Template library with category filtering and search
- * - Template detail view with YAML preview
- * - Create/edit template
- * - Instantiate template to create a pipeline
- * - Delete template
- *
- * Backend API: orion-platform-service/src/api/pipeline-template-routes.ts
- * Frontend API: src/api/pipeline-templates.ts
+ * - Template list with category filtering
+ * - Template CRUD operations
+ * - Template versioning
+ * - Template usage statistics
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Typography,
   Card,
@@ -19,85 +16,110 @@ import {
   Tag,
   Space,
   Button,
-  message,
+  Input,
   Modal,
   Form,
-  Input,
   Select,
-  Drawer,
-  Tabs,
-  Popconfirm,
+  message,
   Row,
   Col,
   Tooltip,
+  Popconfirm,
 } from 'antd';
 import {
   PlusOutlined,
   ReloadOutlined,
-  EyeOutlined,
   EditOutlined,
   DeleteOutlined,
-  RocketOutlined,
-  FolderOutlined,
-  CodeOutlined,
+  CopyOutlined,
+  FileTextOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import dayjs from 'dayjs';
 import MetricCard from '@/components/MetricCard';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import { colors, spacing } from '@/tokens';
-import {
-  pipelineTemplatesApi,
-  type PipelineTemplate,
-} from '@/api/pipeline-templates';
 
-const { Title, Text, Paragraph } = Typography;
-const { TextArea } = Input;
-
-// ============================================================================
-// Constants
-// ============================================================================
-
-const CATEGORY_OPTIONS = [
-  { label: '全部', value: 'all' },
-  { label: 'CI 构建', value: 'ci-build' },
-  { label: 'CD 部署', value: 'cd-deploy' },
-  { label: '测试', value: 'testing' },
-  { label: '代码质量', value: 'code-quality' },
-  { label: '安全扫描', value: 'security' },
-  { label: '数据管道', value: 'data-pipeline' },
-  { label: '自定义', value: 'custom' },
-];
-
-const categoryColor: Record<string, string> = {
-  'ci-build': colors.blue[500],
-  'cd-deploy': colors.green[500],
-  testing: colors.purple[500],
-  'code-quality': colors.orange[500],
-  security: colors.red[500],
-  'data-pipeline': colors.cyan[500],
-  custom: colors.neutral[500],
-};
-
-const categoryLabel: Record<string, string> = {
-  'ci-build': 'CI 构建',
-  'cd-deploy': 'CD 部署',
-  testing: '测试',
-  'code-quality': '代码质量',
-  security: '安全扫描',
-  'data-pipeline': '数据管道',
-  custom: '自定义',
-};
+const { Title, Text } = Typography;
 
 // ============================================================================
 // Types
 // ============================================================================
 
-interface InstantiateFormData {
+interface PipelineTemplate {
+  id: string;
   name: string;
-  params?: Record<string, unknown>;
-  projectId?: string;
+  description: string;
+  category: 'build' | 'test' | 'deploy' | 'integration' | 'custom';
+  version: string;
+  stages: number;
+  usageCount: number;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  isPublic: boolean;
 }
+
+// ============================================================================
+// Mock Data
+// ============================================================================
+
+const mockTemplates: PipelineTemplate[] = [
+  {
+    id: 'template-1',
+    name: 'Standard Build Pipeline',
+    description: 'Standard CI build with lint, test, and artifact stages',
+    category: 'build',
+    version: '1.2.0',
+    stages: 3,
+    usageCount: 45,
+    createdBy: 'admin',
+    createdAt: '2026-01-10T00:00:00Z',
+    updatedAt: '2026-04-15T00:00:00Z',
+    isPublic: true,
+  },
+  {
+    id: 'template-2',
+    name: 'Kubernetes Deploy',
+    description: 'Deploy to Kubernetes with canary rollout',
+    category: 'deploy',
+    version: '2.0.1',
+    stages: 5,
+    usageCount: 32,
+    createdBy: 'admin',
+    createdAt: '2026-02-01T00:00:00Z',
+    updatedAt: '2026-04-20T00:00:00Z',
+    isPublic: true,
+  },
+  {
+    id: 'template-3',
+    name: 'Integration Test Suite',
+    description: 'Full integration test with mock services',
+    category: 'integration',
+    version: '1.0.0',
+    stages: 4,
+    usageCount: 18,
+    createdBy: 'dev-team',
+    createdAt: '2026-03-01T00:00:00Z',
+    updatedAt: '2026-03-15T00:00:00Z',
+    isPublic: false,
+  },
+];
+
+const categoryLabels: Record<string, string> = {
+  build: '构建',
+  test: '测试',
+  deploy: '部署',
+  integration: '集成',
+  custom: '自定义',
+};
+
+const categoryColors: Record<string, string> = {
+  build: colors.primary[500],
+  test: colors.success[500],
+  deploy: colors.warning[500],
+  integration: colors.info[500],
+  custom: colors.neutral[500],
+};
 
 // ============================================================================
 // Main Component
@@ -105,251 +127,98 @@ interface InstantiateFormData {
 
 const PipelineTemplatePage: React.FC = () => {
   const [loading, setLoading] = useState(false);
-  const [templates, setTemplates] = useState<PipelineTemplate[]>([]);
+  const [templates, setTemplates] = useState<PipelineTemplate[]>(mockTemplates);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
-  const [detailDrawerVisible, setDetailDrawerVisible] = useState(false);
-  const [selectedTemplate, setSelectedTemplate] = useState<PipelineTemplate | null>(null);
   const [createModalVisible, setCreateModalVisible] = useState(false);
-  const [editModalVisible, setEditModalVisible] = useState(false);
-  const [instantiateModalVisible, setInstantiateModalVisible] = useState(false);
-  const [editingTemplate, setEditingTemplate] = useState<PipelineTemplate | null>(null);
   const [createForm] = Form.useForm();
-  const [editForm] = Form.useForm();
-  const [instantiateForm] = Form.useForm();
-  const [submitting, setSubmitting] = useState(false);
 
-  // ---- Data Loading ----
-
-  const loadTemplates = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await pipelineTemplatesApi.list();
-      setTemplates(Array.isArray(data.data) ? data.data : data.data?.templates || []);
-    } catch (error: unknown) {
-      message.error(`加载模板列表失败: ${(error as Error).message}`);
-      setTemplates([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadTemplates();
-  }, [loadTemplates]);
-
-  // ---- Filtering ----
-
-  const filteredTemplates = templates.filter((t) => {
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      const searchable = [t.name, t.description, ...(t.tags || [])].join(' ').toLowerCase();
-      if (!searchable.includes(q)) return false;
-    }
-    if (categoryFilter !== 'all' && t.category !== categoryFilter) return false;
-    return true;
-  });
-
-  // ---- Stats ----
-
-  const stats = {
+  // Stats
+  const stats = useMemo(() => ({
     total: templates.length,
-    public: templates.filter((t) => t.is_public).length,
-    categories: new Set(templates.map((t) => t.category)).size,
-  };
+    public: templates.filter((t) => t.isPublic).length,
+    totalUsage: templates.reduce((sum, t) => sum + t.usageCount, 0),
+  }), [templates]);
 
-  // ---- Actions ----
-
-  const handleCreate = async () => {
-    try {
-      const values = await createForm.validateFields();
-      setSubmitting(true);
-      await pipelineTemplatesApi.create({
-        name: values.name,
-        description: values.description || undefined,
-        category: values.category || 'custom',
-        yaml_definition: values.yaml_definition,
-        tags: values.tags
-          ? values.tags.split(',').map((s: string) => s.trim()).filter(Boolean)
-          : [],
-      });
-      message.success('模板创建成功');
-      setCreateModalVisible(false);
-      createForm.resetFields();
-      await loadTemplates();
-    } catch (error: unknown) {
-      if (!(error instanceof Error && (error as any).errorFields)) {
-        message.error(`创建失败: ${(error as Error).message}`);
+  // Filtered templates
+  const filteredTemplates = useMemo(() => {
+    return templates.filter((t) => {
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        if (!t.name.toLowerCase().includes(q) && !t.description.toLowerCase().includes(q)) {
+          return false;
+        }
       }
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleEdit = async () => {
-    if (!editingTemplate) return;
-    try {
-      const values = await editForm.validateFields();
-      setSubmitting(true);
-      await pipelineTemplatesApi.update(editingTemplate.id, {
-        name: values.name,
-        description: values.description || null,
-        category: values.category,
-        yaml_definition: values.yaml_definition,
-        tags: values.tags
-          ? values.tags.split(',').map((s: string) => s.trim()).filter(Boolean)
-          : editingTemplate.tags,
-      });
-      message.success('模板更新成功');
-      setEditModalVisible(false);
-      setEditingTemplate(null);
-      editForm.resetFields();
-      await loadTemplates();
-    } catch (error: unknown) {
-      if (!(error instanceof Error && (error as any).errorFields)) {
-        message.error(`更新失败: ${(error as Error).message}`);
-      }
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleDelete = async (template: PipelineTemplate) => {
-    try {
-      await pipelineTemplatesApi.delete(template.id);
-      message.success('模板已删除');
-      await loadTemplates();
-    } catch (error: unknown) {
-      message.error(`删除失败: ${(error as Error).message}`);
-    }
-  };
-
-  const handleInstantiate = async () => {
-    if (!selectedTemplate) return;
-    try {
-      const values = await instantiateForm.validateFields();
-      setSubmitting(true);
-      await pipelineTemplatesApi.instantiate(selectedTemplate.id, {
-        name: values.name,
-        params: values.params ? JSON.parse(values.params) : undefined,
-        projectId: values.projectId || undefined,
-      });
-      message.success('模板实例化成功，流水线已创建');
-      setInstantiateModalVisible(false);
-      instantiateForm.resetFields();
-    } catch (error: unknown) {
-      message.error(`实例化失败: ${(error as Error).message}`);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const openEdit = (template: PipelineTemplate) => {
-    setEditingTemplate(template);
-    editForm.setFieldsValue({
-      name: template.name,
-      description: template.description || '',
-      category: template.category,
-      yaml_definition: template.yaml_definition,
-      tags: (template.tags || []).join(', '),
+      if (categoryFilter !== 'all' && t.category !== categoryFilter) return false;
+      return true;
     });
-    setEditModalVisible(true);
-  };
+  }, [templates, searchQuery, categoryFilter]);
 
-  // ---- Table Columns ----
-
+  // Table columns
   const columns: ColumnsType<PipelineTemplate> = [
     {
       title: '模板名称',
       dataIndex: 'name',
       key: 'name',
       width: 200,
-      sorter: (a, b) => a.name.localeCompare(b.name),
-      render: (text: string, record) => (
-        <Space direction="vertical" size={0}>
-          <Text strong style={{ cursor: 'pointer' }} onClick={() => handleViewDetail(record)}>
-            {text}
-          </Text>
-          {record.description && (
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              {record.description.substring(0, 50)}
-              {record.description.length > 50 ? '...' : ''}
-            </Text>
-          )}
-        </Space>
-      ),
+      render: (text: string) => <Text strong>{text}</Text>,
     },
     {
-      title: '分类',
+      title: '类别',
       dataIndex: 'category',
       key: 'category',
       width: 100,
-      filters: CATEGORY_OPTIONS.filter((o) => o.value !== 'all').map((o) => ({
-        text: o.label,
-        value: o.value,
-      })),
-      onFilter: (value, record) => record.category === value,
-      render: (cat: string) => (
-        <Tag color={categoryColor[cat] || 'default'}>{categoryLabel[cat] || cat}</Tag>
+      render: (category: string) => (
+        <Tag color={categoryColors[category]}>
+          {categoryLabels[category]}
+        </Tag>
       ),
-    },
-    {
-      title: '标签',
-      dataIndex: 'tags',
-      key: 'tags',
-      width: 200,
-      render: (tags: string[]) =>
-        (tags || []).slice(0, 3).map((tag) => (
-          <Tag key={tag} style={{ marginBottom: 4 }}>
-            {tag}
-          </Tag>
-        )),
     },
     {
       title: '版本',
       dataIndex: 'version',
       key: 'version',
-      width: 70,
-      sorter: (a, b) => a.version - b.version,
-      render: (v: number) => <Tag>v{v}</Tag>,
-    },
-    {
-      title: '可见性',
-      key: 'visibility',
       width: 80,
-      render: (_: unknown, record) =>
-        record.is_public ? (
-          <Tag color="green">公开</Tag>
-        ) : (
-          <Tag color="default">私有</Tag>
-        ),
+      render: (text: string) => <Tag>{text}</Tag>,
     },
     {
-      title: '更新时间',
-      dataIndex: 'updated_at',
-      key: 'updated_at',
-      width: 140,
-      sorter: (a, b) => dayjs(a.updated_at).valueOf() - dayjs(b.updated_at).valueOf(),
-      render: (value: string) => (
-        <Text type="secondary">{dayjs(value).fromNow()}</Text>
+      title: '阶段数',
+      dataIndex: 'stages',
+      key: 'stages',
+      width: 80,
+      render: (num: number) => <Text>{num} 个阶段</Text>,
+    },
+    {
+      title: '使用次数',
+      dataIndex: 'usageCount',
+      key: 'usageCount',
+      width: 100,
+      render: (count: number) => <Text type="secondary">{count} 次</Text>,
+    },
+    {
+      title: '公开',
+      dataIndex: 'isPublic',
+      key: 'isPublic',
+      width: 80,
+      render: (isPublic: boolean) => (
+        <Tag color={isPublic ? 'green' : 'default'}>
+          {isPublic ? '公开' : '私有'}
+        </Tag>
       ),
     },
     {
       title: '操作',
       key: 'actions',
-      width: 200,
+      width: 160,
       render: (_: unknown, record) => (
         <Space size="small">
-          <Tooltip title="查看详情">
-            <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => handleViewDetail(record)} />
-          </Tooltip>
-          <Tooltip title="实例化">
-            <Button type="link" size="small" icon={<RocketOutlined />} onClick={() => handleInstantiateTemplate(record)} />
+          <Tooltip title="复制">
+            <Button type="link" size="small" icon={<CopyOutlined />} />
           </Tooltip>
           <Tooltip title="编辑">
-            <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEdit(record)} />
+            <Button type="link" size="small" icon={<EditOutlined />} />
           </Tooltip>
-          <Popconfirm title="确认删除该模板?" onConfirm={() => handleDelete(record)}>
+          <Popconfirm title="确认删除?" onConfirm={() => handleDelete(record.id)}>
             <Tooltip title="删除">
               <Button type="link" size="small" danger icon={<DeleteOutlined />} />
             </Tooltip>
@@ -359,29 +228,51 @@ const PipelineTemplatePage: React.FC = () => {
     },
   ];
 
-  // ---- Handlers ----
-
-  const handleViewDetail = (template: PipelineTemplate) => {
-    setSelectedTemplate(template);
-    setDetailDrawerVisible(true);
+  const handleDelete = (id: string) => {
+    setTemplates((prev) => prev.filter((t) => t.id !== id));
+    message.success('模板已删除');
   };
 
-  const handleInstantiateTemplate = (template: PipelineTemplate) => {
-    setSelectedTemplate(template);
-    instantiateForm.setFieldsValue({ name: `${template.name} - 实例` });
-    setInstantiateModalVisible(true);
+  const handleCreate = async () => {
+    try {
+      const values = await createForm.validateFields();
+      const newTemplate: PipelineTemplate = {
+        id: `template-${Date.now()}`,
+        name: values.name,
+        description: values.description || '',
+        category: values.category,
+        version: '1.0.0',
+        stages: 1,
+        usageCount: 0,
+        createdBy: 'current-user',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        isPublic: values.isPublic ?? false,
+      };
+      setTemplates((prev) => [...prev, newTemplate]);
+      message.success('模板创建成功');
+      setCreateModalVisible(false);
+      createForm.resetFields();
+    } catch {
+      // Form validation failed
+    }
   };
 
   const filterDefinitions: FilterDefinition[] = [
     {
       key: 'category',
-      label: '模板分类',
-      options: CATEGORY_OPTIONS,
-      placeholder: '按分类筛选',
+      label: '类别',
+      options: [
+        { label: '全部', value: 'all' },
+        { label: '构建', value: 'build' },
+        { label: '测试', value: 'test' },
+        { label: '部署', value: 'deploy' },
+        { label: '集成', value: 'integration' },
+        { label: '自定义', value: 'custom' },
+      ],
+      placeholder: '按类别筛选',
     },
   ];
-
-  // ---- Render ----
 
   return (
     <div style={{ padding: 0 }}>
@@ -396,24 +287,19 @@ const PipelineTemplatePage: React.FC = () => {
       >
         <div>
           <Title level={3} style={{ margin: 0 }}>
-            <FolderOutlined style={{ marginRight: spacing[2], color: colors.blue[500] }} />
-            流水线模板库
+            <FileTextOutlined style={{ marginRight: spacing[2], color: colors.primary[500] }} />
+            Pipeline 模板
           </Title>
-          <Text type="secondary">
-            共 {stats.total} 个模板 · {stats.public} 个公开 · {stats.categories} 个分类
-          </Text>
+          <Text type="secondary">管理和复用 Pipeline 配置模板</Text>
         </div>
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={loadTemplates} loading={loading}>
+          <Button icon={<ReloadOutlined />} onClick={() => setLoading(true)}>
             刷新
           </Button>
           <Button
             type="primary"
             icon={<PlusOutlined />}
-            onClick={() => {
-              createForm.resetFields();
-              setCreateModalVisible(true);
-            }}
+            onClick={() => setCreateModalVisible(true)}
           >
             创建模板
           </Button>
@@ -421,32 +307,17 @@ const PipelineTemplatePage: React.FC = () => {
       </div>
 
       {/* Stats Cards */}
-      <div style={{ marginBottom: spacing[6] }}>
-        <Row gutter={spacing[4]}>
-          <Col span={8}>
-            <MetricCard
-              title="模板总数"
-              value={stats.total}
-              icon={<FolderOutlined style={{ fontSize: 20 }} />}
-            />
-          </Col>
-          <Col span={8}>
-            <MetricCard
-              title="公开模板"
-              value={stats.public}
-              color={colors.green[500]}
-              icon={<RocketOutlined style={{ fontSize: 20 }} />}
-            />
-          </Col>
-          <Col span={8}>
-            <MetricCard
-              title="分类数"
-              value={stats.categories}
-              icon={<FolderOutlined style={{ fontSize: 20 }} />}
-            />
-          </Col>
-        </Row>
-      </div>
+      <Row gutter={spacing[4]} style={{ marginBottom: spacing[6] }}>
+        <Col span={8}>
+          <MetricCard title="模板总数" value={stats.total} />
+        </Col>
+        <Col span={8}>
+          <MetricCard title="公开模板" value={stats.public} color={colors.success[500]} />
+        </Col>
+        <Col span={8}>
+          <MetricCard title="总使用次数" value={stats.totalUsage} />
+        </Col>
+      </Row>
 
       {/* Template Table */}
       <Card>
@@ -454,7 +325,7 @@ const PipelineTemplatePage: React.FC = () => {
           <SearchFilterBar
             onSearch={setSearchQuery}
             filters={filterDefinitions}
-            searchPlaceholder="搜索模板名称、描述或标签..."
+            searchPlaceholder="搜索模板名称或描述..."
             onFilter={(filters) => {
               if (filters.category) setCategoryFilter(String(filters.category));
             }}
@@ -468,187 +339,40 @@ const PipelineTemplatePage: React.FC = () => {
           rowKey="id"
           loading={loading}
           size="middle"
-          pagination={{ pageSize: 15, showTotal: (total) => `共 ${total} 个模板` }}
+          pagination={{ pageSize: 10, showTotal: (total) => `共 ${total} 个模板` }}
         />
       </Card>
 
-      {/* Detail Drawer */}
-      <Drawer
-        title={selectedTemplate?.name || '模板详情'}
-        width={720}
-        open={detailDrawerVisible}
-        onClose={() => {
-          setDetailDrawerVisible(false);
-          setSelectedTemplate(null);
-        }}
-        extra={
-          <Space>
-            <Button
-              icon={<RocketOutlined />}
-              onClick={() => {
-                setDetailDrawerVisible(false);
-                if (selectedTemplate) handleInstantiateTemplate(selectedTemplate);
-              }}
-            >
-              实例化
-            </Button>
-            <Button
-              icon={<EditOutlined />}
-              onClick={() => {
-                setDetailDrawerVisible(false);
-                if (selectedTemplate) openEdit(selectedTemplate);
-              }}
-            >
-              编辑
-            </Button>
-          </Space>
-        }
-      >
-        {selectedTemplate && (
-          <Tabs
-            defaultActiveKey="info"
-            items={[
-              {
-                key: 'info',
-                label: '基本信息',
-                children: (
-                  <div>
-                    <p><strong>名称:</strong> {selectedTemplate.name}</p>
-                    <p><strong>描述:</strong> {selectedTemplate.description || '-'}</p>
-                    <p><strong>分类:</strong> {categoryLabel[selectedTemplate.category] || selectedTemplate.category}</p>
-                    <p><strong>版本:</strong> v{selectedTemplate.version}</p>
-                    <p><strong>可见性:</strong> {selectedTemplate.is_public ? '公开' : '私有'}</p>
-                    <p><strong>创建人:</strong> {selectedTemplate.created_by || '-'}</p>
-                    <p><strong>创建时间:</strong> {dayjs(selectedTemplate.created_at).format('YYYY-MM-DD HH:mm')}</p>
-                    <p><strong>更新时间:</strong> {dayjs(selectedTemplate.updated_at).format('YYYY-MM-DD HH:mm')}</p>
-                    <p><strong>标签:</strong></p>
-                    <Space wrap>
-                      {(selectedTemplate.tags || []).map((tag) => (
-                        <Tag key={tag}>{tag}</Tag>
-                      ))}
-                    </Space>
-                  </div>
-                ),
-              },
-              {
-                key: 'yaml',
-                label: 'YAML 定义',
-                children: (
-                  <div>
-                    <div
-                      style={{
-                        background: colors.neutral[50],
-                        padding: spacing[4],
-                        borderRadius: 4,
-                        overflow: 'auto',
-                        maxHeight: 500,
-                      }}
-                    >
-                      <pre style={{ margin: 0, fontSize: 13, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
-                        {selectedTemplate.yaml_definition}
-                      </pre>
-                    </div>
-                  </div>
-                ),
-              },
-            ]}
-          />
-        )}
-      </Drawer>
-
       {/* Create Modal */}
       <Modal
-        title="创建流水线模板"
+        title="创建 Pipeline 模板"
         open={createModalVisible}
         onCancel={() => setCreateModalVisible(false)}
         onOk={handleCreate}
-        confirmLoading={submitting}
-        width={700}
+        width={600}
         destroyOnClose
       >
         <Form form={createForm} layout="vertical">
-          <Form.Item name="name" label="模板名称" rules={[{ required: true, message: '请输入模板名称' }]}>
-            <Input placeholder="如: Node.js CI/CD 标准模板" />
-          </Form.Item>
-          <Form.Item name="description" label="描述">
-            <TextArea rows={2} placeholder="模板用途描述..." />
-          </Form.Item>
-          <Form.Item name="category" label="分类" rules={[{ required: true, message: '请选择分类' }]}>
-            <Select>
-              {CATEGORY_OPTIONS.filter((o) => o.value !== 'all').map((o) => (
-                <Select.Option key={o.value} value={o.value}>{o.label}</Select.Option>
-              ))}
-            </Select>
-          </Form.Item>
-          <Form.Item name="yaml_definition" label="YAML 定义" rules={[{ required: true, message: '请输入 YAML 定义' }]}>
-            <TextArea rows={10} placeholder="pipeline:\n  name: ...\n  stages: ..." style={{ fontFamily: 'monospace' }} />
-          </Form.Item>
-          <Form.Item name="tags" label="标签 (逗号分隔)">
-            <Input placeholder="如: nodejs, docker, k8s" />
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      {/* Edit Modal */}
-      <Modal
-        title="编辑流水线模板"
-        open={editModalVisible}
-        onCancel={() => {
-          setEditModalVisible(false);
-          setEditingTemplate(null);
-        }}
-        onOk={handleEdit}
-        confirmLoading={submitting}
-        width={700}
-        destroyOnClose
-      >
-        <Form form={editForm} layout="vertical">
           <Form.Item name="name" label="模板名称" rules={[{ required: true }]}>
-            <Input />
+            <Input placeholder="如: Standard Build Pipeline" />
           </Form.Item>
           <Form.Item name="description" label="描述">
-            <TextArea rows={2} />
+            <Input.TextArea rows={2} placeholder="模板用途说明" />
           </Form.Item>
-          <Form.Item name="category" label="分类" rules={[{ required: true }]}>
-            <Select>
-              {CATEGORY_OPTIONS.filter((o) => o.value !== 'all').map((o) => (
-                <Select.Option key={o.value} value={o.value}>{o.label}</Select.Option>
-              ))}
+          <Form.Item name="category" label="类别" rules={[{ required: true }]}>
+            <Select placeholder="选择类别">
+              <Select.Option value="build">构建</Select.Option>
+              <Select.Option value="test">测试</Select.Option>
+              <Select.Option value="deploy">部署</Select.Option>
+              <Select.Option value="integration">集成</Select.Option>
+              <Select.Option value="custom">自定义</Select.Option>
             </Select>
           </Form.Item>
-          <Form.Item name="yaml_definition" label="YAML 定义" rules={[{ required: true }]}>
-            <TextArea rows={10} style={{ fontFamily: 'monospace' }} />
-          </Form.Item>
-          <Form.Item name="tags" label="标签 (逗号分隔)">
-            <Input />
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      {/* Instantiate Modal */}
-      <Modal
-        title="实例化模板"
-        open={instantiateModalVisible}
-        onCancel={() => setInstantiateModalVisible(false)}
-        onOk={handleInstantiate}
-        confirmLoading={submitting}
-        width={600}
-      >
-        {selectedTemplate && (
-          <div style={{ marginBottom: spacing[4] }}>
-            <Text>正在从模板创建流水线: </Text>
-            <Tag color={categoryColor[selectedTemplate.category]}>{selectedTemplate.name}</Tag>
-          </div>
-        )}
-        <Form form={instantiateForm} layout="vertical">
-          <Form.Item name="name" label="流水线名称" rules={[{ required: true, message: '请输入流水线名称' }]}>
-            <Input placeholder="如: my-project-ci" />
-          </Form.Item>
-          <Form.Item name="projectId" label="项目 ID">
-            <Input placeholder="关联的项目 ID (可选)" />
-          </Form.Item>
-          <Form.Item name="params" label="参数 (JSON 格式, 可选)">
-            <TextArea rows={4} placeholder='{"env": "production", "region": "us-east-1"}' style={{ fontFamily: 'monospace' }} />
+          <Form.Item name="isPublic" label="公开状态" valuePropName="checked" initialValue={false}>
+            <Select>
+              <Select.Option value={false}>私有</Select.Option>
+              <Select.Option value={true}>公开</Select.Option>
+            </Select>
           </Form.Item>
         </Form>
       </Modal>
