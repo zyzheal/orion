@@ -152,6 +152,21 @@ const ApiKeyManagement: React.FC = () => {
 
   return (
     <div style={{ padding: 0 }}>
+      {/* Header - always visible */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
+        <div>
+          <Title level={3} style={{ margin: 0 }}>
+            <KeyOutlined style={{ marginRight: 8, color: colors.primary[500] }} />
+            API Key 管理
+          </Title>
+          <Text type="secondary">API Key Management</Text>
+        </div>
+        <Space>
+          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>刷新</Button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => { setCreatedKey(null); setModalVisible(true); }}>新建 Key</Button>
+        </Space>
+      </div>
+
       <DataState
         loading={loading && keys.length === 0}
         error={error}
@@ -160,23 +175,9 @@ const ApiKeyManagement: React.FC = () => {
         loadingText="加载 API Key..."
         retry={loadData}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
-          <div>
-            <Title level={3} style={{ margin: 0 }}>
-              <KeyOutlined style={{ marginRight: 8, color: colors.primary[500] }} />
-              API Key 管理
-            </Title>
-            <Text type="secondary">API Key Management</Text>
-          </div>
-          <Space>
-            <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>刷新</Button>
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => { setCreatedKey(null); setModalVisible(true); }}>新建 Key</Button>
-          </Space>
-        </div>
-
         {stats && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: spacing.md, marginBottom: spacing.lg }}>
-            <MetricCard title="总数" value={stats.total} icon={<KeyOutlined />} color={colors.primary[500]} size="medium" />
+            <MetricCard title="总数" value={stats.total} icon={<KeyOutlined />} color={colors.success[500]} size="medium" />
             <MetricCard title="活跃" value={stats.active} icon={<KeyOutlined />} color={colors.success[500]} size="medium" />
             <MetricCard title="已过期" value={stats.expired} icon={<KeyOutlined />} color={colors.error[500]} size="medium" />
           </div>

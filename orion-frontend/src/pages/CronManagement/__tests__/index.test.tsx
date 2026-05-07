@@ -78,8 +78,8 @@ describe('CronManagement', () => {
   });
 
   it('shows error message when API fails', async () => {
-    vi.mocked(cronApi.getCronJobs).mockRejectedValue(new Error('Network error'));
-    vi.mocked(cronApi.getCronStatus).mockRejectedValue(new Error('Network error'));
+    vi.mocked(cronApi.getCronJobs).mockRejectedValue(new Error('加载定时任务失败'));
+    vi.mocked(cronApi.getCronStatus).mockRejectedValue(new Error('加载定时任务失败'));
 
     render(<CronManagement />);
 

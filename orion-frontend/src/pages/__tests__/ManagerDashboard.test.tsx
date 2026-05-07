@@ -10,7 +10,38 @@ import ManagerDashboard from '@/pages/ManagerDashboard';
 // Mock the useBiDashboard hook to return mock data synchronously
 vi.mock('@/hooks/useBiDashboard', () => ({
   useBiDashboard: () => ({
-    data: null, // null triggers mock data fallback in component
+    data: {
+      teamOverview: {
+        totalTickets: 156,
+        resolvedCount: 132,
+        avgResolutionTimeHours: 3.8,
+        slaComplianceRate: 88.5,
+        teamLoadPercentage: 72,
+      },
+      memberMetrics: [
+        { engineerId: 'E001', engineerName: '张伟', period: '2026-W15', workload: { totalAssigned: 20, totalResolved: 18 }, efficiency: { avgResolutionTimeMs: 3600000, ticketsPerDay: 2.5 }, quality: { slaComplianceRate: 95, firstTimeResolveRate: 90, reopenRate: 2 }, compositeScore: 92, performanceGrade: 'A', trend: 'improving' },
+        { engineerId: 'E002', engineerName: '李娜', period: '2026-W15', workload: { totalAssigned: 18, totalResolved: 15 }, efficiency: { avgResolutionTimeMs: 4200000, ticketsPerDay: 2.1 }, quality: { slaComplianceRate: 88, firstTimeResolveRate: 85, reopenRate: 4 }, compositeScore: 85, performanceGrade: 'B+', trend: 'stable' },
+        { engineerId: 'E003', engineerName: '王强', period: '2026-W15', workload: { totalAssigned: 15, totalResolved: 12 }, efficiency: { avgResolutionTimeMs: 5400000, ticketsPerDay: 1.7 }, quality: { slaComplianceRate: 82, firstTimeResolveRate: 78, reopenRate: 6 }, compositeScore: 78, performanceGrade: 'B', trend: 'stable' },
+        { engineerId: 'E004', engineerName: '赵敏', period: '2026-W15', workload: { totalAssigned: 12, totalResolved: 8 }, efficiency: { avgResolutionTimeMs: 6000000, ticketsPerDay: 1.1 }, quality: { slaComplianceRate: 70, firstTimeResolveRate: 65, reopenRate: 10 }, compositeScore: 55, performanceGrade: 'D', trend: 'declining' },
+        { engineerId: 'E005', engineerName: '孙磊', period: '2026-W15', workload: { totalAssigned: 10, totalResolved: 7 }, efficiency: { avgResolutionTimeMs: 7200000, ticketsPerDay: 1.0 }, quality: { slaComplianceRate: 65, firstTimeResolveRate: 60, reopenRate: 12 }, compositeScore: 50, performanceGrade: 'D', trend: 'declining' },
+      ],
+      weekOverWeek: {
+        ticketsCreatedChange: 12.5,
+        resolvedChange: 8.3,
+        avgResolutionTimeChange: -5.4,
+        slaComplianceChange: 1.2,
+      },
+      transferAnalysis: {
+        totalTransfers: 15,
+        avgTransfersPerTicket: 1.3,
+        topTransferReasons: [
+          { reason: '专业不匹配', count: 6 },
+          { reason: '超时自动转派', count: 4 },
+          { reason: '工程师请假', count: 3 },
+          { reason: '工单升级', count: 2 },
+        ],
+      },
+    },
     loading: false,
     error: null,
   }),

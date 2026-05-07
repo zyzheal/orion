@@ -10,7 +10,69 @@ import ExecutiveDashboard from '@/pages/ExecutiveDashboard';
 // Mock the useBiDashboard hook to return mock data synchronously
 vi.mock('@/hooks/useBiDashboard', () => ({
   useBiDashboard: () => ({
-    data: null, // null triggers mock data fallback in component
+    data: {
+      overview: {
+        totalTickets: 487,
+        resolvedTickets: 412,
+        openTickets: 75,
+        overallResolutionRate: 84.6,
+        avgResolutionTimeHours: 4.2,
+        slaComplianceRate: 92.1,
+        totalEngineers: 24,
+        activeEngineers: 18,
+      },
+      trends: {
+        ticketVolumeTrend: Array.from({ length: 30 }, (_, i) => ({
+          period: `2026-04-${String(i + 1).padStart(2, '0')}`,
+          created: 15 + Math.floor(Math.random() * 10),
+          resolved: 12 + Math.floor(Math.random() * 10),
+          open: 3 + Math.floor(Math.random() * 5),
+        })),
+        resolutionTimeTrend: Array.from({ length: 30 }, (_, i) => ({
+          period: `2026-04-${String(i + 1).padStart(2, '0')}`,
+          avgHours: 4 + Math.random() * 2,
+          medianHours: 3 + Math.random() * 2,
+        })),
+        slaComplianceTrend: Array.from({ length: 30 }, (_, i) => ({
+          period: `2026-04-${String(i + 1).padStart(2, '0')}`,
+          rate: 88 + Math.random() * 8,
+        })),
+      },
+      teamRanking: {
+        topPerformers: [
+          { engineerId: 'E001', name: '张伟', score: 95, resolved: 42 },
+          { engineerId: 'E002', name: '李娜', score: 92, resolved: 38 },
+          { engineerId: 'E003', name: '王强', score: 89, resolved: 35 },
+        ],
+        bottomPerformers: [
+          { engineerId: 'E020', name: '孙磊', score: 62, needsAttention: 'SLA合规率偏低 (72%)' },
+        ],
+      },
+      alerts: {
+        slaBreachedCount: 8,
+        overdueTicketsCount: 12,
+        overloadedEngineers: 3,
+        unassignedOlderThan24h: 5,
+      },
+      distribution: {
+        byCategory: {
+          infrastructure: { count: 120, avgResolutionHours: 3.5 },
+          application: { count: 95, avgResolutionHours: 4.2 },
+          database: { count: 80, avgResolutionHours: 5.1 },
+          network: { count: 60, avgResolutionHours: 2.8 },
+          security: { count: 45, avgResolutionHours: 6.0 },
+          deployment: { count: 40, avgResolutionHours: 2.5 },
+          pipeline: { count: 30, avgResolutionHours: 3.0 },
+          performance: { count: 17, avgResolutionHours: 4.5 },
+        },
+        byPriority: {
+          critical: { count: 25, resolved: 20 },
+          high: { count: 80, resolved: 65 },
+          medium: { count: 200, resolved: 170 },
+          low: { count: 182, resolved: 157 },
+        },
+      },
+    },
     loading: false,
     error: null,
   }),

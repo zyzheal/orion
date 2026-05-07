@@ -233,6 +233,21 @@ const WebhookManagement: React.FC = () => {
 
   return (
     <div style={{ padding: 0 }}>
+      {/* Header - always visible */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
+        <div>
+          <Title level={3} style={{ margin: 0 }}>
+            <LinkOutlined style={{ marginRight: 8, color: colors.primary[500] }} />
+            Webhook 管理
+          </Title>
+          <Text type="secondary">平台 Webhook 配置与监控</Text>
+        </div>
+        <Space>
+          <Button icon={<ReloadOutlined />} onClick={loadWebhooks} loading={loading}>刷新</Button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新建 Webhook</Button>
+        </Space>
+      </div>
+
       <DataState
         loading={loading && webhooks.length === 0}
         error={error}
@@ -241,20 +256,6 @@ const WebhookManagement: React.FC = () => {
         loadingText="加载 Webhook..."
         retry={loadWebhooks}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
-          <div>
-            <Title level={3} style={{ margin: 0 }}>
-              <LinkOutlined style={{ marginRight: 8, color: colors.primary[500] }} />
-              Webhook 管理
-            </Title>
-            <Text type="secondary">平台 Webhook 配置与监控</Text>
-          </div>
-          <Space>
-            <Button icon={<ReloadOutlined />} onClick={loadWebhooks} loading={loading}>刷新</Button>
-            <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新建 Webhook</Button>
-          </Space>
-        </div>
-
         <Card>
           <Table columns={columns} dataSource={webhooks} loading={loading} rowKey="id" size="middle" striped />
         </Card>

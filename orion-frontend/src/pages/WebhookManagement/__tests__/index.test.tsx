@@ -68,7 +68,7 @@ describe('WebhookManagement', () => {
   });
 
   it('shows error message when API fails', async () => {
-    vi.mocked(webhookApi.getWebhooks).mockRejectedValue(new Error('Network error'));
+    vi.mocked(webhookApi.getWebhooks).mockRejectedValue(new Error('加载 Webhook 列表失败'));
 
     render(<WebhookManagement />);
 

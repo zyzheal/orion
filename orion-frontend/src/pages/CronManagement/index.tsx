@@ -216,6 +216,21 @@ const CronManagement: React.FC = () => {
 
   return (
     <div style={{ padding: 0 }}>
+      {/* Header - always visible */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
+        <div>
+          <Title level={3} style={{ margin: 0 }}>
+            <ClockCircleOutlined style={{ marginRight: 8, color: colors.primary[500] }} />
+            定时任务管理
+          </Title>
+          <Text type="secondary">Cron Job Management</Text>
+        </div>
+        <Space>
+          <Button icon={<ReloadOutlined />} onClick={loadJobs} loading={loading}>刷新</Button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新建任务</Button>
+        </Space>
+      </div>
+
       <DataState
         loading={loading && jobs.length === 0}
         error={error}
@@ -224,21 +239,6 @@ const CronManagement: React.FC = () => {
         loadingText="加载定时任务..."
         retry={loadJobs}
       >
-        {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
-          <div>
-            <Title level={3} style={{ margin: 0 }}>
-              <ClockCircleOutlined style={{ marginRight: 8, color: colors.primary[500] }} />
-              定时任务管理
-            </Title>
-            <Text type="secondary">Cron Job Management</Text>
-          </div>
-          <Space>
-            <Button icon={<ReloadOutlined />} onClick={loadJobs} loading={loading}>刷新</Button>
-            <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新建任务</Button>
-          </Space>
-        </div>
-
         {/* Stats */}
         {stats && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: spacing.md, marginBottom: spacing.lg }}>

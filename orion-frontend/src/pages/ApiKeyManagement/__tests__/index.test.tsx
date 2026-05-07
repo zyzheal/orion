@@ -74,8 +74,8 @@ describe('ApiKeyManagement', () => {
   });
 
   it('shows error message when API fails', async () => {
-    vi.mocked(apiKeyApi.getApiKeys).mockRejectedValue(new Error('Network error'));
-    vi.mocked(apiKeyApi.getApiKeyStats).mockRejectedValue(new Error('Network error'));
+    vi.mocked(apiKeyApi.getApiKeys).mockRejectedValue(new Error('加载 API Key 列表失败'));
+    vi.mocked(apiKeyApi.getApiKeyStats).mockRejectedValue(new Error('加载 API Key 列表失败'));
 
     render(<ApiKeyManagement />);
 

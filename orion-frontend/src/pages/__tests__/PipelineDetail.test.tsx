@@ -30,9 +30,31 @@ vi.mock('dayjs/plugin/duration', async (importOriginal) => {
   };
 });
 
-// Mock API calls - fail so component falls back to mock data
+// Mock API calls - return successful pipeline data
 vi.mock('@/api/pipelines', () => ({
-  getPipelineRun: vi.fn().mockRejectedValue(new Error('Network error')),
+  getPipelineRun: vi.fn().mockResolvedValue({
+    data: {
+      data: {
+        id: 'pl-001',
+        name: 'frontend-deploy',
+        runNumber: 142,
+        status: 'success',
+        branch: 'main',
+        commit: 'abc1234',
+        author: 'heal',
+        trigger: 'manual',
+        startTime: '2026-04-12T15:00:00Z',
+        endTime: '2026-04-12T15:05:00Z',
+        duration: 300,
+        stages: [
+          { name: 'Checkout', status: 'success', duration: 15, logs: ['Checking out source code...', 'Success: checked out main branch'], steps: [{ name: 'git checkout', status: 'success', duration: 15 }] },
+          { name: 'Build', status: 'success', duration: 120, logs: ['Building project...', 'npm run build', 'Build successful: 120s'], steps: [{ name: 'npm install', status: 'success', duration: 60 }, { name: 'npm run build', status: 'success', duration: 60 }] },
+          { name: 'Test', status: 'success', duration: 90, logs: ['Running tests...', '15 tests passed', 'All tests passed successfully'], steps: [{ name: 'npm test', status: 'success', duration: 90 }] },
+          { name: 'Deploy', status: 'success', duration: 75, logs: ['Deploying to production...', 'Deployment successful'], steps: [{ name: 'kubectl apply', status: 'success', duration: 75 }] },
+        ],
+      },
+    },
+  }),
   retryPipelineRun: vi.fn().mockResolvedValue({}),
 }));
 

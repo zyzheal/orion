@@ -1,7 +1,7 @@
 /**
  * Tests for CostOverview page
  */
-import { render, waitFor } from '@testing-library/react';
+import { render, waitFor, screen } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as aiCostApi from '@/api/ai-cost';
 
@@ -29,8 +29,18 @@ vi.mock('@/api/ai-cost', () => ({
 
 vi.mock('@/tokens/colors', () => ({
   colors: {
-    error: { 600: '#ff4d4f' },
-    success: { 600: '#52c41a' },
+    error: { 400: '#ff7875', 600: '#ff4d4f' },
+    success: { 500: '#52c41a', 600: '#389e0d' },
+    primary: { 500: '#1890ff' },
+    warning: { 500: '#faad14' },
+    neutral: [
+      '#ffffff', '#fafafa', '#f5f5f5', '#f0f0f0', '#d9d9d9',
+      '#bfbfbf', '#8c8c8c', '#595959', '#434343', '#262626',
+      '#1f1f1f', '#141414', '#000000',
+    ],
+    purple: { 500: '#722ed1' },
+    info: { 500: '#1890ff' },
+    light: { border: { light: '#f0f0f0' } },
   },
 }));
 
@@ -53,7 +63,7 @@ describe('CostOverview', { timeout: 15000 }, () => {
   });
 
   it('loads from API on mount', async () => {
-    vi.mocked(aiCostApi.getDashboardData).mockResolvedValue({
+    vi.mocked(aiCostApi.getDashboardData).mockResolvedValueOnce({
       data: {
         code: 200,
         message: 'success',
@@ -74,7 +84,7 @@ describe('CostOverview', { timeout: 15000 }, () => {
       config: {} as any,
     });
 
-    vi.mocked(aiCostApi.getModelPricing).mockResolvedValue({
+    vi.mocked(aiCostApi.getModelPricing).mockResolvedValueOnce({
       data: { code: 200, message: 'success', data: [] },
       status: 200,
       statusText: 'OK',
@@ -92,8 +102,8 @@ describe('CostOverview', { timeout: 15000 }, () => {
   });
 
   it('shows error on failure', async () => {
-    vi.mocked(aiCostApi.getDashboardData).mockRejectedValue(new Error('Network error'));
-    vi.mocked(aiCostApi.getModelPricing).mockRejectedValue(new Error('Network error'));
+    vi.mocked(aiCostApi.getDashboardData).mockRejectedValueOnce(new Error('Network error'));
+    vi.mocked(aiCostApi.getModelPricing).mockRejectedValueOnce(new Error('Network error'));
 
     const CostOverview = (await import('../CostOverview')).default;
 
