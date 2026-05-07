@@ -65,7 +65,31 @@ import {
   type BroadcastInput,
 } from '@/api/notifications';
 import { listUsers, type User } from '@/api/users';
-import type { MockNotification } from '@/pages/__mocks__/mockNotificationData';
+
+// ============================================================================
+// Local type for notification data (matches API response shape)
+// ============================================================================
+
+interface NotificationItem {
+  id: string;
+  title: string;
+  content: string;
+  type:
+    | 'ticket_assigned'
+    | 'ticket_escalated'
+    | 'sla_warning'
+    | 'sla_breached'
+    | 'pipeline_completed'
+    | 'system_alert'
+    | 'comment_mention'
+    | 'transfer_request';
+  priority: 'critical' | 'high' | 'medium' | 'low';
+  read: boolean;
+  createdAt: string;
+  relatedId?: string;
+  sender: string;
+  actions?: Array<{ label: string; type: string }>;
+}
 
 dayjs.extend(relativeTime);
 dayjs.locale('zh-cn');
@@ -128,7 +152,7 @@ const tabDefinitions = [
 // ============================================================================
 
 const NotificationCenter: React.FC = () => {
-  const [notifications, setNotifications] = useState<MockNotification[]>([]);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('all');
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
@@ -453,7 +477,7 @@ const NotificationCenter: React.FC = () => {
   );
 
   // Render notification item
-  const renderNotificationItem = (item: MockNotification) => {
+  const renderNotificationItem = (item: NotificationItem) => {
     const isExpanded = expandedIds.has(item.id);
     const priorityConf = priorityConfig[item.priority];
     const typeIcon = typeIconMap[item.type] || <BellOutlined style={{ fontSize: spacing[5] }} />;

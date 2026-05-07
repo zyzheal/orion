@@ -162,7 +162,11 @@ export class InternalLibraryRepository extends BaseRepository<LibraryEntity> {
 
     const sortBy = options.sortBy || 'created_at';
     const sortOrder = options.sortOrder || 'DESC';
-    query += ` ORDER BY ${sortBy} ${sortOrder}`;
+    // Whitelist to prevent SQL injection
+    const allowedOrderColumns = ['created_at', 'updated_at', 'name', 'status', 'language', 'owner'];
+    const safeColumn = allowedOrderColumns.includes(sortBy) ? sortBy : 'created_at';
+    const safeDir = sortOrder?.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+    query += ` ORDER BY ${safeColumn} ${safeDir}`;
 
     const limit = options.limit || 20;
     const offset = options.offset || 0;

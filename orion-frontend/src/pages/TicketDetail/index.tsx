@@ -43,12 +43,7 @@ import {
 import { useNavigate, useParams } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { getTicket, assignTicket, resolveTicket, closeTicket } from '@/api/ticketing';
-import {
-  mockEngineers,
-  mockTicketHistory,
-  mockTicketRelations,
-  mockTransferHistory,
-} from '@/pages/__mocks__/mockTicketData';
+import { listUsers, type User } from '@/api/users';
 import TicketComments from './TicketComments';
 import { colors, spacing } from '@/tokens';
 
@@ -195,6 +190,20 @@ const TicketDetail: React.FC = () => {
 
   const [ticket, setTicket] = useState<Ticket | null>(null);
   const [_loading, setLoading] = useState(false);
+  const [engineers, setEngineers] = useState<User[]>([]);
+
+  // Load engineers for assign/transfer modals
+  useEffect(() => {
+    const loadEngineers = async () => {
+      try {
+        const res = await listUsers({ limit: 200 });
+        setEngineers(res.data?.data?.data || []);
+      } catch {
+        setEngineers([]);
+      }
+    };
+    loadEngineers();
+  }, []);
 
   // Load ticket from API
   useEffect(() => {
@@ -217,15 +226,15 @@ const TicketDetail: React.FC = () => {
     }
   };
 
-  const history = useMemo(() => (id ? mockTicketHistory[id] || [] : []), [id]);
+  const history = useMemo(() => [] as any[], [id]);
 
   const relations = useMemo(
-    () => (id ? mockTicketRelations.filter((r) => r.ticketId === id) : []),
+    () => [] as any[],
     [id]
   );
 
   const transfers = useMemo(
-    () => (id ? mockTransferHistory.filter((t) => t.ticketId === id) : []),
+    () => [] as any[],
     [id]
   );
 
@@ -737,15 +746,9 @@ const TicketDetail: React.FC = () => {
             rules={[{ required: true, message: '请选择工程师' }]}
           >
             <Select placeholder="选择工程师">
-              {mockEngineers.map((e) => (
-                <Select.Option key={e.id} value={e.name}>
-                  {e.name} (
-                  {e.availability === 'available'
-                    ? '可用'
-                    : e.availability === 'busy'
-                      ? '忙碌'
-                      : '离开'}
-                  )
+              {engineers.map((e) => (
+                <Select.Option key={e.id} value={e.name || e.username}>
+                  {e.name || e.username}
                 </Select.Option>
               ))}
             </Select>
@@ -817,9 +820,9 @@ const TicketDetail: React.FC = () => {
             rules={[{ required: true, message: '请选择接收人' }]}
           >
             <Select placeholder="选择工程师">
-              {mockEngineers.map((e) => (
-                <Select.Option key={e.id} value={e.name}>
-                  {e.name}
+              {engineers.map((e) => (
+                <Select.Option key={e.id} value={e.name || e.username}>
+                  {e.name || e.username}
                 </Select.Option>
               ))}
             </Select>

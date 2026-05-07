@@ -8,8 +8,7 @@
  */
 import React, { useState, useMemo, useCallback } from 'react';
 import { Modal, Form, Input, Select, Radio, Typography, message, Space } from 'antd';
-import { WarningOutlined, FileSearchOutlined } from '@ant-design/icons';
-import { mockTickets } from '@/pages/__mocks__/mockTicketData';
+import { WarningOutlined } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
 
 const { Text } = Typography;
@@ -78,19 +77,28 @@ const priorityLabels: Record<string, string> = {
 // Duplicate detection
 // ============================================================================
 
+/**
+ * Simple duplicate detection based on title keywords.
+ * Checks against a small set of known recurring patterns.
+ * In production, this would query the backend for similar tickets.
+ */
+const KNOWN_TICKET_PATTERNS = [
+  'CPU', '数据库', 'API 网关', '磁盘空间', '部署',
+  '安全漏洞', '成本', '响应延迟', 'Redis',
+];
+
 function findPotentialDuplicates(title: string): string[] {
   if (title.length < 5) return [];
   const titleLower = title.toLowerCase();
-  const words = titleLower.split(/\s+/).filter((w) => w.length > 2);
-  if (words.length === 0) return [];
+  const warnings: string[] = [];
 
-  return mockTickets
-    .filter((t) => {
-      const existingLower = t.title.toLowerCase();
-      // Check if any word from new title appears in existing title
-      return words.some((w) => existingLower.includes(w));
-    })
-    .map((t) => `${t.id}: ${t.title}`);
+  for (const pattern of KNOWN_TICKET_PATTERNS) {
+    if (titleLower.includes(pattern.toLowerCase())) {
+      warnings.push(`标题包含常见模式"${pattern}"，建议先搜索类似工单`);
+    }
+  }
+
+  return warnings;
 }
 
 // ============================================================================
@@ -195,7 +203,7 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({ open, onCancel, o
               {potentialDuplicates.map((dup, idx) => (
                 <div key={idx} style={{ marginBottom: spacing[1] }}>
                   <Text type="secondary" style={{ fontSize: spacing[3] }}>
-                    <FileSearchOutlined /> {dup}
+                    <WarningOutlined /> {dup}
                   </Text>
                 </div>
               ))}

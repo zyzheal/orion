@@ -212,6 +212,7 @@ const ApiGovernancePage: React.FC = () => {
   };
 
   const deprecatedCount = versions.filter((v) => v.status === 'deprecated').length;
+  const contractColumns = [
     { title: 'Name', dataIndex: 'name', key: 'name' },
     { title: 'Version', dataIndex: 'version', key: 'version', width: 80 },
     {

@@ -124,10 +124,13 @@ export class PostgresArtifactRepository implements ArtifactRepository {
       paramIndex++;
     }
     
-    // 添加排序
+    // 添加排序 (whitelist to prevent SQL injection)
     const sortBy = options.sortBy || 'created_at';
     const sortOrder = options.sortOrder || 'DESC';
-    query += ` ORDER BY ${sortBy} ${sortOrder}`;
+    const allowedOrderColumns = ['created_at', 'updated_at', 'name', 'version', 'size_bytes', 'status'];
+    const safeColumn = allowedOrderColumns.includes(sortBy) ? sortBy : 'created_at';
+    const safeDir = sortOrder?.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+    query += ` ORDER BY ${safeColumn} ${safeDir}`;
     
     // 添加分页
     const limit = options.limit || 20;

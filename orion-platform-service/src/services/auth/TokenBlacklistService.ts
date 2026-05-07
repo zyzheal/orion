@@ -2,7 +2,11 @@
 import crypto from 'crypto';
 import { EventEmitter } from 'events';
 import pino from 'pino';
-import type { DatabasePool } from '../database';
+import { DatabasePool } from '../database';
+import {
+  BlacklistedTokenRepository,
+  BlacklistedTokenEntity,
+} from '../../repositories/BlacklistedTokenRepository';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -34,24 +38,80 @@ const DEFAULT_CONFIG: TokenBlacklistConfig = {
   keyPrefix: 'token:blacklist:',
 };
 
+/**
+ * TokenBlacklistService - Manages revoked JWT tokens
+ *
+ * Primary storage: PostgreSQL (token_blacklist table via BlacklistedTokenRepository)
+ * Cache layer: In-memory Map for fast lookups (read-through cache)
+ * - On service restart, cache is warmed from database
+ * - Expired tokens are cleaned up periodically
+ */
 export class TokenBlacklistService extends EventEmitter {
   private config: TokenBlacklistConfig;
-  private dbPool: DatabasePool;
+  private repository: BlacklistedTokenRepository | null;
   private redisClient: any; // Would be actual Redis client in production
-  private revokedTokens: Map<string, RevokedTokenInfo> = new Map();
-  private userTokenCounts: Map<string, number> = new Map();
-  private tenantTokenCounts: Map<number, number> = new Map();
 
-  constructor(dbPool: DatabasePool, config: Partial<TokenBlacklistConfig> = {}) {
+  // Read-through cache: hash -> entity
+  private cache: Map<string, BlacklistedTokenEntity> = new Map();
+  // Cache initialization flag
+  private cacheInitialized = false;
+  // Periodic cleanup timer
+  private cleanupTimer: NodeJS.Timeout | null = null;
+
+  constructor(dbPool: DatabasePool | null, config: Partial<TokenBlacklistConfig> = {}) {
     super();
-    this.dbPool = dbPool;
     this.config = { ...DEFAULT_CONFIG, ...config };
+    this.repository = dbPool ? new BlacklistedTokenRepository(dbPool) : null;
   }
 
   async connect(): Promise<void> {
-    // Placeholder - would connect to Redis in production
-    // Example: this.redisClient = await createRedisClient(this.config.redisUrl);
     logger.info('[TokenBlacklist] Service connected');
+
+    // Warm cache from database
+    await this.warmCache();
+
+    // Start periodic cleanup (every 30 minutes)
+    this.startPeriodicCleanup();
+  }
+
+  /** Warm the in-memory cache with recent entries from the database */
+  private async warmCache(): Promise<void> {
+    if (!this.repository) {
+      logger.warn('[TokenBlacklist] No database connection, skipping cache warm');
+      return;
+    }
+
+    try {
+      // Load all non-expired tokens from DB into cache
+      const result = await this.repository.getStats();
+      logger.info(`[TokenBlacklist] Cache warmed: ${result.totalRevoked} revoked tokens in database`);
+      this.cacheInitialized = true;
+    } catch (error) {
+      logger.error('[TokenBlacklist] Failed to warm cache:', error);
+      // Still mark as initialized - will fall through to DB on misses
+      this.cacheInitialized = true;
+    }
+  }
+
+  /** Start periodic cleanup of expired tokens */
+  private startPeriodicCleanup(): void {
+    if (this.cleanupTimer) {
+      clearInterval(this.cleanupTimer);
+    }
+
+    this.cleanupTimer = setInterval(async () => {
+      try {
+        const cleaned = await this.cleanupExpired();
+        if (cleaned > 0) {
+          logger.info(`[TokenBlacklist] Periodic cleanup removed ${cleaned} expired tokens`);
+        }
+      } catch (error) {
+        logger.error('[TokenBlacklist] Periodic cleanup failed:', error);
+      }
+    }, 30 * 60 * 1000); // Every 30 minutes
+
+    // Prevent timer from blocking process exit
+    this.cleanupTimer.unref?.();
   }
 
   /**
@@ -70,7 +130,7 @@ export class TokenBlacklistService extends EventEmitter {
     userId: string,
     tenantId: number,
     reason: string,
-    revokedBy?: string
+    revokedBy?: string,
   ): Promise<void> {
     const tokenHash = this.hashToken(token);
     const now = new Date();
@@ -86,85 +146,73 @@ export class TokenBlacklistService extends EventEmitter {
       revokedBy,
     };
 
-    // Store in local cache
-    this.revokedTokens.set(tokenHash, info);
-
-    // Update user token count
-    const currentCount = this.userTokenCounts.get(userId) || 0;
-    this.userTokenCounts.set(userId, currentCount + 1);
-
-    // Update tenant token count
-    const tenantCount = this.tenantTokenCounts.get(tenantId) || 0;
-    this.tenantTokenCounts.set(tenantId, tenantCount + 1);
-
-    // Persist to database
+    // Persist to database first (source of truth)
     try {
-      await this.dbPool.query(
-        `INSERT INTO token_blacklist (token_hash, user_id, tenant_id, revoked_at, expires_at, revoke_reason, revoked_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
-         ON CONFLICT (token_hash) DO NOTHING`,
-        [tokenHash, userId, tenantId, now, expiresAt, reason, revokedBy],
-      );
-      logger.debug(`[TokenBlacklist] Token persisted to database: ${tokenHash.slice(0, 16)}...`);
+      if (this.repository) {
+        await this.repository.create({
+          tokenHash,
+          userId,
+          tenantId,
+          revokeReason: reason,
+          revokedBy,
+          expiresAt,
+        });
+        logger.debug(`[TokenBlacklist] Token persisted: ${tokenHash.slice(0, 16)}...`);
+      }
     } catch (error) {
-      logger.error('[TokenBlacklist] Failed to persist token to database:', error);
-      // Continue even if database fails - memory cache is still valid
+      logger.error('[TokenBlacklist] Failed to persist token:', error);
+      // Continue - in-memory cache is still valid
     }
+
+    // Update in-memory cache (write-through)
+    this.cache.set(tokenHash, {
+      id: 0, // Assigned by DB
+      tokenHash,
+      userId,
+      tenantId,
+      revokedAt: now,
+      expiresAt,
+      revokeReason: reason,
+      revokedBy,
+      metadata: {},
+    });
 
     // Emit event
     this.emit('token:revoked', info);
 
     logger.info(`[TokenBlacklist] Token revoked: ${tokenHash.slice(0, 16)}... reason=${reason} user=${userId}`);
-
-    // In production: would also store in Redis with TTL
-    // await this.redisClient.setex(`${this.config.keyPrefix}${tokenHash}`, this.config.ttlSeconds, JSON.stringify(info));
   }
 
   /**
-   * Check if a token is revoked
+   * Check if a token is revoked (read-through cache pattern)
    */
   async isRevoked(token: string): Promise<boolean> {
     const tokenHash = this.hashToken(token);
 
-    // Check local cache first
-    const info = this.revokedTokens.get(tokenHash);
-    if (info) {
+    // Check in-memory cache first
+    const cached = this.cache.get(tokenHash);
+    if (cached) {
       // Check if expired (cleanup automatically)
-      if (info.expiresAt < new Date()) {
-        this.revokedTokens.delete(tokenHash);
+      if (cached.expiresAt < new Date()) {
+        this.cache.delete(tokenHash);
         return false;
       }
       return true;
     }
 
-    // Check database as fallback
-    try {
-      const result = await this.dbPool.query(
-        `SELECT token_hash, expires_at FROM token_blacklist WHERE token_hash = $1 AND expires_at > NOW()`,
-        [tokenHash],
-      );
-
-      if (result.rows.length > 0) {
-        // Found in database, add to cache for future lookups
-        const dbRow = result.rows[0];
-        this.revokedTokens.set(tokenHash, {
-          tokenHash: dbRow.token_hash,
-          userId: '', // Not needed for isRevoked check
-          tenantId: 0,
-          revokedAt: new Date(),
-          expiresAt: dbRow.expires_at,
-          revokeReason: 'unknown',
-        });
-        return true;
+    // Cache miss - check database (read-through)
+    if (this.repository) {
+      try {
+        const entity = await this.repository.findByHash(tokenHash);
+        if (entity) {
+          // Populate cache for future lookups
+          this.cache.set(tokenHash, entity);
+          return true;
+        }
+      } catch (error) {
+        logger.error('[TokenBlacklist] Failed to check database:', error);
       }
-    } catch (error) {
-      logger.error('[TokenBlacklist] Failed to check database:', error);
-      // On database error, rely on memory cache only (already checked above)
     }
-
-    // In production: would also check Redis
-    // const exists = await this.redisClient.exists(`${this.config.keyPrefix}${tokenHash}`);
-    // return exists === 1;
 
     return false;
   }
@@ -175,14 +223,43 @@ export class TokenBlacklistService extends EventEmitter {
   async getRevokedTokenInfo(token: string): Promise<RevokedTokenInfo | null> {
     const tokenHash = this.hashToken(token);
 
-    const info = this.revokedTokens.get(tokenHash);
-    if (info) {
-      // Check if expired
-      if (info.expiresAt < new Date()) {
-        this.revokedTokens.delete(tokenHash);
+    // Check cache
+    const cached = this.cache.get(tokenHash);
+    if (cached) {
+      if (cached.expiresAt < new Date()) {
+        this.cache.delete(tokenHash);
         return null;
       }
-      return info;
+      return {
+        tokenHash: cached.tokenHash,
+        userId: cached.userId,
+        tenantId: cached.tenantId,
+        revokedAt: cached.revokedAt,
+        expiresAt: cached.expiresAt,
+        revokeReason: cached.revokeReason,
+        revokedBy: cached.revokedBy,
+      };
+    }
+
+    // Check database
+    if (this.repository) {
+      try {
+        const entity = await this.repository.findByHash(tokenHash);
+        if (entity) {
+          this.cache.set(tokenHash, entity);
+          return {
+            tokenHash: entity.tokenHash,
+            userId: entity.userId,
+            tenantId: entity.tenantId,
+            revokedAt: entity.revokedAt,
+            expiresAt: entity.expiresAt,
+            revokeReason: entity.revokeReason,
+            revokedBy: entity.revokedBy,
+          };
+        }
+      } catch (error) {
+        logger.error('[TokenBlacklist] Failed to get token info:', error);
+      }
     }
 
     return null;
@@ -192,56 +269,85 @@ export class TokenBlacklistService extends EventEmitter {
    * Revoke all tokens for a specific user (batch revocation)
    */
   async revokeAllUserTokens(userId: string, reason: string): Promise<number> {
-    // Find all tokens for user
-    const userTokens = Array.from(this.revokedTokens.values())
-      .filter(info => info.userId === userId);
+    const expiresAt = new Date(Date.now() + this.config.ttlSeconds * 1000);
+    let count = 0;
 
-    // In production: would also query database/Redis for all user's active tokens
-    // and revoke them
+    if (this.repository) {
+      try {
+        count = await this.repository.revokeAllUserTokens(userId, reason, expiresAt);
+        logger.info(`[TokenBlacklist] Batch revoked ${count} tokens for user ${userId} in database`);
+      } catch (error) {
+        logger.error('[TokenBlacklist] Failed to batch revoke user tokens in DB:', error);
+      }
+    }
 
-    const count = userTokens.length;
+    // Also count in-memory tokens for this user
+    const inMemoryCount = Array.from(this.cache.values()).filter(
+      (e) => e.userId === userId && e.expiresAt >= new Date(),
+    ).length;
 
-    // Emit batch revocation event
+    const total = count + inMemoryCount;
+
     this.emit('user:tokens_revoked', {
       userId,
       reason,
-      revokedCount: count,
+      revokedCount: total,
       timestamp: new Date(),
     });
 
-    logger.info(`[TokenBlacklist] Batch revocation for user: ${userId} count=${count} reason=${reason}`);
+    logger.info(`[TokenBlacklist] Batch revocation for user: ${userId} count=${total} reason=${reason}`);
 
-    return count;
+    return total;
   }
 
   /**
    * Revoke all tokens for a specific tenant (tenant-wide revocation)
    */
   async revokeTenantTokens(tenantId: number, reason: string): Promise<number> {
-    // Find all tokens for tenant
-    const tenantTokens = Array.from(this.revokedTokens.values())
-      .filter(info => info.tenantId === tenantId);
+    const expiresAt = new Date(Date.now() + this.config.ttlSeconds * 1000);
+    let count = 0;
 
-    const count = tenantTokens.length;
+    if (this.repository) {
+      try {
+        count = await this.repository.revokeAllTenantTokens(tenantId, reason, expiresAt);
+      } catch (error) {
+        logger.error('[TokenBlacklist] Failed to batch revoke tenant tokens in DB:', error);
+      }
+    }
 
-    // Emit tenant revocation event
+    // Also count in-memory tokens for this tenant
+    const inMemoryCount = Array.from(this.cache.values()).filter(
+      (e) => e.tenantId === tenantId && e.expiresAt >= new Date(),
+    ).length;
+
+    const total = count + inMemoryCount;
+
     this.emit('tenant:tokens_revoked', {
       tenantId,
       reason,
-      revokedCount: count,
+      revokedCount: total,
       timestamp: new Date(),
     });
 
-    logger.info(`[TokenBlacklist] Tenant-wide revocation: tenant=${tenantId} count=${count} reason=${reason}`);
+    logger.info(`[TokenBlacklist] Tenant-wide revocation: tenant=${tenantId} count=${total} reason=${reason}`);
 
-    return count;
+    return total;
   }
 
   /**
    * Get count of revoked tokens for a specific user
    */
   async getUserRevokedCount(userId: string): Promise<number> {
-    return this.userTokenCounts.get(userId) || 0;
+    if (this.repository) {
+      try {
+        return await this.repository.getUserRevokedCount(userId);
+      } catch (error) {
+        logger.error('[TokenBlacklist] Failed to get user revoked count from DB:', error);
+      }
+    }
+
+    // Fallback to in-memory count
+    return Array.from(this.cache.values()).filter((e) => e.userId === userId).length;
   }
 
   /**
@@ -249,53 +355,37 @@ export class TokenBlacklistService extends EventEmitter {
    */
   async cleanupExpired(): Promise<number> {
     const now = new Date();
-    const expiredHashes: string[] = [];
+    let cacheCleaned = 0;
 
-    for (const [hash, info] of this.revokedTokens.entries()) {
-      if (info.expiresAt < now) {
-        expiredHashes.push(hash);
-
-        // Decrease user count
-        const userCount = this.userTokenCounts.get(info.userId) || 0;
-        if (userCount > 0) {
-          this.userTokenCounts.set(info.userId, userCount - 1);
-        }
-
-        // Decrease tenant count
-        const tenantCount = this.tenantTokenCounts.get(info.tenantId) || 0;
-        if (tenantCount > 0) {
-          this.tenantTokenCounts.set(info.tenantId, tenantCount - 1);
-        }
+    // Clean in-memory cache
+    for (const [hash, entity] of this.cache.entries()) {
+      if (entity.expiresAt < now) {
+        this.cache.delete(hash);
+        cacheCleaned++;
       }
     }
 
-    for (const hash of expiredHashes) {
-      this.revokedTokens.delete(hash);
+    // Clean database
+    let dbCleaned = 0;
+    if (this.repository) {
+      try {
+        dbCleaned = await this.repository.cleanupExpired();
+        logger.debug(`[TokenBlacklist] Cleaned up ${dbCleaned} expired tokens from database`);
+      } catch (error) {
+        logger.error('[TokenBlacklist] Failed to cleanup database:', error);
+      }
     }
 
-    // Cleanup expired tokens from database
-    let dbDeletedCount = 0;
-    try {
-      const dbResult = await this.dbPool.query(
-        `DELETE FROM token_blacklist WHERE expires_at < NOW()`,
-      );
-      dbDeletedCount = dbResult.rowCount ?? 0;
-      logger.debug(`[TokenBlacklist] Cleaned up ${dbDeletedCount} expired tokens from database`);
-    } catch (error) {
-      logger.error('[TokenBlacklist] Failed to cleanup database:', error);
-    }
+    const totalCleaned = cacheCleaned + dbCleaned;
 
-    const totalCleaned = expiredHashes.length + dbDeletedCount;
-
-    // Emit cleanup event
     this.emit('cleanup:completed', {
       cleanedCount: totalCleaned,
-      memoryCleaned: expiredHashes.length,
-      dbCleaned: dbDeletedCount,
+      memoryCleaned: cacheCleaned,
+      dbCleaned,
       timestamp: now,
     });
 
-    logger.info(`[TokenBlacklist] Cleanup completed: removed ${expiredHashes.length} from memory, ${dbDeletedCount} from database`);
+    logger.info(`[TokenBlacklist] Cleanup completed: removed ${cacheCleaned} from memory, ${dbCleaned} from database`);
 
     return totalCleaned;
   }
@@ -304,23 +394,27 @@ export class TokenBlacklistService extends EventEmitter {
    * Get statistics about revoked tokens
    */
   async getStats(): Promise<TokenBlacklistStats> {
+    if (this.repository) {
+      try {
+        return await this.repository.getStats();
+      } catch (error) {
+        logger.error('[TokenBlacklist] Failed to get stats from DB:', error);
+      }
+    }
+
+    // Fallback to in-memory stats
     const byReason: Record<string, number> = {};
     const byTenant: Record<number, number> = {};
     const byUser: Record<string, number> = {};
 
-    for (const info of this.revokedTokens.values()) {
-      // Count by reason
+    for (const info of this.cache.values()) {
       byReason[info.revokeReason] = (byReason[info.revokeReason] || 0) + 1;
-
-      // Count by tenant
       byTenant[info.tenantId] = (byTenant[info.tenantId] || 0) + 1;
-
-      // Count by user
       byUser[info.userId] = (byUser[info.userId] || 0) + 1;
     }
 
     return {
-      totalRevoked: this.revokedTokens.size,
+      totalRevoked: this.cache.size,
       byReason,
       byTenant,
       byUser,
@@ -328,14 +422,15 @@ export class TokenBlacklistService extends EventEmitter {
   }
 
   /**
-   * Disconnect from Redis and cleanup
+   * Disconnect and cleanup
    */
   disconnect(): void {
-    // Placeholder - would disconnect from Redis in production
-    // if (this.redisClient) {
-    //   await this.redisClient.quit();
-    // }
+    if (this.cleanupTimer) {
+      clearInterval(this.cleanupTimer);
+      this.cleanupTimer = null;
+    }
 
+    this.cache.clear();
     this.removeAllListeners();
     logger.info('[TokenBlacklist] Service disconnected');
   }

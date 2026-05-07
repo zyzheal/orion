@@ -274,10 +274,20 @@ export class PostgresPluginRepository implements PluginRepository {
       paramIndex++;
     }
     
-    // 添加排序
+    // 添加排序 (whitelist to prevent SQL injection)
     const sortBy = options.sortBy || 'createdAt';
     const sortOrder = options.sortOrder || 'DESC';
-    query += ` ORDER BY p.${sortBy} ${sortOrder}`;
+    // Map camelCase sortBy to snake_case DB columns with whitelist
+    const columnMap: Record<string, string> = {
+      createdAt: 'created_at',
+      updatedAt: 'updated_at',
+      name: 'name',
+      version: 'version',
+    };
+    const allowedSortBy = Object.keys(columnMap);
+    const safeSortBy = allowedSortBy.includes(sortBy) ? columnMap[sortBy] : 'created_at';
+    const safeDir = sortOrder?.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+    query += ` ORDER BY p.${safeSortBy} ${safeDir}`;
     
     // 添加分页
     const limit = options.limit || 20;

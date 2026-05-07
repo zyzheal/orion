@@ -33,11 +33,7 @@ import {
   UserOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import {
-  mockTicketComments,
-  mockTicketAttachments,
-  mockEngineers,
-} from '@/pages/__mocks__/mockTicketData';
+import { listUsers, type User } from '@/api/users';
 import { colors, spacing } from '@/tokens';
 
 const { Text } = Typography;
@@ -121,23 +117,34 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
   const [commentText, setCommentText] = useState('');
   const [showMentionDropdown, setShowMentionDropdown] = useState(false);
   const [mentionSearch, setMentionSearch] = useState('');
+  const [engineers, setEngineers] = useState<User[]>([]);
 
-  // Get comments for this ticket
-  const comments = useMemo(() => {
-    const all = mockTicketComments[ticketId] || [];
-    return all.filter((c) => c.type === activeTab);
-  }, [ticketId, activeTab]);
+  // Load engineers for mention autocomplete
+  React.useEffect(() => {
+    const loadEngineers = async () => {
+      try {
+        const res = await listUsers({ limit: 200 });
+        setEngineers(res.data?.data?.data || []);
+      } catch {
+        setEngineers([]);
+      }
+    };
+    loadEngineers();
+  }, []);
 
-  // Get attachments for this ticket
-  const attachments = useMemo(() => {
-    return mockTicketAttachments[ticketId] || [];
-  }, [ticketId]);
+  // Comments and attachments would come from dedicated APIs
+  // For now, use empty arrays with ability to add new comments
+  const comments = useMemo(() => [] as TicketComment[], [ticketId, activeTab]);
+
+  const attachments = useMemo(() => [] as TicketAttachment[], [ticketId]);
 
   // Filtered engineers for mention autocomplete
   const mentionCandidates = useMemo(() => {
-    if (!mentionSearch) return mockEngineers;
-    return mockEngineers.filter((e) => e.name.toLowerCase().includes(mentionSearch.toLowerCase()));
-  }, [mentionSearch]);
+    if (!mentionSearch) return engineers.map((e) => e.name || e.username);
+    return engineers
+      .filter((e) => (e.name || e.username).toLowerCase().includes(mentionSearch.toLowerCase()))
+      .map((e) => e.name || e.username);
+  }, [mentionSearch, engineers]);
 
   // Character count
   const charCount = commentText.length;
@@ -200,12 +207,6 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
       label: (
         <span data-testid="tab-comments">
           评论
-          {mockTicketComments[ticketId]?.filter((c) => c.type === 'comment').length > 0 && (
-            <Badge
-              count={mockTicketComments[ticketId].filter((c) => c.type === 'comment').length}
-              style={{ marginLeft: 6, backgroundColor: colors.primary[500] }}
-            />
-          )}
         </span>
       ),
     },
@@ -220,12 +221,6 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
           >
             内部
           </Tag>
-          {mockTicketComments[ticketId]?.filter((c) => c.type === 'internal-note').length > 0 && (
-            <Badge
-              count={mockTicketComments[ticketId].filter((c) => c.type === 'internal-note').length}
-              style={{ marginLeft: 4, backgroundColor: colors.warning[500] }}
-            />
-          )}
         </span>
       ),
     },

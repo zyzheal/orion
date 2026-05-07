@@ -5,7 +5,25 @@
 import type { Plugin, PluginType, PluginCategory, PluginExecutionResult } from '@/api/plugins';
 import type { PluginHealthStatus } from '@/api/plugins';
 export type { PluginHealthStatus };
-import { categoryLabels, healthStatusLabels } from '@/pages/__mocks__/mockPluginData';
+
+// ============================================================================
+// Label maps (inline constants, not mock data)
+// ============================================================================
+
+/** Category label mapping for display */
+export const categoryLabels: Record<string, string> = {
+  core: '核心',
+  extension: '扩展',
+  security: '安全',
+  monitoring: '监控',
+};
+
+/** Health status label mapping for display */
+export const healthStatusLabels: Record<string, string> = {
+  healthy: '正常',
+  warning: '警告',
+  error: '异常',
+};
 
 // ============================================================================
 // Type aliases for UI compatibility

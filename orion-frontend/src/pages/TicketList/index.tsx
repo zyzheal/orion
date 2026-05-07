@@ -27,7 +27,7 @@ import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import MetricCard from '@/components/MetricCard';
 import { getTickets } from '@/api/ticketing';
-import { mockEngineers } from '@/pages/__mocks__/mockTicketData';
+import { listUsers, type User } from '@/api/users';
 import { useNavigate } from 'react-router-dom';
 import { colors, spacing } from '@/tokens';
 import dayjs from 'dayjs';
@@ -138,6 +138,27 @@ const TicketList: React.FC = () => {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [dispatchPanelOpen, setDispatchPanelOpen] = useState(false);
   const [tickets, setTickets] = useState<Ticket[]>([]);
+
+  // Engineer list for assignee filter
+  const [engineers, setEngineers] = useState<string[]>([]);
+  const [engineersLoading, setEngineersLoading] = useState(false);
+
+  // Load engineers for assignee filter
+  useEffect(() => {
+    const loadEngineers = async () => {
+      setEngineersLoading(true);
+      try {
+        const res = await listUsers({ limit: 200 });
+        const users: User[] = res.data?.data?.data || [];
+        setEngineers(users.map((u) => u.name || u.username).filter(Boolean));
+      } catch {
+        setEngineers([]);
+      } finally {
+        setEngineersLoading(false);
+      }
+    };
+    loadEngineers();
+  }, []);
 
   // Load tickets from API
   const loadTickets = async () => {
@@ -254,7 +275,7 @@ const TicketList: React.FC = () => {
       options: [
         { label: '全部', value: 'all' },
         { label: '未分配', value: 'unassigned' },
-        ...mockEngineers.map((e) => ({ label: e.name, value: e.name })),
+        ...(engineersLoading ? [] : engineers.map((name) => ({ label: name, value: name }))),
       ],
     },
   ];

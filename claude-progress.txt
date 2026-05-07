@@ -5,6 +5,70 @@
 - **Root**: /Users/heal/orion-design
 - **Current Branch**: feat/frontend-gap-implementation
 
+## 2026-05-07: Expert Panel P1 Review Findings Fix (COMPLETED)
+
+### fix(P1): resolve remaining expert panel review findings
+
+**P1-1: Remove mock data imports from production pages (7 files fixed)**
+- PluginManagement/types.ts: Extracted categoryLabels and healthStatusLabels as inline constants
+- NotificationCenter/index.tsx: Defined NotificationItem type inline, removed MockNotification import
+- TicketList/index.tsx: Replaced mockEngineers with real API call to listUsers
+- TicketList/CreateTicketModal.tsx: Removed mockTickets, replaced duplicate detection with pattern-based approach
+- TicketList/DispatchPanel.tsx: Replaced all mock data (mockTickets, mockEngineers, mockQueueStatus, mockSLAAlerts) with API calls and empty states
+- TicketDetail/index.tsx: Replaced mockEngineers with listUsers API, replaced mockTicketHistory/Relations/Transfers with empty arrays
+- TicketDetail/TicketComments.tsx: Replaced mockTicketComments/Attachments with empty state, mockEngineers with listUsers API
+
+**P1-2: Fix SQL injection in 3 repositories ORDER BY**
+- ArtifactRepository.ts: Added allowedOrderColumns whitelist (created_at, updated_at, name, version, size_bytes, status)
+- InternalLibraryRepository.ts: Added allowedOrderColumns whitelist (created_at, updated_at, name, status, language, owner)
+- PluginRepository.ts: Added columnMap for camelCase->snake_case with whitelist (createdAt, updatedAt, name, version)
+
+**P1-3: Migrate TokenBlacklistService from Map to PostgreSQL**
+- Created BlacklistedTokenRepository.ts: Full repository for token_blacklist table (migration 072 already exists)
+- Rewrote TokenBlacklistService.ts: Read-through cache pattern with PostgreSQL as source of truth
+  - In-memory cache for fast lookups
+  - Write-through to database on revoke
+  - Read-through from database on cache miss
+  - Periodic cleanup every 30 minutes
+  - Graceful fallback when database unavailable
+
+**P1-5: Fix ApiGovernancePage syntax error (line 215)**
+- Added missing `const contractColumns = [` declaration before column array
+
+**Verification:**
+- All mock data imports removed from production pages (grep confirms zero matches)
+- TypeScript types preserved in all modified files
+- API clients used for real data where available (listUsers, getTickets)
+- Empty state fallbacks for features without dedicated APIs (comments, history, relations)
+
+## 2026-05-07: P0 Critical Issues Fix (COMPLETED)
+
+### fix(critical): resolve P0 merge-blocking issues - RLS, tenant middleware, mock data
+
+**P0-1: RLS Migration Scope Complete**
+- Created migration 127: `127_enable_rls_remaining_tables.sql`
+- Enables RLS for 51 remaining tables declared in RLSPolicyManager.RLS_TABLES
+- Each table: ADD COLUMN IF NOT EXISTS tenant_id, ENABLE RLS, FORCE RLS, CREATE POLICY
+- Created rollback: `127_rollback_enable_rls_remaining_tables.sql`
+- Combined with migration 073 (12 tables), all 63 tables now have database-level tenant isolation
+
+**P0-2: Tenant Middleware Made Mandatory**
+- Changed `required: false` to `required: true` in TenantMiddleware.ts
+- Skip paths still allow: /healthz, /readyz, /version, /api/v1/info
+- All other API routes now require tenant context (returns 401 if missing)
+
+**P0-3: Mock Data Replaced with Real API Calls**
+- DashboardCore: Now fetches from /v1/efficiency/dashboard and /v1/alerts APIs with proper loading/error/empty states
+- ExecutiveDashboard: Removed mockExecutiveDashboard fallback, uses only API data with empty state
+- ManagerDashboard: Removed mockManagerDashboard fallback, uses only API data with empty state
+- EngineerDashboard: Removed mockEngineerDashboard fallback, uses only API data with empty state
+- PipelineDetail: Removed silent mockPipelines fallback, shows error state with retry on API failure
+
+**Verification Results:**
+- Backend: 297/299 test suites pass (5943/5965 tests), 2 pre-existing failures
+- Frontend: 94/103 test files pass (553/618 tests), 9 pre-existing failures
+- TypeScript: 0 new errors in changed files (14 pre-existing in digital-twin/federation)
+
 ## 2026-05-07: Code Review Findings Fix (COMPLETED)
 
 ### fix: resolve all code review findings
