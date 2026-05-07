@@ -2,6 +2,10 @@
  * Pipeline Detail Page (TASK-905)
  * Pipeline detail view with stages/timeline/logs and re-run actions.
  *
+ * P0-3 Fix: Removed silent mock fallback. On API failure, displays error
+ * message and allows retry instead of silently showing mock data.
+ * Mock data is kept only in test files.
+ *
  * Features:
  * - Pipeline info header
  * - Stage timeline/progress visualization
@@ -9,7 +13,7 @@
  * - Re-run trigger button
  */
 import React, { useState, useEffect } from 'react';
-import { Typography, Button, Space, Tag, Card, Descriptions, Tabs, Badge, message } from 'antd';
+import { Typography, Button, Space, Tag, Card, Descriptions, Tabs, Badge, message, Result } from 'antd';
 import { colors, spacing } from '@/tokens';
 import {
   PlayCircleOutlined,
@@ -21,7 +25,6 @@ import {
 import StatusBadge from '@/components/StatusBadge';
 import CardPanel from '@/components/CardPanel';
 import { getPipelineRun, retryPipelineRun } from '@/api/pipelines';
-import { mockPipelines } from '@/pages/__mocks__/mockData';
 import { useNavigate, useParams } from 'react-router-dom';
 import dayjs from 'dayjs';
 import duration from 'dayjs/plugin/duration';
@@ -47,24 +50,26 @@ const PipelineDetail: React.FC = () => {
   const [activeTab, setActiveTab] = useState('stages');
   const [isRerunning, setIsRerunning] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [apiError, setApiError] = useState<string | null>(null);
   const [pipeline, setPipeline] = useState<any>(null);
 
   // Load pipeline detail from API
   useEffect(() => {
     const loadPipeline = async () => {
       setLoading(true);
+      setApiError(null);
       try {
         const response = await getPipelineRun(id!);
         const apiData = response.data.data;
-        setPipeline(apiData || mockPipelines[0]);
-      } catch (error: unknown) {
-        if (error instanceof Error) {
-          message.error(`加载 Pipeline 详情失败：${error.message}`);
+        if (apiData) {
+          setPipeline(apiData);
         } else {
-          message.error('加载 Pipeline 详情失败，请稍后重试');
+          setApiError('未找到该 Pipeline 运行记录');
         }
-        // Fallback to mock data
-        setPipeline(mockPipelines[0]);
+      } catch (error: unknown) {
+        const errorMsg = error instanceof Error ? error.message : '加载失败，请稍后重试';
+        setApiError(errorMsg);
+        message.error(`加载 Pipeline 详情失败：${errorMsg}`);
       } finally {
         setLoading(false);
       }
@@ -116,10 +121,28 @@ const PipelineDetail: React.FC = () => {
   };
 
   // Loading state
-  if (loading || !pipeline) {
+  if (loading) {
     return (
       <div style={{ padding: 0 }}>
         <CardPanel>Loading...</CardPanel>
+      </div>
+    );
+  }
+
+  // Error state
+  if (apiError && !pipeline) {
+    return (
+      <div style={{ padding: 0 }}>
+        <Result
+          status="error"
+          title="加载失败"
+          subTitle={apiError}
+          extra={
+            <Button type="primary" onClick={() => window.location.reload()}>
+              重新加载
+            </Button>
+          }
+        />
       </div>
     );
   }

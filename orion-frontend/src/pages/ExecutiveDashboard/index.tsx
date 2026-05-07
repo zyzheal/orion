@@ -3,7 +3,8 @@
  * High-level KPI overview for leadership, including ticket volume trends,
  * SLA compliance trends, team rankings, alerts, and category/priority distribution.
  *
- * Uses mock data initially; real API integration will be added later.
+ * P0-3 Fix: Removed mock data fallback. Now uses real API data with proper
+ * loading, error, and empty states. Mock data is kept only in test files.
  */
 import React, { useMemo } from 'react';
 import {
@@ -13,6 +14,7 @@ import {
   Table,
   Typography,
   Badge,
+  Result,
 } from 'antd';
 import { colors, spacing } from '@/tokens';
 import {
@@ -27,9 +29,7 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { KPIMetric, ExecutiveDashboardData } from '@/types/pages';
-import { mockExecutiveDashboard } from '@/pages/__mocks__/mockBIData';
 import { useBiDashboard } from '@/hooks/useBiDashboard';
-import { Alert } from 'antd';
 import CardPanel from '@/components/CardPanel';
 import DataState from '@/components/DataState';
 import {
@@ -73,70 +73,89 @@ const kpiIcons: Record<string, React.ReactNode> = {
 const ExecutiveDashboard: React.FC = () => {
   const { data: apiData, loading, error } = useBiDashboard('executive');
 
-  // Fallback to mock data when API is unavailable (but not on error)
-  const data = (apiData as ExecutiveDashboardData | undefined) ?? mockExecutiveDashboard;
-  const showMockWarning = !apiData && !error;
-
   // Retry handler - reload page on error
   const handleRetry = () => window.location.reload();
 
-  // Build KPI metrics from mock data
+  // Show empty state when no data available (not loading, not error, but no data)
+  if (!loading && !error && !apiData) {
+    return (
+      <div style={{ padding: 0 }}>
+        <Result
+          status="info"
+          title="暂无数据"
+          subTitle="效能仪表盘 API 尚未返回数据，请确认后端服务已正确部署。"
+        />
+      </div>
+    );
+  }
+
+  // Cast API data to expected type
+  const data = apiData as ExecutiveDashboardData | undefined;
+
+  // Build KPI metrics from API data
   const kpiMetrics: KPIMetric[] = useMemo(
-    () => [
-      {
-        title: '总工单数',
-        value: data.overview.totalTickets,
-        suffix: '个',
-        trend: { value: 12.5, direction: 'up' },
-        status: 'normal',
-      },
-      {
-        title: '已解决',
-        value: data.overview.resolvedTickets,
-        suffix: '个',
-        trend: { value: 8.3, direction: 'up' },
-        status: 'success',
-      },
-      {
-        title: '待处理',
-        value: data.overview.openTickets,
-        suffix: '个',
-        trend: { value: 3.2, direction: 'down' },
-        status: 'warning',
-      },
-      {
-        title: '解决率',
-        value: `${data.overview.overallResolutionRate}%`,
-        trend: { value: 2.1, direction: 'up' },
-        status: 'success',
-      },
-      {
-        title: '平均解决时间',
-        value: `${data.overview.avgResolutionTimeHours}h`,
-        trend: { value: 5.4, direction: 'down' },
-        status: 'success',
-      },
-      {
-        title: 'SLA合规率',
-        value: `${data.overview.slaComplianceRate}%`,
-        trend: { value: 1.2, direction: 'up' },
-        status: 'success',
-      },
-      {
-        title: '工程师总数',
-        value: data.overview.totalEngineers,
-        suffix: '人',
-        status: 'normal',
-      },
-      {
-        title: '活跃工程师',
-        value: data.overview.activeEngineers,
-        suffix: '人',
-        status: 'normal',
-      },
-    ],
+    () => {
+      if (!data) return [];
+      return [
+        {
+          title: '总工单数',
+          value: data.overview.totalTickets,
+          suffix: '个',
+          trend: { value: 12.5, direction: 'up' },
+          status: 'normal',
+        },
+        {
+          title: '已解决',
+          value: data.overview.resolvedTickets,
+          suffix: '个',
+          trend: { value: 8.3, direction: 'up' },
+          status: 'success',
+        },
+        {
+          title: '待处理',
+          value: data.overview.openTickets,
+          suffix: '个',
+          trend: { value: 3.2, direction: 'down' },
+          status: 'warning',
+        },
+        {
+          title: '解决率',
+          value: `${data.overview.overallResolutionRate}%`,
+          trend: { value: 2.1, direction: 'up' },
+          status: 'success',
+        },
+        {
+          title: '平均解决时间',
+          value: `${data.overview.avgResolutionTimeHours}h`,
+          trend: { value: 5.4, direction: 'down' },
+          status: 'success',
+        },
+        {
+          title: 'SLA合规率',
+          value: `${data.overview.slaComplianceRate}%`,
+          trend: { value: 1.2, direction: 'up' },
+          status: 'success',
+        },
+        {
+          title: '工程师总数',
+          value: data.overview.totalEngineers,
+          suffix: '人',
+          status: 'normal',
+        },
+        {
+          title: '活跃工程师',
+          value: data.overview.activeEngineers,
+          suffix: '人',
+          status: 'normal',
+        },
+      ];
+    },
     [data]
   );
+
+  if (!data) {
+    return null; // Will show loading/error via DataState
+  }
 
   // Team ranking table columns
   const topPerformerColumns: ColumnsType<(typeof data.teamRanking.topPerformers)[0]> = [
@@ -236,34 +255,12 @@ const ExecutiveDashboard: React.FC = () => {
   return (
     <div style={{ padding: 0 }}>
       <DataState
-        loading={loading && !apiData}
-        error={null}
+        loading={loading}
+        error={error}
         empty={false}
         loadingText="加载效能数据..."
         retry={handleRetry}
       >
-        {/* API error banner - show when API failed but we have mock fallback */}
-        {error && (
-          <Alert
-            message="API 连接失败"
-            description={`效能数据 API 暂时不可用：${error.message}，当前显示模拟数据。`}
-            type="error"
-            showIcon
-            closable
-            style={{ marginBottom: 16 }}
-          />
-        )}
-        {/* Mock data warning - only show when API unavailable but no error */}
-        {showMockWarning && (
-          <Alert
-            message="API 不可用"
-            description="效能仪表盘 API 尚未部署，当前显示模拟数据。"
-            type="warning"
-            showIcon
-            closable
-            style={{ marginBottom: 16 }}
-          />
-        )}
         {/* Page header */}
         <div style={{ marginBottom: 24 }}>
           <Title level={3} style={{ margin: 0 }}>

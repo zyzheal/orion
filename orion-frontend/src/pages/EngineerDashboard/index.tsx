@@ -3,7 +3,8 @@
  * Personal performance dashboard for individual engineers, including personal
  * metrics, trend analysis, strengths/weaknesses, and active ticket tracking.
  *
- * Uses mock data initially; real API integration will be added later.
+ * P0-3 Fix: Removed mock data fallback. Now uses real API data with proper
+ * loading, error, and empty states. Mock data is kept only in test files.
  */
 import React from 'react';
 import {
@@ -15,6 +16,7 @@ import {
   Typography,
   Space,
   Badge,
+  Result,
 } from 'antd';
 import { colors, spacing } from '@/tokens';
 import type { ColumnsType } from 'antd/es/table';
@@ -31,10 +33,8 @@ import {
 import CardPanel from '@/components/CardPanel';
 import { StatCard, TrendLineChart, GaugeChart, BarChart } from '@/components/charts';
 import DataState from '@/components/DataState';
-import { mockEngineerDashboard } from '@/pages/__mocks__/mockBIData';
 import { useBiDashboard } from '@/hooks/useBiDashboard';
 import type { EngineerDashboardData } from '@/types/pages';
-import { Alert } from 'antd';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -113,12 +113,28 @@ const categoryName = (category: string): string => {
 const EngineerDashboard: React.FC = () => {
   const { data: apiData, loading, error } = useBiDashboard('engineer');
 
-  // Fallback to mock data when API is unavailable (but not on error)
-  const data = (apiData as EngineerDashboardData | undefined) ?? mockEngineerDashboard;
-  const showMockWarning = !apiData && !error;
-
   // Retry handler - reload page on error
   const handleRetry = () => window.location.reload();
+
+  // Show empty state when no data available
+  if (!loading && !error && !apiData) {
+    return (
+      <div style={{ padding: 0 }}>
+        <Result
+          status="info"
+          title="暂无数据"
+          subTitle="个人效能仪表盘 API 尚未返回数据，请确认后端服务已正确部署。"
+        />
+      </div>
+    );
+  }
+
+  // Cast API data to expected type
+  const data = apiData as EngineerDashboardData | undefined;
+
+  if (!data) {
+    return null; // Will show loading/error via DataState
+  }
 
   // Grade color
   const gradeColorMap: Record<string, string> = {
@@ -209,34 +225,12 @@ const EngineerDashboard: React.FC = () => {
   return (
     <div style={{ padding: 0 }}>
       <DataState
-        loading={loading && !apiData}
-        error={null}
+        loading={loading}
+        error={error}
         empty={false}
         loadingText="加载效能数据..."
         retry={handleRetry}
       >
-        {/* API error banner - show when API failed but we have mock fallback */}
-        {error && (
-          <Alert
-            message="API 连接失败"
-            description={`个人效能数据 API 暂时不可用：${error.message}，当前显示模拟数据。`}
-            type="error"
-            showIcon
-            closable
-            style={{ marginBottom: 16 }}
-          />
-        )}
-        {/* Mock data warning - only show when API unavailable but no error */}
-        {showMockWarning && (
-          <Alert
-            message="API 不可用"
-            description="个人效能仪表盘 API 尚未部署，当前显示模拟数据。"
-            type="warning"
-            showIcon
-            closable
-            style={{ marginBottom: 16 }}
-          />
-        )}
         {/* Page header */}
         <div style={{ marginBottom: 24 }}>
           <Title level={3} style={{ margin: 0 }}>

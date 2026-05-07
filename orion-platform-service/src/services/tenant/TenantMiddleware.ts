@@ -9,6 +9,7 @@
  */
 
 import { FastifyRequest, FastifyReply, HookHandlerDoneFunction } from 'fastify';
+import { DatabasePool } from '../database';
 import { TenantInfo, tenantContext } from './TenantContext';
 import { TenantIsolationService } from './TenantIsolationService';
 import { RLSPolicyManager } from './RLSPolicyManager';
@@ -26,7 +27,7 @@ export interface TenantMiddlewareOptions {
 const defaultOptions: TenantMiddlewareOptions = {
   enabled: true,
   headerName: 'x-tenant-id',
-  required: false,
+  required: true,
   skipPaths: ['/healthz', '/readyz', '/version', '/api/v1/info'],
 };
 
