@@ -6,7 +6,6 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import { DatabasePool } from '../database';
 
 export interface LineageNode {
   id: string;
@@ -49,13 +48,11 @@ export interface LineageRecord {
 // ============================================================
 
 export class DataLineageService {
-  private pool: DatabasePool | null;
   private lineageRecords: LineageRecord[] = [];
   private nodes = new Map<string, LineageNode>();
   private edges = new Map<string, LineageEdge>();
 
-  constructor(database?: DatabasePool) {
-    this.pool = database || null;
+  constructor() {
   }
 
   async recordLineage(

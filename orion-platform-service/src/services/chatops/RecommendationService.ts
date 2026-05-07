@@ -6,8 +6,8 @@
  *           MockDataProviderImpl 保留但注释掉，便于回滚
  */
 
-import { DatabasePool } from '../database';
 import { ChatOpsRecommendation } from './EventSubscriber';
+import { DatabasePool } from '../database';
 
 // ==================== DataProvider 接口 ====================
 
@@ -85,18 +85,18 @@ export class MockDataProviderImpl implements DataProvider {
  * 表不存在时优雅降级为空数组
  */
 export class RealDataProvider implements DataProvider {
-  private db: DatabasePool;
+  private pool: DatabasePool;
   private tenantId?: string;
 
-  constructor(db: DatabasePool, tenantId?: string) {
-    this.db = db;
+  constructor(pool: DatabasePool, tenantId?: string) {
+    this.pool = pool;
     this.tenantId = tenantId;
   }
 
   /** 安全执行查询，所有错误均优雅降级为空数组 */
   private async safeQuery(sql: string, params: unknown[] = []): Promise<any[]> {
     try {
-      const result = await this.db.query(sql, params as any[]);
+      const result = await this.pool.query(sql, params as any[]);
       return result.rows;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);

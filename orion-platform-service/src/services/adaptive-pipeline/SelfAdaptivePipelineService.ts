@@ -1,10 +1,9 @@
+import { DatabasePool } from '../database';
 /**
  * Self Adaptive Pipeline Service - Phase 2
  *
  * Pipeline auto-tuning based on historical performance
  */
-
-import { DatabasePool } from '../database';
 
 export interface AdaptationRule {
   metric: string;
@@ -27,11 +26,8 @@ export interface PipelineAdaptation {
 }
 
 export class SelfAdaptivePipelineService {
-  private pool: DatabasePool;
 
-  constructor(pool: DatabasePool) {
-    this.pool = pool;
-  }
+  constructor(private pool: DatabasePool) {}
 
   async analyzePipelinePerformance(pipelineId: string): Promise<{ metrics: Record<string, number>; suggestions: AdaptationRule[] }> {
     // Get historical run data

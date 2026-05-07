@@ -8,7 +8,7 @@ import fastifyHelmet from '@fastify/helmet';
 import fastifyRateLimit from '@fastify/rate-limit';
 import { v4 as uuidv4 } from 'uuid';
 
-import { getConfig } from './config';
+import { config } from './config';
 import { HealthChecker, HealthStatus } from './services/health';
 import { RedisCache } from './services/redis-cache';
 import { DatabasePool } from './services/database';
@@ -30,12 +30,12 @@ export async function createApp(options: PlatformAppOptions = {}): Promise<{
   database?: DatabasePool;
   eventBus?: EventBusService;
 }> {
-  const config = getConfig();
+  const cfg = config;
 
   // 创建 Fastify 实例
   const app = Fastify({
     logger: {
-      level: config.logLevel || 'info',
+      level: cfg.app.logLevel || 'info',
       serializers: {
         req: (req) => ({
           method: req.method,
@@ -92,7 +92,7 @@ export async function createApp(options: PlatformAppOptions = {}): Promise<{
 
   // ==================== 健康检查 ====================
 
-  const healthChecker = new HealthChecker(config.serviceName);
+  const healthChecker = new HealthChecker('orion-platform-service');
 
   // 注册 Redis 健康检查
   if (options.redis) {
@@ -130,7 +130,7 @@ export async function createApp(options: PlatformAppOptions = {}): Promise<{
     return reply.send({
       status: 'alive',
       timestamp: new Date().toISOString(),
-      service: config.serviceName,
+      service: 'orion-platform-service',
       pid: process.pid,
       uptime: process.uptime(),
     });
@@ -143,7 +143,7 @@ export async function createApp(options: PlatformAppOptions = {}): Promise<{
     return reply.status(readyResult.ready ? 200 : 503).send({
       status: readyResult.ready ? 'ready' : 'not_ready',
       timestamp: new Date().toISOString(),
-      service: config.serviceName,
+      service: 'orion-platform-service',
       checks: readyResult.checks,
     });
   });
@@ -177,7 +177,7 @@ export async function createApp(options: PlatformAppOptions = {}): Promise<{
   // 基础 API 路由
   app.get('/api/v1/info', async (request: FastifyRequest, reply: FastifyReply) => {
     return reply.send({
-      service: config.serviceName,
+      service: 'orion-platform-service',
       version: '1.0.0',
       status: 'running',
       timestamp: new Date().toISOString(),

@@ -1,3 +1,4 @@
+import { DatabasePool } from '../database';
 /**
  * PipelineRunRepository - Database layer for Pipeline Run operations
  *
@@ -5,7 +6,6 @@
  * stage_executions, and task_executions tables.
  */
 
-import { DatabasePool } from '../database';
 
 export interface PipelineRunRecord {
   id: string;
@@ -71,11 +71,8 @@ export interface ListRunsFilter {
 }
 
 export class PipelineRunRepository {
-  private pool: DatabasePool;
+  constructor(private pool: DatabasePool) {}
 
-  constructor(pool: DatabasePool) {
-    this.pool = pool;
-  }
 
   // ==================== Pipeline Runs ====================
 

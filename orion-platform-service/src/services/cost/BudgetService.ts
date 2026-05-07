@@ -25,6 +25,7 @@ import {
   BudgetStatus,
 } from '../../models/CostRecord';
 import { BudgetRepository, BudgetEntity } from '../../repositories/BudgetRepository';
+import { DatabasePool } from '../database';
 import {
   CostRecordRepository,
   AlertRuleRepository,

@@ -5,8 +5,9 @@
  * 帮助识别闲置资源、过度配置等优化机会。
  */
 import pino from 'pino';
+import { DatabasePool } from '../database';
+
 import { v4 as uuidv4 } from 'uuid';
-import { DatabasePool } from '../../services/database';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -67,10 +68,7 @@ export interface UtilizationAnalysis {
 }
 
 export class CostOptimizationService {
-  private db: DatabasePool;
-
-  constructor(db: DatabasePool) {
-    this.db = db;
+  constructor(private pool: DatabasePool) {
     this.ensureTable();
   }
 
@@ -162,7 +160,7 @@ export class CostOptimizationService {
     utilization: ResourceUtilization,
   ): Promise<void> {
     try {
-      await this.db.query(
+      await this.pool.query(
         `INSERT INTO resource_utilization (id, tenant_id, resource_id, resource_type, resource_name, cpu_utilization, memory_utilization, storage_utilization, monthly_cost, environment, recorded_at)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
         [
@@ -189,7 +187,7 @@ export class CostOptimizationService {
   private async getResourceUtilizations(tenantId: string): Promise<ResourceUtilization[]> {
     // Try to read from DB, fall back to empty if table doesn't exist
     try {
-      const result = await this.db.query(
+      const result = await this.pool.query(
         `SELECT * FROM resource_utilization WHERE tenant_id = $1 ORDER BY recorded_at DESC`,
         [tenantId],
       );
@@ -292,7 +290,7 @@ export class CostOptimizationService {
 
   private async storeSuggestion(suggestion: OptimizationSuggestion): Promise<void> {
     try {
-      await this.db.query(
+      await this.pool.query(
         `INSERT INTO optimization_suggestions (id, tenant_id, category, priority, resource_id, resource_type, resource_name, description, current_cost, estimated_savings, estimated_savings_percent, effort, status, created_at)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
          ON CONFLICT (id) DO NOTHING`,
@@ -320,7 +318,7 @@ export class CostOptimizationService {
 
   private async ensureTable(): Promise<void> {
     try {
-      await this.db.query(`
+      await this.pool.query(`
         CREATE TABLE IF NOT EXISTS resource_utilization (
           id VARCHAR(64) PRIMARY KEY,
           tenant_id VARCHAR(64) NOT NULL,
@@ -335,7 +333,7 @@ export class CostOptimizationService {
           recorded_at TIMESTAMP NOT NULL DEFAULT NOW()
         )
       `);
-      await this.db.query(`
+      await this.pool.query(`
         CREATE TABLE IF NOT EXISTS optimization_suggestions (
           id VARCHAR(64) PRIMARY KEY,
           tenant_id VARCHAR(64) NOT NULL,

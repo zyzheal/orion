@@ -1,3 +1,4 @@
+import { DatabasePool } from '../database';
 /**
  * Traffic Splitter - Phase 3
  *
@@ -6,8 +7,6 @@
  * - Retrieving current traffic configuration
  * - Validating traffic health before split changes
  */
-
-import { DatabasePool } from '../database';
 
 export interface TrafficSplitConfig {
   canaryId: string;
@@ -46,11 +45,8 @@ const MAX_ERROR_RATE_DIFF = 0.05;
 const MAX_LATENCY_INCREASE = 0.20;
 
 export class TrafficSplitter {
-  private pool: DatabasePool;
 
-  constructor(pool: DatabasePool) {
-    this.pool = pool;
-  }
+  constructor(private pool: DatabasePool) {}
 
   /**
    * Execute a traffic split change

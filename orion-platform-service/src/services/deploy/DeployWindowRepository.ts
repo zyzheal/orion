@@ -1,10 +1,10 @@
+import { DatabasePool } from '../database';
 /**
  * DeployWindowRepository - Database layer for Deploy Window operations
  *
  * Handles PostgreSQL operations for deploy_windows table
  */
 
-import { DatabasePool } from '../database';
 
 export interface DeployWindow {
   id: string;
@@ -47,11 +47,8 @@ interface FindAllWindowsOptions {
 }
 
 export class DeployWindowRepository {
-  private pool: DatabasePool;
+  constructor(private pool: DatabasePool) {}
 
-  constructor(pool: DatabasePool) {
-    this.pool = pool;
-  }
 
   /**
    * Find deploy window by ID

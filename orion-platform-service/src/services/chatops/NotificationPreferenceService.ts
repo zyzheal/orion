@@ -4,7 +4,7 @@
  * B-9: 用户通知渠道偏好管理
  */
 
-import { DatabasePool } from '../../services/database';
+import { DatabasePool } from '../database';
 
 export interface ChatOpsNotificationPreferenceEntity {
   id: string;
@@ -20,14 +20,10 @@ export interface ChatOpsNotificationPreferenceEntity {
 }
 
 export class NotificationPreferenceService {
-  private db: DatabasePool;
-
-  constructor(db: DatabasePool) {
-    this.db = db;
-  }
+  constructor(private pool: DatabasePool) {}
 
   async listByUserId(userId: string): Promise<ChatOpsNotificationPreferenceEntity[]> {
-    const result = await this.db.query(
+    const result = await this.pool.query(
       'SELECT * FROM chatops_notification_preferences WHERE user_id = $1 ORDER BY alert_level',
       [userId],
     );
@@ -43,7 +39,7 @@ export class NotificationPreferenceService {
     channelFeishu?: boolean;
     channelDingtalk?: boolean;
   }): Promise<ChatOpsNotificationPreferenceEntity> {
-    const result = await this.db.query(
+    const result = await this.pool.query(
       `INSERT INTO chatops_notification_preferences
          (user_id, alert_level, channel_chatops, channel_email, channel_slack, channel_feishu, channel_dingtalk, updated_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
@@ -70,7 +66,7 @@ export class NotificationPreferenceService {
   }
 
   async delete(userId: string, alertLevel: string): Promise<void> {
-    await this.db.query(
+    await this.pool.query(
       'DELETE FROM chatops_notification_preferences WHERE user_id = $1 AND alert_level = $2',
       [userId, alertLevel],
     );

@@ -5,11 +5,7 @@
 import { DatabasePool } from '../database';
 
 export class DependencyGraphService {
-  private db: any;
-
-  constructor(db: any) {
-    this.db = db;
-  }
+  constructor(private pool: DatabasePool) {}
 
   async buildDependencyGraph(packages: Array<{ name: string; version: string }>): Promise<any> {
     const nodes: any[] = [];
@@ -42,7 +38,7 @@ export class DependencyGraphService {
   }
 
   async getTransitiveDependencies(packageName: string, depth = 3): Promise<any[]> {
-    const result = await this.db.query(
+    const result = await this.pool.query(
       `SELECT transitive_deps FROM dependency_graphs WHERE package_name = $1 ORDER BY analyzed_at DESC LIMIT 1`,
       [packageName],
     );

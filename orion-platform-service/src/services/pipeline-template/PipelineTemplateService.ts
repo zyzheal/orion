@@ -1,3 +1,4 @@
+import { DatabasePool } from '../database';
 /**
  * PipelineTemplateService - Business logic for Pipeline Template Library
  *
@@ -9,8 +10,6 @@
  *
  * Phase 1 P0 Service
  */
-
-import { DatabasePool } from '../database';
 
 // ==================== Types ====================
 
@@ -256,11 +255,8 @@ spec:
 // ==================== Repository ====================
 
 export class PipelineTemplateRepository {
-  private pool: DatabasePool;
 
-  constructor(pool: DatabasePool) {
-    this.pool = pool;
-  }
+  constructor(private pool: DatabasePool) {}
 
   async findById(id: string): Promise<PipelineTemplate | null> {
     const result = await this.pool.query(
@@ -429,12 +425,11 @@ export class PipelineTemplateRepository {
 
 export class PipelineTemplateService {
   private repository: PipelineTemplateRepository;
-  private pool: DatabasePool;
+  
   private initialized: boolean = false;
 
-  constructor(pool: DatabasePool) {
-    this.pool = pool;
-    this.repository = new PipelineTemplateRepository(pool);
+  constructor(private pool: DatabasePool) {
+    this.repository = new PipelineTemplateRepository(this.pool);
   }
 
   /**

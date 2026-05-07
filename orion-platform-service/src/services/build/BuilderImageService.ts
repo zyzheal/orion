@@ -75,7 +75,7 @@ const PRESET_IMAGES: PresetImageDef[] = [
   {
     name: 'go-122',
     displayName: 'Go 1.22 Builder',
-    image: 'golang:1.22-alpine',
+    image: 'golang:1.22-slim',
     type: PresetImageType.GO,
     version: '1.22-alpine',
     description: 'Go 1.22 Alpine 构建镜像',
@@ -84,7 +84,7 @@ const PRESET_IMAGES: PresetImageDef[] = [
   {
     name: 'go-121',
     displayName: 'Go 1.21 Builder',
-    image: 'golang:1.21-alpine',
+    image: 'golang:1.21-slim',
     type: PresetImageType.GO,
     version: '1.21-alpine',
     description: 'Go 1.21 Alpine 构建镜像',
@@ -93,7 +93,7 @@ const PRESET_IMAGES: PresetImageDef[] = [
   {
     name: 'java-21',
     displayName: 'Java 21 Builder',
-    image: 'eclipse-temurin:21-jdk-alpine',
+    image: 'eclipse-temurin:21-jdk-slim',
     type: PresetImageType.JAVA,
     version: '21-jdk-alpine',
     description: 'Java 21 (Temurin) Alpine 构建镜像',
@@ -102,7 +102,7 @@ const PRESET_IMAGES: PresetImageDef[] = [
   {
     name: 'java-17',
     displayName: 'Java 17 Builder',
-    image: 'eclipse-temurin:17-jdk-alpine',
+    image: 'eclipse-temurin:17-jdk-slim',
     type: PresetImageType.JAVA,
     version: '17-jdk-alpine',
     description: 'Java 17 (Temurin) Alpine 构建镜像',
@@ -111,7 +111,7 @@ const PRESET_IMAGES: PresetImageDef[] = [
   {
     name: 'dotnet-8',
     displayName: '.NET 8 Builder',
-    image: 'mcr.microsoft.com/dotnet/sdk:8.0-alpine',
+    image: 'mcr.microsoft.com/dotnet/sdk:8.0-slim',
     type: PresetImageType.DOTNET,
     version: '8.0-alpine',
     description: '.NET 8 SDK Alpine 构建镜像',

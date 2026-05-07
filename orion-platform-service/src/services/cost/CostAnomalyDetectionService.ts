@@ -5,8 +5,8 @@
  * 识别成本突增、异常波动等场景。
  */
 import pino from 'pino';
+import { DatabasePool } from '../database';
 import { v4 as uuidv4 } from 'uuid';
-import { DatabasePool } from '../../services/database';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -72,7 +72,7 @@ export interface CostForecastResult {
 }
 
 export class CostAnomalyDetectionService {
-  private db: DatabasePool;
+  private pool: DatabasePool;
   private zScoreThreshold: number;
   private spikeThreshold: number;
 
@@ -80,7 +80,7 @@ export class CostAnomalyDetectionService {
     db: DatabasePool,
     options?: { zScoreThreshold?: number; spikeThreshold?: number },
   ) {
-    this.db = db;
+    this.pool = db;
     this.zScoreThreshold = options?.zScoreThreshold ?? 2.0;
     this.spikeThreshold = options?.spikeThreshold ?? 50; // percentage
     this.ensureTable();
@@ -96,7 +96,7 @@ export class CostAnomalyDetectionService {
     const id = `cost_${uuidv4()}`;
     const now = new Date();
 
-    await this.db.query(
+    await this.pool.query(
       `INSERT INTO cost_records (id, tenant_id, amount, category, resource_id, timestamp, metadata)
        VALUES ($1, $2, $3, $4, $5, $6, $7)`,
       [
@@ -372,7 +372,7 @@ export class CostAnomalyDetectionService {
     startDate: Date,
     endDate: Date,
   ): Promise<CostRecord[]> {
-    const result = await this.db.query(
+    const result = await this.pool.query(
       `SELECT * FROM cost_records WHERE tenant_id = $1 AND timestamp >= $2 AND timestamp <= $3 ORDER BY timestamp ASC`,
       [tenantId, startDate, endDate],
     );
@@ -471,7 +471,7 @@ export class CostAnomalyDetectionService {
 
   private async storeAnomaly(anomaly: AnomalyRecord): Promise<void> {
     try {
-      await this.db.query(
+      await this.pool.query(
         `INSERT INTO cost_anomalies (id, tenant_id, type, severity, value, expected_value, deviation, detected_at, time_window_start, time_window_end, description, metadata)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
         [
@@ -496,7 +496,7 @@ export class CostAnomalyDetectionService {
 
   private async ensureTable(): Promise<void> {
     try {
-      await this.db.query(`
+      await this.pool.query(`
         CREATE TABLE IF NOT EXISTS cost_records (
           id VARCHAR(64) PRIMARY KEY,
           tenant_id VARCHAR(64) NOT NULL,
@@ -507,7 +507,7 @@ export class CostAnomalyDetectionService {
           metadata JSONB
         )
       `);
-      await this.db.query(`
+      await this.pool.query(`
         CREATE TABLE IF NOT EXISTS cost_anomalies (
           id VARCHAR(64) PRIMARY KEY,
           tenant_id VARCHAR(64) NOT NULL,

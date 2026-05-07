@@ -2,7 +2,7 @@
 import crypto from 'crypto';
 import { EventEmitter } from 'events';
 import pino from 'pino';
-import type { DatabasePool } from '../database';
+import { DatabasePool } from '../database';
 import { K8sSecretKeyStorage, k8sSecretStorage } from './K8sSecretKeyStorage';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
@@ -33,14 +33,14 @@ const DEFAULT_CONFIG: JwtKeyRotationConfig = {
 
 export class JwtKeyRotationService extends EventEmitter {
   private config: JwtKeyRotationConfig;
-  private dbPool: DatabasePool;
+  private dbPool: DatabasePool | null;
   private k8sStorage: K8sSecretKeyStorage;
   private currentKey: JwtKey | null = null;
   private previousKey: JwtKey | null = null;
   private keys: Map<string, JwtKey> = new Map();
   private rotationTimer?: NodeJS.Timeout;
 
-  constructor(dbPool: DatabasePool, config: Partial<JwtKeyRotationConfig> = {}, k8sStorage?: K8sSecretKeyStorage) {
+  constructor(dbPool: DatabasePool | null, config: Partial<JwtKeyRotationConfig> = {}, k8sStorage?: K8sSecretKeyStorage) {
     super();
     this.dbPool = dbPool;
     this.config = { ...DEFAULT_CONFIG, ...config };
@@ -217,6 +217,7 @@ export class JwtKeyRotationService extends EventEmitter {
   }
 
   private async loadKeysFromDatabase(): Promise<JwtKey[]> {
+    if (!this.dbPool) return [];
     try {
       const result = await this.dbPool.query(
         `SELECT key_id, key_hash, key_strength, status, created_at, activated_at, expires_at
@@ -241,6 +242,7 @@ export class JwtKeyRotationService extends EventEmitter {
   }
 
   private async storeKeyInDatabase(key: JwtKey): Promise<void> {
+    if (!this.dbPool) return;
     try {
       await this.dbPool.query(
         `INSERT INTO jwt_key_rotation (key_id, key_hash, key_strength, status, created_at, rotation_trigger)
@@ -258,6 +260,7 @@ export class JwtKeyRotationService extends EventEmitter {
   }
 
   private async updateKeyInDatabase(key: JwtKey): Promise<void> {
+    if (!this.dbPool) return;
     try {
       await this.dbPool.query(
         `UPDATE jwt_key_rotation

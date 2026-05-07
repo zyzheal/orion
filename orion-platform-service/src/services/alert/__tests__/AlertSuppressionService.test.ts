@@ -61,6 +61,8 @@ describe('AlertSuppressionService', () => {
         { source: 'app-002', target: 'db-001', relationType: 'depends_on' },
         { source: 'app-001', target: 'network-001', relationType: 'connected_to' },
         { source: 'app-002', target: 'network-001', relationType: 'connected_to' },
+        { source: 'app-001', target: 'node-001', relationType: 'runs_on' },
+        { source: 'app-002', target: 'node-002', relationType: 'runs_on' },
         { source: 'service-001', target: 'app-001', relationType: 'depends_on' },
         { source: 'node-001', target: 'network-001', relationType: 'connected_to' },
         { source: 'node-002', target: 'network-001', relationType: 'connected_to' },

@@ -4,8 +4,8 @@
  * Manage deployments across multiple cloud providers
  */
 
-import { DatabasePool } from '../database';
 import { MultiCloudRepository, CloudAccountEntity, CloudResourceEntity } from '../../repositories/MultiCloudRepository';
+import { DatabasePool } from '../database';
 
 export interface CloudProvider {
   id: string;
@@ -78,7 +78,7 @@ const RESOURCE_TEMPLATES: Record<string, {
     vm: { instance_type: 't3.large', cost_per_hour: 0.096 },
     storage: { instance_type: 'gp3', cost_per_hour: 0.02 },
     network: { instance_type: 'load_balancer', cost_per_hour: 0.025 },
-    database: { instance_type: 'db.r6g.large', cost_per_hour: 0.35 },
+    database: { instance_type: 'this.pool.r6g.large', cost_per_hour: 0.35 },
     container: { instance_type: 'k8s_nodes', cost_per_hour: 0.15 },
   },
   gcp: {
@@ -112,12 +112,11 @@ const RESOURCE_TEMPLATES: Record<string, {
 };
 
 export class MultiCloudManagerService {
-  private pool: DatabasePool;
+  
   private repository: MultiCloudRepository;
 
-  constructor(pool: DatabasePool) {
-    this.pool = pool;
-    this.repository = new MultiCloudRepository(pool);
+  constructor(private pool: DatabasePool) {
+    this.repository = new MultiCloudRepository(this.pool);
   }
 
   async registerProvider(input: { tenant_id: string; name: string; type: string; region: string; credentials_ref: string }): Promise<CloudProvider> {

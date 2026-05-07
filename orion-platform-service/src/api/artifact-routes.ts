@@ -132,7 +132,7 @@ export default async function artifactRoutes(
   // GET /artifacts/:id/stage - 获取当前阶段
   app.get('/artifacts/:id/stage', async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = request.params as { id: string };
-    const stage = promotionService.getCurrentStage(id);
+    const stage = await promotionService.getCurrentStage(id);
     if (!stage) return reply.status(404).send({ error: 'NOT_FOUND' });
     return reply.send({ stage });
   });

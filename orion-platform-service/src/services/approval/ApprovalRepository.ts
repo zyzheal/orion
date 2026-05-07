@@ -1,7 +1,7 @@
+import { DatabasePool } from '../database';
 /**
  * ApprovalRepository - Database layer for Approval operations
  */
-import { DatabasePool } from '../database';
 
 export interface Approval {
   id: string;
@@ -15,8 +15,7 @@ export interface Approval {
 }
 
 export class ApprovalRepository {
-  private pool: DatabasePool;
-  constructor(pool: DatabasePool) { this.pool = pool; }
+  constructor(private pool: DatabasePool) {}
 
   async create(tenantId: string, type: string, targetId: string, requestedBy: string): Promise<Approval> {
     const result = await this.pool.query(

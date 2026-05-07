@@ -1,8 +1,8 @@
+import { DatabasePool } from '../database';
 /**
  * AgentRepository - Database layer for Agent operations
  */
 
-import { DatabasePool } from '../database';
 
 export interface AgentProfile {
   id: string;
@@ -30,8 +30,7 @@ export interface AgentRun {
 }
 
 export class AgentRepository {
-  private pool: DatabasePool;
-  constructor(pool: DatabasePool) { this.pool = pool; }
+  constructor(private pool: DatabasePool) {}
 
   async findProfileById(id: string): Promise<AgentProfile | null> {
     return (await this.pool.query('SELECT * FROM agent_profiles WHERE id = $1', [id])).rows[0] || null;

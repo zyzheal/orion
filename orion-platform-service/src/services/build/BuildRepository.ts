@@ -1,10 +1,10 @@
+import { DatabasePool } from '../database';
 /**
  * BuildRepository - Database layer for Build operations
  * 
  * Handles PostgreSQL operations for build environments and build records
  */
 
-import { DatabasePool } from '../database';
 
 export interface BuildEnvironment {
   id: string;
@@ -71,11 +71,8 @@ interface FindAllOptions {
 }
 
 export class BuildRepository {
-  private pool: DatabasePool;
+  constructor(private pool: DatabasePool) {}
 
-  constructor(pool: DatabasePool) {
-    this.pool = pool;
-  }
 
   // ==================== Build Environments ====================
 

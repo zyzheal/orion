@@ -1,10 +1,10 @@
+import { DatabasePool } from '../database';
 /**
  * BackupPlanRepository - Database access layer for backup plan configurations
  *
  * Maps to the `backup_configs` table.
  */
 
-import { DatabasePool } from '../database';
 
 export interface BackupPlanRecord {
   id: string;
@@ -22,11 +22,8 @@ export interface BackupPlanRecord {
 }
 
 export class BackupPlanRepository {
-  private pool: DatabasePool;
+  constructor(private pool: DatabasePool) {}
 
-  constructor(pool: DatabasePool) {
-    this.pool = pool;
-  }
 
   async create(plan: Omit<BackupPlanRecord, 'created_at' | 'updated_at'>): Promise<BackupPlanRecord> {
     const result = await this.pool.query(

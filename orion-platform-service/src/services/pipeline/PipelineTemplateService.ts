@@ -1,10 +1,9 @@
+import { DatabasePool } from '../database';
 /**
  * PipelineTemplateService - Pipeline template management
  *
  * Handles template CRUD, versioning, and instantiation.
  */
-
-import { DatabasePool } from '../database';
 
 export interface TemplateParameter {
   name: string;
@@ -62,11 +61,8 @@ export interface InstantiateTemplateInput {
 }
 
 export class PipelineTemplateService {
-  private pool: DatabasePool;
 
-  constructor(pool: DatabasePool) {
-    this.pool = pool;
-  }
+  constructor(private pool: DatabasePool) {}
 
   // ==================== Template CRUD ====================
 

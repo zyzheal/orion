@@ -7,8 +7,10 @@ describe('EnvironmentRepository (in-memory)', () => {
   let repo: EnvironmentRepository;
 
   beforeEach(() => {
-    // No database pool -> uses in-memory fallback
-    repo = new EnvironmentRepository();
+    // Create repository with undefined pool, then mock isDbAvailable to return false
+    repo = new EnvironmentRepository(undefined as any);
+    // Override isDbAvailable to use in-memory fallback
+    (repo as any).isDbAvailable = () => false;
   });
 
   describe('create', () => {

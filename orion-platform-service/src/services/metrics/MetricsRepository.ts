@@ -1,7 +1,7 @@
+import { DatabasePool } from '../database';
 /**
  * MetricsRepository - Database layer for Metrics operations
  */
-import { DatabasePool } from '../database';
 
 export interface Metric {
   id: string;
@@ -13,8 +13,7 @@ export interface Metric {
 }
 
 export class MetricsRepository {
-  private pool: DatabasePool;
-  constructor(pool: DatabasePool) { this.pool = pool; }
+  constructor(private pool: DatabasePool) {}
 
   async record(tenantId: string, name: string, value: number, unit: string): Promise<Metric> {
     const result = await this.pool.query(

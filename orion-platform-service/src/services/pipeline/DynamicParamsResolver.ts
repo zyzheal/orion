@@ -208,8 +208,7 @@ export class DynamicParamsResolver {
     });
 
     try {
-      // Evaluate simple expressions: "true", "false", "value == value", "value != value"
-      // Using Function constructor for controlled eval (only literal expressions)
+      // Safe evaluation: no Function/eval used. Only literal comparisons.
       if (evalCondition === 'true') return true;
       if (evalCondition === 'false') return false;
       if (evalCondition === 'undefined') return false;

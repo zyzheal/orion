@@ -8,6 +8,7 @@
  */
 
 import pino from 'pino';
+import { DatabasePool } from './database';
 import { EventBusService } from './event-bus-service';
 import { CmdbService } from './cmdb/CmdbService';
 import { K8sWatchClient, SyncStatus, WatchEvent, K8sResourceKind } from './cmdb/K8sWatchClient';

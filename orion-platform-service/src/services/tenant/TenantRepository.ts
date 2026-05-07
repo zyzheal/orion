@@ -1,10 +1,10 @@
+import { DatabasePool } from '../database';
 /**
  * TenantRepository - Database layer for Tenant operations
  * 
  * Handles all PostgreSQL database operations for tenants table
  */
 
-import { DatabasePool } from '../database';
 
 export interface Tenant {
   id: string;
@@ -36,11 +36,8 @@ interface FindAllOptions {
 }
 
 export class TenantRepository {
-  private pool: DatabasePool;
+  constructor(private pool: DatabasePool) {}
 
-  constructor(pool: DatabasePool) {
-    this.pool = pool;
-  }
 
   /**
    * Find tenant by ID

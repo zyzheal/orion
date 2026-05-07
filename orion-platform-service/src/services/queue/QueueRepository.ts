@@ -1,7 +1,7 @@
+import { DatabasePool } from '../database';
 /**
  * QueueRepository - Database layer for Queue operations
  */
-import { DatabasePool } from '../database';
 
 export interface QueueJob {
   id: string;
@@ -19,8 +19,7 @@ export interface QueueJob {
 }
 
 export class QueueRepository {
-  private pool: DatabasePool;
-  constructor(pool: DatabasePool) { this.pool = pool; }
+  constructor(private pool: DatabasePool) {}
 
   async enqueue(tenantId: string, queue: string, payload: Record<string, any>, options?: { priority?: number; maxAttempts?: number }): Promise<QueueJob> {
     const priority = options?.priority ?? 0;

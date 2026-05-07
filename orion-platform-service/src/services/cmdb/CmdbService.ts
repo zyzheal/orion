@@ -6,6 +6,7 @@
 
 import { v4 as uuidv4 } from 'uuid';
 import { DatabasePool } from '../database';
+
 import { CmdbEventPublisher } from './CmdbEventPublisher';
 import { CmdbRepository } from '../../api/repositories/CmdbRepository';
 import { CmdbRelationRepository } from '../../api/repositories/CmdbRelationRepository';

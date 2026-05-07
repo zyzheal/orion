@@ -77,6 +77,7 @@ export default async function chatopsRoutes(
 
   // ==================== Existing Services ====================
   const commandService = new CommandService({
+    pool: db,
     eventBus: options.eventBus,
     repository: commandRepo,
   });

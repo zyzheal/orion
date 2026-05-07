@@ -1,3 +1,4 @@
+import { DatabasePool } from '../database';
 /**
  * CacheMonitorService - Business logic for Build Cache Monitoring
  *
@@ -9,8 +10,6 @@
  *
  * Phase 1 P0 Service
  */
-
-import { DatabasePool } from '../database';
 
 // ==================== Types ====================
 
@@ -74,11 +73,8 @@ export class CacheMonitorServiceError extends Error {
 // ==================== Repository ====================
 
 export class CacheMetricsRepository {
-  private pool: DatabasePool;
 
-  constructor(pool: DatabasePool) {
-    this.pool = pool;
-  }
+  constructor(private pool: DatabasePool) {}
 
   async getCacheMetrics(cacheId: string): Promise<CacheMetrics | null> {
     const result = await this.pool.query(
@@ -176,11 +172,9 @@ export class CacheMetricsRepository {
 
 export class CacheMonitorService {
   private repository: CacheMetricsRepository;
-  private pool: DatabasePool;
 
-  constructor(pool: DatabasePool) {
-    this.pool = pool;
-    this.repository = new CacheMetricsRepository(pool);
+  constructor(private pool: DatabasePool) {
+    this.repository = new CacheMetricsRepository(this.pool);
   }
 
   /**

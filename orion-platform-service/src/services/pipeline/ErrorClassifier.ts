@@ -13,7 +13,7 @@
  * - config: 配置错误（缺少环境变量、无效参数），不应重试
  */
 
-import { DatabasePool } from '../../services/database';
+import { DatabasePool } from '../database';
 
 export type ErrorType = 'transient' | 'permanent' | 'flaky' | 'config';
 export type RetryStrategy = 'immediate' | 'backoff' | 'skip';
@@ -191,11 +191,7 @@ function normalizePattern(message: string): string {
 }
 
 export class ErrorClassifier {
-  private db: DatabasePool | null;
-
-  constructor(db: DatabasePool | null) {
-    this.db = db;
-  }
+  constructor(private pool: DatabasePool) {}
 
   /**
    * 分类错误
@@ -289,10 +285,8 @@ export class ErrorClassifier {
     stageContext: StageContext,
     classification: ErrorClassification
   ): Promise<void> {
-    if (!this.db) return;
-
     try {
-      await this.db.query(
+      await this.pool.query(
         `INSERT INTO pipeline_error_classifications
          (stage_name, error_type, error_message, error_pattern, should_retry, retry_strategy, confidence, retry_count)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
@@ -328,13 +322,9 @@ export class ErrorClassifier {
     const whereClause = stageName ? 'WHERE stage_name = $1' : '';
     const params = stageName ? [stageName] : [];
 
-    if (!this.db) {
-      return { total: 0, byType: { transient: 0, permanent: 0, flaky: 0, config: 0 }, retrySuccessRate: 0, topErrors: [] };
-    }
-
     try {
       // 按类型统计
-      const typeStats = await this.db.query(
+      const typeStats = await this.pool.query(
         `SELECT error_type, COUNT(*) as count
          FROM pipeline_error_classifications ${whereClause}
          GROUP BY error_type`,
@@ -352,14 +342,14 @@ export class ErrorClassifier {
       }
 
       // 总计数
-      const totalResult = await this.db.query(
+      const totalResult = await this.pool.query(
         `SELECT COUNT(*) as total FROM pipeline_error_classifications ${whereClause}`,
         params
       );
       const total = parseInt(totalResult.rows[0]?.total || '0', 10);
 
       // 重试成功率
-      const retryStats = await this.db.query(
+      const retryStats = await this.pool.query(
         `SELECT
            COUNT(*) as total_classified,
            SUM(CASE WHEN should_retry = true AND resolved = true THEN 1 ELSE 0 END) as retry_success
@@ -373,7 +363,7 @@ export class ErrorClassifier {
       const retrySuccessRate = retryTotal > 0 ? retrySuccess / retryTotal : 0;
 
       // 常见错误模式 Top 10
-      const topErrorsResult = await this.db.query(
+      const topErrorsResult = await this.pool.query(
         `SELECT error_pattern as pattern, error_type as type, COUNT(*) as count
          FROM pipeline_error_classifications ${whereClause}
          GROUP BY error_pattern, error_type

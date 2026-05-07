@@ -1,3 +1,4 @@
+import { DatabasePool } from '../database';
 /**
  * AutoProgressionEngine - Canary traffic auto-progression engine
  *
@@ -8,8 +9,6 @@
  *
  * Phase 3 P3 Service
  */
-
-import { DatabasePool } from '../database';
 
 // ==================== Types ====================
 
@@ -58,7 +57,6 @@ export interface ProgressionConfig {
 }
 
 export class AutoProgressionEngine {
-  private pool: DatabasePool;
 
   private readonly DEFAULT_CONFIG: ProgressionConfig = {
     analysisWindowMinutes: 10,
@@ -70,9 +68,7 @@ export class AutoProgressionEngine {
     statisticalTest: 'mann-whitney',
   };
 
-  constructor(pool: DatabasePool) {
-    this.pool = pool;
-  }
+  constructor(private pool: DatabasePool) {}
 
   /**
    * Run auto-progression analysis for a canary deployment

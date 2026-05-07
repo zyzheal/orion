@@ -1,3 +1,4 @@
+import { DatabasePool } from '../database';
 /**
  * PipelineVersionService - Business logic for Pipeline Version Control
  *
@@ -9,8 +10,6 @@
  *
  * Phase 1 P0 Service
  */
-
-import { DatabasePool } from '../database';
 
 // ==================== Types ====================
 
@@ -71,11 +70,8 @@ export class PipelineVersionServiceError extends Error {
 // ==================== Repository ====================
 
 export class PipelineVersionRepository {
-  private pool: DatabasePool;
 
-  constructor(pool: DatabasePool) {
-    this.pool = pool;
-  }
+  constructor(private pool: DatabasePool) {}
 
   async create(input: CreateVersionInput): Promise<PipelineVersion> {
     // Get next version number for this pipeline
@@ -232,11 +228,9 @@ export class PipelineVersionRepository {
 
 export class PipelineVersionService {
   private repository: PipelineVersionRepository;
-  private pool: DatabasePool;
 
-  constructor(pool: DatabasePool) {
-    this.pool = pool;
-    this.repository = new PipelineVersionRepository(pool);
+  constructor(private pool: DatabasePool) {
+    this.repository = new PipelineVersionRepository(this.pool);
   }
 
   /**

@@ -1,10 +1,9 @@
+import { DatabasePool } from '../database';
 /**
  * Federation Scheduler Service - Phase 3
  *
  * Multi-cluster pipeline scheduling and orchestration
  */
-
-import { DatabasePool } from '../database';
 
 export interface FederationCluster {
   id: string;
@@ -30,11 +29,8 @@ export interface FederationSchedule {
 }
 
 export class FederationSchedulerService {
-  private pool: DatabasePool;
 
-  constructor(pool: DatabasePool) {
-    this.pool = pool;
-  }
+  constructor(private pool: DatabasePool) {}
 
   async registerCluster(input: { tenant_id: string; name: string; endpoint: string; region: string }): Promise<FederationCluster> {
     const result = await this.pool.query(

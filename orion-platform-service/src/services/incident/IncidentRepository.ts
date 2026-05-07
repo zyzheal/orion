@@ -1,10 +1,10 @@
+import { DatabasePool } from '../database';
 /**
  * IncidentRepository - Database layer for Incident operations
  *
  * Handles PostgreSQL operations for incidents (MTTR calculation)
  */
 
-import { DatabasePool } from '../database';
 
 export interface Incident {
   id: string;
@@ -57,11 +57,8 @@ interface FindAllOptions {
 }
 
 export class IncidentRepository {
-  private pool: DatabasePool;
+  constructor(private pool: DatabasePool) {}
 
-  constructor(pool: DatabasePool) {
-    this.pool = pool;
-  }
 
   /**
    * Find incident by ID

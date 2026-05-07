@@ -1,10 +1,9 @@
+import { DatabasePool } from '../database';
 /**
  * PipelineBudgetService - Execution budget management for pipelines
  *
  * Handles budget configuration, estimation, and real-time usage tracking.
  */
-
-import { DatabasePool } from '../database';
 
 export interface BudgetConfig {
   timeBudget?: {
@@ -68,11 +67,8 @@ export interface CreateBudgetInput {
 }
 
 export class PipelineBudgetService {
-  private pool: DatabasePool;
 
-  constructor(pool: DatabasePool) {
-    this.pool = pool;
-  }
+  constructor(private pool: DatabasePool) {}
 
   // ==================== Budget Configuration ====================
 

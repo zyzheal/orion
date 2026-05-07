@@ -1,7 +1,7 @@
 // orion-platform-service/src/services/disaster-recovery/DisasterRecoveryService.ts
 import { EventEmitter } from 'events';
 import pino from 'pino';
-import type { DatabasePool } from '../database';
+import { DatabasePool } from '../database';
 import { FailoverExecutor, failoverExecutor } from './FailoverExecutor';
 import { DisasterRecoveryRepository, DRPlanRow } from '../../repositories/DisasterRecoveryRepository';
 

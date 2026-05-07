@@ -1,3 +1,4 @@
+import { DatabasePool } from '../database';
 /**
  * ResilienceScoreCalculator - Business logic for Resilience Score Calculation
  *
@@ -9,8 +10,6 @@
  *
  * Phase 3 P1 Service
  */
-
-import { DatabasePool } from '../database';
 
 // ==================== Types ====================
 
@@ -70,11 +69,8 @@ export class ResilienceScoreCalculatorError extends Error {
 // ==================== Repository ====================
 
 export class ResilienceScoreRepository {
-  private pool: DatabasePool;
 
-  constructor(pool: DatabasePool) {
-    this.pool = pool;
-  }
+  constructor(private pool: DatabasePool) {}
 
   async findById(id: string): Promise<ResilienceScore | null> {
     const result = await this.pool.query(
@@ -174,7 +170,6 @@ export class ResilienceScoreRepository {
 
 export class ResilienceScoreCalculator {
   private repository: ResilienceScoreRepository;
-  private pool: DatabasePool;
 
   // Scoring weights
   private readonly WEIGHTS = {
@@ -194,9 +189,8 @@ export class ResilienceScoreCalculator {
     successRateAcceptable: 0.90,
   };
 
-  constructor(pool: DatabasePool) {
-    this.pool = pool;
-    this.repository = new ResilienceScoreRepository(pool);
+  constructor(private pool: DatabasePool) {
+    this.repository = new ResilienceScoreRepository(this.pool);
   }
 
   /**

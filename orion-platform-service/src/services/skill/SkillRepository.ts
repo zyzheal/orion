@@ -1,10 +1,10 @@
+import { DatabasePool } from '../database';
 /**
  * SkillRepository - Database layer for Skill operations
  * 
  * Handles PostgreSQL operations for skill packages, versions, and reviews
  */
 
-import { DatabasePool } from '../database';
 
 export interface SkillPackage {
   id: string;
@@ -84,11 +84,8 @@ interface FindAllOptions {
 }
 
 export class SkillRepository {
-  private pool: DatabasePool;
+  constructor(private pool: DatabasePool) {}
 
-  constructor(pool: DatabasePool) {
-    this.pool = pool;
-  }
 
   // ==================== Skill Packages ====================
 

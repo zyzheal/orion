@@ -1,8 +1,8 @@
+import { DatabasePool } from '../database';
 /**
  * ArtifactRepository - Database layer for Artifact operations
  */
 
-import { DatabasePool } from '../database';
 
 export interface Artifact {
   id: string;
@@ -18,8 +18,7 @@ export interface Artifact {
 }
 
 export class ArtifactRepository {
-  private pool: DatabasePool;
-  constructor(pool: DatabasePool) { this.pool = pool; }
+  constructor(private pool: DatabasePool) {}
 
   async findById(id: string): Promise<Artifact | null> {
     return (await this.pool.query('SELECT * FROM artifacts WHERE id = $1', [id])).rows[0] || null;

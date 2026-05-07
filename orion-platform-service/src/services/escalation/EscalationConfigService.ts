@@ -172,6 +172,17 @@ export class EscalationConfigService {
   }
 
   /**
+   * 获取所有升级策略
+   */
+  getAllPolicies(): EscalationPolicy[] {
+    const all: EscalationPolicy[] = [];
+    for (const policies of this.cache.values()) {
+      all.push(...policies);
+    }
+    return all;
+  }
+
+  /**
    * 获取升级策略
    */
   getPolicies(entityType: string, severity?: string): EscalationPolicy[] {

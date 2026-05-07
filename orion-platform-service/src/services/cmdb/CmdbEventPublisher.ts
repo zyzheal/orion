@@ -6,6 +6,7 @@
  */
 
 import { EventBusService } from '../event-bus-service';
+import { DatabasePool } from '../database';
 import { CI, CIRelation } from './CmdbTypes';
 
 export class CmdbEventPublisher {

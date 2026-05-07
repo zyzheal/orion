@@ -1,3 +1,4 @@
+import { DatabasePool } from '../database';
 /**
  * PipelineBudgetService - Business logic for Pipeline Execution Budget
  *
@@ -9,8 +10,6 @@
  *
  * Phase 1 P0 Service
  */
-
-import { DatabasePool } from '../database';
 
 // ==================== Types ====================
 
@@ -90,11 +89,8 @@ export class PipelineBudgetServiceError extends Error {
 // ==================== Repository ====================
 
 export class PipelineBudgetRepository {
-  private pool: DatabasePool;
 
-  constructor(pool: DatabasePool) {
-    this.pool = pool;
-  }
+  constructor(private pool: DatabasePool) {}
 
   async findByPipeline(pipelineId: string): Promise<PipelineBudgetConfig | null> {
     const result = await this.pool.query(
@@ -275,11 +271,9 @@ export class PipelineBudgetRepository {
 
 export class PipelineBudgetService {
   private repository: PipelineBudgetRepository;
-  private pool: DatabasePool;
 
-  constructor(pool: DatabasePool) {
-    this.pool = pool;
-    this.repository = new PipelineBudgetRepository(pool);
+  constructor(private pool: DatabasePool) {
+    this.repository = new PipelineBudgetRepository(this.pool);
   }
 
   /**

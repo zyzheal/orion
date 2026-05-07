@@ -1,10 +1,10 @@
+import { DatabasePool } from '../database';
 /**
  * BackupRepository - Database access layer for backup job records
  *
  * Maps to the `backup_jobs` and `backup_restores` tables.
  */
 
-import { DatabasePool } from '../database';
 
 export interface BackupJobRecord {
   id: string;
@@ -31,11 +31,8 @@ export interface BackupRestoreRecord {
 }
 
 export class BackupRepository {
-  private pool: DatabasePool;
+  constructor(private pool: DatabasePool) {}
 
-  constructor(pool: DatabasePool) {
-    this.pool = pool;
-  }
 
   // ==================== Backup Jobs ====================
 

@@ -1,10 +1,9 @@
+import { DatabasePool } from '../database';
 /**
  * API Governance Services - Phase 4
  * 
  * Contract testing and API version management
  */
-
-import { DatabasePool } from '../database';
 
 // ==================== Types ====================
 
@@ -93,11 +92,8 @@ export class APIGovernanceError extends Error {
 // ==================== Repository ====================
 
 export class APIGovernanceRepository {
-  private pool: DatabasePool;
 
-  constructor(pool: DatabasePool) {
-    this.pool = pool;
-  }
+  constructor(private pool: DatabasePool) {}
 
   async createContract(input: { tenant_id: string; service_name: string; version: string; spec: Record<string, unknown> }): Promise<APIContract> {
     const result = await this.pool.query(
@@ -203,8 +199,8 @@ export class APIGovernanceRepository {
 export class APISpecRegistryService {
   private repository: APIGovernanceRepository;
 
-  constructor(pool: DatabasePool) {
-    this.repository = new APIGovernanceRepository(pool);
+  constructor(private pool: DatabasePool) {
+    this.repository = new APIGovernanceRepository(this.pool);
   }
 
   async uploadContract(input: { tenant_id: string; service_name: string; version: string; spec: Record<string, unknown> }): Promise<APIContract> {

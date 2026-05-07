@@ -1,10 +1,9 @@
+import { DatabasePool } from '../database';
 /**
  * Canary Traffic Manager Service - Phase 3
  *
  * Manage canary release traffic distribution
  */
-
-import { DatabasePool } from '../database';
 
 export interface CanaryConfig {
   id: string;
@@ -36,11 +35,8 @@ export interface CanaryAnalysis {
 }
 
 export class CanaryTrafficManagerService {
-  private pool: DatabasePool;
 
-  constructor(pool: DatabasePool) {
-    this.pool = pool;
-  }
+  constructor(private pool: DatabasePool) {}
 
   async createCanary(input: { tenant_id: string; deployment_id: string; initial_percent?: number; max_percent?: number }): Promise<CanaryConfig> {
     const result = await this.pool.query(

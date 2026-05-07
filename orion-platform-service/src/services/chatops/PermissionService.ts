@@ -9,7 +9,7 @@
  * 3. 权限结果审计日志写入
  */
 
-import { DatabasePool } from '../../services/database';
+import { DatabasePool } from '../database';
 
 export interface PermissionCheckResult {
   allowed: boolean;
@@ -30,16 +30,13 @@ const COMMAND_PERMISSION: Record<string, string> = {
 };
 
 export class PermissionService {
-  private db: DatabasePool;
   // 角色权限缓存 (带 TTL)
   private rolePermsCache: Map<string, { perms: string[]; expiresAt: number }> = new Map();
   // SE-7 修复: TTL 从 60 秒降低到 10 秒，减少缓存不一致窗口
   // 注意: 当 PermissionService 被实际使用时，需在 RBAC 变更处调用 invalidateCache()
   private readonly CACHE_TTL_MS = 10_000; // 10 秒
 
-  constructor(db: DatabasePool) {
-    this.db = db;
-  }
+  constructor(private pool: DatabasePool) {}
 
   /**
    * 从数据库查询角色权限 (带缓存)
@@ -52,7 +49,7 @@ export class PermissionService {
     }
 
     try {
-      const result = await this.db.query(
+      const result = await this.pool.query(
         `SELECT DISTINCT p.resource, p.action
          FROM role_permissions rp
          JOIN permissions p ON rp.permission_id = p.id
@@ -89,7 +86,7 @@ export class PermissionService {
   /** Step 2: 资源级权限 */
   async checkResourceLevel(userId: string, resourceType: string, resourceId: string): Promise<PermissionCheckResult> {
     try {
-      const result = await this.db.query(
+      const result = await this.pool.query(
         `SELECT 1 FROM user_resources
          WHERE user_id = $1 AND resource_type = $2 AND resource_id = $3
          LIMIT 1`,
@@ -153,7 +150,7 @@ export class PermissionService {
     resourceId?: string,
   ): Promise<void> {
     try {
-      await this.db.query(
+      await this.pool.query(
         `INSERT INTO chatops_audit_logs (actor, command, result, resource_type, resource_id, timestamp)
          VALUES ($1::jsonb, $2, $3, $4, $5, NOW())`,
         [

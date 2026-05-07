@@ -1,7 +1,7 @@
+import { DatabasePool } from '../database';
 /**
  * RoleRepository - Database layer for Role operations
  */
-import { DatabasePool } from '../database';
 
 export interface Role {
   id: string;
@@ -12,8 +12,7 @@ export interface Role {
 }
 
 export class RoleRepository {
-  private pool: DatabasePool;
-  constructor(pool: DatabasePool) { this.pool = pool; }
+  constructor(private pool: DatabasePool) {}
 
   async findById(id: string): Promise<Role | null> {
     return (await this.pool.query('SELECT * FROM roles WHERE id = $1', [id])).rows[0] || null;

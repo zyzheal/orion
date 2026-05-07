@@ -1,3 +1,4 @@
+import { DatabasePool } from '../database';
 /**
  * KnowledgeRepository - Database layer for Knowledge operations (M28)
  *
@@ -7,7 +8,6 @@
  * - kb_doc_versions: version history for documents
  */
 
-import { DatabasePool } from '../database';
 
 // ============================================================================
 // Space types
@@ -103,8 +103,7 @@ export interface KnowledgeSearchResult {
 // ============================================================================
 
 export class KnowledgeRepository {
-  private pool: DatabasePool;
-  constructor(pool: DatabasePool) { this.pool = pool; }
+  constructor(private pool: DatabasePool) {}
 
   // ---- Spaces ----
 

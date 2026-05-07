@@ -1,7 +1,7 @@
+import { DatabasePool } from '../database';
 /**
  * EventBusRepository - Database layer for Event Bus operations
  */
-import { DatabasePool } from '../database';
 
 export interface EventSubscription {
   id: string;
@@ -21,8 +21,7 @@ export interface EventLog {
 }
 
 export class EventBusRepository {
-  private pool: DatabasePool;
-  constructor(pool: DatabasePool) { this.pool = pool; }
+  constructor(private pool: DatabasePool) {}
 
   async subscribe(tenantId: string, eventType: string, handler: string): Promise<EventSubscription> {
     const result = await this.pool.query(

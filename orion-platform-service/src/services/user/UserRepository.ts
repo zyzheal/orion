@@ -1,10 +1,10 @@
+import { DatabasePool } from '../database';
 /**
  * UserRepository - Database layer for User operations
  * 
  * Handles all PostgreSQL database operations for users table
  */
 
-import { DatabasePool } from '../database';
 
 export interface User {
   id: string;
@@ -53,11 +53,8 @@ interface FindAllOptions {
 }
 
 export class UserRepository {
-  private pool: DatabasePool;
+  constructor(private pool: DatabasePool) {}
 
-  constructor(pool: DatabasePool) {
-    this.pool = pool;
-  }
 
   /**
    * Find user by ID

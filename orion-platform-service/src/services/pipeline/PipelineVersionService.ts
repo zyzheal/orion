@@ -1,11 +1,10 @@
+import { DatabasePool } from '../database';
 /**
  * PipelineVersionService - Version control for pipelines
  *
  * Handles version creation, diff, rollback, tagging, and baseline management.
  * Uses PostgreSQL for persistence via pipeline_versions table.
  */
-
-import { DatabasePool } from '../database';
 
 export interface PipelineVersion {
   id: string;
@@ -47,11 +46,8 @@ export interface CreateVersionInput {
 export const MAX_VERSIONS = 50;
 
 export class PipelineVersionService {
-  private pool: DatabasePool;
 
-  constructor(pool: DatabasePool) {
-    this.pool = pool;
-  }
+  constructor(private pool: DatabasePool) {}
 
   // ==================== Version CRUD ====================
 

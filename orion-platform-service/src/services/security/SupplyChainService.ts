@@ -71,11 +71,7 @@ const POPULAR_PACKAGES = [
 ];
 
 export class SupplyChainService {
-  private db: any;
-
-  constructor(db: any) {
-    this.db = db;
-  }
+  constructor(private pool: DatabasePool) {}
 
   /**
    * 生成 SBOM
@@ -83,7 +79,7 @@ export class SupplyChainService {
   async generateSBOM(tenantId: string, input: SBOMInput): Promise<any> {
     const vulnerabilities = this.analyzeVulnerabilities(input.components);
 
-    const result = await this.db.query(
+    const result = await this.pool.query(
       `INSERT INTO supply_chain_sboms (tenant_id, artifact_id, pipeline_id, sbom_format, sbom_version, components, dependencies, vulnerabilities, metadata)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
       [
@@ -106,7 +102,7 @@ export class SupplyChainService {
    * 获取 SBOM
    */
   async getSBOM(sbomId: string): Promise<any | null> {
-    const result = await this.db.query(
+    const result = await this.pool.query(
       `SELECT * FROM supply_chain_sboms WHERE id = $1`,
       [sbomId],
     );
@@ -118,7 +114,7 @@ export class SupplyChainService {
    */
   async analyzeDependencies(tenantId: string, input: DependencyAnalysisInput): Promise<any> {
     // 查询现有依赖图
-    const existing = await this.db.query(
+    const existing = await this.pool.query(
       `SELECT * FROM dependency_graphs WHERE tenant_id = $1 AND package_name = $2 AND package_version = $3`,
       [tenantId, input.packageName, input.packageVersion],
     );
@@ -132,7 +128,7 @@ export class SupplyChainService {
     const transitiveDeps = this.resolveTransitiveDependencies(directDeps, input.depth || 3);
     const vulnerablePaths = this.findVulnerablePaths([...directDeps, ...transitiveDeps]);
 
-    const result = await this.db.query(
+    const result = await this.pool.query(
       `INSERT INTO dependency_graphs (tenant_id, package_name, package_version, direct_deps, transitive_deps, vulnerable_paths, depth)
        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
       [
@@ -153,7 +149,7 @@ export class SupplyChainService {
    * 签名验证
    */
   async verifySignature(artifactId: string, signature: string): Promise<any> {
-    const result = await this.db.query(
+    const result = await this.pool.query(
       `SELECT * FROM artifact_signatures WHERE artifact_id = $1 AND signature = $2`,
       [artifactId, signature],
     );
@@ -163,7 +159,7 @@ export class SupplyChainService {
     }
 
     const existing = result.rows[0];
-    await this.db.query(
+    await this.pool.query(
       `UPDATE artifact_signatures SET verified = true, verified_at = NOW() WHERE id = $1`,
       [existing.id],
     );
@@ -180,14 +176,14 @@ export class SupplyChainService {
       : `SELECT COUNT(*) as total_sboms FROM supply_chain_sboms WHERE tenant_id = $1`;
 
     const sbomParams = pipelineId ? [tenantId, pipelineId] : [tenantId];
-    const sbomResult = await this.db.query(sbomQuery, sbomParams);
+    const sbomResult = await this.pool.query(sbomQuery, sbomParams);
 
-    const sigResult = await this.db.query(
+    const sigResult = await this.pool.query(
       `SELECT COUNT(*) as total_signatures, COUNT(*) FILTER (WHERE verified = true) as verified_count FROM artifact_signatures WHERE tenant_id = $1`,
       [tenantId],
     );
 
-    const vulnResult = await this.db.query(
+    const vulnResult = await this.pool.query(
       `SELECT SUM(jsonb_array_length(vulnerabilities)) as total_vulnerabilities FROM supply_chain_sboms WHERE tenant_id = $1`,
       [tenantId],
     );
@@ -290,7 +286,7 @@ export class SupplyChainService {
     else riskLevel = 'critical';
 
     // Store scan results
-    await this.db.query(
+    await this.pool.query(
       `INSERT INTO dependency_poisoning_scans
         (tenant_id, packages_scanned, malicious_found, typosquatting_found, risk_score, risk_level, scan_data)
        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
@@ -319,17 +315,17 @@ export class SupplyChainService {
    * Get supply chain security score dashboard data
    */
   async getSecurityScoreDashboard(tenantId: string): Promise<any> {
-    const sbomCount = await this.db.query(
+    const sbomCount = await this.pool.query(
       `SELECT COUNT(*) as total FROM supply_chain_sboms WHERE tenant_id = $1`,
       [tenantId],
     );
 
-    const sigCount = await this.db.query(
+    const sigCount = await this.pool.query(
       `SELECT COUNT(*) as total, COUNT(*) FILTER (WHERE verified = true) as verified FROM artifact_signatures WHERE tenant_id = $1`,
       [tenantId],
     );
 
-    const poisonScans = await this.db.query(
+    const poisonScans = await this.pool.query(
       `SELECT COUNT(*) as total, COUNT(*) FILTER (WHERE risk_level IN ('high', 'critical')) as critical FROM dependency_poisoning_scans WHERE tenant_id = $1`,
       [tenantId],
     );

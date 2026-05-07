@@ -1,7 +1,8 @@
 /**
- * Escalation Scheduler Service
- * 
- * 自动升级触发器 - 定时检查告警/工单/事件是否需要升级
+ * Escalation Scheduler factory
+ *
+ * Use createEscalationScheduler() with proper dependencies.
+ * The default export is a lazily-initialized singleton.
  */
 
 import { DatabasePool } from '../database';
@@ -18,7 +19,7 @@ export class EscalationScheduler {
   private ticketRepo?: TicketingRepository;
   private eventBus?: EventBusService;
   private intervalId?: NodeJS.Timeout;
-  private isRunning: boolean = false;
+  isRunning: boolean = false;
 
   constructor(
     database?: DatabasePool,
@@ -27,7 +28,7 @@ export class EscalationScheduler {
     this.db = database;
     this.eventBus = eventBus;
     this.configService = new EscalationConfigService(database);
-    
+
     if (database) {
       this.ticketRepo = new TicketingRepository(database);
     }
@@ -127,7 +128,7 @@ export class EscalationScheduler {
 
         if (!nextPolicy) continue;
 
-        if (minutesUntilDue <= 0 || Math.abs(minutesUntilDue) >= nextPolicy.timeoutMinutes) {
+        if (minutesUntilDue <= 0 || minutesUntilDue <= nextPolicy.timeoutMinutes) {
           await this.escalateTicket(ticket.id, currentLevel + 1, nextPolicy);
         }
       }
@@ -280,4 +281,58 @@ export class EscalationScheduler {
   }
 }
 
-export const escalationScheduler = new EscalationScheduler();
+/**
+ * Factory function for creating an EscalationScheduler with proper dependencies.
+ */
+let _instance: EscalationScheduler | null = null;
+
+export function createEscalationScheduler(
+  database?: DatabasePool,
+  eventBus?: EventBusService
+): EscalationScheduler {
+  return new EscalationScheduler(database, eventBus);
+}
+
+/**
+ * Lazy-initialized singleton — initialized via init() with dependencies.
+ * Calling start() before init() will auto-initialize with undefined deps (deprecated behavior).
+ */
+export const escalationScheduler = {
+  _scheduler: null as EscalationScheduler | null,
+
+  init(database?: DatabasePool, eventBus?: EventBusService): EscalationScheduler {
+    if (this._scheduler) {
+      logger.warn('[EscalationScheduler] Already initialized, returning existing instance');
+      return this._scheduler;
+    }
+    this._scheduler = createEscalationScheduler(database, eventBus);
+    return this._scheduler;
+  },
+
+  async start(): Promise<void> {
+    if (!this._scheduler) {
+      logger.warn('[EscalationScheduler] Not initialized with dependencies, creating default instance (deprecated)');
+      this._scheduler = createEscalationScheduler();
+    }
+    return this._scheduler.start();
+  },
+
+  stop(): void {
+    this._scheduler?.stop();
+  },
+
+  async manualEscalate(
+    entityType: 'alert' | 'ticket' | 'incident',
+    entityId: string,
+    targetLevel?: number
+  ): Promise<{ success: boolean; message: string }> {
+    if (!this._scheduler) {
+      throw new Error('EscalationScheduler not initialized');
+    }
+    return this._scheduler.manualEscalate(entityType, entityId, targetLevel);
+  },
+
+  get isRunning(): boolean {
+    return this._scheduler?.isRunning ?? false;
+  },
+};

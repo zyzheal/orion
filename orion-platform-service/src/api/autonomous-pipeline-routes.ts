@@ -20,7 +20,10 @@ export default async function autonomousPipelineRoutes(
   app: FastifyInstance,
   options: AutonomousPipelineRoutesOptions
 ): Promise<void> {
-  const db = options.database || null;
+  if (!options.database) {
+    throw new Error('Autonomous pipeline routes require a database connection');
+  }
+  const db = options.database;
 
   // Initialize services
   const errorClassifier = new ErrorClassifier(db);

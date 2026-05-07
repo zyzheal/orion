@@ -1,10 +1,10 @@
+import { DatabasePool } from '../database';
 /**
  * PipelineRepository - Database layer for Pipeline operations
  * 
  * Handles all PostgreSQL database operations for pipelines, stages, runs, and executions
  */
 
-import { DatabasePool } from '../database';
 
 export interface Pipeline {
   id: string;
@@ -111,11 +111,8 @@ interface FindAllOptions {
 }
 
 export class PipelineRepository {
-  private pool: DatabasePool;
+  constructor(private pool: DatabasePool) {}
 
-  constructor(pool: DatabasePool) {
-    this.pool = pool;
-  }
 
   // ==================== Pipeline CRUD ====================
 

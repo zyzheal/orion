@@ -1,3 +1,4 @@
+import { DatabasePool } from '../database';
 /**
  * WebhookRepository - Database layer for Webhook operations
  *
@@ -5,7 +6,6 @@
  * Note: DB column 'active' maps to 'enabled' in the interface for consistency.
  */
 
-import { DatabasePool } from '../database';
 
 export interface Webhook {
   id: string;
@@ -47,8 +47,7 @@ function mapDelivery(row: any): WebhookDelivery {
 }
 
 export class WebhookRepository {
-  private pool: DatabasePool;
-  constructor(pool: DatabasePool) { this.pool = pool; }
+  constructor(private pool: DatabasePool) {}
 
   async findById(id: string): Promise<Webhook | null> {
     const row = (await this.pool.query('SELECT * FROM webhooks WHERE id = $1', [id])).rows[0];

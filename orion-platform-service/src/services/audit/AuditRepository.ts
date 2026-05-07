@@ -1,8 +1,8 @@
+import { DatabasePool } from '../database';
 /**
  * AuditRepository - Database layer for Audit operations
  */
 
-import { DatabasePool } from '../database';
 
 export interface AuditLog {
   id: string;
@@ -39,9 +39,7 @@ export interface CreateAuditLogInput {
 }
 
 export class AuditRepository {
-  private pool: DatabasePool;
-
-  constructor(pool: DatabasePool) { this.pool = pool; }
+  constructor(private pool: DatabasePool) {}
 
   async findById(id: string): Promise<AuditLog | null> {
     const result = await this.pool.query('SELECT * FROM audit_logs WHERE id = $1', [id]);

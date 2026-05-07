@@ -1,5 +1,6 @@
 // orion-platform-service/src/services/privacy/TenantPrivacyPolicyService.ts
 import pino from 'pino';
+import { DatabasePool } from '../database';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 

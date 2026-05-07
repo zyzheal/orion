@@ -8,7 +8,7 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { DatabasePool } from '../services/database';
 import { EscalationConfigService, EscalationPolicy, GlobalEscalationConfig } from '../services/escalation/EscalationConfigService';
-import { EscalationScheduler } from '../services/escalation/EscalationScheduler';
+import { escalationScheduler } from '../services/escalation';
 import { EventBusService } from '../services/event-bus-service';
 
 interface EscalationRoutesOptions {
@@ -42,7 +42,9 @@ export default async function escalationRoutes(
   options: EscalationRoutesOptions = {}
 ): Promise<void> {
   const configService = new EscalationConfigService(options.database);
-  const scheduler = new EscalationScheduler(options.database, options.eventBus);
+
+  // Initialize scheduler with proper dependencies
+  escalationScheduler.init(options.database, options.eventBus);
 
   // 初始化
   await configService.initialize();
@@ -88,12 +90,7 @@ export default async function escalationRoutes(
     }
 
     // 返回所有策略
-    const allPolicies: EscalationPolicy[] = [];
-    for (const [key, policies] of [
-      ...configService['cache'].entries()
-    ]) {
-      allPolicies.push(...policies);
-    }
+    const allPolicies = configService.getAllPolicies();
 
     return reply.send({ policies: allPolicies });
   });
@@ -145,7 +142,7 @@ export default async function escalationRoutes(
   // POST /escalation/scheduler/start - 启动调度器
   app.post('/scheduler/start', async (_request, reply) => {
     try {
-      await scheduler.start();
+      await escalationScheduler.start();
       return reply.send({ message: 'Scheduler started' });
     } catch (error: any) {
       return reply.status(500).send({ code: 'START_FAILED', message: error.message });
@@ -154,14 +151,14 @@ export default async function escalationRoutes(
 
   // POST /escalation/scheduler/stop - 停止调度器
   app.post('/scheduler/stop', async (_request, reply) => {
-    scheduler.stop();
+    escalationScheduler.stop();
     return reply.send({ message: 'Scheduler stopped' });
   });
 
   // GET /escalation/scheduler/status - 获取调度器状态
   app.get('/scheduler/status', async (_request, reply) => {
-    return reply.send({ 
-      running: (scheduler as any).isRunning || false,
+    return reply.send({
+      running: (escalationScheduler as any).isRunning || false,
       config: configService.getGlobalConfig(),
     });
   });
@@ -182,7 +179,7 @@ export default async function escalationRoutes(
       }
 
       try {
-        const result = await scheduler.manualEscalate(entityType, entityId, targetLevel);
+        const result = await escalationScheduler.manualEscalate(entityType, entityId, targetLevel);
         return reply.send(result);
       } catch (error: any) {
         return reply.status(400).send({ code: 'ESCALATE_FAILED', message: error.message });

@@ -41,35 +41,54 @@ export interface PromotionServiceError extends Error {
 }
 
 export class PromotionService {
+  /**
+   * @deprecated In-memory fallback — use repository-backed persistence instead.
+   */
   private currentStages: Map<string, PromotionStage> = new Map();
+
+  /**
+   * @deprecated In-memory fallback — use repository-backed persistence instead.
+   */
   private promotionHistory: PromotionRecord[] = [];
+
   private promotionRepository?: ArtifactPromotionRepository;
+
+  /** Whether the service is using persistent storage */
+  get isPersistent(): boolean {
+    return this.promotionRepository !== undefined;
+  }
 
   constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
     if (db) {
       this.promotionRepository = new ArtifactPromotionRepository(db);
+    } else {
+      logger.warn('No DB provided — PromotionService running in in-memory fallback mode (data lost on restart)');
     }
   }
 
   /**
-   * Set artifact current stage
+   * @deprecated Stage is now managed through promote() and persisted.
+   * This method exists only for backward compatibility with in-memory mode.
    */
   setStage(artifactId: string, stage: PromotionStage): void {
     this.currentStages.set(artifactId, stage);
+    logger.warn('setStage() is deprecated and only affects in-memory fallback');
   }
 
   /**
    * Promote to next stage
    */
   async promote(artifactId: string, promotedBy: string, reason?: string): Promise<PromotionRecord> {
-    const currentStage = this.currentStages.get(artifactId) || PromotionStage.DEVELOPMENT;
+    const currentStage = await this.getCurrentStage(artifactId);
+    if (currentStage === undefined) {
+      throw Object.assign(new Error('Unknown stage: undefined'), { code: 'UNKNOWN_STAGE' }) as PromotionServiceError;
+    }
     const currentIndex = PROMOTION_ORDER.indexOf(currentStage);
 
     if (currentIndex === -1) throw Object.assign(new Error(`Unknown stage: ${currentStage}`), { code: 'UNKNOWN_STAGE' }) as PromotionServiceError;
     if (currentIndex >= PROMOTION_ORDER.length - 1) throw Object.assign(new Error('Already at final stage'), { code: 'FINAL_STAGE' }) as PromotionServiceError;
 
     const nextStage = PROMOTION_ORDER[currentIndex + 1];
-    this.currentStages.set(artifactId, nextStage);
 
     const record: PromotionRecord = {
       id: `promo_${uuidv4()}`,
@@ -80,9 +99,8 @@ export class PromotionService {
       reason,
       timestamp: new Date(),
     };
-    this.promotionHistory.push(record);
 
-    // Store in repository
+    // Persist to repository
     if (this.promotionRepository) {
       await this.promotionRepository.create({
         artifactId,
@@ -95,6 +113,10 @@ export class PromotionService {
         reason: reason ?? null,
         createdAt: record.timestamp,
       });
+    } else {
+      // Deprecated in-memory fallback
+      this.currentStages.set(artifactId, nextStage);
+      this.promotionHistory.push(record);
     }
 
     logger.info({ artifactId, from: currentStage, to: nextStage }, 'Artifact promoted');
@@ -119,8 +141,19 @@ export class PromotionService {
 
   /**
    * Get current stage
+   * Queries the repository for the latest promotion record when persistent.
    */
-  getCurrentStage(artifactId: string): PromotionStage | undefined {
+  async getCurrentStage(artifactId: string): Promise<PromotionStage | undefined> {
+    if (this.promotionRepository) {
+      const entities = await this.promotionRepository.findByArtifact(artifactId);
+      if (entities.length > 0) {
+        // The latest record's toEnv is the current stage
+        return entities[0].toEnv as PromotionStage;
+      }
+      // No promotions yet — artifact starts at DEVELOPMENT
+      return PromotionStage.DEVELOPMENT;
+    }
+    // Deprecated in-memory fallback
     return this.currentStages.get(artifactId);
   }
 
@@ -143,14 +176,15 @@ export class PromotionService {
         timestamp: e.createdAt,
       }));
     }
+    // Deprecated in-memory fallback
     return this.promotionHistory.filter(r => r.artifactId === artifactId);
   }
 
   /**
    * Validate if promotion from current to target stage is allowed (step-by-step only)
    */
-  canPromote(artifactId: string, toStage: PromotionStage): boolean {
-    const currentStage = this.getCurrentStage(artifactId);
+  async canPromote(artifactId: string, toStage: PromotionStage): Promise<boolean> {
+    const currentStage = await this.getCurrentStage(artifactId);
     if (!currentStage) return toStage === PromotionStage.DEVELOPMENT;
 
     const currentIndex = PROMOTION_ORDER.indexOf(currentStage);

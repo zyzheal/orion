@@ -5,8 +5,9 @@
  * 提供成本门禁功能，阻止超预算的 Pipeline 执行。
  */
 import pino from 'pino';
+import { DatabasePool } from '../database';
+
 import { v4 as uuidv4 } from 'uuid';
-import { DatabasePool } from '../../services/database';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -59,10 +60,7 @@ export interface EvaluationResult {
 }
 
 export class CostBudgetGuardService {
-  private db: DatabasePool;
-
-  constructor(db: DatabasePool) {
-    this.db = db;
+  constructor(private pool: DatabasePool) {
     this.ensureTable();
   }
 
@@ -82,7 +80,7 @@ export class CostBudgetGuardService {
         })
       : null;
 
-    await this.db.query(
+    await this.pool.query(
       `INSERT INTO budget_guards (id, tenant_id, name, description, budget_amount, currency, action, scope, status, created_at, updated_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
       [
@@ -241,7 +239,7 @@ export class CostBudgetGuardService {
    * 获取预算门禁列表
    */
   async getBudgetGuards(tenantId: string): Promise<BudgetGuard[]> {
-    const result = await this.db.query(
+    const result = await this.pool.query(
       `SELECT * FROM budget_guards WHERE tenant_id = $1 ORDER BY created_at DESC`,
       [tenantId],
     );
@@ -265,7 +263,7 @@ export class CostBudgetGuardService {
    * 删除预算门禁
    */
   async deleteBudgetGuard(guardId: string, tenantId: string): Promise<boolean> {
-    const result = await this.db.query(
+    const result = await this.pool.query(
       `DELETE FROM budget_guards WHERE id = $1 AND tenant_id = $2`,
       [guardId, tenantId],
     );
@@ -287,7 +285,7 @@ export class CostBudgetGuardService {
     evaluatedAt: Date;
   }): Promise<void> {
     try {
-      await this.db.query(
+      await this.pool.query(
         `INSERT INTO budget_guard_evaluations (id, tenant_id, pipeline_id, guard_id, estimated_cost, budget_amount, usage_percent, passed, action, evaluated_at)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
         [
@@ -310,7 +308,7 @@ export class CostBudgetGuardService {
 
   private async ensureTable(): Promise<void> {
     try {
-      await this.db.query(`
+      await this.pool.query(`
         CREATE TABLE IF NOT EXISTS budget_guards (
           id VARCHAR(64) PRIMARY KEY,
           tenant_id VARCHAR(64) NOT NULL,
@@ -325,7 +323,7 @@ export class CostBudgetGuardService {
           updated_at TIMESTAMP NOT NULL DEFAULT NOW()
         )
       `);
-      await this.db.query(`
+      await this.pool.query(`
         CREATE TABLE IF NOT EXISTS budget_guard_evaluations (
           id VARCHAR(64) PRIMARY KEY,
           tenant_id VARCHAR(64) NOT NULL,

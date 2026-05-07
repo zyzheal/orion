@@ -29,7 +29,10 @@ export default async function environmentRoutes(
   app: FastifyInstance,
   options: EnvironmentRoutesOptions
 ): Promise<void> {
-  // Initialize repository with PostgreSQL connection (falls back to in-memory if not provided)
+  if (!options.database) {
+    throw new Error('Environment routes require a database connection');
+  }
+  // Initialize repository with PostgreSQL connection
   const envRepo = new EnvironmentRepository(options.database);
 
   // Initialize service

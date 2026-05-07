@@ -5,7 +5,7 @@
  */
 
 import { EventEmitter } from 'events';
-import pg from 'pg';
+import * as pg from 'pg';
 
 const { Pool } = pg;
 
@@ -46,7 +46,7 @@ export class DatabasePool extends EventEmitter {
     }
 
     this.isInitializing = true;
-    console.log('[DatabasePool] Initializing connection pool...');
+    console.log('[] Initializing connection pool...');
 
     try {
       this.pool = new Pool({
@@ -62,7 +62,7 @@ export class DatabasePool extends EventEmitter {
       });
 
       this.pool.on('error', (err) => {
-        console.error('[DatabasePool] Unexpected pool error:', err);
+        console.error('[] Unexpected pool error:', err);
         this.emit('error', err);
       });
 
@@ -76,7 +76,7 @@ export class DatabasePool extends EventEmitter {
 
       this.isConnected = true;
       this.emit('connect');
-      console.log(`[DatabasePool] Connected to database ${this.config.database} at ${this.config.host}:${this.config.port}`);
+      console.log(`[] Connected to database ${this.config.database} at ${this.config.host}:${this.config.port}`);
     } catch (error) {
       this.emit('error', error);
       throw error;
@@ -136,7 +136,7 @@ export class DatabasePool extends EventEmitter {
         try {
           await client.query('ROLLBACK');
         } catch (rollbackError) {
-          console.error('[DatabasePool] Transaction rollback failed:', rollbackError);
+          console.error('[] Transaction rollback failed:', rollbackError);
         }
       }
       throw error;
@@ -176,13 +176,13 @@ export class DatabasePool extends EventEmitter {
       return;
     }
 
-    console.log('[DatabasePool] Closing connection pool...');
+    console.log('[] Closing connection pool...');
 
     await this.pool.end();
     this.isConnected = false;
 
     this.emit('close');
-    console.log('[DatabasePool] Connection pool closed');
+    console.log('[] Connection pool closed');
   }
 
   /**

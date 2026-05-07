@@ -3,6 +3,7 @@
  */
 
 import { EventBusService } from '../event-bus-service';
+import { DatabasePool } from '../database';
 import {
   SbomWaiver,
   SbomWaiverCreateInput,
@@ -22,9 +23,11 @@ export interface SbomWaiverListFilter {
 export class SbomWaiverService {
   private waiverRepository?: SbomWaiverRepository;
   private eventBus?: EventBusService;
+  private pool?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> };
 
   constructor(options?: { eventBus?: EventBusService; db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> } }) {
     this.eventBus = options?.eventBus;
+    this.pool = options?.db;
     if (options?.db) {
       this.waiverRepository = new SbomWaiverRepository(options.db);
     }
@@ -35,7 +38,7 @@ export class SbomWaiverService {
 
     if (this.waiverRepository) {
       const db = (this.waiverRepository as any).db;
-      await db.query(
+      await this.pool?.query(
         `INSERT INTO sbom_waivers (id, cve_id, package_name, package_version, reason, approved_by, approved_at, expires_at, scope, scope_target)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
         [waiver.id, waiver.cveId, waiver.packageName, waiver.packageVersion, waiver.reason, waiver.approvedBy, waiver.approvedAt, waiver.expiresAt, waiver.scope, waiver.scopeTarget ?? null],

@@ -12,7 +12,7 @@
  * - 新 stage 使用默认超时值，逐步学习
  */
 
-import { DatabasePool } from '../../services/database';
+import { DatabasePool } from '../database';
 
 export interface TimeoutBaseline {
   stageName: string;
@@ -41,11 +41,7 @@ const STD_DEV_MULTIPLIER = 2.0; // 2 倍标准差
 const MIN_EXECUTIONS_FOR_BASELINE = 3; // 至少需要 3 次执行才计算基线
 
 export class AdaptiveTimeoutService {
-  private db: DatabasePool | null;
-
-  constructor(db: DatabasePool | null) {
-    this.db = db;
-  }
+  constructor(private pool: DatabasePool) {}
 
   /**
    * 获取 stage 的建议超时时间
@@ -55,12 +51,8 @@ export class AdaptiveTimeoutService {
    * @returns 建议超时时间（毫秒）
    */
   async getTimeoutForStage(stageName: string, _pipelineId?: string): Promise<number> {
-    if (!this.db) {
-      return DEFAULT_TIMEOUT_MS;
-    }
-
     try {
-      const result = await this.db.query(
+      const result = await this.pool.query(
         `SELECT suggested_timeout_ms, execution_count
          FROM pipeline_timeout_baselines
          WHERE stage_name = $1`,
@@ -93,12 +85,8 @@ export class AdaptiveTimeoutService {
    * @returns 基线统计，如果没有数据则返回 null
    */
   async getBaselineStats(stageName: string): Promise<TimeoutBaseline | null> {
-    if (!this.db) {
-      return null;
-    }
-
     try {
-      const result = await this.db.query(
+      const result = await this.pool.query(
         `SELECT * FROM pipeline_timeout_baselines WHERE stage_name = $1`,
         [stageName]
       );
@@ -147,22 +135,18 @@ export class AdaptiveTimeoutService {
     success: boolean,
     timedOut = false
   ): Promise<void> {
-    if (!this.db) {
-      return;
-    }
-
     try {
-      await this.db.query('BEGIN');
+      await this.pool.query('BEGIN');
 
       // 尝试获取现有基线
-      const existing = await this.db.query(
+      const existing = await this.pool.query(
         `SELECT * FROM pipeline_timeout_baselines WHERE stage_name = $1`,
         [stageName]
       );
 
       if (existing.rows.length === 0) {
         // 创建新基线
-        await this.db.query(
+        await this.pool.query(
           `INSERT INTO pipeline_timeout_baselines
            (stage_name, execution_count, total_duration_ms, total_duration_sq,
             min_duration_ms, max_duration_ms, success_count, failure_count, timeout_count,
@@ -195,7 +179,7 @@ export class AdaptiveTimeoutService {
         // 计算建议超时
         const suggestedTimeout = this.calculateSuggestedTimeout(count, totalDuration, totalDurationSq);
 
-        await this.db.query(
+        await this.pool.query(
           `UPDATE pipeline_timeout_baselines
            SET execution_count = $1,
                total_duration_ms = $2,
@@ -223,9 +207,9 @@ export class AdaptiveTimeoutService {
         );
       }
 
-      await this.db.query('COMMIT');
+      await this.pool.query('COMMIT');
     } catch (err) {
-      await this.db.query('ROLLBACK').catch(() => {});
+      await this.pool.query('ROLLBACK').catch(() => {});
       console.error('[AdaptiveTimeout] Failed to record execution:', err);
     }
   }
@@ -243,12 +227,8 @@ export class AdaptiveTimeoutService {
    * 获取所有基线统计
    */
   async getAllBaselines(): Promise<TimeoutBaseline[]> {
-    if (!this.db) {
-      return [];
-    }
-
     try {
-      const result = await this.db.query(
+      const result = await this.pool.query(
         `SELECT * FROM pipeline_timeout_baselines ORDER BY execution_count DESC`
       );
 

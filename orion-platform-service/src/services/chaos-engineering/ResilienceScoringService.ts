@@ -9,8 +9,8 @@
  * Phase 3 P1 Service
  */
 
-import { DatabasePool } from '../database';
 import { ResilienceScoreCalculator, ResilienceScoreRepository } from './ResilienceScoreCalculator';
+import { DatabasePool } from '../database';
 
 // ==================== Types ====================
 
@@ -74,7 +74,7 @@ export interface FaultCoverageMetrics {
 }
 
 export class ResilienceScoringService {
-  private pool: DatabasePool;
+  
   private calculator: ResilienceScoreCalculator;
   private repository: ResilienceScoreRepository;
 
@@ -88,10 +88,9 @@ export class ResilienceScoringService {
   private readonly MIN_RECENT_EXPERIMENTS = 3;
   private readonly PREDEPLOY_LOOKBACK_DAYS = 30;
 
-  constructor(pool: DatabasePool) {
-    this.pool = pool;
-    this.calculator = new ResilienceScoreCalculator(pool);
-    this.repository = new ResilienceScoreRepository(pool);
+  constructor(private pool: DatabasePool) {
+    this.calculator = new ResilienceScoreCalculator(this.pool);
+    this.repository = new ResilienceScoreRepository(this.pool);
   }
 
   // ==================== Chaos Experiment Scheduling ====================

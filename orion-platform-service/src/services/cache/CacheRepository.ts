@@ -1,7 +1,7 @@
+import { DatabasePool } from '../database';
 /**
  * CacheRepository - Database layer for Cache operations
  */
-import { DatabasePool } from '../database';
 
 export interface CacheEntry {
   id: string;
@@ -14,8 +14,7 @@ export interface CacheEntry {
 }
 
 export class CacheRepository {
-  private pool: DatabasePool;
-  constructor(pool: DatabasePool) { this.pool = pool; }
+  constructor(private pool: DatabasePool) {}
 
   async set(tenantId: string, key: string, value: Record<string, any>, ttl: number = 3600): Promise<CacheEntry> {
     const expiresAt = new Date(Date.now() + ttl * 1000);

@@ -1,7 +1,7 @@
+import { DatabasePool } from '../database';
 /**
  * SessionRepository - Database layer for Session operations
  */
-import { DatabasePool } from '../database';
 
 export interface Session {
   id: string;
@@ -13,8 +13,7 @@ export interface Session {
 }
 
 export class SessionRepository {
-  private pool: DatabasePool;
-  constructor(pool: DatabasePool) { this.pool = pool; }
+  constructor(private pool: DatabasePool) {}
 
   async create(userId: string, tenantId: string, token: string, expiresAt: Date): Promise<Session> {
     const result = await this.pool.query(

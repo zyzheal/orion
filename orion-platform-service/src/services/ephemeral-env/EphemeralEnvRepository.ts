@@ -1,9 +1,9 @@
+import { DatabasePool } from '../database';
 /**
  * EphemeralEnvRepository - Database layer for Ephemeral Environments
  *
  * Replaces the in-memory Map storage with PostgreSQL persistence.
  */
-import { DatabasePool } from '../database';
 import {
   EphemeralEnvironment,
   EphemeralEnvStatus,
@@ -74,11 +74,8 @@ function toRecord(env: EphemeralEnvironment): EphemeralEnvRecord {
 }
 
 export class EphemeralEnvRepository {
-  private pool: DatabasePool;
+  constructor(private pool: DatabasePool) {}
 
-  constructor(pool: DatabasePool) {
-    this.pool = pool;
-  }
 
   /**
    * Find environment by ID

@@ -8,6 +8,7 @@
  */
 
 import { EventEmitter } from 'events';
+import { DatabasePool } from '../database';
 import { NamespaceAllocationRepository, NamespaceAllocationEntity } from '../../repositories/NamespaceAllocationRepository';
 
 export interface NamespacePoolEntry {

@@ -10,8 +10,8 @@
  * Phase 3 P2 Service
  */
 
-import { DatabasePool } from '../database';
 import * as crypto from 'crypto';
+import { DatabasePool } from '../database';
 
 // ==================== Types ====================
 
@@ -116,15 +116,12 @@ export interface AttestationVerification {
 }
 
 export class BuildAttestationService {
-  private pool: DatabasePool;
 
   private readonly ORION_BUILDER_ID = 'orion-platform';
   private readonly ORION_VERSION = '3.0.0';
   private readonly SLSA_VERSION = 'https://slsa.dev/provenance/v0.2';
 
-  constructor(pool: DatabasePool) {
-    this.pool = pool;
-  }
+  constructor(private pool: DatabasePool) {}
 
   /**
    * Generate SLSA-style build provenance

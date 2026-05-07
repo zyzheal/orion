@@ -9,8 +9,8 @@
  * S-1: token/webhook 存储前加密 (生产环境必须)
  */
 
-import { DatabasePool } from '../../services/database';
 import { ChatOpsPlatformConfigRepository, ChatOpsPlatformConfigEntity } from '../../repositories/ChatOpsRepository';
+import { DatabasePool } from '../database';
 
 export interface PlatformConfig {
   platform: 'dingtalk' | 'wecom' | 'feishu' | 'slack';
@@ -53,11 +53,8 @@ function validateWebhook(webhook: string, platform: string): boolean {
 
 export class PlatformConfigService {
   private repo: ChatOpsPlatformConfigRepository;
-  private db: DatabasePool;
-
-  constructor(db: DatabasePool) {
-    this.db = db;
-    this.repo = new ChatOpsPlatformConfigRepository(db);
+  constructor(private pool: DatabasePool) {
+    this.repo = new ChatOpsPlatformConfigRepository(this.pool);
   }
 
   async getByUserId(userId: string): Promise<PlatformConfig[]> {
@@ -83,7 +80,7 @@ export class PlatformConfigService {
 
   async batchUpdate(userId: string, configs: PlatformConfig[]): Promise<PlatformConfig[]> {
     // R-1: 使用事务保证批量更新一致性
-    return this.db.transaction(async (client) => {
+    return this.pool.transaction(async (client) => {
       const results: PlatformConfig[] = [];
       for (const config of configs) {
         // 验证 webhook URL 格式

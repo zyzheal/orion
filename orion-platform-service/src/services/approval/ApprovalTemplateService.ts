@@ -5,8 +5,9 @@
  * 用于快速创建常见审批流程（如部署审批、变更审批等）。
  */
 import pino from 'pino';
+import { DatabasePool } from '../database';
+
 import { v4 as uuidv4 } from 'uuid';
-import { DatabasePool } from '../../services/database';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -39,10 +40,7 @@ export interface ApprovalTemplate {
 }
 
 export class ApprovalTemplateService {
-  private db: DatabasePool;
-
-  constructor(db: DatabasePool) {
-    this.db = db;
+  constructor(private pool: DatabasePool) {
     this.ensureTable();
   }
 
@@ -60,7 +58,7 @@ export class ApprovalTemplateService {
 
     // If this is marked as default, unset other defaults for same resourceType
     if (isDefault) {
-      await this.db.query(
+      await this.pool.query(
         `UPDATE approval_templates SET is_default = false WHERE tenant_id = $1 AND resource_type = $2 AND is_default = true`,
         [tenantId, input.resourceType],
       );
@@ -68,7 +66,7 @@ export class ApprovalTemplateService {
 
     const levelsJson = JSON.stringify(input.levels);
 
-    await this.db.query(
+    await this.pool.query(
       `INSERT INTO approval_templates (id, tenant_id, name, description, resource_type, levels, mode, is_default, created_at, updated_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
       [id, tenantId, input.name, input.description || null, input.resourceType, levelsJson, mode, isDefault, now, now],
@@ -95,7 +93,7 @@ export class ApprovalTemplateService {
    * 获取模板列表
    */
   async getTemplates(tenantId: string): Promise<ApprovalTemplate[]> {
-    const result = await this.db.query(
+    const result = await this.pool.query(
       `SELECT * FROM approval_templates WHERE tenant_id = $1 ORDER BY is_default DESC, created_at DESC`,
       [tenantId],
     );
@@ -118,7 +116,7 @@ export class ApprovalTemplateService {
    * 获取单个模板
    */
   async getTemplate(templateId: string): Promise<ApprovalTemplate | null> {
-    const result = await this.db.query(
+    const result = await this.pool.query(
       `SELECT * FROM approval_templates WHERE id = $1`,
       [templateId],
     );
@@ -144,7 +142,7 @@ export class ApprovalTemplateService {
    * 获取默认模板
    */
   async getDefaultTemplate(tenantId: string, resourceType: string): Promise<ApprovalTemplate | null> {
-    const result = await this.db.query(
+    const result = await this.pool.query(
       `SELECT * FROM approval_templates WHERE tenant_id = $1 AND resource_type = $2 AND is_default = true LIMIT 1`,
       [tenantId, resourceType],
     );
@@ -170,7 +168,7 @@ export class ApprovalTemplateService {
    * 删除模板
    */
   async deleteTemplate(templateId: string, tenantId: string): Promise<boolean> {
-    const result = await this.db.query(
+    const result = await this.pool.query(
       `DELETE FROM approval_templates WHERE id = $1 AND tenant_id = $2`,
       [templateId, tenantId],
     );
@@ -182,7 +180,7 @@ export class ApprovalTemplateService {
    */
   private async ensureTable(): Promise<void> {
     try {
-      await this.db.query(`
+      await this.pool.query(`
         CREATE TABLE IF NOT EXISTS approval_templates (
           id VARCHAR(64) PRIMARY KEY,
           tenant_id VARCHAR(64) NOT NULL,

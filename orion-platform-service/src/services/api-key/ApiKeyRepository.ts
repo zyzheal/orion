@@ -1,7 +1,7 @@
+import { DatabasePool } from '../database';
 /**
  * ApiKeyRepository - Database layer for API Key operations
  */
-import { DatabasePool } from '../database';
 
 export interface ApiKey {
   id: string;
@@ -16,8 +16,7 @@ export interface ApiKey {
 }
 
 export class ApiKeyRepository {
-  private pool: DatabasePool;
-  constructor(pool: DatabasePool) { this.pool = pool; }
+  constructor(private pool: DatabasePool) {}
 
   async findById(id: string): Promise<ApiKey | null> {
     return (await this.pool.query('SELECT * FROM api_keys WHERE id = $1', [id])).rows[0] || null;

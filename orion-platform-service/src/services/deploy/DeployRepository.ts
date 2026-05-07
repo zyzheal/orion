@@ -1,10 +1,10 @@
+import { DatabasePool } from '../database';
 /**
  * DeployRepository - Database layer for Deploy operations
  * 
  * Handles PostgreSQL operations for deployments and deployment events
  */
 
-import { DatabasePool } from '../database';
 
 export interface Deployment {
   id: string;
@@ -74,11 +74,8 @@ interface FindAllOptions {
 }
 
 export class DeployRepository {
-  private pool: DatabasePool;
+  constructor(private pool: DatabasePool) {}
 
-  constructor(pool: DatabasePool) {
-    this.pool = pool;
-  }
 
   // ==================== Deployments ====================
 

@@ -7,9 +7,9 @@ describe('PromotionService', () => {
     service = new PromotionService();
   });
 
-  test('should start at development stage', () => {
+  test('should start at development stage', async () => {
     service.setStage('artifact1', PromotionStage.DEVELOPMENT);
-    expect(service.getCurrentStage('artifact1')).toBe(PromotionStage.DEVELOPMENT);
+    expect(await service.getCurrentStage('artifact1')).toBe(PromotionStage.DEVELOPMENT);
   });
 
   test('should promote to next stage', async () => {
@@ -17,13 +17,13 @@ describe('PromotionService', () => {
     const record = await service.promote('artifact1', 'user1');
     expect(record.fromStage).toBe(PromotionStage.DEVELOPMENT);
     expect(record.toStage).toBe(PromotionStage.TESTING);
-    expect(service.getCurrentStage('artifact1')).toBe(PromotionStage.TESTING);
+    expect(await service.getCurrentStage('artifact1')).toBe(PromotionStage.TESTING);
   });
 
-  test('should only allow step-by-step promotion', () => {
+  test('should only allow step-by-step promotion', async () => {
     service.setStage('artifact1', PromotionStage.DEVELOPMENT);
-    expect(service.canPromote('artifact1', PromotionStage.TESTING)).toBe(true);
-    expect(service.canPromote('artifact1', PromotionStage.STAGING)).toBe(false);
+    expect(await service.canPromote('artifact1', PromotionStage.TESTING)).toBe(true);
+    expect(await service.canPromote('artifact1', PromotionStage.STAGING)).toBe(false);
   });
 
   test('should reject promotion at final stage', async () => {

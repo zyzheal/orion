@@ -1,8 +1,8 @@
+import { DatabasePool } from '../database';
 /**
  * CostRepository - Database layer for Cost/FinOps operations
  */
 
-import { DatabasePool } from '../database';
 
 export interface CostRecord {
   id: string;
@@ -35,8 +35,7 @@ export interface CostAggregation {
 }
 
 export class CostRepository {
-  private pool: DatabasePool;
-  constructor(pool: DatabasePool) { this.pool = pool; }
+  constructor(private pool: DatabasePool) {}
 
   async findAll(options?: { tenantId?: string; startDate?: Date; endDate?: Date; service?: string; limit?: number; offset?: number }): Promise<CostRecord[]> {
     let query = 'SELECT * FROM cost_records WHERE 1=1';

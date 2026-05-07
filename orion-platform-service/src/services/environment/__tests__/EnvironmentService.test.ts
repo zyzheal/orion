@@ -2,15 +2,55 @@
  * EnvironmentService tests
  */
 import { EnvironmentService, EnvironmentServiceError } from '../EnvironmentService';
-import { EnvironmentRepository } from '../EnvironmentRepository';
+import { EnvironmentRepository, Environment } from '../EnvironmentRepository';
+
+// In-memory store for mock repository
+const store: Map<string, Environment> = new Map();
+
+// Mock repository that uses in-memory storage
+const mockRepo: Partial<EnvironmentRepository> = {
+  async findById(id: string): Promise<Environment | null> {
+    return store.get(id) || null;
+  },
+  async findByProject(projectId: string): Promise<Environment[]> {
+    return Array.from(store.values()).filter(e => e.project_id === projectId);
+  },
+  async findAll(): Promise<Environment[]> {
+    return Array.from(store.values());
+  },
+  async create(projectId: string, name: string, type: string, config: Record<string, any>, cluster?: string, namespace?: string): Promise<Environment> {
+    const env: Environment = {
+      id: `env-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+      tenant_id: 'mock-tenant',
+      project_id: projectId,
+      name,
+      type,
+      cluster,
+      namespace,
+      config: config || {},
+      status: 'active',
+    };
+    store.set(env.id, env);
+    return env;
+  },
+  async update(id: string, updates: Record<string, any>): Promise<Environment | null> {
+    const existing = store.get(id);
+    if (!existing) return null;
+    const updated = { ...existing, ...updates, updated_at: new Date() };
+    store.set(id, updated);
+    return updated;
+  },
+  async delete(id: string): Promise<boolean> {
+    return store.delete(id);
+  },
+};
 
 describe('EnvironmentService', () => {
   let service: EnvironmentService;
-  let repo: EnvironmentRepository;
 
   beforeEach(() => {
-    repo = new EnvironmentRepository();
-    service = new EnvironmentService(repo);
+    store.clear();
+    service = new EnvironmentService(mockRepo as EnvironmentRepository);
   });
 
   describe('createEnvironment', () => {

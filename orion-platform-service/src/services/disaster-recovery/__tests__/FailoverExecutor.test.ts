@@ -20,6 +20,14 @@ jest.mock('@kubernetes/client-node', () => ({
 
 import { FailoverExecutor } from '../FailoverExecutor';
 
+function resetMocks() {
+  mockApi.readNamespacedDeployment = jest.fn();
+  mockApi.replaceNamespacedDeploymentScale = jest.fn();
+  mockApi.readNamespacedService = jest.fn();
+  mockApi.replaceNamespacedService = jest.fn();
+  mockApi.listNamespacedPod = jest.fn();
+}
+
 mockApi = {
   readNamespacedDeployment: jest.fn(),
   replaceNamespacedDeploymentScale: jest.fn(),
@@ -37,7 +45,7 @@ describe('FailoverExecutor', () => {
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    resetMocks();
     executor = new FailoverExecutor();
   });
 

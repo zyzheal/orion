@@ -40,13 +40,13 @@ describe('TicketRelationAnalyzer', () => {
   // ==================== addRelation ====================
 
   describe('addRelation', () => {
-    it('should add a relation between two tickets', () => {
+    it('should add a relation between two tickets', async () => {
       const t1 = createTicket({ id: 't1' });
       const t2 = createTicket({ id: 't2' });
       analyzer.registerTicket(t1);
       analyzer.registerTicket(t2);
 
-      const relation = analyzer.addRelation('t1', 't2', 'related', 'user-1', 'Related issues');
+      const relation = await analyzer.addRelation('t1', 't2', 'related', 'user-1', 'Related issues');
 
       expect(relation.ticketId).toBe('t1');
       expect(relation.relatedTicketId).toBe('t2');
@@ -55,8 +55,8 @@ describe('TicketRelationAnalyzer', () => {
       expect(relation.createdBy).toBe('user-1');
     });
 
-    it('should auto-register tickets', () => {
-      const relation = analyzer.addRelation('new-t1', 'new-t2', 'duplicate', 'system');
+    it('should auto-register tickets', async () => {
+      const relation = await analyzer.addRelation('new-t1', 'new-t2', 'duplicate', 'system');
 
       expect(relation).toBeDefined();
       const relations = analyzer.getRelationsForTicket('new-t1');
@@ -110,8 +110,8 @@ describe('TicketRelationAnalyzer', () => {
       }));
     });
 
-    it('should find related tickets with high confidence for same category', () => {
-      const related = analyzer.findRelatedTickets('t1');
+    it('should find related tickets with high confidence for same category', async () => {
+      const related = await analyzer.findRelatedTickets('t1');
 
       expect(related.length).toBeGreaterThan(0);
       // t2 (same category, similar text) should have high confidence
@@ -120,26 +120,26 @@ describe('TicketRelationAnalyzer', () => {
       expect(t2Relation!.confidence).toBeGreaterThan(0.2);
     });
 
-    it('should return empty for non-existent ticket', () => {
-      const related = analyzer.findRelatedTickets('non-existent');
+    it('should return empty for non-existent ticket', async () => {
+      const related = await analyzer.findRelatedTickets('non-existent');
       expect(related.length).toBe(0);
     });
 
-    it('should respect maxResults limit', () => {
-      const related = analyzer.findRelatedTickets('t1', { maxResults: 1 });
+    it('should respect maxResults limit', async () => {
+      const related = await analyzer.findRelatedTickets('t1', { maxResults: 1 });
       expect(related.length).toBeLessThanOrEqual(1);
     });
 
-    it('should respect minConfidence filter', () => {
-      const related = analyzer.findRelatedTickets('t1', { minConfidence: 0.9 });
+    it('should respect minConfidence filter', async () => {
+      const related = await analyzer.findRelatedTickets('t1', { minConfidence: 0.9 });
       // Very high threshold should return fewer results
       for (const r of related) {
         expect(r.confidence).toBeGreaterThanOrEqual(0.9);
       }
     });
 
-    it('should give higher confidence to tickets with matching tags', () => {
-      const related = analyzer.findRelatedTickets('t1');
+    it('should give higher confidence to tickets with matching tags', async () => {
+      const related = await analyzer.findRelatedTickets('t1');
       const t2 = related.find(r => r.ticket.id === 't2');
       const t4 = related.find(r => r.ticket.id === 't4');
 
@@ -149,9 +149,9 @@ describe('TicketRelationAnalyzer', () => {
       }
     });
 
-    it('should consider temporal proximity', () => {
+    it('should consider temporal proximity', async () => {
       // t2 was created 1 min after t1, t3 was created 2 min after t1
-      const related = analyzer.findRelatedTickets('t1');
+      const related = await analyzer.findRelatedTickets('t1');
       expect(related.length).toBeGreaterThan(0);
     });
   });
@@ -206,8 +206,8 @@ describe('TicketRelationAnalyzer', () => {
       }));
     });
 
-    it('should detect highly similar tickets as duplicates', () => {
-      const duplicates = analyzer.detectDuplicates('t1', 0.5);
+    it('should detect highly similar tickets as duplicates', async () => {
+      const duplicates = await analyzer.detectDuplicates('t1', 0.5);
 
       expect(duplicates.length).toBeGreaterThan(0);
       // t2 has very similar title and description
@@ -215,27 +215,27 @@ describe('TicketRelationAnalyzer', () => {
       expect(t2Dup).toBeDefined();
     });
 
-    it('should not flag resolved tickets as duplicates', () => {
-      const duplicates = analyzer.detectDuplicates('t1', 0.5);
+    it('should not flag resolved tickets as duplicates', async () => {
+      const duplicates = await analyzer.detectDuplicates('t1', 0.5);
 
       const t4Dup = duplicates.find(d => d.ticket.id === 't4');
       expect(t4Dup).toBeUndefined();
     });
 
-    it('should not flag very different tickets as duplicates', () => {
-      const duplicates = analyzer.detectDuplicates('t1', 0.7);
+    it('should not flag very different tickets as duplicates', async () => {
+      const duplicates = await analyzer.detectDuplicates('t1', 0.7);
 
       const t3Dup = duplicates.find(d => d.ticket.id === 't3');
       // Memory warning is different enough from CPU alert
       expect(t3Dup).toBeUndefined();
     });
 
-    it('should return empty for non-existent ticket', () => {
-      const duplicates = analyzer.detectDuplicates('non-existent');
+    it('should return empty for non-existent ticket', async () => {
+      const duplicates = await analyzer.detectDuplicates('non-existent');
       expect(duplicates.length).toBe(0);
     });
 
-    it('should detect same source alert as strong duplicate signal', () => {
+    it('should detect same source alert as strong duplicate signal', async () => {
       analyzer.registerTicket(createTicket({
         id: 't5',
         title: 'CPU alert',
@@ -262,7 +262,7 @@ describe('TicketRelationAnalyzer', () => {
         createdAt: new Date(),
       }));
 
-      const duplicates = analyzer.detectDuplicates('t5', 0.3);
+      const duplicates = await analyzer.detectDuplicates('t5', 0.3);
       const t6Dup = duplicates.find(d => d.ticket.id === 't6');
       expect(t6Dup).toBeDefined();
       expect(t6Dup!.confidence).toBeGreaterThan(0.5);
@@ -272,7 +272,7 @@ describe('TicketRelationAnalyzer', () => {
   // ==================== correlateRootCause ====================
 
   describe('correlateRootCause', () => {
-    it('should identify root cause from related tickets', () => {
+    it('should identify root cause from related tickets', async () => {
       const now = new Date();
 
       analyzer.registerTicket(createTicket({
@@ -302,7 +302,7 @@ describe('TicketRelationAnalyzer', () => {
         createdAt: new Date(now.getTime() + 10 * 60 * 1000),
       }));
 
-      const result = analyzer.correlateRootCause(['t1', 't2', 't3']);
+      const result = await analyzer.correlateRootCause(['t1', 't2', 't3']);
 
       expect(result.rootCauseTicket).toBeDefined();
       expect(result.rootCauseTicket!.id).toBe('t1'); // Earliest + infrastructure
@@ -311,26 +311,26 @@ describe('TicketRelationAnalyzer', () => {
       expect(result.confidence).toBeGreaterThan(0);
     });
 
-    it('should handle single ticket', () => {
+    it('should handle single ticket', async () => {
       const ticket = createTicket({ id: 't1' });
       analyzer.registerTicket(ticket);
 
-      const result = analyzer.correlateRootCause(['t1']);
+      const result = await analyzer.correlateRootCause(['t1']);
 
       expect(result.rootCauseTicket!.id).toBe('t1');
       expect(result.affectedTickets.length).toBe(0);
       expect(result.confidence).toBe(1.0);
     });
 
-    it('should handle empty input', () => {
-      const result = analyzer.correlateRootCause([]);
+    it('should handle empty input', async () => {
+      const result = await analyzer.correlateRootCause([]);
 
       expect(result.rootCauseTicket).toBeUndefined();
       expect(result.affectedTickets.length).toBe(0);
       expect(result.confidence).toBe(0);
     });
 
-    it('should create caused-by relations automatically', () => {
+    it('should create caused-by relations automatically', async () => {
       const now = new Date();
 
       analyzer.registerTicket(createTicket({
@@ -351,7 +351,7 @@ describe('TicketRelationAnalyzer', () => {
         createdAt: new Date(now.getTime() + 60000),
       }));
 
-      analyzer.correlateRootCause(['t1', 't2']);
+      await analyzer.correlateRootCause(['t1', 't2']);
 
       const t2Relations = analyzer.getRelationsForTicket('t2');
       const causedBy = t2Relations.find(
@@ -360,7 +360,7 @@ describe('TicketRelationAnalyzer', () => {
       expect(causedBy).toBeDefined();
     });
 
-    it('should prioritize infrastructure tickets as root cause', () => {
+    it('should prioritize infrastructure tickets as root cause', async () => {
       const now = new Date();
 
       analyzer.registerTicket(createTicket({
@@ -381,7 +381,7 @@ describe('TicketRelationAnalyzer', () => {
         createdAt: now,
       }));
 
-      const result = analyzer.correlateRootCause(['t1', 't2']);
+      const result = await analyzer.correlateRootCause(['t1', 't2']);
 
       // Database ticket should score higher due to category boost
       expect(result.rootCauseTicket).toBeDefined();
@@ -391,9 +391,9 @@ describe('TicketRelationAnalyzer', () => {
   // ==================== getRelationsForTicket ====================
 
   describe('getRelationsForTicket', () => {
-    it('should return all relations for a ticket', () => {
-      analyzer.addRelation('t1', 't2', 'related', 'user-1');
-      analyzer.addRelation('t3', 't1', 'caused-by', 'user-2');
+    it('should return all relations for a ticket', async () => {
+      await analyzer.addRelation('t1', 't2', 'related', 'user-1');
+      await analyzer.addRelation('t3', 't1', 'caused-by', 'user-2');
 
       const relations = analyzer.getRelationsForTicket('t1');
       expect(relations.length).toBe(2);
@@ -408,8 +408,8 @@ describe('TicketRelationAnalyzer', () => {
   // ==================== removeRelation ====================
 
   describe('removeRelation', () => {
-    it('should remove a relation', () => {
-      const relation = analyzer.addRelation('t1', 't2', 'related', 'user-1');
+    it('should remove a relation', async () => {
+      const relation = await analyzer.addRelation('t1', 't2', 'related', 'user-1');
       const removed = analyzer.removeRelation(relation.id);
 
       expect(removed).toBe(true);
@@ -425,9 +425,9 @@ describe('TicketRelationAnalyzer', () => {
   // ==================== getAllRelations ====================
 
   describe('getAllRelations', () => {
-    it('should return all relations', () => {
-      analyzer.addRelation('t1', 't2', 'related', 'user-1');
-      analyzer.addRelation('t3', 't4', 'duplicate', 'user-2');
+    it('should return all relations', async () => {
+      await analyzer.addRelation('t1', 't2', 'related', 'user-1');
+      await analyzer.addRelation('t3', 't4', 'duplicate', 'user-2');
 
       const all = analyzer.getAllRelations();
       expect(all.length).toBe(2);
@@ -437,8 +437,8 @@ describe('TicketRelationAnalyzer', () => {
   // ==================== clearAll ====================
 
   describe('clearAll', () => {
-    it('should clear all relations and tickets', () => {
-      analyzer.addRelation('t1', 't2', 'related', 'user-1');
+    it('should clear all relations and tickets', async () => {
+      await analyzer.addRelation('t1', 't2', 'related', 'user-1');
       analyzer.clearAll();
 
       expect(analyzer.getAllRelations().length).toBe(0);

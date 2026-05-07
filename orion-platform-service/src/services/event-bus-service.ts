@@ -11,6 +11,7 @@
  */
 
 import { EventEmitter } from 'events';
+import crypto from 'crypto';
 import pino from 'pino';
 import {
   EventBusConfigRepository,
@@ -102,6 +103,27 @@ export class EventBusService extends EventEmitter {
     subscribeSuccess: 0,
     subscribeFailed: 0,
   };
+
+  // ============================================================
+  // In-memory fallback pub/sub (used when NATS is unavailable)
+  // ============================================================
+  /** Maps subject patterns to handler functions for fallback mode */
+  private fallbackSubscribers = new Map<string, Array<(event: TypedEnvelope<any>) => Promise<void>>>();
+
+  /**
+   * Deliver an event to all matching in-memory fallback subscribers.
+   */
+  private deliverToFallbackSubscribers<T = any>(type: string, envelope: TypedEnvelope<T>): void {
+    for (const [pattern, handlers] of this.fallbackSubscribers.entries()) {
+      if (this.subjectMatches(type, pattern)) {
+        for (const handler of handlers) {
+          handler(envelope).catch(err => {
+            logger.warn({ err: String(err), subject: type }, 'Fallback handler error');
+          });
+        }
+      }
+    }
+  }
 
   constructor(config: EventBusServiceConfig, repos?: EventBusRepositories) {
     super();
@@ -353,36 +375,37 @@ export class EventBusService extends EventEmitter {
       }
     }
 
-    // If not connected, return fallback ID — event is safely persisted for retry
+    // Build CloudEvents envelope for both NATS and fallback paths
+    const envelope: TypedEnvelope<T> = {
+      id: `evt-${crypto.randomUUID()}`,
+      source,
+      specversion: '1.0',
+      type,
+      datacontenttype: 'application/json',
+      data,
+      time: new Date().toISOString(),
+      tenantid: options?.tenantId,
+    };
+
+    // If not connected, deliver to in-memory fallback subscribers
     if (this.connectionState !== 'connected' || !this.natsConnection) {
-      logger.warn({ type }, 'NATS not connected, event persisted for retry');
-      this.metrics.publishFailed++;
+      logger.warn({ type }, 'NATS not connected, delivering to in-memory fallback subscribers');
+
+      // Deliver to in-memory handlers
+      this.deliverToFallbackSubscribers(type, envelope);
+      this.metrics.publishSuccess++;
 
       if (eventRecord) {
         this.emit('fallback_publish', { eventId: eventRecord.id, type, subject });
         return `fallback:${eventRecord.id}`;
       }
 
-      throw new EventBusError(
-        `NATS not connected (state: ${this.connectionState}), cannot publish event: ${type}`,
-        'NOT_CONNECTED',
-        true
-      );
+      // Return a generated ID even without persistence
+      return `fallback:${envelope.id}`;
     }
 
     try {
-      // C1 Fix: Build proper CloudEvents 1.0 TypedEnvelope for both JetStream and Core NATS paths
-      const envelope: TypedEnvelope<T> = {
-        id: `evt-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
-        source,
-        specversion: '1.0',
-        type,
-        datacontenttype: 'application/json',
-        data,
-        time: new Date().toISOString(),
-        tenantid: options?.tenantId,
-      };
-
+      // C1 Fix: Use the already-built envelope for NATS publish
       const message = JSON.stringify(envelope);
 
       if (this.isJetStreamAvailable()) {
@@ -391,6 +414,8 @@ export class EventBusService extends EventEmitter {
         if (eventRecord && this.repos.eventRepo) {
           try { await this.repos.eventRepo.updateStatus(eventRecord.id, 'delivered'); } catch (err) { logger.warn({ err: String(err) }, 'Failed to update event status after JetStream ack'); }
         }
+        // Also deliver to in-memory fallback subscribers
+        this.deliverToFallbackSubscribers(type, envelope);
         this.metrics.publishSuccess++;
         return eventRecord?.id || type;
       } else {
@@ -398,6 +423,8 @@ export class EventBusService extends EventEmitter {
         if (eventRecord && this.repos.eventRepo) {
           try { await this.repos.eventRepo.updateStatus(eventRecord.id, 'delivered'); } catch (err) { logger.warn({ err: String(err) }, 'Failed to update event status'); }
         }
+        // Also deliver to in-memory fallback subscribers
+        this.deliverToFallbackSubscribers(type, envelope);
         this.metrics.publishSuccess++;
         return eventRecord?.id || type;
       }
@@ -446,11 +473,31 @@ export class EventBusService extends EventEmitter {
     }
 
     if (this.connectionState === 'fallback' || !this.natsConnection) {
-      // I2 Fix: In fallback mode, log warning and return no-op unsubscribe (backward compatible)
-      logger.warn({ eventType }, 'NATS not connected, subscription deferred until reconnection');
-      this.emit('subscribe_deferred', { eventType });
-      // Return a no-op unsubscribe that does nothing
-      return async () => {};
+      // In fallback mode, register handler in in-memory pub/sub
+      logger.info({ eventType }, 'NATS not connected, registering in-memory fallback subscriber');
+
+      const subject = options?.filterSubject || eventType;
+      if (!this.fallbackSubscribers.has(subject)) {
+        this.fallbackSubscribers.set(subject, []);
+      }
+      this.fallbackSubscribers.get(subject)!.push(handler);
+
+      this.metrics.subscribeSuccess++;
+      this.emit('subscribe', { eventType, mode: 'in-memory-fallback' });
+
+      // Return unsubscribe function that removes from in-memory map
+      return async () => {
+        const handlers = this.fallbackSubscribers.get(subject);
+        if (handlers) {
+          const idx = handlers.indexOf(handler);
+          if (idx !== -1) {
+            handlers.splice(idx, 1);
+          }
+          if (handlers.length === 0) {
+            this.fallbackSubscribers.delete(subject);
+          }
+        }
+      };
     }
 
     try {
@@ -671,6 +718,7 @@ export class EventBusService extends EventEmitter {
     this.jetStream = null;
     this.jetStreamManager = null;
     this.jsmService = null;
+    this.fallbackSubscribers.clear();
     if (this.natsConnection) {
       logger.info('Closing NATS connection...');
       try {

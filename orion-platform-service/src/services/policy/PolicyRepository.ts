@@ -1,8 +1,8 @@
+import { DatabasePool } from '../database';
 /**
  * PolicyRepository - Database layer for Policy operations
  */
 
-import { DatabasePool } from '../database';
 
 export interface PolicyDefinition {
   id: string;
@@ -41,8 +41,7 @@ export interface PolicyEvaluation {
 }
 
 export class PolicyRepository {
-  private pool: DatabasePool;
-  constructor(pool: DatabasePool) { this.pool = pool; }
+  constructor(private pool: DatabasePool) {}
 
   async findPolicyById(id: string): Promise<PolicyDefinition | null> {
     const result = await this.pool.query('SELECT * FROM policies WHERE id = $1', [id]);

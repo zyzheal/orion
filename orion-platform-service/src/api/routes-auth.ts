@@ -12,13 +12,12 @@ import { DatabasePool } from '../services/database';
 
 const scryptAsync = promisify(scrypt);
 
-// JWT_SECRET must be set via environment variable
+// JWT_SECRET from environment variable (may be empty for health-check-only mode)
 const JWT_SECRET: string = process.env.JWT_SECRET || '';
-if (!JWT_SECRET) {
-  throw new Error('JWT_SECRET environment variable is required. Please set it before starting the service.');
-}
 
-const jwtSecret = JWT_SECRET;
+function getJwtSecret(): string | null {
+  return JWT_SECRET || null;
+}
 
 export interface AuthRouteOptions {
   database?: DatabasePool;
@@ -80,6 +79,8 @@ export default async function authRoutes(app: FastifyInstance, options: AuthRout
       });
     }
 
+    const hashedPassword = await hashPassword(password);
+
     const existing = await dbQuery('SELECT id FROM users WHERE username = $1', [username]);
     if (existing && existing.rows?.length > 0) {
       return reply.status(409).send({
@@ -90,7 +91,6 @@ export default async function authRoutes(app: FastifyInstance, options: AuthRout
       });
     }
 
-    const hashedPassword = await hashPassword(password);
     const userId = crypto.randomUUID();
 
     await dbQuery(
@@ -140,6 +140,11 @@ export default async function authRoutes(app: FastifyInstance, options: AuthRout
         code: '20102',
         message: '用户名或密码错误',
       });
+    }
+
+    const jwtSecret = getJwtSecret();
+    if (!jwtSecret) {
+      return reply.status(500).send({ error: 'JWT_NOT_CONFIGURED', message: 'JWT_SECRET not configured' });
     }
 
     const accessToken = jwt.sign(
@@ -226,6 +231,11 @@ export default async function authRoutes(app: FastifyInstance, options: AuthRout
 
     await dbQuery('DELETE FROM refresh_tokens WHERE token_hash = $1', [tokenHash]);
 
+    const jwtSecret = getJwtSecret();
+    if (!jwtSecret) {
+      return reply.status(500).send({ error: 'JWT_NOT_CONFIGURED', message: 'JWT_SECRET not configured' });
+    }
+
     const newAccessToken = jwt.sign(
       { userId: row.user_id, username: row.username, role: row.role },
       jwtSecret,
@@ -266,6 +276,11 @@ export default async function authRoutes(app: FastifyInstance, options: AuthRout
     }
 
     const token = authHeader.split(' ')[1];
+    const jwtSecret = getJwtSecret();
+    if (!jwtSecret) {
+      return reply.status(500).send({ error: 'JWT_NOT_CONFIGURED', message: 'JWT_SECRET not configured' });
+    }
+
     try {
       const payload = jwt.verify(token, jwtSecret) as { userId: string; username: string; role: string };
 

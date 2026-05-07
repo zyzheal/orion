@@ -1,10 +1,9 @@
+import { DatabasePool } from '../database';
 /**
  * SBOM Generator Service - Phase 3
  *
  * Software Bill of Materials generation and management
  */
-
-import { DatabasePool } from '../database';
 
 export interface SBOMComponent {
   name: string;
@@ -34,11 +33,8 @@ export interface VulnerabilityMatch {
 }
 
 export class SBOMGeneratorService {
-  private pool: DatabasePool;
 
-  constructor(pool: DatabasePool) {
-    this.pool = pool;
-  }
+  constructor(private pool: DatabasePool) {}
 
   async generateSBOM(input: { tenant_id: string; artifact_id: string; format?: string }): Promise<SBOM> {
     // Simulated SBOM generation

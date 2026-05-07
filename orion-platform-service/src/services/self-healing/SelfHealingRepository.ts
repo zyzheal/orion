@@ -1,8 +1,8 @@
+import { DatabasePool } from '../database';
 /**
  * SelfHealingRepository - Database layer for Self-Healing operations
  */
 
-import { DatabasePool } from '../database';
 import {
   HealingStrategy,
   HealingAction,
@@ -109,9 +109,7 @@ export interface TicketComment {
 }
 
 export class SelfHealingRepository {
-  private pool: DatabasePool;
-
-  constructor(pool: DatabasePool) { this.pool = pool; }
+  constructor(private pool: DatabasePool) {}
 
   // ==================== Rules ====================
 

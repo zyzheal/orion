@@ -53,11 +53,7 @@ export interface TicketStatistics {
 }
 
 export class TicketAnalyticsService {
-  private db: DatabasePool;
-
-  constructor(db: DatabasePool) {
-    this.db = db;
-  }
+  constructor(private pool: DatabasePool) {}
 
   /**
    * Get SLA compliance for a given period
@@ -83,7 +79,7 @@ export class TicketAnalyticsService {
       WHERE 1=1 ${whereClause}
     `;
 
-    const result = await this.db.query(query, params);
+    const result = await this.pool.query(query, params);
     const total = parseInt(result.rows[0]?.total || '0', 10);
     const breached = parseInt(result.rows[0]?.breached || '0', 10);
 
@@ -107,7 +103,7 @@ export class TicketAnalyticsService {
       WHERE ts.resolved_at IS NOT NULL
     `;
 
-    const result = await this.db.query(query);
+    const result = await this.pool.query(query);
     return {
       meanResolutionTimeMs: parseFloat(result.rows[0]?.mean_ms || '0'),
       medianResolutionTimeMs: parseFloat(result.rows[0]?.median_ms || '0'),
@@ -129,7 +125,7 @@ export class TicketAnalyticsService {
       WHERE t.status IN ('open', 'assigned', 'in-progress')
     `;
 
-    const result = await this.db.query(query);
+    const result = await this.pool.query(query);
     return {
       openCount: parseInt(result.rows[0]?.total || '0', 10),
       overdueCount: parseInt(result.rows[0]?.overdue || '0', 10),
@@ -155,7 +151,7 @@ export class TicketAnalyticsService {
       ORDER BY 1
     `;
 
-    const result = await this.db.query(query, [days]);
+    const result = await this.pool.query(query, [days]);
     const dataPoints: TrendDataPoint[] = result.rows.map((row) => ({
       period: row.period,
       created: parseInt(row.created, 10),
@@ -183,12 +179,12 @@ export class TicketAnalyticsService {
    */
   async getStatistics(): Promise<TicketStatistics> {
     const [statusResult, priorityResult, categoryResult, totalResult, slaResult, resolutionResult] = await Promise.all([
-      this.db.query(`SELECT status, COUNT(*) as count FROM tickets GROUP BY status`),
-      this.db.query(`SELECT priority, COUNT(*) as count FROM tickets GROUP BY priority`),
-      this.db.query(`SELECT type AS category, COUNT(*) as count FROM tickets GROUP BY type`),
-      this.db.query(`SELECT COUNT(*) as count FROM tickets`),
-      this.db.query(`SELECT COUNT(*) AS total, COUNT(*) FILTER (WHERE NOT (resolution_breached OR response_breached)) AS compliant FROM ticket_sla`),
-      this.db.query(`SELECT AVG(EXTRACT(EPOCH FROM (ts.resolved_at - t.created_at)) * 1000) AS avg_ms FROM ticket_sla ts JOIN tickets t ON t.id = ts.ticket_id WHERE ts.resolved_at IS NOT NULL`),
+      this.pool.query(`SELECT status, COUNT(*) as count FROM tickets GROUP BY status`),
+      this.pool.query(`SELECT priority, COUNT(*) as count FROM tickets GROUP BY priority`),
+      this.pool.query(`SELECT type AS category, COUNT(*) as count FROM tickets GROUP BY type`),
+      this.pool.query(`SELECT COUNT(*) as count FROM tickets`),
+      this.pool.query(`SELECT COUNT(*) AS total, COUNT(*) FILTER (WHERE NOT (resolution_breached OR response_breached)) AS compliant FROM ticket_sla`),
+      this.pool.query(`SELECT AVG(EXTRACT(EPOCH FROM (ts.resolved_at - t.created_at)) * 1000) AS avg_ms FROM ticket_sla ts JOIN tickets t ON t.id = ts.ticket_id WHERE ts.resolved_at IS NOT NULL`),
     ]);
 
     const stats: TicketStatistics = {

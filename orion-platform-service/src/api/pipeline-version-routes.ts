@@ -30,10 +30,8 @@ export default async function pipelineVersionRoutes(
   const versionService = new PipelineVersionService(options.database);
   const controller = new PipelineVersionController(versionService, pipelineService);
 
-  // GET /v1/pipelines/:pipelineId/versions - List versions
-  app.get('/:pipelineId/versions', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.listVersions(request, reply);
-  });
+  // NOTE: GET /:pipelineId/versions is already registered via pipeline-routes-registrar.ts
+  // (as /v1/pipelines/:id/versions). Only register additional endpoints here.
 
   // GET /v1/pipelines/:pipelineId/versions/:versionId - Get version detail
   app.get('/:pipelineId/versions/:versionId', async (request: FastifyRequest, reply: FastifyReply) => {

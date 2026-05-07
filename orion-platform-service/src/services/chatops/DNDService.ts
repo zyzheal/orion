@@ -4,7 +4,7 @@
  * B-10: 用户免打扰时间窗口管理
  */
 
-import { DatabasePool } from '../../services/database';
+import { DatabasePool } from '../database';
 
 export interface DNDSettings {
   id: string;
@@ -19,14 +19,10 @@ export interface DNDSettings {
 }
 
 export class DNDService {
-  private db: DatabasePool;
-
-  constructor(db: DatabasePool) {
-    this.db = db;
-  }
+  constructor(private pool: DatabasePool) {}
 
   async getSettings(userId: string): Promise<DNDSettings | null> {
-    const result = await this.db.query(
+    const result = await this.pool.query(
       'SELECT * FROM chatops_dnd_settings WHERE user_id = $1',
       [userId],
     );
@@ -40,7 +36,7 @@ export class DNDService {
       return this.createSettings(userId, data);
     }
 
-    const result = await this.db.query(
+    const result = await this.pool.query(
       `UPDATE chatops_dnd_settings
        SET enabled = COALESCE($2, enabled),
            start_time = COALESCE($3, start_time),
@@ -67,7 +63,7 @@ export class DNDService {
   }
 
   private async createSettings(userId: string, data: Partial<DNDSettings>): Promise<DNDSettings> {
-    const result = await this.db.query(
+    const result = await this.pool.query(
       `INSERT INTO chatops_dnd_settings
          (user_id, enabled, start_time, end_time, repeat_days, allow_critical)
        VALUES ($1, $2, $3, $4, $5, $6)

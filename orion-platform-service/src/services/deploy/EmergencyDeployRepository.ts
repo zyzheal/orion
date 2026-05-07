@@ -1,10 +1,10 @@
+import { DatabasePool } from '../database';
 /**
  * EmergencyDeployRepository - Database layer for Emergency Deploy operations
  *
  * Handles PostgreSQL operations for deploy_emergencies table
  */
 
-import { DatabasePool } from '../database';
 
 export interface DeployEmergency {
   id: string;
@@ -31,11 +31,8 @@ export interface CreateEmergencyDeployInput {
 }
 
 export class EmergencyDeployRepository {
-  private pool: DatabasePool;
+  constructor(private pool: DatabasePool) {}
 
-  constructor(pool: DatabasePool) {
-    this.pool = pool;
-  }
 
   /**
    * Find emergency deploy by ID

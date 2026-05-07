@@ -1,10 +1,9 @@
+import { DatabasePool } from '../database';
 /**
  * Cost Tracking Service - Phase 2
  *
  * Track and analyze CI/CD resource costs
  */
-
-import { DatabasePool } from '../database';
 
 export interface CostRecord {
   id: string;
@@ -30,11 +29,8 @@ export interface CostSummary {
 }
 
 export class CostTrackingService {
-  private pool: DatabasePool;
 
-  constructor(pool: DatabasePool) {
-    this.pool = pool;
-  }
+  constructor(private pool: DatabasePool) {}
 
   async recordCost(input: { tenant_id: string; pipeline_id?: string; run_id?: string; resource_type: string; units: number; unit_cost_cents: number }): Promise<CostRecord> {
     const total = input.units * input.unit_cost_cents;

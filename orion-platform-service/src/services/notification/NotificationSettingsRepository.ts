@@ -1,8 +1,8 @@
+import { DatabasePool } from '../database';
 /**
  * NotificationSettingsRepository - Database layer for notification settings
  */
 
-import { DatabasePool } from '../database';
 
 export interface NotificationSettings {
   id: string;
@@ -58,11 +58,8 @@ export interface CreateNotificationSettingsInput {
 }
 
 export class NotificationSettingsRepository {
-  private pool: DatabasePool;
+  constructor(private pool: DatabasePool) {}
 
-  constructor(pool: DatabasePool) {
-    this.pool = pool;
-  }
 
   async findByUser(userId: string, tenantId: string): Promise<NotificationSettings | null> {
     const result = await this.pool.query(

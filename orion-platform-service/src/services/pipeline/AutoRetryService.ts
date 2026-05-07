@@ -12,8 +12,8 @@
  * - skip: 不重试（适用于永久错误、配置错误）
  */
 
-import { DatabasePool } from '../../services/database';
 import { ErrorClassifier, ErrorClassification, StageContext } from './ErrorClassifier';
+import { DatabasePool } from '../database';
 
 export interface RetryConfig {
   maxRetries: number;
@@ -63,11 +63,11 @@ export interface StageResult {
 }
 
 export class AutoRetryService {
-  private db: DatabasePool | null;
+  private dbPool: DatabasePool | null;
   private errorClassifier: ErrorClassifier;
 
-  constructor(db: DatabasePool | null, errorClassifier: ErrorClassifier) {
-    this.db = db;
+  constructor(dbPool: DatabasePool | null, errorClassifier: ErrorClassifier) {
+    this.dbPool = dbPool;
     this.errorClassifier = errorClassifier;
   }
 
@@ -207,7 +207,7 @@ export class AutoRetryService {
    * @returns 重试统计数据
    */
   async getRetryStats(pipelineId?: string): Promise<RetryStats> {
-    if (!this.db) {
+    if (!this.dbPool) {
       return {
         totalRetries: 0,
         successfulRetries: 0,
@@ -224,7 +224,7 @@ export class AutoRetryService {
       const params = pipelineId ? [pipelineId] : [];
 
       // 总统计
-      const statsResult = await this.db.query(
+      const statsResult = await this.dbPool.query(
         `SELECT
            COUNT(*) as total,
            SUM(CASE WHEN success = true THEN 1 ELSE 0 END) as successful,
@@ -241,7 +241,7 @@ export class AutoRetryService {
       const uniqueRuns = parseInt(statsRow?.unique_runs || '1', 10);
 
       // 按策略统计
-      const strategyResult = await this.db.query(
+      const strategyResult = await this.dbPool.query(
         `SELECT retry_strategy, COUNT(*) as count
          FROM pipeline_auto_retries ${whereClause}
          WHERE retry_strategy IS NOT NULL
@@ -255,7 +255,7 @@ export class AutoRetryService {
       }
 
       // 按错误类型统计
-      const errorTypeResult = await this.db.query(
+      const errorTypeResult = await this.dbPool.query(
         `SELECT error_type, COUNT(*) as count
          FROM pipeline_auto_retries ${whereClause}
          WHERE error_type IS NOT NULL
@@ -314,11 +314,11 @@ export class AutoRetryService {
     };
 
     // 持久化配置到数据库（如果提供了 pipelineId 或 stageName）
-    if (this.db && (config.pipelineId || config.stageName)) {
+    if (this.dbPool && (config.pipelineId || config.stageName)) {
       try {
         const target = config.pipelineId || config.stageName || 'default';
         const targetType = config.pipelineId ? 'pipeline' : 'stage';
-        await this.db.query(
+        await this.dbPool.query(
           `INSERT INTO pipeline_retry_configs (target, target_type, config)
            VALUES ($1, $2, $3)
            ON CONFLICT (target, target_type)
@@ -337,12 +337,12 @@ export class AutoRetryService {
    * 记录重试事件
    */
   private async recordRetry(record: RetryRecord): Promise<void> {
-    if (!this.db) {
+    if (!this.dbPool) {
       return;
     }
 
     try {
-      await this.db.query(
+      await this.dbPool.query(
         `INSERT INTO pipeline_auto_retries
          (pipeline_id, run_id, stage_name, retry_attempt, error_type, error_message,
           retry_strategy, delay_ms, success, duration_ms)

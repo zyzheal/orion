@@ -7,7 +7,7 @@
  * 3. 双端都不用时降级为内存 5 秒去重
  */
 
-import { DatabasePool } from '../../services/database';
+import { DatabasePool } from '../database';
 
 export interface IdempotencyEntry {
   command: string;

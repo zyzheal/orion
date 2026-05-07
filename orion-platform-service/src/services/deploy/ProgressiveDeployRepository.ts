@@ -1,10 +1,10 @@
+import { DatabasePool } from '../database';
 /**
  * ProgressiveDeployRepository - Database layer for Progressive Deploy stages
  *
  * Handles PostgreSQL operations for deploy_progressive_stages table
  */
 
-import { DatabasePool } from '../database';
 
 export interface ProgressiveStage {
   id: string;
@@ -34,11 +34,8 @@ export interface CreateProgressiveStageInput {
 }
 
 export class ProgressiveDeployRepository {
-  private pool: DatabasePool;
+  constructor(private pool: DatabasePool) {}
 
-  constructor(pool: DatabasePool) {
-    this.pool = pool;
-  }
 
   /**
    * Find progressive stage by ID

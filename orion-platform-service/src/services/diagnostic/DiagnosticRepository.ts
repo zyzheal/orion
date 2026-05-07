@@ -5,8 +5,8 @@
  * Maps between DB rows and domain DiagnosticSession from types.ts.
  */
 
-import { DatabasePool } from '../database';
 import { DiagnosticSession, Symptom, Finding, RootCause } from './types';
+import { DatabasePool } from '../database';
 
 export interface DiagnosticRule {
   id: string;
@@ -18,8 +18,7 @@ export interface DiagnosticRule {
 }
 
 export class DiagnosticRepository {
-  private pool: DatabasePool;
-  constructor(pool: DatabasePool) { this.pool = pool; }
+  constructor(private pool: DatabasePool) {}
 
   /**
    * Create a new diagnostic session in PostgreSQL.

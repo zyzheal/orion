@@ -1,10 +1,10 @@
+import { DatabasePool } from '../database';
 /**
  * RecoveryRepository - Database access layer for recovery executions
  *
  * Maps to the `backup_restores` table and provides recovery plan tracking.
  */
 
-import { DatabasePool } from '../database';
 
 export interface RecoveryExecutionRecord {
   id: string;
@@ -19,11 +19,8 @@ export interface RecoveryExecutionRecord {
 }
 
 export class RecoveryRepository {
-  private pool: DatabasePool;
+  constructor(private pool: DatabasePool) {}
 
-  constructor(pool: DatabasePool) {
-    this.pool = pool;
-  }
 
   async create(execution: Omit<RecoveryExecutionRecord, 'created_at'>): Promise<RecoveryExecutionRecord> {
     const record: RecoveryExecutionRecord = {

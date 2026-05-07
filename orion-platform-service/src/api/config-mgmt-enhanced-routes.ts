@@ -22,8 +22,8 @@ export default async function configMgmtEnhancedRoutes(
   options: ConfigMgmtEnhancedRoutesOptions
 ): Promise<void> {
   // Initialize services
-  const changeService = new ConfigChangeService({ database: options.database });
-  const driftDetector = new ConfigDriftDetector({ database: options.database });
+  const changeService = new ConfigChangeService();
+  const driftDetector = new ConfigDriftDetector();
   const controller = new ConfigManagementController(changeService, driftDetector);
 
   // ==================== Change Requests ====================

@@ -162,29 +162,35 @@ describe('CostTrackingService', () => {
 
   describe('getCostTrend', () => {
     beforeEach(() => {
+      const now = new Date();
+      const d1 = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
+      const d2 = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000);
+      const d3 = new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000);
+      const d4 = new Date(now.getTime() - 4 * 60 * 60 * 1000);
+
       service.trackProjectCost({
         projectId: 'proj-001',
         amount: 100,
         category: 'compute',
-        timestamp: new Date('2026-04-01'),
+        timestamp: d1,
       });
       service.trackProjectCost({
         projectId: 'proj-001',
         amount: 150,
         category: 'compute',
-        timestamp: new Date('2026-04-02'),
+        timestamp: d2,
       });
       service.trackProjectCost({
         projectId: 'proj-001',
         amount: 120,
         category: 'compute',
-        timestamp: new Date('2026-04-03'),
+        timestamp: d3,
       });
       service.trackProjectCost({
         projectId: 'proj-001',
         amount: 200,
         category: 'storage',
-        timestamp: new Date('2026-04-04'),
+        timestamp: d4,
       });
     });
 

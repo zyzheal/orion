@@ -22,9 +22,8 @@ export default async function crossDomainRoutes(
   options: CrossDomainRoutesOptions
 ): Promise<void> {
   // Initialize services
-  const domainConnector = new DomainConnector(options.database);
+  const domainConnector = new DomainConnector();
   const orchestrator = new CrossDomainOrchestrator({
-    database: options.database,
     domainConnector,
   });
   const controller = new CrossDomainOrchestrationController(orchestrator);

@@ -19,6 +19,37 @@ interface UpdateConfigBody {
   value: any;
 }
 
+// H1: 敏感配置列表 — 非管理员访问时返回脱敏值
+const SENSITIVE_KEYS: string[] = [
+  'security',
+  'database',
+  'redis',
+  'nats',
+];
+
+/**
+ * H1: 脱敏敏感配置值
+ */
+function redactSensitive(value: any, key: string): any {
+  if (value === null || value === undefined) return value;
+  const redacted = JSON.parse(JSON.stringify(value));
+
+  if (key === 'security') {
+    redacted.jwtSecret = '***REDACTED***';
+  }
+  if (key === 'database') {
+    redacted.password = '***REDACTED***';
+  }
+  if (key === 'redis' && redacted.password) {
+    redacted.password = '***REDACTED***';
+  }
+  if (key === 'nats') {
+    if (redacted.pass) redacted.pass = '***REDACTED***';
+    if (redacted.user) redacted.user = '***REDACTED***';
+  }
+  return redacted;
+}
+
 export default async function configRoutes(
   app: FastifyInstance,
   options: ConfigRoutesOptions = {}
@@ -35,9 +66,19 @@ export default async function configRoutes(
   });
 
   // GET /config/:key - 获取单个配置
+  // H1: 敏感 key 需要 admin 角色，否则返回脱敏值
   app.get<{ Params: { key: string } }>('/:key', async (request, reply) => {
     const { key } = request.params as { key: keyof SystemConfig };
-    
+    const userRole = (request as any).user?.role;
+    const isAdmin = userRole === 'admin';
+
+    if (SENSITIVE_KEYS.includes(key as string) && !isAdmin) {
+      // 非管理员访问敏感配置 — 返回脱敏值
+      const value = configService.get(key);
+      const redacted = redactSensitive(value, key as string);
+      return reply.send({ key, value: redacted, redacted: true });
+    }
+
     try {
       const value = configService.get(key);
       return reply.send({ key, value });

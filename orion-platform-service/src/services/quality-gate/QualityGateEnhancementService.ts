@@ -1,10 +1,9 @@
+import { DatabasePool } from '../database';
 /**
  * Quality Gate Enhancement Service - Phase 1
  *
  * Enhanced quality gate with custom rules, thresholds, and blocking policies
  */
-
-import { DatabasePool } from '../database';
 
 export interface QualityGateRule {
   id: string;
@@ -29,11 +28,8 @@ export interface QualityGateResult {
 }
 
 export class QualityGateEnhancementService {
-  private pool: DatabasePool;
 
-  constructor(pool: DatabasePool) {
-    this.pool = pool;
-  }
+  constructor(private pool: DatabasePool) {}
 
   async createRule(input: { tenant_id: string; name: string; type: string; threshold: number; operator: string; blocking?: boolean }): Promise<QualityGateRule> {
     const result = await this.pool.query(

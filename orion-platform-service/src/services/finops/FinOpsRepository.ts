@@ -3,8 +3,8 @@
  *
  * Covers: cost tracking, budgets, ROI analyses, optimizations, reports
  */
-import { DatabasePool } from '../database';
 import { CostEntityType, CostPeriod, CostBudget, BudgetAlertTrigger, ROIAnalysis, CostComparison, CostOptimization, OptimizationCategory, OptimizationPriority, OptimizationStatus, CloudProvider, CloudResourceType, BillingCycle } from './types';
+import { DatabasePool } from '../database';
 
 // ==================== Domain interfaces ====================
 
@@ -175,8 +175,7 @@ export interface LegacyBudgetAlertRecord {
 }
 
 export class FinOpsRepository {
-  private pool: DatabasePool;
-  constructor(pool: DatabasePool) { this.pool = pool; }
+  constructor(private pool: DatabasePool) {}
 
   // ==================== Reports ====================
 

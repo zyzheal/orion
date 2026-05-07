@@ -1,10 +1,9 @@
+import { DatabasePool } from '../database';
 /**
  * Plugin Marketplace Service - Phase 3
  *
  * Plugin discovery, rating, and installation management
  */
-
-import { DatabasePool } from '../database';
 
 export interface MarketplacePlugin {
   id: string;
@@ -89,11 +88,8 @@ export interface ReviewPluginInput {
 }
 
 export class PluginMarketplaceService {
-  private pool: DatabasePool;
 
-  constructor(pool: DatabasePool) {
-    this.pool = pool;
-  }
+  constructor(private pool: DatabasePool) {}
 
   async listPlugins(filter?: ListPluginsFilter): Promise<{ data: MarketplacePlugin[]; total: number }> {
     const conditions: string[] = [];

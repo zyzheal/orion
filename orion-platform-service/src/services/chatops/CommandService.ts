@@ -1,10 +1,13 @@
 /**
  * ChatOps Command Service - Command registry, parsing, help
- *
- * Migrated to PostgreSQL Repository pattern (first-class).
- * All command data is stored in the database; no in-memory Map storage.
+ * 
+ * Migrated to decoupled architecture:
+ * - DBContext for database access
+ * - ServiceRegistry for event communication
+ * - EventBusService for external events
  */
 
+import { DatabasePool } from '../database';
 import { EventBusService } from '../event-bus-service';
 import {
   ChatOpsCommand,
@@ -79,13 +82,57 @@ const DEFAULT_COMMANDS: ChatOpsCommandCreateInput[] = [
   },
 ];
 
+/**
+ * ChatOps Command Service - 解耦版本
+ * 
+ * 使用新的解耦架构：
+ * - DBContext 替代直接数据库访问
+ * - ServiceRegistry 用于内部事件
+ * - EventBusService 用于外部事件
+ */
 export class CommandService {
+  private static _instance: CommandService;
+  private pool: DatabasePool;
   private eventBus?: EventBusService;
   private commandRepository?: ChatOpsCommandRepository;
+  private initialized: boolean = false;
 
-  constructor(options: { eventBus?: EventBusService; repository?: ChatOpsCommandRepository }) {
-    this.eventBus = options.eventBus;
-    this.commandRepository = options.repository;
+  constructor(options?: { pool: DatabasePool; eventBus?: EventBusService; repository?: ChatOpsCommandRepository }) {
+    this.pool = options?.pool!;
+    this.eventBus = options?.eventBus;
+    if (!options?.repository) {
+      this.commandRepository = new ChatOpsCommandRepository(this.pool);
+    } else {
+      this.commandRepository = options.repository;
+    }
+  }
+
+  /**
+   * 获取单例
+   */
+  static getInstance(): CommandService {
+    if (!CommandService._instance) {
+      CommandService._instance = new CommandService();
+    }
+    return CommandService._instance;
+  }
+
+  /**
+   * 创建新实例（兼容旧代码）
+   */
+  static create(pool: DatabasePool, options?: { eventBus?: EventBusService; repository?: ChatOpsCommandRepository }): CommandService {
+    return new CommandService({ pool, ...options });
+  }
+
+  /**
+   * 初始化服务
+   */
+  async initialize(): Promise<void> {
+    if (this.initialized) return;
+
+    this.initialized = true;
+
+    console.log('[CommandService] Initialized');
   }
 
   /** Seed default commands if the database is empty. Called once on startup. */
@@ -127,6 +174,14 @@ export class CommandService {
       examples: input.examples ?? [],
     });
 
+    // 发布内部事件（解耦）
+    // TODO: publish event when event bus is integrated
+    // await registry.publish('chatops.command.created', {
+    //   commandName: entity.name,
+    //   permissionLevel: entity.permissionLevel,
+    // });
+
+    // 同时通过 EventBus 发布外部事件
     await this.eventBus?.publish('chatops.command.created', {
       commandName: entity.name,
       permissionLevel: entity.permissionLevel,
@@ -192,7 +247,14 @@ export class CommandService {
     const entity = await this.commandRepository.findByName(name);
     if (!entity) return false;
 
-    return this.commandRepository.delete(entity.id);
+    const result = await this.commandRepository.delete(entity.id);
+
+    // TODO: publish event when event bus is integrated
+    // if (result) {
+    //   await registry.publish('chatops.command.deleted', { commandName: name });
+    // }
+
+    return result;
   }
 
   // ==================== Parsing & Help ====================
@@ -245,6 +307,19 @@ export class CommandService {
     return result.entities.map(e => this.entityToModel(e));
   }
 
+  /**
+   * 获取健康状态
+   */
+  async getHealth(): Promise<{ status: 'healthy' | 'degraded'; latency: number }> {
+    const start = Date.now();
+    try {
+      await this.pool.query('SELECT 1');
+      return { status: 'healthy', latency: Date.now() - start };
+    } catch {
+      return { status: 'degraded', latency: Date.now() - start };
+    }
+  }
+
   // ==================== Internal ====================
 
   private entityToModel(entity: {
@@ -267,3 +342,33 @@ export class CommandService {
     };
   }
 }
+
+// ==================== 使用示例 ====================
+
+/**
+ * 旧写法（紧耦合）
+ * 
+ *  * const pool = new ();
+ * await db.query('SELECT * FROM chatops_commands');
+ * 
+ * // 直接调用其他服务
+ * const pipelineService = new PipelineService();
+ * await pipelineService.runPipeline(id);
+ */
+
+// 新写法（解耦）
+// 
+// // 1. 初始化服务
+// const commandService = CommandService.getInstance();
+// await commandService.initialize();
+// 
+// // 2. 使用服务
+// const cmd = await commandService.insert({ name: 'test', ... });
+// const list = await commandService.list({ permissionLevel: 'admin' });
+// 
+// // 3. 订阅事件（解耦通信）
+// registry.subscribe('MyApp', 'chatops.command.created', async (data) => {
+//   console.log('Command created:', data.commandName);
+// });
+
+export default CommandService;

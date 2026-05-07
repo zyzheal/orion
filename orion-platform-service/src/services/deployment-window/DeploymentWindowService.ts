@@ -1,10 +1,9 @@
+import { DatabasePool } from '../database';
 /**
  * Deployment Window Service - Phase 1
  *
  * Manage deployment time windows and blackout periods
  */
-
-import { DatabasePool } from '../database';
 
 export interface DeploymentWindow {
   id: string;
@@ -31,11 +30,8 @@ export interface BlackoutPeriod {
 }
 
 export class DeploymentWindowService {
-  private pool: DatabasePool;
 
-  constructor(pool: DatabasePool) {
-    this.pool = pool;
-  }
+  constructor(private pool: DatabasePool) {}
 
   async createWindow(input: { tenant_id: string; name: string; environment: string; start_time: string; end_time: string; days?: string[]; timezone?: string; blocking?: boolean }): Promise<DeploymentWindow> {
     const result = await this.pool.query(

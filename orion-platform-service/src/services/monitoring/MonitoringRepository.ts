@@ -1,8 +1,8 @@
+import { DatabasePool } from '../database';
 /**
  * MonitoringRepository - Database layer for Monitoring & Alert operations
  */
 
-import { DatabasePool } from '../database';
 
 export interface MonitoringConfig {
   id: string;
@@ -177,11 +177,8 @@ export interface CreateNotificationHistoryInput {
 }
 
 export class MonitoringRepository {
-  private pool: DatabasePool;
+  constructor(private pool: DatabasePool) {}
 
-  constructor(pool: DatabasePool) {
-    this.pool = pool;
-  }
 
   // ==================== Monitoring Configs ====================
 

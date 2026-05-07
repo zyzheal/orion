@@ -24,7 +24,10 @@ export default async function configRoutes(
   app: FastifyInstance,
   options: ConfigRoutesOptions
 ): Promise<void> {
-  // Initialize repository with PostgreSQL connection (falls back to in-memory if not provided)
+  if (!options.database) {
+    throw new Error('Config routes require a database connection');
+  }
+  // Initialize repository with PostgreSQL connection
   const configRepo = new ConfigRepository(options.database);
 
   // Initialize services - all depend on ConfigService which now uses the repository

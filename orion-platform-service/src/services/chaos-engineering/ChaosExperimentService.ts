@@ -1,3 +1,4 @@
+import { DatabasePool } from '../database';
 /**
  * ChaosExperimentService - Business logic for Chaos Engineering
  *
@@ -9,8 +10,6 @@
  *
  * Phase 3 P1 Service
  */
-
-import { DatabasePool } from '../database';
 
 // ==================== Types ====================
 
@@ -98,11 +97,8 @@ export class ChaosExperimentServiceError extends Error {
 // ==================== Repository ====================
 
 export class ChaosExperimentRepository {
-  private pool: DatabasePool;
 
-  constructor(pool: DatabasePool) {
-    this.pool = pool;
-  }
+  constructor(private pool: DatabasePool) {}
 
   async findById(id: string): Promise<ChaosExperiment | null> {
     const result = await this.pool.query(
@@ -304,11 +300,9 @@ export class ChaosExperimentRepository {
 
 export class ChaosExperimentService {
   private repository: ChaosExperimentRepository;
-  private pool: DatabasePool;
 
-  constructor(pool: DatabasePool) {
-    this.pool = pool;
-    this.repository = new ChaosExperimentRepository(pool);
+  constructor(private pool: DatabasePool) {
+    this.repository = new ChaosExperimentRepository(this.pool);
   }
 
   /**

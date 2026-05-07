@@ -1,3 +1,4 @@
+import { DatabasePool } from '../database';
 /**
  * Canary Traffic Service - Phase 3
  *
@@ -7,8 +8,6 @@
  * - Promoting canary to production
  * - Rolling back canary deployments
  */
-
-import { DatabasePool } from '../database';
 
 // ==================== Types ====================
 
@@ -47,11 +46,8 @@ export interface CreateCanaryInput {
 // ==================== Service ====================
 
 export class CanaryTrafficService {
-  private pool: DatabasePool;
 
-  constructor(pool: DatabasePool) {
-    this.pool = pool;
-  }
+  constructor(private pool: DatabasePool) {}
 
   /**
    * Create a new canary deployment

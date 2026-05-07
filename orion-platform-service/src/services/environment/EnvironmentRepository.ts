@@ -1,10 +1,10 @@
+import { DatabasePool } from '../database';
 /**
  * EnvironmentRepository - Database layer for Environment operations
  *
  * Uses PostgreSQL when database pool is available, falls back to
  * in-memory Map() for development/testing.
  */
-import { DatabasePool } from '../database';
 
 export interface Environment {
   id: string;
@@ -21,36 +21,33 @@ export interface Environment {
 }
 
 export class EnvironmentRepository {
-  private pool: DatabasePool | null;
   private inMemory: Map<string, Environment> = new Map();
 
-  constructor(pool?: DatabasePool) {
-    this.pool = pool || null;
-  }
+  constructor(private pool: DatabasePool) {}
 
   private isDbAvailable(): boolean {
-    return this.pool !== null;
+    return true;
   }
 
   async findById(id: string): Promise<Environment | null> {
     if (!this.isDbAvailable()) {
       return this.inMemory.get(id) || null;
     }
-    return (await this.pool!.query('SELECT * FROM environments WHERE id = $1', [id])).rows[0] || null;
+    return (await this.pool.query('SELECT * FROM environments WHERE id = $1', [id])).rows[0] || null;
   }
 
   async findByProject(projectId: string): Promise<Environment[]> {
     if (!this.isDbAvailable()) {
       return Array.from(this.inMemory.values()).filter(e => e.project_id === projectId);
     }
-    return (await this.pool!.query('SELECT * FROM environments WHERE project_id = $1', [projectId])).rows;
+    return (await this.pool.query('SELECT * FROM environments WHERE project_id = $1', [projectId])).rows;
   }
 
   async findAll(): Promise<Environment[]> {
     if (!this.isDbAvailable()) {
       return Array.from(this.inMemory.values());
     }
-    return (await this.pool!.query('SELECT * FROM environments ORDER BY created_at DESC')).rows;
+    return (await this.pool.query('SELECT * FROM environments ORDER BY created_at DESC')).rows;
   }
 
   async create(projectId: string, name: string, type: string, config: Record<string, any>, cluster?: string, namespace?: string): Promise<Environment> {
@@ -70,12 +67,10 @@ export class EnvironmentRepository {
       return env;
     }
 
-    const tenantResult = await this.pool!.query('SELECT tenant_id FROM projects WHERE id = $1', [projectId]);
-    const tenantId = tenantResult.rows[0]?.tenant_id;
-    const result = await this.pool!.query(
-      `INSERT INTO environments (tenant_id, project_id, name, type, config, cluster, namespace, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, 'active') RETURNING *`,
-      [tenantId, projectId, name, type, config, cluster || null, namespace || null]
+    const result = await this.pool.query(
+      `INSERT INTO environments (project_id, name, type, config, cluster, namespace, status)
+       VALUES ($1, $2, $3, $4, $5, $6, 'active') RETURNING *`,
+      [projectId, name, type, config, cluster || null, namespace || null]
     );
     return result.rows[0];
   }
@@ -105,7 +100,7 @@ export class EnvironmentRepository {
     fields.push(`updated_at = now()`);
     values.push(id);
 
-    const result = await this.pool!.query(
+    const result = await this.pool.query(
       `UPDATE environments SET ${fields.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
       values
     );
@@ -117,7 +112,7 @@ export class EnvironmentRepository {
       return this.inMemory.delete(id);
     }
 
-    const result = await this.pool!.query('DELETE FROM environments WHERE id = $1', [id]);
+    const result = await this.pool.query('DELETE FROM environments WHERE id = $1', [id]);
     return (result.rowCount ?? 0) > 0;
   }
 }

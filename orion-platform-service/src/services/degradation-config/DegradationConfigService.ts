@@ -1,3 +1,4 @@
+import { DatabasePool } from '../database';
 /**
  * DegradationConfigService - Business logic for AI Degradation Dynamic Configuration
  *
@@ -9,8 +10,6 @@
  *
  * Phase 2 P0 Service
  */
-
-import { DatabasePool } from '../database';
 
 // ==================== Types ====================
 
@@ -115,11 +114,8 @@ const DEFAULT_CONFIGS: UpdateConfigInput[] = [
 // ==================== Repository ====================
 
 export class DegradationConfigRepository {
-  private pool: DatabasePool;
 
-  constructor(pool: DatabasePool) {
-    this.pool = pool;
-  }
+  constructor(private pool: DatabasePool) {}
 
   async findByScenario(scenario: string): Promise<DegradationConfig | null> {
     const result = await this.pool.query(
@@ -238,12 +234,11 @@ export class DegradationConfigRepository {
 
 export class DegradationConfigService {
   private repository: DegradationConfigRepository;
-  private pool: DatabasePool;
+  
   private initialized: boolean = false;
 
-  constructor(pool: DatabasePool) {
-    this.pool = pool;
-    this.repository = new DegradationConfigRepository(pool);
+  constructor(private pool: DatabasePool) {
+    this.repository = new DegradationConfigRepository(this.pool);
   }
 
   /**

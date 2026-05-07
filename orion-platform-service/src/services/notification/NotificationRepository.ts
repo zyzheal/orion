@@ -1,8 +1,8 @@
+import { DatabasePool } from '../database';
 /**
  * NotificationRepository - Database layer for Notification operations
  */
 
-import { DatabasePool } from '../database';
 
 export interface Notification {
   id: string;
@@ -28,8 +28,7 @@ export interface CreateNotificationInput {
 }
 
 export class NotificationRepository {
-  private pool: DatabasePool;
-  constructor(pool: DatabasePool) { this.pool = pool; }
+  constructor(private pool: DatabasePool) {}
 
   async findById(id: string): Promise<Notification | null> {
     return (await this.pool.query('SELECT * FROM notifications WHERE id = $1', [id])).rows[0] || null;

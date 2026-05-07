@@ -5,7 +5,7 @@
  * SE-9: 资源范围校验 (防越权)
  */
 
-import { DatabasePool } from '../../services/database';
+import { DatabasePool } from '../database';
 
 export interface ChatOpsAlertStateEntity {
   id: string;
@@ -20,11 +20,7 @@ export interface ChatOpsAlertStateEntity {
 }
 
 export class AlertStateService {
-  private db: DatabasePool;
-
-  constructor(db: DatabasePool) {
-    this.db = db;
-  }
+  constructor(private pool: DatabasePool) {}
 
   /**
    * SE-9: 校验 alert 是否属于当前用户的资源范围
@@ -32,7 +28,7 @@ export class AlertStateService {
   private async validateAlertOwnership(userId: string, alertId: string): Promise<boolean> {
     try {
       // 方式 1: 通过 tenant 关联
-      const result = await this.db.query(
+      const result = await this.pool.query(
         `SELECT 1 FROM alerts a
          JOIN user_tenants ut ON a.tenant_id = ut.tenant_id
          WHERE a.id = $1 AND ut.user_id = $2
@@ -46,7 +42,7 @@ export class AlertStateService {
 
     // 方式 2: 通过 user_resources 关联
     try {
-      const rc = await this.db.query(
+      const rc = await this.pool.query(
         `SELECT 1 FROM chatops_alert_states cas
          JOIN user_resources ur ON cas.resource_type = ur.resource_type AND cas.resource_id = ur.resource_id
          WHERE cas.alert_id = $1 AND ur.user_id = $2
@@ -63,7 +59,7 @@ export class AlertStateService {
   }
 
   async listByUserId(userId: string): Promise<ChatOpsAlertStateEntity[]> {
-    const result = await this.db.query(
+    const result = await this.pool.query(
       'SELECT * FROM chatops_alert_states WHERE user_id = $1 ORDER BY created_at DESC',
       [userId],
     );
@@ -99,7 +95,7 @@ export class AlertStateService {
   }
 
   async getUnreadCount(userId: string): Promise<number> {
-    const result = await this.db.query(
+    const result = await this.pool.query(
       `SELECT COUNT(*) FROM chatops_alert_states
        WHERE user_id = $1 AND state IN ('unread', 'acknowledged')`,
       [userId],
@@ -114,7 +110,7 @@ export class AlertStateService {
     readAt: Date | null,
     dismissedAt: Date | null,
   ): Promise<void> {
-    await this.db.query(
+    await this.pool.query(
       `INSERT INTO chatops_alert_states (user_id, alert_id, state, read_at, dismissed_at, created_at)
        VALUES ($1, $2, $3, $4, $5, NOW())
        ON CONFLICT (user_id, alert_id)

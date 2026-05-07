@@ -4,6 +4,7 @@
  * Migrated from Map() in-memory storage to PostgreSQL Repository pattern.
  */
 import { SbomVulnerabilityRepository } from '../../repositories/SbomVulnerabilityRepository';
+import { DatabasePool } from '../database';
 
 export interface Sbom {
   id: string;
@@ -25,7 +26,7 @@ export interface Vulnerability {
 }
 
 export class SbomServiceError extends Error {
-  constructor(message: string, public code: string) { super(message); this.name = 'SbomServiceError'; }
+  constructor(message?: string) { super(message); this.name = 'SbomServiceError'; }
 }
 
 /**
@@ -114,7 +115,7 @@ export class SbomService {
   constructor(repository: SbomRepository) { this.repository = repository; }
 
   async createSbom(tenantId: string, name: string, version: string, document: Record<string, any>): Promise<Sbom> {
-    if (!tenantId || !name) throw new SbomServiceError('Tenant ID and name required', 'INVALID_INPUT');
+    if (!tenantId || !name) throw new SbomServiceError('Tenant ID and name required');
     return this.repository.create(tenantId, name, version, document);
   }
 

@@ -1,3 +1,4 @@
+import { DatabasePool } from '../database';
 /**
  * DecisionExplanationService - Business logic for AI Decision Explanation
  *
@@ -9,8 +10,6 @@
  *
  * Phase 2 P0 Service
  */
-
-import { DatabasePool } from '../database';
 
 // ==================== Types ====================
 
@@ -89,11 +88,8 @@ export class DecisionExplanationServiceError extends Error {
 // ==================== Repository ====================
 
 export class DecisionExplanationRepository {
-  private pool: DatabasePool;
 
-  constructor(pool: DatabasePool) {
-    this.pool = pool;
-  }
+  constructor(private pool: DatabasePool) {}
 
   async findExplanation(decisionId: string): Promise<DecisionExplanation | null> {
     const result = await this.pool.query(
@@ -209,11 +205,9 @@ export class DecisionExplanationRepository {
 
 export class DecisionExplanationService {
   private repository: DecisionExplanationRepository;
-  private pool: DatabasePool;
 
-  constructor(pool: DatabasePool) {
-    this.pool = pool;
-    this.repository = new DecisionExplanationRepository(pool);
+  constructor(private pool: DatabasePool) {
+    this.repository = new DecisionExplanationRepository(this.pool);
   }
 
   /**

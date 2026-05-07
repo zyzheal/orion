@@ -8,6 +8,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
+import { DatabasePool } from '../database';
 
 export type ExemptionCategory = 'business-urgency' | 'tech-debt' | 'false-positive' | 'temporary';
 export type ExemptionStatus = 'pending' | 'approved' | 'rejected' | 'expired' | 'revoked';
@@ -61,7 +62,7 @@ export interface ExemptionReviewInput {
 }
 
 export class ExemptionServiceError extends Error {
-  constructor(message: string, public code: string) {
+  constructor(message: string) {
     super(message);
     this.name = 'ExemptionServiceError';
   }
@@ -79,7 +80,7 @@ export class ExemptionService {
    */
   async submitExemption(input: ExemptionCreateInput): Promise<Exemption> {
     if (!input.violationId || !input.reason || !input.category || !input.requestedBy) {
-      throw new ExemptionServiceError('violationId, reason, category, and requestedBy are required', 'INVALID_INPUT');
+      throw new ExemptionServiceError('violationId, reason, category, and requestedBy are required');
     }
 
     const id = uuidv4();
@@ -167,7 +168,7 @@ export class ExemptionService {
       [id],
     );
     if (result.rows.length === 0) {
-      throw new ExemptionServiceError(`Exemption not found: ${id}`, 'NOT_FOUND');
+      throw new ExemptionServiceError(`Exemption not found: ${id}`);
     }
     return this.mapRowToExemption(result.rows[0]);
   }
@@ -177,15 +178,15 @@ export class ExemptionService {
    */
   async reviewExemption(id: string, input: ExemptionReviewInput): Promise<Exemption> {
     if (!input.action || !input.reviewer) {
-      throw new ExemptionServiceError('action and reviewer are required', 'INVALID_INPUT');
+      throw new ExemptionServiceError('action and reviewer are required');
     }
     if (input.action !== 'approve' && input.action !== 'reject') {
-      throw new ExemptionServiceError('action must be approve or reject', 'INVALID_INPUT');
+      throw new ExemptionServiceError('action must be approve or reject');
     }
 
     const existing = await this.getExemptionById(id);
     if (existing.status !== 'pending') {
-      throw new ExemptionServiceError(`Exemption ${id} is not pending (current: ${existing.status})`, 'INVALID_STATE');
+      throw new ExemptionServiceError(`Exemption ${id} is not pending (current: ${existing.status})`);
     }
 
     const entry: ApprovalChainEntry = {
@@ -212,7 +213,7 @@ export class ExemptionService {
   async revokeExemption(id: string): Promise<Exemption> {
     const existing = await this.getExemptionById(id);
     if (existing.status !== 'approved') {
-      throw new ExemptionServiceError(`Only approved exemptions can be revoked (current: ${existing.status})`, 'INVALID_STATE');
+      throw new ExemptionServiceError(`Only approved exemptions can be revoked (current: ${existing.status})`);
     }
 
     await this.db.query(

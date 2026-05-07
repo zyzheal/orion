@@ -1,7 +1,7 @@
+import { DatabasePool } from '../database';
 /**
  * ProjectRepository - Database layer for Project operations
  */
-import { DatabasePool } from '../database';
 
 export interface Project {
   id: string;
@@ -15,8 +15,7 @@ export interface Project {
 }
 
 export class ProjectRepository {
-  private pool: DatabasePool;
-  constructor(pool: DatabasePool) { this.pool = pool; }
+  constructor(private pool: DatabasePool) {}
 
   async findById(id: string): Promise<Project | null> {
     return (await this.pool.query('SELECT * FROM projects WHERE id = $1', [id])).rows[0] || null;
