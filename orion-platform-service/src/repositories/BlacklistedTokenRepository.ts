@@ -138,6 +138,9 @@ export class BlacklistedTokenRepository {
       `SELECT COUNT(*) as count FROM token_blacklist WHERE user_id = $1 AND expires_at > NOW()`,
       [userId],
     );
+    if (result.rows.length === 0) {
+      throw new Error('No count data returned from database');
+    }
     return parseInt(result.rows[0]?.count || '0', 10);
   }
 
@@ -158,6 +161,10 @@ export class BlacklistedTokenRepository {
     );
 
     const row = result.rows[0];
+    if (!row) {
+      throw new Error('No stats data returned from database');
+    }
+
     return {
       totalRevoked: parseInt(row?.total || '0', 10),
       byReason: row?.by_reason ? JSON.parse(typeof row.by_reason === 'string' ? row.by_reason : JSON.stringify(row.by_reason)) : {},

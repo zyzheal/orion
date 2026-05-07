@@ -2,8 +2,41 @@
 import { TokenBlacklistService, TokenBlacklistConfig, RevokedTokenInfo } from '../TokenBlacklistService';
 
 // Mock DatabasePool for testing
+let mockQueryResponses: any[] = [];
+
 const createMockDbPool = () => ({
   query: jest.fn().mockImplementation(async (sql: string, params?: any[]) => {
+    // Check if there's a specific mock response queued
+    if (mockQueryResponses.length > 0) {
+      return mockQueryResponses.shift();
+    }
+
+    // Default responses based on query type
+    if (sql.includes('COUNT(*)')) {
+      // Return empty rows so repository throws and service falls back to cache
+      return { rows: [], rowCount: 0 };
+    }
+    // For UPDATE/DELETE queries, return 0 (service will fall back to cache)
+    if (sql.trim().startsWith('UPDATE') || sql.trim().startsWith('DELETE')) {
+      return { rows: [], rowCount: 0 };
+    }
+    // For INSERT with RETURNING, return a synthetic row
+    if (sql.includes('INSERT') && sql.includes('RETURNING')) {
+      return {
+        rows: [{
+          id: Math.floor(Math.random() * 1000),
+          token_hash: params?.[0] ?? '',
+          user_id: params?.[1] ?? '',
+          tenant_id: params?.[2] ?? 0,
+          revoke_reason: params?.[4] ?? '',
+          revoked_by: params?.[5] ?? null,
+          revoked_at: new Date(),
+          expires_at: params?.[3] ?? new Date(),
+          metadata: params?.[6] ?? '{}',
+        }],
+        rowCount: 1,
+      };
+    }
     // Return empty result for most queries
     return { rows: [], rowCount: 0 };
   }),
@@ -16,11 +49,16 @@ const createMockDbPool = () => ({
   getIdleCount: jest.fn().mockReturnValue(5),
 });
 
+const resetMockResponses = () => {
+  mockQueryResponses = [];
+};
+
 describe('TokenBlacklistService', () => {
   let service: TokenBlacklistService;
   let mockDbPool: ReturnType<typeof createMockDbPool>;
 
   beforeEach(() => {
+    resetMockResponses();
     mockDbPool = createMockDbPool();
     service = new TokenBlacklistService(mockDbPool as any, {
       ttlSeconds: 7 * 24 * 3600, // 7 days
