@@ -258,8 +258,8 @@ export class NatsServiceRegistry extends EventEmitter {
   async shutdown(): Promise<void> {
     this.stopHeartbeat();
 
-    const entities = await this.repo.findAll({ limit: 1000 });
-    for (const entity of entities) {
+    const result = await this.repo.findAll({ limit: 1000 });
+    for (const entity of result.entities) {
       await this.unregister(entity.id);
     }
   }

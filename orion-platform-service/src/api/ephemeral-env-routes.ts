@@ -24,7 +24,7 @@ export default async function ephemeralEnvRoutes(
   app: FastifyInstance,
   options?: EphemeralEnvRoutesOptions
 ): Promise<void> {
-  const k8sProvisioner = new K8sProvisionerService();
+  const k8sProvisioner = new K8sProvisionerService(options?.database || { query: async () => { throw new Error('Database not configured'); } });
   const service = new EphemeralEnvService({
     k8sProvisioner,
     eventBus: options?.eventBus,

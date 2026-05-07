@@ -12,6 +12,7 @@ import { EventBusService } from './services/event-bus-service';
 
 export interface EphemeralEnvRoutesOptions {
   eventBus?: EventBusService;
+  database?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> };
 }
 
 /**
@@ -22,7 +23,7 @@ export default async function registerEphemeralEnvRoutes(
   options: EphemeralEnvRoutesOptions
 ): Promise<void> {
   // 初始化服务
-  const k8sProvisioner = new K8sProvisionerService();
+  const k8sProvisioner = new K8sProvisionerService(options?.database || { query: async () => { throw new Error('Database not configured'); } });
   const ephemeralEnvService = new EphemeralEnvService({
     k8sProvisioner,
     eventBus: options.eventBus,

@@ -163,7 +163,7 @@ export class EnvironmentExecutorRepository extends BaseRepository<EnvironmentExe
   /**
    * Update state fields
    */
-  async update(id: string, updates: Partial<EnvironmentExecutorStateEntity>): Promise<EnvironmentExecutorStateEntity | undefined> {
+  async update(id: string, updates: Partial<Omit<EnvironmentExecutorStateEntity, 'id' | 'created_at'>>): Promise<EnvironmentExecutorStateEntity> {
     const fields: string[] = [];
     const values: any[] = [];
     let paramIndex = 1;
@@ -186,14 +186,19 @@ export class EnvironmentExecutorRepository extends BaseRepository<EnvironmentExe
     };
 
     for (const [field, dbField] of Object.entries(fieldMap)) {
-      if (updates[field as keyof EnvironmentExecutorStateEntity] !== undefined) {
+      const key = field as keyof typeof updates;
+      if (updates[key] !== undefined) {
         fields.push(`${dbField} = $${paramIndex}`);
-        values.push(updates[field as keyof EnvironmentExecutorStateEntity]);
+        values.push(updates[key]);
         paramIndex++;
       }
     }
 
-    if (fields.length === 0) return this.findById(id);
+    if (fields.length === 0) {
+      const entity = await this.findById(id);
+      if (!entity) throw new Error(`Entity with id ${id} not found`);
+      return entity;
+    }
 
     fields.push(`updated_at = $${paramIndex}`);
     values.push(new Date());
@@ -203,7 +208,9 @@ export class EnvironmentExecutorRepository extends BaseRepository<EnvironmentExe
       `UPDATE environment_executor_states SET ${fields.join(', ')} WHERE id = $${paramIndex + 1} RETURNING *`,
       values,
     );
-    if (result.rows.length === 0) return undefined;
+    if (result.rows.length === 0) {
+      throw new Error(`Update failed: entity with id ${id} not found`);
+    }
     return this.mapRowToEntity(result.rows[0]);
   }
 

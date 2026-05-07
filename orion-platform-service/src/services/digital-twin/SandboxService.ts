@@ -123,13 +123,8 @@ export class SandboxService {
 
   async listSandboxes(twinId?: string): Promise<SandboxInstance[]> {
     if (this.repo) {
-      let entities: any[];
-      if (twinId) {
-        entities = await this.repo.findByTwin(twinId);
-      } else {
-        entities = await this.repo.findAll({ limit: 1000 });
-        entities = (entities as any).entities || entities;
-      }
+      const result = await this.repo.findAll({ limit: 1000 });
+      const entities = result.entities;
       return entities.map(e => this.entityToInstance(e))
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     }

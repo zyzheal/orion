@@ -284,8 +284,19 @@ export interface RecordingSessionEntity {
 export interface TrafficRecordEntity {
   id: string;
   twinId: string;
-  request: Record<string, unknown>;
-  response: Record<string, unknown>;
+  request: {
+    method: string;
+    path: string;
+    headers: Record<string, string>;
+    body?: unknown;
+    queryParams?: Record<string, string>;
+  };
+  response: {
+    statusCode: number;
+    headers: Record<string, string>;
+    body?: unknown;
+    latencyMs: number;
+  };
   timestamp: string;
   metadata: Record<string, unknown>;
 }

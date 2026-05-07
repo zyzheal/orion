@@ -41,7 +41,6 @@ export class K8sProvisionerService {
       branch_name: env.branchName ?? null,
       status: 'active',
       preview_url: env.previewUrl ?? null,
-      created_at: new Date(),
       destroyed_at: null,
     });
     logger.info({ namespace: env.namespace }, 'Namespace created');

@@ -116,9 +116,15 @@ export class FederationService {
   private healthRepo: ExecutorHealthRepository;
   private heartbeatTimers: Map<string, NodeJS.Timeout> = new Map();
 
-  constructor(private pool: DatabasePool) {
-    this.execRepo = new ExecutorRepository(pool);
-    this.healthRepo = new ExecutorHealthRepository(pool);
+  constructor(
+    private pool: DatabasePool,
+    options?: {
+      execRepo?: ExecutorRepository;
+      healthRepo?: ExecutorHealthRepository;
+    }
+  ) {
+    this.execRepo = options?.execRepo ?? new ExecutorRepository(pool);
+    this.healthRepo = options?.healthRepo ?? new ExecutorHealthRepository(pool);
   }
 
   // ==================== Executor Management ====================
@@ -223,7 +229,6 @@ export class FederationService {
       errors_last_hour: Math.floor(Math.random() * 3),
     };
     await this.healthRepo.upsert({
-      executor_id: executorId,
       ...health,
     });
     return health;

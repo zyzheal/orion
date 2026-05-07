@@ -42,9 +42,24 @@ export class ExecutorRepository extends BaseRepository<ExecutorEntity> {
     const executor = this.mapRowToEntity(execResult.rows[0]);
 
     const healthResult = await this.db.query(`SELECT * FROM federation_executor_health WHERE executor_id = $1 ORDER BY last_heartbeat DESC LIMIT 1`, [id]);
-    const health = healthResult.rows.length > 0 ? this.mapHealthRow(healthResult.rows[0]) : null;
+    const health = healthResult.rows.length > 0 ? ExecutorRepository.mapHealthRow(healthResult.rows[0]) : null;
 
     return { executor, health };
+  }
+
+  private static mapHealthRow(row: any): ExecutorHealthEntity {
+    return {
+      id: row.id,
+      executor_id: row.executor_id,
+      status: row.status,
+      cpu_usage_pct: row.cpu_usage_pct,
+      memory_usage_pct: row.memory_usage_pct,
+      running_jobs: row.running_jobs,
+      queue_depth: row.queue_depth,
+      last_heartbeat: row.last_heartbeat,
+      response_time_ms: row.response_time_ms,
+      errors_last_hour: row.errors_last_hour,
+    };
   }
 
   async updateHeartbeat(id: string, metrics: { cpu_used?: number; memory_used_mb?: number; running_jobs?: number }): Promise<ExecutorEntity | undefined> {
@@ -107,14 +122,14 @@ export class ExecutorHealthRepository extends BaseRepository<ExecutorHealthEntit
       [executorId],
     );
     if (result.rows.length === 0) return undefined;
-    return this.mapHealthRow(result.rows[0]);
+    return this.mapRowToEntity(result.rows[0]);
   }
 
   async findAllLatest(): Promise<ExecutorHealthEntity[]> {
     const result = await this.db.query(
       `SELECT DISTINCT ON (executor_id) * FROM federation_executor_health ORDER BY executor_id, last_heartbeat DESC`,
     );
-    return result.rows.map(row => this.mapHealthRow(row));
+    return result.rows.map(row => this.mapRowToEntity(row));
   }
 
   async upsert(data: Omit<ExecutorHealthEntity, 'id'>): Promise<ExecutorHealthEntity> {
@@ -134,10 +149,10 @@ export class ExecutorHealthRepository extends BaseRepository<ExecutorHealthEntit
        RETURNING *`,
       [data.executor_id, data.status, data.cpu_usage_pct, data.memory_usage_pct, data.running_jobs, data.queue_depth, data.last_heartbeat, data.response_time_ms, data.errors_last_hour],
     );
-    return this.mapHealthRow(result.rows[0]);
+    return this.mapRowToEntity(result.rows[0]);
   }
 
-  private mapHealthRow(row: any): ExecutorHealthEntity {
+  protected mapRowToEntity(row: any): ExecutorHealthEntity {
     return {
       id: row.id,
       executor_id: row.executor_id,
@@ -257,7 +272,7 @@ export class HealthCheckResultRepository extends BaseRepository<HealthCheckResul
     for (const r of results) {
       const result = await this.db.query(
         `INSERT INTO federation_health_checks (cluster_id, check_type, status, latency_ms, details, checked_at) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-        [r.clusterId, r.check_type, r.status, r.latency_ms, r.details ? JSON.stringify(r.details) : null, r.checked_at],
+        [r.cluster_id, r.check_type, r.status, r.latency_ms, r.details ? JSON.stringify(r.details) : null, r.checked_at],
       );
       created.push(this.mapRowToEntity(result.rows[0]));
     }
