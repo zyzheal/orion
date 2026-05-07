@@ -32,6 +32,24 @@ export default defineConfig({
     setupFiles: './src/tests/setup.ts',
     css: true,
     exclude: ['**/node_modules/**', '**/e2e/**'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json', 'html'],
+      exclude: [
+        'node_modules/**',
+        'src/**/*.d.ts',
+        'src/**/__tests__/**',
+        'src/tests/**',
+      ],
+      thresholds: {
+        global: {
+          branches: 50,
+          functions: 55,
+          lines: 60,
+          statements: 60,
+        },
+      },
+    },
   },
   esbuild: {
     loader: 'tsx',
