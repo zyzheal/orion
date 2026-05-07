@@ -1,5 +1,6 @@
 # Orion Frontend - Multi-stage Dockerfile
-FROM node:20-alpine AS builder
+# 使用 Debian-slim (glibc) 替代 Alpine (musl)，兼容 Rocky Linux 8+ / RHEL / CentOS
+FROM node:20-slim AS builder
 
 WORKDIR /app
 
@@ -10,7 +11,7 @@ COPY . .
 RUN npm run build
 
 # ==================== Production (nginx) ====================
-FROM nginx:alpine AS production
+FROM nginx:stable-slim AS production
 
 COPY --from=builder /app/dist /usr/share/nginx/html
 

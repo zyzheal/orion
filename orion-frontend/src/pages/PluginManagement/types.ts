@@ -41,12 +41,6 @@ export type PluginConfig = Record<string, unknown>;
 export type ExecutePluginResult = PluginExecutionResult;
 
 // ============================================================================
-// Re-export label maps from mock data for convenience
-// ============================================================================
-
-export { categoryLabels, healthStatusLabels };
-
-// ============================================================================
 // Plugin type to category mapping
 // ============================================================================
 

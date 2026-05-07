@@ -1,5 +1,6 @@
 # Orion Platform Service - Dockerfile
-FROM node:20-alpine AS builder
+# 使用 Debian-slim (glibc) 替代 Alpine (musl)，兼容 Rocky Linux 8+ / RHEL / CentOS
+FROM node:20-slim AS builder
 
 WORKDIR /app
 
@@ -10,11 +11,9 @@ COPY . .
 RUN npm run build
 
 # ==================== Production ====================
-FROM node:20-alpine AS production
+FROM node:20-slim AS production
 
 WORKDIR /app
-
-RUN apk add --no-cache wget
 
 COPY package*.json ./
 RUN npm ci --production=true

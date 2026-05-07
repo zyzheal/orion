@@ -19,42 +19,42 @@ class MockApprovalDb {
   async query(text: string, params?: any[]): Promise<{ rows: any[]; rowCount: number | null }> {
     if (text === 'BEGIN' || text === 'COMMIT') return { rows: [], rowCount: 0 };
 
-    if (text.includes('INSERT INTO approval_requests')) {
+    // INSERT INTO approvals
+    if (text.includes('INSERT INTO approvals')) {
       const id = `approval-${++this.idCounter}`;
       const entity = {
         id,
-        tenant_id: params[0],
-        definition_id: params[1] || null,
-        resource_type: params[2],
-        resource_id: params[3],
-        title: params[4],
-        status: params[5],
-        requested_by: params[6],
-        current_step: params[7],
-        total_steps: params[8],
-        required_approvals: params[9],
-        result: params[10],
-        completed_at: params[11],
-        created_at: params[12],
+        tenant_id: params?.[0] ?? null,
+        definition_id: params?.[1] ?? null,
+        resource_type: params?.[2] ?? null,
+        resource_id: params?.[3] ?? null,
+        title: params?.[4] ?? null,
+        status: params?.[5] ?? 'pending',
+        requested_by: params?.[6] ?? null,
+        current_step: params?.[7] ?? 0,
+        total_steps: params?.[8] ?? 1,
+        required_approvals: params?.[9] ?? 1,
+        result: params?.[10] ?? null,
+        completed_at: params?.[11] ?? null,
+        created_at: params?.[12] ?? new Date(),
       };
       this.approvals.set(id, entity);
       this.steps.set(id, []);
       return { rows: [entity], rowCount: 1 };
     }
 
+    // INSERT INTO approval_steps
     if (text.includes('INSERT INTO approval_steps')) {
-      // Find the approval_id from params - it's the second param for step insert
-      // Actually depends on the repository implementation
-      const approvalId = params?.[0] || '';
+      const approvalId = params?.[0] ?? '';
       const stepId = `step-${++this.idCounter}`;
       const step = {
         id: stepId,
         approval_id: approvalId,
-        step_index: params[1] ?? 0,
-        approver_id: params[2] || '',
-        status: params[3] || 'pending',
-        comment: params[4],
-        acted_at: params[5],
+        step_index: params?.[1] ?? 0,
+        approver_id: params?.[2] ?? null,
+        status: params?.[3] ?? 'pending',
+        comment: params?.[4] ?? null,
+        acted_at: params?.[5] ?? null,
       };
       const steps = this.steps.get(approvalId) || [];
       steps.push(step);
@@ -62,78 +62,91 @@ class MockApprovalDb {
       return { rows: [step], rowCount: 1 };
     }
 
-    if (text.includes('SELECT') && text.includes('approval_requests') && !text.includes('steps')) {
-      if (text.includes('WHERE id =')) {
-        const id = params?.[0];
-        const entity = this.approvals.get(id);
-        return { rows: entity ? [entity] : [], rowCount: entity ? 1 : 0 };
-      }
-      if (text.includes('status = \'pending\'')) {
-        const pending = Array.from(this.approvals.values()).filter((a: any) => a.status === 'pending');
-        return { rows: pending, rowCount: pending.length };
-      }
-      return { rows: Array.from(this.approvals.values()), rowCount: this.approvals.size };
+    // SELECT from approvals by id
+    if (text.includes('SELECT') && text.includes('approvals') && text.includes('WHERE id =')) {
+      const id = params?.[0];
+      const entity = this.approvals.get(id);
+      return { rows: entity ? [entity] : [], rowCount: entity ? 1 : 0 };
     }
 
+    // SELECT from approvals by tenant
+    if (text.includes('SELECT') && text.includes('approvals') && text.includes('WHERE tenant_id')) {
+      const tenantId = params?.[0];
+      const statusFilter = text.includes("status = $2") ? params?.[1] : null;
+      let all = Array.from(this.approvals.values()).filter((a: any) => a.tenant_id === tenantId);
+      if (statusFilter) {
+        all = all.filter((a: any) => a.status === statusFilter);
+      }
+      return { rows: all, rowCount: all.length };
+    }
+
+    // SELECT all from approvals (including findAll with WHERE 1=1)
+    if (text.includes('SELECT') && text.includes('approvals') && text.includes('WHERE 1=1')) {
+      const all = Array.from(this.approvals.values());
+      return { rows: all, rowCount: all.length };
+    }
+
+    // SELECT all from approvals (no WHERE clause)
+    if (text.includes('SELECT') && text.includes('approvals') && !text.includes('WHERE')) {
+      const all = Array.from(this.approvals.values());
+      return { rows: all, rowCount: all.length };
+    }
+
+    // SELECT from approval_steps
     if (text.includes('SELECT') && text.includes('approval_steps')) {
       const approvalId = params?.[0];
       const steps = this.steps.get(approvalId) || [];
       return { rows: steps, rowCount: steps.length };
     }
 
-    if (text.includes('UPDATE') && text.includes('approval_steps')) {
-      if (text.includes('status =')) {
-        // Update step status - find step by id
-        const stepId = params?.[1]; // or wherever the step id is
-        for (const [approvalId, steps] of this.steps.entries()) {
-          const step = steps.find(s => s.id === stepId);
-          if (step) {
-            step.status = params[0]; // new status
-            if (params[2]) step.comment = params[2];
-            if (params[3]) step.acted_at = params[3];
-            return { rows: [step], rowCount: 1 };
-          }
+    // UPDATE approvals (status)
+    if (text.includes('UPDATE approvals') && text.includes('status = $1')) {
+      const status = params?.[0];
+      const id = params?.[2];
+      const entity = this.approvals.get(id);
+      if (entity) {
+        entity.status = status;
+        if (status === 'approved' || status === 'rejected') {
+          entity.completed_at = params?.[1] ?? new Date();
         }
-        return { rows: [], rowCount: 0 };
+        if (status === 'approved') {
+          entity.current_step = entity.total_steps;
+        }
+        return { rows: [entity], rowCount: 1 };
       }
+      return { rows: [], rowCount: 0 };
     }
 
-    if (text.includes('UPDATE') && text.includes('approval_requests')) {
-      if (text.includes('status =') && text.includes('WHERE id =')) {
-        const status = params?.[0];
-        const id = params?.[1];
-        const entity = this.approvals.get(id);
-        if (entity) {
-          entity.status = status;
-          if (status !== 'pending') {
-            entity.completed_at = new Date();
-            entity.result = status;
-          }
-          return { rows: [], rowCount: 1 };
-        }
+    // UPDATE approvals (advance step)
+    if (text.includes('UPDATE approvals') && text.includes('current_step = current_step + 1')) {
+      const id = params?.[0];
+      const entity = this.approvals.get(id);
+      if (entity && entity.status === 'pending') {
+        entity.current_step = (entity.current_step ?? 0) + 1;
+        return { rows: [entity], rowCount: 1 };
       }
-      if (text.includes('current_step')) {
-        const currentStep = params?.[0];
-        const id = params?.[1];
-        const entity = this.approvals.get(id);
-        if (entity) {
-          entity.current_step = currentStep;
-        }
-      }
-      return { rows: [], rowCount: 1 };
+      return { rows: [], rowCount: 0 };
     }
 
-    if (text.includes('UPDATE') && text.includes('approval_steps') && text.includes('status')) {
-      // The actual pattern: UPDATE ... SET status=$1, ... WHERE id=$2
-      const stepId = params?.[params.length - 1]; // last param is typically the WHERE id
+    // UPDATE approval_steps
+    if (text.includes('UPDATE approval_steps') && text.includes('status = $1')) {
       const newStatus = params?.[0];
+      const stepId = params?.[3];
       for (const steps of this.steps.values()) {
         const step = steps.find(s => s.id === stepId);
         if (step) {
           step.status = newStatus;
+          step.comment = params?.[1] ?? step.comment;
+          step.acted_at = params?.[2] ?? step.acted_at;
           return { rows: [step], rowCount: 1 };
         }
       }
+      return { rows: [], rowCount: 0 };
+    }
+
+    // COUNT query
+    if (text.includes('COUNT(*)')) {
+      return { rows: [{ count: String(this.approvals.size) }], rowCount: 1 };
     }
 
     return { rows: [], rowCount: 0 };

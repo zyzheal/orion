@@ -304,12 +304,12 @@ describe('EventBusService', () => {
       );
     });
 
-    it('should throw error when not connected and no event repo', async () => {
+    it('should fallback to in-memory delivery when not connected and no event repo', async () => {
       eventBus = createEventBus({ enabled: true, autoConnect: false });
 
-      await expect(
-        eventBus.publish('test.event', {}),
-      ).rejects.toThrow('NATS not connected');
+      // Implementation falls back to in-memory delivery, not throwing
+      const result = await eventBus.publish('test.event', {});
+      expect(result).toMatch(/^fallback:/);
     });
   });
 

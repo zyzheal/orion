@@ -74,15 +74,17 @@ class MockDecisionDb {
 
     if (text.includes('INSERT INTO ai_decision_feedback')) {
       const id = `feedback-${++this.idCounter}`;
+      // SQL: VALUES ($1, $2, 'risk-assessment', NULL, $3, $4, $5)
+      // params: [tenant_id, decision_id, rating, comment, created_by]
       const fb = {
         id,
         tenant_id: params[0],
         decision_id: params[1],
-        scenario: params[2],
-        model_id: params[3],
-        rating: params[4],
-        comment: params[5],
-        created_by: params[6],
+        scenario: 'risk-assessment', // Hardcoded in SQL
+        model_id: null,
+        rating: params[2],
+        comment: params[3],
+        created_by: params[4],
         created_at: new Date(),
       };
       this.feedback.push(fb);

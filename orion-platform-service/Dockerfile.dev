@@ -1,4 +1,5 @@
-FROM node:20-alpine
+# 使用 Debian-slim (glibc) 替代 Alpine，兼容 Rocky Linux 8+ / RHEL / CentOS
+FROM node:20-slim
 
 WORKDIR /app
 
@@ -9,8 +10,8 @@ RUN npm ci
 # Copy source
 COPY . .
 
-# Expose platform service port
+# Expose port
 EXPOSE 3001
 
-# Development mode with hot reload
+# Start development server
 CMD ["npm", "run", "dev"]
