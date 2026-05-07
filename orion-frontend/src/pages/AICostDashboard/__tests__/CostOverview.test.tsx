@@ -1,7 +1,7 @@
 /**
  * Tests for CostOverview page
  */
-import { render, waitFor, screen } from '@testing-library/react';
+import { render, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as aiCostApi from '@/api/ai-cost';
 

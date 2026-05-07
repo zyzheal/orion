@@ -31,7 +31,7 @@ vi.mock('../AgentMetrics', () => ({
 }));
 
 vi.mock('../AgentTable', () => ({
-  default: ({ agents, filteredAgents, loading, searchQuery, onSearch }: any) => (
+  default: ({ filteredAgents, loading, searchQuery, onSearch }: any) => (
     <div data-testid="agent-table" data-loading={loading}>
       <input
         data-testid="agent-search"

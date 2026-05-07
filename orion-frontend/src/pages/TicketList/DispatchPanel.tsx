@@ -30,8 +30,6 @@ import {
   ThunderboltOutlined,
   ClockCircleOutlined,
   UserOutlined,
-  WarningOutlined,
-  CloseCircleOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { getTickets } from '@/api/ticketing';
@@ -160,7 +158,7 @@ const DispatchPanel: React.FC<DispatchPanelProps> = ({ open, onClose }) => {
         // Load engineers from users API
         const usersRes = await listUsers({ limit: 200 });
         const users: User[] = usersRes.data?.data?.data || [];
-        const engineerEntries: EngineerEntry[] = users.map((u, idx) => ({
+        const engineerEntries: EngineerEntry[] = users.map((u) => ({
           id: u.id,
           name: u.name || u.username,
           expertise: [], // Would come from a dedicated engineer profile API

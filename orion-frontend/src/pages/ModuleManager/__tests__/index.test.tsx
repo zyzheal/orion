@@ -7,7 +7,7 @@ import * as moduleManagerApi from '@/api/module-manager';
 
 // Mock antd components and hooks
 vi.mock('antd', async () => {
-  const actual = await vi.importActual('antd');
+  const actual = await vi.importActual('antd') as Record<string, unknown>;
   return {
     ...actual,
     Typography: {
@@ -21,7 +21,7 @@ vi.mock('antd', async () => {
       success: vi.fn(),
     },
     Modal: {
-      ...actual.Modal,
+      ...(actual.Modal as Record<string, unknown>),
       info: vi.fn(),
     },
   };
@@ -39,6 +39,7 @@ vi.mock('@/tokens', () => ({
     success: { 500: '#52c41a' },
     error: { 500: '#ff4d4f' },
     warning: { 500: '#faad14' },
+    info: { 500: '#1890ff' },
     blue: { 500: '#1890ff' },
     red: { 500: '#ff4d4f' },
     purple: { 500: '#722ed1' },
@@ -46,6 +47,17 @@ vi.mock('@/tokens', () => ({
     neutral: { 500: '#8c8c8c', 400: '#bfbfbf' },
     orange: { 500: '#fa8c16' },
     cyan: { 500: '#13c2c2' },
+    primary: { 500: '#1890ff' },
+    light: {
+      bg: { primary: '#ffffff' },
+      text: { primary: '#1f1f1f', secondary: '#434343', tertiary: '#595959' },
+      border: { light: '#f0f0f0' },
+    },
+    dark: {
+      bg: { primary: '#141414' },
+      text: { primary: '#ffffff' },
+      border: {},
+    },
   },
   spacing: [0, 4, 8, 12, 16, 24, 32],
 }));
@@ -60,7 +72,7 @@ vi.mock('@/components/MetricCard', () => ({
 }));
 
 vi.mock('@/components/SearchFilterBar', () => ({
-  default: ({ onSearch, onFilter }: any) => (
+  default: ({ onSearch }: any) => (
     <div data-testid="search-filter-bar">
       <input onChange={(e) => onSearch?.(e.target.value)} data-testid="search-input" />
     </div>
@@ -68,7 +80,7 @@ vi.mock('@/components/SearchFilterBar', () => ({
 }));
 
 vi.mock('dayjs', () => {
-  const dayjsFn = (val: any) => ({
+  const dayjsFn = (_val: any) => ({
     fromNow: () => '2 hours ago',
     format: () => '2024-01-01 12:00',
     diff: () => 100,

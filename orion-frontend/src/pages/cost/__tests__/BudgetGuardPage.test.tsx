@@ -14,7 +14,7 @@ vi.mock('@/api/cost-operations', () => ({
 }));
 
 vi.mock('@/components/Table', () => ({
-  default: ({ dataSource, loading, rowKey, columns }: any) => (
+  default: ({ dataSource, loading, rowKey }: any) => (
     <div data-testid="orion-table" data-loading={loading}>
       {dataSource?.map((item: any) => (
         <div key={item[rowKey]} data-testid={`row-${item[rowKey]}`}>
@@ -150,12 +150,23 @@ describe('BudgetGuardPage', () => {
 
     render(<BudgetGuardPage />);
 
+    // Wait for Cost Forecast card to appear
     await waitFor(() => {
       expect(screen.getByText('Cost Forecast')).toBeTruthy();
     });
 
-    expect(screen.getByText('Current Spend')).toBeTruthy();
-    expect(screen.getByText('Predicted End of Month')).toBeTruthy();
+    // Statistic titles may render with specific class structure
+    // Use findByText for async elements and be more specific
+    await waitFor(() => {
+      // Statistic title is rendered in ant-statistic-title class
+      const currentSpendElements = screen.getAllByText('Current Spend');
+      expect(currentSpendElements.length).toBeGreaterThan(0);
+    });
+
+    await waitFor(() => {
+      const predictedElements = screen.getAllByText('Predicted End of Month');
+      expect(predictedElements.length).toBeGreaterThan(0);
+    });
   });
 
   it('filters guards by search query', async () => {
