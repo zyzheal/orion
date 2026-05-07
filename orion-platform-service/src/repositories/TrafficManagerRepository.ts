@@ -5,7 +5,7 @@
  * execution history, replacing the Map() in-memory storage.
  */
 
-import { BaseRepository } from '../db/base-repository';
+import { BaseRepository, FindAllResult } from '../db/base-repository';
 
 // ==================== Traffic Config ====================
 
@@ -44,11 +44,12 @@ export class TrafficConfigRepository extends BaseRepository<TrafficConfigEntity>
     return this.mapRowToEntity(result.rows[0]);
   }
 
-  async findAll(): Promise<TrafficConfigEntity[]> {
+  async findAll(): Promise<FindAllResult<TrafficConfigEntity>> {
     const result = await this.db.query(
       `SELECT * FROM canary_traffic_configs ORDER BY updated_at DESC`,
     );
-    return result.rows.map(row => this.mapRowToEntity(row));
+    const entities = result.rows.map(row => this.mapRowToEntity(row));
+    return { entities, total: entities.length };
   }
 
   async upsertConfig(input: {
@@ -156,11 +157,12 @@ export class TrafficHistoryRepository extends BaseRepository<TrafficHistoryEntit
     return result.rows.map(row => this.mapRowToEntity(row));
   }
 
-  async findAll(): Promise<TrafficHistoryEntity[]> {
+  async findAll(): Promise<FindAllResult<TrafficHistoryEntity>> {
     const result = await this.db.query(
       `SELECT * FROM canary_traffic_history ORDER BY executed_at DESC`,
     );
-    return result.rows.map(row => this.mapRowToEntity(row));
+    const entities = result.rows.map(row => this.mapRowToEntity(row));
+    return { entities, total: entities.length };
   }
 
   async createEntry(input: {

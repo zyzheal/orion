@@ -184,8 +184,8 @@ export class ResourceAbstractionLayer {
     const result = this.entityToDeployment(entity);
 
     // Simulate deployment asynchronously
-    this.executeDeploymentAsync(result, config).catch(() => {
-      // Silently handle async deployment errors
+    this.executeDeploymentAsync(result, config).catch((error) => {
+      console.error(`[ResourceAbstractionLayer] Deployment failed for ${result.id}:`, error.message);
     });
 
     return result;

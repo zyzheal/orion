@@ -11,12 +11,54 @@
  * Uses PostgreSQL Repository pattern for persistence.
  */
 
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import { promisify } from 'util';
+import { writeFile, mkdtemp, unlink } from 'fs/promises';
+import { tmpdir } from 'os';
+import { join } from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { TrafficConfigRepository, TrafficHistoryRepository, TrafficConfigEntity } from '../../repositories/TrafficManagerRepository';
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
+
+// Validate Kubernetes resource names: lowercase alphanumeric, hyphens allowed
+const VALID_RESOURCE_NAME = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/;
+
+/**
+ * Validate a canary ID to prevent command injection
+ */
+function validateCanaryId(canaryId: string): void {
+  if (!VALID_RESOURCE_NAME.test(canaryId) || canaryId.length > 63) {
+    throw new TrafficManagerError(
+      'canaryId must be a valid Kubernetes resource name (lowercase alphanumeric with hyphens, max 63 chars)',
+      'INVALID_INPUT'
+    );
+  }
+}
+
+/**
+ * Write content to a temp file and return its path
+ */
+async function writeToTempFile(content: string, prefix: string): Promise<string> {
+  const tmpDir = await mkdtemp(join(tmpdir(), `${prefix}-`));
+  const filePath = join(tmpDir, 'config.yaml');
+  await writeFile(filePath, content, 'utf-8');
+  return filePath;
+}
+
+/**
+ * Clean up a temp file
+ */
+async function cleanupTempFile(filePath: string): Promise<void> {
+  try {
+    await unlink(filePath);
+    // Try to remove the parent temp dir (may fail if not empty)
+    const dir = filePath.split('/').slice(0, -1).join('/');
+    await unlink(dir).catch(() => {});
+  } catch {
+    // Ignore cleanup failures
+  }
+}
 
 // ==================== Types ====================
 
@@ -155,12 +197,14 @@ export class TrafficManager {
       // Persist config to DB
       await this.saveConfigToDB(canaryId, trafficConfig, config, baselinePercent, canaryPercent);
 
-      // Build and apply Istio VirtualService YAML
+      // Build and apply Istio VirtualService YAML using execFile to prevent command injection
       const yaml = this.buildIstioVirtualServiceYAML(canaryId, config);
-      const command = `kubectl apply -f - <<EOF\n${yaml}\nEOF`;
+      let tempFile: string | null = null;
 
       try {
-        const { stdout } = await execAsync(command);
+        validateCanaryId(canaryId);
+        tempFile = await writeToTempFile(yaml, 'orion-istio');
+        await execFileAsync('kubectl', ['apply', '-f', tempFile]);
         const result: TrafficSplitResult = {
           success: true,
           canaryId,
@@ -169,6 +213,8 @@ export class TrafficManager {
         await this.saveHistoryToDB(canaryId, result);
         return result;
       } catch {
+        // Clean up temp file
+        if (tempFile) await cleanupTempFile(tempFile);
         // Simulated application
         const result: TrafficSplitResult = {
           success: true,
@@ -237,12 +283,17 @@ export class TrafficManager {
       // Persist config to DB
       await this.saveConfigToDB(canaryId, trafficConfig, undefined, baselineWeight, weight, config);
 
-      // Build NGINX upstream block
+      // Build NGINX upstream block and write to temp file, then use execFile
       const nginxConf = this.buildNGINXUpstreamConfig(upstream, config.servers);
-      const command = `echo '${nginxConf}' > /etc/nginx/conf.d/${canaryId}.conf && nginx -s reload`;
+      let tempFile: string | null = null;
 
       try {
-        const { stdout } = await execAsync(command);
+        validateCanaryId(canaryId);
+        tempFile = await writeToTempFile(nginxConf, 'orion-nginx');
+        // Use cp command with safe file paths instead of shell interpolation
+        const destPath = `/etc/nginx/conf.d/${canaryId}.conf`;
+        await execFileAsync('cp', [tempFile, destPath]);
+        await execFileAsync('nginx', ['-s', 'reload']);
         const result: TrafficSplitResult = {
           success: true,
           canaryId,
@@ -251,6 +302,8 @@ export class TrafficManager {
         await this.saveHistoryToDB(canaryId, result);
         return result;
       } catch {
+        // Clean up temp file
+        if (tempFile) await cleanupTempFile(tempFile);
         const result: TrafficSplitResult = {
           success: true,
           canaryId,
@@ -430,8 +483,8 @@ export class TrafficManager {
    * 获取所有配置
    */
   async getAllConfigs(): Promise<TrafficSplitConfig[]> {
-    const entities = await this.configRepo.findAll();
-    return entities.map(e => this.entityToConfig(e));
+    const result = await this.configRepo.findAll();
+    return result.entities.map(e => this.entityToConfig(e));
   }
 
   /**
@@ -443,7 +496,7 @@ export class TrafficManager {
       return entities.map(e => this.entityToResult(e, canaryId));
     }
     const entities = await this.historyRepo.findAll();
-    return entities.map(e => this.entityToResult(e, e.canary_id));
+    return entities.entities.map(e => this.entityToResult(e, e.canary_id));
   }
 
   // ==================== Internal Helpers ====================
@@ -486,7 +539,6 @@ export class TrafficManager {
 
   private determinePhase(canaryPercent: number): TrafficSplitConfig['phase'] {
     if (canaryPercent === 0) return 'initial';
-    if (canaryPercent < 50) return 'gradual';
     if (canaryPercent < 100) return 'gradual';
     return 'full';
   }
@@ -547,12 +599,12 @@ ${serverLines}
         routes: [
           {
             destination: entity.baseline_destination || '',
-            subset: entity.baseline_subset,
+            subset: entity.baseline_subset ?? undefined,
             weight: entity.baseline_weight || 0,
           },
           {
             destination: entity.canary_destination || '',
-            subset: entity.canary_subset,
+            subset: entity.canary_subset ?? undefined,
             weight: entity.canary_weight || 0,
           },
         ],

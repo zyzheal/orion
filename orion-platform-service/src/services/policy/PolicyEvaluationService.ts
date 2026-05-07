@@ -17,6 +17,8 @@ import {
   PolicyOverrideCreateInput,
   createPolicyOverride,
   ViolationStatus,
+  PolicySeverity,
+  ViolationResourceType,
 } from '../../models/PolicyDefinition';
 import { PolicyEvaluationRepository, PolicyEvaluationEntity } from '../../repositories/PolicyEvaluationRepository';
 import { PolicyViolationRepository, PolicyViolationEntity } from '../../repositories/PolicyViolationRepository';
@@ -285,14 +287,19 @@ export class PolicyEvaluationService {
   async createOverride(input: PolicyOverrideCreateInput): Promise<PolicyOverride> {
     const override = createPolicyOverride(input);
     if (this.overrideRepository) {
-      await this.overrideRepository.create({
+      const now = new Date();
+      await this.overrideRepository.createOverride({
         id: override.id,
-        policyId: override.policyId,
+        tenantId: 'default',
+        policyId: override.policyId || '',
         violationId: override.violationId,
         reason: override.reason,
-        approvedBy: override.approvedBy,
+        approvedBy: override.approvedBy || 'system',
         approvedAt: override.approvedAt,
+        status: 'active',
         expiresAt: override.expiresAt,
+        createdAt: now,
+        updatedAt: now,
         scope: override.scope,
       });
     }
@@ -306,8 +313,8 @@ export class PolicyEvaluationService {
 
   async listOverrides(): Promise<PolicyOverride[]> {
     if (this.overrideRepository) {
-      const result = await this.overrideRepository.findAllWithOptions();
-      return result.entities.map(e => this.mapEntityToOverride(e));
+      const result = await this.overrideRepository.findAll();
+      return result.entities.map((e) => this.mapEntityToOverride(e));
     }
     return [];
   }
@@ -317,9 +324,9 @@ export class PolicyEvaluationService {
       id: entity.id,
       evaluationId: entity.evaluation_id ?? undefined,
       policyId: entity.policy_id ?? undefined,
-      severity: entity.severity,
+      severity: entity.severity as PolicySeverity,
       message: entity.message,
-      resourceType: entity.resource_type ?? undefined,
+      resourceType: (entity.resource_type ?? undefined) as ViolationResourceType | undefined,
       resourceId: entity.resource_id ?? undefined,
       status: (entity.status as ViolationStatus) ?? 'open',
       createdAt: entity.created_at,
@@ -333,11 +340,9 @@ export class PolicyEvaluationService {
       violationId: entity.violationId ?? undefined,
       reason: entity.reason,
       approvedBy: entity.approvedBy ?? undefined,
-      approvedAt: entity.approvedAt,
-      expiresAt: entity.expiresAt,
-      scope: entity.scope,
-      createdAt: entity.createdAt,
-      updatedAt: entity.updatedAt,
+      approvedAt: entity.approvedAt ?? entity.createdAt,
+      expiresAt: entity.expiresAt ?? new Date(Date.now() + 86400000 * 30),
+      scope: (entity.scope ?? 'global') as import('../../models/PolicyDefinition').OverrideScope,
     };
   }
 }

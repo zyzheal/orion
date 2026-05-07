@@ -315,7 +315,7 @@ export class FederationService {
         throw new Error(`Executor '${input.executor_id}' not found`);
       }
     } else {
-      selectedExecutor = this.selectBestExecutor(input.resource_requirements);
+      selectedExecutor = await this.selectBestExecutor(input.resource_requirements);
     }
 
     const result = await this.pool.query(

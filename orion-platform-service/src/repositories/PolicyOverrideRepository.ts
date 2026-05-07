@@ -17,14 +17,17 @@ export interface PolicyOverrideEntity {
   policyId: string;
   pipelineId?: string;
   runId?: string;
+  violationId?: string;
   reason: string;
   approvedBy: string;
+  approvedAt?: Date;
   status: 'active' | 'revoked' | 'expired';
   expiresAt?: Date;
   createdAt: Date;
   updatedAt: Date;
   revokedAt?: Date;
   revokedBy?: string;
+  scope?: string;
 }
 
 export interface CreatePolicyOverrideInput {
@@ -33,14 +36,17 @@ export interface CreatePolicyOverrideInput {
   policyId: string;
   pipelineId?: string;
   runId?: string;
+  violationId?: string;
   reason: string;
   approvedBy: string;
+  approvedAt?: Date;
   status: string;
   expiresAt?: Date;
   createdAt: Date;
   updatedAt: Date;
   revokedAt?: Date;
   revokedBy?: string;
+  scope?: string;
 }
 
 export class PolicyOverrideRepository extends BaseRepository<PolicyOverrideEntity> {
@@ -84,13 +90,13 @@ export class PolicyOverrideRepository extends BaseRepository<PolicyOverrideEntit
   }
 
   /**
-   * Create a new override
+   * Create a new override with full input object
    */
-  async create(input: CreatePolicyOverrideInput): Promise<PolicyOverrideEntity> {
+  async createOverride(input: CreatePolicyOverrideInput): Promise<PolicyOverrideEntity> {
     const result = await this.db.query(
-      `INSERT INTO policy_overrides_v2 (id, tenant_id, policy_id, pipeline_id, run_id, reason, approved_by, status, expires_at, created_at, updated_at, revoked_at, revoked_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`,
-      [input.id, input.tenantId, input.policyId, input.pipelineId || null, input.runId || null, input.reason, input.approvedBy, input.status, input.expiresAt || null, input.createdAt, input.updatedAt, input.revokedAt || null, input.revokedBy || null],
+      `INSERT INTO policy_overrides_v2 (id, tenant_id, policy_id, pipeline_id, run_id, violation_id, reason, approved_by, approved_at, status, expires_at, created_at, updated_at, revoked_at, revoked_by, scope)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING *`,
+      [input.id, input.tenantId, input.policyId, input.pipelineId || null, input.runId || null, input.violationId || null, input.reason, input.approvedBy, input.approvedAt || null, input.status, input.expiresAt || null, input.createdAt, input.updatedAt, input.revokedAt || null, input.revokedBy || null, input.scope || null],
     );
     if (result.rows.length === 0) {
       // Fallback for mock/test environments where RETURNING * may not work
@@ -100,23 +106,26 @@ export class PolicyOverrideRepository extends BaseRepository<PolicyOverrideEntit
         policyId: input.policyId,
         pipelineId: input.pipelineId,
         runId: input.runId,
+        violationId: input.violationId,
         reason: input.reason,
         approvedBy: input.approvedBy,
+        approvedAt: input.approvedAt,
         status: input.status as 'active' | 'revoked' | 'expired',
         expiresAt: input.expiresAt,
         createdAt: input.createdAt,
         updatedAt: input.updatedAt,
         revokedAt: input.revokedAt,
         revokedBy: input.revokedBy,
+        scope: input.scope,
       };
     }
     return this.mapRowToEntity(result.rows[0]);
   }
 
   /**
-   * Update override fields
+   * Update override fields (custom method for partial updates)
    */
-  async update(id: string, updates: {
+  async updateOverride(id: string, updates: {
     reason?: string;
     expiresAt?: Date;
     status?: string;
@@ -175,14 +184,17 @@ export class PolicyOverrideRepository extends BaseRepository<PolicyOverrideEntit
       policyId: row.policy_id,
       pipelineId: row.pipeline_id,
       runId: row.run_id,
+      violationId: row.violation_id,
       reason: row.reason,
       approvedBy: row.approved_by,
+      approvedAt: row.approved_at,
       status: row.status ?? 'active',
       expiresAt: row.expires_at,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       revokedAt: row.revoked_at,
       revokedBy: row.revoked_by,
+      scope: row.scope,
     };
   }
 }

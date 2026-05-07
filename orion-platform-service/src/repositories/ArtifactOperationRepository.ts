@@ -95,7 +95,13 @@ export class ArtifactOperationRepository extends BaseRepository<ArtifactOperatio
     const limit = options?.limit || 100;
     const offset = options?.offset || 0;
 
-    query += ` ORDER BY ${orderBy} ${orderDir} LIMIT $${paramIdx} OFFSET $${paramIdx + 1}`;
+    // Validate ORDER BY column and direction to prevent SQL injection
+    const allowedOrderColumns = ['id', 'created_at', 'updated_at', 'operation', 'status', 'artifact_id', 'tenant_id', 'initiated_by'];
+    const allowedOrderDirs = ['ASC', 'DESC'];
+    const safeColumn = allowedOrderColumns.includes(orderBy) ? orderBy : 'created_at';
+    const safeDir = allowedOrderDirs.includes(orderDir.toUpperCase()) ? orderDir.toUpperCase() : 'DESC';
+
+    query += ` ORDER BY ${safeColumn} ${safeDir} LIMIT $${paramIdx} OFFSET $${paramIdx + 1}`;
     params.push(limit, offset);
 
     const result = await this.db.query(query, params);

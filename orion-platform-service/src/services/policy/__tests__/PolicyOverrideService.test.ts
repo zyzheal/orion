@@ -24,21 +24,24 @@ function createMockRepository() {
     async findAll(): Promise<{ entities: PolicyOverrideEntity[]; total: number }> {
       return { entities: [...store], total: store.length };
     },
-    async create(input: any): Promise<PolicyOverrideEntity> {
+    async createOverride(input: any): Promise<PolicyOverrideEntity> {
       const entity: PolicyOverrideEntity = {
         id: input.id,
         tenantId: input.tenantId,
         policyId: input.policyId,
         pipelineId: input.pipelineId,
         runId: input.runId,
+        violationId: input.violationId,
         reason: input.reason,
         approvedBy: input.approvedBy,
+        approvedAt: input.approvedAt,
         status: input.status,
         expiresAt: input.expiresAt,
         createdAt: input.createdAt,
         updatedAt: input.updatedAt,
         revokedAt: input.revokedAt,
         revokedBy: input.revokedBy,
+        scope: input.scope,
       };
       store.push(entity);
       return entity;
@@ -59,7 +62,7 @@ function createMockRepository() {
     async findActiveByTenantAndPolicy(tenantId: string, policyId: string): Promise<PolicyOverrideEntity | undefined> {
       return store.find(e => e.tenantId === tenantId && e.policyId === policyId && e.status === 'active');
     },
-    async update(id: string, updates: any): Promise<PolicyOverrideEntity | undefined> {
+    async updateOverride(id: string, updates: any): Promise<PolicyOverrideEntity | undefined> {
       const entity = store.find(e => e.id === id);
       if (!entity) return undefined;
       Object.assign(entity, updates);

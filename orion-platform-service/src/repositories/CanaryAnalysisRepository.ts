@@ -1,4 +1,4 @@
-import { BaseRepository } from '../db/base-repository';
+import { BaseRepository, FindAllResult } from '../db/base-repository';
 
 // Entity types
 export interface CanaryAnalysisRunEntity {
@@ -207,7 +207,7 @@ export class CanaryAnalysisConfigRepository extends BaseRepository<CanaryAnalysi
     return this.mapRowToEntity(result.rows[0]);
   }
 
-  async findAll(): Promise<{ entities: CanaryAnalysisConfigEntity[]; total: number }> {
+  async findAll(): Promise<FindAllResult<CanaryAnalysisConfigEntity>> {
     const result = await this.db.query(
       `SELECT * FROM canary_analysis_configs ORDER BY service_name, environment`,
     );
@@ -328,11 +328,12 @@ export class CanaryRetrainJobRepository extends BaseRepository<CanaryRetrainJobE
     return this.mapRowToEntity(result.rows[0]);
   }
 
-  async findAll(): Promise<CanaryRetrainJobEntity[]> {
+  async findAll(): Promise<FindAllResult<CanaryRetrainJobEntity>> {
     const result = await this.db.query(
       `SELECT * FROM canary_retrain_jobs ORDER BY submitted_at DESC`,
     );
-    return result.rows.map(row => this.mapRowToEntity(row));
+    const entities = result.rows.map(row => this.mapRowToEntity(row));
+    return { entities, total: entities.length };
   }
 
   async updateStatus(id: string, status: string, errorMessage?: string): Promise<CanaryRetrainJobEntity | undefined> {

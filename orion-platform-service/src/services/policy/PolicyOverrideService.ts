@@ -96,7 +96,7 @@ export class PolicyOverrideService {
       updatedAt: now,
     };
 
-    const entity = await this.repository.create(dbInput);
+    const entity = await this.repository.createOverride(dbInput);
     return this.entityToDomain(entity);
   }
 
@@ -106,19 +106,13 @@ export class PolicyOverrideService {
    * Get active overrides for a tenant
    */
   async getActiveOverrides(tenantId: string): Promise<PolicyOverride[]> {
-    const entities = await this.repository.findActiveByTenant(tenantId);
-    const results: PolicyOverride[] = [];
+    // First, batch-update all expired active overrides to 'expired' status
     const now = new Date();
+    await this.repository.markExpired(now);
 
-    for (const entity of entities) {
-      // Check if expired
-      if (entity.expiresAt && entity.expiresAt < now) {
-        await this.repository.update(entity.id, { status: 'expired', updatedAt: now });
-        continue;
-      }
-      results.push(this.entityToDomain(entity));
-    }
-    return results;
+    // Then fetch the still-active (non-expired) overrides
+    const entities = await this.repository.findActiveByTenant(tenantId);
+    return entities.map(e => this.entityToDomain(e));
   }
 
   /**
@@ -147,7 +141,7 @@ export class PolicyOverrideService {
 
     // Check if expired
     if (entity.expiresAt && entity.expiresAt < new Date()) {
-      await this.repository.update(entity.id, { status: 'expired', updatedAt: new Date() });
+      await this.repository.updateOverride(entity.id, { status: 'expired', updatedAt: new Date() });
       return false;
     }
     return true;
@@ -175,7 +169,7 @@ export class PolicyOverrideService {
     }
 
     const now = new Date();
-    const updated = await this.repository.update(overrideId, {
+    const updated = await this.repository.updateOverride(overrideId, {
       status: 'revoked',
       revokedBy,
       revokedAt: now,
@@ -221,7 +215,7 @@ export class PolicyOverrideService {
     if (input.reason !== undefined) updates.reason = input.reason;
     if (input.expiresAt !== undefined) updates.expiresAt = input.expiresAt;
 
-    const updated = await this.repository.update(overrideId, updates);
+    const updated = await this.repository.updateOverride(overrideId, updates);
     if (!updated) {
       throw new PolicyOverrideServiceError('Failed to update override', 'UPDATE_FAILED');
     }
