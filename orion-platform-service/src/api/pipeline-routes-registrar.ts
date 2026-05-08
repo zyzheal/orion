@@ -11,12 +11,14 @@ import { PipelineController } from './controllers/PipelineController';
 import { PipelineRunController } from './controllers/PipelineRunController';
 import { StageController } from './controllers/StageController';
 import { TaskController } from './controllers/TaskController';
+import { ApprovalController } from './controllers/ApprovalController';
 
 export interface PipelineRouteDeps {
   pipelineController: PipelineController;
   pipelineRunController: PipelineRunController;
   stageController: StageController;
   taskController: TaskController;
+  approvalController?: ApprovalController;
 }
 
 /**
@@ -143,4 +145,43 @@ export async function registerPipelineRoutes(
       return taskController.retry(request, reply);
     });
   });
+
+  // ==================== Approval Gate 路由 (auth protected) ====================
+  if (deps.approvalController) {
+    await app.register(async (instance: FastifyInstance) => {
+      instance.addHook('onRequest', authenticateUser);
+
+      // GET /api/v1/pipeline-runs/:runId/approvals - 获取 run 的所有审批请求
+      instance.get(
+        '/v1/pipeline-runs/:runId/approvals',
+        async (request: FastifyRequest, reply: FastifyReply) => {
+          return deps.approvalController!.listByRun(request, reply);
+        }
+      );
+
+      // GET /api/v1/pipeline-runs/:runId/stages/:stageId/approval - 获取特定 stage 的审批状态
+      instance.get(
+        '/v1/pipeline-runs/:runId/stages/:stageId/approval',
+        async (request: FastifyRequest, reply: FastifyReply) => {
+          return deps.approvalController!.getStatus(request, reply);
+        }
+      );
+
+      // POST /api/v1/pipeline-runs/:runId/stages/:stageId/approve - 审批通过
+      instance.post(
+        '/v1/pipeline-runs/:runId/stages/:stageId/approve',
+        async (request: FastifyRequest, reply: FastifyReply) => {
+          return deps.approvalController!.approve(request, reply);
+        }
+      );
+
+      // POST /api/v1/pipeline-runs/:runId/stages/:stageId/reject - 审批拒绝
+      instance.post(
+        '/v1/pipeline-runs/:runId/stages/:stageId/reject',
+        async (request: FastifyRequest, reply: FastifyReply) => {
+          return deps.approvalController!.reject(request, reply);
+        }
+      );
+    });
+  }
 }

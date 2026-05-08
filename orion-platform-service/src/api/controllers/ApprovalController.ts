@@ -7,6 +7,7 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { MultiLevelApprovalService, ApprovalAction, ApprovalMode, ApprovalRequestInput, ApprovalRequestDetail } from '../../services/approval/MultiLevelApprovalService';
 import { EmergencyApprovalService, EmergencyReason, EmergencyApprovalInput } from '../../services/approval/EmergencyApprovalService';
 import { ApprovalTemplateService, ApprovalTemplateInput } from '../../services/approval/ApprovalTemplateService';
+import { ApprovalGateService } from '../../services/pipeline/ApprovalGateService';
 
 // ==================== Request/Response Types ====================
 
@@ -73,15 +74,18 @@ export class ApprovalController {
   private multiLevelService: MultiLevelApprovalService;
   private emergencyService: EmergencyApprovalService;
   private templateService: ApprovalTemplateService;
+  private approvalGateService: ApprovalGateService | null;
 
   constructor(
     multiLevelService: MultiLevelApprovalService,
     emergencyService: EmergencyApprovalService,
     templateService: ApprovalTemplateService,
+    approvalGateService?: ApprovalGateService,
   ) {
     this.multiLevelService = multiLevelService;
     this.emergencyService = emergencyService;
     this.templateService = templateService;
+    this.approvalGateService = approvalGateService || null;
   }
 
   // ==================== Multi-Level Approval ====================
@@ -329,6 +333,109 @@ export class ApprovalController {
     } catch (error) {
       const message = error instanceof Error ? error.message : 'TEMPLATES_ERROR';
       return reply.status(500).send({ error: 'TEMPLATES_ERROR', message });
+    }
+  }
+
+  // ==================== Pipeline Approval Gate ====================
+
+  /**
+   * 获取 Pipeline Run 的所有审批请求
+   * GET /api/v1/pipeline-runs/:runId/approvals
+   */
+  async listByRun(request: FastifyRequest, reply: FastifyReply) {
+    if (!this.approvalGateService) {
+      return reply.status(501).send({ error: 'NOT_IMPLEMENTED', message: 'Approval gate not configured' });
+    }
+    try {
+      const { runId } = request.params as { runId: string };
+      const approvals = this.approvalGateService.getByRun(runId);
+      return reply.status(200).send({ success: true, data: approvals });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'LIST_ERROR';
+      return reply.status(500).send({ error: 'LIST_ERROR', message });
+    }
+  }
+
+  /**
+   * 获取特定 Stage 的审批状态
+   * GET /api/v1/pipeline-runs/:runId/stages/:stageId/approval
+   */
+  async getStatus(request: FastifyRequest, reply: FastifyReply) {
+    if (!this.approvalGateService) {
+      return reply.status(501).send({ error: 'NOT_IMPLEMENTED', message: 'Approval gate not configured' });
+    }
+    try {
+      const { runId, stageId } = request.params as { runId: string; stageId: string };
+      const status = this.approvalGateService.getStatus(runId, stageId);
+      if (!status) {
+        return reply.status(404).send({ error: 'NOT_FOUND', message: 'No approval request found' });
+      }
+      return reply.status(200).send({ success: true, data: status });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'GET_ERROR';
+      return reply.status(500).send({ error: 'GET_ERROR', message });
+    }
+  }
+
+  /**
+   * 审批通过
+   * POST /api/v1/pipeline-runs/:runId/stages/:stageId/approve
+   */
+  async approve(request: FastifyRequest, reply: FastifyReply) {
+    if (!this.approvalGateService) {
+      return reply.status(501).send({ error: 'NOT_IMPLEMENTED', message: 'Approval gate not configured' });
+    }
+    try {
+      const { runId, stageId } = request.params as { runId: string; stageId: string };
+      const body = request.body as { userId: string; comment?: string };
+      const { userId, comment } = body;
+
+      if (!userId) {
+        return reply.status(400).send({
+          error: 'VALIDATION_ERROR',
+          message: 'userId is required',
+        });
+      }
+
+      const result = await this.approvalGateService.approve(runId, stageId, userId, comment);
+      return reply.status(200).send({ success: true, data: result });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'APPROVE_ERROR';
+      if (message.includes('not authorized') || message.includes('No pending')) {
+        return reply.status(400).send({ error: 'APPROVE_ERROR', message });
+      }
+      return reply.status(500).send({ error: 'APPROVE_ERROR', message });
+    }
+  }
+
+  /**
+   * 审批拒绝
+   * POST /api/v1/pipeline-runs/:runId/stages/:stageId/reject
+   */
+  async reject(request: FastifyRequest, reply: FastifyReply) {
+    if (!this.approvalGateService) {
+      return reply.status(501).send({ error: 'NOT_IMPLEMENTED', message: 'Approval gate not configured' });
+    }
+    try {
+      const { runId, stageId } = request.params as { runId: string; stageId: string };
+      const body = request.body as { userId: string; comment?: string };
+      const { userId, comment } = body;
+
+      if (!userId) {
+        return reply.status(400).send({
+          error: 'VALIDATION_ERROR',
+          message: 'userId is required',
+        });
+      }
+
+      const result = await this.approvalGateService.reject(runId, stageId, userId, comment);
+      return reply.status(200).send({ success: true, data: result });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'REJECT_ERROR';
+      if (message.includes('not authorized') || message.includes('No pending')) {
+        return reply.status(400).send({ error: 'REJECT_ERROR', message });
+      }
+      return reply.status(500).send({ error: 'REJECT_ERROR', message });
     }
   }
 }

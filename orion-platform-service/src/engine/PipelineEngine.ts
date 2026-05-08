@@ -18,6 +18,7 @@ import { PipelineRunService } from '../services/pipeline/PipelineRunService';
 import { PipelineEventPublisher } from '../events/PipelineEventPublisher';
 import { StageExecutor } from './StageExecutor';
 import { ArtifactService } from '../services/pipeline/ArtifactService';
+import { ApprovalGateService } from '../services/pipeline/ApprovalGateService';
 import pino from 'pino';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
@@ -36,6 +37,7 @@ export class PipelineEngine {
   private eventPublisher: PipelineEventPublisher;
   private stageExecutor: StageExecutor;
   private artifactService: ArtifactService | null;
+  private approvalGateService: ApprovalGateService | null;
 
   // 内存存储执行中的 Pipeline
   private executions = new Map<string, PipelineExecution>();
@@ -43,18 +45,23 @@ export class PipelineEngine {
   // 防止 checkNextStages 并发调用导致重复执行
   private nextStageCheckLocks = new Map<string, Promise<void>>();
 
+  // 需要恢复的 pipeline runs（审批通过后重新触发）
+  private resumeQueue = new Set<string>();
+
   constructor(
     pipelineService: PipelineService,
     runService: PipelineRunService,
     eventPublisher: PipelineEventPublisher,
     stageExecutor: StageExecutor,
-    artifactService?: ArtifactService
+    artifactService?: ArtifactService,
+    approvalGateService?: ApprovalGateService
   ) {
     this.pipelineService = pipelineService;
     this.runService = runService;
     this.eventPublisher = eventPublisher;
     this.stageExecutor = stageExecutor;
     this.artifactService = artifactService || null;
+    this.approvalGateService = approvalGateService || null;
   }
 
   /**
@@ -163,6 +170,7 @@ export class PipelineEngine {
   /**
    * 执行待处理的 Stages
    * 改进：支持并行执行 — 检测无依赖关系的 stages，使用 Promise.allSettled 并发执行
+   * Phase 2: 新增审批网关检查
    */
   private async executePendingStages(execution: PipelineExecution): Promise<void> {
     const stagesToExecute = Array.from(execution.pendingStages);
@@ -183,6 +191,32 @@ export class PipelineEngine {
         execution.completedStages.add(stageId);
         continue;
       }
+
+      // Phase 2: 检查审批网关
+      const approvalCheck = await this.checkApprovalGate(execution, stage);
+      if (approvalCheck === 'pending') {
+        // 审批尚未通过，从待处理中移除但标记为等待审批
+        execution.pendingStages.delete(stageId);
+        // 不加入 eligibleStageIds，等待审批通过后再执行
+        continue;
+      } else if (approvalCheck === 'rejected') {
+        // 审批被拒绝，跳过此 stage
+        const skippedStage = {
+          ...stage,
+          status: StageStatus.SKIPPED,
+          completedAt: new Date(),
+          error: 'Approval rejected',
+        };
+        execution.stages.set(stageId, skippedStage);
+        await this.runService.updateStage(skippedStage);
+        await this.eventPublisher.publishStageSkipped(execution.run.id, skippedStage);
+
+        execution.pendingStages.delete(stageId);
+        execution.completedStages.add(stageId);
+        continue;
+      }
+
+      // 审批通过或不需要审批，加入可执行列表
       eligibleStageIds.push(stageId);
     }
 
@@ -579,5 +613,167 @@ export class PipelineEngine {
     this.executions.delete(runId);
 
     return true;
+  }
+
+  // ==================== Approval Gate Methods ====================
+
+  /**
+   * 检查 Stage 的审批网关
+   * @returns 'proceed' - 可以继续执行 | 'pending' - 等待审批 | 'rejected' - 审批被拒绝
+   */
+  private async checkApprovalGate(
+    execution: PipelineExecution,
+    stage: Stage
+  ): Promise<'proceed' | 'pending' | 'rejected'> {
+    if (!this.approvalGateService) {
+      return 'proceed';
+    }
+
+    // 从 stage 配置中获取审批人（这里从 YAML 定义中解析）
+    const approvers = this.extractApproversFromStage(stage);
+    if (!approvers || approvers.length === 0) {
+      return 'proceed';
+    }
+
+    // 检查是否已有审批记录
+    const existingStatus = this.approvalGateService.getStatus(execution.run.id, stage.id);
+    if (existingStatus) {
+      if (existingStatus.status === 'approved') {
+        return 'proceed';
+      } else if (existingStatus.status === 'pending') {
+        return 'pending';
+      } else if (existingStatus.status === 'rejected') {
+        return 'rejected';
+      }
+    }
+
+    // 需要审批但尚未请求，创建审批请求
+    await this.approvalGateService.requestApproval({
+      runId: execution.run.id,
+      stageId: stage.id,
+      stageName: stage.name,
+      approvers,
+      reason: `Approval required before executing stage '${stage.name}'`,
+      tenantId: (execution.run.context as any)?.tenantId,
+    });
+
+    // 更新 stage 状态为 waiting_approval
+    const waitingStage = {
+      ...stage,
+      status: StageStatus.PENDING, // 保持 pending 但不在待处理队列中
+    };
+    execution.stages.set(stage.id, waitingStage);
+
+    logger.info(
+      { runId: execution.run.id, stageName: stage.name, approvers },
+      'Stage requires approval'
+    );
+
+    return 'pending';
+  }
+
+  /**
+   * 从 Stage 配置中提取审批人列表
+   */
+  private extractApproversFromStage(stage: Stage): string[] | null {
+    // 从 result 字段中读取 approvers（在 YAML 解析时注入）
+    if (stage.result && (stage.result as any).approvers) {
+      const approvers = (stage.result as any).approvers;
+      if (Array.isArray(approvers)) return approvers;
+    }
+    return null;
+  }
+
+  /**
+   * 审批通过一个 stage
+   */
+  async approveStage(
+    runId: string,
+    stageId: string,
+    userId: string,
+    comment?: string
+  ): Promise<void> {
+    if (!this.approvalGateService) {
+      throw new Error('Approval gate service not configured');
+    }
+
+    // 更新审批状态
+    await this.approvalGateService.approve(runId, stageId, userId, comment);
+
+    // 将 stage 重新加入待处理队列，触发继续执行
+    this.resumeAfterApproval(runId, stageId);
+  }
+
+  /**
+   * 审批拒绝一个 stage
+   */
+  async rejectStage(
+    runId: string,
+    stageId: string,
+    userId: string,
+    comment?: string
+  ): Promise<void> {
+    if (!this.approvalGateService) {
+      throw new Error('Approval gate service not configured');
+    }
+
+    await this.approvalGateService.reject(runId, stageId, userId, comment);
+
+    // 标记 pipeline 为失败
+    const execution = this.executions.get(runId);
+    if (execution) {
+      const stage = execution.stages.get(stageId);
+      if (stage) {
+        const rejectedStage = {
+          ...stage,
+          status: StageStatus.FAILED,
+          completedAt: new Date(),
+          error: `Approval rejected by ${userId}${comment ? `: ${comment}` : ''}`,
+        };
+        execution.stages.set(stageId, rejectedStage);
+        await this.runService.updateStage(rejectedStage);
+        await this.eventPublisher.publishStageFailed(execution.run.id, rejectedStage, rejectedStage.error);
+
+        execution.runningStages.delete(stageId);
+        execution.completedStages.add(stageId);
+
+        // 标记依赖于此 stage 的其他 stages 为失败
+        this.failDependentStages(execution, rejectedStage);
+        await this.checkRunCompletion(execution);
+      }
+    }
+  }
+
+  /**
+   * 审批通过后恢复 stage 执行
+   */
+  private async resumeAfterApproval(runId: string, stageId: string): Promise<void> {
+    const execution = this.executions.get(runId);
+    if (!execution) return;
+
+    const stage = execution.stages.get(stageId);
+    if (!stage) return;
+
+    // 将 stage 重新加入待处理队列
+    execution.pendingStages.add(stageId);
+
+    // 触发执行
+    await this.executePendingStages(execution);
+  }
+
+  /**
+   * 获取审批状态
+   */
+  getApprovalStatus(runId: string, stageId: string) {
+    if (!this.approvalGateService) return null;
+    return this.approvalGateService.getStatus(runId, stageId);
+  }
+
+  /**
+   * 获取 run 的所有审批请求
+   */
+  getApprovalRequestsByRun(runId: string) {
+    if (!this.approvalGateService) return [];
+    return this.approvalGateService.getByRun(runId);
   }
 }
