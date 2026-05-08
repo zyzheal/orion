@@ -23,6 +23,7 @@ import { TaskRunner } from '../engine/TaskRunner';
 import { PipelineEventPublisher } from '../events/PipelineEventPublisher';
 import { EventBusService } from '../services/event-bus-service';
 import { registerPipelineRoutes } from './pipeline-routes-registrar';
+import pipelineSSERoutes from './pipeline-sse-routes';
 import { DatabasePool } from '../services/database';
 import cmdbRoutes from '../routes-cmdb';
 import buildRoutes from './build-routes';
@@ -43,6 +44,7 @@ import backupRoutes from './backup-routes';
 import pluginSpiRoutes from './plugin-spi-routes';
 import aiSecurityRoutes from './ai-security-routes';
 import pluginRoutes from '../routes-plugin';
+import pluginEnhancedRoutes from './plugin-routes';
 import aiGatewayRoutes from './ai-gateway-routes';
 import alertRoutes from './alert-routes';
 import auditRoutes from './audit-routes';
@@ -328,6 +330,9 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
     taskController,
   });
 
+  // ==================== Pipeline SSE 实时日志路由 ====================
+  await app.register(pipelineSSERoutes, { prefix: '/v1' });
+
   // ==================== CMDB 路由 ====================
 
   // 注册 CMDB API 路由
@@ -389,6 +394,9 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // 注册 Plugin Management API 路由
   await registerWithRoleGuard(app, pluginRoutes, '/v1/plugins');
+
+  // 注册 Plugin Enhanced API 路由 (Phase 1)
+  await registerWithRoleGuard(app, pluginEnhancedRoutes, '/v1/plugins-enhanced', { database: options.database });
 
   // 注册 AI 安全加固 API 路由 (TASK-1004) — P1-15 Fix: pass database for audit log persistence
   await registerWithRoleGuard(app, aiSecurityRoutes, '/v1/ai-security', { database: options.database });
