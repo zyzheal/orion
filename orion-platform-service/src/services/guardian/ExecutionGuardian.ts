@@ -28,6 +28,7 @@ export class ExecutionGuardian extends EventEmitter {
     globalTimer: NodeJS.Timeout | undefined;
     stepTimer: NodeJS.Timeout | undefined;
     aborted: boolean;
+    abortListener?: () => void;
   }> = new Map();
 
   constructor(config: Partial<GuardianConfig> = {}) {
@@ -88,6 +89,10 @@ export class ExecutionGuardian extends EventEmitter {
     if (taskState) {
       if (taskState.globalTimer) clearTimeout(taskState.globalTimer);
       if (taskState.stepTimer) clearTimeout(taskState.stepTimer);
+      // Remove abort listener if registered
+      if (taskState.abortListener) {
+        this.off('task:aborted', taskState.abortListener);
+      }
     }
     this.heartbeatWatchdog.unregister(taskId);
     this.activeTasks.delete(taskId);
@@ -96,6 +101,16 @@ export class ExecutionGuardian extends EventEmitter {
 
   heartbeat(taskId: string): void {
     this.heartbeatWatchdog.beat(taskId);
+    // Reset step timer on heartbeat
+    const taskState = this.activeTasks.get(taskId);
+    if (taskState && !taskState.aborted) {
+      if (taskState.stepTimer) {
+        clearTimeout(taskState.stepTimer);
+      }
+      taskState.stepTimer = setTimeout(() => {
+        this.onStepTimeout(taskId);
+      }, this.config.stepTimeoutMs);
+    }
   }
 
   async abortTask(taskId: string, reason: string): Promise<void> {
@@ -111,11 +126,19 @@ export class ExecutionGuardian extends EventEmitter {
 
   createAbortSignal(taskId: string): AbortController {
     const controller = new AbortController();
-    this.on('task:aborted', ({ taskId: abortedId }) => {
-      if (abortedId === taskId && !controller.signal.aborted) {
-        controller.abort(new Error(`Task aborted: ${abortedId}`));
+    const listener = (data: { taskId: string }) => {
+      if (data.taskId === taskId && !controller.signal.aborted) {
+        controller.abort(new Error(`Task aborted: ${data.taskId}`));
       }
-    });
+    };
+    this.once('task:aborted', listener);
+
+    // Store listener reference for cleanup
+    const taskState = this.activeTasks.get(taskId);
+    if (taskState) {
+      taskState.abortListener = listener as () => void;
+    }
+
     return controller;
   }
 

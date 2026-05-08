@@ -31,34 +31,35 @@ export class InlineScriptApprovalRepository extends BaseRepository<InlineScriptA
   }
 
   /**
-   * Find approval by approval_id (unique business key)
+   * Find approval by approval_id (unique business key) with tenant isolation
    */
-  async findByApprovalId(approvalId: string): Promise<InlineScriptApprovalEntity | undefined> {
+  async findByApprovalId(approvalId: string, tenantId: string): Promise<InlineScriptApprovalEntity | undefined> {
     const result = await this.db.query(
-      `SELECT * FROM inline_script_approvals WHERE approval_id = $1`,
-      [approvalId],
+      `SELECT * FROM inline_script_approvals WHERE approval_id = $1 AND tenant_id = $2`,
+      [approvalId, tenantId],
     );
     if (result.rows.length === 0) return undefined;
     return this.mapRowToEntity(result.rows[0]);
   }
 
   /**
-   * Update approval status
+   * Update approval status with tenant isolation
    */
   async updateStatus(
     approvalId: string,
+    tenantId: string,
     status: string,
     currentApprovals?: number,
   ): Promise<InlineScriptApprovalEntity> {
     const result = await this.db.query(
       `UPDATE inline_script_approvals
        SET status = $1, current_approvals = COALESCE($2, current_approvals), updated_at = NOW()
-       WHERE approval_id = $3
+       WHERE approval_id = $3 AND tenant_id = $4
        RETURNING *`,
-      [status, currentApprovals, approvalId],
+      [status, currentApprovals, approvalId, tenantId],
     );
     if (result.rows.length === 0) {
-      throw new Error(`Approval with approval_id ${approvalId} not found`);
+      throw new Error(`Approval with approval_id ${approvalId} not found for tenant`);
     }
     return this.mapRowToEntity(result.rows[0]);
   }

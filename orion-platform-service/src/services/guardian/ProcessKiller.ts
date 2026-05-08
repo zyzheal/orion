@@ -1,11 +1,14 @@
 import pino from 'pino';
+import { exec } from 'child_process';
+import { promisify } from 'util';
 
+const execAsync = promisify(exec);
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
 interface ProcessInfo {
   taskId: string;
   pid: number;
-  process: NodeJS.Process;
+  pgid?: number;  // Process group ID
   containerId?: string;
 }
 
@@ -29,30 +32,42 @@ export class ProcessKiller {
 
     logger.info({ taskId, pid: processInfo.pid, reason }, 'Starting process kill sequence');
 
-    // Phase 1: SIGTERM
-    logger.info({ taskId }, 'Phase 1: Giving SIGTERM');
+    // Phase 1: SIGTERM to process group (prevents orphan children)
+    logger.info({ taskId }, 'Phase 1: Giving SIGTERM to process group');
     try {
-      process.kill(processInfo.pid, 'SIGTERM');
+      const targetPid = processInfo.pgid || processInfo.pid;
+      // Negative PID means process group
+      process.kill(-targetPid, 'SIGTERM');
     } catch {
-      logger.warn({ taskId }, 'SIGTERM failed, process may already be dead');
+      // Fallback to single process
+      try {
+        process.kill(processInfo.pid, 'SIGTERM');
+      } catch {
+        logger.warn({ taskId }, 'SIGTERM failed, process may already be dead');
+      }
     }
 
     await this.waitForExit(processInfo.pid, 5000);
 
     if (this.isAlive(processInfo.pid)) {
-      // Phase 2: SIGKILL
-      logger.warn({ taskId }, 'Phase 2: SIGTERM ignored, sending SIGKILL');
+      // Phase 2: SIGKILL to process group
+      logger.warn({ taskId }, 'Phase 2: SIGTERM ignored, sending SIGKILL to process group');
       try {
-        process.kill(processInfo.pid, 'SIGKILL');
+        const targetPid = processInfo.pgid || processInfo.pid;
+        process.kill(-targetPid, 'SIGKILL');
       } catch {
-        logger.warn({ taskId }, 'SIGKILL failed');
+        try {
+          process.kill(processInfo.pid, 'SIGKILL');
+        } catch {
+          logger.warn({ taskId }, 'SIGKILL failed');
+        }
       }
 
       await this.waitForExit(processInfo.pid, 2000);
 
       if (this.isAlive(processInfo.pid) && processInfo.containerId) {
-        // Phase 3: Container freeze
-        logger.error({ taskId, containerId: processInfo.containerId }, 'Phase 3: Freezing container');
+        // Phase 3: Container freeze and kill (real implementation)
+        logger.error({ taskId, containerId: processInfo.containerId }, 'Phase 3: Freezing and killing container');
         try {
           await this.dockerCommand(processInfo.containerId, 'pause');
           await this.dockerCommand(processInfo.containerId, 'kill');
@@ -87,6 +102,12 @@ export class ProcessKiller {
   }
 
   private async dockerCommand(containerId: string, command: string): Promise<void> {
-    logger.info({ containerId, command }, `Docker ${command} (simulated)`);
+    try {
+      const { stdout } = await execAsync(`docker ${command} ${containerId}`);
+      logger.info({ containerId, command, stdout: stdout.trim() }, `Docker ${command} completed`);
+    } catch (error) {
+      logger.error({ containerId, command, error }, `Docker ${command} failed`);
+      throw error;
+    }
   }
 }

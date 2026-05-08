@@ -9,6 +9,8 @@
  */
 
 import { Task, TaskStatus, appendTaskLog } from '../models/Task';
+import { PluginExecutorService, TaskExecutionRequest, TaskStatus as PluginTaskStatus } from '../services/plugin-executor-service';
+import { InlineScriptService, InlineScriptExecutionRequest } from '../services/inline-script/InlineScriptService';
 
 export interface TaskExecutionResult {
   status: TaskStatus;
@@ -18,6 +20,17 @@ export interface TaskExecutionResult {
 }
 
 export class TaskRunner {
+  private pluginExecutor?: PluginExecutorService;
+  private inlineScriptService?: InlineScriptService;
+
+  constructor(options?: {
+    pluginExecutor?: PluginExecutorService;
+    inlineScriptService?: InlineScriptService;
+  }) {
+    this.pluginExecutor = options?.pluginExecutor;
+    this.inlineScriptService = options?.inlineScriptService;
+  }
+
   /**
    * 执行 Task
    */
@@ -175,12 +188,51 @@ export class TaskRunner {
   }
 
   private async executePluginTask(task: Task, signal?: AbortSignal): Promise<Record<string, unknown>> {
-    const pluginId = task.parameters.pluginId;
-    const pluginName = task.parameters.pluginName || pluginId;
+    const pluginId = task.parameters.pluginId as string;
+    const pluginName = (task.parameters.pluginName as string) || pluginId;
 
     task = appendTaskLog(task, `[PLUGIN] Executing plugin: ${pluginName}`);
 
-    // Phase 1: Simulated execution, will be wired to PluginExecutorService later
+    // Use real PluginExecutorService if available
+    if (this.pluginExecutor) {
+      try {
+        const request: TaskExecutionRequest = {
+          taskId: (task.id as string) || `task-${Date.now()}`,
+          pipelineRunId: (task.parameters.pipelineRunId as string) || 'unknown',
+          stageId: (task.parameters.stageId as string) || 'unknown',
+          pluginId,
+          config: (task.parameters.config as Record<string, any>) || {},
+          workspace: { rootPath: (task.parameters.workspace as string) || '/tmp' },
+          env: task.parameters.env as Record<string, string> | undefined,
+          timeout: task.parameters.timeout as number | undefined,
+          userId: task.parameters.userId as string | undefined,
+          tenantId: task.parameters.tenantId as string | undefined,
+        };
+
+        const result = await this.pluginExecutor.executeTask(request);
+        return {
+          pluginId,
+          pluginName,
+          status: result.status,
+          exitCode: result.exitCode,
+          stdout: result.stdout,
+          stderr: result.stderr,
+          durationMs: result.durationMs,
+          errorMessage: result.errorMessage,
+          log: task.log,
+        };
+      } catch (error) {
+        return {
+          pluginId,
+          pluginName,
+          status: 'failed',
+          errorMessage: error instanceof Error ? error.message : 'Unknown error',
+          log: task.log,
+        };
+      }
+    }
+
+    // Fallback to simulated execution
     await this.sleep(100, signal);
 
     return {
@@ -195,19 +247,65 @@ export class TaskRunner {
   }
 
   private async executeInlineScriptTask(task: Task, signal?: AbortSignal): Promise<Record<string, unknown>> {
-    const level = task.parameters.level || 'safe';
-    const language = task.parameters.language || 'javascript';
-    const code = task.parameters.code || '';
+    const level = (task.parameters.level as string) || 'safe';
+    const language = (task.parameters.language as string) || 'javascript';
+    const code = (task.parameters.code as string) || '';
 
     task = appendTaskLog(task, `[INLINE-SCRIPT] Level: ${level}, Language: ${language}`);
 
-    // Phase 1: Simulated execution
+    // Use real InlineScriptService if available
+    if (this.inlineScriptService) {
+      try {
+        const request: InlineScriptExecutionRequest = {
+          taskId: (task.id as string) || `task-${Date.now()}`,
+          pipelineRunId: (task.parameters.pipelineRunId as string) || 'unknown',
+          stageId: (task.parameters.stageId as string) || 'unknown',
+          config: {
+            level: level as any,
+            language,
+            code,
+            permissions: task.parameters.permissions as any,
+            approvalId: task.parameters.approvalId as string | undefined,
+          },
+          workspace: { rootPath: (task.parameters.workspace as string) || '/tmp' },
+          env: task.parameters.env as Record<string, string> | undefined,
+          timeout: task.parameters.timeout as number | undefined,
+          userId: task.parameters.userId as string | undefined,
+          tenantId: task.parameters.tenantId as string | undefined,
+        };
+
+        const result = await this.inlineScriptService.execute(request);
+        return {
+          level,
+          language,
+          codeLength: code.length,
+          status: result.status,
+          exitCode: result.status === 'success' ? 0 : 1,
+          stdout: result.stdout,
+          stderr: result.stderr,
+          durationMs: result.durationMs,
+          errorMessage: result.errorMessage,
+          log: task.log,
+        };
+      } catch (error) {
+        return {
+          level,
+          language,
+          codeLength: code.length,
+          status: 'failed',
+          errorMessage: error instanceof Error ? error.message : 'Unknown error',
+          log: task.log,
+        };
+      }
+    }
+
+    // Fallback to simulated execution
     await this.sleep(50, signal);
 
     return {
       level,
       language,
-      codeLength: (code as string).length,
+      codeLength: code.length,
       simulated: true,
       exitCode: 0,
       stdout: 'Inline script executed successfully',

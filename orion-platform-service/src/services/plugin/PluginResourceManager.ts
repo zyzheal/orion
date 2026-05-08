@@ -50,14 +50,24 @@ export class PluginResourceManager extends EventEmitter {
   private globalQuota: ResourceQuota;
   private stats: ResourceStats;
   private pluginQuotas: Map<string, ResourceQuota> = new Map();
+  // Per-tenant quota tracking
+  private tenantAllocations: Map<string, number> = new Map(); // tenantId -> active count
+  private tenantQuotas: Map<string, ResourceQuota> = new Map(); // tenantId -> quota
+  private defaultTenantQuota: ResourceQuota;
 
-  constructor(options?: { globalQuota?: ResourceQuota }) {
+  constructor(options?: { globalQuota?: ResourceQuota; defaultTenantQuota?: ResourceQuota }) {
     super();
     this.globalQuota = options?.globalQuota || {
       cpuCores: 8,
       memoryBytes: 16 * 1024 * 1024 * 1024, // 16GB
       timeoutMs: 300000, // 5 分钟
       maxConcurrent: 50,
+    };
+    this.defaultTenantQuota = options?.defaultTenantQuota || {
+      cpuCores: 2,
+      memoryBytes: 4 * 1024 * 1024 * 1024, // 4GB per tenant
+      timeoutMs: 120000,
+      maxConcurrent: 10,
     };
     this.stats = {
       totalAllocated: 0,
@@ -121,6 +131,99 @@ export class PluginResourceManager extends EventEmitter {
     }
 
     return { ...DEFAULT_QUOTA };
+  }
+
+  /**
+   * 设置租户配额
+   */
+  setTenantQuota(tenantId: string, quota: ResourceQuota): void {
+    this.tenantQuotas.set(tenantId, quota);
+    logger.info({ tenantId, quota }, 'Tenant quota configured');
+  }
+
+  /**
+   * 获取租户配额
+   */
+  getTenantQuota(tenantId: string): ResourceQuota {
+    return this.tenantQuotas.get(tenantId) || { ...this.defaultTenantQuota };
+  }
+
+  /**
+   * 获取租户可用资源
+   */
+  getTenantAvailableResources(tenantId: string): {
+    cpuCores: number;
+    memoryBytes: number;
+    concurrencySlots: number;
+  } {
+    const tenantQuota = this.getTenantQuota(tenantId);
+    const tenantActive = this.tenantAllocations.get(tenantId) || 0;
+    return {
+      cpuCores: tenantQuota.cpuCores,
+      memoryBytes: tenantQuota.memoryBytes,
+      concurrencySlots: tenantQuota.maxConcurrent - tenantActive,
+    };
+  }
+
+  /**
+   * 检查租户配额
+   */
+  canAllocateForTenant(tenantId: string, quota: ResourceQuota): { canAllocate: boolean; reason?: string } {
+    const tenantAvailable = this.getTenantAvailableResources(tenantId);
+
+    if (tenantAvailable.concurrencySlots <= 0) {
+      return {
+        canAllocate: false,
+        reason: `Tenant ${tenantId} reached max concurrent executions (${this.getTenantQuota(tenantId).maxConcurrent})`,
+      };
+    }
+
+    // Also check global quota
+    const globalCheck = this.canAllocate(quota);
+    if (!globalCheck.canAllocate) {
+      return globalCheck;
+    }
+
+    return { canAllocate: true };
+  }
+
+  /**
+   * 分配资源配额（带租户隔离）
+   */
+  allocateQuotaForTenant(
+    taskId: string,
+    pluginId: string,
+    tenantId: string,
+    securityLevel?: string
+  ): ExecutionContext | null {
+    const quota = this.getPluginQuota(pluginId, securityLevel);
+
+    // Check tenant quota
+    const tenantCheck = this.canAllocateForTenant(tenantId, quota);
+    if (!tenantCheck.canAllocate) {
+      logger.warn(
+        { taskId, pluginId, tenantId, reason: tenantCheck.reason },
+        'Failed to allocate quota for tenant'
+      );
+      this.emit('allocation:failed', {
+        taskId,
+        pluginId,
+        tenantId,
+        reason: tenantCheck.reason,
+      });
+      return null;
+    }
+
+    // Track tenant allocation
+    const tenantActive = this.tenantAllocations.get(tenantId) || 0;
+    this.tenantAllocations.set(tenantId, tenantActive + 1);
+
+    // Use the base allocateQuota logic
+    const context = this.allocateQuota(taskId, pluginId, securityLevel);
+    if (context) {
+      context.tenantId = tenantId;
+    }
+    return context;
   }
 
   /**
@@ -222,6 +325,17 @@ export class PluginResourceManager extends EventEmitter {
     if (!allocation) {
       logger.warn({ taskId }, 'No allocation found to release');
       return;
+    }
+
+    // Release tenant quota slot (decrement first tenant with active count)
+    for (const [tenantId, count] of this.tenantAllocations) {
+      if (count > 0) {
+        this.tenantAllocations.set(tenantId, count - 1);
+        if (count - 1 === 0) {
+          this.tenantAllocations.delete(tenantId);
+        }
+        break;
+      }
     }
 
     // 更新统计

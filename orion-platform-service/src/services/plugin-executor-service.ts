@@ -15,9 +15,12 @@
  */
 
 import pino from 'pino';
+import { spawn, exec } from 'child_process';
+import { promisify } from 'util';
 import { EventBusService } from './event-bus-service';
 import { PluginManagerService } from './plugin-manager-service';
 import { ExecutionGuardian } from './guardian/ExecutionGuardian';
+import { ProcessKiller } from './guardian/ProcessKiller';
 import {
   PluginSandbox,
   PluginResourceManager,
@@ -28,6 +31,7 @@ import {
   SecurityEventType,
 } from './plugin';
 
+const execAsync = promisify(exec);
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
 /**
@@ -118,6 +122,7 @@ export class PluginExecutorService {
   private resourceManager?: PluginResourceManager;
   private auditLogger?: PluginAuditLogger;
   private guardian: ExecutionGuardian;
+  private processKiller: ProcessKiller;
 
   constructor(options: {
     pluginManager: PluginManagerService;
@@ -134,6 +139,9 @@ export class PluginExecutorService {
     // 初始化 ExecutionGuardian
     this.guardian = new ExecutionGuardian();
     this.guardian.start();
+
+    // 初始化 ProcessKiller
+    this.processKiller = new ProcessKiller();
   }
 
   /**
@@ -516,33 +524,139 @@ export class PluginExecutorService {
   }
 
   /**
-   * 执行容器插件
+   * 执行容器插件 - 真实 Docker 实现
    */
   private async executeContainerPlugin(
     request: TaskExecutionRequest,
     signal?: AbortSignal
   ): Promise<any> {
-    logger.info({ taskId: request.taskId }, 'Executing container plugin via HTTP/gRPC');
+    logger.info({ taskId: request.taskId }, 'Executing container plugin via Docker');
 
-    // 模拟容器调用
-    // 实际实现中需要通过 Docker API 或 Kubernetes API 调用容器
+    if (signal?.aborted) {
+      throw new Error('Execution aborted');
+    }
 
-    return this.simulateExecution(request, 'Container', signal);
+    const containerImage = (request.config.image as string) || 'alpine:latest';
+    const containerCmd = (request.config.command as string) || 'echo "No command specified"';
+    const containerId = `orion-plugin-${request.taskId}-${Date.now()}`;
+    const memoryLimit = (request.config.memoryLimit as string) || '512m';
+    const timeoutSec = Math.ceil((request.timeout || this.config.defaultTimeoutMs) / 1000);
+
+    // Create and start container
+    try {
+      await execAsync(
+        `docker create --name ${containerId} --memory=${memoryLimit} --network=bridge --rm ${containerImage} sh -c '${containerCmd}'`
+      );
+    } catch (error) {
+      throw new Error(`Failed to create container: ${error instanceof Error ? error.message : String(error)}`);
+    }
+
+    // Register with ProcessKiller for container lifecycle management
+    this.processKiller.register({
+      taskId: request.taskId,
+      pid: -1, // Container doesn't have a local PID
+      containerId,
+    });
+
+    let stdout = '';
+    let stderr = '';
+    let exitCode = 1;
+
+    try {
+      // Start container and capture output
+      const { stdout: startOut } = await execAsync(`docker start -a ${containerId}`);
+      stdout = startOut;
+      exitCode = 0;
+    } catch (error: any) {
+      stderr = error.stdout || error.stderr || error.message;
+      exitCode = error.code || 1;
+    } finally {
+      this.processKiller.unregister(request.taskId);
+    }
+
+    return {
+      pluginId: request.pluginId,
+      runtimeType: 'Container',
+      containerId,
+      exitCode,
+      stdout,
+      stderr,
+      outputs: { result: exitCode === 0 ? 'success' : 'failed' },
+    };
   }
 
   /**
-   * 执行进程插件
+   * 执行进程插件 - 真实 child_process 实现
    */
   private async executeProcessPlugin(
     request: TaskExecutionRequest,
     signal?: AbortSignal
   ): Promise<any> {
-    logger.info({ taskId: request.taskId }, 'Executing process plugin via SDK');
+    logger.info({ taskId: request.taskId }, 'Executing process plugin via child_process');
 
-    // 模拟进程调用
-    // 实际实现中需要通过 child_process 或 worker_threads 执行
+    if (signal?.aborted) {
+      throw new Error('Execution aborted');
+    }
 
-    return this.simulateExecution(request, 'Process', signal);
+    const command = (request.config.command as string) || 'echo "No command specified"';
+    const workingDir = request.workspace?.rootPath || '/tmp';
+    const env = { ...process.env, ...request.env };
+
+    return new Promise((resolve, reject) => {
+      const child = spawn(command, {
+        shell: true,
+        cwd: workingDir,
+        env,
+        detached: true, // Create process group for clean killing
+        timeout: request.timeout || this.config.defaultTimeoutMs,
+      });
+
+      let stdout = '';
+      let stderr = '';
+
+      // Register with ProcessKiller for graceful termination
+      this.processKiller.register({
+        taskId: request.taskId,
+        pid: child.pid!,
+        pgid: child.pid!, // detached=true creates process group with same PID as PGID
+      });
+
+      child.stdout?.on('data', (data: Buffer) => {
+        stdout += data.toString();
+      });
+
+      child.stderr?.on('data', (data: Buffer) => {
+        stderr += data.toString();
+      });
+
+      child.on('close', (code) => {
+        this.processKiller.unregister(request.taskId);
+        resolve({
+          pluginId: request.pluginId,
+          runtimeType: 'Process',
+          exitCode: code ?? 1,
+          stdout,
+          stderr,
+          outputs: { result: code === 0 ? 'success' : 'failed' },
+        });
+      });
+
+      child.on('error', (error) => {
+        this.processKiller.unregister(request.taskId);
+        reject(new Error(`Process execution failed: ${error.message}`));
+      });
+
+      // Handle abort signal
+      signal?.addEventListener('abort', () => {
+        child.kill('SIGTERM');
+        setTimeout(() => {
+          if (!child.killed) {
+            child.kill('SIGKILL');
+          }
+        }, 3000);
+        reject(new Error('Execution aborted'));
+      }, { once: true });
+    });
   }
 
   /**
