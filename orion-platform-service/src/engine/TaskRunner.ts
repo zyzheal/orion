@@ -59,6 +59,15 @@ export class TaskRunner {
   private async executeByType(task: Task, signal?: AbortSignal): Promise<Record<string, unknown>> {
     const type = task.type.toLowerCase();
 
+    // 新增: 插件类型分发
+    if (type.startsWith('plugin/')) {
+      return this.executePluginTask(task, signal);
+    }
+
+    if (type.startsWith('inline-script/')) {
+      return this.executeInlineScriptTask(task, signal);
+    }
+
     if (type.startsWith('git/')) {
       return this.executeGitTask(task, signal);
     } else if (type.startsWith('npm/') || type.startsWith('yarn/')) {
@@ -161,6 +170,47 @@ export class TaskRunner {
       simulated: true,
       taskName: task.name,
       taskType: task.type,
+      log: task.log,
+    };
+  }
+
+  private async executePluginTask(task: Task, signal?: AbortSignal): Promise<Record<string, unknown>> {
+    const pluginId = task.parameters.pluginId;
+    const pluginName = task.parameters.pluginName || pluginId;
+
+    task = appendTaskLog(task, `[PLUGIN] Executing plugin: ${pluginName}`);
+
+    // Phase 1: Simulated execution, will be wired to PluginExecutorService later
+    await this.sleep(100, signal);
+
+    return {
+      pluginId,
+      pluginName,
+      simulated: true,
+      isolationTier: 'TIER_1',
+      exitCode: 0,
+      stdout: `Plugin ${pluginName} executed successfully`,
+      log: task.log,
+    };
+  }
+
+  private async executeInlineScriptTask(task: Task, signal?: AbortSignal): Promise<Record<string, unknown>> {
+    const level = task.parameters.level || 'safe';
+    const language = task.parameters.language || 'javascript';
+    const code = task.parameters.code || '';
+
+    task = appendTaskLog(task, `[INLINE-SCRIPT] Level: ${level}, Language: ${language}`);
+
+    // Phase 1: Simulated execution
+    await this.sleep(50, signal);
+
+    return {
+      level,
+      language,
+      codeLength: (code as string).length,
+      simulated: true,
+      exitCode: 0,
+      stdout: 'Inline script executed successfully',
       log: task.log,
     };
   }
