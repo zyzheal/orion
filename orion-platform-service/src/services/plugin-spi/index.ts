@@ -28,6 +28,12 @@ export type {
   PluginHealthStatus,
   DependencyResolutionResult,
   PluginEventType,
+  PluginIsolationTier,
+  InlineScriptLevel,
+  InlineScriptPermissions,
+  InlineScriptConfig,
+  PluginSource,
+  ExtendedPluginInfo,
 } from './types';
 
 export { DEFAULT_SANDBOX_CONFIGS, PLATFORM_VERSION } from './types';

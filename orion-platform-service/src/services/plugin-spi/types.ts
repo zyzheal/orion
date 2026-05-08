@@ -213,3 +213,53 @@ export type PluginEventType =
  * Platform version for compatibility checking
  */
 export const PLATFORM_VERSION = '1.0.0';
+
+/**
+ * Isolation Tier - 插件执行隔离等级
+ */
+export type PluginIsolationTier = 'TIER_1' | 'TIER_2' | 'TIER_3' | 'TIER_4';
+
+/**
+ * Inline Script Level - 用户脚本安全能力等级
+ */
+export type InlineScriptLevel = 'safe' | 'standard' | 'advanced';
+
+/**
+ * Inline Script 权限配置
+ */
+export interface InlineScriptPermissions {
+  network?: string[];      // 允许的域名白名单
+  files?: {
+    read?: string[];       // 允许读取的路径
+    write?: string[];      // 允许写入的路径
+  };
+  commands?: string[];     // 允许执行的命令
+  envVars?: string[];      // 允许读取的环境变量
+  kubernetes?: boolean;    // 是否允许 K8s API (advanced only)
+  database?: string[];     // 允许连接的数据库 (advanced only)
+}
+
+/**
+ * Inline Script 配置
+ */
+export interface InlineScriptConfig {
+  level: InlineScriptLevel;
+  language: string;         // 'javascript', 'python' 等
+  code: string;
+  permissions?: InlineScriptPermissions;
+  approvalId?: string;      // advanced level 需要审批 ID
+}
+
+/**
+ * 插件源类型
+ */
+export type PluginSource = 'builtin' | 'marketplace' | 'remote' | 'inline-script';
+
+/**
+ * 扩展后的插件信息（包含源和隔离层）
+ */
+export interface ExtendedPluginInfo extends PluginInfo {
+  source: PluginSource;
+  isolationTier: PluginIsolationTier;
+  marketplaceId?: string;   // Marketplace 插件 ID
+}
