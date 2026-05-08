@@ -578,6 +578,77 @@ const taskWorkspace = `${workspaceRoot}/${taskId}/`;
 
 ---
 
+## 8. 代码级差距验证结论
+
+> **日期**: 2026-05-08
+> **方法**: 逐一对照 19 项差距与 `orion-platform-service/src/` 实际代码实现
+> **结论**: 18 项真实存在或已部分实现，1 项（GAP-12）属于误判
+
+### 8.1 验证结果汇总
+
+| # | 差距 | 验证状态 | 代码证据 | 修正说明 |
+|---|------|---------|---------|---------|
+| GAP-01 | 条件表达式引擎 | **真实存在** | `PipelineEngine.ts:673-705` 仅支持 `==` 正则，默认 `true` | 无 |
+| GAP-02 | Matrix 构建 | **真实存在** | `models/Pipeline.ts` 无 `matrix`/`strategy` 字段 | 无 |
+| GAP-03 | 可复用工作流 | **真实存在** | `PipelineTemplateService.ts:287` 仅一次性实例化 | 无 |
+| GAP-04 | 变量传播 | **真实存在** | TaskRunner 返回 result 未暴露到 pipeline context | 无 |
+| GAP-05 | 执行状态持久化 | **真实存在** | `PipelineEngine.ts:54` `executions = new Map()` | 无 |
+| GAP-06 | 从 Stage 重跑 | **真实存在** | `PipelineService.ts:482` `retryRun()` 始终从 stage 0 开始 | 无 |
+| GAP-07 | Secrets 管理 | **真实存在** | `plugin-executor-service.ts:1039-1080` blocklist 过滤，无 secret 引用 | 无 |
+| GAP-08 | Workspace 隔离 | **真实存在** | `TaskRunner.ts` 8 处硬编码 `/tmp` | 无 |
+| GAP-09 | Prometheus 导出 | **部分实现** | `routes.ts:740-747` 有 `/v1/pipeline/metrics?format=prometheus`，但需认证 | 应增加标准 `/metrics` 端点 |
+| GAP-10 | 外部通知 Webhook | **部分实现** | `HookChainService.ts` 有 WebhookExecutor，但未与 Pipeline 事件集成 | HookChainService 独立存在，未被 Pipeline 调用 |
+| GAP-11 | Trigger 持久化 | **真实存在** | `PipelineTriggerService.ts:96-97` Map 存储 | 无 |
+| GAP-12 | EventBus NATS | **~~误判~~ 已实现** | `EventBusService.ts` 完整 NATS/JetStream，`index.ts` 中 connect，`routes.ts:297-300` 注入 | PipelineEventPublisher 已注入 EventBusService，NATS 不可用时 fallback 内存 pub/sub，这是合理的降级设计 |
+| GAP-CN-01 | 可视化 DAG 编排 | **真实存在** | 仅 YAML 文本编辑，无前端 DAG 组件 | 无 |
+| GAP-CN-02 | 多环境管理 | **真实存在** | 无环境概念，无环境级配置 | 无 |
+| GAP-CN-03 | 灰度/蓝绿发布 | **真实存在** | 仅一次性部署，无渐进式发布 | 无 |
+| GAP-CN-04 | 代码质量门禁 | **真实存在** | 无代码扫描集成点，无质量阻断 | 无 |
+| GAP-CN-05 | IM 通知集成 | **真实存在** | 仅 SSE 实时日志流，无钉钉/企微/飞书 | 无 |
+| GAP-CN-06 | 制品溯源 | **部分实现** | `ArtifactService.ts` 存储文件，无版本元数据/溯源链 | 有基础存储，无版本管理 |
+| GAP-CN-07 | 构建资源池 | **真实存在** | TaskRunner 本地执行，无远程 Runner/Agent | 无 |
+
+### 8.2 关键发现
+
+1. **GAP-12 误判修正**: EventBus NATS 集成实际上已完整实现。`EventBusService` 有完整的 NATS 连接、JetStream 管理、内存 fallback 机制。`PipelineEventPublisher` 通过 `EventBusAdapter` 正确注入。当 NATS 服务器未部署时 fallback 到内存 pub/sub 是合理的设计选择，不是缺陷。
+
+2. **GAP-09 部分实现**: Prometheus 指标端点存在（`/api/v1/pipeline/metrics?format=prometheus`），但：
+   - 需要认证中间件
+   - 路径非标准 `/metrics`
+   - 建议添加无需认证的 `/metrics` 标准端点供 Prometheus 抓取
+
+3. **GAP-10 部分实现**: `HookChainService` 已实现通用 Hook 链编排（支持 webhook、notification、script、api_call 等类型），有独立的 API 路由（`/api/v1/hook-chains`），但 **未与 Pipeline 事件流集成**。Pipeline 完成/失败时不会自动触发 HookChain。需要建立 Pipeline 事件 → HookChain 的桥接机制。
+
+4. **GAP-CN-06 部分实现**: `ArtifactService` 有基础的文件存储和 stage 间传递能力，但缺少：
+   - 制品版本化管理
+   - 从代码提交 → 构建 → 部署的溯源链
+   - 制品元数据（关联 commit、pipeline run、部署环境）
+
+### 8.3 修正后的优先级
+
+| 优先级 | 差距 | 修正后复杂度 | 说明 |
+|--------|------|------------|------|
+| **P0** | GAP-05 执行状态持久化 | 高 | 进程重启丢失运行中 pipeline |
+| **P0** | GAP-07 Secrets 管理 | 中 | 凭据安全是基础需求 |
+| **P0** | GAP-01 条件表达式引擎 | 低 | ROI 最高 |
+| **P0** | GAP-08 Workspace 隔离 | 低 | 安全 ROI 最高 |
+| **P0** | GAP-CN-05 IM 通知集成 | 低 | 国内团队刚需 |
+| **P1** | GAP-11 Trigger 持久化 | 中 | ~~GAP-12 已移除~~ |
+| **P1** | GAP-02 Matrix 构建 | 中 | 编排灵活性 |
+| **P1** | GAP-04 变量传播 | 中 | 数据流完整性 |
+| **P1** | GAP-06 从 Stage 重跑 | 中 | 执行可靠性 |
+| **P1** | GAP-09 Prometheus 导出 | 低 | 增加标准 `/metrics` 端点 |
+| **P1** | GAP-10 外部通知 | 低 | 连接 HookChainService 到 Pipeline 事件 |
+| **P1** | GAP-CN-02 多环境管理 | 中 | 企业级能力 |
+| **P1** | GAP-CN-06 制品溯源 | 中 | 在 ArtifactService 上增加版本元数据 |
+| **P2** | GAP-03 可复用工作流 | 高 | 组织级 CI 库 |
+| **P2** | GAP-CN-01 可视化编排 | 高 | 前端 DAG 组件 |
+| **P2** | GAP-CN-03 灰度/蓝绿发布 | 高 | 渐进式发布 |
+| **P2** | GAP-CN-04 质量门禁 | 中 | 安全左移 |
+| **P2** | GAP-CN-07 资源池管理 | 高 | Runner Agent + 调度 |
+
+---
+
 ## 7. 总结
 
 ### 7.1 国际平台对比总结
