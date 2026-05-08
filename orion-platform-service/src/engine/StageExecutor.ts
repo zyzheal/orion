@@ -11,17 +11,24 @@ import { Stage } from '../models/Stage';
 import { Task, TaskStatus, startTask, completeTask, failTask, appendTaskLog } from '../models/Task';
 import { TaskRunner } from './TaskRunner';
 import { PipelineEventPublisher } from '../events/PipelineEventPublisher';
+import { ArtifactService } from '../services/pipeline/ArtifactService';
 
 export class StageExecutor {
   private taskRunner: TaskRunner;
   private eventPublisher: PipelineEventPublisher;
+  private artifactService: ArtifactService | null;
 
   // Track active abort controllers for cancellation
   private activeControllers = new Map<string, AbortController>();
 
-  constructor(taskRunner: TaskRunner, eventPublisher: PipelineEventPublisher) {
+  constructor(
+    taskRunner: TaskRunner,
+    eventPublisher: PipelineEventPublisher,
+    artifactService?: ArtifactService
+  ) {
     this.taskRunner = taskRunner;
     this.eventPublisher = eventPublisher;
+    this.artifactService = artifactService || null;
   }
 
   /**
@@ -124,5 +131,35 @@ export class StageExecutor {
         this.cancelTask(taskId);
       }
     }
+  }
+
+  /**
+   * 获取 Stage 可用的 Artifact 列表
+   */
+  async getAvailableArtifacts(runId: string, stageId: string): Promise<import('../services/pipeline/ArtifactService').ArtifactRecord[]> {
+    if (!this.artifactService) return [];
+    return this.artifactService.getAvailableArtifacts(runId, stageId);
+  }
+
+  /**
+   * 将上游 Stages 的 artifacts 传递给目标 Stage
+   */
+  async passUpstreamArtifacts(
+    runId: string,
+    upstreamStageIds: string[],
+    targetStageId: string
+  ): Promise<{ passed: number; errors: string[] }> {
+    if (!this.artifactService) return { passed: 0, errors: [] };
+
+    let totalPassed = 0;
+    const allErrors: string[] = [];
+
+    for (const upstreamId of upstreamStageIds) {
+      const result = await this.artifactService.passToStage(runId, upstreamId, targetStageId);
+      totalPassed += result.passed;
+      allErrors.push(...result.errors);
+    }
+
+    return { passed: totalPassed, errors: allErrors };
   }
 }

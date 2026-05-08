@@ -17,6 +17,7 @@ import { PipelineService } from '../services/pipeline/PipelineService';
 import { PipelineRunService } from '../services/pipeline/PipelineRunService';
 import { PipelineEventPublisher } from '../events/PipelineEventPublisher';
 import { StageExecutor } from './StageExecutor';
+import { ArtifactService } from '../services/pipeline/ArtifactService';
 import pino from 'pino';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
@@ -34,6 +35,7 @@ export class PipelineEngine {
   private runService: PipelineRunService;
   private eventPublisher: PipelineEventPublisher;
   private stageExecutor: StageExecutor;
+  private artifactService: ArtifactService | null;
 
   // 内存存储执行中的 Pipeline
   private executions = new Map<string, PipelineExecution>();
@@ -45,12 +47,14 @@ export class PipelineEngine {
     pipelineService: PipelineService,
     runService: PipelineRunService,
     eventPublisher: PipelineEventPublisher,
-    stageExecutor: StageExecutor
+    stageExecutor: StageExecutor,
+    artifactService?: ArtifactService
   ) {
     this.pipelineService = pipelineService;
     this.runService = runService;
     this.eventPublisher = eventPublisher;
     this.stageExecutor = stageExecutor;
+    this.artifactService = artifactService || null;
   }
 
   /**
@@ -352,6 +356,13 @@ export class PipelineEngine {
       if (dependenciesMet) {
         execution.pendingStages.add(stageId);
         newlyUnlocked = true;
+
+        // 将上游已完成 Stages 的 artifacts 传递给新解锁的 Stage
+        if (this.artifactService && stage.dependsOn.length > 0) {
+          this.passArtifactsToStage(execution, stage).catch(err => {
+            logger.warn({ stageId: stage.id, error: err }, 'Failed to pass artifacts to stage');
+          });
+        }
       }
     }
 
@@ -413,6 +424,45 @@ export class PipelineEngine {
 
     // Actually trigger the retry
     await this.executePendingStages(execution);
+  }
+
+  /**
+   * 将上游已完成 Stages 的 artifacts 传递给目标 Stage
+   */
+  private async passArtifactsToStage(
+    execution: PipelineExecution,
+    targetStage: Stage
+  ): Promise<void> {
+    // 找到所有依赖的已完成 Stages
+    const upstreamStageIds: string[] = [];
+    for (const depName of targetStage.dependsOn) {
+      const depStage = Array.from(execution.stages.values()).find(s => s.name === depName);
+      if (depStage && depStage.status === StageStatus.SUCCESS) {
+        upstreamStageIds.push(depStage.id);
+      }
+    }
+
+    if (upstreamStageIds.length === 0) return;
+
+    const result = await this.stageExecutor.passUpstreamArtifacts(
+      execution.run.id,
+      upstreamStageIds,
+      targetStage.id
+    );
+
+    if (result.errors.length > 0) {
+      logger.warn(
+        { runId: execution.run.id, stageId: targetStage.id, errors: result.errors },
+        'Some artifact passing operations failed'
+      );
+    }
+
+    if (result.passed > 0) {
+      logger.info(
+        { runId: execution.run.id, stageId: targetStage.id, passed: result.passed },
+        'Artifacts passed to stage'
+      );
+    }
   }
 
   /**
