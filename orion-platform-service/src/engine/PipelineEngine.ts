@@ -22,6 +22,8 @@ import { ApprovalGateService } from '../services/pipeline/ApprovalGateService';
 import { PipelineExecutionQueue, QueuePriority } from '../services/pipeline/PipelineExecutionQueue';
 import { AutoRetryService } from '../services/pipeline/AutoRetryService';
 import { ExpressionEvaluator, ExpressionContext, EvaluationError } from './ExpressionEvaluator';
+import { PipelineCheckpointManager } from './PipelineCheckpointManager';
+import { IMNotifier, IMNotificationConfig } from '../services/pipeline/IMNotifier';
 import pino from 'pino';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
@@ -50,6 +52,9 @@ export class PipelineEngine {
   private autoRetryService: AutoRetryService | null;
   private onRunComplete: RunCompletionCallback | null;
   private expressionEvaluator: ExpressionEvaluator;
+  private checkpointManager: PipelineCheckpointManager | null;
+  private imNotifier: IMNotifier | null;
+  private imNotificationConfigs: IMNotificationConfig[];
 
   // 内存存储执行中的 Pipeline
   private executions = new Map<string, PipelineExecution>();
@@ -69,7 +74,10 @@ export class PipelineEngine {
     approvalGateService?: ApprovalGateService,
     executionQueue?: PipelineExecutionQueue,
     autoRetryService?: AutoRetryService,
-    onRunComplete?: RunCompletionCallback
+    onRunComplete?: RunCompletionCallback,
+    checkpointManager?: PipelineCheckpointManager,
+    imNotifier?: IMNotifier,
+    imNotificationConfigs?: IMNotificationConfig[]
   ) {
     this.pipelineService = pipelineService;
     this.runService = runService;
@@ -81,6 +89,9 @@ export class PipelineEngine {
     this.autoRetryService = autoRetryService || null;
     this.onRunComplete = onRunComplete || null;
     this.expressionEvaluator = new ExpressionEvaluator();
+    this.checkpointManager = checkpointManager || null;
+    this.imNotifier = imNotifier || null;
+    this.imNotificationConfigs = imNotificationConfigs || [];
   }
 
   /**
@@ -253,6 +264,8 @@ export class PipelineEngine {
 
         execution.pendingStages.delete(stageId);
         execution.completedStages.add(stageId);
+        // Checkpoint: stage skipped due to condition
+        await this.saveCheckpoint(execution, stage.name);
         continue;
       }
 
@@ -323,6 +336,8 @@ export class PipelineEngine {
     execution.stages.set(stage.id, runningStage);
     await this.runService.updateStage(runningStage);
     await this.eventPublisher.publishStageStarted(execution.run.id, runningStage);
+    // Checkpoint: stage started
+    await this.saveCheckpoint(execution, stage.name);
 
     try {
       // 获取 Stage 的 Tasks
@@ -334,6 +349,9 @@ export class PipelineEngine {
 
         const result = await this.stageExecutor.executeTask(execution.run.id, stage, task);
         await this.runService.updateTask(result);
+
+        // Checkpoint: task completed
+        await this.saveCheckpoint(execution, stage.name, task.name);
 
         if (result.status === 'failed') {
           throw new Error(result.error || `Task '${task.name}' failed`);
@@ -350,6 +368,8 @@ export class PipelineEngine {
       execution.stages.set(stage.id, completedStage);
       await this.runService.updateStage(completedStage);
       await this.eventPublisher.publishStageCompleted(execution.run.id, completedStage);
+      // Checkpoint: stage completed
+      await this.saveCheckpoint(execution, stage.name);
 
       execution.runningStages.delete(stage.id);
       execution.completedStages.add(stage.id);
@@ -401,6 +421,8 @@ export class PipelineEngine {
       execution.stages.set(stage.id, failedStage);
       await this.runService.updateStage(failedStage);
       await this.eventPublisher.publishStageFailed(execution.run.id, failedStage, failedStage.error);
+      // Checkpoint: stage failed
+      await this.saveCheckpoint(execution, stage.name);
 
       execution.runningStages.delete(stage.id);
       execution.completedStages.add(stage.id);
@@ -441,6 +463,8 @@ export class PipelineEngine {
     };
     execution.stages.set(stage.id, retriedStage);
     await this.runService.updateStage(retriedStage);
+    // Checkpoint: stage reset for retry
+    await this.saveCheckpoint(execution, stage.name);
 
     // 根据策略计算延迟
     let delayMs = 0;
@@ -526,6 +550,8 @@ export class PipelineEngine {
         await this.runService.updateStage(skippedStage);
         await this.eventPublisher.publishStageSkipped(execution.run.id, skippedStage);
         execution.completedStages.add(stageId);
+        // Checkpoint: stage skipped
+        await this.saveCheckpoint(execution, stage.name);
         continue;
       }
 
@@ -574,8 +600,54 @@ export class PipelineEngine {
         this.onRunComplete(completedRun);
       }
 
+      // 发送 IM 通知（通知发送失败不影响 pipeline 状态）
+      if (completedRun && this.imNotifier && this.imNotificationConfigs.length > 0) {
+        this.sendIMNotifications(completedRun).catch(err => {
+          logger.warn({ runId: completedRun.id, error: err }, 'IM notification batch sending failed (non-fatal)');
+        });
+      }
+
+      // Cleanup checkpoint after pipeline completion
+      if (this.checkpointManager) {
+        await this.checkpointManager.cleanupCompleted(execution.run.id);
+      }
+
       // 清理执行上下文
       this.executions.delete(execution.run.id);
+    }
+  }
+
+  /**
+   * 发送 IM 通知（根据 Pipeline 最终状态分发到不同 IM 渠道）
+   * 此方法异步执行，失败不影响 Pipeline 状态
+   */
+  private async sendIMNotifications(run: PipelineRun): Promise<void> {
+    if (!this.imNotifier) return;
+
+    // 从 PipelineService 获取 Pipeline 名称
+    const pipeline = await this.pipelineService.getById(run.pipelineId);
+    const pipelineName = pipeline?.name || run.pipelineId;
+
+    try {
+      if (run.status === PipelineRunStatus.SUCCESS) {
+        for (const config of this.imNotificationConfigs) {
+          await this.imNotifier.notifyOnPipelineComplete(run, config, pipelineName);
+        }
+      } else if (run.status === PipelineRunStatus.FAILED) {
+        for (const config of this.imNotificationConfigs) {
+          await this.imNotifier.notifyOnPipelineFailure(run, config, pipelineName);
+        }
+      } else if (run.status === PipelineRunStatus.CANCELLED) {
+        for (const config of this.imNotificationConfigs) {
+          await this.imNotifier.notifyOnPipelineCancelled(run, config, pipelineName);
+        }
+      }
+    } catch (error) {
+      // IM 通知失败不应影响 pipeline 状态，仅记录日志
+      logger.warn(
+        { runId: run.id, error: error instanceof Error ? error.message : String(error) },
+        'IM notification sending failed (non-fatal)'
+      );
     }
   }
 
@@ -601,6 +673,8 @@ export class PipelineEngine {
     };
     execution.stages.set(stage.id, retriedStage);
     await this.runService.updateStage(retriedStage);
+    // Checkpoint: stage reset for retry
+    await this.saveCheckpoint(execution, stage.name);
     execution.pendingStages.add(stage.id);
     execution.completedStages.delete(stage.id);
 
@@ -665,6 +739,8 @@ export class PipelineEngine {
         await this.runService.updateStage(skippedStage);
         await this.eventPublisher.publishStageSkipped(execution.run.id, skippedStage);
         execution.completedStages.add(stageId);
+        // Checkpoint: dependent stage skipped
+        await this.saveCheckpoint(execution, stage.name);
       }
     }
   }
@@ -774,6 +850,11 @@ export class PipelineEngine {
 
     // 取消 PipelineRun
     await this.runService.cancelRun(runId);
+
+    // Cleanup checkpoint on cancellation
+    if (this.checkpointManager) {
+      await this.checkpointManager.cleanupCompleted(runId);
+    }
 
     // 清理执行上下文
     this.executions.delete(runId);
@@ -903,6 +984,9 @@ export class PipelineEngine {
         execution.runningStages.delete(stageId);
         execution.completedStages.add(stageId);
 
+        // Checkpoint: stage rejected by approval
+        await this.saveCheckpoint(execution, stage.name);
+
         // 标记依赖于此 stage 的其他 stages 为失败
         this.failDependentStages(execution, rejectedStage);
         await this.checkRunCompletion(execution);
@@ -977,6 +1061,74 @@ export class PipelineEngine {
   // ==================== Crash Recovery ====================
 
   /**
+   * Save a checkpoint for the current execution state.
+   * Delegates to PipelineCheckpointManager if configured.
+   */
+  private async saveCheckpoint(
+    execution: PipelineExecution,
+    lastStageName?: string,
+    lastTaskName?: string
+  ): Promise<void> {
+    if (!this.checkpointManager) return;
+
+    try {
+      await this.checkpointManager.saveCheckpoint(execution, lastStageName, lastTaskName);
+    } catch (error) {
+      // Log but don't fail the pipeline execution due to checkpoint issues
+      logger.warn(
+        { runId: execution.run.id, error: error instanceof Error ? error.message : String(error) },
+        'Failed to save checkpoint (non-fatal)'
+      );
+    }
+  }
+
+  /**
+   * Recover orphaned runs during startup using checkpoint data.
+   *
+   * Finds all checkpoints with 'running' status and attempts to:
+   * 1. Restore the execution state if the run is still RUNNING in DB
+   * 2. Mark as failed if the run is stale and cannot be restored
+   * 3. Clean up if the run was completed elsewhere
+   */
+  async recoverOrphanedRuns(options?: {
+    onRestored?: (execution: PipelineExecution) => void;
+    markFailedIfStale?: boolean;
+  }): Promise<{ recovered: number; markedFailed: number; restored: number; errors: string[] }> {
+    if (!this.checkpointManager) {
+      logger.info('Checkpoint manager not configured, falling back to legacy recovery');
+      const legacyResult = await this.recoverRuns();
+      return { ...legacyResult, restored: 0 };
+    }
+
+    const recoveryResult = await this.checkpointManager.recoverOrphanedRuns(
+      {
+        getRun: (id) => this.runService.getRun(id),
+        completeRun: (id, status) => this.runService.completeRun(id, status),
+      },
+      {
+        onRestored: (execution) => {
+          // Re-add to in-memory executions map
+          this.executions.set(execution.run.id, execution);
+          logger.info(
+            { runId: execution.run.id, pendingStages: execution.pendingStages.size },
+            'Restored execution to in-memory map'
+          );
+          // Notify caller for re-enqueue or resume
+          options?.onRestored?.(execution);
+        },
+        markFailedIfStale: options?.markFailedIfStale,
+      }
+    );
+
+    logger.info(
+      { recovered: recoveryResult.recovered, restored: recoveryResult.restored, markedFailed: recoveryResult.markedFailed },
+      'Orphaned run recovery complete'
+    );
+
+    return recoveryResult;
+  }
+
+  /**
    * 恢复中断的 Pipeline Runs
    *
    * 在服务启动时调用，查找数据库中状态为 'RUNNING' 的 runs，
@@ -991,13 +1143,15 @@ export class PipelineEngine {
 
     const errors: string[] = [];
     let markedFailed = 0;
+    let runningCount = 0;
 
     try {
       const runningRuns = await this.runService.findRunsByStatus(PipelineRunStatus.RUNNING);
+      runningCount = runningRuns.length;
 
       if (runningRuns.length === 0) {
         logger.info('No running pipeline runs to recover');
-        return { recovered: runningRuns.length, markedFailed: 0, errors: [] };
+        return { recovered: 0, markedFailed: 0, restored: 0, errors: [] };
       }
 
       logger.info(
@@ -1024,8 +1178,9 @@ export class PipelineEngine {
     }
 
     return {
-      recovered: runningRuns.length || 0,
+      recovered: runningCount,
       markedFailed,
+      restored: 0,
       errors,
     };
   }

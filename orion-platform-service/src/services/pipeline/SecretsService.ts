@@ -315,10 +315,6 @@ export class SecretsService {
 
     // 2. 直接加载 secretNames 列表中的 secret
     for (const name of secretNames) {
-      if (resolved.secretValues.some((v) => v)) {
-        // 跳过已在 env 中解析的
-        continue;
-      }
       try {
         const secret = await this.getSecret(tenantId, name);
         if (secret) {
