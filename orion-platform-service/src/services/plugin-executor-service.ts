@@ -123,7 +123,6 @@ const DEFAULT_ALLOWED_COMMANDS = new Set([
   'curl', 'wget',
   'tar', 'gzip', 'gunzip', 'zip', 'unzip',
   'sha256sum', 'md5sum',
-  'sh', 'bash', 'zsh',
   'true', 'false', 'sleep', 'timeout',
   'env', 'printenv',
 ]);

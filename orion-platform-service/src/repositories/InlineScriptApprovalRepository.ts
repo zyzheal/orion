@@ -43,6 +43,49 @@ export class InlineScriptApprovalRepository extends BaseRepository<InlineScriptA
   }
 
   /**
+   * Atomically increment approvals and update status. Prevents race conditions
+   * from concurrent approval decisions.
+   */
+  async incrementApprovals(
+    approvalId: string,
+    tenantId: string,
+  ): Promise<{ status: string; currentApprovals: number; requiredApprovals: number }> {
+    const result = await this.db.query(
+      `UPDATE inline_script_approvals
+       SET current_approvals = current_approvals + 1,
+           status = CASE WHEN current_approvals + 1 >= required_approvals THEN 'approved' ELSE status END,
+           updated_at = NOW()
+       WHERE approval_id = $1 AND tenant_id = $2 AND status = 'pending'
+       RETURNING status, current_approvals, required_approvals`,
+      [approvalId, tenantId]
+    );
+    if (result.rows.length === 0) {
+      throw new Error(`Approval not found or no longer pending: ${approvalId}`);
+    }
+    return {
+      status: result.rows[0].status,
+      currentApprovals: result.rows[0].current_approvals,
+      requiredApprovals: result.rows[0].required_approvals,
+    };
+  }
+
+  /**
+   * Atomically update usage count for single_use approvals
+   */
+  async updateUsageCount(
+    approvalId: string,
+    tenantId: string,
+    newCount: number,
+  ): Promise<void> {
+    await this.db.query(
+      `UPDATE inline_script_approvals
+       SET used_count = $1, updated_at = NOW()
+       WHERE approval_id = $2 AND tenant_id = $3`,
+      [newCount, approvalId, tenantId]
+    );
+  }
+
+  /**
    * Update approval status with tenant isolation
    */
   async updateStatus(

@@ -464,12 +464,30 @@ export class InlineScriptService {
       };
     }
 
-    return {
-      taskId: request.taskId,
-      status: 'success',
-      stdout: 'Advanced script executed with verified approval',
-      durationMs: Date.now() - startTime,
-    };
+    // All verification passed - execute the approved script
+    try {
+      const result = await this.wasmRuntime.execute({
+        code: request.config.code,
+        timeout: request.timeout || 60000,
+        memoryLimit: 512 * 1024 * 1024,
+      });
+
+      return {
+        taskId: request.taskId,
+        status: result.success ? 'success' : 'failed',
+        stdout: result.stdout,
+        stderr: result.stderr,
+        durationMs: Date.now() - startTime,
+        errorMessage: result.error,
+      };
+    } catch (error) {
+      return {
+        taskId: request.taskId,
+        status: 'failed',
+        errorMessage: error instanceof Error ? error.message : 'Unknown error during execution',
+        durationMs: Date.now() - startTime,
+      };
+    }
   }
 
   /**

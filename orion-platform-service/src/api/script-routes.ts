@@ -204,15 +204,26 @@ export default async function scriptRoutes(app: FastifyInstance, options?: { dat
         return reply.code(400).send({ error: `Approval already ${approval.status}` });
       }
 
-      const newApprovals = approval.current_approvals + 1;
-      const newStatus = newApprovals >= approval.required_approvals ? 'approved' : 'pending';
-      const finalStatus = body.decision === 'denied' ? 'denied' : newStatus;
+      if (body.decision === 'denied') {
+        await approvalRepo.updateStatus(approvalId, tenantId, 'denied');
+        return { approvalId, decision: 'denied', status: 'denied', currentApprovals: approval.current_approvals };
+      }
 
-      await approvalRepo.updateStatus(approvalId, tenantId, finalStatus, body.decision === 'approved' ? newApprovals : undefined);
+      // Atomic increment - prevents race condition with concurrent approvals
+      const result = await approvalRepo.incrementApprovals(approvalId, tenantId);
 
-      return { approvalId, decision: body.decision, status: finalStatus, currentApprovals: newApprovals };
+      // Track usage for single_use approvals after they become approved
+      if (result.status === 'approved' && approval.expiration_type === 'single_use') {
+        await approvalRepo.updateUsageCount(approvalId, tenantId, approval.used_count + 1);
+      }
+
+      return { approvalId, decision: 'approved', status: result.status, currentApprovals: result.currentApprovals };
     } catch (error) {
-      return reply.code(500).send({ error: `Failed to process decision: ${error instanceof Error ? error.message : String(error)}` });
+      const msg = error instanceof Error ? error.message : String(error);
+      if (msg.includes('not found') || msg.includes('no longer pending')) {
+        return reply.code(400).send({ error: 'Approval is no longer pending' });
+      }
+      return reply.code(500).send({ error: 'Failed to process decision' });
     }
   });
 

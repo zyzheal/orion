@@ -47,7 +47,7 @@ const DLP_PATTERNS: Record<string, { pattern: RegExp; type: DLPPattern['type'] }
     type: 'SSN',
   },
   API_KEY: {
-    pattern: /\b[a-zA-Z0-9]{32,}\b/g,
+    pattern: /\b(?:api[_-]?key|apikey|access[_-]?key|secret[_-]?key)[\s:=]*["']?[a-zA-Z0-9]{20,}["']?/gi,
     type: 'API_KEY',
   },
   PASSWORD: {
