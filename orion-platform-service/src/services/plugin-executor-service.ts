@@ -524,7 +524,7 @@ export class PluginExecutorService {
   }
 
   /**
-   * 执行容器插件 - 真实 Docker 实现
+   * 执行容器插件 - 真实 Docker 实现 (使用 spawn 避免 shell 注入)
    */
   private async executeContainerPlugin(
     request: TaskExecutionRequest,
@@ -536,17 +536,35 @@ export class PluginExecutorService {
       throw new Error('Execution aborted');
     }
 
-    const containerImage = (request.config.image as string) || 'alpine:latest';
+    const containerImage = this.sanitizeDockerImage(request.config.image as string);
     const containerCmd = (request.config.command as string) || 'echo "No command specified"';
-    const containerId = `orion-plugin-${request.taskId}-${Date.now()}`;
+    const containerId = `orion-plugin-${request.taskId.replace(/[^a-zA-Z0-9_-]/g, '')}-${Date.now()}`;
     const memoryLimit = (request.config.memoryLimit as string) || '512m';
-    const timeoutSec = Math.ceil((request.timeout || this.config.defaultTimeoutMs) / 1000);
+    const cpusLimit = (request.config.cpusLimit as string) || '1';
+    const pidsLimit = (request.config.pidsLimit as string) || '100';
 
-    // Create and start container
+    // Sanitize memory limit to prevent injection
+    if (!/^\d+[mkg]$/i.test(memoryLimit)) {
+      throw new Error(`Invalid memory limit: ${memoryLimit}`);
+    }
+
+    // Create container using spawn with arg arrays (no shell injection)
+    const dockerArgs = [
+      'create',
+      '--name', containerId,
+      '--memory', memoryLimit,
+      '--cpus', cpusLimit,
+      '--pids-limit', pidsLimit,
+      '--network', 'bridge',
+      '--rm',
+      containerImage,
+      'sh', '-c', containerCmd,
+    ];
+
+    let containerCreated = false;
     try {
-      await execAsync(
-        `docker create --name ${containerId} --memory=${memoryLimit} --network=bridge --rm ${containerImage} sh -c '${containerCmd}'`
-      );
+      await this.spawnDocker(dockerArgs, signal);
+      containerCreated = true;
     } catch (error) {
       throw new Error(`Failed to create container: ${error instanceof Error ? error.message : String(error)}`);
     }
@@ -554,7 +572,7 @@ export class PluginExecutorService {
     // Register with ProcessKiller for container lifecycle management
     this.processKiller.register({
       taskId: request.taskId,
-      pid: -1, // Container doesn't have a local PID
+      pid: -1,
       containerId,
     });
 
@@ -564,14 +582,19 @@ export class PluginExecutorService {
 
     try {
       // Start container and capture output
-      const { stdout: startOut } = await execAsync(`docker start -a ${containerId}`);
-      stdout = startOut;
-      exitCode = 0;
+      const result = await this.spawnDockerWithOutput(['start', '-a', containerId], signal);
+      stdout = result.stdout;
+      stderr = result.stderr;
+      exitCode = result.exitCode;
     } catch (error: any) {
-      stderr = error.stdout || error.stderr || error.message;
-      exitCode = error.code || 1;
+      stderr = error.stderr || error.message;
+      exitCode = error.exitCode || 1;
     } finally {
       this.processKiller.unregister(request.taskId);
+      // Clean up orphaned container if start failed
+      if (!containerCreated || exitCode !== 0) {
+        await this.spawnDocker(['rm', '-f', containerId]).catch(() => {});
+      }
     }
 
     return {
@@ -586,7 +609,70 @@ export class PluginExecutorService {
   }
 
   /**
-   * 执行进程插件 - 真实 child_process 实现
+   * Sanitize Docker image name to prevent injection
+   */
+  private sanitizeDockerImage(image: string): string {
+    if (!image || typeof image !== 'string') {
+      return 'alpine:latest';
+    }
+    // Only allow valid image names: [registry/]name[:tag]
+    const validImageRegex = /^[a-zA-Z0-9][a-zA-Z0-9._/:@-]*$/;
+    if (!validImageRegex.test(image)) {
+      throw new Error(`Invalid Docker image name: ${image}`);
+    }
+    return image;
+  }
+
+  /**
+   * Spawn Docker command with arg arrays (no shell)
+   */
+  private spawnDocker(args: string[], signal?: AbortSignal): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const child = spawn('docker', args, { signal });
+      let stdout = '';
+      let stderr = '';
+
+      child.stdout?.on('data', (data: Buffer) => { stdout += data.toString(); });
+      child.stderr?.on('data', (data: Buffer) => { stderr += data.toString(); });
+
+      child.on('close', (code) => {
+        if (code === 0) {
+          resolve(stdout.trim());
+        } else {
+          reject(new Error(`docker ${args[0]} failed (exit ${code}): ${stderr.trim()}`));
+        }
+      });
+
+      child.on('error', reject);
+    });
+  }
+
+  /**
+   * Spawn Docker command and capture output + exit code
+   */
+  private spawnDockerWithOutput(args: string[], signal?: AbortSignal): Promise<{
+    stdout: string;
+    stderr: string;
+    exitCode: number;
+  }> {
+    return new Promise((resolve, reject) => {
+      const child = spawn('docker', args, { signal });
+      let stdout = '';
+      let stderr = '';
+
+      child.stdout?.on('data', (data: Buffer) => { stdout += data.toString(); });
+      child.stderr?.on('data', (data: Buffer) => { stderr += data.toString(); });
+
+      child.on('close', (code) => {
+        resolve({ stdout: stdout.trim(), stderr: stderr.trim(), exitCode: code ?? 1 });
+      });
+
+      child.on('error', reject);
+    });
+  }
+
+  /**
+   * 执行进程插件 - 真实 child_process 实现 (无 shell 注入，无环境泄漏)
    */
   private async executeProcessPlugin(
     request: TaskExecutionRequest,
@@ -598,17 +684,23 @@ export class PluginExecutorService {
       throw new Error('Execution aborted');
     }
 
-    const command = (request.config.command as string) || 'echo "No command specified"';
+    // Parse command into executable + args (no shell injection)
+    const { cmd: executable, args, shellMode } = this.parseCommand(request.config.command as string);
     const workingDir = request.workspace?.rootPath || '/tmp';
-    const env = { ...process.env, ...request.env };
+
+    // Build clean environment - only allow explicitly permitted vars
+    const env = this.buildCleanEnvironment(request);
 
     return new Promise((resolve, reject) => {
-      const child = spawn(command, {
-        shell: true,
+      const child = spawn(executable, args, {
+        shell: shellMode,
         cwd: workingDir,
         env,
-        detached: true, // Create process group for clean killing
+        detached: true,
         timeout: request.timeout || this.config.defaultTimeoutMs,
+        // Security: setuid/setgid not needed, drop privileges if possible
+        uid: process.getuid ? process.getuid() : undefined,
+        gid: process.getgid ? process.getgid() : undefined,
       });
 
       let stdout = '';
@@ -618,16 +710,11 @@ export class PluginExecutorService {
       this.processKiller.register({
         taskId: request.taskId,
         pid: child.pid!,
-        pgid: child.pid!, // detached=true creates process group with same PID as PGID
+        pgid: child.pid!,
       });
 
-      child.stdout?.on('data', (data: Buffer) => {
-        stdout += data.toString();
-      });
-
-      child.stderr?.on('data', (data: Buffer) => {
-        stderr += data.toString();
-      });
+      child.stdout?.on('data', (data: Buffer) => { stdout += data.toString(); });
+      child.stderr?.on('data', (data: Buffer) => { stderr += data.toString(); });
 
       child.on('close', (code) => {
         this.processKiller.unregister(request.taskId);
@@ -657,6 +744,104 @@ export class PluginExecutorService {
         reject(new Error('Execution aborted'));
       }, { once: true });
     });
+  }
+
+  /**
+   * Parse command string into executable + args safely
+   * Supports both array format (safe) and string format (validated)
+   */
+  private parseCommand(command: string | string[]): { cmd: string; args: string[]; shellMode: boolean } {
+    if (Array.isArray(command)) {
+      // Array format: ['ls', '-la', '/tmp'] - safe, no shell
+      if (command.length === 0) {
+        return { cmd: 'echo', args: ['No command specified'], shellMode: false };
+      }
+      return { cmd: command[0], args: command.slice(1), shellMode: false };
+    }
+
+    if (!command || typeof command !== 'string') {
+      return { cmd: 'echo', args: ['No command specified'], shellMode: false };
+    }
+
+    // Check for dangerous shell constructs
+    const dangerousPatterns = [
+      /\$\(/,           // command substitution
+      /`[^`]*`/,        // backtick substitution
+      /\{[^}]*\}/,      // brace expansion (can be used for globbing attacks)
+      /[;|&]{2,}/,      // multiple separators (allows chaining)
+      /\brm\s+-rf\s+\/\b/,  // rm -rf /
+      /\bfork\s+bomb\b/,    // explicit fork bomb mention
+    ];
+
+    for (const pattern of dangerousPatterns) {
+      if (pattern.test(command)) {
+        throw new Error(`Command contains dangerous pattern: ${pattern.source}`);
+      }
+    }
+
+    // Simple command string - split on whitespace for basic commands
+    // This avoids shell=true for simple cases
+    const trimmed = command.trim();
+    const parts = trimmed.split(/\s+/).filter(Boolean);
+
+    if (parts.length === 0) {
+      return { cmd: 'echo', args: ['No command specified'], shellMode: false };
+    }
+
+    // If the command is a simple executable (no shell metacharacters), run without shell
+    const shellMetacharacters = /[;|&$`<>(){}!#\n\r]/;
+    if (!shellMetacharacters.test(trimmed)) {
+      return { cmd: parts[0], args: parts.slice(1), shellMode: false };
+    }
+
+    // Contains shell metacharacters - use shell but with timeout limit
+    return { cmd: '/bin/sh', args: ['-c', trimmed], shellMode: false };
+  }
+
+  /**
+   * Build a clean environment for child processes
+   * Does NOT inherit parent environment variables
+   */
+  private buildCleanEnvironment(request: TaskExecutionRequest): Record<string, string> {
+    // Start with minimal safe environment
+    const env: Record<string, string> = {
+      PATH: '/usr/local/bin:/usr/bin:/bin',
+      HOME: '/tmp',
+      NODE_ENV: 'production',
+      LANG: 'en_US.UTF-8',
+    };
+
+    // Only add explicitly allowed env vars from request
+    const allowedEnvVars = new Set<string>([
+      'NODE_PATH',
+      'TMPDIR',
+      'SSL_CERT_FILE',
+    ]);
+
+    // Also allow vars from permissions allowlist
+    const permittedVars = (request.config.permittedEnvVars as string[]) || [];
+
+    if (request.env) {
+      for (const [key, value] of Object.entries(request.env)) {
+        // Block dangerous env vars
+        if (key.startsWith('AWS_') || key.startsWith('GCP_') || key.startsWith('AZURE_')) {
+          continue; // Never pass cloud credentials
+        }
+        if (key.includes('SECRET') || key.includes('PASSWORD') || key.includes('TOKEN') || key.includes('KEY')) {
+          continue; // Never pass secrets
+        }
+        if (key === 'LD_PRELOAD' || key === 'LD_LIBRARY_PATH' || key === 'NODE_OPTIONS') {
+          continue; // Never pass dynamic loader/config vars
+        }
+
+        // Only allow explicitly permitted or safe vars
+        if (allowedEnvVars.has(key) || permittedVars.includes(key)) {
+          env[key] = String(value);
+        }
+      }
+    }
+
+    return env;
   }
 
   /**

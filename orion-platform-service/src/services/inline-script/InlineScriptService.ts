@@ -60,41 +60,80 @@ class ASTSecurityScanner {
     }
 
     traverse(ast, {
-      // Detect eval() calls
       CallExpression: (path: NodePath<CallExpression>) => {
         const callee = path.node.callee;
-        if (callee.type === 'Identifier' && callee.name === 'eval') {
-          this.addViolation('eval() is not allowed');
+
+        // Direct eval(), Function(), require()
+        if (callee.type === 'Identifier') {
+          if (callee.name === 'eval') this.addViolation('eval() is not allowed');
+          if (callee.name === 'Function') this.addViolation('Function constructor is not allowed');
+          if (this.level === 'safe' && callee.name === 'require') this.addViolation('require() is not allowed');
+          // setTimeout/setInterval with string argument (eval equivalent)
+          if ((callee.name === 'setTimeout' || callee.name === 'setInterval') && path.node.arguments[0]?.type === 'StringLiteral') {
+            this.addViolation(`${callee.name} with string argument is not allowed`);
+          }
         }
 
-        // Detect Function constructor: new Function(...)
-        if (callee.type === 'Identifier' && callee.name === 'Function') {
-          this.addViolation('Function constructor is not allowed');
-        }
-
-        // Detect require()
-        if (callee.type === 'Identifier' && callee.name === 'require') {
-          this.addViolation('require() is not allowed in safe mode');
-        }
-
-        // Detect dynamic import()
+        // Dynamic import()
         if (callee.type === 'Import') {
           this.addViolation('dynamic import() is not allowed in safe mode');
         }
 
-        // Detect process.xxx access
+        // this.constructor.constructor('code')() - vm escape
         if (callee.type === 'MemberExpression') {
+          this.checkConstructorChain(callee);
           this.checkMemberAccess(callee);
         }
       },
 
-      // Detect MemberExpression access like process.env, globalThis['eval']
       MemberExpression: (path: NodePath<MemberExpression>) => {
+        this.checkConstructorChain(path.node);
         this.checkMemberAccess(path.node);
+      },
+
+      // Detect bare identifiers like eval, process, Function used as values
+      Identifier: (path: NodePath<Identifier>) => {
+        // Only flag if used in a non-declaration context
+        const parent = path.parent;
+        if (parent.type === 'CallExpression' && parent.callee === path.node) return; // handled above
+        if (path.node.name === 'eval' || path.node.name === 'Function') {
+          // Only flag if it's a bare reference (not a property)
+          if (parent.type === 'MemberExpression' && parent.property === path.node) {
+            this.addViolation(`bare ${path.node.name} reference is not allowed`);
+          }
+        }
       },
     });
 
     return this.violations;
+  }
+
+  /**
+   * Detect constructor chain escapes: this.constructor.constructor, Object.constructor, etc.
+   */
+  private checkConstructorChain(node: MemberExpression): void {
+    // Walk the chain looking for .constructor access
+    let current: Node | undefined = node;
+    let depth = 0;
+    while (current && depth < 5) {
+      if (current.type === 'MemberExpression') {
+        const prop = current.property;
+        // Detect .constructor access
+        if (prop.type === 'Identifier' && prop.name === 'constructor') {
+          this.addViolation('constructor chain access is not allowed (vm escape vector)');
+          return;
+        }
+        // Detect ['constructor'] string access
+        if (prop.type === 'StringLiteral' && prop.value === 'constructor') {
+          this.addViolation('constructor chain access is not allowed (vm escape vector)');
+          return;
+        }
+        current = current.object;
+      } else {
+        break;
+      }
+      depth++;
+    }
   }
 
   private checkMemberAccess(node: MemberExpression): void {
@@ -301,43 +340,28 @@ export class InlineScriptService {
   private async executeStandard(request: InlineScriptExecutionRequest, startTime: number): Promise<InlineScriptExecutionResult> {
     logger.info({ taskId: request.taskId }, 'Executing standard-level inline script');
 
-    // Standard level: execute with restricted permissions using Node.js vm module
+    // Standard level: route through WASM runtime for safe execution
+    // vm module is NOT a security boundary - use WASM instead
     const permissions = request.config.permissions || {};
     if (permissions.network && permissions.network.length > 0) {
       logger.info({ networks: permissions.network }, 'Network access granted for whitelist');
     }
 
     try {
-      // Use Node.js vm module for restricted execution
-      const vm = await import('vm');
-      const context = vm.createContext({
-        console,
-        Math,
-        JSON,
-        Date,
-        Array,
-        Object,
-        String,
-        Number,
-        Boolean,
-        RegExp,
-        Map,
-        Set,
-        Promise,
-        // No process, no require, no globalThis access
+      // Use WASM runtime for safe execution (vm.createContext is escapable)
+      const result = await this.wasmRuntime.execute({
+        code: request.config.code,
+        timeout: request.timeout || 30000,
+        memoryLimit: 512 * 1024 * 1024,
       });
-
-      const result = await vm.runInContext(
-        `(async () => { ${request.config.code} })()`,
-        context,
-        { timeout: request.timeout || 30000 }
-      );
 
       return {
         taskId: request.taskId,
-        status: 'success',
-        stdout: typeof result === 'string' ? result : JSON.stringify(result),
+        status: result.success ? 'success' : 'failed',
+        stdout: result.stdout,
+        stderr: result.stderr,
         durationMs: Date.now() - startTime,
+        errorMessage: result.error,
       };
     } catch (error) {
       return {
@@ -360,41 +384,77 @@ export class InlineScriptService {
       };
     }
 
-    // Verify approval exists and is approved
-    if (this.approvalRepo && request.tenantId) {
-      try {
-        const approval = await this.approvalRepo.findByApprovalId(request.config.approvalId!, request.tenantId);
-        if (!approval) {
-          return {
-            taskId: request.taskId,
-            status: 'failed',
-            errorMessage: `Approval ${request.config.approvalId} not found`,
-            durationMs: Date.now() - startTime,
-          };
-        }
-        if (approval.status !== 'approved') {
-          return {
-            taskId: request.taskId,
-            status: 'pending_approval',
-            approvalId: request.config.approvalId,
-            durationMs: Date.now() - startTime,
-          };
-        }
-      } catch (error) {
-        logger.error({ error }, 'Failed to verify approval');
+    // Approval verification is MANDATORY - fail if repo is not available
+    if (!this.approvalRepo) {
+      return {
+        taskId: request.taskId,
+        status: 'failed',
+        errorMessage: 'Advanced scripts require approval repository. Cannot execute without DB connection.',
+        durationMs: Date.now() - startTime,
+      };
+    }
+
+    if (!request.tenantId) {
+      return {
+        taskId: request.taskId,
+        status: 'failed',
+        errorMessage: 'Advanced scripts require tenant ID for approval verification.',
+        durationMs: Date.now() - startTime,
+      };
+    }
+
+    try {
+      const approval = await this.approvalRepo.findByApprovalId(request.config.approvalId!, request.tenantId);
+      if (!approval) {
         return {
           taskId: request.taskId,
           status: 'failed',
-          errorMessage: 'Failed to verify approval status',
+          errorMessage: `Approval ${request.config.approvalId} not found`,
           durationMs: Date.now() - startTime,
         };
       }
+      if (approval.status !== 'approved') {
+        return {
+          taskId: request.taskId,
+          status: 'pending_approval',
+          approvalId: request.config.approvalId,
+          durationMs: Date.now() - startTime,
+        };
+      }
+
+      // Check expiration
+      if (approval.expires_at && new Date() > approval.expires_at) {
+        return {
+          taskId: request.taskId,
+          status: 'failed',
+          errorMessage: `Approval ${request.config.approvalId} has expired`,
+          durationMs: Date.now() - startTime,
+        };
+      }
+
+      // Check usage limit for single_use approvals
+      if (approval.expiration_type === 'single_use' && approval.used_count >= approval.max_uses) {
+        return {
+          taskId: request.taskId,
+          status: 'failed',
+          errorMessage: `Approval ${request.config.approvalId} has been used up`,
+          durationMs: Date.now() - startTime,
+        };
+      }
+    } catch (error) {
+      logger.error({ error }, 'Failed to verify approval');
+      return {
+        taskId: request.taskId,
+        status: 'failed',
+        errorMessage: 'Failed to verify approval status',
+        durationMs: Date.now() - startTime,
+      };
     }
 
     return {
       taskId: request.taskId,
       status: 'success',
-      stdout: 'Advanced script executed with approval',
+      stdout: 'Advanced script executed with verified approval',
       durationMs: Date.now() - startTime,
     };
   }

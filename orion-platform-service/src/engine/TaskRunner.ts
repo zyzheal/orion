@@ -195,41 +195,38 @@ export class TaskRunner {
 
     // Use real PluginExecutorService if available
     if (this.pluginExecutor) {
-      try {
-        const request: TaskExecutionRequest = {
-          taskId: (task.id as string) || `task-${Date.now()}`,
-          pipelineRunId: (task.parameters.pipelineRunId as string) || 'unknown',
-          stageId: (task.parameters.stageId as string) || 'unknown',
-          pluginId,
-          config: (task.parameters.config as Record<string, any>) || {},
-          workspace: { rootPath: (task.parameters.workspace as string) || '/tmp' },
-          env: task.parameters.env as Record<string, string> | undefined,
-          timeout: task.parameters.timeout as number | undefined,
-          userId: task.parameters.userId as string | undefined,
-          tenantId: task.parameters.tenantId as string | undefined,
-        };
+      const request: TaskExecutionRequest = {
+        taskId: (task.id as string) || `task-${Date.now()}`,
+        pipelineRunId: (task.parameters.pipelineRunId as string) || 'unknown',
+        stageId: (task.parameters.stageId as string) || 'unknown',
+        pluginId,
+        config: (task.parameters.config as Record<string, any>) || {},
+        workspace: { rootPath: (task.parameters.workspace as string) || '/tmp' },
+        env: task.parameters.env as Record<string, string> | undefined,
+        timeout: task.parameters.timeout as number | undefined,
+        userId: task.parameters.userId as string | undefined,
+        tenantId: task.parameters.tenantId as string | undefined,
+      };
 
-        const result = await this.pluginExecutor.executeTask(request);
-        return {
-          pluginId,
-          pluginName,
-          status: result.status,
-          exitCode: result.exitCode,
-          stdout: result.stdout,
-          stderr: result.stderr,
-          durationMs: result.durationMs,
-          errorMessage: result.errorMessage,
-          log: task.log,
-        };
-      } catch (error) {
-        return {
-          pluginId,
-          pluginName,
-          status: 'failed',
-          errorMessage: error instanceof Error ? error.message : 'Unknown error',
-          log: task.log,
-        };
+      const result = await this.pluginExecutor.executeTask(request);
+
+      // Check if the plugin execution failed - throw to propagate correct FAILED status
+      const statusStr = String(result.status);
+      if (statusStr === 'FAILED' || statusStr === 'TIMEOUT' || statusStr === 'QUOTA_EXCEEDED' || statusStr === 'VALIDATION_FAILED') {
+        throw new Error(`Plugin execution failed: ${result.errorMessage || 'unknown error'}`);
       }
+
+      return {
+        pluginId,
+        pluginName,
+        status: result.status,
+        exitCode: result.exitCode,
+        stdout: result.stdout,
+        stderr: result.stderr,
+        durationMs: result.durationMs,
+        errorMessage: result.errorMessage,
+        log: task.log,
+      };
     }
 
     // Fallback to simulated execution
@@ -255,48 +252,43 @@ export class TaskRunner {
 
     // Use real InlineScriptService if available
     if (this.inlineScriptService) {
-      try {
-        const request: InlineScriptExecutionRequest = {
-          taskId: (task.id as string) || `task-${Date.now()}`,
-          pipelineRunId: (task.parameters.pipelineRunId as string) || 'unknown',
-          stageId: (task.parameters.stageId as string) || 'unknown',
-          config: {
-            level: level as any,
-            language,
-            code,
-            permissions: task.parameters.permissions as any,
-            approvalId: task.parameters.approvalId as string | undefined,
-          },
-          workspace: { rootPath: (task.parameters.workspace as string) || '/tmp' },
-          env: task.parameters.env as Record<string, string> | undefined,
-          timeout: task.parameters.timeout as number | undefined,
-          userId: task.parameters.userId as string | undefined,
-          tenantId: task.parameters.tenantId as string | undefined,
-        };
+      const request: InlineScriptExecutionRequest = {
+        taskId: (task.id as string) || `task-${Date.now()}`,
+        pipelineRunId: (task.parameters.pipelineRunId as string) || 'unknown',
+        stageId: (task.parameters.stageId as string) || 'unknown',
+        config: {
+          level: level as any,
+          language,
+          code,
+          permissions: task.parameters.permissions as any,
+          approvalId: task.parameters.approvalId as string | undefined,
+        },
+        workspace: { rootPath: (task.parameters.workspace as string) || '/tmp' },
+        env: task.parameters.env as Record<string, string> | undefined,
+        timeout: task.parameters.timeout as number | undefined,
+        userId: task.parameters.userId as string | undefined,
+        tenantId: task.parameters.tenantId as string | undefined,
+      };
 
-        const result = await this.inlineScriptService.execute(request);
-        return {
-          level,
-          language,
-          codeLength: code.length,
-          status: result.status,
-          exitCode: result.status === 'success' ? 0 : 1,
-          stdout: result.stdout,
-          stderr: result.stderr,
-          durationMs: result.durationMs,
-          errorMessage: result.errorMessage,
-          log: task.log,
-        };
-      } catch (error) {
-        return {
-          level,
-          language,
-          codeLength: code.length,
-          status: 'failed',
-          errorMessage: error instanceof Error ? error.message : 'Unknown error',
-          log: task.log,
-        };
+      const result = await this.inlineScriptService.execute(request);
+
+      // Check if execution failed - throw to propagate correct FAILED status
+      if (result.status === 'failed' || result.status === 'timeout') {
+        throw new Error(`Inline script execution failed: ${result.errorMessage || 'unknown error'}`);
       }
+
+      return {
+        level,
+        language,
+        codeLength: code.length,
+        status: result.status,
+        exitCode: result.status === 'success' ? 0 : 1,
+        stdout: result.stdout,
+        stderr: result.stderr,
+        durationMs: result.durationMs,
+        errorMessage: result.errorMessage,
+        log: task.log,
+      };
     }
 
     // Fallback to simulated execution

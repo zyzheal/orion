@@ -26,6 +26,7 @@ const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 interface QuotaAllocation {
   taskId: string;
   pluginId: string;
+  tenantId?: string;
   allocatedAt: Date;
   quota: ResourceQuota;
   currentUsage: ResourceUsage;
@@ -262,7 +263,8 @@ export class PluginResourceManager extends EventEmitter {
   allocateQuota(
     taskId: string,
     pluginId: string,
-    securityLevel?: string
+    securityLevel?: string,
+    tenantId?: string
   ): ExecutionContext | null {
     const quota = this.getPluginQuota(pluginId, securityLevel);
 
@@ -295,6 +297,7 @@ export class PluginResourceManager extends EventEmitter {
     const allocation: QuotaAllocation = {
       taskId,
       pluginId,
+      tenantId,
       allocatedAt: new Date(),
       quota,
       currentUsage: this.createEmptyUsage(),
@@ -327,14 +330,15 @@ export class PluginResourceManager extends EventEmitter {
       return;
     }
 
-    // Release tenant quota slot (decrement first tenant with active count)
-    for (const [tenantId, count] of this.tenantAllocations) {
-      if (count > 0) {
-        this.tenantAllocations.set(tenantId, count - 1);
-        if (count - 1 === 0) {
-          this.tenantAllocations.delete(tenantId);
+    // Release the correct tenant's quota slot
+    if (allocation.tenantId) {
+      const tenantCount = this.tenantAllocations.get(allocation.tenantId) || 0;
+      if (tenantCount > 0) {
+        if (tenantCount - 1 === 0) {
+          this.tenantAllocations.delete(allocation.tenantId);
+        } else {
+          this.tenantAllocations.set(allocation.tenantId, tenantCount - 1);
         }
-        break;
       }
     }
 
@@ -352,6 +356,7 @@ export class PluginResourceManager extends EventEmitter {
     this.emit('allocation:released', {
       taskId,
       pluginId: allocation.pluginId,
+      tenantId: allocation.tenantId,
       duration: Date.now() - allocation.allocatedAt.getTime(),
     });
 
@@ -359,6 +364,7 @@ export class PluginResourceManager extends EventEmitter {
       {
         taskId,
         pluginId: allocation.pluginId,
+        tenantId: allocation.tenantId,
         durationMs: Date.now() - allocation.allocatedAt.getTime(),
       },
       'Quota released'
