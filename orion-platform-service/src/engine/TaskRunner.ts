@@ -13,6 +13,7 @@ import { Task, TaskStatus, appendTaskLog } from '../models/Task';
 import { PluginExecutorService, TaskExecutionRequest, TaskStatus as PluginTaskStatus } from '../services/plugin-executor-service';
 import { InlineScriptService, InlineScriptExecutionRequest } from '../services/inline-script/InlineScriptService';
 import { WorkspaceIsolator, getDefaultWorkspaceIsolator } from './WorkspaceIsolator';
+import { SecretsService, StreamSecretSanitizer } from '../services/pipeline/SecretsService';
 import pino from 'pino';
 
 const logger = pino({ name: 'task-runner' });
@@ -80,6 +81,9 @@ function isScriptSafe(script: string): boolean {
 
 /**
  * 使用 child_process.spawn 执行命令（安全）
+ *
+ * 支持流式日志遮蔽：当提供 sanitizer 时，stdout/stderr 数据
+ * 在收集过程中自动替换 secret 值为 ***
  */
 function spawnCommand(
   command: string,
@@ -89,6 +93,7 @@ function spawnCommand(
     timeoutMs?: number;
     signal?: AbortSignal;
     env?: Record<string, string>;
+    sanitizer?: StreamSecretSanitizer;
   }
 ): Promise<SpawnResult> {
   return new Promise((resolve, reject) => {
@@ -105,12 +110,21 @@ function spawnCommand(
     let stdout = '';
     let stderr = '';
 
+    // 辅助函数：处理数据块并遮蔽 secret
+    const processData = (data: Buffer): string => {
+      let text = data.toString();
+      if (options?.sanitizer) {
+        text = options.sanitizer.sanitize(text);
+      }
+      return text;
+    };
+
     child.stdout?.on('data', (data: Buffer) => {
-      stdout += data.toString();
+      stdout += processData(data);
     });
 
     child.stderr?.on('data', (data: Buffer) => {
-      stderr += data.toString();
+      stderr += processData(data);
     });
 
     const cleanup = () => {
@@ -173,15 +187,18 @@ export class TaskRunner {
   private pluginExecutor?: PluginExecutorService;
   private inlineScriptService?: InlineScriptService;
   private workspaceIsolator: WorkspaceIsolator;
+  private secretsService?: SecretsService;
 
   constructor(options?: {
     pluginExecutor?: PluginExecutorService;
     inlineScriptService?: InlineScriptService;
     workspaceIsolator?: WorkspaceIsolator;
+    secretsService?: SecretsService;
   }) {
     this.pluginExecutor = options?.pluginExecutor;
     this.inlineScriptService = options?.inlineScriptService;
     this.workspaceIsolator = options?.workspaceIsolator || getDefaultWorkspaceIsolator();
+    this.secretsService = options?.secretsService;
   }
 
   /**
@@ -209,9 +226,34 @@ export class TaskRunner {
     updatedTask = appendTaskLog(updatedTask, `[INFO] Starting task: ${task.name}`);
     updatedTask = appendTaskLog(updatedTask, `[INFO] Task type: ${task.type}`);
 
+    // 解析 task parameters 中的 secret 引用（如果有 secretsService）
+    let sanitizer: StreamSecretSanitizer | undefined;
+    if (this.secretsService) {
+      const tenantId = (task.parameters.tenantId as string) || '';
+      if (tenantId) {
+        try {
+          const resolved = await this.secretsService.resolveTaskSecrets(tenantId, task.parameters);
+          // 将解析后的 secrets 合并到 env
+          if (Object.keys(resolved.env).length > 0) {
+            task.parameters.env = { ...(task.parameters.env as Record<string, string> || {}), ...resolved.env };
+          }
+          // 创建日志遮蔽器
+          if (resolved.secretValues.length > 0) {
+            sanitizer = this.secretsService.createSanitizer(resolved.secretValues);
+            updatedTask = appendTaskLog(updatedTask, `[SECRETS] ${resolved.secretValues.length} secret(s) loaded for log sanitization`);
+          }
+          if (resolved.unresolved.length > 0) {
+            updatedTask = appendTaskLog(updatedTask, `[WARN] Unresolved secret references: ${resolved.unresolved.join(', ')}`);
+          }
+        } catch (error) {
+          logger.warn({ error }, 'Failed to resolve task secrets, continuing without secret injection');
+        }
+      }
+    }
+
     try {
-      // 根据 task type 分发到不同执行器
-      const result = await this.executeByType(updatedTask, signal);
+      // 根据 task type 分发到不同执行器，传入 sanitizer
+      const result = await this.executeByType(updatedTask, signal, sanitizer);
 
       updatedTask = appendTaskLog(updatedTask, `[INFO] Task completed successfully`);
 
@@ -239,7 +281,7 @@ export class TaskRunner {
   /**
    * 根据类型执行 Task
    */
-  private async executeByType(task: Task, signal?: AbortSignal): Promise<Record<string, unknown>> {
+  private async executeByType(task: Task, signal?: AbortSignal, sanitizer?: StreamSecretSanitizer): Promise<Record<string, unknown>> {
     const type = task.type.toLowerCase();
 
     // 新增: 插件类型分发
@@ -252,13 +294,13 @@ export class TaskRunner {
     }
 
     if (type.startsWith('git/')) {
-      return this.executeGitTask(task, signal);
+      return this.executeGitTask(task, signal, sanitizer);
     } else if (type.startsWith('npm/') || type.startsWith('yarn/')) {
-      return this.executeNpmTask(task, signal);
+      return this.executeNpmTask(task, signal, sanitizer);
     } else if (type.startsWith('k8s/') || type.startsWith('kubernetes/')) {
-      return this.executeK8sTask(task, signal);
+      return this.executeK8sTask(task, signal, sanitizer);
     } else if (type.startsWith('shell/') || type.startsWith('script/')) {
-      return this.executeShellTask(task, signal);
+      return this.executeShellTask(task, signal, sanitizer);
     } else {
       // 未知类型，模拟执行成功
       return this.executeMockTask(task, signal);
@@ -269,13 +311,14 @@ export class TaskRunner {
    * 执行 Git 相关任务
    * Phase 3: 使用真实 git 命令执行
    */
-  private async executeGitTask(task: Task, signal?: AbortSignal): Promise<Record<string, unknown>> {
+  private async executeGitTask(task: Task, signal?: AbortSignal, sanitizer?: StreamSecretSanitizer): Promise<Record<string, unknown>> {
     const action = task.type.split('/')[1];
     const params = task.parameters;
     const repo = params.repo as string || '';
     const branch = params.branch as string || 'main';
     const cwd = (params.cwd as string) || this.getTaskWorkspace(task, 'git');
     const timeoutMs = (task.timeoutSeconds || 60) * 1000;
+    const env = (params.env as Record<string, string>) || undefined;
 
     task = appendTaskLog(task, `[GIT] Executing ${action}...`);
 
@@ -290,28 +333,28 @@ export class TaskRunner {
     switch (action) {
       case 'clone':
         result = await spawnCommand('git', ['clone', repo, '--branch', branch, '--single-branch', '--depth', '1'], {
-          cwd, timeoutMs, signal,
+          cwd, timeoutMs, signal, env, sanitizer,
         });
         break;
       case 'checkout':
-        result = await spawnCommand('git', ['checkout', branch], { cwd, timeoutMs, signal });
+        result = await spawnCommand('git', ['checkout', branch], { cwd, timeoutMs, signal, env, sanitizer });
         break;
       case 'push':
         const remoteBranch = params.remoteBranch as string || branch;
-        result = await spawnCommand('git', ['push', 'origin', remoteBranch], { cwd, timeoutMs, signal });
+        result = await spawnCommand('git', ['push', 'origin', remoteBranch], { cwd, timeoutMs, signal, env, sanitizer });
         break;
       case 'pull':
-        result = await spawnCommand('git', ['pull', 'origin', branch], { cwd, timeoutMs, signal });
+        result = await spawnCommand('git', ['pull', 'origin', branch], { cwd, timeoutMs, signal, env, sanitizer });
         break;
       case 'status':
-        result = await spawnCommand('git', ['status', '--short'], { cwd, timeoutMs, signal });
+        result = await spawnCommand('git', ['status', '--short'], { cwd, timeoutMs, signal, env, sanitizer });
         break;
       case 'log':
         const maxCount = (params.maxCount as number) || 10;
-        result = await spawnCommand('git', ['log', `--max-count=${maxCount}`, '--oneline'], { cwd, timeoutMs, signal });
+        result = await spawnCommand('git', ['log', `--max-count=${maxCount}`, '--oneline'], { cwd, timeoutMs, signal, env, sanitizer });
         break;
       default:
-        result = await spawnCommand('git', [action], { cwd, timeoutMs, signal });
+        result = await spawnCommand('git', [action], { cwd, timeoutMs, signal, env, sanitizer });
         break;
     }
 
@@ -334,10 +377,11 @@ export class TaskRunner {
    * 执行 Npm/Yarn 任务
    * Phase 3: 使用真实 npm/npx 命令执行
    */
-  private async executeNpmTask(task: Task, signal?: AbortSignal): Promise<Record<string, unknown>> {
+  private async executeNpmTask(task: Task, signal?: AbortSignal, sanitizer?: StreamSecretSanitizer): Promise<Record<string, unknown>> {
     const command = (task.parameters.command as string) || (task.parameters.script as string) || '';
     const cwd = (task.parameters.cwd as string) || this.getTaskWorkspace(task, 'npm');
     const timeoutMs = (task.timeoutSeconds || 120) * 1000;
+    const env = (task.parameters.env as Record<string, string>) || undefined;
 
     task = appendTaskLog(task, `[NPM] Running command: ${command}`);
 
@@ -360,7 +404,7 @@ export class TaskRunner {
       args.shift();
     }
 
-    const result = await spawnCommand(executable, args, { cwd, timeoutMs, signal });
+    const result = await spawnCommand(executable, args, { cwd, timeoutMs, signal, env, sanitizer });
 
     if (result.exitCode !== 0) {
       throw new Error(`${executable} ${command} failed (exit code ${result.exitCode}): ${result.stderr}`);
@@ -379,13 +423,14 @@ export class TaskRunner {
    * 执行 Kubernetes 任务
    * Phase 3: 使用真实 kubectl 命令执行
    */
-  private async executeK8sTask(task: Task, signal?: AbortSignal): Promise<Record<string, unknown>> {
+  private async executeK8sTask(task: Task, signal?: AbortSignal, sanitizer?: StreamSecretSanitizer): Promise<Record<string, unknown>> {
     const action = task.type.split('/')[1];
     const params = task.parameters;
     const name = (params.name as string) || '';
     const namespace = (params.namespace as string) || 'default';
     const cwd = (params.cwd as string) || this.getTaskWorkspace(task, 'k8s');
     const timeoutMs = (task.timeoutSeconds || 60) * 1000;
+    const env = (params.env as Record<string, string>) || undefined;
 
     task = appendTaskLog(task, `[K8S] ${action} deployment ${name || 'unknown'}...`);
 
@@ -402,34 +447,34 @@ export class TaskRunner {
     switch (action) {
       case 'apply':
         const file = (params.file as string) || (params.manifest as string) || '';
-        result = await spawnCommand('kubectl', [...nsArgs, 'apply', '-f', file], { cwd, timeoutMs, signal });
+        result = await spawnCommand('kubectl', [...nsArgs, 'apply', '-f', file], { cwd, timeoutMs, signal, env, sanitizer });
         break;
       case 'delete':
-        result = await spawnCommand('kubectl', [...nsArgs, 'delete', 'deployment', name], { cwd, timeoutMs, signal });
+        result = await spawnCommand('kubectl', [...nsArgs, 'delete', 'deployment', name], { cwd, timeoutMs, signal, sanitizer });
         break;
       case 'rollout':
         const rolloutAction = (params.rolloutAction as string) || 'status';
-        result = await spawnCommand('kubectl', [...nsArgs, 'rollout', rolloutAction, 'deployment', name], { cwd, timeoutMs, signal });
+        result = await spawnCommand('kubectl', [...nsArgs, 'rollout', rolloutAction, 'deployment', name], { cwd, timeoutMs, signal, sanitizer });
         break;
       case 'get':
         const resource = (params.resource as string) || 'pods';
-        result = await spawnCommand('kubectl', [...nsArgs, 'get', resource], { cwd, timeoutMs, signal });
+        result = await spawnCommand('kubectl', [...nsArgs, 'get', resource], { cwd, timeoutMs, signal, sanitizer });
         break;
       case 'describe':
         const describeResource = (params.resource as string) || 'deployment';
-        result = await spawnCommand('kubectl', [...nsArgs, 'describe', describeResource, name], { cwd, timeoutMs, signal });
+        result = await spawnCommand('kubectl', [...nsArgs, 'describe', describeResource, name], { cwd, timeoutMs, signal, sanitizer });
         break;
       case 'logs':
         const podName = name || (params.pod as string) || '';
-        result = await spawnCommand('kubectl', [...nsArgs, 'logs', podName, '--tail=100'], { cwd, timeoutMs, signal });
+        result = await spawnCommand('kubectl', [...nsArgs, 'logs', podName, '--tail=100'], { cwd, timeoutMs, signal, sanitizer });
         break;
       case 'exec':
         const execCommand = (params.execCommand as string) || 'sh';
         const execPod = name || (params.pod as string) || '';
-        result = await spawnCommand('kubectl', [...nsArgs, 'exec', execPod, '--', execCommand], { cwd, timeoutMs, signal });
+        result = await spawnCommand('kubectl', [...nsArgs, 'exec', execPod, '--', execCommand], { cwd, timeoutMs, signal, sanitizer });
         break;
       default:
-        result = await spawnCommand('kubectl', [...nsArgs, action], { cwd, timeoutMs, signal });
+        result = await spawnCommand('kubectl', [...nsArgs, action], { cwd, timeoutMs, signal, sanitizer });
         break;
     }
 
@@ -452,7 +497,7 @@ export class TaskRunner {
    * 执行 Shell 任务
    * Phase 3: 使用真实 shell 命令执行（带安全检查）
    */
-  private async executeShellTask(task: Task, signal?: AbortSignal): Promise<Record<string, unknown>> {
+  private async executeShellTask(task: Task, signal?: AbortSignal, sanitizer?: StreamSecretSanitizer): Promise<Record<string, unknown>> {
     const script = (task.parameters.script as string) || (task.parameters.command as string) || '';
 
     // Input validation: ensure script is a non-empty string
@@ -482,7 +527,7 @@ export class TaskRunner {
       return this.executeMockTask(task, signal);
     }
 
-    const result = await spawnCommand('sh', ['-c', script], { cwd, timeoutMs, signal });
+    const result = await spawnCommand('sh', ['-c', script], { cwd, timeoutMs, signal, sanitizer });
 
     if (result.exitCode !== 0) {
       throw new Error(`Shell script failed (exit code ${result.exitCode}): ${result.stderr}`);
