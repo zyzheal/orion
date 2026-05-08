@@ -21,7 +21,7 @@ import { ArtifactService } from '../services/pipeline/ArtifactService';
 import { ApprovalGateService } from '../services/pipeline/ApprovalGateService';
 import { PipelineExecutionQueue, QueuePriority } from '../services/pipeline/PipelineExecutionQueue';
 import { AutoRetryService } from '../services/pipeline/AutoRetryService';
-import { PipelineRun } from '../models/PipelineRun';
+import { ExpressionEvaluator, ExpressionContext, EvaluationError } from './ExpressionEvaluator';
 import pino from 'pino';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
@@ -49,6 +49,7 @@ export class PipelineEngine {
   private executionQueue: PipelineExecutionQueue | null;
   private autoRetryService: AutoRetryService | null;
   private onRunComplete: RunCompletionCallback | null;
+  private expressionEvaluator: ExpressionEvaluator;
 
   // 内存存储执行中的 Pipeline
   private executions = new Map<string, PipelineExecution>();
@@ -79,6 +80,7 @@ export class PipelineEngine {
     this.executionQueue = executionQueue || null;
     this.autoRetryService = autoRetryService || null;
     this.onRunComplete = onRunComplete || null;
+    this.expressionEvaluator = new ExpressionEvaluator();
   }
 
   /**
@@ -669,39 +671,57 @@ export class PipelineEngine {
 
   /**
    * 评估 Stage 条件表达式
+   *
+   * 使用 ExpressionEvaluator 进行安全的表达式求值，支持：
+   * - 比较运算符: ==, !=, >, <, >=, <=
+   * - 逻辑运算符: &&, ||, !
+   * - 字符串函数: startsWith(), endsWith(), contains()
+   * - 状态函数: success(), failure(), cancelled(), always()
+   * - 上下文变量: branch, tags, changedFiles, triggerBy
+   *
+   * 示例:
+   *   "branch == 'refs/heads/main' && success() && contains(changedFiles, 'Dockerfile')"
    */
   private evaluateCondition(condition: string, execution: PipelineExecution): boolean {
-    // 简化的条件评估，实际应实现更复杂的表达式解析
-    // 示例条件：github.ref == 'refs/heads/main'
+    try {
+      // Build expression context from execution data
+      const context: ExpressionContext = {
+        branch: execution.run.context?.git?.ref ?? '',
+        tags: (execution.run.context?.tags as string[]) ?? [],
+        changedFiles: (execution.run.context?.changedFiles as string[]) ?? [],
+        triggerBy: execution.run.triggerBy ?? '',
+        // Map current pipeline status for status functions
+        executionStatus: this.mapRunStatusToExpression(execution),
+      };
 
-    const context = {
-      github: {
-        ref: execution.run.context?.git?.ref || 'refs/heads/main',
-        ...execution.run.context,
-      },
-      pipeline: {
-        status: execution.run.status,
-      },
-    };
-
-    // 简单的相等性检查
-    const match = condition.match(/^(\S+)\s*==\s*'([^']+)'$/);
-    if (match) {
-      const [, path, expectedValue] = match;
-      const parts = path.split('.');
-      let actualValue: unknown = context as Record<string, unknown>;
-      for (const part of parts) {
-        if (typeof actualValue === 'object' && actualValue !== null) {
-          actualValue = (actualValue as Record<string, unknown>)[part];
-        } else {
-          return false;
-        }
-      }
-      return actualValue === expectedValue;
+      return this.expressionEvaluator.evaluate(condition, context);
+    } catch (error) {
+      // Log evaluation error but return false (condition not met) for safety
+      logger.warn(
+        { runId: execution.run.id, condition, error: error instanceof Error ? error.message : String(error) },
+        'Condition evaluation failed, treating as false'
+      );
+      return false;
     }
+  }
 
-    // 默认返回 true
-    return true;
+  /**
+   * Map the current pipeline run status to the expression's executionStatus value
+   * Used by success(), failure(), cancelled() status functions
+   */
+  private mapRunStatusToExpression(execution: PipelineExecution): string {
+    // During execution, check if any completed stages have failed
+    for (const stageId of execution.completedStages) {
+      const stage = execution.stages.get(stageId);
+      if (stage?.status === StageStatus.FAILED) {
+        return 'failed';
+      }
+    }
+    // If currently running and no failures detected, consider it as 'success' so far
+    if (execution.run.status === PipelineRunStatus.RUNNING) {
+      return 'success';
+    }
+    return execution.run.status;
   }
 
   /**
