@@ -17,6 +17,7 @@
 import pino from 'pino';
 import { EventBusService } from './event-bus-service';
 import { PluginManagerService } from './plugin-manager-service';
+import { ExecutionGuardian } from './guardian/ExecutionGuardian';
 import {
   PluginSandbox,
   PluginResourceManager,
@@ -116,6 +117,7 @@ export class PluginExecutorService {
   private sandbox?: PluginSandbox;
   private resourceManager?: PluginResourceManager;
   private auditLogger?: PluginAuditLogger;
+  private guardian: ExecutionGuardian;
 
   constructor(options: {
     pluginManager: PluginManagerService;
@@ -128,6 +130,10 @@ export class PluginExecutorService {
 
     // 初始化安全组件
     this.initializeSecurityComponents();
+
+    // 初始化 ExecutionGuardian
+    this.guardian = new ExecutionGuardian();
+    this.guardian.start();
   }
 
   /**
@@ -284,8 +290,20 @@ export class PluginExecutorService {
       context.tenantId = request.tenantId;
     }
 
-    // 根据插件类型选择执行方式
-    const result = await this.executeByType(request, plugin, context);
+    // 根据插件类型选择执行方式 - 通过 guardian 注册监控
+    this.guardian.registerTask(request.taskId, {
+      globalTimeoutMs: request.timeout || this.config.maxTimeoutMs,
+      stepTimeoutMs: this.config.defaultTimeoutMs,
+    });
+
+    const abortController = this.guardian.createAbortSignal(request.taskId);
+
+    let result: TaskExecutionResult;
+    try {
+      result = await this.executeByType(request, plugin, context, abortController.signal);
+    } finally {
+      this.guardian.unregisterTask(request.taskId);
+    }
 
     // 释放资源配额
     if (context && this.resourceManager) {
@@ -365,7 +383,8 @@ export class PluginExecutorService {
   private async executeByType(
     request: TaskExecutionRequest,
     plugin: any,
-    context?: ExecutionContext | null
+    context?: ExecutionContext | null,
+    signal?: AbortSignal
   ): Promise<TaskExecutionResult> {
     const startTime = Date.now();
 
@@ -397,14 +416,15 @@ export class PluginExecutorService {
         const sandboxResult = await this.executeInSandbox(
           request,
           plugin,
-          executionContext
+          executionContext,
+          signal
         );
 
         return this.convertSandboxResult(sandboxResult, startTime);
       }
 
       // 不使用沙箱，直接执行
-      return await this.executeWithoutSandbox(request, plugin, startTime);
+      return await this.executeWithoutSandbox(request, plugin, startTime, signal);
     } catch (err) {
       logger.error({ err }, 'Plugin execution failed');
       return {
@@ -423,7 +443,8 @@ export class PluginExecutorService {
   private async executeInSandbox(
     request: TaskExecutionRequest,
     plugin: any,
-    context: ExecutionContext
+    context: ExecutionContext,
+    signal?: AbortSignal
   ): Promise<SandboxExecutionResult> {
     if (!this.sandbox) {
       throw new Error('Sandbox not initialized');
@@ -458,7 +479,8 @@ export class PluginExecutorService {
   private async executeWithoutSandbox(
     request: TaskExecutionRequest,
     plugin: any,
-    startTime: number
+    startTime: number,
+    signal?: AbortSignal
   ): Promise<TaskExecutionResult> {
     logger.warn(
       { taskId: request.taskId },
@@ -467,14 +489,14 @@ export class PluginExecutorService {
 
     switch (plugin.securityLevel) {
       case 'HIGH':
-        return await this.executeWASMPlugin(request);
+        return await this.executeWASMPlugin(request, signal);
 
       case 'MEDIUM':
-        return await this.executeContainerPlugin(request);
+        return await this.executeContainerPlugin(request, signal);
 
       case 'LOW':
       default:
-        return await this.executeProcessPlugin(request);
+        return await this.executeProcessPlugin(request, signal);
     }
   }
 
