@@ -17,6 +17,9 @@ import { PipelineService } from '../services/pipeline/PipelineService';
 import { PipelineRunService } from '../services/pipeline/PipelineRunService';
 import { PipelineEventPublisher } from '../events/PipelineEventPublisher';
 import { StageExecutor } from './StageExecutor';
+import pino from 'pino';
+
+const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
 export interface PipelineExecution {
   run: PipelineRun;
@@ -179,7 +182,7 @@ export class PipelineEngine {
 
       // 执行 Stage
       this.executeStage(execution, stage).catch(error => {
-        console.error(`Failed to execute stage ${stage.name}:`, error);
+        logger.error({ stageName: stage.name, error }, 'Failed to execute stage');
       });
     }
   }
@@ -263,7 +266,7 @@ export class PipelineEngine {
   /**
    * 检查是否有新的 Stages 可以执行
    */
-  private checkNextStages(execution: PipelineExecution): void {
+  private async checkNextStages(execution: PipelineExecution): Promise<void> {
     for (const [stageId, stage] of execution.stages.entries()) {
       if (
         execution.pendingStages.has(stageId) ||
@@ -286,11 +289,11 @@ export class PipelineEngine {
 
     // 执行新的待处理 Stages
     if (execution.pendingStages.size > 0) {
-      this.executePendingStages(execution);
+      await this.executePendingStages(execution);
     }
 
     // 检查 PipelineRun 是否完成
-    this.checkRunCompletion(execution);
+    await this.checkRunCompletion(execution);
   }
 
   /**
@@ -339,12 +342,15 @@ export class PipelineEngine {
     await this.runService.updateStage(retriedStage);
     execution.pendingStages.add(stage.id);
     execution.completedStages.delete(stage.id);
+
+    // Actually trigger the retry
+    await this.executePendingStages(execution);
   }
 
   /**
    * 失败依赖此 Stage 的其他 Stages
    */
-  private failDependentStages(execution: PipelineExecution, failedStage: Stage): void {
+  private async failDependentStages(execution: PipelineExecution, failedStage: Stage): Promise<void> {
     for (const [stageId, stage] of execution.stages.entries()) {
       if (
         stage.status === StageStatus.PENDING &&
@@ -356,8 +362,8 @@ export class PipelineEngine {
           completedAt: new Date(),
         };
         execution.stages.set(stageId, skippedStage);
-        this.runService.updateStage(skippedStage);
-        this.eventPublisher.publishStageSkipped(execution.run.id, skippedStage);
+        await this.runService.updateStage(skippedStage);
+        await this.eventPublisher.publishStageSkipped(execution.run.id, skippedStage);
         execution.completedStages.add(stageId);
       }
     }

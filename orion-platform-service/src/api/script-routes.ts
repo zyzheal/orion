@@ -220,7 +220,8 @@ export default async function scriptRoutes(app: FastifyInstance, options?: { dat
     if (!body.prompt) {
       return reply.code(400).send({ error: 'Missing prompt' });
     }
-    return { generated: false, status: 'not_implemented', prompt: body.prompt };
+    logger.warn('AI script generation endpoint called but not yet implemented');
+    return reply.code(501).send({ generated: false, status: 'not_implemented', prompt: body.prompt, message: 'AI generation requires platform AI service integration' });
   });
 
   logger.info('Inline script routes registered');

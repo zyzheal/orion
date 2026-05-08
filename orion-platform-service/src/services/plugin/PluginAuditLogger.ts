@@ -578,5 +578,6 @@ export class PluginAuditLogger extends EventEmitter {
       },
       60 * 60 * 1000
     );
+    this.cleanupInterval.unref();
   }
 }

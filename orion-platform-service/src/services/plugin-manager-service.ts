@@ -142,8 +142,11 @@ export class PluginManagerService extends EventEmitter {
   }): Promise<PluginInfo[]> {
     logger.info({ options }, 'Listing available plugins');
 
-    // 模拟插件注册表
-    const availablePlugins: PluginInfo[] = [
+    // 合并内存中已加载的插件和注册表中的插件
+    const merged = new Map<string, PluginInfo>();
+
+    // 先从注册表加载默认插件
+    const registryPlugins: PluginInfo[] = [
       {
         id: 'security-scan',
         name: 'security-scan',
@@ -175,7 +178,18 @@ export class PluginManagerService extends EventEmitter {
       },
     ];
 
-    let filtered = availablePlugins;
+    // 合并：内存中的插件优先（可能有更新的状态）
+    for (const plugin of this.plugins.values()) {
+      merged.set(plugin.id, plugin);
+    }
+    // 注册表中的插件作为补充
+    for (const plugin of registryPlugins) {
+      if (!merged.has(plugin.id)) {
+        merged.set(plugin.id, plugin);
+      }
+    }
+
+    let filtered = Array.from(merged.values());
 
     if (options?.typeFilter) {
       filtered = filtered.filter((p) => p.type === options.typeFilter);
@@ -275,6 +289,8 @@ export class PluginManagerService extends EventEmitter {
     // 保存到数据库
     if (this.pluginRepository) {
       await this.pluginRepository.softDelete(pluginId);
+      // Also update the full plugin record in DB to reflect the UNINSTALLED state
+      await this.pluginRepository.updateState(pluginId, 'UNINSTALLED');
     }
 
     await this.publishEvent('plugin.uninstalled', {
@@ -308,6 +324,11 @@ export class PluginManagerService extends EventEmitter {
     plugin.updatedAt = new Date();
     this.runtimes.set(pluginId, runtimeInfo);
 
+    // Persist to database
+    if (this.pluginRepository) {
+      await this.pluginRepository.updateState(pluginId, 'ACTIVE');
+    }
+
     await this.publishEvent('plugin.activated', {
       pluginId,
       activatedAt: new Date(),
@@ -333,6 +354,11 @@ export class PluginManagerService extends EventEmitter {
 
     plugin.state = 'INACTIVE';
     plugin.updatedAt = new Date();
+
+    // Persist to database
+    if (this.pluginRepository) {
+      await this.pluginRepository.updateState(pluginId, 'INACTIVE');
+    }
 
     await this.publishEvent('plugin.deactivated', {
       pluginId,
@@ -363,6 +389,12 @@ export class PluginManagerService extends EventEmitter {
     plugin.config = config;
     plugin.state = 'CONFIGURED';
     plugin.updatedAt = new Date();
+
+    // Persist to database
+    if (this.pluginRepository) {
+      await this.pluginRepository.updateConfig(pluginId, config);
+      await this.pluginRepository.updateState(pluginId, 'CONFIGURED');
+    }
 
     await this.publishEvent('plugin.configured', {
       pluginId,
@@ -563,9 +595,8 @@ export class PluginManagerService extends EventEmitter {
     }
 
     try {
-      const { plugins } = await this.pluginRepository.list({
-        state: 'AVAILABLE'
-      });
+      // Load ALL plugins from DB, not just AVAILABLE ones
+      const { plugins } = await this.pluginRepository.list({});
 
       for (const plugin of plugins) {
         this.plugins.set(plugin.id, plugin);
@@ -664,6 +695,12 @@ export class PluginManagerService extends EventEmitter {
 
     const plugins = await this.pluginRepository.search(query);
     return plugins.map(plugin => {
+      // Merge: preserve in-memory state if plugin already loaded
+      const existing = this.plugins.get(plugin.id);
+      if (existing) {
+        // Update DB fields but keep runtime state from memory
+        return { ...plugin, state: existing.state, config: existing.config, updatedAt: existing.updatedAt };
+      }
       this.plugins.set(plugin.id, plugin);
       return plugin;
     });
