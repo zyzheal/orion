@@ -12,6 +12,7 @@ import { spawn, ChildProcess } from 'child_process';
 import { Task, TaskStatus, appendTaskLog } from '../models/Task';
 import { PluginExecutorService, TaskExecutionRequest, TaskStatus as PluginTaskStatus } from '../services/plugin-executor-service';
 import { InlineScriptService, InlineScriptExecutionRequest } from '../services/inline-script/InlineScriptService';
+import { WorkspaceIsolator, getDefaultWorkspaceIsolator } from './WorkspaceIsolator';
 import pino from 'pino';
 
 const logger = pino({ name: 'task-runner' });
@@ -95,7 +96,7 @@ function spawnCommand(
     const env = getCleanEnv(options?.env);
 
     const child = spawn(command, args, {
-      cwd: options?.cwd || '/tmp',
+      cwd: options?.cwd || process.cwd(),
       env,
       stdio: ['ignore', 'pipe', 'pipe'],
       timeout,
@@ -171,13 +172,33 @@ async function isCommandAvailable(command: string): Promise<boolean> {
 export class TaskRunner {
   private pluginExecutor?: PluginExecutorService;
   private inlineScriptService?: InlineScriptService;
+  private workspaceIsolator: WorkspaceIsolator;
 
   constructor(options?: {
     pluginExecutor?: PluginExecutorService;
     inlineScriptService?: InlineScriptService;
+    workspaceIsolator?: WorkspaceIsolator;
   }) {
     this.pluginExecutor = options?.pluginExecutor;
     this.inlineScriptService = options?.inlineScriptService;
+    this.workspaceIsolator = options?.workspaceIsolator || getDefaultWorkspaceIsolator();
+  }
+
+  /**
+   * 获取 task 的工作空间路径
+   *
+   * 优先级：
+   * 1. task.parameters.workspace.rootPath（如果已设置）
+   * 2. WorkspaceIsolator 生成的默认路径
+   */
+  private getTaskWorkspace(task: Task, taskId?: string): string {
+    const customRoot = task.parameters.workspace as Record<string, unknown> | undefined;
+    const customRootPath = customRoot?.rootPath as string | undefined;
+
+    const runId = (task.parameters.pipelineRunId as string) || 'unknown';
+    const id = taskId || (task.id as string) || `task-${Date.now()}`;
+
+    return this.workspaceIsolator.getWorkspacePath(runId, id, customRootPath);
   }
 
   /**
@@ -253,7 +274,7 @@ export class TaskRunner {
     const params = task.parameters;
     const repo = params.repo as string || '';
     const branch = params.branch as string || 'main';
-    const cwd = (params.cwd as string) || '/tmp';
+    const cwd = (params.cwd as string) || this.getTaskWorkspace(task, 'git');
     const timeoutMs = (task.timeoutSeconds || 60) * 1000;
 
     task = appendTaskLog(task, `[GIT] Executing ${action}...`);
@@ -315,7 +336,7 @@ export class TaskRunner {
    */
   private async executeNpmTask(task: Task, signal?: AbortSignal): Promise<Record<string, unknown>> {
     const command = (task.parameters.command as string) || (task.parameters.script as string) || '';
-    const cwd = (task.parameters.cwd as string) || '/tmp';
+    const cwd = (task.parameters.cwd as string) || this.getTaskWorkspace(task, 'npm');
     const timeoutMs = (task.timeoutSeconds || 120) * 1000;
 
     task = appendTaskLog(task, `[NPM] Running command: ${command}`);
@@ -363,7 +384,7 @@ export class TaskRunner {
     const params = task.parameters;
     const name = (params.name as string) || '';
     const namespace = (params.namespace as string) || 'default';
-    const cwd = (params.cwd as string) || '/tmp';
+    const cwd = (params.cwd as string) || this.getTaskWorkspace(task, 'k8s');
     const timeoutMs = (task.timeoutSeconds || 60) * 1000;
 
     task = appendTaskLog(task, `[K8S] ${action} deployment ${name || 'unknown'}...`);
@@ -444,7 +465,7 @@ export class TaskRunner {
       throw new Error('Shell script contains null bytes');
     }
 
-    const cwd = (task.parameters.cwd as string) || '/tmp';
+    const cwd = (task.parameters.cwd as string) || this.getTaskWorkspace(task, 'shell');
     const timeoutMs = (task.timeoutSeconds || 60) * 1000;
 
     task = appendTaskLog(task, `[SHELL] Executing: ${script.substring(0, 100)}${script.length > 100 ? '...' : ''}`);
@@ -506,7 +527,7 @@ export class TaskRunner {
         stageId: (task.parameters.stageId as string) || 'unknown',
         pluginId,
         config: (task.parameters.config as Record<string, any>) || {},
-        workspace: { rootPath: (task.parameters.workspace as string) || '/tmp' },
+        workspace: { rootPath: this.getTaskWorkspace(task, `plugin-${pluginId}`) },
         env: task.parameters.env as Record<string, string> | undefined,
         timeout: task.parameters.timeout as number | undefined,
         userId: task.parameters.userId as string | undefined,
@@ -568,7 +589,7 @@ export class TaskRunner {
           permissions: task.parameters.permissions as any,
           approvalId: task.parameters.approvalId as string | undefined,
         },
-        workspace: { rootPath: (task.parameters.workspace as string) || '/tmp' },
+        workspace: { rootPath: this.getTaskWorkspace(task, 'inline-script') },
         env: task.parameters.env as Record<string, string> | undefined,
         timeout: task.parameters.timeout as number | undefined,
         userId: task.parameters.userId as string | undefined,
