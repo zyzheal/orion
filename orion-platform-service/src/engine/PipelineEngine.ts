@@ -1136,9 +1136,9 @@ export class PipelineEngine {
    *
    * 未来可扩展为真正重新执行未完成的部分。
    */
-  async recoverRuns(): Promise<{ recovered: number; markedFailed: number; errors: string[] }> {
+  async recoverRuns(): Promise<{ recovered: number; markedFailed: number; restored: number; errors: string[] }> {
     if (!this.runService) {
-      return { recovered: 0, markedFailed: 0, errors: ['RunService not available'] };
+      return { recovered: 0, markedFailed: 0, restored: 0, errors: ['RunService not available'] };
     }
 
     const errors: string[] = [];

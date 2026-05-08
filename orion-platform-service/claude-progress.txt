@@ -2,7 +2,242 @@
 
 ## Current Session (2026-05-08)
 
-### Completed: Pipeline Plugin System Phase 2 — Core Pipeline Capabilities
+### Completed: GAP-CN-05 IM Notification Integration
+
+实现了钉钉、企业微信、飞书的 Pipeline 状态通知功能。
+
+#### Features Implemented
+- **Created** `src/services/pipeline/IMNotifier.ts`
+  - IMNotifier 主类，使用适配器模式支持多种 IM 平台
+  - IMNotificationConfig / IMNotificationPayload 接口定义
+  - notifyOnPipelineComplete / notifyOnPipelineFailure / notifyOnPipelineCancelled 便捷方法
+  - sendBatch 批量发送（并行，互不影响）
+  - 所有通知发送失败被捕获并记录日志，不影响 Pipeline 状态
+
+- **Created** `src/services/pipeline/im-adapters/DingTalkAdapter.ts`
+  - 钉钉自定义机器人 Webhook 适配器
+  - 发送 Markdown 格式消息，包含状态 emoji
+  - 验证 HTTP 响应状态码和 errcode
+
+- **Created** `src/services/pipeline/im-adapters/WeComAdapter.ts`
+  - 企业微信群机器人 Webhook 适配器
+  - 发送 Markdown 格式消息，使用 blockquote 和 font color
+  - 成功/失败/取消分别使用 info/warning/comment 颜色
+
+- **Created** `src/services/pipeline/im-adapters/FeishuAdapter.ts`
+  - 飞书自定义机器人 Webhook 适配器
+  - 发送交互式卡片消息，header 模板根据状态变色（green/red/gray）
+  - 包含"查看详情"操作按钮
+
+- **Updated** `src/engine/PipelineEngine.ts`
+  - 新增 IMNotifier 和 IMNotificationConfig 构造参数（可选）
+  - checkRunCompletion() 中，pipeline 完成后自动发送 IM 通知
+  - sendIMNotifications() 私有方法，根据状态分发到不同通知方法
+  - 通知发送使用 .catch() 包裹，确保失败不影响 pipeline 状态
+
+- **Created** `src/services/pipeline/__tests__/IMNotifier.test.ts` (23 tests)
+  - 适配器注册、通知分发、错误处理
+  - PipelineComplete/Failure/Cancelled 便捷方法
+  - sendBatch 批量发送和容错
+  - Pipeline 状态保护（通知失败不抛异常）
+
+- **Created** `src/services/pipeline/__tests__/im-adapters/DingTalkAdapter.test.ts` (10 tests)
+- **Created** `src/services/pipeline/__tests__/im-adapters/WeComAdapter.test.ts` (10 tests)
+- **Created** `src/services/pipeline/__tests__/im-adapters/FeishuAdapter.test.ts` (10 tests)
+  - 每个 adapter 测试：平台类型、消息格式、状态变体、错误处理
+
+### Test Status
+- **IM notification tests**: 44 passed across 4 test suites
+- **All pipeline tests**: 450+ passed (no regressions)
+
+### Commits
+- `13ee38d` feat(engine): implement GAP-CN-05 IM notification integration (DingTalk/WeCom/Feishu)
+
+### Files Changed
+1. `src/services/pipeline/IMNotifier.ts` (new)
+2. `src/services/pipeline/im-adapters/DingTalkAdapter.ts` (new)
+3. `src/services/pipeline/im-adapters/WeComAdapter.ts` (new)
+4. `src/services/pipeline/im-adapters/FeishuAdapter.ts` (new)
+5. `src/services/pipeline/im-adapters/index.ts` (new)
+6. `src/services/pipeline/__tests__/IMNotifier.test.ts` (new, 23 tests)
+7. `src/services/pipeline/__tests__/im-adapters/DingTalkAdapter.test.ts` (new, 10 tests)
+8. `src/services/pipeline/__tests__/im-adapters/WeComAdapter.test.ts` (new, 10 tests)
+9. `src/services/pipeline/__tests__/im-adapters/FeishuAdapter.test.ts` (new, 10 tests)
+10. `src/engine/PipelineEngine.ts` (IM notifier integration)
+
+### Completed: GAP-05 Execution State Persistence with Checkpoint Manager
+
+将 Pipeline 执行状态从内存 Map 持久化到 PostgreSQL，支持 startup recovery。
+
+#### Features Implemented
+- **Created** `src/db/migrations/133_create_pipeline_checkpoints_table.sql`
+  - pipeline_checkpoints 表：run_id UNIQUE, checkpoint_data JSONB, status 索引
+  - Rollback migration: 133_rollback_pipeline_checkpoints_table.sql
+
+- **Created** `src/repositories/PipelineCheckpointRepository.ts`
+  - saveCheckpoint: INSERT ... ON CONFLICT (run_id) DO UPDATE upsert
+  - findByRunId / findAllByStatus / deleteByRunId / findByPipelineId / countByStatus
+
+- **Created** `src/engine/PipelineCheckpointManager.ts`
+  - saveCheckpoint: 序列化 PipelineExecution 为 CheckpointData JSON
+  - loadCheckpoint: 反序列化并恢复 PipelineExecution
+  - cleanupCompleted: pipeline 完成后清理 checkpoint
+  - findRunningCheckpoints: 查找所有 RUNNING 状态的 checkpoint
+  - recoverOrphanedRuns: startup recovery - 恢复或标记失败
+  - CheckpointData 包含: run, stages (含所有字段), pendingStages, runningStages, completedStages
+
+- **Updated** `src/engine/PipelineEngine.ts`
+  - 新增 checkpointManager 依赖注入
+  - executeStage(): stage RUNNING/SUCCESS/FAILED 时自动 saveCheckpoint
+  - Task 完成时 saveCheckpoint (记录 lastStageName, lastTaskName)
+  - checkRunCompletion(): 成功后 cleanupCompleted
+  - cancelExecution(): 取消时 cleanupCompleted
+  - failDependentStages(): 跳过依赖 stage 时 saveCheckpoint
+  - retryStage/retryStageWithBackoff(): retry 时 saveCheckpoint
+  - recoverOrphanedRuns(): 新的 startup recovery 方法，优先使用 checkpoint
+  - recoverRuns(): 兼容旧逻辑，fallback 时使用
+
+- **Created** `src/repositories/__tests__/PipelineCheckpointRepository.test.ts` (13 tests)
+  - saveCheckpoint 插入/更新, findByRunId, findAllByStatus, deleteByRunId
+  - findByPipelineId, countByStatus
+
+- **Created** `src/engine/__tests__/PipelineCheckpointManager.test.ts` (20 tests)
+  - saveCheckpoint/loadCheckpoint/cleanupCompleted
+  - findRunningCheckpoints
+  - recoverOrphanedRuns: 恢复、标记失败、清理已完成的 checkpoint
+  - Serialization round-trip 测试
+
+### Test Status
+- **Checkpoint tests**: 33 passed across 2 test suites
+- **All pipeline tests**: 30 out of 32 suites pass (2 pre-existing failures unrelated)
+- **Type check**: No new errors introduced
+
+### Commits
+- `feat(engine): implement GAP-05 execution state persistence with checkpoint manager`
+
+### Files Changed
+1. `src/db/migrations/133_create_pipeline_checkpoints_table.sql` (new)
+2. `src/db/migrations/133_rollback_pipeline_checkpoints_table.sql` (new)
+3. `src/repositories/PipelineCheckpointRepository.ts` (new)
+4. `src/repositories/__tests__/PipelineCheckpointRepository.test.ts` (new, 13 tests)
+5. `src/engine/PipelineCheckpointManager.ts` (new)
+6. `src/engine/__tests__/PipelineCheckpointManager.test.ts` (new, 20 tests)
+7. `src/engine/PipelineEngine.ts` (checkpoint integration)
+
+### Completed: GAP-01 Condition Expression Engine Enhancement
+
+Replaced simple regex-based condition evaluation in PipelineEngine with a full expression engine.
+
+#### Features Implemented
+- **Created** `src/engine/ExpressionEvaluator.ts`
+  - Uses `expr-eval` library with strict security whitelisting
+  - Comparison operators: ==, !=, >, <, >=, <=
+  - Logical operators: &&, ||, ! (converted to expr-eval's and/or/not)
+  - String functions: startsWith(), endsWith(), contains() (works with both strings and arrays)
+  - Status functions: success(), failure(), cancelled(), always()
+  - Context variables: branch, tags, changedFiles, triggerBy
+  - Timeout protection (100ms max)
+  - Security: blocks eval, Function, require, process, __proto__, constructor, prototype, etc.
+  - Graceful handling of undefined variables
+
+- **Updated** `src/engine/PipelineEngine.ts`
+  - Added ExpressionEvaluator as class member
+  - Replaced evaluateCondition() with full expression evaluation
+  - Added mapRunStatusToExpression() for status function support
+  - Error logging with fallback to false on evaluation failure
+
+- **Created** `src/engine/__tests__/ExpressionEvaluator.test.ts` (45 tests)
+  - Comparison operators (8 tests)
+  - Logical operators (6 tests)
+  - String functions (4 tests)
+  - Status functions (5 tests)
+  - Context variables (4 tests)
+  - Security blocked functions (6 tests)
+  - Edge cases (6 tests)
+  - Timeout protection (1 test)
+  - Real-world pipeline scenarios (5 tests)
+
+#### Dependencies Added
+- `expr-eval@^2.0.2` - Expression evaluation library
+- `@types/expr-eval` - TypeScript types
+
+### Commit
+- `80439cd` feat(engine): implement condition expression engine for pipeline stages
+
+### Previous: Pipeline Plugin System Phase 4 — Security Hardening
+
+All 5 features of Phase 4 implemented and tested:
+
+#### Feature 1: Pipeline Tenant Isolation (Security Fix)
+- **Created** `src/services/pipeline/PipelineTenantIsolationService.ts`
+  - Extract tenantId from x-tenant-id header
+  - validatePipelineTenant: ensures pipeline belongs to requesting tenant
+  - validateRunTenant: ensures run belongs to requesting tenant
+- **Updated** `src/api/controllers/PipelineRunController.ts` — all endpoints now validate tenant:
+  - trigger(): validates pipeline tenant before execution
+  - cancel(): validates run tenant before cancellation
+  - list(): filters runs by tenant scope
+  - getById/getStages/getTasks(): all validate run tenant access
+- **Fixed** `src/services/pipeline/PipelineRunService.ts` — mapCreateInput now extracts tenantId from context instead of hardcoding default tenant
+- Returns 403 TENANT_ISOLATION_VIOLATION on cross-tenant access attempts
+
+#### Feature 2: Container Image Signature Verification
+- **Created** `src/services/plugin/ImageVerifier.ts`
+  - verifyImage: full image verification with digest pinning support
+  - Warns when using :latest tag (non-deterministic)
+  - Digest-pinned images (@sha256:...) use as-is without warnings
+  - docker inspect to verify image exists locally
+  - Pulls image based on pull policy (Always/IfNotPresent/Never)
+  - Registry auth support via DOCKER_REGISTRY_USERNAME/PASSWORD env vars
+  - Uses --password-stdin for credential safety
+- **New tests**: `src/services/plugin/__tests__/ImageVerifier.test.ts` (13 tests)
+
+#### Feature 3: Pipeline-level RBAC
+- **Created** `src/services/pipeline/PipelineRBACService.ts`
+  - Roles: pipeline.admin, pipeline.editor, pipeline.viewer, pipeline.approver
+  - canTrigger/canView/canCancel/canApprove permission checks
+  - If no RBAC rules exist for a pipeline, default to allow (backward compatible)
+  - In-memory rule store with setRules/addRule/removeRule operations
+- **Wired into** PipelineRunController.trigger() and cancel()
+- **New tests**: `src/services/pipeline/__tests__/PipelineRBACService.test.ts` (23 tests)
+
+#### Feature 4: SCM Webhook Receiver
+- **Created** `src/services/pipeline/SCMWebhookService.ts`
+  - handleGitHubPush: parse GitHub push events with HMAC signature validation
+  - handleGitLabPush: parse GitLab push events with secret token validation
+  - Trigger rules matching: repository pattern, branch pattern, event type
+  - Auto-triggers matching pipelines with SCM context
+  - Stores webhook events (last 100) for history
+- **Added route** POST /api/v1/webhooks/scm (public, signature validated)
+- **Added route** GET /api/v1/webhooks/scm/events (auth protected)
+- **New tests**: `src/services/pipeline/__tests__/SCMWebhookService.test.ts` (16 tests)
+
+#### Feature 5: Container Image Pre-pull Enhancement
+- ImageVerifier consolidates and enhances the existing pullImageIfNeeded logic
+- Adds clear error messages when image pull fails
+- Registry auth with DOCKER_REGISTRY_SERVER/USERNAME/PASSWORD env vars
+
+### Test Status Summary
+- **Pipeline-related tests**: 450 passed across 25 test suites
+- **New tests this session**: 52 (13 + 23 + 16)
+- **Total new tests across all sessions**: 407 (355 previous + 52 this session)
+
+### Commits This Session (Phase 4)
+1. `feat(security): implement Phase 4 security hardening for pipeline plugin system`
+
+### Files Changed This Session (Phase 4)
+1. `src/services/pipeline/PipelineTenantIsolationService.ts` (new)
+2. `src/services/pipeline/PipelineRBACService.ts` (new)
+3. `src/services/pipeline/SCMWebhookService.ts` (new)
+4. `src/services/plugin/ImageVerifier.ts` (new)
+5. `src/services/pipeline/__tests__/PipelineRBACService.test.ts` (new, 23 tests)
+6. `src/services/pipeline/__tests__/SCMWebhookService.test.ts` (new, 16 tests)
+7. `src/services/plugin/__tests__/ImageVerifier.test.ts` (new, 13 tests)
+8. `src/api/controllers/PipelineRunController.ts` (tenant isolation + RBAC wiring)
+9. `src/api/pipeline-routes-registrar.ts` (SCM webhook routes)
+10. `src/services/pipeline/PipelineRunService.ts` (fix hardcoded tenantId)
+
+### Previous: Pipeline Plugin System Phase 3 — Production Readiness (SRE Review)
 
 All 5 features of Phase 2 implemented and tested:
 
