@@ -16,3 +16,5 @@ export * from './DecisionExplanationService';
 export * from './ModelVersionService';
 export { MLInferenceService, type MLModel, type PredictionResult, type BatchPredictionResult, type ModelPerformance } from './MLInferenceService';
 export { CostOptimizerService, type CostSavingOpportunity, type OptimizationRecommendation, type CostAnalysisReport, type SavingsTrackingRecord } from './CostOptimizerService';
+export { AIDiagnosisService } from './AIDiagnosisService';
+export type { DiagnosisResult, DiagnosisContext } from './AIDiagnosisService';
