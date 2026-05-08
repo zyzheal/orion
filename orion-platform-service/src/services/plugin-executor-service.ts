@@ -20,6 +20,7 @@ import { EventBusService } from './event-bus-service';
 import { PluginManagerService, PluginInfo, SecurityLevel } from './plugin-manager-service';
 import { ExecutionGuardian } from './guardian/ExecutionGuardian';
 import { ProcessKiller } from './guardian/ProcessKiller';
+import { WasmRuntime } from './inline-script/WasmRuntime';
 import {
   PluginSandbox,
   PluginResourceManager,
@@ -142,6 +143,7 @@ export class PluginExecutorService {
   private auditLogger?: PluginAuditLogger;
   private guardian: ExecutionGuardian;
   private processKiller: ProcessKiller;
+  private wasmRuntime: WasmRuntime;
   private allowedCommands: Set<string>;
   private evictionTimer: NodeJS.Timeout | undefined;
 
@@ -168,6 +170,9 @@ export class PluginExecutorService {
 
     // Initialize ProcessKiller
     this.processKiller = new ProcessKiller();
+
+    // Initialize WASM Runtime
+    this.wasmRuntime = new WasmRuntime();
 
     // Start TTL-based eviction for executions Map
     this.startExecutionEviction();
@@ -543,18 +548,48 @@ export class PluginExecutorService {
   }
 
   /**
-   * 执行 WASM 插件
+   * 执行 WASM 插件 - 通过 QuickJS 沙箱执行
    */
   private async executeWASMPlugin(
     request: TaskExecutionRequest,
     signal?: AbortSignal
   ): Promise<any> {
-    logger.info({ taskId: request.taskId }, 'Executing WASM plugin via gRPC');
+    logger.info({ taskId: request.taskId }, 'Executing WASM plugin via QuickJS');
 
-    // 模拟 gRPC 调用
-    // 实际实现中需要通过 @grpc/grpc-js 调用 WASM 运行时
+    if (signal?.aborted) {
+      throw new Error('Execution aborted');
+    }
 
-    return this.simulateExecution(request, 'WASM', signal);
+    // Extract code from plugin config
+    const code = (request.config.code as string) || (request.config.command as string) || '';
+    if (!code) {
+      return {
+        pluginId: request.pluginId,
+        runtimeType: 'WASM',
+        exitCode: 1,
+        stderr: 'No code provided for WASM execution',
+        outputs: { result: 'failed' },
+      };
+    }
+
+    const timeout = request.timeout || this.config.defaultTimeoutMs;
+    // HIGH security: limit to 256MB memory
+    const memoryLimit = 256 * 1024 * 1024;
+
+    const result = await this.wasmRuntime.execute({
+      code,
+      timeout,
+      memoryLimit,
+    });
+
+    return {
+      pluginId: request.pluginId,
+      runtimeType: 'WASM',
+      exitCode: result.success ? 0 : 1,
+      stdout: result.stdout,
+      stderr: result.stderr || result.error,
+      outputs: { result: result.success ? 'success' : 'failed' },
+    };
   }
 
   /**
