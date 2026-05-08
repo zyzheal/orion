@@ -54,6 +54,13 @@ export class ApprovalGateService {
   // 内存存储审批请求：runId:stageId -> ApprovalRequest
   private requests = new Map<string, ApprovalRequest>();
   private counter = 0;
+  private cleanupInterval?: NodeJS.Timeout;
+  private maxAgeMs: number;
+
+  constructor(options?: { maxAgeHours?: number }) {
+    this.maxAgeMs = (options?.maxAgeHours ?? 48) * 60 * 60 * 1000; // Default: 48 hours
+    this.startCleanupInterval();
+  }
 
   /**
    * 请求审批
@@ -233,6 +240,42 @@ export class ApprovalGateService {
     for (const key of toDelete) {
       this.requests.delete(key);
     }
+  }
+
+  /**
+   * 关闭审批服务（清理定时器）
+   */
+  shutdown(): void {
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+    }
+  }
+
+  /**
+   * 清理过期的审批记录
+   */
+  private cleanupExpiredRequests(): void {
+    const now = Date.now();
+    let removed = 0;
+    for (const [key, request] of this.requests.entries()) {
+      if (now - request.createdAt.getTime() > this.maxAgeMs) {
+        this.requests.delete(key);
+        removed++;
+      }
+    }
+    if (removed > 0) {
+      logger.debug({ removed, remaining: this.requests.size }, 'Cleaned up expired approval requests');
+    }
+  }
+
+  /**
+   * 启动定期清理
+   */
+  private startCleanupInterval(): void {
+    this.cleanupInterval = setInterval(() => {
+      this.cleanupExpiredRequests();
+    }, 30 * 60 * 1000); // Every 30 minutes
+    this.cleanupInterval.unref();
   }
 
   // ==================== Internal Helpers ====================

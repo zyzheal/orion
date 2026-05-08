@@ -105,7 +105,15 @@ export class SCMWebhookService {
       return true;
     }
 
-    return token === this.secretToken;
+    return this.timingSafeCompare(token, this.secretToken);
+  }
+
+  /**
+   * Timing-safe string comparison to prevent timing attacks.
+   */
+  private timingSafeCompare(a: string, b: string): boolean {
+    if (a.length !== b.length) return false;
+    return crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
   }
 
   /**

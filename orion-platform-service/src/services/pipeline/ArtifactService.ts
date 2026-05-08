@@ -45,10 +45,14 @@ export class ArtifactService {
   private baseDir: string;
   // 内存索引：runId -> stageId -> name -> ArtifactRecord
   private index = new Map<string, Map<string, Map<string, ArtifactRecord>>>();
+  private cleanupInterval?: NodeJS.Timeout;
+  private maxAgeMs: number;
 
-  constructor(baseDir?: string) {
-    this.baseDir = baseDir || process.env.ARTIFACT_BASE_DIR || '/tmp/orion-artifacts';
+  constructor(options?: { baseDir?: string; maxAgeHours?: number }) {
+    this.baseDir = options?.baseDir || process.env.ARTIFACT_BASE_DIR || '/tmp/orion-artifacts';
+    this.maxAgeMs = (options?.maxAgeHours ?? 72) * 60 * 60 * 1000; // Default: 72 hours
     this.ensureBaseDir();
+    this.startCleanupInterval();
   }
 
   /**
@@ -238,6 +242,57 @@ export class ArtifactService {
    */
   getStageDir(runId: string, stageId: string): string {
     return path.join(this.baseDir, runId, stageId);
+  }
+
+  /**
+   * 关闭 artifact 服务（清理定时器）
+   */
+  shutdown(): void {
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+    }
+  }
+
+  /**
+   * 清理过期的 artifact 记录
+   */
+  private cleanupExpiredArtifacts(): void {
+    const now = Date.now();
+    const toDelete: string[] = [];
+
+    for (const [runId, runIndex] of this.index.entries()) {
+      let hasExpired = false;
+      for (const stageMap of runIndex.values()) {
+        for (const record of stageMap.values()) {
+          if (now - record.createdAt.getTime() > this.maxAgeMs) {
+            hasExpired = true;
+            break;
+          }
+        }
+        if (hasExpired) break;
+      }
+      if (hasExpired) {
+        toDelete.push(runId);
+      }
+    }
+
+    for (const runId of toDelete) {
+      this.cleanupRun(runId);
+    }
+
+    if (toDelete.length > 0) {
+      logger.info({ removed: toDelete.length }, 'Cleaned up expired artifact runs');
+    }
+  }
+
+  /**
+   * 启动定期清理
+   */
+  private startCleanupInterval(): void {
+    this.cleanupInterval = setInterval(() => {
+      this.cleanupExpiredArtifacts();
+    }, 60 * 60 * 1000); // Every hour
+    this.cleanupInterval.unref();
   }
 
   // ==================== Internal Helpers ====================

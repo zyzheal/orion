@@ -32,14 +32,12 @@ export class PipelineTenantIsolationService {
 
   /**
    * Validate that a pipeline belongs to the given tenant.
-   * Returns the pipeline if valid, or null if not found / wrong tenant.
    */
   async validatePipelineTenant(
     pipelineId: string,
     tenantId: string
   ): Promise<{ valid: boolean; pipeline?: any; error?: string }> {
     if (!this.pipelineService) {
-      // If pipeline service unavailable, allow (backward compatible)
       logger.warn({ pipelineId }, 'PipelineService unavailable for tenant validation, allowing');
       return { valid: true };
     }
@@ -49,7 +47,6 @@ export class PipelineTenantIsolationService {
       return { valid: false, error: `Pipeline '${pipelineId}' not found` };
     }
 
-    // Check tenant ownership
     const pipelineTenantId = (pipeline as any).tenant_id;
     if (pipelineTenantId && pipelineTenantId !== tenantId) {
       logger.warn(
@@ -67,28 +64,38 @@ export class PipelineTenantIsolationService {
 
   /**
    * Validate that a pipeline run belongs to the given tenant.
-   * Uses the run's context to determine tenant ownership.
+   * If run lacks tenantId, falls back to validating the associated pipeline.
    */
-  validateRunTenant(
+  async validateRunTenant(
     run: any,
     tenantId: string
-  ): { valid: boolean; error?: string } {
+  ): Promise<{ valid: boolean; error?: string }> {
     if (!run) {
       return { valid: false, error: 'Run not found' };
     }
 
-    // The run should have been created with a tenant_id in the context
     const runTenantId = run.context?.tenantId || (run as any).tenant_id;
-    if (runTenantId && runTenantId !== tenantId) {
-      logger.warn(
-        { runId: run.id, requestTenantId: tenantId, runTenantId },
-        'Tenant isolation violation: run belongs to different tenant'
-      );
-      return {
-        valid: false,
-        error: `Access denied: run '${run.id}' does not belong to tenant '${tenantId}'`,
-      };
+
+    if (runTenantId) {
+      // Run has tenantId, validate directly
+      if (runTenantId !== tenantId) {
+        logger.warn(
+          { runId: run.id, requestTenantId: tenantId, runTenantId },
+          'Tenant isolation violation: run belongs to different tenant'
+        );
+        return {
+          valid: false,
+          error: `Access denied: run '${run.id}' does not belong to tenant '${tenantId}'`,
+        };
+      }
+    } else if (run.pipelineId) {
+      // Run lacks tenantId, validate via associated pipeline
+      const pipelineCheck = await this.validatePipelineTenant(run.pipelineId, tenantId);
+      if (!pipelineCheck.valid) {
+        return { valid: false, error: pipelineCheck.error };
+      }
     }
+    // If no tenantId and no pipelineId, allow (backward compatible for legacy data)
 
     return { valid: true };
   }

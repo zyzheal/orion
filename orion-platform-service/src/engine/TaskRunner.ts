@@ -433,12 +433,23 @@ export class TaskRunner {
    */
   private async executeShellTask(task: Task, signal?: AbortSignal): Promise<Record<string, unknown>> {
     const script = (task.parameters.script as string) || (task.parameters.command as string) || '';
+
+    // Input validation: ensure script is a non-empty string
+    if (typeof script !== 'string' || script.trim().length === 0) {
+      throw new Error('Shell script must be a non-empty string');
+    }
+
+    // Reject scripts containing null bytes (can truncate strings in some contexts)
+    if (script.includes('\0')) {
+      throw new Error('Shell script contains null bytes');
+    }
+
     const cwd = (task.parameters.cwd as string) || '/tmp';
     const timeoutMs = (task.timeoutSeconds || 60) * 1000;
 
     task = appendTaskLog(task, `[SHELL] Executing: ${script.substring(0, 100)}${script.length > 100 ? '...' : ''}`);
 
-    // 安全检查
+    // Security scan for dangerous patterns
     if (!isScriptSafe(script)) {
       throw new Error('Script contains potentially dangerous commands');
     }

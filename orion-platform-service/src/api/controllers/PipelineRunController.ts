@@ -62,7 +62,7 @@ export class PipelineRunController {
 
       // P4 Security: Check RBAC - can user trigger this pipeline?
       const userId = (request as any).user?.userId || triggerBy || 'anonymous';
-      const rbacCheck = this.rbacService.canTrigger(pipelineId, userId);
+      const rbacCheck = await this.rbacService.canTrigger(pipelineId, userId);
       if (!rbacCheck.allowed) {
         await reply.status(403).send({
           error: 'RBAC_DENIED',
@@ -249,7 +249,7 @@ export class PipelineRunController {
       const tenantId = PipelineTenantIsolationService.extractTenantId(request.headers as Record<string, string | undefined>);
       const run = await this.runService.getRun(id);
       if (run) {
-        const tenantCheck = this.tenantIsolation.validateRunTenant(run, tenantId);
+        const tenantCheck = await this.tenantIsolation.validateRunTenant(run, tenantId);
         if (!tenantCheck.valid) {
           await reply.status(403).send({
             error: 'TENANT_ISOLATION_VIOLATION',
@@ -333,7 +333,7 @@ export class PipelineRunController {
       const tenantId = PipelineTenantIsolationService.extractTenantId(request.headers as Record<string, string | undefined>);
       const run = await this.runService.getRun(id);
       if (run) {
-        const tenantCheck = this.tenantIsolation.validateRunTenant(run, tenantId);
+        const tenantCheck = await this.tenantIsolation.validateRunTenant(run, tenantId);
         if (!tenantCheck.valid) {
           await reply.status(403).send({
             error: 'TENANT_ISOLATION_VIOLATION',
@@ -345,7 +345,7 @@ export class PipelineRunController {
 
         // P4 Security: Check RBAC - can user cancel this run?
         const userId = (request as any).user?.userId || 'anonymous';
-        const rbacCheck = this.rbacService.canCancel(id, userId, tenantId, run.pipelineId);
+        const rbacCheck = await this.rbacService.canCancel(id, userId, tenantId, run.pipelineId);
         if (!rbacCheck.allowed) {
           await reply.status(403).send({
             error: 'RBAC_DENIED',
@@ -407,7 +407,7 @@ export class PipelineRunController {
       const tenantId = PipelineTenantIsolationService.extractTenantId(request.headers as Record<string, string | undefined>);
       const run = await this.runService.getRun(id);
       if (run) {
-        const tenantCheck = this.tenantIsolation.validateRunTenant(run, tenantId);
+        const tenantCheck = await this.tenantIsolation.validateRunTenant(run, tenantId);
         if (!tenantCheck.valid) {
           await reply.status(403).send({
             error: 'TENANT_ISOLATION_VIOLATION',
@@ -466,7 +466,7 @@ export class PipelineRunController {
       const tenantId = PipelineTenantIsolationService.extractTenantId(request.headers as Record<string, string | undefined>);
       const run = await this.runService.getRun(id);
       if (run) {
-        const tenantCheck = this.tenantIsolation.validateRunTenant(run, tenantId);
+        const tenantCheck = await this.tenantIsolation.validateRunTenant(run, tenantId);
         if (!tenantCheck.valid) {
           await reply.status(403).send({
             error: 'TENANT_ISOLATION_VIOLATION',

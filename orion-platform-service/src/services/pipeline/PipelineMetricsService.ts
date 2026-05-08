@@ -12,7 +12,7 @@
 import { EventEmitter } from 'events';
 import pino from 'pino';
 import { PipelineRun, PipelineRunStatus } from '../../models/PipelineRun';
-import { PipelineExecutionQueue } from './PipelineExecutionQueue';
+import { PipelineExecutionQueue, QueueStats } from './PipelineExecutionQueue';
 
 const logger = pino({ name: 'pipeline-metrics' });
 
@@ -47,7 +47,7 @@ export interface PipelineMetrics {
   runsByPipeline: Record<string, { total: number; success: number; avgDurationMs: number }>;
   runsByTriggerType: Record<string, number>;
   queueDepth: number;
-  queueStats?: Record<string, number>;
+  queueStats?: QueueStats;
   lastUpdated: string;
 }
 
@@ -66,14 +66,19 @@ export class PipelineMetricsService extends EventEmitter {
   private runMetrics: RunMetrics[] = [];
   private executionQueue: PipelineExecutionQueue | null;
   private maxHistorySize: number;
+  private maxAgeMs: number;
+  private cleanupInterval?: NodeJS.Timeout;
 
   constructor(options?: {
     executionQueue?: PipelineExecutionQueue;
     maxHistorySize?: number;
+    maxAgeHours?: number;
   }) {
     super();
     this.executionQueue = options?.executionQueue || null;
     this.maxHistorySize = options?.maxHistorySize || 10000;
+    this.maxAgeMs = (options?.maxAgeHours ?? 24) * 60 * 60 * 1000; // Default: 24 hours
+    this.startCleanupInterval();
   }
 
   /**
@@ -289,6 +294,40 @@ export class PipelineMetricsService extends EventEmitter {
    */
   clear(): void {
     this.runMetrics = [];
+  }
+
+  /**
+   * 关闭指标服务（清理定时器）
+   */
+  shutdown(): void {
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+    }
+  }
+
+  /**
+   * 清理过期的指标记录
+   */
+  private cleanupExpiredMetrics(): void {
+    const now = Date.now();
+    const before = this.runMetrics.length;
+    this.runMetrics = this.runMetrics.filter(m =>
+      now - m.completedAt.getTime() <= this.maxAgeMs
+    );
+    const removed = before - this.runMetrics.length;
+    if (removed > 0) {
+      logger.debug({ removed, remaining: this.runMetrics.length }, 'Cleaned up expired metrics');
+    }
+  }
+
+  /**
+   * 启动定期清理
+   */
+  private startCleanupInterval(): void {
+    this.cleanupInterval = setInterval(() => {
+      this.cleanupExpiredMetrics();
+    }, 15 * 60 * 1000); // Every 15 minutes
+    this.cleanupInterval.unref();
   }
 
   /**

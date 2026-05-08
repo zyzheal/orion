@@ -11,6 +11,7 @@
  */
 
 import pino from 'pino';
+import { RBACRuleRepository, RBACRuleEntity } from '../../repositories/RBACRuleRepository';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -51,43 +52,69 @@ const ROLE_PERMISSIONS: Record<PipelineRole, string[]> = {
 };
 
 export class PipelineRBACService {
-  /** In-memory rule store. Key: pipelineId, Value: Map<userId, role> */
-  private rules: Map<string, Map<string, PipelineRole>> = new Map();
+  private repository: RBACRuleRepository | null = null;
+  /** In-memory cache for fast permission checks. Key: pipelineId, Value: Map<userId, role> */
+  private rulesCache: Map<string, Map<string, PipelineRole>> = new Map();
+  private cacheInitialized = new Set<string>();
+
+  constructor(repository?: RBACRuleRepository | null) {
+    this.repository = repository || null;
+  }
 
   /**
    * Set RBAC rules for a pipeline.
    * @param pipelineId - The pipeline ID
    * @param userRules - Array of { userId, role } rules
    */
-  setRules(pipelineId: string, userRules: { userId: string; role: PipelineRole }[]): void {
+  async setRules(pipelineId: string, userRules: { userId: string; role: PipelineRole }[]): Promise<void> {
+    if (this.repository) {
+      // Delete existing rules and insert new ones
+      await this.repository.deleteByPipelineId(pipelineId);
+      for (const rule of userRules) {
+        await this.repository.upsert(pipelineId, rule.userId, rule.role);
+      }
+    }
+
+    // Update cache
     const userMap = new Map<string, PipelineRole>();
     for (const rule of userRules) {
       userMap.set(rule.userId, rule.role);
     }
-    this.rules.set(pipelineId, userMap);
+    this.rulesCache.set(pipelineId, userMap);
+    this.cacheInitialized.add(pipelineId);
     logger.info({ pipelineId, ruleCount: userRules.length }, 'Pipeline RBAC rules set');
   }
 
   /**
    * Add a single RBAC rule for a pipeline.
    */
-  addRule(pipelineId: string, userId: string, role: PipelineRole): void {
-    if (!this.rules.has(pipelineId)) {
-      this.rules.set(pipelineId, new Map());
+  async addRule(pipelineId: string, userId: string, role: PipelineRole): Promise<void> {
+    if (this.repository) {
+      await this.repository.upsert(pipelineId, userId, role);
     }
-    this.rules.get(pipelineId)!.set(userId, role);
+
+    // Update cache
+    if (!this.rulesCache.has(pipelineId)) {
+      this.rulesCache.set(pipelineId, new Map());
+    }
+    this.rulesCache.get(pipelineId)!.set(userId, role);
+    this.cacheInitialized.add(pipelineId);
     logger.debug({ pipelineId, userId, role }, 'RBAC rule added');
   }
 
   /**
    * Remove a rule for a pipeline.
    */
-  removeRule(pipelineId: string, userId: string): void {
-    const userMap = this.rules.get(pipelineId);
+  async removeRule(pipelineId: string, userId: string): Promise<void> {
+    if (this.repository) {
+      await this.repository.deleteByPipelineAndUser(pipelineId, userId);
+    }
+
+    const userMap = this.rulesCache.get(pipelineId);
     if (userMap) {
       userMap.delete(userId);
       if (userMap.size === 0) {
-        this.rules.delete(pipelineId);
+        this.rulesCache.delete(pipelineId);
       }
     }
   }
@@ -95,8 +122,9 @@ export class PipelineRBACService {
   /**
    * Get all rules for a pipeline.
    */
-  getRules(pipelineId: string): { userId: string; role: PipelineRole }[] {
-    const userMap = this.rules.get(pipelineId);
+  async getRules(pipelineId: string): Promise<{ userId: string; role: PipelineRole }[]> {
+    await this.ensureCacheLoaded(pipelineId);
+    const userMap = this.rulesCache.get(pipelineId);
     if (!userMap) return [];
     return Array.from(userMap.entries()).map(([userId, role]) => ({ userId, role }));
   }
@@ -104,17 +132,35 @@ export class PipelineRBACService {
   /**
    * Get the role of a user for a specific pipeline.
    */
-  getUserRole(pipelineId: string, userId: string): PipelineRole | null {
-    const userMap = this.rules.get(pipelineId);
+  async getUserRole(pipelineId: string, userId: string): Promise<PipelineRole | null> {
+    await this.ensureCacheLoaded(pipelineId);
+    const userMap = this.rulesCache.get(pipelineId);
     return userMap?.get(userId) || null;
+  }
+
+  /**
+   * Ensure cache is loaded from database for a pipeline
+   */
+  private async ensureCacheLoaded(pipelineId: string): Promise<void> {
+    if (this.cacheInitialized.has(pipelineId)) return;
+    if (!this.repository) return;
+
+    const rules = await this.repository.findByPipelineId(pipelineId);
+    const userMap = new Map<string, PipelineRole>();
+    for (const rule of rules) {
+      userMap.set(rule.userId, rule.role as PipelineRole);
+    }
+    this.rulesCache.set(pipelineId, userMap);
+    this.cacheInitialized.add(pipelineId);
   }
 
   /**
    * Check if a user has a specific permission for a pipeline.
    * If no rules exist for the pipeline, default to allow (backward compatible).
    */
-  hasPermission(pipelineId: string, userId: string, permission: string): PermissionResult {
-    const userMap = this.rules.get(pipelineId);
+  async hasPermission(pipelineId: string, userId: string, permission: string): Promise<PermissionResult> {
+    await this.ensureCacheLoaded(pipelineId);
+    const userMap = this.rulesCache.get(pipelineId);
 
     // No rules = default allow (backward compatible)
     if (!userMap || userMap.size === 0) {
@@ -141,38 +187,29 @@ export class PipelineRBACService {
   /**
    * Check if user can trigger a pipeline.
    */
-  canTrigger(pipelineId: string, userId: string): PermissionResult {
+  async canTrigger(pipelineId: string, userId: string): Promise<PermissionResult> {
     return this.hasPermission(pipelineId, userId, 'trigger');
   }
 
   /**
    * Check if user can view a pipeline.
    */
-  canView(pipelineId: string, userId: string): PermissionResult {
+  async canView(pipelineId: string, userId: string): Promise<PermissionResult> {
     return this.hasPermission(pipelineId, userId, 'view');
   }
 
   /**
    * Check if user can cancel a pipeline run.
-   * @param runId - The run ID (or pipelineId if available)
-   * @param userId - The user ID
-   * @param tenantId - Optional tenant ID for scoping
-   * @param pipelineId - Optional pipeline ID for rule lookup (preferred over runId)
    */
-  canCancel(runId: string, userId: string, _tenantId?: string, pipelineId?: string): PermissionResult {
-    // Use pipelineId if provided, otherwise fall back to runId for rule lookup
+  async canCancel(runId: string, userId: string, _tenantId?: string, pipelineId?: string): Promise<PermissionResult> {
     const key = pipelineId || runId;
     return this.hasPermission(key, userId, 'cancel');
   }
 
   /**
    * Check if user can approve a pipeline run.
-   * @param runId - The run ID (or pipelineId if available)
-   * @param userId - The user ID
-   * @param tenantId - Optional tenant ID for scoping
-   * @param pipelineId - Optional pipeline ID for rule lookup (preferred over runId)
    */
-  canApprove(runId: string, userId: string, _tenantId?: string, pipelineId?: string): PermissionResult {
+  async canApprove(runId: string, userId: string, _tenantId?: string, pipelineId?: string): Promise<PermissionResult> {
     const key = pipelineId || runId;
     return this.hasPermission(key, userId, 'approve');
   }
