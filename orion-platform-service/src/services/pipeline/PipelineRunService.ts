@@ -70,8 +70,10 @@ export class PipelineRunService {
    * Map domain PipelineRunCreateInput to database CreateRunInput
    */
   private mapCreateInput(input: PipelineRunCreateInput): CreateRunInput {
+    // P4 Security: Extract tenantId from context instead of hardcoding
+    const contextTenantId = (input.context as any)?.tenantId;
     return {
-      tenant_id: '00000000-0000-0000-0000-000000000000', // Default tenant (should come from context)
+      tenant_id: contextTenantId || '00000000-0000-0000-0000-000000000000',
       pipeline_id: input.pipelineId,
       trigger_type: input.triggerType,
       trigger_by: input.triggerBy,

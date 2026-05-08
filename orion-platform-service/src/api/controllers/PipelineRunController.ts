@@ -9,6 +9,8 @@ import { PipelineRunStatus, TriggerType } from '../../models/PipelineRun';
 import { PipelineService } from '../../services/pipeline/PipelineService';
 import { DynamicParamsResolver, TriggerContext } from '../../services/pipeline/DynamicParamsResolver';
 import { PipelineBudgetService } from '../../services/pipeline/PipelineBudgetService';
+import { PipelineTenantIsolationService } from '../../services/pipeline/PipelineTenantIsolationService';
+import { PipelineRBACService } from '../../services/pipeline/PipelineRBACService';
 
 export class PipelineRunController {
   private runService: PipelineRunService;
@@ -16,18 +18,23 @@ export class PipelineRunController {
   private pipelineService: PipelineService | null;
   private budgetService: PipelineBudgetService | null;
   private paramsResolver: DynamicParamsResolver;
+  private tenantIsolation: PipelineTenantIsolationService;
+  private rbacService: PipelineRBACService;
 
   constructor(
     runService: PipelineRunService,
     engine: PipelineEngine,
     pipelineService?: PipelineService | null,
-    budgetService?: PipelineBudgetService | null
+    budgetService?: PipelineBudgetService | null,
+    rbacService?: PipelineRBACService
   ) {
     this.runService = runService;
     this.engine = engine;
     this.pipelineService = pipelineService || null;
     this.budgetService = budgetService || null;
     this.paramsResolver = new DynamicParamsResolver();
+    this.tenantIsolation = new PipelineTenantIsolationService(pipelineService);
+    this.rbacService = rbacService || new PipelineRBACService();
   }
 
   /**
@@ -41,6 +48,30 @@ export class PipelineRunController {
       const { id: pipelineId } = params;
       const { triggerType, triggerBy, context, params: runtimeParams, branch, commitSha } = body;
 
+      // P4 Security: Extract and validate tenant isolation
+      const tenantId = PipelineTenantIsolationService.extractTenantId(request.headers as Record<string, string | undefined>);
+      const tenantCheck = await this.tenantIsolation.validatePipelineTenant(pipelineId, tenantId);
+      if (!tenantCheck.valid) {
+        await reply.status(403).send({
+          error: 'TENANT_ISOLATION_VIOLATION',
+          code: '40301',
+          message: tenantCheck.error,
+        });
+        return;
+      }
+
+      // P4 Security: Check RBAC - can user trigger this pipeline?
+      const userId = (request as any).user?.userId || triggerBy || 'anonymous';
+      const rbacCheck = this.rbacService.canTrigger(pipelineId, userId);
+      if (!rbacCheck.allowed) {
+        await reply.status(403).send({
+          error: 'RBAC_DENIED',
+          code: '40302',
+          message: rbacCheck.reason,
+        });
+        return;
+      }
+
       const type = (triggerType as TriggerType) || TriggerType.MANUAL;
 
       // Dynamic parameter resolution (Phase 1 P0)
@@ -49,7 +80,7 @@ export class PipelineRunController {
       let estimatedBudget: { timeMs: number; costCents: number } | undefined;
 
       if (this.pipelineService) {
-        const pipeline = await this.pipelineService.getById(pipelineId);
+        const pipeline = tenantCheck.pipeline;
         if (!pipeline) {
           await reply.status(404).send({
             error: 'NOT_FOUND',
@@ -98,12 +129,13 @@ export class PipelineRunController {
         }
       }
 
-      // Build enhanced context with injected params
+      // Build enhanced context with injected params and tenantId
       const enhancedContext = {
         ...(context as any || {}),
         injectedParams,
         branch,
         commitSha,
+        tenantId, // P4 Security: include tenantId in context
       };
 
       const run = await this.engine.execute(
@@ -163,6 +195,9 @@ export class PipelineRunController {
       const query = request.query as any;
       const { pipelineId, status, triggerType, limit, offset } = query;
 
+      // P4 Security: Filter by tenant
+      const tenantId = PipelineTenantIsolationService.extractTenantId(request.headers as Record<string, string | undefined>);
+
       const runs = await this.runService.listRuns({
         pipelineId: pipelineId as string,
         status: status as PipelineRunStatus | PipelineRunStatus[] | undefined,
@@ -171,8 +206,14 @@ export class PipelineRunController {
         offset: offset ? parseInt(offset as string) : undefined,
       });
 
+      // P4 Security: Filter runs to only include those belonging to the user's tenant
+      const tenantScopedRuns = runs.filter(run => {
+        const runTenantId = (run as any).context?.tenantId || (run as any).tenant_id;
+        return !runTenantId || runTenantId === tenantId;
+      });
+
       await reply.send({
-        data: runs.map(r => ({
+        data: tenantScopedRuns.map(r => ({
           id: r.id,
           pipelineId: r.pipelineId,
           pipelineVersion: r.pipelineVersion,
@@ -184,7 +225,7 @@ export class PipelineRunController {
           durationMs: r.durationMs,
           createdAt: r.createdAt,
         })),
-        total: runs.length,
+        total: tenantScopedRuns.length,
       });
     } catch (error) {
       await reply.status(500).send({
@@ -203,6 +244,21 @@ export class PipelineRunController {
     try {
       const params = request.params as any;
       const { id } = params;
+
+      // P4 Security: Validate tenant isolation
+      const tenantId = PipelineTenantIsolationService.extractTenantId(request.headers as Record<string, string | undefined>);
+      const run = await this.runService.getRun(id);
+      if (run) {
+        const tenantCheck = this.tenantIsolation.validateRunTenant(run, tenantId);
+        if (!tenantCheck.valid) {
+          await reply.status(403).send({
+            error: 'TENANT_ISOLATION_VIOLATION',
+            code: '40301',
+            message: tenantCheck.error,
+          });
+          return;
+        }
+      }
 
       const detail = await this.runService.getRunDetail(id);
 
@@ -273,13 +329,40 @@ export class PipelineRunController {
       const params = request.params as any;
       const { id } = params;
 
+      // P4 Security: Validate tenant isolation
+      const tenantId = PipelineTenantIsolationService.extractTenantId(request.headers as Record<string, string | undefined>);
+      const run = await this.runService.getRun(id);
+      if (run) {
+        const tenantCheck = this.tenantIsolation.validateRunTenant(run, tenantId);
+        if (!tenantCheck.valid) {
+          await reply.status(403).send({
+            error: 'TENANT_ISOLATION_VIOLATION',
+            code: '40301',
+            message: tenantCheck.error,
+          });
+          return;
+        }
+
+        // P4 Security: Check RBAC - can user cancel this run?
+        const userId = (request as any).user?.userId || 'anonymous';
+        const rbacCheck = this.rbacService.canCancel(id, userId, tenantId, run.pipelineId);
+        if (!rbacCheck.allowed) {
+          await reply.status(403).send({
+            error: 'RBAC_DENIED',
+            code: '40302',
+            message: rbacCheck.reason,
+          });
+          return;
+        }
+      }
+
       // Try to cancel via engine (stops running stages)
       const cancelled = await this.engine.cancelExecution(id);
 
       if (!cancelled) {
         // Fallback: cancel at run service level (status-only for non-running)
-        const run = await this.runService.cancelRun(id);
-        if (!run) {
+        const cancelledRun = await this.runService.cancelRun(id);
+        if (!cancelledRun) {
           await reply.status(404).send({
             error: 'NOT_FOUND',
             code: '30201',
@@ -289,18 +372,18 @@ export class PipelineRunController {
         }
 
         await reply.send({
-          id: run.id,
-          status: run.status,
-          cancelledAt: run.completedAt,
+          id: cancelledRun.id,
+          status: cancelledRun.status,
+          cancelledAt: cancelledRun.completedAt,
         });
         return;
       }
 
-      const run = await this.runService.getRun(id);
+      const updatedRun = await this.runService.getRun(id);
       await reply.send({
-        id: run!.id,
-        status: run!.status,
-        cancelledAt: run!.completedAt,
+        id: updatedRun!.id,
+        status: updatedRun!.status,
+        cancelledAt: updatedRun!.completedAt,
       });
     } catch (error) {
       await reply.status(500).send({
@@ -320,7 +403,21 @@ export class PipelineRunController {
       const params = request.params as any;
       const { id } = params;
 
+      // P4 Security: Validate tenant isolation
+      const tenantId = PipelineTenantIsolationService.extractTenantId(request.headers as Record<string, string | undefined>);
       const run = await this.runService.getRun(id);
+      if (run) {
+        const tenantCheck = this.tenantIsolation.validateRunTenant(run, tenantId);
+        if (!tenantCheck.valid) {
+          await reply.status(403).send({
+            error: 'TENANT_ISOLATION_VIOLATION',
+            code: '40301',
+            message: tenantCheck.error,
+          });
+          return;
+        }
+      }
+
       if (!run) {
         await reply.status(404).send({
           error: 'NOT_FOUND',
@@ -365,7 +462,21 @@ export class PipelineRunController {
       const params = request.params as any;
       const { id } = params;
 
+      // P4 Security: Validate tenant isolation
+      const tenantId = PipelineTenantIsolationService.extractTenantId(request.headers as Record<string, string | undefined>);
       const run = await this.runService.getRun(id);
+      if (run) {
+        const tenantCheck = this.tenantIsolation.validateRunTenant(run, tenantId);
+        if (!tenantCheck.valid) {
+          await reply.status(403).send({
+            error: 'TENANT_ISOLATION_VIOLATION',
+            code: '40301',
+            message: tenantCheck.error,
+          });
+          return;
+        }
+      }
+
       if (!run) {
         await reply.status(404).send({
           error: 'NOT_FOUND',

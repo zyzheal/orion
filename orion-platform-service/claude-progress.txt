@@ -134,6 +134,79 @@ All 5 phases of the Pipeline Plugin System gap implementation are complete.
 2. P3 - CI/CD 改进
 3. Consider integrating DebugController into PipelineEngine/StageExecutor for actual pause-at-boundary behavior
 
+## Previous Sessions (2026-05-08 - Phase 3)
+
+### Completed: Pipeline Plugin System Phase 3 — Production Readiness (SRE Review)
+
+All 6 features of Phase 3 implemented and tested:
+
+#### Feature 1: Global Execution Queue with Backpressure
+- **Created** `src/services/pipeline/PipelineExecutionQueue.ts`
+- Priority-based queue (HIGH/NORMAL/LOW) using sorted array
+- Max concurrent runs configurable via MAX_CONCURRENT_PIPELINES env var (default 10)
+- Backpressure: rejects new runs when queue exceeds MAX_QUEUE_SIZE (default 100)
+- Wired into PipelineEngine.execute() — enqueues instead of immediate execution
+- Added queue stats, queued runs listing, and cancel-from-queue APIs
+
+#### Feature 2: Real TaskRunner Execution
+- **Rewrote** `src/engine/TaskRunner.ts` executeGit/npm/k8s/shell methods
+- git/*: Real `spawn('git', [...])` for clone/checkout/push/pull/status/log
+- npm/*: Real `spawn('npm'/'npx', [...])` with timeout support
+- shell/*: Real `spawn('sh', ['-c', script])` with dangerous command filtering
+- k8s/*: Real `spawn('kubectl', [...])` for apply/delete/rollout/get/describe/logs
+- All tasks: capture stdout/stderr, handle timeouts, return real exit codes
+- Clean environment: minimal PATH, HOME, no secrets
+- Graceful fallback to mock if required binary unavailable
+
+#### Feature 3: Persistent Pipeline State & Crash Recovery
+- **Added** `PipelineRunRepository.findByStatus()` for querying runs by status
+- **Added** `PipelineRunService.findRunsByStatus()`
+- `PipelineEngine.recoverRuns()`: finds RUNNING runs from DB, marks as failed
+- Wired into `src/api/routes.ts` startup — runs recovery on each server start
+- `rebuildExecutionQueue()`: placeholder for future persistent execution progress
+
+#### Feature 4: EventBus Wiring (Verified — already complete)
+- EventBusService properly wired to PipelineEventPublisher via EventBusAdapter
+- NATS publish with PostgreSQL persistence, in-memory fallback, and retry on reconnect
+- No changes needed — existing implementation is production-ready
+
+#### Feature 5: Auto-Retry Integration
+- **Added** `AutoRetryService` as constructor parameter to PipelineEngine
+- Stage failure triggers `AutoRetryService.shouldRetry()` with error classification
+- Exponential backoff with jitter for transient errors
+- Fallback to simple retry logic when AutoRetryService unavailable
+- New `retryStageWithBackoff()` method for intelligent retry scheduling
+
+#### Feature 6: Metrics Export
+- **Created** `src/services/pipeline/PipelineMetricsService.ts`
+- Tracks: total runs, success rate, avg/median/p95 duration
+- Failures by error type, runs by pipeline, runs by trigger type
+- Queue depth monitoring
+- `getPrometheusMetrics()`: exports standard Prometheus text format
+- **New endpoints**:
+  - `GET /v1/pipeline/metrics` — JSON metrics
+  - `GET /v1/pipeline/metrics?format=prometheus` — Prometheus format
+  - `GET /v1/pipeline/metrics/:pipelineId` — Per-pipeline metrics
+  - `GET /v1/pipeline/queue` — Queue status and pending runs
+- Wired via `onRunComplete` callback in PipelineEngine
+
+### Test Results
+- All 23 pipeline test suites pass (411+ tests)
+- No new TypeScript type errors introduced
+- Recovery mechanism verified: "No running pipeline runs to recover"
+
+### Commit
+13. `1358477` Implement Phase 3: Pipeline Plugin System production readiness features
+
+### Files Changed This Session (Phase 3)
+1. `src/services/pipeline/PipelineExecutionQueue.ts` (new)
+2. `src/services/pipeline/PipelineMetricsService.ts` (new)
+3. `src/engine/PipelineEngine.ts` (queue, retry, recovery, metrics callback)
+4. `src/engine/TaskRunner.ts` (real task execution)
+5. `src/services/pipeline/PipelineRunRepository.ts` (findByStatus)
+6. `src/services/pipeline/PipelineRunService.ts` (findRunsByStatus)
+7. `src/api/routes.ts` (wire all Phase 3 features + new endpoints)
+
 ## Previous Sessions (2026-05-07)
 
 ### Completed: P1 功能域测试完善

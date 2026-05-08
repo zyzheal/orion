@@ -12,6 +12,7 @@ import { PipelineRunController } from './controllers/PipelineRunController';
 import { StageController } from './controllers/StageController';
 import { TaskController } from './controllers/TaskController';
 import { ApprovalController } from './controllers/ApprovalController';
+import { SCMWebhookService } from '../services/pipeline/SCMWebhookService';
 
 export interface PipelineRouteDeps {
   pipelineController: PipelineController;
@@ -19,6 +20,7 @@ export interface PipelineRouteDeps {
   stageController: StageController;
   taskController: TaskController;
   approvalController?: ApprovalController;
+  scmWebhookService?: SCMWebhookService;
 }
 
 /**
@@ -180,6 +182,79 @@ export async function registerPipelineRoutes(
         '/v1/pipeline-runs/:runId/stages/:stageId/reject',
         async (request: FastifyRequest, reply: FastifyReply) => {
           return deps.approvalController!.reject(request, reply);
+        }
+      );
+    });
+  }
+
+  // ==================== SCM Webhook 路由 (public - signature validated) ====================
+  if (deps.scmWebhookService) {
+    await app.register(async (instance: FastifyInstance) => {
+      // POST /api/v1/webhooks/scm - Receive SCM webhook events (public, validates signature)
+      instance.post(
+        '/v1/webhooks/scm',
+        async (request: FastifyRequest, reply: FastifyReply) => {
+          try {
+            const body = request.body as any;
+            const headers = request.headers as Record<string, string | undefined>;
+
+            // Determine provider and handle accordingly
+            const githubSignature = headers['x-hub-signature-256'];
+            const gitlabToken = headers['x-gitlab-token'];
+            const githubEvent = headers['x-github-event'];
+
+            let event;
+
+            if (githubSignature || githubEvent) {
+              // GitHub webhook
+              event = await deps.scmWebhookService!.handleGitHubPush(body, githubSignature);
+            } else if (gitlabToken) {
+              // GitLab webhook
+              event = await deps.scmWebhookService!.handleGitLabPush(body, gitlabToken);
+            } else {
+              // Unknown provider - try GitHub (signature validation will fail if secret is set)
+              event = await deps.scmWebhookService!.handleGitHubPush(body);
+            }
+
+            await reply.status(200).send({
+              received: true,
+              eventId: event.id,
+              provider: event.provider,
+              matchedPipelines: event.matchedPipelines,
+            });
+          } catch (error: any) {
+            await reply.status(401).send({
+              error: 'WEBHOOK_VALIDATION_FAILED',
+              message: error.message,
+            });
+          }
+        }
+      );
+
+      // GET /api/v1/webhooks/scm/events - Get webhook event history (auth protected)
+      instance.addHook('onRequest', authenticateUser);
+
+      instance.get(
+        '/v1/webhooks/scm/events',
+        async (request: FastifyRequest, reply: FastifyReply) => {
+          const query = request.query as any;
+          const limit = query.limit ? parseInt(query.limit, 10) : 20;
+          const events = deps.scmWebhookService!.getEvents(limit);
+
+          await reply.send({
+            data: events.map(e => ({
+              id: e.id,
+              provider: e.provider,
+              eventType: e.eventType,
+              repository: e.repository,
+              branch: e.branch,
+              commitSha: e.commitSha,
+              pusher: e.pusher,
+              timestamp: e.timestamp,
+              matchedPipelines: e.matchedPipelines,
+            })),
+            total: events.length,
+          });
         }
       );
     });
