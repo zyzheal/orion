@@ -2,6 +2,66 @@
 
 ## Current Session (2026-05-08)
 
+### Completed: GAP-10 External Notification Webhook (Connect HookChain to Pipeline Events)
+
+实现了 Pipeline 出站 Webhook 通知功能，将 Pipeline 完成/失败/取消事件推送到外部系统。
+
+#### Features Implemented
+- **Fixed** `src/services/pipeline/WebhookNotifier.ts`
+  - 修复了 shouldSend 方法中空事件数组的行为（空数组=不发送，undefined=发送所有）
+  - WebhookNotifier 主类已存在，包含：
+    - sendWebhook(): 指数退避重试（默认 3 次），HMAC-SHA256 签名
+    - sendAll(): 批量并行发送，互不影响
+    - shouldSend(): 事件过滤
+    - generateHmacSignature(): HMAC-SHA256 签名生成
+
+- **Created** `src/repositories/WebhookConfigRepository.ts`
+  - findByPipelineId(): 按 Pipeline ID 查询所有启用的配置
+  - findByEvent(): 按事件类型过滤查询
+  - deleteByPipelineId(): 按 Pipeline ID 批量删除
+  - create/update/delete: 标准 CRUD 操作
+
+- **Created** `src/db/migrations/136_create_pipeline_webhook_configs.sql`
+  - pipeline_webhook_configs 表：pipeline_id, url, method, headers, secret, events, enabled, retries
+  - events 数组存储，空数组表示匹配所有事件
+
+- **Updated** `src/engine/PipelineEngine.ts`
+  - 新增 webhookNotifier 和 webhookConfigRepo 依赖注入（可选）
+  - checkRunCompletion() 中，pipeline 完成后自动发送 Webhook 通知
+  - sendWebhookNotifications() 私有方法：
+    - 根据 Pipeline 最终状态映射事件类型（pipeline.complete/pipeline.failed/pipeline.cancelled）
+    - 从仓库查询匹配的 Webhook 配置
+    - 构建 payload（runId, pipelineId, status, durationMs, stagesSummary, triggerBy, metadata）
+    - 并行发送所有匹配的 Webhook
+  - buildStagesSummary() 辅助方法：从内存执行上下文或数据库获取 stages 摘要
+
+- **Updated** `src/api/routes.ts`
+  - 初始化 WebhookNotifier 和 WebhookConfigRepository
+  - 传递到 PipelineEngine 构造函数
+
+- **Created** `src/repositories/__tests__/WebhookConfigRepository.test.ts` (5 tests)
+  - findByPipelineId, findByEvent, deleteByPipelineId, mapRowToEntity
+
+- **Fixed** `src/services/pipeline/__tests__/WebhookNotifier.test.ts` 中的 1 个测试
+  - shouldSend 空事件数组行为修复后，测试从 26 passed + 1 failed 变为 27 passed
+
+### Test Status
+- **WebhookNotifier tests**: 27 passed
+- **WebhookConfigRepository tests**: 5 passed
+- **IM notification tests**: 14 passed
+- **Total notification tests**: 46 passed across 3 test suites
+
+### Commits
+- feat(notifications): implement GAP-10 external notification webhook integration
+
+### Files Changed
+1. `src/services/pipeline/WebhookNotifier.ts` (fixed empty events behavior)
+2. `src/repositories/WebhookConfigRepository.ts` (new)
+3. `src/repositories/__tests__/WebhookConfigRepository.test.ts` (new, 5 tests)
+4. `src/db/migrations/136_create_pipeline_webhook_configs.sql` (new)
+5. `src/engine/PipelineEngine.ts` (webhook notifier integration)
+6. `src/api/routes.ts` (webhook initialization and wiring)
+
 ### Completed: GAP-02 Matrix Build Support
 
 实现了 Pipeline Matrix 构建功能，类似 GitHub Actions 的 `strategy.matrix` 和 GitLab CI 的 `parallel:matrix`。

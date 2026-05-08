@@ -24,6 +24,8 @@ import { StageExecutor } from '../engine/StageExecutor';
 import { TaskRunner } from '../engine/TaskRunner';
 import { PipelineEventPublisher } from '../events/PipelineEventPublisher';
 import { EventBusService } from '../services/event-bus-service';
+import { WebhookNotifier } from '../services/pipeline/WebhookNotifier';
+import { WebhookConfigRepository } from '../repositories/WebhookConfigRepository';
 import { registerPipelineRoutes } from './pipeline-routes-registrar';
 import pipelineSSERoutes from './pipeline-sse-routes';
 import { DatabasePool } from '../services/database';
@@ -321,6 +323,10 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // Phase 3: Pipeline metrics service
   const metricsService = new PipelineMetricsService({ executionQueue });
 
+  // GAP-10: Webhook notification integration
+  const webhookNotifier = new WebhookNotifier();
+  const webhookConfigRepo = options.database ? new WebhookConfigRepository(options.database) : null;
+
   const engine = new PipelineEngine(
     pipelineService,
     runService,
@@ -333,7 +339,13 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
     (run) => {
       // Record metrics when a pipeline run completes
       metricsService.recordRun(run);
-    }
+    },
+    undefined, // checkpointManager
+    undefined, // imNotifier
+    undefined, // imNotificationConfigs
+    undefined, // debugController
+    webhookNotifier,
+    webhookConfigRepo
   );
 
   // Phase 1 P0: Initialize version and budget services
