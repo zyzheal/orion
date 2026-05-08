@@ -6,6 +6,7 @@ import { PluginManagerService } from '../services/plugin-manager-service';
 import { PluginExecutorService, registerExecutorForShutdown } from '../services/plugin-executor-service';
 import { ExecutionTimelineService, registerTimelineForShutdown } from '../services/observability/ExecutionTimelineService';
 import { AIDiagnosisService } from '../services/ai/AIDiagnosisService';
+import { DebugController } from '../engine/DebugController';
 import { PostgresPluginAuditLogRepository } from '../repositories/PluginAuditLogRepository';
 import pino from 'pino';
 
@@ -30,6 +31,7 @@ export default async function pluginEnhancedRoutes(app: FastifyInstance, options
   registerTimelineForShutdown(timelineService);
   const aiDiagnosis = new AIDiagnosisService();
   const auditLogRepo = options?.database ? new PostgresPluginAuditLogRepository(options.database) : undefined;
+  const debugController = DebugController.getInstance();
 
   // GET /healthz - Health check for plugin subsystem
   app.get('/healthz', async (request: FastifyRequest, reply: FastifyReply) => {
@@ -143,24 +145,44 @@ export default async function pluginEnhancedRoutes(app: FastifyInstance, options
   // POST /:runId/debug/pause - Pause for debug
   app.post('/:runId/debug/pause', async (request: FastifyRequest, reply: FastifyReply) => {
     const { runId } = request.params as { runId: string };
-    // Debug control requires integration with PipelineEngine's cancelExecution
-    // Phase 4: wire to a dedicated debug controller with state snapshot/restore
-    logger.warn({ runId }, 'Debug pause endpoint called but not wired to execution engine');
-    return reply.code(501).send({ runId, status: 'not_implemented', message: 'Debug pause requires execution engine integration' });
+    try {
+      const state = await debugController.pause(runId);
+      return { runId, status: 'paused', debugState: state };
+    } catch (error) {
+      return reply.code(500).send({ error: `Failed to pause: ${error instanceof Error ? error.message : String(error)}` });
+    }
   });
 
   // POST /:runId/debug/resume - Resume execution
   app.post('/:runId/debug/resume', async (request: FastifyRequest, reply: FastifyReply) => {
     const { runId } = request.params as { runId: string };
-    logger.warn({ runId }, 'Debug resume endpoint called but not wired to execution engine');
-    return reply.code(501).send({ runId, status: 'not_implemented', message: 'Debug resume requires execution engine integration' });
+    try {
+      await debugController.resume(runId);
+      return { runId, status: 'resumed' };
+    } catch (error) {
+      return reply.code(400).send({ error: `Failed to resume: ${error instanceof Error ? error.message : String(error)}` });
+    }
   });
 
   // POST /:runId/debug/step - Single step execution
   app.post('/:runId/debug/step', async (request: FastifyRequest, reply: FastifyReply) => {
     const { runId } = request.params as { runId: string };
-    logger.warn({ runId }, 'Debug step endpoint called but not wired to execution engine');
-    return reply.code(501).send({ runId, status: 'not_implemented', message: 'Debug step requires execution engine integration' });
+    try {
+      const state = await debugController.step(runId);
+      return { runId, status: 'stepping', debugState: state };
+    } catch (error) {
+      return reply.code(400).send({ error: `Failed to step: ${error instanceof Error ? error.message : String(error)}` });
+    }
+  });
+
+  // GET /:runId/debug/state - Get debug state
+  app.get('/:runId/debug/state', async (request: FastifyRequest, reply: FastifyReply) => {
+    const { runId } = request.params as { runId: string };
+    const state = debugController.getState(runId);
+    if (!state) {
+      return reply.code(404).send({ error: `No debug state found for run ${runId}` });
+    }
+    return state;
   });
 
   // POST /ai-diagnose - AI error diagnosis
