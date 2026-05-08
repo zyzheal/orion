@@ -45,6 +45,7 @@ export {
 export {
   PipelineTriggerService,
   PipelineTriggerServiceError,
+  type PipelineTriggerServiceOptions,
   type TriggerType,
   type TriggerStatus,
   type TriggerExecutionStatus,

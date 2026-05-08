@@ -3,13 +3,17 @@
  *
  * Handles trigger registration, evaluation, and execution.
  * Supports git, webhook, schedule, and manual trigger types.
- * Uses Map-based in-memory storage.
+ * Uses in-memory Map for runtime performance, backed by PostgreSQL persistence.
  *
  * Phase 2 addition: Cron scheduler using cron-parser for schedule-based triggers.
+ * GAP-11: Added PostgreSQL persistence via TriggerRepository. On startup, active
+ * triggers are loaded from the database. All mutations are persisted.
+ * Graceful degradation: works with or without a repository.
  */
 
 import { CronExpressionParser } from 'cron-parser';
 import pino from 'pino';
+import { TriggerRepository, type TriggerEntity } from '../../repositories/TriggerRepository';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -92,6 +96,16 @@ export class PipelineTriggerServiceError extends Error {
   }
 }
 
+/**
+ * Optional dependencies for the PipelineTriggerService.
+ */
+export interface PipelineTriggerServiceOptions {
+  /** PostgreSQL database connection. Required for persistence. */
+  db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> };
+  /** Callback to execute when a cron trigger fires */
+  onTickCallback?: (triggerId: string, pipelineId: string) => Promise<void>;
+}
+
 export class PipelineTriggerService {
   private triggers: Map<string, Trigger> = new Map();
   private executionHistory: Map<string, TriggerExecutionRecord[]> = new Map();
@@ -100,11 +114,70 @@ export class PipelineTriggerService {
   // Cron scheduler: triggerId -> schedule entry
   private cronSchedules = new Map<string, CronScheduleEntry>();
 
+  // Optional PostgreSQL repository for persistence (GAP-11)
+  private triggerRepository: TriggerRepository | null = null;
+
   // Callback to execute when a cron trigger fires
   private onTickCallback?: (triggerId: string, pipelineId: string) => Promise<void>;
 
-  constructor(onTickCallback?: (triggerId: string, pipelineId: string) => Promise<void>) {
-    this.onTickCallback = onTickCallback;
+  constructor(
+    options?: PipelineTriggerServiceOptions | ((triggerId: string, pipelineId: string) => Promise<void>)
+  ) {
+    // Support both old signature (callback only) and new signature (options object)
+    if (typeof options === 'function') {
+      this.onTickCallback = options;
+    } else if (options) {
+      this.onTickCallback = options.onTickCallback;
+      if (options.db) {
+        this.triggerRepository = new TriggerRepository(options.db);
+      }
+    }
+  }
+
+  // ==================== Initialization ====================
+
+  /**
+   * Load active triggers from PostgreSQL on startup.
+   * Re-hydrates the in-memory Map from persisted state.
+   * Call this once after construction when using persistence.
+   */
+  async initialize(): Promise<void> {
+    if (!this.triggerRepository) {
+      logger.info('No TriggerRepository configured, skipping persistence initialization');
+      return;
+    }
+
+    try {
+      const activeTriggers = await this.triggerRepository.findActiveTriggers();
+      for (const entity of activeTriggers) {
+        const trigger: Trigger = {
+          id: entity.id,
+          pipelineId: entity.pipelineId,
+          tenantId: entity.tenantId,
+          type: entity.type as TriggerType,
+          config: entity.config as TriggerConfig,
+          status: entity.status as TriggerStatus,
+          createdAt: entity.createdAt,
+          updatedAt: entity.updatedAt,
+        };
+        this.triggers.set(trigger.id, trigger);
+
+        // Re-schedule active schedule-type triggers
+        if (trigger.type === 'schedule' && trigger.config.cronExpression) {
+          try {
+            await this.scheduleTrigger(trigger.id, trigger.config.cronExpression as string);
+          } catch (error) {
+            logger.warn(
+              { triggerId: trigger.id, error },
+              'Failed to re-schedule cron trigger on startup'
+            );
+          }
+        }
+      }
+      logger.info({ count: activeTriggers.length }, 'Loaded active triggers from PostgreSQL');
+    } catch (error) {
+      logger.error({ error }, 'Failed to load triggers from PostgreSQL on startup');
+    }
   }
 
   // ==================== Trigger Registration ====================
@@ -112,6 +185,7 @@ export class PipelineTriggerService {
   /**
    * Register a new trigger for a pipeline
    * For schedule-type triggers, automatically starts the cron scheduler
+   * Persists to PostgreSQL if repository is available
    */
   async registerTrigger(input: CreateTriggerInput): Promise<Trigger> {
     if (!input.pipelineId || !input.tenantId || !input.type) {
@@ -132,6 +206,28 @@ export class PipelineTriggerService {
       createdAt: now,
       updatedAt: now,
     };
+
+    // Persist to PostgreSQL if repository is available
+    if (this.triggerRepository) {
+      try {
+        await this.triggerRepository.create({
+          id: trigger.id,
+          tenantId: trigger.tenantId,
+          pipelineId: trigger.pipelineId,
+          type: trigger.type,
+          config: trigger.config,
+          status: trigger.status,
+          createdAt: trigger.createdAt,
+          updatedAt: trigger.updatedAt,
+        });
+      } catch (error) {
+        logger.error(
+          { triggerId: trigger.id, error },
+          'Failed to persist trigger to PostgreSQL'
+        );
+        // Continue anyway - in-memory state is still valid
+      }
+    }
 
     this.triggers.set(trigger.id, trigger);
 
@@ -186,6 +282,7 @@ export class PipelineTriggerService {
   /**
    * Update trigger configuration
    * If cron expression changes, reschedules the cron timer
+   * Persists changes to PostgreSQL if repository is available
    */
   async updateTrigger(triggerId: string, input: UpdateTriggerInput): Promise<Trigger> {
     const trigger = this.triggers.get(triggerId);
@@ -226,11 +323,25 @@ export class PipelineTriggerService {
     }
     trigger.updatedAt = new Date();
     this.triggers.set(triggerId, trigger);
+
+    // Persist to PostgreSQL if repository is available
+    if (this.triggerRepository) {
+      try {
+        await this.triggerRepository.updateTriggerConfig(triggerId, trigger.type, trigger.config);
+      } catch (error) {
+        logger.error(
+          { triggerId, error },
+          'Failed to persist trigger update to PostgreSQL'
+        );
+      }
+    }
+
     return trigger;
   }
 
   /**
    * Update trigger status
+   * Persists changes to PostgreSQL if repository is available
    */
   async updateTriggerStatus(triggerId: string, status: TriggerStatus): Promise<Trigger> {
     const trigger = this.triggers.get(triggerId);
@@ -240,17 +351,52 @@ export class PipelineTriggerService {
     trigger.status = status;
     trigger.updatedAt = new Date();
     this.triggers.set(triggerId, trigger);
+
+    // Persist to PostgreSQL if repository is available
+    if (this.triggerRepository) {
+      try {
+        await this.triggerRepository.updateStatus(triggerId, trigger.status);
+      } catch (error) {
+        logger.error(
+          { triggerId, error },
+          'Failed to persist trigger status update to PostgreSQL'
+        );
+      }
+    }
+
+    // If status is inactive, unschedule cron
+    if (status === 'inactive') {
+      await this.unscheduleTrigger(triggerId);
+    } else if (status === 'active' && trigger.type === 'schedule' && trigger.config.cronExpression) {
+      if (!this.cronSchedules.has(triggerId)) {
+        await this.scheduleTrigger(triggerId, trigger.config.cronExpression).catch(() => {});
+      }
+    }
+
     return trigger;
   }
 
   /**
    * Delete a trigger
    * Also unschedules any active cron timer
+   * Deletes from PostgreSQL if repository is available
    */
   async deleteTrigger(triggerId: string): Promise<void> {
     await this.unscheduleTrigger(triggerId);
     this.triggers.delete(triggerId);
     this.executionHistory.delete(triggerId);
+
+    // Delete from PostgreSQL if repository is available
+    if (this.triggerRepository) {
+      try {
+        await this.triggerRepository.delete(triggerId);
+      } catch (error) {
+        logger.error(
+          { triggerId, error },
+          'Failed to delete trigger from PostgreSQL'
+        );
+      }
+    }
   }
 
   // ==================== Cron Scheduler ====================
@@ -390,9 +536,7 @@ export class PipelineTriggerService {
           status: 'success',
           executedAt: new Date(),
         };
-        const history = this.executionHistory.get(triggerId) ?? [];
-        history.push(record);
-        this.executionHistory.set(triggerId, history);
+        await this.saveExecutionRecord(record);
       } catch (error) {
         logger.error(
           { triggerId, error },
@@ -410,9 +554,7 @@ export class PipelineTriggerService {
         status: 'success',
         executedAt: new Date(),
       };
-      const history = this.executionHistory.get(triggerId) ?? [];
-      history.push(record);
-      this.executionHistory.set(triggerId, history);
+      await this.saveExecutionRecord(record);
     }
   }
 
@@ -480,12 +622,43 @@ export class PipelineTriggerService {
       executedAt: new Date(),
     };
 
-    // Store execution record
-    const history = this.executionHistory.get(triggerId) ?? [];
-    history.push(record);
-    this.executionHistory.set(triggerId, history);
+    // Store execution record (persist if repository available)
+    await this.saveExecutionRecord(record);
 
     return record;
+  }
+
+  /**
+   * Save an execution record to both in-memory map and PostgreSQL.
+   */
+  private async saveExecutionRecord(record: TriggerExecutionRecord): Promise<void> {
+    // Always store in-memory for backward compatibility and runtime performance
+    const history = this.executionHistory.get(record.triggerId) ?? [];
+    history.push(record);
+    this.executionHistory.set(record.triggerId, history);
+
+    // Persist to PostgreSQL if repository is available
+    if (this.triggerRepository) {
+      try {
+        const contextJson: Record<string, unknown> = {};
+        if (record.message) {
+          contextJson.message = record.message;
+        }
+        await this.triggerRepository.saveExecutionRecord({
+          id: record.id,
+          triggerId: record.triggerId,
+          runId: record.runId ?? null,
+          status: record.status,
+          contextJson,
+          executedAt: record.executedAt,
+        });
+      } catch (error) {
+        logger.error(
+          { executionId: record.id, error },
+          'Failed to persist execution record to PostgreSQL'
+        );
+      }
+    }
   }
 
   /**
@@ -507,11 +680,10 @@ export class PipelineTriggerService {
       executedAt: new Date(),
     };
 
-    const history = this.executionHistory.get(triggerId) ?? [];
-    history.push(record);
-    this.executionHistory.set(triggerId, history);
+    await this.saveExecutionRecord(record);
 
     // Mark trigger as failed if too many failures
+    const history = this.executionHistory.get(triggerId) ?? [];
     const recentFailures = history.filter(
       (r) => r.status === 'failed' && r.executedAt > new Date(Date.now() - 3600000)
     );
@@ -519,6 +691,18 @@ export class PipelineTriggerService {
       trigger.status = 'failed';
       trigger.updatedAt = new Date();
       this.triggers.set(triggerId, trigger);
+
+      // Persist status change to PostgreSQL
+      if (this.triggerRepository) {
+        try {
+          await this.triggerRepository.updateStatus(triggerId, trigger.status);
+        } catch (error) {
+          logger.error(
+            { triggerId, error },
+            'Failed to persist trigger failure status to PostgreSQL'
+          );
+        }
+      }
     }
 
     return record;
