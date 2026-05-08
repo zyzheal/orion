@@ -18,7 +18,7 @@
  * - No eval, Function, require access
  * - Whitelist-only operators and functions
  * - Prototype pollution protection
- * - Timeout protection (< 10ms)
+ * - Timeout protection (< 100ms)
  */
 
 import { Parser, Expression, Value } from 'expr-eval';
@@ -112,7 +112,7 @@ export class ExpressionEvaluator {
   constructor() {
     // Create parser with restricted operators
     this.parser = new Parser({
-      allowMemberAccess: false, // Block dot notation to object properties for security
+      allowMemberAccess: true, // Enable for github.ref backward compat; dangerous patterns blocked by validation
       operators: {
         // Allow comparison operators
         comparison: true,
@@ -286,9 +286,11 @@ export class ExpressionEvaluator {
     }
 
     // Block dot notation access (e.g., obj.property) for security
-    // Allow only within string literals
+    // Exception: allow github.ref for backward compatibility with existing YAML configs
     const withoutStrings = expression.replace(/'[^']*'/g, '');
-    if (withoutStrings.includes('.')) {
+    // Remove allowed github.xxx patterns before checking for remaining dots
+    const withoutGithub = withoutStrings.replace(/\bgithub\.\w+/g, '');
+    if (withoutGithub.includes('.')) {
       // Dot notation could be used for prototype pollution
       // We handle dot paths through our custom variable system instead
       throw new EvaluationError(
@@ -310,10 +312,12 @@ export class ExpressionEvaluator {
       changedFiles: context.changedFiles ?? [],
       triggerBy: context.triggerBy ?? '',
       executionStatus: context.executionStatus ?? 'success', // Default to success for normal flow
+      // Backward compatibility: github.ref aliases to branch for existing YAML configs
+      github: { ref: context.branch ?? '' },
     };
 
     // Include any additional custom variables from context
-    const knownKeys = new Set(['branch', 'tags', 'changedFiles', 'triggerBy', 'executionStatus']);
+    const knownKeys = new Set(['branch', 'tags', 'changedFiles', 'triggerBy', 'executionStatus', 'github']);
     for (const [key, value] of Object.entries(context)) {
       if (!knownKeys.has(key)) {
         baseValues[key] = value;

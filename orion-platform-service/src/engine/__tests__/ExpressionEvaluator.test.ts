@@ -248,6 +248,24 @@ describe('ExpressionEvaluator', () => {
     });
   });
 
+  describe('Backward Compatibility', () => {
+    test('github.ref should alias to branch for existing YAML configs', () => {
+      const context = createContext();
+      expect(evaluator.evaluate("github.ref == 'refs/heads/main'", context)).toBe(true);
+      expect(evaluator.evaluate("github.ref == 'refs/heads/develop'", context)).toBe(false);
+    });
+
+    test('github.ref should work with different branch values', () => {
+      const context = createContext({ branch: 'refs/heads/feature/test' });
+      expect(evaluator.evaluate("github.ref == 'refs/heads/feature/test'", context)).toBe(true);
+    });
+
+    test('github.ref should work in complex expressions', () => {
+      const context = createContext();
+      expect(evaluator.evaluate("github.ref == 'refs/heads/main' && success()", context)).toBe(true);
+    });
+  });
+
   describe('Timeout Protection', () => {
     test('should not allow infinite loops or long-running expressions', () => {
       // expr-eval doesn't support loops, but we test that evaluation completes quickly
