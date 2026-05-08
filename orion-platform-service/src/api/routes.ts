@@ -123,6 +123,7 @@ import efficiencyEnhancedRoutes from './efficiency-enhanced-routes';
 import communityRoutes from './community-routes';
 import communityAdvancedRoutes from './community-advanced-routes';
 import moduleRoutes from './module-routes';
+import scriptRoutes from './script-routes';
 
 import pino from 'pino';
 import { ModuleManager } from '../services/module-lifecycle/ModuleManager';
@@ -705,4 +706,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // ==================== Module Management ====================
   await registerWithRoleGuard(app, moduleRoutes, '/v1/system/modules', { moduleManager: (options as any).moduleManager });
+
+  // ==================== Inline Script ====================
+  await registerWithRoleGuard(app, scriptRoutes, '/v1/scripts', { database: options.database });
 }
