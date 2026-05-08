@@ -16,57 +16,106 @@ import { Stage, StageStatus } from '../../models/Stage';
 // Simulates the PostgreSQL query interface for pipeline_checkpoints table.
 
 class MockDB {
-  private tables = new Map<string, any[]>();
+  private records: Map<string, any> = new Map();
+  private idCounter = 0;
 
   async query(text: string, params?: any[]): Promise<{ rows: any[]; rowCount: number | null }> {
-    // INSERT / UPSERT
+    // INSERT / UPSERT (ON CONFLICT)
     if (text.includes('INSERT INTO pipeline_checkpoints')) {
-      const row = {
-        id: params![0],
-        run_id: params![1],
-        pipeline_id: params![2],
-        checkpoint_data: typeof params![3] === 'string' ? JSON.parse(params![3]) : params![3],
-        status: params![4],
-        last_stage_name: params![5],
-        last_task_name: params![6],
-        created_at: new Date(),
-        updated_at: new Date(),
-      };
-      let table = this.tables.get('pipeline_checkpoints') || [];
-      const existing = table.find(r => r.run_id === row.run_id);
-      if (existing) {
-        Object.assign(existing, row);
+      // Check if this is a manual INSERT with explicit id (7 params) or the repository's 6-param format
+      const hasExplicitId = text.includes('(id,');
+
+      let run_id: string;
+      let pipeline_id: string;
+      let checkpoint_data: any;
+      let status: string;
+      let last_stage_name: string | null;
+      let last_task_name: string | null;
+      let explicitId: string | null = null;
+      const now = new Date();
+
+      if (hasExplicitId) {
+        // Manual INSERT: (id, run_id, pipeline_id, checkpoint_data, status, last_stage_name, last_task_name)
+        // params: [id, run_id, pipeline_id, checkpoint_data, status, last_stage_name, last_task_name]
+        explicitId = params![0];
+        run_id = params![1];
+        pipeline_id = params![2];
+        checkpoint_data = typeof params![3] === 'string' ? JSON.parse(params![3]) : params![3];
+        status = params![4];
+        last_stage_name = params![5] ?? null;
+        last_task_name = params![6] ?? null;
+      } else {
+        // Repository INSERT: [run_id, pipeline_id, JSON.stringify(data), status, last_stage_name, last_task_name]
+        run_id = params![0];
+        pipeline_id = params![1];
+        checkpoint_data = typeof params![2] === 'string' ? JSON.parse(params![2]) : params![2];
+        status = params![3];
+        last_stage_name = params![4] ?? null;
+        last_task_name = params![5] ?? null;
+      }
+
+      if (this.records.has(run_id)) {
+        // Upsert
+        const existing = this.records.get(run_id)!;
+        existing.checkpoint_data = checkpoint_data;
+        existing.status = status;
+        existing.last_stage_name = last_stage_name;
+        existing.last_task_name = last_task_name;
+        existing.updated_at = now;
+        if (explicitId) existing.id = explicitId;
         return { rows: [existing], rowCount: 1 };
       }
-      table.push(row);
-      this.tables.set('pipeline_checkpoints', table);
+
+      this.idCounter++;
+      const row = {
+        id: explicitId || `cp-${this.idCounter}`,
+        run_id,
+        pipeline_id,
+        checkpoint_data,
+        status,
+        last_stage_name,
+        last_task_name,
+        created_at: now,
+        updated_at: now,
+      };
+      this.records.set(run_id, row);
       return { rows: [row], rowCount: 1 };
     }
 
     // SELECT by run_id
-    if (text.includes('SELECT * FROM pipeline_checkpoints WHERE run_id = $1')) {
-      const table = this.tables.get('pipeline_checkpoints') || [];
-      const found = table.filter(r => r.run_id === params![0]);
-      return { rows: found, rowCount: found.length };
+    if (text.includes('run_id = $1')) {
+      const runId = params![0];
+      const row = this.records.get(runId);
+      return row ? { rows: [row], rowCount: 1 } : { rows: [], rowCount: 0 };
     }
 
     // SELECT by status
-    if (text.includes('SELECT * FROM pipeline_checkpoints WHERE status = $1')) {
-      const table = this.tables.get('pipeline_checkpoints') || [];
-      const found = table.filter(r => r.status === params![0]);
+    if (text.includes('status = $1')) {
+      const status = params![0];
+      const found = Array.from(this.records.values()).filter(r => r.status === status);
       return { rows: found, rowCount: found.length };
     }
 
     // DELETE by run_id
-    if (text.includes('DELETE FROM pipeline_checkpoints WHERE run_id = $1')) {
-      const table = this.tables.get('pipeline_checkpoints') || [];
-      const before = table.length;
-      const filtered = table.filter(r => r.run_id !== params![0]);
-      this.tables.set('pipeline_checkpoints', filtered);
-      return { rows: [], rowCount: before - filtered.length };
+    if (text.includes('DELETE FROM pipeline_checkpoints')) {
+      const runId = params![0];
+      const existed = this.records.delete(runId);
+      return { rows: [], rowCount: existed ? 1 : 0 };
+    }
+
+    // COUNT
+    if (text.includes('COUNT')) {
+      const status = params![0];
+      const count = Array.from(this.records.values()).filter(r => r.status === status).length;
+      return { rows: [{ count: String(count) }], rowCount: 1 };
     }
 
     return { rows: [], rowCount: 0 };
+  }
+
+  reset(): void {
+    this.records.clear();
+    this.idCounter = 0;
   }
 }
 
