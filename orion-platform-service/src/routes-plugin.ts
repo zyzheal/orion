@@ -6,12 +6,14 @@
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { PluginManagerService } from './services/plugin-manager-service';
-import { PluginExecutorService } from './services/plugin-executor-service';
+import { PluginExecutorService, registerExecutorForShutdown } from './services/plugin-executor-service';
 import { PluginController } from './api/controllers/PluginController';
 import { EventBusService } from './services/event-bus-service';
 
 export interface PluginRoutesOptions {
   eventBus?: EventBusService;
+  /** Shared PluginManagerService instance (created once, shared across routes) */
+  pluginManager?: PluginManagerService;
 }
 
 /**
@@ -21,12 +23,15 @@ export default async function registerPluginRoutes(
   app: FastifyInstance,
   options: PluginRoutesOptions
 ): Promise<void> {
-  // 初始化服务
-  const pluginManager = new PluginManagerService({ eventBus: options.eventBus });
+  // Use shared instance or create one (only once)
+  const pluginManager = options.pluginManager || new PluginManagerService({ eventBus: options.eventBus });
   const pluginExecutor = new PluginExecutorService({
     pluginManager,
     eventBus: options.eventBus,
   });
+
+  // Register for graceful shutdown
+  registerExecutorForShutdown(pluginExecutor);
 
   // 初始化控制器
   const controller = new PluginController({

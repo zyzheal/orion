@@ -11,6 +11,7 @@ import { DatabasePool } from './services/database';
 import { EventBusService } from './services/event-bus-service';
 import { NatsServiceRegistry } from './services/nats-registry';
 import { initializeOpenTelemetry } from './otel-setup';
+import { shutdownAllExecutors } from './services/plugin-executor-service';
 
 async function main() {
   const cfg = platformConfig;
@@ -113,7 +114,13 @@ async function main() {
       console.log(`\n Received ${signal}, shutting down gracefully...`);
 
       try {
+        // Stop accepting new requests first
         await app.close();
+
+        // Drain pending plugin executions
+        await shutdownAllExecutors();
+
+        // Close other connections
         if (eventBus) await eventBus.close();
         if (database) await database.close();
         if (redis) await redis.close();

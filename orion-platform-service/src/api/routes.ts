@@ -45,6 +45,7 @@ import pluginSpiRoutes from './plugin-spi-routes';
 import aiSecurityRoutes from './ai-security-routes';
 import pluginRoutes from '../routes-plugin';
 import pluginEnhancedRoutes from './plugin-routes';
+import { PluginManagerService } from '../services/plugin-manager-service';
 import aiGatewayRoutes from './ai-gateway-routes';
 import alertRoutes from './alert-routes';
 import auditRoutes from './audit-routes';
@@ -393,11 +394,14 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // 注册 Plugin SPI API 路由 (TASK-104)
   await registerWithRoleGuard(app, pluginSpiRoutes, '/v1/plugins-spi');
 
-  // 注册 Plugin Management API 路由
-  await registerWithRoleGuard(app, pluginRoutes, '/v1/plugins');
+  // Create a shared PluginManagerService instance to avoid duplicate state
+  const sharedPluginManager = new PluginManagerService({ eventBus: options.eventBus });
 
-  // 注册 Plugin Enhanced API 路由 (Phase 1)
-  await registerWithRoleGuard(app, pluginEnhancedRoutes, '/v1/plugins-enhanced', { database: options.database });
+  // 注册 Plugin Management API 路由 (shared instance)
+  await registerWithRoleGuard(app, pluginRoutes, '/v1/plugins', { eventBus: options.eventBus, pluginManager: sharedPluginManager });
+
+  // 注册 Plugin Enhanced API 路由 (Phase 1, shared instance)
+  await registerWithRoleGuard(app, pluginEnhancedRoutes, '/v1/plugins-enhanced', { database: options.database, pluginManager: sharedPluginManager });
 
   // 注册 AI 安全加固 API 路由 (TASK-1004) — P1-15 Fix: pass database for audit log persistence
   await registerWithRoleGuard(app, aiSecurityRoutes, '/v1/ai-security', { database: options.database });

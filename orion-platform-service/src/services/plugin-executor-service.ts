@@ -15,8 +15,7 @@
  */
 
 import pino from 'pino';
-import { spawn, exec } from 'child_process';
-import { promisify } from 'util';
+import { spawn } from 'child_process';
 import { EventBusService } from './event-bus-service';
 import { PluginManagerService } from './plugin-manager-service';
 import { ExecutionGuardian } from './guardian/ExecutionGuardian';
@@ -31,7 +30,6 @@ import {
   SecurityEventType,
 } from './plugin';
 
-const execAsync = promisify(exec);
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
 /**
@@ -97,7 +95,28 @@ export interface ExecutorConfig {
   enableSandbox: boolean;
   enableAuditLog: boolean;
   enableResourceQuota: boolean;
+  /** Allowed commands for process-level execution (empty = all allowed) */
+  allowedCommands?: string[];
 }
+
+/**
+ * 默认允许的命令
+ */
+const DEFAULT_ALLOWED_COMMANDS = new Set([
+  'echo', 'cat', 'ls', 'pwd', 'mkdir', 'cp', 'mv', 'rm',
+  'grep', 'sed', 'awk', 'head', 'tail', 'wc', 'sort', 'uniq',
+  'find', 'chmod', 'touch', 'date', 'whoami', 'id', 'uname',
+  'node', 'npm', 'npx', 'yarn', 'pnpm',
+  'python', 'python3', 'pip', 'pip3',
+  'git', 'go', 'rustc', 'cargo',
+  'docker', 'docker-compose',
+  'curl', 'wget',
+  'tar', 'gzip', 'gunzip', 'zip', 'unzip',
+  'sha256sum', 'md5sum',
+  'sh', 'bash', 'zsh',
+  'true', 'false', 'sleep', 'timeout',
+  'env', 'printenv',
+]);
 
 /**
  * 默认配置
@@ -116,13 +135,14 @@ const DEFAULT_EXECUTOR_CONFIG: ExecutorConfig = {
 export class PluginExecutorService {
   private pluginManager: PluginManagerService;
   private eventBus?: EventBusService;
-  private executions: Map<string, TaskExecutionResult> = new Map();
+  private executions: Map<string, { result: TaskExecutionResult; timestamp: number }> = new Map();
   private config: ExecutorConfig;
   private sandbox?: PluginSandbox;
   private resourceManager?: PluginResourceManager;
   private auditLogger?: PluginAuditLogger;
   private guardian: ExecutionGuardian;
   private processKiller: ProcessKiller;
+  private allowedCommands: Set<string>;
 
   constructor(options: {
     pluginManager: PluginManagerService;
@@ -133,15 +153,23 @@ export class PluginExecutorService {
     this.eventBus = options.eventBus;
     this.config = { ...DEFAULT_EXECUTOR_CONFIG, ...options.config };
 
+    // Initialize command allowlist
+    this.allowedCommands = options.config?.allowedCommands
+      ? new Set(options.config.allowedCommands)
+      : new Set(DEFAULT_ALLOWED_COMMANDS);
+
     // 初始化安全组件
     this.initializeSecurityComponents();
 
-    // 初始化 ExecutionGuardian
+    // Initialize ExecutionGuardian
     this.guardian = new ExecutionGuardian();
     this.guardian.start();
 
-    // 初始化 ProcessKiller
+    // Initialize ProcessKiller
     this.processKiller = new ProcessKiller();
+
+    // Start TTL-based eviction for executions Map
+    this.startExecutionEviction();
   }
 
   /**
@@ -318,8 +346,8 @@ export class PluginExecutorService {
       this.resourceManager.releaseQuota(request.taskId);
     }
 
-    // 保存结果
-    this.executions.set(request.taskId, result);
+    // 保存结果 (with timestamp for TTL eviction)
+    this.executions.set(request.taskId, { result, timestamp: Date.now() });
 
     // 发布事件
     await this.publishEvent('plugin.task.completed', {
@@ -336,7 +364,8 @@ export class PluginExecutorService {
    * 获取任务执行结果
    */
   getExecutionResult(taskId: string): TaskExecutionResult | undefined {
-    return this.executions.get(taskId);
+    const entry = this.executions.get(taskId);
+    return entry?.result;
   }
 
   /**
@@ -615,9 +644,17 @@ export class PluginExecutorService {
     if (!image || typeof image !== 'string') {
       return 'alpine:latest';
     }
-    // Only allow valid image names: [registry/]name[:tag]
-    const validImageRegex = /^[a-zA-Z0-9][a-zA-Z0-9._/:@-]*$/;
+    // Comprehensive validation for Docker image names:
+    // - registry (optional): [a-zA-Z0-9.-]+(:\d+)?/
+    // - repository/image: [a-z0-9._-]+(/[a-z0-9._-]+)*
+    // - tag (optional): @[a-zA-Z0-9._-]+ or :[a-zA-Z0-9._-]+
+    // Allow digest format: name@sha256:xxxx
+    const validImageRegex = /^(?:[a-zA-Z0-9](?:[a-zA-Z0-9._-]*[a-zA-Z0-9])?(?::\d+)?\/)?[a-z0-9]+(?:[._-][a-z0-9]+)*(?:\/[a-z0-9]+(?:[._-][a-z0-9]+)*)*(?::[a-zA-Z0-9._-]+)?(?:@[a-zA-Z0-9._-]+)?$/;
     if (!validImageRegex.test(image)) {
+      throw new Error(`Invalid Docker image name: ${image}`);
+    }
+    // Block path traversal attempts
+    if (image.includes('..') || image.includes('\0')) {
       throw new Error(`Invalid Docker image name: ${image}`);
     }
     return image;
@@ -788,6 +825,12 @@ export class PluginExecutorService {
       return { cmd: 'echo', args: ['No command specified'], shellMode: false };
     }
 
+    // Check command against allowlist
+    const cmdBase = parts[0].toLowerCase();
+    if (this.allowedCommands.size > 0 && !this.allowedCommands.has(cmdBase)) {
+      throw new Error(`Command '${cmdBase}' is not in the allowed commands list`);
+    }
+
     // If the command is a simple executable (no shell metacharacters), run without shell
     const shellMetacharacters = /[;|&$`<>(){}!#\n\r]/;
     if (!shellMetacharacters.test(trimmed)) {
@@ -934,6 +977,32 @@ export class PluginExecutorService {
   }
 
   /**
+   * Start TTL-based eviction for the executions Map.
+   * Runs every 60 seconds, removing entries older than 5 minutes.
+   */
+  private startExecutionEviction(): void {
+    const TTL_MS = 5 * 60 * 1000; // 5 minutes
+    const INTERVAL_MS = 60 * 1000; // every 60 seconds
+
+    const timer = setInterval(() => {
+      const now = Date.now();
+      let evicted = 0;
+      for (const [taskId, entry] of this.executions) {
+        if (now - entry.timestamp > TTL_MS) {
+          this.executions.delete(taskId);
+          evicted++;
+        }
+      }
+      if (evicted > 0) {
+        logger.debug({ evicted, remaining: this.executions.size }, 'Evicted stale execution entries');
+      }
+    }, INTERVAL_MS).unref(); // unref so it doesn't keep the process alive
+
+    // Store timer reference for cleanup on shutdown
+    (this as any)._evictionTimer = timer;
+  }
+
+  /**
    * 发布事件
    */
   private async publishEvent(type: string, data: any): Promise<void> {
@@ -950,18 +1019,50 @@ export class PluginExecutorService {
    * 关闭执行器
    */
   shutdown(): void {
-    // 取消所有执行
+    // Clear eviction timer
+    const timer = (this as any)._evictionTimer;
+    if (timer) clearInterval(timer);
+
+    // Cancel all executions
     this.sandbox?.cancelAllExecutions('Executor shutdown');
 
-    // 关闭沙箱
+    // Shutdown sandbox
     this.sandbox?.shutdown();
 
-    // 关闭审计日志器
+    // Shutdown audit logger
     this.auditLogger?.shutdown();
 
-    // 清理资源
+    // Release resources
     this.resourceManager?.releaseAll();
 
     logger.info('Plugin executor shutdown complete');
   }
+}
+
+/**
+ * Global registry for plugin executors, used for graceful shutdown.
+ */
+const executorRegistry: PluginExecutorService[] = [];
+
+/**
+ * Register a PluginExecutorService for graceful shutdown.
+ */
+export function registerExecutorForShutdown(executor: PluginExecutorService): void {
+  executorRegistry.push(executor);
+}
+
+/**
+ * Shutdown all registered executors.
+ * Called during SIGTERM/SIGINT graceful shutdown.
+ */
+export async function shutdownAllExecutors(): Promise<void> {
+  logger.info({ count: executorRegistry.length }, 'Shutting down plugin executors...');
+  for (const executor of executorRegistry) {
+    try {
+      executor.shutdown();
+    } catch (error) {
+      logger.error({ error }, 'Error shutting down executor');
+    }
+  }
+  executorRegistry.length = 0;
 }

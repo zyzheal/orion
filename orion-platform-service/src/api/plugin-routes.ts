@@ -3,14 +3,28 @@
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { PluginManagerService } from '../services/plugin-manager-service';
+import { PluginExecutorService, registerExecutorForShutdown } from '../services/plugin-executor-service';
 import { ExecutionTimelineService } from '../services/observability/ExecutionTimelineService';
 import { AIDiagnosisService } from '../services/ai/AIDiagnosisService';
 import pino from 'pino';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
-export default async function pluginEnhancedRoutes(app: FastifyInstance, options?: { database?: any }): Promise<void> {
-  const pluginManager = new PluginManagerService();
+export interface PluginEnhancedRoutesOptions {
+  database?: any;
+  /** Shared PluginManagerService instance (created once, shared across routes) */
+  pluginManager?: PluginManagerService;
+}
+
+export default async function pluginEnhancedRoutes(app: FastifyInstance, options?: PluginEnhancedRoutesOptions): Promise<void> {
+  // Use shared instance or create one
+  const pluginManager = options?.pluginManager || new PluginManagerService();
+  const pluginExecutor = new PluginExecutorService({
+    pluginManager,
+  });
+
+  // Register for graceful shutdown
+  registerExecutorForShutdown(pluginExecutor);
   const timelineService = new ExecutionTimelineService();
   const aiDiagnosis = new AIDiagnosisService();
 

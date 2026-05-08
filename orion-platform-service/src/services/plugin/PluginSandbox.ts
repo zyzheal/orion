@@ -10,6 +10,7 @@
 
 import pino from 'pino';
 import { EventEmitter } from 'events';
+import os from 'os';
 import {
   ExecutionContext,
   ValidationResult,
@@ -567,47 +568,91 @@ export class PluginSandbox extends EventEmitter {
 
   /**
    * 启动资源监控
+   *
+   * Reads real system metrics where possible (Node.js process memory, CPU load averages,
+   * system network counters). For container-specific metrics, a Docker API or cgroup
+   * integration would be needed (marked as TODO).
    */
   private startResourceMonitoring(context: ExecutionContext): NodeJS.Timeout {
+    // Track CPU usage by comparing process CPU time between samples
+    let prevCpuTime = process.cpuUsage();
+    let prevTimestamp = Date.now();
+
     return setInterval(() => {
-      // 模拟资源使用监控
-      // 在实际实现中，这里会从 Docker API 或 cgroup 获取真实数据
-      const usage = {
-        cpuPercent: Math.random() * 50 + 20, // 模拟 20-70% CPU 使用
-        memoryBytes: Math.floor(Math.random() * 500 * 1024 * 1024), // 模拟 0-500MB 内存
-        diskBytes: Math.floor(Math.random() * 100 * 1024 * 1024), // 模拟 0-100MB 磁盘
-        networkRxBytes: Math.floor(Math.random() * 10 * 1024 * 1024),
-        networkTxBytes: Math.floor(Math.random() * 5 * 1024 * 1024),
-        timestamp: new Date(),
-      };
+      try {
+        // Read real memory usage from current Node.js process
+        const memUsage = process.memoryUsage();
 
-      // 更新资源管理器
-      this.resourceManager.updateUsage(context.taskId, usage);
+        // Calculate CPU usage percentage since last sample
+        const currCpuTime = process.cpuUsage();
+        const currTimestamp = Date.now();
+        const elapsedMs = currTimestamp - prevTimestamp;
+        const cpuDeltaUs = (currCpuTime.user - prevCpuTime.user) + (currCpuTime.system - prevCpuTime.system);
+        const cpuPercent = elapsedMs > 0 ? (cpuDeltaUs / 1000 / elapsedMs) * 100 : 0;
 
-      // 记录审计日志
-      this.auditLogger.logResourceUsage(context, usage);
+        prevCpuTime = currCpuTime;
+        prevTimestamp = currTimestamp;
 
-      // 检查配额违规
-      const allocation = this.resourceManager.getAllocation(context.taskId);
-      if (allocation) {
-        const memoryPercent = usage.memoryBytes / allocation.quota.memoryBytes;
-        if (memoryPercent > 0.95) {
-          // 内存即将超出，强制终止
-          this.auditLogger.logSecurityEvent({
-            type: 'MEMORY_LIMIT_EXCEEDED',
-            severity: 'CRITICAL',
-            taskId: context.taskId,
-            pluginId: context.pluginId,
-            message: 'Memory limit exceeded, execution will be terminated',
-            details: {
-              usedBytes: usage.memoryBytes,
-              limitBytes: allocation.quota.memoryBytes,
-              percent: memoryPercent * 100,
-            },
-          });
+        // Read system load averages (platform-independent)
+        const loadAvg = os.loadavg();
 
-          this.cancelExecution(context.taskId, 'Memory limit exceeded');
+        // For network metrics, we use /proc/net/dev on Linux if available,
+        // otherwise fall back to zero (no reliable cross-platform API)
+        let networkRxBytes = 0;
+        let networkTxBytes = 0;
+        try {
+          const netDev = require('fs').readFileSync('/proc/net/dev', 'utf8');
+          const lines = netDev.split('\n').slice(2); // skip header lines
+          for (const line of lines) {
+            const fields = line.trim().split(/\s+/);
+            if (fields.length >= 10 && fields[0] !== 'lo:') {
+              networkRxBytes += parseInt(fields[1], 10);
+              networkTxBytes += parseInt(fields[9], 10);
+            }
+          }
+        } catch {
+          // /proc/net/dev not available (non-Linux), keep at 0
         }
+
+        const usage = {
+          cpuPercent: Math.min(cpuPercent, 100), // cap at 100%
+          memoryBytes: memUsage.rss, // Resident Set Size - actual physical memory
+          diskBytes: memUsage.external, // external memory (native allocations)
+          networkRxBytes,
+          networkTxBytes,
+          timestamp: new Date(),
+        };
+
+        // 更新资源管理器
+        this.resourceManager.updateUsage(context.taskId, usage);
+
+        // 记录审计日志
+        this.auditLogger.logResourceUsage(context, usage);
+
+        // 检查配额违规
+        const allocation = this.resourceManager.getAllocation(context.taskId);
+        if (allocation) {
+          const memoryPercent = usage.memoryBytes / allocation.quota.memoryBytes;
+          if (memoryPercent > 0.95) {
+            // 内存即将超出，强制终止
+            this.auditLogger.logSecurityEvent({
+              type: 'MEMORY_LIMIT_EXCEEDED',
+              severity: 'CRITICAL',
+              taskId: context.taskId,
+              pluginId: context.pluginId,
+              message: 'Memory limit exceeded, execution will be terminated',
+              details: {
+                usedBytes: usage.memoryBytes,
+                limitBytes: allocation.quota.memoryBytes,
+                percent: memoryPercent * 100,
+              },
+            });
+
+            this.cancelExecution(context.taskId, 'Memory limit exceeded');
+          }
+        }
+      } catch (error) {
+        logger.error({ error }, 'Resource monitoring error');
       }
     }, this.config.resourceMonitorIntervalMs);
   }
