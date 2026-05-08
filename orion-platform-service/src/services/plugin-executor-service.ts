@@ -101,6 +101,15 @@ export interface ExecutorConfig {
 }
 
 /**
+ * Image pull policy configuration.
+ */
+export enum PullPolicy {
+  Always = 'always',
+  IfNotPresent = 'ifNotPresent',
+  Never = 'never',
+}
+
+/**
  * 默认允许的命令
  */
 const DEFAULT_ALLOWED_COMMANDS = new Set([
@@ -593,6 +602,114 @@ export class PluginExecutorService {
   }
 
   /**
+   * Pull image if needed based on pull policy.
+   * Also handles registry authentication and digest pinning warnings.
+   */
+  private async pullImageIfNeeded(image: string, pullPolicy?: string): Promise<void> {
+    const policy = (pullPolicy as PullPolicy) || PullPolicy.IfNotPresent;
+
+    // Warn if using :latest tag (non-deterministic)
+    if (image.endsWith(':latest')) {
+      logger.warn({ image }, 'Using :latest tag is non-deterministic, consider pinning to a specific tag or digest');
+    }
+
+    // Digest-pinned images don't need pulling unless policy is Always
+    if (image.includes('@sha256:') && policy !== PullPolicy.Always) {
+      logger.debug({ image }, 'Using digest-pinned image, skipping pull check');
+      return;
+    }
+
+    // Check if image exists locally
+    const existsLocally = await this.imageExistsLocally(image);
+
+    if (policy === PullPolicy.Never) {
+      if (!existsLocally) {
+        throw new Error(`Image ${image} not found locally and pull policy is 'never'`);
+      }
+      return;
+    }
+
+    if (policy === PullPolicy.IfNotPresent && existsLocally) {
+      return; // Image exists, no pull needed
+    }
+
+    // Pull the image (Always, or IfNotPresent when not local)
+    await this.ensureRegistryAuth();
+    await this.pullDockerImage(image);
+  }
+
+  /**
+   * Check if a Docker image exists locally.
+   */
+  private async imageExistsLocally(image: string): Promise<boolean> {
+    try {
+      await this.spawnDocker(['inspect', image], undefined, 10000);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Ensure registry authentication if credentials are configured.
+   * Uses DOCKER_REGISTRY_USERNAME and DOCKER_REGISTRY_PASSWORD env vars.
+   */
+  private async ensureRegistryAuth(): Promise<void> {
+    const username = process.env.DOCKER_REGISTRY_USERNAME;
+    const password = process.env.DOCKER_REGISTRY_PASSWORD;
+
+    if (!username || !password) {
+      return; // No registry credentials configured
+    }
+
+    const image = process.env.DOCKER_REGISTRY_SERVER || '';
+
+    try {
+      // Use --password-stdin to avoid logging the password
+      const loginArgs = ['login'];
+      if (image) {
+        loginArgs.push(image);
+      }
+
+      const child = spawn('docker', [...loginArgs, '--username', username, '--password-stdin'], {
+        stdio: ['pipe', 'pipe', 'pipe'],
+      });
+
+      child.stdin.write(password);
+      child.stdin.end();
+
+      await new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error('docker login timed out')), 30000);
+        child.on('close', (code) => {
+          clearTimeout(timer);
+          if (code === 0) {
+            resolve();
+          } else {
+            reject(new Error(`docker login failed with exit code ${code}`));
+          }
+        });
+        child.on('error', (err) => {
+          clearTimeout(timer);
+          reject(err);
+        });
+      });
+
+      logger.info('Docker registry authentication successful');
+    } catch (error: any) {
+      logger.warn({ error: error.message }, 'Docker registry authentication failed, continuing anyway');
+    }
+  }
+
+  /**
+   * Pull a Docker image.
+   */
+  private async pullDockerImage(image: string): Promise<void> {
+    logger.info({ image }, 'Pulling Docker image');
+    await this.spawnDocker(['pull', image], undefined, 120000);
+    logger.info({ image }, 'Docker image pulled successfully');
+  }
+
+  /**
    * 执行容器插件 - 真实 Docker 实现 (使用 spawn 避免 shell 注入)
    */
   private async executeContainerPlugin(
@@ -611,6 +728,14 @@ export class PluginExecutorService {
     const memoryLimit = (request.config.memoryLimit as string) || '512m';
     const cpusLimit = (request.config.cpusLimit as string) || '1';
     const pidsLimit = (request.config.pidsLimit as string) || '100';
+    const pullPolicy = (request.config.pullPolicy as string) || process.env.DOCKER_PULL_POLICY || PullPolicy.IfNotPresent;
+
+    // Pre-pull validation: ensure image is available before creating container
+    try {
+      await this.pullImageIfNeeded(containerImage, pullPolicy);
+    } catch (error: any) {
+      throw new Error(`Image pull failed for ${containerImage}: ${error.message}`);
+    }
 
     // Sanitize memory limit to prevent injection
     if (!/^\d+[mkg]$/i.test(memoryLimit)) {
