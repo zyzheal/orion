@@ -1,8 +1,6 @@
 import pino from 'pino';
-import { exec } from 'child_process';
-import { promisify } from 'util';
+import { spawn } from 'child_process';
 
-const execAsync = promisify(exec);
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
 interface ProcessInfo {
@@ -101,13 +99,49 @@ export class ProcessKiller {
     });
   }
 
-  private async dockerCommand(containerId: string, command: string): Promise<void> {
-    try {
-      const { stdout } = await execAsync(`docker ${command} ${containerId}`);
-      logger.info({ containerId, command, stdout: stdout.trim() }, `Docker ${command} completed`);
-    } catch (error) {
-      logger.error({ containerId, command, error }, `Docker ${command} failed`);
-      throw error;
+  private dockerCommand(containerId: string, command: string, timeoutMs: number = 10000): Promise<void> {
+    // Validate containerId to prevent injection via malformed IDs
+    if (!/^[a-zA-Z0-9][a-zA-Z0-9_.-]*$/.test(containerId)) {
+      throw new Error(`Invalid container ID: ${containerId}`);
     }
+    // Validate command to prevent arbitrary docker subcommand execution
+    const allowedCommands = new Set(['pause', 'unpause', 'kill', 'stop', 'rm']);
+    if (!allowedCommands.has(command)) {
+      throw new Error(`Invalid docker command: ${command}`);
+    }
+    return new Promise((resolve, reject) => {
+      const child = spawn('docker', [command, containerId], {
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+
+      let stdout = '';
+      let stderr = '';
+
+      // SRE: Timeout to prevent indefinite hang if Docker daemon is unresponsive
+      const timer = setTimeout(() => {
+        try { child.kill('SIGKILL'); } catch { /* already dead */ }
+        reject(new Error(`docker ${command} timed out after ${timeoutMs}ms`));
+      }, timeoutMs);
+
+      child.stdout.on('data', (data) => { stdout += data.toString(); });
+      child.stderr.on('data', (data) => { stderr += data.toString(); });
+
+      child.on('close', (code) => {
+        clearTimeout(timer);
+        if (code === 0) {
+          logger.info({ containerId, command, stdout: stdout.trim() }, `Docker ${command} completed`);
+          resolve();
+        } else {
+          logger.error({ containerId, command, code, stderr: stderr.trim() }, `Docker ${command} failed`);
+          reject(new Error(`docker ${command} exited with code ${code}: ${stderr.trim()}`));
+        }
+      });
+
+      child.on('error', (err) => {
+        clearTimeout(timer);
+        logger.error({ containerId, command, error: err.message }, `Docker ${command} failed to spawn`);
+        reject(err);
+      });
+    });
   }
 }

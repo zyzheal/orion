@@ -3,6 +3,7 @@
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { InlineScriptService } from '../services/inline-script/InlineScriptService';
+import { InlineScriptApprovalRepository } from '../repositories/InlineScriptApprovalRepository';
 import pino from 'pino';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
@@ -28,10 +29,71 @@ const scanSchema = {
   },
 };
 
+const executionSchema = {
+  body: {
+    type: 'object',
+    required: ['taskId', 'pipelineRunId', 'stageId', 'config'],
+    properties: {
+      taskId: { type: 'string', minLength: 1 },
+      pipelineRunId: { type: 'string', minLength: 1 },
+      stageId: { type: 'string', minLength: 1 },
+      config: {
+        type: 'object',
+        required: ['code', 'level', 'language'],
+        properties: {
+          code: { type: 'string', minLength: 1 },
+          level: { type: 'string', enum: ['safe', 'standard', 'advanced'] },
+          language: { type: 'string', enum: ['javascript', 'typescript', 'python', 'shell'] },
+          permissions: { type: 'object' },
+          approvalId: { type: 'string' },
+        },
+      },
+      workspace: { type: 'object' },
+      env: { type: 'object' },
+      timeout: { type: 'number', minimum: 1000, maximum: 300000 },
+    },
+  },
+};
+
+const dryRunSchema = {
+  body: {
+    type: 'object',
+    required: ['taskId', 'pipelineRunId', 'stageId', 'config'],
+    properties: {
+      taskId: { type: 'string', minLength: 1 },
+      pipelineRunId: { type: 'string', minLength: 1 },
+      stageId: { type: 'string', minLength: 1 },
+      config: {
+        type: 'object',
+        required: ['code', 'level', 'language'],
+        properties: {
+          code: { type: 'string', minLength: 1 },
+          level: { type: 'string', enum: ['safe', 'standard', 'advanced'] },
+          language: { type: 'string', enum: ['javascript', 'typescript', 'python', 'shell'] },
+          permissions: { type: 'object' },
+          approvalId: { type: 'string' },
+        },
+      },
+    },
+  },
+};
+
+const approvalSchema = {
+  body: {
+    type: 'object',
+    required: ['code', 'reason', 'permissions'],
+    properties: {
+      code: { type: 'string', minLength: 1, maxLength: 1048576 },
+      reason: { type: 'string', minLength: 1, maxLength: 500 },
+      permissions: { type: 'object' },
+      expirationType: { type: 'string', enum: ['single_use', '24h', '7d'] },
+    },
+  },
+};
+
 export default async function scriptRoutes(app: FastifyInstance, options?: { database?: any }): Promise<void> {
-  const scriptService = new InlineScriptService({
-    approvalRepo: options?.database ? undefined : undefined, // Will be wired when DB is available
-  });
+  const approvalRepo = options?.database ? new InlineScriptApprovalRepository(options.database) : undefined;
+  const scriptService = new InlineScriptService({ approvalRepo });
 
   // POST /scan - Security scan code
   app.post('/scan', { schema: scanSchema }, async (request: FastifyRequest, reply: FastifyReply) => {
@@ -44,7 +106,7 @@ export default async function scriptRoutes(app: FastifyInstance, options?: { dat
   });
 
   // POST /dry-run - Dry run test
-  app.post('/dry-run', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/dry-run', { schema: dryRunSchema }, async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as any;
     if (!body.config || typeof body.config.code !== 'string') {
       return reply.code(400).send({ error: 'Missing or invalid config.code' });
@@ -54,7 +116,7 @@ export default async function scriptRoutes(app: FastifyInstance, options?: { dat
   });
 
   // POST /execute - Execute inline script
-  app.post('/execute', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/execute', { schema: executionSchema }, async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as any;
     const tenantId = (request as any).tenantId;
     const userId = (request as any).userId;
@@ -87,7 +149,7 @@ export default async function scriptRoutes(app: FastifyInstance, options?: { dat
   });
 
   // POST /approval - Request Level 3 approval
-  app.post('/approval', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/approval', { schema: approvalSchema }, async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as any;
     const tenantId = (request as any).tenantId;
     const userId = (request as any).userId;
@@ -122,8 +184,34 @@ export default async function scriptRoutes(app: FastifyInstance, options?: { dat
       return reply.code(400).send({ error: 'Invalid decision: must be "approved" or "denied"' });
     }
 
-    // TODO: wire to database when approval service is fully implemented
-    return { approvalId, decision: body.decision, status: 'not_implemented' };
+    if (!approvalRepo) {
+      return reply.code(500).send({ error: 'Approval repository not configured' });
+    }
+
+    if (!tenantId) {
+      return reply.code(401).send({ error: 'Unauthorized: missing tenant' });
+    }
+
+    try {
+      const approval = await approvalRepo.findByApprovalId(approvalId, tenantId);
+      if (!approval) {
+        return reply.code(404).send({ error: `Approval ${approvalId} not found` });
+      }
+
+      if (approval.status !== 'pending') {
+        return reply.code(400).send({ error: `Approval already ${approval.status}` });
+      }
+
+      const newApprovals = approval.current_approvals + 1;
+      const newStatus = newApprovals >= approval.required_approvals ? 'approved' : 'pending';
+      const finalStatus = body.decision === 'denied' ? 'denied' : newStatus;
+
+      await approvalRepo.updateStatus(approvalId, tenantId, finalStatus, body.decision === 'approved' ? newApprovals : undefined);
+
+      return { approvalId, decision: body.decision, status: finalStatus, currentApprovals: newApprovals };
+    } catch (error) {
+      return reply.code(500).send({ error: `Failed to process decision: ${error instanceof Error ? error.message : String(error)}` });
+    }
   });
 
   // POST /ai-generate - AI generate script
