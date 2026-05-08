@@ -58,3 +58,10 @@ export type { PluginItem, PluginPickerProps } from './PluginPicker';
 
 export { InlineScriptEditor } from './InlineScriptEditor';
 export type { InlineScriptEditorProps } from './InlineScriptEditor';
+
+// Plugin Components
+export { StepConfigurationPanel, default as StepConfigurationPanelDefault } from './StepConfigurationPanel';
+export type { StepConfigurationPanelProps } from './StepConfigurationPanel';
+
+export { ExecutionTimeline, default as ExecutionTimelineDefault } from './ExecutionTimeline';
+export type { ExecutionTimelineProps, TimelineStep } from './ExecutionTimeline';
