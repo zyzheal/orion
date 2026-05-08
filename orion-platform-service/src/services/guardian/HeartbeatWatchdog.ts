@@ -18,6 +18,7 @@ export class HeartbeatWatchdog extends EventEmitter {
 
   start(): void {
     this.checkInterval = setInterval(() => this.checkHeartbeats(), this.checkFrequencyMs);
+    this.checkInterval.unref(); // Allow process to exit cleanly
     logger.info('HeartbeatWatchdog started');
   }
 

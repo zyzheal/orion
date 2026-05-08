@@ -91,16 +91,18 @@ class ASTSecurityScanner {
         this.checkMemberAccess(path.node);
       },
 
-      // Detect bare identifiers like eval, process, Function used as values
+      // Detect bare identifiers like eval, Function used as values
       Identifier: (path: NodePath<Identifier>) => {
-        // Only flag if used in a non-declaration context
+        // Skip if used as call expression callee (handled above)
         const parent = path.parent;
-        if (parent.type === 'CallExpression' && parent.callee === path.node) return; // handled above
+        if (parent.type === 'CallExpression' && parent.callee === path.node) return;
+        // Skip if it's a property access (e.g., obj.eval is not a bare eval call)
+        if (parent.type === 'MemberExpression' && parent.property === path.node) return;
+        // Skip if it's in a variable declaration (e.g., const eval = ...)
+        if (parent.type === 'VariableDeclarator' && parent.id === path.node) return;
+        // Flag bare eval/Function references used as values (not in declaration/call/property context)
         if (path.node.name === 'eval' || path.node.name === 'Function') {
-          // Only flag if it's a bare reference (not a property)
-          if (parent.type === 'MemberExpression' && parent.property === path.node) {
-            this.addViolation(`bare ${path.node.name} reference is not allowed`);
-          }
+          this.addViolation(`bare ${path.node.name} reference is not allowed`);
         }
       },
     });
@@ -441,6 +443,17 @@ export class InlineScriptService {
           durationMs: Date.now() - startTime,
         };
       }
+
+      // CRITICAL: Verify the code being executed matches the approved code hash
+      const codeHash = createHash('sha256').update(request.config.code).digest('hex');
+      if (codeHash !== approval.script_code_hash) {
+        return {
+          taskId: request.taskId,
+          status: 'failed',
+          errorMessage: 'Code hash does not match approved script. Script may have been modified after approval.',
+          durationMs: Date.now() - startTime,
+        };
+      }
     } catch (error) {
       logger.error({ error }, 'Failed to verify approval');
       return {
@@ -488,51 +501,18 @@ export class InlineScriptService {
       case 'single_use': break;
     }
 
-    // Use the repository's insert method via its db connection
-    const entity = {
-      id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-      approval_id: approvalId,
-      tenant_id: params.tenantId,
-      user_id: params.userId,
-      script_code_hash: codeHash,
-      script_language: 'javascript',
+    // Persist via repository
+    await this.approvalRepo.createApproval({
+      approvalId: approvalId,
+      tenantId: params.tenantId,
+      userId: params.userId,
+      scriptCodeHash: codeHash,
+      scriptLanguage: 'javascript',
       permissions: params.permissions,
       reason: params.reason,
-      status: 'pending',
-      required_approvals: 2,
-      current_approvals: 0,
-      expiration_type: expirationType,
-      expires_at: expiresAt,
-      used_count: 0,
-      max_uses: 1,
-      created_at: new Date(),
-      updated_at: new Date(),
-    };
-
-    const repo = this.approvalRepo as any;
-    await repo.db.query(
-      `INSERT INTO inline_script_approvals
-        (id, approval_id, tenant_id, user_id, script_code_hash, script_language, permissions, reason,
-         status, required_approvals, current_approvals, expiration_type, expires_at, used_count, max_uses, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW(), NOW())`,
-      [
-        entity.id,
-        entity.approval_id,
-        entity.tenant_id,
-        entity.user_id,
-        entity.script_code_hash,
-        entity.script_language,
-        JSON.stringify(entity.permissions),
-        entity.reason,
-        entity.status,
-        entity.required_approvals,
-        entity.current_approvals,
-        entity.expiration_type,
-        entity.expires_at,
-        entity.used_count,
-        entity.max_uses,
-      ]
-    );
+      expirationType: expirationType,
+      expiresAt: expiresAt,
+    });
 
     logger.info({ approvalId, reason: params.reason }, 'Approval request created in database');
     return { approvalId, status: 'pending' };

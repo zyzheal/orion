@@ -13,8 +13,15 @@ export interface PluginAuditLogRepository {
   findByTenantId(tenantId: string, limit?: number): Promise<PluginAuditLog[]>;
 }
 
+/**
+ * Database pool type for repository queries
+ */
+interface DatabasePool {
+  query: (text: string, params?: unknown[]) => Promise<{ rows: any[] }>;
+}
+
 export class PostgresPluginAuditLogRepository implements PluginAuditLogRepository {
-  constructor(private db: any) {}
+  constructor(private db: DatabasePool) {}
 
   async create(log: CreatePluginAuditLog): Promise<PluginAuditLog> {
     const query = `

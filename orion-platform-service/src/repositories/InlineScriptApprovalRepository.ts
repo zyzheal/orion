@@ -65,6 +65,48 @@ export class InlineScriptApprovalRepository extends BaseRepository<InlineScriptA
   }
 
   /**
+   * Create a new approval record
+   */
+  async createApproval(data: {
+    approvalId: string;
+    tenantId: string;
+    userId: string;
+    scriptCodeHash: string;
+    scriptLanguage: string;
+    permissions: Record<string, any>;
+    reason: string;
+    expirationType: string;
+    expiresAt: Date;
+  }): Promise<InlineScriptApprovalEntity> {
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    const result = await this.db.query(
+      `INSERT INTO inline_script_approvals
+        (id, approval_id, tenant_id, user_id, script_code_hash, script_language, permissions, reason,
+         status, required_approvals, current_approvals, expiration_type, expires_at, used_count, max_uses, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW(), NOW())
+       RETURNING *`,
+      [
+        id,
+        data.approvalId,
+        data.tenantId,
+        data.userId,
+        data.scriptCodeHash,
+        data.scriptLanguage,
+        JSON.stringify(data.permissions),
+        data.reason,
+        'pending',
+        2,
+        0,
+        data.expirationType,
+        data.expiresAt,
+        0,
+        1,
+      ]
+    );
+    return this.mapRowToEntity(result.rows[0]);
+  }
+
+  /**
    * Find approvals by tenant
    */
   async findByTenantId(tenantId: string): Promise<InlineScriptApprovalEntity[]> {

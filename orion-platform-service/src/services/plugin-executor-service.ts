@@ -17,7 +17,7 @@
 import pino from 'pino';
 import { spawn } from 'child_process';
 import { EventBusService } from './event-bus-service';
-import { PluginManagerService } from './plugin-manager-service';
+import { PluginManagerService, PluginInfo, SecurityLevel } from './plugin-manager-service';
 import { ExecutionGuardian } from './guardian/ExecutionGuardian';
 import { ProcessKiller } from './guardian/ProcessKiller';
 import {
@@ -243,7 +243,7 @@ export class PluginExecutorService {
     logger.info({ taskId: request.taskId, pluginId: request.pluginId }, 'Executing plugin task');
 
     // 检查插件是否已安装并激活
-    let plugin: any;
+    let plugin: PluginInfo;
     try {
       plugin = await this.pluginManager.getPluginDetails(request.pluginId);
       if (!plugin || plugin.state !== 'ACTIVE') {
@@ -419,7 +419,7 @@ export class PluginExecutorService {
    */
   private async executeByType(
     request: TaskExecutionRequest,
-    plugin: any,
+    plugin: PluginInfo,
     context?: ExecutionContext | null,
     signal?: AbortSignal
   ): Promise<TaskExecutionResult> {
@@ -479,7 +479,7 @@ export class PluginExecutorService {
    */
   private async executeInSandbox(
     request: TaskExecutionRequest,
-    plugin: any,
+    plugin: PluginInfo,
     context: ExecutionContext,
     signal?: AbortSignal
   ): Promise<SandboxExecutionResult> {
@@ -515,7 +515,7 @@ export class PluginExecutorService {
    */
   private async executeWithoutSandbox(
     request: TaskExecutionRequest,
-    plugin: any,
+    plugin: PluginInfo,
     startTime: number,
     signal?: AbortSignal
   ): Promise<TaskExecutionResult> {

@@ -43,10 +43,10 @@ export class ExecutionGuardian extends EventEmitter {
     logger.info('ExecutionGuardian started');
   }
 
-  stop(): void {
+  async stop(): Promise<void> {
     this.heartbeatWatchdog.stop();
     for (const [taskId] of this.activeTasks) {
-      this.abortTask(taskId, 'guardian_shutdown');
+      await this.abortTask(taskId, 'guardian_shutdown');
     }
     this.activeTasks.clear();
     logger.info('ExecutionGuardian stopped');
@@ -115,13 +115,24 @@ export class ExecutionGuardian extends EventEmitter {
 
   async abortTask(taskId: string, reason: string): Promise<void> {
     const taskState = this.activeTasks.get(taskId);
-    if (taskState) {
-      taskState.aborted = true;
-      if (taskState.globalTimer) clearTimeout(taskState.globalTimer);
-      if (taskState.stepTimer) clearTimeout(taskState.stepTimer);
+    if (!taskState) return; // Already cleaned up
+
+    taskState.aborted = true;
+    if (taskState.globalTimer) clearTimeout(taskState.globalTimer);
+    if (taskState.stepTimer) clearTimeout(taskState.stepTimer);
+
+    // Remove abort listener if registered
+    if (taskState.abortListener) {
+      this.off('task:aborted', taskState.abortListener);
     }
+
     await this.processKiller.kill(taskId, reason);
     this.emit('task:aborted', { taskId, reason });
+
+    // Clean up: remove from activeTasks and heartbeat watchdog
+    this.activeTasks.delete(taskId);
+    this.heartbeatWatchdog.unregister(taskId);
+    logger.info({ taskId, reason }, 'Task aborted and cleaned up');
   }
 
   createAbortSignal(taskId: string): AbortController {
@@ -142,20 +153,22 @@ export class ExecutionGuardian extends EventEmitter {
     return controller;
   }
 
-  private onGlobalTimeout(taskId: string): void {
+  private async onGlobalTimeout(taskId: string): Promise<void> {
     logger.error({ taskId }, 'Global timeout reached');
     this.emit('task:timeout', { taskId, type: 'global' });
-    this.abortTask(taskId, 'global_timeout');
+    await this.abortTask(taskId, 'global_timeout');
   }
 
-  private onStepTimeout(taskId: string): void {
+  private async onStepTimeout(taskId: string): Promise<void> {
     logger.warn({ taskId }, 'Step timeout reached');
     this.emit('task:timeout', { taskId, type: 'step' });
+    // Abort the task to prevent indefinite execution after step timeout
+    await this.abortTask(taskId, 'step_timeout');
   }
 
-  private onHeartbeatTimeout(taskId: string, reason: string): void {
+  private async onHeartbeatTimeout(taskId: string, reason: string): Promise<void> {
     logger.error({ taskId, reason }, 'Heartbeat timeout - task appears stuck');
     this.emit('task:heartbeat_timeout', { taskId, reason });
-    this.abortTask(taskId, 'heartbeat_timeout');
+    await this.abortTask(taskId, 'heartbeat_timeout');
   }
 }
