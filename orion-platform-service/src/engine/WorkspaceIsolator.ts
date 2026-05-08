@@ -129,7 +129,39 @@ export class WorkspaceIsolator {
     taskId?: string,
     customRootPath?: string
   ): string {
-    const rootPath = customRootPath || this.baseDir;
+    let rootPath: string;
+
+    if (customRootPath) {
+      // 验证 customRootPath 防止路径穿越
+      const resolved = path.resolve(customRootPath);
+      const expectedBase = process.env.ORION_WORKSPACE_ROOT
+        ? path.resolve(process.env.ORION_WORKSPACE_ROOT)
+        : '';
+      // 确保解析后的路径在 /tmp/ 或 ORION_WORKSPACE_ROOT 下
+      // （测试环境可使用环境变量自定义，生产环境默认限制在 /tmp/ 下）
+      if (
+        !resolved.startsWith('/tmp/') &&
+        (expectedBase === '' || !resolved.startsWith(expectedBase + '/')) &&
+        resolved !== expectedBase
+      ) {
+        // 非 /tmp/ 且非 ORION_WORKSPACE_ROOT 下的路径：
+        // 允许任意路径但记录警告，防止路径穿越到敏感系统目录
+        const dangerousRoots = ['/', '/etc', '/usr', '/var', '/root', '/boot'];
+        if (dangerousRoots.includes(resolved) || resolved.startsWith('/etc/') || resolved.startsWith('/usr/') || resolved.startsWith('/var/') || resolved.startsWith('/root/') || resolved.startsWith('/boot/')) {
+          throw new Error(
+            `Invalid custom workspace root path: ${customRootPath} (resolved to ${resolved})`
+          );
+        }
+        logger.warn(
+          { customRootPath, resolved },
+          'Custom workspace root is outside expected directories'
+        );
+      }
+      rootPath = resolved;
+    } else {
+      rootPath = this.baseDir;
+    }
+
     const sanitizedRunId = sanitizeRunId(runId);
 
     let basePath = `${rootPath}/${sanitizedRunId}/`;
@@ -207,13 +239,17 @@ export class WorkspaceIsolator {
 
         try {
           const stats = fs.statSync(entryPath);
-          // 使用 mtime 判断创建/修改时间
-          if (stats.mtime < cutoffDate) {
+          // 使用 birthtime（创建时间）判断，fallback 到 ctime
+          const creationTime =
+            stats.birthtimeMs > 0
+              ? new Date(stats.birthtimeMs)
+              : new Date(stats.ctimeMs);
+          if (creationTime < cutoffDate) {
             const deleteResult = await this.deleteDirectory(entryPath);
             if (deleteResult.deleted) result.deleted++;
             if (deleteResult.error) result.errors.push(deleteResult.error);
             logger.info(
-              { path: entryPath, age: stats.mtime },
+              { path: entryPath, age: creationTime },
               'Expired workspace deleted'
             );
           } else {
@@ -279,15 +315,23 @@ function sanitizeRunId(runId: string): string {
     return 'unknown';
   }
 
-  // 移除路径分隔符和 null 字节
-  let sanitized = runId.replace(/[/\\]/g, '-').replace(/\0/g, '');
+  // 移除 null 字节
+  let sanitized = runId.replace(/\0/g, '');
+
+  // 只保留白名单字符 [a-zA-Z0-9_-]
+  sanitized = sanitized.replace(/[^a-zA-Z0-9_-]/g, '');
 
   // 限制长度
   if (sanitized.length > 255) {
     sanitized = sanitized.substring(0, 255);
   }
 
-  return sanitized || 'unknown';
+  // 如果结果为空，返回默认值
+  if (sanitized.trim().length === 0) {
+    return 'unknown';
+  }
+
+  return sanitized;
 }
 
 /**
