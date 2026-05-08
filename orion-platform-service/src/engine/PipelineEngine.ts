@@ -38,6 +38,9 @@ export class PipelineEngine {
   // 内存存储执行中的 Pipeline
   private executions = new Map<string, PipelineExecution>();
 
+  // 防止 checkNextStages 并发调用导致重复执行
+  private nextStageCheckLocks = new Map<string, Promise<void>>();
+
   constructor(
     pipelineService: PipelineService,
     runService: PipelineRunService,
@@ -155,17 +158,18 @@ export class PipelineEngine {
 
   /**
    * 执行待处理的 Stages
+   * 改进：支持并行执行 — 检测无依赖关系的 stages，使用 Promise.allSettled 并发执行
    */
   private async executePendingStages(execution: PipelineExecution): Promise<void> {
     const stagesToExecute = Array.from(execution.pendingStages);
 
+    // 过滤出条件满足的 stages（跳过不满足条件的）
+    const eligibleStageIds: string[] = [];
     for (const stageId of stagesToExecute) {
       const stage = execution.stages.get(stageId);
       if (!stage) continue;
 
-      // 检查 Stage 条件
       if (stage.condition && !this.evaluateCondition(stage.condition, execution)) {
-        // 跳过此 Stage
         const skippedStage = { ...stage, status: StageStatus.SKIPPED, completedAt: new Date() };
         execution.stages.set(stageId, skippedStage);
         await this.runService.updateStage(skippedStage);
@@ -175,16 +179,33 @@ export class PipelineEngine {
         execution.completedStages.add(stageId);
         continue;
       }
+      eligibleStageIds.push(stageId);
+    }
 
-      // 移除待处理
+    // 从待处理队列中移除所有 eligible stages
+    for (const stageId of eligibleStageIds) {
       execution.pendingStages.delete(stageId);
       execution.runningStages.add(stageId);
-
-      // 执行 Stage
-      this.executeStage(execution, stage).catch(error => {
-        logger.error({ stageName: stage.name, error }, 'Failed to execute stage');
-      });
     }
+
+    if (eligibleStageIds.length === 0) {
+      return;
+    }
+
+    logger.info({ stageCount: eligibleStageIds.length, stageIds: eligibleStageIds }, 'Executing stages');
+
+    // 并行执行所有符合条件的 stages
+    const executionPromises = eligibleStageIds.map(async (stageId) => {
+      const stage = execution.stages.get(stageId);
+      if (!stage) return;
+      try {
+        await this.executeStage(execution, stage);
+      } catch (error) {
+        logger.error({ stageName: stage.name, error }, 'Failed to execute stage');
+      }
+    });
+
+    await Promise.allSettled(executionPromises);
   }
 
   /**
@@ -265,8 +286,32 @@ export class PipelineEngine {
 
   /**
    * 检查是否有新的 Stages 可以执行
+   * 改进：批量检查所有 pending stages，支持 fan-in 模式
+   * 使用锁防止并行阶段完成时并发调用导致重复执行
    */
   private async checkNextStages(execution: PipelineExecution): Promise<void> {
+    const runId = execution.run.id;
+
+    // 如果已有 check 在进行，等待它完成（只允许一个 check 在跑）
+    if (this.nextStageCheckLocks.has(runId)) {
+      await this.nextStageCheckLocks.get(runId);
+      // 等待完成后返回，因为之前的 check 已经处理了所有逻辑
+      return;
+    }
+
+    const checkPromise = this.doCheckNextStages(execution).finally(() => {
+      this.nextStageCheckLocks.delete(runId);
+    });
+    this.nextStageCheckLocks.set(runId, checkPromise);
+    await checkPromise;
+  }
+
+  /**
+   * 实际执行 next stages 检查的逻辑
+   */
+  private async doCheckNextStages(execution: PipelineExecution): Promise<void> {
+    let newlyUnlocked = false;
+
     for (const [stageId, stage] of execution.stages.entries()) {
       if (
         execution.pendingStages.has(stageId) ||
@@ -279,16 +324,39 @@ export class PipelineEngine {
       // 检查依赖是否都已完成
       const dependenciesMet = stage.dependsOn.every(depName => {
         const depStage = Array.from(execution.stages.values()).find(s => s.name === depName);
+        // Fan-in: 所有依赖的 stage 都必须成功完成
         return depStage && depStage.status === StageStatus.SUCCESS;
       });
 
+      // 检查是否有依赖失败（如果是，则跳过此 stage）
+      const hasFailedDependency = stage.dependsOn.some(depName => {
+        const depStage = Array.from(execution.stages.values()).find(s => s.name === depName);
+        return depStage && depStage.status === StageStatus.FAILED;
+      });
+
+      if (hasFailedDependency) {
+        // 依赖失败，跳过此 stage
+        const skippedStage = {
+          ...stage,
+          status: StageStatus.SKIPPED,
+          completedAt: new Date(),
+          error: 'Skipped due to failed dependency',
+        };
+        execution.stages.set(stageId, skippedStage);
+        await this.runService.updateStage(skippedStage);
+        await this.eventPublisher.publishStageSkipped(execution.run.id, skippedStage);
+        execution.completedStages.add(stageId);
+        continue;
+      }
+
       if (dependenciesMet) {
         execution.pendingStages.add(stageId);
+        newlyUnlocked = true;
       }
     }
 
-    // 执行新的待处理 Stages
-    if (execution.pendingStages.size > 0) {
+    // 执行新解锁的待处理 Stages
+    if (newlyUnlocked && execution.pendingStages.size > 0) {
       await this.executePendingStages(execution);
     }
 
