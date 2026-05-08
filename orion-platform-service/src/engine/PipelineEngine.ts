@@ -24,6 +24,8 @@ import { AutoRetryService } from '../services/pipeline/AutoRetryService';
 import { ExpressionEvaluator, ExpressionContext, EvaluationError } from './ExpressionEvaluator';
 import { PipelineCheckpointManager } from './PipelineCheckpointManager';
 import { IMNotifier, IMNotificationConfig } from '../services/pipeline/IMNotifier';
+import { MatrixExpander } from './MatrixExpander';
+import { VariableContext } from './VariableContext';
 import pino from 'pino';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
@@ -58,6 +60,9 @@ export class PipelineEngine {
 
   // 内存存储执行中的 Pipeline
   private executions = new Map<string, PipelineExecution>();
+
+  // Per-run variable contexts for task output propagation
+  private variableContexts = new Map<string, VariableContext>();
 
   // 防止 checkNextStages 并发调用导致重复执行
   private nextStageCheckLocks = new Map<string, Promise<void>>();
@@ -121,6 +126,17 @@ export class PipelineEngine {
       throw new Error(`Failed to parse pipeline YAML: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
 
+    // 2.5. Expand matrix stages (GAP-02)
+    const expandedStages = MatrixExpander.expandAll(spec.stages);
+    const hasMatrixExpansion = expandedStages.some(e => e.originalName !== e.name);
+    if (hasMatrixExpansion) {
+      const matrixCount = expandedStages.filter(e => e.originalName !== e.name).length;
+      logger.info(
+        { originalCount: spec.stages.length, expandedCount: expandedStages.length, matrixStages: matrixCount },
+        'Matrix expansion: stages expanded for matrix build'
+      );
+    }
+
     // 3. 创建 PipelineRun
     const run = await this.runService.createRun({
       pipelineId,
@@ -130,16 +146,16 @@ export class PipelineEngine {
       context,
     });
 
-    // 4. 初始化 Stages
-    const stages = this.initializeStages(run.id, spec.stages);
+    // 4. 初始化 Stages (use expanded stages for matrix support)
+    const stages = this.initializeStagesFromExpanded(run.id, expandedStages);
     for (const stage of stages) {
       await this.runService.addStage(run.id, stage);
     }
 
-    // 5. 初始化 Tasks
-    for (const yamlStage of spec.stages) {
-      const stage = stages.find(s => s.name === yamlStage.name)!;
-      const tasks = this.initializeTasks(stage.id, yamlStage.steps);
+    // 5. 初始化 Tasks (use expanded stages for matrix support)
+    for (const expanded of expandedStages) {
+      const stage = stages.find(s => s.name === expanded.name)!;
+      const tasks = this.initializeTasks(stage.id, expanded.stage.steps);
       for (const task of tasks) {
         await this.runService.addTask(stage.id, task);
       }
@@ -154,6 +170,20 @@ export class PipelineEngine {
       completedStages: new Set(),
     };
     this.executions.set(run.id, execution);
+
+    // 6.1. Create VariableContext for this run
+    const variableCtx = new VariableContext(run.id);
+    // Initialize with context variables (branch, triggerBy, etc.)
+    if (context) {
+      for (const [key, value] of Object.entries(context)) {
+        if (typeof value === 'string') {
+          variableCtx.setVariable(key, value);
+        }
+      }
+    }
+    this.variableContexts.set(run.id, variableCtx);
+    // Set variable context on StageExecutor for this run
+    this.stageExecutor.setVariableContext(variableCtx);
 
     // 7. 开始执行（使用队列或直接执行）
     await this.runService.startRun(run.id);
@@ -211,8 +241,8 @@ export class PipelineEngine {
    * 初始化 Stages
    */
   private initializeStages(runId: string, yamlStages: PipelineYamlStage[]): Stage[] {
-    return yamlStages.map((yamlStage, index) =>
-      createStage({
+    return yamlStages.map((yamlStage, index) => {
+      const stage = createStage({
         runId,
         name: yamlStage.name,
         sequence: index,
@@ -220,6 +250,31 @@ export class PipelineEngine {
         condition: yamlStage.if,
         timeoutSeconds: yamlStage.timeout || 3600,
         maxRetries: yamlStage.retries || 0,
+      });
+      // Store stage outputs declaration for later registration
+      if (yamlStage.outputs) {
+        stage.result = { outputs: yamlStage.outputs };
+      }
+      return stage;
+    });
+  }
+
+  /**
+   * 初始化 Stages (from expanded matrix stages) — GAP-02
+   */
+  private initializeStagesFromExpanded(
+    runId: string,
+    expandedStages: Array<{ stage: PipelineYamlStage; name: string }>
+  ): Stage[] {
+    return expandedStages.map((expanded, index) =>
+      createStage({
+        runId,
+        name: expanded.name,
+        sequence: index,
+        dependsOn: expanded.stage.dependsOn || [],
+        condition: expanded.stage.if,
+        timeoutSeconds: expanded.stage.timeout || 3600,
+        maxRetries: expanded.stage.retries || 0,
       })
     );
   }
@@ -343,11 +398,27 @@ export class PipelineEngine {
       // 获取 Stage 的 Tasks
       const tasks = await this.runService.getTasks(stage.id);
 
+      // Resolve variable references in task parameters before execution
+      const variableCtx = this.variableContexts.get(execution.run.id);
+      const resolvedTasks = variableCtx
+        ? tasks.map(t => {
+            const resolvedParams = variableCtx.resolveObject(
+              t.parameters as Record<string, unknown>
+            );
+            return { ...t, parameters: resolvedParams as Record<string, unknown> };
+          })
+        : tasks;
+
       // 按顺序执行 Tasks
-      for (const task of tasks) {
+      for (const task of resolvedTasks) {
         if (task.status !== 'pending') continue;
 
-        const result = await this.stageExecutor.executeTask(execution.run.id, stage, task);
+        const result = await this.stageExecutor.executeTask(
+          execution.run.id,
+          stage,
+          task,
+          { stageName: stage.name, taskName: task.name }
+        );
         await this.runService.updateTask(result);
 
         // Checkpoint: task completed
@@ -357,6 +428,9 @@ export class PipelineEngine {
           throw new Error(result.error || `Task '${task.name}' failed`);
         }
       }
+
+      // Register stage-level outputs in VariableContext
+      this.registerStageOutputs(execution, stage);
 
       // Stage 成功完成
       const completedStage = {
@@ -614,6 +688,8 @@ export class PipelineEngine {
 
       // 清理执行上下文
       this.executions.delete(execution.run.id);
+      // Clean up variable context
+      this.variableContexts.delete(execution.run.id);
     }
   }
 
@@ -722,6 +798,38 @@ export class PipelineEngine {
   }
 
   /**
+   * Register stage-level outputs in the VariableContext.
+   *
+   * If the stage declares outputs (via yamlStage.outputs), those values are
+   * resolved against the current variable context and registered under the
+   * stage name. This enables downstream stages to reference them via
+   * ${tasks.<stageName>.outputs.<key>} syntax.
+   */
+  private registerStageOutputs(execution: PipelineExecution, stage: Stage): void {
+    const variableCtx = this.variableContexts.get(execution.run.id);
+    if (!variableCtx) return;
+
+    // Find the original YAML stage definition to check for outputs declaration
+    const stageEntry = Array.from(execution.stages.entries()).find(
+      ([, s]) => s.id === stage.id
+    );
+    if (!stageEntry) return;
+
+    // Stage outputs are stored in the stage's result field during initialization
+    const stageOutputs = (stage.result as { outputs?: Record<string, string> } | undefined)?.outputs;
+    if (!stageOutputs) return;
+
+    for (const [key, valueTemplate] of Object.entries(stageOutputs)) {
+      const resolvedValue = variableCtx.resolve(valueTemplate);
+      variableCtx.setTaskOutput(stage.name, key, resolvedValue);
+      logger.info(
+        { runId: execution.run.id, stageName: stage.name, key, value: resolvedValue },
+        'Stage output registered'
+      );
+    }
+  }
+
+  /**
    * 失败依赖此 Stage 的其他 Stages
    */
   private async failDependentStages(execution: PipelineExecution, failedStage: Stage): Promise<void> {
@@ -769,6 +877,31 @@ export class PipelineEngine {
         // Map current pipeline status for status functions
         executionStatus: this.mapRunStatusToExpression(execution),
       };
+
+      // Merge task outputs from VariableContext as flat variables for expression access
+      const variableCtx = this.variableContexts.get(execution.run.id);
+      if (variableCtx) {
+        const varCtxObj = variableCtx.toExpressionContext();
+        // Merge pipeline-level variables (skip 'tasks' as dot notation is blocked)
+        for (const [key, value] of Object.entries(varCtxObj)) {
+          if (key === 'tasks') continue;
+          if (!(key in context)) {
+            (context as Record<string, unknown>)[key] = value;
+          }
+        }
+        // Merge task outputs as flat variables: <taskName><KeyName>
+        const tasksObj = varCtxObj.tasks as Record<string, { outputs: Record<string, string> }> | undefined;
+        if (tasksObj) {
+          for (const [taskName, taskData] of Object.entries(tasksObj)) {
+            if (taskData?.outputs) {
+              for (const [key, value] of Object.entries(taskData.outputs)) {
+                const flatKey = taskName + key.charAt(0).toUpperCase() + key.slice(1);
+                (context as Record<string, unknown>)[flatKey] = value;
+              }
+            }
+          }
+        }
+      }
 
       return this.expressionEvaluator.evaluate(condition, context);
     } catch (error) {
@@ -858,6 +991,8 @@ export class PipelineEngine {
 
     // 清理执行上下文
     this.executions.delete(runId);
+    // Clean up variable context
+    this.variableContexts.delete(runId);
 
     return true;
   }

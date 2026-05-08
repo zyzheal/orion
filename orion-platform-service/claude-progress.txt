@@ -2,6 +2,57 @@
 
 ## Current Session (2026-05-08)
 
+### Completed: GAP-02 Matrix Build Support
+
+实现了 Pipeline Matrix 构建功能，类似 GitHub Actions 的 `strategy.matrix` 和 GitLab CI 的 `parallel:matrix`。
+
+#### Features Implemented
+- **Updated** `src/models/Pipeline.ts`
+  - PipelineStage 新增 `matrix` 字段: `{ [key: string]: string[]; exclude?: Array<{[key: string]: string}> }`
+  - PipelineStage 新增 `env` 字段: `Record<string, string>`
+
+- **Created** `src/engine/MatrixExpander.ts`
+  - MatrixExpander 工具类，处理矩阵扩展逻辑
+  - hasMatrix(): 检测 stage 是否有矩阵配置
+  - expandMatrix(): 展开单个 stage 的矩阵（笛卡尔积 - 排除项）
+  - expandAll(): 展开所有 stages，自动重写依赖关系
+  - getMatrixDimensions(): 计算矩阵维度总数
+  - 命名格式: `stage-name (key1=value1, key2=value2)`
+  - 环境变量注入: `MATRIX_KEY=VALUE` 格式
+  - 依赖重写: 依赖矩阵 stage 的 stage 自动依赖所有展开实例
+  - 支持部分排除匹配 (partial exclusion matching)
+
+- **Updated** `src/engine/PipelineEngine.ts`
+  - 新增 MatrixExpander import
+  - execute() 方法中，YAML 解析后新增矩阵扩展步骤 (step 2.5)
+  - 新增 initializeStagesFromExpanded() 方法处理展开后的 stages
+  - Tasks 初始化也使用展开后的 stages
+  - 扩展时记录日志（原始数量、扩展后数量、矩阵 stage 数量）
+
+- **Created** `src/engine/__tests__/MatrixExpander.test.ts` (25 tests)
+  - hasMatrix: 3 tests
+  - 笛卡尔积: 4 tests (单维度、双维度、三维度、变量注入)
+  - 排除项: 2 tests (指定组合排除、部分排除匹配)
+  - 命名: 3 tests
+  - Stage 属性保留: 6 tests
+  - 依赖重写: 3 tests
+  - 无矩阵 stage: 1 test
+  - getMatrixDimensions: 3 tests
+
+### Test Status
+- **MatrixExpander tests**: 25 passed
+- **Core engine tests**: 123 passed (MatrixExpander + PipelineCheckpointManager + ExpressionEvaluator + DebugController)
+- **All pipeline tests**: No regressions
+
+### Commits
+- feat(engine): implement GAP-02 matrix build support
+
+### Files Changed
+1. `src/models/Pipeline.ts` (matrix + env fields)
+2. `src/engine/MatrixExpander.ts` (new)
+3. `src/engine/__tests__/MatrixExpander.test.ts` (new, 25 tests)
+4. `src/engine/PipelineEngine.ts` (matrix integration)
+
 ### Completed: GAP-CN-05 IM Notification Integration
 
 实现了钉钉、企业微信、飞书的 Pipeline 状态通知功能。

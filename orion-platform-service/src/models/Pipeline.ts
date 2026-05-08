@@ -37,6 +37,13 @@ export interface PipelineStage {
   if?: string;
   timeout?: number;
   retries?: number;
+  // Matrix build configuration (GAP-02)
+  matrix?: {
+    [key: string]: string[];
+    exclude?: Array<{ [key: string]: string }>;
+  };
+  // Environment variables injected into stage runtime
+  env?: Record<string, string>;
   // 缓存配置
   cache?: {
     enabled: boolean;
@@ -49,6 +56,12 @@ export interface PipelineStage {
     upload?: string[];
     expiry?: number;  // 天数
   };
+  /**
+   * Stage outputs — declares what output variables this stage produces.
+   * Maps output key to a value reference, typically from upstream task outputs.
+   * e.g., { version: '${tasks.build.outputs.version}' }
+   */
+  outputs?: { [key: string]: string };
 }
 
 export interface PipelineSpec {
