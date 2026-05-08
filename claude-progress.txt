@@ -5,6 +5,116 @@
 - **Root**: /Users/heal/orion-design
 - **Current Branch**: feat/frontend-gap-implementation
 
+## 2026-05-08: GAP-09 Standard Prometheus /metrics Endpoint (COMPLETED)
+
+### feat(observability): implement GAP-09 standard Prometheus /metrics endpoint
+
+**Created: `src/services/pipeline/__tests__/PipelineMetricsService.test.ts`**
+- 28 TDD tests covering: metric recording, aggregation, Prometheus format output,
+  histogram buckets, per-pipeline metrics, trigger type metrics, error classification,
+  cleanup, and recent runs queries
+- All 28 tests passing
+
+**Enhanced: `src/services/pipeline/PipelineMetricsService.ts`**
+- Added `pipeline_run_duration_seconds` histogram metric with standard Prometheus buckets:
+  10s, 30s, 1m, 5m, 15m, 30m, 1h
+- Cumulative bucket semantics (each bucket counts observations <= upper bound)
+- Includes `_sum` and `_count` suffixes for proper histogram aggregation
+- Backward-compatible: existing gauge metrics (ms) preserved alongside histogram (seconds)
+
+**Added: `GET /metrics` standard endpoint in `src/api/routes.ts`**
+- Path: `/metrics` (standard Prometheus scrape path, not `/api/v1/pipeline/metrics`)
+- No authentication required -- suitable for Prometheus scrape targets
+- Content-Type: `text/plain; version=0.0.4; charset=utf-8`
+- Returns same Prometheus-format metrics as existing endpoint
+- Added `/metrics` to tenant middleware skip paths
+- Existing `/v1/pipeline/metrics` endpoint preserved for backward compatibility
+
+**Metrics tracked:**
+- `pipeline_runs_total` (counter) -- total pipeline runs
+- `pipeline_runs_success_total` / `pipeline_runs_failed_total` / `pipeline_runs_cancelled_total` (counter)
+- `pipeline_success_rate` (gauge, 0-1)
+- `pipeline_run_duration_seconds` (histogram) -- duration with standard buckets
+- `pipeline_queue_depth` (gauge)
+- `pipeline_runs_by_trigger_type` (counter, labeled by trigger_type)
+- `pipeline_runs_by_pipeline_total` (counter, labeled by pipeline_id)
+- `pipeline_failures_by_error_type` (counter, labeled by error_type)
+
+**Test Results**: 28/28 passed
+
+## 2026-05-08: GAP-07 Secrets Management (COMPLETED)
+
+### feat(secrets): implement GAP-07 secrets management
+
+**三层设计实现**:
+
+### 1. Secret 引用语法
+- 支持 `${secrets.XXX}` 格式引用
+- 支持 `${secrets.XXX:default_value}` 带默认值的引用
+- `SecretsService.resolveSecretRefs()` 从数据库加载并替换
+- `SecretsService.resolveTaskSecrets()` 支持 env 引用 + secrets 数组两种格式
+
+### 2. 日志遮蔽
+- `StreamSecretSanitizer`: 流式遮蔽器，在 stdout/stderr 数据收集时实时替换
+- 按长度降序匹配，优先匹配更长的 secret（防止短 secret 截断长 secret）
+- 使用 split/join 而非正则替换，安全处理特殊字符
+- `SecretsService.sanitizeLine()`: 静态方法用于单行遮蔽
+
+### 3. 后端存储
+- AES-256-GCM 加密（Node.js 内置 crypto）
+- 密钥管理: `ORION_SECRET_ENCRYPTION_KEY` 环境变量
+- 密钥派生: 支持 64 位 hex 直接作为密钥，其他字符串通过 SHA-256 派生
+- 存储格式: IV(16) + authTag(16) + ciphertext
+
+**安全特性**:
+- Secret 值通过 `child_process.spawn` 的 `env` 参数传递
+- 禁止 `shell: true`
+- Secret 名称白名单校验: `[a-zA-Z_][a-zA-Z0-9_]*`
+- 防止路径穿越和 SQL 注入
+
+**文件变更**:
+- 创建: `src/db/migrations/132_create_secrets_table.sql`
+- 创建: `src/db/migrations/132_rollback_create_secrets_table.sql`
+- 创建: `src/repositories/SecretRepository.ts`
+- 创建: `src/repositories/__tests__/SecretRepository.test.ts` (16 tests)
+- 创建: `src/services/pipeline/SecretsService.ts`
+- 创建: `src/services/pipeline/__tests__/SecretsService.test.ts` (34 tests)
+- 修改: `src/engine/TaskRunner.ts` - 集成 secret 解析 + 流式日志遮蔽
+
+**测试**: 50/50 passed
+
+**Commits**: 00bd68b, fc98d82
+
+## 2026-05-08: GAP-08 Workspace Isolation (COMPLETED)
+
+### feat(engine): implement WorkspaceIsolator for per-run workspace isolation
+
+**Created: `src/engine/WorkspaceIsolator.ts`**
+- `createWorkspace(runId)`: 为每个 Pipeline run 创建独立 workspace 目录
+- `createTaskWorkspace(runId, taskId)`: 为每个 task 创建子目录
+- `sanitizeTaskId(taskId)`: 白名单 [a-zA-Z0-9_-]+ 过滤，防止路径穿越
+- `cleanupWorkspace(runId, success)`: 成功立即清理，失败保留 7 天
+- `cleanupExpiredWorkspaces(retentionDays)`: 定期清理过期 workspace
+- 支持 `task.parameters.workspace.rootPath` 自定义路径优先
+
+**Modified: `src/engine/TaskRunner.ts`**
+- 移除 8 处 `/tmp` 硬编码
+- 集成 WorkspaceIsolator，所有任务类型使用隔离 workspace
+- 新增 `getTaskWorkspace(task, taskId)` 方法
+- spawnCommand 默认 cwd 改为 `process.cwd()`
+
+**Created: `src/engine/__tests__/WorkspaceIsolator.test.ts`**
+- 23 个 TDD 测试：workspace 创建、隔离、路径穿越防护、清理策略
+- 测试通过率: 23/23
+
+**清理策略**:
+- 成功 run: 完成后立即删除 workspace
+- 失败 run: 保留 7 天用于调试
+- 过期 run: 由 cleanupExpiredWorkspaces 定期清理
+- 清理失败: 记录日志，不阻塞 pipeline 完成
+
+**Commit**: f1ced4a
+
 ## 2026-05-07: Expert Panel P1 Review Findings Fix (COMPLETED)
 
 ### fix(P1): resolve remaining expert panel review findings

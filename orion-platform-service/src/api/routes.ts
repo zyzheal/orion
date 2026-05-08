@@ -248,7 +248,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
     // Layer 1: API层 - TenantValidatorMiddleware
     const tenantValidatorMiddleware = createTenantValidatorMiddleware(isolationService, {
       required: true,
-      skipPaths: ['/healthz', '/readyz', '/version', '/api/v1/info', '/api/v1/public'],
+      skipPaths: ['/healthz', '/readyz', '/version', '/api/v1/info', '/api/v1/public', '/metrics'],
     });
 
     app.addHook('onRequest', async (request: FastifyRequest, reply: FastifyReply) => {
@@ -737,6 +737,13 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await registerWithRoleGuard(app, scriptRoutes, '/v1/scripts', { database: options.database });
 
   // ==================== Phase 3: Pipeline Metrics ====================
+  // Standard Prometheus scrape endpoint (no auth, standard /metrics path)
+  app.get('/metrics', async (_request: FastifyRequest, reply: FastifyReply) => {
+    reply.header('Content-Type', 'text/plain; version=0.0.4; charset=utf-8');
+    return reply.send(metricsService.getPrometheusMetrics());
+  });
+
+  // Authenticated dashboard endpoint (keeps existing behavior)
   app.get('/v1/pipeline/metrics', async (request: FastifyRequest, reply: FastifyReply) => {
     const query = request.query as any;
     if (query.format === 'prometheus') {

@@ -192,6 +192,13 @@ export class PipelineMetricsService extends EventEmitter {
   }
 
   /**
+   * Duration histogram bucket boundaries (in seconds).
+   * Prometheus convention: cumulative buckets where each bucket counts
+   * observations <= the upper bound.
+   */
+  private static readonly DURATION_BUCKETS = [10, 30, 60, 300, 900, 1800, 3600]; // 10s, 30s, 1m, 5m, 15m, 30m, 1h
+
+  /**
    * 获取 Prometheus 格式指标
    */
   getPrometheusMetrics(): string {
@@ -228,10 +235,13 @@ export class PipelineMetricsService extends EventEmitter {
     counter('pipeline_runs_cancelled_total', 'Total number of cancelled pipeline runs', metrics.cancelledRuns);
     gauge('pipeline_success_rate', 'Success rate of pipeline runs (0-1)', metrics.successRate);
 
-    // 持续时间指标
+    // 持续时间指标 (保留毫秒 gauge 以便向后兼容)
     gauge('pipeline_duration_avg_ms', 'Average pipeline run duration in milliseconds', metrics.averageDurationMs);
     gauge('pipeline_duration_median_ms', 'Median pipeline run duration in milliseconds', metrics.medianDurationMs);
     gauge('pipeline_duration_p95_ms', 'P95 pipeline run duration in milliseconds', metrics.p95DurationMs);
+
+    // 持续时间直方图 (Prometheus 标准秒单位)
+    this.appendDurationHistogram(lines);
 
     // 队列深度
     gauge('pipeline_queue_depth', 'Number of pipeline runs waiting in the queue', metrics.queueDepth);
@@ -254,6 +264,34 @@ export class PipelineMetricsService extends EventEmitter {
     }
 
     return lines.join('');
+  }
+
+  /**
+   * 构建持续时间直方图的 Prometheus 输出。
+   * 使用累积桶：每个桶包含 <= 上界的观察数。
+   */
+  private appendDurationHistogram(lines: string[]): void {
+    // 计算每个桶的累积计数
+    const buckets = PipelineMetricsService.DURATION_BUCKETS.map(upperBoundSec => {
+      const upperBoundMs = upperBoundSec * 1000;
+      const count = this.runMetrics.filter(r => r.durationMs > 0 && r.durationMs <= upperBoundMs).length;
+      return { le: String(upperBoundSec), count };
+    });
+
+    // 所有运行的总数（durationMs > 0）
+    const totalWithDuration = this.runMetrics.filter(r => r.durationMs > 0).length;
+    const sumSeconds = this.runMetrics.reduce((sum, r) => sum + (r.durationMs > 0 ? r.durationMs / 1000 : 0), 0);
+
+    lines.push('# HELP pipeline_run_duration_seconds Pipeline run duration in seconds');
+    lines.push('# TYPE pipeline_run_duration_seconds histogram');
+
+    for (const bucket of buckets) {
+      lines.push(`pipeline_run_duration_seconds_bucket{le="${bucket.le}"} ${bucket.count}`);
+    }
+    // +Inf bucket: all observations
+    lines.push(`pipeline_run_duration_seconds_bucket{le="+Inf"} ${totalWithDuration}`);
+    lines.push(`pipeline_run_duration_seconds_sum ${sumSeconds}`);
+    lines.push(`pipeline_run_duration_seconds_count ${totalWithDuration}`);
   }
 
   /**
