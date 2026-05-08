@@ -5,6 +5,7 @@
  * - 执行 Stage 内的 Tasks
  * - 处理 Stage 超时和重试（超时会取消正在运行的 Task）
  * - 更新 Stage 状态
+ * - 注册 Task 输出变量到 VariableContext
  */
 
 import { Stage } from '../models/Stage';
@@ -12,11 +13,13 @@ import { Task, TaskStatus, startTask, completeTask, failTask, appendTaskLog } fr
 import { TaskRunner } from './TaskRunner';
 import { PipelineEventPublisher } from '../events/PipelineEventPublisher';
 import { ArtifactService } from '../services/pipeline/ArtifactService';
+import { VariableContext } from './VariableContext';
 
 export class StageExecutor {
   private taskRunner: TaskRunner;
   private eventPublisher: PipelineEventPublisher;
   private artifactService: ArtifactService | null;
+  private variableContext: VariableContext | null;
 
   // Track active abort controllers for cancellation
   private activeControllers = new Map<string, AbortController>();
@@ -24,11 +27,20 @@ export class StageExecutor {
   constructor(
     taskRunner: TaskRunner,
     eventPublisher: PipelineEventPublisher,
-    artifactService?: ArtifactService
+    artifactService?: ArtifactService,
+    variableContext?: VariableContext
   ) {
     this.taskRunner = taskRunner;
     this.eventPublisher = eventPublisher;
     this.artifactService = artifactService || null;
+    this.variableContext = variableContext || null;
+  }
+
+  /**
+   * Set the VariableContext for this executor (called per-run)
+   */
+  setVariableContext(ctx: VariableContext): void {
+    this.variableContext = ctx;
   }
 
   /**
@@ -63,7 +75,12 @@ export class StageExecutor {
   /**
    * 执行单个 Task
    */
-  async executeTask(runId: string, stage: Stage, task: Task): Promise<Task> {
+  async executeTask(
+    runId: string,
+    stage: Stage,
+    task: Task,
+    options?: { stageName?: string; taskName?: string }
+  ): Promise<Task> {
     // 开始 Task
     let updatedTask = startTask(task);
     await this.eventPublisher.publishTaskStarted(runId, stage.id, updatedTask);
@@ -92,6 +109,9 @@ export class StageExecutor {
       updatedTask = completeTask(result, result.result);
       await this.eventPublisher.publishTaskCompleted(runId, stage.id, updatedTask);
 
+      // Register task outputs in VariableContext for downstream stages
+      this.registerTaskOutputs(result.result as Record<string, unknown> | undefined, options?.taskName || task.name);
+
       return updatedTask;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -107,6 +127,22 @@ export class StageExecutor {
     } finally {
       // 清理 AbortController
       this.activeControllers.delete(task.id);
+    }
+  }
+
+  /**
+   * Register task outputs in the VariableContext.
+   * Outputs are keyed by task name so downstream stages can reference them
+   * via ${tasks.<taskName>.outputs.<key>} syntax.
+   */
+  private registerTaskOutputs(result: Record<string, unknown> | undefined, taskName: string): void {
+    if (!this.variableContext || !result) return;
+
+    const outputs = result.outputs as { [key: string]: string } | undefined;
+    if (!outputs) return;
+
+    for (const [key, value] of Object.entries(outputs)) {
+      this.variableContext.setTaskOutput(taskName, key, value);
     }
   }
 

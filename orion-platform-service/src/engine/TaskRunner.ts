@@ -23,6 +23,8 @@ export interface TaskExecutionResult {
   result?: Record<string, unknown>;
   log?: string;
   error?: string;
+  /** Task output variables, e.g., { version: '1.2.3', image: 'myapp:latest' } */
+  outputs?: { [key: string]: string };
 }
 
 /**
@@ -172,6 +174,57 @@ function spawnCommand(
 }
 
 /**
+ * Parse task stdout for output declarations.
+ *
+ * Supports GitHub Actions style:
+ *   ::set-output name=version::1.2.3
+ *   ::set-output name=image::myapp:latest
+ *
+ * Returns a map of output name -> value.
+ */
+function parseOutputsFromStdout(stdout: string): { [key: string]: string } {
+  const outputs: { [key: string]: string } = {};
+  // Match ::set-output name=<key>::<value>
+  const regex = /::set-output\s+name=([^:]+)::(.*)$/gm;
+  let match;
+  while ((match = regex.exec(stdout)) !== null) {
+    const key = match[1].trim();
+    const value = match[2].trim();
+    if (key) {
+      outputs[key] = value;
+    }
+  }
+  return outputs;
+}
+
+/**
+ * Merge output values from multiple sources.
+ * Priority: explicit outputs > parsed stdout outputs
+ */
+function mergeOutputs(
+  explicit?: { [key: string]: string },
+  parsed?: { [key: string]: string }
+): { [key: string]: string } | undefined {
+  const merged: { [key: string]: string } = {};
+  let hasAny = false;
+
+  if (parsed) {
+    for (const [key, value] of Object.entries(parsed)) {
+      merged[key] = value;
+      hasAny = true;
+    }
+  }
+  if (explicit) {
+    for (const [key, value] of Object.entries(explicit)) {
+      merged[key] = value;
+      hasAny = true;
+    }
+  }
+
+  return hasAny ? merged : undefined;
+}
+
+/**
  * 检查命令是否可用
  */
 async function isCommandAvailable(command: string): Promise<boolean> {
@@ -254,6 +307,15 @@ export class TaskRunner {
     try {
       // 根据 task type 分发到不同执行器，传入 sanitizer
       const result = await this.executeByType(updatedTask, signal, sanitizer);
+
+      // Parse outputs from task result: explicit outputs + stdout declarations
+      const explicitOutputs = result.outputs as { [key: string]: string } | undefined;
+      const stdoutStr = (result.stdout as string) || '';
+      const parsedOutputs = stdoutStr ? parseOutputsFromStdout(stdoutStr) : {};
+      const mergedOutputs = mergeOutputs(explicitOutputs, parsedOutputs);
+      if (mergedOutputs) {
+        result.outputs = mergedOutputs;
+      }
 
       updatedTask = appendTaskLog(updatedTask, `[INFO] Task completed successfully`);
 
