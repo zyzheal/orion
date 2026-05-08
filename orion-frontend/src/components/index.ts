@@ -52,3 +52,6 @@ export type { SplitPaneProps, SplitDirection } from './SplitPane';
 
 export { default as PageSkeleton } from './PageSkeleton';
 export type { PageSkeletonProps } from './PageSkeleton';
+
+export { default as PluginPicker } from './PluginPicker';
+export type { PluginItem, PluginPickerProps } from './PluginPicker';
