@@ -10,6 +10,7 @@ import { RedisCache } from './services/redis-cache';
 import { DatabasePool } from './services/database';
 import { EventBusService } from './services/event-bus-service';
 import { NatsServiceRegistry } from './services/nats-registry';
+import { initializeOpenTelemetry } from './otel-setup';
 
 async function main() {
   const cfg = platformConfig;
@@ -78,11 +79,14 @@ async function main() {
       }
     }
 
-    // 4. 创建应用
+    // 4. Initialize OpenTelemetry
+    await initializeOpenTelemetry();
+
+    // 5. 创建应用
     console.log('Creating Fastify application...');
     const { app, healthChecker } = await createApp({ redis, database, eventBus });
 
-    // 5. 启动服务器
+    // 6. 启动服务器
     await app.listen({ port: cfg.app.port, host: cfg.app.host });
 
     console.log(`
