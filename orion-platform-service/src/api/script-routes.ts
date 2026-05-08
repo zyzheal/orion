@@ -4,6 +4,7 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { InlineScriptService } from '../services/inline-script/InlineScriptService';
 import { InlineScriptApprovalRepository } from '../repositories/InlineScriptApprovalRepository';
+import { AIGenerateService } from '../services/ai/AIGenerateService';
 import pino from 'pino';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
@@ -94,6 +95,7 @@ const approvalSchema = {
 export default async function scriptRoutes(app: FastifyInstance, options?: { database?: any }): Promise<void> {
   const approvalRepo = options?.database ? new InlineScriptApprovalRepository(options.database) : undefined;
   const scriptService = new InlineScriptService({ approvalRepo });
+  const aiGenerateService = new AIGenerateService();
 
   // POST /scan - Security scan code
   app.post('/scan', { schema: scanSchema }, async (request: FastifyRequest, reply: FastifyReply) => {
@@ -220,8 +222,20 @@ export default async function scriptRoutes(app: FastifyInstance, options?: { dat
     if (!body.prompt) {
       return reply.code(400).send({ error: 'Missing prompt' });
     }
-    logger.warn('AI script generation endpoint called but not yet implemented');
-    return reply.code(501).send({ generated: false, status: 'not_implemented', prompt: body.prompt, message: 'AI generation requires platform AI service integration' });
+
+    const result = await aiGenerateService.generateScript({
+      prompt: body.prompt,
+      language: body.language || 'bash',
+      level: body.level,
+    });
+
+    return {
+      generated: true,
+      code: result.code,
+      language: result.language,
+      warnings: result.warnings,
+      requiresApproval: result.requiresApproval,
+    };
   });
 
   logger.info('Inline script routes registered');
