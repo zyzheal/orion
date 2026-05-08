@@ -34,7 +34,19 @@ Task 4 (持久化)    ──→ 无依赖，可并行
 Task 5 (IM通知)    ──→ 无依赖，可并行
 ```
 
-所有 Task 相互独立，可以并行执行。
+所有 Task 逻辑上相互独立，可以并行执行。
+
+**文件级冲突风险：**
+
+| 共享文件 | 修改 Task | 协调策略 |
+|---------|----------|---------|
+| `src/engine/TaskRunner.ts` | Task 2, Task 3 | Task 2 先合，Task 3 在其基础上追加 |
+| `src/engine/PipelineEngine.ts` | Task 1, Task 4, Task 5 | Task 1 先合，Task 4/5 在其基础上追加 |
+| DB migration 编号 | Task 3, Task 4 | Task 3 用 128，Task 4 用 129（需确认当前最大编号） |
+
+**推荐执行顺序**（避免合并冲突）：
+1. Task 2 → Task 3（TaskRunner 修改序列化）
+2. Task 1 → Task 4 → Task 5（PipelineEngine 修改序列化）
 
 ---
 
@@ -106,9 +118,16 @@ stages:
 - 修改：`src/engine/PipelineEngine.ts` - 替换 `evaluateCondition()` 调用
 
 **安全要求：**
-- 禁止 `Function`, `eval`, `require` 等 JS 内置函数
+- 使用 `expr-eval` 第三方库（或自写递归下降解析器），禁止 `Function`, `eval`, `require` 等 JS 内置函数
 - 仅允许白名单操作符和函数
 - 超时保护（表达式求值 < 10ms）
+- **实现方案**：使用 `expr-eval` 库的 `Parser.parse()` 构建 AST，`Expression.evaluate()` 求值，库本身不暴露 JS 内置函数
+
+**上下文数据来源：**
+- `branch`: 从 `execution.run.context.branch` 获取
+- `tags`: 从 `execution.run.context.tags` 获取
+- `changedFiles`: 从 `SCMWebhookService` 获取 diff 文件列表，注入到 context
+- `triggerBy`: 从 `execution.run.triggerBy` 获取
 
 ---
 
@@ -123,10 +142,19 @@ stages:
 ```typescript
 // 每个 run 创建独立 workspace
 const workspace = `/tmp/orion-workspaces/${runId}/`;
-// 每个 task 子目录
-const taskWorkspace = `${workspace}${taskId}/`;
-// run 完成后清理
+// 每个 task 子目录（taskId 必须通过白名单 [a-zA-Z0-9_-]+）
+const taskWorkspace = `${workspace}${sanitizeTaskId(taskId)}/`;
+// run 完成后清理（失败 run 保留 7 天用于调试）
 ```
+
+**清理策略：**
+- 成功 run：run 完成后异步清理
+- 失败 run：保留 7 天，之后由定期清理任务删除
+- 清理失败：记录日志，不阻塞 pipeline 完成
+
+**与现有 `workspace.rootPath` 的关系：**
+- 如果 `task.parameters.workspace.rootPath` 已设置，使用该路径
+- 否则使用 WorkspaceIsolator 生成的默认路径
 
 **文件变更：**
 - 创建：`src/engine/WorkspaceIsolator.ts`
@@ -151,15 +179,25 @@ tasks:
 
 **三层设计：**
 1. **Secret 引用语法** - `${secrets.xxx}` 解析
-2. **日志遮蔽** - 自动替换 secret 值为 `***`
-3. **后端存储** - PostgreSQL encrypted column
+2. **日志遮蔽** - 自动替换 secret 值为 `***`（流式遮蔽，在 stdout/stderr 流处理管道中完成）
+3. **后端存储** - PostgreSQL encrypted column（AES-256-GCM）
+
+**加密方案：**
+- 加密算法：AES-256-GCM
+- 密钥管理：复用现有 `K8sSecretKeyStorage` 或环境变量 `ORION_SECRET_ENCRYPTION_KEY`
+- 密钥轮换：新密钥加密新数据，旧数据保持原加密，读取时自动检测并透明解密
+
+**安全要求：**
+- Secret 值必须通过 `child_process.spawn` 的 `env` 参数传递，**禁止 `shell: true`**
+- 日志遮蔽在流式日志收集时实时完成，避免 secret 先写入内存再替换
+- 与现有 `SecretSanitizer` 的关系：SecretSanitizer 用于检测意外泄露的 API key 模式，日志遮蔽用于显式声明的 secret 值，两者互补
 
 **文件变更：**
 - 创建：`src/services/pipeline/SecretsService.ts`
 - 创建：`src/repositories/SecretRepository.ts`
 - 修改：`src/engine/TaskRunner.ts` - 解析 `${secrets.xxx}` 引用
 - 修改：`src/engine/TaskRunner.ts` - 日志遮蔽
-- 创建：DB migration `056_create_secrets_table.sql`
+- 创建：DB migration `129_create_secrets_table.sql`（需确认当前最大编号）
 
 ---
 
@@ -182,7 +220,7 @@ tasks:
 - 创建：`src/repositories/PipelineCheckpointRepository.ts`
 - 创建：`src/engine/PipelineCheckpointManager.ts`
 - 修改：`src/engine/PipelineEngine.ts` - 集成 CheckpointManager
-- 创建：DB migration `055_create_pipeline_checkpoints_table.sql`
+- 创建：DB migration `128_create_pipeline_checkpoints_table.sql`（需确认当前最大编号）
 
 ---
 
@@ -190,19 +228,18 @@ tasks:
 
 **目标：** 实现钉钉、企业微信、飞书的 Pipeline 状态通知
 
-**目标配置：**
-```yaml
-notifications:
-  - type: dingtalk
-    webhook: https://oapi.dingtalk.com/robot/send?access_token=xxx
-    events: [success, failure]
-  - type: wecom
-    webhook: https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=xxx
-    events: [failure]
-  - type: feishu
-    webhook: https://open.feishu.cn/open-apis/bot/v2/hook/xxx
-    events: [success, failure, cancelled]
-```
+**与现有 NotificationService 的关系：**
+- IM 通知作为 NotificationChannel 的一种类型（类似 email、webhook）
+- 复用现有 `NotificationService` 的存储和查询能力
+- 仅新增 IM adapter 层（钉钉/企微/飞书）
+
+**Webhook URL 安全存储：**
+- webhook URL 包含 access_token，属于敏感信息
+- 通过 SecretsService（Task 3）存储，不应明文写在 YAML 中
+
+**Rate Limiting：**
+- per-tenant 每分钟最多 10 条通知
+- 超出限制的通知合并为摘要发送
 
 **文件变更：**
 - 创建：`src/services/pipeline/IMNotifier.ts`
