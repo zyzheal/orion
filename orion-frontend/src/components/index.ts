@@ -55,3 +55,6 @@ export type { PageSkeletonProps } from './PageSkeleton';
 
 export { default as PluginPicker } from './PluginPicker';
 export type { PluginItem, PluginPickerProps } from './PluginPicker';
+
+export { InlineScriptEditor } from './InlineScriptEditor';
+export type { InlineScriptEditorProps } from './InlineScriptEditor';
