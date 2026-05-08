@@ -67,8 +67,10 @@ export class PluginSandbox extends EventEmitter {
   private activeExecutions: Map<string, {
     context: ExecutionContext;
     timeoutId?: NodeJS.Timeout;
+    monitorInterval?: NodeJS.Timeout;
     aborted: boolean;
     abortReason?: string;
+    promise?: Promise<SandboxExecutionResult>;
   }> = new Map();
   private runningTasks: Map<string, AbortController> = new Map();
 
@@ -190,13 +192,6 @@ export class PluginSandbox extends EventEmitter {
       }, effectiveTimeout);
     });
 
-    // 记录活跃执行
-    this.activeExecutions.set(context.taskId, {
-      context,
-      timeoutId,
-      aborted: false,
-    });
-
     // 记录执行开始
     this.auditLogger.logExecutionStart(context);
 
@@ -204,6 +199,15 @@ export class PluginSandbox extends EventEmitter {
     const monitorInterval = this.config.enableResourceMonitoring
       ? this.startResourceMonitoring(context)
       : undefined;
+
+    // 记录活跃执行
+    const executionEntry = {
+      context,
+      timeoutId,
+      monitorInterval,
+      aborted: false,
+    };
+    this.activeExecutions.set(context.taskId, executionEntry);
 
     try {
       // 执行函数
@@ -216,6 +220,8 @@ export class PluginSandbox extends EventEmitter {
       if (timeoutId) clearTimeout(timeoutId);
       if (monitorInterval) clearInterval(monitorInterval);
       this.runningTasks.delete(context.taskId);
+      const execEntry = this.activeExecutions.get(context.taskId);
+      if (execEntry?.monitorInterval) clearInterval(execEntry.monitorInterval);
       this.activeExecutions.delete(context.taskId);
 
       // 检测输出中的敏感数据
@@ -256,6 +262,10 @@ export class PluginSandbox extends EventEmitter {
       if (timeoutId) clearTimeout(timeoutId);
       if (monitorInterval) clearInterval(monitorInterval);
       this.runningTasks.delete(context.taskId);
+
+      // 清理 monitor interval from activeExecutions entry
+      const execEntry = this.activeExecutions.get(context.taskId);
+      if (execEntry?.monitorInterval) clearInterval(execEntry.monitorInterval);
 
       // 获取执行状态
       const executionState = this.activeExecutions.get(context.taskId);
@@ -406,13 +416,15 @@ export class PluginSandbox extends EventEmitter {
   }
 
   /**
-   * 取消所有执行
+   * 取消所有执行（异步等待所有取消完成）
    */
-  cancelAllExecutions(reason?: string): number {
+  async cancelAllExecutions(reason?: string): Promise<number> {
     const taskIds = Array.from(this.activeExecutions.keys());
     for (const taskId of taskIds) {
       this.cancelExecution(taskId, reason);
     }
+    // Wait briefly for cancellation promises to resolve
+    await new Promise(resolve => setTimeout(resolve, 500));
     return taskIds.length;
   }
 
@@ -688,12 +700,10 @@ export class PluginSandbox extends EventEmitter {
   }
 
   /**
-   * 关闭沙箱
+   * 关闭沙箱（异步等待所有执行终止）
    */
-  shutdown(): void {
-    // 取消所有执行
-    this.cancelAllExecutions('Sandbox shutdown');
-
-    logger.info('Plugin sandbox shutdown complete');
+  async shutdown(): Promise<void> {
+    const count = await this.cancelAllExecutions('Sandbox shutdown');
+    logger.info({ cancelledCount: count }, 'Plugin sandbox shutdown complete');
   }
 }

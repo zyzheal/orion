@@ -73,13 +73,18 @@ export class ExecutionGuardian extends EventEmitter {
 
     this.activeTasks.set(taskId, taskState);
 
-    this.heartbeatWatchdog.register(taskId, {
-      intervalMs: this.config.heartbeatIntervalMs,
-      timeoutMs: this.config.heartbeatTimeoutMs,
-      onTimeout: (tid: string, reason: string) => {
-        this.onHeartbeatTimeout(tid, reason);
-      },
-    });
+    // TODO: Re-enable heartbeat watchdog once heartbeat is wired into
+    // the plugin execution loop (sandbox executeInSandbox should call
+    // guardian.heartbeat(taskId) periodically).  For now, registering
+    // without sending heartbeats would cause every task >15s to be
+    // killed by the heartbeat watchdog.
+    // this.heartbeatWatchdog.register(taskId, {
+    //   intervalMs: this.config.heartbeatIntervalMs,
+    //   timeoutMs: this.config.heartbeatTimeoutMs,
+    //   onTimeout: (tid: string, reason: string) => {
+    //     this.onHeartbeatTimeout(tid, reason);
+    //   },
+    // });
 
     logger.info({ taskId, globalTimeout, stepTimeout }, 'Task registered with guardian');
   }
@@ -153,22 +158,29 @@ export class ExecutionGuardian extends EventEmitter {
     return controller;
   }
 
-  private async onGlobalTimeout(taskId: string): Promise<void> {
+  private onGlobalTimeout(taskId: string): void {
     logger.error({ taskId }, 'Global timeout reached');
     this.emit('task:timeout', { taskId, type: 'global' });
-    await this.abortTask(taskId, 'global_timeout');
+    // SRE: Handle async error from setTimeout - don't swallow promise rejections
+    this.abortTask(taskId, 'global_timeout').catch(err => {
+      logger.error({ taskId, err: err instanceof Error ? err.message : String(err) }, 'Error aborting task on global timeout');
+    });
   }
 
-  private async onStepTimeout(taskId: string): Promise<void> {
+  private onStepTimeout(taskId: string): void {
     logger.warn({ taskId }, 'Step timeout reached');
     this.emit('task:timeout', { taskId, type: 'step' });
     // Abort the task to prevent indefinite execution after step timeout
-    await this.abortTask(taskId, 'step_timeout');
+    this.abortTask(taskId, 'step_timeout').catch(err => {
+      logger.error({ taskId, err: err instanceof Error ? err.message : String(err) }, 'Error aborting task on step timeout');
+    });
   }
 
-  private async onHeartbeatTimeout(taskId: string, reason: string): Promise<void> {
+  private onHeartbeatTimeout(taskId: string, reason: string): void {
     logger.error({ taskId, reason }, 'Heartbeat timeout - task appears stuck');
     this.emit('task:heartbeat_timeout', { taskId, reason });
-    await this.abortTask(taskId, 'heartbeat_timeout');
+    this.abortTask(taskId, 'heartbeat_timeout').catch(err => {
+      logger.error({ taskId, err: err instanceof Error ? err.message : String(err) }, 'Error aborting task on heartbeat timeout');
+    });
   }
 }

@@ -134,9 +134,11 @@ export class ExecutionTimelineService {
   private events: Map<string, TimelineEvent[]> = new Map();
   private sequenceCounter: Map<string, number> = new Map();
   private repository?: TimelineEventRepository;
+  private cleanupTimer?: NodeJS.Timeout;
 
   constructor(options?: { repository?: TimelineEventRepository }) {
     this.repository = options?.repository;
+    this.startCleanupInterval();
   }
 
   async createTimeline(entry: Omit<TimelineEntry, 'id'>): Promise<TimelineEntry> {
@@ -244,4 +246,70 @@ export class ExecutionTimelineService {
     }
     return { timelines, events };
   }
+
+  /**
+   * SRE: TTL-based cleanup of stale in-memory timelines.
+   * Prevents unbounded memory growth when PostgreSQL is unavailable.
+   */
+  private startCleanupInterval(): void {
+    const TTL_MS = 30 * 60 * 1000; // 30 minutes
+    const INTERVAL_MS = 5 * 60 * 1000; // every 5 minutes
+
+    this.cleanupTimer = setInterval(() => {
+      const now = Date.now();
+      let cleaned = 0;
+      for (const [id, timeline] of this.timelines) {
+        const age = now - timeline.startedAt.getTime();
+        if (age > TTL_MS) {
+          this.timelines.delete(id);
+          this.events.delete(id);
+          this.sequenceCounter.delete(id);
+          cleaned++;
+        }
+      }
+      if (cleaned > 0) {
+        logger.debug({ cleaned, remaining: this.timelines.size }, 'Evicted stale timeline entries');
+      }
+    }, INTERVAL_MS).unref();
+  }
+
+  /**
+   * Shutdown the timeline service, cleaning up the eviction timer.
+   */
+  shutdown(): void {
+    if (this.cleanupTimer) {
+      clearInterval(this.cleanupTimer);
+    }
+    this.timelines.clear();
+    this.events.clear();
+    this.sequenceCounter.clear();
+    logger.info('ExecutionTimelineService shutdown complete');
+  }
+}
+
+/**
+ * Global registry for timeline services, used for graceful shutdown.
+ */
+const timelineRegistry: ExecutionTimelineService[] = [];
+
+/**
+ * Register an ExecutionTimelineService for graceful shutdown.
+ */
+export function registerTimelineForShutdown(timeline: ExecutionTimelineService): void {
+  timelineRegistry.push(timeline);
+}
+
+/**
+ * Shutdown all registered timeline services.
+ */
+export function shutdownAllTimelines(): void {
+  logger.info({ count: timelineRegistry.length }, 'Shutting down timeline services...');
+  for (const timeline of timelineRegistry) {
+    try {
+      timeline.shutdown();
+    } catch (error) {
+      logger.error({ error }, 'Error shutting down timeline service');
+    }
+  }
+  timelineRegistry.length = 0;
 }

@@ -4,7 +4,7 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { PluginManagerService } from '../services/plugin-manager-service';
 import { PluginExecutorService, registerExecutorForShutdown } from '../services/plugin-executor-service';
-import { ExecutionTimelineService } from '../services/observability/ExecutionTimelineService';
+import { ExecutionTimelineService, registerTimelineForShutdown } from '../services/observability/ExecutionTimelineService';
 import { AIDiagnosisService } from '../services/ai/AIDiagnosisService';
 import { PostgresPluginAuditLogRepository } from '../repositories/PluginAuditLogRepository';
 import pino from 'pino';
@@ -27,8 +27,19 @@ export default async function pluginEnhancedRoutes(app: FastifyInstance, options
   // Register for graceful shutdown
   registerExecutorForShutdown(pluginExecutor);
   const timelineService = new ExecutionTimelineService();
+  registerTimelineForShutdown(timelineService);
   const aiDiagnosis = new AIDiagnosisService();
   const auditLogRepo = options?.database ? new PostgresPluginAuditLogRepository(options.database) : undefined;
+
+  // GET /healthz - Health check for plugin subsystem
+  app.get('/healthz', async (request: FastifyRequest, reply: FastifyReply) => {
+    const activeCount = pluginExecutor.getActiveExecutionCount();
+    const isHealthy = activeCount < 50; // Below max concurrent threshold
+    return {
+      status: isHealthy ? 'healthy' : 'degraded',
+      activeExecutions: activeCount,
+    };
+  });
 
   // GET / - List all installed plugins
   app.get('/', async (request: FastifyRequest, reply: FastifyReply) => {
@@ -59,7 +70,7 @@ export default async function pluginEnhancedRoutes(app: FastifyInstance, options
       const result = await pluginManager.installPlugin(pluginId, version, config);
       return { pluginId, action: 'install', version, userId };
     } catch (error) {
-      return reply.code(400).send({ error: 'Failed to install plugin' });
+      return reply.code(400).send({ error: `Failed to install plugin ${pluginId}: ${error instanceof Error ? error.message : String(error)}` });
     }
   });
 
@@ -70,7 +81,7 @@ export default async function pluginEnhancedRoutes(app: FastifyInstance, options
       const plugin = await pluginManager.activatePlugin(pluginId);
       return { pluginId, action: 'enable', status: plugin.state };
     } catch (error) {
-      return reply.code(400).send({ error: 'Failed to enable plugin' });
+      return reply.code(400).send({ error: `Failed to enable plugin ${pluginId}: ${error instanceof Error ? error.message : String(error)}` });
     }
   });
 
@@ -81,7 +92,7 @@ export default async function pluginEnhancedRoutes(app: FastifyInstance, options
       const plugin = await pluginManager.deactivatePlugin(pluginId);
       return { pluginId, action: 'disable', status: plugin.state };
     } catch (error) {
-      return reply.code(400).send({ error: 'Failed to disable plugin' });
+      return reply.code(400).send({ error: `Failed to disable plugin ${pluginId}: ${error instanceof Error ? error.message : String(error)}` });
     }
   });
 
@@ -92,7 +103,7 @@ export default async function pluginEnhancedRoutes(app: FastifyInstance, options
       await pluginManager.uninstallPlugin(pluginId);
       return { pluginId, action: 'uninstall', status: 'uninstalled' };
     } catch (error) {
-      return reply.code(400).send({ error: 'Failed to uninstall plugin' });
+      return reply.code(400).send({ error: `Failed to uninstall plugin ${pluginId}: ${error instanceof Error ? error.message : String(error)}` });
     }
   });
 
@@ -132,22 +143,24 @@ export default async function pluginEnhancedRoutes(app: FastifyInstance, options
   // POST /:runId/debug/pause - Pause for debug
   app.post('/:runId/debug/pause', async (request: FastifyRequest, reply: FastifyReply) => {
     const { runId } = request.params as { runId: string };
-    // TODO: wire to debug controller
-    return { runId, status: 'paused' };
+    // Debug control requires integration with PipelineEngine's cancelExecution
+    // Phase 4: wire to a dedicated debug controller with state snapshot/restore
+    logger.warn({ runId }, 'Debug pause endpoint called but not wired to execution engine');
+    return reply.code(501).send({ runId, status: 'not_implemented', message: 'Debug pause requires execution engine integration' });
   });
 
   // POST /:runId/debug/resume - Resume execution
   app.post('/:runId/debug/resume', async (request: FastifyRequest, reply: FastifyReply) => {
     const { runId } = request.params as { runId: string };
-    // TODO: wire to debug controller
-    return { runId, status: 'resumed' };
+    logger.warn({ runId }, 'Debug resume endpoint called but not wired to execution engine');
+    return reply.code(501).send({ runId, status: 'not_implemented', message: 'Debug resume requires execution engine integration' });
   });
 
   // POST /:runId/debug/step - Single step execution
   app.post('/:runId/debug/step', async (request: FastifyRequest, reply: FastifyReply) => {
     const { runId } = request.params as { runId: string };
-    // TODO: wire to debug controller
-    return { runId, status: 'stepped' };
+    logger.warn({ runId }, 'Debug step endpoint called but not wired to execution engine');
+    return reply.code(501).send({ runId, status: 'not_implemented', message: 'Debug step requires execution engine integration' });
   });
 
   // POST /ai-diagnose - AI error diagnosis

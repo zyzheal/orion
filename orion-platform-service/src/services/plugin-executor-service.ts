@@ -668,16 +668,23 @@ export class PluginExecutorService {
   /**
    * Spawn Docker command with arg arrays (no shell)
    */
-  private spawnDocker(args: string[], signal?: AbortSignal): Promise<string> {
+  private spawnDocker(args: string[], signal?: AbortSignal, timeoutMs: number = 60000): Promise<string> {
     return new Promise((resolve, reject) => {
       const child = spawn('docker', args, { signal });
       let stdout = '';
       let stderr = '';
 
+      // SRE: Timeout to prevent indefinite hang if Docker daemon is unresponsive
+      const timer = setTimeout(() => {
+        try { child.kill('SIGKILL'); } catch { /* already dead */ }
+        reject(new Error(`docker ${args[0]} timed out after ${timeoutMs}ms`));
+      }, timeoutMs);
+
       child.stdout?.on('data', (data: Buffer) => { stdout += data.toString(); });
       child.stderr?.on('data', (data: Buffer) => { stderr += data.toString(); });
 
       child.on('close', (code) => {
+        clearTimeout(timer);
         if (code === 0) {
           resolve(stdout.trim());
         } else {
@@ -685,14 +692,17 @@ export class PluginExecutorService {
         }
       });
 
-      child.on('error', reject);
+      child.on('error', (err) => {
+        clearTimeout(timer);
+        reject(err);
+      });
     });
   }
 
   /**
    * Spawn Docker command and capture output + exit code
    */
-  private spawnDockerWithOutput(args: string[], signal?: AbortSignal): Promise<{
+  private spawnDockerWithOutput(args: string[], signal?: AbortSignal, timeoutMs: number = 120000): Promise<{
     stdout: string;
     stderr: string;
     exitCode: number;
@@ -702,14 +712,24 @@ export class PluginExecutorService {
       let stdout = '';
       let stderr = '';
 
+      // SRE: Timeout to prevent indefinite hang if Docker daemon is unresponsive
+      const timer = setTimeout(() => {
+        try { child.kill('SIGKILL'); } catch { /* already dead */ }
+        reject(new Error(`docker ${args[0]} timed out after ${timeoutMs}ms`));
+      }, timeoutMs);
+
       child.stdout?.on('data', (data: Buffer) => { stdout += data.toString(); });
       child.stderr?.on('data', (data: Buffer) => { stderr += data.toString(); });
 
       child.on('close', (code) => {
+        clearTimeout(timer);
         resolve({ stdout: stdout.trim(), stderr: stderr.trim(), exitCode: code ?? 1 });
       });
 
-      child.on('error', reject);
+      child.on('error', (err) => {
+        clearTimeout(timer);
+        reject(err);
+      });
     });
   }
 
@@ -1074,7 +1094,7 @@ export async function shutdownAllExecutors(): Promise<void> {
   logger.info({ count: executorRegistry.length }, 'Shutting down plugin executors...');
   for (const executor of executorRegistry) {
     try {
-      executor.shutdown();
+      await executor.shutdown();
     } catch (error) {
       logger.error({ error }, 'Error shutting down executor');
     }

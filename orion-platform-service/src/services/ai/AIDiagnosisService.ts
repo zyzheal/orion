@@ -26,12 +26,26 @@ export interface DiagnosisContext {
  * Phase 4: stub - will be wired to platform AI service in production
  */
 export class AIDiagnosisService {
+  private diagnosisTimeoutMs = 30000; // 30s timeout for AI service calls
+
   async diagnose(context: DiagnosisContext): Promise<DiagnosisResult> {
     logger.info(
       { taskId: context.taskId, pluginId: context.pluginId },
       'Starting AI diagnosis'
     );
 
+    // SRE: Timeout wrapper for future external AI service calls
+    // When AI integration is added, wrap the call with this timeout
+    const result = await this.withTimeout(
+      this.runDiagnosis(context),
+      this.diagnosisTimeoutMs,
+      `AI diagnosis timed out after ${this.diagnosisTimeoutMs}ms`
+    );
+
+    return result;
+  }
+
+  private async runDiagnosis(context: DiagnosisContext): Promise<DiagnosisResult> {
     // Future implementation:
     // 1. Collect last 50 log lines
     // 2. Get OpenTelemetry span data
@@ -51,6 +65,32 @@ export class AIDiagnosisService {
         },
       ],
     };
+  }
+
+  /**
+   * Generic timeout wrapper for external service calls.
+   * Prevents indefinite hangs when downstream services are unresponsive.
+   */
+  private async withTimeout<T>(
+    promise: Promise<T>,
+    timeoutMs: number,
+    message: string
+  ): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        reject(new Error(message));
+      }, timeoutMs);
+
+      promise
+        .then((result) => {
+          clearTimeout(timer);
+          resolve(result);
+        })
+        .catch((error) => {
+          clearTimeout(timer);
+          reject(error);
+        });
+    });
   }
 
   async findSimilarIncidents(

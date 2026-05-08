@@ -12,6 +12,7 @@ import { EventBusService } from './services/event-bus-service';
 import { NatsServiceRegistry } from './services/nats-registry';
 import { initializeOpenTelemetry } from './otel-setup';
 import { shutdownAllExecutors } from './services/plugin-executor-service';
+import { shutdownAllTimelines } from './services/observability/ExecutionTimelineService';
 
 async function main() {
   const cfg = platformConfig;
@@ -110,8 +111,18 @@ async function main() {
     console.log(`   Database: ${cfg.database.host}:${cfg.database.port}/${cfg.database.database}`);
 
     // 优雅关闭
+    const SHUTDOWN_TIMEOUT_MS = parseInt(process.env.SHUTDOWN_TIMEOUT_MS || '30000', 10);
+
     const gracefulShutdown = async (signal: string) => {
       console.log(`\n Received ${signal}, shutting down gracefully...`);
+
+      // Enforce a hard shutdown deadline to prevent hanging forever
+      const shutdownTimer = setTimeout(() => {
+        console.error(` Shutdown timeout (${SHUTDOWN_TIMEOUT_MS}ms) exceeded, forcing exit`);
+        process.exit(1);
+      }, SHUTDOWN_TIMEOUT_MS);
+      // Allow the timer to not block exit if shutdown completes normally
+      shutdownTimer.unref();
 
       try {
         // Stop accepting new requests first
@@ -120,14 +131,19 @@ async function main() {
         // Drain pending plugin executions
         await shutdownAllExecutors();
 
+        // Clean up timeline services (timers, Maps)
+        shutdownAllTimelines();
+
         // Close other connections
         if (eventBus) await eventBus.close();
         if (database) await database.close();
         if (redis) await redis.close();
 
+        clearTimeout(shutdownTimer);
         console.log(' Shutdown complete');
         process.exit(0);
       } catch (error) {
+        clearTimeout(shutdownTimer);
         console.error(' Shutdown error:', error);
         process.exit(1);
       }
