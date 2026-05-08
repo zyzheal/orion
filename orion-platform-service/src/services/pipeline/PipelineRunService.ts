@@ -162,6 +162,17 @@ export class PipelineRunService {
   }
 
   /**
+   * Find all runs with a specific status (for crash recovery)
+   */
+  async findRunsByStatus(status: string): Promise<PipelineRun[]> {
+    if (this.repository) {
+      const records = await this.repository.findByStatus(status);
+      return records.map(r => this.mapRun(r));
+    }
+    return [];
+  }
+
+  /**
    * Get PipelineRun list with filtering
    */
   async listRuns(filter?: PipelineRunFilter): Promise<PipelineRun[]> {

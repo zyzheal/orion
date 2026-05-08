@@ -19,9 +19,17 @@ import { PipelineEventPublisher } from '../events/PipelineEventPublisher';
 import { StageExecutor } from './StageExecutor';
 import { ArtifactService } from '../services/pipeline/ArtifactService';
 import { ApprovalGateService } from '../services/pipeline/ApprovalGateService';
+import { PipelineExecutionQueue, QueuePriority } from '../services/pipeline/PipelineExecutionQueue';
+import { AutoRetryService } from '../services/pipeline/AutoRetryService';
+import { PipelineRun } from '../models/PipelineRun';
 import pino from 'pino';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+
+/**
+ * 回调函数：当 Pipeline Run 完成时调用（用于 metrics 记录等）
+ */
+export type RunCompletionCallback = (run: PipelineRun) => void;
 
 export interface PipelineExecution {
   run: PipelineRun;
@@ -38,6 +46,9 @@ export class PipelineEngine {
   private stageExecutor: StageExecutor;
   private artifactService: ArtifactService | null;
   private approvalGateService: ApprovalGateService | null;
+  private executionQueue: PipelineExecutionQueue | null;
+  private autoRetryService: AutoRetryService | null;
+  private onRunComplete: RunCompletionCallback | null;
 
   // 内存存储执行中的 Pipeline
   private executions = new Map<string, PipelineExecution>();
@@ -54,7 +65,10 @@ export class PipelineEngine {
     eventPublisher: PipelineEventPublisher,
     stageExecutor: StageExecutor,
     artifactService?: ArtifactService,
-    approvalGateService?: ApprovalGateService
+    approvalGateService?: ApprovalGateService,
+    executionQueue?: PipelineExecutionQueue,
+    autoRetryService?: AutoRetryService,
+    onRunComplete?: RunCompletionCallback
   ) {
     this.pipelineService = pipelineService;
     this.runService = runService;
@@ -62,6 +76,9 @@ export class PipelineEngine {
     this.stageExecutor = stageExecutor;
     this.artifactService = artifactService || null;
     this.approvalGateService = approvalGateService || null;
+    this.executionQueue = executionQueue || null;
+    this.autoRetryService = autoRetryService || null;
+    this.onRunComplete = onRunComplete || null;
   }
 
   /**
@@ -125,11 +142,56 @@ export class PipelineEngine {
     };
     this.executions.set(run.id, execution);
 
-    // 7. 开始执行
+    // 7. 开始执行（使用队列或直接执行）
     await this.runService.startRun(run.id);
-    this.executePendingStages(execution);
+
+    if (this.executionQueue) {
+      // 使用全局执行队列
+      const priority = this.determinePriority(triggerType, context);
+      logger.info({ runId: run.id, priority }, 'Enqueueing pipeline run');
+
+      this.executionQueue.enqueue({
+        runId: run.id,
+        pipelineId,
+        priority,
+        executeFn: async () => {
+          logger.info({ runId: run.id }, 'Executing dequeued pipeline run');
+          this.executePendingStages(execution);
+        },
+        resolve: () => { /* handled by queue internally */ },
+        reject: () => { /* handled by queue internally */ },
+      }).catch(err => {
+        logger.error({ runId: run.id, error: err }, 'Failed to enqueue pipeline run');
+      });
+    } else {
+      // 直接执行（无队列模式）
+      this.executePendingStages(execution);
+    }
 
     return run;
+  }
+
+  /**
+   * 根据触发类型和上下文确定优先级
+   */
+  private determinePriority(triggerType: TriggerType, context?: Record<string, unknown>): QueuePriority {
+    // 事件触发（如部署失败回滚）通常为高优先级
+    if (triggerType === TriggerType.EVENT) {
+      return 'HIGH';
+    }
+    // 手动触发且有紧急标记时为高优先级
+    if (triggerType === TriggerType.MANUAL && (context as any)?.priority === 'high') {
+      return 'HIGH';
+    }
+    // API 触发为普通优先级
+    if (triggerType === TriggerType.API) {
+      return 'NORMAL';
+    }
+    // 定时任务为低优先级
+    if (triggerType === TriggerType.SCHEDULE) {
+      return 'LOW';
+    }
+    return 'NORMAL';
   }
 
   /**
@@ -294,13 +356,45 @@ export class PipelineEngine {
       this.checkNextStages(execution);
 
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+      // Phase 3: 使用 AutoRetryService 进行智能重试
+      if (this.autoRetryService) {
+        const retryResult = await this.autoRetryService.shouldRetry(
+          errorMessage,
+          stage.retryCount,
+          {
+            stageName: stage.name,
+            retryCount: stage.retryCount,
+            maxRetries: stage.maxRetries,
+          }
+        );
+
+        if (retryResult.shouldRetry) {
+          logger.info(
+            { runId: execution.run.id, stageName: stage.name, errorType: retryResult.classification.type, strategy: retryResult.strategy },
+            'Auto-retry: retrying stage'
+          );
+          // 执行带退避的重试
+          await this.retryStageWithBackoff(execution, stage, retryResult.strategy, errorMessage);
+          this.checkRunCompletion(execution);
+          return;
+        }
+
+        // 不应重试，继续失败处理
+        logger.info(
+          { runId: execution.run.id, stageName: stage.name, errorType: retryResult.classification.type },
+          'Auto-retry: stage not retryable'
+        );
+      }
+
       // Stage 失败
       const failedStage = {
         ...runningStage,
         status: StageStatus.FAILED,
         completedAt: new Date(),
         durationMs: Date.now() - runningStage.startedAt!.getTime(),
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: errorMessage,
       };
       execution.stages.set(stage.id, failedStage);
       await this.runService.updateStage(failedStage);
@@ -309,8 +403,8 @@ export class PipelineEngine {
       execution.runningStages.delete(stage.id);
       execution.completedStages.add(stage.id);
 
-      // 检查是否需要重试
-      if (this.shouldRetry(stage)) {
+      // 检查是否需要重试（旧逻辑，当 AutoRetryService 不可用时使用）
+      if (!this.autoRetryService && this.shouldRetry(stage)) {
         this.retryStage(execution, stage);
       } else {
         // 标记依赖于此 Stage 的其他 Stages 为失败
@@ -320,6 +414,52 @@ export class PipelineEngine {
       // 检查 PipelineRun 是否完成
       this.checkRunCompletion(execution);
     }
+  }
+
+  /**
+   * 带退避策略的 Stage 重试
+   */
+  private async retryStageWithBackoff(
+    execution: PipelineExecution,
+    stage: Stage,
+    strategy: 'immediate' | 'backoff' | 'skip',
+    error: string
+  ): Promise<void> {
+    const retryCount = stage.retryCount + 1;
+
+    // 更新重试计数
+    const retriedStage = {
+      ...stage,
+      retryCount,
+      status: StageStatus.PENDING,
+      startedAt: undefined,
+      completedAt: undefined,
+      durationMs: undefined,
+      error: undefined,
+    };
+    execution.stages.set(stage.id, retriedStage);
+    await this.runService.updateStage(retriedStage);
+
+    // 根据策略计算延迟
+    let delayMs = 0;
+    if (strategy === 'backoff') {
+      delayMs = Math.min(1000 * Math.pow(2, retryCount - 1), 30000);
+      // 添加 jitter
+      delayMs = Math.round(delayMs * (0.5 + Math.random() * 0.5));
+    }
+
+    if (delayMs > 0) {
+      logger.info(
+        { runId: execution.run.id, stageName: stage.name, retryCount, delayMs },
+        'Waiting before retry'
+      );
+      await new Promise(resolve => setTimeout(resolve, delayMs));
+    }
+
+    // 重新加入待处理队列并执行
+    execution.pendingStages.add(stage.id);
+    execution.completedStages.delete(stage.id);
+    await this.executePendingStages(execution);
   }
 
   /**
@@ -424,6 +564,12 @@ export class PipelineEngine {
         await this.runService.completeRun(execution.run.id, PipelineRunStatus.FAILED);
       } else {
         await this.runService.completeRun(execution.run.id, PipelineRunStatus.SUCCESS);
+      }
+
+      // 获取更新后的 run 数据并触发回调（用于 metrics 记录）
+      const completedRun = await this.runService.getRun(execution.run.id);
+      if (completedRun && this.onRunComplete) {
+        this.onRunComplete(completedRun);
       }
 
       // 清理执行上下文
@@ -775,5 +921,108 @@ export class PipelineEngine {
   getApprovalRequestsByRun(runId: string) {
     if (!this.approvalGateService) return [];
     return this.approvalGateService.getByRun(runId);
+  }
+
+  // ==================== Execution Queue Methods ====================
+
+  /**
+   * 获取执行队列实例
+   */
+  getExecutionQueue(): PipelineExecutionQueue | null {
+    return this.executionQueue;
+  }
+
+  /**
+   * 获取队列统计信息
+   */
+  getQueueStats() {
+    return this.executionQueue?.getStats() || null;
+  }
+
+  /**
+   * 获取队列中等待的 runs
+   */
+  getQueuedRuns() {
+    return this.executionQueue?.getQueuedRuns() || [];
+  }
+
+  /**
+   * 从队列中取消指定的 run
+   */
+  cancelQueuedRun(runId: string): boolean {
+    if (!this.executionQueue) return false;
+    return this.executionQueue.remove(runId);
+  }
+
+  // ==================== Crash Recovery ====================
+
+  /**
+   * 恢复中断的 Pipeline Runs
+   *
+   * 在服务启动时调用，查找数据库中状态为 'RUNNING' 的 runs，
+   * 将它们标记为失败（因为服务重启意味着执行中断）。
+   *
+   * 未来可扩展为真正重新执行未完成的部分。
+   */
+  async recoverRuns(): Promise<{ recovered: number; markedFailed: number; errors: string[] }> {
+    if (!this.runService) {
+      return { recovered: 0, markedFailed: 0, errors: ['RunService not available'] };
+    }
+
+    const errors: string[] = [];
+    let markedFailed = 0;
+
+    try {
+      const runningRuns = await this.runService.findRunsByStatus(PipelineRunStatus.RUNNING);
+
+      if (runningRuns.length === 0) {
+        logger.info('No running pipeline runs to recover');
+        return { recovered: runningRuns.length, markedFailed: 0, errors: [] };
+      }
+
+      logger.info(
+        { count: runningRuns.length, runIds: runningRuns.map(r => r.id) },
+        'Found running pipeline runs to recover'
+      );
+
+      for (const run of runningRuns) {
+        try {
+          // 标记为失败（因为服务重启意味着执行中断）
+          await this.runService.completeRun(run.id, PipelineRunStatus.FAILED);
+          await this.eventPublisher.publishRunFailed(run, 'Server restarted, pipeline run interrupted');
+          markedFailed++;
+          logger.info({ runId: run.id }, 'Marked interrupted pipeline run as failed');
+        } catch (err) {
+          const errMsg = `Failed to recover run ${run.id}: ${err instanceof Error ? err.message : String(err)}`;
+          errors.push(errMsg);
+          logger.error({ runId: run.id, error: err }, 'Failed to recover pipeline run');
+        }
+      }
+    } catch (err) {
+      errors.push(`Recovery scan failed: ${err instanceof Error ? err.message : String(err)}`);
+      logger.error({ error: err }, 'Pipeline run recovery scan failed');
+    }
+
+    return {
+      recovered: runningRuns.length || 0,
+      markedFailed,
+      errors,
+    };
+  }
+
+  /**
+   * 重建执行队列（从数据库加载待执行的 runs）
+   *
+   * 注意：当前实现依赖数据库中有 pending 状态的 runs，
+   * 实际上 pipeline 执行一旦开始就在内存中。
+   * 此方法为未来持久化执行进度做准备。
+   */
+  async rebuildExecutionQueue(): Promise<number> {
+    if (!this.executionQueue) return 0;
+
+    // 当前没有独立的 "pending execution" 状态存储在 DB 中
+    // 未来可以在 stage 级别持久化执行进度，然后从这里恢复
+    logger.info('Execution queue rebuild: no persistent pending executions to restore');
+    return 0;
   }
 }

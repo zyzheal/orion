@@ -3,20 +3,169 @@
  *
  * 负责：
  * - 解析 Task 配置
- * - 执行具体任务逻辑
+ * - 执行具体任务逻辑 (Phase 3: 真实执行 git/npm/shell/k8s)
  * - 收集 Task 日志
  * - 处理 Task 重试
  */
 
+import { spawn, ChildProcess } from 'child_process';
 import { Task, TaskStatus, appendTaskLog } from '../models/Task';
 import { PluginExecutorService, TaskExecutionRequest, TaskStatus as PluginTaskStatus } from '../services/plugin-executor-service';
 import { InlineScriptService, InlineScriptExecutionRequest } from '../services/inline-script/InlineScriptService';
+import pino from 'pino';
+
+const logger = pino({ name: 'task-runner' });
 
 export interface TaskExecutionResult {
   status: TaskStatus;
   result?: Record<string, unknown>;
   log?: string;
   error?: string;
+}
+
+/**
+ * Spawn 执行结果
+ */
+interface SpawnResult {
+  exitCode: number;
+  stdout: string;
+  stderr: string;
+}
+
+/**
+ * 安全配置：限制 shell 命令
+ */
+const DANGEROUS_PATTERNS = [
+  'rm -rf /',
+  'mkfs',
+  'dd if=',
+  '> /dev/sd',
+  'curl.*|.*sh',
+  'wget.*|.*sh',
+];
+
+/**
+ * 构建安全的最小 PATH 环境变量
+ */
+function getCleanEnv(customEnv?: Record<string, string>): NodeJS.ProcessEnv {
+  const cleanEnv: NodeJS.ProcessEnv = {
+    PATH: process.env.PATH || '/usr/local/bin:/usr/bin:/bin',
+    HOME: process.env.HOME || '/tmp',
+    NODE_ENV: 'production',
+    // 移除敏感环境变量
+  };
+
+  // 合并自定义环境变量
+  if (customEnv) {
+    for (const [key, value] of Object.entries(customEnv)) {
+      cleanEnv[key] = value;
+    }
+  }
+
+  return cleanEnv;
+}
+
+/**
+ * 检查脚本是否包含危险命令
+ */
+function isScriptSafe(script: string): boolean {
+  for (const pattern of DANGEROUS_PATTERNS) {
+    if (new RegExp(pattern, 'i').test(script)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * 使用 child_process.spawn 执行命令（安全）
+ */
+function spawnCommand(
+  command: string,
+  args: string[],
+  options?: {
+    cwd?: string;
+    timeoutMs?: number;
+    signal?: AbortSignal;
+    env?: Record<string, string>;
+  }
+): Promise<SpawnResult> {
+  return new Promise((resolve, reject) => {
+    const timeout = options?.timeoutMs || 60000;
+    const env = getCleanEnv(options?.env);
+
+    const child = spawn(command, args, {
+      cwd: options?.cwd || '/tmp',
+      env,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      timeout,
+    });
+
+    let stdout = '';
+    let stderr = '';
+
+    child.stdout?.on('data', (data: Buffer) => {
+      stdout += data.toString();
+    });
+
+    child.stderr?.on('data', (data: Buffer) => {
+      stderr += data.toString();
+    });
+
+    const cleanup = () => {
+      child.removeAllListeners();
+    };
+
+    // 处理 AbortSignal
+    if (options?.signal) {
+      if (options.signal.aborted) {
+        child.kill('SIGTERM');
+        cleanup();
+        reject(new DOMException('Task was cancelled', 'AbortError'));
+        return;
+      }
+      options.signal.addEventListener('abort', () => {
+        child.kill('SIGTERM');
+        cleanup();
+        reject(new DOMException('Task was cancelled', 'AbortError'));
+      }, { once: true });
+    }
+
+    child.on('error', (err) => {
+      cleanup();
+      reject(new Error(`Failed to spawn ${command}: ${err.message}`));
+    });
+
+    child.on('close', (code) => {
+      cleanup();
+      resolve({
+        exitCode: code ?? 1,
+        stdout: stdout.trim(),
+        stderr: stderr.trim(),
+      });
+    });
+
+    child.on('exit', (code) => {
+      cleanup();
+      resolve({
+        exitCode: code ?? 1,
+        stdout: stdout.trim(),
+        stderr: stderr.trim(),
+      });
+    });
+  });
+}
+
+/**
+ * 检查命令是否可用
+ */
+async function isCommandAvailable(command: string): Promise<boolean> {
+  try {
+    const result = await spawnCommand('which', [command], { timeoutMs: 5000 });
+    return result.exitCode === 0;
+  } catch {
+    return false;
+  }
 }
 
 export class TaskRunner {
@@ -97,76 +246,221 @@ export class TaskRunner {
 
   /**
    * 执行 Git 相关任务
+   * Phase 3: 使用真实 git 命令执行
    */
   private async executeGitTask(task: Task, signal?: AbortSignal): Promise<Record<string, unknown>> {
     const action = task.type.split('/')[1];
     const params = task.parameters;
+    const repo = params.repo as string || '';
+    const branch = params.branch as string || 'main';
+    const cwd = (params.cwd as string) || '/tmp';
+    const timeoutMs = (task.timeoutSeconds || 60) * 1000;
 
     task = appendTaskLog(task, `[GIT] Executing ${action}...`);
 
-    await this.sleep(100, signal);
+    // 检查 git 是否可用
+    const gitAvailable = await isCommandAvailable('git');
+    if (!gitAvailable) {
+      logger.warn('git command not available, falling back to mock');
+      return this.executeMockTask(task, signal);
+    }
+
+    let result: SpawnResult;
+    switch (action) {
+      case 'clone':
+        result = await spawnCommand('git', ['clone', repo, '--branch', branch, '--single-branch', '--depth', '1'], {
+          cwd, timeoutMs, signal,
+        });
+        break;
+      case 'checkout':
+        result = await spawnCommand('git', ['checkout', branch], { cwd, timeoutMs, signal });
+        break;
+      case 'push':
+        const remoteBranch = params.remoteBranch as string || branch;
+        result = await spawnCommand('git', ['push', 'origin', remoteBranch], { cwd, timeoutMs, signal });
+        break;
+      case 'pull':
+        result = await spawnCommand('git', ['pull', 'origin', branch], { cwd, timeoutMs, signal });
+        break;
+      case 'status':
+        result = await spawnCommand('git', ['status', '--short'], { cwd, timeoutMs, signal });
+        break;
+      case 'log':
+        const maxCount = (params.maxCount as number) || 10;
+        result = await spawnCommand('git', ['log', `--max-count=${maxCount}`, '--oneline'], { cwd, timeoutMs, signal });
+        break;
+      default:
+        result = await spawnCommand('git', [action], { cwd, timeoutMs, signal });
+        break;
+    }
+
+    if (result.exitCode !== 0) {
+      throw new Error(`git ${action} failed (exit code ${result.exitCode}): ${result.stderr}`);
+    }
 
     return {
       action,
-      repository: params.repo || 'unknown',
-      branch: params.branch || 'main',
-      commit: params.sha || 'abc123',
+      repository: repo,
+      branch,
+      exitCode: result.exitCode,
+      stdout: result.stdout,
+      stderr: result.stderr,
       log: task.log,
     };
   }
 
   /**
    * 执行 Npm/Yarn 任务
+   * Phase 3: 使用真实 npm/npx 命令执行
    */
   private async executeNpmTask(task: Task, signal?: AbortSignal): Promise<Record<string, unknown>> {
-    const command = task.parameters.command || task.parameters.script || 'unknown';
+    const command = (task.parameters.command as string) || (task.parameters.script as string) || '';
+    const cwd = (task.parameters.cwd as string) || '/tmp';
+    const timeoutMs = (task.timeoutSeconds || 120) * 1000;
 
     task = appendTaskLog(task, `[NPM] Running command: ${command}`);
 
-    await this.sleep(200, signal);
+    // 检查 npm 是否可用
+    const npmAvailable = await isCommandAvailable('npm');
+    if (!npmAvailable) {
+      logger.warn('npm command not available, falling back to mock');
+      return this.executeMockTask(task, signal);
+    }
+
+    // 解析命令：支持 "run build", "install", "test" 等
+    const args = command.split(' ').filter(Boolean);
+
+    // 处理 npx 命令
+    let executable = 'npm';
+    if (args[0] === 'run') {
+      // npm run <script>
+    } else if (args[0] === 'exec' || args[0] === 'x') {
+      executable = 'npx';
+      args.shift();
+    }
+
+    const result = await spawnCommand(executable, args, { cwd, timeoutMs, signal });
+
+    if (result.exitCode !== 0) {
+      throw new Error(`${executable} ${command} failed (exit code ${result.exitCode}): ${result.stderr}`);
+    }
 
     return {
       command,
-      exitCode: 0,
-      output: 'Build completed successfully',
+      exitCode: result.exitCode,
+      stdout: result.stdout,
+      stderr: result.stderr,
       log: task.log,
     };
   }
 
   /**
    * 执行 Kubernetes 任务
+   * Phase 3: 使用真实 kubectl 命令执行
    */
   private async executeK8sTask(task: Task, signal?: AbortSignal): Promise<Record<string, unknown>> {
     const action = task.type.split('/')[1];
     const params = task.parameters;
+    const name = (params.name as string) || '';
+    const namespace = (params.namespace as string) || 'default';
+    const cwd = (params.cwd as string) || '/tmp';
+    const timeoutMs = (task.timeoutSeconds || 60) * 1000;
 
-    task = appendTaskLog(task, `[K8S] ${action} deployment ${params.name || 'unknown'}...`);
+    task = appendTaskLog(task, `[K8S] ${action} deployment ${name || 'unknown'}...`);
 
-    await this.sleep(300, signal);
+    // 检查 kubectl 是否可用
+    const kubectlAvailable = await isCommandAvailable('kubectl');
+    if (!kubectlAvailable) {
+      logger.warn('kubectl command not available, falling back to mock');
+      return this.executeMockTask(task, signal);
+    }
+
+    let result: SpawnResult;
+    const nsArgs = namespace !== 'default' ? ['-n', namespace] : [];
+
+    switch (action) {
+      case 'apply':
+        const file = (params.file as string) || (params.manifest as string) || '';
+        result = await spawnCommand('kubectl', [...nsArgs, 'apply', '-f', file], { cwd, timeoutMs, signal });
+        break;
+      case 'delete':
+        result = await spawnCommand('kubectl', [...nsArgs, 'delete', 'deployment', name], { cwd, timeoutMs, signal });
+        break;
+      case 'rollout':
+        const rolloutAction = (params.rolloutAction as string) || 'status';
+        result = await spawnCommand('kubectl', [...nsArgs, 'rollout', rolloutAction, 'deployment', name], { cwd, timeoutMs, signal });
+        break;
+      case 'get':
+        const resource = (params.resource as string) || 'pods';
+        result = await spawnCommand('kubectl', [...nsArgs, 'get', resource], { cwd, timeoutMs, signal });
+        break;
+      case 'describe':
+        const describeResource = (params.resource as string) || 'deployment';
+        result = await spawnCommand('kubectl', [...nsArgs, 'describe', describeResource, name], { cwd, timeoutMs, signal });
+        break;
+      case 'logs':
+        const podName = name || (params.pod as string) || '';
+        result = await spawnCommand('kubectl', [...nsArgs, 'logs', podName, '--tail=100'], { cwd, timeoutMs, signal });
+        break;
+      case 'exec':
+        const execCommand = (params.execCommand as string) || 'sh';
+        const execPod = name || (params.pod as string) || '';
+        result = await spawnCommand('kubectl', [...nsArgs, 'exec', execPod, '--', execCommand], { cwd, timeoutMs, signal });
+        break;
+      default:
+        result = await spawnCommand('kubectl', [...nsArgs, action], { cwd, timeoutMs, signal });
+        break;
+    }
+
+    if (result.exitCode !== 0) {
+      throw new Error(`kubectl ${action} failed (exit code ${result.exitCode}): ${result.stderr}`);
+    }
 
     return {
       action,
-      namespace: params.namespace || 'default',
-      name: params.name || 'unknown',
-      status: 'completed',
+      namespace,
+      name,
+      exitCode: result.exitCode,
+      stdout: result.stdout,
+      stderr: result.stderr,
       log: task.log,
     };
   }
 
   /**
    * 执行 Shell 任务
+   * Phase 3: 使用真实 shell 命令执行（带安全检查）
    */
   private async executeShellTask(task: Task, signal?: AbortSignal): Promise<Record<string, unknown>> {
-    const script = task.parameters.script || task.parameters.command || '';
+    const script = (task.parameters.script as string) || (task.parameters.command as string) || '';
+    const cwd = (task.parameters.cwd as string) || '/tmp';
+    const timeoutMs = (task.timeoutSeconds || 60) * 1000;
 
-    task = appendTaskLog(task, `[SHELL] Executing: ${script}`);
+    task = appendTaskLog(task, `[SHELL] Executing: ${script.substring(0, 100)}${script.length > 100 ? '...' : ''}`);
 
-    await this.sleep(100, signal);
+    // 安全检查
+    if (!isScriptSafe(script)) {
+      throw new Error('Script contains potentially dangerous commands');
+    }
+
+    // 检查 sh 是否可用
+    const shAvailable = await isCommandAvailable('sh');
+    if (!shAvailable) {
+      logger.warn('sh command not available, falling back to mock');
+      return this.executeMockTask(task, signal);
+    }
+
+    const result = await spawnCommand('sh', ['-c', script], { cwd, timeoutMs, signal });
+
+    if (result.exitCode !== 0) {
+      throw new Error(`Shell script failed (exit code ${result.exitCode}): ${result.stderr}`);
+    }
 
     return {
       script,
-      exitCode: 0,
-      stdout: 'Command executed successfully',
+      exitCode: result.exitCode,
+      stdout: result.stdout,
+      stderr: result.stderr,
       log: task.log,
     };
   }

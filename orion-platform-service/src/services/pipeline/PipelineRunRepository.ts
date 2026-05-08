@@ -236,6 +236,17 @@ export class PipelineRunRepository {
   }
 
   /**
+   * Find all pipeline runs with a specific status (for recovery)
+   */
+  async findByStatus(status: string): Promise<PipelineRunRecord[]> {
+    const result = await this.pool.query(
+      'SELECT * FROM pipeline_runs WHERE status = $1 ORDER BY created_at DESC',
+      [status]
+    );
+    return result.rows;
+  }
+
+  /**
    * Delete a run (hard delete)
    */
   async delete(id: string): Promise<boolean> {

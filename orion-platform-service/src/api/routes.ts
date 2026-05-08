@@ -17,6 +17,8 @@ import { PipelineRunService } from '../services/pipeline/PipelineRunService';
 import { PipelineRunRepository } from '../services/pipeline/PipelineRunRepository';
 import { PipelineVersionService } from '../services/pipeline/PipelineVersionService';
 import { PipelineBudgetService } from '../services/pipeline/PipelineBudgetService';
+import { PipelineExecutionQueue } from '../services/pipeline/PipelineExecutionQueue';
+import { PipelineMetricsService } from '../services/pipeline/PipelineMetricsService';
 import { PipelineEngine } from '../engine/PipelineEngine';
 import { StageExecutor } from '../engine/StageExecutor';
 import { TaskRunner } from '../engine/TaskRunner';
@@ -312,7 +314,27 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   const runService = new PipelineRunService(eventPublisher, pipelineRunRepository!);
   const taskRunner = new TaskRunner();
   const stageExecutor = new StageExecutor(taskRunner, eventPublisher);
-  const engine = new PipelineEngine(pipelineService, runService, eventPublisher, stageExecutor);
+
+  // Phase 3: Global execution queue with backpressure
+  const executionQueue = new PipelineExecutionQueue();
+
+  // Phase 3: Pipeline metrics service
+  const metricsService = new PipelineMetricsService({ executionQueue });
+
+  const engine = new PipelineEngine(
+    pipelineService,
+    runService,
+    eventPublisher,
+    stageExecutor,
+    undefined,
+    undefined,
+    executionQueue,
+    undefined,
+    (run) => {
+      // Record metrics when a pipeline run completes
+      metricsService.recordRun(run);
+    }
+  );
 
   // Phase 1 P0: Initialize version and budget services
   const versionService = options.database ? new PipelineVersionService(options.database) : null;
@@ -713,4 +735,43 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // ==================== Inline Script ====================
   await registerWithRoleGuard(app, scriptRoutes, '/v1/scripts', { database: options.database });
+
+  // ==================== Phase 3: Pipeline Metrics ====================
+  app.get('/v1/pipeline/metrics', async (request: FastifyRequest, reply: FastifyReply) => {
+    const query = request.query as any;
+    if (query.format === 'prometheus') {
+      reply.header('Content-Type', 'text/plain; version=0.0.4');
+      return reply.send(metricsService.getPrometheusMetrics());
+    }
+    return reply.send(metricsService.getMetrics());
+  });
+
+  app.get('/v1/pipeline/metrics/:pipelineId', async (request: FastifyRequest, reply: FastifyReply) => {
+    const params = request.params as any;
+    return reply.send(metricsService.getMetricsByPipeline(params.pipelineId));
+  });
+
+  app.get('/v1/pipeline/queue', async (request: FastifyRequest, reply: FastifyReply) => {
+    return reply.send({
+      stats: engine.getQueueStats(),
+      queued: engine.getQueuedRuns(),
+    });
+  });
+
+  // ==================== Phase 3: Crash Recovery ====================
+  // Recover interrupted pipeline runs from database on startup
+  if (options.database) {
+    engine.recoverRuns().then(result => {
+      if (result.recovered > 0) {
+        console.log(`[routes] Pipeline recovery: ${result.recovered} runs found, ${result.markedFailed} marked as failed`);
+        if (result.errors.length > 0) {
+          console.warn('[routes] Recovery errors:', result.errors);
+        }
+      } else {
+        console.log('[routes] No interrupted pipeline runs to recover');
+      }
+    }).catch(err => {
+      console.error('[routes] Pipeline recovery failed:', err);
+    });
+  }
 }
