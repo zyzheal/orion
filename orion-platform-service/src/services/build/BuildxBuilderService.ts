@@ -149,6 +149,146 @@ export class BuildxBuilderService {
   }
 
   /**
+   * 原生单命令多架构构建
+   *
+   * 使用 `docker buildx build --platform linux/amd64,linux/arm64` 单次命令
+   * 构建多平台镜像，自动创建 manifest list。比串行调用 buildPlatform() 快得多。
+   */
+  async buildMultiArchNative(options: BuildOptions): Promise<BuildResult> {
+    const startTime = Date.now();
+    const logs: string[] = [];
+    const errors: string[] = [];
+
+    if (options.platforms.length === 0) {
+      return {
+        success: false,
+        platforms: [],
+        size: 0,
+        duration: 0,
+        logs,
+        errors: ['No platforms specified'],
+      };
+    }
+
+    try {
+      await this.checkBuildxAvailability();
+
+      // 构建单命令
+      const command = this.buildMultiArchCommand(options);
+      const cwd = options.context || '.';
+
+      logger.info({ command, platforms: options.platforms }, 'Starting native multi-arch build');
+
+      const { stdout, stderr } = await execAsync(command, {
+        cwd,
+        timeout: 60 * 60 * 1000, // 1 hour timeout for large builds
+        maxBuffer: 1024 * 1024 * 50,
+      });
+
+      logs.push(stdout);
+      if (stderr) logs.push(stderr);
+
+      const imageId = this.parseImageId(stdout);
+      const duration = Date.now() - startTime;
+
+      // 推送到仓库
+      if (options.push) {
+        await this.pushImages(options);
+      }
+
+      // 保存到制品仓库
+      if (this.artifactRegistry) {
+        await this.saveToArtifactRegistry(options, [{
+          success: true,
+          imageId,
+          platforms: options.platforms,
+          size: 0,
+          duration,
+          logs,
+          errors: [],
+        }]);
+      }
+
+      logger.info({ platforms: options.platforms, duration }, 'Native multi-arch build completed');
+
+      return {
+        success: true,
+        imageId,
+        platforms: options.platforms,
+        size: 0,
+        duration,
+        logs,
+        errors,
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      errors.push(errorMessage);
+
+      logger.error({ error: errorMessage }, 'Native multi-arch build failed');
+
+      return {
+        success: false,
+        platforms: options.platforms,
+        size: 0,
+        duration: Date.now() - startTime,
+        logs,
+        errors,
+      };
+    }
+  }
+
+  /**
+   * 构建多平台 docker buildx 命令
+   */
+  private buildMultiArchCommand(options: BuildOptions): string {
+    let command = `docker buildx build --platform ${options.platforms.join(',')}`;
+
+    // 标签
+    const tags = [options.tags[0] || 'latest', ...options.tags.slice(1)];
+    for (const tag of tags) {
+      command += ` -t ${options.imageName}:${tag}`;
+    }
+
+    // 构建参数
+    if (options.buildArgs) {
+      for (const [key, value] of Object.entries(options.buildArgs)) {
+        command += ` --build-arg ${key}=${value}`;
+      }
+    }
+
+    // 标签
+    if (options.labels) {
+      for (const [key, value] of Object.entries(options.labels)) {
+        command += ` --label ${key}=${value}`;
+      }
+    }
+
+    // 缓存
+    if (options.cacheFrom && options.cacheFrom.length > 0) {
+      command += ` --cache-from ${options.cacheFrom.join(',')}`;
+    }
+    if (options.cacheTo && options.cacheTo.length > 0) {
+      command += ` --cache-to ${options.cacheTo.join(',')}`;
+    }
+
+    // 其他选项
+    if (options.push) command += ' --push';
+    if (options.progress) command += ` --progress ${options.progress}`;
+    if (options.noCache) command += ' --no-cache';
+    if (options.pull) command += ' --pull';
+
+    // Dockerfile
+    if (options.dockerfile) {
+      command += ` -f ${options.dockerfile}`;
+    }
+
+    // 上下文
+    command += ` ${options.context}`;
+
+    return command;
+  }
+
+  /**
    * 单平台构建
    */
   async buildPlatform(options: {
