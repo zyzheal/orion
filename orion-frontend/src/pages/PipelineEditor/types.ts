@@ -33,6 +33,13 @@ export interface MatrixBuildConfig {
   exclusions: ExclusionRule[];
 }
 
+/** 子流水线配置：调用另一条流水线 */
+export interface SubPipelineConfig {
+  pipelineId: string;
+  branch?: string;
+  params?: Record<string, string>;
+}
+
 export interface StageConfig {
   id: string;
   name: string;
@@ -41,6 +48,7 @@ export interface StageConfig {
   retryCount?: number;
   dependsOn?: string[];
   config?: Record<string, any>;
+  subPipeline?: SubPipelineConfig;
   cache?: CacheConfig;
   artifacts?: ArtifactConfig;
   matrix?: MatrixBuildConfig;

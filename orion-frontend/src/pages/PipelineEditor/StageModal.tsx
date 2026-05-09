@@ -14,9 +14,10 @@ import {
   Button,
   Card,
 } from 'antd';
-import { PlusOutlined, DeleteOutlined, ThunderboltOutlined } from '@ant-design/icons';
+import { PlusOutlined, DeleteOutlined, ThunderboltOutlined, BranchesOutlined } from '@ant-design/icons';
 import type { StageConfig, MatrixBuildConfig } from './types';
 import MatrixConfigurator from '@/components/MatrixConfigurator';
+import { getPipelines } from '@/api/pipelines';
 
 const { TextArea } = Input;
 
@@ -26,6 +27,7 @@ const STAGE_TYPES = [
   { label: '🔍 代码扫描 (Scan)', value: 'scan' },
   { label: '🚀 部署 (Deploy)', value: 'deploy' },
   { label: '📢 通知 (Notify)', value: 'notify' },
+  { label: '🔀 子流水线 (Sub-Pipeline)', value: 'sub-pipeline' },
   { label: '⚙️ 自定义 (Custom)', value: 'custom' },
 ];
 
@@ -52,6 +54,11 @@ const StageModal: React.FC<StageModalProps> = ({
     dimensions: [],
     exclusions: [],
   });
+  // 子流水线相关状态
+  const [pipelineOptions, setPipelineOptions] = useState<{ label: string; value: string }[]>([]);
+  const [subPipelineParams, setSubPipelineParams] = useState<{ key: string; value: string }[]>([
+    { key: '', value: '' },
+  ]);
 
   useEffect(() => {
     if (stage) {
@@ -65,6 +72,8 @@ const StageModal: React.FC<StageModalProps> = ({
         command: stage.config?.command || '',
         image: stage.config?.image || '',
         env: stage.config?.env || '',
+        subPipelineId: stage.type === 'sub-pipeline' ? stage.subPipeline?.pipelineId : undefined,
+        subPipelineBranch: stage.type === 'sub-pipeline' ? stage.subPipeline?.branch : 'main',
         cacheEnabled: stage.cache?.enabled || false,
         cacheKey: stage.cache?.key || '',
         cacheRestoreKeys: stage.cache?.restoreKeys?.join('\n') || '',
@@ -73,6 +82,15 @@ const StageModal: React.FC<StageModalProps> = ({
       });
       setCachePaths(stage.cache?.paths?.length ? stage.cache.paths : ['']);
       setArtifactPaths(stage.artifacts?.upload?.length ? stage.artifacts.upload : ['']);
+      // 加载子流水线参数
+      if (stage.type === 'sub-pipeline' && stage.subPipeline) {
+        const paramsArr = stage.subPipeline.params
+          ? Object.entries(stage.subPipeline.params).map(([key, value]) => ({ key, value }))
+          : [{ key: '', value: '' }];
+        setSubPipelineParams(paramsArr);
+      } else {
+        setSubPipelineParams([{ key: '', value: '' }]);
+      }
       // 加载矩阵构建配置
       setMatrixConfig(
         stage.matrix || {
@@ -85,6 +103,7 @@ const StageModal: React.FC<StageModalProps> = ({
       form.resetFields();
       setCachePaths(['']);
       setArtifactPaths(['']);
+      setSubPipelineParams([{ key: '', value: '' }]);
       setMatrixConfig({
         enabled: false,
         dimensions: [],
@@ -92,6 +111,25 @@ const StageModal: React.FC<StageModalProps> = ({
       });
     }
   }, [stage, form, visible]);
+
+  // 加载可用流水线列表（用于子流水线选择）
+  useEffect(() => {
+    if (visible) {
+      getPipelines()
+        .then((res) => {
+          const data = res.data?.data ?? res.data;
+          const list = Array.isArray(data) ? data : [];
+          const opts = list.map((p: { id: string; name: string }) => ({
+            label: p.name,
+            value: p.id,
+          }));
+          setPipelineOptions(opts);
+        })
+        .catch(() => {
+          setPipelineOptions([]);
+        });
+    }
+  }, [visible]);
 
   const handleOk = async () => {
     try {
@@ -123,6 +161,20 @@ const StageModal: React.FC<StageModalProps> = ({
           upload: artifactPaths.filter((p) => p.trim()),
           expiry: values.artifactExpiry,
         },
+        // 子流水线配置
+        subPipeline:
+          values.type === 'sub-pipeline' && values.subPipelineId
+            ? {
+                pipelineId: values.subPipelineId,
+                branch: values.subPipelineBranch || 'main',
+                params: subPipelineParams
+                  .filter((p) => p.key.trim())
+                  .reduce(
+                    (acc, p) => ({ ...acc, [p.key.trim()]: p.value.trim() }),
+                    {} as Record<string, string>
+                  ),
+              }
+            : undefined,
         // 矩阵构建配置
         matrix: matrixConfig.enabled
           ? {
@@ -282,6 +334,85 @@ const StageModal: React.FC<StageModalProps> = ({
             placeholder="NODE_ENV=production&#10;API_URL=https://api.example.com"
             style={{ fontFamily: 'monospace' }}
           />
+        </Form.Item>
+
+        {/* 子流水线配置（仅当类型是 sub-pipeline 时显示） */}
+        <Form.Item noStyle shouldUpdate={(prev, curr) => prev.type !== curr.type}>
+          {(formInstance) =>
+            formInstance.getFieldValue('type') === 'sub-pipeline' && (
+              <Card size="small" style={{ marginBottom: 16 }} title={<Space><BranchesOutlined /> 子流水线配置</Space>}>
+                <Form.Item
+                  label="选择流水线"
+                  name="subPipelineId"
+                  rules={[{ required: true, message: '请选择要调用的子流水线' }]}
+                >
+                  <Select
+                    placeholder="选择目标流水线"
+                    options={pipelineOptions}
+                    showSearch
+                    filterOption={(input, option) =>
+                      (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                    }
+                  />
+                </Form.Item>
+
+                <Form.Item
+                  label="分支"
+                  name="subPipelineBranch"
+                  tooltip="指定子流水线使用的分支，留空则使用默认分支"
+                >
+                  <Input placeholder="例如：main, develop" />
+                </Form.Item>
+
+                <Form.Item label="传递参数">
+                  <Space direction="vertical" style={{ width: '100%' }} size={8}>
+                    {subPipelineParams.map((param, index) => (
+                      <Space key={index} style={{ width: '100%' }}>
+                        <Input
+                          value={param.key}
+                          onChange={(e) => {
+                            const newParams = [...subPipelineParams];
+                            newParams[index] = { ...newParams[index], key: e.target.value };
+                            setSubPipelineParams(newParams);
+                          }}
+                          placeholder="参数名"
+                          style={{ flex: 1 }}
+                        />
+                        <Input
+                          value={param.value}
+                          onChange={(e) => {
+                            const newParams = [...subPipelineParams];
+                            newParams[index] = { ...newParams[index], value: e.target.value };
+                            setSubPipelineParams(newParams);
+                          }}
+                          placeholder="参数值"
+                          style={{ flex: 1.5 }}
+                        />
+                        <Button
+                          icon={<PlusOutlined />}
+                          onClick={() => {
+                            setSubPipelineParams([...subPipelineParams, { key: '', value: '' }]);
+                          }}
+                        />
+                        <Button
+                          danger
+                          icon={<DeleteOutlined />}
+                          onClick={() => {
+                            if (subPipelineParams.length === 1) {
+                              setSubPipelineParams([{ key: '', value: '' }]);
+                            } else {
+                              setSubPipelineParams(subPipelineParams.filter((_, i) => i !== index));
+                            }
+                          }}
+                          disabled={subPipelineParams.length === 1}
+                        />
+                      </Space>
+                    ))}
+                  </Space>
+                </Form.Item>
+              </Card>
+            )
+          }
         </Form.Item>
 
         {/* 缓存配置 */}
