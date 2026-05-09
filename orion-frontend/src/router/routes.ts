@@ -885,6 +885,13 @@ export const routes: AppRoute[] = [
     element: React.lazy(() => import('@/pages/Backup')),
     protected: true,
   },
+  // Runner Pool Management (GAP-CN-07)
+  {
+    path: '/console/runners',
+    element: React.lazy(() => import('@/pages/RunnerManagement')),
+    protected: true,
+    requiredRole: ['admin', 'platform_admin'],
+  },
   // Plugin SPI - Extension Point Management (P1)
   {
     path: '/plugin-spi',
