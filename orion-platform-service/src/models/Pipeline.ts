@@ -74,6 +74,23 @@ export interface PipelineStage {
     gateName?: string;
     defaultMetrics?: Record<string, number>;
   };
+  /**
+   * Deployment strategy configuration (GAP-CN-03)
+   * When type is 'deploy', this configures progressive release:
+   * - strategyId: Reference to a DeploymentStrategy definition
+   * - strategyName: Lookup by name within tenant
+   * - inline: Inline strategy config (overrides referenced strategy)
+   * - healthCheckEndpoint: HTTP endpoint for health verification between steps
+   */
+  deploymentStrategy?: {
+    strategyId?: string;
+    strategyName?: string;
+    healthCheckEndpoint?: string;
+    inline?: {
+      type: 'canary' | 'bluegreen' | 'rolling';
+      config: Record<string, unknown>;
+    };
+  };
 }
 
 export interface PipelineSpec {

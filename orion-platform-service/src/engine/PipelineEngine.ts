@@ -30,6 +30,7 @@ import { WebhookNotifier, WebhookConfig as WebhookNotifierConfig, WebhookPayload
 import { WebhookConfigRepository, WebhookConfigEntity } from '../repositories/WebhookConfigRepository';
 import { QualityGateService } from '../services/pipeline/QualityGateService';
 import { QualityGateResult } from '../models/QualityGate';
+import { DeploymentStrategyService, CanaryConfig, BlueGreenConfig, RollingConfig } from '../services/pipeline/DeploymentStrategyService';
 import { MatrixExpander } from './MatrixExpander';
 import { VariableContext } from './VariableContext';
 import { DebugController } from './DebugController';
@@ -69,6 +70,7 @@ export class PipelineEngine {
   private webhookNotifier: WebhookNotifier | null;
   private webhookConfigRepo: WebhookConfigRepository | null;
   private qualityGateService: QualityGateService | null;
+  private deploymentStrategyService: DeploymentStrategyService | null;
 
   // 内存存储执行中的 Pipeline
   private executions = new Map<string, PipelineExecution>();
@@ -99,7 +101,8 @@ export class PipelineEngine {
     debugController?: DebugController,
     webhookNotifier?: WebhookNotifier,
     webhookConfigRepo?: WebhookConfigRepository,
-    qualityGateService?: QualityGateService
+    qualityGateService?: QualityGateService,
+    deploymentStrategyService?: DeploymentStrategyService
   ) {
     this.pipelineService = pipelineService;
     this.runService = runService;
@@ -119,6 +122,7 @@ export class PipelineEngine {
     this.webhookNotifier = webhookNotifier || null;
     this.webhookConfigRepo = webhookConfigRepo || null;
     this.qualityGateService = qualityGateService || null;
+    this.deploymentStrategyService = deploymentStrategyService || null;
   }
 
   /**
@@ -177,7 +181,7 @@ export class PipelineEngine {
     // 5. 初始化 Tasks (use expanded stages for matrix support)
     for (const expanded of expandedStages) {
       const stage = stages.find(s => s.name === expanded.name)!;
-      const tasks = this.initializeTasks(stage.id, expanded.stage.steps);
+      const tasks = this.initializeTasks(stage.id, expanded.stage.steps, expanded.stage.runsOn);
       for (const task of tasks) {
         await this.runService.addTask(stage.id, task);
       }
@@ -314,16 +318,24 @@ export class PipelineEngine {
   /**
    * 初始化 Tasks
    */
-  private initializeTasks(stageId: string, steps: { name: string; uses: string; with?: Record<string, unknown> }[]): Task[] {
+  private initializeTasks(stageId: string, steps: { name: string; uses: string; with?: Record<string, unknown> }[], runsOn?: string): Task[] {
+    const runnerLabels = runsOn ? runsOn.split(',').map(l => l.trim()).filter(Boolean) : [];
     return steps.map((step, index) => {
       const [type] = step.uses.split('@');
+      const parameters: Record<string, unknown> = {
+        ...(step.with || {}),
+      };
+      // GAP-CN-07: Pass runner labels for remote runner selection
+      if (runnerLabels.length > 0) {
+        parameters.__runnerLabels = runnerLabels;
+      }
       return createTask({
         stageId,
         name: step.name,
         type,
         sequence: index,
         config: { uses: step.uses } as Record<string, unknown>,
-        parameters: step.with || {},
+        parameters,
         timeoutSeconds: 600,
       });
     });
@@ -489,6 +501,16 @@ export class PipelineEngine {
 
       if (isSubPipelineStage) {
         await this.executeSubPipelineStage(execution, stage, resolvedTasks);
+        return;
+      }
+
+      // GAP-CN-03: Check if this stage has a deployment strategy configured
+      const deploymentResult = await this.checkAndExecuteDeploymentStrategy(execution, stage, resolvedTasks);
+      if (deploymentResult !== null) {
+        // deployment strategy handled stage completion/failure
+        execution.runningStages.delete(stage.id);
+        execution.completedStages.add(stage.id);
+        this.checkNextStages(execution);
         return;
       }
 
@@ -1327,6 +1349,173 @@ export class PipelineEngine {
     this.variableContexts.delete(runId);
 
     return true;
+  }
+
+  // ==================== Deployment Strategy Methods (GAP-CN-03) ====================
+
+  /**
+   * Check if the stage has a deployment strategy and execute it.
+   *
+   * Returns:
+   * - 'success' if deployment strategy executed successfully
+   * - 'failed' if deployment strategy failed
+   * - null if no deployment strategy is configured (proceed with normal execution)
+   */
+  private async checkAndExecuteDeploymentStrategy(
+    execution: PipelineExecution,
+    stage: Stage,
+    tasks: Array<{ id: string; name: string; type: string; parameters: Record<string, unknown>; status?: string }>
+  ): Promise<'success' | 'failed' | null> {
+    // Check if stage has deploymentStrategy config
+    const dsConfig = (stage.result as any)?.deploymentStrategy;
+    if (!dsConfig) return null;
+
+    if (!this.deploymentStrategyService) {
+      logger.warn(
+        { runId: execution.run.id, stageName: stage.name },
+        'GAP-CN-03: Stage has deployment strategy config but DeploymentStrategyService is not available'
+      );
+      return null; // Proceed with normal task execution
+    }
+
+    const { strategyId, strategyName, healthCheckEndpoint, inline } = dsConfig;
+
+    try {
+      logger.info(
+        { runId: execution.run.id, stageName: stage.name, strategyId, strategyName },
+        'GAP-CN-03: Executing deployment strategy'
+      );
+
+      if (inline) {
+        // Use inline strategy config
+        return await this.executeInlineStrategy(execution, stage, inline, healthCheckEndpoint);
+      }
+
+      // Use referenced strategy
+      const strategy = await this.deploymentStrategyService.getStrategy(strategyId || '');
+      if (!strategy) {
+        throw new Error(`Deployment strategy not found: ${strategyId || strategyName}`);
+      }
+
+      return await this.executeReferencedStrategy(execution, stage, strategy, healthCheckEndpoint);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      logger.error(
+        { runId: execution.run.id, stageName: stage.name, error: errorMessage },
+        'GAP-CN-03: Deployment strategy execution failed'
+      );
+
+      // Mark stage as failed
+      const failedStage = {
+        ...execution.stages.get(stage.id)!,
+        status: StageStatus.FAILED,
+        completedAt: new Date(),
+        durationMs: Date.now() - execution.stages.get(stage.id)!.startedAt!.getTime(),
+        error: `Deployment strategy failed: ${errorMessage}`,
+      };
+      execution.stages.set(stage.id, failedStage);
+      await this.runService.updateStage(failedStage);
+      await this.eventPublisher.publishStageFailed(execution.run.id, failedStage, failedStage.error);
+      await this.saveCheckpoint(execution, stage.name);
+
+      return 'failed';
+    }
+  }
+
+  /**
+   * Execute an inline deployment strategy (config embedded in stage YAML)
+   */
+  private async executeInlineStrategy(
+    execution: PipelineExecution,
+    stage: Stage,
+    inline: { type: string; config: Record<string, unknown> },
+    healthCheckEndpoint?: string
+  ): Promise<'success' | 'failed'> {
+    if (!this.deploymentStrategyService) return 'failed';
+
+    switch (inline.type) {
+      case 'canary': {
+        const canaryConfig = inline.config as unknown as CanaryConfig;
+        const status = await this.deploymentStrategyService.executeCanary({
+          runId: execution.run.id,
+          strategyId: 'inline',
+          config: canaryConfig,
+          healthCheckEndpoint,
+        });
+        return status.status === 'completed' || status.status === 'rolledback' ? 'success' : 'failed';
+      }
+      case 'bluegreen': {
+        const bgConfig = inline.config as unknown as BlueGreenConfig;
+        const status = await this.deploymentStrategyService.executeBlueGreen({
+          runId: execution.run.id,
+          strategyId: 'inline',
+          config: bgConfig,
+          healthCheckEndpoint,
+        });
+        return status.status === 'completed' ? 'success' : 'failed';
+      }
+      case 'rolling': {
+        const rollingConfig = inline.config as unknown as RollingConfig;
+        // Default to 6 instances if not specified
+        const totalInstances = (inline.config as any).totalInstances || 6;
+        const status = await this.deploymentStrategyService.executeRolling({
+          runId: execution.run.id,
+          strategyId: 'inline',
+          config: rollingConfig,
+          totalInstances,
+          healthCheckEndpoint,
+        });
+        return status.status === 'completed' ? 'success' : 'failed';
+      }
+      default:
+        throw new Error(`Unknown deployment strategy type: ${inline.type}`);
+    }
+  }
+
+  /**
+   * Execute a referenced deployment strategy (from DeploymentStrategyRepository)
+   */
+  private async executeReferencedStrategy(
+    execution: PipelineExecution,
+    stage: Stage,
+    strategy: any,
+    healthCheckEndpoint?: string
+  ): Promise<'success' | 'failed'> {
+    if (!this.deploymentStrategyService) return 'failed';
+
+    switch (strategy.type) {
+      case 'canary': {
+        const status = await this.deploymentStrategyService.executeCanary({
+          runId: execution.run.id,
+          strategyId: strategy.id,
+          config: strategy.config as unknown as CanaryConfig,
+          healthCheckEndpoint,
+        });
+        return status.status === 'completed' ? 'success' : 'failed';
+      }
+      case 'bluegreen': {
+        const status = await this.deploymentStrategyService.executeBlueGreen({
+          runId: execution.run.id,
+          strategyId: strategy.id,
+          config: strategy.config as unknown as BlueGreenConfig,
+          healthCheckEndpoint,
+        });
+        return status.status === 'completed' ? 'success' : 'failed';
+      }
+      case 'rolling': {
+        const totalInstances = (stage.result as any)?.totalInstances || 6;
+        const status = await this.deploymentStrategyService.executeRolling({
+          runId: execution.run.id,
+          strategyId: strategy.id,
+          config: strategy.config as unknown as RollingConfig,
+          totalInstances,
+          healthCheckEndpoint,
+        });
+        return status.status === 'completed' ? 'success' : 'failed';
+      }
+      default:
+        throw new Error(`Unknown deployment strategy type: ${strategy.type}`);
+    }
   }
 
   // ==================== Quality Gate Methods (GAP-CN-04) ====================

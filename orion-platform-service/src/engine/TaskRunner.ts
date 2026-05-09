@@ -14,6 +14,7 @@ import { PluginExecutorService, TaskExecutionRequest, TaskStatus as PluginTaskSt
 import { InlineScriptService, InlineScriptExecutionRequest } from '../services/inline-script/InlineScriptService';
 import { WorkspaceIsolator, getDefaultWorkspaceIsolator } from './WorkspaceIsolator';
 import { SecretsService, StreamSecretSanitizer } from '../services/pipeline/SecretsService';
+import { RunnerPoolService, RunnerExecutionResult } from '../services/pipeline/RunnerPoolService';
 import pino from 'pino';
 
 const logger = pino({ name: 'task-runner' });
@@ -241,17 +242,20 @@ export class TaskRunner {
   private inlineScriptService?: InlineScriptService;
   private workspaceIsolator: WorkspaceIsolator;
   private secretsService?: SecretsService;
+  private runnerPoolService?: RunnerPoolService;
 
   constructor(options?: {
     pluginExecutor?: PluginExecutorService;
     inlineScriptService?: InlineScriptService;
     workspaceIsolator?: WorkspaceIsolator;
     secretsService?: SecretsService;
+    runnerPoolService?: RunnerPoolService;
   }) {
     this.pluginExecutor = options?.pluginExecutor;
     this.inlineScriptService = options?.inlineScriptService;
     this.workspaceIsolator = options?.workspaceIsolator || getDefaultWorkspaceIsolator();
     this.secretsService = options?.secretsService;
+    this.runnerPoolService = options?.runnerPoolService;
   }
 
   /**
@@ -273,6 +277,9 @@ export class TaskRunner {
 
   /**
    * 执行 Task
+   *
+   * GAP-CN-07: If task has __runnerLabels, try to dispatch to a remote runner.
+   * Falls back to local execution if no matching runner is available.
    */
   async run(task: Task, signal?: AbortSignal): Promise<Task> {
     let updatedTask = { ...task };
@@ -301,6 +308,59 @@ export class TaskRunner {
         } catch (error) {
           logger.warn({ error }, 'Failed to resolve task secrets, continuing without secret injection');
         }
+      }
+    }
+
+    // GAP-CN-07: Check if this task should run on a remote runner
+    const runnerLabels = task.parameters.__runnerLabels as string[] | undefined;
+    const tenantId = (task.parameters.tenantId as string) || '';
+
+    if (runnerLabels && runnerLabels.length > 0 && this.runnerPoolService && tenantId) {
+      try {
+        const runner = await this.runnerPoolService.selectRunner(runnerLabels, tenantId);
+
+        if (runner && runner.endpoint) {
+          updatedTask = appendTaskLog(updatedTask, `[RUNNER] Dispatching to remote runner: ${runner.name} (${runner.id})`);
+
+          // Build task payload for remote dispatch
+          const payload = {
+            id: task.id,
+            name: task.name,
+            type: task.type,
+            parameters: this.stripInternalParams(task.parameters),
+            stageId: task.stageId,
+            runId: (task.parameters.pipelineRunId as string),
+            tenantId,
+          };
+
+          const result = await this.runnerPoolService.executeOnRunner(
+            runner.id,
+            payload,
+            runner.endpoint
+          );
+
+          updatedTask = appendTaskLog(updatedTask, `[RUNNER] Task dispatched successfully, jobId: ${result.jobId}`);
+
+          return {
+            ...updatedTask,
+            status: TaskStatus.SUCCESS,
+            result: {
+              runnerId: runner.id,
+              runnerName: runner.name,
+              jobId: result.jobId,
+              remote: true,
+              ...(result.result || {}),
+            },
+          };
+        } else if (runner) {
+          updatedTask = appendTaskLog(updatedTask, `[RUNNER] Runner found but no endpoint configured, falling back to local`);
+        } else {
+          updatedTask = appendTaskLog(updatedTask, `[RUNNER] No matching runner available, falling back to local`);
+        }
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+        updatedTask = appendTaskLog(updatedTask, `[RUNNER] Remote dispatch failed (${errorMsg}), falling back to local`);
+        // Fall through to local execution
       }
     }
 
@@ -338,6 +398,19 @@ export class TaskRunner {
         error: errorMessage,
       };
     }
+  }
+
+  /**
+   * Remove internal parameters (prefixed with __) before sending to remote runner.
+   */
+  private stripInternalParams(params: Record<string, unknown>): Record<string, unknown> {
+    const cleaned: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(params)) {
+      if (!key.startsWith('__')) {
+        cleaned[key] = value;
+      }
+    }
+    return cleaned;
   }
 
   /**
