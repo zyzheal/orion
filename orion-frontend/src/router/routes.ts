@@ -877,6 +877,13 @@ export const routes: AppRoute[] = [
     protected: true,
     requiredRole: ['admin', 'platform_admin'],
   },
+  // Notification Rules (Webhooks + IM Notifications)
+  {
+    path: '/console/notification-rules',
+    element: React.lazy(() => import('@/pages/NotificationRules')),
+    protected: true,
+    requiredRole: ['admin', 'platform_admin'],
+  },
   // API Key Management
   {
     path: '/console/api-keys',
