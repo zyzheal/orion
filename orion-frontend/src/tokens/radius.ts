@@ -64,3 +64,11 @@ export const componentRadius = {
 } as const;
 
 export default radius;
+
+/**
+ * CSS Variables 映射
+ */
+export const radiusCSSVariables: Record<string, string> = {};
+for (const [key, value] of Object.entries(radius)) {
+  radiusCSSVariables[`--radius-${key}`] = `${value}px`;
+}

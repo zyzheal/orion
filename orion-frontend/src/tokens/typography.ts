@@ -168,3 +168,22 @@ export const textStyles = {
 } as const;
 
 export default typography;
+
+/**
+ * CSS Variables 映射
+ */
+export const typographyCSSVariables: Record<string, string> = {};
+for (const [key, value] of Object.entries(typography.fontFamily)) {
+  typographyCSSVariables[`--font-family-${key}`] = value;
+}
+for (const [key, value] of Object.entries(typography.fontSize)) {
+  if (typeof value === 'number') {
+    typographyCSSVariables[`--font-size-${key}`] = `${value}px`;
+  }
+}
+for (const [key, value] of Object.entries(typography.fontWeight)) {
+  typographyCSSVariables[`--font-weight-${key}`] = String(value);
+}
+for (const [key, value] of Object.entries(typography.letterSpacing)) {
+  typographyCSSVariables[`--letter-spacing-${key}`] = value;
+}

@@ -102,3 +102,16 @@ export const componentSpacing = {
 } as const;
 
 export default spacing;
+
+/**
+ * CSS Variables 映射
+ */
+export const spacingCSSVariables: Record<string, string> = {};
+for (const [key, value] of Object.entries(spacing)) {
+  if (typeof value === 'number') {
+    spacingCSSVariables[`--spacing-${key}`] = `${value}px`;
+  }
+}
+for (const [key, value] of Object.entries(spacingRem)) {
+  spacingCSSVariables[`--spacing-${key}`] = value;
+}

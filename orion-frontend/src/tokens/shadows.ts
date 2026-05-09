@@ -51,3 +51,13 @@ export const shadowOpacity = {
 } as const;
 
 export default shadows;
+
+/**
+ * CSS Variables 映射
+ */
+export const shadowsCSSVariables: Record<string, string> = {};
+for (const [key, value] of Object.entries(shadows)) {
+  if (typeof value === 'string') {
+    shadowsCSSVariables[`--shadow-${key}`] = value;
+  }
+}
