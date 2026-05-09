@@ -114,6 +114,10 @@ export class DebugController {
 
   /**
    * Execute exactly one task then pause again.
+   * If the run is currently paused (and blocked in waitForSignal), this
+   * unblocks the executor so it can proceed to the next task. The executor
+   * will then see the 'stepping' status, pass through waitForSignal, and
+   * the status will be reset to 'paused' after that one task completes.
    */
   async step(runId: string): Promise<DebugState> {
     const state = this.debugStates.get(runId);
@@ -123,6 +127,13 @@ export class DebugController {
 
     if (state.status !== 'paused') {
       throw new Error(`Pipeline run ${runId} is not paused (status: ${state.status})`);
+    }
+
+    // Unblock any executor waiting in waitForSignal
+    const resumeResolver = this.resumeResolvers.get(runId);
+    if (resumeResolver) {
+      resumeResolver();
+      this.resumeResolvers.delete(runId);
     }
 
     // Set to stepping mode - allows exactly one task to execute

@@ -14,12 +14,14 @@ import { TaskRunner } from './TaskRunner';
 import { PipelineEventPublisher } from '../events/PipelineEventPublisher';
 import { ArtifactService } from '../services/pipeline/ArtifactService';
 import { VariableContext } from './VariableContext';
+import { DebugController } from './DebugController';
 
 export class StageExecutor {
   private taskRunner: TaskRunner;
   private eventPublisher: PipelineEventPublisher;
   private artifactService: ArtifactService | null;
   private variableContext: VariableContext | null;
+  private debugController: DebugController | null;
 
   // Track active abort controllers for cancellation
   private activeControllers = new Map<string, AbortController>();
@@ -28,12 +30,14 @@ export class StageExecutor {
     taskRunner: TaskRunner,
     eventPublisher: PipelineEventPublisher,
     artifactService?: ArtifactService,
-    variableContext?: VariableContext
+    variableContext?: VariableContext,
+    debugController?: DebugController
   ) {
     this.taskRunner = taskRunner;
     this.eventPublisher = eventPublisher;
     this.artifactService = artifactService || null;
     this.variableContext = variableContext || null;
+    this.debugController = debugController || null;
   }
 
   /**
@@ -59,7 +63,20 @@ export class StageExecutor {
         continue;
       }
 
+      // Debug integration: check if we should pause before this task
+      if (this.debugController && this.debugController.shouldPause(runId)) {
+        // Block until resume signal (or step mode allows one task)
+        await this.debugController.waitForSignal(runId);
+        // After stepping, status is reset to paused — record this task completion
+        // The next iteration will hit the pause check again
+      }
+
       const result = await this.executeTask(runId, stage, task);
+
+      // Debug integration: after task completes in step mode, re-pause
+      if (this.debugController) {
+        this.debugController.completeStep(runId, { taskId: task.id, status: result.status });
+      }
 
       if (result.status === TaskStatus.FAILED) {
         return {

@@ -477,6 +477,12 @@ export class PipelineEngine {
       for (const task of resolvedTasks) {
         if (task.status !== 'pending') continue;
 
+        // Debug integration: check if we should pause before this task
+        if (this.debugController && this.debugController.shouldPause(execution.run.id)) {
+          // Block until resume signal (or step mode allows one task)
+          await this.debugController.waitForSignal(execution.run.id);
+        }
+
         const result = await this.stageExecutor.executeTask(
           execution.run.id,
           stage,
@@ -484,6 +490,11 @@ export class PipelineEngine {
           { stageName: stage.name, taskName: task.name }
         );
         await this.runService.updateTask(result);
+
+        // Debug integration: after task completes in step mode, re-pause
+        if (this.debugController) {
+          this.debugController.completeStep(execution.run.id, { taskId: task.id, status: result.status });
+        }
 
         // Checkpoint: task completed
         await this.saveCheckpoint(execution, stage.name, task.name);
