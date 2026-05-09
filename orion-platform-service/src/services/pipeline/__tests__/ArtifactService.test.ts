@@ -15,7 +15,7 @@ describe('ArtifactService', () => {
     if (fs.existsSync(testBaseDir)) {
       fs.rmSync(testBaseDir, { recursive: true, force: true });
     }
-    service = new ArtifactService(testBaseDir);
+    service = new ArtifactService({ baseDir: testBaseDir });
   });
 
   afterEach(() => {

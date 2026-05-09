@@ -13,6 +13,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import pino from 'pino';
+import { ArtifactVersionRepository } from '../../repositories/ArtifactVersionRepository';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -39,6 +40,20 @@ export interface UploadInput {
   mimeType?: string;
   uploadedBy?: string;
   description?: string;
+  // Version tracking fields (GAP-CN-06)
+  pipelineId?: string;
+  version?: string;
+  commitSha?: string;
+  branch?: string;
+}
+
+/**
+ * ArtifactService 构造函数选项
+ */
+export interface ArtifactServiceOptions {
+  baseDir?: string;
+  maxAgeHours?: number;
+  versionRepository?: ArtifactVersionRepository;
 }
 
 export class ArtifactService {
@@ -47,16 +62,22 @@ export class ArtifactService {
   private index = new Map<string, Map<string, Map<string, ArtifactRecord>>>();
   private cleanupInterval?: NodeJS.Timeout;
   private maxAgeMs: number;
+  // 可选的版本追踪仓库（GAP-CN-06）
+  private versionRepository?: ArtifactVersionRepository;
 
-  constructor(options?: { baseDir?: string; maxAgeHours?: number }) {
+  constructor(options?: ArtifactServiceOptions) {
     this.baseDir = options?.baseDir || process.env.ARTIFACT_BASE_DIR || '/tmp/orion-artifacts';
     this.maxAgeMs = (options?.maxAgeHours ?? 72) * 60 * 60 * 1000; // Default: 72 hours
+    this.versionRepository = options?.versionRepository;
     this.ensureBaseDir();
     this.startCleanupInterval();
   }
 
   /**
    * 上传 artifact
+   *
+   * 如果配置了 versionRepository 且上传输入中包含 pipelineId/version 信息，
+   * 则自动记录制品版本追踪信息（GAP-CN-06）。
    */
   async upload(input: UploadInput): Promise<ArtifactRecord> {
     const stageDir = this.getStageDir(input.runId, input.stageId);
@@ -81,6 +102,37 @@ export class ArtifactService {
 
     // 更新索引
     this.addToIndex(record);
+
+    // GAP-CN-06: 如果配置了版本追踪仓库，记录版本信息
+    if (this.versionRepository && input.pipelineId && input.version) {
+      try {
+        await this.versionRepository.createVersion({
+          tenantId: 'system', // TODO: 从上下文中获取真实 tenantId
+          pipelineId: input.pipelineId,
+          runId: input.runId,
+          stageName: input.stageId,
+          artifactName: input.name,
+          version: input.version,
+          commitSha: input.commitSha,
+          branch: input.branch,
+          metadata: {
+            size: String(data.length),
+            ...(input.mimeType ? { mimeType: input.mimeType } : {}),
+          },
+          storagePath: filePath,
+        });
+        logger.info(
+          { runId: input.runId, pipelineId: input.pipelineId, version: input.version },
+          'Artifact version tracked'
+        );
+      } catch (err) {
+        // 版本记录失败不影响主流程（优雅降级）
+        logger.warn(
+          { err, runId: input.runId, pipelineId: input.pipelineId },
+          'Failed to record artifact version (non-fatal)'
+        );
+      }
+    }
 
     logger.info(
       { runId: input.runId, stageId: input.stageId, name: input.name, size: data.length },
