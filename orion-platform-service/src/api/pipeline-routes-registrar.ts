@@ -13,6 +13,8 @@ import { StageController } from './controllers/StageController';
 import { TaskController } from './controllers/TaskController';
 import { ApprovalController } from './controllers/ApprovalController';
 import { SCMWebhookService } from '../services/pipeline/SCMWebhookService';
+import { PipelineService } from '../services/pipeline/PipelineService';
+import { registerPipelineGraphRoutes } from './pipeline-graph-routes';
 
 export interface PipelineRouteDeps {
   pipelineController: PipelineController;
@@ -21,6 +23,7 @@ export interface PipelineRouteDeps {
   taskController: TaskController;
   approvalController?: ApprovalController;
   scmWebhookService?: SCMWebhookService;
+  pipelineService?: PipelineService;
 }
 
 /**
@@ -263,5 +266,11 @@ export async function registerPipelineRoutes(
         }
       );
     });
+  }
+
+  // ==================== Pipeline Graph / YAML Conversion 路由 ====================
+  // GAP-CN-01: Visual DAG editor backend APIs
+  if (deps.pipelineService) {
+    await registerPipelineGraphRoutes(app, { pipelineService: deps.pipelineService });
   }
 }

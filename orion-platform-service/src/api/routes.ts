@@ -364,6 +364,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
     pipelineRunController,
     stageController,
     taskController,
+    pipelineService,
   });
 
   // ==================== Pipeline SSE 实时日志路由 ====================
