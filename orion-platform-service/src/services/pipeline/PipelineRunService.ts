@@ -26,15 +26,18 @@ import {
   TaskExecutionRecord,
   CreateRunInput,
 } from './PipelineRunRepository';
+import { EnvironmentService, ResolvedVariables } from './EnvironmentService';
 import { v4 as uuidv4 } from 'uuid';
 
 export class PipelineRunService {
   private eventPublisher: PipelineEventPublisher;
   private repository: PipelineRunRepository | null = null;
+  private environmentService: EnvironmentService | null = null;
 
-  constructor(eventPublisher?: PipelineEventPublisher, repository?: PipelineRunRepository) {
+  constructor(eventPublisher?: PipelineEventPublisher, repository?: PipelineRunRepository, environmentService?: EnvironmentService) {
     this.eventPublisher = eventPublisher || new PipelineEventPublisher();
     this.repository = repository || null;
+    this.environmentService = environmentService || null;
   }
 
   /**
@@ -56,6 +59,7 @@ export class PipelineRunService {
       pipelineVersion: (record.config_snapshot as any)?.version || '1',
       triggerType: record.trigger_type as TriggerType,
       triggerBy: record.trigger_by || undefined,
+      environment: record.environment_name || undefined,
       status: record.status as PipelineRunStatus,
       startedAt: record.started_at || undefined,
       completedAt: record.completed_at || undefined,
@@ -77,6 +81,7 @@ export class PipelineRunService {
       pipeline_id: input.pipelineId,
       trigger_type: input.triggerType,
       trigger_by: input.triggerBy,
+      environment_name: input.environment || null,
       config_snapshot: { version: input.pipelineVersion, ...(input.context || {}) },
     };
   }
@@ -435,5 +440,78 @@ export class PipelineRunService {
       isComplete: allComplete,
       allSuccess: !hasFailed,
     };
+  }
+
+  // ==================== Environment Variable Resolution ====================
+
+  /**
+   * Resolve environment variables for a pipeline run.
+   * If the run has an environment specified and EnvironmentService is available,
+   * merges pipeline-level variables with environment-level variables.
+   * Environment variables take precedence over pipeline-level variables.
+   *
+   * @param tenantId - The tenant ID for environment lookup
+   * @param runId - The pipeline run ID (must have environment field set)
+   * @param pipelineVariables - Pipeline-level variables (lower priority)
+   * @returns Resolved variables, or pipelineVariables if environment not available
+   */
+  async resolveEnvironmentVariables(
+    tenantId: string,
+    runId: string,
+    pipelineVariables: Record<string, string> = {},
+  ): Promise<ResolvedVariables> {
+    if (!this.environmentService) {
+      // EnvironmentService not available, return pipeline variables as-is
+      return {
+        variables: pipelineVariables,
+        environment: {
+          name: '',
+          approvalRequired: false,
+          approvalCount: 1,
+        },
+      };
+    }
+
+    const run = await this.repository?.findById(runId);
+    if (!run || !run.environment_name) {
+      // No environment set on run, return pipeline variables as-is
+      return {
+        variables: pipelineVariables,
+        environment: {
+          name: '',
+          approvalRequired: false,
+          approvalCount: 1,
+        },
+      };
+    }
+
+    return this.environmentService.resolveVariables(
+      tenantId,
+      run.environment_name,
+      pipelineVariables,
+    );
+  }
+
+  /**
+   * Check if approval is required for a pipeline run's target environment.
+   *
+   * @param tenantId - The tenant ID
+   * @param runId - The pipeline run ID
+   * @returns Approval requirement info
+   */
+  async checkRunApprovalRequired(
+    tenantId: string,
+    runId: string,
+  ): Promise<{ required: boolean; approvalCount: number; environmentFound: boolean }> {
+    if (!this.environmentService) {
+      return { required: false, approvalCount: 0, environmentFound: false };
+    }
+
+    const run = await this.repository?.findById(runId);
+    if (!run || !run.environment_name) {
+      return { required: false, approvalCount: 0, environmentFound: false };
+    }
+
+    return this.environmentService.checkApprovalRequired(tenantId, run.environment_name);
   }
 }

@@ -15,6 +15,8 @@ export interface PipelineRunRecord {
   trigger_by: string | null;
   status: string;
   config_snapshot: Record<string, any>;
+  /** Target deployment environment name (e.g., 'development', 'staging', 'production') */
+  environment_name: string | null;
   started_at: Date | null;
   completed_at: Date | null;
   duration_ms: number | null;
@@ -57,6 +59,8 @@ export interface CreateRunInput {
   pipeline_id: string;
   trigger_type?: string;
   trigger_by?: string;
+  /** Target deployment environment name */
+  environment_name?: string | null;
   config_snapshot?: Record<string, any>;
 }
 
@@ -177,13 +181,13 @@ export class PipelineRunRepository {
    * Create a new pipeline run
    */
   async create(input: CreateRunInput): Promise<PipelineRunRecord> {
-    const { tenant_id, pipeline_id, trigger_type, trigger_by, config_snapshot } = input;
+    const { tenant_id, pipeline_id, trigger_type, trigger_by, environment_name, config_snapshot } = input;
 
     const result = await this.pool.query(
-      `INSERT INTO pipeline_runs (tenant_id, pipeline_id, trigger_type, trigger_by, status, config_snapshot)
-       VALUES ($1, $2, $3, $4, 'pending', $5)
+      `INSERT INTO pipeline_runs (tenant_id, pipeline_id, trigger_type, trigger_by, environment_name, status, config_snapshot)
+       VALUES ($1, $2, $3, $4, $5, 'pending', $6)
        RETURNING *`,
-      [tenant_id, pipeline_id, trigger_type || 'manual', trigger_by || null, config_snapshot || {}]
+      [tenant_id, pipeline_id, trigger_type || 'manual', trigger_by || null, environment_name || null, config_snapshot || {}]
     );
 
     return result.rows[0];

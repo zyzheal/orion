@@ -39,6 +39,8 @@ export interface PipelineRun {
   triggerType: TriggerType;
   triggerBy?: string;
   status: PipelineRunStatus;
+  /** Target deployment environment name (e.g., 'development', 'staging', 'production') */
+  environment?: string;
   startedAt?: Date;
   completedAt?: Date;
   durationMs?: number;
@@ -52,6 +54,8 @@ export interface PipelineRunCreateInput {
   pipelineVersion: string;
   triggerType: TriggerType;
   triggerBy?: string;
+  /** Target deployment environment name */
+  environment?: string;
   context?: PipelineRunContext;
 }
 
@@ -71,6 +75,7 @@ export function createPipelineRun(input: PipelineRunCreateInput): PipelineRun {
     pipelineVersion: input.pipelineVersion,
     triggerType: input.triggerType,
     triggerBy: input.triggerBy,
+    environment: input.environment,
     status: PipelineRunStatus.PENDING,
     context: input.context || {},
     createdAt: now,
