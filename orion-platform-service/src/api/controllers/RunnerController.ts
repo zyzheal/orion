@@ -6,9 +6,7 @@
 
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { RunnerPoolService } from '../../services/pipeline/RunnerPoolService';
-import { createRunner, RunnerCreateInput } from '../../models/Runner';
-import { PostgresRunnerRepository } from '../../repositories/RunnerRepository';
-import { PostgresRunnerJobRepository } from '../../repositories/RunnerJobRepository';
+import { RunnerCreateInput } from '../../models/Runner';
 
 export class RunnerController {
   private poolService: RunnerPoolService;
@@ -31,22 +29,7 @@ export class RunnerController {
     }
 
     try {
-      const runner = createRunner(input);
-
-      // Persist to database
-      const db = (this.poolService as any).runnerRepo?.db;
-      if (db) {
-        const repo = new PostgresRunnerRepository(db);
-        await repo.create({
-          tenantId: runner.tenantId,
-          name: runner.name,
-          labels: runner.labels,
-          maxConcurrent: runner.maxConcurrent,
-          endpoint: input.endpoint,
-          metadata: input.metadata || {},
-        });
-      }
-
+      const runner = await this.poolService.registerRunner(input);
       reply.code(201).send(runner);
     } catch (error) {
       reply.code(500).send({

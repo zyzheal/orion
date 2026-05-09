@@ -18,10 +18,15 @@
  */
 
 export class PathFilter {
+  private regexCache = new Map<string, RegExp>();
+
   /**
    * Convert a glob pattern to a regular expression.
    */
   private globToRegex(pattern: string): RegExp {
+    const cached = this.regexCache.get(pattern);
+    if (cached) return cached;
+
     let regex = '';
     let i = 0;
 
@@ -35,10 +40,10 @@ export class PathFilter {
             // `**` — match any path segments
             // `**/` at start or middle matches zero or more directories
             if (i + 2 < pattern.length && pattern[i + 2] === '/') {
-              regex += '(?:.+/)?';
+              regex += '(?:.*/)?';
               i += 3; // skip **/
             } else if (i === 0 || (i > 0 && pattern[i - 1] === '/')) {
-              regex += '(?:.+/)?';
+              regex += '(?:.*/)?';
               i += 2; // skip **
             } else {
               regex += '.*';
@@ -117,7 +122,9 @@ export class PathFilter {
       }
     }
 
-    return new RegExp('^' + regex + '$');
+    const result = new RegExp('^' + regex + '$');
+    this.regexCache.set(pattern, result);
+    return result;
   }
 
   /**

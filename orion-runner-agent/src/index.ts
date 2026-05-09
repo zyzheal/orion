@@ -16,7 +16,6 @@
  */
 
 import Fastify from 'fastify';
-import { v4 as uuidv4 } from 'uuid';
 import { TaskExecutor, TaskParameters, TaskResult } from './TaskExecutor';
 import { readFileSync } from 'fs';
 import { hostname } from 'os';
@@ -39,7 +38,17 @@ function loadConfig(): RunnerConfig {
   try {
     const raw = readFileSync('./config/runner.json', 'utf-8');
     const file = JSON.parse(raw);
-    return { ...defaultConfig(), ...file };
+    return {
+      platformUrl: process.env.PLATFORM_URL || 'http://localhost:3001',
+      runnerName: process.env.RUNNER_NAME || `${hostname()}-runner`,
+      labels: parseLabels(process.env.RUNNER_LABELS),
+      maxConcurrent: parseInt(process.env.RUNNER_MAX_CONCURRENT || '5', 10),
+      port: parseInt(process.env.RUNNER_PORT || '8080', 10),
+      heartbeatInterval: parseInt(process.env.HEARTBEAT_INTERVAL || '30000', 10),
+      tenantId: process.env.TENANT_ID || 'default',
+      apiToken: process.env.RUNNER_API_TOKEN,
+      ...file,
+    };
   } catch {
     // 从环境变量读取
   }
@@ -56,10 +65,6 @@ function loadConfig(): RunnerConfig {
   };
 }
 
-function defaultConfig(): RunnerConfig {
-  return loadConfig();
-}
-
 function parseLabels(raw?: string): string[] {
   if (!raw) return ['linux', 'nodejs'];
   return raw.split(',').map((l) => l.trim()).filter(Boolean);
@@ -73,6 +78,8 @@ class RunnerAgent {
   private heartbeatTimer: NodeJS.Timeout | null = null;
   private executor = new TaskExecutor();
   private activeJobs = 0;
+  private registerAttempts = 0;
+  private readonly MAX_REGISTER_ATTEMPTS = 10;
 
   constructor(config: RunnerConfig) {
     this.config = config;
@@ -152,8 +159,17 @@ class RunnerAgent {
       console.log(`[runner] Registered with Platform, runnerId=${this.runnerId}`);
     } catch (error) {
       console.error(`[runner] Failed to register:`, error);
-      // 不退出，持续重试
-      setTimeout(() => this.register(), 5000);
+      this.registerAttempts++;
+
+      if (this.registerAttempts >= this.MAX_REGISTER_ATTEMPTS) {
+        console.error(`[runner] Max registration attempts reached (${this.MAX_REGISTER_ATTEMPTS}), giving up`);
+        process.exit(1);
+      }
+
+      // Exponential backoff: 5s, 10s, 20s, 40s, max 60s
+      const delay = Math.min(5000 * Math.pow(2, this.registerAttempts - 1), 60000);
+      console.log(`[runner] Retrying registration in ${delay}ms (attempt ${this.registerAttempts}/${this.MAX_REGISTER_ATTEMPTS})`);
+      setTimeout(() => this.register(), delay);
     }
   }
 

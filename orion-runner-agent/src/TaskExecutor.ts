@@ -11,7 +11,7 @@
  * - notify — 发送通知
  */
 
-import { exec, spawn } from 'child_process';
+import { exec } from 'child_process';
 import { promisify } from 'util';
 import { v4 as uuidv4 } from 'uuid';
 import { readFileSync, writeFileSync, mkdtempSync, rmSync } from 'fs';
@@ -19,6 +19,17 @@ import { tmpdir } from 'os';
 import { join } from 'path';
 
 const execAsync = promisify(exec);
+
+/**
+ * 安全校验：允许的字符范围（字母、数字、连字符、下划线、点、斜杠）
+ * 防止命令注入和路径穿越
+ */
+function safeString(value: string, label: string): string {
+  if (!/^[a-zA-Z0-9._\/:-]+$/.test(value)) {
+    throw new Error(`Invalid ${label}: "${value}" contains unsafe characters`);
+  }
+  return value;
+}
 
 export interface TaskParameters {
   command?: string;
@@ -176,9 +187,9 @@ export class TaskExecutor {
    * Docker 构建
    */
   private async executeDockerBuild(params: TaskParameters, startTime: number): Promise<TaskResult> {
-    const dockerfile = params.dockerfile || 'Dockerfile';
-    const context = params.context || '.';
-    const tag = params.tag || `orion-build-${uuidv4().slice(0, 8)}`;
+    const dockerfile = safeString(params.dockerfile || 'Dockerfile', 'dockerfile');
+    const context = safeString(params.context || '.', 'context');
+    const tag = safeString(params.tag || `orion-build-${uuidv4().slice(0, 8)}`, 'tag');
     const timeout = params.timeout || 600000; // 10 分钟
 
     const command = `docker build -f ${dockerfile} -t ${tag} ${context}`;
