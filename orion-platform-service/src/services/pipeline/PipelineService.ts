@@ -477,9 +477,20 @@ export class PipelineService {
   }
 
   /**
-   * Retry a failed pipeline run
+   * Retry a failed/cancelled pipeline run with optional fromStage and onlyFailed options.
+   *
+   * @param originalRunId - The ID of the original run to retry
+   * @param options - Optional retry configuration
+   *   - fromStage: Start re-running from this stage name (skips all prior stages)
+   *   - onlyFailed: Only re-run stages that FAILED in the original run
+   * @returns The ID of the newly created run
+   *
+   * GAP-06: Re-run from specific stage support
    */
-  async retryRun(originalRunId: string): Promise<PipelineRun> {
+  async retryRun(
+    originalRunId: string,
+    options?: { fromStage?: string; onlyFailed?: boolean }
+  ): Promise<string> {
     if (!this.repository) {
       throw new PipelineServiceError('Database not available', 'SERVICE_UNAVAILABLE');
     }
@@ -493,11 +504,82 @@ export class PipelineService {
       throw new PipelineServiceError('Can only retry failed or cancelled runs', 'INVALID_STATE');
     }
 
-    // Trigger a new run with same config
-    return this.triggerRun(originalRun.pipeline_id, {
+    // Fetch stage executions from the original run to determine skip/re-run strategy
+    const stageExecutions = await this.repository.findStageExecutions(originalRunId);
+
+    // Calculate which stages should be skipped and which should be re-run
+    let skippedStages: string[] = [];
+    let failedStages: string[] | undefined;
+
+    if (options?.fromStage) {
+      // Find the index of the fromStage in stage executions
+      const fromStageIndex = stageExecutions.findIndex(
+        (se) => se.stage_name === options.fromStage
+      );
+      if (fromStageIndex === -1) {
+        throw new PipelineServiceError(
+          `Stage "${options.fromStage}" not found in original run`,
+          'STAGE_NOT_FOUND'
+        );
+      }
+      // All stages before fromStage are skipped
+      skippedStages = stageExecutions
+        .slice(0, fromStageIndex)
+        .map((se) => se.stage_name);
+
+      if (options.onlyFailed) {
+        // From fromStage onwards, only include failed stages
+        const fromStageOnwards = stageExecutions.slice(fromStageIndex);
+        failedStages = fromStageOnwards
+          .filter((se) => se.status === 'failed')
+          .map((se) => se.stage_name);
+
+        if (failedStages.length === 0) {
+          throw new PipelineServiceError(
+            'No failed stages found in the original run from the specified stage',
+            'NO_FAILED_STAGES'
+          );
+        }
+      }
+    } else if (options?.onlyFailed) {
+      // No fromStage specified, but only re-run failed stages
+      failedStages = stageExecutions
+        .filter((se) => se.status === 'failed')
+        .map((se) => se.stage_name);
+
+      if (failedStages.length === 0) {
+        throw new PipelineServiceError(
+          'No failed stages found in the original run',
+          'NO_FAILED_STAGES'
+        );
+      }
+      // All successful stages are skipped
+      skippedStages = stageExecutions
+        .filter((se) => se.status === 'success')
+        .map((se) => se.stage_name);
+    }
+
+    // Build the config_snapshot with retry metadata for PipelineEngine to consume
+    const configSnapshot: Record<string, any> = {
+      ...(originalRun.config_snapshot || {}),
+      // GAP-06: retry metadata
+      originalRunId,
+      fromStage: options?.fromStage,
+      onlyFailed: options?.onlyFailed || false,
+      skippedStages,
+      ...(failedStages ? { failedStages } : {}),
+    };
+
+    // Create a new run with the retry config
+    const newRun = await this.repository.createRun({
+      tenant_id: originalRun.tenant_id,
+      pipeline_id: originalRun.pipeline_id,
       trigger_type: 'retry',
       trigger_by: originalRun.trigger_by || undefined,
+      config_snapshot: configSnapshot,
     });
+
+    return newRun.id;
   }
 
   // ==================== YAML Validation ====================

@@ -520,4 +520,129 @@ export class PipelineRunController {
       });
     }
   }
+
+  /**
+   * Retry a failed/cancelled pipeline run
+   * POST /api/v1/pipeline-runs/:id/retry
+   *
+   * Query parameters:
+   *   - fromStage: string — Start re-running from this stage (skips all prior stages)
+   *   - onlyFailed: boolean — Only re-run stages that FAILED
+   */
+  async retry(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    try {
+      const params = request.params as any;
+      const query = request.query as any;
+      const { id: runId } = params;
+      const { fromStage, onlyFailed } = query;
+
+      // P4 Security: Validate tenant isolation
+      const tenantId = PipelineTenantIsolationService.extractTenantId(request.headers as Record<string, string | undefined>);
+      const originalRun = await this.runService.getRun(runId);
+      if (originalRun) {
+        const tenantCheck = await this.tenantIsolation.validateRunTenant(originalRun, tenantId);
+        if (!tenantCheck.valid) {
+          await reply.status(403).send({
+            error: 'TENANT_ISOLATION_VIOLATION',
+            code: '40301',
+            message: tenantCheck.error,
+          });
+          return;
+        }
+      }
+
+      // Build retry options from query parameters
+      const options: { fromStage?: string; onlyFailed?: boolean } = {};
+      if (fromStage) {
+        options.fromStage = fromStage;
+      }
+      if (onlyFailed !== undefined) {
+        options.onlyFailed = onlyFailed === 'true' || onlyFailed === true;
+      }
+
+      // Create the retry run (creates new run with retry metadata in config)
+      if (!this.pipelineService) {
+        await reply.status(503).send({
+          error: 'SERVICE_UNAVAILABLE',
+          code: '50301',
+          message: 'Pipeline service not available',
+        });
+        return;
+      }
+      const newRunId = await this.pipelineService.retryRun(runId, options);
+
+      // Get the new run to find its pipelineId and extract retry metadata from config_snapshot
+      const newRun = await this.runService.getRun(newRunId);
+      if (!newRun) {
+        await reply.status(500).send({
+          error: 'INTERNAL_ERROR',
+          code: '50000',
+          message: 'Failed to create retry run',
+        });
+        return;
+      }
+
+      // Extract retry metadata from config_snapshot (mapped to context via mapRun)
+      // and pass it to the engine via context so applyRetrySkipMetadata can find it
+      const retryMetadata = (newRun.context as any) || {};
+
+      // Execute the pipeline — the engine will read retry metadata from context
+      const retryContext: Record<string, unknown> = {
+        originalRunId: runId,
+        fromStage: options.fromStage,
+        onlyFailed: options.onlyFailed || false,
+        skippedStages: retryMetadata.skippedStages || [],
+        failedStages: retryMetadata.failedStages,
+      };
+
+      const executedRun = await this.engine.execute(
+        newRun.pipelineId,
+        TriggerType.MANUAL,
+        newRun.triggerBy,
+        retryContext
+      );
+
+      await reply.status(201).send({
+        id: executedRun?.id || newRunId,
+        pipelineId: newRun.pipelineId,
+        originalRunId: runId,
+        status: executedRun?.status || newRun.status,
+        fromStage: options.fromStage,
+        onlyFailed: options.onlyFailed,
+        message: `Pipeline retry initiated${options.fromStage ? ` from stage '${options.fromStage}'` : ''}${options.onlyFailed ? ' (only failed stages)' : ''}`,
+      });
+    } catch (error) {
+      if (error instanceof Error) {
+        if (error.message.includes('not found')) {
+          await reply.status(404).send({
+            error: 'NOT_FOUND',
+            code: '30201',
+            message: error.message,
+          });
+          return;
+        }
+        if (error.message.includes('Can only retry')) {
+          await reply.status(400).send({
+            error: 'INVALID_STATE',
+            code: '40001',
+            message: error.message,
+          });
+          return;
+        }
+        if (error.message.includes('No failed stages') || error.message.includes('not found in original run')) {
+          await reply.status(400).send({
+            error: 'INVALID_INPUT',
+            code: '40002',
+            message: error.message,
+          });
+          return;
+        }
+      }
+      await reply.status(500).send({
+        error: 'INTERNAL_ERROR',
+        code: '50000',
+        message: error instanceof Error ? error.message : 'Failed to retry pipeline run',
+      });
+    }
+  }
 }

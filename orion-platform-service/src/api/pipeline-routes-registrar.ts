@@ -97,6 +97,11 @@ export async function registerPipelineRoutes(
       return pipelineRunController.cancel(request, reply);
     });
 
+    // POST /api/v1/pipeline-runs/:id/retry - 重跑 PipelineRun (支持 fromStage / onlyFailed)
+    instance.post('/v1/pipeline-runs/:id/retry', async (request: FastifyRequest, reply: FastifyReply) => {
+      return pipelineRunController.retry(request, reply);
+    });
+
     // GET /api/v1/pipeline-runs/:id/stages - 获取 PipelineRun 的 Stages
     instance.get('/v1/pipeline-runs/:id/stages', async (request: FastifyRequest, reply: FastifyReply) => {
       return pipelineRunController.getStages(request, reply);
