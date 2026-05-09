@@ -2,6 +2,62 @@
 
 ## Current Session (2026-05-08)
 
+### Completed: GAP-CN-01 Visual DAG Editor Backend API
+
+实现了 Pipeline 可视化编排后端 API，支持 YAML 与 JSON 图格式的双向转换，以及全面的 YAML 校验。
+
+#### Features Implemented
+- **Created** `src/services/pipeline/PipelineGraphBuilder.ts`
+  - buildGraph(pipelineId, yamlDefinition): 从已保存 pipeline 构建 DAG 图
+  - buildGraphFromYaml(yamlString): 从 YAML 构建图（无需保存）
+  - buildGraphFromSpec(): 从解析后的 spec 对象构建图
+  - 自动计算拓扑排序布局位置（topological layering）
+  - 支持 stage 节点和 task（step）节点
+  - 支持扁平 YAML 和标准 apiVersion/kind/metadata/spec 格式
+
+- **Created** `src/services/pipeline/YamlConverter.ts`
+  - yamlToJson(): YAML -> JSON graph 转换 + 校验
+  - jsonToYaml(): JSON graph -> YAML 转换
+  - 双向转换往返测试通过
+
+- **Created** `src/services/pipeline/PipelineValidator.ts`
+  - validate(): 全面 YAML 校验
+  - 环依赖检测（DFS 算法）
+  - 缺失 dependsOn 目标检测
+  - 重复 stage 名称检测
+  - 无效 stage 类型/超时/重试次数检测
+  - 不安全条件表达式检测（eval, require, process 等）
+
+- **Created** `src/api/pipeline-graph-routes.ts`
+  - GET  /api/v1/pipelines/:id/graph  - 从已保存 pipeline 构建图
+  - POST /api/v1/pipelines/parse-yaml - YAML 转 JSON graph
+  - POST /api/v1/pipelines/to-yaml   - JSON graph 转 YAML
+  - POST /api/v1/pipelines/validate  - 校验 YAML spec
+
+- **Updated** `src/api/pipeline-routes-registrar.ts` - 注册 graph 路由
+- **Updated** `src/api/routes.ts` - 传递 pipelineService 到路由注册器
+
+### Test Status
+- **GAP-CN-01 tests**: 69 passed across 3 test suites
+  - PipelineGraphBuilder: 21 tests
+  - PipelineValidator: 27 tests
+  - YamlConverter: 21 tests
+- **All pipeline tests**: No new regressions
+
+### Commits
+- `b4aef85` feat(pipeline): implement GAP-CN-01 visual DAG editor backend API
+
+### Files Changed
+1. `src/services/pipeline/PipelineGraphBuilder.ts` (new)
+2. `src/services/pipeline/PipelineValidator.ts` (new)
+3. `src/services/pipeline/YamlConverter.ts` (new)
+4. `src/api/pipeline-graph-routes.ts` (new)
+5. `src/api/pipeline-routes-registrar.ts` (updated)
+6. `src/api/routes.ts` (updated)
+7. `src/services/pipeline/__tests__/PipelineGraphBuilder.test.ts` (new, 21 tests)
+8. `src/services/pipeline/__tests__/PipelineValidator.test.ts` (new, 27 tests)
+9. `src/services/pipeline/__tests__/YamlConverter.test.ts` (new, 21 tests)
+
 ### Completed: GAP-06 Re-run from Specific Stage
 
 实现了 Pipeline 从指定阶段重跑的功能，支持从指定阶段开始或仅重跑失败阶段。
