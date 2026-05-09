@@ -139,6 +139,7 @@ function createEngineWithDebug(debugController?: DebugController): {
     runService,
     eventPublisher,
     stageExecutor,
+    undefined, // subPipelineService
     undefined, // artifactService
     undefined, // approvalGateService
     undefined, // executionQueue
@@ -286,7 +287,7 @@ describe('PipelineEngine Debug Integration', () => {
       const slowStageExecutor = new StageExecutor(slowRunner, mockEp, undefined, undefined, debugController);
       const slowEngine = new PipelineEngine(
         mockPs, mockRs, mockEp, slowStageExecutor,
-        undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, debugController
+        undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, debugController
       );
 
       const pipeline: Pipeline = {
@@ -409,7 +410,7 @@ describe('PipelineEngine Debug Integration', () => {
       const slowStageExecutor = new StageExecutor(slowRunner, mockEp, undefined, undefined, debugController);
       const slowEngine = new PipelineEngine(
         mockPs, mockRs, mockEp, slowStageExecutor,
-        undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, debugController
+        undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, debugController
       );
 
       const pipeline: Pipeline = {

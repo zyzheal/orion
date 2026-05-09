@@ -62,6 +62,18 @@ export interface PipelineStage {
    * e.g., { version: '${tasks.build.outputs.version}' }
    */
   outputs?: { [key: string]: string };
+  /**
+   * Quality gate configuration (GAP-CN-04)
+   * Evaluates code quality metrics after stage execution.
+   * - qualityGateId: Direct reference to a quality gate definition
+   * - qualityGateName: Lookup by name within tenant
+   * - metrics: Default metric values if not produced by tasks
+   */
+  qualityGate?: {
+    gateId?: string;
+    gateName?: string;
+    defaultMetrics?: Record<string, number>;
+  };
 }
 
 export interface PipelineSpec {

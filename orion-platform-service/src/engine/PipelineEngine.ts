@@ -13,8 +13,10 @@ import { Pipeline, parsePipelineYaml, PipelineStage as PipelineYamlStage } from 
 import { PipelineRun, PipelineRunStatus, TriggerType } from '../models/PipelineRun';
 import { Stage, StageStatus, createStage } from '../models/Stage';
 import { Task, createTask } from '../models/Task';
+import { SubPipelineInvocation, SubPipelineStatus } from '../models/SubPipeline';
 import { PipelineService } from '../services/pipeline/PipelineService';
 import { PipelineRunService } from '../services/pipeline/PipelineRunService';
+import { SubPipelineService } from '../services/pipeline/SubPipelineService';
 import { PipelineEventPublisher } from '../events/PipelineEventPublisher';
 import { StageExecutor } from './StageExecutor';
 import { ArtifactService } from '../services/pipeline/ArtifactService';
@@ -26,6 +28,8 @@ import { PipelineCheckpointManager } from './PipelineCheckpointManager';
 import { IMNotifier, IMNotificationConfig } from '../services/pipeline/IMNotifier';
 import { WebhookNotifier, WebhookConfig as WebhookNotifierConfig, WebhookPayload, WebhookEventType, StageSummary } from '../services/pipeline/WebhookNotifier';
 import { WebhookConfigRepository, WebhookConfigEntity } from '../repositories/WebhookConfigRepository';
+import { QualityGateService } from '../services/pipeline/QualityGateService';
+import { QualityGateResult } from '../models/QualityGate';
 import { MatrixExpander } from './MatrixExpander';
 import { VariableContext } from './VariableContext';
 import { DebugController } from './DebugController';
@@ -51,6 +55,7 @@ export class PipelineEngine {
   private runService: PipelineRunService;
   private eventPublisher: PipelineEventPublisher;
   private stageExecutor: StageExecutor;
+  private subPipelineService: SubPipelineService | null;
   private artifactService: ArtifactService | null;
   private approvalGateService: ApprovalGateService | null;
   private executionQueue: PipelineExecutionQueue | null;
@@ -63,6 +68,7 @@ export class PipelineEngine {
   private debugController: DebugController | null;
   private webhookNotifier: WebhookNotifier | null;
   private webhookConfigRepo: WebhookConfigRepository | null;
+  private qualityGateService: QualityGateService | null;
 
   // 内存存储执行中的 Pipeline
   private executions = new Map<string, PipelineExecution>();
@@ -81,6 +87,7 @@ export class PipelineEngine {
     runService: PipelineRunService,
     eventPublisher: PipelineEventPublisher,
     stageExecutor: StageExecutor,
+    subPipelineService?: SubPipelineService | null,
     artifactService?: ArtifactService,
     approvalGateService?: ApprovalGateService,
     executionQueue?: PipelineExecutionQueue,
@@ -91,12 +98,14 @@ export class PipelineEngine {
     imNotificationConfigs?: IMNotificationConfig[],
     debugController?: DebugController,
     webhookNotifier?: WebhookNotifier,
-    webhookConfigRepo?: WebhookConfigRepository
+    webhookConfigRepo?: WebhookConfigRepository,
+    qualityGateService?: QualityGateService
   ) {
     this.pipelineService = pipelineService;
     this.runService = runService;
     this.eventPublisher = eventPublisher;
     this.stageExecutor = stageExecutor;
+    this.subPipelineService = subPipelineService || null;
     this.artifactService = artifactService || null;
     this.approvalGateService = approvalGateService || null;
     this.executionQueue = executionQueue || null;
@@ -109,6 +118,7 @@ export class PipelineEngine {
     this.debugController = debugController || null;
     this.webhookNotifier = webhookNotifier || null;
     this.webhookConfigRepo = webhookConfigRepo || null;
+    this.qualityGateService = qualityGateService || null;
   }
 
   /**
@@ -473,6 +483,15 @@ export class PipelineEngine {
           })
         : tasks;
 
+      // GAP-03: Check if this is a sub-pipeline stage type
+      const isSubPipelineStage = resolvedTasks.length > 0 &&
+        resolvedTasks[0].type === 'sub-pipeline';
+
+      if (isSubPipelineStage) {
+        await this.executeSubPipelineStage(execution, stage, resolvedTasks);
+        return;
+      }
+
       // 按顺序执行 Tasks
       for (const task of resolvedTasks) {
         if (task.status !== 'pending') continue;
@@ -506,6 +525,12 @@ export class PipelineEngine {
 
       // Register stage-level outputs in VariableContext
       this.registerStageOutputs(execution, stage);
+
+      // GAP-CN-04: Evaluate quality gate if configured
+      const gateCheckResult = await this.checkStageQualityGate(execution, stage);
+      if (gateCheckResult) {
+        throw new Error(gateCheckResult.reason);
+      }
 
       // Stage 成功完成
       const completedStage = {
@@ -1021,6 +1046,122 @@ export class PipelineEngine {
   }
 
   /**
+   * GAP-03: Execute a sub-pipeline stage.
+   *
+   * When a stage's first task has type 'sub-pipeline', this method:
+   * 1. Extracts child pipeline ID and input params from the task config
+   * 2. Invokes the child pipeline via SubPipelineService
+   * 3. Waits for child completion (with timeout)
+   * 4. Maps child outputs to parent stage outputs and VariableContext
+   * 5. Propagates child failures to parent stage failure
+   */
+  private async executeSubPipelineStage(
+    execution: PipelineExecution,
+    stage: Stage,
+    tasks: Array<{ id: string; name: string; type: string; parameters: Record<string, unknown>; [key: string]: unknown }>
+  ): Promise<void> {
+    if (!this.subPipelineService) {
+      throw new Error(
+        `SubPipelineService not configured. ` +
+        `Stage '${stage.name}' uses sub-pipeline type but SubPipelineService is not available.`
+      );
+    }
+
+    const subPipelineTask = tasks[0];
+    const params = subPipelineTask.parameters || {};
+    const childPipelineId = params.pipelineId as string;
+
+    if (!childPipelineId) {
+      throw new Error(
+        `Sub-pipeline stage '${stage.name}' missing required parameter: pipelineId`
+      );
+    }
+
+    // Extract input parameters (params other than 'pipelineId' and 'outputMapping')
+    const inputParams: Record<string, string> = {};
+    for (const [key, value] of Object.entries(params)) {
+      if (key !== 'pipelineId' && key !== 'outputMapping') {
+        inputParams[key] = typeof value === 'string' ? value : String(value);
+      }
+    }
+
+    // Extract output mapping
+    const outputMapping = params.outputMapping as Record<string, string> | undefined;
+
+    logger.info(
+      {
+        runId: execution.run.id,
+        stageName: stage.name,
+        childPipelineId,
+        inputParams,
+        outputMapping,
+      },
+      'GAP-03: Executing sub-pipeline stage'
+    );
+
+    // Invoke the child pipeline
+    const { invocation, childRunId } = await this.subPipelineService.invoke({
+      childPipelineId,
+      parentRunId: execution.run.id,
+      inputParams,
+      stageName: stage.name,
+      outputMapping,
+    });
+
+    // Wait for child pipeline to complete (default timeout: 1 hour)
+    const timeoutMs = (params.timeoutMs as number) || 3600000;
+    try {
+      await this.subPipelineService.waitForCompletion(childRunId, timeoutMs);
+
+      // Get results from child pipeline
+      const results = await this.subPipelineService.getResults(childRunId);
+
+      // Register results as stage outputs in VariableContext
+      const variableCtx = this.variableContexts.get(execution.run.id);
+      if (variableCtx) {
+        for (const [key, value] of Object.entries(results)) {
+          variableCtx.setTaskOutput(stage.name, key, value);
+        }
+      }
+
+      // Stage 成功完成
+      const completedStage = {
+        ...execution.stages.get(stage.id)!,
+        status: StageStatus.SUCCESS,
+        completedAt: new Date(),
+        result: { subPipeline: { childRunId, results }, outputs: outputMapping },
+        durationMs: Date.now() - execution.stages.get(stage.id)!.startedAt!.getTime(),
+      };
+      execution.stages.set(stage.id, completedStage);
+      await this.runService.updateStage(completedStage);
+      await this.eventPublisher.publishStageCompleted(execution.run.id, completedStage);
+      await this.saveCheckpoint(execution, stage.name);
+
+      execution.runningStages.delete(stage.id);
+      execution.completedStages.add(stage.id);
+
+      // 检查是否有新的 Stages 可以执行
+      this.checkNextStages(execution);
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+      // Mark sub-pipeline as failed
+      try {
+        await this.subPipelineService.markFailed(childRunId, errorMessage);
+      } catch (markError) {
+        logger.warn(
+          { childRunId, error: markError },
+          'Failed to mark sub-pipeline as failed (non-fatal)'
+        );
+      }
+
+      // Sub-pipeline failure propagates to parent stage failure
+      throw new Error(`Sub-pipeline '${stage.name}' failed: ${errorMessage}`);
+    }
+  }
+
+  /**
    * 失败依赖此 Stage 的其他 Stages
    */
   private async failDependentStages(execution: PipelineExecution, failedStage: Stage): Promise<void> {
@@ -1186,6 +1327,159 @@ export class PipelineEngine {
     this.variableContexts.delete(runId);
 
     return true;
+  }
+
+  // ==================== Quality Gate Methods (GAP-CN-04) ====================
+
+  /**
+   * 检查 Stage 的质量门禁
+   *
+   * 在 Stage 执行成功后调用，评估代码质量指标：
+   * - 如果质量门禁配置存在且评估通过，返回 undefined（继续）
+   * - 如果评估不通过且有阻断规则失败，返回失败原因
+   * - 如果评估不通过但只有警告规则，返回 undefined（警告不阻断）
+   *
+   * @returns { reason?: string; result?: QualityGateResult } | undefined
+   *   - reason: 阻断原因（当门禁被阻断时）
+   *   - result: 评估结果详情
+   */
+  private async checkStageQualityGate(
+    execution: PipelineExecution,
+    stage: Stage
+  ): Promise<{ reason: string; result: QualityGateResult } | undefined> {
+    if (!this.qualityGateService) {
+      return undefined;
+    }
+
+    // 从 stage 配置中获取质量门禁 ID
+    // 支持两种配置方式：
+    // 1. stage.result.qualityGateId - 直接使用门禁 ID
+    // 2. stage.result.qualityGateName - 按名称查找门禁
+    const qualityGateId = (stage.result as any)?.qualityGateId;
+    const qualityGateName = (stage.result as any)?.qualityGateName;
+
+    if (!qualityGateId && !qualityGateName) {
+      return undefined; // 此 stage 不需要质量门禁
+    }
+
+    try {
+      // 收集阶段指标（从任务输出、环境变量等获取）
+      const metrics = this.collectStageQualityMetrics(execution, stage);
+
+      // 如果指定了 gateId，直接使用
+      if (qualityGateId) {
+        const result = await this.qualityGateService.evaluateAndStore({
+          gateId: qualityGateId,
+          runId: execution.run.id,
+          stageName: stage.name,
+          metrics,
+        });
+
+        if (this.qualityGateService.isBlocking(result)) {
+          const reason = this.qualityGateService.getBlockingReason(result);
+          return { reason: reason || 'Quality gate check failed', result };
+        }
+      }
+
+      // 如果指定了 gateName，按名称查找（需要 tenantId）
+      if (qualityGateName) {
+        const tenantId = (execution.run.context as any)?.tenantId;
+        if (!tenantId) {
+          logger.warn(
+            { runId: execution.run.id, stageName: stage.name, gateName: qualityGateName },
+            'Quality gate lookup requires tenantId, skipping'
+          );
+          return undefined;
+        }
+
+        const gate = await this.qualityGateService.findByName(tenantId, qualityGateName);
+        if (!gate) {
+          logger.warn(
+            { runId: execution.run.id, stageName: stage.name, gateName: qualityGateName },
+            'Quality gate not found by name, skipping'
+          );
+          return undefined;
+        }
+
+        const evaluation = this.qualityGateService.evaluate(gate, { metrics });
+        const result: QualityGateResult = {
+          ...evaluation,
+          id: `qgr-${Date.now()}`,
+          runId: execution.run.id,
+          stageName: stage.name,
+          evaluatedAt: new Date(),
+        };
+
+        if (this.qualityGateService.isBlocking(result)) {
+          const reason = this.qualityGateService.getBlockingReason(result);
+          return { reason: reason || 'Quality gate check failed', result };
+        }
+      }
+
+      return undefined; // 通过或仅警告
+    } catch (error) {
+      logger.warn(
+        { runId: execution.run.id, stageName: stage.name, error: error instanceof Error ? error.message : String(error) },
+        'Quality gate evaluation failed (non-fatal, stage continues)'
+      );
+      return undefined; // 评估失败不阻断 stage 执行
+    }
+  }
+
+  /**
+   * 收集 Stage 的质量指标
+   *
+   * 从任务输出和 stage 配置中收集质量相关指标：
+   * - coverage: 代码覆盖率（从测试任务输出获取）
+   * - complexity: 圈复杂度（从代码分析任务获取）
+   * - duplication: 代码重复率
+   * - security_hotspots: 安全热点
+   * - bugs: 潜在 Bug 数量
+   * - vulnerabilities: 漏洞数量
+   */
+  private collectStageQualityMetrics(
+    execution: PipelineExecution,
+    stage: Stage
+  ): Record<string, number> {
+    const metrics: Record<string, number> = {};
+
+    // 从 VariableContext 收集任务输出指标
+    const variableCtx = this.variableContexts.get(execution.run.id);
+    if (variableCtx) {
+      const ctx = variableCtx.toExpressionContext();
+      const tasksObj = ctx.tasks as Record<string, { outputs?: Record<string, string> }> | undefined;
+
+      if (tasksObj) {
+        for (const [taskName, taskData] of Object.entries(tasksObj)) {
+          if (!taskData?.outputs) continue;
+          for (const [key, value] of Object.entries(taskData.outputs)) {
+            const numValue = parseFloat(value);
+            if (!isNaN(numValue)) {
+              // Map known metric keys
+              const metricKeys = [
+                'coverage', 'complexity', 'duplication',
+                'security_hotspots', 'bugs', 'vulnerabilities',
+              ];
+              if (metricKeys.includes(key)) {
+                metrics[key] = numValue;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // 从 stage 配置中读取默认指标（如果有）
+    const defaultMetrics = (stage.result as any)?.defaultMetrics;
+    if (defaultMetrics && typeof defaultMetrics === 'object') {
+      for (const [key, value] of Object.entries(defaultMetrics)) {
+        if (typeof value === 'number') {
+          metrics[key] = value;
+        }
+      }
+    }
+
+    return metrics;
   }
 
   // ==================== Approval Gate Methods ====================
