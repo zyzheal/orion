@@ -15,6 +15,7 @@ import { InlineScriptService, InlineScriptExecutionRequest } from '../services/i
 import { WorkspaceIsolator, getDefaultWorkspaceIsolator } from './WorkspaceIsolator';
 import { SecretsService, StreamSecretSanitizer } from '../services/pipeline/SecretsService';
 import { RunnerPoolService, RunnerExecutionResult } from '../services/pipeline/RunnerPoolService';
+import { DockerBuildService, DockerBuildOptions, DockerPushOptions, DockerScanOptions } from '../services/pipeline/DockerBuildService';
 import pino from 'pino';
 
 const logger = pino({ name: 'task-runner' });
@@ -430,6 +431,8 @@ export class TaskRunner {
 
     if (type.startsWith('git/')) {
       return this.executeGitTask(task, signal, sanitizer);
+    } else if (type.startsWith('docker/')) {
+      return this.executeDockerTask(task, signal);
     } else if (type.startsWith('npm/') || type.startsWith('yarn/')) {
       return this.executeNpmTask(task, signal, sanitizer);
     } else if (type.startsWith('k8s/') || type.startsWith('kubernetes/')) {
@@ -502,6 +505,141 @@ export class TaskRunner {
       repository: repo,
       branch,
       exitCode: result.exitCode,
+      stdout: result.stdout,
+      stderr: result.stderr,
+      log: task.log,
+    };
+  }
+
+  /**
+   * 执行 Docker 相关任务
+   * 支持 docker/build, docker/push, docker/scan 类型
+   */
+  private async executeDockerTask(task: Task, signal?: AbortSignal): Promise<Record<string, unknown>> {
+    const action = task.type.split('/')[1];
+    const params = task.parameters;
+    const dockerService = new DockerBuildService();
+
+    task = appendTaskLog(task, `[DOCKER] Action: ${action}`);
+
+    switch (action) {
+      case 'build':
+        return this.executeDockerBuild(task, dockerService);
+      case 'push':
+        return this.executeDockerPush(task, dockerService);
+      case 'scan':
+        return this.executeDockerScan(task, dockerService);
+      default:
+        throw new Error(`Unknown docker action: ${action}`);
+    }
+  }
+
+  private async executeDockerBuild(task: Task, dockerService: DockerBuildService): Promise<Record<string, unknown>> {
+    const params = task.parameters;
+    const options: DockerBuildOptions = {
+      context: (params.context as string) || this.getTaskWorkspace(task, 'docker'),
+      dockerfile: params.dockerfile as string | undefined,
+      imageName: params.image as string || params.imageName as string || '',
+      tag: (params.tag as string) || 'latest',
+      platforms: (params.platforms as string[]) || undefined,
+      buildArgs: params.buildArgs as Record<string, string> | undefined,
+      labels: params.labels as Record<string, string> | undefined,
+      cacheFrom: params.cacheFrom as string | undefined,
+      cacheTo: params.cacheTo as string | undefined,
+      noCache: (params.noCache as boolean) || false,
+      pull: (params.pull as boolean) || false,
+      push: (params.push as boolean) || false,
+      load: (params.load as boolean) || false,
+      progress: (params.progress as 'auto' | 'plain' | 'tty') || 'plain',
+      target: params.target as string | undefined,
+      additionalTags: (params.additionalTags as string[]) || undefined,
+    };
+
+    if (!options.imageName) {
+      throw new Error('Docker build requires "image" or "imageName" parameter');
+    }
+
+    task = appendTaskLog(task, `[DOCKER] Building ${options.imageName}:${options.tag}`);
+
+    const result = await dockerService.build(options);
+
+    if (!result.success) {
+      throw new Error(result.error || 'Docker build failed');
+    }
+
+    return {
+      action: 'build',
+      imageName: options.imageName,
+      tag: options.tag,
+      imageTag: result.imageTag,
+      imageId: result.imageId,
+      durationMs: result.durationMs,
+      stdout: result.stdout,
+      stderr: result.stderr,
+      log: task.log,
+      outputs: { image: result.imageTag, imageId: result.imageId || '' },
+    };
+  }
+
+  private async executeDockerPush(task: Task, dockerService: DockerBuildService): Promise<Record<string, unknown>> {
+    const params = task.parameters;
+    const options: DockerPushOptions = {
+      imageName: params.image as string || params.imageName as string || '',
+      tag: (params.tag as string) || 'latest',
+      additionalTags: (params.additionalTags as string[]) || undefined,
+    };
+
+    if (!options.imageName) {
+      throw new Error('Docker push requires "image" or "imageName" parameter');
+    }
+
+    task = appendTaskLog(task, `[DOCKER] Pushing ${options.imageName}:${options.tag}`);
+
+    const result = await dockerService.push(options);
+
+    if (!result.success) {
+      throw new Error(result.error || 'Docker push failed');
+    }
+
+    return {
+      action: 'push',
+      imageName: options.imageName,
+      pushedTags: result.pushedTags,
+      durationMs: result.durationMs,
+      stdout: result.stdout,
+      stderr: result.stderr,
+      log: task.log,
+    };
+  }
+
+  private async executeDockerScan(task: Task, dockerService: DockerBuildService): Promise<Record<string, unknown>> {
+    const params = task.parameters;
+    const options: DockerScanOptions = {
+      imageName: params.image as string || params.imageName as string || '',
+      tag: (params.tag as string) || 'latest',
+      scanner: (params.scanner as 'trivy' | 'docker-scout' | 'grype') || 'trivy',
+      severityThreshold: (params.severityThreshold as 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW') || 'HIGH',
+      ignoreUnfixed: (params.ignoreUnfixed as boolean) || false,
+    };
+
+    if (!options.imageName) {
+      throw new Error('Docker scan requires "image" or "imageName" parameter');
+    }
+
+    task = appendTaskLog(task, `[DOCKER] Scanning ${options.imageName}:${options.tag}`);
+
+    const result = await dockerService.scan(options);
+
+    if (result.blocked) {
+      throw new Error(`Security scan blocked: ${result.vulnerabilities.critical} critical, ${result.vulnerabilities.high} high vulnerabilities found`);
+    }
+
+    return {
+      action: 'scan',
+      scanner: result.scanner,
+      vulnerabilities: result.vulnerabilities,
+      blocked: result.blocked,
+      durationMs: result.durationMs,
       stdout: result.stdout,
       stderr: result.stderr,
       log: task.log,
