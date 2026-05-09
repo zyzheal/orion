@@ -2,6 +2,151 @@
 
 ## Current Session (2026-05-08)
 
+### Completed: GAP-CN-03 Canary/Blue-Green/Rolling Deployment Strategies
+
+实现了渐进式发布能力，支持金丝雀发布（10% → 50% → 100%）、蓝绿发布、滚动发布。
+
+#### Features Implemented
+- **Created** `src/models/DeploymentStrategy.ts`
+  - DeploymentStrategy: 发布策略定义 (id, tenantId, name, type, config, enabled)
+  - CanaryConfig: 金丝雀步骤配置 (steps with weight/pause/verification)
+  - BlueGreenConfig: 蓝绿配置 (activeSlot, switchMethod: instant/gradual)
+  - RollingConfig: 滚动配置 (batchSize, maxUnavailable)
+  - DeploymentStepTracker: 运行时步骤跟踪 (currentStep, currentWeight, status)
+  - HealthCheckResult: 健康检查结果记录
+
+- **Created** `src/repositories/DeploymentStrategyRepository.ts`
+  - 基于 PostgreSQL 的策略定义存储
+  - findByTenant, findByName, findByType, CRUD 方法
+
+- **Created** `src/repositories/DeploymentStepTrackerRepository.ts`
+  - 运行时步骤跟踪存储
+  - advanceStep, updateStatus, setRollbackReason
+  - recordHealthCheck, getHealthChecks, isStepHealthy
+
+- **Created** DB migrations:
+  - `139_create_deployment_strategies.sql`: deployment_strategies 表
+  - `140_create_deployment_step_trackers.sql`: deployment_step_trackers + deployment_health_checks 表
+
+- **Created** `src/services/pipeline/DeploymentStrategyService.ts`
+  - executeCanary(): 逐步执行金丝雀步骤，每步健康检查验证
+  - executeBlueGreen(): 蓝绿切换（instant 或 gradual 模式）
+  - executeRolling(): 分批滚动发布，支持批次间暂停
+  - rollback(): 回滚到上一版本，记录回滚原因
+  - getCurrentStatus(): 获取当前部署进度和每步状态
+  - runHealthCheck(): HTTP 基础健康检查（可配置端点）
+  - 配置验证: 金丝雀步骤权重递增且最后为100%，滚动 batchSize >= 1
+
+- **Updated** `src/engine/PipelineEngine.ts`
+  - 新增 deploymentStrategyService 依赖注入
+  - PipelineStage 新增 deploymentStrategy 配置字段 (strategyId, strategyName, healthCheckEndpoint, inline)
+  - checkAndExecuteDeploymentStrategy(): 部署阶段检测并执行渐进式发布
+  - executeInlineStrategy(): 执行内联策略配置
+  - executeReferencedStrategy(): 执行引用的策略定义
+  - 健康检查失败时自动回滚（可配置）
+
+- **Created** `src/services/pipeline/__tests__/DeploymentStrategyService.test.ts` (39 tests)
+  - Strategy CRUD: 创建/查询/更新/删除 (12 tests)
+  - 配置验证: 无效金丝雀配置/滚动配置拒绝 (5 tests)
+  - 金丝雀发布: 逐步执行/健康检查/自动回滚/继续失败 (5 tests)
+  - 蓝绿发布: instant/gradual 切换/健康检查失败回滚 (4 tests)
+  - 滚动发布: 分批执行/批次失败回滚/不均等分批 (3 tests)
+  - 回滚操作: 手动回滚/找不到tracker/无DB (3 tests)
+  - 状态查询: 正常查询/异常处理/无DB (3 tests)
+  - 健康检查: 正常/异常处理 (2 tests)
+  - DB不可用模式: 5 tests
+  - 时长解析: 1 test
+
+### Test Status
+- **GAP-CN-03 tests**: 39 passed
+- **All pipeline tests**: No regressions
+
+### Commits
+- `fb58ee7` feat(pipeline): implement GAP-CN-03 canary/blue-green/rolling deployment strategies
+
+### Files Changed
+1. `src/models/DeploymentStrategy.ts` (new)
+2. `src/repositories/DeploymentStrategyRepository.ts` (new)
+3. `src/repositories/DeploymentStepTrackerRepository.ts` (new)
+4. `src/db/migrations/139_create_deployment_strategies.sql` (new)
+5. `src/db/migrations/140_create_deployment_step_trackers.sql` (new)
+6. `src/services/pipeline/DeploymentStrategyService.ts` (new)
+7. `src/services/pipeline/__tests__/DeploymentStrategyService.test.ts` (new, 39 tests)
+8. `src/models/Pipeline.ts` (deploymentStrategy field on PipelineStage)
+9. `src/engine/PipelineEngine.ts` (deployment strategy integration)
+
+### Completed: GAP-03 Reusable Workflows (Sub-Pipeline Invocation)
+
+实现了 Pipeline 可复用工作流功能，支持运行时动态调用另一个 pipeline 作为子流程。
+
+#### Features Implemented
+- **Created** `src/models/SubPipeline.ts`
+  - SubPipelineInvocation 模型: id, parentRunId, childPipelineId, childRunId, status, inputParams, outputResults, stageName, outputMapping
+  - Lifecycle helpers: createSubPipelineInvocation, startSubPipeline, completeSubPipeline, failSubPipeline, cancelSubPipeline
+
+- **Created** `src/repositories/SubPipelineRepository.ts`
+  - create, findById, findByParentRunId, findByChildRunId, findByPipelineId
+  - updateChildRun, updateStatus (支持 output_results 和 error_message)
+
+- **Created** `src/db/migrations/138_create_sub_pipeline_invocations.sql`
+  - sub_pipeline_invocations 表: parent_run_id, child_pipeline_id, child_run_id, status, input_params JSONB, output_results JSONB, stage_name, output_mapping JSONB
+  - 索引: parent_run_id, child_run_id, child_pipeline_id, status
+
+- **Created** `src/services/pipeline/SubPipelineService.ts`
+  - invoke(): 启动子流程，创建调用记录，触发子 pipeline 执行
+  - waitForCompletion(): 轮询等待子流程完成（支持超时）
+  - getResults(): 获取子流程输出，支持 outputMapping 映射
+  - cancel(): 取消运行中的子流程
+  - markCompleted/markFailed(): 由 PipelineEngine 调用标记状态
+  - getByParentRunId/getById/getByPipelineId: 查询方法
+
+- **Updated** `src/engine/PipelineEngine.ts`
+  - 新增 subPipelineService 依赖注入（第5个参数）
+  - executeStage() 中检测 sub-pipeline 类型 stage（task.type === 'sub-pipeline'）
+  - 新增 executeSubPipelineStage() 方法:
+    - 从 task parameters 提取 childPipelineId, inputParams, outputMapping
+    - 调用 SubPipelineService.invoke() 启动子流程
+    - 调用 SubPipelineService.waitForCompletion() 等待完成
+    - 调用 SubPipelineService.getResults() 获取结果
+    - 注册结果到 VariableContext 供下游 stage 使用
+    - 子流程失败传播到父 stage 失败
+
+- **Updated** `src/api/routes.ts` - 添加 subPipelineService 参数占位
+
+- **Created** `src/services/pipeline/__tests__/SubPipelineService.test.ts` (17 tests)
+  - invoke: 正常调用/找不到子流程/子流程未激活/启动失败
+  - waitForCompletion: 正常完成/失败/取消/找不到/超时
+  - getResults: 映射结果/未完成/找不到
+  - cancel: 正常取消/状态不正确/找不到
+  - markCompleted/markFailed
+  - 查询方法: getByParentRunId/getById/getByPipelineId
+
+- **Created** `src/engine/__tests__/SubPipelineIntegration.test.ts` (12 tests)
+  - 子流程 stage 调用: 正常调用/传递参数
+  - 输出映射: 子结果映射到父 stage 输出
+  - 失败传播: 子流程失败传播到父 stage/影响依赖 stage
+  - SubPipelineService 未配置: 报错
+  - 普通 stage 不受影响
+
+### Test Status
+- **GAP-03 tests**: 29 passed (17 unit + 12 integration)
+- **PipelineEngineDebug tests**: 7 passed (updated for new constructor signature)
+- **All pipeline tests**: No regressions
+
+### Commits
+- `911ab22` feat(engine): implement GAP-03 reusable workflows / sub-pipeline invocation
+
+### Files Changed
+1. `src/models/SubPipeline.ts` (new)
+2. `src/repositories/SubPipelineRepository.ts` (new)
+3. `src/db/migrations/138_create_sub_pipeline_invocations.sql` (new)
+4. `src/services/pipeline/SubPipelineService.ts` (new)
+5. `src/services/pipeline/__tests__/SubPipelineService.test.ts` (new, 17 tests)
+6. `src/engine/__tests__/SubPipelineIntegration.test.ts` (new, 12 tests)
+7. `src/engine/PipelineEngine.ts` (sub-pipeline stage integration)
+8. `src/api/routes.ts` (updated constructor args)
+9. `src/engine/__tests__/PipelineEngineDebug.test.ts` (updated constructor args)
+
 ### Completed: GAP-CN-01 Visual DAG Editor Backend API
 
 实现了 Pipeline 可视化编排后端 API，支持 YAML 与 JSON 图格式的双向转换，以及全面的 YAML 校验。
@@ -379,6 +524,66 @@ Replaced simple regex-based condition evaluation in PipelineEngine with a full e
 
 ### Commit
 - `80439cd` feat(engine): implement condition expression engine for pipeline stages
+
+### Completed: GAP-CN-04 Code Quality Gates with Blocking
+
+实现了流水线代码质量门禁机制，支持覆盖率/复杂度/重复率/安全等指标的阈值阻断。
+
+#### Features Implemented
+- **Created** `src/models/QualityGate.ts`
+  - QualityGate: 门禁定义 (id, tenantId, name, rules, externalProvider, enabled)
+  - QualityGateRule: 规则 (metric, operator, threshold, severity)
+  - QualityGateResult: 评估结果 (metrics, passed, blockedRules, warnedRules)
+  - 支持 6 种指标: coverage, complexity, duplication, security_hotspots, bugs, vulnerabilities
+  - 支持 5 种运算符: <, <=, >, >=, ==
+  - 支持 2 种严重级别: block (阻断流水线), warn (仅警告)
+
+- **Created** `src/repositories/QualityGateRepository.ts`
+  - 基于 PostgreSQL 的门禁定义存储
+  - findByTenant, findByName, CRUD 方法
+
+- **Created** `src/repositories/QualityGateResultRepository.ts`
+  - 评估结果持久化
+  - findByRunId, findByStageName, createResult 方法
+
+- **Created** `src/db/migrations/138_create_quality_gates.sql`
+  - quality_gates 表 (定义存储, JSONB rules)
+  - quality_gate_results 表 (评估结果, JSONB metrics/blocked_rules/warned_rules)
+  - 配套回滚脚本 138_rollback_quality_gates.sql
+
+- **Created** `src/services/pipeline/QualityGateService.ts`
+  - evaluate(gate, metrics): 规则评估引擎
+  - evaluateAndStore(input): 完整评估+存储流程
+  - isBlocking(result): 阻断检查
+  - getBlockingReason(result): 人类可读的阻断原因
+  - fetchMetricsFromProvider(): SonarQube 风格外部指标获取
+
+- **Updated** `src/engine/PipelineEngine.ts`
+  - 集成 QualityGateService 作为构造函数可选依赖
+  - checkStageQualityGate(): 阶段执行后自动评估质量门禁
+  - collectStageQualityMetrics(): 从任务输出收集质量指标
+  - PipelineStage 新增 qualityGate 配置字段
+
+- **Created** `src/services/pipeline/__tests__/QualityGateService.test.ts` (36 tests)
+  - CRUD 操作测试
+  - 规则验证测试 (无效指标/运算符/严重级别)
+  - 评估测试 (通过/失败/警告/边界值)
+  - 多规则评估测试 (混合通过/失败)
+  - 比较运算符测试 (<, <=, >, >=, ==)
+  - 无数据库模式测试
+
+- **Created** `src/engine/__tests__/QualityGateIntegration.test.ts` (18 tests)
+  - 质量门禁评估逻辑测试
+  - 多规则评估测试
+  - 模拟 PipelineEngine 集成测试
+  - 阻断/警告/无门禁配置场景测试
+
+### Test Status
+- **GAP-CN-04 tests**: 54 passed (36 + 18)
+- **All pipeline tests**: No regressions
+
+### Commit
+- `209a94d` feat(pipeline): implement GAP-CN-04 code quality gates with blocking
 
 ### Previous: Pipeline Plugin System Phase 4 — Security Hardening
 
