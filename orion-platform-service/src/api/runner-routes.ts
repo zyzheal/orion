@@ -12,9 +12,13 @@
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { RunnerController } from './controllers/RunnerController';
+import { runnerAuthMiddleware } from '../middleware/runnerAuthMiddleware';
 
 export default async function runnerRoutes(app: FastifyInstance, opts: { database?: any }): Promise<void> {
   const controller = new RunnerController(opts.database);
+
+  // Apply Runner API Token authentication to all routes
+  app.addHook('preHandler', runnerAuthMiddleware);
 
   // POST /api/v1/runners — 注册 Runner
   app.post('/', async (request: FastifyRequest, reply: FastifyReply) => {

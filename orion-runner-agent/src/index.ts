@@ -16,9 +16,12 @@
  */
 
 import Fastify from 'fastify';
+import pino from 'pino';
 import { TaskExecutor, TaskParameters, TaskResult } from './TaskExecutor';
 import { readFileSync } from 'fs';
 import { hostname } from 'os';
+
+const logger = pino({ name: 'runner-agent', level: process.env.LOG_LEVEL || 'info' });
 
 // ==================== Config ====================
 
@@ -89,10 +92,9 @@ class RunnerAgent {
    * 启动 Runner Agent
    */
   async start(): Promise<void> {
-    console.log(`[runner] Starting Orion Runner Agent...`);
-    console.log(`[runner] Platform: ${this.config.platformUrl}`);
-    console.log(`[runner] Labels: ${this.config.labels.join(', ')}`);
-    console.log(`[runner] Max concurrent: ${this.config.maxConcurrent}`);
+    logger.info({ platform: this.config.platformUrl }, 'Starting Orion Runner Agent');
+    logger.info({ labels: this.config.labels }, 'Runner labels');
+    logger.info({ maxConcurrent: this.config.maxConcurrent }, 'Max concurrent jobs');
 
     // 1. 注册到 Platform
     await this.register();
@@ -156,19 +158,22 @@ class RunnerAgent {
 
       const data = await response.json() as Record<string, unknown>;
       this.runnerId = data.id as string;
-      console.log(`[runner] Registered with Platform, runnerId=${this.runnerId}`);
+      logger.info({ runnerId: this.runnerId }, 'Registered with Platform');
     } catch (error) {
-      console.error(`[runner] Failed to register:`, error);
+      logger.error({ error }, 'Failed to register');
       this.registerAttempts++;
 
       if (this.registerAttempts >= this.MAX_REGISTER_ATTEMPTS) {
-        console.error(`[runner] Max registration attempts reached (${this.MAX_REGISTER_ATTEMPTS}), giving up`);
+        logger.error({ attempts: this.MAX_REGISTER_ATTEMPTS }, 'Max registration attempts reached, giving up');
         process.exit(1);
       }
 
       // Exponential backoff: 5s, 10s, 20s, 40s, max 60s
       const delay = Math.min(5000 * Math.pow(2, this.registerAttempts - 1), 60000);
-      console.log(`[runner] Retrying registration in ${delay}ms (attempt ${this.registerAttempts}/${this.MAX_REGISTER_ATTEMPTS})`);
+      logger.info(
+        { attempt: this.registerAttempts, max: this.MAX_REGISTER_ATTEMPTS, delay },
+        'Retrying registration'
+      );
       setTimeout(() => this.register(), delay);
     }
   }
@@ -192,12 +197,12 @@ class RunnerAgent {
         });
 
         if (!response.ok) {
-          console.warn(`[runner] Heartbeat failed: HTTP ${response.status}`);
+          logger.warn({ status: response.status }, 'Heartbeat failed');
         } else {
-          console.debug(`[runner] Heartbeat sent`);
+          logger.debug('Heartbeat sent');
         }
       } catch (error) {
-        console.warn(`[runner] Heartbeat error:`, (error as Error).message);
+        logger.warn({ error: (error as Error).message }, 'Heartbeat error');
       }
     };
 
@@ -225,7 +230,7 @@ class RunnerAgent {
     const task = body.task;
     const jobId = body.jobId;
 
-    console.log(`[runner] Received job ${jobId}: ${task.type} — ${task.name}`);
+    logger.info({ jobId, type: task.type, name: task.name }, 'Received job');
 
     this.activeJobs++;
 
@@ -237,11 +242,11 @@ class RunnerAgent {
 
       const result = await this.executor.execute(task.type, params);
 
-      console.log(`[runner] Job ${jobId} completed: ${result.success ? 'success' : 'failed'} (${result.duration}ms)`);
+      logger.info({ jobId, duration: result.duration }, `Job ${result.success ? 'completed' : 'failed'}`);
 
       // 异步回报结果给 Platform
       this.reportJobResult(jobId, result).catch((err) => {
-        console.error(`[runner] Failed to report job result:`, err);
+        logger.error({ jobId, err }, 'Failed to report job result');
       });
 
       return {
@@ -256,7 +261,7 @@ class RunnerAgent {
         },
       };
     } catch (error) {
-      console.error(`[runner] Job ${jobId} error:`, error);
+      logger.error({ jobId, error }, 'Job error');
 
       const errorResult: TaskResult = {
         success: false,
@@ -306,7 +311,7 @@ class RunnerAgent {
         }),
       });
     } catch (error) {
-      console.error(`[runner] Failed to report job result:`, error);
+      logger.error({ jobId, error }, 'Failed to report job result');
     }
   }
 }
@@ -316,6 +321,6 @@ class RunnerAgent {
 const config = loadConfig();
 const agent = new RunnerAgent(config);
 agent.start().catch((error) => {
-  console.error('[runner] Fatal error:', error);
+  logger.fatal({ error }, 'Runner Agent fatal error');
   process.exit(1);
 });
