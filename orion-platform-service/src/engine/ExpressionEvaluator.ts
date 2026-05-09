@@ -22,6 +22,9 @@
  */
 
 import { Parser, Expression, Value } from 'expr-eval';
+import fs from 'fs/promises';
+import path from 'path';
+import { createHash } from 'crypto';
 
 /**
  * Error thrown when expression evaluation fails
@@ -62,6 +65,7 @@ const ALLOWED_FUNCTIONS = new Set([
   'failure',
   'cancelled',
   'always',
+  'hashFiles',
 ]);
 
 /**
@@ -380,6 +384,16 @@ export class ExpressionEvaluator {
     this.parser.functions.always = (): Value => {
       return 1; // Always true
     };
+
+    // hashFiles function: compute SHA-256 hash of matching files
+    // Usage: hashFiles('**/package-lock.json', '**/*.ts')
+    // Returns: hex digest string (empty string if no files match)
+    this.parser.functions.hashFiles = (...patterns: Value[]): Value => {
+      // In expression context without real filesystem, return empty
+      // This is primarily used in cache key generation contexts
+      // For actual usage, call hashFilesGlob() utility directly
+      return '';
+    };
   }
 
   /**
@@ -398,4 +412,59 @@ export class ExpressionEvaluator {
     }
     return false;
   }
+}
+
+/**
+ * Standalone hashFiles utility for cache key generation.
+ * Computes SHA-256 hash of file contents matching the given glob patterns.
+ *
+ * @param patterns - Glob patterns relative to baseDir
+ * @param baseDir - Base directory to resolve patterns against
+ * @returns SHA-256 hex digest string
+ */
+export async function hashFilesGlob(patterns: string[], baseDir: string): Promise<string> {
+  const hash = createHash('sha256');
+  const seenFiles = new Set<string>();
+
+  // Promisify glob callback
+  const globAsync = (pattern: string, options: { cwd: string; nodir: boolean }): Promise<string[]> => {
+    return new Promise((resolve, reject) => {
+      const globModule = require('glob');
+      globModule.glob(pattern, options, (err: Error | null, matches: string[]) => {
+        if (err) reject(err);
+        else resolve(matches);
+      });
+    });
+  };
+
+  for (const pattern of patterns) {
+    try {
+      const matches = await globAsync(pattern, { cwd: baseDir, nodir: true });
+      for (const file of matches) {
+        if (seenFiles.has(file)) continue;
+        seenFiles.add(file);
+
+        const filePath = path.join(baseDir, file);
+        try {
+          const content = await fs.readFile(filePath);
+          hash.update(content);
+          hash.update('\0'); // Separator between files
+        } catch {
+          // File may have been deleted, skip
+        }
+      }
+    } catch {
+      // glob not available or pattern invalid, try as direct path
+      try {
+        const content = await fs.readFile(path.join(baseDir, pattern));
+        hash.update(content);
+        hash.update('\0');
+        seenFiles.add(pattern);
+      } catch {
+        // ignore non-existent files
+      }
+    }
+  }
+
+  return hash.digest('hex');
 }

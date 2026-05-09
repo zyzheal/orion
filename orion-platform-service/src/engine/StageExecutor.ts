@@ -15,6 +15,7 @@ import { PipelineEventPublisher } from '../events/PipelineEventPublisher';
 import { ArtifactService } from '../services/pipeline/ArtifactService';
 import { VariableContext } from './VariableContext';
 import { DebugController } from './DebugController';
+import { CacheRestoreSaveService, StageCacheConfig } from '../services/build/CacheRestoreSaveService';
 
 export class StageExecutor {
   private taskRunner: TaskRunner;
@@ -22,6 +23,7 @@ export class StageExecutor {
   private artifactService: ArtifactService | null;
   private variableContext: VariableContext | null;
   private debugController: DebugController | null;
+  private cacheService: CacheRestoreSaveService | null;
 
   // Track active abort controllers for cancellation
   private activeControllers = new Map<string, AbortController>();
@@ -31,13 +33,15 @@ export class StageExecutor {
     eventPublisher: PipelineEventPublisher,
     artifactService?: ArtifactService,
     variableContext?: VariableContext,
-    debugController?: DebugController
+    debugController?: DebugController,
+    cacheService?: CacheRestoreSaveService
   ) {
     this.taskRunner = taskRunner;
     this.eventPublisher = eventPublisher;
     this.artifactService = artifactService || null;
     this.variableContext = variableContext || null;
     this.debugController = debugController || null;
+    this.cacheService = cacheService || null;
   }
 
   /**
@@ -57,6 +61,24 @@ export class StageExecutor {
   ): Promise<{ success: boolean; error?: string }> {
     // 按 sequence 排序 Tasks
     const sortedTasks = [...tasks].sort((a, b) => a.sequence - b.sequence);
+
+    // Restore cache before executing tasks (if cache config exists)
+    const cacheConfig = this.extractCacheConfig(stage);
+    if (cacheConfig.enabled && this.cacheService) {
+      const workspaceDir = (stage.result?.metadata?.workspace as string) || process.cwd();
+      const restoreResult = await this.cacheService.restoreCache(cacheConfig, workspaceDir);
+      if (restoreResult.restored) {
+        stage.result = stage.result || {};
+        stage.result.cacheRestoreResult = {
+          restored: true,
+          matchedKey: restoreResult.matchedKey,
+          durationMs: restoreResult.durationMs,
+        };
+      }
+    }
+
+    let stageSuccess = true;
+    let stageError: string | undefined;
 
     for (const task of sortedTasks) {
       if (task.status === TaskStatus.SUCCESS) {
@@ -79,14 +101,38 @@ export class StageExecutor {
       }
 
       if (result.status === TaskStatus.FAILED) {
-        return {
-          success: false,
-          error: result.error,
-        };
+        stageSuccess = false;
+        stageError = result.error;
+        break;
       }
     }
 
-    return { success: true };
+    // Save cache after stage success (if cache config exists)
+    if (stageSuccess && cacheConfig.enabled && this.cacheService) {
+      const workspaceDir = (stage.result?.metadata?.workspace as string) || process.cwd();
+      await this.cacheService.saveCache(cacheConfig, workspaceDir);
+    }
+
+    return { success: stageSuccess, error: stageError };
+  }
+
+  /**
+   * 从 Stage 配置中提取缓存配置
+   */
+  private extractCacheConfig(stage: Stage): StageCacheConfig {
+    const cache = (stage.result?.metadata?.cache as StageCacheConfig) ||
+                  (stage as Record<string, unknown>).cache as StageCacheConfig | undefined;
+
+    if (!cache) {
+      return { enabled: false, key: '', paths: [] };
+    }
+
+    return {
+      enabled: cache.enabled ?? false,
+      key: cache.key || '',
+      paths: cache.paths || [],
+      restoreKeys: cache.restoreKeys,
+    };
   }
 
   /**
