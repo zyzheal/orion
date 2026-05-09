@@ -120,6 +120,16 @@ export const routes: AppRoute[] = [
     protected: true,
   },
   {
+    path: '/pipeline-runs',
+    element: React.lazy(() => import('@/pages/PipelineRunList')),
+    protected: true,
+  },
+  {
+    path: '/pipelines/:id/runs/:runId',
+    element: React.lazy(() => import('@/pages/PipelineRunLive')),
+    protected: true,
+  },
+  {
     path: '/deployments',
     element: React.lazy(() => import('@/pages/DeploymentList')),
     protected: true,
@@ -893,6 +903,12 @@ export const routes: AppRoute[] = [
     element: React.lazy(() => import('@/pages/ModuleManager')),
     protected: true,
     requiredRole: ['admin', 'platform_admin'],
+  },
+  // Secrets Management (Pipeline secrets)
+  {
+    path: '/secrets',
+    element: React.lazy(() => import('@/pages/SecretsManagement')),
+    protected: true,
   },
   // Pipeline Template (Workflow 9: Advanced CI/CD)
   {

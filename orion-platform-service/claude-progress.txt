@@ -2,6 +2,74 @@
 
 ## Current Session (2026-05-08)
 
+### Completed: GAP-CN-07 Build Resource Pool (Runner Management)
+
+实现了构建资源池功能，支持远程 Runner 管理、标签路由、资源隔离。
+
+#### Features Implemented
+- **Created** `src/models/Runner.ts`
+  - Runner: 远程 Runner 定义 (id, tenantId, name, status, labels, maxConcurrent, currentJobs, lastHeartbeat, metadata, endpoint)
+  - RunnerStatus: online | offline | busy | draining
+  - Helper functions: isRunnerAvailable(), getRunnerUtilization(), isRunnerStale()
+
+- **Created** `src/models/RunnerJob.ts`
+  - RunnerJob: 任务分发追踪 (id, runnerId, taskId, stageId, runId, tenantId, status, result, error)
+  - Lifecycle helpers: createRunnerJob, startRunnerJob, completeRunnerJob, failRunnerJob
+
+- **Created** `src/repositories/RunnerRepository.ts`
+  - 基于 PostgreSQL 的 Runner 数据访问层
+  - findByTenant, findByStatus, findByLabels (AND 匹配), findAvailableForTenant
+  - updateHeartbeat, decrementJobs, CRUD 方法
+
+- **Created** `src/repositories/RunnerJobRepository.ts`
+  - 任务分发记录存储
+  - findByRunnerId, findByStatus, findByTaskId
+  - markComplete, markFailed
+
+- **Created** DB migration 141:
+  - `141_create_runner_pool_tables.sql`: runners + runner_jobs 表
+  - 配套回滚脚本 `141_rollback_create_runner_pool_tables.sql`
+
+- **Created** `src/services/pipeline/RunnerPoolService.ts`
+  - registerRunner(): 注册新 Runner
+  - deregisterRunner(): 注销 Runner
+  - heartbeat(): 更新心跳
+  - selectRunner(labels, tenantId): 标签路由选择（AND 匹配，选利用率最低的）
+  - executeOnRunner(runnerId, task, endpoint): HTTP 分发任务到远程 Runner
+  - releaseRunner(): 释放 Runner（递减 current_jobs）
+  - markJobComplete/markJobFailed(): 标记任务完成/失败
+  - getStaleRunners(): 检测心跳过期的 Runner
+  - markStaleRunnersOffline(): 自动标记过期 Runner 为 offline
+
+- **Updated** `src/engine/TaskRunner.ts`
+  - 新增 runnerPoolService 可选依赖
+  - run() 方法中检测 __runnerLabels 参数
+  - 如果标签匹配且有可用 Runner，通过 HTTP 分发到远程 Runner
+  - 远程执行失败或无匹配 Runner 时自动降级为本地执行
+
+- **Updated** `src/engine/PipelineEngine.ts`
+  - initializeTasks() 新增 runsOn 参数
+  - 从 PipelineStage 的 runsOn 字段提取标签，注入到任务的 parameters.__runnerLabels
+  - 实现标签到远程 Runner 的路由
+
+- **Created** `src/services/pipeline/__tests__/RunnerPoolService.test.ts` (18 tests)
+  - Runner 注册/注销: 2 tests
+  - 心跳管理: 2 tests
+  - 标签路由选择: 6 tests (匹配/不匹配/满负载/离线/draining/最优选择)
+  - 远程任务分发: 2 tests (成功/失败)
+  - Runner 释放: 1 test
+  - 任务完成: 1 test
+  - 过期检测: 1 test
+  - DB 不可用模式: 2 tests
+
+### Test Status
+- **GAP-CN-07 tests**: 18 passed
+- **Engine tests**: 206 passed (no regressions)
+- **Pipeline service tests**: 551 passed (no new regressions)
+
+### Commits
+- `f919465` feat(pipeline): implement deployment strategies (GAP-CN-03) and runner pool (GAP-CN-07)
+
 ### Completed: GAP-CN-03 Canary/Blue-Green/Rolling Deployment Strategies
 
 实现了渐进式发布能力，支持金丝雀发布（10% → 50% → 100%）、蓝绿发布、滚动发布。

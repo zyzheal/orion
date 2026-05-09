@@ -5,6 +5,205 @@
 - **Root**: /Users/heal/orion-design
 - **Current Branch**: feat/frontend-gap-implementation
 
+## 2026-05-08: GAP-CN-02 Multi-Environment Management (COMPLETED)
+
+### feat(pipeline): implement GAP-CN-02 multi-environment management
+
+**Created: `src/models/Environment.ts`** (~70 lines)
+- `Environment` interface with tenant, name, variables, approval settings
+- `createEnvironment()`: entity factory
+- `mergeVariables()`: environment vars override pipeline vars
+
+**Created: `src/repositories/EnvironmentRepository.ts`** (~110 lines)
+- Extends BaseRepository<EnvironmentEntity>
+- Methods: findByTenant (ordered by display_order), findByTenantAndName
+
+**Created: `src/services/pipeline/EnvironmentService.ts`** (~270 lines)
+- CRUD: createEnvironment, getEnvironment, getEnvironmentByName, listEnvironments, updateEnvironment, deleteEnvironment
+- Variable resolution: resolveVariables() merges env + pipeline vars
+- Approval checks: checkApprovalRequired()
+- Default environments: createDefaultEnvironments() (development, staging, production)
+- Name validation: lowercase alphanumeric with underscores, max 64 chars
+
+**Created: `src/db/migrations/135_create_pipeline_environments.sql`**
+- `pipeline_environments` table: id, tenant_id, name, description, display_order, variables (JSONB), approval_required, approval_count
+- Unique constraint on (tenant_id, name), name format check constraint
+- Indexes for tenant, name, display_order
+- Seed data for default-tenant (development, staging, production)
+
+**Created: `src/db/migrations/137_add_environment_to_pipeline_runs.sql`**
+- Adds environment_name column to pipeline_runs
+- Foreign key to pipeline_environments(tenant_id, name)
+
+**Modified: `src/models/PipelineRun.ts`**
+- Added `environment?: string` field to PipelineRun and PipelineRunCreateInput
+
+**Modified: `src/services/pipeline/PipelineRunRepository.ts`**
+- Added environment_name to PipelineRunRecord and CreateRunInput
+- Updated create() to include environment_name
+
+**Modified: `src/services/pipeline/PipelineRunService.ts`**
+- Added EnvironmentService dependency injection
+- Added resolveEnvironmentVariables(): merges pipeline + env variables
+- Added checkRunApprovalRequired(): checks if run's env needs approval
+- Updated mapRun/mapCreateInput to include environment field
+
+**Created: `src/repositories/__tests__/EnvironmentRepository.test.ts`** (19 test cases)
+- CRUD tests: create, findById, findByTenant, findByTenantAndName, update, delete
+- Pagination test: list
+- Row mapping tests: null handling, snake_case to camelCase
+
+**Created: `src/services/pipeline/__tests__/EnvironmentService.test.ts`** (21 test cases)
+- CRUD tests: create (with validation), get, getByName, list, update, delete
+- Variable resolution tests: merge, override, empty handling
+- Approval check tests: required, not required, not found
+- Default environments tests: creation, idempotent skip
+- mergeVariables model function tests
+
+**Test results: 91 tests passing (5 suites)**
+
+## 2026-05-08: GAP-CN-06 Artifact Version Tracking and Traceability (COMPLETED)
+
+### feat(artifacts): implement GAP-CN-06 artifact version tracking and traceability
+
+**Created: `src/services/pipeline/TraceabilityService.ts`** (~130 lines)
+- `recordVersion(input)`: records new artifact version with commit/branch metadata
+- `getTraceabilityChain(versionId)`: full chain from artifact to source code + deployments
+- `getDeploymentHistory(pipelineId, limit)`: all versions and their deployment records
+- `getVersionDiff(pipelineId, versionA, versionB)`: metadata/commit/branch diff between versions
+- `findVersionsByRun/ByPipeline/ByCommit`: multi-dimensional lookup
+- `getLatestVersion(pipelineId)`: quick access to latest version
+- `searchVersions(options)`: paginated multi-filter search
+
+**Created: `src/repositories/__tests__/ArtifactVersionRepository.test.ts`** (28 test cases)
+- CRUD tests: createVersion, findByRunId, findByPipelineId, findByVersion, findLatestByPipeline
+- Source code tracking: findByCommitSha
+- Traceability: findTraceabilityChain with version+run+deployment chain
+- History: getDeploymentHistory with version-to-deployment mapping
+- Diff: getVersionDiff with metadata add/remove/change detection
+- Search: findWithFilters with tenant, pipeline, commit, branch, version filters + pagination
+- Column name verification: snake_case correctness
+
+**Created: `src/services/pipeline/__tests__/TraceabilityService.test.ts`** (17 test cases)
+- recordVersion: passes input to repository
+- getTraceabilityChain: returns full chain, throws NOT_FOUND on missing
+- getDeploymentHistory: returns version+deployment history with limit
+- getVersionDiff: returns diff, throws on missing version
+- findVersionsByRun/ByPipeline/ByCommit: delegates to repository
+- getLatestVersion: returns latest or undefined
+- searchVersions: multi-filter search with pagination
+- Partial data handling: missing pipelineRun, identical metadata
+
+**Modified: `src/services/pipeline/ArtifactService.ts`**
+- New `ArtifactServiceOptions` interface with `versionRepository` option
+- `upload()` now records version tracking info when versionRepository is configured
+- Graceful degradation: version recording failure doesn't break upload
+- Backward compatible: existing code without versionRepository continues to work
+
+**Created: `src/db/migrations/135_rollback_artifact_version_tracking.sql`**
+- Rollback migration for `artifact_version_tracking` table and indexes
+
+**Pre-existing (not modified):**
+- `src/models/ArtifactVersion.ts` — model already complete
+- `src/repositories/ArtifactVersionRepository.ts` — repository already complete
+- `src/db/migrations/135_create_artifact_version_tracking.sql` — migration already exists
+
+**Test Results: 63 tests passing** (28 repo + 17 service + 18 existing ArtifactService)
+
+## 2026-05-08: GAP-11 Trigger Persistence to PostgreSQL (COMPLETED)
+
+### feat(pipeline): implement GAP-11 trigger persistence to PostgreSQL
+
+**Created: `src/db/migrations/134_create_pipeline_triggers.sql`**
+- `pipeline_triggers` table: id, tenant_id, pipeline_id, trigger_type, trigger_config (JSONB), status, timestamps
+- `pipeline_trigger_executions` table: id, trigger_id (FK), run_id, status, context_json (JSONB), timestamps
+- Proper indexes for tenant, pipeline, type, status queries
+- Rollback migration included
+
+**Created: `src/repositories/TriggerRepository.ts`** (176 lines)
+- Extends BaseRepository<TriggerEntity>
+- Methods: findByTenant, findByPipeline, findActiveTriggers (for startup load)
+- Methods: updateStatus, updateTriggerConfig (for targeted updates)
+- Methods: saveExecutionRecord, findExecutionHistory, findRecentFailures
+- Override create to map camelCase entity to snake_case DB columns
+
+**Created: `src/repositories/__tests__/TriggerRepository.test.ts`** (21 test cases)
+- CRUD tests for triggers: create, findById, findByTenant, findByPipeline, findActiveTriggers
+- Status and config update tests
+- Execution record tests: saveExecutionRecord, findExecutionHistory, findRecentFailures
+- Column name verification tests (snake_case)
+
+**Modified: `src/services/pipeline/PipelineTriggerService.ts`**
+- New constructor options: `PipelineTriggerServiceOptions` with `db` and `onTickCallback`
+- `initialize()`: loads active triggers from PostgreSQL on startup, re-schedules cron triggers
+- `registerTrigger()`: persists to PostgreSQL (graceful degradation on failure)
+- `updateTrigger()`, `updateTriggerStatus()`: persist changes to PostgreSQL
+- `deleteTrigger()`: removes from PostgreSQL
+- `executeTrigger()`, `recordFailure()`: persist execution records to PostgreSQL
+- Backward compatible: works with old callback-only constructor
+- Maintains in-memory Map for runtime performance
+
+**Created: `src/services/pipeline/__tests__/PipelineTriggerService.persistence.test.ts`** (17 test cases)
+- Startup initialization tests: load active triggers, handle empty DB, handle connection failure
+- Mutation persistence tests: register, update, delete all persist to PostgreSQL
+- Execution history persistence tests: success and failure records
+- Backward compatibility tests: no repository, old constructor signature
+
+**Modified: `src/services/pipeline/index.ts`**
+- Export new `PipelineTriggerServiceOptions` type
+
+**Test Results: 74 tests passing**
+- 21 TriggerRepository tests
+- 17 persistence integration tests
+- 23 existing PipelineTriggerService tests (backward compatible)
+- 13 cron scheduler tests
+
+## 2026-05-08: GAP-04 Task Output Variable Propagation (COMPLETED)
+
+### feat(engine): implement GAP-04 task output variable propagation
+
+**Created: `src/engine/VariableContext.ts`** (232 lines)
+- Per-run variable context for task output propagation
+- `setTaskOutput(taskName, key, value)` / `getTaskOutput(taskName, key)`
+- Pipeline-level variables: `setVariable(key, value)` / `getVariable(key)`
+- String template resolution: `${tasks.build.outputs.version}` -> actual value
+- Deep object resolution: `resolveObject(obj)` handles nested objects and arrays
+- `toExpressionContext()`: produces ExpressionContext-compatible object for ExpressionEvaluator
+- `clearTaskOutputs(taskName)`: cleanup task outputs
+
+**Created: `src/engine/__tests__/VariableContext.test.ts`** (207 lines)
+- 24 TDD tests: set/get, resolution, deep object resolution, ExpressionContext integration
+- All 24 tests passing
+
+**Modified: `src/engine/TaskRunner.ts`**
+- Added `outputs?: { [key: string]: string }` to `TaskExecutionResult` interface
+- `parseOutputsFromStdout()`: parses GitHub Actions style `::set-output name=::` declarations
+- `mergeOutputs()`: merges explicit outputs with parsed stdout outputs
+- After task execution, outputs are automatically parsed and attached to result
+
+**Modified: `src/engine/StageExecutor.ts`**
+- Added `variableContext: VariableContext` optional dependency
+- `setVariableContext(ctx)`: set variable context per-run
+- `registerTaskOutputs()`: after task completion, registers outputs in VariableContext
+- Task outputs keyed by task name for `${tasks.<taskName>.outputs.<key>}` references
+
+**Modified: `src/engine/PipelineEngine.ts`**
+- `variableContexts` Map: tracks per-run VariableContext instances
+- On `execute()`: creates VariableContext, initializes with context variables, sets on StageExecutor
+- On `executeStage()`: resolves variable references in task parameters before execution
+- On stage completion: `registerStageOutputs()` registers stage-level outputs
+- `evaluateCondition()`: merges task outputs as flat variables for expression access (e.g., `buildVersion`)
+- Cleanup: removes VariableContext on run completion and cancellation
+
+**Modified: `src/models/Pipeline.ts`**
+- Added `outputs?: { [key: string]: string }` field to `PipelineStage` interface
+- Allows stages to declare output variables: `{ version: '${tasks.build.outputs.version}' }`
+
+**Test Results**: 170/170 engine tests passing (24 new + 146 existing)
+**TypeScript**: 0 new type errors in engine files
+
+**Commit**: bfdd2d9
+
 ## 2026-05-08: GAP-09 Standard Prometheus /metrics Endpoint (COMPLETED)
 
 ### feat(observability): implement GAP-09 standard Prometheus /metrics endpoint

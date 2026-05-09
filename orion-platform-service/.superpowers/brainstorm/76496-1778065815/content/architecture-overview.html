@@ -1,0 +1,145 @@
+<h2>Orion 平台功能域架构总览</h2>
+<p class="subtitle">93 个服务模块 · 95 路由文件 · 65 控制器 · 40 配置域</p>
+
+<div class="section">
+<h3>核心功能域分组</h3>
+
+<div class="pros-cons">
+  <div class="pros">
+    <h4>核心编排 (5)</h4>
+    <ul>
+      <li><b>pipeline</b> - Pipeline CRUD/RunService/Trigger (高耦合)</li>
+      <li><b>engine</b> - PipelineEngine/StageExecutor/TaskRunner</li>
+      <li><b>saga</b> - SagaCoordinator/TransactionLog</li>
+      <li><b>cross-domain</b> - 跨域编排 (高耦合)</li>
+      <li><b>multi-modal-trigger</b> - Webhook/Chat 触发器</li>
+    </ul>
+  </div>
+  <div class="cons">
+    <h4>构建 · 部署 · 制品 (8)</h4>
+    <ul>
+      <li><b>build</b> - BuildService/CacheService/LogService/K8sBuildExecutor</li>
+      <li><b>deploy</b> - DeployService/ProgressiveDeploy/EmergencyDeploy/Window</li>
+      <li><b>smart-deploy</b> - SmartDeploy/Rollback/DeploymentHistory</li>
+      <li><b>canary-analysis</b> + <b>canary-traffic</b> - 金丝雀发布</li>
+      <li><b>artifact</b> - ArtifactService/RegistryService/PromotionService</li>
+      <li><b>artifact-ops</b> - 制品操作/保留策略</li>
+      <li><b>iac</b> - IaC Workspace/Plan/State</li>
+      <li><b>code-repo</b> - GitLab/Gerrit/BranchPolicy</li>
+    </ul>
+  </div>
+</div>
+
+<div class="pros-cons">
+  <div class="pros">
+    <h4>可观测性 · 告警 · 运维 (12)</h4>
+    <ul>
+      <li><b>monitoring</b> - MetricCollector/AlertRuleEngine/Notification</li>
+      <li><b>alert</b> - Deduplication/Correlation/RCA/Silence</li>
+      <li><b>escalation</b> - EscalationConfig + Scheduler</li>
+      <li><b>notification</b> - NotificationService/SettingsService</li>
+      <li><b>audit</b> - AuditService/LogChain/ImmutableStorage</li>
+      <li><b>observability</b> - ObservabilityController</li>
+      <li><b>chaos-engineering</b> - Experiment/FaultInjector/ResilienceScore</li>
+      <li><b>backup</b> - BackupService/Scheduler/Recovery/Verifier</li>
+      <li><b>disaster-recovery</b> - DRPlanExecutor/StrategyManager</li>
+      <li><b>self-healing</b> - HealingDecision/Guardian/StrategyEngine</li>
+      <li><b>diagnostic</b> - DiagnosticEngine/DecisionTree/KnowledgeBase</li>
+      <li><b>ticketing</b> - DispatchEngine/QueueManager/LoadBalancer</li>
+    </ul>
+  </div>
+  <div class="cons">
+    <h4>AI · 决策 · 知识 (9)</h4>
+    <ul>
+      <li><b>ai</b> - AIGateway/MLInference/ProviderCircuitBreaker</li>
+      <li><b>ai-review</b> - AIReviewService/DiffAnalyzer/ReviewAggregator</li>
+      <li><b>ai-security</b> - AISecurityService</li>
+      <li><b>llm-trace</b> - LLMTraceService/TokenCounter/CostCalc</li>
+      <li><b>decision-explanation</b> - 决策解释服务</li>
+      <li><b>knowledge</b> - KnowledgeService/Repository</li>
+      <li><b>skill</b> - SkillService/Repository</li>
+      <li><b>agent</b> - AgentService/RunService/ProfileService</li>
+      <li><b>model-version</b> - ModelVersionService</li>
+    </ul>
+  </div>
+</div>
+
+<div class="pros-cons">
+  <div class="pros">
+    <h4>治理 · 安全 · 合规 (8)</h4>
+    <ul>
+      <li><b>security</b> - SecurityScanner/ComplianceFramework/SupplyChain</li>
+      <li><b>privacy</b> - SecretSanitizer/PIISanitizer/TenantPrivacy</li>
+      <li><b>sbom</b> - SBOMGenerator/Document/Vulnerability</li>
+      <li><b>policy</b> - PolicyService/Evaluation/Override</li>
+      <li><b>quality-gate</b> - QualityGateEnhancementService</li>
+      <li><b>risk-assessment</b> - RiskScoringEngine/HealthCheck</li>
+      <li><b>approval</b> - MultiLevelApproval/EmergencyApproval</li>
+      <li><b>api-governance</b> - APISpecRegistry</li>
+    </ul>
+  </div>
+  <div class="cons">
+    <h4>成本 · 效能 · 组织 (7)</h4>
+    <ul>
+      <li><b>cost</b> - CostService/BudgetGuard/AnomalyDetection/Optimization</li>
+      <li><b>cost-tracking</b> - CostTrackingService</li>
+      <li><b>finops</b> - FinOpsService/ROIAnalyzer/BudgetService</li>
+      <li><b>efficiency</b> - DoraMetrics/EfficiencyReport/WeeklyReport</li>
+      <li><b>tenant</b> - TenantService/Isolation/RLSManager/Quota</li>
+      <li><b>user</b> + <b>role</b> + <b>session</b> + <b>api-key</b> - 认证授权</li>
+      <li><b>project</b> + <b>environment</b> + <b>product-line</b> - 组织结构</li>
+    </ul>
+  </div>
+</div>
+
+<div class="pros-cons">
+  <div class="pros">
+    <h4>平台 · 基础设施 (8)</h4>
+    <ul>
+      <li><b>config</b> - UnifiedConfigService (40 个配置域)</li>
+      <li><b>config-mgmt</b> - ConfigService/Approval/Diff/GitOps</li>
+      <li><b>event-bus</b> - EventBusService/JetStreamManager (NATS+fallback)</li>
+      <li><b>queue</b> - QueueService/Repository</li>
+      <li><b>scheduler</b> - CronScheduler/DistributedLock/OnCall</li>
+      <li><b>cache-monitor</b> - CacheMetrics</li>
+      <li><b>metrics</b> - MetricsService/Repository</li>
+      <li><b>webhook</b> - WebhookService/Repository</li>
+    </ul>
+  </div>
+  <div class="cons">
+    <h4>扩展 · 生态 (7)</h4>
+    <ul>
+      <li><b>plugin</b> + <b>plugin-spi</b> + <b>plugin-marketplace</b> - 插件体系</li>
+      <li><b>chatops</b> - CommandService/ExecutionService</li>
+      <li><b>digital-twin</b> - ProductionSnapshot/TrafficReplay</li>
+      <li><b>federation</b> - FederationService/ClusterHealthMonitor</li>
+      <li><b>multi-cloud</b> - MultiCloudManager/ResourceAbstraction</li>
+      <li><b>data-pipeline</b> - DataPipeline/DataQuality</li>
+      <li><b>performance</b> - PerformanceBaseline/Profile</li>
+    </ul>
+  </div>
+</div>
+
+<div class="pros-cons">
+  <div class="pros">
+    <h4>无路由/可选模块 (10)</h4>
+    <ul>
+      <li>adaptive-pipeline, consistency, deployment-window</li>
+      <li>output-validation, cost-tracking, risk-engine</li>
+      <li>model-version, agent-run-service, agent-profile-service</li>
+      <li>cmdb-integration-service</li>
+    </ul>
+  </div>
+  <div class="cons">
+    <h4>横切关注点 (6)</h4>
+    <ul>
+      <li><b>auth</b> - JWT Key Rotation/Token Blacklist</li>
+      <li><b>tenant</b> - 四层隔离 (API/Service/Data/RLS)</li>
+      <li><b>event-bus</b> - NATS JetStream + PostgreSQL fallback</li>
+      <li><b>database</b> - PostgreSQL via slonik</li>
+      <li><b>degradation</b> - AutoRecovery/DegradationConfig</li>
+      <li><b>audit</b> - 哈希链式审计存储</li>
+    </ul>
+  </div>
+</div>
+</div>

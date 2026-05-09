@@ -1,0 +1,190 @@
+<h2>60+ C 级页面 API 对接详细分析</h2>
+<p class="subtitle">109 个页面目录，162 条路由注册，仅 13 个有真实 API，12 个使用 mock 数据，84 个为空壳/框架</p>
+
+<div class="section">
+<h3>📊 页面分级总览</h3>
+<div style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 16px;">
+  <div style="background:#0d2137; padding:16px; border-radius:8px; border-left:4px solid #2ecc71;">
+    <h4 style="margin:0; color:#2ecc71;">A 级：真实 API</h4>
+    <p style="margin:4px 0 0;">13 个页面 (12%)</p>
+  </div>
+  <div style="background:#1a1a2e; padding:16px; border-radius:8px; border-left:4px solid #f39c12;">
+    <h4 style="margin:0; color:#f39c12;">B 级：Mock 数据</h4>
+    <p style="margin:4px 0 0;">12 个页面 (11%)</p>
+  </div>
+  <div style="background:#1a1a2e; padding:16px; border-radius:8px; border-left:4px solid #e94560;">
+    <h4 style="margin:0; color:#e94560;">C 级：空壳/框架</h4>
+    <p style="margin:4px 0 0;">84 个页面 (77%)</p>
+  </div>
+  <div style="background:#1a1a2e; padding:16px; border-radius:8px; border-left:4px solid #3498db;">
+    <h4 style="margin:0; color:#3498db;">后端无对应 API</h4>
+    <p style="margin:4px 0 0;">~25 个页面需后端先开发</p>
+  </div>
+</div>
+</div>
+
+<div class="section">
+<h3>🔴 A 级页面（13 个，已有真实 API，需增强）</h3>
+<p class="subtitle">这些页面已对接后端，但部分能力不完整</p>
+<table style="width:100%; border-collapse:collapse; font-size:13px;">
+  <tr style="border-bottom:1px solid #333;"><th style="text-align:left; padding:6px;">页面</th><th style="text-align:left; padding:6px;">已有 API</th><th style="text-align:left; padding:6px;">需增强</th></tr>
+  <tr style="border-bottom:1px solid #222;"><td>PipelineList/Detail/Editor</td><td>/api/v1/pipelines/*</td><td>WebSocket 日志、模板导入、批量操作</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td>DeploymentList/Detail</td><td>/api/v1/deployments/*</td><td>回滚操作、时间线可视化</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td>AlertList</td><td>/api/v1/alerts</td><td>告警关联图、根因分析</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td>AgentDashboard</td><td>/api/v1/agents/*</td><td>Agent 生命周期管理</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td>Artifacts(4子页面)</td><td>/api/v1/artifacts/*</td><td>制品下载/预览</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td>SbomDashboard/Detail</td><td>/api/v1/sbom/*</td><td>依赖投毒检测</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td>TenantManagement</td><td>/api/v1/tenants/*</td><td>配额管理</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td>ConfigManagement</td><td>/api/v1/config/*</td><td>版本对比</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td>AuditLog</td><td>/api/v1/audit/*</td><td>链式哈希验证</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td>RoleManagement</td><td>/api/v1/roles/*</td><td>权限矩阵</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td>ProductLine</td><td>/api/v1/product-lines</td><td>产品线关联</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td>InternalLibrary(4子页面)</td><td>/api/v1/internal-libraries/*</td><td>内部库发布</td></tr>
+</table>
+</div>
+
+<div class="section">
+<h3>🟠 B 级页面（12 个，使用 Mock 数据，需替换为真实 API）</h3>
+<p class="subtitle">页面框架完整，但使用 `__mocks__/` 静态数据</p>
+<table style="width:100%; border-collapse:collapse; font-size:13px;">
+  <tr style="border-bottom:1px solid #333;"><th style="text-align:left; padding:6px;">页面</th><th style="text-align:left; padding:6px;">Mock 文件</th><th style="text-align:left; padding:6px;">需对接后端 API</th><th style="text-align:center; padding:6px;">难度</th></tr>
+  <tr style="border-bottom:1px solid #222;"><td>ExecutiveDashboard</td><td>mockBIData.ts</td><td>/api/v1/efficiency/executive</td><td style="text-align:center;">⭐⭐</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td>ManagerDashboard</td><td>mockBIData.ts</td><td>/api/v1/efficiency/manager</td><td style="text-align:center;">⭐⭐</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td>EngineerDashboard</td><td>mockBIData.ts</td><td>/api/v1/efficiency/engineer</td><td style="text-align:center;">⭐⭐</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td>NotificationCenter</td><td>mockNotificationData.ts</td><td>/api/v1/notifications/*</td><td style="text-align:center;">⭐</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td>DashboardCore</td><td>mockBIData.ts</td><td>/api/v1/dashboard</td><td style="text-align:center;">⭐⭐</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td>PluginManagement</td><td>mockPluginData.ts</td><td>/api/v1/plugins/*</td><td style="text-align:center;">⭐⭐</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td>TicketList(3子页面)</td><td>mockTicketData.ts</td><td>/api/v1/tickets/*</td><td style="text-align:center;">⭐⭐⭐</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td>TicketDetail(2子页面)</td><td>mockTicketData.ts</td><td>/api/v1/tickets/:id/*</td><td style="text-align:center;">⭐⭐⭐</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td>PipelineDetail(部分)</td><td>mockData.ts</td><td>/api/v1/pipelines/:id</td><td style="text-align:center;">⭐</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td>VectorStore(6子页面)</td><td>utils.ts mock</td><td>/api/v1/vector-store/*</td><td style="text-align:center;">⭐⭐</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td>EventBus</td><td>mockData.ts</td><td>/api/v1/eventbus/*</td><td style="text-align:center;">⭐⭐⭐</td></tr>
+</table>
+</div>
+
+<div class="section">
+<h3>🔴 C 级页面（84 个，空壳/框架，需完整开发）</h3>
+<p class="subtitle">仅有 UI 框架，无数据源，无 API 对接</p>
+
+<h4>监控与 AI 域（20+ 页面，最高优先级）</h4>
+<table style="width:100%; border-collapse:collapse; font-size:13px;">
+  <tr style="border-bottom:1px solid #333;"><th style="text-align:left; padding:6px;">页面</th><th style="text-align:left; padding:6px;">需后端 API</th><th style="text-align:center; padding:6px;">难度</th></tr>
+  <tr style="border-bottom:1px solid #222;"><td>Monitoring(6子页面): Dashboard, Metrics, Alerts, Rules, Channels</td><td>/api/v1/monitoring/*</td><td style="text-align:center;">⭐⭐⭐</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td>Diagnostic(5子页面): Sessions, SessionDetail, Reports, KnowledgeBase, Trigger</td><td>/api/v1/diagnostic/*</td><td style="text-align:center;">⭐⭐⭐</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td>SelfHealing(6子页面): IncidentList, IncidentDetail, History, StrategyList, ApprovalQueue, EffectivenessDashboard</td><td>/api/v1/self-healing/*</td><td style="text-align:center;">⭐⭐⭐</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td>LLMTraceDashboard(5子页面): TraceOverview, TraceList, CostAnalysis, TrackingAccuracy</td><td>/api/v1/llm-trace/*</td><td style="text-align:center;">⭐⭐⭐</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td>AICostDashboard(6子页面): CostOverview, BudgetManagement, CostDetail, ROIReport, AlertConfig</td><td>/api/v1/ai-cost/*</td><td style="text-align:center;">⭐⭐⭐</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td>AIDocManagement(5子页面): SpaceList, DocumentList, DocumentEditor, RAGQuery</td><td>/api/v1/ai-docs/*</td><td style="text-align:center;">⭐⭐⭐</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td>AIReview(6子页面): Dashboard, History, ReviewDetail, Rules, Config</td><td>/api/v1/ai-review/*</td><td style="text-align:center;">⭐⭐</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td>AIGateway, AISecurity, AIDecisionPage, MetricsDashboard, Observability(3), PerformancePage, RiskDashboard</td><td>各域 API</td><td style="text-align:center;">⭐⭐⭐</td></tr>
+</table>
+
+<h4>平台管理域（15+ 页面）</h4>
+<table style="width:100%; border-collapse:collapse; font-size:13px;">
+  <tr style="border-bottom:1px solid #333;"><th style="text-align:left; padding:6px;">页面</th><th style="text-align:left; padding:6px;">需后端 API</th><th style="text-align:center; padding:6px;">难度</th></tr>
+  <tr style="border-bottom:1px solid #222;"><td>PluginSPI(4子页面): ExtensionPointList, PluginRegistry, SPIConfig</td><td>/api/v1/plugin-spi/*</td><td style="text-align:center;">⭐⭐⭐</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td>IaCManagement(5子页面): WorkspaceList, PlanViewer, StateBrowser, ModuleRegistry</td><td>/api/v1/iac/*</td><td style="text-align:center;">⭐⭐⭐</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td>CodeMgmt(5子页面): RepoList, RepoDetail, BranchPolicyList, CodeOwnersPage, WebhookLog</td><td>/api/v1/code-repos/*</td><td style="text-align:center;">⭐⭐</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td>CMDB, WebhookManagement, CronManagement, Queue, OnCall, Sessions, UserManagement, ApiKeyManagement</td><td>各域 API</td><td style="text-align:center;">⭐⭐</td></tr>
+</table>
+
+<h4>协作与工单域（10+ 页面）</h4>
+<table style="width:100%; border-collapse:collapse; font-size:13px;">
+  <tr style="border-bottom:1px solid #333;"><th style="text-align:left; padding:6px;">页面</th><th style="text-align:left; padding:6px;">需后端 API</th><th style="text-align:center; padding:6px;">难度</th></tr>
+  <tr style="border-bottom:1px solid #222;"><td>ChatOps(5子页面): CommandBrowser, ExecutionDashboard, AuditLogViewer, ChatOpsSettings</td><td>/api/v1/chatops/*</td><td style="text-align:center;">⭐⭐⭐⭐</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td>Approvals, ApprovalPage, ConfirmationWorkbench(5子页面)</td><td>/api/v1/approvals/*</td><td style="text-align:center;">⭐⭐</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td>PolicyManagement, CompliancePage</td><td>/api/v1/policies/*</td><td style="text-align:center;">⭐⭐</td></tr>
+</table>
+
+<h4>效率成本域（5 页面）</h4>
+<table style="width:100%; border-collapse:collapse; font-size:13px;">
+  <tr style="border-bottom:1px solid #333;"><th style="text-align:left; padding:6px;">页面</th><th style="text-align:left; padding:6px;">需后端 API</th><th style="text-align:center; padding:6px;">难度</th></tr>
+  <tr style="border-bottom:1px solid #222;"><td>EfficiencyDashboard, EfficiencyPage</td><td>/api/v1/efficiency/*</td><td style="text-align:center;">⭐⭐</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td>FinOpsDashboard, CostOperationsPage, BudgetGuardPage</td><td>/api/v1/finops/*, /api/v1/cost/*</td><td style="text-align:center;">⭐⭐</td></tr>
+</table>
+
+<h4>基础设施域（15+ 页面）</h4>
+<table style="width:100%; border-collapse:collapse; font-size:13px;">
+  <tr style="border-bottom:1px solid #333;"><th style="text-align:left; padding:6px;">页面</th><th style="text-align:left; padding:6px;">需后端 API</th><th style="text-align:center; padding:6px;">难度</th></tr>
+  <tr style="border-bottom:1px solid #222;"><td>Environments, EnvironmentPage</td><td>/api/v1/environments/*</td><td style="text-align:center;">⭐⭐</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td>EphemeralEnvList, EphemeralEnvDetail</td><td>/api/v1/ephemeral-env/*</td><td style="text-align:center;">⭐⭐</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td>MultiCloudPage, FederationPage, DigitalTwin, DisasterRecoveryPage, DataPipelinePage</td><td>各域 API</td><td style="text-align:center;">⭐⭐⭐</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td>Backup, OrchestrationPage, SupplyChainPage, ApiGovernancePage</td><td>各域 API</td><td style="text-align:center;">⭐⭐</td></tr>
+</table>
+
+<h4>CI/CD 增强域（6 页面）</h4>
+<table style="width:100%; border-collapse:collapse; font-size:13px;">
+  <tr style="border-bottom:1px solid #333;"><th style="text-align:left; padding:6px;">页面</th><th style="text-align:left; padding:6px;">需后端 API</th><th style="text-align:center; padding:6px;">难度</th></tr>
+  <tr style="border-bottom:1px solid #222;"><td>PipelineBudgetPage, PipelineTemplatePage, PipelineVersionPage</td><td>/api/v1/pipeline-budget/*, /api/v1/pipeline-template/*, /api/v1/pipeline-version/*</td><td style="text-align:center;">⭐⭐</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td>DeployPage, CanaryAnalysis, CanaryTrafficPage, ChaosExperimentPage</td><td>/api/v1/deploy/*, /api/v1/canary/*, /api/v1/chaos/*</td><td style="text-align:center;">⭐⭐⭐</td></tr>
+</table>
+
+<h4>开发者生态域（10+ 页面）</h4>
+<table style="width:100%; border-collapse:collapse; font-size:13px;">
+  <tr style="border-bottom:1px solid #333;"><th style="text-align:left; padding:6px;">页面</th><th style="text-align:left; padding:6px;">需后端 API</th><th style="text-align:center; padding:6px;">难度</th></tr>
+  <tr style="border-bottom:1px solid #222;"><td>SkillManagement(4子页面): Marketplace, MySkills, SkillSubmission</td><td>/api/v1/skills/*</td><td style="text-align:center;">⭐⭐</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td>CommunityPage, DeveloperPortalPage, TriggerPage</td><td>/api/v1/community/*, /api/v1/triggers</td><td style="text-align:center;">⭐⭐</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td>AgentRunDetail, KnowledgeBase, ChangeIntelligence, TestSelector, QualityGatePage, AutonomousPipelinePage, PluginMarketplacePage</td><td>各域 API</td><td style="text-align:center;">⭐⭐</td></tr>
+</table>
+</div>
+
+<div class="section">
+<h3>📋 API 对接工作量汇总</h3>
+<div style="display:grid; grid-template-columns: repeat(2, 1fr); gap: 16px;">
+  <div style="background:#1a1a2e; padding:16px; border-radius:8px;">
+    <h4 style="margin:0; color:#e94560;">B 级页面（12 个）</h4>
+    <p>替换 mock → 真实 API</p>
+    <p><b>工作量：8-12 人天</b></p>
+    <p>难度：⭐ - ⭐⭐⭐</p>
+  </div>
+  <div style="background:#1a1a2e; padding:16px; border-radius:8px;">
+    <h4 style="margin:0; color:#e94560;">C 级页面（84 个）</h4>
+    <p>完整开发：UI 框架 + API 对接 + 异常处理</p>
+    <p><b>工作量：55-85 人天</b></p>
+    <p>难度：⭐⭐ - ⭐⭐⭐⭐</p>
+  </div>
+  <div style="background:#0d2137; padding:16px; border-radius:8px;">
+    <h4 style="margin:0; color:#2ecc71;">A 级页面增强（13 个）</h4>
+    <p>已有 API，补充缺失能力</p>
+    <p><b>工作量：8-15 人天</b></p>
+    <p>难度：⭐ - ⭐⭐</p>
+  </div>
+  <div style="background:#1a1a2e; padding:16px; border-radius:8px;">
+    <h4 style="margin:0; color:#f39c12;">后端 API 缺失（~25 个）</h4>
+    <p>需后端先开发对应端点</p>
+    <p><b>工作量：后端 15-25 人天</b></p>
+    <p>依赖后端进度</p>
+  </div>
+</div>
+
+<p style="margin-top:24px; font-size:16px; font-weight:bold; text-align:center; color:#e94560;">
+  总计：71-112 人天 ≈ 14-22 周（2 人并行）
+</p>
+</div>
+
+<div class="section">
+<h3>🎯 对接策略</h3>
+<div class="options" data-multiselect>
+  <div class="option" data-choice="strategy-1" onclick="toggleSelect(this)">
+    <div class="letter">1</div>
+    <div class="content">
+      <h3>策略 A：逐域对接（推荐）</h3>
+      <p>按功能域分组，先完成一个域的所有页面对接，再进入下一个域。好处是每个域可独立验证，风险分散。</p>
+    </div>
+  </div>
+  <div class="option" data-choice="strategy-2" onclick="toggleSelect(this)">
+    <div class="letter">2</div>
+    <div class="content">
+      <h3>策略 B：先易后难</h3>
+      <p>先对接 B 级页面（12 个，8-12 天），快速见效；再处理 C 级页面。</p>
+    </div>
+  </div>
+  <div class="option" data-choice="strategy-3" onclick="toggleSelect(this)">
+    <div class="letter">3</div>
+    <div class="content">
+      <h3>策略 C：后端先行</h3>
+      <p>先补齐 ~25 个缺失的后端 API，再统一前端对接。避免前端等后端的情况。</p>
+    </div>
+  </div>
+</div>
+</div>

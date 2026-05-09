@@ -33,6 +33,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import StageItem from './StageItem';
 import StageModal from './StageModal';
 import { getPipeline, createPipeline, updatePipeline } from '@/api/pipelines';
+import { DAGGraph, validateDAG } from '@/components/DAGGraph';
+import { ApartmentOutlined } from '@ant-design/icons';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -99,6 +101,9 @@ const PipelineEditor: React.FC = () => {
   // YAML 预览
   const [yamlPreviewVisible, setYamlPreviewVisible] = useState(false);
   const [generatedYaml, setGeneratedYaml] = useState('');
+
+  // DAG 预览
+  const [dagPreviewVisible, setDagPreviewVisible] = useState(false);
 
   // 保存中状态
   const [saving, setSaving] = useState(false);
@@ -384,6 +389,13 @@ const PipelineEditor: React.FC = () => {
         </div>
         <Space>
           <Button
+            icon={<ApartmentOutlined />}
+            onClick={() => setDagPreviewVisible(!dagPreviewVisible)}
+            disabled={stages.length === 0}
+          >
+            {dagPreviewVisible ? '隐藏 DAG' : '查看 DAG'}
+          </Button>
+          <Button
             icon={<CodeOutlined />}
             onClick={handlePreviewYaml}
             disabled={stages.length === 0}
@@ -492,6 +504,24 @@ const PipelineEditor: React.FC = () => {
           </DndContext>
         )}
       </Card>
+
+      {/* DAG 依赖关系可视化 */}
+      {dagPreviewVisible && stages.length > 0 && (
+        <Card style={{ marginTop: 24 }} title="DAG 依赖关系">
+          <Alert
+            type={validateDAG(stages).valid ? 'success' : 'error'}
+            message={validateDAG(stages).valid ? '依赖关系有效，无循环依赖' : '依赖关系存在问题'}
+            description={
+              validateDAG(stages).valid
+                ? '拓扑结构正确，Pipeline 可以正常执行'
+                : validateDAG(stages).errors.join('; ')
+            }
+            showIcon
+            style={{ marginBottom: 16 }}
+          />
+          <DAGGraph stages={stages} height={350} showMiniMap={false} />
+        </Card>
+      )}
 
       {/* Stage 类型说明 */}
       <Card style={{ marginTop: 24 }} title="阶段类型说明">

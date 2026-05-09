@@ -21,9 +21,11 @@ import {
   CodeOutlined,
   ReloadOutlined,
   ArrowLeftOutlined,
+  ApartmentOutlined,
 } from '@ant-design/icons';
 import StatusBadge from '@/components/StatusBadge';
 import CardPanel from '@/components/CardPanel';
+import { DAGGraph } from '@/components/DAGGraph';
 import { getPipelineRun, retryPipelineRun } from '@/api/pipelines';
 import { useNavigate, useParams } from 'react-router-dom';
 import dayjs from 'dayjs';
@@ -468,6 +470,44 @@ const PipelineDetail: React.FC = () => {
                 />
               )}
             </div>
+          </CardPanel>
+        </TabPane>
+
+        <TabPane
+          tab={
+            <Space>
+              <ApartmentOutlined />
+              DAG 视图
+            </Space>
+          }
+          key="dag"
+        >
+          {/* DAG visualization */}
+          <CardPanel title="依赖关系图">
+            {pipeline.stages && pipeline.stages.length > 0 ? (
+              <DAGGraph
+                stages={pipeline.stages.map((stage: any, idx: number) => ({
+                  id: `stage-${idx}`,
+                  name: stage.name,
+                  type: stage.type || 'custom',
+                  status: stage.status || 'pending',
+                  duration: stage.duration,
+                  dependsOn: stage.dependsOn || [],
+                  steps: stage.steps,
+                  startTime: stage.startTime,
+                  endTime: stage.endTime,
+                }))}
+                height={400}
+                showMiniMap={true}
+                onNodeClick={(nodeId, data) => {
+                  console.log('Clicked node:', nodeId, data);
+                }}
+              />
+            ) : (
+              <div style={{ textAlign: 'center', padding: 40 }}>
+                <Text type="secondary">暂无阶段数据</Text>
+              </div>
+            )}
           </CardPanel>
         </TabPane>
       </Tabs>
