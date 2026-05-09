@@ -135,11 +135,11 @@ child.stderr.on('data', (data) => this.logStream.write(data));
 
 | 方案 | 优势 | 劣势 | 适用场景 |
 |------|------|------|---------|
-| 本机 Docker daemon | 简单，无需额外组件 | 安全风险，多租户隔离差 | 单租户/开发环境 |
-| K8s Pod + DIND sidecar | 安全隔离，多租户 | 需 K8s 集群 | 生产环境 |
-| Kaniko（无 daemon） | 无特权运行，K8s 友好 | 不支持所有 Dockerfile 语法 | 生产推荐 |
+| Kaniko（无 daemon） | 无特权运行，K8s 友好，支持安全策略 | 不支持所有 Dockerfile 语法 | **生产默认** |
+| K8s Pod + DIND sidecar | 安全隔离，多租户，完整 Dockerfile 支持 | 需 `--privileged`，资源消耗大 | 生产备选 |
+| 本机 Docker daemon | 简单，无需额外组件 | **严重安全风险，容器可逃逸到宿主机** | **仅限单租户开发，禁用 secrets 注入** |
 
-**默认方案**: 本机 Docker daemon（开发模式），可选 Kaniko（生产模式）。
+**默认方案**: 生产环境强制 Kaniko，开发环境可选本机 Docker（但必须在配置中显式启用 `docker.daemon.mode=dev`，且此时禁用 secrets 注入）。增加 `--security-opt=no-new-privileges` 和 AppArmor/Seccomp profile。
 
 #### 2.1.6 输出变量
 
@@ -183,16 +183,28 @@ stages:
 
 #### 2.2.3 StageExecutor 集成
 
-**文件**: `orion-platform-service/src/engine/StageExecutor.ts`
+**关键设计决策**: StageExecutor 接收的是已解析的 `Stage` 域模型，不持有原始 YAML。因此不能在 StageExecutor 中通过 `getYamlStage()` 反向查找 YAML。
 
-在 `executeStage` 方法中集成缓存恢复和保存：
+**正确方案**: 在 `PipelineEngine.parseAndValidate()` 阶段，将 YAML 中的 `cache` 配置提取出来，存入 `Stage.metadata` 字段：
+
+```typescript
+// PipelineEngine.parseAndValidate() 中
+for (const yamlStage of yamlSpec.stages) {
+  const stage = this.createStageFromYaml(yamlStage);
+  if (yamlStage.cache) {
+    stage.metadata.cacheConfig = yamlStage.cache; // 缓存配置注入 metadata
+  }
+}
+```
+
+在 `StageExecutor.executeStage` 中直接从 Stage 对象读取：
 
 ```typescript
 async executeStage(runId: string, stage: Stage, tasks: Task[]): Promise<StageResult> {
-  // 1. 恢复缓存（在任务执行前）
-  const yamlStage = this.getYamlStage(stage);
-  if (yamlStage?.cache?.enabled) {
-    const restoreResult = await this.cacheRestoreSave.restoreCache(runId, yamlStage);
+  // 1. 恢复缓存（从 stage.metadata 读取，非反向查找 YAML）
+  const cacheConfig = stage.metadata?.cacheConfig as PipelineStageCache | undefined;
+  if (cacheConfig?.enabled) {
+    const restoreResult = await this.cacheRestoreSave.restoreCache(runId, stage.name, cacheConfig);
     this.logCacheRestore(runId, restoreResult);
   }
 
@@ -200,8 +212,8 @@ async executeStage(runId: string, stage: Stage, tasks: Task[]): Promise<StageRes
   const result = await this.runTasks(tasks);
 
   // 3. 保存缓存（阶段成功后）
-  if (result.success && yamlStage?.cache?.enabled) {
-    await this.cacheRestoreSave.saveCache(runId, yamlStage);
+  if (result.success && cacheConfig?.enabled) {
+    await this.cacheRestoreSave.saveCache(runId, stage.name, cacheConfig);
   }
 
   return result;
@@ -340,7 +352,21 @@ interface PipelineStage {
 
 **文件**: `orion-platform-service/src/engine/ContainerExecutor.ts`（新建）
 
+**统一 ExecutionResult 接口** — 三种执行器的输出、日志、退出码处理方式不同，必须定义统一格式确保 Task 状态一致性：
+
 ```typescript
+interface ExecutionResult {
+  exitCode: number;
+  stdout: string | ReadableStream;
+  stderr: string | ReadableStream;
+  metadata: {
+    executorType: 'local' | 'docker' | 'k8s';
+    durationMs: number;
+    containerId?: string;
+    podName?: string;
+  };
+}
+
 interface ContainerExecutor {
   execute(
     task: Task,
@@ -351,14 +377,17 @@ interface ContainerExecutor {
 
 class LocalSpawnExecutor implements ContainerExecutor {
   // 当前 TaskRunner.spawnCommand 逻辑迁移到此
+  // 返回: { exitCode, stdout: string, stderr: string, metadata: { executorType: 'local', ... } }
 }
 
 class DockerExecutor implements ContainerExecutor {
   // docker run --rm -v workspace:/workspace <image> <command>
+  // 返回: { exitCode, stdout: stream, stderr: stream, metadata: { executorType: 'docker', containerId } }
 }
 
 class KubernetesExecutor implements ContainerExecutor {
   // K8s Pod 创建 + 日志流
+  // 返回: { exitCode, stdout: stream, stderr: stream, metadata: { executorType: 'k8s', podName } }
   // 需要替换 MockK8sClient 为真实客户端
 }
 ```
@@ -453,6 +482,10 @@ stages:
 
 **文件**: `orion-platform-service/src/models/TestReport.ts`（新建）
 
+**关键设计决策**: `test_cases` 不内嵌在 `TestReport` 中。10 万条用例 × 每条约 200 字节 = 约 20MB JSON，直接存入 PostgreSQL JSONB 字段会导致单行过大、查询性能差、无法索引。拆分为独立表。
+
+`TestReport` 表（汇总表）：
+
 ```typescript
 interface TestReport {
   id: string;
@@ -465,12 +498,18 @@ interface TestReport {
   failed: number;
   skipped: number;
   durationMs: number;
-  testCases: TestCase[];
   coverage?: CoverageSummary;
   uploadedAt: Date;
+  // testCases 不内嵌，通过 reportId 关联到 test_cases 表
 }
+```
 
+`TestCase` 表（独立存储）：
+
+```typescript
 interface TestCase {
+  id: string;
+  reportId: string;         // 外键 → test_reports.id
   name: string;
   className: string;
   status: 'passed' | 'failed' | 'skipped';
@@ -478,6 +517,41 @@ interface TestCase {
   errorMessage?: string;
   stackTrace?: string;
 }
+```
+
+数据库设计：
+
+```sql
+CREATE TABLE test_reports (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  run_id UUID NOT NULL,
+  stage_id UUID NOT NULL,
+  task_id UUID NOT NULL,
+  format VARCHAR(20) NOT NULL,
+  total_tests INT NOT NULL,
+  passed INT NOT NULL,
+  failed INT NOT NULL,
+  skipped INT NOT NULL,
+  duration_ms INT NOT NULL,
+  coverage_json JSONB,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE test_cases (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  report_id UUID NOT NULL REFERENCES test_reports(id) ON DELETE CASCADE,
+  name VARCHAR(500) NOT NULL,
+  class_name VARCHAR(500),
+  status VARCHAR(20) NOT NULL,
+  duration_ms INT,
+  error_message TEXT,
+  stack_trace TEXT
+);
+
+CREATE INDEX idx_test_cases_report ON test_cases(report_id);
+CREATE INDEX idx_test_cases_status ON test_cases(report_id, status);
+CREATE INDEX idx_test_reports_run ON test_reports(run_id);
+```
 
 interface CoverageSummary {
   lines: { total: number; covered: number; pct: number };
@@ -689,10 +763,48 @@ function shouldRunForPaths(
 | `trusted` | 使用目标分支权限，可注入只读 secrets | 内部项目 |
 | `full` | 使用完整权限（等同 push 触发） | 仅限私有 repo |
 
-#### 2.5.7 依赖
+#### 2.5.7 防抖与并发控制
+
+**防抖窗口**: 同一 PR 在 `debounceWindowSec`（默认 30 秒）内多次触发只执行一次，取最后一次事件。
+
+**自动取消进行中构建**: 当 PR synchronize 事件触发新构建时，自动取消同 PR 同分支的 `status='running'` 的 PipelineRun：
+
+```typescript
+async handleGitHubPREvent(payload: any): Promise<void> {
+  const { prNumber, sourceBranch, repo } = this.parsePREvent(payload);
+
+  // 1. 防抖: 检查最近 N 秒内是否已触发
+  if (this.isDebounced(prNumber, sourceBranch, 30)) return;
+
+  // 2. 自动取消进行中的构建
+  if (payload.action === 'synchronize') {
+    const inProgressRuns = await this.pipelineRunRepository.findRunningByPR(
+      repo, prNumber, sourceBranch
+    );
+    for (const run of inProgressRuns) {
+      await this.pipelineEngine.cancelRun(run.id, 'superseded_by_new_pr_trigger');
+    }
+  }
+
+  // 3. 触发新 Pipeline
+  await this.triggerPipeline(repo, prNumber, sourceBranch, payload);
+}
+```
+
+**SCMTriggerRule 新增字段**:
+
+```typescript
+interface SCMTriggerRule {
+  // ...existing fields
+  debounceWindowSec?: number;     // 默认 30
+  autoCancelInProgress?: boolean; // 默认 true
+}
+```
+
+#### 2.5.8 依赖
 
 - 新增依赖: `@octokit/rest`（GitHub API）, `@gitbeaker/rest`（GitLab API）, `micromatch`（路径匹配）
-- 复用: `SCMWebhookService`（已有 webhook 接收和签名验证）, `PipelineTriggerService`（触发调度）
+- 复用: `SCMWebhookService`（已有 webhook 接收和签名验证）, `PipelineTriggerService`（触发调度）, `PipelineEngine`（取消 Run）
 
 ---
 
@@ -719,23 +831,35 @@ stages:
 
 #### 2.6.3 实现策略
 
-**不需要新建 Service。** 现有代码已就绪：
+**不需要新建 Service。** 现有代码已就绪，但需要优化构建策略：
 
-- `BuildxBuilderService.buildMultiArch()` — 完整实现（串行构建各平台）
-- `BuildxBuilderService.buildPlatform()` — 单平台构建
-- `BuildxBuilderService.pushImages()` — 推送多架构 manifest
+**优化**: `buildMultiArch()` 当前为串行构建各平台，效率低。buildx 原生支持 `--platform linux/amd64,linux/arm64` **一次命令完成多架构构建**并自动创建 manifest list，比串行调用多次 `buildPlatform()` 更高效。
 
-仅需在 TaskRunner 的 `executeDockerBuild` 中检测 `platforms` 参数：
+改造方案：
 
 ```typescript
+// 改造前：串行遍历 platforms
+for (const platform of platforms) {
+  await this.buildPlatform({ ...options, platform });
+}
+
+// 改造后：buildx 一次命令完成
 private async executeDockerBuild(task: Task, workspace: string, signal?: AbortSignal) {
   const platforms = task.parameters.platforms as string[] | undefined;
 
   if (platforms && platforms.length > 1) {
-    // 多架构构建
-    const options = this.mapTaskToBuildOptions(task, workspace);
-    const result = await this.buildxService.buildMultiArch(options);
-    return this.formatResult(result);
+    // buildx 原生多架构：一次命令 + 自动 manifest list
+    const args = [
+      'buildx', 'build',
+      '--platform', platforms.join(','),  // 'linux/amd64,linux/arm64'
+      '--push',
+      '-t', task.parameters.image,
+      ...this.buildTags(task.parameters.tags),
+      ...this.buildCacheArgs(task.parameters.cache),
+      ...this.buildBuildArgs(task.parameters.buildArgs),
+      task.parameters.context || '.',
+    ];
+    return this.spawnDockerBuild(args, workspace, signal);
   } else {
     // 单平台构建
     const options = this.mapTaskToBuildOptions(task, workspace);
@@ -851,8 +975,31 @@ class ArtifactVersionService {
     toEnv: string,
   ): Promise<void> {
     // 1. 查询版本
-    // 2. 创建新版本记录（promotedFrom 指向原版本）
-    // 3. 更新标签
+    const version = await this.repository.findById(versionId);
+    if (!version) throw new Error(`Version ${versionId} not found`);
+
+    // 2. 循环引用防护: promotedFrom 不能指向自身或后代节点
+    const descendants = await this.getDescendants(versionId);
+    if (descendants.includes(versionId)) {
+      throw new Error('Cannot promote: would create circular reference');
+    }
+
+    // 3. 创建新版本记录（promotedFrom 指向原版本）
+    const newVersion = await this.repository.create({
+      artifactName: version.artifactName,
+      version: version.version,
+      commitSha: version.commitSha,
+      branch: version.branch,
+      pipelineRunId: version.pipelineRunId,
+      environment: toEnv,
+      promotedFrom: versionId,
+      promotedAt: new Date(),
+      tags: version.tags,
+      metadata: version.metadata,
+    });
+
+    // 4. 更新标签
+    await this.tagVersion(newVersion.id, 'latest');
   }
 
   async getVersionLineage(
@@ -860,15 +1007,60 @@ class ArtifactVersionService {
     version: string,
   ): Promise<VersionLineage> {
     // 版本溯源链：当前版本 → promotedFrom → ... → 初始版本
+    const chain: ArtifactVersion[] = [];
+    const visited = new Set<string>();
+    const maxDepth = 50;
+    let current = await this.repository.findByNameAndVersion(artifactName, version);
+
+    while (current && chain.length < maxDepth) {
+      if (visited.has(current.id)) {
+        throw new Error('Circular reference detected in version lineage');
+      }
+      visited.add(current.id);
+      chain.push(current);
+      if (!current.promotedFrom) break;
+      current = await this.repository.findById(current.promotedFrom);
+    }
+
+    return { chain, hasMore: !!current };
   }
 
   async tagVersion(versionId: string, tag: string): Promise<void> { ... }
 
   async validateSemver(version: string): boolean {
-    // 语义化版本验证
     return /^\d+\.\d+\.\d+(-[a-z0-9]+)?(\+[a-z0-9]+)?$/i.test(version);
   }
+
+  private async getDescendants(versionId: string): Promise<string[]> {
+    // 查找所有 promotedFrom 直接或间接指向 versionId 的版本
+    const descendants: string[] = [];
+    const queue = [versionId];
+    const visited = new Set<string>();
+
+    while (queue.length > 0) {
+      const parent = queue.shift()!;
+      const children = await this.repository.findByPromotedFrom(parent);
+      for (const child of children) {
+        if (!visited.has(child.id)) {
+          visited.add(child.id);
+          descendants.push(child.id);
+          queue.push(child.id);
+        }
+      }
+    }
+
+    return descendants;
+  }
 }
+```
+
+数据库外键约束：
+
+```sql
+ALTER TABLE artifact_versions
+  ADD CONSTRAINT fk_promoted_from
+  FOREIGN KEY (promoted_from) REFERENCES artifact_versions(id)
+  ON DELETE SET NULL;
 ```
 
 #### 2.8.4 API 设计
@@ -997,53 +1189,131 @@ stages:
           node-version: '20'
 ```
 
-#### 2.10.4 SharedActionService
+#### 2.10.4 YamlPreprocessor（替代修改 PipelineEngine）
+
+**关键设计决策**: 为避免修改 PipelineEngine 核心逻辑（与"不改核心"原则冲突），将 SharedAction 解析提前到 YAML 解析阶段，在 `parsePipelineYaml()` **之前**完成 action 展开。
+
+**文件**: `orion-platform-service/src/engine/YamlPreprocessor.ts`（新建）
+
+```typescript
+class YamlPreprocessor {
+  private sharedActionService: SharedActionService;
+
+  /**
+   * 在 parsePipelineYaml() 之前调用，展开所有 action 引用。
+   * 输入: 原始 YAML 字符串
+   * 输出: 展开后的 YAML 对象（无 action 引用）
+   */
+  async preprocess(yamlString: string): Promise<object> {
+    const parsed = jsYaml.load(yamlString) as PipelineYaml;
+
+    for (const stage of parsed.spec.stages) {
+      const expandedSteps: PipelineStep[] = [];
+
+      for (const step of stage.steps) {
+        if (this.isActionRef(step.uses)) {
+          // 展开 action 为多个 steps
+          const resolvedSteps = await this.sharedActionService.resolveActionRef(
+            step.uses,
+            step.with || {},
+          );
+          expandedSteps.push(...resolvedSteps);
+        } else {
+          expandedSteps.push(step);
+        }
+      }
+
+      stage.steps = expandedSteps;
+    }
+
+    return parsed;
+  }
+
+  private isActionRef(uses: string): boolean {
+    return uses.startsWith('./') || uses.includes('/');
+  }
+}
+```
+
+**PipelineEngine 集成点**:
+
+```typescript
+// PipelineEngine.createRun() 中
+async createRun(pipelineId: string, yamlString: string): Promise<PipelineRun> {
+  // 1. YAML 预处理（展开 action 引用）
+  const expandedYaml = await this.yamlPreprocessor.preprocess(yamlString);
+
+  // 2. 标准 YAML 解析和验证（PipelineEngine 现有逻辑，无需修改）
+  const pipeline = parsePipelineYaml(yaml.dump(expandedYaml));
+
+  // 3. 正常执行...
+  return this.executePipeline(pipeline);
+}
+```
+
+#### 2.10.5 SharedActionService
 
 **文件**: `orion-platform-service/src/services/pipeline/SharedActionService.ts`（新建）
 
 ```typescript
 class SharedActionService {
-  async resolveActionRef(ref: string): Promise<PipelineStep[]> {
+  private registryWhitelist: string[]; // 组织级 registry 白名单
+
+  async resolveActionRef(
+    ref: string,
+    inputs: Record<string, string>,
+  ): Promise<PipelineStep[]> {
+    let actionYaml: string;
+
     if (ref.startsWith('./')) {
-      // Local action: ./.orion/actions/name
-      return this.loadLocalAction(ref);
+      // Local action
+      actionYaml = await this.loadLocalAction(ref);
     } else if (ref.includes('/')) {
       // Remote: org/repo@v1
-      return this.loadRemoteAction(ref);
+      actionYaml = await this.loadRemoteAction(ref);
     } else {
       // Registry: registry.actions/name@v1
-      return this.loadRegistryAction(ref);
+      actionYaml = await this.loadRegistryAction(ref);
     }
+
+    // 解析 action.yml，替换 inputs 变量
+    const action = jsYaml.load(actionYaml) as ActionDefinition;
+    return this.expandAction(action, inputs);
   }
 
-  private async loadLocalAction(ref: string): Promise<PipelineStep[]> {
-    // 读取 action.yml，解析 steps，返回 PipelineStep[]
+  private async loadRemoteAction(ref: string): Promise<string> {
+    // 安全约束:
+    // 1. 必须使用 SHA 或 tag pinning，拒绝 @main / @master
+    const [repo, version] = ref.split('@');
+    if (!version || /^(main|master|HEAD)$/i.test(version)) {
+      throw new Error(`Remote actions must use SHA or version tag, not branch names: ${ref}`);
+    }
+    // 2. 来源白名单校验
+    if (!this.isRegistryAllowed(repo)) {
+      throw new Error(`Registry not in whitelist: ${repo}`);
+    }
+    // 3. git clone + 读取 action.yml
+    return await this.gitCloneAndRead(repo, version);
   }
 
-  private async loadRemoteAction(ref: string): Promise<PipelineStep[]> {
-    // git clone + 读取 action.yml
-  }
-
-  private async loadRegistryAction(ref: string): Promise<PipelineStep[]> {
-    // 从 Registry API 获取 action 定义
+  private expandAction(action: ActionDefinition, inputs: Record<string, string>): PipelineStep[] {
+    // 将 action.runs.steps 中的 ${inputs.xxx} 替换为实际值
+    // 返回展开后的 PipelineStep[]
   }
 }
 ```
 
-#### 2.10.5 PipelineEngine 集成
+#### 2.10.6 安全约束
 
-在 `PipelineEngine.initializeTasks` 中检测 `uses` 字段是否为 action 引用：
+| 约束 | 描述 |
+|------|------|
+| SHA/Tag Pinning | 远程 action 必须使用 SHA 或版本 tag，拒绝 `@main`/`@master` |
+| Registry 白名单 | 仅允许从配置的组织级 registry 加载远程 action |
+| 输入参数隔离 | action 的 inputs 不影响外层 Pipeline 的变量作用域 |
+| 循环引用检测 | action A 引用 B，B 引用 A 时，YamlPreprocessor 检测并拒绝 |
+| 嵌套深度限制 | action 嵌套展开最大深度限制为 5 层 |
 
-```typescript
-for (const step of stage.steps) {
-  if (step.uses.startsWith('./') || this.isActionRef(step.uses)) {
-    const resolvedSteps = await this.sharedActionService.resolveActionRef(step.uses);
-    // 替换为解析后的 steps
-  }
-}
-```
-
-#### 2.10.6 依赖
+#### 2.10.7 依赖
 
 - 无新增依赖
 - 复用: `PipelineTemplateService`（可作为预定义 pipeline 片段基础）, Plugin system（可作为共享功能分发）
@@ -1184,7 +1454,76 @@ Phase 4.2 (共享库) ← 独立，无前置依赖
 
 ---
 
-## 七、测试策略
+## 七、横切关注点（专家评审补充）
+
+### 7.1 日志管理
+
+- Docker build 流式日志通过 `PipelineLogSSEService` 聚合到 Pipeline Run 日志
+- K8s Pod 日志通过 sidecar 采集或事后 `readNamespacedPodLog` 拉取
+- 日志保留策略：默认 30 天，支持按 Pipeline 配置 `logRetentionDays`
+- 结构化日志：集成 Loki/ELK，支持日志级别和字段过滤
+
+### 7.2 监控与可观测性
+
+新增 Prometheus metrics：
+
+| Metric | 描述 |
+|--------|------|
+| `orion_pipeline_run_duration_seconds` | Pipeline 运行时长分布 |
+| `orion_cache_hit_total` | 缓存命中/未命中计数 |
+| `orion_runner_utilization_ratio` | Runner CPU/内存利用率 |
+| `orion_test_failure_rate` | 测试失败率趋势 |
+| `orion_docker_build_duration_seconds` | Docker 构建时长 |
+
+- 分布式追踪：PipelineRun ID 作为 trace ID，贯穿 Stage/Task
+- 健康检查：`/healthz` 和 `/readyz` 端点
+
+### 7.3 配置管理与特性开关
+
+通过环境变量控制各模块启用状态：
+
+| 环境变量 | 默认值 | 描述 |
+|----------|--------|------|
+| `ORION_DOCKER_ENABLED` | `true` | 启用 Docker 构建 |
+| `ORION_CONTAINER_MODE` | `local` | 容器执行模式: local/docker/k8s |
+| `ORION_CACHE_BACKEND` | `local` | 缓存后端: local/s3/nfs |
+| `ORION_KANIKO_DEFAULT` | `true` | 生产环境默认使用 Kaniko |
+| `ORION_PR_AUTO_CANCEL` | `true` | PR 触发时自动取消进行中构建 |
+
+### 7.4 错误处理与重试
+
+| 场景 | 策略 |
+|------|------|
+| Docker 构建网络超时 | 重试 2 次，指数退避 |
+| K8s Job 失败 | backoffLimit=2，超出后标记失败 |
+| 缓存下载失败 | 降级为无缓存执行，记录 warning 日志 |
+| 测试报告解析失败 | 记录 warning，不阻断 Pipeline |
+
+### 7.5 资源限制与配额
+
+| 资源 | 限制 | 配置项 |
+|------|------|--------|
+| Pipeline 最大并发 Task | 10 | `PipelineExecutionQueue.maxConcurrent` |
+| 单租户缓存空间上限 | 5GB | `ORION_CACHE_MAX_SIZE_GB` |
+| Docker 构建镜像大小上限 | 2GB | `ORION_DOCKER_MAX_IMAGE_SIZE` |
+| K8s 构建 ResourceQuota | 按 Namespace 配置 | 集群管理员配置 |
+
+### 7.6 安全审计
+
+- PR 状态回写（GitHub Check / GitLab Commit Status）记录审计日志
+- Secrets 注入记录审计日志（不记录 secret 值）
+- Shared Action 加载来源记录 `actionRef → resolvedSha → loadedAt`
+- 日志中自动脱敏 token（复用 `StreamSecretSanitizer`）
+
+### 7.7 数据迁移与向后兼容
+
+- 现有 Pipeline YAML 不含新字段时，解析器使用默认值（cache.enabled=false, container=undefined）
+- `scm_webhook_events` 表新增 JSONB 字段，历史查询兼容（`pull_request_json IS NULL` 视为 push 事件）
+- `task_resource_quota` 新增 GPU 字段后，旧客户端不传 gpu 参数时使用默认值 `NULL`
+
+---
+
+## 八、测试策略
 
 ### 7.1 单元测试
 
@@ -1214,7 +1553,85 @@ Phase 4.2 (共享库) ← 独立，无前置依赖
 
 ---
 
-## 八、风险与缓解
+## 九、前端功能补充（补充章节）
+
+### 9.1 Docker 构建配置 UI
+
+| 组件 | 描述 | 页面 |
+|------|------|------|
+| `DockerBuildConfigPanel` | Dockerfile 路径、构建上下文、镜像名、标签、平台选择 | Pipeline 编辑器 Task 配置 |
+| `DockerRegistryConfig` | 镜像仓库地址、认证方式（用户名密码 / Token） | 项目设置 → 镜像仓库 |
+| `BuildLogViewer` | 流式构建日志实时展示，含 ANSI 颜色渲染 | Pipeline Run 详情 |
+
+### 9.2 缓存管理 UI
+
+| 组件 | 描述 | 页面 |
+|------|------|------|
+| `CacheConfigPanel` | Stage 级缓存开关、Key 模板选择器、路径配置、restore-keys | Pipeline 编辑器 Stage 配置 |
+| `CacheDashboard` | 缓存命中率趋势图、各 Stage 缓存大小排行、手动清理按钮 | 项目设置 → 缓存管理 |
+| `CacheKeyBuilder` | 可视化缓存键构建器：变量选择器 + 实时预览 | Pipeline 编辑器 Task 配置 |
+
+### 9.3 测试报告 UI
+
+| 组件 | 描述 | 页面 |
+|------|------|------|
+| `TestReportViewer` | 测试结果总览（通过率饼图）、失败用例列表（含堆栈跟踪）、按状态过滤 | Pipeline Run 详情 |
+| `TestTrendChart` | 历史通过率趋势、平均时长趋势、用例数量变化 | 项目设置 → 测试趋势 |
+| `CoverageReport` | 行覆盖/分支覆盖/函数覆盖仪表盘、文件级覆盖率下钻 | Pipeline Run 详情 |
+| `TestCaseDetail` | 单条用例详情：名称、所属 class、耗时、错误信息 | 测试报告弹窗 |
+
+### 9.4 PR/MR 状态 UI
+
+| 组件 | 描述 | 页面 |
+|------|------|------|
+| `PRCheckStatus` | PR 关联的 Pipeline 运行状态列表（成功/失败/进行中） | PR 详情页 |
+| `PRWebhookTest` | Webhook 测试工具：发送模拟 PR 事件、查看触发结果 | 项目设置 → Webhook |
+
+### 9.5 制品版本管理 UI
+
+| 组件 | 描述 | 页面 |
+|------|------|------|
+| `ArtifactVersionManager` | 版本列表（语义化版本号、环境标签、创建时间）、搜索过滤 | 制品库 → 版本列表 |
+| `ArtifactLineageGraph` | 版本溯源图：版本 → promotedFrom → ... → 初始版本，DAG 可视化 | 制品详情 → 版本溯源 |
+| `ArtifactPromoteDialog` | 版本提升对话框：选择源环境 → 目标环境 → 确认 | 制品详情 → 版本操作 |
+
+### 9.6 图形化编辑器 UI（增强）
+
+| 组件 | 描述 | 页面 |
+|------|------|------|
+| `PipelineEditor` | 主编辑器：React Flow DAG 画布 + Monaco YAML 编辑器分栏 | `/pipelines/:id/editor` |
+| `DAGCanvas` | DAG 画布：Stage 节点拖拽、连线建立依赖、右键菜单 | 同上 |
+| `StageNode` | Stage 节点：名称、状态图标、内部 Task 缩略列表、展开/折叠 | 同上 |
+| `TaskNode` | Task 节点：类型图标、名称、状态、错误提示 | 同上 |
+| `YamlPreview` | YAML 实时预览：图形编辑时自动生成 YAML，支持手动编辑后同步回图形 | 同上（右侧栏） |
+| `StageConfigPanel` | Stage 配置表单：名称、runsOn、超时、重试、矩阵、缓存、容器、条件 | 同上（点击 Stage 节点弹出） |
+| `TaskConfigPanel` | Task 配置表单：类型选择（git/npm/shell/docker/test）、参数配置、输出变量 | 同上（点击 Task 节点弹出） |
+
+### 9.7 前端协作冲突处理
+
+| 场景 | 方案 |
+|------|------|
+| 多人同时编辑同一 Pipeline | 乐观锁 + 版本号，保存时检测版本冲突，提示用户合并 |
+| Pipeline 正在运行时编辑 | 允许编辑，保存为新版本，不影响正在运行的版本 |
+| YAML 语法错误 | Monaco Editor 实时语法校验，错误高亮，阻止保存直到修复 |
+
+### 9.8 前端新增路由汇总
+
+| 路由 | 组件 | 描述 |
+|------|------|------|
+| `/pipelines/:id/editor` | `PipelineEditor` | Pipeline 图形化编辑器 |
+| `/runs/:runId/test-report` | `TestReportViewer` | 测试报告详情 |
+| `/artifacts/:name/versions` | `ArtifactVersionManager` | 制品版本管理 |
+| `/artifacts/:name/lineage` | `ArtifactLineageGraph` | 版本溯源图 |
+| `/cache/dashboard` | `CacheDashboard` | 缓存使用率监控 |
+| `/project/:id/settings/registry` | `DockerRegistryConfig` | 镜像仓库配置 |
+| `/project/:id/settings/cache` | `CacheDashboard` | 缓存管理设置 |
+| `/project/:id/settings/webhook` | `PRWebhookTest` | Webhook 测试工具 |
+| `/project/:id/test-trend` | `TestTrendChart` | 测试趋势大盘 |
+
+---
+
+## 十、风险与缓解
 
 | 风险 | 影响 | 缓解措施 |
 |------|------|---------|
@@ -1226,7 +1643,7 @@ Phase 4.2 (共享库) ← 独立，无前置依赖
 
 ---
 
-## 九、与竞品对比的提升
+## 十一、与竞品对比的提升
 
 | 功能域 | 实施前 | 实施后 | 对标竞品 |
 |--------|--------|--------|---------|
