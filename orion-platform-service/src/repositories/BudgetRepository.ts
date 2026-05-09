@@ -1,5 +1,4 @@
 import { TenantAwareRepository, TenantAwareFindOptions } from '../db/tenant-aware-repository';
-import { tenantContext } from '../services/tenant/TenantContext';
 
 export interface BudgetEntity {
   id: string;
@@ -40,16 +39,18 @@ export class BudgetRepository extends TenantAwareRepository<BudgetEntity> {
   }
 
   async updateSpentWithClient(id: string, spent: number, client: any): Promise<void> {
+    const tenantId = this.getCurrentTenantId();
     await client.query(
-      `UPDATE budgets SET spent = $1, updated_at = NOW() WHERE id = $2`,
-      [spent, id],
+      `UPDATE budgets SET spent = $1, updated_at = NOW() WHERE id = $2 AND tenant_id = $3`,
+      [spent, id, tenantId],
     );
   }
 
   async updateWithClient(id: string, updates: { status?: string; updatedAt?: Date }, client: any): Promise<void> {
+    const tenantId = this.getCurrentTenantId();
     await client.query(
-      `UPDATE budgets SET status = $1, updated_at = $2 WHERE id = $3`,
-      [updates.status, updates.updatedAt, id],
+      `UPDATE budgets SET status = $1, updated_at = $2 WHERE id = $3 AND tenant_id = $4`,
+      [updates.status, updates.updatedAt, id, tenantId],
     );
   }
 

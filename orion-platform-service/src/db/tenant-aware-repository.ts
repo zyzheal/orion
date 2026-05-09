@@ -5,9 +5,14 @@
  * - 继承 BaseRepository 并自动添加 tenant_id 过滤
  * - 提供 Repository 层的租户隔离验证
  * - 所有 CRUD 操作自动包含 tenant_id 条件
+ *
+ * RLS 隔离改进：
+ * - getCurrentTenantId() 优先从 AsyncLocalStorage 获取（请求上下文）
+ * - fallback 到全局 tenantContext（后台任务/启动期场景）
  */
 
 import { BaseRepository, FindAllOptions, FindAllResult } from '../db/base-repository';
+import { tenantContextStorage, SYSTEM_TENANT_ID } from '../db/tenant-context-storage';
 import { tenantContext } from '../services/tenant/TenantContext';
 import pino from 'pino';
 
@@ -46,8 +51,21 @@ export abstract class TenantAwareRepository<T extends { id: string }> extends Ba
 
   /**
    * 获取当前租户 ID
+   *
+   * 优先级：
+   * 1. AsyncLocalStorage（HTTP 请求上下文）
+   * 2. 全局 tenantContext（后台任务/启动期 fallback）
    */
   protected getCurrentTenantId(): number | null {
+    // 优先从 ALS 获取（请求级上下文，无竞态条件）
+    const store = tenantContextStorage.getStore();
+    if (store) {
+      // 系统租户模式下返回 null（不添加租户过滤）
+      if (store.isSystemTenant) return null;
+      return store.tenantId;
+    }
+
+    // Fallback 到全局单例（后台任务、启动期）
     return tenantContext.getCurrentTenantId();
   }
 
@@ -55,6 +73,9 @@ export abstract class TenantAwareRepository<T extends { id: string }> extends Ba
    * 检查是否启用租户隔离
    */
   protected isTenantIsolationEnabled(): boolean {
+    // ALS 系统租户模式下禁用隔离
+    const store = tenantContextStorage.getStore();
+    if (store?.isSystemTenant) return false;
     return tenantContext.isEnabled();
   }
 

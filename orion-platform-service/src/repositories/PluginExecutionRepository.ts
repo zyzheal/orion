@@ -1,5 +1,4 @@
 import { TenantAwareRepository, TenantAwareFindOptions } from '../db/tenant-aware-repository';
-import { tenantContext } from '../services/tenant/TenantContext';
 
 export interface PluginExecutionEntity {
   id: string;
@@ -39,12 +38,13 @@ export class PluginExecutionRepository extends TenantAwareRepository<PluginExecu
   }
 
   async updateResult(id: string, output: Record<string, any>, status: string, completedAt: Date, error?: string): Promise<void> {
+    const tenantId = this.getCurrentTenantId();
     const query = error
-      ? `UPDATE plugin_executions SET output = $1, status = $2, completed_at = $3, error = $4 WHERE id = $5`
-      : `UPDATE plugin_executions SET output = $1, status = $2, completed_at = $3 WHERE id = $4`;
+      ? `UPDATE plugin_executions SET output = $1, status = $2, completed_at = $3, error = $4 WHERE id = $5 AND tenant_id = $6`
+      : `UPDATE plugin_executions SET output = $1, status = $2, completed_at = $3 WHERE id = $4 AND tenant_id = $5`;
     const params = error
-      ? [JSON.stringify(output), status, completedAt, error, id]
-      : [JSON.stringify(output), status, completedAt, id];
+      ? [JSON.stringify(output), status, completedAt, error, id, tenantId]
+      : [JSON.stringify(output), status, completedAt, id, tenantId];
     await this.db.query(query, params);
   }
 

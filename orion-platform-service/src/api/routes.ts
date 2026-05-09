@@ -7,6 +7,8 @@ import { authenticateUser } from '../middleware/authMiddleware';
 import { roleGuard } from '../middleware/roleGuard';
 import { TenantIsolationService, createTenantValidatorMiddleware } from '../services/tenant';
 import { RLSPolicyManager } from '../services/tenant/RLSPolicyManager';
+import { tenantContextStorage, SYSTEM_TENANT_ID } from '../db/tenant-context-storage';
+import type { PoolClient } from 'pg';
 import { PipelineController } from './controllers/PipelineController';
 import { PipelineRunController } from './controllers/PipelineRunController';
 import { StageController } from './controllers/StageController';
@@ -129,6 +131,7 @@ import communityRoutes from './community-routes';
 import communityAdvancedRoutes from './community-advanced-routes';
 import moduleRoutes from './module-routes';
 import scriptRoutes from './script-routes';
+import runnerRoutes from './runner-routes';
 
 import pino from 'pino';
 import { ModuleManager } from '../services/module-lifecycle/ModuleManager';
@@ -257,24 +260,81 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
       return tenantValidatorMiddleware(request, reply, () => {});
     });
 
-    // Layer 4: Database RLS - 设置 PostgreSQL session 变量
+    // Layer 4: Database RLS — 请求级连接 + AsyncLocalStorage
+    // 替代原有的 pool.query() 方式，确保每个请求使用专用连接，
+    // RLS session variable 在同一连接上设置和查询。
     if (options.database && rlsPolicyManager) {
-      app.addHook('preHandler', async (request: FastifyRequest) => {
+      app.addHook('preHandler', async (request: FastifyRequest, reply: FastifyReply) => {
         const tenantCtx = (request as any).tenantContext;
-        if (tenantCtx) {
-          const tenant = tenantCtx.getCurrentTenant();
-          if (tenant) {
-            await rlsPolicyManager.setTenantSessionVariable(tenant.tenantId);
+        if (!tenantCtx) return;
+        const tenant = tenantCtx.getCurrentTenant();
+        if (!tenant) return;
+
+        // 从连接池获取专用连接
+        const client = await options.database!.getConnection();
+
+        try {
+          // 在该连接上设置 RLS session variable（SET SESSION 级别）
+          await client.query(
+            "SELECT set_config('app.current_tenant_id', $1, false), set_config('app.tenant_isolation', $2, false)",
+            [String(tenant.tenantId), 'true']
+          );
+
+          // 将 client 挂载到 request 上，供 ALS enterWith 使用
+          (request as any).dbClient = client;
+
+          // 进入 ALS 上下文，后续所有 async 调用（包括 handler、service、repository）
+          // 的 DatabasePool.query() 都会自动使用此 client
+          tenantContextStorage.enterWith({
+            dbClient: client,
+            tenantId: tenant.tenantId,
+          });
+        } catch (error) {
+          // set_config 失败 → 拒绝请求（安全失败模式）
+          try {
+            client.release();
+          } catch {}
+          reply.code(403).send({ error: 'Tenant isolation setup failed' });
+          throw new Error('Failed to set tenant context');
+        }
+      });
+
+      // 成功响应时清理连接
+      app.addHook('onResponse', async (request: FastifyRequest) => {
+        const client = (request as any).dbClient as PoolClient | undefined;
+        if (client) {
+          try {
+            // 先 ROLLBACK（幂等，无活跃事务时无影响），确保连接不在 aborted 状态
+            await client.query('ROLLBACK').catch(() => {});
+            // 清除 session 变量
+            await client.query(
+              "SELECT set_config('app.current_tenant_id', $1, false), set_config('app.tenant_isolation', $2, false)",
+              ['', 'false']
+            );
+          } finally {
+            client.release();
           }
         }
       });
 
-      // 清理 session 变量
-      app.addHook('onResponse', async (request: FastifyRequest) => {
-        await rlsPolicyManager.clearTenantSessionVariable();
-        const tenantCtx = (request as any).tenantContext;
-        if (tenantCtx) {
-          tenantCtx.clearTenant();
+      // 错误时兜底释放连接（防止客户端断开导致连接泄漏）
+      app.addHook('onError', async (request: FastifyRequest) => {
+        const client = (request as any).dbClient as PoolClient | undefined;
+        if (client) {
+          try {
+            await client.query('ROLLBACK').catch(() => {});
+            client.release();
+          } catch {}
+        }
+      });
+
+      // 客户端断开时释放连接
+      app.addHook('onTimeout', async (request: FastifyRequest) => {
+        const client = (request as any).dbClient as PoolClient | undefined;
+        if (client) {
+          try {
+            client.release();
+          } catch {}
         }
       });
     }
@@ -520,10 +580,16 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await registerWithRoleGuard(app, escalationRoutes, '/v1/escalation', { database: options.database, eventBus: options.eventBus });
 
   // 启动自动升级调度器
+  // 使用系统租户模式绕过 RLS
   if (options.database && options.eventBus) {
     try {
-      await escalationScheduler.start();
-      console.log('[routes] Escalation scheduler started');
+      tenantContextStorage.run(
+        { dbClient: null as unknown as PoolClient, tenantId: SYSTEM_TENANT_ID as unknown as number, isSystemTenant: true },
+        async () => {
+          await escalationScheduler.start();
+          console.log('[routes] Escalation scheduler started');
+        }
+      );
     } catch (error) {
       console.warn('[routes] Failed to start escalation scheduler:', error);
     }
@@ -750,6 +816,10 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // ==================== Inline Script ====================
   await registerWithRoleGuard(app, scriptRoutes, '/v1/scripts', { database: options.database });
 
+  // ==================== Runner Management ====================
+  // Runner Agent 注册、心跳、Job 回报（Runner Agent 通信无需 JWT）
+  await app.register(runnerRoutes, { prefix: '/api/v1/runners', database: options.database });
+
   // ==================== Phase 3: Pipeline Metrics ====================
   // Standard Prometheus scrape endpoint (no auth, standard /metrics path)
   app.get('/metrics', async (_request: FastifyRequest, reply: FastifyReply) => {
@@ -781,7 +851,14 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // ==================== Phase 3: Crash Recovery ====================
   // Recover interrupted pipeline runs from database on startup
+  // 使用系统租户模式绕过 RLS，确保能查询所有租户的 pipeline 数据
   if (options.database) {
+    tenantContextStorage.enterWith({
+      dbClient: null as unknown as PoolClient, // recoverRuns 使用 pool.query() fallback
+      tenantId: SYSTEM_TENANT_ID as unknown as number,
+      isSystemTenant: true,
+    });
+
     engine.recoverRuns().then(result => {
       if (result.recovered > 0) {
         console.log(`[routes] Pipeline recovery: ${result.recovered} runs found, ${result.markedFailed} marked as failed`);

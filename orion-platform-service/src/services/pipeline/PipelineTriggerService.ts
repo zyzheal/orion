@@ -14,7 +14,9 @@
 import { CronExpressionParser } from 'cron-parser';
 import pino from 'pino';
 import { TriggerRepository, type TriggerEntity } from '../../repositories/TriggerRepository';
+import { PathFilter } from './PathFilter';
 
+const pathFilter = new PathFilter();
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
 export type TriggerType = 'git' | 'webhook' | 'schedule' | 'manual';
@@ -748,9 +750,8 @@ export class PipelineTriggerService {
     if (trigger.type === 'git' && config.pathPatterns && config.pathPatterns.length > 0) {
       const changedFiles = event.payload.changedFiles as string[] | undefined;
       if (changedFiles && changedFiles.length > 0) {
-        const hasMatch = changedFiles.some((file) =>
-          config.pathPatterns!.some((pattern) => this.matchesPattern(file, pattern))
-        );
+        // Check if at least one changed file matches the path patterns (with negation support)
+        const hasMatch = changedFiles.some((file) => pathFilter.matchesAny(file, config.pathPatterns!));
         if (!hasMatch) {
           return false;
         }
@@ -761,17 +762,8 @@ export class PipelineTriggerService {
   }
 
   private matchesPattern(value: string, pattern: string): boolean {
-    // Simple glob-like matching
-    if (pattern === value) {
-      return true;
-    }
-    if (pattern.startsWith('*')) {
-      return value.endsWith(pattern.slice(1));
-    }
-    if (pattern.endsWith('*')) {
-      return value.startsWith(pattern.slice(0, -1));
-    }
-    return false;
+    // Delegate to PathFilter for advanced pattern matching (**, !, [], {})
+    return pathFilter.match(value, pattern);
   }
 
   private generateId(prefix: string): string {

@@ -1,0 +1,167 @@
+# Orion CI Pipeline Configuration
+# 使用 Orion 自身 Pipeline 引擎构建 Orion 平台
+# 该文件定义了 Orion 平台的 CI 流水线
+
+# Pipeline 基本信息
+name: "Orion Platform CI"
+trigger:
+  events: [push, pull_request]
+  branches:
+    include: ["main", "develop", "feat/*"]
+  paths:
+    include:
+      - "orion-platform-service/**"
+      - "orion-api-gateway/**"
+      - "orion-frontend/**"
+      - ".orion-ci.yml"
+    exclude:
+      - "**/*.md"
+      - "docs/**"
+      - "archive/**"
+
+# 全局环境变量
+env:
+  NODE_VERSION: "22"
+  CI: "true"
+
+# 流水线阶段
+stages:
+  # ==================== Stage 1: 代码质量检查 ====================
+  - name: "lint"
+    label: "代码检查"
+    tasks:
+      - name: "Type Check - Platform Service"
+        type: "shell"
+        workingDir: "./orion-platform-service"
+        command: |
+          npm install --ignore-scripts
+          npm run type-check
+
+      - name: "Lint - Platform Service"
+        type: "shell"
+        workingDir: "./orion-platform-service"
+        command: npm run lint
+
+      - name: "Type Check - API Gateway"
+        type: "shell"
+        workingDir: "./orion-api-gateway"
+        command: |
+          npm install --ignore-scripts
+          npm run type-check
+
+      - name: "Type Check - Frontend"
+        type: "shell"
+        workingDir: "./orion-frontend"
+        command: |
+          npm install --ignore-scripts
+          npm run type-check
+
+  # ==================== Stage 2: 单元测试 ====================
+  - name: "test"
+    label: "单元测试"
+    dependsOn: ["lint"]
+    tasks:
+      - name: "Unit Tests - Platform Service"
+        type: "shell"
+        workingDir: "./orion-platform-service"
+        command: npm run test -- --passWithNoTests --testPathIgnorePatterns=integration
+
+      - name: "Unit Tests - API Gateway"
+        type: "shell"
+        workingDir: "./orion-api-gateway"
+        command: npm run test -- --passWithNoTests
+
+      - name: "Unit Tests - Frontend"
+        type: "shell"
+        workingDir: "./orion-frontend"
+        command: npm run test -- --run
+
+  # ==================== Stage 3: 集成测试 ====================
+  - name: "integration-test"
+    label: "集成测试"
+    dependsOn: ["test"]
+    tasks:
+      - name: "Start Test Database"
+        type: "shell"
+        command: |
+          docker run -d --name test-postgres \
+            -e POSTGRES_USER=orion \
+            -e POSTGRES_PASSWORD=orion_test \
+            -e POSTGRES_DB=orion_test \
+            -p 5433:5432 \
+            postgres:16-alpine
+          sleep 5
+
+      - name: "Run Migrations"
+        type: "shell"
+        workingDir: "./orion-platform-service"
+        command: |
+          export DATABASE_URL="postgresql://orion:orion_test@localhost:5433/orion_test"
+          npx tsx src/db/run-migrations.ts
+
+      - name: "Integration Tests"
+        type: "shell"
+        workingDir: "./orion-platform-service"
+        command: |
+          export DATABASE_URL="postgresql://orion:orion_test@localhost:5433/orion_test"
+          npm run test -- --testPathPattern=integration
+
+      - name: "Cleanup Test Database"
+        type: "shell"
+        command: docker rm -f test-postgres
+
+  # ==================== Stage 4: 构建 ====================
+  - name: "build"
+    label: "构建"
+    dependsOn: ["integration-test"]
+    tasks:
+      - name: "Build - Platform Service"
+        type: "shell"
+        workingDir: "./orion-platform-service"
+        command: |
+          npm install --ignore-scripts
+          npm run build
+
+      - name: "Build - API Gateway"
+        type: "shell"
+        workingDir: "./orion-api-gateway"
+        command: |
+          npm install --ignore-scripts
+          npm run build
+
+      - name: "Build - Frontend"
+        type: "shell"
+        workingDir: "./orion-frontend"
+        command: |
+          npm install --ignore-scripts
+          npm run build
+
+      - name: "Build Docker Images"
+        type: "docker-build"
+        dockerfile: "./orion-platform-service/Dockerfile"
+        context: "./orion-platform-service"
+        tag: "orion-platform:${CI_COMMIT_SHA:-latest}"
+
+  # ==================== Stage 5: 部署到开发环境 ====================
+  - name: "deploy-dev"
+    label: "部署开发环境"
+    dependsOn: ["build"]
+    when:
+      branch: "main"
+    tasks:
+      - name: "Deploy to Dev"
+        type: "shell"
+        command: |
+          echo "Deploying to development environment..."
+          # kubectl apply -f k8s/dev/
+          echo "Deployment complete"
+
+  # ==================== Stage 6: 通知 ====================
+  - name: "notify"
+    label: "通知"
+    when: "always"
+    dependsOn: ["deploy-dev"]
+    tasks:
+      - name: "Send Notification"
+        type: "notify"
+        message: "Orion CI Pipeline completed"

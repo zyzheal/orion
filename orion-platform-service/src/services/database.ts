@@ -2,10 +2,15 @@
  * 数据库连接池服务
  *
  * 提供真实的 PostgreSQL 连接管理，使用 pg Pool
+ *
+ * RLS 租户隔离集成：
+ * - 优先使用 AsyncLocalStorage 中的请求级连接（已设置 RLS session variable）
+ * - 后台任务/启动期/健康检查自动 fallback 到连接池
  */
 
 import { EventEmitter } from 'events';
 import * as pg from 'pg';
+import { tenantContextStorage } from '../db/tenant-context-storage';
 
 const { Pool } = pg;
 
@@ -98,14 +103,28 @@ export class DatabasePool extends EventEmitter {
 
   /**
    * 执行查询
+   *
+   * RLS 集成：优先使用 AsyncLocalStorage 中的请求级连接，
+   * 确保 RLS session variable 在正确的连接上生效。
    */
   async query(sql: string, params?: any[]): Promise<QueryResult> {
     if (!this.pool) {
       throw new Error('Database pool not initialized');
     }
 
-    const result = await this.pool.query(sql, params);
+    // 优先使用请求绑定的连接（RLS session variable 已设置）
+    const store = tenantContextStorage.getStore();
+    if (store) {
+      const result = await store.dbClient.query(sql, params);
+      return {
+        rows: result.rows,
+        rowCount: result.rowCount ?? 0,
+        fields: result.fields.map((f) => ({ name: f.name, dataTypeID: f.dataTypeID })),
+      };
+    }
 
+    // 回退到连接池（后台任务、启动期、健康检查等非请求场景）
+    const result = await this.pool.query(sql, params);
     return {
       rows: result.rows,
       rowCount: result.rowCount ?? 0,
@@ -115,12 +134,34 @@ export class DatabasePool extends EventEmitter {
 
   /**
    * 执行事务
+   *
+   * RLS 集成：在请求上下文中复用请求级连接执行事务，
+   * 确保事务内的查询也受 RLS 约束。
    */
   async transaction<T>(fn: (client: pg.PoolClient) => Promise<T>): Promise<T> {
     if (!this.pool) {
       throw new Error('Database pool not initialized');
     }
 
+    // 在请求上下文中，复用已有的 tenant-scoped client 执行事务
+    const store = tenantContextStorage.getStore();
+    if (store) {
+      await store.dbClient.query('BEGIN');
+      try {
+        const result = await fn(store.dbClient);
+        await store.dbClient.query('COMMIT');
+        return result;
+      } catch (error) {
+        try {
+          await store.dbClient.query('ROLLBACK');
+        } catch (rollbackError) {
+          console.error('[Database] Transaction rollback failed:', rollbackError);
+        }
+        throw error;
+      }
+    }
+
+    // 回退到原有逻辑（非请求场景）
     const client = await this.pool.connect();
     let transactionStarted = false;
 
@@ -131,12 +172,11 @@ export class DatabasePool extends EventEmitter {
       await client.query('COMMIT');
       return result;
     } catch (error) {
-      // Only ROLLBACK if BEGIN succeeded — otherwise the connection isn't in a transaction
       if (transactionStarted) {
         try {
           await client.query('ROLLBACK');
         } catch (rollbackError) {
-          console.error('[] Transaction rollback failed:', rollbackError);
+          console.error('[Database] Transaction rollback failed:', rollbackError);
         }
       }
       throw error;
