@@ -77,8 +77,12 @@ export class YamlPreprocessor {
 
   private isActionRef(uses: string): boolean {
     // Local: ./.orion/actions/xxx
-    // Remote: org/repo@v1
+    // Remote: org/repo@v1 (with @version)
     // Registry: registry.actions/name@v1
-    return uses.startsWith('./') || uses.includes('/');
+    // Skip builtin: prefix (handled internally)
+    if (uses.startsWith('builtin:')) return false;
+    if (uses.startsWith('./')) return true;
+    // Only match remote action refs with @version (e.g., org/repo@v1)
+    return /^[a-zA-Z0-9._-]+\/[a-zA-Z0-9._-]+@/.test(uses);
   }
 }

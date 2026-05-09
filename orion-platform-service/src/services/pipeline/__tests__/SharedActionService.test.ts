@@ -18,7 +18,7 @@ describe('SharedActionService', () => {
     it('should expand builtin checkout action', async () => {
       const steps = await service.resolveActionRef('checkout', {}, new Set(), 0);
       expect(steps).toHaveLength(1);
-      expect(steps[0].uses).toBe('git/clone@v1');
+      expect(steps[0].uses).toBe('builtin:git/clone@v1');
     });
 
     it('should throw for unknown builtin action', async () => {
@@ -46,6 +46,11 @@ describe('SharedActionService', () => {
     it('should reject unwhitelisted org', async () => {
       await expect(service.resolveActionRef('unknown/repo@v1', {}, new Set(), 0))
         .rejects.toThrow('not in whitelist');
+    });
+
+    it('should reject invalid repo format', async () => {
+      await expect(service.resolveActionRef('org/../../../etc/passwd@v1', {}, new Set(), 0))
+        .rejects.toThrow('Invalid repository format');
     });
 
     it('should allow whitelisted org but fail on git clone', async () => {

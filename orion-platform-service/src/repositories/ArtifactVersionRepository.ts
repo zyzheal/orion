@@ -300,6 +300,111 @@ export class ArtifactVersionRepository extends BaseRepository<ArtifactVersion> {
   }
 
   /**
+   * 根据 ID 查找制品版本
+   */
+  async findById(id: string): Promise<ArtifactVersion | undefined> {
+    const result = await this.db.query(
+      `SELECT * FROM artifact_version_tracking WHERE id = $1`,
+      [id],
+    );
+    if (result.rows.length === 0) return undefined;
+    return this.mapRowToEntity(result.rows[0]);
+  }
+
+  /**
+   * 根据标签查找制品版本
+   */
+  async findByTag(tag: string): Promise<ArtifactVersion[]> {
+    const result = await this.db.query(
+      `SELECT * FROM artifact_version_tracking WHERE $1 = ANY(tags) ORDER BY created_at DESC`,
+      [tag],
+    );
+    return result.rows.map((row: any) => this.mapRowToEntity(row));
+  }
+
+  /**
+   * 添加标签
+   */
+  async addTag(versionId: string, tag: string): Promise<void> {
+    await this.db.query(
+      `UPDATE artifact_version_tracking
+       SET tags = array_append(tags, $2)
+       WHERE id = $1 AND NOT ($2 = ANY(tags))`,
+      [versionId, tag],
+    );
+  }
+
+  /**
+   * 移除标签
+   */
+  async removeTag(versionId: string, tag: string): Promise<void> {
+    await this.db.query(
+      `UPDATE artifact_version_tracking
+       SET tags = array_remove(tags, $2)
+       WHERE id = $1`,
+      [versionId, tag],
+    );
+  }
+
+  /**
+   * 获取祖先链（BFS 遍历 promoted_from）
+   */
+  async getAncestors(versionId: string, maxDepth: number = 50): Promise<ArtifactVersion[]> {
+    const ancestors: ArtifactVersion[] = [];
+    let currentId: string | null = versionId;
+    const visited = new Set<string>();
+
+    for (let depth = 0; depth < maxDepth && currentId; depth++) {
+      const row = await this.db.query(
+        `SELECT * FROM artifact_version_tracking WHERE id = $1`,
+        [currentId],
+      );
+      if (row.rows.length === 0) break;
+
+      const entity = this.mapRowToEntity(row.rows[0]);
+      if (visited.has(entity.id)) break;
+
+      visited.add(entity.id);
+      ancestors.push(entity);
+      currentId = (entity as any).promotedFrom || null;
+    }
+
+    // Remove the first entry (it's the queried version, not an ancestor)
+    ancestors.shift();
+    return ancestors;
+  }
+
+  /**
+   * 获取后代列表（BFS 遍历所有 promoted_from 指向当前版本的记录）
+   */
+  async getDescendants(versionId: string, maxDepth: number = 50): Promise<string[]> {
+    const descendants: string[] = [];
+    const queue: string[] = [versionId];
+    const visited = new Set<string>();
+    visited.add(versionId);
+
+    for (let depth = 0; depth < maxDepth && queue.length > 0; depth++) {
+      const levelSize = queue.length;
+      for (let i = 0; i < levelSize; i++) {
+        const currentId = queue.shift()!;
+        const result = await this.db.query(
+          `SELECT id FROM artifact_version_tracking WHERE promoted_from = $1`,
+          [currentId],
+        );
+        for (const row of result.rows) {
+          if (!visited.has(row.id)) {
+            visited.add(row.id);
+            descendants.push(row.id);
+            queue.push(row.id);
+          }
+        }
+      }
+    }
+
+    return descendants;
+  }
+
+  /**
    * 高级查询：支持多条件组合
    */
   async findWithFilters(options: ArtifactVersionQueryOptions): Promise<{ versions: ArtifactVersion[]; total: number }> {
@@ -373,6 +478,8 @@ export class ArtifactVersionRepository extends BaseRepository<ArtifactVersion> {
       branch: row.branch || undefined,
       metadata: row.metadata || {},
       storagePath: row.storage_path,
+      tags: row.tags || [],
+      promotedFrom: row.promoted_from || undefined,
       createdAt: row.created_at,
     };
   }

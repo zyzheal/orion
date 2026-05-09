@@ -28,7 +28,6 @@ export interface VersionPromoteInput {
 
 export class ArtifactVersionService {
   private repository: ArtifactVersionRepository;
-  private maxLineageDepth = 50;
 
   constructor(repository: ArtifactVersionRepository) {
     this.repository = repository;
@@ -58,7 +57,8 @@ export class ArtifactVersionService {
   /**
    * 晋升版本到指定环境
    *
-   * 循环引用保护：检查目标版本是否在晋升链的后代中
+   * 防重复晋升：检查当前版本是否已在目标环境中存在。
+   * 新版本通过 promoted_from 字段链接到原版本，形成追溯链。
    */
   async promoteVersion(
     fromVersionId: string,
@@ -70,21 +70,18 @@ export class ArtifactVersionService {
       throw new Error(`Version not found: ${fromVersionId}`);
     }
 
-    // 循环引用保护：检查 promoted_from 链
-    const descendants = await this.repository.getDescendants(
-      fromVersionId,
-      this.maxLineageDepth
+    // 防重复晋升：检查是否已在目标环境中存在相同版本
+    const existing = await this.repository.findByVersion(
+      currentVersion.pipelineId,
+      currentVersion.version
     );
-
-    // 如果要晋升的版本在后代中，说明会产生循环
-    if (descendants.includes(fromVersionId)) {
+    if (existing && existing.metadata?.promotedTo === targetEnvironment) {
       throw new Error(
-        `Cannot promote version: would create circular reference. ` +
-        `Version ${fromVersionId} is already in the promotion chain.`
+        `Version ${currentVersion.version} is already promoted to ${targetEnvironment}`
       );
     }
 
-    // 创建新版本（继承原版本信息，更新环境）
+    // 创建新版本（继承原版本信息，设置 promoted_from 追溯链）
     const newVersion = await this.repository.createVersion({
       tenantId: currentVersion.tenantId,
       pipelineId: currentVersion.pipelineId,
@@ -98,7 +95,7 @@ export class ArtifactVersionService {
         ...currentVersion.metadata,
         promotedTo: targetEnvironment,
         promotedAt: new Date().toISOString(),
-        previousEnvironment: currentVersion.metadata.promotedTo || 'dev',
+        previousEnvironment: currentVersion.metadata?.promotedTo || 'dev',
       },
       storagePath: currentVersion.storagePath,
     });

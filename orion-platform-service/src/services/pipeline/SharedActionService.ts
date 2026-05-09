@@ -58,6 +58,13 @@ export class SharedActionService {
 
     if (ref.startsWith('./')) {
       actionYaml = await this.loadLocalAction(ref);
+    } else if (ref.startsWith('builtin:')) {
+      const builtinName = ref.replace('builtin:', '');
+      const builtin = this.getBuiltinAction(builtinName);
+      if (builtin) {
+        return this.expandAction(builtin, inputs);
+      }
+      throw new Error(`Unknown builtin action: ${ref}`);
     } else if (ref.includes('/')) {
       actionYaml = await this.loadRemoteAction(ref);
     } else {
@@ -75,20 +82,33 @@ export class SharedActionService {
   private async loadLocalAction(ref: string): Promise<string> {
     const fs = require('fs');
     const path = require('path');
-    const actionPath = path.join(this.workspaceRoot, ref, 'action.yml');
+    const resolvedPath = path.resolve(this.workspaceRoot, ref, 'action.yml');
 
-    if (!fs.existsSync(actionPath)) {
-      const altPath = path.join(this.workspaceRoot, ref, 'action.yaml');
+    // Path traversal protection
+    if (!resolvedPath.startsWith(path.resolve(this.workspaceRoot))) {
+      throw new Error(`Path traversal detected: action path must be within workspace root`);
+    }
+
+    if (!fs.existsSync(resolvedPath)) {
+      const altPath = path.resolve(this.workspaceRoot, ref, 'action.yaml');
+      if (!altPath.startsWith(path.resolve(this.workspaceRoot))) {
+        throw new Error(`Path traversal detected: action path must be within workspace root`);
+      }
       if (!fs.existsSync(altPath)) {
         throw new Error(`Local action not found: ${ref}`);
       }
       return fs.readFileSync(altPath, 'utf-8');
     }
-    return fs.readFileSync(actionPath, 'utf-8');
+    return fs.readFileSync(resolvedPath, 'utf-8');
   }
 
   private async loadRemoteAction(ref: string): Promise<string> {
     const [repo, version] = ref.split('@');
+
+    // Validate repo format: only allow org/repo pattern with alphanumeric chars
+    if (!/^[a-zA-Z0-9._-]+\/[a-zA-Z0-9._-]+$/.test(repo)) {
+      throw new Error(`Invalid repository format: ${repo}. Expected: org/repo`);
+    }
 
     if (!version || /^(main|master|HEAD)$/i.test(version)) {
       throw new Error(
@@ -180,7 +200,7 @@ export class SharedActionService {
         name: 'checkout',
         description: 'Checkout repository',
         runs: {
-          steps: [{ name: 'checkout', uses: 'git/clone@v1', with: {} }],
+          steps: [{ name: 'checkout', uses: 'builtin:git/clone@v1', with: {} }],
         },
       },
     };

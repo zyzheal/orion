@@ -23,6 +23,8 @@ export interface ArtifactVersion {
   branch?: string;           // 源代码分支
   metadata: Record<string, string>;  // 附加元数据 (image tag, file hash 等)
   storagePath: string;       // 制品文件存储路径
+  tags: string[];            // 版本标签 (e.g., "latest", "stable", "prod")
+  promotedFrom?: string;     // 晋升来源版本 ID（追溯链）
   createdAt: Date;
 }
 

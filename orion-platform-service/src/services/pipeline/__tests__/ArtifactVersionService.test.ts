@@ -96,7 +96,7 @@ describe('ArtifactVersionService', () => {
 
     test('should promote version to target environment', async () => {
       mockRepository.findById.mockResolvedValue(mockVersion);
-      mockRepository.getDescendants.mockResolvedValue([]);
+      mockRepository.findByVersion.mockResolvedValue(null);
 
       const result = await service.promoteVersion('ver-1', 'staging');
 
@@ -111,12 +111,15 @@ describe('ArtifactVersionService', () => {
       );
     });
 
-    test('should block circular references', async () => {
+    test('should block duplicate promotion to same environment', async () => {
       mockRepository.findById.mockResolvedValue(mockVersion);
-      mockRepository.getDescendants.mockResolvedValue(['ver-1']);
+      mockRepository.findByVersion.mockResolvedValue({
+        ...mockVersion,
+        metadata: { promotedTo: 'staging' },
+      });
 
       await expect(service.promoteVersion('ver-1', 'staging'))
-        .rejects.toThrow('circular reference');
+        .rejects.toThrow('already promoted to staging');
     });
 
     test('should throw when version not found', async () => {
