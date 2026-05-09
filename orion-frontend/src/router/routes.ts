@@ -778,6 +778,12 @@ export const routes: AppRoute[] = [
     element: React.lazy(() => import('@/pages/Artifacts')),
     protected: true,
   },
+  // Artifact Version Browser (GAP-CN-06)
+  {
+    path: '/artifacts/browser',
+    element: React.lazy(() => import('@/pages/ArtifactBrowser')),
+    protected: true,
+  },
   // Product Line Management (M6)
   {
     path: '/product-lines',
