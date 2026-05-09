@@ -95,7 +95,8 @@ const PipelineList: React.FC = () => {
       key: 'name',
       title: 'Pipeline',
       dataIndex: 'name',
-      width: 250,
+      width: '30%',
+      minWidth: 200,
       sortable: true,
       filterable: true,
       render: (_value: unknown, record) => (
@@ -118,14 +119,17 @@ const PipelineList: React.FC = () => {
       key: 'status',
       title: '状态',
       dataIndex: 'status',
-      width: 120,
+      width: '12%',
+      minWidth: 100,
       render: (value: unknown) => <StatusBadge status={value as any} size="small" />,
     },
     {
       key: 'stages',
       title: 'Stage 数量',
       dataIndex: 'spec',
-      width: 120,
+      width: '12%',
+      minWidth: 100,
+      responsive: ['sm'],
       render: (spec: any) => {
         const count = spec?.stages?.length || 0;
         return <Tag color="blue">{count} 个 Stage</Tag>;
@@ -135,8 +139,10 @@ const PipelineList: React.FC = () => {
       key: 'createdAt',
       title: '创建时间',
       dataIndex: 'createdAt',
-      width: 160,
+      width: '15%',
+      minWidth: 120,
       sortable: true,
+      responsive: ['md'],
       render: (value: unknown) => (
         <Text type="secondary" style={{ fontSize: spacing[3] }}>
           {dayjs(String(value)).fromNow()}
@@ -147,8 +153,10 @@ const PipelineList: React.FC = () => {
       key: 'updatedAt',
       title: '更新时间',
       dataIndex: 'updatedAt',
-      width: 160,
+      width: '15%',
+      minWidth: 120,
       sortable: true,
+      responsive: ['lg'],
       render: (value: unknown) => (
         <Text type="secondary" style={{ fontSize: spacing[3] }}>
           {dayjs(String(value)).fromNow()}
@@ -158,7 +166,8 @@ const PipelineList: React.FC = () => {
     {
       key: 'actions',
       title: '操作',
-      width: 180,
+      width: '16%',
+      minWidth: 140,
       render: (_: unknown, record) => (
         <Space size="small">
           <Button type="link" size="small" onClick={() => navigate(`/pipelines/${record.id}`)}>
