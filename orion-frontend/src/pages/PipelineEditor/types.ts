@@ -14,6 +14,25 @@ export interface ArtifactConfig {
   expiry?: number;
 }
 
+/** 矩阵维度：key (如 "os", "node") + values (值数组) */
+export interface MatrixDimension {
+  key: string;
+  values: string[];
+}
+
+/** 排除规则：匹配一组维度值则排除该组合 */
+export interface ExclusionRule {
+  match: Record<string, string>;
+  reason?: string;
+}
+
+/** 矩阵构建配置 */
+export interface MatrixBuildConfig {
+  enabled: boolean;
+  dimensions: MatrixDimension[];
+  exclusions: ExclusionRule[];
+}
+
 export interface StageConfig {
   id: string;
   name: string;
@@ -24,6 +43,7 @@ export interface StageConfig {
   config?: Record<string, any>;
   cache?: CacheConfig;
   artifacts?: ArtifactConfig;
+  matrix?: MatrixBuildConfig;
 }
 
 export interface PipelineFormData {

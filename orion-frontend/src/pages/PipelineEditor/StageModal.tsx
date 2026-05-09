@@ -14,8 +14,9 @@ import {
   Button,
   Card,
 } from 'antd';
-import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
-import type { StageConfig } from './types';
+import { PlusOutlined, DeleteOutlined, ThunderboltOutlined } from '@ant-design/icons';
+import type { StageConfig, MatrixBuildConfig } from './types';
+import MatrixConfigurator from '@/components/MatrixConfigurator';
 
 const { TextArea } = Input;
 
@@ -46,6 +47,11 @@ const StageModal: React.FC<StageModalProps> = ({
   const [form] = Form.useForm();
   const [cachePaths, setCachePaths] = useState<string[]>(['']);
   const [artifactPaths, setArtifactPaths] = useState<string[]>(['']);
+  const [matrixConfig, setMatrixConfig] = useState<MatrixBuildConfig>({
+    enabled: false,
+    dimensions: [],
+    exclusions: [],
+  });
 
   useEffect(() => {
     if (stage) {
@@ -67,10 +73,23 @@ const StageModal: React.FC<StageModalProps> = ({
       });
       setCachePaths(stage.cache?.paths?.length ? stage.cache.paths : ['']);
       setArtifactPaths(stage.artifacts?.upload?.length ? stage.artifacts.upload : ['']);
+      // 加载矩阵构建配置
+      setMatrixConfig(
+        stage.matrix || {
+          enabled: false,
+          dimensions: [],
+          exclusions: [],
+        }
+      );
     } else {
       form.resetFields();
       setCachePaths(['']);
       setArtifactPaths(['']);
+      setMatrixConfig({
+        enabled: false,
+        dimensions: [],
+        exclusions: [],
+      });
     }
   }, [stage, form, visible]);
 
@@ -104,6 +123,14 @@ const StageModal: React.FC<StageModalProps> = ({
           upload: artifactPaths.filter((p) => p.trim()),
           expiry: values.artifactExpiry,
         },
+        // 矩阵构建配置
+        matrix: matrixConfig.enabled
+          ? {
+              enabled: true,
+              dimensions: matrixConfig.dimensions,
+              exclusions: matrixConfig.exclusions,
+            }
+          : undefined,
       };
       onSave(stageConfig);
     } catch (error: unknown) {
@@ -141,7 +168,7 @@ const StageModal: React.FC<StageModalProps> = ({
       open={visible}
       onOk={handleOk}
       onCancel={onCancel}
-      width={700}
+      width={800}
       okText="保存"
       cancelText="取消"
       footer={
@@ -354,6 +381,48 @@ const StageModal: React.FC<StageModalProps> = ({
             <InputNumber min={0} max={365} style={{ width: '100%' }} placeholder="默认 7 天" />
           </Form.Item>
         </Card>
+
+        {/* 矩阵构建配置 */}
+        <Divider orientation="left" orientationMargin={0}>
+          <Space>
+            <ThunderboltOutlined style={{ color: '#faad14' }} />
+            <span>矩阵构建 (Matrix Build)</span>
+          </Space>
+        </Divider>
+
+        <Form.Item noStyle shouldUpdate>
+          <Card
+            size="small"
+            style={{ marginBottom: 16 }}
+            extra={
+              <Space>
+                <span>启用矩阵构建</span>
+                <Switch
+                  checked={matrixConfig.enabled}
+                  onChange={(checked) =>
+                    setMatrixConfig((prev) => ({
+                      ...prev,
+                      enabled: checked,
+                      dimensions: checked ? prev.dimensions : [],
+                      exclusions: checked ? prev.exclusions : [],
+                    }))
+                  }
+                />
+              </Space>
+            }
+          >
+            {matrixConfig.enabled ? (
+              <MatrixConfigurator
+                value={matrixConfig}
+                onChange={setMatrixConfig}
+              />
+            ) : (
+              <div style={{ padding: '8px 0', color: '#999' }}>
+                启用后可在多个维度上并行构建，例如同时测试多个 Node.js 版本和操作系统
+              </div>
+            )}
+          </Card>
+        </Form.Item>
       </Form>
     </Modal>
   );

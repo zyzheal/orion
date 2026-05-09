@@ -49,6 +49,11 @@ export interface StageConfig {
   config?: Record<string, any>;
   cache?: CacheConfig;
   artifacts?: ArtifactConfig;
+  matrix?: {
+    enabled: boolean;
+    dimensions: Array<{ key: string; values: string[] }>;
+    exclusions: Array<{ match: Record<string, string>; reason?: string }>;
+  };
 }
 
 export interface CacheConfig {
@@ -209,6 +214,21 @@ const PipelineEditor: React.FC = () => {
         stageLines.push(`        upload: ${JSON.stringify(stage.artifacts.upload)}`);
         if (stage.artifacts.expiry) {
           stageLines.push(`        expiry: ${stage.artifacts.expiry}`);
+        }
+      }
+
+      // 矩阵构建配置
+      if (stage.matrix?.enabled && stage.matrix.dimensions?.length) {
+        stageLines.push(`      matrix:`);
+        const matrixEntries = stage.matrix.dimensions.map(
+          (d) => `        ${d.key}: ${JSON.stringify(d.values)}`
+        );
+        stageLines.push(...matrixEntries);
+        if (stage.matrix.exclusions?.length) {
+          stageLines.push(`        exclude:`);
+          stage.matrix.exclusions.forEach((rule) => {
+            stageLines.push(`          - ${JSON.stringify(rule.match)}`);
+          });
         }
       }
 
