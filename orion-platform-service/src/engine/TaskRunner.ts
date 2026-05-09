@@ -437,6 +437,8 @@ export class TaskRunner {
       return this.executeNpmTask(task, signal, sanitizer);
     } else if (type.startsWith('k8s/') || type.startsWith('kubernetes/')) {
       return this.executeK8sTask(task, signal, sanitizer);
+    } else if (type.startsWith('test/')) {
+      return this.executeTestTask(task, signal);
     } else if (type.startsWith('shell/') || type.startsWith('script/')) {
       return this.executeShellTask(task, signal, sanitizer);
     } else {
@@ -764,6 +766,75 @@ export class TaskRunner {
       stderr: result.stderr,
       log: task.log,
     };
+  }
+
+  /**
+   * 执行 Test 相关任务
+   * 支持 test/unit, test/integration, test/e2e 类型
+   */
+  private async executeTestTask(task: Task, signal?: AbortSignal): Promise<Record<string, unknown>> {
+    const action = task.type.split('/')[1];
+    const params = task.parameters;
+    const command = (params.command as string) || (params.script as string) || '';
+    const cwd = (params.cwd as string) || this.getTaskWorkspace(task, 'test');
+    const timeoutMs = (task.timeoutSeconds || 300) * 1000;
+    const env = (params.env as Record<string, string>) || undefined;
+
+    task = appendTaskLog(task, `[TEST] Type: ${action}, Command: ${command}`);
+
+    // 检查命令是否可用
+    const cmdAvailable = await isCommandAvailable('npm');
+    if (!cmdAvailable) {
+      logger.warn('npm command not available for test execution');
+      return this.executeMockTask(task, signal);
+    }
+
+    // 解析命令并执行
+    const args = command.split(' ').filter(Boolean);
+    const result = await spawnCommand('npm', args, { cwd, timeoutMs, signal, env });
+
+    // 解析测试输出中的统计信息
+    const stats = this.parseTestOutput(result.stdout);
+
+    if (result.exitCode !== 0) {
+      return {
+        action,
+        command,
+        exitCode: result.exitCode,
+        stdout: result.stdout,
+        stderr: result.stderr,
+        testStats: stats,
+        log: task.log,
+        outputs: stats,
+      };
+    }
+
+    return {
+      action,
+      command,
+      exitCode: result.exitCode,
+      stdout: result.stdout,
+      stderr: result.stderr,
+      testStats: stats,
+      log: task.log,
+      outputs: stats,
+    };
+  }
+
+  /**
+   * 解析测试输出中的简单统计信息
+   */
+  private parseTestOutput(stdout: string): Record<string, string> {
+    const outputs: Record<string, string> = {};
+
+    // Jest style: "Tests:       10 passed, 10 total"
+    const jestMatch = stdout.match(/(\d+)\s+passed.*?(\d+)\s+total/);
+    if (jestMatch) {
+      outputs.passed = jestMatch[1];
+      outputs.total = jestMatch[2];
+    }
+
+    return outputs;
   }
 
   /**
