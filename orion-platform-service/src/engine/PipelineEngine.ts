@@ -34,6 +34,8 @@ import { DeploymentStrategyService, CanaryConfig, BlueGreenConfig, RollingConfig
 import { MatrixExpander } from './MatrixExpander';
 import { VariableContext } from './VariableContext';
 import { DebugController } from './DebugController';
+import { YamlPreprocessor } from './YamlPreprocessor';
+import { SharedActionService } from '../services/pipeline/SharedActionService';
 import pino from 'pino';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
@@ -71,6 +73,7 @@ export class PipelineEngine {
   private webhookConfigRepo: WebhookConfigRepository | null;
   private qualityGateService: QualityGateService | null;
   private deploymentStrategyService: DeploymentStrategyService | null;
+  private yamlPreprocessor: YamlPreprocessor | null;
 
   // 内存存储执行中的 Pipeline
   private executions = new Map<string, PipelineExecution>();
@@ -102,7 +105,8 @@ export class PipelineEngine {
     webhookNotifier?: WebhookNotifier,
     webhookConfigRepo?: WebhookConfigRepository,
     qualityGateService?: QualityGateService,
-    deploymentStrategyService?: DeploymentStrategyService
+    deploymentStrategyService?: DeploymentStrategyService,
+    yamlPreprocessor?: YamlPreprocessor | null
   ) {
     this.pipelineService = pipelineService;
     this.runService = runService;
@@ -123,6 +127,7 @@ export class PipelineEngine {
     this.webhookConfigRepo = webhookConfigRepo || null;
     this.qualityGateService = qualityGateService || null;
     this.deploymentStrategyService = deploymentStrategyService || null;
+    this.yamlPreprocessor = yamlPreprocessor || null;
   }
 
   /**
@@ -146,7 +151,19 @@ export class PipelineEngine {
       if (!pipeline.yamlDefinition) {
         throw new Error('Pipeline has no YAML definition');
       }
-      const result = parsePipelineYaml(pipeline.yamlDefinition);
+      let yamlDefinition = pipeline.yamlDefinition;
+      if (this.yamlPreprocessor) {
+        try {
+          yamlDefinition = await this.yamlPreprocessor.preprocess(yamlDefinition);
+          logger.info(
+            { pipelineId },
+            'YAML preprocessed: action references expanded'
+          );
+        } catch (error) {
+          logger.warn({ error }, 'YAML preprocessing failed, using original YAML');
+        }
+      }
+      const result = parsePipelineYaml(yamlDefinition);
       spec = result.spec;
     } catch (error) {
       throw new Error(`Failed to parse pipeline YAML: ${error instanceof Error ? error.message : 'Unknown error'}`);
