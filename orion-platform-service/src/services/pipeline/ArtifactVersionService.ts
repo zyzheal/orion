@@ -28,6 +28,7 @@ export interface VersionPromoteInput {
 
 export class ArtifactVersionService {
   private repository: ArtifactVersionRepository;
+  private readonly maxLineageDepth: number = 50;
 
   constructor(repository: ArtifactVersionRepository) {
     this.repository = repository;
