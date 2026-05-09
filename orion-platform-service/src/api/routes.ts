@@ -332,10 +332,11 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
     runService,
     eventPublisher,
     stageExecutor,
-    undefined,
-    undefined,
+    undefined, // subPipelineService (configured when available)
+    undefined, // artifactService
+    undefined, // approvalGateService
     executionQueue,
-    undefined,
+    undefined, // autoRetryService
     (run) => {
       // Record metrics when a pipeline run completes
       metricsService.recordRun(run);
