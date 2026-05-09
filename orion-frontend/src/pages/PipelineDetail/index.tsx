@@ -10,10 +10,12 @@
  * - Pipeline info header
  * - Stage timeline/progress visualization
  * - Log viewer section
- * - Re-run trigger button
+ * - Re-run trigger button (full pipeline)
+ * - Per-stage retry ("从该阶段重跑") for failed/completed runs
  */
 import React, { useState, useEffect } from 'react';
-import { Typography, Button, Space, Tag, Card, Descriptions, Tabs, Badge, message, Result } from 'antd';
+import { Typography, Button, Space, Tag, Card, Descriptions, Tabs, Badge, message, Result, Table, Modal } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
 import { colors, spacing } from '@/tokens';
 import {
   PlayCircleOutlined,
@@ -22,11 +24,13 @@ import {
   ReloadOutlined,
   ArrowLeftOutlined,
   ApartmentOutlined,
+  SwapOutlined,
 } from '@ant-design/icons';
 import StatusBadge from '@/components/StatusBadge';
 import CardPanel from '@/components/CardPanel';
 import { DAGGraph } from '@/components/DAGGraph';
 import { getPipelineRun, retryPipelineRun } from '@/api/pipelines';
+import { retryFromStage } from '@/api/pipelineRuns';
 import { useNavigate, useParams } from 'react-router-dom';
 import dayjs from 'dayjs';
 import duration from 'dayjs/plugin/duration';
@@ -46,11 +50,168 @@ const stageStatusColors: Record<string, string> = {
   cancelled: colors.neutral[400],
 };
 
+/**
+ * Task output variable — represents a variable produced by a task/stage
+ * and optionally propagated to downstream stages.
+ */
+interface TaskOutput {
+  key: string;
+  stageName: string;
+  taskName: string;
+  variableName: string;
+  variableValue: string;
+  propagatedTo: string[];
+}
+
+/**
+ * Mock task outputs data.
+ * TODO: Replace with real API integration once backend exposes
+ * /v1/pipeline-runs/:runId/outputs or similar endpoint.
+ */
+const mockTaskOutputs: TaskOutput[] = [
+  {
+    key: '1',
+    stageName: 'Build',
+    taskName: 'npm-build',
+    variableName: 'BUILD_OUTPUT_DIR',
+    variableValue: 'dist/',
+    propagatedTo: ['Test', 'Package'],
+  },
+  {
+    key: '2',
+    stageName: 'Build',
+    taskName: 'npm-build',
+    variableName: 'BUILD_VERSION',
+    variableValue: '1.2.3-abc1234',
+    propagatedTo: ['Test', 'Deploy'],
+  },
+  {
+    key: '3',
+    stageName: 'Test',
+    taskName: 'unit-test',
+    variableName: 'COVERAGE_PERCENT',
+    variableValue: '87.5',
+    propagatedTo: ['Quality Gate'],
+  },
+  {
+    key: '4',
+    stageName: 'Test',
+    taskName: 'integration-test',
+    variableName: 'TEST_REPORT_URL',
+    variableValue: 'https://reports.example.com/run-42',
+    propagatedTo: [],
+  },
+  {
+    key: '5',
+    stageName: 'Package',
+    taskName: 'docker-build',
+    variableName: 'IMAGE_TAG',
+    variableValue: 'registry.example.com/app:1.2.3-abc1234',
+    propagatedTo: ['Deploy'],
+  },
+  {
+    key: '6',
+    stageName: 'Deploy',
+    taskName: 'k8s-deploy',
+    variableName: 'DEPLOYED_NAMESPACE',
+    variableValue: 'production',
+    propagatedTo: [],
+  },
+];
+
+/**
+ * TaskOutputsTable — renders a table of task output variables
+ * with propagation information.
+ *
+ * Currently uses mock data; ready for API integration.
+ */
+const TaskOutputsTable: React.FC = () => {
+  const columns: ColumnsType<TaskOutput> = [
+    {
+      title: '所属阶段',
+      dataIndex: 'stageName',
+      key: 'stageName',
+      width: 140,
+      render: (text: string) => <Tag color="blue">{text}</Tag>,
+    },
+    {
+      title: '任务名称',
+      dataIndex: 'taskName',
+      key: 'taskName',
+      width: 160,
+      render: (text: string) => <Text code>{text}</Text>,
+    },
+    {
+      title: '变量名',
+      dataIndex: 'variableName',
+      key: 'variableName',
+      width: 200,
+      render: (text: string) => (
+        <Tag color="geekblue" style={{ fontFamily: 'monospace' }}>
+          {text}
+        </Tag>
+      ),
+    },
+    {
+      title: '变量值',
+      dataIndex: 'variableValue',
+      key: 'variableValue',
+      ellipsis: true,
+      render: (text: string) => (
+        <Text
+          code
+          style={{
+            maxWidth: 300,
+            display: 'inline-block',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            verticalAlign: 'middle',
+          }}
+          title={text}
+        >
+          {text}
+        </Text>
+      ),
+    },
+    {
+      title: '传播至',
+      dataIndex: 'propagatedTo',
+      key: 'propagatedTo',
+      width: 220,
+      render: (targets: string[]) =>
+        targets.length > 0 ? (
+          <Space wrap>
+            {targets.map((t) => (
+              <Tag key={t} color="green">
+                {t}
+              </Tag>
+            ))}
+          </Space>
+        ) : (
+          <Text type="secondary">无</Text>
+        ),
+    },
+  ];
+
+  return (
+    <Table<TaskOutput>
+      columns={columns}
+      dataSource={mockTaskOutputs}
+      size="middle"
+      pagination={false}
+      bordered
+      rowKey="key"
+    />
+  );
+};
+
 const PipelineDetail: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const [activeTab, setActiveTab] = useState('stages');
   const [isRerunning, setIsRerunning] = useState(false);
+  const [retryingStageId, setRetryingStageId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState<string | null>(null);
   const [pipeline, setPipeline] = useState<any>(null);
@@ -113,6 +274,40 @@ const PipelineDetail: React.FC = () => {
     } finally {
       setIsRerunning(false);
     }
+  };
+
+  // Handle retry from a specific stage
+  const handleRetryFromStage = (stageId: string, stageName: string) => {
+    Modal.confirm({
+      title: '从该阶段重跑',
+      content: `确认从阶段「${stageName}」开始重新运行？已完成的前置阶段将不会重新执行。`,
+      okText: '确认重跑',
+      cancelText: '取消',
+      onOk: async () => {
+        try {
+          setRetryingStageId(stageId);
+          const response = await retryFromStage(id!, stageId);
+          const newRun = response.data.data as any;
+          message.success(`已从阶段「${stageName}」重新运行`);
+          // Redirect to the new run's detail page
+          if (newRun?.id) {
+            navigate(`/pipelines/runs/${newRun.id}`);
+          } else {
+            // Fallback: reload current page to see updated status
+            const reloadResp = await getPipelineRun(id!);
+            setPipeline(reloadResp.data.data);
+          }
+        } catch (error: unknown) {
+          if (error instanceof Error) {
+            message.error(`从阶段「${stageName}」重跑失败：${error.message}`);
+          } else {
+            message.error(`从阶段「${stageName}」重跑失败，请稍后重试`);
+          }
+        } finally {
+          setRetryingStageId(null);
+        }
+      },
+    });
   };
 
   const triggerLabel: Record<string, string> = {
@@ -354,11 +549,27 @@ const PipelineDetail: React.FC = () => {
                         </Space>
                       }
                       extra={
-                        stage.duration && (
-                          <Text type="secondary" style={{ fontSize: spacing[3] }}>
-                            耗时: {formatDuration(stage.duration)}
-                          </Text>
-                        )
+                        <Space>
+                          {stage.duration && (
+                            <Text type="secondary" style={{ fontSize: spacing[3] }}>
+                              耗时: {formatDuration(stage.duration)}
+                            </Text>
+                          )}
+                          {/* Per-stage retry button: only show for failed/completed runs */}
+                          {(pipeline.status === 'failed' || pipeline.status === 'success') && (
+                            <Button
+                              type="link"
+                              size="small"
+                              icon={<ReloadOutlined />}
+                              loading={retryingStageId === stage.id || retryingStageId === stage.name}
+                              onClick={() =>
+                                handleRetryFromStage(stage.id || stage.name, stage.name)
+                              }
+                            >
+                              从该阶段重跑
+                            </Button>
+                          )}
+                        </Space>
                       }
                     >
                       {/* Steps within the stage */}
@@ -508,6 +719,24 @@ const PipelineDetail: React.FC = () => {
                 <Text type="secondary">暂无阶段数据</Text>
               </div>
             )}
+          </CardPanel>
+        </TabPane>
+
+        <TabPane
+          tab={
+            <Space>
+              <SwapOutlined />
+              任务输出
+            </Space>
+          }
+          key="outputs"
+        >
+          {/* Task outputs / variable propagation table */}
+          <CardPanel title="任务输出与变量传播">
+            <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
+              以下列出各阶段任务产生的输出变量及其传播目标。当前为演示数据，后续将接入真实 API。
+            </Text>
+            <TaskOutputsTable />
           </CardPanel>
         </TabPane>
       </Tabs>

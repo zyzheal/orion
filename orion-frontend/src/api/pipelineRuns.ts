@@ -67,6 +67,16 @@ export function getPipelineRunDetail(runId: string) {
 }
 
 /**
+ * Retry a pipeline run from a specific stage (retry-from-stage)
+ * Maps to POST /v1/pipeline-runs/:id/retry?fromStage=stageId
+ */
+export function retryFromStage(runId: string, stageId: string) {
+  return api.post(`/v1/pipeline-runs/${runId}/retry`, null, {
+    params: { fromStage: stageId },
+  });
+}
+
+/**
  * Get stages for a pipeline run
  * Maps to GET /v1/pipeline-runs/:id/stages
  */
