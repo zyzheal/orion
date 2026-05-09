@@ -46,6 +46,8 @@ export class SCMWebhookService {
   private triggerRules: SCMTriggerRule[] = [];
   private events: SCMWebhookEvent[] = [];
   private secretToken: string;
+  /** PR event debounce map: key -> timeout */
+  private prDebounceMap = new Map<string, NodeJS.Timeout>();
 
   constructor(pipelineEngine?: PipelineEngine | null) {
     this.pipelineEngine = pipelineEngine || null;
@@ -146,6 +148,51 @@ export class SCMWebhookService {
   }
 
   /**
+   * Handle a GitHub pull_request event.
+   */
+  async handleGitHubPullRequest(payload: any, signature?: string): Promise<SCMWebhookEvent> {
+    // Validate signature if provided
+    if (signature) {
+      const rawPayload = JSON.stringify(payload);
+      if (!this.validateGitHubSignature(rawPayload, signature)) {
+        throw new Error('Invalid GitHub webhook signature');
+      }
+    }
+
+    const pr = payload.pull_request || {};
+    const action = payload.action || '';
+
+    // Check debounce for synchronize events (force pushes)
+    if (action === 'synchronize') {
+      const debounceKey = `gh-pr-${pr.base?.repo?.full_name}-${pr.number}`;
+      if (this.prDebounceMap.has(debounceKey)) {
+        const entry = this.prDebounceMap.get(debounceKey)!;
+        clearTimeout(entry);
+        logger.debug({ debounceKey }, 'PR synchronize event debounced');
+      }
+      this.prDebounceMap.set(debounceKey, setTimeout(() => {
+        this.prDebounceMap.delete(debounceKey);
+      }, 30000));
+    }
+
+    const event: SCMWebhookEvent = {
+      id: generateEventId(),
+      provider: 'github',
+      eventType: 'pull_request',
+      repository: pr.base?.repo?.full_name || 'unknown',
+      branch: pr.base?.ref || 'unknown',
+      commitSha: pr.head?.sha || 'unknown',
+      commitMessage: pr.title || '',
+      pusher: pr.user?.login || 'unknown',
+      timestamp: new Date(),
+      rawPayload: payload,
+      matchedPipelines: [],
+    };
+
+    return this.processEvent(event);
+  }
+
+  /**
    * Handle a GitLab push event.
    */
   async handleGitLabPush(payload: any, token?: string): Promise<SCMWebhookEvent> {
@@ -165,6 +212,50 @@ export class SCMWebhookService {
       commitSha: payload.after || payload.checkout_sha || 'unknown',
       commitMessage: payload.commits?.[0]?.message || '',
       pusher: payload.user_name || payload.user_username || 'unknown',
+      timestamp: new Date(),
+      rawPayload: payload,
+      matchedPipelines: [],
+    };
+
+    return this.processEvent(event);
+  }
+
+  /**
+   * Handle a GitLab merge_request event.
+   */
+  async handleGitLabMergeRequest(payload: any, token?: string): Promise<SCMWebhookEvent> {
+    // Validate token if provided
+    if (token) {
+      if (!this.validateGitLabToken(token)) {
+        throw new Error('Invalid GitLab webhook token');
+      }
+    }
+
+    const attrs = payload.object_attributes || {};
+    const action = attrs.action || attrs.state || '';
+
+    // Check debounce
+    if (action === 'update') {
+      const debounceKey = `gl-mr-${attrs.target_project_id}-${attrs.iid}`;
+      if (this.prDebounceMap.has(debounceKey)) {
+        const entry = this.prDebounceMap.get(debounceKey)!;
+        clearTimeout(entry);
+        logger.debug({ debounceKey }, 'MR update event debounced');
+      }
+      this.prDebounceMap.set(debounceKey, setTimeout(() => {
+        this.prDebounceMap.delete(debounceKey);
+      }, 30000));
+    }
+
+    const event: SCMWebhookEvent = {
+      id: generateEventId(),
+      provider: 'gitlab',
+      eventType: 'pull_request',
+      repository: payload.project?.path_with_namespace || 'unknown',
+      branch: attrs.target_branch || 'unknown',
+      commitSha: attrs.last_commit?.id || 'unknown',
+      commitMessage: attrs.title || '',
+      pusher: payload.user?.username || 'unknown',
       timestamp: new Date(),
       rawPayload: payload,
       matchedPipelines: [],
