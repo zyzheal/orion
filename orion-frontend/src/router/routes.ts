@@ -120,6 +120,11 @@ export const routes: AppRoute[] = [
     protected: true,
   },
   {
+    path: '/pipelines/:pipelineId/versions',
+    element: React.lazy(() => import('@/pages/PipelineVersionHistory')),
+    protected: true,
+  },
+  {
     path: '/pipeline-runs',
     element: React.lazy(() => import('@/pages/PipelineRunList')),
     protected: true,
@@ -221,6 +226,13 @@ export const routes: AppRoute[] = [
     element: React.lazy(() => import('@/pages/FinOpsDashboard')),
     protected: true,
   },
+  // Pipeline Budget
+  {
+    path: '/console/pipeline-budget',
+    element: React.lazy(() => import('@/pages/PipelineBudget')),
+    protected: true,
+    requiredRole: ['admin', 'platform_admin'],
+  },
   // SBOM Attestation
   {
     path: '/sbom',
@@ -230,6 +242,12 @@ export const routes: AppRoute[] = [
   {
     path: '/sbom/:id',
     element: React.lazy(() => import('@/pages/SbomDetail')),
+    protected: true,
+  },
+  // Quality Gates
+  {
+    path: '/console/quality-gates',
+    element: React.lazy(() => import('@/pages/quality-gate/QualityGatePage')),
     protected: true,
   },
   // Policy Management
