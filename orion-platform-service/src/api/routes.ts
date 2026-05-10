@@ -28,6 +28,8 @@ import { PipelineEventPublisher } from '../events/PipelineEventPublisher';
 import { EventBusService } from '../services/event-bus-service';
 import { WebhookNotifier } from '../services/pipeline/WebhookNotifier';
 import { WebhookConfigRepository } from '../repositories/WebhookConfigRepository';
+import { SCMWebhookService } from '../services/pipeline/SCMWebhookService';
+import { TriggerRepository } from '../repositories/TriggerRepository';
 import { registerPipelineRoutes } from './pipeline-routes-registrar';
 import pipelineSSERoutes from './pipeline-sse-routes';
 import { DatabasePool } from '../services/database';
@@ -132,6 +134,8 @@ import communityAdvancedRoutes from './community-advanced-routes';
 import moduleRoutes from './module-routes';
 import scriptRoutes from './script-routes';
 import runnerRoutes from './runner-routes';
+import testReportRoutes from './test-report-routes';
+import artifactVersionRoutes from './artifact-version-routes';
 
 import pino from 'pino';
 import { ModuleManager } from '../services/module-lifecycle/ModuleManager';
@@ -419,6 +423,31 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   const stageController = new StageController(runService, stageExecutor);
   const taskController = new TaskController(runService);
 
+  // SCM Webhook service (for PR/MR/push triggers)
+  const scmWebhookService = new SCMWebhookService(engine);
+
+  // Load SCM trigger rules from database
+  if (options.database) {
+    const triggerRepo = new TriggerRepository(options.database);
+    try {
+      const triggers = await triggerRepo.findAll({ limit: 1000 });
+      const rules = triggers
+        .filter(t => t.type === 'scm' || t.type === 'webhook')
+        .map(t => ({
+          pipelineId: t.pipelineId,
+          repository: (t.config.repository as string) || '*',
+          branchPattern: (t.config.branchPattern as string) || '*',
+          events: (t.config.events as string[]) || ['push', 'pull_request'],
+        }));
+      if (rules.length > 0) {
+        scmWebhookService.setTriggerRules(rules);
+        logger.info({ ruleCount: rules.length }, 'SCM webhook trigger rules loaded from database');
+      }
+    } catch (error) {
+      logger.warn({ error }, 'Failed to load SCM trigger rules from database, using empty rules');
+    }
+  }
+
   // ==================== Pipeline 路由注册 ====================
   await registerPipelineRoutes(app, {
     pipelineController,
@@ -426,6 +455,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
     stageController,
     taskController,
     pipelineService,
+    scmWebhookService,
   });
 
   // ==================== Pipeline SSE 实时日志路由 ====================
@@ -819,6 +849,16 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // ==================== Runner Management ====================
   // Runner Agent 注册、心跳、Job 回报（Runner Agent 通信无需 JWT）
   await app.register(runnerRoutes, { prefix: '/api/v1/runners', database: options.database });
+
+  // ==================== Test Report Management ====================
+  await registerWithRoleGuard(app, testReportRoutes, '/v1/test-reports', {
+    database: options.database,
+  });
+
+  // ==================== Artifact Version Management ====================
+  await registerWithRoleGuard(app, artifactVersionRoutes, '/v1/artifact-versions', {
+    database: options.database,
+  });
 
   // ==================== Phase 3: Pipeline Metrics ====================
   // Standard Prometheus scrape endpoint (no auth, standard /metrics path)

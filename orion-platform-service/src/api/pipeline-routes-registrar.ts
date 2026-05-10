@@ -206,21 +206,22 @@ export async function registerPipelineRoutes(
             const body = request.body as any;
             const headers = request.headers as Record<string, string | undefined>;
 
-            // Determine provider and handle accordingly
             const githubSignature = headers['x-hub-signature-256'];
             const gitlabToken = headers['x-gitlab-token'];
             const githubEvent = headers['x-github-event'];
+            const gitlabEvent = headers['x-gitlab-event'];
 
             let event;
 
-            if (githubSignature || githubEvent) {
-              // GitHub webhook
+            if (githubEvent === 'pull_request') {
+              event = await deps.scmWebhookService!.handleGitHubPullRequest(body, githubSignature);
+            } else if (githubSignature || githubEvent) {
               event = await deps.scmWebhookService!.handleGitHubPush(body, githubSignature);
+            } else if (gitlabEvent === 'Merge Request Hook' || gitlabEvent === 'merge_request') {
+              event = await deps.scmWebhookService!.handleGitLabMergeRequest(body, gitlabToken);
             } else if (gitlabToken) {
-              // GitLab webhook
               event = await deps.scmWebhookService!.handleGitLabPush(body, gitlabToken);
             } else {
-              // Unknown provider - try GitHub (signature validation will fail if secret is set)
               event = await deps.scmWebhookService!.handleGitHubPush(body);
             }
 
@@ -228,6 +229,7 @@ export async function registerPipelineRoutes(
               received: true,
               eventId: event.id,
               provider: event.provider,
+              eventType: event.eventType,
               matchedPipelines: event.matchedPipelines,
             });
           } catch (error: any) {
