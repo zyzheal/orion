@@ -16,6 +16,7 @@ import { WorkspaceIsolator, getDefaultWorkspaceIsolator } from './WorkspaceIsola
 import { SecretsService, StreamSecretSanitizer } from '../services/pipeline/SecretsService';
 import { RunnerPoolService, RunnerExecutionResult } from '../services/pipeline/RunnerPoolService';
 import { DockerBuildService, DockerBuildOptions, DockerPushOptions, DockerScanOptions } from '../services/pipeline/DockerBuildService';
+import { BuildxBuilderService, BuildOptions } from '../services/build/BuildxBuilderService';
 import pino from 'pino';
 
 const logger = pino({ name: 'task-runner' });
@@ -531,6 +532,8 @@ export class TaskRunner {
         return this.executeDockerPush(task, dockerService);
       case 'scan':
         return this.executeDockerScan(task, dockerService);
+      case 'buildx':
+        return this.executeDockerBuildx(task);
       default:
         throw new Error(`Unknown docker action: ${action}`);
     }
@@ -645,6 +648,61 @@ export class TaskRunner {
       stdout: result.stdout,
       stderr: result.stderr,
       log: task.log,
+    };
+  }
+
+  /**
+   * 执行 Docker Buildx 多架构构建任务
+   * 使用 BuildxBuilderService.buildMultiArchNative 进行单次命令多平台构建
+   */
+  private async executeDockerBuildx(task: Task): Promise<Record<string, unknown>> {
+    const params = task.parameters;
+    const buildxService = new BuildxBuilderService();
+
+    const platforms = (params.platforms as string[]) || [];
+    if (platforms.length === 0) {
+      throw new Error('docker/buildx requires "platforms" parameter (e.g., ["linux/amd64", "linux/arm64"])');
+    }
+
+    const options: BuildOptions = {
+      context: (params.context as string) || this.getTaskWorkspace(task, 'docker'),
+      dockerfile: (params.dockerfile as string) || undefined,
+      imageName: (params.image as string) || (params.imageName as string) || '',
+      tags: (params.tags as string[]) || [(params.tag as string) || 'latest'],
+      platforms,
+      buildArgs: (params.buildArgs as Record<string, string>) || undefined,
+      labels: (params.labels as Record<string, string>) || undefined,
+      cacheFrom: (params.cacheFrom as string[]) || undefined,
+      cacheTo: (params.cacheTo as string[]) || undefined,
+      noCache: (params.noCache as boolean) || false,
+      pull: (params.pull as boolean) || false,
+      push: (params.push as boolean) || false,
+      progress: (params.progress as 'auto' | 'plain' | 'tty') || 'plain',
+    };
+
+    if (!options.imageName) {
+      throw new Error('docker/buildx requires "image" or "imageName" parameter');
+    }
+
+    task = appendTaskLog(task, `[DOCKER] Buildx multi-arch build: ${options.imageName} for ${platforms.join(', ')}`);
+
+    const result = await buildxService.buildMultiArchNative(options);
+
+    if (!result.success) {
+      throw new Error(`Buildx build failed: ${result.errors.join(', ')}`);
+    }
+
+    return {
+      action: 'buildx',
+      imageName: options.imageName,
+      tags: options.tags,
+      platforms: result.platforms,
+      imageId: result.imageId,
+      durationMs: result.duration,
+      stdout: result.logs.join('\n'),
+      stderr: result.errors.join('\n'),
+      log: task.log,
+      outputs: { image: `${options.imageName}:${options.tags[0]}`, platforms: platforms.join(',') },
     };
   }
 
