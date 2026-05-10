@@ -881,6 +881,23 @@ export const routes: AppRoute[] = [
     element: React.lazy(() => import('@/pages/TestSelector')),
     protected: true,
   },
+  // Test Report Viewer (CI Enhancement)
+  {
+    path: '/pipeline-runs/:runId/test-reports',
+    element: React.lazy(() => import('@/pages/TestReport')),
+    protected: true,
+  },
+  // Artifact Version Management (CI Enhancement)
+  {
+    path: '/artifacts/browser',
+    element: React.lazy(() => import('@/pages/ArtifactVersion')),
+    protected: true,
+  },
+  {
+    path: '/artifacts/browser/:artifactName',
+    element: React.lazy(() => import('@/pages/ArtifactVersion')),
+    protected: true,
+  },
   // Cron Management
   {
     path: '/console/cron',

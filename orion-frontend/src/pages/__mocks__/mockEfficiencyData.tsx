@@ -7,7 +7,7 @@ import { ThunderboltOutlined, ClockCircleOutlined, CheckCircleOutlined } from '@
 export interface DoraMetric {
   key: string;
   name: string;
-  icon: React.ReactNode;
+  icon: string;
   currentValue: string | number;
   targetValue: string | number;
   trend: 'up' | 'down' | 'stable';
@@ -47,7 +47,7 @@ export const mockEfficiencyData: EfficiencyData = {
     {
       key: 'deployment-frequency',
       name: '发布频率 (Deployment Frequency)',
-      icon: <ThunderboltOutlined />,
+      icon: '⚡',
       currentValue: '175 次/周',
       targetValue: '200 次/周',
       trend: 'up',
@@ -56,7 +56,7 @@ export const mockEfficiencyData: EfficiencyData = {
     {
       key: 'lead-time',
       name: '变更前置时间 (Lead Time for Changes)',
-      icon: <ClockCircleOutlined />,
+      icon: '🕒',
       currentValue: '22 小时',
       targetValue: '< 24 小时',
       trend: 'down',
@@ -65,7 +65,7 @@ export const mockEfficiencyData: EfficiencyData = {
     {
       key: 'mttr',
       name: '服务恢复时间 (MTTR)',
-      icon: <CheckCircleOutlined />,
+      icon: '✅',
       currentValue: '45 分钟',
       targetValue: '< 60 分钟',
       trend: 'down',
@@ -74,7 +74,7 @@ export const mockEfficiencyData: EfficiencyData = {
     {
       key: 'failure-rate',
       name: '变更失败率 (Change Failure Rate)',
-      icon: <ThunderboltOutlined />,
+      icon: '⚠️',
       currentValue: '6.4%',
       targetValue: '< 5%',
       trend: 'stable',

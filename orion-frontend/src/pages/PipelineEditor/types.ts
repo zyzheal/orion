@@ -40,6 +40,31 @@ export interface SubPipelineConfig {
   params?: Record<string, string>;
 }
 
+/** Buildx 多架构构建配置 */
+export interface BuildxConfig {
+  imageName: string;
+  tags: string[];
+  platforms: string[];
+  dockerfilePath?: string;
+  context?: string;
+  push?: boolean;
+}
+
+/** Container 容器运行配置 */
+export interface ContainerConfig {
+  image: string;
+  command?: string;
+  args?: string[];
+  env?: Record<string, string>;
+  volumes?: Array<{ hostPath: string; containerPath: string; readOnly?: boolean }>;
+  resources?: {
+    cpu?: string;
+    memory?: string;
+    gpu?: { devices?: string; capabilities?: string[] };
+  };
+  network?: 'host' | 'bridge' | 'none';
+}
+
 export interface StageConfig {
   id: string;
   name: string;

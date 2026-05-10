@@ -81,7 +81,8 @@ const STAGE_TYPES = [
   { label: '部署 (Deploy)', value: 'deploy', icon: '🚀' },
   { label: '通知 (Notify)', value: 'notify', icon: '📢' },
   { label: '自定义 (Custom)', value: 'custom', icon: '⚙️' },
-];
+  { label: '多架构构建 (Buildx)', value: 'buildx', icon: '🏷️' },
+  { label: '容器运行 (Container)', value: 'container', icon: '📦' },];
 
 const PipelineEditor: React.FC = () => {
   const navigate = useNavigate();
@@ -177,6 +178,58 @@ const PipelineEditor: React.FC = () => {
     for (const stage of stages) {
       const stepUses = stage.config?.uses || `orion/${stage.type}@v1`;
       const stepName = `${stage.name}-step`;
+
+      // Buildx 特殊配置
+      if (stage.type === 'buildx' && stage.config?.imageName) {
+        const stageLines = [
+          `    - name: ${stage.name}`,
+          `      type: buildx`,
+          `      timeout: ${stage.timeout || 300}`,
+          `      retries: ${stage.retryCount || 0}`,
+          `      config:`,
+          `        imageName: ${stage.config.imageName}`,
+          `        tag: ${stage.config.tag || 'latest'}`,
+          `        platforms: ${JSON.stringify(stage.config.platforms || ['linux/amd64'])}`,
+        ];
+        if (stage.config.dockerfilePath) {
+          stageLines.push(`        dockerfile: ${stage.config.dockerfilePath}`);
+        }
+        if (stage.config.push !== false) {
+          stageLines.push(`        push: true`);
+        }
+        if (stage.dependsOn?.length) {
+          stageLines.push(`      dependsOn: ${JSON.stringify(stage.dependsOn)}`);
+        }
+        yamlLines.push(...stageLines);
+        continue;
+      }
+
+      // Container 特殊配置
+      if (stage.type === 'container' && stage.config?.containerImage) {
+        const stageLines = [
+          `    - name: ${stage.name}`,
+          `      type: container`,
+          `      timeout: ${stage.timeout || 300}`,
+          `      retries: ${stage.retryCount || 0}`,
+          `      config:`,
+          `        image: ${stage.config.containerImage}`,
+        ];
+        if (stage.config.containerCommand) {
+          stageLines.push(`        command: ${stage.config.containerCommand}`);
+        }
+        if (stage.config.containerResources) {
+          stageLines.push(`        resources: ${JSON.stringify(stage.config.containerResources)}`);
+        }
+        if (stage.config.containerNetwork) {
+          stageLines.push(`        network: ${stage.config.containerNetwork}`);
+        }
+        if (stage.dependsOn?.length) {
+          stageLines.push(`      dependsOn: ${JSON.stringify(stage.dependsOn)}`);
+        }
+        yamlLines.push(...stageLines);
+        continue;
+      }
+
       const stepWith =
         stage.config && Object.keys(stage.config).length > 0
           ? `\n        with: ${JSON.stringify(stage.config)}`

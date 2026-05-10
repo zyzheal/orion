@@ -27,6 +27,8 @@ const STAGE_TYPE_ICONS: Record<string, string> = {
   deploy: '🚀',
   notify: '📢',
   custom: '⚙️',
+  buildx: '🏷️',
+  container: '📦',
 };
 
 interface StageItemProps {
@@ -132,6 +134,16 @@ const StageItem: React.FC<StageItemProps> = ({
                 {stage.artifacts?.upload && stage.artifacts.upload.length > 0 && (
                   <Text type="secondary" style={{ fontSize: spacing[3] }}>
                     <FileTextOutlined /> 产物：{stage.artifacts.upload.length} 个路径
+                  </Text>
+                )}
+                {stage.type === 'buildx' && stage.config?.imageName && (
+                  <Text type="secondary" style={{ fontSize: spacing[3] }}>
+                    🏷️ {stage.config.imageName}:{stage.config.tag || 'latest'}
+                  </Text>
+                )}
+                {stage.type === 'container' && stage.config?.image && (
+                  <Text type="secondary" style={{ fontSize: spacing[3] }}>
+                    📦 {stage.config.image}
                   </Text>
                 )}
               </Space>

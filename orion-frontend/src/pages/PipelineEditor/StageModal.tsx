@@ -28,6 +28,8 @@ const STAGE_TYPES = [
   { label: '🚀 部署 (Deploy)', value: 'deploy' },
   { label: '📢 通知 (Notify)', value: 'notify' },
   { label: '🔀 子流水线 (Sub-Pipeline)', value: 'sub-pipeline' },
+  { label: '🏷️ 多架构构建 (Buildx)', value: 'buildx' },
+  { label: '📦 容器运行 (Container)', value: 'container' },
   { label: '⚙️ 自定义 (Custom)', value: 'custom' },
 ];
 
@@ -146,6 +148,27 @@ const StageModal: React.FC<StageModalProps> = ({
           command: values.command,
           image: values.image,
           env: values.env,
+          // Buildx config
+          imageName: values.buildxImageName,
+          tag: values.buildxTag || 'latest',
+          platforms: values.buildxPlatforms || ['linux/amd64'],
+          dockerfilePath: values.buildxDockerfile,
+          context: values.buildxContext || '.',
+          push: values.buildxPush ?? true,
+          // Container config
+          containerImage: values.containerImage,
+          containerCommand: values.containerCommand,
+          containerArgs: values.containerArgs?.split('\n').filter(Boolean),
+          containerEnv: values.containerEnv,
+          containerResources: values.containerResources ? {
+            cpu: values.containerCpu,
+            memory: values.containerMemory,
+            gpu: values.containerGpu ? {
+              devices: values.containerGpuDevices,
+              capabilities: values.containerGpuCapabilities?.split(',').filter(Boolean),
+            } : undefined,
+          } : undefined,
+          containerNetwork: values.containerNetwork,
         },
         // 缓存配置
         cache: values.cacheEnabled
@@ -409,6 +432,136 @@ const StageModal: React.FC<StageModalProps> = ({
                       </Space>
                     ))}
                   </Space>
+                </Form.Item>
+              </Card>
+            )
+          }
+        </Form.Item>
+
+        {/* Buildx 多架构构建配置 */}
+        <Form.Item noStyle shouldUpdate={(prev, curr) => prev.type !== curr.type}>
+          {(formInstance) =>
+            formInstance.getFieldValue('type') === 'buildx' && (
+              <Card size="small" style={{ marginBottom: 16 }} title={<Space>🏷️ 多架构构建配置</Space>}>
+                <Form.Item
+                  label="镜像名称"
+                  name="buildxImageName"
+                  rules={[{ required: true, message: '请输入镜像名称' }]}
+                  tooltip="例如：registry.example.com/my-app"
+                >
+                  <Input placeholder="registry.example.com/my-app" />
+                </Form.Item>
+
+                <Form.Item label="标签 (Tag)" name="buildxTag" tooltip="镜像标签">
+                  <Input placeholder="latest" />
+                </Form.Item>
+
+                <Form.Item
+                  label="目标平台"
+                  name="buildxPlatforms"
+                  rules={[{ required: true, message: '请选择至少一个平台' }]}
+                  tooltip="支持的平台架构"
+                >
+                  <Select
+                    mode="multiple"
+                    placeholder="选择目标平台"
+                    options={[
+                      { label: 'linux/amd64', value: 'linux/amd64' },
+                      { label: 'linux/arm64', value: 'linux/arm64' },
+                      { label: 'linux/arm/v7', value: 'linux/arm/v7' },
+                      { label: 'linux/s390x', value: 'linux/s390x' },
+                      { label: 'linux/ppc64le', value: 'linux/ppc64le' },
+                    ]}
+                  />
+                </Form.Item>
+
+                <Form.Item label="Dockerfile 路径" name="buildxDockerfile" tooltip="Dockerfile 的相对路径">
+                  <Input placeholder="Dockerfile" />
+                </Form.Item>
+
+                <Form.Item label="构建上下文" name="buildxContext" tooltip="构建上下文目录">
+                  <Input placeholder="." />
+                </Form.Item>
+
+                <Form.Item label="推送镜像" name="buildxPush" valuePropName="checked" tooltip="构建完成后推送到镜像仓库">
+                  <Switch />
+                </Form.Item>
+              </Card>
+            )
+          }
+        </Form.Item>
+
+        {/* Container 容器运行配置 */}
+        <Form.Item noStyle shouldUpdate={(prev, curr) => prev.type !== curr.type}>
+          {(formInstance) =>
+            formInstance.getFieldValue('type') === 'container' && (
+              <Card size="small" style={{ marginBottom: 16 }} title={<Space>📦 容器运行配置</Space>}>
+                <Form.Item
+                  label="容器镜像"
+                  name="containerImage"
+                  rules={[{ required: true, message: '请输入容器镜像' }]}
+                  tooltip="例如：node:18-alpine"
+                >
+                  <Input placeholder="node:18-alpine" />
+                </Form.Item>
+
+                <Form.Item label="启动命令" name="containerCommand" tooltip="容器启动时执行的命令">
+                  <Input placeholder="npm run test" />
+                </Form.Item>
+
+                <Form.Item label="启动参数" name="containerArgs" tooltip="每行一个参数">
+                  <TextArea rows={2} placeholder="--env=production&#10;--port=3000" style={{ fontFamily: 'monospace' }} />
+                </Form.Item>
+
+                <Form.Item label="环境变量" name="containerEnv" tooltip="格式：KEY=VALUE，每行一个">
+                  <TextArea rows={2} placeholder="NODE_ENV=production&#10;API_URL=https://api.example.com" style={{ fontFamily: 'monospace' }} />
+                </Form.Item>
+
+                <Form.Item label="资源限制" name="containerResources" valuePropName="checked">
+                  <Switch checkedChildren="启用" unCheckedChildren="禁用" />
+                </Form.Item>
+
+                <Form.Item noStyle shouldUpdate={(prev, curr) => prev.containerResources !== curr.containerResources}>
+                  {(fi) =>
+                    fi.getFieldValue('containerResources') && (
+                      <>
+                        <Form.Item label="CPU 限制" name="containerCpu" tooltip="例如：2.0 表示 2 个 CPU">
+                          <InputNumber min={0.1} max={16} step={0.1} style={{ width: '100%' }} placeholder="2.0" />
+                        </Form.Item>
+                        <Form.Item label="内存限制" name="containerMemory" tooltip="例如：4g, 512m">
+                          <Input placeholder="4g" />
+                        </Form.Item>
+                        <Form.Item label="启用 GPU" name="containerGpu" valuePropName="checked">
+                          <Switch />
+                        </Form.Item>
+                        <Form.Item noStyle shouldUpdate={(prev, curr) => prev.containerGpu !== curr.containerGpu}>
+                          {(fi2) =>
+                            fi2.getFieldValue('containerGpu') && (
+                              <>
+                                <Form.Item label="GPU 设备" name="containerGpuDevices" tooltip="例如：all, 0, device=GPU-uuid">
+                                  <Input placeholder="all" />
+                                </Form.Item>
+                                <Form.Item label="GPU 能力" name="containerGpuCapabilities" tooltip="逗号分隔">
+                                  <Input placeholder="compute,utility" />
+                                </Form.Item>
+                              </>
+                            )
+                          }
+                        </Form.Item>
+                      </>
+                    )
+                  }
+                </Form.Item>
+
+                <Form.Item label="网络模式" name="containerNetwork" tooltip="容器网络模式">
+                  <Select
+                    placeholder="选择网络模式"
+                    options={[
+                      { label: 'host', value: 'host' },
+                      { label: 'bridge', value: 'bridge' },
+                      { label: 'none', value: 'none' },
+                    ]}
+                  />
                 </Form.Item>
               </Card>
             )
