@@ -29,6 +29,13 @@ export interface ContainerSpec {
   resources?: {
     cpu?: string;
     memory?: string;
+    /** GPU 设备（Docker: --gpus, K8s: nvidia.com/gpu） */
+    gpu?: {
+      /** GPU 设备标识，如 "all", "0", "device=GPU-uuid" */
+      devices?: string;
+      /** GPU 能力要求，如 ['compute', 'utility'] */
+      capabilities?: string[];
+    };
   };
   /** 挂载点 */
   volumes?: Array<{
@@ -201,6 +208,18 @@ export class DockerExecutor implements ContainerExecutorStrategy {
     }
     if (spec.resources?.memory) {
       dockerArgs.push('--memory', spec.resources.memory);
+    }
+    // GPU 资源分配
+    if (spec.resources?.gpu) {
+      const gpuArgs = [`--gpus`];
+      const parts: string[] = [];
+      if (spec.resources.gpu.devices) {
+        parts.push(`device=${spec.resources.gpu.devices}`);
+      }
+      if (spec.resources.gpu.capabilities && spec.resources.gpu.capabilities.length > 0) {
+        parts.push(spec.resources.gpu.capabilities.join(','));
+      }
+      dockerArgs.push('--gpus', parts.length > 0 ? parts.join(',') : 'all');
     }
 
     // 环境变量

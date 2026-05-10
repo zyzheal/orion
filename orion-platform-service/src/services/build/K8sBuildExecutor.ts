@@ -56,8 +56,8 @@ export interface K8sPodSpec {
     args?: string[];
     env?: Array<{ name: string; value: string }>;
     resources?: {
-      requests?: { cpu?: string; memory?: string };
-      limits?: { cpu?: string; memory?: string };
+      requests?: { cpu?: string; memory?: string; 'nvidia.com/gpu'?: string };
+      limits?: { cpu?: string; memory?: string; 'nvidia.com/gpu'?: string };
     };
     volumeMounts?: Array<{
       name: string;
