@@ -17,6 +17,7 @@ import { SecretsService, StreamSecretSanitizer } from '../services/pipeline/Secr
 import { RunnerPoolService, RunnerExecutionResult } from '../services/pipeline/RunnerPoolService';
 import { DockerBuildService, DockerBuildOptions, DockerPushOptions, DockerScanOptions } from '../services/pipeline/DockerBuildService';
 import { BuildxBuilderService, BuildOptions } from '../services/build/BuildxBuilderService';
+import { ContainerSpec, DockerExecutor, LocalSpawnExecutor, ContainerExecutorStrategy } from './ContainerExecutor';
 import pino from 'pino';
 
 const logger = pino({ name: 'task-runner' });
@@ -442,6 +443,8 @@ export class TaskRunner {
       return this.executeTestTask(task, signal);
     } else if (type.startsWith('shell/') || type.startsWith('script/')) {
       return this.executeShellTask(task, signal, sanitizer);
+    } else if (type.startsWith('container/')) {
+      return this.executeContainerTask(task, signal);
     } else {
       // 未知类型，模拟执行成功
       return this.executeMockTask(task, signal);
@@ -703,6 +706,60 @@ export class TaskRunner {
       stderr: result.errors.join('\n'),
       log: task.log,
       outputs: { image: `${options.imageName}:${options.tags[0]}`, platforms: platforms.join(',') },
+    };
+  }
+
+  /**
+   * 执行容器化任务
+   * 支持 container/run@ step type，使用 Docker 容器隔离执行环境
+   */
+  private async executeContainerTask(task: Task, signal?: AbortSignal): Promise<Record<string, unknown>> {
+    const params = task.parameters;
+    const action = task.type.split('/')[1];
+
+    const spec: ContainerSpec = {
+      image: (params.image as string) || 'ubuntu:latest',
+      workdir: (params.workdir as string) || '/workspace',
+      env: (params.env as Record<string, string>) || undefined,
+      resources: (params.resources as ContainerSpec['resources']) || undefined,
+      volumes: (params.volumes as ContainerSpec['volumes']) || undefined,
+      network: (params.network as ContainerSpec['network']) || 'bridge',
+    };
+
+    const command = (params.command as string[]) || ['sh', '-c', (params.script as string) || ''];
+    const timeoutMs = (task.timeoutSeconds || 300) * 1000;
+
+    task = appendTaskLog(task, `[CONTAINER] Action: ${action}, Image: ${spec.image}`);
+
+    // 根据 action 选择执行策略
+    let executor: ContainerExecutorStrategy;
+    if (action === 'docker' || action === 'container') {
+      executor = new DockerExecutor();
+      if (!(await executor.isAvailable())) {
+        task = appendTaskLog(task, `[CONTAINER] Docker not available, falling back to local`);
+        executor = new LocalSpawnExecutor();
+      }
+    } else {
+      executor = new LocalSpawnExecutor();
+    }
+
+    const startTime = Date.now();
+    const result = await executor.execute(spec, command[0], command.slice(1), timeoutMs);
+    const durationMs = Date.now() - startTime;
+
+    if (result.exitCode !== 0) {
+      throw new Error(`Container execution failed (exit code ${result.exitCode}): ${result.stderr}`);
+    }
+
+    return {
+      action,
+      image: spec.image,
+      exitCode: result.exitCode,
+      stdout: result.stdout,
+      stderr: result.stderr,
+      durationMs,
+      containerId: result.containerId,
+      log: task.log,
     };
   }
 
