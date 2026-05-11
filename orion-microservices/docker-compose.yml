@@ -156,6 +156,9 @@ services:
       AI_SERVICE_URL: http://orion-ai-svc:3012
       SECURITY_SERVICE_URL: http://orion-security-svc:3013
       ARTIFACT_SERVICE_URL: http://orion-artifact-svc:3014
+      EFFICIENCY_SERVICE_URL: http://orion-efficiency-svc:3015
+      DR_SERVICE_URL: http://orion-dr-svc:3016
+      FEDERATION_SERVICE_URL: http://orion-federation-svc:3017
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
       LOG_LEVEL: ${LOG_LEVEL:-info}
     depends_on:
@@ -560,6 +563,84 @@ services:
       timeout: 5s
       retries: 3
       start_period: 30s
+
+  # --- orion-efficiency-svc ---
+  orion-efficiency-svc:
+    image: orion/efficiency-svc:${EFFICIENCY_VERSION:-latest}
+    container_name: orion-efficiency-svc
+    restart: unless-stopped
+    networks:
+      - orion-internal
+    ports:
+      - "${EFFICIENCY_PORT:-3015}:3015"
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 3015
+      DATABASE_URL: postgresql://${POSTGRES_USER:-orion}:${POSTGRES_PASSWORD:-orion_secret}@postgres:5432/efficiency_db
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_secret}@redis:6379/14
+      NATS_URL: nats://:${NATS_TOKEN:-nats_secret}@nats:4222
+      PLATFORM_SERVICE_URL: http://orion-platform-core:3001
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      nats: { condition: service_healthy }
+      orion-platform-core: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3015/health"]
+      interval: 15s; timeout: 5s; retries: 3; start_period: 30s
+
+  # --- orion-dr-svc ---
+  orion-dr-svc:
+    image: orion/dr-svc:${DR_VERSION:-latest}
+    container_name: orion-dr-svc
+    restart: unless-stopped
+    networks:
+      - orion-internal
+    ports:
+      - "${DR_PORT:-3016}:3016"
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 3016
+      DATABASE_URL: postgresql://${POSTGRES_USER:-orion}:${POSTGRES_PASSWORD:-orion_secret}@postgres:5432/dr_db
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_secret}@redis:6379/15
+      NATS_URL: nats://:${NATS_TOKEN:-nats_secret}@nats:4222
+      PLATFORM_SERVICE_URL: http://orion-platform-core:3001
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      nats: { condition: service_healthy }
+      orion-platform-core: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3016/health"]
+      interval: 15s; timeout: 5s; retries: 3; start_period: 30s
+
+  # --- orion-federation-svc ---
+  orion-federation-svc:
+    image: orion/federation-svc:${FEDERATION_VERSION:-latest}
+    container_name: orion-federation-svc
+    restart: unless-stopped
+    networks:
+      - orion-internal
+    ports:
+      - "${FEDERATION_PORT:-3017}:3017"
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 3017
+      DATABASE_URL: postgresql://${POSTGRES_USER:-orion}:${POSTGRES_PASSWORD:-orion_secret}@postgres:5432/federation_db
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_secret}@redis:6379/16
+      NATS_URL: nats://:${NATS_TOKEN:-nats_secret}@nats:4222
+      PLATFORM_SERVICE_URL: http://orion-platform-core:3001
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      nats: { condition: service_healthy }
+      orion-platform-core: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3017/health"]
+      interval: 15s; timeout: 5s; retries: 3; start_period: 30s
 
   # --- orion-knowledge-svc ---
   orion-knowledge-svc:

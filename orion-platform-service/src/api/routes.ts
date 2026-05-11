@@ -16,9 +16,7 @@ import cmdbRoutes from '../routes-cmdb';
 import configRoutes from './config-routes';
 import { PluginManagerService } from '../services/plugin-manager-service';
 import auditRoutes from './audit-routes';
-import tenantRoutes from './tenant-routes';
-import efficiencyRoutes from './efficiency-routes';
-import iacRoutes from './iac-routes';
+import tenantRoutes from './tenant-routes';import iacRoutes from './iac-routes';
 import chatopsRoutes from './chatops-routes';
 import skillRoutes from './skill-routes';
 import sessionRoutes from './session-routes';
@@ -48,17 +46,8 @@ import degradationRoutes from './degradation-routes';
 import crossDomainRoutes from './cross-domain-routes';
 import configMgmtEnhancedRoutes from './config-mgmt-enhanced-routes';
 import securityComplianceRoutes from './security-compliance-routes';
-import multiModalTriggerRoutes from './multi-modal-trigger-routes';
-import disasterRecoveryRoutes from './disaster-recovery-routes';
-import disasterRecoveryAdvancedRoutes from './disaster-recovery-advanced-routes';
-import federationRoutes from './federation-routes';
-import federationAdvancedRoutes from './federation-advanced-routes';
-import multiCloudRoutes from './multi-cloud-routes';
-import multiCloudAdvancedRoutes from './multi-cloud-advanced-routes';
-import digitalTwinRoutes from './digital-twin-routes';
-import apiGovernanceRoutes from './api-governance-routes';
-import efficiencyEnhancedRoutes from './efficiency-enhanced-routes';
-import communityRoutes from './community-routes';
+import multiModalTriggerRoutes from './multi-modal-trigger-routes';import digitalTwinRoutes from './digital-twin-routes';
+import apiGovernanceRoutes from './api-governance-routes';import communityRoutes from './community-routes';
 import communityAdvancedRoutes from './community-advanced-routes';
 import moduleRoutes from './module-routes';
 import scriptRoutes from './script-routes';
@@ -314,10 +303,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // 注册租户管理 API 路由 (PostgreSQL backed)
   await registerWithRoleGuard(app, tenantRoutes, '/v1/tenant', { database: options.database });
 
-  // 注册效能分析 API 路由 — P0-4 Fix: pass database for real DORA metrics
-  await registerWithRoleGuard(app, efficiencyRoutes, '/v1/efficiency', { database: options.database });
-
-  // 注册 SBOM Attestation API 路由 (P0) - migrated to PostgreSQL// 注册 OPA Policy Engine API 路由 (P0) - PostgreSQL backed// 注册 Quality Gate Trend API 路由 (Phase 1) - PostgreSQL backed// 注册 AI Change Intelligence API 路由 (P0)
+  // 注册效能分析 API 路由 — P0-4 Fix: pass database for real DORA metrics// 注册 SBOM Attestation API 路由 (P0) - migrated to PostgreSQL// 注册 OPA Policy Engine API 路由 (P0) - PostgreSQL backed// 注册 Quality Gate Trend API 路由 (Phase 1) - PostgreSQL backed// 注册 AI Change Intelligence API 路由 (P0)
   // 注册 ML Canary Analysis API 路由 (P0) - PostgreSQL backed
   // 注册 Plugin Marketplace API 路由 (Phase 3) - PostgreSQL backed// 注册 Canary Traffic Management API 路由 (Phase 3) - PostgreSQL backed
   // 注册 Skill Management API 路由 (M12)
@@ -461,13 +447,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // ==================== Community Ecosystem Advanced Services ====================
   await registerWithRoleGuard(app, communityAdvancedRoutes, '/v1/community-advanced');
 
-  // ==================== Disaster Recovery ====================
-  await registerWithRoleGuard(app, disasterRecoveryRoutes, '/v1/disaster-recovery', { database: options.database });
-
-  // ==================== Disaster Recovery Advanced ====================
-  await registerWithRoleGuard(app, disasterRecoveryAdvancedRoutes, '/v1/disaster-recovery/advanced', { database: options.database });
-
-  // ==================== Performance Analysis ====================
+  // ==================== Disaster Recovery ====================// ==================== Disaster Recovery Advanced ====================// ==================== Performance Analysis ====================
   // ==================== Cluster Federation ====================
   if (moduleManager.isModuleEnabled('domain:federation')) {
     await registerWithRoleGuard(app, federationRoutes, '/v1/federation');

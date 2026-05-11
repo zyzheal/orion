@@ -112,6 +112,18 @@ const defaultConfig: AppConfig = {
       url: process.env.ARTIFACT_SERVICE_URL || 'http://localhost:3014',
       timeout: parseInt(process.env.ARTIFACT_TIMEOUT || '30000', 10),
     },
+    efficiency: {
+      url: process.env.EFFICIENCY_SERVICE_URL || 'http://localhost:3015',
+      timeout: parseInt(process.env.EFFICIENCY_TIMEOUT || '30000', 10),
+    },
+    dr: {
+      url: process.env.DR_SERVICE_URL || 'http://localhost:3016',
+      timeout: parseInt(process.env.DR_TIMEOUT || '30000', 10),
+    },
+    federation: {
+      url: process.env.FEDERATION_SERVICE_URL || 'http://localhost:3017',
+      timeout: parseInt(process.env.FEDERATION_TIMEOUT || '30000', 10),
+    },
   },
 };
 
@@ -197,6 +209,18 @@ export function reloadConfig(): AppConfig {
       artifact: {
         url: process.env.ARTIFACT_SERVICE_URL || 'http://localhost:3014',
         timeout: parseInt(process.env.ARTIFACT_TIMEOUT || '30000', 10),
+      },
+      efficiency: {
+        url: process.env.EFFICIENCY_SERVICE_URL || 'http://localhost:3015',
+        timeout: parseInt(process.env.EFFICIENCY_TIMEOUT || '30000', 10),
+      },
+      dr: {
+        url: process.env.DR_SERVICE_URL || 'http://localhost:3016',
+        timeout: parseInt(process.env.DR_TIMEOUT || '30000', 10),
+      },
+      federation: {
+        url: process.env.FEDERATION_SERVICE_URL || 'http://localhost:3017',
+        timeout: parseInt(process.env.FEDERATION_TIMEOUT || '30000', 10),
       },
     },
   };

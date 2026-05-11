@@ -255,6 +255,51 @@ const routeConfigs: RouteConfig[] = [
     timeout: 30000,
     stripPrefix: false,
   },
+  // Efficiency service
+  {
+    prefix: '/api/v1/efficiency',
+    target: getConfig().services.efficiency?.url || 'http://localhost:3015',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+  // DR service
+  {
+    prefix: '/api/v1/backup',
+    target: getConfig().services.dr?.url || 'http://localhost:3016',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+  {
+    prefix: '/api/v1/disaster-recovery',
+    target: getConfig().services.dr?.url || 'http://localhost:3016',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+  // Federation service
+  {
+    prefix: '/api/v1/federation',
+    target: getConfig().services.federation?.url || 'http://localhost:3017',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+  {
+    prefix: '/api/v1/federation-advanced',
+    target: getConfig().services.federation?.url || 'http://localhost:3017',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+  {
+    prefix: '/api/v1/multi-cloud',
+    target: getConfig().services.federation?.url || 'http://localhost:3017',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+  {
+    prefix: '/api/v1/multi-cloud-advanced',
+    target: getConfig().services.federation?.url || 'http://localhost:3017',
+    timeout: 30000,
+    stripPrefix: false,
+  },
   {
     prefix: '/api/v1',
     target: getConfig().services.platform?.url || 'http://localhost:3001',
