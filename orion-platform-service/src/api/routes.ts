@@ -14,10 +14,8 @@ import { EventBusService } from '../services/event-bus-service';
 import { DatabasePool } from '../services/database';
 import cmdbRoutes from '../routes-cmdb';
 import codeRepoRoutes from './code-repo-routes';
-import costRoutes from './cost-routes';
 import configRoutes from './config-routes';
 import riskRoutes from './risk-routes';
-import finopsV2Routes from './finops-v2-routes';
 import pluginSpiRoutes from './plugin-spi-routes';
 import pluginRoutes from '../routes-plugin';
 import pluginEnhancedRoutes from './plugin-routes';
@@ -34,7 +32,6 @@ import iacRoutes from './iac-routes';
 import chatopsRoutes from './chatops-routes';
 import skillRoutes from './skill-routes';
 import artifactRoutes from './artifact-routes';
-import costOperationsRoutes from './cost-operations-routes';
 import sessionRoutes from './session-routes';
 import confirmationRoutes from './confirmation-routes';
 
@@ -307,14 +304,12 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // 注册 Configuration Management API 路由 (PostgreSQL backed)
   await registerWithRoleGuard(app, configRoutes, '/v1/config', { database: options.database });
 
-  // 注册 FinOps 成本管理 API 路由
-  await registerWithRoleGuard(app, costRoutes, '/v1/cost', { database: options.database });
+  // FinOps 成本管理路由已迁移到 orion-finops-svc (port 3009)
 
   // 注册风险评估 API 路由
   await registerWithRoleGuard(app, riskRoutes, '/v1/risk');
 
-  // 注册 FinOps 成本追踪与 ROI API 路由 (TASK-502) - PostgreSQL backed
-  await registerWithRoleGuard(app, finopsV2Routes, '/v1/finops', { database: options.database });
+  // FinOps V2 路由已迁移到 orion-finops-svc (port 3009)
 
   // 注册 AI Code Review API 路由 (TASK-302)
   // 注册诊断 Agent API 路由 (TASK-305) - PostgreSQL backed
@@ -390,8 +385,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // 注册 Artifact Registry API 路由
   await registerWithRoleGuard(app, artifactRoutes, '/v1/artifacts', { database: options.database });
 
-  // 注册 Cost Operations API 路由 (Phase 2 - budget guards, anomaly detection, optimization)
-  await registerWithRoleGuard(app, costOperationsRoutes, '/v1/cost-operations', { database: options.database });
+  // Cost Operations 路由已迁移到 orion-finops-svc (port 3009)
 
   // 注册统一配置中心 API (使用 /v1/system-config 前缀)
   await registerWithRoleGuard(app, unifiedConfigRoutes, '/v1/system-config', { database: options.database });

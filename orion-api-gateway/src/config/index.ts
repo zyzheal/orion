@@ -88,6 +88,10 @@ const defaultConfig: AppConfig = {
       url: process.env.AGENT_SERVICE_URL || 'http://localhost:3007',
       timeout: parseInt(process.env.AGENT_TIMEOUT || '60000', 10),
     },
+    finops: {
+      url: process.env.FINOPS_SERVICE_URL || 'http://localhost:3009',
+      timeout: parseInt(process.env.FINOPS_TIMEOUT || '30000', 10),
+    },
   },
 };
 
@@ -149,6 +153,10 @@ export function reloadConfig(): AppConfig {
       agent: {
         url: process.env.AGENT_SERVICE_URL || 'http://localhost:3007',
         timeout: parseInt(process.env.AGENT_TIMEOUT || '60000', 10),
+      },
+      finops: {
+        url: process.env.FINOPS_SERVICE_URL || 'http://localhost:3009',
+        timeout: parseInt(process.env.FINOPS_TIMEOUT || '30000', 10),
       },
     },
   };

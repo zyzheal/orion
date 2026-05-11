@@ -96,6 +96,24 @@ const routeConfigs: RouteConfig[] = [
     stripPrefix: false,
   },
   {
+    prefix: '/api/v1/cost',
+    target: getConfig().services.finops?.url || 'http://localhost:3009',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+  {
+    prefix: '/api/v1/finops',
+    target: getConfig().services.finops?.url || 'http://localhost:3009',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+  {
+    prefix: '/api/v1/cost-operations',
+    target: getConfig().services.finops?.url || 'http://localhost:3009',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+  {
     prefix: '/api/v1',
     target: getConfig().services.platform?.url || 'http://localhost:3001',
     timeout: 30000,
