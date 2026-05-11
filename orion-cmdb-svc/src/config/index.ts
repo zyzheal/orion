@@ -1,0 +1,20 @@
+/**
+ * CMDB Service Configuration
+ * CMDB 服务配置
+ */
+
+export interface CmdbServiceConfig {
+  port: number;
+  host: string;
+  logLevel: string;
+  corsOrigin: string | boolean;
+}
+
+export function getConfig(): CmdbServiceConfig {
+  return {
+    port: parseInt(process.env.PORT || '3022', 10),
+    host: process.env.HOST || '0.0.0.0',
+    logLevel: process.env.LOG_LEVEL || 'info',
+    corsOrigin: process.env.CORS_ORIGIN || true,
+  };
+}
