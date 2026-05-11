@@ -10,9 +10,34 @@ import { TenantIsolationService, createTenantValidatorMiddleware } from '../serv
 import { RLSPolicyManager } from '../services/tenant/RLSPolicyManager';
 import { tenantContextStorage, SYSTEM_TENANT_ID } from '../db/tenant-context-storage';
 import type { PoolClient } from 'pg';
+import { PipelineController } from './controllers/PipelineController';
+import { PipelineRunController } from './controllers/PipelineRunController';
+import { StageController } from './controllers/StageController';
+import { TaskController } from './controllers/TaskController';
+import { PipelineService } from '../services/pipeline/PipelineService';
+import { PipelineRepository } from '../services/pipeline/PipelineRepository';
+import { PipelineRunService } from '../services/pipeline/PipelineRunService';
+import { PipelineRunRepository } from '../services/pipeline/PipelineRunRepository';
+import { PipelineVersionService } from '../services/pipeline/PipelineVersionService';
+import { PipelineBudgetService } from '../services/pipeline/PipelineBudgetService';
+import { PipelineExecutionQueue } from '../services/pipeline/PipelineExecutionQueue';
+import { PipelineMetricsService } from '../services/pipeline/PipelineMetricsService';
+import { PipelineEngine } from '../engine/PipelineEngine';
+import { StageExecutor } from '../engine/StageExecutor';
+import { TaskRunner } from '../engine/TaskRunner';
+import { PipelineEventPublisher } from '../events/PipelineEventPublisher';
+import { PipelineLogSSEService } from '../services/pipeline/PipelineLogSSEService';
+import { PipelineEventSSEBridge } from '../services/pipeline/PipelineEventSSEBridge';
 import { EventBusService } from '../services/event-bus-service';
+import { WebhookNotifier } from '../services/pipeline/WebhookNotifier';
+import { WebhookConfigRepository } from '../repositories/WebhookConfigRepository';
+import { SCMWebhookService } from '../services/pipeline/SCMWebhookService';
+import { TriggerRepository } from '../repositories/TriggerRepository';
+import { registerPipelineRoutes } from './pipeline-routes-registrar';
+import pipelineSSERoutes from './pipeline-sse-routes';
 import { DatabasePool } from '../services/database';
 import cmdbRoutes from '../routes-cmdb';
+import buildRoutes from './build-routes';
 import codeRepoRoutes from './code-repo-routes';
 import costRoutes from './cost-routes';
 import configRoutes from './config-routes';
@@ -62,6 +87,7 @@ import escalationRoutes from './escalation-routes';
 import unifiedConfigRoutes from './unified-config-routes';
 import { escalationScheduler } from '../services/escalation';
 import approvalRoutes from './approval-routes';
+import cronRoutes from './cron-routes';
 import eventbusRoutes from './eventbus-routes';
 import { productLineRoutes } from './product-line-routes';
 import { internalLibraryRoutes } from './internal-library-routes';
@@ -72,6 +98,7 @@ import knowledgeRoutes from './knowledge-routes';
 import metricsRoutes from './metrics-routes';
 import userRoutes from './user-routes';
 import environmentRoutes from './environment-routes';
+import queueRoutes from './queue-routes';
 import projectRoutes from './project-routes';
 import agentRoutes from '../routes-agent';
 import apiKeyRoutes from './api-key-routes';
@@ -81,8 +108,12 @@ import { vectorRoutes } from './vector-routes';
 import llmTraceRoutes from './llm-trace-routes';
 import privacyRoutes from './privacy-routes';
 import degradationRoutes from './degradation-routes';
+import pipelineVersionRoutes from './pipeline-version-routes';
+import pipelineBudgetRoutes from './pipeline-budget-routes';
+import pipelineTemplateRoutes from './pipeline-template-routes';
 import deployEnhancedRoutes from './deploy-enhanced-routes';
 import developerPortalRoutes from './developer-portal-routes';
+import autonomousPipelineRoutes from './autonomous-pipeline-routes';
 import aiDecisionRoutes from './ai-decision-routes';
 import observabilityRoutes from './observability-routes';
 import crossDomainRoutes from './cross-domain-routes';
@@ -96,6 +127,7 @@ import federationRoutes from './federation-routes';
 import federationAdvancedRoutes from './federation-advanced-routes';
 import multiCloudRoutes from './multi-cloud-routes';
 import multiCloudAdvancedRoutes from './multi-cloud-advanced-routes';
+import dataPipelineRoutes from './data-pipeline-routes';
 import artifactOpsRoutes from './artifact-ops-routes';
 import digitalTwinRoutes from './digital-twin-routes';
 import apiGovernanceRoutes from './api-governance-routes';
@@ -104,6 +136,7 @@ import communityRoutes from './community-routes';
 import communityAdvancedRoutes from './community-advanced-routes';
 import moduleRoutes from './module-routes';
 import scriptRoutes from './script-routes';
+import runnerRoutes from './runner-routes';
 import testReportRoutes from './test-report-routes';
 import artifactVersionRoutes from './artifact-version-routes';
 
@@ -123,7 +156,9 @@ const DEFAULT_MODULE_CONFIG = {
     degradation: { enabled: true },
     privacy: { enabled: true },
   },
-  domains: {    build: { enabled: true, autoStart: true },
+  domains: {
+    pipeline: { enabled: true, autoStart: true },
+    build: { enabled: true, autoStart: true },
     deploy: { enabled: true, autoStart: true },
     monitoring: { enabled: true, autoStart: true },
     alert: { enabled: true, autoStart: true },
@@ -141,12 +176,15 @@ const DEFAULT_MODULE_CONFIG = {
     digitalTwin: { enabled: true, autoStart: true },
     federation: { enabled: true, autoStart: true },
     multiCloud: { enabled: true, autoStart: true },
+    dataPipeline: { enabled: true, autoStart: true },
     community: { enabled: true, autoStart: true },
     efficiency: { enabled: true, autoStart: true },
     cmdb: { enabled: true, autoStart: true },
     iac: { enabled: true, autoStart: true },
   },
-  services: {    consistency: { enabled: false },
+  services: {
+    adaptivePipeline: { enabled: true },
+    consistency: { enabled: false },
     deploymentWindow: { enabled: true },
     outputValidation: { enabled: false },
     costTracking: { enabled: true },
@@ -322,12 +360,127 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   moduleManager.loadFromConfig();
   (options as any).moduleManager = moduleManager;
 
+  // ==================== Pipeline 服务初始化 ====================
+  // 初始化服务
+  // ARCH-010: 直接传递 EventBusService 到 PipelineEventPublisher
+  const eventPublisher = new PipelineEventPublisher({
+    eventBus: options.eventBus,
+    source: 'pipeline-service',
+  });
+  // 初始化 Pipeline 服务 - PostgreSQL Repository pattern
+  let pipelineRepository: PipelineRepository | null = null;
+  let pipelineRunRepository: PipelineRunRepository | null = null;
+
+  if (options.database) {
+    pipelineRepository = new PipelineRepository(options.database);
+    pipelineRunRepository = new PipelineRunRepository(options.database);
+    console.log('[Routes] Database-backed PipelineRepository & PipelineRunRepository initialized');
+  } else {
+    console.warn('[Routes] Database not available, pipeline CRUD will not be functional');
+  }
+
+  const pipelineService = new PipelineService(pipelineRepository!);
+  const runService = new PipelineRunService(eventPublisher, pipelineRunRepository!);
+  const taskRunner = new TaskRunner();
+
+  // SSE bridge: connect engine events to SSE push service
+  // Uses the same localBus as the SSE routes for event forwarding
+  const pipelineLogSSE = new PipelineLogSSEService(new EventEmitter());
+  const sseBridge = new PipelineEventSSEBridge({ sseService: pipelineLogSSE });
+
+  const stageExecutor = new StageExecutor(taskRunner, eventPublisher, sseBridge);
+
+  // Phase 3: Global execution queue with backpressure
+  const executionQueue = new PipelineExecutionQueue();
+
+  // Phase 3: Pipeline metrics service
+  const metricsService = new PipelineMetricsService({ executionQueue });
+
+  // GAP-10: Webhook notification integration
+  const webhookNotifier = new WebhookNotifier();
+  const webhookConfigRepo = options.database ? new WebhookConfigRepository(options.database) : null;
+
+  const engine = new PipelineEngine(
+    pipelineService,
+    runService,
+    eventPublisher,
+    stageExecutor,
+    sseBridge,
+    undefined, // subPipelineService (configured when available)
+    undefined, // artifactService
+    undefined, // approvalGateService
+    executionQueue,
+    undefined, // autoRetryService
+    (run) => {
+      // Record metrics when a pipeline run completes
+      metricsService.recordRun(run);
+    },
+    undefined, // checkpointManager
+    undefined, // imNotifier
+    undefined, // imNotificationConfigs
+    undefined, // debugController
+    webhookNotifier,
+    webhookConfigRepo
+  );
+
+  // Phase 1 P0: Initialize version and budget services
+  const versionService = options.database ? new PipelineVersionService(options.database) : null;
+  const budgetService = options.database ? new PipelineBudgetService(options.database) : null;
+
+  // 初始化控制器
+  const pipelineController = new PipelineController(pipelineService);
+  const pipelineRunController = new PipelineRunController(runService, engine, pipelineService, budgetService);
+  const stageController = new StageController(runService, stageExecutor);
+  const taskController = new TaskController(runService);
+
+  // SCM Webhook service (for PR/MR/push triggers)
+  const scmWebhookService = new SCMWebhookService(engine);
+
+  // Load SCM trigger rules from database
+  if (options.database) {
+    const triggerRepo = new TriggerRepository(options.database);
+    try {
+      const triggers = await triggerRepo.findAll({ limit: 1000 });
+      const rules = triggers
+        .filter(t => t.type === 'scm' || t.type === 'webhook')
+        .map(t => ({
+          pipelineId: t.pipelineId,
+          repository: (t.config.repository as string) || '*',
+          branchPattern: (t.config.branchPattern as string) || '*',
+          events: (t.config.events as string[]) || ['push', 'pull_request'],
+        }));
+      if (rules.length > 0) {
+        scmWebhookService.setTriggerRules(rules);
+        logger.info({ ruleCount: rules.length }, 'SCM webhook trigger rules loaded from database');
+      }
+    } catch (error) {
+      logger.warn({ error }, 'Failed to load SCM trigger rules from database, using empty rules');
+    }
+  }
+
+  // ==================== Pipeline 路由注册 ====================
+  await registerPipelineRoutes(app, {
+    pipelineController,
+    pipelineRunController,
+    stageController,
+    taskController,
+    pipelineService,
+    scmWebhookService,
+  });
+
+  // ==================== Pipeline SSE 实时日志路由 ====================
+  await app.register(pipelineSSERoutes, { prefix: '/v1', pipelineLogSSE });
+
   // ==================== CMDB 路由 ====================
 
   // 注册 CMDB API 路由
   await registerWithRoleGuard(app, cmdbRoutes, '/v1/cmdb', { database: options.database });
 
+  // ==================== 构建环境管理路由 ====================
+
   // 注册 Build Environment API 路由 (PostgreSQL backed for BuildCache)
+  await registerWithRoleGuard(app, buildRoutes, '/v1/', { database: options.database });
+
   // 注册 Code Repository Integration API 路由
   await registerWithRoleGuard(app, codeRepoRoutes, '/v1/code-repo');
 
@@ -444,6 +597,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await registerWithRoleGuard(app, chatopsRoutes, '/v1/chatops', {
     eventBus: options.eventBus,
     database: options.database,
+    pipelineService,
   });
 
   // 注册 Manual Confirmation API 路由 (P0-6)
@@ -487,6 +641,8 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   }
 
   // 注册 Cron Scheduler API 路由 (P0-1 Fix: was missing)
+  await registerWithRoleGuard(app, cronRoutes, '/v1/cron', { database: options.database });
+
   // 注册 EventBus API 路由 (M24 - PostgreSQL backed) — admin only
   await registerWithRoleGuard(app, eventbusRoutes, '/v1/eventbus', { database: options.database, eventBus: options.eventBus });
 
@@ -515,6 +671,8 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await registerWithRoleGuard(app, environmentRoutes, '/v1/environments', { database: options.database });
 
   // 注册 Queue Management API 路由 (M24) - PostgreSQL backed
+  await registerWithRoleGuard(app, queueRoutes, '/v1/queue', { database: options.database });
+
   // 注册 Knowledge Base API 路由 (M28) - PostgreSQL backed
   await registerWithRoleGuard(app, knowledgeRoutes, '/v1/knowledge', { database: options.database });
 
@@ -544,8 +702,44 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // 注册 Degradation Management API 路由 - AI Provider自动恢复
   await registerWithRoleGuard(app, degradationRoutes, '/v1/degradation');
+
+  // ==================== Phase 1 P0 Routes ====================
+  // Pipeline Version Control (version diff, rollback, tags, baseline)
+  await app.register(async (instance: FastifyInstance) => {
+    instance.addHook('onRequest', authenticateUser);
+    await instance.register(pipelineVersionRoutes, {
+      prefix: '/v1/pipelines',
+      database: options.database,
+    });
+  });
+
+  // Pipeline Execution Budget (config, estimate, monitoring)
+  await app.register(async (instance: FastifyInstance) => {
+    instance.addHook('onRequest', authenticateUser);
+    await instance.register(pipelineBudgetRoutes, {
+      prefix: '/v1/pipelines',
+      database: options.database,
+    });
+  });
+
+  // Pipeline Template Library (CRUD, instantiation)
+  await registerWithRoleGuard(app, pipelineTemplateRoutes, '/v1/pipeline-templates', {
+    database: options.database,
+  });
+
+  // Developer Portal (document management, search, categories)
   await registerWithRoleGuard(app, developerPortalRoutes, '/v1/developer-portal', {
     database: options.database,
+  });
+
+  // ==================== Phase 2: Autonomous Pipeline ====================
+  // Error classification, adaptive timeout, auto-retry
+  await app.register(async (instance: FastifyInstance) => {
+    instance.addHook('onRequest', authenticateUser);
+    await instance.register(autonomousPipelineRoutes, {
+      prefix: '/v1/autonomous',
+      database: options.database,
+    });
   });
 
   // ==================== Phase 2: AI Decision Enhancement ====================
@@ -637,6 +831,13 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // ==================== Multi-Cloud Advanced ====================
   await registerWithRoleGuard(app, multiCloudAdvancedRoutes, '/v1/multi-cloud-advanced');
 
+  // ==================== Data Pipeline ====================
+  if (moduleManager.isModuleEnabled('domain:dataPipeline')) {
+    await registerWithRoleGuard(app, dataPipelineRoutes, '/v1/data-pipelines');
+  } else {
+    logger.info('[routes] Data Pipeline module disabled, skipping route registration');
+  }
+
   // ==================== Artifact Operations ====================
   await registerWithRoleGuard(app, artifactOpsRoutes, '/v1/artifact-ops');
 
@@ -657,6 +858,8 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // ==================== Runner Management ====================
   // Runner Agent 注册、心跳、Job 回报（Runner Agent 通信无需 JWT）
+  await app.register(runnerRoutes, { prefix: '/api/v1/runners', database: options.database });
+
   // ==================== Test Report Management ====================
   await registerWithRoleGuard(app, testReportRoutes, '/v1/test-reports', {
     database: options.database,
@@ -666,4 +869,57 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await registerWithRoleGuard(app, artifactVersionRoutes, '/v1/artifact-versions', {
     database: options.database,
   });
+
+  // ==================== Phase 3: Pipeline Metrics ====================
+  // Standard Prometheus scrape endpoint (no auth, standard /metrics path)
+  app.get('/metrics', async (_request: FastifyRequest, reply: FastifyReply) => {
+    reply.header('Content-Type', 'text/plain; version=0.0.4; charset=utf-8');
+    return reply.send(metricsService.getPrometheusMetrics());
+  });
+
+  // Authenticated dashboard endpoint (keeps existing behavior)
+  app.get('/v1/pipeline/metrics', async (request: FastifyRequest, reply: FastifyReply) => {
+    const query = request.query as any;
+    if (query.format === 'prometheus') {
+      reply.header('Content-Type', 'text/plain; version=0.0.4');
+      return reply.send(metricsService.getPrometheusMetrics());
+    }
+    return reply.send(metricsService.getMetrics());
+  });
+
+  app.get('/v1/pipeline/metrics/:pipelineId', async (request: FastifyRequest, reply: FastifyReply) => {
+    const params = request.params as any;
+    return reply.send(metricsService.getMetricsByPipeline(params.pipelineId));
+  });
+
+  app.get('/v1/pipeline/queue', async (request: FastifyRequest, reply: FastifyReply) => {
+    return reply.send({
+      stats: engine.getQueueStats(),
+      queued: engine.getQueuedRuns(),
+    });
+  });
+
+  // ==================== Phase 3: Crash Recovery ====================
+  // Recover interrupted pipeline runs from database on startup
+  // 使用系统租户模式绕过 RLS，确保能查询所有租户的 pipeline 数据
+  if (options.database) {
+    tenantContextStorage.enterWith({
+      dbClient: null as unknown as PoolClient, // recoverRuns 使用 pool.query() fallback
+      tenantId: SYSTEM_TENANT_ID as unknown as number,
+      isSystemTenant: true,
+    });
+
+    engine.recoverRuns().then(result => {
+      if (result.recovered > 0) {
+        console.log(`[routes] Pipeline recovery: ${result.recovered} runs found, ${result.markedFailed} marked as failed`);
+        if (result.errors.length > 0) {
+          console.warn('[routes] Recovery errors:', result.errors);
+        }
+      } else {
+        console.log('[routes] No interrupted pipeline runs to recover');
+      }
+    }).catch(err => {
+      console.error('[routes] Pipeline recovery failed:', err);
+    });
+  }
 }
