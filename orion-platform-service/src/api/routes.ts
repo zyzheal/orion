@@ -320,15 +320,10 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // 注册诊断 Agent API 路由 (TASK-305) - PostgreSQL backed
   // 注册智能测试选择器 API 路由 (TASK-303)
   // 注册 AI 测试生成 API 路由 (AI Test Generation)
-  // 注册智能部署 API 路由 (TASK-701) - PostgreSQL backed + Phase 1 enhanced routes
-  // Merged deployRoutes and deployEnhancedRoutes under single prefix to avoid route override
-  await registerWithRoleGuard(app, async (app: FastifyInstance, options: any) => {
-    await deployRoutes(app, options);
-    await deployEnhancedRoutes(app, options);
-  }, '/v1/deploy', { database: options.database });
+  // Deploy routes migrated to orion-deploy-svc (port 3003)
 
-  // 注册监控告警 API 路由 (TASK-703)
-  // 注册智能工单 API 路由 (TASK-801) - PostgreSQL backed
+  // 注册监控告警 API 路由 (TASK-703) - migrated to orion-monitor-svc (port 3005)
+  // 注册智能工单 API 路由 (TASK-801) - migrated to orion-ticket-svc (port 3004)
   // Register self-healing API routes (TASK-702) - PostgreSQL backed
   // 注册备份恢复 API 路由 (TASK-704) - PostgreSQL backed
   // 注册 Plugin SPI API 路由 (TASK-104)
@@ -478,14 +473,12 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await registerWithRoleGuard(app, privacyRoutes, '/v1/privacy');
 
   // 注册 Degradation Management API 路由 - AI Provider自动恢复
-  await registerWithRoleGuard(app, degradationRoutes, '/v1/degradation');    database: options.database,
-  });
+  await registerWithRoleGuard(app, degradationRoutes, '/v1/degradation');
 
   // ==================== Phase 2: AI Decision Enhancement ====================
   // Decision explanation, model version management
   // ==================== Phase 2: Observability Enhancement ====================
-  // Custom alert rules, RCA, silence rules    database: options.database,
-  });
+  // Custom alert rules, RCA, silence rules - migrated to monitor-svc
 
   // ==================== Phase 3: Supply Chain Security ====================
   await registerWithRoleGuard(app, supplyChainRoutes, '/v1/supply-chain', {
