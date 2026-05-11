@@ -18,22 +18,10 @@ import costRoutes from './cost-routes';
 import configRoutes from './config-routes';
 import riskRoutes from './risk-routes';
 import finopsV2Routes from './finops-v2-routes';
-import aiReviewRoutes from './ai-review-routes';
-import diagnosticRoutes from './diagnostic-routes';
-import testSelectorRoutes from './test-selector-routes';
-import testGenerationRoutes from './test-generation-routes';
-import deployRoutes from './deploy-routes';
-import monitoringRoutes from './monitoring-routes';
-import ticketingRoutes from './ticketing-routes';
-import selfHealingRoutes from './self-healing-routes';
-import backupRoutes from './backup-routes';
 import pluginSpiRoutes from './plugin-spi-routes';
-import aiSecurityRoutes from './ai-security-routes';
 import pluginRoutes from '../routes-plugin';
 import pluginEnhancedRoutes from './plugin-routes';
 import { PluginManagerService } from '../services/plugin-manager-service';
-import aiGatewayRoutes from './ai-gateway-routes';
-import alertRoutes from './alert-routes';
 import auditRoutes from './audit-routes';
 import tenantRoutes from './tenant-routes';
 import efficiencyRoutes from './efficiency-routes';
@@ -41,15 +29,10 @@ import sbomRoutes from './sbom-routes';
 import policyRoutes from './policy-routes';
 import qualityGateRoutes from './quality-gate-routes';
 import supplyChainRoutes from './supply-chain-routes';
-import chaosEnhancedRoutes from './chaos-enhanced-routes';
-import changeIntelligenceRoutes from './change-intelligence-routes';
-import canaryAnalysisRoutes from './canary-analysis-routes';
 import pluginMarketplaceRoutes from './plugin-marketplace-routes';
-import canaryTrafficRoutes from './canary-traffic-routes';
 import iacRoutes from './iac-routes';
 import chatopsRoutes from './chatops-routes';
 import skillRoutes from './skill-routes';
-import aiCostRoutes from './ai-cost-routes';
 import artifactRoutes from './artifact-routes';
 import costOperationsRoutes from './cost-operations-routes';
 import sessionRoutes from './session-routes';
@@ -57,11 +40,7 @@ import confirmationRoutes from './confirmation-routes';
 
 // New P0 routes
 import vectorStoreRoutes from './vector-store-routes';
-import oncallRoutes from './oncall-routes';
-import escalationRoutes from './escalation-routes';
 import unifiedConfigRoutes from './unified-config-routes';
-import { escalationScheduler } from '../services/escalation';
-import approvalRoutes from './approval-routes';
 import eventbusRoutes from './eventbus-routes';
 import { productLineRoutes } from './product-line-routes';
 import { internalLibraryRoutes } from './internal-library-routes';
@@ -73,7 +52,6 @@ import metricsRoutes from './metrics-routes';
 import userRoutes from './user-routes';
 import environmentRoutes from './environment-routes';
 import projectRoutes from './project-routes';
-import agentRoutes from '../routes-agent';
 import apiKeyRoutes from './api-key-routes';
 import ephemeralEnvRoutes from './ephemeral-env-routes';
 import mcpRoutes from './mcp-routes';
@@ -81,17 +59,12 @@ import { vectorRoutes } from './vector-routes';
 import llmTraceRoutes from './llm-trace-routes';
 import privacyRoutes from './privacy-routes';
 import degradationRoutes from './degradation-routes';
-import deployEnhancedRoutes from './deploy-enhanced-routes';
-import developerPortalRoutes from './developer-portal-routes';
-import aiDecisionRoutes from './ai-decision-routes';
-import observabilityRoutes from './observability-routes';
 import crossDomainRoutes from './cross-domain-routes';
 import configMgmtEnhancedRoutes from './config-mgmt-enhanced-routes';
 import securityComplianceRoutes from './security-compliance-routes';
 import multiModalTriggerRoutes from './multi-modal-trigger-routes';
 import disasterRecoveryRoutes from './disaster-recovery-routes';
 import disasterRecoveryAdvancedRoutes from './disaster-recovery-advanced-routes';
-import performanceRoutes from './performance-routes';
 import federationRoutes from './federation-routes';
 import federationAdvancedRoutes from './federation-advanced-routes';
 import multiCloudRoutes from './multi-cloud-routes';
@@ -344,17 +317,9 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await registerWithRoleGuard(app, finopsV2Routes, '/v1/finops', { database: options.database });
 
   // 注册 AI Code Review API 路由 (TASK-302)
-  await registerWithRoleGuard(app, aiReviewRoutes, '/v1/ai-review');
-
   // 注册诊断 Agent API 路由 (TASK-305) - PostgreSQL backed
-  await registerWithRoleGuard(app, diagnosticRoutes, '/v1/diagnostic', { database: options.database });
-
   // 注册智能测试选择器 API 路由 (TASK-303)
-  await registerWithRoleGuard(app, testSelectorRoutes, '/v1/test-selector');
-
   // 注册 AI 测试生成 API 路由 (AI Test Generation)
-  await registerWithRoleGuard(app, testGenerationRoutes, '/v1/test');
-
   // 注册智能部署 API 路由 (TASK-701) - PostgreSQL backed + Phase 1 enhanced routes
   // Merged deployRoutes and deployEnhancedRoutes under single prefix to avoid route override
   await registerWithRoleGuard(app, async (app: FastifyInstance, options: any) => {
@@ -363,17 +328,9 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   }, '/v1/deploy', { database: options.database });
 
   // 注册监控告警 API 路由 (TASK-703)
-  await registerWithRoleGuard(app, monitoringRoutes, '/v1/monitoring', { database: options.database });
-
   // 注册智能工单 API 路由 (TASK-801) - PostgreSQL backed
-  await registerWithRoleGuard(app, ticketingRoutes, '/v1/tickets', { database: options.database });
-
   // Register self-healing API routes (TASK-702) - PostgreSQL backed
-  await registerWithRoleGuard(app, selfHealingRoutes, '/v1/self-healing', { database: options.database });
-
   // 注册备份恢复 API 路由 (TASK-704) - PostgreSQL backed
-  await registerWithRoleGuard(app, backupRoutes, '/v1/backup', { database: options.database });
-
   // 注册 Plugin SPI API 路由 (TASK-104)
   await registerWithRoleGuard(app, pluginSpiRoutes, '/v1/plugins-spi');
 
@@ -387,14 +344,8 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await registerWithRoleGuard(app, pluginEnhancedRoutes, '/v1/plugins-enhanced', { database: options.database, pluginManager: sharedPluginManager });
 
   // 注册 AI 安全加固 API 路由 (TASK-1004) — P1-15 Fix: pass database for audit log persistence
-  await registerWithRoleGuard(app, aiSecurityRoutes, '/v1/ai-security', { database: options.database });
-
   // 注册 AI 网关 API 路由
-  await registerWithRoleGuard(app, aiGatewayRoutes, '/v1/ai-gateway');
-
   // 注册告警管理 API 路由
-  await registerWithRoleGuard(app, alertRoutes, '/v1/alert');
-
   // 注册审计 API 路由
   await registerWithRoleGuard(app, auditRoutes, '/v1/audit', { database: options.database });
 
@@ -414,23 +365,15 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await registerWithRoleGuard(app, qualityGateRoutes, '/v1/quality-gates', { database: options.database, eventBus: options.eventBus });
 
   // 注册 AI Change Intelligence API 路由 (P0)
-  await registerWithRoleGuard(app, changeIntelligenceRoutes, '/v1/change-intelligence', { eventBus: options.eventBus });
-
   // 注册 ML Canary Analysis API 路由 (P0) - PostgreSQL backed
-  await registerWithRoleGuard(app, canaryAnalysisRoutes, '/v1/canary-analysis', { eventBus: options.eventBus, database: options.database });
-
   // 注册 Plugin Marketplace API 路由 (Phase 3) - PostgreSQL backed
   await registerWithRoleGuard(app, pluginMarketplaceRoutes, '/v1/plugins/marketplace', { database: options.database });
 
   // 注册 Canary Traffic Management API 路由 (Phase 3) - PostgreSQL backed
-  await registerWithRoleGuard(app, canaryTrafficRoutes, '/v1/canary/deployments', { database: options.database });
-
   // 注册 Skill Management API 路由 (M12)
   await registerWithRoleGuard(app, skillRoutes, '/v1/skills', { database: options.database });
 
   // 注册 AI Cost Optimization API 路由 (M36)
-  await registerWithRoleGuard(app, aiCostRoutes, '/v1/ai-cost', { database: options.database });
-
   // 注册 IaC Management API 路由 (M20) - PostgreSQL backed
   await registerWithRoleGuard(app, iacRoutes, '/v1/iac', { eventBus: options.eventBus, database: options.database });
 
@@ -460,11 +403,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await registerWithRoleGuard(app, vectorStoreRoutes, '/v1/vector-store', { database: options.database });
 
   // 注册 OnCall 排班 API 路由 (P0 - SRE scheduling)
-  await registerWithRoleGuard(app, oncallRoutes, '/v1/oncall', { database: options.database, eventBus: options.eventBus });
-
   // 注册 Escalation 统一升级 API 路由 (自动升级 + 手动升级)
-  await registerWithRoleGuard(app, escalationRoutes, '/v1/escalation', { database: options.database, eventBus: options.eventBus });
-
   // 启动自动升级调度器
   // 使用系统租户模式绕过 RLS
   if (options.database && options.eventBus) {
@@ -482,9 +421,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   }
 
   // 注册审批 API 路由 (P0 - multi-level approval) — P0-7 Fix: requires database
-  if (options.database) {
-    await registerWithRoleGuard(app, approvalRoutes, '/v1/approvals', { database: options.database });
-  }
+  if (options.database) {  }
 
   // 注册 Cron Scheduler API 路由 (P0-1 Fix: was missing)
   // 注册 EventBus API 路由 (M24 - PostgreSQL backed) — admin only
@@ -525,8 +462,6 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await registerWithRoleGuard(app, userRoutes, '/v1/users', { database: options.database });
 
   // 注册 Agent Orchestration API 路由 - PostgreSQL backed
-  await registerWithRoleGuard(app, agentRoutes, '/v1/', { eventBus: options.eventBus, database: options.database });
-
   // 注册 API Key Management API 路由 - PostgreSQL backed
   await registerWithRoleGuard(app, apiKeyRoutes, '/v1/api-keys', { database: options.database });
 
@@ -543,19 +478,13 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await registerWithRoleGuard(app, privacyRoutes, '/v1/privacy');
 
   // 注册 Degradation Management API 路由 - AI Provider自动恢复
-  await registerWithRoleGuard(app, degradationRoutes, '/v1/degradation');
-  await registerWithRoleGuard(app, developerPortalRoutes, '/v1/developer-portal', {
-    database: options.database,
+  await registerWithRoleGuard(app, degradationRoutes, '/v1/degradation');    database: options.database,
   });
 
   // ==================== Phase 2: AI Decision Enhancement ====================
   // Decision explanation, model version management
-  await registerWithRoleGuard(app, aiDecisionRoutes, '/v1');
-
   // ==================== Phase 2: Observability Enhancement ====================
-  // Custom alert rules, RCA, silence rules
-  await registerWithRoleGuard(app, observabilityRoutes, '/v1/observability', {
-    database: options.database,
+  // Custom alert rules, RCA, silence rules    database: options.database,
   });
 
   // ==================== Phase 3: Supply Chain Security ====================
@@ -564,13 +493,6 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   });
 
   // ==================== Phase 3: Chaos Engineering ====================
-  if (moduleManager.isModuleEnabled('domain:chaos')) {
-    await registerWithRoleGuard(app, chaosEnhancedRoutes, '/v1/chaos', {
-      database: options.database,
-    });
-  } else {
-    logger.info('[routes] Chaos module disabled, skipping route registration');
-  }
 
   // ==================== Phase 3: Cross-Domain Orchestration ====================
   await registerWithRoleGuard(app, crossDomainRoutes, '/v1/orchestration', {
@@ -615,8 +537,6 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await registerWithRoleGuard(app, disasterRecoveryAdvancedRoutes, '/v1/disaster-recovery/advanced', { database: options.database });
 
   // ==================== Performance Analysis ====================
-  await registerWithRoleGuard(app, performanceRoutes, '/v1/performance');
-
   // ==================== Cluster Federation ====================
   if (moduleManager.isModuleEnabled('domain:federation')) {
     await registerWithRoleGuard(app, federationRoutes, '/v1/federation');

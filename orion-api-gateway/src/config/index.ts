@@ -68,6 +68,26 @@ const defaultConfig: AppConfig = {
       url: process.env.PIPELINE_SERVICE_URL || 'http://localhost:3002',
       timeout: parseInt(process.env.PIPELINE_TIMEOUT || '60000', 10),
     },
+    deploy: {
+      url: process.env.DEPLOY_SERVICE_URL || 'http://localhost:3003',
+      timeout: parseInt(process.env.DEPLOY_TIMEOUT || '60000', 10),
+    },
+    ticket: {
+      url: process.env.TICKET_SERVICE_URL || 'http://localhost:3004',
+      timeout: parseInt(process.env.TICKET_TIMEOUT || '30000', 10),
+    },
+    monitor: {
+      url: process.env.MONITOR_SERVICE_URL || 'http://localhost:3005',
+      timeout: parseInt(process.env.MONITOR_TIMEOUT || '30000', 10),
+    },
+    intelligence: {
+      url: process.env.INTELLIGENCE_SERVICE_URL || 'http://localhost:3006',
+      timeout: parseInt(process.env.INTELLIGENCE_TIMEOUT || '60000', 10),
+    },
+    agent: {
+      url: process.env.AGENT_SERVICE_URL || 'http://localhost:3007',
+      timeout: parseInt(process.env.AGENT_TIMEOUT || '60000', 10),
+    },
   },
 };
 
@@ -109,6 +129,26 @@ export function reloadConfig(): AppConfig {
       pipeline: {
         url: process.env.PIPELINE_SERVICE_URL || 'http://localhost:3002',
         timeout: parseInt(process.env.PIPELINE_TIMEOUT || '60000', 10),
+      },
+      deploy: {
+        url: process.env.DEPLOY_SERVICE_URL || 'http://localhost:3003',
+        timeout: parseInt(process.env.DEPLOY_TIMEOUT || '60000', 10),
+      },
+      ticket: {
+        url: process.env.TICKET_SERVICE_URL || 'http://localhost:3004',
+        timeout: parseInt(process.env.TICKET_TIMEOUT || '30000', 10),
+      },
+      monitor: {
+        url: process.env.MONITOR_SERVICE_URL || 'http://localhost:3005',
+        timeout: parseInt(process.env.MONITOR_TIMEOUT || '30000', 10),
+      },
+      intelligence: {
+        url: process.env.INTELLIGENCE_SERVICE_URL || 'http://localhost:3006',
+        timeout: parseInt(process.env.INTELLIGENCE_TIMEOUT || '60000', 10),
+      },
+      agent: {
+        url: process.env.AGENT_SERVICE_URL || 'http://localhost:3007',
+        timeout: parseInt(process.env.AGENT_TIMEOUT || '60000', 10),
       },
     },
   };

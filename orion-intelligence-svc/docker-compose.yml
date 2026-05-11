@@ -1,0 +1,102 @@
+services:
+  # ----------------------------------------------------------
+  # Main Intelligence Service
+  # ----------------------------------------------------------
+  intelligence-svc:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    container_name: orion-intelligence-svc
+    ports:
+      - "8004:8000"
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://orion:orion_pass@orion-db:5432/orion_intelligence
+      - CLICKHOUSE_HOST=clickhouse
+      - CLICKHOUSE_PORT=9000
+      - REDIS_URL=redis://redis:6379/3
+      - KNOWLEDGE_SVC_URL=http://orion-knowledge-svc:8000
+    depends_on:
+      - orion-db
+      - clickhouse
+      - redis
+    restart: unless-stopped
+    networks:
+      - orion-net
+
+  # ----------------------------------------------------------
+  # GPU-enabled variant (uncomment when needed)
+  # ----------------------------------------------------------
+  # intelligence-svc-gpu:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #     target: gpu-runtime
+  #   container_name: orion-intelligence-svc-gpu
+  #   ports:
+  #     - "8004:8000"
+  #   env_file:
+  #     - .env
+  #   deploy:
+  #     resources:
+  #       reservations:
+  #         devices:
+  #           - driver: nvidia
+  #             count: 1
+  #             capabilities: [gpu]
+  #   networks:
+  #     - orion-net
+
+  # ----------------------------------------------------------
+  # Dependencies (for local dev)
+  # ----------------------------------------------------------
+  orion-db:
+    image: postgres:16-alpine
+    container_name: orion-db
+    environment:
+      POSTGRES_USER: orion
+      POSTGRES_PASSWORD: orion_pass
+      POSTGRES_DB: orion_intelligence
+    ports:
+      - "5436:5432"
+    volumes:
+      - pgdata_intelligence:/var/lib/postgresql/data
+    networks:
+      - orion-net
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.8
+    container_name: orion-clickhouse
+    ports:
+      - "8123:8123"
+      - "9004:9000"
+    environment:
+      CLICKHOUSE_USER: orion
+      CLICKHOUSE_PASSWORD: orion_pass
+      CLICKHOUSE_DB: analytics
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+    networks:
+      - orion-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: orion-redis
+    ports:
+      - "6382:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - orion-net
+
+volumes:
+  pgdata_intelligence:
+  clickhouse_data:
+  redis_data:
+
+networks:
+  orion-net:
+    external: true
+    name: orion-net
