@@ -447,26 +447,20 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // ==================== Community Ecosystem Advanced Services ====================
   await registerWithRoleGuard(app, communityAdvancedRoutes, '/v1/community-advanced');
 
-  // ==================== Disaster Recovery ====================// ==================== Disaster Recovery Advanced ====================// ==================== Performance Analysis ====================
+  // Federation/MultiCloud/DisasterRecovery routes migrated to dr-svc and federation-svc
+
+  // ==================== Performance Analysis ====================
   // ==================== Cluster Federation ====================
-  if (moduleManager.isModuleEnabled('domain:federation')) {
-    await registerWithRoleGuard(app, federationRoutes, '/v1/federation');
-  } else {
-    logger.info('[routes] Federation module disabled, skipping route registration');
-  }
+  // Federation routes migrated to federation-svc
 
   // ==================== Cluster Federation Advanced ====================
-  await registerWithRoleGuard(app, federationAdvancedRoutes, '/v1/federation-advanced');
+  // Federation Advanced routes migrated to federation-svc
 
   // ==================== Multi-Cloud Management ====================
-  if (moduleManager.isModuleEnabled('domain:multiCloud')) {
-    await registerWithRoleGuard(app, multiCloudRoutes, '/v1/multi-cloud');
-  } else {
-    logger.info('[routes] Multi-Cloud module disabled, skipping route registration');
-  }
+  // Multi-Cloud routes migrated to federation-svc
 
-  // ==================== Multi-Cloud Advanced ====================
-  await registerWithRoleGuard(app, multiCloudAdvancedRoutes, '/v1/multi-cloud-advanced');
+  // Multi-Cloud Advanced routes migrated to federation-svc
+
 
   // ==================== Artifact Operations ====================
 
@@ -476,8 +470,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // ==================== API Governance ====================
   await registerWithRoleGuard(app, apiGovernanceRoutes, '/v1/api-governance');
 
-  // ==================== Efficiency Enhanced ====================
-  await registerWithRoleGuard(app, efficiencyEnhancedRoutes, '/v1/efficiency');
+  // Efficiency Enhanced routes migrated to efficiency-svc
 
   // ==================== Module Management ====================
   await registerWithRoleGuard(app, moduleRoutes, '/v1/system/modules', { moduleManager: (options as any).moduleManager });
