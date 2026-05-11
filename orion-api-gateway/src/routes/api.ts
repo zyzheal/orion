@@ -114,6 +114,24 @@ const routeConfigs: RouteConfig[] = [
     stripPrefix: false,
   },
   {
+    prefix: '/api/v1/code-repo',
+    target: getConfig().services.code?.url || 'http://localhost:3010',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+  {
+    prefix: '/api/v1/build',
+    target: getConfig().services.code?.url || 'http://localhost:3010',
+    timeout: 60000,
+    stripPrefix: false,
+  },
+  {
+    prefix: '/api/v1/test-reports',
+    target: getConfig().services.code?.url || 'http://localhost:3010',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+  {
     prefix: '/api/v1',
     target: getConfig().services.platform?.url || 'http://localhost:3001',
     timeout: 30000,

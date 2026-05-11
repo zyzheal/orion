@@ -390,6 +390,39 @@ services:
       retries: 3
       start_period: 30s
 
+  # --- orion-code-svc ---
+  orion-code-svc:
+    image: orion/code-svc:${CODE_VERSION:-latest}
+    container_name: orion-code-svc
+    restart: unless-stopped
+    networks:
+      - orion-internal
+    ports:
+      - "${CODE_PORT:-3010}:3010"
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 3010
+      DATABASE_URL: postgresql://${POSTGRES_USER:-orion}:${POSTGRES_PASSWORD:-orion_secret}@postgres:5432/code_db
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_secret}@redis:6379/9
+      NATS_URL: nats://:${NATS_TOKEN:-nats_secret}@nats:4222
+      PLATFORM_SERVICE_URL: http://orion-platform-core:3001
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+      orion-platform-core:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3010/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
   # --- orion-knowledge-svc ---
   orion-knowledge-svc:
     image: orion/knowledge-svc:${KNOWLEDGE_VERSION:-latest}

@@ -13,7 +13,6 @@ import type { PoolClient } from 'pg';
 import { EventBusService } from '../services/event-bus-service';
 import { DatabasePool } from '../services/database';
 import cmdbRoutes from '../routes-cmdb';
-import codeRepoRoutes from './code-repo-routes';
 import configRoutes from './config-routes';
 import riskRoutes from './risk-routes';
 import pluginSpiRoutes from './plugin-spi-routes';
@@ -74,7 +73,6 @@ import communityRoutes from './community-routes';
 import communityAdvancedRoutes from './community-advanced-routes';
 import moduleRoutes from './module-routes';
 import scriptRoutes from './script-routes';
-import testReportRoutes from './test-report-routes';
 import artifactVersionRoutes from './artifact-version-routes';
 
 import pino from 'pino';
@@ -298,8 +296,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await registerWithRoleGuard(app, cmdbRoutes, '/v1/cmdb', { database: options.database });
 
   // 注册 Build Environment API 路由 (PostgreSQL backed for BuildCache)
-  // 注册 Code Repository Integration API 路由
-  await registerWithRoleGuard(app, codeRepoRoutes, '/v1/code-repo');
+  // Code Repository 路由已迁移到 orion-code-svc (port 3010)
 
   // 注册 Configuration Management API 路由 (PostgreSQL backed)
   await registerWithRoleGuard(app, configRoutes, '/v1/config', { database: options.database });
@@ -564,10 +561,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // ==================== Runner Management ====================
   // Runner Agent 注册、心跳、Job 回报（Runner Agent 通信无需 JWT）
-  // ==================== Test Report Management ====================
-  await registerWithRoleGuard(app, testReportRoutes, '/v1/test-reports', {
-    database: options.database,
-  });
+  // Test Report 路由已迁移到 orion-code-svc (port 3010)
 
   // ==================== Artifact Version Management ====================
   await registerWithRoleGuard(app, artifactVersionRoutes, '/v1/artifact-versions', {

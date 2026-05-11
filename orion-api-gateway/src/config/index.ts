@@ -92,6 +92,10 @@ const defaultConfig: AppConfig = {
       url: process.env.FINOPS_SERVICE_URL || 'http://localhost:3009',
       timeout: parseInt(process.env.FINOPS_TIMEOUT || '30000', 10),
     },
+    code: {
+      url: process.env.CODE_SERVICE_URL || 'http://localhost:3010',
+      timeout: parseInt(process.env.CODE_TIMEOUT || '60000', 10),
+    },
   },
 };
 
@@ -157,6 +161,10 @@ export function reloadConfig(): AppConfig {
       finops: {
         url: process.env.FINOPS_SERVICE_URL || 'http://localhost:3009',
         timeout: parseInt(process.env.FINOPS_TIMEOUT || '30000', 10),
+      },
+      code: {
+        url: process.env.CODE_SERVICE_URL || 'http://localhost:3010',
+        timeout: parseInt(process.env.CODE_TIMEOUT || '60000', 10),
       },
     },
   };
