@@ -24,6 +24,18 @@ const routeConfigs: RouteConfig[] = [
     stripPrefix: false,
   },
   {
+    prefix: '/api/v1/pipelines',
+    target: getConfig().services.pipeline?.url || 'http://localhost:3002',
+    timeout: 60000,
+    stripPrefix: false,
+  },
+  {
+    prefix: '/api/v1/pipeline',
+    target: getConfig().services.pipeline?.url || 'http://localhost:3002',
+    timeout: 60000,
+    stripPrefix: false,
+  },
+  {
     prefix: '/api/v1',
     target: getConfig().services.platform?.url || 'http://localhost:3001',
     timeout: 30000,

@@ -64,6 +64,10 @@ const defaultConfig: AppConfig = {
       url: process.env.PLATFORM_SERVICE_URL || 'http://localhost:3001',
       timeout: parseInt(process.env.PLATFORM_TIMEOUT || '30000', 10),
     },
+    pipeline: {
+      url: process.env.PIPELINE_SERVICE_URL || 'http://localhost:3002',
+      timeout: parseInt(process.env.PIPELINE_TIMEOUT || '60000', 10),
+    },
   },
 };
 
@@ -101,6 +105,10 @@ export function reloadConfig(): AppConfig {
       platform: {
         url: process.env.PLATFORM_SERVICE_URL || 'http://localhost:3001',
         timeout: parseInt(process.env.PLATFORM_TIMEOUT || '30000', 10),
+      },
+      pipeline: {
+        url: process.env.PIPELINE_SERVICE_URL || 'http://localhost:3002',
+        timeout: parseInt(process.env.PIPELINE_TIMEOUT || '60000', 10),
       },
     },
   };
