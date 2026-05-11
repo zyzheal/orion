@@ -5,11 +5,13 @@ import { getPool, closePool, checkHealth } from './utils/database';
 import artifactRoutes from './routes/artifact';
 import artifactOpsRoutes from './routes/artifact-ops';
 import artifactVersionRoutes from './routes/artifact-version';
+import { errorHandler } from './middleware/errorHandler';
 
 async function buildApp() {
   const fastify = Fastify({ logger: { level: process.env.LOG_LEVEL || 'info' } });
   await fastify.register(cors, { origin: true });
   await fastify.register(sensible);
+  errorHandler(fastify);
   const database = getPool();
   await fastify.register(artifactRoutes, { prefix: '/api/v1/artifacts', database });
   await fastify.register(artifactOpsRoutes, { prefix: '/api/v1/artifact-ops' });

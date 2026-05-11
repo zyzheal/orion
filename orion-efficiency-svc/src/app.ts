@@ -4,11 +4,13 @@ import sensible from '@fastify/sensible';
 import { getPool, closePool, checkHealth } from './utils/database';
 import efficiencyRoutes from './routes/efficiency';
 import efficiencyEnhancedRoutes from './routes/efficiency-enhanced';
+import { errorHandler } from './middleware/errorHandler';
 
 async function buildApp() {
   const fastify = Fastify({ logger: { level: process.env.LOG_LEVEL || 'info' } });
   await fastify.register(cors, { origin: true });
   await fastify.register(sensible);
+  errorHandler(fastify);
   const database = getPool();
   await fastify.register(efficiencyRoutes, { prefix: '/api/v1/efficiency', database });
   await fastify.register(efficiencyEnhancedRoutes, { prefix: '/api/v1/efficiency', database });

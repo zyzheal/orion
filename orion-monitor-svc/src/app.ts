@@ -1,9 +1,13 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
+import sensible from '@fastify/sensible';
+import { errorHandler } from './middleware/errorHandler';
 import { monitoringRoutes, alertRoutes } from './routes/monitoring';
 async function buildApp() {
   const fastify = Fastify({ logger: { level: 'info' } });
   await fastify.register(cors, { origin: true });
+  await fastify.register(sensible);
+  errorHandler(fastify);
   await fastify.register(monitoringRoutes, { prefix: '/api/v1' });
   await fastify.register(alertRoutes, { prefix: '/api/v1' });
   fastify.get('/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }));

@@ -5,11 +5,13 @@ import { getPool, closePool, checkHealth } from './utils/database';
 import backupRoutes from './routes/backup';
 import disasterRecoveryRoutes from './routes/disaster-recovery';
 import disasterRecoveryAdvancedRoutes from './routes/disaster-recovery-advanced';
+import { errorHandler } from './middleware/errorHandler';
 
 async function buildApp() {
   const fastify = Fastify({ logger: { level: process.env.LOG_LEVEL || 'info' } });
   await fastify.register(cors, { origin: true });
   await fastify.register(sensible);
+  errorHandler(fastify);
   const database = getPool();
   await fastify.register(backupRoutes, { prefix: '/api/v1/backup', database });
   await fastify.register(disasterRecoveryRoutes, { prefix: '/api/v1/disaster-recovery', database });

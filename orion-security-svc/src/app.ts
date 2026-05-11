@@ -7,11 +7,13 @@ import sbomRoutes from './routes/sbom';
 import supplyChainRoutes from './routes/supply-chain';
 import policyRoutes from './routes/policy';
 import qualityGateRoutes from './routes/quality-gate';
+import { errorHandler } from './middleware/errorHandler';
 
 async function buildApp() {
   const fastify = Fastify({ logger: { level: process.env.LOG_LEVEL || 'info' } });
   await fastify.register(cors, { origin: true });
   await fastify.register(sensible);
+  errorHandler(fastify);
   const database = getPool();
   await fastify.register(riskRoutes, { prefix: '/api/v1/risk', database });
   await fastify.register(sbomRoutes, { prefix: '/api/v1/sbom', database, eventBus: undefined });

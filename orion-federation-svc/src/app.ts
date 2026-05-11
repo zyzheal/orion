@@ -6,11 +6,13 @@ import federationRoutes from './routes/federation';
 import federationAdvancedRoutes from './routes/federation-advanced';
 import multiCloudRoutes from './routes/multi-cloud';
 import multiCloudAdvancedRoutes from './routes/multi-cloud-advanced';
+import { errorHandler } from './middleware/errorHandler';
 
 async function buildApp() {
   const fastify = Fastify({ logger: { level: process.env.LOG_LEVEL || 'info' } });
   await fastify.register(cors, { origin: true });
   await fastify.register(sensible);
+  errorHandler(fastify);
   const database = getPool();
   await fastify.register(federationRoutes, { prefix: '/api/v1/federation', database });
   await fastify.register(federationAdvancedRoutes, { prefix: '/api/v1/federation-advanced' });

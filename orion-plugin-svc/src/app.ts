@@ -6,11 +6,13 @@ import pluginSpiRoutes from './routes/plugin-spi';
 import pluginRoutes from './routes/plugin';
 import pluginEnhancedRoutes from './routes/plugin-enhanced';
 import pluginMarketplaceRoutes from './routes/plugin-marketplace';
+import { errorHandler } from './middleware/errorHandler';
 
 async function buildApp() {
   const fastify = Fastify({ logger: { level: process.env.LOG_LEVEL || 'info' } });
   await fastify.register(cors, { origin: true });
   await fastify.register(sensible);
+  errorHandler(fastify);
   const database = getPool();
   await fastify.register(pluginSpiRoutes, { prefix: '/api/v1/plugins-spi' });
   await fastify.register(pluginRoutes, { prefix: '/api/v1/plugins', database });
