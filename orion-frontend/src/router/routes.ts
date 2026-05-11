@@ -1042,6 +1042,13 @@ export const routes: AppRoute[] = [
     element: React.lazy(() => import('@/pages/trigger/TriggerPage')),
     protected: true,
   },
+  // PR/MR Trigger Management (CI Enhancement)
+  {
+    path: '/console/pr-triggers',
+    element: React.lazy(() => import('@/pages/PRTriggerManagement')),
+    protected: true,
+    requiredRole: ['admin', 'platform_admin'],
+  },
   // Community Ecosystem (Phase 3)
   {
     path: '/community',

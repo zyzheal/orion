@@ -17,6 +17,7 @@ import {
 import { PlusOutlined, DeleteOutlined, ThunderboltOutlined, BranchesOutlined } from '@ant-design/icons';
 import type { StageConfig, MatrixBuildConfig } from './types';
 import MatrixConfigurator from '@/components/MatrixConfigurator';
+import PRTriggerConfig, { type PRTriggerConfig as PRTriggerConfigType } from '@/components/PRTriggerConfig';
 import { getPipelines } from '@/api/pipelines';
 
 const { TextArea } = Input;
@@ -55,6 +56,11 @@ const StageModal: React.FC<StageModalProps> = ({
     enabled: false,
     dimensions: [],
     exclusions: [],
+  });
+  const [prTriggerConfig, setPrTriggerConfig] = useState<Partial<PRTriggerConfigType>>({
+    enabled: false,
+    provider: 'github',
+    prActions: ['opened', 'synchronize'],
   });
   // 子流水线相关状态
   const [pipelineOptions, setPipelineOptions] = useState<{ label: string; value: string }[]>([]);
@@ -101,6 +107,16 @@ const StageModal: React.FC<StageModalProps> = ({
           exclusions: [],
         }
       );
+      // 加载 PR 触发配置
+      if ((stage as any).prTrigger) {
+        setPrTriggerConfig((stage as any).prTrigger);
+      } else {
+        setPrTriggerConfig({
+          enabled: false,
+          provider: 'github',
+          prActions: ['opened', 'synchronize'],
+        });
+      }
     } else {
       form.resetFields();
       setCachePaths(['']);
@@ -206,6 +222,8 @@ const StageModal: React.FC<StageModalProps> = ({
               exclusions: matrixConfig.exclusions,
             }
           : undefined,
+        // PR/MR 触发配置
+        prTrigger: prTriggerConfig.enabled ? prTriggerConfig : undefined,
       };
       onSave(stageConfig);
     } catch (error: unknown) {
@@ -706,6 +724,21 @@ const StageModal: React.FC<StageModalProps> = ({
               </div>
             )}
           </Card>
+        </Form.Item>
+
+        {/* PR/MR 触发配置 */}
+        <Divider orientation="left" orientationMargin={0}>
+          <Space>
+            <BranchesOutlined />
+            <span>PR/MR 触发配置</span>
+          </Space>
+        </Divider>
+
+        <Form.Item noStyle shouldUpdate>
+          <PRTriggerConfig
+            value={prTriggerConfig}
+            onChange={setPrTriggerConfig}
+          />
         </Form.Item>
       </Form>
     </Modal>
