@@ -889,12 +889,12 @@ export const routes: AppRoute[] = [
   },
   // Artifact Version Management (CI Enhancement)
   {
-    path: '/artifacts/browser',
+    path: '/artifacts/versions',
     element: React.lazy(() => import('@/pages/ArtifactVersion')),
     protected: true,
   },
   {
-    path: '/artifacts/browser/:artifactName',
+    path: '/artifacts/versions/:artifactName',
     element: React.lazy(() => import('@/pages/ArtifactVersion')),
     protected: true,
   },

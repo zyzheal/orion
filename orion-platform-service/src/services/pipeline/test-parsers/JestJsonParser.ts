@@ -21,7 +21,7 @@
  * }
  */
 
-import { TestCaseCreateInput, TestCaseStatus } from '../../../models/TestReport';
+import { ParsedTestCase, TestCaseStatus } from '../../../models/TestReport';
 
 export interface JestTestResult {
   totalTests: number;
@@ -29,7 +29,7 @@ export interface JestTestResult {
   failed: number;
   skipped: number;
   durationMs: number;
-  testCases: TestCaseCreateInput[];
+  testCases: ParsedTestCase[];
 }
 
 export class JestJsonParser {
@@ -39,7 +39,7 @@ export class JestJsonParser {
   parse(jsonContent: string): JestTestResult {
     const data = JSON.parse(jsonContent);
 
-    const testCases: TestCaseCreateInput[] = [];
+    const testCases: ParsedTestCase[] = [];
     let totalTests = 0;
     let passed = 0;
     let failed = 0;

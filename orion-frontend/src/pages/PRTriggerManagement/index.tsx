@@ -57,6 +57,11 @@ const securityLabel: Record<string, string> = {
   full: '完全模式',
 };
 
+interface PRTriggerFormValues {
+  pipelineId: string;
+  repository: string;
+}
+
 const PRTriggerManagement: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [rules, setRules] = useState<PRTriggerRule[]>([]);
@@ -102,7 +107,7 @@ const PRTriggerManagement: React.FC = () => {
     loadData();
   }, []);
 
-  const handleCreate = async (values: any) => {
+  const handleCreate = async (values: PRTriggerFormValues) => {
     try {
       await createPRTrigger(values.pipelineId, {
         provider: prConfig.provider || 'github',
@@ -127,7 +132,7 @@ const PRTriggerManagement: React.FC = () => {
     }
   };
 
-  const handleUpdate = async (ruleId: string, values: any) => {
+  const handleUpdate = async (ruleId: string, values: PRTriggerFormValues) => {
     try {
       // Find the pipelineId from the existing rule
       const existingRule = rules.find((r) => r.id === ruleId);
@@ -174,13 +179,13 @@ const PRTriggerManagement: React.FC = () => {
     });
   };
 
-  const handleToggle = async (ruleId: string, enabled: boolean) => {
+  const handleToggle = async (ruleId: string, newEnabledState: boolean) => {
     const existingRule = rules.find((r) => r.id === ruleId);
     if (!existingRule) return;
 
     try {
-      await updatePRTrigger(existingRule.pipelineId, ruleId, { enabled: !enabled });
-      message.success(enabled ? '规则已禁用' : '规则已启用');
+      await updatePRTrigger(existingRule.pipelineId, ruleId, { enabled: newEnabledState });
+      message.success(newEnabledState ? '规则已启用' : '规则已禁用');
       loadData();
     } catch (error: unknown) {
       message.error(`更新失败: ${(error as Error).message}`);

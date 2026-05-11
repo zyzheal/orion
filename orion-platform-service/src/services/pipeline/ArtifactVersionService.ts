@@ -10,8 +10,8 @@
  */
 
 import pino from 'pino';
-import { ArtifactVersionRepository } from '../repositories/ArtifactVersionRepository';
-import { ArtifactVersion, ArtifactVersionCreateInput } from '../models/ArtifactVersion';
+import { ArtifactVersionRepository } from '../../repositories/ArtifactVersionRepository';
+import { ArtifactVersion, ArtifactVersionCreateInput } from '../../models/ArtifactVersion';
 
 const logger = pino({ name: 'artifact-version-service' });
 
@@ -111,6 +111,13 @@ export class ArtifactVersionService {
     );
 
     return newVersion;
+  }
+
+  /**
+   * 根据 ID 获取版本
+   */
+  async getVersionById(id: string): Promise<ArtifactVersion | null> {
+    return this.repository.findById(id);
   }
 
   /**

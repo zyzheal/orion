@@ -265,7 +265,8 @@ export function createPipelineSagaDefinition(
             try {
               // 获取 Stage 的 Tasks 并执行
               const tasks = tasksByStage.get(stage.id) || [];
-              const result = await stageExecutor.executeStage(runId, stage, tasks);
+              const pipelineId = context.metadata.pipelineId as string;
+              const result = await stageExecutor.executeStage(pipelineId, runId, stage, tasks);
 
               // 更新 Stage 状态
               const completedStage: Stage = {

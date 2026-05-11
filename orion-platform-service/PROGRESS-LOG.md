@@ -135,3 +135,67 @@ coverage: {
 ---
 
 Generated: 2026-05-07 22:00
+
+---
+
+## Session: 2026-05-10 — CI Enhancement & Pipeline SSE Integration
+
+### Overall Status
+
+| Metric | Value |
+|--------|-------|
+| New TS errors introduced | 0 ✓ |
+| Pre-existing TS errors | ~39 (unrelated to this session) |
+| New files created | 1 |
+| Files modified | 13 |
+
+### Completed Tasks
+
+#### 1. Artifact Version Service — Private Member Access Fix (I2)
+- `src/services/pipeline/ArtifactVersionService.ts` — 新增 `getVersionById()` 公共方法
+- `src/api/artifact-version-routes.ts` — `service['repository'].findById()` → `service.getVersionById()`
+- `src/models/ArtifactVersion.ts` — `ArtifactVersionCreateInput` 添加 `tags?: string[]` 字段
+
+#### 2. Pipeline 运行实时日志 SSE 集成
+
+**架构**: PipelineEngine/StageExecutor → PipelineEventSSEBridge → PipelineLogSSEService (共享实例) → SSE Routes → 前端 usePipelineSSE Hook → PipelineRunLive 页面
+
+**新建文件**:
+- `src/services/pipeline/PipelineEventSSEBridge.ts` — 桥接器，将引擎事件转换为 SSE 推送事件
+
+**修改文件**:
+- `src/engine/PipelineEngine.ts` — 注入 SSE bridge，在所有状态变化点（run/stage/task start/complete/fail/skip/cancel）调用 bridge.publish*()
+- `src/engine/StageExecutor.ts` — 注入 SSE bridge，在 task 级别发布 SSE 事件；executeTask/executeStage 签名增加 pipelineId 参数
+- `src/api/routes.ts` — 创建共享 PipelineLogSSEService + PipelineEventSSEBridge 实例，传递给 StageExecutor、PipelineEngine、SSE routes
+- `src/api/pipeline-sse-routes.ts` — 改为接收外部传入的 PipelineLogSSEService 实例（不再自建 localBus），确保与引擎桥接器共享同一个事件总线；修复 request.body 类型推断问题
+- `src/saga/PipelineSaga.ts` — 修复 executeStage 调用签名不匹配（Critical: 旧签名导致运行时参数错位崩溃）
+
+**前端已有的 SSE 支持（本次未修改）**:
+- `src/hooks/usePipelineSSE.ts` — React Hook，自动重连、日志缓冲、状态事件处理
+- `src/pages/PipelineRunLive/index.tsx` — 实时执行面板，阶段进度、日志查看器、暂停/恢复/导出功能
+
+#### 3. TestReport 解析器类型重构
+- `src/models/TestReport.ts` — 新增 `ParsedTestCase` 接口（无 reportId，由服务层填充）
+- `src/services/pipeline/TestReportService.ts` — 使用 ParsedTestCase 替代 TestCaseCreateInput
+- `src/services/pipeline/test-parsers/JUnitXmlParser.ts` — 输出 ParsedTestCase
+- `src/services/pipeline/test-parsers/JestJsonParser.ts` — 输出 ParsedTestCase
+
+### Code Review 发现与修复
+
+| 严重度 | 问题 | 状态 |
+|--------|------|------|
+| Critical | PipelineSaga.ts executeStage 签名不匹配（运行时崩溃） | ✓ 已修复 |
+| Important | ArtifactVersionCreateInput 缺少 tags 字段 | ✓ 已修复 |
+| Minor | pipeline-sse-routes.ts request.body 类型推断为 unknown | ✓ 已修复 |
+| 观察项 | StageExecutor VariableContext 并发安全 | 记录，不阻塞 |
+| 观察项 | SSE shutdown 防重复调用 | 已有 count===0 早返回保护 |
+
+### Pending Tasks
+
+1. StageExecutor VariableContext 并发安全改进（当前不阻塞）
+2. Pipeline SSE 单元测试（验证 bridge 事件转发）
+3. 前端 PipelineRunLive 页面与后端联调验证
+
+---
+
+Generated: 2026-05-10

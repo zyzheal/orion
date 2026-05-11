@@ -33,6 +33,30 @@ export interface MatrixBuildConfig {
   exclusions: ExclusionRule[];
 }
 
+/** PR/MR 触发配置 */
+export interface PRTriggerConfig {
+  enabled: boolean;
+  provider: 'github' | 'gitlab' | 'both';
+  prActions: string[];
+  branchFilter: {
+    targetBranches: string[];
+    sourceBranches?: string[];
+  };
+  pathFilter: {
+    includePaths: string[];
+    excludePaths: string[];
+  };
+  labelFilter: {
+    requiredLabels: string[];
+    excludedLabels: string[];
+  };
+  draftPolicy: 'skip' | 'run';
+  securityLevel: 'safe' | 'trusted' | 'full';
+  statusCheckName?: string;
+  autoComment: boolean;
+  commentTemplate?: string;
+}
+
 /** 子流水线配置：调用另一条流水线 */
 export interface SubPipelineConfig {
   pipelineId: string;
@@ -77,6 +101,7 @@ export interface StageConfig {
   cache?: CacheConfig;
   artifacts?: ArtifactConfig;
   matrix?: MatrixBuildConfig;
+  prTrigger?: PRTriggerConfig;
 }
 
 export interface PipelineFormData {

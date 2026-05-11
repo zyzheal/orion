@@ -82,6 +82,18 @@ export interface TestCaseCreateInput {
 }
 
 /**
+ * 解析器输出的测试用例（不含 reportId，由服务层填充）
+ */
+export interface ParsedTestCase {
+  name: string;
+  className?: string;
+  status: TestCaseStatus;
+  durationMs?: number;
+  errorMessage?: string;
+  stackTrace?: string;
+}
+
+/**
  * 查询选项
  */
 export interface TestReportQueryOptions {

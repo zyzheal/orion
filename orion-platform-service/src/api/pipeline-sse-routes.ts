@@ -5,11 +5,7 @@
  * Prefix: /api/v1/pipelines/sse
  */
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { EventEmitter } from 'events';
-import { PipelineLogSSEService } from '../services/pipeline/PipelineLogSSEService';
-
-const localBus = new EventEmitter();
-const pipelineLogSSE = new PipelineLogSSEService(localBus);
+import { PipelineLogSSEService, PipelineLogEvent } from '../services/pipeline/PipelineLogSSEService';
 
 interface SSEQuery {
   pipelineId: string;
@@ -19,8 +15,13 @@ interface SSEQuery {
 
 /**
  * 注册 Pipeline SSE 路由
+ * 接收外部传入的 PipelineLogSSEService 实例，确保与引擎桥接器共享同一个 localBus
  */
-export default async function registerPipelineSSERoutes(app: FastifyInstance): Promise<void> {
+export default async function registerPipelineSSERoutes(
+  app: FastifyInstance,
+  opts: { pipelineLogSSE: PipelineLogSSEService }
+): Promise<void> {
+  const pipelineLogSSE = opts.pipelineLogSSE;
   // GET /api/v1/pipelines/sse/logs - SSE 实时日志推送
   app.get('/pipelines/sse/logs', async (request: FastifyRequest<{ Querystring: SSEQuery }>, reply: FastifyReply) => {
     const { pipelineId, runId, logLevel } = request.query;
@@ -88,8 +89,9 @@ export default async function registerPipelineSSERoutes(app: FastifyInstance): P
   });
 
   // POST /api/v1/pipelines/sse/publish/log - 发布日志事件 (内部 API)
-  app.post('/pipelines/sse/publish/log', async (request: FastifyRequest<{ Body: any }>, reply: FastifyReply) => {
-    const { pipelineId, runId, stageId, stageName, stepName, logLine, level } = request.body;
+  app.post('/pipelines/sse/publish/log', async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = request.body as any;
+    const { pipelineId, runId, stageId, stageName, stepName, logLine, level } = body;
 
     if (!pipelineId || !runId || !stageId || !logLine) {
       return reply.status(400).send({
@@ -112,8 +114,9 @@ export default async function registerPipelineSSERoutes(app: FastifyInstance): P
   });
 
   // POST /api/v1/pipelines/sse/publish/status - 发布状态事件 (内部 API)
-  app.post('/pipelines/sse/publish/status', async (request: FastifyRequest<{ Body: any }>, reply: FastifyReply) => {
-    const { pipelineId, runId, status, stageId, stageName, progress } = request.body;
+  app.post('/pipelines/sse/publish/status', async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = request.body as any;
+    const { pipelineId, runId, status, stageId, stageName, progress } = body;
 
     if (!pipelineId || !runId || !status) {
       return reply.status(400).send({

@@ -15,9 +15,9 @@ import {
   Card,
 } from 'antd';
 import { PlusOutlined, DeleteOutlined, ThunderboltOutlined, BranchesOutlined } from '@ant-design/icons';
-import type { StageConfig, MatrixBuildConfig } from './types';
+import type { StageConfig, MatrixBuildConfig, PRTriggerConfig } from './types';
 import MatrixConfigurator from '@/components/MatrixConfigurator';
-import PRTriggerConfig, { type PRTriggerConfig as PRTriggerConfigType } from '@/components/PRTriggerConfig';
+import PRTriggerConfigComponent, { type PRTriggerConfig as PRTriggerConfigType } from '@/components/PRTriggerConfig';
 import { getPipelines } from '@/api/pipelines';
 
 const { TextArea } = Input;
@@ -108,8 +108,8 @@ const StageModal: React.FC<StageModalProps> = ({
         }
       );
       // 加载 PR 触发配置
-      if ((stage as any).prTrigger) {
-        setPrTriggerConfig((stage as any).prTrigger);
+      if (stage.prTrigger) {
+        setPrTriggerConfig(stage.prTrigger);
       } else {
         setPrTriggerConfig({
           enabled: false,
@@ -227,7 +227,11 @@ const StageModal: React.FC<StageModalProps> = ({
       };
       onSave(stageConfig);
     } catch (error: unknown) {
-      // 验证失败，不处理
+      // Ant Design 表单验证失败会自动显示错误
+      if (error && typeof error === 'object' && 'errorFields' in error) {
+        return;
+      }
+      message.error('保存失败');
     }
   };
 
@@ -735,7 +739,7 @@ const StageModal: React.FC<StageModalProps> = ({
         </Divider>
 
         <Form.Item noStyle shouldUpdate>
-          <PRTriggerConfig
+          <PRTriggerConfigComponent
             value={prTriggerConfig}
             onChange={setPrTriggerConfig}
           />

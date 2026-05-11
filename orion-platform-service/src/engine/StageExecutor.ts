@@ -12,6 +12,7 @@ import { Stage } from '../models/Stage';
 import { Task, TaskStatus, startTask, completeTask, failTask, appendTaskLog } from '../models/Task';
 import { TaskRunner } from './TaskRunner';
 import { PipelineEventPublisher } from '../events/PipelineEventPublisher';
+import { PipelineEventSSEBridge } from '../services/pipeline/PipelineEventSSEBridge';
 import { ArtifactService } from '../services/pipeline/ArtifactService';
 import { VariableContext } from './VariableContext';
 import { DebugController } from './DebugController';
@@ -20,6 +21,7 @@ import { CacheRestoreSaveService, StageCacheConfig } from '../services/build/Cac
 export class StageExecutor {
   private taskRunner: TaskRunner;
   private eventPublisher: PipelineEventPublisher;
+  private sseBridge: PipelineEventSSEBridge | null;
   private artifactService: ArtifactService | null;
   private variableContext: VariableContext | null;
   private debugController: DebugController | null;
@@ -31,6 +33,7 @@ export class StageExecutor {
   constructor(
     taskRunner: TaskRunner,
     eventPublisher: PipelineEventPublisher,
+    sseBridge?: PipelineEventSSEBridge | null,
     artifactService?: ArtifactService,
     variableContext?: VariableContext,
     debugController?: DebugController,
@@ -38,6 +41,7 @@ export class StageExecutor {
   ) {
     this.taskRunner = taskRunner;
     this.eventPublisher = eventPublisher;
+    this.sseBridge = sseBridge || null;
     this.artifactService = artifactService || null;
     this.variableContext = variableContext || null;
     this.debugController = debugController || null;
@@ -55,6 +59,7 @@ export class StageExecutor {
    * 执行 Stage 的所有 Tasks
    */
   async executeStage(
+    pipelineId: string,
     runId: string,
     stage: Stage,
     tasks: Task[]
@@ -93,7 +98,7 @@ export class StageExecutor {
         // The next iteration will hit the pause check again
       }
 
-      const result = await this.executeTask(runId, stage, task);
+      const result = await this.executeTask(pipelineId, runId, stage, task);
 
       // Debug integration: after task completes in step mode, re-pause
       if (this.debugController) {
@@ -139,6 +144,7 @@ export class StageExecutor {
    * 执行单个 Task
    */
   async executeTask(
+    pipelineId: string,
     runId: string,
     stage: Stage,
     task: Task,
@@ -147,6 +153,7 @@ export class StageExecutor {
     // 开始 Task
     let updatedTask = startTask(task);
     await this.eventPublisher.publishTaskStarted(runId, stage.id, updatedTask);
+    this.sseBridge?.publishTaskStarted(pipelineId, runId, stage, updatedTask);
 
     // 创建 AbortController 用于超时取消
     const controller = new AbortController();
@@ -171,6 +178,7 @@ export class StageExecutor {
       // Task 完成
       updatedTask = completeTask(result, result.result);
       await this.eventPublisher.publishTaskCompleted(runId, stage.id, updatedTask);
+      this.sseBridge?.publishTaskCompleted(pipelineId, runId, stage, updatedTask);
 
       // Register task outputs in VariableContext for downstream stages
       this.registerTaskOutputs(result.result as Record<string, unknown> | undefined, options?.taskName || task.name);
@@ -185,6 +193,7 @@ export class StageExecutor {
       // Task 失败
       updatedTask = failTask(updatedTask, errorMessage, updatedTask.log);
       await this.eventPublisher.publishTaskFailed(runId, stage.id, updatedTask, errorMessage);
+      this.sseBridge?.publishTaskFailed(pipelineId, runId, stage, updatedTask, errorMessage);
 
       return updatedTask;
     } finally {

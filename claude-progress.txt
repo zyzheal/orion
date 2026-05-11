@@ -5,6 +5,46 @@
 - **Root**: /Users/heal/orion-design
 - **Current Branch**: feat/frontend-gap-implementation
 
+## 2026-05-08: Matrix Build Configurator (COMPLETED)
+
+### feat(frontend): add matrix build configurator component
+
+**Created: `src/components/MatrixConfigurator/index.tsx`** (~380 lines)
+- Dimension management: add/remove dimensions with key and comma-separated values
+- 5 preset templates (Node.js versions, OS, Python versions, combinations)
+- Live cartesian product count preview (e.g., "3 os x 2 node = 6 jobs")
+- Exclusion rules: match specific dimension value combinations to exclude
+- Visual table preview showing all combinations with execution/excluded status
+- Warning for large combination counts (>100)
+- Controlled component with value/onChange props
+
+**Created: `src/components/MatrixConfigurator/__tests__/MatrixConfigurator.test.tsx`** (15 test cases)
+- Empty state rendering, preset template display
+- Dimension add/remove, preset application
+- Combination count calculation (single and multi-dimension)
+- Table preview, execution/exclusion status display
+- Exclusion rule creation and matching
+- Manual dimension input
+- Initial value rendering
+- onChange callback verification
+
+**Modified: `src/pages/PipelineEditor/StageModal.tsx`**
+- Added "矩阵构建 (Matrix Build)" section with Switch toggle
+- Integrated MatrixConfigurator component when enabled
+- Matrix config state management and form save integration
+- Increased modal width to 800px
+
+**Modified: `src/pages/PipelineEditor/index.tsx`**
+- Added `matrix` field to inline `StageConfig` interface
+- Extended `generateYaml()` to output matrix configuration in YAML format
+
+**Modified: `src/pages/PipelineEditor/types.ts`**
+- Added `MatrixDimension`, `ExclusionRule`, `MatrixBuildConfig` interfaces
+- Added `matrix?: MatrixBuildConfig` to `StageConfig`
+
+**Test results: 36 tests passing (PipelineEditor 21 + MatrixConfigurator 15)**
+**Type check: 0 new errors (18 pre-existing)**
+
 ## 2026-05-08: GAP-CN-02 Multi-Environment Management (COMPLETED)
 
 ### feat(pipeline): implement GAP-CN-02 multi-environment management

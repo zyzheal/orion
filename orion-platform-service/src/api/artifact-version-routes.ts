@@ -68,7 +68,7 @@ export default async function artifactVersionRoutes(app: FastifyInstance, opts: 
   // GET /api/v1/artifact-versions/:id — Get version details
   app.get('/:id', async (request: FastifyRequest, reply: FastifyReply) => {
     const params = request.params as any;
-    const version = await service['repository'].findById(params.id);
+    const version = await service.getVersionById(params.id);
 
     if (!version) {
       return reply.code(404).send({ error: 'Artifact version not found' });

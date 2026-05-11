@@ -3,9 +3,8 @@
  * Supports GitHub PR and GitLab MR trigger rules with path filtering,
  * branch filtering, label filtering, and draft PR policies.
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-  Form,
   Select,
   Switch,
   Input,
@@ -25,6 +24,12 @@ import {
 } from '@ant-design/icons';
 
 const { TextArea } = Input;
+
+interface SecurityLevelOption {
+  label: string;
+  value: 'safe' | 'trusted' | 'full';
+  description: string;
+}
 
 export interface PRTriggerConfig {
   enabled: boolean;
@@ -78,8 +83,33 @@ const defaultConfig: PRTriggerConfig = {
     '### Orion CI 检查结果\n\nPipeline: {{pipelineName}}\n状态: {{status}}\n详情: {{url}}',
 };
 
+const securityLevelOptions: SecurityLevelOption[] = [
+  {
+    label: 'Safe（安全模式）',
+    value: 'safe',
+    description: '使用 fork 基础权限，不注入 secrets - 适合开源项目',
+  },
+  {
+    label: 'Trusted（信任模式）',
+    value: 'trusted',
+    description: '使用目标分支权限，可注入只读 secrets - 适合内部项目',
+  },
+  {
+    label: 'Full（完全模式）',
+    value: 'full',
+    description: '使用完整权限，等同 push 触发 - 仅限私有仓库',
+  },
+];
+
 const PRTriggerConfig: React.FC<PRTriggerConfigProps> = ({ value, onChange }) => {
   const [config, setConfig] = useState<PRTriggerConfig>({ ...defaultConfig, ...value });
+
+  // C1: 同步外部 value 变化
+  useEffect(() => {
+    if (value) {
+      setConfig((prev) => ({ ...prev, ...value }));
+    }
+  }, [value]);
 
   const updateConfig = (updates: Partial<PRTriggerConfig>) => {
     const newConfig = { ...config, ...updates };
@@ -135,14 +165,15 @@ const PRTriggerConfig: React.FC<PRTriggerConfigProps> = ({ value, onChange }) =>
   return (
     <Card size="small" title={<Space>{providerIcon} PR/MR 触发配置</Space>}>
       {/* 基础开关 */}
-      <Form.Item label="启用 PR/MR 触发" valuePropName="checked">
+      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
+        <span style={{ marginRight: 8 }}>启用 PR/MR 触发</span>
         <Switch
           checked={config.enabled}
           onChange={(checked) => updateConfig({ enabled: checked })}
           checkedChildren="启用"
           unCheckedChildren="禁用"
         />
-      </Form.Item>
+      </div>
 
       {config.enabled && (
         <>
@@ -171,29 +202,16 @@ const PRTriggerConfig: React.FC<PRTriggerConfigProps> = ({ value, onChange }) =>
             <Select
               value={config.securityLevel}
               onChange={(v) => updateConfig({ securityLevel: v })}
-              options={[
-                {
-                  label: 'Safe（安全模式）',
-                  value: 'safe',
-                  description: '使用 fork 基础权限，不注入 secrets - 适合开源项目',
-                },
-                {
-                  label: 'Trusted（信任模式）',
-                  value: 'trusted',
-                  description: '使用目标分支权限，可注入只读 secrets - 适合内部项目',
-                },
-                {
-                  label: 'Full（完全模式）',
-                  value: 'full',
-                  description: '使用完整权限，等同 push 触发 - 仅限私有仓库',
-                },
-              ]}
-              optionRender={(option) => (
-                <Space direction="vertical" size={0}>
-                  <span>{option.label}</span>
-                  <span style={{ fontSize: 12, color: '#999' }}>{(option.data as any).description}</span>
-                </Space>
-              )}
+              options={securityLevelOptions}
+              optionRender={(option) => {
+                const data = option.data as SecurityLevelOption;
+                return (
+                  <Space direction="vertical" size={0}>
+                    <span>{option.label}</span>
+                    <span style={{ fontSize: 12, color: '#999' }}>{data.description}</span>
+                  </Space>
+                );
+              }}
             />
           </Form.Item>
 
@@ -248,7 +266,7 @@ const PRTriggerConfig: React.FC<PRTriggerConfigProps> = ({ value, onChange }) =>
             <div style={{ marginTop: 8 }}>
               {config.branchFilter.targetBranches.map((branch, index) => (
                 <Tag
-                  key={branch}
+                  key={`target-${branch}-${index}`}
                   color="blue"
                   closable
                   onClose={() => removeFromList('targetBranches', index)}
@@ -278,7 +296,7 @@ const PRTriggerConfig: React.FC<PRTriggerConfigProps> = ({ value, onChange }) =>
             <div style={{ marginTop: 8 }}>
               {config.branchFilter.sourceBranches?.map((branch, index) => (
                 <Tag
-                  key={branch}
+                  key={`source-${branch}-${index}`}
                   color="green"
                   closable
                   onClose={() => removeFromList('sourceBranches', index)}
@@ -321,7 +339,7 @@ const PRTriggerConfig: React.FC<PRTriggerConfigProps> = ({ value, onChange }) =>
             <div style={{ marginTop: 8 }}>
               {config.pathFilter.includePaths.map((path, index) => (
                 <Tag
-                  key={path}
+                  key={`include-${path}-${index}`}
                   color="blue"
                   closable
                   onClose={() => removeFromList('includePaths', index)}
@@ -351,7 +369,7 @@ const PRTriggerConfig: React.FC<PRTriggerConfigProps> = ({ value, onChange }) =>
             <div style={{ marginTop: 8 }}>
               {config.pathFilter.excludePaths.map((path, index) => (
                 <Tag
-                  key={path}
+                  key={`exclude-${path}-${index}`}
                   color="red"
                   closable
                   onClose={() => removeFromList('excludePaths', index)}
@@ -383,7 +401,7 @@ const PRTriggerConfig: React.FC<PRTriggerConfigProps> = ({ value, onChange }) =>
             <div style={{ marginTop: 8 }}>
               {config.labelFilter.requiredLabels.map((label, index) => (
                 <Tag
-                  key={label}
+                  key={`required-${label}-${index}`}
                   color="blue"
                   closable
                   onClose={() => removeFromList('requiredLabels', index)}
@@ -413,7 +431,7 @@ const PRTriggerConfig: React.FC<PRTriggerConfigProps> = ({ value, onChange }) =>
             <div style={{ marginTop: 8 }}>
               {config.labelFilter.excludedLabels.map((label, index) => (
                 <Tag
-                  key={label}
+                  key={`excluded-${label}-${index}`}
                   color="red"
                   closable
                   onClose={() => removeFromList('excludedLabels', index)}
@@ -438,20 +456,24 @@ const PRTriggerConfig: React.FC<PRTriggerConfigProps> = ({ value, onChange }) =>
             />
           </Form.Item>
 
-          <Form.Item label="自动评论" valuePropName="checked">
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
+            <span style={{ marginRight: 8 }}>自动评论</span>
             <Switch
               checked={config.autoComment}
               onChange={(checked) => updateConfig({ autoComment: checked })}
               checkedChildren="启用"
               unCheckedChildren="禁用"
             />
-          </Form.Item>
+          </div>
 
           {config.autoComment && (
-            <Form.Item label="评论模板">
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ marginBottom: 8 }}>评论模板</div>
               <TextArea
                 value={config.commentTemplate}
                 onChange={(e) => updateConfig({ commentTemplate: e.target.value })}
+                maxLength={2000}
+                showCount
                 rows={4}
                 style={{ fontFamily: 'monospace' }}
                 placeholder={`可用的变量：

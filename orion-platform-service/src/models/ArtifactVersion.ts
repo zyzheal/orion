@@ -42,6 +42,7 @@ export interface ArtifactVersionCreateInput {
   branch?: string;
   metadata?: Record<string, string>;
   storagePath: string;
+  tags?: string[];
 }
 
 /**
@@ -133,6 +134,7 @@ export function createArtifactVersion(input: ArtifactVersionCreateInput): Artifa
     branch: input.branch,
     metadata: input.metadata || {},
     storagePath: input.storagePath,
+    tags: input.tags || [],
     createdAt: new Date(),
   };
 }

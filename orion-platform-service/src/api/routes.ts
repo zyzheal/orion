@@ -3,6 +3,7 @@
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { EventEmitter } from 'events';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { roleGuard } from '../middleware/roleGuard';
 import { TenantIsolationService, createTenantValidatorMiddleware } from '../services/tenant';
@@ -25,6 +26,8 @@ import { PipelineEngine } from '../engine/PipelineEngine';
 import { StageExecutor } from '../engine/StageExecutor';
 import { TaskRunner } from '../engine/TaskRunner';
 import { PipelineEventPublisher } from '../events/PipelineEventPublisher';
+import { PipelineLogSSEService } from '../services/pipeline/PipelineLogSSEService';
+import { PipelineEventSSEBridge } from '../services/pipeline/PipelineEventSSEBridge';
 import { EventBusService } from '../services/event-bus-service';
 import { WebhookNotifier } from '../services/pipeline/WebhookNotifier';
 import { WebhookConfigRepository } from '../repositories/WebhookConfigRepository';
@@ -379,7 +382,13 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   const pipelineService = new PipelineService(pipelineRepository!);
   const runService = new PipelineRunService(eventPublisher, pipelineRunRepository!);
   const taskRunner = new TaskRunner();
-  const stageExecutor = new StageExecutor(taskRunner, eventPublisher);
+
+  // SSE bridge: connect engine events to SSE push service
+  // Uses the same localBus as the SSE routes for event forwarding
+  const pipelineLogSSE = new PipelineLogSSEService(new EventEmitter());
+  const sseBridge = new PipelineEventSSEBridge({ sseService: pipelineLogSSE });
+
+  const stageExecutor = new StageExecutor(taskRunner, eventPublisher, sseBridge);
 
   // Phase 3: Global execution queue with backpressure
   const executionQueue = new PipelineExecutionQueue();
@@ -396,6 +405,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
     runService,
     eventPublisher,
     stageExecutor,
+    sseBridge,
     undefined, // subPipelineService (configured when available)
     undefined, // artifactService
     undefined, // approvalGateService
@@ -459,7 +469,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   });
 
   // ==================== Pipeline SSE 实时日志路由 ====================
-  await app.register(pipelineSSERoutes, { prefix: '/v1' });
+  await app.register(pipelineSSERoutes, { prefix: '/v1', pipelineLogSSE });
 
   // ==================== CMDB 路由 ====================
 

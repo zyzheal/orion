@@ -9,7 +9,7 @@
  * </testsuite>
  */
 
-import { TestCaseCreateInput, TestCaseStatus } from '../../../models/TestReport';
+import { ParsedTestCase, TestCaseStatus } from '../../../models/TestReport';
 
 export interface JUnitTestResult {
   totalTests: number;
@@ -17,7 +17,7 @@ export interface JUnitTestResult {
   failed: number;
   skipped: number;
   durationMs: number;
-  testCases: TestCaseCreateInput[];
+  testCases: ParsedTestCase[];
 }
 
 export class JUnitXmlParser {
@@ -25,7 +25,7 @@ export class JUnitXmlParser {
    * 解析 JUnit XML 字符串
    */
   parse(xmlContent: string): JUnitTestResult {
-    const testCases: TestCaseCreateInput[] = [];
+    const testCases: ParsedTestCase[] = [];
     let totalTests = 0;
     let passed = 0;
     let failed = 0;
@@ -43,7 +43,7 @@ export class JUnitXmlParser {
         const durationMs = Math.round(testCase.time * 1000);
         totalDurationMs += durationMs;
 
-        const input: TestCaseCreateInput = {
+        const input: ParsedTestCase = {
           name: testCase.name,
           className: testCase.classname,
           status: testCase.status,

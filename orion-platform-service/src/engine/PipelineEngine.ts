@@ -18,6 +18,7 @@ import { PipelineService } from '../services/pipeline/PipelineService';
 import { PipelineRunService } from '../services/pipeline/PipelineRunService';
 import { SubPipelineService } from '../services/pipeline/SubPipelineService';
 import { PipelineEventPublisher } from '../events/PipelineEventPublisher';
+import { PipelineEventSSEBridge } from '../services/pipeline/PipelineEventSSEBridge';
 import { StageExecutor } from './StageExecutor';
 import { ArtifactService } from '../services/pipeline/ArtifactService';
 import { ApprovalGateService } from '../services/pipeline/ApprovalGateService';
@@ -57,6 +58,7 @@ export class PipelineEngine {
   private pipelineService: PipelineService;
   private runService: PipelineRunService;
   private eventPublisher: PipelineEventPublisher;
+  private sseBridge: PipelineEventSSEBridge | null;
   private stageExecutor: StageExecutor;
   private subPipelineService: SubPipelineService | null;
   private artifactService: ArtifactService | null;
@@ -92,6 +94,7 @@ export class PipelineEngine {
     runService: PipelineRunService,
     eventPublisher: PipelineEventPublisher,
     stageExecutor: StageExecutor,
+    sseBridge?: PipelineEventSSEBridge | null,
     subPipelineService?: SubPipelineService | null,
     artifactService?: ArtifactService,
     approvalGateService?: ApprovalGateService,
@@ -111,6 +114,7 @@ export class PipelineEngine {
     this.pipelineService = pipelineService;
     this.runService = runService;
     this.eventPublisher = eventPublisher;
+    this.sseBridge = sseBridge || null;
     this.stageExecutor = stageExecutor;
     this.subPipelineService = subPipelineService || null;
     this.artifactService = artifactService || null;
@@ -240,6 +244,9 @@ export class PipelineEngine {
 
     // 7. 开始执行（使用队列或直接执行）
     await this.runService.startRun(run.id);
+
+    // 7.1. Publish SSE run started event
+    this.sseBridge?.publishRunStarted(pipelineId, run);
 
     if (this.executionQueue) {
       // 使用全局执行队列
@@ -419,6 +426,7 @@ export class PipelineEngine {
         execution.stages.set(stageId, skippedStage);
         await this.runService.updateStage(skippedStage);
         await this.eventPublisher.publishStageSkipped(execution.run.id, skippedStage);
+        this.sseBridge?.publishStageSkipped(execution.run.pipelineId, execution.run.id, skippedStage);
 
         execution.pendingStages.delete(stageId);
         execution.completedStages.add(stageId);
@@ -445,6 +453,7 @@ export class PipelineEngine {
         execution.stages.set(stageId, skippedStage);
         await this.runService.updateStage(skippedStage);
         await this.eventPublisher.publishStageSkipped(execution.run.id, skippedStage);
+        this.sseBridge?.publishStageSkipped(execution.run.pipelineId, execution.run.id, skippedStage);
 
         execution.pendingStages.delete(stageId);
         execution.completedStages.add(stageId);
@@ -494,6 +503,7 @@ export class PipelineEngine {
     execution.stages.set(stage.id, runningStage);
     await this.runService.updateStage(runningStage);
     await this.eventPublisher.publishStageStarted(execution.run.id, runningStage);
+    this.sseBridge?.publishStageStarted(execution.run.pipelineId, execution.run.id, runningStage);
     // Checkpoint: stage started
     await this.saveCheckpoint(execution, stage.name);
 
@@ -542,6 +552,7 @@ export class PipelineEngine {
         }
 
         const result = await this.stageExecutor.executeTask(
+          execution.run.pipelineId,
           execution.run.id,
           stage,
           task,
@@ -581,6 +592,7 @@ export class PipelineEngine {
       execution.stages.set(stage.id, completedStage);
       await this.runService.updateStage(completedStage);
       await this.eventPublisher.publishStageCompleted(execution.run.id, completedStage);
+      this.sseBridge?.publishStageCompleted(execution.run.pipelineId, execution.run.id, completedStage);
       // Checkpoint: stage completed
       await this.saveCheckpoint(execution, stage.name);
 
@@ -634,6 +646,7 @@ export class PipelineEngine {
       execution.stages.set(stage.id, failedStage);
       await this.runService.updateStage(failedStage);
       await this.eventPublisher.publishStageFailed(execution.run.id, failedStage, failedStage.error);
+      this.sseBridge?.publishStageFailed(execution.run.pipelineId, execution.run.id, failedStage, failedStage.error);
       // Checkpoint: stage failed
       await this.saveCheckpoint(execution, stage.name);
 
@@ -762,6 +775,7 @@ export class PipelineEngine {
         execution.stages.set(stageId, skippedStage);
         await this.runService.updateStage(skippedStage);
         await this.eventPublisher.publishStageSkipped(execution.run.id, skippedStage);
+        this.sseBridge?.publishStageSkipped(execution.run.pipelineId, execution.run.id, skippedStage);
         execution.completedStages.add(stageId);
         // Checkpoint: stage skipped
         await this.saveCheckpoint(execution, stage.name);
@@ -803,8 +817,10 @@ export class PipelineEngine {
 
       if (hasFailure) {
         await this.runService.completeRun(execution.run.id, PipelineRunStatus.FAILED);
+        this.sseBridge?.publishRunFailed(execution.run.pipelineId, execution.run, 'Pipeline execution failed');
       } else {
         await this.runService.completeRun(execution.run.id, PipelineRunStatus.SUCCESS);
+        this.sseBridge?.publishRunCompleted(execution.run.pipelineId, execution.run);
       }
 
       // 获取更新后的 run 数据并触发回调（用于 metrics 记录）
@@ -1174,6 +1190,7 @@ export class PipelineEngine {
       execution.stages.set(stage.id, completedStage);
       await this.runService.updateStage(completedStage);
       await this.eventPublisher.publishStageCompleted(execution.run.id, completedStage);
+      this.sseBridge?.publishStageCompleted(execution.run.pipelineId, execution.run.id, completedStage);
       await this.saveCheckpoint(execution, stage.name);
 
       execution.runningStages.delete(stage.id);
@@ -1217,6 +1234,7 @@ export class PipelineEngine {
         execution.stages.set(stageId, skippedStage);
         await this.runService.updateStage(skippedStage);
         await this.eventPublisher.publishStageSkipped(execution.run.id, skippedStage);
+        this.sseBridge?.publishStageSkipped(execution.run.pipelineId, execution.run.id, skippedStage);
         execution.completedStages.add(stageId);
         // Checkpoint: dependent stage skipped
         await this.saveCheckpoint(execution, stage.name);
@@ -1334,6 +1352,7 @@ export class PipelineEngine {
         execution.stages.set(stageId, cancelledStage);
         await this.runService.updateStage(cancelledStage);
         await this.eventPublisher.publishStageSkipped(execution.run.id, cancelledStage);
+        this.sseBridge?.publishStageSkipped(execution.run.pipelineId, execution.run.id, cancelledStage);
       }
     }
 
@@ -1349,11 +1368,15 @@ export class PipelineEngine {
         execution.stages.set(stageId, skippedStage);
         await this.runService.updateStage(skippedStage);
         await this.eventPublisher.publishStageSkipped(execution.run.id, skippedStage);
+        this.sseBridge?.publishStageSkipped(execution.run.pipelineId, execution.run.id, skippedStage);
       }
     }
 
     // 取消 PipelineRun
     await this.runService.cancelRun(runId);
+
+    // Publish SSE run cancelled event
+    this.sseBridge?.publishRunCancelled(execution.run.pipelineId, execution.run);
 
     // Cleanup checkpoint on cancellation
     if (this.checkpointManager) {
@@ -1433,6 +1456,7 @@ export class PipelineEngine {
       execution.stages.set(stage.id, failedStage);
       await this.runService.updateStage(failedStage);
       await this.eventPublisher.publishStageFailed(execution.run.id, failedStage, failedStage.error);
+      this.sseBridge?.publishStageFailed(execution.run.pipelineId, execution.run.id, failedStage, failedStage.error);
       await this.saveCheckpoint(execution, stage.name);
 
       return 'failed';
@@ -1806,6 +1830,7 @@ export class PipelineEngine {
         execution.stages.set(stageId, rejectedStage);
         await this.runService.updateStage(rejectedStage);
         await this.eventPublisher.publishStageFailed(execution.run.id, rejectedStage, rejectedStage.error);
+        this.sseBridge?.publishStageFailed(execution.run.pipelineId, execution.run.id, rejectedStage, rejectedStage.error);
 
         execution.runningStages.delete(stageId);
         execution.completedStages.add(stageId);
@@ -1990,6 +2015,7 @@ export class PipelineEngine {
           // 标记为失败（因为服务重启意味着执行中断）
           await this.runService.completeRun(run.id, PipelineRunStatus.FAILED);
           await this.eventPublisher.publishRunFailed(run, 'Server restarted, pipeline run interrupted');
+          this.sseBridge?.publishRunFailed(run.pipelineId, run, 'Server restarted, pipeline run interrupted');
           markedFailed++;
           logger.info({ runId: run.id }, 'Marked interrupted pipeline run as failed');
         } catch (err) {
