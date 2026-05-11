@@ -131,6 +131,130 @@ const routeConfigs: RouteConfig[] = [
     timeout: 30000,
     stripPrefix: false,
   },
+  // Plugin service
+  {
+    prefix: '/api/v1/plugins-spi',
+    target: getConfig().services.plugin?.url || 'http://localhost:3011',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+  {
+    prefix: '/api/v1/plugins',
+    target: getConfig().services.plugin?.url || 'http://localhost:3011',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+  {
+    prefix: '/api/v1/plugins-enhanced',
+    target: getConfig().services.plugin?.url || 'http://localhost:3011',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+  {
+    prefix: '/api/v1/plugins/marketplace',
+    target: getConfig().services.plugin?.url || 'http://localhost:3011',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+  // AI service
+  {
+    prefix: '/api/v1/ai-gateway',
+    target: getConfig().services.ai?.url || 'http://localhost:3012',
+    timeout: 60000,
+    stripPrefix: false,
+  },
+  {
+    prefix: '/api/v1/ai-decision',
+    target: getConfig().services.ai?.url || 'http://localhost:3012',
+    timeout: 60000,
+    stripPrefix: false,
+  },
+  {
+    prefix: '/api/v1/ai-review',
+    target: getConfig().services.ai?.url || 'http://localhost:3012',
+    timeout: 60000,
+    stripPrefix: false,
+  },
+  {
+    prefix: '/api/v1/ai-security',
+    target: getConfig().services.ai?.url || 'http://localhost:3012',
+    timeout: 60000,
+    stripPrefix: false,
+  },
+  {
+    prefix: '/api/v1/vector-store',
+    target: getConfig().services.ai?.url || 'http://localhost:3012',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+  {
+    prefix: '/api/v1/vector',
+    target: getConfig().services.ai?.url || 'http://localhost:3012',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+  {
+    prefix: '/api/v1/llm',
+    target: getConfig().services.ai?.url || 'http://localhost:3012',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+  {
+    prefix: '/api/v1/degradation',
+    target: getConfig().services.ai?.url || 'http://localhost:3012',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+  // Security service
+  {
+    prefix: '/api/v1/risk',
+    target: getConfig().services.security?.url || 'http://localhost:3013',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+  {
+    prefix: '/api/v1/sbom',
+    target: getConfig().services.security?.url || 'http://localhost:3013',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+  {
+    prefix: '/api/v1/supply-chain',
+    target: getConfig().services.security?.url || 'http://localhost:3013',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+  {
+    prefix: '/api/v1/policies',
+    target: getConfig().services.security?.url || 'http://localhost:3013',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+  {
+    prefix: '/api/v1/quality-gates',
+    target: getConfig().services.security?.url || 'http://localhost:3013',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+  // Artifact service
+  {
+    prefix: '/api/v1/artifacts',
+    target: getConfig().services.artifact?.url || 'http://localhost:3014',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+  {
+    prefix: '/api/v1/artifact-ops',
+    target: getConfig().services.artifact?.url || 'http://localhost:3014',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+  {
+    prefix: '/api/v1/artifact-versions',
+    target: getConfig().services.artifact?.url || 'http://localhost:3014',
+    timeout: 30000,
+    stripPrefix: false,
+  },
   {
     prefix: '/api/v1',
     target: getConfig().services.platform?.url || 'http://localhost:3001',

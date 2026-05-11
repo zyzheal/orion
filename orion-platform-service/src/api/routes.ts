@@ -14,23 +14,13 @@ import { EventBusService } from '../services/event-bus-service';
 import { DatabasePool } from '../services/database';
 import cmdbRoutes from '../routes-cmdb';
 import configRoutes from './config-routes';
-import riskRoutes from './risk-routes';
-import pluginSpiRoutes from './plugin-spi-routes';
-import pluginRoutes from '../routes-plugin';
-import pluginEnhancedRoutes from './plugin-routes';
 import { PluginManagerService } from '../services/plugin-manager-service';
 import auditRoutes from './audit-routes';
 import tenantRoutes from './tenant-routes';
 import efficiencyRoutes from './efficiency-routes';
-import sbomRoutes from './sbom-routes';
-import policyRoutes from './policy-routes';
-import qualityGateRoutes from './quality-gate-routes';
-import supplyChainRoutes from './supply-chain-routes';
-import pluginMarketplaceRoutes from './plugin-marketplace-routes';
 import iacRoutes from './iac-routes';
 import chatopsRoutes from './chatops-routes';
 import skillRoutes from './skill-routes';
-import artifactRoutes from './artifact-routes';
 import sessionRoutes from './session-routes';
 import confirmationRoutes from './confirmation-routes';
 
@@ -65,7 +55,6 @@ import federationRoutes from './federation-routes';
 import federationAdvancedRoutes from './federation-advanced-routes';
 import multiCloudRoutes from './multi-cloud-routes';
 import multiCloudAdvancedRoutes from './multi-cloud-advanced-routes';
-import artifactOpsRoutes from './artifact-ops-routes';
 import digitalTwinRoutes from './digital-twin-routes';
 import apiGovernanceRoutes from './api-governance-routes';
 import efficiencyEnhancedRoutes from './efficiency-enhanced-routes';
@@ -73,7 +62,6 @@ import communityRoutes from './community-routes';
 import communityAdvancedRoutes from './community-advanced-routes';
 import moduleRoutes from './module-routes';
 import scriptRoutes from './script-routes';
-import artifactVersionRoutes from './artifact-version-routes';
 
 import pino from 'pino';
 import { ModuleManager } from '../services/module-lifecycle/ModuleManager';
@@ -303,8 +291,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // FinOps 成本管理路由已迁移到 orion-finops-svc (port 3009)
 
-  // 注册风险评估 API 路由
-  await registerWithRoleGuard(app, riskRoutes, '/v1/risk');
+  // Risk 路由已迁移到 orion-security-svc (port 3013)
 
   // FinOps V2 路由已迁移到 orion-finops-svc (port 3009)
 
@@ -318,19 +305,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // 注册智能工单 API 路由 (TASK-801) - migrated to orion-ticket-svc (port 3004)
   // Register self-healing API routes (TASK-702) - PostgreSQL backed
   // 注册备份恢复 API 路由 (TASK-704) - PostgreSQL backed
-  // 注册 Plugin SPI API 路由 (TASK-104)
-  await registerWithRoleGuard(app, pluginSpiRoutes, '/v1/plugins-spi');
-
-  // Create a shared PluginManagerService instance to avoid duplicate state
-  const sharedPluginManager = new PluginManagerService({ eventBus: options.eventBus });
-
-  // 注册 Plugin Management API 路由 (shared instance)
-  await registerWithRoleGuard(app, pluginRoutes, '/v1/plugins', { eventBus: options.eventBus, pluginManager: sharedPluginManager });
-
-  // 注册 Plugin Enhanced API 路由 (Phase 1, shared instance)
-  await registerWithRoleGuard(app, pluginEnhancedRoutes, '/v1/plugins-enhanced', { database: options.database, pluginManager: sharedPluginManager });
-
-  // 注册 AI 安全加固 API 路由 (TASK-1004) — P1-15 Fix: pass database for audit log persistence
+  // 注册 Plugin SPI API 路由 (TASK-104)// 注册 Plugin Enhanced API 路由 (Phase 1, shared instance)// 注册 AI 安全加固 API 路由 (TASK-1004) — P1-15 Fix: pass database for audit log persistence
   // 注册 AI 网关 API 路由
   // 注册告警管理 API 路由
   // 注册审计 API 路由
@@ -342,21 +317,9 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // 注册效能分析 API 路由 — P0-4 Fix: pass database for real DORA metrics
   await registerWithRoleGuard(app, efficiencyRoutes, '/v1/efficiency', { database: options.database });
 
-  // 注册 SBOM Attestation API 路由 (P0) - migrated to PostgreSQL
-  await registerWithRoleGuard(app, sbomRoutes, '/v1/sbom', { eventBus: options.eventBus, database: options.database });
-
-  // 注册 OPA Policy Engine API 路由 (P0) - PostgreSQL backed
-  await registerWithRoleGuard(app, policyRoutes, '/v1/policies', { database: options.database, eventBus: options.eventBus });
-
-  // 注册 Quality Gate Trend API 路由 (Phase 1) - PostgreSQL backed
-  await registerWithRoleGuard(app, qualityGateRoutes, '/v1/quality-gates', { database: options.database, eventBus: options.eventBus });
-
-  // 注册 AI Change Intelligence API 路由 (P0)
+  // 注册 SBOM Attestation API 路由 (P0) - migrated to PostgreSQL// 注册 OPA Policy Engine API 路由 (P0) - PostgreSQL backed// 注册 Quality Gate Trend API 路由 (Phase 1) - PostgreSQL backed// 注册 AI Change Intelligence API 路由 (P0)
   // 注册 ML Canary Analysis API 路由 (P0) - PostgreSQL backed
-  // 注册 Plugin Marketplace API 路由 (Phase 3) - PostgreSQL backed
-  await registerWithRoleGuard(app, pluginMarketplaceRoutes, '/v1/plugins/marketplace', { database: options.database });
-
-  // 注册 Canary Traffic Management API 路由 (Phase 3) - PostgreSQL backed
+  // 注册 Plugin Marketplace API 路由 (Phase 3) - PostgreSQL backed// 注册 Canary Traffic Management API 路由 (Phase 3) - PostgreSQL backed
   // 注册 Skill Management API 路由 (M12)
   await registerWithRoleGuard(app, skillRoutes, '/v1/skills', { database: options.database });
 
@@ -379,16 +342,10 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // 注册 Manual Confirmation API 路由 (P0-6)
   await registerWithRoleGuard(app, confirmationRoutes, '/v1/confirmations', { database: options.database, eventBus: options.eventBus });
 
-  // 注册 Artifact Registry API 路由
-  await registerWithRoleGuard(app, artifactRoutes, '/v1/artifacts', { database: options.database });
-
-  // Cost Operations 路由已迁移到 orion-finops-svc (port 3009)
+  // 注册 Artifact Registry API 路由// Cost Operations 路由已迁移到 orion-finops-svc (port 3009)
 
   // 注册统一配置中心 API (使用 /v1/system-config 前缀)
-  await registerWithRoleGuard(app, unifiedConfigRoutes, '/v1/system-config', { database: options.database });
-  await registerWithRoleGuard(app, vectorStoreRoutes, '/v1/vector-store', { database: options.database });
-
-  // 注册 OnCall 排班 API 路由 (P0 - SRE scheduling)
+  await registerWithRoleGuard(app, unifiedConfigRoutes, '/v1/system-config', { database: options.database });// 注册 OnCall 排班 API 路由 (P0 - SRE scheduling)
   // 注册 Escalation 统一升级 API 路由 (自动升级 + 手动升级)
   // 启动自动升级调度器
   // 使用系统租户模式绕过 RLS
@@ -454,29 +411,19 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // 注册 MCP Server API 路由 - AI assistant integration
   await registerWithRoleGuard(app, mcpRoutes, '/v1/mcp', { database: options.database });
 
-  // 注册 Vector Embedding & Semantic Search API 路由 (pgvector backed)
-  await registerWithRoleGuard(app, vectorRoutes, '/v1/vector', { database: options.database });
-
-  // 注册 LLM Trace API 路由 - LLM调用链追踪与成本分析
-  await registerWithRoleGuard(app, llmTraceRoutes, '/v1/llm');
+  // 注册 Vector Embedding & Semantic Search API 路由 (pgvector backed)// 注册 LLM Trace API 路由 - LLM调用链追踪与成本分析
 
   // 注册 Privacy Policy API 路由 - 租户隐私策略管理
   await registerWithRoleGuard(app, privacyRoutes, '/v1/privacy');
 
   // 注册 Degradation Management API 路由 - AI Provider自动恢复
-  await registerWithRoleGuard(app, degradationRoutes, '/v1/degradation');
 
   // ==================== Phase 2: AI Decision Enhancement ====================
   // Decision explanation, model version management
   // ==================== Phase 2: Observability Enhancement ====================
   // Custom alert rules, RCA, silence rules - migrated to monitor-svc
 
-  // ==================== Phase 3: Supply Chain Security ====================
-  await registerWithRoleGuard(app, supplyChainRoutes, '/v1/supply-chain', {
-    database: options.database,
-  });
-
-  // ==================== Phase 3: Chaos Engineering ====================
+  // ==================== Phase 3: Supply Chain Security ====================// ==================== Phase 3: Chaos Engineering ====================
 
   // ==================== Phase 3: Cross-Domain Orchestration ====================
   await registerWithRoleGuard(app, crossDomainRoutes, '/v1/orchestration', {
@@ -542,7 +489,6 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await registerWithRoleGuard(app, multiCloudAdvancedRoutes, '/v1/multi-cloud-advanced');
 
   // ==================== Artifact Operations ====================
-  await registerWithRoleGuard(app, artifactOpsRoutes, '/v1/artifact-ops');
 
   // ==================== Digital Twin ====================
   await registerWithRoleGuard(app, digitalTwinRoutes, '/v1/digital-twins');
@@ -563,8 +509,4 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // Runner Agent 注册、心跳、Job 回报（Runner Agent 通信无需 JWT）
   // Test Report 路由已迁移到 orion-code-svc (port 3010)
 
-  // ==================== Artifact Version Management ====================
-  await registerWithRoleGuard(app, artifactVersionRoutes, '/v1/artifact-versions', {
-    database: options.database,
-  });
-}
+  // ==================== Artifact Version Management ====================}

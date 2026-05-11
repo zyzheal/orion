@@ -96,6 +96,22 @@ const defaultConfig: AppConfig = {
       url: process.env.CODE_SERVICE_URL || 'http://localhost:3010',
       timeout: parseInt(process.env.CODE_TIMEOUT || '60000', 10),
     },
+    plugin: {
+      url: process.env.PLUGIN_SERVICE_URL || 'http://localhost:3011',
+      timeout: parseInt(process.env.PLUGIN_TIMEOUT || '30000', 10),
+    },
+    ai: {
+      url: process.env.AI_SERVICE_URL || 'http://localhost:3012',
+      timeout: parseInt(process.env.AI_TIMEOUT || '60000', 10),
+    },
+    security: {
+      url: process.env.SECURITY_SERVICE_URL || 'http://localhost:3013',
+      timeout: parseInt(process.env.SECURITY_TIMEOUT || '30000', 10),
+    },
+    artifact: {
+      url: process.env.ARTIFACT_SERVICE_URL || 'http://localhost:3014',
+      timeout: parseInt(process.env.ARTIFACT_TIMEOUT || '30000', 10),
+    },
   },
 };
 
@@ -165,6 +181,22 @@ export function reloadConfig(): AppConfig {
       code: {
         url: process.env.CODE_SERVICE_URL || 'http://localhost:3010',
         timeout: parseInt(process.env.CODE_TIMEOUT || '60000', 10),
+      },
+      plugin: {
+        url: process.env.PLUGIN_SERVICE_URL || 'http://localhost:3011',
+        timeout: parseInt(process.env.PLUGIN_TIMEOUT || '30000', 10),
+      },
+      ai: {
+        url: process.env.AI_SERVICE_URL || 'http://localhost:3012',
+        timeout: parseInt(process.env.AI_TIMEOUT || '60000', 10),
+      },
+      security: {
+        url: process.env.SECURITY_SERVICE_URL || 'http://localhost:3013',
+        timeout: parseInt(process.env.SECURITY_TIMEOUT || '30000', 10),
+      },
+      artifact: {
+        url: process.env.ARTIFACT_SERVICE_URL || 'http://localhost:3014',
+        timeout: parseInt(process.env.ARTIFACT_TIMEOUT || '30000', 10),
       },
     },
   };
