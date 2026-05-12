@@ -1,6 +1,6 @@
 import { type FastifyInstance, type FastifyPluginOptions } from 'fastify';
 import { SCMWebhookService } from '../services/SCMWebhookService';
-import { PipelineEngine } from '../engine/PipelineEngine';
+import { PipelineEngine } from '../services/PipelineEngine';
 
 export async function scmWebhookRoutes(
   fastify: FastifyInstance,

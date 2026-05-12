@@ -1,112 +1,637 @@
-import type { Pool } from 'pg';
+/**
+ * PipelineService - Business logic layer for Pipeline operations
+ *
+ * Handles pipeline CRUD, execution, and management.
+ * Uses PostgreSQL PipelineRepository for persistence.
+ */
 
-export interface PipelineStage {
-  name: string;
-  type: string;
-  command: string;
-  dependsOn: string[];
-  env?: Record<string, string>;
-  timeoutMs?: number;
-  continueOnError: boolean;
-}
+import {
+  PipelineRepository,
+  Pipeline,
+  PipelineRun,
+  PipelineStage,
+  StageExecution,
+  CreatePipelineInput,
+  UpdatePipelineInput,
+  CreatePipelineRunInput,
+} from './PipelineRepository';
 
-export interface PipelineTrigger {
-  type: 'manual' | 'schedule' | 'webhook' | 'event';
-  cron?: string;
-  events?: string[];
-}
-
-export interface CreatePipelineInput {
-  name: string;
-  description?: string;
-  stages: PipelineStage[];
-  triggers?: PipelineTrigger[];
-  envTemplate?: Record<string, string>;
-}
-
-export interface PipelineListOptions {
+export interface ListPipelinesOptions {
+  page?: number;
+  limit?: number;
+  tenantId?: string;
   projectId?: string;
   status?: string;
+}
+
+export interface ListRunsOptions {
+  page?: number;
+  limit?: number;
+  status?: string;
+}
+
+export interface PaginatedResult<T> {
+  data: T[];
+  total: number;
+  page: number;
   limit: number;
-  offset: number;
+  totalPages: number;
+}
+
+export class PipelineServiceError extends Error {
+  constructor(message: string, public code: string) {
+    super(message);
+    this.name = 'PipelineServiceError';
+  }
 }
 
 export class PipelineService {
-  constructor(private pool: Pool) {}
+  private repository: PipelineRepository | null;
 
-  async create(input: CreatePipelineInput): Promise<{ id: string; name: string }> {
-    const client = await this.pool.connect();
-    try {
-      await client.query('BEGIN');
-      const result = await client.query(
-        'INSERT INTO pipelines (name, description, stages, triggers, env_template, created_at) VALUES ($1, $2, $3, $4, $5, NOW()) RETURNING id, name',
-        [input.name, input.description || '', JSON.stringify(input.stages), JSON.stringify(input.triggers || []), JSON.stringify(input.envTemplate || {})]
-      );
-      await client.query('COMMIT');
-      return result.rows[0];
-    } catch (error) {
-      await client.query('ROLLBACK');
-      throw error;
-    } finally {
-      client.release();
+  constructor(repository: PipelineRepository | null) {
+    this.repository = repository;
+  }
+
+  // ==================== Pipeline CRUD ====================
+
+  /**
+   * Create a new pipeline
+   */
+  async create(input: CreatePipelineInput): Promise<Pipeline> {
+    if (!this.repository) {
+      throw new PipelineServiceError('Database not available', 'SERVICE_UNAVAILABLE');
     }
+    return this.repository.create(input);
   }
 
-  async list(options: PipelineListOptions): Promise<any[]> {
-    const result = await this.pool.query(
-      'SELECT id, name, description, created_at, updated_at FROM pipelines WHERE ($1::text IS NULL OR project_id = $1) AND ($2::text IS NULL OR status = $2) ORDER BY created_at DESC LIMIT $3 OFFSET $4',
-      [options.projectId || null, options.status || null, options.limit, options.offset]
-    );
-    return result.rows;
+  /**
+   * List pipelines by tenant (simple list)
+   */
+  async list(tenantId: string, projectId?: string): Promise<Pipeline[]> {
+    if (!this.repository) {
+      return [];
+    }
+    return this.repository.findAll({ tenantId, projectId });
   }
 
-  async getById(id: string): Promise<any> {
-    const result = await this.pool.query('SELECT * FROM pipelines WHERE id = $1', [id]);
-    return result.rows[0] || null;
+  /**
+   * Get pipeline by ID
+   */
+  async getById(id: string): Promise<Pipeline | null> {
+    if (!this.repository) {
+      return null;
+    }
+    return this.repository.findById(id);
   }
 
-  async update(id: string, input: Partial<CreatePipelineInput>): Promise<any> {
-    const result = await this.pool.query(
-      'UPDATE pipelines SET name = COALESCE($1, name), description = COALESCE($2, description), updated_at = NOW() WHERE id = $3 RETURNING *',
-      [input.name, input.description, id]
-    );
-    return result.rows[0] || null;
+  /**
+   * Get pipeline by ID (throws if not found)
+   */
+  async getPipeline(id: string): Promise<Pipeline> {
+    if (!this.repository) {
+      throw new PipelineServiceError('Database not available', 'SERVICE_UNAVAILABLE');
+    }
+    const pipeline = await this.repository.findById(id);
+
+    if (!pipeline) {
+      throw new PipelineServiceError(`Pipeline not found: ${id}`, 'PIPELINE_NOT_FOUND');
+    }
+
+    return pipeline;
+  }
+
+  async getVersions(tenantId: string, pipelineId: string): Promise<Pipeline[]> {
+    if (!this.repository) {
+      return [];
+    }
+    return this.repository.findVersions(pipelineId);
+  }
+
+  /**
+   * List pipelines with pagination
+   */
+  async listPipelines(options: ListPipelinesOptions = {}): Promise<PaginatedResult<Pipeline>> {
+    if (!this.repository) {
+      return { data: [], total: 0, page: options.page || 1, limit: options.limit || 20, totalPages: 0 };
+    }
+    const { page = 1, limit = 20, tenantId, projectId, status } = options;
+    const offset = (page - 1) * limit;
+
+    const [pipelines, total] = await Promise.all([
+      this.repository.findAll({ tenantId, projectId, status, limit, offset }),
+      this.repository.count({ tenantId, status }),
+    ]);
+
+    return {
+      data: pipelines,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  async update(id: string, input: UpdatePipelineInput): Promise<Pipeline | null> {
+    if (!this.repository) {
+      return null;
+    }
+    return this.repository.update(id, input);
   }
 
   async delete(id: string): Promise<boolean> {
-    const result = await this.pool.query('DELETE FROM pipelines WHERE id = $1', [id]);
-    return (result.rowCount ?? 0) > 0;
+    if (!this.repository) {
+      return false;
+    }
+    return this.repository.delete(id);
   }
 
-  async run(pipelineId: string, options?: { envOverrides?: Record<string, string>; stages?: string[] }): Promise<any> {
-    const result = await this.pool.query(
-      "INSERT INTO pipeline_runs (pipeline_id, status, env_overrides, started_at) VALUES ($1, 'running', $2, NOW()) RETURNING *",
-      [pipelineId, JSON.stringify(options?.envOverrides || {})]
-    );
-    return result.rows[0];
+  /**
+   * Create a new pipeline (legacy API - creates from CreatePipelineInput)
+   */
+  async createPipeline(input: CreatePipelineInput): Promise<Pipeline> {
+    if (!this.repository) {
+      throw new PipelineServiceError('Database not available', 'SERVICE_UNAVAILABLE');
+    }
+
+    // Validate required fields
+    if (!input.tenant_id) {
+      throw new PipelineServiceError('Tenant ID is required', 'INVALID_INPUT');
+    }
+
+    if (!input.name || input.name.trim().length === 0) {
+      throw new PipelineServiceError('Pipeline name is required', 'INVALID_INPUT');
+    }
+
+    return this.repository.create({
+      ...input,
+      name: input.name.trim(),
+      description: input.description?.trim(),
+    });
   }
 
-  async listRuns(pipelineId: string): Promise<any[]> {
-    const result = await this.pool.query(
-      'SELECT * FROM pipeline_runs WHERE pipeline_id = $1 ORDER BY started_at DESC',
-      [pipelineId]
-    );
-    return result.rows;
+  /**
+   * Update a pipeline
+   */
+  async updatePipeline(id: string, input: UpdatePipelineInput): Promise<Pipeline> {
+    if (!this.repository) {
+      throw new PipelineServiceError('Database not available', 'SERVICE_UNAVAILABLE');
+    }
+    const existing = await this.repository.findById(id);
+    if (!existing) {
+      throw new PipelineServiceError(`Pipeline not found: ${id}`, 'PIPELINE_NOT_FOUND');
+    }
+
+    const updated = await this.repository.update(id, input);
+
+    if (!updated) {
+      throw new PipelineServiceError(`Failed to update pipeline: ${id}`, 'UPDATE_FAILED');
+    }
+
+    return updated;
   }
 
-  async getRun(pipelineId: string, runId: string): Promise<any> {
-    const result = await this.pool.query(
-      'SELECT * FROM pipeline_runs WHERE id = $1 AND pipeline_id = $2',
-      [runId, pipelineId]
-    );
-    return result.rows[0] || null;
+  /**
+   * Delete a pipeline (soft delete)
+   */
+  async deletePipeline(id: string): Promise<boolean> {
+    if (!this.repository) {
+      throw new PipelineServiceError('Database not available', 'SERVICE_UNAVAILABLE');
+    }
+    const existing = await this.repository.findById(id);
+    if (!existing) {
+      throw new PipelineServiceError(`Pipeline not found: ${id}`, 'PIPELINE_NOT_FOUND');
+    }
+
+    return this.repository.delete(id);
   }
 
-  async cancelRun(pipelineId: string, runId: string): Promise<any> {
-    const result = await this.pool.query(
-      "UPDATE pipeline_runs SET status = 'cancelled', completed_at = NOW() WHERE id = $1 AND pipeline_id = $2 AND status = 'running' RETURNING *",
-      [runId, pipelineId]
+  // ==================== Pipeline Stages ====================
+
+  /**
+   * Get pipeline stages
+   */
+  async getPipelineStages(pipelineId: string): Promise<PipelineStage[]> {
+    if (!this.repository) {
+      return [];
+    }
+    const pipeline = await this.repository.findById(pipelineId);
+    if (!pipeline) {
+      throw new PipelineServiceError(`Pipeline not found: ${pipelineId}`, 'PIPELINE_NOT_FOUND');
+    }
+
+    return this.repository.findStagesByPipeline(pipelineId);
+  }
+
+  /**
+   * Add stage to pipeline
+   */
+  async addStage(pipelineId: string, stage: {
+    name: string;
+    type: string;
+    config?: Record<string, any>;
+    order_index: number;
+    timeout?: number;
+    retry_count?: number;
+    parallel?: boolean;
+    conditions?: Record<string, any>;
+  }): Promise<PipelineStage> {
+    if (!this.repository) {
+      throw new PipelineServiceError('Database not available', 'SERVICE_UNAVAILABLE');
+    }
+    const pipeline = await this.repository.findById(pipelineId);
+    if (!pipeline) {
+      throw new PipelineServiceError(`Pipeline not found: ${pipelineId}`, 'PIPELINE_NOT_FOUND');
+    }
+
+    return this.repository.createStage(pipelineId, {
+      name: stage.name,
+      type: stage.type,
+      config: stage.config || {},
+      order_index: stage.order_index,
+      timeout: stage.timeout || null,
+      retry_count: stage.retry_count || 0,
+      parallel: stage.parallel || false,
+      conditions: stage.conditions || {},
+    });
+  }
+
+  // ==================== Pipeline Runs ====================
+
+  /**
+   * Get pipeline run by ID
+   */
+  async getRun(id: string): Promise<PipelineRun> {
+    if (!this.repository) {
+      throw new PipelineServiceError('Database not available', 'SERVICE_UNAVAILABLE');
+    }
+    const run = await this.repository.findRunById(id);
+
+    if (!run) {
+      throw new PipelineServiceError(`Pipeline run not found: ${id}`, 'RUN_NOT_FOUND');
+    }
+
+    return run;
+  }
+
+  /**
+   * List pipeline runs
+   */
+  async listRuns(pipelineId: string, options: ListRunsOptions = {}): Promise<PaginatedResult<PipelineRun>> {
+    if (!this.repository) {
+      return { data: [], total: 0, page: options.page || 1, limit: options.limit || 20, totalPages: 0 };
+    }
+    const { page = 1, limit = 20, status } = options;
+    const offset = (page - 1) * limit;
+
+    const [runs, total] = await Promise.all([
+      this.repository.findRunsByPipeline(pipelineId, { limit, offset }),
+      this.repository.countRuns(pipelineId, status),
+    ]);
+
+    return {
+      data: runs,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  /**
+   * Trigger a new pipeline run
+   */
+  async triggerRun(pipelineId: string, input?: {
+    trigger_type?: string;
+    trigger_by?: string;
+  }): Promise<PipelineRun> {
+    if (!this.repository) {
+      throw new PipelineServiceError('Database not available', 'SERVICE_UNAVAILABLE');
+    }
+    const pipeline = await this.repository.findById(pipelineId);
+
+    if (!pipeline) {
+      throw new PipelineServiceError(`Pipeline not found: ${pipelineId}`, 'PIPELINE_NOT_FOUND');
+    }
+
+    if (pipeline.status !== 'active') {
+      throw new PipelineServiceError('Pipeline is not active', 'PIPELINE_INACTIVE');
+    }
+
+    // Get pipeline config as snapshot
+    const configSnapshot = pipeline.config;
+
+    const runInput: CreatePipelineRunInput = {
+      tenant_id: pipeline.tenant_id,
+      pipeline_id: pipelineId,
+      trigger_type: input?.trigger_type || 'manual',
+      trigger_by: input?.trigger_by,
+      config_snapshot: configSnapshot,
+    };
+
+    const run = await this.repository.createRun(runInput);
+
+    // Start async execution (in real implementation, this would be handled by a worker)
+    this.executePipeline(run.id, pipelineId).catch(err => {
+      console.error(`Pipeline execution failed: ${err.message}`);
+    });
+
+    return run;
+  }
+
+  /**
+   * Execute pipeline (internal method)
+   */
+  private async executePipeline(runId: string, pipelineId: string): Promise<void> {
+    if (!this.repository) return;
+
+    // Update run status to running
+    const startedAt = new Date();
+    await this.repository.updateRunStatus(runId, 'running', startedAt);
+
+    try {
+      // Get stages
+      const stages = await this.repository.findStagesByPipeline(pipelineId);
+
+      // Execute each stage sequentially
+      for (const stage of stages) {
+        await this.executeStage(runId, stage);
+      }
+
+      // All stages completed successfully
+      const completedAt = new Date();
+      await this.repository.updateRunStatus(runId, 'success', startedAt, completedAt);
+
+    } catch (error: any) {
+      // Pipeline failed
+      const completedAt = new Date();
+      await this.repository.updateRunStatus(runId, 'failed', startedAt, completedAt, error.message);
+    }
+  }
+
+  /**
+   * Execute a single stage
+   */
+  private async executeStage(runId: string, stage: PipelineStage): Promise<void> {
+    if (!this.repository) return;
+
+    const startedAt = new Date();
+
+    // Create stage execution record
+    const execution = await this.repository.createStageExecution(runId, stage.id, stage.name);
+
+    // Update status to running
+    await this.repository.updateStageExecutionStatus(execution.id, 'running', startedAt);
+
+    try {
+      // Simulate stage execution (in real implementation, this would run the actual stage)
+      // For now, we'll just mark it as success after a short delay
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      const completedAt = new Date();
+      await this.repository.updateStageExecutionStatus(
+        execution.id,
+        'success',
+        startedAt,
+        completedAt
+      );
+
+    } catch (error: any) {
+      const completedAt = new Date();
+      await this.repository.updateStageExecutionStatus(
+        execution.id,
+        'failed',
+        startedAt,
+        completedAt,
+        error.message
+      );
+
+      // If stage failed and not configured for retry, propagate error
+      if (stage.retry_count <= 0) {
+        throw error;
+      }
+    }
+  }
+
+  /**
+   * Cancel a running pipeline
+   */
+  async cancelRun(runId: string): Promise<PipelineRun> {
+    if (!this.repository) {
+      throw new PipelineServiceError('Database not available', 'SERVICE_UNAVAILABLE');
+    }
+    const run = await this.repository.findRunById(runId);
+
+    if (!run) {
+      throw new PipelineServiceError(`Pipeline run not found: ${runId}`, 'RUN_NOT_FOUND');
+    }
+
+    if (run.status !== 'running' && run.status !== 'pending') {
+      throw new PipelineServiceError('Cannot cancel a pipeline that is not running', 'INVALID_STATE');
+    }
+
+    const completedAt = new Date();
+    const updated = await this.repository.updateRunStatus(
+      runId,
+      'cancelled',
+      run.started_at || undefined,
+      completedAt,
+      'Cancelled by user'
     );
-    return result.rows[0] || null;
+
+    if (!updated) {
+      throw new PipelineServiceError(`Failed to cancel run: ${runId}`, 'CANCEL_FAILED');
+    }
+
+    return updated;
+  }
+
+  /**
+   * Get stage executions for a run
+   */
+  async getStageExecutions(runId: string): Promise<StageExecution[]> {
+    if (!this.repository) {
+      return [];
+    }
+    const run = await this.repository.findRunById(runId);
+    if (!run) {
+      throw new PipelineServiceError(`Pipeline run not found: ${runId}`, 'RUN_NOT_FOUND');
+    }
+
+    return this.repository.findStageExecutions(runId);
+  }
+
+  /**
+   * Get pipeline statistics
+   */
+  async getPipelineStats(pipelineId: string): Promise<{
+    totalRuns: number;
+    successRuns: number;
+    failedRuns: number;
+    runningRuns: number;
+    avgDuration: number;
+  }> {
+    if (!this.repository) {
+      return { totalRuns: 0, successRuns: 0, failedRuns: 0, runningRuns: 0, avgDuration: 0 };
+    }
+    return this.repository.getPipelineStats(pipelineId);
+  }
+
+  /**
+   * Retry a failed/cancelled pipeline run with optional fromStage and onlyFailed options.
+   *
+   * @param originalRunId - The ID of the original run to retry
+   * @param options - Optional retry configuration
+   *   - fromStage: Start re-running from this stage name (skips all prior stages)
+   *   - onlyFailed: Only re-run stages that FAILED in the original run
+   * @returns The ID of the newly created run
+   *
+   * GAP-06: Re-run from specific stage support
+   */
+  async retryRun(
+    originalRunId: string,
+    options?: { fromStage?: string; onlyFailed?: boolean }
+  ): Promise<string> {
+    if (!this.repository) {
+      throw new PipelineServiceError('Database not available', 'SERVICE_UNAVAILABLE');
+    }
+    const originalRun = await this.repository.findRunById(originalRunId);
+
+    if (!originalRun) {
+      throw new PipelineServiceError(`Pipeline run not found: ${originalRunId}`, 'RUN_NOT_FOUND');
+    }
+
+    if (originalRun.status !== 'failed' && originalRun.status !== 'cancelled') {
+      throw new PipelineServiceError('Can only retry failed or cancelled runs', 'INVALID_STATE');
+    }
+
+    // Fetch stage executions from the original run to determine skip/re-run strategy
+    const stageExecutions = await this.repository.findStageExecutions(originalRunId);
+
+    // Calculate which stages should be skipped and which should be re-run
+    let skippedStages: string[] = [];
+    let failedStages: string[] | undefined;
+
+    if (options?.fromStage) {
+      // Find the index of the fromStage in stage executions
+      const fromStageIndex = stageExecutions.findIndex(
+        (se) => se.stage_name === options.fromStage
+      );
+      if (fromStageIndex === -1) {
+        throw new PipelineServiceError(
+          `Stage "${options.fromStage}" not found in original run`,
+          'STAGE_NOT_FOUND'
+        );
+      }
+      // All stages before fromStage are skipped
+      skippedStages = stageExecutions
+        .slice(0, fromStageIndex)
+        .map((se) => se.stage_name);
+
+      if (options.onlyFailed) {
+        // From fromStage onwards, only include failed stages
+        const fromStageOnwards = stageExecutions.slice(fromStageIndex);
+        failedStages = fromStageOnwards
+          .filter((se) => se.status === 'failed')
+          .map((se) => se.stage_name);
+
+        if (failedStages.length === 0) {
+          throw new PipelineServiceError(
+            'No failed stages found in the original run from the specified stage',
+            'NO_FAILED_STAGES'
+          );
+        }
+      }
+    } else if (options?.onlyFailed) {
+      // No fromStage specified, but only re-run failed stages
+      failedStages = stageExecutions
+        .filter((se) => se.status === 'failed')
+        .map((se) => se.stage_name);
+
+      if (failedStages.length === 0) {
+        throw new PipelineServiceError(
+          'No failed stages found in the original run',
+          'NO_FAILED_STAGES'
+        );
+      }
+      // All successful stages are skipped
+      skippedStages = stageExecutions
+        .filter((se) => se.status === 'success')
+        .map((se) => se.stage_name);
+    }
+
+    // Build the config_snapshot with retry metadata for PipelineEngine to consume
+    const configSnapshot: Record<string, any> = {
+      ...(originalRun.config_snapshot || {}),
+      // GAP-06: retry metadata
+      originalRunId,
+      fromStage: options?.fromStage,
+      onlyFailed: options?.onlyFailed || false,
+      skippedStages,
+      ...(failedStages ? { failedStages } : {}),
+    };
+
+    // Create a new run with the retry config
+    const newRun = await this.repository.createRun({
+      tenant_id: originalRun.tenant_id,
+      pipeline_id: originalRun.pipeline_id,
+      trigger_type: 'retry',
+      trigger_by: originalRun.trigger_by || undefined,
+      config_snapshot: configSnapshot,
+    });
+
+    return newRun.id;
+  }
+
+  // ==================== YAML Validation ====================
+
+  /**
+   * Validate pipeline YAML definition
+   */
+  async validate(yamlDefinition: string): Promise<{ valid: boolean; errors: string[] }> {
+    try {
+      // Basic validation - check required fields
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const yamlModule = require('js-yaml');
+      const parsed = yamlModule.load(yamlDefinition) as any;
+
+      const errors: string[] = [];
+
+      if (!parsed.apiVersion) {
+        errors.push('Missing apiVersion');
+      }
+      if (!parsed.kind || parsed.kind !== 'Pipeline') {
+        errors.push(`Expected kind 'Pipeline', got '${parsed.kind}'`);
+      }
+      if (!parsed.metadata || !parsed.metadata.name) {
+        errors.push('Missing metadata.name');
+      }
+      if (!parsed.spec || !parsed.spec.stages || !Array.isArray(parsed.spec.stages)) {
+        errors.push('Missing or invalid spec.stages');
+      }
+
+      // Validate stage dependencies
+      if (parsed.spec?.stages && Array.isArray(parsed.spec.stages)) {
+        const stageNames = parsed.spec.stages.map((s: any) => s.name);
+        for (const stage of parsed.spec.stages) {
+          if (stage.dependsOn && Array.isArray(stage.dependsOn)) {
+            for (const dep of stage.dependsOn) {
+              if (!stageNames.includes(dep)) {
+                errors.push(`Stage "${stage.name}" depends on unknown stage "${dep}"`);
+              }
+            }
+          }
+        }
+      }
+
+      return {
+        valid: errors.length === 0,
+        errors,
+      };
+    } catch (error: any) {
+      return {
+        valid: false,
+        errors: [error.message || 'Invalid YAML format'],
+      };
+    }
   }
 }

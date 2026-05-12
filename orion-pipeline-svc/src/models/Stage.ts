@@ -1,1 +1,2 @@
-export type { Stage, StageStatus } from './PipelineRun.js';
+export { Stage, StageStatus } from './PipelineRun.js';
+

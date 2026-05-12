@@ -1,1 +1,2 @@
-export type { Task, TaskStatus } from './PipelineRun.js';
+export { Task, TaskStatus } from './PipelineRun.js';
+

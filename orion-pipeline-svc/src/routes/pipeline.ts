@@ -1,25 +1,23 @@
 import { type FastifyInstance, type FastifyPluginOptions } from 'fastify';
 import { PipelineService } from '../services/PipelineService';
+import { PipelineRepository, CreatePipelineInput } from '../services/PipelineRepository';
 
 export async function pipelineRoutes(
   fastify: FastifyInstance,
   opts: FastifyPluginOptions & { database: any }
 ): Promise<void> {
-  const pipelineService = new PipelineService(opts.database);
+  const repo = new PipelineRepository(opts.database);
+  const pipelineService = new PipelineService(repo);
 
   fastify.post('/pipelines', async (request, reply) => {
-    const pipeline = await pipelineService.create(request.body as import('../services/PipelineService').CreatePipelineInput);
+    const pipeline = await pipelineService.create(request.body as CreatePipelineInput);
     return reply.code(201).send(pipeline);
   });
 
   fastify.get('/pipelines', async (request) => {
     const query = request.query as any;
-    return pipelineService.list({
-      projectId: query.projectId,
-      status: query.status,
-      limit: query.limit || 20,
-      offset: query.offset || 0,
-    });
+    const tenantId = query.tenantId || 'default';
+    return pipelineService.list(tenantId, query.projectId);
   });
 
   fastify.get('/pipelines/:id', async (request, reply) => {
@@ -31,7 +29,7 @@ export async function pipelineRoutes(
 
   fastify.put('/pipelines/:id', async (request, reply) => {
     const { id } = request.params as { id: string };
-    const pipeline = await pipelineService.update(id, request.body as Partial<import('../services/PipelineService').CreatePipelineInput>);
+    const pipeline = await pipelineService.update(id, request.body as Partial<CreatePipelineInput>);
     if (!pipeline) return reply.code(404).send({ error: 'Pipeline not found' });
     return pipeline;
   });
@@ -45,7 +43,7 @@ export async function pipelineRoutes(
 
   fastify.post('/pipelines/:id/run', async (request, reply) => {
     const { id } = request.params as { id: string };
-    const run = await pipelineService.run(id, request.body as { envOverrides?: Record<string, string>; stages?: string[] });
+    const run = await pipelineService.triggerRun(id, request.body as { trigger_type?: string; trigger_by?: string });
     if (!run) return reply.code(404).send({ error: 'Pipeline not found' });
     return reply.code(201).send(run);
   });
@@ -56,15 +54,15 @@ export async function pipelineRoutes(
   });
 
   fastify.get('/pipelines/:id/runs/:rid', async (request, reply) => {
-    const { id, rid } = request.params as { id: string; rid: string };
-    const run = await pipelineService.getRun(id, rid);
+    const { rid } = request.params as { id: string; rid: string };
+    const run = await pipelineService.getRun(rid);
     if (!run) return reply.code(404).send({ error: 'Run not found' });
     return run;
   });
 
   fastify.post('/pipelines/:id/runs/:rid/cancel', async (request, reply) => {
-    const { id, rid } = request.params as { id: string; rid: string };
-    const result = await pipelineService.cancelRun(id, rid);
+    const { rid } = request.params as { id: string; rid: string };
+    const result = await pipelineService.cancelRun(rid);
     if (!result) return reply.code(404).send({ error: 'Run not found' });
     return result;
   });
