@@ -10,6 +10,11 @@ import { pipelineRunRoutes } from './routes/pipeline-run';
 import { pipelineAdminRoutes } from './routes/pipeline-admin';
 import { scmWebhookRoutes } from './routes/scm-webhook';
 import { pipelineSSERoutes } from './routes/pipeline-sse';
+import { errorHandler } from './middleware/errorHandler';
+import { PipelineEngine } from './services/PipelineEngine';
+import { PipelineRunService } from './services/PipelineRunService';
+import { PipelineEventPublisher } from './events/PipelineEventPublisher';
+import { EventEmitter } from 'events';
 
 async function buildApp() {
   const config = loadConfig();
@@ -26,8 +31,9 @@ async function buildApp() {
     },
   });
 
-  await fastify.register(cors, { origin: true });
+  await fastify.register(cors, { origin: process.env.CORS_ORIGIN?.split(',') || ['http://localhost:5173', 'http://localhost:3000'] });
   await fastify.register(sensible);
+  errorHandler(fastify);
 
   // Initialize connections
   const database = getPool();
@@ -39,12 +45,30 @@ async function buildApp() {
     await runMigrations();
   }
 
+  // ==================== Initialize Services ====================
+
+  const eventPublisher = new PipelineEventPublisher();
+
+  const pipelineEngine = new PipelineEngine({
+    logger: fastify.log,
+    maxConcurrentRuns: 10,
+  });
+
+  const pipelineRunService = new PipelineRunService(eventPublisher);
+
+  // Local event bus for SSE
+  const sseBus = new EventEmitter();
+
   // Register routes
   await fastify.register(pipelineRoutes, { prefix: '/api/v1', database });
-  await fastify.register(pipelineRunRoutes, { prefix: '/api/v1', database, eventBus });
+  await fastify.register(pipelineRunRoutes, { prefix: '/api/v1', database, eventBus, pipelineRunService });
   await fastify.register(pipelineAdminRoutes, { prefix: '/api/v1', database });
-  await fastify.register(scmWebhookRoutes, { prefix: '/api/v1', database });
+  await fastify.register(scmWebhookRoutes, { prefix: '/api/v1', database, pipelineEngine });
   await fastify.register(pipelineSSERoutes, { prefix: '/api/v1' });
+
+  // Wire up SSE events to pipeline engine
+  eventBus.on('pipeline.log', (data: any) => sseBus.emit('pipeline.log', data));
+  eventBus.on('pipeline.status', (data: any) => sseBus.emit('pipeline.status', data));
 
   // Health check
   fastify.get('/health', async () => {

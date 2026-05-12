@@ -72,8 +72,22 @@ export async function cmdbRoutes(
    * PUT /api/v1/cmdb/nodes/:id
    */
   fastify.put('/cmdb/nodes/:id', async (request, reply) => {
-    // TODO: 实现更新逻辑
-    reply.code(501).send({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Update node not yet implemented' } });
+    const { id } = request.params as { id: string };
+    const body = request.body as Record<string, unknown>;
+    const node = await cmdbService.updateNode(id, {
+      name: body.name ? String(body.name) : undefined,
+      type: body.type as CmdbNodeType,
+      status: body.status as CmdbNodeStatus,
+      attributes: body.attributes as Record<string, unknown>,
+      tags: body.tags as string[],
+      description: body.description ? String(body.description) : undefined,
+      ownerId: body.ownerId ? String(body.ownerId) : undefined,
+      environment: body.environment ? String(body.environment) : undefined,
+    });
+    if (!node) {
+      return reply.code(404).send({ success: false, error: { code: 'NOT_FOUND', message: 'Node not found' } });
+    }
+    reply.send({ success: true, data: node });
   });
 
   /**
@@ -81,8 +95,12 @@ export async function cmdbRoutes(
    * DELETE /api/v1/cmdb/nodes/:id
    */
   fastify.delete('/cmdb/nodes/:id', async (request, reply) => {
-    // TODO: 实现删除逻辑
-    reply.code(501).send({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Delete node not yet implemented' } });
+    const { id } = request.params as { id: string };
+    const deleted = await cmdbService.deleteNode(id);
+    if (!deleted) {
+      return reply.code(404).send({ success: false, error: { code: 'NOT_FOUND', message: 'Node not found' } });
+    }
+    reply.send({ success: true, message: 'Node deleted' });
   });
 
   // ========== 应用管理 ==========
@@ -92,8 +110,8 @@ export async function cmdbRoutes(
    * GET /api/v1/cmdb/applications
    */
   fastify.get('/cmdb/applications', async (request, reply) => {
-    // TODO: 实现应用列表
-    reply.send({ success: true, data: { items: [], total: 0 } });
+    const result = await cmdbService.listApplications();
+    reply.send({ success: true, data: result });
   });
 
   /**
@@ -101,8 +119,12 @@ export async function cmdbRoutes(
    * GET /api/v1/cmdb/applications/:id
    */
   fastify.get('/cmdb/applications/:id', async (request, reply) => {
-    // TODO: 实现应用详情
-    reply.code(404).send({ success: false, error: { code: 'NOT_FOUND', message: 'Application not found' } });
+    const { id } = request.params as { id: string };
+    const app = await cmdbService.getApplication(id);
+    if (!app) {
+      return reply.code(404).send({ success: false, error: { code: 'NOT_FOUND', message: 'Application not found' } });
+    }
+    reply.send({ success: true, data: app });
   });
 
   // ========== 拓扑管理 ==========
@@ -143,8 +165,12 @@ export async function cmdbRoutes(
    * GET /api/v1/cmdb/reconciliation/:id
    */
   fastify.get('/cmdb/reconciliation/:id', async (request, reply) => {
-    // TODO: 实现对账结果查询
-    reply.code(404).send({ success: false, error: { code: 'NOT_FOUND', message: 'Reconciliation result not found' } });
+    const { id } = request.params as { id: string };
+    const result = await cmdbService.getReconciliation(id);
+    if (!result) {
+      return reply.code(404).send({ success: false, error: { code: 'NOT_FOUND', message: 'Reconciliation result not found' } });
+    }
+    reply.send({ success: true, data: result });
   });
 
   // ========== 事件 ==========

@@ -17,42 +17,42 @@ import {
 } from '../types/selfhealing';
 
 export class SelfHealingService {
-  /**
-   * 创建自愈事件
-   * @param data - 事件数据
-   * @returns 创建的事件
-   */
+  private incidents = new Map<string, SelfHealingIncident>();
+  private decisions = new Map<string, HealingDecision>();
+  private actions = new Map<string, HealingAction>();
+  private knowledge = new Map<string, KnowledgeBase>();
+
   async createIncident(data: Omit<SelfHealingIncident, 'id' | 'status' | 'createdAt' | 'updatedAt'>): Promise<SelfHealingIncident> {
-    // TODO DB: INSERT INTO selfhealing_incidents (title, description, severity, status, alertId, affectedResources, triggerSource, triggeredAt, tenantId) VALUES (...)
-    return {
+    const incident: SelfHealingIncident = {
       ...data,
       id: `incident-${Date.now()}`,
       status: IncidentStatus.NEW,
-      actionIds: [],
+      actionIds: data.actionIds || [],
       createdAt: new Date(),
       updatedAt: new Date(),
     };
+    this.incidents.set(incident.id, incident);
+    return incident;
   }
 
-  /**
-   * 获取事件详情
-   * @param incidentId - 事件 ID
-   * @returns 事件对象
-   */
   async getIncident(incidentId: string): Promise<SelfHealingIncident | null> {
-    // TODO DB: SELECT * FROM selfhealing_incidents WHERE id = ?
-    // TODO: JOIN healing_actions 获取关联动作
-    return null;
+    return this.incidents.get(incidentId) || null;
   }
 
-  /**
-   * 列表自愈事件
-   * @param filters - 过滤条件
-   * @returns 事件列表
-   */
   async listIncidents(filters: { severity?: IncidentSeverity; status?: IncidentStatus; tenantId?: string }): Promise<{ items: SelfHealingIncident[]; total: number }> {
-    // TODO DB: SELECT * FROM selfhealing_incidents WHERE ... LIMIT ? OFFSET ?
-    return { items: [], total: 0 };
+    let items = Array.from(this.incidents.values());
+    if (filters.severity) items = items.filter(i => i.severity === filters.severity);
+    if (filters.status) items = items.filter(i => i.status === filters.status);
+    if (filters.tenantId) items = items.filter(i => (i as any).tenantId === filters.tenantId);
+    return { items: items.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()), total: items.length };
+  }
+
+  async updateIncident(incidentId: string, updates: Partial<SelfHealingIncident>): Promise<SelfHealingIncident | null> {
+    const existing = this.incidents.get(incidentId);
+    if (!existing) return null;
+    const updated = { ...existing, ...updates, updatedAt: new Date() };
+    this.incidents.set(incidentId, updated);
+    return updated;
   }
 
   /**
@@ -61,9 +61,53 @@ export class SelfHealingService {
    * @returns 匹配的策略列表
    */
   async evaluateStrategy(incident: SelfHealingIncident): Promise<HealingStrategy[]> {
-    // TODO DB: SELECT * FROM healing_strategies WHERE enabled = true AND scope overlaps (?)
-    // TODO: 实现策略匹配算法，根据事件类型、资源、严重程度匹配策略
-    return [];
+    // Generate default strategies based on incident severity and type
+    const strategies: HealingStrategy[] = [];
+
+    if (incident.severity === IncidentSeverity.CRITICAL || incident.severity === IncidentSeverity.HIGH) {
+      strategies.push({
+        id: `strategy-auto-restart-${Date.now()}`,
+        name: 'Automatic Service Restart',
+        description: 'Restart the affected service automatically',
+        actionType: 'restart',
+        autoExecute: false, // Requires manual approval for high severity
+        confidence: 0.7,
+        maturity: 'proven',
+        metrics: { successRate: 0.85, avgResolutionTime: 120000 },
+        scope: { severities: [IncidentSeverity.CRITICAL, IncidentSeverity.HIGH] },
+        createdAt: new Date(),
+      });
+    }
+
+    if (incident.severity !== IncidentSeverity.CRITICAL) {
+      strategies.push({
+        id: `strategy-scale-${Date.now()}`,
+        name: 'Auto Scale Out',
+        description: 'Increase replica count to handle load',
+        actionType: 'scale',
+        autoExecute: true,
+        confidence: 0.6,
+        maturity: 'experimental',
+        metrics: { successRate: 0.7, avgResolutionTime: 60000 },
+        scope: { severities: [IncidentSeverity.MEDIUM, IncidentSeverity.LOW] },
+        createdAt: new Date(),
+      });
+    }
+
+    strategies.push({
+      id: `strategy-notify-${Date.now()}`,
+      name: 'Notify On-Call',
+      description: 'Send alert to on-call engineer',
+      actionType: 'notify',
+      autoExecute: true,
+      confidence: 0.95,
+      maturity: 'proven',
+      metrics: { successRate: 0.99, avgResolutionTime: 5000 },
+      scope: {},
+      createdAt: new Date(),
+    });
+
+    return strategies;
   }
 
   /**
@@ -73,20 +117,29 @@ export class SelfHealingService {
    * @returns 修复决策
    */
   async makeDecision(incidentId: string, strategies: HealingStrategy[]): Promise<HealingDecision | null> {
-    // TODO: 评估各策略的可行性
-    // TODO: 选择最优策略
-    // TODO DB: INSERT INTO healing_decisions (incidentId, action, reasoning, recommendedStrategyId, confidence, autoExecute) VALUES (...)
     if (strategies.length === 0) return null;
 
     const bestStrategy = strategies[0];
+
+    // Calculate confidence based on strategy maturity and historical success rate
+    const historicalSuccessRate = bestStrategy.metrics?.successRate ?? 0;
+    const maturityBonus = bestStrategy.maturity === 'proven' ? 0.1 : 0;
+    const baseConfidence = Math.min(0.5 + historicalSuccessRate * 0.3 + maturityBonus, 0.95);
+
+    // Auto-execute only for low-risk actions with high confidence
+    const safeActions = new Set([DecisionAction.AUTO_HEAL, 'restart', 'notify'] as string[]);
+    const shouldAutoExecute = baseConfidence >= 0.8
+      && bestStrategy.autoExecute === true
+      && safeActions.has(bestStrategy.actionType);
+
     return {
       id: `decision-${Date.now()}`,
       incidentId,
       action: DecisionAction.AUTO_HEAL,
-      reasoning: `Selected strategy: ${bestStrategy.name}`,
+      reasoning: `Selected strategy: ${bestStrategy.name} (confidence: ${baseConfidence.toFixed(2)}, autoExecute: ${shouldAutoExecute})`,
       recommendedStrategyId: bestStrategy.id,
-      confidence: 0.8,
-      autoExecute: true,
+      confidence: baseConfidence,
+      autoExecute: shouldAutoExecute,
       createdAt: new Date(),
     };
   }

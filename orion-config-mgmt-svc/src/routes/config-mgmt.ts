@@ -51,8 +51,18 @@ export async function configMgmtRoutes(
    */
   fastify.get('/config/:key/versions/:version', async (request, reply) => {
     const params = request.params as { key: string; version: string };
-    // TODO: 需要先通过 key 获取 configId
-    reply.code(501).send({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Get version not yet implemented' } });
+    const query = request.query as { environment?: string };
+    const environment = query.environment || 'production';
+    const config = await configService.getConfig(params.key, environment);
+    if (!config) {
+      return reply.code(404).send({ success: false, error: { code: 'NOT_FOUND', message: 'Config not found' } });
+    }
+    const versionNum = params.version === 'latest' ? undefined : parseInt(params.version, 10);
+    const version = await configService.getVersion(config.id, versionNum);
+    if (!version) {
+      return reply.code(404).send({ success: false, error: { code: 'NOT_FOUND', message: 'Version not found' } });
+    }
+    reply.send({ success: true, data: version });
   });
 
   // ========== 版本对比 ==========
@@ -120,8 +130,9 @@ export async function configMgmtRoutes(
    * GET /api/v1/config/feature-flags
    */
   fastify.get('/config/feature-flags', async (request, reply) => {
-    // TODO: 实现列表
-    reply.send({ success: true, data: { items: [], total: 0 } });
+    const query = request.query as { environment?: string };
+    const result = await configService.listFeatureFlags(query.environment);
+    reply.send({ success: true, data: result });
   });
 
   // ========== 审批管理 ==========

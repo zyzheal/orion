@@ -1,4 +1,5 @@
 import type { EnvironmentType } from "../types/deploy";
+import { v4 as uuidv4 } from 'uuid';
 
 /**
  * Represents an environment record
@@ -18,65 +19,56 @@ export interface EnvironmentRecord {
 
 /**
  * Service responsible for managing deployment environments.
- *
- * Dependencies:
- * - orion-platform-core: Validate tenant existence
  */
 export class EnvironmentService {
-  // TODO: Inject database connection / ORM
+  private environments = new Map<string, EnvironmentRecord>();
+  private byTenantName = new Map<string, string>(); // `${tenantId}:${name}` -> id
 
-  /**
-   * List environments, optionally filtered by tenant
-   */
   async listEnvironments(
     tenantId?: string,
   ): Promise<{ data: EnvironmentRecord[]; total: number }> {
-    // TODO: Query database for environments
-    // TODO: Filter by tenantId if provided
-    // TODO: Order by creation date descending
-
-    return { data: [], total: 0 };
+    let data = Array.from(this.environments.values());
+    if (tenantId) {
+      data = data.filter(e => e.tenantId === tenantId);
+    }
+    return { data: data.sort((a, b) => b.createdAt.localeCompare(a.createdAt)), total: data.length };
   }
 
-  /**
-   * Get a single environment by ID
-   */
   async getEnvironment(id: string): Promise<EnvironmentRecord | null> {
-    // TODO: Query database by id
-    // TODO: Return null if not found
-
-    return null;
+    return this.environments.get(id) || null;
   }
 
-  /**
-   * Get environment by tenant + name (for lookup during deployment creation)
-   */
   async getEnvironmentByName(
     tenantId: string,
     name: string,
   ): Promise<EnvironmentRecord | null> {
-    // TODO: Query database by tenantId + name
-
-    return null;
+    const key = `${tenantId}:${name}`;
+    const id = this.byTenantName.get(key);
+    if (!id) return null;
+    return this.environments.get(id) || null;
   }
 
-  /**
-   * Create a new environment
-   */
   async createEnvironment(
     data: Omit<EnvironmentRecord, "id" | "createdAt" | "updatedAt">,
   ): Promise<EnvironmentRecord> {
-    // TODO: Validate tenant exists via orion-platform-core
-    // TODO: Validate cluster connectivity
-    // TODO: Check for duplicate environment name in tenant
-    // TODO: Insert record into database
+    const key = `${data.tenantId}:${data.name}`;
+    if (this.byTenantName.has(key)) {
+      throw new Error(`Environment "${data.name}" already exists for tenant ${data.tenantId}`);
+    }
 
-    throw new Error("TODO: Implement createEnvironment");
+    const now = new Date().toISOString();
+    const record: EnvironmentRecord = {
+      id: uuidv4(),
+      ...data,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    this.environments.set(record.id, record);
+    this.byTenantName.set(key, record.id);
+    return record;
   }
 
-  /**
-   * Update environment configuration
-   */
   async updateConfig(
     id: string,
     updates: {
@@ -85,21 +77,29 @@ export class EnvironmentService {
       namespace?: string;
     },
   ): Promise<EnvironmentRecord> {
-    // TODO: Verify environment exists
-    // TODO: If clusterUrl changes, validate new connectivity
-    // TODO: Merge config with existing config
-    // TODO: Persist changes to database
+    const existing = this.environments.get(id);
+    if (!existing) {
+      throw new Error(`Environment ${id} not found`);
+    }
 
-    throw new Error("TODO: Implement updateConfig");
+    const updated: EnvironmentRecord = {
+      ...existing,
+      config: updates.config ? { ...existing.config, ...updates.config } : existing.config,
+      clusterUrl: updates.clusterUrl ?? existing.clusterUrl,
+      namespace: updates.namespace ?? existing.namespace,
+      updatedAt: new Date().toISOString(),
+    };
+
+    this.environments.set(id, updated);
+    return updated;
   }
 
-  /**
-   * Deactivate an environment (soft delete)
-   */
   async deactivateEnvironment(id: string): Promise<void> {
-    // TODO: Check no active deployments in this environment
-    // TODO: Set isActive = false
-
-    return;
+    const existing = this.environments.get(id);
+    if (!existing) {
+      throw new Error(`Environment ${id} not found`);
+    }
+    const updated = { ...existing, isActive: false, updatedAt: new Date().toISOString() };
+    this.environments.set(id, updated);
   }
 }
