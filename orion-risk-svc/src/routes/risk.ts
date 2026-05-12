@@ -26,10 +26,9 @@ export async function riskRoutes(
       description: body.description ? String(body.description) : undefined,
       entityType: String(body.entityType || ''),
       entityId: String(body.entityId || ''),
-      status: AssessmentStatus.DRAFT,
+      status: (body.status as AssessmentStatus) || AssessmentStatus.DRAFT,
       assessorId: String(body.assessorId || ''),
       tenantId: String(body.tenantId || ''),
-      events: [],
       metadata: body.metadata as Record<string, unknown> | undefined,
     });
     reply.code(201).send({ success: true, data: assessment });
@@ -71,8 +70,20 @@ export async function riskRoutes(
    * PUT /api/v1/risk/assessments/:id
    */
   fastify.put('/risk/assessments/:id', async (request, reply) => {
-    // TODO: 实现更新逻辑
-    reply.code(501).send({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Update assessment not yet implemented' } });
+    const { id } = request.params as { id: string };
+    const body = request.body as Record<string, unknown>;
+
+    const existing = await riskService.getRiskDetail(id);
+    if (!existing) {
+      return reply.code(404).send({ success: false, error: { code: 'NOT_FOUND', message: 'Assessment not found' } });
+    }
+
+    const newStatus = (body.status as AssessmentStatus) || existing.status;
+    const updated = await riskService.updateAssessmentStatus(id, newStatus);
+    if (!updated) {
+      return reply.code(404).send({ success: false, error: { code: 'NOT_FOUND', message: 'Failed to update assessment' } });
+    }
+    reply.send({ success: true, data: updated });
   });
 
   // ========== 风险评分 ==========
@@ -102,6 +113,8 @@ export async function riskRoutes(
       category: query.category as RiskCategory,
       level: query.level as RiskLevel,
       status: query.status as RiskStatus,
+      page: query.page ? parseInt(query.page, 10) : undefined,
+      pageSize: query.pageSize ? parseInt(query.pageSize, 10) : undefined,
     });
     reply.send({ success: true, data: result });
   });
@@ -111,8 +124,16 @@ export async function riskRoutes(
    * GET /api/v1/risk/events/:id
    */
   fastify.get('/risk/events/:id', async (request, reply) => {
-    // TODO: 实现获取事件详情逻辑
-    reply.code(501).send({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Get event detail not yet implemented' } });
+    const { id } = request.params as { id: string };
+    const query = request.query as Record<string, string>;
+    const result = await riskService.listRisks({
+      status: query.status as RiskStatus,
+    });
+    const event = result.items.find((e) => e.id === id);
+    if (!event) {
+      return reply.code(404).send({ success: false, error: { code: 'NOT_FOUND', message: 'Event not found' } });
+    }
+    reply.send({ success: true, data: event });
   });
 
   // ========== 风险详情与状态 ==========
@@ -137,6 +158,14 @@ export async function riskRoutes(
   fastify.put('/risk/:id/status', async (request, reply) => {
     const { id } = request.params as { id: string };
     const body = request.body as { status: RiskStatus };
+
+    if (!body.status || !Object.values(RiskStatus).includes(body.status)) {
+      return reply.code(400).send({
+        success: false,
+        error: { code: 'INVALID_STATUS', message: `Valid statuses: ${Object.values(RiskStatus).join(', ')}` },
+      });
+    }
+
     const updated = await riskService.updateRiskStatus(id, body.status);
     if (!updated) {
       return reply.code(404).send({ success: false, error: { code: 'NOT_FOUND', message: 'Risk event not found' } });

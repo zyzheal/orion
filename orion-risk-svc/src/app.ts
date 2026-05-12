@@ -9,6 +9,7 @@ import sensible from '@fastify/sensible';
 import { errorHandler } from './middleware/errorHandler';
 import { riskRoutes } from './routes/risk';
 import { getConfig } from './config';
+import { initializeDatabase, closePool } from './utils/database.js';
 
 async function buildApp() {
   const config = getConfig();
@@ -37,6 +38,28 @@ async function buildApp() {
 async function main() {
   const config = getConfig();
   const { fastify } = await buildApp();
+
+  try {
+    // 初始化数据库连接和表结构
+    await initializeDatabase();
+    fastify.log.info('Database initialized successfully');
+  } catch (error) {
+    fastify.log.error('Failed to initialize database: %s', error instanceof Error ? error.message : String(error));
+    // 继续启动服务，但记录警告
+    fastify.log.warn('Starting without database — some features will be unavailable');
+  }
+
+  // 优雅关闭
+  const gracefulShutdown = async () => {
+    fastify.log.info('Shutting down gracefully...');
+    await closePool();
+    await fastify.close();
+    process.exit(0);
+  };
+
+  process.on('SIGTERM', gracefulShutdown);
+  process.on('SIGINT', gracefulShutdown);
+
   await fastify.listen({ port: config.port, host: config.host });
   fastify.log.info(`Risk Assessment Service listening on http://${config.host}:${config.port}`);
 }
