@@ -31,8 +31,8 @@ export class ConfigMgmtService {
     return config;
   }
 
-  async updateConfig(key: string, value: Record<string, unknown> | string | number | boolean, changeReason: string, changedBy: string): Promise<ConfigItem | null> {
-    const configId = `${key}:production`; // Default env
+  async updateConfig(key: string, value: Record<string, unknown> | string | number | boolean, changeReason: string, changedBy: string, environment: string = 'production'): Promise<ConfigItem | null> {
+    const configId = `${key}:${environment}`;
     const existing = this.configs.get(configId);
 
     if (!existing) {
@@ -42,7 +42,7 @@ export class ConfigMgmtService {
         key,
         value,
         status: ConfigStatus.ACTIVE,
-        environment: 'production',
+        environment,
         currentVersion: 1,
         createdBy: changedBy,
         createdAt: new Date(),
@@ -114,11 +114,11 @@ export class ConfigMgmtService {
     const allKeys = new Set([...Object.keys(valA), ...Object.keys(valB)]);
     for (const key of allKeys) {
       if (!(key in valA)) {
-        diffs.push({ key, action: 'added', oldValue: undefined, newValue: valB[key] });
+        diffs.push({ id: uuidv4(), key, diffType: 'added', oldValue: undefined, newValue: valB[key] } as ConfigDiff);
       } else if (!(key in valB)) {
-        diffs.push({ key, action: 'deleted', oldValue: valA[key], newValue: undefined });
+        diffs.push({ id: uuidv4(), key, diffType: 'removed', oldValue: valA[key], newValue: undefined } as ConfigDiff);
       } else if (JSON.stringify(valA[key]) !== JSON.stringify(valB[key])) {
-        diffs.push({ key, action: 'modified', oldValue: valA[key], newValue: valB[key] });
+        diffs.push({ id: uuidv4(), key, diffType: 'modified', oldValue: valA[key], newValue: valB[key] } as ConfigDiff);
       }
     }
     return diffs;
@@ -185,6 +185,37 @@ export class ConfigMgmtService {
   }
 
   async gitOpsSync(tenantId: string): Promise<{ status: string; syncedCount: number }> {
-    return { status: 'synced', syncedCount: this.configs.size };
+    // TODO: implement actual Git sync
+    return { status: 'not_implemented', syncedCount: 0 };
+  }
+
+  async decideApproval(approvalId: string, decision: 'approved' | 'rejected', comments: string, decidedBy: string): Promise<ConfigApproval | null> {
+    const existing = this.approvals.get(approvalId);
+    if (!existing) return null;
+    const updated: ConfigApproval = {
+      ...existing,
+      status: decision === 'approved' ? ApprovalStatus.APPROVED : ApprovalStatus.REJECTED,
+      comments,
+      decidedBy,
+      decidedAt: new Date(),
+    };
+    this.approvals.set(approvalId, updated);
+    return updated;
+  }
+
+  async listConfigs(filters?: { environment?: string; status?: string }): Promise<ConfigItem[]> {
+    let items = Array.from(this.configs.values());
+    if (filters?.environment) items = items.filter(c => c.environment === filters.environment);
+    if (filters?.status) items = items.filter(c => c.status === filters.status);
+    return items;
+  }
+
+  async archiveConfig(key: string, environment: string): Promise<ConfigItem | null> {
+    const configId = `${key}:${environment}`;
+    const existing = this.configs.get(configId);
+    if (!existing) return null;
+    const updated: ConfigItem = { ...existing, status: ConfigStatus.ARCHIVED, updatedAt: new Date() };
+    this.configs.set(configId, updated);
+    return updated;
   }
 }

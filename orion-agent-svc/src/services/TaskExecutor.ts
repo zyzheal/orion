@@ -99,7 +99,7 @@ export class TaskExecutor {
     // Update task with result
     const completedTask = this.tasks.get(task.id);
     if (completedTask) {
-      completedTask.status = result.success ? TaskStatus.SUCCESS : TaskStatus.FAILED;
+      completedTask.status = result.success ? TaskStatus.COMPLETED : TaskStatus.FAILED;
       completedTask.exitCode = result.success ? 0 : 1;
       completedTask.stdout = JSON.stringify(result.output);
       completedTask.stderr = result.error || '';
