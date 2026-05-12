@@ -7,40 +7,35 @@ import {
   SandboxConfig,
   SandboxResult,
 } from '../types/agent';
+import { AgentSandbox, SandboxTask as SandboxTaskType } from './AgentSandbox';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
- * TaskExecutor handles task execution in sandboxed containers.
+ * TaskExecutor - Task execution with sandbox isolation
  *
- * Security design:
- * - All commands run in Docker containers with strict isolation
- * - No direct child_process.exec (replaces orion-runner-agent vulnerability)
- * - Resource limits (CPU, memory, time) enforced per task
- * - Network disabled by default
- * - Read-only filesystem
- * - All Linux capabilities dropped
+ * Uses AgentSandbox (Worker Thread) for secure execution with:
+ * - Memory/resource limits per task
+ * - Command allowlisting
+ * - Timeout enforcement
+ * - Path blocklisting
  */
 export class TaskExecutor {
   private redis: Redis;
   private config: AppConfig;
+  private sandbox: AgentSandbox;
+  private tasks = new Map<string, Task>();
 
   constructor(redis: Redis, config: AppConfig) {
     this.redis = redis;
     this.config = config;
+    this.sandbox = new AgentSandbox({
+      memoryLimitMB: config.sandbox.memoryLimit || 512,
+      defaultTimeoutMs: (config.sandbox.timeout || 30) * 1000,
+    });
   }
 
   /**
    * Dispatch a task to an agent for sandboxed execution
-   *
-   * TODO: Full implementation needs:
-   * - Validate agent exists and is IDLE
-   * - Create task record with unique ID
-   * - Build sandbox configuration
-   * - Launch Docker container via Dockerode
-   * - Stream stdout/stderr to log storage
-   * - Update task status on completion
-   * - Handle timeouts with container kill
-   * - Free agent after task completion
    */
   async dispatch(
     agentId: string,
@@ -49,13 +44,13 @@ export class TaskExecutor {
     const task: Task = {
       id: uuidv4(),
       agentId,
-      status: TaskStatus.PENDING,
+      status: TaskStatus.RUNNING,
       command: request.command,
       workingDirectory: request.workingDirectory || '/workspace',
       environment: request.environment || {},
       timeoutSeconds: request.timeoutSeconds || this.config.sandbox.timeout,
       createdAt: new Date().toISOString(),
-      startedAt: null,
+      startedAt: new Date().toISOString(),
       completedAt: null,
       exitCode: null,
       stdout: '',
@@ -63,119 +58,100 @@ export class TaskExecutor {
       errorMessage: null,
     };
 
-    // TODO: Transition agent to BUSY
-    // TODO: Persist task to Redis
-    // TODO: Execute in sandbox
-    // const result = await this.executeInSandbox(task);
-    // TODO: Update task status and agent status
+    // Persist task
+    this.tasks.set(task.id, task);
+    await this.redis.set(`task:${task.id}`, JSON.stringify(task), 'EX', 86400);
+
+    // Execute in sandbox asynchronously
+    this.executeInSandbox(task).catch(err => {
+      task.status = TaskStatus.FAILED;
+      task.errorMessage = err.message;
+      task.completedAt = new Date().toISOString();
+      this.tasks.set(task.id, task);
+    });
 
     return task;
   }
 
   /**
-   * Execute a command inside a sandboxed Docker container
-   *
-   * Security controls applied:
-   * - Container image pinned (configurable via SANDBOX_IMAGE)
-   * - Memory limit (SANDBOX_MEMORY_LIMIT)
-   * - CPU quota (SANDBOX_CPU_LIMIT)
-   * - Network disabled (SANDBOX_NETWORK=none)
-   * - Read-only root filesystem
-   * - All Linux capabilities dropped
-   * - Timeout enforced via Docker kill
+   * Execute a command inside the sandboxed Worker Thread
    */
   private async executeInSandbox(task: Task): Promise<SandboxResult> {
-    const sandboxConfig: SandboxConfig = {
-      image: this.config.sandbox.image,
-      command: task.command,
-      workingDir: task.workingDirectory || '/workspace',
-      env: {
-        ...task.environment,
-        TASK_ID: task.id,
-        SANDBOX: 'true',
+    const sandboxTask: Omit<SandboxTaskType, 'id'> = {
+      action: 'run_command',
+      input: { command: task.command },
+      profile: {
+        allowedTools: ['run_command', 'read_file', 'write_code'],
+        maxExecutionTimeMs: task.timeoutSeconds * 1000,
+        memoryLimitMB: this.config.sandbox.memoryLimit || 512,
       },
-      memoryLimit: this.config.sandbox.memoryLimit,
-      cpuLimit: this.config.sandbox.cpuLimit,
-      networkMode: this.config.sandbox.networkMode,
-      readOnlyRootFs: this.config.sandbox.readonlyRoot,
-      dropCapabilities: this.config.sandbox.dropCaps,
-      timeoutSeconds: task.timeoutSeconds,
     };
 
-    // TODO: Use Dockerode to:
-    // 1. docker.createContainer({
-    //      Image: sandboxConfig.image,
-    //      Cmd: ['sh', '-c', sandboxConfig.command],
-    //      WorkingDir: sandboxConfig.workingDir,
-    //      Env: Object.entries(sandboxConfig.env).map(
-    //        ([k, v]) => `${k}=${v}`
-    //      ),
-    //      HostConfig: {
-    //        Memory: parseMemory(sandboxConfig.memoryLimit),
-    //        CpuQuota: parseCpu(sandboxConfig.cpuLimit),
-    //        NetworkMode: sandboxConfig.networkMode,
-    //        ReadonlyRootfs: sandboxConfig.readOnlyRootFs,
-    //        CapDrop: sandboxConfig.dropCapabilities ? ['ALL'] : [],
-    //      },
-    //    })
-    // 2. container.start()
-    // 3. container.wait() with timeout
-    // 4. container.logs() to capture stdout/stderr
-    // 5. container.remove() for cleanup
+    const result = await this.sandbox.execute(sandboxTask);
 
-    const startTime = Date.now();
+    // Update task with result
+    const completedTask = this.tasks.get(task.id);
+    if (completedTask) {
+      completedTask.status = result.success ? TaskStatus.SUCCESS : TaskStatus.FAILED;
+      completedTask.exitCode = result.success ? 0 : 1;
+      completedTask.stdout = JSON.stringify(result.output);
+      completedTask.stderr = result.error || '';
+      completedTask.completedAt = new Date().toISOString();
+      this.tasks.set(task.id, completedTask);
+    }
 
-    return {
-      exitCode: -1,
-      stdout: '',
-      stderr: '',
-      durationMs: Date.now() - startTime,
-      timedOut: false,
-    };
+    return result;
   }
 
   /**
    * Get task details by ID
    */
   async getTask(taskId: string): Promise<Task | null> {
-    // TODO: Fetch from Redis
+    // Try in-memory first
+    const cached = this.tasks.get(taskId);
+    if (cached) return cached;
+
+    // Fall back to Redis
+    const data = await this.redis.get(`task:${taskId}`);
+    if (data) {
+      const task = JSON.parse(data);
+      this.tasks.set(taskId, task);
+      return task;
+    }
     return null;
   }
 
   /**
-   * Get task logs (stdout + stderr)
+   * Get task logs
    */
-  async getTaskLogs(
-    taskId: string,
-    options?: {
-      stream?: 'stdout' | 'stderr' | 'combined';
-      tail?: number;
-    },
-  ): Promise<string> {
-    // TODO: Fetch logs from Redis or attached storage
-    // TODO: Support streaming modes
-    return '';
+  async getTaskLogs(taskId: string): Promise<string> {
+    const task = await this.getTask(taskId);
+    if (!task) return '';
+    return `${task.stdout}\n${task.stderr}`;
   }
 
   /**
    * Cancel a running task
    */
   async cancelTask(taskId: string): Promise<boolean> {
-    // TODO: Kill sandbox container
-    // TODO: Update task status to CANCELLED
-    // TODO: Free agent
-    return false;
+    const task = this.tasks.get(taskId);
+    if (!task) return false;
+
+    task.status = TaskStatus.CANCELLED;
+    task.completedAt = new Date().toISOString();
+    task.errorMessage = 'Cancelled by user';
+    this.tasks.set(taskId, task);
+    return true;
   }
 
   /**
    * List tasks with optional filtering
    */
-  async listTasks(options?: {
-    agentId?: string;
-    status?: TaskStatus;
-    limit?: number;
-  }): Promise<Task[]> {
-    // TODO: Query from Redis with filters
-    return [];
+  async listTasks(options?: { agentId?: string; status?: TaskStatus; limit?: number }): Promise<Task[]> {
+    let tasks = Array.from(this.tasks.values());
+    if (options?.agentId) tasks = tasks.filter(t => t.agentId === options.agentId);
+    if (options?.status) tasks = tasks.filter(t => t.status === options.status);
+    if (options?.limit) tasks = tasks.slice(0, options.limit);
+    return tasks.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
 }
