@@ -96,12 +96,7 @@ export class RunnerPoolService {
       throw new Error('Database not available');
     }
 
-    const updated = await this.runnerRepo.updateHeartbeat(runnerId);
-    if (!updated) {
-      logger.warn({ runnerId }, 'Heartbeat received for unknown runner');
-      return false;
-    }
-
+    await this.runnerRepo.updateHeartbeat(runnerId, new Date());
     logger.debug({ runnerId }, 'Runner heartbeat updated');
     return true;
   }

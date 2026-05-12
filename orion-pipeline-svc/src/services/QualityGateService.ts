@@ -268,10 +268,15 @@ export class QualityGateService {
 
     // 3. 创建结果
     const result: QualityGateResult = {
-      ...evaluation,
       id: uuidv4(),
+      gateId: gate.id,
+      gateName: gate.name,
       runId: input.runId,
       stageName: input.stageName,
+      metrics: input.metrics,
+      passed: evaluation.passed as boolean,
+      blockedRules: evaluation.blockedRules as any,
+      warnedRules: evaluation.warnedRules as any,
       evaluatedAt: new Date(),
     };
 

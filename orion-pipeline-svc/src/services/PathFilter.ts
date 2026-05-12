@@ -9,12 +9,10 @@
  * - `{}` brace expansion (e.g. `*.{js,ts}`)
  * - `?` matches exactly one character
  *
- * Usage:
- *   const filter = new PathFilter();
- *   filter.matches('src/utils.ts', 'src/' + '**' + '/\*.ts');       // true
- *   filter.matches('test/utils.ts', 'src/' + '**' + '/\*.ts');      // false
- *   filter.matchesAny('src/a.ts', ['src/' + '**' + '/\*.ts', '!**/test/**']);  // false (negation wins)
- *   filter.filterChanges(['src/a.ts', 'test/b.ts'], patterns); // returns only src/a.ts
+ * Usage examples:
+ *   filter.match(path, pattern) - returns true if path matches the glob pattern
+ *   filter.matchesAny(path, patterns) - returns true if path matches any pattern (supports negation)
+ *   filter.filterChanges(paths, patterns) - filters array of paths by patterns
  */
 
 export class PathFilter {

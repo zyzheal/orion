@@ -167,18 +167,18 @@ export class SecretsService {
     tenantId: string,
     name: string,
     value: string,
-    scope: SecretScope = 'project',
+    scope: SecretScope = SecretScope.PROJECT,
     createdBy?: string,
   ): Promise<SecretValue> {
     this.validateSecretName(name);
 
     const encryptedValue = this.encrypt(value);
     const entity = await this.repository.upsert({
-      tenantId,
+      tenant_id: tenantId,
       name,
-      encryptedValue,
+      value: encryptedValue.toString('base64'),
       scope,
-      createdBy,
+      created_by: createdBy,
     });
 
     logger.info({ tenantId, name, scope }, 'Secret created/updated');
@@ -193,7 +193,8 @@ export class SecretsService {
     if (!entity) return null;
 
     try {
-      const value = this.decrypt(entity.encryptedValue);
+      const encryptedData = entity.encrypted_value ? Buffer.from(entity.encrypted_value, 'base64') : Buffer.from(entity.value, 'base64');
+      const value = this.decrypt(encryptedData);
       return this.toSecretValue({ ...entity, decryptedValue: value } as any);
     } catch (error) {
       logger.error({ tenantId, name, error }, 'Failed to decrypt secret');
@@ -217,9 +218,9 @@ export class SecretsService {
       id: e.id,
       name: e.name,
       scope: e.scope,
-      createdAt: e.createdAt,
-      updatedAt: e.updatedAt,
-      createdBy: e.createdBy,
+      createdAt: e.created_at,
+      updatedAt: e.updated_at || e.created_at,
+      createdBy: e.created_by,
     }));
   }
 

@@ -486,7 +486,7 @@ export class PipelineTriggerService {
    */
   getNextRunTime(cronExpression: string): Date | null {
     try {
-      const interval = CronExpressionParser.parse(cronExpression);
+      const interval = parseExpression(cronExpression);
       return interval.next().toDate();
     } catch {
       return null;
@@ -566,7 +566,7 @@ export class PipelineTriggerService {
    */
   private calculateNextInterval(cronExpression: string): number {
     try {
-      const interval = CronExpressionParser.parse(cronExpression);
+      const interval = parseExpression(cronExpression);
       const nextDate = interval.next().toDate();
       const ms = nextDate.getTime() - Date.now();
       // Ensure minimum of 1 second to avoid tight loops

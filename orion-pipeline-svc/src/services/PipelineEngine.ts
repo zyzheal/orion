@@ -272,6 +272,13 @@ export class PipelineEngine {
   }
 
   /**
+   * Cancel a running pipeline execution (stub)
+   */
+  async cancelExecution(_runId: string): Promise<void> {
+    // TODO: implement cancellation
+  }
+
+  /**
    * 处理阶段完成后的下一阶段调度
    */
   private async scheduleNextStages(

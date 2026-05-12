@@ -7,6 +7,7 @@ export enum TriggerType {
   SCHEDULE = 'schedule',
   WEBHOOK = 'webhook',
   EVENT = 'event',
+  API = 'api',
 }
 
 export enum PipelineRunStatus {

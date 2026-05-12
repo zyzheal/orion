@@ -143,7 +143,7 @@ export class DeploymentStrategyService {
   async listStrategies(tenantId: string): Promise<DeploymentStrategy[]> {
     if (!this.strategyRepo) return [];
     const entities = await this.strategyRepo.findByTenant(tenantId);
-    return entities.map(e => this.mapEntityToModel(e));
+    return entities.map((e: DeploymentStrategyEntity) => this.mapEntityToModel(e));
   }
 
   /**
@@ -155,7 +155,7 @@ export class DeploymentStrategyService {
   ): Promise<DeploymentStrategy[]> {
     if (!this.strategyRepo) return [];
     const entities = await this.strategyRepo.findByType(tenantId, type);
-    return entities.map(e => this.mapEntityToModel(e));
+    return entities.map((e: DeploymentStrategyEntity) => this.mapEntityToModel(e));
   }
 
   /**
@@ -215,6 +215,10 @@ export class DeploymentStrategyService {
 
     const { runId, strategyId, config, healthCheckEndpoint } = params;
 
+    if (!config.steps || config.steps.length === 0) {
+      throw new DeploymentStrategyError('Canary config must have at least one step', 'INVALID_CONFIG');
+    }
+
     // Create step tracker
     const tracker = await this.trackerRepo.create({
       run_id: runId,
@@ -235,6 +239,7 @@ export class DeploymentStrategyService {
 
     for (let i = 0; i < config.steps.length; i++) {
       const step = config.steps[i];
+      if (!step || typeof step.weight !== 'number') continue;
 
       // Update tracker to current step
       await this.trackerRepo.advanceStep(tracker.id, i, step.weight);
@@ -251,7 +256,7 @@ export class DeploymentStrategyService {
 
       // Wait for the pause duration (or skip in test mode)
       if (step.pause && !this.isTestMode()) {
-        const pauseMs = this.parseDuration(step.pause);
+        const pauseMs = this.parseDuration(step.pause as string);
         logger.info({ pauseMs }, 'Canary step: waiting for pause duration');
         // In real implementation, this would be an async wait
         // For now, we just log it (tests won't wait)
@@ -283,7 +288,7 @@ export class DeploymentStrategyService {
 
       // Notify step completion
       if (params.onStepComplete) {
-        await params.onStepComplete(i, step.weight);
+        await params.onStepComplete(i, step.weight as number);
       }
 
       // If not healthy and not rolling back, stop
@@ -449,6 +454,10 @@ export class DeploymentStrategyService {
 
     const { runId, strategyId, config, totalInstances } = params;
 
+    if (!config.batchSize || config.batchSize < 1) {
+      throw new DeploymentStrategyError('Rolling config batchSize must be >= 1', 'INVALID_CONFIG');
+    }
+
     // Calculate number of batches
     const numBatches = Math.ceil(totalInstances / config.batchSize);
 
@@ -510,7 +519,7 @@ export class DeploymentStrategyService {
 
       // Pause between batches (if configured)
       if (config.pauseBetweenBatches && batch < numBatches - 1 && !this.isTestMode()) {
-        const pauseMs = this.parseDuration(config.pauseBetweenBatches);
+        const pauseMs = this.parseDuration(config.pauseBetweenBatches as string);
         logger.info({ pauseMs }, 'Rolling deployment: pausing between batches');
       }
     }
@@ -577,7 +586,7 @@ export class DeploymentStrategyService {
     // Build step info
     const steps: DeploymentStepInfo[] = [];
     for (let i = 0; i < tracker.total_steps; i++) {
-      const stepChecks = healthChecks.filter(hc => hc.step_index === i);
+      const stepChecks = healthChecks.filter((hc: DeploymentHealthCheckEntity) => hc.step_index === i);
       steps.push({
         stepIndex: i,
         weight: i <= tracker.current_step
@@ -694,23 +703,24 @@ export class DeploymentStrategyService {
         // Validate steps have valid weights (0-100, increasing)
         let prevWeight = 0;
         for (const step of canaryConfig.steps) {
-          if (step.weight < 0 || step.weight > 100) {
+          const w = step.weight ?? 0;
+          if (w < 0 || w > 100) {
             throw new DeploymentStrategyError(
-              `Canary step weight must be between 0 and 100, got ${step.weight}`,
+              `Canary step weight must be between 0 and 100, got ${w}`,
               'INVALID_CONFIG'
             );
           }
-          if (step.weight <= prevWeight && step.weight !== 100) {
+          if (w <= prevWeight && w !== 100) {
             throw new DeploymentStrategyError(
               'Canary step weights must be increasing',
               'INVALID_CONFIG'
             );
           }
-          prevWeight = step.weight;
+          prevWeight = w;
         }
         // Final step should be 100%
         const lastStep = canaryConfig.steps[canaryConfig.steps.length - 1];
-        if (lastStep.weight !== 100) {
+        if ((lastStep.weight ?? 0) !== 100) {
           throw new DeploymentStrategyError(
             'Final canary step must have 100% weight',
             'INVALID_CONFIG'
@@ -730,7 +740,7 @@ export class DeploymentStrategyService {
       }
       case 'rolling': {
         const rollingConfig = config as RollingConfig;
-        if (!rollingConfig.batchSize || rollingConfig.batchSize < 1) {
+        if (!rollingConfig.batchSize || (rollingConfig.batchSize as number) < 1) {
           throw new DeploymentStrategyError(
             'Rolling strategy requires batchSize >= 1',
             'INVALID_CONFIG'
@@ -755,7 +765,7 @@ export class DeploymentStrategyService {
       id: entity.id,
       tenantId: entity.tenant_id,
       name: entity.name,
-      type: entity.type as any,
+      type: entity.type as 'canary' | 'bluegreen' | 'rolling',
       config: entity.config as DeploymentConfig,
       description: entity.description || undefined,
       enabled: entity.enabled,
@@ -772,24 +782,29 @@ export class DeploymentStrategyService {
     stepIndex: number,
     healthChecks: DeploymentHealthCheckEntity[]
   ): DeploymentStepStatus {
+    const t = tracker as unknown as Record<string, unknown>;
+    const status = (t.status || 'pending') as DeploymentStepStatus;
+    const currentStep = (t.current_step || 0) as number;
+
     // Overall completed: all steps are completed
-    if (tracker.status === 'completed') {
+    if (status === 'completed') {
       return 'completed';
     }
-    if (tracker.status === 'rolledback') {
-      if (stepIndex < tracker.current_step) return 'completed';
+    if (status === 'rolledback') {
+      if (stepIndex < currentStep) return 'completed';
       return 'rolledback';
     }
-    if (tracker.status === 'failed') {
-      if (stepIndex < tracker.current_step) return 'completed';
-      if (stepIndex === tracker.current_step) return 'failed';
+    if (status === 'failed') {
+      if (stepIndex < currentStep) return 'completed';
+      if (stepIndex === currentStep) return 'failed';
       return 'pending';
     }
-    if (stepIndex < tracker.current_step) return 'completed';
-    if (stepIndex === tracker.current_step) {
+    if (stepIndex < currentStep) return 'completed';
+    if (stepIndex === currentStep) {
       if (healthChecks.length > 0) {
         const lastCheck = healthChecks[healthChecks.length - 1];
-        return lastCheck.healthy ? 'healthy' : 'unhealthy';
+        const hc = lastCheck as unknown as Record<string, unknown>;
+        return (hc.healthy === true) ? 'healthy' : 'unhealthy';
       }
       return 'running';
     }
@@ -810,7 +825,8 @@ export class DeploymentStrategyService {
   /**
    * Parse a duration string (e.g., '5m', '30s', '1h') to milliseconds
    */
-  private parseDuration(duration: string): number {
+  private parseDuration(duration: string | number): number {
+    if (typeof duration === 'number') return duration;
     const match = duration.match(/^(\d+)(ms|s|m|h)$/);
     if (!match) return 0;
     const value = parseInt(match[1], 10);

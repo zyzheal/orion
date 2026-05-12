@@ -110,7 +110,7 @@ export class TestReportService {
 
     return {
       report,
-      cases: result.testCases,
+      cases: (result.testCases || []) as ParsedTestCase[],
     };
   }
 
@@ -157,11 +157,11 @@ export class TestReportService {
 
     return {
       totalReports: reports.length,
-      totalTests: reports.reduce((sum, r) => sum + r.totalTests, 0),
-      totalPassed: reports.reduce((sum, r) => sum + r.passed, 0),
-      totalFailed: reports.reduce((sum, r) => sum + r.failed, 0),
-      totalSkipped: reports.reduce((sum, r) => sum + r.skipped, 0),
-      totalDurationMs: reports.reduce((sum, r) => sum + r.durationMs, 0),
+      totalTests: reports.reduce((sum: number, r: { totalTests: number }) => sum + (r.totalTests || 0), 0),
+      totalPassed: reports.reduce((sum: number, r: { passed: number }) => sum + (r.passed || 0), 0),
+      totalFailed: reports.reduce((sum: number, r: { failed: number }) => sum + (r.failed || 0), 0),
+      totalSkipped: reports.reduce((sum: number, r: { skipped: number }) => sum + (r.skipped || 0), 0),
+      totalDurationMs: reports.reduce((sum: number, r: { durationMs: number }) => sum + (r.durationMs || 0), 0),
     };
   }
 }

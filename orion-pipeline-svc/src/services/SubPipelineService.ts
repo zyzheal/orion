@@ -21,7 +21,7 @@ import {
   failSubPipeline,
   cancelSubPipeline,
 } from '../models/SubPipeline';
-import { PipelineEngine } from '../engine/PipelineEngine';
+import { PipelineEngine } from './PipelineEngine';
 import { PipelineService } from './PipelineService';
 import { TriggerType } from '../models/PipelineRun';
 import pino from 'pino';
@@ -72,9 +72,9 @@ export class SubPipelineService {
       outputResults: record.output_results || {},
       stageName: record.stage_name,
       outputMapping: record.output_mapping || {},
-      createdAt: record.created_at,
-      completedAt: record.completed_at || undefined,
-      error: record.error_message || undefined,
+      createdAt: record.created_at instanceof Date ? record.created_at.toISOString() : record.created_at,
+      completedAt: record.completed_at instanceof Date ? record.completed_at.toISOString() : (record.completed_at ?? undefined),
+      error: record.error_message ?? undefined,
     };
   }
 
@@ -155,10 +155,11 @@ export class SubPipelineService {
       }
 
       // 4. Update invocation with child run ID
-      invocation = startSubPipeline(invocation, childRun.id);
+      const childRunId = ((childRun as unknown as Record<string, unknown>).runId as string) || (childRun as any).id;
+      invocation = startSubPipeline(invocation, childRunId);
 
       if (this.repository) {
-        await this.repository.updateChildRun(invocation.id, childRun.id, 'running');
+        await this.repository.updateChildRun(invocation.id, childRunId, 'running');
       }
 
       logger.info(
@@ -166,12 +167,12 @@ export class SubPipelineService {
           invocationId: invocation.id,
           parentRunId: input.parentRunId,
           childPipelineId: input.childPipelineId,
-          childRunId: childRun.id,
+          childRunId,
         },
         'Sub-pipeline invoked'
       );
 
-      return { invocation, childRunId: childRun.id };
+      return { invocation, childRunId };
     } catch (error) {
       // Mark invocation as failed if child run could not be started
       invocation = failSubPipeline(
@@ -273,18 +274,20 @@ export class SubPipelineService {
     }
 
     // Apply output mapping: map child results to parent variable names
+    const outputMapping = invocation.outputMapping as Record<string, string>;
+    const outputResults = invocation.outputResults as Record<string, string>;
     const mappedResults: Record<string, string> = {};
-    for (const [parentKey, childKey] of Object.entries(invocation.outputMapping)) {
-      const value = invocation.outputResults[childKey];
+    for (const [parentKey, childKey] of Object.entries(outputMapping)) {
+      const value = outputResults[childKey];
       if (value !== undefined) {
         mappedResults[parentKey] = value;
       }
     }
 
     // Include unmapped results as well
-    for (const [key, value] of Object.entries(invocation.outputResults)) {
+    for (const [key, value] of Object.entries(outputResults)) {
       if (!(key in mappedResults)) {
-        mappedResults[key] = value;
+        mappedResults[key] = value as string;
       }
     }
 
