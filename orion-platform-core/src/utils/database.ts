@@ -22,7 +22,7 @@ export async function initDatabase(connectionString: string, ssl = false): Promi
 
   _pool = new PgPool({
     connectionString,
-    ssl: ssl ? { rejectUnauthorized: false } : false,
+    ssl: ssl ? { rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false' } : false,
     max: Number(process.env.DB_MAX_CONNECTIONS) || 20,
     idleTimeoutMillis: 30_000,
     connectionTimeoutMillis: 10_000,

@@ -17,7 +17,7 @@ export function getPool(): Pool {
       database: config.database.name,
       user: config.database.user,
       password: config.database.password,
-      ssl: config.database.ssl ? { rejectUnauthorized: false } : false,
+      ssl: config.database.ssl ? { rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false' } : false,
       min: config.database.poolMin,
       max: config.database.poolMax,
       idleTimeoutMillis: 30000,

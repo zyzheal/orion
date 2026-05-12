@@ -1,10 +1,11 @@
 import { Pool, PoolConfig } from 'pg';
+export type DatabasePool = Pool;
 let pool: Pool | null = null;
 export function getPool(): Pool {
   if (!pool) {
     const config: PoolConfig = {
       connectionString: process.env.DATABASE_URL,
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : undefined,
+      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false' } : undefined,
       max: parseInt(process.env.DB_MAX_CONNECTIONS || '20', 10),
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 5000,
