@@ -8,6 +8,7 @@ import { config } from '../config';
 import { hostname, tmpdir } from 'os';
 import { mkdir } from 'fs/promises';
 import { join } from 'path';
+import { randomUUID } from 'crypto';
 
 export interface TaskParameters {
   [key: string]: unknown;
@@ -167,7 +168,7 @@ export class RunnerService {
     this.activeJobs++;
 
     // Create isolated workspace per job (sandbox isolation)
-    const workspaceDir = join(tmpdir(), `orion-workspace-${jobId}-${Date.now()}`);
+    const workspaceDir = join(tmpdir(), `orion-workspace-${randomUUID()}`);
     try {
       await mkdir(workspaceDir, { recursive: true });
     } catch {

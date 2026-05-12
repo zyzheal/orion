@@ -4,7 +4,7 @@ import sensible from '@fastify/sensible';
 import { loadConfig } from './config';
 import { getPool, closePool, checkHealth, runMigrations } from './utils/database';
 import { getRedis, closeRedis, isRedisHealthy } from './utils/redis';
-import { getEventBus, closeEventBus } from './utils/eventBus';
+import { getEventBus, closeEventBus, subscribe } from './utils/eventBus';
 import { pipelineRoutes } from './routes/pipeline';
 import { pipelineRunRoutes } from './routes/pipeline-run';
 import { pipelineAdminRoutes } from './routes/pipeline-admin';
@@ -64,11 +64,11 @@ async function buildApp() {
   await fastify.register(pipelineRunRoutes, { prefix: '/api/v1', database, eventBus, pipelineRunService });
   await fastify.register(pipelineAdminRoutes, { prefix: '/api/v1', database });
   await fastify.register(scmWebhookRoutes, { prefix: '/api/v1', database, pipelineEngine });
-  await fastify.register(pipelineSSERoutes, { prefix: '/api/v1' });
+  await fastify.register(pipelineSSERoutes, { prefix: '/api/v1', sseBus });
 
-  // Wire up SSE events to pipeline engine
-  eventBus.on('pipeline.log', (data: any) => sseBus.emit('pipeline.log', data));
-  eventBus.on('pipeline.status', (data: any) => sseBus.emit('pipeline.status', data));
+  // Wire up SSE events to pipeline engine via subscribe() wrapper for type safety
+  await subscribe('pipeline.log', (data: any) => sseBus.emit('pipeline.log', data));
+  await subscribe('pipeline.status', (data: any) => sseBus.emit('pipeline.status', data));
 
   // Health check
   fastify.get('/health', async () => {

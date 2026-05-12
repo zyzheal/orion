@@ -2,13 +2,15 @@ import { type FastifyInstance, type FastifyPluginOptions } from 'fastify';
 import { EventEmitter } from 'events';
 import { PipelineLogSSEService } from '../services/PipelineLogSSEService';
 
+const INTERNAL_SECRET = process.env.INTERNAL_SECRET || 'orion-internal-secret';
+
 export async function pipelineSSERoutes(
   fastify: FastifyInstance,
-  opts: FastifyPluginOptions
+  opts: FastifyPluginOptions & { sseBus?: EventEmitter }
 ): Promise<void> {
-  // Use a shared event bus for SSE event forwarding
-  const localBus = new EventEmitter();
-  const sseService = new PipelineLogSSEService(localBus);
+  // Use sseBus from app.ts if provided, otherwise create local (dev fallback)
+  const eventBus = opts.sseBus || new EventEmitter();
+  const sseService = new PipelineLogSSEService(eventBus);
 
   fastify.get('/pipelines/:id/runs/:rid/logs', async (request, reply) => {
     const pipelineId = (request.params as any).id;
@@ -50,6 +52,8 @@ export async function pipelineSSERoutes(
 
   // Publish log event (internal API for pipeline engine)
   fastify.post('/pipelines/sse/publish/log', async (request, reply) => {
+    const secret = (request.headers as any)['x-internal-secret'];
+    if (secret !== INTERNAL_SECRET) return reply.code(403).send({ error: 'Forbidden' });
     const log = request.body as any;
     sseService.publishLogEvent(log);
     return reply.send({ published: true });
@@ -57,6 +61,8 @@ export async function pipelineSSERoutes(
 
   // Publish status event (internal API for pipeline engine)
   fastify.post('/pipelines/sse/publish/status', async (request, reply) => {
+    const secret = (request.headers as any)['x-internal-secret'];
+    if (secret !== INTERNAL_SECRET) return reply.code(403).send({ error: 'Forbidden' });
     const status = request.body as any;
     sseService.publishStatusEvent(status);
     return reply.send({ published: true });

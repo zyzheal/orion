@@ -24,6 +24,7 @@ export class TaskExecutor {
   private config: AppConfig;
   private sandbox: AgentSandbox;
   private tasks = new Map<string, Task>();
+  private readonly MAX_TASKS_IN_MEMORY = 1000;
 
   constructor(redis: Redis, config: AppConfig) {
     this.redis = redis;
@@ -57,6 +58,12 @@ export class TaskExecutor {
       stderr: '',
       errorMessage: null,
     };
+
+    // Evict oldest completed tasks if over capacity
+    if (this.tasks.size >= this.MAX_TASKS_IN_MEMORY) {
+      const completedTask = Array.from(this.tasks.values()).find(t => t.completedAt);
+      if (completedTask) this.tasks.delete(completedTask.id);
+    }
 
     // Persist task
     this.tasks.set(task.id, task);
