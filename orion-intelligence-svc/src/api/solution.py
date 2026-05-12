@@ -4,9 +4,10 @@ Solution Recommendation API
 POST /api/v1/ai/suggest-solution - AI-powered solution recommendation
 """
 
-from fastapi import APIRouter, HTTPException
+import time
+
+from fastapi import APIRouter
 from pydantic import BaseModel, Field
-from typing import Optional
 
 router = APIRouter()
 
@@ -16,16 +17,16 @@ class SolutionRequest(BaseModel):
     ticket_id: str = Field(..., description="Ticket identifier")
     category: str = Field(..., description="Ticket category")
     description: str = Field(..., description="Problem description")
-    classification: Optional[dict] = Field(None, description="Classification result from /classify")
-    environment_info: Optional[dict] = Field(None, description="Affected environment details")
+    classification: dict | None = Field(None, description="Classification result from /classify")
+    environment_info: dict | None = Field(None, description="Affected environment details")
 
 
 class SolutionStep(BaseModel):
     """Single step in a recommended solution."""
     step_number: int = Field(..., description="Step order")
     action: str = Field(..., description="Action description")
-    command: Optional[str] = Field(None, description="Shell command to execute")
-    expected_outcome: Optional[str] = Field(None, description="What to expect after this step")
+    command: str | None = Field(None, description="Shell command to execute")
+    expected_outcome: str | None = Field(None, description="What to expect after this step")
     risk_level: str = Field("low", description="low | medium | high")
 
 
@@ -35,7 +36,7 @@ class RecommendedSolution(BaseModel):
     confidence: float = Field(..., ge=0.0, le=1.0)
     steps: list[SolutionStep]
     source: str = Field(..., description="Knowledge base article ID or 'generated'")
-    estimated_time_minutes: Optional[int] = Field(None)
+    estimated_time_minutes: int | None = Field(None)
 
 
 class SolutionResponse(BaseModel):
@@ -53,8 +54,14 @@ async def suggest_solution(request: SolutionRequest):
     Retrieves similar resolved tickets from knowledge base and
     generates step-by-step solutions using LLM.
     """
+    start = time.monotonic()
     # TODO: Call ai_service.suggest_solution(request)
     # TODO: Query knowledge base for resolved tickets in same category
     # TODO: Generate step-by-step solution with safety checks
     # TODO: Return ranked solutions with confidence
-    raise HTTPException(status_code=501, detail="Not yet implemented")
+    result = SolutionResponse(
+        ticket_id=request.ticket_id,
+        solutions=[],
+        processing_time_ms=round((time.monotonic() - start) * 1000, 2),
+    )
+    return result

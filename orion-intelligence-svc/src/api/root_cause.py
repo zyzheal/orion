@@ -4,9 +4,10 @@ Root Cause Analysis API
 POST /api/v1/ai/root-cause - AI-powered root cause analysis
 """
 
-from fastapi import APIRouter, HTTPException
+import time
+
+from fastapi import APIRouter
 from pydantic import BaseModel, Field
-from typing import Optional
 
 router = APIRouter()
 
@@ -15,10 +16,10 @@ class RootCauseRequest(BaseModel):
     """Request body for root cause analysis."""
     incident_id: str = Field(..., description="Incident/ticket identifier")
     description: str = Field(..., description="Incident description")
-    error_logs: Optional[str] = Field(None, description="Relevant error logs")
-    metrics_data: Optional[dict] = Field(None, description="Time-series metrics around incident")
-    affected_services: Optional[list[str]] = Field(None, description="List of affected services")
-    timeline: Optional[list[dict]] = Field(None, description="Event timeline: [{timestamp, event}]")
+    error_logs: str | None = Field(None, description="Relevant error logs")
+    metrics_data: dict | None = Field(None, description="Time-series metrics around incident")
+    affected_services: list[str] | None = Field(None, description="List of affected services")
+    timeline: list[dict] | None = Field(None, description="Event timeline: [{timestamp, event}]")
 
 
 class RootCauseCandidate(BaseModel):
@@ -34,7 +35,7 @@ class RootCauseResponse(BaseModel):
     incident_id: str
     root_causes: list[RootCauseCandidate]
     recommended_actions: list[str]
-    similar_incidents: Optional[list[str]] = Field(None, description="IDs of similar past incidents")
+    similar_incidents: list[str] | None = Field(None, description="IDs of similar past incidents")
     processing_time_ms: float
 
 
@@ -46,8 +47,15 @@ async def analyze_root_cause(request: RootCauseRequest):
     Uses LLM reasoning combined with historical incident data
     from ClickHouse to suggest likely root causes.
     """
+    start = time.monotonic()
     # TODO: Call ai_service.analyze_root_cause(request)
     # TODO: Query ClickHouse for similar historical incidents
     # TODO: Correlate with knowledge base for known issues
     # TODO: Return ranked root cause candidates
-    raise HTTPException(status_code=501, detail="Not yet implemented")
+    result = RootCauseResponse(
+        incident_id=request.incident_id,
+        root_causes=[],
+        recommended_actions=[],
+        processing_time_ms=round((time.monotonic() - start) * 1000, 2),
+    )
+    return result
