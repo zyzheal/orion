@@ -13,11 +13,11 @@
 
 | # | 服务 | 端口 | 来源模块 | 代码量 | 文件数 | 状态 |
 |---|------|------|----------|--------|--------|------|
-| 1 | **orion-digital-twin-svc** | 3020 | digital-twin/ | ~3,300 行 | 15+ | 完整实现 |
-| 2 | **orion-risk-svc** | 3021 | risk-assessment/ | ~3,964 行 | 8 | 骨架 + 业务逻辑 |
-| 3 | **orion-cmdb-svc** | 3022 | cmdb/ | ~3,563 行 | 8 | 骨架 + 业务逻辑 |
-| 4 | **orion-config-mgmt-svc** | 3023 | config-mgmt/ | ~6,659 行 | 8 | 骨架 + 业务逻辑 |
-| 5 | **orion-selfhealing-svc** | 3024 | self-healing/ | ~5,295 行 | 8 | 骨架 + 业务逻辑 |
+| 1 | **orion-digital-twin-svc** | 3008 | digital-twin/ | ~1,200 行 | 6 | 完整实现 |
+| 2 | **orion-risk-svc** | 3018 | risk-assessment/ | ~3,964 行 | 8 | 骨架 + 业务逻辑 |
+| 3 | **orion-cmdb-svc** | 3019 | cmdb/ | ~3,563 行 | 8 | 骨架 + 业务逻辑 |
+| 4 | **orion-config-mgmt-svc** | 3024 | config-mgmt/ | ~6,659 行 | 8 | 骨架 + 业务逻辑 |
+| 5 | **orion-selfhealing-svc** | 3025 | self-healing/ | ~5,295 行 | 8 | 骨架 + 业务逻辑 |
 
 ## 拆分后架构
 
@@ -51,21 +51,38 @@
 在 `orion-api-gateway/src/routes/api.ts` 新增 5 个代理路由：
 
 ```
-/api/v1/digital-twins  → localhost:3020
-/api/v1/risk           → localhost:3021
-/api/v1/cmdb           → localhost:3022
-/api/v1/configs        → localhost:3023
-/api/v1/self-healing   → localhost:3024
+/api/v1/digital-twins  → localhost:3008
+/api/v1/risk           → localhost:3018
+/api/v1/cmdb           → localhost:3019
+/api/v1/config         → localhost:3024
+/api/v1/selfhealing    → localhost:3025
 ```
 
 ## platform-service 变更
 
 已注释/移除的路由注册：
 
-- `digital-twin-routes` — 已注释（迁移到 3020）
-- `cmdbRoutes` — 已注释（迁移到 3022）
-- `configMgmtEnhancedRoutes` — 已注释（迁移到 3023）
+- `digital-twin-routes` — 已注释（迁移到 3008）
+- `cmdbRoutes` — 已注释（迁移到 3019）
+- `configMgmtEnhancedRoutes` — 已注释（迁移到 3024）
+- `cmdb` 模块配置 — 已注释
 - self-healing 路由 — 原本已注释
+- escalationScheduler 启动块 — 已注释（未定义变量）
+
+## 评审修复
+
+三轮评审发现的问题及修复：
+
+| 问题 | 修复方式 |
+|------|----------|
+| 端口冲突 (3021-3023) | 改为独立端口 3008/3018/3019/3024/3025 |
+| Gateway config 缺失新服务 | 添加 5 个服务条目到 config/index.ts |
+| digital-twin-svc broken imports | 删除 6 个冲突文件，移除自引用 import |
+| digital-twin-svc 缺少 tsconfig.json | 添加 tsconfig.json |
+| package.json 命名不一致 | 统一为 @orion/ 前缀 |
+| /api/v1/risk 双重定义 | 注释掉旧的 security 路由 |
+| 路由前缀不一致 (configs/config) | 网关改为 /api/v1/config |
+| 路由前缀不一致 (self-healing/selfhealing) | 网关改为 /api/v1/selfhealing |
 
 ## 技术栈总览（拆分后）
 
