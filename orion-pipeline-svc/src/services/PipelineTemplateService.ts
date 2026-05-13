@@ -28,6 +28,13 @@ export interface Template {
   updatedAt: Date;
   usageCount: number;
   rating?: number;
+  // Template marketplace fields
+  isPublic?: boolean;
+  downloadCount?: number;
+  ratingCount?: number;
+  author?: string;
+  thumbnail?: string;
+  readme?: string;
 }
 
 export interface TemplateVersion {
@@ -58,6 +65,51 @@ export interface InstantiateTemplateInput {
   projectId?: string;
   params?: Record<string, any>;
   createdBy?: string;
+}
+
+export interface TemplateSearchOptions {
+  tenantId?: string;
+  query?: string;
+  category?: string;
+  tags?: string[];
+  isPublic?: boolean;
+  minRating?: number;
+  sortBy?: 'popular' | 'rating' | 'newest' | 'downloads';
+  page?: number;
+  limit?: number;
+}
+
+export interface TemplateRatingInput {
+  templateId: string;
+  tenantId: string;
+  rating: number; // 1-5
+  comment?: string;
+  ratedBy: string;
+}
+
+export interface ForkTemplateInput {
+  sourceTemplateId: string;
+  tenantId: string;
+  name: string;
+  description?: string;
+  createdBy?: string;
+}
+
+export interface PublishTemplateInput {
+  templateId: string;
+  tenantId: string;
+  isPublic: boolean;
+  author?: string;
+  thumbnail?: string;
+  readme?: string;
+}
+
+export interface TemplateStats {
+  totalTemplates: number;
+  publicTemplates: number;
+  totalDownloads: number;
+  averageRating: number;
+  topCategories: { category: string; count: number }[];
 }
 
 export class PipelineTemplateService {
@@ -337,6 +389,267 @@ export class PipelineTemplateService {
     };
   }
 
+  // ==================== Template Marketplace ====================
+
+  /**
+   * Search templates with full-text search and filters
+   */
+  async searchTemplates(options: TemplateSearchOptions): Promise<{ data: Template[]; total: number }> {
+    const {
+      tenantId,
+      query,
+      category,
+      tags,
+      isPublic,
+      minRating,
+      sortBy = 'popular',
+      page = 1,
+      limit = 20,
+    } = options;
+    const offset = (page - 1) * limit;
+
+    let whereClause = 'WHERE 1=1';
+    const params: any[] = [];
+    let paramIndex = 1;
+
+    // Tenant isolation - show own templates + public templates
+    if (tenantId) {
+      whereClause += ` AND (tenant_id = $${paramIndex} OR is_public = true)`;
+      params.push(tenantId);
+      paramIndex++;
+    }
+
+    if (query) {
+      whereClause += ` AND (name ILIKE $${paramIndex} OR description ILIKE $${paramIndex})`;
+      params.push(`%${query}%`);
+      paramIndex++;
+    }
+
+    if (category) {
+      whereClause += ` AND category = $${paramIndex}`;
+      params.push(category);
+      paramIndex++;
+    }
+
+    if (tags && tags.length > 0) {
+      whereClause += ` AND tags && ARRAY[${tags.map((_, i) => `$${paramIndex + i}`).join(',')}]::text[]`;
+      params.push(...tags);
+      paramIndex += tags.length;
+    }
+
+    if (isPublic !== undefined) {
+      whereClause += ` AND is_public = $${paramIndex}`;
+      params.push(isPublic);
+      paramIndex++;
+    }
+
+    if (minRating !== undefined) {
+      whereClause += ` AND rating >= $${paramIndex}`;
+      params.push(minRating);
+      paramIndex++;
+    }
+
+    // Count
+    const countResult = await this.pool.query(
+      `SELECT COUNT(*) FROM pipeline_templates ${whereClause}`,
+      params
+    );
+    const total = parseInt(countResult.rows[0].count, 10);
+
+    // Order by
+    let orderBy = 'ORDER BY usage_count DESC';
+    switch (sortBy) {
+      case 'rating':
+        orderBy = 'ORDER BY rating DESC NULLS LAST';
+        break;
+      case 'newest':
+        orderBy = 'ORDER BY created_at DESC';
+        break;
+      case 'downloads':
+        orderBy = 'ORDER BY download_count DESC NULLS LAST';
+        break;
+      case 'popular':
+      default:
+        orderBy = 'ORDER BY usage_count DESC';
+    }
+
+    // Data
+    params.push(limit, offset);
+    const dataResult = await this.pool.query(
+      `SELECT * FROM pipeline_templates ${whereClause} ${orderBy} LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
+      params
+    );
+
+    return {
+      data: dataResult.rows.map((r: any) => this.mapTemplate(r)),
+      total,
+    };
+  }
+
+  /**
+   * Rate a template
+   */
+  async rateTemplate(input: TemplateRatingInput): Promise<{ success: boolean }> {
+    const { templateId, tenantId, rating, comment, ratedBy } = input;
+
+    // Validate rating
+    if (rating < 1 || rating > 5) {
+      throw new Error('Rating must be between 1 and 5');
+    }
+
+    // Insert rating
+    await this.pool.query(
+      `INSERT INTO template_ratings (template_id, tenant_id, rating, comment, rated_by)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [templateId, tenantId, rating, comment || null, ratedBy]
+    );
+
+    // Update template's average rating and count
+    const avgResult = await this.pool.query(
+      `SELECT AVG(rating) as avg_rating, COUNT(*) as rating_count
+       FROM template_ratings WHERE template_id = $1`,
+      [templateId]
+    );
+
+    await this.pool.query(
+      `UPDATE pipeline_templates SET rating = $1, rating_count = $2 WHERE id = $3`,
+      [avgResult.rows[0].avg_rating, parseInt(avgResult.rows[0].rating_count, 10), templateId]
+    );
+
+    return { success: true };
+  }
+
+  /**
+   * Fork a template to another tenant
+   */
+  async forkTemplate(input: ForkTemplateInput): Promise<Template | null> {
+    const { sourceTemplateId, tenantId, name, description, createdBy } = input;
+
+    // Get source template
+    const source = await this.getTemplateById('default', sourceTemplateId);
+    if (!source) return null;
+
+    // Create forked copy
+    const forked = await this.createTemplate({
+      tenantId,
+      name: name || `${source.name} (Fork)`,
+      description: description || source.description,
+      category: source.category,
+      tags: source.tags,
+      yamlDefinition: source.yamlDefinition,
+      parameters: source.parameters,
+      createdBy,
+    });
+
+    // Increment source download count
+    await this.pool.query(
+      'UPDATE pipeline_templates SET download_count = COALESCE(download_count, 0) + 1 WHERE id = $1',
+      [sourceTemplateId]
+    );
+
+    return forked;
+  }
+
+  /**
+   * Publish/unpublish template to marketplace
+   */
+  async publishTemplate(input: PublishTemplateInput): Promise<Template | null> {
+    const { templateId, tenantId, isPublic, author, thumbnail, readme } = input;
+
+    const setClauses: string[] = ['is_public = $1', 'updated_at = NOW()'];
+    const params: any[] = [isPublic];
+    let paramIndex = 2;
+
+    if (author !== undefined) {
+      params.push(author);
+      setClauses.push(`author = $${paramIndex++}`);
+    }
+    if (thumbnail !== undefined) {
+      params.push(thumbnail);
+      setClauses.push(`thumbnail = $${paramIndex++}`);
+    }
+    if (readme !== undefined) {
+      params.push(readme);
+      setClauses.push(`readme = $${paramIndex++}`);
+    }
+
+    params.push(templateId, tenantId);
+
+    const result = await this.pool.query(
+      `UPDATE pipeline_templates SET ${setClauses.join(', ')}
+       WHERE id = $${paramIndex} AND tenant_id = $${paramIndex + 1}
+       RETURNING *`,
+      params
+    );
+
+    return result.rows[0] ? this.mapTemplate(result.rows[0]) : null;
+  }
+
+  /**
+   * Get template statistics
+   */
+  async getTemplateStats(tenantId?: string): Promise<TemplateStats> {
+    let whereClause = '';
+    const params: any[] = [];
+
+    if (tenantId) {
+      whereClause = 'WHERE tenant_id = $1';
+      params.push(tenantId);
+    }
+
+    const totalResult = await this.pool.query(
+      `SELECT COUNT(*) as total, COUNT(*) FILTER (WHERE is_public = true) as public_count,
+              SUM(COALESCE(download_count, 0)) as total_downloads,
+              AVG(rating) as avg_rating
+       FROM pipeline_templates ${whereClause}`,
+      params
+    );
+
+    const categoryResult = await this.pool.query(
+      `SELECT category, COUNT(*) as count FROM pipeline_templates ${whereClause} GROUP BY category`,
+      params
+    );
+
+    return {
+      totalTemplates: parseInt(totalResult.rows[0].total, 10),
+      publicTemplates: parseInt(totalResult.rows[0].public_count, 10),
+      totalDownloads: parseInt(totalResult.rows[0].total_downloads, 10) || 0,
+      averageRating: parseFloat(totalResult.rows[0].avg_rating) || 0,
+      topCategories: categoryResult.rows.map((r: any) => ({
+        category: r.category,
+        count: parseInt(r.count, 10),
+      })),
+    };
+  }
+
+  /**
+   * Get ratings for a template
+   */
+  async getTemplateRatings(
+    templateId: string,
+    options: { page?: number; limit?: number } = {}
+  ): Promise<{ data: any[]; total: number }> {
+    const { page = 1, limit = 20 } = options;
+    const offset = (page - 1) * limit;
+
+    const countResult = await this.pool.query(
+      'SELECT COUNT(*) FROM template_ratings WHERE template_id = $1',
+      [templateId]
+    );
+    const total = parseInt(countResult.rows[0].count, 10);
+
+    const dataResult = await this.pool.query(
+      `SELECT * FROM template_ratings WHERE template_id = $1
+       ORDER BY created_at DESC LIMIT $2 OFFSET $3`,
+      [templateId, limit, offset]
+    );
+
+    return {
+      data: dataResult.rows,
+      total,
+    };
+  }
+
   // ==================== Internal helpers ====================
 
   private mapTemplate(row: any): Template {
@@ -364,6 +677,13 @@ export class PipelineTemplateService {
       updatedAt: row.updated_at,
       usageCount: row.usage_count || 0,
       rating: row.rating ? parseFloat(row.rating) : undefined,
+      // Template marketplace fields
+      isPublic: row.is_public || false,
+      downloadCount: row.download_count || 0,
+      ratingCount: row.rating_count || 0,
+      author: row.author || undefined,
+      thumbnail: row.thumbnail || undefined,
+      readme: row.readme || undefined,
     };
   }
 

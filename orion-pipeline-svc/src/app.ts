@@ -10,6 +10,8 @@ import { pipelineRunRoutes } from './routes/pipeline-run';
 import { pipelineAdminRoutes } from './routes/pipeline-admin';
 import { scmWebhookRoutes } from './routes/scm-webhook';
 import { pipelineSSERoutes } from './routes/pipeline-sse';
+import { pipelineTemplateRoutes } from './routes/pipeline-template';
+import { cacheStrategyRoutes } from './routes/cache-strategy';
 import { errorHandler } from './middleware/errorHandler';
 import { PipelineEngine } from './services/PipelineEngine';
 import { PipelineRunService } from './services/PipelineRunService';
@@ -65,6 +67,8 @@ async function buildApp() {
   await fastify.register(pipelineAdminRoutes, { prefix: '/api/v1', database });
   await fastify.register(scmWebhookRoutes, { prefix: '/api/v1', database, pipelineEngine });
   await fastify.register(pipelineSSERoutes, { prefix: '/api/v1', sseBus });
+  await fastify.register(pipelineTemplateRoutes, { prefix: '/api/v1', database });
+  await fastify.register(cacheStrategyRoutes, { prefix: '/api/v1', database });
 
   // Wire up SSE events to pipeline engine via subscribe() wrapper for type safety
   await subscribe('pipeline.log', (data: any) => sseBus.emit('pipeline.log', data));
