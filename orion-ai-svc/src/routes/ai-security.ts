@@ -209,6 +209,7 @@ export default async function aiSecurityRoutes(
   /**
    * POST /api/v1/ai-security/execute
    * 在沙箱中执行代码
+   * P1-2.3 Fix: Added Bearer token authentication + execution logging
    */
   app.post('/execute', async (
     request: FastifyRequest<{
@@ -221,13 +222,35 @@ export default async function aiSecurityRoutes(
     reply: FastifyReply
   ) => {
     try {
+      // P1-2.3: Require Bearer token authentication
+      const authHeader = request.headers['authorization'] as string | undefined;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return reply.code(401).send({
+          success: false,
+          error: 'Unauthorized: Bearer token required',
+        });
+      }
+
       const { code, context = {}, timeout = 5000 } = request.body;
+      const tenantId = extractTenantId(request);
+      const userId = extractUserId(request);
+
+      // Log execution attempt for audit trail
+      await auditRepository?.create({
+        tenant_id: tenantId,
+        user_id: userId,
+        action: 'ai_security:execute',
+        resource_type: 'sandbox_execution',
+        resource_id: 'execute',
+        request_body: { timeout, codeLength: code.length },
+      });
+
       const sandbox = new ExecutionSandbox(timeout);
       const result = await sandbox.execute(code, context);
 
       return {
         success: true,
-        data: { result },
+        data: { result, tenantId },
       };
     } catch (error) {
       return reply.code(400).send({

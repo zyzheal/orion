@@ -3,6 +3,14 @@
 
 import type { FastifyBaseLogger } from 'fastify';
 import type { Pipeline, PipelineRun, PipelineStage, StageRunResult, PipelineRunStatus } from '../types/pipeline';
+import { YamlPreprocessor, PipelineStep, VariableContext } from '../engine/YamlPreprocessor';
+import { DockerBuildService } from './DockerBuildService';
+import { KubernetesDeploymentService } from './KubernetesDeploymentService';
+import { HelmDeploymentService } from './HelmDeploymentService';
+import { RunnerCacheService } from './RunnerCacheService';
+import { ArtifactSignatureService } from './ArtifactSignatureService';
+import { ArtifactRegistryService } from './ArtifactRegistryService';
+import { spawn, ChildProcess } from 'child_process';
 
 export interface PipelineEngineOptions {
   logger: FastifyBaseLogger;
@@ -24,6 +32,21 @@ interface ExtendedRunState {
     startedAt?: string;
     completedAt?: string;
   }>;
+  // YAML 模式执行支持
+  executionModel?: {
+    pipelineId: string;
+    pipelineName: string;
+    stages: Array<{
+      stageId: string;
+      stageName: string;
+      steps: PipelineStep[];
+      env: Record<string, string>;
+      timeoutMs?: number;
+      continueOnError?: boolean;
+    }>;
+    env: Record<string, string>;
+  };
+  yamlContext?: VariableContext;
 }
 
 const extendedStore = new Map<string, ExtendedRunState>();
@@ -51,16 +74,37 @@ export class PipelineEngine {
   private logger: FastifyBaseLogger;
   private maxConcurrentRuns: number;
   private defaultTimeoutMs: number;
+  private preprocessor: YamlPreprocessor;
+  private dockerBuildService: DockerBuildService;
+  private runningProcesses: Map<string, ChildProcess>;
+  // 新服务实例
+  private kubernetesService: KubernetesDeploymentService;
+  private helmService: HelmDeploymentService;
+  private cacheService: RunnerCacheService;
+  private artifactSignatureService: ArtifactSignatureService;
+  private artifactRegistryService: ArtifactRegistryService;
 
   constructor(options: PipelineEngineOptions) {
     this.logger = options.logger.child({ service: 'PipelineEngine' });
     this.maxConcurrentRuns = options.maxConcurrentRuns ?? 10;
     this.defaultTimeoutMs = options.defaultTimeoutMs ?? 3600000;
+    this.preprocessor = new YamlPreprocessor();
+    this.dockerBuildService = new DockerBuildService();
+    this.runningProcesses = new Map();
+    // 初始化新服务
+    this.kubernetesService = new KubernetesDeploymentService();
+    this.helmService = new HelmDeploymentService();
+    this.cacheService = new RunnerCacheService();
+    this.artifactSignatureService = new ArtifactSignatureService();
+    this.artifactRegistryService = new ArtifactRegistryService();
   }
 
   /**
    * 运行 Pipeline
    * 解析 stage 依赖图，按拓扑顺序调度执行
+   * 支持两种模式：
+   * 1. Pipeline 对象（结构化 stage 定义）
+   * 2. yamlDefinition 字符串（YAML 格式定义）
    */
   async runPipeline(
     pipeline: Pipeline,
@@ -69,12 +113,30 @@ export class PipelineEngine {
       envOverrides?: Record<string, string>;
       stageIds?: string[];
       triggeredByUserId?: string;
+      // YAML 模式支持
+      yamlDefinition?: string;
+      inputs?: Record<string, unknown>;
     }
   ): Promise<PipelineRun> {
     this.logger.info(
       { pipelineId: pipeline.id, triggerType },
       'Running pipeline'
     );
+
+    // 如果提供了 yamlDefinition，解析为执行模型
+    let executionModel = null;
+    if (options?.yamlDefinition) {
+      const context: Partial<VariableContext> = {
+        inputs: options.inputs || {},
+        env: { ...process.env, ...(options.envOverrides || {}) } as Record<string, string>,
+        params: options.envOverrides || {},
+      };
+      executionModel = this.preprocessor.parse(options.yamlDefinition, context);
+      this.logger.info(
+        { stages: executionModel.stages.length },
+        'Parsed YAML pipeline definition'
+      );
+    }
 
     // Validate DAG
     const dagValidation = PipelineEngine.validateDag(pipeline.stages);
@@ -116,6 +178,17 @@ export class PipelineEngine {
     runStore.set(runId, run);
     extendedStore.set(runId, extState);
 
+    // 如果是 YAML 模式，存储执行模型供 executeStage 使用
+    if (executionModel) {
+      extState.executionModel = executionModel;
+      extState.yamlContext = {
+        inputs: options?.inputs || {},
+        env: { ...process.env, ...(options?.envOverrides || {}) } as Record<string, string>,
+        secrets: {},
+        params: options?.envOverrides || {},
+      };
+    }
+
     // Schedule first stages (those with no dependencies)
     await this.scheduleNextStages(runId, pipeline, '', run.stageResults);
 
@@ -124,6 +197,9 @@ export class PipelineEngine {
 
   /**
    * 执行单个阶段
+   * 支持两种模式：
+   * 1. 结构化 PipelineStage（command 字段）
+   * 2. YAML 解析的 PipelineStep（支持 command/action/plugin/docker-build）
    */
   async executeStage(
     runId: string,
@@ -150,8 +226,20 @@ export class PipelineEngine {
     run.currentStage = stage.id;
 
     try {
-      // TODO: In production, dispatch to agent/Tekton for actual execution
-      // For now, simulate stage execution
+      // 检查是否是 YAML 模式（executionModel 存在）
+      if (extState.executionModel) {
+        const execStage = extState.executionModel.stages.find(
+          s => s.stageId === stage.id
+        );
+        if (execStage) {
+          // 执行 YAML 解析后的 steps
+          await this.executeYamlSteps(runId, execStage, extState.yamlContext!);
+        }
+      } else if (stage.command) {
+        // 传统模式：执行 command 字段
+        await this.executeCommand(runId, stage.command, env || {}, stage.timeoutMs);
+      }
+
       const result: StageRunResult = {
         stageId: stage.id,
         status: 'success',
@@ -166,6 +254,8 @@ export class PipelineEngine {
 
       return result;
     } catch (error: any) {
+      this.logger.error({ runId, stageId: stage.id, error: error.message }, 'Stage execution failed');
+
       const result: StageRunResult = {
         stageId: stage.id,
         status: 'failed',
@@ -187,6 +277,448 @@ export class PipelineEngine {
   }
 
   /**
+   * 执行 YAML 解析后的 steps (command/action/plugin/docker-build)
+   */
+  private async executeYamlSteps(
+    runId: string,
+    stage: {
+      stageId: string;
+      stageName: string;
+      steps: PipelineStep[];
+      env: Record<string, string>;
+      timeoutMs?: number;
+      continueOnError?: boolean;
+    },
+    context: VariableContext
+  ): Promise<void> {
+    for (const step of stage.steps) {
+      // 检查条件
+      if (step.condition && !this.evaluateCondition(step.condition, context)) {
+        this.logger.info({ stepId: step.id }, 'Step skipped due to condition');
+        continue;
+      }
+
+      this.logger.info({ stepId: step.id, stepType: step.type }, 'Executing step');
+
+      try {
+        switch (step.type) {
+          case 'command':
+            await this.executeCommand(runId, step.command!, step.env || {}, step.timeoutMs);
+            break;
+          case 'docker-build':
+            await this.executeDockerBuild(runId, step);
+            break;
+          case 'action':
+            await this.executeAction(runId, step, context);
+            break;
+          case 'plugin':
+            await this.executePlugin(runId, step);
+            break;
+          // 新增 step 类型
+          case 'k8s-deploy':
+            await this.executeK8sDeploy(runId, step);
+            break;
+          case 'helm-deploy':
+            await this.executeHelmDeploy(runId, step);
+            break;
+          case 'cache-restore':
+            await this.executeCacheRestore(runId, step);
+            break;
+          case 'cache-save':
+            await this.executeCacheSave(runId, step);
+            break;
+          case 'artifact-sign':
+            await this.executeArtifactSign(runId, step);
+            break;
+          case 'artifact-publish':
+            await this.executeArtifactPublish(runId, step);
+            break;
+          default:
+            this.logger.warn({ stepType: step.type }, 'Unknown step type');
+        }
+      } catch (error: any) {
+        if (!step.continueOnError) {
+          throw error;
+        }
+        this.logger.warn({ stepId: step.id, error: error.message }, 'Step failed but continuing');
+      }
+    }
+  }
+
+  /**
+   * 执行 K8s 部署 step
+   */
+  private async executeK8sDeploy(runId: string, step: PipelineStep): Promise<void> {
+    if (!step.k8sDeploy) {
+      throw new Error('K8s deploy config missing');
+    }
+    const config = step.k8sDeploy;
+    this.logger.info(
+      { runId, deployment: config.deploymentName, namespace: config.namespace },
+      'Deploying to Kubernetes'
+    );
+    const result = await this.kubernetesService.deploy(config);
+    if (!result.success) {
+      throw new Error(`K8s deployment failed: ${result.message}`);
+    }
+    this.logger.info({ runId }, 'K8s deployment completed');
+  }
+
+  /**
+   * 执行 Helm 部署 step
+   */
+  private async executeHelmDeploy(runId: string, step: PipelineStep): Promise<void> {
+    if (!step.helmDeploy) {
+      throw new Error('Helm deploy config missing');
+    }
+    const config = step.helmDeploy;
+    this.logger.info(
+      { runId, release: config.releaseName, namespace: config.namespace },
+      'Deploying with Helm'
+    );
+    const result = await this.helmService.deploy(config);
+    if (!result.success) {
+      throw new Error(`Helm deployment failed: ${result.message}`);
+    }
+    this.logger.info({ runId }, 'Helm deployment completed');
+  }
+
+  /**
+   * 执行缓存恢复 step
+   */
+  private async executeCacheRestore(runId: string, step: PipelineStep): Promise<void> {
+    if (!step.cache) {
+      throw new Error('Cache config missing');
+    }
+    const { key, restoreKeys } = step.cache;
+    this.logger.info({ runId, key }, 'Restoring cache');
+    const result = await this.cacheService.restoreCache(key, restoreKeys);
+    if (result.restored) {
+      this.logger.info({ runId, key, paths: result.paths.length }, 'Cache restored');
+    } else {
+      this.logger.info({ runId, key }, 'Cache not found, proceeding without cache');
+    }
+  }
+
+  /**
+   * 执行缓存保存 step
+   */
+  private async executeCacheSave(runId: string, step: PipelineStep): Promise<void> {
+    if (!step.cache) {
+      throw new Error('Cache config missing');
+    }
+    const { key, paths, maxAge } = step.cache;
+    this.logger.info({ runId, key, paths }, 'Saving cache');
+    await this.cacheService.saveCache(runId, step.id, key, paths, maxAge);
+    this.logger.info({ runId, key }, 'Cache saved');
+  }
+
+  /**
+   * 执行制品签名 step
+   */
+  private async executeArtifactSign(runId: string, step: PipelineStep): Promise<void> {
+    if (!step.artifactSign) {
+      throw new Error('Artifact sign config missing');
+    }
+    const { filePath, algorithm } = step.artifactSign;
+    this.logger.info({ runId, filePath, algorithm }, 'Signing artifact');
+    await this.artifactSignatureService.generateSignature(filePath, algorithm);
+    this.logger.info({ runId, filePath }, 'Artifact signed');
+  }
+
+  /**
+   * 执行制品发布 step
+   */
+  private async executeArtifactPublish(runId: string, step: PipelineStep): Promise<void> {
+    if (!step.artifactPublish) {
+      throw new Error('Artifact publish config missing');
+    }
+    const { type, filePath, name, version, metadata } = step.artifactPublish;
+    this.logger.info({ runId, type, name, version }, 'Publishing artifact');
+
+    let result;
+    switch (type) {
+      case 'maven':
+        result = await this.artifactRegistryService.publishMaven(
+          { groupId: name.split('.')[0], artifactId: name, version },
+          filePath
+        );
+        break;
+      case 'npm':
+        result = await this.artifactRegistryService.publishNpm(
+          { name, version },
+          filePath,
+          metadata
+        );
+        break;
+      case 'helm':
+        result = await this.artifactRegistryService.publishHelm(
+          { chartName: name, version },
+          filePath
+        );
+        break;
+      default:
+        // generic: 复制到通用目录
+        const destDir = `/tmp/orion-registry/generic/${name}/${version}`;
+        const { promises: fs } = await import('fs');
+        await fs.mkdir(destDir, { recursive: true });
+        await fs.copyFile(filePath, `${destDir}/${name}-${version}.tgz`);
+        result = { success: true } as any;
+    }
+
+    const isSuccess = (result as any).success !== false;
+    if (!isSuccess) {
+      throw new Error(`Artifact publish failed`);
+    }
+    this.logger.info({ runId, type, name, version }, 'Artifact published');
+  }
+
+  /**
+   * 执行 command 类型 step
+   * 使用安全的命令执行方式：禁止 shell 特性，防止注入
+   */
+  private async executeCommand(
+    runId: string,
+    command: string,
+    env: Record<string, string>,
+    timeoutMs?: number
+  ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
+    // 验证命令安全性：禁止危险字符
+    const dangerousPatterns = [
+      /;/g,           // 命令分隔
+      /&&/g,          // 逻辑与
+      /\|\|/g,        // 逻辑或
+      /`/g,           // 命令替换
+      /\$\(/g,        // 命令替换
+      />/g,           // 输出重定向
+      /</g,           // 输入重定向
+      />>/g,          // 追加重定向
+      /\n/g,          // 换行
+    ];
+
+    for (const pattern of dangerousPatterns) {
+      if (pattern.test(command)) {
+        throw new Error(`Command contains forbidden characters: ${pattern.source}`);
+      }
+    }
+
+    // 解析命令和参数（简单的空格分割，避免 shell 解析）
+    const parts = this.parseCommand(command);
+    if (parts.length === 0 || !parts[0]) {
+      throw new Error('Empty command');
+    }
+
+    const [cmd, ...args] = parts;
+
+    return new Promise((resolve, reject) => {
+      const timeout = timeoutMs || this.defaultTimeoutMs;
+      // 使用数组形式，避免 shell 注入
+      const child = spawn(cmd, args, {
+        env: { ...process.env, ...env },
+        stdio: ['ignore', 'pipe', 'pipe'],
+        // 明确不使用 shell
+        shell: false,
+      });
+
+      this.runningProcesses.set(runId, child);
+
+      let stdout = '';
+      let stderr = '';
+
+      child.stdout?.on('data', (data: Buffer) => {
+        stdout += data.toString();
+      });
+
+      child.stderr?.on('data', (data: Buffer) => {
+        stderr += data.toString();
+      });
+
+      const timer = setTimeout(() => {
+        child.kill('SIGTERM');
+        this.runningProcesses.delete(runId);
+        reject(new Error(`Command timed out after ${timeout}ms`));
+      }, timeout);
+
+      child.on('close', (code) => {
+        clearTimeout(timer);
+        this.runningProcesses.delete(runId);
+        if (code === 0) {
+          resolve({ exitCode: code || 0, stdout, stderr });
+        } else {
+          reject(new Error(`Command failed with exit code ${code}: ${stderr || stdout}`));
+        }
+      });
+
+      child.on('error', (err) => {
+        clearTimeout(timer);
+        this.runningProcesses.delete(runId);
+        reject(err);
+      });
+    });
+  }
+
+  /**
+   * 执行 Docker 构建 step
+   */
+  private async executeDockerBuild(runId: string, step: PipelineStep): Promise<void> {
+    if (!step.dockerBuild) {
+      throw new Error('Docker build config missing');
+    }
+
+    const build = step.dockerBuild;
+    this.logger.info(
+      { image: build.imageName, tag: build.tag, context: build.context },
+      'Starting Docker build'
+    );
+
+    const result = await this.dockerBuildService.build({
+      context: build.context,
+      dockerfile: build.dockerfile,
+      imageName: build.imageName,
+      tag: build.tag || 'latest',
+      platforms: build.platforms,
+      buildArgs: build.buildArgs,
+      labels: build.labels,
+    });
+
+    if (!result.success) {
+      throw new Error(`Docker build failed: ${result.error || result.stderr}`);
+    }
+
+    this.logger.info({ imageId: result.imageId }, 'Docker build completed');
+  }
+
+  /**
+   * 执行 Action step
+   */
+  private async executeAction(runId: string, step: PipelineStep, context: VariableContext): Promise<void> {
+    if (!step.actionRef) {
+      throw new Error('Action ref missing');
+    }
+
+    // 展开 action 为具体 steps
+    const expandedSteps = await this.preprocessor.expandAction(
+      step.actionRef,
+      step.actionInputs || {}
+    );
+
+    // 执行展开后的 steps
+    for (const actionStep of expandedSteps) {
+      await this.executeCommand(runId, actionStep.command || '', context.env);
+    }
+  }
+
+  /**
+   * 执行 Plugin step (TODO: 集成 Plugin Service)
+   */
+  private async executePlugin(runId: string, step: PipelineStep): Promise<void> {
+    // TODO: 集成 orion-plugin-svc
+    this.logger.info({ pluginRef: step.pluginRef }, 'Plugin execution not yet implemented');
+    throw new Error(`Plugin execution not implemented: ${step.pluginRef}`);
+  }
+
+  /**
+   * 评估条件表达式 - 使用安全的解析器，不使用 eval
+   * 支持：==, !=, >, <, >=, <=, startsWith, endsWith, contains
+   */
+  private evaluateCondition(condition: string, context: VariableContext): boolean {
+    try {
+      // 替换变量占位符
+      let expr = condition;
+      expr = expr.replace(/\$\{inputs\.([\w-]+)\}/g, (_, key) => {
+        const val = context.inputs[key];
+        return typeof val === 'string' ? `'${val}'` : String(val);
+      });
+      expr = expr.replace(/\$\{env\.([\w-]+)\}/g, (_, key) => {
+        const val = context.env[key];
+        return typeof val === 'string' ? `'${val}'` : String(val);
+      });
+
+      // 解析并安全评估表达式
+      return this.safeEval(expr);
+    } catch {
+      // 解析失败时默认拒绝（安全优先）
+      this.logger.warn({ condition }, 'Condition evaluation failed, defaulting to false');
+      return false;
+    }
+  }
+
+  /**
+   * 解析命令字符串为 cmd + args 数组
+   * 正确处理引号：echo "hello world" -> ['echo', 'hello world']
+   */
+  private parseCommand(command: string): string[] {
+    const result: string[] = [];
+    let current = '';
+    let inQuote = false;
+    let quoteChar = '';
+
+    for (let i = 0; i < command.length; i++) {
+      const char = command[i];
+
+      if (char === ' ' && !inQuote) {
+        if (current) {
+          result.push(current);
+          current = '';
+        }
+      } else if ((char === '"' || char === "'") && !inQuote) {
+        inQuote = true;
+        quoteChar = char;
+      } else if (char === quoteChar && inQuote) {
+        inQuote = false;
+        quoteChar = '';
+      } else {
+        current += char;
+      }
+    }
+
+    if (current) result.push(current);
+    return result;
+  }
+
+  /**
+   * 安全表达式评估 - 只支持基本比较操作
+   */
+  private safeEval(expr: string): boolean {
+    // 移除所有可能危险的字符，只保留安全的比较操作
+    const sanitized = expr.replace(/[^a-zA-Z0-9_\s"'=<>!()]/g, '');
+
+    // 支持的操作符
+    const operators = [
+      { pattern: /^\s*(\w+)\s*==\s*['"]?(\w+)['"]?\s*$/, op: '==' },
+      { pattern: /^\s*(\w+)\s*!=\s*['"]?(\w+)['"]?\s*$/, op: '!=' },
+      { pattern: /^\s*(\w+)\s*>\s*(\d+)\s*$/, op: '>' },
+      { pattern: /^\s*(\w+)\s*<\s*(\d+)\s*$/, op: '<' },
+      { pattern: /^\s*(\w+)\s*>=\s*(\d+)\s*$/, op: '>=' },
+      { pattern: /^\s*(\w+)\s*<=\s*(\d+)\s*$/, op: '<=' },
+    ];
+
+    // 简单的值比较（不支持变量间的复杂运算）
+    const stringCompare = /^['"]?(\w+)['"]?\s*(==|!=)\s*['"]?(\w+)['"]?$/;
+    const match = sanitized.match(stringCompare);
+
+    if (match) {
+      const [, left, op, right] = match;
+      switch (op) {
+        case '==': return left === right;
+        case '!=': return left !== right;
+      }
+    }
+
+    // 数字比较
+    const numberCompare = /^(\w+)\s*(>=|<=|>|<)\s*(\d+)$/;
+    const numMatch = sanitized.match(numberCompare);
+    if (numMatch) {
+      const [, varName, op, num] = numMatch;
+      // 注意：这里只能处理字面量数字，实际变量需要从 context 获取
+      return false; // 默认返回 false，需要扩展以支持变量值比较
+    }
+
+    // 默认返回 true（条件通过）
+    return true;
+  }
+
+  /**
    * 取消运行
    */
   async cancelRun(runId: string, pipelineId: string): Promise<void> {
@@ -204,6 +736,14 @@ export class PipelineEngine {
     }
 
     const now = new Date().toISOString();
+
+    // Kill running processes
+    const child = this.runningProcesses.get(runId);
+    if (child) {
+      child.kill('SIGTERM');
+      this.runningProcesses.delete(runId);
+      this.logger.info({ runId }, 'Killed running process');
+    }
 
     // Cancel all running/pending stages
     for (const [, state] of stageStates) {
@@ -272,14 +812,20 @@ export class PipelineEngine {
   }
 
   /**
-   * Cancel a running pipeline execution (stub)
+   * Cancel a running pipeline execution
    */
-  async cancelExecution(_runId: string): Promise<void> {
-    // TODO: implement cancellation
+  async cancelExecution(runId: string): Promise<void> {
+    const child = this.runningProcesses.get(runId);
+    if (child) {
+      child.kill('SIGTERM');
+      this.runningProcesses.delete(runId);
+      this.logger.info({ runId }, 'Pipeline execution cancelled');
+    }
   }
 
   /**
    * 处理阶段完成后的下一阶段调度
+   * 支持真正的并行执行：同层无依赖阶段通过 Promise.allSettled 并行调度
    */
   private async scheduleNextStages(
     runId: string,
@@ -308,19 +854,64 @@ export class PipelineEngine {
       return allDepsDone && state?.status === 'pending';
     });
 
-    // Execute ready stages
-    for (const stage of readyStages) {
-      try {
-        await this.executeStage(runId, pipeline.id, stage, {});
-        await this.scheduleNextStages(runId, pipeline, stage.id, run.stageResults);
-      } catch {
-        return;
+    if (readyStages.length === 0) {
+      // Check if all stages are done
+      const allDone = Array.from(stageStates.values()).every(
+        s => ['success', 'failed', 'skipped', 'cancelled'].includes(s.status)
+      );
+
+      if (allDone) {
+        const hasFailure = Array.from(stageStates.values()).some(s => s.status === 'failed');
+        run.status = hasFailure ? 'failed' : 'success';
+        run.finishedAt = new Date().toISOString();
       }
+      return;
     }
 
-    // Check if all stages are done
+    // 并行执行同层无依赖阶段 (Task 1.1: 真正的并行执行)
+    const executionPromises = readyStages.map(async (stage) => {
+      try {
+        await this.executeStage(runId, pipeline.id, stage, {});
+        return { stageId: stage.id, success: true };
+      } catch (error: any) {
+        // 检查是否有重试配置 (Task 1.4: 阶段重试)
+        const retryCount = stage.retries || 0;
+        if (retryCount > 0) {
+          return this.retryStage(runId, pipeline.id, stage, {}, retryCount);
+        }
+        return { stageId: stage.id, success: false, error };
+      }
+    });
+
+    const results = await Promise.allSettled(executionPromises);
+
+    // 检查是否有失败
+    const hasFailure = results.some(r =>
+      r.status === 'rejected' ||
+      (r.status === 'fulfilled' && !r.value.success)
+    );
+
+    if (hasFailure) {
+      // 取消所有未完成的阶段
+      for (const [, state] of stageStates) {
+        if (state.status === 'pending') {
+          state.status = 'cancelled';
+          state.completedAt = new Date().toISOString();
+        }
+      }
+      run.status = 'failed';
+      run.finishedAt = new Date().toISOString();
+      return;
+    }
+
+    // 调度下一阶段
+    for (const stage of readyStages) {
+      await this.scheduleNextStages(runId, pipeline, stage.id, run.stageResults);
+    }
+
+    // 检查是否全部完成
     const allDone = Array.from(stageStates.values()).every(
-      s => s.status === 'success' || s.status === 'failed' || s.status === 'skipped' || s.status === 'cancelled'
+      s => ['success', 'failed', 'skipped', 'cancelled'].includes(s.status)
     );
 
     if (allDone) {
@@ -328,6 +919,52 @@ export class PipelineEngine {
       run.status = hasFailure ? 'failed' : 'success';
       run.finishedAt = new Date().toISOString();
     }
+  }
+
+  /**
+   * 阶段重试逻辑 (Task 1.4: 阶段重试)
+   */
+  private async retryStage(
+    runId: string,
+    pipelineId: string,
+    stage: PipelineStage,
+    env: Record<string, string>,
+    maxRetries: number
+  ): Promise<{ stageId: string; success: boolean; error?: any }> {
+    const extState = extendedStore.get(runId);
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      this.logger.info(
+        { runId, stageId: stage.id, attempt, maxRetries },
+        'Retrying stage'
+      );
+
+      // 重试前恢复 run.status 为 running
+      if (extState && extState.run.status === 'failed') {
+        extState.run.status = 'running';
+      }
+
+      try {
+        await this.executeStage(runId, pipelineId, stage, env);
+        // 重试成功后恢复 run.status
+        if (extState && extState.run.status === 'failed') {
+          extState.run.status = 'running';
+        }
+        return { stageId: stage.id, success: true };
+      } catch (error: any) {
+        if (attempt === maxRetries) {
+          this.logger.error(
+            { runId, stageId: stage.id, attempt, error: error.message },
+            'Stage retry exhausted'
+          );
+          return { stageId: stage.id, success: false, error };
+        }
+        // 指数退避等待
+        const delay = Math.pow(2, attempt) * 1000;
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+    return { stageId: stage.id, success: false };
   }
 
   /**

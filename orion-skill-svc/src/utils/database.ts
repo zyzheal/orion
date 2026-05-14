@@ -122,7 +122,7 @@ export async function runSeeds(): Promise<void> {
   console.log("Running database seeds...");
 
   const { rowCount } = await pool.query("SELECT 1 FROM skills LIMIT 1");
-  if (rowCount > 0) {
+  if ((rowCount ?? 0) > 0) {
     console.log("Database already seeded, skipping.");
     return;
   }

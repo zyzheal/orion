@@ -67,7 +67,7 @@ export async function listTenants(params?: {
   );
 
   return {
-    tenants: dataResult.rows.map(rowToTenant),
+    tenants: dataResult.rows.map(rowToTenant).filter((t): t is Tenant => t !== null),
     total,
   };
 }

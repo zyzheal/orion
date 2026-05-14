@@ -109,15 +109,15 @@ export async function llmTraceRoutes(app: FastifyInstance): Promise<void> {
       let filteredTraces = traces;
       if (startDate) {
         const start = new Date(startDate);
-        filteredTraces = filteredTraces.filter(t => t.requestStartedAt >= start);
+        filteredTraces = filteredTraces.filter((t: LLMTrace) => t.requestStartedAt >= start);
       }
       if (endDate) {
         const end = new Date(endDate);
-        filteredTraces = filteredTraces.filter(t => t.requestStartedAt <= end);
+        filteredTraces = filteredTraces.filter((t: LLMTrace) => t.requestStartedAt <= end);
       }
 
       const breakdown = costCalculator.calculateBatch(
-        filteredTraces.map(t => ({
+        filteredTraces.map((t: LLMTrace) => ({
           modelId: t.modelId,
           inputTokens: t.inputTokens,
           outputTokens: t.outputTokens,

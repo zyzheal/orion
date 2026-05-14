@@ -64,7 +64,7 @@ export async function listServices(status?: string): Promise<ServiceInfo[]> {
     : 'SELECT * FROM service_registry ORDER BY service_name';
 
   const result = await pool.query(query, status ? [status] : []);
-  return result.rows.map(rowToService);
+  return result.rows.map(rowToService).filter((s): s is ServiceInfo => s !== null);
 }
 
 export async function updateServiceHeartbeat(serviceName: string): Promise<boolean> {

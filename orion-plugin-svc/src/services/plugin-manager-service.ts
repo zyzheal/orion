@@ -694,7 +694,7 @@ export class PluginManagerService extends EventEmitter {
     }
 
     const plugins = await this.pluginRepository.search(query);
-    return plugins.map(plugin => {
+    return plugins.map((plugin: PluginInfo) => {
       // Merge: preserve in-memory state if plugin already loaded
       const existing = this.plugins.get(plugin.id);
       if (existing) {

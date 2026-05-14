@@ -395,7 +395,7 @@ export class PluginLifecycleManager extends EventEmitter {
 
       const deps = plugin.manifest.dependencies || [];
       const hasDependency = deps.some(
-        (d) => d.name === pluginId && !d.optional
+        (d: any) => d.name === pluginId && !d.optional
       );
 
       if (hasDependency && plugin.status === 'enabled') {

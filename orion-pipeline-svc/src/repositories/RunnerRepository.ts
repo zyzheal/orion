@@ -1,51 +1,84 @@
-// Stub - TODO: implement with PostgreSQL
+// Runner Repository - In-memory implementation
 import { Pool } from 'pg';
 import type { Runner, RunnerCreateInput, RunnerUpdateInput } from '../models/Runner';
 
-export interface RunnerEntity {
-  id: string;
-  name: string;
-  status: string;
-  current_jobs: number;
-  max_concurrent: number;
-  labels: string[];
-  tenant_id: string;
-  url?: string;
-  last_heartbeat?: Date;
-  created_at: Date;
-  updated_at: Date;
-}
+// In-memory store using Runner interface (camelCase)
+const runners = new Map<string, Runner>();
 
 export class RunnerRepository {
   constructor(_pool: Pool | null) {}
-  async create(_input: RunnerCreateInput): Promise<Runner> {
-    throw new Error('Not implemented');
+
+  async create(input: RunnerCreateInput): Promise<Runner> {
+    const runner: Runner = {
+      id: crypto.randomUUID(),
+      name: (input.name as string) || 'unnamed',
+      status: (input.status as string) || 'idle',
+      currentJobs: (input.currentJobs as number) || 0,
+      maxConcurrent: (input.maxConcurrent as number) || 5,
+      labels: (input.labels as string[]) || [],
+      tenantId: (input.tenantId as string) || '',
+      url: input.url as string | undefined,
+    };
+    runners.set(runner.id, runner);
+    return runner;
   }
-  async findById(_id: string): Promise<Runner | undefined> {
-    return undefined;
+
+  async findById(id: string): Promise<Runner | undefined> {
+    return runners.get(id);
   }
-  async findByStatus(_status: string): Promise<Runner[]> {
-    return [];
+
+  async findByStatus(status: string): Promise<Runner[]> {
+    return Array.from(runners.values()).filter(r => r.status === status);
   }
-  async findByLabels(_tenantId: string, _labels: string[]): Promise<Runner[]> {
-    return [];
+
+  async findByLabels(tenantId: string, labels: string[]): Promise<Runner[]> {
+    return Array.from(runners.values()).filter(r =>
+      r.tenantId === tenantId && labels.some(l => r.labels.includes(l))
+    );
   }
-  async update(_id: string, _updates: RunnerUpdateInput): Promise<Runner | null> {
-    return null;
+
+  async update(id: string, updates: RunnerUpdateInput): Promise<Runner | null> {
+    const existing = runners.get(id);
+    if (!existing) return null;
+    const updated: Runner = { ...existing, ...updates };
+    runners.set(id, updated);
+    return updated;
   }
-  async delete(_id: string): Promise<boolean> {
-    return false;
+
+  async delete(id: string): Promise<boolean> {
+    return runners.delete(id);
   }
-  async findByTenant(_tenantId: string): Promise<Runner[]> {
-    return [];
+
+  async findByTenant(tenantId: string): Promise<Runner[]> {
+    return Array.from(runners.values()).filter(r => r.tenantId === tenantId);
   }
-  async updateHeartbeat(_id: string, _heartbeat: Date): Promise<void> {
-    throw new Error('Not implemented');
+
+  async updateHeartbeat(id: string, _heartbeat: Date): Promise<void> {
+    // Heartbeat update - in production would update last_heartbeat field
+    const runner = runners.get(id);
+    if (runner) {
+      runner.status = 'online';
+      runners.set(id, runner);
+    }
   }
-  async decrementJobs(_id: string): Promise<void> {
-    throw new Error('Not implemented');
+
+  async decrementJobs(id: string): Promise<void> {
+    const runner = runners.get(id);
+    if (runner && runner.currentJobs > 0) {
+      runner.currentJobs--;
+      runners.set(id, runner);
+    }
+  }
+
+  async incrementJobs(id: string): Promise<void> {
+    const runner = runners.get(id);
+    if (runner) {
+      runner.currentJobs++;
+      runners.set(id, runner);
+    }
   }
 }
+
 export type RunnerRepositoryType = typeof RunnerRepository;
 
 export const PostgresRunnerRepository = {} as any;

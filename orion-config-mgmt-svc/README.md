@@ -48,7 +48,7 @@ npm install
 npm run dev
 ```
 
-服务器默认运行在 `http://localhost:3023`
+服务器默认运行在 `http://localhost:3024`
 
 ## 项目结构
 

@@ -114,14 +114,28 @@ export class LocalCacheStorageDriver implements CacheStorageDriver {
       // 创建缓存目录
       await fs.mkdir(path.dirname(destPath), { recursive: true });
 
-      // 打包为 tar
-      const { exec } = await import('child_process');
-      const { promisify } = await import('util');
-      const execAsync = promisify(exec);
+      // 打包为 tar — 使用 spawn 避免 shell 注入
+      const { spawn } = await import('child_process');
 
-      const fileList = files.join(' ');
-      const cmd = `cd ${baseDir} && tar cf ${destPath} ${fileList}`;
-      await execAsync(cmd, { timeout: 5 * 60 * 1000 });
+      const fileList = files.map(f => path.resolve(baseDir, f));
+      const tarProcess = spawn('tar', ['cf', destPath, ...fileList], {
+        cwd: baseDir,
+        shell: false,
+      });
+
+      await new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          tarProcess.kill();
+          reject(new Error('tar timeout'));
+        }, 5 * 60 * 1000);
+
+        tarProcess.on('close', (code) => {
+          clearTimeout(timeout);
+          if (code === 0) resolve();
+          else reject(new Error(`tar failed with code ${code}`));
+        });
+        tarProcess.on('error', reject);
+      });
 
       // 计算大小
       const stat = await fs.stat(destPath);
@@ -227,14 +241,24 @@ export class LocalCacheStorageDriver implements CacheStorageDriver {
           if (isMatch) {
             const cacheFile = path.join(this.cacheDir, entry.name, 'archive.tar');
             if (await this.fileExists(cacheFile)) {
-              // 解压
-              const { exec } = await import('child_process');
-              const { promisify } = await import('util');
-              const execAsync = promisify(exec);
+              // 解压 — 使用 spawn 避免 shell 注入
+              const { spawn } = await import('child_process');
 
               await fs.mkdir(targetDir, { recursive: true });
-              await execAsync(`tar xf ${cacheFile} -C ${targetDir}`, {
-                timeout: 5 * 60 * 1000,
+              const tarProcess = spawn('tar', ['xf', cacheFile, '-C', targetDir], { shell: false });
+
+              await new Promise<void>((resolve, reject) => {
+                const timeout = setTimeout(() => {
+                  tarProcess.kill();
+                  reject(new Error('tar timeout'));
+                }, 5 * 60 * 1000);
+
+                tarProcess.on('close', (code) => {
+                  clearTimeout(timeout);
+                  if (code === 0) resolve();
+                  else reject(new Error(`tar failed with code ${code}`));
+                });
+                tarProcess.on('error', reject);
               });
 
               const meta = await this.loadMetadata(entry.name);

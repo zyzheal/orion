@@ -2,8 +2,6 @@ import type {
   OnCallSchedule,
   OnCallDuty,
   CreateScheduleInput,
-  ScheduleLayer,
-  EscalationLevel,
 } from '../types/monitor.js';
 
 /**

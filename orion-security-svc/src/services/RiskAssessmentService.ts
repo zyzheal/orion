@@ -23,7 +23,7 @@ import {
 } from '../types/security';
 import { RiskScoringEngine } from './RiskScoringEngine';
 import { HealthCheckService } from './HealthCheckService';
-import { RiskAssessmentRepository, RiskAssessmentEntity } from '../../repositories/RiskAssessmentRepository';
+import { RiskAssessmentRepository, RiskAssessmentEntity } from '../repositories/RiskAssessmentRepository';
 
 /**
  * 风险评估服务
@@ -124,7 +124,7 @@ export class RiskAssessmentService {
         targetId: params.deploymentId,
         score: riskScore,
         riskLevel,
-        findings: factors,
+        findings: factors as unknown as Record<string, unknown>[],
         status: 'completed',
         createdAt: new Date(),
       });
@@ -180,7 +180,7 @@ export class RiskAssessmentService {
         targetId: params.changeId,
         score: riskScore,
         riskLevel,
-        findings: factors,
+        findings: factors as unknown as Record<string, unknown>[],
         status: 'completed',
         createdAt: new Date(),
       });
@@ -268,7 +268,7 @@ export class RiskAssessmentService {
       targetId: entity.targetId,
       riskScore: entity.score ?? 0,
       riskLevel: entity.riskLevel as RiskLevel ?? 'Medium',
-      factors: entity.findings as RiskFactor[] ?? [],
+      factors: (entity.findings as unknown as RiskFactor[]) ?? [],
       recommendations: [],
       createdAt: entity.createdAt,
       tenantId: entity.tenantId,

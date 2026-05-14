@@ -29,6 +29,8 @@ export interface PipelineStage {
   env?: Record<string, string>;
   /** 超时时间 (ms) */
   timeoutMs?: number;
+  /** 失败重试次数 */
+  retries?: number;
   /** 失败时是否继续后续阶段 */
   continueOnError?: boolean;
 }

@@ -6,9 +6,9 @@
 import pino from 'pino';
 import { exec } from 'child_process';
 import { promisify } from 'util';
-import { ArtifactRegistryServiceImpl } from '../artifact/ArtifactRegistryService';
-import { ArtifactRegistryService } from '../../models/Artifact';
-import { ArtifactType } from '../../models/Artifact';
+import { ArtifactRegistryServiceImpl } from './artifact/ArtifactRegistryService';
+import { ArtifactRegistryService } from '../models/Artifact';
+import { ArtifactType } from '../models/BuildArtifact';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 const execAsync = promisify(exec);
@@ -434,7 +434,7 @@ export class BuildxBuilderService {
           };
 
           if (this.artifactRegistry) {
-            await this.artifactRegistry.create(artifactData);
+            await this.artifactRegistry.create(artifactData as any);
           }
         }
       }

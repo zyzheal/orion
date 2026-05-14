@@ -8,7 +8,7 @@
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { DatabasePool } from '../services/database';
+import { DatabasePool } from '../utils/database';
 import { FinOpsRepository } from '../services/FinOpsRepository';
 import { FinOpsService } from '../services/FinOpsService';
 import { FinOpsV2Controller } from '../controllers/FinOpsV2Controller';

@@ -12,8 +12,8 @@ import {
   PipelineCompletionRecord,
   IncidentRecord,
   DoraMetricsReport,
-} from '../efficiency/types';
-import { DoraMetricsService } from '../efficiency/DoraMetricsService';
+} from './types';
+import { DoraMetricsService } from './DoraMetricsService';
 
 /**
  * 效能报告

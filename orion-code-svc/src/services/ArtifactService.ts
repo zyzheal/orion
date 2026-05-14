@@ -9,7 +9,7 @@
  * 持久化方式：PostgreSQL Repository（BuildArtifactRepository）
  */
 
-import { BuildArtifactRepository } from '../../repositories/BuildArtifactRepository';
+import { BuildArtifactRepository } from '../repositories/BuildArtifactRepository';
 
 /**
  * Build Architecture types for multi-architecture artifact support
@@ -79,9 +79,9 @@ export interface MultiArchArtifactCreateInput extends ArtifactCreateInput {
 }
 
 // Re-export types from models for backward compatibility
-export { ArtifactType, ArtifactStorageType } from '../../models/BuildArtifact';
-export type { Artifact, ArtifactCreateInput, ArtifactQueryOptions } from '../../models/BuildArtifact';
-export { createArtifact, recordArtifactDownload } from '../../models/BuildArtifact';
+export { ArtifactType, ArtifactStorageType } from '../models/BuildArtifact';
+export type { Artifact, ArtifactCreateInput, ArtifactQueryOptions } from '../models/BuildArtifact';
+export { createArtifact, recordArtifactDownload } from '../models/BuildArtifact';
 
 // Re-import for internal use
 import {
@@ -92,7 +92,7 @@ import {
   ArtifactQueryOptions,
   createArtifact,
   recordArtifactDownload,
-} from '../../models/BuildArtifact';
+} from '../models/BuildArtifact';
 import { v4 as uuidv4 } from 'uuid';
 
 /**

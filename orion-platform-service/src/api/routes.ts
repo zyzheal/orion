@@ -53,6 +53,7 @@ import communityAdvancedRoutes from './community-advanced-routes';
 import moduleRoutes from './module-routes';
 import scriptRoutes from './script-routes';
 import { registerApprovalRoutes } from './approval-routes';
+import { escalationScheduler } from '../services/escalation/EscalationScheduler';
 import { registerSecretRoutes } from './secret-routes';
 import { registerApkUploadHistoryRoutes } from './apk-upload-history-routes';
 import branchPolicyRoutes from './branch-policy-routes';

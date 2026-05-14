@@ -5,10 +5,13 @@ POST /api/v1/ai/predict-sla - AI-powered SLA breach prediction
 """
 
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
+
+from src.services.ai_service import AIService
+from src.api.dependencies import get_ai_service
 
 router = APIRouter()
 
@@ -44,7 +47,10 @@ class SLAPredictionResponse(BaseModel):
 
 
 @router.post("/predict-sla", response_model=SLAPredictionResponse)
-async def predict_sla_breach(request: SLAPredictionRequest):
+async def predict_sla_breach(
+    request: SLAPredictionRequest,
+    ai_service: AIService = Depends(get_ai_service),
+):
     """
     Predict the probability of an SLA breach for a ticket.
 
@@ -52,18 +58,52 @@ async def predict_sla_breach(request: SLAPredictionRequest):
     from ClickHouse, and current sentiment to predict SLA risk.
     """
     start = time.monotonic()
-    # TODO: Call ai_service.predict_sla(request)
-    # TODO: Query ClickHouse for historical resolution times by category
-    # TODO: Factor in current sentiment and assignee workload
-    # TODO: Return breach probability with recommended actions
-    result = SLAPredictionResponse(
+
+    sla_config = {
+        "response_minutes": 30 if request.priority == "P1" else 60,
+        "resolution_minutes": 240 if request.priority == "P1" else 480,
+    }
+
+    ticket = {
+        "category": request.category,
+        "priority": request.priority,
+        "sentiment_score": request.sentiment_score,
+    }
+
+    class PredictRequest:
+        pass
+
+    predict_req = PredictRequest()
+    predict_req.ticket = ticket
+    predict_req.sla_config = sla_config
+    predict_req.elapsed_minutes = int((datetime.now() - request.created_at).total_seconds() / 60)
+
+    result = await ai_service.predict_sla(predict_req)
+
+    prob = result.get("breach_probability", 0) / 100
+    if prob >= 0.8:
+        risk = "critical"
+    elif prob >= 0.6:
+        risk = "high"
+    elif prob >= 0.3:
+        risk = "medium"
+    else:
+        risk = "low"
+
+    time_remaining = result.get("time_remaining_minutes")
+    predicted_time = None
+    if time_remaining is not None:
+        predicted_time = datetime.now() + timedelta(minutes=time_remaining)
+
+    return SLAPredictionResponse(
         ticket_id=request.ticket_id,
         prediction=SLAPrediction(
-            breach_probability=0.0,
-            risk_level="low",
-            contributing_factors=[],
-            recommended_actions=[],
+            breach_probability=min(max(result.get("breach_probability", 0) / 100, 0.0), 1.0),
+            risk_level=risk,
+            predicted_resolution_time=predicted_time,
+            time_remaining_minutes=time_remaining,
+            contributing_factors=result.get("risk_factors", []),
+            recommended_actions=result.get("recommended_actions", []),
         ),
         processing_time_ms=round((time.monotonic() - start) * 1000, 2),
     )
-    return result

@@ -1,4 +1,3 @@
-import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { MonitoringRule, CreateRuleInput } from '../types/monitor.js';
 
 /**

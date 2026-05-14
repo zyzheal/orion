@@ -11,7 +11,7 @@
 
 import { v4 as uuidv4 } from 'uuid';
 import { DoraMetricsService } from './DoraMetricsService';
-import { PipelineCompletionRecord, DeploymentRecord, TimeWindow, DoraMetricsReport } from '../types/efficiency';
+import { PipelineCompletionRecord, DeploymentRecord, TimeWindow, DoraMetricsReport } from './types';
 
 // Loose TicketService interface to avoid circular imports
 // Supports both sync (in-memory fallback) and async (PostgreSQL-backed) implementations

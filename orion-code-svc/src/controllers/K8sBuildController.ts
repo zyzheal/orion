@@ -3,11 +3,11 @@
  */
 
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { K8sBuildExecutor } from '../../services/K8sBuildExecutor';
+import { K8sBuildExecutor } from '../services/K8sBuildExecutor';
 import {
   BuildPodCreateInput,
   BuildPodStatus,
-} from '../../../models/BuildPod';
+} from '../models/BuildPod';
 
 export class K8sBuildController {
   private executor: K8sBuildExecutor;

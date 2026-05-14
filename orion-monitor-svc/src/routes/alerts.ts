@@ -30,7 +30,7 @@ export async function alertsRoutes(
   );
 
   // List alerts
-  fastify.get('/api/v1/alerts', async (request, reply) => {
+  fastify.get('/api/v1/alerts', async (request: FastifyRequest, reply: FastifyReply) => {
     const tenantId = request.headers['x-tenant-id'] as string;
     const query = request.query as Record<string, string | undefined>;
 
@@ -48,7 +48,7 @@ export async function alertsRoutes(
   });
 
   // Resolve alert
-  fastify.post('/api/v1/alerts/:id/resolve', async (request, reply) => {
+  fastify.post('/api/v1/alerts/:id/resolve', async (request: FastifyRequest, reply: FastifyReply) => {
     const tenantId = request.headers['x-tenant-id'] as string;
     const { id } = request.params as { id: string };
 

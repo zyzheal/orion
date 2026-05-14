@@ -4,10 +4,8 @@ import {
   Task,
   TaskStatus,
   DispatchTaskRequest,
-  SandboxConfig,
-  SandboxResult,
 } from '../types/agent';
-import { AgentSandbox, SandboxTask as SandboxTaskType } from './AgentSandbox';
+import { AgentSandbox, SandboxConfig, SandboxResult, SandboxTask as SandboxTaskType } from './AgentSandbox';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
@@ -107,7 +105,14 @@ export class TaskExecutor {
       this.tasks.set(task.id, completedTask);
     }
 
-    return result;
+    // Return a SandboxResult-compatible object for the caller
+    return {
+      taskId: result.taskId,
+      success: result.success,
+      output: result.output,
+      error: result.error,
+      durationMs: result.durationMs,
+    };
   }
 
   /**

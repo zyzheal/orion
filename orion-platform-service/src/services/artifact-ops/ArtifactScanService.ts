@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { ScanReportRepository, ScanFindingRepository, MaliciousDetectionRepository, ScanReportEntity, ScanFindingEntity, MaliciousDetectionEntity } from '../../repositories/ArtifactScanRepository';
+import { DatabasePool } from '../database';
 
 export interface ScanFinding {
   id: string;
@@ -51,14 +52,20 @@ export class ArtifactScanService {
   private scanFindingRepository: ScanFindingRepository;
   private maliciousDetectionRepository: MaliciousDetectionRepository;
 
-  constructor(
-    scanReportRepository: ScanReportRepository,
-    scanFindingRepository: ScanFindingRepository,
-    maliciousDetectionRepository: MaliciousDetectionRepository,
-  ) {
-    this.scanReportRepository = scanReportRepository;
-    this.scanFindingRepository = scanFindingRepository;
-    this.maliciousDetectionRepository = maliciousDetectionRepository;
+  constructor(dbOrRepositories: DatabasePool | { scanReportRepository: ScanReportRepository; scanFindingRepository: ScanFindingRepository; maliciousDetectionRepository: MaliciousDetectionRepository }) {
+    if ('query' in dbOrRepositories) {
+      // DatabasePool provided - create repositories
+      const db = dbOrRepositories;
+      this.scanReportRepository = new ScanReportRepository(db);
+      this.scanFindingRepository = new ScanFindingRepository(db);
+      this.maliciousDetectionRepository = new MaliciousDetectionRepository(db);
+    } else {
+      // Repositories provided directly
+      const { scanReportRepository, scanFindingRepository, maliciousDetectionRepository } = dbOrRepositories;
+      this.scanReportRepository = scanReportRepository;
+      this.scanFindingRepository = scanFindingRepository;
+      this.maliciousDetectionRepository = maliciousDetectionRepository;
+    }
   }
 
   /**

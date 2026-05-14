@@ -11,15 +11,15 @@ import { errorHandler } from './middleware/errorHandler';
 
 async function buildApp() {
   const fastify = Fastify({ logger: { level: process.env.LOG_LEVEL || 'info' } });
-  await fastify.register(cors, { origin: true });
+  await fastify.register(cors, { origin: process.env.CORS_ORIGIN?.split(',') || ['http://localhost:5173', 'http://localhost:3000'] });
   await fastify.register(sensible);
   errorHandler(fastify);
   const database = getPool();
-  await fastify.register(riskRoutes, { prefix: '/api/v1/risk', database });
-  await fastify.register(sbomRoutes, { prefix: '/api/v1/sbom', database, eventBus: undefined });
-  await fastify.register(supplyChainRoutes, { prefix: '/api/v1/supply-chain', database });
-  await fastify.register(policyRoutes, { prefix: '/api/v1/policies', database, eventBus: undefined });
-  await fastify.register(qualityGateRoutes, { prefix: '/api/v1/quality-gates', database, eventBus: undefined });
+  await fastify.register(riskRoutes, { prefix: '/api/v1/risk' } as any);
+  await fastify.register(sbomRoutes, { prefix: '/api/v1/sbom', database, eventBus: undefined } as any);
+  await fastify.register(supplyChainRoutes, { prefix: '/api/v1/supply-chain' } as any);
+  await fastify.register(policyRoutes, { prefix: '/api/v1/policies', database, eventBus: undefined } as any);
+  await fastify.register(qualityGateRoutes, { prefix: '/api/v1/quality-gates', database, eventBus: undefined } as any);
   fastify.get('/health', async () => { const db = await checkHealth(); return { status: db.status === 'up' ? 'ok' : 'degraded', timestamp: new Date().toISOString(), checks: { database: db } }; });
   fastify.addHook('onClose', async () => { await closePool(); });
   return { fastify };

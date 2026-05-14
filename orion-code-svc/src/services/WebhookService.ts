@@ -16,6 +16,8 @@
  */
 
 import { EventEmitter } from 'events';
+import crypto from 'crypto';
+import pino from 'pino';
 import {
   CodeRepoWebhookPayload,
   WebhookEventType,
@@ -23,6 +25,8 @@ import {
   RepoType,
   PullRequestStatus,
 } from '../types/code-repo';
+
+const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
 /** EventBus 接口 (复用现有 EventBusService) */
 export interface IEventPublisher {
@@ -140,8 +144,9 @@ export class CodeRepoWebhookService extends EventEmitter {
   ): boolean {
     const secret = this.webhookSecrets.get(repoId);
     if (!secret) {
-      // 没有配置密钥，跳过验证
-      return true;
+      // 没有配置密钥，拒绝请求 (默认拒绝模式)
+      logger.warn({ repoId }, 'Webhook secret not configured — rejecting request');
+      return false;
     }
 
     // GitLab 简单 Token 验证
@@ -153,11 +158,8 @@ export class CodeRepoWebhookService extends EventEmitter {
     // GitHub HMAC-SHA256 验证
     const signature = headers['x-hub-signature-256'] || headers['X-Hub-Signature-256'];
     if (signature) {
-      // 生产实现:
-      // const crypto = require('crypto');
-      // const expected = 'sha256=' + crypto.createHmac('sha256', secret).update(payload).digest('hex');
-      // return signature === expected;
-      return signature === `sha256=${secret}`;  // Mock
+      const expected = 'sha256=' + crypto.createHmac('sha256', secret).update(payload).digest('hex');
+      return signature === expected;
     }
 
     return false;

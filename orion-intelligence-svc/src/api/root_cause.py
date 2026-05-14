@@ -6,8 +6,11 @@ POST /api/v1/ai/root-cause - AI-powered root cause analysis
 
 import time
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
+
+from src.services.ai_service import AIService
+from src.api.dependencies import get_ai_service
 
 router = APIRouter()
 
@@ -40,7 +43,10 @@ class RootCauseResponse(BaseModel):
 
 
 @router.post("/root-cause", response_model=RootCauseResponse)
-async def analyze_root_cause(request: RootCauseRequest):
+async def analyze_root_cause(
+    request: RootCauseRequest,
+    ai_service: AIService = Depends(get_ai_service),
+):
     """
     Analyze an incident to identify potential root causes.
 
@@ -48,14 +54,21 @@ async def analyze_root_cause(request: RootCauseRequest):
     from ClickHouse to suggest likely root causes.
     """
     start = time.monotonic()
-    # TODO: Call ai_service.analyze_root_cause(request)
-    # TODO: Query ClickHouse for similar historical incidents
-    # TODO: Correlate with knowledge base for known issues
-    # TODO: Return ranked root cause candidates
-    result = RootCauseResponse(
+
+    result = await ai_service.analyze_root_cause(request)
+
+    root_causes = [
+        RootCauseCandidate(
+            cause=result.get("root_cause", ""),
+            confidence=result.get("confidence", 0.5),
+            evidence=result.get("contributing_factors", []),
+            category=result.get("root_cause_type", "code"),
+        )
+    ]
+
+    return RootCauseResponse(
         incident_id=request.incident_id,
-        root_causes=[],
-        recommended_actions=[],
+        root_causes=root_causes,
+        recommended_actions=result.get("recommended_actions", []),
         processing_time_ms=round((time.monotonic() - start) * 1000, 2),
     )
-    return result

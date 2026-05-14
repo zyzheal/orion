@@ -47,7 +47,7 @@ export default async function degradationRoutes(fastify: FastifyInstance) {
 
         // Filter stats by tenant if applicable
         const filteredStats = tenantId
-          ? stats.filter(s => s.providerId.includes(`tenant-${tenantId}`))
+          ? stats.filter((s: { providerId: string }) => s.providerId.includes(`tenant-${tenantId}`))
           : stats;
 
         reply.send({

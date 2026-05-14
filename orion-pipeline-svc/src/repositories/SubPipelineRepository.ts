@@ -1,4 +1,4 @@
-// Stub - TODO: implement with PostgreSQL
+// SubPipeline Repository - In-memory implementation
 import { Pool } from 'pg';
 
 export interface SubPipelineRecord {
@@ -32,34 +32,68 @@ export interface SubPipelineUpdateInput {
   error_message?: string;
 }
 
+// In-memory store
+const records = new Map<string, SubPipelineRecord>();
+
 export class SubPipelineRepository {
   constructor(_pool: Pool | null) {}
-  async create(_input: SubPipelineCreateInput): Promise<SubPipelineRecord> {
-    throw new Error('Not implemented');
+
+  async create(input: SubPipelineCreateInput): Promise<SubPipelineRecord> {
+    const record: SubPipelineRecord = {
+      id: crypto.randomUUID(),
+      parent_run_id: input.parent_run_id,
+      child_pipeline_id: input.child_pipeline_id,
+      status: 'pending',
+      input_params: input.input_params,
+      output_results: {},
+      stage_name: input.stage_name,
+      output_mapping: input.output_mapping ?? {},
+      created_at: new Date(),
+    };
+    records.set(record.id, record);
+    return record;
   }
-  async findById(_id: string): Promise<SubPipelineRecord | null> {
-    return null;
+
+  async findById(id: string): Promise<SubPipelineRecord | null> {
+    return records.get(id) ?? null;
   }
-  async findByParentRunId(_parentRunId: string): Promise<SubPipelineRecord[]> {
-    return [];
+
+  async findByParentRunId(parentRunId: string): Promise<SubPipelineRecord[]> {
+    return Array.from(records.values()).filter(r => r.parent_run_id === parentRunId);
   }
-  async findByChildRunId(_childRunId: string): Promise<SubPipelineRecord | null> {
-    return null;
+
+  async findByChildRunId(childRunId: string): Promise<SubPipelineRecord | null> {
+    return Array.from(records.values()).find(r => r.child_run_id === childRunId) ?? null;
   }
-  async findByPipelineId(_pipelineId: string): Promise<SubPipelineRecord[]> {
-    return [];
+
+  async findByPipelineId(pipelineId: string): Promise<SubPipelineRecord[]> {
+    return Array.from(records.values()).filter(r => r.child_pipeline_id === pipelineId);
   }
-  async update(_id: string, _updates: SubPipelineUpdateInput): Promise<SubPipelineRecord | null> {
-    return null;
+
+  async update(id: string, updates: SubPipelineUpdateInput): Promise<SubPipelineRecord | null> {
+    const existing = records.get(id);
+    if (!existing) return null;
+    const updated: SubPipelineRecord = { ...existing, ...updates };
+    records.set(id, updated);
+    return updated;
   }
-  async updateChildRun(_id: string, _childRunId: string, _status: string): Promise<SubPipelineRecord | null> {
-    return null;
+
+  async updateChildRun(id: string, childRunId: string, status: string): Promise<SubPipelineRecord | null> {
+    return this.update(id, { child_run_id: childRunId, status });
   }
-  async updateStatus(_id: string, _status: string, _outputResults?: Record<string, unknown>, _error?: string): Promise<SubPipelineRecord | null> {
-    return null;
+
+  async updateStatus(id: string, status: string, outputResults?: Record<string, unknown>, error?: string): Promise<SubPipelineRecord | null> {
+    return this.update(id, {
+      status,
+      output_results: outputResults,
+      completed_at: status === 'completed' || status === 'failed' ? new Date() : undefined,
+      error_message: error,
+    });
   }
-  async delete(_id: string): Promise<boolean> {
-    return false;
+
+  async delete(id: string): Promise<boolean> {
+    return records.delete(id);
   }
 }
+
 export type SubPipelineRepositoryType = typeof SubPipelineRepository;

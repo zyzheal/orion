@@ -104,6 +104,15 @@ class RunnerAgent {
 
     // POST /execute — 接收 Platform 下发的任务
     server.post('/execute', async (request, reply) => {
+      // Verify caller identity via Bearer token
+      const authHeader = request.headers['authorization'] as string | undefined;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return reply.code(401).send({ error: 'Unauthorized: Bearer token required' });
+      }
+      const token = authHeader.slice(7);
+      if (this.config.apiToken && token !== this.config.apiToken) {
+        return reply.code(403).send({ error: 'Forbidden: Invalid token' });
+      }
       return this.handleExecute(request, reply);
     });
 

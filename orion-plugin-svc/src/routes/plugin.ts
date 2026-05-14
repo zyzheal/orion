@@ -117,7 +117,7 @@ export default async function pluginEnhancedRoutes(app: FastifyInstance, options
 
     if (auditLogRepo && tenantId) {
       const logs = await auditLogRepo.findByTenantId(tenantId, limit);
-      return { logs: logs.map((l) => ({ id: l.id, taskId: l.taskId, pluginId: l.pluginId, action: l.action, outcome: l.outcome, createdAt: l.createdAt })), tenantId, limit };
+      return { logs: logs.map((l: any) => ({ id: l.id, taskId: l.taskId, pluginId: l.pluginId, action: l.action, outcome: l.outcome, createdAt: l.createdAt })), tenantId, limit };
     }
 
     return { logs: [], tenantId, limit, status: 'not_implemented' };
@@ -129,7 +129,7 @@ export default async function pluginEnhancedRoutes(app: FastifyInstance, options
 
     if (auditLogRepo) {
       const logs = await auditLogRepo.findByTaskId(taskId);
-      return { taskId, logs: logs.map((l) => ({ id: l.id, action: l.action, outcome: l.outcome, durationMs: l.durationMs, createdAt: l.createdAt })) };
+      return { taskId, logs: logs.map((l: any) => ({ id: l.id, action: l.action, outcome: l.outcome, durationMs: l.durationMs, createdAt: l.createdAt })) };
     }
 
     return { taskId, logs: [], status: 'not_implemented' };

@@ -18,7 +18,7 @@ import {
   ABTestEntity,
   ABTestMetricRepository,
   ABTestMetricEntity,
-} from '../../repositories/ModelVersionRepository';
+} from '../repositories/ModelVersionRepository';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -212,7 +212,7 @@ export class ModelVersionService {
    */
   async getModelVersions(modelName: string, includeDeprecated = false): Promise<ModelVersion[]> {
     const entities = await this.modelRepo.findByName(modelName, includeDeprecated);
-    return entities.map(e => this.mapEntityToModel(e));
+    return entities.map((e: ModelVersionEntity) => this.mapEntityToModel(e));
   }
 
   /**
@@ -229,7 +229,7 @@ export class ModelVersionService {
    */
   async getAllActiveModels(): Promise<ModelVersion[]> {
     const entities = await this.modelRepo.findAllActive();
-    return entities.map(e => this.mapEntityToModel(e));
+    return entities.map((e: ModelVersionEntity) => this.mapEntityToModel(e));
   }
 
   /**
@@ -368,10 +368,10 @@ export class ModelVersionService {
     if (!metricEntity) return;
 
     // 更新累积指标
-    const existing = metricEntity.metrics;
-    const prevPredictions = existing.totalPredictions ?? 0;
-    const prevErrorRate = existing.errorRate ?? 0;
-    const prevAvgLatency = existing.avgLatency ?? 0;
+    const existing = metricEntity.metrics as Record<string, any>;
+    const prevPredictions = (existing.totalPredictions as number) ?? 0;
+    const prevErrorRate = (existing.errorRate as number) ?? 0;
+    const prevAvgLatency = (existing.avgLatency as number) ?? 0;
 
     const totalPredictions = prevPredictions + 1;
     const errorRate = ((prevErrorRate * (totalPredictions - 1)) + (metrics.success ? 0 : 1)) / totalPredictions;
@@ -423,8 +423,8 @@ export class ModelVersionService {
     const metricEntities = await this.abTestMetricRepo.findByABTest(abTest.id);
 
     const results: ABTestVariantResult[] = (abTest.variants as ABTestVariant[]).map((variant) => {
-      const metric = metricEntities.find(m => m.model_id === variant.modelId);
-      const m = metric ? metric.metrics : { totalPredictions: 0, errorRate: 0, avgLatency: 0 };
+      const metric = metricEntities.find((m: ABTestMetricEntity) => m.model_id === variant.modelId);
+      const m = metric ? (metric.metrics as Record<string, any>) : { totalPredictions: 0, errorRate: 0, avgLatency: 0 };
       const requestCount = metric ? metric.request_count : 0;
 
       return {
@@ -432,7 +432,7 @@ export class ModelVersionService {
         name: variant.name,
         metrics: m as ModelMetrics,
         requestCount,
-        successRate: 1 - (m.errorRate || 0),
+        successRate: 1 - ((m.errorRate as number) || 0),
       };
     });
 
@@ -442,7 +442,7 @@ export class ModelVersionService {
 
     if (!determinedWinner && results.length > 0) {
       const sorted = [...results].sort(
-        (a, b) => (b.successRate - (b.metrics.errorRate ?? 0)) - (a.successRate - (a.metrics.errorRate ?? 0))
+        (a: ABTestVariantResult, b: ABTestVariantResult) => (b.successRate - ((b.metrics.errorRate as number) ?? 0)) - (a.successRate - ((a.metrics.errorRate as number) ?? 0))
       );
       determinedWinner = sorted[0].modelId;
       const winnerModel = await this.modelRepo.findById(determinedWinner);
@@ -477,8 +477,8 @@ export class ModelVersionService {
     const metricEntities = await this.abTestMetricRepo.findByABTest(abTest.id);
 
     const results: ABTestVariantResult[] = (abTest.variants as ABTestVariant[]).map((variant) => {
-      const metric = metricEntities.find(m => m.model_id === variant.modelId);
-      const m = metric ? metric.metrics : { totalPredictions: 0, errorRate: 0, avgLatency: 0 };
+      const metric = metricEntities.find((m: ABTestMetricEntity) => m.model_id === variant.modelId);
+      const m = metric ? (metric.metrics as Record<string, any>) : { totalPredictions: 0, errorRate: 0, avgLatency: 0 };
       const requestCount = metric ? metric.request_count : 0;
 
       return {
@@ -486,7 +486,7 @@ export class ModelVersionService {
         name: variant.name,
         metrics: m as ModelMetrics,
         requestCount,
-        successRate: 1 - (m.errorRate || 0),
+        successRate: 1 - ((m.errorRate as number) || 0),
       };
     });
 
@@ -538,7 +538,7 @@ export class ModelVersionService {
     name?: string;
   }): Promise<ModelVersion[]> {
     const entities = await this.modelRepo.listAll(options);
-    return entities.map(e => this.mapEntityToModel(e));
+    return entities.map((e: ModelVersionEntity) => this.mapEntityToModel(e));
   }
 
   /**
@@ -571,7 +571,7 @@ export class ModelVersionService {
     if (targetVersion) {
       // 回滚到指定版本
       const versions = await this.modelRepo.findByName(entity.name, false);
-      const target = versions.find(m => m.version === targetVersion);
+      const target = versions.find((m: ModelVersionEntity) => m.version === targetVersion);
       if (!target) {
         throw new Error(`Target version ${targetVersion} not found for model ${entity.name}`);
       }
@@ -584,8 +584,8 @@ export class ModelVersionService {
     // 自动回滚到上一个活跃版本
     const allVersions = await this.modelRepo.findByName(entity.name, true);
     const previousVersions = allVersions
-      .filter(m => m.id !== modelId && m.status !== 'deprecated' && m.status !== 'archived')
-      .sort((a, b) => (b.activated_at?.getTime() || 0) - (a.activated_at?.getTime() || 0));
+      .filter((m: ModelVersionEntity) => m.id !== modelId && m.status !== 'deprecated' && m.status !== 'archived')
+      .sort((a: ModelVersionEntity, b: ModelVersionEntity) => (b.activated_at?.getTime() || 0) - (a.activated_at?.getTime() || 0));
 
     if (previousVersions.length === 0) {
       throw new Error(`No previous version available for rollback: ${entity.name}`);

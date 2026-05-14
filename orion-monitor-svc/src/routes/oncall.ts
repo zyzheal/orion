@@ -37,9 +37,9 @@ export async function oncallRoutes(
   );
 
   // List schedules
-  fastify.get('/api/v1/oncall/schedules', async (request, reply) => {
+  fastify.get('/api/v1/oncall/schedules', async (request: FastifyRequest, reply: FastifyReply) => {
     const tenantId = request.headers['x-tenant-id'] as string;
-    const projectId = request.query['projectId'] as string | undefined;
+    const projectId = (request.query as Record<string, unknown>)['projectId'] as string | undefined;
 
     if (!tenantId) {
       return reply.code(400).send({ error: 'Missing x-tenant-id header' });
@@ -50,9 +50,9 @@ export async function oncallRoutes(
   });
 
   // Get current on-call duty
-  fastify.get('/api/v1/oncall/current', async (request, reply) => {
+  fastify.get('/api/v1/oncall/current', async (request: FastifyRequest, reply: FastifyReply) => {
     const tenantId = request.headers['x-tenant-id'] as string;
-    const projectId = request.query['projectId'] as string | undefined;
+    const projectId = (request.query as Record<string, unknown>)['projectId'] as string | undefined;
 
     if (!tenantId) {
       return reply.code(400).send({ error: 'Missing x-tenant-id header' });
@@ -63,7 +63,7 @@ export async function oncallRoutes(
   });
 
   // Update schedule
-  fastify.put('/api/v1/oncall/schedules/:id', async (request, reply) => {
+  fastify.put('/api/v1/oncall/schedules/:id', async (request: FastifyRequest, reply: FastifyReply) => {
     const tenantId = request.headers['x-tenant-id'] as string;
     const { id } = request.params as { id: string };
 
@@ -79,7 +79,7 @@ export async function oncallRoutes(
   });
 
   // Delete schedule
-  fastify.delete('/api/v1/oncall/schedules/:id', async (request, reply) => {
+  fastify.delete('/api/v1/oncall/schedules/:id', async (request: FastifyRequest, reply: FastifyReply) => {
     const tenantId = request.headers['x-tenant-id'] as string;
     const { id } = request.params as { id: string };
 

@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import { ScanReportRepository, ScanFindingRepository, MaliciousDetectionRepository, ScanReportEntity, ScanFindingEntity, MaliciousDetectionEntity } from '../../repositories/ArtifactScanRepository';
+import { ScanReportRepository, ScanFindingRepository, MaliciousDetectionRepository, ScanReportEntity, ScanFindingEntity, MaliciousDetectionEntity } from '../repositories/ArtifactScanRepository';
 
 export interface ScanFinding {
   id: string;
@@ -127,7 +127,7 @@ export class ArtifactScanService {
     if (!entity) return undefined;
 
     const findings = await this.scanFindingRepository.findByReportId(scanId);
-    return this.reportEntityToDomain(entity, findings.map(f => this.findingEntityToDomain(f)));
+    return this.reportEntityToDomain(entity, findings.map((f: ScanFindingEntity) => this.findingEntityToDomain(f)));
   }
 
   /**
@@ -139,7 +139,7 @@ export class ArtifactScanService {
 
     for (const entity of entities) {
       const findings = await this.scanFindingRepository.findByReportId(entity.id);
-      reports.push(this.reportEntityToDomain(entity, findings.map(f => this.findingEntityToDomain(f))));
+      reports.push(this.reportEntityToDomain(entity, findings.map((f: ScanFindingEntity) => this.findingEntityToDomain(f))));
     }
 
     return reports;
@@ -153,7 +153,7 @@ export class ArtifactScanService {
     if (!entity) return undefined;
 
     const findings = await this.scanFindingRepository.findByReportId(entity.id);
-    return this.reportEntityToDomain(entity, findings.map(f => this.findingEntityToDomain(f)));
+    return this.reportEntityToDomain(entity, findings.map((f: ScanFindingEntity) => this.findingEntityToDomain(f)));
   }
 
   /**
@@ -248,7 +248,7 @@ export class ArtifactScanService {
    */
   async getTenantDetections(tenantId: string): Promise<MaliciousDetection[]> {
     const entities = await this.maliciousDetectionRepository.findByTenantDetected(tenantId);
-    return entities.map(e => this.detectionEntityToDomain(e));
+    return entities.map((e: MaliciousDetectionEntity) => this.detectionEntityToDomain(e));
   }
 
   // ---- Helpers ----

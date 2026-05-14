@@ -48,6 +48,8 @@ export interface PipelineRunOptions {
 
 export interface PipelineRetryOptions {
   triggeredBy?: string;
+  fromStage?: string;
+  onlyFailed?: boolean;
 }
 
 /**

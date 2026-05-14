@@ -38,7 +38,7 @@ class Sentiment(str, Enum):
 
 
 class TicketCategory(str, Enum):
-    """TODO: Replace with actual category taxonomy from orion-ticket-svc."""
+    """Standard category taxonomy."""
     INFRASTRUCTURE = "infrastructure"
     APPLICATION = "application"
     DATABASE = "database"

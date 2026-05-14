@@ -4,7 +4,7 @@ import { deployRoutes } from './routes/deploy';
 import { errorHandler } from './middleware/errorHandler';
 async function buildApp() {
   const fastify = Fastify({ logger: { level: 'info' } });
-  await fastify.register(cors, { origin: true });
+  await fastify.register(cors, { origin: process.env.CORS_ORIGIN?.split(',') || ['http://localhost:5173', 'http://localhost:3000'] });
   errorHandler(fastify);
   await fastify.register(deployRoutes, { prefix: '/api/v1' });
   fastify.get('/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }));

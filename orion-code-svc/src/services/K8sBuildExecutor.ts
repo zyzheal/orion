@@ -19,8 +19,8 @@ import {
   updatePodStatus,
   isPodTerminal,
   isPodSuccessful,
-} from '../../models/BuildPod';
-import { BuildLog, createBuildLog, appendLogEntry } from '../../models/BuildLog';
+} from '../models/BuildPod';
+import { BuildLog, createBuildLog, appendLogEntry } from '../models/BuildLog';
 import { BuildCacheService } from './BuildCacheService';
 import { BuilderImageService } from './BuilderImageService';
 
@@ -282,13 +282,13 @@ export class K8sBuildExecutor {
     return {
       name: pod.name,
       namespace: pod.namespace,
-      containers: pod.containers.map(container => ({
+      containers: (pod.containers as any[]).map((container: any) => ({
         name: container.name,
         image: container.image,
         command: container.command,
         args: container.args,
         env: container.env
-          ? Object.entries(container.env).map(([k, v]) => ({ name: k, value: v }))
+          ? Object.entries(container.env).map(([k, v]) => ({ name: k, value: String(v) }))
           : undefined,
         resources: container.resources,
         volumeMounts: volumeMounts.length > 0 ? volumeMounts : undefined,

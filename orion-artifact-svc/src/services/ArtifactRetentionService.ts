@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import { RetentionPolicyRepository, RetentionEvaluationRepository, RetentionPolicyEntity, RetentionEvaluationEntity } from '../../repositories/ArtifactRetentionRepository';
+import { RetentionPolicyRepository, RetentionEvaluationRepository, RetentionPolicyEntity, RetentionEvaluationEntity } from '../repositories/ArtifactRetentionRepository';
 
 export interface RetentionPolicyInput {
   name: string;
@@ -127,7 +127,7 @@ export class ArtifactRetentionService {
     const entities = enabledOnly
       ? await this.policyRepository.findByTenantAndEnabled(tenantId)
       : await this.policyRepository.findByTenant(tenantId);
-    return entities.map(e => this.policyEntityToDomain(e));
+    return entities.map((e: RetentionPolicyEntity) => this.policyEntityToDomain(e));
   }
 
   /**
@@ -253,7 +253,7 @@ export class ArtifactRetentionService {
    */
   async getEvaluations(tenantId: string): Promise<RetentionEvaluation[]> {
     const entities = await this.evaluationRepository.findByTenant(tenantId);
-    return entities.map(e => this.evaluationEntityToDomain(e));
+    return entities.map((e: RetentionEvaluationEntity) => this.evaluationEntityToDomain(e));
   }
 
   /**

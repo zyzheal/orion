@@ -6,13 +6,13 @@
  */
 
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { FinOpsService } from '../../services/FinOpsService';
+import { FinOpsService } from '../services/FinOpsService';
 import {
   CostEntityType,
   OptimizationCategory,
   OptimizationPriority,
   OptimizationStatus,
-} from '../../services/types';
+} from '../services/types';
 
 export class FinOpsV2Controller {
   private finOpsService: FinOpsService;

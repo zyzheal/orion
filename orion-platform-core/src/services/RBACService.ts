@@ -58,11 +58,11 @@ export async function listRoles(tenantId?: string): Promise<Role[]> {
 
   if (tenantId) {
     const result = await pool.query('SELECT * FROM roles WHERE tenant_id = $1 ORDER BY name', [tenantId]);
-    return result.rows.map(rowToRole);
+    return result.rows.map(rowToRole).filter((r): r is Role => r !== null);
   }
 
   const result = await pool.query('SELECT * FROM roles ORDER BY tenant_id, name');
-  return result.rows.map(rowToRole);
+  return result.rows.map(rowToRole).filter((r): r is Role => r !== null);
 }
 
 export async function getRole(id: string): Promise<Role | null> {

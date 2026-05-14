@@ -6,8 +6,11 @@ POST /api/v1/ai/code-review - AI-powered code review
 
 import time
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
+
+from src.services.ai_service import AIService
+from src.api.dependencies import get_ai_service
 
 router = APIRouter()
 
@@ -25,6 +28,7 @@ class CodeReviewRequest(BaseModel):
         None,
         description="Related files for context: [{path, content}]",
     )
+    language: str | None = Field(None, description="Programming language")
 
 
 class ReviewComment(BaseModel):
@@ -48,7 +52,10 @@ class CodeReviewResponse(BaseModel):
 
 
 @router.post("/code-review", response_model=CodeReviewResponse)
-async def review_code(request: CodeReviewRequest):
+async def review_code(
+    request: CodeReviewRequest,
+    ai_service: AIService = Depends(get_ai_service),
+):
     """
     Perform AI-powered code review on a diff or code snippet.
 
@@ -56,13 +63,23 @@ async def review_code(request: CodeReviewRequest):
     style violations, and architectural concerns.
     """
     start = time.monotonic()
-    # TODO: Call ai_service.review_code(request)
-    # TODO: Fetch related knowledge base articles for best practices
-    # TODO: Return structured review comments
-    result = CodeReviewResponse(
+
+    result = await ai_service.review_code(request)
+
+    comments = []
+    for issue in result.get("issues", []):
+        comments.append(ReviewComment(
+            file=request.repository,
+            severity=issue.get("severity", "suggestion"),
+            category=issue.get("category", "general"),
+            comment=issue.get("message", ""),
+            suggestion=issue.get("suggestion"),
+        ))
+
+    return CodeReviewResponse(
         pr_id=request.pr_id,
-        summary="",
-        comments=[],
+        summary=result.get("overall_assessment", "Review completed"),
+        comments=comments,
+        quality_score=result.get("quality_score"),
         processing_time_ms=round((time.monotonic() - start) * 1000, 2),
     )
-    return result

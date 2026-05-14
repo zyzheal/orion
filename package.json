@@ -1,8 +1,14 @@
 {
   "devDependencies": {
-    "typescript": "^6.0.3"
+    "@types/node": "^25.7.0",
+    "@types/pg": "^8.20.0",
+    "@types/uuid": "^10.0.0",
+    "pg": "^8.20.0",
+    "typescript": "^6.0.3",
+    "zod": "^4.4.3"
   },
   "dependencies": {
-    "tiktoken": "^1.0.22"
+    "tiktoken": "^1.0.22",
+    "uuid": "^14.0.0"
   }
 }

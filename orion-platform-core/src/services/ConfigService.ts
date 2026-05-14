@@ -137,7 +137,7 @@ export async function listConfigs(params?: {
   );
 
   return {
-    configs: dataResult.rows.map(rowToConfig),
+    configs: dataResult.rows.map(rowToConfig).filter((c): c is SystemConfig => c !== null),
     total,
   };
 }

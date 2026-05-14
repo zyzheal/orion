@@ -158,7 +158,7 @@ export class PluginRegistry {
 
     if (options?.capabilityFilter) {
       plugins = plugins.filter((p) =>
-        p.manifest.capabilities.some((c) =>
+        p.manifest.capabilities.some((c: string) =>
           c.toLowerCase().includes(options.capabilityFilter!.toLowerCase())
         )
       );
@@ -166,7 +166,7 @@ export class PluginRegistry {
 
     if (options?.tagFilter?.length) {
       plugins = plugins.filter((p) =>
-        p.manifest.tags?.some((tag) => options.tagFilter!.includes(tag))
+        p.manifest.tags?.some((tag: string) => options.tagFilter!.includes(tag))
       );
     }
 

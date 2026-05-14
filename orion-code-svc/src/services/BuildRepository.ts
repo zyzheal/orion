@@ -178,7 +178,7 @@ export class BuildRepository {
       "UPDATE build_environments SET status = 'deleted', updated_at = NOW() WHERE id = $1",
       [id]
     );
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   // ==================== Builds ====================

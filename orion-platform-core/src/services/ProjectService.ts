@@ -10,7 +10,7 @@ function getPool(): import('pg').Pool {
       ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
     });
   }
-  return _pool;
+  return _pool!;
 }
 
 export async function createProject(tenantId: string, input: CreateProjectInput): Promise<Project> {
@@ -28,12 +28,13 @@ export async function createProject(tenantId: string, input: CreateProjectInput)
     updatedAt: now,
   };
 
-  // Stub: replace with actual INSERT
-  // await pool.query(
-  //   `INSERT INTO projects (id, tenant_id, name, slug, description, status, created_at, updated_at)
-  //    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-  //   [project.id, project.tenantId, project.name, project.slug, project.description, project.status, project.createdAt, project.updatedAt]
-  // );
+  // Persist to PostgreSQL
+  const pool = getPool();
+  await pool.query(
+    `INSERT INTO projects (id, tenant_id, name, slug, description, status, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+    [project.id, project.tenantId, project.name, project.slug, project.description, project.status, project.createdAt, project.updatedAt]
+  );
 
   return project;
 }
@@ -74,15 +75,17 @@ export async function updateProject(id: string, input: UpdateProjectInput): Prom
   const project = await getProject(id);
   if (!project) return null;
 
-  const updated = { ...project, ...input, updatedAt: new Date() };
-  return updated;
+  await pool.query(
+    `UPDATE projects SET name = COALESCE($2, name), slug = COALESCE($3, slug),
+     description = COALESCE($4, description), status = COALESCE($5, status), updated_at = NOW()
+     WHERE id = $1`,
+    [id, input.name ?? null, input.slug || (input.name ? input.name.toLowerCase().replace(/[^a-z0-9]/g, '-') : null), input.description ?? null, input.status ?? null]
+  );
+  return getProject(id);
 }
 
 export async function deleteProject(id: string): Promise<boolean> {
   const pool = getPool();
-  // Stub: soft delete
-  const project = await getProject(id);
-  if (!project || project.status === 'deleted') return false;
-
-  return true;
+  const result = await pool.query("UPDATE projects SET status = 'deleted', updated_at = NOW() WHERE id = $1", [id]);
+  return (result.rowCount ?? 0) > 0;
 }

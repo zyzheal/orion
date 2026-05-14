@@ -48,6 +48,6 @@ export class ArtifactRepository {
 
   async delete(id: string): Promise<boolean> {
     const result = await this.pool.query('DELETE FROM artifacts WHERE id = $1', [id]);
-    return result.rowCount > 0;
+    return (result.rowCount || 0) > 0;
   }
 }

@@ -40,7 +40,6 @@ export async function slaRoutes(app: FastifyInstance): Promise<void> {
           },
           required: ['name', 'ticketType', 'priority', 'metrics'],
         },
-        tags: ['SLA'],
         summary: 'Create or configure an SLA policy',
       },
     },
@@ -85,7 +84,6 @@ export async function slaRoutes(app: FastifyInstance): Promise<void> {
             },
           },
         },
-        tags: ['SLA'],
         summary: 'Get SLA compliance report',
       },
     },
@@ -116,12 +114,6 @@ export async function slaRoutes(app: FastifyInstance): Promise<void> {
   // 获取 SLA 策略列表
   app.get(
     '/policies',
-    {
-      schema: {
-        tags: ['SLA'],
-        summary: 'List all SLA policies',
-      },
-    },
     async (
       request: FastifyRequest,
       reply: FastifyReply

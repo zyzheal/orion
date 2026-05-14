@@ -16,7 +16,7 @@ export interface AppConfig {
 export interface SandboxConfig {
   image: string;
   timeout: number;
-  memoryLimit: string;
+  memoryLimit: number;
   cpuLimit: string;
   networkMode: string;
   readonlyRoot: boolean;
@@ -59,7 +59,11 @@ export function loadConfig(): AppConfig {
     sandbox: {
       image: process.env.SANDBOX_IMAGE || 'alpine:3.20',
       timeout: envInt('SANDBOX_TIMEOUT', 300),
-      memoryLimit: process.env.SANDBOX_MEMORY_LIMIT || '512m',
+      memoryLimit: (() => {
+        const raw = process.env.SANDBOX_MEMORY_LIMIT || '512m';
+        const parsed = Number.parseInt(raw.replace(/[a-zA-Z]/g, ''), 10);
+        return Number.isNaN(parsed) ? 512 : parsed;
+      })(),
       cpuLimit: process.env.SANDBOX_CPU_LIMIT || '1.0',
       networkMode: process.env.SANDBOX_NETWORK || 'none',
       readonlyRoot: envBool('SANDBOX_READONLY_ROOT', true),

@@ -242,7 +242,7 @@ export class GitOpsRepository {
       branch: row.branch,
       configPath: row.config_path,
       syncInterval: row.sync_interval,
-      lastSync: row.last_sync,
+      lastSync: row.last_sync ?? undefined,
       status: row.status as GitOpsStatus,
       syncDirection: row.sync_direction as SyncDirection,
       autoApply: row.auto_apply,

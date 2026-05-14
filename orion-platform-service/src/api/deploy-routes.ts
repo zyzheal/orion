@@ -17,11 +17,8 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { DatabasePool } from '../services/database';
 import { SmartDeployService } from '../services/smart-deploy/SmartDeployService';
 import { DeployController } from './controllers/DeployController';
-import { DeployRepository } from '../services/deploy/DeployRepository';
 import { DeployService } from '../services/deploy/DeployService';
-import { DeploymentHistoryService } from '../services/smart-deploy/DeploymentHistoryService';
-import { RollbackService } from '../services/smart-deploy/RollbackService';
-import { DeploymentVerifier } from '../services/smart-deploy/DeploymentVerifier';
+import { DeployRepository } from '../services/deploy/DeployRepository';
 
 /**
  * Options passed to deploy routes via app.register()
@@ -49,23 +46,8 @@ export default async function deployRoutes(
 
   // ==================== SmartDeployService with DB-backed history ====================
 
-  // Initialize history service with database for persistent deployment records
-  const historyService = options.database
-    ? new DeploymentHistoryService(options.database)
-    : new DeploymentHistoryService();
-
-  // Initialize rollback service with database for persistent rollback records
-  const rollbackService = new RollbackService({ db: options.database });
-
-  // Initialize verifier
-  const verifier = new DeploymentVerifier();
-
   // Initialize smart deploy service with database-backed components
-  const smartDeployService = new SmartDeployService({
-    historyService,
-    rollbackService,
-    verifier,
-  });
+  const smartDeployService = new SmartDeployService(options.database || null);
   const deployController = new DeployController(smartDeployService);
 
   // ==================== Smart Deployment Routes (orchestration, history, rollback) ====================

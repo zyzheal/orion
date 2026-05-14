@@ -1,4 +1,4 @@
-import { ArtifactOperationRepository, ArtifactOperationEntity } from '../../repositories/ArtifactOperationRepository';
+import { ArtifactOperationRepository, ArtifactOperationEntity } from '../repositories/ArtifactOperationRepository';
 
 export interface ArtifactOperationInput {
   artifactId: string;
@@ -96,7 +96,7 @@ export class ArtifactOperationService {
       durationMs = completedDate.getTime() - started.getTime();
     }
 
-    const entity = await this.repository.updateStatus(operationId, status, completedDate, durationMs);
+    const entity = await this.repository.updateStatus(operationId, status, completedDate || null, durationMs ?? null);
     if (!entity) return undefined;
     return this.entityToDomain(entity);
   }
@@ -114,7 +114,7 @@ export class ArtifactOperationService {
       orderDir: 'DESC',
     });
 
-    return result.entities.map(e => this.entityToDomain(e));
+    return result.entities.map((e: ArtifactOperationEntity) => this.entityToDomain(e));
   }
 
   /**
@@ -138,7 +138,7 @@ export class ArtifactOperationService {
       orderBy: 'created_at',
       orderDir: 'DESC',
     });
-    const recentOperations = recentResult.entities.map(e => this.entityToDomain(e));
+    const recentOperations = recentResult.entities.map((e: ArtifactOperationEntity) => this.entityToDomain(e));
 
     return {
       ...stats,

@@ -1,5 +1,5 @@
 import { DatabasePool } from '../utils/database';
-import { ExecutorRepository, ExecutorHealthRepository, ExecutorEntity, ExecutorHealthEntity } from '../../repositories/FederationRepository';
+import { ExecutorRepository, ExecutorHealthRepository, ExecutorEntity, ExecutorHealthEntity } from '../repositories/FederationRepository';
 
 export interface FederationCluster {
   id: string;

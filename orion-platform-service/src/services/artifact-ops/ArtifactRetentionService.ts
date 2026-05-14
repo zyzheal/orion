@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { RetentionPolicyRepository, RetentionEvaluationRepository, RetentionPolicyEntity, RetentionEvaluationEntity } from '../../repositories/ArtifactRetentionRepository';
+import { DatabasePool } from '../database';
 
 export interface RetentionPolicyInput {
   name: string;
@@ -78,12 +79,18 @@ export class ArtifactRetentionService {
   private policyRepository: RetentionPolicyRepository;
   private evaluationRepository: RetentionEvaluationRepository;
 
-  constructor(
-    policyRepository: RetentionPolicyRepository,
-    evaluationRepository: RetentionEvaluationRepository,
-  ) {
-    this.policyRepository = policyRepository;
-    this.evaluationRepository = evaluationRepository;
+  constructor(dbOrRepositories: DatabasePool | { policyRepository: RetentionPolicyRepository; evaluationRepository: RetentionEvaluationRepository }) {
+    if ('query' in dbOrRepositories) {
+      // DatabasePool provided - create repositories
+      const db = dbOrRepositories;
+      this.policyRepository = new RetentionPolicyRepository(db);
+      this.evaluationRepository = new RetentionEvaluationRepository(db);
+    } else {
+      // Repositories provided directly
+      const { policyRepository, evaluationRepository } = dbOrRepositories;
+      this.policyRepository = policyRepository;
+      this.evaluationRepository = evaluationRepository;
+    }
   }
 
   /**

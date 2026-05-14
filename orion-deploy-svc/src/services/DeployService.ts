@@ -1,8 +1,21 @@
 import type {
   CreateDeploymentRequest,
   Deployment,
+  DeploymentStatus,
   ListDeploymentsQuery,
 } from "../types/deploy";
+import { DeploymentStatus as DS, DeploymentStrategy } from "../types/deploy";
+
+/** Valid state transitions for deployments */
+const VALID_TRANSITIONS: Record<DeploymentStatus, DeploymentStatus[]> = {
+  [DS.PENDING]: [DS.QUEUED, DS.DEPLOYING, DS.CANCELLED],
+  [DS.QUEUED]: [DS.DEPLOYING, DS.CANCELLED],
+  [DS.DEPLOYING]: [DS.DEPLOYED, DS.FAILED, DS.ROLLED_BACK, DS.CANCELLED],
+  [DS.DEPLOYED]: [DS.ROLLED_BACK],
+  [DS.FAILED]: [DS.ROLLED_BACK],
+  [DS.ROLLED_BACK]: [],
+  [DS.CANCELLED]: [],
+};
 
 /**
  * Service responsible for managing deployments.
@@ -13,10 +26,8 @@ import type {
  * - orion-platform-core: Validate tenant and project existence
  */
 export class DeployService {
-  // TODO: Inject database connection / ORM
-  // TODO: Inject pipeline service client
-  // TODO: Inject monitor service client
-  // TODO: Inject platform core client
+  // In-memory store (replace with DB in production)
+  private deployments = new Map<string, Deployment>();
 
   /**
    * Create a new deployment record and initiate the deployment process
@@ -26,16 +37,33 @@ export class DeployService {
     deployedBy: string,
     request: CreateDeploymentRequest,
   ): Promise<Deployment> {
-    // TODO: Validate tenant exists via orion-platform-core
-    // TODO: Validate project exists via orion-platform-core
-    // TODO: Validate environment exists via EnvironmentService
-    // TODO: Generate deployment ID (UUID)
-    // TODO: Persist deployment record to database
-    // TODO: Trigger pipeline via orion-pipeline-svc if not already associated
-    // TODO: Subscribe to health metrics from orion-monitor-svc
-    // TODO: Emit deployment_started event
+    const id = `deploy-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const now = new Date().toISOString();
 
-    throw new Error("TODO: Implement createDeployment");
+    const deployment: Deployment = {
+      id,
+      tenantId,
+      projectId: request.projectId,
+      environmentId: request.environmentId,
+      strategy: request.strategy || DeploymentStrategy.ROLLING,
+      status: DS.PENDING,
+      imageTag: request.imageTag,
+      commitSha: request.commitSha,
+      branch: request.branch,
+      deployedBy,
+      createdAt: now,
+      updatedAt: now,
+      completedAt: null,
+      metadata: request.metadata,
+    };
+
+    this.deployments.set(id, deployment);
+
+    // Transition to deploying
+    deployment.status = DS.DEPLOYING;
+    deployment.updatedAt = new Date().toISOString();
+
+    return deployment;
   }
 
   /**
@@ -44,21 +72,33 @@ export class DeployService {
   async listDeployments(
     query: ListDeploymentsQuery,
   ): Promise<{ data: Deployment[]; total: number }> {
-    // TODO: Build query from filters
-    // TODO: Execute paginated query against database
-    // TODO: Return data with total count
+    let data = Array.from(this.deployments.values());
 
-    return { data: [], total: 0 };
+    if (query.tenantId) {
+      data = data.filter(d => d.tenantId === query.tenantId);
+    }
+    if (query.projectId) {
+      data = data.filter(d => d.projectId === query.projectId);
+    }
+    if (query.environmentId) {
+      data = data.filter(d => d.environmentId === query.environmentId);
+    }
+    if (query.status) {
+      data = data.filter(d => d.status === query.status);
+    }
+
+    const total = data.length;
+    const offset = query.offset || 0;
+    const limit = query.limit || 50;
+
+    return { data: data.slice(offset, offset + limit), total };
   }
 
   /**
    * Get a single deployment by ID
    */
   async getDeployment(id: string): Promise<Deployment | null> {
-    // TODO: Query database by id
-    // TODO: Return null if not found
-
-    return null;
+    return this.deployments.get(id) || null;
   }
 
   /**
@@ -70,14 +110,43 @@ export class DeployService {
     targetDeploymentId: string | undefined,
     initiatedBy: string,
   ): Promise<Deployment> {
-    // TODO: Verify deployment exists and is in a rollback-able state
-    // TODO: Determine target version to rollback to
-    // TODO: Create new deployment record for rollback
-    // TODO: Trigger rollback pipeline via orion-pipeline-svc
-    // TODO: Notify orion-monitor-svc about the rollback
-    // TODO: Emit rollback_initiated event
+    const deployment = this.deployments.get(deploymentId);
+    if (!deployment) {
+      throw new Error(`Deployment ${deploymentId} not found`);
+    }
 
-    throw new Error("TODO: Implement rollbackDeployment");
+    const rollbackId = `deploy-rollback-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const now = new Date().toISOString();
+
+    // Create rollback deployment
+    const rollback: Deployment = {
+      id: rollbackId,
+      tenantId: deployment.tenantId,
+      projectId: deployment.projectId,
+      environmentId: deployment.environmentId,
+      strategy: deployment.strategy,
+      status: DS.DEPLOYING,
+      imageTag: deployment.imageTag,
+      commitSha: deployment.commitSha,
+      branch: deployment.branch,
+      deployedBy: initiatedBy,
+      createdAt: now,
+      updatedAt: now,
+      completedAt: null,
+      rollbackTargetId: targetDeploymentId || deploymentId,
+      metadata: {
+        reason: reason || 'Manual rollback',
+        originalDeployment: deploymentId,
+      },
+    };
+
+    this.deployments.set(rollbackId, rollback);
+
+    // Mark original as failed
+    deployment.status = DS.FAILED;
+    deployment.updatedAt = now;
+
+    return rollback;
   }
 
   /**
@@ -85,13 +154,29 @@ export class DeployService {
    */
   async updateDeploymentStatus(
     deploymentId: string,
-    status: Deployment["status"],
+    status: DeploymentStatus,
     errorMessage?: string,
   ): Promise<void> {
-    // TODO: Update status in database
-    // TODO: Set completedAt if terminal state
-    // TODO: Notify subscribers of status change
+    const deployment = this.deployments.get(deploymentId);
+    if (!deployment) {
+      throw new Error(`Deployment ${deploymentId} not found`);
+    }
 
-    return;
+    // Validate state transition
+    const allowedTransitions = VALID_TRANSITIONS[deployment.status];
+    if (!allowedTransitions.includes(status)) {
+      throw new Error(`Invalid state transition: ${deployment.status} -> ${status}`);
+    }
+
+    deployment.status = status;
+    deployment.updatedAt = new Date().toISOString();
+
+    if (errorMessage) {
+      deployment.errorMessage = errorMessage;
+    }
+
+    if (status === DS.DEPLOYED || status === DS.FAILED || status === DS.ROLLED_BACK || status === DS.CANCELLED) {
+      deployment.completedAt = new Date().toISOString();
+    }
   }
 }

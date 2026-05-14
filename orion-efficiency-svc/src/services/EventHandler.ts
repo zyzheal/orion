@@ -8,7 +8,7 @@
  * - 触发 ClickHouse 同步
  */
 
-import { CloudEvent, EventContext, EventBus, EventHandler } from '@orion/event-bus';
+import { CloudEvent, EventContext, EventBus, EventHandler } from '../events/event-bus';
 import { v4 as uuidv4 } from 'uuid';
 import { DoraMetricsService } from './DoraMetricsService';
 import { ClickHouseSync } from './ClickHouseSync';
@@ -17,12 +17,12 @@ import {
   DeploymentRecord,
   EfficiencyMetricsRow,
   TimeWindow,
-} from '../types/efficiency';
-import { PipelineRunEventData } from '../../events/types';
+} from './types';
+import { PipelineRunEventData } from '../events/types';
 import {
   DeploymentCompletedEventData,
   DeploymentFailedEventData,
-} from '../../events/types/deployment';
+} from '../events/types/deployment';
 
 /**
  * 效能事件处理器配置

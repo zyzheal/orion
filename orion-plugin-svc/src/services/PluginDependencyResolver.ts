@@ -176,8 +176,8 @@ export class PluginDependencyResolver {
     for (const manifest of manifests) {
       if (manifest.dependencies) {
         const deps = manifest.dependencies
-          .filter((d) => !d.optional) // Only non-optional deps
-          .map((d) => d.name);
+          .filter((d: any) => !d.optional) // Only non-optional deps
+          .map((d: any) => d.name);
         graph.edges.set(manifest.name, deps);
       }
     }

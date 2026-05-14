@@ -509,7 +509,7 @@ export default async function efficiencyRoutes(app: FastifyInstance, options: Ef
       // 如果未指定团队，返回所有团队的对比
       if (teamIds.length === 0 && deployRepo) {
         const result = await deployRepo.findAll({ limit: 1000 });
-        const uniqueTeamIds = new Set(result.map((d: any) => d.tenant_id || 'unknown'));
+        const uniqueTeamIds = new Set<string>(result.map((d: any) => (d.tenant_id as string) || 'unknown'));
         teamIds.push(...Array.from(uniqueTeamIds));
       }
 

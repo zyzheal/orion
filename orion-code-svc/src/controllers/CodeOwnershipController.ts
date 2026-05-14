@@ -5,7 +5,7 @@
  */
 
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { CodeOwnershipService } from '../../../services/code-repo';
+import { CodeOwnershipService } from '../services/code-repo';
 
 // 共享实例
 const codeOwnershipService = new CodeOwnershipService();

@@ -4,7 +4,7 @@
  */
 import pino from 'pino';
 import { v4 as uuidv4 } from 'uuid';
-import { ArtifactPromotionRepository } from '../../repositories/ArtifactPromotionRepository';
+import { ArtifactPromotionRepository, ArtifactPromotionEntity } from '../repositories/ArtifactPromotionRepository';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -147,8 +147,8 @@ export class PromotionService {
     if (this.promotionRepository) {
       const entities = await this.promotionRepository.findByArtifact(artifactId);
       if (entities.length > 0) {
-        // The latest record's toEnv is the current stage
-        return entities[0].toEnv as PromotionStage;
+        // The latest record's to_env is the current stage
+        return entities[0].to_env as PromotionStage;
       }
       // No promotions yet — artifact starts at DEVELOPMENT
       return PromotionStage.DEVELOPMENT;
@@ -164,16 +164,16 @@ export class PromotionService {
     // Load from repository if available
     if (this.promotionRepository) {
       const entities = await this.promotionRepository.findByArtifact(artifactId);
-      return entities.map(e => ({
+      return entities.map((e: ArtifactPromotionEntity) => ({
         id: e.id,
-        artifactId: e.artifactId,
-        fromStage: e.fromEnv as PromotionStage,
-        toStage: e.toEnv as PromotionStage,
-        promotedBy: e.promotedBy,
-        approvedBy: e.approvedBy ?? undefined,
-        approvedAt: e.approvedAt ?? undefined,
+        artifactId: e.artifact_id,
+        fromStage: e.from_env as PromotionStage,
+        toStage: e.to_env as PromotionStage,
+        promotedBy: e.promoted_by,
+        approvedBy: e.approved_by ?? undefined,
+        approvedAt: e.approved_at ?? undefined,
         reason: e.reason ?? undefined,
-        timestamp: e.createdAt,
+        timestamp: e.created_at,
       }));
     }
     // Deprecated in-memory fallback

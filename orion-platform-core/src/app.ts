@@ -116,8 +116,12 @@ export async function createApp(opts: AppOptions = {}): Promise<FastifyInstance>
     try {
       const { getRedis } = await import('./utils/redis.js');
       const redis = getRedis();
-      await redis.ping();
-      checks.redis = 'ok';
+      if (redis) {
+        await redis.ping();
+        checks.redis = 'ok';
+      } else {
+        checks.redis = 'disabled';
+      }
     } catch {
       checks.redis = 'error';
     }

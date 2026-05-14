@@ -35,7 +35,7 @@ export class PipelineController {
       const pipeline = await this.pipelineService.create({
         tenant_id: tenantId,
         name,
-        version: parseInt(version, 10),
+        version: version.toString(),
         description,
         yamlDefinition,
         createdBy,

@@ -4,7 +4,7 @@ import { config } from '../config';
 const poolConfig: PoolConfig = {
   host: config.database.host,
   port: config.database.port,
-  database: config.database.name,
+  database: config.database.database,
   user: config.database.user,
   password: config.database.password,
   ssl: config.database.ssl ? { rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false' } : false,

@@ -5,7 +5,7 @@
  * Phase 2: 成本运营 API - 预算门禁、异常检测、优化建议
  */
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { DatabasePool } from '../services/database';
+import { DatabasePool } from '../utils/database';
 import { CostBudgetGuardService } from '../services/cost/CostBudgetGuardService';
 import { CostAnomalyDetectionService } from '../services/cost/CostAnomalyDetectionService';
 import { CostOptimizationService } from '../services/cost/CostOptimizationService';

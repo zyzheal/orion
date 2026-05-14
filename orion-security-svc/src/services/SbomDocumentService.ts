@@ -5,7 +5,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import { EventBusService } from '../event-bus-service';
+import { EventBusService } from './event-bus-service';
 import {
   SbomDocument,
   SbomDocumentCreateInput,
@@ -19,7 +19,7 @@ import {
   createSbomAttestation,
   SbomFormat,
   SbomStatus,
-} from '../../models/SbomDocument';
+} from '../models/SbomDocument';
 import {
   SbomDocumentRepository,
   SbomPackageRepository,
@@ -27,7 +27,7 @@ import {
   SbomDocumentEntity,
   SbomPackageEntity,
   SbomAttestationEntity,
-} from '../../repositories/SbomDocumentRepository';
+} from '../repositories/SbomDocumentRepository';
 
 export interface SbomDocumentListFilter {
   buildId?: string;
@@ -104,7 +104,7 @@ export class SbomDocumentService {
         perPage: filter.perPage,
       });
       return {
-        documents: result.documents.map(entity => this.mapEntityToDocument(entity)),
+        documents: result.documents.map((entity: SbomDocumentEntity) => this.mapEntityToDocument(entity)),
         total: result.total,
       };
     }
@@ -219,7 +219,7 @@ export class SbomDocumentService {
   async getPackages(sbomId: string): Promise<SbomPackage[]> {
     if (this.packageRepository) {
       const entities = await this.packageRepository.findBySbomId(sbomId);
-      return entities.map(entity => this.mapEntityToPackage(entity));
+      return entities.map((entity: SbomPackageEntity) => this.mapEntityToPackage(entity));
     }
     return this.packages.get(sbomId) ?? [];
   }

@@ -19,8 +19,8 @@ import {
   completeBuildLog,
   createLogEntry,
   parseLogLine,
-} from '../../models/BuildLog';
-import { BuildLogRepository } from '../../repositories/BuildLogRepository';
+} from '../models/BuildLog';
+import { BuildLogRepository } from '../repositories/BuildLogRepository';
 
 /**
  * 日志订阅者（用于 WebSocket/SSE 推送）
@@ -89,17 +89,17 @@ export class BuildLogService {
       if (dbLogs.length > 0) {
         const dbLog = dbLogs[0];
         // Parse logContent string into LogEntry[]
-        const entries: LogEntry[] = dbLog.logContent
-          ? dbLog.logContent.split('\n').filter(line => line.trim()).map(line => parseLogLine(line))
+        const entries: LogEntry[] = dbLog.log_content
+          ? dbLog.log_content.split('\n').filter((line: string) => line.trim()).map((line: string) => parseLogLine(line))
           : [];
 
         return {
           id: dbLog.id,
-          runId: dbLog.buildId,
+          runId: dbLog.build_id,
           entries,
           isComplete: false,
           totalLines: entries.length,
-          createdAt: dbLog.createdAt,
+          createdAt: dbLog.created_at,
         };
       }
     }

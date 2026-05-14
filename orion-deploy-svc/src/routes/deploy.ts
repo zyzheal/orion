@@ -89,6 +89,7 @@ export async function deployRoutes(fastify: FastifyInstance, _opts: FastifyPlugi
         strategy: body.strategy || 'direct',
         triggeredBy: body.triggeredBy || 'api',
         tenantId: body.tenantId,
+        envOverrides: body.envOverrides,
       });
       return reply.code(201).send(deployment);
     } catch (error: any) {

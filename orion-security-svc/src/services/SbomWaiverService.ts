@@ -2,7 +2,7 @@
  * SBOM Waiver Service - 漏洞豁免管理
  */
 
-import { EventBusService } from '../event-bus-service';
+import { EventBusService } from './event-bus-service';
 import { DatabasePool } from '../utils/database';
 import {
   SbomWaiver,
@@ -10,8 +10,8 @@ import {
   SbomWaiverUpdateInput,
   createSbomWaiver,
   WaiverScope,
-} from '../../models/SbomDocument';
-import { SbomWaiverRepository, SbomWaiverEntity } from '../../repositories/SbomWaiverRepository';
+} from '../models/SbomDocument';
+import { SbomWaiverRepository, SbomWaiverEntity } from '../repositories/SbomWaiverRepository';
 
 export interface SbomWaiverListFilter {
   scope?: WaiverScope;

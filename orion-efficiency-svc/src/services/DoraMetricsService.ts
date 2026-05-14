@@ -23,7 +23,7 @@ import {
   DeploymentRecord,
   DeploymentFailureRecord,
   IncidentRecord,
-} from '../types/efficiency';
+} from './types';
 
 /**
  * DORA 等级评估阈值

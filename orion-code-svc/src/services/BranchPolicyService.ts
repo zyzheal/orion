@@ -16,7 +16,7 @@ import {
   MergeStrategy,
   PullRequest,
 } from '../types/code-repo';
-import { BranchPolicyRepository } from '../../repositories/BranchPolicyRepository';
+import { BranchPolicyRepository } from '../repositories/BranchPolicyRepository';
 
 /** 创建分支策略的输入 */
 export interface BranchPolicyCreateInput {
@@ -123,7 +123,6 @@ export class BranchPolicyService {
     if (this.repository) {
       try {
         await this.repository.create({
-          id: policy.id,
           repoId: policy.repoId,
           branchPattern: policy.branchPattern,
           preventForcePush: policy.preventForcePush,

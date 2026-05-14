@@ -6,8 +6,11 @@ POST /api/v1/ai/suggest-solution - AI-powered solution recommendation
 
 import time
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
+
+from src.services.ai_service import AIService
+from src.api.dependencies import get_ai_service
 
 router = APIRouter()
 
@@ -47,7 +50,10 @@ class SolutionResponse(BaseModel):
 
 
 @router.post("/suggest-solution", response_model=SolutionResponse)
-async def suggest_solution(request: SolutionRequest):
+async def suggest_solution(
+    request: SolutionRequest,
+    ai_service: AIService = Depends(get_ai_service),
+):
     """
     Recommend solutions for a classified ticket.
 
@@ -55,13 +61,31 @@ async def suggest_solution(request: SolutionRequest):
     generates step-by-step solutions using LLM.
     """
     start = time.monotonic()
-    # TODO: Call ai_service.suggest_solution(request)
-    # TODO: Query knowledge base for resolved tickets in same category
-    # TODO: Generate step-by-step solution with safety checks
-    # TODO: Return ranked solutions with confidence
-    result = SolutionResponse(
+
+    result = await ai_service.suggest_solution(request)
+
+    solutions = []
+    for sol in result.get("recommended_solutions", []):
+        steps = [
+            SolutionStep(
+                step_number=i + 1,
+                action=s.get("action", ""),
+                command=s.get("command"),
+                expected_outcome=s.get("expected_outcome"),
+                risk_level=s.get("risk_level", "low"),
+            )
+            for i, s in enumerate(result.get("steps", []))
+        ]
+        solutions.append(RecommendedSolution(
+            solution_title=sol.get("solution", ""),
+            confidence=sol.get("confidence", 0.5),
+            steps=steps or [SolutionStep(step_number=1, action=sol.get("solution", ""))],
+            source="generated",
+            estimated_time_minutes=sol.get("estimated_effort"),
+        ))
+
+    return SolutionResponse(
         ticket_id=request.ticket_id,
-        solutions=[],
+        solutions=solutions,
         processing_time_ms=round((time.monotonic() - start) * 1000, 2),
     )
-    return result

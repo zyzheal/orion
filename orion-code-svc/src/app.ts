@@ -5,14 +5,16 @@ import { getPool, closePool, checkHealth } from './utils/database';
 import codeRepoRoutes from './routes/code-repo';
 import buildRoutes from './routes/build';
 import testReportRoutes from './routes/test-report';
+import { errorHandler } from './middleware/errorHandler';
 
 async function buildApp() {
   const fastify = Fastify({
     logger: { level: process.env.LOG_LEVEL || 'info' },
   });
 
-  await fastify.register(cors, { origin: true });
+  await fastify.register(cors, { origin: process.env.CORS_ORIGIN?.split(',') || ['http://localhost:5173', 'http://localhost:3000'] });
   await fastify.register(sensible);
+  errorHandler(fastify);
 
   const database = getPool();
 

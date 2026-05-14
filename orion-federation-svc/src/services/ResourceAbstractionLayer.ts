@@ -6,7 +6,7 @@
  * Uses PostgreSQL Repository pattern for persistence.
  */
 import { v4 as uuidv4 } from 'uuid';
-import { UnifiedResourceRepository, DeploymentResultRepository, UnifiedResourceEntity, DeploymentResultEntity } from '../../repositories/ResourceAbstractionRepository';
+import { UnifiedResourceRepository, DeploymentResultRepository, UnifiedResourceEntity, DeploymentResultEntity } from '../repositories/ResourceAbstractionRepository';
 
 export interface ProviderResource {
   id: string;
@@ -375,8 +375,8 @@ export class ResourceAbstractionLayer {
       provider: entity.provider,
       region: entity.region,
       status: (entity.status as UnifiedResource['status']) ?? 'running',
-      spec: entity.spec || {},
-      tags: entity.tags || {},
+      spec: (entity.spec as UnifiedResource['spec']) ?? {},
+      tags: (entity.tags as Record<string, string>) ?? {},
       metadata: entity.metadata || {},
       createdAt: entity.created_at,
     };
@@ -387,11 +387,11 @@ export class ResourceAbstractionLayer {
       id: entity.id,
       tenantId: entity.tenant_id,
       provider: entity.provider,
-      serviceName: entity.service_name,
+      serviceName: (entity.service_name as string) ?? '',
       status: (entity.status as DeploymentResult['status']) ?? 'deploying',
-      resources: entity.resources || [],
+      resources: (entity.resources as string[]) ?? [],
       createdAt: entity.created_at,
-      errorMessage: entity.error_message ?? undefined,
+      errorMessage: (entity.error_message as string | undefined) ?? undefined,
     };
   }
 }

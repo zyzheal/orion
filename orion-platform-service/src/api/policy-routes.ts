@@ -7,11 +7,10 @@
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { DatabasePool } from '../services/database';
-import { PolicyRepository } from '../services/policy/PolicyRepository';
 import { PolicyService } from '../services/policy/PolicyService';
 import { PolicyEvaluationService } from '../services/policy/PolicyEvaluationService';
 import { ExemptionService } from '../services/policy/ExemptionService';
-import { PolicyOverrideRepository } from '../repositories/PolicyOverrideRepository';
+import { PolicyOverrideService } from '../services/policy/PolicyOverrideService';
 import { PolicyController } from './controllers/PolicyController';
 import { PolicyEvaluationController } from './controllers/PolicyEvaluationController';
 import { EventBusService } from '../services/event-bus-service';
@@ -31,14 +30,10 @@ export default async function policyRoutes(
     return;
   }
 
-  const policyRepo = new PolicyRepository(options.database);
-  const policyService = new PolicyService(policyRepo);
-  const evaluationService = new PolicyEvaluationService({
-    eventBus: options.eventBus,
-    db: options.database,
-  });
+  const policyService = new PolicyService(options.database);
+  const evaluationService = new PolicyEvaluationService(options.database);
   const exemptionService = new ExemptionService(options.database);
-  const overrideRepo = new PolicyOverrideRepository(options.database);
+  const overrideService = new PolicyOverrideService(options.database);
 
   const policyController = new PolicyController(policyService);
   const evalController = new PolicyEvaluationController(evaluationService);

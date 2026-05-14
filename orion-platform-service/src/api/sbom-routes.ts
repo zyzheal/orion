@@ -22,18 +22,9 @@ export default async function sbomRoutes(
   app: FastifyInstance,
   options: SbomRoutesOptions
 ): Promise<void> {
-  const documentService = new SbomDocumentService({
-    eventBus: options.eventBus,
-    db: options.database,
-  });
-  const vulnerabilityService = new SbomVulnerabilityService({
-    eventBus: options.eventBus,
-    db: options.database,
-  });
-  const waiverService = new SbomWaiverService({
-    eventBus: options.eventBus,
-    db: options.database,
-  });
+  const documentService = new SbomDocumentService(options.database);
+  const vulnerabilityService = new SbomVulnerabilityService(options.database);
+  const waiverService = new SbomWaiverService(options.database);
   const controller = new SbomController({
     documentService,
     vulnerabilityService,

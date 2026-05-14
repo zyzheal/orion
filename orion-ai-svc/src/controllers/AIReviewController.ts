@@ -5,13 +5,13 @@
  */
 
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { AIReviewService } from '../../../services/ai-review/AIReviewService';
+import { AIReviewService } from '../services/ai-review/AIReviewService';
 import {
   ReviewRequest,
   ReviewHistoryQuery,
   RuleCreateRequest,
   RuleUpdateRequest,
-} from '../../../services/ai-review/types';
+} from '../services/ai-review/types';
 
 export class AIReviewController {
   private aiReviewService: AIReviewService;

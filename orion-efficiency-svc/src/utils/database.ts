@@ -1,4 +1,8 @@
 import { Pool, PoolConfig } from 'pg';
+
+/** Alias for pg Pool, matching the DatabasePool interface used by other services */
+export type DatabasePool = Pool;
+
 let pool: Pool | null = null;
 export function getPool(): Pool {
   if (!pool) {

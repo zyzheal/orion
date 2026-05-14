@@ -19,7 +19,7 @@ import {
   createBuilderImage,
   updateBuilderImage,
   isImageAvailable,
-} from '../../models/BuilderImage';
+} from '../models/BuilderImage';
 
 /**
  * 预置镜像定义

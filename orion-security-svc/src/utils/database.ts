@@ -14,7 +14,7 @@ export function getPool(): Pool {
       connectionTimeoutMillis: 5000,
     };
     pool = new Pool(config);
-    pool.on('error', (err) => console.error('[database] Unexpected error:', err));
+    pool.on('error', (err: Error) => console.error('[database] Unexpected error:', err));
   }
   return pool;
 }

@@ -10,13 +10,15 @@
  */
 
 import pino from 'pino';
-import { CodeEmbeddingRepository } from '../../repositories/CodeEmbeddingRepository';
-import { KnowledgeEmbeddingRepository } from '../../repositories/KnowledgeEmbeddingRepository';
+import { CodeEmbeddingRepository } from '../repositories/CodeEmbeddingRepository';
+import { KnowledgeEmbeddingRepository } from '../repositories/KnowledgeEmbeddingRepository';
 import {
   SemanticSearchRequest,
   SemanticSearchResult,
   CodeSearchMatch,
   KnowledgeSearchMatch,
+  CodeChunkType,
+  KnowledgeDocType,
   EmbeddingProviderConfig,
 } from './vector-types';
 import { CodeEmbeddingService } from './CodeEmbeddingService';
@@ -165,7 +167,7 @@ export class SemanticSearchService {
       similarity: r.similarity,
       source: {
         filePath: r.embedding.filePath,
-        chunkType: r.embedding.chunkType,
+        chunkType: r.embedding.chunkType as CodeChunkType,
         chunkName: r.embedding.chunkName,
         projectId: r.embedding.projectId,
         metadata: r.embedding.metadata,
@@ -189,7 +191,7 @@ export class SemanticSearchService {
           similarity: options.keywordBoost,
           source: {
             filePath: r.filePath,
-            chunkType: r.chunkType,
+            chunkType: r.chunkType as CodeChunkType,
             chunkName: r.chunkName,
             projectId: r.projectId,
             metadata: r.metadata,
@@ -240,7 +242,7 @@ export class SemanticSearchService {
       similarity: r.similarity,
       source: {
         docId: r.embedding.docId,
-        docType: r.embedding.docType,
+        docType: r.embedding.docType as KnowledgeDocType,
         title: r.embedding.title,
         metadata: r.embedding.metadata,
       },
@@ -262,7 +264,7 @@ export class SemanticSearchService {
           similarity: options.keywordBoost,
           source: {
             docId: r.docId,
-            docType: r.docType,
+            docType: r.docType as KnowledgeDocType,
             title: r.title,
             metadata: r.metadata,
           },
@@ -298,7 +300,7 @@ export class SemanticSearchService {
       similarity: r.similarity,
       source: {
         filePath: r.embedding.filePath,
-        chunkType: r.embedding.chunkType,
+        chunkType: r.embedding.chunkType as CodeChunkType,
         chunkName: r.embedding.chunkName,
         projectId: r.embedding.projectId,
         metadata: r.embedding.metadata,
@@ -326,7 +328,7 @@ export class SemanticSearchService {
       similarity: r.similarity,
       source: {
         docId: r.embedding.docId,
-        docType: r.embedding.docType,
+        docType: r.embedding.docType as KnowledgeDocType,
         title: r.embedding.title,
         metadata: r.embedding.metadata,
       },
@@ -358,7 +360,7 @@ export class SemanticSearchService {
             similarity: r.similarity,
             source: {
               filePath: r.embedding.filePath,
-              chunkType: r.embedding.chunkType,
+              chunkType: r.embedding.chunkType as CodeChunkType,
               chunkName: r.embedding.chunkName,
               projectId: r.embedding.projectId,
               metadata: r.embedding.metadata,
@@ -376,7 +378,7 @@ export class SemanticSearchService {
           similarity: r.similarity,
           source: {
             filePath: r.embedding.filePath,
-            chunkType: r.embedding.chunkType,
+            chunkType: r.embedding.chunkType as CodeChunkType,
             chunkName: r.embedding.chunkName,
             projectId: r.embedding.projectId,
             metadata: r.embedding.metadata,

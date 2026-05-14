@@ -8,12 +8,12 @@
  */
 
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { BuildLogService } from '../../services/BuildLogService';
+import { BuildLogService } from '../services/BuildLogService';
 import {
   LogLevel,
   LogStreamConfig,
   BuildLogQueryOptions,
-} from '../../../models/BuildLog';
+} from '../models/BuildLog';
 
 export class BuildLogController {
   private service: BuildLogService;
@@ -191,7 +191,8 @@ export class BuildLogController {
     }
 
     try {
-      const log = await this.service.appendEntries(id, body.entries);
+      const entries = body.entries.map(e => ({ ...e, timestamp: new Date(e.timestamp) }));
+      const log = await this.service.appendEntries(id, entries);
       if (!log) {
         reply.status(404).send({
           error: 'NOT_FOUND',

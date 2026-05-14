@@ -3,7 +3,7 @@
  *
  * Migrated from Map() in-memory storage to PostgreSQL Repository pattern.
  */
-import { SbomVulnerabilityRepository } from '../../repositories/SbomVulnerabilityRepository';
+import { SbomVulnerabilityRepository, SbomVulnerabilityEntity } from '../repositories/SbomVulnerabilityRepository';
 import { DatabasePool } from '../utils/database';
 
 export interface Sbom {
@@ -99,7 +99,7 @@ export class SbomRepository {
   async getVulnerabilities(sbomId: string): Promise<Vulnerability[]> {
     const vulnRepo = new SbomVulnerabilityRepository(this.db);
     const entities = await vulnRepo.findBySbomId(sbomId);
-    return entities.map(e => ({
+    return entities.map((e: SbomVulnerabilityEntity) => ({
       id: e.id,
       sbomId: e.sbomId,
       cve: e.cveId,

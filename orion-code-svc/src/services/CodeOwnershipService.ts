@@ -18,7 +18,7 @@ import {
   OwnershipRule,
   OwnershipRecommendation,
 } from '../types/code-repo';
-import { CodeOwnershipRepository } from '../../repositories/CodeOwnershipRepository';
+import { CodeOwnershipRepository } from '../repositories/CodeOwnershipRepository';
 
 /** 解析 CODEOWNERS 文件的结果 */
 export interface ParseResult {

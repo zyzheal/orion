@@ -37,9 +37,9 @@ export async function selfHealingRoutes(
   );
 
   // List policies
-  fastify.get('/api/v1/self-healing/policies', async (request, reply) => {
+  fastify.get('/api/v1/self-healing/policies', async (request: FastifyRequest, reply: FastifyReply) => {
     const tenantId = request.headers['x-tenant-id'] as string;
-    const projectId = request.query['projectId'] as string | undefined;
+    const projectId = (request.query as Record<string, unknown>)['projectId'] as string | undefined;
 
     if (!tenantId) {
       return reply.code(400).send({ error: 'Missing x-tenant-id header' });
@@ -50,7 +50,7 @@ export async function selfHealingRoutes(
   });
 
   // List healing runs
-  fastify.get('/api/v1/self-healing/runs', async (request, reply) => {
+  fastify.get('/api/v1/self-healing/runs', async (request: FastifyRequest, reply: FastifyReply) => {
     const tenantId = request.headers['x-tenant-id'] as string;
     const query = request.query as Record<string, string | undefined>;
 
@@ -70,10 +70,13 @@ export async function selfHealingRoutes(
   // Trigger healing manually
   fastify.post<{ Body: { alertId: string } }>(
     '/api/v1/self-healing/trigger',
-    async (request, reply) => {
+    async (
+      request: FastifyRequest<{ Body: { alertId: string } }>,
+      reply: FastifyReply,
+    ) => {
       const tenantId = request.headers['x-tenant-id'] as string;
       const { alertId } = request.body;
-      const policyId = request.query['policyId'] as string;
+      const policyId = (request.query as Record<string, unknown>)['policyId'] as string;
 
       if (!tenantId || !alertId || !policyId) {
         return reply.code(400).send({

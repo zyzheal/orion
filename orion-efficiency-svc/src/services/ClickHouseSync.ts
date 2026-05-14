@@ -16,7 +16,7 @@ import {
   ClickHouseSyncStatus,
   PipelineCompletionRecord,
   DeploymentRecord,
-} from '../types/efficiency';
+} from './types';
 
 /**
  * ClickHouse 连接配置

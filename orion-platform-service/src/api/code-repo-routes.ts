@@ -5,12 +5,13 @@
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { DatabasePool } from '../services/database';
 import { CodeRepoController, registerGitLabInstance, registerGerritInstance } from './controllers/code-repo/CodeRepoController';
 import { BranchPolicyController } from './controllers/code-repo/BranchPolicyController';
 import { CodeOwnershipController } from './controllers/code-repo/CodeOwnershipController';
 import { WebhookController } from './controllers/code-repo/WebhookController';
 
-export default async function codeRepoRoutes(app: FastifyInstance): Promise<void> {
+export default async function codeRepoRoutes(app: FastifyInstance, options?: { database?: DatabasePool }): Promise<void> {
   // ==================== 注册适配器 (FIXED P0-7) ====================
 
   // 从环境变量注册 GitLab 实例
@@ -34,7 +35,7 @@ export default async function codeRepoRoutes(app: FastifyInstance): Promise<void
 
   // 初始化控制器
   const codeRepoController = new CodeRepoController();
-  const branchPolicyController = new BranchPolicyController();
+  const branchPolicyController = new BranchPolicyController(options?.database ?? null);
   const codeOwnershipController = new CodeOwnershipController();
   const webhookController = new WebhookController();
 

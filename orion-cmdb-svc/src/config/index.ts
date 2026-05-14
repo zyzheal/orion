@@ -12,9 +12,9 @@ export interface CmdbServiceConfig {
 
 export function getConfig(): CmdbServiceConfig {
   return {
-    port: parseInt(process.env.PORT || '3022', 10),
+    port: parseInt(process.env.PORT || '3019', 10),
     host: process.env.HOST || '0.0.0.0',
     logLevel: process.env.LOG_LEVEL || 'info',
-    corsOrigin: process.env.CORS_ORIGIN || true,
+    corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:5173,http://localhost:3000',
   };
 }

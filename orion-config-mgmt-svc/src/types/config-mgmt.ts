@@ -187,6 +187,8 @@ export interface ConfigApproval {
   createdAt: Date;
   /** 审批时间 */
   decidedAt?: Date;
+  /** 审批人 */
+  decidedBy?: string;
   /** 租户 ID */
   tenantId: string;
 }

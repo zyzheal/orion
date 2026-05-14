@@ -8,12 +8,30 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { ChangeIntelligenceService } from '../services/change-intelligence/ChangeIntelligenceService';
 import { ChangeIntelligenceController } from './controllers/ChangeIntelligenceController';
 import { EventBusService } from '../services/event-bus-service';
+import { DatabasePool } from '../services/database';
+import {
+  ChangeIntelligenceRepository,
+  AffectedServiceRepository,
+  RiskFactorRepository,
+  HistoricalMatchRepository,
+} from '../repositories/ChangeIntelligenceRepository';
 
 export default async function changeIntelligenceRoutes(
   app: FastifyInstance,
-  options?: { eventBus?: EventBusService }
+  options?: { database?: DatabasePool; eventBus?: EventBusService }
 ): Promise<void> {
-  const service = new ChangeIntelligenceService({ eventBus: options?.eventBus });
+  const db = options?.database;
+  const changeIntelligenceRepo = db ? new ChangeIntelligenceRepository(db) : null;
+  const affectedServiceRepo = db ? new AffectedServiceRepository(db) : null;
+  const riskFactorRepo = db ? new RiskFactorRepository(db) : null;
+  const historicalMatchRepo = db ? new HistoricalMatchRepository(db) : null;
+
+  const service = new ChangeIntelligenceService(
+    changeIntelligenceRepo!,
+    affectedServiceRepo!,
+    riskFactorRepo!,
+    historicalMatchRepo!,
+  );
   const controller = new ChangeIntelligenceController(service);
 
   // POST /analyze - 触发分析

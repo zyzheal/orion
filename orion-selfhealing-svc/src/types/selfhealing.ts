@@ -120,7 +120,19 @@ export interface HealingStrategy {
   /** 超时时间 (秒) */
   timeoutSeconds: number;
   /** 适用范围 */
-  scope: string[];
+  scope: string[] | Record<string, unknown>;
+  /** 适用严重级别 */
+  severities?: string[];
+  /** 动作类型 */
+  actionType?: string;
+  /** 自动执行 */
+  autoExecute?: boolean;
+  /** 置信度 */
+  confidence?: number;
+  /** 成熟度 */
+  maturity?: string;
+  /** 指标 */
+  metrics?: Record<string, unknown>;
   /** 租户 ID */
   tenantId: string;
   /** 创建时间 */

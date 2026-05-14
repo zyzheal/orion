@@ -1,5 +1,5 @@
 import { Pool, PoolConfig, QueryResult, QueryResultRow } from 'pg';
-import { config, getDatabaseUrl } from '../config/index.js';
+import { config } from '../config/index.js';
 import type {
   AuditLog,
   AuditLogInput,
@@ -8,6 +8,7 @@ import type {
   AuditLogQuery,
   AuditActionResult,
   ResourceTypeCount,
+  AuditAction,
 } from '../types/audit.js';
 import type {
   CompliancePolicy,
@@ -22,6 +23,11 @@ import type {
   ComplianceFramework,
   ComplianceEvidence,
   GapAnalysisResult,
+  ComplianceStatus,
+  ComplianceSeverity,
+  RemediationStatus,
+  AuditPlanStatus,
+  FindingStatus,
 } from '../types/compliance.js';
 
 let pool: Pool | null = null;
@@ -273,7 +279,7 @@ export const AuditRepository = {
   async create(input: AuditLogInput, previousHash: string, chainIndex: number): Promise<AuditLog> {
     const { userId, action, resourceType, resourceId, details, ipAddress, userAgent, severity, tenantId } = input;
 
-    const result = await query<AuditLog>(`
+    const result = await query<Record<string, unknown>>(`
       INSERT INTO audit_logs (
         user_id, action, resource_type, resource_id, details,
         ip_address, user_agent, previous_hash, current_hash, chain_index,
@@ -302,14 +308,14 @@ export const AuditRepository = {
   },
 
   async updateStatus(id: string, status: AuditLog['status']): Promise<AuditLog> {
-    const result = await query<AuditLog>(`
+    const result = await query<Record<string, unknown>>(`
       UPDATE audit_logs SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *
     `, [status, id]);
     return mapRowToAuditLog(result.rows[0]);
   },
 
   async findById(id: string): Promise<AuditLog | null> {
-    const result = await query<AuditLog>('SELECT * FROM audit_logs WHERE id = $1', [id]);
+    const result = await query<Record<string, unknown>>('SELECT * FROM audit_logs WHERE id = $1', [id]);
     return result.rows.length > 0 ? mapRowToAuditLog(result.rows[0]) : null;
   },
 
@@ -371,7 +377,7 @@ export const AuditRepository = {
     );
     const total = parseInt(countResult.rows[0].cnt, 10);
 
-    const dataResult = await query<AuditLog>(`
+    const dataResult = await query<Record<string, unknown>>(`
       SELECT * FROM audit_logs ${whereClause}
       ORDER BY ${sortColumn} ${sortOrder}
       LIMIT $${paramIndex++} OFFSET $${paramIndex++}
@@ -381,7 +387,7 @@ export const AuditRepository = {
   },
 
   async findByHash(hash: string): Promise<AuditLog | null> {
-    const result = await query<AuditLog>('SELECT * FROM audit_logs WHERE current_hash = $1', [hash]);
+    const result = await query<Record<string, unknown>>('SELECT * FROM audit_logs WHERE current_hash = $1', [hash]);
     return result.rows.length > 0 ? mapRowToAuditLog(result.rows[0]) : null;
   },
 
@@ -441,7 +447,7 @@ export const AuditRepository = {
 
     const { total, storage_bytes, oldest, newest } = statsResult.rows[0];
 
-    const typeResult = await query<ResourceTypeCount>(`
+    const typeResult = await query<Record<string, unknown>>(`
       SELECT resource_type, COUNT(*) as count
       FROM audit_logs
       GROUP BY resource_type
@@ -450,7 +456,7 @@ export const AuditRepository = {
 
     const recordsByType: Record<string, number> = {};
     for (const row of typeResult.rows) {
-      recordsByType[row.resource_type] = Number(row.count);
+      recordsByType[row.resource_type as string] = Number(row.count);
     }
 
     return {
@@ -463,7 +469,7 @@ export const AuditRepository = {
   },
 
   async getActionsSummary(): Promise<AuditActionResult[]> {
-    const result = await query<AuditActionResult>(`
+    const result = await query<Record<string, unknown>>(`
       SELECT action, resource_type, resource_id, COUNT(*) as count
       FROM audit_logs
       GROUP BY action, resource_type, resource_id
@@ -472,22 +478,22 @@ export const AuditRepository = {
     `);
     return result.rows.map((row) => ({
       id: `${row.action}-${row.resource_type}-${row.resource_id}`,
-      action: row.action,
-      resourceType: row.resource_type,
-      resourceId: row.resource_id,
+      action: row.action as AuditAction,
+      resourceType: row.resource_type as string,
+      resourceId: row.resource_id as string,
       count: Number(row.count),
     }));
   },
 
   async getResourceTypes(): Promise<ResourceTypeCount[]> {
-    const result = await query<ResourceTypeCount>(`
+    const result = await query<Record<string, unknown>>(`
       SELECT resource_type, COUNT(*) as count
       FROM audit_logs
       GROUP BY resource_type
       ORDER BY count DESC
     `);
     return result.rows.map((row) => ({
-      resourceType: row.resource_type,
+      resourceType: row.resource_type as string,
       count: Number(row.count),
     }));
   },
@@ -549,7 +555,7 @@ export const ComplianceRepository = {
     framework: string,
     rules: ComplianceRule[]
   ): Promise<CompliancePolicy> {
-    const result = await query<CompliancePolicy>(`
+    const result = await query<Record<string, unknown>>(`
       INSERT INTO compliance_policies (name, description, framework, rules)
       VALUES ($1, $2, $3, $4) RETURNING *
     `, [name, description, framework, JSON.stringify(rules)]);
@@ -557,12 +563,12 @@ export const ComplianceRepository = {
   },
 
   async findAllPolicies(): Promise<CompliancePolicy[]> {
-    const result = await query<CompliancePolicy>('SELECT * FROM compliance_policies ORDER BY name');
+    const result = await query<Record<string, unknown>>('SELECT * FROM compliance_policies ORDER BY name');
     return result.rows.map(mapRowToCompliancePolicy);
   },
 
   async findPolicyById(id: string): Promise<CompliancePolicy | null> {
-    const result = await query<CompliancePolicy>('SELECT * FROM compliance_policies WHERE id = $1', [id]);
+    const result = await query<Record<string, unknown>>('SELECT * FROM compliance_policies WHERE id = $1', [id]);
     return result.rows.length > 0 ? mapRowToCompliancePolicy(result.rows[0]) : null;
   },
 
@@ -574,7 +580,7 @@ export const ComplianceRepository = {
     evaluatedBy: string,
     details: Record<string, unknown>
   ): Promise<ComplianceEvaluation> {
-    const result = await query<ComplianceEvaluation>(`
+    const result = await query<Record<string, unknown>>(`
       INSERT INTO compliance_evaluations (policy_id, resource_id, status, score, evaluated_by, details)
       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *
     `, [policyId, resourceId, status, score, evaluatedBy, JSON.stringify(details)]);
@@ -590,7 +596,7 @@ export const ComplianceRepository = {
     evidence: string | null,
     remediation: string | null
   ): Promise<ComplianceFinding> {
-    const result = await query<ComplianceFinding>(`
+    const result = await query<Record<string, unknown>>(`
       INSERT INTO compliance_findings (rule_id, resource_id, status, severity, description, evidence, remediation)
       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *
     `, [ruleId, resourceId, status, severity, description, evidence, remediation]);
@@ -598,7 +604,7 @@ export const ComplianceRepository = {
   },
 
   async findFindingsByEvaluation(evaluationId: string): Promise<ComplianceFinding[]> {
-    const result = await query<ComplianceFinding>(`
+    const result = await query<Record<string, unknown>>(`
       SELECT f.* FROM compliance_findings f
       JOIN compliance_evaluations e ON e.resource_id = f.resource_id
       WHERE e.id = $1
@@ -619,7 +625,7 @@ export const ComplianceRepository = {
     periodStart: Date,
     periodEnd: Date
   ): Promise<ComplianceReport> {
-    const result = await query<ComplianceReport>(`
+    const result = await query<Record<string, unknown>>(`
       INSERT INTO compliance_reports (
         policy_id, title, status, overall_score, total_checks, passed_checks, failed_checks,
         findings, generated_by, period_start, period_end
@@ -647,7 +653,7 @@ export const ComplianceRepository = {
   },
 
   async findReportById(id: string): Promise<ComplianceReport | null> {
-    const result = await query<ComplianceReport>('SELECT * FROM compliance_reports WHERE id = $1', [id]);
+    const result = await query<Record<string, unknown>>('SELECT * FROM compliance_reports WHERE id = $1', [id]);
     if (result.rows.length === 0) return null;
     const row = result.rows[0];
     return {
@@ -668,7 +674,7 @@ export const ComplianceRepository = {
   },
 
   async getScores(): Promise<ComplianceScore[]> {
-    const result = await query<ComplianceScore>(`
+    const result = await query<Record<string, unknown>>(`
       SELECT
         p.id as policy_id,
         p.name as policy_name,
@@ -684,8 +690,8 @@ export const ComplianceRepository = {
       ORDER BY p.name
     `);
     return result.rows.map((row) => ({
-      policyId: row.policy_id,
-      policyName: row.policy_name,
+      policyId: row.policy_id as string,
+      policyName: row.policy_name as string,
       score: Number(row.score),
       status: row.status as ComplianceStatus,
       lastEvaluated: row.last_evaluated ? (row.last_evaluated as Date) : null,
@@ -700,7 +706,7 @@ export const ComplianceRepository = {
     assignedTo: string | null,
     dueDate: Date | null
   ): Promise<Remediation> {
-    const result = await query<Remediation>(`
+    const result = await query<Record<string, unknown>>(`
       INSERT INTO remediations (finding_id, description, assigned_to, due_date)
       VALUES ($1, $2, $3, $4) RETURNING *
     `, [findingId, description, assignedTo, dueDate]);
@@ -724,8 +730,7 @@ export const ComplianceRepository = {
     status: RemediationStatus,
     resolvedBy: string | null
   ): Promise<Remediation> {
-    const now = status === 'resolved' ? 'NOW()' : 'NULL';
-    const result = await query<Remediation>(`
+    const result = await query<Record<string, unknown>>(`
       UPDATE remediations
       SET status = $1, resolved_by = $2, resolved_at = CASE WHEN $1 = 'resolved' THEN NOW() ELSE resolved_at END,
           updated_at = NOW()
@@ -747,7 +752,7 @@ export const ComplianceRepository = {
   },
 
   async findAllAuditPlans(): Promise<AuditPlan[]> {
-    const result = await query<AuditPlan>('SELECT * FROM audit_plans ORDER BY created_at DESC');
+    const result = await query<Record<string, unknown>>('SELECT * FROM audit_plans ORDER BY created_at DESC');
     return result.rows.map((row) => ({
       id: row.id as string,
       name: row.name as string,
@@ -770,7 +775,7 @@ export const ComplianceRepository = {
     startDate: Date,
     endDate: Date | null
   ): Promise<AuditPlan> {
-    const result = await query<AuditPlan>(`
+    const result = await query<Record<string, unknown>>(`
       INSERT INTO audit_plans (name, description, scope, created_by, start_date, end_date)
       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *
     `, [name, description, JSON.stringify(scope), createdBy, startDate, endDate]);
@@ -790,7 +795,7 @@ export const ComplianceRepository = {
   },
 
   async findAuditPlanById(id: string): Promise<AuditPlan | null> {
-    const result = await query<AuditPlan>('SELECT * FROM audit_plans WHERE id = $1', [id]);
+    const result = await query<Record<string, unknown>>('SELECT * FROM audit_plans WHERE id = $1', [id]);
     if (result.rows.length === 0) return null;
     const row = result.rows[0];
     return {
@@ -817,7 +822,7 @@ export const ComplianceRepository = {
     evidence: string | null,
     recommendation: string | null
   ): Promise<AuditFinding> {
-    const result = await query<AuditFinding>(`
+    const result = await query<Record<string, unknown>>(`
       INSERT INTO audit_findings (
         audit_plan_id, title, description, severity, created_by, resource_id, evidence, recommendation
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *
@@ -840,7 +845,7 @@ export const ComplianceRepository = {
   },
 
   async findAuditPlanFindings(planId: string): Promise<AuditFinding[]> {
-    const result = await query<AuditFinding>(
+    const result = await query<Record<string, unknown>>(
       'SELECT * FROM audit_findings WHERE audit_plan_id = $1 ORDER BY created_at DESC',
       [planId]
     );
@@ -861,7 +866,7 @@ export const ComplianceRepository = {
   },
 
   async findAllFrameworks(): Promise<ComplianceFramework[]> {
-    const result = await query<ComplianceFramework>('SELECT * FROM compliance_frameworks ORDER BY name');
+    const result = await query<Record<string, unknown>>('SELECT * FROM compliance_frameworks ORDER BY name');
     return result.rows.map((row) => ({
       id: row.id as string,
       name: row.name as string,
@@ -881,7 +886,7 @@ export const ComplianceRepository = {
     categories: string[],
     policies: string[]
   ): Promise<ComplianceFramework> {
-    const result = await query<ComplianceFramework>(`
+    const result = await query<Record<string, unknown>>(`
       INSERT INTO compliance_frameworks (name, version, description, categories, policies)
       VALUES ($1, $2, $3, $4, $5) RETURNING *
     `, [name, version, description, categories, policies]);
@@ -905,7 +910,7 @@ export const ComplianceRepository = {
     source: string,
     collectedBy: string
   ): Promise<ComplianceEvidence> {
-    const result = await query<ComplianceEvidence>(`
+    const result = await query<Record<string, unknown>>(`
       INSERT INTO compliance_evidence (finding_id, type, content, source, collected_by)
       VALUES ($1, $2, $3, $4, $5) RETURNING *
     `, [findingId, type, content, source, collectedBy]);
@@ -924,7 +929,7 @@ export const ComplianceRepository = {
   },
 
   async findAllEvidence(): Promise<ComplianceEvidence[]> {
-    const result = await query<ComplianceEvidence>('SELECT * FROM compliance_evidence ORDER BY collected_at DESC');
+    const result = await query<Record<string, unknown>>('SELECT * FROM compliance_evidence ORDER BY collected_at DESC');
     return result.rows.map((row) => ({
       id: row.id as string,
       findingId: row.finding_id as string,
@@ -948,7 +953,7 @@ export const ComplianceRepository = {
     estimatedEffort: string,
     priority: ComplianceSeverity
   ): Promise<GapAnalysisResult> {
-    const result = await query<GapAnalysisResult>(`
+    const result = await query<Record<string, unknown>>(`
       INSERT INTO gap_analysis (
         framework_id, policy_id, current_status, target_status, gap_description,
         remediation_steps, estimated_effort, priority
@@ -970,7 +975,7 @@ export const ComplianceRepository = {
   },
 
   async findAllGapAnalysis(): Promise<GapAnalysisResult[]> {
-    const result = await query<GapAnalysisResult>('SELECT * FROM gap_analysis ORDER BY priority, created_at DESC');
+    const result = await query<Record<string, unknown>>('SELECT * FROM gap_analysis ORDER BY priority, created_at DESC');
     return result.rows.map((row) => ({
       id: row.id as string,
       frameworkId: row.framework_id as string,

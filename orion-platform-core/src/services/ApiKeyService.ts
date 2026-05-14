@@ -93,6 +93,7 @@ export async function getApiKeyById(id: string): Promise<ApiKeyResponse | null> 
   if (!row) return null;
 
   const apiKey = rowToApiKey(row);
+  if (!apiKey) return null;
   // Never expose keyHash in response
   const { keyHash, ...rest } = apiKey;
   return rest as ApiKeyResponse;

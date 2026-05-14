@@ -5,7 +5,7 @@
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { DatabasePool } from '../utils/database';
-import { ArtifactController } from './controllers/artifact/ArtifactController';
+import { ArtifactController } from '../controllers/artifact/ArtifactController';
 import { ArtifactRegistryServiceImpl } from '../services/ArtifactRegistryService';
 import { PostgresArtifactRepository } from '../repositories/ArtifactRepository';
 import { LocalArtifactStorage } from '../storage/ArtifactStorage';

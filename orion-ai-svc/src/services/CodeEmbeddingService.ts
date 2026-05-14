@@ -10,7 +10,7 @@
  */
 
 import pino from 'pino';
-import { CodeEmbeddingRepository } from '../../repositories/CodeEmbeddingRepository';
+import { CodeEmbeddingRepository, CodeEmbeddingEntity } from '../repositories/CodeEmbeddingRepository';
 import {
   CodeEmbedding,
   CodeEmbeddingInput,
@@ -593,9 +593,14 @@ export class CodeEmbeddingService {
     filePath: string,
     content: string
   ): Promise<CodeEmbedding | null> {
-    // Simple content-based lookup (can be enhanced with content_hash column)
     const existing = await this.repository.findByFilePath(projectId, filePath);
-    return existing.find((e) => e.content === content) || null;
+    const found = existing.find((e: CodeEmbeddingEntity) => e.content === content);
+    if (!found) return null;
+    return {
+      ...found,
+      createdAt: found.created_at,
+      updatedAt: found.updated_at,
+    } as CodeEmbedding;
   }
 
   private hashContent(content: string): string {

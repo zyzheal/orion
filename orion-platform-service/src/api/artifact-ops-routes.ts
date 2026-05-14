@@ -40,9 +40,9 @@ export default async function artifactOpsRoutes(
   const maliciousDetectionRepo = new MaliciousDetectionRepository(db);
 
   // Create services
-  const operationService = new ArtifactOperationService(operationRepo);
-  const scanService = new ArtifactScanService(scanReportRepo, scanFindingRepo, maliciousDetectionRepo);
-  const retentionService = new ArtifactRetentionService(policyRepo, evaluationRepo);
+  const operationService = new ArtifactOperationService(db);
+  const scanService = new ArtifactScanService(db);
+  const retentionService = new ArtifactRetentionService(db);
 
   // Create controller
   const services: ArtifactOpsServices = { operationService, scanService, retentionService };

@@ -159,6 +159,12 @@ services:
       EFFICIENCY_SERVICE_URL: http://orion-efficiency-svc:3015
       DR_SERVICE_URL: http://orion-dr-svc:3016
       FEDERATION_SERVICE_URL: http://orion-federation-svc:3017
+      KNOWLEDGE_SERVICE_URL: http://orion-knowledge-svc:3020
+      SKILL_SERVICE_URL: http://orion-skill-svc:3021
+      NOTIFY_SERVICE_URL: http://orion-notify-svc:3026
+      AUDIT_SERVICE_URL: http://orion-audit-svc:3027
+      COMMUNITY_SERVICE_URL: http://orion-community-svc:3029
+      GOVERNANCE_SERVICE_URL: http://orion-governance-svc:3030
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
       LOG_LEVEL: ${LOG_LEVEL:-info}
     depends_on:
@@ -641,6 +647,163 @@ services:
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3017/health"]
       interval: 15s; timeout: 5s; retries: 3; start_period: 30s
+
+  # --- orion-knowledge-svc (Phase 1) ---
+  orion-knowledge-svc:
+    image: orion/knowledge-svc:${KNOWLEDGE_VERSION:-latest}
+    container_name: orion-knowledge-svc
+    restart: unless-stopped
+    networks:
+      - orion-internal
+    ports:
+      - "${KNOWLEDGE_PORT:-3020}:3020"
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 3020
+      DATABASE_URL: postgresql://${POSTGRES_USER:-orion}:${POSTGRES_PASSWORD:-orion_secret}@postgres:5432/knowledge_db
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_secret}@redis:6379/20
+      NATS_URL: nats://:${NATS_TOKEN:-nats_secret}@nats:4222
+      PLATFORM_SERVICE_URL: http://orion-platform-core:3001
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      nats: { condition: service_healthy }
+      orion-platform-core: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3020/healthz"]
+      interval: 15s; timeout: 5s; retries: 3; start_period: 30s
+
+  # --- orion-skill-svc (Phase 1) ---
+  orion-skill-svc:
+    image: orion/skill-svc:${SKILL_VERSION:-latest}
+    container_name: orion-skill-svc
+    restart: unless-stopped
+    networks:
+      - orion-internal
+    ports:
+      - "${SKILL_PORT:-3021}:3021"
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 3021
+      DATABASE_URL: postgresql://${POSTGRES_USER:-orion}:${POSTGRES_PASSWORD:-orion_secret}@postgres:5432/skill_db
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_secret}@redis:6379/21
+      NATS_URL: nats://:${NATS_TOKEN:-nats_secret}@nats:4222
+      PLATFORM_SERVICE_URL: http://orion-platform-core:3001
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      nats: { condition: service_healthy }
+      orion-platform-core: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3021/healthz"]
+      interval: 15s; timeout: 5s; retries: 3; start_period: 30s
+
+  # --- orion-notify-svc (Phase 1) ---
+  orion-notify-svc:
+    image: orion/notify-svc:${NOTIFY_VERSION:-latest}
+    container_name: orion-notify-svc
+    restart: unless-stopped
+    networks:
+      - orion-internal
+    ports:
+      - "${NOTIFY_PORT:-3026}:3026"
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 3026
+      DATABASE_URL: postgresql://${POSTGRES_USER:-orion}:${POSTGRES_PASSWORD:-orion_secret}@postgres:5432/notify_db
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_secret}@redis:6379/22
+      NATS_URL: nats://:${NATS_TOKEN:-nats_secret}@nats:4222
+      PLATFORM_SERVICE_URL: http://orion-platform-core:3001
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      nats: { condition: service_healthy }
+      orion-platform-core: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3026/healthz"]
+      interval: 15s; timeout: 5s; retries: 3; start_period: 30s
+
+  # --- orion-audit-svc (Phase 1) ---
+  orion-audit-svc:
+    image: orion/audit-svc:${AUDIT_VERSION:-latest}
+    container_name: orion-audit-svc
+    restart: unless-stopped
+    networks:
+      - orion-internal
+    ports:
+      - "${AUDIT_PORT:-3027}:3027"
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 3027
+      DATABASE_URL: postgresql://${POSTGRES_USER:-orion}:${POSTGRES_PASSWORD:-orion_secret}@postgres:5432/audit_db
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_secret}@redis:6379/23
+      NATS_URL: nats://:${NATS_TOKEN:-nats_secret}@nats:4222
+      PLATFORM_SERVICE_URL: http://orion-platform-core:3001
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      nats: { condition: service_healthy }
+      orion-platform-core: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3027/healthz"]
+      interval: 15s; timeout: 5s; retries: 3; start_period: 30s
+
+  # --- orion-community-svc (Phase 1) ---
+  orion-community-svc:
+    image: orion/community-svc:${COMMUNITY_VERSION:-latest}
+    container_name: orion-community-svc
+    restart: unless-stopped
+    networks:
+      - orion-internal
+    ports:
+      - "${COMMUNITY_PORT:-3029}:3029"
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 3029
+      DATABASE_URL: postgresql://${POSTGRES_USER:-orion}:${POSTGRES_PASSWORD:-orion_secret}@postgres:5432/community_db
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_secret}@redis:6379/24
+      NATS_URL: nats://:${NATS_TOKEN:-nats_secret}@nats:4222
+      PLATFORM_SERVICE_URL: http://orion-platform-core:3001
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      nats: { condition: service_healthy }
+      orion-platform-core: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3029/healthz"]
+      interval: 15s; timeout: 5s; retries: 3; start_period: 30s
+
+  # --- orion-governance-svc (Phase 1) ---
+  orion-governance-svc:
+    image: orion/governance-svc:${GOVERNANCE_VERSION:-latest}
+    container_name: orion-governance-svc
+    restart: unless-stopped
+    networks:
+      - orion-internal
+    ports:
+      - "${GOVERNANCE_PORT:-3030}:3030"
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 3030
+      DATABASE_URL: postgresql://${POSTGRES_USER:-orion}:${POSTGRES_PASSWORD:-orion_secret}@postgres:5432/governance_db
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_secret}@redis:6379/25
+      NATS_URL: nats://:${NATS_TOKEN:-nats_secret}@nats:4222
+      PLATFORM_SERVICE_URL: http://orion-platform-core:3001
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      nats: { condition: service_healthy }
+      orion-platform-core: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3030/healthz"]
+      interval: 15s; timeout: 5s; retries: 3; start_period: 30s
+
 
   # --- orion-knowledge-svc ---
   orion-knowledge-svc:

@@ -1,4 +1,5 @@
 import { Pool, PoolConfig } from 'pg';
+export type DatabasePool = Pool;
 let pool: Pool | null = null;
 export function getPool(): Pool {
   if (!pool) {

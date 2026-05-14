@@ -5,8 +5,8 @@
 
 import { v4 as uuidv4 } from 'uuid';
 import pino from 'pino';
-import { ArtifactRepository } from '../../repositories/ArtifactRepository';
-import { ArtifactStorage } from '../../storage/ArtifactStorage';
+import { PostgresArtifactRepository, ArtifactEntity } from '../repositories/ArtifactRepository';
+import { ArtifactStorage } from '../storage/ArtifactStorage';
 import {
   Artifact,
   ArtifactType,
@@ -16,13 +16,13 @@ import {
   ArtifactQueryOptions,
   ArtifactDownloadOptions,
   ArtifactRegistryService
-} from '../../models/Artifact';
+} from '../models/Artifact';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
 export class ArtifactRegistryServiceImpl implements ArtifactRegistryService {
   constructor(
-    private artifactRepository: ArtifactRepository,
+    private artifactRepository: PostgresArtifactRepository,
     private artifactStorage: ArtifactStorage
   ) {}
 
@@ -51,8 +51,8 @@ export class ArtifactRegistryServiceImpl implements ArtifactRegistryService {
         type: input.type,
         status: ArtifactStatus.AVAILABLE,
         sizeBytes: input.sizeBytes,
-        checksumSha256: input.checksumSha256,
-        checksumSha512: input.checksumSha512,
+        checksumSha256: input.checksumSha256 || null,
+        checksumSha512: input.checksumSha512 || null,
         metadata: input.metadata || {},
         storagePath: input.storagePath,
         createdBy: input.createdBy,
@@ -60,10 +60,10 @@ export class ArtifactRegistryServiceImpl implements ArtifactRegistryService {
         updatedAt: new Date()
       };
 
-      await this.artifactRepository.create(artifact);
+      await this.artifactRepository.create(artifact as any);
       logger.info({ artifactId: artifact.id, namespace: artifact.namespace, name: artifact.name }, 'Artifact created successfully');
       
-      return artifact;
+      return artifact as unknown as Artifact;
     } catch (error) {
       logger.error({ error, input }, 'Failed to create artifact');
       throw error;
@@ -81,7 +81,7 @@ export class ArtifactRegistryServiceImpl implements ArtifactRegistryService {
         throw new Error(`Artifact not found: ${id}`);
       }
 
-      return artifact;
+      return artifact as unknown as Artifact;
     } catch (error) {
       logger.error({ error, id }, 'Failed to get artifact');
       throw error;
@@ -94,7 +94,7 @@ export class ArtifactRegistryServiceImpl implements ArtifactRegistryService {
   async list(options: ArtifactQueryOptions): Promise<{ artifacts: Artifact[]; total: number }> {
     try {
       const { artifacts, total } = await this.artifactRepository.find(options);
-      return { artifacts, total };
+      return { artifacts: artifacts as unknown as Artifact[], total };
     } catch (error) {
       logger.error({ error, options }, 'Failed to list artifacts');
       throw error;
@@ -122,12 +122,12 @@ export class ArtifactRegistryServiceImpl implements ArtifactRegistryService {
         existing.metadata = { ...existing.metadata, ...input.metadata };
       }
 
-      existing.updatedAt = new Date();
+      (existing as any).updatedAt = new Date();
 
-      await this.artifactRepository.update(existing);
+      await this.artifactRepository.update(existing as any);
       logger.info({ artifactId: input.id }, 'Artifact updated successfully');
       
-      return existing;
+      return existing as unknown as Artifact;
     } catch (error) {
       logger.error({ error, input }, 'Failed to update artifact');
       throw error;
@@ -228,7 +228,7 @@ export class ArtifactRegistryServiceImpl implements ArtifactRegistryService {
         downloadedBy: options.downloadedBy 
       }, 'Artifact downloaded successfully');
       
-      return artifact;
+      return artifact as unknown as Artifact;
     } catch (error) {
       logger.error({ error, options }, 'Failed to download artifact');
       throw error;
@@ -252,7 +252,7 @@ export class ArtifactRegistryServiceImpl implements ArtifactRegistryService {
    */
   async search(query: string): Promise<Artifact[]> {
     try {
-      return await this.artifactRepository.search(query);
+      return (await this.artifactRepository.search(query)) as unknown as Artifact[];
     } catch (error) {
       logger.error({ error, query }, 'Failed to search artifacts');
       throw error;
@@ -272,16 +272,16 @@ export class ArtifactRegistryServiceImpl implements ArtifactRegistryService {
 
       // 创建新的制品记录
       const promotedArtifact: CreateArtifactInput = {
-        name: artifact.name,
+        name: (artifact as any).name,
         namespace: targetNamespace,
-        version: artifact.version,
-        type: artifact.type,
-        sizeBytes: artifact.sizeBytes,
-        checksumSha256: artifact.checksumSha256,
-        checksumSha512: artifact.checksumSha512,
-        metadata: { ...artifact.metadata, promotedFrom: `${artifact.namespace}/${artifact.name}` },
-        storagePath: artifact.storagePath,
-        createdBy: artifact.createdBy
+        version: (artifact as any).version,
+        type: (artifact as any).type as ArtifactType,
+        sizeBytes: (artifact as any).size_bytes,
+        checksumSha256: (artifact as any).checksum_sha256 || undefined,
+        checksumSha512: (artifact as any).checksum_sha512 || undefined,
+        metadata: { ...(artifact as any).metadata, promotedFrom: `${(artifact as any).namespace}/${(artifact as any).name}` },
+        storagePath: (artifact as any).storage_path,
+        createdBy: (artifact as any).created_by
       };
 
       const newArtifact = await this.create(promotedArtifact);
@@ -322,7 +322,7 @@ export class ArtifactRegistryServiceImpl implements ArtifactRegistryService {
       });
       
       logger.info({ artifactId: id, reason }, 'Artifact quarantined successfully');
-      return artifact;
+      return artifact as unknown as Artifact;
     } catch (error) {
       logger.error({ error, id, reason }, 'Failed to quarantine artifact');
       throw error;

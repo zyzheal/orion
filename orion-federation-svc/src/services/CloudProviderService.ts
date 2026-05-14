@@ -6,7 +6,7 @@
  * Uses PostgreSQL Repository pattern for persistence.
  */
 import { v4 as uuidv4 } from 'uuid';
-import { MultiCloudRepository, CloudAccountEntity, CloudResourceEntity } from '../../repositories/MultiCloudRepository';
+import { MultiCloudRepository, CloudAccountEntity, CloudResourceEntity } from '../repositories/MultiCloudRepository';
 
 export interface CloudAccountInput {
   name: string;
@@ -175,6 +175,7 @@ export class CloudProviderService {
       region: resource.region,
       state: resource.status,
       spec: { ...resource.metadata, tags: resource.tags },
+      monthly_cost: 0,
       tags: resource.tags,
     });
 
@@ -222,7 +223,7 @@ export class CloudProviderService {
       status: (entity.status as CloudAccount['status']) ?? 'active',
       description: entity.tags?.description,
       createdAt: entity.created_at,
-      updatedAt: entity.updated_at,
+      updatedAt: entity.updated_at ?? entity.created_at,
     };
   }
 
@@ -238,7 +239,7 @@ export class CloudProviderService {
       status: entity.state,
       tags: entity.tags || {},
       metadata: entity.spec || {},
-      createdAt: entity.discovered_at,
+      createdAt: entity.discovered_at ?? entity.created_at,
     };
   }
 }

@@ -13,6 +13,7 @@ import {
   CanaryMLResultRepository,
   CanaryAnalysisConfigRepository,
   CanaryDecisionRepository,
+  CanaryRetrainJobRepository,
 } from '../repositories/CanaryAnalysisRepository';
 import { CanaryAnalysisService } from '../services/canary-analysis/CanaryAnalysisService';
 import { CanaryAnalysisController } from './controllers/CanaryAnalysisController';
@@ -37,15 +38,16 @@ export default async function canaryAnalysisRoutes(
   const mlRepository = new CanaryMLResultRepository(options.database);
   const configRepository = new CanaryAnalysisConfigRepository(options.database);
   const decisionRepository = new CanaryDecisionRepository(options.database);
+  const retrainRepository = new CanaryRetrainJobRepository(options.database);
 
-  const service = new CanaryAnalysisService({
-    eventBus: options.eventBus,
+  const service = new CanaryAnalysisService(
     runRepository,
     metricRepository,
     mlRepository,
     configRepository,
     decisionRepository,
-  });
+    retrainRepository,
+  );
   const controller = new CanaryAnalysisController(service);
 
   // ==================== Runs ====================

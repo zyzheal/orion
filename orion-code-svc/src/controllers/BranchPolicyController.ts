@@ -8,7 +8,7 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import {
   BranchPolicyService,
   MergeStrategy,
-} from '../../../services/code-repo';
+} from '../services/code-repo';
 
 // 共享实例
 const branchPolicyService = new BranchPolicyService();

@@ -1,6 +1,7 @@
 import type { Redis } from 'ioredis';
 import type { AppConfig } from '../config/app';
-import type { Agent, AgentStatus, ScalingDecision } from '../types/agent';
+import { AgentStatus } from '../types/agent';
+import type { Agent, ScalingDecision } from '../types/agent';
 import type { AgentService } from './AgentService';
 
 /**
@@ -127,11 +128,13 @@ export class RunnerManager {
     return elapsed < this.config.scaling.cooldown;
   }
 
+  private evalInterval: ReturnType<typeof setInterval> | null = null;
+
   /**
    * Start the scaling evaluation interval
    */
   startInterval(): ReturnType<typeof setInterval> {
-    return setInterval(async () => {
+    this.evalInterval = setInterval(async () => {
       try {
         const decision = await this.evaluate();
         if (decision.action === 'scale_up') {
@@ -143,6 +146,17 @@ export class RunnerManager {
         // TODO: Log scaling errors
       }
     }, 30_000); // Evaluate every 30 seconds
+    return this.evalInterval;
+  }
+
+  /**
+   * Stop the scaling evaluation interval
+   */
+  stopInterval(): void {
+    if (this.evalInterval) {
+      clearInterval(this.evalInterval);
+      this.evalInterval = null;
+    }
   }
 
   /**

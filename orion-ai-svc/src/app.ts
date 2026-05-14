@@ -7,14 +7,16 @@ import aiDecisionRoutes from './routes/ai-decision';
 import aiReviewRoutes from './routes/ai-review';
 import aiSecurityRoutes from './routes/ai-security';
 import vectorStoreRoutes from './routes/vector-store';
-import vectorRoutes from './routes/vector';
+import { vectorRoutes } from './routes/vector';
 import llmTraceRoutes from './routes/llm-trace';
 import degradationRoutes from './routes/degradation';
+import { errorHandler } from './middleware/errorHandler';
 
 async function buildApp() {
   const fastify = Fastify({ logger: { level: process.env.LOG_LEVEL || 'info' } });
-  await fastify.register(cors, { origin: true });
+  await fastify.register(cors, { origin: process.env.CORS_ORIGIN?.split(',') || ['http://localhost:5173', 'http://localhost:3000'] });
   await fastify.register(sensible);
+  errorHandler(fastify);
   const database = getPool();
   await fastify.register(aiGatewayRoutes, { prefix: '/api/v1/ai-gateway', database });
   await fastify.register(aiDecisionRoutes, { prefix: '/api/v1/ai-decision', database });

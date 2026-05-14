@@ -49,6 +49,7 @@
   "devDependencies": {
     "@types/expr-eval": "^1.0.2",
     "@types/express": "^5.0.6",
+    "@types/glob": "^8.1.0",
     "@types/ioredis": "^4.28.10",
     "@types/jest": "^29.5.14",
     "@types/jsonwebtoken": "^9.0.10",

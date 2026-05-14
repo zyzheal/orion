@@ -13,6 +13,7 @@ import {
   ConfigApproval,
   GitOpsConfig,
   ConfigStatus,
+  ConfigItemType,
   ApprovalStatus,
   FeatureFlagStatus,
   DriftStatus,
@@ -41,9 +42,11 @@ export class ConfigMgmtService {
         id: uuidv4(),
         key,
         value,
+        itemType: ConfigItemType.APPLICATION,
         status: ConfigStatus.ACTIVE,
         environment,
         currentVersion: 1,
+        tenantId: 'system',
         createdBy: changedBy,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -113,12 +116,14 @@ export class ConfigMgmtService {
 
     const allKeys = new Set([...Object.keys(valA), ...Object.keys(valB)]);
     for (const key of allKeys) {
+      const oldVal = valA[key] as ConfigDiff['oldValue'];
+      const newVal = valB[key] as ConfigDiff['newValue'];
       if (!(key in valA)) {
-        diffs.push({ id: uuidv4(), key, diffType: 'added', oldValue: undefined, newValue: valB[key] } as ConfigDiff);
+        diffs.push({ id: uuidv4(), key, diffType: 'added', newValue: newVal });
       } else if (!(key in valB)) {
-        diffs.push({ id: uuidv4(), key, diffType: 'removed', oldValue: valA[key], newValue: undefined } as ConfigDiff);
+        diffs.push({ id: uuidv4(), key, diffType: 'removed', oldValue: oldVal, newValue: newVal });
       } else if (JSON.stringify(valA[key]) !== JSON.stringify(valB[key])) {
-        diffs.push({ id: uuidv4(), key, diffType: 'modified', oldValue: valA[key], newValue: valB[key] } as ConfigDiff);
+        diffs.push({ id: uuidv4(), key, diffType: 'modified', oldValue: oldVal, newValue: newVal });
       }
     }
     return diffs;
@@ -128,16 +133,16 @@ export class ConfigMgmtService {
     const drifts: ConfigDrift[] = [];
     for (const config of this.configs.values()) {
       if (config.environment === environment && config.status === 'active') {
-        // In production, compare actual runtime config vs expected
-        // For now, mark all as in-sync since we're using the same storage
+        const configValue = typeof config.value === 'object' ? config.value as Record<string, unknown> : { value: config.value };
         drifts.push({
+          id: uuidv4(),
           configId: config.id,
-          key: config.key,
-          environment,
-          expectedValue: config.value,
-          actualValue: config.value,
+          expectedValue: configValue,
+          actualValue: configValue,
           status: DriftStatus.IN_SYNC,
+          driftedFields: [],
           detectedAt: new Date(),
+          tenantId: config.tenantId,
         });
       }
     }

@@ -41,7 +41,7 @@ export interface PipelineStage {
   matrix?: {
     [key: string]: string[];
     exclude?: Array<{ [key: string]: string }>;
-  };
+  } | undefined;
   // Environment variables injected into stage runtime
   env?: Record<string, string>;
   // 缓存配置
@@ -124,6 +124,7 @@ export interface PipelineUpdateInput {
   description?: string;
   yamlDefinition?: string;
   status?: PipelineStatus;
+  spec?: Record<string, unknown> | null;
 }
 
 export function createPipeline(input: PipelineCreateInput): Pipeline {

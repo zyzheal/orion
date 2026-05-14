@@ -285,7 +285,7 @@ export class PipelineTemplateController {
         tenant_id: result.tenantId,
         project_id: result.projectId,
         name: result.name,
-        version: result.version,
+        version: result.version.toString(),
         yamlDefinition: result.yamlDefinition,
         created_by: result.createdBy,
       });

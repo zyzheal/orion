@@ -6,9 +6,12 @@
  */
 
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { FinOpsService } from '../../services/FinOpsService';
-import { CloudCostCollector, K8sCostAllocator, SaaSCostTracker, CostEventPublisher } from '../../../services/finops';
-import { CostPeriod } from '../../services/types';
+import { FinOpsService } from '../services/FinOpsService';
+import { CloudCostCollector } from '../services/CloudCostCollector';
+import { K8sCostAllocator } from '../services/K8sCostAllocator';
+import { SaaSCostTracker } from '../services/SaaSCostTracker';
+import { CostEventPublisher } from '../services/CostEventPublisher';
+import { CostEntityType, CostPeriod } from '../types/finops';
 
 export class FinOpsController {
   private service: FinOpsService;

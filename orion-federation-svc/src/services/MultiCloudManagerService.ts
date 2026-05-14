@@ -4,7 +4,7 @@
  * Manage deployments across multiple cloud providers
  */
 
-import { MultiCloudRepository, CloudAccountEntity, CloudResourceEntity } from '../../repositories/MultiCloudRepository';
+import { MultiCloudRepository, CloudAccountEntity, CloudResourceEntity } from '../repositories/MultiCloudRepository';
 import { DatabasePool } from '../utils/database';
 
 export interface CloudProvider {

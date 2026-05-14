@@ -4,6 +4,7 @@
  * Handles platform registration, heartbeat, job execution, and result reporting.
  */
 
+import { spawn, type SpawnOptionsWithoutStdio } from 'child_process';
 import { config } from '../config';
 import { hostname, tmpdir } from 'os';
 import { mkdir } from 'fs/promises';
@@ -204,18 +205,16 @@ export class RunnerService {
     const startTime = Date.now();
 
     try {
-      const { spawn } = await import('child_process');
-
       const { command, args } = this.buildCommand(type, params);
       const stdout: string[] = [];
       const stderr: string[] = [];
 
       const child = spawn(command, args, {
-        timeout: 300000, // 5 min default timeout
+        timeout: 300000,
         cwd: params.workingDir,
         shell: false,
-        maxBuffer: 10 * 1024 * 1024, // 10MB
-      });
+        maxBuffer: 10 * 1024 * 1024,
+      } as SpawnOptionsWithoutStdio);
 
       child.stdout?.on('data', (data: Buffer) => stdout.push(data.toString()));
       child.stderr?.on('data', (data: Buffer) => stderr.push(data.toString()));

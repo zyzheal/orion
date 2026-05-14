@@ -303,14 +303,14 @@ export class PluginService extends EventEmitter {
       throw new Error(`Plugin "${pluginId}" not found`);
     }
 
-    const deps = plugin.manifest.dependencies?.map((d) => d.name) || [];
+    const deps = plugin.manifest.dependencies?.map((d: any) => d.name) || [];
     const dependents: string[] = [];
     const missingDeps: string[] = [];
 
     for (const other of this.registry.listPlugins()) {
       if (other.manifest.name === pluginId) continue;
       const otherDeps = other.manifest.dependencies || [];
-      if (otherDeps.some((d) => d.name === pluginId)) {
+      if (otherDeps.some((d: any) => d.name === pluginId)) {
         dependents.push(other.manifest.name);
       }
     }

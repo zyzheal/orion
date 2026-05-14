@@ -2,6 +2,7 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import sensible from '@fastify/sensible';
 import { getPool, closePool, checkHealth } from './utils/database';
+import { errorHandler } from './middleware/errorHandler';
 import costRoutes from './routes/cost';
 import finopsV2Routes from './routes/finops-v2';
 import costOperationsRoutes from './routes/cost-operations';
@@ -11,8 +12,9 @@ async function buildApp() {
     logger: { level: process.env.LOG_LEVEL || 'info' },
   });
 
-  await fastify.register(cors, { origin: true });
+  await fastify.register(cors, { origin: process.env.CORS_ORIGIN?.split(',') || ['http://localhost:5173', 'http://localhost:3000'] });
   await fastify.register(sensible);
+  errorHandler(fastify);
 
   const database = getPool();
 

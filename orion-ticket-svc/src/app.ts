@@ -1,13 +1,15 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import sensible from '@fastify/sensible';
-import { ticketRoutes } from './routes/ticket';
+import { errorHandler } from './utils/error-handler';
+import ticketingRoutes from './routes/ticket-full';
 
 async function buildApp() {
   const fastify = Fastify({ logger: { level: 'info' } });
-  await fastify.register(cors, { origin: true });
+  await fastify.register(cors, { origin: process.env.CORS_ORIGIN?.split(',') || ['http://localhost:5173', 'http://localhost:3000'] });
   await fastify.register(sensible);
-  await fastify.register(ticketRoutes, { prefix: '/api/v1' });
+  errorHandler(fastify);
+  await fastify.register(ticketingRoutes, { prefix: '/api/v1' });
   fastify.get('/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }));
   return { fastify };
 }

@@ -3,14 +3,14 @@
  */
 
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { BuilderImageService } from '../../services/BuilderImageService';
+import { BuilderImageService } from '../services/BuilderImageService';
 import {
   BuilderImageCreateInput,
   BuilderImageUpdateInput,
   PresetImageType,
   BuilderImageStatus,
   ImagePullPolicy,
-} from '../../../models/BuilderImage';
+} from '../models/BuilderImage';
 
 export class BuilderImageController {
   private service: BuilderImageService;

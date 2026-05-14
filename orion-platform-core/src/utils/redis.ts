@@ -18,7 +18,7 @@ export function getRedis(): Redis | null {
         enableReadyCheck: false,
       });
 
-      _redis.on('error', (err) => {
+      _redis!.on('error', (err) => {
         console.error('Redis error', err);
       });
     } catch {

@@ -3,8 +3,8 @@
  */
 
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { ArtifactService } from '../../services/ArtifactService';
-import { ArtifactType, ArtifactCreateInput } from '../../services/ArtifactService';
+import { ArtifactService } from '../services/ArtifactService';
+import { ArtifactType, ArtifactCreateInput } from '../services/ArtifactService';
 
 export class ArtifactController {
   private service: ArtifactService;

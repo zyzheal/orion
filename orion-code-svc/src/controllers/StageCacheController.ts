@@ -3,8 +3,8 @@
  */
 
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { BuildCacheService } from '../../services/BuildCacheService';
-import { ArtifactService } from '../../services/ArtifactService';
+import { BuildCacheService } from '../services/BuildCacheService';
+import { ArtifactService } from '../services/ArtifactService';
 
 export class StageCacheController {
   private buildCacheService: BuildCacheService;

@@ -24,7 +24,7 @@ export default async function canaryTrafficRoutes(
   }
 
   const service = new CanaryTrafficService(options.database);
-  const splitter = new TrafficSplitter(options.database);
+  const splitter = new TrafficSplitter(service);
   const controller = new CanaryTrafficController(service, splitter);
 
   // ==================== Canary Deployments ====================

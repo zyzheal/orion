@@ -518,7 +518,7 @@ export class ProviderCircuitBreaker extends EventEmitter {
    */
   updateConfig(config: Partial<ProviderCircuitBreakerConfig>): void {
     this.config = { ...this.config, ...config };
-    logger.info('[ProviderCircuitBreaker] Config updated:', config);
+    logger.info({ config, msg: '[ProviderCircuitBreaker] Config updated:' });
   }
 }
 

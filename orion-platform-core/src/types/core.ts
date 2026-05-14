@@ -62,6 +62,7 @@ export type CreateProjectInput = {
 
 export type UpdateProjectInput = Partial<{
   name: string;
+  slug: string;
   description: string | null;
   status: ProjectStatus;
 }>;

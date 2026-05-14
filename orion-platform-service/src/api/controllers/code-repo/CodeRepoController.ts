@@ -111,23 +111,23 @@ export class CodeRepoController {
   async listRepositories(request: FastifyRequest, reply: FastifyReply) {
     try {
       const { adapterId } = request.params as { adapterId: string };
-      const { search, page, perPage } = request.query as {
+      const { search, page, limit } = request.query as {
         search?: string;
         page?: string;
-        perPage?: string;
+        limit?: string;
       };
 
       const adapter = getAdapter(adapterId);
       const repos = await adapter.listRepositories({
         search,
         page: page ? parseInt(page) : 1,
-        perPage: perPage ? parseInt(perPage) : 20,
+        limit: limit ? parseInt(limit) : 20,
       });
 
       return reply.send({
         success: true,
-        data: repos,
-        count: repos.length,
+        data: repos.repos,
+        total: repos.total,
       });
     } catch (error: any) {
       return reply.status(500).send({
@@ -146,21 +146,21 @@ export class CodeRepoController {
         adapterId: string;
         repoId: string;
       };
-      const { page, perPage } = request.query as {
+      const { page, limit } = request.query as {
         page?: string;
-        perPage?: string;
+        limit?: string;
       };
 
       const adapter = getAdapter(adapterId);
       const branches = await adapter.listBranches(repoId, {
         page: page ? parseInt(page) : 1,
-        perPage: perPage ? parseInt(perPage) : 20,
+        limit: limit ? parseInt(limit) : 20,
       });
 
       return reply.send({
         success: true,
-        data: branches,
-        count: branches.length,
+        data: branches.branches,
+        total: branches.total,
       });
     } catch (error: any) {
       return reply.status(500).send({
@@ -255,25 +255,23 @@ export class CodeRepoController {
         adapterId: string;
         repoId: string;
       };
-      const { state, author, page, perPage } = request.query as {
+      const { state, page, limit } = request.query as {
         state?: string;
-        author?: string;
         page?: string;
-        perPage?: string;
+        limit?: string;
       };
 
       const adapter = getAdapter(adapterId);
       const prs = await adapter.listPullRequests(repoId, {
         state: state as PullRequestStatus,
-        author,
         page: page ? parseInt(page) : 1,
-        perPage: perPage ? parseInt(perPage) : 20,
+        limit: limit ? parseInt(limit) : 20,
       });
 
       return reply.send({
         success: true,
-        data: prs,
-        count: prs.length,
+        data: prs.pullRequests,
+        total: prs.total,
       });
     } catch (error: any) {
       return reply.status(500).send({
@@ -354,8 +352,7 @@ export class CodeRepoController {
         prId: string;
       };
       const body = request.body as {
-        strategy?: MergeStrategy;
-        commitMessage?: string;
+        method?: MergeStrategy;
       };
 
       const adapter = getAdapter(adapterId);
@@ -404,15 +401,14 @@ export class CodeRepoController {
         prId: string;
       };
       const body = request.body as {
-        content: string;
-        score?: number;
-        state?: 'comment' | 'approve' | 'request_changes';
+        body?: string;
+        event?: 'comment' | 'approve' | 'request_changes';
       };
 
-      if (!body.content) {
+      if (!body.body && !body.event) {
         return reply.status(400).send({
           success: false,
-          error: 'content is required',
+          error: 'body or event is required',
         });
       }
 

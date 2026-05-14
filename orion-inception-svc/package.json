@@ -1,0 +1,23 @@
+{
+  "name": "orion-inception-svc",
+  "version": "0.1.0",
+  "description": "Orion Inception Service — TCP wrapper for Inception SQL audit engine",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/app.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@fastify/cors": "^9.0.0",
+    "@fastify/sensible": "^5.0.0",
+    "fastify": "^4.28.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.19",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}

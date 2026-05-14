@@ -4,8 +4,8 @@
  */
 
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { BuildxBuilderService } from '../../services/BuildxBuilderService';
-import { ArtifactRegistryServiceImpl } from '../../../services/artifact/ArtifactRegistryService';
+import { BuildxBuilderService } from '../services/BuildxBuilderService';
+import { ArtifactRegistryServiceImpl } from '../services/artifact/ArtifactRegistryService';
 
 export class BuildxBuilderController {
   constructor(

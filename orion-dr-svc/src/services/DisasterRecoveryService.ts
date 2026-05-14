@@ -3,7 +3,7 @@ import { EventEmitter } from 'events';
 import pino from 'pino';
 import { DatabasePool } from '../utils/database';
 import { FailoverExecutor, failoverExecutor } from './FailoverExecutor';
-import { DisasterRecoveryRepository, DRPlanRow } from '../../repositories/DisasterRecoveryRepository';
+import { DisasterRecoveryRepository, DRPlanRow } from '../repositories/DisasterRecoveryRepository';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -190,7 +190,7 @@ export class DisasterRecoveryService extends EventEmitter {
 
       logger.debug(`[DisasterRecovery] Loaded ${this.configCache.size} configurations from database`);
     } catch (error) {
-      logger.error('[DisasterRecovery] Failed to load configurations from database:', error);
+      logger.error({ err: error }, '[DisasterRecovery] Failed to load configurations from database');
       // Continue with empty config - can be populated via registerConfiguration
     }
   }
@@ -274,7 +274,7 @@ export class DisasterRecoveryService extends EventEmitter {
           config.id = this.planIdToNumericId(plan.id);
         }
       } catch (error) {
-        logger.error('[DisasterRecovery] Failed to persist config to database:', error);
+        logger.error({ err: error }, '[DisasterRecovery] Failed to persist config to database');
         // Still register in cache even if DB fails
       }
     } else {
@@ -394,7 +394,7 @@ export class DisasterRecoveryService extends EventEmitter {
       });
 
     } catch (error) {
-      logger.error(`[DisasterRecovery] Health check error for ${componentType}:`, error);
+      logger.error({ err: error }, `[DisasterRecovery] Health check error for ${componentType}`);
 
       const failures = (this.consecutiveFailures.get(componentType) || 0) + 1;
       this.consecutiveFailures.set(componentType, failures);
@@ -442,7 +442,7 @@ export class DisasterRecoveryService extends EventEmitter {
           return false;
       }
     } catch (error) {
-      logger.error(`[DisasterRecovery] Health check failed for ${cluster}:`, error);
+      logger.error({ err: error }, `[DisasterRecovery] Health check failed for ${cluster}`);
       return false;
     }
   }
@@ -454,8 +454,8 @@ export class DisasterRecoveryService extends EventEmitter {
     try {
       // If we have a database pool, use it to check health
       if (this.dbPool) {
-        const healthResult = await this.withTimeout(
-          this.dbPool.checkHealth(),
+        const healthResult = await this.withTimeout<{ status: string }>(
+          (this.dbPool as any).checkHealth(),
           timeoutMs,
           'Database health check timeout'
         );
@@ -471,7 +471,7 @@ export class DisasterRecoveryService extends EventEmitter {
       logger.warn('[DisasterRecovery] No database pool configured and cluster is not an HTTP URL');
       return false;
     } catch (error) {
-      logger.error(`[DisasterRecovery] Database health check error:`, error);
+      logger.error({ err: error }, '[DisasterRecovery] Database health check error');
       return false;
     }
   }
@@ -490,7 +490,7 @@ export class DisasterRecoveryService extends EventEmitter {
 
       return response.ok;
     } catch (error) {
-      logger.error(`[DisasterRecovery] HTTP health check error for ${cluster}:`, error);
+      logger.error({ err: error }, `[DisasterRecovery] HTTP health check error for ${cluster}`);
       return false;
     }
   }
@@ -510,7 +510,7 @@ export class DisasterRecoveryService extends EventEmitter {
 
       return response.ok;
     } catch (error) {
-      logger.error(`[DisasterRecovery] AI service health check error for ${cluster}:`, error);
+      logger.error({ err: error }, `[DisasterRecovery] AI service health check error for ${cluster}`);
       return false;
     }
   }
@@ -612,7 +612,7 @@ export class DisasterRecoveryService extends EventEmitter {
 
     } catch (error) {
       errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      logger.error(`[DisasterRecovery] Failover failed for ${componentType}:`, error);
+      logger.error({ err: error }, `[DisasterRecovery] Failover failed for ${componentType}`);
 
       // Attempt rollback
       try {
@@ -620,7 +620,7 @@ export class DisasterRecoveryService extends EventEmitter {
         await this.rollbackFailover(componentType);
         logger.info(`[DisasterRecovery] Rollback completed`);
       } catch (rollbackError) {
-        logger.error(`[DisasterRecovery] Rollback failed:`, rollbackError);
+        logger.error({ err: rollbackError }, '[DisasterRecovery] Rollback failed');
         errorMessage += ` | Rollback failed: ${rollbackError instanceof Error ? rollbackError.message : 'Unknown'}`;
       }
     }
@@ -998,7 +998,7 @@ export class DisasterRecoveryService extends EventEmitter {
           });
         }
       } catch (error) {
-        logger.error('[DisasterRecovery] Failed to persist health check event:', error);
+        logger.error({ err: error }, '[DisasterRecovery] Failed to persist health check event');
       }
     }
 
@@ -1047,7 +1047,7 @@ export class DisasterRecoveryService extends EventEmitter {
           });
         }
       } catch (error) {
-        logger.error('[DisasterRecovery] Failed to persist failover event:', error);
+        logger.error({ err: error }, '[DisasterRecovery] Failed to persist failover event');
       }
     }
 
@@ -1098,7 +1098,7 @@ export class DisasterRecoveryService extends EventEmitter {
           }
         }
       } catch (error) {
-        logger.error('[DisasterRecovery] Failed to update failover event in database:', error);
+        logger.error({ err: error }, '[DisasterRecovery] Failed to update failover event in database');
       }
     }
 
@@ -1275,7 +1275,7 @@ export class DisasterRecoveryService extends EventEmitter {
           drill.dbTestIds.push(test.id);
         }
       } catch (error) {
-        logger.error('[DisasterRecovery] Failed to persist drill schedule:', error);
+        logger.error({ err: error }, '[DisasterRecovery] Failed to persist drill schedule');
       }
     }
 
@@ -1325,7 +1325,7 @@ export class DisasterRecoveryService extends EventEmitter {
           }
         }
       } catch (error) {
-        logger.error('[DisasterRecovery] Failed to list drills from database:', error);
+        logger.error({ err: error }, '[DisasterRecovery] Failed to list drills from database');
       }
     }
 

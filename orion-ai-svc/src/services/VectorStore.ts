@@ -7,7 +7,7 @@
  */
 import pino from 'pino';
 import { VectorDocument, SearchQuery, SearchResult, VectorStoreConfig } from './types';
-import { VectorRepository } from '../../repositories/VectorRepository';
+import { VectorRepository } from '../repositories/VectorRepository';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -98,7 +98,7 @@ export class VectorStore {
           metadata: r.metadata,
           embedding: r.embedding || [],
         },
-        score: r.score,
+        score: r.score ?? 0,
       }));
     }
 

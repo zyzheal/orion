@@ -11,7 +11,7 @@
  * - notify — 发送通知
  */
 
-import { exec } from 'child_process';
+import { exec, spawn } from 'child_process';
 import { promisify } from 'util';
 import { v4 as uuidv4 } from 'uuid';
 import { readFileSync, writeFileSync, mkdtempSync, rmSync } from 'fs';
@@ -101,17 +101,37 @@ export class TaskExecutor {
     const env = { ...process.env, ...params.env };
 
     try {
-      const { stdout, stderr } = await execAsync(command, {
-        cwd: workingDir,
-        env,
-        timeout,
-        maxBuffer: 10 * 1024 * 1024, // 10MB
+      // 使用 spawn 而非 exec 来避免 shell 注入风险
+      // 将命令拆分为命令名和参数
+      const parts = command.split(/\s+/);
+      const cmd = parts[0];
+      const args = parts.slice(1);
+
+      const result = await new Promise<{ stdout: string; stderr: string; exitCode: number }>((resolve, reject) => {
+        const proc = spawn(cmd, args, {
+          cwd: workingDir,
+          env,
+          timeout,
+          shell: false,
+        });
+
+        let stdout = '';
+        let stderr = '';
+
+        proc.stdout.on('data', (d) => { stdout += d.toString(); });
+        proc.stderr.on('data', (d) => { stderr += d.toString(); });
+
+        proc.on('error', (err) => reject(err));
+        proc.on('close', (code) => {
+          if (code === 0) resolve({ stdout, stderr, exitCode: 0 });
+          else reject({ stdout, stderr, status: code || 1 });
+        });
       });
 
       return {
         success: true,
-        stdout: stdout.toString(),
-        stderr: stderr.toString(),
+        stdout: result.stdout,
+        stderr: result.stderr,
         exitCode: 0,
         duration: Date.now() - startTime,
       };

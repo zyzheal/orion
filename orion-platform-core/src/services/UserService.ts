@@ -80,7 +80,7 @@ export async function listUsers(params: {
   );
 
   return {
-    users: dataResult.rows.map(rowToUser),
+    users: dataResult.rows.map(rowToUser).filter((u): u is User => u !== null),
     total,
   };
 }

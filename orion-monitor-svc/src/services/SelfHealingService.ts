@@ -2,7 +2,6 @@ import type {
   SelfHealingPolicy,
   SelfHealingRun,
   CreatePolicyInput,
-  ActionType,
   ExecutionStatus,
 } from '../types/monitor.js';
 

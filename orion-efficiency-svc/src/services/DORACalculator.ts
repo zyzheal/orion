@@ -13,8 +13,8 @@ import {
   DeploymentRecord,
   PipelineCompletionRecord,
   IncidentRecord,
-} from '../efficiency/types';
-import { DoraMetricsService } from '../efficiency/DoraMetricsService';
+} from './types';
+import { DoraMetricsService } from './DoraMetricsService';
 
 /**
  * 标准指标结果格式

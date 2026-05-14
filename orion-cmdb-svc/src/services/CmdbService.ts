@@ -99,11 +99,12 @@ export class CmdbService {
     for (const node of this.nodes.values()) {
       if (node.parentId) {
         all.push({
+          id: `topo-${node.parentId}-${node.id}`,
           sourceNodeId: node.parentId,
           targetNodeId: node.id,
-          relationshipType: 'contains',
-          sourceNode: this.nodes.get(node.parentId),
-          targetNode: node,
+          relationType: 'manages',
+          attributes: {},
+          createdAt: node.createdAt,
         });
       }
     }
@@ -112,11 +113,12 @@ export class CmdbService {
 
   async addTopologyEntry(sourceNodeId: string, targetNodeId: string, relationshipType: string): Promise<CmdbTopology> {
     const entry: CmdbTopology = {
+      id: `topo-${sourceNodeId}-${targetNodeId}`,
       sourceNodeId,
       targetNodeId,
-      relationshipType,
-      sourceNode: this.nodes.get(sourceNodeId),
-      targetNode: this.nodes.get(targetNodeId),
+      relationType: relationshipType as CmdbTopology['relationType'],
+      attributes: {},
+      createdAt: new Date(),
     };
     if (!this.topology.has(sourceNodeId)) {
       this.topology.set(sourceNodeId, []);
@@ -138,7 +140,7 @@ export class CmdbService {
       id: `recon-${Date.now()}`,
       name,
       reconciliationType,
-      status: diffs.length > 0 ? ReconciliationStatus.DRIFT : ReconciliationStatus.SYNCED,
+      status: diffs.length > 0 ? ReconciliationStatus.DRIFT_DETECTED : ReconciliationStatus.SYNCED,
       diffs,
       reconciledCount: this.nodes.size - diffs.length,
       driftCount: diffs.length,

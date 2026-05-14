@@ -12,7 +12,7 @@ import {
   RepoType,
   PullRequestStatus,
   MergeStrategy,
-} from '../../../services/code-repo';
+} from '../services/code-repo';
 
 /** 已注册的代码仓库适配器 */
 const adapters = new Map<string, ICodeRepoAdapter>();

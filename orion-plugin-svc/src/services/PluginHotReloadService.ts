@@ -239,7 +239,7 @@ export class PluginHotReloadService extends EventEmitter {
         throw new Error(`Plugin "${pluginId}" not found`);
       }
 
-      const oldVersion = currentPlugin.version;
+      const oldVersion = currentPlugin.manifest.version;
       logger.info({ pluginId, oldVersion }, 'Starting hot reload');
 
       this.emit('hotreload:started', {
@@ -274,19 +274,19 @@ export class PluginHotReloadService extends EventEmitter {
         await this.lifecycleManager.enablePlugin(pluginId);
       }
 
-      logger.info({ pluginId, newVersion: newPlugin.version }, 'Hot reload completed');
+      logger.info({ pluginId, newVersion: newPlugin.manifest.version }, 'Hot reload completed');
 
       this.emit('hotreload:completed', {
         type: 'completed',
         pluginId,
         oldVersion,
-        newVersion: newPlugin.version,
+        newVersion: newPlugin.manifest.version,
         timestamp: new Date(),
       });
 
       // 通知客户端 (通过 EventBus)
       if (this.config.notifyOnReload) {
-        this.notifyClients(pluginId, oldVersion, newPlugin.version);
+        this.notifyClients(pluginId, oldVersion, newPlugin.manifest.version);
       }
 
       return newPlugin;
@@ -401,7 +401,7 @@ export class PluginHotReloadService extends EventEmitter {
 
     const snapshot: PluginVersionSnapshot = {
       pluginId,
-      version: plugin.version,
+      version: plugin.manifest.version,
       manifest: plugin.manifest,
       config: plugin.config || {},
       status: plugin.status,
@@ -417,7 +417,7 @@ export class PluginHotReloadService extends EventEmitter {
     }
 
     this.versionSnapshots.set(pluginId, snapshots);
-    logger.debug({ pluginId, version: plugin.version }, 'Snapshot saved');
+    logger.debug({ pluginId, version: plugin.manifest.version }, 'Snapshot saved');
   }
 
   /**

@@ -10,7 +10,7 @@ import {
   CodeRepoWebhookService,
   WebhookEventType,
   RepoType,
-} from '../../../services/code-repo';
+} from '../services/code-repo';
 
 // 共享实例
 const webhookService = new CodeRepoWebhookService();

@@ -347,7 +347,7 @@ export class AgentRunService {
       entity.trigger_payload,
       entity.total_steps,
       timeoutAt,
-      entity.tenant_id,
+      entity.tenant_id ?? undefined,
     );
 
     const run = entityToDomain(newEntity);

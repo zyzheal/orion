@@ -116,13 +116,13 @@ export interface ICodeRepoAdapter {
   /** 列出 Pull Requests */
   listPullRequests(repoId: string, options?: { state?: PullRequestStatus; page?: number; limit?: number }): Promise<{ pullRequests: PullRequest[]; total: number }>;
   /** 合并 Pull Request */
-  mergePullRequest(repoId: string, prId: string, options?: { method?: MergeStrategy }): Promise<PullRequest>;
+  mergePullRequest(repoId: string, prId: string, options?: { method?: MergeStrategy | undefined; commitMessage?: string | undefined; } | undefined): Promise<PullRequest>;
   /** 关闭 Pull Request */
   closePullRequest(repoId: string, prId: string): Promise<PullRequest>;
   /** 更新 Pull Request */
   updatePullRequest(repoId: string, prId: string, input: { title?: string; body?: string }): Promise<PullRequest>;
   /** 添加 Review */
-  addReview(repoId: string, prId: string, input: { body?: string; event?: 'approve' | 'request_changes' | 'comment' }): Promise<Review>;
+  addReview(repoId: string, prId: string, input: { content?: string; score?: number | undefined; state?: "comment" | "approve" | "request_changes" | undefined; fileComments?: FileComment[] | undefined; } | { body?: string | undefined; event?: "comment" | "approve" | "request_changes" | undefined; }): Promise<Review>;
   /** 列出 Reviews */
   listReviews(repoId: string, prId: string): Promise<Review[]>;
   /** 创建 Webhook */

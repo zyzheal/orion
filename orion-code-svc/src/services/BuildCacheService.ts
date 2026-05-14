@@ -23,11 +23,11 @@ import {
   updateBuildCacheConfig,
   createCacheEntry,
   generateCacheKey,
-} from '../../models/BuildCache';
+} from '../models/BuildCache';
 import {
   BuildCacheConfigRepository,
   BuildCacheEntryRepository,
-} from '../../repositories/BuildCacheRepository';
+} from '../repositories/BuildCacheRepository';
 
 export class BuildCacheService {
   private configRepo: BuildCacheConfigRepository;

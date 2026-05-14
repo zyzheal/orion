@@ -1,5 +1,8 @@
 import { Pool, PoolConfig } from 'pg';
 
+/** DatabasePool 类型别名，用于 Repository 层 */
+export type DatabasePool = Pool;
+
 let pool: Pool | null = null;
 
 export function getPool(): Pool {

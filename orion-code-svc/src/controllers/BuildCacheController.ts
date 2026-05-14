@@ -3,7 +3,7 @@
  */
 
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { BuildCacheService } from '../../services/BuildCacheService';
+import { BuildCacheService } from '../services/BuildCacheService';
 import {
   CacheLevel,
   CacheStatus,
@@ -11,7 +11,7 @@ import {
   CacheStorageType,
   BuildCacheConfigCreateInput,
   BuildCacheConfigUpdateInput,
-} from '../../../models/BuildCache';
+} from '../models/BuildCache';
 
 export class BuildCacheController {
   private service: BuildCacheService;
