@@ -1,150 +1,219 @@
 /**
- * PolicyOverrideService - Policy override persistence for gate bypass
+ * PolicyOverrideService - Policy Override Management
  *
- * Handles creation, retrieval, revocation, and cleanup of policy overrides.
- * Allows temporary bypass of quality gates with audit trail.
- * Uses PostgreSQL Repository pattern for persistence.
+ * Provides operations for creating, retrieving, listing, and deleting
+ * policy overrides in the system.
  */
 
-import { PolicyOverrideRepository, CreatePolicyOverrideInput } from '../../repositories/PolicyOverrideRepository';
+import pino from 'pino';
+import { PolicyOverrideRepository, PolicyOverrideEntity, CreatePolicyOverrideInput } from '../../repositories/PolicyOverrideRepository';
+import { DatabasePool } from '../database';
 
-export interface PolicyOverrideInput {
-  policyId: string;
-  pipelineId?: string;
-  runId?: string;
-  reason: string;
-  approvedBy: string;
-  expiresAt?: Date;
-}
+const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
-export interface PolicyOverride {
-  id: string;
+// ==================== Input Interfaces ====================
+
+export interface CreateOverrideInput {
   tenantId: string;
   policyId: string;
   pipelineId?: string;
   runId?: string;
+  violationId?: string;
   reason: string;
   approvedBy: string;
-  status: 'active' | 'revoked' | 'expired';
   expiresAt?: Date;
-  createdAt: Date;
-  updatedAt: Date;
-  revokedAt?: Date;
-  revokedBy?: string;
+  scope?: string;
 }
 
 export interface UpdateOverrideInput {
   reason?: string;
   expiresAt?: Date;
+  status?: 'active' | 'revoked' | 'expired';
 }
 
-export class PolicyOverrideServiceError extends Error {
-  constructor(message: string, public code: string) {
-    super(message);
-    this.name = 'PolicyOverrideServiceError';
-  }
+export interface ListOverridesFilter {
+  tenantId: string;
+  policyId?: string;
+  pipelineId?: string;
+  runId?: string;
+  status?: 'active' | 'revoked' | 'expired';
+  scope?: string;
 }
+
+// ==================== PolicyOverrideService ====================
 
 export class PolicyOverrideService {
-  private repository: PolicyOverrideRepository;
-  private idCounter = 0;
+  private overrideRepo: PolicyOverrideRepository | null = null;
 
-  constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+  constructor(db?: DatabasePool) {
     if (db) {
-      this.repository = new PolicyOverrideRepository(db);
-    } else {
-      // Fallback for environments without direct db access (tests may inject differently)
-      this.repository = null as unknown as PolicyOverrideRepository;
+      this.overrideRepo = new PolicyOverrideRepository(db);
     }
   }
 
   /**
-   * Inject a custom repository (useful for testing with mock repos)
+   * Set repository after construction (for lazy initialization)
    */
-  setRepository(repo: PolicyOverrideRepository): void {
-    this.repository = repo;
+  setRepository(overrideRepo: PolicyOverrideRepository): void {
+    this.overrideRepo = overrideRepo;
   }
 
-  // ==================== Create Override ====================
+  // ==================== Override CRUD ====================
 
   /**
    * Create a new policy override
    */
-  async createOverride(tenantId: string, input: PolicyOverrideInput): Promise<PolicyOverride> {
-    if (!tenantId) {
-      throw new PolicyOverrideServiceError('Tenant ID required', 'INVALID_INPUT');
-    }
-    if (!input.policyId || !input.reason || !input.approvedBy) {
-      throw new PolicyOverrideServiceError(
-        'policyId, reason, and approvedBy are required',
-        'INVALID_INPUT'
-      );
+  async createOverride(input: CreateOverrideInput): Promise<PolicyOverrideEntity> {
+    const now = new Date();
+
+    if (!this.overrideRepo) {
+      // Mock mode
+      return {
+        id: this.generateId(),
+        tenantId: input.tenantId,
+        policyId: input.policyId,
+        pipelineId: input.pipelineId,
+        runId: input.runId,
+        violationId: input.violationId,
+        reason: input.reason,
+        approvedBy: input.approvedBy,
+        approvedAt: now,
+        status: 'active',
+        expiresAt: input.expiresAt,
+        createdAt: now,
+        updatedAt: now,
+        revokedAt: undefined,
+        revokedBy: undefined,
+        scope: input.scope,
+      };
     }
 
-    const now = new Date();
-    const dbInput: CreatePolicyOverrideInput = {
-      id: this.generateId('override'),
-      tenantId,
+    const createInput: CreatePolicyOverrideInput = {
+      id: this.generateId(),
+      tenantId: input.tenantId,
       policyId: input.policyId,
       pipelineId: input.pipelineId,
       runId: input.runId,
+      violationId: input.violationId,
       reason: input.reason,
       approvedBy: input.approvedBy,
+      approvedAt: now,
       status: 'active',
       expiresAt: input.expiresAt,
       createdAt: now,
       updatedAt: now,
+      revokedAt: undefined,
+      revokedBy: undefined,
+      scope: input.scope,
     };
 
-    const entity = await this.repository.createOverride(dbInput);
-    return this.entityToDomain(entity);
-  }
-
-  // ==================== Get Overrides ====================
-
-  /**
-   * Get active overrides for a tenant
-   */
-  async getActiveOverrides(tenantId: string): Promise<PolicyOverride[]> {
-    // First, batch-update all expired active overrides to 'expired' status
-    const now = new Date();
-    await this.repository.markExpired(now);
-
-    // Then fetch the still-active (non-expired) overrides
-    const entities = await this.repository.findActiveByTenant(tenantId);
-    return entities.map(e => this.entityToDomain(e));
+    const entity = await this.overrideRepo.createOverride(createInput);
+    logger.info({ overrideId: entity.id, tenantId: input.tenantId, policyId: input.policyId }, '[PolicyOverride] Override created');
+    return entity;
   }
 
   /**
-   * Get all overrides for a tenant (including revoked/expired)
+   * Get override by ID
    */
-  async getAllOverrides(tenantId: string): Promise<PolicyOverride[]> {
-    const result = await this.repository.findByTenant(tenantId);
-    return result.entities.map(e => this.entityToDomain(e));
+  async getOverride(id: string): Promise<PolicyOverrideEntity | null> {
+    if (!this.overrideRepo) {
+      return null;
+    }
+    const override = await this.overrideRepo.findById(id);
+    return override ?? null;
   }
 
   /**
-   * Get a single override by ID
+   * Get active override for tenant+policy combination
    */
-  async getOverrideById(overrideId: string): Promise<PolicyOverride | null> {
-    const entity = await this.repository.findById(overrideId);
-    if (!entity) return null;
-    return this.entityToDomain(entity);
+  async getActiveOverride(tenantId: string, policyId: string): Promise<PolicyOverrideEntity | null> {
+    if (!this.overrideRepo) {
+      return null;
+    }
+    const override = await this.overrideRepo.findActiveByTenantAndPolicy(tenantId, policyId);
+    return override ?? null;
   }
 
   /**
-   * Check if a policy is currently overridden for a tenant
+   * List overrides with filtering
    */
-  async isOverridden(tenantId: string, policyId: string): Promise<boolean> {
-    const entity = await this.repository.findActiveByTenantAndPolicy(tenantId, policyId);
-    if (!entity) return false;
+  async listOverrides(filter: ListOverridesFilter): Promise<{
+    overrides: PolicyOverrideEntity[];
+    total: number;
+  }> {
+    if (!this.overrideRepo) {
+      return { overrides: [], total: 0 };
+    }
 
-    // Check if expired
-    if (entity.expiresAt && entity.expiresAt < new Date()) {
-      await this.repository.updateOverride(entity.id, { status: 'expired', updatedAt: new Date() });
+    let overrides: PolicyOverrideEntity[];
+    let total = 0;
+
+    if (filter.status === 'active') {
+      overrides = await this.overrideRepo.findActiveByTenant(filter.tenantId);
+      total = overrides.length;
+    } else if (filter.policyId) {
+      // Find specific policy override
+      const result = await this.overrideRepo.findByTenant(filter.tenantId);
+      overrides = result.entities.filter(o => o.policyId === filter.policyId);
+      total = overrides.length;
+    } else {
+      const result = await this.overrideRepo.findByTenant(filter.tenantId);
+      overrides = result.entities;
+      total = result.total;
+    }
+
+    // Apply additional filters
+    overrides = overrides.filter(o => {
+      if (filter.status && o.status !== filter.status) return false;
+      if (filter.pipelineId && o.pipelineId !== filter.pipelineId) return false;
+      if (filter.runId && o.runId !== filter.runId) return false;
+      if (filter.scope && o.scope !== filter.scope) return false;
+      return true;
+    });
+
+    return { overrides, total };
+  }
+
+  /**
+   * Update a policy override
+   */
+  async updateOverride(id: string, updates: UpdateOverrideInput): Promise<PolicyOverrideEntity | null> {
+    if (!this.overrideRepo) {
+      return null;
+    }
+
+    const existing = await this.overrideRepo.findById(id);
+    if (!existing) {
+      return null;
+    }
+
+    const updated = await this.overrideRepo.updateOverride(id, {
+      reason: updates.reason,
+      expiresAt: updates.expiresAt,
+      status: updates.status,
+      updatedAt: new Date(),
+    });
+
+    if (updated) {
+      logger.info({ overrideId: id, updates }, '[PolicyOverride] Override updated');
+    }
+
+    return updated ?? null;
+  }
+
+  /**
+   * Delete a policy override
+   */
+  async deleteOverride(id: string): Promise<boolean> {
+    if (!this.overrideRepo) {
       return false;
     }
-    return true;
+
+    const deleted = await this.overrideRepo.delete(id);
+    if (deleted) {
+      logger.info({ overrideId: id }, '[PolicyOverride] Override deleted');
+    }
+    return deleted;
   }
 
   // ==================== Revoke Override ====================
@@ -152,108 +221,58 @@ export class PolicyOverrideService {
   /**
    * Revoke an active override
    */
-  async revokeOverride(overrideId: string, revokedBy: string): Promise<PolicyOverride> {
-    const override = await this.repository.findById(overrideId);
-    if (!override) {
-      throw new PolicyOverrideServiceError(
-        `Override not found: ${overrideId}`,
-        'OVERRIDE_NOT_FOUND'
-      );
+  async revokeOverride(id: string, revokedBy: string): Promise<PolicyOverrideEntity | null> {
+    if (!this.overrideRepo) {
+      return null;
     }
 
-    if (override.status !== 'active') {
-      throw new PolicyOverrideServiceError(
-        `Override is already ${override.status}`,
-        'OVERRIDE_NOT_ACTIVE'
-      );
+    const existing = await this.overrideRepo.findById(id);
+    if (!existing) {
+      return null;
     }
 
-    const now = new Date();
-    const updated = await this.repository.updateOverride(overrideId, {
+    const updated = await this.overrideRepo.updateOverride(id, {
       status: 'revoked',
+      revokedAt: new Date(),
       revokedBy,
-      revokedAt: now,
-      updatedAt: now,
-    });
-    if (!updated) {
-      throw new PolicyOverrideServiceError('Failed to update override', 'UPDATE_FAILED');
-    }
-    return this.entityToDomain(updated);
-  }
-
-  // ==================== Update Override ====================
-
-  /**
-   * Update an active override's reason or expiration
-   */
-  async updateOverride(overrideId: string, input: UpdateOverrideInput): Promise<PolicyOverride> {
-    const override = await this.repository.findById(overrideId);
-    if (!override) {
-      throw new PolicyOverrideServiceError(
-        `Override not found: ${overrideId}`,
-        'OVERRIDE_NOT_FOUND'
-      );
-    }
-
-    if (override.status !== 'active') {
-      throw new PolicyOverrideServiceError(
-        `Cannot update override that is ${override.status}`,
-        'OVERRIDE_NOT_ACTIVE'
-      );
-    }
-
-    if (!input.reason && input.expiresAt === undefined) {
-      throw new PolicyOverrideServiceError(
-        'At least one of reason or expiresAt is required',
-        'INVALID_INPUT'
-      );
-    }
-
-    const updates: { reason?: string; expiresAt?: Date; updatedAt: Date } = {
       updatedAt: new Date(),
-    };
-    if (input.reason !== undefined) updates.reason = input.reason;
-    if (input.expiresAt !== undefined) updates.expiresAt = input.expiresAt;
+    });
 
-    const updated = await this.repository.updateOverride(overrideId, updates);
-    if (!updated) {
-      throw new PolicyOverrideServiceError('Failed to update override', 'UPDATE_FAILED');
+    if (updated) {
+      logger.info({ overrideId: id, revokedBy }, '[PolicyOverride] Override revoked');
     }
-    return this.entityToDomain(updated);
+
+    return updated ?? null;
   }
 
-  // ==================== Cleanup ====================
+  // ==================== Expiration Management ====================
 
   /**
-   * Clean up expired overrides
-   * Returns the count of overrides that were marked as expired
+   * Mark expired overrides
    */
-  async cleanupExpiredOverrides(): Promise<number> {
-    return this.repository.markExpired(new Date());
+  async markExpiredOverrides(): Promise<number> {
+    if (!this.overrideRepo) {
+      return 0;
+    }
+
+    return this.overrideRepo.markExpired(new Date());
   }
 
-  // ==================== Internal Helpers ====================
-
-  private generateId(prefix: string): string {
-    this.idCounter += 1;
-    return `${prefix}-${Date.now()}-${this.idCounter}`;
+  /**
+   * Get active overrides for a tenant
+   */
+  async getActiveOverrides(tenantId: string): Promise<PolicyOverrideEntity[]> {
+    if (!this.overrideRepo) {
+      return [];
+    }
+    return this.overrideRepo.findActiveByTenant(tenantId);
   }
 
-  private entityToDomain(entity: any): PolicyOverride {
-    return {
-      id: entity.id,
-      tenantId: entity.tenantId,
-      policyId: entity.policyId,
-      pipelineId: entity.pipelineId,
-      runId: entity.runId,
-      reason: entity.reason,
-      approvedBy: entity.approvedBy,
-      status: entity.status,
-      expiresAt: entity.expiresAt,
-      createdAt: entity.createdAt,
-      updatedAt: entity.updatedAt,
-      revokedAt: entity.revokedAt,
-      revokedBy: entity.revokedBy,
-    };
+  // ==================== Utility Methods ====================
+
+  private generateId(): string {
+    return `override-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
   }
 }
+
+export default PolicyOverrideService;
