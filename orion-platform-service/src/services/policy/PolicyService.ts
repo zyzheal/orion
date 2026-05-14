@@ -1,152 +1,396 @@
 /**
- * PolicyService - Business logic layer for Policy operations
+ * PolicyService - Policy management and evaluation service
+ *
+ * Provides CRUD operations for policy definitions and policy evaluation
+ * against pipeline runs and other resources.
  */
 
-import { PolicyRepository, PolicyDefinition, PolicyEvaluation } from './PolicyRepository';
+import pino from 'pino';
+import {
+  PolicyDefinitionRepository,
+  PolicyDefinitionEntity,
+  PolicyDefinitionCreateInput,
+  PolicyDefinitionUpdateInput,
+  PolicyBundleRepository,
+  PolicyBundleEntity,
+} from '../../repositories/PolicyDefinitionRepository';
+import { PolicyEvaluationRepository, PolicyEvaluationEntity } from '../../repositories/PolicyEvaluationRepository';
+import { DatabasePool } from '../database';
 
-export class PolicyServiceError extends Error {
-  constructor(message: string, public code: string) { super(message); this.name = 'PolicyServiceError'; }
+const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+
+// ==================== Input Interfaces ====================
+
+export interface CreatePolicyInput {
+  name: string;
+  description?: string;
+  category: 'security' | 'cost' | 'quality' | 'governance';
+  regoPath: string;
+  gateId?: string;
+  severity?: 'block' | 'warning' | 'info';
+  metadata?: Record<string, unknown>;
 }
+
+export interface UpdatePolicyInput {
+  description?: string;
+  category?: 'security' | 'cost' | 'quality' | 'governance';
+  regoPath?: string;
+  gateId?: string;
+  severity?: 'block' | 'warning' | 'info';
+  enabled?: boolean;
+  metadata?: Record<string, unknown>;
+}
+
+export interface PolicyEvaluationContext {
+  runId: string;
+  pipelineId?: string;
+  pipelineName?: string;
+  triggerBy?: string;
+  branch?: string;
+  resources?: Array<{
+    type: string;
+    id: string;
+    name: string;
+    metadata?: Record<string, unknown>;
+  }>;
+  input?: Record<string, unknown>;
+}
+
+export interface PolicyEvaluationResult {
+  allowed: boolean;
+  violations: Array<{
+    policyId: string;
+    policyName: string;
+    severity: string;
+    message: string;
+    resource?: { type: string; id: string };
+  }>;
+  evaluationMs: number;
+}
+
+// ==================== PolicyService ====================
 
 export class PolicyService {
-  private repository: PolicyRepository;
-  constructor(repository: PolicyRepository) { this.repository = repository; }
+  private policyRepo: PolicyDefinitionRepository | null = null;
+  private bundleRepo: PolicyBundleRepository | null = null;
+  private evaluationRepo: PolicyEvaluationRepository | null = null;
 
-  async getPolicy(id: string): Promise<PolicyDefinition> {
-    const policy = await this.repository.findPolicyById(id);
-    if (!policy) throw new PolicyServiceError(`Policy not found: ${id}`, 'NOT_FOUND');
-    return policy;
-  }
-
-  async listPolicies(tenantId?: string): Promise<PolicyDefinition[]> {
-    return this.repository.findAllPolicies(tenantId);
-  }
-
-  async list(tenantId?: string): Promise<PolicyDefinition[]> {
-    return this.listPolicies(tenantId);
-  }
-
-  async createPolicy(tenantId: string, name: string, resource: string, action: string, regoCode: string, effect?: string): Promise<PolicyDefinition> {
-    if (!tenantId) throw new PolicyServiceError('Tenant ID required', 'INVALID_INPUT');
-    if (!name || !resource || !action) throw new PolicyServiceError('Name, resource, action required', 'INVALID_INPUT');
-    return this.repository.createPolicy(tenantId, name, resource, action, regoCode, effect);
-  }
-
-  async updatePolicy(id: string, input: { name?: string; rego_code?: string; enabled?: boolean }): Promise<PolicyDefinition> {
-    const existing = await this.repository.findPolicyById(id);
-    if (!existing) throw new PolicyServiceError(`Policy not found: ${id}`, 'NOT_FOUND');
-    const updated = await this.repository.updatePolicy(id, input);
-    if (!updated) throw new PolicyServiceError(`Failed to update: ${id}`, 'UPDATE_FAILED');
-    return updated;
-  }
-
-  async deletePolicy(id: string): Promise<boolean> {
-    const existing = await this.repository.findPolicyById(id);
-    if (!existing) throw new PolicyServiceError(`Policy not found: ${id}`, 'NOT_FOUND');
-    return this.repository.deletePolicy(id);
-  }
-
-  async evaluate(tenantId: string, resourceType: string, resourceId: string, action: string, context: Record<string, any>): Promise<{ decision: string; policy?: PolicyDefinition }> {
-    // Simple evaluation - find matching policy
-    const policies = await this.repository.findAllPolicies(tenantId);
-    const matching = policies.find(p => p.enabled && p.resource === resourceType && p.action === action);
-    
-    // Mock evaluation result
-    const decision = matching ? 'allow' : 'deny';
-    
-    await this.repository.createEvaluation(
-      tenantId, matching?.id || null, resourceType, resourceId, action, decision, context, { result: decision }
-    );
-
-    return { decision, policy: matching || undefined };
-  }
-
-  async getEvaluationHistory(tenantId: string, limit?: number): Promise<PolicyEvaluation[]> {
-    return this.repository.findEvaluations(tenantId, limit);
-  }
-
-  // ==================== Bundle Management, Testing & Toggle (M31 additions) ====================
-
-  /**
-   * List all deployed OPA policy bundles
-   */
-  async listBundles(): Promise<Array<{ id: string; name: string; version: string; status: string; lastSynced: string; policyCount: number }>> {
-    // MVP: return static list -- in production, query OPA /v1/bundles
-    return [
-      { id: 'bundle-security', name: 'Security Policies', version: '1.2.0', status: 'active', lastSynced: new Date().toISOString(), policyCount: 12 },
-      { id: 'bundle-compliance', name: 'Compliance Policies', version: '1.0.3', status: 'active', lastSynced: new Date().toISOString(), policyCount: 8 },
-    ];
+  constructor(db?: DatabasePool) {
+    if (db) {
+      this.setRepositories(
+        new PolicyDefinitionRepository(db),
+        new PolicyBundleRepository(db),
+        new PolicyEvaluationRepository(db),
+      );
+    }
   }
 
   /**
-   * Get policy bundle details by ID
+   * Set repositories after construction (for lazy initialization)
    */
-  async getBundle(id: string): Promise<{ id: string; name: string; version: string; status: string; policies: Array<{ id: string; name: string; enabled: boolean }> } | null> {
-    const bundles = await this.listBundles();
-    const bundle = bundles.find((b) => b.id === id);
-    if (!bundle) return null;
-
-    return {
-      ...bundle,
-      policies: [
-        { id: `pol-${id}-1`, name: `${bundle.name} - Policy 1`, enabled: true },
-        { id: `pol-${id}-2`, name: `${bundle.name} - Policy 2`, enabled: true },
-      ],
-    };
+  setRepositories(
+    policyRepo: PolicyDefinitionRepository,
+    bundleRepo: PolicyBundleRepository,
+    evaluationRepo: PolicyEvaluationRepository,
+  ): void {
+    this.policyRepo = policyRepo;
+    this.bundleRepo = bundleRepo;
+    this.evaluationRepo = evaluationRepo;
   }
 
-  /**
-   * Sync policy bundles from git registry to OPA
-   */
-  async syncBundles(): Promise<{ synced: number; failed: number; details: Array<{ name: string; status: string }> }> {
-    // MVP: simulate sync -- in production, pull from git and deploy to OPA
-    return {
-      synced: 2,
-      failed: 0,
-      details: [
-        { name: 'Security Policies', status: 'synced' },
-        { name: 'Compliance Policies', status: 'synced' },
-      ],
-    };
-  }
+  // ==================== Policy CRUD ====================
 
   /**
-   * Test a Rego policy against sample inputs
+   * Create a new policy definition
    */
-  async testPolicy(rego: string, testCases: Array<Record<string, unknown>>): Promise<{
-    totalTests: number;
-    passed: number;
-    failed: number;
-    results: Array<{ testCase: number; passed: boolean; result: string; error?: string }>;
-  }> {
-    // MVP: basic Rego syntax validation only
-    // In production, use OPA eval API: POST /v1/data with input + rego
-    const results = testCases.map((tc, index) => {
-      const hasSyntaxError = rego.includes('syntax_error');
+  async createPolicy(config: CreatePolicyInput): Promise<PolicyDefinitionEntity> {
+    if (!this.policyRepo) {
+      // Mock mode
       return {
-        testCase: index + 1,
-        passed: !hasSyntaxError,
-        result: hasSyntaxError ? 'deny' : 'allow',
-        error: hasSyntaxError ? 'Rego syntax error detected' : undefined,
+        id: this.generateId(),
+        name: config.name,
+        description: config.description ?? null,
+        category: config.category,
+        regoPath: config.regoPath,
+        gateId: config.gateId ?? null,
+        severity: config.severity ?? 'warning',
+        enabled: true,
+        metadata: config.metadata ?? {},
+        createdAt: new Date(),
+        updatedAt: new Date(),
       };
+    }
+
+    const entity = await this.policyRepo.createPolicy({
+      name: config.name,
+      description: config.description,
+      category: config.category,
+      regoPath: config.regoPath,
+      gateId: config.gateId,
+      severity: config.severity,
+      metadata: config.metadata,
     });
 
-    const passed = results.filter((r) => r.passed).length;
+    logger.info({ policyId: entity.id, name: entity.name, category: entity.category }, '[PolicyService] Policy created');
+    return entity;
+  }
 
+  /**
+   * Get policy by ID
+   */
+  async getPolicy(id: string): Promise<PolicyDefinitionEntity | null> {
+    if (!this.policyRepo) {
+      return null;
+    }
+
+    const policy = await this.policyRepo.findById(id);
+    return policy ?? null;
+  }
+
+  /**
+   * List policies for a tenant
+   */
+  async listPolicies(tenantId: string, options?: {
+    category?: string;
+    enabled?: boolean;
+    limit?: number;
+    offset?: number;
+  }): Promise<{ policies: PolicyDefinitionEntity[]; total: number }> {
+    if (!this.policyRepo) {
+      return { policies: [], total: 0 };
+    }
+
+    if (options?.category) {
+      const policies = await this.policyRepo.findByCategory(options.category, {
+        limit: options.limit,
+        offset: options.offset,
+      });
+      return { policies, total: policies.length };
+    }
+
+    if (options?.enabled) {
+      const policies = await this.policyRepo.findEnabled();
+      const total = policies.length;
+      const offset = options.offset ?? 0;
+      const limit = options.limit ?? 20;
+      return {
+        policies: policies.slice(offset, offset + limit),
+        total,
+      };
+    }
+
+    const result = await this.policyRepo.findAll({
+      limit: options?.limit ?? 20,
+      offset: options?.offset ?? 0,
+    });
+    return { policies: result.entities, total: result.total };
+  }
+
+  /**
+   * Update policy
+   */
+  async updatePolicy(id: string, updates: UpdatePolicyInput): Promise<PolicyDefinitionEntity | null> {
+    if (!this.policyRepo) {
+      return null;
+    }
+
+    const updated = await this.policyRepo.updatePolicy(id, updates);
+    if (updated) {
+      logger.info({ policyId: id, updates }, '[PolicyService] Policy updated');
+    }
+    return updated ?? null;
+  }
+
+  /**
+   * Delete policy
+   */
+  async deletePolicy(id: string): Promise<boolean> {
+    if (!this.policyRepo) {
+      return false;
+    }
+
+    const deleted = await this.policyRepo.deletePolicy(id);
+    if (deleted) {
+      logger.info({ policyId: id }, '[PolicyService] Policy deleted');
+    }
+    return deleted;
+  }
+
+  // ==================== Policy Evaluation ====================
+
+  /**
+   * Evaluate policies against a context
+   */
+  async evaluatePolicy(policyId: string, context: PolicyEvaluationContext): Promise<PolicyEvaluationResult> {
+    const startTime = Date.now();
+
+    // Get the policy
+    const policy = await this.getPolicy(policyId);
+    if (!policy) {
+      return {
+        allowed: true,
+        violations: [],
+        evaluationMs: Date.now() - startTime,
+      };
+    }
+
+    // Get all enabled policies if no specific policy requested
+    if (!policy.enabled) {
+      return {
+        allowed: true,
+        violations: [],
+        evaluationMs: Date.now() - startTime,
+      };
+    }
+
+    // Simple evaluation logic (in real implementation, this would use OPA rego)
+    const violations: PolicyEvaluationResult['violations'] = [];
+
+    // Evaluate based on policy category and severity
+    await this.evaluateAgainstContext(policy, context, violations);
+
+    const evaluationMs = Date.now() - startTime;
+
+    // Store evaluation result
+    if (this.evaluationRepo) {
+      try {
+        const id = this.generateId();
+        const now = new Date();
+        await this.evaluationRepo.getDb().query(
+          `INSERT INTO policy_evaluations (id, policy_id, run_id, input_context, result, evaluated_at, evaluation_ms)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [id, policy.id, context.runId, JSON.stringify(context), JSON.stringify({ allowed: violations.length === 0, violations }), now, evaluationMs],
+        );
+      } catch (err) {
+        logger.warn({ err }, '[PolicyService] Failed to store evaluation result');
+      }
+    }
+
+    const blocked = violations.some(v => v.severity === 'block');
     return {
-      totalTests: testCases.length,
-      passed,
-      failed: testCases.length - passed,
-      results,
+      allowed: !blocked,
+      violations,
+      evaluationMs,
     };
   }
 
   /**
-   * Toggle policy enabled/disabled
+   * Evaluate all enabled policies
    */
-  async toggle(id: string): Promise<{ id: string; enabled: boolean; updatedAt: string }> {
-    const policy = await this.getPolicy(id);
-    const updated = await this.updatePolicy(id, { enabled: !policy.enabled });
-    return { id: updated.id, enabled: updated.enabled, updatedAt: updated.updated_at.toISOString() };
+  async evaluateAllPolicies(context: PolicyEvaluationContext): Promise<PolicyEvaluationResult> {
+    const startTime = Date.now();
+
+    if (!this.policyRepo) {
+      return {
+        allowed: true,
+        violations: [],
+        evaluationMs: Date.now() - startTime,
+      };
+    }
+
+    const enabledPolicies = await this.policyRepo.findEnabled();
+    const allViolations: PolicyEvaluationResult['violations'] = [];
+
+    for (const policy of enabledPolicies) {
+      const violations: PolicyEvaluationResult['violations'] = [];
+      await this.evaluateAgainstContext(policy, context, violations);
+      allViolations.push(...violations);
+    }
+
+    const evaluationMs = Date.now() - startTime;
+    const blocked = allViolations.some(v => v.severity === 'block');
+
+    return {
+      allowed: !blocked,
+      violations: allViolations,
+      evaluationMs,
+    };
+  }
+
+  /**
+   * Internal method to evaluate a single policy
+   */
+  private async evaluateAgainstContext(
+    policy: PolicyDefinitionEntity,
+    context: PolicyEvaluationContext,
+    violations: PolicyEvaluationResult['violations'],
+  ): Promise<void> {
+    // Simple rule-based evaluation for demo
+    // In production, this would execute OPA rego policies
+
+    // Example: Block if pipeline name contains "test" and category is security
+    if (policy.category === 'security' && policy.severity === 'block') {
+      if (context.pipelineName?.toLowerCase().includes('security-scan')) {
+        // This would be a real security policy violation
+        violations.push({
+          policyId: policy.id,
+          policyName: policy.name,
+          severity: policy.severity,
+          message: `Security policy violated: ${policy.description || policy.name}`,
+        });
+      }
+    }
+
+    // Example: Check resource compliance
+    if (context.resources && policy.category === 'governance') {
+      for (const resource of context.resources) {
+        // Simple check: would evaluate against governance rules
+        if (resource.type === 'deployment' && !resource.metadata?.['compliant']) {
+          violations.push({
+            policyId: policy.id,
+            policyName: policy.name,
+            severity: policy.severity,
+            message: `Resource ${resource.name} is not compliant with governance policy`,
+            resource: { type: resource.type, id: resource.id },
+          });
+        }
+      }
+    }
+  }
+
+  // ==================== Policy Bundle ====================
+
+  /**
+   * Get active policy bundle
+   */
+  async getActiveBundle(): Promise<PolicyBundleEntity | null> {
+    if (!this.bundleRepo) {
+      return null;
+    }
+
+    const bundles = await this.bundleRepo.findActive();
+    return bundles[0] ?? null;
+  }
+
+  /**
+   * Get policy by gate ID
+   */
+  async getPoliciesByGate(gateId: string): Promise<PolicyDefinitionEntity[]> {
+    if (!this.policyRepo) {
+      return [];
+    }
+
+    return this.policyRepo.findByGateId(gateId);
+  }
+
+  // ==================== Evaluation History ====================
+
+  /**
+   * Get evaluation history for a run
+   */
+  async getEvaluationHistory(runId: string): Promise<PolicyEvaluationEntity[]> {
+    if (!this.evaluationRepo) {
+      return [];
+    }
+
+    return this.evaluationRepo.findByRunId(runId);
+  }
+
+  // ==================== Utility Methods ====================
+
+  private generateId(): string {
+    return `policy-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
   }
 }
+
+export default PolicyService;

@@ -42,6 +42,20 @@ export class PolicyEvaluationRepository extends BaseRepository<PolicyEvaluationE
     return result.rows.map(row => this.mapRowToEntity(row));
   }
 
+  /**
+   * Public method to map row to entity (for external use)
+   */
+  mapEntity(row: any): PolicyEvaluationEntity {
+    return this.mapRowToEntity(row);
+  }
+
+  /**
+   * Public method to get database query interface (for external use)
+   */
+  getDb(): { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> } {
+    return this.db;
+  }
+
   protected mapRowToEntity(row: any): PolicyEvaluationEntity {
     return {
       id: row.id,
