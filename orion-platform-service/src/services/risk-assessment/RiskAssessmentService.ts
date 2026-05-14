@@ -24,6 +24,7 @@ import {
 import { RiskScoringEngine } from './RiskScoringEngine';
 import { HealthCheckService } from './HealthCheckService';
 import { RiskAssessmentRepository, RiskAssessmentEntity } from '../../repositories/RiskAssessmentRepository';
+import { RiskReportRepository, RiskReportEntity } from '../../repositories/RiskReportRepository';
 
 /**
  * 风险评估服务
@@ -33,6 +34,7 @@ export class RiskAssessmentService {
   private healthCheckService: HealthCheckService;
   private eventBus: any;
   private assessmentRepository?: RiskAssessmentRepository;
+  private reportRepository?: RiskReportRepository;
   private reportHistory: Map<string, RiskReport>;
   // 内存模式存储（用于测试和无 db 场景）
   private assessmentHistory: Map<string, RiskAssessment> = new Map();
@@ -46,6 +48,7 @@ export class RiskAssessmentService {
     this.reportHistory = new Map();
     if (db) {
       this.assessmentRepository = new RiskAssessmentRepository(db);
+      this.reportRepository = new RiskReportRepository(db);
     }
   }
 
@@ -313,18 +316,54 @@ export class RiskAssessmentService {
       tenantId: assessment.tenantId,
     };
 
-    this.reportHistory.set(report.id, report);
+    // 存储到 Repository 或内存
+    if (this.reportRepository) {
+      await this.reportRepository.createReport({
+        tenant_id: assessment.tenantId ?? 'default',
+        assessment_id: assessmentId,
+        risk_score: assessment.riskScore,
+        risk_level: assessment.riskLevel,
+        can_deploy: canDeploy,
+        critical_risk_count: criticalRiskCount,
+        summary: report.summary as unknown as Record<string, unknown>,
+        details: report.details as unknown as Record<string, unknown>,
+        recommendations: report.recommendations as unknown as Record<string, unknown>[],
+        generated_at: report.generatedAt,
+      });
+    } else {
+      this.reportHistory.set(report.id, report);
+    }
     return report;
   }
 
   /**
    * 获取报告历史
+   * 注意：当有 Repository 时返回 Promise，否则返回同步结果
    */
   getReportHistory(filter?: {
     assessmentId?: string;
     tenantId?: string;
     limit?: number;
-  }): RiskReport[] {
+  }): RiskReport[] | Promise<RiskReport[]> {
+    // 使用 Repository 如果可用
+    if (this.reportRepository) {
+      return (async () => {
+        let reports: RiskReportEntity[];
+
+        if (filter?.assessmentId) {
+          const report = await this.reportRepository.findByAssessment(filter.assessmentId);
+          reports = report ? [report] : [];
+        } else if (filter?.tenantId) {
+          reports = await this.reportRepository.findByTenant(filter.tenantId, { limit: filter?.limit });
+        } else {
+          reports = await this.reportRepository.findAll({ limit: filter?.limit ?? 20 }).then(r => r.entities);
+        }
+
+        return reports.map(e => this.mapEntityToReport(e));
+      })();
+    }
+
+    // 内存模式（同步）
     let results = Array.from(this.reportHistory.values());
 
     if (filter?.assessmentId) {
@@ -345,9 +384,33 @@ export class RiskAssessmentService {
 
   /**
    * 获取单个报告
+   * 注意：当有 Repository 时返回 Promise，否则返回同步结果
    */
-  getReportById(reportId: string): RiskReport | undefined {
+  getReportById(reportId: string): RiskReport | undefined | Promise<RiskReport | undefined> {
+    if (this.reportRepository) {
+      return (async () => {
+        const report = await this.reportRepository.findById(reportId);
+        return report ? this.mapEntityToReport(report) : undefined;
+      })();
+    }
     return this.reportHistory.get(reportId);
+  }
+
+  private mapEntityToReport(entity: RiskReportEntity): RiskReport {
+    return {
+      id: entity.id,
+      assessmentId: entity.assessmentId,
+      summary: {
+        riskScore: entity.riskScore,
+        riskLevel: entity.riskLevel as RiskLevel,
+        canDeploy: entity.canDeploy,
+        criticalRiskCount: entity.criticalRiskCount,
+      },
+      details: entity.details as any,
+      recommendations: entity.recommendations as any,
+      generatedAt: entity.generatedAt,
+      tenantId: entity.tenantId,
+    };
   }
 
   /**

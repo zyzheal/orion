@@ -1,222 +1,163 @@
 /**
- * Approval Workflow API Routes
- * Prefix: /api/v1/approvals
+ * Approval Routes - 审批管理路由
  *
- * P0-7 Fix: Migrated ApprovalService to PostgreSQL Repository pattern
- * P0-5b Fix: Changed hardcoded `/approvals/` paths to relative paths to avoid double prefix
- * Phase 2: Added multi-level approval, emergency approval, and template endpoints
+ * 注册多级审批、紧急审批、模板、审批门禁相关端点。
  */
+
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { DatabasePool } from '../services/database';
-import { ApprovalService } from '../services/approval/ApprovalService';
+import { Pool } from 'pg';
+import { ApprovalController } from './controllers/ApprovalController';
 import { MultiLevelApprovalService } from '../services/approval/MultiLevelApprovalService';
 import { EmergencyApprovalService } from '../services/approval/EmergencyApprovalService';
 import { ApprovalTemplateService } from '../services/approval/ApprovalTemplateService';
-import { ApprovalController } from './controllers/ApprovalController';
-import { z } from 'zod';
+import { ApprovalGateService } from '../services/pipeline/ApprovalGateService';
+import { ApprovalGateRepository } from '../repositories/ApprovalGateRepository';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { DatabasePool } from '../services/database';
 
-const createApprovalSchema = z.object({
-  title: z.string().min(1, 'Title is required'),
-  description: z.string().optional(),
-  requesterId: z.string().min(1, 'Requester ID is required'),
-  approverIds: z.array(z.string()).min(1, 'At least one approver is required'),
-  requiredApprovals: z.number().min(1).optional(),
-  metadata: z.record(z.string(), z.unknown()).optional(),
-});
-
-const approveRejectSchema = z.object({
-  userId: z.string().min(1, 'User ID is required'),
-});
-
-const reviewSchema = z.object({
-  reviewerId: z.string().min(1, 'Reviewer ID is required'),
-  action: z.enum(['approve', 'reject']),
-  comment: z.string().optional(),
-});
-
-const submitApprovalSchema = z.object({
-  title: z.string().min(1),
-  description: z.string().optional(),
-  requesterId: z.string().min(1),
-  resourceType: z.string().min(1),
-  resourceId: z.string().min(1),
-  levels: z.array(z.object({
-    levelIndex: z.number().optional(),
-    approverIds: z.array(z.string()).min(1),
-    requiredApprovals: z.number().min(1).optional(),
-  })).min(1),
-  mode: z.enum(['serial', 'parallel']).optional(),
-  metadata: z.record(z.string(), z.unknown()).optional(),
-});
-
-const emergencyApprovalSchema = z.object({
-  title: z.string().min(1),
-  description: z.string().min(1),
-  requesterId: z.string().min(1),
-  resourceType: z.string().min(1),
-  resourceId: z.string().min(1),
-  reason: z.enum(['production_incident', 'security_vulnerability', 'service_outage', 'data_corruption', 'other']),
-  impactDescription: z.string().min(1),
-  approverIds: z.array(z.string()).min(1),
-});
-
-const templateSchema = z.object({
-  name: z.string().min(1),
-  description: z.string().optional(),
-  resourceType: z.string().min(1),
-  levels: z.array(z.object({
-    levelIndex: z.number().optional(),
-    approverIds: z.array(z.string()).min(1),
-    requiredApprovals: z.number().min(1).optional(),
-  })).min(1),
-  mode: z.enum(['serial', 'parallel']).optional(),
-  isDefault: z.boolean().optional(),
-});
-
-interface ApprovalRoutesOptions {
-  database: DatabasePool;
+export interface ApprovalRoutesOptions {
+  database?: Pool | DatabasePool;
 }
 
-export default async function approvalRoutes(app: FastifyInstance, options: ApprovalRoutesOptions): Promise<void> {
-  const approvalService = new ApprovalService(options.database);
-  const multiLevelService = new MultiLevelApprovalService(options.database);
-  const emergencyService = new EmergencyApprovalService(options.database);
-  const templateService = new ApprovalTemplateService(options.database);
-  const controller = new ApprovalController(multiLevelService, emergencyService, templateService);
+export async function registerApprovalRoutes(
+  app: FastifyInstance,
+  options: ApprovalRoutesOptions
+): Promise<void> {
+  // Use database pool if available, otherwise create services without persistence (fallback)
+  const db = options.database as DatabasePool | undefined;
 
-  // ==================== Legacy Approval Endpoints (P0-7) ====================
+  let multiLevelService: MultiLevelApprovalService;
+  let emergencyService: EmergencyApprovalService;
+  let templateService: ApprovalTemplateService;
 
-  // POST / - Create approval (legacy)
-  app.post('/', async (request: FastifyRequest, reply: FastifyReply) => {
-    const parseResult = createApprovalSchema.safeParse(request.body);
-    if (!parseResult.success) {
-      return reply.status(400).send({
-        error: 'VALIDATION_ERROR',
-        details: parseResult.error.issues,
-      });
-    }
-    const { title, description, requesterId, approverIds, requiredApprovals, metadata } = parseResult.data;
-    const req = await approvalService.createApproval(title, requesterId, approverIds, requiredApprovals || 1, description, metadata);
-    return reply.send(req);
-  });
+  if (db) {
+    multiLevelService = new MultiLevelApprovalService(db);
+    emergencyService = new EmergencyApprovalService(db);
+    templateService = new ApprovalTemplateService(db);
+  } else {
+    // Fallback: This should not happen in production, but we throw an error
+    throw new Error('Database connection is required for ApprovalService');
+  }
 
-  // GET / - List pending (legacy)
-  app.get('/', async (_request: FastifyRequest, reply: FastifyReply) => {
-    const approvals = await approvalService.listPending();
-    return reply.send({ approvals });
-  });
+  // Initialize ApprovalGateRepository and ApprovalGateService
+  let gateService: ApprovalGateService;
+  if (db) {
+    const gateRepository = new ApprovalGateRepository(db as unknown as Pool);
+    gateService = new ApprovalGateService({ repository: gateRepository });
+  } else {
+    gateService = new ApprovalGateService({});
+  }
 
-  // GET /:id - Get detail (legacy)
-  app.get('/:id', async (request: FastifyRequest, reply: FastifyReply) => {
-    const { id } = request.params as { id: string };
-    const req = await approvalService.getApproval(id);
-    if (!req) return reply.status(404).send({ error: 'NOT_FOUND' });
-    return reply.send(req);
-  });
+  const controller = new ApprovalController(
+    multiLevelService,
+    emergencyService,
+    templateService,
+    gateService
+  );
 
-  // POST /:id/approve - Approve (legacy)
-  app.post('/:id/approve', async (request: FastifyRequest, reply: FastifyReply) => {
-    const { id } = request.params as { id: string };
-    const parseResult = approveRejectSchema.safeParse(request.body);
-    if (!parseResult.success) {
-      return reply.status(400).send({ error: 'VALIDATION_ERROR', details: parseResult.error.issues });
-    }
-    const { userId } = parseResult.data;
-    try {
-      const result = await approvalService.approve(id, userId);
-      return reply.send(result);
-    } catch (err: any) {
-      return reply.status(400).send({ error: err.message });
-    }
-  });
+  // ==================== Multi-Level Approval (auth protected) ====================
+  await app.register(async (instance: FastifyInstance) => {
+    instance.addHook('onRequest', authenticateUser);
 
-  // POST /:id/reject - Reject (legacy)
-  app.post('/:id/reject', async (request: FastifyRequest, reply: FastifyReply) => {
-    const { id } = request.params as { id: string };
-    const parseResult = approveRejectSchema.safeParse(request.body);
-    if (!parseResult.success) {
-      return reply.status(400).send({ error: 'VALIDATION_ERROR', details: parseResult.error.issues });
-    }
-    const { userId } = parseResult.data;
-    try {
-      const result = await approvalService.reject(id, userId);
-      return reply.send(result);
-    } catch (err: any) {
-      return reply.status(400).send({ error: err.message });
-    }
-  });
+    // POST /api/v1/approvals/requests - 提交审批请求
+    instance.post(
+      '/v1/approvals/requests',
+      async (request: FastifyRequest, reply: FastifyReply) => {
+        return controller.submitApprovalRequest(request, reply);
+      }
+    );
 
-  // ==================== Phase 2: Multi-Level Approval ====================
+    // GET /api/v1/approvals/requests - 审批列表
+    instance.get(
+      '/v1/approvals/requests',
+      async (request: FastifyRequest, reply: FastifyReply) => {
+        return controller.listApprovalRequests(request, reply);
+      }
+    );
 
-  // POST /requests - Submit multi-level approval request
-  app.post('/requests', async (request: FastifyRequest, reply: FastifyReply) => {
-    const parseResult = submitApprovalSchema.safeParse(request.body);
-    if (!parseResult.success) {
-      return reply.status(400).send({
-        error: 'VALIDATION_ERROR',
-        details: parseResult.error.issues,
-      });
-    }
-    return controller.submitApprovalRequest(request, reply);
-  });
+    // GET /api/v1/approvals/requests/:id - 审批详情
+    instance.get(
+      '/v1/approvals/requests/:id',
+      async (request: FastifyRequest, reply: FastifyReply) => {
+        return controller.getApprovalRequest(request, reply);
+      }
+    );
 
-  // GET /requests - List approval requests
-  app.get('/requests', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.listApprovalRequests(request, reply);
-  });
+    // POST /api/v1/approvals/requests/:id/review - 审批操作
+    instance.post(
+      '/v1/approvals/requests/:id/review',
+      async (request: FastifyRequest, reply: FastifyReply) => {
+        return controller.reviewApproval(request, reply);
+      }
+    );
 
-  // GET /requests/:id - Get approval request detail (Phase 2)
-  app.get('/requests/:id', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.getApprovalRequest(request, reply);
-  });
+    // GET /api/v1/approvals/pending - 待审批列表
+    instance.get(
+      '/v1/approvals/pending',
+      async (request: FastifyRequest, reply: FastifyReply) => {
+        return controller.getPendingApprovals(request, reply);
+      }
+    );
 
-  // POST /requests/:id/review - Review approval (approve/reject)
-  app.post('/requests/:id/review', async (request: FastifyRequest, reply: FastifyReply) => {
-    const parseResult = reviewSchema.safeParse(request.body);
-    if (!parseResult.success) {
-      return reply.status(400).send({
-        error: 'VALIDATION_ERROR',
-        details: parseResult.error.issues,
-      });
-    }
-    return controller.reviewApproval(request, reply);
-  });
+    // ==================== Emergency Approval ====================
+    // POST /api/v1/approvals/emergency - 紧急审批
+    instance.post(
+      '/v1/approvals/emergency',
+      async (request: FastifyRequest, reply: FastifyReply) => {
+        return controller.requestEmergencyApproval(request, reply);
+      }
+    );
 
-  // GET /pending - Get pending approvals for user
-  app.get('/pending', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.getPendingApprovals(request, reply);
-  });
+    // ==================== Templates ====================
+    // POST /api/v1/approvals/templates - 创建模板
+    instance.post(
+      '/v1/approvals/templates',
+      async (request: FastifyRequest, reply: FastifyReply) => {
+        return controller.createTemplate(request, reply);
+      }
+    );
 
-  // ==================== Phase 2: Emergency Approval ====================
+    // GET /api/v1/approvals/templates - 模板列表
+    instance.get(
+      '/v1/approvals/templates',
+      async (request: FastifyRequest, reply: FastifyReply) => {
+        return controller.getTemplates(request, reply);
+      }
+    );
 
-  // POST /emergency - Emergency approval
-  app.post('/emergency', async (request: FastifyRequest, reply: FastifyReply) => {
-    const parseResult = emergencyApprovalSchema.safeParse(request.body);
-    if (!parseResult.success) {
-      return reply.status(400).send({
-        error: 'VALIDATION_ERROR',
-        details: parseResult.error.issues,
-      });
-    }
-    return controller.requestEmergencyApproval(request, reply);
-  });
+    // ==================== Approval Gate (Pipeline) ====================
+    // GET /api/v1/pipeline-runs/:runId/approvals - 获取 run 的所有审批
+    instance.get(
+      '/v1/pipeline-runs/:runId/approvals',
+      async (request: FastifyRequest, reply: FastifyReply) => {
+        return controller.listByRun(request, reply);
+      }
+    );
 
-  // ==================== Phase 2: Approval Templates ====================
+    // GET /api/v1/pipeline-runs/:runId/stages/:stageId/approval - 获取 stage 审批状态
+    instance.get(
+      '/v1/pipeline-runs/:runId/stages/:stageId/approval',
+      async (request: FastifyRequest, reply: FastifyReply) => {
+        return controller.getStatus(request, reply);
+      }
+    );
 
-  // POST /templates - Create approval template
-  app.post('/templates', async (request: FastifyRequest, reply: FastifyReply) => {
-    const parseResult = templateSchema.safeParse(request.body);
-    if (!parseResult.success) {
-      return reply.status(400).send({
-        error: 'VALIDATION_ERROR',
-        details: parseResult.error.issues,
-      });
-    }
-    return controller.createTemplate(request, reply);
-  });
+    // POST /api/v1/pipeline-runs/:runId/stages/:stageId/approve - 审批通过
+    instance.post(
+      '/v1/pipeline-runs/:runId/stages/:stageId/approve',
+      async (request: FastifyRequest, reply: FastifyReply) => {
+        return controller.approve(request, reply);
+      }
+    );
 
-  // GET /templates - Get template list
-  app.get('/templates', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.getTemplates(request, reply);
+    // POST /api/v1/pipeline-runs/:runId/stages/:stageId/reject - 审批拒绝
+    instance.post(
+      '/v1/pipeline-runs/:runId/stages/:stageId/reject',
+      async (request: FastifyRequest, reply: FastifyReply) => {
+        return controller.reject(request, reply);
+      }
+    );
   });
 }
+
+export default registerApprovalRoutes;

@@ -37,6 +37,9 @@ import { VariableContext } from './VariableContext';
 import { DebugController } from './DebugController';
 import { YamlPreprocessor } from './YamlPreprocessor';
 import { SharedActionService } from '../services/pipeline/SharedActionService';
+import { SecretsService } from '../services/pipeline/SecretsService';
+import { SecretRepository } from '../repositories/SecretRepository';
+import { getGlobalSecretsService } from '../api/secret-routes';
 import pino from 'pino';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
@@ -76,6 +79,7 @@ export class PipelineEngine {
   private qualityGateService: QualityGateService | null;
   private deploymentStrategyService: DeploymentStrategyService | null;
   private yamlPreprocessor: YamlPreprocessor | null;
+  private secretsService: SecretsService | null;
 
   // 内存存储执行中的 Pipeline
   private executions = new Map<string, PipelineExecution>();
@@ -109,7 +113,8 @@ export class PipelineEngine {
     webhookConfigRepo?: WebhookConfigRepository,
     qualityGateService?: QualityGateService,
     deploymentStrategyService?: DeploymentStrategyService,
-    yamlPreprocessor?: YamlPreprocessor | null
+    yamlPreprocessor?: YamlPreprocessor | null,
+    secretsService?: SecretsService | null
   ) {
     this.pipelineService = pipelineService;
     this.runService = runService;
@@ -132,6 +137,24 @@ export class PipelineEngine {
     this.qualityGateService = qualityGateService || null;
     this.deploymentStrategyService = deploymentStrategyService || null;
     this.yamlPreprocessor = yamlPreprocessor || null;
+    this.secretsService = secretsService || null;
+  }
+
+  /**
+   * Initialize SecretsService from database connection.
+   * Called during route registration to share the same instance.
+   */
+  initializeSecrets(database: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }, masterKey?: string): void {
+    if (!database) return;
+    const repo = new SecretRepository(database);
+    this.secretsService = new SecretsService(repo, masterKey);
+  }
+
+  /**
+   * Get the SecretsService instance (for external access)
+   */
+  getSecretsService(): SecretsService | null {
+    return this.secretsService;
   }
 
   /**
@@ -545,6 +568,33 @@ export class PipelineEngine {
       for (const task of resolvedTasks) {
         if (task.status !== 'pending') continue;
 
+        // Resolve ${secrets.XXX} references in task parameters before execution
+        let resolvedTask = task;
+        const secretsSvc = this.secretsService || getGlobalSecretsService();
+        if (secretsSvc) {
+          const tenantId = (execution.run.context as any)?.tenantId || 'default';
+          if (tenantId) {
+            try {
+              const secretResult = await secretsSvc.resolveAndReplaceSecrets(tenantId, task.parameters);
+              if (secretResult.secretValues.length > 0 || secretResult.unresolved.length > 0) {
+                logger.info(
+                  { taskId: task.id, resolved: secretResult.secretValues.length, unresolved: secretResult.unresolved.length },
+                  'Secret references resolved in task parameters'
+                );
+              }
+              // If there are unresolved references, fail the task instead of silently passing through
+              if (secretResult.unresolved.length > 0) {
+                throw new Error(`Unresolved secret references: ${secretResult.unresolved.join(', ')}`);
+              }
+              // Update task parameters with resolved values
+              resolvedTask = { ...task, parameters: secretResult.parameters };
+            } catch (error) {
+              // Re-throw to fail the task if secrets can't be resolved
+              throw error;
+            }
+          }
+        }
+
         // Debug integration: check if we should pause before this task
         if (this.debugController && this.debugController.shouldPause(execution.run.id)) {
           // Block until resume signal (or step mode allows one task)
@@ -555,7 +605,7 @@ export class PipelineEngine {
           execution.run.pipelineId,
           execution.run.id,
           stage,
-          task,
+          resolvedTask,
           { stageName: stage.name, taskName: task.name }
         );
         await this.runService.updateTask(result);
@@ -1733,7 +1783,7 @@ export class PipelineEngine {
     }
 
     // 检查是否已有审批记录
-    const existingStatus = this.approvalGateService.getStatus(execution.run.id, stage.id);
+    const existingStatus = await this.approvalGateService.getStatus(execution.run.id, stage.id);
     if (existingStatus) {
       if (existingStatus.status === 'approved') {
         return 'proceed';
@@ -1865,7 +1915,7 @@ export class PipelineEngine {
   /**
    * 获取审批状态
    */
-  getApprovalStatus(runId: string, stageId: string) {
+  async getApprovalStatus(runId: string, stageId: string) {
     if (!this.approvalGateService) return null;
     return this.approvalGateService.getStatus(runId, stageId);
   }
@@ -1873,7 +1923,7 @@ export class PipelineEngine {
   /**
    * 获取 run 的所有审批请求
    */
-  getApprovalRequestsByRun(runId: string) {
+  async getApprovalRequestsByRun(runId: string) {
     if (!this.approvalGateService) return [];
     return this.approvalGateService.getByRun(runId);
   }

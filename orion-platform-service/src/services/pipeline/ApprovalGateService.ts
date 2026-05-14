@@ -1,106 +1,178 @@
 /**
- * ApprovalGateService - Pipeline 人工审批网关
+ * ApprovalGateService - Pipeline 审批门禁服务
  *
- * 负责：
- * - 在 stage 执行前请求审批
- * - 审批通过/拒绝后恢复/终止 pipeline 执行
- * - 管理审批状态、审批人、审批原因
- *
- * 审批流程：
- * 1. PipelineEngine 检查 stage 是否需要审批 (approval: true)
- * 2. 调用 requestApproval 暂停 pipeline
- * 3. 等待用户调用 approve 或 reject
- * 4. PipelineEngine 根据结果继续或终止
+ * 管理 Pipeline Run 中每个 Stage 的审批门禁。
+ * 当 Pipeline 配置了审批阶段时，执行到该阶段会暂停，等待人工审批。
  */
+import { Pool } from 'pg';
+import { ApprovalGateRepository, ApprovalGateEntity } from '../../repositories/ApprovalGateRepository';
 
-import pino from 'pino';
+// ==================== Types ====================
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
-
-export type ApprovalStatus = 'pending' | 'approved' | 'rejected' | 'cancelled';
-
-export interface ApprovalRequest {
+export interface ApprovalGate {
   id: string;
+  tenantId: string;
   runId: string;
   stageId: string;
-  stageName: string;
-  approvers: string[]; // user IDs who can approve
-  reason: string;
-  status: ApprovalStatus;
+  status: 'pending' | 'approved' | 'rejected' | 'cancelled';
+  requestedBy: string;
+  requestedAt: Date;
+  reviewedBy?: string;
+  reviewedAt?: Date;
+  comment?: string;
+  approverIds: string[];
+  metadata?: Record<string, unknown>;
   createdAt: Date;
-  respondedAt?: Date;
-  respondedBy?: string;
-  responseComment?: string;
-  tenantId?: string;
+  updatedAt: Date;
 }
 
-export interface ApprovalRequestInput {
+export interface ApprovalGateCreateInput {
   runId: string;
   stageId: string;
-  stageName: string;
+  requestedBy: string;
+  approverIds: string[];
+  metadata?: Record<string, unknown>;
+}
+
+export interface ApprovalGateStatus {
+  gate: ApprovalGate;
+  canProceed: boolean;
+  message: string;
+}
+
+export interface ApprovalGateStatus {
+  gate: ApprovalGate;
+  status: 'pending' | 'approved' | 'rejected' | 'cancelled';
+  canProceed: boolean;
+  message: string;
+}
+
+export interface ApprovalGateRequestInput {
+  runId: string;
+  stageId: string;
+  stageName?: string;
   approvers: string[];
   reason?: string;
   tenantId?: string;
 }
 
-export class ApprovalGateServiceError extends Error {
-  constructor(message: string, public code: string) {
-    super(message);
-    this.name = 'ApprovalGateServiceError';
-  }
-}
-
 export class ApprovalGateService {
-  // 内存存储审批请求：runId:stageId -> ApprovalRequest
-  private requests = new Map<string, ApprovalRequest>();
-  private counter = 0;
-  private cleanupInterval?: NodeJS.Timeout;
-  private maxAgeMs: number;
+  private pool: Pool | null;
+  private repository: ApprovalGateRepository | null = null;
 
-  constructor(options?: { maxAgeHours?: number }) {
-    this.maxAgeMs = (options?.maxAgeHours ?? 48) * 60 * 60 * 1000; // Default: 48 hours
-    this.startCleanupInterval();
+  constructor(options?: { db?: Pool; repository?: ApprovalGateRepository }) {
+    this.pool = options?.db ?? null;
+    if (options?.repository) {
+      this.repository = options.repository;
+    } else if (this.pool) {
+      this.repository = new ApprovalGateRepository(this.pool);
+    }
   }
 
   /**
-   * 请求审批
+   * 创建审批请求（Pipeline Engine 调用）
    */
-  async requestApproval(input: ApprovalRequestInput): Promise<ApprovalRequest> {
-    if (!input.runId || !input.stageId || !input.approvers || input.approvers.length === 0) {
-      throw new ApprovalGateServiceError(
-        'Missing required fields: runId, stageId, approvers',
-        'INVALID_INPUT'
+  async requestApproval(input: ApprovalGateRequestInput): Promise<ApprovalGate> {
+    return this.createGate(input.tenantId || 'default', {
+      runId: input.runId,
+      stageId: input.stageId,
+      requestedBy: input.approvers[0] || 'system',
+      approverIds: input.approvers,
+      metadata: { stageName: input.stageName, reason: input.reason },
+    });
+  }
+
+  /**
+   * 创建审批门禁
+   */
+  async createGate(tenantId: string, input: ApprovalGateCreateInput): Promise<ApprovalGate> {
+    if (this.repository) {
+      const entity = await this.repository.create({
+        tenantId,
+        runId: input.runId,
+        stageId: input.stageId,
+        requestedBy: input.requestedBy,
+        approverIds: input.approverIds,
+        metadata: input.metadata,
+      });
+      return this.mapEntityToGate(entity);
+    }
+
+    // Fallback to in-memory if no repository
+    const now = new Date();
+    const gate: ApprovalGate = {
+      id: `gate-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+      tenantId,
+      runId: input.runId,
+      stageId: input.stageId,
+      status: 'pending',
+      requestedBy: input.requestedBy,
+      requestedAt: now,
+      approverIds: input.approverIds,
+      metadata: input.metadata,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    if (this.pool) {
+      await this.pool.query(
+        `INSERT INTO approval_gates (id, tenant_id, run_id, stage_id, status, requested_by, approver_ids, metadata, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+        [
+          gate.id,
+          gate.tenantId,
+          gate.runId,
+          gate.stageId,
+          gate.status,
+          gate.requestedBy,
+          JSON.stringify(gate.approverIds),
+          gate.metadata ? JSON.stringify(gate.metadata) : null,
+          gate.createdAt,
+          gate.updatedAt,
+        ]
       );
     }
 
-    const key = this.makeKey(input.runId, input.stageId);
+    return gate;
+  }
 
-    // 如果已有 pending 的审批，返回已有的
-    const existing = this.requests.get(key);
-    if (existing && existing.status === 'pending') {
-      return existing;
+  /**
+   * 根据 Run ID 获取所有审批门禁
+   */
+  async getByRun(runId: string): Promise<ApprovalGate[]> {
+    if (this.repository) {
+      const entities = await this.repository.findByRunId(runId);
+      return entities.map(e => this.mapEntityToGate(e));
+    }
+    return [];
+  }
+
+  /**
+   * 获取特定 Stage 的审批状态
+   */
+  async getStatus(runId: string, stageId: string): Promise<ApprovalGateStatus | undefined> {
+    let gate: ApprovalGate | undefined;
+
+    if (this.repository) {
+      const entity = await this.repository.findByRunAndStage(runId, stageId);
+      if (entity) {
+        gate = this.mapEntityToGate(entity);
+      }
     }
 
-    const request: ApprovalRequest = {
-      id: this.generateId(),
-      runId: input.runId,
-      stageId: input.stageId,
-      stageName: input.stageName,
-      approvers: input.approvers,
-      reason: input.reason || 'Approval required before proceeding',
-      status: 'pending',
-      createdAt: new Date(),
-      tenantId: input.tenantId,
+    if (!gate) return undefined;
+
+    return {
+      gate,
+      status: gate.status,
+      canProceed: gate.status === 'approved',
+      message:
+        gate.status === 'approved'
+          ? 'Approved, stage can proceed'
+          : gate.status === 'rejected'
+          ? `Rejected: ${gate.comment || 'No comment'}`
+          : `Pending approval from: ${gate.approverIds.join(', ')}`,
     };
-
-    this.requests.set(key, request);
-
-    logger.info(
-      { runId: input.runId, stageName: input.stageName, approvers: input.approvers },
-      'Approval requested'
-    );
-
-    return request;
   }
 
   /**
@@ -111,28 +183,36 @@ export class ApprovalGateService {
     stageId: string,
     userId: string,
     comment?: string
-  ): Promise<ApprovalRequest> {
-    const request = this.getPendingRequest(runId, stageId);
+  ): Promise<ApprovalGate> {
+    if (this.repository) {
+      const entity = await this.repository.findByRunAndStage(runId, stageId);
+      if (!entity) {
+        throw new Error('No pending approval request found for this stage');
+      }
+      if (entity.status !== 'pending') {
+        throw new Error(`Approval is ${entity.status}, not pending`);
+      }
+      if (!entity.approverIds.includes(userId)) {
+        throw new Error('Not authorized to approve');
+      }
 
-    // 验证审批人
-    if (!request.approvers.includes(userId)) {
-      throw new ApprovalGateServiceError(
-        `User '${userId}' is not authorized to approve this request`,
-        'UNAUTHORIZED_APPROVER'
-      );
+      const now = new Date();
+      const updated = await this.repository.update(entity.id, {
+        status: 'approved',
+        reviewedBy: userId,
+        reviewedAt: now,
+        comment: comment || undefined,
+      });
+
+      if (!updated) {
+        throw new Error('Failed to update approval gate');
+      }
+
+      return this.mapEntityToGate(updated);
     }
 
-    request.status = 'approved';
-    request.respondedAt = new Date();
-    request.respondedBy = userId;
-    request.responseComment = comment;
-
-    logger.info(
-      { runId, stageId, userId },
-      'Approval granted'
-    );
-
-    return request;
+    // Fallback to in-memory (should not reach here in normal operation)
+    throw new Error('Repository required for approval operation');
   }
 
   /**
@@ -143,166 +223,103 @@ export class ApprovalGateService {
     stageId: string,
     userId: string,
     comment?: string
-  ): Promise<ApprovalRequest> {
-    const request = this.getPendingRequest(runId, stageId);
+  ): Promise<ApprovalGate> {
+    if (this.repository) {
+      const entity = await this.repository.findByRunAndStage(runId, stageId);
+      if (!entity) {
+        throw new Error('No pending approval request found for this stage');
+      }
+      if (entity.status !== 'pending') {
+        throw new Error(`Approval is ${entity.status}, not pending`);
+      }
+      if (!entity.approverIds.includes(userId)) {
+        throw new Error('Not authorized to reject');
+      }
 
-    // 验证审批人
-    if (!request.approvers.includes(userId)) {
-      throw new ApprovalGateServiceError(
-        `User '${userId}' is not authorized to reject this request`,
-        'UNAUTHORIZED_APPROVER'
+      const now = new Date();
+      const updated = await this.repository.update(entity.id, {
+        status: 'rejected',
+        reviewedBy: userId,
+        reviewedAt: now,
+        comment: comment || undefined,
+      });
+
+      if (!updated) {
+        throw new Error('Failed to update approval gate');
+      }
+
+      return this.mapEntityToGate(updated);
+    }
+
+    // Fallback to in-memory (should not reach here in normal operation)
+    throw new Error('Repository required for reject operation');
+  }
+
+  /**
+   * 取消审批门禁
+   */
+  async cancelGate(runId: string, stageId: string): Promise<void> {
+    if (this.repository) {
+      const entity = await this.repository.findByRunAndStage(runId, stageId);
+      if (!entity) return;
+
+      await this.repository.update(entity.id, {
+        status: 'cancelled',
+      });
+      return;
+    }
+
+    // Fallback to in-memory
+    if (this.pool) {
+      const result = await this.pool.query(
+        `UPDATE approval_gates SET status = 'cancelled', updated_at = $1 WHERE run_id = $2 AND stage_id = $3`,
+        [new Date(), runId, stageId]
       );
     }
-
-    request.status = 'rejected';
-    request.respondedAt = new Date();
-    request.respondedBy = userId;
-    request.responseComment = comment;
-
-    logger.info(
-      { runId, stageId, userId },
-      'Approval rejected'
-    );
-
-    return request;
   }
 
   /**
-   * 取消审批请求
+   * 检查 Stage 是否需要审批门禁
    */
-  async cancel(runId: string, stageId: string): Promise<ApprovalRequest | null> {
-    const key = this.makeKey(runId, stageId);
-    const request = this.requests.get(key);
-    if (!request) return null;
-
-    request.status = 'cancelled';
-    request.respondedAt = new Date();
-
-    logger.info({ runId, stageId }, 'Approval request cancelled');
-    return request;
-  }
-
-  /**
-   * 获取审批状态
-   */
-  getStatus(runId: string, stageId: string): ApprovalRequest | null {
-    const key = this.makeKey(runId, stageId);
-    return this.requests.get(key) ?? null;
-  }
-
-  /**
-   * 获取某个 run 的所有审批请求
-   */
-  getByRun(runId: string): ApprovalRequest[] {
-    const results: ApprovalRequest[] = [];
-    for (const request of this.requests.values()) {
-      if (request.runId === runId) {
-        results.push(request);
-      }
+  async isApprovalRequired(runId: string, stageId: string): Promise<boolean> {
+    if (this.repository) {
+      return this.repository.isApprovalRequired(runId, stageId);
     }
-    return results;
+    return false;
   }
 
   /**
-   * 检查是否需要审批（快速检查）
+   * 获取待审批列表（按审批人）
    */
-  isApprovalPending(runId: string, stageId: string): boolean {
-    const request = this.getStatus(runId, stageId);
-    return request !== null && request.status === 'pending';
+  async getPendingByApprover(approverId: string, tenantId: string): Promise<ApprovalGate[]> {
+    if (this.repository) {
+      const entities = await this.repository.findPendingByApprover(approverId, tenantId);
+      return entities.map(e => this.mapEntityToGate(e));
+    }
+    return [];
   }
 
   /**
-   * 检查是否已批准
+   * Map entity to ApprovalGate
    */
-  isApproved(runId: string, stageId: string): boolean {
-    const request = this.getStatus(runId, stageId);
-    return request !== null && request.status === 'approved';
-  }
-
-  /**
-   * 检查是否已拒绝
-   */
-  isRejected(runId: string, stageId: string): boolean {
-    const request = this.getStatus(runId, stageId);
-    return request !== null && request.status === 'rejected';
-  }
-
-  /**
-   * 清理某个 run 的所有审批记录
-   */
-  cleanupRun(runId: string): void {
-    const toDelete: string[] = [];
-    for (const [key, request] of this.requests.entries()) {
-      if (request.runId === runId) {
-        toDelete.push(key);
-      }
-    }
-    for (const key of toDelete) {
-      this.requests.delete(key);
-    }
-  }
-
-  /**
-   * 关闭审批服务（清理定时器）
-   */
-  shutdown(): void {
-    if (this.cleanupInterval) {
-      clearInterval(this.cleanupInterval);
-    }
-  }
-
-  /**
-   * 清理过期的审批记录
-   */
-  private cleanupExpiredRequests(): void {
-    const now = Date.now();
-    let removed = 0;
-    for (const [key, request] of this.requests.entries()) {
-      if (now - request.createdAt.getTime() > this.maxAgeMs) {
-        this.requests.delete(key);
-        removed++;
-      }
-    }
-    if (removed > 0) {
-      logger.debug({ removed, remaining: this.requests.size }, 'Cleaned up expired approval requests');
-    }
-  }
-
-  /**
-   * 启动定期清理
-   */
-  private startCleanupInterval(): void {
-    this.cleanupInterval = setInterval(() => {
-      this.cleanupExpiredRequests();
-    }, 30 * 60 * 1000); // Every 30 minutes
-    this.cleanupInterval.unref();
-  }
-
-  // ==================== Internal Helpers ====================
-
-  private makeKey(runId: string, stageId: string): string {
-    return `${runId}:${stageId}`;
-  }
-
-  private getPendingRequest(runId: string, stageId: string): ApprovalRequest {
-    const request = this.getStatus(runId, stageId);
-    if (!request) {
-      throw new ApprovalGateServiceError(
-        `No pending approval request for run '${runId}', stage '${stageId}'`,
-        'NO_PENDING_APPROVAL'
-      );
-    }
-    if (request.status !== 'pending') {
-      throw new ApprovalGateServiceError(
-        `Approval request is already ${request.status}`,
-        'APPROVAL_ALREADY_RESPONDED'
-      );
-    }
-    return request;
-  }
-
-  private generateId(): string {
-    this.counter += 1;
-    return `approval-${Date.now()}-${this.counter}`;
+  private mapEntityToGate(entity: ApprovalGateEntity): ApprovalGate {
+    return {
+      id: entity.id,
+      tenantId: entity.tenantId,
+      runId: entity.runId,
+      stageId: entity.stageId,
+      status: entity.status,
+      requestedBy: entity.requestedBy,
+      requestedAt: entity.requestedAt,
+      reviewedBy: entity.reviewedBy,
+      reviewedAt: entity.reviewedAt,
+      comment: entity.comment,
+      approverIds: entity.approverIds,
+      metadata: entity.metadata,
+      createdAt: entity.createdAt,
+      updatedAt: entity.updatedAt,
+    };
   }
 }
+
+export default ApprovalGateService;
