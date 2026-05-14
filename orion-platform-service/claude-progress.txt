@@ -2,7 +2,107 @@
 
 ## Current Session (2026-05-14)
 
-### Completed: Empty-Shell Services Implementation (Round 2)
+### In Progress: TypeScript Compilation Error Fixes
+
+#### Fixed Issues (2026-05-14)
+
+| Category | Files Modified | Issues Resolved |
+|----------|---------------|-----------------|
+| code-repo exports | types.ts, index.ts | Added RepoType, PullRequestStatus, WebhookEventType, ICodeRepoAdapter, Repository, Branch, Commit, etc. |
+| ICodeRepoAdapter | GerritAdapter.ts, GitLabAdapter.ts | Fixed listRepositories, listBranches, listPullRequests, listCommits, getBranchProtection return types |
+| PolicyService | PolicyService.ts | Added listBundles, getBundle, syncBundles, testPolicy, toggle, evaluate, getEvaluationHistory |
+| PolicyEvaluationService | PolicyEvaluationService.ts | Added evaluateGate, getEvaluations, getViolationById, waiveViolation, resolveViolation, listOverrides, createOverride |
+| SecretsService | SecretsService.ts | Added getSecretEntity, listSecretEntities, getSecretEntityById, updateSecretValue, updateSecretDescription, deleteSecretById, resolveAndReplaceSecrets |
+| QueueService | QueueService.ts | Added getStats method |
+| CanaryAnalysisService | CanaryAnalysisService.ts | Added retrainModel method |
+| SbomDocumentService | SbomDocumentService.ts | Added getComplianceReport, getEO14028Compliance, getEUCRACompliance, createProvenance, listProvenance, verifyProvenance, evaluateGate, getGateHistory |
+| PipelineController | PipelineController.ts | Fixed camelCase to snake_case (created_at, created_by, updated_at) |
+| CodeRepoController | CodeRepoController.ts | Fixed method signatures and property names |
+
+#### Remaining Errors (~177)
+
+- Repository constructors passed incorrectly to services
+- Fastify instance missing emit/on methods
+- Service method signatures still mismatched in some routes
+
+---
+
+## Previous Session (2026-05-14)
+
+### Completed: Empty-Shell Services Implementation (Round 3)
+
+实现了四个空壳服务的完整功能逻辑。
+
+#### Services Implemented
+
+| Service | Location | Methods Added |
+|---------|----------|---------------|
+| DigitalTwinService | `src/services/digital-twin/DigitalTwinService.ts` | createTwin(), getTwin(), listTwins(), updateTwin(), deleteTwin(), getMetrics(), syncTwin() |
+| RiskAssessmentService | `src/services/risk-engine/RiskAssessmentService.ts` | getPrediction(), getPredictionByTarget(), listPredictions(), getRiskTrend(), getHighRiskPredictions(), clearCache() |
+| PolicyEvaluationService | `src/services/policy/PolicyEvaluationService.ts` | getComplianceStatus(), getEnforcementSummary() |
+| KnownIssueService | `src/services/issue/KnownIssueService.ts` | createIssue(), getIssue(), listIssues(), updateIssue(), deleteIssue(), resolveIssue(), linkTicket(), findByFingerprint(), getOpenIssues(), getStats() |
+| RiskPredictionRepository | `src/repositories/RiskPredictionRepository.ts` | findById() |
+
+#### Changes Made
+
+1. **DigitalTwinService** - 添加数字孪生配置管理方法：
+   - createTwin(): 创建新的数字孪生配置
+   - getTwin()/listTwins(): 查询数字孪生
+   - updateTwin(): 更新数字孪生配置 (status, serviceStates, healthScore)
+   - deleteTwin(): 删除数字孪生
+   - getMetrics(): 获取数字孪生指标 (健康分, 服务数量, sandbox数量)
+   - syncTwin(): 同步数字孪生状态
+   - 集成 DigitalTwinEnhancedRepository (TwinConfigRepository, SandboxRepository, RecordingSessionRepository)
+
+2. **RiskAssessmentService** - 添加风险预测查询方法：
+   - getPrediction(): 根据ID获取预测结果
+   - getPredictionByTarget(): 根据目标类型和ID获取预测
+   - listPredictions(): 列表查询预测结果 (支持按租户/风险等级过滤)
+   - getRiskTrend(): 获取风险趋势 (按天统计)
+   - getHighRiskPredictions(): 获取高风险预测列表
+   - clearCache(): 清除缓存
+
+3. **PolicyEvaluationService** - 添加合规状态查询：
+   - getComplianceStatus(): 获取合规状态统计 (通过率, 按策略统计)
+   - getEnforcementSummary(): 获取策略执行摘要 (违规数, 策略统计)
+
+4. **KnownIssueService** - 创建新的已知问题管理服务：
+   - 完整的 CRUD 操作
+   - 解决/链接工单操作
+   - 按指纹搜索 (去重功能)
+   - 统计功能
+
+5. **RiskPredictionRepository** - 添加 findById() 方法
+
+#### TypeScript 验证
+```
+npx tsc --noEmit
+# 仅 Controller 有预存在的编译错误, 我们的服务实现无错误
+```
+
+---
+
+### Previous: Operations Services PostgreSQL Repository Migration
+
+迁移运维相关服务到 PostgreSQL Repository。
+
+#### Services Migrated
+| Service | Status | Notes |
+|---------|--------|-------|
+| OnCallService | ✅ Migrated | Requires PostgreSQL, removed in-memory Map fallback |
+| NamespacePoolService | ✅ Migrated | Requires PostgreSQL (constructor now requires db param) |
+| MaintenanceWindowService | ✅ Created | New service with full CRUD using existing Repository |
+| CronSchedulerService | ✅ Already migrated | Already uses CronJobRepository/CronExecutionRepository |
+
+#### Test Results
+```
+NamespacePoolService tests: 31 passed
+OnCallService tests: 6 passed
+```
+
+---
+
+### Previous: Empty-Shell Services Implementation (Round 2)
 
 实现了四个空壳服务的完整功能逻辑。
 
