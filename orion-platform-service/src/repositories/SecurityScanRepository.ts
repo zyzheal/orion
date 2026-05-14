@@ -166,6 +166,17 @@ export class SecurityScanRepository extends BaseRepository<SecurityScanEntity> {
     };
   }
 
+  /**
+   * Find recent scans across all repositories
+   */
+  async findRecent(limit: number = 10): Promise<SecurityScanEntity[]> {
+    const result = await this.db.query(
+      `SELECT * FROM security_scans ORDER BY created_at DESC LIMIT $1`,
+      [limit]
+    );
+    return result.rows.map(row => this.mapRowToEntity(row));
+  }
+
   protected mapRowToEntity(row: any): SecurityScanEntity {
     return {
       id: row.id,

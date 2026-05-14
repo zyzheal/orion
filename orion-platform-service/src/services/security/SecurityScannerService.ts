@@ -99,7 +99,6 @@ export class SecurityScannerService {
   private secretSanitizer: SecretSanitizer;
   private scanRepository: SecurityScanRepository | null = null;
   private findingRepository: SecurityFindingRepository | null = null;
-  private memoryCache: Map<string, ScanResult[]>; // Fallback memory cache
 
   constructor(options?: {
     scanRepository?: SecurityScanRepository;
@@ -108,7 +107,6 @@ export class SecurityScannerService {
     this.secretSanitizer = new SecretSanitizer();
     this.scanRepository = options?.scanRepository ?? null;
     this.findingRepository = options?.findingRepository ?? null;
-    this.memoryCache = new Map();
   }
 
   /**
@@ -247,12 +245,7 @@ export class SecurityScannerService {
       summary: { ...summary, gateFailed },
     };
 
-    // Store in memory cache (fallback)
-    const existing = this.memoryCache.get(options.repository) || [];
-    existing.push(result);
-    this.memoryCache.set(options.repository, existing.slice(-50)); // Keep last 50
-
-    // Persist to database if repository available
+    // Persist to database
     if (this.scanRepository && this.findingRepository) {
       try {
         await this.persistScanResult(result, options.repository);
@@ -607,74 +600,57 @@ export class SecurityScannerService {
     findings: SecurityFinding[];
     summary: ScanSummary;
   }> {
-    // First check memory cache
-    let foundScan: ScanResult | undefined;
-
-    for (const scans of this.memoryCache.values()) {
-      foundScan = scans.find(s => s.id === scanId);
-      if (foundScan) break;
-    }
-
-    // If not in memory, check database
-    if (!foundScan && this.scanRepository && this.findingRepository) {
-      try {
-        const dbScan = await this.scanRepository.findById(scanId);
-        if (dbScan) {
-          const dbFindings = await this.findingRepository.findByScanId(scanId);
-          foundScan = this.entityToScanResult(dbScan, dbFindings);
-        }
-      } catch (error) {
-        logger.warn({ error }, '[SecurityScanner] Database lookup failed');
-      }
-    }
-
-    if (!foundScan) {
+    // Look up from database
+    if (!this.scanRepository || !this.findingRepository) {
       throw new Error(`Scan ${scanId} not found`);
     }
 
-    const failed = this.checkGateFailure(foundScan.findings, failOnSeverity);
+    try {
+      const dbScan = await this.scanRepository.findById(scanId);
+      if (!dbScan) {
+        throw new Error(`Scan ${scanId} not found`);
+      }
 
-    return {
-      passed: !failed,
-      findings: foundScan.findings,
-      summary: foundScan.summary,
-    };
+      const dbFindings = await this.findingRepository.findByScanId(scanId);
+      const foundScan = this.entityToScanResult(dbScan, dbFindings);
+      const failed = this.checkGateFailure(foundScan.findings, failOnSeverity);
+
+      return {
+        passed: !failed,
+        findings: foundScan.findings,
+        summary: foundScan.summary,
+      };
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('not found')) {
+        throw error;
+      }
+      logger.warn({ error }, '[SecurityScanner] Database lookup failed');
+      throw new Error(`Scan ${scanId} not found`);
+    }
   }
 
   /**
    * Get scan history for a repository
    */
   async getScanHistory(repository: string, options?: { limit?: number }): Promise<ScanResult[]> {
-    // Check memory cache first
-    const memoryResults = this.memoryCache.get(repository) || [];
-
-    // If repository available, get from database
-    if (this.scanRepository && this.findingRepository) {
-      try {
-        const dbScans = await this.scanRepository.findByRepository(repository, options);
-        const results: ScanResult[] = [];
-
-        for (const dbScan of dbScans) {
-          const dbFindings = await this.findingRepository.findByScanId(dbScan.id);
-          results.push(this.entityToScanResult(dbScan, dbFindings));
-        }
-
-        // Merge with memory cache (memory is more recent)
-        const merged = [...memoryResults];
-        for (const dbResult of results) {
-          if (!merged.find(m => m.id === dbResult.id)) {
-            merged.push(dbResult);
-          }
-        }
-
-        return merged.slice(-(options?.limit ?? 50));
-      } catch (error) {
-        logger.warn({ error }, '[SecurityScanner] Database history lookup failed');
-        return memoryResults;
-      }
+    if (!this.scanRepository || !this.findingRepository) {
+      return [];
     }
 
-    return memoryResults;
+    try {
+      const dbScans = await this.scanRepository.findByRepository(repository, options);
+      const results: ScanResult[] = [];
+
+      for (const dbScan of dbScans) {
+        const dbFindings = await this.findingRepository.findByScanId(dbScan.id);
+        results.push(this.entityToScanResult(dbScan, dbFindings));
+      }
+
+      return results.slice(-(options?.limit ?? 50));
+    } catch (error) {
+      logger.warn({ error }, '[SecurityScanner] Database history lookup failed');
+      return [];
+    }
   }
 
   /**
@@ -687,34 +663,7 @@ export class SecurityScannerService {
     highCount: number;
     trend: 'improving' | 'degrading' | 'stable';
   }> {
-    // Get scans from memory or database
-    let scans: ScanResult[];
-
-    if (this.scanRepository && !repository) {
-      try {
-        const stats = await this.scanRepository.getScanStats();
-        // Calculate trend from recent scans
-        const recentScans = await this.getRecentScansFromDb(10);
-        const trend = this.calculateTrend(recentScans);
-
-        return {
-          totalScans: stats.totalScans,
-          averageFindings: Math.round(stats.avgFindings),
-          criticalCount: 0, // Would need aggregation query
-          highCount: 0,
-          trend,
-        };
-      } catch (error) {
-        logger.warn({ error }, '[SecurityScanner] Database metrics lookup failed');
-      }
-    }
-
-    // Fallback to memory cache
-    scans = repository
-      ? this.memoryCache.get(repository) || []
-      : Array.from(this.memoryCache.values()).flat();
-
-    if (scans.length === 0) {
+    if (!this.scanRepository || !this.findingRepository) {
       return {
         totalScans: 0,
         averageFindings: 0,
@@ -724,32 +673,34 @@ export class SecurityScannerService {
       };
     }
 
-    const totalFindings = scans.reduce((sum, s) => sum + s.findings.length, 0);
-    const criticalCount = scans.reduce((sum, s) => sum + s.summary.critical, 0);
-    const highCount = scans.reduce((sum, s) => sum + s.summary.high, 0);
-    const trend = this.calculateTrend(scans);
-
-    return {
-      totalScans: scans.length,
-      averageFindings: Math.round(totalFindings / scans.length),
-      criticalCount,
-      highCount,
-      trend,
-    };
-  }
-
-  /**
-   * Get recent scans from database
-   */
-  private async getRecentScansFromDb(limit: number): Promise<ScanResult[]> {
-    if (!this.scanRepository || !this.findingRepository) return [];
-
     try {
-      // Would need a method to get recent scans across all repositories
-      // For now, return empty as this is a placeholder
-      return [];
+      const stats = await this.scanRepository.getScanStats(repository);
+      const recentScans = await this.scanRepository.findRecent(10);
+      const recentScanResults: ScanResult[] = [];
+
+      for (const dbScan of recentScans) {
+        const dbFindings = await this.findingRepository.findByScanId(dbScan.id);
+        recentScanResults.push(this.entityToScanResult(dbScan, dbFindings));
+      }
+
+      const trend = this.calculateTrend(recentScanResults);
+
+      return {
+        totalScans: stats.totalScans,
+        averageFindings: Math.round(stats.avgFindings),
+        criticalCount: 0, // Would need aggregation query
+        highCount: 0,
+        trend,
+      };
     } catch (error) {
-      return [];
+      logger.warn({ error }, '[SecurityScanner] Database metrics lookup failed');
+      return {
+        totalScans: 0,
+        averageFindings: 0,
+        criticalCount: 0,
+        highCount: 0,
+        trend: 'stable',
+      };
     }
   }
 

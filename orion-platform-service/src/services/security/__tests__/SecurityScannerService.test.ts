@@ -7,15 +7,89 @@ import { SecurityScanRepository, SecurityFindingRepository } from '../../../repo
 
 // Mock repositories
 const mockScanRepository = {
-  findById: jest.fn().mockResolvedValue(null),
-  findByRepository: jest.fn().mockResolvedValue([]),
+  findById: jest.fn().mockImplementation(async (id: string) => {
+    // Only return a scan for IDs that look like valid scan IDs
+    if (!id.startsWith('scan-')) return null;
+    return {
+      id,
+      tenantId: null,
+      scanType: 'composite',
+      repository: '/tmp/test-repo',
+      branch: 'main',
+      commitHash: 'abc123',
+      status: 'success',
+      scanner: 'secret+sast',
+      findingsCount: 0,
+      criticalCount: 0,
+      highCount: 0,
+      mediumCount: 0,
+      lowCount: 0,
+      infoCount: 0,
+      gateFailed: false,
+      scanStartTime: new Date(),
+      scanEndTime: new Date(),
+      durationMs: 100,
+      createdAt: new Date(),
+      metadata: {},
+    };
+  }),
+  findByRepository: jest.fn().mockImplementation(async (repository: string) => {
+    if (repository === '/tmp/test-repo') {
+      return [{
+        id: 'scan-1',
+        tenantId: null,
+        scanType: 'composite',
+        repository: '/tmp/test-repo',
+        branch: 'main',
+        commitHash: 'abc123',
+        status: 'success',
+        scanner: 'secret+sast',
+        findingsCount: 0,
+        criticalCount: 0,
+        highCount: 0,
+        mediumCount: 0,
+        lowCount: 0,
+        infoCount: 0,
+        gateFailed: false,
+        scanStartTime: new Date(),
+        scanEndTime: new Date(),
+        durationMs: 100,
+        createdAt: new Date(),
+        metadata: {},
+      }];
+    }
+    return [];
+  }),
   findByTenant: jest.fn().mockResolvedValue([]),
   findFailedGates: jest.fn().mockResolvedValue([]),
-  getScanStats: jest.fn().mockResolvedValue({
-    totalScans: 0,
-    successCount: 0,
-    failedCount: 0,
-    avgFindings: 0,
+  findRecent: jest.fn().mockImplementation(async () => [{
+    id: 'scan-1',
+    tenantId: null,
+    scanType: 'composite',
+    repository: '/tmp/test-repo',
+    branch: 'main',
+    commitHash: 'abc123',
+    status: 'success',
+    scanner: 'secret+sast',
+    findingsCount: 0,
+    criticalCount: 0,
+    highCount: 0,
+    mediumCount: 0,
+    lowCount: 0,
+    infoCount: 0,
+    gateFailed: false,
+    scanStartTime: new Date(),
+    scanEndTime: new Date(),
+    durationMs: 100,
+    createdAt: new Date(),
+    metadata: {},
+  }]),
+  getScanStats: jest.fn().mockImplementation(async (repository?: string) => {
+    // Return 0 for unknown repositories
+    if (repository && repository !== '/tmp/test-repo') {
+      return { totalScans: 0, successCount: 0, failedCount: 0, avgFindings: 0 };
+    }
+    return { totalScans: 1, successCount: 1, failedCount: 0, avgFindings: 0 };
   }),
   create: jest.fn().mockResolvedValue({ id: 'scan-1' }),
   findAll: jest.fn().mockResolvedValue({ entities: [], total: 0 }),
@@ -146,7 +220,7 @@ describe('SecurityScannerService', () => {
   // ==================== History ====================
 
   describe('getScanHistory', () => {
-    it('should return history from memory cache', async () => {
+    it('should return history from database', async () => {
       const options = createTestScanOptions();
       await service.scan(options);
 
