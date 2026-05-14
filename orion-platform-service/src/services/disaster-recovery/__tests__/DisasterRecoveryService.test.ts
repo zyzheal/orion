@@ -1,440 +1,587 @@
 /**
- * Disaster Recovery Service 测试
+ * DisasterRecoveryService Unit Tests
  */
 
-// Mock @kubernetes/client-node to avoid ESM import issues
-jest.mock('@kubernetes/client-node', () => ({
-  KubeConfig: jest.fn().mockImplementation(() => ({
-    loadFromDefault: jest.fn(),
-    loadFromCluster: jest.fn(),
-    makeApiClient: jest.fn().mockReturnValue({
-      readNamespacedSecret: jest.fn().mockResolvedValue({ body: { data: {} } }),
-      createNamespacedSecret: jest.fn().mockResolvedValue({ body: {} }),
-      listNamespacedSecret: jest.fn().mockResolvedValue({ body: { items: [] } }),
-      readNamespacedService: jest.fn().mockResolvedValue({ body: { spec: { type: 'ClusterIP', ports: [] } } }),
-      patchNamespacedService: jest.fn().mockResolvedValue({ body: {} }),
-      readNamespacedIngress: jest.fn().mockResolvedValue({ body: { spec: { rules: [] } } }),
-      patchNamespacedIngress: jest.fn().mockResolvedValue({ body: {} }),
-    }),
-  })),
-  CoreV1Api: jest.fn(),
-  NetworkingV1Api: jest.fn(),
-}));
+import { DisasterRecoveryService, DisasterRecoveryError } from '../DisasterRecoveryService';
+import { DisasterRecoveryRepository } from '../../../repositories/DisasterRecoveryRepository';
 
-import {
-  DisasterRecoveryService,
-  DisasterRecoveryConfig,
-  HealthCheckResult,
-  FailoverResult,
-} from '../DisasterRecoveryService';
+// Mock types
+interface MockRepository {
+  findAllPlans: jest.Mock;
+  findPlanById: jest.Mock;
+  createPlan: jest.Mock;
+  updatePlan: jest.Mock;
+  updateLastTested: jest.Mock;
+  deletePlan: jest.Mock;
+  findAllFailoverTests: jest.Mock;
+  findFailoverTestById: jest.Mock;
+  createFailoverTest: jest.Mock;
+  completeFailoverTest: jest.Mock;
+  deleteFailoverTest: jest.Mock;
+  findAllBackupConfigs: jest.Mock;
+  findBackupConfigById: jest.Mock;
+  createBackupConfig: jest.Mock;
+  updateBackupConfig: jest.Mock;
+  deleteBackupConfig: jest.Mock;
+}
 
 describe('DisasterRecoveryService', () => {
   let service: DisasterRecoveryService;
+  let mockRepo: MockRepository;
+
+  const mockPlanRow = {
+    id: 'plan-123',
+    tenant_id: 'tenant-1',
+    plan_name: 'Primary DR Plan',
+    rto_target: 300, // 5 minutes in seconds
+    rpo_target: 60, // 1 minute in seconds
+    priority: 'high',
+    status: 'active',
+    services: [{ name: 'api-service', type: 'kubernetes' }],
+    failover_strategy: 'active-passive',
+    backup_regions: ['us-west-2', 'us-east-1'],
+    last_tested_at: new Date('2026-01-01'),
+    created_by: 'admin',
+    created_at: new Date('2026-01-01'),
+    updated_at: new Date('2026-01-01'),
+  };
+
+  const mockFailoverTestRow = {
+    id: 'test-123',
+    tenant_id: 'tenant-1',
+    plan_id: 'plan-123',
+    test_name: 'DR Drill - Primary',
+    test_type: 'drill',
+    started_at: new Date('2026-01-01'),
+    completed_at: new Date('2026-01-01'),
+    actual_rto: 180,
+    actual_rpo: 45,
+    result: 'passed',
+    affected_services: ['api-service'],
+    findings: 'All systems transitioned successfully',
+    created_by: 'admin',
+    created_at: new Date('2026-01-01'),
+  };
+
+  const mockBackupConfigRow = {
+    id: 'backup-123',
+    tenant_id: 'tenant-1',
+    source_type: 'database',
+    source_id: 'db-primary',
+    backup_schedule: '0 2 * * *',
+    retention_days: 30,
+    storage_location: 's3://backups/db-primary',
+    encryption: true,
+    compression: 'gzip',
+    last_backup_at: new Date('2026-01-01'),
+    last_backup_size: 1024000,
+    enabled: true,
+    created_by: 'admin',
+    created_at: new Date('2026-01-01'),
+    updated_at: new Date('2026-01-01'),
+  };
 
   beforeEach(() => {
-    service = new DisasterRecoveryService();
+    mockRepo = {
+      findAllPlans: jest.fn(),
+      findPlanById: jest.fn(),
+      createPlan: jest.fn(),
+      updatePlan: jest.fn(),
+      updateLastTested: jest.fn(),
+      deletePlan: jest.fn(),
+      findAllFailoverTests: jest.fn(),
+      findFailoverTestById: jest.fn(),
+      createFailoverTest: jest.fn(),
+      completeFailoverTest: jest.fn(),
+      deleteFailoverTest: jest.fn(),
+      findAllBackupConfigs: jest.fn(),
+      findBackupConfigById: jest.fn(),
+      createBackupConfig: jest.fn(),
+      updateBackupConfig: jest.fn(),
+      deleteBackupConfig: jest.fn(),
+    };
+    service = new DisasterRecoveryService(mockRepo as unknown as DisasterRecoveryRepository);
   });
 
   afterEach(() => {
-    service.shutdown();
+    jest.clearAllMocks();
   });
 
-  const createTestConfig = (overrides: Partial<DisasterRecoveryConfig> = {}): DisasterRecoveryConfig => ({
-    componentType: 'database',
-    primaryCluster: 'cluster-primary',
-    standbyCluster: 'cluster-standby',
-    replicationMode: 'async',
-    rtoTargetSeconds: 600,
-    rpoTargetSeconds: 300,
-    healthCheckIntervalSeconds: 10,
-    failoverThreshold: 3,
-    enabled: true,
-    status: 'configured',
-    ...overrides,
-  });
+  // ==================== Constructor Tests ====================
 
-  describe('registerConfiguration', () => {
-    it('should register a valid configuration', async () => {
-      const config = createTestConfig();
-
-      const configId = await service.registerConfiguration(config);
-
-      expect(typeof configId).toBe('number');
-      expect(config.id).toBe(configId);
+  describe('constructor', () => {
+    it('should create service with repository', () => {
+      expect(service).toBeDefined();
     });
 
-    it('should emit config:registered event', async () => {
-      const eventHandler = jest.fn();
-      service.on('config:registered', eventHandler);
+    it('should allow null repository (degraded mode)', () => {
+      const degradedService = new DisasterRecoveryService(null);
+      expect(degradedService).toBeDefined();
+    });
+  });
 
-      const config = createTestConfig();
-      await service.registerConfiguration(config);
+  // ==================== createPlan Tests ====================
 
-      expect(eventHandler).toHaveBeenCalledWith(
+  describe('createPlan', () => {
+    const validInput = {
+      tenantId: 'tenant-1',
+      planName: 'Test DR Plan',
+      rtoTarget: 300,
+      rpoTarget: 60,
+      priority: 'high',
+      services: [{ name: 'api-service', type: 'kubernetes' }],
+      failoverStrategy: 'active-passive',
+      backupRegions: ['us-west-2', 'us-east-1'],
+      createdBy: 'admin',
+    };
+
+    it('should create plan successfully', async () => {
+      mockRepo.createPlan.mockResolvedValue(mockPlanRow);
+
+      const result = await service.createPlan(validInput);
+
+      // Service maps the row from DB, so returns the DB values
+      expect(result.planName).toBe('Primary DR Plan');
+      expect(result.rtoTarget).toBe(300);
+      expect(result.rpoTarget).toBe(60);
+      expect(mockRepo.createPlan).toHaveBeenCalledWith(
         expect.objectContaining({
-          componentType: 'database',
-          configId: expect.any(Number),
-        })
+          tenantId: 'tenant-1',
+          planName: 'Test DR Plan',
+          rtoTarget: 300,
+          rpoTarget: 60,
+        }),
       );
     });
 
-    it('should throw error when RTO exceeds maximum', async () => {
-      const config = createTestConfig({
-        rtoTargetSeconds: 700, // > MAX_RTO_THRESHOLD (600)
+    it('should throw error when plan name is empty', async () => {
+      await expect(
+        service.createPlan({ ...validInput, planName: '' }),
+      ).rejects.toThrow('Plan name is required');
+    });
+
+    it('should throw error when RTO is not positive', async () => {
+      await expect(
+        service.createPlan({ ...validInput, rtoTarget: 0 }),
+      ).rejects.toThrow('RTO target must be a positive number');
+    });
+
+    it('should throw error when RPO is not positive', async () => {
+      await expect(
+        service.createPlan({ ...validInput, rpoTarget: -1 }),
+      ).rejects.toThrow('RPO target must be a positive number');
+    });
+
+    it('should throw error when failover strategy is missing', async () => {
+      await expect(
+        service.createPlan({ ...validInput, failoverStrategy: '' }),
+      ).rejects.toThrow('Failover strategy is required');
+    });
+
+    it('should use default status when not provided', async () => {
+      mockRepo.createPlan.mockResolvedValue(mockPlanRow);
+
+      await service.createPlan(validInput);
+
+      expect(mockRepo.createPlan).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'active' }),
+      );
+    });
+  });
+
+  // ==================== getPlan Tests ====================
+
+  describe('getPlan', () => {
+    it('should return plan when found', async () => {
+      mockRepo.findPlanById.mockResolvedValue(mockPlanRow);
+
+      const result = await service.getPlan('tenant-1', 'plan-123');
+
+      expect(result.id).toBe('plan-123');
+      expect(result.planName).toBe('Primary DR Plan');
+      expect(mockRepo.findPlanById).toHaveBeenCalledWith('tenant-1', 'plan-123');
+    });
+
+    it('should throw error when plan not found', async () => {
+      mockRepo.findPlanById.mockResolvedValue(undefined);
+
+      await expect(service.getPlan('tenant-1', 'nonexistent')).rejects.toThrow(
+        "DR plan not found: nonexistent",
+      );
+    });
+  });
+
+  // ==================== listPlans Tests ====================
+
+  describe('listPlans', () => {
+    it('should return all plans for tenant', async () => {
+      mockRepo.findAllPlans.mockResolvedValue([mockPlanRow]);
+
+      const result = await service.listPlans('tenant-1');
+
+      expect(result).toHaveLength(1);
+      expect(result[0].planName).toBe('Primary DR Plan');
+      expect(mockRepo.findAllPlans).toHaveBeenCalledWith('tenant-1');
+    });
+
+    it('should return empty array when no plans exist', async () => {
+      mockRepo.findAllPlans.mockResolvedValue([]);
+
+      const result = await service.listPlans('tenant-1');
+
+      expect(result).toEqual([]);
+    });
+  });
+
+  // ==================== updatePlan Tests ====================
+
+  describe('updatePlan', () => {
+    it('should update plan successfully', async () => {
+      const updatedRow = { ...mockPlanRow, plan_name: 'Updated Plan Name' };
+      mockRepo.findPlanById
+        .mockResolvedValueOnce(mockPlanRow) // getPlan call
+        .mockResolvedValueOnce(mockPlanRow); // updatePlan call
+      mockRepo.updatePlan.mockResolvedValue(updatedRow);
+
+      const result = await service.updatePlan('tenant-1', 'plan-123', {
+        planName: 'Updated Plan Name',
       });
 
-      await expect(service.registerConfiguration(config)).rejects.toThrow(
-        'RTO target exceeds maximum'
+      expect(result.planName).toBe('Updated Plan Name');
+      expect(mockRepo.updatePlan).toHaveBeenCalledWith(
+        'tenant-1',
+        'plan-123',
+        expect.objectContaining({ planName: 'Updated Plan Name' }),
       );
     });
 
-    it('should throw error when RPO exceeds maximum', async () => {
-      const config = createTestConfig({
-        rpoTargetSeconds: 400, // > MAX_RPO_THRESHOLD (300)
-      });
+    it('should throw error when plan not found', async () => {
+      mockRepo.findPlanById.mockResolvedValue(undefined);
 
-      await expect(service.registerConfiguration(config)).rejects.toThrow(
-        'RPO target exceeds maximum'
+      await expect(
+        service.updatePlan('tenant-1', 'nonexistent', { planName: 'New Name' }),
+      ).rejects.toThrow("DR plan not found: nonexistent");
+    });
+  });
+
+  // ==================== deletePlan Tests ====================
+
+  describe('deletePlan', () => {
+    it('should delete plan successfully', async () => {
+      mockRepo.findPlanById.mockResolvedValue(mockPlanRow);
+      mockRepo.deletePlan.mockResolvedValue(true);
+
+      const result = await service.deletePlan('tenant-1', 'plan-123');
+
+      expect(result).toBe(true);
+      expect(mockRepo.deletePlan).toHaveBeenCalledWith('tenant-1', 'plan-123');
+    });
+
+    it('should throw error when plan not found', async () => {
+      mockRepo.findPlanById.mockResolvedValue(undefined);
+
+      await expect(service.deletePlan('tenant-1', 'nonexistent')).rejects.toThrow(
+        "DR plan not found: nonexistent",
       );
     });
 
-    it('should start health monitoring when enabled', async () => {
-      const config = createTestConfig({ enabled: true });
-      await service.registerConfiguration(config);
+    it('should throw error when delete fails', async () => {
+      mockRepo.findPlanById
+        .mockResolvedValueOnce(mockPlanRow) // getPlan call
+        .mockResolvedValueOnce(mockPlanRow); // check exists again
+      mockRepo.deletePlan.mockResolvedValue(false);
 
-      const status = service.getStatus('database');
-      expect(status.config).not.toBeNull();
-    });
-
-    it('should not start health monitoring when disabled', async () => {
-      const config = createTestConfig({ enabled: false });
-      await service.registerConfiguration(config);
-
-      // Status should still have config but no monitoring
-      const status = service.getStatus('database');
-      expect(status.config).not.toBeNull();
-    });
-  });
-
-  describe('performHealthCheck', () => {
-    it('should return health check result', async () => {
-      const config = createTestConfig();
-      await service.registerConfiguration(config);
-
-      const result = await service.performHealthCheck('database');
-
-      expect(result).toHaveProperty('configId');
-      expect(result).toHaveProperty('targetCluster');
-      expect(result).toHaveProperty('isHealthy');
-      expect(result).toHaveProperty('responseTimeMs');
-      expect(result).toHaveProperty('details');
-    });
-
-    it('should emit health:check event', async () => {
-      const eventHandler = jest.fn();
-      service.on('health:check', eventHandler);
-
-      const config = createTestConfig();
-      await service.registerConfiguration(config);
-
-      await service.performHealthCheck('database');
-
-      expect(eventHandler).toHaveBeenCalledWith(
-        expect.objectContaining({
-          componentType: 'database',
-          isHealthy: expect.any(Boolean),
-          responseTimeMs: expect.any(Number),
-        })
+      await expect(service.deletePlan('tenant-1', 'plan-123')).rejects.toThrow(
+        'Failed to delete DR plan: plan-123',
       );
     });
-
-    it('should throw error for unknown component', async () => {
-      await expect(service.performHealthCheck('unknown-component')).rejects.toThrow(
-        'Configuration not found'
-      );
-    });
-
-    it('should increment consecutive failures on failure', async () => {
-      const config = createTestConfig();
-      await service.registerConfiguration(config);
-
-      // First check
-      await service.performHealthCheck('database');
-      const status1 = service.getStatus('database');
-      // Current implementation returns false in test environment (no real database)
-      expect(status1.consecutiveFailures).toBe(1);
-
-      // Note: In current implementation, checkClusterHealth returns true (placeholder)
-      // This test documents expected behavior when real health checks are implemented
-    });
   });
 
-  describe('validateRTO', () => {
-    it('should return true for RTO under target', async () => {
-      const result = await service.validateRTO(300, 600);
-      expect(result).toBe(true);
-    });
-
-    it('should return true for RTO exactly at target', async () => {
-      const result = await service.validateRTO(600, 600);
-      expect(result).toBe(true);
-    });
-
-    it('should return false for RTO exceeding target', async () => {
-      const result = await service.validateRTO(650, 600);
-      expect(result).toBe(false);
-    });
-
-    it('should return false for RTO exceeding maximum threshold (600s)', async () => {
-      const result = await service.validateRTO(700, 700); // Even if target is higher
-      expect(result).toBe(false);
-    });
-
-    it('should return true for RTO < 600s even with high target', async () => {
-      // When actual is below max threshold
-      const result = await service.validateRTO(500, 800);
-      expect(result).toBe(true);
-    });
-  });
-
-  describe('validateRPO', () => {
-    it('should return true for RPO under target', async () => {
-      const result = await service.validateRPO(200, 300);
-      expect(result).toBe(true);
-    });
-
-    it('should return true for RPO exactly at target', async () => {
-      const result = await service.validateRPO(300, 300);
-      expect(result).toBe(true);
-    });
-
-    it('should return false for RPO exceeding target', async () => {
-      const result = await service.validateRPO(350, 300);
-      expect(result).toBe(false);
-    });
-
-    it('should return false for RPO exceeding maximum threshold (300s)', async () => {
-      const result = await service.validateRPO(400, 400);
-      expect(result).toBe(false);
-    });
-
-    it('should return true for RPO < 300s even with high target', async () => {
-      const result = await service.validateRPO(250, 500);
-      expect(result).toBe(true);
-    });
-  });
+  // ==================== triggerFailover Tests ====================
 
   describe('triggerFailover', () => {
-    it('should create event record and emit events', async () => {
-      const eventHandler = jest.fn();
-      service.on('failover:triggered', eventHandler);
-      service.on('failover:completed', eventHandler);
+    it('should trigger failover successfully', async () => {
+      mockRepo.findPlanById.mockResolvedValue(mockPlanRow);
+      mockRepo.createFailoverTest.mockResolvedValue(mockFailoverTestRow);
+      mockRepo.updatePlan.mockResolvedValue({ ...mockPlanRow, status: 'failing-over' });
 
-      const config = createTestConfig();
-      await service.registerConfiguration(config);
+      const result = await service.triggerFailover('tenant-1', 'plan-123', 'admin');
 
-      const result = await service.triggerFailover('database', 'health_failure');
-
-      expect(eventHandler).toHaveBeenCalled();
-      expect(result).toHaveProperty('success');
-      expect(result).toHaveProperty('componentType');
-      expect(result).toHaveProperty('rtoActualSeconds');
-      expect(result).toHaveProperty('rpoActualSeconds');
-      expect(result).toHaveProperty('dataLossDetected');
-    });
-
-    it('should throw error for unknown component', async () => {
-      await expect(service.triggerFailover('unknown', 'test')).rejects.toThrow(
-        'Configuration not found'
+      expect(result.status).toBe('running');
+      expect(result.message).toContain('Failover triggered');
+      expect(mockRepo.createFailoverTest).toHaveBeenCalledWith(
+        expect.objectContaining({
+          testType: 'real',
+        }),
       );
     });
 
-    it('should reject concurrent failovers', async () => {
-      const config = createTestConfig();
-      await service.registerConfiguration(config);
+    it('should throw error when plan not found', async () => {
+      mockRepo.findPlanById
+        .mockResolvedValueOnce(undefined) // triggerFailover getPlan
+        .mockResolvedValueOnce(undefined); // updatePlan call
 
-      // Trigger first failover
-      const failoverPromise1 = service.triggerFailover('database', 'reason1');
-
-      // Try to trigger second failover concurrently
-      const result2 = await service.triggerFailover('database', 'reason2');
-
-      // Second should fail because first is in progress
-      expect(result2.success).toBe(false);
-      expect(result2.errorMessage).toContain('already in progress');
-
-      // Wait for first to complete
-      await failoverPromise1;
-    });
-
-    it('should emit rto:exceeded when RTO exceeds target', async () => {
-      const eventHandler = jest.fn();
-      service.on('rto:exceeded', eventHandler);
-
-      const config = createTestConfig({ rtoTargetSeconds: 1 }); // Very low target
-      await service.registerConfiguration(config);
-
-      await service.triggerFailover('database', 'test');
-
-      // If RTO exceeded, event should be emitted
-      // Note: Current simulation may not trigger this, but event infrastructure is tested
-      service.emit('rto:exceeded', { componentType: 'database', actual: 10, target: 1 });
-      expect(eventHandler).toHaveBeenCalled();
-    });
-
-    it('should emit rpo:exceeded when RPO exceeds target', async () => {
-      const eventHandler = jest.fn();
-      service.on('rpo:exceeded', eventHandler);
-
-      service.emit('rpo:exceeded', { componentType: 'database', actual: 400, target: 300 });
-      expect(eventHandler).toHaveBeenCalled();
+      await expect(
+        service.triggerFailover('tenant-1', 'nonexistent', 'admin'),
+      ).rejects.toThrow("DR plan not found: nonexistent");
     });
   });
 
-  describe('runDrill', () => {
-    it('should execute failover drill', async () => {
-      const config = createTestConfig();
-      await service.registerConfiguration(config);
+  // ==================== testFailover Tests ====================
 
-      const result = await service.runDrill('database');
+  describe('testFailover', () => {
+    it('should create failover test successfully', async () => {
+      const customTestRow = { ...mockFailoverTestRow, test_name: 'Scheduled DR Drill' };
+      mockRepo.findPlanById.mockResolvedValue(mockPlanRow);
+      mockRepo.createFailoverTest.mockResolvedValue(customTestRow);
+      mockRepo.updatePlan.mockResolvedValue({ ...mockPlanRow, status: 'testing' });
+      mockRepo.updateLastTested.mockResolvedValue();
 
-      expect(result).toHaveProperty('success');
-      expect(result).toHaveProperty('componentType');
-    });
-  });
-
-  describe('getStatus', () => {
-    it('should return status for registered component', async () => {
-      const config = createTestConfig();
-      await service.registerConfiguration(config);
-
-      const status = service.getStatus('database');
-
-      expect(status.config).not.toBeNull();
-      expect(status.config?.componentType).toBe('database');
-      expect(status.failoverInProgress).toBe(false);
-    });
-
-    it('should return null config for unknown component', () => {
-      const status = service.getStatus('unknown');
-
-      expect(status.config).toBeNull();
-      expect(status.consecutiveFailures).toBe(0);
-    });
-  });
-
-  describe('getAllConfigurations', () => {
-    it('should return all registered configurations', async () => {
-      const config1 = createTestConfig({ componentType: 'database' });
-      const config2 = createTestConfig({ componentType: 'api_gateway' });
-
-      await service.registerConfiguration(config1);
-      await service.registerConfiguration(config2);
-
-      const configs = service.getAllConfigurations();
-
-      expect(configs.length).toBe(2);
-      expect(configs.find(c => c.componentType === 'database')).toBeDefined();
-      expect(configs.find(c => c.componentType === 'api_gateway')).toBeDefined();
-    });
-  });
-
-  describe('stopHealthCheckMonitoring', () => {
-    it('should stop health monitoring for component', async () => {
-      const config = createTestConfig();
-      await service.registerConfiguration(config);
-
-      service.stopHealthCheckMonitoring('database');
-
-      // No error should occur, timer should be cleared
-      // This is verified by the shutdown test below
-    });
-  });
-
-  describe('initialize', () => {
-    it('should initialize service and emit event', async () => {
-      const eventHandler = jest.fn();
-      service.on('service:initialized', eventHandler);
-
-      await service.initialize();
-
-      expect(eventHandler).toHaveBeenCalledWith(
-        expect.objectContaining({
-          configCount: expect.any(Number),
-        })
+      const result = await service.testFailover(
+        'tenant-1',
+        'plan-123',
+        'Scheduled DR Drill',
+        'admin',
       );
+
+      expect(result.status).toBe('running');
+      expect(result.testName).toBe('Scheduled DR Drill');
+    });
+
+    it('should throw error when plan not found', async () => {
+      mockRepo.findPlanById
+        .mockResolvedValueOnce(undefined) // testFailover getPlan
+        .mockResolvedValueOnce(undefined); // updatePlan calls
+
+      await expect(
+        service.testFailover('tenant-1', 'nonexistent', 'Test', 'admin'),
+      ).rejects.toThrow("DR plan not found: nonexistent");
     });
   });
 
-  describe('shutdown', () => {
-    it('should stop all monitoring and remove listeners', async () => {
-      const config = createTestConfig();
-      await service.registerConfiguration(config);
+  // ==================== completeFailoverTest Tests ====================
 
-      service.on('test:event', jest.fn());
-      expect(service.listenerCount('test:event')).toBe(1);
+  describe('completeFailoverTest', () => {
+    it('should complete test with results', async () => {
+      mockRepo.completeFailoverTest.mockResolvedValue({
+        ...mockFailoverTestRow,
+        completed_at: new Date(),
+        result: 'passed',
+      });
+      mockRepo.updateLastTested.mockResolvedValue();
 
-      service.shutdown();
+      const result = await service.completeFailoverTest('tenant-1', 'test-123', {
+        actualRto: 180,
+        actualRpo: 45,
+        testResult: 'passed',
+        findings: 'All systems OK',
+      });
 
-      expect(service.listenerCount('test:event')).toBe(0);
+      expect(result.result).toBe('passed');
+      expect(result.actualRto).toBe(180);
     });
   });
 
-  describe('Health check failure leading to failover', () => {
-    it('should trigger failover when threshold reached', async () => {
-      const config = createTestConfig({
-        failoverThreshold: 2,
-      });
-      await service.registerConfiguration(config);
+  // ==================== listFailoverTests Tests ====================
 
-      const failoverHandler = jest.fn();
-      service.on('failover:triggered', failoverHandler);
+  describe('listFailoverTests', () => {
+    it('should return tests for tenant', async () => {
+      mockRepo.findAllFailoverTests.mockResolvedValue([mockFailoverTestRow]);
 
-      // Manually trigger health check failures
-      // Note: Current implementation has placeholder health checks returning true
-      // This tests the event flow when real failures occur
-      service.emit('health:check', {
-        componentType: 'database',
-        isHealthy: false,
-        consecutiveFailures: 2,
-      });
+      const result = await service.listFailoverTests('tenant-1');
 
-      // Verify event infrastructure
-      expect(failoverHandler).not.toHaveBeenCalled(); // Placeholder implementation
+      expect(result).toHaveLength(1);
+      expect(result[0].testName).toBe('DR Drill - Primary');
+    });
+
+    it('should filter by planId when provided', async () => {
+      mockRepo.findAllFailoverTests.mockResolvedValue([mockFailoverTestRow]);
+
+      await service.listFailoverTests('tenant-1', 'plan-123');
+
+      expect(mockRepo.findAllFailoverTests).toHaveBeenCalledWith('tenant-1', 'plan-123');
     });
   });
 
-  describe('Events', () => {
-    it('should emit health:error on health check error', async () => {
-      const eventHandler = jest.fn();
-      service.on('health:error', eventHandler);
+  // ==================== Backup Config Tests ====================
 
-      // Emit test error
-      service.emit('health:error', {
-        componentType: 'database',
-        error: new Error('Health check failed'),
-        consecutiveFailures: 1,
-      });
+  describe('createBackupConfig', () => {
+    const validBackupInput = {
+      tenantId: 'tenant-1',
+      sourceType: 'database',
+      sourceId: 'db-primary',
+      storageLocation: 's3://backups',
+      createdBy: 'admin',
+    };
 
-      expect(eventHandler).toHaveBeenCalled();
+    it('should create backup config successfully', async () => {
+      mockRepo.createBackupConfig.mockResolvedValue(mockBackupConfigRow);
+
+      const result = await service.createBackupConfig(validBackupInput);
+
+      expect(result.sourceType).toBe('database');
+      expect(result.storageLocation).toBe('s3://backups/db-primary');
     });
 
-    it('should emit failover:completed with correct data', async () => {
-      const eventHandler = jest.fn();
-      service.on('failover:completed', eventHandler);
+    it('should throw error when sourceType is missing', async () => {
+      await expect(
+        service.createBackupConfig({ ...validBackupInput, sourceType: '' }),
+      ).rejects.toThrow('sourceType and sourceId are required');
+    });
 
-      const config = createTestConfig();
-      await service.registerConfiguration(config);
+    it('should throw error when sourceId is missing', async () => {
+      await expect(
+        service.createBackupConfig({ ...validBackupInput, sourceId: '' }),
+      ).rejects.toThrow('sourceType and sourceId are required');
+    });
+  });
 
-      await service.triggerFailover('database', 'test');
+  describe('listBackupConfigs', () => {
+    it('should return all backup configs', async () => {
+      mockRepo.findAllBackupConfigs.mockResolvedValue([mockBackupConfigRow]);
 
-      expect(eventHandler).toHaveBeenCalledWith(
-        expect.objectContaining({
-          componentType: 'database',
-          success: expect.any(Boolean),
-          rtoActualSeconds: expect.any(Number),
-          rpoActualSeconds: expect.any(Number),
-        })
+      const result = await service.listBackupConfigs('tenant-1');
+
+      expect(result).toHaveLength(1);
+      expect(result[0].sourceId).toBe('db-primary');
+    });
+  });
+
+  // ==================== RTO/RPO Status Tests ====================
+
+  describe('getRTOStatus', () => {
+    it('should return RTO compliance status for all plans', async () => {
+      mockRepo.findAllPlans.mockResolvedValue([mockPlanRow]);
+      mockRepo.findAllFailoverTests.mockResolvedValue([mockFailoverTestRow]);
+
+      const result = await service.getRTOStatus('tenant-1');
+
+      expect(result).toHaveLength(1);
+      expect(result[0].planName).toBe('Primary DR Plan');
+      expect(result[0].compliance).toBe('compliant'); // 180 <= 300
+    });
+
+    it('should return non-compliant when RTO exceeded', async () => {
+      mockRepo.findAllPlans.mockResolvedValue([mockPlanRow]);
+      mockRepo.findAllFailoverTests.mockResolvedValue([
+        { ...mockFailoverTestRow, actual_rto: 500 }, // Exceeds 300
+      ]);
+
+      const result = await service.getRTOStatus('tenant-1');
+
+      expect(result[0].compliance).toBe('non-compliant');
+    });
+
+    it('should return not-tested when no tests completed', async () => {
+      mockRepo.findAllPlans.mockResolvedValue([mockPlanRow]);
+      mockRepo.findAllFailoverTests.mockResolvedValue([]);
+
+      const result = await service.getRTOStatus('tenant-1');
+
+      expect(result[0].compliance).toBe('not-tested');
+    });
+  });
+
+  describe('getRPOStatus', () => {
+    it('should return RPO compliance status', async () => {
+      mockRepo.findAllPlans.mockResolvedValue([mockPlanRow]);
+      mockRepo.findAllFailoverTests.mockResolvedValue([mockFailoverTestRow]);
+
+      const result = await service.getRPOStatus('tenant-1');
+
+      expect(result).toHaveLength(1);
+      expect(result[0].compliance).toBe('compliant'); // 45 <= 60
+    });
+
+    it('should return non-compliant when RPO exceeded', async () => {
+      mockRepo.findAllPlans.mockResolvedValue([mockPlanRow]);
+      mockRepo.findAllFailoverTests.mockResolvedValue([
+        { ...mockFailoverTestRow, actual_rpo: 120 }, // Exceeds 60
+      ]);
+
+      const result = await service.getRPOStatus('tenant-1');
+
+      expect(result[0].compliance).toBe('non-compliant');
+    });
+  });
+
+  // ==================== Drill Scheduling Tests ====================
+
+  describe('scheduleDrill', () => {
+    it('should schedule drill with planId', async () => {
+      mockRepo.findPlanById.mockResolvedValue(mockPlanRow);
+      mockRepo.createFailoverTest.mockResolvedValue(mockFailoverTestRow);
+
+      const result = await service.scheduleDrill('tenant-1', {
+        planId: 'plan-123',
+        componentType: 'api-service',
+        testType: 'scheduled-drill',
+      });
+
+      expect(result.planId).toBe('plan-123');
+    });
+
+    it('should find plan by componentType when planId not provided', async () => {
+      mockRepo.findAllPlans.mockResolvedValue([mockPlanRow]);
+      mockRepo.findPlanById.mockResolvedValue(mockPlanRow);
+      mockRepo.createFailoverTest.mockResolvedValue(mockFailoverTestRow);
+
+      await service.scheduleDrill('tenant-1', {
+        componentType: 'api-service',
+      });
+
+      expect(mockRepo.createFailoverTest).toHaveBeenCalled();
+    });
+
+    it('should throw error when no matching plan found', async () => {
+      mockRepo.findAllPlans.mockResolvedValue([]);
+
+      await expect(
+        service.scheduleDrill('tenant-1', { componentType: 'unknown-service' }),
+      ).rejects.toThrow('No DR plan found for component: unknown-service');
+    });
+  });
+
+  // ==================== runAutomatedFailoverTest Tests ====================
+
+  describe('runAutomatedFailoverTest', () => {
+    it('should return automated test initiation result', async () => {
+      const result = await service.runAutomatedFailoverTest('api-service');
+
+      expect(result.status).toBe('running');
+      expect(result.componentType).toBe('api-service');
+      expect(result.message).toContain('Automated failover test');
+    });
+  });
+
+  // ==================== DB Unavailable Tests ====================
+
+  describe('degraded mode (no repository)', () => {
+    let noDbService: DisasterRecoveryService;
+
+    beforeEach(() => {
+      noDbService = new DisasterRecoveryService(null);
+    });
+
+    it('should throw DB_UNAVAILABLE when creating plan', async () => {
+      await expect(
+        noDbService.createPlan({
+          tenantId: 'tenant-1',
+          planName: 'Test',
+          rtoTarget: 300,
+          rpoTarget: 60,
+          priority: 'high',
+          services: [],
+          failoverStrategy: 'active-passive',
+          backupRegions: [],
+          createdBy: 'admin',
+        }),
+      ).rejects.toThrow('Database not available');
+    });
+
+    it('should throw DB_UNAVAILABLE when listing plans', async () => {
+      await expect(noDbService.listPlans('tenant-1')).rejects.toThrow(
+        'Database not available',
       );
     });
   });
