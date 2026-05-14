@@ -1,6 +1,28 @@
 # Orion Platform Migration Progress
 
-## Current Session (2026-05-08)
+## Current Session (2026-05-14)
+
+### Completed: SecurityScannerService PostgreSQL Migration
+
+将 SecurityScannerService 从内存 Map 存储迁移到 PostgreSQL Repository 模式。
+
+#### Changes Made
+- **Modified** `src/services/security/SecurityScannerService.ts`
+  - Removed `memoryCache: Map<string, ScanResult[]>` property
+  - `scan()` now persists directly to PostgreSQL (no longer caches in memory)
+  - `checkGate()` looks up exclusively from database via SecurityScanRepository
+  - `getScanHistory()` queries directly from database
+  - `getSecurityMetrics()` uses database stats + findRecent for trend calculation
+  - Removed `getRecentScansFromDb()` placeholder (replaced by repository method)
+
+- **Modified** `src/repositories/SecurityScanRepository.ts`
+  - Added `findRecent(limit)` method for retrieving recent scans across all repositories
+
+- **Modified** `src/services/security/__tests__/SecurityScannerService.test.ts`
+  - Updated mocks to return data conditionally based on input parameters
+  - All 14 tests pass
+
+## Previous Session (2026-05-08)
 
 ### Completed: GAP-CN-07 Build Resource Pool (Runner Management)
 
