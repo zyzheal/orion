@@ -25,7 +25,9 @@ export default async function vectorStoreRoutes(app: FastifyInstance, options: V
     embeddingModel: process.env.VECTOR_EMBEDDING_MODEL || 'text-embedding-ada-002',
   };
 
-  const vectorStore = new VectorStore(config, options.database);
+  const vectorStore = options.database
+    ? new VectorStore(config, options.database)
+    : new VectorStore(config, { query: async () => ({ rows: [], rowCount: 0 }) });
 
   // POST /vector-store/documents - Add document
   app.post('/documents', async (request: FastifyRequest, reply: FastifyReply) => {

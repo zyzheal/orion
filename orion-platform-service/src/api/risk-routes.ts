@@ -251,7 +251,7 @@ export default async function riskRoutes(
     ) => {
       const { assessmentId, tenantId, limit } = request.query;
 
-      const reports = service.getReportHistory({
+      const reports = await service.getReportHistory({
         assessmentId,
         tenantId,
         limit: limit ? parseInt(limit, 10) : undefined,
@@ -385,11 +385,12 @@ export default async function riskRoutes(
    */
   app.get('/status', async (_request: FastifyRequest, reply: FastifyReply) => {
     const assessments = await service.getAssessmentHistory();
+    const reports = await service.getReportHistory();
     return reply.send({
       service: 'risk-assessment',
       status: 'running',
       assessmentsCount: assessments.length,
-      reportsCount: service.getReportHistory().length,
+      reportsCount: reports.length,
     });
   });
 

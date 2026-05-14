@@ -98,7 +98,7 @@ export class SecretsController {
       const userId = this.getUserId(request);
 
       await this.secretsService.createSecret(
-        tenantId, body.name, body.value, scope, body.description, userId
+        tenantId, body.name, body.value, scope, userId
       );
 
       // 返回创建后的 secret（值被遮蔽）

@@ -31,7 +31,8 @@ export async function registerSecretRoutes(app: FastifyInstance, deps: SecretRou
   }
 
   const repository = new SecretRepository(deps.database);
-  const secretsService = new SecretsService(repository, deps.masterKey);
+  const config = deps.masterKey ? { encryptionKey: deps.masterKey } : undefined;
+  const secretsService = new SecretsService(repository, config);
   globalSecretsService = secretsService;
 
   const controller = new SecretsController(secretsService);

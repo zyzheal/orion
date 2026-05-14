@@ -141,7 +141,8 @@ export default async function policyRoutes(
 
   app.post('/bundles/sync', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const result = await policyService.syncBundles();
+      const body = request.body as { sourceUrl?: string } || {};
+      const result = await policyService.syncBundles(body.sourceUrl || '');
       return reply.send({ code: 200, message: 'OK', data: result });
     } catch (error: any) {
       return reply.status(500).send({ code: 500, message: error.message });
@@ -179,7 +180,7 @@ export default async function policyRoutes(
       return reply.callNotFound();
     }
     try {
-      const policy = await policyService.toggle(params.id);
+      const policy = await policyService.toggle(params.id, true);
       return reply.send({ code: 200, message: 'OK', data: policy });
     } catch (error: any) {
       if (error.message.includes('not found')) {
