@@ -135,7 +135,8 @@ export class DigitalTwinService {
    */
   async getTwin(twinId: string): Promise<TwinConfigEntity | null> {
     if (this.twinConfigRepository) {
-      return this.twinConfigRepository.findById(twinId);
+      const entity = await this.twinConfigRepository.findById(twinId);
+      return entity ?? null;
     }
     return this.twins.get(twinId) ?? null;
   }
@@ -329,7 +330,21 @@ export class DigitalTwinService {
     if (this.sandboxRepository) {
       return this.sandboxRepository.findByTwin(twinId);
     }
-    return Array.from(this.sandboxes.values()).filter((s) => s.snapshotId === twinId);
+    // Memory fallback: convert SandboxInstance to SandboxEntity format
+    const instances = Array.from(this.sandboxes.values()).filter((s) => s.snapshotId === twinId);
+    return instances.map((s) => ({
+      id: s.id,
+      tenantId: s.tenantId,
+      twinId: s.snapshotId,
+      name: s.snapshotId,
+      status: s.status as 'running' | 'stopped' | 'error',
+      endpoint: s.endpoint ?? '',
+      resources: { cpu: '500m', memory: '512Mi', replicas: 1 },
+      envVars: {},
+      networkIsolation: true,
+      healthStatus: 'unknown' as const,
+      createdAt: s.createdAt,
+    }));
   }
 
   /**
@@ -408,46 +423,6 @@ export class DigitalTwinService {
       }));
     }
     return Array.from(this.snapshots.values()).filter((s) => s.tenantId === tenantId);
-  }
-
-  // ==================== Sandbox Operations ====================
-
-  async createSandbox(
-    tenantId: string,
-    snapshotId: string,
-  ): Promise<SandboxInstance | null> {
-    // 验证 snapshot 存在
-    const snapshot = await this.getSnapshot(snapshotId);
-    if (!snapshot || snapshot.tenantId !== tenantId) {
-      return null;
-    }
-
-    const sandboxId = randomUUID();
-    const sandbox: SandboxInstance = {
-      id: sandboxId,
-      tenantId,
-      snapshotId,
-      status: 'running',
-      createdAt: new Date().toISOString(),
-      endpoint: `http://sandbox-${sandboxId.slice(0, 8)}.local:9000`,
-    };
-    this.sandboxes.set(sandbox.id, sandbox);
-    return sandbox;
-  }
-
-  async stopSandbox(sandboxId: string): Promise<boolean> {
-    const sandbox = this.sandboxes.get(sandboxId);
-    if (!sandbox) return false;
-    sandbox.status = 'stopped';
-    return true;
-  }
-
-  async getSandbox(sandboxId: string): Promise<SandboxInstance | null> {
-    return this.sandboxes.get(sandboxId) ?? null;
-  }
-
-  async listSandboxes(tenantId: string): Promise<SandboxInstance[]> {
-    return Array.from(this.sandboxes.values()).filter((s) => s.tenantId === tenantId);
   }
 
   // ==================== Traffic Recording Operations ====================

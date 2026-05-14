@@ -96,7 +96,7 @@ export class PolicyEvaluationService {
     if (this.evalRepo) {
       await this.evalRepo.create({
         id: evaluationId,
-        policyId: input.policyId,
+        policyId: input.policyId ?? null,
         runId: input.runId,
         inputContext: {
           resourceType: input.resourceType,
@@ -245,7 +245,8 @@ export class PolicyEvaluationService {
       return null;
     }
 
-    return this.violationRepo.updateStatus(id, status);
+    const result = await this.violationRepo.updateStatus(id, status);
+    return result ?? null;
   }
 
   // ==================== Utility Methods ====================
