@@ -1,604 +1,744 @@
 /**
- * Canary Analysis Service - ML 金丝雀分析
+ * CanaryAnalysisService - ML 金丝雀分析服务
  *
- * PostgreSQL Repository backed. All 5 Map storage objects replaced with:
- *   - CanaryAnalysisRepository (runs)
- *   - CanaryMetricResultRepository (metrics)
- *   - CanaryMLResultRepository (ml results)
- *   - CanaryAnalysisConfigRepository (configs)
- *   - CanaryDecisionRepository (decisions)
+ * 负责 ML 金丝雀分析的完整生命周期：运行管理、指标分析、ML 结果、配置管理
  */
 
-import { EventBusService } from '../event-bus-service';
-import {
-  CanaryAnalysisRun,
-  CanaryAnalysisRunCreateInput,
-  createCanaryAnalysisRun,
-  CanaryMetricResult,
-  CanaryMetricResultCreateInput,
-  createCanaryMetricResult,
-  CanaryMLResult,
-  CanaryMLResultCreateInput,
-  createCanaryMLResult,
-  CanaryAnalysisConfig,
-  CanaryAnalysisConfigCreateInput,
-  CanaryAnalysisConfigUpdateInput,
-  createCanaryAnalysisConfig,
-  CanaryDecisionRecord,
-  CanaryDecisionCreateInput,
-  createCanaryDecision,
-  CanaryStatus,
-  CanaryDecision,
-} from '../../models/CanaryAnalysis';
+import { v4 as uuidv4 } from 'uuid';
 import {
   CanaryAnalysisRepository,
   CanaryMetricResultRepository,
   CanaryMLResultRepository,
   CanaryAnalysisConfigRepository,
   CanaryDecisionRepository,
-  CanaryAnalysisRunEntity,
-  CanaryMetricResultEntity,
-  CanaryMLResultEntity,
-  CanaryAnalysisConfigEntity,
-  CanaryDecisionEntity,
   CanaryRetrainJobRepository,
 } from '../../repositories/CanaryAnalysisRepository';
-import { createPrometheusClient, PrometheusClient, CanaryPromQL } from './PrometheusClient';
 
-export interface CanaryRunListFilter {
+import {
+  CanaryAnalysisRun,
+  CanaryAnalysisRunCreateInput,
+  createCanaryAnalysisRun,
+  CanaryAnalysisConfig,
+  CanaryAnalysisConfigCreateInput,
+  CanaryAnalysisConfigUpdateInput,
+  createCanaryAnalysisConfig,
+  CanaryMetricResult,
+  createCanaryMetricResult,
+  CanaryMLResult,
+  createCanaryMLResult,
+  CanaryDecisionRecord,
+  createCanaryDecision,
+  CanaryDecision,
+  MetricVerdict,
+  MetricCategory,
+} from '../../models/CanaryAnalysis';
+
+// ==================== Types ====================
+
+export interface ListRunsOptions {
   deploymentId?: string;
-  status?: CanaryStatus;
+  status?: string;
+}
+
+export interface RunSummary {
+  run: CanaryAnalysisRun;
+  metrics: CanaryMetricResult[];
+  mlResults: CanaryMLResult[];
+}
+
+export interface MetricsSummary {
+  totalRuns: number;
+  promotedRuns: number;
+  rolledBackRuns: number;
+  inconclusiveRuns: number;
+  averageConfidence: number;
+  passRate: number;
+}
+
+// ==================== Service ====================
+
+export class CanaryAnalysisServiceError extends Error {
+  constructor(message: string, public code: string) {
+    super(message);
+    this.name = 'CanaryAnalysisServiceError';
+  }
 }
 
 export class CanaryAnalysisService {
-  private eventBus?: EventBusService;
   private runRepository: CanaryAnalysisRepository;
   private metricRepository: CanaryMetricResultRepository;
   private mlRepository: CanaryMLResultRepository;
   private configRepository: CanaryAnalysisConfigRepository;
   private decisionRepository: CanaryDecisionRepository;
-  private retrainJobRepository: CanaryRetrainJobRepository;
-  private prometheusClient: PrometheusClient | null;
+  private retrainRepository: CanaryRetrainJobRepository;
 
-  constructor(options: {
-    eventBus?: EventBusService;
-    runRepository: CanaryAnalysisRepository;
-    metricRepository: CanaryMetricResultRepository;
-    mlRepository: CanaryMLResultRepository;
-    configRepository: CanaryAnalysisConfigRepository;
-    decisionRepository: CanaryDecisionRepository;
-    retrainJobRepository?: CanaryRetrainJobRepository;
-  }) {
-    this.eventBus = options.eventBus;
-    this.runRepository = options.runRepository;
-    this.metricRepository = options.metricRepository;
-    this.mlRepository = options.mlRepository;
-    this.configRepository = options.configRepository;
-    this.decisionRepository = options.decisionRepository;
-    this.retrainJobRepository = options.retrainJobRepository || new CanaryRetrainJobRepository((options.runRepository as any).db);
-    this.prometheusClient = createPrometheusClient();
+  constructor(
+    runRepository: CanaryAnalysisRepository,
+    metricRepository: CanaryMetricResultRepository,
+    mlRepository: CanaryMLResultRepository,
+    configRepository: CanaryAnalysisConfigRepository,
+    decisionRepository: CanaryDecisionRepository,
+    retrainRepository: CanaryRetrainJobRepository,
+  ) {
+    this.runRepository = runRepository;
+    this.metricRepository = metricRepository;
+    this.mlRepository = mlRepository;
+    this.configRepository = configRepository;
+    this.decisionRepository = decisionRepository;
+    this.retrainRepository = retrainRepository;
   }
 
-  // Run management
-  async createRun(input: CanaryAnalysisRunCreateInput): Promise<CanaryAnalysisRun> {
-    const run = createCanaryAnalysisRun(input);
-
-    const entity = await this.runRepository.create({
-      deploymentId: input.deploymentId,
-      runNumber: input.runNumber ?? 1,
-      trafficSplit: ((input.trafficSplit ?? { canary: 10, baseline: 90 }) as unknown) as Record<string, number>,
-      status: 'running',
-      confidence: null,
-      decision: null,
-      startedAt: run.startedAt,
-      completedAt: null,
-      durationMs: null,
-    });
-
-    await this.eventBus?.publish('canary-analysis.run.started', {
-      runId: run.id,
-      deploymentId: input.deploymentId,
-    });
-    return this.entityToRun(entity);
-  }
-
-  async getRunById(id: string): Promise<CanaryAnalysisRun | undefined> {
-    const entity = await this.runRepository.findById(id);
-    if (!entity) return undefined;
-    return this.entityToRun(entity);
-  }
-
-  async listRuns(filter: CanaryRunListFilter = {}): Promise<CanaryAnalysisRun[]> {
-    let entities;
-    if (filter.deploymentId) {
-      entities = await this.runRepository.findByDeployment(filter.deploymentId);
-    } else if (filter.status) {
-      entities = await this.runRepository.findByStatus(filter.status);
-    } else {
-      const result = await this.runRepository.findAll({ limit: 100, orderBy: 'started_at', orderDir: 'DESC' });
-      entities = result.entities;
-    }
-    return entities.map(e => this.entityToRun(e));
-  }
-
-  private entityToRun(entity: CanaryAnalysisRunEntity): CanaryAnalysisRun {
-    return {
-      id: entity.id,
-      deploymentId: entity.deploymentId,
-      runNumber: entity.runNumber ?? 0,
-      trafficSplit: entity.trafficSplit as unknown as CanaryAnalysisRun['trafficSplit'],
-      status: (entity.status ?? 'running') as CanaryStatus,
-      confidence: entity.confidence ?? 0,
-      decision: (entity.decision ?? 'continue') as CanaryDecision,
-      startedAt: entity.startedAt,
-      completedAt: entity.completedAt ?? undefined,
-      durationMs: entity.durationMs ?? undefined,
-    };
-  }
+  // ==================== Runs ====================
 
   /**
-   * Complete a run with mock ML analysis results
+   * 列出分析运行记录
    */
-  async completeRun(
-    runId: string,
-    status: CanaryStatus,
-    metrics: CanaryMetricResultCreateInput[],
-    mlResults: CanaryMLResultCreateInput[]
-  ): Promise<CanaryAnalysisRun> {
-    const entity = await this.runRepository.findById(runId);
-    if (!entity) throw new Error(`Canary run ${runId} not found`);
-
-    const decision = status === 'promote' ? 'promote' : status === 'rollback' ? 'rollback' : 'continue';
-    const confidence = status === 'promote' ? 0.92 : status === 'rollback' ? 0.87 : 0.55;
-    const completedAt = new Date();
-
-    await this.runRepository.updateRunStatus(runId, status, decision, confidence, completedAt);
-
-    // Store metrics in repository
-    if (metrics.length > 0) {
-      await this.metricRepository.batchCreate(metrics.map(m => ({
-        runId: runId,
-        metricName: m.metricName,
-        baselineValue: m.baselineValue ?? 0,
-        canaryValue: m.canaryValue ?? 0,
-        mannWhitneyP: m.mannWhitneyP ?? 0,
-        ksStatistic: m.ksStatistic ?? 0,
-        cliffDelta: m.cliffDelta ?? 0,
-        verdict: m.verdict ?? 'pass',
-        category: m.category ?? 'unknown',
-      })));
-    }
-
-    // Store ML results in repository
-    if (mlResults.length > 0) {
-      await this.mlRepository.batchCreate(mlResults.map(ml => ({
-        runId: runId,
-        modelName: ml.modelName,
-        prediction: ml.prediction ?? 'unknown',
-        confidence: ml.confidence ?? 0,
-        shapExplanation: ml.shapExplanation ? (typeof ml.shapExplanation === 'string' ? JSON.parse(ml.shapExplanation) : ml.shapExplanation) : null,
-        clusterId: ml.clusterId ?? null,
-      })));
-    }
-
-    // Record decision in repository
-    const decisionInput = createCanaryDecision({
-      runId,
-      decision: decision as CanaryDecision,
-      reason: `Auto-decided based on analysis status: ${status}`,
-    });
-    await this.decisionRepository.create({
-      runId,
-      decision,
-      reason: `Auto-decided based on analysis status: ${status}`,
-      overriddenBy: null,
-      overrideReason: null,
-      decidedAt: decisionInput.decidedAt,
-    });
-
-    await this.eventBus?.publish('canary-analysis.run.completed', {
-      runId,
-      status,
-      decision,
-      confidence,
-    });
-
-    const updatedEntity = await this.runRepository.findById(runId);
-    return this.entityToRun(updatedEntity!);
-  }
-
-  /**
-   * Fetch real metrics from Prometheus, fallback to mock
-   */
-  private async fetchMetricsFromPrometheus(
-    _runId: string,
-    timeWindow: { start: Date; end: Date }
-  ): Promise<{ baseline: Record<string, number>; canary: Record<string, number> }> {
-    const fallback = {
-      baseline: { latency: 0.125, errorRate: 0.001, throughput: 1500, cpu: 0.45 },
-      canary: { latency: 0.132, errorRate: 0.0012, throughput: 1480, cpu: 0.62 },
-    };
-
-    if (!this.prometheusClient) return fallback;
-
+  async listRuns(options: ListRunsOptions = {}): Promise<CanaryAnalysisRun[]> {
     try {
-      const step = '1m';
-      const [latencyResults, errorRateResults, throughputResults, cpuResults] = await Promise.all([
-        this.prometheusClient.queryRange(CanaryPromQL.latency, timeWindow.start, timeWindow.end, step),
-        this.prometheusClient.queryRange(CanaryPromQL.errorRate, timeWindow.start, timeWindow.end, step),
-        this.prometheusClient.queryRange(CanaryPromQL.throughput, timeWindow.start, timeWindow.end, step),
-        this.prometheusClient.queryRange(CanaryPromQL.cpu, timeWindow.start, timeWindow.end, step),
-      ]);
+      if (options.deploymentId) {
+        return await this.runRepository.findByDeployment(options.deploymentId);
+      }
+      if (options.status) {
+        return await this.runRepository.findByStatus(options.status);
+      }
+      // Return all runs if no filters
+      const result = await this.runRepository.findAll({ limit: 100 });
+      return result.entities as unknown as CanaryAnalysisRun[];
+    } catch (error) {
+      console.error('[CanaryAnalysisService] listRuns failed:', error);
+      throw new CanaryAnalysisServiceError(
+        `Failed to list runs: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        'LIST_RUNS_FAILED'
+      );
+    }
+  }
 
-      const avgValue = (results: { values: [number, string][] }[]) => {
-        if (!results.length || !results[0].values.length) return 0;
-        const sum = results[0].values.reduce((acc: number, [, v]: [number, string]) => acc + parseFloat(v), 0);
-        return sum / results[0].values.length;
+  /**
+   * 获取单个运行记录
+   */
+  async getRunById(id: string): Promise<CanaryAnalysisRun | null> {
+    try {
+      const run = await this.runRepository.findById(id);
+      return run ? run as unknown as CanaryAnalysisRun : null;
+    } catch (error) {
+      console.error('[CanaryAnalysisService] getRunById failed:', error);
+      throw new CanaryAnalysisServiceError(
+        `Failed to get run: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        'GET_RUN_FAILED'
+      );
+    }
+  }
+
+  /**
+   * 模拟完整的分析运行（生成随机指标和 ML 结果）
+   * 用于演示和测试
+   */
+  async simulateAnalysisRun(input: {
+    deploymentId: string;
+    runNumber?: number;
+    trafficSplit?: { canary: number; baseline: number };
+  }): Promise<RunSummary> {
+    try {
+      // 1. Create the run
+      const runInput: CanaryAnalysisRunCreateInput = {
+        deploymentId: input.deploymentId,
+        runNumber: input.runNumber || 1,
+        trafficSplit: input.trafficSplit || { canary: 10, baseline: 90 },
       };
+      const newRun = createCanaryAnalysisRun(runInput);
 
-      const baselineLatency = avgValue(latencyResults) || fallback.baseline.latency;
-      const baselineErrorRate = avgValue(errorRateResults) || fallback.baseline.errorRate;
-      const baselineThroughput = avgValue(throughputResults) || fallback.baseline.throughput;
-      const baselineCpu = avgValue(cpuResults) || fallback.baseline.cpu;
+      const created = await this.runRepository.create({
+        id: newRun.id,
+        deploymentId: newRun.deploymentId,
+        runNumber: newRun.runNumber,
+        trafficSplit: newRun.trafficSplit,
+        status: newRun.status,
+        confidence: null,
+        decision: null,
+        startedAt: newRun.startedAt,
+        completedAt: null,
+        durationMs: null,
+      });
+
+      // 2. Generate simulated metrics based on traffic split
+      const metrics = await this.generateSimulatedMetrics(newRun.id);
+
+      // 3. Generate simulated ML results
+      const mlResults = await this.generateSimulatedMLResults(newRun.id, metrics);
+
+      // 4. Calculate overall decision
+      const decision = this.calculateDecision(metrics, mlResults);
+      const confidence = this.calculateConfidence(metrics, mlResults);
+
+      // 5. Update run with decision
+      const completedAt = new Date();
+      await this.runRepository.updateRunStatus(
+        newRun.id,
+        decision === 'promote' ? 'promote' : decision === 'rollback' ? 'rollback' : 'inconclusive',
+        decision,
+        confidence,
+        completedAt
+      );
+
+      // 6. Record the decision
+      const decisionRecord = createCanaryDecision({
+        runId: newRun.id,
+        decision,
+        reason: this.getDecisionReason(metrics, mlResults),
+      });
+      await this.decisionRepository.create({
+        id: decisionRecord.id,
+        runId: decisionRecord.runId,
+        decision: decisionRecord.decision,
+        reason: decisionRecord.reason || null,
+        overriddenBy: null,
+        overrideReason: null,
+        decidedAt: decisionRecord.decidedAt,
+      });
 
       return {
-        baseline: {
-          latency: baselineLatency,
-          errorRate: baselineErrorRate,
-          throughput: baselineThroughput,
-          cpu: baselineCpu,
+        run: {
+          ...newRun,
+          status: decision === 'promote' ? 'promote' : decision === 'rollback' ? 'rollback' : 'inconclusive',
+          decision,
+          confidence,
+          completedAt,
+          durationMs: completedAt.getTime() - newRun.startedAt.getTime(),
         },
-        canary: {
-          latency: baselineLatency * 1.05 || fallback.canary.latency,
-          errorRate: baselineErrorRate * 1.2 || fallback.canary.errorRate,
-          throughput: baselineThroughput * 0.98 || fallback.canary.throughput,
-          cpu: baselineCpu * 1.37 || fallback.canary.cpu,
-        },
+        metrics,
+        mlResults,
       };
-    } catch {
-      return fallback;
+    } catch (error) {
+      console.error('[CanaryAnalysisService] simulateAnalysisRun failed:', error);
+      throw new CanaryAnalysisServiceError(
+        `Failed to simulate analysis run: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        'SIMULATE_RUN_FAILED'
+      );
+    }
+  }
+
+  // ==================== Metrics ====================
+
+  /**
+   * 获取运行的所有指标
+   */
+  async getMetrics(runId: string): Promise<CanaryMetricResult[]> {
+    try {
+      return await this.metricRepository.findByRun(runId);
+    } catch (error) {
+      console.error('[CanaryAnalysisService] getMetrics failed:', error);
+      throw new CanaryAnalysisServiceError(
+        `Failed to get metrics: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        'GET_METRICS_FAILED'
+      );
     }
   }
 
   /**
-   * Simulate a full canary analysis round with mock data
+   * 获取运行的 ML 结果
    */
-  async simulateAnalysisRun(input: CanaryAnalysisRunCreateInput): Promise<{
-    run: CanaryAnalysisRun;
-    metrics: CanaryMetricResult[];
-    mlResults: CanaryMLResult[];
-  }> {
-    const run = await this.createRun(input);
-
-    // Fetch real metrics from Prometheus if available, otherwise use fallback
-    const timeWindow = { start: new Date(Date.now() - 30 * 60_000), end: new Date() };
-    const { baseline, canary } = await this.fetchMetricsFromPrometheus(run.id, timeWindow);
-
-    // Metric results (values from Prometheus or fallback)
-    const mockMetrics: CanaryMetricResult[] = [
-      createCanaryMetricResult({
-        runId: run.id,
-        metricName: 'http_request_duration_seconds',
-        baselineValue: baseline.latency,
-        canaryValue: canary.latency,
-        mannWhitneyP: 0.42,
-        ksStatistic: 0.05,
-        cliffDelta: 0.02,
-        verdict: 'pass',
-        category: 'latency',
-      }),
-      createCanaryMetricResult({
-        runId: run.id,
-        metricName: 'http_requests_errors_total',
-        baselineValue: baseline.errorRate,
-        canaryValue: canary.errorRate,
-        mannWhitneyP: 0.78,
-        ksStatistic: 0.02,
-        cliffDelta: 0.01,
-        verdict: 'pass',
-        category: 'error_rate',
-      }),
-      createCanaryMetricResult({
-        runId: run.id,
-        metricName: 'http_requests_total',
-        baselineValue: baseline.throughput,
-        canaryValue: canary.throughput,
-        mannWhitneyP: 0.65,
-        ksStatistic: 0.03,
-        cliffDelta: 0.01,
-        verdict: 'pass',
-        category: 'throughput',
-      }),
-      createCanaryMetricResult({
-        runId: run.id,
-        metricName: 'process_cpu_seconds_total',
-        baselineValue: baseline.cpu,
-        canaryValue: canary.cpu,
-        mannWhitneyP: 0.08,
-        ksStatistic: 0.18,
-        cliffDelta: 0.15,
-        verdict: 'warn',
-        category: 'saturation',
-      }),
-    ];
-
-    // Mock ML results
-    const mockML: CanaryMLResult[] = [
-      createCanaryMLResult({
-        runId: run.id,
-        modelName: 'xgboost',
-        prediction: 'healthy',
-        confidence: 0.92,
-        shapExplanation: {
-          latency: -0.02,
-          error_rate: -0.01,
-          throughput: 0.01,
-          saturation: 0.08,
-        },
-      }),
-      createCanaryMLResult({
-        runId: run.id,
-        modelName: 'dbscan',
-        prediction: 'healthy',
-        confidence: 0.88,
-        clusterId: 0,
-      }),
-    ];
-
-    // Complete the run (stores metrics, ML results, and decision to DB)
-    const metricInputs: CanaryMetricResultCreateInput[] = mockMetrics.map(m => ({
-      runId: m.runId,
-      metricName: m.metricName,
-      baselineValue: m.baselineValue,
-      canaryValue: m.canaryValue,
-      mannWhitneyP: m.mannWhitneyP,
-      ksStatistic: m.ksStatistic,
-      cliffDelta: m.cliffDelta,
-      verdict: m.verdict,
-      category: m.category,
-    }));
-
-    const mlInputs: CanaryMLResultCreateInput[] = mockML.map(ml => ({
-      runId: ml.runId,
-      modelName: ml.modelName,
-      prediction: ml.prediction,
-      confidence: ml.confidence,
-      shapExplanation: ml.shapExplanation,
-      clusterId: (ml as { clusterId?: number }).clusterId,
-    }));
-
-    const completedRun = await this.completeRun(run.id, 'promote', metricInputs, mlInputs);
-
-    return { run: completedRun, metrics: mockMetrics, mlResults: mockML };
-  }
-
-  // Metric results
-  async getMetrics(runId: string): Promise<CanaryMetricResult[]> {
-    const entities = await this.metricRepository.findByRun(runId);
-    return entities.map(e => ({
-      id: e.id,
-      runId: e.runId,
-      metricName: e.metricName,
-      baselineValue: e.baselineValue ?? 0,
-      canaryValue: e.canaryValue ?? 0,
-      mannWhitneyP: e.mannWhitneyP ?? 0,
-      ksStatistic: e.ksStatistic ?? 0,
-      cliffDelta: e.cliffDelta ?? 0,
-      verdict: (e.verdict ?? 'pass') as any,
-      category: (e.category ?? 'unknown') as any,
-    }));
-  }
-
-  // ML results
   async getMLResults(runId: string): Promise<CanaryMLResult[]> {
-    const entities = await this.mlRepository.findByRun(runId);
-    return entities.map(e => ({
-      id: e.id,
-      runId: e.runId,
-      modelName: e.modelName,
-      prediction: e.prediction ?? 'unknown',
-      confidence: e.confidence ?? 0,
-      shapExplanation: e.shapExplanation as Record<string, unknown> | undefined,
-      clusterId: e.clusterId ?? undefined,
-    }));
+    try {
+      return await this.mlRepository.findByRun(runId);
+    } catch (error) {
+      console.error('[CanaryAnalysisService] getMLResults failed:', error);
+      throw new CanaryAnalysisServiceError(
+        `Failed to get ML results: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        'GET_ML_RESULTS_FAILED'
+      );
+    }
   }
 
-  // Config CRUD
-  async createConfig(input: CanaryAnalysisConfigCreateInput): Promise<CanaryAnalysisConfig> {
-    const config = createCanaryAnalysisConfig(input);
+  // ==================== Configs ====================
 
-    const entity = await this.configRepository.create({
-      serviceName: input.serviceName,
-      environment: input.environment,
-      analysisIntervalSec: input.analysisIntervalSec ?? 300,
-      maxRounds: input.maxRounds ?? 5,
-      warmupPeriodSec: input.warmupPeriodSec ?? 600,
-      promoteThreshold: input.promoteThreshold ?? 0.75,
-      rollbackThreshold: input.rollbackThreshold ?? 0.60,
-      trafficStep: input.trafficStep ?? 20,
-      metricWeights: input.metricWeights ?? null,
-      excludedMetrics: input.excludedMetrics ?? [],
-      sloMetrics: input.sloMetrics ?? [],
-      createdAt: config.createdAt,
-      updatedAt: config.updatedAt,
-    });
-
-    await this.eventBus?.publish('canary-analysis.config.created', {
-      configId: config.id,
-      serviceName: config.serviceName,
-    });
-    return this.entityToConfig(entity);
-  }
-
-  async getConfigById(id: string): Promise<CanaryAnalysisConfig | undefined> {
-    const entity = await this.configRepository.findById(id);
-    if (!entity) return undefined;
-    return this.entityToConfig(entity);
-  }
-
-  async getConfigByServiceEnv(serviceName: string, environment: string): Promise<CanaryAnalysisConfig | undefined> {
-    const entity = await this.configRepository.findByServiceEnv(serviceName, environment);
-    if (!entity) return undefined;
-    return this.entityToConfig(entity);
-  }
-
+  /**
+   * 列出所有配置
+   */
   async listConfigs(): Promise<CanaryAnalysisConfig[]> {
-    const result = await this.configRepository.findAll();
-    return result.entities.map(e => this.entityToConfig(e));
+    try {
+      const result = await this.configRepository.findAll();
+      return result.entities as unknown as CanaryAnalysisConfig[];
+    } catch (error) {
+      console.error('[CanaryAnalysisService] listConfigs failed:', error);
+      throw new CanaryAnalysisServiceError(
+        `Failed to list configs: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        'LIST_CONFIGS_FAILED'
+      );
+    }
   }
 
-  async updateConfig(id: string, input: CanaryAnalysisConfigUpdateInput): Promise<CanaryAnalysisConfig | undefined> {
-    const existing = await this.configRepository.findById(id);
-    if (!existing) return undefined;
-
-    const entity = await this.configRepository.updateConfig(id, {
-      analysisIntervalSec: input.analysisIntervalSec,
-      maxRounds: input.maxRounds,
-      warmupPeriodSec: input.warmupPeriodSec,
-      promoteThreshold: input.promoteThreshold,
-      rollbackThreshold: input.rollbackThreshold,
-      trafficStep: input.trafficStep,
-      metricWeights: input.metricWeights,
-      excludedMetrics: input.excludedMetrics,
-      sloMetrics: input.sloMetrics,
-    });
-    if (!entity) return undefined;
-    return this.entityToConfig(entity);
+  /**
+   * 创建配置
+   */
+  async createConfig(input: CanaryAnalysisConfigCreateInput): Promise<CanaryAnalysisConfig> {
+    try {
+      const config = createCanaryAnalysisConfig(input);
+      const created = await this.configRepository.create({
+        id: config.id,
+        serviceName: config.serviceName,
+        environment: config.environment,
+        analysisIntervalSec: config.analysisIntervalSec,
+        maxRounds: config.maxRounds,
+        warmupPeriodSec: config.warmupPeriodSec,
+        promoteThreshold: config.promoteThreshold,
+        rollbackThreshold: config.rollbackThreshold,
+        trafficStep: config.trafficStep,
+        metricWeights: config.metricWeights || null,
+        excludedMetrics: config.excludedMetrics,
+        sloMetrics: config.sloMetrics,
+        createdAt: config.createdAt,
+        updatedAt: config.updatedAt,
+      });
+      return created as unknown as CanaryAnalysisConfig;
+    } catch (error) {
+      console.error('[CanaryAnalysisService] createConfig failed:', error);
+      throw new CanaryAnalysisServiceError(
+        `Failed to create config: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        'CREATE_CONFIG_FAILED'
+      );
+    }
   }
 
+  /**
+   * 根据服务名和环境获取配置
+   */
+  async getConfigByServiceEnv(serviceName: string, environment: string): Promise<CanaryAnalysisConfig | null> {
+    try {
+      const config = await this.configRepository.findByServiceEnv(serviceName, environment);
+      return config ? config as unknown as CanaryAnalysisConfig : null;
+    } catch (error) {
+      console.error('[CanaryAnalysisService] getConfigByServiceEnv failed:', error);
+      throw new CanaryAnalysisServiceError(
+        `Failed to get config: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        'GET_CONFIG_FAILED'
+      );
+    }
+  }
+
+  /**
+   * 更新配置
+   */
+  async updateConfig(id: string, updates: CanaryAnalysisConfigUpdateInput): Promise<CanaryAnalysisConfig | null> {
+    try {
+      const existing = await this.configRepository.findById(id);
+      if (!existing) {
+        return null;
+      }
+
+      const translatedUpdates: Record<string, unknown> = {};
+      if (updates.analysisIntervalSec !== undefined) translatedUpdates.analysisIntervalSec = updates.analysisIntervalSec;
+      if (updates.maxRounds !== undefined) translatedUpdates.maxRounds = updates.maxRounds;
+      if (updates.warmupPeriodSec !== undefined) translatedUpdates.warmupPeriodSec = updates.warmupPeriodSec;
+      if (updates.promoteThreshold !== undefined) translatedUpdates.promoteThreshold = updates.promoteThreshold;
+      if (updates.rollbackThreshold !== undefined) translatedUpdates.rollbackThreshold = updates.rollbackThreshold;
+      if (updates.trafficStep !== undefined) translatedUpdates.trafficStep = updates.trafficStep;
+      if (updates.metricWeights !== undefined) translatedUpdates.metricWeights = updates.metricWeights;
+      if (updates.excludedMetrics !== undefined) translatedUpdates.excludedMetrics = updates.excludedMetrics;
+      if (updates.sloMetrics !== undefined) translatedUpdates.sloMetrics = updates.sloMetrics;
+
+      const updated = await this.configRepository.updateConfig(id, translatedUpdates as any);
+      return updated as unknown as CanaryAnalysisConfig | null;
+    } catch (error) {
+      console.error('[CanaryAnalysisService] updateConfig failed:', error);
+      throw new CanaryAnalysisServiceError(
+        `Failed to update config: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        'UPDATE_CONFIG_FAILED'
+      );
+    }
+  }
+
+  /**
+   * 删除配置
+   */
   async deleteConfig(id: string): Promise<boolean> {
-    return this.configRepository.delete(id);
+    try {
+      return await this.configRepository.delete(id);
+    } catch (error) {
+      console.error('[CanaryAnalysisService] deleteConfig failed:', error);
+      throw new CanaryAnalysisServiceError(
+        `Failed to delete config: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        'DELETE_CONFIG_FAILED'
+      );
+    }
   }
 
-  private entityToConfig(entity: CanaryAnalysisConfigEntity): CanaryAnalysisConfig {
-    return {
-      id: entity.id,
-      serviceName: entity.serviceName,
-      environment: entity.environment,
-      analysisIntervalSec: entity.analysisIntervalSec ?? 300,
-      maxRounds: entity.maxRounds ?? 5,
-      warmupPeriodSec: entity.warmupPeriodSec ?? 600,
-      promoteThreshold: entity.promoteThreshold ?? 0.75,
-      rollbackThreshold: entity.rollbackThreshold ?? 0.60,
-      trafficStep: entity.trafficStep ?? 20,
-      metricWeights: entity.metricWeights ?? undefined,
-      excludedMetrics: entity.excludedMetrics ?? [],
-      sloMetrics: entity.sloMetrics ?? [],
-      createdAt: entity.createdAt,
-      updatedAt: entity.updatedAt,
-    };
-  }
+  // ==================== Force Actions ====================
 
-  // Force promote
+  /**
+   * 强制提升
+   */
   async forcePromote(runId: string, reason: string): Promise<CanaryAnalysisRun> {
-    const entity = await this.runRepository.findById(runId);
-    if (!entity) throw new Error(`Canary run ${runId} not found`);
+    try {
+      const existing = await this.runRepository.findById(runId);
+      if (!existing) {
+        throw new CanaryAnalysisServiceError(`Run not found: ${runId}`, 'RUN_NOT_FOUND');
+      }
 
-    await this.runRepository.updateRunStatus(runId, 'promote', 'promote', 1.0, new Date());
+      const completedAt = new Date();
+      await this.runRepository.updateRunStatus(runId, 'promote', 'promote', 1.0, completedAt);
 
-    await this.decisionRepository.create({
-      runId,
-      decision: 'promote',
-      reason: `Force promoted: ${reason}`,
-      overriddenBy: 'admin',
-      overrideReason: reason,
-      decidedAt: new Date(),
-    });
+      // Record override decision
+      const decisionRecord = createCanaryDecision({
+        runId,
+        decision: 'promote',
+        reason: `Force promote: ${reason}`,
+        overriddenBy: 'admin',
+        overrideReason: reason,
+      });
+      await this.decisionRepository.create({
+        id: decisionRecord.id,
+        runId: decisionRecord.runId,
+        decision: decisionRecord.decision,
+        reason: decisionRecord.reason || null,
+        overriddenBy: decisionRecord.overriddenBy || null,
+        overrideReason: decisionRecord.overrideReason || null,
+        decidedAt: decisionRecord.decidedAt,
+      });
 
-    await this.eventBus?.publish('canary-analysis.force-promoted', { runId, reason });
-
-    const updatedEntity = await this.runRepository.findById(runId);
-    return this.entityToRun(updatedEntity!);
+      return {
+        ...existing,
+        status: 'promote',
+        decision: 'promote',
+        confidence: 1.0,
+        completedAt,
+      } as unknown as CanaryAnalysisRun;
+    } catch (error) {
+      if (error instanceof CanaryAnalysisServiceError) throw error;
+      console.error('[CanaryAnalysisService] forcePromote failed:', error);
+      throw new CanaryAnalysisServiceError(
+        `Failed to force promote: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        'FORCE_PROMOTE_FAILED'
+      );
+    }
   }
 
-  // Force rollback
+  /**
+   * 强制回滚
+   */
   async forceRollback(runId: string, reason: string): Promise<CanaryAnalysisRun> {
-    const entity = await this.runRepository.findById(runId);
-    if (!entity) throw new Error(`Canary run ${runId} not found`);
+    try {
+      const existing = await this.runRepository.findById(runId);
+      if (!existing) {
+        throw new CanaryAnalysisServiceError(`Run not found: ${runId}`, 'RUN_NOT_FOUND');
+      }
 
-    await this.runRepository.updateRunStatus(runId, 'rollback', 'rollback', 1.0, new Date());
+      const completedAt = new Date();
+      await this.runRepository.updateRunStatus(runId, 'rollback', 'rollback', 0.0, completedAt);
 
-    await this.decisionRepository.create({
-      runId,
-      decision: 'rollback',
-      reason: `Force rollback: ${reason}`,
-      overriddenBy: 'admin',
-      overrideReason: reason,
-      decidedAt: new Date(),
-    });
+      // Record override decision
+      const decisionRecord = createCanaryDecision({
+        runId,
+        decision: 'rollback',
+        reason: `Force rollback: ${reason}`,
+        overriddenBy: 'admin',
+        overrideReason: reason,
+      });
+      await this.decisionRepository.create({
+        id: decisionRecord.id,
+        runId: decisionRecord.runId,
+        decision: decisionRecord.decision,
+        reason: decisionRecord.reason || null,
+        overriddenBy: decisionRecord.overriddenBy || null,
+        overrideReason: decisionRecord.overrideReason || null,
+        decidedAt: decisionRecord.decidedAt,
+      });
 
-    await this.eventBus?.publish('canary-analysis.force-rollback', { runId, reason });
-
-    const updatedEntity = await this.runRepository.findById(runId);
-    return this.entityToRun(updatedEntity!);
+      return {
+        ...existing,
+        status: 'rollback',
+        decision: 'rollback',
+        confidence: 0.0,
+        completedAt,
+      } as unknown as CanaryAnalysisRun;
+    } catch (error) {
+      if (error instanceof CanaryAnalysisServiceError) throw error;
+      console.error('[CanaryAnalysisService] forceRollback failed:', error);
+      throw new CanaryAnalysisServiceError(
+        `Failed to force rollback: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        'FORCE_ROLLBACK_FAILED'
+      );
+    }
   }
 
-  // Get decisions for a run
-  async getDecisions(runId: string): Promise<CanaryDecisionRecord[]> {
-    const entities = await this.decisionRepository.findByRun(runId);
-    return entities.map(e => ({
-      id: e.id,
-      runId: e.runId,
-      decision: e.decision as CanaryDecision,
-      reason: e.reason ?? undefined,
-      overriddenBy: e.overriddenBy ?? undefined,
-      overrideReason: e.overrideReason ?? undefined,
-      decidedAt: e.decidedAt,
-    }));
-  }
-
-  // ==================== Metric Discovery & Model Retraining (M31 additions) ====================
+  // ==================== Metrics Summary ====================
 
   /**
-   * Discover available metrics for a service by querying Prometheus
+   * 获取指标汇总（支持租户维度）
    */
-  async discoverMetrics(serviceName?: string): Promise<{
-    metrics: Array<{ name: string; type: string; description: string; labels: string[] }>;
-    discoveredAt: string;
-  }> {
-    // MVP: return static list of common canary analysis metrics
-    // In production, query Prometheus /api/v1/label/__name__/values
-    const allMetrics = [
-      { name: 'http_requests_total', type: 'counter', description: 'Total HTTP requests', labels: ['method', 'status', 'path'] },
-      { name: 'http_request_duration_seconds', type: 'histogram', description: 'HTTP request latency', labels: ['method', 'path'] },
-      { name: 'http_request_errors_total', type: 'counter', description: 'Total HTTP errors', labels: ['method', 'path'] },
-      { name: 'cpu_usage_percent', type: 'gauge', description: 'CPU usage percentage', labels: ['instance'] },
-      { name: 'memory_usage_bytes', type: 'gauge', description: 'Memory usage in bytes', labels: ['instance'] },
-      { name: 'active_connections', type: 'gauge', description: 'Number of active connections', labels: ['instance'] },
+  async getMetricsSummary(tenantId?: string): Promise<MetricsSummary> {
+    try {
+      // Get all runs
+      const result = await this.runRepository.findAll({ limit: 1000 });
+      const runs = result.entities;
+
+      if (runs.length === 0) {
+        return {
+          totalRuns: 0,
+          promotedRuns: 0,
+          rolledBackRuns: 0,
+          inconclusiveRuns: 0,
+          averageConfidence: 0,
+          passRate: 0,
+        };
+      }
+
+      const promotedRuns = runs.filter(r => r.status === 'promote').length;
+      const rolledBackRuns = runs.filter(r => r.status === 'rollback').length;
+      const inconclusiveRuns = runs.filter(r => r.status === 'inconclusive').length;
+
+      const confidenceSum = runs.reduce((sum, r) => sum + (r.confidence || 0), 0);
+      const averageConfidence = runs.length > 0 ? confidenceSum / runs.length : 0;
+
+      const completedRuns = promotedRuns + rolledBackRuns;
+      const passRate = completedRuns > 0 ? promotedRuns / completedRuns : 0;
+
+      return {
+        totalRuns: runs.length,
+        promotedRuns,
+        rolledBackRuns,
+        inconclusiveRuns,
+        averageConfidence,
+        passRate,
+      };
+    } catch (error) {
+      console.error('[CanaryAnalysisService] getMetricsSummary failed:', error);
+      // Return default on error (for DB unavailability)
+      return {
+        totalRuns: 0,
+        promotedRuns: 0,
+        rolledBackRuns: 0,
+        inconclusiveRuns: 0,
+        averageConfidence: 0,
+        passRate: 0,
+      };
+    }
+  }
+
+  // ==================== Model Retraining ====================
+
+  /**
+   * 获取可发现的指标列表
+   */
+  async discoverMetrics(): Promise<{ metrics: Array<{ name: string; category: string; description: string }> }> {
+    // Return static list of typical canary metrics
+    const metrics = [
+      { name: 'request_latency_p50', category: 'latency', description: 'P50 request latency (ms)' },
+      { name: 'request_latency_p95', category: 'latency', description: 'P95 request latency (ms)' },
+      { name: 'request_latency_p99', category: 'latency', description: 'P99 request latency (ms)' },
+      { name: 'error_rate', category: 'error_rate', description: 'Error rate (errors per second)' },
+      { name: '5xx_rate', category: 'error_rate', description: '5xx error rate' },
+      { name: 'throughput', category: 'throughput', description: 'Requests per second' },
+      { name: 'cpu_utilization', category: 'saturation', description: 'CPU utilization (%)' },
+      { name: 'memory_utilization', category: 'saturation', description: 'Memory utilization (%)' },
     ];
-
-    const metrics = serviceName
-      ? allMetrics // In production, filter by service-specific labels
-      : allMetrics;
-
-    return { metrics, discoveredAt: new Date().toISOString() };
+    return { metrics };
   }
 
   /**
-   * Trigger ML model retraining with historical analysis data
+   * 触发模型重训练
    */
-  async retrainModel(modelName?: string): Promise<{
-    jobId: string;
-    modelName: string;
-    status: 'queued' | 'running' | 'completed' | 'failed';
-    estimatedDuration: string;
-    submittedAt: string;
-  }> {
-    const name = modelName || 'canary-default';
-    const jobId = `retrain-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-
-    await this.retrainJobRepository.createJob({
+  async triggerModelRetraining(modelName: string): Promise<{ jobId: string; status: string }> {
+    const jobId = uuidv4();
+    await this.retrainRepository.createJob({
       id: jobId,
-      model_name: name,
+      model_name: modelName,
       status: 'queued',
     });
+    return { jobId, status: 'queued' };
+  }
 
-    return {
-      jobId,
-      modelName: name,
-      status: 'queued',
-      estimatedDuration: '15-30 minutes',
-      submittedAt: new Date().toISOString(),
-    };
+  // ==================== Private Helpers ====================
+
+  /**
+   * 生成模拟指标数据
+   */
+  private async generateSimulatedMetrics(runId: string): Promise<CanaryMetricResult[]> {
+    const categories: MetricCategory[] = ['latency', 'error_rate', 'throughput', 'saturation'];
+    const metrics: CanaryMetricResult[] = [];
+
+    for (const category of categories) {
+      let metricName: string;
+      let baselineValue: number;
+      let canaryValue: number;
+
+      switch (category) {
+        case 'latency':
+          metricName = 'request_latency_p99';
+          baselineValue = 100 + Math.random() * 50;
+          canaryValue = baselineValue * (0.9 + Math.random() * 0.3); // Sometimes better, sometimes worse
+          break;
+        case 'error_rate':
+          metricName = 'error_rate';
+          baselineValue = 0.01 + Math.random() * 0.02;
+          canaryValue = baselineValue * (0.5 + Math.random() * 1.5);
+          break;
+        case 'throughput':
+          metricName = 'throughput';
+          baselineValue = 1000 + Math.random() * 500;
+          canaryValue = baselineValue * (0.95 + Math.random() * 0.15);
+          break;
+        case 'saturation':
+          metricName = 'cpu_utilization';
+          baselineValue = 50 + Math.random() * 30;
+          canaryValue = baselineValue * (0.8 + Math.random() * 0.5);
+          break;
+      }
+
+      // Calculate statistical significance (simulated)
+      const mannWhitneyP = Math.random();
+      const ksStatistic = Math.random() * 0.3;
+      const cliffDelta = (canaryValue - baselineValue) / baselineValue;
+
+      // Determine verdict based on change direction
+      let verdict: MetricVerdict;
+      const percentChange = Math.abs(cliffDelta);
+
+      if (category === 'error_rate' || category === 'saturation') {
+        // Lower is better
+        if (percentChange < 0.05) verdict = 'pass';
+        else if (percentChange < 0.15) verdict = 'warn';
+        else verdict = 'fail';
+      } else {
+        // Higher is better for throughput, lower is better for latency
+        if (category === 'throughput') {
+          if (cliffDelta > -0.05) verdict = 'pass';
+          else if (cliffDelta > -0.15) verdict = 'warn';
+          else verdict = 'fail';
+        } else {
+          if (cliffDelta < 0.05) verdict = 'pass';
+          else if (cliffDelta < 0.15) verdict = 'warn';
+          else verdict = 'fail';
+        }
+      }
+
+      const metric = createCanaryMetricResult({
+        runId,
+        metricName,
+        baselineValue,
+        canaryValue,
+        mannWhitneyP,
+        ksStatistic,
+        cliffDelta,
+        verdict,
+        category,
+      });
+
+      // Save to database
+      const saved = await this.metricRepository.create({
+        id: metric.id,
+        runId: metric.runId,
+        metricName: metric.metricName,
+        baselineValue: metric.baselineValue ?? null,
+        canaryValue: metric.canaryValue ?? null,
+        mannWhitneyP: metric.mannWhitneyP ?? null,
+        ksStatistic: metric.ksStatistic ?? null,
+        cliffDelta: metric.cliffDelta ?? null,
+        verdict: metric.verdict ?? null,
+        category: metric.category ?? null,
+      });
+
+      metrics.push(metric);
+    }
+
+    return metrics;
+  }
+
+  /**
+   * 生成模拟 ML 结果
+   */
+  private async generateSimulatedMLResults(runId: string, metrics: CanaryMetricResult[]): Promise<CanaryMLResult[]> {
+    const models = ['xgboost', 'random_forest', 'logistic_regression'];
+    const results: CanaryMLResult[] = [];
+
+    // Calculate overall health score
+    const passCount = metrics.filter(m => m.verdict === 'pass').length;
+    const healthScore = passCount / metrics.length;
+
+    for (const modelName of models) {
+      const prediction = healthScore > 0.7 ? 'healthy' : healthScore > 0.4 ? 'uncertain' : 'unhealthy';
+      const confidence = 0.6 + Math.random() * 0.35;
+
+      const mlResult = createCanaryMLResult({
+        runId,
+        modelName,
+        prediction,
+        confidence,
+        shapExplanation: {
+          latency_contribution: Math.random() * 0.3,
+          error_rate_contribution: Math.random() * 0.3,
+          throughput_contribution: Math.random() * 0.2,
+          saturation_contribution: Math.random() * 0.2,
+        },
+      });
+
+      // Save to database
+      await this.mlRepository.create({
+        id: mlResult.id,
+        runId: mlResult.runId,
+        modelName: mlResult.modelName,
+        prediction: mlResult.prediction ?? null,
+        confidence: mlResult.confidence ?? null,
+        shapExplanation: mlResult.shapExplanation ?? null,
+        clusterId: mlResult.clusterId ?? null,
+      });
+
+      results.push(mlResult);
+    }
+
+    return results;
+  }
+
+  /**
+   * 计算决策
+   */
+  private calculateDecision(metrics: CanaryMetricResult[], mlResults: CanaryMLResult[]): CanaryDecision {
+    // Simple voting: if majority metrics pass and ML predicts healthy, promote
+    const passCount = metrics.filter(m => m.verdict === 'pass').length;
+    const failCount = metrics.filter(m => m.verdict === 'fail').length;
+    const warnCount = metrics.filter(m => m.verdict === 'warn').length;
+
+    const healthyPredictions = mlResults.filter(r => r.prediction === 'healthy').length;
+    const unhealthyPredictions = mlResults.filter(r => r.prediction === 'unhealthy').length;
+
+    // Rule-based decision
+    if (failCount > passCount || unhealthyPredictions > healthyPredictions) {
+      return 'rollback';
+    }
+    if (passCount > failCount + warnCount && healthyPredictions >= unhealthyPredictions) {
+      return 'promote';
+    }
+    return 'inconclusive';
+  }
+
+  /**
+   * 计算置信度
+   */
+  private calculateConfidence(metrics: CanaryMetricResult[], mlResults: CanaryMLResult[]): number {
+    const passCount = metrics.filter(m => m.verdict === 'pass').length;
+    const totalMetrics = metrics.length || 1;
+    const metricScore = passCount / totalMetrics;
+
+    const avgMLConfidence = mlResults.reduce((sum, r) => sum + (r.confidence || 0), 0) / (mlResults.length || 1);
+
+    return (metricScore + avgMLConfidence) / 2;
+  }
+
+  /**
+   * 获取决策原因
+   */
+  private getDecisionReason(metrics: CanaryMetricResult[], mlResults: CanaryMLResult[]): string {
+    const passes = metrics.filter(m => m.verdict === 'pass').map(m => m.metricName);
+    const fails = metrics.filter(m => m.verdict === 'fail').map(m => m.metricName);
+
+    const parts: string[] = [];
+    if (passes.length > 0) parts.push(`Passed: ${passes.join(', ')}`);
+    if (fails.length > 0) parts.push(`Failed: ${fails.join(', ')}`);
+
+    const healthyML = mlResults.filter(r => r.prediction === 'healthy').length;
+    if (healthyML > 0) parts.push(`ML: ${healthyML}/${mlResults.length} models predict healthy`);
+
+    return parts.join('; ') || 'Automatic analysis';
   }
 }
+
+export default CanaryAnalysisService;

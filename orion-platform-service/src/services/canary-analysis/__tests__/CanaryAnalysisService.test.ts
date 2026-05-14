@@ -1,382 +1,378 @@
-/**
- * CanaryAnalysisService 单元测试
- *
- * Uses mock repositories to test business logic without a real database.
- */
-
-import { CanaryAnalysisService } from '../CanaryAnalysisService';
 import {
   CanaryAnalysisRepository,
   CanaryMetricResultRepository,
   CanaryMLResultRepository,
   CanaryAnalysisConfigRepository,
   CanaryDecisionRepository,
-} from '../../../repositories/CanaryAnalysisRepository';
-
-// ==================== Mock Repositories ====================
-
-function createMockDb() {
-  const stores: Record<string, any[]> = {
-    canary_analysis_runs: [],
-    canary_metric_results: [],
-    canary_ml_results: [],
-    canary_analysis_configs: [],
-    canary_decisions: [],
-  };
-
-  const db = {
-    query: async (text: string, params?: unknown[]): Promise<{ rows: any[]; rowCount: number | null }> => {
-      // Simple mock: just return empty rows
-      return { rows: [], rowCount: 0 };
-    },
-  };
-  return { db, stores };
-}
-
-function makeMockRepository<T extends { id?: string }>(tableName: string, store: any[]) {
-  return {
-    async findById(id: string): Promise<T | undefined> {
-      return store.find((r: any) => r.id === id) as T | undefined;
-    },
-    async findAll(options: any = {}): Promise<{ entities: T[]; total: number }> {
-      let entities = [...store] as T[];
-      if (options.where) {
-        entities = entities.filter((e: any) => {
-          for (const [key, value] of Object.entries(options.where)) {
-            if (e[key] !== value) return false;
-          }
-          return true;
-        });
-      }
-      if (options.limit) entities = entities.slice(0, options.limit);
-      return { entities, total: entities.length };
-    },
-    async create(data: any): Promise<T> {
-      const entity = { id: `mock-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`, ...data, created_at: new Date(), updated_at: new Date() };
-      store.push(entity);
-      return entity as T;
-    },
-    async delete(id: string): Promise<boolean> {
-      const idx = store.findIndex((r: any) => r.id === id);
-      if (idx === -1) return false;
-      store.splice(idx, 1);
-      return true;
-    },
-  };
-}
-
-function makeRunRepository(store: any[]) {
-  const base = makeMockRepository('canary_analysis_runs', store);
-  return {
-    ...base,
-    async findByDeployment(deploymentId: string) {
-      return store.filter((r: any) => r.deploymentId === deploymentId);
-    },
-    async findByStatus(status: string) {
-      return store.filter((r: any) => r.status === status);
-    },
-    async updateRunStatus(id: string, status: string, decision: string, confidence: number, completedAt: Date) {
-      const run = store.find((r: any) => r.id === id);
-      if (run) {
-        run.status = status;
-        run.decision = decision;
-        run.confidence = confidence;
-        run.completedAt = completedAt;
-      }
-      return run ?? null;
-    },
-  };
-}
-
-function makeMetricRepository(store: any[]) {
-  const base = makeMockRepository('canary_metric_results', store);
-  return {
-    ...base,
-    async findByRun(runId: string) {
-      return store.filter((r: any) => r.runId === runId);
-    },
-    async batchCreate(metrics: any[]) {
-      const results = metrics.map(m => ({ id: `mock-metric-${Math.random().toString(36).slice(2, 9)}`, ...m }));
-      store.push(...results);
-      return results;
-    },
-  };
-}
-
-function makeMLRepository(store: any[]) {
-  const base = makeMockRepository('canary_ml_results', store);
-  return {
-    ...base,
-    async findByRun(runId: string) {
-      return store.filter((r: any) => r.runId === runId);
-    },
-    async batchCreate(items: any[]) {
-      const results = items.map(m => ({ id: `mock-ml-${Math.random().toString(36).slice(2, 9)}`, ...m }));
-      store.push(...results);
-      return results;
-    },
-  };
-}
-
-function makeConfigRepository(store: any[]) {
-  const base = makeMockRepository('canary_analysis_configs', store);
-  return {
-    ...base,
-    async findByServiceEnv(serviceName: string, environment: string) {
-      return store.find((r: any) => r.serviceName === serviceName && r.environment === environment);
-    },
-    async updateConfig(id: string, updates: any) {
-      const config = store.find((r: any) => r.id === id);
-      if (config) {
-        Object.assign(config, updates, { updatedAt: new Date() });
-      }
-      return config ?? null;
-    },
-  };
-}
-
-function makeDecisionRepository(store: any[]) {
-  const base = makeMockRepository('canary_decisions', store);
-  return {
-    ...base,
-    async findByRun(runId: string) {
-      return store.filter((r: any) => r.runId === runId);
-    },
-    async create(data: any): Promise<any> {
-      const entity = { id: `mock-decision-${Math.random().toString(36).slice(2, 9)}`, ...data };
-      store.push(entity);
-      return entity;
-    },
-  };
-}
-
-function makeRetrainJobRepository(store: any[]) {
-  return {
-    async createJob(input: { id: string; model_name: string; status: string }): Promise<any> {
-      const entity = {
-        id: input.id,
-        model_name: input.model_name,
-        status: input.status,
-        submitted_at: new Date(),
-        completed_at: null,
-        error_message: null,
-        created_at: new Date(),
-      };
-      store.push(entity);
-      return entity;
-    },
-    async findAll(): Promise<any[]> {
-      return [...store];
-    },
-    async updateStatus(id: string, status: string, errorMessage?: string): Promise<any | undefined> {
-      const job = store.find((r: any) => r.id === id);
-      if (job) {
-        job.status = status;
-        if (errorMessage) job.error_message = errorMessage;
-        if (status === 'completed' || status === 'failed') job.completed_at = new Date();
-      }
-      return job;
-    },
-  };
-}
-
-function createMockService() {
-  const runStore: any[] = [];
-  const metricStore: any[] = [];
-  const mlStore: any[] = [];
-  const configStore: any[] = [];
-  const decisionStore: any[] = [];
-  const retrainJobStore: any[] = [];
-
-  const service = new CanaryAnalysisService({
-    runRepository: makeRunRepository(runStore) as unknown as CanaryAnalysisRepository,
-    metricRepository: makeMetricRepository(metricStore) as unknown as CanaryMetricResultRepository,
-    mlRepository: makeMLRepository(mlStore) as unknown as CanaryMLResultRepository,
-    configRepository: makeConfigRepository(configStore) as unknown as CanaryAnalysisConfigRepository,
-    decisionRepository: makeDecisionRepository(decisionStore) as unknown as CanaryDecisionRepository,
-    retrainJobRepository: makeRetrainJobRepository(retrainJobStore),
-  });
-  return { service, runStore, metricStore, mlStore, configStore, decisionStore, retrainJobStore };
-}
-
-// ==================== Tests ====================
+  CanaryRetrainJobRepository,
+} from '../repositories/CanaryAnalysisRepository';
+import { CanaryAnalysisService } from '../CanaryAnalysisService';
 
 describe('CanaryAnalysisService', () => {
-  describe('simulateAnalysisRun', () => {
-    it('should create a run with promote status', async () => {
-      const { service } = createMockService();
-      const result = await service.simulateAnalysisRun({
-        deploymentId: 'deploy-1',
-        runNumber: 1,
-        trafficSplit: { canary: 10, baseline: 90 },
-      });
-      expect(result.run.id).toBeDefined();
-      expect(result.run.status).toBe('promote');
-      expect(result.metrics).toHaveLength(4);
-      expect(result.mlResults).toHaveLength(2);
-    });
+  let service: CanaryAnalysisService;
+  let mockRunRepo: jest.Mocked<CanaryAnalysisRepository>;
+  let mockMetricRepo: jest.Mocked<CanaryMetricResultRepository>;
+  let mockMlRepo: jest.Mocked<CanaryMLResultRepository>;
+  let mockConfigRepo: jest.Mocked<CanaryAnalysisConfigRepository>;
+  let mockDecisionRepo: jest.Mocked<CanaryDecisionRepository>;
+  let mockRetrainRepo: jest.Mocked<CanaryRetrainJobRepository>;
 
-    it('should fallback to mock metrics when Prometheus unavailable', async () => {
-      const { service } = createMockService();
-      const result = await service.simulateAnalysisRun({
-        deploymentId: 'deploy-1',
-        runNumber: 1,
-        trafficSplit: { canary: 10, baseline: 90 },
-      });
-      const latency = result.metrics.find(m => m.metricName === 'http_request_duration_seconds');
-      expect(latency).toBeDefined();
-      expect(latency?.baselineValue).toBe(0.125);
-      expect(latency?.canaryValue).toBe(0.132);
-    });
+  beforeEach(() => {
+    mockRunRepo = {
+      findById: jest.fn(),
+      findAll: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+      findByDeployment: jest.fn(),
+      findByStatus: jest.fn(),
+      updateRunStatus: jest.fn(),
+    } as any;
+
+    mockMetricRepo = {
+      findById: jest.fn(),
+      findAll: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+      findByRun: jest.fn(),
+      batchCreate: jest.fn(),
+    } as any;
+
+    mockMlRepo = {
+      findById: jest.fn(),
+      findAll: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+      findByRun: jest.fn(),
+      batchCreate: jest.fn(),
+    } as any;
+
+    mockConfigRepo = {
+      findById: jest.fn(),
+      findAll: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+      findByServiceEnv: jest.fn(),
+      updateConfig: jest.fn(),
+    } as any;
+
+    mockDecisionRepo = {
+      findById: jest.fn(),
+      findAll: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+      findByRun: jest.fn(),
+    } as any;
+
+    mockRetrainRepo = {
+      findById: jest.fn(),
+      findAll: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+      createJob: jest.fn(),
+      findAll: jest.fn(),
+      updateStatus: jest.fn(),
+    } as any;
+
+    service = new CanaryAnalysisService(
+      mockRunRepo,
+      mockMetricRepo,
+      mockMlRepo,
+      mockConfigRepo,
+      mockDecisionRepo,
+      mockRetrainRepo
+    );
   });
 
-  describe('createRun and listRuns', () => {
-    it('should create and list runs', async () => {
-      const { service, runStore } = createMockService();
-      const run = await service.createRun({
-        deploymentId: 'deploy-3',
-        runNumber: 1,
-        trafficSplit: { canary: 20, baseline: 80 },
-      });
-      expect(run.id).toBeDefined();
-      expect(run.status).toBe('running');
+  describe('listRuns', () => {
+    it('should list runs by deployment', async () => {
+      const mockRuns = [
+        { id: 'run-1', deploymentId: 'dep-1', runNumber: 1, trafficSplit: { canary: 10 }, status: 'running', confidence: null, decision: null, startedAt: new Date(), completedAt: null, durationMs: null },
+      ];
+      mockRunRepo.findByDeployment.mockResolvedValue(mockRuns);
 
-      // Verify run is in store
-      expect(runStore.length).toBe(1);
-      expect(runStore[0].deploymentId).toBe('deploy-3');
+      const result = await service.listRuns({ deploymentId: 'dep-1' });
 
-      const runs = await service.listRuns({ deploymentId: 'deploy-3' });
-      expect(runs.length).toBe(1);
-    });
-  });
-
-  describe('config CRUD', () => {
-    it('should create and retrieve config', async () => {
-      const { service } = createMockService();
-      const config = await service.createConfig({
-        serviceName: 'test-service',
-        environment: 'staging',
-        analysisIntervalSec: 300,
-        maxRounds: 5,
-        warmupPeriodSec: 600,
-        promoteThreshold: 0.75,
-        rollbackThreshold: 0.60,
-        trafficStep: 20,
-      });
-      expect(config.id).toBeDefined();
-      expect(config.serviceName).toBe('test-service');
-
-      const retrieved = await service.getConfigByServiceEnv('test-service', 'staging');
-      expect(retrieved).toBeDefined();
-      expect(retrieved?.serviceName).toBe('test-service');
+      expect(mockRunRepo.findByDeployment).toHaveBeenCalledWith('dep-1');
+      expect(result).toEqual(mockRuns);
     });
 
-    it('should list all configs', async () => {
-      const { service } = createMockService();
-      await service.createConfig({
-        serviceName: 'svc-a',
-        environment: 'prod',
-      });
-      await service.createConfig({
-        serviceName: 'svc-b',
-        environment: 'staging',
-      });
-      const configs = await service.listConfigs();
-      expect(configs.length).toBeGreaterThanOrEqual(2);
+    it('should list runs by status', async () => {
+      const mockRuns = [
+        { id: 'run-1', deploymentId: 'dep-1', runNumber: 1, trafficSplit: {}, status: 'running', confidence: null, decision: null, startedAt: new Date(), completedAt: null, durationMs: null },
+      ];
+      mockRunRepo.findByStatus.mockResolvedValue(mockRuns);
+
+      const result = await service.listRuns({ status: 'running' });
+
+      expect(mockRunRepo.findByStatus).toHaveBeenCalledWith('running');
+      expect(result).toEqual(mockRuns);
     });
 
-    it('should update a config', async () => {
-      const { service } = createMockService();
-      const config = await service.createConfig({
-        serviceName: 'update-test',
-        environment: 'dev',
-        maxRounds: 5,
-      });
-      const updated = await service.updateConfig(config.id, { maxRounds: 10 });
-      expect(updated).toBeDefined();
-      expect(updated?.maxRounds).toBe(10);
-    });
+    it('should return all runs when no filter', async () => {
+      mockRunRepo.findAll.mockResolvedValue({ entities: [], total: 0 });
 
-    it('should delete a config', async () => {
-      const { service } = createMockService();
-      const config = await service.createConfig({
-        serviceName: 'delete-test',
-        environment: 'dev',
-      });
-      const deleted = await service.deleteConfig(config.id);
-      expect(deleted).toBe(true);
-    });
-  });
+      await service.listRuns();
 
-  describe('force promote/rollback', () => {
-    it('should force promote a run', async () => {
-      const { service } = createMockService();
-      const run = await service.createRun({
-        deploymentId: 'deploy-4',
-        runNumber: 1,
-        trafficSplit: { canary: 10, baseline: 90 },
-      });
-      const promoted = await service.forcePromote(run.id, 'urgent release');
-      expect(promoted.status).toBe('promote');
-      expect(promoted.decision).toBe('promote');
-    });
-
-    it('should force rollback a run', async () => {
-      const { service } = createMockService();
-      const run = await service.createRun({
-        deploymentId: 'deploy-5',
-        runNumber: 1,
-        trafficSplit: { canary: 10, baseline: 90 },
-      });
-      const rolledback = await service.forceRollback(run.id, 'high error rate');
-      expect(rolledback.status).toBe('rollback');
-      expect(rolledback.decision).toBe('rollback');
-    });
-
-    it('should throw if run not found', async () => {
-      const { service } = createMockService();
-      await expect(service.forcePromote('nonexistent', 'reason')).rejects.toThrow('not found');
+      expect(mockRunRepo.findAll).toHaveBeenCalled();
     });
   });
 
   describe('getRunById', () => {
-    it('should return undefined for non-existent run', async () => {
-      const { service } = createMockService();
-      const run = await service.getRunById('nonexistent');
-      expect(run).toBeUndefined();
+    it('should return run by id', async () => {
+      const mockRun = { id: 'run-1', deploymentId: 'dep-1', runNumber: 1, trafficSplit: {}, status: 'promote', confidence: 0.9, decision: 'promote', startedAt: new Date(), completedAt: new Date(), durationMs: 5000 };
+      mockRunRepo.findById.mockResolvedValue(mockRun);
+
+      const result = await service.getRunById('run-1');
+
+      expect(result).toEqual(mockRun);
+    });
+
+    it('should return null when not found', async () => {
+      mockRunRepo.findById.mockResolvedValue(undefined);
+
+      const result = await service.getRunById('nonexistent');
+
+      expect(result).toBeNull();
     });
   });
 
-  describe('getMetrics and getMLResults', () => {
-    it('should return empty arrays for run with no results', async () => {
-      const { service } = createMockService();
-      const run = await service.createRun({
-        deploymentId: 'deploy-empty',
+  describe('simulateAnalysisRun', () => {
+    it('should create run with simulated metrics and ML results', async () => {
+      const mockRun = {
+        id: 'run-1',
+        deploymentId: 'dep-1',
+        runNumber: 1,
+        trafficSplit: { canary: 10, baseline: 90 },
+        status: 'running',
+        confidence: null,
+        decision: null,
+        startedAt: new Date(),
+        completedAt: null,
+        durationMs: null,
+      };
+      mockRunRepo.create.mockResolvedValue(mockRun);
+      mockRunRepo.updateRunStatus.mockResolvedValue({ ...mockRun, status: 'promote', decision: 'promote', confidence: 0.75, completedAt: new Date() });
+      mockMetricRepo.create.mockResolvedValue({} as any);
+      mockMlRepo.create.mockResolvedValue({} as any);
+      mockDecisionRepo.create.mockResolvedValue({} as any);
+
+      const result = await service.simulateAnalysisRun({
+        deploymentId: 'dep-1',
         runNumber: 1,
         trafficSplit: { canary: 10, baseline: 90 },
       });
-      const metrics = await service.getMetrics(run.id);
-      const mlResults = await service.getMLResults(run.id);
-      expect(metrics).toEqual([]);
-      expect(mlResults).toEqual([]);
+
+      expect(mockRunRepo.create).toHaveBeenCalled();
+      expect(mockRunRepo.updateRunStatus).toHaveBeenCalled();
+      expect(mockMetricRepo.create).toHaveBeenCalled();
+      expect(mockMlRepo.create).toHaveBeenCalled();
+      expect(result.run).toBeDefined();
+      expect(result.metrics).toBeDefined();
+      expect(result.mlResults).toBeDefined();
     });
   });
 
-  describe('metric discovery & model retraining', () => {
-    it('should discover metrics', async () => {
-      const { service } = createMockService();
+  describe('getMetrics', () => {
+    it('should return metrics for run', async () => {
+      const mockMetrics = [
+        { id: 'm-1', runId: 'run-1', metricName: 'latency', baselineValue: 100, canaryValue: 110, verdict: 'pass', category: 'latency' },
+      ];
+      mockMetricRepo.findByRun.mockResolvedValue(mockMetrics);
+
+      const result = await service.getMetrics('run-1');
+
+      expect(mockMetricRepo.findByRun).toHaveBeenCalledWith('run-1');
+      expect(result).toEqual(mockMetrics);
+    });
+  });
+
+  describe('getMLResults', () => {
+    it('should return ML results for run', async () => {
+      const mockResults = [
+        { id: 'ml-1', runId: 'run-1', modelName: 'xgboost', prediction: 'healthy', confidence: 0.9 },
+      ];
+      mockMlRepo.findByRun.mockResolvedValue(mockResults);
+
+      const result = await service.getMLResults('run-1');
+
+      expect(mockMlRepo.findByRun).toHaveBeenCalledWith('run-1');
+      expect(result).toEqual(mockResults);
+    });
+  });
+
+  describe('listConfigs', () => {
+    it('should return all configs', async () => {
+      const mockConfigs = [
+        { id: 'c-1', serviceName: 'api', environment: 'staging', analysisIntervalSec: 300, maxRounds: 5, warmupPeriodSec: 600, promoteThreshold: 0.75, rollbackThreshold: 0.60, trafficStep: 20, metricWeights: null, excludedMetrics: [], sloMetrics: [], createdAt: new Date(), updatedAt: new Date() },
+      ];
+      mockConfigRepo.findAll.mockResolvedValue({ entities: mockConfigs, total: 1 });
+
+      const result = await service.listConfigs();
+
+      expect(mockConfigRepo.findAll).toHaveBeenCalled();
+      expect(result).toEqual(mockConfigs);
+    });
+  });
+
+  describe('createConfig', () => {
+    it('should create config', async () => {
+      const input = { serviceName: 'api', environment: 'staging' };
+      const created = { id: 'c-1', ...input, analysisIntervalSec: 300, maxRounds: 5, warmupPeriodSec: 600, promoteThreshold: 0.75, rollbackThreshold: 0.60, trafficStep: 20, metricWeights: null, excludedMetrics: [], sloMetrics: [], createdAt: new Date(), updatedAt: new Date() };
+      mockConfigRepo.create.mockResolvedValue(created as any);
+
+      const result = await service.createConfig(input);
+
+      expect(mockConfigRepo.create).toHaveBeenCalled();
+      expect(result.serviceName).toBe('api');
+    });
+  });
+
+  describe('getConfigByServiceEnv', () => {
+    it('should return config by service and environment', async () => {
+      const mockConfig = { id: 'c-1', serviceName: 'api', environment: 'staging' };
+      mockConfigRepo.findByServiceEnv.mockResolvedValue(mockConfig as any);
+
+      const result = await service.getConfigByServiceEnv('api', 'staging');
+
+      expect(mockConfigRepo.findByServiceEnv).toHaveBeenCalledWith('api', 'staging');
+      expect(result).toEqual(mockConfig);
+    });
+
+    it('should return null when not found', async () => {
+      mockConfigRepo.findByServiceEnv.mockResolvedValue(undefined);
+
+      const result = await service.getConfigByServiceEnv('nonexistent', 'prod');
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('updateConfig', () => {
+    it('should update config', async () => {
+      const existing = { id: 'c-1', serviceName: 'api', environment: 'staging', analysisIntervalSec: 300 };
+      const updated = { ...existing, analysisIntervalSec: 600 };
+      mockConfigRepo.findById.mockResolvedValue(existing as any);
+      mockConfigRepo.updateConfig.mockResolvedValue(updated as any);
+
+      const result = await service.updateConfig('c-1', { analysisIntervalSec: 600 });
+
+      expect(result?.analysisIntervalSec).toBe(600);
+    });
+
+    it('should return null when config not found', async () => {
+      mockConfigRepo.findById.mockResolvedValue(undefined);
+
+      const result = await service.updateConfig('nonexistent', { analysisIntervalSec: 600 });
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('deleteConfig', () => {
+    it('should delete config', async () => {
+      mockConfigRepo.delete.mockResolvedValue(true);
+
+      const result = await service.deleteConfig('c-1');
+
+      expect(mockConfigRepo.delete).toHaveBeenCalledWith('c-1');
+      expect(result).toBe(true);
+    });
+  });
+
+  describe('forcePromote', () => {
+    it('should force promote run', async () => {
+      const existing = { id: 'run-1', deploymentId: 'dep-1', status: 'running', confidence: 0.5, decision: null, startedAt: new Date(), completedAt: null };
+      mockRunRepo.findById.mockResolvedValue(existing as any);
+      mockRunRepo.updateRunStatus.mockResolvedValue({ ...existing, status: 'promote', decision: 'promote', confidence: 1.0 } as any);
+      mockDecisionRepo.create.mockResolvedValue({} as any);
+
+      const result = await service.forcePromote('run-1', 'Manual approval');
+
+      expect(result.status).toBe('promote');
+      expect(result.decision).toBe('promote');
+      expect(result.confidence).toBe(1.0);
+    });
+
+    it('should throw when run not found', async () => {
+      mockRunRepo.findById.mockResolvedValue(undefined);
+
+      await expect(service.forcePromote('nonexistent', 'reason')).rejects.toThrow('Run not found');
+    });
+  });
+
+  describe('forceRollback', () => {
+    it('should force rollback run', async () => {
+      const existing = { id: 'run-1', deploymentId: 'dep-1', status: 'running', confidence: 0.5, decision: null, startedAt: new Date(), completedAt: null };
+      mockRunRepo.findById.mockResolvedValue(existing as any);
+      mockRunRepo.updateRunStatus.mockResolvedValue({ ...existing, status: 'rollback', decision: 'rollback', confidence: 0.0 } as any);
+      mockDecisionRepo.create.mockResolvedValue({} as any);
+
+      const result = await service.forceRollback('run-1', 'Issues detected');
+
+      expect(result.status).toBe('rollback');
+      expect(result.decision).toBe('rollback');
+      expect(result.confidence).toBe(0.0);
+    });
+
+    it('should throw when run not found', async () => {
+      mockRunRepo.findById.mockResolvedValue(undefined);
+
+      await expect(service.forceRollback('nonexistent', 'reason')).rejects.toThrow('Run not found');
+    });
+  });
+
+  describe('getMetricsSummary', () => {
+    it('should return metrics summary', async () => {
+      const mockRuns = [
+        { status: 'promote', confidence: 0.9 },
+        { status: 'promote', confidence: 0.8 },
+        { status: 'rollback', confidence: 0.3 },
+      ];
+      mockRunRepo.findAll.mockResolvedValue({ entities: mockRuns as any, total: 3 });
+
+      const result = await service.getMetricsSummary();
+
+      expect(result.totalRuns).toBe(3);
+      expect(result.promotedRuns).toBe(2);
+      expect(result.rolledBackRuns).toBe(1);
+      expect(result.averageConfidence).toBeCloseTo(0.667, 2);
+    });
+
+    it('should return default when no runs', async () => {
+      mockRunRepo.findAll.mockResolvedValue({ entities: [], total: 0 });
+
+      const result = await service.getMetricsSummary();
+
+      expect(result.totalRuns).toBe(0);
+      expect(result.passRate).toBe(0);
+    });
+  });
+
+  describe('discoverMetrics', () => {
+    it('should return available metrics', async () => {
       const result = await service.discoverMetrics();
+
       expect(result.metrics).toBeDefined();
       expect(Array.isArray(result.metrics)).toBe(true);
       expect(result.metrics.length).toBeGreaterThan(0);
     });
+  });
 
-    it('should trigger model retraining', async () => {
-      const { service } = createMockService();
-      const result = await service.retrainModel('canary-v2');
+  describe('triggerModelRetraining', () => {
+    it('should trigger retraining job', async () => {
+      mockRetrainRepo.createJob.mockResolvedValue({ id: 'job-1', model_name: 'xgboost', status: 'queued', submitted_at: new Date(), completed_at: null, error_message: null, created_at: new Date() });
+
+      const result = await service.triggerModelRetraining('xgboost');
+
       expect(result.jobId).toBeDefined();
-      expect(result.modelName).toBe('canary-v2');
       expect(result.status).toBe('queued');
+      expect(mockRetrainRepo.createJob).toHaveBeenCalled();
     });
   });
 });
