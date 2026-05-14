@@ -1,217 +1,504 @@
 /**
- * Agent Profile Service
+ * AgentProfileService - Business logic layer for Agent Profile management
  *
- * 负责 Agent Profile 的生命周期管理：
- * - 创建、查询、更新、删除 Agent Profile
- * - 启用/禁用 Agent
- * - 查询可用 Agent 列表
+ * Handles CRUD operations for agent profiles with PostgreSQL-backed storage.
+ * Manages agent role, tool configuration, capabilities, constraints, and LLM settings.
  */
 
-import pino from 'pino';
+import { v4 as uuidv4 } from 'uuid';
+import {
+  AgentProfileRepository,
+  AgentProfileEntity,
+} from '../repositories/AgentProfileRepository';
 import {
   AgentProfile,
+  AgentRole,
+  AgentToolConfig,
+  AgentCapabilities,
+  AgentConstraints,
+  AgentLLMConfig,
   AgentProfileCreateInput,
   AgentProfileUpdateInput,
-  AgentRole,
-  createAgentProfile,
-  updateAgentProfile,
 } from '../models/AgentProfile';
-import { AgentProfileRepository, AgentProfileEntity } from '../repositories/AgentProfileRepository';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+// ==================== Interfaces ====================
 
-export class AgentProfileService {
-  private profileRepository?: AgentProfileRepository;
+export interface ListAgentProfilesOptions {
+  roleFilter?: string;
+  enabledOnly?: boolean;
+  page?: number;
+  limit?: number;
+}
 
-  constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
-    if (db) {
-      this.profileRepository = new AgentProfileRepository(db);
-    }
-  }
+export interface PaginatedAgentProfilesResult {
+  data: AgentProfile[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
 
-  /**
-   * 创建 Agent Profile
-   */
-  async create(input: AgentProfileCreateInput): Promise<AgentProfile> {
-    logger.info({ name: input.name, role: input.role }, 'Creating agent profile');
-
-    if (this.profileRepository) {
-      const now = new Date();
-      const entity = await this.profileRepository.create({
-        name: input.name,
-        type: input.role,
-        capabilities: input.capabilities ?? {},
-        config: {
-          description: input.description,
-          tools: input.tools,
-          constraints: input.constraints,
-          llmConfig: input.llmConfig,
-        },
-        status: 'active',
-        lastActiveAt: null,
-        createdAt: now,
-        updatedAt: now,
-      });
-      logger.info({ id: entity.id }, 'Agent profile created');
-      return this.mapEntityToProfile(entity);
-    }
-
-    const profile = createAgentProfile(input);
-    logger.info({ id: profile.id }, 'Agent profile created (memory)');
-    return profile;
-  }
-
-  /**
-   * 获取 Agent Profile 列表
-   */
-  async list(options?: {
-    roleFilter?: string;
-    enabledOnly?: boolean;
-  }): Promise<AgentProfile[]> {
-    if (this.profileRepository) {
-      const result = await this.profileRepository.findAll();
-      let entities = result.entities;
-
-      if (options?.roleFilter) {
-        entities = entities.filter((e) => e.type === options.roleFilter);
-      }
-
-      if (options?.enabledOnly) {
-        entities = entities.filter((e) => e.status === 'active');
-      }
-
-      return entities.map(e => this.mapEntityToProfile(e));
-    }
-    return [];
-  }
-
-  /**
-   * 获取 Agent Profile 详情
-   */
-  async getById(id: string): Promise<AgentProfile> {
-    if (this.profileRepository) {
-      const entity = await this.profileRepository.findById(id);
-      if (!entity) {
-        throw new Error(`Agent profile "${id}" not found`);
-      }
-      return this.mapEntityToProfile(entity);
-    }
-    throw new Error(`Agent profile "${id}" not found`);
-  }
-
-  /**
-   * 更新 Agent Profile
-   */
-  async update(id: string, input: AgentProfileUpdateInput): Promise<AgentProfile> {
-    logger.info({ id }, 'Updating agent profile');
-
-    if (this.profileRepository) {
-      const updates: Partial<AgentProfileEntity> = {};
-      if ((input as any).name !== undefined) updates.name = (input as any).name;
-      if ((input as any).role !== undefined) updates.type = (input as any).role;
-      if (input.capabilities !== undefined) updates.capabilities = input.capabilities as Record<string, any>;
-      if (input.description !== undefined || input.tools !== undefined || input.constraints !== undefined || input.llmConfig !== undefined) {
-        updates.config = {
-          description: input.description,
-          tools: input.tools,
-          constraints: input.constraints,
-          llmConfig: input.llmConfig,
-        };
-      }
-      if (input.enabled !== undefined) updates.status = input.enabled ? 'active' : 'inactive';
-
-      const updated = await this.profileRepository.update(id, updates);
-      if (!updated) {
-        throw new Error(`Agent profile "${id}" not found`);
-      }
-      logger.info({ id }, 'Agent profile updated');
-      return this.mapEntityToProfile(updated);
-    }
-    throw new Error(`Agent profile "${id}" not found`);
-  }
-
-  /**
-   * 删除 Agent Profile
-   */
-  async delete(id: string): Promise<void> {
-    logger.info({ id }, 'Deleting agent profile');
-
-    if (this.profileRepository) {
-      const deleted = await this.profileRepository.delete(id);
-      if (!deleted) {
-        throw new Error(`Agent profile "${id}" not found`);
-      }
-      logger.info({ id }, 'Agent profile deleted');
-      return;
-    }
-    throw new Error(`Agent profile "${id}" not found`);
-  }
-
-  /**
-   * 启用/禁用 Agent
-   */
-  async toggle(id: string): Promise<AgentProfile> {
-    if (this.profileRepository) {
-      const entity = await this.profileRepository.findById(id);
-      if (!entity) {
-        throw new Error(`Agent profile "${id}" not found`);
-      }
-      const newStatus = entity.status === 'active' ? 'inactive' : 'active';
-      const updated = await this.profileRepository.update(id, { status: newStatus });
-      if (!updated) {
-        throw new Error(`Agent profile "${id}" not found`);
-      }
-      logger.info({ id, status: updated.status }, 'Agent profile toggled');
-      return this.mapEntityToProfile(updated);
-    }
-    throw new Error(`Agent profile "${id}" not found`);
-  }
-
-  /**
-   * 按名称获取（用于工作流引用）
-   */
-  async getByName(name: string): Promise<AgentProfile> {
-    if (this.profileRepository) {
-      const result = await this.profileRepository.findAll();
-      const entity = result.entities.find(e => e.name === name);
-      if (!entity) {
-        throw new Error(`Agent profile "${name}" not found`);
-      }
-      return this.mapEntityToProfile(entity);
-    }
-    throw new Error(`Agent profile "${name}" not found`);
-  }
-
-  private mapEntityToProfile(entity: AgentProfileEntity): AgentProfile {
-    const config = entity.config || {};
-    const caps = entity.capabilities || {};
-    return {
-      id: entity.id,
-      name: entity.name,
-      role: entity.type as AgentRole,
-      description: config.description || '',
-      tools: config.tools || [
-        { toolName: 'read_file', permission: 'read' },
-        { toolName: 'run_command', permission: 'execute' },
-      ],
-      capabilities: {
-        maxSteps: caps.maxSteps ?? 20,
-        timeoutSec: caps.timeoutSec ?? 3600,
-        retryCount: caps.retryCount ?? 3,
-      },
-      constraints: config.constraints || {
-        maxTokens: 8192,
-        allowedBranches: ['main', 'develop'],
-        forbiddenOperations: ['deploy_to_production', 'drop_database'],
-      },
-      llmConfig: config.llmConfig || {
-        model: 'gpt-4o-mini',
-        temperature: 0.2,
-        maxTokens: 4096,
-      },
-      enabled: entity.status === 'active',
-      createdAt: entity.createdAt,
-      updatedAt: entity.updatedAt,
-    };
+export class AgentProfileServiceError extends Error {
+  constructor(message: string, public code: string) {
+    super(message);
+    this.name = 'AgentProfileServiceError';
   }
 }
+
+// ==================== Default Configurations ====================
+
+const DEFAULT_CAPABILITIES: AgentCapabilities = {
+  maxSteps: 20,
+  timeoutSec: 3600,
+  retryCount: 3,
+};
+
+const DEFAULT_CONSTRAINTS: AgentConstraints = {
+  maxTokens: 8192,
+  allowedBranches: ['main', 'develop'],
+  forbiddenOperations: ['deploy_to_production', 'drop_database'],
+};
+
+const DEFAULT_LLM_CONFIG: AgentLLMConfig = {
+  model: 'gpt-4o-mini',
+  temperature: 0.2,
+  maxTokens: 4096,
+};
+
+const VALID_AGENT_ROLES: AgentRole[] = [
+  'bug_fixer',
+  'code_fixer',
+  'test_writer',
+  'pr_submitter',
+  'security_patcher',
+  'doc_writer',
+];
+
+// ==================== Type Mapping Helpers ====================
+
+/**
+ * Convert domain AgentProfile to repository AgentProfileEntity for DB storage.
+ */
+function profileToEntity(profile: AgentProfile): Omit<AgentProfileEntity, 'lastActiveAt'> {
+  return {
+    id: profile.id,
+    name: profile.name,
+    type: profile.role,
+    capabilities: profile.capabilities as Record<string, any>,
+    config: {
+      description: profile.description,
+      tools: profile.tools,
+      constraints: profile.constraints,
+      llmConfig: profile.llmConfig,
+      enabled: profile.enabled,
+    },
+    status: profile.enabled ? 'active' : 'inactive',
+    createdAt: profile.createdAt,
+    updatedAt: profile.updatedAt,
+  };
+}
+
+/**
+ * Convert repository AgentProfileEntity back to domain AgentProfile.
+ */
+function entityToProfile(entity: AgentProfileEntity): AgentProfile {
+  const cfg = entity.config || {};
+  return {
+    id: entity.id,
+    name: entity.name,
+    role: entity.type as AgentRole,
+    description: cfg.description || '',
+    tools: (cfg.tools as AgentToolConfig[]) || [],
+    capabilities: (entity.capabilities as AgentCapabilities) || DEFAULT_CAPABILITIES,
+    constraints: (cfg.constraints as AgentConstraints) || DEFAULT_CONSTRAINTS,
+    llmConfig: (cfg.llmConfig as AgentLLMConfig) || DEFAULT_LLM_CONFIG,
+    enabled: entity.status === 'active',
+    createdAt: entity.createdAt,
+    updatedAt: entity.updatedAt,
+  };
+}
+
+/**
+ * Build a domain AgentProfile from create input (not yet persisted).
+ */
+function buildProfileFromInput(input: AgentProfileCreateInput): AgentProfile {
+  const now = new Date();
+  return {
+    id: uuidv4(),
+    name: input.name,
+    role: input.role,
+    description: input.description || '',
+    tools: input.tools || [
+      { toolName: 'read_file', permission: 'read' },
+      { toolName: 'run_command', permission: 'execute' },
+    ],
+    capabilities: { ...DEFAULT_CAPABILITIES, ...input.capabilities },
+    constraints: { ...DEFAULT_CONSTRAINTS, ...input.constraints },
+    llmConfig: { ...DEFAULT_LLM_CONFIG, ...input.llmConfig },
+    enabled: true,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+// ==================== Service ====================
+
+export class AgentProfileService {
+  private repository: AgentProfileRepository;
+
+  constructor(db?: {
+    query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }>;
+  }) {
+    if (db) {
+      this.repository = new AgentProfileRepository(db);
+    } else {
+      // Fallback: throw error to indicate database is required
+      this.repository = null as unknown as AgentProfileRepository;
+    }
+  }
+
+  /**
+   * Create a new agent profile
+   */
+  async create(input: AgentProfileCreateInput): Promise<AgentProfile> {
+    if (!this.repository) {
+      throw new AgentProfileServiceError(
+        'Database connection not available',
+        'DB_NOT_AVAILABLE',
+      );
+    }
+
+    // Validate name
+    if (!input.name || input.name.trim().length === 0) {
+      throw new AgentProfileServiceError(
+        'Agent profile name is required',
+        'INVALID_INPUT',
+      );
+    }
+
+    // Validate role
+    if (!input.role || !VALID_AGENT_ROLES.includes(input.role)) {
+      throw new AgentProfileServiceError(
+        `Invalid agent role: ${input.role}. Valid roles: ${VALID_AGENT_ROLES.join(', ')}`,
+        'INVALID_ROLE',
+      );
+    }
+
+    // Build domain profile
+    const profile = buildProfileFromInput(input);
+
+    // Convert to entity and persist
+    const entityInput = profileToEntity(profile);
+    const entity = await this.repository.create({
+      name: entityInput.name,
+      type: entityInput.type,
+      capabilities: entityInput.capabilities,
+      config: entityInput.config,
+      status: entityInput.status,
+      lastActiveAt: null,
+      id: entityInput.id,
+      createdAt: entityInput.createdAt,
+      updatedAt: entityInput.updatedAt,
+    } as any);
+
+    return entityToProfile(entity);
+  }
+
+  /**
+   * Get agent profile by ID
+   */
+  async getById(id: string): Promise<AgentProfile> {
+    if (!this.repository) {
+      throw new AgentProfileServiceError(
+        'Database connection not available',
+        'DB_NOT_AVAILABLE',
+      );
+    }
+
+    const entity = await this.repository.findById(id);
+    if (!entity) {
+      throw new AgentProfileServiceError(
+        `Agent profile not found: ${id}`,
+        'PROFILE_NOT_FOUND',
+      );
+    }
+
+    return entityToProfile(entity);
+  }
+
+  /**
+   * List agent profiles with optional filtering and pagination
+   */
+  async list(
+    options: ListAgentProfilesOptions = {},
+  ): Promise<AgentProfile[]> {
+    if (!this.repository) {
+      throw new AgentProfileServiceError(
+        'Database connection not available',
+        'DB_NOT_AVAILABLE',
+      );
+    }
+
+    const { roleFilter, enabledOnly } = options;
+
+    // Build where clause for filtering
+    const where: Record<string, any> = {};
+    if (roleFilter) {
+      where.type = roleFilter;
+    }
+    if (enabledOnly) {
+      where.status = 'active';
+    }
+
+    const result = await this.repository.findAll({
+      where,
+      orderBy: 'created_at',
+      orderDir: 'DESC',
+      limit: options.limit ?? 100,
+      offset: 0,
+    });
+
+    return result.entities.map(entityToProfile);
+  }
+
+  /**
+   * List agent profiles with full pagination info
+   */
+  async listPaginated(
+    options: ListAgentProfilesOptions = {},
+  ): Promise<PaginatedAgentProfilesResult> {
+    if (!this.repository) {
+      throw new AgentProfileServiceError(
+        'Database connection not available',
+        'DB_NOT_AVAILABLE',
+      );
+    }
+
+    const page = options.page ?? 1;
+    const limit = options.limit ?? 20;
+    const offset = (page - 1) * limit;
+
+    const where: Record<string, any> = {};
+    if (options.roleFilter) {
+      where.type = options.roleFilter;
+    }
+    if (options.enabledOnly) {
+      where.status = 'active';
+    }
+
+    const result = await this.repository.findAll({
+      where,
+      orderBy: 'created_at',
+      orderDir: 'DESC',
+      limit,
+      offset,
+    });
+
+    return {
+      data: result.entities.map(entityToProfile),
+      total: result.total,
+      page,
+      limit,
+      totalPages: Math.ceil(result.total / limit),
+    };
+  }
+
+  /**
+   * Update an existing agent profile
+   */
+  async update(
+    id: string,
+    input: AgentProfileUpdateInput,
+  ): Promise<AgentProfile> {
+    if (!this.repository) {
+      throw new AgentProfileServiceError(
+        'Database connection not available',
+        'DB_NOT_AVAILABLE',
+      );
+    }
+
+    // Fetch existing profile
+    const existingEntity = await this.repository.findById(id);
+    if (!existingEntity) {
+      throw new AgentProfileServiceError(
+        `Agent profile not found: ${id}`,
+        'PROFILE_NOT_FOUND',
+      );
+    }
+
+    const existingProfile = entityToProfile(existingEntity);
+
+    // Build updated profile
+    const updatedProfile: AgentProfile = {
+      ...existingProfile,
+      description: input.description ?? existingProfile.description,
+      tools: input.tools ?? existingProfile.tools,
+      capabilities: input.capabilities
+        ? { ...existingProfile.capabilities, ...input.capabilities }
+        : existingProfile.capabilities,
+      constraints: input.constraints
+        ? { ...existingProfile.constraints, ...input.constraints }
+        : existingProfile.constraints,
+      llmConfig: input.llmConfig
+        ? { ...existingProfile.llmConfig, ...input.llmConfig }
+        : existingProfile.llmConfig,
+      enabled: input.enabled ?? existingProfile.enabled,
+      updatedAt: new Date(),
+    };
+
+    // Convert to entity and persist
+    const entityData = profileToEntity(updatedProfile);
+    const updatePayload: Record<string, any> = {
+      name: entityData.name,
+      type: entityData.type,
+      capabilities: entityData.capabilities,
+      config: entityData.config,
+      status: entityData.status,
+      last_active_at: null,
+      created_at: entityData.createdAt,
+      updated_at: entityData.updatedAt,
+    };
+
+    const updatedEntity = await this.repository.update(id, updatePayload);
+    return entityToProfile(updatedEntity);
+  }
+
+  /**
+   * Delete an agent profile
+   */
+  async delete(id: string): Promise<void> {
+    if (!this.repository) {
+      throw new AgentProfileServiceError(
+        'Database connection not available',
+        'DB_NOT_AVAILABLE',
+      );
+    }
+
+    // Verify exists
+    const existing = await this.repository.findById(id);
+    if (!existing) {
+      throw new AgentProfileServiceError(
+        `Agent profile not found: ${id}`,
+        'PROFILE_NOT_FOUND',
+      );
+    }
+
+    const deleted = await this.repository.delete(id);
+    if (!deleted) {
+      throw new AgentProfileServiceError(
+        `Failed to delete agent profile: ${id}`,
+        'DELETE_FAILED',
+      );
+    }
+  }
+
+  /**
+   * Toggle agent profile enabled/disabled status
+   */
+  async toggle(id: string): Promise<AgentProfile> {
+    if (!this.repository) {
+      throw new AgentProfileServiceError(
+        'Database connection not available',
+        'DB_NOT_AVAILABLE',
+      );
+    }
+
+    const existingEntity = await this.repository.findById(id);
+    if (!existingEntity) {
+      throw new AgentProfileServiceError(
+        `Agent profile not found: ${id}`,
+        'PROFILE_NOT_FOUND',
+      );
+    }
+
+    const existingProfile = entityToProfile(existingEntity);
+    const newEnabled = !existingProfile.enabled;
+    const newStatus = newEnabled ? 'active' : 'inactive';
+
+    await this.repository.updateStatus(id, newStatus);
+
+    // Re-fetch to get updated entity
+    const updatedEntity = await this.repository.findById(id);
+    if (!updatedEntity) {
+      throw new AgentProfileServiceError(
+        `Failed to retrieve updated profile: ${id}`,
+        'UPDATE_FAILED',
+      );
+    }
+
+    return entityToProfile(updatedEntity);
+  }
+
+  /**
+   * Find profiles by agent role type
+   */
+  async findByType(type: string): Promise<AgentProfile[]> {
+    if (!this.repository) {
+      throw new AgentProfileServiceError(
+        'Database connection not available',
+        'DB_NOT_AVAILABLE',
+      );
+    }
+
+    const entities = await this.repository.findByType(type);
+    return entities.map(entityToProfile);
+  }
+
+  /**
+   * Find all active (enabled) profiles
+   */
+  async findActive(): Promise<AgentProfile[]> {
+    if (!this.repository) {
+      throw new AgentProfileServiceError(
+        'Database connection not available',
+        'DB_NOT_AVAILABLE',
+      );
+    }
+
+    const entities = await this.repository.findActive();
+    return entities.map(entityToProfile);
+  }
+
+  /**
+   * Update agent capabilities directly
+   */
+  async updateCapabilities(
+    id: string,
+    capabilities: Partial<AgentCapabilities>,
+  ): Promise<AgentProfile> {
+    if (!this.repository) {
+      throw new AgentProfileServiceError(
+        'Database connection not available',
+        'DB_NOT_AVAILABLE',
+      );
+    }
+
+    const existingEntity = await this.repository.findById(id);
+    if (!existingEntity) {
+      throw new AgentProfileServiceError(
+        `Agent profile not found: ${id}`,
+        'PROFILE_NOT_FOUND',
+      );
+    }
+
+    const existingProfile = entityToProfile(existingEntity);
+    const mergedCapabilities = {
+      ...existingProfile.capabilities,
+      ...capabilities,
+    };
+
+    await this.repository.updateCapabilities(id, mergedCapabilities as Record<string, any>);
+
+    const updatedEntity = await this.repository.findById(id);
+    if (!updatedEntity) {
+      throw new AgentProfileServiceError(
+        `Failed to retrieve updated profile: ${id}`,
+        'UPDATE_FAILED',
+      );
+    }
+
+    return entityToProfile(updatedEntity);
+  }
+}
+
+export default AgentProfileService;
