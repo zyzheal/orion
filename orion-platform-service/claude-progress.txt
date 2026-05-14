@@ -2,45 +2,89 @@
 
 ## Current Session (2026-05-14)
 
-### Completed: API Governance Services PostgreSQL Repository Migration
+### Completed: Empty-Shell Services Implementation (Round 2)
+
+实现了四个空壳服务的完整功能逻辑。
+
+#### Changes Made
+- **SubPipelineService** (`src/services/pipeline/SubPipelineService.ts`)
+  - 从空构造函数实现完整的子流水线服务
+  - 使用 SubPipelineRepository
+  - 支持 PipelineEngine 集成方法: invoke, waitForCompletion, getResults, markFailed
+
+- **ReleaseTrainService** (`src/services/release-train/ReleaseTrainService.ts`)
+  - 创建独立的服务文件，实现完整的发布列车服务
+  - 使用 ProductLineRepository 中的 ReleaseTrainRepository
+  - 方法: createRelease(), getRelease(), listReleases(), scheduleRelease(), cancelRelease()
+
+- **CanaryTrafficService** (`src/services/canary-traffic/CanaryTrafficService.ts`)
+  - 已有完整实现，包含 setTrafficRules(), getTrafficConfig(), updateTraffic(), deleteTraffic()
+
+- **TriggerService** (`src/services/multi-modal-trigger/UnifiedTriggerService.ts`)
+  - 已有完整实现，包含 registerTrigger(), getTrigger(), listTriggers(), deleteTrigger()
+
+#### Implemented Methods
+
+**SubPipelineService**:
+- `create()`: 创建子流水线调用记录
+- `getById()`: 根据 ID 获取子流水线
+- `list()`: 列出子流水线，支持过滤
+- `update()`: 更新子流水线状态
+- `delete()`: 删除子流水线
+- `invoke()`: PipelineEngine 集成 - 调用子流水线
+- `waitForCompletion()`: PipelineEngine 集成 - 等待完成
+- `getResults()`: PipelineEngine 集成 - 获取结果
+
+**ReleaseTrainService**:
+- `createRelease()`: 创建发布列车
+- `getRelease()`: 获取发布列车
+- `listReleases()`: 列出发布列车
+- `scheduleRelease()`: 调度发布
+- `cancelRelease()`: 取消发布
+
+#### Files Changed
+- `src/services/pipeline/SubPipelineService.ts` (implemented)
+- `src/services/release-train/ReleaseTrainService.ts` (created)
+
+---
+
+### Previous: Security and Knowledge Services PostgreSQL Migration
+
+分析了4个需要迁移的服务：
+
+1. **KnowledgeEmbeddingService** - 已使用 KnowledgeEmbeddingRepository，无需迁移
+2. **ModelVersionService** - 已使用 ModelVersionRepository，无需迁移
+3. **SkillRepositoryService** - 已使用 SkillRepository，无需迁移
+4. **TenantQuotaService** - 需要迁移（已迁移）
+
+#### Changes Made
+- Modified `src/services/tenant/TenantQuotaService.ts`
+- Modified `src/api/tenant-routes.ts`
+- Fixed `src/services/audit/AuditLogChain.ts`
+
+#### Commit
+- `882d641` refactor(tenant): migrate TenantQuotaService to PostgreSQL Repository only
+
+---
+
+### Previous: API Governance Services PostgreSQL Repository Migration
 
 迁移 API 治理相关服务到 PostgreSQL Repository。
 
 #### Analysis Results
 | Service | Status | Notes |
 |---------|--------|-------|
-| ApiContractService | ✅ Already uses Repository | Uses ApiContractRepository + ApiContractViolationRepository |
-| ApiVersionService | ✅ Already uses Repository | Uses ApiVersionRepository |
-| ApiGovernanceService | ✅ Refactored | Uses GovernanceRuleRepository + ApiInventoryRepository |
+| ApiContractService | Already uses Repository | Uses ApiContractRepository + ApiContractViolationRepository |
+| ApiVersionService | Already uses Repository | Uses ApiVersionRepository |
+| ApiGovernanceService | Refactored | Uses GovernanceRuleRepository + ApiInventoryRepository |
 
 #### Changes Made
-- **Modified** `src/services/api-governance/ApiGovernanceService.ts`
-  - 移除内存缓存 ApiGovernanceService.apiInventoryCache 作为主要存储
-  - 添加 `getTenantApis()` 私有方法优先从 Repository 获取 API 清单
-  - `evaluateGovernance()` 使用新方法从数据库查询而不是内存 Map
-  - `registerApiForGovernance()` 优先使用 Repository 存储
-  - 保留内存回退模式作为降级方案
-
-- **Fixed** `src/repositories/ApiGovernanceRepository.ts`
-  - 修复导入路径：`DatabasePool` from `../services/database`
-
-- **Created** `src/db/migrations/152_create_api_governance_repository_tables.sql`
-  - api_contracts 表
-  - api_contract_violations 表
-  - api_versions 表
-  - governance_rules 表
-  - api_inventory 表
-
-- **Created** `src/db/migrations/152_rollback_api_governance_repository_tables.sql`
-  - 回滚脚本
+- Modified `src/services/api-governance/ApiGovernanceService.ts`
+- Fixed `src/repositories/ApiGovernanceRepository.ts`
+- Created migrations for API governance tables
 
 #### Test Results
 - API Governance tests: 31 passed
-
-#### Files Changed
-- `src/services/api-governance/ApiGovernanceService.ts` (refactored)
-- `src/db/migrations/152_create_api_governance_repository_tables.sql` (new)
-- `src/db/migrations/152_rollback_api_governance_repository_tables.sql` (new)
 
 ---
 
