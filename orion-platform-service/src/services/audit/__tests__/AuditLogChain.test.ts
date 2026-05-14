@@ -202,12 +202,12 @@ describe('AuditLogChain', () => {
       expect(retrieved?.id).toBe(entry.id);
     });
 
-    it('should get entries within range', () => {
+    it('should get entries within range', async () => {
       for (let i = 0; i < 10; i++) {
         chain.addEntry(`ACTION_${i}`, `user-${i}`, {});
       }
 
-      const entries = chain.getEntries({
+      const entries = await chain.getEntries({
         startSequence: 3,
         endSequence: 6,
       });
@@ -217,12 +217,12 @@ describe('AuditLogChain', () => {
       expect(entries[3].sequenceNumber).toBe(6);
     });
 
-    it('should limit returned entries', () => {
+    it('should limit returned entries', async () => {
       for (let i = 0; i < 100; i++) {
         chain.addEntry(`ACTION_${i}`, `user-${i}`, {});
       }
 
-      const entries = chain.getEntries({ limit: 10 });
+      const entries = await chain.getEntries({ limit: 10 });
       expect(entries).toHaveLength(10);
     });
 
@@ -320,7 +320,7 @@ describe('AuditLogChain', () => {
       expect(result.skipped).toBe(1); // 第一个已存在
     });
 
-    it('should maintain order during batch add', () => {
+    it('should maintain order during batch add', async () => {
       // 添加顺序混乱的条目
       const entries: ChainedAuditLogEntry[] = [];
 
@@ -336,7 +336,7 @@ describe('AuditLogChain', () => {
 
       // 应该按序列号排序添加
       expect(result.added).toBe(5);
-      const retrieved = chain.getEntries();
+      const retrieved = await chain.getEntries();
       expect(retrieved[0].sequenceNumber).toBe(1);
       expect(retrieved[4].sequenceNumber).toBe(5);
     });

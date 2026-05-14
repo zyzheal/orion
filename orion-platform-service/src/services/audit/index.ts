@@ -4,7 +4,7 @@
  * 审计服务模块导出
  */
 
-export { AuditLogChain } from './AuditLogChain';
+export { AuditLogChain, IAuditLogChainRepository } from './AuditLogChain';
 export { ImmutableAuditStorage } from './ImmutableAuditStorage';
 export { AuditIntegrityVerifier } from './AuditIntegrityVerifier';
 

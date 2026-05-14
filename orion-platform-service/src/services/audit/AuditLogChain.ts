@@ -5,6 +5,7 @@
  * - 每条日志包含前一条日志的 Hash
  * - Hash 算法：SHA256(prevHash + logContent)
  * - 支持完整性验证
+ * - 支持 PostgreSQL Repository 持久化
  */
 
 import * as crypto from 'crypto';
@@ -21,9 +22,22 @@ import {
 const logger = pino({ level: process.env.LOG_LEVEL || 'info', name: 'audit-chain' });
 
 /**
+ * AuditLogChain 依赖的 Repository 接口
+ */
+export interface IAuditLogChainRepository {
+  getEntries(options?: { startSequence?: number; endSequence?: number; limit?: number }): Promise<ChainedAuditLogEntry[]>;
+  getLastEntry(): Promise<ChainedAuditLogEntry | undefined>;
+  getNextSequenceNumber(): Promise<number>;
+  verifyChain(options?: { startSequence?: number; endSequence?: number }): Promise<ChainVerificationResult>;
+}
+
+/**
  * Audit Log Chain
  *
  * 管理审计日志的链式 Hash
+ * 支持两种模式：
+ * 1. 内存模式 (默认): 使用 Map 存储，适合单实例或不需要持久化的场景
+ * 2. PostgreSQL 模式: 使用 Repository 持久化数据
  */
 export class AuditLogChain {
   private config: ChainConfig;
@@ -32,9 +46,37 @@ export class AuditLogChain {
   private lastEntry: ChainedAuditLogEntry | null = null;
   private nextSequenceNumber: number = 1;
 
-  constructor(config?: Partial<ChainConfig>) {
+  // PostgreSQL Repository (可选)
+  private repository?: IAuditLogChainRepository;
+  private useRepository: boolean = false;
+
+  constructor(config?: Partial<ChainConfig>, repository?: IAuditLogChainRepository) {
     this.config = { ...DEFAULT_CHAIN_CONFIG, ...config };
-    logger.info({ algorithm: this.config.algorithm }, 'Audit log chain initialized');
+    this.repository = repository;
+    this.useRepository = !!repository;
+    logger.info({ algorithm: this.config.algorithm, useRepository: this.useRepository }, 'Audit log chain initialized');
+  }
+
+  /**
+   * 从 Repository 加载链数据
+   */
+  async loadFromRepository(): Promise<void> {
+    if (!this.repository) {
+      throw new Error('Repository not configured');
+    }
+
+    const entries = await this.repository.getEntries();
+    this.addEntries(entries);
+
+    const lastEntry = await this.repository.getLastEntry();
+    if (lastEntry) {
+      this.lastEntry = lastEntry;
+    }
+
+    const nextSeq = await this.repository.getNextSequenceNumber();
+    this.nextSequenceNumber = nextSeq;
+
+    logger.info({ count: entries.length, nextSequenceNumber: this.nextSequenceNumber }, 'Chain loaded from repository');
   }
 
   /**
@@ -178,7 +220,7 @@ export class AuditLogChain {
   }
 
   /**
-   * 验证整个链的完整性
+   * 验证整个链的完整性 (内存模式)
    */
   verifyChain(options?: {
     startSequence?: number;
@@ -294,13 +336,36 @@ export class AuditLogChain {
   }
 
   /**
-   * 获取指定范围的条目
+   * 验证整个链的完整性 (Repository 模式)
    */
-  getEntries(options?: {
+  async verifyChainFromRepository(options?: {
+    startSequence?: number;
+    endSequence?: number;
+  }): Promise<ChainVerificationResult> {
+    if (!this.repository) {
+      throw new Error('Repository not configured');
+    }
+    return this.repository.verifyChain(options);
+  }
+
+  /**
+   * 获取指定范围的条目
+   * 支持从 Repository 或内存获取
+   */
+  async getEntries(options?: {
     startSequence?: number;
     endSequence?: number;
     limit?: number;
-  }): ChainedAuditLogEntry[] {
+    useRepository?: boolean;
+  }): Promise<ChainedAuditLogEntry[]> {
+    // 如果使用 Repository
+    if (this.useRepository && (options?.useRepository || !this.entries.size)) {
+      if (!this.repository) {
+        throw new Error('Repository not configured');
+      }
+      return this.repository.getEntries(options);
+    }
+
     const start = options?.startSequence || 1;
     const end = options?.endSequence || this.nextSequenceNumber - 1;
     const limit = options?.limit || 1000;
