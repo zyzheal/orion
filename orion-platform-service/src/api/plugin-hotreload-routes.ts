@@ -76,7 +76,7 @@ export default async function registerPluginHotReloadRoutes(
       return reply.send({
         success: true,
         plugin: result,
-        message: `Plugin "${pluginId}" rolled back to version ${result.version}`,
+        message: `Plugin "${pluginId}" rolled back to version ${result.manifest.version}`,
       });
     } catch (error) {
       return reply.status(500).send({
@@ -107,8 +107,9 @@ export default async function registerPluginHotReloadRoutes(
     // 如果提供了新路径，更新配置
     if (paths && paths.length > 0) {
       // 动态添加监控路径
+      const config = hotReloadService.getConfig();
       for (const path of paths) {
-        hotReloadService.config.watchPaths.push(path);
+        config.watchPaths.push(path);
       }
     }
 
@@ -116,7 +117,7 @@ export default async function registerPluginHotReloadRoutes(
 
     return reply.send({
       success: true,
-      watchPaths: hotReloadService.config.watchPaths,
+      watchPaths: hotReloadService.getConfig().watchPaths,
       message: 'Plugin directory watching started',
     });
   });

@@ -89,6 +89,13 @@ export class PluginHotReloadService extends EventEmitter {
   }
 
   /**
+   * 获取当前配置 (public getter for private config)
+   */
+  getConfig(): HotReloadConfig {
+    return this.config;
+  }
+
+  /**
    * 设置事件监听
    */
   private setupEventListeners(): void {
