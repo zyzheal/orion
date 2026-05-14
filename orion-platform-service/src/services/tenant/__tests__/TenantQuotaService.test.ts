@@ -4,16 +4,114 @@
 
 import { TenantQuotaService, TenantQuota, QuotaAlert } from '../TenantQuotaService';
 
+// Mock database for testing
+const createMockDb = () => {
+  const mockQuotas: Map<string, any> = new Map();
+
+  return {
+    query: jest.fn().mockImplementation((sql: string, params?: unknown[]) => {
+      // Handle SELECT queries
+      if (sql.includes('SELECT') && sql.includes('FROM tenant_quotas')) {
+        if (sql.includes('WHERE tenant_id =')) {
+          const tenantId = params?.[0];
+          const quota = mockQuotas.get(tenantId);
+          if (quota) {
+            return { rows: [quota], rowCount: 1 };
+          }
+          return { rows: [], rowCount: 0 };
+        }
+      }
+
+      // Handle INSERT queries (with RETURNING *)
+      if (sql.includes('INSERT INTO')) {
+        // BaseRepository.create flattens the object to columns and values
+        // Object keys: id, tenantId, maxUsers, maxPipelines, maxApiCallsPerHour, maxConcurrentBuilds,
+        //       maxProjects, maxStorageMb, maxCpuCores, maxMemoryGb, maxTasksPerPipeline,
+        //       maxRunners, apiRateLimit, apiRateLimitWindowSeconds, maxPipelineRunsPerDay, usage
+        const values = params as unknown[];
+        const now = new Date();
+
+        const entity = {
+          id: String(values[0]),
+          tenant_id: String(values[1]),
+          max_users: Number(values[2]) || 100,
+          max_pipelines: Number(values[3]) || 200,
+          max_api_calls_per_hour: Number(values[4]) || 10000,
+          max_concurrent_builds: Number(values[5]) || 10,
+          max_projects: Number(values[6]) || 50,
+          max_storage_mb: Number(values[7]) || 10240,
+          max_cpu_cores: Number(values[8]) || 16,
+          max_memory_gb: Number(values[9]) || 32,
+          max_tasks_per_pipeline: Number(values[10]) || 50,
+          max_runners: Number(values[11]) || 5,
+          api_rate_limit: Number(values[12]) || 1000,
+          api_rate_limit_window_seconds: Number(values[13]) || 60,
+          max_pipeline_runs_per_day: Number(values[14]) || 1000,
+          usage: values[15] || {},
+          created_at: now,
+          updated_at: now,
+        };
+
+        mockQuotas.set(entity.tenant_id, entity);
+        return { rows: [entity], rowCount: 1 };
+      }
+
+      // Handle UPDATE queries (with RETURNING *)
+      if (sql.includes('UPDATE tenant_quotas')) {
+        // BaseRepository.update() flattens the data object
+        // Object keys: maxPipelines, maxApiCallsPerHour, maxConcurrentBuilds, maxProjects,
+        // maxStorageMb, maxCpuCores, maxMemoryGb, maxTasksPerPipeline, maxRunners,
+        // apiRateLimit, apiRateLimitWindowSeconds, maxPipelineRunsPerDay, usage
+        const values = params as unknown[];
+        const id = String(values[values.length - 1]);
+        const tenantId = id.replace('quota_', '');
+
+        const existing = mockQuotas.get(tenantId);
+        if (existing) {
+          const updated = {
+            ...existing,
+            max_pipelines: Number(values[0]) || existing.max_pipelines,
+            max_api_calls_per_hour: Number(values[1]) || existing.max_api_calls_per_hour,
+            max_concurrent_builds: Number(values[2]) || existing.max_concurrent_builds,
+            max_projects: Number(values[3]) || existing.max_projects,
+            max_storage_mb: Number(values[4]) || existing.max_storage_mb,
+            max_cpu_cores: Number(values[5]) || existing.max_cpu_cores,
+            max_memory_gb: Number(values[6]) || existing.max_memory_gb,
+            max_tasks_per_pipeline: Number(values[7]) || existing.max_tasks_per_pipeline,
+            max_runners: Number(values[8]) || existing.max_runners,
+            api_rate_limit: Number(values[9]) || existing.api_rate_limit,
+            api_rate_limit_window_seconds: Number(values[10]) || existing.api_rate_limit_window_seconds,
+            max_pipeline_runs_per_day: Number(values[11]) || existing.max_pipeline_runs_per_day,
+            usage: values[12] || existing.usage,
+            updated_at: new Date(),
+          };
+          mockQuotas.set(tenantId, updated);
+          return { rows: [updated], rowCount: 1 };
+        }
+        return { rows: [], rowCount: 0 };
+      }
+
+      return { rows: [], rowCount: 0 };
+    }),
+    _reset: () => {
+      mockQuotas.clear();
+    },
+  };
+};
+
 describe('TenantQuotaService', () => {
   let quotaService: TenantQuotaService;
+  let mockDb: ReturnType<typeof createMockDb>;
 
   beforeEach(() => {
-    quotaService = new TenantQuotaService();
+    mockDb = createMockDb();
+    quotaService = new TenantQuotaService(mockDb as any);
   });
 
   afterEach(() => {
     quotaService.resetTenantUsage(100);
     quotaService.resetTenantUsage(200);
+    mockDb._reset();
   });
 
   describe('getQuota and setQuota', () => {
@@ -51,25 +149,29 @@ describe('TenantQuotaService', () => {
     });
 
     it('should emit quota:updated event', async () => {
-      quotaService.on('quota:updated', (quota: TenantQuota) => {
-        expect(quota.tenantId).toBe(100);
-        expect(quota.maxPipelines).toBe(50);
+      const emittedQuota = await new Promise<TenantQuota>((resolve) => {
+        quotaService.on('quota:updated', (quota: TenantQuota) => {
+          resolve(quota);
+        });
+
+        quotaService.setQuota({
+          tenantId: 100,
+          maxPipelines: 50,
+          maxConcurrentRuns: 10,
+          maxRunners: 5,
+          maxNamespaces: 10,
+          maxPipelineRunsPerDay: 1000,
+          maxTasksPerPipeline: 50,
+          maxCpuCores: 16,
+          maxMemoryGb: 32,
+          maxStorageGb: 100,
+          apiRateLimit: 1000,
+          apiRateLimitWindowSeconds: 60,
+        });
       });
 
-      await quotaService.setQuota({
-        tenantId: 100,
-        maxPipelines: 50,
-        maxConcurrentRuns: 10,
-        maxRunners: 5,
-        maxNamespaces: 10,
-        maxPipelineRunsPerDay: 1000,
-        maxTasksPerPipeline: 50,
-        maxCpuCores: 16,
-        maxMemoryGb: 32,
-        maxStorageGb: 100,
-        apiRateLimit: 1000,
-        apiRateLimitWindowSeconds: 60,
-      });
+      expect(emittedQuota.tenantId).toBe(100);
+      expect(emittedQuota.maxPipelines).toBe(50);
     });
   });
 
@@ -217,13 +319,18 @@ describe('TenantQuotaService', () => {
     it('should emit quota:alert event when quota exceeded', async () => {
       quotaService.recordUsage(100, 'runners', 'active', 5, new Date(), new Date());
 
-      quotaService.on('quota:alert', (alert: QuotaAlert) => {
-        expect(alert.tenantId).toBe(100);
-        expect(alert.resourceType).toBe('runners');
+      const alertPromise = new Promise<QuotaAlert>((resolve) => {
+        quotaService.on('quota:alert', (alert: QuotaAlert) => {
+          resolve(alert);
+        });
       });
 
       const result = await quotaService.checkRunnerQuota(100, 1);
       expect(result.allowed).toBe(false);
+
+      const alert = await alertPromise;
+      expect(alert.tenantId).toBe(100);
+      expect(alert.resourceType).toBe('runners');
     });
   });
 
@@ -270,7 +377,8 @@ describe('TenantQuotaService', () => {
 
     it('should emit usage:reset event', (done) => {
       // Use fresh service instance to avoid afterEach interference
-      const freshService = new TenantQuotaService();
+      const freshDb = createMockDb();
+      const freshService = new TenantQuotaService(freshDb as any);
 
       freshService.on('usage:reset', (tenantId: number) => {
         expect(tenantId).toBe(100);

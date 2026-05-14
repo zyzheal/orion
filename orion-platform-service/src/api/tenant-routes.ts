@@ -45,7 +45,9 @@ export default async function tenantRoutes(
 ): Promise<void> {
   // Initialize services
   const context = new TenantContext();
-  const quotaService = tenantQuotaService;
+  const quotaService = options.database
+    ? new TenantQuotaService(options.database)
+    : tenantQuotaService;
   const namespacePool = namespacePoolService;
 
   // Initialize database-backed TenantService via Repository pattern
@@ -53,7 +55,7 @@ export default async function tenantRoutes(
   if (options.database) {
     const tenantRepository = new TenantRepository(options.database);
     tenantService = new TenantService(tenantRepository);
-    console.log('[TenantRoutes] Database-backed TenantService initialized');
+    console.log('[TenantRoutes] Database-backed TenantService and TenantQuotaService initialized');
   } else {
     console.warn('[TenantRoutes] Database not available, tenant CRUD routes will not be functional');
   }
