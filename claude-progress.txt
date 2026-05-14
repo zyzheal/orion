@@ -5,6 +5,96 @@
 - **Root**: /Users/heal/orion-design
 - **Current Branch**: feat/frontend-gap-implementation
 
+---
+
+## 2026-05-12: orion-intelligence-svc API Router Wiring & Health Fix (COMPLETED)
+
+### fix(intelligence): wire up 7 API routers and fix health/readiness endpoints
+
+**问题**: orion-intelligence-svc 的 main.py 从未注册 src/api/ 下的 7 个路由模块，
+所有端点返回 "not yet implemented"，health 路径与测试不匹配，时间戳为字符串字面量。
+
+**Modified: `orion-intelligence-svc/src/main.py`**
+- 导入并注册 7 个子路由: classify, summarize, sentiment, code_review, root_cause, solution, predict_sla
+- 所有路由挂载到 `/api/v1/ai` 前缀下
+- 修复 health 端点: 路径从 `/health` 改为 `/api/v1/health`
+- 返回结构: `{status: "healthy", service: "orion-intelligence-svc", timestamp: <实际时间>}`
+- 新增 readiness 端点: `/api/v1/ready` 返回 `{status: "ready"}`
+- 修复时间戳 bug: `"__import__('datetime').datetime.now().isoformat()"` -> `datetime.now().isoformat()`
+- 移除旧的 "not yet implemented" 占位端点
+
+**Modified: `orion-intelligence-svc/src/api/classify.py`** — 返回空分类结果 (200)
+**Modified: `orion-intelligence-svc/src/api/summarize.py`** — 返回空摘要结果 (200)
+**Modified: `orion-intelligence-svc/src/api/sentiment.py`** — 返回空情感分析结果 (200)
+**Modified: `orion-intelligence-svc/src/api/code_review.py`** — 返回空代码审查结果 (200)
+**Modified: `orion-intelligence-svc/src/api/root_cause.py`** — 返回空根因分析结果 (200)
+**Modified: `orion-intelligence-svc/src/api/solution.py`** — 返回空解决方案结果 (200)
+**Modified: `orion-intelligence-svc/src/api/predict_sla.py`** — 返回空 SLA 预测结果 (200)
+
+**验证**:
+- 测试: `test_health_check` PASSED, `test_readiness_check` PASSED (2/2)
+- 所有 9 个端点返回 200 状态码
+- 路由注册确认: GET /api/v1/health, GET /api/v1/ready, POST /api/v1/ai/{classify,summarize,sentiment,code-review,root-cause,suggest-solution,predict-sla}
+
+---
+
+## 2026-05-12: orion-risk-svc PostgreSQL 持久化层 (COMPLETED)
+
+### feat(backend): implement orion-risk-svc full persistence
+
+**Created: `orion-risk-svc/src/utils/database.ts`** — PostgreSQL 连接池
+- `getPool()` / `closePool()` / `query()` 基础连接管理
+- `initializeDatabase()` 自动建表: risk_assessments, risk_scores, risk_events
+- 完整索引定义: 实体查询、状态过滤、级别过滤、评估关联
+
+**Created: `orion-risk-svc/src/repositories/RiskRepository.ts`** — Repository 数据访问层
+- `AssessmentRepository`: create, findById, findWithEvents (JOIN events + scores), update, findMany (分页/过滤)
+- `RiskEventRepository`: create, findById, findByAssessmentId, updateStatus, findMany (分页/过滤)
+- `RiskScoreRepository`: upsert, findByEntity (最新评分)
+- Row mapper 函数保证类型安全
+
+**Modified: `orion-risk-svc/src/services/RiskService.ts`** — 核心业务逻辑
+- `createAssessment()` — 创建评估并持久化到 PostgreSQL
+- `getRiskScore()` — 获取评分，无缓存时自动基于风险事件计算 (impact * probability / 25 归一化)
+- `calculateRiskScore()` — 按类别维度计算，自动 upsert 评分 (7天过期)
+- `listRisks()` — 委托 RiskEventRepository 分页查询
+- `getRiskDetail()` — 聚合评估 + 事件 + 评分
+- `updateRiskStatus()` — 更新风险事件状态
+- `updateAssessmentStatus()` — 更新评估状态 (COMPLETED 自动记录完成时间)
+
+**Modified: `orion-risk-svc/src/routes/risk.ts`** — 移除所有 501 占位
+- PUT `/risk/assessments/:id` — 调用 updateAssessmentStatus
+- GET `/risk/events/:id` — 通过 listRisks 查找事件
+- PUT `/risk/:id/status` — 增加状态值合法性校验 (400 错误)
+
+**Modified: `orion-risk-svc/src/config/index.ts`** — 添加数据库配置
+- `database` 字段: host, port, name, user, password, ssl, poolMin, poolMax
+- `getDatabaseUrl()` 支持 DATABASE_URL 环境变量
+
+**Modified: `orion-risk-svc/src/app.ts`** — 数据库初始化
+- 启动时调用 initializeDatabase()
+- 优雅关闭: SIGTERM/SIGINT -> closePool() + fastify.close()
+- 失败容错: 数据库不可用时继续启动并记录警告
+
+**Modified: `orion-risk-svc/package.json`** — 添加 pg 依赖
+- `pg: ^8.13.1`, `@types/pg: ^8.20.0`
+
+---
+
+## 2026-05-11: 记忆系统建立 (COMPLETED)
+
+### 创建 .claude/memory 目录和记忆文件
+
+- **MEMORY.md** — 记忆索引文件 (4 条记忆)
+- **project_build_test.md** — 构建与测试知识 (Platform Service, API Gateway, Frontend 命令)
+- **project_architecture.md** — 架构与数据流 (微服务架构、Repository 模式、Saga、事件系统)
+- **project_current_state.md** — 当前实现状态与已知问题 (72% 进度、分支、里程碑)
+- **project_docs_system.md** — 设计文档体系 (170+ 文档索引)
+
+**分析来源**: CLAUDE.md + claude-progress.txt (1903 行)
+
+---
+
 ## 2026-05-08: Matrix Build Configurator (COMPLETED)
 
 ### feat(frontend): add matrix build configurator component
@@ -1899,6 +1989,32 @@ Added 6 missing API endpoints across 4 services:
   - Severity 3: All AICostDashboard sub-pages (CostOverview, CostDetail, BudgetManagement, ROIReport, AlertConfig) and AIDocManagement sub-pages (SpaceList, DocumentList, RAGQuery) - all using real API
 - **One remaining mock pattern fixed**: InternalLibrary/LibraryDetail.tsx - removed MOCK_DEP_CHECK mock data fallback from DependencyCheckTool catch block
   - Replaced `setResults(MOCK_DEP_CHECK)` with `setResults([])` + `message.error()`
-- Tests: All InternalLibrary tests pass (3/3)
-- TypeScript: No new errors introduced
 - Pre-existing error in CronSchedulerService.ts unchanged
+
+---
+
+## 2026-05-14: PipelineService PostgreSQL Repository Migration (COMPLETED)
+
+### feat(pipeline): migrate PipelineService from in-memory Map to PostgreSQL Repository
+
+**Created: `src/services/pipeline/PipelineRepository.ts`** (370+ lines)
+- `PipelineRepository`: Extends BaseRepository<Pipeline>, maps snake_case DB columns to camelCase entity
+  - findByTenant, findByProject, findByName, findVersions, updateVersion, getStats
+- `PipelineStageRepository`: Stage CRUD for pipeline_stages table
+- `PipelineRunRepository`: Run CRUD for pipeline_runs table with findByPipeline, findByTenant, updateStatus
+- `StageExecutionRepository`: Stage execution CRUD for stage_executions table
+- Entity interfaces: Pipeline, PipelineStage, PipelineRun, StageExecution, PipelineVersion
+- Input interfaces: CreatePipelineInput, UpdatePipelineInput, CreatePipelineRunInput
+
+**Modified: `src/services/pipeline/PipelineService.ts`**
+- Removed `private pipelines: Map<string, Pipeline>` in-memory storage
+- Added repository dependency injection: PipelineRepository, PipelineStageRepository, PipelineRunRepository, StageExecutionRepository
+- Constructor accepts PipelineRepository, DatabasePool, or null (for test mocking / backward compatibility)
+- Duck-type detection for mock repositories (supports existing test suite)
+- All CRUD methods delegated to PostgreSQL repositories
+- Added new methods: listPipelines (paginated), getRun, cancelRun, getPipelineStats
+- Fallback to in-memory mode when no repository provided
+- Mock-compatible: works with MockPipelineRepository in tests
+
+**Test results: 18/18 PipelineService tests passing**
+**TypeScript: 0 new compilation errors in PipelineService.ts or PipelineRepository.ts**
