@@ -1,312 +1,168 @@
 /**
- * Branch Policy Service - 分支保护规则服务
+ * BranchPolicyService - PostgreSQL Repository-based Branch Policy Management
  *
- * 管理代码仓库的分支保护策略，包括:
- * - 保护分支规则 (通配符匹配)
- * - 审批规则配置 (需要的审批人数、审批人)
- * - 合并策略 (merge/squash/rebase/fast-forward)
- * - CODEOWNERS 要求
- * - 强制推送保护
+ * Provides branch protection strategy CRUD, pattern matching, and PR
+ * mergeability checks using BranchPolicyRepository backed by PostgreSQL.
+ *
+ * Features:
+ * - CRUD operations for branch policies
+ * - Glob-style branch pattern matching
+ * - PR mergeability validation (approvals, checks, code owners, admin override)
+ * - Default policy generation for common branch patterns
  */
 
 import { v4 as uuidv4 } from 'uuid';
+import { DatabasePool } from '../database';
+import { BranchPolicyRepository } from '../../repositories/BranchPolicyRepository';
 import {
   BranchPolicy,
-  ApprovalRule,
-  MergeStrategy,
+  CreateBranchPolicyInput,
+  UpdateBranchPolicyInput,
   PullRequest,
+  MergeCheckOptions,
+  MergeCheckResult,
+  MergeCheckBlock,
+  ApprovalRule,
 } from './types';
-import { BranchPolicyRepository } from '../../repositories/BranchPolicyRepository';
-
-/** 创建分支策略的输入 */
-export interface BranchPolicyCreateInput {
-  repoId: string;
-  branchPattern: string;
-  preventForcePush?: boolean;
-  preventDeletion?: boolean;
-  mergeStrategy?: MergeStrategy;
-  approvalRules?: ApprovalRuleInput[];
-  requiredChecks?: string[];
-  requireCodeOwners?: boolean;
-  linearHistory?: boolean;
-  allowAdminOverride?: boolean;
-}
-
-/** 审批规则输入 */
-export interface ApprovalRuleInput {
-  name: string;
-  requiredApprovals: number;
-  approvers: string[];
-  allowAuthorApproval?: boolean;
-  requiredRoles?: string[];
-}
-
-/** 更新分支策略的输入 */
-export interface BranchPolicyUpdateInput {
-  preventForcePush?: boolean;
-  preventDeletion?: boolean;
-  mergeStrategy?: MergeStrategy;
-  approvalRules?: ApprovalRuleInput[];
-  requiredChecks?: string[];
-  requireCodeOwners?: boolean;
-  linearHistory?: boolean;
-  allowAdminOverride?: boolean;
-}
-
-/** PR 合并检查结果 */
-export interface MergeCheckResult {
-  /** 是否可以通过所有检查 */
-  canMerge: boolean;
-  /** 未通过的检查列表 */
-  failedChecks: {
-    rule: string;
-    reason: string;
-  }[];
-  /** 通过的检查列表 */
-  passedChecks: string[];
-}
-
-/** 内存存储 */
-const branchPolicies = new Map<string, BranchPolicy>();
-const policiesByRepo = new Map<string, string[]>(); // repoId -> [policyIds]
 
 export class BranchPolicyService {
-  private repository?: BranchPolicyRepository;
-
-  constructor(repository?: BranchPolicyRepository) {
-    this.repository = repository;
-  }
+  private repository: BranchPolicyRepository | null;
 
   /**
-   * 创建分支保护策略
+   * @param repository - PostgreSQL repository instance or DatabasePool.
+   *                     Pass null to fall back to in-memory mode.
    */
-  async create(input: BranchPolicyCreateInput): Promise<BranchPolicy> {
-    const now = new Date();
+  constructor(repository: BranchPolicyRepository | DatabasePool | null) {
+    if (!repository) {
+      this.repository = null;
+    } else if (
+      'findById' in repository &&
+      'findByRepo' in repository &&
+      'create' in repository
+    ) {
+      // Already a BranchPolicyRepository (or mock)
+      this.repository = repository as BranchPolicyRepository;
+    } else {
+      // It's a raw DatabasePool - build the repository
+      this.repository = new BranchPolicyRepository(repository as DatabasePool);
+    }
+  }
 
-    // 验证分支模式
-    if (!input.branchPattern) {
-      throw new Error('branchPattern is required');
+  // ==================== Core CRUD ====================
+
+  /**
+   * Create a new branch policy.
+   */
+  async create(input: CreateBranchPolicyInput): Promise<BranchPolicy> {
+    if (!this.repository) {
+      throw new Error('BranchPolicyRepository not configured');
     }
 
-    // 验证审批规则
-    const approvalRules: ApprovalRule[] = (input.approvalRules || []).map(rule => {
-      if (rule.requiredApprovals < 0) {
-        throw new Error('requiredApprovals must be >= 0');
-      }
-      return {
-        id: uuidv4(),
-        name: rule.name,
-        requiredApprovals: rule.requiredApprovals,
-        approvers: rule.approvers,
-        allowAuthorApproval: rule.allowAuthorApproval ?? false,
-        requiredRoles: rule.requiredRoles,
-      };
-    });
+    // Generate IDs for approval rules
+    const approvalRules: ApprovalRule[] = (input.approvalRules || []).map(rule => ({
+      id: rule.id || uuidv4(),
+      name: rule.name,
+      requiredApprovals: rule.requiredApprovals,
+      approvers: rule.approvers,
+      allowAuthorApproval: rule.allowAuthorApproval,
+      requiredRoles: rule.requiredRoles,
+    }));
 
-    const policy: BranchPolicy = {
+    return this.repository.create({
       id: uuidv4(),
       repoId: input.repoId,
       branchPattern: input.branchPattern,
-      preventForcePush: input.preventForcePush !== false,
-      preventDeletion: input.preventDeletion !== false,
-      mergeStrategy: input.mergeStrategy || MergeStrategy.MERGE_COMMIT,
+      preventForcePush: input.preventForcePush ?? false,
+      preventDeletion: input.preventDeletion ?? true,
+      mergeStrategy: input.mergeStrategy ?? 'merge',
       approvalRules,
-      requiredChecks: input.requiredChecks || [],
+      requiredChecks: input.requiredChecks ?? [],
       requireCodeOwners: input.requireCodeOwners ?? false,
       linearHistory: input.linearHistory ?? false,
-      allowAdminOverride: input.allowAdminOverride ?? true,
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    // Persist to PostgreSQL if repository is available, otherwise use in-memory fallback
-    if (this.repository) {
-      try {
-        await this.repository.create({
-          id: policy.id,
-          repoId: policy.repoId,
-          branchPattern: policy.branchPattern,
-          preventForcePush: policy.preventForcePush,
-          preventDeletion: policy.preventDeletion,
-          mergeStrategy: policy.mergeStrategy,
-          approvalRules: policy.approvalRules,
-          requiredChecks: policy.requiredChecks,
-          requireCodeOwners: policy.requireCodeOwners,
-          linearHistory: policy.linearHistory,
-          allowAdminOverride: policy.allowAdminOverride,
-        });
-      } catch (err) {
-        console.error('[BranchPolicyService] Failed to persist policy to DB, falling back to memory:', err);
-      }
-    } else {
-      branchPolicies.set(policy.id, policy);
-
-      // 维护仓库索引
-      const repoPolicyIds = policiesByRepo.get(input.repoId) || [];
-      repoPolicyIds.push(policy.id);
-      policiesByRepo.set(input.repoId, repoPolicyIds);
-    }
-
-    return policy;
+      allowAdminOverride: input.allowAdminOverride ?? false,
+    });
   }
 
   /**
-   * 获取分支策略详情
+   * Get a branch policy by ID.
    */
   async getById(id: string): Promise<BranchPolicy | null> {
-    // Try PostgreSQL first if repository is available
-    if (this.repository) {
-      try {
-        const policy = await this.repository.findById(id);
-        if (policy) return policy;
-      } catch (err) {
-        console.error('[BranchPolicyService] DB findById failed, falling back to memory:', err);
-      }
-    }
-    return branchPolicies.get(id) || null;
+    if (!this.repository) return null;
+    return this.repository.findById(id);
   }
 
   /**
-   * 获取仓库的所有分支策略
+   * List all policies for a repository.
    */
   async listByRepo(repoId: string): Promise<BranchPolicy[]> {
-    // Try PostgreSQL first if repository is available
-    if (this.repository) {
-      try {
-        return await this.repository.findByRepo(repoId);
-      } catch (err) {
-        console.error('[BranchPolicyService] DB findByRepo failed, falling back to memory:', err);
-      }
-    }
-    const policyIds = policiesByRepo.get(repoId) || [];
-    return policyIds
-      .map(id => branchPolicies.get(id))
-      .filter((p): p is BranchPolicy => p !== undefined)
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    if (!this.repository) return [];
+    return this.repository.findByRepo(repoId);
   }
 
   /**
-   * 更新分支策略
+   * List all policies across all repositories.
    */
-  async update(id: string, input: BranchPolicyUpdateInput): Promise<BranchPolicy | null> {
-    // Try PostgreSQL first if repository is available
-    if (this.repository) {
-      try {
-        const existing = await this.repository.findById(id);
-        if (!existing) return null;
-        // Transform approvalRules to include generated IDs for repository layer
-        const repoInput = {
-          ...input,
-          approvalRules: input.approvalRules?.map(rule => ({
-            id: uuidv4(),
-            name: rule.name,
-            requiredApprovals: rule.requiredApprovals,
-            approvers: rule.approvers,
-            allowAuthorApproval: rule.allowAuthorApproval ?? false,
-            requiredRoles: rule.requiredRoles,
-          })),
-        };
-        return await this.repository.update(id, repoInput);
-      } catch (err) {
-        console.error('[BranchPolicyService] DB update failed, falling back to memory:', err);
-      }
-    }
-    const policy = branchPolicies.get(id);
-    if (!policy) {
-      return null;
-    }
+  async listAll(): Promise<BranchPolicy[]> {
+    if (!this.repository) return [];
+    return this.repository.findAll();
+  }
 
-    if (input.preventForcePush !== undefined) policy.preventForcePush = input.preventForcePush;
-    if (input.preventDeletion !== undefined) policy.preventDeletion = input.preventDeletion;
-    if (input.mergeStrategy !== undefined) policy.mergeStrategy = input.mergeStrategy;
-    if (input.requiredChecks !== undefined) policy.requiredChecks = input.requiredChecks;
-    if (input.requireCodeOwners !== undefined) policy.requireCodeOwners = input.requireCodeOwners;
-    if (input.linearHistory !== undefined) policy.linearHistory = input.linearHistory;
-    if (input.allowAdminOverride !== undefined) policy.allowAdminOverride = input.allowAdminOverride;
+  /**
+   * Update a branch policy by ID.
+   */
+  async update(id: string, input: UpdateBranchPolicyInput): Promise<BranchPolicy | null> {
+    if (!this.repository) return null;
 
-    if (input.approvalRules !== undefined) {
-      policy.approvalRules = input.approvalRules.map(rule => {
-        if (rule.requiredApprovals < 0) {
-          throw new Error('requiredApprovals must be >= 0');
-        }
-        return {
-          id: uuidv4(),
-          name: rule.name,
-          requiredApprovals: rule.requiredApprovals,
-          approvers: rule.approvers,
-          allowAuthorApproval: rule.allowAuthorApproval ?? false,
-          requiredRoles: rule.requiredRoles,
-        };
+    // Generate IDs for approval rules if provided
+    if (input.approvalRules) {
+      const approvalRules: ApprovalRule[] = input.approvalRules.map(rule => ({
+        id: (rule as ApprovalRule).id || uuidv4(),
+        name: rule.name,
+        requiredApprovals: rule.requiredApprovals,
+        approvers: rule.approvers,
+        allowAuthorApproval: rule.allowAuthorApproval,
+        requiredRoles: rule.requiredRoles,
+      }));
+
+      return this.repository.update(id, {
+        ...input,
+        approvalRules,
       });
     }
 
-    policy.updatedAt = new Date();
-    branchPolicies.set(id, policy);
-
-    return policy;
+    return this.repository.update(id, input);
   }
 
   /**
-   * 删除分支策略
+   * Delete a branch policy by ID.
    */
   async delete(id: string): Promise<boolean> {
-    // Try PostgreSQL first if repository is available
-    if (this.repository) {
-      try {
-        const result = await this.repository.delete(id);
-        if (result) {
-          // Also clean up in-memory cache for consistency
-          const policy = branchPolicies.get(id);
-          if (policy) {
-            branchPolicies.delete(id);
-            const repoPolicyIds = policiesByRepo.get(policy.repoId) || [];
-            const updatedIds = repoPolicyIds.filter(pid => pid !== id);
-            if (updatedIds.length === 0) {
-              policiesByRepo.delete(policy.repoId);
-            } else {
-              policiesByRepo.set(policy.repoId, updatedIds);
-            }
-          }
-        }
-        return result;
-      } catch (err) {
-        console.error('[BranchPolicyService] DB delete failed, falling back to memory:', err);
-      }
-    }
-    const policy = branchPolicies.get(id);
-    if (!policy) {
-      return false;
-    }
-
-    branchPolicies.delete(id);
-
-    // 更新仓库索引
-    const repoPolicyIds = policiesByRepo.get(policy.repoId) || [];
-    const updatedIds = repoPolicyIds.filter(pid => pid !== id);
-    if (updatedIds.length === 0) {
-      policiesByRepo.delete(policy.repoId);
-    } else {
-      policiesByRepo.set(policy.repoId, updatedIds);
-    }
-
-    return true;
+    if (!this.repository) return false;
+    return this.repository.delete(id);
   }
 
+  // ==================== Branch Pattern Matching ====================
+
   /**
-   * 获取匹配分支的策略
+   * Match a branch name against policies for a repository.
+   * Uses glob-style pattern matching.
    *
-   * 使用通配符匹配 (支持 * 和 **)
+   * Pattern rules:
+   * - `*` matches any characters except `/`
+   * - `**` matches any characters including `/`
+   * - `?` matches any single character except `/`
+   * - Exact match if no wildcards
    */
   async matchPolicy(repoId: string, branchName: string): Promise<BranchPolicy | null> {
-    const policies = await this.listByRepo(repoId);
+    if (!this.repository) return null;
 
-    // 按创建时间排序，精确匹配优先于通配符匹配
-    const exactMatch = policies.find(p => p.branchPattern === branchName);
-    if (exactMatch) return exactMatch;
+    const policies = await this.repository.findByRepo(repoId);
 
-    // 尝试通配符匹配
+    // Sort by specificity: longer patterns first (more specific)
+    policies.sort((a, b) => b.branchPattern.length - a.branchPattern.length);
+
     for (const policy of policies) {
-      if (this.matchPattern(policy.branchPattern, branchName)) {
+      if (this.matchesPattern(branchName, policy.branchPattern)) {
         return policy;
       }
     }
@@ -315,260 +171,297 @@ export class BranchPolicyService {
   }
 
   /**
-   * 检查 PR 是否可以合并
-   *
-   * 根据匹配的分支策略执行所有检查
+   * Glob-style pattern matching for branch names.
+   */
+  private matchesPattern(branchName: string, pattern: string): boolean {
+    // Exact match
+    if (branchName === pattern) return true;
+
+    // Convert glob pattern to regex
+    let regexStr = '';
+    let i = 0;
+
+    while (i < pattern.length) {
+      const char = pattern[i];
+
+      if (char === '*' && i + 1 < pattern.length && pattern[i + 1] === '*') {
+        // ** matches anything including /
+        regexStr += '.*';
+        i += 2;
+        // Skip trailing / if present after **
+        if (i < pattern.length && pattern[i] === '/') {
+          i++;
+        }
+      } else if (char === '*') {
+        // * matches anything except /
+        regexStr += '[^/]*';
+        i++;
+      } else if (char === '?') {
+        // ? matches any single character except /
+        regexStr += '[^/]';
+        i++;
+      } else {
+        // Escape special regex characters
+        regexStr += char.replace(/[.+^${}()|[\]\\]/g, '\\$&');
+        i++;
+      }
+    }
+
+    const regex = new RegExp(`^${regexStr}$`);
+    return regex.test(branchName);
+  }
+
+  // ==================== PR Mergeability Check ====================
+
+  /**
+   * Check if a PR can be merged according to the matching branch policy.
    */
   async checkMergeability(
     repoId: string,
-    pr: PullRequest,
-    options?: {
-      /** 当前审批状态 { reviewerId: score } */
-      approvals?: Record<string, number>;
-      /** CI 检查结果 { checkName: status } */
-      checkResults?: Record<string, 'success' | 'failure' | 'pending'>;
-      /** CODEOWNERS 审批状态 */
-      codeOwnersApproved?: boolean;
-      /** 是否是管理员 */
-      isAdmin?: boolean;
-    }
+    pullRequest: PullRequest,
+    options: MergeCheckOptions = {}
   ): Promise<MergeCheckResult> {
-    const policy = await this.matchPolicy(repoId, pr.targetBranch);
+    const blocks: MergeCheckBlock[] = [];
+    const warnings: string[] = [];
+
+    // Find matching policy for the target branch
+    const policy = await this.matchPolicy(repoId, pullRequest.targetBranch);
 
     if (!policy) {
-      // 没有匹配的策略，允许合并
+      // No policy means no restrictions
       return {
         canMerge: true,
-        failedChecks: [],
-        passedChecks: ['no-policy-required'],
+        policy: null,
+        blocks: [],
+        warnings: ['No branch policy configured for this target branch'],
       };
     }
 
-    const failedChecks: { rule: string; reason: string }[] = [];
-    const passedChecks: string[] = [];
+    // Check approval rules
+    const approvalBlocks = this.checkApprovals(policy, options.approvals || {}, pullRequest.author);
+    blocks.push(...approvalBlocks);
 
-    // 1. 检查审批规则
-    for (const rule of policy.approvalRules) {
-      const reviewResult = this.checkApprovalRule(rule, pr, options?.approvals || {});
-      if (!reviewResult.approved) {
-        failedChecks.push({
-          rule: rule.name,
-          reason: reviewResult.reason,
-        });
-      } else {
-        passedChecks.push(rule.name);
+    // Check required CI/CD checks
+    const checkBlocks = this.checkRequiredChecks(policy, options.checkResults || {});
+    blocks.push(...checkBlocks);
+
+    // Check code owners requirement
+    if (policy.requireCodeOwners && !options.codeOwnersApproved) {
+      blocks.push({
+        rule: 'code-owners',
+        reason: 'CODEOWNERS approval is required',
+        severity: 'error',
+      });
+    }
+
+    // Check admin override
+    if (options.isAdmin && policy.allowAdminOverride) {
+      // Admin can bypass all blocks
+      const errorBlocks = blocks.filter(b => b.severity === 'error');
+      if (errorBlocks.length > 0) {
+        warnings.push(
+          `Admin override applied. Bypassed ${errorBlocks.length} blocking rule(s).`
+        );
       }
+      // Remove all error blocks for admin override
+      return {
+        canMerge: true,
+        policy,
+        blocks: blocks.filter(b => b.severity === 'warning'),
+        warnings,
+      };
     }
 
-    // 2. 检查必需的 CI 检查
-    for (const checkName of policy.requiredChecks) {
-      const status = options?.checkResults?.[checkName];
-      if (status === 'success') {
-        passedChecks.push(`check:${checkName}`);
-      } else if (status === 'failure') {
-        failedChecks.push({
-          rule: `check:${checkName}`,
-          reason: `Check "${checkName}" has failed`,
-        });
-      } else {
-        failedChecks.push({
-          rule: `check:${checkName}`,
-          reason: `Check "${checkName}" is still pending`,
-        });
-      }
-    }
-
-    // 3. 检查 CODEOWNERS 审批
-    if (policy.requireCodeOwners) {
-      if (options?.codeOwnersApproved) {
-        passedChecks.push('code-owners-approved');
-      } else {
-        failedChecks.push({
-          rule: 'code-owners',
-          reason: 'CODEOWNERS approval is required but not obtained',
-        });
-      }
-    }
-
-    // 4. 检查线性历史
-    if (policy.linearHistory) {
-      // 实际实现需要检查提交历史
-      passedChecks.push('linear-history-check');
-    }
-
-    // 5. 管理员覆盖
-    let canMerge = failedChecks.length === 0;
-    if (!canMerge && policy.allowAdminOverride && options?.isAdmin) {
-      canMerge = true;
-    }
+    const canMerge = blocks.every(b => b.severity === 'warning');
 
     return {
       canMerge,
-      failedChecks,
-      passedChecks,
+      policy,
+      blocks,
+      warnings,
     };
   }
 
   /**
-   * 创建默认分支保护策略
-   *
-   * 为常见分支模式创建预定义的保护策略
+   * Check if approval requirements are met.
+   */
+  private checkApprovals(
+    policy: BranchPolicy,
+    approvals: Record<string, number>,
+    author: string
+  ): MergeCheckBlock[] {
+    const blocks: MergeCheckBlock[] = [];
+
+    for (const rule of policy.approvalRules) {
+      // Find matching approver group
+      let matchedApprovals = 0;
+
+      for (const approver of rule.approvers) {
+        if (approvals[approver] !== undefined) {
+          matchedApprovals += approvals[approver];
+        }
+      }
+
+      // If no specific approvers matched, check total approvals
+      if (matchedApprovals === 0) {
+        const totalApprovals = Object.values(approvals).reduce((sum, count) => sum + count, 0);
+        matchedApprovals = totalApprovals;
+      }
+
+      // Check if author is among approvers (if not allowed)
+      if (!rule.allowAuthorApproval && approvals[author] !== undefined && approvals[author] > 0) {
+        // Count author's approval only if allowed
+        matchedApprovals -= approvals[author];
+      }
+
+      if (matchedApprovals < rule.requiredApprovals) {
+        blocks.push({
+          rule: `approval-${rule.name}`,
+          reason: `Requires ${rule.requiredApprovals} approvals from ${rule.name}, got ${matchedApprovals}`,
+          severity: 'error',
+        });
+      }
+    }
+
+    return blocks;
+  }
+
+  /**
+   * Check if required CI/CD checks have passed.
+   */
+  private checkRequiredChecks(
+    policy: BranchPolicy,
+    checkResults: Record<string, 'success' | 'failure' | 'pending'>
+  ): MergeCheckBlock[] {
+    const blocks: MergeCheckBlock[] = [];
+
+    for (const checkName of policy.requiredChecks) {
+      const result = checkResults[checkName];
+
+      if (result === undefined) {
+        blocks.push({
+          rule: `check-${checkName}`,
+          reason: `Required check "${checkName}" has not been triggered`,
+          severity: 'error',
+        });
+      } else if (result === 'pending') {
+        blocks.push({
+          rule: `check-${checkName}`,
+          reason: `Required check "${checkName}" is still running`,
+          severity: 'warning',
+        });
+      } else if (result === 'failure') {
+        blocks.push({
+          rule: `check-${checkName}`,
+          reason: `Required check "${checkName}" failed`,
+          severity: 'error',
+        });
+      }
+      // 'success' is fine, no action needed
+    }
+
+    return blocks;
+  }
+
+  // ==================== Default Policies ====================
+
+  /**
+   * Create default branch protection policies for a repository.
+   * Creates policies for common patterns: main/master, release/*, develop.
    */
   async createDefaultPolicies(repoId: string): Promise<BranchPolicy[]> {
-    const defaults = [
-      // main/master 分支保护
+    const defaults: CreateBranchPolicyInput[] = [
       {
         repoId,
         branchPattern: 'main',
         preventForcePush: true,
         preventDeletion: true,
-        mergeStrategy: MergeStrategy.SQUASH_MERGE,
+        mergeStrategy: 'squash',
         approvalRules: [
           {
-            name: 'Code Review',
-            requiredApprovals: 1,
-            approvers: ['team-leads'],
+            name: 'Core Team',
+            requiredApprovals: 2,
+            approvers: ['@team-core'],
             allowAuthorApproval: false,
+            requiredRoles: ['maintainer'],
           },
         ],
-        requiredChecks: ['ci-test', 'ci-lint'],
+        requiredChecks: ['ci/build', 'ci/test', 'ci/lint'],
         requireCodeOwners: true,
-        linearHistory: false,
+        linearHistory: true,
         allowAdminOverride: true,
       },
-      // release 分支保护
       {
         repoId,
-        branchPattern: 'release/*',
+        branchPattern: 'master',
         preventForcePush: true,
         preventDeletion: true,
-        mergeStrategy: MergeStrategy.MERGE_COMMIT,
+        mergeStrategy: 'squash',
         approvalRules: [
           {
-            name: 'Release Review',
+            name: 'Core Team',
             requiredApprovals: 2,
-            approvers: ['release-managers'],
+            approvers: ['@team-core'],
             allowAuthorApproval: false,
+            requiredRoles: ['maintainer'],
           },
         ],
-        requiredChecks: ['ci-test', 'ci-lint', 'ci-security-scan'],
+        requiredChecks: ['ci/build', 'ci/test', 'ci/lint'],
         requireCodeOwners: true,
-        linearHistory: false,
-        allowAdminOverride: false,
+        linearHistory: true,
+        allowAdminOverride: true,
       },
-      // develop 分支保护
       {
         repoId,
-        branchPattern: 'develop',
+        branchPattern: 'release/**',
         preventForcePush: true,
-        preventDeletion: false,
-        mergeStrategy: MergeStrategy.MERGE_COMMIT,
+        preventDeletion: true,
+        mergeStrategy: 'merge',
         approvalRules: [
           {
-            name: 'Develop Review',
+            name: 'Release Team',
             requiredApprovals: 1,
-            approvers: ['senior-devs'],
-            allowAuthorApproval: false,
+            approvers: ['@team-release'],
+            allowAuthorApproval: true,
           },
         ],
-        requiredChecks: ['ci-test'],
+        requiredChecks: ['ci/build', 'ci/test'],
         requireCodeOwners: false,
         linearHistory: false,
         allowAdminOverride: true,
       },
+      {
+        repoId,
+        branchPattern: 'develop',
+        preventForcePush: false,
+        preventDeletion: true,
+        mergeStrategy: 'squash',
+        approvalRules: [
+          {
+            name: 'Dev Team',
+            requiredApprovals: 1,
+            approvers: ['@team-dev'],
+            allowAuthorApproval: true,
+          },
+        ],
+        requiredChecks: ['ci/build'],
+        requireCodeOwners: false,
+        linearHistory: false,
+        allowAdminOverride: false,
+      },
     ];
 
-    const results: BranchPolicy[] = [];
+    const created: BranchPolicy[] = [];
+
     for (const def of defaults) {
       try {
-        const policy = await this.create(def as BranchPolicyCreateInput);
-        results.push(policy);
+        const policy = await this.create(def);
+        created.push(policy);
       } catch {
-        // 如果已存在则跳过
+        // Skip if already exists or other error
       }
     }
 
-    return results;
-  }
-
-  /**
-   * 检查审批规则是否满足
-   */
-  private checkApprovalRule(
-    rule: ApprovalRule,
-    pr: PullRequest,
-    approvals: Record<string, number>
-  ): { approved: boolean; reason: string } {
-    // 统计有效审批数
-    let validApprovals = 0;
-    const approversWhoApproved = new Set<string>();
-
-    for (const [reviewerId, score] of Object.entries(approvals)) {
-      // 检查审批人是否在规则列表中
-      const isApprovedApprover =
-        rule.approvers.length === 0 || rule.approvers.includes(reviewerId);
-
-      // 检查作者自审
-      if (reviewerId === pr.author && !rule.allowAuthorApproval) {
-        continue;
-      }
-
-      // 分数 >= 1 才算有效审批 (Gerrit 风格: +1, +2)
-      if (isApprovedApprover && score >= 1) {
-        validApprovals++;
-        approversWhoApproved.add(reviewerId);
-      }
-    }
-
-    if (validApprovals < rule.requiredApprovals) {
-      return {
-        approved: false,
-        reason: `Requires ${rule.requiredApprovals} approval(s), got ${validApprovals}`,
-      };
-    }
-
-    // 检查必需角色
-    if (rule.requiredRoles && rule.requiredRoles.length > 0) {
-      // 实际实现需要检查审批人角色
-      // 这里做简化处理
-    }
-
-    return {
-      approved: true,
-      reason: `Got ${validApprovals} required approval(s)`,
-    };
-  }
-
-  /**
-   * 通配符匹配分支模式
-   *
-   * 支持:
-   *   *  - 匹配任意非斜杠字符
-   *   ** - 匹配任意字符（包括斜杠）
-   */
-  private matchPattern(pattern: string, branchName: string): boolean {
-    // 将 glob 模式转换为正则表达式
-    const regexPattern = pattern
-      .replace(/\*\*/g, '__DOUBLE_STAR__')  // 临时替换 **
-      .replace(/\*/g, '[^/]+')               // * 匹配非斜杠字符
-      .replace(/__DOUBLE_STAR__/g, '.*');   // ** 匹配任意字符
-
-    const regex = new RegExp(`^${regexPattern}$`);
-    return regex.test(branchName);
-  }
-
-  /**
-   * 获取存储状态 (用于测试)
-   */
-  _getStorage(): { policies: Map<string, BranchPolicy>; byRepo: Map<string, string[]> } {
-    return { policies: branchPolicies, byRepo: policiesByRepo };
-  }
-
-  /**
-   * 清空存储 (用于测试)
-   */
-  _clearStorage(): void {
-    branchPolicies.clear();
-    policiesByRepo.clear();
+    return created;
   }
 }

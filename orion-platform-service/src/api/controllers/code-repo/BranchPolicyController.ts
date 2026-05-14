@@ -9,16 +9,24 @@ import {
   BranchPolicyService,
   MergeStrategy,
 } from '../../../services/code-repo';
-
-// 共享实例
-const branchPolicyService = new BranchPolicyService();
+import type { DatabasePool } from '../../../services/database';
 
 export class BranchPolicyController {
+  private service: BranchPolicyService;
+
+  /**
+   * 创建控制器实例
+   * @param db - 数据库连接池，传入 null 时使用内存模式
+   */
+  constructor(db: DatabasePool | null) {
+    this.service = new BranchPolicyService(db);
+  }
+
   /**
    * 获取服务实例 (用于测试注入)
    */
   getService(): BranchPolicyService {
-    return branchPolicyService;
+    return this.service;
   }
 
   /**
@@ -54,7 +62,7 @@ export class BranchPolicyController {
         });
       }
 
-      const policy = await branchPolicyService.create({
+      const policy = await this.service.create({
         repoId: body.repoId,
         branchPattern: body.branchPattern,
         preventForcePush: body.preventForcePush,
@@ -84,7 +92,7 @@ export class BranchPolicyController {
   async getById(request: FastifyRequest, reply: FastifyReply) {
     try {
       const { id } = request.params as { id: string };
-      const policy = await branchPolicyService.getById(id);
+      const policy = await this.service.getById(id);
 
       if (!policy) {
         return reply.status(404).send({
@@ -110,7 +118,29 @@ export class BranchPolicyController {
   async listByRepo(request: FastifyRequest, reply: FastifyReply) {
     try {
       const { repoId } = request.params as { repoId: string };
-      const policies = await branchPolicyService.listByRepo(repoId);
+      const policies = await this.service.listByRepo(repoId);
+
+      return reply.send({
+        success: true,
+        data: policies,
+        count: policies.length,
+      });
+    } catch (error: any) {
+      return reply.status(500).send({
+        success: false,
+        error: error.message,
+      });
+    }
+  }
+
+  /**
+   * 获取所有分支策略（跨所有仓库）
+   *
+   * GET /api/v1/code-repo/branch-policies
+   */
+  async listAll(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const policies = await this.service.listAll();
 
       return reply.send({
         success: true,
@@ -150,7 +180,7 @@ export class BranchPolicyController {
         allowAdminOverride?: boolean;
       };
 
-      const policy = await branchPolicyService.update(id, body);
+      const policy = await this.service.update(id, body);
 
       if (!policy) {
         return reply.status(404).send({
@@ -176,7 +206,7 @@ export class BranchPolicyController {
   async delete(request: FastifyRequest, reply: FastifyReply) {
     try {
       const { id } = request.params as { id: string };
-      const deleted = await branchPolicyService.delete(id);
+      const deleted = await this.service.delete(id);
 
       if (!deleted) {
         return reply.status(404).send({
@@ -216,7 +246,7 @@ export class BranchPolicyController {
         });
       }
 
-      const policy = await branchPolicyService.matchPolicy(repoId, branchName);
+      const policy = await this.service.matchPolicy(repoId, branchName);
 
       return reply.send({
         success: true,
@@ -261,7 +291,7 @@ export class BranchPolicyController {
         });
       }
 
-      const result = await branchPolicyService.checkMergeability(
+      const result = await this.service.checkMergeability(
         body.repoId,
         body.pullRequest as any,
         {
@@ -289,7 +319,7 @@ export class BranchPolicyController {
   async createDefaults(request: FastifyRequest, reply: FastifyReply) {
     try {
       const { repoId } = request.params as { repoId: string };
-      const policies = await branchPolicyService.createDefaultPolicies(repoId);
+      const policies = await this.service.createDefaultPolicies(repoId);
 
       return reply.status(201).send({
         success: true,

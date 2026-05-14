@@ -16,7 +16,8 @@ import cmdbRoutes from '../routes-cmdb';
 import configRoutes from './config-routes';
 import { PluginManagerService } from '../services/plugin-manager-service';
 import auditRoutes from './audit-routes';
-import tenantRoutes from './tenant-routes';import iacRoutes from './iac-routes';
+import tenantRoutes from './tenant-routes';
+import iacRoutes from './iac-routes';
 import chatopsRoutes from './chatops-routes';
 import skillRoutes from './skill-routes';
 import sessionRoutes from './session-routes';
@@ -51,6 +52,10 @@ import apiGovernanceRoutes from './api-governance-routes';import communityRoutes
 import communityAdvancedRoutes from './community-advanced-routes';
 import moduleRoutes from './module-routes';
 import scriptRoutes from './script-routes';
+import { registerApprovalRoutes } from './approval-routes';
+import { registerSecretRoutes } from './secret-routes';
+import { registerApkUploadHistoryRoutes } from './apk-upload-history-routes';
+import branchPolicyRoutes from './branch-policy-routes';
 
 import pino from 'pino';
 import { ModuleManager } from '../services/module-lifecycle/ModuleManager';
@@ -275,6 +280,12 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // 注册 Build Environment API 路由 (PostgreSQL backed for BuildCache)
   // Code Repository 路由已迁移到 orion-code-svc (port 3010)
 
+  // 注册 Branch Policy API 路由 (PostgreSQL backed)
+  await app.register(branchPolicyRoutes, {
+    prefix: '/v1/code-repo/branch-policies',
+    database: options.database,
+  });
+
   // 注册 Configuration Management API 路由 (PostgreSQL backed)
   await registerWithRoleGuard(app, configRoutes, '/v1/config', { database: options.database });
 
@@ -349,8 +360,8 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
     }
   }
 
-  // 注册审批 API 路由 (P0 - multi-level approval) — P0-7 Fix: requires database
-  if (options.database) {  }
+  // 注册审批 API 路由 (P0 - multi-level approval)
+  await registerApprovalRoutes(app, { database: options.database });
 
   // 注册 Cron Scheduler API 路由 (P0-1 Fix: was missing)
   // 注册 EventBus API 路由 (M24 - PostgreSQL backed) — admin only
@@ -478,8 +489,13 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // ==================== Inline Script ====================
   await registerWithRoleGuard(app, scriptRoutes, '/v1/scripts', { database: options.database });
 
+  // ==================== Secret Management ====================
+  await registerSecretRoutes(app, { database: options.database });
+
+  // ==================== APK Upload History ====================
+  await registerApkUploadHistoryRoutes(app);
+
   // ==================== Runner Management ====================
   // Runner Agent 注册、心跳、Job 回报（Runner Agent 通信无需 JWT）
   // Test Report 路由已迁移到 orion-code-svc (port 3010)
-
-  // ==================== Artifact Version Management ====================}
+}

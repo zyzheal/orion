@@ -57,6 +57,14 @@ export class IaCPlanRepository extends BaseRepository<IaCPlanEntity> {
     return result.rows.map(row => this.mapRowToEntity(row));
   }
 
+  async findByWorkspaceId(workspaceId: string): Promise<IaCPlanEntity[]> {
+    const result = await this.db.query(
+      `SELECT * FROM iac_plans WHERE workspace_id = $1 ORDER BY created_at DESC`,
+      [workspaceId],
+    );
+    return result.rows.map(row => this.mapRowToEntity(row));
+  }
+
   protected mapRowToEntity(row: any): IaCPlanEntity {
     return {
       id: row.id,

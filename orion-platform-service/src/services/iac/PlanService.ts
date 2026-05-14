@@ -63,7 +63,8 @@ export class PlanService {
     if (this.planRepository) {
       await this.planRepository.create({
         id: plan.id,
-        name: plan.workspaceId,
+        name: `plan-${plan.workspaceId.slice(0, 8)}-${Date.now()}`,
+        workspace_id: plan.workspaceId,
         terraformVersion: '1.5.0',
         planContent: plan.resourceChanges ?? {},
         resourcesToAdd: plan.resourceChanges?.add ?? 0,
@@ -113,7 +114,7 @@ export class PlanService {
   async listByWorkspace(workspaceId: string): Promise<IaCPlanEntity[]> {
     if (this.planRepository) {
       const result = await this.planRepository.findAll();
-      return result.entities.filter(p => p.name === workspaceId || (p as any).workspaceId === workspaceId);
+      return result.entities.filter(p => p.workspaceId === workspaceId);
     }
     return [];
   }
