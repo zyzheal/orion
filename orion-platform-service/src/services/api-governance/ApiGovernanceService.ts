@@ -38,15 +38,74 @@ export interface CreateGovernanceRuleInput {
   config: Record<string, unknown>;
 }
 
+import {
+  GovernanceRuleRepository,
+  ApiInventoryRepository,
+  GovernanceRuleEntity,
+} from '../../repositories/ApiGovernanceRepository';
+
 export class ApiGovernanceService {
-  private rules = new Map<string, GovernanceRule>();
-  private apiInventory = new Map<string, Record<string, unknown>>();
+  private ruleRepository: GovernanceRuleRepository | null = null;
+  private inventoryRepository: ApiInventoryRepository | null = null;
+  // In-memory fallback cache when no DB available
+  private apiInventoryCache: Map<string, Record<string, unknown>> = new Map();
+
+  constructor(
+    private db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }
+  ) {
+    if (db) {
+      this.ruleRepository = new GovernanceRuleRepository(db as any);
+      this.inventoryRepository = new ApiInventoryRepository(db as any);
+    }
+  }
+
+  private async getTenantApis(tenantId: string): Promise<Array<{ id: string } & Record<string, unknown>>> {
+    if (this.inventoryRepository) {
+      const entities = await this.inventoryRepository.findByTenant(tenantId);
+      return entities.map(entity => ({
+        id: entity.id,
+        ...entity.apiData,
+        tenantId: entity.tenantId,
+      }));
+    }
+
+    // Fallback to in-memory cache
+    return Array.from(this.apiInventoryCache.entries())
+      .filter(([_, api]) => (api as any).tenantId === tenantId)
+      .map(([id, api]) => ({ id, ...api }));
+  }
 
   async createGovernanceRule(
     tenantId: string,
     input: CreateGovernanceRuleInput,
   ): Promise<GovernanceRule> {
     const now = new Date().toISOString();
+
+    if (this.ruleRepository) {
+      const entity = await this.ruleRepository.createRule({
+        id: randomUUID(),
+        tenantId,
+        name: input.name,
+        description: input.description,
+        ruleType: input.ruleType,
+        config: input.config,
+        enabled: true,
+      });
+
+      return {
+        id: entity.id,
+        tenantId: entity.tenantId,
+        name: entity.name,
+        description: entity.description || undefined,
+        ruleType: entity.ruleType as GovernanceRule['ruleType'],
+        config: entity.config,
+        enabled: entity.enabled,
+        createdAt: entity.createdAt.toISOString(),
+        updatedAt: entity.updatedAt.toISOString(),
+      };
+    }
+
+    // Fallback to in-memory if no DB
     const rule: GovernanceRule = {
       id: randomUUID(),
       tenantId,
@@ -58,18 +117,17 @@ export class ApiGovernanceService {
       createdAt: now,
       updatedAt: now,
     };
-    this.rules.set(rule.id, rule);
     return rule;
   }
 
   async evaluateGovernance(tenantId: string): Promise<GovernanceEvaluationResult[]> {
-    const tenantRules = Array.from(this.rules.values()).filter(
-      (r) => r.tenantId === tenantId && r.enabled,
-    );
+    let tenantRules: GovernanceRuleEntity[] = [];
 
-    const apis = Array.from(this.apiInventory.entries())
-      .filter(([_, api]) => (api as any).tenantId === tenantId)
-      .map(([id, api]) => ({ id, ...api }));
+    if (this.ruleRepository) {
+      tenantRules = await this.ruleRepository.findByTenantAndEnabled(tenantId);
+    }
+
+    const apis = await this.getTenantApis(tenantId);
 
     const results: GovernanceEvaluationResult[] = [];
 
@@ -207,40 +265,87 @@ export class ApiGovernanceService {
   }
 
   async getRule(ruleId: string): Promise<GovernanceRule | null> {
-    return this.rules.get(ruleId) ?? null;
+    if (!this.ruleRepository) return null;
+
+    const entity = await this.ruleRepository.findById(ruleId);
+    if (!entity) return null;
+
+    return {
+      id: entity.id,
+      tenantId: entity.tenantId,
+      name: entity.name,
+      description: entity.description || undefined,
+      ruleType: entity.ruleType as GovernanceRule['ruleType'],
+      config: entity.config,
+      enabled: entity.enabled,
+      createdAt: entity.createdAt.toISOString(),
+      updatedAt: entity.updatedAt.toISOString(),
+    };
   }
 
   async listRules(tenantId: string): Promise<GovernanceRule[]> {
-    return Array.from(this.rules.values()).filter((r) => r.tenantId === tenantId);
+    if (!this.ruleRepository) return [];
+
+    const entities = await this.ruleRepository.findByTenant(tenantId);
+    return entities.map(entity => ({
+      id: entity.id,
+      tenantId: entity.tenantId,
+      name: entity.name,
+      description: entity.description || undefined,
+      ruleType: entity.ruleType as GovernanceRule['ruleType'],
+      config: entity.config,
+      enabled: entity.enabled,
+      createdAt: entity.createdAt.toISOString(),
+      updatedAt: entity.updatedAt.toISOString(),
+    }));
   }
 
   async updateRule(
     ruleId: string,
     input: Partial<CreateGovernanceRuleInput> & { enabled?: boolean },
   ): Promise<GovernanceRule | null> {
-    const rule = this.rules.get(ruleId);
-    if (!rule) return null;
+    if (!this.ruleRepository) return null;
 
-    if (input.name) rule.name = input.name;
-    if (input.description !== undefined) rule.description = input.description;
-    if (input.ruleType) rule.ruleType = input.ruleType;
-    if (input.config) rule.config = input.config;
-    if (input.enabled !== undefined) rule.enabled = input.enabled;
-    rule.updatedAt = new Date().toISOString();
+    const entity = await this.ruleRepository.updateRule(ruleId, {
+      name: input.name,
+      description: input.description,
+      ruleType: input.ruleType,
+      config: input.config,
+      enabled: input.enabled,
+    });
 
-    return rule;
+    if (!entity) return null;
+
+    return {
+      id: entity.id,
+      tenantId: entity.tenantId,
+      name: entity.name,
+      description: entity.description || undefined,
+      ruleType: entity.ruleType as GovernanceRule['ruleType'],
+      config: entity.config,
+      enabled: entity.enabled,
+      createdAt: entity.createdAt.toISOString(),
+      updatedAt: entity.updatedAt.toISOString(),
+    };
   }
 
   async deleteRule(ruleId: string): Promise<boolean> {
-    return this.rules.delete(ruleId);
+    if (!this.ruleRepository) return false;
+    return this.ruleRepository.deleteRule(ruleId);
   }
 
   async registerApiForGovernance(
     tenantId: string,
     api: Record<string, unknown>,
   ): Promise<string> {
+    if (this.inventoryRepository) {
+      const entity = await this.inventoryRepository.registerApi(tenantId, { ...api, id: '' });
+      return entity.id;
+    }
+
+    // Fallback to in-memory if no DB
     const id = randomUUID();
-    this.apiInventory.set(id, { ...api, tenantId });
+    this.apiInventoryCache.set(id, { ...api, tenantId });
     return id;
   }
 }

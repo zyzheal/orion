@@ -2,30 +2,45 @@
 
 ## Current Session (2026-05-14)
 
-### Completed: AI Services PostgreSQL Repository Migration
+### Completed: API Governance Services PostgreSQL Repository Migration
 
-迁移 AI 相关服务到 PostgreSQL Repository。
-
-#### Changes Made
-- **Modified** `src/services/ai/VectorStore.ts`
-  - 移除 fallback Map 存储（`private documents: Map`）
-  - 移除 `db` 参数的可选性，要求必须传入数据库连接
-  - `addDocument()` 直接使用 Repository 而非条件分支
-  - `search()` 直接使用 Repository 而非条件分支
-  - `deleteDocument()` 直接使用 Repository
-  - `documentCount()` 改为异步方法，使用 `repository.count()`
-  - `isPersistent` getter 始终返回 `true`
+迁移 API 治理相关服务到 PostgreSQL Repository。
 
 #### Analysis Results
 | Service | Status | Notes |
 |---------|--------|-------|
-| VectorStore | ✅ Migrated | Removed Map fallback, uses Repository |
-| CodeEmbeddingService | ✅ Already uses Repository | Runtime cache (embeddingCache) is acceptable |
-| SemanticSearchService | ✅ Already uses Repository | No Map to remove |
-| ProviderCircuitBreaker | ⏭️ Skipped | In-memory runtime state, not persistent |
+| ApiContractService | ✅ Already uses Repository | Uses ApiContractRepository + ApiContractViolationRepository |
+| ApiVersionService | ✅ Already uses Repository | Uses ApiVersionRepository |
+| ApiGovernanceService | ✅ Refactored | Uses GovernanceRuleRepository + ApiInventoryRepository |
+
+#### Changes Made
+- **Modified** `src/services/api-governance/ApiGovernanceService.ts`
+  - 移除内存缓存 ApiGovernanceService.apiInventoryCache 作为主要存储
+  - 添加 `getTenantApis()` 私有方法优先从 Repository 获取 API 清单
+  - `evaluateGovernance()` 使用新方法从数据库查询而不是内存 Map
+  - `registerApiForGovernance()` 优先使用 Repository 存储
+  - 保留内存回退模式作为降级方案
+
+- **Fixed** `src/repositories/ApiGovernanceRepository.ts`
+  - 修复导入路径：`DatabasePool` from `../services/database`
+
+- **Created** `src/db/migrations/152_create_api_governance_repository_tables.sql`
+  - api_contracts 表
+  - api_contract_violations 表
+  - api_versions 表
+  - governance_rules 表
+  - api_inventory 表
+
+- **Created** `src/db/migrations/152_rollback_api_governance_repository_tables.sql`
+  - 回滚脚本
+
+#### Test Results
+- API Governance tests: 31 passed
 
 #### Files Changed
-- `src/services/ai/VectorStore.ts` (refactored)
+- `src/services/api-governance/ApiGovernanceService.ts` (refactored)
+- `src/db/migrations/152_create_api_governance_repository_tables.sql` (new)
+- `src/db/migrations/152_rollback_api_governance_repository_tables.sql` (new)
 
 ---
 
