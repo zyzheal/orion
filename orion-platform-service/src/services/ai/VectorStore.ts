@@ -1,8 +1,7 @@
 /**
- * VectorStore - AI semantic search with cosine similarity
+ * VectorStore - AI semantic search with PostgreSQL pgvector
  *
- * P0-G2 Fix: Replaced Map-based storage with PostgreSQL pgvector backend.
- * Falls back to in-memory storage when no DB is configured.
+ * Uses PostgreSQL pgvector extension for vector similarity search.
  * Supports configurable embedding providers (hash-based fallback, OpenAI, or custom).
  */
 import pino from 'pino';
@@ -19,23 +18,15 @@ export interface EmbeddingFn {
 
 export class VectorStore {
   private config: VectorStoreConfig;
-  private repository?: VectorRepository;
-  private embeddingFn?: EmbeddingFn;
+  private repository: VectorRepository;
+  private embeddingFn: EmbeddingFn;
   private embeddingProvider: EmbeddingProvider;
 
-  // Fallback Map storage when no DB is available
-  private documents: Map<string, VectorDocument> = new Map();
-
-  constructor(config: VectorStoreConfig, db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+  constructor(config: VectorStoreConfig, db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
     this.config = config;
     this.embeddingProvider = (config.embeddingProvider as EmbeddingProvider) || 'hash';
-
-    if (db) {
-      this.repository = new VectorRepository(db);
-      logger.info('VectorStore initialized with PostgreSQL pgvector backend');
-    } else {
-      logger.warn('VectorStore initialized with in-memory fallback (no DB provided)');
-    }
+    this.repository = new VectorRepository(db);
+    logger.info('VectorStore initialized with PostgreSQL pgvector backend');
 
     // Configure embedding function
     if (config.embeddingFn) {
@@ -52,94 +43,65 @@ export class VectorStore {
    * Add document (auto-generates embedding)
    */
   async addDocument(content: string, metadata: Record<string, any> = {}): Promise<string> {
-    const embedding = await this.embeddingFn!(content);
+    const embedding = await this.embeddingFn(content);
 
-    if (this.repository) {
-      const entity = await this.repository.insert({
-        collection: this.config.collectionName,
-        content,
-        contentHash: this.hashString(content),
-        metadata,
-        embedding,
-      });
-      logger.info({ documentId: entity.id, collection: entity.collection }, 'Document added to vector store');
-      return entity.id;
-    }
-
-    // Fallback to in-memory
-    const id = `doc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    const doc: VectorDocument = { id, content, metadata, embedding };
-    this.documents.set(id, doc);
-    logger.info({ documentId: id }, 'Document added to in-memory vector store');
-    return id;
+    const entity = await this.repository.insert({
+      collection: this.config.collectionName,
+      content,
+      contentHash: this.hashString(content),
+      metadata,
+      embedding,
+    });
+    logger.info({ documentId: entity.id, collection: entity.collection }, 'Document added to vector store');
+    return entity.id;
   }
 
   /**
-   * Semantic search with real vector similarity (pgvector) or cosine similarity (fallback)
+   * Semantic search with pgvector cosine similarity
    */
   async search(query: SearchQuery): Promise<SearchResult[]> {
-    const queryEmbedding = await this.embeddingFn!(query.query);
+    const queryEmbedding = await this.embeddingFn(query.query);
     const topK = query.topK || 10;
 
-    if (this.repository) {
-      const results = await this.repository.search(
-        queryEmbedding,
-        topK,
-        {
-          collection: this.config.collectionName,
-          metadataFilter: query.filter,
-        },
-      );
+    const results = await this.repository.search(
+      queryEmbedding,
+      topK,
+      {
+        collection: this.config.collectionName,
+        metadataFilter: query.filter,
+      },
+    );
 
-      return results.map((r) => ({
-        document: {
-          id: r.id,
-          content: r.content,
-          metadata: r.metadata,
-          embedding: r.embedding || [],
-        },
-        score: r.score,
-      }));
-    }
-
-    // Fallback to in-memory cosine similarity
-    const results: SearchResult[] = [];
-    for (const [, doc] of this.documents) {
-      if (query.filter && !this.matchesFilter(doc, query.filter)) continue;
-      const score = this.cosineSimilarity(queryEmbedding, doc.embedding);
-      results.push({ document: doc, score });
-    }
-
-    results.sort((a, b) => b.score - a.score);
-    return results.slice(0, topK);
+    return results.map((r) => ({
+      document: {
+        id: r.id,
+        content: r.content,
+        metadata: r.metadata,
+        embedding: r.embedding || [],
+      },
+      score: r.score,
+    }));
   }
 
   /**
    * Delete document
    */
   async deleteDocument(id: string): Promise<boolean> {
-    if (this.repository) {
-      return this.repository.delete(id);
-    }
-    return this.documents.delete(id);
+    return this.repository.delete(id);
   }
 
   /**
    * Get document count
    */
-  get documentCount(): number {
-    if (this.repository) {
-      // Will be populated when actually queried; return 0 as placeholder
-      return 0;
-    }
-    return this.documents.size;
+  async documentCount(): Promise<number> {
+    return this.repository.count(this.config.collectionName);
   }
 
   /**
-   * Check if connected to real vector store
+   * Check if connected to persistent vector store
    */
   get isPersistent(): boolean {
-    return !!this.repository;
+    return true;
   }
 
   // ==================== Embedding Providers ====================

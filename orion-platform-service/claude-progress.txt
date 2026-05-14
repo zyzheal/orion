@@ -2,6 +2,224 @@
 
 ## Current Session (2026-05-14)
 
+### Completed: AI Services PostgreSQL Repository Migration
+
+迁移 AI 相关服务到 PostgreSQL Repository。
+
+#### Changes Made
+- **Modified** `src/services/ai/VectorStore.ts`
+  - 移除 fallback Map 存储（`private documents: Map`）
+  - 移除 `db` 参数的可选性，要求必须传入数据库连接
+  - `addDocument()` 直接使用 Repository 而非条件分支
+  - `search()` 直接使用 Repository 而非条件分支
+  - `deleteDocument()` 直接使用 Repository
+  - `documentCount()` 改为异步方法，使用 `repository.count()`
+  - `isPersistent` getter 始终返回 `true`
+
+#### Analysis Results
+| Service | Status | Notes |
+|---------|--------|-------|
+| VectorStore | ✅ Migrated | Removed Map fallback, uses Repository |
+| CodeEmbeddingService | ✅ Already uses Repository | Runtime cache (embeddingCache) is acceptable |
+| SemanticSearchService | ✅ Already uses Repository | No Map to remove |
+| ProviderCircuitBreaker | ⏭️ Skipped | In-memory runtime state, not persistent |
+
+#### Files Changed
+- `src/services/ai/VectorStore.ts` (refactored)
+
+---
+
+### Previous: Empty-Shell Services Implementation
+
+实现了四个空壳服务的完整功能逻辑。
+
+#### Changes Made
+- **SmartDeployService** (`src/services/smart-deploy/SmartDeployService.ts`)
+  - 从空构造函数实现完整智能部署服务
+  - 使用 DeploymentHistoryRepository、DeploymentStrategyRepository、DeploymentStepTrackerRepository
+
+- **CostOptimizationService** (`src/services/cost/CostOptimizationService.ts`)
+  - 从空构造函数实现完整成本优化服务
+  - 使用 CostRecordRepository 获取成本指标
+
+- **PluginMarketplaceService** (`src/services/plugin-marketplace/PluginMarketplaceService.ts`)
+  - 从空构造函数实现完整插件市场服务
+  - 使用 PostgresPluginRepository、PluginExecutionRepository、PluginAuditLogRepository
+
+- **ArtifactOperationService** (`src/services/artifact-ops/ArtifactOperationService.ts`)
+  - 从空构造函数实现完整制品操作追踪服务
+  - 使用 ArtifactOperationRepository
+
+#### Implemented Methods
+
+**SmartDeployService**:
+- `deploy(input)`: 创建并执行部署
+- `getStatus(id)`: 获取部署状态
+- `getHistory(filter)`: 获取部署历史
+- `getMetrics(filter)`: 获取部署指标
+- `getAuditTrail(deploymentId)`: 获取审计日志
+- `rollback(deploymentId, reason, triggeredBy, targetVersion)`: 回滚
+- `getRollbackHistory(deploymentId)`: 获取回滚历史
+- `cancelDeployment(deploymentId, cancelledBy)`: 取消部署
+- `getLatestDeployment(appName, environment)`: 获取最新部署
+
+**CostOptimizationService**:
+- `recordUtilization(tenantId, record)`: 记录资源利用率
+- `analyzeResourceUtilization(tenantId)`: 分析资源利用率
+- `getOptimizationSuggestions(tenantId, options)`: 获取优化建议
+- `generateSuggestions(tenantId)`: 生成优化建议
+- `applySuggestion(tenantId, suggestionId)`: 应用建议
+- `rejectSuggestion(tenantId, suggestionId)`: 拒绝建议
+- `getCostMetrics(params)`: 获取成本指标
+
+**PluginMarketplaceService**:
+- `listPlugins(filter)`: 列出插件
+- `getPlugin(pluginId)`: 获取插件详情
+- `publishPlugin(tenantId, input)`: 发布插件
+- `installPlugin(input, userId)`: 安装插件
+- `reviewPlugin(input)`: 提交评论
+- `getPluginQualityScore(pluginId)`: 获取质量分数
+- `getPluginStats()`: 获取统计信息
+- `uninstallPlugin(tenantId, pluginId)`: 卸载插件
+
+**ArtifactOperationService**:
+- `trackOperation(tenantId, input)`: 追踪操作
+- `getOperationHistory(tenantId, filter)`: 获取操作历史
+- `getArtifactStats(tenantId)`: 获取制品统计
+- `deleteTenantOperations(tenantId)`: 删除租户操作记录
+- `deleteArtifactOperations(tenantId, artifactId)`: 删除制品操作记录
+- `updateOperationStatus(...)`: 更新操作状态
+
+#### Test Results
+- Existing finops/cost tests: 186 passed
+- TypeScript compilation: No errors in implemented services
+- Service instantiation: Verified working
+
+---
+
+### Previous: CanaryAnalysisService Full Implementation
+
+实现了完整的 DisasterRecoveryService 灾备管理功能。
+
+#### Changes Made
+- **Modified** `src/services/disaster-recovery/DisasterRecoveryService.ts`
+  - DR Plan CRUD: createPlan, getPlan, listPlans, updatePlan, deletePlan
+  - Failover operations: triggerFailover, testFailover, completeFailoverTest, listFailoverTests
+  - Backup configuration: createBackupConfig, listBackupConfigs, updateBackupConfig, deleteBackupConfig
+  - RTO/RPO tracking: getRTOStatus, getRPOStatus with compliance reporting
+  - Drill scheduling: scheduleDrill, listDrills, executeScheduledDrill, getDrillReport
+  - Automated failover testing: runAutomatedFailoverTest
+  - Full input validation: plan name, RTO/RPO targets, failover strategy
+  - Error handling with DisasterRecoveryError codes
+  - Degraded mode support when repository is unavailable
+
+- **Created** `src/services/disaster-recovery/__tests__/DisasterRecoveryService.test.ts`
+  - 39 unit tests covering all major functionality
+
+#### Test Status
+- **DisasterRecoveryService tests**: 39 passed
+
+#### Commit
+- `62b8cb8` feat(disaster-recovery): implement full DisasterRecoveryService with PostgreSQL Repository
+
+---
+
+### Previous: QueueService Full Implementation
+
+实现了完整的 QueueService 任务队列管理功能。
+
+#### Changes Made
+- **Created** `src/models/Job.ts`
+  - Job: 任务定义 (id, tenantId, queueName, jobType, payload, status, priority, result, etc.)
+  - JobStatus: pending | running | completed | failed | cancelled
+  - JobPriority: LOW(-1), NORMAL(0), HIGH(1), CRITICAL(2)
+  - JobInput: 入队输入接口
+  - QueueStats: 队列统计接口
+  - ListJobsOptions: 任务列表查询选项
+
+- **Created** `src/repositories/JobRepository.ts`
+  - PostgresJobRepository: PostgreSQL 数据访问层
+  - create(): 创建任务
+  - findById(): 按ID查询
+  - findByTenant(): 按租户查询
+  - findPending(): 优先级出队查询 (FOR UPDATE SKIP LOCKED)
+  - findByStatus(): 按状态查询
+  - update(): 更新任务状态/结果
+  - countByStatus/countByOptions: 统计查询
+  - getStats(): 队列统计
+
+- **Created** `src/db/migrations/148_create_queue_jobs_table.sql`
+  - queue_jobs 表: 通用任务队列表
+  - 字段: id, tenant_id, queue_name, job_type, payload, status, priority, result, error_message, max_attempts, attempts, next_retry_at, started_at, completed_at, created_at, updated_at
+  - 索引: 优先级出队, 重试调度, 租户过滤, 队列名过滤
+
+- **Created** `src/db/migrations/148_rollback_queue_jobs_table.sql`
+
+- **Implemented** `src/services/queue/QueueService.ts`
+  - enqueue(job): 入队任务
+  - dequeue(tenantId): 优先级出队任务
+  - getJob(id): 获取任务
+  - listJobs(options): 列出任务(支持分页/过滤)
+  - completeJob(id, result): 完成任务
+  - failJob(id, error): 标记失败并自动调度重试(指数退避)
+  - cancelJob(id): 取消待处理任务
+  - requeue(id): 重试失败任务
+  - getQueueStats(): 获取队列统计
+  - 支持 PostgreSQL Repository 和内存回退模式
+
+- **Created** `src/services/queue/__tests__/QueueService.test.ts`
+  - 27 tests covering all service methods
+  - In-memory fallback mode tests
+
+#### Test Results
+```
+Test Suites: 1 passed
+Tests:       27 passed
+```
+
+#### Files Changed
+- `src/models/Job.ts` (new)
+- `src/repositories/JobRepository.ts` (new)
+- `src/db/migrations/148_create_queue_jobs_table.sql` (new)
+- `src/db/migrations/148_rollback_queue_jobs_table.sql` (new)
+- `src/services/queue/QueueService.ts` (implemented)
+- `src/services/queue/__tests__/QueueService.test.ts` (new)
+
+---
+
+## Previous Session (2026-05-14)
+
+### Completed: IaC Services PostgreSQL Repository Migration
+
+分析并修复 IaC 相关服务的 PostgreSQL Repository 集成。
+
+#### Initial Analysis
+经过全面检查,发现 IaC 服务已经在之前的迭代中迁移到 PostgreSQL Repository 模式:
+- **WorkspaceService** 使用 `IaCWorkspaceRepository`, `IaCStateVersionRepository`, `IaCModuleRepository`
+- **PlanService** 使用 `IaCPlanRepository`
+
+#### Issues Fixed
+1. **Removed legacy in-memory IaCRepository.ts** - 删除了使用 Map 的遗留实现
+2. **Fixed PlanService.create()** - name 字段使用正确的生成逻辑,添加 workspace_id 字段
+3. **Fixed PlanService.listByWorkspace()** - 使用正确的 workspaceId 字段进行过滤(之前错误使用 name)
+4. **Added findByWorkspaceId** - 为 IaCPlanRepository 添加了按 workspaceId 查询的方法(将来优化用)
+5. **Fixed migration 044** - 为 iac_plans 表添加缺失的 workspace_id 列和索引
+
+#### Test Results
+```
+Test Suites: 4 passed, 4 total
+Tests:       86 passed, 86 total
+```
+
+#### Files Changed
+- `src/services/iac/IaCRepository.ts` (deleted)
+- `src/services/iac/index.ts` (updated exports)
+- `src/services/iac/PlanService.ts` (bug fixes)
+- `src/repositories/IaCPlanRepository.ts` (new method)
+- `src/db/migrations/044_create_iac_plans.sql` (schema fix)
+
+### Previous Session
+
 ### Completed: SecurityScannerService PostgreSQL Migration
 
 将 SecurityScannerService 从内存 Map 存储迁移到 PostgreSQL Repository 模式。
