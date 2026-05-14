@@ -1,41 +1,59 @@
 /**
- * CostOptimizationService - 成本优化建议服务
+ * CostOptimizationService - 成本优化服务
  *
- * Phase 2: 分析资源利用率，生成成本优化建议，
- * 帮助识别闲置资源、过度配置等优化机会。
+ * Provides cost analysis, optimization recommendations, and utilization tracking
+ * using PostgreSQL-backed cost records repository.
+ *
+ * TASK-502: 成本优化建议引擎
  */
-import pino from 'pino';
-import { DatabasePool } from '../database';
 
 import { v4 as uuidv4 } from 'uuid';
+import pino from 'pino';
+import {
+  CostRecordRepository,
+  CostRecordEntity,
+  CostSummaryParams,
+} from '../../repositories/CostRepositories';
+import type { DatabasePool } from '../database';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
-export enum OptimizationCategory {
-  RIGHT_SIZING = 'right-sizing',
-  UNUSED_RESOURCES = 'unused-resources',
-  SCHEDULING = 'scheduling',
-  RESERVED_INSTANCES = 'reserved-instances',
-  STORAGE_OPTIMIZATION = 'storage-optimization',
-}
+// ==================== Domain Types ====================
 
-export enum OptimizationPriority {
-  CRITICAL = 'critical',
-  HIGH = 'high',
-  MEDIUM = 'medium',
-  LOW = 'low',
-}
+export type OptimizationCategory =
+  | 'unused-resources'
+  | 'right-sizing'
+  | 'scheduling'
+  | 'reserved-instances'
+  | 'spot-instances'
+  | 'storage-optimization'
+  | 'network-optimization';
 
-export interface ResourceUtilization {
+export type OptimizationPriority = 'critical' | 'high' | 'medium' | 'low';
+
+export type OptimizationStatus = 'identified' | 'pending' | 'applied' | 'rejected' | 'completed';
+
+export interface UtilizationRecord {
   resourceId: string;
   resourceType: string;
   resourceName: string;
-  cpuUtilization: number;       // percentage 0-100
-  memoryUtilization: number;    // percentage 0-100
-  storageUtilization: number;   // percentage 0-100
+  cpuUtilization: number;
+  memoryUtilization: number;
+  storageUtilization: number;
   monthlyCost: number;
-  tenantId?: string;
+  tenantId: string;
   environment?: string;
+}
+
+export interface UtilizationAnalysis {
+  tenantId: string;
+  totalResources: number;
+  underutilizedResources: number;
+  unusedResources: number;
+  optimalResources: number;
+  potentialMonthlySavings: number;
+  byCategory: Record<OptimizationCategory, number>;
+  analyzedAt: Date;
 }
 
 export interface OptimizationSuggestion {
@@ -43,317 +61,368 @@ export interface OptimizationSuggestion {
   tenantId: string;
   category: OptimizationCategory;
   priority: OptimizationPriority;
-  resourceId: string;
-  resourceType: string;
-  resourceName: string;
+  status: OptimizationStatus;
+  resourceIds: string[];
   description: string;
-  currentCost: number;
   estimatedSavings: number;
-  estimatedSavingsPercent: number;
-  effort: 'low' | 'medium' | 'high';
-  status: 'identified' | 'accepted' | 'rejected' | 'implemented';
+  effort: number;
   createdAt: Date;
+  updatedAt?: Date;
+  notes?: string;
+  metadata?: Record<string, unknown>;
 }
 
-export interface UtilizationAnalysis {
-  tenantId: string;
-  totalResources: number;
-  utilizedResources: number;
-  underutilizedResources: number;
-  unusedResources: number;
-  totalMonthlyCost: number;
-  potentialMonthlySavings: number;
-  suggestions: OptimizationSuggestion[];
-  analyzedAt: Date;
+export interface CostMetrics {
+  totalCost: number;
+  totalInputTokens: number;
+  totalOutputTokens: number;
+  totalRequests: number;
+  costByModel: Record<string, number>;
+  costByProvider: Record<string, number>;
+  costByTenant: Record<string, number>;
+  costByModule: Record<string, number>;
 }
+
+// ==================== In-memory stores ====================
+
+const utilizationRecords = new Map<string, UtilizationRecord[]>();
+const optimizationSuggestions = new Map<string, OptimizationSuggestion[]>();
+
+/**
+ * Preset instance types for right-sizing recommendations.
+ */
+const INSTANCE_TYPES: Record<string, { cpu: number; memory: number; storage?: number }> = {
+  small: { cpu: 1, memory: 2 },
+  medium: { cpu: 2, memory: 4 },
+  large: { cpu: 4, memory: 8 },
+  xlarge: { cpu: 8, memory: 16 },
+  '2xlarge': { cpu: 16, memory: 32 },
+  '4xlarge': { cpu: 32, memory: 64 },
+};
+
+const INSTANCE_COSTS: Record<string, number> = {
+  small: 30,
+  medium: 60,
+  large: 120,
+  xlarge: 240,
+  '2xlarge': 480,
+  '4xlarge': 960,
+};
 
 export class CostOptimizationService {
-  constructor(private pool: DatabasePool) {
-    this.ensureTable();
+  private costRecordRepository: CostRecordRepository | null;
+
+  /**
+   * @param db - DatabasePool, or null for in-memory mode.
+   */
+  constructor(db: DatabasePool | null) {
+    this.costRecordRepository = db ? new CostRecordRepository(db) : null;
+  }
+
+  // ==================== Utilization Tracking ====================
+
+  /**
+   * Record a resource utilization snapshot.
+   */
+  async recordUtilization(
+    tenantId: string,
+    record: UtilizationRecord
+  ): Promise<UtilizationRecord> {
+    const records = utilizationRecords.get(tenantId) ?? [];
+
+    // Remove existing record for same resource (update)
+    const existingIdx = records.findIndex((r) => r.resourceId === record.resourceId);
+    if (existingIdx >= 0) {
+      records[existingIdx] = { ...record, tenantId };
+    } else {
+      records.push({ ...record, tenantId });
+    }
+
+    utilizationRecords.set(tenantId, records);
+
+    logger.info(
+      { tenantId, resourceId: record.resourceId },
+      '[CostOptimization] Utilization recorded'
+    );
+
+    return record;
   }
 
   /**
-   * 获取优化建议
-   * 基于资源利用率分析生成优化建议
+   * Analyze resource utilization for a tenant.
+   */
+  async analyzeResourceUtilization(tenantId: string): Promise<UtilizationAnalysis> {
+    const records = utilizationRecords.get(tenantId) ?? [];
+
+    let underutilized = 0;
+    let unused = 0;
+    let optimal = 0;
+    let potentialSavings = 0;
+
+    const byCategory: Record<OptimizationCategory, number> = {
+      'unused-resources': 0,
+      'right-sizing': 0,
+      'scheduling': 0,
+      'reserved-instances': 0,
+      'spot-instances': 0,
+      'storage-optimization': 0,
+      'network-optimization': 0,
+    };
+
+    for (const record of records) {
+      const isUnused =
+        record.cpuUtilization < 5 &&
+        record.memoryUtilization < 5 &&
+        record.storageUtilization < 5;
+
+      const isUnderutilized =
+        record.cpuUtilization < 30 || record.memoryUtilization < 30;
+
+      if (isUnused) {
+        unused++;
+        potentialSavings += record.monthlyCost;
+        byCategory['unused-resources']++;
+      } else if (isUnderutilized) {
+        underutilized++;
+        // Estimate 30% savings from right-sizing
+        const estimatedSavings = record.monthlyCost * 0.3;
+        potentialSavings += estimatedSavings;
+        byCategory['right-sizing']++;
+      } else {
+        optimal++;
+      }
+    }
+
+    return {
+      tenantId,
+      totalResources: records.length,
+      underutilizedResources: underutilized,
+      unusedResources: unused,
+      optimalResources: optimal,
+      potentialMonthlySavings: Math.round(potentialSavings * 100) / 100,
+      byCategory,
+      analyzedAt: new Date(),
+    };
+  }
+
+  // ==================== Optimization Suggestions ====================
+
+  /**
+   * Get optimization suggestions for a tenant.
    */
   async getOptimizationSuggestions(
     tenantId: string,
-    options?: { category?: OptimizationCategory; minSavings?: number },
+    options?: {
+      category?: OptimizationCategory;
+      minSavings?: number;
+    }
   ): Promise<OptimizationSuggestion[]> {
-    // Analyze current utilization
-    const analysis = await this.analyzeResourceUtilization(tenantId);
-    let suggestions = analysis.suggestions;
+    const suggestions = optimizationSuggestions.get(tenantId) ?? [];
+
+    let filtered = suggestions.filter((s) => s.status !== 'rejected');
 
     if (options?.category) {
-      suggestions = suggestions.filter(s => s.category === options.category);
+      filtered = filtered.filter((s) => s.category === options.category);
+    }
+    if (options?.minSavings !== undefined) {
+      filtered = filtered.filter((s) => s.estimatedSavings >= options.minSavings!);
     }
 
-    if (options?.minSavings) {
-      suggestions = suggestions.filter(s => s.estimatedSavings >= options.minSavings!);
+    // Sort by priority
+    const priorityOrder: Record<OptimizationPriority, number> = {
+      critical: 0,
+      high: 1,
+      medium: 2,
+      low: 3,
+    };
+
+    return filtered.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
+  }
+
+  /**
+   * Generate optimization suggestions based on utilization.
+   */
+  async generateSuggestions(tenantId: string): Promise<OptimizationSuggestion[]> {
+    const records = utilizationRecords.get(tenantId) ?? [];
+    const suggestions: OptimizationSuggestion[] = [];
+
+    for (const record of records) {
+      const isUnused =
+        record.cpuUtilization < 5 &&
+        record.memoryUtilization < 5 &&
+        record.storageUtilization < 5;
+
+      const isUnderutilized =
+        record.cpuUtilization < 30 || record.memoryUtilization < 30;
+
+      if (isUnused) {
+        // Generate unused resource suggestion
+        suggestions.push({
+          id: uuidv4(),
+          tenantId,
+          category: 'unused-resources',
+          priority: 'critical',
+          status: 'identified',
+          resourceIds: [record.resourceId],
+          description: `Resource "${record.resourceName}" (${record.resourceId}) is unused. CPU: ${record.cpuUtilization}%, Memory: ${record.memoryUtilization}%, Storage: ${record.storageUtilization}%. Consider terminating or releasing this resource.`,
+          estimatedSavings: record.monthlyCost,
+          effort: 1,
+          createdAt: new Date(),
+          metadata: { environment: record.environment },
+        });
+      } else if (isUnderutilized) {
+        // Generate right-sizing suggestion
+        const estimatedSavings = record.monthlyCost * 0.3;
+        suggestions.push({
+          id: uuidv4(),
+          tenantId,
+          category: 'right-sizing',
+          priority: estimatedSavings > 100 ? 'high' : 'medium',
+          status: 'identified',
+          resourceIds: [record.resourceId],
+          description: `Resource "${record.resourceName}" (${record.resourceId}) is underutilized. CPU: ${record.cpuUtilization}%, Memory: ${record.memoryUtilization}%. Right-sizing could save ~$${Math.round(estimatedSavings)}/month.`,
+          estimatedSavings: Math.round(estimatedSavings * 100) / 100,
+          effort: 2,
+          createdAt: new Date(),
+          metadata: { environment: record.environment },
+        });
+      }
+
+      // Check for scheduling optimization (non-production, low utilization)
+      if (record.environment !== 'production' && record.cpuUtilization < 50) {
+        const estimatedSavings = record.monthlyCost * 0.4;
+        suggestions.push({
+          id: uuidv4(),
+          tenantId,
+          category: 'scheduling',
+          priority: 'medium',
+          status: 'identified',
+          resourceIds: [record.resourceId],
+          description: `Resource "${record.resourceName}" in ${record.environment || 'unknown'} environment has low utilization. Consider scheduling to run only during business hours.`,
+          estimatedSavings: Math.round(estimatedSavings * 100) / 100,
+          effort: 3,
+          createdAt: new Date(),
+          metadata: { environment: record.environment },
+        });
+      }
     }
+
+    // Store suggestions
+    const existing = optimizationSuggestions.get(tenantId) ?? [];
+    optimizationSuggestions.set(tenantId, [...existing, ...suggestions]);
+
+    logger.info({ tenantId, count: suggestions.length }, '[CostOptimization] Suggestions generated');
 
     return suggestions;
   }
 
   /**
-   * 分析资源利用率
-   * 扫描所有资源，识别闲置、低利用率资源
+   * Apply an optimization suggestion.
    */
-  async analyzeResourceUtilization(tenantId: string): Promise<UtilizationAnalysis> {
-    const resources = await this.getResourceUtilizations(tenantId);
-    const suggestions: OptimizationSuggestion[] = [];
+  async applySuggestion(tenantId: string, suggestionId: string): Promise<OptimizationSuggestion | null> {
+    const suggestions = optimizationSuggestions.get(tenantId) ?? [];
+    const suggestion = suggestions.find((s) => s.id === suggestionId);
 
-    let totalCost = 0;
-    let totalSavings = 0;
-    let utilizedCount = 0;
-    let underutilizedCount = 0;
-    let unusedCount = 0;
-
-    for (const resource of resources) {
-      totalCost += resource.monthlyCost;
-
-      if (this.isUnused(resource)) {
-        unusedCount++;
-        const suggestion = this.createUnusedResourceSuggestion(tenantId, resource);
-        suggestions.push(suggestion);
-        totalSavings += suggestion.estimatedSavings;
-      } else if (this.isUnderutilized(resource)) {
-        underutilizedCount++;
-        const suggestion = this.createRightSizingSuggestion(tenantId, resource);
-        suggestions.push(suggestion);
-        totalSavings += suggestion.estimatedSavings;
-      } else {
-        utilizedCount++;
-      }
-
-      // Check for scheduling opportunities (non-production, moderate utilization)
-      if (this.isSchedulingCandidate(resource)) {
-        const suggestion = this.createSchedulingSuggestion(tenantId, resource);
-        suggestions.push(suggestion);
-        totalSavings += suggestion.estimatedSavings;
-      }
+    if (!suggestion) {
+      return null;
     }
 
-    // Store suggestions
-    for (const suggestion of suggestions) {
-      await this.storeSuggestion(suggestion);
-    }
+    suggestion.status = 'applied';
+    suggestion.updatedAt = new Date();
 
-    return {
-      tenantId,
-      totalResources: resources.length,
-      utilizedResources: utilizedCount,
-      underutilizedResources: underutilizedCount,
-      unusedResources: unusedCount,
-      totalMonthlyCost: Math.round(totalCost * 100) / 100,
-      potentialMonthlySavings: Math.round(totalSavings * 100) / 100,
-      suggestions,
-      analyzedAt: new Date(),
-    };
+    logger.info({ tenantId, suggestionId }, '[CostOptimization] Suggestion applied');
+
+    return suggestion;
   }
 
   /**
-   * 记录资源利用率数据
+   * Reject an optimization suggestion.
    */
-  async recordUtilization(
-    tenantId: string,
-    utilization: ResourceUtilization,
-  ): Promise<void> {
+  async rejectSuggestion(tenantId: string, suggestionId: string): Promise<OptimizationSuggestion | null> {
+    const suggestions = optimizationSuggestions.get(tenantId) ?? [];
+    const suggestion = suggestions.find((s) => s.id === suggestionId);
+
+    if (!suggestion) {
+      return null;
+    }
+
+    suggestion.status = 'rejected';
+    suggestion.updatedAt = new Date();
+
+    return suggestion;
+  }
+
+  // ==================== Cost Metrics ====================
+
+  /**
+   * Get cost metrics from database.
+   */
+  async getCostMetrics(params: {
+    tenantId?: string;
+    projectId?: string;
+    userId?: string;
+    model?: string;
+    provider?: string;
+    moduleType?: string;
+    dateFrom?: string;
+    dateTo?: string;
+  }): Promise<CostMetrics> {
+    if (!this.costRecordRepository) {
+      return {
+        totalCost: 0,
+        totalInputTokens: 0,
+        totalOutputTokens: 0,
+        totalRequests: 0,
+        costByModel: {},
+        costByProvider: {},
+        costByTenant: {},
+        costByModule: {},
+      };
+    }
+
     try {
-      await this.pool.query(
-        `INSERT INTO resource_utilization (id, tenant_id, resource_id, resource_type, resource_name, cpu_utilization, memory_utilization, storage_utilization, monthly_cost, environment, recorded_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-        [
-          uuidv4(),
-          tenantId,
-          utilization.resourceId,
-          utilization.resourceType,
-          utilization.resourceName,
-          utilization.cpuUtilization,
-          utilization.memoryUtilization,
-          utilization.storageUtilization,
-          utilization.monthlyCost,
-          utilization.environment || null,
-          new Date(),
-        ],
-      );
-    } catch (err: any) {
-      logger.warn({ error: err.message }, 'Failed to record resource utilization');
+      const summary = await this.costRecordRepository.getSummary(params);
+
+      return {
+        totalCost: summary.totalCost,
+        totalInputTokens: summary.totalInputTokens,
+        totalOutputTokens: summary.totalOutputTokens,
+        totalRequests: summary.totalRequests,
+        costByModel: summary.costByModel,
+        costByProvider: summary.costByProvider,
+        costByTenant: summary.costByTenant,
+        costByModule: summary.costByModule,
+      };
+    } catch (error) {
+      logger.warn({ error }, '[CostOptimization] Failed to get cost metrics');
+      return {
+        totalCost: 0,
+        totalInputTokens: 0,
+        totalOutputTokens: 0,
+        totalRequests: 0,
+        costByModel: {},
+        costByProvider: {},
+        costByTenant: {},
+        costByModule: {},
+      };
     }
   }
 
-  // ==================== Private Helpers ====================
+  // ==================== Utilization History ====================
 
-  private async getResourceUtilizations(tenantId: string): Promise<ResourceUtilization[]> {
-    // Try to read from DB, fall back to empty if table doesn't exist
-    try {
-      const result = await this.pool.query(
-        `SELECT * FROM resource_utilization WHERE tenant_id = $1 ORDER BY recorded_at DESC`,
-        [tenantId],
-      );
-
-      return result.rows.map(row => ({
-        resourceId: row.resource_id,
-        resourceType: row.resource_type,
-        resourceName: row.resource_name,
-        cpuUtilization: row.cpu_utilization,
-        memoryUtilization: row.memory_utilization,
-        storageUtilization: row.storage_utilization,
-        monthlyCost: row.monthly_cost,
-        tenantId: row.tenant_id,
-        environment: row.environment,
-      }));
-    } catch {
-      return [];
-    }
+  /**
+   * Get utilization records for a tenant.
+   */
+  async getUtilizationRecords(tenantId: string): Promise<UtilizationRecord[]> {
+    return utilizationRecords.get(tenantId) ?? [];
   }
 
-  private isUnused(resource: ResourceUtilization): boolean {
-    return resource.cpuUtilization < 5 && resource.memoryUtilization < 5 && resource.storageUtilization < 5;
-  }
-
-  private isUnderutilized(resource: ResourceUtilization): boolean {
-    return resource.cpuUtilization < 30 || resource.memoryUtilization < 30;
-  }
-
-  private isSchedulingCandidate(resource: ResourceUtilization): boolean {
-    return resource.environment !== 'production' &&
-           resource.cpuUtilization < 50 &&
-           resource.memoryUtilization < 50 &&
-           resource.cpuUtilization >= 5; // Not unused
-  }
-
-  private createUnusedResourceSuggestion(tenantId: string, resource: ResourceUtilization): OptimizationSuggestion {
-    return {
-      id: `opt_${uuidv4()}`,
-      tenantId,
-      category: OptimizationCategory.UNUSED_RESOURCES,
-      priority: OptimizationPriority.CRITICAL,
-      resourceId: resource.resourceId,
-      resourceType: resource.resourceType,
-      resourceName: resource.resourceName,
-      description: `Resource "${resource.resourceName}" is unused (CPU: ${resource.cpuUtilization}%, Memory: ${resource.memoryUtilization}%, Storage: ${resource.storageUtilization}%). Consider terminating or releasing this resource.`,
-      currentCost: resource.monthlyCost,
-      estimatedSavings: resource.monthlyCost,
-      estimatedSavingsPercent: 100,
-      effort: 'low',
-      status: 'identified',
-      createdAt: new Date(),
-    };
-  }
-
-  private createRightSizingSuggestion(tenantId: string, resource: ResourceUtilization): OptimizationSuggestion {
-    const avgUtilization = (resource.cpuUtilization + resource.memoryUtilization) / 2;
-    // Estimate 30-50% savings based on underutilization
-    const savingsPercent = Math.min(50, (100 - avgUtilization) * 0.5);
-    const estimatedSavings = resource.monthlyCost * (savingsPercent / 100);
-
-    return {
-      id: `opt_${uuidv4()}`,
-      tenantId,
-      category: OptimizationCategory.RIGHT_SIZING,
-      priority: estimatedSavings > 100 ? OptimizationPriority.HIGH : OptimizationPriority.MEDIUM,
-      resourceId: resource.resourceId,
-      resourceType: resource.resourceType,
-      resourceName: resource.resourceName,
-      description: `Resource "${resource.resourceName}" is underutilized (CPU: ${resource.cpuUtilization}%, Memory: ${resource.memoryUtilization}%). Right-sizing could save ~$${estimatedSavings.toFixed(2)}/month.`,
-      currentCost: resource.monthlyCost,
-      estimatedSavings: Math.round(estimatedSavings * 100) / 100,
-      estimatedSavingsPercent: Math.round(savingsPercent * 100) / 100,
-      effort: 'medium',
-      status: 'identified',
-      createdAt: new Date(),
-    };
-  }
-
-  private createSchedulingSuggestion(tenantId: string, resource: ResourceUtilization): OptimizationSuggestion {
-    // Scheduling during business hours can save ~40% (non-business hours)
-    const estimatedSavings = resource.monthlyCost * 0.4;
-
-    return {
-      id: `opt_${uuidv4()}`,
-      tenantId,
-      category: OptimizationCategory.SCHEDULING,
-      priority: OptimizationPriority.MEDIUM,
-      resourceId: resource.resourceId,
-      resourceType: resource.resourceType,
-      resourceName: resource.resourceName,
-      description: `Resource "${resource.resourceName}" in ${resource.environment || 'unknown'} environment has moderate utilization. Consider scheduling to run only during business hours to save ~$${estimatedSavings.toFixed(2)}/month.`,
-      currentCost: resource.monthlyCost,
-      estimatedSavings: Math.round(estimatedSavings * 100) / 100,
-      estimatedSavingsPercent: 40,
-      effort: 'low',
-      status: 'identified',
-      createdAt: new Date(),
-    };
-  }
-
-  private async storeSuggestion(suggestion: OptimizationSuggestion): Promise<void> {
-    try {
-      await this.pool.query(
-        `INSERT INTO optimization_suggestions (id, tenant_id, category, priority, resource_id, resource_type, resource_name, description, current_cost, estimated_savings, estimated_savings_percent, effort, status, created_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-         ON CONFLICT (id) DO NOTHING`,
-        [
-          suggestion.id,
-          suggestion.tenantId,
-          suggestion.category,
-          suggestion.priority,
-          suggestion.resourceId,
-          suggestion.resourceType,
-          suggestion.resourceName,
-          suggestion.description,
-          suggestion.currentCost,
-          suggestion.estimatedSavings,
-          suggestion.estimatedSavingsPercent,
-          suggestion.effort,
-          suggestion.status,
-          suggestion.createdAt,
-        ],
-      );
-    } catch (err: any) {
-      logger.warn({ error: err.message }, 'Failed to store optimization suggestion');
-    }
-  }
-
-  private async ensureTable(): Promise<void> {
-    try {
-      await this.pool.query(`
-        CREATE TABLE IF NOT EXISTS resource_utilization (
-          id VARCHAR(64) PRIMARY KEY,
-          tenant_id VARCHAR(64) NOT NULL,
-          resource_id VARCHAR(64) NOT NULL,
-          resource_type VARCHAR(64) NOT NULL,
-          resource_name VARCHAR(255) NOT NULL,
-          cpu_utilization NUMERIC(5, 2) NOT NULL,
-          memory_utilization NUMERIC(5, 2) NOT NULL,
-          storage_utilization NUMERIC(5, 2) NOT NULL,
-          monthly_cost NUMERIC(12, 2) NOT NULL,
-          environment VARCHAR(64),
-          recorded_at TIMESTAMP NOT NULL DEFAULT NOW()
-        )
-      `);
-      await this.pool.query(`
-        CREATE TABLE IF NOT EXISTS optimization_suggestions (
-          id VARCHAR(64) PRIMARY KEY,
-          tenant_id VARCHAR(64) NOT NULL,
-          category VARCHAR(40) NOT NULL,
-          priority VARCHAR(20) NOT NULL,
-          resource_id VARCHAR(64) NOT NULL,
-          resource_type VARCHAR(64) NOT NULL,
-          resource_name VARCHAR(255) NOT NULL,
-          description TEXT,
-          current_cost NUMERIC(12, 2) NOT NULL,
-          estimated_savings NUMERIC(12, 2) NOT NULL,
-          estimated_savings_percent NUMERIC(5, 2) NOT NULL,
-          effort VARCHAR(20) NOT NULL,
-          status VARCHAR(20) NOT NULL DEFAULT 'identified',
-          created_at TIMESTAMP NOT NULL DEFAULT NOW()
-        )
-      `);
-      logger.info('resource_utilization and optimization_suggestions tables ensured');
-    } catch (err: any) {
-      logger.warn({ error: err.message }, 'Could not ensure optimization tables (may need migration)');
-    }
+  /**
+   * Clear utilization records for a tenant (for testing or data reset).
+   */
+  async clearUtilizationRecords(tenantId: string): Promise<void> {
+    utilizationRecords.delete(tenantId);
   }
 }
+
+export default CostOptimizationService;
