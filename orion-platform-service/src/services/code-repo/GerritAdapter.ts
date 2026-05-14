@@ -12,6 +12,7 @@ import {
   RepoType,
   Repository,
   Branch,
+  BranchPolicy,
   Commit,
   PullRequest,
   PullRequestStatus,
@@ -254,8 +255,8 @@ export class GerritAdapter implements ICodeRepoAdapter {
   async listRepositories(options?: {
     search?: string;
     page?: number;
-    perPage?: number;
-  }): Promise<Repository[]> {
+    limit?: number;
+  }): Promise<{ repos: Repository[]; total: number }> {
     const params = new URLSearchParams();
     if (options?.search) params.set('p', options.search);
 
@@ -264,7 +265,7 @@ export class GerritAdapter implements ICodeRepoAdapter {
       {}
     );
 
-    return Object.entries(projects)
+    const repos = Object.entries(projects)
       .filter(([key]) => key !== '')
       .map(([key, data]) => ({
         id: key,
@@ -280,6 +281,7 @@ export class GerritAdapter implements ICodeRepoAdapter {
         createdAt: new Date(data.created_on || Date.now()),
         updatedAt: new Date(data.last_updated || Date.now()),
       }));
+    return { repos, total: repos.length };
   }
 
   // ==================== 分支管理 ====================
@@ -291,14 +293,14 @@ export class GerritAdapter implements ICodeRepoAdapter {
    */
   async listBranches(repoId: string, options?: {
     page?: number;
-    perPage?: number;
-  }): Promise<Branch[]> {
+    limit?: number;
+  }): Promise<{ branches: Branch[]; total: number }> {
     const branches: Record<string, any> = await this.client.get(
       `/projects/${encodeURIComponent(repoId)}/branches/`,
       {}
     );
 
-    return Object.entries(branches)
+    const branchList = Object.entries(branches)
       .filter(([key]) => key !== '')
       .map(([name, data]) => ({
         name,
@@ -308,6 +310,7 @@ export class GerritAdapter implements ICodeRepoAdapter {
         lastCommitDate: new Date(),
         commitCount: 0,
       }));
+    return { branches: branchList, total: branchList.length };
   }
 
   /**
@@ -395,11 +398,8 @@ export class GerritAdapter implements ICodeRepoAdapter {
    *
    * Gerrit 通过 Access 配置文件控制分支权限
    */
-  async getBranchProtection(repoId: string, branchName: string): Promise<{
-    isProtected: boolean;
-    rules?: Record<string, any>;
-  }> {
-    return { isProtected: false };
+  async getBranchProtection(repoId: string, branchName: string): Promise<BranchPolicy | null> {
+    return null; // Mock - would need to query Gerrit access permissions
   }
 
   // ==================== 提交管理 ====================
@@ -412,21 +412,22 @@ export class GerritAdapter implements ICodeRepoAdapter {
   async listCommits(repoId: string, options?: {
     branch?: string;
     page?: number;
-    perPage?: number;
-  }): Promise<Commit[]> {
+    limit?: number;
+  }): Promise<{ commits: Commit[]; total: number }> {
     const query = `project:${encodeURIComponent(repoId)}+status:merged`;
     const changes: any[] = await this.client.get(
       `/changes/?q=${query}`,
       []
     );
 
-    return changes.map((c) => ({
+    const commits = changes.map((c) => ({
       sha: c.current_revision || '',
       message: c.subject || '',
       author: c.owner?.name || '',
       authorEmail: c.owner?.email || '',
       createdAt: new Date(c.created || Date.now()),
     }));
+    return { commits, total: commits.length };
   }
 
   /**
@@ -555,15 +556,13 @@ export class GerritAdapter implements ICodeRepoAdapter {
    */
   async listPullRequests(repoId: string, options?: {
     state?: PullRequestStatus;
-    author?: string;
     page?: number;
-    perPage?: number;
-  }): Promise<PullRequest[]> {
+    limit?: number;
+  }): Promise<{ pullRequests: PullRequest[]; total: number }> {
     const queryParts = [`project:${encodeURIComponent(repoId)}`];
     if (options?.state === PullRequestStatus.OPEN) queryParts.push('status:open');
     else if (options?.state === PullRequestStatus.MERGED) queryParts.push('status:merged');
     else if (options?.state === PullRequestStatus.CLOSED) queryParts.push('status:abandoned');
-    if (options?.author) queryParts.push(`owner:${options.author}`);
     const query = queryParts.join('+');
 
     const changes: any[] = await this.client.get(
@@ -571,7 +570,7 @@ export class GerritAdapter implements ICodeRepoAdapter {
       []
     );
 
-    return changes.map(c => ({
+    const pullRequests = changes.map(c => ({
       id: c.change_id || c._number,
       externalId: c.change_id || c._number,
       repoId,
@@ -589,6 +588,7 @@ export class GerritAdapter implements ICodeRepoAdapter {
       createdAt: new Date(c.created || Date.now()),
       updatedAt: new Date(c.updated || Date.now()),
     }));
+    return { pullRequests, total: pullRequests.length };
   }
 
   /**
@@ -597,8 +597,7 @@ export class GerritAdapter implements ICodeRepoAdapter {
    * Gerrit API: POST /changes/:changeId/revisions/current/submit
    */
   async mergePullRequest(repoId: string, prId: string, options?: {
-    strategy?: MergeStrategy;
-    commitMessage?: string;
+    method?: MergeStrategy;
   }): Promise<PullRequest> {
     await this.client.post(
       `/changes/${encodeURIComponent(prId)}/revisions/current/submit`,

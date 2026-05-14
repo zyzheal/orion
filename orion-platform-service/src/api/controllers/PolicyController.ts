@@ -17,8 +17,8 @@ export class PolicyController {
   async listPolicies(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const query = request.query as any;
-      const policies = await this.policyService.listPolicies(query.tenantId);
-      await reply.send({ success: true, data: policies, total: policies.length });
+      const result = await this.policyService.listPolicies(query.tenantId);
+      await reply.send({ success: true, data: result.policies, total: result.total });
     } catch (err) {
       await reply.status(500).send({
         success: false,
@@ -47,16 +47,22 @@ export class PolicyController {
   async createPolicy(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const body = request.body as any;
-      if (!body.tenantId || !body.name || !body.resource || !body.action || !body.regoCode) {
+      if (!body.name || !body.category || !body.regoPath) {
         await reply.status(400).send({
           success: false,
-          error: 'tenantId, name, resource, action, and regoCode are required',
+          error: 'name, category, and regoPath are required',
         });
         return;
       }
-      const policy = await this.policyService.createPolicy(
-        body.tenantId, body.name, body.resource, body.action, body.regoCode, body.effect
-      );
+      const policy = await this.policyService.createPolicy({
+        name: body.name,
+        description: body.description,
+        category: body.category,
+        regoPath: body.regoPath,
+        gateId: body.gateId,
+        severity: body.severity,
+        metadata: body.metadata,
+      });
       await reply.status(201).send({ success: true, data: policy });
     } catch (err) {
       await reply.status(400).send({
@@ -71,9 +77,13 @@ export class PolicyController {
       const params = request.params as any;
       const body = request.body as any;
       const policy = await this.policyService.updatePolicy(params.id, {
-        name: body.name,
-        rego_code: body.regoCode,
+        description: body.description,
+        category: body.category,
+        regoPath: body.regoPath,
+        gateId: body.gateId,
+        severity: body.severity,
         enabled: body.enabled,
+        metadata: body.metadata,
       });
       await reply.send({ success: true, data: policy });
     } catch (err) {

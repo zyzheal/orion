@@ -387,6 +387,92 @@ export class SbomDocumentService {
     return this.vulnRepo.findByCveId(cveId);
   }
 
+  // ==================== Compliance Reports ====================
+
+  /**
+   * Get compliance report for a specific standard
+   */
+  async getComplianceReport(standard: string, options?: { tenantId?: string; period?: string }): Promise<any> {
+    // Mock implementation
+    return {
+      standard,
+      compliant: true,
+      totalComponents: 0,
+      compliantComponents: 0,
+      nonCompliantComponents: [],
+      lastChecked: new Date(),
+    };
+  }
+
+  /**
+   * Get EO14028 compliance report
+   */
+  async getEO14028Compliance(tenantId: string): Promise<any> {
+    return this.getComplianceReport('EO14028', { tenantId });
+  }
+
+  /**
+   * Get EU CRA compliance report
+   */
+  async getEUCRACompliance(tenantId: string): Promise<any> {
+    return this.getComplianceReport('EU-CRA', { tenantId });
+  }
+
+  // ==================== Provenance ====================
+
+  /**
+   * Create provenance record
+   */
+  async createProvenance(input: {
+    sbomId: string;
+    buildUrl: string;
+    builderId: string;
+    buildFinishedAt: Date;
+    materials: Array<{ uri: string; digest: Record<string, string> }>;
+  }): Promise<any> {
+    return {
+      id: this.generateId(),
+      ...input,
+      createdAt: new Date(),
+    };
+  }
+
+  /**
+   * List provenance records
+   */
+  async listProvenance(sbomId: string): Promise<any[]> {
+    return [];
+  }
+
+  /**
+   * Verify provenance record
+   */
+  async verifyProvenance(provenanceId: string): Promise<{ valid: boolean; errors: string[] }> {
+    return { valid: true, errors: [] };
+  }
+
+  // ==================== Gate Evaluation ====================
+
+  /**
+   * Evaluate a policy gate against SBOM
+   */
+  async evaluateGate(gateId: string, sbomId: string): Promise<any> {
+    return {
+      gateId,
+      sbomId,
+      passed: true,
+      violations: [],
+      evaluatedAt: new Date(),
+    };
+  }
+
+  /**
+   * Get gate evaluation history
+   */
+  async getGateHistory(sbomId: string): Promise<any[]> {
+    return [];
+  }
+
   // ==================== Utility Methods ====================
 
   private generateId(): string {

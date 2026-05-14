@@ -547,6 +547,13 @@ export class CanaryAnalysisService {
     return { jobId, status: 'queued' };
   }
 
+  /**
+   * 重训练模型 (alias for triggerModelRetraining)
+   */
+  async retrainModel(modelName: string): Promise<{ jobId: string; status: string }> {
+    return this.triggerModelRetraining(modelName);
+  }
+
   // ==================== Private Helpers ====================
 
   /**

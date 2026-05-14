@@ -122,8 +122,8 @@ export class QueueController {
       await reply.status(200).send({
         success: true,
         data: result,
-        message: result.shouldRetry
-          ? `Job ${params.id} marked as failed, will retry in ${result.delaySeconds}s`
+        message: result && result.attempts && result.maxAttempts && result.attempts < result.maxAttempts
+          ? `Job ${params.id} marked as failed, will retry`
           : `Job ${params.id} marked as failed (max attempts reached)`,
       });
     } catch (error: any) {
@@ -250,7 +250,7 @@ export class QueueController {
     tenantId?: string;
     queue?: string;
     status?: string;
-  }): Promise<any[]> {
+  }): Promise<any> {
     return this.queueService.list(filters);
   }
 

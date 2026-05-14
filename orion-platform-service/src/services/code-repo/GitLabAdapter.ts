@@ -12,6 +12,7 @@ import {
   RepoType,
   Repository,
   Branch,
+  BranchPolicy,
   Commit,
   PullRequest,
   PullRequestStatus,
@@ -224,19 +225,20 @@ export class GitLabAdapter implements ICodeRepoAdapter {
   async listRepositories(options?: {
     search?: string;
     page?: number;
-    perPage?: number;
-  }): Promise<Repository[]> {
+    limit?: number;
+  }): Promise<{ repos: Repository[]; total: number }> {
     const params = new URLSearchParams();
     if (options?.search) params.set('search', options.search);
     if (options?.page) params.set('page', String(options.page));
-    if (options?.perPage) params.set('per_page', String(options.perPage));
+    if (options?.limit) params.set('per_page', String(options.limit));
 
     const projects: any[] = await this.client.get(
       `/projects?${params}`,
       []
     );
 
-    return projects.map(p => this.mapGitLabProjectToRepository(p));
+    const repos = projects.map(p => this.mapGitLabProjectToRepository(p));
+    return { repos, total: projects.length };
   }
 
   // ==================== 分支管理 ====================
@@ -248,14 +250,18 @@ export class GitLabAdapter implements ICodeRepoAdapter {
    */
   async listBranches(repoId: string, options?: {
     page?: number;
-    perPage?: number;
-  }): Promise<Branch[]> {
+    limit?: number;
+  }): Promise<{ branches: Branch[]; total: number }> {
+    const params = new URLSearchParams();
+    if (options?.page) params.set('page', String(options.page));
+    if (options?.limit) params.set('per_page', String(options.limit));
+
     const branches: any[] = await this.client.get(
-      `/projects/${encodeURIComponent(repoId)}/repository/branches`,
+      `/projects/${encodeURIComponent(repoId)}/repository/branches?${params}`,
       []
     );
 
-    return branches.map(b => this.mapGitLabBranchToBranch(b));
+    return { branches: branches.map(b => this.mapGitLabBranchToBranch(b)), total: branches.length };
   }
 
   /**
@@ -329,10 +335,7 @@ export class GitLabAdapter implements ICodeRepoAdapter {
    *
    * GitLab API: GET /projects/:id/protected_branches/:branch
    */
-  async getBranchProtection(repoId: string, branchName: string): Promise<{
-    isProtected: boolean;
-    rules?: Record<string, any>;
-  }> {
+  async getBranchProtection(repoId: string, branchName: string): Promise<BranchPolicy | null> {
     try {
       const protectedBranch: any = await this.client.get(
         `/projects/${encodeURIComponent(repoId)}/protected_branches/${encodeURIComponent(branchName)}`,
@@ -341,12 +344,23 @@ export class GitLabAdapter implements ICodeRepoAdapter {
 
       if (protectedBranch) {
         return {
-          isProtected: true,
-          rules: protectedBranch,
+          id: protectedBranch.id || branchName,
+          repoId,
+          branchPattern: branchName,
+          preventForcePush: protectedBranch.allow_force_push === false,
+          preventDeletion: true,
+          mergeStrategy: 'merge' as MergeStrategy,
+          approvalRules: [],
+          requiredChecks: [],
+          requireCodeOwners: false,
+          linearHistory: false,
+          allowAdminOverride: false,
+          createdAt: new Date(),
+          updatedAt: new Date(),
         };
       }
     } catch {
-      // Ignore
+      // Not protected
     }
 
     return { isProtected: false };
@@ -362,19 +376,19 @@ export class GitLabAdapter implements ICodeRepoAdapter {
   async listCommits(repoId: string, options?: {
     branch?: string;
     page?: number;
-    perPage?: number;
-  }): Promise<Commit[]> {
+    limit?: number;
+  }): Promise<{ commits: Commit[]; total: number }> {
     const params = new URLSearchParams();
     if (options?.branch) params.set('ref_name', options.branch);
     if (options?.page) params.set('page', String(options.page));
-    if (options?.perPage) params.set('per_page', String(options.perPage));
+    if (options?.limit) params.set('per_page', String(options.limit));
 
     const commits: any[] = await this.client.get(
       `/projects/${encodeURIComponent(repoId)}/repository/commits?${params}`,
       []
     );
 
-    return commits.map(c => this.mapGitLabCommitToCommit(c));
+    return { commits: commits.map(c => this.mapGitLabCommitToCommit(c)), total: commits.length };
   }
 
   /**
@@ -499,22 +513,20 @@ export class GitLabAdapter implements ICodeRepoAdapter {
    */
   async listPullRequests(repoId: string, options?: {
     state?: PullRequestStatus;
-    author?: string;
     page?: number;
-    perPage?: number;
-  }): Promise<PullRequest[]> {
+    limit?: number;
+  }): Promise<{ pullRequests: PullRequest[]; total: number }> {
     const params = new URLSearchParams();
     if (options?.state) params.set('state', this.mapPullRequestStateToGitLab(options.state));
-    if (options?.author) params.set('author_username', options.author);
     if (options?.page) params.set('page', String(options.page));
-    if (options?.perPage) params.set('per_page', String(options.perPage));
+    if (options?.limit) params.set('per_page', String(options.limit));
 
     const mrs: any[] = await this.client.get(
       `/projects/${encodeURIComponent(repoId)}/merge_requests?${params}`,
       []
     );
 
-    return mrs.map(mr => this.mapGitLabMRToPullRequest(mr));
+    return { pullRequests: mrs.map(mr => this.mapGitLabMRToPullRequest(mr)), total: mrs.length };
   }
 
   /**

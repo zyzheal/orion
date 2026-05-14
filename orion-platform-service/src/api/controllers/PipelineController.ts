@@ -47,7 +47,7 @@ export class PipelineController {
         version: pipeline.version,
         description: pipeline.description,
         status: pipeline.status,
-        createdAt: pipeline.createdAt,
+        createdAt: pipeline.created_at,
       });
     } catch (error) {
       if (error instanceof Error) {
@@ -95,7 +95,7 @@ export class PipelineController {
           version: p.version,
           description: p.description,
           status: p.status,
-          createdAt: p.createdAt || p.created_at,
+          createdAt: p.created_at,
         })),
         total: pipelines.length,
       });
@@ -135,9 +135,9 @@ export class PipelineController {
         yamlDefinition: pipeline.yamlDefinition,
         status: pipeline.status,
         spec: pipeline.spec,
-        createdBy: pipeline.createdBy,
-        createdAt: pipeline.createdAt,
-        updatedAt: pipeline.updatedAt,
+        createdBy: pipeline.created_by,
+        createdAt: pipeline.created_at,
+        updatedAt: pipeline.updated_at,
       });
     } catch (error) {
       await reply.status(500).send({
@@ -223,7 +223,7 @@ export class PipelineController {
         description: pipeline.description,
         yamlDefinition: pipeline.yamlDefinition,
         status: pipeline.status,
-        updatedAt: pipeline.updatedAt,
+        updatedAt: pipeline.updated_at,
       });
     } catch (error) {
       if (error instanceof Error && error.message.includes('validation')) {

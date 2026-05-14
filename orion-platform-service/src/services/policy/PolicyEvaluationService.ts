@@ -249,6 +249,78 @@ export class PolicyEvaluationService {
     return result ?? null;
   }
 
+  // ==================== Gate Evaluation (for Pipeline) ====================
+
+  /**
+   * Evaluate a policy gate (used by pipeline stages)
+   */
+  async evaluateGate(policyId: string, context: Record<string, any>): Promise<EvaluationResult> {
+    return this.evaluatePolicy(policyId, context);
+  }
+
+  // ==================== Violation Management ====================
+
+  /**
+   * Get evaluation by run ID (alias for getByRunId)
+   */
+  async getEvaluations(runId: string): Promise<EvaluationResult[]> {
+    return this.getByRunId(runId);
+  }
+
+  /**
+   * Get violation by ID
+   */
+  async getViolationById(id: string): Promise<PolicyViolationEntity | null> {
+    if (!this.violationRepo) {
+      return null;
+    }
+    return this.violationRepo.findById(id);
+  }
+
+  /**
+   * Waive a violation
+   */
+  async waiveViolation(id: string, reason: string): Promise<PolicyViolationEntity | null> {
+    if (!this.violationRepo) {
+      return null;
+    }
+    return this.violationRepo.updateStatus(id, 'waived');
+  }
+
+  /**
+   * Resolve a violation
+   */
+  async resolveViolation(id: string, resolution: string): Promise<PolicyViolationEntity | null> {
+    if (!this.violationRepo) {
+      return null;
+    }
+    return this.violationRepo.updateStatus(id, 'resolved');
+  }
+
+  /**
+   * List violation overrides
+   */
+  async listOverrides(policyId?: string): Promise<PolicyViolationEntity[]> {
+    if (!this.violationRepo) {
+      return [];
+    }
+    return this.violationRepo.findByStatus('waived');
+  }
+
+  /**
+   * Create a violation override
+   */
+  async createOverride(policyId: string, violationId: string, reason: string): Promise<PolicyViolationEntity | null> {
+    if (!this.violationRepo) {
+      return null;
+    }
+    const violation = await this.violationRepo.findById(violationId);
+    if (violation) {
+      return this.violationRepo.updateStatus(violationId, 'waived');
+    }
+    return null;
+  }
+
   // ==================== Utility Methods ====================
 
   private entityToResult(entity: PolicyEvaluationEntity): EvaluationResult {

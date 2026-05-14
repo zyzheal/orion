@@ -373,17 +373,75 @@ export class PolicyService {
     return this.policyRepo.findByGateId(gateId);
   }
 
+  /**
+   * List all policy bundles
+   */
+  async listBundles(): Promise<PolicyBundleEntity[]> {
+    if (!this.bundleRepo) {
+      return [];
+    }
+    return this.bundleRepo.findAll();
+  }
+
+  /**
+   * Get a specific policy bundle by ID
+   */
+  async getBundle(id: string): Promise<PolicyBundleEntity | null> {
+    if (!this.bundleRepo) {
+      return null;
+    }
+    return this.bundleRepo.findById(id);
+  }
+
+  /**
+   * Sync policy bundles from external source
+   */
+  async syncBundles(sourceUrl: string): Promise<PolicyBundleEntity[]> {
+    if (!this.bundleRepo) {
+      return [];
+    }
+    // Mock implementation - would fetch from external source
+    logger.info({ sourceUrl }, 'Syncing policy bundles');
+    return this.bundleRepo.findAll();
+  }
+
+  /**
+   * Test a policy against sample input
+   */
+  async testPolicy(policyId: string, context: PolicyEvaluationContext): Promise<PolicyEvaluationResult> {
+    return this.evaluatePolicy(policyId, context);
+  }
+
+  /**
+   * Toggle policy enabled/disabled
+   */
+  async toggle(id: string, enabled: boolean): Promise<PolicyDefinitionEntity | null> {
+    return this.updatePolicy(id, { enabled } as UpdatePolicyInput);
+  }
+
   // ==================== Evaluation History ====================
 
   /**
    * Get evaluation history for a run
    */
-  async getEvaluationHistory(runId: string): Promise<PolicyEvaluationEntity[]> {
+  async getEvaluationHistory(runId: string, limit?: number): Promise<PolicyEvaluationEntity[]> {
     if (!this.evaluationRepo) {
       return [];
     }
 
-    return this.evaluationRepo.findByRunId(runId);
+    const result = await this.evaluationRepo.findAll({ limit: limit || 100 });
+    return result.entities.filter(e => e.runId === runId);
+  }
+
+  /**
+   * Evaluate a policy against a resource (alias for evaluatePolicy)
+   */
+  async evaluate(tenantId: string, resourceType: string, resourceId: string, action: string, context: Record<string, any>): Promise<PolicyEvaluationResult> {
+    return this.evaluatePolicy(tenantId as any, {
+      runId: resourceId,
+      resources: [{ type: resourceType, id: resourceId, name: resourceType }],
+      input: context,
+    });
   }
 
   // ==================== Utility Methods ====================

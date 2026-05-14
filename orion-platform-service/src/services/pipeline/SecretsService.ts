@@ -52,8 +52,10 @@ export interface SecretValue {
 
 export interface SecretListItem {
   id: string;
+  tenantId: string;
   name: string;
   scope: SecretScope;
+  description?: string;
   createdAt: Date;
   updatedAt: Date;
   createdBy?: string;
@@ -217,10 +219,99 @@ export class SecretsService {
       id: e.id,
       name: e.name,
       scope: e.scope,
+      description: e.description || undefined,
       createdAt: e.createdAt,
       updatedAt: e.updatedAt,
       createdBy: e.createdBy,
     }));
+  }
+
+  /**
+   * Get secret entity (returns metadata, not the value)
+   */
+  async getSecretEntity(tenantId: string, name: string, scope?: SecretScope): Promise<SecretListItem | null> {
+    const secret = await this.getSecret(tenantId, name, scope);
+    if (!secret) return null;
+    return {
+      id: secret.id,
+      tenantId: secret.tenantId,
+      name: secret.name,
+      scope: secret.scope,
+      description: secret.description,
+      createdAt: secret.createdAt,
+      updatedAt: secret.updatedAt,
+      createdBy: secret.createdBy,
+    };
+  }
+
+  /**
+   * List all secret entities (metadata only)
+   */
+  async listSecretEntities(tenantId: string, scope?: SecretScope): Promise<SecretListItem[]> {
+    const secrets = await this.listSecrets(tenantId, scope);
+    return secrets.map(s => ({ ...s, tenantId }));
+  }
+
+  /**
+   * Get secret entity by ID
+   */
+  async getSecretEntityById(id: string): Promise<SecretListItem | null> {
+    const entity = await this.repository.findById(id);
+    if (!entity) return null;
+    return {
+      id: entity.id,
+      tenantId: entity.tenantId,
+      name: entity.name,
+      scope: entity.scope,
+      description: entity.description || undefined,
+      createdAt: entity.createdAt,
+      updatedAt: entity.updatedAt,
+      createdBy: entity.createdBy,
+    };
+  }
+
+  /**
+   * Update secret value
+   */
+  async updateSecretValue(id: string, value: string): Promise<boolean> {
+    const entity = await this.repository.findById(id);
+    if (!entity) return false;
+
+    const encryptedValue = this.encrypt(value);
+    await this.repository.update(id, {
+      encryptedValue,
+      updatedAt: new Date(),
+    });
+    return true;
+  }
+
+  /**
+   * Update secret description
+   */
+  async updateSecretDescription(id: string, description: string): Promise<boolean> {
+    const entity = await this.repository.findById(id);
+    if (!entity) return false;
+
+    await this.repository.update(id, {
+      description,
+      updatedAt: new Date(),
+    });
+    return true;
+  }
+
+  /**
+   * Delete secret by ID
+   */
+  async deleteSecretById(id: string): Promise<boolean> {
+    return this.deleteSecret(id);
+  }
+
+  /**
+   * Resolve and replace secrets in parameters
+   */
+  async resolveAndReplaceSecrets(tenantId: string, parameters: Record<string, string>): Promise<Record<string, string>> {
+    const resolved = await this.resolveSecretRefs(tenantId, parameters);
+    return resolved.resolvedEnv;
   }
 
   // ==================== Secret 引用解析 ====================

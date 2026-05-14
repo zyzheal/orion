@@ -433,6 +433,13 @@ export class QueueService {
   }
 
   /**
+   * Get queue statistics (alias for getQueueStats)
+   */
+  async getStats(): Promise<QueueStats> {
+    return this.getQueueStats();
+  }
+
+  /**
    * Cancel a pending job. Only jobs in 'pending' status can be cancelled.
    *
    * @param id - The job ID.
@@ -502,6 +509,75 @@ export class QueueService {
     job.updatedAt = new Date();
     this.memoryStore.set(id, { ...job });
     return job;
+  }
+
+  /**
+   * Compatibility alias for push()
+   * Controller method: push(tenantId, queueName, payload, options)
+   */
+  async push(
+    tenantId: string,
+    queueName: string,
+    payload: Record<string, unknown>,
+    options?: { priority?: number; maxAttempts?: number }
+  ): Promise<Job> {
+    return this.enqueue({
+      tenantId,
+      queueName,
+      jobType: 'default',
+      payload,
+      priority: options?.priority,
+      maxAttempts: options?.maxAttempts,
+    });
+  }
+
+  /**
+   * Compatibility alias for pop()
+   * Controller method: pop(queueName, limit)
+   */
+  async pop(queueName?: string, limit: number = 1): Promise<Job[]> {
+    const job = await this.dequeue();
+    return job ? [job] : [];
+  }
+
+  /**
+   * Compatibility alias for complete()
+   * Controller method: complete(id)
+   */
+  async complete(id: string): Promise<Job | undefined> {
+    return this.completeJob(id);
+  }
+
+  /**
+   * Compatibility alias for fail()
+   * Controller method: fail(id, error)
+   */
+  async fail(id: string, error: string): Promise<Job | undefined> {
+    return this.failJob(id, error);
+  }
+
+  /**
+   * Compatibility alias for retry()
+   * Controller method: retry(id, delaySeconds)
+   */
+  async retry(id: string, _delaySeconds?: number): Promise<Job | undefined> {
+    return this.requeue(id);
+  }
+
+  /**
+   * Compatibility alias for list()
+   * Controller method: list(filters)
+   */
+  async list(filters: any = {}): Promise<PaginatedJobsResult> {
+    return this.listJobs(filters);
+  }
+
+  /**
+   * Compatibility alias for findById()
+   * Controller method: findById(id)
+   */
+  async findById(id: string): Promise<Job | undefined> {
+    return this.getJob(id);
   }
 
   /**

@@ -4,6 +4,135 @@
  * 定义 CODEOWNERS 文件解析、所有权规则、审批人推荐相关类型
  */
 
+export enum RepoType {
+  GITHUB = 'github',
+  GITLAB = 'gitlab',
+  GERRIT = 'gerrit',
+}
+
+export enum PullRequestStatus {
+  OPEN = 'open',
+  MERGED = 'merged',
+  CLOSED = 'closed',
+}
+
+export enum WebhookEventType {
+  PR_OPENED = 'pr_opened',
+  PR_MERGED = 'pr_merged',
+  PR_CLOSED = 'pr_closed',
+  PR_UPDATED = 'pr_updated',
+  PR_REVIEWED = 'pr_reviewed',
+  PUSH = 'push',
+}
+
+// ==================== Code Repository Types ====================
+
+export interface Repository {
+  id: string;
+  name: string;
+  fullName: string;
+  url: string;
+  type: RepoType;
+  defaultBranch: string;
+  isPrivate: boolean;
+  description?: string;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+export interface Branch {
+  name: string;
+  sha: string;
+  protected: boolean;
+  lastCommitDate?: Date;
+}
+
+export interface Commit {
+  sha: string;
+  message: string;
+  author: {
+    name: string;
+    email: string;
+    date: Date;
+  };
+  url: string;
+}
+
+export interface Review {
+  id: string;
+  body?: string;
+  state: 'pending' | 'approved' | 'changes_requested';
+  author: string;
+  createdAt: Date;
+}
+
+export interface FileComment {
+  id: string;
+  path: string;
+  line: number;
+  body: string;
+  author: string;
+  createdAt: Date;
+}
+
+export interface WebhookConfig {
+  id: string;
+  url: string;
+  events: WebhookEventType[];
+  active: boolean;
+  secret?: string;
+}
+
+// ==================== ICodeRepoAdapter Interface ====================
+
+/**
+ * 代码仓库适配器接口
+ */
+export interface ICodeRepoAdapter {
+  /** 适配器类型 */
+  readonly type: RepoType;
+  /** 获取单个仓库信息 */
+  getRepository(repoId: string): Promise<Repository>;
+  /** 列出仓库列表 */
+  listRepositories(options?: { page?: number; limit?: number; search?: string }): Promise<{ repos: Repository[]; total: number }>;
+  /** 列出分支 */
+  listBranches(repoId: string, options?: { page?: number; limit?: number }): Promise<{ branches: Branch[]; total: number }>;
+  /** 获取分支信息 */
+  getBranch(repoId: string, branchName: string): Promise<Branch>;
+  /** 创建分支 */
+  createBranch(repoId: string, branchName: string, sourceRef: string): Promise<Branch>;
+  /** 删除分支 */
+  deleteBranch(repoId: string, branchName: string): Promise<void>;
+  /** 获取分支保护设置 */
+  getBranchProtection(repoId: string, branchName: string): Promise<BranchPolicy | null>;
+  /** 列出提交历史 */
+  listCommits(repoId: string, options?: { branch?: string; page?: number; limit?: number }): Promise<{ commits: Commit[]; total: number }>;
+  /** 获取单个提交 */
+  getCommit(repoId: string, sha: string): Promise<Commit>;
+  /** 创建 Pull Request */
+  createPullRequest(repoId: string, input: { title: string; body?: string; sourceBranch: string; targetBranch: string }): Promise<PullRequest>;
+  /** 获取 Pull Request */
+  getPullRequest(repoId: string, prId: string): Promise<PullRequest>;
+  /** 列出 Pull Requests */
+  listPullRequests(repoId: string, options?: { state?: PullRequestStatus; page?: number; limit?: number }): Promise<{ pullRequests: PullRequest[]; total: number }>;
+  /** 合并 Pull Request */
+  mergePullRequest(repoId: string, prId: string, options?: { method?: MergeStrategy }): Promise<PullRequest>;
+  /** 关闭 Pull Request */
+  closePullRequest(repoId: string, prId: string): Promise<PullRequest>;
+  /** 更新 Pull Request */
+  updatePullRequest(repoId: string, prId: string, input: { title?: string; body?: string }): Promise<PullRequest>;
+  /** 添加 Review */
+  addReview(repoId: string, prId: string, input: { body?: string; event?: 'approve' | 'request_changes' | 'comment' }): Promise<Review>;
+  /** 列出 Reviews */
+  listReviews(repoId: string, prId: string): Promise<Review[]>;
+  /** 创建 Webhook */
+  createWebhook(repoId: string, input: { url: string; events: WebhookEventType[]; active?: boolean; secret?: string }): Promise<WebhookConfig>;
+  /** 列出 Webhooks */
+  listWebhooks(repoId: string): Promise<WebhookConfig[]>;
+  /** 删除 Webhook */
+  deleteWebhook(repoId: string, webhookId: string): Promise<void>;
+}
+
 /**
  * 单条所有权规则
  *

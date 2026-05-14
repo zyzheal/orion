@@ -17,15 +17,23 @@ export class PolicyEvaluationController {
   async evaluate(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const body = request.body as any;
-      if (!body.policyId || !body.runId || !body.inputContext) {
+      if (!body.policyId || !body.runId) {
         await reply.status(400).send({
           success: false,
-          error: 'policyId, runId, and inputContext are required',
+          error: 'policyId and runId are required',
         });
         return;
       }
 
-      const result = await this.evaluationService.evaluate(body.policyId, body.runId, body.inputContext);
+      const result = await this.evaluationService.evaluate({
+        policyId: body.policyId,
+        tenantId: body.tenantId || 'default',
+        runId: body.runId,
+        resourceType: body.resourceType,
+        resourceId: body.resourceId,
+        action: body.action,
+        context: body.inputContext,
+      });
       await reply.status(201).send({ success: true, data: result });
     } catch (err) {
       await reply.status(500).send({
@@ -39,15 +47,8 @@ export class PolicyEvaluationController {
     try {
       const params = request.params as any;
       const body = request.body as any;
-      if (!body.runId || !body.inputContext) {
-        await reply.status(400).send({
-          success: false,
-          error: 'runId and inputContext are required',
-        });
-        return;
-      }
 
-      const result = await this.evaluationService.evaluateGate(params.gateId, body.runId, body.inputContext);
+      const result = await this.evaluationService.evaluateGate(params.gateId, body.inputContext || {});
       await reply.send({ success: true, data: result });
     } catch (err) {
       await reply.status(500).send({
@@ -60,10 +61,7 @@ export class PolicyEvaluationController {
   async listEvaluations(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const query = request.query as any;
-      const evaluations = await this.evaluationService.getEvaluations({
-        runId: query.runId,
-        policyId: query.policyId,
-      });
+      const evaluations = await this.evaluationService.getEvaluations(query.runId || '');
       await reply.send({ success: true, data: evaluations, total: evaluations.length });
     } catch (err) {
       await reply.status(500).send({
@@ -78,11 +76,7 @@ export class PolicyEvaluationController {
   async listViolations(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const query = request.query as any;
-      const violations = await this.evaluationService.getViolations({
-        status: query.status,
-        severity: query.severity,
-        policyId: query.policyId,
-      });
+      const violations = await this.evaluationService.getOpenViolations(query.status || 'open');
       await reply.send({ success: true, data: violations, total: violations.length });
     } catch (err) {
       await reply.status(500).send({
@@ -134,7 +128,8 @@ export class PolicyEvaluationController {
   async resolveViolation(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const params = request.params as any;
-      const violation = await this.evaluationService.resolveViolation(params.id);
+      const body = request.body as any;
+      const violation = await this.evaluationService.resolveViolation(params.id, body.resolution || 'resolved');
       if (!violation) {
         await reply.status(404).send({ success: false, error: 'Violation not found' });
         return;
@@ -152,7 +147,8 @@ export class PolicyEvaluationController {
 
   async listOverrides(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const overrides = await this.evaluationService.listOverrides();
+      const query = request.query as any;
+      const overrides = await this.evaluationService.listOverrides(query.policyId);
       await reply.send({ success: true, data: overrides, total: overrides.length });
     } catch (err) {
       await reply.status(500).send({
@@ -165,14 +161,14 @@ export class PolicyEvaluationController {
   async createOverride(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const body = request.body as any;
-      if (!body.reason || !body.expiresAt) {
+      if (!body.policyId || !body.violationId || !body.reason) {
         await reply.status(400).send({
           success: false,
-          error: 'reason and expiresAt are required',
+          error: 'policyId, violationId, and reason are required',
         });
         return;
       }
-      const override = await this.evaluationService.createOverride(body);
+      const override = await this.evaluationService.createOverride(body.policyId, body.violationId, body.reason);
       await reply.status(201).send({ success: true, data: override });
     } catch (err) {
       await reply.status(400).send({
