@@ -2,7 +2,7 @@
  * AI 成本优化引擎
  *
  * 分析成本节约机会、推荐优化方案、应用节约方案、跟踪节约效果
- * 使用 Map 内存存储
+ * 使用 PostgreSQL Repository 模式存储
  */
 
 import { v4 as uuidv4 } from 'uuid';
@@ -103,11 +103,21 @@ export interface CostAnalysisReport {
   analyzedAt: Date;
 }
 
+import {
+  CostRecommendationRepository,
+  SavingsTrackingRepository,
+  CostRecommendationEntity,
+  SavingsTrackingEntity,
+} from '../../repositories/CostOptimizationRepository';
+
 /**
  * AI 成本优化服务
  */
 export class CostOptimizerService {
-  /** 成本数据存储 */
+  private recommendationRepository: CostRecommendationRepository | null = null;
+  private trackingRepository: SavingsTrackingRepository | null = null;
+
+  /** 成本数据存储 (in-memory for computation) */
   private costData: Map<string, {
     computeCost: number;
     storageCost: number;
@@ -116,17 +126,20 @@ export class CostOptimizerService {
     resourceCount: number;
   }> = new Map();
 
-  /** 推荐方案存储 */
-  private recommendations: Map<string, OptimizationRecommendation> = new Map();
+  /** 推荐方案存储 (in-memory cache for active operations) */
+  private recommendationsCache: Map<string, OptimizationRecommendation> = new Map();
 
-  /** 节约跟踪存储 */
-  private trackingRecords: Map<string, SavingsTrackingRecord[]> = new Map();
-
-  /** 分析缓存 */
+  /** 分析缓存 (in-memory, TTL-based) */
   private analysisCache: Map<string, CostAnalysisReport> = new Map();
 
-  constructor() {
-    // 初始化模拟数据
+  constructor(
+    private db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }
+  ) {
+    if (db) {
+      this.recommendationRepository = new CostRecommendationRepository(db as any);
+      this.trackingRepository = new SavingsTrackingRepository(db as any);
+    }
+    // Initialize mock data
     this.initializeMockData();
   }
 
@@ -134,7 +147,7 @@ export class CostOptimizerService {
    * 分析成本节约机会
    */
   analyzeCostSavings(tenantId: string): CostAnalysisReport {
-    // 检查缓存（5 分钟内有效）
+    // Check cache (valid for 5 minutes)
     const cached = this.analysisCache.get(tenantId);
     if (cached && Date.now() - cached.analyzedAt.getTime() < 5 * 60 * 1000) {
       return cached;
@@ -146,7 +159,7 @@ export class CostOptimizerService {
     const totalMonthlyCost = data.computeCost + data.storageCost + data.networkCost + data.idleResourcesCost;
     const totalEstimatedSavings = opportunities.reduce((sum, o) => sum + o.estimatedMonthlySavings, 0);
 
-    // 按类别分组
+    // Group by category
     const savingsByCategory: Record<string, number> = {};
     for (const opp of opportunities) {
       savingsByCategory[opp.category] = (savingsByCategory[opp.category] ?? 0) + opp.estimatedMonthlySavings;
@@ -172,35 +185,34 @@ export class CostOptimizerService {
   /**
    * 推荐优化方案
    */
-  recommendOptimization(tenantId: string): OptimizationRecommendation[] {
+  async recommendOptimization(tenantId: string): Promise<OptimizationRecommendation[]> {
     const analysis = this.analyzeCostSavings(tenantId);
 
-    // 按节约金额排序
+    // Sort by savings amount
     const sorted = [...analysis.opportunities].sort(
       (a, b) => b.estimatedMonthlySavings - a.estimatedMonthlySavings
     );
 
-    // 分组生成推荐方案
     const recommendations: OptimizationRecommendation[] = [];
 
-    // 高优先级：大金额节约
+    // High priority: high value savings
     const highPriorityOpps = sorted.filter((o) => o.estimatedMonthlySavings > 500);
     if (highPriorityOpps.length > 0) {
-      recommendations.push(this.createRecommendation(tenantId, 'high', highPriorityOpps));
+      recommendations.push(await this.createRecommendation(tenantId, 'high', highPriorityOpps));
     }
 
-    // 中优先级：中等金额
+    // Medium priority: medium value
     const mediumPriorityOpps = sorted.filter(
       (o) => o.estimatedMonthlySavings > 100 && o.estimatedMonthlySavings <= 500
     );
     if (mediumPriorityOpps.length > 0) {
-      recommendations.push(this.createRecommendation(tenantId, 'medium', mediumPriorityOpps));
+      recommendations.push(await this.createRecommendation(tenantId, 'medium', mediumPriorityOpps));
     }
 
-    // 低优先级：小额节约
+    // Low priority: small value
     const lowPriorityOpps = sorted.filter((o) => o.estimatedMonthlySavings <= 100);
     if (lowPriorityOpps.length > 0) {
-      recommendations.push(this.createRecommendation(tenantId, 'low', lowPriorityOpps));
+      recommendations.push(await this.createRecommendation(tenantId, 'low', lowPriorityOpps));
     }
 
     return recommendations;
@@ -209,8 +221,30 @@ export class CostOptimizerService {
   /**
    * 应用节约方案
    */
-  applyCostSavings(recommendationId: string): OptimizationRecommendation {
-    const recommendation = this.recommendations.get(recommendationId);
+  async applyCostSavings(recommendationId: string): Promise<OptimizationRecommendation> {
+    let recommendation = this.recommendationsCache.get(recommendationId);
+
+    if (!recommendation) {
+      // Try to load from DB
+      if (this.recommendationRepository) {
+        const entity = await this.recommendationRepository.findById(recommendationId);
+        if (entity) {
+          recommendation = {
+            recommendationId: entity.id,
+            tenantId: entity.tenantId,
+            title: entity.title,
+            description: entity.description || '',
+            opportunities: entity.opportunities as CostSavingOpportunity[],
+            totalEstimatedSavings: entity.totalEstimatedSavings,
+            priority: entity.priority,
+            status: entity.status as OptimizationRecommendation['status'],
+            createdAt: entity.createdAt,
+            appliedAt: entity.appliedAt || undefined,
+          };
+        }
+      }
+    }
+
     if (!recommendation) {
       throw new Error(`Recommendation ${recommendationId} not found`);
     }
@@ -222,18 +256,27 @@ export class CostOptimizerService {
     recommendation.status = 'applied';
     recommendation.appliedAt = new Date();
 
-    // 更新成本数据（模拟应用后的效果）
+    // Update in database
+    if (this.recommendationRepository) {
+      await this.recommendationRepository.updateRecommendation(recommendationId, {
+        status: 'applied',
+      });
+    }
+
+    // Update local cache
+    this.recommendationsCache.set(recommendationId, recommendation);
+
+    // Update cost data (simulate effect after application)
     const data = this.costData.get(recommendation.tenantId);
     if (data) {
       const totalSavings = recommendation.totalEstimatedSavings;
-      // 模拟成本降低
       data.computeCost = Math.max(0, data.computeCost - totalSavings * 0.6);
       data.storageCost = Math.max(0, data.storageCost - totalSavings * 0.2);
       data.idleResourcesCost = Math.max(0, data.idleResourcesCost - totalSavings * 0.2);
       this.costData.set(recommendation.tenantId, data);
     }
 
-    // 清除缓存
+    // Clear cache
     this.analysisCache.delete(recommendation.tenantId);
 
     return recommendation;
@@ -242,27 +285,45 @@ export class CostOptimizerService {
   /**
    * 跟踪节约效果
    */
-  trackSavings(tenantId: string): SavingsTrackingRecord[] {
-    const existingRecords = this.trackingRecords.get(tenantId) ?? [];
-
-    // 获取所有已应用的推荐
-    const appliedRecommendations = Array.from(this.recommendations.values())
-      .filter((r) => r.tenantId === tenantId && r.status === 'applied');
-
+  async trackSavings(tenantId: string): Promise<SavingsTrackingRecord[]> {
     const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+    let existingRecords: SavingsTrackingEntity[] = [];
+
+    // Load from DB
+    if (this.trackingRepository) {
+      existingRecords = await this.trackingRepository.findByTenantAndMonth(tenantId, currentMonth);
+    }
+
+    // Get all applied recommendations
+    let appliedRecommendations: CostRecommendationEntity[] = [];
+
+    if (this.recommendationRepository) {
+      appliedRecommendations = await this.recommendationRepository.findByStatus('applied', tenantId);
+    }
+
     const newRecords: SavingsTrackingRecord[] = [];
 
     for (const rec of appliedRecommendations) {
-      // 检查是否已有当月记录
+      // Check if already has record for current month
       const existingMonthRecord = existingRecords.find(
-        (r) => r.recommendationId === rec.recommendationId && r.month === currentMonth
+        (r) => r.recommendationId === rec.id && r.month === currentMonth
       );
+
       if (existingMonthRecord) {
-        newRecords.push(existingMonthRecord);
+        newRecords.push({
+          id: existingMonthRecord.id,
+          tenantId: existingMonthRecord.tenantId,
+          recommendationId: existingMonthRecord.recommendationId,
+          month: existingMonthRecord.month,
+          actualSavings: existingMonthRecord.actualSavings,
+          estimatedSavings: existingMonthRecord.estimatedSavings,
+          achievementRate: existingMonthRecord.achievementRate,
+          recordedAt: existingMonthRecord.recordedAt,
+        });
         continue;
       }
 
-      // 模拟实际节约效果（通常是预估的 80%-110%）
+      // Simulate actual savings effect (usually 80%-110% of estimated)
       const actualRatio = 0.8 + Math.random() * 0.3; // 0.8 ~ 1.1
       const actualSavings = Math.round(rec.totalEstimatedSavings * actualRatio * 100) / 100;
       const achievementRate = Math.round(actualRatio * 100);
@@ -270,7 +331,7 @@ export class CostOptimizerService {
       const record: SavingsTrackingRecord = {
         id: uuidv4(),
         tenantId,
-        recommendationId: rec.recommendationId,
+        recommendationId: rec.id,
         month: currentMonth,
         actualSavings,
         estimatedSavings: rec.totalEstimatedSavings,
@@ -278,40 +339,64 @@ export class CostOptimizerService {
         recordedAt: new Date(),
       };
 
-      existingRecords.push(record);
+      // Persist to DB
+      if (this.trackingRepository) {
+        await this.trackingRepository.createRecord({
+          tenantId,
+          recommendationId: rec.id,
+          month: currentMonth,
+          actualSavings,
+          estimatedSavings: rec.totalEstimatedSavings,
+          achievementRate,
+        });
+      }
+
       newRecords.push(record);
     }
 
-    this.trackingRecords.set(tenantId, existingRecords);
     return newRecords;
   }
 
   /**
    * 获取租户的节约历史
    */
-  getSavingsHistory(tenantId: string): SavingsTrackingRecord[] {
-    return this.trackingRecords.get(tenantId) ?? [];
+  async getSavingsHistory(tenantId: string): Promise<SavingsTrackingRecord[]> {
+    if (!this.trackingRepository) {
+      return [];
+    }
+
+    const entities = await this.trackingRepository.findByTenant(tenantId);
+    return entities.map(entity => ({
+      id: entity.id,
+      tenantId: entity.tenantId,
+      recommendationId: entity.recommendationId,
+      month: entity.month,
+      actualSavings: entity.actualSavings,
+      estimatedSavings: entity.estimatedSavings,
+      achievementRate: entity.achievementRate,
+      recordedAt: entity.recordedAt,
+    }));
   }
 
   /**
    * 获取租户累计节约金额
    */
-  getTotalSavings(tenantId: string): number {
-    const records = this.trackingRecords.get(tenantId) ?? [];
+  async getTotalSavings(tenantId: string): Promise<number> {
+    const records = await this.getSavingsHistory(tenantId);
     return records.reduce((sum, r) => sum + r.actualSavings, 0);
   }
 
-  // ==================== 私有方法 ====================
+  // ==================== Private Methods ====================
 
   /**
-   * 初始化模拟数据
+   * Initialize mock data
    */
   private initializeMockData(): void {
-    // 不自动创建模拟租户数据，按需生成
+    // Don't auto-create mock tenant data, generate on-demand
   }
 
   /**
-   * 获取模拟成本数据
+   * Get mock cost data
    */
   private getMockCostData(tenantId: string): {
     computeCost: number;
@@ -320,7 +405,7 @@ export class CostOptimizerService {
     idleResourcesCost: number;
     resourceCount: number;
   } {
-    // 基于 tenantId 生成可预测的模拟数据
+    // Generate predictable mock data based on tenantId
     const hash = tenantId.split('').reduce((sum, c) => sum + c.charCodeAt(0), 0);
     const baseMultiplier = (hash % 10) + 1;
 
@@ -334,7 +419,7 @@ export class CostOptimizerService {
   }
 
   /**
-   * 生成节约机会
+   * Generate savings opportunities
    */
   private generateOpportunities(
     tenantId: string,
@@ -342,7 +427,7 @@ export class CostOptimizerService {
   ): CostSavingOpportunity[] {
     const opportunities: CostSavingOpportunity[] = [];
 
-    // Compute: 推荐资源缩容
+    // Compute: recommend resource rightsizing
     if (data.computeCost > 2000) {
       const savings = Math.round(data.computeCost * 0.25 * 100) / 100;
       opportunities.push({
@@ -355,11 +440,11 @@ export class CostOptimizerService {
         savingsPercentage: 25,
         implementationDifficulty: 'medium',
         riskLevel: 'low',
-        description: '通过资源监控分析，计算资源平均利用率仅 45%，建议缩容以节约成本',
+        description: 'Based on resource monitoring analysis, compute resources average utilization is only 45%, recommend downsizing to save costs',
       });
     }
 
-    // Compute: 推荐定时调度
+    // Compute: recommend scheduled scaling
     if (data.computeCost > 5000) {
       const savings = Math.round(data.computeCost * 0.3 * 100) / 100;
       opportunities.push({
@@ -372,11 +457,11 @@ export class CostOptimizerService {
         savingsPercentage: 30,
         implementationDifficulty: 'low',
         riskLevel: 'low',
-        description: '非生产环境可配置定时启停，非工作时间自动缩容',
+        description: 'Non-production environments can configure scheduled start/stop, auto-scale during off-hours',
       });
     }
 
-    // Storage: 清理未使用存储
+    // Storage: clean unused storage
     if (data.storageCost > 1000) {
       const savings = Math.round(data.storageCost * 0.2 * 100) / 100;
       opportunities.push({
@@ -389,7 +474,7 @@ export class CostOptimizerService {
         savingsPercentage: 20,
         implementationDifficulty: 'low',
         riskLevel: 'medium',
-        description: '发现 30% 的持久化存储卷未被任何 Pod 挂载，建议清理',
+        description: 'Found 30% of persistent volumes not mounted by any Pod, recommend cleanup',
       });
     }
 
@@ -406,11 +491,11 @@ export class CostOptimizerService {
         savingsPercentage: 80,
         implementationDifficulty: 'low',
         riskLevel: 'low',
-        description: `检测到 ${Math.round(data.resourceCount * 0.15)} 个空闲实例超过 7 天无流量，建议释放`,
+        description: `Detected ${Math.round(data.resourceCount * 0.15)} idle instances with no traffic for 7+ days, recommend release`,
       });
     }
 
-    // Network: 优化网络配置
+    // Network: optimize network config
     if (data.networkCost > 1000) {
       const savings = Math.round(data.networkCost * 0.15 * 100) / 100;
       opportunities.push({
@@ -423,11 +508,11 @@ export class CostOptimizerService {
         savingsPercentage: 15,
         implementationDifficulty: 'high',
         riskLevel: 'medium',
-        description: '跨区域流量可通过 CDN 和内网优化减少出网费用',
+        description: 'Cross-region traffic can reduce egress costs through CDN and internal network optimization',
       });
     }
 
-    // Compute: 抢占式实例
+    // Compute: spot instances
     if (data.computeCost > 10000) {
       const savings = Math.round(data.computeCost * 0.4 * 100) / 100;
       opportunities.push({
@@ -440,7 +525,7 @@ export class CostOptimizerService {
         savingsPercentage: 40,
         implementationDifficulty: 'high',
         riskLevel: 'medium',
-        description: '批处理和可中断任务可使用抢占式实例，成本降低约 60-70%',
+        description: 'Batch processing and interruptible tasks can use spot instances, reducing costs by ~60-70%',
       });
     }
 
@@ -448,25 +533,25 @@ export class CostOptimizerService {
   }
 
   /**
-   * 创建推荐方案
+   * Create recommendation
    */
-  private createRecommendation(
+  private async createRecommendation(
     tenantId: string,
     priority: 'high' | 'medium' | 'low',
     opportunities: CostSavingOpportunity[]
-  ): OptimizationRecommendation {
+  ): Promise<OptimizationRecommendation> {
     const totalSavings = opportunities.reduce((sum, o) => sum + o.estimatedMonthlySavings, 0);
 
     const titles: Record<string, string> = {
-      high: '高优先级成本优化方案',
-      medium: '中优先级成本优化方案',
-      low: '低优先级成本优化方案',
+      high: 'High Priority Cost Optimization Plan',
+      medium: 'Medium Priority Cost Optimization Plan',
+      low: 'Low Priority Cost Optimization Plan',
     };
 
     const descriptions: Record<string, string> = {
-      high: `包含 ${opportunities.length} 个高价值优化机会，预计每月可节约 ￥${Math.round(totalSavings)} 元`,
-      medium: `包含 ${opportunities.length} 个中等价值优化机会，预计每月可节约 ￥${Math.round(totalSavings)} 元`,
-      low: `包含 ${opportunities.length} 个长尾优化机会，预计每月可节约 ￥${Math.round(totalSavings)} 元`,
+      high: `Contains ${opportunities.length} high-value optimization opportunities, estimated monthly savings of ¥${Math.round(totalSavings)}`,
+      medium: `Contains ${opportunities.length} medium-value optimization opportunities, estimated monthly savings of ¥${Math.round(totalSavings)}`,
+      low: `Contains ${opportunities.length} low-value optimization opportunities, estimated monthly savings of ¥${Math.round(totalSavings)}`,
     };
 
     const recommendation: OptimizationRecommendation = {
@@ -481,7 +566,21 @@ export class CostOptimizerService {
       createdAt: new Date(),
     };
 
-    this.recommendations.set(recommendation.recommendationId, recommendation);
+    // Persist to DB
+    if (this.recommendationRepository) {
+      await this.recommendationRepository.createRecommendation({
+        id: recommendation.recommendationId,
+        tenantId,
+        title: recommendation.title,
+        description: recommendation.description,
+        opportunities: opportunities as unknown as Record<string, unknown>[],
+        totalEstimatedSavings: recommendation.totalEstimatedSavings,
+        priority,
+      });
+    }
+
+    // Cache locally
+    this.recommendationsCache.set(recommendation.recommendationId, recommendation);
     return recommendation;
   }
 }

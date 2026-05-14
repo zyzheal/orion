@@ -39,17 +39,60 @@ export interface RegisterContractInput {
   version?: string;
 }
 
+import {
+  ApiContractRepository,
+  ApiContractViolationRepository,
+} from '../../repositories/ApiContractRepository';
+
 export class ApiContractService {
-  private contracts = new Map<string, ApiContract>();
-  private violations = new Map<string, ContractViolation[]>();
+  private contractRepository: ApiContractRepository | null = null;
+  private violationRepository: ApiContractViolationRepository | null = null;
+
+  constructor(
+    private db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }
+  ) {
+    if (db) {
+      this.contractRepository = new ApiContractRepository(db as any);
+      this.violationRepository = new ApiContractViolationRepository(db as any);
+    }
+  }
 
   async registerContract(
     tenantId: string,
     input: RegisterContractInput,
   ): Promise<ApiContract> {
     const now = new Date().toISOString();
+    const id = randomUUID();
+
+    if (this.contractRepository) {
+      const entity = await this.contractRepository.createContract({
+        id,
+        tenantId,
+        name: input.name,
+        description: input.description,
+        endpoint: input.endpoint,
+        method: input.method,
+        schema: input.schema,
+        version: input.version,
+      });
+
+      return {
+        id: entity.id,
+        tenantId: entity.tenantId,
+        name: entity.name,
+        description: entity.description || undefined,
+        endpoint: entity.endpoint,
+        method: entity.method,
+        schema: entity.schema,
+        version: entity.version,
+        createdAt: entity.createdAt.toISOString(),
+        updatedAt: entity.updatedAt.toISOString(),
+      };
+    }
+
+    // Fallback to in-memory if no DB
     const contract: ApiContract = {
-      id: randomUUID(),
+      id,
       tenantId,
       name: input.name,
       description: input.description,
@@ -60,8 +103,6 @@ export class ApiContractService {
       createdAt: now,
       updatedAt: now,
     };
-    this.contracts.set(contract.id, contract);
-    this.violations.set(contract.id, []);
     return contract;
   }
 
@@ -69,7 +110,26 @@ export class ApiContractService {
     contractId: string,
     apiDefinition: Record<string, unknown>,
   ): Promise<ContractEvaluationResult> {
-    const contract = this.contracts.get(contractId);
+    let contract: ApiContract | null = null;
+
+    if (this.contractRepository) {
+      const entity = await this.contractRepository.findById(contractId);
+      if (entity) {
+        contract = {
+          id: entity.id,
+          tenantId: entity.tenantId,
+          name: entity.name,
+          description: entity.description || undefined,
+          endpoint: entity.endpoint,
+          method: entity.method,
+          schema: entity.schema,
+          version: entity.version,
+          createdAt: entity.createdAt.toISOString(),
+          updatedAt: entity.updatedAt.toISOString(),
+        };
+      }
+    }
+
     if (!contract) {
       return {
         compliant: false,
@@ -118,7 +178,21 @@ export class ApiContractService {
       ? Math.round(((totalChecks - violations.length) / totalChecks) * 100)
       : 100;
 
-    this.violations.set(contractId, violations);
+    // Persist violations to DB if available
+    if (this.violationRepository) {
+      // Clear old violations and add new ones
+      await this.violationRepository.deleteByContract(contractId);
+      for (const violation of violations) {
+        await this.violationRepository.createViolation({
+          id: violation.id,
+          contractId: violation.contractId,
+          violationType: violation.violationType,
+          description: violation.description,
+          severity: violation.severity,
+          sampleData: violation.sampleData || null,
+        });
+      }
+    }
 
     return {
       compliant: violations.length === 0,
@@ -129,37 +203,96 @@ export class ApiContractService {
   }
 
   async getContractViolations(contractId: string): Promise<ContractViolation[]> {
-    return this.violations.get(contractId) ?? [];
+    if (!this.violationRepository) return [];
+
+    const entities = await this.violationRepository.findByContract(contractId);
+    return entities.map(entity => ({
+      id: entity.id,
+      contractId: entity.contractId,
+      violationType: entity.violationType as ContractViolation['violationType'],
+      description: entity.description,
+      severity: entity.severity as ContractViolation['severity'],
+      detectedAt: entity.detectedAt.toISOString(),
+      sampleData: entity.sampleData || undefined,
+    }));
   }
 
   async getContract(contractId: string): Promise<ApiContract | null> {
-    return this.contracts.get(contractId) ?? null;
+    if (!this.contractRepository) return null;
+
+    const entity = await this.contractRepository.findById(contractId);
+    if (!entity) return null;
+
+    return {
+      id: entity.id,
+      tenantId: entity.tenantId,
+      name: entity.name,
+      description: entity.description || undefined,
+      endpoint: entity.endpoint,
+      method: entity.method,
+      schema: entity.schema,
+      version: entity.version,
+      createdAt: entity.createdAt.toISOString(),
+      updatedAt: entity.updatedAt.toISOString(),
+    };
   }
 
   async listContracts(tenantId: string): Promise<ApiContract[]> {
-    return Array.from(this.contracts.values()).filter((c) => c.tenantId === tenantId);
+    if (!this.contractRepository) return [];
+
+    const entities = await this.contractRepository.findByTenant(tenantId);
+    return entities.map(entity => ({
+      id: entity.id,
+      tenantId: entity.tenantId,
+      name: entity.name,
+      description: entity.description || undefined,
+      endpoint: entity.endpoint,
+      method: entity.method,
+      schema: entity.schema,
+      version: entity.version,
+      createdAt: entity.createdAt.toISOString(),
+      updatedAt: entity.updatedAt.toISOString(),
+    }));
   }
 
   async updateContract(
     contractId: string,
     input: Partial<RegisterContractInput>,
   ): Promise<ApiContract | null> {
-    const contract = this.contracts.get(contractId);
-    if (!contract) return null;
+    if (!this.contractRepository) return null;
 
-    if (input.name) contract.name = input.name;
-    if (input.description !== undefined) contract.description = input.description;
-    if (input.endpoint) contract.endpoint = input.endpoint;
-    if (input.method) contract.method = input.method;
-    if (input.schema) contract.schema = input.schema;
-    if (input.version) contract.version = input.version;
-    contract.updatedAt = new Date().toISOString();
+    const entity = await this.contractRepository.updateContract(contractId, {
+      name: input.name,
+      description: input.description,
+      endpoint: input.endpoint,
+      method: input.method,
+      schema: input.schema,
+      version: input.version,
+    });
 
-    return contract;
+    if (!entity) return null;
+
+    return {
+      id: entity.id,
+      tenantId: entity.tenantId,
+      name: entity.name,
+      description: entity.description || undefined,
+      endpoint: entity.endpoint,
+      method: entity.method,
+      schema: entity.schema,
+      version: entity.version,
+      createdAt: entity.createdAt.toISOString(),
+      updatedAt: entity.updatedAt.toISOString(),
+    };
   }
 
   async deleteContract(contractId: string): Promise<boolean> {
-    this.violations.delete(contractId);
-    return this.contracts.delete(contractId);
+    if (!this.contractRepository) return false;
+
+    if (this.violationRepository) {
+      await this.violationRepository.deleteByContract(contractId);
+    }
+
+    return this.contractRepository.deleteContract(contractId);
   }
 }

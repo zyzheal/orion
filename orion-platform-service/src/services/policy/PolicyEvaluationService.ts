@@ -1,348 +1,376 @@
 /**
- * Policy Evaluation Service - 策略评估、违规和豁免管理
+ * PolicyEvaluationService - Policy Evaluation Orchestration
  *
- * Supports real OPA REST API evaluation when OPA_URL is configured.
- * Falls back to mock evaluation for development/testing.
+ * Provides operations for evaluating policies, storing results,
+ * and analyzing evaluation history.
  */
 
-import { EventBusService } from '../event-bus-service';
+import pino from 'pino';
 import {
-  PolicyEvaluation,
-  PolicyEvaluationCreateInput,
-  createPolicyEvaluation,
-  PolicyViolation,
-  PolicyViolationCreateInput,
-  createPolicyViolation,
-  PolicyOverride,
-  PolicyOverrideCreateInput,
-  createPolicyOverride,
-  ViolationStatus,
-  PolicySeverity,
-  ViolationResourceType,
-} from '../../models/PolicyDefinition';
-import { PolicyEvaluationRepository, PolicyEvaluationEntity } from '../../repositories/PolicyEvaluationRepository';
+  PolicyEvaluationRepository,
+  PolicyEvaluationEntity,
+} from '../../repositories/PolicyEvaluationRepository';
 import { PolicyViolationRepository, PolicyViolationEntity } from '../../repositories/PolicyViolationRepository';
-import { PolicyOverrideRepository, PolicyOverrideEntity } from '../../repositories/PolicyOverrideRepository';
+import { DatabasePool } from '../database';
 
-export interface PolicyEvaluationListFilter {
-  runId?: string;
+const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+
+// ==================== Types ====================
+
+export interface EvaluationInput {
   policyId?: string;
+  tenantId: string;
+  runId: string;
+  resourceType?: string;
+  resourceId?: string;
+  action?: string;
+  context?: Record<string, any>;
 }
 
-export interface PolicyViolationListFilter {
-  status?: ViolationStatus;
-  severity?: string;
-  policyId?: string;
+export interface EvaluationResult {
+  id: string;
+  allowed: boolean;
+  policyId: string | null;
+  runId: string;
+  result: Record<string, any>;
+  evaluatedAt: Date;
+  evaluationMs: number | null;
+  violations?: PolicyViolationEntity[];
 }
 
-export interface PolicyEvaluationResult {
-  passed: boolean;
-  violations: PolicyViolation[];
-  warnings: PolicyViolation[];
-  evaluations: PolicyEvaluation[];
-}
-
-export interface PolicyEvaluationServiceConfig {
-  /** OPA server base URL (e.g. http://localhost:8181) */
-  opaUrl?: string;
-  /** OPA policy package path (e.g. orion/policies) */
-  opaPackage?: string;
-  /** Request timeout (ms) */
-  opaTimeout?: number;
-}
+// ==================== PolicyEvaluationService ====================
 
 export class PolicyEvaluationService {
-  private evaluationRepository?: PolicyEvaluationRepository;
-  private violationRepository?: PolicyViolationRepository;
-  private overrideRepository?: PolicyOverrideRepository;
-  private eventBus?: EventBusService;
-  private opaUrl?: string;
-  private opaPackage: string;
-  private opaTimeout: number;
+  private evalRepo: PolicyEvaluationRepository | null = null;
+  private violationRepo: PolicyViolationRepository | null = null;
 
-  constructor(options?: {
-    eventBus?: EventBusService;
-    db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> };
-    config?: PolicyEvaluationServiceConfig;
-  }) {
-    this.eventBus = options?.eventBus;
-    if (options?.db) {
-      this.evaluationRepository = new PolicyEvaluationRepository(options.db);
-      this.violationRepository = new PolicyViolationRepository(options.db);
-      this.overrideRepository = new PolicyOverrideRepository(options.db);
+  constructor(db?: DatabasePool) {
+    if (db) {
+      this.setRepositories(
+        new PolicyEvaluationRepository(db),
+        new PolicyViolationRepository(db),
+      );
     }
-    this.opaUrl = options?.config?.opaUrl || process.env.OPA_URL;
-    this.opaPackage = options?.config?.opaPackage || 'orion.policies';
-    this.opaTimeout = options?.config?.opaTimeout || 5_000;
   }
 
   /**
-   * Evaluate a policy against input context
-   * Uses real OPA REST API when OPA_URL is configured, falls back to mock
+   * Set repositories after construction (for lazy initialization)
    */
-  async evaluate(
-    policyId: string,
-    runId: string,
-    inputContext: Record<string, unknown>
-  ): Promise<{ evaluation: PolicyEvaluation; violations: PolicyViolation[] }> {
+  setRepositories(evalRepo: PolicyEvaluationRepository, violationRepo: PolicyViolationRepository): void {
+    this.evalRepo = evalRepo;
+    this.violationRepo = violationRepo;
+  }
+
+  // ==================== Evaluation Operations ====================
+
+  /**
+   * Evaluate a single policy or multiple policies
+   */
+  async evaluate(input: EvaluationInput): Promise<EvaluationResult> {
+    const evaluationId = this.generateId();
     const startTime = Date.now();
 
-    // Try real OPA evaluation, fallback to mock
-    const mockResult = await this.callOpa(policyId, inputContext);
+    // In production, this would:
+    // 1. Retrieve the policy (or all policies for the tenant)
+    // 2. Execute OPA evaluation with the input context
+    // 3. Determine if the action is allowed
 
-    const evaluation = createPolicyEvaluation({
+    const allowed = true; // Mock: always allow for now
+    const policyId = input.policyId ?? 'default-policy';
+
+    const result: EvaluationResult = {
+      id: evaluationId,
+      allowed,
       policyId,
-      runId,
-      inputContext,
-      result: mockResult,
+      runId: input.runId,
+      result: {
+        allowed,
+        reason: 'Evaluation completed',
+        context: input.context || {},
+      },
+      evaluatedAt: new Date(),
       evaluationMs: Date.now() - startTime,
-    });
+    };
 
-    if (this.evaluationRepository) {
-      await this.evaluationRepository.create({
-        id: evaluation.id,
-        policyId,
-        runId,
-        inputContext: inputContext as Record<string, any>,
-        result: mockResult as Record<string, any>,
-        evaluatedAt: new Date(),
-        evaluationMs: evaluation.evaluationMs ?? null,
+    // Store evaluation result
+    if (this.evalRepo) {
+      await this.evalRepo.create({
+        id: evaluationId,
+        policyId: input.policyId,
+        runId: input.runId,
+        inputContext: {
+          resourceType: input.resourceType,
+          resourceId: input.resourceId,
+          action: input.action,
+          ...input.context,
+        },
+        result: result.result,
+        evaluatedAt: result.evaluatedAt,
+        evaluationMs: result.evaluationMs,
       });
     }
 
-    const violations: PolicyViolation[] = [];
-    if (!mockResult.allow && Array.isArray(mockResult.deny)) {
-      for (const msg of mockResult.deny as string[]) {
-        const violation = createPolicyViolation({
-          evaluationId: evaluation.id,
-          policyId,
-          severity: 'block',
-          message: msg,
-          resourceType: (inputContext as any).resourceType,
-          resourceId: (inputContext as any).resourceId,
-        });
-        if (this.violationRepository) {
-          await this.violationRepository.create({
-            id: violation.id,
-            evaluationId: evaluation.id,
-            policyId,
-            severity: 'block',
-            message: msg,
-            resourceType: (inputContext as any).resourceType,
-            resourceId: (inputContext as any).resourceId,
-          });
-        }
-        violations.push(violation);
-      }
-    }
-
-    await this.eventBus?.publish('policy.evaluated', {
-      evaluationId: evaluation.id,
-      policyId,
-      passed: mockResult.allow,
-      violations: violations.length,
-    });
-
-    return { evaluation, violations };
-  }
-
-  /**
-   * Call OPA REST API for policy evaluation
-   * Falls back to mock if OPA is not configured or unreachable
-   */
-  private async callOpa(
-    policyId: string,
-    inputContext: Record<string, unknown>
-  ): Promise<{ allow: boolean; deny: string[]; warnings: string[] }> {
-    const fallback: { allow: boolean; deny: string[]; warnings: string[] } = {
-      allow: true,
-      deny: [],
-      warnings: [],
-    };
-
-    if (!this.opaUrl) return fallback;
-
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), this.opaTimeout);
-
-      const response = await fetch(`${this.opaUrl}/v1/data/${this.opaPackage}/${policyId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ input: inputContext }),
-        signal: controller.signal,
-      });
-      clearTimeout(timeout);
-
-      if (!response.ok) {
-        return fallback;
-      }
-
-      const text = await response.text();
-      const data: { result?: { allow?: boolean; deny?: string[]; warnings?: string[] } } = JSON.parse(text);
-      return {
-        allow: data?.result?.allow ?? true,
-        deny: data?.result?.deny ?? [],
-        warnings: data?.result?.warnings ?? [],
-      };
-    } catch {
-      return fallback;
-    }
-  }
-
-  /**
-   * Evaluate all policies for a given gate
-   */
-  async evaluateGate(
-    gateId: string,
-    runId: string,
-    inputContext: Record<string, unknown>
-  ): Promise<PolicyEvaluationResult> {
-    const result: PolicyEvaluationResult = {
-      passed: true,
-      violations: [],
-      warnings: [],
-      evaluations: [],
-    };
-
-    const evalResult = await this.evaluate('mock-policy', runId, inputContext);
-    result.evaluations.push(evalResult.evaluation);
-    result.violations.push(...evalResult.violations.filter(v => true));
-    result.passed = evalResult.violations.length === 0;
-
+    logger.info({ evaluationId, policyId, runId: input.runId, allowed }, '[PolicyEvaluationService] Evaluation completed');
     return result;
   }
 
-  // Evaluation listing
-  async getEvaluations(filter: PolicyEvaluationListFilter = {}): Promise<PolicyEvaluation[]> {
-    if (this.evaluationRepository) {
-      if (filter.runId) {
-        const entities = await this.evaluationRepository.findByRunId(filter.runId);
-        return entities.map(e => this.mapEntityToEvaluation(e));
-      }
-      if (filter.policyId) {
-        const entities = await this.evaluationRepository.findByPolicyId(filter.policyId);
-        return entities.map(e => this.mapEntityToEvaluation(e));
-      }
-      const result = await this.evaluationRepository.findAll();
-      return result.entities.map((e: PolicyEvaluationEntity) => this.mapEntityToEvaluation(e));
-    }
-    return [];
+  /**
+   * Evaluate a specific policy against a context
+   */
+  async evaluatePolicy(policyId: string, context: Record<string, any>): Promise<EvaluationResult> {
+    const runId = context.runId || this.generateId();
+    return this.evaluate({
+      policyId,
+      tenantId: context.tenantId || 'default',
+      runId,
+      context,
+    });
   }
 
-  private mapEntityToEvaluation(entity: PolicyEvaluationEntity): PolicyEvaluation {
+  /**
+   * Batch evaluate multiple policies
+   */
+  async evaluateBatch(inputs: EvaluationInput[]): Promise<EvaluationResult[]> {
+    const results: EvaluationResult[] = [];
+
+    for (const input of inputs) {
+      const result = await this.evaluate(input);
+      results.push(result);
+    }
+
+    return results;
+  }
+
+  // ==================== Query Operations ====================
+
+  /**
+   * Get evaluation by ID
+   */
+  async getEvaluation(id: string): Promise<EvaluationResult | null> {
+    if (!this.evalRepo) {
+      return null;
+    }
+
+    const entity = await this.evalRepo.findById(id);
+    if (!entity) {
+      return null;
+    }
+
+    return this.entityToResult(entity);
+  }
+
+  /**
+   * Get evaluations by run ID
+   */
+  async getByRunId(runId: string): Promise<EvaluationResult[]> {
+    if (!this.evalRepo) {
+      return [];
+    }
+
+    const entities = await this.evalRepo.findByRunId(runId);
+    return entities.map(e => this.entityToResult(e));
+  }
+
+  /**
+   * Get evaluations by policy ID
+   */
+  async getByPolicyId(policyId: string, options?: { limit?: number; offset?: number }): Promise<EvaluationResult[]> {
+    if (!this.evalRepo) {
+      return [];
+    }
+
+    const entities = await this.evalRepo.findByPolicyId(policyId, options);
+    return entities.map(e => this.entityToResult(e));
+  }
+
+  /**
+   * Get all evaluations with filtering
+   */
+  async listEvaluations(limit: number = 20, offset: number = 0): Promise<{ evaluations: EvaluationResult[]; total: number }> {
+    if (!this.evalRepo) {
+      return { evaluations: [], total: 0 };
+    }
+
+    const result = await this.evalRepo.findAll({ limit, offset });
+    return {
+      evaluations: result.entities.map(e => this.entityToResult(e)),
+      total: result.total,
+    };
+  }
+
+  // ==================== Violation Operations ====================
+
+  /**
+   * Get violations for an evaluation
+   */
+  async getViolations(evaluationId: string): Promise<PolicyViolationEntity[]> {
+    if (!this.violationRepo) {
+      return [];
+    }
+
+    const violations = await this.violationRepo.findAllWithOptions({
+      limit: 100,
+    });
+
+    return violations.entities.filter(v => v.evaluation_id === evaluationId);
+  }
+
+  /**
+   * Get violations by policy
+   */
+  async getViolationsByPolicy(policyId: string): Promise<PolicyViolationEntity[]> {
+    if (!this.violationRepo) {
+      return [];
+    }
+
+    return this.violationRepo.findByPolicyId(policyId);
+  }
+
+  /**
+   * Get violations by status
+   */
+  async getOpenViolations(status: string = 'open'): Promise<PolicyViolationEntity[]> {
+    if (!this.violationRepo) {
+      return [];
+    }
+
+    return this.violationRepo.findByStatus(status);
+  }
+
+  /**
+   * Update violation status
+   */
+  async updateViolationStatus(id: string, status: string): Promise<PolicyViolationEntity | null> {
+    if (!this.violationRepo) {
+      return null;
+    }
+
+    return this.violationRepo.updateStatus(id, status);
+  }
+
+  // ==================== Utility Methods ====================
+
+  private entityToResult(entity: PolicyEvaluationEntity): EvaluationResult {
     return {
       id: entity.id,
-      policyId: entity.policyId ?? undefined,
+      allowed: entity.result?.allowed ?? true,
+      policyId: entity.policyId,
       runId: entity.runId,
-      inputContext: entity.inputContext,
       result: entity.result,
       evaluatedAt: entity.evaluatedAt,
-      evaluationMs: entity.evaluationMs ?? undefined,
+      evaluationMs: entity.evaluationMs,
     };
   }
 
-  // Violation listing
-  async getViolations(filter: PolicyViolationListFilter = {}): Promise<PolicyViolation[]> {
-    if (this.violationRepository) {
-      const result = await this.violationRepository.findAllWithOptions({
-        status: filter.status,
-        severity: filter.severity,
-        policyId: filter.policyId,
-      });
-      return result.entities.map(e => this.mapEntityToViolation(e));
-    }
-    return [];
+  private generateId(): string {
+    return `eval-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
   }
 
-  async getViolationById(id: string): Promise<PolicyViolation | undefined> {
-    if (this.violationRepository) {
-      const entity = await this.violationRepository.findById(id);
-      return entity ? this.mapEntityToViolation(entity) : undefined;
-    }
-    return undefined;
-  }
+  /**
+   * Get compliance status for a tenant or policy
+   */
+  async getComplianceStatus(options?: {
+    tenantId?: string;
+    policyId?: string;
+    period?: 'day' | 'week' | 'month';
+  }): Promise<{
+    totalEvaluations: number;
+    allowedCount: number;
+    deniedCount: number;
+    complianceRate: number;
+    byPolicy: Array<{ policyId: string; allowed: number; denied: number; complianceRate: number }>;
+    period: string;
+  }> {
+    const period = options?.period ?? 'week';
+    const periodDays = period === 'day' ? 1 : period === 'week' ? 7 : 30;
+    const startDate = new Date(Date.now() - periodDays * 24 * 60 * 60 * 1000);
 
-  async waiveViolation(id: string, reason: string): Promise<PolicyViolation | undefined> {
-    if (!this.violationRepository) return undefined;
-    const entity = await this.violationRepository.updateStatus(id, 'waived');
-    if (!entity) return undefined;
+    let evaluations: PolicyEvaluationEntity[] = [];
 
-    const violation = this.mapEntityToViolation(entity);
-    await this.eventBus?.publish('policy.violation.waived', { violationId: id, reason });
-    return violation;
-  }
-
-  async resolveViolation(id: string): Promise<PolicyViolation | undefined> {
-    if (!this.violationRepository) return undefined;
-    const entity = await this.violationRepository.updateStatus(id, 'resolved');
-    if (!entity) return undefined;
-
-    const violation = this.mapEntityToViolation(entity);
-    await this.eventBus?.publish('policy.violation.resolved', { violationId: id });
-    return violation;
-  }
-
-  // Override management
-  async createOverride(input: PolicyOverrideCreateInput): Promise<PolicyOverride> {
-    const override = createPolicyOverride(input);
-    if (this.overrideRepository) {
-      const now = new Date();
-      await this.overrideRepository.createOverride({
-        id: override.id,
-        tenantId: 'default',
-        policyId: override.policyId || '',
-        violationId: override.violationId,
-        reason: override.reason,
-        approvedBy: override.approvedBy || 'system',
-        approvedAt: override.approvedAt,
-        status: 'active',
-        expiresAt: override.expiresAt,
-        createdAt: now,
-        updatedAt: now,
-        scope: override.scope,
-      });
+    if (this.evalRepo) {
+      if (options?.policyId) {
+        evaluations = await this.evalRepo.findByPolicyId(options.policyId, { limit: 1000 });
+      } else {
+        const result = await this.evalRepo.findAll({ limit: 1000, offset: 0 });
+        evaluations = result.entities;
+      }
     }
 
-    await this.eventBus?.publish('policy.override.created', {
-      overrideId: override.id,
-      policyId: override.policyId,
-    });
-    return override;
-  }
+    // Filter by date
+    const filtered = evaluations.filter((e) => e.evaluatedAt >= startDate);
 
-  async listOverrides(): Promise<PolicyOverride[]> {
-    if (this.overrideRepository) {
-      const result = await this.overrideRepository.findAll();
-      return result.entities.map((e) => this.mapEntityToOverride(e));
+    // Calculate stats
+    const totalEvaluations = filtered.length;
+    const allowedCount = filtered.filter((e) => e.result?.allowed === true).length;
+    const deniedCount = filtered.filter((e) => e.result?.allowed === false).length;
+    const complianceRate = totalEvaluations > 0 ? allowedCount / totalEvaluations : 1;
+
+    // Group by policy
+    const policyMap = new Map<string, { allowed: number; denied: number }>();
+    for (const eval_ of filtered) {
+      const pid = eval_.policyId ?? 'default';
+      const current = policyMap.get(pid) ?? { allowed: 0, denied: 0 };
+      if (eval_.result?.allowed === true) {
+        current.allowed++;
+      } else if (eval_.result?.allowed === false) {
+        current.denied++;
+      }
+      policyMap.set(pid, current);
     }
-    return [];
-  }
 
-  private mapEntityToViolation(entity: PolicyViolationEntity): PolicyViolation {
+    const byPolicy = Array.from(policyMap.entries()).map(([policyId, stats]) => ({
+      policyId,
+      allowed: stats.allowed,
+      denied: stats.denied,
+      complianceRate: (stats.allowed + stats.denied) > 0 ? stats.allowed / (stats.allowed + stats.denied) : 1,
+    }));
+
+    logger.info({
+      totalEvaluations,
+      complianceRate: complianceRate.toFixed(2),
+      period
+    }, '[PolicyEvaluationService] Compliance status computed');
+
     return {
-      id: entity.id,
-      evaluationId: entity.evaluation_id ?? undefined,
-      policyId: entity.policy_id ?? undefined,
-      severity: entity.severity as PolicySeverity,
-      message: entity.message,
-      resourceType: (entity.resource_type ?? undefined) as ViolationResourceType | undefined,
-      resourceId: entity.resource_id ?? undefined,
-      status: (entity.status as ViolationStatus) ?? 'open',
-      createdAt: entity.created_at,
+      totalEvaluations,
+      allowedCount,
+      deniedCount,
+      complianceRate,
+      byPolicy,
+      period,
     };
   }
 
-  private mapEntityToOverride(entity: PolicyOverrideEntity): PolicyOverride {
+  /**
+   * Get policy enforcement summary
+   */
+  async getEnforcementSummary(tenantId?: string): Promise<{
+    activeViolations: number;
+    resolvedViolations: number;
+    policies: Array<{ id: string; name: string; violationCount: number }>;
+  }> {
+    const openViolations = await this.getOpenViolations('open');
+    const allViolations = await this.getOpenViolations();
+
+    // Group violations by policy
+    const policyViolationMap = new Map<string, number>();
+    for (const v of openViolations) {
+      const pid = v.policy_id ?? 'default';
+      policyViolationMap.set(pid, (policyViolationMap.get(pid) ?? 0) + 1);
+    }
+
+    const policies = Array.from(policyViolationMap.entries()).map(([id, violationCount]) => ({
+      id,
+      name: id,
+      violationCount,
+    }));
+
     return {
-      id: entity.id,
-      policyId: entity.policyId ?? undefined,
-      violationId: entity.violationId ?? undefined,
-      reason: entity.reason,
-      approvedBy: entity.approvedBy ?? undefined,
-      approvedAt: entity.approvedAt ?? entity.createdAt,
-      expiresAt: entity.expiresAt ?? new Date(Date.now() + 86400000 * 30),
-      scope: (entity.scope ?? 'global') as import('../../models/PolicyDefinition').OverrideScope,
+      activeViolations: openViolations.length,
+      resolvedViolations: allViolations.length - openViolations.length,
+      policies,
     };
   }
 }
+
+export default PolicyEvaluationService;

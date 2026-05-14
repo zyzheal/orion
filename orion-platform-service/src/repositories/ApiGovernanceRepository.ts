@@ -63,15 +63,6 @@ export class GovernanceRuleRepository extends BaseRepository<GovernanceRuleEntit
     return result.rows.map(row => this.mapRowToEntity(row));
   }
 
-  async findById(id: string): Promise<GovernanceRuleEntity | null> {
-    const result = await this.db.query(
-      `SELECT * FROM governance_rules WHERE id = $1`,
-      [id],
-    );
-    if (result.rows.length === 0) return null;
-    return this.mapRowToEntity(result.rows[0]);
-  }
-
   async createRule(input: CreateGovernanceRuleInput): Promise<GovernanceRuleEntity> {
     const result = await this.db.query(
       `INSERT INTO governance_rules (id, tenant_id, name, description, rule_type, config, enabled)

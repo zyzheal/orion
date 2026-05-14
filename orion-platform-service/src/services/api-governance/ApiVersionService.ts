@@ -24,16 +24,50 @@ export interface RegisterApiVersionInput {
   definition: Record<string, unknown>;
 }
 
+import { ApiVersionRepository } from '../../repositories/ApiVersionRepository';
+
 export class ApiVersionService {
-  private versions = new Map<string, ApiVersion>();
+  private repository: ApiVersionRepository | null = null;
+
+  constructor(
+    private db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }
+  ) {
+    if (db) {
+      this.repository = new ApiVersionRepository(db as any);
+    }
+  }
 
   async registerApiVersion(
     tenantId: string,
     input: RegisterApiVersionInput,
   ): Promise<ApiVersion> {
     const now = new Date().toISOString();
+    const id = randomUUID();
+
+    if (this.repository) {
+      const entity = await this.repository.createVersion({
+        id,
+        tenantId,
+        apiId: input.apiId,
+        version: input.version,
+        definition: input.definition,
+      });
+
+      return {
+        id: entity.id,
+        tenantId: entity.tenantId,
+        apiId: entity.apiId,
+        version: entity.version,
+        definition: entity.definition,
+        status: entity.status,
+        createdAt: entity.createdAt.toISOString(),
+        deprecatedAt: entity.deprecatedAt?.toISOString(),
+      };
+    }
+
+    // Fallback to in-memory if no DB
     const version: ApiVersion = {
-      id: randomUUID(),
+      id,
       tenantId,
       apiId: input.apiId,
       version: input.version,
@@ -41,34 +75,66 @@ export class ApiVersionService {
       status: 'active',
       createdAt: now,
     };
-    this.versions.set(version.id, version);
     return version;
   }
 
   async listApiVersions(apiId: string): Promise<ApiVersion[]> {
-    return Array.from(this.versions.values())
-      .filter((v) => v.apiId === apiId)
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    if (!this.repository) return [];
+
+    const entities = await this.repository.findByApiId(apiId);
+    return entities.map(entity => ({
+      id: entity.id,
+      tenantId: entity.tenantId,
+      apiId: entity.apiId,
+      version: entity.version,
+      definition: entity.definition,
+      status: entity.status,
+      createdAt: entity.createdAt.toISOString(),
+      deprecatedAt: entity.deprecatedAt?.toISOString(),
+    }));
   }
 
   async getVersion(versionId: string): Promise<ApiVersion | null> {
-    return this.versions.get(versionId) ?? null;
+    if (!this.repository) return null;
+
+    const entity = await this.repository.findById(versionId);
+    if (!entity) return null;
+
+    return {
+      id: entity.id,
+      tenantId: entity.tenantId,
+      apiId: entity.apiId,
+      version: entity.version,
+      definition: entity.definition,
+      status: entity.status,
+      createdAt: entity.createdAt.toISOString(),
+      deprecatedAt: entity.deprecatedAt?.toISOString(),
+    };
   }
 
   async deprecateVersion(versionId: string): Promise<ApiVersion | null> {
-    const version = this.versions.get(versionId);
-    if (!version) return null;
+    if (!this.repository) return null;
 
-    version.status = 'deprecated';
-    version.deprecatedAt = new Date().toISOString();
-    return version;
+    const entity = await this.repository.updateStatus(versionId, 'deprecated');
+    if (!entity) return null;
+
+    return {
+      id: entity.id,
+      tenantId: entity.tenantId,
+      apiId: entity.apiId,
+      version: entity.version,
+      definition: entity.definition,
+      status: entity.status,
+      createdAt: entity.createdAt.toISOString(),
+      deprecatedAt: entity.deprecatedAt?.toISOString(),
+    };
   }
 
   async checkCompatibility(
     versionId: string,
     newDefinition: Record<string, unknown>,
   ): Promise<CompatibilityReport | null> {
-    const version = this.versions.get(versionId);
+    const version = await this.getVersion(versionId);
     if (!version) return null;
 
     const breakingChanges: string[] = [];
@@ -121,10 +187,23 @@ export class ApiVersionService {
   }
 
   async deleteVersion(versionId: string): Promise<boolean> {
-    return this.versions.delete(versionId);
+    if (!this.repository) return false;
+    return this.repository.deleteVersion(versionId);
   }
 
   async getVersionsByTenant(tenantId: string): Promise<ApiVersion[]> {
-    return Array.from(this.versions.values()).filter((v) => v.tenantId === tenantId);
+    if (!this.repository) return [];
+
+    const entities = await this.repository.findByTenant(tenantId);
+    return entities.map(entity => ({
+      id: entity.id,
+      tenantId: entity.tenantId,
+      apiId: entity.apiId,
+      version: entity.version,
+      definition: entity.definition,
+      status: entity.status,
+      createdAt: entity.createdAt.toISOString(),
+      deprecatedAt: entity.deprecatedAt?.toISOString(),
+    }));
   }
 }
