@@ -556,7 +556,7 @@ export class DecisionExplanationService {
     // 根据特征名匹配最合适的规则集
     const featureNames = features.map((f) => f.name);
 
-    for (const [type, rules] of this.decisionRules.entries()) {
+    for (const [type, rules] of Array.from(this.decisionRules.entries())) {
       const matchCount = rules.criticalFeatures.filter((cf) =>
         featureNames.some((fn) => fn.includes(cf) || cf.includes(fn))
       ).length;
