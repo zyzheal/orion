@@ -2,7 +2,7 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import sensible from '@fastify/sensible';
 import { errorHandler } from './middleware/errorHandler';
-import { visorRoutes } from './routes/visor';
+import { visorRoutes } from './routes/visor-routes';
 
 async function buildApp() {
   const fastify = Fastify({ logger: { level: process.env.LOG_LEVEL || 'info' } });
