@@ -1,6 +1,6 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
-import { deployRoutes } from './routes/deploy';
+import { deployRoutes } from './routes/deploy-routes';
 import { errorHandler } from './middleware/errorHandler';
 async function buildApp() {
   const fastify = Fastify({ logger: { level: 'info' } });

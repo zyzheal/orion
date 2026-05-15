@@ -657,12 +657,14 @@ export class DeploymentWorkflow {
   async listDeployments(query: {
     pipelineId?: string;
     status?: string;
+    environment?: string;
     limit?: number;
   }): Promise<Deployment[]> {
     const limit = query.limit || 20;
     const response = await this.historyService.getHistory({
       limit,
       status: query.status as any,
+      environment: query.environment,
     });
     let deployments = response.data;
     if (query.pipelineId) {
