@@ -1,16 +1,19 @@
-.PHONY: help install dev test lint docker-up docker-down
+.PHONY: help install dev test lint docker-up docker-down db-migrate db-upgrade db-downgrade
 
 help:
 	@echo "Orion Intelligence Service"
 	@echo ""
 	@echo "Commands:"
-	@echo "  install     Install dependencies with uv"
-	@echo "  dev         Start development server with auto-reload"
-	@echo "  test        Run test suite"
-	@echo "  test-cov    Run tests with coverage report"
-	@echo "  lint        Run ruff and mypy"
-	@echo "  docker-up   Start full stack with docker compose"
-	@echo "  docker-down Stop docker compose stack"
+	@echo "  install        Install dependencies with uv"
+	@echo "  dev            Start development server with auto-reload"
+	@echo "  test           Run test suite"
+	@echo "  test-cov       Run tests with coverage report"
+	@echo "  lint           Run ruff and mypy"
+	@echo "  docker-up      Start full stack with docker compose"
+	@echo "  docker-down    Stop docker compose stack"
+	@echo "  db-migrate     Create a new database migration"
+	@echo "  db-upgrade     Run database migrations"
+	@echo "  db-downgrade   Rollback last database migration"
 
 install:
 	uv sync
@@ -34,3 +37,13 @@ docker-up:
 
 docker-down:
 	docker compose down
+
+# Database migration commands
+db-migrate:
+	uv run alembic revision --autogenerate -m "$(MESSAGE)"
+
+db-upgrade:
+	uv run alembic upgrade head
+
+db-downgrade:
+	uv run alembic downgrade -1

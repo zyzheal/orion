@@ -1,0 +1,146 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orion-intelligence-svc
+  namespace: orion
+  labels:
+    app: orion-intelligence-svc
+    version: v1
+    component: intelligence-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: orion-intelligence-svc
+  template:
+    metadata:
+      labels:
+        app: orion-intelligence-svc
+        version: v1
+        component: intelligence-service
+    spec:
+      containers:
+        - name: intelligence-svc
+          image: orion-intelligence-svc:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+              name: http
+              protocol: TCP
+          env:
+            - name: APP_ENV
+              value: "production"
+            - name: PORT
+              value: "8000"
+            - name: LOG_LEVEL
+              value: "info"
+            # Database
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: orion-intelligence-secrets
+                  key: DATABASE_URL
+            # ClickHouse
+            - name: CLICKHOUSE_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: orion-intelligence-config
+                  key: CLICKHOUSE_HOST
+            - name: CLICKHOUSE_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: orion-intelligence-config
+                  key: CLICKHOUSE_PORT
+            - name: CLICKHOUSE_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: orion-intelligence-config
+                  key: CLICKHOUSE_USER
+            - name: CLICKHOUSE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: orion-intelligence-secrets
+                  key: CLICKHOUSE_PASSWORD
+            - name: CLICKHOUSE_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: orion-intelligence-config
+                  key: CLICKHOUSE_DB
+            # Redis
+            - name: REDIS_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: orion-intelligence-config
+                  key: REDIS_URL
+            # LLM
+            - name: LLM_API_BASE
+              valueFrom:
+                configMapKeyRef:
+                  name: orion-intelligence-config
+                  key: LLM_API_BASE
+            - name: LLM_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: orion-intelligence-secrets
+                  key: LLM_API_KEY
+            - name: LLM_MODEL
+              valueFrom:
+                configMapKeyRef:
+                  name: orion-intelligence-config
+                  key: LLM_MODEL
+            # Knowledge Service
+            - name: KNOWLEDGE_SVC_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: orion-intelligence-config
+                  key: KNOWLEDGE_SVC_URL
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "500m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          livenessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /api/v1/ready
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: orion-intelligence-config
+  namespace: orion
+data:
+  CLICKHOUSE_HOST: "clickhouse.orion.svc.cluster.local"
+  CLICKHOUSE_PORT: "9000"
+  CLICKHOUSE_USER: "orion"
+  CLICKHOUSE_DB: "analytics"
+  REDIS_URL: "redis://redis.orion.svc.cluster.local:6379/3"
+  LLM_API_BASE: "https://api.openai.com/v1"
+  LLM_MODEL: "gpt-4o"
+  KNOWLEDGE_SVC_URL: "http://orion-knowledge-svc.orion.svc.cluster.local:8003"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: orion-intelligence-secrets
+  namespace: orion
+type: Opaque
+stringData:
+  DATABASE_URL: "postgresql+asyncpg://orion:changeme@postgres.orion.svc.cluster.local:5432/orion_intelligence"
+  CLICKHOUSE_PASSWORD: "changeme"
+  LLM_API_KEY: "sk-your-api-key-here"
