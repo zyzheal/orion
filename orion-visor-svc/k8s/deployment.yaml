@@ -1,0 +1,95 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orion-visor-svc
+  namespace: orion
+  labels:
+    app: orion-visor-svc
+    version: v1
+    component: visor-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: orion-visor-svc
+  template:
+    metadata:
+      labels:
+        app: orion-visor-svc
+        version: v1
+        component: visor-service
+    spec:
+      containers:
+        - name: visor-svc
+          image: orion-visor-svc:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3032
+              name: http
+              protocol: TCP
+          env:
+            - name: NODE_ENV
+              value: "production"
+            - name: PORT
+              value: "3032"
+            - name: VISOR_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: orion-visor-config
+                  key: VISOR_URL
+            - name: VISOR_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: orion-visor-secrets
+                  key: VISOR_API_KEY
+            - name: VISOR_TIMEOUT
+              value: "30000"
+            - name: LOG_LEVEL
+              value: "info"
+            - name: CORS_ORIGIN
+              valueFrom:
+                configMapKeyRef:
+                  name: orion-visor-config
+                  key: CORS_ORIGIN
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "200m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3032
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3032
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: orion-visor-config
+  namespace: orion
+data:
+  VISOR_URL: "http://visor-backend:8080"
+  CORS_ORIGIN: "https://orion.example.com"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: orion-visor-secrets
+  namespace: orion
+type: Opaque
+stringData:
+  VISOR_API_KEY: "changeme"

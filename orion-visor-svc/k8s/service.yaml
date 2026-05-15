@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: orion-visor-svc
+  namespace: orion
+  labels:
+    app: orion-visor-svc
+    version: v1
+    component: visor-service
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      targetPort: 3032
+      protocol: TCP
+  selector:
+    app: orion-visor-svc
