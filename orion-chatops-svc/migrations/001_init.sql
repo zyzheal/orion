@@ -179,7 +179,14 @@ CREATE INDEX IF NOT EXISTS idx_chatops_platform_configs_tenant ON chatops_platfo
 CREATE INDEX IF NOT EXISTS idx_chatops_platform_configs_user ON chatops_platform_configs(user_id);
 
 -- ============================================
--- Deployment Tables
+-- [MIGRATION SCOPE NOTE]
+-- This migration creates tables for multiple services to support quick onboarding.
+-- Tables not belonging to ChatOps are marked with ownership comments.
+-- In production, these should be split to their respective service migrations.
+-- ============================================
+
+-- ============================================
+-- Deployment Tables (owned by: orion-platform-service deployment service)
 -- ============================================
 
 CREATE TABLE IF NOT EXISTS deployments (
@@ -198,7 +205,7 @@ CREATE INDEX IF NOT EXISTS idx_deployments_environment ON deployments(environmen
 CREATE INDEX IF NOT EXISTS idx_deployments_status ON deployments(status);
 
 -- ============================================
--- Pipeline Related Tables
+-- Pipeline Related Tables (owned by: orion-platform-service pipeline service)
 -- ============================================
 
 CREATE TABLE IF NOT EXISTS pipeline_triggers (
@@ -239,7 +246,7 @@ CREATE TABLE IF NOT EXISTS pipeline_rbac_rules (
 CREATE INDEX IF NOT EXISTS idx_pipeline_rbac_rules_tenant ON pipeline_rbac_rules(tenant_id);
 
 -- ============================================
--- Monitoring & Alert Tables
+-- Monitoring & Alert Tables (owned by: orion-platform-service alert service)
 -- ============================================
 
 CREATE TABLE IF NOT EXISTS alert_rules (
@@ -280,7 +287,7 @@ CREATE TABLE IF NOT EXISTS notification_channels (
 CREATE INDEX IF NOT EXISTS idx_notification_channels_tenant ON notification_channels(tenant_id);
 
 -- ============================================
--- Secrets & Configuration Tables
+-- Secrets & Configuration Tables (owned by: orion-security-svc secrets service)
 -- ============================================
 
 CREATE TABLE IF NOT EXISTS secrets (
@@ -311,7 +318,7 @@ CREATE TABLE IF NOT EXISTS configs (
 CREATE INDEX IF NOT EXISTS idx_configs_tenant ON configs(tenant_id);
 
 -- ============================================
--- Build & Artifact Tables
+-- Build & Artifact Tables (owned by: orion-platform-service build service)
 -- ============================================
 
 CREATE TABLE IF NOT EXISTS artifacts (
@@ -364,7 +371,7 @@ CREATE TABLE IF NOT EXISTS build_cache_entries (
 CREATE INDEX IF NOT EXISTS idx_build_cache_entries_config ON build_cache_entries(config_id);
 
 -- ============================================
--- IaC & Infrastructure Tables
+-- IaC & Infrastructure Tables (owned by: orion-platform-service iac service)
 -- ============================================
 
 CREATE TABLE IF NOT EXISTS iac_workspaces (
@@ -402,7 +409,7 @@ CREATE TABLE IF NOT EXISTS iac_modules (
 CREATE INDEX IF NOT EXISTS idx_iac_modules_tenant ON iac_modules(tenant_id);
 
 -- ============================================
--- Security & Compliance Tables
+-- Security & Compliance Tables (owned by: orion-security-svc)
 -- ============================================
 
 CREATE TABLE IF NOT EXISTS security_scans (
@@ -457,7 +464,7 @@ CREATE TABLE IF NOT EXISTS sbom_vulnerabilities (
 CREATE INDEX IF NOT EXISTS idx_sbom_vulnerabilities_document ON sbom_vulnerabilities(document_id);
 
 -- ============================================
--- On-Call Tables
+-- On-Call Tables (owned by: orion-platform-service oncall service)
 -- ============================================
 
 CREATE TABLE IF NOT EXISTS oncall_schedules (
@@ -496,7 +503,7 @@ CREATE TABLE IF NOT EXISTS oncall_overrides (
 CREATE INDEX IF NOT EXISTS idx_oncall_overrides_schedule ON oncall_overrides(schedule_id);
 
 -- ============================================
--- Quality Gate Tables
+-- Quality Gate Tables (owned by: orion-platform-service quality gate service)
 -- ============================================
 
 CREATE TABLE IF NOT EXISTS quality_gates (
@@ -522,7 +529,7 @@ CREATE TABLE IF NOT EXISTS quality_gate_results (
 CREATE INDEX IF NOT EXISTS idx_quality_gate_results_gate ON quality_gate_results(gate_id);
 
 -- ============================================
--- Approval Tables
+-- Approval Tables (owned by: orion-platform-service approval service)
 -- ============================================
 
 CREATE TABLE IF NOT EXISTS approvals (
@@ -555,7 +562,7 @@ CREATE TABLE IF NOT EXISTS inline_script_approvals (
 CREATE INDEX IF NOT EXISTS idx_inline_script_approvals_tenant ON inline_script_approvals(tenant_id);
 
 -- ============================================
--- Rollback & Recovery Tables
+-- Rollback & Recovery Tables (owned by: orion-platform-service)
 -- ============================================
 
 CREATE TABLE IF NOT EXISTS rollback_history (
@@ -572,7 +579,7 @@ CREATE TABLE IF NOT EXISTS rollback_history (
 CREATE INDEX IF NOT EXISTS idx_rollback_history_tenant ON rollback_history(tenant_id);
 
 -- ============================================
--- Tenant & Quota Tables
+-- Tenant & Quota Tables (owned by: orion-platform-service tenant service)
 -- ============================================
 
 CREATE TABLE IF NOT EXISTS tenant_quotas (
@@ -589,7 +596,7 @@ CREATE TABLE IF NOT EXISTS tenant_quotas (
 CREATE INDEX IF NOT EXISTS idx_tenant_quotas_tenant ON tenant_quotas(tenant_id);
 
 -- ============================================
--- Plugin Tables
+-- Plugin Tables (owned by: orion-platform-service plugin service)
 -- ============================================
 
 CREATE TABLE IF NOT EXISTS plugin_executions (
@@ -620,7 +627,7 @@ CREATE TABLE IF NOT EXISTS skills (
 CREATE INDEX IF NOT EXISTS idx_skills_tenant ON skills(tenant_id);
 
 -- ============================================
--- Event Bus Tables
+-- Event Bus Tables (owned by: orion-platform-service event service)
 -- ============================================
 
 CREATE TABLE IF NOT EXISTS event_bus_config (
@@ -648,7 +655,7 @@ CREATE TABLE IF NOT EXISTS event_subscriptions (
 CREATE INDEX IF NOT EXISTS idx_event_subscriptions_bus ON event_subscriptions(bus_id);
 
 -- ============================================
--- Cron & Schedule Tables
+-- Cron & Schedule Tables (owned by: orion-platform-service cron service)
 -- ============================================
 
 CREATE TABLE IF NOT EXISTS cron_jobs (

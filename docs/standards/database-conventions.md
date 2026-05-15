@@ -84,8 +84,28 @@ When creating or reviewing a migration:
 
 | Service | Status | Notes |
 |---------|--------|-------|
-| orion-chatops-svc | Fixed (001) | VARCHAR(255) -> UUID NOT NULL |
+| orion-chatops-svc | Fixed (001) | VARCHAR(255) -> UUID NOT NULL; 16 domains annotated with ownership |
 | orion-finops-svc | Fixed (001) | Missing tenant_id added, nullable -> NOT NULL |
 | orion-security-svc | Fixed (001) | Nullable UUID -> UUID NOT NULL |
-| orion-ticket-svc | Fixed (001) | VARCHAR(100) -> UUID NOT NULL |
+| orion-ticket-svc | Fixed (001) | VARCHAR(100) -> UUID NOT NULL; RLS policies added |
 | orion-platform-service | Reference | Already uses UUID NOT NULL pattern |
+
+## 8. Migration Scope Boundaries
+
+Each service migration should only create tables belonging to that service.
+For multi-tenant onboarding scripts that need multiple services, use ownership annotations:
+
+```sql
+-- ============================================
+-- [MIGRATION SCOPE NOTE]
+-- This migration creates tables for multiple services.
+-- Tables not belonging to ChatOps are marked with ownership comments.
+-- In production, these should be split to their respective service migrations.
+-- ============================================
+
+-- ============================================
+-- Deployment Tables (owned by: orion-platform-service deployment service)
+-- ============================================
+```
+
+This ensures clear accountability and makes future migration splitting easier.

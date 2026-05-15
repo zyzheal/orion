@@ -445,11 +445,104 @@ CREATE INDEX idx_bi_stats_cache_date ON bi_stats_cache(date_range_start, date_ra
 -- ============================================================
 
 ALTER TABLE tickets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tickets FORCE ROW LEVEL SECURITY;
 ALTER TABLE ticket_comments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ticket_comments FORCE ROW LEVEL SECURITY;
 ALTER TABLE ticket_history ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ticket_history FORCE ROW LEVEL SECURITY;
+ALTER TABLE ticket_attachments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ticket_attachments FORCE ROW LEVEL SECURITY;
 ALTER TABLE sla_policies ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sla_policies FORCE ROW LEVEL SECURITY;
+ALTER TABLE sla_schedules ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sla_schedules FORCE ROW LEVEL SECURITY;
 ALTER TABLE workflow_definitions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE workflow_definitions FORCE ROW LEVEL SECURITY;
+ALTER TABLE workflow_instances ENABLE ROW LEVEL SECURITY;
+ALTER TABLE workflow_instances FORCE ROW LEVEL SECURITY;
+ALTER TABLE approval_records ENABLE ROW LEVEL SECURITY;
+ALTER TABLE approval_records FORCE ROW LEVEL SECURITY;
 ALTER TABLE dispatch_rules ENABLE ROW LEVEL SECURITY;
+ALTER TABLE dispatch_rules FORCE ROW LEVEL SECURITY;
+ALTER TABLE dispatch_queue ENABLE ROW LEVEL SECURITY;
+ALTER TABLE dispatch_queue FORCE ROW LEVEL SECURITY;
+ALTER TABLE service_catalog ENABLE ROW LEVEL SECURITY;
+ALTER TABLE service_catalog FORCE ROW LEVEL SECURITY;
+ALTER TABLE ticket_templates ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ticket_templates FORCE ROW LEVEL SECURITY;
+ALTER TABLE ticket_notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ticket_notifications FORCE ROW LEVEL SECURITY;
+ALTER TABLE ticket_relations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ticket_relations FORCE ROW LEVEL SECURITY;
+ALTER TABLE satisfaction_surveys ENABLE ROW LEVEL SECURITY;
+ALTER TABLE satisfaction_surveys FORCE ROW LEVEL SECURITY;
+ALTER TABLE knowledge_associations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE knowledge_associations FORCE ROW LEVEL SECURITY;
+ALTER TABLE ticket_categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ticket_categories FORCE ROW LEVEL SECURITY;
+ALTER TABLE bi_stats_cache ENABLE ROW LEVEL SECURITY;
+ALTER TABLE bi_stats_cache FORCE ROW LEVEL SECURITY;
+
+-- ============================================================
+-- Create RLS Policies for Tenant Isolation
+-- ============================================================
+
+CREATE POLICY tenant_isolation_tickets ON tickets
+    USING (tenant_id = current_setting('app.current_tenant', true)::UUID);
+
+CREATE POLICY tenant_isolation_ticket_comments ON ticket_comments
+    USING (tenant_id = current_setting('app.current_tenant', true)::UUID);
+
+CREATE POLICY tenant_isolation_ticket_history ON ticket_history
+    USING (tenant_id = current_setting('app.current_tenant', true)::UUID);
+
+CREATE POLICY tenant_isolation_ticket_attachments ON ticket_attachments
+    USING (tenant_id = current_setting('app.current_tenant', true)::UUID);
+
+CREATE POLICY tenant_isolation_sla_policies ON sla_policies
+    USING (tenant_id = current_setting('app.current_tenant', true)::UUID);
+
+CREATE POLICY tenant_isolation_sla_schedules ON sla_schedules
+    USING (tenant_id = current_setting('app.current_tenant', true)::UUID);
+
+CREATE POLICY tenant_isolation_workflow_definitions ON workflow_definitions
+    USING (tenant_id = current_setting('app.current_tenant', true)::UUID);
+
+CREATE POLICY tenant_isolation_workflow_instances ON workflow_instances
+    USING (tenant_id = current_setting('app.current_tenant', true)::UUID);
+
+CREATE POLICY tenant_isolation_approval_records ON approval_records
+    USING (tenant_id = current_setting('app.current_tenant', true)::UUID);
+
+CREATE POLICY tenant_isolation_dispatch_rules ON dispatch_rules
+    USING (tenant_id = current_setting('app.current_tenant', true)::UUID);
+
+CREATE POLICY tenant_isolation_dispatch_queue ON dispatch_queue
+    USING (tenant_id = current_setting('app.current_tenant', true)::UUID);
+
+CREATE POLICY tenant_isolation_service_catalog ON service_catalog
+    USING (tenant_id = current_setting('app.current_tenant', true)::UUID);
+
+CREATE POLICY tenant_isolation_ticket_templates ON ticket_templates
+    USING (tenant_id = current_setting('app.current_tenant', true)::UUID);
+
+CREATE POLICY tenant_isolation_ticket_notifications ON ticket_notifications
+    USING (tenant_id = current_setting('app.current_tenant', true)::UUID);
+
+CREATE POLICY tenant_isolation_ticket_relations ON ticket_relations
+    USING (tenant_id = current_setting('app.current_tenant', true)::UUID);
+
+CREATE POLICY tenant_isolation_satisfaction_surveys ON satisfaction_surveys
+    USING (tenant_id = current_setting('app.current_tenant', true)::UUID);
+
+CREATE POLICY tenant_isolation_knowledge_associations ON knowledge_associations
+    USING (tenant_id = current_setting('app.current_tenant', true)::UUID);
+
+CREATE POLICY tenant_isolation_ticket_categories ON ticket_categories
+    USING (tenant_id = current_setting('app.current_tenant', true)::UUID);
+
+CREATE POLICY tenant_isolation_bi_stats_cache ON bi_stats_cache
+    USING (tenant_id = current_setting('app.current_tenant', true)::UUID);
 
 -- ============================================================
 -- Insert default data
