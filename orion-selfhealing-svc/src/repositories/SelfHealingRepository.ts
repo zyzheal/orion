@@ -96,15 +96,27 @@ export class SelfHealingIncidentRepository {
     const items = result.rows.map((row) => this.mapRowToIncident(row));
 
     // Get total count
-    const countQuery = `SELECT COUNT(*) as count FROM selfhealing_incidents WHERE 1=1`;
+    let countQuery = `SELECT COUNT(*) as count FROM selfhealing_incidents WHERE 1=1`;
     const countParams: unknown[] = [];
     let countIndex = 1;
 
     if (filters.severity) {
-      countQuery.replace(` WHERE 1=1`, ` WHERE 1=1`); // keep structure
+      countQuery += ` AND severity = $${countIndex++}`;
+      countParams.push(filters.severity);
+    }
+    if (filters.status) {
+      countQuery += ` AND status = $${countIndex++}`;
+      countParams.push(filters.status);
+    }
+    if (filters.tenantId) {
+      countQuery += ` AND tenant_id = $${countIndex++}`;
+      countParams.push(filters.tenantId);
     }
 
-    return { items, total: items.length };
+    const countResult = await this.db.query(countQuery, countParams);
+    const total = parseInt(countResult.rows[0]?.count || '0', 10);
+
+    return { items, total };
   }
 
   async update(id: string, updates: Partial<SelfHealingIncident>): Promise<SelfHealingIncident | null> {

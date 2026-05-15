@@ -65,6 +65,19 @@ export class SelfHealingService {
    * 创建自愈事件
    */
   async createIncident(data: Omit<SelfHealingIncident, 'id' | 'status' | 'createdAt' | 'updatedAt'>): Promise<SelfHealingIncident> {
+    if (this.incidentRepo) {
+      return this.incidentRepo.create({
+        ...data,
+        status: IncidentStatus.NEW,
+        actionIds: data.actionIds || [],
+        tenantId: data.tenantId || '',
+        triggerSource: data.triggerSource || '',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+    }
+
+    // Fallback to in-memory: generate ID only for memory fallback
     const incident: SelfHealingIncident = {
       ...data,
       id: `incident-${crypto.randomUUID()}`,
@@ -73,16 +86,6 @@ export class SelfHealingService {
       createdAt: new Date(),
       updatedAt: new Date(),
     };
-
-    if (this.incidentRepo) {
-      return this.incidentRepo.create({
-        ...incident,
-        tenantId: data.tenantId || '',
-        triggerSource: data.triggerSource || '',
-      });
-    }
-
-    // Fallback to in-memory
     this.memoryIncidents.set(incident.id, incident);
     return incident;
   }
