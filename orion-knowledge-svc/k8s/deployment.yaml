@@ -1,0 +1,194 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: orion-knowledge-svc
+  namespace: orion
+  labels:
+    app: orion-knowledge-svc
+    component: knowledge-service
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      targetPort: 3020
+      protocol: TCP
+  selector:
+    app: orion-knowledge-svc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: orion-knowledge-svc-nodeport
+  namespace: orion
+  labels:
+    app: orion-knowledge-svc
+    component: knowledge-service
+spec:
+  type: NodePort
+  ports:
+    - name: http
+      port: 3020
+      targetPort: 3020
+      nodePort: 30220
+      protocol: TCP
+  selector:
+    app: orion-knowledge-svc
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orion-knowledge-svc
+  namespace: orion
+  labels:
+    app: orion-knowledge-svc
+    component: knowledge-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: orion-knowledge-svc
+  template:
+    metadata:
+      labels:
+        app: orion-knowledge-svc
+        component: knowledge-service
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3020"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+        - name: orion-knowledge-svc
+          image: orion-knowledge-svc:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3020
+              name: http
+          env:
+            - name: PORT
+              value: "3020"
+            - name: NODE_ENV
+              value: "production"
+            - name: LOG_LEVEL
+              value: "info"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: orion-knowledge-secrets
+                  key: DATABASE_URL
+            - name: DB_MAX_CONNECTIONS
+              value: "20"
+            - name: VECTOR_DIMENSION
+              value: "1536"
+            - name: VECTOR_DISTANCE_METRIC
+              value: "cosine"
+            - name: RAG_TOP_K
+              value: "5"
+            - name: RAG_SCORE_THRESHOLD
+              value: "0.7"
+            - name: CORS_ORIGIN
+              valueFrom:
+                configMapKeyRef:
+                  name: orion-knowledge-config
+                  key: CORS_ORIGIN
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 3020
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 3020
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          volumeMounts:
+            - name: app-config
+              mountPath: /app/config
+              readOnly: true
+      volumes:
+        - name: app-config
+          configMap:
+            name: orion-knowledge-config
+      restartPolicy: Always
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: orion-knowledge-svc-hpa
+  namespace: orion
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: orion-knowledge-svc
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Percent
+          value: 10
+          periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 15
+        - type: Pods
+          value: 4
+          periodSeconds: 15
+      selectPolicy: Max
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: orion-knowledge-config
+  namespace: orion
+data:
+  DB_HOST: "postgres.orion.svc.cluster.local"
+  DB_PORT: "5432"
+  DB_NAME: "knowledge_db"
+  CORS_ORIGIN: "https://orion.example.com"
+  LOG_LEVEL: "info"
+  VECTOR_DIMENSION: "1536"
+  VECTOR_DISTANCE_METRIC: "cosine"
+  RAG_TOP_K: "5"
+  RAG_SCORE_THRESHOLD: "0.7"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: orion-knowledge-secrets
+  namespace: orion
+type: Opaque
+stringData:
+  DATABASE_URL: "postgresql://postgres:changeme@postgres.orion.svc.cluster.local:5432/knowledge_db"
