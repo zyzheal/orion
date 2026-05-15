@@ -4,7 +4,7 @@ import cors from '@fastify/cors';
 import sensible from '@fastify/sensible';
 import { config } from './config';
 import { RunnerService } from './services/RunnerService';
-import { runnerRoutes } from './routes/runner';
+import { runnerRoutes } from './routes/runner-routes';
 
 const runner = new RunnerService();
 
