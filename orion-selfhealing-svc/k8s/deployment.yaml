@@ -21,7 +21,14 @@ spec:
     spec:
       containers:
         - name: orion-selfhealing-svc
-          image: orion-selfhealing-svc:latest
+          securityContext:
+            runAsNonRoot: true
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          image: orion-selfhealing-svc:v1.0.0
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3002

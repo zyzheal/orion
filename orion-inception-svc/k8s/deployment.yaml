@@ -10,95 +10,22 @@ spec:
   type: ClusterIP
   ports:
     - name: http
+          securityContext:
+            runAsNonRoot: true
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+    securityContext:
+      runAsNonRoot: true
+      readOnlyRootFilesystem: true
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+          - ALL
       port: 80
       targetPort: 3033
       protocol: TCP
   selector:
     app: orion-inception-svc
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: orion-inception-svc-nodeport
-  namespace: orion
-  labels:
-    app: orion-inception-svc
-    component: inception-service
-spec:
-  type: NodePort
-  ports:
-    - name: http
-      port: 3033
-      targetPort: 3033
-      nodePort: 30333
-      protocol: TCP
-  selector:
-    app: orion-inception-svc
----
-apiVersion: autoscaling/v2
-kind: HorizontalPodAutoscaler
-metadata:
-  name: orion-inception-svc-hpa
-  namespace: orion
-spec:
-  scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: orion-inception-svc
-  minReplicas: 1
-  maxReplicas: 5
-  metrics:
-    - type: Resource
-      resource:
-        name: cpu
-        target:
-          type: Utilization
-          averageUtilization: 70
-    - type: Resource
-      resource:
-        name: memory
-        target:
-          type: Utilization
-          averageUtilization: 80
-  behavior:
-    scaleDown:
-      stabilizationWindowSeconds: 300
-      policies:
-        - type: Percent
-          value: 10
-          periodSeconds: 60
-    scaleUp:
-      stabilizationWindowSeconds: 0
-      policies:
-        - type: Percent
-          value: 100
-          periodSeconds: 15
-        - type: Pods
-          value: 2
-          periodSeconds: 15
-      selectPolicy: Max
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: orion-inception-config
-  namespace: orion
-data:
-  INCEPTION_HOST: "inception.orion.svc.cluster.local"
-  INCEPTION_PORT: "6669"
-  INCEPTION_TIMEOUT: "30000"
-  INCEPTION_USER: "inception"
-  LOG_LEVEL: "info"
-  CORS_ORIGIN: "https://orion.example.com"
-  NATS_SERVERS: "nats.orion.svc.cluster.local:4222"
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: orion-inception-secrets
-  namespace: orion
-type: Opaque
-stringData:
-  INCEPTION_PASSWORD: "changeme"
-  NATS_USER: ""
-  NATS_PASS: ""

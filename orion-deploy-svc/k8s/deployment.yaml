@@ -21,7 +21,14 @@ spec:
     spec:
       containers:
         - name: deploy
-          image: orion-deploy-svc:latest
+          securityContext:
+            runAsNonRoot: true
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          image: orion-deploy-svc:v1.0.0
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3003
@@ -103,23 +110,3 @@ spec:
           operator: "Equal"
           value: "general"
           effect: "NoSchedule"
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: orion-deploy-config
-  namespace: orion
-data:
-  redis-url: "redis://orion-redis:6379"
-  nats-url: "nats://orion-nats:4222"
-  platform-service-url: "http://orion-platform-service:3001"
-  cors-origin: "http://localhost:5173,http://localhost:3000"
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: orion-deploy-secrets
-  namespace: orion
-type: Opaque
-stringData:
-  database-url: "postgresql://orion:password@orion-postgres:5432/orion_deploy"

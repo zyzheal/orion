@@ -21,7 +21,14 @@ spec:
     spec:
       containers:
         - name: audit-svc
-          image: orion-audit-svc:latest
+          securityContext:
+            runAsNonRoot: true
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          image: orion-audit-svc:v1.0.0
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3027
@@ -106,28 +113,3 @@ spec:
             timeoutSeconds: 3
             failureThreshold: 3
       restartPolicy: Always
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: orion-audit-config
-  namespace: orion
-data:
-  DB_HOST: "postgres.orion.svc.cluster.local"
-  DB_PORT: "5432"
-  DB_NAME: "orion_audit"
-  DB_SSL: "false"
-  LOG_LEVEL: "info"
-  CORS_ORIGIN: "https://orion.example.com"
-  AUDIT_CHAIN_GENESIS_HASH: "0000000000000000000000000000000000000000000000000000000000000000"
-  AUDIT_HASH_ALGORITHM: "sha256"
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: orion-audit-secrets
-  namespace: orion
-type: Opaque
-stringData:
-  DB_USER: "orion"
-  DB_PASSWORD: "changeme"

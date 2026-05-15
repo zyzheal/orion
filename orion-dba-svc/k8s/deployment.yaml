@@ -21,7 +21,14 @@ spec:
     spec:
       containers:
         - name: dba
-          image: orion-dba-svc:latest
+          securityContext:
+            runAsNonRoot: true
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          image: orion-dba-svc:v1.0.0
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3031

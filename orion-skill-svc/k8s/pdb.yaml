@@ -1,0 +1,12 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: orion-skill-pdb
+  namespace: orion
+  labels:
+    app: orion-skill
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: orion-skill

@@ -1,3 +1,5 @@
+# Secret template - Replace placeholder values with actual secrets
+# DO NOT commit real secrets to version control
 apiVersion: v1
 kind: Secret
 metadata:
@@ -7,6 +9,6 @@ metadata:
     app: orion-skill-svc
 type: Opaque
 stringData:
-  database.user: "orion_skill_user"
-  database.password: "CHANGE_ME_IN_PRODUCTION"
-  jwt.secret: "CHANGE_ME_IN_PRODUCTION"
+  database.user: "<CHANGE_ME>"
+  database.password: "<CHANGE_ME>"
+  jwt.secret: "<CHANGE_ME>"

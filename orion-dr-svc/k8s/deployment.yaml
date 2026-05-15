@@ -21,7 +21,14 @@ spec:
     spec:
       containers:
         - name: dr
-          image: orion-dr-svc:latest
+          securityContext:
+            runAsNonRoot: true
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          image: orion-dr-svc:v1.0.0
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3016

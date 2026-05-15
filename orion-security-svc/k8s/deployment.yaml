@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orion-security-svc
+  labels:
+    app: orion-security-svc
+    version: v1
+    component: security
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: orion-security-svc
+  template:
+    metadata:
+      labels:
+        app: orion-security-svc
+        version: v1
+        component: security
+    spec:
+      containers:
+        - name: orion-security-svc
+          securityContext:
+            runAsNonRoot: true
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          image: orion-security-svc:v1.0.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3013
+              protocol: TCP
+          env:
+            - name: NODE_ENV
+              value: "production"
+            - name: PORT
+              value: "3013"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: orion-security-svc-secrets
+                  key: database-url
+                  optional: true
+            - name: LOG_LEVEL
+              value: "info"
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "200m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3013
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3013
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: orion-security-svc
+                topologyKey: kubernetes.io/hostname

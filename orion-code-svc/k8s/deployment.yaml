@@ -35,7 +35,21 @@ spec:
         effect: "NoSchedule"
       containers:
       - name: orion-code-svc
-        image: orion-code-svc:latest
+          securityContext:
+            runAsNonRoot: true
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+      securityContext:
+        runAsNonRoot: true
+        readOnlyRootFilesystem: true
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+            - ALL
+        image: orion-code-svc:v1.0.0
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 3010

@@ -1,3 +1,5 @@
+# Secret template - Replace placeholder values with actual secrets
+# DO NOT commit real secrets to version control
 apiVersion: v1
 kind: Secret
 metadata:
@@ -8,6 +10,6 @@ metadata:
 type: Opaque
 stringData:
   # API key for Yearning backend authentication
-  yearning-api-key: "YOUR_YEARNING_API_KEY"
+  yearning-api-key: "<CHANGE_ME>"
   # API key for platform service to call DBA service
-  service-api-key: "YOUR_SERVICE_API_KEY"
+  service-api-key: "<CHANGE_ME>"

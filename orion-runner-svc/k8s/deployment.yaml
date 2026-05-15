@@ -21,7 +21,14 @@ spec:
     spec:
       containers:
         - name: runner-svc
-          image: orion-runner-svc:latest
+          securityContext:
+            runAsNonRoot: true
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          image: orion-runner-svc:v1.0.0
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3028
@@ -79,26 +86,3 @@ spec:
             timeoutSeconds: 3
             failureThreshold: 3
       restartPolicy: Always
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: orion-runner-config
-  namespace: orion
-data:
-  PLATFORM_URL: "http://orion-platform-svc:3001"
-  PLATFORM_TIMEOUT: "30000"
-  RUNNER_LABELS: "linux,nodejs"
-  RUNNER_MAX_CONCURRENT: "5"
-  HEARTBEAT_INTERVAL: "30000"
-  TENANT_ID: "default"
-  LOG_LEVEL: "info"
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: orion-runner-secrets
-  namespace: orion
-type: Opaque
-stringData:
-  RUNNER_API_TOKEN: ""

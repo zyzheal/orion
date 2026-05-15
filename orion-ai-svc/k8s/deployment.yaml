@@ -22,7 +22,14 @@ spec:
       serviceAccountName: orion-ai-svc
       containers:
         - name: orion-ai-svc
-          image: orion-ai-svc:latest
+          securityContext:
+            runAsNonRoot: true
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          image: orion-ai-svc:v1.0.0
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3012

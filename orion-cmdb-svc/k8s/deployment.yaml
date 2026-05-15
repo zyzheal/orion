@@ -21,7 +21,14 @@ spec:
     spec:
       containers:
         - name: cmdb-svc
-          image: orion-cmdb-svc:latest
+          securityContext:
+            runAsNonRoot: true
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          image: orion-cmdb-svc:v1.0.0
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3019
@@ -90,24 +97,3 @@ spec:
             timeoutSeconds: 3
             failureThreshold: 3
       restartPolicy: Always
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: orion-cmdb-config
-  namespace: orion
-data:
-  DB_HOST: "postgres.orion.svc.cluster.local"
-  DB_PORT: "5432"
-  DB_NAME: "cmdb_db"
-  CORS_ORIGIN: "https://orion.example.com"
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: orion-cmdb-secrets
-  namespace: orion
-type: Opaque
-stringData:
-  DB_USER: "postgres"
-  DB_PASSWORD: "changeme"
