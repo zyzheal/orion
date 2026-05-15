@@ -5,6 +5,7 @@
 
 export interface ModelVersionEntity {
   id: string;
+  tenant_id: string;
   name: string;
   version: string;
   status: string;
@@ -15,6 +16,7 @@ export interface ModelVersionEntity {
   training_data_size: number | null;
   hyperparameters: Record<string, unknown> | null;
   metrics: Record<string, unknown>;
+  created_at?: Date;
   registered_at: Date;
   registered_by: string | null;
   activated_at: Date | null;
@@ -24,6 +26,7 @@ export interface ModelVersionEntity {
 
 export interface ABTestEntity {
   id: string;
+  tenant_id: string;
   model_name: string;
   variants: unknown[];
   traffic_split: Record<string, number>;
@@ -31,6 +34,7 @@ export interface ABTestEntity {
   end_date: Date | null;
   target_metrics: string[];
   status: string;
+  created_at?: Date;
 }
 
 export interface ABTestMetricEntity {
@@ -48,7 +52,7 @@ export class ModelVersionRepository {
     this.db = db;
   }
 
-  async create(data: Omit<ModelVersionEntity, 'created_at'>): Promise<ModelVersionEntity> {
+  async create(data: Partial<ModelVersionEntity>): Promise<ModelVersionEntity> {
     return { ...data, created_at: new Date() } as ModelVersionEntity;
   }
 
@@ -92,7 +96,7 @@ export class ABTestRepository {
     this.db = db;
   }
 
-  async create(data: Omit<ABTestEntity, 'created_at'>): Promise<ABTestEntity> {
+  async create(data: Partial<ABTestEntity>): Promise<ABTestEntity> {
     return { ...data } as ABTestEntity;
   }
 
