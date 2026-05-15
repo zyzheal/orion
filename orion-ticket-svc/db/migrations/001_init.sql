@@ -488,65 +488,88 @@ ALTER TABLE bi_stats_cache FORCE ROW LEVEL SECURITY;
 -- ============================================================
 
 CREATE POLICY tenant_isolation_tickets ON tickets
-    USING (tenant_id = current_setting('app.current_tenant', true)::UUID);
+    USING (tenant_id = current_setting('app.current_tenant', true)::UUID)
+    WITH CHECK (tenant_id = current_setting('app.current_tenant', true)::UUID);
 
 CREATE POLICY tenant_isolation_ticket_comments ON ticket_comments
-    USING (tenant_id = current_setting('app.current_tenant', true)::UUID);
+    USING (tenant_id = current_setting('app.current_tenant', true)::UUID)
+    WITH CHECK (tenant_id = current_setting('app.current_tenant', true)::UUID);
 
 CREATE POLICY tenant_isolation_ticket_history ON ticket_history
-    USING (tenant_id = current_setting('app.current_tenant', true)::UUID);
+    USING (tenant_id = current_setting('app.current_tenant', true)::UUID)
+    WITH CHECK (tenant_id = current_setting('app.current_tenant', true)::UUID);
 
 CREATE POLICY tenant_isolation_ticket_attachments ON ticket_attachments
-    USING (tenant_id = current_setting('app.current_tenant', true)::UUID);
+    USING (tenant_id = current_setting('app.current_tenant', true)::UUID)
+    WITH CHECK (tenant_id = current_setting('app.current_tenant', true)::UUID);
 
 CREATE POLICY tenant_isolation_sla_policies ON sla_policies
-    USING (tenant_id = current_setting('app.current_tenant', true)::UUID);
+    USING (tenant_id = current_setting('app.current_tenant', true)::UUID)
+    WITH CHECK (tenant_id = current_setting('app.current_tenant', true)::UUID);
 
 CREATE POLICY tenant_isolation_sla_schedules ON sla_schedules
-    USING (tenant_id = current_setting('app.current_tenant', true)::UUID);
+    USING (tenant_id = current_setting('app.current_tenant', true)::UUID)
+    WITH CHECK (tenant_id = current_setting('app.current_tenant', true)::UUID);
 
 CREATE POLICY tenant_isolation_workflow_definitions ON workflow_definitions
-    USING (tenant_id = current_setting('app.current_tenant', true)::UUID);
+    USING (tenant_id = current_setting('app.current_tenant', true)::UUID)
+    WITH CHECK (tenant_id = current_setting('app.current_tenant', true)::UUID);
 
 CREATE POLICY tenant_isolation_workflow_instances ON workflow_instances
-    USING (tenant_id = current_setting('app.current_tenant', true)::UUID);
+    USING (tenant_id = current_setting('app.current_tenant', true)::UUID)
+    WITH CHECK (tenant_id = current_setting('app.current_tenant', true)::UUID);
 
 CREATE POLICY tenant_isolation_approval_records ON approval_records
-    USING (tenant_id = current_setting('app.current_tenant', true)::UUID);
+    USING (tenant_id = current_setting('app.current_tenant', true)::UUID)
+    WITH CHECK (tenant_id = current_setting('app.current_tenant', true)::UUID);
 
 CREATE POLICY tenant_isolation_dispatch_rules ON dispatch_rules
-    USING (tenant_id = current_setting('app.current_tenant', true)::UUID);
+    USING (tenant_id = current_setting('app.current_tenant', true)::UUID)
+    WITH CHECK (tenant_id = current_setting('app.current_tenant', true)::UUID);
 
 CREATE POLICY tenant_isolation_dispatch_queue ON dispatch_queue
-    USING (tenant_id = current_setting('app.current_tenant', true)::UUID);
+    USING (tenant_id = current_setting('app.current_tenant', true)::UUID)
+    WITH CHECK (tenant_id = current_setting('app.current_tenant', true)::UUID);
 
 CREATE POLICY tenant_isolation_service_catalog ON service_catalog
-    USING (tenant_id = current_setting('app.current_tenant', true)::UUID);
+    USING (tenant_id = current_setting('app.current_tenant', true)::UUID)
+    WITH CHECK (tenant_id = current_setting('app.current_tenant', true)::UUID);
 
 CREATE POLICY tenant_isolation_ticket_templates ON ticket_templates
-    USING (tenant_id = current_setting('app.current_tenant', true)::UUID);
+    USING (tenant_id = current_setting('app.current_tenant', true)::UUID)
+    WITH CHECK (tenant_id = current_setting('app.current_tenant', true)::UUID);
 
 CREATE POLICY tenant_isolation_ticket_notifications ON ticket_notifications
-    USING (tenant_id = current_setting('app.current_tenant', true)::UUID);
+    USING (tenant_id = current_setting('app.current_tenant', true)::UUID)
+    WITH CHECK (tenant_id = current_setting('app.current_tenant', true)::UUID);
 
 CREATE POLICY tenant_isolation_ticket_relations ON ticket_relations
-    USING (tenant_id = current_setting('app.current_tenant', true)::UUID);
+    USING (tenant_id = current_setting('app.current_tenant', true)::UUID)
+    WITH CHECK (tenant_id = current_setting('app.current_tenant', true)::UUID);
 
 CREATE POLICY tenant_isolation_satisfaction_surveys ON satisfaction_surveys
-    USING (tenant_id = current_setting('app.current_tenant', true)::UUID);
+    USING (tenant_id = current_setting('app.current_tenant', true)::UUID)
+    WITH CHECK (tenant_id = current_setting('app.current_tenant', true)::UUID);
 
 CREATE POLICY tenant_isolation_knowledge_associations ON knowledge_associations
-    USING (tenant_id = current_setting('app.current_tenant', true)::UUID);
+    USING (tenant_id = current_setting('app.current_tenant', true)::UUID)
+    WITH CHECK (tenant_id = current_setting('app.current_tenant', true)::UUID);
 
 CREATE POLICY tenant_isolation_ticket_categories ON ticket_categories
-    USING (tenant_id = current_setting('app.current_tenant', true)::UUID);
+    USING (tenant_id = current_setting('app.current_tenant', true)::UUID)
+    WITH CHECK (tenant_id = current_setting('app.current_tenant', true)::UUID);
 
 CREATE POLICY tenant_isolation_bi_stats_cache ON bi_stats_cache
-    USING (tenant_id = current_setting('app.current_tenant', true)::UUID);
+    USING (tenant_id = current_setting('app.current_tenant', true)::UUID)
+    WITH CHECK (tenant_id = current_setting('app.current_tenant', true)::UUID);
 
 -- ============================================================
 -- Insert default data
 -- ============================================================
+
+-- Disable RLS temporarily for initial data seeding (RLS would block INSERTs
+-- without a valid app.current_tenant session setting)
+SET LOCAL row_security = off;
 
 -- Default ticket categories
 INSERT INTO ticket_categories (id, tenant_id, name, description, sort_order) VALUES

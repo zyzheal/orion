@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: orion-security-svc
+  namespace: orion
   labels:
     app: orion-security-svc
     version: v1
