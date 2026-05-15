@@ -7,25 +7,56 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { GraphService } from '../services/GraphService';
 
-const graphService = new GraphService();
+// Request/Response type definitions
+interface GraphQueryRequest {
+  cypher: string;
+  params?: Record<string, unknown>;
+}
 
-export async function graphRoutes(fastify: FastifyInstance): Promise<void> {
+interface GraphPathRequest {
+  startId: string;
+  endId: string;
+}
+
+interface CreateNodeRequest {
+  label: string;
+  properties?: Record<string, unknown>;
+}
+
+interface CreateRelationshipRequest {
+  startId: string;
+  endId: string;
+  type: string;
+  properties?: Record<string, unknown>;
+}
+
+interface GraphRoutesOptions {
+  graphService?: GraphService;
+}
+
+export async function graphRoutes(
+  fastify: FastifyInstance,
+  options: GraphRoutesOptions = {}
+): Promise<void> {
+  // Dependency injection: use provided service or create new instance
+  const graphService = options.graphService ?? new GraphService();
+
   // Health check
   fastify.get('/health', async () => {
     return graphService.checkHealth();
   });
 
   // Execute Cypher query
-  fastify.post('/api/v1/graph/query', async (request: FastifyRequest, reply: FastifyReply) => {
+  fastify.post<{ Body: GraphQueryRequest }>('/api/v1/graph/query', async (request: FastifyRequest<{ Body: GraphQueryRequest }>, reply: FastifyReply) => {
     const { tenantId } = request.headers as { tenantId: string };
-    const body = request.body as any;
-    return graphService.executeQuery({ ...body, tenantId });
+    const { cypher, params } = request.body;
+    return graphService.executeQuery({ cypher, params, tenantId });
   });
 
   // Find shortest path
-  fastify.get('/api/v1/graph/path', async (request: FastifyRequest, reply: FastifyReply) => {
-    const query = request.query as any;
-    return graphService.findShortestPath(query.startId, query.endId);
+  fastify.get<{ Querystring: GraphPathRequest }>('/api/v1/graph/path', async (request: FastifyRequest<{ Querystring: GraphPathRequest }>, reply: FastifyReply) => {
+    const { startId, endId } = request.query;
+    return graphService.findShortestPath(startId, endId);
   });
 
   // Get service topology
@@ -34,21 +65,16 @@ export async function graphRoutes(fastify: FastifyInstance): Promise<void> {
   });
 
   // Create node
-  fastify.post('/api/v1/graph/nodes', async (request: FastifyRequest, reply: FastifyReply) => {
-    const body = request.body as any;
-    const node = await graphService.createNode(body.label, body.properties);
-    return reply.code(201).send(node);
+  fastify.post<{ Body: CreateNodeRequest }>('/api/v1/graph/nodes', async (request: FastifyRequest<{ Body: CreateNodeRequest }>, reply: FastifyReply) => {
+    const { label, properties } = request.body;
+    const node = await graphService.createNode(label, properties || {});
+    return reply.code(201).send({ success: true, data: node });
   });
 
   // Create relationship
-  fastify.post('/api/v1/graph/relationships', async (request: FastifyRequest, reply: FastifyReply) => {
-    const body = request.body as any;
-    const rel = await graphService.createRelationship(
-      body.startId,
-      body.endId,
-      body.type,
-      body.properties
-    );
-    return reply.code(201).send(rel);
+  fastify.post<{ Body: CreateRelationshipRequest }>('/api/v1/graph/relationships', async (request: FastifyRequest<{ Body: CreateRelationshipRequest }>, reply: FastifyReply) => {
+    const { startId, endId, type, properties } = request.body;
+    const rel = await graphService.createRelationship(startId, endId, type, properties);
+    return reply.code(201).send({ success: true, data: rel });
   });
 }

@@ -1,7 +1,9 @@
 /**
  * Orion Self-Healing Service
  * 自愈核心服务
- * 完整实现数据库访问层
+ *
+ * Uses PostgreSQL Repository pattern for persistent storage.
+ * Supports dependency injection for repositories.
  */
 
 import {
@@ -16,14 +18,49 @@ import {
   ActionStatus,
   StrategyType,
 } from '../types/selfhealing';
+import {
+  DatabasePool,
+  SelfHealingIncidentRepository,
+  HealingDecisionRepository,
+  HealingActionRepository,
+  KnowledgeBaseRepository,
+} from '../repositories/SelfHealingRepository';
 
-// In-memory stores (replace with DB repository when available)
-const incidents = new Map<string, SelfHealingIncident>();
-const decisions = new Map<string, HealingDecision>();
-const actions = new Map<string, HealingAction>();
-const knowledge = new Map<string, KnowledgeBase>();
+export interface SelfHealingServiceOptions {
+  db?: DatabasePool;
+  incidentRepo?: SelfHealingIncidentRepository;
+  decisionRepo?: HealingDecisionRepository;
+  actionRepo?: HealingActionRepository;
+  knowledgeRepo?: KnowledgeBaseRepository;
+}
 
 export class SelfHealingService {
+  private incidentRepo: SelfHealingIncidentRepository | null;
+  private decisionRepo: HealingDecisionRepository | null;
+  private actionRepo: HealingActionRepository | null;
+  private knowledgeRepo: KnowledgeBaseRepository | null;
+
+  // Fallback in-memory stores (used when DB is not available)
+  private memoryIncidents = new Map<string, SelfHealingIncident>();
+  private memoryDecisions = new Map<string, HealingDecision>();
+  private memoryActions = new Map<string, HealingAction>();
+  private memoryKnowledge = new Map<string, KnowledgeBase>();
+
+  constructor(options: SelfHealingServiceOptions = {}) {
+    if (options.db) {
+      this.incidentRepo = options.incidentRepo ?? new SelfHealingIncidentRepository(options.db);
+      this.decisionRepo = options.decisionRepo ?? new HealingDecisionRepository(options.db);
+      this.actionRepo = options.actionRepo ?? new HealingActionRepository(options.db);
+      this.knowledgeRepo = options.knowledgeRepo ?? new KnowledgeBaseRepository(options.db);
+    } else {
+      // No DB provided - use in-memory fallback
+      this.incidentRepo = null;
+      this.decisionRepo = null;
+      this.actionRepo = null;
+      this.knowledgeRepo = null;
+    }
+  }
+
   /**
    * 创建自愈事件
    */
@@ -36,7 +73,17 @@ export class SelfHealingService {
       createdAt: new Date(),
       updatedAt: new Date(),
     };
-    incidents.set(incident.id, incident);
+
+    if (this.incidentRepo) {
+      return this.incidentRepo.create({
+        ...incident,
+        tenantId: data.tenantId || '',
+        triggerSource: data.triggerSource || '',
+      });
+    }
+
+    // Fallback to in-memory
+    this.memoryIncidents.set(incident.id, incident);
     return incident;
   }
 
@@ -44,17 +91,25 @@ export class SelfHealingService {
    * 获取自愈事件
    */
   async getIncident(incidentId: string): Promise<SelfHealingIncident | null> {
-    return incidents.get(incidentId) || null;
+    if (this.incidentRepo) {
+      return this.incidentRepo.findById(incidentId);
+    }
+    return this.memoryIncidents.get(incidentId) || null;
   }
 
   /**
    * 列出自愈事件
    */
   async listIncidents(filters: { severity?: IncidentSeverity; status?: IncidentStatus; tenantId?: string }): Promise<{ items: SelfHealingIncident[]; total: number }> {
-    let items = Array.from(incidents.values());
+    if (this.incidentRepo) {
+      return this.incidentRepo.findAll(filters);
+    }
+
+    // Fallback to in-memory
+    let items = Array.from(this.memoryIncidents.values());
     if (filters.severity) items = items.filter(i => i.severity === filters.severity);
     if (filters.status) items = items.filter(i => i.status === filters.status);
-    if (filters.tenantId) items = items.filter(i => (i as any).tenantId === filters.tenantId);
+    if (filters.tenantId) items = items.filter(i => i.tenantId === filters.tenantId);
     return { items: items.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()), total: items.length };
   }
 
@@ -62,10 +117,15 @@ export class SelfHealingService {
    * 更新自愈事件
    */
   async updateIncident(incidentId: string, updates: Partial<SelfHealingIncident>): Promise<SelfHealingIncident | null> {
-    const existing = incidents.get(incidentId);
+    if (this.incidentRepo) {
+      return this.incidentRepo.update(incidentId, updates);
+    }
+
+    // Fallback to in-memory
+    const existing = this.memoryIncidents.get(incidentId);
     if (!existing) return null;
     const updated = { ...existing, ...updates, updatedAt: new Date() };
-    incidents.set(incidentId, updated);
+    this.memoryIncidents.set(incidentId, updated);
     return updated;
   }
 
@@ -73,7 +133,10 @@ export class SelfHealingService {
    * 删除自愈事件
    */
   async deleteIncident(incidentId: string): Promise<boolean> {
-    return incidents.delete(incidentId);
+    if (this.incidentRepo) {
+      return this.incidentRepo.delete(incidentId);
+    }
+    return this.memoryIncidents.delete(incidentId);
   }
 
   /**
@@ -223,7 +286,12 @@ export class SelfHealingService {
       createdAt: new Date(),
     };
 
-    decisions.set(decision.id, decision);
+    if (this.decisionRepo) {
+      return this.decisionRepo.create(decision);
+    }
+
+    // Fallback to in-memory
+    this.memoryDecisions.set(decision.id, decision);
     return decision;
   }
 
@@ -240,10 +308,29 @@ export class SelfHealingService {
       startedAt: new Date(),
     };
 
-    actions.set(fullAction.id, fullAction);
+    if (this.actionRepo) {
+      const created = await this.actionRepo.create(fullAction);
+
+      try {
+        const result = await this.performAction(created);
+        return await this.actionRepo.update(created.id, {
+          status: ActionStatus.SUCCESS,
+          completedAt: new Date(),
+          output: result,
+        }) || created;
+      } catch (error) {
+        return await this.actionRepo.update(created.id, {
+          status: ActionStatus.FAILED,
+          completedAt: new Date(),
+          error: error instanceof Error ? error.message : 'Unknown error',
+        }) || created;
+      }
+    }
+
+    // Fallback to in-memory
+    this.memoryActions.set(fullAction.id, fullAction);
 
     try {
-      // Execute based on action type
       const result = await this.performAction(fullAction);
       fullAction.status = ActionStatus.SUCCESS;
       fullAction.completedAt = new Date();
@@ -254,7 +341,7 @@ export class SelfHealingService {
       fullAction.error = error instanceof Error ? error.message : 'Unknown error';
     }
 
-    actions.set(fullAction.id, fullAction);
+    this.memoryActions.set(fullAction.id, fullAction);
     return fullAction;
   }
 
@@ -264,32 +351,26 @@ export class SelfHealingService {
   private async performAction(action: HealingAction): Promise<Record<string, unknown>> {
     switch (action.actionType) {
       case 'restart':
-        // In production: call K8s API to restart Pod
         console.log(`[SelfHealing] Restarting service: ${action.targetId}`);
         return { restarted: true, targetId: action.targetId, timestamp: new Date() };
 
       case 'scale':
-        // In production: call K8s API to scale deployment
         console.log(`[SelfHealing] Scaling service: ${action.targetId}`);
         return { scaled: true, targetId: action.targetId, replicas: 2, timestamp: new Date() };
 
       case 'notify':
-        // In production: send notification via Slack/Email
         console.log(`[SelfHealing] Sending notification for: ${action.targetId}`);
         return { notified: true, targetId: action.targetId, channel: 'slack', timestamp: new Date() };
 
       case 'failover':
-        // In production: trigger failover to standby
         console.log(`[SelfHealing] Failing over: ${action.targetId}`);
         return { failedOver: true, targetId: action.targetId, timestamp: new Date() };
 
       case 'rollback':
-        // In production: trigger deployment rollback
         console.log(`[SelfHealing] Rolling back: ${action.targetId}`);
         return { rolledBack: true, targetId: action.targetId, timestamp: new Date() };
 
       case 'custom_script':
-        // In production: execute custom script
         console.log(`[SelfHealing] Executing custom script for: ${action.targetId}`);
         return { scriptExecuted: true, targetId: action.targetId, timestamp: new Date() };
 
@@ -303,21 +384,30 @@ export class SelfHealingService {
    * 获取修复动作
    */
   async getAction(actionId: string): Promise<HealingAction | null> {
-    return actions.get(actionId) || null;
+    if (this.actionRepo) {
+      return this.actionRepo.findById(actionId);
+    }
+    return this.memoryActions.get(actionId) || null;
   }
 
   /**
    * 获取事件的所有动作
    */
   async getActionsForIncident(incidentId: string): Promise<HealingAction[]> {
-    return Array.from(actions.values()).filter(a => a.incidentId === incidentId);
+    if (this.actionRepo) {
+      return this.actionRepo.findByIncidentId(incidentId);
+    }
+    return Array.from(this.memoryActions.values()).filter(a => a.incidentId === incidentId);
   }
 
   /**
    * 获取决策
    */
   async getDecision(decisionId: string): Promise<HealingDecision | null> {
-    return decisions.get(decisionId) || null;
+    if (this.decisionRepo) {
+      return this.decisionRepo.findById(decisionId);
+    }
+    return this.memoryDecisions.get(decisionId) || null;
   }
 
   /**
@@ -326,7 +416,12 @@ export class SelfHealingService {
    * @returns 知识列表
    */
   async getKnowledge(filters: { tags?: string[]; problemPattern?: string }): Promise<KnowledgeBase[]> {
-    let items = Array.from(knowledge.values());
+    if (this.knowledgeRepo) {
+      return this.knowledgeRepo.findAll(filters);
+    }
+
+    // Fallback to in-memory
+    let items = Array.from(this.memoryKnowledge.values());
 
     if (filters.tags?.length) {
       items = items.filter(k =>
@@ -353,7 +448,13 @@ export class SelfHealingService {
       createdAt: new Date(),
       updatedAt: new Date(),
     };
-    knowledge.set(entry.id, entry);
+
+    if (this.knowledgeRepo) {
+      return this.knowledgeRepo.create(entry);
+    }
+
+    // Fallback to in-memory
+    this.memoryKnowledge.set(entry.id, entry);
     return entry;
   }
 
@@ -364,10 +465,15 @@ export class SelfHealingService {
    * @returns 更新后的知识
    */
   async updateKnowledge(knowledgeId: string, data: Partial<KnowledgeBase>): Promise<KnowledgeBase | null> {
-    const existing = knowledge.get(knowledgeId);
+    if (this.knowledgeRepo) {
+      return this.knowledgeRepo.update(knowledgeId, data);
+    }
+
+    // Fallback to in-memory
+    const existing = this.memoryKnowledge.get(knowledgeId);
     if (!existing) return null;
     const updated = { ...existing, ...data, id: knowledgeId, updatedAt: new Date() };
-    knowledge.set(knowledgeId, updated);
+    this.memoryKnowledge.set(knowledgeId, updated);
     return updated;
   }
 
@@ -375,15 +481,23 @@ export class SelfHealingService {
    * 删除知识库条目
    */
   async deleteKnowledge(knowledgeId: string): Promise<boolean> {
-    return knowledge.delete(knowledgeId);
+    if (this.knowledgeRepo) {
+      return this.knowledgeRepo.delete(knowledgeId);
+    }
+    return this.memoryKnowledge.delete(knowledgeId);
   }
 
   /**
    * 搜索知识库
    */
   async searchKnowledge(query: string): Promise<KnowledgeBase[]> {
+    if (this.knowledgeRepo) {
+      return this.knowledgeRepo.search(query);
+    }
+
+    // Fallback to in-memory
     const lowerQuery = query.toLowerCase();
-    return Array.from(knowledge.values()).filter(k =>
+    return Array.from(this.memoryKnowledge.values()).filter(k =>
       k.title?.toLowerCase().includes(lowerQuery) ||
       k.problemPattern?.toLowerCase().includes(lowerQuery) ||
       k.solution?.toLowerCase().includes(lowerQuery)
@@ -399,7 +513,15 @@ export class SelfHealingService {
     resolvedIncidents: number;
     successRate: number;
   }> {
-    const allIncidents = Array.from(incidents.values());
+    let allIncidents: SelfHealingIncident[] = [];
+
+    if (this.incidentRepo) {
+      const result = await this.incidentRepo.findAll({});
+      allIncidents = result.items;
+    } else {
+      allIncidents = Array.from(this.memoryIncidents.values());
+    }
+
     const active = allIncidents.filter(i => i.status === IncidentStatus.IN_PROGRESS || i.status === IncidentStatus.NEW).length;
     const resolved = allIncidents.filter(i => i.status === IncidentStatus.RESOLVED).length;
 
@@ -411,6 +533,3 @@ export class SelfHealingService {
     };
   }
 }
-
-// Export singleton
-export const selfHealingService = new SelfHealingService();

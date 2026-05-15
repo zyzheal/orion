@@ -197,19 +197,24 @@ export default async function artifactRoutes(
   // ==================== Artifact Promotion ====================
 
   // POST /artifacts/:id/promote - Promote artifact
-  app.post('/artifacts/:id/promote', async (request: FastifyRequest, reply: FastifyReply) => {
-    const { id } = request.params as { id: string };
-    const { promotedBy, approvedBy, reason } = request.body as any;
+  interface PromoteArtifactRequest {
+    promotedBy: string;
+    approvedBy?: string;
+    reason?: string;
+  }
+  app.post<{ Params: { id: string }; Body: PromoteArtifactRequest }>('/artifacts/:id/promote', async (request: FastifyRequest<{ Params: { id: string }; Body: PromoteArtifactRequest }>, reply: FastifyReply) => {
+    const { id } = request.params;
+    const { promotedBy, approvedBy, reason } = request.body;
 
     try {
       if (approvedBy) {
         const record = await promotionService.promoteWithApproval(id, promotedBy, approvedBy, reason);
-        return reply.send(record);
+        return reply.send({ success: true, data: record });
       }
       const record = await promotionService.promote(id, promotedBy, reason);
-      return reply.send(record);
+      return reply.send({ success: true, data: record });
     } catch (err: any) {
-      return reply.status(400).send({ error: err.message });
+      return reply.status(400).send({ success: false, error: err.message });
     }
   });
 
@@ -323,14 +328,40 @@ export default async function artifactRoutes(
 
   // ==================== Artifact Version Routes (/api/v1/artifact-versions/*) ====================
 
+  // Type definitions for version routes
+  interface CreateVersionRequest {
+    tenantId: string;
+    pipelineId: string;
+    runId?: string;
+    stageName?: string;
+    artifactName: string;
+    version: string;
+    commitSha?: string;
+    branch?: string;
+    storagePath?: string;
+    metadata?: Record<string, unknown>;
+  }
+
+  interface VersionQuery {
+    pipelineId?: string;
+    artifactName?: string;
+    environment?: string;
+    limit?: string;
+    offset?: string;
+  }
+
+  interface PromoteVersionRequest {
+    targetEnvironment: string;
+  }
+
   // POST /artifact-versions - Create version
-  app.post('/artifact-versions', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post<{ Body: CreateVersionRequest }>('/artifact-versions', async (request: FastifyRequest<{ Body: CreateVersionRequest }>, reply: FastifyReply) => {
     if (!versionService || !db) return dbUnavailable(request, reply);
-    const body = request.body as any;
-    const { tenantId, pipelineId, runId, stageName, artifactName, version, commitSha, branch, storagePath, metadata } = body;
+    const { tenantId, pipelineId, runId, stageName, artifactName, version, commitSha, branch, storagePath, metadata } = request.body;
 
     if (!tenantId || !pipelineId || !artifactName || !version) {
       return reply.code(400).send({
+        success: false,
         error: 'Missing required fields: tenantId, pipelineId, artifactName, version',
       });
     }
@@ -339,140 +370,147 @@ export default async function artifactRoutes(
       const result = await versionService.createVersion({
         tenantId, pipelineId, runId, stageName, artifactName, version, commitSha, branch, storagePath, metadata,
       });
-      return reply.code(201).send({ data: result });
+      return reply.code(201).send({ success: true, data: result });
     } catch (error: any) {
       if (error.message.includes('already exists')) {
-        return reply.code(409).send({ error: error.message });
+        return reply.code(409).send({ success: false, error: error.message });
       }
       throw error;
     }
   });
 
   // GET /artifact-versions - List versions
-  app.get('/artifact-versions', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get<{ Querystring: VersionQuery }>('/artifact-versions', async (request: FastifyRequest<{ Querystring: VersionQuery }>, reply: FastifyReply) => {
     if (!versionRepository || !db) return dbUnavailable(request, reply);
-    const query = request.query as any;
-    const options: any = {
-      pipelineId: query.pipelineId,
-      artifactName: query.artifactName,
-      environment: query.environment,
-      limit: query.limit ? parseInt(query.limit, 10) : 50,
-      offset: query.offset ? parseInt(query.offset, 10) : 0,
+    const { pipelineId, artifactName, environment, limit, offset } = request.query;
+    const options = {
+      pipelineId,
+      artifactName,
+      environment,
+      limit: limit ? parseInt(limit, 10) : 50,
+      offset: offset ? parseInt(offset, 10) : 0,
     };
 
     const results = await versionRepository.findWithFilters(options);
-    return reply.send({ data: results.versions, total: results.total });
+    return reply.send({ success: true, data: results.versions, total: results.total });
   });
 
   // GET /artifact-versions/:id - Get version details
-  app.get('/artifact-versions/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get<{ Params: { id: string } }>('/artifact-versions/:id', async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
     if (!versionService) return dbUnavailable(request, reply);
-    const params = request.params as any;
-    const version = await versionService.getVersionById(params.id);
+    const { id } = request.params;
+    const version = await versionService.getVersionById(id);
 
     if (!version) {
-      return reply.code(404).send({ error: 'Artifact version not found' });
+      return reply.code(404).send({ success: false, error: 'Artifact version not found' });
     }
 
-    return reply.send({ data: version });
+    return reply.send({ success: true, data: version });
   });
 
   // POST /artifact-versions/:id/promote - Promote version
-  app.post('/artifact-versions/:id/promote', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post<{ Params: { id: string }; Body: PromoteVersionRequest }>('/artifact-versions/:id/promote', async (request: FastifyRequest<{ Params: { id: string }; Body: PromoteVersionRequest }>, reply: FastifyReply) => {
     if (!versionService) return dbUnavailable(request, reply);
-    const params = request.params as any;
-    const body = request.body as any;
+    const { id } = request.params;
+    const { targetEnvironment } = request.body;
 
-    if (!body.targetEnvironment) {
-      return reply.code(400).send({ error: 'Missing required field: targetEnvironment' });
+    if (!targetEnvironment) {
+      return reply.code(400).send({ success: false, error: 'Missing required field: targetEnvironment' });
     }
 
     try {
-      const result = await versionService.promoteVersion(params.id, body.targetEnvironment);
-      return reply.send({ data: result });
+      const result = await versionService.promoteVersion(id, targetEnvironment);
+      return reply.send({ success: true, data: result });
     } catch (error: any) {
       if (error.message.includes('already promoted') || error.message.includes('not found')) {
-        return reply.code(400).send({ error: error.message });
+        return reply.code(400).send({ success: false, error: error.message });
       }
       throw error;
     }
   });
 
   // GET /artifact-versions/:id/lineage - Get version lineage
-  app.get('/artifact-versions/:id/lineage', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get<{ Params: { id: string } }>('/artifact-versions/:id/lineage', async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
     if (!versionService) return dbUnavailable(request, reply);
-    const params = request.params as any;
+    const { id } = request.params;
 
     try {
-      const lineage = await versionService.getVersionLineage(params.id);
-      return reply.send({ data: lineage });
+      const lineage = await versionService.getVersionLineage(id);
+      return reply.send({ success: true, data: lineage });
     } catch (error: any) {
       if (error.message.includes('not found')) {
-        return reply.code(404).send({ error: error.message });
+        return reply.code(404).send({ success: false, error: error.message });
       }
       throw error;
     }
   });
 
   // POST /artifact-versions/:id/tags/:tag - Add tag to version
-  app.post('/artifact-versions/:id/tags/:tag', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post<{ Params: { id: string; tag: string } }>('/artifact-versions/:id/tags/:tag', async (request: FastifyRequest<{ Params: { id: string; tag: string } }>, reply: FastifyReply) => {
     if (!versionService) return dbUnavailable(request, reply);
-    const params = request.params as any;
+    const { id, tag } = request.params;
 
     try {
-      const result = await versionService.addTag(params.id, params.tag);
-      return reply.send({ data: result });
+      const result = await versionService.addTag(id, tag);
+      return reply.send({ success: true, data: result });
     } catch (error: any) {
       if (error.message.includes('not found')) {
-        return reply.code(404).send({ error: error.message });
+        return reply.code(404).send({ success: false, error: error.message });
       }
       throw error;
     }
   });
 
   // DELETE /artifact-versions/:id/tags/:tag - Remove tag from version
-  app.delete('/artifact-versions/:id/tags/:tag', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.delete<{ Params: { id: string; tag: string } }>('/artifact-versions/:id/tags/:tag', async (request: FastifyRequest<{ Params: { id: string; tag: string } }>, reply: FastifyReply) => {
     if (!versionService) return dbUnavailable(request, reply);
-    const params = request.params as any;
+    const { id, tag } = request.params;
 
     try {
-      await versionService.removeTag(params.id, params.tag);
+      await versionService.removeTag(id, tag);
       return reply.send({ success: true });
     } catch (error: any) {
-      return reply.code(400).send({ error: error.message });
+      return reply.code(400).send({ success: false, error: error.message });
     }
   });
 
   // GET /artifact-versions/tag/:tag - Find versions by tag
-  app.get('/artifact-versions/tag/:tag', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get<{ Params: { tag: string } }>('/artifact-versions/tag/:tag', async (request: FastifyRequest<{ Params: { tag: string } }>, reply: FastifyReply) => {
     if (!versionService) return dbUnavailable(request, reply);
-    const params = request.params as any;
-    const versions = await versionService.findVersionsByTag(params.tag);
-    return reply.send({ data: versions, total: versions.length });
+    const { tag } = request.params;
+    const versions = await versionService.findVersionsByTag(tag);
+    return reply.send({ success: true, data: versions, total: versions.length });
   });
 
   // GET /artifact-versions/pipeline/:pipelineId/history - Get deployment history
-  app.get('/artifact-versions/pipeline/:pipelineId/history', async (request: FastifyRequest, reply: FastifyReply) => {
+  interface DeploymentHistoryQuery {
+    limit?: string;
+  }
+  app.get<{ Params: { pipelineId: string }; Querystring: DeploymentHistoryQuery }>('/artifact-versions/pipeline/:pipelineId/history', async (request: FastifyRequest<{ Params: { pipelineId: string }; Querystring: DeploymentHistoryQuery }>, reply: FastifyReply) => {
     if (!versionService) return dbUnavailable(request, reply);
-    const params = request.params as any;
-    const query = request.query as any;
-    const limit = query.limit ? parseInt(query.limit, 10) : 20;
+    const { pipelineId } = request.params;
+    const { limit } = request.query;
+    const limitNum = limit ? parseInt(limit, 10) : 20;
 
-    const history = await versionService.getDeploymentHistory(params.pipelineId, limit);
-    return reply.send({ data: history });
+    const history = await versionService.getDeploymentHistory(pipelineId, limitNum);
+    return reply.send({ success: true, data: history });
   });
 
   // GET /artifact-versions/pipeline/:pipelineId/compare - Compare versions
-  app.get('/artifact-versions/pipeline/:pipelineId/compare', async (request: FastifyRequest, reply: FastifyReply) => {
+  interface CompareVersionsQuery {
+    versionA: string;
+    versionB: string;
+  }
+  app.get<{ Params: { pipelineId: string }; Querystring: CompareVersionsQuery }>('/artifact-versions/pipeline/:pipelineId/compare', async (request: FastifyRequest<{ Params: { pipelineId: string }; Querystring: CompareVersionsQuery }>, reply: FastifyReply) => {
     if (!versionService) return dbUnavailable(request, reply);
-    const params = request.params as any;
-    const query = request.query as any;
+    const { pipelineId } = request.params;
+    const { versionA, versionB } = request.query;
 
-    if (!query.versionA || !query.versionB) {
-      return reply.code(400).send({ error: 'Missing required query params: versionA, versionB' });
+    if (!versionA || !versionB) {
+      return reply.code(400).send({ success: false, error: 'Missing required query params: versionA, versionB' });
     }
 
-    const diff = await versionService.compareVersions(params.pipelineId, query.versionA, query.versionB);
-    return reply.send({ data: diff });
+    const diff = await versionService.compareVersions(pipelineId, versionA, versionB);
+    return reply.send({ success: true, data: diff });
   });
 }

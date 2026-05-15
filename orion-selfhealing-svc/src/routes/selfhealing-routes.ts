@@ -1,17 +1,83 @@
 /**
  * Orion Self-Healing Service - Routes
  * 自愈路由
+ *
+ * Uses dependency injection for SelfHealingService.
+ * Error response format: { success: boolean; data?: any; error?: any }
  */
 
-import { type FastifyInstance, type FastifyPluginOptions } from 'fastify';
+import { type FastifyInstance, type FastifyRequest, type FastifyReply, type FastifyPluginOptions } from 'fastify';
 import { SelfHealingService } from '../services/SelfHealingService';
 import { IncidentSeverity, IncidentStatus, type HealingStrategy, StrategyType } from '../types/selfhealing';
 
+export interface SelfHealingRoutesOptions {
+  selfHealingService?: SelfHealingService;
+}
+
 export async function selfhealingRoutes(
   fastify: FastifyInstance,
-  _opts: FastifyPluginOptions
+  options: SelfHealingRoutesOptions = {}
 ): Promise<void> {
-  const selfhealingService = new SelfHealingService();
+  // Dependency injection: use provided service or create new instance
+  const selfhealingService = options.selfHealingService ?? new SelfHealingService();
+
+  // Type definitions for request bodies
+  interface CreateIncidentRequest {
+    title: string;
+    description: string;
+    severity?: IncidentSeverity;
+    alertId?: string;
+    affectedResources?: string[];
+    triggerSource: string;
+    tenantId?: string;
+  }
+
+  interface ListIncidentsQuery {
+    severity?: IncidentSeverity;
+    status?: IncidentStatus;
+    tenantId?: string;
+  }
+
+  interface EvaluateStrategyRequest {
+    incidentId: string;
+    title?: string;
+    description?: string;
+    severity?: IncidentSeverity;
+    affectedResources?: string[];
+    triggerSource?: string;
+    tenantId?: string;
+  }
+
+  interface MakeDecisionRequest {
+    incidentId: string;
+    strategies: HealingStrategy[];
+  }
+
+  interface ExecuteActionRequest {
+    name: string;
+    description?: string;
+    type?: StrategyType;
+    parameters?: Record<string, unknown>;
+    incidentId: string;
+    decisionId?: string;
+    executor?: string;
+  }
+
+  interface KnowledgeQuery {
+    tags?: string;
+    problemPattern?: string;
+  }
+
+  interface UpdateKnowledgeRequest {
+    title?: string;
+    description?: string;
+    problemPattern?: string;
+    solution?: string;
+    relatedStrategyTypes?: StrategyType[];
+    tags?: string[];
+    usageCount?: number;
+    successRate?: number;
+  }
 
   // ========== 事件管理 ==========
 
@@ -19,34 +85,30 @@ export async function selfhealingRoutes(
    * 创建自愈事件
    * POST /api/v1/selfhealing/incidents
    */
-  fastify.post('/selfhealing/incidents', async (request, reply) => {
-    const body = request.body as Record<string, unknown>;
+  fastify.post<{ Body: CreateIncidentRequest }>('/selfhealing/incidents', async (request: FastifyRequest<{ Body: CreateIncidentRequest }>, reply) => {
+    const { title, description, severity, alertId, affectedResources, triggerSource, tenantId } = request.body;
     const incident = await selfhealingService.createIncident({
-      title: String(body.title || ''),
-      description: String(body.description || ''),
-      severity: (body.severity as IncidentSeverity) || 'medium',
-      alertId: body.alertId ? String(body.alertId) : undefined,
-      affectedResources: (body.affectedResources as string[]) || [],
-      triggerSource: String(body.triggerSource || ''),
+      title: title || '',
+      description: description || '',
+      severity: severity || IncidentSeverity.MEDIUM,
+      alertId,
+      affectedResources: affectedResources || [],
+      triggerSource: triggerSource || '',
       triggeredAt: new Date(),
-      tenantId: String(body.tenantId || ''),
+      tenantId: tenantId || '',
       actionIds: [],
     });
-    reply.code(201).send({ success: true, data: incident });
+    return reply.code(201).send({ success: true, data: incident });
   });
 
   /**
    * 列表自愈事件
    * GET /api/v1/selfhealing/incidents
    */
-  fastify.get('/selfhealing/incidents', async (request, reply) => {
-    const query = request.query as Record<string, string>;
-    const result = await selfhealingService.listIncidents({
-      severity: query.severity as IncidentSeverity,
-      status: query.status as IncidentStatus,
-      tenantId: query.tenantId,
-    });
-    reply.send({ success: true, data: result });
+  fastify.get<{ Querystring: ListIncidentsQuery }>('/selfhealing/incidents', async (request: FastifyRequest<{ Querystring: ListIncidentsQuery }>, reply) => {
+    const { severity, status, tenantId } = request.query;
+    const result = await selfhealingService.listIncidents({ severity, status, tenantId });
+    return reply.send({ success: true, data: result });
   });
 
   /**
@@ -59,7 +121,7 @@ export async function selfhealingRoutes(
     if (!incident) {
       return reply.code(404).send({ success: false, error: { code: 'NOT_FOUND', message: 'Incident not found' } });
     }
-    reply.send({ success: true, data: incident });
+    return reply.send({ success: true, data: incident });
   });
 
   /**
@@ -67,8 +129,13 @@ export async function selfhealingRoutes(
    * PUT /api/v1/selfhealing/incidents/:id
    */
   fastify.put('/selfhealing/incidents/:id', async (request, reply) => {
-    // TODO: 实现更新逻辑
-    reply.code(501).send({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Update incident not yet implemented' } });
+    const { id } = request.params as { id: string };
+    const body = request.body as Record<string, unknown>;
+    const updated = await selfhealingService.updateIncident(id, body as Partial<any>);
+    if (!updated) {
+      return reply.code(404).send({ success: false, error: { code: 'NOT_FOUND', message: 'Incident not found' } });
+    }
+    return reply.send({ success: true, data: updated });
   });
 
   // ========== 策略评估 ==========
@@ -77,24 +144,24 @@ export async function selfhealingRoutes(
    * 评估策略
    * POST /api/v1/selfhealing/strategy/evaluate
    */
-  fastify.post('/selfhealing/strategy/evaluate', async (request, reply) => {
-    const body = request.body as Record<string, unknown>;
+  fastify.post<{ Body: EvaluateStrategyRequest }>('/selfhealing/strategy/evaluate', async (request: FastifyRequest<{ Body: EvaluateStrategyRequest }>, reply) => {
+    const { incidentId, title, description, severity, affectedResources, triggerSource, tenantId } = request.body;
     const incident = {
-      id: String(body.incidentId || ''),
-      title: String(body.title || ''),
-      description: String(body.description || ''),
-      severity: (body.severity as IncidentSeverity) || 'medium',
+      id: incidentId || '',
+      title: title || '',
+      description: description || '',
+      severity: severity || IncidentSeverity.MEDIUM,
       status: IncidentStatus.EVALUATING,
-      affectedResources: (body.affectedResources as string[]) || [],
-      triggerSource: String(body.triggerSource || ''),
+      affectedResources: affectedResources || [],
+      triggerSource: triggerSource || '',
       triggeredAt: new Date(),
-      tenantId: String(body.tenantId || ''),
+      tenantId: tenantId || '',
       actionIds: [],
       createdAt: new Date(),
       updatedAt: new Date(),
     };
     const strategies = await selfhealingService.evaluateStrategy(incident);
-    reply.send({ success: true, data: strategies });
+    return reply.send({ success: true, data: strategies });
   });
 
   // ========== 修复决策 ==========
@@ -103,16 +170,13 @@ export async function selfhealingRoutes(
    * 做出修复决策
    * POST /api/v1/selfhealing/decision
    */
-  fastify.post('/selfhealing/decision', async (request, reply) => {
-    const body = request.body as { incidentId: string; strategies: Array<Record<string, unknown>> };
-    const decision = await selfhealingService.makeDecision(
-      body.incidentId,
-      (body.strategies || []) as unknown as HealingStrategy[]
-    );
+  fastify.post<{ Body: MakeDecisionRequest }>('/selfhealing/decision', async (request: FastifyRequest<{ Body: MakeDecisionRequest }>, reply) => {
+    const { incidentId, strategies } = request.body;
+    const decision = await selfhealingService.makeDecision(incidentId, strategies || []);
     if (!decision) {
       return reply.code(400).send({ success: false, error: { code: 'BAD_REQUEST', message: 'No suitable strategy found' } });
     }
-    reply.code(201).send({ success: true, data: decision });
+    return reply.code(201).send({ success: true, data: decision });
   });
 
   // ========== 修复动作 ==========
@@ -121,18 +185,18 @@ export async function selfhealingRoutes(
    * 执行修复动作
    * POST /api/v1/selfhealing/actions/execute
    */
-  fastify.post('/selfhealing/actions/execute', async (request, reply) => {
-    const body = request.body as Record<string, unknown>;
+  fastify.post<{ Body: ExecuteActionRequest }>('/selfhealing/actions/execute', async (request: FastifyRequest<{ Body: ExecuteActionRequest }>, reply) => {
+    const { name, description, type, parameters, incidentId, decisionId, executor } = request.body;
     const action = await selfhealingService.executeAction({
-      name: String(body.name || ''),
-      description: body.description ? String(body.description) : undefined,
-      type: (body.type as StrategyType) || 'restart',
-      parameters: (body.parameters as Record<string, unknown>) || {},
-      incidentId: String(body.incidentId || ''),
-      decisionId: body.decisionId ? String(body.decisionId) : undefined,
-      executor: String(body.executor || 'system'),
+      name: name || '',
+      description,
+      type: type || StrategyType.RESTART,
+      parameters: parameters || {},
+      incidentId: incidentId || '',
+      decisionId,
+      executor: executor || 'system',
     });
-    reply.code(201).send({ success: true, data: action });
+    return reply.code(201).send({ success: true, data: action });
   });
 
   // ========== 知识库 ==========
@@ -141,13 +205,13 @@ export async function selfhealingRoutes(
    * 获取知识库
    * GET /api/v1/selfhealing/knowledge
    */
-  fastify.get('/selfhealing/knowledge', async (request, reply) => {
-    const query = request.query as { tags?: string; problemPattern?: string };
+  fastify.get<{ Querystring: KnowledgeQuery }>('/selfhealing/knowledge', async (request: FastifyRequest<{ Querystring: KnowledgeQuery }>, reply) => {
+    const { tags, problemPattern } = request.query;
     const knowledge = await selfhealingService.getKnowledge({
-      tags: query.tags ? query.tags.split(',') : undefined,
-      problemPattern: query.problemPattern,
+      tags: tags ? tags.split(',') : undefined,
+      problemPattern,
     });
-    reply.send({ success: true, data: knowledge });
+    return reply.send({ success: true, data: knowledge });
   });
 
   /**
@@ -155,21 +219,29 @@ export async function selfhealingRoutes(
    * GET /api/v1/selfhealing/knowledge/:id
    */
   fastify.get('/selfhealing/knowledge/:id', async (request, reply) => {
-    // TODO: 实现获取知识详情
-    reply.code(404).send({ success: false, error: { code: 'NOT_FOUND', message: 'Knowledge not found' } });
+    const { id } = request.params as { id: string };
+    // Search by ID through getKnowledge with problemPattern filter
+    const knowledge = await selfhealingService.getKnowledge({});
+    const entry = knowledge.find(k => k.id === id);
+    if (!entry) {
+      return reply.code(404).send({ success: false, error: { code: 'NOT_FOUND', message: 'Knowledge not found' } });
+    }
+    return reply.send({ success: true, data: entry });
   });
 
   /**
    * 更新知识库
    * PUT /api/v1/selfhealing/knowledge/:id
    */
-  fastify.put('/selfhealing/knowledge/:id', async (request, reply) => {
-    const { id } = request.params as { id: string };
-    const body = request.body as Record<string, unknown>;
-    const updated = await selfhealingService.updateKnowledge(id, body as Record<string, unknown>);
+  fastify.put<{ Params: { id: string }; Body: UpdateKnowledgeRequest }>('/selfhealing/knowledge/:id', async (request: FastifyRequest<{ Params: { id: string }; Body: UpdateKnowledgeRequest }>, reply) => {
+    const { id } = request.params;
+    const { title, description, problemPattern, solution, relatedStrategyTypes, tags, usageCount, successRate } = request.body;
+    const updated = await selfhealingService.updateKnowledge(id, {
+      title, description, problemPattern, solution, relatedStrategyTypes, tags, usageCount, successRate,
+    });
     if (!updated) {
       return reply.code(404).send({ success: false, error: { code: 'NOT_FOUND', message: 'Knowledge not found' } });
     }
-    reply.send({ success: true, data: updated });
+    return reply.send({ success: true, data: updated });
   });
 }

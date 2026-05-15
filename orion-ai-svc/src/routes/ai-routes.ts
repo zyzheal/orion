@@ -84,7 +84,13 @@ interface HealthResponse {
 
 export default async function aiRoutes(app: FastifyInstance): Promise<void> {
   // Get database from fastify decorators
-  const db = (app as any).knex || {};
+  interface FastifyWithKnex extends FastifyInstance {
+    knex?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> };
+  }
+  const db = (app as FastifyWithKnex).knex;
+  if (!db) {
+    throw new Error('aiRoutes requires database connection (app.knex)');
+  }
 
   // Initialize repositories
   const vectorRepo = new VectorRepository(db);
@@ -147,15 +153,22 @@ export default async function aiRoutes(app: FastifyInstance): Promise<void> {
   });
 
   // POST /ai/vector/upsert - 插入或更新向量
-  app.post('/vector/upsert', async (request: FastifyRequest, reply: FastifyReply) => {
-    const body = request.body as any;
+  interface VectorUpsertRequest {
+    collection?: string;
+    content: string;
+    contentHash?: string;
+    metadata?: Record<string, unknown>;
+    embedding: number[];
+  }
+  app.post('/vector/upsert', async (request: FastifyRequest<{ Body: VectorUpsertRequest }>, reply: FastifyReply) => {
+    const { collection, content, contentHash, metadata, embedding } = request.body;
     try {
       const result = await vectorRepo.insert({
-        collection: body.collection || 'default',
-        content: body.content,
-        contentHash: body.contentHash,
-        metadata: body.metadata || {},
-        embedding: body.embedding,
+        collection: collection || 'default',
+        content,
+        contentHash: contentHash || '',
+        metadata: metadata || {},
+        embedding,
       });
       return { success: true, id: result.id };
     } catch (error: any) {
@@ -265,7 +278,7 @@ export default async function aiRoutes(app: FastifyInstance): Promise<void> {
         name: body.name,
         version: body.version,
         status: 'active',
-        framework: body.framework as any,
+        framework: body.framework,
         description: body.description || null,
         metadata: body.metadata || null,
         metrics: {},
