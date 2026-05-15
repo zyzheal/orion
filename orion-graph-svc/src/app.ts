@@ -2,7 +2,7 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import sensible from '@fastify/sensible';
 import { config } from './config';
-import { graphRoutes } from './routes/graph';
+import { graphRoutes } from './routes/graph-routes';
 import { errorHandler } from './middleware/errorHandler';
 
 const app = Fastify({ logger: { level: config.logLevel } });
