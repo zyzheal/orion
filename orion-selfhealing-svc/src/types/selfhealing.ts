@@ -18,9 +18,10 @@ export enum IncidentSeverity {
 /** 事件状态 */
 export enum IncidentStatus {
   NEW = 'new',
-  DETECTED = 'detected',
+  IN_PROGRESS = 'in_progress',
   EVALUATING = 'evaluating',
   HEALING = 'healing',
+  RESOLVED = 'resolved',
   HEALED = 'healed',
   FAILED = 'failed',
   ESCALATED = 'escalated',
@@ -40,6 +41,7 @@ export enum StrategyType {
 /** 决策动作 */
 export enum DecisionAction {
   AUTO_HEAL = 'auto_heal',
+  REVIEW_REQUIRED = 'review_required',
   ESCALATE = 'escalate',
   IGNORE = 'ignore',
   MANUAL_REVIEW = 'manual_review',
@@ -73,6 +75,8 @@ export interface SelfHealingIncident {
   status: IncidentStatus;
   /** 告警 ID (关联) */
   alertId?: string;
+  /** 事件来源 */
+  source?: string;
   /** 受影响的资源 */
   affectedResources: string[];
   /** 根因分析 */
@@ -155,10 +159,14 @@ export interface HealingAction {
   status: ActionStatus;
   /** 动作参数 (JSON) */
   parameters: Record<string, unknown>;
-  /** 执行结果 */
-  result?: Record<string, unknown>;
+  /** 目标 ID */
+  targetId?: string;
+  /** 执行结果 output */
+  output?: Record<string, unknown>;
   /** 错误信息 */
-  errorMessage?: string;
+  error?: string;
+  /** 动作类型 (用于内部判断) */
+  actionType?: string;
   /** 开始时间 */
   startedAt: Date;
   /** 完成时间 */

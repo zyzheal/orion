@@ -196,8 +196,8 @@ export class SelfHealingService {
 
     // Select best strategy based on confidence and priority
     const bestStrategy = strategies.reduce((best, current) => {
-      const currentScore = current.confidence * (current.priority === 1 ? 1.5 : 1);
-      const bestScore = (best?.confidence ?? 0) * (best?.priority === 1 ? 1.5 : 1);
+      const currentScore = (current.confidence ?? 0) * (current.priority === 1 ? 1.5 : 1);
+      const bestScore = ((best?.confidence) ?? 0) * (best?.priority === 1 ? 1.5 : 1);
       return currentScore > bestScore ? current : best;
     }, strategies[0]);
 
