@@ -47,6 +47,7 @@ import degradationRoutes from './degradation-routes';
 import crossDomainRoutes from './cross-domain-routes';
 import configMgmtEnhancedRoutes from './config-mgmt-enhanced-routes';
 import securityComplianceRoutes from './security-compliance-routes';
+import disasterRecoveryRoutes from './disaster-recovery-routes';
 import multiModalTriggerRoutes from './multi-modal-trigger-routes';import digitalTwinRoutes from './digital-twin-routes';
 import apiGovernanceRoutes from './api-governance-routes';import communityRoutes from './community-routes';
 import communityAdvancedRoutes from './community-advanced-routes';
@@ -413,6 +414,10 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // 注册 Privacy Policy API 路由 - 租户隐私策略管理
   await registerWithRoleGuard(app, privacyRoutes, '/v1/privacy');
+
+  await registerWithRoleGuard(app, disasterRecoveryRoutes, '/v1/disaster-recovery', {
+    database: options.database,
+  });
 
   // 注册 Degradation Management API 路由 - AI Provider自动恢复
 
