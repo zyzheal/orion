@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orion-skill-svc
+  namespace: orion
+  labels:
+    app: orion-skill-svc
+    component: skill-management
+    tier: backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: orion-skill-svc
+  template:
+    metadata:
+      labels:
+        app: orion-skill-svc
+        component: skill-management
+        tier: backend
+    spec:
+      containers:
+        - name: orion-skill-svc
+          image: orion-skill-svc:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3001
+              name: http
+              protocol: TCP
+          env:
+            - name: NODE_ENV
+              value: "production"
+            - name: PORT
+              value: "3001"
+            - name: DATABASE_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: orion-skill-svc-config
+                  key: database.host
+            - name: DATABASE_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: orion-skill-svc-config
+                  key: database.port
+            - name: DATABASE_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: orion-skill-svc-config
+                  key: database.name
+            - name: DATABASE_USER
+              valueFrom:
+                secretKeyRef:
+                  name: orion-skill-svc-secret
+                  key: database.user
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: orion-skill-svc-secret
+                  key: database.password
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "200m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3001
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3001
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: orion-skill-svc
+                topologyKey: kubernetes.io/hostname
