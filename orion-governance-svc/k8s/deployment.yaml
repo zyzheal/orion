@@ -1,0 +1,113 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orion-governance-svc
+  namespace: orion
+  labels:
+    app: orion-governance-svc
+    version: v1
+    component: governance-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: orion-governance-svc
+  template:
+    metadata:
+      labels:
+        app: orion-governance-svc
+        version: v1
+        component: governance-service
+    spec:
+      containers:
+        - name: governance-svc
+          image: orion-governance-svc:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3030
+              name: http
+              protocol: TCP
+          env:
+            - name: NODE_ENV
+              value: "production"
+            - name: PORT
+              value: "3030"
+            - name: DB_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: orion-governance-config
+                  key: DB_HOST
+            - name: DB_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: orion-governance-config
+                  key: DB_PORT
+            - name: DB_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: orion-governance-config
+                  key: DB_NAME
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: orion-governance-secrets
+                  key: DB_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: orion-governance-secrets
+                  key: DB_PASSWORD
+            - name: DB_POOL_SIZE
+              value: "10"
+            - name: LOG_LEVEL
+              value: "info"
+            - name: CORS_ORIGIN
+              valueFrom:
+                configMapKeyRef:
+                  name: orion-governance-config
+                  key: CORS_ORIGIN
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "200m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3030
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3030
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: orion-governance-config
+  namespace: orion
+data:
+  DB_HOST: "postgres.orion.svc.cluster.local"
+  DB_PORT: "5432"
+  DB_NAME: "governance_db"
+  CORS_ORIGIN: "https://orion.example.com"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: orion-governance-secrets
+  namespace: orion
+type: Opaque
+stringData:
+  DB_USER: "postgres"
+  DB_PASSWORD: "changeme"
