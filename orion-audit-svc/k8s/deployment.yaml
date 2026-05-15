@@ -1,0 +1,133 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orion-audit-svc
+  namespace: orion
+  labels:
+    app: orion-audit-svc
+    version: v1
+    component: audit-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: orion-audit-svc
+  template:
+    metadata:
+      labels:
+        app: orion-audit-svc
+        version: v1
+        component: audit-service
+    spec:
+      containers:
+        - name: audit-svc
+          image: orion-audit-svc:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3027
+              name: http
+              protocol: TCP
+          env:
+            - name: NODE_ENV
+              value: "production"
+            - name: PORT
+              value: "3027"
+            - name: DB_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: orion-audit-config
+                  key: DB_HOST
+            - name: DB_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: orion-audit-config
+                  key: DB_PORT
+            - name: DB_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: orion-audit-config
+                  key: DB_NAME
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: orion-audit-secrets
+                  key: DB_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: orion-audit-secrets
+                  key: DB_PASSWORD
+            - name: DB_SSL
+              valueFrom:
+                configMapKeyRef:
+                  name: orion-audit-config
+                  key: DB_SSL
+            - name: LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: orion-audit-config
+                  key: LOG_LEVEL
+            - name: CORS_ORIGIN
+              valueFrom:
+                configMapKeyRef:
+                  name: orion-audit-config
+                  key: CORS_ORIGIN
+            - name: AUDIT_CHAIN_GENESIS_HASH
+              valueFrom:
+                configMapKeyRef:
+                  name: orion-audit-config
+                  key: AUDIT_CHAIN_GENESIS_HASH
+            - name: AUDIT_HASH_ALGORITHM
+              valueFrom:
+                configMapKeyRef:
+                  name: orion-audit-config
+                  key: AUDIT_HASH_ALGORITHM
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "200m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3027
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3027
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: orion-audit-config
+  namespace: orion
+data:
+  DB_HOST: "postgres.orion.svc.cluster.local"
+  DB_PORT: "5432"
+  DB_NAME: "orion_audit"
+  DB_SSL: "false"
+  LOG_LEVEL: "info"
+  CORS_ORIGIN: "https://orion.example.com"
+  AUDIT_CHAIN_GENESIS_HASH: "0000000000000000000000000000000000000000000000000000000000000000"
+  AUDIT_HASH_ALGORITHM: "sha256"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: orion-audit-secrets
+  namespace: orion
+type: Opaque
+stringData:
+  DB_USER: "orion"
+  DB_PASSWORD: "changeme"
