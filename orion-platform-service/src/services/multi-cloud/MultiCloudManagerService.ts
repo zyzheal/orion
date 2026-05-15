@@ -164,7 +164,8 @@ export class MultiCloudManagerService {
       return null;
     }
 
-    return this.repo.findAccountById(id) ?? null;
+    const account = this.repo.findAccountById(id);
+    return (account === undefined ? null : account) as CloudAccountEntity | null;
   }
 
   /**

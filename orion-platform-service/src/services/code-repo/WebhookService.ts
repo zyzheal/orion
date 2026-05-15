@@ -291,7 +291,7 @@ export class CodeRepoWebhookService extends EventEmitter {
         source: this.source,
         extensions: {
           repoType: payload.repoType,
-          repoName: payload.repository.fullName,
+          repoName: (payload.repository as any)?.fullName || payload.repositoryName,
         },
       });
 
@@ -646,9 +646,9 @@ export class CodeRepoWebhookService extends EventEmitter {
   ): void {
     this.eventLog.push({
       id: uuidv4(),
-      eventType: payload.eventType,
-      repoType: payload.repoType,
-      repoName: payload.repository.fullName,
+      eventType: payload.eventType as any,
+      repoType: payload.repoType as any,
+      repoName: (payload.repository as any)?.fullName || payload.repositoryName,
       eventId,
       timestamp: new Date(),
       success,

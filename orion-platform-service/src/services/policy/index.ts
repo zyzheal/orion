@@ -4,13 +4,30 @@
  * 导出所有 Policy 相关服务：
  */
 
-export { PolicyRepository, PolicyDefinition, PolicyBundle, PolicyEvaluation } from './PolicyRepository';
-export { PolicyService, PolicyServiceError } from './PolicyService';
-export { PolicyEvaluationService } from './PolicyEvaluationService';
+export {
+  PolicyRepository,
+  PolicyDefinition,
+  PolicyBundle,
+  PolicyEvaluation,
+} from './PolicyRepository';
+
+export {
+  PolicyService,
+  CreatePolicyInput,
+  UpdatePolicyInput,
+  PolicyEvaluationContext,
+  PolicyEvaluationResult,
+} from './PolicyService';
+
+export {
+  PolicyEvaluationService,
+  EvaluationInput,
+  EvaluationResult,
+} from './PolicyEvaluationService';
+
 export {
   PolicyOverrideService,
-  PolicyOverrideServiceError,
-  type PolicyOverrideInput,
-  type PolicyOverride,
-  type UpdateOverrideInput,
+  CreateOverrideInput,
+  UpdateOverrideInput,
+  ListOverridesFilter,
 } from './PolicyOverrideService';

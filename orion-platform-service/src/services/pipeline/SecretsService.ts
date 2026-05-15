@@ -42,9 +42,11 @@ export interface SecretsServiceConfig {
 
 export interface SecretValue {
   id: string;
+  tenantId: string;
   name: string;
   value: string;
   scope: SecretScope;
+  description?: string;
   createdAt: Date;
   updatedAt: Date;
   createdBy?: string;
@@ -217,6 +219,7 @@ export class SecretsService {
     const entities = await this.repository.listByTenantAndScope(tenantId, scope);
     return entities.map((e) => ({
       id: e.id,
+      tenantId: e.tenantId,
       name: e.name,
       scope: e.scope,
       description: e.description || undefined,
@@ -499,9 +502,11 @@ export class SecretsService {
   private toSecretValue(entity: any): SecretValue {
     return {
       id: entity.id,
+      tenantId: entity.tenantId || 'default',
       name: entity.name,
       value: entity.decryptedValue || entity.value || '',
       scope: entity.scope,
+      description: entity.description,
       createdAt: entity.createdAt,
       updatedAt: entity.updatedAt,
       createdBy: entity.createdBy,

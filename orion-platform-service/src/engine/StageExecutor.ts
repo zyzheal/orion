@@ -70,11 +70,12 @@ export class StageExecutor {
     // Restore cache before executing tasks (if cache config exists)
     const cacheConfig = this.extractCacheConfig(stage);
     if (cacheConfig.enabled && this.cacheService) {
-      const workspaceDir = (stage.result?.metadata?.workspace as string) || process.cwd();
+      const stageResult = stage.result as Record<string, unknown> | undefined;
+      const workspaceDir = (stageResult?.metadata as Record<string, unknown> | undefined)?.workspace as string | undefined || process.cwd();
       const restoreResult = await this.cacheService.restoreCache(cacheConfig, workspaceDir);
       if (restoreResult.restored) {
         stage.result = stage.result || {};
-        stage.result.cacheRestoreResult = {
+        (stage.result as Record<string, unknown>).cacheRestoreResult = {
           restored: true,
           matchedKey: restoreResult.matchedKey,
           durationMs: restoreResult.durationMs,
@@ -114,7 +115,8 @@ export class StageExecutor {
 
     // Save cache after stage success (if cache config exists)
     if (stageSuccess && cacheConfig.enabled && this.cacheService) {
-      const workspaceDir = (stage.result?.metadata?.workspace as string) || process.cwd();
+      const stageResult = stage.result as Record<string, unknown> | undefined;
+      const workspaceDir = (stageResult?.metadata as Record<string, unknown> | undefined)?.workspace as string | undefined || process.cwd();
       await this.cacheService.saveCache(cacheConfig, workspaceDir);
     }
 
@@ -125,8 +127,11 @@ export class StageExecutor {
    * 从 Stage 配置中提取缓存配置
    */
   private extractCacheConfig(stage: Stage): StageCacheConfig {
-    const cache = (stage.result?.metadata?.cache as StageCacheConfig) ||
-                  (stage as Record<string, unknown>).cache as StageCacheConfig | undefined;
+    const stageResult = stage.result as Record<string, unknown> | undefined;
+    const metadata = stageResult?.metadata as Record<string, unknown> | undefined;
+    const cache = (metadata?.cache as StageCacheConfig) ||
+                  (stageResult?.cache as StageCacheConfig) ||
+                  (stage as unknown as Record<string, unknown>).cache as StageCacheConfig | undefined;
 
     if (!cache) {
       return { enabled: false, key: '', paths: [] };

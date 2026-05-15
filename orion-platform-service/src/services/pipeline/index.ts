@@ -22,10 +22,11 @@ export {
 
 export {
   PipelineService,
-  PipelineServiceError,
-  ListPipelinesOptions,
-  ListRunsOptions,
-  PaginatedResult,
+  PipelineVersion,
+  PipelineValidationResult,
+  PipelineRunOptions,
+  PipelineRetryOptions,
+  PipelineRunResult,
 } from './PipelineService';
 
 // PipelineRun - Repository & Service

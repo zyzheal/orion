@@ -114,7 +114,9 @@ export class PluginHotReloadService extends EventEmitter {
    * 启动插件目录监控
    */
   startWatching(): void {
-    if (typeof window !== 'undefined' || typeof (global as any).require === 'undefined') {
+    // Browser detection - use any to avoid TS errors in Node.js
+    const isBrowser = typeof (globalThis as any).window !== 'undefined';
+    if (isBrowser || typeof (global as any).require === 'undefined') {
       logger.warn('File watching not available in browser environment');
       return;
     }
@@ -323,7 +325,8 @@ export class PluginHotReloadService extends EventEmitter {
    */
   private async loadManifestFromFile(pluginId: string): Promise<PluginManifest> {
     // 浏览器环境不支持
-    if (typeof window !== 'undefined') {
+    const isBrowser = typeof (globalThis as any).window !== 'undefined';
+    if (isBrowser) {
       throw new Error('File loading not supported in browser');
     }
 

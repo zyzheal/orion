@@ -60,7 +60,7 @@ export class BranchPolicyService {
 
     // Generate IDs for approval rules
     const approvalRules: ApprovalRule[] = (input.approvalRules || []).map(rule => ({
-      id: rule.id || uuidv4(),
+      id: uuidv4(),
       name: rule.name,
       requiredApprovals: rule.requiredApprovals,
       approvers: rule.approvers,
@@ -130,7 +130,7 @@ export class BranchPolicyService {
       });
     }
 
-    return this.repository.update(id, input);
+    return this.repository.update(id, input as unknown as import('../../repositories/BranchPolicyRepository').UpdateBranchPolicyInput);
   }
 
   /**

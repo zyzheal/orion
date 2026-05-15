@@ -22,10 +22,11 @@ export {
 
 export {
   FederationService,
-  FederationCluster as FederationClusterModel,
-  FederationClusterHealth,
-  FederationJob,
-  ClusterMetrics,
+  CreateExecutorInput,
+  RegisterExecutorInput,
+  ExecutorHeartbeatInput,
+  DispatchJobInput,
+  FederationConfig,
 } from './FederationService';
 
 export {

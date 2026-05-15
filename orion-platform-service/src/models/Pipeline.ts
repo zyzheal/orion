@@ -39,9 +39,9 @@ export interface PipelineStage {
   retries?: number;
   // Matrix build configuration (GAP-02)
   matrix?: {
-    [key: string]: string[];
-    exclude?: Array<{ [key: string]: string }>;
-  } | undefined;
+    [key: string]: string[] | Array<Record<string, string>> | undefined;
+    exclude?: Array<Record<string, string>>;
+  };
   // Environment variables injected into stage runtime
   env?: Record<string, string>;
   // 缓存配置

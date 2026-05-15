@@ -83,6 +83,33 @@ export interface WebhookConfig {
   secret?: string;
 }
 
+// ==================== Webhook Payload Types ====================
+
+export interface CodeRepoWebhookPayload {
+  eventId?: string;
+  eventType: string;
+  repoType?: string;
+  repositoryId: string;
+  repository?: string | { id: string; name: string; fullName: string; url: string };
+  repositoryName: string;
+  repositoryUrl: string;
+  sender: string;
+  timestamp: Date;
+  payload: Record<string, unknown>;
+  rawPayload?: Record<string, unknown>;
+  pullRequest?: Record<string, unknown>;
+  push?: Record<string, unknown>;
+}
+
+export interface WebhookProcessResult {
+  success: boolean;
+  message?: string;
+  processed?: boolean;
+  error?: string;
+  eventId?: string;
+  eventType?: string;
+}
+
 // ==================== ICodeRepoAdapter Interface ====================
 
 /**

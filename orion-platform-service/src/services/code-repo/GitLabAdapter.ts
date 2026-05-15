@@ -19,6 +19,7 @@ import {
   Review,
   FileComment,
   WebhookConfig,
+  WebhookEventType,
   MergeStrategy,
 } from './types';
 
@@ -196,10 +197,8 @@ export class GitLabAdapter implements ICodeRepoAdapter {
       fullName: projectId,
       type: RepoType.GITLAB,
       url: `${this.baseUrl}/${projectId}`,
-      sshUrl: `git@${new URL(this.baseUrl).hostname}:${projectId}.git`,
-      httpUrl: `${this.baseUrl}/${projectId}.git`,
       defaultBranch: 'main',
-      visibility: 'private' as const,
+      isPrivate: true,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -272,11 +271,9 @@ export class GitLabAdapter implements ICodeRepoAdapter {
   async getBranch(repoId: string, branchName: string): Promise<Branch> {
     const fallback: Branch = {
       name: branchName,
-      isProtected: false,
-      lastCommitSha: '',
-      lastCommitMessage: '',
+      protected: false,
+      sha: '',
       lastCommitDate: new Date(),
-      commitCount: 0,
     };
 
     const branch: any = await this.client.get(
@@ -299,11 +296,9 @@ export class GitLabAdapter implements ICodeRepoAdapter {
   async createBranch(repoId: string, branchName: string, sourceRef: string): Promise<Branch> {
     const fallback: Branch = {
       name: branchName,
-      isProtected: false,
-      lastCommitSha: '',
-      lastCommitMessage: '',
+      protected: false,
+      sha: '',
       lastCommitDate: new Date(),
-      commitCount: 0,
     };
 
     const branch: any = await this.client.post(
@@ -363,7 +358,7 @@ export class GitLabAdapter implements ICodeRepoAdapter {
       // Not protected
     }
 
-    return { isProtected: false };
+    return null;
   }
 
   // ==================== 提交管理 ====================
@@ -400,9 +395,8 @@ export class GitLabAdapter implements ICodeRepoAdapter {
     const fallback: Commit = {
       sha,
       message: '',
-      author: '',
-      authorEmail: '',
-      createdAt: new Date(),
+      author: { name: '', email: '', date: new Date() },
+      url: `${this.baseUrl}/-/commit/${sha}`,
     };
 
     const commit: any = await this.client.get(
@@ -434,21 +428,11 @@ export class GitLabAdapter implements ICodeRepoAdapter {
   }): Promise<PullRequest> {
     const fallback: PullRequest = {
       id: `mr-${Date.now()}`,
-      externalId: '1',
-      repoId,
-      repoName: repoId,
       title: input.title,
-      description: input.description,
-      status: PullRequestStatus.OPEN,
       sourceBranch: input.sourceBranch,
       targetBranch: input.targetBranch,
       author: 'current-user',
-      assignees: [],
-      reviewers: input.reviewers || [],
-      labels: input.labels || [],
-      isMergeable: true,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      status: PullRequestStatus.OPEN,
     };
 
     const mr: any = await this.client.post(
@@ -478,20 +462,11 @@ export class GitLabAdapter implements ICodeRepoAdapter {
   async getPullRequest(repoId: string, prId: string): Promise<PullRequest> {
     const fallback: PullRequest = {
       id: prId,
-      externalId: prId,
-      repoId,
-      repoName: repoId,
       title: 'Mock MR',
-      status: PullRequestStatus.OPEN,
       sourceBranch: 'feature-branch',
       targetBranch: 'main',
       author: 'user',
-      assignees: [],
-      reviewers: [],
-      labels: [],
-      isMergeable: true,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      status: PullRequestStatus.OPEN,
     };
 
     const mr: any = await this.client.get(
@@ -540,26 +515,16 @@ export class GitLabAdapter implements ICodeRepoAdapter {
   }): Promise<PullRequest> {
     const fallback: PullRequest = {
       id: prId,
-      externalId: prId,
-      repoId,
-      repoName: repoId,
-      title: 'Mock MR',
-      status: PullRequestStatus.MERGED,
+      title: 'Merged MR',
       sourceBranch: 'feature-branch',
       targetBranch: 'main',
       author: 'user',
-      assignees: [],
-      reviewers: [],
-      labels: [],
-      isMergeable: true,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      mergedAt: new Date(),
+      status: PullRequestStatus.MERGED,
     };
 
     const body: Record<string, any> = {};
     if (options?.commitMessage) body.merge_commit_message = options.commitMessage;
-    if (options?.strategy === MergeStrategy.SQUASH_MERGE) body.squash = true;
+    if (options?.strategy === 'squash') body.squash = true;
 
     const mr: any = await this.client.put(
       `/projects/${encodeURIComponent(repoId)}/merge_requests/${prId}/merge`,
@@ -582,21 +547,11 @@ export class GitLabAdapter implements ICodeRepoAdapter {
   async closePullRequest(repoId: string, prId: string): Promise<PullRequest> {
     const fallback: PullRequest = {
       id: prId,
-      externalId: prId,
-      repoId,
-      repoName: repoId,
-      title: 'Mock MR',
-      status: PullRequestStatus.CLOSED,
+      title: 'Closed MR',
       sourceBranch: 'feature-branch',
       targetBranch: 'main',
       author: 'user',
-      assignees: [],
-      reviewers: [],
-      labels: [],
-      isMergeable: false,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      closedAt: new Date(),
+      status: PullRequestStatus.CLOSED,
     };
 
     const mr: any = await this.client.put(
@@ -625,21 +580,11 @@ export class GitLabAdapter implements ICodeRepoAdapter {
   }): Promise<PullRequest> {
     const fallback: PullRequest = {
       id: prId,
-      externalId: prId,
-      repoId,
-      repoName: repoId,
       title: input.title || 'Mock MR',
-      description: input.description,
-      status: PullRequestStatus.OPEN,
       sourceBranch: 'feature-branch',
       targetBranch: 'main',
       author: 'user',
-      assignees: input.assignees || [],
-      reviewers: [],
-      labels: input.labels || [],
-      isMergeable: true,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      status: PullRequestStatus.OPEN,
     };
 
     const body: Record<string, any> = {};
@@ -675,13 +620,10 @@ export class GitLabAdapter implements ICodeRepoAdapter {
   }): Promise<Review> {
     const fallback: Review = {
       id: `review-${Date.now()}`,
-      pullRequestId: prId,
       author: 'current-user',
-      content: input.content,
-      score: input.score,
-      state: input.state || 'comment',
+      body: input.content,
+      state: input.state === 'approve' ? 'approved' : input.state === 'request_changes' ? 'changes_requested' : 'pending',
       createdAt: new Date(),
-      fileComments: input.fileComments,
     };
 
     await this.client.post(
@@ -716,24 +658,22 @@ export class GitLabAdapter implements ICodeRepoAdapter {
    */
   async createWebhook(repoId: string, input: {
     url: string;
-    events: string[];
+    events: WebhookEventType[];
     secret?: string;
   }): Promise<WebhookConfig> {
     const fallback: WebhookConfig = {
       id: `hook-${Date.now()}`,
-      repoId,
       url: input.url,
       events: input.events,
+      active: true,
       secret: input.secret,
-      isActive: true,
-      createdAt: new Date(),
     };
 
     const body: Record<string, any> = {
       url: input.url,
       token: input.secret,
-      merge_requests_events: input.events.includes('merge_requests'),
-      push_events: input.events.includes('push'),
+      merge_requests_events: input.events.includes(WebhookEventType.PR_OPENED) || input.events.includes(WebhookEventType.PR_MERGED),
+      push_events: input.events.includes(WebhookEventType.PUSH),
       enable_ssl_verification: true,
     };
 
@@ -785,11 +725,9 @@ export class GitLabAdapter implements ICodeRepoAdapter {
       fullName: data.path_with_namespace,
       type: RepoType.GITLAB,
       url: data.web_url,
-      sshUrl: data.ssh_url_to_repo,
-      httpUrl: data.http_url_to_repo,
       defaultBranch: data.default_branch || 'main',
+      isPrivate: data.visibility !== 'public',
       description: data.description,
-      visibility: data.visibility as 'public' | 'private' | 'internal',
       createdAt: new Date(data.created_at),
       updatedAt: new Date(data.last_activity_at),
     };
@@ -799,11 +737,9 @@ export class GitLabAdapter implements ICodeRepoAdapter {
   private mapGitLabBranchToBranch(data: any): Branch {
     return {
       name: data.name,
-      isProtected: data.protected || false,
-      lastCommitSha: data.commit?.id || '',
-      lastCommitMessage: data.commit?.message || '',
+      protected: data.protected || false,
+      sha: data.commit?.id || '',
       lastCommitDate: new Date(data.commit?.created_at || Date.now()),
-      commitCount: 0,
     };
   }
 
@@ -812,9 +748,12 @@ export class GitLabAdapter implements ICodeRepoAdapter {
     return {
       sha: data.id,
       message: data.message,
-      author: data.author_name,
-      authorEmail: data.author_email,
-      createdAt: new Date(data.created_at || data.committed_date),
+      author: {
+        name: data.author_name || '',
+        email: data.author_email || '',
+        date: new Date(data.created_at || data.committed_date || Date.now()),
+      },
+      url: `${this.baseUrl}/-/commit/${data.id}`,
     };
   }
 
@@ -822,23 +761,11 @@ export class GitLabAdapter implements ICodeRepoAdapter {
   private mapGitLabMRToPullRequest(data: any): PullRequest {
     return {
       id: String(data.iid),
-      externalId: String(data.iid),
-      repoId: String(data.project_id),
-      repoName: data.references?.full || '',
       title: data.title,
-      description: data.description,
-      status: this.mapGitLabStateToPullRequestStatus(data.state, data.merge_status),
       sourceBranch: data.source_branch,
       targetBranch: data.target_branch,
       author: data.author?.username || '',
-      assignees: (data.assignees || []).map((a: any) => a.username),
-      reviewers: (data.reviewers || []).map((r: any) => r.username),
-      labels: data.labels || [],
-      isMergeable: data.merge_status === 'can_be_merged',
-      createdAt: new Date(data.created_at),
-      updatedAt: new Date(data.updated_at),
-      mergedAt: data.merged_at ? new Date(data.merged_at) : undefined,
-      closedAt: data.closed_at ? new Date(data.closed_at) : undefined,
+      status: this.mapGitLabStateToPullRequestStatus(data.state, data.merge_status),
     };
   }
 
@@ -877,31 +804,25 @@ export class GitLabAdapter implements ICodeRepoAdapter {
   private mapGitLabNoteToReview(data: any): Review {
     return {
       id: String(data.id),
-      pullRequestId: String(data.noteable_iid),
       author: data.author?.username || '',
-      content: data.body,
-      state: 'comment',
+      body: data.body,
+      state: 'pending',
       createdAt: new Date(data.created_at),
     };
   }
 
   /** 将 GitLab Hook 映射为 WebhookConfig */
   private mapGitLabHookToWebhookConfig(data: any): WebhookConfig {
-    const events: string[] = [];
-    if (data.merge_requests_events) events.push('merge_requests');
-    if (data.push_events) events.push('push');
-    if (data.issues_events) events.push('issues');
-    if (data.pipeline_events) events.push('pipeline');
-    if (data.tag_push_events) events.push('tag_push');
+    const events: WebhookEventType[] = [];
+    if (data.merge_requests_events) events.push(WebhookEventType.PR_OPENED);
+    if (data.push_events) events.push(WebhookEventType.PUSH);
 
     return {
       id: String(data.id),
-      repoId: String(data.project_id),
       url: data.url,
-      events: data.events || events,
+      events,
+      active: data.active !== false,
       secret: data.token,
-      isActive: data.active !== false,
-      createdAt: new Date(data.created_at),
     };
   }
 }

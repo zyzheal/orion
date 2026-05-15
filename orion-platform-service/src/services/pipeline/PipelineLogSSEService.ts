@@ -110,7 +110,7 @@ export class PipelineLogSSEService {
     const conn: Omit<SSEConnection, 'heartbeatTimer'> = {
       id: connId,
       userId,
-      listener: listener as (data: Record<string, unknown>) => void,
+      listener: listener as unknown as (data: Record<string, unknown>) => void,
       connectedAt: new Date(),
     };
 

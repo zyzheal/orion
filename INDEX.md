@@ -2,8 +2,8 @@
 
 > 版本：v2.1 | 创建日期：2026-04-10 | 状态：**44+ 模块 260+ 功能**
 > 变更日志：[CHANGELOG.md](CHANGELOG.md) | 管理规范：[docs/文档管理规范.md](docs/文档管理规范.md)
-> **最新更新**: 2026-05-02 — 三轮文档清理完成 (53 份归档)，INDEX.md 全量校准，新增模块补全
-> **实现进度**: 后端 ~80% | 前端 ~88% | API 一致性 ~95% | 数据库 90 migrations
+> **最新更新**: 2026-05-15 — 项目结构全量审计，数据校准更新
+> **实现进度**: 后端 ~80% | 前端 ~88% | API 一致性 ~95% | 数据库 207 migrations
 
 ---
 
@@ -35,13 +35,13 @@
 
 | 维度 | 数量 | 说明 |
 |------|------|------|
-| **后端服务目录** | 70+ 个 | `orion-platform-service/src/services/` 含子服务文件 |
-| **后端服务模块** | 45 个 | `services/*/index.ts` 独立服务包 (30+ 已迁移 PostgreSQL) |
-| **前端页面** | 70 个 | `orion-frontend/src/pages/` |
-| **API 客户端** | 56 个 | `orion-frontend/src/api/` |
-| **后端路由** | 50 个 | `orion-platform-service/src/api/*-routes.ts` |
-| **数据库迁移** | 90 个 (001-067) | `orion-platform-service/src/db/migrations/` |
-| **设计文档** | ~200 份 | 含架构/AI/安全/前端/SRE 等 (53 份已归档) |
+| **后端服务目录** | 101 个 | `orion-platform-service/src/services/` 含子服务文件 |
+| **后端服务模块** | 73 个 | 3+ 源码文件的实质服务 (553 源文件, 273 测试文件) |
+| **前端页面** | 149 个 | `orion-frontend/src/pages/` |
+| **API 客户端** | 101 个 | `orion-frontend/src/api/` |
+| **后端路由** | 104 个 | `orion-platform-service/src/api/*-routes.ts` |
+| **数据库迁移** | 207 个 | `orion-platform-service/src/db/migrations/` |
+| **设计文档** | ~466 份 | 27 个分类目录 |
 
 > 注：30+ 服务已从 `Map()` 迁移至 PostgreSQL Repository 模式。API 路径不匹配已修复 (~95% 一致)。
 
@@ -60,11 +60,11 @@
 
 | 维度 | 数量 |
 |------|------|
-| 总文档数 | **~200 份** (不含子项目，53 份已归档) |
-| 总行数 | **~170,000 行** (归档后) |
-| ADR 决策记录 | **9 份** |
-| 评审报告 | **3 份** (2 份已归档) |
-| 高保真设计 | **23 份** |
+| 总文档数 | **~466 份** (27 个分类目录) |
+| 总行数 | **~170,000 行** |
+| ADR 决策记录 | **7 份** |
+| 评审报告 | **41 份** (`docs/review/`) |
+| 高保真设计 | **23 份** (`design-md/`) |
 | 文档模板 | **2 份** |
 | 子项目 | orion-visor, orion-knowledge, orion-dba |
 | **覆盖模块** | **41 个** (37 原 INDEX + 4 新增) |
@@ -315,7 +315,7 @@
 |------|------|----------|----------|---------|
 | M1 | 效能看板 | ✅ 全栈 | `services/efficiency/` `pages/EfficiencyDashboard/` `api/efficiency.ts` `efficiency-routes.ts` | DORA 指标计算，前端组件库，效能看板详细设计 |
 | M2 | 流水线可视化 | 🟡 前端组件 | `pages/PipelineList/` `PipelineEditor/` `PipelineDetail/` `api/pipelines.ts` `build-routes.ts` | 前端架构，WebSocket 认证 |
-| M3 | 审批工作台 | 🟡 全栈 | `pages/Approvals/` `approval-routes.ts` | 审批组件库 |
+| M3 | 审批工作台 | 🟡 全栈 | `pages/Approvals/` `approval-routes.ts` | [审批管理模块设计](docs/services/approval-management-design.md), [审批组件库](docs/frontend/审批组件库.md) |
 | M4 | 安全审计中心 | ✅ 全栈 | `services/ai-security/` `pages/RiskDashboard/` `api/risk.ts` `ai-security-routes.ts` `risk-routes.ts` | 安全与权限，数据隐私合规，审计日志防篡改 |
 | M5 | Pipeline 引擎 | ✅ 全栈 | `services/pipeline/` `pages/PipelineList/Editor/Detail/` `api/pipelines.ts` `build-routes.ts` | 算法设计，Plugin-SPI |
 | M6 | 多分支产品线 | ✅ 全栈 | `services/product-line/` `pages/ProductLine/` `api/product-line.ts` `product-line-routes.ts` | ADR-001, ADR-008, product-line-management-design.md |
@@ -381,7 +381,7 @@
 | S15 | 环境管理 | ✅ 全栈 | `environment-routes.ts` + `pages/Environment/` | ❌ 待补充 |
 | S16 | 用户权限 | ✅ 全栈 | `user-routes.ts` + `role-routes.ts` + `session-routes.ts` + `pages/UserManagement/RoleManagement/Sessions/` | ❌ 待补充 |
 | S17 | 项目管理 | ✅ 全栈 | `project-routes.ts` + `pages/Projects/` | ❌ 待补充 |
-| S18 | Approvals | ✅ 全栈 | `approval-routes.ts` + `pages/Approvals/` | ❌ 待补充 |
+| S18 | Approvals | ✅ 全栈 | `approval-routes.ts` + `pages/Approvals/` | [审批管理模块设计](docs/services/approval-management-design.md) |
 
 > 注: 以上服务的持久化已逐步迁移至 PostgreSQL Repository 模式。
 
@@ -430,8 +430,8 @@ wc -l docs/**/*.md
 
 ---
 
-> 最近完成: 三轮文档清理 (53 份归档) + INDEX.md 全量校准 + 10 个新增模块登记
+> 最近完成: 项目结构全量审计 (2026-05-15) — 数据校准: 101 服务目录/73 实质服务/149 前端页/101 API 客户端/104 路由/207 迁移/466 文档
 
-_维护者：Orion 架构团队 | 更新频率：每次文档变更时同步更新 | 最后更新：2026-05-02_
-_实现状态 v3.0: ~60 模块 (41 M/S1-8 + 10 S9-18 + 其他)，约 31 全栈实现，18+ 新增模块缺设计文档_
-_最近里程碑: 文档治理 Phase 1-2-4 完成，Phase 3 (补全文档) 待执行_
+_维护者：Orion 架构团队 | 更新频率：每次文档变更时同步更新 | 最后更新：2026-05-15_
+_实现状态 v3.1: ~101 服务目录 (73 实质服务 + 辅助模块)，约 31 全栈实现，18+ 新增模块缺设计文档_
+_最近里程碑: 文档治理 Phase 1-2-4 完成，Phase 3 (补全文档) 待执行；TypeScript 编译错误持续修复中_

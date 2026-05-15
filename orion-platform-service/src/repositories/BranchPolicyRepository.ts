@@ -16,7 +16,7 @@ export interface CreateBranchPolicyInput {
   preventDeletion?: boolean;
   mergeStrategy?: MergeStrategy;
   approvalRules?: Array<{
-    id: string;
+    id?: string;
     name: string;
     requiredApprovals: number;
     approvers: string[];
@@ -34,7 +34,7 @@ export interface UpdateBranchPolicyInput {
   preventDeletion?: boolean;
   mergeStrategy?: MergeStrategy;
   approvalRules?: Array<{
-    id: string;
+    id?: string;
     name: string;
     requiredApprovals: number;
     approvers: string[];

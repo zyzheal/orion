@@ -37,7 +37,7 @@ import { VariableContext } from './VariableContext';
 import { DebugController } from './DebugController';
 import { YamlPreprocessor } from './YamlPreprocessor';
 import { SharedActionService } from '../services/pipeline/SharedActionService';
-import { SecretsService } from '../services/pipeline/SecretsService';
+import { SecretsService, SecretsServiceConfig } from '../services/pipeline/SecretsService';
 import { SecretRepository } from '../repositories/SecretRepository';
 import { getGlobalSecretsService } from '../api/secret-routes';
 import pino from 'pino';
@@ -147,7 +147,8 @@ export class PipelineEngine {
   initializeSecrets(database: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }, masterKey?: string): void {
     if (!database) return;
     const repo = new SecretRepository(database);
-    this.secretsService = new SecretsService(repo, masterKey);
+    const config: SecretsServiceConfig | undefined = masterKey ? { encryptionKey: masterKey } : undefined;
+    this.secretsService = new SecretsService(repo, config);
   }
 
   /**
@@ -550,7 +551,15 @@ export class PipelineEngine {
         resolvedTasks[0].type === 'sub-pipeline';
 
       if (isSubPipelineStage) {
-        await this.executeSubPipelineStage(execution, stage, resolvedTasks);
+        const taskObjects = resolvedTasks.map(t => ({
+          id: t.id,
+          name: t.name,
+          type: t.type,
+          parameters: t.parameters,
+          // Spread remaining Task properties for index signature compatibility
+          ...t as unknown as Record<string, unknown>,
+        }));
+        await this.executeSubPipelineStage(execution, stage, taskObjects);
         return;
       }
 
@@ -575,7 +584,7 @@ export class PipelineEngine {
           const tenantId = (execution.run.context as any)?.tenantId || 'default';
           if (tenantId) {
             try {
-              const secretResult = await secretsSvc.resolveAndReplaceSecrets(tenantId, task.parameters);
+              const secretResult = await secretsSvc.resolveTaskSecrets(tenantId, task.parameters);
               if (secretResult.secretValues.length > 0 || secretResult.unresolved.length > 0) {
                 logger.info(
                   { taskId: task.id, resolved: secretResult.secretValues.length, unresolved: secretResult.unresolved.length },
@@ -586,8 +595,8 @@ export class PipelineEngine {
               if (secretResult.unresolved.length > 0) {
                 throw new Error(`Unresolved secret references: ${secretResult.unresolved.join(', ')}`);
               }
-              // Update task parameters with resolved values
-              resolvedTask = { ...task, parameters: secretResult.parameters };
+              // Update task parameters with resolved values (merge env into parameters)
+              resolvedTask = { ...task, parameters: { ...task.parameters, ...secretResult.env } };
             } catch (error) {
               // Re-throw to fail the task if secrets can't be resolved
               throw error;

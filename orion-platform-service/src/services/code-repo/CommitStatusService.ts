@@ -7,7 +7,19 @@ import pino from 'pino';
 import { GitLabAdapter } from './GitLabAdapter';
 import { GitLabClient } from '../../clients/GitLabClient';
 import { GitHubClient } from '../../clients/GitHubClient';
-import { CommitStatus, GitProvider } from './types';
+
+// Local type definitions (not yet in types.ts)
+export enum CommitStatus {
+  PENDING = 'pending',
+  SUCCESS = 'success',
+  FAILED = 'failed',
+  CANCELLED = 'cancelled',
+}
+
+export enum GitProvider {
+  GITLAB = 'gitlab',
+  GITHUB = 'github',
+}
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 

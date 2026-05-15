@@ -16,7 +16,7 @@ import { v4 as uuidv4 } from 'uuid';
 import {
   CodeOwnersFile,
   OwnershipRule,
-  OwnershipRecommendation,
+  OwnerRecommendation,
 } from './types';
 import { CodeOwnershipRepository } from '../../repositories/CodeOwnershipRepository';
 
@@ -147,18 +147,17 @@ export class CodeOwnershipService {
   async recommendOwners(
     repoId: string,
     filePaths: string[]
-  ): Promise<OwnershipRecommendation[]> {
+  ): Promise<OwnerRecommendation[]> {
     const file = await this.getCodeOwnersFile(repoId);
     if (!file || file.rules.length === 0) {
-      // 如果没有 CODEOWNERS 文件，返回空推荐
       return filePaths.map(fp => ({
         filePath: fp,
-        recommendedOwners: [],
-        matchedRules: [],
+        owners: [],
+        matchedPattern: '',
       }));
     }
 
-    const recommendations: OwnershipRecommendation[] = [];
+    const recommendations: OwnerRecommendation[] = [];
 
     for (const filePath of filePaths) {
       const matchedRules = this.matchFileToRules(filePath, file.rules);
@@ -171,8 +170,8 @@ export class CodeOwnershipService {
 
       recommendations.push({
         filePath,
-        recommendedOwners: Array.from(allOwners),
-        matchedRules,
+        owners: Array.from(allOwners),
+        matchedPattern: matchedRules.length > 0 ? matchedRules[matchedRules.length - 1].pattern : '',
       });
     }
 
@@ -200,9 +199,9 @@ export class CodeOwnershipService {
     const allApprovers = new Set<string>();
 
     for (const rec of recommendations) {
-      if (rec.recommendedOwners.length > 0) {
-        ownershipMap[rec.filePath] = rec.recommendedOwners;
-        rec.recommendedOwners.forEach(owner => allApprovers.add(owner));
+      if (rec.owners.length > 0) {
+        ownershipMap[rec.filePath] = rec.owners;
+        rec.owners.forEach((owner: string) => allApprovers.add(owner));
       }
     }
 
@@ -282,7 +281,7 @@ export class CodeOwnershipService {
       rules.push({
         pattern,
         owners,
-        isRequired: true,  // CODEOWNERS 规则默认需要审批
+        line: lineNum + 1,
       });
     }
 

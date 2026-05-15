@@ -130,13 +130,12 @@ export default async function sbomRoutes(
   // ==================== Compliance Reports ====================
 
   app.get('/compliance/report', async (request: FastifyRequest, reply: FastifyReply) => {
-    const query = request.query as { scope?: string; startDate?: string; endDate?: string };
+    const query = request.query as { standard?: string; tenantId?: string; period?: string };
     try {
-      const report = await documentService.getComplianceReport({
-        scope: query.scope,
-        startDate: query.startDate ? new Date(query.startDate) : undefined,
-        endDate: query.endDate ? new Date(query.endDate) : undefined,
-      });
+      const report = await documentService.getComplianceReport(
+        query.standard || 'generic',
+        { tenantId: query.tenantId, period: query.period }
+      );
       return reply.send({ code: 200, message: 'OK', data: report });
     } catch (error: any) {
       return reply.status(500).send({ code: 500, message: error.message });
@@ -144,8 +143,9 @@ export default async function sbomRoutes(
   });
 
   app.get('/compliance/eo14028', async (request: FastifyRequest, reply: FastifyReply) => {
+    const query = request.query as { tenantId?: string };
     try {
-      const compliance = await documentService.getEO14028Compliance();
+      const compliance = await documentService.getEO14028Compliance(query.tenantId || 'default');
       return reply.send({ code: 200, message: 'OK', data: compliance });
     } catch (error: any) {
       return reply.status(500).send({ code: 500, message: error.message });
@@ -153,8 +153,9 @@ export default async function sbomRoutes(
   });
 
   app.get('/compliance/eu-cra', async (request: FastifyRequest, reply: FastifyReply) => {
+    const query = request.query as { tenantId?: string };
     try {
-      const compliance = await documentService.getEUCRACompliance();
+      const compliance = await documentService.getEUCRACompliance(query.tenantId || 'default');
       return reply.send({ code: 200, message: 'OK', data: compliance });
     } catch (error: any) {
       return reply.status(500).send({ code: 500, message: error.message });
@@ -165,16 +166,20 @@ export default async function sbomRoutes(
 
   app.post('/provenance', async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as {
-      buildId: string;
-      provenanceType: string;
-      content: Record<string, unknown>;
-      signature: string;
-      builderId: string;
-      buildTrigger: string;
-      sourceUri: string;
+      sbomId?: string;
+      buildUrl?: string;
+      builderId?: string;
+      buildFinishedAt?: Date;
+      materials?: Array<{ uri: string; digest: Record<string, string> }>;
     };
     try {
-      const provenance = await documentService.createProvenance(body);
+      const provenance = await documentService.createProvenance({
+        sbomId: body.sbomId || '',
+        buildUrl: body.buildUrl || '',
+        builderId: body.builderId || '',
+        buildFinishedAt: body.buildFinishedAt || new Date(),
+        materials: body.materials || [],
+      });
       return reply.status(201).send({ code: 201, message: 'Created', data: provenance });
     } catch (error: any) {
       return reply.status(500).send({ code: 500, message: error.message });
@@ -182,9 +187,9 @@ export default async function sbomRoutes(
   });
 
   app.get('/provenance', async (request: FastifyRequest, reply: FastifyReply) => {
-    const query = request.query as { buildId?: string };
+    const query = request.query as { sbomId?: string };
     try {
-      const provenances = await documentService.listProvenance(query.buildId);
+      const provenances = await documentService.listProvenance(query.sbomId || '');
       return reply.send({ code: 200, message: 'OK', data: provenances });
     } catch (error: any) {
       return reply.status(500).send({ code: 500, message: error.message });
@@ -207,12 +212,12 @@ export default async function sbomRoutes(
   // ==================== Gate ====================
 
   app.post('/gate/evaluate', async (request: FastifyRequest, reply: FastifyReply) => {
-    const query = request.query as { buildId: string };
-    if (!query.buildId) {
-      return reply.status(400).send({ code: 400, message: 'buildId query parameter is required' });
+    const query = request.query as { gateId: string; sbomId: string };
+    if (!query.gateId || !query.sbomId) {
+      return reply.status(400).send({ code: 400, message: 'gateId and sbomId query parameters are required' });
     }
     try {
-      const result = await documentService.evaluateGate(query.buildId);
+      const result = await documentService.evaluateGate(query.gateId, query.sbomId);
       return reply.send({ code: 200, message: 'OK', data: result });
     } catch (error: any) {
       return reply.status(500).send({ code: 500, message: error.message });
@@ -220,9 +225,9 @@ export default async function sbomRoutes(
   });
 
   app.get('/gate/history', async (request: FastifyRequest, reply: FastifyReply) => {
-    const query = request.query as { buildId?: string };
+    const query = request.query as { sbomId?: string };
     try {
-      const history = await documentService.getGateHistory(query.buildId);
+      const history = await documentService.getGateHistory(query.sbomId || '');
       return reply.send({ code: 200, message: 'OK', data: history });
     } catch (error: any) {
       return reply.status(500).send({ code: 500, message: error.message });

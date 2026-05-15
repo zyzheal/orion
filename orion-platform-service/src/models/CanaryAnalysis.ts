@@ -7,7 +7,7 @@ import { v4 as uuidv4 } from 'uuid';
 // ==================== CanaryAnalysisRun ====================
 
 export type CanaryStatus = 'running' | 'promote' | 'rollback' | 'inconclusive';
-export type CanaryDecision = 'promote' | 'rollback' | 'continue' | 'pending';
+export type CanaryDecision = 'promote' | 'rollback' | 'continue' | 'pending' | 'inconclusive';
 
 export interface TrafficSplit {
   canary: number;

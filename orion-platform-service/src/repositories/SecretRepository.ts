@@ -16,6 +16,7 @@ export interface SecretEntity {
   name: string;
   encryptedValue: Buffer;
   scope: SecretScope;
+  description?: string;
   createdAt: Date;
   updatedAt: Date;
   createdBy?: string;
@@ -27,6 +28,7 @@ export interface SecretCreateInput {
   name: string;
   encryptedValue: Buffer;
   scope?: SecretScope;
+  description?: string;
   createdBy?: string;
 }
 

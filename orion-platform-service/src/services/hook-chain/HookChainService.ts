@@ -114,7 +114,7 @@ class WebhookExecutor implements HookExecutor {
       throw new Error(`Webhook call failed: ${response.status} ${response.statusText}`);
     }
 
-    return response.json();
+    return response.json() as Promise<Record<string, any>>;
   }
 }
 

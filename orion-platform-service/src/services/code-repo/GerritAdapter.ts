@@ -19,6 +19,7 @@ import {
   Review,
   FileComment,
   WebhookConfig,
+  WebhookEventType,
   MergeStrategy,
 } from './types';
 
@@ -214,10 +215,8 @@ export class GerritAdapter implements ICodeRepoAdapter {
       fullName: projectName,
       type: RepoType.GERRIT,
       url: `${this.baseUrl}/${projectName}`,
-      sshUrl: `ssh://${new URL(this.baseUrl).hostname}:29418/${projectName}.git`,
-      httpUrl: `${this.baseUrl}/${projectName}.git`,
       defaultBranch: 'refs/heads/master',
-      visibility: 'private',
+      isPrivate: true,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -237,10 +236,8 @@ export class GerritAdapter implements ICodeRepoAdapter {
       fullName: projectName,
       type: RepoType.GERRIT,
       url: data.web_url || `${this.baseUrl}/${projectName}`,
-      sshUrl: `ssh://${new URL(this.baseUrl).hostname}:29418/${projectName}.git`,
-      httpUrl: `${this.baseUrl}/${projectName}.git`,
       defaultBranch: data.branches?.master || 'refs/heads/master',
-      visibility: data.state === 'ACTIVE' ? 'public' : 'private',
+      isPrivate: data.state !== 'ACTIVE',
       description: data.description,
       createdAt: new Date(data.created_on || Date.now()),
       updatedAt: new Date(data.last_updated || Date.now()),
@@ -273,10 +270,8 @@ export class GerritAdapter implements ICodeRepoAdapter {
         fullName: key,
         type: RepoType.GERRIT,
         url: `${this.baseUrl}/${key}`,
-        sshUrl: `ssh://${new URL(this.baseUrl).hostname}:29418/${key}.git`,
-        httpUrl: `${this.baseUrl}/${key}.git`,
         defaultBranch: 'refs/heads/master',
-        visibility: data.state === 'ACTIVE' ? 'public' : 'private',
+        isPrivate: data.state !== 'ACTIVE',
         description: data.description,
         createdAt: new Date(data.created_on || Date.now()),
         updatedAt: new Date(data.last_updated || Date.now()),
@@ -304,11 +299,9 @@ export class GerritAdapter implements ICodeRepoAdapter {
       .filter(([key]) => key !== '')
       .map(([name, data]) => ({
         name,
-        isProtected: false,
-        lastCommitSha: data.revision || '',
-        lastCommitMessage: '',
+        sha: data.revision || '',
+        protected: false,
         lastCommitDate: new Date(),
-        commitCount: 0,
       }));
     return { branches: branchList, total: branchList.length };
   }
@@ -321,11 +314,9 @@ export class GerritAdapter implements ICodeRepoAdapter {
   async getBranch(repoId: string, branchName: string): Promise<Branch> {
     const fallback: Branch = {
       name: branchName,
-      isProtected: false,
-      lastCommitSha: '',
-      lastCommitMessage: '',
+      protected: false,
+      sha: '',
       lastCommitDate: new Date(),
-      commitCount: 0,
     };
 
     const branch: any = await this.client.get(
@@ -339,11 +330,9 @@ export class GerritAdapter implements ICodeRepoAdapter {
 
     return {
       name: branchName,
-      isProtected: false,
-      lastCommitSha: branch.revision || '',
-      lastCommitMessage: '',
+      sha: branch.revision || '',
+      protected: false,
       lastCommitDate: new Date(),
-      commitCount: 0,
     };
   }
 
@@ -355,11 +344,9 @@ export class GerritAdapter implements ICodeRepoAdapter {
   async createBranch(repoId: string, branchName: string, sourceRef: string): Promise<Branch> {
     const fallback: Branch = {
       name: branchName,
-      isProtected: false,
-      lastCommitSha: '',
-      lastCommitMessage: '',
+      protected: false,
+      sha: '',
       lastCommitDate: new Date(),
-      commitCount: 0,
     };
 
     const branch: any = await this.client.put(
@@ -374,11 +361,9 @@ export class GerritAdapter implements ICodeRepoAdapter {
 
     return {
       name: branchName,
-      isProtected: false,
-      lastCommitSha: branch.revision || '',
-      lastCommitMessage: '',
+      sha: branch.revision || '',
+      protected: false,
       lastCommitDate: new Date(),
-      commitCount: 0,
     };
   }
 
@@ -423,9 +408,12 @@ export class GerritAdapter implements ICodeRepoAdapter {
     const commits = changes.map((c) => ({
       sha: c.current_revision || '',
       message: c.subject || '',
-      author: c.owner?.name || '',
-      authorEmail: c.owner?.email || '',
-      createdAt: new Date(c.created || Date.now()),
+      author: {
+        name: c.owner?.name || '',
+        email: c.owner?.email || '',
+        date: new Date(c.created || Date.now()),
+      },
+      url: `${this.baseUrl}/${encodeURIComponent(repoId)}/+/${c._number || ''}`,
     }));
     return { commits, total: commits.length };
   }
@@ -437,9 +425,8 @@ export class GerritAdapter implements ICodeRepoAdapter {
     const fallback: Commit = {
       sha,
       message: '',
-      author: '',
-      authorEmail: '',
-      createdAt: new Date(),
+      author: { name: '', email: '', date: new Date() },
+      url: `${this.baseUrl}/${encodeURIComponent(repoId)}/+/${sha}`,
     };
 
     const commit: any = await this.client.get(
@@ -455,9 +442,12 @@ export class GerritAdapter implements ICodeRepoAdapter {
     return {
       sha: change.current_revision || sha,
       message: change.subject || '',
-      author: change.owner?.name || '',
-      authorEmail: change.owner?.email || '',
-      createdAt: new Date(change.created || Date.now()),
+      author: {
+        name: change.owner?.name || '',
+        email: change.owner?.email || '',
+        date: new Date(change.created || Date.now()),
+      },
+      url: `${this.baseUrl}/${encodeURIComponent(repoId)}/+/${change._number || sha}`,
     };
   }
 
@@ -478,21 +468,11 @@ export class GerritAdapter implements ICodeRepoAdapter {
   }): Promise<PullRequest> {
     return {
       id: `change-${Date.now()}`,
-      externalId: `I${Date.now().toString(16)}`,
-      repoId,
-      repoName: repoId,
       title: input.title,
-      description: input.description,
-      status: PullRequestStatus.OPEN,
       sourceBranch: input.sourceBranch,
       targetBranch: input.targetBranch,
       author: 'current-user',
-      assignees: [],
-      reviewers: input.reviewers || [],
-      labels: input.labels || [],
-      isMergeable: true,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      status: PullRequestStatus.OPEN,
     };
   }
 
@@ -504,20 +484,11 @@ export class GerritAdapter implements ICodeRepoAdapter {
   async getPullRequest(repoId: string, prId: string): Promise<PullRequest> {
     const fallback: PullRequest = {
       id: prId,
-      externalId: prId,
-      repoId,
-      repoName: repoId,
       title: 'Mock Change',
-      status: PullRequestStatus.OPEN,
       sourceBranch: 'feature-branch',
       targetBranch: 'refs/heads/master',
       author: 'user',
-      assignees: [],
-      reviewers: [],
-      labels: [],
-      isMergeable: true,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      status: PullRequestStatus.OPEN,
     };
 
     const change: any = await this.client.get(
@@ -531,21 +502,11 @@ export class GerritAdapter implements ICodeRepoAdapter {
 
     return {
       id: change.change_id || prId,
-      externalId: change.change_id || prId,
-      repoId,
-      repoName: change.project || repoId,
       title: change.subject || 'Change',
-      description: '',
-      status: change.status === 'MERGED' ? PullRequestStatus.MERGED : change.status === 'ABANDONED' ? PullRequestStatus.CLOSED : PullRequestStatus.OPEN,
       sourceBranch: change.branch || '',
       targetBranch: change.dest_branch || 'refs/heads/master',
       author: change.owner?.name || 'user',
-      assignees: [],
-      reviewers: [],
-      labels: [],
-      isMergeable: change.mergeable ?? true,
-      createdAt: new Date(change.created || Date.now()),
-      updatedAt: new Date(change.updated || Date.now()),
+      status: change.status === 'MERGED' ? PullRequestStatus.MERGED : change.status === 'ABANDONED' ? PullRequestStatus.CLOSED : PullRequestStatus.OPEN,
     };
   }
 
@@ -571,22 +532,12 @@ export class GerritAdapter implements ICodeRepoAdapter {
     );
 
     const pullRequests = changes.map(c => ({
-      id: c.change_id || c._number,
-      externalId: c.change_id || c._number,
-      repoId,
-      repoName: c.project || repoId,
+      id: c.change_id || String(c._number),
       title: c.subject || '',
-      description: '',
-      status: c.status === 'MERGED' ? PullRequestStatus.MERGED : c.status === 'ABANDONED' ? PullRequestStatus.CLOSED : PullRequestStatus.OPEN,
       sourceBranch: c.branch || '',
       targetBranch: c.dest_branch || '',
       author: c.owner?.name || '',
-      assignees: [],
-      reviewers: [],
-      labels: [],
-      isMergeable: c.mergeable ?? true,
-      createdAt: new Date(c.created || Date.now()),
-      updatedAt: new Date(c.updated || Date.now()),
+      status: c.status === 'MERGED' ? PullRequestStatus.MERGED : c.status === 'ABANDONED' ? PullRequestStatus.CLOSED : PullRequestStatus.OPEN,
     }));
     return { pullRequests, total: pullRequests.length };
   }
@@ -607,21 +558,11 @@ export class GerritAdapter implements ICodeRepoAdapter {
 
     return {
       id: prId,
-      externalId: prId,
-      repoId,
-      repoName: repoId,
-      title: 'Mock Change',
-      status: PullRequestStatus.MERGED,
+      title: 'Merged Change',
       sourceBranch: 'feature-branch',
       targetBranch: 'refs/heads/master',
       author: 'user',
-      assignees: [],
-      reviewers: [],
-      labels: [],
-      isMergeable: true,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      mergedAt: new Date(),
+      status: PullRequestStatus.MERGED,
     };
   }
 
@@ -639,21 +580,11 @@ export class GerritAdapter implements ICodeRepoAdapter {
 
     return {
       id: prId,
-      externalId: prId,
-      repoId,
-      repoName: repoId,
-      title: 'Mock Change',
-      status: PullRequestStatus.CLOSED,
+      title: 'Abandoned Change',
       sourceBranch: 'feature-branch',
       targetBranch: 'refs/heads/master',
       author: 'user',
-      assignees: [],
-      reviewers: [],
-      labels: [],
-      isMergeable: false,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      closedAt: new Date(),
+      status: PullRequestStatus.CLOSED,
     };
   }
 
@@ -668,21 +599,11 @@ export class GerritAdapter implements ICodeRepoAdapter {
   }): Promise<PullRequest> {
     return {
       id: prId,
-      externalId: prId,
-      repoId,
-      repoName: repoId,
       title: input.title || 'Mock Change',
-      description: input.description,
-      status: PullRequestStatus.OPEN,
       sourceBranch: 'feature-branch',
       targetBranch: 'refs/heads/master',
       author: 'user',
-      assignees: input.assignees || [],
-      reviewers: [],
-      labels: input.labels || [],
-      isMergeable: true,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      status: PullRequestStatus.OPEN,
     };
   }
 
@@ -714,13 +635,10 @@ export class GerritAdapter implements ICodeRepoAdapter {
 
     return {
       id: `review-${Date.now()}`,
-      pullRequestId: prId,
       author: 'current-user',
-      content: input.content,
-      score: input.score,
-      state: input.state || 'comment',
+      body: input.content,
+      state: input.state === 'approve' ? 'approved' : input.state === 'request_changes' ? 'changes_requested' : 'pending',
       createdAt: new Date(),
-      fileComments: input.fileComments,
     };
   }
 
@@ -740,10 +658,9 @@ export class GerritAdapter implements ICodeRepoAdapter {
       for (const comment of commentList) {
         reviews.push({
           id: comment.id || `review-${Date.now()}`,
-          pullRequestId: prId,
           author: comment.author?.name || '',
-          content: comment.message || '',
-          state: 'comment',
+          body: comment.message || '',
+          state: 'pending',
           createdAt: new Date(comment.updated || Date.now()),
         });
       }
@@ -759,17 +676,15 @@ export class GerritAdapter implements ICodeRepoAdapter {
    */
   async createWebhook(repoId: string, input: {
     url: string;
-    events: string[];
+    events: WebhookEventType[];
     secret?: string;
   }): Promise<WebhookConfig> {
     return {
       id: `hook-${Date.now()}`,
-      repoId,
       url: input.url,
       events: input.events,
+      active: true,
       secret: input.secret,
-      isActive: true,
-      createdAt: new Date(),
     };
   }
 

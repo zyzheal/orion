@@ -73,7 +73,7 @@ export class MatrixExpander {
     const dimensions: Record<string, string[]> = {};
     for (const key of Object.keys(stage.matrix)) {
       if (key !== 'exclude' && Array.isArray(stage.matrix[key])) {
-        dimensions[key] = stage.matrix[key];
+        dimensions[key] = stage.matrix[key] as string[];
       }
     }
 

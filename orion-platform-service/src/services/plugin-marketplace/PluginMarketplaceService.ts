@@ -305,7 +305,7 @@ export class PluginMarketplaceService {
           pluginId: id,
           userId: 'system',
           tenantId,
-          action: 'plugin_published',
+          action: 'plugin_published' as any,
           outcome: 'success',
         });
       } catch (error) {
@@ -367,7 +367,7 @@ export class PluginMarketplaceService {
           pluginId: input.plugin_id,
           userId,
           tenantId: input.tenant_id,
-          action: 'plugin_installed',
+          action: 'plugin_installed' as any,
           outcome: 'success',
         });
       } catch (error) {

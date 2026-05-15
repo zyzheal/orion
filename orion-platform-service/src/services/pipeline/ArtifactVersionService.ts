@@ -117,7 +117,8 @@ export class ArtifactVersionService {
    * 根据 ID 获取版本
    */
   async getVersionById(id: string): Promise<ArtifactVersion | null> {
-    return this.repository.findById(id);
+    const version = this.repository.findById(id);
+    return (version === undefined ? null : version) as ArtifactVersion | null;
   }
 
   /**

@@ -234,7 +234,7 @@ export class CostOptimizerService {
             tenantId: entity.tenantId,
             title: entity.title,
             description: entity.description || '',
-            opportunities: entity.opportunities as CostSavingOpportunity[],
+            opportunities: (entity.opportunities as unknown) as CostSavingOpportunity[],
             totalEstimatedSavings: entity.totalEstimatedSavings,
             priority: entity.priority,
             status: entity.status as OptimizationRecommendation['status'],

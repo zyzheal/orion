@@ -18,8 +18,9 @@ export {
 
 export {
   MultiCloudManagerService,
-  CloudProvider,
-  MultiCloudDeployment,
+  AddCloudAccountInput,
+  CloudAccountConfig,
+  CloudStats,
 } from './MultiCloudManagerService';
 
 export {

@@ -104,6 +104,8 @@ export interface PluginSandboxConfig {
 export interface PluginInfo {
   /** Plugin manifest */
   manifest: PluginManifest;
+  /** Plugin version (derived from manifest) */
+  version: string;
   /** Current lifecycle status */
   status: PluginStatus;
   /** Installation timestamp */

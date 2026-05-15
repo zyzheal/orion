@@ -199,3 +199,63 @@ Generated: 2026-05-07 22:00
 ---
 
 Generated: 2026-05-10
+
+---
+
+## Session: 2026-05-15 — Project Structure Audit & Documentation Update
+
+### Overall Status
+
+| Metric | Value |
+|--------|-------|
+| Backend Service Dirs | 101 (73 substantial with 3+ files) |
+| Backend Source Files | 553 .ts files (excl. tests) |
+| Backend Test Files | 273 .test.ts |
+| Frontend Pages | 149 |
+| Frontend API Clients | 101 |
+| Backend Routes | 104 (*-routes.ts) |
+| DB Migrations | 207 SQL files |
+| Design Docs | ~466 across 27 categories |
+| ADRs | 7 |
+| Planned Microservice Dirs | 34 (orion-*-svc/, not deployed separately) |
+
+### Key Findings
+
+1. **Service count significantly higher than documented**: INDEX.md said 70+ services, actual is 101 directories with 73 having substantial implementations
+2. **Migration files doubled**: Was 68-90, now 207 SQL migration files
+3. **Frontend pages doubled**: Was 70, now 149 pages
+4. **API clients doubled**: Was 56, now 101 API clients
+5. **Routes doubled**: Was 50, now 104 route files
+6. **Docs quadrupled**: Was ~200, now ~466 across 27 categories
+
+### Service Categories (by file count, top 10)
+
+| Service | Files | Tests | Domain |
+|---------|-------|-------|--------|
+| pipeline | 50 | 35 | CI/CD pipeline engine |
+| ticketing | 17 | 12 | Smart ticketing |
+| chatops | 17 | 1 | Chat operations |
+| finops | 13 | 9 | Financial operations |
+| config-mgmt | 13 | 4 | Configuration management |
+| build | 12 | 7 | Build environment |
+| deploy | 10 | 3 | Smart deployment |
+| tenant | 10 | 6 | Multi-tenant |
+| backup | 10 | 5 | Backup/restore |
+| diagnostic | 9 | 5 | System diagnostics |
+
+### Documentation Updates
+
+- **CLAUDE.md**: Updated architecture numbers, implementation state, known issues
+- **INDEX.md**: Updated all statistics (101 services, 149 pages, 207 migrations, 466 docs)
+
+### Pending Tasks
+
+1. Continue TypeScript error resolution (current branch: feat/frontend-gap-implementation)
+2. 35 modified files awaiting commit (canary analysis, pipeline engine, code-repo adapters, etc.)
+3. 18 modules (S9-S18) still lack design docs
+4. EventBus NATS integration remains unimplemented
+5. Microservice directories (34) are planned but not deployed independently
+
+---
+
+Generated: 2026-05-15

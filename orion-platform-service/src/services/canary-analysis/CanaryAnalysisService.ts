@@ -12,6 +12,7 @@ import {
   CanaryAnalysisConfigRepository,
   CanaryDecisionRepository,
   CanaryRetrainJobRepository,
+  CanaryAnalysisRunEntity,
 } from '../../repositories/CanaryAnalysisRepository';
 
 import {
@@ -29,6 +30,7 @@ import {
   CanaryDecisionRecord,
   createCanaryDecision,
   CanaryDecision,
+  CanaryStatus,
   MetricVerdict,
   MetricCategory,
 } from '../../models/CanaryAnalysis';
@@ -53,6 +55,51 @@ export interface MetricsSummary {
   inconclusiveRuns: number;
   averageConfidence: number;
   passRate: number;
+}
+
+// ==================== Entity-to-Domain Mapping ====================
+
+function entityToRun(entity: CanaryAnalysisRunEntity): CanaryAnalysisRun {
+  const ts = entity.trafficSplit as Record<string, number>;
+  return {
+    id: entity.id,
+    deploymentId: entity.deploymentId,
+    runNumber: entity.runNumber,
+    trafficSplit: { canary: ts.canary ?? 0, baseline: ts.baseline ?? 0 },
+    status: entity.status as CanaryStatus,
+    confidence: entity.confidence ?? undefined,
+    decision: (entity.decision ?? undefined) as CanaryDecision | undefined,
+    startedAt: entity.startedAt,
+    completedAt: entity.completedAt ?? undefined,
+    durationMs: entity.durationMs ?? undefined,
+  };
+}
+
+function entityToMetric(entity: any): CanaryMetricResult {
+  return {
+    id: entity.id,
+    runId: entity.runId,
+    metricName: entity.metricName,
+    baselineValue: entity.baselineValue ?? undefined,
+    canaryValue: entity.canaryValue ?? undefined,
+    mannWhitneyP: entity.mannWhitneyP ?? undefined,
+    ksStatistic: entity.ksStatistic ?? undefined,
+    cliffDelta: entity.cliffDelta ?? undefined,
+    verdict: (entity.verdict ?? undefined) as MetricVerdict | undefined,
+    category: (entity.category ?? undefined) as MetricCategory | undefined,
+  };
+}
+
+function entityToMLResult(entity: any): CanaryMLResult {
+  return {
+    id: entity.id,
+    runId: entity.runId,
+    modelName: entity.modelName,
+    prediction: entity.prediction ?? undefined,
+    confidence: entity.confidence ?? undefined,
+    shapExplanation: (entity.shapExplanation as Record<string, unknown>) ?? undefined,
+    clusterId: entity.clusterId ?? undefined,
+  };
 }
 
 // ==================== Service ====================
@@ -95,15 +142,16 @@ export class CanaryAnalysisService {
    */
   async listRuns(options: ListRunsOptions = {}): Promise<CanaryAnalysisRun[]> {
     try {
+      let entities: CanaryAnalysisRunEntity[] = [];
       if (options.deploymentId) {
-        return await this.runRepository.findByDeployment(options.deploymentId);
+        entities = await this.runRepository.findByDeployment(options.deploymentId);
+      } else if (options.status) {
+        entities = await this.runRepository.findByStatus(options.status);
+      } else {
+        const result = await this.runRepository.findAll({ limit: 100 });
+        entities = result.entities as unknown as CanaryAnalysisRunEntity[];
       }
-      if (options.status) {
-        return await this.runRepository.findByStatus(options.status);
-      }
-      // Return all runs if no filters
-      const result = await this.runRepository.findAll({ limit: 100 });
-      return result.entities as unknown as CanaryAnalysisRun[];
+      return entities.map(entityToRun);
     } catch (error) {
       console.error('[CanaryAnalysisService] listRuns failed:', error);
       throw new CanaryAnalysisServiceError(
@@ -151,7 +199,7 @@ export class CanaryAnalysisService {
         id: newRun.id,
         deploymentId: newRun.deploymentId,
         runNumber: newRun.runNumber,
-        trafficSplit: newRun.trafficSplit,
+        trafficSplit: newRun.trafficSplit as unknown as Record<string, number>,
         status: newRun.status,
         confidence: null,
         decision: null,
@@ -224,7 +272,8 @@ export class CanaryAnalysisService {
    */
   async getMetrics(runId: string): Promise<CanaryMetricResult[]> {
     try {
-      return await this.metricRepository.findByRun(runId);
+      const entities = await this.metricRepository.findByRun(runId);
+      return entities.map(entityToMetric);
     } catch (error) {
       console.error('[CanaryAnalysisService] getMetrics failed:', error);
       throw new CanaryAnalysisServiceError(
@@ -239,7 +288,8 @@ export class CanaryAnalysisService {
    */
   async getMLResults(runId: string): Promise<CanaryMLResult[]> {
     try {
-      return await this.mlRepository.findByRun(runId);
+      const entities = await this.mlRepository.findByRun(runId);
+      return entities.map(entityToMLResult);
     } catch (error) {
       console.error('[CanaryAnalysisService] getMLResults failed:', error);
       throw new CanaryAnalysisServiceError(
@@ -685,7 +735,7 @@ export class CanaryAnalysisService {
         modelName: mlResult.modelName,
         prediction: mlResult.prediction ?? null,
         confidence: mlResult.confidence ?? null,
-        shapExplanation: mlResult.shapExplanation ?? null,
+        shapExplanation: (mlResult.shapExplanation as Record<string, number>) ?? null,
         clusterId: mlResult.clusterId ?? null,
       });
 

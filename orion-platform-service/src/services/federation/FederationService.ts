@@ -118,7 +118,13 @@ export class FederationService {
               region: 'default',
               endpoint: '',
               status: 'pending',
-            });
+              kube_config_ref: null,
+              node_count: null,
+              cpu_capacity: null,
+              memory_capacity: null,
+              registered_at: new Date(),
+              last_heartbeat: null,
+            } as any);
           }
           clusterIds.push(clusterName);
         } catch (err) {
@@ -312,7 +318,8 @@ export class FederationService {
       return null;
     }
 
-    return this.executorRepo.findByIdWithHealth(executorId) ?? null;
+    const result = this.executorRepo.findByIdWithHealth(executorId);
+    return (result === undefined ? null : result) as { executor: ExecutorEntity; health: ExecutorHealthEntity | null } | null;
   }
 
   /**

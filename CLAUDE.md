@@ -76,24 +76,43 @@ npx jest path/to/file.test.ts
 npx vitest run path/to/test.ts
 ```
 
+## Key Architecture Numbers (2026-05-15)
+
+| Dimension | Count | Notes |
+|-----------|-------|-------|
+| **Backend services** | 101 dirs in `src/services/` | 553 source .ts files, 273 test files |
+| **Substantial services (3+ files)** | 73 | Services with real implementation |
+| **Frontend pages** | 149 | `orion-frontend/src/pages/` |
+| **Frontend API clients** | 101 | `orion-frontend/src/api/` |
+| **Backend routes** | 104 | `api/*-routes.ts` files |
+| **DB migrations** | 207 | SQL migration files (001+) |
+| **Design docs** | ~466 | Across 27 category directories |
+| **ADR decisions** | 7 | `docs/adr/` |
+| **Microservice dirs** | 34 | `orion-*-svc/` (planned, not deployed separately) |
+| **Test suites** | 305+ | Backend Jest tests |
+
 ## Important Context
 
-### Current Implementation State (~72% overall)
-- **Backend**: ~78% (30+ services migrated from Map() to PostgreSQL Repository pattern, M25 persistence complete)
-- **Frontend**: ~85% (M6/M29/M30 frontend pages added, 57+ pages total)
-- **API consistency**: ~95% (~30 path mismatches between frontend and backend fixed)
-- **Database**: 68 migration files (001-049); most services now use PostgreSQL Repository pattern
+### Current Implementation State (2026-05-15)
+- **Backend**: ~80% (73 substantial services, 30+ migrated to PostgreSQL Repository pattern)
+- **Frontend**: ~88% (149 pages, 57+ main pages + dashboard variants)
+- **API consistency**: ~95% (~30 frontend-backend path mismatches fixed)
+- **Database**: 207 migration files; most services use PostgreSQL Repository pattern
+- **TypeScript**: All critical errors fixed; ongoing cleanup of edge-case type issues
 
 ### Known Issues to Be Aware Of
-1. **No real EventBus integration**: Event publishers exist but are not wired to NATS
+1. **No real EventBus integration**: Event publishers exist but are not wired to NATS (uses fallback)
 2. **Dual ArtifactService confusion**: `services/artifact/` and build-related services have overlapping responsibilities
-3. **orion-platform-service is the monolith**: All services run in one process; service separation is designed but not implemented
+3. **orion-platform-service is the monolith**: All services run in one process; 34 microservice directories exist but are planned/separate, not deployed independently
+4. **18+ modules lack design docs**: S9-S18 (OnCall, Vector Store, API Key, Cron, Webhook, Queue, Environment, User/Role/Session, Projects, Approvals) implemented but undocumented
 
-### Recent Milestones (2026-04)
-- **M25 Persistence Migration**: 30+ services migrated from `Map()` mock storage to PostgreSQL Repository pattern (SessionService, RoleService, TenantService, ChatOps, SelfHealing, etc.)
+### Recent Milestones
+- **M25 Persistence Migration**: 30+ services migrated from `Map()` mock storage to PostgreSQL Repository pattern
 - **M6/M29/M30 Frontend**: ProductLine, ArtifactManagement, InternalLibrary frontend pages implemented
 - **API Path Consistency**: ~30 frontend-backend path mismatches resolved (~95% consistent)
 - **80 Outdated Docs Removed**: Cleanup of cache/review/sprint/task files
+- **Pipeline SSE Integration**: Real-time log streaming via SSE (Bridge → Service → Routes → Frontend Hook)
+- **TypeScript Error Resolution**: ~55+ compilation errors fixed across services
 
 ### Service Ports
 - API Gateway: `localhost:3000` (healthz)

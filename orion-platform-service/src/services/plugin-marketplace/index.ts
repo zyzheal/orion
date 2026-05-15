@@ -6,7 +6,12 @@
 
 export {
   PluginMarketplaceService,
-  MarketplacePlugin,
-  PluginInstall,
+  ListPluginsFilter,
+  PublishPluginInput,
+  InstallPluginInput,
+  ReviewPluginInput,
+  PluginListing,
+  PluginInstallResult,
   PluginReview,
+  QualityScore,
 } from './PluginMarketplaceService';

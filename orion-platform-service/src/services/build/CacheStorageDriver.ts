@@ -264,9 +264,14 @@ export class LocalCacheStorageDriver implements CacheStorageDriver {
 
     for (const pattern of patterns) {
       try {
-        const { glob } = await import('glob');
-        const matches = await glob(pattern, { cwd: baseDir, nodir: true });
-        files.push(...matches);
+        const globModule = await import('glob');
+        const globFn = (globModule as any).glob || (globModule as any).GlobSync || globModule.default;
+        if (typeof globFn === 'function') {
+          const matches = await globFn(pattern, { cwd: baseDir, nodir: true });
+          if (Array.isArray(matches)) {
+            files.push(...matches);
+          }
+        }
       } catch {
         // glob not available, fallback to direct path
         const fullPath = path.join(baseDir, pattern);
