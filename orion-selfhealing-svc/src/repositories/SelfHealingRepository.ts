@@ -165,26 +165,26 @@ export class SelfHealingIncidentRepository {
     return (result.rowCount ?? 0) > 0;
   }
 
-  private mapRowToIncident(row: any): SelfHealingIncident {
+  private mapRowToIncident(row: Record<string, unknown>): SelfHealingIncident {
     return {
-      id: row.id,
-      title: row.title,
-      description: row.description,
+      id: row.id as string,
+      title: row.title as string,
+      description: row.description as string,
       severity: row.severity as IncidentSeverity,
       status: row.status as IncidentStatus,
-      alertId: row.alert_id,
-      source: row.source,
-      affectedResources: Array.isArray(row.affected_resources) ? row.affected_resources : JSON.parse(row.affected_resources || '[]'),
-      rootCause: row.root_cause,
-      strategyId: row.strategy_id,
-      decisionId: row.decision_id,
-      actionIds: Array.isArray(row.action_ids) ? row.action_ids : JSON.parse(row.action_ids || '[]'),
-      triggerSource: row.trigger_source,
-      triggeredAt: new Date(row.triggered_at),
-      resolvedAt: row.resolved_at ? new Date(row.resolved_at) : undefined,
-      tenantId: row.tenant_id,
-      createdAt: new Date(row.created_at),
-      updatedAt: new Date(row.updated_at),
+      alertId: row.alert_id as string | undefined,
+      source: row.source as string | undefined,
+      affectedResources: Array.isArray(row.affected_resources) ? row.affected_resources : JSON.parse(row.affected_resources as string || '[]'),
+      rootCause: row.root_cause as string | undefined,
+      strategyId: row.strategy_id as string | undefined,
+      decisionId: row.decision_id as string | undefined,
+      actionIds: Array.isArray(row.action_ids) ? row.action_ids : JSON.parse(row.action_ids as string || '[]'),
+      triggerSource: row.trigger_source as string,
+      triggeredAt: new Date(row.triggered_at as string | number | Date),
+      resolvedAt: row.resolved_at ? new Date(row.resolved_at as string | number | Date) : undefined,
+      tenantId: row.tenant_id as string,
+      createdAt: new Date(row.created_at as string | number | Date),
+      updatedAt: new Date(row.updated_at as string | number | Date),
     };
   }
 
@@ -233,18 +233,18 @@ export class HealingDecisionRepository {
     return result.rows.map((row) => this.mapRowToDecision(row));
   }
 
-  private mapRowToDecision(row: any): HealingDecision {
+  private mapRowToDecision(row: Record<string, unknown>): HealingDecision {
     return {
-      id: row.id,
-      incidentId: row.incident_id,
+      id: row.id as string,
+      incidentId: row.incident_id as string,
       action: row.action as DecisionAction,
-      reasoning: row.reasoning,
-      recommendedStrategyId: row.recommended_strategy_id,
-      recommendedActionId: row.recommended_action_id,
-      confidence: parseFloat(row.confidence),
-      autoExecute: row.auto_execute,
-      decidedBy: row.decided_by,
-      createdAt: new Date(row.created_at),
+      reasoning: row.reasoning as string,
+      recommendedStrategyId: row.recommended_strategy_id as string | undefined,
+      recommendedActionId: row.recommended_action_id as string | undefined,
+      confidence: parseFloat(row.confidence as string),
+      autoExecute: row.auto_execute as boolean,
+      decidedBy: row.decided_by as string | undefined,
+      createdAt: new Date(row.created_at as string | number | Date),
     };
   }
 }
@@ -328,23 +328,23 @@ export class HealingActionRepository {
     return this.mapRowToAction(result.rows[0]);
   }
 
-  private mapRowToAction(row: any): HealingAction {
+  private mapRowToAction(row: Record<string, unknown>): HealingAction {
     return {
-      id: row.id,
-      name: row.name,
-      description: row.description,
+      id: row.id as string,
+      name: row.name as string,
+      description: row.description as string | undefined,
       type: row.type as StrategyType,
       status: row.status as ActionStatus,
-      parameters: typeof row.parameters === 'string' ? JSON.parse(row.parameters) : row.parameters || {},
-      targetId: row.target_id,
-      output: row.output ? (typeof row.output === 'string' ? JSON.parse(row.output) : row.output) : undefined,
-      error: row.error,
-      actionType: row.action_type,
-      startedAt: new Date(row.started_at),
-      completedAt: row.completed_at ? new Date(row.completed_at) : undefined,
-      incidentId: row.incident_id,
-      decisionId: row.decision_id,
-      executor: row.executor,
+      parameters: typeof row.parameters === 'string' ? JSON.parse(row.parameters as string) : (row.parameters as Record<string, unknown> | undefined) || {},
+      targetId: row.target_id as string | undefined,
+      output: row.output ? (typeof row.output === 'string' ? JSON.parse(row.output as string) : row.output) : undefined,
+      error: row.error as string | undefined,
+      actionType: row.action_type as string | undefined,
+      startedAt: new Date(row.started_at as string | number | Date),
+      completedAt: row.completed_at ? new Date(row.completed_at as string | number | Date) : undefined,
+      incidentId: row.incident_id as string,
+      decisionId: row.decision_id as string | undefined,
+      executor: row.executor as string,
     };
   }
 
@@ -466,24 +466,24 @@ export class KnowledgeBaseRepository {
     return result.rows.map((row) => this.mapRowToKnowledge(row));
   }
 
-  private mapRowToKnowledge(row: any): KnowledgeBase {
+  private mapRowToKnowledge(row: Record<string, unknown>): KnowledgeBase {
     return {
-      id: row.id,
-      title: row.title,
-      description: row.description,
-      problemPattern: row.problem_pattern,
-      solution: row.solution,
+      id: row.id as string,
+      title: row.title as string,
+      description: row.description as string,
+      problemPattern: row.problem_pattern as string,
+      solution: row.solution as string,
       relatedStrategyTypes: typeof row.related_strategy_types === 'string'
-        ? JSON.parse(row.related_strategy_types)
-        : row.related_strategy_types || [],
-      tags: typeof row.tags === 'string' ? JSON.parse(row.tags) : row.tags || [],
-      usageCount: parseInt(row.usage_count, 10) || 0,
-      successRate: parseFloat(row.success_rate) || 0,
-      lastUsedAt: row.last_used_at ? new Date(row.last_used_at) : undefined,
-      createdBy: row.created_by,
-      tenantId: row.tenant_id,
-      createdAt: new Date(row.created_at),
-      updatedAt: new Date(row.updated_at),
+        ? JSON.parse(row.related_strategy_types as string)
+        : (row.related_strategy_types as string[]) || [],
+      tags: typeof row.tags === 'string' ? JSON.parse(row.tags as string) : (row.tags as string[]) || [],
+      usageCount: parseInt(row.usage_count as string, 10) || 0,
+      successRate: parseFloat(row.success_rate as string) || 0,
+      lastUsedAt: row.last_used_at ? new Date(row.last_used_at as string | number | Date) : undefined,
+      createdBy: row.created_by as string,
+      tenantId: row.tenant_id as string,
+      createdAt: new Date(row.created_at as string | number | Date),
+      updatedAt: new Date(row.updated_at as string | number | Date),
     };
   }
 

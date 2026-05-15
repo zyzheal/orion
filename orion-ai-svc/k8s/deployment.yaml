@@ -43,13 +43,13 @@ spec:
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
-                  name: orion-secrets
+                  name: orion-ai-secrets
                   key: database-url
                   optional: true
             - name: AI_LLM_API_KEY
               valueFrom:
                 secretKeyRef:
-                  name: orion-secrets
+                  name: orion-ai-secrets
                   key: ai-llm-api-key
                   optional: true
             - name: AI_LLM_PROVIDER

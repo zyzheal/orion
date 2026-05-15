@@ -57,12 +57,12 @@ spec:
             - name: DATABASE_USER
               valueFrom:
                 secretKeyRef:
-                  name: orion-skill-svc-secret
+                  name: orion-skill-secrets
                   key: database.user
             - name: DATABASE_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: orion-skill-svc-secret
+                  name: orion-skill-secrets
                   key: database.password
           resources:
             requests:
