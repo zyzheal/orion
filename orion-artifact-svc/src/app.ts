@@ -2,9 +2,7 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import sensible from '@fastify/sensible';
 import { getPool, closePool, checkHealth } from './utils/database';
-import artifactRoutes from './routes/artifact';
-import artifactOpsRoutes from './routes/artifact-ops';
-import artifactVersionRoutes from './routes/artifact-version';
+import artifactRoutes from './routes/artifact-routes';
 import { errorHandler } from './middleware/errorHandler';
 
 async function buildApp() {
@@ -13,9 +11,7 @@ async function buildApp() {
   await fastify.register(sensible);
   errorHandler(fastify);
   const database = getPool();
-  await fastify.register(artifactRoutes, { prefix: '/api/v1/artifacts', database });
-  await fastify.register(artifactOpsRoutes, { prefix: '/api/v1/artifact-ops' });
-  await fastify.register(artifactVersionRoutes, { prefix: '/api/v1/artifact-versions', database });
+  await fastify.register(artifactRoutes, { prefix: '/api/v1', database });
   fastify.get('/health', async () => { const db = await checkHealth(); return { status: db.status === 'up' ? 'ok' : 'degraded', timestamp: new Date().toISOString(), checks: { database: db } }; });
   fastify.addHook('onClose', async () => { await closePool(); });
   return { fastify };
