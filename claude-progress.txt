@@ -7,6 +7,54 @@
 
 ---
 
+## 2026-05-15: 34 Microservices tenant_id Standardization (COMPLETED)
+
+### feat(database): standardize tenant_id type across 4 microservice migrations
+
+**Created: `docs/standards/database-conventions.md`**
+- Defines tenant_id convention: `UUID NOT NULL` for all tenant-isolated tables
+- Index naming: `idx_{table}_tenant`
+- Guidelines for tables without tenant_id (global config tables need comments)
+- RLS policy template
+- Migration checklist
+
+**Fixed migration files (4 services):**
+
+1. **orion-chatops-svc/migrations/001_init.sql**
+   - Changed `tenant_id VARCHAR(255)` to `tenant_id UUID NOT NULL` (34 tables)
+   - Added missing `tenant_id UUID NOT NULL` to: chatops_executions, chatops_sessions,
+     chatops_audit_logs, chatops_messages, chatops_notification_preferences,
+     chatops_dnd_settings, chatops_alert_states, chatops_platform_configs,
+     iac_plans, security_findings, oncall_assignments, oncall_overrides,
+     quality_gate_results, event_subscriptions, cron_executions
+   - Added `idx_{table}_tenant` indexes to all tables
+   - Added denormalization comments for child tables referencing parent tables
+
+2. **orion-ticket-svc/db/migrations/001_init.sql**
+   - Changed `tenant_id VARCHAR(100)` to `tenant_id UUID NOT NULL` (13 tables)
+   - Added missing `tenant_id UUID NOT NULL` to: ticket_comments, ticket_history,
+     ticket_attachments, workflow_instances, approval_records, dispatch_queue,
+     ticket_notifications, ticket_relations, satisfaction_surveys, knowledge_associations
+   - All indexes updated to use consistent naming
+   - Seed data updated to use UUID format instead of plain 'default' string
+
+3. **orion-finops-svc/src/db/migrations/001_init.sql**
+   - Added missing `tenant_id UUID NOT NULL` to: finops_cost_records, finops_budgets,
+     finops_spend_tracking, finops_alert_triggers, finops_roi_analyses,
+     finops_cost_comparisons, finops_optimizations (7 tables)
+   - Changed nullable `tenant_id UUID` to `tenant_id UUID NOT NULL` in:
+     finops_cloud_costs, finops_k8s_costs, finops_saas_costs, finops_budget_alerts
+
+4. **orion-security-svc/migrations/001_init.sql**
+   - Changed nullable `tenant_id UUID` to `tenant_id UUID NOT NULL` (15 tables)
+   - Added missing `tenant_id UUID NOT NULL` to: sbom_packages, sbom_attestations,
+     sbom_vulnerability_results, sbom_waivers
+   - All tenant indexes now use consistent `idx_{table}_tenant` naming
+
+**Verification**: Zero `tenant_id VARCHAR` or nullable `tenant_id UUID` remaining in any of the 4 migration files.
+
+---
+
 ## 2026-05-12: orion-intelligence-svc API Router Wiring & Health Fix (COMPLETED)
 
 ### fix(intelligence): wire up 7 API routers and fix health/readiness endpoints
@@ -2018,3 +2066,90 @@ Added 6 missing API endpoints across 4 services:
 
 **Test results: 18/18 PipelineService tests passing**
 **TypeScript: 0 new compilation errors in PipelineService.ts or PipelineRepository.ts**
+
+---
+
+## 2026-05-15: orion-code-svc 基础设施完善 (COMPLETED)
+
+### feat(code): add database migrations and K8s deployment configuration
+
+**Created: `orion-code-svc/migrations/001_init.sql`**
+- 代码仓库表: branch_policies, code_ownership
+- 构建缓存表: build_cache_configs, build_cache_entries
+- 构建日志/制品表: build_logs, build_artifacts
+- 构建镜像表: builder_images
+- 测试报告表: test_reports
+- 制品注册表: artifacts
+- 构建 Pod 表: build_pods
+- Webhook 执行表: webhook_executions
+- Commit Status 表: commit_statuses
+- RLS 策略已配置
+- 种子数据: 默认 Builder Images
+
+**Created: `orion-code-svc/k8s/deployment.yaml`**
+- Deployment 配置: 2 副本, 资源限制 (256Mi-512Mi, 100m-500m)
+- 健康检查: liveness/readiness probe on /health (port 3010)
+- 反亲和性: 分散在不同节点
+- 容忍度: node-type=general
+
+**Created: `orion-code-svc/k8s/service.yaml`**
+- ClusterIP Service: orion-code-svc (port 80 -> 3010)
+- Headless Service: orion-code-svc-headless
+
+**Created: `orion-code-svc/k8s/configmap.yaml`**
+- ConfigMap: nats-url, log-level, cors-origin
+- Secret: database-url, jwt-secret, github-token, gitlab-token
+
+### 验证
+- 路由文件已存在: build.ts, code-repo.ts, test-report.ts (3 个路由文件)
+- 数据库迁移包含所有 12 个表及索引定义
+- K8s 配置完整: deployment, service, configmap
+
+### 服务统计
+- Services: 17 (含子目录)
+- Repositories: 6
+- Models: 6
+- Routes: 3
+- Migrations: 1
+- K8s configs: 3
+
+## 2026-05-15: 34 微服务 K8s P0 安全问题修复 (COMPLETED)
+
+### fix(k8s): resolve P0 security issues for all 34 microservices
+
+**4 个安全问题修复:**
+
+1. **镜像版本固化**: `:latest` -> `:v1.0.0` (所有 34 个服务)
+   - 确保可重现部署，避免拉取不可控的最新镜像
+
+2. **容器安全上下文**: 添加 securityContext 到每个容器
+   - `runAsNonRoot: true` - 禁止 root 运行
+   - `readOnlyRootFilesystem: true` - 只读根文件系统
+   - `allowPrivilegeEscalation: false` - 禁止权限提升
+   - `capabilities: drop: [ALL]` - 移除所有 Linux capabilities
+
+3. **Secret 占位符模板**: 将内联明文 Secret 提取为独立 secret.yaml.tpl
+   - 移除 deployment.yaml 中内联的 `kind: Secret` 定义
+   - 创建 secret.yaml.tpl 使用 `<CHANGE_ME>` 占位符
+   - 所有敏感值替换为占位符，不再提交真实值到版本控制
+
+4. **PodDisruptionBudget**: 为每个服务创建 pdb.yaml
+   - `minAvailable: 1` 保证至少一个 Pod 始终可用
+   - 防止集群维护时全部 Pod 同时被驱逐
+
+**服务列表 (34 个):**
+agent, ai, approval, artifact, audit, chatops, cmdb, code, community,
+config-mgmt, dba, deploy, digital-twin, dr, efficiency, federation,
+finops, governance, graph, inception, intelligence, knowledge, monitor,
+notify, pandawiki, pipeline, plugin, risk, runner, security, selfhealing,
+skill, ticket, visor
+
+**文件变更: 102 个文件 (1908 新增, 646 删除)**
+
+### Commit
+- `99d78276` - fix(k8s): resolve P0 security issues for all 34 microservices
+
+---
+
+## Next Steps
+1. Continue closing remaining frontend-backend gaps
