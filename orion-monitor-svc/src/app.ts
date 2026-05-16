@@ -7,10 +7,10 @@ import { AlertService } from './services/AlertService';
 import { SelfHealingService } from './services/SelfHealingService';
 import { OnCallService } from './services/OnCallService';
 import { monitoringRoutes, alertRoutes, metricsRoutes, targetsRoutes } from './routes/monitoring';
-import { monitoringRulesRoutes } from './routes/monitoring-rules';
-import { alertsRoutes } from './routes/alerts';
-import { selfHealingRoutes } from './routes/selfhealing';
-import { oncallRoutes } from './routes/oncall';
+import { registerMonitoringRoutes } from './routes/monitoring-routes';
+import { registerAlertRoutes } from './routes/alert-routes';
+import { registerSelfHealingRoutes } from './routes/selfhealing-routes';
+import { registerOnCallRoutes } from './routes/oncall-routes';
 
 async function buildApp() {
   const fastify = Fastify({ logger: { level: 'info' } });
@@ -30,17 +30,11 @@ async function buildApp() {
   await fastify.register(metricsRoutes, { prefix: '/api/v1' });
   await fastify.register(targetsRoutes, { prefix: '/api/v1' });
 
-  // Register monitoring rules routes
-  await fastify.register(monitoringRulesRoutes, { monitoringService });
-
-  // Register alert routes
-  await fastify.register(alertsRoutes, { alertService });
-
-  // Register self-healing routes
-  await fastify.register(selfHealingRoutes, { selfHealingService });
-
-  // Register on-call routes
-  await fastify.register(oncallRoutes, { oncallService });
+  // Register domain routes
+  registerMonitoringRoutes(fastify, monitoringService);
+  registerAlertRoutes(fastify, alertService);
+  registerSelfHealingRoutes(fastify, selfHealingService);
+  registerOnCallRoutes(fastify, oncallService);
 
   fastify.get('/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }));
   return { fastify };
