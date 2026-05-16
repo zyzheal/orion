@@ -1,10 +1,12 @@
 import { type FastifyInstance, type FastifyPluginOptions } from 'fastify';
 import { DeploymentWorkflow } from '../services/DeploymentWorkflow';
 import { EnvironmentService } from '../services/EnvironmentService';
+import { DeployService } from '../services/DeployService';
 
 export async function deployRoutes(fastify: FastifyInstance, _opts: FastifyPluginOptions): Promise<void> {
   const workflow = new DeploymentWorkflow();
   const envService = new EnvironmentService();
+  const deployService = new DeployService();
 
   // ==================== Environment Routes ====================
 
@@ -105,6 +107,55 @@ export async function deployRoutes(fastify: FastifyInstance, _opts: FastifyPlugi
       return reply.code(404).send({ error: 'Deployment not found' });
     }
     return reply.send(deployment);
+  });
+
+  // ==================== K8s Deploy Routes ====================
+
+  /**
+   * POST /deploy/k8s
+   * Direct K8s deployment via manifest apply.
+   */
+  fastify.post('/deploy/k8s', async (request, reply) => {
+    const body = request.body as any;
+    const { manifest, namespace } = body;
+    if (!manifest) {
+      return reply.code(400).send({ error: 'manifest is required' });
+    }
+    try {
+      const result = await deployService.deploy(manifest, namespace);
+      return reply.code(result.success ? 201 : 400).send(result);
+    } catch (error: any) {
+      fastify.log.error({ error: error.message }, 'K8s deploy failed');
+      return reply.code(500).send({ error: error.message });
+    }
+  });
+
+  /**
+   * GET /deploy/:namespace/status
+   * Get K8s deployment status for a namespace.
+   */
+  fastify.get('/deploy/:namespace/status', async (request, reply) => {
+    const namespace = (request.params as any).namespace;
+    try {
+      const status = await deployService.getStatus(namespace);
+      return reply.send({ namespace, deployments: status });
+    } catch (error: any) {
+      return reply.code(500).send({ error: error.message });
+    }
+  });
+
+  /**
+   * POST /deploy/:namespace/:name/rollback
+   * Rollback a K8s deployment by name.
+   */
+  fastify.post('/deploy/:namespace/:name/rollback', async (request, reply) => {
+    const { namespace, name } = request.params as any;
+    try {
+      const result = await deployService.rollback(name, namespace);
+      return reply.code(result.success ? 200 : 400).send(result);
+    } catch (error: any) {
+      return reply.code(500).send({ error: error.message });
+    }
   });
 
   fastify.post('/deploy/:id/rollback', async (request, reply) => {

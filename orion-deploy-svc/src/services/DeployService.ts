@@ -5,6 +5,7 @@ import type {
   ListDeploymentsQuery,
 } from "../types/deploy";
 import { DeploymentStatus as DS, DeploymentStrategy } from "../types/deploy";
+import { K8sClientService } from "./K8sClientService";
 
 /** Valid state transitions for deployments */
 const VALID_TRANSITIONS: Record<DeploymentStatus, DeploymentStatus[]> = {
@@ -28,6 +29,14 @@ const VALID_TRANSITIONS: Record<DeploymentStatus, DeploymentStatus[]> = {
 export class DeployService {
   // In-memory store (replace with DB in production)
   private deployments = new Map<string, Deployment>();
+  private k8sClient: K8sClientService;
+
+  constructor(options?: { kubeconfig?: string; defaultNamespace?: string }) {
+    this.k8sClient = new K8sClientService({
+      kubeconfig: options?.kubeconfig,
+      defaultNamespace: options?.defaultNamespace,
+    });
+  }
 
   /**
    * Create a new deployment record and initiate the deployment process
@@ -147,6 +156,67 @@ export class DeployService {
     deployment.updatedAt = now;
 
     return rollback;
+  }
+
+  /**
+   * Deploy a manifest to K8s and track the rollout.
+   *
+   * @param manifest - YAML/JSON Kubernetes manifest
+   * @param namespace - Target namespace (defaults to K8sClientService default)
+   */
+  async deploy(
+    manifest: string,
+    namespace?: string,
+  ): Promise<{ success: boolean; output: string }> {
+    const applyResult = await this.k8sClient.apply(manifest);
+    if (!applyResult.success) {
+      return applyResult;
+    }
+
+    // Try to extract deployment name from manifest for rollout tracking
+    // Simple heuristic: look for `name:` under `kind: Deployment`
+    const match = manifest.match(/kind:\s*Deployment[\s\S]*?name:\s*(\S+)/m);
+    if (match) {
+      const deploymentName = match[1];
+      const rolloutOk = await this.k8sClient.rolloutStatus(deploymentName, namespace);
+      return {
+        success: rolloutOk,
+        output: applyResult.output + (rolloutOk ? '\nRollout completed successfully' : '\nRollout did not complete within timeout'),
+      };
+    }
+
+    return applyResult;
+  }
+
+  /**
+   * Rollback a Kubernetes deployment by name.
+   *
+   * @param deployment - Deployment name
+   * @param namespace - Target namespace
+   */
+  async rollback(deployment: string, namespace?: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      await this.k8sClient.rolloutUndo(deployment, namespace);
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Get K8s deployment status for a namespace.
+   *
+   * @param namespace - Target namespace
+   */
+  async getStatus(namespace?: string): Promise<any[]> {
+    return this.k8sClient.getDeployments(namespace);
+  }
+
+  /**
+   * Get a single K8s deployment by name.
+   */
+  async getK8sDeployment(name: string, namespace?: string): Promise<any | null> {
+    return this.k8sClient.getDeployment(name, namespace);
   }
 
   /**
