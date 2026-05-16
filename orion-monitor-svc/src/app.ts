@@ -15,6 +15,8 @@ import { registerAlertSilenceRoutes } from './routes/alert-silence-routes';
 import { AlertSilenceService } from './services/AlertSilenceService';
 import { AlertRuleService } from './services/AlertRuleService.js';
 import { registerAlertRuleRoutes } from './routes/alert-rule-routes.js';
+import { RootCauseAnalysisService } from './services/RootCauseAnalysisService';
+import { registerRCARoutes } from './routes/rca-routes';
 
 async function buildApp() {
   const fastify = Fastify({ logger: { level: 'info' } });
@@ -29,6 +31,7 @@ async function buildApp() {
   const oncallService = new OnCallService();
   const alertSilenceService = new AlertSilenceService();
   const alertRuleService = new AlertRuleService();
+  const rcaService = new RootCauseAnalysisService();
 
   // Register Prometheus routes
   await fastify.register(monitoringRoutes, { prefix: '/api/v1' });
@@ -43,6 +46,7 @@ async function buildApp() {
   registerOnCallRoutes(fastify, oncallService);
   registerAlertSilenceRoutes(fastify, alertSilenceService);
   registerAlertRuleRoutes(fastify, alertRuleService);
+  registerRCARoutes(fastify, rcaService);
 
   fastify.get('/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }));
   return { fastify };
