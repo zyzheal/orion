@@ -4,6 +4,7 @@
  */
 
 import { type FastifyInstance, type FastifyPluginOptions } from 'fastify';
+import { Pool } from 'pg';
 import { CmdbService } from '../services/CmdbService';
 import { CmdbNodeType, CmdbNodeStatus } from '../types/cmdb';
 
@@ -11,7 +12,8 @@ export async function cmdbRoutes(
   fastify: FastifyInstance,
   _opts: FastifyPluginOptions
 ): Promise<void> {
-  const cmdbService = new CmdbService();
+  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  const cmdbService = new CmdbService(pool);
 
   // ========== 配置节点 ==========
 
@@ -50,6 +52,7 @@ export async function cmdbRoutes(
       status: query.status as CmdbNodeStatus,
       applicationId: query.applicationId,
       environment: query.environment,
+      tenantId: query.tenantId,
     });
     reply.send({ success: true, data: result });
   });
