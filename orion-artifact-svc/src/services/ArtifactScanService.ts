@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { ScanReportRepository, ScanFindingRepository, MaliciousDetectionRepository, ScanReportEntity, ScanFindingEntity, MaliciousDetectionEntity } from '../repositories/ArtifactScanRepository';
+import { TrivyScannerService } from './TrivyScannerService';
 
 export interface ScanFinding {
   id: string;
@@ -45,11 +46,13 @@ export interface MaliciousDetection {
 /**
  * ArtifactScanService — scans artifacts for vulnerabilities and malicious content.
  * Uses PostgreSQL Repository pattern for persistence.
+ * Uses Trivy for real security scanning.
  */
 export class ArtifactScanService {
   private scanReportRepository: ScanReportRepository;
   private scanFindingRepository: ScanFindingRepository;
   private maliciousDetectionRepository: MaliciousDetectionRepository;
+  private trivyScanner: TrivyScannerService;
 
   constructor(
     scanReportRepository: ScanReportRepository,
@@ -59,10 +62,11 @@ export class ArtifactScanService {
     this.scanReportRepository = scanReportRepository;
     this.scanFindingRepository = scanFindingRepository;
     this.maliciousDetectionRepository = maliciousDetectionRepository;
+    this.trivyScanner = new TrivyScannerService();
   }
 
   /**
-   * Scan an artifact. Generates findings and stores the report.
+   * Scan an artifact. Uses Trivy for real security scanning.
    */
   async scanArtifact(
     tenantId: string,
@@ -71,8 +75,9 @@ export class ArtifactScanService {
     const scanId = `scan_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const startedAt = new Date();
 
-    // Generate findings
-    const findings = this.generateFindings(artifactId);
+    // Use Trivy for real security scanning
+    const scanResult = await this.trivyScanner.scanImage(artifactId);
+    const findings = this.convertTrivyFindings(scanResult);
 
     const summary = {
       total: findings.length,
@@ -253,65 +258,22 @@ export class ArtifactScanService {
 
   // ---- Helpers ----
 
-  private generateFindings(artifactId: string): ScanFinding[] {
-    const hash = this.simpleHash(artifactId);
+  private convertTrivyFindings(scanResult: { vulnerabilities: Array<{ severity: string; package: string; version: string; fixedVersion?: string; title: string; description?: string }>; scanCompleted: boolean; scannedAt: string }): ScanFinding[] {
     const findings: ScanFinding[] = [];
 
-    // Deterministic findings based on hash
-    if (hash % 7 === 0) {
+    for (const vuln of scanResult.vulnerabilities) {
+      const severity = vuln.severity?.toLowerCase() as ScanFinding['severity'];
       findings.push({
-        id: `finding_${hash}_1`,
-        severity: 'critical',
+        id: `finding_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        severity: severity === 'critical' ? 'critical' : severity === 'high' ? 'high' : severity === 'medium' ? 'medium' : severity === 'low' ? 'low' : 'info',
         type: 'vulnerability',
-        title: 'Remote Code Execution',
-        description: 'Potential RCE vulnerability detected in dependency',
-        cve: 'CVE-2024-0001',
-        remediation: 'Update affected dependency to latest version',
+        title: vuln.title,
+        description: vuln.description || `Vulnerability in package ${vuln.package}`,
+        location: `${vuln.package}@${vuln.version}`,
+        cve: vuln.title.startsWith('CVE-') ? vuln.title : undefined,
+        remediation: vuln.fixedVersion ? `Upgrade to ${vuln.fixedVersion}` : undefined,
       });
     }
-
-    if (hash % 5 === 0) {
-      findings.push({
-        id: `finding_${hash}_2`,
-        severity: 'high',
-        type: 'vulnerability',
-        title: 'SQL Injection Risk',
-        description: 'Unsanitized input may allow SQL injection',
-        location: 'lib/db/query.ts:42',
-        remediation: 'Use parameterized queries',
-      });
-    }
-
-    if (hash % 3 === 0) {
-      findings.push({
-        id: `finding_${hash}_3`,
-        severity: 'medium',
-        type: 'misconfiguration',
-        title: 'Insecure Default Configuration',
-        description: 'Default credentials detected in configuration',
-        remediation: 'Change default credentials',
-      });
-    }
-
-    if (hash % 2 === 0) {
-      findings.push({
-        id: `finding_${hash}_4`,
-        severity: 'low',
-        type: 'best-practice',
-        title: 'Missing Security Header',
-        description: 'HTTP response missing X-Content-Type-Options header',
-        remediation: 'Add security headers to HTTP responses',
-      });
-    }
-
-    // Always add at least one info finding
-    findings.push({
-      id: `finding_${hash}_5`,
-      severity: 'info',
-      type: 'metadata',
-      title: 'Dependency Count',
-      description: `Artifact contains ${hash % 50 + 5} dependencies`,
-    });
 
     return findings;
   }
