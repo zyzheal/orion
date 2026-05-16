@@ -11,9 +11,13 @@
  * 2. 调用 requestApproval 暂停 pipeline
  * 3. 等待用户调用 approve 或 reject
  * 4. PipelineEngine 根据结果继续或终止
+ *
+ * PostgreSQL 持久化 + 乐观锁并发控制
  */
 
-import pino from 'pino';
+import pino = require('pino');
+import { Pool } from 'pg';
+import { getPool } from '../utils/database';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -32,6 +36,7 @@ export interface ApprovalRequest {
   respondedBy?: string;
   responseComment?: string;
   tenantId?: string;
+  version: number;
 }
 
 export interface ApprovalRequestInput {
@@ -43,6 +48,23 @@ export interface ApprovalRequestInput {
   tenantId?: string;
 }
 
+// 数据库行类型
+interface ApprovalGateRow {
+  id: string;
+  run_id: string;
+  stage_id: string;
+  stage_name: string;
+  status: ApprovalStatus;
+  approvers: string[];
+  reason: string;
+  created_at: Date;
+  responded_at: Date | null;
+  responded_by: string | null;
+  response_comment: string | null;
+  tenant_id: string | null;
+  version: number;
+}
+
 export class ApprovalGateServiceError extends Error {
   constructor(message: string, public code: string) {
     super(message);
@@ -51,15 +73,12 @@ export class ApprovalGateServiceError extends Error {
 }
 
 export class ApprovalGateService {
-  // 内存存储审批请求：runId:stageId -> ApprovalRequest
-  private requests = new Map<string, ApprovalRequest>();
-  private counter = 0;
-  private cleanupInterval?: NodeJS.Timeout;
+  private pool: Pool;
   private maxAgeMs: number;
 
-  constructor(options?: { maxAgeHours?: number }) {
+  constructor(options?: { maxAgeHours?: number; pool?: Pool }) {
+    this.pool = options?.pool || getPool();
     this.maxAgeMs = (options?.maxAgeHours ?? 48) * 60 * 60 * 1000; // Default: 48 hours
-    this.startCleanupInterval();
   }
 
   /**
@@ -73,38 +92,52 @@ export class ApprovalGateService {
       );
     }
 
-    const key = this.makeKey(input.runId, input.stageId);
-
-    // 如果已有 pending 的审批，返回已有的
-    const existing = this.requests.get(key);
-    if (existing && existing.status === 'pending') {
+    // 检查是否已有 pending 的审批
+    const existing = await this.findPendingRequest(input.runId, input.stageId);
+    if (existing) {
       return existing;
     }
 
-    const request: ApprovalRequest = {
-      id: this.generateId(),
-      runId: input.runId,
-      stageId: input.stageId,
-      stageName: input.stageName,
-      approvers: input.approvers,
-      reason: input.reason || 'Approval required before proceeding',
-      status: 'pending',
-      createdAt: new Date(),
-      tenantId: input.tenantId,
-    };
+    const id = this.generateId();
+    const now = new Date();
 
-    this.requests.set(key, request);
+    await this.pool.query(
+      `INSERT INTO approval_gates (id, run_id, stage_id, stage_name, status, approvers, reason, tenant_id, version, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 1, $9)`,
+      [
+        id,
+        input.runId,
+        input.stageId,
+        input.stageName,
+        'pending',
+        JSON.stringify(input.approvers),
+        input.reason || 'Approval required before proceeding',
+        input.tenantId || null,
+        now,
+      ]
+    );
 
     logger.info(
       { runId: input.runId, stageName: input.stageName, approvers: input.approvers },
       'Approval requested'
     );
 
-    return request;
+    return {
+      id,
+      runId: input.runId,
+      stageId: input.stageId,
+      stageName: input.stageName,
+      approvers: input.approvers,
+      reason: input.reason || 'Approval required before proceeding',
+      status: 'pending',
+      createdAt: now,
+      tenantId: input.tenantId,
+      version: 1,
+    };
   }
 
   /**
-   * 审批通过
+   * 审批通过（使用乐观锁）
    */
   async approve(
     runId: string,
@@ -112,7 +145,7 @@ export class ApprovalGateService {
     userId: string,
     comment?: string
   ): Promise<ApprovalRequest> {
-    const request = this.getPendingRequest(runId, stageId);
+    const request = await this.getPendingRequest(runId, stageId);
 
     // 验证审批人
     if (!request.approvers.includes(userId)) {
@@ -122,21 +155,30 @@ export class ApprovalGateService {
       );
     }
 
-    request.status = 'approved';
-    request.respondedAt = new Date();
-    request.respondedBy = userId;
-    request.responseComment = comment;
-
-    logger.info(
-      { runId, stageId, userId },
-      'Approval granted'
+    // 使用乐观锁更新
+    const now = new Date();
+    const result = await this.pool.query(
+      `UPDATE approval_gates
+       SET status = $1, responded_at = $2, responded_by = $3, response_comment = $4, version = version + 1
+       WHERE run_id = $5 AND stage_id = $6 AND status = 'pending' AND version = $7
+       RETURNING *`,
+      ['approved', now, userId, comment || null, runId, stageId, request.version]
     );
 
-    return request;
+    if (result.rowCount === 0) {
+      throw new ApprovalGateServiceError(
+        'Concurrent modification detected, please retry',
+        'CONCURRENT_MODIFICATION'
+      );
+    }
+
+    logger.info({ runId, stageId, userId }, 'Approval granted');
+
+    return this.toApprovalRequest(result.rows[0]);
   }
 
   /**
-   * 审批拒绝
+   * 审批拒绝（使用乐观锁）
    */
   async reject(
     runId: string,
@@ -144,7 +186,7 @@ export class ApprovalGateService {
     userId: string,
     comment?: string
   ): Promise<ApprovalRequest> {
-    const request = this.getPendingRequest(runId, stageId);
+    const request = await this.getPendingRequest(runId, stageId);
 
     // 验证审批人
     if (!request.approvers.includes(userId)) {
@@ -154,138 +196,154 @@ export class ApprovalGateService {
       );
     }
 
-    request.status = 'rejected';
-    request.respondedAt = new Date();
-    request.respondedBy = userId;
-    request.responseComment = comment;
-
-    logger.info(
-      { runId, stageId, userId },
-      'Approval rejected'
+    // 使用乐观锁更新
+    const now = new Date();
+    const result = await this.pool.query(
+      `UPDATE approval_gates
+       SET status = $1, responded_at = $2, responded_by = $3, response_comment = $4, version = version + 1
+       WHERE run_id = $5 AND stage_id = $6 AND status = 'pending' AND version = $7
+       RETURNING *`,
+      ['rejected', now, userId, comment || null, runId, stageId, request.version]
     );
 
-    return request;
+    if (result.rowCount === 0) {
+      throw new ApprovalGateServiceError(
+        'Concurrent modification detected, please retry',
+        'CONCURRENT_MODIFICATION'
+      );
+    }
+
+    logger.info({ runId, stageId, userId }, 'Approval rejected');
+
+    return this.toApprovalRequest(result.rows[0]);
   }
 
   /**
    * 取消审批请求
    */
   async cancel(runId: string, stageId: string): Promise<ApprovalRequest | null> {
-    const key = this.makeKey(runId, stageId);
-    const request = this.requests.get(key);
-    if (!request) return null;
+    const now = new Date();
+    const result = await this.pool.query(
+      `UPDATE approval_gates
+       SET status = 'cancelled', responded_at = $1, version = version + 1
+       WHERE run_id = $2 AND stage_id = $3 AND status = 'pending'
+       RETURNING *`,
+      [now, runId, stageId]
+    );
 
-    request.status = 'cancelled';
-    request.respondedAt = new Date();
+    if (result.rowCount === 0) {
+      return null;
+    }
 
     logger.info({ runId, stageId }, 'Approval request cancelled');
-    return request;
+    return this.toApprovalRequest(result.rows[0]);
   }
 
   /**
    * 获取审批状态
    */
-  getStatus(runId: string, stageId: string): ApprovalRequest | null {
-    const key = this.makeKey(runId, stageId);
-    return this.requests.get(key) ?? null;
+  async getStatus(runId: string, stageId: string): Promise<ApprovalRequest | null> {
+    const result = await this.pool.query<ApprovalGateRow>(
+      `SELECT * FROM approval_gates WHERE run_id = $1 AND stage_id = $2`,
+      [runId, stageId]
+    );
+
+    if (result.rows.length === 0) return null;
+    return this.toApprovalRequest(result.rows[0]);
   }
 
   /**
    * 获取某个 run 的所有审批请求
    */
-  getByRun(runId: string): ApprovalRequest[] {
-    const results: ApprovalRequest[] = [];
-    for (const request of this.requests.values()) {
-      if (request.runId === runId) {
-        results.push(request);
-      }
-    }
-    return results;
+  async getByRun(runId: string): Promise<ApprovalRequest[]> {
+    const result = await this.pool.query<ApprovalGateRow>(
+      `SELECT * FROM approval_gates WHERE run_id = $1 ORDER BY created_at ASC`,
+      [runId]
+    );
+
+    return result.rows.map(row => this.toApprovalRequest(row));
   }
 
   /**
    * 检查是否需要审批（快速检查）
    */
-  isApprovalPending(runId: string, stageId: string): boolean {
-    const request = this.getStatus(runId, stageId);
-    return request !== null && request.status === 'pending';
+  async isApprovalPending(runId: string, stageId: string): Promise<boolean> {
+    const result = await this.pool.query(
+      `SELECT 1 FROM approval_gates WHERE run_id = $1 AND stage_id = $2 AND status = 'pending'`,
+      [runId, stageId]
+    );
+    return result.rowCount !== null && result.rowCount > 0;
   }
 
   /**
    * 检查是否已批准
    */
-  isApproved(runId: string, stageId: string): boolean {
-    const request = this.getStatus(runId, stageId);
-    return request !== null && request.status === 'approved';
+  async isApproved(runId: string, stageId: string): Promise<boolean> {
+    const result = await this.pool.query(
+      `SELECT 1 FROM approval_gates WHERE run_id = $1 AND stage_id = $2 AND status = 'approved'`,
+      [runId, stageId]
+    );
+    return result.rowCount !== null && result.rowCount > 0;
   }
 
   /**
    * 检查是否已拒绝
    */
-  isRejected(runId: string, stageId: string): boolean {
-    const request = this.getStatus(runId, stageId);
-    return request !== null && request.status === 'rejected';
+  async isRejected(runId: string, stageId: string): Promise<boolean> {
+    const result = await this.pool.query(
+      `SELECT 1 FROM approval_gates WHERE run_id = $1 AND stage_id = $2 AND status = 'rejected'`,
+      [runId, stageId]
+    );
+    return result.rowCount !== null && result.rowCount > 0;
   }
 
   /**
    * 清理某个 run 的所有审批记录
    */
-  cleanupRun(runId: string): void {
-    const toDelete: string[] = [];
-    for (const [key, request] of this.requests.entries()) {
-      if (request.runId === runId) {
-        toDelete.push(key);
-      }
-    }
-    for (const key of toDelete) {
-      this.requests.delete(key);
-    }
+  async cleanupRun(runId: string): Promise<number> {
+    const result = await this.pool.query(
+      `DELETE FROM approval_gates WHERE run_id = $1`,
+      [runId]
+    );
+    return result.rowCount ?? 0;
   }
 
   /**
-   * 关闭审批服务（清理定时器）
+   * 清理过期的审批记录（超过 maxAgeMs 的 pending 记录）
    */
-  shutdown(): void {
-    if (this.cleanupInterval) {
-      clearInterval(this.cleanupInterval);
-    }
-  }
-
-  /**
-   * 清理过期的审批记录
-   */
-  private cleanupExpiredRequests(): void {
-    const now = Date.now();
-    let removed = 0;
-    for (const [key, request] of this.requests.entries()) {
-      if (now - request.createdAt.getTime() > this.maxAgeMs) {
-        this.requests.delete(key);
-        removed++;
-      }
-    }
+  async cleanupExpiredRequests(): Promise<number> {
+    const cutoff = new Date(Date.now() - this.maxAgeMs);
+    const result = await this.pool.query(
+      `DELETE FROM approval_gates WHERE status = 'pending' AND created_at < $1`,
+      [cutoff]
+    );
+    const removed = result.rowCount ?? 0;
     if (removed > 0) {
-      logger.debug({ removed, remaining: this.requests.size }, 'Cleaned up expired approval requests');
+      logger.debug({ removed }, 'Cleaned up expired approval requests');
     }
-  }
-
-  /**
-   * 启动定期清理
-   */
-  private startCleanupInterval(): void {
-    this.cleanupInterval = setInterval(() => {
-      this.cleanupExpiredRequests();
-    }, 30 * 60 * 1000); // Every 30 minutes
-    this.cleanupInterval.unref();
+    return removed;
   }
 
   // ==================== Internal Helpers ====================
 
-  private makeKey(runId: string, stageId: string): string {
-    return `${runId}:${stageId}`;
+  /**
+   * 查找 pending 的审批请求
+   */
+  private async findPendingRequest(runId: string, stageId: string): Promise<ApprovalRequest | null> {
+    const result = await this.pool.query<ApprovalGateRow>(
+      `SELECT * FROM approval_gates WHERE run_id = $1 AND stage_id = $2 AND status = 'pending'`,
+      [runId, stageId]
+    );
+
+    if (result.rows.length === 0) return null;
+    return this.toApprovalRequest(result.rows[0]);
   }
 
-  private getPendingRequest(runId: string, stageId: string): ApprovalRequest {
-    const request = this.getStatus(runId, stageId);
+  /**
+   * 获取 pending 的审批请求（带 version 用于乐观锁）
+   */
+  private async getPendingRequest(runId: string, stageId: string): Promise<ApprovalRequest> {
+    const request = await this.getStatus(runId, stageId);
     if (!request) {
       throw new ApprovalGateServiceError(
         `No pending approval request for run '${runId}', stage '${stageId}'`,
@@ -301,8 +359,28 @@ export class ApprovalGateService {
     return request;
   }
 
+  /**
+   * 数据库行转换为 ApprovalRequest
+   */
+  private toApprovalRequest(row: ApprovalGateRow): ApprovalRequest {
+    return {
+      id: row.id,
+      runId: row.run_id,
+      stageId: row.stage_id,
+      stageName: row.stage_name,
+      approvers: Array.isArray(row.approvers) ? row.approvers : [],
+      reason: row.reason || '',
+      status: row.status,
+      createdAt: row.created_at,
+      respondedAt: row.responded_at ?? undefined,
+      respondedBy: row.responded_by ?? undefined,
+      responseComment: row.response_comment ?? undefined,
+      tenantId: row.tenant_id ?? undefined,
+      version: row.version,
+    };
+  }
+
   private generateId(): string {
-    this.counter += 1;
-    return `approval-${Date.now()}-${this.counter}`;
+    return `approval-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
   }
 }
