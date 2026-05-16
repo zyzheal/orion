@@ -2,6 +2,7 @@
  * API 路由
  *
  * 定义网关的路由规则，将请求分发到对应的后端服务
+ * 支持全部 34 个服务的代理
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
@@ -15,294 +16,677 @@ export interface RouteConfig {
   stripPrefix?: boolean;
 }
 
-// 预定义路由配置
+// 获取配置中的服务 URL 辅助函数
+const services = () => getConfig().services;
+
+// 预定义路由配置 - 全部 34 个服务
 const routeConfigs: RouteConfig[] = [
+  // ========== Platform Service (3001) ==========
   {
     prefix: '/api/v1/platform',
-    target: getConfig().services.platform?.url || 'http://localhost:3001',
+    target: services().platform?.url || 'http://localhost:3001',
     timeout: 30000,
     stripPrefix: false,
   },
+
+  // ========== Pipeline Service (3002) ==========
   {
     prefix: '/api/v1/pipelines',
-    target: getConfig().services.pipeline?.url || 'http://localhost:3002',
+    target: services().pipeline?.url || 'http://localhost:3002',
     timeout: 60000,
     stripPrefix: false,
   },
   {
     prefix: '/api/v1/pipeline',
-    target: getConfig().services.pipeline?.url || 'http://localhost:3002',
+    target: services().pipeline?.url || 'http://localhost:3002',
     timeout: 60000,
     stripPrefix: false,
   },
+  {
+    prefix: '/api/v1/pipeline-templates',
+    target: services().pipeline?.url || 'http://localhost:3002',
+    timeout: 60000,
+    stripPrefix: false,
+  },
+  {
+    prefix: '/api/v1/pipeline-versions',
+    target: services().pipeline?.url || 'http://localhost:3002',
+    timeout: 60000,
+    stripPrefix: false,
+  },
+  {
+    prefix: '/api/v1/pipeline-budget',
+    target: services().pipeline?.url || 'http://localhost:3002',
+    timeout: 60000,
+    stripPrefix: false,
+  },
+
+  // ========== Deploy Service (3003) ==========
   {
     prefix: '/api/v1/deploy',
-    target: getConfig().services.deploy?.url || 'http://localhost:3003',
+    target: services().deploy?.url || 'http://localhost:3003',
     timeout: 60000,
     stripPrefix: false,
   },
   {
+    prefix: '/api/v1/deployments',
+    target: services().deploy?.url || 'http://localhost:3003',
+    timeout: 60000,
+    stripPrefix: false,
+  },
+
+  // ========== Ticket Service (3004) ==========
+  {
     prefix: '/api/v1/tickets',
-    target: getConfig().services.ticket?.url || 'http://localhost:3004',
+    target: services().ticket?.url || 'http://localhost:3004',
     timeout: 30000,
     stripPrefix: false,
   },
   {
+    prefix: '/api/v1/ticket',
+    target: services().ticket?.url || 'http://localhost:3004',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+
+  // ========== Monitor Service (3005) ==========
+  {
     prefix: '/api/v1/monitoring',
-    target: getConfig().services.monitor?.url || 'http://localhost:3005',
+    target: services().monitor?.url || 'http://localhost:3005',
     timeout: 30000,
     stripPrefix: false,
   },
   {
     prefix: '/api/v1/alert',
-    target: getConfig().services.monitor?.url || 'http://localhost:3005',
+    target: services().monitor?.url || 'http://localhost:3005',
     timeout: 30000,
     stripPrefix: false,
   },
   {
+    prefix: '/api/v1/alerts',
+    target: services().monitor?.url || 'http://localhost:3005',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+  {
+    prefix: '/api/v1/metrics',
+    target: services().monitor?.url || 'http://localhost:3005',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+
+  // ========== Intelligence Service (3006) ==========
+  {
     prefix: '/api/v1/ai-gateway',
-    target: getConfig().services.intelligence?.url || 'http://localhost:3006',
+    target: services().intelligence?.url || 'http://localhost:3006',
     timeout: 60000,
     stripPrefix: false,
   },
   {
     prefix: '/api/v1/ai-decision',
-    target: getConfig().services.intelligence?.url || 'http://localhost:3006',
+    target: services().intelligence?.url || 'http://localhost:3006',
     timeout: 60000,
     stripPrefix: false,
   },
   {
     prefix: '/api/v1/ai-review',
-    target: getConfig().services.intelligence?.url || 'http://localhost:3006',
+    target: services().intelligence?.url || 'http://localhost:3006',
     timeout: 60000,
     stripPrefix: false,
   },
   {
     prefix: '/api/v1/ai-security',
-    target: getConfig().services.intelligence?.url || 'http://localhost:3006',
+    target: services().intelligence?.url || 'http://localhost:3006',
     timeout: 60000,
     stripPrefix: false,
   },
   {
     prefix: '/api/v1/change-intelligence',
-    target: getConfig().services.intelligence?.url || 'http://localhost:3006',
+    target: services().intelligence?.url || 'http://localhost:3006',
     timeout: 60000,
     stripPrefix: false,
   },
+  {
+    prefix: '/api/v1/intelligence',
+    target: services().intelligence?.url || 'http://localhost:3006',
+    timeout: 60000,
+    stripPrefix: false,
+  },
+
+  // ========== Agent Service (3007) ==========
   {
     prefix: '/api/v1/agents',
-    target: getConfig().services.agent?.url || 'http://localhost:3007',
+    target: services().agent?.url || 'http://localhost:3007',
     timeout: 60000,
     stripPrefix: false,
   },
   {
+    prefix: '/api/v1/agent',
+    target: services().agent?.url || 'http://localhost:3007',
+    timeout: 60000,
+    stripPrefix: false,
+  },
+
+  // ========== Digital Twin Service (3008) ==========
+  {
+    prefix: '/api/v1/digital-twin',
+    target: services()['digital-twin']?.url || 'http://localhost:3008',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+
+  // ========== FinOps Service (3009) ==========
+  {
     prefix: '/api/v1/cost',
-    target: getConfig().services.finops?.url || 'http://localhost:3009',
+    target: services().finops?.url || 'http://localhost:3009',
     timeout: 30000,
     stripPrefix: false,
   },
   {
     prefix: '/api/v1/finops',
-    target: getConfig().services.finops?.url || 'http://localhost:3009',
+    target: services().finops?.url || 'http://localhost:3009',
     timeout: 30000,
     stripPrefix: false,
   },
   {
     prefix: '/api/v1/cost-operations',
-    target: getConfig().services.finops?.url || 'http://localhost:3009',
+    target: services().finops?.url || 'http://localhost:3009',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+
+  // ========== Code Service (3010) ==========
+  {
+    prefix: '/api/v1/code-repo',
+    target: services().code?.url || 'http://localhost:3010',
     timeout: 30000,
     stripPrefix: false,
   },
   {
-    prefix: '/api/v1/code-repo',
-    target: getConfig().services.code?.url || 'http://localhost:3010',
-    timeout: 30000,
+    prefix: '/api/v1/code',
+    target: services().code?.url || 'http://localhost:3010',
+    timeout: 60000,
     stripPrefix: false,
   },
   {
     prefix: '/api/v1/build',
-    target: getConfig().services.code?.url || 'http://localhost:3010',
+    target: services().code?.url || 'http://localhost:3010',
     timeout: 60000,
     stripPrefix: false,
   },
   {
     prefix: '/api/v1/test-reports',
-    target: getConfig().services.code?.url || 'http://localhost:3010',
+    target: services().code?.url || 'http://localhost:3010',
     timeout: 30000,
     stripPrefix: false,
   },
-  // Plugin service
+
+  // ========== Plugin Service (3011) ==========
   {
     prefix: '/api/v1/plugins-spi',
-    target: getConfig().services.plugin?.url || 'http://localhost:3011',
+    target: services().plugin?.url || 'http://localhost:3011',
     timeout: 30000,
     stripPrefix: false,
   },
   {
     prefix: '/api/v1/plugins',
-    target: getConfig().services.plugin?.url || 'http://localhost:3011',
+    target: services().plugin?.url || 'http://localhost:3011',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+  {
+    prefix: '/api/v1/plugin',
+    target: services().plugin?.url || 'http://localhost:3011',
     timeout: 30000,
     stripPrefix: false,
   },
   {
     prefix: '/api/v1/plugins-enhanced',
-    target: getConfig().services.plugin?.url || 'http://localhost:3011',
+    target: services().plugin?.url || 'http://localhost:3011',
     timeout: 30000,
     stripPrefix: false,
   },
   {
     prefix: '/api/v1/plugins/marketplace',
-    target: getConfig().services.plugin?.url || 'http://localhost:3011',
+    target: services().plugin?.url || 'http://localhost:3011',
     timeout: 30000,
     stripPrefix: false,
   },
-  // AI service
+
+  // ========== AI Service (3012) ==========
   {
-    prefix: '/api/v1/ai-gateway',
-    target: getConfig().services.ai?.url || 'http://localhost:3012',
+    prefix: '/api/v1/ai',
+    target: services().ai?.url || 'http://localhost:3012',
     timeout: 60000,
     stripPrefix: false,
   },
   {
-    prefix: '/api/v1/ai-decision',
-    target: getConfig().services.ai?.url || 'http://localhost:3012',
+    prefix: '/api/v1/ai-models',
+    target: services().ai?.url || 'http://localhost:3012',
     timeout: 60000,
     stripPrefix: false,
   },
   {
-    prefix: '/api/v1/ai-review',
-    target: getConfig().services.ai?.url || 'http://localhost:3012',
-    timeout: 60000,
-    stripPrefix: false,
-  },
-  {
-    prefix: '/api/v1/ai-security',
-    target: getConfig().services.ai?.url || 'http://localhost:3012',
+    prefix: '/api/v1/ai-model',
+    target: services().ai?.url || 'http://localhost:3012',
     timeout: 60000,
     stripPrefix: false,
   },
   {
     prefix: '/api/v1/vector-store',
-    target: getConfig().services.ai?.url || 'http://localhost:3012',
+    target: services().ai?.url || 'http://localhost:3012',
     timeout: 30000,
     stripPrefix: false,
   },
   {
     prefix: '/api/v1/vector',
-    target: getConfig().services.ai?.url || 'http://localhost:3012',
+    target: services().ai?.url || 'http://localhost:3012',
     timeout: 30000,
     stripPrefix: false,
   },
   {
     prefix: '/api/v1/llm',
-    target: getConfig().services.ai?.url || 'http://localhost:3012',
+    target: services().ai?.url || 'http://localhost:3012',
     timeout: 30000,
     stripPrefix: false,
   },
   {
     prefix: '/api/v1/degradation',
-    target: getConfig().services.ai?.url || 'http://localhost:3012',
+    target: services().ai?.url || 'http://localhost:3012',
     timeout: 30000,
     stripPrefix: false,
   },
-  // Security service
+
+  // ========== Security Service (3013) ==========
+  {
+    prefix: '/api/v1/security',
+    target: services().security?.url || 'http://localhost:3013',
+    timeout: 30000,
+    stripPrefix: false,
+  },
   {
     prefix: '/api/v1/risk',
-    target: getConfig().services.security?.url || 'http://localhost:3013',
+    target: services().security?.url || 'http://localhost:3013',
     timeout: 30000,
     stripPrefix: false,
   },
   {
     prefix: '/api/v1/sbom',
-    target: getConfig().services.security?.url || 'http://localhost:3013',
+    target: services().security?.url || 'http://localhost:3013',
     timeout: 30000,
     stripPrefix: false,
   },
   {
     prefix: '/api/v1/supply-chain',
-    target: getConfig().services.security?.url || 'http://localhost:3013',
+    target: services().security?.url || 'http://localhost:3013',
     timeout: 30000,
     stripPrefix: false,
   },
   {
     prefix: '/api/v1/policies',
-    target: getConfig().services.security?.url || 'http://localhost:3013',
+    target: services().security?.url || 'http://localhost:3013',
     timeout: 30000,
     stripPrefix: false,
   },
   {
     prefix: '/api/v1/quality-gates',
-    target: getConfig().services.security?.url || 'http://localhost:3013',
+    target: services().security?.url || 'http://localhost:3013',
     timeout: 30000,
     stripPrefix: false,
   },
-  // Artifact service
+
+  // ========== Artifact Service (3014) ==========
   {
     prefix: '/api/v1/artifacts',
-    target: getConfig().services.artifact?.url || 'http://localhost:3014',
+    target: services().artifact?.url || 'http://localhost:3014',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+  {
+    prefix: '/api/v1/artifact',
+    target: services().artifact?.url || 'http://localhost:3014',
     timeout: 30000,
     stripPrefix: false,
   },
   {
     prefix: '/api/v1/artifact-ops',
-    target: getConfig().services.artifact?.url || 'http://localhost:3014',
+    target: services().artifact?.url || 'http://localhost:3014',
     timeout: 30000,
     stripPrefix: false,
   },
   {
     prefix: '/api/v1/artifact-versions',
-    target: getConfig().services.artifact?.url || 'http://localhost:3014',
+    target: services().artifact?.url || 'http://localhost:3014',
     timeout: 30000,
     stripPrefix: false,
   },
-  // Efficiency service
+
+  // ========== Efficiency Service (3015) ==========
   {
     prefix: '/api/v1/efficiency',
-    target: getConfig().services.efficiency?.url || 'http://localhost:3015',
+    target: services().efficiency?.url || 'http://localhost:3015',
     timeout: 30000,
     stripPrefix: false,
   },
-  // DR service
+
+  // ========== DR Service (3016) ==========
   {
     prefix: '/api/v1/backup',
-    target: getConfig().services.dr?.url || 'http://localhost:3016',
+    target: services().dr?.url || 'http://localhost:3016',
     timeout: 30000,
     stripPrefix: false,
   },
   {
     prefix: '/api/v1/disaster-recovery',
-    target: getConfig().services.dr?.url || 'http://localhost:3016',
+    target: services().dr?.url || 'http://localhost:3016',
     timeout: 30000,
     stripPrefix: false,
   },
-  // Federation service
+  {
+    prefix: '/api/v1/dr',
+    target: services().dr?.url || 'http://localhost:3016',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+
+  // ========== Federation Service (3017) ==========
   {
     prefix: '/api/v1/federation',
-    target: getConfig().services.federation?.url || 'http://localhost:3017',
+    target: services().federation?.url || 'http://localhost:3017',
     timeout: 30000,
     stripPrefix: false,
   },
   {
     prefix: '/api/v1/federation-advanced',
-    target: getConfig().services.federation?.url || 'http://localhost:3017',
+    target: services().federation?.url || 'http://localhost:3017',
     timeout: 30000,
     stripPrefix: false,
   },
   {
     prefix: '/api/v1/multi-cloud',
-    target: getConfig().services.federation?.url || 'http://localhost:3017',
+    target: services().federation?.url || 'http://localhost:3017',
     timeout: 30000,
     stripPrefix: false,
   },
   {
     prefix: '/api/v1/multi-cloud-advanced',
-    target: getConfig().services.federation?.url || 'http://localhost:3017',
+    target: services().federation?.url || 'http://localhost:3017',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+
+  // ========== Approval Service (3018) ==========
+  {
+    prefix: '/api/v1/approval',
+    target: services().approval?.url || 'http://localhost:3018',
     timeout: 30000,
     stripPrefix: false,
   },
   {
+    prefix: '/api/v1/approvals',
+    target: services().approval?.url || 'http://localhost:3018',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+
+  // ========== Notify Service (3019) ==========
+  {
+    prefix: '/api/v1/notify',
+    target: services().notify?.url || 'http://localhost:3019',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+  {
+    prefix: '/api/v1/notification',
+    target: services().notify?.url || 'http://localhost:3019',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+  {
+    prefix: '/api/v1/notifications',
+    target: services().notify?.url || 'http://localhost:3019',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+  {
+    prefix: '/api/v1/webhook',
+    target: services().notify?.url || 'http://localhost:3019',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+  {
+    prefix: '/api/v1/webhooks',
+    target: services().notify?.url || 'http://localhost:3019',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+
+  // ========== Knowledge Service (3020) ==========
+  {
+    prefix: '/api/v1/knowledge',
+    target: services().knowledge?.url || 'http://localhost:3020',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+  {
+    prefix: '/api/v1/wiki',
+    target: services().knowledge?.url || 'http://localhost:3020',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+
+  // ========== Graph Service (3021) ==========
+  {
+    prefix: '/api/v1/graph',
+    target: services().graph?.url || 'http://localhost:3021',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+
+  // ========== Governance Service (3022) ==========
+  {
+    prefix: '/api/v1/governance',
+    target: services().governance?.url || 'http://localhost:3022',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+  {
+    prefix: '/api/v1/compliance',
+    target: services().governance?.url || 'http://localhost:3022',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+
+  // ========== Skill Service (3023) ==========
+  {
+    prefix: '/api/v1/skills',
+    target: services().skill?.url || 'http://localhost:3023',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+  {
+    prefix: '/api/v1/skill',
+    target: services().skill?.url || 'http://localhost:3023',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+
+  // ========== Self-Healing Service (3024) ==========
+  {
+    prefix: '/api/v1/selfhealing',
+    target: services().selfhealing?.url || 'http://localhost:3024',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+  {
+    prefix: '/api/v1/self-healing',
+    target: services().selfhealing?.url || 'http://localhost:3024',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+  {
+    prefix: '/api/v1/healing',
+    target: services().selfhealing?.url || 'http://localhost:3024',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+
+  // ========== Risk Service (3025) ==========
+  {
+    prefix: '/api/v1/risks',
+    target: services().risk?.url || 'http://localhost:3025',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+
+  // ========== Audit Service (3026) ==========
+  {
+    prefix: '/api/v1/audit',
+    target: services().audit?.url || 'http://localhost:3026',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+  {
+    prefix: '/api/v1/audits',
+    target: services().audit?.url || 'http://localhost:3026',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+
+  // ========== ChatOps Service (3027) ==========
+  {
+    prefix: '/api/v1/chatops',
+    target: services().chatops?.url || 'http://localhost:3027',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+  {
+    prefix: '/api/v1/chat',
+    target: services().chatops?.url || 'http://localhost:3027',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+
+  // ========== Runner Service (3028) ==========
+  {
+    prefix: '/api/v1/runner',
+    target: services().runner?.url || 'http://localhost:3028',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+  {
+    prefix: '/api/v1/runners',
+    target: services().runner?.url || 'http://localhost:3028',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+  {
+    prefix: '/api/v1/jobs',
+    target: services().runner?.url || 'http://localhost:3028',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+
+  // ========== Config Management Service (3029) ==========
+  {
+    prefix: '/api/v1/config',
+    target: services()['config-mgmt']?.url || 'http://localhost:3029',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+  {
+    prefix: '/api/v1/configuration',
+    target: services()['config-mgmt']?.url || 'http://localhost:3029',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+  {
+    prefix: '/api/v1/config-mgmt',
+    target: services()['config-mgmt']?.url || 'http://localhost:3029',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+  {
+    prefix: '/api/v1/environment',
+    target: services()['config-mgmt']?.url || 'http://localhost:3029',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+  {
+    prefix: '/api/v1/environments',
+    target: services()['config-mgmt']?.url || 'http://localhost:3029',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+
+  // ========== CMDB Service (3030) ==========
+  {
+    prefix: '/api/v1/cmdb',
+    target: services().cmdb?.url || 'http://localhost:3030',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+  {
+    prefix: '/api/v1/assets',
+    target: services().cmdb?.url || 'http://localhost:3030',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+
+  // ========== Inception Service (3031) ==========
+  {
+    prefix: '/api/v1/inception',
+    target: services().inception?.url || 'http://localhost:3031',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+
+  // ========== DBA Service (3032) ==========
+  {
+    prefix: '/api/v1/dba',
+    target: services().dba?.url || 'http://localhost:3032',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+  {
+    prefix: '/api/v1/database',
+    target: services().dba?.url || 'http://localhost:3032',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+  {
+    prefix: '/api/v1/databases',
+    target: services().dba?.url || 'http://localhost:3032',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+
+  // ========== Community Service (3033) ==========
+  {
+    prefix: '/api/v1/community',
+    target: services().community?.url || 'http://localhost:3033',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+
+  // ========== Visor Service (3034) ==========
+  {
+    prefix: '/api/v1/visor',
+    target: services().visor?.url || 'http://localhost:3034',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+  {
+    prefix: '/api/v1/visualization',
+    target: services().visor?.url || 'http://localhost:3034',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+
+  // ========== Default fallback to platform ==========
+  {
     prefix: '/api/v1',
-    target: getConfig().services.platform?.url || 'http://localhost:3001',
+    target: services().platform?.url || 'http://localhost:3001',
     timeout: 30000,
     stripPrefix: false,
   },
@@ -324,22 +708,33 @@ export function registerRoutes(app: FastifyInstance): void {
     });
   });
 
-  // 注册就绪检查路由
+  // 注册就绪检查路由 - 检查所有 34 个服务
   app.get('/readyz', async (request, reply) => {
-    // 检查依赖服务是否就绪
-    const platformReady = await proxyMiddleware.checkServiceHealth(
-      config.services.platform?.url || 'http://localhost:3001',
-      2000
-    );
+    const services = config.services;
+    const checks: Record<string, string> = {};
 
-    const ready = platformReady;
+    // 检查关键服务是否就绪
+    const criticalServices = [
+      { name: 'platform', url: services.platform?.url },
+      { name: 'pipeline', url: services.pipeline?.url },
+      { name: 'deploy', url: services.deploy?.url },
+    ];
+
+    for (const service of criticalServices) {
+      if (service.url) {
+        const ready = await proxyMiddleware.checkServiceHealth(service.url, 2000);
+        checks[service.name] = ready ? 'up' : 'down';
+      }
+    }
+
+    // 检查是否有任何关键服务宕机
+    const ready = Object.values(checks).every(status => status === 'up');
 
     reply.code(ready ? 200 : 503).send({
       status: ready ? 'ready' : 'not_ready',
       timestamp: new Date().toISOString(),
-      checks: {
-        platform: platformReady ? 'up' : 'down',
-      },
+      services: Object.keys(services).length,
+      checks,
     });
   });
 

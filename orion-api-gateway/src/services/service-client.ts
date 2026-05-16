@@ -32,11 +32,276 @@ export interface ServiceRouteConfig {
 }
 
 /**
- * 服务路由表
+ * 服务路由表 - 全部 34 个服务
  */
 export const SERVICE_ROUTES: Record<string, ServiceRouteConfig> = {
+  // Platform service (main backend) - 3001
   'platform-service': {
     baseUrl: process.env.PLATFORM_SERVICE_URL || 'http://localhost:3001',
+    timeout: 30000,
+    retries: 3,
+    circuitBreakerThreshold: 5,
+    circuitBreakerResetTimeout: 30000,
+  },
+  // Pipeline service - 3002
+  'pipeline-service': {
+    baseUrl: process.env.PIPELINE_SERVICE_URL || 'http://localhost:3002',
+    timeout: 60000,
+    retries: 3,
+    circuitBreakerThreshold: 5,
+    circuitBreakerResetTimeout: 30000,
+  },
+  // Deploy service - 3003
+  'deploy-service': {
+    baseUrl: process.env.DEPLOY_SERVICE_URL || 'http://localhost:3003',
+    timeout: 60000,
+    retries: 3,
+    circuitBreakerThreshold: 5,
+    circuitBreakerResetTimeout: 30000,
+  },
+  // Ticket service - 3004
+  'ticket-service': {
+    baseUrl: process.env.TICKET_SERVICE_URL || 'http://localhost:3004',
+    timeout: 30000,
+    retries: 3,
+    circuitBreakerThreshold: 5,
+    circuitBreakerResetTimeout: 30000,
+  },
+  // Monitor service - 3005
+  'monitor-service': {
+    baseUrl: process.env.MONITOR_SERVICE_URL || 'http://localhost:3005',
+    timeout: 30000,
+    retries: 3,
+    circuitBreakerThreshold: 5,
+    circuitBreakerResetTimeout: 30000,
+  },
+  // Intelligence service - 3006
+  'intelligence-service': {
+    baseUrl: process.env.INTELLIGENCE_SERVICE_URL || 'http://localhost:3006',
+    timeout: 60000,
+    retries: 3,
+    circuitBreakerThreshold: 5,
+    circuitBreakerResetTimeout: 30000,
+  },
+  // Agent service - 3007
+  'agent-service': {
+    baseUrl: process.env.AGENT_SERVICE_URL || 'http://localhost:3007',
+    timeout: 60000,
+    retries: 3,
+    circuitBreakerThreshold: 5,
+    circuitBreakerResetTimeout: 30000,
+  },
+  // Digital Twin service - 3008
+  'digital-twin-service': {
+    baseUrl: process.env.DIGITAL_TWIN_SERVICE_URL || 'http://localhost:3008',
+    timeout: 30000,
+    retries: 3,
+    circuitBreakerThreshold: 5,
+    circuitBreakerResetTimeout: 30000,
+  },
+  // FinOps service - 3009
+  'finops-service': {
+    baseUrl: process.env.FINOPS_SERVICE_URL || 'http://localhost:3009',
+    timeout: 30000,
+    retries: 3,
+    circuitBreakerThreshold: 5,
+    circuitBreakerResetTimeout: 30000,
+  },
+  // Code service - 3010
+  'code-service': {
+    baseUrl: process.env.CODE_SERVICE_URL || 'http://localhost:3010',
+    timeout: 60000,
+    retries: 3,
+    circuitBreakerThreshold: 5,
+    circuitBreakerResetTimeout: 30000,
+  },
+  // Plugin service - 3011
+  'plugin-service': {
+    baseUrl: process.env.PLUGIN_SERVICE_URL || 'http://localhost:3011',
+    timeout: 30000,
+    retries: 3,
+    circuitBreakerThreshold: 5,
+    circuitBreakerResetTimeout: 30000,
+  },
+  // AI service - 3012
+  'ai-service': {
+    baseUrl: process.env.AI_SERVICE_URL || 'http://localhost:3012',
+    timeout: 60000,
+    retries: 3,
+    circuitBreakerThreshold: 5,
+    circuitBreakerResetTimeout: 30000,
+  },
+  // Security service - 3013
+  'security-service': {
+    baseUrl: process.env.SECURITY_SERVICE_URL || 'http://localhost:3013',
+    timeout: 30000,
+    retries: 3,
+    circuitBreakerThreshold: 5,
+    circuitBreakerResetTimeout: 30000,
+  },
+  // Artifact service - 3014
+  'artifact-service': {
+    baseUrl: process.env.ARTIFACT_SERVICE_URL || 'http://localhost:3014',
+    timeout: 30000,
+    retries: 3,
+    circuitBreakerThreshold: 5,
+    circuitBreakerResetTimeout: 30000,
+  },
+  // Efficiency service - 3015
+  'efficiency-service': {
+    baseUrl: process.env.EFFICIENCY_SERVICE_URL || 'http://localhost:3015',
+    timeout: 30000,
+    retries: 3,
+    circuitBreakerThreshold: 5,
+    circuitBreakerResetTimeout: 30000,
+  },
+  // DR service - 3016
+  'dr-service': {
+    baseUrl: process.env.DR_SERVICE_URL || 'http://localhost:3016',
+    timeout: 30000,
+    retries: 3,
+    circuitBreakerThreshold: 5,
+    circuitBreakerResetTimeout: 30000,
+  },
+  // Federation service - 3017
+  'federation-service': {
+    baseUrl: process.env.FEDERATION_SERVICE_URL || 'http://localhost:3017',
+    timeout: 30000,
+    retries: 3,
+    circuitBreakerThreshold: 5,
+    circuitBreakerResetTimeout: 30000,
+  },
+  // Approval service - 3018
+  'approval-service': {
+    baseUrl: process.env.APPROVAL_SERVICE_URL || 'http://localhost:3018',
+    timeout: 30000,
+    retries: 3,
+    circuitBreakerThreshold: 5,
+    circuitBreakerResetTimeout: 30000,
+  },
+  // Notify service - 3019
+  'notify-service': {
+    baseUrl: process.env.NOTIFY_SERVICE_URL || 'http://localhost:3019',
+    timeout: 30000,
+    retries: 3,
+    circuitBreakerThreshold: 5,
+    circuitBreakerResetTimeout: 30000,
+  },
+  // Knowledge service - 3020
+  'knowledge-service': {
+    baseUrl: process.env.KNOWLEDGE_SERVICE_URL || 'http://localhost:3020',
+    timeout: 30000,
+    retries: 3,
+    circuitBreakerThreshold: 5,
+    circuitBreakerResetTimeout: 30000,
+  },
+  // Graph service - 3021
+  'graph-service': {
+    baseUrl: process.env.GRAPH_SERVICE_URL || 'http://localhost:3021',
+    timeout: 30000,
+    retries: 3,
+    circuitBreakerThreshold: 5,
+    circuitBreakerResetTimeout: 30000,
+  },
+  // Governance service - 3022
+  'governance-service': {
+    baseUrl: process.env.GOVERNANCE_SERVICE_URL || 'http://localhost:3022',
+    timeout: 30000,
+    retries: 3,
+    circuitBreakerThreshold: 5,
+    circuitBreakerResetTimeout: 30000,
+  },
+  // Skill service - 3023
+  'skill-service': {
+    baseUrl: process.env.SKILL_SERVICE_URL || 'http://localhost:3023',
+    timeout: 30000,
+    retries: 3,
+    circuitBreakerThreshold: 5,
+    circuitBreakerResetTimeout: 30000,
+  },
+  // Self-healing service - 3024
+  'selfhealing-service': {
+    baseUrl: process.env.SELFHEALING_SERVICE_URL || 'http://localhost:3024',
+    timeout: 30000,
+    retries: 3,
+    circuitBreakerThreshold: 5,
+    circuitBreakerResetTimeout: 30000,
+  },
+  // Risk service - 3025
+  'risk-service': {
+    baseUrl: process.env.RISK_SERVICE_URL || 'http://localhost:3025',
+    timeout: 30000,
+    retries: 3,
+    circuitBreakerThreshold: 5,
+    circuitBreakerResetTimeout: 30000,
+  },
+  // Audit service - 3026
+  'audit-service': {
+    baseUrl: process.env.AUDIT_SERVICE_URL || 'http://localhost:3026',
+    timeout: 30000,
+    retries: 3,
+    circuitBreakerThreshold: 5,
+    circuitBreakerResetTimeout: 30000,
+  },
+  // ChatOps service - 3027
+  'chatops-service': {
+    baseUrl: process.env.CHATOPS_SERVICE_URL || 'http://localhost:3027',
+    timeout: 30000,
+    retries: 3,
+    circuitBreakerThreshold: 5,
+    circuitBreakerResetTimeout: 30000,
+  },
+  // Runner service - 3028
+  'runner-service': {
+    baseUrl: process.env.RUNNER_SERVICE_URL || 'http://localhost:3028',
+    timeout: 30000,
+    retries: 3,
+    circuitBreakerThreshold: 5,
+    circuitBreakerResetTimeout: 30000,
+  },
+  // Config Management service - 3029
+  'config-mgmt-service': {
+    baseUrl: process.env.CONFIG_MGMT_SERVICE_URL || 'http://localhost:3029',
+    timeout: 30000,
+    retries: 3,
+    circuitBreakerThreshold: 5,
+    circuitBreakerResetTimeout: 30000,
+  },
+  // CMDB service - 3030
+  'cmdb-service': {
+    baseUrl: process.env.CMDB_SERVICE_URL || 'http://localhost:3030',
+    timeout: 30000,
+    retries: 3,
+    circuitBreakerThreshold: 5,
+    circuitBreakerResetTimeout: 30000,
+  },
+  // Inception service - 3031
+  'inception-service': {
+    baseUrl: process.env.INCEPTION_SERVICE_URL || 'http://localhost:3031',
+    timeout: 30000,
+    retries: 3,
+    circuitBreakerThreshold: 5,
+    circuitBreakerResetTimeout: 30000,
+  },
+  // DBA service - 3032
+  'dba-service': {
+    baseUrl: process.env.DBA_SERVICE_URL || 'http://localhost:3032',
+    timeout: 30000,
+    retries: 3,
+    circuitBreakerThreshold: 5,
+    circuitBreakerResetTimeout: 30000,
+  },
+  // Community service - 3033
+  'community-service': {
+    baseUrl: process.env.COMMUNITY_SERVICE_URL || 'http://localhost:3033',
+    timeout: 30000,
+    retries: 3,
+    circuitBreakerThreshold: 5,
+    circuitBreakerResetTimeout: 30000,
+  },
+  // Visor service - 3034
+  'visor-service': {
+    baseUrl: process.env.VISOR_SERVICE_URL || 'http://localhost:3034',
     timeout: 30000,
     retries: 3,
     circuitBreakerThreshold: 5,
