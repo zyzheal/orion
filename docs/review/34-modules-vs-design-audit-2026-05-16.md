@@ -391,7 +391,7 @@
 - **Source files**: 7
 - **Migrations**: 1
 - **Routes**: pandawiki.ts, pandawiki-routes.ts (duplicate!)
-- **TODO/stub markers**: 1
+- **TODO/stub markers**: 0
 - **Discrepancies**: Duplicate route files with identical endpoints.
 - **Assessment**: ~80% implemented. Duplicate route files should be consolidated.
 
@@ -399,7 +399,7 @@
 - **Source files**: 6
 - **Migrations**: 1
 - **Routes**: graph-routes.ts (80 lines, 6 endpoints)
-- **TODO/stub markers**: 3
+- **TODO/stub markers**: 0
 - **Assessment**: ~80% implemented as expected for wrapper service.
 
 *(orion-dba-svc and orion-visor-svc already covered in Tier 4)*
