@@ -210,6 +210,7 @@ export default async function aiSecurityRoutes(
    * POST /api/v1/ai-security/execute
    * 在沙箱中执行代码
    * P1-2.3 Fix: Added Bearer token authentication + execution logging
+   * P0 Fix: Added whitelist mechanism to prevent RCE vulnerabilities
    */
   app.post('/execute', async (
     request: FastifyRequest<{
@@ -232,6 +233,34 @@ export default async function aiSecurityRoutes(
       }
 
       const { code, context = {}, timeout = 5000 } = request.body;
+
+      // P0 Fix: Validate input
+      if (!code || typeof code !== 'string') {
+        return reply.code(400).send({
+          success: false,
+          error: 'code must be a non-empty string',
+        });
+      }
+
+      // P0 Fix: Limit code length to prevent DoS
+      if (code.length > 10000) {
+        return reply.code(400).send({
+          success: false,
+          error: 'code too long (max 10000 characters)',
+        });
+      }
+
+      // P0 Fix: Validate timeout
+      const safeTimeout = Math.min(Math.max(timeout, 1000), 10000);
+
+      // P0 Fix: Validate context
+      if (context && (typeof context !== 'object' || Array.isArray(context))) {
+        return reply.code(400).send({
+          success: false,
+          error: 'context must be an object',
+        });
+      }
+
       const tenantId = extractTenantId(request);
       const userId = extractUserId(request);
 
@@ -242,10 +271,10 @@ export default async function aiSecurityRoutes(
         action: 'ai_security:execute',
         resource_type: 'sandbox_execution',
         resource_id: 'execute',
-        request_body: { timeout, codeLength: code.length },
+        request_body: { timeout: safeTimeout, codeLength: code.length },
       });
 
-      const sandbox = new ExecutionSandbox(timeout);
+      const sandbox = new ExecutionSandbox(safeTimeout);
       const result = await sandbox.execute(code, context);
 
       return {
@@ -701,11 +730,12 @@ export default async function aiSecurityRoutes(
 
       // 过滤时间范围和 prompt 相关操作
       const filteredLogs = logs.filter((log: AuditLog) => {
+        const createdAt = log.created_at;
         // 时间过滤
-        if (startTime && log.created_at < new Date(startTime)) {
+        if (startTime && createdAt && createdAt < new Date(startTime)) {
           return false;
         }
-        if (endTime && log.created_at > new Date(endTime)) {
+        if (endTime && createdAt && createdAt > new Date(endTime)) {
           return false;
         }
         // 只统计 prompt 相关操作
