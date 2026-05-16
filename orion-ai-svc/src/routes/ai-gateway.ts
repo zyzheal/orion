@@ -13,6 +13,7 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { AIGateway } from '../services/AIGateway';
 import { AIDegradationRouter } from '../services/AIDegradationRouter';
 import { RuleEngine } from '../services/RuleEngine';
+import { PromptGuardService } from '../services/PromptGuardService';
 import { AIRequest, AIScenario, AIResponse } from '../services/types';
 
 interface AIRequestCreate {
@@ -139,6 +140,7 @@ export default async function aiGatewayRoutes(app: FastifyInstance): Promise<voi
   const degradationRouter = new AIDegradationRouter();
   const ruleEngine = new RuleEngine();
   const aiGateway = new AIGateway({} as any, degradationRouter);
+  const promptGuard = new PromptGuardService();
 
   // P0-3 Fix: Set real LLM caller if API key is configured
   if (process.env.AI_LLM_API_KEY) {
@@ -159,11 +161,26 @@ export default async function aiGatewayRoutes(app: FastifyInstance): Promise<voi
 
   // ==================== AI Gateway Core ====================
 
-  // POST /ai-gateway/execute - 执行 AI 请求
+  // POST /ai-gateway/execute - 执行 AI 请求 (带 Prompt 注入防护)
   app.post('/execute', async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as AIRequestCreate;
 
     try {
+      // Prompt 注入防护 - 验证输入
+      const inputText = typeof body.input?.prompt === 'string' ? body.input.prompt : '';
+      if (inputText) {
+        const guardResult = await promptGuard.guard(inputText);
+        if (!guardResult.success) {
+          return reply.status(400).send({
+            error: 'PROMPT_INJECTION_DETECTED',
+            message: guardResult.error,
+            riskScore: guardResult.riskScore,
+          });
+        }
+        // 使用清洗后的 prompt
+        body.input.prompt = guardResult.prompt;
+      }
+
       const aiRequest: AIRequest = {
         scenario: body.scenario,
         input: body.input,
