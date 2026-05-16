@@ -136,7 +136,7 @@ export const lightTheme = {
     lineWidthBold: 2,
 
     // 组件默认尺寸
-    componentSize: 32, // 默认组件高度
+    componentSize: 36, // 默认组件高度 (Apple style: was 32)
 
     // 是否使用线框风格
     wireframe: false,
@@ -210,7 +210,7 @@ export const darkTheme = {
     // 组件默认
     lineWidth: 1,
     lineWidthBold: 2,
-    componentSize: 32,
+    componentSize: 36,   // Apple style: was 32
     wireframe: false,
   },
   components: {

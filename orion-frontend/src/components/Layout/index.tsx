@@ -526,7 +526,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       {/* 固定顶部导航栏 */}
       <Header
         style={{
-          padding: '0 24px',
+          padding: '0 32px',
           background: theme === 'dark' ? colors.dark.bg.primary : colors.light.bg.primary,
           display: 'flex',
           alignItems: 'center',
@@ -534,8 +534,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           position: 'sticky',
           top: 0,
           zIndex: 1000,
-          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-          height: 64,
+          boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
+          height: 60,
           overflow: 'visible',
         }}
       >
@@ -566,8 +566,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             <span
               style={{
                 fontSize: 16,
-                fontWeight: 'bold',
-                background: `linear-gradient(135deg, ${colors.primary[500]} 0%, ${colors.purple[500]} 100%)`,
+                fontWeight: 600,
+                background: `linear-gradient(135deg, #3370E6 0%, #7C5CFC 100%)`,
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
                 backgroundClip: 'text',
@@ -675,7 +675,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       <div
         style={{
           background: theme === 'dark' ? colors.dark.bg.primary : colors.light.bg.tertiary,
-          padding: '12px 24px',
+          padding: '10px 32px',
         }}
       >
         <Breadcrumb
@@ -697,12 +697,14 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       {/* 内容区域 */}
       <Content
         style={{
-          margin: '16px 24px',
+          margin: '20px 32px',
           background: theme === 'dark' ? colors.dark.bg.primary : colors.light.bg.primary,
           borderRadius: 12,
-          padding: 24,
+          padding: 32,
           minHeight: 'calc(100vh - 180px)',
-          boxShadow: theme === 'dark' ? '0 2px 8px rgba(0,0,0,0.3)' : '0 2px 8px rgba(0,0,0,0.08)',
+          boxShadow: theme === 'dark'
+            ? '0 1px 3px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.3)'
+            : '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
         }}
       >
         {children}
