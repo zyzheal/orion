@@ -2,7 +2,7 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import sensible from '@fastify/sensible';
 import { config } from './config';
-import { inceptionRoutes } from './routes/inception';
+import inceptionRoutes from './routes/inception-routes';
 
 const app = Fastify({ logger: { level: config.logLevel } });
 

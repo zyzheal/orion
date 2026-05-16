@@ -4,8 +4,7 @@ import sensible from '@fastify/sensible';
 import { closePool, checkHealth } from './utils/database';
 import { registerErrorHandler } from './middleware/errorHandler';
 import { registerLogger } from './middleware/logger';
-import communityRoutes from './routes/community';
-import communityAdvancedRoutes from './routes/community-advanced';
+import communityRoutes from './routes/community-routes';
 
 /**
  * 构建 Fastify 应用实例
@@ -24,7 +23,6 @@ async function buildApp() {
   registerErrorHandler(fastify);
 
   await fastify.register(communityRoutes, { prefix: '/api/v1/community' });
-  await fastify.register(communityAdvancedRoutes, { prefix: '/api/v1/community-advanced' });
 
   fastify.get('/health', async () => {
     const db = await checkHealth();
