@@ -19,6 +19,7 @@ import { SmartDeployService } from '../services/smart-deploy/SmartDeployService'
 import { DeployController } from './controllers/DeployController';
 import { DeployService } from '../services/deploy/DeployService';
 import { DeployRepository } from '../services/deploy/DeployRepository';
+import { ProgressiveDeploymentService, ProgressiveDeployConfig } from '../services/deploy/ProgressiveDeploymentService';
 
 /**
  * Options passed to deploy routes via app.register()
@@ -49,6 +50,11 @@ export default async function deployRoutes(
   // Initialize smart deploy service with database-backed components
   const smartDeployService = new SmartDeployService(options.database || null);
   const deployController = new DeployController(smartDeployService);
+
+  // ==================== ProgressiveDeploymentService (Traffic-based) ====================
+
+  // Initialize simplified progressive deployment service
+  const progressiveDeploymentService = new ProgressiveDeploymentService();
 
   // ==================== Smart Deployment Routes (orchestration, history, rollback) ====================
 
@@ -218,4 +224,115 @@ export default async function deployRoutes(
       });
     }
   });
+
+  // ==================== Progressive Deployment Routes (Traffic-based) ====================
+  // Routes for real-time traffic control and auto-rollback
+
+  // POST /deploy/:id/progressive/start - Start a progressive deployment
+  app.post(
+    '/:id/progressive/start',
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { id } = request.params as { id: string };
+      const body = request.body as Partial<ProgressiveDeployConfig>;
+
+      try {
+        const config: ProgressiveDeployConfig = {
+          strategy: body.strategy || 'canary',
+          initialTrafficPercent: body.initialTrafficPercent || 10,
+          incrementPercent: body.incrementPercent || 10,
+          incrementIntervalSeconds: body.incrementIntervalSeconds || 60,
+          autoRollback: body.autoRollback !== false,
+          rollbackThreshold: body.rollbackThreshold || 5,
+          healthCheckEndpoint: body.healthCheckEndpoint,
+        };
+
+        const result = await progressiveDeploymentService.startProgressiveDeploy(id, config);
+        return reply.send(result);
+      } catch (error: any) {
+        const errorCode = error.code || 'PROGRESSIVE_START_ERROR';
+        return reply.status(400).send({
+          error: errorCode,
+          message: error.message,
+        });
+      }
+    }
+  );
+
+  // POST /deploy/:id/progressive/increment - Increment traffic
+  app.post(
+    '/:id/progressive/increment',
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { id } = request.params as { id: string };
+      const body = request.body as Partial<ProgressiveDeployConfig>;
+
+      try {
+        const config: ProgressiveDeployConfig = {
+          strategy: body.strategy || 'canary',
+          initialTrafficPercent: body.initialTrafficPercent || 10,
+          incrementPercent: body.incrementPercent || 10,
+          incrementIntervalSeconds: body.incrementIntervalSeconds || 60,
+          autoRollback: body.autoRollback !== false,
+          rollbackThreshold: body.rollbackThreshold || 5,
+          healthCheckEndpoint: body.healthCheckEndpoint,
+        };
+
+        const status = await progressiveDeploymentService.incrementTraffic(id, config);
+        if (!status) {
+          return reply.status(404).send({
+            error: 'DEPLOYMENT_NOT_FOUND',
+            message: `No active progressive deployment found for ${id}`,
+          });
+        }
+        return reply.send(status);
+      } catch (error: any) {
+        return reply.status(500).send({
+          error: 'PROGRESSIVE_INCREMENT_ERROR',
+          message: error.message,
+        });
+      }
+    }
+  );
+
+  // GET /deploy/:id/progressive/status - Get progressive deployment status
+  app.get(
+    '/:id/progressive/status',
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { id } = request.params as { id: string };
+
+      const status = await progressiveDeploymentService.getStatus(id);
+      if (!status) {
+        return reply.status(404).send({
+          error: 'DEPLOYMENT_NOT_FOUND',
+          message: `No active progressive deployment found for ${id}`,
+        });
+      }
+      return reply.send(status);
+    }
+  );
+
+  // POST /deploy/:id/progressive/abort - Abort and rollback deployment
+  app.post(
+    '/:id/progressive/abort',
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { id } = request.params as { id: string };
+
+      const success = await progressiveDeploymentService.abortDeployment(id);
+      if (!success) {
+        return reply.status(404).send({
+          error: 'DEPLOYMENT_NOT_FOUND',
+          message: `No active progressive deployment found for ${id}`,
+        });
+      }
+      return reply.send({ success: true, deploymentId: id, message: 'Deployment aborted and rolled back' });
+    }
+  );
+
+  // GET /deploy/progressive/active - List all active progressive deployments
+  app.get(
+    '/progressive/active',
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const active = await progressiveDeploymentService.listActiveDeployments();
+      return reply.send({ deployments: active, total: active.length });
+    }
+  );
 }

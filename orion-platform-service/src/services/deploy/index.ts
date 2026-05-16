@@ -40,7 +40,7 @@ export {
   PaginatedResult as DeployWindowPaginatedResult,
 } from './DeployWindowService';
 
-// Progressive Deploy
+// Progressive Deploy (Stage-based)
 export {
   ProgressiveDeployRepository,
   ProgressiveStage,
@@ -54,6 +54,17 @@ export {
   CreateProgressiveDeployInput,
   DeployProgress,
 } from './ProgressiveDeployService';
+
+// Progressive Deploy (Traffic-based - simplified version)
+export {
+  ProgressiveDeploymentService,
+  ProgressiveDeploymentServiceError,
+  ProgressiveDeployConfig,
+  ProgressiveDeployStatus,
+  ProgressiveDeployResult,
+  DeploymentStrategy,
+  DeploymentPhase,
+} from './ProgressiveDeploymentService';
 
 // Emergency Deploy
 export {
