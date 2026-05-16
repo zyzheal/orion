@@ -1,9 +1,10 @@
-import { connect, NatsConnection, JSONCodec } from 'nats';
+import { connect, NatsConnection, JSONCodec, StringCodec } from 'nats';
 import { EventEmitter } from 'events';
 
 let natsConn: NatsConnection | null = null;
 let fallbackBus: EventEmitter | null = null;
 const jc = JSONCodec();
+const sc = StringCodec();
 
 /**
  * Get event bus connection.
@@ -53,6 +54,33 @@ export async function subscribe(subject: string, callback: (data: unknown) => vo
       }
     })();
   }
+}
+
+/**
+ * Publish an event via NATS with a structured Orion event envelope.
+ */
+export async function publishViaNats(connection: NatsConnection, event: string, data: Record<string, unknown>): Promise<void> {
+  const subject = `orion.events.${event}`;
+  const payload = sc.encode(JSON.stringify({ event, data, timestamp: Date.now() }));
+  await connection.publish(subject, payload);
+}
+
+/**
+ * Subscribe to an event via NATS with a structured Orion event envelope.
+ */
+export async function subscribeViaNats(
+  connection: NatsConnection,
+  event: string,
+  handler: (data: Record<string, unknown>) => void,
+): Promise<void> {
+  const subject = `orion.events.${event}`;
+  const sub = connection.subscribe(subject);
+  (async () => {
+    for await (const msg of sub) {
+      const decoded = sc.decode(msg.data);
+      handler(JSON.parse(decoded).data);
+    }
+  })();
 }
 
 export async function closeEventBus(): Promise<void> {

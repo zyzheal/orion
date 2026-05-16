@@ -5,6 +5,7 @@ import { loadConfig } from './config';
 import { getPool, closePool, checkHealth, runMigrations } from './utils/database';
 import { getRedis, closeRedis, isRedisHealthy } from './utils/redis';
 import { getEventBus, closeEventBus, subscribe } from './utils/eventBus';
+import { NatsConnectionManager } from './utils/NatsConnectionManager.js';
 import { pipelineRoutes } from './routes/pipeline';
 import { pipelineRunRoutes } from './routes/pipeline-run';
 import { pipelineAdminRoutes } from './routes/pipeline-admin';
@@ -41,6 +42,20 @@ async function buildApp() {
   const database = getPool();
   const redis = getRedis();
   const eventBus = await getEventBus();
+
+  // Initialize NATS connection manager
+  const natsManager = new NatsConnectionManager({
+    servers: process.env.NATS_URL?.split(',') || ['nats://localhost:4222'],
+    jetStreamEnabled: process.env.NATS_JETSTREAM_ENABLED === 'true',
+  });
+  let natsConnected = false;
+  try {
+    await natsManager.connect();
+    natsConnected = true;
+    fastify.log.info('NATS connection established');
+  } catch (e) {
+    fastify.log.warn({ error: e }, 'NATS unavailable, falling back to in-memory EventBus');
+  }
 
   // Run migrations
   if (config.nodeEnv !== 'test') {
@@ -92,6 +107,9 @@ async function buildApp() {
     await closePool();
     await closeRedis();
     await closeEventBus();
+    if (natsConnected) {
+      await natsManager.close();
+    }
   });
 
   return { fastify, config };
