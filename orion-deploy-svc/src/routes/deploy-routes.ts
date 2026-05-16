@@ -4,6 +4,7 @@ import { DeploymentWorkflow } from '../services/DeploymentWorkflow';
 import { EnvironmentService } from '../services/EnvironmentService';
 import { RollbackService } from '../services/RollbackService';
 import { DeploymentHistoryService } from '../services/DeploymentHistoryService';
+import { ReleaseNotesService } from '../services/ReleaseNotesService';
 
 /**
  * Deploy Routes
@@ -14,6 +15,7 @@ export async function deployRoutes(fastify: FastifyInstance, _opts: FastifyPlugi
   const envService = new EnvironmentService();
   const rollbackService = new RollbackService();
   const historyService = new DeploymentHistoryService();
+  const releaseNotesService = new ReleaseNotesService();
 
   // ==================== Environment Routes ====================
 
@@ -329,6 +331,33 @@ export async function deployRoutes(fastify: FastifyInstance, _opts: FastifyPlugi
         return reply.code(404).send({ error: 'Rollback not found' });
       }
       return reply.send(rollback);
+    },
+  );
+
+  // ==================== Release Notes Routes ====================
+
+  /**
+   * POST /api/v1/deploy/release-notes
+   * Generate release notes from git commit history
+   */
+  fastify.post<{ Body: { fromRef: string; toRef?: string; repository?: string } }>(
+    '/deploy/release-notes',
+    async (
+      request: FastifyRequest<{ Body: { fromRef: string; toRef?: string; repository?: string } }>,
+      reply: FastifyReply,
+    ) => {
+      const { fromRef, toRef, repository } = request.body;
+      if (!fromRef) {
+        return reply.code(400).send({ error: 'fromRef is required' });
+      }
+      try {
+        const notes = await releaseNotesService.generate({ fromRef, toRef, repository });
+        return reply.send(notes);
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        fastify.log.error({ error: message }, 'Release notes generation failed');
+        return reply.code(400).send({ error: message });
+      }
     },
   );
 }
