@@ -2,8 +2,7 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import sensible from '@fastify/sensible';
 import { getPool, closePool, checkHealth } from './utils/database';
-import efficiencyRoutes from './routes/efficiency';
-import efficiencyEnhancedRoutes from './routes/efficiency-enhanced';
+import efficiencyRoutes from './routes/efficiency-routes';
 import { errorHandler } from './middleware/errorHandler';
 
 async function buildApp() {
@@ -13,7 +12,6 @@ async function buildApp() {
   errorHandler(fastify);
   const database = getPool();
   await fastify.register(efficiencyRoutes, { prefix: '/api/v1/efficiency', database });
-  await fastify.register(efficiencyEnhancedRoutes, { prefix: '/api/v1/efficiency', database });
   fastify.get('/health', async () => { const db = await checkHealth(); return { status: db.status === 'up' ? 'ok' : 'degraded', timestamp: new Date().toISOString(), checks: { database: db } }; });
   fastify.addHook('onClose', async () => { await closePool(); });
   return { fastify };

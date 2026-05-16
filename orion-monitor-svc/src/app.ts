@@ -7,8 +7,12 @@ import { MonitoringService } from './services/MonitoringService';
 import { AlertService } from './services/AlertService';
 import { SelfHealingService } from './services/SelfHealingService';
 import { OnCallService } from './services/OnCallService';
+import { PrometheusService } from './services/PrometheusService';
+import { monitoringRoutes, alertRoutes, metricsRoutes, targetsRoutes } from './routes/monitoring';
 
 async function buildApp() {
+  // Initialize Prometheus service
+  const prometheusService = new PrometheusService();
   const fastify = Fastify({ logger: { level: 'info' } });
   await fastify.register(cors, { origin: process.env.CORS_ORIGIN?.split(',') || ['http://localhost:5173', 'http://localhost:3000'] });
   await fastify.register(sensible);
