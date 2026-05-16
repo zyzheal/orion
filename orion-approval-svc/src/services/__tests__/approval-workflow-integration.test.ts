@@ -8,7 +8,7 @@
  * - Tenant isolation
  */
 
-import { ApprovalService, ApprovalStatus, ApprovalRequest } from '../ApprovalService';
+import { ApprovalService, ApprovalStatus, ApprovalRequest } from '../approval/ApprovalService';
 import { ApprovalEntity, ApprovalStepEntity } from '../../repositories/ApprovalRepository';
 import { v4 as uuidv4 } from 'uuid';
 
