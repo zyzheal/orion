@@ -360,6 +360,99 @@ CREATE INDEX idx_ticket_relations_source ON ticket_relations(source_ticket_id);
 CREATE INDEX idx_ticket_relations_target ON ticket_relations(target_ticket_id);
 
 -- ============================================================
+-- Assignment, Transfer, Workflow History, SLA Tables
+-- (denormalized tenant_id for RLS compatibility)
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS ticket_assignments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID NOT NULL,
+    ticket_id UUID NOT NULL REFERENCES tickets(id) ON DELETE CASCADE,
+    assignee_id VARCHAR(100),
+    assigned_by VARCHAR(100) NOT NULL,
+    assigned_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    reason TEXT,
+    status VARCHAR(50) NOT NULL DEFAULT 'active'
+);
+CREATE INDEX idx_ticket_assignments_tenant ON ticket_assignments(tenant_id);
+CREATE INDEX idx_ticket_assignments_ticket ON ticket_assignments(ticket_id);
+CREATE INDEX idx_ticket_assignments_assignee ON ticket_assignments(assignee_id);
+
+CREATE TABLE IF NOT EXISTS ticket_transfers (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID NOT NULL,
+    ticket_id UUID NOT NULL REFERENCES tickets(id) ON DELETE CASCADE,
+    from_engineer_id VARCHAR(100) NOT NULL,
+    to_engineer_id VARCHAR(100) NOT NULL,
+    reason TEXT,
+    transferred_by VARCHAR(100) NOT NULL,
+    transferred_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+CREATE INDEX idx_ticket_transfers_tenant ON ticket_transfers(tenant_id);
+CREATE INDEX idx_ticket_transfers_ticket ON ticket_transfers(ticket_id);
+CREATE INDEX idx_ticket_transfers_from ON ticket_transfers(from_engineer_id);
+CREATE INDEX idx_ticket_transfers_to ON ticket_transfers(to_engineer_id);
+
+CREATE TABLE IF NOT EXISTS ticket_workflow_history (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID NOT NULL,
+    ticket_id UUID NOT NULL REFERENCES tickets(id) ON DELETE CASCADE,
+    action VARCHAR(100) NOT NULL,
+    from_status VARCHAR(50),
+    to_status VARCHAR(50),
+    performed_by VARCHAR(100) NOT NULL,
+    performed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    comment TEXT,
+    metadata JSONB DEFAULT '{}'
+);
+CREATE INDEX idx_workflow_history_tenant ON ticket_workflow_history(tenant_id);
+CREATE INDEX idx_workflow_history_ticket ON ticket_workflow_history(ticket_id);
+CREATE INDEX idx_workflow_history_action ON ticket_workflow_history(action);
+
+CREATE TABLE IF NOT EXISTS ticket_sla (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID NOT NULL,
+    ticket_id UUID NOT NULL REFERENCES tickets(id) ON DELETE CASCADE,
+    sla_policy_id UUID REFERENCES sla_policies(id),
+    response_deadline TIMESTAMP WITH TIME ZONE,
+    resolution_deadline TIMESTAMP WITH TIME ZONE,
+    responded_at TIMESTAMP WITH TIME ZONE,
+    resolved_at TIMESTAMP WITH TIME ZONE,
+    breached BOOLEAN DEFAULT false,
+    breached_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+CREATE INDEX idx_ticket_sla_tenant ON ticket_sla(tenant_id);
+CREATE INDEX idx_ticket_sla_ticket ON ticket_sla(ticket_id);
+CREATE INDEX idx_ticket_sla_breached ON ticket_sla(breached);
+
+CREATE TABLE IF NOT EXISTS engineer_profiles (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id VARCHAR(100) NOT NULL UNIQUE,
+    display_name VARCHAR(255) NOT NULL,
+    skills JSONB DEFAULT '[]',
+    max_tickets INTEGER DEFAULT 10,
+    current_tickets INTEGER DEFAULT 0,
+    availability VARCHAR(50) DEFAULT 'available',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+CREATE INDEX idx_engineer_profiles_user ON engineer_profiles(user_id);
+CREATE INDEX idx_engineer_profiles_availability ON engineer_profiles(availability);
+
+CREATE TABLE IF NOT EXISTS engineer_suspensions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    engineer_id VARCHAR(100) NOT NULL,
+    reason TEXT NOT NULL,
+    suspended_by VARCHAR(100) NOT NULL,
+    suspended_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    expires_at TIMESTAMP WITH TIME ZONE,
+    status VARCHAR(50) NOT NULL DEFAULT 'active'
+);
+CREATE INDEX idx_engineer_suspensions_engineer ON engineer_suspensions(engineer_id);
+CREATE INDEX idx_engineer_suspensions_status ON engineer_suspensions(status);
+
+-- ============================================================
 -- Satisfaction Survey Tables
 -- (denormalized tenant_id for RLS compatibility)
 -- ============================================================
