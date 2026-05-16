@@ -79,6 +79,30 @@ CREATE TABLE IF NOT EXISTS graph_edges (
   created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Vector Embeddings Table (local embedding storage)
+CREATE TABLE IF NOT EXISTS vector_embeddings (
+  id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  doc_id            UUID NOT NULL,
+  chunk_id          UUID,
+  embedding         vector(1536),
+  model_name        VARCHAR(100) NOT NULL,
+  dimension         INTEGER NOT NULL,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  FOREIGN KEY (doc_id) REFERENCES knowledge_docs(id) ON DELETE CASCADE
+);
+
+-- Document Versions Table (versioning history)
+CREATE TABLE IF NOT EXISTS doc_versions (
+  id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  doc_id            UUID NOT NULL,
+  version_number    INTEGER NOT NULL,
+  content           TEXT NOT NULL,
+  change_summary    TEXT,
+  created_by        VARCHAR(100) NOT NULL,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  FOREIGN KEY (doc_id) REFERENCES knowledge_docs(id) ON DELETE CASCADE
+);
+
 -- Indexes
 CREATE INDEX idx_knowledge_spaces_tenant ON knowledge_spaces(tenant_id);
 
@@ -89,6 +113,13 @@ CREATE INDEX idx_knowledge_docs_tags ON knowledge_docs USING GIN(tags);
 
 CREATE INDEX idx_document_chunks_doc ON document_chunks(doc_id);
 CREATE INDEX idx_document_chunks_embedding ON document_chunks USING ivfflat(embedding vector_cosine_ops) WITH (lists = 100);
+
+CREATE INDEX idx_vector_embeddings_doc ON vector_embeddings(doc_id);
+CREATE INDEX idx_vector_embeddings_chunk ON vector_embeddings(chunk_id);
+CREATE INDEX idx_vector_embeddings_embedding ON vector_embeddings USING ivfflat(embedding vector_cosine_ops) WITH (lists = 100);
+
+CREATE INDEX idx_doc_versions_doc ON doc_versions(doc_id);
+CREATE INDEX idx_doc_versions_number ON doc_versions(doc_id, version_number);
 
 CREATE INDEX idx_vector_stores_tenant ON vector_stores(tenant_id);
 CREATE INDEX idx_vector_stores_provider ON vector_stores(provider);
@@ -103,4 +134,4 @@ CREATE INDEX idx_graph_edges_target ON graph_edges(target_node_id);
 CREATE INDEX idx_graph_edges_relationship ON graph_edges(relationship);
 
 -- Rollback:
--- DROP TABLE IF EXISTS graph_edges, graph_nodes, vector_stores, document_chunks, knowledge_docs, knowledge_spaces;
+-- DROP TABLE IF EXISTS doc_versions, vector_embeddings, graph_edges, graph_nodes, vector_stores, document_chunks, knowledge_docs, knowledge_spaces;

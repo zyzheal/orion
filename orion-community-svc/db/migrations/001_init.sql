@@ -113,6 +113,69 @@ CREATE TABLE IF NOT EXISTS best_practice_votes (
   FOREIGN KEY (practice_id) REFERENCES best_practices(id) ON DELETE CASCADE
 );
 
+-- Reviews Table (plugin/service reviews)
+CREATE TABLE IF NOT EXISTS reviews (
+  id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  target_type       VARCHAR(100) NOT NULL,
+  target_id         VARCHAR(200) NOT NULL,
+  author_id         VARCHAR(100) NOT NULL,
+  rating            INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
+  title             VARCHAR(500),
+  content           TEXT,
+  pros              TEXT,
+  cons              TEXT,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Plugins Table (community plugin registry)
+CREATE TABLE IF NOT EXISTS plugins (
+  id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name              VARCHAR(255) NOT NULL UNIQUE,
+  display_name      VARCHAR(255),
+  description       TEXT,
+  version           VARCHAR(50) NOT NULL,
+  category          VARCHAR(100),
+  author_id         VARCHAR(100) NOT NULL,
+  repository_url    VARCHAR(500),
+  downloads_count   INTEGER DEFAULT 0,
+  rating_avg        DECIMAL(3,2) DEFAULT 0,
+  rating_count      INTEGER DEFAULT 0,
+  status            VARCHAR(50) NOT NULL DEFAULT 'active',
+  config_schema     JSONB DEFAULT '{}',
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Contributions Table (community contributions)
+CREATE TABLE IF NOT EXISTS contributions (
+  id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  author_id         VARCHAR(100) NOT NULL,
+  contribution_type VARCHAR(100) NOT NULL,
+  title             VARCHAR(500) NOT NULL,
+  description       TEXT,
+  url               VARCHAR(500),
+  status            VARCHAR(50) NOT NULL DEFAULT 'pending',
+  tags              JSONB DEFAULT '[]',
+  upvote_count      INTEGER DEFAULT 0,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Feedback Table
+CREATE TABLE IF NOT EXISTS feedback (
+  id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id           VARCHAR(100) NOT NULL,
+  feedback_type     VARCHAR(100) NOT NULL,
+  subject           VARCHAR(500) NOT NULL,
+  content           TEXT NOT NULL,
+  priority          VARCHAR(50) DEFAULT 'medium',
+  status            VARCHAR(50) NOT NULL DEFAULT 'open',
+  metadata          JSONB DEFAULT '{}',
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- Indexes
 CREATE INDEX idx_badges_level ON badges(level);
 CREATE INDEX idx_badges_category ON badges(category);
@@ -142,5 +205,21 @@ CREATE INDEX idx_mentor_sessions_status ON mentor_sessions(status);
 CREATE INDEX idx_bp_votes_practice ON best_practice_votes(practice_id);
 CREATE INDEX idx_bp_votes_user ON best_practice_votes(user_id);
 
+CREATE INDEX idx_reviews_target ON reviews(target_type, target_id);
+CREATE INDEX idx_reviews_author ON reviews(author_id);
+CREATE INDEX idx_reviews_rating ON reviews(rating);
+
+CREATE INDEX idx_plugins_category ON plugins(category);
+CREATE INDEX idx_plugins_status ON plugins(status);
+CREATE INDEX idx_plugins_rating ON plugins(rating_avg DESC);
+
+CREATE INDEX idx_contributions_author ON contributions(author_id);
+CREATE INDEX idx_contributions_status ON contributions(status);
+CREATE INDEX idx_contributions_tags ON contributions USING GIN(tags);
+
+CREATE INDEX idx_feedback_user ON feedback(user_id);
+CREATE INDEX idx_feedback_status ON feedback(status);
+CREATE INDEX idx_feedback_type ON feedback(feedback_type);
+
 -- Rollback:
--- DROP TABLE IF EXISTS best_practice_votes, mentor_sessions, user_badges, best_practices, mentors, incentive_awards, incentives, badges;
+-- DROP TABLE IF EXISTS feedback, contributions, plugins, reviews, best_practice_votes, mentor_sessions, user_badges, best_practices, mentors, incentive_awards, incentives, badges;
