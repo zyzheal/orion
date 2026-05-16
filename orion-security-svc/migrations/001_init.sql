@@ -79,6 +79,28 @@ CREATE INDEX idx_sbom_vuln_results_tenant ON sbom_vulnerability_results(tenant_i
 CREATE INDEX idx_sbom_vuln_results_sbom_id ON sbom_vulnerability_results(sbom_id);
 CREATE INDEX idx_sbom_vuln_results_scanned_at ON sbom_vulnerability_results(scanned_at);
 
+-- 漏洞详细记录 (individual vulnerability records per SBOM)
+CREATE TABLE IF NOT EXISTS sbom_vulnerabilities (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id       UUID NOT NULL,
+  sbom_id         UUID NOT NULL REFERENCES sbom_documents(id) ON DELETE CASCADE,
+  cve_id          VARCHAR(20) NOT NULL,
+  package_name    VARCHAR(255) NOT NULL,
+  package_version VARCHAR(50) NOT NULL,
+  severity        VARCHAR(20) NOT NULL,
+  cvss_score      DECIMAL(3,1),
+  description     TEXT,
+  remediation     TEXT,
+  status          VARCHAR(20) NOT NULL DEFAULT 'open',  -- open | fixed | waived
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_sbom_vulnerabilities_tenant ON sbom_vulnerabilities(tenant_id);
+CREATE INDEX idx_sbom_vulnerabilities_sbom_id ON sbom_vulnerabilities(sbom_id);
+CREATE INDEX idx_sbom_vulnerabilities_cve ON sbom_vulnerabilities(cve_id);
+CREATE INDEX idx_sbom_vulnerabilities_severity ON sbom_vulnerabilities(severity);
+CREATE INDEX idx_sbom_vulnerabilities_status ON sbom_vulnerabilities(status);
+
 -- 漏洞豁免 (denormalized tenant_id for RLS compatibility)
 CREATE TABLE IF NOT EXISTS sbom_waivers (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
