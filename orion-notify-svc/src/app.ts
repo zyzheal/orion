@@ -5,6 +5,7 @@ import rateLimit from '@fastify/rate-limit';
 import { config } from './config';
 import { notificationRoutes } from './routes/notification';
 import { webhookRoutes } from './routes/webhook';
+import { notificationChannelRoutes } from './routes/notification-channel';
 import { errorHandler } from './middleware/errorHandler';
 import { requestLogger } from './middleware/logger';
 
@@ -26,6 +27,7 @@ export async function createApp() {
 
   await fastify.register(notificationRoutes, { prefix: '/api/v1/notifications' });
   await fastify.register(webhookRoutes, { prefix: '/api/v1/webhooks' });
+  await fastify.register(notificationChannelRoutes, { prefix: '/api/v1/notify/channels' });
 
   fastify.get('/healthz', async () => ({
     status: 'ok',
