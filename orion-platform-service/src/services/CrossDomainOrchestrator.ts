@@ -205,20 +205,13 @@ export class CrossDomainOrchestrator {
     step: WorkflowStep,
     context: Record<string, unknown>
   ): Promise<unknown> {
-    return new Promise(async (resolve, reject) => {
-      const timeoutId = setTimeout(() => {
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => {
         reject(new Error(`Step ${step.id} timed out after ${step.timeout}ms`));
       }, step.timeout);
-
-      try {
-        const result = await this.executeStep(step, context);
-        clearTimeout(timeoutId);
-        resolve(result);
-      } catch (e) {
-        clearTimeout(timeoutId);
-        reject(e);
-      }
     });
+
+    return Promise.race([this.executeStep(step, context), timeoutPromise]);
   }
 
   /**

@@ -30,8 +30,9 @@ export class WindowsDeploymentService {
   async generateDeploymentScript(config: WindowsDeploymentConfig): Promise<string> {
     const { serviceName, image, port, envVars, replicas, healthCheckPath, restartPolicy } = config;
 
+    const escapePwsh = (s: string) => s.replace(/'/g, "''");
     const envBlock = Object.entries(envVars)
-      .map(([k, v]) => `[Environment]::SetEnvironmentVariable('${k}', '${v}', 'Machine')`)
+      .map(([k, v]) => `[Environment]::SetEnvironmentVariable('${escapePwsh(k)}', '${escapePwsh(v)}', 'Machine')`)
       .join('\n');
 
     const dockerCompose = `version: '3.8'
@@ -41,7 +42,7 @@ services:
     ports:
       - "${port}:${port}"
     restart: ${restartPolicy || 'always'}
-    environment:${Object.entries(envVars).map(([k, v]) => `\n      - ${k}=${v}`).join('')}
+    environment:${Object.entries(envVars).map(([k, v]) => `\n      - ${k}="${v.replace(/"/g, '\\"')}"`).join('')}
 ${healthCheckPath ? `    healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:${port}${healthCheckPath}"]
       interval: 30s

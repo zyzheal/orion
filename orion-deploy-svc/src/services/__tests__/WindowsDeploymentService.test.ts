@@ -139,7 +139,7 @@ describe('WindowsDeploymentService', () => {
       expect(script).toContain('compose-test:');
       expect(script).toContain('image: test:1.0');
       expect(script).toContain('"9090:9090"');
-      expect(script).toContain('- FOO=bar');
+      expect(script).toContain('- FOO="bar"');
     });
 
     it('includes generated timestamp in the script', async () => {
@@ -152,6 +152,18 @@ describe('WindowsDeploymentService', () => {
       });
 
       expect(script).toMatch(/# Generated at: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
+    });
+
+    it('escapes single quotes in environment variable values', async () => {
+      const script = await service.generateDeploymentScript({
+        serviceName: 'escape-test',
+        image: 'img:latest',
+        port: 80,
+        envVars: { CONN: "it's a test" },
+        replicas: 1,
+      });
+
+      expect(script).toContain("[Environment]::SetEnvironmentVariable('CONN', 'it''s a test', 'Machine')");
     });
   });
 
