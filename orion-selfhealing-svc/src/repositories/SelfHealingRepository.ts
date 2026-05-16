@@ -9,21 +9,55 @@
 import { Pool, PoolClient } from 'pg';
 import {
   SelfHealingIncident,
-  HealingStrategy,
   HealingAction,
   HealingDecision,
   KnowledgeBase,
   IncidentSeverity,
   IncidentStatus,
-  StrategyType,
   ActionStatus,
   DecisionAction,
+  StrategyType,
 } from '../types/selfhealing';
 
 // Database connection pool interface
 export interface DatabasePool {
   query(text: string, params?: unknown[]): Promise<{ rows: any[]; rowCount: number }>;
   connect(): Promise<PoolClient>;
+}
+
+// ============================================================
+// Policy Types
+// ============================================================
+
+export interface SelfHealingPolicy {
+  id: string;
+  name: string;
+  description: string | null;
+  conditionType: string;
+  conditionConfig: Record<string, unknown>;
+  actionType: string;
+  actionConfig: Record<string, unknown>;
+  cooldownSeconds: number;
+  enabled: boolean;
+  priority: number;
+  confidence: number;
+  maxRetries: number;
+  timeoutSeconds: number;
+  tenantId: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface SelfHealingExecution {
+  id: string;
+  policyId: string;
+  incidentId: string | null;
+  target: string;
+  status: string;
+  result: Record<string, unknown> | null;
+  errorMessage: string | null;
+  startedAt: Date;
+  completedAt?: Date | null;
 }
 
 // ============================================================
@@ -489,5 +523,310 @@ export class KnowledgeBaseRepository {
 
   private camelToSnake(str: string): string {
     return str.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+  }
+}
+
+// ============================================================
+// SelfHealingPolicy Repository
+// ============================================================
+
+export class SelfHealingPolicyRepository {
+  constructor(private db: DatabasePool) {}
+
+  async create(data: Omit<SelfHealingPolicy, 'id' | 'createdAt' | 'updatedAt'>): Promise<SelfHealingPolicy> {
+    const id = `policy-${crypto.randomUUID()}`;
+    await this.db.query(
+      `INSERT INTO selfhealing_policies (
+        id, name, description, condition_type, condition_config,
+        action_type, action_config, cooldown_seconds, enabled, priority,
+        confidence, max_retries, timeout_seconds, tenant_id
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+      [
+        id, data.name, data.description, data.conditionType, JSON.stringify(data.conditionConfig),
+        data.actionType, JSON.stringify(data.actionConfig), data.cooldownSeconds, data.enabled,
+        data.priority, data.confidence, data.maxRetries, data.timeoutSeconds, data.tenantId,
+      ],
+    );
+    return { ...data, id, createdAt: new Date(), updatedAt: new Date() };
+  }
+
+  async findById(id: string): Promise<SelfHealingPolicy | null> {
+    const result = await this.db.query(
+      `SELECT * FROM selfhealing_policies WHERE id = $1`,
+      [id],
+    );
+    if (result.rows.length === 0) return null;
+    return this.mapRowToPolicy(result.rows[0]);
+  }
+
+  async findAll(filters?: { enabled?: boolean; conditionType?: string; tenantId?: string }): Promise<SelfHealingPolicy[]> {
+    let query = `SELECT * FROM selfhealing_policies WHERE 1=1`;
+    const params: unknown[] = [];
+    let index = 1;
+
+    if (filters?.enabled !== undefined) {
+      query += ` AND enabled = $${index++}`;
+      params.push(filters.enabled);
+    }
+    if (filters?.conditionType) {
+      query += ` AND condition_type = $${index++}`;
+      params.push(filters.conditionType);
+    }
+    if (filters?.tenantId) {
+      query += ` AND tenant_id = $${index++}`;
+      params.push(filters.tenantId);
+    }
+
+    query += ` ORDER BY priority ASC, confidence DESC`;
+    const result = await this.db.query(query, params);
+    return result.rows.map((row) => this.mapRowToPolicy(row));
+  }
+
+  async findMatchingPolicies(incident: SelfHealingIncident): Promise<SelfHealingPolicy[]> {
+    const result = await this.db.query(
+      `SELECT * FROM selfhealing_policies WHERE enabled = true ORDER BY priority ASC, confidence DESC`,
+    );
+
+    const policies: SelfHealingPolicy[] = [];
+    for (const row of result.rows) {
+      const policy = this.mapRowToPolicy(row);
+      if (this.evaluatePolicyCondition(policy, incident)) {
+        policies.push(policy);
+      }
+    }
+    return policies;
+  }
+
+  private evaluatePolicyCondition(policy: SelfHealingPolicy, incident: SelfHealingIncident): boolean {
+    const { conditionType, conditionConfig } = policy;
+
+    switch (conditionType) {
+      case 'severity': {
+        const severities = conditionConfig.severity as string[] | undefined;
+        if (severities && severities.length > 0) {
+          return severities.includes(incident.severity);
+        }
+        return true;
+      }
+      case 'source_match': {
+        const pattern = conditionConfig.pattern as string;
+        if (pattern && incident.source) {
+          const regex = new RegExp(pattern, 'i');
+          return regex.test(incident.source) || regex.test(incident.description || '');
+        }
+        return false;
+      }
+      case 'metric_threshold': {
+        // For metric-based conditions, we'd need actual metrics data
+        // This is a placeholder - in real implementation, we'd query metrics service
+        return false;
+      }
+      case 'event_match': {
+        const event = conditionConfig.event as string;
+        if (event && incident.description) {
+          const regex = new RegExp(event, 'i');
+          return regex.test(incident.description);
+        }
+        return false;
+      }
+      case 'always':
+        return true;
+      default:
+        return false;
+    }
+  }
+
+  async update(id: string, updates: Partial<SelfHealingPolicy>): Promise<SelfHealingPolicy | null> {
+    const existing = await this.findById(id);
+    if (!existing) return null;
+
+    const fields: string[] = [];
+    const values: unknown[] = [];
+    let index = 1;
+
+    const updateFields: (keyof SelfHealingPolicy)[] = [
+      'name', 'description', 'conditionType', 'conditionConfig',
+      'actionType', 'actionConfig', 'cooldownSeconds', 'enabled',
+      'priority', 'confidence', 'maxRetries', 'timeoutSeconds', 'tenantId',
+    ];
+
+    for (const field of updateFields) {
+      if (updates[field] !== undefined) {
+        const col = this.camelToSnake(field);
+        if (field === 'conditionConfig' || field === 'actionConfig') {
+          fields.push(`${col} = $${index++}`);
+          values.push(JSON.stringify(updates[field]));
+        } else {
+          fields.push(`${col} = $${index++}`);
+          values.push(updates[field]);
+        }
+      }
+    }
+
+    fields.push(`updated_at = $${index++}`);
+    values.push(new Date());
+    values.push(id);
+
+    const query = `UPDATE selfhealing_policies SET ${fields.join(', ')} WHERE id = $${index} RETURNING *`;
+    const result = await this.db.query(query, values);
+
+    if (result.rows.length === 0) return null;
+    return this.mapRowToPolicy(result.rows[0]);
+  }
+
+  async delete(id: string): Promise<boolean> {
+    const result = await this.db.query(
+      `DELETE FROM selfhealing_policies WHERE id = $1`,
+      [id],
+    );
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  private mapRowToPolicy(row: Record<string, unknown>): SelfHealingPolicy {
+    return {
+      id: row.id as string,
+      name: row.name as string,
+      description: row.description as string | null,
+      conditionType: row.condition_type as string,
+      conditionConfig: typeof row.condition_config === 'string'
+        ? JSON.parse(row.condition_config as string)
+        : (row.condition_config as Record<string, unknown>),
+      actionType: row.action_type as string,
+      actionConfig: typeof row.action_config === 'string'
+        ? JSON.parse(row.action_config as string)
+        : (row.action_config as Record<string, unknown>),
+      cooldownSeconds: parseInt(row.cooldown_seconds as string, 10) || 300,
+      enabled: row.enabled as boolean,
+      priority: parseInt(row.priority as string, 10) || 10,
+      confidence: parseFloat(row.confidence as string) || 0.5,
+      maxRetries: parseInt(row.max_retries as string, 10) || 3,
+      timeoutSeconds: parseInt(row.timeout_seconds as string, 10) || 300,
+      tenantId: row.tenant_id as string,
+      createdAt: new Date(row.created_at as string | number | Date),
+      updatedAt: new Date(row.updated_at as string | number | Date),
+    };
+  }
+
+  private camelToSnake(str: string): string {
+    return str.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+  }
+}
+
+// ============================================================
+// SelfHealingExecution Repository
+// ============================================================
+
+export class SelfHealingExecutionRepository {
+  constructor(private db: DatabasePool) {}
+
+  async create(data: Omit<SelfHealingExecution, 'id' | 'startedAt' | 'completedAt'>): Promise<SelfHealingExecution> {
+    const id = `exec-${crypto.randomUUID()}`;
+    await this.db.query(
+      `INSERT INTO selfhealing_executions (
+        id, policy_id, incident_id, target, status, result, error_message
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [
+        id, data.policyId, data.incidentId, data.target, data.status,
+        data.result ? JSON.stringify(data.result) : null, data.errorMessage || null,
+      ],
+    );
+    return { ...data, id, startedAt: new Date(), completedAt: null };
+  }
+
+  async findById(id: string): Promise<SelfHealingExecution | null> {
+    const result = await this.db.query(
+      `SELECT * FROM selfhealing_executions WHERE id = $1`,
+      [id],
+    );
+    if (result.rows.length === 0) return null;
+    return this.mapRowToExecution(result.rows[0]);
+  }
+
+  async findByPolicyId(policyId: string): Promise<SelfHealingExecution[]> {
+    const result = await this.db.query(
+      `SELECT * FROM selfhealing_executions WHERE policy_id = $1 ORDER BY started_at DESC`,
+      [policyId],
+    );
+    return result.rows.map((row) => this.mapRowToExecution(row));
+  }
+
+  async findByIncidentId(incidentId: string): Promise<SelfHealingExecution[]> {
+    const result = await this.db.query(
+      `SELECT * FROM selfhealing_executions WHERE incident_id = $1 ORDER BY started_at DESC`,
+      [incidentId],
+    );
+    return result.rows.map((row) => this.mapRowToExecution(row));
+  }
+
+  async update(id: string, updates: Partial<SelfHealingExecution>): Promise<SelfHealingExecution | null> {
+    const existing = await this.findById(id);
+    if (!existing) return null;
+
+    const fields: string[] = [];
+    const values: unknown[] = [];
+    let index = 1;
+
+    if (updates.status !== undefined) {
+      fields.push(`status = $${index++}`);
+      values.push(updates.status);
+    }
+    if (updates.result !== undefined) {
+      fields.push(`result = $${index++}`);
+      values.push(updates.result ? JSON.stringify(updates.result) : null);
+    }
+    if (updates.errorMessage !== undefined) {
+      fields.push(`error_message = $${index++}`);
+      values.push(updates.errorMessage);
+    }
+    if (updates.completedAt !== undefined) {
+      fields.push(`completed_at = $${index++}`);
+      values.push(updates.completedAt);
+    }
+
+    if (fields.length === 0) return existing;
+
+    values.push(id);
+    const query = `UPDATE selfhealing_executions SET ${fields.join(', ')} WHERE id = $${index} RETURNING *`;
+    const result = await this.db.query(query, values);
+
+    if (result.rows.length === 0) return null;
+    return this.mapRowToExecution(result.rows[0]);
+  }
+
+  async checkCooldown(policyId: string, target: string): Promise<boolean> {
+    const policyResult = await this.db.query(
+      `SELECT cooldown_seconds FROM selfhealing_policies WHERE id = $1`,
+      [policyId],
+    );
+
+    if (policyResult.rows.length === 0) return true;
+
+    const cooldownSeconds = parseInt(policyResult.rows[0].cooldown_seconds, 10) || 300;
+    const cutoffTime = new Date(Date.now() - cooldownSeconds * 1000);
+
+    const result = await this.db.query(
+      `SELECT COUNT(*) as count FROM selfhealing_executions
+       WHERE policy_id = $1 AND target = $2 AND status != 'failed'
+       AND started_at > $3`,
+      [policyId, target, cutoffTime],
+    );
+
+    return parseInt(result.rows[0]?.count || '0', 10) === 0;
+  }
+
+  private mapRowToExecution(row: Record<string, unknown>): SelfHealingExecution {
+    return {
+      id: row.id as string,
+      policyId: row.policy_id as string,
+      incidentId: row.incident_id as string | null,
+      target: row.target as string,
+      status: row.status as string,
+      result: row.result
+        ? (typeof row.result === 'string' ? JSON.parse(row.result) : row.result as Record<string, unknown>)
+        : null,
+      errorMessage: row.error_message as string | null,
+      startedAt: new Date(row.started_at as string | number | Date),
+      completedAt: row.completed_at ? new Date(row.completed_at as string | number | Date) : null,
+    };
   }
 }

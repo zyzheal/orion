@@ -24,7 +24,12 @@ import {
   HealingDecisionRepository,
   HealingActionRepository,
   KnowledgeBaseRepository,
+  SelfHealingPolicyRepository,
+  SelfHealingExecutionRepository,
+  SelfHealingPolicy,
+  SelfHealingExecution,
 } from '../repositories/SelfHealingRepository';
+export { SelfHealingPolicy, SelfHealingExecution } from '../repositories/SelfHealingRepository';
 
 export interface SelfHealingServiceOptions {
   db?: DatabasePool;
@@ -32,6 +37,8 @@ export interface SelfHealingServiceOptions {
   decisionRepo?: HealingDecisionRepository;
   actionRepo?: HealingActionRepository;
   knowledgeRepo?: KnowledgeBaseRepository;
+  policyRepo?: SelfHealingPolicyRepository;
+  executionRepo?: SelfHealingExecutionRepository;
 }
 
 export class SelfHealingService {
@@ -39,12 +46,15 @@ export class SelfHealingService {
   private decisionRepo: HealingDecisionRepository | null;
   private actionRepo: HealingActionRepository | null;
   private knowledgeRepo: KnowledgeBaseRepository | null;
+  private policyRepo: SelfHealingPolicyRepository | null;
+  private executionRepo: SelfHealingExecutionRepository | null;
 
   // Fallback in-memory stores (used when DB is not available)
   private memoryIncidents = new Map<string, SelfHealingIncident>();
   private memoryDecisions = new Map<string, HealingDecision>();
   private memoryActions = new Map<string, HealingAction>();
   private memoryKnowledge = new Map<string, KnowledgeBase>();
+  private memoryPolicies = new Map<string, SelfHealingPolicy>();
 
   constructor(options: SelfHealingServiceOptions = {}) {
     if (options.db) {
@@ -52,12 +62,16 @@ export class SelfHealingService {
       this.decisionRepo = options.decisionRepo ?? new HealingDecisionRepository(options.db);
       this.actionRepo = options.actionRepo ?? new HealingActionRepository(options.db);
       this.knowledgeRepo = options.knowledgeRepo ?? new KnowledgeBaseRepository(options.db);
+      this.policyRepo = options.policyRepo ?? new SelfHealingPolicyRepository(options.db);
+      this.executionRepo = options.executionRepo ?? new SelfHealingExecutionRepository(options.db);
     } else {
       // No DB provided - use in-memory fallback
       this.incidentRepo = null;
       this.decisionRepo = null;
       this.actionRepo = null;
       this.knowledgeRepo = null;
+      this.policyRepo = null;
+      this.executionRepo = null;
     }
   }
 
@@ -148,6 +162,134 @@ export class SelfHealingService {
    * @returns 匹配的策略列表
    */
   async evaluateStrategy(incident: SelfHealingIncident): Promise<HealingStrategy[]> {
+    // Try to fetch policies from database
+    if (this.policyRepo) {
+      try {
+        const policies = await this.policyRepo.findMatchingPolicies(incident);
+
+        // Convert database policies to HealingStrategy format
+        const strategies: HealingStrategy[] = policies.map(policy => ({
+          id: policy.id,
+          name: policy.name,
+          description: policy.description || undefined,
+          type: this.mapActionTypeToStrategyType(policy.actionType),
+          triggerCondition: policy.conditionConfig,
+          parameters: policy.actionConfig,
+          priority: policy.priority,
+          enabled: policy.enabled,
+          maxRetries: policy.maxRetries,
+          timeoutSeconds: policy.timeoutSeconds,
+          actionType: policy.actionType,
+          autoExecute: policy.confidence >= 0.8,
+          confidence: policy.confidence,
+          maturity: policy.confidence >= 0.8 ? 'proven' : 'experimental',
+          metrics: { successRate: policy.confidence, avgResolutionTime: policy.timeoutSeconds * 1000 },
+          scope: policy.conditionConfig,
+          tenantId: incident.tenantId,
+          createdAt: policy.createdAt,
+          updatedAt: policy.updatedAt,
+        }));
+
+        if (strategies.length > 0) {
+          return strategies.sort((a, b) => a.priority - b.priority);
+        }
+      } catch (error) {
+        console.error('[SelfHealingService] Error fetching policies from DB, falling back to default strategies:', error);
+      }
+    } else if (this.memoryPolicies.size > 0) {
+      // Use in-memory policies if available
+      const strategies: HealingStrategy[] = [];
+      for (const policy of this.memoryPolicies.values()) {
+        if (this.evaluateInMemoryPolicyCondition(policy, incident)) {
+          strategies.push(this.policyToStrategy(policy, incident));
+        }
+      }
+      if (strategies.length > 0) {
+        return strategies.sort((a, b) => a.priority - b.priority);
+      }
+    }
+
+    // Fallback to default hardcoded strategies (when no DB or no matching policies)
+    return this.getDefaultStrategies(incident);
+  }
+
+  /**
+   * Evaluate in-memory policy condition
+   */
+  private evaluateInMemoryPolicyCondition(policy: SelfHealingPolicy, incident: SelfHealingIncident): boolean {
+    const { conditionType, conditionConfig } = policy;
+
+    switch (conditionType) {
+      case 'severity': {
+        const severities = conditionConfig.severity as string[] | undefined;
+        if (severities && severities.length > 0) {
+          return severities.includes(incident.severity);
+        }
+        return true;
+      }
+      case 'source_match': {
+        const pattern = conditionConfig.pattern as string;
+        if (pattern && incident.source) {
+          const regex = new RegExp(pattern, 'i');
+          return regex.test(incident.source) || regex.test(incident.description || '');
+        }
+        return false;
+      }
+      case 'always':
+        return true;
+      default:
+        return false;
+    }
+  }
+
+  /**
+   * Convert policy to strategy format
+   */
+  private policyToStrategy(policy: SelfHealingPolicy, incident: SelfHealingIncident): HealingStrategy {
+    return {
+      id: policy.id,
+      name: policy.name,
+      description: policy.description || undefined,
+      type: this.mapActionTypeToStrategyType(policy.actionType),
+      triggerCondition: policy.conditionConfig,
+      parameters: policy.actionConfig,
+      priority: policy.priority,
+      enabled: policy.enabled,
+      maxRetries: policy.maxRetries,
+      timeoutSeconds: policy.timeoutSeconds,
+      actionType: policy.actionType,
+      autoExecute: policy.confidence >= 0.8,
+      confidence: policy.confidence,
+      maturity: policy.confidence >= 0.8 ? 'proven' : 'experimental',
+      metrics: { successRate: policy.confidence, avgResolutionTime: policy.timeoutSeconds * 1000 },
+      scope: policy.conditionConfig,
+      tenantId: incident.tenantId,
+      createdAt: policy.createdAt,
+      updatedAt: policy.updatedAt,
+    };
+  }
+
+  /**
+   * Map action type to StrategyType
+   */
+  private mapActionTypeToStrategyType(actionType: string): StrategyType {
+    const mapping: Record<string, StrategyType> = {
+      restart: StrategyType.RESTART,
+      scale: StrategyType.SCALE,
+      failover: StrategyType.FAILOVER,
+      rollback: StrategyType.ROLLBACK,
+      custom_script: StrategyType.CUSTOM_SCRIPT,
+      notify: StrategyType.NOTIFICATION,
+      reconnect: StrategyType.CUSTOM_SCRIPT,
+      cleanup: StrategyType.CUSTOM_SCRIPT,
+    };
+    return mapping[actionType] || StrategyType.CUSTOM_SCRIPT;
+  }
+
+  /**
+   * Get default fallback strategies when no DB policies exist
+   */
+  private getDefaultStrategies(incident: SelfHealingIncident): HealingStrategy[] {
     const strategies: HealingStrategy[] = [];
 
     // Strategy 1: Automatic Service Restart (for critical/high severity)
@@ -381,6 +523,207 @@ export class SelfHealingService {
         console.log(`[SelfHealing] Unknown action type: ${action.actionType}`);
         return { unknownAction: true, targetId: action.targetId, timestamp: new Date() };
     }
+  }
+
+  /**
+   * 执行策略动作
+   * 使用数据库中的策略和执行记录
+   * @param incident - 自愈事件
+   * @param strategy - 匹配的策略
+   * @returns 执行结果
+   */
+  async executePolicyStrategy(incident: SelfHealingIncident, strategy: HealingStrategy): Promise<SelfHealingExecution | null> {
+    const target = incident.affectedResources[0] || 'unknown';
+
+    // Check cooldown if execution repo is available
+    if (this.executionRepo) {
+      const canExecute = await this.executionRepo.checkCooldown(strategy.id, target);
+      if (!canExecute) {
+        console.log(`[SelfHealing] Policy ${strategy.name} is in cooldown for target ${target}`);
+        return null;
+      }
+
+      try {
+        // Create execution record
+        const execution = await this.executionRepo.create({
+          policyId: strategy.id,
+          incidentId: incident.id,
+          target,
+          status: 'running',
+          result: null,
+          errorMessage: null,
+        });
+
+        try {
+          // Perform the actual action
+          const result = await this.performPolicyAction(strategy, target);
+
+          // Update execution as successful
+          await this.executionRepo.update(execution.id, {
+            status: 'success',
+            result,
+            completedAt: new Date(),
+          });
+
+          console.log(`[SelfHealing] Policy ${strategy.name} executed successfully for ${target}`);
+          return await this.executionRepo.findById(execution.id);
+        } catch (error) {
+          // Update execution as failed
+          await this.executionRepo.update(execution.id, {
+            status: 'failed',
+            errorMessage: error instanceof Error ? error.message : 'Unknown error',
+            completedAt: new Date(),
+          });
+
+          console.error(`[SelfHealing] Policy ${strategy.name} failed:`, error);
+          return await this.executionRepo.findById(execution.id);
+        }
+      } catch (error) {
+        console.error('[SelfHealing] Error creating execution record:', error);
+        return null;
+      }
+    }
+
+    // Fallback to in-memory execution (no DB)
+    console.log(`[SelfHealing] Executing policy (in-memory): ${strategy.name} for ${target}`);
+    const result = await this.performPolicyAction(strategy, target);
+
+    return {
+      id: `exec-${crypto.randomUUID()}`,
+      policyId: strategy.id,
+      incidentId: incident.id,
+      target,
+      status: 'success',
+      result,
+      errorMessage: null,
+      startedAt: new Date(),
+      completedAt: undefined,
+    };
+  }
+
+  /**
+   * 根据策略类型执行具体操作
+   */
+  private async performPolicyAction(strategy: HealingStrategy, target: string): Promise<Record<string, unknown>> {
+    const actionType = strategy.actionType || 'unknown';
+    const params = strategy.parameters || {};
+
+    switch (actionType) {
+      case 'restart':
+        console.log(`[SelfHealing] Restarting service: ${target}`);
+        return {
+          restarted: true,
+          targetId: target,
+          maxRetries: strategy.maxRetries,
+          graceful: params.graceful ?? true,
+          timestamp: new Date()
+        };
+
+      case 'scale':
+        console.log(`[SelfHealing] Scaling service: ${target}`);
+        return {
+          scaled: true,
+          targetId: target,
+          scaleFactor: params.scaleFactor ?? 2,
+          minReplicas: params.minReplicas ?? 1,
+          maxReplicas: params.maxReplicas ?? 10,
+          timestamp: new Date()
+        };
+
+      case 'notify':
+        console.log(`[SelfHealing] Sending notification for: ${target}`);
+        return {
+          notified: true,
+          targetId: target,
+          channel: params.channel ?? 'slack',
+          urgency: params.urgency ?? 'high',
+          timestamp: new Date()
+        };
+
+      case 'failover':
+        console.log(`[SelfHealing] Failing over: ${target}`);
+        return {
+          failedOver: true,
+          targetId: target,
+          timestamp: new Date()
+        };
+
+      case 'rollback':
+        console.log(`[SelfHealing] Rolling back: ${target}`);
+        return {
+          rolledBack: true,
+          targetId: target,
+          timestamp: new Date()
+        };
+
+      case 'reconnect':
+        console.log(`[SelfHealing] Reconnecting database: ${target}`);
+        return {
+          reconnected: true,
+          targetId: target,
+          verifyConnection: params.verifyConnection ?? true,
+          maxRetries: params.maxRetries ?? 5,
+          timestamp: new Date()
+        };
+
+      case 'cleanup':
+        console.log(`[SelfHealing] Cleaning up: ${target}`);
+        return {
+          cleaned: true,
+          targetId: target,
+          targetPath: params.targetPath ?? '/tmp',
+          maxAge: params.maxAge ?? 3600,
+          timestamp: new Date()
+        };
+
+      case 'custom_script':
+        console.log(`[SelfHealing] Executing custom script for: ${target}`);
+        return {
+          scriptExecuted: true,
+          targetId: target,
+          script: params.script ?? 'unknown',
+          timestamp: new Date()
+        };
+
+      default:
+        console.log(`[SelfHealing] Unknown action type: ${actionType}`);
+        return { unknownAction: true, targetId: target, actionType, timestamp: new Date() };
+    }
+  }
+
+  /**
+   * 获取策略列表
+   */
+  async listPolicies(filters?: { enabled?: boolean; conditionType?: string; tenantId?: string }): Promise<SelfHealingPolicy[]> {
+    if (this.policyRepo) {
+      return this.policyRepo.findAll(filters);
+    }
+    return Array.from(this.memoryPolicies.values());
+  }
+
+  /**
+   * 获取策略
+   */
+  async getPolicy(policyId: string): Promise<SelfHealingPolicy | null> {
+    if (this.policyRepo) {
+      return this.policyRepo.findById(policyId);
+    }
+    return this.memoryPolicies.get(policyId) || null;
+  }
+
+  /**
+   * 获取执行记录
+   */
+  async getExecutions(filters?: { policyId?: string; incidentId?: string }): Promise<SelfHealingExecution[]> {
+    if (!this.executionRepo) return [];
+
+    if (filters?.policyId) {
+      return this.executionRepo.findByPolicyId(filters.policyId);
+    }
+    if (filters?.incidentId) {
+      return this.executionRepo.findByIncidentId(filters.incidentId);
+    }
+    return [];
   }
 
   /**
