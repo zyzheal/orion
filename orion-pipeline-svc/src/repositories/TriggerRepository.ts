@@ -3,7 +3,7 @@ export interface TriggerEntity {
   id: string;
   tenantId: string;
   pipelineId: string;
-  type: 'webhook' | 'schedule' | 'event' | 'manual';
+  type: 'webhook' | 'schedule' | 'event' | 'manual' | 'git';
   config: Record<string, unknown>;
   enabled: boolean;
   status?: string;
@@ -16,7 +16,7 @@ export interface TriggerEntity {
 export interface TriggerCreateInput {
   tenantId: string;
   pipelineId: string;
-  type: 'webhook' | 'schedule' | 'event' | 'manual';
+  type: 'webhook' | 'schedule' | 'event' | 'manual' | 'git';
   config: Record<string, unknown>;
   enabled?: boolean;
 }
@@ -79,8 +79,8 @@ export class TriggerRepository {
     return this.update(id, { enabled: false });
   }
 
-  async findActiveTriggers(tenantId: string): Promise<TriggerEntity[]> {
-    return Array.from(store.values()).filter(t => t.tenantId === tenantId && t.enabled);
+  async findActiveTriggers(tenantId?: string): Promise<TriggerEntity[]> {
+    return Array.from(store.values()).filter(t => (!tenantId || t.tenantId === tenantId) && t.enabled);
   }
 
   async updateTriggerConfig(id: string, config: Record<string, unknown>): Promise<TriggerEntity | null> {

@@ -15,7 +15,7 @@
  * PostgreSQL 持久化 + 乐观锁并发控制
  */
 
-import pino = require('pino');
+import pino from 'pino';
 import { Pool } from 'pg';
 import { getPool } from '../utils/database';
 

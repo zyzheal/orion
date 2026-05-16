@@ -71,7 +71,7 @@ export class PipelineRBACService {
       // Delete existing rules and insert new ones
       await this.repository.deleteByPipelineId(pipelineId);
       for (const rule of userRules) {
-        await this.repository.upsert(pipelineId, rule.userId, rule.role);
+        await this.repository.upsertByPipelineAndUser(pipelineId, rule.userId, rule.role);
       }
     }
 
@@ -90,7 +90,7 @@ export class PipelineRBACService {
    */
   async addRule(pipelineId: string, userId: string, role: PipelineRole): Promise<void> {
     if (this.repository) {
-      await this.repository.upsert(pipelineId, userId, role);
+      await this.repository.upsertByPipelineAndUser(pipelineId, userId, role);
     }
 
     // Update cache
@@ -148,7 +148,10 @@ export class PipelineRBACService {
     const rules = await this.repository.findByPipelineId(pipelineId);
     const userMap = new Map<string, PipelineRole>();
     for (const rule of rules) {
-      userMap.set(rule.userId, rule.role as PipelineRole);
+      const role = rule.action as PipelineRole;
+      for (const subject of rule.subjects) {
+        userMap.set(subject, role);
+      }
     }
     this.rulesCache.set(pipelineId, userMap);
     this.cacheInitialized.add(pipelineId);

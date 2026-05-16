@@ -38,7 +38,7 @@ export interface PipelineStage {
 /** Pipeline 触发器配置 */
 export interface PipelineTrigger {
   /** 触发器类型: manual, schedule, webhook, event */
-  type: 'manual' | 'schedule' | 'webhook' | 'event';
+  type: 'manual' | 'schedule' | 'webhook' | 'event' | 'git';
   /** Cron 表达式 (仅 schedule 类型) */
   cron?: string;
   /** Webhook 事件过滤器 (仅 webhook/event 类型) */
