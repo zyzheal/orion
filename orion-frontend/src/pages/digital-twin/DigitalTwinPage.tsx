@@ -16,6 +16,7 @@ import {
   CameraOutlined, SyncOutlined,
   StopOutlined, CloudServerOutlined,
 } from '@ant-design/icons';
+import { colors } from '@/tokens';
 import {
   digitalTwinApi,
   type DigitalTwin,
@@ -390,7 +391,7 @@ const DigitalTwinPage: React.FC = () => {
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="回放会话" value={runningReplays} valueStyle={{ color: '#722ed1' }} />
+            <Statistic title="回放会话" value={runningReplays} valueStyle={{ color: colors.purple[500] }} />
           </Card>
         </Col>
       </Row>

@@ -30,6 +30,7 @@ import {
   EyeOutlined,
   PushpinOutlined,
 } from '@ant-design/icons';
+import { colors } from '@/tokens';
 import type { ColumnsType } from 'antd/es/table';
 import { pipelineVersionsApi } from '@/api/pipeline-versions';
 import type { PipelineVersion, VersionDiff, DiffItem } from '@/api/pipeline-versions';
@@ -77,7 +78,7 @@ const DiffDisplay: React.FC<{ diff: VersionDiff }> = ({ diff }) => {
                     marginBottom: 8,
                     background: color === 'green' ? '#f6ffed' : color === 'red' ? '#fff2f0' : '#f0f5ff',
                     borderRadius: 4,
-                    borderLeft: `3px solid ${color === 'green' ? '#52c41a' : color === 'red' ? '#ff4d4f' : '#1890ff'}`,
+                    borderLeft: `3px solid ${color === 'green' ? colors.success[500] : color === 'red' ? colors.error[500] : colors.primary[500]}`,
                   }}
                 >
                   <Tag color={color}>{item.type}</Tag>

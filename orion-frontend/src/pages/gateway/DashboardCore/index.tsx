@@ -93,10 +93,10 @@ interface AlertsResponse {
 
 // Quick action definitions (static navigation targets)
 const quickActions: QuickActionItem[] = [
-  { name: '创建 Pipeline', icon: 'RocketOutlined', path: '/pipelines', color: '#1890ff' },
-  { name: '部署应用', icon: 'CloudUploadOutlined', path: '/deployments', color: '#52c41a' },
-  { name: '查看告警', icon: 'BellOutlined', path: '/alerts', color: '#fa541c' },
-  { name: '查看日志', icon: 'FileTextOutlined', path: '/pipelines', color: '#722ed1' },
+  { name: '创建 Pipeline', icon: 'RocketOutlined', path: '/pipelines', color: colors.primary[500] },
+  { name: '部署应用', icon: 'CloudUploadOutlined', path: '/deployments', color: colors.success[500] },
+  { name: '查看告警', icon: 'BellOutlined', path: '/alerts', color: colors.warning[500] },
+  { name: '查看日志', icon: 'FileTextOutlined', path: '/pipelines', color: colors.purple[500] },
 ];
 
 // Icon map for quick actions
@@ -168,7 +168,7 @@ const DashboardCore: React.FC = () => {
               trend: 'up',
               trendPercent: 12.1,
               previousValue: Math.round(weekly * 0.88),
-              color: '#1890ff',
+              color: colors.primary[500],
             });
           }
         }
@@ -208,13 +208,13 @@ const DashboardCore: React.FC = () => {
         // Fill in defaults if APIs returned empty
         if (kpis.length === 0) {
           kpis.push(
-            { id: 'pipeline-success-rate', title: 'Pipeline 成功率', value: '0.0', unit: '%', trend: 'stable', trendPercent: 0, previousValue: '0.0', color: '#52c41a' },
-            { id: 'deployment-frequency', title: '部署频率', value: 0, unit: '次/周', trend: 'stable', trendPercent: 0, previousValue: 0, color: '#1890ff' },
-            { id: 'active-alerts', title: '活跃告警', value: 0, unit: '个', trend: 'stable', trendPercent: 0, previousValue: 0, color: '#faad14' },
+            { id: 'pipeline-success-rate', title: 'Pipeline 成功率', value: '0.0', unit: '%', trend: 'stable', trendPercent: 0, previousValue: '0.0', color: colors.success[500] },
+            { id: 'deployment-frequency', title: '部署频率', value: 0, unit: '次/周', trend: 'stable', trendPercent: 0, previousValue: 0, color: colors.primary[500] },
+            { id: 'active-alerts', title: '活跃告警', value: 0, unit: '个', trend: 'stable', trendPercent: 0, previousValue: 0, color: colors.warning[500] },
           );
         }
         if (kpis.length < 4) {
-          kpis.push({ id: 'system-health', title: '系统健康度', value: '99.8', unit: '%', trend: 'stable', trendPercent: 0, previousValue: '99.8', color: '#722ed1' });
+          kpis.push({ id: 'system-health', title: '系统健康度', value: '99.8', unit: '%', trend: 'stable', trendPercent: 0, previousValue: '99.8', color: colors.purple[500] });
         }
 
         setState({ kpis, events, loading: false, error: null });

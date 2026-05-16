@@ -29,6 +29,7 @@ import {
   CheckCircleOutlined,
   CloseCircleOutlined,
 } from '@ant-design/icons';
+import { colors } from '@/tokens';
 import { colors } from '@/tokens/colors';
 import PageSkeleton from '@/components/PageSkeleton';
 import {
@@ -377,7 +378,7 @@ const ExplanationHistoryTab: React.FC = () => {
       width: 200,
       render: (v: string) => (
         <Text
-          style={{ cursor: 'pointer', color: '#1890ff' }}
+          style={{ cursor: 'pointer', color: colors.primary[500] }}
           onClick={() => loadDetail(v)}
         >
           {v}

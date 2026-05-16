@@ -20,6 +20,7 @@ import {
   ReloadOutlined,
   AppstoreOutlined,
 } from '@ant-design/icons';
+import { colors } from '@/tokens';
 import { useAuthStore } from '@/stores/authStore';
 import {
   getApkUploadHistory,
@@ -221,7 +222,7 @@ const ApkUploadHistoryPage: React.FC = () => {
             <Statistic
               title="上传中"
               value={displayStats.uploading}
-              valueStyle={{ color: '#1890ff' }}
+              valueStyle={{ color: colors.primary[500] }}
             />
           </Card>
         </Col>

@@ -47,6 +47,7 @@ import {
   type RunnerJob,
 } from '@/api/runners';
 import dayjs from 'dayjs';
+import { colors } from '@/tokens';
 import relativeTime from 'dayjs/plugin/relativeTime';
 
 dayjs.extend(relativeTime);
@@ -468,7 +469,7 @@ const RunnerManagement: React.FC = () => {
       filterable: true,
       render: (_value: unknown, record) => (
         <Space direction="vertical" size={0}>
-          <Text strong style={{ cursor: 'pointer', color: '#1890ff' }}>
+          <Text strong style={{ cursor: 'pointer', color: colors.primary[500] }}>
             <CloudServerOutlined style={{ marginRight: 6, color: '#8c8c8c' }} />
             {record.name}
           </Text>

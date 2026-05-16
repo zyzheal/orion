@@ -15,6 +15,7 @@ import {
   PlusOutlined, ReloadOutlined, DollarOutlined,
   SwapOutlined, ThunderboltOutlined
 } from '@ant-design/icons';
+import { colors } from '@/tokens';
 
 const { Panel } = Collapse;
 
@@ -234,10 +235,10 @@ const MultiCloudAdvancedPage: React.FC = () => {
               <Card title="Multi-Cloud Cost Optimization">
                 <Row gutter={16} style={{ marginBottom: 24 }}>
                   <Col span={8}>
-                    <Statistic title="Monthly Cost (AWS)" value={12500} prefix="$" valueStyle={{ color: '#1890ff' }} />
+                    <Statistic title="Monthly Cost (AWS)" value={12500} prefix="$" valueStyle={{ color: colors.primary[500] }} />
                   </Col>
                   <Col span={8}>
-                    <Statistic title="Monthly Cost (Azure)" value={8200} prefix="$" valueStyle={{ color: '#722ed1' }} />
+                    <Statistic title="Monthly Cost (Azure)" value={8200} prefix="$" valueStyle={{ color: colors.purple[500] }} />
                   </Col>
                   <Col span={8}>
                     <Statistic title="Monthly Cost (GCP)" value={6300} prefix="$" valueStyle={{ color: '#fa541c' }} />

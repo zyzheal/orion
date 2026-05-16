@@ -48,6 +48,7 @@ import type { ColumnsType } from 'antd/es/table';
 import { api } from '@/api/client';
 import type { Deployment, HealthCheckResult } from '@/api/deployments';
 import { getDeployments, cancelDeployment, rollbackDeployment } from '@/api/deployments';
+import { colors } from '@/tokens';
 import { getArtifacts } from '@/api/artifacts';
 import dayjs from 'dayjs';
 
@@ -878,7 +879,7 @@ const DeployPage: React.FC = () => {
           <StatCard title="总部署数" value={stats.total} icon={<RocketOutlined />} />
         </Col>
         <Col span={5}>
-          <StatCard title="部署中" value={stats.deploying} icon={<SyncOutlined spin />} color="#1890ff" />
+          <StatCard title="部署中" value={stats.deploying} icon={<SyncOutlined spin />} color={colors.primary[500]} />
         </Col>
         <Col span={5}>
           <StatCard title="成功" value={stats.success} icon={<CheckCircleOutlined />} color="#52c41a" />
@@ -1254,7 +1255,7 @@ const DeployPage: React.FC = () => {
 
       {/* Deploy Window Create Modal */}
       <Modal
-        title={<><ClockCircleOutlined style={{ marginRight: 8, color: '#1890ff' }} />创建部署窗口</>}
+        title={<><ClockCircleOutlined style={{ marginRight: 8, color: colors.primary[500] }} />创建部署窗口</>}
         open={deployWindowModalVisible}
         onCancel={() => setDeployWindowModalVisible(false)}
         onOk={() => deployWindowForm.submit()}
