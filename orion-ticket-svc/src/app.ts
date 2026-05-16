@@ -2,7 +2,7 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import sensible from '@fastify/sensible';
 import { errorHandler } from './utils/error-handler';
-import ticketingRoutes from './routes/ticket-full';
+import ticketingRoutes from './routes/ticket';
 
 async function buildApp() {
   const fastify = Fastify({ logger: { level: 'info' } });
