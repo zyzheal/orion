@@ -11,6 +11,8 @@ import { registerMonitoringRoutes } from './routes/monitoring-routes';
 import { registerAlertRoutes } from './routes/alert-routes';
 import { registerSelfHealingRoutes } from './routes/selfhealing-routes';
 import { registerOnCallRoutes } from './routes/oncall-routes';
+import { registerAlertSilenceRoutes } from './routes/alert-silence-routes';
+import { AlertSilenceService } from './services/AlertSilenceService';
 
 async function buildApp() {
   const fastify = Fastify({ logger: { level: 'info' } });
@@ -23,6 +25,7 @@ async function buildApp() {
   const alertService = new AlertService();
   const selfHealingService = new SelfHealingService();
   const oncallService = new OnCallService();
+  const alertSilenceService = new AlertSilenceService();
 
   // Register Prometheus routes
   await fastify.register(monitoringRoutes, { prefix: '/api/v1' });
@@ -35,6 +38,7 @@ async function buildApp() {
   registerAlertRoutes(fastify, alertService);
   registerSelfHealingRoutes(fastify, selfHealingService);
   registerOnCallRoutes(fastify, oncallService);
+  registerAlertSilenceRoutes(fastify, alertSilenceService);
 
   fastify.get('/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }));
   return { fastify };
