@@ -10,7 +10,8 @@ import { HelmDeploymentService } from './HelmDeploymentService';
 import { RunnerCacheService } from './RunnerCacheService';
 import { ArtifactSignatureService } from './ArtifactSignatureService';
 import { ArtifactRegistryService } from './ArtifactRegistryService';
-import { spawn, ChildProcess } from 'child_process';
+import { TaskExecutorService } from './TaskExecutorService';
+import { ChildProcess } from 'child_process';
 
 export interface PipelineEngineOptions {
   logger: FastifyBaseLogger;
@@ -77,6 +78,8 @@ export class PipelineEngine {
   private preprocessor: YamlPreprocessor;
   private dockerBuildService: DockerBuildService;
   private runningProcesses: Map<string, ChildProcess>;
+  // Task executor for local process execution
+  private taskExecutor: TaskExecutorService;
   // 新服务实例
   private kubernetesService: KubernetesDeploymentService;
   private helmService: HelmDeploymentService;
@@ -91,6 +94,7 @@ export class PipelineEngine {
     this.preprocessor = new YamlPreprocessor();
     this.dockerBuildService = new DockerBuildService();
     this.runningProcesses = new Map();
+    this.taskExecutor = new TaskExecutorService();
     // 初始化新服务
     this.kubernetesService = new KubernetesDeploymentService();
     this.helmService = new HelmDeploymentService();
@@ -475,7 +479,7 @@ export class PipelineEngine {
 
   /**
    * 执行 command 类型 step
-   * 使用安全的命令执行方式：禁止 shell 特性，防止注入
+   * 使用 TaskExecutorService 进行本地进程执行
    */
   private async executeCommand(
     runId: string,
@@ -502,59 +506,30 @@ export class PipelineEngine {
       }
     }
 
-    // 解析命令和参数（简单的空格分割，避免 shell 解析）
+    // 解析命令和参数
     const parts = this.parseCommand(command);
     if (parts.length === 0 || !parts[0]) {
       throw new Error('Empty command');
     }
 
     const [cmd, ...args] = parts;
+    const taskId = `task-${runId}-${Date.now()}`;
 
-    return new Promise((resolve, reject) => {
-      const timeout = timeoutMs || this.defaultTimeoutMs;
-      // 使用数组形式，避免 shell 注入
-      const child = spawn(cmd, args, {
-        env: { ...process.env, ...env },
-        stdio: ['ignore', 'pipe', 'pipe'],
-        // 明确不使用 shell
-        shell: false,
-      });
-
-      this.runningProcesses.set(runId, child);
-
-      let stdout = '';
-      let stderr = '';
-
-      child.stdout?.on('data', (data: Buffer) => {
-        stdout += data.toString();
-      });
-
-      child.stderr?.on('data', (data: Buffer) => {
-        stderr += data.toString();
-      });
-
-      const timer = setTimeout(() => {
-        child.kill('SIGTERM');
-        this.runningProcesses.delete(runId);
-        reject(new Error(`Command timed out after ${timeout}ms`));
-      }, timeout);
-
-      child.on('close', (code) => {
-        clearTimeout(timer);
-        this.runningProcesses.delete(runId);
-        if (code === 0) {
-          resolve({ exitCode: code || 0, stdout, stderr });
-        } else {
-          reject(new Error(`Command failed with exit code ${code}: ${stderr || stdout}`));
-        }
-      });
-
-      child.on('error', (err) => {
-        clearTimeout(timer);
-        this.runningProcesses.delete(runId);
-        reject(err);
-      });
+    const result = await this.taskExecutor.executeTask({
+      taskId,
+      command: cmd,
+      args,
+      env: { ...(process.env as Record<string, string>), ...env },
+      timeoutMs: timeoutMs || this.defaultTimeoutMs,
     });
+
+    if (result.status !== 'success') {
+      throw new Error(
+        `Task ${taskId} ${result.status} with exit code ${result.exitCode}: ${result.stderr || result.stdout}`
+      );
+    }
+
+    return { exitCode: result.exitCode, stdout: result.stdout, stderr: result.stderr };
   }
 
   /**
@@ -743,6 +718,12 @@ export class PipelineEngine {
       child.kill('SIGTERM');
       this.runningProcesses.delete(runId);
       this.logger.info({ runId }, 'Killed running process');
+    }
+
+    // Cancel any tasks running via TaskExecutorService
+    const runningTaskIds = this.taskExecutor.getRunningTaskIds();
+    for (const taskId of runningTaskIds) {
+      await this.taskExecutor.cancelTask(taskId);
     }
 
     // Cancel all running/pending stages
