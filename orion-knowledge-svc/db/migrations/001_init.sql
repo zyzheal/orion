@@ -2,11 +2,12 @@
 -- Initial schema for knowledge service (knowledge base + vector storage + graph)
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS vector;
 
 -- Knowledge Spaces Table
 CREATE TABLE IF NOT EXISTS knowledge_spaces (
   id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  tenant_id         VARCHAR(100) NOT NULL,
+  tenant_id         UUID NOT NULL,
   name              VARCHAR(255) NOT NULL,
   description       TEXT,
   visibility        VARCHAR(50) NOT NULL DEFAULT 'private',
@@ -19,7 +20,7 @@ CREATE TABLE IF NOT EXISTS knowledge_spaces (
 CREATE TABLE IF NOT EXISTS knowledge_docs (
   id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   space_id          UUID NOT NULL,
-  tenant_id         VARCHAR(100) NOT NULL,
+  tenant_id         UUID NOT NULL,
   title             VARCHAR(500) NOT NULL,
   content           TEXT NOT NULL,
   doc_type          VARCHAR(50) NOT NULL DEFAULT 'article',
@@ -47,7 +48,7 @@ CREATE TABLE IF NOT EXISTS document_chunks (
 -- Vector Stores Table (external vector DB connections)
 CREATE TABLE IF NOT EXISTS vector_stores (
   id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  tenant_id         VARCHAR(100) NOT NULL,
+  tenant_id         UUID NOT NULL,
   name              VARCHAR(255) NOT NULL,
   provider          VARCHAR(100) NOT NULL,
   connection_config JSONB NOT NULL DEFAULT '{}',
@@ -61,7 +62,7 @@ CREATE TABLE IF NOT EXISTS vector_stores (
 -- Graph Nodes Table (knowledge graph)
 CREATE TABLE IF NOT EXISTS graph_nodes (
   id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  tenant_id         VARCHAR(100) NOT NULL,
+  tenant_id         UUID NOT NULL,
   label             VARCHAR(255) NOT NULL,
   node_type         VARCHAR(100) NOT NULL,
   properties        JSONB DEFAULT '{}',
@@ -71,12 +72,14 @@ CREATE TABLE IF NOT EXISTS graph_nodes (
 -- Graph Edges Table (knowledge graph relationships)
 CREATE TABLE IF NOT EXISTS graph_edges (
   id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  tenant_id         VARCHAR(100) NOT NULL,
+  tenant_id         UUID NOT NULL,
   source_node_id    UUID NOT NULL,
   target_node_id    UUID NOT NULL,
   relationship      VARCHAR(100) NOT NULL,
   properties        JSONB DEFAULT '{}',
-  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  FOREIGN KEY (source_node_id) REFERENCES graph_nodes(id) ON DELETE CASCADE,
+  FOREIGN KEY (target_node_id) REFERENCES graph_nodes(id) ON DELETE CASCADE
 );
 
 -- Vector Embeddings Table (local embedding storage)

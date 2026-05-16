@@ -7,7 +7,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- Self-Healing Incidents Table
 CREATE TABLE IF NOT EXISTS selfhealing_incidents (
   id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  tenant_id         VARCHAR(100) NOT NULL,
+  tenant_id         UUID NOT NULL,
   title             VARCHAR(500) NOT NULL,
   description       TEXT,
   severity          VARCHAR(20) NOT NULL DEFAULT 'medium',
@@ -65,7 +65,7 @@ CREATE TABLE IF NOT EXISTS selfhealing_actions (
 -- Knowledge Base Table
 CREATE TABLE IF NOT EXISTS selfhealing_knowledge (
   id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  tenant_id         VARCHAR(100) NOT NULL,
+  tenant_id         UUID NOT NULL,
   title             VARCHAR(500) NOT NULL,
   description       TEXT,
   problem_pattern   TEXT NOT NULL,
@@ -95,7 +95,7 @@ CREATE TABLE IF NOT EXISTS selfhealing_policies (
   confidence        DECIMAL(5,4) DEFAULT 0.5,
   max_retries       INTEGER DEFAULT 3,
   timeout_seconds   INTEGER DEFAULT 300,
-  tenant_id         VARCHAR(100) NOT NULL,
+  tenant_id         UUID NOT NULL,
   created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

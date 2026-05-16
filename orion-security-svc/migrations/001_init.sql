@@ -213,7 +213,7 @@ CREATE TABLE IF NOT EXISTS quality_gate_results (
   score           INT,
   checks          JSONB NOT NULL,                     -- Array of check results
   evaluated_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
-  evaluated_by    UUID,
+  evaluated_by    UUID
 );
 CREATE INDEX idx_quality_gate_results_tenant ON quality_gate_results(tenant_id);
 CREATE INDEX idx_quality_gate_results_build_id ON quality_gate_results(build_id);

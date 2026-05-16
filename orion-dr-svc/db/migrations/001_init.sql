@@ -6,7 +6,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- Disaster Recovery Plans Table
 CREATE TABLE IF NOT EXISTS dr_plans (
   id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  tenant_id         VARCHAR(100) NOT NULL,
+  tenant_id         UUID NOT NULL,
   plan_name         VARCHAR(255) NOT NULL,
   rto_target        INTEGER NOT NULL,
   rpo_target        INTEGER NOT NULL,
@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS dr_plans (
 -- Failover Tests Table
 CREATE TABLE IF NOT EXISTS dr_failover_tests (
   id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  tenant_id         VARCHAR(100) NOT NULL,
+  tenant_id         UUID NOT NULL,
   plan_id           UUID NOT NULL,
   test_name         VARCHAR(255) NOT NULL,
   test_type         VARCHAR(100) NOT NULL,
@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS dr_failover_tests (
 -- Backup Configs Table
 CREATE TABLE IF NOT EXISTS backup_configs (
   id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  tenant_id         VARCHAR(100) NOT NULL,
+  tenant_id         UUID NOT NULL,
   name              VARCHAR(255) NOT NULL,
   schedule          VARCHAR(100) NOT NULL,
   retention_days    INTEGER NOT NULL DEFAULT 30,
@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS backup_configs (
 CREATE TABLE IF NOT EXISTS backup_jobs (
   id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   config_id         UUID,
-  tenant_id         VARCHAR(100) NOT NULL,
+  tenant_id         UUID NOT NULL,
   status            VARCHAR(50) NOT NULL DEFAULT 'pending',
   started_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   completed_at      TIMESTAMPTZ,
@@ -74,7 +74,7 @@ CREATE TABLE IF NOT EXISTS backup_jobs (
 CREATE TABLE IF NOT EXISTS backup_restores (
   id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   backup_job_id     UUID,
-  tenant_id         VARCHAR(100) NOT NULL,
+  tenant_id         UUID NOT NULL,
   target_service    VARCHAR(200) NOT NULL,
   status            VARCHAR(50) NOT NULL DEFAULT 'pending',
   started_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),

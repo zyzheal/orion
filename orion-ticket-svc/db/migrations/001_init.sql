@@ -688,3 +688,6 @@ INSERT INTO dispatch_rules (id, tenant_id, name, description, strategy, priority
     ('dddddddd-dddd-dddd-dddd-dddddddddddd', '00000000-0000-0000-0000-000000000001', 'Default Round Robin', 'Default round robin dispatch', 'round_robin', 0),
     ('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', '00000000-0000-0000-0000-000000000001', 'Skill Based Dispatch', 'Skill based dispatch for complex issues', 'skill_based', 10)
 ON CONFLICT DO NOTHING;
+
+-- Rollback:
+-- DROP TABLE IF EXISTS knowledge_associations, ticket_categories, bi_stats_cache, satisfaction_surveys, ticket_notifications, service_catalog, ticket_templates, dispatch_queue, dispatch_rules, approval_records, workflow_instances, workflow_definitions, sla_reports, sla_schedules, sla_policies, ticket_attachments, ticket_history, ticket_comments, tickets;

@@ -64,7 +64,7 @@ CREATE TABLE IF NOT EXISTS mentors (
 -- Best Practices Table
 CREATE TABLE IF NOT EXISTS best_practices (
   id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  tenant_id         VARCHAR(100),
+  tenant_id         UUID NOT NULL,
   title             VARCHAR(500) NOT NULL,
   content           TEXT NOT NULL,
   category          VARCHAR(100),
