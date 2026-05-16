@@ -33,10 +33,10 @@ const designTokens = {
   paddingXL: spacing.xl,    // 32px
 
   // 圆角
-  borderRadiusXS: radius.xs,  // 2px
-  borderRadiusSM: radius.sm,  // 4px
-  borderRadius: radius.md,    // 6px
-  borderRadiusLG: radius.lg,  // 8px
+  borderRadiusXS: radius.xs,  // 4px
+  borderRadiusSM: radius.sm,  // 6px
+  borderRadius: radius.md,    // 8px
+  borderRadiusLG: radius.lg,  // 12px
 
   // 字体
   fontSizeSM: typography.fontSize.sm,   // 12px

@@ -567,7 +567,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               style={{
                 fontSize: 16,
                 fontWeight: 600,
-                background: `linear-gradient(135deg, #3370E6 0%, #7C5CFC 100%)`,
+                background: `linear-gradient(135deg, ${colors.primary[500]} 0%, ${colors.purple[500]} 100%)`,
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
                 backgroundClip: 'text',
