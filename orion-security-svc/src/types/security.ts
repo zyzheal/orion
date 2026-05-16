@@ -6,23 +6,25 @@
  */
 
 // Re-export all security types from services/types.ts
-export {
+export type {
   RiskLevel,
   RiskFactorCategory,
   RiskTargetType,
-  type RiskFactor,
-  type DeploymentRisk,
-  type RiskAssessment,
-  type RiskRecommendation,
-  type HealthCheckStatus,
-  type HealthCheck,
-  type HealthCheckResult,
-  type RiskReport,
-  type RiskAssessmentEventData,
-  type PipelineCompletedForRiskData,
-  type CodePRMergedData,
-  type RiskAssessmentServiceConfig,
-  type HealthCheckConfig,
+  RiskFactor,
+  DeploymentRisk,
+  RiskAssessment,
+  RiskRecommendation,
+  HealthCheckStatus,
+  HealthCheck,
+  HealthCheckResult,
+  RiskReport,
+  RiskAssessmentEventData,
+  PipelineCompletedForRiskData,
+  CodePRMergedData,
+  RiskAssessmentServiceConfig,
+  HealthCheckConfig,
+} from '../services/types';
+export {
   DEFAULT_HEALTH_CHECK_CONFIG,
 } from '../services/types';
 

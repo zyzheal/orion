@@ -2,13 +2,13 @@
  * Risk Assessment Repository - PostgreSQL data access layer
  */
 
-import { RiskAssessmentEntity } from '../types/security';
+import type { RiskAssessmentEntity } from '../types/security';
 
 interface DbClient {
   query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }>;
 }
 
-export { RiskAssessmentEntity };
+export type { RiskAssessmentEntity };
 
 export class RiskAssessmentRepository {
   constructor(private db: DbClient) {}
