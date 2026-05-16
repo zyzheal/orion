@@ -11,12 +11,14 @@ import { RunnerCacheService } from './RunnerCacheService';
 import { ArtifactSignatureService } from './ArtifactSignatureService';
 import { ArtifactRegistryService } from './ArtifactRegistryService';
 import { TaskExecutorService } from './TaskExecutorService';
+import type { PipelineRunRepository } from './PipelineRunRepository';
 import { ChildProcess } from 'child_process';
 
 export interface PipelineEngineOptions {
   logger: FastifyBaseLogger;
   maxConcurrentRuns?: number;
   defaultTimeoutMs?: number;
+  runRepository?: PipelineRunRepository;
 }
 
 // In-memory run store
@@ -86,11 +88,14 @@ export class PipelineEngine {
   private cacheService: RunnerCacheService;
   private artifactSignatureService: ArtifactSignatureService;
   private artifactRegistryService: ArtifactRegistryService;
+  // Persistence repository for run state
+  private runRepository?: PipelineRunRepository;
 
   constructor(options: PipelineEngineOptions) {
     this.logger = options.logger.child({ service: 'PipelineEngine' });
     this.maxConcurrentRuns = options.maxConcurrentRuns ?? 10;
     this.defaultTimeoutMs = options.defaultTimeoutMs ?? 3600000;
+    this.runRepository = options.runRepository;
     this.preprocessor = new YamlPreprocessor();
     this.dockerBuildService = new DockerBuildService();
     this.runningProcesses = new Map();
@@ -193,6 +198,35 @@ export class PipelineEngine {
       };
     }
 
+    // 持久化运行状态 (Phase 3 Task 1)
+    if (this.runRepository) {
+      try {
+        const stageStatesArray = Array.from(stageStates.values()).map(s => ({
+          stageId: s.stageId,
+          name: s.name,
+          status: s.status,
+          dependsOn: s.dependsOn,
+          startedAt: s.startedAt,
+          completedAt: s.completedAt,
+        }));
+        await this.runRepository.saveState({
+          id: `prs-${runId}`,
+          runId,
+          pipelineId: pipeline.id,
+          tenantId: pipeline.tenantId,
+          status: 'running',
+          stageResults: run.stageResults,
+          stageStates: stageStatesArray,
+          executionModel: executionModel || undefined,
+          envOverrides: options?.envOverrides,
+          startedAt: new Date(run.startedAt),
+        });
+        this.logger.info({ runId }, 'Pipeline run state persisted');
+      } catch (error: any) {
+        this.logger.error({ runId, error: error.message }, 'Failed to persist run state');
+      }
+    }
+
     // Schedule first stages (those with no dependencies)
     await this.scheduleNextStages(runId, pipeline, '', run.stageResults);
 
@@ -275,6 +309,9 @@ export class PipelineEngine {
       // Mark run as failed
       run.status = 'failed';
       run.finishedAt = result.finishedAt;
+
+      // 持久化失败状态
+      await this.persistRunState(runId);
 
       throw error;
     }
@@ -736,6 +773,9 @@ export class PipelineEngine {
 
     run.status = 'cancelled';
     run.finishedAt = now;
+
+    // 持久化取消状态
+    await this.persistRunState(runId);
   }
 
   /**
@@ -845,6 +885,8 @@ export class PipelineEngine {
         const hasFailure = Array.from(stageStates.values()).some(s => s.status === 'failed');
         run.status = hasFailure ? 'failed' : 'success';
         run.finishedAt = new Date().toISOString();
+        // 持久化完成状态
+        await this.persistRunState(runId);
       }
       return;
     }
@@ -899,6 +941,8 @@ export class PipelineEngine {
       const hasFailure = Array.from(stageStates.values()).some(s => s.status === 'failed');
       run.status = hasFailure ? 'failed' : 'success';
       run.finishedAt = new Date().toISOString();
+      // 持久化完成状态
+      await this.persistRunState(runId);
     }
   }
 
@@ -946,6 +990,111 @@ export class PipelineEngine {
       }
     }
     return { stageId: stage.id, success: false };
+  }
+
+  /**
+   * 从数据库恢复未完成的 Pipeline 运行
+   * 在服务启动时调用，实现重启恢复功能
+   */
+  async recoverUnfinishedRuns(): Promise<number> {
+    if (!this.runRepository) {
+      this.logger.info('No run repository configured, skipping recovery');
+      return 0;
+    }
+
+    try {
+      const unfinishedRuns = await this.runRepository.findUnfinishedRuns();
+      this.logger.info({ count: unfinishedRuns.length }, 'Found unfinished runs to recover');
+
+      for (const state of unfinishedRuns) {
+        const runId = state.runId;
+
+        // 重建 run 对象
+        const run: PipelineRun = {
+          runId,
+          pipelineId: state.pipelineId,
+          tenantId: state.tenantId || '',
+          status: state.status as any,
+          stageResults: state.stageResults || {},
+          startedAt: state.startedAt?.toISOString() || new Date().toISOString(),
+          finishedAt: state.finishedAt?.toISOString(),
+          triggeredBy: 'manual' as const,
+        };
+
+        // 重建 stageStates
+        const stageStates = new Map<string, {
+          stageId: string;
+          name: string;
+          status: 'pending' | 'running' | 'success' | 'failed' | 'skipped' | 'cancelled';
+          dependsOn: string[];
+          startedAt?: string;
+          completedAt?: string;
+        }>();
+
+        for (const s of state.stageStates || []) {
+          stageStates.set(s.stageId, {
+            stageId: s.stageId,
+            name: s.name,
+            status: s.status as any,
+            dependsOn: s.dependsOn || [],
+            startedAt: s.startedAt,
+            completedAt: s.completedAt,
+          });
+        }
+
+        // 恢复 extended state
+        const extState: ExtendedRunState = {
+          run,
+          stageStates,
+          executionModel: state.executionModel,
+          yamlContext: state.yamlContext,
+        };
+
+        runStore.set(runId, run);
+        extendedStore.set(runId, extState);
+
+        this.logger.info({ runId, status: state.status }, 'Recovered run state from database');
+      }
+
+      return unfinishedRuns.length;
+    } catch (error: any) {
+      this.logger.error({ error: error.message }, 'Failed to recover unfinished runs');
+      return 0;
+    }
+  }
+
+  /**
+   * 持久化当前运行状态
+   * 在状态变更时调用
+   */
+  private async persistRunState(runId: string): Promise<void> {
+    if (!this.runRepository) return;
+
+    const extState = extendedStore.get(runId);
+    if (!extState) return;
+
+    const { run, stageStates } = extState;
+
+    try {
+      const stageStatesArray = Array.from(stageStates.values()).map(s => ({
+        stageId: s.stageId,
+        name: s.name,
+        status: s.status,
+        dependsOn: s.dependsOn,
+        startedAt: s.startedAt,
+        completedAt: s.completedAt,
+      }));
+
+      await this.runRepository.updateState(runId, {
+        status: run.status,
+        currentStageId: run.currentStage,
+        stageResults: run.stageResults,
+        stageStates: stageStatesArray,
+        finishedAt: run.finishedAt ? new Date(run.finishedAt) : undefined,
+      });
+    } catch (error: any) {
+      this.logger.error({ runId, error: error.message }, 'Failed to persist run state');
+    }
   }
 
   /**
