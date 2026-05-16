@@ -5,6 +5,7 @@ import { EnvironmentService } from '../services/EnvironmentService';
 import { RollbackService } from '../services/RollbackService';
 import { DeploymentHistoryService } from '../services/DeploymentHistoryService';
 import { ReleaseNotesService } from '../services/ReleaseNotesService';
+import { WindowsDeploymentService } from '../services/WindowsDeploymentService';
 
 /**
  * Deploy Routes
@@ -16,6 +17,7 @@ export async function deployRoutes(fastify: FastifyInstance, _opts: FastifyPlugi
   const rollbackService = new RollbackService();
   const historyService = new DeploymentHistoryService();
   const releaseNotesService = new ReleaseNotesService();
+  const windowsDeploymentService = new WindowsDeploymentService();
 
   // ==================== Environment Routes ====================
 
@@ -358,6 +360,55 @@ export async function deployRoutes(fastify: FastifyInstance, _opts: FastifyPlugi
         fastify.log.error({ error: message }, 'Release notes generation failed');
         return reply.code(400).send({ error: message });
       }
+    },
+  );
+
+  // ==================== Windows Deployment Routes ====================
+
+  /**
+   * POST /api/v1/deploy/windows/generate
+   * Generate Windows deployment PowerShell script
+   */
+  fastify.post<{ Body: { serviceName: string; image: string; port: number; envVars?: Record<string, string>; replicas?: number; healthCheckPath?: string } }>(
+    '/deploy/windows/generate',
+    async (request, reply) => {
+      const config = request.body;
+      const validation = await windowsDeploymentService.validateConfig(config as any);
+      if (!validation.valid) {
+        return reply.code(400).send({ error: 'Invalid config', details: validation.errors });
+      }
+      const script = await windowsDeploymentService.generateDeploymentScript(config as any);
+      return reply.send({ script });
+    },
+  );
+
+  /**
+   * POST /api/v1/deploy/windows/execute
+   * Execute Windows deployment
+   */
+  fastify.post<{ Body: { serviceName: string; image: string; port: number; envVars?: Record<string, string>; replicas?: number; healthCheckPath?: string } }>(
+    '/deploy/windows/execute',
+    async (request, reply) => {
+      const config = request.body;
+      const validation = await windowsDeploymentService.validateConfig(config as any);
+      if (!validation.valid) {
+        return reply.code(400).send({ error: 'Invalid config', details: validation.errors });
+      }
+      const result = await windowsDeploymentService.deploy(config as any);
+      return reply.send(result);
+    },
+  );
+
+  /**
+   * POST /api/v1/deploy/windows/validate
+   * Validate Windows deployment config
+   */
+  fastify.post<{ Body: { serviceName?: string; image?: string; port?: number; envVars?: Record<string, string>; replicas?: number } }>(
+    '/deploy/windows/validate',
+    async (request, reply) => {
+      const config = request.body;
+      const result = await windowsDeploymentService.validateConfig(config as any);
+      return reply.send(result);
     },
   );
 }
