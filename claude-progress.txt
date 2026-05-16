@@ -1,9 +1,66 @@
 # Orion Design - Progress Log
 
+## 2026-05-15: SelfHealing Review Fixes (COMPLETED)
+
+### fix(selfhealing): resolve Critical count query bug and ID generation conflict
+
+**Issue #6 (Critical): SelfHealingIncidentRepository.findAll() total count query broken**
+- File: orion-selfhealing-svc/src/repositories/SelfHealingRepository.ts:99-119
+- Fixed: `countQuery.replace(...)` result was discarded; now properly builds countQuery with filters
+- Fixed: `total` now uses actual COUNT(*) from DB instead of `items.length`
+- All filter conditions (severity, status, tenantId) properly applied to count query
+
+**Issue #8 (Important): Service/Repository ID generation职责 conflict**
+- File: orion-selfhealing-svc/src/services/SelfHealingService.ts:67-88
+- Fixed: Service layer no longer pre-generates ID when using DB repository
+- Repository now solely responsible for ID generation in DB mode
+- In-memory fallback still generates its own ID (acceptable since no repository involved)
+
+---
+
 ## Project Overview
 - **Name**: orion-design
 - **Root**: /Users/heal/orion-design
 - **Current Branch**: feat/frontend-gap-implementation
+
+---
+
+## 2026-05-15: Route Code P0 Fixes (COMPLETED)
+
+### fix(routes): resolve P0 issues - typed interfaces, unified error format, DI, and PostgreSQL repository
+
+**1. Fixed `as any` type assertions (8 files, all `as any` eliminated in target files)**
+- orion-ai-svc/src/routes/ai-routes.ts - Defined typed interfaces (VectorUpsertRequest, PromoteArtifactRequest, etc.) and used Fastify generic types
+- orion-graph-svc/src/routes/graph-routes.ts - Defined GraphQueryRequest, CreateNodeRequest, CreateRelationshipRequest interfaces
+- orion-pandawiki-svc/src/routes/pandawiki-routes.ts - Defined CreateSpaceRequest, CreateDocumentRequest, UpdateDocumentRequest, DocumentQuery, SearchQuery interfaces
+- orion-visor-svc/src/routes/visor-routes.ts - Defined CreateHostRequest, UpdateHostRequest, CreateScriptRequest, CreateTaskRequest interfaces matching actual service types
+- orion-artifact-svc/src/routes/artifact-routes.ts - Defined PromoteArtifactRequest, CreateVersionRequest, VersionQuery, PromoteVersionRequest interfaces
+- orion-security-svc/src/routes/security-routes.ts - Already had typed interfaces, no `as any` found
+- orion-monitor-svc/src/routes/monitor-routes.ts - Defined all request interfaces using types from monitor.ts (RuleType, MetricType, Severity, etc.)
+- orion-selfhealing-svc/src/routes/selfhealing-routes.ts - Defined CreateIncidentRequest, EvaluateStrategyRequest, MakeDecisionRequest, ExecuteActionRequest interfaces
+
+**2. Unified error response format**
+- Standardized to `{ success: boolean; data?: any; error?: any }` format in:
+  - graph-routes.ts: All responses now use { success, data } format
+  - security-routes.ts: Changed from { code, message, data } to { success, data }
+  - selfhealing-routes.ts: Already used { success, data, error } format
+
+**3. Fixed SelfHealingService memory storage -> PostgreSQL Repository**
+- Created orion-selfhealing-svc/src/repositories/SelfHealingRepository.ts with:
+  - SelfHealingIncidentRepository (CRUD for incidents)
+  - HealingDecisionRepository (CRUD for decisions)
+  - HealingActionRepository (CRUD for actions)
+  - KnowledgeBaseRepository (CRUD for knowledge + search)
+- Refactored SelfHealingService to accept repositories via constructor (dependency injection)
+- Maintains in-memory fallback when no database is provided
+
+**4. Fixed module-level singletons -> Dependency Injection**
+- graph-routes.ts: Now accepts GraphRoutesOptions with graphService parameter
+- pandawiki-routes.ts: Now accepts PandaWikiRoutesOptions with wikiService parameter
+- visor-routes.ts: Now accepts VisorRoutesOptions with visorService parameter
+- selfhealing-routes.ts: Now accepts SelfHealingRoutesOptions with selfHealingService parameter
+
+**All modified files pass TypeScript compilation (tsc --noEmit).**
 
 ---
 
@@ -2148,6 +2205,24 @@ skill, ticket, visor
 
 ### Commit
 - `99d78276` - fix(k8s): resolve P0 security issues for all 34 microservices
+
+---
+
+## Next Steps
+1. Continue closing remaining frontend-backend gaps
+### Fix: k8s cleanup, secret naming consistency, and type safety (2026-05-15)
+1. **Issue #2**: Removed redundant `restartPolicy: Always` from orion-agent-svc/k8s/deployment.yaml (and orion-code-svc already had it too) — Deployment default is Always
+2. **Issue #3**: Unified Secret naming to `orion-{service}-secrets` format across 6 deployment.yaml files:
+   - orion-ai-svc: `orion-secrets` → `orion-ai-secrets`
+   - orion-code-svc: `orion-code-svc-secrets` → `orion-code-secrets`
+   - orion-security-svc: `orion-security-svc-secrets` → `orion-security-secrets`
+   - orion-selfhealing-svc: `orion-db-secret` → `orion-selfhealing-secrets`
+   - orion-skill-svc: `orion-skill-svc-secret` → `orion-skill-secrets`
+   - orion-ai-service: `orion-ai-secret` → `orion-ai-secrets`
+3. **Issue #7**: Replaced `any` type with `Record<string, unknown>` in SelfHealingRepository mapRowTo* methods (mapRowToIncident, mapRowToDecision, mapRowToAction, mapRowToKnowledge) and added proper type assertions. TypeScript compilation passes.
+
+### Commit
+- `9ebf94e3` - fix: remove redundant restartPolicy, unify secret naming, and replace any with Record<string, unknown>
 
 ---
 

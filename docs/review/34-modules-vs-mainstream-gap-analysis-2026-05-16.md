@@ -29,6 +29,49 @@ Orion 已建立起覆盖 CI/CD、监控、安全、FinOps、灾备、ChatOps 等
 2. **最大差距不在功能广度，而在深度**：每个领域都有覆盖，但多数功能处于 CRUD + 占位实现阶段，距离生产级的自动化、智能化差距显著。
 3. **缺少企业级运维能力**：缺乏统一认证（OIDC/LDAP）、多租户隔离验证、审计追踪链、灾备演练自动化等关键生产要素。
 
+### 主流系统对比统计
+
+| Metric | Count | Notes |
+|--------|-------|------|
+| Mainstream systems compared | 24 | 覆盖 CI/CD、监控、安全、制品、IaC、API、事件、成本、CMDB、知识管理 10 大领域 |
+| Feature matrix cells | 61 | 每个 Orion 功能 vs 24 个系统的交叉对比 |
+| Total features evaluated | 148 | 已实现 72 + 部分 10 + 缺失 66 |
+| P0 gaps | 21 | 影响生产就绪的关键差距 |
+| P1 gaps | 34 | 显著影响可用性的重要差距 |
+| P2 optimizations | 29 | 优化机会 |
+| P3 nice-to-haves | 8 | 锦上添花 |
+
+#### 各领域对比的主流系统数量
+
+| Domain | Mainstream Systems Count | Systems |
+|--------|------------------------|---------|
+| CI/CD | 4 | Jenkins, GitLab CI, ArgoCD, GitHub Actions |
+| Monitoring | 4 | Prometheus, Grafana, Datadog, New Relic |
+| Security | 3 | HashiCorp Vault, Snyk, Trivy |
+| Artifact | 3 | Harbor, Nexus, JFrog |
+| IaC | 3 | Terraform, Pulumi, Crossplane |
+| API Management | 3 | Kong, Apigee, Istio |
+| Incident Management | 3 | PagerDuty, Opsgenie, FireHydrant |
+| Cost Management | 3 | CloudHealth, Kubecost, AWS Cost Explorer |
+| CMDB | 2 | ServiceNow CMDB, iTop |
+| Knowledge | 2 | Confluence, PandaWiki |
+| **Total** | **24** (unique) | |
+
+#### Orion 最应重点对比的 Top 10 主流系统
+
+| Rank | System | Domain | 为什么重要 | Orion 最相关服务 |
+|------|--------|--------|-----------|-----------------|
+| 1 | **Jenkins** | CI/CD | 市场份额最大，插件生态最丰富 | pipeline-svc, runner-svc |
+| 2 | **Prometheus** | 监控 | Cloud Native 监控事实标准 | monitor-svc |
+| 3 | **ArgoCD** | CD | GitOps 模式开创者 | deploy-svc |
+| 4 | **HashiCorp Vault** | 安全 | Secret 管理事实标准 | security-svc |
+| 5 | **Grafana** | 可视化 | 监控 Dashboard 事实标准 | monitor-svc |
+| 6 | **Harbor** | 制品 | CNCF 镜像仓库标准 | artifact-svc |
+| 7 | **PagerDuty** | 事件 | 告警升级和 On-Call 标准 | ticket-svc, monitor-svc |
+| 8 | **Terraform** | IaC | 基础设施即代码标准 | platform/iac |
+| 9 | **Kong** | API 网关 | 最流行的开源 API 网关 | api-gateway |
+| 10 | **GitLab CI** | CI/CD | 一体化 DevOps 平台标杆 | pipeline-svc, code-svc |
+
 ---
 
 ## 二、领域逐一比较
@@ -864,6 +907,23 @@ Orion 在**功能广度**上已接近主流系统的 70%——10+ 个领域都�
 5. **制品实际存储**（S3/MinIO blob storage）
 
 建议优先补齐 P0 级别的 21 项差距，其中 `ApprovalGateService` 添加 HTTP 路由是最容易修复的（仅需路由层代码）。
+
+### 主流系统对比 Top 10 重点
+
+Orion 在以下 10 个主流系统领域的差距最值得关注（按优先级排序）:
+
+| 排名 | 系统 | Orion 对应服务 | 最大差距 | 优先补齐 |
+|:----:|------|---------------|----------|----------|
+| 1 | **Jenkins** | pipeline-svc | Runner 沙箱隔离 | P0 |
+| 2 | **Prometheus** | monitor-svc | Service Discovery, Recording Rules | P0 |
+| 3 | **ArgoCD** | deploy-svc | GitOps 声明式同步 | P1 |
+| 4 | **Vault** | security-svc | Secret 管理 + 动态凭证 | P0 |
+| 5 | **Grafana** | monitor-svc | Dashboard 可视化 | P1 |
+| 6 | **Harbor** | artifact-svc | 实际制品存储 + Docker Registry API | P0 |
+| 7 | **PagerDuty** | ticket-svc | Escalation Policy 自动升级 | P0 |
+| 8 | **Terraform** | platform/iac | State 管理 + Plan/Preview | P0 |
+| 9 | **Kong** | api-gateway | OIDC/LDAP 外部身份源 | P0 |
+| 10 | **Alertmanager** | monitor-svc | 告警路由/分组/去重/抑制 | P0 |
 
 ---
 

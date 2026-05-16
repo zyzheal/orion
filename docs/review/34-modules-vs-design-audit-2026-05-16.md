@@ -1,8 +1,8 @@
 # 34 Microservices vs Design Docs Audit Report
 
-**Date**: 2026-05-16
+**Date**: 2026-05-16 (Updated 2026-05-16 v2)
 **Scope**: All 34 microservice directories (`orion-*-svc/`) compared against design documentation in `docs/services/` and `docs/architecture/`
-**Methodology**: Source file enumeration, route extraction, design doc comparison, stub/TODO marker analysis (precise grep count of TODO/FIXME/Not implemented/stub/placeholder patterns in .ts source files, excluding tests and node_modules)
+**Methodology**: Direct reading of all 34 `app.ts`/`main.py` entry points, route file enumeration, design doc comparison, infrastructure analysis (PostgreSQL/K8s/migrations)
 
 ---
 
@@ -14,395 +14,438 @@
 | Services with design docs | 31 | 3 services lack dedicated design docs |
 | Services matching design docs | 12 | Reasonable alignment |
 | Services with significant gaps | 15 | Missing features, outdated docs, or implementation divergence |
-| Services that are thin wrappers | 6 | Proxy services for external backends |
-| Services with 0 migrations | 9 | No database migration scripts |
-| Total TODO/stub markers | 149 | 分布在 17 个服务中，pipeline-svc (30) 最多 |
+| Services that are thin wrappers | 7 | Proxy/gateway services for external backends |
+| Services with PostgreSQL | 25 | 74% have DB pool integration |
+| Services with migrations | 29 | 85% have SQL migration files |
+| Total TODO/stub markers | 149 | Distributed across 17 services |
 | Intelligence service | Python-based | Only non-Node.js service with real source code |
+| Total design documents | ~70+ | Across `docs/services/` and `docs/architecture/` |
+
+### Key Finding: Previous Audit Was Outdated
+
+The 2026-05-15 gaps analysis reported "34 services all lack route files" and "orion-intelligence-svc has no entry point." Both are **incorrect** as of the current codebase:
+- **33/34 services have route files** registered in app.ts (only intelligence-svc uses Python routers)
+- **orion-intelligence-svc** has a working `src/main.py` with 7 Python routers
+
+### Design Documents by Domain
+
+| Domain | Design Doc Count | Services Covered |
+|--------|-----------------|------------------|
+| CI/CD (pipeline, deploy, runner, code, artifact, plugin, approval) | ~15 | 7 services |
+| AI Intelligence (ai, agent, skill, knowledge, intelligence) | ~25 | 5 services |
+| Observability (monitor, selfhealing, config-mgmt, cmdb, dba, visor) | ~15 | 6 services |
+| Security (security, audit, risk) | ~13 | 3 services |
+| Collaboration (ticket, notify, chatops, community, efficiency) | ~8 | 5 services |
+| Advanced (finops, dr, federation, governance, digital-twin) | ~10 | 5 services |
+| Wrappers (inception, pandawiki, graph) | ~5 | 3 services |
+| Missing design docs | N/A | runner-svc, audit-svc, notify-svc, graph-svc, inception-svc, pandawiki-svc, visor-svc, risk-svc |
 
 ---
 
 ## Service-by-Service Comparison
 
-### Tier 2: R&D Efficiency Layer (8 services)
+### Tier 1: Core CI/CD Layer (7 services)
 
 #### 1. orion-pipeline-svc
 - **Source files**: 117 (largest service)
-- **Migrations**: 0 (uses shared DB)
-- **Design docs**: `docs/services/pipeline/01-pipeline-spec.md`, `2026-05-08-pipeline-plugin-system-design.md`
-- **Routes**: pipeline, pipeline-run, pipeline-admin, pipeline-sse, pipeline-template, cache-strategy, scm-webhook
+- **Migrations**: 3 (pipeline-specific)
+- **Design docs**: `docs/services/pipeline/01-pipeline-spec.md`
+- **Routes (7)**: `pipeline.ts`, `pipeline-run.ts`, `pipeline-admin.ts`, `pipeline-sse.ts`, `pipeline-template.ts`, `cache-strategy.ts`, `scm-webhook.ts`
+- **Infrastructure**: PostgreSQL + Redis + NATS + EventBus + PipelineEngine + PipelineRunRepository
+- **Actual API prefixes**: `/api/v1` (all routes mounted here)
 - **Implementation status**:
   - Pipeline CRUD + YAML: Implemented (pipeline.ts)
   - Pipeline Run + Cancel: Implemented (pipeline-run.ts)
   - Pipeline SSE (log streaming): Implemented (pipeline-sse.ts)
-  - Pipeline Templates: Implemented (pipeline-template.ts - 14 endpoints)
-  - Pipeline Version Control: Partially implemented (pipeline-admin.ts has versions/diff/rollback/baseline)
-  - Cache Strategy: Implemented (cache-strategy.ts - 14 endpoints)
+  - Pipeline Templates: Implemented (pipeline-template.ts)
+  - Pipeline Admin: Implemented (pipeline-admin.ts - versions/diff/rollback/baseline)
+  - Cache Strategy: Implemented (cache-strategy.ts)
   - SCM Webhook: Implemented (scm-webhook.ts)
-  - Pipeline Budget: Design doc specifies BudgetConfig/BudgetUsage API, code has PipelineBudgetService.ts but no dedicated budget routes
-  - Dynamic Parameters: Design doc specifies runtime params, code has DynamicParamsResolver.ts but route integration unclear
-- **TODO/stub markers**: 30 (最多)
-- **Discrepancies**:
-  - **Missing in code**: Budget API routes specified in design doc Phase 1
-  - **Missing in code**: runtime_params and dynamic_stages columns in pipeline_runs
-  - **Missing in docs**: Cache strategy routes (14 endpoints) not mentioned in any design doc
-  - **Missing in docs**: Pipeline SSE routes not in 01-pipeline-spec.md
-- **Assessment**: ~85% of design doc Phase 1 features implemented. Budget and dynamic params are the main gaps.
+  - Visual Pipeline Editor: Implemented (layouts CRUD in pipeline.ts)
+  - Run YAML directly: Implemented (POST /pipelines/run-yaml)
+  - Pipeline Budget: **NOT implemented** (design doc Phase 1 Section 3.2)
+  - Dynamic Parameters: **PARTIAL** (DynamicParamsResolver exists but route integration unclear)
+- **TODO/stub markers**: 30 (most of any service)
+- **Discrepancies**: Budget API routes missing; `runtime_params` and `dynamic_stages` columns missing in pipeline_runs
+- **Assessment**: ~85% of Phase 1 design. Most mature service, serves as reference template.
 
 #### 2. orion-deploy-svc
 - **Source files**: 21
 - **Migrations**: 2
 - **Design docs**: `docs/services/deploy/04-deploy-spec.md`, `06-canary-traffic-spec.md`, `06-env-mgmt-spec.md`
-- **Routes**: deploy-routes (12 endpoints), deploy (12 endpoints), environment (4 endpoints)
+- **Routes (3)**: `deploy-routes.ts`, `deploy.ts`, `environment.ts`
+- **Infrastructure**: PostgreSQL, no dedicated database utility (routes handle DB)
+- **Actual API prefix**: `/api/v1`
 - **Implementation status**:
   - SmartDeployService: Implemented
-  - DeploymentWorkflow (blue-green/canary/rolling): Implemented
+  - Blue-green/canary/rolling deployment: Implemented
   - CanaryAnalysisService: Implemented
   - RollbackService: Implemented
   - DeploymentVerifier: Implemented
   - DeploymentStrategyEngine: Implemented
   - Environment management: Implemented
   - K8s deployment: Implemented
-  - Phase 1 gaps (per 04-deploy-spec.md):
-    - Deploy windows management: NOT implemented
-    - Dependency coordination: NOT implemented
-    - Progressive deployment: NOT implemented
-    - Release Notes generation: NOT implemented
+  - **Phase 1 gaps**: Deploy windows, dependency coordination, progressive deploy, release notes
 - **TODO/stub markers**: 20
-- **Assessment**: L3 base implemented well. Phase 1 enhancements (deploy windows, dependency coordination, progressive deploy, release notes) are 0% complete.
+- **Assessment**: L3 base solid. Phase 1 enhancements 0% complete.
 
 #### 3. orion-runner-svc
 - **Source files**: 7
 - **Migrations**: 1
 - **Design docs**: None dedicated
-- **Routes**: runner-routes.ts (execute, health, info, metrics), runner.ts (duplicate)
-- **TODO/stub markers**: 0
-- **Discrepancies**:
-  - No dedicated design doc for runner service
-  - Minimal implementation (7 files, no repository pattern)
-  - Duplicate routes: runner.ts and runner-routes.ts overlap
-- **Assessment**: Lightweight as designed, but lacks formal design doc.
+- **Routes (2)**: `runner-routes.ts`, `runner.ts` (duplicate!)
+- **Infrastructure**: No database; RunnerService with registration + heartbeat to platform
+- **Actual API**: Registered via `runnerRoutes` with `{ runner }` dependency injection
+- **Discrepancies**: Duplicate route files; no formal design doc
+- **Assessment**: Lightweight as designed, needs design doc and route consolidation.
 
 #### 4. orion-code-svc
 - **Source files**: 52
 - **Migrations**: 1
 - **Design docs**: `docs/services/code/` (4 docs)
-- **Routes**: build.ts, code-repo.ts, test-report.ts
-- **Controllers**: 11 controllers
-- **TODO/stub markers**: 4
-- **Assessment**: Well-implemented with 52 source files. Some features exceed design doc scope.
+- **Routes (3)**: `code-repo.ts`, `build.ts`, `test-report.ts`
+- **Infrastructure**: PostgreSQL via `getPool()`, 11 controllers
+- **Actual API prefixes**: `/api/v1/code-repo`, `/api/v1/build`, `/api/v1/test-reports`
+- **Assessment**: ~90% aligned. Well-implemented with 52 source files. Some features exceed doc scope.
 
 #### 5. orion-artifact-svc
 - **Source files**: 27
 - **Migrations**: 1
 - **Design docs**: `docs/services/artifact/` (5 docs)
-- **Routes**: artifact.ts, artifact-routes.ts, artifact-ops.ts, artifact-version.ts
-- **TODO/stub markers**: 2
-- **Assessment**: ~90% aligned with design docs. Good implementation depth.
+- **Routes (4)**: `artifact.ts`, `artifact-routes.ts`, `artifact-ops.ts`, `artifact-version.ts`
+- **Infrastructure**: PostgreSQL via `getPool()`
+- **Actual API prefix**: `/api/v1` (mounted via artifactRoutes)
+- **Assessment**: ~90% aligned. Good implementation depth.
 
 #### 6. orion-plugin-svc
 - **Source files**: 28
 - **Migrations**: 1
-- **Design docs**: `docs/services/plugin/` (6 docs including plugin-framework-design.md)
-- **Routes**: plugin.ts, plugin-routes.ts, plugin-enhanced.ts, plugin-marketplace.ts, plugin-spi.ts
-- **TODO/stub markers**: 2
-- **Discrepancies**:
-  - Design doc header says "目标设计，未实现" (target design, not implemented) but code shows substantial implementation
-  - WASM-based sandbox isolation not implemented (design doc Section 1.1)
-  - gRPC communication protocol not implemented (design doc says "gRPC为主，HTTP为辅")
-- **Assessment**: Design doc is significantly outdated. Implementation exceeds doc in some areas but falls short on WASM sandbox and gRPC.
+- **Design docs**: `docs/services/plugin/` (6 docs)
+- **Routes (5)**: `plugin-spi.ts`, `plugin.ts`, `plugin-enhanced.ts`, `plugin-marketplace.ts`, `plugin-routes.ts`
+- **Infrastructure**: PostgreSQL via `getPool()`
+- **Actual API prefixes**: `/api/v1/plugins-spi`, `/api/v1/plugins`, `/api/v1/plugins-enhanced`, `/api/v1/plugins/marketplace`
+- **Discrepancies**: Design doc header says "未实现" but 28 source files contradict. WASM sandbox and gRPC not implemented.
+- **Assessment**: Design doc is outdated. ~60% aligned.
 
-#### 7. orion-tool-svc
-- **Status**: DOES NOT EXIST as a directory
-- **Design doc**: Referenced in microservice-function-matrix.md as "工具中心"
-- **Gap**: Design doc mentions this service but no orion-tool-svc/ directory exists.
-
-#### 8. orion-approval-svc
-- **Source files**: 23 (including 3 test files)
+#### 7. orion-approval-svc
+- **Source files**: 23
 - **Migrations**: 1
 - **Design docs**: `docs/services/approval/` (2 docs)
-- **Routes**: approval.ts (222 lines), confirmation.ts
-- **TODO/stub markers**: 4
-- **Discrepancies**:
-  - Duplicate service classes: services/ApprovalService.ts and services/approval/ApprovalService.ts
-- **Assessment**: ~80% aligned. Duplicate service files should be cleaned up.
+- **Routes (2)**: `approval.ts`, `confirmation.ts`
+- **Infrastructure**: PostgreSQL via `createDatabasePool()` with explicit config
+- **Actual API prefixes**: `/api/v1/approvals`, `/api/v1/confirmations`
+- **Discrepancies**: Duplicate service classes (`services/ApprovalService.ts` + `services/approval/ApprovalService.ts`)
+- **Assessment**: ~80% aligned. Needs duplicate cleanup.
 
 ---
 
-### Tier 3: AI Intelligence Layer (5 services)
+### Tier 2: AI Intelligence Layer (5 services)
 
-#### 9. orion-intelligence-svc
+#### 8. orion-intelligence-svc
 - **Source files**: 15 Python files
-- **Migrations**: 0 (Python/Alembic based)
+- **Migrations**: 0 (Python/FastAPI, would use Alembic)
 - **Design docs**: `docs/services/intelligence/` (2 docs)
-- **Status**: Python-based microservice
-- **TODO/stub markers**: 0 (in Python files)
-- **Assessment**: Well-implemented Python service. Design docs should be updated to reflect Python/FastAPI architecture.
+- **Routes (7)**: `classify.py`, `summarize.py`, `sentiment.py`, `code_review.py`, `root_cause.py`, `solution.py`, `predict_sla.py`
+- **Infrastructure**: No database; pure API endpoints
+- **Actual API prefixes**: `/api/v1/ai` (all routers mounted here)
+- **Discrepancies**: AI models are placeholder/stub implementations; no actual ML integration
+- **Assessment**: Well-structured Python service. ~50% (framework exists, ML models are stubs).
 
-#### 10. orion-ai-svc
+#### 9. orion-ai-svc
 - **Source files**: 49
 - **Migrations**: 1
 - **Design docs**: `docs/services/ai/` (20+ docs)
-- **Routes**: ai-routes.ts, ai-gateway.ts, ai-decision.ts, ai-review.ts, ai-security.ts, degradation.ts, vector-store.ts, vector.ts, llm-trace.ts
-- **TODO/stub markers**: 6
-- **Discrepancies**:
-  - Missing: SHAP-based decision explanations, model A/B testing, audit log persistence (per 01-ai-decision-spec.md Phase 2)
-  - Code exceeds doc: Prompt injection detection, cost optimization, circuit breaker for providers
-- **Assessment**: ~75% of Phase 2 design targets met. Core AI gateway and vector operations solid.
+- **Routes (8)**: `ai-routes.ts`, `ai-gateway.ts`, `ai-decision.ts`, `ai-review.ts`, `ai-security.ts`, `degradation.ts`, `vector-store.ts`, `vector.ts`, `llm-trace.ts`
+- **Infrastructure**: PostgreSQL via `getPool()`, controllers directory with 3 controllers
+- **Actual API prefixes**: `/api/v1/ai-gateway`, `/api/v1/ai-decision`, `/api/v1/ai-review`, `/api/v1/ai-security`, `/api/v1/vector-store`, `/api/v1/vector`, `/api/v1/llm`, `/api/v1/degradation`
+- **Discrepancies**: Missing SHAP decision explanations, model A/B testing. Code exceeds doc with prompt injection detection, cost optimization, circuit breaker.
+- **Assessment**: ~75% of Phase 2. Core AI gateway and vector operations solid.
 
-#### 11. orion-agent-svc
+#### 10. orion-agent-svc
 - **Source files**: 23
 - **Migrations**: 2
 - **Design docs**: `docs/services/agent/ai-agent-orchestration-design.md`
-- **Routes**: agent.ts (254 lines), task.ts
+- **Routes (2)**: `agent.ts` (254 lines, Zod-validated schemas), `task.ts`
+- **Infrastructure**: **in-memory Map** (not PostgreSQL); agentStore shared between routes via `setAgentStoreRef()`
+- **Actual API prefix**: `/api/v1`
+- **Implemented APIs**: GET/POST /agents, GET /agents/:id, POST /agents/:id/heartbeat, task CRUD
+- **Missing from design doc**: agent-workflows, agent-runs (full), agent-decisions, agent-approvals, agent-templates
+- **Discrepancies**: Design envisions BugFixer/CodeFixer/TestWriter/PRSubmitter multi-agent orchestration. Code only has agent registration + heartbeat.
 - **TODO/stub markers**: 19
-- **Discrepancies**:
-  - Missing: Full multi-agent orchestration framework (design doc envisions BugFixer, CodeFixer, TestWriter, PRSubmitter agents)
-  - Missing: Plugin SPI tool calling integration
-  - Missing: Agent workflow planning engine
-- **Assessment**: ~60% of design doc implemented. Core agent infrastructure exists but orchestration layer is incomplete.
+- **Assessment**: ~60% of design doc. Core agent infrastructure exists; orchestration layer incomplete.
 
-#### 12. orion-skill-svc
+#### 11. orion-skill-svc
 - **Source files**: 11
 - **Migrations**: 1
-- **Design docs**: Referenced in AI docs (skill-marketplace-design.md)
-- **Routes**: skill.ts (151 lines, 11 endpoints)
-- **TODO/stub markers**: 0
-- **Discrepancies**: Missing skill execution engine. No dedicated design doc.
-- **Assessment**: ~70% implemented. Missing skill execution engine.
+- **Design docs**: `docs/services/ai/skill-marketplace-design.md`
+- **Routes (1)**: `skill.ts` (151 lines, 11 endpoints)
+- **Infrastructure**: No database; has middleware (helmet, rate-limit, CORS)
+- **Actual API prefix**: `/api/v1/skills`
+- **Discrepancies**: Missing skill execution engine; no dedicated design doc
+- **Assessment**: ~70%. Missing skill execution engine.
 
-#### 13. orion-knowledge-svc
+#### 12. orion-knowledge-svc
 - **Source files**: 15
 - **Migrations**: 0
 - **Design docs**: `docs/services/knowledge/` (4 docs)
-- **Routes**: knowledge.ts (413 lines), vector.ts, vector-store.ts
-- **TODO/stub markers**: 0
-- **Discrepancies**: RAG问答 implementation is basic. Knowledge indexing not implemented.
-- **Assessment**: ~75% implemented. Vector and knowledge storage solid, RAG capabilities incomplete.
+- **Routes (3)**: `knowledge.ts` (413 lines), `vector.ts`, `vector-store.ts`
+- **Infrastructure**: No direct DB; has k8s + PDB + secret config
+- **Actual API prefix**: No explicit prefix (routes registered directly)
+- **Discrepancies**: RAG implementation basic; knowledge indexing not implemented
+- **Assessment**: ~75%. Vector and knowledge storage solid, RAG capabilities incomplete.
 
 ---
 
-### Tier 4: Observability & Operations Layer (6 services)
+### Tier 3: Observability & Operations Layer (6 services)
 
-#### 14. orion-monitor-svc
+#### 13. orion-monitor-svc
 - **Source files**: 24
 - **Migrations**: 1
 - **Design docs**: `docs/services/monitor/` (8 docs)
-- **Routes**: monitor-routes.ts (477 lines), alerts.ts, monitoring.ts, oncall.ts, selfhealing.ts
+- **Routes**: **No dedicated route files** - all 16 routes registered directly in `app.ts`
+- **Infrastructure**: In-memory services (MonitoringService, AlertService, SelfHealingService, OnCallService, PrometheusService)
+- **Actual routes in app.ts** (16 endpoints):
+  - Monitoring: POST/GET/PUT/DELETE `/api/v1/monitoring/rules`
+  - Alerts: GET `/api/v1/alerts`, POST `/api/v1/alerts/subscribe`, POST `/api/v1/alerts/:id/resolve`, POST `/api/v1/alerts/ingest`
+  - Self-healing: POST `/api/v1/self-healing/policies`, GET `/api/v1/self-healing/policies`, GET `/api/v1/self-healing/runs`, POST `/api/v1/self-healing/trigger`
+  - OnCall: POST/GET/PUT/DELETE `/api/v1/oncall/schedules`, GET `/api/v1/oncall/current`
+- **Discrepancies**: Architecture violates route module separation pattern. All services use in-memory storage (no PostgreSQL). Missing custom alert rules, RCA, alert silences.
 - **TODO/stub markers**: 17
-- **Discrepancies**:
-  - Missing: Custom alert rules, RCA reports, alert silences, notification channels (per 03-observability-spec.md Phase 2)
-  - OnCall scheduling integrated here (also has separate design doc)
-- **Assessment**: Base monitoring solid. Phase 2 enhancements are 0% complete.
+- **Assessment**: ~50%. Functional but architecturally inconsistent.
 
-#### 15. orion-selfhealing-svc
+#### 14. orion-selfhealing-svc
 - **Source files**: 8
 - **Migrations**: 0
-- **Design docs**: `docs/services/selfhealing/` (4 docs including 01-chaos-engineering-spec.md)
-- **Routes**: selfhealing-routes.ts (247 lines), selfhealing.ts (duplicate)
+- **Design docs**: `docs/services/selfhealing/` (4 docs)
+- **Routes (2)**: `selfhealing-routes.ts` (247 lines), `selfhealing.ts` (duplicate!)
+- **Infrastructure**: No database; has config + errorHandler
+- **Actual API prefix**: `/api/v1`
+- **Discrepancies**: Phase 3 chaos engineering (fault injection, resilience scoring, experiment management) 0% implemented
 - **TODO/stub markers**: 3
-- **Discrepancies**:
-  - Missing: All Phase 3 chaos engineering features (fault injection, resilience scoring, experiment management)
-  - Duplicate routes: selfhealing.ts and selfhealing-routes.ts overlap
-- **Assessment**: ~70% of basic self-healing implemented. Phase 3 chaos engineering is 0% complete.
+- **Assessment**: ~70% basic self-healing. Phase 3 chaos 0% complete.
 
-#### 16. orion-config-mgmt-svc
+#### 15. orion-config-mgmt-svc
 - **Source files**: 9
 - **Migrations**: 0
 - **Design docs**: `docs/services/config-mgmt/` (3 docs)
-- **Routes**: config-mgmt.ts (16 endpoints)
+- **Routes (1)**: `config-mgmt.ts` (16 endpoints)
+- **Infrastructure**: PostgreSQL via `getPool()`, passed as `database` to routes
+- **Actual API prefix**: `/api/v1`
+- **Discrepancies**: GitOps implementation and drift detection engine are shallow
 - **TODO/stub markers**: 2
-- **Discrepancies**: Full GitOps implementation and drift detection engine are shallow. No database migration.
-- **Assessment**: ~80% implemented for core config management. GitOps and drift detection need deeper implementation.
+- **Assessment**: ~80% core config management. GitOps/drift need deeper implementation.
 
-#### 17. orion-cmdb-svc
+#### 16. orion-cmdb-svc
 - **Source files**: 8
 - **Migrations**: 2
-- **Design docs**: `docs/services/cmdb/` (3 docs)
-- **Routes**: cmdb.ts (12 endpoints)
-- **TODO/stub markers**: 0
-- **Assessment**: ~90% aligned. Small service but well-implemented.
+- **Design docs**: `docs/services/cmdb/CMDB模块设计.md` (very comprehensive)
+- **Routes (1)**: `cmdb.ts` (191 lines, 12 endpoints)
+- **Infrastructure**: PostgreSQL via Pool (inline in route file)
+- **Actual API prefix**: `/api/v1` (routes at `/cmdb/nodes`, `/cmdb/applications`, `/cmdb/topology`, `/cmdb/reconciliation`, `/cmdb/events`)
+- **Implemented APIs**: nodes CRUD, applications list/get, topology get, reconciliation post/get, events post
+- **Missing from design doc**: Terminal management (WebSocket), file management (Monaco Editor), script management (batch execution), tag management, batch operations, server import/export
+- **Assessment**: ~40%. Design doc defines Orion Visor-level full-featured CMDB. Only basic CRUD implemented.
 
-#### 18. orion-dba-svc
+#### 17. orion-dba-svc
 - **Source files**: 6
 - **Migrations**: 0
 - **Design docs**: `docs/services/dba/` (5 docs)
-- **Routes**: dba.ts (17 endpoints)
-- **TODO/stub markers**: 0
-- **Discrepancies**: Wrapper service for Yearning. Advanced features (distributed transactions, sharding) not implemented.
-- **Assessment**: ~60% of design doc features. Core SQL order workflow implemented.
+- **Routes (1)**: `dba.ts` (17 endpoints)
+- **Infrastructure**: No database; **proxy to Yearning** backend (`process.env.YEARNING_URL`)
+- **Actual API prefix**: `/api/v1/dba`
+- **Discrepancies**: Advanced features from design doc (distributed transactions, SQL audit, sharding/sync) not implemented. Acts as proxy gateway.
+- **Assessment**: ~40%. Wrapper service, design doc needs re-scoping.
 
-#### 19. orion-visor-svc
+#### 18. orion-visor-svc
 - **Source files**: 6
 - **Migrations**: 1
-- **Design docs**: Referenced in architecture docs
-- **Routes**: visor-routes.ts (21 endpoints)
-- **TODO/stub markers**: 0
-- **Assessment**: ~80% implemented. No dedicated design doc.
+- **Design docs**: Referenced in architecture docs only
+- **Routes (1)**: `visor-routes.ts` (21 endpoints)
+- **Infrastructure**: No database; **proxy to Visor** backend (`process.env.VISOR_URL`)
+- **Actual API prefix**: `/api/v1/visor`
+- **Discrepancies**: No dedicated design doc; proxy architecture
+- **Assessment**: ~80% as wrapper service.
 
 ---
 
-### Tier 5: Security & Compliance Layer (3 services)
+### Tier 4: Security & Compliance Layer (3 services)
 
-#### 20. orion-security-svc
+#### 19. orion-security-svc
 - **Source files**: 41
 - **Migrations**: 1
 - **Design docs**: `docs/services/security/` (11 docs)
-- **Routes**: security-routes.ts, sbom.ts, policy.ts, quality-gate.ts, risk.ts, supply-chain.ts
+- **Routes (5)**: `security-routes.ts`, `sbom.ts`, `policy.ts`, `quality-gate.ts`, `risk.ts`, `supply-chain.ts`
+- **Infrastructure**: PostgreSQL via `getPool()`, EventBus injected
+- **Actual API prefixes**: `/api/v1/risk`, `/api/v1/sbom`, `/api/v1/supply-chain`, `/api/v1/policies`, `/api/v1/quality-gates`, plus `/dashboard` and `/status` in security-routes.ts
+- **Discrepancies**: Prompt injection protection is in ai-svc instead. Quality gate dashboard returns mock data (TODO).
 - **TODO/stub markers**: 5
-- **Discrepancies**: Prompt injection protection is in ai-svc instead. JWT protection not found.
-- **Assessment**: ~85% aligned. Well-implemented security service.
+- **Assessment**: ~75%. Well-structured, but dashboard aggregation not implemented.
 
-#### 21. orion-audit-svc
+#### 20. orion-audit-svc
 - **Source files**: 15
 - **Migrations**: 1
 - **Design docs**: No dedicated design doc
-- **Routes**: audit.ts, compliance.ts
-- **TODO/stub markers**: 0
-- **Discrepancies**: No dedicated audit service design doc. Audit log archival missing.
-- **Assessment**: ~70% implemented.
+- **Routes (2)**: `audit.ts`, `compliance.ts`
+- **Infrastructure**: No database; has helmet + rate-limit + requestLogger middleware
+- **Actual API prefix**: `/api/v1/audit`, `/api/v1` (compliance)
+- **Health**: `/healthz`
+- **Discrepancies**: No dedicated design doc. Audit log archival missing.
+- **Assessment**: ~70%.
 
-#### 22. orion-risk-svc
+#### 21. orion-risk-svc
 - **Source files**: 9
 - **Migrations**: 2
 - **Design docs**: `docs/services/security/risk-assessment-design.md`
-- **Routes**: risk.ts (209 lines, 11 endpoints)
-- **TODO/stub markers**: 0
-- **Discrepancies**: RiskAssessmentService also exists in security-svc - potential duplication.
-- **Assessment**: ~80% aligned. Overlap with security-svc needs clarification.
+- **Routes (1)**: `risk.ts` (209 lines, 11 endpoints)
+- **Infrastructure**: PostgreSQL via `initializeDatabase()` (graceful fallback if DB fails)
+- **Actual API prefix**: `/api/v1`
+- **Discrepancies**: RiskAssessmentService also exists in security-svc - potential duplication
+- **Assessment**: ~80%. Overlap with security-svc needs clarification.
 
 ---
 
-### Tier 6: Operations & Collaboration Layer (5 services)
+### Tier 5: Operations & Collaboration Layer (5 services)
 
-#### 23. orion-ticket-svc
+#### 22. orion-ticket-svc
 - **Source files**: 35
 - **Migrations**: 0
 - **Design docs**: `docs/services/ticket/` (2 docs)
-- **Routes**: ticket.ts (stub), ticket-full.ts (413 lines), bi.ts, dispatch.ts, sla.ts
+- **Routes (5)**: `ticket-full.ts` (413 lines), `ticket.ts` (stub!), `bi.ts`, `dispatch.ts`, `sla.ts`
+- **Infrastructure**: No database; has error-handler utility
+- **Actual API prefix**: `/api/v1`
+- **Discrepancies**: `ticket.ts` is a stub while `ticket-full.ts` has full implementation. Onboarding design features not implemented.
 - **TODO/stub markers**: 7
-- **Discrepancies**:
-  - Duplicate routes: ticket.ts (stub) and ticket-full.ts (full implementation)
-  - Onboarding design features not implemented
-- **Assessment**: ~75% implemented. Stub ticket.ts should be removed.
+- **Assessment**: ~75%. Stub ticket.ts should be removed.
 
-#### 24. orion-notify-svc
+#### 23. orion-notify-svc
 - **Source files**: 17
 - **Migrations**: 2
-- **Design docs**: webhook-management-design.md in docs/services/
-- **Routes**: notification.ts, webhook.ts
-- **TODO/stub markers**: 0
-- **Assessment**: ~70% implemented. No dedicated notify-svc design doc.
+- **Design docs**: `docs/services/webhook-management-design.md`
+- **Routes (2)**: `notification.ts`, `webhook.ts`
+- **Infrastructure**: No database; has helmet + rate-limit + requestLogger middleware
+- **Actual API prefixes**: `/api/v1/notifications`, `/api/v1/webhooks`
+- **Health**: `/healthz`
+- **Discrepancies**: No dedicated notify-svc design doc
+- **Assessment**: ~70%.
 
-#### 25. orion-chatops-svc
-- **Source files**: 210 (second largest service)
+#### 24. orion-chatops-svc
+- **Source files**: 210 (second largest)
 - **Migrations**: 1
 - **Design docs**: `docs/services/chatops/` (3 docs)
-- **Routes**: chatops.ts (448 lines)
+- **Routes (1)**: `chatops.ts` (448 lines)
+- **Infrastructure**: PostgreSQL via `pool`, graceful shutdown with pool.end()
+- **Actual API prefix**: `/api/v1`
+- **CRITICAL**: 96 repository files duplicating other services (AgentProfileRepository, AlertRuleRepository, ArtifactRepository, BudgetRepository, etc.)
 - **TODO/stub markers**: 13
-- **Discrepancies**:
-  - **CRITICAL**: chatops-svc has 70+ repository files duplicating other services' repositories (AgentProfileRepository, AlertRuleRepository, ArtifactRepository, BudgetRepository, etc.)
-  - NATS/JetStream integration not mentioned in design docs
-- **Assessment**: ~60% aligned. Major architectural concern with duplicated repositories.
+- **Assessment**: ~60%. Major architectural concern with duplicated repositories.
 
-#### 26. orion-community-svc
+#### 25. orion-community-svc
 - **Source files**: 14
 - **Migrations**: 0
 - **Design docs**: `docs/services/community/` (2 docs)
-- **Routes**: community.ts (96 lines), community-routes.ts, community-advanced.ts
-- **TODO/stub markers**: 0
-- **Assessment**: ~50% implemented. Ecosystem features incomplete.
+- **Routes (2)**: `community.ts` (96 lines), `community-advanced.ts`
+- **Infrastructure**: PostgreSQL via `checkHealth()`, `closePool()`
+- **Actual API prefixes**: `/api/v1/community`, `/api/v1/community-advanced`
+- **Assessment**: ~50%. Ecosystem features incomplete.
 
-#### 27. orion-efficiency-svc
+#### 26. orion-efficiency-svc
 - **Source files**: 21
 - **Migrations**: 1
-- **Design docs**: `docs/services/efficiency/` (3 docs including 06-efficiency-operations-spec.md)
-- **Routes**: efficiency-routes.ts, efficiency.ts, efficiency-enhanced.ts
+- **Design docs**: `docs/services/efficiency/` (3 docs)
+- **Routes (3)**: `efficiency-routes.ts`, `efficiency.ts`, `efficiency-enhanced.ts`
+- **Infrastructure**: PostgreSQL via `getPool()`, passed as `database` to routes
+- **Actual API prefix**: `/api/v1/efficiency`
+- **Discrepancies**: Developer profiles, DORA drill-down, contribution evaluation, bottleneck analysis all missing (Phase 2). Dashboard returns mock data.
 - **TODO/stub markers**: 7
-- **Discrepancies**:
-  - Missing: Developer profiles, DORA drill-down, contribution evaluation, bottleneck analysis (all Phase 2 targets)
-  - Missing: Database tables (developer_profiles, developer_metrics, developer_activities, efficiency_snapshots)
-  - EfficiencyDashboardService returns sample/mock data
-- **Assessment**: ~40% of Phase 2 design targets met. Developer profiles and bottleneck analysis completely missing.
+- **Assessment**: ~40% of Phase 2. Lowest completion rate among implemented services.
 
 ---
 
-### Tier 7: Advanced Features Layer (5 services)
+### Tier 6: Advanced Features Layer (5 services)
 
-#### 28. orion-finops-svc
+#### 27. orion-finops-svc
 - **Source files**: 26
 - **Migrations**: 0
-- **Design docs**: `docs/services/finops/` (3 docs including 04-cost-operations-spec.md)
-- **Routes**: finops-routes.ts, cost.ts, cost-operations.ts, finops-v2.ts
-- **TODO/stub markers**: 0
-- **Discrepancies**:
-  - Missing: Budget gate, cost anomaly detection, deployment cost correlation, optimization execution (all Phase 2 targets)
-  - Missing: Database tables (finops_gate_policies, finops_cost_anomalies, etc.)
-  - No migration files despite extensive repository usage
-- **Assessment**: ~50% of Phase 2 design targets met. Core FinOps features solid.
+- **Design docs**: `docs/services/finops/` (3 docs)
+- **Routes (4)**: `finops-routes.ts`, `cost.ts`, `cost-operations.ts`, `finops-v2.ts`
+- **Infrastructure**: PostgreSQL via `getPool()`, passed as `database`
+- **Actual API prefixes**: `/api/v1/cost`, `/api/v1/finops`, `/api/v1/cost-operations`
+- **Discrepancies**: Budget gate, cost anomaly detection, deployment cost correlation all missing (Phase 2). No migration files despite PostgreSQL usage.
+- **Assessment**: ~50% of Phase 2. Core FinOps solid.
 
-#### 29. orion-dr-svc
+#### 28. orion-dr-svc
 - **Source files**: 24
 - **Migrations**: 0
 - **Design docs**: `docs/services/dr/` (3 docs)
-- **Routes**: disaster-recovery.ts (42 lines), disaster-recovery-advanced.ts, backup.ts
+- **Routes (3)**: `backup.ts`, `disaster-recovery.ts`, `disaster-recovery-advanced.ts`
+- **Infrastructure**: PostgreSQL via `getPool()`, passed as `database`
+- **Actual API prefixes**: `/api/v1/backup`, `/api/v1/disaster-recovery`, `/api/v1/disaster-recovery/advanced`
+- **Discrepancies**: DR drill management and RPO/RTO tracking not implemented
 - **TODO/stub markers**: 6
-- **Discrepancies**: DR drill management and explicit RPO/RTO tracking not implemented. No migration files.
-- **Assessment**: ~70% implemented. Backup/restore is solid.
+- **Assessment**: ~70%. Backup/restore solid, DR drill missing.
 
-#### 30. orion-federation-svc
+#### 29. orion-federation-svc
 - **Source files**: 22
 - **Migrations**: 2
 - **Design docs**: `docs/services/federation/` (5 docs)
-- **Routes**: federation.ts (37 lines), federation-advanced.ts, multi-cloud.ts, multi-cloud-advanced.ts
-- **TODO/stub markers**: 0
-- **Discrepancies**: Cross-domain orchestration and multi-cloud auto-discovery not implemented.
-- **Assessment**: ~65% implemented. Core federation works.
+- **Routes (4)**: `federation.ts` (37 lines), `federation-advanced.ts`, `multi-cloud.ts`, `multi-cloud-advanced.ts`
+- **Infrastructure**: PostgreSQL via `getPool()` (some routes get database, some don't)
+- **Actual API prefixes**: `/api/v1/federation`, `/api/v1/federation-advanced`, `/api/v1/multi-cloud`, `/api/v1/multi-cloud-advanced`
+- **Discrepancies**: Cross-domain orchestration and multi-cloud auto-discovery not implemented
+- **Assessment**: ~65%. Core federation works.
 
-#### 31. orion-governance-svc
+#### 30. orion-governance-svc
 - **Source files**: 14
 - **Migrations**: 1
 - **Design docs**: `docs/services/governance/` (2 docs)
-- **Routes**: governance.ts (29 lines, 11 endpoints via controller)
-- **TODO/stub markers**: 0
+- **Routes (1)**: `governance.ts` (29 lines, 11 endpoints via controller)
+- **Infrastructure**: No database; has helmet + rate-limit + requestLogger
+- **Actual API prefix**: `/api/v1/api-governance`
 - **Discrepancies**: OPA policy engine integration missing. Policy enforcement middleware missing.
-- **Assessment**: ~60% implemented.
+- **Assessment**: ~60%.
 
-#### 32. orion-digital-twin-svc
+#### 31. orion-digital-twin-svc
 - **Source files**: 8
 - **Migrations**: 1
 - **Design docs**: `docs/services/digital-twin/01-digital-twin-spec.md`
-- **Routes**: digital-twin.ts (140+ lines, 20+ endpoints)
-- **TODO/stub markers**: 0
-- **Discrepancies**: Predictive analysis and environment simulation not implemented. Recording/playback exceeds design doc.
-- **Assessment**: ~70% implemented.
+- **Routes (1)**: `digital-twin.ts` (169 lines, 20+ endpoints)
+- **Infrastructure**: No database; DigitalTwinService in-memory
+- **Actual API prefix**: `/api/v1/digital-twins`
+- **Implemented APIs**: twin CRUD, snapshots, sandbox CRUD, traffic recording/playback (start/stop/pause/list), replay sessions
+- **Discrepancies**: Predictive analysis and environment simulation not implemented. Recording/playback exceeds design doc scope.
+- **Assessment**: ~70%.
 
 ---
 
-### Tier 8: External Service Wrappers (5 services)
+### Tier 7: External Service Wrappers (3 services)
 
-#### 33. orion-inception-svc
+#### 32. orion-inception-svc
 - **Source files**: 7
 - **Migrations**: 0
-- **Routes**: inception.ts (37 lines, 5 endpoints), inception-routes.ts
-- **TODO/stub markers**: 2
-- **Assessment**: ~80% implemented as expected for wrapper service.
+- **Routes (2)**: `inception.ts` (37 lines, 5 endpoints), `inception-routes.ts`
+- **Infrastructure**: No database; config validation for INCEPTION_PASSWORD
+- **Actual API prefix**: `/api/v1/inception`
+- **Assessment**: ~80% as wrapper. Password validation shows production awareness.
 
-#### 34. orion-pandawiki-svc
+#### 33. orion-pandawiki-svc
 - **Source files**: 7
 - **Migrations**: 1
-- **Routes**: pandawiki.ts, pandawiki-routes.ts (duplicate!)
-- **TODO/stub markers**: 0
-- **Discrepancies**: Duplicate route files with identical endpoints.
-- **Assessment**: ~80% implemented. Duplicate route files should be consolidated.
+- **Routes (2)**: `pandawiki.ts`, `pandawiki-routes.ts` (duplicate!)
+- **Infrastructure**: No database; config-based
+- **Actual API**: Registered without explicit prefix (graphRoutes pattern)
+- **Discrepancies**: Duplicate route files with identical endpoints
+- **Assessment**: ~80%. Duplicate route files should be consolidated.
 
-#### 35. orion-graph-svc
+#### 34. orion-graph-svc
 - **Source files**: 6
 - **Migrations**: 1
-- **Routes**: graph-routes.ts (80 lines, 6 endpoints)
-- **TODO/stub markers**: 0
-- **Assessment**: ~80% implemented as expected for wrapper service.
-
-*(orion-dba-svc and orion-visor-svc already covered in Tier 4)*
+- **Design docs**: None dedicated (referenced in AI docs)
+- **Routes (1)**: `graph-routes.ts` (80 lines, 6 endpoints)
+- **Infrastructure**: Neo4j (GraphService), config validation for NEO4J_PASSWORD
+- **Actual API**: `/api/v1/graph/query`, `/api/v1/graph/path`, `/api/v1/graph/topology`, `/api/v1/graph/nodes`, `/api/v1/graph/relationships`
+- **Health**: `/healthz`
+- **Discrepancies**: Missing PageRank updates, GNN features from AI design docs
+- **Assessment**: ~60%. Core Neo4j operations solid, advanced features missing.
 
 ---
 
@@ -410,42 +453,42 @@
 
 ### Implementation Completeness
 
-| Service | Files | Migrations | Design Alignment | Notes |
-|---------|-------|------------|-----------------|-------|
-| pipeline-svc | 117 | 0 | 85% | Budget + dynamic params missing |
-| deploy-svc | 21 | 2 | 70% | Phase 1 features 0% |
-| runner-svc | 7 | 1 | N/A | No design doc |
-| code-svc | 52 | 1 | 90% | Exceeds docs |
-| artifact-svc | 27 | 1 | 90% | Well aligned |
-| plugin-svc | 28 | 1 | 60% | Doc outdated |
-| approval-svc | 23 | 1 | 80% | Duplicate services |
-| intelligence-svc | 15 py | 0 | 75% | Python, needs doc |
-| ai-svc | 49 | 1 | 75% | Decision explanation incomplete |
-| agent-svc | 23 | 2 | 60% | Orchestration incomplete |
-| skill-svc | 11 | 1 | 70% | Missing execution engine |
-| knowledge-svc | 15 | 0 | 75% | RAG incomplete |
-| monitor-svc | 24 | 1 | 60% | Phase 2 0% |
-| selfhealing-svc | 8 | 0 | 70% | Phase 3 0% |
-| config-mgmt-svc | 9 | 0 | 80% | GitOps shallow |
-| cmdb-svc | 8 | 2 | 90% | Well aligned |
-| dba-svc | 6 | 0 | 60% | Advanced features missing |
-| visor-svc | 6 | 1 | 80% | No design doc |
-| security-svc | 41 | 1 | 85% | Well implemented |
-| audit-svc | 15 | 1 | 70% | No design doc |
-| risk-svc | 9 | 2 | 80% | Overlaps security-svc |
-| ticket-svc | 35 | 0 | 75% | Duplicate routes |
-| notify-svc | 17 | 2 | 70% | No design doc |
-| chatops-svc | 210 | 1 | 60% | 70+ dup repos |
-| community-svc | 14 | 0 | 50% | Ecosystem missing |
-| efficiency-svc | 21 | 1 | 40% | Phase 2 ~40% |
-| finops-svc | 26 | 0 | 50% | Phase 2 ~50% |
-| dr-svc | 24 | 0 | 70% | DR drill missing |
-| federation-svc | 22 | 2 | 65% | Cross-domain missing |
-| governance-svc | 14 | 1 | 60% | OPA engine missing |
-| digital-twin-svc | 8 | 1 | 70% | Predictive missing |
-| inception-svc | 7 | 0 | 80% | Wrapper |
-| pandawiki-svc | 7 | 1 | 80% | Duplicate routes |
-| graph-svc | 6 | 1 | 80% | Wrapper |
+| Service | Files | Routes | DB | Design Alignment | Notes |
+|---------|-------|--------|----|-----------------|-------|
+| pipeline-svc | 117 | 7 | PG+Redis+NATS | 85% | Budget + dynamic params missing |
+| deploy-svc | 21 | 3 | PG (2 migrations) | 70% | Phase 1 features 0% |
+| runner-svc | 7 | 2 | None | N/A | No design doc, duplicate routes |
+| code-svc | 52 | 3 | PG | 90% | Exceeds docs |
+| artifact-svc | 27 | 4 | PG | 90% | Well aligned |
+| plugin-svc | 28 | 5 | PG | 60% | Doc outdated |
+| approval-svc | 23 | 2 | PG | 80% | Duplicate services |
+| intelligence-svc | 15 py | 7 | None | 50% | Python, ML stubs |
+| ai-svc | 49 | 8 | PG | 75% | Decision explanation incomplete |
+| agent-svc | 23 | 2 | Map (in-memory) | 60% | Orchestration incomplete |
+| skill-svc | 11 | 1 | None | 70% | Missing execution engine |
+| knowledge-svc | 15 | 3 | None | 75% | RAG incomplete |
+| monitor-svc | 24 | 0 (in app.ts) | In-memory | 50% | Architectural inconsistency |
+| selfhealing-svc | 8 | 2 | None | 70% | Phase 3 0% |
+| config-mgmt-svc | 9 | 1 | PG | 80% | GitOps shallow |
+| cmdb-svc | 8 | 1 | PG (2 migrations) | 40% | Only basic CRUD vs comprehensive design |
+| dba-svc | 6 | 1 | Proxy | 40% | Yearning proxy |
+| visor-svc | 6 | 1 | Proxy | 80% | Visor proxy |
+| security-svc | 41 | 5 | PG | 75% | Dashboard mock data |
+| audit-svc | 15 | 2 | None | 70% | No design doc |
+| risk-svc | 9 | 1 | PG (2 migrations) | 80% | Overlaps security-svc |
+| ticket-svc | 35 | 5 | None | 75% | Stub + full duplicate |
+| notify-svc | 17 | 2 | None | 70% | No design doc |
+| chatops-svc | 210 | 1 | PG | 60% | 70+ dup repos |
+| community-svc | 14 | 2 | PG | 50% | Ecosystem missing |
+| efficiency-svc | 21 | 3 | PG | 40% | Phase 2 ~40% |
+| finops-svc | 26 | 4 | PG | 50% | Phase 2 ~50% |
+| dr-svc | 24 | 3 | PG | 70% | DR drill missing |
+| federation-svc | 22 | 4 | PG (2 migrations) | 65% | Cross-domain missing |
+| governance-svc | 14 | 1 | None | 60% | OPA engine missing |
+| digital-twin-svc | 8 | 1 | In-memory | 70% | Predictive missing |
+| inception-svc | 7 | 2 | None | 80% | Wrapper |
+| pandawiki-svc | 7 | 2 | None | 80% | Duplicate routes |
+| graph-svc | 6 | 1 | Neo4j | 60% | Advanced features missing |
 
 ### TODO/Stub Markers Breakdown (149 total)
 
@@ -488,12 +531,12 @@
 | Dimension | Score | Notes |
 |-----------|-------|-------|
 | Core services (pipeline, deploy, code, artifact) | 80% | Strong foundation, Phase 1 gaps |
-| AI services (ai, agent, intelligence, skill, knowledge) | 70% | Good infrastructure, orchestration incomplete |
-| Observability (monitor, selfhealing, config, cmdb) | 65% | Base solid, Phase 2/3 missing |
-| Security (security, audit, risk) | 78% | Well-implemented, some overlap |
+| AI services (ai, agent, intelligence, skill, knowledge) | 62% | Infrastructure solid, orchestration/ML incomplete |
+| Observability (monitor, selfhealing, config, cmdb, dba, visor) | 55% | Base varies, monitor architecturally inconsistent |
+| Security (security, audit, risk) | 75% | Well-implemented, some overlap |
 | Collaboration (ticket, notify, chatops, community) | 63% | Core present, ecosystem lacking |
 | Advanced (finops, dr, federation, governance, digital-twin) | 59% | Lowest tier, Phase 2+ not started |
-| Wrappers (inception, pandawiki, graph, dba, visor) | 80% | Appropriately minimal |
+| Wrappers (inception, pandawiki, graph) | 80% | Appropriately minimal |
 
 ---
 
@@ -502,20 +545,25 @@
 ### 1. Architectural Issues
 
 **CRITICAL: chatops-svc repository duplication**
-- orion-chatops-svc contains 70+ repository files that mirror repositories from other services
-- Examples: AgentProfileRepository, AlertRuleRepository, ArtifactRepository, BudgetRepository, CronJobRepository, EnvironmentRepository, FederationRepository, etc.
+- orion-chatops-svc contains 96 repository files that mirror repositories from other services
+- Examples: AgentProfileRepository, AlertRuleRepository, ArtifactRepository, BudgetRepository, CronJobRepository, EnvironmentRepository, etc.
 - This violates service boundary principles
 - **Recommendation**: Remove duplicated repositories; use inter-service communication (NATS/gRPC)
 
+**CRITICAL: monitor-svc routes in app.ts**
+- All 16 routes registered directly in `app.ts` instead of separate route modules
+- All services (MonitoringService, AlertService, SelfHealingService, OnCallService) use in-memory storage
+- **Recommendation**: Extract to route modules, migrate to PostgreSQL
+
 **MODERATE: Duplicate route files across multiple services**
-- ticket-svc: ticket.ts (stub) + ticket-full.ts (full)
-- pandawiki-svc: pandawiki.ts + pandawiki-routes.ts (identical)
-- selfhealing-svc: selfhealing.ts + selfhealing-routes.ts (overlapping)
-- runner-svc: runner.ts + runner-routes.ts (overlapping)
+- ticket-svc: `ticket.ts` (stub) + `ticket-full.ts` (full)
+- pandawiki-svc: `pandawiki.ts` + `pandawiki-routes.ts` (identical)
+- selfhealing-svc: `selfhealing.ts` + `selfhealing-routes.ts` (overlapping)
+- runner-svc: `runner.ts` + `runner-routes.ts` (overlapping)
 - **Recommendation**: Consolidate duplicate route files
 
 **MODERATE: Duplicate service classes**
-- approval-svc: services/ApprovalService.ts + services/approval/ApprovalService.ts
+- approval-svc: `services/ApprovalService.ts` + `services/approval/ApprovalService.ts`
 - **Recommendation**: Consolidate into single location
 
 ### 2. Missing Design Docs
@@ -527,61 +575,59 @@
 - orion-inception-svc
 - orion-pandawiki-svc
 - orion-visor-svc
-- orion-tool-svc (does not exist as directory)
+- orion-risk-svc
 
 ### 3. Outdated Design Docs
 
-- **plugin-framework-design.md**: Header says "未实现" but 28 source files contradict this
+- **plugin-framework-design.md**: Header says "未实现" but 28 source files contradict
 - **deploy 04-deploy-spec.md**: References DeployController but code uses multiple route files
 - **ai 01-ai-decision-spec.md**: Does not cover LLM trace, cost optimization, or circuit breaker features
+- **CMDB模块设计.md**: Defines comprehensive Visor-level CMDB; only 40% implemented
 
 ### 4. Implementation Gaps (Design Doc Features Not in Code)
 
 | Service | Missing Feature | Design Doc |
 |---------|----------------|------------|
 | pipeline-svc | Budget API routes | 01-pipeline-spec.md Section 3.2 |
-| deploy-svc | Deploy windows, dependency coordination, progressive deploy, release notes | 04-deploy-spec.md Sections 3.1-3.5 |
-| monitor-svc | Custom alert rules, RCA, alert silences, notification channels | 03-observability-spec.md Sections 3.1-3.4 |
-| selfhealing-svc | Chaos engineering | 01-chaos-engineering-spec.md |
-| efficiency-svc | Developer profiles, DORA drill-down, contribution evaluation, bottleneck analysis | 06-efficiency-operations-spec.md Sections 3.1-3.4 |
-| finops-svc | Budget gate, cost anomaly detection, deployment cost correlation | 04-cost-operations-spec.md Sections 3.1-3.3 |
-| ai-svc | SHAP decision explanation, model A/B testing, audit log persistence | 01-ai-decision-spec.md Sections 2.1-2.2 |
+| deploy-svc | Deploy windows, dependency coordination, progressive deploy, release notes | 04-deploy-spec.md |
+| monitor-svc | Custom alert rules, RCA, alert silences, notification channels | 03-observability-spec.md |
+| selfhealing-svc | Chaos engineering (Phase 3) | 01-chaos-engineering-spec.md |
+| efficiency-svc | Developer profiles, DORA drill-down, bottleneck analysis | 06-efficiency-operations-spec.md |
+| finops-svc | Budget gate, cost anomaly detection, deployment cost correlation | 04-cost-operations-spec.md |
+| ai-svc | SHAP decision explanation, model A/B testing | 01-ai-decision-spec.md |
 | agent-svc | Multi-agent orchestration, Plugin SPI tool calling | ai-agent-orchestration-design.md |
+| cmdb-svc | Terminal, file, script management (Orion Visor features) | CMDB模块设计.md |
 | governance-svc | OPA policy engine | opa-policy-engine-design.md |
 | federation-svc | Cross-domain orchestration | 13-cross-domain-orchestration-spec.md |
 
-### 5. Code Without Design Docs
+### 5. Code Without Design Docs (Features Exceed Documentation)
 
 | Service | Feature | Evidence |
 |---------|---------|----------|
-| pipeline-svc | Cache strategy (14 endpoints) | cache-strategy.ts |
-| pipeline-svc | Pipeline SSE | pipeline-sse.ts |
-| ai-svc | LLM trace cost tracking | llm-trace.ts, CostCalculator.ts |
-| ai-svc | Prompt injection detection | PromptInjectionDetector.ts |
+| pipeline-svc | Cache strategy (14 endpoints), Pipeline SSE, Visual Editor | cache-strategy.ts, pipeline-sse.ts |
+| ai-svc | LLM trace cost tracking, prompt injection detection | llm-trace.ts, CostCalculator.ts |
 | code-svc | K8s-based build | K8sBuildExecutor.ts |
-| deploy-svc | K8s deployment routes | deploy.ts /deploy/k8s |
 | chatops-svc | NATS/JetStream integration | jetstream-manager.ts |
 | dr-svc | Backup scheduler + storage | BackupScheduler.ts, BackupStorage.ts |
 | digital-twin-svc | Recording/playback (20+ endpoints) | digital-twin.ts |
-| security-svc | PageRank risk scoring | PageRankService.ts |
-| security-svc | SBOM waiver management | SbomWaiverService.ts |
+| security-svc | PageRank risk scoring, SBOM waiver | PageRankService.ts, SbomWaiverService.ts |
 | finops-svc | Cost event publishing | CostEventPublisher.ts |
-| monitor-svc | OnCall scheduling | oncall.ts |
-| monitor-svc | Self-healing routes | selfhealing.ts |
+| monitor-svc | OnCall scheduling, self-healing | self-healing routes in app.ts |
 
 ### 6. Services With Zero Migrations
 
-- orion-pipeline-svc (uses shared platform DB)
 - orion-selfhealing-svc
 - orion-ticket-svc
 - orion-config-mgmt-svc
 - orion-finops-svc
 - orion-dr-svc
 - orion-knowledge-svc
-- orion-runner-svc (likely in-memory only)
+- orion-runner-svc
 - orion-community-svc
+- orion-inception-svc
+- orion-intelligence-svc (Python, would use Alembic)
 
-These may rely on the platform service database or have not had migrations extracted yet.
+These rely on the platform service database, in-memory storage, or have not had migrations extracted yet.
 
 ---
 
@@ -589,35 +635,38 @@ These may rely on the platform service database or have not had migrations extra
 
 ### Immediate (P0)
 
-1. **Fix chatops-svc repository duplication** - Remove 70+ duplicated repository files
-2. **Consolidate duplicate route files** in ticket-svc, pandawiki-svc, selfhealing-svc, runner-svc
-3. **Update plugin-framework-design.md** - Remove "未实现" header
-4. **Create design doc for orion-tool-svc** or formally remove from architecture
+1. **Fix chatops-svc repository duplication** - Remove 96 duplicated repository files
+2. **Fix monitor-svc architecture** - Extract routes from app.ts to separate modules, migrate to PostgreSQL
+3. **Consolidate duplicate route files** in ticket-svc, pandawiki-svc, selfhealing-svc, runner-svc
+4. **Update plugin-framework-design.md** - Remove "未实现" header
+5. **Re-scope CMDB design doc** - Split into phases, mark Visor features as future work
 
 ### Short-term (P1)
 
-5. **Update outdated design docs**: deploy 04-deploy-spec.md, ai 01-ai-decision-spec.md
-6. **Create missing design docs** for: runner-svc, audit-svc, notify-svc, graph-svc, inception-svc, pandawiki-svc, visor-svc
-7. **Consolidate duplicate service classes** in approval-svc
-8. **Clarify risk-svc vs security-svc** boundary
+6. **Update outdated design docs**: deploy 04-deploy-spec.md, ai 01-ai-decision-spec.md
+7. **Create missing design docs** for: runner-svc, audit-svc, notify-svc, graph-svc, inception-svc, pandawiki-svc, visor-svc, risk-svc
+8. **Consolidate duplicate service classes** in approval-svc
+9. **Clarify risk-svc vs security-svc** boundary
+10. **Create migration files** for services with zero migrations but active PostgreSQL usage
 
 ### Medium-term (P2)
 
-9. **Implement Phase 1 pipeline features**: Budget API, dynamic params
-10. **Implement Phase 2 efficiency features**: Developer profiles, DORA drill-down
-11. **Implement Phase 2 finops features**: Budget gate, cost anomaly detection
-12. **Implement Phase 2 monitor features**: Custom alert rules, RCA, alert silences
-13. **Implement Phase 1 deploy features**: Deploy windows, dependency coordination
-14. **Create migration files** for services with zero migrations but active PostgreSQL usage
+11. **Implement Phase 1 pipeline features**: Budget API, dynamic params
+12. **Implement Phase 2 efficiency features**: Developer profiles, DORA drill-down
+13. **Implement Phase 2 finops features**: Budget gate, cost anomaly detection
+14. **Implement Phase 2 monitor features**: Custom alert rules, RCA, alert silences
+15. **Implement Phase 1 deploy features**: Deploy windows, dependency coordination
+16. **Migrate agent-svc from in-memory to PostgreSQL**
 
 ### Long-term (P3)
 
-15. **Implement Phase 3 selfhealing**: Chaos engineering
-16. **Implement Phase 2 AI features**: Decision explanation with SHAP, model A/B testing
-17. **Implement agent orchestration**: Multi-agent collaboration framework
-18. **Implement OPA policy engine** for governance-svc
+17. **Implement Phase 3 selfhealing**: Chaos engineering
+18. **Implement Phase 2 AI features**: SHAP decision explanation, model A/B testing
+19. **Implement agent orchestration**: Multi-agent collaboration framework
+20. **Implement OPA policy engine** for governance-svc
+21. **Implement actual ML models** in orion-intelligence-svc
 
 ---
 
-*Report generated: 2026-05-16*
-*Based on analysis of 34 microservice directories, 70+ design documents, and 855 TypeScript source files*
+*Report generated: 2026-05-16 (v2)*
+*Based on direct reading of 34 app.ts/main.py entry points, 79 route files, 70+ design documents, and 855 TypeScript source files*
