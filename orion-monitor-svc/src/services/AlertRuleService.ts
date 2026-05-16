@@ -145,7 +145,10 @@ export class AlertRuleService {
         break;
       case 'anomaly':
         // Anomaly: value deviates more than 50% from the baseline (threshold)
-        triggered = Math.abs(sample.value - rule.threshold) > rule.threshold * 0.5;
+        // If threshold is 0, any non-zero value is anomalous
+        triggered = rule.threshold === 0
+          ? sample.value !== 0
+          : Math.abs(sample.value - rule.threshold) > Math.abs(rule.threshold) * 0.5;
         break;
     }
 

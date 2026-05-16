@@ -130,22 +130,18 @@ export class DependencyCoordinationService {
    * 获取依赖图
    */
   async getDependencyGraph(): Promise<DependencyGraph> {
-    const nodes: string[] = [];
+    const nodes = new Set<string>();
     const edges: { from: string; to: string }[] = [];
 
     for (const [pipelineId, dep] of this.dependencies) {
-      if (!nodes.includes(pipelineId)) {
-        nodes.push(pipelineId);
-      }
+      nodes.add(pipelineId);
       for (const parentId of dep.dependsOn) {
-        if (!nodes.includes(parentId)) {
-          nodes.push(parentId);
-        }
+        nodes.add(parentId);
         edges.push({ from: parentId, to: pipelineId });
       }
     }
 
-    return { nodes, edges };
+    return { nodes: Array.from(nodes), edges };
   }
 
   /**
@@ -167,8 +163,12 @@ export class DependencyCoordinationService {
           if (!visited.has(parentId)) {
             dfs(parentId, [...path, parentId]);
           } else if (recStack.has(parentId)) {
-            // 发现循环
-            cycles.push([...path.slice(path.indexOf(parentId)), parentId]);
+            const startIdx = path.indexOf(parentId);
+            if (startIdx >= 0) {
+              cycles.push([...path.slice(startIdx), parentId]);
+            } else {
+              cycles.push([parentId]);
+            }
           }
         }
       }

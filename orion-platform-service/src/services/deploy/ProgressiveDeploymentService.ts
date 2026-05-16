@@ -119,6 +119,18 @@ export class ProgressiveDeploymentService {
       return status;
     }
 
+    // Check minimum interval between increments
+    if (status.lastIncrementAt && config.incrementIntervalSeconds) {
+      const elapsed = (Date.now() - status.lastIncrementAt.getTime()) / 1000;
+      if (elapsed < config.incrementIntervalSeconds) {
+        const remaining = Math.ceil(config.incrementIntervalSeconds - elapsed);
+        throw new ProgressiveDeploymentServiceError(
+          `Must wait ${remaining}s before next traffic increment`,
+          'INCREMENT_COOLDOWN'
+        );
+      }
+    }
+
     const newPercent = Math.min(
       status.currentTrafficPercent + config.incrementPercent,
       status.targetTrafficPercent

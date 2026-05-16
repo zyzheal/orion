@@ -1,7 +1,7 @@
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import { promisify } from 'util';
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 /** Mapping of Conventional Commit types to section titles */
 const SECTION_MAP: Record<string, string> = {
@@ -79,11 +79,9 @@ export class ReleaseNotesService {
   async execGitLog(fromRef: string, toRef: string, cwd: string): Promise<string> {
     const range = `${fromRef}..${toRef}`;
     const format = '%H|%s|%an|%ad';
-    const command = `git log "${range}" --format="${format}" --date=short`;
-
     try {
-      const { stdout } = await execAsync(command, { cwd });
-      return stdout.trim();
+      const { stdout } = await execFileAsync('git', ['log', range, `--format=${format}`, '--date=short'], { cwd });
+      return (stdout as string).trim();
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
       throw new Error(`Git log command failed: ${message}`);
@@ -102,7 +100,8 @@ export class ReleaseNotesService {
       .split('\n')
       .filter(Boolean)
       .map((line) => {
-        const [hash, subject, author, date] = line.split('|');
+        const parts = line.split('|', 4);
+        const [hash, subject, author, date] = parts;
         const { type, description } = this.parseSubject(subject || '');
         return {
           hash: hash || '',

@@ -236,35 +236,35 @@ describe('RootCauseAnalysisService', () => {
 
   describe('suggestFixes', () => {
     it('provides fixes for infrastructure root cause', async () => {
-      const fixes = await svc.suggestFixes('rc-1');
+      const fixes = await svc.suggestFixes({ type: 'infrastructure', description: '' });
 
       expect(fixes.length).toBeGreaterThan(0);
       expect(fixes.some((f) => f.toLowerCase().includes('cpu') || f.toLowerCase().includes('scale'))).toBe(true);
     });
 
     it('provides fixes for application root cause', async () => {
-      const fixes = await svc.suggestFixes('rc-2');
+      const fixes = await svc.suggestFixes({ type: 'application', description: '' });
 
       expect(fixes.length).toBeGreaterThan(0);
       expect(fixes.some((f) => f.toLowerCase().includes('circuit'))).toBe(true);
     });
 
     it('provides fixes for configuration root cause', async () => {
-      const fixes = await svc.suggestFixes('rc-3');
+      const fixes = await svc.suggestFixes({ type: 'configuration', description: '' });
 
       expect(fixes.length).toBeGreaterThan(0);
       expect(fixes.some((f) => f.toLowerCase().includes('configuration') || f.toLowerCase().includes('rollback'))).toBe(true);
     });
 
     it('provides default fixes for unknown root cause', async () => {
-      const fixes = await svc.suggestFixes('rc-unknown');
+      const fixes = await svc.suggestFixes({ type: 'unknown', description: '' });
 
       expect(fixes.length).toBeGreaterThan(0);
       expect(fixes.some((f) => f.toLowerCase().includes('manual'))).toBe(true);
     });
 
-    it('provides default fixes for non-existent root cause ID', async () => {
-      const fixes = await svc.suggestFixes('non-existent-id');
+    it('provides default fixes for non-existent root cause type', async () => {
+      const fixes = await svc.suggestFixes({ type: 'non-existent', description: '' });
 
       expect(fixes.length).toBeGreaterThan(0);
       expect(fixes.some((f) => f.toLowerCase().includes('manual') || f.toLowerCase().includes('diagnostic'))).toBe(true);

@@ -357,6 +357,7 @@ describe('NotificationChannelService', () => {
       mockRepo.findAll.mockResolvedValue([channel]);
 
       const result = await service.sendNotification({
+        tenantId: 'tenant-1',
         channelType: 'email',
         config: {},
         subject: 'Test',
@@ -384,6 +385,7 @@ describe('NotificationChannelService', () => {
       mockRepo.findAll.mockResolvedValue([channel]);
 
       const result = await service.sendNotification({
+        tenantId: 'tenant-1',
         channelType: 'slack',
         config: {},
         subject: 'Test',
@@ -410,6 +412,7 @@ describe('NotificationChannelService', () => {
       mockRepo.findAll.mockResolvedValue([channel]);
 
       const result = await service.sendNotification({
+        tenantId: 'tenant-1',
         channelType: 'webhook',
         config: {},
         subject: 'Test',
@@ -436,6 +439,7 @@ describe('NotificationChannelService', () => {
       mockRepo.findAll.mockResolvedValue([channel]);
 
       const result = await service.sendNotification({
+        tenantId: 'tenant-1',
         channelType: 'sms',
         config: {},
         subject: 'Test',
@@ -462,6 +466,7 @@ describe('NotificationChannelService', () => {
       mockRepo.findAll.mockResolvedValue([channel]);
 
       const result = await service.sendNotification({
+        tenantId: 'tenant-1',
         channelType: 'pagerduty',
         config: {},
         subject: 'Test',
@@ -477,6 +482,7 @@ describe('NotificationChannelService', () => {
       mockRepo.findAll.mockResolvedValue([]);
 
       const result = await service.sendNotification({
+        tenantId: 'tenant-1',
         channelType: 'email',
         config: {},
         subject: 'Test',
@@ -503,6 +509,7 @@ describe('NotificationChannelService', () => {
       mockRepo.findAll.mockResolvedValue([channel]);
 
       const result = await service.sendNotification({
+        tenantId: 'tenant-1',
         channelType: 'email',
         config: {},
         subject: 'Test',
@@ -520,6 +527,7 @@ describe('NotificationChannelService', () => {
       mockRepo.findAll.mockResolvedValue([]);
 
       const result = await service.sendNotification({
+        tenantId: 'tenant-1',
         channelType: 'fax',
         config: {},
         subject: 'Test',
@@ -550,6 +558,7 @@ describe('NotificationChannelService', () => {
 
       // 'fax' type has no matching channel, so findChannelByType returns null
       const result = await service.sendNotification({
+        tenantId: 'tenant-1',
         channelType: 'fax',
         config: {},
         subject: 'Test',

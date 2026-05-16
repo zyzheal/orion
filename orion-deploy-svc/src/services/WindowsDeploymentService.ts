@@ -42,7 +42,7 @@ services:
     ports:
       - "${port}:${port}"
     restart: ${restartPolicy || 'always'}
-    environment:${Object.entries(envVars).map(([k, v]) => `\n      - ${k}="${v.replace(/"/g, '\\"')}"`).join('')}
+    environment:${Object.entries(envVars).map(([k, v]) => `\n      - ${k}='${v.replace(/'/g, "''")}'`).join('')}
 ${healthCheckPath ? `    healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:${port}${healthCheckPath}"]
       interval: 30s
@@ -80,7 +80,7 @@ ${dockerCompose}
 
 $tempFile = [System.IO.Path]::GetTempFileName() + ".yml"
 $dockerCompose | Set-Content -Path $tempFile
-docker compose -f $tempFile -p $ServiceName up -d
+${replicas > 1 ? `docker compose -f $tempFile -p $ServiceName up -d --scale $ServiceName=${replicas}` : `docker compose -f $tempFile -p $ServiceName up -d`}
 
 if ($LASTEXITCODE -eq 0) {
     Write-Host "Deployment successful!" -ForegroundColor Green

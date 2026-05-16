@@ -77,6 +77,7 @@ export async function notificationChannelRoutes(app: FastifyInstance) {
   app.post('/send', async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as any;
     const result = await channelService.sendNotification({
+      tenantId: body.tenantId ?? '',
       channelType: body.channelType,
       config: body.config ?? {},
       subject: body.subject,

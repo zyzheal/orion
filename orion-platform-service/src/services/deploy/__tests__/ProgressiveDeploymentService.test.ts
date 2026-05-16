@@ -120,15 +120,16 @@ describe('ProgressiveDeploymentService', () => {
     });
 
     it('should increment through multiple phases', async () => {
-      await service.startProgressiveDeploy('deploy-001', DEFAULT_CONFIG);
+      const noIntervalConfig = { ...DEFAULT_CONFIG, incrementIntervalSeconds: undefined as any };
+      await service.startProgressiveDeploy('deploy-001', noIntervalConfig);
 
       // First increment: 10 -> 20
-      let status = await service.incrementTraffic('deploy-001', DEFAULT_CONFIG);
+      let status = await service.incrementTraffic('deploy-001', noIntervalConfig);
       expect(status!.currentTrafficPercent).toBe(20);
       expect(status!.phase).toBe('progressing');
 
       // Second increment: 20 -> 30
-      status = await service.incrementTraffic('deploy-001', DEFAULT_CONFIG);
+      status = await service.incrementTraffic('deploy-001', noIntervalConfig);
       expect(status!.currentTrafficPercent).toBe(30);
       expect(status!.phase).toBe('progressing');
     });

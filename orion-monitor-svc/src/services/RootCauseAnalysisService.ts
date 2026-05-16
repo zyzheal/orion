@@ -1,3 +1,5 @@
+import crypto from 'crypto';
+
 /**
  * Root Cause Analysis Service
  *
@@ -188,7 +190,7 @@ export class RootCauseAnalysisService {
         .map((a) => a.id);
 
       rootCauses.push({
-        id: 'rc-1',
+        id: `rc-${crypto.randomUUID()}`,
         type: 'infrastructure',
         confidence: 0.85,
         description: 'Insufficient compute resources led to resource exhaustion',
@@ -212,7 +214,7 @@ export class RootCauseAnalysisService {
         .map((a) => a.id);
 
       rootCauses.push({
-        id: 'rc-2',
+        id: `rc-${crypto.randomUUID()}`,
         type: 'application',
         confidence: 0.72,
         description: 'Service failure propagated to dependent components',
@@ -233,7 +235,7 @@ export class RootCauseAnalysisService {
         .map((a) => a.id);
 
       rootCauses.push({
-        id: 'rc-3',
+        id: `rc-${crypto.randomUUID()}`,
         type: 'configuration',
         confidence: 0.78,
         description: 'Configuration change led to system instability',
@@ -250,7 +252,7 @@ export class RootCauseAnalysisService {
     // If no patterns matched, add unknown root cause
     if (rootCauses.length === 0 && alerts.length > 0) {
       rootCauses.push({
-        id: 'rc-unknown',
+        id: `rc-${crypto.randomUUID()}`,
         type: 'unknown',
         confidence: 0.3,
         description: 'Unable to determine root cause from available data',
@@ -285,27 +287,27 @@ export class RootCauseAnalysisService {
   /**
    * Suggest fixes for a specific root cause.
    */
-  async suggestFixes(rootCauseId: string): Promise<string[]> {
+  async suggestFixes(rootCause: { type: string; description: string }): Promise<string[]> {
     const fixes: Record<string, string[]> = {
-      'rc-1': [
+      infrastructure: [
         'Increase CPU allocation',
         'Add auto-scaling policy',
         'Optimize application resource consumption',
         'Add resource monitoring alerts',
       ],
-      'rc-2': [
+      application: [
         'Add circuit breaker pattern',
         'Implement retry logic with exponential backoff',
         'Add health checks for dependencies',
         'Implement bulkhead pattern',
       ],
-      'rc-3': [
+      configuration: [
         'Review recent configuration changes',
         'Rollback to previous stable configuration',
         'Add configuration validation',
         'Implement configuration versioning',
       ],
-      'rc-unknown': [
+      unknown: [
         'Manual investigation required',
         'Collect additional diagnostic data',
         'Review system logs',
@@ -313,7 +315,7 @@ export class RootCauseAnalysisService {
       ],
     };
 
-    return fixes[rootCauseId] || [
+    return fixes[rootCause.type] || [
       'Manual investigation required',
       'Collect additional diagnostic data',
     ];

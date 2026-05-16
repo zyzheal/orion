@@ -1,6 +1,7 @@
 import { NotificationChannelRepository, NotificationChannel } from './NotificationChannelRepository';
 
 export interface NotificationPayload {
+  tenantId: string;
   channelType: string;
   config: Record<string, unknown>;
   subject: string;
@@ -51,7 +52,7 @@ export class NotificationChannelService {
   }
 
   async sendNotification(payload: NotificationPayload): Promise<NotificationResult> {
-    const channel = await this.findChannelByType(payload.channelType);
+    const channel = await this.findChannelByType(payload.tenantId, payload.channelType);
     if (!channel || !channel.enabled) {
       return {
         success: false,
@@ -111,8 +112,8 @@ export class NotificationChannelService {
     return { valid: errors.length === 0, errors };
   }
 
-  private async findChannelByType(type: string): Promise<NotificationChannel | null> {
-    const channels = await this.repo.findAll('', false);
+  private async findChannelByType(tenantId: string, type: string): Promise<NotificationChannel | null> {
+    const channels = await this.repo.findAll(tenantId, false);
     return channels.find((c) => c.type === type) || null;
   }
 

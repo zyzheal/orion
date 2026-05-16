@@ -139,7 +139,7 @@ describe('WindowsDeploymentService', () => {
       expect(script).toContain('compose-test:');
       expect(script).toContain('image: test:1.0');
       expect(script).toContain('"9090:9090"');
-      expect(script).toContain('- FOO="bar"');
+      expect(script).toContain("- FOO='bar'");
     });
 
     it('includes generated timestamp in the script', async () => {
