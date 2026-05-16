@@ -58,6 +58,9 @@ import { escalationScheduler } from '../services/escalation/EscalationScheduler'
 import { registerSecretRoutes } from './secret-routes';
 import { registerApkUploadHistoryRoutes } from './apk-upload-history-routes';
 import branchPolicyRoutes from './branch-policy-routes';
+import { PipelineBudgetService } from '../services/PipelineBudgetService';
+import { PipelineBudgetRepository } from '../repositories/PipelineBudgetRepository';
+import { registerBudgetRoutes } from './pipeline-budget-routes';
 
 import pino from 'pino';
 import { ModuleManager } from '../services/module-lifecycle/ModuleManager';
@@ -500,6 +503,13 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // ==================== APK Upload History ====================
   await registerApkUploadHistoryRoutes(app);
+
+  // ==================== Pipeline Budget Management ====================
+  if (options.database) {
+    const pipelineBudgetRepo = new PipelineBudgetRepository(options.database);
+    const pipelineBudgetService = new PipelineBudgetService(pipelineBudgetRepo);
+    registerBudgetRoutes(app, pipelineBudgetService);
+  }
 
   // ==================== Runner Management ====================
   // Runner Agent 注册、心跳、Job 回报（Runner Agent 通信无需 JWT）
