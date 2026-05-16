@@ -18,8 +18,15 @@ import {
   RiskEventRepository,
   RiskScoreRepository,
 } from '../repositories/RiskRepository.js';
+import { RiskAssessmentService } from './RiskAssessmentService.js';
 
 export class RiskService {
+  private assessmentService: RiskAssessmentService;
+
+  constructor() {
+    this.assessmentService = new RiskAssessmentService();
+  }
+
   /**
    * 创建风险评估
    * @param data - 风险评估数据
@@ -51,12 +58,62 @@ export class RiskService {
   async getRiskScore(entityType: string, entityId: string): Promise<RiskScore | null> {
     const score = await RiskScoreRepository.findByEntity(entityType, entityId);
 
-    // 如果没有现成评分，基于最近的风险事件动态计算
+    // 如果没有现成评分，执行真实风险评估
     if (!score) {
-      return this.calculateRiskScore(entityType, entityId);
+      try {
+        const result = await this.assessmentService.assessRisk({
+          entityType,
+          entityId,
+          tenantId: '',
+        });
+        return result.riskScore;
+      } catch {
+        // 如果评估失败，回退到基于事件的方法
+        return this.calculateRiskScore(entityType, entityId);
+      }
     }
 
     return score;
+  }
+
+  /**
+   * 执行完整的风险评估并返回详细结果
+   * @param entityType - 实体类型
+   * @param entityId - 实体 ID
+   * @param tenantId - 租户 ID
+   * @returns 完整的风险评估结果
+   */
+  async performRiskAssessment(
+    entityType: string,
+    entityId: string,
+    tenantId: string
+  ): Promise<{
+    riskScore: RiskScore;
+    factors: Array<{ name: string; category: string; value: number; maxValue: number; weight: number; description: string }>;
+    recommendations: string[];
+    trend: 'increasing' | 'stable' | 'decreasing';
+    previousScore?: number;
+  }> {
+    return this.assessmentService.assessRisk({
+      entityType,
+      entityId,
+      tenantId,
+    });
+  }
+
+  /**
+   * 获取风险趋势
+   * @param entityType - 实体类型
+   * @param entityId - 实体 ID
+   * @param days - 查询天数
+   * @returns 风险趋势数据
+   */
+  async getRiskTrend(
+    entityType: string,
+    entityId: string,
+    days: number = 30
+  ): Promise<{ date: string; score: number; level: RiskLevel }[]> {
+    return this.assessmentService.getRiskTrend(entityType, entityId, days);
   }
 
   /**
@@ -66,7 +123,13 @@ export class RiskService {
     // 找到该实体最近的评估
     const assessments = await AssessmentRepository.findMany({ entityType, entityId });
     if (assessments.items.length === 0) {
-      return null;
+      // 尝试使用默认评估
+      try {
+        const result = await this.assessmentService.assessWithDefaults(entityType, entityId, '');
+        return result.riskScore;
+      } catch {
+        return null;
+      }
     }
 
     // 收集所有事件
@@ -77,7 +140,13 @@ export class RiskService {
     }
 
     if (allEvents.length === 0) {
-      return null;
+      // 没有事件，使用默认评估
+      try {
+        const result = await this.assessmentService.assessWithDefaults(entityType, entityId, '');
+        return result.riskScore;
+      } catch {
+        return null;
+      }
     }
 
     // 按类别汇总
