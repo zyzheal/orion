@@ -58,4 +58,21 @@ export async function alertsRoutes(
     }
     return reply.send(alert);
   });
+
+  // Ingest alert from monitoring engine
+  fastify.post('/api/v1/alerts/ingest', async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = request.body as Record<string, unknown>;
+    const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+    const projectId = (request.headers['x-project-id'] as string) || 'default';
+    const alert = await alertService.createAlert(tenantId, projectId, 'system', {
+      ruleId: (body.ruleId as string) || 'manual',
+      ruleName: (body.ruleName as string) || 'Manual Alert',
+      severity: (body.severity as any) || 'high',
+      currentValue: (body.currentValue as number) || 0,
+      threshold: (body.threshold as number) || 0,
+      message: (body.message as string) || 'Alert ingested',
+    });
+    await alertService.notifySubscribers(alert);
+    return reply.code(201).send(alert);
+  });
 }
