@@ -29,6 +29,7 @@ import {
 import StatusBadge from '@/components/StatusBadge';
 import CardPanel from '@/components/CardPanel';
 import { DAGGraph } from '@/components/DAGGraph';
+import PipelineErrorDetail from '@/components/pipeline/PipelineErrorDetail';
 import { getPipelineRun, retryPipelineRun } from '@/api/pipelines';
 import { retryFromStage } from '@/api/pipelineRuns';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -276,6 +277,16 @@ const PipelineDetail: React.FC = () => {
     }
   };
 
+  // Handle reload from error detail retry
+  const handleReloadPipeline = async () => {
+    try {
+      const response = await getPipelineRun(id!);
+      setPipeline(response.data.data);
+    } catch {
+      // Silent reload failure — the error detail component handles its own retry
+    }
+  };
+
   // Handle retry from a specific stage
   const handleRetryFromStage = (stageId: string, stageName: string) => {
     Modal.confirm({
@@ -431,6 +442,11 @@ const PipelineDetail: React.FC = () => {
           </Descriptions.Item>
         </Descriptions>
       </CardPanel>
+
+      {/* Structured error detail for failed pipelines */}
+      {pipeline && pipeline.status === 'failed' && id && (
+        <PipelineErrorDetail runId={id} onRetry={handleReloadPipeline} />
+      )}
 
       {/* Tabbed content: Stages / Logs */}
       <Tabs activeKey={activeTab} onChange={setActiveTab} style={{ marginBottom: 16 }}>

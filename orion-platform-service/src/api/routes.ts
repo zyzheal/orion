@@ -80,6 +80,7 @@ import hookChainRoutes from './hook-chain-routes';
 import performanceRoutes from './performance-routes';
 import { registerPipelineGraphRoutes } from './pipeline-graph-routes';
 import pipelineSSERoutes from './pipeline-sse-routes';
+import pipelineErrorDetailRoutes from './pipeline-error-detail-routes';
 import pipelineTemplateRoutes from './pipeline-template-routes';
 import pipelineVersionRoutes from './pipeline-version-routes';
 import pluginHotReloadRoutes from './plugin-hotreload-routes';
@@ -638,6 +639,11 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // Pipeline SSE - real-time log streaming
   await app.register(pipelineSSERoutes, { prefix: '/v1', pipelineLogSSE });
+
+  // Pipeline Error Detail - structured error classification for failed runs
+  await registerWithRoleGuard(app, pipelineErrorDetailRoutes, '/v1/pipelines', {
+    database: options.database,
+  });
 
   // Pipeline Templates
   await registerWithRoleGuard(app, pipelineTemplateRoutes, '/v1/pipeline-templates', {

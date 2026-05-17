@@ -202,3 +202,39 @@ export function listArtifacts(params?: { runId?: string; stageId?: string }) {
 export function deleteArtifact(artifactId: string) {
   return api.delete(`/v1/artifacts/${artifactId}`);
 }
+
+// ---- Pipeline Error Detail ----
+
+export interface PipelineErrorDetailResponse {
+  errorType:
+    | 'compilation_error'
+    | 'test_failure'
+    | 'deployment_failure'
+    | 'infrastructure_error'
+    | 'timeout_error'
+    | 'configuration_error'
+    | 'unknown_error';
+  severity: 'critical' | 'warning' | 'info';
+  humanReadableMessage: string;
+  suggestedFix: string[];
+  rawError: string;
+  stageName: string;
+  timestamp: string;
+  classification?: {
+    type: string;
+    shouldRetry: boolean;
+    retryStrategy: string;
+    confidence: number;
+    reasoning: string;
+  };
+}
+
+/**
+ * Get structured error detail for a failed pipeline run.
+ * Maps to GET /v1/pipelines/:runId/error-detail
+ */
+export function getPipelineErrorDetail(runId: string) {
+  return api.get<{ data: PipelineErrorDetailResponse }>(
+    `/v1/pipelines/${runId}/error-detail`
+  );
+}
