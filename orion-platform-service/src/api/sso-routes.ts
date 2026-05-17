@@ -30,7 +30,7 @@ class RedisSsoStateStore implements SsoStateStore {
     return this.redis.get(key);
   }
   async del(key: string): Promise<void> {
-    await this.redis.del(key);
+    await this.redis.delete(key);
   }
 }
 

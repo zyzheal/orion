@@ -200,7 +200,7 @@ export default async function auditRoutes(
       return reply.send({
         result: {
           valid: result.valid,
-          verifiedCount: result.valid ? 1 : 0,
+          totalVerified: result.totalVerified ?? 0,
           breaks: result.valid ? [] : [{
             breakType: 'HASH_MISMATCH' as const,
             description: `Chain broken at ${result.brokenAt?.toISOString()}`,

@@ -110,16 +110,74 @@ export class AuditRepository {
     return result.rows[0]?.hash || null;
   }
 
-  async verifyChain(tenantId: string): Promise<{ valid: boolean; brokenAt?: Date }> {
-    const logs = await this.findAll({ tenantId, limit: 1000 });
-    
-    for (let i = 0; i < logs.length - 1; i++) {
-      if (logs[i].prev_hash !== logs[i + 1].hash) {
-        return { valid: false, brokenAt: logs[i].created_at };
+  async verifyChain(tenantId: string): Promise<{ valid: boolean; brokenAt?: Date; totalVerified?: number }> {
+    // Use cursor-based pagination to verify the FULL chain without memory limits
+    // Fetch records in ASC order (oldest first) for correct chain verification
+    const PAGE_SIZE = 5000;
+    let lastId: string | null = null;
+    let allLogs: AuditLog[] = [];
+    let hasMore = true;
+
+    while (hasMore) {
+      let query = `SELECT * FROM audit_logs WHERE tenant_id = $1`;
+      const params: any[] = [tenantId];
+
+      if (lastId) {
+        query += ` AND (created_at, id) > (SELECT created_at, id FROM audit_logs WHERE id = $${params.length + 1})`;
+        params.push(lastId);
+      }
+
+      query += ` ORDER BY created_at ASC, id ASC LIMIT $${params.length + 1}`;
+      params.push(PAGE_SIZE);
+
+      const result = await this.pool.query(query, params);
+      const page = result.rows;
+
+      if (page.length === 0) {
+        hasMore = false;
+      } else {
+        allLogs = allLogs.concat(page);
+        lastId = page[page.length - 1].id;
+        if (page.length < PAGE_SIZE) {
+          hasMore = false;
+        }
       }
     }
-    
-    return { valid: true };
+
+    // Verify chain: oldest first, each entry's prev_hash should match the previous entry's hash
+    for (let i = 1; i < allLogs.length; i++) {
+      // Recompute hash for entry[i-1] to verify it hasn't been tampered
+      const crypto = await import('crypto');
+      const prevEntry = allLogs[i - 1];
+      const prevData = JSON.stringify({
+        tenant_id: prevEntry.tenant_id,
+        user_id: prevEntry.user_id,
+        action: prevEntry.action,
+        resource_type: prevEntry.resource_type,
+        resource_id: prevEntry.resource_id,
+        request_method: prevEntry.request_method,
+        request_path: prevEntry.request_path,
+        request_body: prevEntry.request_body,
+        response_code: prevEntry.response_code,
+        response_body: prevEntry.response_body,
+        ip_address: prevEntry.ip_address,
+        user_agent: prevEntry.user_agent,
+        timestamp: prevEntry.created_at.toISOString(),
+      });
+      const expectedHash = crypto.createHash('sha256').update(prevData + (prevEntry.prev_hash || '')).digest('hex');
+
+      // Check if the stored hash matches the recomputed hash
+      if (prevEntry.hash !== expectedHash) {
+        return { valid: false, brokenAt: prevEntry.created_at, totalVerified: i };
+      }
+
+      // Check chain continuity: current entry's prev_hash should match previous entry's hash
+      if (allLogs[i].prev_hash !== prevEntry.hash) {
+        return { valid: false, brokenAt: allLogs[i].created_at, totalVerified: i };
+      }
+    }
+
+    return { valid: true, totalVerified: allLogs.length };
   }
 
   async getActions(tenantId: string): Promise<string[]> {

@@ -62,7 +62,7 @@ export class AuditService {
     return this.repository.create(input, prevHash || undefined);
   }
 
-  async verifyChain(tenantId: string): Promise<{ valid: boolean; brokenAt?: Date }> {
+  async verifyChain(tenantId: string): Promise<{ valid: boolean; brokenAt?: Date; totalVerified?: number }> {
     return this.repository.verifyChain(tenantId);
   }
 
