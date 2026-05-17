@@ -3,29 +3,18 @@ import type {
   OnCallDuty,
   CreateScheduleInput,
 } from '../types/monitor.js';
-
-/**
- * In-memory store (stub — replace with database in production).
- */
-const schedules: Map<string, OnCallSchedule> = new Map();
+import { OnCallRepository } from '../repositories/OnCallRepository.js';
 
 export class OnCallService {
-  /**
-   * Create an on-call schedule.
-   */
+  constructor(private repo: OnCallRepository) {}
+
   async createSchedule(
     tenantId: string,
     projectId: string,
     createdBy: string,
     input: CreateScheduleInput,
   ): Promise<OnCallSchedule> {
-    const now = new Date().toISOString();
-    const id = crypto.randomUUID();
-
-    const schedule: OnCallSchedule = {
-      id,
-      tenantId,
-      projectId,
+    return this.repo.create(tenantId, projectId, createdBy, {
       name: input.name,
       description: input.description ?? '',
       rotationType: input.rotationType,
@@ -33,53 +22,22 @@ export class OnCallService {
       rotationDurationHours: input.rotationDurationHours ?? 24,
       layers: input.layers,
       timeZone: input.timeZone ?? 'Asia/Shanghai',
-      enabled: true,
-      createdAt: now,
-      updatedAt: now,
-      createdBy,
-    };
-
-    schedules.set(id, schedule);
-    return schedule;
+    });
   }
 
-  /**
-   * List on-call schedules.
-   */
-  async listSchedules(
-    tenantId: string,
-    projectId?: string,
-  ): Promise<OnCallSchedule[]> {
-    return Array.from(schedules.values()).filter(
-      (s) =>
-        s.tenantId === tenantId &&
-        (projectId === undefined || s.projectId === projectId),
-    );
+  async listSchedules(tenantId: string, projectId?: string): Promise<OnCallSchedule[]> {
+    return this.repo.findByTenant(tenantId, projectId);
   }
 
-  /**
-   * Get current on-call duty holders.
-   *
-   * TODO: Implement proper rotation logic based on rotationStart,
-   * rotationDurationHours, and layer restrictions.
-   */
-  async getCurrentOnCall(
-    tenantId: string,
-    projectId?: string,
-  ): Promise<OnCallDuty[]> {
+  async getCurrentOnCall(tenantId: string, projectId?: string): Promise<OnCallDuty[]> {
     const now = new Date();
+    const schedules = await this.repo.findByTenant(tenantId, projectId);
     const result: OnCallDuty[] = [];
 
-    for (const schedule of schedules.values()) {
-      if (schedule.tenantId !== tenantId) continue;
-      if (projectId && schedule.projectId !== projectId) continue;
+    for (const schedule of schedules) {
       if (!schedule.enabled) continue;
-
       for (const layer of schedule.layers) {
         if (layer.users.length === 0) continue;
-
-        // Stub: pick first user in rotation
-        // TODO: Calculate actual rotation based on time window
         const userId = layer.users[0];
         result.push({
           scheduleId: schedule.id,
@@ -87,47 +45,28 @@ export class OnCallService {
           layerId: layer.id,
           escalationLevel: layer.escalationLevel,
           userId,
-          userName: '', // TODO: Resolve from orion-platform-core
+          userName: '',
           startAt: now.toISOString(),
           endAt: now.toISOString(),
         });
       }
     }
-
     return result;
   }
 
-  /**
-   * Update a schedule.
-   */
   async updateSchedule(
     tenantId: string,
     scheduleId: string,
     input: Partial<CreateScheduleInput>,
   ): Promise<OnCallSchedule | undefined> {
-    const existing = schedules.get(scheduleId);
+    const existing = await this.repo.findById(scheduleId);
     if (existing?.tenantId !== tenantId) return undefined;
-
-    const updated: OnCallSchedule = {
-      ...existing,
-      ...input,
-      updatedAt: new Date().toISOString(),
-    };
-
-    schedules.set(scheduleId, updated);
-    return updated;
+    return (await this.repo.update(scheduleId, { ...input })) ?? undefined;
   }
 
-  /**
-   * Delete a schedule.
-   */
-  async deleteSchedule(
-    tenantId: string,
-    scheduleId: string,
-  ): Promise<boolean> {
-    const existing = schedules.get(scheduleId);
+  async deleteSchedule(tenantId: string, scheduleId: string): Promise<boolean> {
+    const existing = await this.repo.findById(scheduleId);
     if (existing?.tenantId !== tenantId) return false;
-    schedules.delete(scheduleId);
-    return true;
+    return this.repo.delete(scheduleId);
   }
 }

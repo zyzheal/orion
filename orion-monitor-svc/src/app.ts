@@ -2,6 +2,11 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import sensible from '@fastify/sensible';
 import { errorHandler } from './middleware/errorHandler';
+import { DatabasePool } from './db/database.js';
+import { MonitoringRuleRepository } from './repositories/MonitoringRuleRepository.js';
+import { AlertRepository } from './repositories/AlertRepository.js';
+import { OnCallRepository } from './repositories/OnCallRepository.js';
+import { SelfHealingRepository } from './repositories/SelfHealingRepository.js';
 import { MonitoringService } from './services/MonitoringService';
 import { AlertService } from './services/AlertService';
 import { SelfHealingService } from './services/SelfHealingService';
@@ -24,11 +29,35 @@ async function buildApp() {
   await fastify.register(sensible);
   errorHandler(fastify);
 
-  // Initialize services
-  const monitoringService = new MonitoringService();
-  const alertService = new AlertService();
-  const selfHealingService = new SelfHealingService();
-  const oncallService = new OnCallService();
+  // Initialize PostgreSQL
+  let db: DatabasePool | undefined;
+  if (process.env.DATABASE_URL) {
+    db = new DatabasePool({ connectionString: process.env.DATABASE_URL });
+    await db.connect();
+  }
+
+  // Initialize services (PostgreSQL-backed if db available, in-memory otherwise)
+  let monitoringService: MonitoringService;
+  let alertService: AlertService;
+  let selfHealingService: SelfHealingService;
+  let oncallService: OnCallService;
+
+  if (db) {
+    const ruleRepo = new MonitoringRuleRepository(db);
+    const alertRepo = new AlertRepository(db);
+    const oncallRepo = new OnCallRepository(db);
+    const healingRepo = new SelfHealingRepository(db);
+    monitoringService = new MonitoringService(ruleRepo);
+    alertService = new AlertService(alertRepo);
+    selfHealingService = new SelfHealingService(healingRepo);
+    oncallService = new OnCallService(oncallRepo);
+  } else {
+    monitoringService = new MonitoringService(new MonitoringRuleRepository(new NoopPool()));
+    alertService = new AlertService(new AlertRepository(new NoopPool()));
+    selfHealingService = new SelfHealingService(new SelfHealingRepository(new NoopPool()));
+    oncallService = new OnCallService(new OnCallRepository(new NoopPool()));
+  }
+
   const alertSilenceService = new AlertSilenceService();
   const alertRuleService = new AlertRuleService();
   const rcaService = new RootCauseAnalysisService();
@@ -48,9 +77,21 @@ async function buildApp() {
   registerAlertRuleRoutes(fastify, alertRuleService);
   registerRCARoutes(fastify, rcaService);
 
-  fastify.get('/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }));
+  fastify.get('/health', async () => ({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    database: db ? 'connected' : 'disconnected',
+  }));
   return { fastify };
 }
+
+/** Noop pool for fallback (in-memory mode, same API shape) */
+class NoopPool {
+  async query(): Promise<{ rows: any[]; rowCount: null }> { return { rows: [], rowCount: null }; }
+  async connect(): Promise<void> {}
+  async close(): Promise<void> {}
+}
+
 async function main() {
   const { fastify } = await buildApp();
   const port = parseInt(process.env.PORT || '3005', 10);

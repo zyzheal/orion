@@ -1,27 +1,16 @@
 import type { MonitoringRule, CreateRuleInput } from '../types/monitor.js';
-
-/**
- * In-memory store (stub — replace with database in production).
- */
-const rules: Map<string, MonitoringRule> = new Map();
+import { MonitoringRuleRepository } from '../repositories/MonitoringRuleRepository.js';
 
 export class MonitoringService {
-  /**
-   * Create a new monitoring rule.
-   */
+  constructor(private repo: MonitoringRuleRepository) {}
+
   async createRule(
     tenantId: string,
     projectId: string,
     createdBy: string,
     input: CreateRuleInput,
   ): Promise<MonitoringRule> {
-    const now = new Date().toISOString();
-    const id = crypto.randomUUID();
-
-    const rule: MonitoringRule = {
-      id,
-      tenantId,
-      projectId,
+    return this.repo.create(tenantId, projectId, createdBy, {
       name: input.name,
       description: input.description ?? '',
       ruleType: input.ruleType,
@@ -34,73 +23,32 @@ export class MonitoringService {
       labels: input.labels ?? {},
       enabled: true,
       alertPolicyId: input.alertPolicyId,
-      createdAt: now,
-      updatedAt: now,
-      createdBy,
-    };
-
-    rules.set(id, rule);
-    return rule;
+    });
   }
 
-  /**
-   * List monitoring rules with optional filtering.
-   */
-  async listRules(
-    tenantId: string,
-    projectId?: string,
-  ): Promise<MonitoringRule[]> {
-    const result = Array.from(rules.values()).filter(
-      (r) =>
-        r.tenantId === tenantId &&
-        (projectId === undefined || r.projectId === projectId),
-    );
-    return result;
+  async listRules(tenantId: string, projectId?: string): Promise<MonitoringRule[]> {
+    return this.repo.findByTenant(tenantId, projectId);
   }
 
-  /**
-   * Get a single rule by ID.
-   */
-  async getRule(
-    tenantId: string,
-    ruleId: string,
-  ): Promise<MonitoringRule | undefined> {
-    const rule = rules.get(ruleId);
+  async getRule(tenantId: string, ruleId: string): Promise<MonitoringRule | undefined> {
+    const rule = await this.repo.findById(ruleId);
     if (rule?.tenantId !== tenantId) return undefined;
-    return rule;
+    return rule ?? undefined;
   }
 
-  /**
-   * Update a monitoring rule.
-   */
   async updateRule(
     tenantId: string,
     ruleId: string,
     input: Partial<CreateRuleInput>,
   ): Promise<MonitoringRule | undefined> {
-    const existing = rules.get(ruleId);
+    const existing = await this.repo.findById(ruleId);
     if (existing?.tenantId !== tenantId) return undefined;
-
-    const updated: MonitoringRule = {
-      ...existing,
-      ...input,
-      updatedAt: new Date().toISOString(),
-    };
-
-    rules.set(ruleId, updated);
-    return updated;
+    return (await this.repo.update(ruleId, { ...input })) ?? undefined;
   }
 
-  /**
-   * Delete a monitoring rule.
-   */
-  async deleteRule(
-    tenantId: string,
-    ruleId: string,
-  ): Promise<boolean> {
-    const existing = rules.get(ruleId);
+  async deleteRule(tenantId: string, ruleId: string): Promise<boolean> {
+    const existing = await this.repo.findById(ruleId);
     if (existing?.tenantId !== tenantId) return false;
-    rules.delete(ruleId);
-    return true;
+    return this.repo.delete(ruleId);
   }
 }
