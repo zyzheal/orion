@@ -12,6 +12,7 @@
 import crypto from 'crypto';
 import { EventEmitter } from 'events';
 import pino from 'pino';
+import { LLMTraceRepository } from '../../repositories/LLMTraceRepository.js';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -85,9 +86,11 @@ export class LLMTraceService extends EventEmitter {
   private traces: Map<string, LLMTrace> = new Map();
   private completedCount: number = 0;
   private failedCount: number = 0;
+  private repo: LLMTraceRepository | null = null;
 
-  constructor() {
+  constructor(repo?: LLMTraceRepository) {
     super();
+    this.repo = repo ?? null;
   }
 
   generateTraceId(): string {
@@ -122,9 +125,16 @@ export class LLMTraceService extends EventEmitter {
 
     this.traces.set(traceId, trace);
 
-    // Store in database (placeholder - actual implementation would use Repository)
-    logger.debug(`[LLMTrace] Started trace: ${traceId}`);
+    // Persist to database
+    if (this.repo) {
+      try {
+        await this.repo.create(trace);
+      } catch (err) {
+        logger.error(`[LLMTrace] Failed to persist trace ${traceId}:`, err);
+      }
+    }
 
+    logger.debug(`[LLMTrace] Started trace: ${traceId}`);
     this.emit('trace:started', trace);
     return trace;
   }
@@ -135,7 +145,6 @@ export class LLMTraceService extends EventEmitter {
       throw new Error(`Trace not found: ${traceId}`);
     }
 
-    // Calculate cost
     const cost = this.calculateCost({
       modelId: trace.modelId,
       inputTokens: params.inputTokens,
@@ -144,7 +153,6 @@ export class LLMTraceService extends EventEmitter {
 
     const outputHash = this.hashContent(params.outputContent);
 
-    // Update trace
     trace.outputContent = params.outputContent;
     trace.outputHash = outputHash;
     trace.inputTokens = params.inputTokens;
@@ -164,9 +172,29 @@ export class LLMTraceService extends EventEmitter {
       this.failedCount++;
     }
 
-    // Update in database (placeholder)
-    logger.debug(`[LLMTrace] Completed trace: ${traceId} tokens=${trace.totalTokens} cost=${trace.totalCost}`);
+    // Update in database
+    if (this.repo) {
+      try {
+        await this.repo.update(traceId, {
+          outputContent: trace.outputContent,
+          outputHash: trace.outputHash,
+          inputTokens: trace.inputTokens,
+          outputTokens: trace.outputTokens,
+          totalTokens: trace.totalTokens,
+          inputCost: trace.inputCost,
+          outputCost: trace.outputCost,
+          totalCost: trace.totalCost,
+          status: trace.status,
+          requestCompletedAt: trace.requestCompletedAt,
+          durationMs: trace.durationMs,
+          errorMessage: trace.errorMessage,
+        });
+      } catch (err) {
+        logger.error(`[LLMTrace] Failed to update trace ${traceId}:`, err);
+      }
+    }
 
+    logger.debug(`[LLMTrace] Completed trace: ${traceId} tokens=${trace.totalTokens} cost=${trace.totalCost}`);
     this.emit('trace:completed', trace);
     return trace;
   }
@@ -177,11 +205,9 @@ export class LLMTraceService extends EventEmitter {
     totalCost: number;
   } {
     const pricing = MODEL_PRICING[params.modelId] || MODEL_PRICING['gpt-4'];
-
     const inputCost = params.inputTokens * pricing.input;
     const outputCost = params.outputTokens * pricing.output;
     const totalCost = inputCost + outputCost;
-
     return { inputCost, outputCost, totalCost };
   }
 
@@ -215,43 +241,42 @@ export class LLMTraceService extends EventEmitter {
   }
 
   async aggregateDailyStats(tenantId: number, date: Date): Promise<DailyStats> {
-    const traces = this.getTracesByTenant(tenantId);
     const dateStr = date.toISOString().slice(0, 10);
 
-    const dayTraces = traces.filter(t => {
-      const traceDate = t.requestStartedAt.toISOString().slice(0, 10);
-      return traceDate === dateStr && t.status !== 'pending';
-    });
+    // Use DB if available, fall back to in-memory
+    if (this.repo) {
+      try {
+        const row = await this.repo.getDailyStats(tenantId, dateStr);
+        return {
+          totalRequests: parseInt(String(row.total_requests), 10),
+          totalTokens: parseInt(String(row.total_tokens), 10),
+          totalCost: parseFloat(String(row.total_cost)),
+          avgDurationMs: parseFloat(String(row.avg_duration_ms)),
+          successRate: parseFloat(String(row.success_rate)),
+        };
+      } catch (err) {
+        logger.warn(`[LLMTrace] DB stats unavailable, using in-memory fallback:`, err);
+      }
+    }
 
+    // In-memory fallback
+    const traces = this.getTracesByTenant(tenantId);
+    const dayTraces = traces.filter(t => t.requestStartedAt.toISOString().slice(0, 10) === dateStr && t.status !== 'pending');
     const totalRequests = dayTraces.length;
     const completedTraces = dayTraces.filter(t => t.status === 'completed');
-
-    const totalTokens = dayTraces.reduce((sum, t) => sum + t.totalTokens, 0);
-    const totalCost = dayTraces.reduce((sum, t) => sum + t.totalCost, 0);
-    const avgDurationMs = totalRequests > 0
-      ? dayTraces.reduce((sum, t) => sum + (t.durationMs || 0), 0) / totalRequests
-      : 0;
-    const successRate = totalRequests > 0 ? completedTraces.length / totalRequests : 1.0;
-
     return {
       totalRequests,
-      totalTokens,
-      totalCost,
-      avgDurationMs,
-      successRate,
+      totalTokens: dayTraces.reduce((sum, t) => sum + t.totalTokens, 0),
+      totalCost: dayTraces.reduce((sum, t) => sum + t.totalCost, 0),
+      avgDurationMs: totalRequests > 0 ? dayTraces.reduce((sum, t) => sum + (t.durationMs || 0), 0) / totalRequests : 0,
+      successRate: totalRequests > 0 ? completedTraces.length / totalRequests : 1.0,
     };
   }
 
-  /**
-   * Get all traces (for batch operations)
-   */
   getAllTraces(): LLMTrace[] {
     return Array.from(this.traces.values());
   }
 
-  /**
-   * Clear traces (for testing)
-   */
   clearTraces(): void {
     this.traces.clear();
     this.completedCount = 0;

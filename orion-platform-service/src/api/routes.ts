@@ -43,7 +43,7 @@ import apiKeyRoutes from './api-key-routes';
 import ephemeralEnvRoutes from './ephemeral-env-routes';
 import mcpRoutes from './mcp-routes';
 import { vectorRoutes } from './vector-routes';
-import llmTraceRoutes from './llm-trace-routes';
+import llmTraceRoutes, { initLLMTrace } from './llm-trace-routes';
 import privacyRoutes from './privacy-routes';
 import degradationRoutes from './degradation-routes';
 import crossDomainRoutes from './cross-domain-routes';
@@ -211,6 +211,9 @@ async function registerWithRoleGuard(
 export default async function apiRoutes(app: FastifyInstance, options: ApiRoutesOptions): Promise<void> {
   // ==================== SSE Service Initialization (shared with pipeline engine) ====================
   const pipelineLogSSE = new PipelineLogSSEService(new EventEmitter());
+
+  // ==================== LLM Trace Service Initialization ====================
+  initLLMTrace(options.database);
 
   // ==================== 租户隔离服务初始化 ====================
   // 初始化四层租户隔离服务 (P0 Task 6)
@@ -446,6 +449,9 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // 注册 Queue Management API 路由 (M24) - PostgreSQL backed
   // 注册 Knowledge Base API 路由 (M28) - PostgreSQL backed
   await registerWithRoleGuard(app, knowledgeRoutes, '/v1/knowledge', { database: options.database });
+
+  // 注册 LLM Trace API 路由 - PostgreSQL backed with cost tracking
+  await registerWithRoleGuard(app, llmTraceRoutes, '/v1/llm', { database: options.database });
 
   // 注册 Metrics API 路由 - PostgreSQL backed
   await registerWithRoleGuard(app, metricsRoutes, '/v1/metrics', { database: options.database });
