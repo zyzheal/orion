@@ -1,5 +1,22 @@
 # Orion Design - Progress Log
 
+## 2026-05-17: SCM Bidirectional Integration — Verified Complete (NO CHANGES NEEDED)
+
+### Verification
+- Reviewed task: "Implement SCM bidirectional integration — PR status write-back"
+- Found existing implementation already complete:
+  1. **CommitStatusService.ts** — Full GitHub/GitLab commit status updates, PR comment posting, GitHub Check Run integration
+  2. **PipelineEngine.ts** — `reportScmStatus()` called at 3 hook points:
+     - Pipeline start (line 280): reports `pending` status
+     - Pipeline completion (line 917): reports `success` or `failure` status
+     - Pipeline cancellation (line 1636): reports `cancelled` status
+  3. **GitHubClient.ts** — HTTP client for GitHub Commit Status API and Check Run API
+  4. **GitLabClient.ts** — HTTP client for GitLab Commit Status API
+  5. **SCMWebhookService.ts** — Handles incoming webhooks and triggers pipelines with commitSha/context
+  6. **code-repo/index.ts** — Properly exports CommitStatusService, CommitStatus, GitProvider, etc.
+- TypeScript type-check passes: `npm run type-check` — 0 errors
+- Conclusion: The SCM bidirectional integration is fully implemented. No code changes needed.
+
 ## 2026-05-17: Redis Cache Layer for High-Frequency Reads (COMPLETED)
 
 ### Implementation
