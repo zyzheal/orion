@@ -1,6 +1,41 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { NotificationChannelService } from '../NotificationChannelService';
 import { NotificationChannelRepository, NotificationChannel } from '../NotificationChannelRepository';
+
+// Mock nodemailer - vi.mock is hoisted, so we need vi.hoisted for the transport reference
+const mocks = vi.hoisted(() => {
+  const sendMail = vi.fn().mockResolvedValue({ messageId: 'test-email-id' });
+  return {
+    mockSendMail: sendMail,
+    mockCreateTransport: vi.fn().mockReturnValue({ sendMail }),
+  };
+});
+
+vi.mock('nodemailer', () => ({
+  default: { createTransport: mocks.mockCreateTransport },
+}));
+
+// Mock global fetch
+const mockFetch = vi.fn();
+const originalFetch = globalThis.fetch;
+
+function mockFetchResponse(ok: boolean, status: number, body: any = {}) {
+  mockFetch.mockResolvedValue({
+    ok,
+    status,
+    json: async () => body,
+  });
+}
+
+beforeEach(() => {
+  globalThis.fetch = mockFetch;
+  mockFetch.mockReset();
+  mocks.mockSendMail.mockReset().mockResolvedValue({ messageId: 'test-email-id' });
+});
+
+afterEach(() => {
+  globalThis.fetch = originalFetch;
+});
 
 // Mock the repository
 function createMockRepo() {
@@ -368,6 +403,13 @@ describe('NotificationChannelService', () => {
       expect(result.success).toBe(true);
       expect(result.channelType).toBe('email');
       expect(result.messageId).toBeDefined();
+      expect(mocks.mockSendMail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: 'user@example.com',
+          subject: 'Test',
+          html: 'Hello',
+        }),
+      );
     });
 
     it('should send notification via slack channel', async () => {
@@ -383,6 +425,7 @@ describe('NotificationChannelService', () => {
       };
 
       mockRepo.findAll.mockResolvedValue([channel]);
+      mockFetchResponse(true, 200);
 
       const result = await service.sendNotification({
         tenantId: 'tenant-1',
@@ -395,6 +438,13 @@ describe('NotificationChannelService', () => {
 
       expect(result.success).toBe(true);
       expect(result.channelType).toBe('slack');
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://hooks.slack.com/test',
+        expect.objectContaining({
+          method: 'POST',
+          body: JSON.stringify({ text: '*Test*\nHello' }),
+        }),
+      );
     });
 
     it('should send notification via webhook channel', async () => {
@@ -410,6 +460,7 @@ describe('NotificationChannelService', () => {
       };
 
       mockRepo.findAll.mockResolvedValue([channel]);
+      mockFetchResponse(true, 200);
 
       const result = await service.sendNotification({
         tenantId: 'tenant-1',
@@ -422,6 +473,10 @@ describe('NotificationChannelService', () => {
 
       expect(result.success).toBe(true);
       expect(result.channelType).toBe('webhook');
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://example.com/webhook',
+        expect.objectContaining({ method: 'POST' }),
+      );
     });
 
     it('should send notification via sms channel', async () => {
@@ -464,6 +519,7 @@ describe('NotificationChannelService', () => {
       };
 
       mockRepo.findAll.mockResolvedValue([channel]);
+      mockFetchResponse(true, 200);
 
       const result = await service.sendNotification({
         tenantId: 'tenant-1',
@@ -476,6 +532,10 @@ describe('NotificationChannelService', () => {
 
       expect(result.success).toBe(true);
       expect(result.channelType).toBe('pagerduty');
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://events.pagerduty.com/v2/enqueue',
+        expect.objectContaining({ method: 'POST' }),
+      );
     });
 
     it('should fail if channel is not found', async () => {
@@ -591,6 +651,7 @@ describe('NotificationChannelService', () => {
 
       expect(result.success).toBe(true);
       expect(result.channelType).toBe('email');
+      expect(mocks.mockSendMail).toHaveBeenCalled();
     });
 
     it('should fail if channel does not exist', async () => {
