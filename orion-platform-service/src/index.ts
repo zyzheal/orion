@@ -79,6 +79,13 @@ async function main() {
       } catch (error) {
         console.warn('Event Bus connection failed, continuing without Event Bus');
       }
+
+      // Initialize NATS Service Registry after eventBus connects
+      const natsConn = eventBus.getNatsConnection();
+      if (natsConn && database) {
+        natsRegistry = new NatsServiceRegistry(natsConn, database);
+        await natsRegistry.init();
+      }
     }
 
     // 4. Initialize OpenTelemetry

@@ -745,6 +745,13 @@ export class EventBusService extends EventEmitter {
   }
 
   /**
+   * Get the underlying NATS connection for use by other services
+   */
+  getNatsConnection(): any {
+    return this.natsConnection;
+  }
+
+  /**
    * 检查是否为连接状态（仅 NATS 真正连接）
    * ARCH-001: 区分 "健康" 和 "已连接"
    */
