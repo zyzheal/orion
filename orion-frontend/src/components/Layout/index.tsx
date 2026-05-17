@@ -182,6 +182,11 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       label: '效能看板',
       children: [
         {
+          key: '/workbench',
+          icon: <DashboardOutlined />,
+          label: '个人工作台',
+        },
+        {
           key: '/dashboard/executive',
           icon: <DashboardOutlined />,
           label: '总览看板',

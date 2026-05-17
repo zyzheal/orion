@@ -204,6 +204,12 @@ export const routes: AppRoute[] = [
     element: React.lazy(() => import('@/pages/TicketDetail')),
     protected: true,
   },
+  // Personal Workbench (统一工作台)
+  {
+    path: '/workbench',
+    element: React.lazy(() => import('@/pages/Workbench')),
+    protected: true,
+  },
   // BI Dashboard Routes
   {
     path: '/dashboard/executive',
