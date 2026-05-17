@@ -1,16 +1,17 @@
 /**
  * UserService - Business logic layer for User operations
- * 
+ *
  * Handles business rules, validation, and authentication
  * Note: Password hashing should be handled by auth layer or external service
  */
 
-import { 
-  UserRepository, 
-  User, 
-  CreateUserInput, 
-  UpdateUserInput 
+import {
+  UserRepository,
+  User,
+  CreateUserInput,
+  UpdateUserInput
 } from './UserRepository';
+import { CacheService } from '../cache/CacheService';
 
 export interface ListUsersOptions {
   page?: number;
@@ -37,21 +38,30 @@ export class UserServiceError extends Error {
 
 export class UserService {
   private repository: UserRepository;
+  private cache: CacheService;
 
-  constructor(repository: UserRepository) {
+  constructor(repository: UserRepository, cache?: CacheService) {
     this.repository = repository;
+    this.cache = cache || new CacheService(null);
   }
 
   /**
    * Get user by ID
    */
   async getUser(id: string): Promise<User> {
+    // Try cache first
+    const cached = await this.cache.get<User>(`user:${id}`);
+    if (cached) return cached;
+
     const user = await this.repository.findById(id);
-    
+
     if (!user) {
       throw new UserServiceError(`User not found: ${id}`, 'USER_NOT_FOUND');
     }
-    
+
+    // Cache for 300s — user data changes infrequently
+    await this.cache.set(`user:${id}`, user, 300);
+
     return user;
   }
 
@@ -171,11 +181,14 @@ export class UserService {
     }
 
     const updated = await this.repository.update(id, input);
-    
+
     if (!updated) {
       throw new UserServiceError(`Failed to update user: ${id}`, 'UPDATE_FAILED');
     }
-    
+
+    // Invalidate cache on update
+    await this.cache.del(`user:${id}`);
+
     return updated;
   }
 
@@ -187,6 +200,9 @@ export class UserService {
     if (!existing) {
       throw new UserServiceError(`User not found: ${id}`, 'USER_NOT_FOUND');
     }
+
+    // Invalidate cache on delete
+    await this.cache.del(`user:${id}`);
 
     return this.repository.delete(id);
   }

@@ -6,13 +6,16 @@
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { DatabasePool } from '../services/database';
+import { RedisCache } from '../services/redis-cache';
 import { PipelineVersionService } from '../services/pipeline/PipelineVersionService';
 import { PipelineService } from '../services/pipeline/PipelineService';
 import { PipelineRepository } from '../services/pipeline/PipelineRepository';
 import { PipelineVersionController } from './controllers/PipelineVersionController';
+import { CacheService } from '../services/cache/CacheService';
 
 interface PipelineVersionRoutesOptions {
   database?: DatabasePool;
+  redis?: RedisCache;
 }
 
 export default async function pipelineVersionRoutes(
@@ -26,7 +29,8 @@ export default async function pipelineVersionRoutes(
   }
 
   const pipelineRepository = new PipelineRepository(options.database);
-  const pipelineService = new PipelineService(pipelineRepository);
+  const cache = new CacheService(options.redis || null, 60);
+  const pipelineService = new PipelineService(pipelineRepository, cache);
   const versionService = new PipelineVersionService(options.database);
   const controller = new PipelineVersionController(versionService, pipelineService);
 

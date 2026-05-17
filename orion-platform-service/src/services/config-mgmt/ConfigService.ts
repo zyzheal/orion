@@ -5,6 +5,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { ConfigRepository, ConfigEntry, ConfigHistory } from './ConfigRepository';
 import { ConfigItem, ConfigStatus, ConfigEnvironment } from './types';
+import { CacheService } from '../cache/CacheService';
 
 export class ConfigServiceError extends Error {
   constructor(message: string, public code: string) { super(message); this.name = 'ConfigServiceError'; }
@@ -74,9 +75,11 @@ function buildValueObject(input: CreateConfigInput | UpdateConfigInput): Record<
 export class ConfigService {
   private repository: ConfigRepository;
   private history: Map<string, ConfigHistory[]> = new Map();
+  private cache: CacheService;
 
-  constructor(repository?: ConfigRepository) {
+  constructor(repository?: ConfigRepository, cache?: CacheService) {
     this.repository = repository || new ConfigRepository();
+    this.cache = cache || new CacheService(null);
   }
 
   async createConfig(input: CreateConfigInput): Promise<ConfigItem>;
@@ -98,17 +101,23 @@ export class ConfigService {
       }
       const item = entryToItem(entry);
       this.addHistoryRecord(entry.id, input.key, null, item.value, input.createdBy, 'Initial creation');
+      // Invalidate list cache
+      await this.cache.del('config:list:*');
       return item;
     }
     // Handle createConfig(tenantId, input)
     if (typeof keyOrInput === 'object') {
       const input = keyOrInput as CreateConfigInput;
       const entry = await this.repository.set(tenantIdOrInput as string, input.key, buildValueObject(input), input.createdBy);
-      return entryToItem(entry);
+      const item = entryToItem(entry);
+      await this.cache.del(`config:list:${tenantIdOrInput}`);
+      return item;
     }
     // Handle createConfig(tenantId, key, value)
     const entry = await this.repository.set(tenantIdOrInput as string, keyOrInput as string, value || {}, undefined);
-    return entryToItem(entry);
+    const item = entryToItem(entry);
+    await this.cache.del(`config:list:${tenantIdOrInput}`);
+    return item;
   }
 
   async updateConfig(configId: string, input: UpdateConfigInput): Promise<ConfigItem>;
@@ -141,11 +150,17 @@ export class ConfigService {
       entry.updated_at = new Date();
       const item = entryToItem(entry);
       this.addHistoryRecord(entry.id, existing.key, typeof oldValue === 'string' ? oldValue : JSON.stringify(oldValue), item.value, input.updatedBy, `Updated by ${input.updatedBy}`);
+      // Invalidate cache on update
+      await this.cache.del(`config:${tenantIdOrId}`);
+      await this.cache.del(`config:${existing.tenant_id}:${existing.key}`);
       return item;
     }
     // Handle updateConfig(tenantId, key, value, changedBy)
     const entry = await this.repository.set(tenantIdOrId, keyOrInput as string, value || {}, changedBy);
-    return entryToItem(entry);
+    const item = entryToItem(entry);
+    // Invalidate cache on update
+    await this.cache.del(`config:${tenantIdOrId}:${keyOrInput}`);
+    return item;
   }
 
   async deleteConfig(configId: string, changedBy?: string): Promise<boolean> {
@@ -153,6 +168,8 @@ export class ConfigService {
     if (!existing) {
       throw new Error(`Config '${configId}' not found`);
     }
+    // Invalidate cache on delete
+    await this.cache.del(`config:${configId}`);
     if (!this.isDbAvailable()) {
       // Soft delete for in-memory: set status to deprecated
       existing.status = 'deprecated';
@@ -160,20 +177,38 @@ export class ConfigService {
       existing.updated_by = changedBy || '';
       return true;
     }
+    await this.cache.del(`config:${existing.tenant_id}:${existing.key}`);
     return this.repository.delete(existing.tenant_id, existing.key);
   }
 
   async getConfig(configId: string): Promise<ConfigItem | null> {
+    // Try cache first
+    const cached = await this.cache.get<ConfigItem>(`config:${configId}`);
+    if (cached) return cached;
+
     const entry = await this.repository.findById(configId);
-    return entry ? entryToItem(entry) : null;
+    if (!entry) return null;
+
+    const item = entryToItem(entry);
+    // Cache for 120s — config data changes occasionally
+    await this.cache.set(`config:${configId}`, item, 120);
+    return item;
   }
 
   async getConfigByKey(key: string, environment?: string): Promise<ConfigItem | null> {
+    const cacheKey = `config:default:${key}${environment ? ':' + environment : ''}`;
+    // Try cache first
+    const cached = await this.cache.get<ConfigItem>(cacheKey);
+    if (cached) return cached;
+
     const tenantId = 'default';
     const entry = await this.repository.findByKey(tenantId, key);
     if (!entry) return null;
     if (environment && entry.environment !== environment) return null;
-    return entryToItem(entry);
+
+    const item = entryToItem(entry);
+    await this.cache.set(cacheKey, item, 120);
+    return item;
   }
 
   async listConfigs(filter?: ListConfigsFilter): Promise<ConfigItem[]> {
@@ -292,8 +327,17 @@ export class ConfigService {
   }
 
   async get(tenantId: string, key: string): Promise<ConfigItem | null> {
+    const cacheKey = `config:${tenantId}:${key}`;
+    // Try cache first
+    const cached = await this.cache.get<ConfigItem>(cacheKey);
+    if (cached) return cached;
+
     const entry = await this.repository.findByKey(tenantId, key);
-    return entry ? entryToItem(entry) : null;
+    if (!entry) return null;
+
+    const item = entryToItem(entry);
+    await this.cache.set(cacheKey, item, 120);
+    return item;
   }
 
   async getAll(tenantId: string): Promise<ConfigItem[]> {
@@ -302,6 +346,8 @@ export class ConfigService {
   }
 
   async delete(tenantId: string, key: string): Promise<boolean> {
+    // Invalidate cache on delete
+    await this.cache.del(`config:${tenantId}:${key}`);
     return this.repository.delete(tenantId, key);
   }
 

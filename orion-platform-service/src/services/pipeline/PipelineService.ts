@@ -22,6 +22,7 @@ import {
   CreatePipelineInput as RepoCreatePipelineInput,
 } from './PipelineRepository';
 import type { DatabasePool } from '../database';
+import { CacheService } from '../cache/CacheService';
 
 export { PipelineEntity as Pipeline };
 
@@ -67,12 +68,18 @@ export class PipelineService {
   private stageRepository: PipelineStageRepository | null;
   private runRepository: PipelineRunRepository | null;
   private stageExecutionRepository: StageExecutionRepository | null;
+  private cache: CacheService;
 
   /**
    * @param repository - PostgreSQL repository instance, mock repository (for tests),
    *                     or DatabasePool. Pass null to fall back to in-memory mode.
+   * @param cache - Optional Redis-backed cache service for high-frequency reads.
    */
-  constructor(repository: PipelineRepository | DatabasePool | null) {
+  constructor(
+    repository: PipelineRepository | DatabasePool | null,
+    cache?: CacheService,
+  ) {
+    this.cache = cache || new CacheService(null);
     if (!repository) {
       // No repository provided - use in-memory fallback
       this.repository = null;
@@ -110,7 +117,16 @@ export class PipelineService {
 
   async getById(id: string, _tenantId?: string): Promise<PipelineEntity | undefined | null> {
     if (!this.repository) return undefined;
+
+    // Try cache first
+    const cached = await this.cache.get<PipelineEntity>(`pipeline:${id}`);
+    if (cached) return cached;
+
     const result = await this.repository.findById(id);
+    if (result) {
+      // Cache for 60s — pipelines change frequently but reads are frequent
+      await this.cache.set(`pipeline:${id}`, result, 60);
+    }
     return result || null;
   }
 
@@ -211,7 +227,14 @@ export class PipelineService {
       if (input.status !== undefined) updateData.status = input.status;
       if (spec !== undefined) updateData.spec = spec;
 
-      return await this.repository.update(id, updateData);
+      const result = await this.repository.update(id, updateData);
+
+      // Invalidate cache on update
+      if (result) {
+        await this.cache.del(`pipeline:${id}`);
+      }
+
+      return result;
     } catch {
       return undefined;
     }
@@ -219,6 +242,10 @@ export class PipelineService {
 
   async delete(id: string): Promise<boolean> {
     if (!this.repository) return false;
+
+    // Invalidate cache on delete
+    await this.cache.del(`pipeline:${id}`);
+
     return this.repository.delete(id);
   }
 

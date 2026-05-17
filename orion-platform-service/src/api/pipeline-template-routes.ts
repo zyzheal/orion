@@ -6,13 +6,16 @@
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { DatabasePool } from '../services/database';
+import { RedisCache } from '../services/redis-cache';
 import { PipelineTemplateService } from '../services/pipeline/PipelineTemplateService';
 import { PipelineService } from '../services/pipeline/PipelineService';
 import { PipelineRepository } from '../services/pipeline/PipelineRepository';
 import { PipelineTemplateController } from './controllers/PipelineTemplateController';
+import { CacheService } from '../services/cache/CacheService';
 
 interface PipelineTemplateRoutesOptions {
   database?: DatabasePool;
+  redis?: RedisCache;
 }
 
 export default async function pipelineTemplateRoutes(
@@ -25,7 +28,8 @@ export default async function pipelineTemplateRoutes(
   }
 
   const pipelineRepository = new PipelineRepository(options.database);
-  const pipelineService = new PipelineService(pipelineRepository);
+  const cache = new CacheService(options.redis || null, 60);
+  const pipelineService = new PipelineService(pipelineRepository, cache);
   const templateService = new PipelineTemplateService(options.database);
   const controller = new PipelineTemplateController(templateService, pipelineService);
 

@@ -15,9 +15,12 @@ import { ConfigApprovalService } from '../services/config-mgmt/ConfigApprovalSer
 import { ConfigDiffService } from '../services/config-mgmt/ConfigDiffService';
 import { ConfigController } from './controllers/ConfigController';
 import { DatabasePool } from '../services/database';
+import { RedisCache } from '../services/redis-cache';
+import { CacheService } from '../services/cache/CacheService';
 
 export interface ConfigRoutesOptions {
   database?: DatabasePool;
+  redis?: RedisCache;
 }
 
 export default async function configRoutes(
@@ -31,7 +34,8 @@ export default async function configRoutes(
   const configRepo = new ConfigRepository(options.database);
 
   // Initialize services - all depend on ConfigService which now uses the repository
-  const configService = new ConfigService(configRepo);
+  const cache = new CacheService(options.redis || null, 120);
+  const configService = new ConfigService(configRepo, cache);
   const gitOpsService = new GitOpsService({ configService });
   const approvalService = new ConfigApprovalService({ configService });
   const diffService = new ConfigDiffService({ configService });

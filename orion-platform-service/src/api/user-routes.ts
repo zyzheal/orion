@@ -7,12 +7,15 @@
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { DatabasePool } from '../services/database';
+import { RedisCache } from '../services/redis-cache';
 import { UserRepository } from '../services/user/UserRepository';
 import { UserService } from '../services/user/UserService';
 import { UserController } from './controllers/UserController';
+import { CacheService } from '../services/cache/CacheService';
 
 interface UserRoutesOptions {
   database?: DatabasePool;
+  redis?: RedisCache;
 }
 
 export default async function userRoutes(
@@ -29,7 +32,8 @@ export default async function userRoutes(
     return;
   }
 
-  const service = new UserService(repository);
+  const cache = new CacheService(options.redis || null, 300);
+  const service = new UserService(repository, cache);
   const controller = new UserController(service);
 
   // ==================== User CRUD ====================

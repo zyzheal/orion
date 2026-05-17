@@ -12,6 +12,8 @@ import { tenantContextStorage, SYSTEM_TENANT_ID } from '../db/tenant-context-sto
 import type { PoolClient } from 'pg';
 import { EventBusService } from '../services/event-bus-service';
 import { DatabasePool } from '../services/database';
+import { RedisCache } from '../services/redis-cache';
+import { CacheService } from '../services/cache/CacheService';
 import cmdbRoutes from '../routes-cmdb';
 import configRoutes from './config-routes';
 import { PluginManagerService } from '../services/plugin-manager-service';
@@ -154,6 +156,7 @@ const DEFAULT_MODULE_CONFIG = {
 export interface ApiRoutesOptions {
   eventBus?: EventBusService;
   database?: DatabasePool;
+  redis?: RedisCache;
   /** Enable four-layer tenant isolation */
   enableTenantIsolation?: boolean;
 }
@@ -332,7 +335,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   });
 
   // 注册 Configuration Management API 路由 (PostgreSQL backed)
-  await registerWithRoleGuard(app, configRoutes, '/v1/config', { database: options.database });
+  await registerWithRoleGuard(app, configRoutes, '/v1/config', { database: options.database, redis: options.redis });
 
   // FinOps 成本管理路由已迁移到 orion-finops-svc (port 3009)
 
@@ -444,14 +447,14 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await registerWithRoleGuard(app, metricsRoutes, '/v1/metrics', { database: options.database });
 
   // 注册 User Management API 路由 - PostgreSQL backed
-  await registerWithRoleGuard(app, userRoutes, '/v1/users', { database: options.database });
+  await registerWithRoleGuard(app, userRoutes, '/v1/users', { database: options.database, redis: options.redis });
 
   // 注册 Agent Orchestration API 路由 - PostgreSQL backed
   // 注册 API Key Management API 路由 - PostgreSQL backed
   await registerWithRoleGuard(app, apiKeyRoutes, '/v1/api-keys', { database: options.database });
 
   // 注册 MCP Server API 路由 - AI assistant integration
-  await registerWithRoleGuard(app, mcpRoutes, '/v1/mcp', { database: options.database });
+  await registerWithRoleGuard(app, mcpRoutes, '/v1/mcp', { database: options.database, redis: options.redis });
 
   // 注册 Vector Embedding & Semantic Search API 路由 (pgvector backed)// 注册 LLM Trace API 路由 - LLM调用链追踪与成本分析
 
@@ -633,7 +636,8 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // Pipeline Graph - YAML/JSON conversion and validation
   if (options.database) {
     const pipelineRepository = new PipelineRepository(options.database);
-    const pipelineService = new PipelineService(pipelineRepository);
+    const pipelineCache = new CacheService(options.redis || null, 60);
+    const pipelineService = new PipelineService(pipelineRepository, pipelineCache);
     await registerPipelineGraphRoutes(app, { pipelineService });
   }
 
@@ -648,11 +652,13 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // Pipeline Templates
   await registerWithRoleGuard(app, pipelineTemplateRoutes, '/v1/pipeline-templates', {
     database: options.database,
+    redis: options.redis,
   });
 
   // Pipeline Versions
   await registerWithRoleGuard(app, pipelineVersionRoutes, '/v1/pipelines/versions', {
     database: options.database,
+    redis: options.redis,
   });
 
   // Plugin Hot Reload

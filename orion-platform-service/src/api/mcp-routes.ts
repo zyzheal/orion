@@ -10,6 +10,8 @@
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { DatabasePool } from '../services/database';
+import { RedisCache } from '../services/redis-cache';
+import { CacheService } from '../services/cache/CacheService';
 import { McpServer } from '../mcp/McpServer';
 import { mcpConfig, McpContext, JsonRpcRequest } from '../mcp/mcp-config';
 import { allTools } from '../mcp/tools';
@@ -23,6 +25,7 @@ const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
 interface McpRoutesOptions {
   database?: DatabasePool;
+  redis?: RedisCache;
 }
 
 // 扩展 request.user 类型以包含 tenantId
@@ -129,13 +132,14 @@ async function requireAuth(
 /**
  * Build MCP context from request
  */
-function buildMcpContext(request: FastifyRequest, database?: DatabasePool): McpContext {
+function buildMcpContext(request: FastifyRequest, database?: DatabasePool, redis?: RedisCache): McpContext {
   const auth = validateApiKey(request);
   const user = request.user as AuthenticatedUser | undefined;
 
   // Initialize services for context
   const pipelineRepository = database ? new PipelineRepository(database) : null;
-  const pipelineService = pipelineRepository ? new PipelineService(pipelineRepository) : undefined;
+  const pipelineCache = redis ? new CacheService(redis, 60) : null;
+  const pipelineService = pipelineRepository ? new PipelineService(pipelineRepository, pipelineCache || undefined) : undefined;
 
   return {
     userId: auth?.userId || user?.userId,
@@ -157,7 +161,7 @@ export default async function mcpRoutes(
   const auditRepository = options.database ? new AuditRepository(options.database) : undefined;
 
   // Initialize MCP Server with context
-  const createContext = (request: FastifyRequest) => buildMcpContext(request, options.database);
+  const createContext = (request: FastifyRequest) => buildMcpContext(request, options.database, options.redis);
 
   // Create a fresh server instance for each request
   const createServer = (context: McpContext) => {
