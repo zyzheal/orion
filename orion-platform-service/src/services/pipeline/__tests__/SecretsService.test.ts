@@ -552,3 +552,34 @@ describe('SecretsService - Security', () => {
     );
   });
 });
+
+// ==================== Production Key Requirement ====================
+
+describe('SecretsService - Production Encryption Key', () => {
+  const originalNodeEnv = process.env.NODE_ENV;
+
+  afterEach(() => {
+    process.env.NODE_ENV = originalNodeEnv;
+  });
+
+  it('throws in production without encryption key', () => {
+    process.env.NODE_ENV = 'production';
+    const mockDb = createMockDb();
+
+    expect(() => {
+      createService(mockDb, undefined);
+    }).toThrow('ORION_SECRET_ENCRYPTION_KEY is required in production');
+  });
+
+  it('allows fallback key in development mode', () => {
+    process.env.NODE_ENV = 'development';
+    const mockDb = createMockDb();
+
+    // Should not throw
+    const service = createService(mockDb, undefined);
+    const plaintext = 'dev-secret';
+    const encrypted = service.encrypt(plaintext);
+    const decrypted = service.decrypt(encrypted);
+    expect(decrypted).toBe(plaintext);
+  });
+});

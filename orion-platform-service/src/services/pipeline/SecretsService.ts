@@ -484,9 +484,10 @@ export class SecretsService {
    */
   private deriveEncryptionKey(key?: string): Buffer {
     if (!key) {
-      // 开发/测试环境 fallback 密钥
-      // 生产环境必须设置 ORION_SECRET_ENCRYPTION_KEY
-      logger.warn('No encryption key provided, using fallback (INSECURE for production)');
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error('ORION_SECRET_ENCRYPTION_KEY is required in production');
+      }
+      logger.warn('No encryption key provided, using fallback (development only)');
       return crypto.createHash('sha256').update('orion-dev-fallback-key-do-not-use-in-production').digest();
     }
 
