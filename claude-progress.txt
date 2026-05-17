@@ -1,5 +1,75 @@
 # Orion Design - Progress Log
 
+## 2026-05-17: Inception Frontend Pages (COMPLETED)
+
+### Inception Frontend: SQL Audit Engine Pages
+- Created API client: `orion-frontend/src/api/inception.ts`
+  - Interfaces: SqlAuditResult, SqlParseResult, SqlExecuteResult, InceptionStatus, AuditRecord
+  - API methods: health, status, audit, parse, execute, listDatabases, history
+- Created page: `orion-frontend/src/pages/inception/InceptionPage.tsx`
+  - Header with title and connection status badge
+  - Two-column layout: SQL input (left) + Results panel (right)
+  - Action buttons: 审计 SQL, 解析 SQL, 执行 SQL (Dry Run), 执行 SQL
+  - Audit results: warnings/errors tables with level badges, risk level badge
+  - Parse results: formatted SQL output with type info
+  - Execute results: result table or success message
+  - History section: paginated table of past audit records
+- Created index: `orion-frontend/src/pages/inception/index.tsx`
+- TypeScript type-check: no errors from new files
+- ESLint: no warnings from new files
+
+## 2026-05-17: P2 Missing Features + Structural Issues (COMPLETED)
+
+### P2-2: HPA 自动扩容
+- 为 9 个核心服务新增 HPA 配置：deploy/monitor/security/artifact/agent/ticket/finops/dr/federation
+- 加上已有的 pipeline/chatops，共 11 个服务拥有 HPA
+- 配置标准：min 2 / max 10 replicas，CPU 70% / Memory 80% 触发，含 scale up/down 行为策略
+- 创建通用模板：`k8s/templates/hpa-template.yaml`
+
+### P2-3: Ingress 外部访问配置
+- 为 9 个核心服务新增 Ingress 配置，加上已有共 12 个服务
+- 统一 annotations：SSL redirect、CORS、rate limiting、proxy timeout
+- 创建通用模板：`k8s/templates/ingress-template.yaml`
+
+### P2-4: 回滚迁移文件（100% 覆盖）
+- 生成 163 个新增 rollback SQL 文件（总计 213 个）
+- 从 32% 覆盖率 → 100%（所有 156 个正向迁移均有对应 rollback）
+- 自动生成策略：DROP TABLE for CREATE TABLE, DROP INDEX for CREATE INDEX
+
+### P2-6: 统一健康检查格式
+- 新建 `orion-platform-service/src/utils/health-check.ts`
+- 标准化 `/healthz` 响应：status/service/version/timestamp/uptime/checks
+- 支持多检查并行（db/redis/nats），自动判定 healthy/unhealthy/degraded
+- 提供 `registerHealthCheck()` Fastify 注册函数
+
+### P2-9: 统一错误响应格式
+- 新建 `orion-platform-service/src/utils/error-response.ts`
+- 定义 ErrorCode 枚举（12 种标准错误码）
+- 统一响应结构：ErrorResponse（success:false + error.code/message/details）
+- 提供 `createErrorResponse/createSuccessResponse/createPaginatedResponse` 工厂函数
+- `errorToCode()` 自动将 Error 映射为 ErrorCode
+
+### P2-10: 限流熔断
+- 新建 `orion-platform-service/src/utils/rate-limit-circuit-breaker.ts`
+- RateLimiter：滑动窗口计数器，支持 per-key 限流
+- CircuitBreaker：closed/open/half-open 三态自动切换
+- 提供 Fastify `registerRateLimit()` 插件
+- 提供 RateLimitHeader（X-RateLimit-Limit/Remaining/Reset）
+
+### Deploy Windows（上一目标）
+- 新建 `orion-deploy-svc/src/services/DeployWindowService.ts`（维护窗口/黑障期/紧急部署）
+- 新建 `orion-deploy-svc/src/services/__tests__/DeployWindowService.test.ts`（36 个测试）
+- 新建 `orion-deploy-svc/migrations/003_deploy_windows.sql`（deploy_windows + deploy_emergencies 表）
+- 修改 `orion-deploy-svc/src/routes/deploy-routes.ts`（新增 13 个 API 端点）
+- deploy-svc 全部 92 个测试通过
+
+### 结构性问题状态
+- chatops-svc 仓库去重：已从 96 个降至 2 个（之前已修复）
+- monitor-svc 路由分离：已从 app.ts 拆分为 8 个独立路由模块（之前已修复）
+- 重复路由文件：selfhealing/runner 均已合并为单文件（之前已修复）
+
+---
+
 ## 2026-05-15: SelfHealing Review Fixes (COMPLETED)
 
 ### fix(selfhealing): resolve Critical count query bug and ID generation conflict
@@ -2223,6 +2293,52 @@ skill, ticket, visor
 
 ### Commit
 - `9ebf94e3` - fix: remove redundant restartPolicy, unify secret naming, and replace any with Record<string, unknown>
+
+---
+
+## Next Steps
+1. Continue closing remaining frontend-backend gaps
+
+---
+
+## 2026-05-16: Notification Channel Management (COMPLETED)
+
+### feat(notify-svc): add notification channel management
+
+**实现 orion-notify-svc 通知渠道管理功能:**
+
+**新建文件 (5个):**
+1. `orion-notify-svc/src/services/NotificationChannelRepository.ts` -- 数据访问层，支持 CRUD 操作
+2. `orion-notify-svc/src/services/NotificationChannelService.ts` -- 业务逻辑层，配置验证、发送通知、测试渠道
+3. `orion-notify-svc/src/routes/notification-channel.ts` -- 7 个路由端点
+4. `orion-notify-svc/src/services/__tests__/NotificationChannelService.test.ts` -- 29 个测试用例
+5. `orion-notify-svc/migrations/003_notification_logs.sql` -- 通知日志表迁移
+
+**修改文件 (1个):**
+- `orion-notify-svc/src/app.ts` -- 注册 notification-channel 路由
+
+**支持的渠道类型:**
+- email (SMTP): 验证 smtpHost, smtpPort
+- slack: 验证 webhookUrl
+- webhook: 验证 url
+- sms: 验证 provider, apiKey
+- pagerduty: 验证 integrationKey
+
+**路由端点:**
+- POST /api/v1/notify/channels -- 创建渠道
+- GET /api/v1/notify/channels?tenantId=xxx -- 列出渠道
+- GET /api/v1/notify/channels/:id -- 获取渠道
+- PATCH /api/v1/notify/channels/:id -- 更新渠道
+- DELETE /api/v1/notify/channels/:id -- 删除渠道
+- POST /api/v1/notify/channels/:id/test -- 测试渠道
+- POST /api/v1/notify/send -- 发送通知
+
+**验证:**
+- Vitest 测试: 29/29 通过
+- TypeScript 类型检查: 无错误
+
+### Commit
+- `6c474688` - feat(notify-svc): add notification channel management
 
 ---
 
