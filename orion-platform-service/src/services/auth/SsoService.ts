@@ -23,12 +23,23 @@ import {
   randomNonce,
   randomState,
   ClientSecretPost,
-  ClientSecretBasic,
   type TokenEndpointResponseHelpers,
 } from 'openid-client';
 import pino from 'pino';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+
+const STATE_TTL_SECONDS = 600; // 10 minutes
+
+/**
+ * Minimal Redis-compatible interface to avoid importing RedisCache directly
+ * (avoids circular dependency)
+ */
+export interface SsoStateStore {
+  set(key: string, value: string, ttl: number): Promise<void>;
+  get(key: string): Promise<string | null>;
+  del(key: string): Promise<void>;
+}
 
 export interface SsoConfig {
   issuerUrl: string;
@@ -48,9 +59,26 @@ export interface SsoUserProfile {
 }
 
 /**
+ * In-memory fallback for when Redis is not available.
+ * Not suitable for multi-instance deployments.
+ */
+class InMemorySsoStateStore implements SsoStateStore {
+  private states: Map<string, string> = new Map();
+  async set(key: string, value: string, _ttl: number): Promise<void> {
+    this.states.set(key, value);
+    setTimeout(() => this.states.delete(key), STATE_TTL_SECONDS * 1000);
+  }
+  async get(key: string): Promise<string | null> {
+    return this.states.get(key) ?? null;
+  }
+  async del(key: string): Promise<void> {
+    this.states.delete(key);
+  }
+}
+
+/**
  * Internal state stored per-authorization request.
- * In production this should be stored in a session/cookie,
- * but for simplicity we keep it in-memory.
+ * Stored as JSON string in the state store.
  */
 interface AuthState {
   nonce: string;
@@ -60,10 +88,15 @@ interface AuthState {
 export class SsoService {
   private config: SsoConfig | null = null;
   private oidcConfig: Configuration | null = null;
-  /** In-memory state store — keyed by `state` value */
-  private pendingStates: Map<string, AuthState> = new Map();
+  private stateStore: SsoStateStore;
 
-  constructor() {}
+  /**
+   * @param stateStore — Redis-backed state store for multi-instance support.
+   *   If not provided, falls back to in-memory (not recommended for production).
+   */
+  constructor(stateStore?: SsoStateStore) {
+    this.stateStore = stateStore || new InMemorySsoStateStore();
+  }
 
   /**
    * Initialize SSO from configuration.
@@ -106,7 +139,7 @@ export class SsoService {
    * Generates and stores nonce + state for CSRF/replay protection.
    * Returns both the URL and the state key for later validation.
    */
-  getAuthorizationUrl(): { url: string; stateKey: string } {
+  async getAuthorizationUrl(): Promise<{ url: string; stateKey: string }> {
     if (!this.oidcConfig || !this.config) {
       throw new Error('SSO_NOT_CONFIGURED');
     }
@@ -122,13 +155,9 @@ export class SsoService {
       redirect_uri: this.config.redirectUri,
     });
 
-    // Store state for callback validation
-    this.pendingStates.set(state, { nonce, state });
-
-    // Clean up stale states after 10 minutes
-    setTimeout(() => {
-      this.pendingStates.delete(state);
-    }, 10 * 60 * 1000);
+    // Store state in Redis (or fallback) with TTL for callback validation
+    const authState: AuthState = { nonce, state };
+    await this.stateStore.set(`sso:state:${state}`, JSON.stringify(authState), STATE_TTL_SECONDS);
 
     return { url: url.toString(), stateKey: state };
   }
@@ -142,13 +171,15 @@ export class SsoService {
       throw new Error('SSO_NOT_CONFIGURED');
     }
 
-    const storedState = this.pendingStates.get(stateKey);
-    if (!storedState) {
+    const storedStateRaw = await this.stateStore.get(`sso:state:${stateKey}`);
+    if (!storedStateRaw) {
       throw new Error('SSO_STATE_MISMATCH: No matching state found');
     }
 
     // Clean up the state entry
-    this.pendingStates.delete(stateKey);
+    await this.stateStore.del(`sso:state:${stateKey}`);
+
+    const storedState: AuthState = JSON.parse(storedStateRaw);
 
     try {
       // Exchange authorization code for tokens
@@ -184,8 +215,8 @@ export class SsoService {
   /**
    * Get SSO login URL for redirect from the login page.
    */
-  getLoginUrl(): string {
-    const { url } = this.getAuthorizationUrl();
+  async getLoginUrl(): Promise<string> {
+    const { url } = await this.getAuthorizationUrl();
     return url;
   }
 

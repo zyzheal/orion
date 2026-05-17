@@ -11,14 +11,32 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import jwt from 'jsonwebtoken';
 import { randomUUID } from 'crypto';
-import { SsoService } from '../services/auth/SsoService';
+import { SsoService, SsoStateStore } from '../services/auth/SsoService';
 import { DatabasePool } from '../services/database';
+import { RedisCache } from '../services/redis-cache';
 
 // JWT_SECRET from environment variable
 const JWT_SECRET: string = process.env.JWT_SECRET || '';
 
+/**
+ * Redis-backed SSO state store — enables multi-instance SSO
+ */
+class RedisSsoStateStore implements SsoStateStore {
+  constructor(private redis: RedisCache) {}
+  async set(key: string, value: string, ttl: number): Promise<void> {
+    await this.redis.set(key, value, ttl);
+  }
+  async get(key: string): Promise<string | null> {
+    return this.redis.get(key);
+  }
+  async del(key: string): Promise<void> {
+    await this.redis.del(key);
+  }
+}
+
 export interface SsoRouteOptions {
   database?: DatabasePool;
+  redis?: RedisCache;
 }
 
 /**
@@ -41,7 +59,9 @@ export async function registerSsoRoutes(
   options: SsoRouteOptions = {},
 ): Promise<void> {
   const database = options.database;
-  const ssoService = new SsoService();
+  // Use Redis-backed state store if Redis is available (supports multi-instance)
+  const stateStore = options.redis ? new RedisSsoStateStore(options.redis) : undefined;
+  const ssoService = new SsoService(stateStore);
 
   // Initialize from environment variables
   const issuerUrl = process.env.SSO_ISSUER_URL;
@@ -84,7 +104,7 @@ export async function registerSsoRoutes(
     }
 
     try {
-      const loginUrl = ssoService.getLoginUrl();
+      const loginUrl = await ssoService.getLoginUrl();
       return reply.redirect(loginUrl);
     } catch (error) {
       fastify.log.error(error, '[SsoRoutes] Failed to generate SSO login URL');

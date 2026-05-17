@@ -232,8 +232,8 @@ export async function createApp(options: PlatformAppOptions = {}): Promise<{
   // Register auth API routes with database access
   await app.register(authRoutes, { prefix: '/api/v1/auth', database: options.database });
 
-  // Register SSO/OIDC routes with database access
-  await app.register(registerSsoRoutes, { prefix: '/api/v1/auth', database: options.database });
+  // Register SSO/OIDC routes with database access + Redis for state storage
+  await app.register(registerSsoRoutes, { prefix: '/api/v1/auth', database: options.database, redis: options.redis });
 
   // Register main API routes with database access
   await app.register(apiRoutes, { prefix: '/api/v1', eventBus: options.eventBus, database: options.database, redis: options.redis });
