@@ -63,6 +63,36 @@ import { PipelineBudgetService } from '../services/PipelineBudgetService';
 import { PipelineBudgetRepository } from '../repositories/PipelineBudgetRepository';
 import { registerBudgetRoutes } from './pipeline-budget-routes';
 
+// Previously orphan routes now being registered
+import authEnhancedRoutes from './auth-enhanced-routes';
+import autonomousPipelineRoutes from './autonomous-pipeline-routes';
+import canaryAnalysisRoutes from './canary-analysis-routes';
+import canaryTrafficRoutes from './canary-traffic-routes';
+import cronRoutes from './cron-routes';
+import { registerDependencyCoordinationRoutes } from './dependency-coordination-routes';
+import developerPortalRoutes from './developer-portal-routes';
+import diagnosticRoutes from './diagnostic-routes';
+import escalationRoutes from './escalation-routes';
+import hookChainRoutes from './hook-chain-routes';
+import performanceRoutes from './performance-routes';
+import { registerPipelineGraphRoutes } from './pipeline-graph-routes';
+import pipelineSSERoutes from './pipeline-sse-routes';
+import pipelineTemplateRoutes from './pipeline-template-routes';
+import pipelineVersionRoutes from './pipeline-version-routes';
+import pluginHotReloadRoutes from './plugin-hotreload-routes';
+import pluginRoutes from './plugin-routes';
+import queueRoutes from './queue-routes';
+import testGenerationRoutes from './test-generation-routes';
+import testSelectorRoutes from './test-selector-routes';
+
+// Services needed for route registration
+import { DependencyCoordinationService } from '../services/pipeline/DependencyCoordinationService';
+import { PipelineService } from '../services/pipeline/PipelineService';
+import { PipelineRepository } from '../services/pipeline/PipelineRepository';
+import { PipelineLogSSEService } from '../services/pipeline/PipelineLogSSEService';
+import { PluginLifecycleManager } from '../services/plugin-spi/PluginLifecycleManager';
+import { PluginRegistry } from '../services/plugin-spi/PluginRegistry';
+
 import pino from 'pino';
 import { ModuleManager } from '../services/module-lifecycle/ModuleManager';
 
@@ -169,6 +199,9 @@ async function registerWithRoleGuard(
 }
 
 export default async function apiRoutes(app: FastifyInstance, options: ApiRoutesOptions): Promise<void> {
+  // ==================== SSE Service Initialization (shared with pipeline engine) ====================
+  const pipelineLogSSE = new PipelineLogSSEService(new EventEmitter());
+
   // ==================== 租户隔离服务初始化 ====================
   // 初始化四层租户隔离服务 (P0 Task 6)
   const { isolationService, rlsPolicyManager } = initializeTenantIsolation(options.database);
@@ -518,4 +551,110 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // ==================== Runner Management ====================
   // Runner Agent 注册、心跳、Job 回报（Runner Agent 通信无需 JWT）
   // Test Report 路由已迁移到 orion-code-svc (port 3010)
+
+  // ==================== Previously Orphan Routes (Now Registered) ====================
+
+  // Auth Enhanced - JWT Key Rotation & Token Blacklist
+  await registerWithRoleGuard(app, authEnhancedRoutes, '/v1/auth', {
+    database: options.database,
+  });
+
+  // Autonomous Pipeline - Error classification, adaptive timeout, auto-retry
+  await registerWithRoleGuard(app, autonomousPipelineRoutes, '/v1/autonomous', {
+    database: options.database,
+  });
+
+  // ML Canary Analysis
+  await registerWithRoleGuard(app, canaryAnalysisRoutes, '/v1/canary-analysis', {
+    database: options.database,
+    eventBus: options.eventBus,
+  });
+
+  // Canary Traffic Management
+  await registerWithRoleGuard(app, canaryTrafficRoutes, '/v1/canary/deployments', {
+    database: options.database,
+  });
+
+  // Cron Scheduler
+  await registerWithRoleGuard(app, cronRoutes, '/v1/cron', {
+    database: options.database,
+  });
+
+  // Dependency Coordination - requires DependencyCoordinationService
+  if (options.database) {
+    const dependencyCoordinationService = new DependencyCoordinationService();
+    await registerDependencyCoordinationRoutes(app, { dependencyCoordinationService });
+  }
+
+  // Developer Portal
+  await registerWithRoleGuard(app, developerPortalRoutes, '/v1/developer-portal', {
+    database: options.database,
+  });
+
+  // Diagnostic Agent
+  await registerWithRoleGuard(app, diagnosticRoutes, '/v1/diagnostic', {
+    database: options.database,
+  });
+
+  // Escalation - unified escalation management
+  // Note: escalationScheduler is already started above
+  await registerWithRoleGuard(app, escalationRoutes, '/v1/escalation', {
+    database: options.database,
+    eventBus: options.eventBus,
+  });
+
+  // Hook Chain - hook chain orchestration
+  await registerWithRoleGuard(app, hookChainRoutes, '/v1/hook-chains');
+
+  // Performance Analysis
+  await registerWithRoleGuard(app, performanceRoutes, '/v1/performance', {
+    database: options.database,
+  });
+
+  // Pipeline Graph - YAML/JSON conversion and validation
+  if (options.database) {
+    const pipelineRepository = new PipelineRepository(options.database);
+    const pipelineService = new PipelineService(pipelineRepository);
+    await registerPipelineGraphRoutes(app, { pipelineService });
+  }
+
+  // Pipeline SSE - real-time log streaming
+  await app.register(pipelineSSERoutes, { prefix: '/v1', pipelineLogSSE });
+
+  // Pipeline Templates
+  await registerWithRoleGuard(app, pipelineTemplateRoutes, '/v1/pipeline-templates', {
+    database: options.database,
+  });
+
+  // Pipeline Versions
+  await registerWithRoleGuard(app, pipelineVersionRoutes, '/v1/pipelines/versions', {
+    database: options.database,
+  });
+
+  // Plugin Hot Reload
+  if (options.database) {
+    const pluginRegistry = new PluginRegistry();
+    const pluginLifecycleManager = new PluginLifecycleManager(pluginRegistry);
+    await registerWithRoleGuard(app, pluginHotReloadRoutes, '/v1/plugins/hotreload', {
+      lifecycleManager: pluginLifecycleManager,
+      registry: pluginRegistry,
+    });
+  }
+
+  // Plugin Management (enhanced plugin system)
+  await registerWithRoleGuard(app, pluginRoutes, '/v1/plugins', {
+    database: options.database,
+    pluginManager: (options as any).moduleManager,
+  });
+
+  // Queue Management
+  await registerWithRoleGuard(app, queueRoutes, '/v1/queue', {
+    database: options.database,
+  });
+
+  // Test Generation - AI test case generation
+  await registerWithRoleGuard(app, testGenerationRoutes, '/v1/test-generation');
+
+  // Test Selector - smart test selection
+  await registerWithRoleGuard(app, testSelectorRoutes, '/v1/test-selector');
 }
