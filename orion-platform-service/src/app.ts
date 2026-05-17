@@ -16,6 +16,7 @@ import { RedisCache } from './services/redis-cache';
 import { DatabasePool } from './services/database';
 import { EventBusService } from './services/event-bus-service';
 import { NatsServiceRegistry } from './services/nats-registry';
+import { initApiKeyAuth } from './middleware/apiKeyAuth';
 import apiRoutes from './api/routes';
 import authRoutes from './api/routes-auth';
 import { registerSsoRoutes } from './api/sso-routes';
@@ -183,6 +184,11 @@ export async function createApp(options: PlatformAppOptions = {}): Promise<{
       return await options.database!.checkHealth();
     });
     healthChecker.markAsReadyCheck('database');
+  }
+
+  // Initialize API key auth middleware
+  if (options.database) {
+    initApiKeyAuth(options.database);
   }
 
   // 注册 EventBus 健康检查

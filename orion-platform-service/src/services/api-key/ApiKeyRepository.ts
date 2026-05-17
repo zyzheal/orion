@@ -42,4 +42,8 @@ export class ApiKeyRepository {
   async updateLastUsed(id: string): Promise<void> {
     await this.pool.query('UPDATE api_keys SET last_used_at = NOW() WHERE id = $1', [id]);
   }
+
+  async findByHash(keyHash: string): Promise<ApiKey | null> {
+    return (await this.pool.query('SELECT * FROM api_keys WHERE key_hash = $1', [keyHash])).rows[0] || null;
+  }
 }

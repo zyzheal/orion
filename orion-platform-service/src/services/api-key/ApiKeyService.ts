@@ -31,4 +31,26 @@ export class ApiKeyService {
   async revokeKey(id: string): Promise<boolean> {
     return this.repository.delete(id);
   }
+
+  /**
+   * Verify a raw API key by hashing it and comparing with stored hashes.
+   * Returns the key record if valid, null otherwise.
+   * Also updates last_used_at timestamp.
+   */
+  async verifyKey(rawKey: string): Promise<{ key: ApiKey; keyId: string } | null> {
+    const hashedKey = createHash('sha256').update(rawKey).digest('hex');
+    const record = await this.repository.findByHash(hashedKey);
+    if (!record) return null;
+
+    // Check if key is expired
+    if (record.expires_at && new Date(record.expires_at) < new Date()) {
+      await this.repository.delete(record.id);
+      return null;
+    }
+
+    // Update last used
+    await this.repository.updateLastUsed(record.id);
+
+    return { key: record, keyId: record.id };
+  }
 }
