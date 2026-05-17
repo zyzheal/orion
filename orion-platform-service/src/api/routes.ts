@@ -71,6 +71,7 @@ import canaryTrafficRoutes from './canary-traffic-routes';
 import chaosEnhancedRoutes from './chaos-enhanced-routes';
 import cronRoutes from './cron-routes';
 import dataPipelineRoutes from './data-pipeline-routes';
+import decisionExplanationRoutes from './decision-explanation-routes';
 import { registerDependencyCoordinationRoutes } from './dependency-coordination-routes';
 import developerPortalRoutes from './developer-portal-routes';
 import diagnosticRoutes from './diagnostic-routes';
@@ -83,6 +84,7 @@ import pipelineTemplateRoutes from './pipeline-template-routes';
 import pipelineVersionRoutes from './pipeline-version-routes';
 import pluginHotReloadRoutes from './plugin-hotreload-routes';
 import pluginRoutes from './plugin-routes';
+import policyRoutes from './policy-routes';
 import queueRoutes from './queue-routes';
 import supplyChainRoutes from './supply-chain-routes';
 import testGenerationRoutes from './test-generation-routes';
@@ -591,6 +593,11 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // Data Pipeline - data pipeline management and lineage
   await registerWithRoleGuard(app, dataPipelineRoutes, '/v1/data-pipelines');
 
+  // Decision Explanation - SHAP decision explanations and quality feedback
+  await registerWithRoleGuard(app, decisionExplanationRoutes, '/v1/decisions', {
+    database: options.database,
+  });
+
   // Dependency Coordination - requires DependencyCoordinationService
   if (options.database) {
     const dependencyCoordinationService = new DependencyCoordinationService();
@@ -665,6 +672,11 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // Supply Chain Security - SBOM, dependency analysis, artifact signing
   await registerWithRoleGuard(app, supplyChainRoutes, '/v1/supply-chain', {
+    database: options.database,
+  });
+
+  // OPA Policy Engine - policy definitions, evaluations, violations, exemptions
+  await registerWithRoleGuard(app, policyRoutes, '/v1/policies', {
     database: options.database,
   });
 
