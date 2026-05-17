@@ -33,7 +33,34 @@ export async function registerMaintenanceWindowRoutes(
    * POST /maintenance-windows - 创建维护窗口
    * Body: { name, startTime, endTime, timezone?, description?, affectedServices? }
    */
-  app.post('/maintenance-windows', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/maintenance-windows', {
+    schema: {
+      tags: ['maintenance'],
+      summary: 'Create a maintenance window',
+      description: 'Creates a new maintenance window for the specified time range',
+      body: {
+        type: 'object',
+        required: ['name', 'startTime', 'endTime'],
+        properties: {
+          name: { type: 'string', description: 'Window name' },
+          startTime: { type: 'string', format: 'date-time', description: 'Start time (ISO 8601)' },
+          endTime: { type: 'string', format: 'date-time', description: 'End time (ISO 8601)' },
+          timezone: { type: 'string', default: 'UTC', description: 'Timezone identifier' },
+          description: { type: 'string', description: 'Optional description' },
+          affectedServices: { type: 'array', items: { type: 'string' }, description: 'List of affected service names' },
+        },
+      },
+      response: {
+        201: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: { type: 'object' },
+          },
+        },
+      },
+    },
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as Record<string, any>;
     const result = await service.createWindow({
       name: body.name,
@@ -50,7 +77,28 @@ export async function registerMaintenanceWindowRoutes(
    * GET /maintenance-windows - 列出所有窗口
    * Query: tenantId (optional filter)
    */
-  app.get('/maintenance-windows', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/maintenance-windows', {
+    schema: {
+      tags: ['maintenance'],
+      summary: 'List maintenance windows',
+      description: 'Returns a list of upcoming maintenance windows, optionally filtered by tenantId',
+      querystring: {
+        type: 'object',
+        properties: {
+          tenantId: { type: 'string', description: 'Filter by tenant ID' },
+        },
+      },
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: { type: 'array', items: { type: 'object' } },
+          },
+        },
+      },
+    },
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const query = request.query as Record<string, string | undefined>;
     let windows: any[];
     if (query.tenantId) {

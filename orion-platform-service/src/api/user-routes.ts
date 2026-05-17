@@ -35,17 +35,96 @@ export default async function userRoutes(
   // ==================== User CRUD ====================
 
   // GET /api/v1/users — List users with pagination
-  app.get('/', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/', {
+    schema: {
+      tags: ['user'],
+      summary: 'List users',
+      description: 'Returns a paginated list of users with optional search filtering',
+      querystring: {
+        type: 'object',
+        properties: {
+          page: { type: 'number', default: 1, description: 'Page number' },
+          pageSize: { type: 'number', default: 20, description: 'Items per page' },
+          search: { type: 'string', description: 'Search by name or email' },
+        },
+      },
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: { type: 'array', items: { type: 'object' } },
+            total: { type: 'number' },
+            page: { type: 'number' },
+            pageSize: { type: 'number' },
+          },
+        },
+      },
+    },
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.list(request, reply);
   });
 
   // GET /api/v1/users/:id — Get user detail
-  app.get('/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/:id', {
+    schema: {
+      tags: ['user'],
+      summary: 'Get user by ID',
+      params: {
+        type: 'object',
+        required: ['id'],
+        properties: {
+          id: { type: 'string', description: 'User ID' },
+        },
+      },
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: { type: 'object' },
+          },
+        },
+        404: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            error: { type: 'string' },
+            message: { type: 'string' },
+          },
+        },
+      },
+    },
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.getDetail(request, reply);
   });
 
   // POST /api/v1/users — Create user
-  app.post('/', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/', {
+    schema: {
+      tags: ['user'],
+      summary: 'Create a new user',
+      body: {
+        type: 'object',
+        required: ['name', 'email'],
+        properties: {
+          name: { type: 'string', description: 'User display name' },
+          email: { type: 'string', format: 'email', description: 'User email address' },
+          role: { type: 'string', description: 'User role' },
+          tenantId: { type: 'string', description: 'Associated tenant ID' },
+        },
+      },
+      response: {
+        201: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: { type: 'object' },
+          },
+        },
+      },
+    },
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.create(request, reply);
   });
 

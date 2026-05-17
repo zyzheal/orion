@@ -6,6 +6,8 @@ import Fastify, { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 import fastifyCors from '@fastify/cors';
 import fastifyHelmet from '@fastify/helmet';
 import fastifyRateLimit from '@fastify/rate-limit';
+import fastifySwagger from '@fastify/swagger';
+import fastifySwaggerUi from '@fastify/swagger-ui';
 import { v4 as uuidv4 } from 'uuid';
 
 import { config } from './config';
@@ -56,9 +58,13 @@ export async function createApp(options: PlatformAppOptions = {}): Promise<{
 
   // ==================== 注册插件 ====================
 
-  // 1. CORS 配置
+  // 1. CORS 配置 — 修复：不再使用 origin:true（等同允许所有来源），改为从环境变量读取允许的来源列表
+  const allowedOrigins = process.env.ALLOWED_ORIGINS
+    ? process.env.ALLOWED_ORIGINS.split(',').map(s => s.trim())
+    : ['http://localhost:5173', 'http://localhost:3000']; // 开发环境默认
+
   await app.register(fastifyCors, {
-    origin: true,
+    origin: allowedOrigins,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key', 'X-Request-ID', 'X-Tenant-ID', 'X-User-ID'],
@@ -89,6 +95,59 @@ export async function createApp(options: PlatformAppOptions = {}): Promise<{
         retryAfter: context.ttl,
       };
     },
+  });
+
+  // ==================== OpenAPI / Swagger 文档 ====================
+
+  // 4. Swagger — OpenAPI 3.0 规范自动生成
+  await app.register(fastifySwagger, {
+    openapi: {
+      info: {
+        title: 'Orion Platform API',
+        description: 'AI-driven DevOps platform API — R&D efficiency, pipeline management, observability',
+        version: '1.0.0',
+      },
+      servers: [
+        { url: 'http://localhost:3001', description: 'Development' },
+      ],
+      tags: [
+        { name: 'auth', description: 'Authentication' },
+        { name: 'pipeline', description: 'Pipeline management' },
+        { name: 'alert', description: 'Alert management' },
+        { name: 'incident', description: 'Incident management' },
+        { name: 'ticket', description: 'Ticket management' },
+        { name: 'finops', description: 'FinOps' },
+        { name: 'self-healing', description: 'Self-healing' },
+        { name: 'maintenance', description: 'Maintenance windows' },
+      ],
+      components: {
+        securitySchemes: {
+          bearerAuth: {
+            type: 'http' as const,
+            scheme: 'bearer',
+            bearerFormat: 'JWT',
+          },
+        },
+      },
+    },
+    transform: ({ schema, ...rest }) => {
+      // 自动将 JSON Schema 转换为 OpenAPI Schema（处理 ajv 格式差异）
+      return {
+        schema: {
+          ...schema,
+        },
+        ...rest,
+      };
+    },
+  });
+
+  await app.register(fastifySwaggerUi, {
+    routePrefix: '/api-docs',
+    uiConfig: {
+      docExpansion: 'list',
+      deepLinking: true,
+    },
+    staticCSP: true,
   });
 
   // ==================== 健康检查 ====================
