@@ -75,4 +75,36 @@ export default async function environmentRoutes(
       return envController.updateStatus(request, reply);
     }
   );
+
+  // POST /environments/:id/lock - Lock an environment
+  app.post(
+    '/environments/:id/lock',
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      return envController.lockEnvironment(request, reply);
+    }
+  );
+
+  // POST /environments/:id/unlock - Unlock an environment
+  app.post(
+    '/environments/:id/unlock',
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      return envController.unlockEnvironment(request, reply);
+    }
+  );
+
+  // GET /environments/:id/lock-status - Check lock status
+  app.get(
+    '/environments/:id/lock-status',
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      return envController.getLockStatus(request, reply);
+    }
+  );
+
+  // GET /environments/:id/deployment-allowed - Check if deployment is allowed
+  app.get(
+    '/environments/:id/deployment-allowed',
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      return envController.checkDeploymentAllowed(request, reply);
+    }
+  );
 }

@@ -51,6 +51,25 @@ export interface UpdateStatusInput {
   status: EnvironmentStatus;
 }
 
+export interface LockEnvironmentInput {
+  reason: string;
+  lockedBy?: string;
+}
+
+export interface EnvironmentLockInfo {
+  locked: boolean;
+  lockedBy?: string;
+  lockedAt?: string;
+  reason?: string;
+}
+
+export interface EnvironmentWithLock extends Environment {
+  locked?: boolean;
+  locked_by?: string;
+  locked_at?: string;
+  locked_reason?: string;
+}
+
 // ---- CRUD ----
 
 export function getEnvironments(params?: { projectId?: string }) {
@@ -77,4 +96,22 @@ export function deleteEnvironment(id: string) {
 
 export function updateEnvironmentStatus(id: string, data: UpdateStatusInput) {
   return api.post<Environment>(`/v1/environments/${id}/status`, data);
+}
+
+// ---- Lock ----
+
+export function lockEnvironment(id: string, data: LockEnvironmentInput) {
+  return api.post<EnvironmentLockInfo>(`/v1/environments/${id}/lock`, data);
+}
+
+export function unlockEnvironment(id: string) {
+  return api.post<EnvironmentLockInfo>(`/v1/environments/${id}/unlock`);
+}
+
+export function getEnvironmentLockStatus(id: string) {
+  return api.get<EnvironmentLockInfo>(`/v1/environments/${id}/lock-status`);
+}
+
+export function checkDeploymentAllowed(id: string) {
+  return api.get<{ allowed: boolean; reason?: string }>(`/v1/environments/${id}/deployment-allowed`);
 }

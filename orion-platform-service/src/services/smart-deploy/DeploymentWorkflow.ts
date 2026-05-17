@@ -23,6 +23,7 @@ import { DeploymentStrategyEngine } from './DeploymentStrategyEngine';
 import { DeploymentVerifier } from './DeploymentVerifier';
 import { DeploymentHistoryService } from './DeploymentHistoryService';
 import { RollbackService } from './RollbackService';
+import { EnvironmentLockService } from '../environment/EnvironmentLockService';
 
 /**
  * Deployment workflow orchestration
@@ -33,6 +34,7 @@ export class DeploymentWorkflow {
   private historyService: DeploymentHistoryService;
   private rollbackService: RollbackService;
   private eventPublisher?: IEventPublisher;
+  private lockService?: EnvironmentLockService;
 
   constructor(options?: {
     eventPublisher?: IEventPublisher;
@@ -40,6 +42,7 @@ export class DeploymentWorkflow {
     verifier?: DeploymentVerifier;
     historyService?: DeploymentHistoryService;
     rollbackService?: RollbackService;
+    lockService?: EnvironmentLockService;
   }) {
     this.eventPublisher = options?.eventPublisher;
     this.strategyEngine =
@@ -49,6 +52,7 @@ export class DeploymentWorkflow {
       options?.historyService || new DeploymentHistoryService();
     this.rollbackService =
       options?.rollbackService || new RollbackService({ eventPublisher: options?.eventPublisher });
+    this.lockService = options?.lockService;
   }
 
   /**
@@ -400,6 +404,22 @@ export class DeploymentWorkflow {
     deployment: Deployment,
     config: DeployConfig
   ): Promise<{ success: boolean; error?: string }> {
+    // Step 0: Check if target environment is locked
+    if (this.lockService) {
+      try {
+        const lockCheck = await this.lockService.checkDeploymentAllowed(deployment.environment);
+        if (!lockCheck.allowed) {
+          return {
+            success: false,
+            error: `Deployment blocked: ${lockCheck.reason}`,
+          };
+        }
+      } catch (error: any) {
+        // If the environment lookup fails, log but don't block
+        console.warn(`[DeploymentWorkflow] Environment lock check failed: ${error.message}`);
+      }
+    }
+
     // Create pre-check stage
     const preCheckStage: DeploymentStage = {
       name: 'pre-deployment-checks',

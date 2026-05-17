@@ -16,6 +16,10 @@ export interface Environment {
   namespace?: string;
   config: Record<string, any>;
   status: string;
+  locked?: boolean;
+  locked_by?: string;
+  locked_at?: Date;
+  locked_reason?: string;
   created_at?: Date;
   updated_at?: Date;
 }
@@ -114,5 +118,33 @@ export class EnvironmentRepository {
 
     const result = await this.pool.query('DELETE FROM environments WHERE id = $1', [id]);
     return (result.rowCount ?? 0) > 0;
+  }
+
+  /**
+   * Lock an environment to prevent deployments.
+   */
+  async lock(id: string, lockedBy: string, reason: string): Promise<Environment | null> {
+    const result = await this.pool.query(
+      `UPDATE environments
+       SET locked = TRUE, locked_by = $2, locked_at = NOW(), locked_reason = $3, updated_at = NOW()
+       WHERE id = $1
+       RETURNING *`,
+      [id, lockedBy, reason]
+    );
+    return result.rows[0] || null;
+  }
+
+  /**
+   * Unlock an environment to allow deployments.
+   */
+  async unlock(id: string): Promise<Environment | null> {
+    const result = await this.pool.query(
+      `UPDATE environments
+       SET locked = FALSE, locked_by = NULL, locked_at = NULL, locked_reason = NULL, updated_at = NOW()
+       WHERE id = $1
+       RETURNING *`,
+      [id]
+    );
+    return result.rows[0] || null;
   }
 }

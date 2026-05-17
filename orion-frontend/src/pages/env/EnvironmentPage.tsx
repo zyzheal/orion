@@ -34,6 +34,8 @@ import {
   PlayCircleOutlined,
   ClockCircleOutlined,
   CopyOutlined,
+  LockOutlined,
+  UnlockOutlined,
 } from '@ant-design/icons';
 import Table from '@/components/Table';
 import type { TableColumn } from '@/components/Table';
@@ -44,11 +46,14 @@ import {
   updateEnvironment,
   deleteEnvironment,
   updateEnvironmentStatus,
+  lockEnvironment,
+  unlockEnvironment,
   type Environment,
   type CreateEnvironmentInput,
   type UpdateEnvironmentInput,
   type EnvironmentStatus,
 } from '@/api/environments';
+import EnvironmentLockBadge from '@/components/environment/EnvironmentLockBadge';
 import dayjs from 'dayjs';
 import { colors } from '@/tokens/colors';
 
@@ -288,6 +293,26 @@ const EnvironmentPage: React.FC = () => {
     }
   };
 
+  const handleLock = async (id: string) => {
+    try {
+      await lockEnvironment(id, { reason: '手动锁定', lockedBy: 'current-user' });
+      message.success('环境已锁定');
+      loadData();
+    } catch (error: unknown) {
+      message.error(`锁定失败: ${(error as Error).message}`);
+    }
+  };
+
+  const handleUnlock = async (id: string) => {
+    try {
+      await unlockEnvironment(id);
+      message.success('环境已解锁');
+      loadData();
+    } catch (error: unknown) {
+      message.error(`解锁失败: ${(error as Error).message}`);
+    }
+  };
+
   const openEdit = (env: Environment) => {
     setEditingEnv(env);
     editForm.setFieldsValue({
@@ -351,6 +376,25 @@ const EnvironmentPage: React.FC = () => {
         <Tag color={statusColorMap[record.status] || 'default'}>
           {statusLabelMap[record.status] || record.status}
         </Tag>
+      ),
+    },
+    {
+      key: 'locked',
+      title: '锁定',
+      width: 80,
+      render: (_: unknown, record: Environment) => (
+        <EnvironmentLockBadge
+          envId={record.id}
+          envName={record.name}
+          initialLockInfo={{
+            locked: !!(record as any).locked,
+            lockedBy: (record as any).locked_by,
+            lockedAt: (record as any).locked_at,
+            reason: (record as any).locked_reason,
+          }}
+          showActions
+          onLockChange={() => loadData()}
+        />
       ),
     },
     {
@@ -420,8 +464,10 @@ const EnvironmentPage: React.FC = () => {
     {
       key: 'actions',
       title: '操作',
-      width: 260,
-      render: (_: unknown, record: Environment) => (
+      width: 300,
+      render: (_: unknown, record: Environment) => {
+        const isLocked = (record as any).locked;
+        return (
         <Space size="small" wrap>
           <Tooltip title="详情">
             <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => openDetail(record)}>
@@ -466,6 +512,31 @@ const EnvironmentPage: React.FC = () => {
               </Button>
             </Tooltip>
           )}
+          {!isLocked ? (
+            <Popconfirm
+              title="确认锁定环境?"
+              description="锁定后将无法向此环境部署应用"
+              onConfirm={() => handleLock(record.id)}
+            >
+              <Tooltip title="锁定环境">
+                <Button type="link" size="small" icon={<LockOutlined />}>
+                  锁定
+                </Button>
+              </Tooltip>
+            </Popconfirm>
+          ) : (
+            <Popconfirm
+              title="确认解锁环境?"
+              description="解锁后将允许向此环境部署应用"
+              onConfirm={() => handleUnlock(record.id)}
+            >
+              <Tooltip title="解锁环境">
+                <Button type="link" size="small" icon={<UnlockOutlined />}>
+                  解锁
+                </Button>
+              </Tooltip>
+            </Popconfirm>
+          )}
           <Tooltip title="删除">
             <Popconfirm
               title="确认删除该环境?"
@@ -476,7 +547,8 @@ const EnvironmentPage: React.FC = () => {
             </Popconfirm>
           </Tooltip>
         </Space>
-      ),
+        );
+      },
     },
   ];
 
