@@ -61,6 +61,7 @@ import { escalationScheduler } from '../services/escalation/EscalationScheduler'
 import { registerSecretRoutes } from './secret-routes';
 import { registerApkUploadHistoryRoutes } from './apk-upload-history-routes';
 import branchPolicyRoutes from './branch-policy-routes';
+import workbenchRoutes from './workbench-routes';
 import { PipelineBudgetService } from '../services/PipelineBudgetService';
 import { PipelineBudgetRepository } from '../repositories/PipelineBudgetRepository';
 import { registerBudgetRoutes } from './pipeline-budget-routes';
@@ -423,6 +424,9 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // 注册 Notification API 路由 (M8/M33) — 传入 eventBus 用于多通道投递事件
   await registerWithRoleGuard(app, notificationRoutes, '/v1/notifications', { eventBus: options.eventBus });
+
+  // 注册 Workbench API 路由 — 个人聚合工作台后端
+  app.register(workbenchRoutes, { prefix: '/v1/workbench', database: options.database });
 
   // 注册 Role Management API 路由 (RBAC) - PostgreSQL backed
   await registerWithRoleGuard(app, roleRoutes, '/v1/roles', { database: options.database });
