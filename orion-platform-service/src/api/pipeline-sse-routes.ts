@@ -10,6 +10,7 @@ import { PipelineLogSSEService, PipelineLogEvent } from '../services/pipeline/Pi
 // Shared secret for internal SSE publish endpoints
 // Must match SSE_PUBLISH_SECRET env var set on the calling service (e.g., PipelineEngine)
 const SSE_PUBLISH_SECRET = process.env.SSE_PUBLISH_SECRET || '';
+const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGINS?.split(',')[0]?.trim() || 'http://localhost:5173';
 
 async function verifyPublishAuth(request: FastifyRequest, reply: FastifyReply): Promise<void> {
   const headerSecret = request.headers['x-sse-secret'] as string | undefined;
@@ -53,7 +54,8 @@ export default async function registerPipelineSSERoutes(
     reply.raw.setHeader('Cache-Control', 'no-cache');
     reply.raw.setHeader('Connection', 'keep-alive');
     reply.raw.setHeader('X-Accel-Buffering', 'no'); // 禁用 nginx 缓冲
-    reply.raw.setHeader('Access-Control-Allow-Origin', '*');
+    reply.raw.setHeader('Access-Control-Allow-Origin', ALLOWED_ORIGIN);
+    reply.raw.setHeader('Access-Control-Allow-Credentials', 'true');
 
     // 解析日志级别过滤
     const logLevels = logLevel?.split(',').map(l => l.trim()) as PipelineLogEvent['level'][] | undefined;
@@ -89,6 +91,8 @@ export default async function registerPipelineSSERoutes(
     reply.raw.setHeader('Content-Type', 'text/event-stream');
     reply.raw.setHeader('Cache-Control', 'no-cache');
     reply.raw.setHeader('Connection', 'keep-alive');
+    reply.raw.setHeader('Access-Control-Allow-Origin', ALLOWED_ORIGIN);
+    reply.raw.setHeader('Access-Control-Allow-Credentials', 'true');
 
     // 创建 SSE 连接 (仅状态更新)
     const connId = pipelineLogSSE.createConnection(pipelineId, runId || 'latest', userId, reply, {
