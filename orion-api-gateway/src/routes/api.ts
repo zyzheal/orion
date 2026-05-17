@@ -708,32 +708,39 @@ export function registerRoutes(app: FastifyInstance): void {
     });
   });
 
-  // 注册就绪检查路由 - 检查所有 34 个服务
+  // 注册就绪检查路由 - 检查所有配置的服务
   app.get('/readyz', async (request, reply) => {
     const services = config.services;
-    const checks: Record<string, string> = {};
+    const checks: Record<string, { status: string; latency?: number }> = {};
+    let allHealthy = true;
 
-    // 检查关键服务是否就绪
-    const criticalServices = [
-      { name: 'platform', url: services.platform?.url },
-      { name: 'pipeline', url: services.pipeline?.url },
-      { name: 'deploy', url: services.deploy?.url },
-    ];
+    // Deduplicate service targets from routeConfigs
+    const checkedTargets = new Set<string>();
+    for (const route of routeConfigs) {
+      if (checkedTargets.has(route.target)) continue;
+      checkedTargets.add(route.target);
 
-    for (const service of criticalServices) {
-      if (service.url) {
-        const ready = await proxyMiddleware.checkServiceHealth(service.url, 2000);
-        checks[service.name] = ready ? 'up' : 'down';
+      const serviceName = route.prefix.split('/').filter(Boolean)[2] || route.target;
+
+      try {
+        const start = Date.now();
+        const res = await fetch(`${route.target}/healthz`, { signal: AbortSignal.timeout(2000) });
+        const latency = Date.now() - start;
+        checks[serviceName] = {
+          status: res.ok ? 'up' : 'down',
+          latency,
+        };
+        if (!res.ok) allHealthy = false;
+      } catch {
+        checks[serviceName] = { status: 'unreachable' };
+        allHealthy = false;
       }
     }
 
-    // 检查是否有任何关键服务宕机
-    const ready = Object.values(checks).every(status => status === 'up');
-
-    reply.code(ready ? 200 : 503).send({
-      status: ready ? 'ready' : 'not_ready',
+    reply.code(allHealthy ? 200 : 503).send({
+      status: allHealthy ? 'ready' : 'not_ready',
       timestamp: new Date().toISOString(),
-      services: Object.keys(services).length,
+      services: Object.keys(checks).length,
       checks,
     });
   });
