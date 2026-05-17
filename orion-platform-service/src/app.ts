@@ -73,7 +73,18 @@ export async function createApp(options: PlatformAppOptions = {}): Promise<{
 
   // 2. Helmet 安全头部
   await app.register(fastifyHelmet, {
-    contentSecurityPolicy: false,
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", 'data:', 'https:'],
+        connectSrc: ["'self'"],
+        fontSrc: ["'self'", 'data:'],
+        objectSrc: ["'none'"],
+        frameSrc: ["'none'"],
+      },
+    },
     crossOriginEmbedderPolicy: false,
   });
 
