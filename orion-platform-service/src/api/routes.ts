@@ -425,8 +425,8 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // 注册 Notification API 路由 (M8/M33) — 传入 eventBus 用于多通道投递事件
   await registerWithRoleGuard(app, notificationRoutes, '/v1/notifications', { eventBus: options.eventBus });
 
-  // 注册 Workbench API 路由 — 个人聚合工作台后端
-  app.register(workbenchRoutes, { prefix: '/v1/workbench', database: options.database });
+  // 注册 Workbench API 路由 — 个人聚合工作台后端 (auth guarded)
+  await registerWithRoleGuard(app, workbenchRoutes, '/v1/workbench', { database: options.database });
 
   // 注册 Role Management API 路由 (RBAC) - PostgreSQL backed
   await registerWithRoleGuard(app, roleRoutes, '/v1/roles', { database: options.database });
