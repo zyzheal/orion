@@ -1,5 +1,74 @@
 # Orion Design - Progress Log
 
+## 2026-05-17: DispatchQueueManager PostgreSQL Migration (COMPLETED)
+
+### DispatchQueueManager: Map -> PostgreSQL Migration
+- Created `DispatchQueueRepository.ts` — PostgreSQL repository for dispatch_queue table
+  - `create` — insert new queue entry with payload stored as JSONB in candidates column
+  - `deleteById` — remove entry by queue ID
+  - `findById` / `findByQueueId` — find entries by ID
+  - `findAllPending` — get all pending entries ordered by dispatchPriority
+  - `findAll` — get all entries regardless of status
+  - `countPending` — count pending entries
+  - `updatePayload` — update the candidates JSONB payload (for reprioritize, attempt tracking)
+  - `updateStatus` / `markDispatched` — update entry status
+  - `clearAll` — delete all entries (for testing)
+  - `parsePayload` — static method to parse JSONB into DispatchQueuePayload
+- Rewrote `DispatchQueueManager.ts` to use repository instead of in-memory Map
+  - Constructor accepts `DispatchQueueRepository`
+  - All methods (enqueue, dequeue, reprioritize, getQueueSize, getEntries, getSLAAlerts, getNextForDispatch, recordDispatchAttempt, markDispatched) use repository calls
+  - `startAutoReprioritize` timer (every 60s) queries/updates DB instead of Map
+  - SLA deadline computed from SLATarget.targetResolutionTimeMs
+- Updated `TicketService.ts` to create DispatchQueueRepository and pass to DispatchQueueManager
+  - Made enqueue calls in createTicket async
+  - Made recordDispatchAttempt/markDispatched calls in autoDispatch/manualDispatch async
+  - Made getDispatchQueueStatus, getDispatchQueueEntries, getDispatchSLAAlerts async
+  - Made clearAll async
+- Updated `TicketingController.ts` to await async dispatch queue method calls
+- Updated `app.ts` to initialize database pool and pass to routes
+- TypeScript type-check: no new errors from these changes (pre-existing errors in other files)
+
+## 2026-05-17: MaintenanceWindowService Implementation (COMPLETED)
+
+### MaintenanceWindowService + Routes + Migration
+- Rewrote `MaintenanceWindowService.ts` with real PostgreSQL queries via `MaintenanceWindowRepository`
+  - `createWindow` — validates name, startTime, endTime ordering; creates entity with UUID, saves via repository
+  - `getWindowsByTenant` — queries by tenant filter via repository.findByTenantId
+  - `getActiveWindows` — finds windows where now() is between startTime and endTime
+  - `getUpcomingWindows` — finds windows with startTime in the future, ordered by startTime, limited
+  - `deleteWindow` — deletes by id via repository.delete
+  - `isServiceInMaintenanceWindow` — checks if serviceName appears in any active window's affectedServices
+- Updated `MaintenanceWindowRepository.ts` entity to include timezone, description, updatedAt fields
+- Created `maintenance-window-routes.ts` with 6 REST endpoints:
+  - POST /maintenance-windows — create window
+  - GET /maintenance-windows — list all (tenantId filter)
+  - GET /maintenance-windows/active — get active windows
+  - GET /maintenance-windows/upcoming — get upcoming (limit query)
+  - DELETE /maintenance-windows/:id — delete window
+  - GET /maintenance-windows/check/:serviceName — check if service is in maintenance
+- Registered routes in `app.ts` with database dependency injection
+- Created migration 157: adds timezone, description, updated_at columns + active window index
+- Created 18 unit tests covering validation and business logic (all passing)
+- TypeScript type-check: no errors
+
+## 2026-05-17: Graph Service Frontend Pages (COMPLETED)
+
+### Graph Frontend: Service Dependencies, Infrastructure Topology, Impact Analysis, Cypher Query
+- Created API client: `orion-frontend/src/api/graph.ts`
+  - Interfaces: GraphHealth, GraphNode, GraphEdge, GraphQueryResult, CypherQueryInput
+  - Interfaces: ServiceDependency, ServiceDetail, InfrastructureNode, InfrastructureTopology
+  - Interfaces: ImpactNode, ImpactAnalysis
+  - API methods: getHealth, executeQuery, getServiceDependencies, getServiceDetail, getInfrastructureTopology, getImpactAnalysis
+- Created page: `orion-frontend/src/pages/graph/GraphPage.tsx`
+  - Header with service title, description, and health status badge
+  - Four-tab layout: 服务依赖图 | 基础设施拓扑 | 影响分析 | Cypher 查询
+  - Service Dependencies tab: Stats cards, Table + Tree view, service detail panel with upstream/downstream dependencies
+  - Infrastructure tab: Stats cards, Node table, Edge/Connection list
+  - Impact Analysis tab: Service selector, impact summary cards, critical warning alert, direct/indirect impact tables
+  - Cypher Query tab: Code editor textarea, execute button, error display, results table
+- Created index: `orion-frontend/src/pages/graph/index.tsx`
+- TypeScript type-check: no errors from new files (pre-existing PRTriggerConfig error unrelated)
+
 ## 2026-05-17: Inception Frontend Pages (COMPLETED)
 
 ### Inception Frontend: SQL Audit Engine Pages
