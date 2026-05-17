@@ -9,16 +9,19 @@ import { NotificationService, NotificationServiceError } from '../services/notif
 import { NotificationRepository, NotificationSettingsRepository, NotificationSettingsService } from '../services/notification';
 
 import { DatabasePool } from '../services/database';
+import { EventBusService } from '../services/event-bus-service';
 
 interface NotificationRoutesOptions {
   notificationService?: NotificationService;
   database?: DatabasePool;
+  eventBus?: EventBusService;
 }
 
 export default async function notificationRoutes(app: FastifyInstance, options: NotificationRoutesOptions): Promise<void> {
   const pool = options.database;
   const notificationRepo = pool ? new NotificationRepository(pool) : undefined;
-  const service = options.notificationService || (notificationRepo ? new NotificationService(notificationRepo) : undefined as any);
+  // Pass EventBus as event publisher for multi-channel delivery
+  const service = options.notificationService || (notificationRepo ? new NotificationService(notificationRepo, options.eventBus) : undefined as any);
   const settingsRepo = pool ? new NotificationSettingsRepository(pool) : undefined as any;
   const settingsService = settingsRepo ? new NotificationSettingsService(settingsRepo) : undefined as any;
 

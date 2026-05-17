@@ -421,8 +421,8 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // 注册 Internal Library 二方库管理 API 路由 (M30)
   await registerWithRoleGuard(app, internalLibraryRoutes, '/v1/internal-libraries', { database: options.database });
 
-  // 注册 Notification API 路由 (M8/M33)
-  await registerWithRoleGuard(app, notificationRoutes, '/v1/notifications');
+  // 注册 Notification API 路由 (M8/M33) — 传入 eventBus 用于多通道投递事件
+  await registerWithRoleGuard(app, notificationRoutes, '/v1/notifications', { eventBus: options.eventBus });
 
   // 注册 Role Management API 路由 (RBAC) - PostgreSQL backed
   await registerWithRoleGuard(app, roleRoutes, '/v1/roles', { database: options.database });
