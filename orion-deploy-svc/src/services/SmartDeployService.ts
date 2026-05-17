@@ -80,13 +80,14 @@ export class SmartDeployService {
       version: string,
       environment: string
     ) => Promise<RiskAssessmentResult>;
+    db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> };
   }) {
     this.eventPublisher = options?.eventPublisher;
     this.historyService =
-      options?.historyService || new DeploymentHistoryService();
+      options?.historyService || (options?.db ? new DeploymentHistoryService(options.db) : new DeploymentHistoryService({ query: async () => ({ rows: [], rowCount: 0 }) }));
     this.rollbackService =
       options?.rollbackService ||
-      new RollbackService({ eventPublisher: options?.eventPublisher });
+      new RollbackService({ eventPublisher: options?.eventPublisher, db: options?.db ?? { query: async () => ({ rows: [], rowCount: 0 }) } });
     this.verifier = options?.verifier || new DeploymentVerifier();
     this.riskAssessmentFn = options?.riskAssessmentFn;
 
@@ -97,6 +98,7 @@ export class SmartDeployService {
         historyService: this.historyService,
         rollbackService: this.rollbackService,
         verifier: this.verifier,
+        db: options?.db,
       });
   }
 

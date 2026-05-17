@@ -1,4 +1,5 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest, FastifyPluginOptions } from 'fastify';
+import { Pool } from 'pg';
 import { EnvironmentType } from '../types/deploy';
 import { DeploymentWorkflow } from '../services/DeploymentWorkflow';
 import { EnvironmentService } from '../services/EnvironmentService';
@@ -6,18 +7,25 @@ import { RollbackService } from '../services/RollbackService';
 import { DeploymentHistoryService } from '../services/DeploymentHistoryService';
 import { ReleaseNotesService } from '../services/ReleaseNotesService';
 import { WindowsDeploymentService } from '../services/WindowsDeploymentService';
+import { DeployWindowService } from '../services/DeployWindowService';
+
+interface DeployRoutesOptions extends FastifyPluginOptions {
+  dbPool: Pool;
+}
 
 /**
  * Deploy Routes
  * All deployment-related API endpoints
  */
-export async function deployRoutes(fastify: FastifyInstance, _opts: FastifyPluginOptions): Promise<void> {
+export async function deployRoutes(fastify: FastifyInstance, opts: DeployRoutesOptions): Promise<void> {
+  const dbPool = opts.dbPool;
   const workflow = new DeploymentWorkflow();
   const envService = new EnvironmentService();
-  const rollbackService = new RollbackService();
-  const historyService = new DeploymentHistoryService();
+  const rollbackService = new RollbackService({ db: dbPool });
+  const historyService = new DeploymentHistoryService(dbPool);
   const releaseNotesService = new ReleaseNotesService();
   const windowsDeploymentService = new WindowsDeploymentService();
+  const deployWindowService = new DeployWindowService();
 
   // ==================== Environment Routes ====================
 
@@ -408,6 +416,234 @@ export async function deployRoutes(fastify: FastifyInstance, _opts: FastifyPlugi
     async (request, reply) => {
       const config = request.body;
       const result = await windowsDeploymentService.validateConfig(config as any);
+      return reply.send(result);
+    },
+  );
+
+  // ==================== Deploy Window Routes ====================
+
+  /**
+   * POST /api/v1/deploy/windows
+   * Create a deploy window (maintenance or blackout)
+   */
+  fastify.post<{ Body: {
+    tenantId: string;
+    name: string;
+    type: 'maintenance' | 'blackout';
+    schedule: string;
+    durationMinutes: number;
+    environments: string[];
+    description?: string;
+  } }>(
+    '/deploy/windows',
+    async (request, reply) => {
+      try {
+        const window = await deployWindowService.createWindow({
+          tenantId: request.body.tenantId,
+          name: request.body.name,
+          type: request.body.type,
+          schedule: request.body.schedule,
+          durationMinutes: request.body.durationMinutes,
+          environments: request.body.environments,
+          description: request.body.description,
+        });
+        return reply.code(201).send(window);
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        return reply.code(400).send({ error: message });
+      }
+    },
+  );
+
+  /**
+   * GET /api/v1/deploy/windows
+   * List deploy windows for a tenant
+   */
+  fastify.get<{ Querystring: { tenantId: string; type?: 'maintenance' | 'blackout' } }>(
+    '/deploy/windows',
+    async (request, reply) => {
+      const { tenantId, type } = request.query;
+      const windows = await deployWindowService.listWindows(tenantId, type);
+      return reply.send(windows);
+    },
+  );
+
+  /**
+   * GET /api/v1/deploy/windows/:id
+   * Get a single deploy window
+   */
+  fastify.get<{ Params: { id: string } }>(
+    '/deploy/windows/:id',
+    async (request, reply) => {
+      const { id } = request.params;
+      const window = await deployWindowService.getWindow(id);
+      if (!window) {
+        return reply.code(404).send({ error: 'Window not found' });
+      }
+      return reply.send(window);
+    },
+  );
+
+  /**
+   * PUT /api/v1/deploy/windows/:id
+   * Update a deploy window
+   */
+  fastify.put<{ Params: { id: string }; Body: {
+    name?: string;
+    type?: 'maintenance' | 'blackout';
+    schedule?: string;
+    durationMinutes?: number;
+    environments?: string[];
+    description?: string;
+  } }>(
+    '/deploy/windows/:id',
+    async (request, reply) => {
+      const { id } = request.params;
+      const window = await deployWindowService.updateWindow(id, request.body);
+      if (!window) {
+        return reply.code(404).send({ error: 'Window not found' });
+      }
+      return reply.send(window);
+    },
+  );
+
+  /**
+   * DELETE /api/v1/deploy/windows/:id
+   * Delete a deploy window
+   */
+  fastify.delete<{ Params: { id: string } }>(
+    '/deploy/windows/:id',
+    async (request, reply) => {
+      const { id } = request.params;
+      const deleted = await deployWindowService.deleteWindow(id);
+      if (!deleted) {
+        return reply.code(404).send({ error: 'Window not found' });
+      }
+      return reply.send({ success: true });
+    },
+  );
+
+  /**
+   * GET /api/v1/deploy-windows/check
+   * Check if deployment is allowed for a tenant/environment
+   */
+  fastify.get<{ Querystring: { tenantId: string; environment: string } }>(
+    '/deploy-windows/check',
+    async (request, reply) => {
+      const { tenantId, environment } = request.query;
+      const result = await deployWindowService.checkDeployAllowed(tenantId, environment);
+      return reply.send(result);
+    },
+  );
+
+  /**
+   * GET /api/v1/deploy-windows/calendar
+   * Get calendar view of deploy windows
+   */
+  fastify.get<{ Querystring: { tenantId: string; start: string; end: string } }>(
+    '/deploy-windows/calendar',
+    async (request, reply) => {
+      const { tenantId, start, end } = request.query;
+      try {
+        const events = await deployWindowService.getCalendar(
+          tenantId,
+          new Date(start),
+          new Date(end),
+        );
+        return reply.send(events);
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        return reply.code(400).send({ error: `Invalid date format: ${message}` });
+      }
+    },
+  );
+
+  // ==================== Emergency Deployment Routes ====================
+
+  /**
+   * POST /api/v1/deploy-emergencies
+   * Request an emergency deployment
+   */
+  fastify.post<{ Body: {
+    tenantId: string;
+    deploymentId: string;
+    reason: string;
+    requestedBy: string;
+  } }>(
+    '/deploy-emergencies',
+    async (request, reply) => {
+      try {
+        const emergency = await deployWindowService.requestEmergency({
+          tenantId: request.body.tenantId,
+          deploymentId: request.body.deploymentId,
+          reason: request.body.reason,
+          requestedBy: request.body.requestedBy,
+        });
+        return reply.code(201).send(emergency);
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        return reply.code(400).send({ error: message });
+      }
+    },
+  );
+
+  /**
+   * GET /api/v1/deploy-emergencies
+   * List emergency requests for a tenant
+   */
+  fastify.get<{ Querystring: { tenantId: string; status?: 'pending' | 'approved' | 'rejected' } }>(
+    '/deploy-emergencies',
+    async (request, reply) => {
+      const { tenantId, status } = request.query;
+      const emergencies = await deployWindowService.listEmergencies(tenantId, status);
+      return reply.send(emergencies);
+    },
+  );
+
+  /**
+   * GET /api/v1/deploy-emergencies/:id
+   * Get a single emergency request
+   */
+  fastify.get<{ Params: { id: string } }>(
+    '/deploy-emergencies/:id',
+    async (request, reply) => {
+      const { id } = request.params;
+      const emergency = await deployWindowService.getEmergency(id);
+      if (!emergency) {
+        return reply.code(404).send({ error: 'Emergency request not found' });
+      }
+      return reply.send(emergency);
+    },
+  );
+
+  /**
+   * POST /api/v1/deploy-emergencies/:id/approve
+   * Approve an emergency deployment
+   */
+  fastify.post<{ Params: { id: string }; Body: { approvedBy: string; note?: string } }>(
+    '/deploy-emergencies/:id/approve',
+    async (request, reply) => {
+      const { id } = request.params;
+      const result = await deployWindowService.approveEmergency(id, request.body.approvedBy, request.body.note);
+      if (!result) {
+        return reply.code(404).send({ error: 'Emergency request not found or already resolved' });
+      }
+      return reply.send(result);
+    },
+  );
+
+  /**
+   * POST /api/v1/deploy-emergencies/:id/reject
+   * Reject an emergency deployment
+   */
+  fastify.post<{ Params: { id: string }; Body: { rejectedBy: string; note?: string } }>(
+    '/deploy-emergencies/:id/reject',
+    async (request, reply) => {
+      const { id } = request.params;
+      const result = await deployWindowService.rejectEmergency(id, request.body.rejectedBy, request.body.note);
+      if (!result) {
+        return reply.code(404).send({ error: 'Emergency request not found or already resolved' });
+      }
       return reply.send(result);
     },
   );

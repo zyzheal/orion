@@ -297,17 +297,12 @@ export class CustomAlertRuleRepository extends BaseRepository<CustomAlertRuleEnt
 // ==================== Service ====================
 
 export class CustomAlertRuleService {
-  private repository?: CustomAlertRuleRepository;
-  private inMemoryRules: Map<string, CustomAlertRule> = new Map();
+  private repository: CustomAlertRuleRepository;
   private metricValues: Map<string, number> = new Map();
 
-  constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
-    if (db) {
-      this.repository = new CustomAlertRuleRepository(db);
-      logger.info('[CustomAlertRuleService] Database-backed repository initialized');
-    } else {
-      logger.info('[CustomAlertRuleService] Memory mode initialized');
-    }
+  constructor(db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+    this.repository = new CustomAlertRuleRepository(db);
+    logger.info('[CustomAlertRuleService] Database-backed repository initialized');
   }
 
   /**
@@ -352,45 +347,28 @@ export class CustomAlertRuleService {
         createdAt: rule.createdAt,
         updatedAt: rule.updatedAt,
       } as unknown as Omit<CustomAlertRuleEntity, 'id' | 'created_at' | 'updated_at'> & Partial<Pick<CustomAlertRuleEntity, 'id'>>);
+      logger.info({ ruleId: rule.id, name: rule.name }, '[CustomAlertRuleService] Rule created');
       return this.entityToRule(created);
     }
 
-    this.inMemoryRules.set(rule.id, rule);
-    logger.info({ ruleId: rule.id, name: rule.name }, '[CustomAlertRuleService] Rule created (memory)');
-    return rule;
+    // Should not reach here — repository is always initialized
+    throw new Error('CustomAlertRuleRepository not initialized');
   }
 
   /**
    * 获取规则列表
    */
   async getRules(tenantId: string, filters?: RuleFilters): Promise<CustomAlertRule[]> {
-    if (this.repository) {
-      const entities = await this.repository.findByTenantId(tenantId, filters);
-      return entities.map((e) => this.entityToRule(e));
-    }
-
-    let rules = Array.from(this.inMemoryRules.values()).filter((r) => r.tenantId === tenantId);
-    if (filters?.ruleType) {
-      rules = rules.filter((r) => r.ruleType === filters.ruleType);
-    }
-    if (filters?.severity) {
-      rules = rules.filter((r) => r.severity === filters.severity);
-    }
-    if (filters?.enabled !== undefined) {
-      rules = rules.filter((r) => r.enabled === filters.enabled);
-    }
-    return rules;
+    const entities = await this.repository.findByTenantId(tenantId, filters);
+    return entities.map((e) => this.entityToRule(e));
   }
 
   /**
    * 获取单个规则
    */
   async getRuleById(ruleId: string): Promise<CustomAlertRule | undefined> {
-    if (this.repository) {
-      const entity = await this.repository.findById(ruleId);
-      return entity ? this.entityToRule(entity) : undefined;
-    }
-    return this.inMemoryRules.get(ruleId);
+    const entity = await this.repository.findById(ruleId);
+    return entity ? this.entityToRule(entity) : undefined;
   }
 
   /**
@@ -432,8 +410,6 @@ export class CustomAlertRuleService {
         ...(input.evaluationIntervalSec !== undefined && { evaluation_interval_sec: updated.evaluationIntervalSec }),
         ...(input.cooldownSec !== undefined && { cooldown_sec: updated.cooldownSec }),
       } as Partial<Omit<CustomAlertRuleEntity, 'id' | 'created_at' | 'updated_at'>>);
-    } else {
-      this.inMemoryRules.set(ruleId, updated);
     }
 
     logger.info({ ruleId }, '[CustomAlertRuleService] Rule updated');
@@ -444,10 +420,7 @@ export class CustomAlertRuleService {
    * 删除规则
    */
   async deleteRule(ruleId: string): Promise<boolean> {
-    if (this.repository) {
-      return this.repository.delete(ruleId);
-    }
-    return this.inMemoryRules.delete(ruleId);
+    return this.repository.delete(ruleId);
   }
 
   /**
@@ -518,15 +491,7 @@ export class CustomAlertRuleService {
     }
 
     // Update evaluation timestamp
-    if (this.repository) {
-      await this.repository.updateEvaluationTimestamp(ruleId, evaluatedAt, triggered);
-    } else {
-      rule.lastEvaluatedAt = evaluatedAt;
-      if (triggered) {
-        rule.lastTriggeredAt = evaluatedAt;
-      }
-      this.inMemoryRules.set(ruleId, rule);
-    }
+    await this.repository.updateEvaluationTimestamp(ruleId, evaluatedAt, triggered);
 
     let notificationsSent = 0;
     if (triggered && rule.notificationChannels && rule.notificationChannels.length > 0) {
