@@ -68,7 +68,9 @@ import authEnhancedRoutes from './auth-enhanced-routes';
 import autonomousPipelineRoutes from './autonomous-pipeline-routes';
 import canaryAnalysisRoutes from './canary-analysis-routes';
 import canaryTrafficRoutes from './canary-traffic-routes';
+import chaosEnhancedRoutes from './chaos-enhanced-routes';
 import cronRoutes from './cron-routes';
+import dataPipelineRoutes from './data-pipeline-routes';
 import { registerDependencyCoordinationRoutes } from './dependency-coordination-routes';
 import developerPortalRoutes from './developer-portal-routes';
 import diagnosticRoutes from './diagnostic-routes';
@@ -82,6 +84,7 @@ import pipelineVersionRoutes from './pipeline-version-routes';
 import pluginHotReloadRoutes from './plugin-hotreload-routes';
 import pluginRoutes from './plugin-routes';
 import queueRoutes from './queue-routes';
+import supplyChainRoutes from './supply-chain-routes';
 import testGenerationRoutes from './test-generation-routes';
 import testSelectorRoutes from './test-selector-routes';
 
@@ -575,10 +578,18 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
     database: options.database,
   });
 
+  // Chaos Engineering - experiment management, fault injection, resilience scoring
+  await registerWithRoleGuard(app, chaosEnhancedRoutes, '/v1/chaos', {
+    database: options.database,
+  });
+
   // Cron Scheduler
   await registerWithRoleGuard(app, cronRoutes, '/v1/cron', {
     database: options.database,
   });
+
+  // Data Pipeline - data pipeline management and lineage
+  await registerWithRoleGuard(app, dataPipelineRoutes, '/v1/data-pipelines');
 
   // Dependency Coordination - requires DependencyCoordinationService
   if (options.database) {
@@ -649,6 +660,11 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // Queue Management
   await registerWithRoleGuard(app, queueRoutes, '/v1/queue', {
+    database: options.database,
+  });
+
+  // Supply Chain Security - SBOM, dependency analysis, artifact signing
+  await registerWithRoleGuard(app, supplyChainRoutes, '/v1/supply-chain', {
     database: options.database,
   });
 
