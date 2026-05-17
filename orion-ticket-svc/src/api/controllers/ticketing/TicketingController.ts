@@ -906,8 +906,8 @@ export class TicketingController {
           totalResolved: 0,
           avgResolutionTimeMs: 0,
           slaComplianceRate: 0,
-          resolutionByCategory: {} as any,
-          resolutionByPriority: {} as any,
+          resolutionByCategory: { incident: 0, request: 0, problem: 0, change: 0 },
+          resolutionByPriority: { critical: 0, high: 0, medium: 0, low: 0 },
           escalationCount: 0,
         },
         skills,
@@ -1093,7 +1093,7 @@ export class TicketingController {
    * GET /api/v1/tickets/dispatch/queue/status
    */
   async getDispatchQueueStatus(request: FastifyRequest, reply: FastifyReply) {
-    const status = this.ticketService.getDispatchQueueStatus();
+    const status = await this.ticketService.getDispatchQueueStatus();
 
     await reply.status(200).send({
       success: true,
@@ -1106,7 +1106,7 @@ export class TicketingController {
    * GET /api/v1/tickets/dispatch/queue/entries
    */
   async getDispatchQueueEntries(request: FastifyRequest, reply: FastifyReply) {
-    const entries = this.ticketService.getDispatchQueueEntries();
+    const entries = await this.ticketService.getDispatchQueueEntries();
 
     await reply.status(200).send({
       success: true,
@@ -1120,7 +1120,7 @@ export class TicketingController {
    */
   async getSLAAlerts(request: FastifyRequest, reply: FastifyReply) {
     const query = request.query as any;
-    const alerts = this.ticketService.getDispatchSLAAlerts({
+    const alerts = await this.ticketService.getDispatchSLAAlerts({
       type: query.type,
       limit: query.limit ? parseInt(query.limit) : undefined,
     });
