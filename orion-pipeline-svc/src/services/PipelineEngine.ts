@@ -21,6 +21,35 @@ export interface PipelineEngineOptions {
   runRepository?: PipelineRunRepository;
 }
 
+// Plugin execution types
+export interface PluginExecutionResult {
+  success: boolean;
+  output?: Record<string, any>;
+  duration: number;
+  error?: string;
+  exitCode: number;
+  killed?: boolean;
+  killReason?: string;
+}
+
+export interface PluginRegistration {
+  name: string;
+  version: string;
+  description: string;
+  entryPoint: string;
+  enabled: boolean;
+  timeoutMs?: number;
+  execute: (config: Record<string, unknown>, context: PluginExecutionContext, signal: AbortSignal) => Promise<Record<string, any>>;
+}
+
+export interface PluginExecutionContext {
+  runId: string;
+  stepId: string;
+  env: Record<string, string>;
+  inputs: Record<string, unknown>;
+  workingDir?: string;
+}
+
 // In-memory run store
 const runStore = new Map<string, PipelineRun>();
 
@@ -90,6 +119,8 @@ export class PipelineEngine {
   private artifactRegistryService: ArtifactRegistryService;
   // Persistence repository for run state
   private runRepository?: PipelineRunRepository;
+  // Plugin registry for plugin step execution
+  private pluginRegistry: Map<string, PluginRegistration>;
 
   constructor(options: PipelineEngineOptions) {
     this.logger = options.logger.child({ service: 'PipelineEngine' });
@@ -106,6 +137,7 @@ export class PipelineEngine {
     this.cacheService = new RunnerCacheService();
     this.artifactSignatureService = new ArtifactSignatureService();
     this.artifactRegistryService = new ArtifactRegistryService();
+    this.pluginRegistry = new Map();
   }
 
   /**
@@ -621,16 +653,176 @@ export class PipelineEngine {
   }
 
   /**
-   * 执行 Plugin step (TODO: 集成 Plugin Service)
+   * 执行 Plugin step
+   *
+   * 集成 orion-plugin-svc 的插件执行机制：
+   * 1. 查找已注册的插件
+   * 2. 验证插件状态（存在且启用）
+   * 3. 在沙箱环境中执行（超时控制、错误捕获）
+   * 4. 返回结构化执行结果
    */
   private async executePlugin(runId: string, step: PipelineStep): Promise<void> {
-    // TODO: 集成 orion-plugin-svc
-    this.logger.info({ pluginRef: step.pluginRef }, 'Plugin execution not yet implemented');
-    throw new Error(`Plugin execution not implemented: ${step.pluginRef}`);
+    const pluginRef = step.pluginRef;
+    if (!pluginRef) {
+      throw new Error('Plugin step missing pluginRef');
+    }
+
+    const pluginConfig = step.pluginConfig || {};
+    const startTime = Date.now();
+
+    this.logger.info(
+      { runId, stepId: step.id, pluginRef, name: step.name },
+      'Starting plugin execution'
+    );
+
+    // 1. 查找插件
+    const plugin = this.pluginRegistry.get(pluginRef);
+    if (!plugin) {
+      throw new Error(`Plugin "${pluginRef}" not found. Available plugins: ${Array.from(this.pluginRegistry.keys()).join(', ') || '(none)'}`);
+    }
+
+    if (!plugin.enabled) {
+      throw new Error(`Plugin "${pluginRef}" is disabled`);
+    }
+
+    // 2. 构建执行上下文
+    const context: PluginExecutionContext = {
+      runId,
+      stepId: step.id,
+      env: { ...(step.env || {}) },
+      inputs: pluginConfig as Record<string, unknown>,
+      workingDir: step.workingDir,
+    };
+
+    // 3. 执行插件（带超时控制）
+    const timeoutMs = plugin.timeoutMs || this.defaultTimeoutMs;
+    const result = await this.executePluginWithTimeout(plugin, pluginConfig, context, timeoutMs);
+
+    const duration = Date.now() - startTime;
+
+    // 4. 处理结果
+    if (!result.success) {
+      const errorMsg = result.error || 'Plugin execution failed';
+      this.logger.error(
+        { runId, stepId: step.id, pluginRef, duration, error: errorMsg, killed: result.killed },
+        'Plugin execution failed'
+      );
+      throw new Error(`Plugin "${pluginRef}" failed: ${errorMsg}`);
+    }
+
+    this.logger.info(
+      { runId, stepId: step.id, pluginRef, duration, exitCode: result.exitCode },
+      'Plugin execution completed successfully'
+    );
   }
 
   /**
-   * 评估条件表达式 - 使用安全的解析器，不使用 eval
+   * 带超时控制的插件执行包装器
+   */
+  private async executePluginWithTimeout(
+    plugin: PluginRegistration,
+    config: Record<string, unknown>,
+    context: PluginExecutionContext,
+    timeoutMs: number
+  ): Promise<PluginExecutionResult> {
+    const abortController = new AbortController();
+    const { signal } = abortController;
+    const startTime = Date.now();
+    let timeoutError: Error | null = null;
+
+    try {
+      // 创建超时 Promise
+      timeoutError = new Error(`Plugin execution timed out after ${timeoutMs}ms`);
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(timeoutError), timeoutMs);
+      });
+
+      // 创建执行 Promise，传递 AbortSignal 用于取消
+      const execPromise = plugin.execute(config, context, signal);
+
+      // 竞态：执行 vs 超时
+      const output = await Promise.race([execPromise, timeoutPromise]);
+
+      const duration = Date.now() - startTime;
+      return {
+        success: true,
+        output: output || {},
+        duration,
+        exitCode: 0,
+      };
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      const message = error instanceof Error ? error.message : String(error);
+      const isTimeout = error === timeoutError || signal.aborted;
+
+      if (isTimeout) {
+        this.logger.warn(
+          { pluginId: plugin.name, duration, timeoutMs },
+          'Plugin execution timed out'
+        );
+        return {
+          success: false,
+          duration,
+          error: `Execution timed out after ${timeoutMs}ms`,
+          exitCode: 124,
+          killed: true,
+          killReason: 'TIMEOUT',
+        };
+      }
+
+      this.logger.error(
+        { pluginId: plugin.name, duration, error: message },
+        'Plugin execution failed'
+      );
+      return {
+        success: false,
+        duration,
+        error: message,
+        exitCode: 1,
+      };
+    }
+  }
+
+  // ==================== Plugin Registry Management ====================
+
+  /**
+   * 注册一个插件到引擎
+   * 供外部调用方（如 app.ts）注册可用插件
+   */
+  registerPlugin(registration: Omit<PluginRegistration, 'enabled'> & { enabled?: boolean }): void {
+    const plugin: PluginRegistration = {
+      ...registration,
+      enabled: registration.enabled !== false,
+    };
+    this.pluginRegistry.set(plugin.name, plugin);
+    this.logger.info({ pluginId: plugin.name, version: plugin.version }, 'Plugin registered');
+  }
+
+  /**
+   * 获取已注册的插件列表
+   */
+  listRegisteredPlugins(): Array<{ name: string; version: string; description: string; enabled: boolean }> {
+    return Array.from(this.pluginRegistry.values()).map((p) => ({
+      name: p.name,
+      version: p.version,
+      description: p.description,
+      enabled: p.enabled,
+    }));
+  }
+
+  /**
+   * 启用/禁用插件
+   */
+  setPluginEnabled(name: string, enabled: boolean): boolean {
+    const plugin = this.pluginRegistry.get(name);
+    if (!plugin) return false;
+    plugin.enabled = enabled;
+    this.logger.info({ pluginId: name, enabled }, 'Plugin enabled status updated');
+    return true;
+  }
+
+  /**
+   * 执行条件表达式 - 使用安全的解析器，不使用 eval
    * 支持：==, !=, >, <, >=, <=, startsWith, endsWith, contains
    */
   private evaluateCondition(condition: string, context: VariableContext): boolean {
