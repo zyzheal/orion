@@ -16,6 +16,7 @@ import { EventBusService } from './services/event-bus-service';
 import { NatsServiceRegistry } from './services/nats-registry';
 import apiRoutes from './api/routes';
 import authRoutes from './api/routes-auth';
+import { registerMaintenanceWindowRoutes } from './api/maintenance-window-routes';
 
 export interface PlatformAppOptions {
   redis?: RedisCache;
@@ -173,6 +174,9 @@ export async function createApp(options: PlatformAppOptions = {}): Promise<{
 
   // Register main API routes with database access
   await app.register(apiRoutes, { prefix: '/api/v1', eventBus: options.eventBus, database: options.database });
+
+  // Register Maintenance Window routes with database access
+  await app.register(registerMaintenanceWindowRoutes, { database: options.database });
 
   // 基础 API 路由
   app.get('/api/v1/info', async (request: FastifyRequest, reply: FastifyReply) => {
