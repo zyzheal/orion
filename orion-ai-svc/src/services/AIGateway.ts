@@ -27,6 +27,9 @@ import { AIDegradationRouter } from './AIDegradationRouter';
 import { PromptInjectionDetector, ExtendedPromptAnalysis } from './PromptInjectionDetector';
 import { PromptSanitizer, SanitizationResult } from './PromptSanitizer';
 import { CircuitBreakerManager, DualCircuitState } from './CircuitBreakerManager';
+import { providerRegistry, ProviderRegistry } from './ProviderRegistry';
+import { scenarioRouter, ScenarioRouter } from './ScenarioRouter';
+import { costTracker, CostTracker } from './CostTracker';
 import pino from 'pino';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
@@ -94,6 +97,11 @@ export class AIGateway {
   // 当前使用的 Provider
   private currentProvider: string;
 
+  // 新增：Provider Registry / Scenario Router / Cost Tracker
+  private providerRegistry: ProviderRegistry;
+  private scenarioRouter: ScenarioRouter;
+  private costTracker: CostTracker;
+
   // 事件处理器
   private eventHandlers: AIGatewayEventHandler[] = [];
 
@@ -112,7 +120,12 @@ export class AIGateway {
     });
     this.promptSanitizer = new PromptSanitizer();
     this.circuitBreakerManager = circuitBreakerManager || new CircuitBreakerManager();
-    this.currentProvider = 'openai'; // 默认 Provider
+    this.currentProvider = 'anthropic-sonnet'; // 默认 Provider
+
+    // 新增：初始化 ProviderRegistry / ScenarioRouter / CostTracker
+    this.providerRegistry = providerRegistry;
+    this.scenarioRouter = scenarioRouter;
+    this.costTracker = costTracker;
 
     // 监听双层熔断事件
     this.circuitBreakerManager.on('dual:circuit:event', (event) => {
@@ -673,6 +686,28 @@ export class AIGateway {
    */
   getMetrics(scenario: AIScenario): AIMetrics | undefined {
     return this.metrics.get(scenario);
+  }
+
+  /**
+   * 获取所有可用的 Provider
+   */
+  getProviders() {
+    return this.providerRegistry.list();
+  }
+
+  /**
+   * 根据场景获取 Provider
+   */
+  getProviderForScenario(scenario: AIScenario) {
+    const providerId = this.scenarioRouter.getPrimaryProvider(scenario);
+    return this.providerRegistry.get(providerId);
+  }
+
+  /**
+   * 获取场景路由映射
+   */
+  getScenarioMapping(scenario: AIScenario) {
+    return this.scenarioRouter.get(scenario);
   }
 
   /**

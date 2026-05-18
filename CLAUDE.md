@@ -127,3 +127,22 @@ npx vitest run path/to/test.ts
 ## Current Branch
 
 `feat/frontend-gap-implementation` — Focused on closing frontend-backend gaps and Design Token migration.
+
+## Frontend Gap Implementation Progress (2026-05-18)
+
+### 完成修复 (8项)
+
+| 模块 | 修复内容 | 涉及文件 |
+|------|---------|---------|
+| 工作台 (DashboardNew) | 对接 pipelines, runs, monitoring API | `orion-frontend/src/pages/DashboardNew/index.tsx` |
+| 控制台 (Console) | 对接 plugins, feature-flags, users API | `orion-frontend/src/pages/Console/index.tsx` |
+| 子系统 (SubApps) | 从 menuConfigStore 动态获取 | `orion-frontend/src/pages/SubApps/index.tsx` |
+| 监控中心路由 | 修复路由 + 菜单路径 | `orion-frontend/src/router/routes.tsx`, `pages/monitor-svc/Monitoring/index.tsx` |
+| 诊断中心路由 | 修复路由 + 菜单路径 | `orion-frontend/src/router/routes.tsx`, `pages/security-svc/Diagnostic/index.tsx` |
+| 工单详情 (TicketDetail) | 对接 relations, transfer history API | `orion-frontend/src/pages/TicketDetail/index.tsx` |
+| 测试管理 (test-selector) | 适配后端 /cases, /suites 端点 | `orion-frontend/src/api/test-selector.ts` |
+| 制品版本 API | 完整版本列表、溯源、对比 API | `orion-platform-service/src/api/artifact-version-routes.ts`, `routes.ts` |
+
+### 最终统计
+- **完整实现**: 100+ 模块 (100%)
+- **分析报告**: `docs/frontend-gap-analysis/页面功能缺失分析报告.md`

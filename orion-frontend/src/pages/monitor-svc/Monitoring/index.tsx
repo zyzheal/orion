@@ -13,6 +13,7 @@ import {
   MailOutlined,
 } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
+import { useAppStore } from '@/stores/appStore';
 
 const { Sider, Content } = Layout;
 const { Title } = Typography;
@@ -37,9 +38,9 @@ const MonitoringLayout: React.FC = () => {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
 
-  // 动态获取主题
-  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-  const theme = isDark ? 'dark' : 'light';
+  // 从全局 store 获取主题（响应式）
+  const theme = useAppStore((state) => state.theme);
+  const isDark = theme === 'dark';
 
   const selectedKey = location.pathname;
 

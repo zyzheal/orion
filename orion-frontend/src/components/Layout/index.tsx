@@ -5,7 +5,7 @@
  * - 导航项 hover 触发下拉面板（飞书风格 mega menu）
  * - 右上角：主题切换 + 控制台 (管理员) + 用户菜单
  */
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Layout as AntLayout, Avatar, Dropdown, Breadcrumb, Button } from 'antd';
 import {
   DashboardOutlined,
@@ -676,7 +676,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               style={{ position: 'fixed', top: 60, left: 0, right: 0, bottom: 0, zIndex: 998 }}
               onClick={() => handleMegaMenuToggle(null)}
             />
-            {/* 面板容器 - 全宽，紧贴 Header 底部 */}
+            {/* 面板容器 - 全宽，紧贴 Header 底部，带淡入动画 */}
             <div
               onMouseEnter={() => handleMegaMenuToggle(megaMenuKey)}
               onMouseLeave={() => handleMegaMenuToggle(null)}
@@ -686,14 +686,17 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                 left: 0,
                 right: 0,
                 zIndex: 999,
-                // 紧贴 Header 底部，无间隙
+                animation: 'megaMenuFadeIn 0.2s ease-out',
               }}
             >
               <div
                 style={{
-                  background: isDark ? '#2b2d30' : '#ffffff',
-                  boxShadow: '0 6px 20px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.06)',
-                  borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : '#e8e8e8'}`,
+                  background: isDark ? colors.dark.bg.elevated : colors.light.bg.primary,
+                  boxShadow: isDark
+                    ? '0 6px 20px rgba(0,0,0,0.4), 0 2px 6px rgba(0,0,0,0.3)'
+                    : '0 6px 20px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.06)',
+                  borderBottom: `1px solid ${isDark ? colors.dark.border.default : colors.light.border.light}`,
+                  transition: 'background 0.2s, border-color 0.2s',
                 }}
               >
                 {/* 内容区域 - 居中 */}
@@ -739,7 +742,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                           transition: 'background 0.15s',
                         }}
                         onMouseEnter={(e) => {
-                          (e.currentTarget as HTMLElement).style.background = isDark ? 'rgba(255,255,255,0.06)' : '#f5f6f7';
+                          (e.currentTarget as HTMLElement).style.background = isDark ? 'rgba(255,255,255,0.08)' : colors.neutral[100];
                         }}
                         onMouseLeave={(e) => {
                           (e.currentTarget as HTMLElement).style.background = 'transparent';
