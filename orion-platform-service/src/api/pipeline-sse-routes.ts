@@ -6,6 +6,8 @@
  */
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { PipelineLogSSEService, PipelineLogEvent } from '../services/pipeline/PipelineLogSSEService';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
 
 // Shared secret for internal SSE publish endpoints
 // Must match SSE_PUBLISH_SECRET env var set on the calling service (e.g., PipelineEngine)
@@ -157,7 +159,9 @@ export default async function registerPipelineSSERoutes(
   });
 
   // GET /api/v1/pipelines/sse/stats - SSE 连接统计
-  app.get('/pipelines/sse/stats', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/pipelines/sse/stats', {
+    onRequest: [authenticateUser, requirePermission({ resourceType: 'pipeline', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const stats = pipelineLogSSE.getStats();
     return reply.send({
       totalConnections: stats.totalConnections,

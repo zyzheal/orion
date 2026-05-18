@@ -10,6 +10,8 @@ import { DatabasePool } from '../services/database';
 import { RoleRepository } from '../services/role/RoleRepository';
 import { RoleService } from '../services/role/RoleService';
 import { RoleController } from './controllers/RoleController';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
 
 interface RoleRoutesOptions {
   database?: DatabasePool;
@@ -60,17 +62,27 @@ export default async function roleRoutes(
   // ==================== Role CRUD ====================
 
   // GET /api/v1/roles?tenantId=xxx — list roles for a tenant
-  app.get('/', listHandler);
+  app.get('/', {
+    onRequest: [authenticateUser, requirePermission({ resourceType: 'role', action: 'read' })],
+  }, listHandler);
 
   // GET /api/v1/roles/:id — role detail
-  app.get('/:id', getHandler);
+  app.get('/:id', {
+    onRequest: [authenticateUser, requirePermission({ resourceType: 'role', action: 'read' })],
+  }, getHandler);
 
   // POST /api/v1/roles — create role
-  app.post('/', createHandler);
+  app.post('/', {
+    onRequest: [authenticateUser, requirePermission({ resourceType: 'role', action: 'write' })],
+  }, createHandler);
 
   // DELETE /api/v1/roles/:id — delete role
-  app.delete('/:id', deleteHandler);
+  app.delete('/:id', {
+    onRequest: [authenticateUser, requirePermission({ resourceType: 'role', action: 'delete' })],
+  }, deleteHandler);
 
   // PUT /api/v1/roles/:id — update role
-  app.put('/:id', updateHandler);
+  app.put('/:id', {
+    onRequest: [authenticateUser, requirePermission({ resourceType: 'role', action: 'write' })],
+  }, updateHandler);
 }

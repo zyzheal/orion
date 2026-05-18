@@ -13,10 +13,12 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { DatabasePool } from '../services/database';
 import { PolicyService } from '../services/policy/PolicyService';
 import { PolicyEvaluationService } from '../services/policy/PolicyEvaluationService';
-import { ExemptionService } from '../services/policy/ExemptionService';
+import { ExemptionService, type ExemptionCategory, type ExemptionStatus, type ExemptionAction } from '../services/policy/ExemptionService';
 import { PolicyOverrideService } from '../services/policy/PolicyOverrideService';
 import { PolicyController } from './controllers/PolicyController';
 import { PolicyEvaluationController } from './controllers/PolicyEvaluationController';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
 
 interface PolicyRoutesOptions {
   database?: DatabasePool;
@@ -38,17 +40,23 @@ export default async function policyRoutes(app: FastifyInstance, options: Policy
   // ==================== Policy Definitions CRUD ====================
 
   // GET /api/v1/policies - List policies
-  app.get('/', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/', {
+    onRequest: [authenticateUser, requirePermission({ resourceType: 'policy', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return policyController.listPolicies(request, reply);
   });
 
   // POST /api/v1/policies - Create policy
-  app.post('/', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/', {
+    onRequest: [authenticateUser, requirePermission({ resourceType: 'policy', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return policyController.createPolicy(request, reply);
   });
 
   // GET /api/v1/policies/:id - Get policy detail
-  app.get('/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/:id', {
+    onRequest: [authenticateUser, requirePermission({ resourceType: 'policy', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const params = request.params as { id: string };
     if (['evaluate-policy', 'evaluations', 'violations', 'overrides', 'bundles', 'exemptions', 'test'].includes(params.id)) {
       return reply.callNotFound();
@@ -57,80 +65,108 @@ export default async function policyRoutes(app: FastifyInstance, options: Policy
   });
 
   // PUT /api/v1/policies/:id - Update policy
-  app.put('/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.put('/:id', {
+    onRequest: [authenticateUser, requirePermission({ resourceType: 'policy', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return policyController.updatePolicy(request, reply);
   });
 
   // DELETE /api/v1/policies/:id - Delete policy
-  app.delete('/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.delete('/:id', {
+    onRequest: [authenticateUser, requirePermission({ resourceType: 'policy', action: 'delete' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return policyController.deletePolicy(request, reply);
   });
 
   // ==================== Evaluation Endpoints ====================
 
   // POST /api/v1/policies/evaluate-policy - Evaluate policy against resource
-  app.post('/evaluate-policy', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/evaluate-policy', {
+    onRequest: [authenticateUser, requirePermission({ resourceType: 'policy', action: 'execute' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return policyController.evaluatePolicy(request, reply);
   });
 
   // GET /api/v1/policies/evaluations - Get evaluation history
-  app.get('/evaluations', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/evaluations', {
+    onRequest: [authenticateUser, requirePermission({ resourceType: 'policy', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return policyController.getEvaluationHistory(request, reply);
   });
 
   // POST /api/v1/policies/evaluate - Evaluate policy for specific run
-  app.post('/evaluate', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/evaluate', {
+    onRequest: [authenticateUser, requirePermission({ resourceType: 'policy', action: 'execute' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return evalController.evaluate(request, reply);
   });
 
   // GET /api/v1/policies/evaluations/runs - List evaluations
-  app.get('/evaluations/runs', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/evaluations/runs', {
+    onRequest: [authenticateUser, requirePermission({ resourceType: 'policy', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return evalController.listEvaluations(request, reply);
   });
 
   // POST /api/v1/policies/gate/:gateId/evaluate - Evaluate gate
-  app.post('/gate/:gateId/evaluate', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/gate/:gateId/evaluate', {
+    onRequest: [authenticateUser, requirePermission({ resourceType: 'policy', action: 'execute' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return evalController.evaluateGate(request, reply);
   });
 
   // ==================== Violations ====================
 
   // GET /api/v1/policies/violations - List violations
-  app.get('/violations', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/violations', {
+    onRequest: [authenticateUser, requirePermission({ resourceType: 'policy', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return evalController.listViolations(request, reply);
   });
 
   // GET /api/v1/policies/violations/:id - Get violation detail
-  app.get('/violations/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/violations/:id', {
+    onRequest: [authenticateUser, requirePermission({ resourceType: 'policy', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return evalController.getViolation(request, reply);
   });
 
   // POST /api/v1/policies/violations/:id/waive - Waive violation
-  app.post('/violations/:id/waive', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/violations/:id/waive', {
+    onRequest: [authenticateUser, requirePermission({ resourceType: 'policy', action: 'approve' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return evalController.waiveViolation(request, reply);
   });
 
   // POST /api/v1/policies/violations/:id/resolve - Resolve violation
-  app.post('/violations/:id/resolve', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/violations/:id/resolve', {
+    onRequest: [authenticateUser, requirePermission({ resourceType: 'policy', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return evalController.resolveViolation(request, reply);
   });
 
   // ==================== Overrides ====================
 
   // GET /api/v1/policies/overrides - List overrides
-  app.get('/overrides', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/overrides', {
+    onRequest: [authenticateUser, requirePermission({ resourceType: 'policy', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return evalController.listOverrides(request, reply);
   });
 
   // POST /api/v1/policies/overrides - Create override
-  app.post('/overrides', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/overrides', {
+    onRequest: [authenticateUser, requirePermission({ resourceType: 'policy', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return evalController.createOverride(request, reply);
   });
 
   // ==================== Bundle Management ====================
 
   // GET /api/v1/policies/bundles - List bundles
-  app.get('/bundles', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/bundles', {
+    onRequest: [authenticateUser, requirePermission({ resourceType: 'policy', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const bundles = await policyService.listBundles();
       return reply.send({ code: 200, message: 'OK', data: bundles });
@@ -140,7 +176,9 @@ export default async function policyRoutes(app: FastifyInstance, options: Policy
   });
 
   // GET /api/v1/policies/bundles/:id - Get bundle detail
-  app.get('/bundles/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/bundles/:id', {
+    onRequest: [authenticateUser, requirePermission({ resourceType: 'policy', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const params = request.params as { id: string };
     try {
       const bundle = await policyService.getBundle(params.id);
@@ -154,7 +192,9 @@ export default async function policyRoutes(app: FastifyInstance, options: Policy
   });
 
   // POST /api/v1/policies/bundles/sync - Sync bundles
-  app.post('/bundles/sync', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/bundles/sync', {
+    onRequest: [authenticateUser, requirePermission({ resourceType: 'policy', action: 'execute' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const body = request.body as { sourceUrl?: string };
       const result = await policyService.syncBundles(body.sourceUrl || '');
@@ -167,13 +207,15 @@ export default async function policyRoutes(app: FastifyInstance, options: Policy
   // ==================== Policy Testing ====================
 
   // POST /api/v1/policies/test - Test policy
-  app.post('/test', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/test', {
+    onRequest: [authenticateUser, requirePermission({ resourceType: 'policy', action: 'execute' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as { rego?: string; testCases?: unknown[] };
     if (!body.rego || !body.testCases) {
       return reply.status(400).send({ code: 400, message: 'rego and testCases are required' });
     }
     try {
-      const results = await policyService.testPolicy(body.rego, body.testCases);
+      const results = await policyService.testPolicy(body.rego as string, body.testCases as Array<Record<string, unknown>>);
       return reply.send({ code: 200, message: 'OK', data: results });
     } catch (error) {
       return reply.status(400).send({ code: 400, message: (error as Error).message });
@@ -181,14 +223,18 @@ export default async function policyRoutes(app: FastifyInstance, options: Policy
   });
 
   // GET /api/v1/policies/test/results/:testId - Test results (ephemeral)
-  app.get('/test/results/:testId', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/test/results/:testId', {
+    onRequest: [authenticateUser, requirePermission({ resourceType: 'policy', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return reply.status(404).send({ code: 404, message: 'Test results are ephemeral. Use POST /test to re-evaluate.' });
   });
 
   // ==================== Toggle Policy ====================
 
   // PATCH /api/v1/policies/:id/toggle - Toggle policy
-  app.patch('/:id/toggle', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.patch('/:id/toggle', {
+    onRequest: [authenticateUser, requirePermission({ resourceType: 'policy', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const params = request.params as { id: string };
     if (['evaluate-policy', 'evaluations', 'violations', 'overrides', 'bundles', 'test', 'exemptions'].includes(params.id)) {
       return reply.callNotFound();
@@ -207,7 +253,9 @@ export default async function policyRoutes(app: FastifyInstance, options: Policy
   // ==================== Exemption Management ====================
 
   // POST /api/v1/policies/exemptions - Submit exemption
-  app.post('/exemptions', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/exemptions', {
+    onRequest: [authenticateUser, requirePermission({ resourceType: 'policy', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as {
       violationId?: string;
       policyId?: string;
@@ -226,7 +274,7 @@ export default async function policyRoutes(app: FastifyInstance, options: Policy
         policyId: body.policyId || '',
         runId: body.runId || '',
         reason: body.reason,
-        category: body.category,
+        category: body.category as ExemptionCategory,
         requestedBy: body.requestedBy,
         expiresAt: body.expiresAt ? new Date(body.expiresAt) : undefined,
       });
@@ -241,14 +289,16 @@ export default async function policyRoutes(app: FastifyInstance, options: Policy
   });
 
   // GET /api/v1/policies/exemptions - List exemptions
-  app.get('/exemptions', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/exemptions', {
+    onRequest: [authenticateUser, requirePermission({ resourceType: 'policy', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const query = request.query as Record<string, string>;
       const result = await exemptionService.getExemptions({
-        status: query.status,
+        status: query.status as ExemptionStatus | undefined,
         policyId: query.policyId,
         requestedBy: query.requestedBy,
-        category: query.category,
+        category: query.category as ExemptionCategory | undefined,
         limit: query.limit ? parseInt(query.limit, 10) : undefined,
         offset: query.offset ? parseInt(query.offset, 10) : undefined,
       });
@@ -259,7 +309,9 @@ export default async function policyRoutes(app: FastifyInstance, options: Policy
   });
 
   // GET /api/v1/policies/exemptions/:id - Get exemption
-  app.get('/exemptions/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/exemptions/:id', {
+    onRequest: [authenticateUser, requirePermission({ resourceType: 'policy', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const params = request.params as { id: string };
     try {
       const exemption = await exemptionService.getExemptionById(params.id);
@@ -274,7 +326,9 @@ export default async function policyRoutes(app: FastifyInstance, options: Policy
   });
 
   // POST /api/v1/policies/exemptions/:id/review - Review exemption
-  app.post('/exemptions/:id/review', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/exemptions/:id/review', {
+    onRequest: [authenticateUser, requirePermission({ resourceType: 'policy', action: 'approve' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const params = request.params as { id: string };
     const body = request.body as { action?: string; comment?: string; reviewer?: string };
     if (!body.action || !body.reviewer) {
@@ -282,7 +336,7 @@ export default async function policyRoutes(app: FastifyInstance, options: Policy
     }
     try {
       const exemption = await exemptionService.reviewExemption(params.id, {
-        action: body.action,
+        action: body.action as ExemptionAction,
         comment: body.comment,
         reviewer: body.reviewer,
       });
@@ -297,7 +351,9 @@ export default async function policyRoutes(app: FastifyInstance, options: Policy
   });
 
   // DELETE /api/v1/policies/exemptions/:id - Revoke exemption
-  app.delete('/exemptions/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.delete('/exemptions/:id', {
+    onRequest: [authenticateUser, requirePermission({ resourceType: 'policy', action: 'delete' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const params = request.params as { id: string };
     try {
       const exemption = await exemptionService.revokeExemption(params.id);

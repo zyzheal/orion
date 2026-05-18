@@ -8,6 +8,8 @@ import { ExecutionTimelineService, registerTimelineForShutdown } from '../servic
 import { AIDiagnosisService } from '../services/ai/AIDiagnosisService';
 import { DebugController } from '../engine/DebugController';
 import { PostgresPluginAuditLogRepository } from '../repositories/PluginAuditLogRepository';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
 import pino from 'pino';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
@@ -44,14 +46,18 @@ export default async function pluginEnhancedRoutes(app: FastifyInstance, options
   });
 
   // GET / - List all installed plugins
-  app.get('/', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/', {
+    onRequest: [authenticateUser, requirePermission({ resourceType: 'plugin', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const tenantId = (request as any).tenantId;
     const plugins = await pluginManager.listAvailablePlugins();
     return { plugins, tenantId };
   });
 
   // GET /:pluginId - Get plugin details
-  app.get('/:pluginId', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/:pluginId', {
+    onRequest: [authenticateUser, requirePermission({ resourceType: 'plugin', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { pluginId } = request.params as { pluginId: string };
     try {
       const plugin = await pluginManager.getPluginDetails(pluginId);
@@ -62,7 +68,9 @@ export default async function pluginEnhancedRoutes(app: FastifyInstance, options
   });
 
   // POST /:pluginId/install - Install a plugin
-  app.post('/:pluginId/install', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/:pluginId/install', {
+    onRequest: [authenticateUser, requirePermission({ resourceType: 'plugin', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { pluginId } = request.params as { pluginId: string };
     const body = request.body as any;
     const userId = (request as any).userId;
@@ -77,7 +85,9 @@ export default async function pluginEnhancedRoutes(app: FastifyInstance, options
   });
 
   // POST /:pluginId/enable - Enable a plugin
-  app.post('/:pluginId/enable', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/:pluginId/enable', {
+    onRequest: [authenticateUser, requirePermission({ resourceType: 'plugin', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { pluginId } = request.params as { pluginId: string };
     try {
       const plugin = await pluginManager.activatePlugin(pluginId);
@@ -88,7 +98,9 @@ export default async function pluginEnhancedRoutes(app: FastifyInstance, options
   });
 
   // POST /:pluginId/disable - Disable a plugin
-  app.post('/:pluginId/disable', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/:pluginId/disable', {
+    onRequest: [authenticateUser, requirePermission({ resourceType: 'plugin', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { pluginId } = request.params as { pluginId: string };
     try {
       const plugin = await pluginManager.deactivatePlugin(pluginId);
@@ -99,7 +111,9 @@ export default async function pluginEnhancedRoutes(app: FastifyInstance, options
   });
 
   // DELETE /:pluginId - Uninstall a plugin
-  app.delete('/:pluginId', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.delete('/:pluginId', {
+    onRequest: [authenticateUser, requirePermission({ resourceType: 'plugin', action: 'delete' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { pluginId } = request.params as { pluginId: string };
     try {
       await pluginManager.uninstallPlugin(pluginId);
@@ -110,7 +124,9 @@ export default async function pluginEnhancedRoutes(app: FastifyInstance, options
   });
 
   // GET /audit - Get audit logs
-  app.get('/audit', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/audit', {
+    onRequest: [authenticateUser, requirePermission({ resourceType: 'plugin', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const query = request.query as any;
     const tenantId = (request as any).tenantId;
     const limit = query?.limit || 50;
@@ -124,7 +140,9 @@ export default async function pluginEnhancedRoutes(app: FastifyInstance, options
   });
 
   // GET /audit/:taskId/trail - Get task audit trail
-  app.get('/audit/:taskId/trail', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/audit/:taskId/trail', {
+    onRequest: [authenticateUser, requirePermission({ resourceType: 'plugin', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { taskId } = request.params as { taskId: string };
 
     if (auditLogRepo) {
@@ -136,14 +154,18 @@ export default async function pluginEnhancedRoutes(app: FastifyInstance, options
   });
 
   // GET /:runId/timeline - Get execution timeline
-  app.get('/:runId/timeline', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/:runId/timeline', {
+    onRequest: [authenticateUser, requirePermission({ resourceType: 'plugin', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { runId } = request.params as { runId: string };
     const replayData = await timelineService.getReplayData(runId);
     return replayData;
   });
 
   // POST /:runId/debug/pause - Pause for debug
-  app.post('/:runId/debug/pause', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/:runId/debug/pause', {
+    onRequest: [authenticateUser, requirePermission({ resourceType: 'plugin', action: 'manage' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { runId } = request.params as { runId: string };
     try {
       const state = await debugController.pause(runId);
@@ -154,7 +176,9 @@ export default async function pluginEnhancedRoutes(app: FastifyInstance, options
   });
 
   // POST /:runId/debug/resume - Resume execution
-  app.post('/:runId/debug/resume', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/:runId/debug/resume', {
+    onRequest: [authenticateUser, requirePermission({ resourceType: 'plugin', action: 'manage' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { runId } = request.params as { runId: string };
     try {
       await debugController.resume(runId);
@@ -165,7 +189,9 @@ export default async function pluginEnhancedRoutes(app: FastifyInstance, options
   });
 
   // POST /:runId/debug/step - Single step execution
-  app.post('/:runId/debug/step', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/:runId/debug/step', {
+    onRequest: [authenticateUser, requirePermission({ resourceType: 'plugin', action: 'manage' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { runId } = request.params as { runId: string };
     try {
       const state = await debugController.step(runId);
@@ -176,7 +202,9 @@ export default async function pluginEnhancedRoutes(app: FastifyInstance, options
   });
 
   // GET /:runId/debug/state - Get debug state
-  app.get('/:runId/debug/state', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/:runId/debug/state', {
+    onRequest: [authenticateUser, requirePermission({ resourceType: 'plugin', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { runId } = request.params as { runId: string };
     const state = debugController.getState(runId);
     if (!state) {
@@ -186,7 +214,9 @@ export default async function pluginEnhancedRoutes(app: FastifyInstance, options
   });
 
   // POST /ai-diagnose - AI error diagnosis
-  app.post('/ai-diagnose', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/ai-diagnose', {
+    onRequest: [authenticateUser, requirePermission({ resourceType: 'plugin', action: 'execute' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as any;
     if (!body?.context?.taskId || !body?.context?.pluginId || !body?.context?.errorMessage) {
       return reply.code(400).send({ error: 'Missing required context fields: taskId, pluginId, errorMessage' });

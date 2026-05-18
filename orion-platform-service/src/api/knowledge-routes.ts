@@ -14,6 +14,8 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { DatabasePool } from '../services/database';
 import { KnowledgeRepository } from '../services/knowledge/KnowledgeRepository';
 import { KnowledgeService, KnowledgeServiceError } from '../services/knowledge/KnowledgeService';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
 
 interface KnowledgeRoutesOptions {
   database?: DatabasePool;
@@ -59,6 +61,9 @@ export default async function knowledgeRoutes(
    */
   app.get(
     '/v1/spaces',
+    {
+      onRequest: [authenticateUser, requirePermission({ resourceType: 'knowledge', action: 'read' })],
+    },
     async (
       request: FastifyRequest<{
         Querystring: { type?: string; search?: string; page?: string; perPage?: string };
@@ -90,6 +95,9 @@ export default async function knowledgeRoutes(
    */
   app.post(
     '/v1/spaces',
+    {
+      onRequest: [authenticateUser, requirePermission({ resourceType: 'knowledge', action: 'write' })],
+    },
     async (
       request: FastifyRequest<{
         Body: { name: string; type: 'public' | 'internal' | 'private'; description?: string; teamId?: string; ownerId?: string };
@@ -127,6 +135,9 @@ export default async function knowledgeRoutes(
    */
   app.get(
     '/v1/spaces/:id',
+    {
+      onRequest: [authenticateUser, requirePermission({ resourceType: 'knowledge', action: 'read' })],
+    },
     async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
       try {
         const space = await service.getSpace(request.params.id);
@@ -146,6 +157,9 @@ export default async function knowledgeRoutes(
    */
   app.put(
     '/v1/spaces/:id',
+    {
+      onRequest: [authenticateUser, requirePermission({ resourceType: 'knowledge', action: 'write' })],
+    },
     async (
       request: FastifyRequest<{
         Params: { id: string };
@@ -171,6 +185,9 @@ export default async function knowledgeRoutes(
    */
   app.delete(
     '/v1/spaces/:id',
+    {
+      onRequest: [authenticateUser, requirePermission({ resourceType: 'knowledge', action: 'delete' })],
+    },
     async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
       try {
         await service.deleteSpace(request.params.id);
@@ -194,6 +211,9 @@ export default async function knowledgeRoutes(
    */
   app.get(
     '/v1/docs',
+    {
+      onRequest: [authenticateUser, requirePermission({ resourceType: 'knowledge', action: 'read' })],
+    },
     async (
       request: FastifyRequest<{
         Querystring: { spaceId?: string; page?: string; pageSize?: string; status?: string; tag?: string; search?: string; perPage?: string };
@@ -227,6 +247,9 @@ export default async function knowledgeRoutes(
    */
   app.post(
     '/v1/docs',
+    {
+      onRequest: [authenticateUser, requirePermission({ resourceType: 'knowledge', action: 'write' })],
+    },
     async (
       request: FastifyRequest<{
         Body: { title: string; content: string; spaceId: string; tags?: string[]; status?: string; authorId?: string };
@@ -265,6 +288,9 @@ export default async function knowledgeRoutes(
    */
   app.get(
     '/v1/docs/:id',
+    {
+      onRequest: [authenticateUser, requirePermission({ resourceType: 'knowledge', action: 'read' })],
+    },
     async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
       try {
         const doc = await service.getDoc(request.params.id);
@@ -284,6 +310,9 @@ export default async function knowledgeRoutes(
    */
   app.put(
     '/v1/docs/:id',
+    {
+      onRequest: [authenticateUser, requirePermission({ resourceType: 'knowledge', action: 'write' })],
+    },
     async (
       request: FastifyRequest<{
         Params: { id: string };
@@ -314,6 +343,9 @@ export default async function knowledgeRoutes(
    */
   app.delete(
     '/v1/docs/:id',
+    {
+      onRequest: [authenticateUser, requirePermission({ resourceType: 'knowledge', action: 'delete' })],
+    },
     async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
       try {
         await service.deleteDoc(request.params.id);
@@ -333,6 +365,9 @@ export default async function knowledgeRoutes(
    */
   app.get(
     '/v1/docs/:id/versions',
+    {
+      onRequest: [authenticateUser, requirePermission({ resourceType: 'knowledge', action: 'read' })],
+    },
     async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
       try {
         const versions = await service.getDocVersions(request.params.id);
@@ -356,6 +391,9 @@ export default async function knowledgeRoutes(
    */
   app.post(
     '/v1/rag/retrieve',
+    {
+      onRequest: [authenticateUser, requirePermission({ resourceType: 'knowledge', action: 'read' })],
+    },
     async (
       request: FastifyRequest<{
         Body: { query: string; spaceId?: string; topK?: number };
@@ -397,6 +435,9 @@ export default async function knowledgeRoutes(
    */
   app.post(
     '/v1/rag/query',
+    {
+      onRequest: [authenticateUser, requirePermission({ resourceType: 'knowledge', action: 'read' })],
+    },
     async (
       request: FastifyRequest<{
         Body: { query: string; spaceId?: string; topK?: number };
@@ -458,6 +499,9 @@ export default async function knowledgeRoutes(
    */
   app.get(
     '/v1/graph',
+    {
+      onRequest: [authenticateUser, requirePermission({ resourceType: 'knowledge', action: 'read' })],
+    },
     async (
       request: FastifyRequest<{ Querystring: { spaceId?: string } }>,
       reply: FastifyReply

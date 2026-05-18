@@ -4,6 +4,7 @@
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
 import { roleGuard } from '../middleware/roleGuard';
 import { NotificationService, NotificationServiceError } from '../services/notification';
 import { NotificationRepository, NotificationSettingsRepository, NotificationSettingsService } from '../services/notification';
@@ -45,7 +46,9 @@ export default async function notificationRoutes(app: FastifyInstance, options: 
       channel?: string;
       metadata?: Record<string, any>;
     };
-  }>('/send', async (request, reply) => {
+  }>('/send', {
+    onRequest: [authenticateUser, requirePermission({ resourceType: 'notification', action: 'write' })],
+  }, async (request, reply) => {
     try {
       const notification = await service.send(request.body);
       return reply.status(201).send(notification);
@@ -59,7 +62,9 @@ export default async function notificationRoutes(app: FastifyInstance, options: 
   app.get<{
     Params: { userId: string };
     Querystring: { limit?: number };
-  }>('/:userId', async (request, reply) => {
+  }>('/:userId', {
+    onRequest: [authenticateUser, requirePermission({ resourceType: 'notification', action: 'read' })],
+  }, async (request, reply) => {
     try {
       const { userId } = request.params;
       const { limit } = request.query;
@@ -74,7 +79,9 @@ export default async function notificationRoutes(app: FastifyInstance, options: 
   // PUT /api/v1/notifications/:id/read - Mark as read
   app.put<{
     Params: { id: string };
-  }>('/:id/read', async (request, reply) => {
+  }>('/:id/read', {
+    onRequest: [authenticateUser, requirePermission({ resourceType: 'notification', action: 'write' })],
+  }, async (request, reply) => {
     try {
       const notification = await service.markAsRead(request.params.id);
       return reply.send(notification);
@@ -87,7 +94,9 @@ export default async function notificationRoutes(app: FastifyInstance, options: 
   // GET /api/v1/notifications/:userId/unread-count - Get unread count
   app.get<{
     Params: { userId: string };
-  }>('/:userId/unread-count', async (request, reply) => {
+  }>('/:userId/unread-count', {
+    onRequest: [authenticateUser, requirePermission({ resourceType: 'notification', action: 'read' })],
+  }, async (request, reply) => {
     try {
       const count = await service.getUnreadCount(request.params.userId);
       return reply.send({ userId: request.params.userId, unreadCount: count });
@@ -109,6 +118,7 @@ export default async function notificationRoutes(app: FastifyInstance, options: 
   }>('/broadcast', {
     onRequest: [
       authenticateUser,
+      requirePermission({ resourceType: 'notification', action: 'manage' }),
       roleGuard(['admin', 'platform_admin']),
     ],
   }, async (request, reply) => {
@@ -126,7 +136,9 @@ export default async function notificationRoutes(app: FastifyInstance, options: 
   app.get<{
     Params: { userId: string };
     Querystring: { tenantId?: string };
-  }>('/settings/:userId', async (request, reply) => {
+  }>('/settings/:userId', {
+    onRequest: [authenticateUser, requirePermission({ resourceType: 'notification', action: 'read' })],
+  }, async (request, reply) => {
     try {
       const { userId } = request.params;
       const tenantId = request.query.tenantId || 'default';
@@ -143,7 +155,9 @@ export default async function notificationRoutes(app: FastifyInstance, options: 
     Params: { userId: string };
     Body: Record<string, any>;
     Querystring: { tenantId?: string };
-  }>('/settings/:userId', async (request, reply) => {
+  }>('/settings/:userId', {
+    onRequest: [authenticateUser, requirePermission({ resourceType: 'notification', action: 'write' })],
+  }, async (request, reply) => {
     try {
       const { userId } = request.params;
       const tenantId = request.query.tenantId || 'default';
