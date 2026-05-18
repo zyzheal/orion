@@ -22,6 +22,17 @@ import authRoutes from './api/routes-auth';
 import { registerSsoRoutes } from './api/sso-routes';
 import { registerMaintenanceWindowRoutes } from './api/maintenance-window-routes';
 
+// AuthZ engine imports
+import { RoleService, ROLE_INHERITANCE, SYSTEM_ROLE_PERMISSIONS, BUSINESS_ROLE_PERMISSIONS, PROJECT_ROLE_PERMISSIONS } from './services/role/RoleService';
+import { RoleRepository } from './services/role/RoleRepository';
+import { PermissionRepository } from './repositories/PermissionRepository';
+import { PermissionService } from './services/permission/PermissionService';
+import { AuthorizationEngine } from './services/authz/AuthorizationEngine';
+import { AbacPolicyEngine } from './services/authz/AbacPolicyEngine';
+import { RelationshipService } from './services/authz/RelationshipService';
+import { PermissionAuditRepository } from './repositories/PermissionAuditRepository';
+import { setAuthzEngine } from './middleware/requirePermission';
+
 export interface PlatformAppOptions {
   redis?: RedisCache;
   database?: DatabasePool;
@@ -189,6 +200,50 @@ export async function createApp(options: PlatformAppOptions = {}): Promise<{
   // Initialize API key auth middleware
   if (options.database) {
     initApiKeyAuth(options.database);
+  }
+
+  // ==================== AuthZ Engine Initialization ====================
+  // Initialize RBAC + ABAC unified authorization engine
+  if (options.database) {
+    const permRepo = new PermissionRepository(options.database);
+    const roleRepo = new RoleRepository(options.database);
+    const roleService = new RoleService(roleRepo);
+    const abacEngine = new AbacPolicyEngine();
+    const relationshipService = new RelationshipService(options.database);
+    const auditRepo = new PermissionAuditRepository(options.database);
+
+    const authzEngine = new AuthorizationEngine(
+      roleService,
+      abacEngine,
+      relationshipService,
+      auditRepo,
+    );
+
+    // Register global AuthZ engine instance for middleware use
+    setAuthzEngine(authzEngine);
+
+    // Seed permissions and roles asynchronously (non-blocking)
+    const permService = new PermissionService(permRepo);
+    permService.seedCommonPermissions().then((result) => {
+      console.log(`[AuthZ] Seeded ${result.created} permissions (${result.skipped} existing)`);
+    }).catch((err) => {
+      console.error('[AuthZ] Failed to seed common permissions:', err);
+    });
+
+    // Seed system-level default roles and bind permissions
+    // Use system tenant for initial seeding; per-tenant seeding happens on tenant creation
+    const SYSTEM_TENANT = '00000000-0000-0000-0000-000000000001';
+    roleService.seedDefaultRoles(SYSTEM_TENANT).then((result) => {
+      console.log(`[AuthZ] Seeded ${result.created} roles (${result.skipped} existing)`);
+      // After roles are created, bind permissions to them
+      return roleService.seedRolePermissions();
+    }).then(() => {
+      console.log('[AuthZ] Role permissions seeded successfully');
+    }).catch((err) => {
+      console.error('[AuthZ] Failed to seed roles/permissions:', err);
+    });
+
+    console.log('[AuthZ] Authorization engine initialized (RBAC + ABAC + Relationship + Audit)');
   }
 
   // 注册 EventBus 健康检查

@@ -33,7 +33,7 @@ export class PermissionService {
     }
 
     // Validate action is a known verb
-    const validActions = ['read', 'write', 'execute', 'delete', 'manage', 'acknowledge', 'use'];
+    const validActions = ['read', 'write', 'execute', 'delete', 'manage', 'acknowledge', 'approve', 'use'];
     if (!validActions.includes(action)) {
       throw new PermissionServiceError(
         `Invalid action: ${action}. Must be one of: ${validActions.join(', ')}`,

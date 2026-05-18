@@ -1,169 +1,132 @@
 /**
- * RelationshipService Tests
+ * RelationshipService Tests — PostgreSQL-backed version
  */
 
-import {
-  RelationshipService,
-  RelationshipCheckRequest,
-  ResourceOwnerRecord,
-} from '../RelationshipService';
+import { RelationshipService } from '../RelationshipService';
+
+// Mock DatabasePool
+function createMockDb() {
+  const projectMembers = new Map<string, { user_id: string; role: string }>();
+  return {
+    projectMembers,
+    query: jest.fn(async (sql: string, params: unknown[]) => {
+      if (sql.includes('SELECT role FROM project_members')) {
+        const [projectId, userId] = params as [string, string];
+        const key = `${projectId}:${userId}`;
+        const member = projectMembers.get(key);
+        return { rows: member ? [member] : [] };
+      }
+      if (sql.includes('SELECT 1 FROM project_members')) {
+        const [projectId, userId] = params as [string, string];
+        const key = `${projectId}:${userId}`;
+        const member = projectMembers.get(key);
+        return { rows: member ? [{ 1: 1 }] : [] };
+      }
+      if (sql.includes('SELECT user_id, role FROM project_members')) {
+        const [projectId] = params as [string];
+        const members = Array.from(projectMembers.entries())
+          .filter(([k]) => k.startsWith(`${projectId}:`))
+          .map(([, v]) => v);
+        return { rows: members };
+      }
+      if (sql.includes('INSERT INTO project_members')) {
+        const [projectId, userId, role] = params as [string, string, string];
+        const key = `${projectId}:${userId}`;
+        projectMembers.set(key, { user_id: userId, role });
+        return { rows: [] };
+      }
+      if (sql.includes('DELETE FROM project_members')) {
+        const [projectId, userId] = params as [string, string];
+        const key = `${projectId}:${userId}`;
+        projectMembers.delete(key);
+        return { rows: [] };
+      }
+      return { rows: [] };
+    }),
+  };
+}
 
 describe('RelationshipService', () => {
+  let mockDb: ReturnType<typeof createMockDb>;
   let service: RelationshipService;
 
   beforeEach(() => {
-    service = new RelationshipService();
-  });
-
-  describe('registerOwnership / removeOwnership', () => {
-    it('should register and look up ownership', () => {
-      const record: ResourceOwnerRecord = {
-        resourceId: 'res-1',
-        resourceType: 'pipeline',
-        ownerId: 'user-1',
-        ownerType: 'user',
-      };
-      service.registerOwnership(record);
-      const owned = service.getUserOwnedResources('user-1');
-      expect(owned).toHaveLength(1);
-      expect(owned[0].resourceId).toBe('res-1');
-    });
-
-    it('should remove ownership', () => {
-      service.registerOwnership({
-        resourceId: 'res-1',
-        resourceType: 'pipeline',
-        ownerId: 'user-1',
-        ownerType: 'user',
-      });
-      service.removeOwnership('pipeline', 'res-1');
-      expect(service.getUserOwnedResources('user-1')).toHaveLength(0);
-    });
-  });
-
-  describe('addProjectMember / removeProjectMember', () => {
-    it('should add and verify project membership', () => {
-      service.addProjectMember('proj-1', 'user-1');
-      service.addProjectMember('proj-1', 'user-2');
-      expect(service.getProjectMembers('proj-1')).toContain('user-1');
-      expect(service.getProjectMembers('proj-1')).toContain('user-2');
-    });
-
-    it('should remove project member', () => {
-      service.addProjectMember('proj-1', 'user-1');
-      service.removeProjectMember('proj-1', 'user-1');
-      expect(service.getProjectMembers('proj-1')).not.toContain('user-1');
-    });
+    mockDb = createMockDb();
+    service = new RelationshipService(mockDb as any);
   });
 
   describe('check - owner check', () => {
     it('should allow when userId matches ownerId', async () => {
-      const req: RelationshipCheckRequest = {
+      const result = await service.check({
         userId: 'user-1',
         resourceId: 'res-1',
         resourceType: 'pipeline',
         ownerId: 'user-1',
-      };
-      const result = await service.check(req);
+      });
       expect(result.allowed).toBe(true);
       expect(result.relationshipType).toBe('owner');
     });
 
-    it('should allow when user is registered owner', async () => {
-      service.registerOwnership({
+    it('should deny when userId does not match ownerId', async () => {
+      const result = await service.check({
+        userId: 'user-unknown',
         resourceId: 'res-1',
         resourceType: 'pipeline',
-        ownerId: 'user-1',
-        ownerType: 'user',
+        ownerId: 'user-other',
       });
-      const req: RelationshipCheckRequest = {
-        userId: 'user-1',
-        resourceId: 'res-1',
-        resourceType: 'pipeline',
-      };
-      const result = await service.check(req);
-      expect(result.allowed).toBe(true);
-      expect(result.relationshipType).toBe('owner');
+      expect(result.allowed).toBe(false);
     });
   });
 
   describe('check - project member', () => {
     it('should allow project member access', async () => {
-      service.addProjectMember('proj-1', 'user-1');
-      const req: RelationshipCheckRequest = {
+      await service.addProjectMember('proj-1', 'user-1', 'developer');
+      const result = await service.check({
         userId: 'user-1',
         projectId: 'proj-1',
         resourceId: 'res-1',
         resourceType: 'pipeline',
-      };
-      const result = await service.check(req);
+      });
       expect(result.allowed).toBe(true);
       expect(result.relationshipType).toBe('project_member');
     });
-  });
 
-  describe('check - team member', () => {
-    it('should allow team member access when team owns resource', async () => {
-      service.addTeamMember('team-1', 'user-1');
-      service.registerOwnership({
+    it('should deny non-project member', async () => {
+      await service.addProjectMember('proj-1', 'user-1', 'developer');
+      const result = await service.check({
+        userId: 'user-2',
+        projectId: 'proj-1',
         resourceId: 'res-1',
         resourceType: 'pipeline',
-        ownerId: 'team-1',
-        ownerType: 'team',
       });
-      const req: RelationshipCheckRequest = {
-        userId: 'user-1',
-        resourceId: 'res-1',
-        resourceType: 'pipeline',
-      };
-      const result = await service.check(req);
-      expect(result.allowed).toBe(true);
-      expect(result.relationshipType).toBe('team_member');
-    });
-  });
-
-  describe('check - collaborator', () => {
-    it('should allow collaborator access', async () => {
-      service.addCollaborator('res-1', 'user-1');
-      const req: RelationshipCheckRequest = {
-        userId: 'user-1',
-        resourceId: 'res-1',
-        resourceType: 'pipeline',
-      };
-      const result = await service.check(req);
-      expect(result.allowed).toBe(true);
-      expect(result.relationshipType).toBe('collaborator');
-    });
-  });
-
-  describe('check - denial', () => {
-    it('should deny when no relationship exists', async () => {
-      const req: RelationshipCheckRequest = {
-        userId: 'user-unknown',
-        resourceId: 'res-1',
-        resourceType: 'pipeline',
-        ownerId: 'user-other',
-      };
-      const result = await service.check(req);
       expect(result.allowed).toBe(false);
-      expect(result.reason).toContain('No ownership');
     });
   });
 
-  describe('clearAll', () => {
-    it('should clear all relationship data', () => {
-      service.addProjectMember('proj-1', 'user-1');
-      service.addTeamMember('team-1', 'user-1');
-      service.addCollaborator('res-1', 'user-1');
-      service.registerOwnership({
-        resourceId: 'res-1',
-        resourceType: 'pipeline',
-        ownerId: 'user-1',
-        ownerType: 'user',
-      });
-      service.clearAll();
-      expect(service.getProjectMembers('proj-1')).toEqual([]);
-      expect(service.getUserOwnedResources('user-1')).toEqual([]);
+  describe('addProjectMember / removeProjectMember', () => {
+    it('should add and verify project membership', async () => {
+      await service.addProjectMember('proj-1', 'user-1', 'developer');
+      await service.addProjectMember('proj-1', 'user-2', 'viewer');
+      const members = await service.getProjectMembers('proj-1');
+      expect(members).toHaveLength(2);
+    });
+
+    it('should remove project member', async () => {
+      await service.addProjectMember('proj-1', 'user-1', 'developer');
+      await service.removeProjectMember('proj-1', 'user-1');
+      const members = await service.getProjectMembers('proj-1');
+      expect(members).toHaveLength(0);
+    });
+  });
+
+  describe('isProjectMember', () => {
+    it('should return true for project members', async () => {
+      await service.addProjectMember('proj-1', 'user-1', 'developer');
+      expect(await service.isProjectMember('proj-1', 'user-1')).toBe(true);
+    });
+
+    it('should return false for non-members', async () => {
+      expect(await service.isProjectMember('proj-1', 'user-1')).toBe(false);
     });
   });
 });

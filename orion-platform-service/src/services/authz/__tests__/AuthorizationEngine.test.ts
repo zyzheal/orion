@@ -7,6 +7,28 @@ import { RoleService } from '../../role/RoleService';
 import { AbacPolicyEngine } from '../AbacPolicyEngine';
 import { RelationshipService } from '../RelationshipService';
 
+// Mock RelationshipService for tests (no DB needed)
+class MockRelationshipService {
+  private projectMembers: Map<string, Set<string>> = new Map();
+
+  async check(req: { userId: string; projectId?: string; resourceId?: string; resourceType: string; ownerId?: string }) {
+    if (req.ownerId && req.userId === req.ownerId) {
+      return { allowed: true, reason: 'User is the resource owner', relationshipType: 'owner' };
+    }
+    if (req.projectId && this.projectMembers.get(req.projectId)?.has(req.userId)) {
+      return { allowed: true, reason: 'Project member', relationshipType: 'project_member' };
+    }
+    return { allowed: false, reason: 'Not resource owner or project member' };
+  }
+
+  addProjectMember(projectId: string, userId: string): void {
+    if (!this.projectMembers.has(projectId)) {
+      this.projectMembers.set(projectId, new Set());
+    }
+    this.projectMembers.get(projectId)!.add(userId);
+  }
+}
+
 function makeRequest(overrides: Partial<AuthZRequest> = {}): AuthZRequest {
   return {
     user: {
@@ -46,7 +68,7 @@ function makeRequest(overrides: Partial<AuthZRequest> = {}): AuthZRequest {
 describe('AuthorizationEngine', () => {
   let rbacService: jest.Mocked<RoleService>;
   let abacEngine: AbacPolicyEngine;
-  let relationshipService: RelationshipService;
+  let relationshipService: MockRelationshipService;
   let engine: AuthorizationEngine;
 
   beforeEach(() => {
@@ -55,8 +77,8 @@ describe('AuthorizationEngine', () => {
     } as unknown as jest.Mocked<RoleService>;
 
     abacEngine = new AbacPolicyEngine();
-    relationshipService = new RelationshipService();
-    engine = new AuthorizationEngine(rbacService, abacEngine, relationshipService);
+    relationshipService = new MockRelationshipService();
+    engine = new AuthorizationEngine(rbacService, abacEngine, relationshipService as any);
   });
 
   describe('[0] User status check', () => {

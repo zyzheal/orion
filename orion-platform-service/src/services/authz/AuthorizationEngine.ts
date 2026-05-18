@@ -13,6 +13,8 @@ import pino from 'pino';
 import { RoleService } from '../role/RoleService';
 import { AbacPolicyEngine, AbacContext } from './AbacPolicyEngine';
 import { RelationshipService } from './RelationshipService';
+import { PermissionAuditRepository, AuditLogEntry } from '../../repositories/PermissionAuditRepository';
+import type { PipelineRBACService } from '../pipeline/PipelineRBACService';
 
 // === 类型定义 ===
 
@@ -77,6 +79,8 @@ export class AuthorizationEngine {
     private rbacService: RoleService,
     private abacEngine: AbacPolicyEngine,
     private relationshipService: RelationshipService,
+    public auditRepo?: PermissionAuditRepository,
+    private pipelineRbacService?: PipelineRBACService,
   ) {}
 
   async evaluate(req: AuthZRequest): Promise<AuthZDecision> {
@@ -84,7 +88,7 @@ export class AuthorizationEngine {
 
     // [0] 用户状态检查
     if (req.user.status === 'disabled' || req.user.status === 'suspended') {
-      return this.deny('User account is disabled or suspended', 'rbac', Date.now() - startTime);
+      return this.deny('User account is disabled or suspended', 'rbac', Date.now() - startTime, req);
     }
 
     // [1] super_admin 通配符跳过所有检查
@@ -99,14 +103,30 @@ export class AuthorizationEngine {
       req.action.type,
     );
     if (!rbacResult.allowed) {
-      return this.deny(rbacResult.reason, 'rbac', Date.now() - startTime);
+      return this.deny(rbacResult.reason, 'rbac', Date.now() - startTime, req);
+    }
+
+    // [2.5] Pipeline 级 RBAC 检查（当资源为 pipeline 时）
+    if (req.resource.type === 'pipeline' && req.resource.id && this.pipelineRbacService) {
+      const actionToPerm: Record<string, string> = {
+        read: 'view', write: 'update', execute: 'trigger', delete: 'delete', manage: 'approve',
+      };
+      const perm = actionToPerm[req.action.type] || req.action.type;
+      const pipelinePerm = await this.pipelineRbacService.hasPermission(
+        req.resource.id,
+        req.user.id,
+        perm,
+      );
+      if (!pipelinePerm.allowed) {
+        return this.deny(pipelinePerm.reason || 'Pipeline RBAC denied', 'rbac', Date.now() - startTime, req);
+      }
     }
 
     // [3] ABAC 检查 — deny-only 约束
     const abacContext = this.toAbacContext(req);
     const abacResult = this.abacEngine.evaluate(abacContext);
     if (abacResult.denied) {
-      return this.deny(abacResult.denialReason || 'ABAC policy denied', 'abac', Date.now() - startTime);
+      return this.deny(abacResult.denialReason || 'ABAC policy denied', 'abac', Date.now() - startTime, req);
     }
 
     // [4] 关系检查（仅当有 resourceId 时）
@@ -119,7 +139,7 @@ export class AuthorizationEngine {
         ownerId: req.resource.ownerId,
       });
       if (!relResult.allowed) {
-        return this.deny(relResult.reason, 'relationship', Date.now() - startTime);
+        return this.deny(relResult.reason, 'relationship', Date.now() - startTime, req);
       }
     }
 
@@ -183,8 +203,26 @@ export class AuthorizationEngine {
     reason: string,
     source: AuthZDecision['source'],
     time: number,
+    authzReq?: AuthZRequest,
   ): AuthZDecision {
     logger.info({ reason, source, evaluationTime: time }, 'Authorization denied');
+
+    // 异步记录审计日志（不阻塞主流程）
+    if (this.auditRepo && authzReq) {
+      this.auditRepo.logDecision({
+        userId: authzReq.user.id,
+        tenantId: authzReq.resource.tenantId,
+        resourceType: authzReq.resource.type,
+        resourceId: authzReq.resource.id,
+        action: authzReq.action.type,
+        decision: 'deny',
+        decisionSource: source,
+        reason,
+      }).catch(err => {
+        logger.error({ err }, 'Failed to write permission audit log');
+      });
+    }
+
     return {
       allowed: false,
       reason,

@@ -35,9 +35,6 @@ export function getAuthzEngine() {
 
 /**
  * 创建权限校验中间件工厂函数
- *
- * @param options 权限配置选项
- * @returns Fastify 钩子函数
  */
 export function requirePermission(options: RequirePermissionOptions) {
   return async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
@@ -83,24 +80,6 @@ export function requirePermission(options: RequirePermissionOptions) {
     const decision = await authzEngine.evaluate(authzReq);
 
     if (!decision.allowed) {
-      // 记录审计日志（异步，不阻塞响应）
-      if (authzEngine.auditRepo) {
-        authzEngine.auditRepo
-          .logDecision({
-            userId: authzReq.user.id,
-            tenantId: authzReq.resource.tenantId,
-            resourceType: authzReq.resource.type,
-            resourceId: authzReq.resource.id,
-            action: authzReq.action.type,
-            decision: 'deny',
-            decisionSource: decision.source,
-            reason: decision.reason,
-          })
-          .catch((err: Error) => {
-            console.error('Failed to write permission audit log:', err);
-          });
-      }
-
       return reply.code(403).send({
         code: 403,
         error: 'FORBIDDEN',

@@ -17,9 +17,17 @@ describe('RoleService', () => {
       delete: jest.fn(),
       update: jest.fn(),
       findByName: jest.fn(),
+      findRolePermission: jest.fn(),
+      addRolePermission: jest.fn(),
+      findPermissionsByRoleNames: jest.fn(),
+      findUserRoles: jest.fn(),
     } as unknown as jest.Mocked<RoleRepository>;
 
     service = new RoleService(mockRepository);
+
+    // Default: DB fallback returns empty (most tests use in-memory ROLE_PERMISSIONS)
+    mockRepository.findPermissionsByRoleNames.mockResolvedValue([]);
+    mockRepository.findUserRoles.mockResolvedValue([]);
   });
 
   describe('createRole', () => {
@@ -233,45 +241,21 @@ describe('RoleService', () => {
     });
 
     it('should allow with wildcard resource permission', async () => {
-      const adminRole: Role = {
-        id: 'role-admin',
-        tenant_id: 't1',
-        name: 'admin',
-        description: null,
-        permissions: ['*:read', '*:write'],
-      };
-      mockRepository.findByName.mockResolvedValue(adminRole);
-
-      const result = await service.checkPermissions(['admin'], 'cmdb', 'read');
+      // Use 'sre' which is in BUSINESS_ROLE_PERMISSIONS with '*:read'
+      const result = await service.checkPermissions(['sre'], 'cmdb', 'read');
 
       expect(result.allowed).toBe(true);
     });
 
     it('should allow with wildcard action permission', async () => {
-      const ownerRole: Role = {
-        id: 'role-owner',
-        tenant_id: 't1',
-        name: 'owner',
-        description: null,
-        permissions: ['pipeline:*'],
-      };
-      mockRepository.findByName.mockResolvedValue(ownerRole);
-
-      const result = await service.checkPermissions(['owner'], 'pipeline', 'delete');
+      // Use 'project_admin' which is in PROJECT_ROLE_PERMISSIONS with 'pipeline:*'
+      const result = await service.checkPermissions(['project_admin'], 'pipeline', 'delete');
 
       expect(result.allowed).toBe(true);
     });
 
     it('should deny when no role grants the permission', async () => {
-      const viewerRole: Role = {
-        id: 'role-viewer',
-        tenant_id: 't1',
-        name: 'viewer',
-        description: null,
-        permissions: ['pipeline:read'],
-      };
-      mockRepository.findByName.mockResolvedValue(viewerRole);
-
+      // 'viewer' is in BUSINESS_ROLE_PERMISSIONS but doesn't have pipeline:delete
       const result = await service.checkPermissions(['viewer'], 'pipeline', 'delete');
 
       expect(result.allowed).toBe(false);
@@ -287,6 +271,7 @@ describe('RoleService', () => {
 
     it('should deny when role not found in repository', async () => {
       mockRepository.findByName.mockResolvedValue(null);
+      mockRepository.findPermissionsByRoleNames.mockResolvedValue([]);
 
       const result = await service.checkPermissions(['unknown-role'], 'pipeline', 'read');
 
@@ -303,6 +288,9 @@ describe('RoleService', () => {
           description: null,
           permissions: ['*:delete'],
         });
+      mockRepository.findPermissionsByRoleNames.mockResolvedValue([
+        { resource: '*', action: 'delete' },
+      ]);
 
       const result = await service.checkPermissions(['viewer', 'admin'], 'pipeline', 'delete');
 
