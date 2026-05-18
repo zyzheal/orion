@@ -60,6 +60,7 @@ import { registerApprovalRoutes } from './approval-routes';
 import artifactRoutes from './artifact-routes';
 import artifactVersionRoutes from './artifact-version-routes';
 import permissionAuditRoutes from './permission-audit-routes';
+import abacPolicyRoutes from './abac-policy-routes';
 import { escalationScheduler } from '../services/escalation/EscalationScheduler';
 import { registerSecretRoutes } from './secret-routes';
 import { registerApkUploadHistoryRoutes } from './apk-upload-history-routes';
@@ -424,6 +425,9 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // Permission Audit Routes (P2)
   await registerWithRoleGuard(app, permissionAuditRoutes, '/permission-audit', { database: options.database });
+
+  // ABAC Policy Routes (P2)
+  await registerWithRoleGuard(app, abacPolicyRoutes, '/abac-policies');
 
 // Cost Operations 路由已迁移到 orion-finops-svc (port 3009)
 
