@@ -169,7 +169,6 @@ AI 能力平台
 │
 ├── 🔍 代码智能            ← 开发者日常工具
 │   ├── AI Review          ← 现有迁移
-│   └── AI Gateway 监控    ← 扩展现有
 │
 ├── 🛡️ 安全与治理           ← 安全/合规视角
 │   ├── AI 安全策略         ← 扩展现有
@@ -178,6 +177,7 @@ AI 能力平台
 │
 ├── ⚙️ 平台配置             ← 管理员/架构师专属
 │   ├── Provider 管理       ← 新增
+│   ├── AI Gateway 监控     ← 扩展现有（从代码智能移入）
 │   ├── 场景路由配置        ← 新增
 │   ├── Agent 管理          ← 现有迁移
 │   ├── 编排策略            ← 新增
@@ -224,14 +224,14 @@ AI 能力平台
     { key: '/ai/docs', label: 'AI 文档', description: '智能文档协作', category: '智能助手', enabled: true },
     { key: '/ai/knowledge', label: '知识库', description: '企业知识管理', category: '智能助手', enabled: true },
     { key: '/ai/review', label: 'AI Review', description: '智能代码评审', category: '代码智能', enabled: true },
-    { key: '/ai/gateway', label: 'AI Gateway', description: '模型路由与监控', category: '代码智能', enabled: true },
     { key: '/ai/security', label: '安全治理', description: 'AI 安全策略与合规', category: '安全治理', enabled: true },
-    { key: '/ai/provider', label: 'Provider 管理', description: 'LLM Provider 注册', category: '平台配置', enabled: false },
-    { key: '/ai/agents', label: 'Agent 管理', description: '智能体配置', category: '平台配置', enabled: false },
-    { key: '/ai/orchestration', label: '编排策略', description: '多 Agent 编排', category: '平台配置', enabled: false },
-    { key: '/ai/tools', label: '工具注册表', description: '工具定义', category: '平台配置', enabled: false },
-    { key: '/ai/trace', label: 'LLM Trace', description: '调用追踪', category: '平台配置', enabled: false },
-    { key: '/ai/cost', label: '成本分析', description: 'Token 与成本', category: '平台配置', enabled: false },
+    { key: '/ai/provider', label: 'Provider 管理', description: 'LLM Provider 注册', category: '平台配置', enabled: true },
+    { key: '/ai/gateway', label: 'AI Gateway', description: '模型路由与监控', category: '平台配置', enabled: true },
+    { key: '/ai/agents', label: 'Agent 管理', description: '智能体配置', category: '平台配置', enabled: true },
+    { key: '/ai/orchestration', label: '编排策略', description: '多 Agent 编排', category: '平台配置', enabled: true },
+    { key: '/ai/tools', label: '工具注册表', description: '工具定义', category: '平台配置', enabled: true },
+    { key: '/ai/trace', label: 'LLM Trace', description: '调用追踪', category: '平台配置', enabled: true },
+    { key: '/ai/cost', label: '成本分析', description: 'Token 与成本', category: '平台配置', enabled: true },
   ],
 },
 ```
@@ -282,7 +282,8 @@ orion-ai-svc/src/
 │   ├── CircuitBreakerManager.ts    ← 现有
 │   └── ... (其他现有服务)
 └── repositories/
-    └── AgentRepository.ts          ← 新增 (从 agent-svc)
+    ├── AgentProfileRepository.ts   ← 新增 (从 agent-svc)
+    └── AgentRunRepository.ts       ← 新增 (从 agent-svc)
 ```
 
 ### 4.2 MultiAgentOrchestrator 改造
@@ -299,6 +300,11 @@ private async executeTask(task: AgentTask): Promise<unknown> {
 **改造后（真实 LLM 调用）：**
 ```typescript
 // MultiAgentOrchestrator.ts (合并后)
+export interface ExecutionTask extends AgentTask {
+  tool?: string;
+  toolParams?: Record<string, unknown>;
+}
+
 export class MultiAgentOrchestrator {
   private aiGateway: AIGateway;
   private toolRegistry: ToolRegistry;
@@ -308,15 +314,14 @@ export class MultiAgentOrchestrator {
     this.toolRegistry = toolRegistry;
   }
 
-  private async executeTask(task: AgentTask): Promise<unknown> {
+  private async executeTask(task: ExecutionTask): Promise<unknown> {
     task.status = 'running';
     task.startedAt = new Date();
 
-    if (task.type === 'execution' && (task as any).tool) {
-      const toolName = (task as any).tool;
-      const tool = this.toolRegistry.get(toolName);
-      if (!tool) throw new Error(`Tool not found: ${toolName}`);
-      return tool.execute(task.prompt);
+    if (task.type === 'execution' && task.tool) {
+      const tool = this.toolRegistry.get(task.tool);
+      if (!tool) throw new Error(`Tool not found: ${task.tool}`);
+      return tool.execute(task.toolParams || {});
     }
 
     // LLM 推理/生成
@@ -339,8 +344,15 @@ export class MultiAgentOrchestrator {
     return response.data;
   }
 
-  private buildSystemPrompt(task: AgentTask): string {
-    return `你是一个 ${task.type} 类型的 AI 助手。任务类型：${task.type}。请基于以下提示完成任务。`;
+  private buildSystemPrompt(task: ExecutionTask): string {
+    const availableTools = this.toolRegistry.list().map(t => `- ${t.name}: ${t.description}`).join('\n');
+    return `你是一个 ${task.type} 类型的 AI 助手。
+任务类型：${task.type}。
+可用工具：
+${availableTools}
+
+输出要求：使用 JSON 格式返回结果，包含 conclusion 和 reasoning 字段。
+请基于以下提示完成任务：`;
   }
 }
 ```
@@ -356,11 +368,17 @@ export interface ToolParameter {
   description: string;
 }
 
+export interface ToolExecutionContext {
+  params: Record<string, unknown>;
+  userId?: string;
+  traceId?: string;
+}
+
 export interface ToolDefinition {
   name: string;
   description: string;
   parameters: ToolParameter[];
-  execute: (params: Record<string, unknown>) => Promise<unknown>;
+  execute: (ctx: ToolExecutionContext) => Promise<unknown>;
 }
 
 export class ToolRegistry {
@@ -386,7 +404,7 @@ export class ToolRegistry {
         { name: 'query', type: 'string', required: true, description: 'PromQL 查询语句' },
         { name: 'range', type: 'string', required: false, description: '时间范围，如 1h, 24h' },
       ],
-      execute: async (params) => { /* 调用 Prometheus API */ },
+      execute: async (ctx) => { /* 调用 Prometheus API */ },
     });
     this.register({
       name: 'log_query',
@@ -395,7 +413,7 @@ export class ToolRegistry {
         { name: 'service', type: 'string', required: true, description: '服务名称' },
         { name: 'limit', type: 'number', required: false, description: '返回条数' },
       ],
-      execute: async (params) => { /* 调用日志 API */ },
+      execute: async (ctx) => { /* 调用日志 API */ },
     });
     this.register({
       name: 'diagnose',
@@ -403,7 +421,7 @@ export class ToolRegistry {
       parameters: [
         { name: 'service', type: 'string', required: true, description: '服务名称' },
       ],
-      execute: async (params) => { /* 调用诊断服务 */ },
+      execute: async (ctx) => { /* 调用诊断服务 */ },
     });
     this.register({
       name: 'deploy',
@@ -412,7 +430,7 @@ export class ToolRegistry {
         { name: 'service', type: 'string', required: true, description: '服务名称' },
         { name: 'environment', type: 'string', required: true, description: '目标环境' },
       ],
-      execute: async (params) => { /* 调用部署 API */ },
+      execute: async (ctx) => { /* 调用部署 API */ },
     });
     this.register({
       name: 'vector_search',
@@ -421,7 +439,7 @@ export class ToolRegistry {
         { name: 'query', type: 'string', required: true, description: '搜索内容' },
         { name: 'topK', type: 'number', required: false, description: '返回条数' },
       ],
-      execute: async (params) => { /* 调用 VectorStore */ },
+      execute: async (ctx) => { /* 调用 VectorStore */ },
     });
   }
 }
@@ -447,12 +465,9 @@ import llmTraceRoutes from './routes/llm-trace';
 import degradationRoutes from './routes/degradation';
 
 // 新增：Agent 路由
-import { agentRoutes, agentStore } from './routes/agent';
-import { taskRoutes, setAgentStoreRef } from './routes/task';
+import { agentRoutes, createAgentService } from './routes/agent';
+import { taskRoutes } from './routes/task';
 import { orchestrationRoutes } from './routes/orchestration-routes';
-
-// Wire agent store
-setAgentStoreRef(agentStore);
 
 import { errorHandler } from './middleware/errorHandler';
 
@@ -464,6 +479,9 @@ async function buildApp() {
 
   const database = getPool();
 
+  // 依赖注入：创建 Agent 服务实例并注入到路由
+  const agentService = createAgentService(database);
+
   // 现有路由
   await fastify.register(aiGatewayRoutes, { prefix: '/api/v1/ai-gateway', database });
   await fastify.register(aiDecisionRoutes, { prefix: '/api/v1/ai-decision', database });
@@ -474,10 +492,10 @@ async function buildApp() {
   await fastify.register(llmTraceRoutes, { prefix: '/api/v1/llm', database });
   await fastify.register(degradationRoutes, { prefix: '/api/v1/degradation', database });
 
-  // 新增：Agent 路由
-  await fastify.register(agentRoutes, { prefix: '/api/v1' });
-  await fastify.register(taskRoutes, { prefix: '/api/v1' });
-  await fastify.register(orchestrationRoutes, { prefix: '/api/v1' });
+  // 新增：Agent 路由（依赖注入）
+  await fastify.register(agentRoutes, { prefix: '/api/v1', agentService });
+  await fastify.register(taskRoutes, { prefix: '/api/v1', agentService });
+  await fastify.register(orchestrationRoutes, { prefix: '/api/v1', agentService });
 
   fastify.get('/health', async () => {
     const db = await checkHealth();
@@ -514,8 +532,45 @@ aiGateway.registerScenario('agent_reasoning', {
 
 ### 4.6 数据库迁移
 
-Agent 的表已存在于 `agent_profiles` 和 `agent_runs`，无需新增 migration。
-只需确认 ai-svc 的数据库连接池能访问这些表（同一 PostgreSQL 实例）。
+**验证结果：**
+- agent-svc 连接 `DB_NAME=orion_agent`（独立数据库）
+- ai-svc 连接 `DATABASE_URL=postgresql://orion:orion123@localhost:5432/ai_db`（同一实例，不同数据库）
+- 两个服务在同一 PostgreSQL 实例但不同数据库
+
+**迁移方案：**
+合并后统一使用 ai-svc 的数据库连接（`ai_db`），需要将 agent-svc 的表迁移到 ai_db：
+
+```sql
+-- 在 ai_db 中创建 agent 表（若不存在）
+CREATE TABLE IF NOT EXISTS agent_profiles (
+  id UUID PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  description TEXT,
+  system_prompt TEXT,
+  tools JSONB DEFAULT '[]',
+  status VARCHAR(20) DEFAULT 'active',
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS agent_runs (
+  id UUID PRIMARY KEY,
+  agent_id UUID REFERENCES agent_profiles(id),
+  status VARCHAR(20) DEFAULT 'pending',
+  input JSONB,
+  output JSONB,
+  error TEXT,
+  started_at TIMESTAMP,
+  completed_at TIMESTAMP,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+**数据迁移步骤：**
+1. 从 `orion_agent` 导出 `agent_profiles` 和 `agent_runs` 表数据
+2. 导入到 `ai_db`
+3. 合并后 agent 的 Repository 使用 `getPool()`（ai-svc 的连接池）即可访问
+4. 验证通过后，agent-svc 独立数据库可安全删除
 
 ### 4.7 环境变量合并
 
@@ -530,6 +585,108 @@ AI_LLM_BASE_URL=https://api.anthropic.com
 AGENT_SCALING_MAX_RUNNERS=10
 AGENT_SCALING_COOLDOWN=60
 AGENT_SCALING_EVAL_INTERVAL=30000
+```
+
+### 4.8 Cost Tracker 接口定义
+
+```typescript
+// services/agent/CostTracker.ts
+export interface CostRecord {
+  id: string;
+  scenario: string;
+  provider: string;
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  costUsd: number;
+  userId: string;
+  timestamp: Date;
+}
+
+export interface CostSummary {
+  totalRequests: number;
+  totalInputTokens: number;
+  totalOutputTokens: number;
+  totalCostUsd: number;
+  avgCostPerRequest: number;
+  costByScenario: Record<string, number>;
+  costByProvider: Record<string, number>;
+}
+
+export class CostTracker {
+  private pool: Pool;
+  private pricing: Map<string, { inputPer1k: number; outputPer1k: number }>;
+
+  constructor(pool: Pool) {
+    this.pool = pool;
+    this.pricing = new Map();
+    this.registerPricing();
+  }
+
+  private registerPricing(): void {
+    this.pricing.set('anthropic-sonnet', { inputPer1k: 0.003, outputPer1k: 0.015 });
+    this.pricing.set('anthropic-opus', { inputPer1k: 0.015, outputPer1k: 0.075 });
+    this.pricing.set('anthropic-haiku', { inputPer1k: 0.0008, outputPer1k: 0.004 });
+    this.pricing.set('openai-gpt-4o', { inputPer1k: 0.005, outputPer1k: 0.015 });
+  }
+
+  async record(request: AIRequest, response: AIResponse): Promise<void> {
+    const usage = response.usage;
+    if (!usage) return;
+
+    const key = `${response.provider || 'unknown'}-${response.model || 'unknown'}`;
+    const price = this.pricing.get(key) || { inputPer1k: 0.01, outputPer1k: 0.03 };
+    const cost = (usage.inputTokens * price.inputPer1k + usage.outputTokens * price.outputPer1k) / 1000;
+
+    await this.pool.query(
+      `INSERT INTO llm_cost_records (scenario, provider, model, input_tokens, output_tokens, total_tokens, cost_usd, user_id, timestamp)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      [request.scenario, response.provider, response.model, usage.inputTokens, usage.outputTokens, usage.totalTokens, cost, request.metadata?.userId, new Date()],
+    );
+  }
+
+  async getSummary(days: number = 7): Promise<CostSummary> {
+    // 查询聚合
+    const result = await this.pool.query(
+      `SELECT COUNT(*) as total_requests,
+              SUM(input_tokens) as total_input,
+              SUM(output_tokens) as total_output,
+              SUM(cost_usd) as total_cost
+       FROM llm_cost_records
+       WHERE timestamp > NOW() - INTERVAL '${days} days'`,
+    );
+    return {
+      totalRequests: parseInt(result.rows[0].total_requests),
+      totalInputTokens: parseInt(result.rows[0].total_input),
+      totalOutputTokens: parseInt(result.rows[0].total_output),
+      totalCostUsd: parseFloat(result.rows[0].total_cost),
+      avgCostPerRequest: parseFloat(result.rows[0].total_cost) / parseInt(result.rows[0].total_requests),
+      costByScenario: {},
+      costByProvider: {},
+    };
+  }
+}
+```
+
+**Cost Tracker 数据库迁移：**
+```sql
+CREATE TABLE IF NOT EXISTS llm_cost_records (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  scenario VARCHAR(100) NOT NULL,
+  provider VARCHAR(50),
+  model VARCHAR(50),
+  input_tokens INTEGER NOT NULL,
+  output_tokens INTEGER NOT NULL,
+  total_tokens INTEGER NOT NULL,
+  cost_usd DECIMAL(10, 6) NOT NULL,
+  user_id VARCHAR(255),
+  timestamp TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_cost_scenario ON llm_cost_records(scenario);
+CREATE INDEX idx_cost_timestamp ON llm_cost_records(timestamp);
+CREATE INDEX idx_cost_user ON llm_cost_records(user_id);
 ```
 
 ---
@@ -615,42 +772,165 @@ AGENT_SCALING_EVAL_INTERVAL=30000
 
 ### 5.4 前端权限控制实现
 
-#### 5.4.1 路由守卫
+#### 5.4.0 新增 PermissionStore
 
 ```typescript
-// router/routes.ts - 扩展现有路由定义
-{
-  path: '/ai/gateway',
-  element: React.createElement(ProtectedRoute, {
-    requiredPermissions: ['ai:gateway:read'],
-    element: React.createElement(AIGatewayPage),
-  }),
-},
+// stores/permissionStore.ts — 从角色派生权限点
+import { create } from 'zustand';
+import { ROLE_PERMISSIONS, type CommonPermission } from '@/api/roles';
+
+interface PermissionState {
+  permissions: string[];
+  // 从用户角色派生权限
+  setRoles: (roles: string[]) => void;
+  hasPermission: (permission: string) => boolean;
+  hasAnyPermission: (permissions: string[]) => boolean;
+}
+
+export const usePermissionStore = create<PermissionState>((set, get) => ({
+  permissions: [],
+
+  setRoles: (roles: string[]) => {
+    const perms = new Set<string>();
+    for (const role of roles) {
+      const rolePerms = ROLE_PERMISSIONS[role];
+      if (rolePerms) rolePerms.forEach(p => perms.add(p));
+      // admin 拥有全部权限
+      if (role === 'admin') perms.add('*');
+    }
+    set({ permissions: Array.from(perms) });
+  },
+
+  hasPermission: (permission: string) => {
+    const { permissions } = get();
+    return permissions.includes('*') || permissions.includes(permission);
+  },
+
+  hasAnyPermission: (perms: string[]) => {
+    const { permissions } = get();
+    if (permissions.includes('*')) return true;
+    return perms.some(p => permissions.includes(p));
+  },
+}));
 ```
 
-#### 5.4.2 菜单过滤
+#### 5.4.1 扩展 AppRoute 接口
+
+现有 `AppRoute` 使用 `requiredRole`（角色数组）做路由守卫。为支持细粒度权限，新增 `requiredPermissions` 字段：
 
 ```typescript
-// stores/menuConfigStore.ts - 根据用户权限过滤菜单
-const getVisibleModules = (userPermissions: string[]): Record<string, MenuModuleConfig> => {
-  return Object.fromEntries(
-    Object.entries(defaultModules).filter(([key, module]) => {
-      // 检查模块权限
-      const requiredPerm = MODULE_PERMISSIONS[key];
-      return requiredPerm && userPermissions.some(p => p === requiredPerm || p === 'ai:*');
-    })
-  );
+// router/routes.ts — 扩展 AppRoute 接口
+export interface AppRoute {
+  path?: string;
+  element: ReactNode;
+  protected?: boolean;
+  /** 角色守卫：任一角色匹配即可访问（现有） */
+  requiredRole?: string | string[];
+  /** 权限点守卫：所有权限点均需满足（新增） */
+  requiredPermissions?: string[];
+  children?: AppRoute[];
+}
+```
+
+#### 5.4.2 改造 ProtectedRoute 支持双重守卫
+
+```typescript
+// router/index.tsx — ProtectedRoute 扩展
+const ProtectedRoute: React.FC<{ children: React.ReactNode; route: AppRoute }> = ({
+  children,
+  route,
+}) => {
+  const user = useAuthStore((s) => s.user);
+  const hasPermission = usePermissionStore((s) => s.hasPermission);
+  const hasAnyPermission = usePermissionStore((s) => s.hasAnyPermission);
+
+  // 1. 角色守卫（现有逻辑，保持不变）
+  if (route.requiredRole && !checkRoleAccess(user?.role, route.requiredRole)) {
+    message.error('您没有权限访问此页面');
+    navigate('/dashboard', { replace: true });
+    return null;
+  }
+
+  // 2. 权限点守卫（新增）
+  if (route.requiredPermissions && !hasAnyPermission(route.requiredPermissions)) {
+    message.error('权限不足，需要 ' + route.requiredPermissions.join(' / ') + ' 权限');
+    navigate('/dashboard', { replace: true });
+    return null;
+  }
+
+  return <>{children}</>;
 };
 ```
 
-#### 5.4.3 按钮级控制
+#### 5.4.3 路由守卫使用示例
+
+```typescript
+// router/routes.ts — AI 路由定义
+{
+  path: '/ai/gateway',
+  element: React.lazy(() => import('@/pages/AIGateway')),
+  protected: true,
+  requiredPermissions: ['ai:gateway:read'],
+},
+{
+  path: '/ai/provider',
+  element: React.lazy(() => import('@/pages/AIProvider')),
+  protected: true,
+  requiredPermissions: ['ai:provider:read'],
+},
+{
+  path: '/ai/security',
+  element: React.lazy(() => import('@/pages/AISecurity')),
+  protected: true,
+  requiredPermissions: ['ai:security:read'],
+},
+```
+
+#### 5.4.4 菜单过滤
+
+```typescript
+// stores/menuConfigStore.ts — 根据用户权限过滤菜单
+const MODULE_PERMISSIONS: Record<string, string[]> = {
+  '/ai/dashboard': ['ai:*'],
+  '/ai/chatops': ['chatops:use'],
+  '/ai/docs': ['ai:doc:read'],
+  '/ai/knowledge': ['knowledge:read'],
+  '/ai/review': ['ai:review:read'],
+  '/ai/gateway': ['ai:gateway:read'],
+  '/ai/security': ['ai:security:read'],
+  '/ai/provider': ['ai:provider:read'],
+  '/ai/agents': ['ai:agent:read'],
+  '/ai/orchestration': ['ai:orchestration:read'],
+  '/ai/tools': ['ai:tool:read'],
+  '/ai/trace': ['ai:trace:read'],
+  '/ai/cost': ['ai:cost:read'],
+};
+
+export const getVisibleChildren = (moduleKey: string, userPermissions: string[]): MenuChildConfig[] => {
+  const module = useMenuConfigStore.getState().modules[moduleKey];
+  if (!module) return [];
+
+  return module.children.filter(child => {
+    const required = MODULE_PERMISSIONS[child.key];
+    if (!required) return child.enabled;
+    // 用户拥有任一所需权限即可看到该菜单项
+    return child.enabled && required.some(p =>
+      userPermissions.includes(p) || userPermissions.includes('*')
+    );
+  });
+};
+```
+
+#### 5.4.5 按钮级控制
 
 ```typescript
 // hooks/usePermission.ts
 export function usePermission(permission: string): boolean {
-  const { user } = useAuthStore();
-  const permissions = usePermissionStore(s => s.permissions);
-  return permissions.includes(permission) || permissions.includes('ai:*');
+  return usePermissionStore((s) => s.hasPermission(permission));
+}
+
+export function useAnyPermission(permissions: string[]): boolean {
+  return usePermissionStore((s) => s.hasAnyPermission(permissions));
 }
 
 // 页面中使用
@@ -664,14 +944,48 @@ function AIGatewayPage() {
 
 ### 5.5 后端权限中间件
 
+#### 5.5.1 权限点查询 Repository
+
 ```typescript
-// middleware/permissionGuard.ts - 新增基于权限点的中间件
+// repositories/UserPermissionRepository.ts
+export interface UserPermissionRepository {
+  getUserPermissions(userId: string): Promise<string[]>;
+}
+
+export class PgUserPermissionRepository implements UserPermissionRepository {
+  private pool: Pool;
+
+  constructor(pool: Pool) {
+    this.pool = pool;
+  }
+
+  async getUserPermissions(userId: string): Promise<string[]> {
+    const result = await this.pool.query(`
+      SELECT DISTINCT p.value
+      FROM role_permissions rp
+      JOIN roles r ON rp.role_id = r.id
+      JOIN permissions p ON rp.permission_id = p.id
+      WHERE r.id IN (
+        SELECT ur.role_id FROM user_roles ur WHERE ur.user_id = $1
+      )
+    `, [userId]);
+    return result.rows.map(row => row.value);
+  }
+}
+```
+
+#### 5.5.2 权限中间件
+
+```typescript
+// middleware/permissionGuard.ts
 export function requirePermission(requiredPermissions: string[]) {
+  const permRepo = new PgUserPermissionRepository(getPool());
+
   return async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
-    const userRoles = request.user?.roles || [];
+    const userRoles = (request.user as any)?.roles || [];
     if (userRoles.includes('admin')) return; // Admin bypass
 
-    const userPerms = await getUserPermissions(request.user.userId);
+    const userPerms = await permRepo.getUserPermissions((request.user as any).userId);
     const hasPerm = requiredPermissions.some(p => userPerms.includes(p));
     if (!hasPerm) {
       return reply.code(403).send({
@@ -682,6 +996,46 @@ export function requirePermission(requiredPermissions: string[]) {
     }
   };
 }
+```
+
+#### 5.5.3 路由中使用权限中间件
+
+```typescript
+// routes/ai-provider.ts
+fastify.get('/api/v1/ai-provider', {
+  preHandler: [requirePermission(['ai:provider:read'])],
+  handler: listProviders,
+});
+```
+
+### 5.6 旧路由迁移兼容
+
+Phase 4 路由重排时需要处理旧路由书签失效问题。在 `router/routes.ts` 中添加 301 重定向：
+
+```typescript
+// router/routes.ts — 旧路由 301 重定向
+const Redirect: React.FC<{ to: string }> = ({ to }) => {
+  const navigate = useNavigate();
+  useEffect(() => { navigate(to, { replace: true }); }, [navigate, to]);
+  return <Loading />;
+};
+
+// 旧路由重定向
+{ path: '/ai-gateway', element: <Redirect to="/ai/gateway" />, protected: true },
+{ path: '/ai-gateway/*', element: <Redirect to="/ai/gateway" />, protected: true },
+{ path: '/agents', element: <Redirect to="/ai/agents" />, protected: true },
+{ path: '/agent-runs/*', element: <Redirect to="/ai/agents" />, protected: true },
+{ path: '/ai-security', element: <Redirect to="/ai/security" />, protected: true },
+{ path: '/console/chatops', element: <Redirect to="/ai/chatops" />, protected: true },
+{ path: '/console/chatops/*', element: <Redirect to="/ai/chatops" />, protected: true },
+{ path: '/console/ai-review', element: <Redirect to="/ai/review" />, protected: true },
+{ path: '/console/ai-review/*', element: <Redirect to="/ai/review" />, protected: true },
+{ path: '/console/ai-docs', element: <Redirect to="/ai/docs" />, protected: true },
+{ path: '/console/ai-docs/*', element: <Redirect to="/ai/docs" />, protected: true },
+{ path: '/console/llm-trace', element: <Redirect to="/ai/trace" />, protected: true },
+{ path: '/console/llm-trace/*', element: <Redirect to="/ai/trace" />, protected: true },
+{ path: '/console/ai-cost', element: <Redirect to="/ai/cost" />, protected: true },
+{ path: '/console/ai-cost/*', element: <Redirect to="/ai/cost" />, protected: true },
 ```
 
 ---
@@ -776,50 +1130,54 @@ export function requirePermission(requiredPermissions: string[]) {
 
 ## 七、实施阶段
 
-### Phase 1: 权限基础设施 + Agent 合并 (1-2 周)
+### Phase 1a: 权限基础设施 (1 周)
 - [ ] 扩展 `COMMON_PERMISSIONS` 添加 AI 权限点
-- [ ] 实现前端 `usePermission` hook
-- [ ] 实现后端 `requirePermission` 中间件
-- [ ] 前端路由守卫 `ProtectedRoute` 组件
-- [ ] 菜单按权限过滤
-- [ ] **Agent 服务合并**：
-  - [ ] 创建 `orion-ai-svc/src/services/agent/` 目录
-  - [ ] 复制 agent-svc 文件到新位置
-  - [ ] 修改 import 路径
-  - [ ] 创建 ToolRegistry 类
-  - [ ] 改造 MultiAgentOrchestrator 注入 AIGateway
-  - [ ] 合并 app.ts 注册 agent 路由
-  - [ ] TypeScript 编译验证 + 测试
-  - [ ] 删除 orion-agent-svc/ 目录
+- [ ] 新增 `stores/permissionStore.ts`（从角色派生权限）
+- [ ] 新增 `repositories/UserPermissionRepository.ts`
+- [ ] 新增 `middleware/permissionGuard.ts`
+- [ ] 扩展 `ProtectedRoute` 支持 `requiredPermissions`
+- [ ] 新增 `hooks/usePermission.ts`
+- [ ] **验证**：TypeScript 编译 + 单元测试
+
+### Phase 1b: Agent 服务合并 (1 周)
+- [ ] 数据库迁移：在 ai_db 中创建 agent_profiles/agent_runs 表
+- [ ] 从 orion_agent 导出数据导入到 ai_db
+- [ ] 创建 `orion-ai-svc/src/services/agent/` 目录
+- [ ] 复制 agent-svc 文件到新位置（修改 import 路径）
+- [ ] 创建 ToolRegistry 类
+- [ ] 改造 MultiAgentOrchestrator 注入 AIGateway + ToolRegistry
+- [ ] 合并 app.ts（依赖注入方式注册 agent 路由）
+- [ ] **验证**：`npm run type-check` + `npm run test` + `curl http://localhost:3012/api/v1/agents`
+- [ ] 删除 orion-agent-svc/ 目录
+- [ ] **验证**：E2E 测试确认 Agent API 正常
 
 ### Phase 2: AI Gateway 扩展 (2-3 周)
 - [ ] Provider Registry 多 Provider 管理
 - [ ] Scenario Router 场景→模型映射
 - [ ] LLM Trace 页面（数据保留策略：7 天原始 + 30 天聚合）
-- [ ] Cost Tracker 成本追踪
+- [ ] Cost Tracker 成本追踪（新增接口定义，见 4.8 节）
 - [ ] PromptGuard 升级为全局单例（消除 ai-security.ts 重复）
 - [ ] AI Review 改为 HTTP 调 AI Gateway（统一 LLM 出口）
+- [ ] **验证**：Gateway 多 Provider 切换 + 熔断降级 E2E 测试
 
-### Phase 3: ChatOps 方案 C (2-3 周)
-- [ ] 对话工作台 (自然语言输入)
+### Phase 3: 菜单重排 + ChatOps 方案 C (2-3 周)
+- [ ] 菜单结构更新（场景化分类）
+- [ ] 路由迁移（旧路由 301 重定向）
+- [ ] AI 总览 Dashboard 页面
+- [ ] ChatOps 对话工作台 (自然语言输入)
 - [ ] 意图识别配置 (LLM 驱动的意图分类)
 - [ ] Agent 编排集成 (使用合并后的 MultiAgentOrchestrator)
 - [ ] Tool Registry 工具实现 (prometheus_query, log_query, diagnose, deploy)
 - [ ] SSE 流式输出
-- [ ] 空状态引导
-
-### Phase 4: 菜单重排 + UI/UX 升级 (1-2 周)
-- [ ] AI 总览 Dashboard 页面
-- [ ] 菜单结构更新（场景化分类）
-- [ ] 路由迁移（`/ai-gateway` → `/ai/gateway` 等）
 - [ ] 各模块空状态引导
-- [ ] 权限引导（无权限时显示申请入口）
+- [ ] **验证**：ChatOps 完整对话流程 E2E 测试
 
-### Phase 5: 知识库 + 安全治理 (1-2 周)
+### Phase 4: 知识库 + 安全治理 (1-2 周)
 - [ ] 知识库 CRUD
 - [ ] 威胁监控
 - [ ] 合规报告
 - [ ] 安全评估完善
+- [ ] **验证**：知识库 RAG 检索 + 安全策略评估 E2E 测试
 
 ---
 
@@ -846,10 +1204,12 @@ export function requirePermission(requiredPermissions: string[]) {
 |------|------|------|
 | Agent 合并 import 路径错误 | 编译失败 | TypeScript 编译验证 |
 | Agent 合并路由冲突 | 运行时错误 | 路由前缀隔离（`/api/v1/agents`） |
-| Agent 合并数据库连接池冲突 | 运行时错误 | 共用同一连接池，无需额外配置 |
+| Agent 合并数据库迁移失败 | 数据丢失 | 先备份 orion_agent 数据，再迁移 |
+| Agent 合并数据库表不存在 | 运行时错误 | 先执行 SQL migration 创建 agent_profiles/agent_runs |
 | Agent 合并运行时错误 | 服务不可用 | agent-svc 保留直到 ai-svc 验证通过 |
 | AI Review 迁移后性能下降 | 用户体验 | HTTP 调用延迟 < 5ms（同服务内） |
 | PromptGuard 单例化 | 安全策略不一致 | 统一配置入口，消除硬编码 |
 | LLM Trace 存储成本 | 数据库膨胀 | 7 天原始 + 30 天聚合，定期清理 |
-| 菜单迁移后书签失效 | 用户无法访问 | 旧路由 301 重定向到新路由 |
+| 菜单迁移后书签失效 | 用户无法访问 | 旧路由 301 重定向到新路由（已在 5.6 节定义 15 条重定向） |
+| 权限拦截过严 | 用户无法访问功能 | Phase 1a 先跑通 admin bypass，再逐步收紧 |
 | 回滚 | 全部变更 | git revert 即可，agent-svc 代码仍在 git 中 |
