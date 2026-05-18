@@ -12,6 +12,8 @@ import { UserRepository } from '../services/user/UserRepository';
 import { UserService } from '../services/user/UserService';
 import { UserController } from './controllers/UserController';
 import { CacheService } from '../services/cache/CacheService';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
 
 interface UserRoutesOptions {
   database?: DatabasePool;
@@ -40,6 +42,7 @@ export default async function userRoutes(
 
   // GET /api/v1/users — List users with pagination
   app.get('/', {
+    onRequest: [authenticateUser, requirePermission({ resourceType: 'user', action: 'read' })],
     schema: {
       tags: ['user'],
       summary: 'List users',
