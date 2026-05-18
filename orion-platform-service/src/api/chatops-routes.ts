@@ -9,6 +9,8 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { DatabasePool } from '../services/database';
 import { EventBusService } from '../services/event-bus-service';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
 import {
   ChatOpsCommandRepository,
   ChatOpsExecutionRepository,
@@ -328,101 +330,101 @@ export default async function chatopsRoutes(
 
   // ==================== Commands ====================
 
-  app.get('/commands', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/commands', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.listCommands(request, reply);
   });
 
-  app.get('/commands/:name/help', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/commands/:name/help', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.getCommandHelp(request, reply);
   });
 
   // ==================== Execution ====================
 
-  app.post('/execute', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/execute', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'execute' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.executeCommand(request, reply);
   });
 
-  app.get('/status/:commandId', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/status/:commandId', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.checkExecutionStatus(request, reply);
   });
 
-  app.get('/executions', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/executions', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.listExecutions(request, reply);
   });
 
   // ==================== Webhook ====================
 
-  app.post('/message', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/message', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'write' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.receiveMessage(request, reply);
   });
 
   // ==================== Recommendations (Phase 1a) ====================
 
-  app.post('/recommendations', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/recommendations', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'write' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.getRecommendations(request, reply);
   });
 
   // ==================== Sessions / Messages (Phase 1a) ====================
 
-  app.get('/sessions/:id/messages', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/sessions/:id/messages', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.getSessionMessages(request, reply);
   });
 
   // ==================== SSE Stream (Phase 1a) ====================
 
-  app.get('/stream/recommendations', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/stream/recommendations', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.streamRecommendations(request, reply, connectionManager, eventSubscriber);
   });
 
   // ==================== Notification Preferences (Phase 1a) ====================
 
-  app.get('/settings/notification-preferences', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/settings/notification-preferences', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.getNotificationPreferences(request, reply);
   });
 
-  app.put('/settings/notification-preferences', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.put('/settings/notification-preferences', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'write' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.updateNotificationPreferences(request, reply);
   });
 
   // ==================== DND Settings (Phase 1a) ====================
 
-  app.get('/settings/dnd', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/settings/dnd', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.getDNDSettings(request, reply);
   });
 
-  app.put('/settings/dnd', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.put('/settings/dnd', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'write' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.updateDNDSettings(request, reply);
   });
 
-  app.patch('/settings/dnd/toggle', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.patch('/settings/dnd/toggle', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'write' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.toggleDND(request, reply);
   });
 
   // ==================== Platform Config (Phase 1a) ====================
 
-  app.get('/settings/platforms', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/settings/platforms', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.getPlatformConfigs(request, reply);
   });
 
-  app.put('/settings/platforms', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.put('/settings/platforms', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'write' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.updatePlatformConfigs(request, reply);
   });
 
   // ==================== Alert States (Phase 1a) ====================
 
-  app.get('/alerts/states', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/alerts/states', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.getAlertStates(request, reply);
   });
 
-  app.post('/alerts/:id/read', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/alerts/:id/read', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'write' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.markAlertRead(request, reply);
   });
 
-  app.post('/alerts/:id/acknowledge', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/alerts/:id/acknowledge', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'write' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.markAlertAcknowledged(request, reply);
   });
 
-  app.post('/alerts/:id/dismiss', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/alerts/:id/dismiss', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'write' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.markAlertDismissed(request, reply);
   });
 
@@ -434,15 +436,15 @@ export default async function chatopsRoutes(
 
   // ==================== Audit ====================
 
-  app.get('/audit/logs', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/audit/logs', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.getAuditLogs(request, reply);
   });
 
-  app.get('/audit/stats', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/audit/stats', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.getAuditStats(request, reply);
   });
 
-  app.post('/audit/export', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/audit/export', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'write' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.exportAuditLogs(request, reply);
   });
 }

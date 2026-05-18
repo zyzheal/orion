@@ -17,6 +17,7 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { DependencyCoordinationService, PipelineResult } from '../services/pipeline/DependencyCoordinationService';
 import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
 
 export interface DependencyCoordinationRouteDeps {
   dependencyCoordinationService: DependencyCoordinationService;
@@ -35,6 +36,7 @@ export async function registerDependencyCoordinationRoutes(
     // 注册pipeline依赖
     instance.post(
       '/v1/pipelines/:id/dependencies',
+      { onRequest: [requirePermission({ resource: 'dependency', action: 'write' })] },
       async (request: FastifyRequest, reply: FastifyReply) => {
         try {
           const params = request.params as { id: string };
@@ -82,6 +84,7 @@ export async function registerDependencyCoordinationRoutes(
     // 获取指定pipeline的依赖信息
     instance.get(
       '/v1/pipelines/:id/dependencies',
+      { onRequest: [requirePermission({ resource: 'dependency', action: 'read' })] },
       async (request: FastifyRequest, reply: FastifyReply) => {
         try {
           const params = request.params as { id: string };
@@ -111,6 +114,7 @@ export async function registerDependencyCoordinationRoutes(
     // 注销pipeline依赖
     instance.delete(
       '/v1/pipelines/:id/dependencies',
+      { onRequest: [requirePermission({ resource: 'dependency', action: 'delete' })] },
       async (request: FastifyRequest, reply: FastifyReply) => {
         try {
           const params = request.params as { id: string };
@@ -143,6 +147,7 @@ export async function registerDependencyCoordinationRoutes(
     // 获取完整依赖图
     instance.get(
       '/v1/pipelines/dependencies/graph',
+      { onRequest: [requirePermission({ resource: 'dependency', action: 'read' })] },
       async (request: FastifyRequest, reply: FastifyReply) => {
         try {
           const graph = await dependencyCoordinationService.getDependencyGraph();
@@ -162,6 +167,7 @@ export async function registerDependencyCoordinationRoutes(
     // 解析指定pipeline的依赖状态
     instance.post(
       '/v1/pipelines/dependencies/resolve/:id',
+      { onRequest: [requirePermission({ resource: 'dependency', action: 'execute' })] },
       async (request: FastifyRequest, reply: FastifyReply) => {
         try {
           const params = request.params as { id: string };
@@ -201,6 +207,7 @@ export async function registerDependencyCoordinationRoutes(
     // 检测循环依赖
     instance.get(
       '/v1/pipelines/dependencies/cycles',
+      { onRequest: [requirePermission({ resource: 'dependency', action: 'read' })] },
       async (request: FastifyRequest, reply: FastifyReply) => {
         try {
           const cycles = await dependencyCoordinationService.findCycles();
@@ -223,6 +230,7 @@ export async function registerDependencyCoordinationRoutes(
     // 获取拓扑排序顺序
     instance.get(
       '/v1/pipelines/dependencies/topological',
+      { onRequest: [requirePermission({ resource: 'dependency', action: 'read' })] },
       async (request: FastifyRequest, reply: FastifyReply) => {
         try {
           const order = await dependencyCoordinationService.getTopologicalOrder();
@@ -244,6 +252,7 @@ export async function registerDependencyCoordinationRoutes(
     // 批量解析所有依赖
     instance.post(
       '/v1/pipelines/dependencies/resolve-all',
+      { onRequest: [requirePermission({ resource: 'dependency', action: 'execute' })] },
       async (request: FastifyRequest, reply: FastifyReply) => {
         try {
           const body = request.body as {

@@ -9,6 +9,7 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { AutoRecoveryService, RecoveryStats } from '../services/degradation/AutoRecoveryService';
 import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
 
 interface ProviderParams {
   providerId: string;
@@ -35,6 +36,7 @@ export default async function degradationRoutes(fastify: FastifyInstance) {
   // Get recovery service status
   fastify.get(
     '/status',
+    { onRequest: [requirePermission({ resource: 'degradation', action: 'read' })] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       try {
         // Tenant isolation: only return stats for user's tenant
@@ -69,6 +71,7 @@ export default async function degradationRoutes(fastify: FastifyInstance) {
   // Get current configuration
   fastify.get(
     '/config',
+    { onRequest: [requirePermission({ resource: 'degradation', action: 'read' })] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       try {
         const config = recoveryService!.getConfig();
@@ -86,6 +89,7 @@ export default async function degradationRoutes(fastify: FastifyInstance) {
   // Get recovery stats for a provider
   fastify.get<{ Params: ProviderParams }>(
     '/stats/:providerId',
+    { onRequest: [requirePermission({ resource: 'degradation', action: 'read' })] },
     async (request: FastifyRequest<{ Params: ProviderParams }>, reply: FastifyReply) => {
       try {
         const { providerId } = request.params;
@@ -114,6 +118,7 @@ export default async function degradationRoutes(fastify: FastifyInstance) {
   // Get degraded providers
   fastify.get(
     '/degraded',
+    { onRequest: [requirePermission({ resource: 'degradation', action: 'read' })] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       try {
         const degraded = recoveryService!.getDegradedProviders();
@@ -131,6 +136,7 @@ export default async function degradationRoutes(fastify: FastifyInstance) {
   // Update provider success rate (admin only)
   fastify.post<{ Body: ProviderBody }>(
     '/update-rate',
+    { onRequest: [requirePermission({ resource: 'degradation', action: 'manage' })] },
     async (request: FastifyRequest<{ Body: ProviderBody }>, reply: FastifyReply) => {
       try {
         // Authorization: only admin can update rates
@@ -179,6 +185,7 @@ export default async function degradationRoutes(fastify: FastifyInstance) {
   // Get all providers' recovery stats
   fastify.get(
     '/stats',
+    { onRequest: [requirePermission({ resource: 'degradation', action: 'read' })] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       try {
         const allStats = recoveryService!.getAllStats();
@@ -196,6 +203,7 @@ export default async function degradationRoutes(fastify: FastifyInstance) {
   // Get overall success rate
   fastify.get(
     '/success-rate',
+    { onRequest: [requirePermission({ resource: 'degradation', action: 'read' })] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       try {
         const rate = recoveryService!.getOverallSuccessRate();

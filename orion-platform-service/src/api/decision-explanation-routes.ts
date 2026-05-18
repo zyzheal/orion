@@ -17,6 +17,8 @@ import {
   DecisionExplanationService,
   DecisionExplanationRepository,
 } from '../services/decision-explanation';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
 
 interface DecisionExplanationRoutesOptions {
   database?: DatabasePool;
@@ -35,7 +37,7 @@ export default async function decisionExplanationRoutes(
   const service = new DecisionExplanationService(repository);
 
   // GET /api/v1/decisions/:id/explain - Get decision explanation
-  app.get('/decisions/:id/explain', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/decisions/:id/explain', { onRequest: [authenticateUser, requirePermission({ resource: 'decision', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const { id } = request.params as { id: string };
       const explanation = await service.getExplanation(id);
@@ -50,7 +52,7 @@ export default async function decisionExplanationRoutes(
   });
 
   // POST /api/v1/decisions/:id/feedback - Submit decision feedback
-  app.post('/decisions/:id/feedback', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/decisions/:id/feedback', { onRequest: [authenticateUser, requirePermission({ resource: 'decision', action: 'write' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const { id } = request.params as { id: string };
       const body = request.body as any;
@@ -70,7 +72,7 @@ export default async function decisionExplanationRoutes(
   });
 
   // GET /api/v1/decisions/quality/:scenario - Get quality statistics
-  app.get('/decisions/quality/:scenario', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/decisions/quality/:scenario', { onRequest: [authenticateUser, requirePermission({ resource: 'decision', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const { scenario } = request.params as { scenario: string };
       const days = parseInt((request.query as any)?.days) || 30;
@@ -83,7 +85,7 @@ export default async function decisionExplanationRoutes(
   });
 
   // GET /api/v1/decisions/quality/:scenario/trend - Get quality trend
-  app.get('/decisions/quality/:scenario/trend', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/decisions/quality/:scenario/trend', { onRequest: [authenticateUser, requirePermission({ resource: 'decision', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const { scenario } = request.params as { scenario: string };
       const days = parseInt((request.query as any)?.days) || 30;

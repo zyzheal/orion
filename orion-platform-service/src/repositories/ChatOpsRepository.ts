@@ -172,6 +172,127 @@ export class ChatOpsExecutionRepository extends BaseRepository<ChatOpsExecutionE
     return this.mapRowToEntity(result.rows[0]);
   }
 
+  /** 按时间范围获取执行统计 */
+  async getStatsByTimeRange(
+    startDate: Date,
+    endDate: Date,
+  ): Promise<{ total: number; completed: number; failed: number; avgResponseTime: number }> {
+    const result = await this.db.query(
+      `SELECT
+         COUNT(*) as total,
+         COUNT(*) FILTER (WHERE status = 'completed') as completed,
+         COUNT(*) FILTER (WHERE status = 'failed') as failed,
+         COALESCE(AVG(
+           EXTRACT(EPOCH FROM (end_time - start_time))
+         ) FILTER (WHERE status = 'completed' AND end_time IS NOT NULL), 0) as avg_response_time
+       FROM chatops_executions
+       WHERE start_time >= $1 AND start_time <= $2`,
+      [startDate, endDate],
+    );
+    const row = result.rows[0];
+    return {
+      total: parseInt(row.total, 10),
+      completed: parseInt(row.completed, 10),
+      failed: parseInt(row.failed, 10),
+      avgResponseTime: parseFloat(row.avg_response_time),
+    };
+  }
+
+  /** 获取按日分组的执行趋势 */
+  async getDailyTrends(
+    startDate: Date,
+    endDate: Date,
+  ): Promise<Array<{ date: string; executions: number; successRate: number }>> {
+    const result = await this.db.query(
+      `SELECT
+         DATE(start_time) as day,
+         COUNT(*) as executions,
+         COALESCE(
+           ROUND(COUNT(*) FILTER (WHERE status = 'completed')::numeric / NULLIF(COUNT(*), 0) * 100, 1),
+           0
+         ) as success_rate
+       FROM chatops_executions
+       WHERE start_time >= $1 AND start_time <= $2
+       GROUP BY DATE(start_time)
+       ORDER BY day`,
+      [startDate, endDate],
+    );
+    return result.rows.map(row => ({
+      date: row.day,
+      executions: parseInt(row.executions, 10),
+      successRate: parseFloat(row.success_rate),
+    }));
+  }
+
+  /** 获取热门命令 TOP N */
+  async getTopCommands(
+    startDate: Date,
+    endDate: Date,
+    limit = 5,
+  ): Promise<Array<{ command: string; count: number; successRate: number }>> {
+    const result = await this.db.query(
+      `SELECT
+         command_id as command,
+         COUNT(*) as count,
+         COALESCE(
+           ROUND(COUNT(*) FILTER (WHERE status = 'completed')::numeric / NULLIF(COUNT(*), 0) * 100, 1),
+           0
+         ) as success_rate
+       FROM chatops_executions
+       WHERE start_time >= $1 AND start_time <= $2
+       GROUP BY command_id
+       ORDER BY count DESC
+       LIMIT $3`,
+      [startDate, endDate, limit],
+    );
+    return result.rows.map(row => ({
+      command: row.command,
+      count: parseInt(row.count, 10),
+      successRate: parseFloat(row.success_rate),
+    }));
+  }
+
+  /** 获取平台分布统计 */
+  async getPlatformDistribution(
+    startDate: Date,
+    endDate: Date,
+  ): Promise<Array<{ platform: string; count: number }>> {
+    const result = await this.db.query(
+      `SELECT platform, COUNT(*) as count
+       FROM chatops_executions
+       WHERE start_time >= $1 AND start_time <= $2
+       GROUP BY platform
+       ORDER BY count DESC`,
+      [startDate, endDate],
+    );
+    return result.rows.map(row => ({
+      platform: row.platform,
+      count: parseInt(row.count, 10),
+    }));
+  }
+
+  /** 获取最近执行记录 */
+  async getRecentExecutions(
+    limit = 5,
+  ): Promise<Array<{ id: string; commandId: string; userId: string; platform: string; status: string; startTime: Date; endTime: Date | null }>> {
+    const result = await this.db.query(
+      `SELECT id, command_id, user_id, platform, status, start_time, end_time
+       FROM chatops_executions
+       ORDER BY start_time DESC
+       LIMIT $1`,
+      [limit],
+    );
+    return result.rows.map(row => ({
+      id: row.id,
+      commandId: row.command_id,
+      userId: row.user_id,
+      platform: row.platform,
+      status: row.status,
+      startTime: row.start_time,
+      endTime: row.end_time,
+    }));
+  }
+
   protected mapRowToEntity(row: any): ChatOpsExecutionEntity {
     return {
       id: row.id,

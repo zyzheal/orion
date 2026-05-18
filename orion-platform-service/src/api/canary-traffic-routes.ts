@@ -9,6 +9,8 @@ import { DatabasePool } from '../services/database';
 import { CanaryTrafficService } from '../services/canary-traffic/CanaryTrafficService';
 import { TrafficSplitter } from '../services/canary-traffic/TrafficSplitter';
 import { CanaryTrafficController } from './controllers/CanaryTrafficController';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
 
 interface CanaryTrafficOptions {
   database?: DatabasePool;
@@ -30,17 +32,17 @@ export default async function canaryTrafficRoutes(
   // ==================== Canary Deployments ====================
 
   // POST /api/v1/canary/deployments - Create a canary deployment
-  app.post('/', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/', { onRequest: [authenticateUser, requirePermission({ resource: 'canary_traffic', action: 'write' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.createCanaryDeployment(request, reply);
   });
 
   // GET /api/v1/canary/deployments - List canary deployments
-  app.get('/', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/', { onRequest: [authenticateUser, requirePermission({ resource: 'canary_traffic', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.listCanaryDeployments(request, reply);
   });
 
   // GET /api/v1/canary/deployments/:id - Get canary deployment details
-  app.get('/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/:id', { onRequest: [authenticateUser, requirePermission({ resource: 'canary_traffic', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     // Avoid matching special paths
     const params = request.params as any;
     if (params.id === 'traffic' || params.id === 'promote' || params.id === 'rollback') {
@@ -50,17 +52,17 @@ export default async function canaryTrafficRoutes(
   });
 
   // PUT /api/v1/canary/deployments/:id/traffic - Configure traffic split
-  app.put('/:id/traffic', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.put('/:id/traffic', { onRequest: [authenticateUser, requirePermission({ resource: 'canary_traffic', action: 'write' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.configureTrafficSplit(request, reply);
   });
 
   // POST /api/v1/canary/deployments/:id/promote - Promote canary
-  app.post('/:id/promote', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/:id/promote', { onRequest: [authenticateUser, requirePermission({ resource: 'canary_traffic', action: 'execute' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.promoteCanary(request, reply);
   });
 
   // POST /api/v1/canary/deployments/:id/rollback - Rollback canary
-  app.post('/:id/rollback', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/:id/rollback', { onRequest: [authenticateUser, requirePermission({ resource: 'canary_traffic', action: 'execute' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.rollbackCanary(request, reply);
   });
 }

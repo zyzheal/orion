@@ -18,6 +18,8 @@ import {
 import { CanaryAnalysisService } from '../services/canary-analysis/CanaryAnalysisService';
 import { CanaryAnalysisController } from './controllers/CanaryAnalysisController';
 import { EventBusService } from '../services/event-bus-service';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
 
 interface CanaryAnalysisOptions {
   eventBus?: EventBusService;
@@ -52,15 +54,15 @@ export default async function canaryAnalysisRoutes(
 
   // ==================== Runs ====================
 
-  app.get('/runs', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/runs', { onRequest: [authenticateUser, requirePermission({ resource: 'canary', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.listRuns(request, reply);
   });
 
-  app.post('/runs', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/runs', { onRequest: [authenticateUser, requirePermission({ resource: 'canary', action: 'write' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.createRun(request, reply);
   });
 
-  app.get('/runs/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/runs/:id', { onRequest: [authenticateUser, requirePermission({ resource: 'canary', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const params = request.params as any;
     if (params.id === 'metrics' || params.id === 'ml-results' || params.id === 'force-promote' || params.id === 'force-rollback') {
       return reply.callNotFound();
@@ -68,49 +70,49 @@ export default async function canaryAnalysisRoutes(
     return controller.getRun(request, reply);
   });
 
-  app.get('/runs/:id/metrics', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/runs/:id/metrics', { onRequest: [authenticateUser, requirePermission({ resource: 'canary', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.getMetrics(request, reply);
   });
 
-  app.get('/runs/:id/ml-results', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/runs/:id/ml-results', { onRequest: [authenticateUser, requirePermission({ resource: 'canary', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.getMLResults(request, reply);
   });
 
   // ==================== Configs ====================
 
-  app.get('/configs', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/configs', { onRequest: [authenticateUser, requirePermission({ resource: 'canary', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.listConfigs(request, reply);
   });
 
-  app.post('/configs', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/configs', { onRequest: [authenticateUser, requirePermission({ resource: 'canary', action: 'write' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.createConfig(request, reply);
   });
 
-  app.get('/configs/:service/:env', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/configs/:service/:env', { onRequest: [authenticateUser, requirePermission({ resource: 'canary', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.getConfigByServiceEnv(request, reply);
   });
 
-  app.put('/configs/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.put('/configs/:id', { onRequest: [authenticateUser, requirePermission({ resource: 'canary', action: 'write' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.updateConfig(request, reply);
   });
 
-  app.delete('/configs/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.delete('/configs/:id', { onRequest: [authenticateUser, requirePermission({ resource: 'canary', action: 'delete' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.deleteConfig(request, reply);
   });
 
   // ==================== Force Actions ====================
 
-  app.post('/force-promote', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/force-promote', { onRequest: [authenticateUser, requirePermission({ resource: 'canary', action: 'execute' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.forcePromote(request, reply);
   });
 
-  app.post('/force-rollback', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/force-rollback', { onRequest: [authenticateUser, requirePermission({ resource: 'canary', action: 'execute' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.forceRollback(request, reply);
   });
 
   // ==================== Metric Discovery ====================
 
-  app.get('/metrics/discover', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/metrics/discover', { onRequest: [authenticateUser, requirePermission({ resource: 'canary', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const query = request.query as { serviceName?: string };
     try {
       const metrics = await service.discoverMetrics();
@@ -122,7 +124,7 @@ export default async function canaryAnalysisRoutes(
 
   // ==================== Model Management ====================
 
-  app.post('/models/retrain', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/models/retrain', { onRequest: [authenticateUser, requirePermission({ resource: 'canary', action: 'execute' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as { modelName?: string } | undefined;
     try {
       const result = await service.retrainModel(body?.modelName || 'default');

@@ -25,6 +25,8 @@ import {
   ResilienceScoringService,
   FaultInjector,
 } from '../services/chaos-engineering';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
 
 interface ChaosRoutesOptions {
   database?: DatabasePool;
@@ -47,7 +49,7 @@ export default async function chaosEnhancedRoutes(
   // ==================== Experiment Management ====================
 
   // POST /api/v1/chaos-experiments - Create experiment
-  app.post('/chaos-experiments', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/chaos-experiments', { onRequest: [authenticateUser, requirePermission({ resource: 'chaos', action: 'write' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const experiment = await experimentService.createExperiment(request.body as any);
       return reply.status(201).send({ success: true, data: experiment });
@@ -58,7 +60,7 @@ export default async function chaosEnhancedRoutes(
   });
 
   // GET /api/v1/chaos-experiments - List experiments
-  app.get('/chaos-experiments', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/chaos-experiments', { onRequest: [authenticateUser, requirePermission({ resource: 'chaos', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const experiments = await experimentService.listExperiments(request.query as any);
       return reply.status(200).send({ success: true, data: experiments });
@@ -69,7 +71,7 @@ export default async function chaosEnhancedRoutes(
   });
 
   // GET /api/v1/chaos-experiments/:id - Get experiment detail
-  app.get('/chaos-experiments/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/chaos-experiments/:id', { onRequest: [authenticateUser, requirePermission({ resource: 'chaos', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const { id } = request.params as { id: string };
       const experiment = await experimentService.getExperiment(id);
@@ -84,7 +86,7 @@ export default async function chaosEnhancedRoutes(
   });
 
   // POST /api/v1/chaos-experiments/:id/start - Start experiment
-  app.post('/chaos-experiments/:id/start', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/chaos-experiments/:id/start', { onRequest: [authenticateUser, requirePermission({ resource: 'chaos', action: 'execute' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const { id } = request.params as { id: string };
       const result = await experimentService.startExperiment(id);
@@ -96,7 +98,7 @@ export default async function chaosEnhancedRoutes(
   });
 
   // POST /api/v1/chaos-experiments/:id/inject - Inject fault
-  app.post('/chaos-experiments/:id/inject', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/chaos-experiments/:id/inject', { onRequest: [authenticateUser, requirePermission({ resource: 'chaos', action: 'execute' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const { id } = request.params as { id: string };
       const fault = request.body as any;
@@ -109,7 +111,7 @@ export default async function chaosEnhancedRoutes(
   });
 
   // POST /api/v1/chaos-experiments/:id/stop - Stop experiment
-  app.post('/chaos-experiments/:id/stop', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/chaos-experiments/:id/stop', { onRequest: [authenticateUser, requirePermission({ resource: 'chaos', action: 'execute' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const { id } = request.params as { id: string };
       const result = await experimentService.stopExperiment(id);
@@ -121,7 +123,7 @@ export default async function chaosEnhancedRoutes(
   });
 
   // GET /api/v1/chaos-experiments/:id/status - Get experiment status
-  app.get('/chaos-experiments/:id/status', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/chaos-experiments/:id/status', { onRequest: [authenticateUser, requirePermission({ resource: 'chaos', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const { id } = request.params as { id: string };
       const status = await experimentService.getExperimentStatus(id);
@@ -133,7 +135,7 @@ export default async function chaosEnhancedRoutes(
   });
 
   // GET /api/v1/chaos-experiments/:id/recovery - Get recovery status
-  app.get('/chaos-experiments/:id/recovery', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/chaos-experiments/:id/recovery', { onRequest: [authenticateUser, requirePermission({ resource: 'chaos', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const { id } = request.params as { id: string };
       const recovery = await experimentService.getRecoveryStatus(id);
@@ -147,12 +149,12 @@ export default async function chaosEnhancedRoutes(
   // ==================== Fault Library ====================
 
   // GET /api/v1/chaos-faults - List fault types
-  app.get('/chaos-faults', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/chaos-faults', { onRequest: [authenticateUser, requirePermission({ resource: 'chaos', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     return reply.status(200).send({ success: true, data: faultInjector.getAvailableFaults() });
   });
 
   // POST /api/v1/chaos-faults/:type/config-template - Get fault config template
-  app.post('/chaos-faults/:type/config-template', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/chaos-faults/:type/config-template', { onRequest: [authenticateUser, requirePermission({ resource: 'chaos', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const { type } = request.params as { type: string };
       const template = faultInjector.getConfigTemplate(type);
