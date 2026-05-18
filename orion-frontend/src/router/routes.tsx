@@ -862,6 +862,12 @@ export const routes: AppRoute[] = [
         protected: true,
         requiredPermission: { resource: 'audit', action: 'read' },
       },
+      {
+        path: 'abac-policy',
+        element: React.lazy(() => import('@/pages/security-svc/ABACPolicy')),
+        protected: true,
+        requiredPermission: { resource: 'abac', action: 'read' },
+      },
     ],
   },
   // AI Agent Orchestration (redirect to /ai/agents)
@@ -1315,10 +1321,20 @@ export const routes: AppRoute[] = [
     requiredPermission: { resource: 'ai-cost', action: 'read' },
   },
 
-  // ==================== 模块入口重定向 ====================
+  // ==================== 模块入口重定向（7 域结构） ====================
   {
-    path: '/ops',
+    path: '/workbench',
+    element: <RedirectTo to="/dashboard" />,
+    protected: true,
+  },
+  {
+    path: '/delivery',
     element: <RedirectTo to="/pipelines" />,
+    protected: true,
+  },
+  {
+    path: '/observability',
+    element: <RedirectTo to="/console/monitoring" />,
     protected: true,
   },
   {
@@ -1327,13 +1343,29 @@ export const routes: AppRoute[] = [
     protected: true,
   },
   {
+    path: '/infra',
+    element: <RedirectTo to="/environments" />,
+    protected: true,
+  },
+  {
     path: '/governance',
     element: <RedirectTo to="/policies" />,
     protected: true,
   },
   {
+    path: '/ecosystem',
+    element: <RedirectTo to="/dba" />,
+    protected: true,
+  },
+  // 旧模块入口重定向（向后兼容）
+  {
+    path: '/ops',
+    element: <RedirectTo to="/delivery" />,
+    protected: true,
+  },
+  {
     path: '/dev-env',
-    element: <RedirectTo to="/environments" />,
+    element: <RedirectTo to="/infra" />,
     protected: true,
   },
 
