@@ -59,6 +59,7 @@ import scriptRoutes from './script-routes';
 import { registerApprovalRoutes } from './approval-routes';
 import artifactRoutes from './artifact-routes';
 import artifactVersionRoutes from './artifact-version-routes';
+import permissionAuditRoutes from './permission-audit-routes';
 import { escalationScheduler } from '../services/escalation/EscalationScheduler';
 import { registerSecretRoutes } from './secret-routes';
 import { registerApkUploadHistoryRoutes } from './apk-upload-history-routes';
@@ -420,6 +421,9 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // 注册 Artifact Version API 路由
   await registerWithRoleGuard(app, artifactVersionRoutes, '/artifact-versions', { database: options.database });
+
+  // Permission Audit Routes (P2)
+  await registerWithRoleGuard(app, permissionAuditRoutes, '/permission-audit', { database: options.database });
 
 // Cost Operations 路由已迁移到 orion-finops-svc (port 3009)
 

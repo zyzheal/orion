@@ -856,6 +856,12 @@ export const routes: AppRoute[] = [
         protected: true,
         requiredPermission: { resource: '*', action: 'manage' },
       },
+      {
+        path: 'permission-audit',
+        element: React.lazy(() => import('@/pages/security-svc/PermissionAudit')),
+        protected: true,
+        requiredPermission: { resource: 'audit', action: 'read' },
+      },
     ],
   },
   // AI Agent Orchestration (redirect to /ai/agents)
