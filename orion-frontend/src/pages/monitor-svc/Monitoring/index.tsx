@@ -18,11 +18,11 @@ const { Sider, Content } = Layout;
 const { Title } = Typography;
 
 const menuItems = [
-  { key: '/monitoring/dashboard', icon: <DashboardOutlined />, label: 'Dashboard' },
-  { key: '/monitoring/metrics', icon: <LineChartOutlined />, label: 'Metrics' },
-  { key: '/monitoring/alerts', icon: <BellOutlined />, label: 'Alerts' },
-  { key: '/monitoring/rules', icon: <SafetyOutlined />, label: 'Rules' },
-  { key: '/monitoring/channels', icon: <MailOutlined />, label: 'Channels' },
+  { key: '/console/monitoring/dashboard', icon: <DashboardOutlined />, label: 'Dashboard' },
+  { key: '/console/monitoring/metrics', icon: <LineChartOutlined />, label: 'Metrics' },
+  { key: '/console/monitoring/alerts', icon: <BellOutlined />, label: 'Alerts' },
+  { key: '/console/monitoring/rules', icon: <SafetyOutlined />, label: 'Rules' },
+  { key: '/console/monitoring/channels', icon: <MailOutlined />, label: 'Channels' },
 ];
 
 const MonitoringLayout: React.FC = () => {

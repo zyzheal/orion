@@ -7,6 +7,8 @@
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { DatabasePool } from '../services/database';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
 import { ApiKeyRepository } from '../services/api-key/ApiKeyRepository';
 import { ApiKeyService } from '../services/api-key/ApiKeyService';
 
@@ -35,7 +37,9 @@ export default async function apiKeyRoutes(
   };
 
   // GET /api/v1/api-keys?tenantId=xxx — list API keys
-  app.get('/', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'api_key', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     if (!service) return unavailableHandler(request, reply);
     const { tenantId } = request.query as { tenantId: string };
     if (!tenantId) return reply.status(400).send({ error: 'MISSING_TENANT_ID', message: 'tenantId query parameter is required' });
@@ -48,7 +52,9 @@ export default async function apiKeyRoutes(
   });
 
   // POST /api/v1/api-keys — create API key
-  app.post('/', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'api_key', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     if (!service) return unavailableHandler(request, reply);
     const body = request.body as Record<string, unknown>;
     if (!body.tenantId || !body.name || !body.userId) return reply.status(400).send({ error: 'INVALID_INPUT', message: 'tenantId, name, and userId are required' });
@@ -67,7 +73,9 @@ export default async function apiKeyRoutes(
   });
 
   // DELETE /api/v1/api-keys/:id — delete API key
-  app.delete('/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.delete('/:id', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'api_key', action: 'delete', extractResourceId: (req) => (req.params as { id: string }).id, requiredImpact: 'high' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     if (!service) return unavailableHandler(request, reply);
     const { id } = request.params as { id: string };
     try {

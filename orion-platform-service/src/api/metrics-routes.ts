@@ -10,6 +10,8 @@ import { DatabasePool } from '../services/database';
 import { MetricsRepository } from '../services/metrics/MetricsRepository';
 import { MetricsService } from '../services/metrics/MetricsService';
 import { MetricsController } from './controllers/MetricsController';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
 
 interface MetricsRoutesOptions {
   database?: DatabasePool;
@@ -35,21 +37,27 @@ export default async function metricsRoutes(
   // ==================== Record Metric ====================
 
   // POST /api/v1/metrics/record - Record a metric data point
-  app.post('/record', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/record', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'metrics', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.record(request, reply);
   });
 
   // ==================== Query Metrics ====================
 
   // POST /api/v1/metrics/query - Query metrics by name and time range
-  app.post('/query', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/query', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'metrics', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.query(request, reply);
   });
 
   // ==================== Aggregate Stats ====================
 
   // POST /api/v1/metrics/stats - Get aggregated stats (avg/min/max/count)
-  app.post('/stats', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/stats', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'metrics', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.getStats(request, reply);
   });
 }

@@ -18,6 +18,8 @@
  */
 
 import { FastifyInstance } from 'fastify';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
 import { SelfHealingController } from '../api/controllers/SelfHealingController';
 import { SelfHealingService } from '../services/self-healing/SelfHealingService';
 import { SelfHealingRepository } from '../services/self-healing/SelfHealingRepository';
@@ -35,26 +37,49 @@ export default async function selfHealingRoutes(
   const controller = new SelfHealingController(service);
 
   // Incidents
-  app.post('/incidents', controller.createIncident.bind(controller));
-  app.get('/incidents/:id', controller.getIncident.bind(controller));
+  app.post('/incidents', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'selfhealing', action: 'write' })],
+  }, controller.createIncident.bind(controller));
+  app.get('/incidents/:id', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'selfhealing', action: 'read', extractResourceId: (req) => (req.params as { id: string }).id })],
+  }, controller.getIncident.bind(controller));
 
   // History
-  app.get('/history', controller.getHistory.bind(controller));
+  app.get('/history', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'selfhealing', action: 'read' })],
+  }, controller.getHistory.bind(controller));
 
   // Effectiveness
-  app.get('/effectiveness', controller.getEffectiveness.bind(controller));
+  app.get('/effectiveness', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'selfhealing', action: 'read' })],
+  }, controller.getEffectiveness.bind(controller));
 
   // Strategies
-  app.get('/strategies', controller.getStrategies.bind(controller));
-  app.get('/strategies/:id', controller.getStrategy.bind(controller));
-  app.post('/strategies/:id/toggle', controller.toggleStrategy.bind(controller));
-  app.post('/strategies', controller.registerStrategy.bind(controller));
+  app.get('/strategies', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'selfhealing', action: 'read' })],
+  }, controller.getStrategies.bind(controller));
+  app.get('/strategies/:id', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'selfhealing', action: 'read', extractResourceId: (req) => (req.params as { id: string }).id })],
+  }, controller.getStrategy.bind(controller));
+  app.post('/strategies/:id/toggle', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'selfhealing', action: 'write', extractResourceId: (req) => (req.params as { id: string }).id })],
+  }, controller.toggleStrategy.bind(controller));
+  app.post('/strategies', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'selfhealing', action: 'write' })],
+  }, controller.registerStrategy.bind(controller));
 
   // Approvals
-  app.get('/approvals', controller.getApprovals.bind(controller));
-  app.get('/approvals/:id', controller.getApproval.bind(controller));
+  app.get('/approvals', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'selfhealing', action: 'read' })],
+  }, controller.getApprovals.bind(controller));
+  app.get('/approvals/:id', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'selfhealing', action: 'read', extractResourceId: (req) => (req.params as { id: string }).id })],
+  }, controller.getApproval.bind(controller));
   app.post(
     '/approvals/:id/respond',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'selfhealing', action: 'approve', extractResourceId: (req) => (req.params as { id: string }).id })],
+    },
     controller.respondToApproval.bind(controller)
   );
 }

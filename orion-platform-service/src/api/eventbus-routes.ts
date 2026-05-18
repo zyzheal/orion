@@ -9,6 +9,8 @@
  * - Config persisted to event_bus_config table
  */
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
 import { DatabasePool } from '../services/database';
 import { EventBusService } from '../services/event-bus-service';
 import {
@@ -60,7 +62,9 @@ export default async function eventbusRoutes(
   }
 
   // POST /eventbus/publish - Publish event
-  app.post('/publish', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/publish', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'eventbus', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { subject, data, tenantId, publishedBy } = request.body as {
       subject: string;
       data: any;
@@ -77,14 +81,18 @@ export default async function eventbusRoutes(
   });
 
   // GET /eventbus/status - Get connection status
-  app.get('/status', async (_request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/status', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'eventbus', action: 'read' })],
+  }, async (_request: FastifyRequest, reply: FastifyReply) => {
     const health = await service.checkHealth();
     const config = service.getConfig();
     return reply.send({ ...health, servers: config.servers, enabled: config.enabled });
   });
 
   // POST /eventbus/connect - Connect to NATS
-  app.post('/connect', async (_request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/connect', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'eventbus', action: 'write' })],
+  }, async (_request: FastifyRequest, reply: FastifyReply) => {
     try {
       await service.connect();
       return reply.send({ success: true });
@@ -94,7 +102,9 @@ export default async function eventbusRoutes(
   });
 
   // GET /eventbus/events - Get event history
-  app.get('/events', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/events', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'eventbus', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { eventType, status, limit } = request.query as {
       eventType?: string;
       status?: string;
@@ -117,7 +127,9 @@ export default async function eventbusRoutes(
   });
 
   // GET /eventbus/subscriptions - Get active subscriptions
-  app.get('/subscriptions', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/subscriptions', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'eventbus', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { tenantId } = request.query as { tenantId?: string };
     try {
       const subscriptions = await service.getSubscriptions(tenantId);
@@ -128,7 +140,9 @@ export default async function eventbusRoutes(
   });
 
   // GET /eventbus/stats - Get event statistics
-  app.get('/stats', async (_request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/stats', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'eventbus', action: 'read' })],
+  }, async (_request: FastifyRequest, reply: FastifyReply) => {
     try {
       const stats = await service.getEventStats();
       return reply.send({ stats });
@@ -138,7 +152,9 @@ export default async function eventbusRoutes(
   });
 
   // GET /eventbus/jetstream/metrics - Get JetStream metrics overview
-  app.get('/jetstream/metrics', async (_request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/jetstream/metrics', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'eventbus', action: 'read' })],
+  }, async (_request: FastifyRequest, reply: FastifyReply) => {
     if (!service.isJetStreamAvailable()) {
       return reply.send({ available: false, reason: 'JetStream not initialized' });
     }
@@ -151,7 +167,9 @@ export default async function eventbusRoutes(
   });
 
   // GET /eventbus/jetstream/streams/:name/consumers - List consumers for a stream
-  app.get('/jetstream/streams/:name/consumers', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/jetstream/streams/:name/consumers', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'eventbus', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     if (!service.isJetStreamAvailable()) {
       return reply.send({ available: false, reason: 'JetStream not initialized' });
     }
@@ -165,7 +183,9 @@ export default async function eventbusRoutes(
   });
 
   // GET /eventbus/dlq - Get DLQ message count and recent messages
-  app.get('/dlq', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/dlq', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'eventbus', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { limit } = request.query as { limit?: string };
     const limitNum = limit ? parseInt(limit, 10) : 50;
     if (limit && isNaN(limitNum)) {

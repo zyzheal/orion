@@ -42,7 +42,7 @@ import {
 } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import dayjs from 'dayjs';
-import { getTicket, assignTicket, resolveTicket, closeTicket } from '@/api/ticketing';
+import { getTicket, assignTicket, resolveTicket, closeTicket, getTicketRelations, getTransferHistory } from '@/api/ticketing';
 import { listUsers, type User } from '@/api/users';
 import TicketComments from './TicketComments';
 import { colors, spacing } from '@/tokens';
@@ -226,17 +226,27 @@ const TicketDetail: React.FC = () => {
     }
   };
 
-  const history = useMemo(() => [] as any[], [id]);
+  // Load relations and transfer history
+  const [relations, setRelations] = useState<any[]>([]);
+  const [transfers, setTransfers] = useState<any[]>([]);
+  const [history, setHistory] = useState<any[]>([]);
 
-  const relations = useMemo(
-    () => [] as any[],
-    [id]
-  );
-
-  const transfers = useMemo(
-    () => [] as any[],
-    [id]
-  );
+  useEffect(() => {
+    const loadRelatedData = async () => {
+      if (!id) return;
+      try {
+        const [relationsRes, transfersRes] = await Promise.all([
+          getTicketRelations(id),
+          getTransferHistory(id),
+        ]);
+        setRelations(relationsRes.data?.data || []);
+        setTransfers(transfersRes.data?.data || []);
+      } catch (error) {
+        console.warn('Failed to load related data:', error);
+      }
+    };
+    loadRelatedData();
+  }, [id]);
 
   const sla = useMemo(() => (ticket ? calculateSLA(ticket) : null), [ticket]);
 

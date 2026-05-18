@@ -15,6 +15,8 @@
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
 import { CrossDomainOrchestrator, CreateWorkflowInput } from '../services/CrossDomainOrchestrator';
 
 // Route options interface
@@ -59,6 +61,9 @@ export default async function workflowRoutes(
   // POST /api/v1/workflows - Create workflow
   app.post<{ Body: CreateWorkflowBody }>(
     '/v1/workflows',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'workflow', action: 'write' })],
+    },
     async (request: FastifyRequest<{ Body: CreateWorkflowBody }>, reply: FastifyReply) => {
       try {
         const { name, description, steps, triggers } = request.body;
@@ -89,6 +94,9 @@ export default async function workflowRoutes(
   // GET /api/v1/workflows - List workflows
   app.get<{ Querystring: ListQuery }>(
     '/v1/workflows',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'workflow', action: 'read' })],
+    },
     async (request: FastifyRequest<{ Querystring: ListQuery }>, reply: FastifyReply) => {
       try {
         const { status, domain, limit, offset } = request.query;
@@ -105,6 +113,9 @@ export default async function workflowRoutes(
   // GET /api/v1/workflows/:id - Get workflow
   app.get<{ Params: WorkflowParams }>(
     '/v1/workflows/:id',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'workflow', action: 'read', extractResourceId: (req) => (req.params as { id: string }).id })],
+    },
     async (request: FastifyRequest<{ Params: WorkflowParams }>, reply: FastifyReply) => {
       try {
         const { id } = request.params;
@@ -128,6 +139,9 @@ export default async function workflowRoutes(
   // POST /api/v1/workflows/:id/execute - Execute workflow
   app.post<{ Params: WorkflowParams; Body: ExecuteWorkflowBody }>(
     '/v1/workflows/:id/execute',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'workflow', action: 'execute', extractResourceId: (req) => (req.params as { id: string }).id })],
+    },
     async (
       request: FastifyRequest<{ Params: WorkflowParams; Body: ExecuteWorkflowBody }>,
       reply: FastifyReply
@@ -149,6 +163,9 @@ export default async function workflowRoutes(
   // GET /api/v1/workflows/:id/executions - List executions
   app.get<{ Params: WorkflowParams }>(
     '/v1/workflows/:id/executions',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'workflow', action: 'read', extractResourceId: (req) => (req.params as { id: string }).id })],
+    },
     async (request: FastifyRequest<{ Params: WorkflowParams }>, reply: FastifyReply) => {
       try {
         const { id } = request.params;
@@ -164,6 +181,9 @@ export default async function workflowRoutes(
   // GET /api/v1/workflows/executions/:executionId - Get execution
   app.get<{ Params: ExecutionParams }>(
     '/v1/workflows/executions/:executionId',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'workflow', action: 'read' })],
+    },
     async (request: FastifyRequest<{ Params: ExecutionParams }>, reply: FastifyReply) => {
       try {
         const { executionId } = request.params;
@@ -187,6 +207,9 @@ export default async function workflowRoutes(
   // POST /api/v1/workflows/:id/pause - Pause workflow
   app.post<{ Params: WorkflowParams }>(
     '/v1/workflows/:id/pause',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'workflow', action: 'write', extractResourceId: (req) => (req.params as { id: string }).id })],
+    },
     async (request: FastifyRequest<{ Params: WorkflowParams }>, reply: FastifyReply) => {
       try {
         const { id } = request.params;
@@ -211,6 +234,9 @@ export default async function workflowRoutes(
   // POST /api/v1/workflows/:id/resume - Resume workflow
   app.post<{ Params: WorkflowParams }>(
     '/v1/workflows/:id/resume',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'workflow', action: 'write', extractResourceId: (req) => (req.params as { id: string }).id })],
+    },
     async (request: FastifyRequest<{ Params: WorkflowParams }>, reply: FastifyReply) => {
       try {
         const { id } = request.params;

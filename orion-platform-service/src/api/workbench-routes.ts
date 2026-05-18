@@ -5,6 +5,8 @@
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
 import { WorkbenchService } from '../services/workbench/WorkbenchService';
 import { DatabasePool } from '../services/database';
 
@@ -17,15 +19,16 @@ export default async function workbenchRoutes(app: FastifyInstance, options: Wor
   const workbenchService = pool ? new WorkbenchService(pool) : undefined;
 
   // GET /api/v1/workbench — Personal aggregated workbench
-  app.get<{
-    Querystring: { tenantId?: string; userId?: string };
-  }>('/', async (request, reply) => {
+  app.get('/', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'workbench', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     if (!workbenchService) {
       return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'Database not connected' });
     }
 
-    const tenantId = request.query.tenantId || 'default';
-    const userId = request.query.userId || (request.user as any)?.id || 'anonymous';
+    const query = request.query as { tenantId?: string; userId?: string };
+    const tenantId = query.tenantId || 'default';
+    const userId = query.userId || (request as any).user?.id || 'anonymous';
 
     const data = await workbenchService.getWorkbench(userId, tenantId);
     return reply.send({ success: true, data });

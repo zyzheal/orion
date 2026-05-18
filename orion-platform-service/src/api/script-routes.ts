@@ -2,6 +2,8 @@
 // Inline Script API Routes
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
 import { InlineScriptService } from '../services/inline-script/InlineScriptService';
 import { InlineScriptApprovalRepository } from '../repositories/InlineScriptApprovalRepository';
 import { AIGenerateService } from '../services/ai/AIGenerateService';
@@ -98,7 +100,10 @@ export default async function scriptRoutes(app: FastifyInstance, options?: { dat
   const aiGenerateService = new AIGenerateService();
 
   // POST /scan - Security scan code
-  app.post('/scan', { schema: scanSchema }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/scan', {
+    schema: scanSchema,
+    onRequest: [authenticateUser, requirePermission({ resource: 'script', action: 'execute' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as any;
     if (!body.config || typeof body.config.code !== 'string') {
       return reply.code(400).send({ error: 'Missing or invalid config.code' });
@@ -108,7 +113,10 @@ export default async function scriptRoutes(app: FastifyInstance, options?: { dat
   });
 
   // POST /dry-run - Dry run test
-  app.post('/dry-run', { schema: dryRunSchema }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/dry-run', {
+    schema: dryRunSchema,
+    onRequest: [authenticateUser, requirePermission({ resource: 'script', action: 'execute' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as any;
     if (!body.config || typeof body.config.code !== 'string') {
       return reply.code(400).send({ error: 'Missing or invalid config.code' });
@@ -118,7 +126,10 @@ export default async function scriptRoutes(app: FastifyInstance, options?: { dat
   });
 
   // POST /execute - Execute inline script
-  app.post('/execute', { schema: executionSchema }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/execute', {
+    schema: executionSchema,
+    onRequest: [authenticateUser, requirePermission({ resource: 'script', action: 'execute' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as any;
     const tenantId = (request as any).tenantId;
     const userId = (request as any).userId;
@@ -151,7 +162,10 @@ export default async function scriptRoutes(app: FastifyInstance, options?: { dat
   });
 
   // POST /approval - Request Level 3 approval
-  app.post('/approval', { schema: approvalSchema }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/approval', {
+    schema: approvalSchema,
+    onRequest: [authenticateUser, requirePermission({ resource: 'script', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as any;
     const tenantId = (request as any).tenantId;
     const userId = (request as any).userId;
@@ -169,7 +183,9 @@ export default async function scriptRoutes(app: FastifyInstance, options?: { dat
   });
 
   // GET /approval/:approvalId - Get approval status
-  app.get('/approval/:approvalId', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/approval/:approvalId', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'script', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { approvalId } = request.params as { approvalId: string };
     const tenantId = (request as any).tenantId;
     const result = await scriptService.getApprovalStatus(approvalId, tenantId);
@@ -177,7 +193,9 @@ export default async function scriptRoutes(app: FastifyInstance, options?: { dat
   });
 
   // POST /approval/:approvalId/decide - Approve/deny request
-  app.post('/approval/:approvalId/decide', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/approval/:approvalId/decide', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'script', action: 'approve' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { approvalId } = request.params as { approvalId: string };
     const body = request.body as any;
     const tenantId = (request as any).tenantId;
@@ -228,7 +246,9 @@ export default async function scriptRoutes(app: FastifyInstance, options?: { dat
   });
 
   // POST /ai-generate - AI generate script
-  app.post('/ai-generate', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/ai-generate', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'script', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as any;
     if (!body.prompt) {
       return reply.code(400).send({ error: 'Missing prompt' });

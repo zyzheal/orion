@@ -215,6 +215,17 @@ export const routes: AppRoute[] = [
     protected: true,
   },
   // Personal Workbench (统一工作台)
+  // BI Dashboard Routes (统一入口)
+  {
+    path: '/bi',
+    element: React.createElement(Navigate, { to: '/dashboard/executive', replace: true }),
+    protected: true,
+  },
+  {
+    path: '/bi/*',
+    element: React.createElement(Navigate, { to: '/dashboard/executive', replace: true }),
+    protected: true,
+  },
   {
     path: '/workbench',
     element: React.lazy(() => import('@/pages/Workbench')),
@@ -714,37 +725,37 @@ export const routes: AppRoute[] = [
   // Monitoring
   {
     path: '/console/monitoring',
-    element: React.lazy(() => import('@/pages/Monitoring')),
+    element: React.lazy(() => import('@/pages/monitor-svc/Monitoring')),
     protected: true,
     requiredRole: ['admin', 'platform_admin'],
     children: [
       {
         path: '/console/monitoring/dashboard',
-        element: React.lazy(() => import('@/pages/Monitoring/Dashboard')),
+        element: React.lazy(() => import('@/pages/monitor-svc/Monitoring/Dashboard')),
         protected: true,
         requiredRole: ['admin', 'platform_admin'],
       },
       {
         path: '/console/monitoring/metrics',
-        element: React.lazy(() => import('@/pages/Monitoring/Metrics')),
+        element: React.lazy(() => import('@/pages/monitor-svc/Monitoring/Metrics')),
         protected: true,
         requiredRole: ['admin', 'platform_admin'],
       },
       {
         path: '/console/monitoring/alerts',
-        element: React.lazy(() => import('@/pages/Monitoring/Alerts')),
+        element: React.lazy(() => import('@/pages/monitor-svc/Monitoring/Alerts')),
         protected: true,
         requiredRole: ['admin', 'platform_admin'],
       },
       {
         path: '/console/monitoring/rules',
-        element: React.lazy(() => import('@/pages/Monitoring/Rules')),
+        element: React.lazy(() => import('@/pages/monitor-svc/Monitoring/Rules')),
         protected: true,
         requiredRole: ['admin', 'platform_admin'],
       },
       {
         path: '/console/monitoring/channels',
-        element: React.lazy(() => import('@/pages/Monitoring/Channels')),
+        element: React.lazy(() => import('@/pages/monitor-svc/Monitoring/Channels')),
         protected: true,
         requiredRole: ['admin', 'platform_admin'],
       },
@@ -753,37 +764,37 @@ export const routes: AppRoute[] = [
   // Diagnostic
   {
     path: '/console/diagnostic',
-    element: React.lazy(() => import('@/pages/Diagnostic')),
+    element: React.lazy(() => import('@/pages/security-svc/Diagnostic')),
     protected: true,
     requiredRole: ['admin', 'platform_admin'],
     children: [
       {
         path: '/console/diagnostic/sessions',
-        element: React.lazy(() => import('@/pages/Diagnostic/Sessions')),
+        element: React.lazy(() => import('@/pages/security-svc/Diagnostic/Sessions')),
         protected: true,
         requiredRole: ['admin', 'platform_admin'],
       },
       {
         path: '/console/diagnostic/sessions/:id',
-        element: React.lazy(() => import('@/pages/Diagnostic/SessionDetail')),
+        element: React.lazy(() => import('@/pages/security-svc/Diagnostic/SessionDetail')),
         protected: true,
         requiredRole: ['admin', 'platform_admin'],
       },
       {
         path: '/console/diagnostic/reports',
-        element: React.lazy(() => import('@/pages/Diagnostic/Reports')),
+        element: React.lazy(() => import('@/pages/security-svc/Diagnostic/Reports')),
         protected: true,
         requiredRole: ['admin', 'platform_admin'],
       },
       {
         path: '/console/diagnostic/knowledge',
-        element: React.lazy(() => import('@/pages/Diagnostic/KnowledgeBase')),
+        element: React.lazy(() => import('@/pages/security-svc/Diagnostic/KnowledgeBase')),
         protected: true,
         requiredRole: ['admin', 'platform_admin'],
       },
       {
         path: '/console/diagnostic/trigger',
-        element: React.lazy(() => import('@/pages/Diagnostic/Trigger')),
+        element: React.lazy(() => import('@/pages/security-svc/Diagnostic/Trigger')),
         protected: true,
         requiredRole: ['admin', 'platform_admin'],
       },

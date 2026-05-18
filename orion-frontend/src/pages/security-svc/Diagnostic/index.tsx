@@ -17,10 +17,10 @@ const { Sider, Content } = Layout;
 const { Title } = Typography;
 
 const menuItems = [
-  { key: '/diagnostic/sessions', icon: <PlayCircleOutlined />, label: 'Sessions' },
-  { key: '/diagnostic/reports', icon: <FileTextOutlined />, label: 'Reports' },
-  { key: '/diagnostic/knowledge', icon: <BookOutlined />, label: 'Knowledge Base' },
-  { key: '/diagnostic/trigger', icon: <RocketOutlined />, label: 'Trigger' },
+  { key: '/console/diagnostic/sessions', icon: <PlayCircleOutlined />, label: 'Sessions' },
+  { key: '/console/diagnostic/reports', icon: <FileTextOutlined />, label: 'Reports' },
+  { key: '/console/diagnostic/knowledge', icon: <BookOutlined />, label: 'Knowledge Base' },
+  { key: '/console/diagnostic/trigger', icon: <RocketOutlined />, label: 'Trigger' },
 ];
 
 const DiagnosticLayout: React.FC = () => {

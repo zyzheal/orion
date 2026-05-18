@@ -5,6 +5,8 @@
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
 import { LLMTraceService, LLMTrace } from '../services/llm-trace/LLMTraceService';
 import { CostCalculator } from '../services/llm-trace/CostCalculator';
 import { LLMTraceRepository } from '../repositories/LLMTraceRepository';
@@ -49,6 +51,9 @@ export async function llmTraceRoutes(app: FastifyInstance): Promise<void> {
   // GET /api/v1/llm/traces/:traceId - Get trace by ID
   app.get<{ Params: TraceIdParams }>(
     '/traces/:traceId',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'llm_trace', action: 'read', extractResourceId: (req) => (req.params as { traceId: string }).traceId })],
+    },
     async (request: FastifyRequest<{ Params: TraceIdParams }>, reply: FastifyReply) => {
       const { traceId } = request.params;
       const trace = svc.getTrace(traceId);
@@ -62,6 +67,9 @@ export async function llmTraceRoutes(app: FastifyInstance): Promise<void> {
   // GET /api/v1/llm/traces - List traces with filters
   app.get<{ Querystring: TraceQuery }>(
     '/traces',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'llm_trace', action: 'read' })],
+    },
     async (request: FastifyRequest<{ Querystring: TraceQuery }>, reply: FastifyReply) => {
       const { tenantId, scenarioId, limit = 100 } = request.query;
       let traces: LLMTrace[];
@@ -79,6 +87,9 @@ export async function llmTraceRoutes(app: FastifyInstance): Promise<void> {
   // GET /api/v1/llm/stats/daily - Get daily aggregated statistics
   app.get<{ Querystring: DailyStatsQuery }>(
     '/stats/daily',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'llm_trace', action: 'read' })],
+    },
     async (request: FastifyRequest<{ Querystring: DailyStatsQuery }>, reply: FastifyReply) => {
       const { tenantId, date } = request.query;
       const targetDate = date ? new Date(date) : new Date();
@@ -90,6 +101,9 @@ export async function llmTraceRoutes(app: FastifyInstance): Promise<void> {
   // GET /api/v1/llm/cost/breakdown - Get cost breakdown
   app.get<{ Querystring: CostBreakdownQuery }>(
     '/cost/breakdown',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'llm_trace', action: 'read' })],
+    },
     async (request: FastifyRequest<{ Querystring: CostBreakdownQuery }>, reply: FastifyReply) => {
       const { tenantId, startDate, endDate } = request.query;
       const traces = svc.getTracesByTenant(tenantId);
@@ -112,6 +126,9 @@ export async function llmTraceRoutes(app: FastifyInstance): Promise<void> {
   // GET /api/v1/llm/tracking/accuracy - Get tracking accuracy metrics
   app.get(
     '/tracking/accuracy',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'llm_trace', action: 'read' })],
+    },
     async (_request: FastifyRequest, reply: FastifyReply) => {
       const accuracy = svc.getTrackingAccuracy();
       const completed = svc.getCompletedCount();
@@ -123,6 +140,9 @@ export async function llmTraceRoutes(app: FastifyInstance): Promise<void> {
   // GET /api/v1/llm/pricing - Get model pricing table
   app.get(
     '/pricing',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'llm_trace', action: 'read' })],
+    },
     async (_request: FastifyRequest, reply: FastifyReply) => {
       const pricing = calc.getAllPricing();
       return reply.send({ currency: 'CNY', unit: 'per token', pricing });
@@ -132,6 +152,9 @@ export async function llmTraceRoutes(app: FastifyInstance): Promise<void> {
   // POST /api/v1/llm/cost/estimate - Estimate cost for tokens
   app.post<{ Body: { modelId: string; inputTokens: number; outputTokens: number } }>(
     '/cost/estimate',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'llm_trace', action: 'read' })],
+    },
     async (request: FastifyRequest<{ Body: { modelId: string; inputTokens: number; outputTokens: number } }>, reply: FastifyReply) => {
       const { modelId, inputTokens, outputTokens } = request.body;
       if (!modelId || inputTokens === undefined || outputTokens === undefined) {
