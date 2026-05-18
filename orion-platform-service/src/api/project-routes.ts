@@ -9,6 +9,8 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { DatabasePool } from '../services/database';
 import { ProjectRepository } from '../services/project/ProjectRepository';
 import { ProjectService, ProjectServiceError } from '../services/project/ProjectService';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
 
 interface ProjectRoutesOptions {
   database?: DatabasePool;
@@ -44,7 +46,12 @@ export default async function projectRoutes(
   // ==================== Project CRUD ====================
 
   // GET /api/v1/projects?tenantId=xxx — list projects for a tenant
-  app.get('/', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/', {
+    onRequest: [authenticateUser, requirePermission({
+      resourceType: 'project',
+      action: 'read',
+    })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { tenantId } = request.query as { tenantId: string };
 
     if (!tenantId) {
@@ -66,7 +73,13 @@ export default async function projectRoutes(
   });
 
   // GET /api/v1/projects/:id — project detail
-  app.get('/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/:id', {
+    onRequest: [authenticateUser, requirePermission({
+      resourceType: 'project',
+      action: 'read',
+      extractResourceId: (req) => (req.params as { id: string }).id,
+    })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = request.params as { id: string };
 
     try {
@@ -87,7 +100,12 @@ export default async function projectRoutes(
   });
 
   // POST /api/v1/projects — create project
-  app.post('/', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/', {
+    onRequest: [authenticateUser, requirePermission({
+      resourceType: 'project',
+      action: 'write',
+    })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as CreateProjectBody;
 
     if (!body.tenantId || !body.name) {
@@ -115,7 +133,14 @@ export default async function projectRoutes(
   });
 
   // DELETE /api/v1/projects/:id — delete project
-  app.delete('/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.delete('/:id', {
+    onRequest: [authenticateUser, requirePermission({
+      resourceType: 'project',
+      action: 'delete',
+      extractResourceId: (req) => (req.params as { id: string }).id,
+      requiredImpact: 'high',
+    })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = request.params as { id: string };
 
     try {
@@ -136,7 +161,13 @@ export default async function projectRoutes(
   });
 
   // PUT /api/v1/projects/:id — update project
-  app.put('/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.put('/:id', {
+    onRequest: [authenticateUser, requirePermission({
+      resourceType: 'project',
+      action: 'write',
+      extractResourceId: (req) => (req.params as { id: string }).id,
+    })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = request.params as { id: string };
     const body = request.body as UpdateProjectBody;
 

@@ -43,13 +43,14 @@ export async function authenticateUser(
       userId: string;
       username: string;
       roles?: string[];
+      role?: string;
     };
 
     // Attach user info to the request object for downstream use
     request.user = {
       userId: decoded.userId,
       username: decoded.username,
-      roles: decoded.roles || [],
+      roles: decoded.roles || (decoded.role ? [decoded.role] : []),
     };
   } catch (error) {
     return reply.code(401).send({
