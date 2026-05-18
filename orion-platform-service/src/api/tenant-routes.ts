@@ -13,6 +13,8 @@ import { NamespacePoolService, namespacePoolService } from '../services/tenant/N
 import { TenantService, TenantServiceError } from '../services/tenant/TenantService';
 import { TenantRepository } from '../services/tenant/TenantRepository';
 import { DatabasePool } from '../services/database';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
 
 interface TenantQuotaUpdate {
   maxPipelines?: number;
@@ -63,7 +65,9 @@ export default async function tenantRoutes(
   // ==================== Tenant Context ====================
 
   // GET /tenant/context - 获取当前租户上下文
-  app.get('/context', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/context', {
+    onRequest: [authenticateUser, requirePermission({ resourceType: 'tenant', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const tenantIdHeader = request.headers['x-tenant-id'] as string;
 
     if (!tenantIdHeader) {
@@ -87,7 +91,9 @@ export default async function tenantRoutes(
   // ==================== Tenant Quota ====================
 
   // GET /tenant/quota - 获取租户配额状态
-  app.get('/quota', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/quota', {
+    onRequest: [authenticateUser, requirePermission({ resourceType: 'tenant', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const tenantIdHeader = request.headers['x-tenant-id'] as string;
 
     if (!tenantIdHeader) {
@@ -106,7 +112,9 @@ export default async function tenantRoutes(
   });
 
   // PUT /tenant/quota - 更新租户配额
-  app.put('/quota', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.put('/quota', {
+    onRequest: [authenticateUser, requirePermission({ resourceType: 'tenant', action: 'manage' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const tenantIdHeader = request.headers['x-tenant-id'] as string;
     const body = request.body as TenantQuotaUpdate;
 
