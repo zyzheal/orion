@@ -28,6 +28,8 @@ import { RoleRepository } from './services/role/RoleRepository';
 import { PermissionRepository } from './repositories/PermissionRepository';
 import { PermissionService } from './services/permission/PermissionService';
 import { AuthorizationEngine } from './services/authz/AuthorizationEngine';
+import { PipelineRBACService } from './services/pipeline/PipelineRBACService';
+import { RBACRuleRepository } from './repositories/RBACRuleRepository';
 import { AbacPolicyEngine } from './services/authz/AbacPolicyEngine';
 import { RelationshipService } from './services/authz/RelationshipService';
 import { PermissionAuditRepository } from './repositories/PermissionAuditRepository';
@@ -212,11 +214,15 @@ export async function createApp(options: PlatformAppOptions = {}): Promise<{
     const relationshipService = new RelationshipService(options.database);
     const auditRepo = new PermissionAuditRepository(options.database);
 
+    const rbacRuleRepo = new RBACRuleRepository(options.database);
+    const pipelineRbacService = new PipelineRBACService(rbacRuleRepo);
+
     const authzEngine = new AuthorizationEngine(
       roleService,
       abacEngine,
       relationshipService,
       auditRepo,
+      pipelineRbacService,
     );
 
     // Register global AuthZ engine instance for middleware use
