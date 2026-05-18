@@ -369,6 +369,19 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [megaMenuKey, setMegaMenuKey] = React.useState<string | null>(null);
   const megaMenuTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // 注入 Mega Menu 动画 keyframes
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes megaMenuFadeIn {
+        from { opacity: 0; transform: translateY(-8px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+    `;
+    document.head.appendChild(style);
+    return () => { document.head.removeChild(style); };
+  }, []);
+
   const handleMegaMenuToggle = (key: string | null) => {
     // 清除之前的定时器
     if (megaMenuTimerRef.current) {
