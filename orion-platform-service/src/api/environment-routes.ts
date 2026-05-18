@@ -47,35 +47,35 @@ export default async function environmentRoutes(
 
   // POST /environments - Create environment
   app.post('/environments', {
-    onRequest: [authenticateUser, requirePermission({ resourceType: 'environment', action: 'write' })],
+    onRequest: [authenticateUser, requirePermission({ resource: 'environment', action: 'write' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     return envController.create(request, reply);
   });
 
   // GET /environments - List environments
   app.get('/environments', {
-    onRequest: [authenticateUser, requirePermission({ resourceType: 'environment', action: 'read' })],
+    onRequest: [authenticateUser, requirePermission({ resource: 'environment', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     return envController.list(request, reply);
   });
 
   // GET /environments/:id - Get environment detail
   app.get('/environments/:id', {
-    onRequest: [authenticateUser, requirePermission({ resourceType: 'environment', action: 'read' })],
+    onRequest: [authenticateUser, requirePermission({ resource: 'environment', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     return envController.getById(request, reply);
   });
 
   // PUT /environments/:id - Update environment
   app.put('/environments/:id', {
-    onRequest: [authenticateUser, requirePermission({ resourceType: 'environment', action: 'write' })],
+    onRequest: [authenticateUser, requirePermission({ resource: 'environment', action: 'write' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     return envController.update(request, reply);
   });
 
   // DELETE /environments/:id - Delete environment
   app.delete('/environments/:id', {
-    onRequest: [authenticateUser, requirePermission({ resourceType: 'environment', action: 'delete' })],
+    onRequest: [authenticateUser, requirePermission({ resource: 'environment', action: 'delete' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     return envController.delete(request, reply);
   });
@@ -84,7 +84,7 @@ export default async function environmentRoutes(
   app.post(
     '/environments/:id/status',
     {
-      onRequest: [authenticateUser, requirePermission({ resourceType: 'environment', action: 'write' })],
+      onRequest: [authenticateUser, requirePermission({ resource: 'environment', action: 'write' })],
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
       return envController.updateStatus(request, reply);
@@ -95,7 +95,7 @@ export default async function environmentRoutes(
   app.post(
     '/environments/:id/lock',
     {
-      onRequest: [authenticateUser, requirePermission({ resourceType: 'environment', action: 'manage' })],
+      onRequest: [authenticateUser, requirePermission({ resource: 'environment', action: 'manage' })],
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
       return envController.lockEnvironment(request, reply);

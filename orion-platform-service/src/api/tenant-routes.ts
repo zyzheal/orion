@@ -66,7 +66,7 @@ export default async function tenantRoutes(
 
   // GET /tenant/context - 获取当前租户上下文
   app.get('/context', {
-    onRequest: [authenticateUser, requirePermission({ resourceType: 'tenant', action: 'read' })],
+    onRequest: [authenticateUser, requirePermission({ resource: 'tenant', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const tenantIdHeader = request.headers['x-tenant-id'] as string;
 
@@ -92,7 +92,7 @@ export default async function tenantRoutes(
 
   // GET /tenant/quota - 获取租户配额状态
   app.get('/quota', {
-    onRequest: [authenticateUser, requirePermission({ resourceType: 'tenant', action: 'read' })],
+    onRequest: [authenticateUser, requirePermission({ resource: 'tenant', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const tenantIdHeader = request.headers['x-tenant-id'] as string;
 
@@ -113,7 +113,7 @@ export default async function tenantRoutes(
 
   // PUT /tenant/quota - 更新租户配额
   app.put('/quota', {
-    onRequest: [authenticateUser, requirePermission({ resourceType: 'tenant', action: 'manage' })],
+    onRequest: [authenticateUser, requirePermission({ resource: 'tenant', action: 'manage' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const tenantIdHeader = request.headers['x-tenant-id'] as string;
     const body = request.body as TenantQuotaUpdate;
@@ -152,7 +152,7 @@ export default async function tenantRoutes(
   app.post('/quota/check', async (request: FastifyRequest, reply: FastifyReply) => {
     const tenantIdHeader = request.headers['x-tenant-id'] as string;
     const body = request.body as {
-      resourceType: string;
+      resource: string;
       amount: number;
     };
 

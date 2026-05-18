@@ -48,7 +48,7 @@ export default async function projectRoutes(
   // GET /api/v1/projects?tenantId=xxx — list projects for a tenant
   app.get('/', {
     onRequest: [authenticateUser, requirePermission({
-      resourceType: 'project',
+      resource: 'project',
       action: 'read',
     })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
@@ -75,7 +75,7 @@ export default async function projectRoutes(
   // GET /api/v1/projects/:id — project detail
   app.get('/:id', {
     onRequest: [authenticateUser, requirePermission({
-      resourceType: 'project',
+      resource: 'project',
       action: 'read',
       extractResourceId: (req) => (req.params as { id: string }).id,
     })],
@@ -102,7 +102,7 @@ export default async function projectRoutes(
   // POST /api/v1/projects — create project
   app.post('/', {
     onRequest: [authenticateUser, requirePermission({
-      resourceType: 'project',
+      resource: 'project',
       action: 'write',
     })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
@@ -135,7 +135,7 @@ export default async function projectRoutes(
   // DELETE /api/v1/projects/:id — delete project
   app.delete('/:id', {
     onRequest: [authenticateUser, requirePermission({
-      resourceType: 'project',
+      resource: 'project',
       action: 'delete',
       extractResourceId: (req) => (req.params as { id: string }).id,
       requiredImpact: 'high',
@@ -163,7 +163,7 @@ export default async function projectRoutes(
   // PUT /api/v1/projects/:id — update project
   app.put('/:id', {
     onRequest: [authenticateUser, requirePermission({
-      resourceType: 'project',
+      resource: 'project',
       action: 'write',
       extractResourceId: (req) => (req.params as { id: string }).id,
     })],

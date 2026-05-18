@@ -42,7 +42,7 @@ export default async function userRoutes(
 
   // GET /api/v1/users — List users with pagination
   app.get('/', {
-    onRequest: [authenticateUser, requirePermission({ resourceType: 'user', action: 'read' })],
+    onRequest: [authenticateUser, requirePermission({ resource: 'user', action: 'read' })],
     schema: {
       tags: ['user'],
       summary: 'List users',

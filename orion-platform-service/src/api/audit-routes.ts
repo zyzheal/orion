@@ -54,7 +54,7 @@ function toAuditLogEntry(log: any): any {
     userId: log.user_id,
     tenantId: log.tenant_id,
     details: log.request_body || log.response_body || {},
-    resourceType: log.resource_type,
+    resource: log.resource_type,
     resourceId: log.resource_id,
     ipAddress: log.ip_address,
     userAgent: log.user_agent,
@@ -127,7 +127,7 @@ export default async function auditRoutes(
         tenantId: query.tenantId,
         userId: query.userId,
         action: query.action,
-        resourceType: query.resourceType,
+        resource: query.resourceType,
       });
 
       // Map to frontend-expected format: { entries, total }

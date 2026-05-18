@@ -63,26 +63,26 @@ export default async function roleRoutes(
 
   // GET /api/v1/roles?tenantId=xxx — list roles for a tenant
   app.get('/', {
-    onRequest: [authenticateUser, requirePermission({ resourceType: 'role', action: 'read' })],
+    onRequest: [authenticateUser, requirePermission({ resource: 'role', action: 'read' })],
   }, listHandler);
 
   // GET /api/v1/roles/:id — role detail
   app.get('/:id', {
-    onRequest: [authenticateUser, requirePermission({ resourceType: 'role', action: 'read' })],
+    onRequest: [authenticateUser, requirePermission({ resource: 'role', action: 'read' })],
   }, getHandler);
 
   // POST /api/v1/roles — create role
   app.post('/', {
-    onRequest: [authenticateUser, requirePermission({ resourceType: 'role', action: 'write' })],
+    onRequest: [authenticateUser, requirePermission({ resource: 'role', action: 'write' })],
   }, createHandler);
 
   // DELETE /api/v1/roles/:id — delete role
   app.delete('/:id', {
-    onRequest: [authenticateUser, requirePermission({ resourceType: 'role', action: 'delete' })],
+    onRequest: [authenticateUser, requirePermission({ resource: 'role', action: 'delete' })],
   }, deleteHandler);
 
   // PUT /api/v1/roles/:id — update role
   app.put('/:id', {
-    onRequest: [authenticateUser, requirePermission({ resourceType: 'role', action: 'write' })],
+    onRequest: [authenticateUser, requirePermission({ resource: 'role', action: 'write' })],
   }, updateHandler);
 }
