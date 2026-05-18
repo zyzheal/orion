@@ -530,3 +530,39 @@ export function getSSEState(): {
     backendFallback: sseState.backendFallback,
   };
 }
+
+// ---- ChatOps 对话工作台 (Phase 3) ----
+
+export interface ChatRequest {
+  message: string;
+  context?: Record<string, string>;
+}
+
+export interface ChatResponse {
+  message: string;
+  intent: string;
+  confidence: number;
+  toolCalls?: Array<{
+    tool: string;
+    params: Record<string, unknown>;
+    status: string;
+    result?: unknown;
+  }>;
+  suggestions?: string[];
+}
+
+export interface ToolInfo {
+  name: string;
+  version: string;
+  description: string;
+  parameters: Array<{ name: string; type: string; required: boolean; description: string }>;
+  requiresApproval: boolean;
+}
+
+export function sendChatMessage(data: ChatRequest) {
+  return api.post('/v1/chatops/chat', data);
+}
+
+export function getAvailableTools() {
+  return api.get('/v1/chatops/tools');
+}
