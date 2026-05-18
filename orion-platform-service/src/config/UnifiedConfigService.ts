@@ -368,7 +368,7 @@ const DEFAULT_CONFIG: SystemConfig = {
     user: process.env.DB_USER || 'postgres',
     password: process.env.DB_PASSWORD || '',
     database: process.env.DB_NAME || 'orion',
-    poolSize: parseInt(process.env.DB_POOL_SIZE || '10', 10),
+    poolSize: parseInt(process.env.DB_POOL_SIZE || '50', 10),
   },
   
   redis: {

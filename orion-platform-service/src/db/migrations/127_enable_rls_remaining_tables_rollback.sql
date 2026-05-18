@@ -1,0 +1,56 @@
+-- Rollback Migration 127_enable_rls_remaining_tables
+-- Auto-generated rollback script
+-- Review carefully before executing in production
+
+DROP INDEX IF EXISTS idx_config;
+DROP INDEX IF EXISTS idx_project;
+DROP INDEX IF EXISTS idx_pipeline;
+DROP INDEX IF EXISTS idx_artifact;
+DROP INDEX IF EXISTS idx_artifact_regi;
+DROP INDEX IF EXISTS idx_environment;
+DROP INDEX IF EXISTS idx_alert;
+DROP INDEX IF EXISTS idx_alert_rule;
+DROP INDEX IF EXISTS idx_budget;
+DROP INDEX IF EXISTS idx_co;
+DROP INDEX IF EXISTS idx_notification;
+DROP INDEX IF EXISTS idx_notification_channel;
+DROP INDEX IF EXISTS idx_webhook;
+DROP INDEX IF EXISTS idx_api_key;
+DROP INDEX IF EXISTS idx_cron_job;
+DROP INDEX IF EXISTS idx_cron_execution;
+DROP INDEX IF EXISTS idx_event_bu;
+DROP INDEX IF EXISTS idx_ticket;
+DROP INDEX IF EXISTS idx_incident;
+DROP INDEX IF EXISTS idx_rollback;
+DROP INDEX IF EXISTS idx_;
+DROP INDEX IF EXISTS idx_;
+DROP INDEX IF EXISTS idx_policie;
+DROP INDEX IF EXISTS idx_policy_evaluation;
+DROP INDEX IF EXISTS idx_approval;
+DROP INDEX IF EXISTS idx_;
+DROP INDEX IF EXISTS idx_;
+DROP INDEX IF EXISTS idx_vector_embedding;
+DROP INDEX IF EXISTS idx_confirmation_reque;
+DROP INDEX IF EXISTS idx_name;
+DROP INDEX IF EXISTS idx_name;
+DROP INDEX IF EXISTS idx_product_line;
+DROP INDEX IF EXISTS idx_internal_librarie;
+DROP INDEX IF EXISTS idx_iac_work;
+DROP INDEX IF EXISTS idx_iac_plan;
+DROP INDEX IF EXISTS idx_iac_;
+DROP INDEX IF EXISTS idx_oncall_;
+DROP INDEX IF EXISTS idx_oncall_a;
+DROP INDEX IF EXISTS idx_oncall_override;
+DROP INDEX IF EXISTS idx_maintenance_window;
+DROP INDEX IF EXISTS idx_alert_;
+DROP INDEX IF EXISTS idx_known_i;
+DROP INDEX IF EXISTS idx_healing_action;
+DROP INDEX IF EXISTS idx_plugin_execution;
+DROP INDEX IF EXISTS idx_canary_analy;
+DROP INDEX IF EXISTS idx_change_intelligence_record;
+DROP INDEX IF EXISTS idx_ri;
+DROP INDEX IF EXISTS idx_ri;
+DROP INDEX IF EXISTS idx_code_owner;
+DROP INDEX IF EXISTS idx_branch_policie;
+DROP INDEX IF EXISTS idx_build_cache_entrie;
+DROP INDEX IF EXISTS idx_build_log;

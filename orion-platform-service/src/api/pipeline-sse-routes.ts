@@ -160,7 +160,7 @@ export default async function registerPipelineSSERoutes(
 
   // GET /api/v1/pipelines/sse/stats - SSE 连接统计
   app.get('/pipelines/sse/stats', {
-    onRequest: [authenticateUser, requirePermission({ resourceType: 'pipeline', action: 'read' })],
+    onRequest: [authenticateUser, requirePermission({ resource: 'pipeline', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const stats = pipelineLogSSE.getStats();
     return reply.send({

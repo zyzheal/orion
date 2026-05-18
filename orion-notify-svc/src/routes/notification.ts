@@ -4,11 +4,15 @@ import { NotificationService } from '../services/NotificationService';
 import { NotificationRepository } from '../services/NotificationRepository';
 import { NotificationSettingsService } from '../services/NotificationSettingsService';
 import { NotificationSettingsRepository } from '../services/NotificationSettingsRepository';
+import { NotificationChannelService } from '../services/NotificationChannelService';
+import { NotificationChannelRepository } from '../services/NotificationChannelRepository';
 
 export async function notificationRoutes(app: FastifyInstance) {
   const pool = getPool();
   const notifRepo = new NotificationRepository(pool);
-  const notifService = new NotificationService(notifRepo);
+  const channelRepo = new NotificationChannelRepository(pool);
+  const channelService = new NotificationChannelService(channelRepo);
+  const notifService = new NotificationService(notifRepo, channelService);
   const settingsRepo = new NotificationSettingsRepository(pool);
   const settingsService = new NotificationSettingsService(settingsRepo);
 

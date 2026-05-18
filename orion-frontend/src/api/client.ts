@@ -59,9 +59,7 @@ apiClient.interceptors.response.use(
       if (url.includes('/v1/auth/')) {
         // Token 刷新本身也 401，说明 refresh token 也失效了
         useAuthStore.getState().logout();
-        if (window.location.pathname !== '/login') {
-          window.location.href = '/login';
-        }
+        // 不再做 window.location.href 跳转，让调用方的 catch 处理
         return Promise.reject(error);
       }
 
@@ -117,12 +115,9 @@ apiClient.interceptors.response.use(
         };
         return apiClient(originalRequest);
       } catch (refreshError) {
-        // 刷新失败 — 清除所有状态，跳转到登录页
+        // 刷新失败 — 清除所有状态，让调用方的 catch 处理
         processQueue(refreshError as Error, null);
         useAuthStore.getState().logout();
-        if (window.location.pathname !== '/login') {
-          window.location.href = '/login';
-        }
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;

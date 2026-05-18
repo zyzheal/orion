@@ -8,8 +8,9 @@
 import { ReviewComment } from './types';
 
 export interface LLMClientConfig {
-  provider: 'openai' | 'anthropic' | 'mock';
+  provider: 'openai' | 'anthropic' | 'nvidia' | 'mock';
   apiKey?: string;
+  baseURL?: string;
   model?: string;
   temperature?: number;
   timeout?: number;
@@ -176,6 +177,86 @@ export class AnthropicClient extends LLMClient {
 }
 
 /**
+ * NVIDIA API client (compatible with OpenAI API format)
+ * Uses NVIDIA NIM API endpoint: https://integrate.api.nvidia.com/v1
+ */
+export class NvidiaClient extends LLMClient {
+  private apiKey: string;
+  private model: string;
+  private baseURL: string;
+  private temperature: number;
+  private timeout: number;
+
+  constructor(config: LLMClientConfig) {
+    super();
+    this.apiKey = config.apiKey || '';
+    this.model = config.model || 'z-ai/glm-5.1';
+    this.baseURL = config.baseURL || 'https://integrate.api.nvidia.com/v1';
+    this.temperature = config.temperature ?? 0.3;
+    this.timeout = config.timeout || 30_000;
+  }
+
+  async reviewDiff(diff: string): Promise<ReviewComment[]> {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+
+      const response = await fetch(`${this.baseURL}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: this.model,
+          messages: [
+            { role: 'system', content: SYSTEM_PROMPT },
+            { role: 'user', content: `Review this diff:\n\n${diff}` },
+          ],
+          temperature: this.temperature,
+        }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      if (!response.ok) return [];
+      const text = await response.text();
+      const data = JSON.parse(text) as { choices?: { message?: { content?: string } }[] };
+      const content = data?.choices?.[0]?.message?.content;
+      if (!content) return [];
+      return this.parseComments(content);
+    } catch {
+      return [];
+    }
+  }
+
+  private parseComments(text: string): ReviewComment[] {
+    try {
+      const parsed = JSON.parse(text);
+      if (Array.isArray(parsed)) {
+        return parsed.map(c => ({ ...c, source: 'ai' as const, createdAt: new Date() }));
+      }
+      if (parsed.comments && Array.isArray(parsed.comments)) {
+        return parsed.comments.map((c: any) => ({ ...c, source: 'ai' as const, createdAt: new Date() }));
+      }
+    } catch {
+      const arrayMatch = text.match(/\[[\s\S]*\]/);
+      if (arrayMatch) {
+        try {
+          const parsed = JSON.parse(arrayMatch[0]);
+          if (Array.isArray(parsed)) {
+            return parsed.map(c => ({ ...c, source: 'ai' as const, createdAt: new Date() }));
+          }
+        } catch {
+          // Ignore
+        }
+      }
+    }
+    return [];
+  }
+}
+
+/**
  * Mock LLM client (returns empty array, rule-only review)
  */
 export class MockLLMClient extends LLMClient {
@@ -188,10 +269,11 @@ export class MockLLMClient extends LLMClient {
  * Factory: create LLM client from config or environment
  */
 export function createLLMClient(config?: Partial<LLMClientConfig>): LLMClient {
-  const provider = config?.provider || (process.env.LLM_PROVIDER as 'openai' | 'anthropic' | 'mock') || 'mock';
+  const provider = config?.provider || (process.env.LLM_PROVIDER as 'openai' | 'anthropic' | 'nvidia' | 'mock') || 'mock';
   const llmConfig: LLMClientConfig = {
     provider,
     apiKey: config?.apiKey || process.env.LLM_API_KEY,
+    baseURL: config?.baseURL || process.env.LLM_BASE_URL,
     model: config?.model || process.env.LLM_MODEL,
     temperature: config?.temperature ?? parseFloat(process.env.LLM_TEMPERATURE || '0.3'),
     timeout: config?.timeout ?? parseInt(process.env.LLM_TIMEOUT || '30000'),
@@ -202,6 +284,8 @@ export function createLLMClient(config?: Partial<LLMClientConfig>): LLMClient {
       return new OpenAIClient(llmConfig);
     case 'anthropic':
       return new AnthropicClient(llmConfig);
+    case 'nvidia':
+      return new NvidiaClient(llmConfig);
     default:
       return new MockLLMClient();
   }

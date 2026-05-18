@@ -47,7 +47,7 @@ export default async function notificationRoutes(app: FastifyInstance, options: 
       metadata?: Record<string, any>;
     };
   }>('/send', {
-    onRequest: [authenticateUser, requirePermission({ resourceType: 'notification', action: 'write' })],
+    onRequest: [authenticateUser, requirePermission({ resource: 'notification', action: 'write' })],
   }, async (request, reply) => {
     try {
       const notification = await service.send(request.body);
@@ -63,7 +63,7 @@ export default async function notificationRoutes(app: FastifyInstance, options: 
     Params: { userId: string };
     Querystring: { limit?: number };
   }>('/:userId', {
-    onRequest: [authenticateUser, requirePermission({ resourceType: 'notification', action: 'read' })],
+    onRequest: [authenticateUser, requirePermission({ resource: 'notification', action: 'read' })],
   }, async (request, reply) => {
     try {
       const { userId } = request.params;
@@ -80,7 +80,7 @@ export default async function notificationRoutes(app: FastifyInstance, options: 
   app.put<{
     Params: { id: string };
   }>('/:id/read', {
-    onRequest: [authenticateUser, requirePermission({ resourceType: 'notification', action: 'write' })],
+    onRequest: [authenticateUser, requirePermission({ resource: 'notification', action: 'write' })],
   }, async (request, reply) => {
     try {
       const notification = await service.markAsRead(request.params.id);
@@ -95,7 +95,7 @@ export default async function notificationRoutes(app: FastifyInstance, options: 
   app.get<{
     Params: { userId: string };
   }>('/:userId/unread-count', {
-    onRequest: [authenticateUser, requirePermission({ resourceType: 'notification', action: 'read' })],
+    onRequest: [authenticateUser, requirePermission({ resource: 'notification', action: 'read' })],
   }, async (request, reply) => {
     try {
       const count = await service.getUnreadCount(request.params.userId);
@@ -118,7 +118,7 @@ export default async function notificationRoutes(app: FastifyInstance, options: 
   }>('/broadcast', {
     onRequest: [
       authenticateUser,
-      requirePermission({ resourceType: 'notification', action: 'manage' }),
+      requirePermission({ resource: 'notification', action: 'manage' }),
       roleGuard(['admin', 'platform_admin']),
     ],
   }, async (request, reply) => {
@@ -137,7 +137,7 @@ export default async function notificationRoutes(app: FastifyInstance, options: 
     Params: { userId: string };
     Querystring: { tenantId?: string };
   }>('/settings/:userId', {
-    onRequest: [authenticateUser, requirePermission({ resourceType: 'notification', action: 'read' })],
+    onRequest: [authenticateUser, requirePermission({ resource: 'notification', action: 'read' })],
   }, async (request, reply) => {
     try {
       const { userId } = request.params;
@@ -156,7 +156,7 @@ export default async function notificationRoutes(app: FastifyInstance, options: 
     Body: Record<string, any>;
     Querystring: { tenantId?: string };
   }>('/settings/:userId', {
-    onRequest: [authenticateUser, requirePermission({ resourceType: 'notification', action: 'write' })],
+    onRequest: [authenticateUser, requirePermission({ resource: 'notification', action: 'write' })],
   }, async (request, reply) => {
     try {
       const { userId } = request.params;

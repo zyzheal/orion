@@ -2,7 +2,7 @@
  * Command Browser - Searchable command catalog with usage examples, parameter docs
  */
 import React, { useState, useMemo, useEffect } from 'react';
-import { Typography, Button, Space, Tag, Card, Modal, message } from 'antd';
+import { Typography, Button, Space, Tag, Card, Modal, Empty } from 'antd';
 import { colors, spacing } from '@/tokens';
 import { ReloadOutlined, InfoCircleOutlined, CodeOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
@@ -25,18 +25,18 @@ const CommandBrowser: React.FC = () => {
   const [filters, setFilters] = useState<Record<string, string | string[] | undefined>>({});
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [selectedCommand, setSelectedCommand] = useState<ChatOpsCommand | null>(null);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   const loadData = async () => {
     setLoading(true);
+    setApiError(null);
     try {
       const res = await getCommands();
       setCommands(Array.isArray(res.data.data) ? res.data.data : []);
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        message.error(`Failed to load commands：${error.message}`);
-      } else {
-        message.error('Failed to load commands');
-      }
+    } catch {
+      // 静默失败，显示空状态
+      setApiError('后端服务暂不可用，请配置 ChatOps 平台连接后使用');
+      setCommands([]);
     } finally {
       setLoading(false);
     }
@@ -165,22 +165,31 @@ const CommandBrowser: React.FC = () => {
       </div>
 
       <Card>
-        <div style={{ marginBottom: 16 }}>
-          <SearchFilterBar
-            onSearch={setSearchQuery}
-            onFilter={setFilters}
-            filters={filterDefs}
-            searchPlaceholder="搜索命令..."
+        {apiError && commands.length === 0 ? (
+          <Empty
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            description={apiError}
           />
-        </div>
-        <Table
-          columns={columns}
-          dataSource={filteredCommands}
-          loading={loading}
-          rowKey="id"
-          size="middle"
-          striped
-        />
+        ) : (
+          <>
+            <div style={{ marginBottom: 16 }}>
+              <SearchFilterBar
+                onSearch={setSearchQuery}
+                onFilter={setFilters}
+                filters={filterDefs}
+                searchPlaceholder="搜索命令..."
+              />
+            </div>
+            <Table
+              columns={columns}
+              dataSource={filteredCommands}
+              loading={loading}
+              rowKey="id"
+              size="middle"
+              striped
+            />
+          </>
+        )}
       </Card>
 
       {/* Detail Modal */}

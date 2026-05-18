@@ -29,6 +29,12 @@ export interface SCMWebhookEvent {
   timestamp: Date;
   rawPayload: Record<string, any>;
   matchedPipelines: string[];
+  /** Pull Request number (for pull_request events) */
+  prNumber?: number;
+  /** Source branch (head of PR) */
+  sourceBranch?: string;
+  /** Target branch (base of PR) */
+  targetBranch?: string;
 }
 
 /**
@@ -187,6 +193,9 @@ export class SCMWebhookService {
       timestamp: new Date(),
       rawPayload: payload,
       matchedPipelines: [],
+      prNumber: pr.number,
+      sourceBranch: pr.head?.ref,
+      targetBranch: pr.base?.ref,
     };
 
     return this.processEvent(event);
@@ -259,6 +268,9 @@ export class SCMWebhookService {
       timestamp: new Date(),
       rawPayload: payload,
       matchedPipelines: [],
+      prNumber: attrs.iid,
+      sourceBranch: attrs.source_branch,
+      targetBranch: attrs.target_branch,
     };
 
     return this.processEvent(event);
@@ -302,18 +314,38 @@ export class SCMWebhookService {
           continue;
         }
 
+        // Build git context for SCM write-back
+        const gitContext: Record<string, unknown> = {
+          git: {
+            ref: event.branch,
+            sha: event.commitSha,
+            repo: event.repository,
+          },
+          scmProvider: event.provider,
+          repository: event.repository,
+          branch: event.branch,
+          commitSha: event.commitSha,
+          commitMessage: event.commitMessage,
+          webhookEventId: event.id,
+        };
+
+        // Add PR context if this is a pull_request event
+        if (event.eventType === 'pull_request' && event.prNumber) {
+          gitContext.prNumber = event.prNumber;
+          gitContext.sourceBranch = event.sourceBranch;
+          gitContext.targetBranch = event.targetBranch;
+          (gitContext as any).pullRequest = {
+            number: event.prNumber,
+            sourceBranch: event.sourceBranch,
+            targetBranch: event.targetBranch,
+          };
+        }
+
         await this.pipelineEngine.execute(
           pipelineId,
           TriggerType.EVENT,
           event.pusher,
-          {
-            scmProvider: event.provider,
-            repository: event.repository,
-            branch: event.branch,
-            commitSha: event.commitSha,
-            commitMessage: event.commitMessage,
-            webhookEventId: event.id,
-          }
+          gitContext
         );
 
         logger.info({ pipelineId, eventId: event.id }, 'Pipeline triggered from SCM webhook');

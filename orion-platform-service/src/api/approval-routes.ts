@@ -64,7 +64,7 @@ export async function registerApprovalRoutes(
     // POST /api/v1/approvals/requests - 提交审批请求
     instance.post(
       '/v1/approvals/requests',
-      { onRequest: [authenticateUser, requirePermission({ resourceType: 'approval', action: 'write' })] },
+      { onRequest: [authenticateUser, requirePermission({ resource: 'approval', action: 'write' })] },
       async (request: FastifyRequest, reply: FastifyReply) => {
         return controller.submitApprovalRequest(request, reply);
       }
@@ -73,7 +73,7 @@ export async function registerApprovalRoutes(
     // GET /api/v1/approvals/requests - 审批列表
     instance.get(
       '/v1/approvals/requests',
-      { onRequest: [authenticateUser, requirePermission({ resourceType: 'approval', action: 'read' })] },
+      { onRequest: [authenticateUser, requirePermission({ resource: 'approval', action: 'read' })] },
       async (request: FastifyRequest, reply: FastifyReply) => {
         return controller.listApprovalRequests(request, reply);
       }
@@ -82,7 +82,7 @@ export async function registerApprovalRoutes(
     // GET /api/v1/approvals/requests/:id - 审批详情
     instance.get(
       '/v1/approvals/requests/:id',
-      { onRequest: [authenticateUser, requirePermission({ resourceType: 'approval', action: 'read' })] },
+      { onRequest: [authenticateUser, requirePermission({ resource: 'approval', action: 'read' })] },
       async (request: FastifyRequest, reply: FastifyReply) => {
         return controller.getApprovalRequest(request, reply);
       }
@@ -91,7 +91,7 @@ export async function registerApprovalRoutes(
     // POST /api/v1/approvals/requests/:id/review - 审批操作
     instance.post(
       '/v1/approvals/requests/:id/review',
-      { onRequest: [authenticateUser, requirePermission({ resourceType: 'approval', action: 'approve' })] },
+      { onRequest: [authenticateUser, requirePermission({ resource: 'approval', action: 'approve' })] },
       async (request: FastifyRequest, reply: FastifyReply) => {
         return controller.reviewApproval(request, reply);
       }
@@ -100,7 +100,7 @@ export async function registerApprovalRoutes(
     // GET /api/v1/approvals/pending - 待审批列表
     instance.get(
       '/v1/approvals/pending',
-      { onRequest: [authenticateUser, requirePermission({ resourceType: 'approval', action: 'read' })] },
+      { onRequest: [authenticateUser, requirePermission({ resource: 'approval', action: 'read' })] },
       async (request: FastifyRequest, reply: FastifyReply) => {
         return controller.getPendingApprovals(request, reply);
       }
@@ -110,7 +110,7 @@ export async function registerApprovalRoutes(
     // POST /api/v1/approvals/emergency - 紧急审批
     instance.post(
       '/v1/approvals/emergency',
-      { onRequest: [authenticateUser, requirePermission({ resourceType: 'approval', action: 'write' })] },
+      { onRequest: [authenticateUser, requirePermission({ resource: 'approval', action: 'write' })] },
       async (request: FastifyRequest, reply: FastifyReply) => {
         return controller.requestEmergencyApproval(request, reply);
       }
@@ -120,7 +120,7 @@ export async function registerApprovalRoutes(
     // POST /api/v1/approvals/templates - 创建模板
     instance.post(
       '/v1/approvals/templates',
-      { onRequest: [authenticateUser, requirePermission({ resourceType: 'approval', action: 'write' })] },
+      { onRequest: [authenticateUser, requirePermission({ resource: 'approval', action: 'write' })] },
       async (request: FastifyRequest, reply: FastifyReply) => {
         return controller.createTemplate(request, reply);
       }
@@ -129,7 +129,7 @@ export async function registerApprovalRoutes(
     // GET /api/v1/approvals/templates - 模板列表
     instance.get(
       '/v1/approvals/templates',
-      { onRequest: [authenticateUser, requirePermission({ resourceType: 'approval', action: 'read' })] },
+      { onRequest: [authenticateUser, requirePermission({ resource: 'approval', action: 'read' })] },
       async (request: FastifyRequest, reply: FastifyReply) => {
         return controller.getTemplates(request, reply);
       }
@@ -139,7 +139,7 @@ export async function registerApprovalRoutes(
     // GET /api/v1/pipeline-runs/:runId/approvals - 获取 run 的所有审批
     instance.get(
       '/v1/pipeline-runs/:runId/approvals',
-      { onRequest: [authenticateUser, requirePermission({ resourceType: 'approval', action: 'read' })] },
+      { onRequest: [authenticateUser, requirePermission({ resource: 'approval', action: 'read' })] },
       async (request: FastifyRequest, reply: FastifyReply) => {
         return controller.listByRun(request, reply);
       }
@@ -148,7 +148,7 @@ export async function registerApprovalRoutes(
     // GET /api/v1/pipeline-runs/:runId/stages/:stageId/approval - 获取 stage 审批状态
     instance.get(
       '/v1/pipeline-runs/:runId/stages/:stageId/approval',
-      { onRequest: [authenticateUser, requirePermission({ resourceType: 'approval', action: 'read' })] },
+      { onRequest: [authenticateUser, requirePermission({ resource: 'approval', action: 'read' })] },
       async (request: FastifyRequest, reply: FastifyReply) => {
         return controller.getStatus(request, reply);
       }
@@ -157,7 +157,7 @@ export async function registerApprovalRoutes(
     // POST /api/v1/pipeline-runs/:runId/stages/:stageId/approve - 审批通过
     instance.post(
       '/v1/pipeline-runs/:runId/stages/:stageId/approve',
-      { onRequest: [authenticateUser, requirePermission({ resourceType: 'approval', action: 'approve' })] },
+      { onRequest: [authenticateUser, requirePermission({ resource: 'approval', action: 'approve' })] },
       async (request: FastifyRequest, reply: FastifyReply) => {
         return controller.approve(request, reply);
       }
@@ -166,7 +166,7 @@ export async function registerApprovalRoutes(
     // POST /api/v1/pipeline-runs/:runId/stages/:stageId/reject - 审批拒绝
     instance.post(
       '/v1/pipeline-runs/:runId/stages/:stageId/reject',
-      { onRequest: [authenticateUser, requirePermission({ resourceType: 'approval', action: 'approve' })] },
+      { onRequest: [authenticateUser, requirePermission({ resource: 'approval', action: 'approve' })] },
       async (request: FastifyRequest, reply: FastifyReply) => {
         return controller.reject(request, reply);
       }

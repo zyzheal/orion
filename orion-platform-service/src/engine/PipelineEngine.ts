@@ -40,6 +40,7 @@ import { SharedActionService } from '../services/pipeline/SharedActionService';
 import { SecretsService, SecretsServiceConfig } from '../services/pipeline/SecretsService';
 import { SecretRepository } from '../repositories/SecretRepository';
 import { getGlobalSecretsService } from '../api/secret-routes';
+import { CommitStatusService, CommitStatus, GitProvider, StageSummaryItem } from '../services/code-repo/CommitStatusService';
 import pino from 'pino';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
@@ -80,6 +81,7 @@ export class PipelineEngine {
   private deploymentStrategyService: DeploymentStrategyService | null;
   private yamlPreprocessor: YamlPreprocessor | null;
   private secretsService: SecretsService | null;
+  private scmStatusService: CommitStatusService | null;
 
   // 内存存储执行中的 Pipeline
   private executions = new Map<string, PipelineExecution>();
@@ -114,7 +116,8 @@ export class PipelineEngine {
     qualityGateService?: QualityGateService,
     deploymentStrategyService?: DeploymentStrategyService,
     yamlPreprocessor?: YamlPreprocessor | null,
-    secretsService?: SecretsService | null
+    secretsService?: SecretsService | null,
+    scmStatusService?: CommitStatusService | null
   ) {
     this.pipelineService = pipelineService;
     this.runService = runService;
@@ -138,6 +141,7 @@ export class PipelineEngine {
     this.deploymentStrategyService = deploymentStrategyService || null;
     this.yamlPreprocessor = yamlPreprocessor || null;
     this.secretsService = secretsService || null;
+    this.scmStatusService = scmStatusService || null;
   }
 
   /**
@@ -271,6 +275,11 @@ export class PipelineEngine {
 
     // 7.1. Publish SSE run started event
     this.sseBridge?.publishRunStarted(pipelineId, run);
+
+    // 7.2. Report SCM commit status as pending (write-back to PR/commit)
+    this.reportScmStatus(run, 'pending').catch(err => {
+      logger.warn({ runId: run.id, error: err }, 'SCM status reporting failed (non-fatal)');
+    });
 
     if (this.executionQueue) {
       // 使用全局执行队列
@@ -902,6 +911,14 @@ export class PipelineEngine {
         });
       }
 
+      // SCM bidirectional: write pipeline result back to PR/commit
+      if (completedRun) {
+        const scmOutcome = hasFailure ? 'failure' as const : 'success' as const;
+        this.reportScmStatus(completedRun, scmOutcome).catch(err => {
+          logger.warn({ runId: completedRun.id, error: err }, 'SCM status reporting failed (non-fatal)');
+        });
+      }
+
       // Cleanup checkpoint after pipeline completion
       if (this.checkpointManager) {
         await this.checkpointManager.cleanupCompleted(execution.run.id);
@@ -1054,6 +1071,184 @@ export class PipelineEngine {
       logger.warn({ runId, error: error instanceof Error ? error.message : String(error) },
         'Failed to build stages summary for webhook');
       return [];
+    }
+  }
+
+  // ==================== SCM Bidirectional Status Write-Back ====================
+
+  /**
+   * Report pipeline status back to the SCM provider (GitHub/GitLab).
+   *
+   * This writes a commit status and, when available, a PR comment with
+   * structured results. The pipeline run context must contain SCM metadata
+   * in `context.git` or `context.scmProvider`/`context.repository`.
+   *
+   * @param run - The completed (or starting) pipeline run
+   * @param outcome - The outcome to report: 'pending', 'success', 'failure', 'cancelled'
+   */
+  private async reportScmStatus(
+    run: PipelineRun,
+    outcome: 'pending' | 'success' | 'failure' | 'cancelled'
+  ): Promise<void> {
+    if (!this.scmStatusService) return;
+
+    // Extract SCM context from the run
+    const gitCtx = (run.context as any)?.git || {};
+    const commitSha = gitCtx.sha || (run.context as any)?.commitSha || gitCtx.commitSha;
+    const repository = gitCtx.repo || (run.context as any)?.repository || (run.context as any)?.scmProvider;
+
+    if (!commitSha) {
+      logger.debug({ runId: run.id }, 'No commit SHA in run context, skipping SCM status');
+      return;
+    }
+
+    // Determine provider from repository string or explicit context
+    const provider = this.resolveGitProvider(repository, run);
+    if (!provider) {
+      logger.debug({ runId: run.id, repository }, 'Could not resolve Git provider, skipping SCM status');
+      return;
+    }
+
+    const statusState = this.mapOutcomeToCommitStatus(outcome);
+    const pipelineName = await this.getPipelineName(run.pipelineId);
+    const targetUrl = `${process.env.ORION_BASE_URL || 'http://localhost:3000'}/pipelines/${run.pipelineId}/runs/${run.id}`;
+
+    // Build description based on outcome
+    const description = outcome === 'pending'
+      ? `Pipeline "${pipelineName}" is running...`
+      : outcome === 'success'
+        ? `Pipeline "${pipelineName}" completed successfully`
+        : outcome === 'failure'
+          ? `Pipeline "${pipelineName}" failed`
+          : `Pipeline "${pipelineName}" was cancelled`;
+
+    try {
+      await this.scmStatusService.createStatus({
+        repositoryId: repository || 'unknown',
+        commitSha,
+        state: statusState,
+        targetUrl,
+        description,
+        context: `orion/${pipelineName}`,
+      });
+
+      logger.info(
+        { runId: run.id, provider, commitSha, state: statusState, context: `orion/${pipelineName}` },
+        'SCM commit status reported'
+      );
+
+      // Post PR comment on completion (not for pending)
+      if (outcome !== 'pending') {
+        await this.reportPrCommentIfNeeded(run, outcome, pipelineName, targetUrl);
+      }
+    } catch (error) {
+      logger.error(
+        { runId: run.id, error: error instanceof Error ? error.message : String(error) },
+        'SCM status reporting failed'
+      );
+    }
+  }
+
+  /**
+   * Post a PR comment with pipeline results if the run is associated with a PR.
+   */
+  private async reportPrCommentIfNeeded(
+    run: PipelineRun,
+    outcome: 'success' | 'failure' | 'cancelled',
+    pipelineName: string,
+    targetUrl: string
+  ): Promise<void> {
+    if (!this.scmStatusService) return;
+
+    const gitCtx = (run.context as any)?.git || {};
+    const prNumber = (run.context as any)?.prNumber || gitCtx.prNumber || (run.context as any)?.pullRequest?.number;
+
+    if (!prNumber) {
+      return;
+    }
+
+    const repository = gitCtx.repo || (run.context as any)?.repository || 'unknown';
+    const provider = this.resolveGitProvider(repository, run);
+    if (!provider) return;
+
+    // Build stages summary
+    const stagesSummary: StageSummaryItem[] = await this.buildStagesSummary(run.id);
+
+    // PR number must be a number
+    const prNum = typeof prNumber === 'number' ? prNumber : parseInt(prNumber, 10);
+    if (isNaN(prNum)) return;
+
+    await this.scmStatusService.postPrComment(
+      provider,
+      repository,
+      prNum,
+      run.id,
+      pipelineName,
+      outcome,
+      targetUrl,
+      stagesSummary
+    );
+  }
+
+  /**
+   * Resolve the Git provider from repository string or run context.
+   */
+  private resolveGitProvider(
+    repository: string | undefined,
+    run: PipelineRun
+  ): GitProvider | null {
+    const explicitProvider = (run.context as any)?.scmProvider;
+    if (explicitProvider === 'github' || explicitProvider === 'gitlab') {
+      return explicitProvider as GitProvider;
+    }
+
+    if (!repository) return null;
+
+    // Infer from repository string format
+    const lower = repository.toLowerCase();
+    if (lower.startsWith('github:') || lower.includes('github.com')) {
+      return GitProvider.GITHUB;
+    }
+    if (lower.startsWith('gitlab:') || lower.includes('gitlab.com')) {
+      return GitProvider.GITLAB;
+    }
+
+    // Detect provider from repository ID pattern (matches CommitStatusService.detectProvider)
+    if (repository.includes('gitlab') || repository.includes('gl-')) {
+      return GitProvider.GITLAB;
+    }
+    if (repository.includes('github') || repository.includes('gh-')) {
+      return GitProvider.GITHUB;
+    }
+
+    // Default to GitLab
+    return GitProvider.GITLAB;
+  }
+
+  /**
+   * Map pipeline outcome to CommitStatus enum.
+   */
+  private mapOutcomeToCommitStatus(
+    outcome: 'pending' | 'success' | 'failure' | 'cancelled'
+  ): CommitStatus {
+    switch (outcome) {
+      case 'pending': return CommitStatus.PENDING;
+      case 'success': return CommitStatus.SUCCESS;
+      case 'failure': return CommitStatus.FAILED;
+      case 'cancelled': return CommitStatus.CANCELLED;
+      default: return CommitStatus.PENDING;
+    }
+  }
+
+  /**
+   * Get pipeline name from PipelineService.
+   */
+  private async getPipelineName(pipelineId: string): Promise<string> {
+    try {
+      const pipeline = await this.pipelineService.getById(pipelineId);
+      return pipeline?.name || pipelineId;
+    } catch {
+      return pipelineId;
     }
   }
 
@@ -1436,6 +1631,11 @@ export class PipelineEngine {
 
     // Publish SSE run cancelled event
     this.sseBridge?.publishRunCancelled(execution.run.pipelineId, execution.run);
+
+    // SCM bidirectional: write cancellation back to PR/commit
+    this.reportScmStatus(execution.run, 'cancelled').catch(err => {
+      logger.warn({ runId: execution.run.id, error: err }, 'SCM status reporting failed (non-fatal)');
+    });
 
     // Cleanup checkpoint on cancellation
     if (this.checkpointManager) {

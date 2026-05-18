@@ -1,20 +1,26 @@
 /**
  * 子系统导航页面
  * 展示所有可用的子系统入口
+ * 支持从 menuConfigStore 动态获取配置
  */
-import React from 'react';
-import { Typography, Card, Row, Col, Tag, Button } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Typography, Card, Row, Col, Tag, Button, Spin } from 'antd';
 import { colors, spacing } from '@/tokens';
 import {
   DatabaseOutlined,
   BookOutlined,
   DashboardOutlined,
   ArrowRightOutlined,
+  CodeOutlined,
+  CloudOutlined,
+  SafetyOutlined,
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
+import { useMenuConfigStore, type MenuChildConfig } from '@/stores/menuConfigStore';
 
 const { Title, Paragraph } = Typography;
 
+// 子系统卡片类型
 interface SubAppCard {
   key: string;
   name: string;
@@ -25,7 +31,28 @@ interface SubAppCard {
   tags: string[];
 }
 
-const subApps: SubAppCard[] = [
+// icon 映射
+const iconMap: Record<string, React.ReactNode> = {
+  '/dba': <DatabaseOutlined />,
+  '/knowledge': <BookOutlined />,
+  '/visor': <DashboardOutlined />,
+  '/ai-gateway': <CloudOutlined />,
+  '/agents': <CodeOutlined />,
+  '/ai-security': <SafetyOutlined />,
+};
+
+// 颜色映射
+const colorMap: Record<string, string> = {
+  '/dba': colors.primary[500],
+  '/knowledge': colors.success[500],
+  '/visor': colors.purple[500],
+  '/ai-gateway': colors.primary[500],
+  '/agents': colors.warning[500],
+  '/ai-security': colors.error[500],
+};
+
+// 默认子系统列表（降级使用）
+const defaultSubApps: SubAppCard[] = [
   {
     key: 'dba',
     name: '数据库管理',
@@ -57,16 +84,50 @@ const subApps: SubAppCard[] = [
 
 const SubApps: React.FC = () => {
   const navigate = useNavigate();
+  const { modules, loadConfig } = useMenuConfigStore();
+  const [subApps, setSubApps] = useState<SubAppCard[]>(defaultSubApps);
+  const [loading, setLoading] = useState(true);
 
-  return (
-    <div style={{ padding: 24 }}>
-      <div style={{ marginBottom: 32 }}>
-        <Title level={2}>子系统导航</Title>
-        <Paragraph type="secondary" style={{ fontSize: spacing[4] }}>
-          Orion 平台采用微前端架构，以下为集成的子系统应用。点击卡片进入相应子系统。
-        </Paragraph>
-      </div>
+  // 加载并处理子系统配置
+  useEffect(() => {
+    const loadSubApps = () => {
+      try {
+        // 确保配置已加载
+        loadConfig();
 
+        const subAppsModule = modules['/subapps'];
+
+        if (subAppsModule && subAppsModule.enabled && subAppsModule.children) {
+          const enabledChildren = subAppsModule.children.filter(child => child.enabled);
+
+          if (enabledChildren.length > 0) {
+            const mappedSubApps: SubAppCard[] = enabledChildren.map((child: MenuChildConfig) => ({
+              key: child.key.replace('/', ''),
+              name: child.label,
+              description: child.description || '',
+              icon: iconMap[child.key] || <CodeOutlined />,
+              color: colorMap[child.key] || colors.primary[500],
+              path: child.key,
+              tags: child.category ? [child.category] : [],
+            }));
+
+            setSubApps(mappedSubApps);
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to load subApps from store, using default:', error);
+        // 降级使用默认列表
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadSubApps();
+  }, [modules, loadConfig]);
+
+  // 渲染内容
+  const renderContent = () => (
+    <>
       <Row gutter={[24, 24]}>
         {subApps.map((app) => (
           <Col xs={24} sm={12} md={8} key={app.key}>
@@ -106,13 +167,15 @@ const SubApps: React.FC = () => {
                 {app.name}
               </Title>
 
-              <div style={{ marginBottom: 12 }}>
-                {app.tags.map((tag) => (
-                  <Tag key={tag} color={app.color} style={{ marginRight: 4 }}>
-                    {tag}
-                  </Tag>
-                ))}
-              </div>
+              {app.tags.length > 0 && (
+                <div style={{ marginBottom: 12 }}>
+                  {app.tags.map((tag) => (
+                    <Tag key={tag} color={app.color} style={{ marginRight: 4 }}>
+                      {tag}
+                    </Tag>
+                  ))}
+                </div>
+              )}
 
               <Paragraph
                 type="secondary"
@@ -169,6 +232,25 @@ const SubApps: React.FC = () => {
           </ul>
         </Paragraph>
       </Card>
+    </>
+  );
+
+  return (
+    <div style={{ padding: 24 }}>
+      <div style={{ marginBottom: 32 }}>
+        <Title level={2}>子系统导航</Title>
+        <Paragraph type="secondary" style={{ fontSize: spacing[4] }}>
+          Orion 平台采用微前端架构，以下为集成的子系统应用。点击卡片进入相应子系统。
+        </Paragraph>
+      </div>
+
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: '100px 0' }}>
+          <Spin size="large" />
+        </div>
+      ) : (
+        renderContent()
+      )}
     </div>
   );
 };

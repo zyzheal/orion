@@ -7,12 +7,13 @@ import { SubAppConfig } from './types';
 // 开发环境配置
 const isDev = import.meta.env.DEV;
 
-// 子应用基础 URL 配置
-const APP_BASE_URLS: Record<string, string> = {
-  // 本地开发使用 localhost
-  dba: isDev ? 'http://localhost:3001' : '/orion-dba',
-  knowledge: isDev ? 'http://localhost:3002' : '/orion-knowledge',
-  visor: isDev ? 'http://localhost:3003' : '/orion-visor',
+// 子应用 URL 配置
+// 开发模式：通过 Vite 代理访问（同源），避免 wujie 跨域 iframe 问题
+// 生产模式：指向构建后的静态资源路径
+const APP_URLS: Record<string, string> = {
+  dba: isDev ? 'http://localhost:3000/orion-dba/' : '/orion-dba/index.html',
+  knowledge: isDev ? 'http://localhost:3000/orion-knowledge/' : '/orion-knowledge/index.html',
+  visor: isDev ? 'http://localhost:3000/orion-visor/' : '/orion-visor/index.html',
 };
 
 /**
@@ -23,30 +24,30 @@ export const subAppConfigs: SubAppConfig[] = [
     name: '数据库管理',
     key: 'dba',
     path: '/dba/*',
-    url: `${APP_BASE_URLS['dba']}/orion-dba`,
+    url: APP_URLS['dba'],
     container: '#wujie-dba',
     enabled: true,
-    keepAlive: true,
+    keepAlive: false,
     preload: false,
   },
   {
     name: '知识库',
     key: 'knowledge',
     path: '/knowledge/*',
-    url: `${APP_BASE_URLS['knowledge']}/orion-knowledge`,
+    url: APP_URLS['knowledge'],
     container: '#wujie-knowledge',
     enabled: true,
-    keepAlive: true,
+    keepAlive: false,
     preload: false,
   },
   {
     name: '监控中心',
     key: 'visor',
     path: '/visor/*',
-    url: `${APP_BASE_URLS['visor']}/orion-visor`,
+    url: APP_URLS['visor'],
     container: '#wujie-visor',
     enabled: true,
-    keepAlive: true,
+    keepAlive: false,
     preload: false,
   },
 ];

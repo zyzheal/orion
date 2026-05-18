@@ -1,4 +1,3 @@
-import React from 'react';
 import { Card, Col, Row, Typography, Space, Tag } from 'antd';
 import {
   DashboardOutlined,

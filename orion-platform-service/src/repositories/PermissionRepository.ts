@@ -1,4 +1,4 @@
-import { DatabasePool } from '../database';
+import { DatabasePool } from '../services/database';
 
 /**
  * PermissionRepository - Database layer for Permission operations
@@ -65,9 +65,9 @@ export class PermissionRepository {
       return `($${base}, $${base + 1}, $${base + 2})`;
     }).join(', ');
 
-    const params: string[] = [];
+    const params: unknown[] = [];
     for (const p of permissions) {
-      params.push(p.resource, p.action, p.description || null);
+      params.push(p.resource, p.action, p.description ?? null);
     }
 
     const result = await this.pool.query(

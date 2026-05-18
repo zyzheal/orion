@@ -1,8 +1,10 @@
+export type ChannelType = 'email' | 'slack' | 'webhook' | 'sms' | 'pagerduty' | 'dingtalk' | 'wecom';
+
 export interface NotificationChannel {
   id: string;
   tenantId: string;
   name: string;
-  type: 'email' | 'slack' | 'webhook' | 'sms' | 'pagerduty';
+  type: ChannelType;
   enabled: boolean;
   config: Record<string, unknown>;
   createdAt: Date;
@@ -12,7 +14,7 @@ export interface NotificationChannel {
 export interface CreateNotificationChannelInput {
   tenantId: string;
   name: string;
-  type: 'email' | 'slack' | 'webhook' | 'sms' | 'pagerduty';
+  type: ChannelType;
   enabled?: boolean;
   config: Record<string, unknown>;
 }

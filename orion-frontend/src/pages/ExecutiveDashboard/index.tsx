@@ -15,6 +15,9 @@ import {
   Typography,
   Badge,
   Result,
+  Button,
+  Card,
+  Empty,
 } from 'antd';
 import { colors, spacing } from '@/tokens';
 import {
@@ -26,6 +29,7 @@ import {
   FireOutlined,
   BarChartOutlined,
   RiseOutlined,
+  SyncOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { KPIMetric, ExecutiveDashboardData } from '@/types/pages';
@@ -76,89 +80,131 @@ const ExecutiveDashboard: React.FC = () => {
   // Retry handler - reload page on error
   const handleRetry = () => window.location.reload();
 
-  // Show empty state when no data available (not loading, not error, but no data)
-  if (!loading && !error && !apiData) {
-    return (
-      <div style={{ padding: 0 }}>
-        <Result
-          status="info"
-          title="暂无数据"
-          subTitle="效能仪表盘 API 尚未返回数据，请确认后端服务已正确部署。"
-        />
-      </div>
-    );
-  }
+  // Defensive: ensure data has required structure
+  const overview = apiData?.overview;
+  const trends = apiData?.trends;
+  const teamRanking = apiData?.teamRanking;
+  const alerts = apiData?.alerts;
+  const distribution = apiData?.distribution;
 
-  // Cast API data to expected type
-  const data = apiData as ExecutiveDashboardData | undefined;
-
-  // Build KPI metrics from API data
+  // Build KPI metrics from API data (must be called unconditionally)
   const kpiMetrics: KPIMetric[] = useMemo(
     () => {
-      if (!data) return [];
+      if (!overview) return [];
       return [
         {
           title: '总工单数',
-          value: data.overview.totalTickets,
+          value: overview.totalTickets ?? 0,
           suffix: '个',
           trend: { value: 12.5, direction: 'up' },
           status: 'normal',
         },
         {
           title: '已解决',
-          value: data.overview.resolvedTickets,
+          value: overview.resolvedTickets ?? 0,
           suffix: '个',
           trend: { value: 8.3, direction: 'up' },
           status: 'success',
         },
         {
           title: '待处理',
-          value: data.overview.openTickets,
+          value: overview.openTickets ?? 0,
           suffix: '个',
           trend: { value: 3.2, direction: 'down' },
           status: 'warning',
         },
         {
           title: '解决率',
-          value: `${data.overview.overallResolutionRate}%`,
+          value: `${overview.overallResolutionRate ?? 0}%`,
           trend: { value: 2.1, direction: 'up' },
           status: 'success',
         },
         {
           title: '平均解决时间',
-          value: `${data.overview.avgResolutionTimeHours}h`,
+          value: `${overview.avgResolutionTimeHours ?? 0}h`,
           trend: { value: 5.4, direction: 'down' },
           status: 'success',
         },
         {
           title: 'SLA合规率',
-          value: `${data.overview.slaComplianceRate}%`,
+          value: `${overview.slaComplianceRate ?? 0}%`,
           trend: { value: 1.2, direction: 'up' },
           status: 'success',
         },
         {
           title: '工程师总数',
-          value: data.overview.totalEngineers,
+          value: overview.totalEngineers ?? 0,
           suffix: '人',
           status: 'normal',
         },
         {
           title: '活跃工程师',
-          value: data.overview.activeEngineers,
+          value: overview.activeEngineers ?? 0,
           suffix: '人',
           status: 'normal',
         },
       ];
     },
-    [data]
+    [overview]
   );
 
-  if (!data) {
-    return null; // Will show loading/error via DataState
-  }
+  // Category display names
+  const categoryNames: Record<string, string> = {
+    infrastructure: '基础设施',
+    application: '应用',
+    database: '数据库',
+    network: '网络',
+    security: '安全',
+    deployment: '部署',
+    pipeline: '流水线',
+    performance: '性能',
+  };
 
-  // Team ranking table columns
-  const topPerformerColumns: ColumnsType<(typeof data.teamRanking.topPerformers)[0]> = [
+  // Priority display names
+  const priorityNames: Record<string, string> = {
+    critical: '紧急',
+    high: '高',
+    medium: '中',
+    low: '低',
+  };
+
+  // Trend chart - last 14 days of volume data
+  const recentVolumeTrend = trends?.ticketVolumeTrend?.slice(-14) || [];
+
+  // Alert cards data
+  const alertCards = [
+    {
+      title: 'SLA违规',
+      value: alerts?.slaBreachedCount ?? 0,
+      suffix: '个',
+      color: COLORS.error,
+      icon: <FireOutlined />,
+    },
+    {
+      title: '超期工单',
+      value: alerts?.overdueTicketsCount ?? 0,
+      suffix: '个',
+      color: colors.warning[500],
+      icon: <ClockCircleOutlined />,
+    },
+    {
+      title: '过载工程师',
+      value: alerts?.overloadedEngineers ?? 0,
+      suffix: '人',
+      color: COLORS.warning,
+      icon: <WarningOutlined />,
+    },
+    {
+      title: '24h+未分配',
+      value: alerts?.unassignedOlderThan24h ?? 0,
+      suffix: '个',
+      color: COLORS.info,
+      icon: <TeamOutlined />,
+    },
+  ];
+
+  // Team ranking table columns (must be called unconditionally)
+  const topPerformerColumns: ColumnsType<(typeof teamRanking.topPerformers)[0]> = [
     {
       title: '排名',
       key: 'rank',
@@ -197,60 +243,60 @@ const ExecutiveDashboard: React.FC = () => {
     },
   ];
 
-  // Alert cards data
-  const alertCards = [
-    {
-      title: 'SLA违规',
-      value: data.alerts.slaBreachedCount,
-      suffix: '个',
-      color: COLORS.error,
-      icon: <FireOutlined />,
-    },
-    {
-      title: '超期工单',
-      value: data.alerts.overdueTicketsCount,
-      suffix: '个',
-      color: colors.warning[500],
-      icon: <ClockCircleOutlined />,
-    },
-    {
-      title: '过载工程师',
-      value: data.alerts.overloadedEngineers,
-      suffix: '人',
-      color: COLORS.warning,
-      icon: <WarningOutlined />,
-    },
-    {
-      title: '24h+未分配',
-      value: data.alerts.unassignedOlderThan24h,
-      suffix: '个',
-      color: COLORS.info,
-      icon: <TeamOutlined />,
-    },
-  ];
+  // Show empty state when no data available (not loading, not error, but no data)
+  if (!loading && !error && !apiData) {
+    return (
+      <div style={{ padding: 0 }}>
+        <Result
+          status="info"
+          title="暂无数据"
+          subTitle={
+            <div>
+              <div>效能仪表盘 API 尚未返回数据。</div>
+              <div style={{ marginTop: 8, fontSize: 12, color: '#888' }}>
+                请确认后端 <code>orion-ticket-svc</code> 服务已正确部署并返回数据。
+              </div>
+            </div>
+          }
+        />
+      </div>
+    );
+  }
 
-  // Category display names
-  const categoryNames: Record<string, string> = {
-    infrastructure: '基础设施',
-    application: '应用',
-    database: '数据库',
-    network: '网络',
-    security: '安全',
-    deployment: '部署',
-    pipeline: '流水线',
-    performance: '性能',
-  };
+  // Show error state with graceful fallback
+  if (error) {
+    return (
+      <div style={{ padding: 0 }}>
+        <Result
+          status="warning"
+          title="数据加载失败"
+          subTitle={
+            <div>
+              <div>效能仪表盘依赖后端 <code>orion-ticket-svc</code> 微服务，该服务当前未部署或未启动。</div>
+              <div style={{ marginTop: 8, fontSize: 12, color: '#888' }}>
+                请确认后端服务已启动后刷新页面，或联系运维人员检查服务状态。
+              </div>
+            </div>
+          }
+          extra={
+            <Button type="primary" icon={<SyncOutlined />} onClick={handleRetry}>
+              刷新页面
+            </Button>
+          }
+        />
+        <Card title="工单量趋势（近14天）" style={{ marginTop: 16 }}>
+          <Empty description="暂无趋势数据" />
+        </Card>
+      </div>
+    );
+  }
 
-  // Priority display names
-  const priorityNames: Record<string, string> = {
-    critical: '紧急',
-    high: '高',
-    medium: '中',
-    low: '低',
-  };
+  // Cast API data to expected type
+  const data = apiData as ExecutiveDashboardData | undefined;
 
-  // Trend chart - last 14 days of volume data
-  const recentVolumeTrend = data.trends.ticketVolumeTrend.slice(-14);
+  if (!data) {
+    return null; // Will show loading/error via DataState
+  }
 
   return (
     <div style={{ padding: 0 }}>
@@ -321,7 +367,7 @@ const ExecutiveDashboard: React.FC = () => {
             <TrendLineChart
               title="SLA合规率趋势（近14天）"
               data={[
-                data.trends.slaComplianceTrend
+                (trends?.slaComplianceTrend || [])
                   .slice(-14)
                   .map((d): TrendDataPoint => ({ period: d.period, value: d.rate, label: 'SLA' })),
               ]}
@@ -339,7 +385,7 @@ const ExecutiveDashboard: React.FC = () => {
         <Col xs={24} xl={14}>
           <CardPanel title="团队排名 - 优秀工程师" extra={<Tag color="gold">Top 5</Tag>}>
             <Table
-              dataSource={data.teamRanking.topPerformers}
+              dataSource={teamRanking?.topPerformers || []}
               columns={topPerformerColumns}
               rowKey="engineerId"
               pagination={false}
@@ -352,13 +398,13 @@ const ExecutiveDashboard: React.FC = () => {
         <Col xs={24} xl={10}>
           <CardPanel title="需关注工程师" extra={<Tag color="orange">Attention</Tag>}>
             <BarChart
-              data={data.teamRanking.bottomPerformers.map(
+              data={(teamRanking?.bottomPerformers || []).map(
                 (m): BarDataItem => ({ label: m.name, value: m.score })
               )}
               height={200}
             />
             <div style={{ marginTop: 8, padding: `0 ${spacing[2]}` }}>
-              {data.teamRanking.bottomPerformers.map((member) => (
+              {(teamRanking?.bottomPerformers || []).map((member) => (
                 <div key={member.engineerId} style={{ marginBottom: spacing[2] }}>
                   <Text type="warning" style={{ fontSize: spacing[3] }}>
                     <WarningOutlined style={{ marginRight: 4 }} />
@@ -379,7 +425,7 @@ const ExecutiveDashboard: React.FC = () => {
               <div style={{ display: 'flex', justifyContent: 'center' }}>
                 <GaugeChart
                   title="SLA合规率"
-                  value={data.overview.slaComplianceRate}
+                  value={overview?.slaComplianceRate ?? 0}
                   thresholds={{ warning: 85, danger: 90 }}
                   direction="descend"
                   size={160}
@@ -410,12 +456,12 @@ const ExecutiveDashboard: React.FC = () => {
           <CardPanel
             title="工单分类分布"
             extra={
-              <Tag color="purple">{Object.keys(data.distribution.byCategory).length}个分类</Tag>
+              <Tag color="purple">{Object.keys(distribution?.byCategory || {}).length}个分类</Tag>
             }
           >
             <PieChart
               title="工单分类分布"
-              data={Object.entries(data.distribution.byCategory).map(
+              data={Object.entries(distribution?.byCategory || {}).map(
                 ([key, val]): PieDataItem => ({
                   name: categoryNames[key] || key,
                   value: val.count,
@@ -432,7 +478,7 @@ const ExecutiveDashboard: React.FC = () => {
         <Col xs={24} xl={10}>
           <CardPanel title="优先级分布">
             <BarChart
-              data={Object.entries(data.distribution.byPriority).flatMap(
+              data={Object.entries(distribution?.byPriority || {}).flatMap(
                 ([key, val]): BarDataItem[] => [
                   { label: priorityNames[key] || key, value: val.count, series: '总数' },
                   { label: priorityNames[key] || key, value: val.resolved, series: '已解决' },

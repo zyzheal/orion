@@ -231,9 +231,9 @@ const Sidebar = () => {
           startIcon={
             <IconBangzhuwendang1 sx={{ fontSize: '14px !important' }} />
           }
-          onClick={() =>
+          onClick={() => {
             // 外部文档链接已移除
-          }
+          }}
         >
           帮助文档
         </Button>

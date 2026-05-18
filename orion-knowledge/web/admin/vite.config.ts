@@ -141,6 +141,10 @@ export default defineConfig(({ command, mode }) => {
         },
       },
       host: '0.0.0.0',
+      cors: true,
+      headers: {
+        'Access-Control-Allow-Origin': '*', // wujie 需要
+      },
     },
     esbuild: {
       // 保留函数和类名

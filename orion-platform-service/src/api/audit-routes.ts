@@ -112,7 +112,7 @@ export default async function auditRoutes(
 
   // GET /logs - List audit logs (paginated)
   app.get('/logs', {
-    onRequest: [authenticateUser, requirePermission({ resourceType: 'audit', action: 'read' })],
+    onRequest: [authenticateUser, requirePermission({ resource: 'audit', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     if (!service) return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'Database not configured' });
 
@@ -145,7 +145,7 @@ export default async function auditRoutes(
 
   // GET /logs/:id - Get single audit log
   app.get('/logs/:id', {
-    onRequest: [authenticateUser, requirePermission({ resourceType: 'audit', action: 'read' })],
+    onRequest: [authenticateUser, requirePermission({ resource: 'audit', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     if (!service) return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'Database not configured' });
 
@@ -161,7 +161,7 @@ export default async function auditRoutes(
 
   // POST /logs - Create audit log
   app.post('/logs', {
-    onRequest: [authenticateUser, requirePermission({ resourceType: 'audit', action: 'write' })],
+    onRequest: [authenticateUser, requirePermission({ resource: 'audit', action: 'write' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     if (!service) return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'Database not configured' });
 
@@ -178,7 +178,7 @@ export default async function auditRoutes(
 
   // GET /logs/:id/verify - Verify single audit log integrity
   app.get('/logs/:id/verify', {
-    onRequest: [authenticateUser, requirePermission({ resourceType: 'audit', action: 'read' })],
+    onRequest: [authenticateUser, requirePermission({ resource: 'audit', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     if (!service) return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'Database not configured' });
 
@@ -200,7 +200,7 @@ export default async function auditRoutes(
 
   // POST /verify - Verify entire chain integrity
   app.post('/verify', {
-    onRequest: [authenticateUser, requirePermission({ resourceType: 'audit', action: 'read' })],
+    onRequest: [authenticateUser, requirePermission({ resource: 'audit', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     if (!service) return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'Database not configured' });
 
@@ -231,7 +231,7 @@ export default async function auditRoutes(
 
   // GET /actions - Get distinct action types
   app.get('/actions', {
-    onRequest: [authenticateUser, requirePermission({ resourceType: 'audit', action: 'read' })],
+    onRequest: [authenticateUser, requirePermission({ resource: 'audit', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     if (!service) return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'Database not configured' });
 
@@ -248,7 +248,7 @@ export default async function auditRoutes(
 
   // GET /resource-types - Get distinct resource types
   app.get('/resource-types', {
-    onRequest: [authenticateUser, requirePermission({ resourceType: 'audit', action: 'read' })],
+    onRequest: [authenticateUser, requirePermission({ resource: 'audit', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     if (!service) return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'Database not configured' });
 
@@ -268,7 +268,7 @@ export default async function auditRoutes(
 
   // GET /chain/info - Chain info (frontend compatibility)
   app.get('/chain/info', {
-    onRequest: [authenticateUser, requirePermission({ resourceType: 'audit', action: 'read' })],
+    onRequest: [authenticateUser, requirePermission({ resource: 'audit', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     if (!service) return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'Database not configured' });
 
@@ -295,7 +295,7 @@ export default async function auditRoutes(
 
   // GET /storage/stats - Storage stats (frontend compatibility)
   app.get('/storage/stats', {
-    onRequest: [authenticateUser, requirePermission({ resourceType: 'audit', action: 'read' })],
+    onRequest: [authenticateUser, requirePermission({ resource: 'audit', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     if (!service) return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'Database not configured' });
 
@@ -320,7 +320,7 @@ export default async function auditRoutes(
   // POST /storage/flush - Flush storage (frontend compatibility)
   // Note: This is a no-op for PostgreSQL as data is already persistent
   app.post('/storage/flush', {
-    onRequest: [authenticateUser, requirePermission({ resourceType: 'audit', action: 'manage' })],
+    onRequest: [authenticateUser, requirePermission({ resource: 'audit', action: 'manage' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     // PostgreSQL doesn't need flush - data is already persisted
     return reply.send({ status: 'noop', message: 'PostgreSQL storage does not require flush' });
@@ -328,14 +328,14 @@ export default async function auditRoutes(
 
   // GET /chain/genesis - Genesis hash (frontend compatibility)
   app.get('/chain/genesis', {
-    onRequest: [authenticateUser, requirePermission({ resourceType: 'audit', action: 'read' })],
+    onRequest: [authenticateUser, requirePermission({ resource: 'audit', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     return reply.send({ genesisHash: '0'.repeat(64) });
   });
 
   // GET /chain/latest - Latest entry (frontend compatibility)
   app.get('/chain/latest', {
-    onRequest: [authenticateUser, requirePermission({ resourceType: 'audit', action: 'read' })],
+    onRequest: [authenticateUser, requirePermission({ resource: 'audit', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     if (!service) return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'Database not configured' });
 

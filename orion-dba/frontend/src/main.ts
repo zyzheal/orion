@@ -12,9 +12,6 @@ import localeData from 'dayjs/plugin/localeData';
 extend(weekday);
 extend(localeData);
 
-// 微前端：判断是否运行在 wujie 容器中
-const isWujieSubApp = !!window.__POWERED_BY_WUJIE__;
-
 // 初始化主题
 function initTheme() {
   if (localStorage.getItem('theme') === null) {
@@ -56,30 +53,75 @@ function createOrionApp(props: any = {}) {
   app.use(CTable);
   app.use(routes);
 
+  // 如果运行在 wujie 容器中，将 token 同步到 Vuex store（路由守卫依赖它）
+  if (props?.$orion?.token) {
+    store.commit('user/USER_STORE', {
+      token: props.$orion.token,
+      real_name: props.$orion.user?.name || '',
+      user: props.$orion.user?.name || '',
+      is_record: 2,
+    });
+  }
+
   return app;
 }
 
 let instance: any = null;
 
-// 独立运行模式
-if (!isWujieSubApp) {
-  instance = createOrionApp();
-  instance.mount('#app');
-  console.log('[orion-dba-frontend] Running in standalone mode');
-}
+// 独立运行模式（微任务延迟，让 wujie 先设置标志位）
+Promise.resolve().then(() => {
+  if (!(window as any).__POWERED_BY_WUJIE__) {
+    instance = createOrionApp();
+    instance.mount('#app');
+    console.log('[orion-dba-frontend] Running in standalone mode');
 
-// wujie 生命周期导出
+    // 监听来自主应用的 postMessage 消息（传递 token）
+    window.addEventListener('message', (event) => {
+      if (event.data?.type === 'ORION_TOKEN') {
+        console.log('[orion-dba-frontend] 收到 token:', event.data.token ? '已接收' : '无');
+
+        (window as any).$orion = {
+          token: event.data.token,
+          apiBase: event.data.apiBase || '/api/v1/db',
+          getApiBase: () => event.data.apiBase || '/api/v1/db',
+        };
+
+        if (event.data.token) {
+          sessionStorage.setItem('jwt', event.data.token);
+        }
+      }
+    });
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const tokenFromUrl = urlParams.get('orion_token');
+    if (tokenFromUrl) {
+      (window as any).$orion = {
+        token: tokenFromUrl,
+        apiBase: '/api/v1/db',
+        getApiBase: () => '/api/v1/db',
+      };
+      sessionStorage.setItem('jwt', tokenFromUrl);
+    }
+  }
+});
+
+// wujie 生命周期
+// wujie 通过 window.$wujie.props 传递 props（非 mount 参数）
+
 export async function bootstrap() {
   console.log('[orion-dba-frontend] bootstrap');
 }
 
-export async function mount(props: any) {
-  console.log('[orion-dba-frontend] mount with props:', props);
+function getWujieProps(): any {
+  return (window as any).$wujie?.props || {};
+}
 
-  // 标记为 wujie 子应用
+export async function mount(_props: any) {
+  const props = getWujieProps();
+  console.log('[orion-dba-frontend] mount, wujie props:', props);
+
   window.__POWERED_BY_WUJIE__ = true;
 
-  // 存储全局状态
   if (props?.$orion) {
     (window as any).$orion = props.$orion;
   }
@@ -98,23 +140,28 @@ export async function unmount() {
   window.__POWERED_BY_WUJIE__ = false;
 }
 
+// wujie 期望的 window 钩子
+(function registerWujieLifecycle() {
+  (window as any).__WUJIE_MOUNT = () => mount({});
+  (window as any).__WUJIE_UNMOUNT = () => unmount();
+})();
+
 function addWaterMarker(text: string) {
   const id = '1.23452384164.123412415';
   if (document.getElementById(id) !== null) {
     document.body.removeChild(document.getElementById(id) as HTMLElement);
   }
   const can = document.createElement('canvas');
-  // 设置 canvas 画布大小
   can.width = 200;
   can.height = 100;
 
   const cans = can.getContext('2d') as CanvasRenderingContext2D;
-  cans.rotate((-20 * Math.PI) / 180); // 水印旋转角度
+  cans.rotate((-20 * Math.PI) / 180);
   cans.font = '20px Vedana';
   cans.fillStyle = '#4A4A4A';
   cans.textAlign = 'center';
   cans.textBaseline = 'middle';
-  cans.fillText(text, can.width / 2, can.height); // 水印在画布的位置 x，y 轴
+  cans.fillText(text, can.width / 2, can.height);
 
   const div = document.createElement('div');
   div.id = id;

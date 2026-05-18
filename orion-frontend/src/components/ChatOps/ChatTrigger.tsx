@@ -10,7 +10,6 @@ const ChatTrigger: React.FC = () => {
   const { isOpen, toggle, alertLevel, unreadAlerts, setPageContext } = useChatOpsStore();
   const location = useLocation();
 
-  // FE-2/P2-2: 使用集中管理的 pageContext 提取路由上下文
   useEffect(() => {
     const ctx = extractPageContext(location.pathname);
     setPageContext(ctx);
@@ -65,19 +64,20 @@ const ChatTrigger: React.FC = () => {
             position: 'fixed',
             right: 24,
             bottom: 24,
-            width: 56,
-            height: 56,
+            width: 52,
+            height: 52,
             borderRadius: '50%',
             background: config.gradient,
             color: '#fff',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: 24,
+            fontSize: 22,
             cursor: 'pointer',
-            zIndex: 999, // TE-13: 在 Drawer (1000) 之下
-            boxShadow: `0 4px 12px ${config.color}40`,
-            transition: 'all 0.3s',
+            zIndex: 999,
+            boxShadow: `0 4px 16px ${config.color}40`,
+            transition: 'all 0.3s ease',
+            border: '2px solid rgba(255,255,255,0.3)',
           }}
           className={'pulse' in config && config.pulse ? 'chat-trigger-pulse' : ''}
         >

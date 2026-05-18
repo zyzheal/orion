@@ -140,6 +140,7 @@ export const useAuthStore = create<AuthState>()(
         accessToken: null,
         refreshToken: null,
         tokenExpiresAt: null,
+        isLoading: false,
       });
       localStorage.removeItem(TOKEN_KEY);
       localStorage.removeItem(REFRESH_TOKEN_KEY);

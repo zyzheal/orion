@@ -101,7 +101,8 @@ export class SbomWaiverService {
     if (!this.waiverRepo) {
       return null;
     }
-    return this.waiverRepo.findById(id) ?? null;
+    const result = await this.waiverRepo.findById(id);
+    return result ?? null;
   }
 
   /**
@@ -177,7 +178,8 @@ export class SbomWaiverService {
     }
 
     logger.info({ waiverId: id }, '[SbomWaiver] Waiver updated');
-    return this.waiverRepo.findById(id) ?? null;
+    const result = await this.waiverRepo.findById(id);
+    return result ?? null;
   }
 
   /**

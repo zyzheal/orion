@@ -1,9 +1,12 @@
 /* @refresh reload */
-import React, { lazy, useEffect, type ReactNode } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import React, { lazy, type ReactNode } from 'react';
+import { Navigate } from 'react-router-dom';
 
 // 使用 lazy 替代 React.lazy
 const lazyImport = (path: string) => lazy(() => import(/* @vite-ignore */ path));
+
+// 重定向组件（使用 react-router-dom Navigate）
+const RedirectTo: React.FC<{ to: string }> = ({ to }) => <Navigate to={to} replace />;
 
 export interface AppRoute {
   path?: string;
@@ -1184,7 +1187,7 @@ export const routes: AppRoute[] = [
   },
   {
     path: '/ai/provider',
-    element: React.lazy(() => import('@/pages/AIProvider')),
+    element: React.lazy(() => import('@/pages/AIDashboard')),
     protected: true,
     requiredPermission: { resource: 'ai-provider', action: 'read' },
   },
@@ -1240,83 +1243,47 @@ export const routes: AppRoute[] = [
   // ==================== 旧路由 301 重定向（向后兼容） ====================
   {
     path: '/ai-gateway',
-    element: () => {
-      const navigate = useNavigate();
-      useEffect(() => { navigate('/ai/gateway', { replace: true }); }, [navigate]);
-      return null;
-    },
+    element: <RedirectTo to="/ai/gateway" />,
     protected: false,
   },
   {
     path: '/agents',
-    element: () => {
-      const navigate = useNavigate();
-      useEffect(() => { navigate('/ai/agents', { replace: true }); }, [navigate]);
-      return null;
-    },
+    element: <RedirectTo to="/ai/agents" />,
     protected: false,
   },
   {
     path: '/agent-runs/:id',
-    element: () => {
-      const navigate = useNavigate();
-      useEffect(() => { navigate('/ai/agents', { replace: true }); }, [navigate]);
-      return null;
-    },
+    element: <RedirectTo to="/ai/agents" />,
     protected: false,
   },
   {
     path: '/ai-security',
-    element: () => {
-      const navigate = useNavigate();
-      useEffect(() => { navigate('/ai/security', { replace: true }); }, [navigate]);
-      return null;
-    },
+    element: <RedirectTo to="/ai/security" />,
     protected: false,
   },
   {
     path: '/console/chatops',
-    element: () => {
-      const navigate = useNavigate();
-      useEffect(() => { navigate('/ai/chatops', { replace: true }); }, [navigate]);
-      return null;
-    },
+    element: <RedirectTo to="/ai/chatops" />,
     protected: false,
   },
   {
     path: '/console/ai-review',
-    element: () => {
-      const navigate = useNavigate();
-      useEffect(() => { navigate('/ai/review', { replace: true }); }, [navigate]);
-      return null;
-    },
+    element: <RedirectTo to="/ai/review" />,
     protected: false,
   },
   {
     path: '/console/ai-docs',
-    element: () => {
-      const navigate = useNavigate();
-      useEffect(() => { navigate('/ai/docs', { replace: true }); }, [navigate]);
-      return null;
-    },
+    element: <RedirectTo to="/ai/docs" />,
     protected: false,
   },
   {
     path: '/console/llm-trace',
-    element: () => {
-      const navigate = useNavigate();
-      useEffect(() => { navigate('/ai/trace', { replace: true }); }, [navigate]);
-      return null;
-    },
+    element: <RedirectTo to="/ai/trace" />,
     protected: false,
   },
   {
     path: '/console/ai-cost',
-    element: () => {
-      const navigate = useNavigate();
-      useEffect(() => { navigate('/ai/cost', { replace: true }); }, [navigate]);
-      return null;
-    },
+    element: <RedirectTo to="/ai/cost" />,
     protected: false,
   },
 

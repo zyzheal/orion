@@ -181,96 +181,85 @@ const AIGatewayPage: React.FC = () => {
   }));
 
   return (
-    <DashboardLayout>
-      <div style={{ padding: 24 }}>
-        {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
-          <div>
-            <Title level={2}>AI 网关管理</Title>
-            <Text type="secondary">AI 模型路由、降级处理、规则引擎监控</Text>
-          </div>
-          <Space>
-            <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
-              刷新
-            </Button>
-            <Button icon={<SettingOutlined />}>配置</Button>
-          </Space>
+    <DashboardLayout padding={24} columns={4}>
+      {/* Header - spans all columns */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24, gridColumn: '1 / -1' }}>
+        <div>
+          <Title level={2} style={{ margin: 0 }}>AI 网关管理</Title>
+          <Text type="secondary">AI 模型路由、降级处理、规则引擎监控</Text>
         </div>
+        <Space>
+          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+            刷新
+          </Button>
+          <Button icon={<SettingOutlined />}>配置</Button>
+        </Space>
+      </div>
 
-        {/* Summary Cards */}
-        <Row gutter={16} style={{ marginBottom: 24 }}>
-          <Col span={6}>
-            <Card>
-              <Statistic
-                title="场景总数"
-                value={healthData.length}
-                prefix={<ThunderboltOutlined />}
-              />
-            </Card>
-          </Col>
-          <Col span={6}>
-            <Card>
-              <Statistic
-                title="健康场景"
-                value={healthData.filter((h) => h.isHealthy).length}
-                valueStyle={{ color: colors.success[500] }}
-                prefix={<CheckCircleOutlined />}
-              />
-            </Card>
-          </Col>
-          <Col span={6}>
-            <Card>
-              <Statistic
-                title="熔断场景"
-                value={healthData.filter((h) => h.circuitState === 'OPEN').length}
-                valueStyle={{ color: colors.error[500] }}
-                prefix={<CloseCircleOutlined />}
-              />
-            </Card>
-          </Col>
-          <Col span={6}>
-            <Card>
-              <Statistic
-                title="降级激活"
-                value={healthData.filter((h) => h.degradationActive).length}
-                valueStyle={{ color: colors.warning[500] }}
-                prefix={<SafetyOutlined />}
-              />
-            </Card>
-          </Col>
-        </Row>
+      {/* Summary Cards - 4 columns */}
+      <Card>
+        <Statistic
+          title="场景总数"
+          value={healthData.length}
+          prefix={<ThunderboltOutlined />}
+        />
+      </Card>
+      <Card>
+        <Statistic
+          title="健康场景"
+          value={healthData.filter((h) => h.isHealthy).length}
+          valueStyle={{ color: colors.success[500] }}
+          prefix={<CheckCircleOutlined />}
+        />
+      </Card>
+      <Card>
+        <Statistic
+          title="熔断场景"
+          value={healthData.filter((h) => h.circuitState === 'OPEN').length}
+          valueStyle={{ color: colors.error[500] }}
+          prefix={<CloseCircleOutlined />}
+        />
+      </Card>
+      <Card>
+        <Statistic
+          title="降级激活"
+          value={healthData.filter((h) => h.degradationActive).length}
+          valueStyle={{ color: colors.warning[500] }}
+          prefix={<SafetyOutlined />}
+        />
+      </Card>
 
-        {/* Gateway Status */}
-        <Card title="网关状态" style={{ marginBottom: 24 }}>
-          <Space size="large">
-            <div>
-              <Text type="secondary">网关状态:</Text>{' '}
-              <Tag color={gatewayStatus?.status === 'healthy' ? 'green' : 'red'}>
-                {gatewayStatus?.status || '未知'}
-              </Tag>
-            </div>
-            <div>
-              <Text type="secondary">缓存:</Text>{' '}
-              <Tag color={engineStatus?.cacheEnabled ? 'green' : 'default'}>
-                {engineStatus?.cacheEnabled ? '启用' : '禁用'}
-              </Tag>
-            </div>
-            <div>
-              <Text type="secondary">审计:</Text>{' '}
-              <Tag color={engineStatus?.auditEnabled ? 'green' : 'default'}>
-                {engineStatus?.auditEnabled ? '启用' : '禁用'}
-              </Tag>
-            </div>
-          </Space>
-        </Card>
+      {/* Gateway Status - spans all columns */}
+      <Card title="网关状态" style={{ marginTop: 24, gridColumn: '1 / -1' }}>
+        <Space size="large">
+          <div>
+            <Text type="secondary">网关状态:</Text>{' '}
+            <Tag color={gatewayStatus?.status === 'healthy' ? 'green' : 'red'}>
+              {gatewayStatus?.status || '未知'}
+            </Tag>
+          </div>
+          <div>
+            <Text type="secondary">缓存:</Text>{' '}
+            <Tag color={engineStatus?.cacheEnabled ? 'green' : 'default'}>
+              {engineStatus?.cacheEnabled ? '启用' : '禁用'}
+            </Tag>
+          </div>
+          <div>
+            <Text type="secondary">审计:</Text>{' '}
+            <Tag color={engineStatus?.auditEnabled ? 'green' : 'default'}>
+              {engineStatus?.auditEnabled ? '启用' : '禁用'}
+            </Tag>
+          </div>
+        </Space>
+      </Card>
 
-        {/* Health Table */}
-        <Card title="场景健康监控">
-          <Table columns={columns} dataSource={tableData} loading={loading} pagination={false} />
-        </Card>
+      {/* Health Table - spans all columns */}
+      <Card title="场景健康监控" style={{ marginTop: 24, gridColumn: '1 / -1' }}>
+        <Table columns={columns} dataSource={tableData} loading={loading} pagination={false} />
+      </Card>
 
-        {/* Rules Info */}
-        <Card title="规则引擎" style={{ marginTop: 24 }}>
+      {/* Rules Info - spans all columns */}
+      <Card title="规则引擎" style={{ marginTop: 24, gridColumn: '1 / -1' }}>
           {rules ? (
             <div>
               <Text>内置降级规则覆盖 {rules.scenarios?.length || 15} 个 AI 场景</Text>
@@ -286,7 +275,6 @@ const AIGatewayPage: React.FC = () => {
             <Text type="secondary">加载中...</Text>
           )}
         </Card>
-      </div>
     </DashboardLayout>
   );
 };

@@ -26,9 +26,9 @@ import { FastifyRequest, FastifyReply } from 'fastify';
  */
 export function roleGuard(requiredRoles: string[]) {
   return async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
-    const userRole = request.user?.role;
+    const userRoles = request.user?.roles || [];
 
-    if (!userRole) {
+    if (userRoles.length === 0) {
       // User not authenticated - auth middleware should have caught this,
       // but we double-check here for safety.
       return reply.code(401).send({
@@ -38,7 +38,8 @@ export function roleGuard(requiredRoles: string[]) {
       });
     }
 
-    if (!requiredRoles.includes(userRole)) {
+    const hasRole = userRoles.some(r => requiredRoles.includes(r));
+    if (!hasRole) {
       return reply.code(403).send({
         code: 403,
         error: 'FORBIDDEN',

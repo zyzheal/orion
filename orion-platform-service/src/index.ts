@@ -54,6 +54,7 @@ async function main() {
         await database.connect();
       } catch (error) {
         console.warn('Database connection failed, continuing without Database');
+        database = undefined; // Don't pass a disconnected pool
       }
     }
 

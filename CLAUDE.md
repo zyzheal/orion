@@ -101,10 +101,8 @@ npx vitest run path/to/test.ts
 - **TypeScript**: All critical errors fixed; ongoing cleanup of edge-case type issues
 
 ### Known Issues to Be Aware Of
-1. **No real EventBus integration**: Event publishers exist but are not wired to NATS (uses fallback)
-2. **Dual ArtifactService confusion**: `services/artifact/` and build-related services have overlapping responsibilities
-3. **orion-platform-service is the monolith**: All services run in one process; 34 microservice directories exist but are planned/separate, not deployed independently
-4. **18+ modules lack design docs**: S9-S18 (OnCall, Vector Store, API Key, Cron, Webhook, Queue, Environment, User/Role/Session, Projects, Approvals) implemented but undocumented
+1. **Dual ArtifactService confusion**: `services/artifact/` and build-related services have overlapping responsibilities
+2. **orion-platform-service is the monolith**: All 34 microservice directories have substantial code but are currently deployed as a single process
 
 ### Recent Milestones
 - **M25 Persistence Migration**: 30+ services migrated from `Map()` mock storage to PostgreSQL Repository pattern

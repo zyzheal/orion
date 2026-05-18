@@ -2,7 +2,7 @@
  * Execution Dashboard - Recent executions, status tracking, execution timeline
  */
 import React, { useState, useMemo, useEffect } from 'react';
-import { Typography, Button, Space, Tag, Card, Row, Col, Statistic, Timeline, message } from 'antd';
+import { Typography, Button, Space, Tag, Card, Row, Col, Statistic, Timeline, Empty } from 'antd';
 import { colors, spacing } from '@/tokens';
 import { ReloadOutlined, PlayCircleOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
@@ -37,9 +37,11 @@ const ExecutionDashboard: React.FC = () => {
   const [executions, setExecutions] = useState<ChatOpsExecution[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<Record<string, string | string[] | undefined>>({});
+  const [apiError, setApiError] = useState<string | null>(null);
 
   const loadData = async () => {
     setLoading(true);
+    setApiError(null);
     try {
       const res = await getExecutions({
         commandId: searchQuery || undefined,
@@ -51,12 +53,9 @@ const ExecutionDashboard: React.FC = () => {
       });
       const data = Array.isArray(res.data.data) ? res.data.data : [];
       setExecutions(data);
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        message.error(`加载失败：${error.message}`);
-      } else {
-        message.error('加载执行记录失败');
-      }
+    } catch {
+      setApiError('后端服务暂不可用');
+      setExecutions([]);
     } finally {
       setLoading(false);
     }
@@ -67,7 +66,6 @@ const ExecutionDashboard: React.FC = () => {
   }, [filters.status, filters.platform, searchQuery]);
 
   const filteredExecutions = useMemo(() => {
-    // 后端已根据 searchQuery(commandId) 和 filters 过滤，这里只做前端二次过滤（可选）
     return executions;
   }, [executions]);
 
@@ -161,6 +159,23 @@ const ExecutionDashboard: React.FC = () => {
     },
   ];
 
+  if (apiError && executions.length === 0) {
+    return (
+      <div style={{ padding: 0 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+          <div>
+            <Title level={3} style={{ margin: 0 }}>执行监控</Title>
+            <Text type="secondary">最近命令执行记录与状态跟踪</Text>
+          </div>
+          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>刷新</Button>
+        </div>
+        <Card>
+          <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={apiError} />
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div style={{ padding: 0 }}>
       <div
@@ -243,28 +258,32 @@ const ExecutionDashboard: React.FC = () => {
               </Space>
             }
           >
-            <Timeline>
-              {executions.slice(0, 8).map((exec) => (
-                <Timeline.Item
-                  key={exec.id}
-                  color={
-                    exec.status === 'completed'
-                      ? 'green'
-                      : exec.status === 'failed'
-                        ? 'red'
-                        : exec.status === 'running'
-                          ? 'blue'
-                          : 'gray'
-                  }
-                >
-                  <Text strong>/{exec.commandId}</Text>
-                  <br />
-                  <Text type="secondary" style={{ fontSize: spacing[3] }}>
-                    {exec.platform} - {dayjs(exec.startTime).fromNow()}
-                  </Text>
-                </Timeline.Item>
-              ))}
-            </Timeline>
+            {executions.length === 0 ? (
+              <Empty description="暂无执行记录" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+            ) : (
+              <Timeline>
+                {executions.slice(0, 8).map((exec) => (
+                  <Timeline.Item
+                    key={exec.id}
+                    color={
+                      exec.status === 'completed'
+                        ? 'green'
+                        : exec.status === 'failed'
+                          ? 'red'
+                          : exec.status === 'running'
+                            ? 'blue'
+                            : 'gray'
+                    }
+                  >
+                    <Text strong>/{exec.commandId}</Text>
+                    <br />
+                    <Text type="secondary" style={{ fontSize: spacing[3] }}>
+                      {exec.platform} - {dayjs(exec.startTime).fromNow()}
+                    </Text>
+                  </Timeline.Item>
+                ))}
+              </Timeline>
+            )}
           </Card>
         </Col>
       </Row>

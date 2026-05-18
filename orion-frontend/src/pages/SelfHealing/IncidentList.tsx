@@ -151,7 +151,7 @@ const IncidentList: React.FC = () => {
           type="link"
           size="small"
           icon={<EyeOutlined />}
-          onClick={() => navigate(`/self-healing/incidents/${record.id}`)}
+          onClick={() => navigate(`/console/self-healing/incidents/${record.id}`)}
         >
           详情
         </Button>

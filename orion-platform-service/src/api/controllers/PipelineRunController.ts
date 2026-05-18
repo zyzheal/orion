@@ -130,13 +130,29 @@ export class PipelineRunController {
       }
 
       // Build enhanced context with injected params and tenantId
-      const enhancedContext = {
+      const enhancedContext: Record<string, unknown> = {
         ...(context as any || {}),
         injectedParams,
         branch,
         commitSha,
         tenantId, // P4 Security: include tenantId in context
       };
+
+      // SCM bidirectional: build proper git context for status write-back
+      if (branch || commitSha) {
+        enhancedContext.git = {
+          ref: branch || '',
+          sha: commitSha || '',
+          repo: (context as any)?.repository || '',
+        };
+        // Pass through PR info if provided
+        if ((context as any)?.prNumber) {
+          enhancedContext.prNumber = (context as any).prNumber;
+        }
+        if ((context as any)?.scmProvider) {
+          enhancedContext.scmProvider = (context as any).scmProvider;
+        }
+      }
 
       const run = await this.engine.execute(
         pipelineId,

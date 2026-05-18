@@ -444,6 +444,10 @@ export class CodeRepoWebhookService extends EventEmitter {
     const basePayload: CodeRepoWebhookPayload = {
       eventType,
       repoType: RepoType.GITLAB,
+      repositoryId: String(repo.id || ''),
+      repositoryName: repo.name || '',
+      repositoryUrl: repo.web_url || repo.html_url || '',
+      sender: payload.user_username || payload.user_name || '',
       repository: {
         id: String(repo.id || ''),
         name: repo.name || '',
@@ -451,6 +455,8 @@ export class CodeRepoWebhookService extends EventEmitter {
         url: repo.web_url || repo.html_url || '',
       },
       rawPayload: payload,
+      timestamp: new Date(),
+      payload: payload as Record<string, unknown>,
     };
 
     // 添加 PR/MR 信息
@@ -527,6 +533,10 @@ export class CodeRepoWebhookService extends EventEmitter {
     const basePayload: CodeRepoWebhookPayload = {
       eventType,
       repoType: RepoType.GERRIT,
+      repositoryId: project.name || '',
+      repositoryName: (project.name || '').split('/').pop() || '',
+      repositoryUrl: project.url || '',
+      sender: payload.uploader || payload.author || '',
       repository: {
         id: project.name || '',
         name: (project.name || '').split('/').pop() || '',
@@ -534,6 +544,8 @@ export class CodeRepoWebhookService extends EventEmitter {
         url: project.url || '',
       },
       rawPayload: payload,
+      timestamp: new Date(),
+      payload: payload as Record<string, unknown>,
     };
 
     // 添加 Change 信息
@@ -597,6 +609,10 @@ export class CodeRepoWebhookService extends EventEmitter {
     const basePayload: CodeRepoWebhookPayload = {
       eventType,
       repoType: RepoType.GITHUB,
+      repositoryId: String(repo.id || ''),
+      repositoryName: repo.name || '',
+      repositoryUrl: repo.html_url || '',
+      sender: payload.sender?.login || '',
       repository: {
         id: String(repo.id || ''),
         name: repo.name || '',
@@ -604,6 +620,8 @@ export class CodeRepoWebhookService extends EventEmitter {
         url: repo.html_url || '',
       },
       rawPayload: payload,
+      timestamp: new Date(),
+      payload: payload as Record<string, unknown>,
     };
 
     if (pr.number || pr.id) {

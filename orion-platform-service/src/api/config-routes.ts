@@ -55,14 +55,14 @@ export default async function configRoutes(
 
   // POST /configs - Create configuration item
   app.post('/configs', {
-    onRequest: [authenticateUser, requirePermission({ resourceType: 'config', action: 'write' })],
+    onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'write' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     return configController.create(request, reply);
   });
 
   // GET /configs - List configurations
   app.get('/configs', {
-    onRequest: [authenticateUser, requirePermission({ resourceType: 'config', action: 'read' })],
+    onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     return configController.list(request, reply);
   });
@@ -71,7 +71,7 @@ export default async function configRoutes(
   app.get(
     '/configs/:configId',
     {
-      onRequest: [authenticateUser, requirePermission({ resourceType: 'config', action: 'read' })],
+      onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'read' })],
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
       return configController.getById(request, reply);
@@ -82,7 +82,7 @@ export default async function configRoutes(
   app.put(
     '/configs/:configId',
     {
-      onRequest: [authenticateUser, requirePermission({ resourceType: 'config', action: 'write' })],
+      onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'write' })],
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
       return configController.update(request, reply);
@@ -93,7 +93,7 @@ export default async function configRoutes(
   app.delete(
     '/configs/:configId',
     {
-      onRequest: [authenticateUser, requirePermission({ resourceType: 'config', action: 'delete' })],
+      onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'delete' })],
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
       return configController.delete(request, reply);
@@ -104,7 +104,7 @@ export default async function configRoutes(
   app.get(
     '/configs/:configId/versions',
     {
-      onRequest: [authenticateUser, requirePermission({ resourceType: 'config', action: 'read' })],
+      onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'read' })],
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
       return configController.getVersions(request, reply);
@@ -115,7 +115,7 @@ export default async function configRoutes(
   app.post(
     '/configs/:configId/rollback',
     {
-      onRequest: [authenticateUser, requirePermission({ resourceType: 'config', action: 'manage' })],
+      onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'manage' })],
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
       return configController.rollback(request, reply);
@@ -126,7 +126,7 @@ export default async function configRoutes(
   app.post(
     '/configs/:configId/clone',
     {
-      onRequest: [authenticateUser, requirePermission({ resourceType: 'config', action: 'write' })],
+      onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'write' })],
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
       return configController.clone(request, reply);
@@ -137,14 +137,14 @@ export default async function configRoutes(
 
   // POST /gitops - Enable GitOps synchronization
   app.post('/gitops', {
-    onRequest: [authenticateUser, requirePermission({ resourceType: 'config', action: 'manage' })],
+    onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'manage' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     return configController.enableGitOps(request, reply);
   });
 
   // GET /gitops - List GitOps configurations
   app.get('/gitops', {
-    onRequest: [authenticateUser, requirePermission({ resourceType: 'config', action: 'read' })],
+    onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     return configController.listGitOpsConfigs(request, reply);
   });
@@ -153,7 +153,7 @@ export default async function configRoutes(
   app.post(
     '/gitops/:gitOpsConfigId/sync',
     {
-      onRequest: [authenticateUser, requirePermission({ resourceType: 'config', action: 'execute' })],
+      onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'execute' })],
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
       return configController.syncFromGit(request, reply);
@@ -164,7 +164,7 @@ export default async function configRoutes(
   app.post(
     '/gitops/:gitOpsConfigId/disable',
     {
-      onRequest: [authenticateUser, requirePermission({ resourceType: 'config', action: 'manage' })],
+      onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'manage' })],
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
       return configController.disableGitOps(request, reply);
@@ -175,7 +175,7 @@ export default async function configRoutes(
   app.get(
     '/gitops/drift',
     {
-      onRequest: [authenticateUser, requirePermission({ resourceType: 'config', action: 'read' })],
+      onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'read' })],
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
       return configController.detectDrift(request, reply);
@@ -186,7 +186,7 @@ export default async function configRoutes(
   app.get(
     '/gitops/sync-status',
     {
-      onRequest: [authenticateUser, requirePermission({ resourceType: 'config', action: 'read' })],
+      onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'read' })],
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
       return configController.getSyncStatus(request, reply);
@@ -199,7 +199,7 @@ export default async function configRoutes(
   app.post(
     '/change-requests',
     {
-      onRequest: [authenticateUser, requirePermission({ resourceType: 'config', action: 'write' })],
+      onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'write' })],
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
       return configController.createChangeRequest(request, reply);
@@ -210,7 +210,7 @@ export default async function configRoutes(
   app.get(
     '/change-requests',
     {
-      onRequest: [authenticateUser, requirePermission({ resourceType: 'config', action: 'read' })],
+      onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'read' })],
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
       return configController.listChangeRequests(request, reply);
@@ -221,7 +221,7 @@ export default async function configRoutes(
   app.get(
     '/change-requests/:changeRequestId',
     {
-      onRequest: [authenticateUser, requirePermission({ resourceType: 'config', action: 'read' })],
+      onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'read' })],
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
       return configController.getChangeRequest(request, reply);
@@ -232,7 +232,7 @@ export default async function configRoutes(
   app.post(
     '/change-requests/:changeRequestId/approve',
     {
-      onRequest: [authenticateUser, requirePermission({ resourceType: 'config', action: 'approve' })],
+      onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'approve' })],
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
       return configController.approveChange(request, reply);
@@ -243,7 +243,7 @@ export default async function configRoutes(
   app.post(
     '/change-requests/:changeRequestId/reject',
     {
-      onRequest: [authenticateUser, requirePermission({ resourceType: 'config', action: 'approve' })],
+      onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'approve' })],
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
       return configController.rejectChange(request, reply);
@@ -254,7 +254,7 @@ export default async function configRoutes(
   app.get(
     '/configs/:configId/audit',
     {
-      onRequest: [authenticateUser, requirePermission({ resourceType: 'config', action: 'read' })],
+      onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'read' })],
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
       return configController.getAuditTrail(request, reply);
@@ -267,7 +267,7 @@ export default async function configRoutes(
   app.get(
     '/diff/:sourceEnv/:targetEnv',
     {
-      onRequest: [authenticateUser, requirePermission({ resourceType: 'config', action: 'read' })],
+      onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'read' })],
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
       return configController.compareEnvironments(request, reply);
@@ -278,7 +278,7 @@ export default async function configRoutes(
   app.get(
     '/configs/:configId/versions/diff',
     {
-      onRequest: [authenticateUser, requirePermission({ resourceType: 'config', action: 'read' })],
+      onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'read' })],
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
       return configController.compareVersions(request, reply);
@@ -289,7 +289,7 @@ export default async function configRoutes(
   app.get(
     '/diff/report',
     {
-      onRequest: [authenticateUser, requirePermission({ resourceType: 'config', action: 'read' })],
+      onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'read' })],
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
       return configController.getDiffReport(request, reply);

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { ConfigProvider } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
@@ -6,18 +6,19 @@ import AppRouter from './router';
 import { useAppStore } from './stores/appStore';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { AuthInitializer } from './components/AuthInitializer';
+import { ChartProvider } from './components/charts/ChartProvider';
 import { getAntdThemeConfig } from './tokens/theme';
 import { colors, colorCSSVariables } from './tokens/colors';
 import { spacingCSSVariables } from './tokens/spacing';
 import { typographyCSSVariables } from './tokens/typography';
 import { radiusCSSVariables } from './tokens/radius';
 import { shadowsCSSVariables } from './tokens/shadows';
+import { initMicroFrontend } from './microfront/config';
 import '@/assets/styles/global.css';
 
-/**
- * Inject all design token CSS variables into document root.
- * Enables var(--color-primary-500) etc. in any CSS.
- */
+// 初始化微前端
+initMicroFrontend();
+
 function injectDesignTokens(isDark: boolean) {
   const root = document.documentElement;
   const bg = isDark ? colors.dark.bg : colors.light.bg;
@@ -38,7 +39,6 @@ function injectDesignTokens(isDark: boolean) {
   root.style.setProperty('--border-light', border.light);
   root.style.setProperty('--border-heavy', border.heavy);
 
-  // Static tokens (colors, spacing, typography, radius, shadows)
   for (const [key, value] of Object.entries(colorCSSVariables)) {
     root.style.setProperty(key, value);
   }
@@ -60,14 +60,14 @@ const AppContent: React.FC = () => {
   const { theme: appTheme } = useAppStore();
   const isDark = appTheme === 'dark';
 
-  useEffect(() => {
+  React.useEffect(() => {
     injectDesignTokens(isDark);
   }, [isDark]);
 
   return (
     <ConfigProvider
       locale={zhCN}
-      theme={getAntdThemeConfig({ algorithm: isDark ? 'dark' : 'default' }) as any}
+      theme={getAntdThemeConfig({ algorithm: isDark ? 'dark' : 'default' })}
     >
       <AppRouter />
     </ConfigProvider>
@@ -78,7 +78,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <ErrorBoundary>
       <AuthInitializer>
-        <AppContent />
+        <ChartProvider>
+          <AppContent />
+        </ChartProvider>
       </AuthInitializer>
     </ErrorBoundary>
   </React.StrictMode>

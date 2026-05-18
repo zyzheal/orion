@@ -274,7 +274,7 @@ export class PolicyEvaluationService {
     if (!this.violationRepo) {
       return null;
     }
-    return this.violationRepo.findById(id);
+    return (await this.violationRepo.findById(id)) ?? null;
   }
 
   /**
@@ -284,7 +284,7 @@ export class PolicyEvaluationService {
     if (!this.violationRepo) {
       return null;
     }
-    return this.violationRepo.updateStatus(id, 'waived');
+    return (await this.violationRepo.updateStatus(id, 'waived')) ?? null;
   }
 
   /**
@@ -294,7 +294,7 @@ export class PolicyEvaluationService {
     if (!this.violationRepo) {
       return null;
     }
-    return this.violationRepo.updateStatus(id, 'resolved');
+    return (await this.violationRepo.updateStatus(id, 'resolved')) ?? null;
   }
 
   /**
@@ -316,7 +316,7 @@ export class PolicyEvaluationService {
     }
     const violation = await this.violationRepo.findById(violationId);
     if (violation) {
-      return this.violationRepo.updateStatus(violationId, 'waived');
+      return (await this.violationRepo.updateStatus(violationId, 'waived')) ?? null;
     }
     return null;
   }

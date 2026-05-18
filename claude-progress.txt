@@ -1,5 +1,59 @@
 # Orion Design - Progress Log
 
+## 2026-05-18: 修复全局路由 404 问题（双重 /v1 前缀）— COMPLETED
+
+### 根因
+`app.ts:256` 注册 `apiRoutes` 时传了 `prefix: '/api/v1'`，但 `routes.ts` 内所有路由注册又自带 `/v1/` 前缀，导致实际路径变成 `/api/v1/v1/xxx`，前端请求 `/api/v1/xxx` 全部 404。
+
+### 修复 (`orion-platform-service/src/api/routes.ts`)
+- 批量替换所有 `'/v1/` → `'/'` 前缀（共 57 处）
+- 批量替换所有 `prefix: '/v1/` → `prefix: '/`（共 3 处）
+- 修复 `authRoutes` 的 `prefix: '/api/v1/auth'` → `prefix: '/auth'`
+- 最终路径：`/api/v1` (app.ts) + `/projects` (routes.ts) = `/api/v1/projects` ✓
+
+### 影响范围
+所有在 `routes.ts` 中注册的 API 路由，包括 projects, environments, users, roles, sessions, webhooks, knowledge, metrics, audit, tenant, iac 等 50+ 路由模块。
+
+## 2026-05-18: Layout 优化 — COMPLETED
+
+### Changes (`orion-frontend/src/components/Layout/index.tsx`)
+1. **移除 Mega Menu 面板与导航项之间的间隙** — 移除了 `paddingTop: 4`，面板现在紧贴 Header 底部
+2. **缩小面包屑导航区域上下内边距** — 从 `10px` 减小到 `6px`，使导航条更紧凑
+3. **点击面板菜单项后自动关闭面板** — 在 `handleNavigate` 中添加 `setMegaMenuKey(null)`，点击导航后面板立即消失并跳转路由
+
+## 2026-05-17: Personal Workbench Page (个人工作台) — COMPLETED
+
+### Implementation
+1. **API Client** (`orion-frontend/src/api/workbench.ts`)
+   - Defined `WorkbenchData` interface aggregating pipelines, alerts, tickets, deployments
+   - `getWorkbenchData()`: tries unified `/v1/workbench` endpoint, falls back to parallel individual API calls
+   - `getWorkbenchFallback()`: calls pipeline-runs, alerts, tickets, deployments APIs in parallel with `Promise.allSettled`
+   - Helper functions: `getMyPipelineRuns`, `getMyAlerts`, `getMyTickets`, `getMyDeployments`, `acknowledgeAlert`
+
+2. **WorkbenchPage Component** (`orion-frontend/src/pages/Workbench/WorkbenchPage.tsx`)
+   - Header with title, last refresh time, and refresh button
+   - 4 summary stat cards: pipeline success rate, critical alerts, active tickets, recent deployments
+   - 2x2 grid layout:
+     - Top-left: Recent pipeline runs table with status badges, duration, relative time
+     - Top-right: Active alerts list with severity colors, acknowledge action
+     - Bottom-left: My tickets list with priority tags, SLA countdown
+     - Bottom-right: Recent deployments with environment tags, status
+   - Each card has "查看更多" link to respective detail page
+   - Loading skeleton while fetching, empty state when no data
+   - Auto-refresh every 60 seconds
+   - Uses Ant Design components: Card, Row, Col, Table, Tag, Badge, Button, Space, Typography, Statistic, Spin, Empty
+   - Uses design tokens from `@/tokens`
+
+3. **Route Registration** (`orion-frontend/src/router/routes.ts`)
+   - Added route `{ path: '/workbench', element: React.lazy(() => import('@/pages/Workbench')), protected: true }`
+
+4. **Navigation Menu** (`orion-frontend/src/components/Layout/index.tsx`)
+   - Added "个人工作台" under "效能看板" dropdown menu
+
+### Verification
+- TypeScript type-check: `npx tsc --noEmit` — 0 errors in new files (only pre-existing error in PRTriggerConfig)
+- All new files created with proper TypeScript types and Ant Design patterns
+
 ## 2026-05-17: SCM Bidirectional Integration — Verified Complete (NO CHANGES NEEDED)
 
 ### Verification

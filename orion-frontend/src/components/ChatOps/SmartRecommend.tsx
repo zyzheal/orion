@@ -1,16 +1,16 @@
 /**
  * SmartRecommend — 智能推荐面板
- *
- * P2-1: usePanelHeight 动态计算最大高度，按屏幕响应式调整
  */
 
 import React, { useState, useEffect } from 'react';
-import { Card, Tag, Button, Empty, Space } from 'antd';
+import { Card, Tag, Button, Empty, Space, Typography } from 'antd';
 import { BellFilled, WarningOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { useChatOpsStore } from '@/stores/chatOpsStore';
 import { colors } from '@/tokens/colors';
 import { useActionHandler } from './useActionHandler';
 import { getActionIcon } from './actionIcons';
+
+const { Text } = Typography;
 
 const severityConfig = {
   critical: { color: colors.error[400], bg: colors.error[50], icon: <BellFilled /> },
@@ -18,14 +18,13 @@ const severityConfig = {
   info: { color: colors.info[500], bg: colors.info[50], icon: <CheckCircleOutlined /> },
 };
 
-/** P2-1: 动态计算推荐面板最大高度 */
+/** 动态计算推荐面板最大高度 */
 function usePanelHeight(): number {
   const [maxHeight, setMaxHeight] = useState(240);
 
   useEffect(() => {
     const update = () => {
       const vh = window.innerHeight;
-      // 面板最大占屏幕高度的 30%，不超过 320px
       const limit = Math.floor(vh * 0.3);
       setMaxHeight(Math.min(limit, 320));
     };
@@ -43,21 +42,7 @@ export const SmartRecommend: React.FC = () => {
   const maxPanelHeight = usePanelHeight();
 
   if (recommendations.length === 0) {
-    return (
-      <div
-        style={{
-          padding: '12px 16px',
-          background: colors.light.bg.primary,
-          borderBottom: `1px solid ${colors.light.border.light}`,
-        }}
-      >
-        <Empty
-          image={Empty.PRESENTED_IMAGE_SIMPLE}
-          description="当前无异常"
-          style={{ margin: 0, padding: '8px 0' }}
-        />
-      </div>
-    );
+    return null;
   }
 
   return (
@@ -66,40 +51,58 @@ export const SmartRecommend: React.FC = () => {
         maxHeight: maxPanelHeight,
         overflowY: 'auto',
         padding: '12px 16px',
-        background: colors.warning[50],
-        borderBottom: `1px solid ${colors.warning[200]}`,
+        background: colors.light.bg.secondary,
+        flexShrink: 0,
       }}
     >
+      <div style={{ marginBottom: 8 }}>
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          智能推荐
+        </Text>
+      </div>
       {recommendations.map((rec) => {
         const cfg = severityConfig[rec.severity] ?? severityConfig.info;
         return (
           <Card
             key={rec.id}
             size="small"
-            style={{ marginBottom: 8, borderColor: cfg.color + '40' }}
+            style={{
+              marginBottom: 8,
+              borderColor: cfg.color + '40',
+              borderRadius: 8,
+            }}
             extra={
-              <Button type="text" size="small" onClick={() => dismissRecommendation(rec.id)}>
+              <Button
+                type="text"
+                size="small"
+                style={{ padding: '0 4px', color: colors.light.text.tertiary }}
+                onClick={() => dismissRecommendation(rec.id)}
+              >
                 ×
               </Button>
             }
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ color: cfg.color }}>{cfg.icon}</span>
-              <Tag color={cfg.color}>{rec.severity.toUpperCase()}</Tag>
-              <strong>{rec.title}</strong>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+              <span style={{ color: cfg.color, fontSize: 14 }}>{cfg.icon}</span>
+              <Tag color={cfg.color} style={{ margin: 0, fontSize: 10, padding: '0 6px' }}>
+                {rec.severity.toUpperCase()}
+              </Tag>
+              <Text strong style={{ fontSize: 13 }}>{rec.title}</Text>
             </div>
-            <p style={{ margin: '4px 0', fontSize: 12, color: colors.light.text.secondary }}>
+            <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 8 }}>
               {rec.description}
-            </p>
-            <Space>
+            </Text>
+            <Space size="small">
               {rec.actions.map((action) => (
                 <Button
                   key={action.label}
                   size="small"
+                  type="primary"
+                  ghost
                   onClick={() => handleAction(action)}
+                  style={{ fontSize: 12, height: 24, borderRadius: 4 }}
                 >
                   {action.label}
-                  {getActionIcon(action)}
                 </Button>
               ))}
             </Space>

@@ -18,11 +18,11 @@ const { Sider, Content } = Layout;
 const { Title } = Typography;
 
 const menuItems = [
-  { key: '/self-healing', icon: <MedicineBoxOutlined />, label: 'Incidents' },
-  { key: '/self-healing/history', icon: <HistoryOutlined />, label: 'Healing History' },
-  { key: '/self-healing/strategies', icon: <ExperimentOutlined />, label: 'Strategies' },
-  { key: '/self-healing/approvals', icon: <CheckSquareOutlined />, label: 'Approval Queue' },
-  { key: '/self-healing/effectiveness', icon: <DashboardOutlined />, label: 'Effectiveness' },
+  { key: '/console/self-healing/incidents', icon: <MedicineBoxOutlined />, label: 'Incidents' },
+  { key: '/console/self-healing/history', icon: <HistoryOutlined />, label: 'Healing History' },
+  { key: '/console/self-healing/strategies', icon: <ExperimentOutlined />, label: 'Strategies' },
+  { key: '/console/self-healing/approvals', icon: <CheckSquareOutlined />, label: 'Approval Queue' },
+  { key: '/console/self-healing/effectiveness', icon: <DashboardOutlined />, label: 'Effectiveness' },
 ];
 
 const SelfHealingLayout: React.FC = () => {

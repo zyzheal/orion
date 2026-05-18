@@ -1,4 +1,4 @@
-import { PermissionRepository, Permission } from '../repositories/PermissionRepository';
+import { PermissionRepository, Permission } from '../../repositories/PermissionRepository';
 
 /**
  * PermissionService - Business logic layer for Permission management

@@ -18,11 +18,10 @@ const { Sider, Content } = Layout;
 const { Title } = Typography;
 
 const menuItems = [
-  { key: '/ai-review', icon: <ScanOutlined />, label: 'Dashboard' },
-  { key: '/ai-review/history', icon: <HistoryOutlined />, label: 'Review History' },
-  { key: '/ai-review/detail', icon: <FileSearchOutlined />, label: 'Review Detail' },
-  { key: '/ai-review/rules', icon: <BulbOutlined />, label: 'Review Rules' },
-  { key: '/ai-review/config', icon: <SettingOutlined />, label: 'Configuration' },
+  { key: '/console/ai-review/dashboard', icon: <ScanOutlined />, label: 'Dashboard' },
+  { key: '/console/ai-review/history', icon: <HistoryOutlined />, label: 'Review History' },
+  { key: '/console/ai-review/rules', icon: <BulbOutlined />, label: 'Review Rules' },
+  { key: '/console/ai-review/config', icon: <SettingOutlined />, label: 'Configuration' },
 ];
 
 const AIReviewLayout: React.FC = () => {

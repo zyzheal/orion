@@ -15,22 +15,22 @@ import type {
  * Fetch executive dashboard overview data
  */
 export function getExecutiveDashboard(params?: { days?: number }) {
-  return api.get<ExecutiveDashboardData>('/v1/efficiency/dashboard', { params });
+  return api.get<ExecutiveDashboardData>('/v1/tickets/bi/dashboard/executive', { params });
 }
 
 /**
  * Fetch manager dashboard team data
  */
 export function getManagerDashboard(params?: { teamId?: string; days?: number }) {
-  return api.get<ManagerDashboardData>('/v1/efficiency/dashboard', { params });
+  return api.get<ManagerDashboardData>('/v1/tickets/bi/dashboard/manager', { params });
 }
 
 /**
  * Fetch engineer personal dashboard data
  */
 export function getEngineerDashboard(engineerId: string, params?: { days?: number }) {
-  return api.get<EngineerDashboardData>(`/v1/efficiency/dashboard`, {
-    params: { ...params, engineerId },
+  return api.get<EngineerDashboardData>(`/v1/tickets/bi/dashboard/engineer/${engineerId}`, {
+    params,
   });
 }
 

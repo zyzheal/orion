@@ -2,13 +2,40 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <link rel="icon" type="image/svg+xml" href="/logo.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' wss: https:; img-src 'self' data:;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self' http: wss: https:; img-src 'self' data: https:; frame-src 'self' http://localhost:*; frame-ancestors 'self' http://localhost:*;">
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>Orion Platform</title>
+    <script>
+      // 强制清除浏览器缓存中的旧 token，解决"只能无痕模式打开"的问题
+      (function() {
+        var token = localStorage.getItem('access_token');
+        if (token) {
+          // 尝试验证 token 是否有效
+          try {
+            var payload = JSON.parse(atob(token.split('.')[1]));
+            if (payload.exp && payload.exp * 1000 < Date.now()) {
+              localStorage.removeItem('access_token');
+              localStorage.removeItem('refresh_token');
+              localStorage.removeItem('token_expires_at');
+              console.log('[Init] Cleared expired token');
+            }
+          } catch(e) {
+            // token 解析失败，清除
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('refresh_token');
+            localStorage.removeItem('token_expires_at');
+            console.log('[Init] Cleared invalid token');
+          }
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <script type="module" src="/src/main.tsx?t=CACHE_BUST_20260518"></script>
   </body>
 </html>

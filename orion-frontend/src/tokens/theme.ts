@@ -3,6 +3,7 @@
  * 用于 Ant Design theme 的配置生成
  */
 
+import { theme as antdTheme } from 'antd';
 import { colors } from './colors';
 import { shadows } from './shadows';
 import { radius, componentRadius } from './radius';
@@ -268,19 +269,19 @@ export const getThemeConfig = (theme: 'light' | 'dark'): typeof lightTheme | typ
  */
 export function getAntdThemeConfig(
   options: { algorithm?: 'default' | 'dark' } = {}
-): AntdThemeConfig & { algorithm?: string } {
+): AntdThemeConfig & { algorithm?: typeof antdTheme.defaultAlgorithm | typeof antdTheme.darkAlgorithm } {
   const { algorithm = 'default' } = options;
 
   if (algorithm === 'dark') {
     return {
       ...darkTheme,
-      algorithm: 'dark',
+      algorithm: antdTheme.darkAlgorithm,
     };
   }
 
   return {
     ...lightTheme,
-    algorithm: 'default',
+    algorithm: antdTheme.defaultAlgorithm,
   };
 }
 

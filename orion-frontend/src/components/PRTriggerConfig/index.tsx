@@ -483,7 +483,7 @@ const PRTriggerConfig: React.FC<PRTriggerConfigProps> = ({ value, onChange }) =>
 {{duration}} - 执行耗时
 {{passRate}} - 测试通过率`}
               />
-            </Form.Item>
+            </div>
           )}
         </>
       )}

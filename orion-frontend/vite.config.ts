@@ -20,10 +20,52 @@ export default defineConfig({
         target: 'http://localhost:3001',
         changeOrigin: true,
       },
+      // DBA 子应用代理 - 解决 wujie 跨域沙箱问题
+      '/orion-dba': {
+        target: 'http://localhost:3030',
+        changeOrigin: true,
+        rewrite: (path) => path,
+      },
+      // Knowledge 子应用代理
+      '/orion-knowledge': {
+        target: 'http://localhost:5173',
+        changeOrigin: true,
+        rewrite: (path) => path,
+      },
+      // Visor 子应用代理
+      '/orion-visor': {
+        target: 'http://localhost:3003',
+        changeOrigin: true,
+        rewrite: (path) => path,
+      },
+      // DBA API 代理 - 转发到 DBA 后端服务（Yearning）
+      '/lang': {
+        target: 'http://localhost:8090',
+        changeOrigin: true,
+      },
+      '/fetch': {
+        target: 'http://localhost:8090',
+        changeOrigin: true,
+      },
+      // 移除错误的 /login 代理 - 登录页面是前端路由，不需要代理
+      '/register': {
+        target: 'http://localhost:8090',
+        changeOrigin: true,
+      },
+      '/ldap': {
+        target: 'http://localhost:8090',
+        changeOrigin: true,
+      },
+      '/oidc': {
+        target: 'http://localhost:8090',
+        changeOrigin: true,
+      },
     },
     headers: {
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0',
       'X-Content-Type-Options': 'nosniff',
-      'X-Frame-Options': 'DENY',
       'X-XSS-Protection': '1; mode=block',
     },
   },

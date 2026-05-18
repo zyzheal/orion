@@ -48,6 +48,7 @@ export class PluginRegistry {
 
     const pluginInfo: PluginInfo = {
       manifest,
+      version: manifest.version,
       status: 'installed',
       installDate: new Date(),
       config,
@@ -112,6 +113,7 @@ export class PluginRegistry {
 
         const pluginInfo: PluginInfo = {
           manifest,
+          version: manifest.version,
           status: 'installed',
           installDate: new Date(),
         };

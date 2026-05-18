@@ -1,0 +1,42 @@
+# Generic Ingress Template for Orion Services
+# Copy this file to each service's k8s/ directory and customize the placeholders.
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ${SERVICE_NAME}-ingress
+  namespace: orion
+  labels:
+    app: ${APP_LABEL}
+    component: ${SERVICE_NAME}
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "${PROXY_BODY_SIZE:-10m}"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "${PROXY_READ_TIMEOUT:-60}"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "${PROXY_SEND_TIMEOUT:-60}"
+    nginx.ingress.kubernetes.io/limit-rps: "${RATE_LIMIT_RPS:-50}"
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+spec:
+  # tls:
+  #   - hosts:
+  #       - ${HOST_NAME}.${DOMAIN}
+  #     secretName: ${SERVICE_NAME}-tls
+  rules:
+    - host: ${HOST_NAME}.${DOMAIN:-orion.internal}
+      http:
+        paths:
+          - path: ${API_PREFIX:-/api/v1}
+            pathType: Prefix
+            backend:
+              service:
+                name: ${SERVICE_NAME}
+                port:
+                  name: http
+          - path: /healthz
+            pathType: Exact
+            backend:
+              service:
+                name: ${SERVICE_NAME}
+                port:
+                  name: http

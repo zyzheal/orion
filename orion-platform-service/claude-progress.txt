@@ -1,6 +1,133 @@
 # Orion Platform Migration Progress
 
-## Current Session (2026-05-14)
+## Current Session (2026-05-17)
+
+### Completed: SSO/OIDC Integration for Enterprise Authentication
+
+Added OpenID Connect (OIDC) support as a secondary authentication method
+alongside the existing local username/password + JWT system.
+
+#### Changes Made
+- **Added dependency**: `openid-client@^6.8.4` (latest v6 API, oauth4webapi-based)
+- **Created** `src/services/auth/SsoService.ts`:
+  - OIDC discovery via `discovery()` — dynamically reads provider metadata
+  - Authorization URL generation with PKCE-style nonce + state (CSRF protection)
+  - Callback handling with `authorizationCodeGrant()` — exchanges code for tokens
+  - ID token claims extraction (sub, email, name, groups, roles)
+  - In-memory state store with automatic 10-minute cleanup
+  - Safe initialization — platform starts even if SSO is misconfigured
+  - `getConfig()` strips clientSecret for safe admin UI exposure
+- **Created** `src/api/sso-routes.ts`:
+  - `GET /api/v1/auth/sso/login` — redirects to SSO provider
+  - `GET /api/v1/auth/sso/callback` — handles OAuth2 callback, auto-provisions user, issues JWT
+  - `GET /api/v1/auth/sso/status` — returns SSO configuration status (for login page)
+  - `GET /api/v1/auth/sso/config` — returns SSO config details (for admin settings)
+  - Auto-provisioning: creates new user on first SSO login with role mapping
+  - Links existing local accounts: updates `sso_sub` if user registered locally first
+- **Created** `src/db/migrations/159_sso_support.sql`:
+  - Adds `sso_sub VARCHAR(255)` column to `users` table
+  - Creates index `idx_users_sso_sub` for efficient SSO lookups
+- **Created** `src/db/migrations/159_rollback_sso_support.sql`:
+  - Drops index and column for rollback
+- **Modified** `src/services/auth/index.ts`: exports `SsoService`, `SsoConfig`, `SsoUserProfile`
+- **Modified** `src/app.ts`: registers SSO routes under `/api/v1/auth` prefix
+
+#### Environment Variables
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `SSO_ENABLED` | Yes | Set to `"true"` to enable SSO |
+| `SSO_ISSUER_URL` | Yes | OIDC issuer URL (e.g., `https://accounts.google.com`) |
+| `SSO_CLIENT_ID` | Yes | OAuth2 client ID |
+| `SSO_CLIENT_SECRET` | Yes | OAuth2 client secret |
+| `SSO_REDIRECT_URI` | No | Callback URL (defaults to `{BASE_URL}/api/v1/auth/sso/callback`) |
+| `SSO_SCOPES` | No | Comma-separated scopes (defaults to `openid,email,profile`) |
+
+#### Test Results
+- TypeScript type-check: passed with no errors
+- No regressions introduced
+
+#### Commit
+- `5d289c07` feat(auth): add SSO/OIDC integration for enterprise authentication
+
+---
+
+### Completed: OpenAPI/Swagger Documentation Auto-Generation
+
+Added OpenAPI 3.0 specification auto-generation and Swagger UI to the Orion Platform Service.
+
+#### Changes Made
+- **Added dependencies**: `@fastify/swagger@^9.7.0` and `@fastify/swagger-ui@^5.2.6`
+- **Modified** `src/app.ts`:
+  - Registered `@fastify/swagger` with OpenAPI 3.0 config (info, servers, tags, security schemes)
+  - Registered `@fastify/swagger-ui` at `/api-docs` route prefix
+  - Added `transform` function for JSON Schema to OpenAPI compatibility
+- **Added schema examples** to two route files as reference patterns:
+  - `src/api/maintenance-window-routes.ts`: POST and GET endpoints with body/querystring/response schemas
+  - `src/api/user-routes.ts`: GET (list + by ID) and POST (create) endpoints with params/body/response schemas
+
+#### Swagger UI Access
+- Development: `http://localhost:3001/api-docs`
+- OpenAPI JSON spec: `http://localhost:3001/api-docs/json`
+
+#### Test Results
+- TypeScript type-check: passed with no errors
+- No regressions introduced
+
+#### Commit
+- `fa9bd551` feat: add OpenAPI/Swagger documentation auto-generation to platform service
+
+---
+
+## Previous Session (2026-05-16)
+
+### Completed: OPA Policy Engine in orion-security-svc
+
+实现了 Open Policy Agent (OPA) 集成，支持策略即代码治理。
+
+#### Files Created/Modified
+- `orion-security-svc/src/services/OPAPolicyService.ts` (new)
+  - Policy/PolicyRule/PolicyBundle 接口定义
+  - createPolicy(): 创建策略
+  - evaluate(): 策略评估（支持 strict/permissive/audit 模式）
+  - evaluateRule(): 基于角色/租户的规则评估
+  - CRUD: getPolicy, listPolicies, updatePolicy, deletePolicy
+  - 策略 bundles: createBundle, evaluateBundle, deleteBundle
+  - togglePolicy(): 启用/禁用策略
+
+- `orion-security-svc/src/services/__tests__/OPAPolicyService.test.ts` (new, 28 tests)
+  - createPolicy 测试
+  - evaluate 测试（strict, permissive, audit 模式）
+  - 角色/租户条件评估测试
+  - CRUD 测试
+  - Bundle 测试
+
+- `orion-security-svc/src/routes/security-routes.ts` (modified)
+  - POST /api/v1/security/policies - 创建策略
+  - GET /api/v1/security/policies - 列表策略
+  - GET /api/v1/security/policies/:id - 获取策略
+  - PUT /api/v1/security/policies/:id - 更新策略
+  - DELETE /api/v1/security/policies/:id - 删除策略
+  - POST /api/v1/security/policies/evaluate - 评估输入
+  - POST /api/v1/security/policies/bundles - 创建 bundle
+  - GET /api/v1/security/policies/bundles - 列表 bundles
+  - GET /api/v1/security/policies/bundles/:id - 获取 bundle
+  - POST /api/v1/security/policies/bundles/:id/evaluate - 评估 bundle
+  - DELETE /api/v1/security/policies/bundles/:id - 删除 bundle
+  - PATCH /api/v1/security/policies/:id/toggle - 切换策略状态
+
+- `orion-security-svc/package.json` (modified)
+  - 添加 jest, @types/jest, ts-jest 依赖
+  - 添加 jest 配置和 test 脚本
+
+#### Test Results
+- 28 tests passed
+
+#### Commit
+- `3545b6de` feat(security): implement OPA Policy Engine in orion-security-svc
+
+---
+
+## Previous Session (2026-05-14)
 
 ### In Progress: TypeScript Compilation Error Fixes
 
@@ -1353,3 +1480,27 @@ All 6 features of Phase 3 implemented and tested:
 - Pipeline Plugin System: ALL remaining gaps (G1-G6) implemented and tested
 - 从 5902 增加到 6204，总共新增 302 个测试
 - 0 regressions introduced
+
+### 2026-05-16: Root Cause Analysis Service Implementation
+
+#### Completed Features
+- RootCauseAnalysisService: 实现告警和事件根因分析
+  - Incident, RCARequest, RootCause, RCAReport 接口定义
+  - analyze(): 分析事件并生成根因报告
+  - detectPatterns(): 检测资源耗尽、级联失败、配置问题等模式
+  - determineRootCauses(): 确定基础设施、应用、配置、外部等类型根因
+  - getTimeline(): 获取事件时间线
+  - suggestFixes(): 为根因建议修复方案
+- RCA路由: 
+  - POST /api/v1/alerts/rca/analyze - 分析事件根因
+  - GET /api/v1/alerts/rca/:incidentId/timeline - 获取时间线
+  - GET /api/v1/alerts/rca/:rootCauseId/fixes - 获取修复建议
+- 21个测试全部通过
+- TypeScript编译无错误
+
+#### Files Created/Modified
+- orion-monitor-svc/src/services/RootCauseAnalysisService.ts (new)
+- orion-monitor-svc/src/services/__tests__/RootCauseAnalysisService.test.ts (new)
+- orion-monitor-svc/src/routes/rca-routes.ts (new)
+- orion-monitor-svc/src/app.ts (modified)
+

@@ -380,7 +380,8 @@ export class PolicyService {
     if (!this.bundleRepo) {
       return [];
     }
-    return this.bundleRepo.findAll();
+    const result = await this.bundleRepo.findAll();
+    return result.entities;
   }
 
   /**
@@ -390,7 +391,7 @@ export class PolicyService {
     if (!this.bundleRepo) {
       return null;
     }
-    return this.bundleRepo.findById(id);
+    return (await this.bundleRepo.findById(id)) ?? null;
   }
 
   /**
@@ -402,7 +403,8 @@ export class PolicyService {
     }
     // Mock implementation - would fetch from external source
     logger.info({ sourceUrl }, 'Syncing policy bundles');
-    return this.bundleRepo.findAll();
+    const result = await this.bundleRepo.findAll();
+    return result.entities;
   }
 
   /**

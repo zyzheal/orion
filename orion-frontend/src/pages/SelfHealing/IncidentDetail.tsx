@@ -69,7 +69,7 @@ const IncidentDetail: React.FC = () => {
           message="未找到事件记录"
           description="请检查事件 ID 是否正确"
           type="error"
-          action={<Button onClick={() => navigate('/self-healing')}>返回列表</Button>}
+          action={<Button onClick={() => navigate('/console/self-healing/incidents')}>返回列表</Button>}
         />
       </div>
     );
@@ -109,7 +109,7 @@ const IncidentDetail: React.FC = () => {
     <div style={{ padding: 24 }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
-        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/self-healing')}>
+        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/console/self-healing/incidents')}>
           返回
         </Button>
         <Title level={3} style={{ margin: 0 }}>

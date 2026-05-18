@@ -47,7 +47,7 @@ export default defineConfig(({ mode }) => {
 
     server: {
       // 微前端模式使用不同端口
-      port: isMicroFrontend ? 3001 : 3010,
+      port: isMicroFrontend ? 3030 : 3010,
       cors: true, // 微前端：允许跨域
       headers: {
         'Access-Control-Allow-Origin': '*', // wujie 需要

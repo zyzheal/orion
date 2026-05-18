@@ -349,14 +349,15 @@ export class RiskAssessmentService {
     if (this.reportRepository) {
       return (async () => {
         let reports: RiskReportEntity[];
+        const filterRef = filter;
 
-        if (filter?.assessmentId) {
-          const report = await this.reportRepository.findByAssessment(filter.assessmentId);
+        if (filterRef?.assessmentId) {
+          const report = await this.reportRepository!.findByAssessment(filterRef.assessmentId);
           reports = report ? [report] : [];
-        } else if (filter?.tenantId) {
-          reports = await this.reportRepository.findByTenant(filter.tenantId, { limit: filter?.limit });
+        } else if (filterRef && filterRef.tenantId) {
+          reports = await this.reportRepository!.findByTenant(filterRef.tenantId, { limit: filterRef.limit });
         } else {
-          reports = await this.reportRepository.findAll({ limit: filter?.limit ?? 20 }).then(r => r.entities);
+          reports = await this.reportRepository!.findAll({ limit: filterRef?.limit ?? 20 }).then(r => r.entities);
         }
 
         return reports.map(e => this.mapEntityToReport(e));
@@ -389,7 +390,7 @@ export class RiskAssessmentService {
   getReportById(reportId: string): RiskReport | undefined | Promise<RiskReport | undefined> {
     if (this.reportRepository) {
       return (async () => {
-        const report = await this.reportRepository.findById(reportId);
+        const report = await this.reportRepository!.findById(reportId);
         return report ? this.mapEntityToReport(report) : undefined;
       })();
     }

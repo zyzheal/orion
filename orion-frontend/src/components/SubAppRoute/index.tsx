@@ -1,24 +1,21 @@
 /**
- * 子应用路由组件
- * 根据路由动态加载对应的子应用
+ * Sub-App Route - 子应用路由组件
+ *
+ * 使用 wujie 微前端加载子应用
  */
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAppStore } from '@/stores/appStore';
-import { getSubAppConfig, eventBus } from '@/microfront';
+import { getSubAppConfig, injectGlobalState } from '@/microfront/config';
+import { startApp } from 'wujie';
 import { Loading } from '@/components/Loading';
-
-// 扩展 window 类型以包含 $orion
-declare global {
-  interface Window {
-    $orion?: unknown;
-  }
-}
 
 const SubAppRoute: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
-  const { theme } = useAppStore();
+  const { user } = useAppStore();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // 根据路径确定子应用 key
   const getAppKeyFromPath = (): string | null => {
@@ -30,86 +27,103 @@ const SubAppRoute: React.FC = () => {
   };
 
   const appKey = getAppKeyFromPath();
+  const appConfig = appKey ? getSubAppConfig(appKey) : null;
 
   useEffect(() => {
-    if (!appKey) {
-      console.error('[SubAppRoute] Could not determine app key from path');
+    if (!appKey || !appConfig) {
+      console.warn(`[SubAppRoute] No app config for path: ${location.pathname}`);
       return;
     }
 
-    const appConfig = getSubAppConfig(appKey);
-    if (!appConfig || !containerRef.current) {
-      console.error(`[SubAppRoute] App "${appKey}" not found`);
-      return;
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+
+    console.log(`[SubAppRoute] Starting ${appKey} with url: ${appConfig.url}`);
+    console.log(`[SubAppRoute] Container: ${appConfig.container}, keepAlive: ${appConfig.keepAlive}`);
+
+    // 确保容器 ID 正确
+    const containerId = appConfig.container.replace('#', '');
+    if (containerRef.current) {
+      containerRef.current.id = containerId;
+      console.log(`[SubAppRoute] Container element set: ${containerId}`);
     }
 
-    // 设置容器
-    const container = containerRef.current;
-    container.id = `wujie-${appKey}`;
+    // 注入全局状态并传递给子应用
+    const token = localStorage.getItem('access_token');
+    injectGlobalState({
+      token,
+      user,
+      getApiBase: () => '/api/v1',
+    });
 
-    // 注入全局状态到 window
-    const globalState = {
-      user: null,
-      token: localStorage.getItem('access_token'),
-      theme,
-      sidebarCollapsed: false,
-      breadcrumbs: [],
-      permissions: [],
-      getApiBase: () => import.meta.env.VITE_API_BASE_URL || '/api',
-      eventBus: {
-        emit: (event: string, data: unknown) => eventBus.emit(event, data),
-        on: (event: string, handler: (data: unknown) => void) => eventBus.on(event, handler),
-        off: (event: string, handler: (data: unknown) => void) => eventBus.off(event, handler),
+    // 使用 wujie 启动子应用
+    console.log(`[SubAppRoute] Calling startApp for ${appKey}`);
+    startApp({
+      name: appKey,
+      url: appConfig.url,
+      el: appConfig.container,
+      alive: appConfig.keepAlive,
+      props: {
+        $orion: {
+          token,
+          user,
+          getApiBase: () => '/api/v1',
+        },
       },
-    };
-
-    window.$orion = globalState;
-
-    // 动态导入子应用
-    const loadApp = async () => {
-      try {
-        // 使用 wujie 加载子应用
-        const { startApp } = await import('wujie');
-
-        await startApp({
-          name: appKey,
-          url: appConfig.url,
-          el: container,
-          props: {
-            $orion: globalState,
-          },
-        });
-      } catch (error) {
-        console.error(`[SubAppRoute] Failed to load app "${appKey}":`, error);
-      }
-    };
-
-    loadApp();
-
-    // 清理函数
-    return () => {
-      // Keep-Alive 模式下不清理容器
-      if (!appConfig.keepAlive) {
-        if (container) {
-          container.innerHTML = '';
+    })
+      .then(() => {
+        if (!cancelled) {
+          console.log(`[SubAppRoute] ${appKey} started successfully`);
+          setError(null);
         }
-      }
-    };
-  }, [appKey, theme, location.pathname]);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          console.error(`[SubAppRoute] ${appKey} start error:`, err);
+          setError(`Failed to load ${appKey}: ${err.message}`);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setTimeout(() => setLoading(false), 500);
+        }
+      });
 
-  if (!appKey) {
+    return () => {
+      cancelled = true;
+    };
+  }, [appKey, appConfig?.url]);
+
+  if (!appKey || !appConfig) {
     return <Loading fullscreen />;
   }
 
+  if (error) {
+    return (
+      <div style={{ padding: 40, textAlign: 'center' }}>
+        <p style={{ color: 'red' }}>{error}</p>
+        <p>子应用: {appKey}</p>
+        <p>URL: {appConfig.url}</p>
+        <p>容器: {appConfig.container}</p>
+      </div>
+    );
+  }
+
   return (
-    <div
-      ref={containerRef}
-      className="sub-app-container"
-      style={{
-        height: '100%',
-        width: '100%',
-      }}
-    />
+    <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+      <div
+        ref={containerRef}
+        id={appConfig.container.replace('#', '')}
+        className="sub-app-container"
+        style={{ height: '100%', width: '100%' }}
+      />
+      {loading && (
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'white', zIndex: 10 }}>
+          <Loading />
+        </div>
+      )}
+    </div>
   );
 };
 
