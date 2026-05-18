@@ -259,3 +259,101 @@ Generated: 2026-05-10
 ---
 
 Generated: 2026-05-15
+
+---
+
+## Session: 2026-05-18 — 模块入口路由重定向修复
+
+### 问题描述
+菜单配置 (`menuConfigStore.ts`) 中定义的顶层模块路径 `/bi`、`/ops`、`/ai`、`/governance`、`/dev-env` 在 `routes.tsx` 中无对应路由定义，直接访问时返回 404。
+
+### 修复内容
+在 `orion-frontend/src/router/routes.tsx` 中添加 6 条 RedirectTo 重定向路由：
+
+| 路由 | 重定向到 | 说明 |
+|------|----------|------|
+| `/bi` | `/dashboard/executive` | 效能看板 → 总览看板 |
+| `/bi/*` | `/dashboard/executive` | 效能看板子路由兜底 |
+| `/ops` | `/pipelines` | 运维中心 → 流水线 |
+| `/ai` | `/ai/gateway` | AI 能力 → AI 网关 |
+| `/governance` | `/policies` | 治理 → 策略管理 |
+| `/dev-env` | `/environments` | 环境 → 环境管理 |
+
+### 代码评审
+- **无路由冲突**: 新增路径不与现有路由重复
+- **目标路由存在**: 所有重定向目标均已定义
+- **风格统一**: 使用 `<RedirectTo />` 与现有重定向模式一致
+- **ESLint**: 无新增错误（仅一处预存格式问题，与本次修改无关）
+- **安全**: 纯内部重定向，无安全风险
+
+### 文件修改
+- `orion-frontend/src/router/routes.tsx` — 新增 6 条重定向路由
+
+---
+
+## Session: 2026-05-19 — RBAC+ABAC 统一权限系统 P0 核心框架完成
+
+### 概述
+将 RBAC+ABAC 统一权限系统从 35% 推进到 60%，P0 核心框架从 62.5% 达到 100% (8/8 任务完成)。
+
+### 架构决策
+- **Deny-Override 策略**: 任何一层拒绝 = 最终拒绝；ABAC 为 deny-only 约束（不匹配允许 ≠ 拒绝）
+- **角色继承链**: child → parent 递归展开权限 (developer → tech_lead → org_admin → tenant_admin → platform_admin → super_admin)
+- **5层授权流程**: [0] 用户状态 → [1] super_admin 通配符 → [2] RBAC → [2.5] Pipeline RBAC → [3] ABAC deny-only → [4] 关系检查 → [5] 允许
+- **审计日志异步化**: AuthorizationEngine.deny() 内异步写入，不阻塞主流程
+
+### 完成的任务
+
+| 任务 | 状态 | 说明 |
+|------|------|------|
+| P0-1: AuthorizationEngine 5层决策 | ✓ | 完整实现 + audit logging + Pipeline RBAC step 2.5 |
+| P0-2: RelationshipService PostgreSQL 持久化 | ✓ | 从 in-memory Map 迁移到 project_members 表 |
+| P0-3: RoleService 角色继承 + 权限种子 | ✓ | getAllRoles() 递归展开, seedDefaultRoles(), seedRolePermissions() |
+| P0-4: RoleRepository 增强 | ✓ | findRolePermission, addRolePermission, findPermissionsByRoleNames, findUserRoles |
+| P0-5: PermissionAuditRepository | ✓ 新文件 | 审计决策日志 DAO: logDecision, queryByUser, queryDenied 等 |
+| P0-6: app.ts 启动初始化 | ✓ | 启动时初始化 AuthZ 引擎 + 自动 seed 系统角色和权限 |
+| P0-7: requirePermission 中间件简化 | ✓ | 审计日志迁移到 Engine.deny() |
+| P0-8: 测试全部通过 | ✓ | 53 tests pass (authz 17 + relationship 8 + role 28) |
+
+### 文件修改
+
+| 文件 | 类型 | 说明 |
+|------|------|------|
+| `services/authz/AuthorizationEngine.ts` | 修改 | 审计日志 + Pipeline RBAC (step 2.5) |
+| `services/authz/RelationshipService.ts` | 重写 | PostgreSQL 持久化 (project_members 表) |
+| `services/role/RoleService.ts` | 重写 | 角色继承 + seed 功能 + getAllRoles |
+| `services/role/RoleRepository.ts` | 修改 | 4 个新方法 |
+| `repositories/PermissionAuditRepository.ts` | 新文件 | 审计决策日志 DAO |
+| `app.ts` | 修改 | AuthZ 引擎初始化 + 自动 seed |
+| `middleware/requirePermission.ts` | 修改 | 简化审计日志逻辑 |
+| `services/permission/PermissionService.ts` | 修改 | 添加 'approve' 操作 |
+| `authz/__tests__/AuthorizationEngine.test.ts` | 修改 | MockRelationshipService 适配 |
+| `authz/__tests__/RelationshipService.test.ts` | 重写 | PostgreSQL mock 测试 |
+| `role/__tests__/RoleService.test.ts` | 修改 | 新增 mock 方法 + 更新用例 |
+
+### Git 提交
+- Commit: `c2b0a822` on `feat/frontend-gap-implementation`
+- Message: `feat(authz): complete RBAC+ABAC P0 core framework`
+
+### Code Review 发现 (待修复)
+
+| 严重度 | 问题 | 状态 |
+|--------|------|------|
+| Critical | 审计日志仅记录 deny 决策，allow 未记录 | 待修复 |
+| Critical | RelationshipService 缺少跨租户 ownerId 校验 | 待修复 |
+| Important | seed 错误仅 console.error，无失败阻断 | 待优化 |
+| Minor | AuthorizationEngine 构造函数 5 个参数 | 待优化 |
+
+### 待完成任务
+
+| 任务 | 优先级 | 说明 |
+|------|--------|------|
+| Task 9 | P1 | 68+ 路由模块从 roleGuard 替换为 requirePermission |
+| Task 13 | P1 | 前端路由从 requiredRole 升级为 requiredPermission |
+| - | P2 | 权限审计日志面板 UI |
+| - | P2 | ABAC 策略管理 UI |
+| - | P2 | 项目成员管理 UI |
+| - | P3 | Redis 权限缓存 |
+| - | P3 | 权限预计算 (< 10ms P95) |
+
+---
