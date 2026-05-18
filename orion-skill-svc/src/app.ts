@@ -3,9 +3,18 @@ import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
 import { config } from "./config";
+import { getPool, closePool, runMigrations } from "./utils/database";
+import { SkillService } from "./services/SkillService";
 import { skillRoutes } from "./routes/skill";
 import { errorHandler } from "./middleware/errorHandler";
 import { requestLogger } from "./middleware/logger";
+
+let skillService: SkillService | null = null;
+
+export function getSkillService(): SkillService {
+  if (!skillService) skillService = new SkillService();
+  return skillService;
+}
 
 export async function createApp() {
   const fastify = Fastify({
@@ -23,6 +32,20 @@ export async function createApp() {
           : undefined,
     },
   });
+
+  // Initialize database
+  try {
+    const dbUrl = process.env.DATABASE_URL;
+    if (dbUrl) {
+      await runMigrations();
+      fastify.log.info("[skill] Database migrations completed");
+    } else {
+      fastify.log.warn("[skill] DATABASE_URL not set, skipping database initialization");
+    }
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    fastify.log.warn(`[skill] Database initialization failed: ${msg}`);
+  }
 
   // Register plugins
   await fastify.register(cors, {
@@ -49,15 +72,32 @@ export async function createApp() {
   // Register middleware
   fastify.addHook("onRequest", requestLogger);
 
+  // Decorate fastify with service
+  fastify.decorate("skillService", getSkillService());
+
   // Register routes
   await fastify.register(skillRoutes, { prefix: "/api/v1/skills" });
 
   // Health endpoint at root
-  fastify.get("/health", async () => ({
-    success: true,
-    data: { status: "ok", service: "orion-skill-svc" },
-    meta: { timestamp: new Date().toISOString() },
-  }));
+  fastify.get("/health", async () => {
+    try {
+      const pool = getPool();
+      await pool.query("SELECT 1");
+      return {
+        success: true,
+        data: { status: "ok", service: "orion-skill-svc" },
+        meta: { timestamp: new Date().toISOString(), checks: { database: "up" } },
+      };
+    } catch {
+      return {
+        success: true,
+        data: { status: "degraded", service: "orion-skill-svc" },
+        meta: { timestamp: new Date().toISOString(), checks: { database: "down" } },
+      };
+    }
+  });
+
+  fastify.addHook("onClose", async () => { await closePool(); });
 
   // Register error handler
   fastify.setErrorHandler(errorHandler);
