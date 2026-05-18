@@ -51,12 +51,14 @@ import workflowRoutes from './workflow-routes';
 import configMgmtEnhancedRoutes from './config-mgmt-enhanced-routes';
 import securityComplianceRoutes from './security-compliance-routes';
 import disasterRecoveryRoutes from './disaster-recovery-routes';
+import selfHealingRoutes from './self-healing-routes';
 import multiModalTriggerRoutes from './multi-modal-trigger-routes';import digitalTwinRoutes from './digital-twin-routes';
 import apiGovernanceRoutes from './api-governance-routes';import communityRoutes from './community-routes';
 import communityAdvancedRoutes from './community-advanced-routes';
 import moduleRoutes from './module-routes';
 import scriptRoutes from './script-routes';
 import { registerApprovalRoutes } from './approval-routes';
+import artifactRoutes from './artifact-routes';
 import { escalationScheduler } from '../services/escalation/EscalationScheduler';
 import { registerSecretRoutes } from './secret-routes';
 import { registerApkUploadHistoryRoutes } from './apk-upload-history-routes';
@@ -67,6 +69,7 @@ import { PipelineBudgetRepository } from '../repositories/PipelineBudgetReposito
 import { registerBudgetRoutes } from './pipeline-budget-routes';
 
 // Previously orphan routes now being registered
+import authRoutes from './routes-auth';
 import authEnhancedRoutes from './auth-enhanced-routes';
 import autonomousPipelineRoutes from './autonomous-pipeline-routes';
 import canaryAnalysisRoutes from './canary-analysis-routes';
@@ -208,6 +211,29 @@ async function registerWithRoleGuard(
   });
 }
 
+/**
+ * 使用 requirePermission 的模块级注册（细粒度权限控制）
+ * @param routeModule - 路由模块函数
+ * @param prefix - 路由前缀
+ * @param routeOptions - 传递给路由模块的选项
+ * @param resourceType - 资源类型（如 'user', 'pipeline'）
+ * @param defaultAction - 默认操作（如 'read', 'write'）
+ */
+async function registerWithPermission(
+  app: FastifyInstance,
+  routeModule: (instance: FastifyInstance, opts?: any) => Promise<void>,
+  prefix: string,
+  routeOptions?: Record<string, unknown>,
+  resourceType?: string,
+  defaultAction?: string
+): Promise<void> {
+  await app.register(async (instance: FastifyInstance) => {
+    instance.addHook('onRequest', authenticateUser);
+    // 具体的 requirePermission 在各路由内部添加
+    await instance.register(routeModule, { prefix, ...routeOptions });
+  });
+}
+
 export default async function apiRoutes(app: FastifyInstance, options: ApiRoutesOptions): Promise<void> {
   // ==================== SSE Service Initialization (shared with pipeline engine) ====================
   const pipelineLogSSE = new PipelineLogSSEService(new EventEmitter());
@@ -327,19 +353,19 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // ==================== CMDB 路由 ====================
 
   // 注册 CMDB API 路由
-  await registerWithRoleGuard(app, cmdbRoutes, '/v1/cmdb', { database: options.database });
+  await registerWithRoleGuard(app, cmdbRoutes, '/cmdb', { database: options.database });
 
   // 注册 Build Environment API 路由 (PostgreSQL backed for BuildCache)
   // Code Repository 路由已迁移到 orion-code-svc (port 3010)
 
   // 注册 Branch Policy API 路由 (PostgreSQL backed)
   await app.register(branchPolicyRoutes, {
-    prefix: '/v1/code-repo/branch-policies',
+    prefix: '/code-repo/branch-policies',
     database: options.database,
   });
 
   // 注册 Configuration Management API 路由 (PostgreSQL backed)
-  await registerWithRoleGuard(app, configRoutes, '/v1/config', { database: options.database, redis: options.redis });
+  await registerWithRoleGuard(app, configRoutes, '/config', { database: options.database, redis: options.redis });
 
   // FinOps 成本管理路由已迁移到 orion-finops-svc (port 3009)
 
@@ -356,45 +382,49 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // 注册监控告警 API 路由 (TASK-703) - migrated to orion-monitor-svc (port 3005)
   // 注册智能工单 API 路由 (TASK-801) - migrated to orion-ticket-svc (port 3004)
   // Register self-healing API routes (TASK-702) - PostgreSQL backed
+  await registerWithRoleGuard(app, selfHealingRoutes, '/self-healing', { database: options.database });
   // 注册备份恢复 API 路由 (TASK-704) - PostgreSQL backed
   // 注册 Plugin SPI API 路由 (TASK-104)// 注册 Plugin Enhanced API 路由 (Phase 1, shared instance)// 注册 AI 安全加固 API 路由 (TASK-1004) — P1-15 Fix: pass database for audit log persistence
   // 注册 AI 网关 API 路由
   // 注册告警管理 API 路由
   // 注册审计 API 路由
-  await registerWithRoleGuard(app, auditRoutes, '/v1/audit', { database: options.database });
+  await registerWithRoleGuard(app, auditRoutes, '/audit', { database: options.database });
 
   // 注册租户管理 API 路由 (PostgreSQL backed)
-  await registerWithRoleGuard(app, tenantRoutes, '/v1/tenant', { database: options.database });
+  await registerWithRoleGuard(app, tenantRoutes, '/tenant', { database: options.database });
 
   // 注册效能分析 API 路由 — P0-4 Fix: pass database for real DORA metrics// 注册 SBOM Attestation API 路由 (P0) - migrated to PostgreSQL// 注册 OPA Policy Engine API 路由 (P0) - PostgreSQL backed// 注册 Quality Gate Trend API 路由 (Phase 1) - PostgreSQL backed// 注册 AI Change Intelligence API 路由 (P0)
   // 注册 ML Canary Analysis API 路由 (P0) - PostgreSQL backed
   // 注册 Plugin Marketplace API 路由 (Phase 3) - PostgreSQL backed// 注册 Canary Traffic Management API 路由 (Phase 3) - PostgreSQL backed
   // 注册 Skill Management API 路由 (M12)
-  await registerWithRoleGuard(app, skillRoutes, '/v1/skills', { database: options.database });
+  await registerWithRoleGuard(app, skillRoutes, '/skills', { database: options.database });
 
   // 注册 AI Cost Optimization API 路由 (M36)
   // 注册 IaC Management API 路由 (M20) - PostgreSQL backed
-  await registerWithRoleGuard(app, iacRoutes, '/v1/iac', { eventBus: options.eventBus, database: options.database });
+  await registerWithRoleGuard(app, iacRoutes, '/iac', { eventBus: options.eventBus, database: options.database });
 
   // Register Ephemeral Dev Environments API routes (M31)
-  await registerWithRoleGuard(app, ephemeralEnvRoutes, '/v1/ephemeral-envs', {
+  await registerWithRoleGuard(app, ephemeralEnvRoutes, '/ephemeral-envs', {
     eventBus: options.eventBus,
     database: options.database,
   });
 
   // 注册 ChatOps API 路由 (M35) - PostgreSQL backed
-  await registerWithRoleGuard(app, chatopsRoutes, '/v1/chatops', {
+  await registerWithRoleGuard(app, chatopsRoutes, '/chatops', {
     eventBus: options.eventBus,
     database: options.database,
   });
 
   // 注册 Manual Confirmation API 路由 (P0-6)
-  await registerWithRoleGuard(app, confirmationRoutes, '/v1/confirmations', { database: options.database, eventBus: options.eventBus });
+  await registerWithRoleGuard(app, confirmationRoutes, '/confirmations', { database: options.database, eventBus: options.eventBus });
 
-  // 注册 Artifact Registry API 路由// Cost Operations 路由已迁移到 orion-finops-svc (port 3009)
+  // 注册 Artifact Registry API 路由 (M29)
+  await registerWithRoleGuard(app, artifactRoutes, '/artifacts', { database: options.database });
+
+// Cost Operations 路由已迁移到 orion-finops-svc (port 3009)
 
   // 注册统一配置中心 API (使用 /v1/system-config 前缀)
-  await registerWithRoleGuard(app, unifiedConfigRoutes, '/v1/system-config', { database: options.database });// 注册 OnCall 排班 API 路由 (P0 - SRE scheduling)
+  await registerWithRoleGuard(app, unifiedConfigRoutes, '/system-config', { database: options.database });// 注册 OnCall 排班 API 路由 (P0 - SRE scheduling)
   // 注册 Escalation 统一升级 API 路由 (自动升级 + 手动升级)
   // 启动自动升级调度器
   // 使用系统租户模式绕过 RLS
@@ -417,61 +447,61 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // 注册 Cron Scheduler API 路由 (P0-1 Fix: was missing)
   // 注册 EventBus API 路由 (M24 - PostgreSQL backed) — admin only
-  await registerWithRoleGuard(app, eventbusRoutes, '/v1/eventbus', { database: options.database, eventBus: options.eventBus });
+  await registerWithRoleGuard(app, eventbusRoutes, '/eventbus', { database: options.database, eventBus: options.eventBus });
 
   // 注册 ProductLine 多分支产品线 API 路由 (M6) — P0-2 Fix: pass database
-  await registerWithRoleGuard(app, productLineRoutes, '/v1/product-lines', { database: options.database });
+  await registerWithRoleGuard(app, productLineRoutes, '/product-lines', { database: options.database });
 
   // 注册 Internal Library 二方库管理 API 路由 (M30)
-  await registerWithRoleGuard(app, internalLibraryRoutes, '/v1/internal-libraries', { database: options.database });
+  await registerWithRoleGuard(app, internalLibraryRoutes, '/internal-libraries', { database: options.database });
 
   // 注册 Notification API 路由 (M8/M33) — 传入 eventBus 用于多通道投递事件
-  await registerWithRoleGuard(app, notificationRoutes, '/v1/notifications', { eventBus: options.eventBus });
+  await registerWithRoleGuard(app, notificationRoutes, '/notifications', { eventBus: options.eventBus });
 
   // 注册 Workbench API 路由 — 个人聚合工作台后端 (auth guarded)
-  await registerWithRoleGuard(app, workbenchRoutes, '/v1/workbench', { database: options.database });
+  await registerWithRoleGuard(app, workbenchRoutes, '/workbench', { database: options.database });
 
   // 注册 Role Management API 路由 (RBAC) - PostgreSQL backed
-  await registerWithRoleGuard(app, roleRoutes, '/v1/roles', { database: options.database });
+  await registerWithRoleGuard(app, roleRoutes, '/roles', { database: options.database });
 
   // 注册 Session Management API 路由 - PostgreSQL backed
-  await registerWithRoleGuard(app, sessionRoutes, '/v1/sessions', { database: options.database });
+  await registerWithRoleGuard(app, sessionRoutes, '/sessions', { database: options.database });
 
   // 注册 Webhook Management API 路由 (M1) - PostgreSQL backed
-  await registerWithRoleGuard(app, webhookRoutes, '/v1/webhooks', { database: options.database });
+  await registerWithRoleGuard(app, webhookRoutes, '/webhooks', { database: options.database });
 
   // 注册 Project Management API 路由 - PostgreSQL backed
-  await registerWithRoleGuard(app, projectRoutes, '/v1/projects', { database: options.database });
+  await registerWithRoleGuard(app, projectRoutes, '/projects', { database: options.database });
 
   // 注册 Environment Management API 路由 - PostgreSQL backed
-  await registerWithRoleGuard(app, environmentRoutes, '/v1/environments', { database: options.database });
+  await registerWithRoleGuard(app, environmentRoutes, '/environments', { database: options.database });
 
   // 注册 Queue Management API 路由 (M24) - PostgreSQL backed
   // 注册 Knowledge Base API 路由 (M28) - PostgreSQL backed
-  await registerWithRoleGuard(app, knowledgeRoutes, '/v1/knowledge', { database: options.database });
+  await registerWithRoleGuard(app, knowledgeRoutes, '/knowledge', { database: options.database });
 
   // 注册 LLM Trace API 路由 - PostgreSQL backed with cost tracking
-  await registerWithRoleGuard(app, llmTraceRoutes, '/v1/llm', { database: options.database });
+  await registerWithRoleGuard(app, llmTraceRoutes, '/llm', { database: options.database });
 
   // 注册 Metrics API 路由 - PostgreSQL backed
-  await registerWithRoleGuard(app, metricsRoutes, '/v1/metrics', { database: options.database });
+  await registerWithRoleGuard(app, metricsRoutes, '/metrics', { database: options.database });
 
   // 注册 User Management API 路由 - PostgreSQL backed
-  await registerWithRoleGuard(app, userRoutes, '/v1/users', { database: options.database, redis: options.redis });
+  await registerWithRoleGuard(app, userRoutes, '/users', { database: options.database, redis: options.redis });
 
   // 注册 Agent Orchestration API 路由 - PostgreSQL backed
   // 注册 API Key Management API 路由 - PostgreSQL backed
-  await registerWithRoleGuard(app, apiKeyRoutes, '/v1/api-keys', { database: options.database });
+  await registerWithRoleGuard(app, apiKeyRoutes, '/api-keys', { database: options.database });
 
   // 注册 MCP Server API 路由 - AI assistant integration
-  await registerWithRoleGuard(app, mcpRoutes, '/v1/mcp', { database: options.database, redis: options.redis });
+  await registerWithRoleGuard(app, mcpRoutes, '/mcp', { database: options.database, redis: options.redis });
 
   // 注册 Vector Embedding & Semantic Search API 路由 (pgvector backed)// 注册 LLM Trace API 路由 - LLM调用链追踪与成本分析
 
   // 注册 Privacy Policy API 路由 - 租户隐私策略管理
-  await registerWithRoleGuard(app, privacyRoutes, '/v1/privacy');
+  await registerWithRoleGuard(app, privacyRoutes, '/privacy');
 
-  await registerWithRoleGuard(app, disasterRecoveryRoutes, '/v1/disaster-recovery', {
+  await registerWithRoleGuard(app, disasterRecoveryRoutes, '/disaster-recovery', {
     database: options.database,
   });
 
@@ -485,15 +515,15 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // ==================== Phase 3: Supply Chain Security ====================// ==================== Phase 3: Chaos Engineering ====================
 
   // ==================== Phase 3: Cross-Domain Orchestration ====================
-  await registerWithRoleGuard(app, crossDomainRoutes, '/v1/orchestration', {
+  await registerWithRoleGuard(app, crossDomainRoutes, '/orchestration', {
     database: options.database,
   });
 
   // ==================== Workflow Routes (GAP Implementation) ====================
-  await registerWithRoleGuard(app, workflowRoutes, '/v1/workflows', {});
+  await registerWithRoleGuard(app, workflowRoutes, '/workflows', {});
 
   // ==================== Phase 3: Config Management Enhancement ====================
-  await registerWithRoleGuard(app, configMgmtEnhancedRoutes, '/v1/config-mgmt', {
+  await registerWithRoleGuard(app, configMgmtEnhancedRoutes, '/config-mgmt', {
     database: options.database,
   });
 
@@ -503,25 +533,25 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
     instance.addHook('onRequest', authenticateUser);
     // Register compliance routes - the module handles /compliance/* paths
     await instance.register(securityComplianceRoutes, {
-      prefix: '/v1',
+      prefix: '/',
       database: options.database,
     });
   });
 
   // ==================== Phase 3: Multi-Modal Trigger ====================
-  await registerWithRoleGuard(app, multiModalTriggerRoutes, '/v1/triggers', {
+  await registerWithRoleGuard(app, multiModalTriggerRoutes, '/triggers', {
     database: options.database,
   });
 
   // ==================== Community Ecosystem Services ====================
   if (moduleManager.isModuleEnabled('domain:community')) {
-    await registerWithRoleGuard(app, communityRoutes, '/v1/community');
+    await registerWithRoleGuard(app, communityRoutes, '/community');
   } else {
     logger.info('[routes] Community module disabled, skipping route registration');
   }
 
   // ==================== Community Ecosystem Advanced Services ====================
-  await registerWithRoleGuard(app, communityAdvancedRoutes, '/v1/community-advanced');
+  await registerWithRoleGuard(app, communityAdvancedRoutes, '/community-advanced');
 
   // Federation/MultiCloud/DisasterRecovery routes migrated to dr-svc and federation-svc
 
@@ -541,18 +571,18 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // ==================== Artifact Operations ====================
 
   // ==================== Digital Twin ====================
-  await registerWithRoleGuard(app, digitalTwinRoutes, '/v1/digital-twins');
+  await registerWithRoleGuard(app, digitalTwinRoutes, '/digital-twins');
 
   // ==================== API Governance ====================
-  await registerWithRoleGuard(app, apiGovernanceRoutes, '/v1/api-governance');
+  await registerWithRoleGuard(app, apiGovernanceRoutes, '/api-governance');
 
   // Efficiency Enhanced routes migrated to efficiency-svc
 
   // ==================== Module Management ====================
-  await registerWithRoleGuard(app, moduleRoutes, '/v1/system/modules', { moduleManager: (options as any).moduleManager });
+  await registerWithRoleGuard(app, moduleRoutes, '/system/modules', { moduleManager: (options as any).moduleManager });
 
   // ==================== Inline Script ====================
-  await registerWithRoleGuard(app, scriptRoutes, '/v1/scripts', { database: options.database });
+  await registerWithRoleGuard(app, scriptRoutes, '/scripts', { database: options.database });
 
   // ==================== Secret Management ====================
   await registerSecretRoutes(app, { database: options.database });
@@ -573,42 +603,45 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // ==================== Previously Orphan Routes (Now Registered) ====================
 
+  // Base Auth - login, register, logout, refresh, /me (no role guard, routes handle their own auth)
+  await app.register(authRoutes, { prefix: '/auth', database: options.database });
+
   // Auth Enhanced - JWT Key Rotation & Token Blacklist
-  await registerWithRoleGuard(app, authEnhancedRoutes, '/v1/auth', {
+  await registerWithRoleGuard(app, authEnhancedRoutes, '/auth', {
     database: options.database,
   });
 
   // Autonomous Pipeline - Error classification, adaptive timeout, auto-retry
-  await registerWithRoleGuard(app, autonomousPipelineRoutes, '/v1/autonomous', {
+  await registerWithRoleGuard(app, autonomousPipelineRoutes, '/autonomous', {
     database: options.database,
   });
 
   // ML Canary Analysis
-  await registerWithRoleGuard(app, canaryAnalysisRoutes, '/v1/canary-analysis', {
+  await registerWithRoleGuard(app, canaryAnalysisRoutes, '/canary-analysis', {
     database: options.database,
     eventBus: options.eventBus,
   });
 
   // Canary Traffic Management
-  await registerWithRoleGuard(app, canaryTrafficRoutes, '/v1/canary/deployments', {
+  await registerWithRoleGuard(app, canaryTrafficRoutes, '/canary/deployments', {
     database: options.database,
   });
 
   // Chaos Engineering - experiment management, fault injection, resilience scoring
-  await registerWithRoleGuard(app, chaosEnhancedRoutes, '/v1/chaos', {
+  await registerWithRoleGuard(app, chaosEnhancedRoutes, '/chaos', {
     database: options.database,
   });
 
   // Cron Scheduler
-  await registerWithRoleGuard(app, cronRoutes, '/v1/cron', {
+  await registerWithRoleGuard(app, cronRoutes, '/cron', {
     database: options.database,
   });
 
   // Data Pipeline - data pipeline management and lineage
-  await registerWithRoleGuard(app, dataPipelineRoutes, '/v1/data-pipelines');
+  await registerWithRoleGuard(app, dataPipelineRoutes, '/data-pipelines');
 
   // Decision Explanation - SHAP decision explanations and quality feedback
-  await registerWithRoleGuard(app, decisionExplanationRoutes, '/v1/decisions', {
+  await registerWithRoleGuard(app, decisionExplanationRoutes, '/decisions', {
     database: options.database,
   });
 
@@ -619,27 +652,27 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   }
 
   // Developer Portal
-  await registerWithRoleGuard(app, developerPortalRoutes, '/v1/developer-portal', {
+  await registerWithRoleGuard(app, developerPortalRoutes, '/developer-portal', {
     database: options.database,
   });
 
   // Diagnostic Agent
-  await registerWithRoleGuard(app, diagnosticRoutes, '/v1/diagnostic', {
+  await registerWithRoleGuard(app, diagnosticRoutes, '/diagnostic', {
     database: options.database,
   });
 
   // Escalation - unified escalation management
   // Note: escalationScheduler is already started above
-  await registerWithRoleGuard(app, escalationRoutes, '/v1/escalation', {
+  await registerWithRoleGuard(app, escalationRoutes, '/escalation', {
     database: options.database,
     eventBus: options.eventBus,
   });
 
   // Hook Chain - hook chain orchestration
-  await registerWithRoleGuard(app, hookChainRoutes, '/v1/hook-chains');
+  await registerWithRoleGuard(app, hookChainRoutes, '/hook-chains');
 
   // Performance Analysis
-  await registerWithRoleGuard(app, performanceRoutes, '/v1/performance', {
+  await registerWithRoleGuard(app, performanceRoutes, '/performance', {
     database: options.database,
   });
 
@@ -652,21 +685,21 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   }
 
   // Pipeline SSE - real-time log streaming
-  await app.register(pipelineSSERoutes, { prefix: '/v1', pipelineLogSSE });
+  await app.register(pipelineSSERoutes, { prefix: '/', pipelineLogSSE });
 
   // Pipeline Error Detail - structured error classification for failed runs
-  await registerWithRoleGuard(app, pipelineErrorDetailRoutes, '/v1/pipelines', {
+  await registerWithRoleGuard(app, pipelineErrorDetailRoutes, '/pipelines', {
     database: options.database,
   });
 
   // Pipeline Templates
-  await registerWithRoleGuard(app, pipelineTemplateRoutes, '/v1/pipeline-templates', {
+  await registerWithRoleGuard(app, pipelineTemplateRoutes, '/pipeline-templates', {
     database: options.database,
     redis: options.redis,
   });
 
   // Pipeline Versions
-  await registerWithRoleGuard(app, pipelineVersionRoutes, '/v1/pipelines/versions', {
+  await registerWithRoleGuard(app, pipelineVersionRoutes, '/pipelines/versions', {
     database: options.database,
     redis: options.redis,
   });
@@ -675,36 +708,36 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   if (options.database) {
     const pluginRegistry = new PluginRegistry();
     const pluginLifecycleManager = new PluginLifecycleManager(pluginRegistry);
-    await registerWithRoleGuard(app, pluginHotReloadRoutes, '/v1/plugins/hotreload', {
+    await registerWithRoleGuard(app, pluginHotReloadRoutes, '/plugins/hotreload', {
       lifecycleManager: pluginLifecycleManager,
       registry: pluginRegistry,
     });
   }
 
   // Plugin Management (enhanced plugin system)
-  await registerWithRoleGuard(app, pluginRoutes, '/v1/plugins', {
+  await registerWithRoleGuard(app, pluginRoutes, '/plugins', {
     database: options.database,
     pluginManager: (options as any).moduleManager,
   });
 
   // Queue Management
-  await registerWithRoleGuard(app, queueRoutes, '/v1/queue', {
+  await registerWithRoleGuard(app, queueRoutes, '/queue', {
     database: options.database,
   });
 
   // Supply Chain Security - SBOM, dependency analysis, artifact signing
-  await registerWithRoleGuard(app, supplyChainRoutes, '/v1/supply-chain', {
+  await registerWithRoleGuard(app, supplyChainRoutes, '/supply-chain', {
     database: options.database,
   });
 
   // OPA Policy Engine - policy definitions, evaluations, violations, exemptions
-  await registerWithRoleGuard(app, policyRoutes, '/v1/policies', {
+  await registerWithRoleGuard(app, policyRoutes, '/policies', {
     database: options.database,
   });
 
   // Test Generation - AI test case generation
-  await registerWithRoleGuard(app, testGenerationRoutes, '/v1/test-generation');
+  await registerWithRoleGuard(app, testGenerationRoutes, '/test-generation');
 
   // Test Selector - smart test selection
-  await registerWithRoleGuard(app, testSelectorRoutes, '/v1/test-selector');
+  await registerWithRoleGuard(app, testSelectorRoutes, '/test-selector');
 }
