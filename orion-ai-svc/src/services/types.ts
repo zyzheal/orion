@@ -100,7 +100,7 @@ export type AIScenarioP1 =
   | 'alert-correlation' // 告警关联
   | 'automation-suggestion'; // 自动化建议
 
-export type AIScenario = AIScenarioP0 | AIScenarioP1;
+export type AIScenario = AIScenarioP0 | AIScenarioP1 | 'agent_reasoning' | 'chatops_intent';
 
 export const AI_SCENARIO_PRIORITY: Record<AIScenario, 'P0' | 'P1'> = {
   // P0 场景
@@ -121,6 +121,9 @@ export const AI_SCENARIO_PRIORITY: Record<AIScenario, 'P0' | 'P1'> = {
   'knowledge-extraction': 'P1',
   'alert-correlation': 'P1',
   'automation-suggestion': 'P1',
+  // Agent 场景
+  'agent_reasoning': 'P1',
+  'chatops_intent': 'P1',
 };
 
 // ==================== 降级策略类型 ====================
