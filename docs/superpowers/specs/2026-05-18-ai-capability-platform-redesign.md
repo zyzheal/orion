@@ -112,6 +112,12 @@
    → { intent: "diagnose_latency", target: "api", confidence: 0.95 }
          │
          ▼
+   [置信度检查]
+   ├─ confidence >= 0.7 → 继续流程 ②
+   └─ confidence < 0.7  → Fallback: 显示命令选择器 UI
+         │                   "你是想执行以下操作吗？"
+         │                   [诊断 api 服务延迟] [查看 api 日志] [其他]
+         │
 ② Agent 编排: POST /api/agents/orchestration/plans
    tasks: [
      { tool: "prometheus_query", ... },     // 并行
@@ -128,6 +134,15 @@
          ▼
 ④ SSE 流式返回前端 (实时显示诊断进度)
 ```
+
+**意图识别降级策略：**
+
+| 场景 | 处理 |
+|------|------|
+| confidence >= 0.7 | 自动执行，SSE 显示进度 |
+| 0.4 <= confidence < 0.7 | 显示"你是想执行...吗？"确认 UI，用户确认后执行 |
+| confidence < 0.4 | Fallback 到命令选择器（Command Browser），用户手动选择 |
+| LLM 超时/不可用 | Fallback 到规则匹配（关键词 → 命令映射），与现有 ChatOps 兼容 |
 
 ### 2.3 Agent 服务合并架构
 
@@ -374,10 +389,14 @@ export interface ToolExecutionContext {
   traceId?: string;
 }
 
+export type SandboxLevel = 'none' | 'process' | 'container';
+
 export interface ToolDefinition {
   name: string;
   description: string;
   parameters: ToolParameter[];
+  sandbox: SandboxLevel;            // 沙箱隔离级别
+  requiresApproval: boolean;        // 是否需要审批（生产部署等高危操作）
   execute: (ctx: ToolExecutionContext) => Promise<unknown>;
 }
 
@@ -404,6 +423,8 @@ export class ToolRegistry {
         { name: 'query', type: 'string', required: true, description: 'PromQL 查询语句' },
         { name: 'range', type: 'string', required: false, description: '时间范围，如 1h, 24h' },
       ],
+      sandbox: 'none',
+      requiresApproval: false,
       execute: async (ctx) => { /* 调用 Prometheus API */ },
     });
     this.register({
@@ -413,6 +434,8 @@ export class ToolRegistry {
         { name: 'service', type: 'string', required: true, description: '服务名称' },
         { name: 'limit', type: 'number', required: false, description: '返回条数' },
       ],
+      sandbox: 'none',
+      requiresApproval: false,
       execute: async (ctx) => { /* 调用日志 API */ },
     });
     this.register({
@@ -421,6 +444,8 @@ export class ToolRegistry {
       parameters: [
         { name: 'service', type: 'string', required: true, description: '服务名称' },
       ],
+      sandbox: 'process',
+      requiresApproval: false,
       execute: async (ctx) => { /* 调用诊断服务 */ },
     });
     this.register({
@@ -430,7 +455,9 @@ export class ToolRegistry {
         { name: 'service', type: 'string', required: true, description: '服务名称' },
         { name: 'environment', type: 'string', required: true, description: '目标环境' },
       ],
-      execute: async (ctx) => { /* 调用部署 API */ },
+      sandbox: 'container',
+      requiresApproval: true,  // 生产部署必须走审批流
+      execute: async (ctx) => { /* 调用部署 API，前置检查审批状态 */ },
     });
     this.register({
       name: 'vector_search',
@@ -439,6 +466,8 @@ export class ToolRegistry {
         { name: 'query', type: 'string', required: true, description: '搜索内容' },
         { name: 'topK', type: 'number', required: false, description: '返回条数' },
       ],
+      sandbox: 'none',
+      requiresApproval: false,
       execute: async (ctx) => { /* 调用 VectorStore */ },
     });
   }
@@ -571,6 +600,17 @@ CREATE TABLE IF NOT EXISTS agent_runs (
 2. 导入到 `ai_db`
 3. 合并后 agent 的 Repository 使用 `getPool()`（ai-svc 的连接池）即可访问
 4. 验证通过后，agent-svc 独立数据库可安全删除
+
+**回滚方案：**
+
+| 场景 | 回滚动作 |
+|------|---------|
+| 迁移中数据不一致 | 停止导入，保留 `orion_agent` 库不动，恢复 agent-svc 服务进程 |
+| ai-svc 启动后路由报错 | 停止 ai-svc，恢复 agent-svc 在 3007 端口运行，前端切回原地址 |
+| 运行中数据丢失 | 从 `orion_agent` 备份恢复：重新 COPY 数据到 ai_db |
+| 需要完全回退 | `git revert` 合并 commit，agent-svc 代码仍在 git 历史中 |
+
+**关键原则：** `orion_agent` 库在验证期（至少 1 周）内**不删除**，作为只读备份。
 
 ### 4.7 环境变量合并
 
@@ -741,7 +781,7 @@ AI 模块复用平台统一角色体系，不单独定义角色。以下是与 A
 |---------|-----------|------|
 | `org_admin` | `ai:*:read`, `ai:*:write`, `ai:*:execute`, `ai:*:manage`, `ai:*:approve` | 组织管理员，可管理 Agent/Review/ChatOps |
 | `tech_lead` | `ai:review:read`, `ai:review:write`, `ai:doc:read`, `ai:doc:write`, `ai:gateway:read`, `ai:agent:read`, `ai:agent:execute`, `chatops:use`, `chatops:read` | 技术负责人，可使用代码智能 + ChatOps |
-| `developer` | `ai:review:read`, `ai:doc:read`, `ai:gateway:read`, `chatops:use`, `knowledge:read` | 普通开发者，只读 AI 网关 + Review + 文档 |
+| `developer` | `ai:review:read`, `ai:review:create`, `ai:doc:read`, `ai:doc:write`, `ai:gateway:read`, `chatops:use`, `knowledge:read` | 普通开发者，可触发 AI Review + 编辑文档 + ChatOps |
 | `sre` | `ai:gateway:read`, `ai:trace:read`, `chatops:use`, `chatops:read`, `chatops:config:write`, `ai:agent:read`, `ai:agent:execute`, `ai:security:read` | SRE，ChatOps 配置 + Gateway 监控 |
 | `viewer` | `ai:gateway:read`, `ai:doc:read`, `knowledge:read` | 只读用户 |
 | `oncall` | `chatops:use`, `chatops:read`, `ai:gateway:read`, `ai:trace:read`, `ai:agent:read`, `ai:agent:execute` | OnCall Engineer，ChatOps 运维专用 |
@@ -788,6 +828,7 @@ AI 模块复用平台统一角色体系，不单独定义角色。以下是与 A
 // AI Review
 { value: 'ai:review:read', label: 'AI Review - 查看' },
 { value: 'ai:review:write', label: 'AI Review - 管理' },
+{ value: 'ai:review:create', label: 'AI Review - 触发评审' },
 
 // AI 文档
 { value: 'ai:doc:read', label: 'AI 文档 - 查看' },
@@ -854,7 +895,7 @@ AI 模块复用平台 6 条预置 ABAC 策略（租户隔离、网络限制、�
 | **finops_admin** | - | R | R | R | R | R | R | R | R | W |
 | **org_admin** | R | R | W | W | W | W | C | R | R | R |
 | **tech_lead** | - | R | X | W | W | R | U | R | - | - |
-| **developer** | - | R | - | R | W | R | U | R | - | - |
+| **developer** | - | R | - | X | W | R | U | R | - | - |
 | **sre** | - | R | X | R | R | R | C | R | R | - |
 | **oncall** | - | R | X | R | R | R | U | R | R | - |
 | **viewer** | - | R | - | R | R | R | - | - | - | - |
@@ -914,6 +955,8 @@ export default async function aiRoutes(app: FastifyInstance, options): Promise<v
 
 ```typescript
 // stores/permissionStore.ts — 从角色派生权限点
+// import { create } from 'zustand';
+// import { ROLE_PERMISSIONS } from '@/constants/permissions';
 import { create } from 'zustand';
 import { ROLE_PERMISSIONS } from '@/constants/permissions';
 
@@ -1109,6 +1152,20 @@ function AIGatewayPage() {
 
 AI 模块不独立实现权限中间件，直接复用平台 `requirePermission` 中间件，该中间件内部调用统一 AuthZ 引擎（RBAC → ABAC → 关系检查 → 审计）：
 
+**与现有 roleGuard 的关系：**
+
+| 中间件 | 状态 | 说明 |
+|--------|------|------|
+| `roleGuard(['admin'])` | ⚠️ 已废弃（deprecated） | 仅检查角色字符串，无法支持 ABAC 和细粒度权限。保留用于非 AI 模块向后兼容 |
+| `requirePermission({...})` | ✅ 推荐 | 接入统一 AuthZ 引擎，支持 RBAC+ABAC+关系检查三层评估。AI 模块统一使用此中间件 |
+
+**迁移计划：**
+- Phase 1：AI 模块全部使用 `requirePermission`
+- Phase 2：将非 AI 模块的 `roleGuard` 逐步替换为 `requirePermission`
+- Phase 3：确认无模块使用 `roleGuard` 后，标记为 `@deprecated` 并移除
+
+> **注意**：`roleGuard` 和 `requirePermission` 不应同时用于同一条路由，否则会产生重复的权限判断。AI 路由仅使用 `requirePermission`。
+
 ```typescript
 // src/middleware/requirePermission.ts (平台统一，AI 模块直接使用)
 
@@ -1294,6 +1351,12 @@ const Redirect: React.FC<{ to: string }> = ({ to }) => {
 - [ ] **验证**：TypeScript 编译 + 单元测试
 
 ### Phase 1b: Agent 服务合并 (1 周)
+
+**前置步骤：**
+- [ ] **停止 orion-agent-svc 进程**（避免与 ai-svc 争抢 `orion_agent` 数据库连接）
+- [ ] 确认 ai-svc 已在 3012 端口运行，且 agent 路由已注册
+
+**合并步骤：**
 - [ ] 数据库迁移：在 ai_db 中创建 agent_profiles/agent_runs 表
 - [ ] 从 orion_agent 导出数据导入到 ai_db
 - [ ] 创建 `orion-ai-svc/src/services/agent/` 目录
