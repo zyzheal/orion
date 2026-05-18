@@ -27,6 +27,7 @@ import { CommandRouter } from '../services/chatops/CommandRouter';
 import { ChatOpsController } from './controllers/ChatOpsController';
 import { RecommendationService, RealDataProvider } from '../services/chatops/RecommendationService';
 // MockDataProviderImpl 保留用于回滚: import { RecommendationService, MockDataProviderImpl } from ...
+import { DashboardService } from '../services/chatops/DashboardService';
 import { NotificationPreferenceService } from '../services/chatops/NotificationPreferenceService';
 import { DNDService } from '../services/chatops/DNDService';
 import { AlertStateService } from '../services/chatops/AlertStateService';
@@ -256,6 +257,9 @@ export default async function chatopsRoutes(
     inputValidator,
   });
 
+  // ==================== Dashboard Service ====================
+  const dashboardService = new DashboardService(executionRepo);
+
   // ==================== Phase 1a New Services ====================
   // Recommendations: RealDataProvider 查询真实数据库表 (Phase 1b 可添加租户过滤)
   const dataProvider = new RealDataProvider(db);
@@ -309,6 +313,7 @@ export default async function chatopsRoutes(
     platformConfigService,
     eventSubscriber,
     eventBus: options.eventBus,
+    dashboardService,
   });
 
   // Seed default commands
@@ -426,6 +431,12 @@ export default async function chatopsRoutes(
 
   app.post('/alerts/:id/dismiss', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'write' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.markAlertDismissed(request, reply);
+  });
+
+  // ==================== Dashboard Stats ====================
+
+  app.get('/dashboard/stats', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.getDashboardStats(request, reply);
   });
 
   // ==================== Health Check (ARCH-005) ====================

@@ -15,6 +15,7 @@ import { AlertStateService } from '../../services/chatops/AlertStateService';
 import { PlatformConfigService } from '../../services/chatops/PlatformConfigService';
 import { ChatOpsMessageRepository } from '../../repositories/ChatOpsRepository';
 import { ChatOpsEventSubscriber } from '../../services/chatops/EventSubscriber';
+import { DashboardService } from '../../services/chatops/DashboardService';
 import { SSEConnectionManager } from '../../services/chatops/SSEConnectionManager';
 import {
   WebhookVerifier,
@@ -36,6 +37,7 @@ export class ChatOpsController {
   private eventSubscriber: ChatOpsEventSubscriber | null;
   /** ARCH-005: EventBus 实例，用于健康检查 */
   private eventBus: EventBusService | null;
+  private dashboardService: DashboardService;
 
   constructor(options: {
     commandService: CommandService;
@@ -49,6 +51,7 @@ export class ChatOpsController {
     eventSubscriber?: ChatOpsEventSubscriber | null;
     /** ARCH-005: EventBus 实例 */
     eventBus?: EventBusService | null;
+    dashboardService: DashboardService;
   }) {
     this.commandService = options.commandService;
     this.executionService = options.executionService;
@@ -60,6 +63,7 @@ export class ChatOpsController {
     this.platformConfigService = options.platformConfigService;
     this.eventSubscriber = options.eventSubscriber ?? null;
     this.eventBus = options.eventBus ?? null;
+    this.dashboardService = options.dashboardService;
   }
 
   // ==================== Helpers ====================
@@ -717,6 +721,30 @@ export class ChatOpsController {
       await reply.send({ success: true });
     } catch (err) {
       await reply.status(400).send({
+        success: false,
+        error: err instanceof Error ? err.message : 'Internal server error',
+      });
+    }
+  }
+
+  // ==================== Dashboard Stats ====================
+
+  async getDashboardStats(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    try {
+      const query = request.query as { range?: string; startDate?: string; endDate?: string };
+      const range = (query.range as any) || '7d';
+      const stats = await this.dashboardService.getStats({
+        range,
+        startDate: query.startDate,
+        endDate: query.endDate,
+      });
+      await reply.send({ success: true, data: stats });
+    } catch (err) {
+      if (err instanceof Error && err.message.includes('custom range')) {
+        await reply.status(400).send({ success: false, error: err.message });
+        return;
+      }
+      await reply.status(500).send({
         success: false,
         error: err instanceof Error ? err.message : 'Internal server error',
       });
