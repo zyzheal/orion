@@ -4,33 +4,62 @@ import { useAuthStore } from '@/stores/authStore';
 // 角色权限映射（与后端同步，来源于 docs/architecture/rbac-abac-unified-implementation.md §4）
 const ROLE_PERMISSIONS: Record<string, string[]> = {
   'super_admin': ['*:*'],
-  'platform_admin': ['*:manage', '*:read', '*:write', '*:execute', '*:delete', '*:approve'],
+  'platform_admin': ['*:manage', '*:read', '*:write', '*:execute', '*:delete', '*:approve',
+                      // AI 通配
+                      'ai:*:manage', 'ai:*:read', 'ai:*:write', 'ai:*:execute'],
   'tenant_admin': ['*:manage', '*:read', '*:write', 'audit_log:read'],
-  'org_admin': ['*:read', '*:write', '*:execute', '*:manage', '*:approve'],
+  'org_admin': ['*:read', '*:write', '*:execute', '*:manage', '*:approve',
+                 // AI 权限
+                 'ai:*:read', 'ai:*:write', 'ai:*:execute', 'ai:*:manage', 'ai:*:approve'],
   'security_admin': ['audit_log:read', 'config:read', 'secrets:read', 'user:read', 'role:read',
                       'project:read', 'pipeline:read', 'deployment:read', 'alert:read',
-                      'security:manage', 'ticket:read', 'approval:approve'],
-  'finops_admin': ['finops:*', 'project:read', 'deployment:read', 'pipeline:read'],
+                      'security:manage', 'ticket:read', 'ticket:write', 'approval:approve',
+                      // AI 权限
+                      'ai:security:manage', 'ai:trace:read', 'ai:gateway:read',
+                      'ai:review:read', 'ai:doc:read', 'knowledge:read',
+                 // AI 权限
+                 'ai:review:read', 'ai:review:create', 'ai:doc:read', 'ai:doc:write',
+                 'ai:gateway:read', 'chatops:use'],
+  'finops_admin': ['finops:*', 'project:read', 'deployment:read', 'pipeline:read',
+                    // AI 权限
+                    'ai:cost:read', 'ai:cost:manage', 'ai:gateway:read'],
   'tech_lead': ['project:read', 'project:write', 'pipeline:read', 'pipeline:write',
                  'pipeline:execute', 'pipeline:approve', 'deployment:read',
                  'deployment:execute', 'alert:read', 'alert:acknowledge',
                  'config:read', 'ticket:read', 'ticket:write',
-                 'artifact:read', 'knowledge:read', 'knowledge:write'],
+                 'artifact:read', 'knowledge:read', 'knowledge:write',
+                 // AI 权限
+                 'ai:review:read', 'ai:review:write', 'ai:doc:read', 'ai:doc:write',
+                 'ai:gateway:read', 'ai:agent:read', 'ai:agent:execute',
+                 'chatops:use', 'chatops:read'],
   'developer': ['project:read', 'pipeline:read', 'pipeline:write', 'pipeline:execute',
                  'deployment:read', 'alert:read', 'config:read',
                  'ticket:read', 'ticket:write', 'artifact:read',
-                 'knowledge:read'],
+                 'knowledge:read',
+                 // AI 权限
+                 'ai:review:read', 'ai:review:create', 'ai:doc:read', 'ai:doc:write',
+                 'ai:gateway:read', 'chatops:use'],
   'sre': ['*:read', 'deployment:execute', 'deployment:approve',
            'environment:*', 'alert:*', 'config:write',
            'pipeline:read', 'pipeline:execute', 'iac:*',
-           'ticket:read', 'ticket:write', 'oncall:*'],
+           'ticket:read', 'ticket:write', 'oncall:*',
+           // AI 权限
+           'ai:gateway:read', 'ai:trace:read', 'chatops:use', 'chatops:read',
+           'chatops:config:write', 'ai:agent:read', 'ai:agent:execute',
+           'ai:security:read'],
   'dba': ['project:read', 'pipeline:read', 'deployment:read',
            'config:read', 'alert:read', 'cmdb:read',
            'environment:read', 'secrets:read'],
   'viewer': ['project:read', 'pipeline:read', 'deployment:read',
               'alert:read', 'artifact:read', 'knowledge:read',
-              'ticket:read', 'finops:read'],
+              'ticket:read', 'finops:read',
+              // AI 权限
+              'ai:gateway:read', 'ai:doc:read'],
   'auditor': ['audit_log:*', '*:read', 'ticket:read', 'approval:read'],
+  // 新增 oncall 角色
+  'oncall': ['chatops:use', 'chatops:read', 'ai:gateway:read', 'ai:trace:read',
+              'ai:agent:read', 'ai:agent:execute', 'ai:security:read',
+              'alert:*', 'pipeline:read', 'deployment:read', 'ticket:read', 'ticket:write'],
   // 项目级角色
   'project_admin': ['project:*', 'pipeline:*', 'deployment:*',
                      'environment:read', 'artifact:*', 'alert:*',
@@ -46,7 +75,10 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
                          'ticket:write', 'secrets:read'],
   'project_viewer': ['project:read', 'pipeline:read', 'deployment:read',
                       'artifact:read', 'alert:read', 'ticket:read',
-                      'knowledge:read'],
+                      'knowledge:read',
+                 // AI 权限
+                 'ai:review:read', 'ai:review:create', 'ai:doc:read', 'ai:doc:write',
+                 'ai:gateway:read', 'chatops:use'],
 };
 
 // 通配符匹配逻辑
