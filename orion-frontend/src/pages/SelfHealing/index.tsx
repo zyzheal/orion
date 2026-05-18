@@ -4,7 +4,7 @@
  */
 import React, { useState } from 'react';
 import { Layout, Menu, Typography } from 'antd';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 import {
   MedicineBoxOutlined,
   HistoryOutlined,
@@ -17,6 +17,7 @@ import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 const { Sider, Content } = Layout;
 const { Title } = Typography;
 
+// 统一菜单项配置
 const menuItems = [
   { key: '/console/self-healing/incidents', icon: <MedicineBoxOutlined />, label: 'Incidents' },
   { key: '/console/self-healing/history', icon: <HistoryOutlined />, label: 'Healing History' },
@@ -25,10 +26,21 @@ const menuItems = [
   { key: '/console/self-healing/effectiveness', icon: <DashboardOutlined />, label: 'Effectiveness' },
 ];
 
+// 统一的 Layout 配置
+const LAYOUT_CONFIG = {
+  siderWidth: 220,
+  titleLevel: 5 as const,
+  headerPadding: `${spacing[4]}px ${spacing[3]}px ${spacing[2]}px`,
+};
+
 const SelfHealingLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
+
+  // 动态获取主题
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const theme = isDark ? 'dark' : 'light';
 
   const handleMenuClick = ({ key }: { key: string }) => {
     navigate(key);
@@ -40,23 +52,36 @@ const SelfHealingLayout: React.FC = () => {
         collapsible
         collapsed={collapsed}
         onCollapse={setCollapsed}
-        theme="light"
-        style={{ borderRight: `1px solid ${colors.light.border.light}` }}
+        theme={theme}
+        width={LAYOUT_CONFIG.siderWidth}
+        style={{
+          background: isDark ? colors.dark.bg.elevated : colors.light.bg.primary,
+          borderRight: `1px solid ${isDark ? colors.dark.border.default : colors.light.border.light}`,
+        }}
       >
-        <div style={{ padding: '16px 12px' }}>
-          <Title level={4} style={{ margin: 0 }}>
-            {collapsed ? 'SH' : 'Self-Healing'}
-          </Title>
-        </div>
+        {!collapsed && (
+          <div style={{ padding: LAYOUT_CONFIG.headerPadding }}>
+            <Title level={LAYOUT_CONFIG.titleLevel} style={{ margin: 0, color: colors.primary[500] }}>
+              Self-Healing
+            </Title>
+          </div>
+        )}
         <Menu
           mode="inline"
           selectedKeys={[location.pathname]}
           items={menuItems}
           onClick={handleMenuClick}
+          style={{ borderRight: 'none' }}
         />
       </Sider>
       <Layout>
-        <Content style={{ margin: 0 }}>
+        <Content
+          style={{
+            margin: 0,
+            padding: spacing[6],
+            background: isDark ? colors.dark.bg.primary : colors.light.bg.primary,
+          }}
+        >
           <Outlet />
         </Content>
       </Layout>

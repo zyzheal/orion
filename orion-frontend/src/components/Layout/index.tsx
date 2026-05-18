@@ -142,6 +142,10 @@ const iconMap: Record<string, React.ReactNode> = {
   '/console/code-mgmt': <ForkOutlined />,
   '/queue': <UnorderedListOutlined />,
   '/vector-store': <DatabaseOutlined />,
+  // AI 子菜单
+  '/llm-trace': <EyeOutlined />,
+  '/ai-cost': <DollarCircleOutlined />,
+  '/ai/knowledge': <BookOutlined />,
 };
 
 const getIcon = (key: string): React.ReactNode => iconMap[key] || <SettingOutlined />;
@@ -376,10 +380,10 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       // 打开面板：立即设置
       setMegaMenuKey(key);
     } else {
-      // 关闭面板：延迟 150ms，给用户时间从导航项移动到面板
+      // 关闭面板：延迟 200ms，给用户足够时间从导航项移动到面板
       megaMenuTimerRef.current = setTimeout(() => {
         setMegaMenuKey(null);
-      }, 150);
+      }, 200);
     }
   };
 

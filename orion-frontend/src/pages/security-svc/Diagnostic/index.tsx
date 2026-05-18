@@ -5,7 +5,7 @@
 import React, { useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { Layout, Menu, Typography } from 'antd';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 import {
   PlayCircleOutlined,
   FileTextOutlined,
@@ -23,10 +23,21 @@ const menuItems = [
   { key: '/console/diagnostic/trigger', icon: <RocketOutlined />, label: 'Trigger' },
 ];
 
+// 统一的 Layout 配置
+const LAYOUT_CONFIG = {
+  siderWidth: 220,
+  titleLevel: 5 as const,
+  headerPadding: `${spacing[4]}px ${spacing[3]}px ${spacing[2]}px`,
+};
+
 const DiagnosticLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
+
+  // 动态获取主题
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const theme = isDark ? 'dark' : 'light';
 
   const selectedKey = location.pathname;
 
@@ -40,13 +51,16 @@ const DiagnosticLayout: React.FC = () => {
         collapsible
         collapsed={collapsed}
         onCollapse={setCollapsed}
-        theme="light"
-        style={{ borderRight: `1px solid ${colors.light.border.light}` }}
-        width={200}
+        theme={theme}
+        width={LAYOUT_CONFIG.siderWidth}
+        style={{
+          background: isDark ? colors.dark.bg.elevated : colors.light.bg.primary,
+          borderRight: `1px solid ${isDark ? colors.dark.border.default : colors.light.border.light}`,
+        }}
       >
         {!collapsed && (
-          <div style={{ padding: '16px 12px 8px' }}>
-            <Title level={5} style={{ margin: 0, color: colors.purple[500] }}>
+          <div style={{ padding: LAYOUT_CONFIG.headerPadding }}>
+            <Title level={LAYOUT_CONFIG.titleLevel} style={{ margin: 0, color: colors.primary[500] }}>
               Diagnostic
             </Title>
           </div>
@@ -62,10 +76,9 @@ const DiagnosticLayout: React.FC = () => {
       <Layout>
         <Content
           style={{
-            padding: 24,
+            padding: spacing[6],
             margin: 0,
-            minHeight: 280,
-            background: colors.light.bg.primary,
+            background: isDark ? colors.dark.bg.primary : colors.light.bg.primary,
           }}
         >
           <Outlet />

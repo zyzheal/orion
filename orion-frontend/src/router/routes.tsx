@@ -218,12 +218,12 @@ export const routes: AppRoute[] = [
   // BI Dashboard Routes (统一入口)
   {
     path: '/bi',
-    element: React.createElement(Navigate, { to: '/dashboard/executive', replace: true }),
+    element: <RedirectTo to="/dashboard/executive" />,
     protected: true,
   },
   {
     path: '/bi/*',
-    element: React.createElement(Navigate, { to: '/dashboard/executive', replace: true }),
+    element: <RedirectTo to="/dashboard/executive" />,
     protected: true,
   },
   {
@@ -303,6 +303,11 @@ export const routes: AppRoute[] = [
     element: React.lazy(() => import('@/pages/SkillManagement')),
     protected: true,
     children: [
+      // 默认重定向到 marketplace
+      {
+        index: true,
+        element: React.createElement(Navigate, { to: '/skills/marketplace', replace: true }),
+      },
       {
         path: '/skills/marketplace',
         element: React.lazy(() => import('@/pages/SkillManagement/Marketplace')),
@@ -327,6 +332,11 @@ export const routes: AppRoute[] = [
     protected: true,
     requiredRole: ['admin', 'platform_admin'],
     children: [
+      // 默认重定向到 workspaces
+      {
+        index: true,
+        element: React.createElement(Navigate, { to: '/console/iac/workspaces', replace: true }),
+      },
       {
         path: '/console/iac/workspaces',
         element: React.lazy(() => import('@/pages/IacManagement/WorkspaceList')),
@@ -360,6 +370,11 @@ export const routes: AppRoute[] = [
     protected: true,
     requiredRole: ['admin', 'platform_admin'],
     children: [
+      // 默认重定向到 pending
+      {
+        index: true,
+        element: React.createElement(Navigate, { to: '/console/confirmations/pending', replace: true }),
+      },
       {
         path: '/console/confirmations/pending',
         element: React.lazy(() => import('@/pages/ConfirmationWorkbench/PendingList')),
@@ -399,6 +414,11 @@ export const routes: AppRoute[] = [
     protected: true,
     // requiredRole: ['admin', 'platform_admin'], // TODO: 临时移除权限检查
     children: [
+      // 默认重定向到 recommend
+      {
+        index: true,
+        element: React.createElement(Navigate, { to: '/console/chatops/recommend', replace: true }),
+      },
       {
         path: '/console/chatops/recommend',
         element: React.lazy(() => import('@/pages/ChatOps/SmartRecommend')),
@@ -438,6 +458,11 @@ export const routes: AppRoute[] = [
     protected: true,
     requiredRole: ['admin', 'platform_admin'],
     children: [
+      // 默认重定向到 overview
+      {
+        index: true,
+        element: React.createElement(Navigate, { to: '/console/ai-cost/overview', replace: true }),
+      },
       {
         path: '/console/ai-cost/overview',
         element: React.lazy(() => import('@/pages/AICostDashboard/CostOverview')),
@@ -477,6 +502,11 @@ export const routes: AppRoute[] = [
     protected: true,
     requiredRole: ['admin', 'platform_admin'],
     children: [
+      // 默认重定向到 overview
+      {
+        index: true,
+        element: React.createElement(Navigate, { to: '/console/llm-trace/overview', replace: true }),
+      },
       {
         path: '/console/llm-trace/overview',
         element: React.lazy(() => import('@/pages/LLMTraceDashboard/TraceOverview')),
@@ -510,6 +540,11 @@ export const routes: AppRoute[] = [
     protected: true,
     requiredRole: ['admin', 'platform_admin'],
     children: [
+      // 默认重定向到 spaces
+      {
+        index: true,
+        element: React.createElement(Navigate, { to: '/console/ai-docs/spaces', replace: true }),
+      },
       {
         path: '/console/ai-docs/spaces',
         element: React.lazy(() => import('@/pages/AIDocManagement/SpaceList')),
@@ -550,6 +585,11 @@ export const routes: AppRoute[] = [
     protected: true,
     requiredRole: ['admin', 'platform_admin'],
     children: [
+      // 默认重定向到 images
+      {
+        index: true,
+        element: React.createElement(Navigate, { to: '/console/build-env/images', replace: true }),
+      },
       {
         path: '/console/build-env/images',
         element: React.lazy(() => import('@/pages/BuildEnv/BuilderImageList')),
@@ -601,6 +641,11 @@ export const routes: AppRoute[] = [
     protected: true,
     requiredRole: ['admin', 'platform_admin'],
     children: [
+      // 默认重定向到 repos
+      {
+        index: true,
+        element: React.createElement(Navigate, { to: '/console/code-mgmt/repos', replace: true }),
+      },
       {
         path: '/console/code-mgmt/repos',
         element: React.lazy(() => import('@/pages/CodeMgmt/RepoList')),
@@ -684,6 +729,11 @@ export const routes: AppRoute[] = [
     protected: true,
     requiredRole: ['admin', 'platform_admin'],
     children: [
+      // 默认重定向到 incidents
+      {
+        index: true,
+        element: React.createElement(Navigate, { to: '/console/self-healing/incidents', replace: true }),
+      },
       {
         path: '/console/self-healing/incidents',
         element: React.lazy(() => import('@/pages/SelfHealing/IncidentList')),
@@ -729,6 +779,11 @@ export const routes: AppRoute[] = [
     protected: true,
     requiredRole: ['admin', 'platform_admin'],
     children: [
+      // 默认重定向到 dashboard
+      {
+        index: true,
+        element: React.createElement(Navigate, { to: '/console/monitoring/dashboard', replace: true }),
+      },
       {
         path: '/console/monitoring/dashboard',
         element: React.lazy(() => import('@/pages/monitor-svc/Monitoring/Dashboard')),
@@ -768,6 +823,11 @@ export const routes: AppRoute[] = [
     protected: true,
     requiredRole: ['admin', 'platform_admin'],
     children: [
+      // 默认重定向到 sessions
+      {
+        index: true,
+        element: React.createElement(Navigate, { to: '/console/diagnostic/sessions', replace: true }),
+      },
       {
         path: '/console/diagnostic/sessions',
         element: React.lazy(() => import('@/pages/security-svc/Diagnostic/Sessions')),
@@ -1249,6 +1309,28 @@ export const routes: AppRoute[] = [
     element: React.lazy(() => import('@/pages/AICostDashboard')),
     protected: true,
     requiredPermission: { resource: 'ai-cost', action: 'read' },
+  },
+
+  // ==================== 模块入口重定向 ====================
+  {
+    path: '/ops',
+    element: <RedirectTo to="/pipelines" />,
+    protected: true,
+  },
+  {
+    path: '/ai',
+    element: <RedirectTo to="/ai/gateway" />,
+    protected: true,
+  },
+  {
+    path: '/governance',
+    element: <RedirectTo to="/policies" />,
+    protected: true,
+  },
+  {
+    path: '/dev-env',
+    element: <RedirectTo to="/environments" />,
+    protected: true,
   },
 
   // ==================== 旧路由 301 重定向（向后兼容） ====================

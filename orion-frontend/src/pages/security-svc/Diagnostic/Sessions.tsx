@@ -39,6 +39,9 @@ const DiagnosticSessions: React.FC = () => {
   const [sessionDetail, setSessionDetail] = useState<any>(null);
   const [symptomForm] = Form.useForm();
 
+  // 动态获取主题
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+
   const loadData = async () => {
     setLoading(true);
     try {
@@ -406,7 +409,7 @@ const DiagnosticSessions: React.FC = () => {
                   {sessionDetail.symptoms.map((symptom: DiagnosticSymptom, idx: number) => (
                     <div
                       key={idx}
-                      style={{ padding: 12, background: colors.neutral[50], borderRadius: 6 }}
+                      style={{ padding: 12, background: isDark ? 'rgba(255,255,255,0.05)' : colors.neutral[50], borderRadius: 6 }}
                     >
                       <Space>
                         <Tag color="purple">{symptom.type}</Tag>
