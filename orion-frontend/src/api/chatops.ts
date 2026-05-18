@@ -566,3 +566,65 @@ export function sendChatMessage(data: ChatRequest) {
 export function getAvailableTools() {
   return api.get('/v1/chatops/tools');
 }
+
+// ---- Dashboard Stats ----
+
+export interface DashboardMetrics {
+  totalExecutions: number;
+  successRate: number;
+  failedCount: number;
+  avgResponseTime: number;
+}
+
+export interface DashboardTrend {
+  date: string;
+  executions: number;
+  successRate: number;
+}
+
+export interface TopCommand {
+  command: string;
+  count: number;
+  successRate: number;
+}
+
+export interface PlatformDist {
+  platform: string;
+  count: number;
+}
+
+export interface DashboardRecentExecution {
+  id: string;
+  commandId: string;
+  userId: string;
+  platform: string;
+  status: string;
+  startTime: string;
+  endTime: string | null;
+}
+
+export interface MetricsComparison {
+  totalExecutions: number;
+  successRate: number;
+  failedCount: number;
+  avgResponseTime: number;
+}
+
+export interface DashboardStats {
+  metrics: DashboardMetrics;
+  trends: DashboardTrend[];
+  topCommands: TopCommand[];
+  platformDistribution: PlatformDist[];
+  recentExecutions: DashboardRecentExecution[];
+  comparison: MetricsComparison;
+}
+
+export type TimeRangeType = '7d' | '30d' | 'month' | 'custom';
+
+export function getDashboardStats(params?: {
+  range?: TimeRangeType;
+  startDate?: string;
+  endDate?: string;
+}) {
+  return api.get('/v1/chatops/dashboard/stats', { params });
+}
