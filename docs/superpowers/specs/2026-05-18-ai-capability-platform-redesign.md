@@ -87,7 +87,8 @@
 │  **PromptGuard 降级策略：**                                         │
 │  - 启动失败 → 拒绝启动 ai-svc (fail-fast)                          │
 │  - 运行崩溃 → 5s 内自动重启，重启期间拒绝所有 LLM 调用              │
-│  - 高延迟 >2s → 熔断，跳过安全检查并记录审计日志                    │
+│  - 高延迟 >2s → 熔断，超时强制返回（不跳过检查，而是 1s 强制超时，   │
+│    标记为"安全检查超时"并记录审计日志，拒绝高风险 Prompt）          │
 └──────────────────────────────────────────────────────────────────────┘
 ```
 │                                                                      │
@@ -245,6 +246,26 @@ AI 能力平台
 | 代码智能 | 🔍 | `CodeOutlined` |
 | 安全与治理 | 🛡️ | `SecurityScanOutlined` |
 | 平台配置 | ⚙️ | `ToolOutlined` |
+
+**子菜单图标映射：**
+
+| 路由 | Ant Design 图标 |
+|------|----------------|
+| `/ai/chatops` | `MessageOutlined` |
+| `/ai/docs` | `FileTextOutlined` |
+| `/ai/knowledge` | `BookOutlined` |
+| `/ai/review` | `AuditOutlined` |
+| `/ai/gateway` | `CloudServerOutlined` |
+| `/ai/security` | `SafetyCertificateOutlined` |
+| `/ai/security/threats` | `AlertOutlined` |
+| `/ai/security/compliance` | `FileSearchOutlined` |
+| `/ai/provider` | `ApiOutlined` |
+| `/ai/scenario-router` | `BranchesOutlined` |
+| `/ai/agents` | `RobotOutlined` |
+| `/ai/orchestration` | `ControlOutlined` |
+| `/ai/tools` | `ToolOutlined` |
+| `/ai/trace` | `LineChartOutlined` |
+| `/ai/cost` | `DollarOutlined` |
 
 > 注：实际开发中请使用 Ant Design 图标系统，Emoji 仅用于本文档示意。
 
@@ -1301,8 +1322,15 @@ export function requirePermission(options: RequirePermissionOptions) {
     const authzEngine = (request.server as any).authzEngine as AuthorizationEngine;
     if (!authzEngine) throw new Error('AuthZ engine not initialized');
 
+    // 兼容 JWT role 格式：支持 string 或 string[]（1.2 节提到的问题）
+    const rawUser = (request as any).user;
+    const normalizedUser = {
+      ...rawUser,
+      role: Array.isArray(rawUser?.role) ? rawUser.role : [rawUser?.role].filter(Boolean),
+    };
+
     const authzReq: AuthZRequest = {
-      user: (request as any).user,
+      user: normalizedUser,
       resource: {
         type: options.resourceType,
         id: options.extractResourceId?.(request),
@@ -1538,6 +1566,26 @@ const Redirect: React.FC<{ to: string }> = ({ to }) => {
 | LLM Trace 存储 | 7 天原始 + 30 天聚合 | 平衡可观测性与存储成本 |
 | 权限模型 | RBAC（角色→权限点）| 当前 RBAC 基础设施已到位，ABAC 延后 |
 | 新增角色 | OnCall Engineer | 运维场景高频用户，需要 ChatOps + Gateway + Trace 权限 |
+| API 限流 | 场景级限流 (perUser + perProvider) | 防止单一用户/Provider 耗尽资源 |
+| PromptGuard 降级 | 超时强制返回 | 高延迟时 1s 强制超时，不跳过安全检查 |
+
+**API 限流配置：**
+
+```typescript
+// 场景级限流配置
+interface RateLimitConfig {
+  perUser: number;        // 每用户每分钟最大请求数
+  perProvider: number;    // 每 Provider 每分钟最大请求数
+  burstAllowance: number; // 突发流量容忍
+}
+
+const scenarioRateLimits: Record<string, RateLimitConfig> = {
+  'chatops_intent': { perUser: 60, perProvider: 500, burstAllowance: 10 },
+  'code-review': { perUser: 30, perProvider: 200, burstAllowance: 5 },
+  'agent_reasoning': { perUser: 20, perProvider: 100, burstAllowance: 3 },
+  'ai-doc-generation': { perUser: 10, perProvider: 50, burstAllowance: 2 },
+};
+```
 
 ---
 
@@ -1554,6 +1602,7 @@ const Redirect: React.FC<{ to: string }> = ({ to }) => {
 | **AI Review 覆盖率** | ≥80% | 有 AI Review 记录的 PR 数 / 总 PR 数 | Phase 2 完成后 |
 | **Gateway 可用性** | ≥99.9% | (正常运行时间 / 总时间)，SLO 监控 | 持续 |
 | **PromptGuard 拦截率** | ≥95% | 被拦截的恶意 Prompt 数 / 总检测 Prompt 数 | Phase 2 完成后 |
+| **知识条目覆盖度** | ≥70% | (已编目知识条目数 / 预计总条目数) * 100，上线 60 天后测量 | Phase 5 完成后 |
 
 ### 指标采集
 
