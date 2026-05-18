@@ -5,7 +5,6 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { EventEmitter } from 'events';
 import { authenticateUser } from '../middleware/authMiddleware';
-import { roleGuard } from '../middleware/roleGuard';
 import { TenantIsolationService, createTenantValidatorMiddleware } from '../services/tenant';
 import { RLSPolicyManager } from '../services/tenant/RLSPolicyManager';
 import { tenantContextStorage, SYSTEM_TENANT_ID } from '../db/tenant-context-storage';
@@ -203,13 +202,10 @@ async function registerWithRoleGuard(
   routeModule: (instance: FastifyInstance, opts?: any) => Promise<void>,
   prefix: string,
   routeOptions?: Record<string, unknown>,
-  requiredRoles: readonly string[] = ADMIN_ROLES
+  _requiredRoles: readonly string[] = ADMIN_ROLES
 ): Promise<void> {
-  await app.register(async (instance: FastifyInstance) => {
-    instance.addHook('onRequest', authenticateUser);
-    instance.addHook('onRequest', roleGuard([...requiredRoles]));
-    await instance.register(routeModule, { prefix, ...routeOptions });
-  });
+  // 已迁移到 registerWithPermission：各路由内部使用 requirePermission 进行细粒度权限控制
+  return registerWithPermission(app, routeModule, prefix, routeOptions);
 }
 
 /**

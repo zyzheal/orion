@@ -7,7 +7,7 @@
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { authenticateUser } from '../middleware/authMiddleware';
-import { roleGuard } from '../middleware/roleGuard';
+import { requirePermission } from '../middleware/requirePermission';
 import { DatabasePool } from '../services/database';
 import { SessionRepository } from '../services/session/SessionRepository';
 import { SessionService } from '../services/session/SessionService';
@@ -55,7 +55,7 @@ export default async function sessionRoutes(
   app.post('/cleanup', {
     onRequest: [
       authenticateUser,
-      roleGuard(['admin', 'platform_admin']),
+      requirePermission({ resource: 'session', action: 'manage' }),
     ],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.cleanup(request, reply);

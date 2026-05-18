@@ -2,10 +2,9 @@
  * Notification API Routes (M8/M33)
  */
 
-import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { FastifyInstance, FastifyReply } from 'fastify';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
-import { roleGuard } from '../middleware/roleGuard';
 import { NotificationService, NotificationServiceError } from '../services/notification';
 import { NotificationRepository, NotificationSettingsRepository, NotificationSettingsService } from '../services/notification';
 
@@ -119,7 +118,6 @@ export default async function notificationRoutes(app: FastifyInstance, options: 
     onRequest: [
       authenticateUser,
       requirePermission({ resource: 'notification', action: 'manage' }),
-      roleGuard(['admin', 'platform_admin']),
     ],
   }, async (request, reply) => {
     try {
