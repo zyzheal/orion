@@ -693,42 +693,93 @@ CREATE INDEX idx_cost_user ON llm_cost_records(user_id);
 
 ## 五、权限管控设计
 
-### 5.1 当前 RBAC 现状分析
+> 本设计参照 `docs/architecture/rbac-abac-unified-implementation.md`（RBAC+ABAC 统一权限管控方案），将 AI 模块接入平台统一 AuthZ 引擎。
 
-| 组件 | 状态 | 说明 |
-|------|------|------|
-| JWT 认证 | ✅ | `authMiddleware.ts` 解析 JWT，提取 roles 数组 |
-| Role Guard | ✅ | `roleGuard(['admin'])` 路由级角色拦截 |
-| PermissionService | ✅ | ChatOps 双层权限：命令级 + 资源级 |
-| RBACRuleRepository | ✅ | 流水线级 RBAC 规则存储 |
-| Roles DB | ✅ | `roles`, `permissions`, `role_permissions` 表 |
-| 前端权限 | ❌ | 路由/菜单/按钮均无权限判断 |
-| AI 模块 RBAC | ❌ | 所有 AI route 无权限中间件 |
-| ABAC | ❌ | 无属性策略引擎 |
+### 5.1 权限架构总览
 
-**结论：有 RBAC 基础设施，但未覆盖 AI 模块，前端完全缺失。**
+AI 模块采用**三层权限评估**，与平台统一 AuthZ 引擎一致：
 
-### 5.2 权限点扩展
+```
+┌────────────────────────────────────────────────────────────────────┐
+│                    Orion AuthZ Engine (AI 模块接入)                  │
+│                                                                     │
+│  ┌─────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐         │
+│  │  RBAC    │   │  ABAC    │   │ 关系检查  │   │  审计层   │         │
+│  │  角色层   │──→│  属性层   │──→│ 归属层    │──→│  日志层   │         │
+│  └─────────┘   └──────────┘   └──────────┘   └──────────┘         │
+│       │              │              │                               │
+│       ▼              ▼              ▼                               │
+│  roles table    abac_policies   ai_resource_owners                  │
+│  permissions    条件评估器       agent_run_owner                     │
+│  user_roles     AI ABAC 规则    prompt_template_owner               │
+│  角色继承       租户隔离/成本约束  provider_owner                    │
+│                                                                    │
+│  决策流程:                                                          │
+│  1. RBAC → 角色是否有 ai:resource:action 权限？deny → 403          │
+│  2. ABAC → AI 属性条件是否满足？deny → 403                         │
+│  3. 关系 → 是否 AI 资源 owner？deny → 403                          │
+│  4. 全部通过 → 放行，记录审计日志                                    │
+└────────────────────────────────────────────────────────────────────┘
+```
 
-当前只有 `ai:use` / `ai:manage` 两个粗粒度权限，扩展为：
+### 5.2 平台角色体系与 AI 模块映射
+
+AI 模块复用平台统一角色体系，不单独定义角色。以下是与 AI 相关的角色权限映射：
+
+#### 系统级角色（AI 相关权限）
+
+| 角色 ID | AI 相关权限 | 说明 |
+|---------|-----------|------|
+| `super_admin` | `*:*`（通配符） | 全平台通配，跳过 ABAC |
+| `platform_admin` | `ai:*:manage`, `ai:*:read`, `ai:*:write`, `ai:*:execute` | 平台运维，管理所有 AI 模块 |
+| `security_admin` | `ai:security:manage`, `ai:trace:read`, `ai:gateway:read` | 安全合规、审计 |
+| `finops_admin` | `ai:cost:read`, `ai:cost:manage` | AI 成本管理 |
+
+#### 业务级角色（AI 相关权限）
+
+| 角色 ID | AI 相关权限 | 说明 |
+|---------|-----------|------|
+| `org_admin` | `ai:*:read`, `ai:*:write`, `ai:*:execute`, `ai:*:manage`, `ai:*:approve` | 组织管理员，可管理 Agent/Review/ChatOps |
+| `tech_lead` | `ai:review:read`, `ai:review:write`, `ai:doc:read`, `ai:doc:write`, `ai:gateway:read`, `ai:agent:read`, `ai:agent:execute`, `chatops:use`, `chatops:read` | 技术负责人，可使用代码智能 + ChatOps |
+| `developer` | `ai:review:read`, `ai:doc:read`, `ai:gateway:read`, `chatops:use`, `knowledge:read` | 普通开发者，只读 AI 网关 + Review + 文档 |
+| `sre` | `ai:gateway:read`, `ai:trace:read`, `chatops:use`, `chatops:read`, `chatops:config:write`, `ai:agent:read`, `ai:agent:execute`, `ai:security:read` | SRE，ChatOps 配置 + Gateway 监控 |
+| `viewer` | `ai:gateway:read`, `ai:doc:read`, `knowledge:read` | 只读用户 |
+| `oncall` | `chatops:use`, `chatops:read`, `ai:gateway:read`, `ai:trace:read`, `ai:agent:read`, `ai:agent:execute` | OnCall Engineer，ChatOps 运维专用 |
+
+#### 项目级角色（AI 资源归属）
+
+| 角色 ID | AI 相关权限 | 说明 |
+|---------|-----------|------|
+| `project_admin` | `ai:agent:*`, `ai:orchestration:*`, `ai:tool:*` | 项目内 AI Agent 全权管理 |
+| `project_lead` | `ai:agent:read`, `ai:agent:execute`, `ai:orchestration:read`, `ai:orchestration:write` | 项目内可执行 Agent |
+| `project_developer` | `ai:agent:read`, `ai:orchestration:read` | 项目内只读 Agent |
+
+### 5.3 AI 模块权限点扩展
+
+在平台 `COMMON_PERMISSIONS` 基础上，新增 AI 专属权限点（格式 `ai:resource:action`）：
 
 ```typescript
 // 新增到 COMMON_PERMISSIONS (api/roles.ts)
 
-// AI 基础设施
+// AI 基础设施（平台配置）
 { value: 'ai:provider:read', label: 'AI Provider - 查看' },
 { value: 'ai:provider:write', label: 'AI Provider - 管理' },
+{ value: 'ai:provider:delete', label: 'AI Provider - 删除' },
 { value: 'ai:scenario:read', label: '场景路由 - 查看' },
 { value: 'ai:scenario:write', label: '场景路由 - 管理' },
 { value: 'ai:gateway:read', label: 'AI Gateway - 查看' },
 { value: 'ai:gateway:write', label: 'AI Gateway - 管理' },
+{ value: 'ai:gateway:execute', label: 'AI Gateway - 测试执行' },
 { value: 'ai:trace:read', label: 'LLM Trace - 查看' },
+{ value: 'ai:trace:delete', label: 'LLM Trace - 删除' },
 { value: 'ai:cost:read', label: '成本分析 - 查看' },
-{ value: 'ai:cost:write', label: '成本分析 - 管理' },
+{ value: 'ai:cost:manage', label: '成本分析 - 管理' },
 
 // Agent 编排
 { value: 'ai:agent:read', label: 'Agent - 查看' },
 { value: 'ai:agent:write', label: 'Agent - 管理' },
+{ value: 'ai:agent:execute', label: 'Agent - 执行' },
+{ value: 'ai:agent:delete', label: 'Agent - 删除' },
 { value: 'ai:orchestration:read', label: '编排策略 - 查看' },
 { value: 'ai:orchestration:write', label: '编排策略 - 管理' },
 { value: 'ai:tool:read', label: '工具注册表 - 查看' },
@@ -756,67 +807,160 @@ CREATE INDEX idx_cost_user ON llm_cost_records(user_id);
 { value: 'ai:security:write', label: 'AI 安全 - 管理' },
 ```
 
-### 5.3 角色权限矩阵
+### 5.4 AI 模块 ABAC 规则
+
+AI 模块复用平台 6 条预置 ABAC 策略（租户隔离、网络限制、工作时间限制等），并新增以下 AI 专属规则：
+
+| # | 策略 ID | 名称 | 效果 | 条件 | 优先级 |
+|---|---------|------|------|------|--------|
+| 7 | `ai-cost-budget-exceeded` | AI 成本预算超限 | deny | `resource.type in [agent:execute, ai-gateway:execute]` AND `user.project.cost_usage > budget` | 85 |
+| 8 | `ai-provider-restriction` | AI Provider 使用限制 | deny | `resource.provider not in allowed_providers` AND `user.role not in [admin, architect]` | 80 |
+| 9 | `ai-production-agent-restriction` | 生产环境 Agent 限制 | deny | `resource.environment == 'production'` AND `resource.agent.status != 'approved'` | 75 |
+| 10 | `ai-sensitive-prompt-access` | 敏感 Prompt 访问限制 | deny | `resource.type == 'prompt_template'` AND `resource.sensitivity == 'restricted'` AND `user.department != resource.department` | 70 |
+| 11 | `ai-model-cost-threshold` | 高成本模型使用限制 | deny | `response.model in ['opus', 'gpt-4']` AND `user.daily_token_cost > threshold` AND `user.role not in [admin, architect]` | 65 |
+
+### 5.5 AI 模块关系检查
+
+| 资源类型 | 关系检查规则 | 说明 |
+|----------|-------------|------|
+| Agent Profile | Owner 或 project_member 可管理 | `agent.owner_id == user.id` OR `user in project_members` |
+| Agent Run | Owner 可查看/重试 | `agent_run.user_id == user.id` OR `user in project_members` |
+| Prompt Template | Owner 或 department 成员可查看 | `template.owner_id == user.id` OR `template.department == user.department` |
+| LLM Provider | Admin/Architect 可管理 | `user.role in [admin, ai_architect]` |
+| AI Security Policy | Security Admin 可管理 | `user.role in [security_admin, admin]` |
+
+### 5.6 当前 RBAC 现状分析
+
+| 组件 | 状态 | 说明 |
+|------|------|------|
+| JWT 认证 | ✅ | `authMiddleware.ts` 解析 JWT，提取 roles 数组 |
+| Role Guard | ✅ | `roleGuard(['admin'])` 路由级角色拦截（需替换为 requirePermission） |
+| PermissionService | ✅ | 20+ resource:action 预置权限 |
+| RBACRuleRepository | ✅ | 流水线级 RBAC 规则存储 |
+| Roles DB | ✅ | `roles`, `permissions`, `role_permissions`, `user_roles` 表 |
+| ABAC 引擎 | ✅ | `AbacPolicyEngine` 在 API Gateway 已实现（750+ 行） |
+| 前端权限 | ❌ | 路由/菜单/按钮均无权限判断 |
+| AI 模块 RBAC | ❌ | 所有 AI route 无权限中间件 |
+
+**结论：平台有完整的 RBAC+ABAC 基础设施，但未覆盖 AI 模块，前端完全缺失。AI 模块应直接接入统一 AuthZ 引擎，而非独立实现。**
+
+### 5.7 角色权限矩阵（完整版）
 
 | 角色 | Provider | Gateway | Agent | Review | Doc | Knowledge | ChatOps | Security | Trace | Cost |
 |------|----------|---------|-------|--------|-----|-----------|---------|----------|-------|------|
-| **Admin** | W | W | W | W | W | W | W | W | R | R |
-| **AI Architect** | W | W | W | R | R | R | R | R | R | R |
-| **Security Admin** | - | R | R | R | R | R | R | W | R | R |
-| **Team Lead** | - | R | W | W | W | W | C | R | R | R |
-| **Developer** | - | R | R | R | W | R | U | R | - | - |
-| **OnCall Engineer** | - | R | R | R | R | R | W | R | R | - |
-| **Viewer** | - | R | - | R | R | R | U | - | - | - |
+| **super_admin** | W | W | W | W | W | W | W | W | W | W |
+| **platform_admin** | W | W | W | W | W | W | W | W | R | R |
+| **security_admin** | - | R | R | R | R | R | R | W | R | R |
+| **finops_admin** | - | R | R | R | R | R | R | R | R | W |
+| **org_admin** | R | R | W | W | W | W | C | R | R | R |
+| **tech_lead** | - | R | X | W | W | R | U | R | - | - |
+| **developer** | - | R | - | R | W | R | U | R | - | - |
+| **sre** | - | R | X | R | R | R | C | R | R | - |
+| **oncall** | - | R | X | R | R | R | U | R | R | - |
+| **viewer** | - | R | - | R | R | R | - | - | - | - |
 
-> W=Write, R=Read, U=Use, C=Config
+> W=Write, R=Read, X=Execute, U=Use, C=Config, -=无权限
 
-### 5.4 前端权限控制实现
+### 5.8 AI 模块路由保护升级
 
-#### 5.4.0 新增 PermissionStore
+每个 AI 路由从 `requiredRole`（角色守卫）升级为 `requirePermission`（权限点守卫），接入统一 AuthZ 引擎：
+
+```typescript
+// src/api/ai-routes.ts (示例)
+
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
+
+export default async function aiRoutes(app: FastifyInstance, options): Promise<void> {
+  // AI Gateway 健康监控 — ai:gateway:read
+  app.get('/gateway/health', {
+    onRequest: [authenticateUser, requirePermission({
+      resourceType: 'ai-gateway',
+      action: 'read',
+    })],
+  }, getGatewayHealth);
+
+  // Provider 管理 — ai:provider:write
+  app.post('/provider', {
+    onRequest: [authenticateUser, requirePermission({
+      resourceType: 'ai-provider',
+      action: 'write',
+    })],
+  }, createProvider);
+
+  // Agent 执行 — ai:agent:execute + ABAC 成本检查
+  app.post('/agent/:id/run', {
+    onRequest: [authenticateUser, requirePermission({
+      resourceType: 'ai-agent',
+      action: 'execute',
+      extractResourceId: (req) => req.params.id,
+      requiredImpact: 'medium',  // 触发 ABAC 成本预算检查
+    })],
+  }, runAgent);
+
+  // LLM Trace 查看 — ai:trace:read
+  app.get('/trace', {
+    onRequest: [authenticateUser, requirePermission({
+      resourceType: 'ai-trace',
+      action: 'read',
+    })],
+  }, listTraces);
+}
+```
+
+### 5.9 前端权限控制实现
+
+#### 5.9.0 新增 PermissionStore
 
 ```typescript
 // stores/permissionStore.ts — 从角色派生权限点
 import { create } from 'zustand';
-import { ROLE_PERMISSIONS, type CommonPermission } from '@/api/roles';
+import { ROLE_PERMISSIONS } from '@/constants/permissions';
 
 interface PermissionState {
   permissions: string[];
+  roles: string[];
   // 从用户角色派生权限
   setRoles: (roles: string[]) => void;
-  hasPermission: (permission: string) => boolean;
-  hasAnyPermission: (permissions: string[]) => boolean;
+  hasPermission: (resource: string, action: string) => boolean;
+  canView: (resource: string) => boolean;
+  canEdit: (resource: string) => boolean;
+  canExecute: (resource: string) => boolean;
 }
 
 export const usePermissionStore = create<PermissionState>((set, get) => ({
   permissions: [],
+  roles: [],
 
   setRoles: (roles: string[]) => {
     const perms = new Set<string>();
     for (const role of roles) {
-      const rolePerms = ROLE_PERMISSIONS[role];
-      if (rolePerms) rolePerms.forEach(p => perms.add(p));
-      // admin 拥有全部权限
-      if (role === 'admin') perms.add('*');
+      const rolePerms = ROLE_PERMISSIONS[role] || [];
+      rolePerms.forEach(p => perms.add(p));
     }
-    set({ permissions: Array.from(perms) });
+    set({ roles, permissions: Array.from(perms) });
   },
 
-  hasPermission: (permission: string) => {
+  hasPermission: (resource: string, action: string) => {
     const { permissions } = get();
-    return permissions.includes('*') || permissions.includes(permission);
+    const target = `${resource}:${action}`;
+    return permissions.some(p =>
+      p === '*:*' ||
+      p === target ||
+      p === `${resource}:*` ||
+      p === `*:${action}`
+    );
   },
 
-  hasAnyPermission: (perms: string[]) => {
-    const { permissions } = get();
-    if (permissions.includes('*')) return true;
-    return perms.some(p => permissions.includes(p));
-  },
+  canView: (resource: string) => get().hasPermission(resource, 'read'),
+  canEdit: (resource: string) => get().hasPermission(resource, 'write'),
+  canExecute: (resource: string) => get().hasPermission(resource, 'execute'),
 }));
 ```
 
-#### 5.4.1 扩展 AppRoute 接口
+#### 5.9.1 扩展 AppRoute 接口
 
-现有 `AppRoute` 使用 `requiredRole`（角色数组）做路由守卫。为支持细粒度权限，新增 `requiredPermissions` 字段：
+现有 `AppRoute` 使用 `requiredRole`（角色数组）做路由守卫。为支持细粒度权限，新增 `requiredPermission` 字段：
 
 ```typescript
 // router/routes.ts — 扩展 AppRoute 接口
@@ -824,15 +968,15 @@ export interface AppRoute {
   path?: string;
   element: ReactNode;
   protected?: boolean;
-  /** 角色守卫：任一角色匹配即可访问（现有） */
+  /** 角色守卫：任一角色匹配即可访问（现有，向后兼容） */
   requiredRole?: string | string[];
-  /** 权限点守卫：所有权限点均需满足（新增） */
-  requiredPermissions?: string[];
+  /** 权限点守卫：resource:action 格式（新增，接入统一 AuthZ） */
+  requiredPermission?: { resource: string; action: string };
   children?: AppRoute[];
 }
 ```
 
-#### 5.4.2 改造 ProtectedRoute 支持双重守卫
+#### 5.9.2 改造 ProtectedRoute 支持权限点守卫
 
 ```typescript
 // router/index.tsx — ProtectedRoute 扩展
@@ -842,27 +986,29 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; route: AppRoute }> =
 }) => {
   const user = useAuthStore((s) => s.user);
   const hasPermission = usePermissionStore((s) => s.hasPermission);
-  const hasAnyPermission = usePermissionStore((s) => s.hasAnyPermission);
 
-  // 1. 角色守卫（现有逻辑，保持不变）
+  // 1. 角色守卫（现有逻辑，向后兼容）
   if (route.requiredRole && !checkRoleAccess(user?.role, route.requiredRole)) {
     message.error('您没有权限访问此页面');
     navigate('/dashboard', { replace: true });
     return null;
   }
 
-  // 2. 权限点守卫（新增）
-  if (route.requiredPermissions && !hasAnyPermission(route.requiredPermissions)) {
-    message.error('权限不足，需要 ' + route.requiredPermissions.join(' / ') + ' 权限');
-    navigate('/dashboard', { replace: true });
-    return null;
+  // 2. 权限点守卫（新增，接入统一 AuthZ）
+  if (route.requiredPermission) {
+    const { resource, action } = route.requiredPermission;
+    if (!hasPermission(resource, action)) {
+      message.error(`权限不足，需要 ${resource}:${action} 权限`);
+      navigate('/dashboard', { replace: true });
+      return null;
+    }
   }
 
   return <>{children}</>;
 };
 ```
 
-#### 5.4.3 路由守卫使用示例
+#### 5.9.3 路由守卫使用示例
 
 ```typescript
 // router/routes.ts — AI 路由定义
@@ -870,147 +1016,155 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; route: AppRoute }> =
   path: '/ai/gateway',
   element: React.lazy(() => import('@/pages/AIGateway')),
   protected: true,
-  requiredPermissions: ['ai:gateway:read'],
+  requiredPermission: { resource: 'ai-gateway', action: 'read' },
 },
 {
   path: '/ai/provider',
   element: React.lazy(() => import('@/pages/AIProvider')),
   protected: true,
-  requiredPermissions: ['ai:provider:read'],
+  requiredPermission: { resource: 'ai-provider', action: 'read' },
+},
+{
+  path: '/ai/agents',
+  element: React.lazy(() => import('@/pages/AgentDashboard')),
+  protected: true,
+  requiredPermission: { resource: 'ai-agent', action: 'read' },
 },
 {
   path: '/ai/security',
   element: React.lazy(() => import('@/pages/AISecurity')),
   protected: true,
-  requiredPermissions: ['ai:security:read'],
+  requiredPermission: { resource: 'ai-security', action: 'read' },
 },
 ```
 
-#### 5.4.4 菜单过滤
+#### 5.9.4 菜单过滤
 
 ```typescript
 // stores/menuConfigStore.ts — 根据用户权限过滤菜单
-const MODULE_PERMISSIONS: Record<string, string[]> = {
-  '/ai/dashboard': ['ai:*'],
-  '/ai/chatops': ['chatops:use'],
-  '/ai/docs': ['ai:doc:read'],
-  '/ai/knowledge': ['knowledge:read'],
-  '/ai/review': ['ai:review:read'],
-  '/ai/gateway': ['ai:gateway:read'],
-  '/ai/security': ['ai:security:read'],
-  '/ai/provider': ['ai:provider:read'],
-  '/ai/agents': ['ai:agent:read'],
-  '/ai/orchestration': ['ai:orchestration:read'],
-  '/ai/tools': ['ai:tool:read'],
-  '/ai/trace': ['ai:trace:read'],
-  '/ai/cost': ['ai:cost:read'],
+const MODULE_PERMISSIONS: Record<string, { resource: string; action: string }> = {
+  '/ai/dashboard': { resource: 'ai-gateway', action: 'read' },
+  '/ai/chatops': { resource: 'chatops', action: 'use' },
+  '/ai/docs': { resource: 'ai-doc', action: 'read' },
+  '/ai/knowledge': { resource: 'knowledge', action: 'read' },
+  '/ai/review': { resource: 'ai-review', action: 'read' },
+  '/ai/gateway': { resource: 'ai-gateway', action: 'read' },
+  '/ai/security': { resource: 'ai-security', action: 'read' },
+  '/ai/provider': { resource: 'ai-provider', action: 'read' },
+  '/ai/agents': { resource: 'ai-agent', action: 'read' },
+  '/ai/orchestration': { resource: 'ai-orchestration', action: 'read' },
+  '/ai/tools': { resource: 'ai-tool', action: 'read' },
+  '/ai/trace': { resource: 'ai-trace', action: 'read' },
+  '/ai/cost': { resource: 'ai-cost', action: 'read' },
 };
 
-export const getVisibleChildren = (moduleKey: string, userPermissions: string[]): MenuChildConfig[] => {
+export const getVisibleChildren = (moduleKey: string): MenuChildConfig[] => {
   const module = useMenuConfigStore.getState().modules[moduleKey];
+  const hasPermission = usePermissionStore.getState().hasPermission;
   if (!module) return [];
 
   return module.children.filter(child => {
     const required = MODULE_PERMISSIONS[child.key];
     if (!required) return child.enabled;
-    // 用户拥有任一所需权限即可看到该菜单项
-    return child.enabled && required.some(p =>
-      userPermissions.includes(p) || userPermissions.includes('*')
-    );
+    return child.enabled && hasPermission(required.resource, required.action);
   });
 };
 ```
 
-#### 5.4.5 按钮级控制
+#### 5.9.5 按钮级控制 — PermissionGate 组件
 
 ```typescript
-// hooks/usePermission.ts
-export function usePermission(permission: string): boolean {
-  return usePermissionStore((s) => s.hasPermission(permission));
+// components/PermissionGate/index.tsx
+interface PermissionGateProps {
+  resource: string;
+  action: string;
+  fallback?: React.ReactNode;
+  children: React.ReactNode;
 }
 
-export function useAnyPermission(permissions: string[]): boolean {
-  return usePermissionStore((s) => s.hasAnyPermission(permissions));
-}
+export const PermissionGate: React.FC<PermissionGateProps> = ({
+  resource, action, fallback = null, children,
+}) => {
+  const hasPermission = usePermissionStore(s => s.hasPermission);
+  return hasPermission(resource, action) ? <>{children}</> : <>{fallback}</>;
+};
 
 // 页面中使用
 function AIGatewayPage() {
-  const canConfigure = usePermission('ai:gateway:write');
   return (
-    <Button icon={<SettingOutlined />} disabled={!canConfigure}>配置</Button>
+    <div>
+      <Title>AI Gateway</Title>
+      <PermissionGate resource="ai-gateway" action="write" fallback={<Button disabled>配置</Button>}>
+        <Button icon={<SettingOutlined />}>配置</Button>
+      </PermissionGate>
+      <PermissionGate resource="ai-gateway" action="execute" fallback={null}>
+        <Button icon={<ThunderboltOutlined />}>测试场景</Button>
+      </PermissionGate>
+    </div>
   );
 }
 ```
 
-### 5.5 后端权限中间件
+### 5.10 后端权限中间件（接入统一 AuthZ 引擎）
 
-#### 5.5.1 权限点查询 Repository
-
-```typescript
-// repositories/UserPermissionRepository.ts
-export interface UserPermissionRepository {
-  getUserPermissions(userId: string): Promise<string[]>;
-}
-
-export class PgUserPermissionRepository implements UserPermissionRepository {
-  private pool: Pool;
-
-  constructor(pool: Pool) {
-    this.pool = pool;
-  }
-
-  async getUserPermissions(userId: string): Promise<string[]> {
-    const result = await this.pool.query(`
-      SELECT DISTINCT p.value
-      FROM role_permissions rp
-      JOIN roles r ON rp.role_id = r.id
-      JOIN permissions p ON rp.permission_id = p.id
-      WHERE r.id IN (
-        SELECT ur.role_id FROM user_roles ur WHERE ur.user_id = $1
-      )
-    `, [userId]);
-    return result.rows.map(row => row.value);
-  }
-}
-```
-
-#### 5.5.2 权限中间件
+AI 模块不独立实现权限中间件，直接复用平台 `requirePermission` 中间件，该中间件内部调用统一 AuthZ 引擎（RBAC → ABAC → 关系检查 → 审计）：
 
 ```typescript
-// middleware/permissionGuard.ts
-export function requirePermission(requiredPermissions: string[]) {
-  const permRepo = new PgUserPermissionRepository(getPool());
+// src/middleware/requirePermission.ts (平台统一，AI 模块直接使用)
 
+import { FastifyRequest, FastifyReply } from 'fastify';
+import { AuthorizationEngine } from '../services/authz/AuthorizationEngine';
+import { AuthZRequest } from '../services/authz/types';
+
+export interface RequirePermissionOptions {
+  resourceType: string;
+  action: string;
+  extractResourceId?: (req: FastifyRequest) => string;
+  extractProjectId?: (req: FastifyRequest) => string;
+  extractOwnerId?: (req: FastifyRequest) => string;
+  requiredImpact?: 'low' | 'medium' | 'high' | 'critical';
+}
+
+export function requirePermission(options: RequirePermissionOptions) {
   return async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
-    const userRoles = (request.user as any)?.roles || [];
-    if (userRoles.includes('admin')) return; // Admin bypass
+    const authzEngine = (request.server as any).authzEngine as AuthorizationEngine;
+    if (!authzEngine) throw new Error('AuthZ engine not initialized');
 
-    const userPerms = await permRepo.getUserPermissions((request.user as any).userId);
-    const hasPerm = requiredPermissions.some(p => userPerms.includes(p));
-    if (!hasPerm) {
+    const authzReq: AuthZRequest = {
+      user: (request as any).user,
+      resource: {
+        type: options.resourceType,
+        id: options.extractResourceId?.(request),
+        tenantId: (request as any).user.tenantId,
+        projectId: options.extractProjectId?.(request),
+        ownerId: options.extractOwnerId?.(request),
+      },
+      environment: {
+        time: new Date(),
+        sourceIp: request.ip,
+        network: 'internal',
+        requestOrigin: 'web',
+      },
+      action: { type: options.action, impact: options.requiredImpact },
+    };
+
+    const decision = await authzEngine.evaluate(authzReq);
+
+    if (!decision.allowed) {
       return reply.code(403).send({
         code: 403,
         error: 'FORBIDDEN',
-        message: '权限不足',
+        message: decision.reason,
+        source: decision.source,
       });
     }
   };
 }
 ```
 
-#### 5.5.3 路由中使用权限中间件
+### 5.11 旧路由迁移兼容
 
-```typescript
-// routes/ai-provider.ts
-fastify.get('/api/v1/ai-provider', {
-  preHandler: [requirePermission(['ai:provider:read'])],
-  handler: listProviders,
-});
-```
-
-### 5.6 旧路由迁移兼容
-
-Phase 4 路由重排时需要处理旧路由书签失效问题。在 `router/routes.ts` 中添加 301 重定向：
+Phase 3 路由重排时需要处理旧路由书签失效问题。在 `router/routes.ts` 中添加 301 重定向：
 
 ```typescript
 // router/routes.ts — 旧路由 301 重定向
