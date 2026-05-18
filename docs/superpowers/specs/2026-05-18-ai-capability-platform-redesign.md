@@ -80,9 +80,16 @@
 │  │               │                             │                │   │
 │  │  ┌────────────▼──────────┐ ┌────────────────▼───────┐        │   │
 │  │  │ PromptGuardService    │ │ CircuitBreakerManager  │        │   │
-│  │  │ (全局单例)            │ │ (Provider+Scenario)    │        │   │
+│  │  │ (全局单例+降级)       │ │ (Provider+Scenario)    │        │   │
 │  │  └───────────────────────┘ └────────────────────────┘        │   │
 │  └──────────────────────────────────────────────────────────────┘   │
+│                                                                      │
+│  **PromptGuard 降级策略：**                                         │
+│  - 启动失败 → 拒绝启动 ai-svc (fail-fast)                          │
+│  - 运行崩溃 → 5s 内自动重启，重启期间拒绝所有 LLM 调用              │
+│  - 高延迟 >2s → 熔断，跳过安全检查并记录审计日志                    │
+└──────────────────────────────────────────────────────────────────────┘
+```
 │                                                                      │
 │  ┌──────────────────────────────────────────────────────────────┐   │
 │  │                MultiAgentOrchestrator                         │   │
@@ -144,6 +151,34 @@
 | confidence < 0.4 | Fallback 到命令选择器（Command Browser），用户手动选择 |
 | LLM 超时/不可用 | Fallback 到规则匹配（关键词 → 命令映射），与现有 ChatOps 兼容 |
 
+**ChatOps 多轮对话设计：**
+
+```
+用户: "帮我排查下 api 服务为什么延迟很高"
+AI:   [执行诊断: prometheus_query + log_query]
+      → 发现：数据库连接池耗尽 (max_connections=50)
+      → 建议：扩容到 100
+
+用户: "能帮我扩容吗？"
+AI:   [识别上下文：继续之前的"api 服务"诊断，提议扩容]
+      → 确认：将对 api-db 执行 max_connections: 50→100，是否执行？
+      → [确认] [取消] [仅查看不改]
+
+用户: "确认"
+AI:   [执行扩容]
+      → ✓ 扩容成功，max_connections = 100
+      → 建议：检查慢查询以根本解决
+```
+
+**多轮对话技术要点：**
+
+| 特性 | 实现 |
+|------|------|
+| 上下文保持 | 前端存储 `conversationId`，后端 Redis 缓存最近 10 轮对话 |
+| 对话历史持久化 | SQLite 本地存储 + 可选同步到云端 |
+| 中断机制 | 用户可随时点击"取消"，终止当前执行的 task |
+| 上下文超时 | 30 分钟无交互自动清除上下文 |
+
 ### 2.3 Agent 服务合并架构
 
 orion-agent-svc（3,800 行，Fastify）合并到 orion-ai-svc（14,500 行，Fastify）：
@@ -201,7 +236,36 @@ AI 能力平台
 │   └── 成本分析            ← 新增
 ```
 
-### 3.2 路由映射
+**Ant Design 图标映射：**
+
+| 场景分类 | Emoji | Ant Design 图标 |
+|---------|-------|----------------|
+| AI 总览 | 📊 | `DashboardOutlined` |
+| 智能助手 | 🤖 | `RobotOutlined` |
+| 代码智能 | 🔍 | `CodeOutlined` |
+| 安全与治理 | 🛡️ | `SecurityScanOutlined` |
+| 平台配置 | ⚙️ | `ToolOutlined` |
+
+> 注：实际开发中请使用 Ant Design 图标系统，Emoji 仅用于本文档示意。
+
+### 3.2 用户场景与角色映射
+
+菜单按场景分类，每个场景对应明确的目标用户、高频操作和核心价值：
+
+| 场景 | 目标用户 | 高频操作 | 核心价值 | 关键指标 |
+|------|---------|---------|---------|---------|
+| **AI 总览** | All | 查看全局健康/成本 | 快速了解 AI 平台整体状态 | Gateway 可用性 ≥99.9% |
+| **ChatOps 对话工作台** | SRE, OnCall | 自然语言排查问题、执行诊断 | 减少 50% 手动查询时间 | 意图识别准确率 ≥85% |
+| **AI 文档** | Developer, Tech Lead | 创建/编辑文档、搜索知识 | 知识沉淀与快速检索 | 文档创建数 / 用户 |
+| **知识库** | All | 导入文档、搜索问答 | 企业知识资产化 | 知识条目覆盖度 |
+| **AI Review** | Developer, Tech Lead | 提交 PR 时自动 Review | 代码质量问题提前发现 | Review 覆盖率 ≥80% |
+| **AI Gateway 监控** | SRE, AI Architect | 查看场景健康、Provider 状态 | 保障 AI 服务稳定 | 场景成功率 |
+| **安全治理** | Security Admin | 配置策略、查看告警 | AI 安全合规 | PromptGuard 拦截率 ≥95% |
+| **Provider 管理** | AI Architect, Admin | 配置/切换模型 Provider | 优化成本与性能 | LLM 成本降低 ≥20% |
+| **Agent 管理** | AI Architect, SRE | 创建/调试 Agent 编排 | 自动化重复运维任务 | Agent 执行成功率 ≥95% |
+| **成本分析** | FinOps, Platform Admin | 查看成本趋势、设置预算 | 成本透明化，避免超支 | 成本预算命中率 |
+
+### 3.3 路由映射
 
 | 新菜单项 | 新路由 | 来源 | 权限 |
 |---------|--------|------|------|
@@ -293,7 +357,7 @@ orion-ai-svc/src/
 │   │   └── sandbox-worker.ts
 │   ├── AIGateway.ts                ← 现有
 │   ├── AIDegradationRouter.ts      ← 现有
-│   ├── PromptGuardService.ts       ← 现有 (升级为全局单例)
+│   ├── PromptGuardService.ts       ← 现有 (升级为全局单例，含 fail-fast + 熔断降级)
 │   ├── CircuitBreakerManager.ts    ← 现有
 │   └── ... (其他现有服务)
 └── repositories/
@@ -320,43 +384,87 @@ export interface ExecutionTask extends AgentTask {
   toolParams?: Record<string, unknown>;
 }
 
+// 简单的信号量实现
+class Semaphore {
+  private permits: number;
+  private queue: Array<() => void> = [];
+
+  constructor(permits: number) {
+    this.permits = permits;
+  }
+
+  async acquire(): Promise<void> {
+    if (this.permits > 0) {
+      this.permits--;
+      return;
+    }
+    return new Promise<void>((resolve) => this.queue.push(resolve));
+  }
+
+  release(): void {
+    this.permits++;
+    const next = this.queue.shift();
+    if (next) {
+      this.permits--;
+      next();
+    }
+  }
+}
+
 export class MultiAgentOrchestrator {
   private aiGateway: AIGateway;
   private toolRegistry: ToolRegistry;
+  // 并发控制
+  private readonly maxConcurrentTools = 10;
+  private readonly maxConcurrentLLMCalls = 5;
+  private toolSemaphore: Semaphore;
+  private llmSemaphore: Semaphore;
 
   constructor(aiGateway: AIGateway, toolRegistry: ToolRegistry) {
     this.aiGateway = aiGateway;
     this.toolRegistry = toolRegistry;
+    this.toolSemaphore = new Semaphore(this.maxConcurrentTools);
+    this.llmSemaphore = new Semaphore(this.maxConcurrentLLMCalls);
   }
 
   private async executeTask(task: ExecutionTask): Promise<unknown> {
     task.status = 'running';
     task.startedAt = new Date();
 
+    // 工具调用：使用信号量控制并发
     if (task.type === 'execution' && task.tool) {
-      const tool = this.toolRegistry.get(task.tool);
-      if (!tool) throw new Error(`Tool not found: ${task.tool}`);
-      return tool.execute(task.toolParams || {});
+      await this.toolSemaphore.acquire();
+      try {
+        const tool = this.toolRegistry.get(task.tool);
+        if (!tool) throw new Error(`Tool not found: ${task.tool}`);
+        return tool.execute({ params: task.toolParams || {}, traceId: task.id });
+      } finally {
+        this.toolSemaphore.release();
+      }
     }
 
-    // LLM 推理/生成
-    const response = await this.aiGateway.execute<string>({
-      scenario: 'agent_reasoning',
-      input: {
-        prompt: task.prompt,
-        systemPrompt: this.buildSystemPrompt(task),
-      },
-      options: {
-        timeout: task.timeout,
-        fallbackEnabled: true,
-      },
-      metadata: {
-        userId: 'orchestrator',
-        traceId: task.id,
-      },
-    });
-
-    return response.data;
+    // LLM 推理/生成：使用信号量控制并发
+    await this.llmSemaphore.acquire();
+    try {
+      const response = await this.aiGateway.execute<string>({
+        scenario: 'agent_reasoning',
+        input: {
+          prompt: task.prompt,
+          systemPrompt: this.buildSystemPrompt(task),
+        },
+        options: {
+          timeout: task.timeout,
+          fallbackEnabled: true,
+        },
+        metadata: {
+          userId: 'orchestrator',
+          traceId: task.id,
+        },
+      });
+      return response.data;
+    } finally {
+      this.llmSemaphore.release();
+    }
   }
 
   private buildSystemPrompt(task: ExecutionTask): string {
@@ -393,6 +501,7 @@ export type SandboxLevel = 'none' | 'process' | 'container';
 
 export interface ToolDefinition {
   name: string;
+  version: string;                  // 工具版本，用于兼容性检查
   description: string;
   parameters: ToolParameter[];
   sandbox: SandboxLevel;            // 沙箱隔离级别
@@ -418,6 +527,7 @@ export class ToolRegistry {
   registerBuiltinTools(): void {
     this.register({
       name: 'prometheus_query',
+      version: '1.0.0',
       description: '查询 Prometheus 指标数据',
       parameters: [
         { name: 'query', type: 'string', required: true, description: 'PromQL 查询语句' },
@@ -429,6 +539,7 @@ export class ToolRegistry {
     });
     this.register({
       name: 'log_query',
+      version: '1.0.0',
       description: '查询日志',
       parameters: [
         { name: 'service', type: 'string', required: true, description: '服务名称' },
@@ -440,6 +551,7 @@ export class ToolRegistry {
     });
     this.register({
       name: 'diagnose',
+      version: '1.0.0',
       description: '运行诊断',
       parameters: [
         { name: 'service', type: 'string', required: true, description: '服务名称' },
@@ -450,6 +562,7 @@ export class ToolRegistry {
     });
     this.register({
       name: 'deploy',
+      version: '1.0.0',
       description: '触发部署',
       parameters: [
         { name: 'service', type: 'string', required: true, description: '服务名称' },
@@ -461,6 +574,7 @@ export class ToolRegistry {
     });
     this.register({
       name: 'vector_search',
+      version: '1.0.0',
       description: '向量语义搜索',
       parameters: [
         { name: 'query', type: 'string', required: true, description: '搜索内容' },
@@ -1287,6 +1401,18 @@ const Redirect: React.FC<{ to: string }> = ({ to }) => {
 └─────────────────────────────────────────────────────────────────┘
 ```
 
+**按角色差异化展示：**
+
+| 角色 | Dashboard 核心卡片 |
+|------|-------------------|
+| **Admin / Platform Admin** | 全局健康 + 成本趋势 + 安全事件 + Provider 状态 |
+| **Developer** | 我的 AI Review + 我的 Agent 运行 + 个人 Token 用量 |
+| **SRE / OnCall** | Gateway 场景健康 + 安全事件 + 最近诊断记录 |
+| **AI Architect** | Provider 状态 + 场景路由命中率 + 成本趋势 + Agent 编排 |
+| **FinOps** | 成本趋势 + 预算告警 + 各场景成本分布 |
+
+> 注：通用卡片（AI 总览、安全事件）对所有角色可见，差异化卡片根据用户角色动态展示。
+
 ### 6.2 ChatOps 对话工作台
 
 ```
@@ -1415,7 +1541,33 @@ const Redirect: React.FC<{ to: string }> = ({ to }) => {
 
 ---
 
-## 九、风险与缓解
+## 九、成功指标
+
+本次重新设计的成功与否通过以下可量化指标衡量：
+
+| 指标 | 目标值 | 测量方式 | 阶段 |
+|------|--------|---------|------|
+| **LLM 成本降低** | ≥20% | 每月 LLM 调用总成本 / 每月 Token 用量（对比 redesign 前 3 个月均值） | Phase 2 完成后 |
+| **ChatOps 意图识别准确率** | ≥85% | confidence >= 0.7 直接执行成功次数 / 总意图识别次数 | Phase 3 完成后 |
+| **Agent 执行成功率** | ≥95% | status='completed' 的 Agent Run 数 / 总 Agent Run 数 | Phase 1b 完成后 |
+| **用户采纳率** | ≥60% | 月活跃用户（使用任一 AI 模块）/ 总有权限用户，上线 30 天后测量 | Phase 4 完成后 |
+| **AI Review 覆盖率** | ≥80% | 有 AI Review 记录的 PR 数 / 总 PR 数 | Phase 2 完成后 |
+| **Gateway 可用性** | ≥99.9% | (正常运行时间 / 总时间)，SLO 监控 | 持续 |
+| **PromptGuard 拦截率** | ≥95% | 被拦截的恶意 Prompt 数 / 总检测 Prompt 数 | Phase 2 完成后 |
+
+### 指标采集
+
+```typescript
+// 指标采集埋点示例
+// 1. LLM 成本：CostTracker 已记录每次调用成本，直接按月聚合
+// 2. 意图识别准确率：chatops_intent scenario 返回 confidence 字段，前端上报
+// 3. Agent 执行成功率：AgentRunRepository 查询 status='completed' 比例
+// 4. 用户采纳率：前端埋点 + 后端 API 调用日志
+```
+
+---
+
+## 十、风险与缓解
 
 | 风险 | 影响 | 缓解 |
 |------|------|------|
