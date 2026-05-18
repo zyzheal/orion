@@ -89,8 +89,6 @@
 │  - 运行崩溃 → 5s 内自动重启，重启期间拒绝所有 LLM 调用              │
 │  - 高延迟 >2s → 熔断，超时强制返回（不跳过检查，而是 1s 强制超时，   │
 │    标记为"安全检查超时"并记录审计日志，拒绝高风险 Prompt）          │
-└──────────────────────────────────────────────────────────────────────┘
-```
 │                                                                      │
 │  ┌──────────────────────────────────────────────────────────────┐   │
 │  │                MultiAgentOrchestrator                         │   │
@@ -307,7 +305,7 @@ AI 能力平台
 | LLM Trace | `/ai/trace` | 新增 | `ai:trace:read` |
 | 成本分析 | `/ai/cost` | 新增 | `ai:cost:read` |
 
-### 3.3 菜单 Store 更新
+### 3.4 菜单 Store 更新
 
 ```typescript
 // stores/menuConfigStore.ts — /ai 分类更新
@@ -400,6 +398,16 @@ private async executeTask(task: AgentTask): Promise<unknown> {
 **改造后（真实 LLM 调用）：**
 ```typescript
 // MultiAgentOrchestrator.ts (合并后)
+
+/** AIGateway 返回的统一响应结构，包含数据和成本信息 */
+export interface AIResponse<T = unknown> {
+  data: T;
+  usage: { promptTokens: number; completionTokens: number; totalTokens: number };
+  provider: string;
+  model: string;
+  latency: number;
+}
+
 export interface ExecutionTask extends AgentTask {
   tool?: string;
   toolParams?: Record<string, unknown>;
@@ -482,9 +490,53 @@ export class MultiAgentOrchestrator {
           traceId: task.id,
         },
       });
-      return response.data;
+      return response; // 返回完整 AIResponse，包含 data + usage 用于成本追踪
     } finally {
       this.llmSemaphore.release();
+    }
+  }
+
+  /**
+   * 执行完整计划：解析任务依赖，并行执行无依赖任务，通过 SSE 发送进度
+   */
+  async executePlan(
+    plan: { tasks: ExecutionTask[]; sseEmitter?: SSEEmitter },
+    onProgress?: (result: { taskId: string; status: string; output?: unknown }) => void
+  ): Promise<{ results: Map<string, unknown>; status: 'success' | 'failed' }> {
+    const results = new Map<string, unknown>();
+    const completed = new Set<string>();
+
+    const runTask = async (task: ExecutionTask): Promise<void> => {
+      // 等待所有依赖任务完成
+      const deps = task.dependencies || [];
+      await Promise.all(deps.map(depId => {
+        // 简单轮询等待（生产环境改用事件驱动）
+        const check = () => completed.has(depId) ? Promise.resolve() : new Promise<void>(r => setTimeout(r, 50)).then(check);
+        return check();
+      }));
+
+      try {
+        const output = await this.executeTask(task);
+        results.set(task.id, output);
+        completed.add(task.id);
+        task.status = 'completed';
+        onProgress?.({ taskId: task.id, status: 'completed', output });
+        plan.sseEmitter?.send({ event: 'task_complete', data: { taskId: task.id, status: 'completed' } });
+      } catch (error) {
+        task.status = 'failed';
+        task.error = String(error);
+        onProgress?.({ taskId: task.id, status: 'failed', output: { error: String(error) } });
+        plan.sseEmitter?.send({ event: 'task_failed', data: { taskId: task.id, error: String(error) } });
+        throw error;
+      }
+    };
+
+    try {
+      // 并发执行所有任务（依赖顺序由 runTask 内部保证）
+      await Promise.all(plan.tasks.map(runTask));
+      return { results, status: 'success' };
+    } catch {
+      return { results, status: 'failed' };
     }
   }
 
@@ -731,10 +783,23 @@ CREATE TABLE IF NOT EXISTS agent_runs (
 ```
 
 **数据迁移步骤：**
-1. 从 `orion_agent` 导出 `agent_profiles` 和 `agent_runs` 表数据
-2. 导入到 `ai_db`
-3. 合并后 agent 的 Repository 使用 `getPool()`（ai-svc 的连接池）即可访问
-4. 验证通过后，agent-svc 独立数据库可安全删除
+1. 从 `orion_agent` 导出数据：
+   ```bash
+   pg_dump -h $DB_HOST -U $DB_USER -d orion_agent --table=agent_profiles --table=agent_runs --data-only --column-inserts > /tmp/agent_data.sql
+   ```
+2. 导入到 `ai_db`：
+   ```bash
+   psql -h $DB_HOST -U $DB_USER -d ai_db -f /tmp/agent_data.sql
+   ```
+3. 验证数据完整性：
+   ```sql
+   SELECT 'agent_profiles' AS tbl, COUNT(*) FROM agent_profiles
+   UNION ALL
+   SELECT 'agent_runs', COUNT(*) FROM agent_runs;
+   -- 对比 orion_agent 库中的行数
+   ```
+4. 合并后 agent 的 Repository 使用 `getPool()`（ai-svc 的连接池）即可访问
+5. 验证通过后，agent-svc 独立数据库可安全删除
 
 **回滚方案：**
 
@@ -1051,7 +1116,7 @@ export default async function aiRoutes(app: FastifyInstance, options): Promise<v
   // AI Gateway 健康监控 — ai:gateway:read
   app.get('/gateway/health', {
     onRequest: [authenticateUser, requirePermission({
-      resourceType: 'ai-gateway',
+      resource: 'ai-gateway',
       action: 'read',
     })],
   }, getGatewayHealth);
@@ -1059,7 +1124,7 @@ export default async function aiRoutes(app: FastifyInstance, options): Promise<v
   // Provider 管理 — ai:provider:write
   app.post('/provider', {
     onRequest: [authenticateUser, requirePermission({
-      resourceType: 'ai-provider',
+      resource: 'ai-provider',
       action: 'write',
     })],
   }, createProvider);
@@ -1067,7 +1132,7 @@ export default async function aiRoutes(app: FastifyInstance, options): Promise<v
   // Agent 执行 — ai:agent:execute + ABAC 成本检查
   app.post('/agent/:id/run', {
     onRequest: [authenticateUser, requirePermission({
-      resourceType: 'ai-agent',
+      resource: 'ai-agent',
       action: 'execute',
       extractResourceId: (req) => req.params.id,
       requiredImpact: 'medium',  // 触发 ABAC 成本预算检查
@@ -1077,7 +1142,7 @@ export default async function aiRoutes(app: FastifyInstance, options): Promise<v
   // LLM Trace 查看 — ai:trace:read
   app.get('/trace', {
     onRequest: [authenticateUser, requirePermission({
-      resourceType: 'ai-trace',
+      resource: 'ai-trace',
       action: 'read',
     })],
   }, listTraces);
@@ -1090,8 +1155,6 @@ export default async function aiRoutes(app: FastifyInstance, options): Promise<v
 
 ```typescript
 // stores/permissionStore.ts — 从角色派生权限点
-// import { create } from 'zustand';
-// import { ROLE_PERMISSIONS } from '@/constants/permissions';
 import { create } from 'zustand';
 import { ROLE_PERMISSIONS } from '@/constants/permissions';
 
@@ -1302,14 +1365,17 @@ AI 模块不独立实现权限中间件，直接复用平台 `requirePermission`
 > **注意**：`roleGuard` 和 `requirePermission` 不应同时用于同一条路由，否则会产生重复的权限判断。AI 路由仅使用 `requirePermission`。
 
 ```typescript
-// src/middleware/requirePermission.ts (平台统一，AI 模块直接使用)
+// src/middleware/requirePermission.ts
+// 位于 orion-platform-service（当前部署的主进程）
+// AuthorizationEngine 是平台服务已有的 RBAC+ABAC 统一授权引擎
+// AI 模块直接复用，不需要重新实现。如引擎不存在则需在 platform-service 中优先实现。
 
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { AuthorizationEngine } from '../services/authz/AuthorizationEngine';
 import { AuthZRequest } from '../services/authz/types';
 
 export interface RequirePermissionOptions {
-  resourceType: string;
+  resource: string;
   action: string;
   extractResourceId?: (req: FastifyRequest) => string;
   extractProjectId?: (req: FastifyRequest) => string;
@@ -1332,7 +1398,7 @@ export function requirePermission(options: RequirePermissionOptions) {
     const authzReq: AuthZRequest = {
       user: normalizedUser,
       resource: {
-        type: options.resourceType,
+        type: options.resource,
         id: options.extractResourceId?.(request),
         tenantId: (request as any).user.tenantId,
         projectId: options.extractProjectId?.(request),
@@ -1500,7 +1566,7 @@ const Redirect: React.FC<{ to: string }> = ({ to }) => {
 - [ ] 新增 `stores/permissionStore.ts`（从角色派生权限）
 - [ ] 新增 `repositories/UserPermissionRepository.ts`
 - [ ] 新增 `middleware/permissionGuard.ts`
-- [ ] 扩展 `ProtectedRoute` 支持 `requiredPermissions`
+- [ ] 扩展 `ProtectedRoute` 支持 `requiredPermission`
 - [ ] 新增 `hooks/usePermission.ts`
 - [ ] **验证**：TypeScript 编译 + 单元测试
 
@@ -1628,6 +1694,6 @@ const scenarioRateLimits: Record<string, RateLimitConfig> = {
 | AI Review 迁移后性能下降 | 用户体验 | HTTP 调用延迟 < 5ms（同服务内） |
 | PromptGuard 单例化 | 安全策略不一致 | 统一配置入口，消除硬编码 |
 | LLM Trace 存储成本 | 数据库膨胀 | 7 天原始 + 30 天聚合，定期清理 |
-| 菜单迁移后书签失效 | 用户无法访问 | 旧路由 301 重定向到新路由（已在 5.6 节定义 15 条重定向） |
+| 菜单迁移后书签失效 | 用户无法访问 | 旧路由 301 重定向到新路由（已在 5.11 节定义 15 条重定向） |
 | 权限拦截过严 | 用户无法访问功能 | Phase 1a 先跑通 admin bypass，再逐步收紧 |
 | 回滚 | 全部变更 | git revert 即可，agent-svc 代码仍在 git 中 |
