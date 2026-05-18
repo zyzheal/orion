@@ -35,6 +35,10 @@ export class RoleRepository {
     return result.rowCount > 0;
   }
 
+  async findByName(name: string): Promise<Role | null> {
+    return (await this.pool.query('SELECT * FROM roles WHERE name = $1', [name])).rows[0] || null;
+  }
+
   async update(id: string, input: { name?: string; description?: string; permissions?: string[] }): Promise<Role | null> {
     const updates: string[] = [];
     const params: unknown[] = [];

@@ -16,6 +16,7 @@ describe('RoleService', () => {
       create: jest.fn(),
       delete: jest.fn(),
       update: jest.fn(),
+      findByName: jest.fn(),
     } as unknown as jest.Mocked<RoleRepository>;
 
     service = new RoleService(mockRepository);
@@ -213,6 +214,101 @@ describe('RoleService', () => {
         .toThrow('Failed to update role: role-1');
     });
   });
+
+  describe('checkPermissions', () => {
+    it('should allow when role grants the permission', async () => {
+      const devRole: Role = {
+        id: 'role-dev',
+        tenant_id: 't1',
+        name: 'developer',
+        description: null,
+        permissions: ['pipeline:read', 'pipeline:create', 'deployment:read'],
+      };
+      mockRepository.findByName.mockResolvedValue(devRole);
+
+      const result = await service.checkPermissions(['developer'], 'pipeline', 'read');
+
+      expect(result.allowed).toBe(true);
+      expect(result.reason).toContain('developer');
+    });
+
+    it('should allow with wildcard resource permission', async () => {
+      const adminRole: Role = {
+        id: 'role-admin',
+        tenant_id: 't1',
+        name: 'admin',
+        description: null,
+        permissions: ['*:read', '*:write'],
+      };
+      mockRepository.findByName.mockResolvedValue(adminRole);
+
+      const result = await service.checkPermissions(['admin'], 'cmdb', 'read');
+
+      expect(result.allowed).toBe(true);
+    });
+
+    it('should allow with wildcard action permission', async () => {
+      const ownerRole: Role = {
+        id: 'role-owner',
+        tenant_id: 't1',
+        name: 'owner',
+        description: null,
+        permissions: ['pipeline:*'],
+      };
+      mockRepository.findByName.mockResolvedValue(ownerRole);
+
+      const result = await service.checkPermissions(['owner'], 'pipeline', 'delete');
+
+      expect(result.allowed).toBe(true);
+    });
+
+    it('should deny when no role grants the permission', async () => {
+      const viewerRole: Role = {
+        id: 'role-viewer',
+        tenant_id: 't1',
+        name: 'viewer',
+        description: null,
+        permissions: ['pipeline:read'],
+      };
+      mockRepository.findByName.mockResolvedValue(viewerRole);
+
+      const result = await service.checkPermissions(['viewer'], 'pipeline', 'delete');
+
+      expect(result.allowed).toBe(false);
+      expect(result.reason).toContain('No role grants');
+    });
+
+    it('should deny when no roles provided', async () => {
+      const result = await service.checkPermissions([], 'pipeline', 'read');
+
+      expect(result.allowed).toBe(false);
+      expect(result.reason).toBe('No roles assigned');
+    });
+
+    it('should deny when role not found in repository', async () => {
+      mockRepository.findByName.mockResolvedValue(null);
+
+      const result = await service.checkPermissions(['unknown-role'], 'pipeline', 'read');
+
+      expect(result.allowed).toBe(false);
+    });
+
+    it('should check multiple roles and allow if any matches', async () => {
+      mockRepository.findByName
+        .mockResolvedValueOnce(null) // viewer doesn't have delete
+        .mockResolvedValueOnce({
+          id: 'role-admin',
+          tenant_id: 't1',
+          name: 'admin',
+          description: null,
+          permissions: ['*:delete'],
+        });
+
+      const result = await service.checkPermissions(['viewer', 'admin'], 'pipeline', 'delete');
+
+      expect(result.allowed).toBe(true);
+    });
+  });
 });
 
 describe('RoleRepository', () => {
@@ -291,6 +387,26 @@ describe('RoleRepository', () => {
     });
   });
 
+  describe('findByName', () => {
+    it('should return role when found by name', async () => {
+      const mockRow = { id: 'role-1', tenant_id: 't1', name: 'admin', permissions: ['read', 'write'] };
+      mockDb.query.mockResolvedValue({ rows: [mockRow] });
+
+      const result = await repository.findByName('admin');
+
+      expect(result).toEqual(mockRow);
+      expect(mockDb.query).toHaveBeenCalledWith('SELECT * FROM roles WHERE name = $1', ['admin']);
+    });
+
+    it('should return null when not found', async () => {
+      mockDb.query.mockResolvedValue({ rows: [] });
+
+      const result = await repository.findByName('missing');
+
+      expect(result).toBeNull();
+    });
+  });
+
   describe('update', () => {
     it('should update role name and permissions', async () => {
       const mockRow = { id: 'role-1', name: 'updated', permissions: ['read', 'write'] };
@@ -309,7 +425,6 @@ describe('RoleRepository', () => {
       const mockRow = { id: 'role-1', name: 'unchanged', permissions: ['read'] };
       mockDb.query.mockResolvedValue({ rows: [mockRow] });
 
-      // Mock findById to be called
       const findSpy = jest.spyOn(repository, 'findById');
       findSpy.mockResolvedValue(mockRow);
 
