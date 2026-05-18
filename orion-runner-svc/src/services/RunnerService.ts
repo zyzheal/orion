@@ -10,6 +10,7 @@ import { hostname, tmpdir } from 'os';
 import { mkdir } from 'fs/promises';
 import { join } from 'path';
 import { randomUUID } from 'crypto';
+import type { JobRepository } from '../repositories/JobRepository';
 
 export interface TaskParameters {
   [key: string]: unknown;
@@ -46,6 +47,8 @@ export class RunnerService {
   private registerAttempts = 0;
   private readonly MAX_REGISTER_ATTEMPTS = 10;
   activeJobs = 0;
+
+  constructor(private jobRepo?: JobRepository) {}
 
   get status(): RunnerStatus {
     return {
@@ -168,6 +171,18 @@ export class RunnerService {
   async executeJob(jobId: string, task: { type: string; parameters?: TaskParameters }): Promise<TaskResult> {
     this.activeJobs++;
 
+    // Track job in repository
+    if (this.jobRepo && this.runnerId) {
+      await this.jobRepo.create({
+        runnerId: this.runnerId,
+        taskId: jobId,
+        tenantId: config.tenant.id,
+        taskType: task.type,
+        parameters: task.parameters,
+      });
+      await this.jobRepo.markRunning(jobId);
+    }
+
     // Create isolated workspace per job (sandbox isolation)
     const workspaceDir = join(tmpdir(), `orion-workspace-${randomUUID()}`);
     try {
@@ -183,7 +198,22 @@ export class RunnerService {
       };
 
       // Execute the task
+      const startTime = Date.now();
       const result = await this.runTask(task.type, params);
+
+      // Track result in repository
+      if (this.jobRepo) {
+        if (result.success) {
+          await this.jobRepo.markComplete(jobId, {
+            stdout: result.stdout,
+            stderr: result.stderr,
+            exitCode: result.exitCode,
+            duration: result.duration,
+          });
+        } else {
+          await this.jobRepo.markFailed(jobId, result.stderr, result.stderr, result.duration);
+        }
+      }
 
       // Report result to Platform
       this.reportJobResult(jobId, result).catch((err) => {

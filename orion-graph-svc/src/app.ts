@@ -4,8 +4,18 @@ import sensible from '@fastify/sensible';
 import { config } from './config';
 import { graphRoutes } from './routes/graph-routes';
 import { errorHandler } from './middleware/errorHandler';
+import { DatabasePool } from './db/database';
+import { GraphNodeRepository } from './repositories/GraphNodeRepository';
+import { GraphRelationshipRepository } from './repositories/GraphRelationshipRepository';
 
 const app = Fastify({ logger: { level: config.logLevel } });
+
+/** Noop pool for fallback (in-memory mode, same API shape) */
+class NoopPool {
+  async query(): Promise<{ rows: any[]; rowCount: null }> { return { rows: [], rowCount: null }; }
+  async connect(): Promise<void> {}
+  async close(): Promise<void> {}
+}
 
 async function start() {
   // Config validation
@@ -18,11 +28,26 @@ async function start() {
   await app.register(sensible);
   errorHandler(app);
 
+  // Initialize PostgreSQL
+  let db: DatabasePool | undefined;
+  if (process.env.DATABASE_URL) {
+    db = new DatabasePool({ connectionString: process.env.DATABASE_URL });
+    await db.connect();
+    console.log('[graph-svc] PostgreSQL connected');
+  }
+
+  const pool = db ?? new NoopPool();
+  const nodeRepo = new GraphNodeRepository(pool);
+  const relRepo = new GraphRelationshipRepository(pool);
+  app.decorate('graphNodeRepository', nodeRepo);
+  app.decorate('graphRelationshipRepository', relRepo);
+
   // Health check
   app.get('/healthz', async () => ({
     status: 'ok',
     service: 'orion-graph-svc',
     timestamp: new Date().toISOString(),
+    database: db ? 'connected' : 'disconnected',
   }));
 
   await app.register(graphRoutes);
@@ -30,6 +55,7 @@ async function start() {
   // Graceful shutdown
   const shutdown = async (signal: string) => {
     console.log(`[graph-svc] Received ${signal}, shutting down gracefully...`);
+    if (db) await db.close();
     await app.close();
     process.exit(0);
   };

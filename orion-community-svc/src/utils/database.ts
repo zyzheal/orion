@@ -1,4 +1,5 @@
 import { Pool, PoolConfig } from 'pg';
+import type { IDbAdapter } from '../repositories/IDbAdapter';
 
 let pool: Pool | null = null;
 
@@ -236,5 +237,36 @@ export async function initializeTables(): Promise<void> {
   await p.query(createMentors);
   await p.query(createBestPractices);
 
-  console.log('[database] All community tables initialized.');
+  // Indexes for ContributionRepository
+  await p.query(`CREATE INDEX IF NOT EXISTS idx_contributions_author ON contributions(author_id)`);
+  await p.query(`CREATE INDEX IF NOT EXISTS idx_contributions_type ON contributions(type)`);
+  await p.query(`CREATE INDEX IF NOT EXISTS idx_contributions_status ON contributions(status)`);
+
+  // Indexes for PluginRepository
+  await p.query(`CREATE INDEX IF NOT EXISTS idx_plugins_author ON plugins(author_id)`);
+  await p.query(`CREATE INDEX IF NOT EXISTS idx_plugins_status ON plugins(status)`);
+  await p.query(`CREATE INDEX IF NOT EXISTS idx_plugins_category ON plugins(category)`);
+  await p.query(`CREATE INDEX IF NOT EXISTS idx_plugins_contribution ON plugins(contribution_id)`);
+
+  // Indexes for ReviewRepository
+  await p.query(`CREATE INDEX IF NOT EXISTS idx_reviews_target ON reviews(target_id)`);
+  await p.query(`CREATE INDEX IF NOT EXISTS idx_reviews_target_type ON reviews(target_id, target_type)`);
+  await p.query(`CREATE INDEX IF NOT EXISTS idx_reviews_reviewer ON reviews(reviewer_id)`);
+
+  // Indexes for FeedbackRepository
+  await p.query(`CREATE INDEX IF NOT EXISTS idx_feedback_target ON feedback(target_id)`);
+  await p.query(`CREATE INDEX IF NOT EXISTS idx_feedback_user ON feedback(user_id)`);
+  await p.query(`CREATE INDEX IF NOT EXISTS idx_feedback_status ON feedback(status)`);
+
+  console.log('[database] All community tables and indexes initialized.');
+}
+
+/**
+ * Wrap the Pool as an IDbAdapter for use by repositories.
+ */
+export function getDbAdapter(): IDbAdapter {
+  const p = getPool();
+  return {
+    query: (text: string, params?: unknown[]) => p.query(text, params),
+  };
 }
