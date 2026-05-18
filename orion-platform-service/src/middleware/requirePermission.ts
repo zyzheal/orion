@@ -14,7 +14,7 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { AuthZRequest } from '../services/authz/AuthorizationEngine';
 
 export interface RequirePermissionOptions {
-  resourceType: string;
+  resource: string;
   action: string;
   extractResourceId?: (req: FastifyRequest) => string | undefined;
   extractProjectId?: (req: FastifyRequest) => string | undefined;
@@ -62,7 +62,7 @@ export function requirePermission(options: RequirePermissionOptions) {
         status: user?.status || 'active',
       },
       resource: {
-        type: options.resourceType,
+        type: options.resource,
         id: resourceId,
         tenantId: user?.tenantId || '',
         projectId,
