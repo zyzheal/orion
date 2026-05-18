@@ -160,6 +160,24 @@ export interface ScalingDecision {
 }
 
 /**
+ * Agent orchestration task (used by MultiAgentOrchestrator)
+ */
+export interface AgentTask {
+  id: string;
+  agentId: string;
+  type: 'reasoning' | 'execution' | 'verification' | 'research';
+  prompt: string;
+  priority: number;
+  timeout: number;
+  dependencies: string[];
+  status: 'pending' | 'assigned' | 'running' | 'completed' | 'failed';
+  result?: unknown;
+  error?: string;
+  startedAt?: Date;
+  completedAt?: Date;
+}
+
+/**
  * Health check response
  */
 export interface ServiceHealth {
