@@ -13,8 +13,6 @@ export interface AppRoute {
   index?: boolean;
   element: ReactNode | ReturnType<typeof lazy>;
   protected?: boolean;
-  /** Required user role(s) to access this route. If string, must match exactly. If array, any match grants access. */
-  requiredRole?: string | string[];
   /** Required permission to access this route. Format: { resource: 'project', action: 'read' } */
   requiredPermission?: { resource: string; action: string };
   children?: AppRoute[];
@@ -50,31 +48,31 @@ export const routes: AppRoute[] = [
     path: '/console',
     element: React.lazy(() => import('@/pages/Console')),
     protected: true,
-    requiredRole: ['admin', 'platform_admin'],
+    requiredPermission: { resource: '*', action: 'manage' },
   },
   {
     path: '/console/plugins',
     element: React.lazy(() => import('@/pages/PluginManagement')),
     protected: true,
-    requiredRole: ['admin', 'platform_admin'],
+    requiredPermission: { resource: '*', action: 'manage' },
   },
   {
     path: '/console/plugins/:id',
     element: React.lazy(() => import('@/pages/PluginManagement')),
     protected: true,
-    requiredRole: ['admin', 'platform_admin'],
+    requiredPermission: { resource: '*', action: 'manage' },
   },
   {
     path: '/console/settings',
     element: React.lazy(() => import('@/pages/Console')),
     protected: true,
-    requiredRole: ['admin', 'platform_admin'],
+    requiredPermission: { resource: '*', action: 'manage' },
   },
   {
     path: '/console/users',
     element: React.lazy(() => import('@/pages/UserManagement')),
     protected: true,
-    requiredRole: ['admin', 'platform_admin'],
+    requiredPermission: { resource: '*', action: 'manage' },
   },
   {
     path: '/projects',
@@ -170,14 +168,14 @@ export const routes: AppRoute[] = [
     path: '/audit-log',
     element: React.lazy(() => import('@/pages/AuditLog')),
     protected: true,
-    requiredRole: ['admin', 'platform_admin'],
+    requiredPermission: { resource: '*', action: 'manage' },
   },
   // Tenant Management
   {
     path: '/tenant-management',
     element: React.lazy(() => import('@/pages/TenantManagement')),
     protected: true,
-    requiredRole: ['admin', 'platform_admin'],
+    requiredPermission: { resource: '*', action: 'manage' },
   },
   // Config Management
   {
@@ -258,7 +256,7 @@ export const routes: AppRoute[] = [
     path: '/console/pipeline-budget',
     element: React.lazy(() => import('@/pages/PipelineBudget')),
     protected: true,
-    requiredRole: ['admin', 'platform_admin'],
+    requiredPermission: { resource: '*', action: 'manage' },
   },
   // SBOM Attestation
   {
@@ -330,7 +328,7 @@ export const routes: AppRoute[] = [
     path: '/console/iac',
     element: React.lazy(() => import('@/pages/IacManagement')),
     protected: true,
-    requiredRole: ['admin', 'platform_admin'],
+    requiredPermission: { resource: '*', action: 'manage' },
     children: [
       // 默认重定向到 workspaces
       {
@@ -341,25 +339,25 @@ export const routes: AppRoute[] = [
         path: '/console/iac/workspaces',
         element: React.lazy(() => import('@/pages/IacManagement/WorkspaceList')),
         protected: true,
-        requiredRole: ['admin', 'platform_admin'],
+        requiredPermission: { resource: '*', action: 'manage' },
       },
       {
         path: '/console/iac/plans',
         element: React.lazy(() => import('@/pages/IacManagement/PlanViewer')),
         protected: true,
-        requiredRole: ['admin', 'platform_admin'],
+        requiredPermission: { resource: '*', action: 'manage' },
       },
       {
         path: '/console/iac/state',
         element: React.lazy(() => import('@/pages/IacManagement/StateBrowser')),
         protected: true,
-        requiredRole: ['admin', 'platform_admin'],
+        requiredPermission: { resource: '*', action: 'manage' },
       },
       {
         path: '/console/iac/modules',
         element: React.lazy(() => import('@/pages/IacManagement/ModuleRegistry')),
         protected: true,
-        requiredRole: ['admin', 'platform_admin'],
+        requiredPermission: { resource: '*', action: 'manage' },
       },
     ],
   },
@@ -368,7 +366,7 @@ export const routes: AppRoute[] = [
     path: '/console/confirmations',
     element: React.lazy(() => import('@/pages/ConfirmationWorkbench')),
     protected: true,
-    requiredRole: ['admin', 'platform_admin'],
+    requiredPermission: { resource: '*', action: 'manage' },
     children: [
       // 默认重定向到 pending
       {
@@ -379,31 +377,31 @@ export const routes: AppRoute[] = [
         path: '/console/confirmations/pending',
         element: React.lazy(() => import('@/pages/ConfirmationWorkbench/PendingList')),
         protected: true,
-        requiredRole: ['admin', 'platform_admin'],
+        requiredPermission: { resource: '*', action: 'manage' },
       },
       {
         path: '/console/confirmations/:id',
         element: React.lazy(() => import('@/pages/ConfirmationWorkbench/ConfirmationDetail')),
         protected: true,
-        requiredRole: ['admin', 'platform_admin'],
+        requiredPermission: { resource: '*', action: 'manage' },
       },
       {
         path: '/console/confirmations/batch',
         element: React.lazy(() => import('@/pages/ConfirmationWorkbench/BatchConfirmation')),
         protected: true,
-        requiredRole: ['admin', 'platform_admin'],
+        requiredPermission: { resource: '*', action: 'manage' },
       },
       {
         path: '/console/confirmations/notifications',
         element: React.lazy(() => import('@/pages/ConfirmationWorkbench/NotificationSettings')),
         protected: true,
-        requiredRole: ['admin', 'platform_admin'],
+        requiredPermission: { resource: '*', action: 'manage' },
       },
       {
         path: '/console/confirmations/audit',
         element: React.lazy(() => import('@/pages/ConfirmationWorkbench/PendingList')),
         protected: true,
-        requiredRole: ['admin', 'platform_admin'],
+        requiredPermission: { resource: '*', action: 'manage' },
       },
     ],
   },
@@ -412,7 +410,7 @@ export const routes: AppRoute[] = [
     path: '/console/chatops',
     element: React.lazy(() => import('@/pages/ChatOps')),
     protected: true,
-    // requiredRole: ['admin', 'platform_admin'], // TODO: 临时移除权限检查
+    requiredPermission: { resource: '*', action: 'manage' }, // 已恢复：原临时移除
     children: [
       // 默认重定向到 recommend
       {
@@ -423,31 +421,31 @@ export const routes: AppRoute[] = [
         path: '/console/chatops/recommend',
         element: React.lazy(() => import('@/pages/ChatOps/SmartRecommend')),
         protected: true,
-        // requiredRole: ['admin', 'platform_admin'],
+        requiredPermission: { resource: '*', action: 'manage' },
       },
       {
         path: '/console/chatops/commands',
         element: React.lazy(() => import('@/pages/ChatOps/CommandBrowser')),
         protected: true,
-        // requiredRole: ['admin', 'platform_admin'],
+        requiredPermission: { resource: '*', action: 'manage' },
       },
       {
         path: '/console/chatops/executions',
         element: React.lazy(() => import('@/pages/ChatOps/ExecutionDashboard')),
         protected: true,
-        // requiredRole: ['admin', 'platform_admin'],
+        requiredPermission: { resource: '*', action: 'manage' },
       },
       {
         path: '/console/chatops/audit',
         element: React.lazy(() => import('@/pages/ChatOps/AuditLogViewer')),
         protected: true,
-        // requiredRole: ['admin', 'platform_admin'],
+        requiredPermission: { resource: '*', action: 'manage' },
       },
       {
         path: '/console/chatops/settings',
         element: React.lazy(() => import('@/pages/ChatOps/ChatOpsSettings')),
         protected: true,
-        // requiredRole: ['admin', 'platform_admin'], // TODO: 临时移除权限检查以便测试
+        requiredPermission: { resource: '*', action: 'manage' }, // 已恢复：原临时移除以便测试
       },
     ],
   },
@@ -456,7 +454,7 @@ export const routes: AppRoute[] = [
     path: '/console/ai-cost',
     element: React.lazy(() => import('@/pages/AICostDashboard')),
     protected: true,
-    requiredRole: ['admin', 'platform_admin'],
+    requiredPermission: { resource: '*', action: 'manage' },
     children: [
       // 默认重定向到 overview
       {
@@ -467,31 +465,31 @@ export const routes: AppRoute[] = [
         path: '/console/ai-cost/overview',
         element: React.lazy(() => import('@/pages/AICostDashboard/CostOverview')),
         protected: true,
-        requiredRole: ['admin', 'platform_admin'],
+        requiredPermission: { resource: '*', action: 'manage' },
       },
       {
         path: '/console/ai-cost/budgets',
         element: React.lazy(() => import('@/pages/AICostDashboard/BudgetManagement')),
         protected: true,
-        requiredRole: ['admin', 'platform_admin'],
+        requiredPermission: { resource: '*', action: 'manage' },
       },
       {
         path: '/console/ai-cost/details',
         element: React.lazy(() => import('@/pages/AICostDashboard/CostDetail')),
         protected: true,
-        requiredRole: ['admin', 'platform_admin'],
+        requiredPermission: { resource: '*', action: 'manage' },
       },
       {
         path: '/console/ai-cost/roi',
         element: React.lazy(() => import('@/pages/AICostDashboard/ROIReport')),
         protected: true,
-        requiredRole: ['admin', 'platform_admin'],
+        requiredPermission: { resource: '*', action: 'manage' },
       },
       {
         path: '/console/ai-cost/alerts',
         element: React.lazy(() => import('@/pages/AICostDashboard/AlertConfig')),
         protected: true,
-        requiredRole: ['admin', 'platform_admin'],
+        requiredPermission: { resource: '*', action: 'manage' },
       },
     ],
   },
@@ -500,7 +498,7 @@ export const routes: AppRoute[] = [
     path: '/console/llm-trace',
     element: React.lazy(() => import('@/pages/LLMTraceDashboard')),
     protected: true,
-    requiredRole: ['admin', 'platform_admin'],
+    requiredPermission: { resource: '*', action: 'manage' },
     children: [
       // 默认重定向到 overview
       {
@@ -511,25 +509,25 @@ export const routes: AppRoute[] = [
         path: '/console/llm-trace/overview',
         element: React.lazy(() => import('@/pages/LLMTraceDashboard/TraceOverview')),
         protected: true,
-        requiredRole: ['admin', 'platform_admin'],
+        requiredPermission: { resource: '*', action: 'manage' },
       },
       {
         path: '/console/llm-trace/traces',
         element: React.lazy(() => import('@/pages/LLMTraceDashboard/TraceList')),
         protected: true,
-        requiredRole: ['admin', 'platform_admin'],
+        requiredPermission: { resource: '*', action: 'manage' },
       },
       {
         path: '/console/llm-trace/cost',
         element: React.lazy(() => import('@/pages/LLMTraceDashboard/CostAnalysis')),
         protected: true,
-        requiredRole: ['admin', 'platform_admin'],
+        requiredPermission: { resource: '*', action: 'manage' },
       },
       {
         path: '/console/llm-trace/accuracy',
         element: React.lazy(() => import('@/pages/LLMTraceDashboard/TrackingAccuracy')),
         protected: true,
-        requiredRole: ['admin', 'platform_admin'],
+        requiredPermission: { resource: '*', action: 'manage' },
       },
     ],
   },
@@ -538,7 +536,7 @@ export const routes: AppRoute[] = [
     path: '/console/ai-docs',
     element: React.lazy(() => import('@/pages/AIDocManagement')),
     protected: true,
-    requiredRole: ['admin', 'platform_admin'],
+    requiredPermission: { resource: '*', action: 'manage' },
     children: [
       // 默认重定向到 spaces
       {
@@ -549,31 +547,31 @@ export const routes: AppRoute[] = [
         path: '/console/ai-docs/spaces',
         element: React.lazy(() => import('@/pages/AIDocManagement/SpaceList')),
         protected: true,
-        requiredRole: ['admin', 'platform_admin'],
+        requiredPermission: { resource: '*', action: 'manage' },
       },
       {
         path: '/console/ai-docs/documents',
         element: React.lazy(() => import('@/pages/AIDocManagement/DocumentList')),
         protected: true,
-        requiredRole: ['admin', 'platform_admin'],
+        requiredPermission: { resource: '*', action: 'manage' },
       },
       {
         path: '/console/ai-docs/editor/:id?',
         element: React.lazy(() => import('@/pages/AIDocManagement/DocumentEditor')),
         protected: true,
-        requiredRole: ['admin', 'platform_admin'],
+        requiredPermission: { resource: '*', action: 'manage' },
       },
       {
         path: '/console/ai-docs/rag',
         element: React.lazy(() => import('@/pages/AIDocManagement/RAGQuery')),
         protected: true,
-        requiredRole: ['admin', 'platform_admin'],
+        requiredPermission: { resource: '*', action: 'manage' },
       },
       {
         path: '/console/ai-docs/graph',
-        element: React.lazy(() => import('@/pages/AIDocManagement/SpaceList')),
+        element: React.lazy(() => import('@/pages/AIDocManagement/DocumentList')), // TODO: 替换为知识图谱组件
         protected: true,
-        requiredRole: ['admin', 'platform_admin'],
+        requiredPermission: { resource: '*', action: 'manage' },
       },
     ],
   },
@@ -583,7 +581,7 @@ export const routes: AppRoute[] = [
     path: '/console/build-env',
     element: React.lazy(() => import('@/pages/BuildEnv')),
     protected: true,
-    requiredRole: ['admin', 'platform_admin'],
+    requiredPermission: { resource: '*', action: 'manage' },
     children: [
       // 默认重定向到 images
       {
@@ -594,43 +592,43 @@ export const routes: AppRoute[] = [
         path: '/console/build-env/images',
         element: React.lazy(() => import('@/pages/BuildEnv/BuilderImageList')),
         protected: true,
-        requiredRole: ['admin', 'platform_admin'],
+        requiredPermission: { resource: '*', action: 'manage' },
       },
       {
         path: '/console/build-env/cache',
         element: React.lazy(() => import('@/pages/BuildEnv/BuildCachePage')),
         protected: true,
-        requiredRole: ['admin', 'platform_admin'],
+        requiredPermission: { resource: '*', action: 'manage' },
       },
       {
         path: '/console/build-env/pods',
         element: React.lazy(() => import('@/pages/BuildEnv/BuildPodList')),
         protected: true,
-        requiredRole: ['admin', 'platform_admin'],
+        requiredPermission: { resource: '*', action: 'manage' },
       },
       {
         path: '/console/build-env/pods/:id',
         element: React.lazy(() => import('@/pages/BuildEnv/BuildPodDetail')),
         protected: true,
-        requiredRole: ['admin', 'platform_admin'],
+        requiredPermission: { resource: '*', action: 'manage' },
       },
       {
         path: '/console/build-env/logs',
         element: React.lazy(() => import('@/pages/BuildEnv/BuildLogList')),
         protected: true,
-        requiredRole: ['admin', 'platform_admin'],
+        requiredPermission: { resource: '*', action: 'manage' },
       },
       {
         path: '/console/build-env/logs/:id',
         element: React.lazy(() => import('@/pages/BuildEnv/BuildLogViewer')),
         protected: true,
-        requiredRole: ['admin', 'platform_admin'],
+        requiredPermission: { resource: '*', action: 'manage' },
       },
       {
         path: '/console/build-env/artifacts',
         element: React.lazy(() => import('@/pages/BuildEnv/ArtifactList')),
         protected: true,
-        requiredRole: ['admin', 'platform_admin'],
+        requiredPermission: { resource: '*', action: 'manage' },
       },
     ],
   },
@@ -639,7 +637,7 @@ export const routes: AppRoute[] = [
     path: '/console/code-mgmt',
     element: React.lazy(() => import('@/pages/CodeMgmt')),
     protected: true,
-    requiredRole: ['admin', 'platform_admin'],
+    requiredPermission: { resource: '*', action: 'manage' },
     children: [
       // 默认重定向到 repos
       {
@@ -650,31 +648,31 @@ export const routes: AppRoute[] = [
         path: '/console/code-mgmt/repos',
         element: React.lazy(() => import('@/pages/CodeMgmt/RepoList')),
         protected: true,
-        requiredRole: ['admin', 'platform_admin'],
+        requiredPermission: { resource: '*', action: 'manage' },
       },
       {
         path: '/console/code-mgmt/repos/:adapterId/:repoId',
         element: React.lazy(() => import('@/pages/CodeMgmt/RepoDetail')),
         protected: true,
-        requiredRole: ['admin', 'platform_admin'],
+        requiredPermission: { resource: '*', action: 'manage' },
       },
       {
         path: '/console/code-mgmt/policies',
         element: React.lazy(() => import('@/pages/CodeMgmt/BranchPolicyList')),
         protected: true,
-        requiredRole: ['admin', 'platform_admin'],
+        requiredPermission: { resource: '*', action: 'manage' },
       },
       {
         path: '/console/code-mgmt/ownership',
         element: React.lazy(() => import('@/pages/CodeMgmt/CodeOwnersPage')),
         protected: true,
-        requiredRole: ['admin', 'platform_admin'],
+        requiredPermission: { resource: '*', action: 'manage' },
       },
       {
         path: '/console/code-mgmt/webhooks',
         element: React.lazy(() => import('@/pages/CodeMgmt/WebhookLog')),
         protected: true,
-        requiredRole: ['admin', 'platform_admin'],
+        requiredPermission: { resource: '*', action: 'manage' },
       },
     ],
   },
@@ -683,7 +681,7 @@ export const routes: AppRoute[] = [
     path: '/console/ai-review',
     element: lazyImport('@/pages/AIReview'),
     protected: true,
-    requiredRole: ['admin', 'platform_admin'],
+    requiredPermission: { resource: '*', action: 'manage' },
     children: [
       // 默认重定向到 dashboard
       {
@@ -694,31 +692,31 @@ export const routes: AppRoute[] = [
         path: '/console/ai-review/dashboard',
         element: lazyImport('@/pages/AIReview/Dashboard'),
         protected: true,
-        requiredRole: ['admin', 'platform_admin'],
+        requiredPermission: { resource: '*', action: 'manage' },
       },
       {
         path: '/console/ai-review/history',
         element: lazyImport('@/pages/AIReview/History'),
         protected: true,
-        requiredRole: ['admin', 'platform_admin'],
+        requiredPermission: { resource: '*', action: 'manage' },
       },
       {
         path: '/console/ai-review/history/:id',
         element: lazyImport('@/pages/AIReview/ReviewDetail'),
         protected: true,
-        requiredRole: ['admin', 'platform_admin'],
+        requiredPermission: { resource: '*', action: 'manage' },
       },
       {
         path: '/console/ai-review/rules',
         element: lazyImport('@/pages/AIReview/Rules'),
         protected: true,
-        requiredRole: ['admin', 'platform_admin'],
+        requiredPermission: { resource: '*', action: 'manage' },
       },
       {
         path: '/console/ai-review/config',
         element: lazyImport('@/pages/AIReview/Config'),
         protected: true,
-        requiredRole: ['admin', 'platform_admin'],
+        requiredPermission: { resource: '*', action: 'manage' },
       },
     ],
   },
@@ -727,7 +725,7 @@ export const routes: AppRoute[] = [
     path: '/console/self-healing',
     element: React.lazy(() => import('@/pages/SelfHealing')),
     protected: true,
-    requiredRole: ['admin', 'platform_admin'],
+    requiredPermission: { resource: '*', action: 'manage' },
     children: [
       // 默认重定向到 incidents
       {
@@ -738,37 +736,37 @@ export const routes: AppRoute[] = [
         path: '/console/self-healing/incidents',
         element: React.lazy(() => import('@/pages/SelfHealing/IncidentList')),
         protected: true,
-        requiredRole: ['admin', 'platform_admin'],
+        requiredPermission: { resource: '*', action: 'manage' },
       },
       {
         path: '/console/self-healing/incidents/:id',
         element: React.lazy(() => import('@/pages/SelfHealing/IncidentDetail')),
         protected: true,
-        requiredRole: ['admin', 'platform_admin'],
+        requiredPermission: { resource: '*', action: 'manage' },
       },
       {
         path: '/console/self-healing/history',
         element: React.lazy(() => import('@/pages/SelfHealing/History')),
         protected: true,
-        requiredRole: ['admin', 'platform_admin'],
+        requiredPermission: { resource: '*', action: 'manage' },
       },
       {
         path: '/console/self-healing/strategies',
         element: React.lazy(() => import('@/pages/SelfHealing/StrategyList')),
         protected: true,
-        requiredRole: ['admin', 'platform_admin'],
+        requiredPermission: { resource: '*', action: 'manage' },
       },
       {
         path: '/console/self-healing/approvals',
         element: React.lazy(() => import('@/pages/SelfHealing/ApprovalQueue')),
         protected: true,
-        requiredRole: ['admin', 'platform_admin'],
+        requiredPermission: { resource: '*', action: 'manage' },
       },
       {
         path: '/console/self-healing/effectiveness',
         element: React.lazy(() => import('@/pages/SelfHealing/EffectivenessDashboard')),
         protected: true,
-        requiredRole: ['admin', 'platform_admin'],
+        requiredPermission: { resource: '*', action: 'manage' },
       },
     ],
   },
@@ -777,7 +775,7 @@ export const routes: AppRoute[] = [
     path: '/console/monitoring',
     element: React.lazy(() => import('@/pages/monitor-svc/Monitoring')),
     protected: true,
-    requiredRole: ['admin', 'platform_admin'],
+    requiredPermission: { resource: '*', action: 'manage' },
     children: [
       // 默认重定向到 dashboard
       {
@@ -788,31 +786,31 @@ export const routes: AppRoute[] = [
         path: '/console/monitoring/dashboard',
         element: React.lazy(() => import('@/pages/monitor-svc/Monitoring/Dashboard')),
         protected: true,
-        requiredRole: ['admin', 'platform_admin'],
+        requiredPermission: { resource: '*', action: 'manage' },
       },
       {
         path: '/console/monitoring/metrics',
         element: React.lazy(() => import('@/pages/monitor-svc/Monitoring/Metrics')),
         protected: true,
-        requiredRole: ['admin', 'platform_admin'],
+        requiredPermission: { resource: '*', action: 'manage' },
       },
       {
         path: '/console/monitoring/alerts',
         element: React.lazy(() => import('@/pages/monitor-svc/Monitoring/Alerts')),
         protected: true,
-        requiredRole: ['admin', 'platform_admin'],
+        requiredPermission: { resource: '*', action: 'manage' },
       },
       {
         path: '/console/monitoring/rules',
         element: React.lazy(() => import('@/pages/monitor-svc/Monitoring/Rules')),
         protected: true,
-        requiredRole: ['admin', 'platform_admin'],
+        requiredPermission: { resource: '*', action: 'manage' },
       },
       {
         path: '/console/monitoring/channels',
         element: React.lazy(() => import('@/pages/monitor-svc/Monitoring/Channels')),
         protected: true,
-        requiredRole: ['admin', 'platform_admin'],
+        requiredPermission: { resource: '*', action: 'manage' },
       },
     ],
   },
@@ -821,7 +819,7 @@ export const routes: AppRoute[] = [
     path: '/console/diagnostic',
     element: React.lazy(() => import('@/pages/security-svc/Diagnostic')),
     protected: true,
-    requiredRole: ['admin', 'platform_admin'],
+    requiredPermission: { resource: '*', action: 'manage' },
     children: [
       // 默认重定向到 sessions
       {
@@ -832,44 +830,44 @@ export const routes: AppRoute[] = [
         path: '/console/diagnostic/sessions',
         element: React.lazy(() => import('@/pages/security-svc/Diagnostic/Sessions')),
         protected: true,
-        requiredRole: ['admin', 'platform_admin'],
+        requiredPermission: { resource: '*', action: 'manage' },
       },
       {
         path: '/console/diagnostic/sessions/:id',
         element: React.lazy(() => import('@/pages/security-svc/Diagnostic/SessionDetail')),
         protected: true,
-        requiredRole: ['admin', 'platform_admin'],
+        requiredPermission: { resource: '*', action: 'manage' },
       },
       {
         path: '/console/diagnostic/reports',
         element: React.lazy(() => import('@/pages/security-svc/Diagnostic/Reports')),
         protected: true,
-        requiredRole: ['admin', 'platform_admin'],
+        requiredPermission: { resource: '*', action: 'manage' },
       },
       {
         path: '/console/diagnostic/knowledge',
         element: React.lazy(() => import('@/pages/security-svc/Diagnostic/KnowledgeBase')),
         protected: true,
-        requiredRole: ['admin', 'platform_admin'],
+        requiredPermission: { resource: '*', action: 'manage' },
       },
       {
         path: '/console/diagnostic/trigger',
         element: React.lazy(() => import('@/pages/security-svc/Diagnostic/Trigger')),
         protected: true,
-        requiredRole: ['admin', 'platform_admin'],
+        requiredPermission: { resource: '*', action: 'manage' },
       },
     ],
   },
-  // AI Agent Orchestration
+  // AI Agent Orchestration (redirect to /ai/agents)
   {
     path: '/agents',
-    element: React.lazy(() => import('@/pages/AgentDashboard')),
-    protected: true,
+    element: <RedirectTo to="/ai/agents" />,
+    protected: false,
   },
   {
     path: '/agent-runs/:id',
-    element: React.lazy(() => import('@/pages/AgentRunDetail')),
-    protected: true,
+    element: <RedirectTo to="/ai/agents" />,
+    protected: false,
   },
   // Ephemeral Dev Environments
   {
@@ -911,7 +909,7 @@ export const routes: AppRoute[] = [
     path: '/roles',
     element: React.lazy(() => import('@/pages/RoleManagement')),
     protected: true,
-    requiredRole: ['admin', 'platform_admin'],
+    requiredPermission: { resource: '*', action: 'manage' },
   },
   // OnCall Management
   {
@@ -995,28 +993,28 @@ export const routes: AppRoute[] = [
     path: '/console/cron',
     element: React.lazy(() => import('@/pages/CronManagement')),
     protected: true,
-    requiredRole: ['admin', 'platform_admin'],
+    requiredPermission: { resource: '*', action: 'manage' },
   },
   // Webhook Management
   {
     path: '/console/webhooks',
     element: React.lazy(() => import('@/pages/WebhookManagement')),
     protected: true,
-    requiredRole: ['admin', 'platform_admin'],
+    requiredPermission: { resource: '*', action: 'manage' },
   },
   // Notification Rules (Webhooks + IM Notifications)
   {
     path: '/console/notification-rules',
     element: React.lazy(() => import('@/pages/NotificationRules')),
     protected: true,
-    requiredRole: ['admin', 'platform_admin'],
+    requiredPermission: { resource: '*', action: 'manage' },
   },
   // API Key Management
   {
     path: '/console/api-keys',
     element: React.lazy(() => import('@/pages/ApiKeyManagement')),
     protected: true,
-    requiredRole: ['admin', 'platform_admin'],
+    requiredPermission: { resource: '*', action: 'manage' },
   },
   // 404 页面
   // Backup Management (P1)
@@ -1030,7 +1028,7 @@ export const routes: AppRoute[] = [
     path: '/console/runners',
     element: React.lazy(() => import('@/pages/RunnerManagement')),
     protected: true,
-    requiredRole: ['admin', 'platform_admin'],
+    requiredPermission: { resource: '*', action: 'manage' },
   },
   // Plugin SPI - Extension Point Management (P1)
   {
@@ -1049,7 +1047,7 @@ export const routes: AppRoute[] = [
     path: '/console/modules',
     element: React.lazy(() => import('@/pages/ModuleManager')),
     protected: true,
-    requiredRole: ['admin', 'platform_admin'],
+    requiredPermission: { resource: '*', action: 'manage' },
   },
   // Secrets Management (Pipeline secrets)
   {
@@ -1068,21 +1066,21 @@ export const routes: AppRoute[] = [
     path: '/console/rate-limiting',
     element: React.lazy(() => import('@/pages/rate-limiting/RateLimitingPage')),
     protected: true,
-    requiredRole: ['admin', 'platform_admin'],
+    requiredPermission: { resource: '*', action: 'manage' },
   },
   // Circuit Breaker (Workflow 6)
   {
     path: '/console/circuit-breaker',
     element: React.lazy(() => import('@/pages/circuit-breaker/CircuitBreakerPage')),
     protected: true,
-    requiredRole: ['admin', 'platform_admin'],
+    requiredPermission: { resource: '*', action: 'manage' },
   },
   // Feature Flags (Workflow 10)
   {
     path: '/console/feature-flags',
     element: React.lazy(() => import('@/pages/feature-flags/FeatureFlagsPage')),
     protected: true,
-    requiredRole: ['admin', 'platform_admin'],
+    requiredPermission: { resource: '*', action: 'manage' },
   },
   // ==================== Phase 3-4 Pages ====================
 
@@ -1139,7 +1137,7 @@ export const routes: AppRoute[] = [
     path: '/console/pr-triggers',
     element: React.lazy(() => import('@/pages/PRTriggerManagement')),
     protected: true,
-    requiredRole: ['admin', 'platform_admin'],
+    requiredPermission: { resource: '*', action: 'manage' },
   },
   // Community Ecosystem (Phase 3)
   {
@@ -1337,16 +1335,6 @@ export const routes: AppRoute[] = [
   {
     path: '/ai-gateway',
     element: <RedirectTo to="/ai/gateway" />,
-    protected: false,
-  },
-  {
-    path: '/agents',
-    element: <RedirectTo to="/ai/agents" />,
-    protected: false,
-  },
-  {
-    path: '/agent-runs/:id',
-    element: <RedirectTo to="/ai/agents" />,
     protected: false,
   },
   {

@@ -445,7 +445,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     },
   ];
 
-  // 控制台菜单（仅管理员）
+  // 控制台菜单（仅管理员）— 定位为系统级管理入口
   const consoleMenuItems: ItemType[] = [
     {
       key: '/console/plugins',
@@ -467,11 +467,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       icon: <UnorderedListOutlined />,
       label: '人工确认',
     },
-    {
-      key: '/console/ai-cost',
-      icon: <DollarCircleOutlined />,
-      label: 'AI 成本',
-    },
   ];
 
   const handleConsoleMenuClick: MenuProps['onClick'] = (e) => {
@@ -481,7 +476,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       '/console/settings': '系统配置',
       '/console/users': '用户管理',
       '/console/confirmations': '人工确认',
-      '/console/ai-cost': 'AI 成本',
     };
     const label = labelMap[e.key];
     if (label) {

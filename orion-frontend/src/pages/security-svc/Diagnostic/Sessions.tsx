@@ -171,7 +171,7 @@ const DiagnosticSessions: React.FC = () => {
         return (
           <Text
             code
-            style={{ fontSize: spacing[3], color: colors.purple[500], cursor: 'pointer' }}
+            style={{ fontSize: spacing[3], color: colors.primary[500], cursor: 'pointer' }}
             onClick={() => {
               const s = sessions.find((item) => item.id === value);
               if (s) showSessionDetail(s);

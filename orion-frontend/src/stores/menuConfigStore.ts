@@ -99,20 +99,20 @@ const defaultModules: Record<string, MenuModuleConfig> = {
     enabled: true,
     children: [
       // 智能助手
-      { key: '/console/chatops', label: '智能助手', description: '对话式运维', category: '智能助手', enabled: true },
+      { key: '/ai/chatops', label: '智能助手', description: '对话式运维', category: '智能助手', enabled: true },
       // 代码智能
-      { key: '/console/ai-review', label: 'AI Review', description: '智能代码评审', category: '代码智能', enabled: true },
-      { key: '/console/ai-docs', label: 'AI 文档', description: '智能文档生成', category: '代码智能', enabled: true },
+      { key: '/ai/review', label: 'AI Review', description: '智能代码评审', category: '代码智能', enabled: true },
+      { key: '/ai/docs', label: 'AI 文档', description: '智能文档生成', category: '代码智能', enabled: true },
       // 平台配置
-      { key: '/ai-gateway', label: 'AI 网关', description: '统一 AI 服务入口', category: '平台配置', enabled: true },
-      { key: '/agents', label: 'Agent 调度', description: '智能体编排', category: '平台配置', enabled: true },
+      { key: '/ai/gateway', label: 'AI 网关', description: '统一 AI 服务入口', category: '平台配置', enabled: true },
+      { key: '/ai/agents', label: 'Agent 调度', description: '智能体编排', category: '平台配置', enabled: true },
       // 可观测性
-      { key: '/llm-trace', label: 'LLM Trace', description: '模型调用追踪', category: '可观测性', enabled: true },
-      { key: '/ai-cost', label: '成本分析', description: 'AI 成本分析', category: '可观测性', enabled: true },
+      { key: '/ai/trace', label: 'LLM Trace', description: '模型调用追踪', category: '可观测性', enabled: true },
+      { key: '/ai/cost', label: '成本分析', description: 'AI 成本分析', category: '可观测性', enabled: true },
       // 知识管理
       { key: '/ai/knowledge', label: 'AI 知识库', description: '智能知识管理', category: '知识管理', enabled: true },
       // 安全合规
-      { key: '/ai-security', label: 'AI 安全', description: 'AI 安全治理', category: '安全合规', enabled: true },
+      { key: '/ai/security', label: 'AI 安全', description: 'AI 安全治理', category: '安全合规', enabled: true },
     ],
   },
   '/governance': {
