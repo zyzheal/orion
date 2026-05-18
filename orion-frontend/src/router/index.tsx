@@ -12,11 +12,11 @@ const AUTH_VERIFY_TIMEOUT = 6000;
 
 const checkRoleAccess = (
   userRole: string | undefined,
-  requiredRole: string | string[] | undefined
+  _requiredRole: string | string[] | undefined
 ): boolean => {
-  if (!requiredRole) return true;
+  // 已废弃：所有路由已迁移到 requiredPermission
   if (!userRole) return false;
-  return (Array.isArray(requiredRole) ? requiredRole : [requiredRole]).includes(userRole);
+  return ['admin', 'platform_admin', 'super_admin'].includes(userRole);
 };
 
 async function verifyTokenWithTimeout() {
