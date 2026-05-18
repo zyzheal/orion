@@ -12,10 +12,12 @@ import { DatabasePool } from '../database';
 
 export interface RelationshipCheckRequest {
   userId: string;
+  tenantId?: string;
   projectId?: string;
   resourceId?: string;
   resourceType: string;
   ownerId?: string;
+  ownerTenantId?: string;
 }
 
 export interface RelationshipCheckResult {
@@ -30,11 +32,29 @@ export class RelationshipService {
   async check(req: RelationshipCheckRequest): Promise<RelationshipCheckResult> {
     // 1. Owner 检查
     if (req.ownerId && req.userId === req.ownerId) {
+      // 跨租户校验：资源 owner 的租户必须与请求用户的租户一致
+      if (req.tenantId && req.ownerTenantId && req.tenantId !== req.ownerTenantId) {
+        return {
+          allowed: false,
+          reason: 'Cross-tenant ownership mismatch',
+        };
+      }
       return {
         allowed: true,
         reason: 'User is the resource owner',
         relationshipType: 'owner',
       };
+    }
+
+    // 1.5 跨租户 ownerId 安全检查：当 ownerId 与 userId 不同但存在于同一租户时
+    // 防止通过篡改 ownerId 绕过授权
+    if (req.ownerId && req.ownerId !== req.userId && req.tenantId && req.ownerTenantId) {
+      if (req.tenantId !== req.ownerTenantId) {
+        return {
+          allowed: false,
+          reason: 'Resource owner belongs to a different tenant',
+        };
+      }
     }
 
     // 2. 项目成员检查（通过 project_members 表）

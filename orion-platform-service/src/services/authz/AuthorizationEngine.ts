@@ -93,7 +93,7 @@ export class AuthorizationEngine {
 
     // [1] super_admin 通配符跳过所有检查
     if (req.user.roles.includes('super_admin')) {
-      return this.allow('Super Admin bypass', 'super_admin_bypass', Date.now() - startTime, ['super_admin']);
+      return this.allow('Super Admin bypass', 'super_admin_bypass', Date.now() - startTime, req, ['super_admin']);
     }
 
     // [2] RBAC 检查 — 基于角色权限
@@ -133,10 +133,12 @@ export class AuthorizationEngine {
     if (req.resource.id) {
       const relResult = await this.relationshipService.check({
         userId: req.user.id,
+        tenantId: req.user.tenantId,
         projectId: req.resource.projectId,
         resourceId: req.resource.id,
         resourceType: req.resource.type,
         ownerId: req.resource.ownerId,
+        ownerTenantId: req.resource.tenantId,
       });
       if (!relResult.allowed) {
         return this.deny(relResult.reason, 'relationship', Date.now() - startTime, req);
@@ -144,7 +146,7 @@ export class AuthorizationEngine {
     }
 
     // [5] 全部通过
-    return this.allow('All checks passed', 'all', Date.now() - startTime, ['rbac', 'abac', 'relationship']);
+    return this.allow('All checks passed', 'all', Date.now() - startTime, req, ['rbac', 'abac', 'relationship']);
   }
 
   /**
@@ -188,8 +190,25 @@ export class AuthorizationEngine {
     reason: string,
     source: AuthZDecision['source'],
     time: number,
+    authzReq?: AuthZRequest,
     evaluatedBy?: string[],
   ): AuthZDecision {
+    // 异步记录 allow 审计日志（不阻塞主流程）
+    if (this.auditRepo && authzReq) {
+      this.auditRepo.logDecision({
+        userId: authzReq.user.id,
+        tenantId: authzReq.resource.tenantId,
+        resourceType: authzReq.resource.type,
+        resourceId: authzReq.resource.id,
+        action: authzReq.action.type,
+        decision: 'allow',
+        decisionSource: source,
+        reason,
+      }).catch(err => {
+        logger.error({ err }, 'Failed to write permission audit log');
+      });
+    }
+
     return {
       allowed: true,
       reason,
