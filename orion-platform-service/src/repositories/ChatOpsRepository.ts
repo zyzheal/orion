@@ -648,6 +648,150 @@ export class ChatOpsAlertStateRepository extends BaseRepository<ChatOpsAlertStat
   }
 }
 
+// ==================== ChatOpsQuestionConfig Repository ====================
+
+export interface ChatOpsQuestionConfigEntity {
+  id: string;
+  userId: string;
+  key: string;
+  icon: string;
+  title: string;
+  description: string;
+  question: string;
+  enabled: boolean;
+  sortOrder: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export class ChatOpsQuestionConfigRepository extends BaseRepository<ChatOpsQuestionConfigEntity> {
+  constructor(db: DatabasePool) {
+    super(db, 'chatops_question_configs');
+  }
+
+  async findByUserId(userId: string): Promise<ChatOpsQuestionConfigEntity[]> {
+    const result = await this.db.query(
+      'SELECT * FROM chatops_question_configs WHERE user_id = $1 ORDER BY sort_order, key',
+      [userId],
+    );
+    return result.rows.map(row => this.mapRowToEntity(row));
+  }
+
+  async upsert(data: {
+    userId: string;
+    key: string;
+    icon: string;
+    title: string;
+    description: string;
+    question: string;
+    enabled: boolean;
+    sortOrder?: number;
+  }): Promise<ChatOpsQuestionConfigEntity> {
+    const result = await this.db.query(
+      `INSERT INTO chatops_question_configs (user_id, key, icon, title, description, question, enabled, sort_order)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       ON CONFLICT (user_id, key) DO UPDATE SET
+         icon = $3, title = $4, description = $5, question = $6, enabled = $7, sort_order = $8, updated_at = NOW()
+       RETURNING *`,
+      [data.userId, data.key, data.icon, data.title, data.description, data.question, data.enabled, data.sortOrder ?? 0],
+    );
+    return this.mapRowToEntity(result.rows[0]);
+  }
+
+  async deleteByKey(userId: string, key: string): Promise<boolean> {
+    const result = await this.db.query(
+      'DELETE FROM chatops_question_configs WHERE user_id = $1 AND key = $2',
+      [userId, key],
+    );
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  protected mapRowToEntity(row: any): ChatOpsQuestionConfigEntity {
+    return {
+      id: row.id,
+      userId: row.user_id,
+      key: row.key,
+      icon: row.icon || '',
+      title: row.title || '',
+      description: row.description || '',
+      question: row.question || '',
+      enabled: row.enabled ?? true,
+      sortOrder: row.sort_order ?? 0,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  }
+}
+
+// ==================== ChatOpsCommandConfig Repository ====================
+
+export interface ChatOpsCommandConfigEntity {
+  id: string;
+  userId: string;
+  key: string;
+  label: string;
+  command: string;
+  enabled: boolean;
+  sortOrder: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export class ChatOpsCommandConfigRepository extends BaseRepository<ChatOpsCommandConfigEntity> {
+  constructor(db: DatabasePool) {
+    super(db, 'chatops_command_configs');
+  }
+
+  async findByUserId(userId: string): Promise<ChatOpsCommandConfigEntity[]> {
+    const result = await this.db.query(
+      'SELECT * FROM chatops_command_configs WHERE user_id = $1 ORDER BY sort_order, key',
+      [userId],
+    );
+    return result.rows.map(row => this.mapRowToEntity(row));
+  }
+
+  async upsert(data: {
+    userId: string;
+    key: string;
+    label: string;
+    command: string;
+    enabled: boolean;
+    sortOrder?: number;
+  }): Promise<ChatOpsCommandConfigEntity> {
+    const result = await this.db.query(
+      `INSERT INTO chatops_command_configs (user_id, key, label, command, enabled, sort_order)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (user_id, key) DO UPDATE SET
+         label = $3, command = $4, enabled = $5, sort_order = $6, updated_at = NOW()
+       RETURNING *`,
+      [data.userId, data.key, data.label, data.command, data.enabled, data.sortOrder ?? 0],
+    );
+    return this.mapRowToEntity(result.rows[0]);
+  }
+
+  async deleteByKey(userId: string, key: string): Promise<boolean> {
+    const result = await this.db.query(
+      'DELETE FROM chatops_command_configs WHERE user_id = $1 AND key = $2',
+      [userId, key],
+    );
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  protected mapRowToEntity(row: any): ChatOpsCommandConfigEntity {
+    return {
+      id: row.id,
+      userId: row.user_id,
+      key: row.key,
+      label: row.label || '',
+      command: row.command || '',
+      enabled: row.enabled ?? true,
+      sortOrder: row.sort_order ?? 0,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  }
+}
+
 // ==================== ChatOpsPlatformConfig Repository ====================
 
 export interface ChatOpsPlatformConfigEntity {

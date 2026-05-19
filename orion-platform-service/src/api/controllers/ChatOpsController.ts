@@ -23,6 +23,9 @@ import {
 } from '../../services/chatops/WebhookVerifier';
 import { ChatOpsExecutionStatus } from '../../models/ChatOps';
 import { EventBusService } from '../../services/event-bus-service';
+import { PermissionService } from '../../services/chatops/PermissionService';
+import { RateLimitService } from '../../services/chatops/RateLimitService';
+import { ChatConfigService } from '../../services/chatops/ChatConfigService';
 
 export class ChatOpsController {
   private commandService: CommandService;
@@ -38,6 +41,12 @@ export class ChatOpsController {
   /** ARCH-005: EventBus 实例，用于健康检查 */
   private eventBus: EventBusService | null;
   private dashboardService: DashboardService;
+  /** 权限检查服务 */
+  private permissionService: PermissionService | null;
+  /** 速率限制服务 */
+  private rateLimitService: RateLimitService | null;
+  /** 问答卡片与快捷命令配置服务 */
+  private chatConfigService: ChatConfigService | null;
 
   constructor(options: {
     commandService: CommandService;
@@ -52,6 +61,9 @@ export class ChatOpsController {
     /** ARCH-005: EventBus 实例 */
     eventBus?: EventBusService | null;
     dashboardService: DashboardService;
+    permissionService?: PermissionService | null;
+    rateLimitService?: RateLimitService | null;
+    chatConfigService?: ChatConfigService | null;
   }) {
     this.commandService = options.commandService;
     this.executionService = options.executionService;
@@ -64,6 +76,9 @@ export class ChatOpsController {
     this.eventSubscriber = options.eventSubscriber ?? null;
     this.eventBus = options.eventBus ?? null;
     this.dashboardService = options.dashboardService;
+    this.permissionService = options.permissionService ?? null;
+    this.rateLimitService = options.rateLimitService ?? null;
+    this.chatConfigService = options.chatConfigService ?? null;
   }
 
   // ==================== Helpers ====================
@@ -140,6 +155,46 @@ export class ChatOpsController {
       if (!command) {
         await reply.status(404).send({ success: false, error: 'Command not found' });
         return;
+      }
+
+      // Permission check via Capability engine (fail-closed)
+      if (!this.permissionService) {
+        await reply.status(503).send({
+          success: false,
+          error: 'SERVICE_UNAVAILABLE',
+          message: '权限服务不可用，请稍后重试',
+        });
+        return;
+      }
+      const permissionResult = await this.permissionService.checkCommandPermission(
+        user.userId,
+        body.command as string,
+        body.environment as string | undefined,
+      );
+      if (!permissionResult.allowed) {
+        await reply.status(403).send({
+          success: false,
+          error: 'FORBIDDEN',
+          reason: permissionResult.reason,
+          requiresApproval: permissionResult.requiresApproval,
+        });
+        return;
+      }
+
+      // Rate limit check
+      if (this.rateLimitService) {
+        const limitResult = await this.rateLimitService.checkLimit(
+          user.userId,
+          body.command as string,
+        );
+        if (!limitResult.allowed) {
+          await reply.status(429).send({
+            success: false,
+            error: 'RATE_LIMITED',
+            message: `命令 ${body.command} 触发速率限制`,
+          });
+          return;
+        }
       }
 
       const execution = await this.executionService.execute({
@@ -265,9 +320,9 @@ export class ChatOpsController {
 
         // Parse incoming IM message
         const text = (body.text || body.message || '') as string;
-        const { command, params } = await this.commandService.parseCommand(text);
+        const { command: parsedCmd, params } = await this.commandService.parseCommand(text);
 
-        if (!command) {
+        if (!parsedCmd) {
           await reply.status(400).send({
             success: false,
             error: 'Unknown command. Use /help for available commands.',
@@ -275,15 +330,51 @@ export class ChatOpsController {
           return;
         }
 
+        // Permission check via Capability engine (webhook path, fail-closed)
+        if (!this.permissionService) {
+          await reply.status(503).send({
+            success: false,
+            error: 'SERVICE_UNAVAILABLE',
+            message: '权限服务不可用',
+          });
+          return;
+        }
+        const permissionResult = await this.permissionService.checkCommandPermission(
+          userId,
+          parsedCmd.name,
+          body.environment as string | undefined,
+        );
+        if (!permissionResult.allowed) {
+          await reply.status(403).send({
+            success: false,
+            error: 'FORBIDDEN',
+            reason: permissionResult.reason,
+          });
+          return;
+        }
+
+        // Rate limit check (webhook path)
+        if (this.rateLimitService) {
+          const limitResult = await this.rateLimitService.checkLimit(userId, parsedCmd.name);
+          if (!limitResult.allowed) {
+            await reply.status(429).send({
+              success: false,
+              error: 'RATE_LIMITED',
+              message: `命令 ${parsedCmd.name} 触发速率限制`,
+            });
+            return;
+          }
+        }
+
         const execution = await this.executionService.execute({
-          commandId: command.name,
+          commandId: parsedCmd.name,
           userId,
           platform,
           channel,
           params: params as Record<string, unknown>,
         });
 
-        await reply.status(201).send({ success: true, data: execution, command });
+        await reply.status(201).send({ success: true, data: execution, command: parsedCmd });
       } else {
         // 开发/测试环境：从 JWT middleware 获取 userId，不允许从 body 伪造
         const user = (request as any).user as { userId: string } | undefined;
@@ -300,9 +391,9 @@ export class ChatOpsController {
 
         // Parse incoming IM message
         const text = (body.text || body.message || '') as string;
-        const { command, params } = await this.commandService.parseCommand(text);
+        const { command: parsedCmd, params } = await this.commandService.parseCommand(text);
 
-        if (!command) {
+        if (!parsedCmd) {
           await reply.status(400).send({
             success: false,
             error: 'Unknown command. Use /help for available commands.',
@@ -310,15 +401,51 @@ export class ChatOpsController {
           return;
         }
 
+        // Permission check via Capability engine (dev mode path, fail-closed)
+        if (!this.permissionService) {
+          await reply.status(503).send({
+            success: false,
+            error: 'SERVICE_UNAVAILABLE',
+            message: '权限服务不可用',
+          });
+          return;
+        }
+        const permissionResult = await this.permissionService.checkCommandPermission(
+          userId,
+          parsedCmd.name,
+          body.environment as string | undefined,
+        );
+        if (!permissionResult.allowed) {
+          await reply.status(403).send({
+            success: false,
+            error: 'FORBIDDEN',
+            reason: permissionResult.reason,
+          });
+          return;
+        }
+
+        // Rate limit check (dev mode path)
+        if (this.rateLimitService) {
+          const limitResult = await this.rateLimitService.checkLimit(userId, parsedCmd.name);
+          if (!limitResult.allowed) {
+            await reply.status(429).send({
+              success: false,
+              error: 'RATE_LIMITED',
+              message: `命令 ${parsedCmd.name} 触发速率限制`,
+            });
+            return;
+          }
+        }
+
         const execution = await this.executionService.execute({
-          commandId: command.name,
+          commandId: parsedCmd.name,
           userId,
           platform,
           channel,
           params: params as Record<string, unknown>,
         });
 
-        await reply.status(201).send({ success: true, data: execution, command });
+        await reply.status(201).send({ success: true, data: execution, command: parsedCmd });
       }
     } catch (err) {
       await reply.status(400).send({
@@ -745,6 +872,102 @@ export class ChatOpsController {
         return;
       }
       await reply.status(500).send({
+        success: false,
+        error: err instanceof Error ? err.message : 'Internal server error',
+      });
+    }
+  }
+
+  // ==================== Chat Config (Questions & Commands) ====================
+
+  async getQuestionConfigs(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    try {
+      const user = this.getUser(request);
+      if (!user) {
+        await reply.status(401).send({ success: false, error: 'UNAUTHORIZED' });
+        return;
+      }
+      if (!this.chatConfigService) {
+        await reply.status(503).send({ success: false, error: 'SERVICE_UNAVAILABLE' });
+        return;
+      }
+      const configs = await this.chatConfigService.getQuestions(user.userId);
+      await reply.send({ success: true, data: configs });
+    } catch (err) {
+      await reply.status(500).send({
+        success: false,
+        error: err instanceof Error ? err.message : 'Internal server error',
+      });
+    }
+  }
+
+  async updateQuestionConfigs(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    try {
+      const user = this.getUser(request);
+      if (!user) {
+        await reply.status(401).send({ success: false, error: 'UNAUTHORIZED' });
+        return;
+      }
+      if (!this.chatConfigService) {
+        await reply.status(503).send({ success: false, error: 'SERVICE_UNAVAILABLE' });
+        return;
+      }
+      const body = request.body as { configs?: Array<{ key: string; icon: string; title: string; desc: string; question: string; enabled: boolean }> };
+      if (!body.configs || !Array.isArray(body.configs)) {
+        await reply.status(400).send({ success: false, error: 'configs 数组必填' });
+        return;
+      }
+      const configs = await this.chatConfigService.batchUpdateQuestions(user.userId, body.configs);
+      await reply.send({ success: true, data: configs });
+    } catch (err) {
+      await reply.status(400).send({
+        success: false,
+        error: err instanceof Error ? err.message : 'Internal server error',
+      });
+    }
+  }
+
+  async getCommandConfigs(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    try {
+      const user = this.getUser(request);
+      if (!user) {
+        await reply.status(401).send({ success: false, error: 'UNAUTHORIZED' });
+        return;
+      }
+      if (!this.chatConfigService) {
+        await reply.status(503).send({ success: false, error: 'SERVICE_UNAVAILABLE' });
+        return;
+      }
+      const configs = await this.chatConfigService.getCommands(user.userId);
+      await reply.send({ success: true, data: configs });
+    } catch (err) {
+      await reply.status(500).send({
+        success: false,
+        error: err instanceof Error ? err.message : 'Internal server error',
+      });
+    }
+  }
+
+  async updateCommandConfigs(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    try {
+      const user = this.getUser(request);
+      if (!user) {
+        await reply.status(401).send({ success: false, error: 'UNAUTHORIZED' });
+        return;
+      }
+      if (!this.chatConfigService) {
+        await reply.status(503).send({ success: false, error: 'SERVICE_UNAVAILABLE' });
+        return;
+      }
+      const body = request.body as { configs?: Array<{ key: string; label: string; command: string; enabled: boolean }> };
+      if (!body.configs || !Array.isArray(body.configs)) {
+        await reply.status(400).send({ success: false, error: 'configs 数组必填' });
+        return;
+      }
+      const configs = await this.chatConfigService.batchUpdateCommands(user.userId, body.configs);
+      await reply.send({ success: true, data: configs });
+    } catch (err) {
+      await reply.status(400).send({
         success: false,
         error: err instanceof Error ? err.message : 'Internal server error',
       });

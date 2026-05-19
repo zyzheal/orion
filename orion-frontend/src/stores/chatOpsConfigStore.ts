@@ -1,9 +1,15 @@
 /**
  * ChatOps 配置 Store
  * 支持自定义启动时展示的问答卡片和底部命令配置
- * 数据持久化到 localStorage
+ * 数据持久化到后端 API（fallback 到 localStorage 缓存）
  */
 import { create } from 'zustand';
+import {
+  getQuestionConfigs,
+  updateQuestionConfigs,
+  getCommandConfigs,
+  updateCommandConfigs,
+} from '../api/chatops';
 
 export interface ChatOpsQuestionConfig {
   key: string;
@@ -24,8 +30,9 @@ export interface ChatOpsCommandConfig {
 interface ChatOpsConfigState {
   questions: ChatOpsQuestionConfig[];
   commands: ChatOpsCommandConfig[];
-  loadConfig: () => void;
-  saveConfig: () => void;
+  isLoading: boolean;
+  loadConfig: () => Promise<void>;
+  saveConfig: () => Promise<void>;
   updateQuestion: (key: string, updates: Partial<ChatOpsQuestionConfig>) => void;
   addQuestion: (question: ChatOpsQuestionConfig) => void;
   removeQuestion: (key: string) => void;
@@ -57,50 +64,133 @@ const defaultCommands: ChatOpsCommandConfig[] = [
 
 const STORAGE_KEY = 'orion_chatops_config';
 
+/** 从 localStorage 读取缓存 */
+function loadFromCache(): { questions: ChatOpsQuestionConfig[]; commands: ChatOpsCommandConfig[] } | null {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch {
+    // Ignore parse errors
+  }
+  return null;
+}
+
+/** 写入 localStorage 缓存 */
+function saveToCache(questions: ChatOpsQuestionConfig[], commands: ChatOpsCommandConfig[]) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ questions, commands }));
+  } catch {
+    // Ignore storage errors
+  }
+}
+
+/** 合并问答默认值与远程数据 */
+function mergeQuestions(
+  remote: any[] | null,
+  defaults: ChatOpsQuestionConfig[]
+): ChatOpsQuestionConfig[] {
+  if (!remote || remote.length === 0) return [...defaults];
+  const merged = defaults.map((defQ) => {
+    const remoteQ = remote.find((q: any) => q.key === defQ.key);
+    return remoteQ ? { ...defQ, ...remoteQ } : defQ;
+  });
+  for (const r of remote) {
+    if (!merged.find((q) => q.key === r.key) && r.key) {
+      merged.push(r as ChatOpsQuestionConfig);
+    }
+  }
+  return merged;
+}
+
+/** 合并命令默认值与远程数据 */
+function mergeCommands(
+  remote: any[] | null,
+  defaults: ChatOpsCommandConfig[]
+): ChatOpsCommandConfig[] {
+  if (!remote || remote.length === 0) return [...defaults];
+  const merged = defaults.map((defC) => {
+    const remoteC = remote.find((c: any) => c.key === defC.key);
+    return remoteC ? { ...defC, ...remoteC } : defC;
+  });
+  for (const r of remote) {
+    if (!merged.find((c) => c.key === r.key) && r.key) {
+      merged.push(r as ChatOpsCommandConfig);
+    }
+  }
+  return merged;
+}
+
 export const useChatOpsConfigStore = create<ChatOpsConfigState>((set, get) => ({
   questions: [...defaultQuestions],
   commands: [...defaultCommands],
+  isLoading: false,
 
-  loadConfig: () => {
+  loadConfig: async () => {
+    set({ isLoading: true });
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored) as { questions?: Partial<ChatOpsQuestionConfig>[]; commands?: Partial<ChatOpsCommandConfig>[] };
+      // 优先从 API 拉取
+      const [qRes, cRes] = await Promise.allSettled([
+        getQuestionConfigs(),
+        getCommandConfigs(),
+      ]);
+
+      const remoteQuestions = qRes.status === 'fulfilled' && qRes.value?.data?.data
+        ? (qRes.value.data.data as any[])
+        : null;
+      const remoteCommands = cRes.status === 'fulfilled' && cRes.value?.data?.data
+        ? (cRes.value.data.data as any[])
+        : null;
+
+      if (remoteQuestions !== null || remoteCommands !== null) {
+        // API 成功，使用远程数据合并
         const merged = {
-          questions: defaultQuestions.map((defQ) => {
-            const storedQ = parsed.questions?.find((q) => q.key === defQ.key);
-            return storedQ ? { ...defQ, ...storedQ } : defQ;
-          }),
-          commands: defaultCommands.map((defC) => {
-            const storedC = parsed.commands?.find((c) => c.key === defC.key);
-            return storedC ? { ...defC, ...storedC } : defC;
-          }),
+          questions: mergeQuestions(remoteQuestions, defaultQuestions),
+          commands: mergeCommands(remoteCommands, defaultCommands),
         };
-        // 追加新增的项（不在默认列表中的）
-        if (parsed.questions) {
-          for (const storedQ of parsed.questions) {
-            if (!merged.questions.find((q) => q.key === storedQ.key) && storedQ.key) {
-              merged.questions.push(storedQ as ChatOpsQuestionConfig);
-            }
-          }
+        // 同时写入缓存
+        saveToCache(merged.questions, merged.commands);
+        set({ questions: merged.questions, commands: merged.commands, isLoading: false });
+      } else {
+        // API 全部失败，回退到 localStorage
+        const cached = loadFromCache();
+        if (cached) {
+          const merged = {
+            questions: mergeQuestions(cached.questions, defaultQuestions),
+            commands: mergeCommands(cached.commands, defaultCommands),
+          };
+          set({ questions: merged.questions, commands: merged.commands, isLoading: false });
+        } else {
+          // 无缓存，使用默认值
+          set({ isLoading: false });
         }
-        if (parsed.commands) {
-          for (const storedC of parsed.commands) {
-            if (!merged.commands.find((c) => c.key === storedC.key) && storedC.key) {
-              merged.commands.push(storedC as ChatOpsCommandConfig);
-            }
-          }
-        }
-        set({ questions: merged.questions, commands: merged.commands });
       }
     } catch {
-      // Ignore parse errors, use defaults
+      // API 异常，回退到 localStorage
+      const cached = loadFromCache();
+      if (cached) {
+        set({ questions: cached.questions, commands: cached.commands, isLoading: false });
+      } else {
+        set({ isLoading: false });
+      }
     }
   },
 
-  saveConfig: () => {
+  saveConfig: async () => {
     const { questions, commands } = get();
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ questions, commands }));
+    // 先写入缓存
+    saveToCache(questions, commands);
+    // 异步调用 API 保存
+    try {
+      await Promise.all([
+        updateQuestionConfigs({ configs: questions }),
+        updateCommandConfigs({ configs: commands }),
+      ]);
+    } catch {
+      // API 失败时数据已缓存，不影响体验
+      console.warn('[ChatOpsConfigStore] API save failed, data cached locally');
+    }
   },
 
   updateQuestion: (key, updates) => {
@@ -140,7 +230,12 @@ export const useChatOpsConfigStore = create<ChatOpsConfigState>((set, get) => ({
   },
 
   resetToDefault: () => {
-    localStorage.removeItem(STORAGE_KEY);
+    saveToCache([...defaultQuestions], [...defaultCommands]);
     set({ questions: [...defaultQuestions], commands: [...defaultCommands] });
+    // 异步调用 API 重置
+    Promise.all([
+      updateQuestionConfigs({ configs: [...defaultQuestions] }).catch(() => {}),
+      updateCommandConfigs({ configs: [...defaultCommands] }).catch(() => {}),
+    ]);
   },
 }));

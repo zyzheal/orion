@@ -628,3 +628,38 @@ export function getDashboardStats(params?: {
 }) {
   return api.get('/v1/chatops/dashboard/stats', { params });
 }
+
+// ---- Chat Config (Questions & Commands) ----
+
+export interface ChatQuestionConfig {
+  key: string;
+  icon: string;
+  title: string;
+  desc: string;
+  question: string;
+  enabled: boolean;
+}
+
+export interface ChatCommandConfig {
+  key: string;
+  label: string;
+  command: string;
+  enabled: boolean;
+}
+
+export function getQuestionConfigs() {
+  return api.get('/v1/chatops/settings/questions');
+}
+
+export function updateQuestionConfigs(data: { configs: ChatQuestionConfig[] }) {
+  return api.put('/v1/chatops/settings/questions', data);
+}
+
+export function getCommandConfigs() {
+  return api.get('/v1/chatops/settings/commands');
+}
+
+export function updateCommandConfigs(data: { configs: ChatCommandConfig[] }) {
+  return api.put('/v1/chatops/settings/commands', data);
+}
+

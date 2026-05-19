@@ -32,6 +32,7 @@ import { NotificationPreferenceService } from '../services/chatops/NotificationP
 import { DNDService } from '../services/chatops/DNDService';
 import { AlertStateService } from '../services/chatops/AlertStateService';
 import { PlatformConfigService } from '../services/chatops/PlatformConfigService';
+import { ChatConfigService } from '../services/chatops/ChatConfigService';
 import { ChatOpsEventSubscriber } from '../services/chatops/EventSubscriber';
 import { SSEConnectionManager } from '../services/chatops/SSEConnectionManager';
 import { InputValidator } from '../services/chatops/InputValidator';
@@ -44,6 +45,10 @@ import { DiagnosticRepository } from '../services/diagnostic/DiagnosticRepositor
 import { SelfHealingService } from '../services/self-healing/SelfHealingService';
 import { SelfHealingRepository } from '../services/self-healing/SelfHealingRepository';
 import { CapabilityMappingService } from '../services/chatops/CapabilityMappingService';
+import { PermissionService } from '../services/chatops/PermissionService';
+import { CommandVersionService } from '../services/chatops/CommandVersionService';
+import { RateLimitService } from '../services/chatops/RateLimitService';
+import { WebhookService } from '../services/chatops/WebhookService';
 
 interface ChatOpsRoutesOptions {
   eventBus?: EventBusService;
@@ -278,9 +283,20 @@ export default async function chatopsRoutes(
   // Platform Config
   const platformConfigService = new PlatformConfigService(db);
 
+  // Chat Config (Questions & Commands)
+  const chatConfigService = new ChatConfigService(db);
+
   // ==================== Admin Services ====================
   // Capability Mapping Service (管理命令-Capability 映射)
   const capabilityMappingService = new CapabilityMappingService(db);
+  // Permission Service (角色、命令权限、环境权限)
+  const permissionService = new PermissionService(db);
+  // Command Version Service (命令版本管理)
+  const commandVersionService = new CommandVersionService(db);
+  // Rate Limit Service (速率限制)
+  const rateLimitService = new RateLimitService(db);
+  // Webhook Service (Webhook 管理)
+  const webhookService = new WebhookService(db);
 
   // ==================== EventBus + SSE (Phase 1a) ====================
   // 先初始化 eventSubscriber，以便注入到 controller
@@ -319,6 +335,9 @@ export default async function chatopsRoutes(
     eventSubscriber,
     eventBus: options.eventBus,
     dashboardService,
+    permissionService,
+    rateLimitService,
+    chatConfigService,
   });
 
   // Seed default commands
@@ -462,6 +481,23 @@ export default async function chatopsRoutes(
 
   app.post('/audit/export', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'write' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.exportAuditLogs(request, reply);
+  });
+
+  // ==================== Permission Check API ====================
+
+  // GET /permissions/allowed-commands - 获取当前用户可执行的命令列表
+  app.get('/permissions/allowed-commands', { onRequest: [authenticateUser] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = (request as any).user as { userId: string } | undefined;
+    if (!user) {
+      return reply.status(401).send({ success: false, error: 'UNAUTHORIZED' });
+    }
+    try {
+      const allowedCommands = await permissionService.getUserAllowedCommands(user.userId);
+      return reply.send({ success: true, data: allowedCommands });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Failed to fetch allowed commands' });
+    }
   });
 
   // ==================== Admin API (Capability Mappings & Approval Config) ====================
@@ -658,5 +694,401 @@ export default async function chatopsRoutes(
       request.log.error(error);
       return reply.status(500).send({ success: false, error: 'Failed to update global approval config' });
     }
+  });
+
+  // ==================== Permission Admin API ====================
+
+  // ---- Role Management ----
+  app.get('/admin/roles', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'admin' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const roles = await permissionService.getAllRoles();
+      return reply.send({ success: true, data: roles });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Failed to fetch roles' });
+    }
+  });
+
+  app.post('/admin/roles', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'admin' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = request.body as { name: string; description?: string; permissions?: string[] };
+    if (!body.name) return reply.status(400).send({ success: false, error: 'name is required' });
+    try {
+      const role = await permissionService.createRole(body);
+      return reply.status(201).send({ success: true, data: role });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Failed to create role' });
+    }
+  });
+
+  app.put('/admin/roles/:id', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'admin' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.params as { id: string };
+    const body = request.body as { name?: string; description?: string; permissions?: string[] };
+    try {
+      const role = await permissionService.updateRole(id, body);
+      if (!role) return reply.status(404).send({ success: false, error: 'Role not found' });
+      return reply.send({ success: true, data: role });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Failed to update role' });
+    }
+  });
+
+  app.delete('/admin/roles/:id', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'admin' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.params as { id: string };
+    try {
+      const deleted = await permissionService.deleteRole(id);
+      if (!deleted) return reply.status(404).send({ success: false, error: 'Role not found' });
+      return reply.send({ success: true });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Failed to delete role' });
+    }
+  });
+
+  // ---- Command Permission Management ----
+  app.get('/admin/command-permissions', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'admin' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const perms = await permissionService.getAllCommandPermissions();
+      return reply.send({ success: true, data: perms });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Failed to fetch command permissions' });
+    }
+  });
+
+  app.post('/admin/command-permissions', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'admin' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = request.body as { command: string; description?: string; capability: string; risk_level?: number; requires_approval?: boolean; role_ids?: string[] };
+    if (!body.command || !body.capability) return reply.status(400).send({ success: false, error: 'command and capability are required' });
+    try {
+      const perm = await permissionService.createCommandPermission(body);
+      return reply.status(201).send({ success: true, data: perm });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Failed to create command permission' });
+    }
+  });
+
+  app.put('/admin/command-permissions/:id', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'admin' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.params as { id: string };
+    const body = request.body as { description?: string; capability?: string; risk_level?: number; requires_approval?: boolean; role_ids?: string[] };
+    try {
+      const perm = await permissionService.updateCommandPermission(id, body);
+      if (!perm) return reply.status(404).send({ success: false, error: 'Command permission not found' });
+      return reply.send({ success: true, data: perm });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Failed to update command permission' });
+    }
+  });
+
+  app.delete('/admin/command-permissions/:id', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'admin' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.params as { id: string };
+    try {
+      const deleted = await permissionService.deleteCommandPermission(id);
+      if (!deleted) return reply.status(404).send({ success: false, error: 'Command permission not found' });
+      return reply.send({ success: true });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Failed to delete command permission' });
+    }
+  });
+
+  // ---- Environment Permission Management ----
+  app.get('/admin/environment-permissions', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'admin' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const perms = await permissionService.getAllEnvironmentPermissions();
+      return reply.send({ success: true, data: perms });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Failed to fetch environment permissions' });
+    }
+  });
+
+  app.post('/admin/environment-permissions', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'admin' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = request.body as { environment: string; description?: string; rate_limit?: number; require_approval?: boolean; allowed_commands?: string[]; denied_commands?: string[]; role_ids?: string[] };
+    if (!body.environment) return reply.status(400).send({ success: false, error: 'environment is required' });
+    try {
+      const perm = await permissionService.createEnvironmentPermission(body);
+      return reply.status(201).send({ success: true, data: perm });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Failed to create environment permission' });
+    }
+  });
+
+  app.put('/admin/environment-permissions/:id', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'admin' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.params as { id: string };
+    const body = request.body as { description?: string; rate_limit?: number; require_approval?: boolean; allowed_commands?: string[]; denied_commands?: string[]; role_ids?: string[] };
+    try {
+      const perm = await permissionService.updateEnvironmentPermission(id, body);
+      if (!perm) return reply.status(404).send({ success: false, error: 'Environment permission not found' });
+      return reply.send({ success: true, data: perm });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Failed to update environment permission' });
+    }
+  });
+
+  app.delete('/admin/environment-permissions/:id', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'admin' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.params as { id: string };
+    try {
+      const deleted = await permissionService.deleteEnvironmentPermission(id);
+      if (!deleted) return reply.status(404).send({ success: false, error: 'Environment permission not found' });
+      return reply.send({ success: true });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Failed to delete environment permission' });
+    }
+  });
+
+  // ==================== Command Version Management API ====================
+
+  // GET /admin/command-versions - 获取所有命令版本
+  app.get('/admin/command-versions', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'admin' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { page, perPage } = request.query as { page?: string; perPage?: string };
+    try {
+      const result = await commandVersionService.getAllVersions(
+        parseInt(page || '1'),
+        parseInt(perPage || '20')
+      );
+      return reply.send({ success: true, data: result.versions, total: result.total });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Failed to fetch command versions' });
+    }
+  });
+
+  // GET /admin/command-versions/:commandId - 获取指定命令的版本历史
+  app.get('/admin/command-versions/:commandId', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'admin' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { commandId } = request.params as { commandId: string };
+    try {
+      const versions = await commandVersionService.getVersionsByCommand(commandId);
+      return reply.send({ success: true, data: versions });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Failed to fetch command versions' });
+    }
+  });
+
+  // POST /admin/command-versions - 创建新版本
+  app.post('/admin/command-versions', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'admin' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = request.body as { command_id: string; command_text: string; parameters?: Record<string, unknown>; description?: string; changelog?: string };
+    if (!body.command_id || !body.command_text) return reply.status(400).send({ success: false, error: 'command_id and command_text are required' });
+    try {
+      const user = (request as any).user;
+      const version = await commandVersionService.createVersion({ ...body, created_by: user?.username || 'system' });
+      return reply.status(201).send({ success: true, data: version });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Failed to create command version' });
+    }
+  });
+
+  // POST /admin/command-versions/:commandId/rollback/:version - 回滚到指定版本
+  app.post('/admin/command-versions/:commandId/rollback/:version', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'admin' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { commandId, version } = request.params as { commandId: string; version: string };
+    try {
+      const newVersion = await commandVersionService.rollbackToVersion(commandId, parseInt(version));
+      if (!newVersion) return reply.status(404).send({ success: false, error: 'Version not found' });
+      return reply.send({ success: true, data: newVersion });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Failed to rollback command version' });
+    }
+  });
+
+  // POST /admin/command-versions/:versionId/tags - 添加标签
+  app.post('/admin/command-versions/:versionId/tags', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'admin' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { versionId } = request.params as { versionId: string };
+    const body = request.body as { tag_name: string };
+    if (!body.tag_name) return reply.status(400).send({ success: false, error: 'tag_name is required' });
+    try {
+      const user = (request as any).user;
+      await commandVersionService.addTag(versionId, body.tag_name, user?.username || 'system');
+      return reply.send({ success: true });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Failed to add tag' });
+    }
+  });
+
+  // DELETE /admin/command-versions/:versionId/tags/:tagName - 删除标签
+  app.delete('/admin/command-versions/:versionId/tags/:tagName', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'admin' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { versionId, tagName } = request.params as { versionId: string; tagName: string };
+    try {
+      await commandVersionService.removeTag(versionId, tagName);
+      return reply.send({ success: true });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Failed to remove tag' });
+    }
+  });
+
+  // DELETE /admin/command-versions/:id - 删除版本
+  app.delete('/admin/command-versions/:id', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'admin' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.params as { id: string };
+    try {
+      const deleted = await commandVersionService.deleteVersion(id);
+      if (!deleted) return reply.status(404).send({ success: false, error: 'Version not found' });
+      return reply.send({ success: true });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Failed to delete command version' });
+    }
+  });
+
+  // ==================== Rate Limit Management API ====================
+
+  // GET /admin/rate-limits - 获取所有限流配置
+  app.get('/admin/rate-limits', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'admin' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const limits = await rateLimitService.getAll();
+      return reply.send({ success: true, data: limits });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Failed to fetch rate limits' });
+    }
+  });
+
+  // POST /admin/rate-limits - 创建限流配置
+  app.post('/admin/rate-limits', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'admin' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = request.body as { target_type: string; target_id?: string; command_name?: string; limit_type: string; limit_count: number; window_seconds: number; description?: string };
+    if (!body.target_type || !body.limit_type || !body.limit_count || !body.window_seconds) return reply.status(400).send({ success: false, error: 'target_type, limit_type, limit_count, window_seconds are required' });
+    try {
+      const limit = await rateLimitService.create(body as any);
+      return reply.status(201).send({ success: true, data: limit });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Failed to create rate limit' });
+    }
+  });
+
+  // PUT /admin/rate-limits/:id - 更新限流配置
+  app.put('/admin/rate-limits/:id', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'admin' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.params as { id: string };
+    const body = request.body as any;
+    try {
+      const limit = await rateLimitService.update(id, body);
+      if (!limit) return reply.status(404).send({ success: false, error: 'Rate limit not found' });
+      return reply.send({ success: true, data: limit });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Failed to update rate limit' });
+    }
+  });
+
+  // DELETE /admin/rate-limits/:id - 删除限流配置
+  app.delete('/admin/rate-limits/:id', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'admin' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.params as { id: string };
+    try {
+      const deleted = await rateLimitService.delete(id);
+      if (!deleted) return reply.status(404).send({ success: false, error: 'Rate limit not found' });
+      return reply.send({ success: true });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Failed to delete rate limit' });
+    }
+  });
+
+  // ==================== Webhook Management API ====================
+
+  // GET /admin/webhooks - 获取所有 Webhook
+  app.get('/admin/webhooks', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'admin' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const webhooks = await webhookService.getAll();
+      return reply.send({ success: true, data: webhooks });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Failed to fetch webhooks' });
+    }
+  });
+
+  // POST /admin/webhooks - 创建 Webhook
+  app.post('/admin/webhooks', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'admin' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = request.body as { name: string; url: string; events: string[]; secret_key?: string; enabled?: boolean; retry_count?: number; timeout_seconds?: number; headers?: Record<string, string>; description?: string };
+    if (!body.name || !body.url || !body.events) return reply.status(400).send({ success: false, error: 'name, url, events are required' });
+    try {
+      const user = (request as any).user;
+      const webhook = await webhookService.create({ ...body, created_by: user?.username || 'system' });
+      return reply.status(201).send({ success: true, data: webhook });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Failed to create webhook' });
+    }
+  });
+
+  // PUT /admin/webhooks/:id - 更新 Webhook
+  app.put('/admin/webhooks/:id', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'admin' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.params as { id: string };
+    const body = request.body as any;
+    try {
+      const webhook = await webhookService.update(id, body);
+      if (!webhook) return reply.status(404).send({ success: false, error: 'Webhook not found' });
+      return reply.send({ success: true, data: webhook });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Failed to update webhook' });
+    }
+  });
+
+  // DELETE /admin/webhooks/:id - 删除 Webhook
+  app.delete('/admin/webhooks/:id', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'admin' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.params as { id: string };
+    try {
+      const deleted = await webhookService.delete(id);
+      if (!deleted) return reply.status(404).send({ success: false, error: 'Webhook not found' });
+      return reply.send({ success: true });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Failed to delete webhook' });
+    }
+  });
+
+  // POST /admin/webhooks/:id/test - 测试 Webhook
+  app.post('/admin/webhooks/:id/test', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'admin' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.params as { id: string };
+    try {
+      const result = await webhookService.testWebhook(id);
+      return reply.send({ success: result.success, data: result });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Failed to test webhook' });
+    }
+  });
+
+  // GET /admin/webhooks/:id/logs - 获取 Webhook 执行日志
+  app.get('/admin/webhooks/:id/logs', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'admin' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.params as { id: string };
+    const { limit } = request.query as { limit?: string };
+    try {
+      const logs = await webhookService.getLogs(id, parseInt(limit || '20'));
+      return reply.send({ success: true, data: logs });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Failed to fetch webhook logs' });
+    }
+  });
+
+  // ==================== Chat Config (Questions & Commands) ====================
+
+  // GET /settings/questions - 获取问答卡片配置
+  app.get('/settings/questions', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.getQuestionConfigs(request, reply);
+  });
+
+  // PUT /settings/questions - 批量更新问答卡片配置
+  app.put('/settings/questions', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'write' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.updateQuestionConfigs(request, reply);
+  });
+
+  // GET /settings/commands - 获取快捷命令配置
+  app.get('/settings/commands', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.getCommandConfigs(request, reply);
+  });
+
+  // PUT /settings/commands - 批量更新快捷命令配置
+  app.put('/settings/commands', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'write' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.updateCommandConfigs(request, reply);
   });
 }
