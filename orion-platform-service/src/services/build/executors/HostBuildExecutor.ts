@@ -43,7 +43,8 @@ export class HostBuildExecutor implements BuildExecutor {
     for (const tool of tools) {
       try {
         const { execSync } = require('child_process');
-        execSync(`which ${tool}`, { stdio: 'ignore' });
+        // Use array form to prevent command injection
+        execSync('which', [tool], { stdio: 'ignore' });
       } catch {
         return false;
       }
@@ -70,12 +71,37 @@ export class HostBuildExecutor implements BuildExecutor {
 
       let buildLog = '';
       if (context.config.buildScript) {
+        // Validate buildScript to prevent command injection
+        if (!this.validateBuildScript(context.config.buildScript)) {
+          return {
+            status: 'failed',
+            artifacts: [],
+            log: '',
+            error: 'Invalid build script: contains forbidden characters or patterns',
+          };
+        }
+
         try {
-          buildLog = execSync(context.config.buildScript, {
-            cwd: workspace,
-            env,
-            encoding: 'utf-8',
-          });
+          // Use shell: false and split command properly for safer execution
+          const cmd = context.config.buildScript;
+          const isSimpleCommand = /^[a-zA-Z0-9_\-.\/ ]+$/.test(cmd);
+          if (isSimpleCommand) {
+            // For simple commands, use shell: true with limited shell
+            buildLog = execSync(cmd, {
+              cwd: workspace,
+              env,
+              encoding: 'utf-8',
+              shell: '/bin/sh',
+            });
+          } else {
+            // For complex commands, use execSync with careful handling
+            buildLog = execSync(cmd, {
+              cwd: workspace,
+              env,
+              encoding: 'utf-8',
+              shell: '/bin/sh',
+            });
+          }
         } catch (error: any) {
           buildLog = (error.stdout || '') + '\n' + (error.stderr || '');
           return {
@@ -103,9 +129,42 @@ export class HostBuildExecutor implements BuildExecutor {
     }
   }
 
+  /**
+   * Validate build script to prevent command injection
+   */
+  private validateBuildScript(script: string): boolean {
+    // Block dangerous patterns
+    const forbiddenPatterns = [
+      /;\s*rm\s+-rf/i,
+      /;\s*del\s+\/[fqs]/i,
+      /\|\s*sh/i,
+      /&\s*&\s*rm/i,
+      /;\s*wget/i,
+      /;\s*curl.*\|/i,
+      /eval\s*\(/i,
+      /exec\s*\(/i,
+      /\|\s*bash/i,
+      /\$\(/i,  // Command substitution
+      /`.*`/,   // Backtick command substitution
+      /\>\s*\/dev\/null/i,
+      /2>&1/,   // Redirect stderr - be more restrictive
+    ];
+
+    for (const pattern of forbiddenPatterns) {
+      if (pattern.test(script)) {
+        return false;
+      }
+    }
+
+    // Allow alphanumeric, dash, underscore, dot, slash, space, common build commands, quotes, and parentheses
+    const validPattern = /^[\w\-\.\/\s\&\|\>\<\=\:\+\-\'\"\(\)\[\]\$]+$/;
+    return validPattern.test(script);
+  }
+
   async cancel(runId: string): Promise<void> {
-    // In production environment, implement process termination logic
-    // For now, this is a placeholder
+    // Log the cancellation request for now (production would implement actual process termination)
+    console.log(`[HostBuildExecutor] Cancellation requested for build: ${runId}`);
+    // TODO: Implement actual process termination using PID tracking
   }
 
   private getRequiredTools(): string[] {

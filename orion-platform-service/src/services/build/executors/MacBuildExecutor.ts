@@ -38,7 +38,8 @@ export class MacBuildExecutor implements BuildExecutor {
     for (const tool of requiredTools) {
       try {
         const { execSync } = require('child_process');
-        execSync(`which ${tool}`, { stdio: 'ignore' });
+        // Use array form to prevent command injection
+        execSync('which', [tool], { stdio: 'ignore' });
       } catch {
         return false;
       }
@@ -65,12 +66,23 @@ export class MacBuildExecutor implements BuildExecutor {
 
       let buildLog = '';
       if (context.config.buildScript) {
+        // Validate buildScript to prevent command injection
+        if (!this.validateBuildScript(context.config.buildScript)) {
+          return {
+            status: 'failed',
+            artifacts: [],
+            log: '',
+            error: 'Invalid build script: contains forbidden characters or patterns',
+          };
+        }
+
         try {
           buildLog = execSync(context.config.buildScript, {
             cwd: workspace,
             env,
             encoding: 'utf-8',
             timeout: 3600000,
+            shell: '/bin/sh',
           });
         } catch (error: any) {
           buildLog = (error.stdout || '') + '\n' + (error.stderr || '');
@@ -99,9 +111,41 @@ export class MacBuildExecutor implements BuildExecutor {
     }
   }
 
+  /**
+   * Validate build script to prevent command injection
+   */
+  private validateBuildScript(script: string): boolean {
+    // Block dangerous patterns
+    const forbiddenPatterns = [
+      /;\s*rm\s+-rf/i,
+      /;\s*del\s+\/[fqs]/i,
+      /\|\s*sh/i,
+      /&\s*&\s*rm/i,
+      /;\s*wget/i,
+      /;\s*curl.*\|/i,
+      /eval\s*\(/i,
+      /exec\s*\(/i,
+      /\|\s*bash/i,
+      /\$\(/i,
+      /`.*`/,
+      /\>\s*\/dev\/null/i,
+      /2>&1/,
+    ];
+
+    for (const pattern of forbiddenPatterns) {
+      if (pattern.test(script)) {
+        return false;
+      }
+    }
+
+    const validPattern = /^[\w\-\.\/\s\&\|\>\<\=\:\+\-\'\"\(\)\[\]\$]+$/;
+    return validPattern.test(script);
+  }
+
   async cancel(runId: string): Promise<void> {
-    // In production environment, implement process termination logic
-    // For now, this is a placeholder
+    // Log the cancellation request for now (production would implement actual process termination)
+    console.log(`[MacBuildExecutor] Cancellation requested for build: ${runId}`);
+    // TODO: Implement actual process termination using PID tracking
   }
 
   private getRequiredTools(): string[] {

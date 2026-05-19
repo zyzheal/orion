@@ -8,6 +8,7 @@ export interface Certificate {
   expiresAt: Date | null;
   metadata: Record<string, any>;
   createdAt: Date;
+  // In production, add: updatedAt, deletedAt for soft delete
 }
 
 export interface CertificateResult {
@@ -16,7 +17,11 @@ export interface CertificateResult {
   keyAlias?: string;
 }
 
-// 内存存储（生产环境应使用数据库）
+// 内存存储（开发/测试环境）
+// 生产环境应该：
+// 1. 使用 PostgreSQL + Repository 模式持久化存储
+// 2. 加密的 certificate_data 存入专用表
+// 3. 使用 vault 或 KMS 管理加密密钥
 const certificates = new Map<string, Certificate & { encryptedData: Buffer }>();
 
 // 清空所有证书（仅用于测试）
@@ -37,23 +42,27 @@ export class CertificateService {
   async uploadIOSCertificate(
     tenantId: string,
     data: Buffer,
-    password: string
+    password: string,
+    validityDays: number = 365 // iOS certificates typically valid for 1 year
   ): Promise<Certificate> {
     const id = this.generateId();
     const encryptedData = this.encrypt(data);
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + validityDays);
 
     const cert: Certificate & { encryptedData: Buffer } = {
       id,
       tenantId,
       platform: 'ios',
       name: `ios-cert-${Date.now()}.p12`,
-      expiresAt: null,
+      expiresAt,
       metadata: { password },
       createdAt: new Date(),
       encryptedData,
     };
 
     certificates.set(id, cert);
+    console.log(`[CertificateService] iOS certificate uploaded, expires at: ${expiresAt.toISOString()}`);
     return this.toPublicCert(cert);
   }
 
@@ -62,23 +71,27 @@ export class CertificateService {
     data: Buffer,
     storePassword: string,
     keyAlias: string,
-    keyPassword: string
+    keyPassword: string,
+    validityDays: number = 10000 // Android keystores typically valid for ~27 years
   ): Promise<Certificate> {
     const id = this.generateId();
     const encryptedData = this.encrypt(data);
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + validityDays);
 
     const cert: Certificate & { encryptedData: Buffer } = {
       id,
       tenantId,
       platform: 'android',
       name: `android-keystore-${Date.now()}.jks`,
-      expiresAt: null,
+      expiresAt,
       metadata: { keyAlias, keyPassword },
       createdAt: new Date(),
       encryptedData,
     };
 
     certificates.set(id, cert);
+    console.log(`[CertificateService] Android keystore uploaded, expires at: ${expiresAt.toISOString()}`);
     return this.toPublicCert(cert);
   }
 
@@ -118,11 +131,30 @@ export class CertificateService {
     const now = new Date();
     for (const [id, cert] of certificates.entries()) {
       if (cert.expiresAt && cert.expiresAt < now) {
+        console.log(`[CertificateService] Cleaning up expired certificate: ${id}, expired at: ${cert.expiresAt.toISOString()}`);
         certificates.delete(id);
         cleaned++;
       }
     }
+    console.log(`[CertificateService] Cleaned up ${cleaned} expired certificates`);
     return cleaned;
+  }
+
+  /**
+   * Check certificates expiring soon (within days)
+   */
+  async getExpiringCertificates(withinDays: number = 30): Promise<Certificate[]> {
+    const result: Certificate[] = [];
+    const futureDate = new Date();
+    futureDate.setDate(futureDate.getDate() + withinDays);
+
+    for (const cert of certificates.values()) {
+      if (cert.expiresAt && cert.expiresAt <= futureDate) {
+        result.push(this.toPublicCert(cert));
+      }
+    }
+
+    return result;
   }
 
   private generateId(): string {
