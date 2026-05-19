@@ -947,6 +947,12 @@ export const routes: AppRoute[] = [
     element: React.lazy(() => import('@/pages/CMDB')),
     protected: true,
   },
+  // CMDB Service (M32)
+  {
+    path: '/cmdb-service',
+    element: React.lazy(() => import('@/pages/cmdb-service')),
+    protected: true,
+  },
   // Approval Management (M33)
   {
     path: '/approvals',
