@@ -13,11 +13,18 @@ import { DatabasePool } from '../database';
 // Space types
 // ============================================================================
 
+// Space type: 扩展 'docs' 用于官方文档中心
+export type SpaceType = 'public' | 'internal' | 'private' | 'docs';
+
+// Content source: 文档来源 (manual=手动创建, synced=自动同步)
+export type ContentSource = 'manual' | 'synced';
+
 export interface KnowledgeSpace {
   id: string;
   tenant_id: string;
   name: string;
-  type: 'public' | 'internal' | 'private';
+  type: SpaceType;
+  source?: ContentSource;  // 新增: 文档来源
   owner_id: string;
   team_id: string | null;
   description: string | null;
@@ -28,7 +35,8 @@ export interface KnowledgeSpace {
 
 export interface CreateSpaceInput {
   name: string;
-  type: 'public' | 'internal' | 'private';
+  type: SpaceType;
+  source?: ContentSource;
   owner_id: string;
   team_id?: string;
   description?: string;
@@ -36,7 +44,8 @@ export interface CreateSpaceInput {
 
 export interface UpdateSpaceInput {
   name?: string;
-  type?: 'public' | 'internal' | 'private';
+  type?: SpaceType;
+  source?: ContentSource;
   team_id?: string;
   description?: string;
 }
@@ -45,6 +54,9 @@ export interface UpdateSpaceInput {
 // Document types
 // ============================================================================
 
+// Doc type: 区分官方文档 (docs) 和用户知识库 (knowledge)
+export type DocType = 'docs' | 'knowledge';
+
 export interface KnowledgeDoc {
   id: string;
   tenant_id: string;
@@ -52,6 +64,7 @@ export interface KnowledgeDoc {
   title: string;
   content: string;
   type: string;
+  source?: ContentSource;  // 新增: 文档来源
   tags: string[];
   status: 'draft' | 'published' | 'archived';
   version: number;
@@ -66,6 +79,7 @@ export interface CreateDocInput {
   content: string;
   space_id: string;
   type?: string;
+  source?: ContentSource;
   tags?: string[];
   status?: 'draft' | 'published' | 'archived';
   author_id?: string;
@@ -76,6 +90,7 @@ export interface UpdateDocInput {
   content?: string;
   tags?: string[];
   status?: 'draft' | 'published' | 'archived';
+  source?: ContentSource;
 }
 
 export interface DocVersion {
@@ -109,9 +124,9 @@ export class KnowledgeRepository {
 
   async createSpace(tenantId: string, input: CreateSpaceInput): Promise<KnowledgeSpace> {
     const result = await this.pool.query(
-      `INSERT INTO kb_spaces (tenant_id, name, type, owner_id, team_id, description)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [tenantId, input.name, input.type, input.owner_id, input.team_id || null, input.description || null]
+      `INSERT INTO kb_spaces (tenant_id, name, type, source, owner_id, team_id, description)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [tenantId, input.name, input.type, input.source || 'manual', input.owner_id, input.team_id || null, input.description || null]
     );
     return result.rows[0];
   }
@@ -120,7 +135,7 @@ export class KnowledgeRepository {
     return (await this.pool.query('SELECT * FROM kb_spaces WHERE id = $1', [id])).rows[0] || null;
   }
 
-  async findAllSpaces(tenantId: string, params?: { type?: string; search?: string; limit?: number; offset?: number }): Promise<KnowledgeSpace[]> {
+  async findAllSpaces(tenantId: string, params?: { type?: string; source?: string; search?: string; limit?: number; offset?: number }): Promise<KnowledgeSpace[]> {
     let sql = 'SELECT * FROM kb_spaces WHERE tenant_id = $1';
     const values: any[] = [tenantId];
     let idx = 2;
@@ -128,6 +143,10 @@ export class KnowledgeRepository {
     if (params?.type) {
       sql += ` AND type = $${idx++}`;
       values.push(params.type);
+    }
+    if (params?.source) {
+      sql += ` AND source = $${idx++}`;
+      values.push(params.source);
     }
     if (params?.search) {
       sql += ` AND (name ILIKE $${idx} OR description ILIKE $${idx})`;
@@ -155,6 +174,7 @@ export class KnowledgeRepository {
 
     if (input.name !== undefined) { fields.push(`name = $${idx++}`); values.push(input.name); }
     if (input.type !== undefined) { fields.push(`type = $${idx++}`); values.push(input.type); }
+    if (input.source !== undefined) { fields.push(`source = $${idx++}`); values.push(input.source); }
     if (input.team_id !== undefined) { fields.push(`team_id = $${idx++}`); values.push(input.team_id); }
     if (input.description !== undefined) { fields.push(`description = $${idx++}`); values.push(input.description); }
 
@@ -187,9 +207,9 @@ export class KnowledgeRepository {
   async createDoc(tenantId: string, input: CreateDocInput): Promise<KnowledgeDoc> {
     return this.pool.transaction(async client => {
       const result = await client.query(
-        `INSERT INTO kb_docs (tenant_id, space_id, title, content, type, tags, status, author_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-        [tenantId, input.space_id, input.title, input.content, input.type || 'doc', input.tags || [], input.status || 'draft', input.author_id || null]
+        `INSERT INTO kb_docs (tenant_id, space_id, title, content, type, source, tags, status, author_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+        [tenantId, input.space_id, input.title, input.content, input.type || 'knowledge', input.source || 'manual', input.tags || [], input.status || 'draft', input.author_id || null]
       );
       const doc = result.rows[0];
 
@@ -214,7 +234,7 @@ export class KnowledgeRepository {
     return (await this.pool.query('SELECT * FROM kb_docs WHERE id = $1', [id])).rows[0] || null;
   }
 
-  async findAllDocs(tenantId: string, params?: { spaceId?: string; status?: string; tag?: string; search?: string; limit?: number; offset?: number }): Promise<KnowledgeDoc[]> {
+  async findAllDocs(tenantId: string, params?: { spaceId?: string; status?: string; tag?: string; search?: string; type?: string; source?: string; limit?: number; offset?: number }): Promise<KnowledgeDoc[]> {
     let sql = 'SELECT * FROM kb_docs WHERE tenant_id = $1';
     const values: any[] = [tenantId];
     let idx = 2;
@@ -222,6 +242,8 @@ export class KnowledgeRepository {
     if (params?.spaceId) { sql += ` AND space_id = $${idx++}`; values.push(params.spaceId); }
     if (params?.status) { sql += ` AND status = $${idx++}`; values.push(params.status); }
     if (params?.tag) { sql += ` AND $${idx} = ANY(tags)`; values.push(params.tag); idx++; }
+    if (params?.type) { sql += ` AND type = $${idx++}`; values.push(params.type); }
+    if (params?.source) { sql += ` AND source = $${idx++}`; values.push(params.source); }
     if (params?.search) {
       sql += ` AND (title ILIKE $${idx} OR content ILIKE $${idx})`;
       values.push(`%${params.search}%`);
@@ -251,6 +273,7 @@ export class KnowledgeRepository {
       if (input.content !== undefined) { fields.push(`content = $${idx++}`); values.push(input.content); }
       if (input.tags !== undefined) { fields.push(`tags = $${idx++}`); values.push(input.tags); }
       if (input.status !== undefined) { fields.push(`status = $${idx++}`); values.push(input.status); }
+      if (input.source !== undefined) { fields.push(`source = $${idx++}`); values.push(input.source); }
 
       fields.push(`updated_at = now()`);
       values.push(id);
