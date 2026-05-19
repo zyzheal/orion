@@ -220,3 +220,131 @@ func (g *Graph) Validate() error {
 	}
 	return nil
 }
+
+// GetIncomingEdges returns all edges pointing TO a node (reverse direction)
+func (g *Graph) GetIncomingEdges(nodeID string) []TopologyEdge {
+	var incoming []TopologyEdge
+	for sourceID, edges := range g.edges {
+		for _, edge := range edges {
+			if edge.Target == nodeID {
+				// Add source info to track where the edge came from
+				incoming = append(incoming, TopologyEdge{
+					ID:           edge.ID,
+					Source:       sourceID,
+					Target:       edge.Target,
+					RelationType: edge.RelationType,
+				})
+			}
+		}
+	}
+	return incoming
+}
+
+// GetAllReachableFrom finds all nodes reachable from a given node (forward traversal)
+func (g *Graph) GetAllReachableFrom(nodeID string) map[string]bool {
+	visited := make(map[string]bool)
+	queue := []string{nodeID}
+	visited[nodeID] = true
+
+	for len(queue) > 0 {
+		current := queue[0]
+		queue = queue[1:]
+
+		for _, edge := range g.edges[current] {
+			if !visited[edge.Target] {
+				visited[edge.Target] = true
+				queue = append(queue, edge.Target)
+			}
+		}
+	}
+
+	return visited
+}
+
+// GetAllDependents finds all nodes that depend on the given node (reverse traversal)
+func (g *Graph) GetAllDependents(nodeID string) map[string]bool {
+	visited := make(map[string]bool)
+	queue := []string{nodeID}
+	visited[nodeID] = true
+
+	for len(queue) > 0 {
+		current := queue[0]
+		queue = queue[1:]
+
+		// Find all nodes that have edges pointing to current
+		for sourceID, edges := range g.edges {
+			if visited[sourceID] {
+				continue
+			}
+			for _, edge := range edges {
+				if edge.Target == current {
+					visited[sourceID] = true
+					queue = append(queue, sourceID)
+					break
+				}
+			}
+		}
+	}
+
+	// Remove start node from result
+	delete(visited, nodeID)
+	return visited
+}
+
+// FindAllPaths finds all simple paths from one node to another
+func (g *Graph) FindAllPaths(from, to string) [][]string {
+	if _, ok := g.nodes[from]; !ok {
+		return nil
+	}
+	if _, ok := g.nodes[to]; !ok {
+		return nil
+	}
+
+	var paths [][]string
+	visited := make(map[string]bool)
+	currentPath := []string{from}
+
+	g.findAllPathsHelper(from, to, visited, currentPath, &paths)
+
+	return paths
+}
+
+func (g *Graph) findAllPathsHelper(current, target string, visited map[string]bool, path []string, paths *[][]string) {
+	if current == target {
+		// Copy the path
+		pathCopy := make([]string, len(path))
+		copy(pathCopy, path)
+		*paths = append(*paths, pathCopy)
+		return
+	}
+
+	visited[current] = true
+
+	for _, edge := range g.edges[current] {
+		if !visited[edge.Target] {
+			path = append(path, edge.Target)
+			g.findAllPathsHelper(edge.Target, target, visited, path, paths)
+			path = path[:len(path)-1]
+		}
+	}
+
+	visited[current] = false
+}
+
+// GetInDegree returns the number of incoming edges to a node
+func (g *Graph) GetInDegree(nodeID string) int {
+	count := 0
+	for _, edges := range g.edges {
+		for _, edge := range edges {
+			if edge.Target == nodeID {
+				count++
+			}
+		}
+	}
+	return count
+}
+
+// GetOutDegree returns the number of outgoing edges from a node
+func (g *Graph) GetOutDegree(nodeID string) int {
+	return len(g.edges[nodeID])
+}
