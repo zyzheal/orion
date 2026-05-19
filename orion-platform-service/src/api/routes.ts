@@ -73,6 +73,7 @@ import { PipelineBudgetRepository } from '../repositories/PipelineBudgetReposito
 import { registerBudgetRoutes } from './pipeline-budget-routes';
 import capabilityRoutes from './capability-routes';
 import { registerAIAgentRoutes } from './ai-agent-routes';
+import apiMarketRoutes from './api-market-routes';
 
 // Previously orphan routes now being registered
 import authEnhancedRoutes from './auth-enhanced-routes';
@@ -765,6 +766,9 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // ==================== Capability Management ====================
   await registerWithRoleGuard(app, capabilityRoutes, '/capabilities');
+
+  // ==================== API Marketplace ====================
+  await registerWithRoleGuard(app, apiMarketRoutes, '/market', { database: options.database });
 
   // ==================== AI Agent Framework ====================
   registerAIAgentRoutes(app);
