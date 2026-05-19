@@ -48,6 +48,8 @@ const WebTerminalPage: React.FC = () => {
   const termRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
+  const resizeHandlerRef = useRef<(() => void) | null>(null);
+  const cleanupTerminalRef = useRef<(() => void) | null>(null);
 
   const [hosts, setHosts] = useState<HostInfo[]>([]);
   const [selectedHostId, setSelectedHostId] = useState<string>('');
@@ -69,6 +71,30 @@ const WebTerminalPage: React.FC = () => {
       .catch((err) => {
         message.error(`加载主机列表失败: ${err.message}`);
       });
+  }, []);
+
+  // 组件卸载时清理终端和 WebSocket（#3 Critical + #5 Critical）
+  useEffect(() => {
+    return () => {
+      wsRef.current?.close();
+      if (cleanupTerminalRef.current) {
+        cleanupTerminalRef.current();
+        cleanupTerminalRef.current = null;
+      }
+      termRef.current?.dispose();
+      termRef.current = null;
+      wsRef.current = null;
+    };
+  }, []);
+
+  // 清理当前终端资源（供 disconnect/closeTab 复用）
+  const cleanupTerminal = useCallback(() => {
+    if (cleanupTerminalRef.current) {
+      cleanupTerminalRef.current();
+      cleanupTerminalRef.current = null;
+    }
+    termRef.current?.dispose();
+    termRef.current = null;
   }, []);
 
   // 初始化终端
@@ -120,11 +146,12 @@ const WebTerminalPage: React.FC = () => {
     termRef.current = term;
     fitAddonRef.current = fitAddon;
 
-    // 窗口大小变化时自适应
+    // 窗口大小变化时自适应（#5 Critical: 保存清理函数）
     const handleResize = () => fitAddon.fit();
+    resizeHandlerRef.current = handleResize;
     window.addEventListener('resize', handleResize);
 
-    return () => {
+    cleanupTerminalRef.current = () => {
       window.removeEventListener('resize', handleResize);
     };
   }, []);
@@ -145,6 +172,9 @@ const WebTerminalPage: React.FC = () => {
     setConnecting(true);
 
     try {
+      // 清理已有终端
+      cleanupTerminal();
+
       // 初始化终端
       initTerminal();
       const term = termRef.current;
@@ -152,14 +182,20 @@ const WebTerminalPage: React.FC = () => {
 
       term.writeln(`\x1b[32m正在连接到 ${host.hostname} (${host.ip})...\x1b[0m`);
 
-      // 建立 WebSocket 连接（通过后端代理）
+      // #1 Critical: Token 通过首条消息发送，不放在 URL 中
       const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${wsProtocol}//${window.location.host}/api/visor/terminal/ws?hostId=${selectedHostId}&token=${localStorage.getItem('token') || ''}`;
+      const wsUrl = `${wsProtocol}//${window.location.host}/api/visor/terminal/ws?hostId=${selectedHostId}`;
 
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 
       ws.onopen = () => {
+        // 发送认证消息
+        const token = localStorage.getItem('token');
+        if (token) {
+          ws.send(JSON.stringify({ type: 'auth', token }));
+        }
+
         setConnected(true);
         term.writeln('\x1b[32m连接成功！\x1b[0m\n');
 
@@ -170,11 +206,15 @@ const WebTerminalPage: React.FC = () => {
           }
         });
 
-        // WebSocket 接收 -> 终端输出
+        // #2 Critical: 安全解析 WebSocket 消息
         ws.onmessage = (event) => {
-          const msg = JSON.parse(event.data);
-          if (msg.type === 'data') {
-            term.write(msg.data);
+          try {
+            const msg = JSON.parse(event.data as string);
+            if (msg.type === 'data') {
+              term.write(msg.data);
+            }
+          } catch {
+            // 忽略非 JSON 或格式错误的消息
           }
         };
 
@@ -183,6 +223,7 @@ const WebTerminalPage: React.FC = () => {
           term.writeln('\n\x1b[31m连接已关闭\x1b[0m');
         };
 
+        // #4 Critical: 统一错误处理器（不重复注册）
         ws.onerror = () => {
           setConnected(false);
           term.writeln('\n\x1b[31m连接错误\x1b[0m');
@@ -200,6 +241,7 @@ const WebTerminalPage: React.FC = () => {
         setConnecting(false);
       };
 
+      // 连接建立前的错误处理（onopen 之前的 onerror）
       ws.onerror = () => {
         term.writeln('\n\x1b[31mWebSocket 连接失败，请检查后端服务是否启动\x1b[0m');
         setConnecting(false);
@@ -222,11 +264,10 @@ const WebTerminalPage: React.FC = () => {
     }
 
     if (activeTabs.length === 1) {
-      // 最后一个 Tab 关闭，断开 WebSocket
+      // 最后一个 Tab 关闭，断开 WebSocket 并清理终端
       wsRef.current?.close();
+      cleanupTerminal();
       setConnected(false);
-      termRef.current?.dispose();
-      termRef.current = null;
     }
   };
 
@@ -246,11 +287,10 @@ const WebTerminalPage: React.FC = () => {
   // 断开连接
   const disconnect = () => {
     wsRef.current?.close();
+    cleanupTerminal();
     setConnected(false);
     setActiveTabs([]);
     setActiveTabId('');
-    termRef.current?.dispose();
-    termRef.current = null;
   };
 
   const handleHostInfo = (hostId: string) => {

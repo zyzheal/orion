@@ -49,6 +49,7 @@ import { getHosts, type HostInfo } from '@/api/cmdb';
 import {
   type CronJob,
   type UploadTask,
+  type ScriptTemplate as ScriptTemplateType,
 } from '@/api/visor-exec';
 import { colors } from '@/tokens';
 
@@ -72,14 +73,8 @@ interface ExecRecord {
   operator: string;
 }
 
-interface ScriptTemplate {
-  id: string;
-  name: string;
-  description: string;
-  content: string;
-  category: string;
-  createdAt: string;
-}
+// Re-export ScriptTemplate type from API client (adds updatedAt field)
+type ScriptTemplate = ScriptTemplateType;
 
 // ============================================================================
 // Mock Data
@@ -610,9 +605,16 @@ const ScriptTemplateTab: React.FC = () => {
 // ============================================================================
 
 const CronJobTab: React.FC = () => {
+  const [hosts, setHosts] = useState<HostInfo[]>([]);
   const [cronJobs, setCronJobs] = useState<CronJob[]>(mockCronJobs);
   const [createVisible, setCreateVisible] = useState(false);
   const [form] = Form.useForm();
+
+  useEffect(() => {
+    getHosts({ pageSize: 100 })
+      .then((res) => setHosts((res.data as any).data || []))
+      .catch(() => setHosts([]));
+  }, []);
 
   const handleCreate = async () => {
     try {
@@ -747,7 +749,13 @@ const CronJobTab: React.FC = () => {
             <TextArea rows={3} placeholder="输入要执行的命令" style={{ fontFamily: 'monospace' }} />
           </Form.Item>
           <Form.Item label="目标主机" name="hosts" rules={[{ required: true, message: '请选择目标主机' }]}>
-            <Select mode="multiple" placeholder="选择主机..." options={[]} />
+            <Select
+              mode="multiple"
+              placeholder="选择主机..."
+              options={hosts
+                .filter((h) => h.status === 'running')
+                .map((h) => ({ label: `${h.hostname} (${h.ip})`, value: h.ci_id }))}
+            />
           </Form.Item>
           <Form.Item label="Cron 表达式" name="cron" rules={[{ required: true, message: '请输入 Cron 表达式' }]}>
             <Input placeholder="例如: 0 8 * * * (每天 8:00)" />
