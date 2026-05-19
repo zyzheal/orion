@@ -947,6 +947,25 @@ export const routes: AppRoute[] = [
     element: React.lazy(() => import('@/pages/Approvals')),
     protected: true,
   },
+  // Approval Flow Management (V2/V3)
+  {
+    path: '/console/approvals',
+    element: React.lazy(() => import('@/pages/ApprovalManagement')),
+    protected: true,
+    requiredPermission: { resource: '*', action: 'manage' },
+  },
+  // Workflow Designer (Lowcode)
+  {
+    path: '/workflows',
+    element: React.lazy(() => import('@/pages/WorkflowDesigner')),
+    protected: true,
+  },
+  // Document Center
+  {
+    path: '/documents',
+    element: React.lazy(() => import('@/pages/DocumentCenter')),
+    protected: true,
+  },
   // Queue Management
   {
     path: '/console/queue',
@@ -1287,7 +1306,7 @@ export const routes: AppRoute[] = [
   },
   {
     path: '/ai/agents',
-    element: React.lazy(() => import('@/pages/AIDashboard')),
+    element: React.lazy(() => import('@/pages/AIAgents')),
     protected: true,
     requiredPermission: { resource: 'ai-agent', action: 'read' },
   },
