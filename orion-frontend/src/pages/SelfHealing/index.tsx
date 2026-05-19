@@ -20,11 +20,11 @@ const { Title } = Typography;
 
 // 统一菜单项配置
 const menuItems = [
-  { key: '/console/self-healing/incidents', icon: <MedicineBoxOutlined />, label: 'Incidents' },
-  { key: '/console/self-healing/history', icon: <HistoryOutlined />, label: 'Healing History' },
-  { key: '/console/self-healing/strategies', icon: <ExperimentOutlined />, label: 'Strategies' },
-  { key: '/console/self-healing/approvals', icon: <CheckSquareOutlined />, label: 'Approval Queue' },
-  { key: '/console/self-healing/effectiveness', icon: <DashboardOutlined />, label: 'Effectiveness' },
+  { key: '/observability/self-healing/incidents', icon: <MedicineBoxOutlined />, label: 'Incidents' },
+  { key: '/observability/self-healing/history', icon: <HistoryOutlined />, label: 'Healing History' },
+  { key: '/observability/self-healing/strategies', icon: <ExperimentOutlined />, label: 'Strategies' },
+  { key: '/observability/self-healing/approvals', icon: <CheckSquareOutlined />, label: 'Approval Queue' },
+  { key: '/observability/self-healing/effectiveness', icon: <DashboardOutlined />, label: 'Effectiveness' },
 ];
 
 // 统一的 Layout 配置

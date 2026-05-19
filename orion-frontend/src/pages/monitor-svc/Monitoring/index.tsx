@@ -19,11 +19,11 @@ const { Sider, Content } = Layout;
 const { Title } = Typography;
 
 const menuItems = [
-  { key: '/console/monitoring/dashboard', icon: <DashboardOutlined />, label: 'Dashboard' },
-  { key: '/console/monitoring/metrics', icon: <LineChartOutlined />, label: 'Metrics' },
-  { key: '/console/monitoring/alerts', icon: <BellOutlined />, label: 'Alerts' },
-  { key: '/console/monitoring/rules', icon: <SafetyOutlined />, label: 'Rules' },
-  { key: '/console/monitoring/channels', icon: <MailOutlined />, label: 'Channels' },
+  { key: '/observability/monitoring/dashboard', icon: <DashboardOutlined />, label: 'Dashboard' },
+  { key: '/observability/monitoring/metrics', icon: <LineChartOutlined />, label: 'Metrics' },
+  { key: '/observability/monitoring/alerts', icon: <BellOutlined />, label: 'Alerts' },
+  { key: '/observability/monitoring/rules', icon: <SafetyOutlined />, label: 'Rules' },
+  { key: '/observability/monitoring/channels', icon: <MailOutlined />, label: 'Channels' },
 ];
 
 // 统一的 Layout 配置

@@ -714,141 +714,122 @@ export const routes: AppRoute[] = [
       },
     ],
   },
-  // Self-Healing
+  // Self-Healing (moved from /console to /observability)
   {
-    path: '/console/self-healing',
+    path: '/observability/self-healing',
     element: React.lazy(() => import('@/pages/SelfHealing')),
     protected: true,
-    requiredPermission: { resource: '*', action: 'manage' },
     children: [
       // 默认重定向到 incidents
       {
         index: true,
-        element: React.createElement(Navigate, { to: '/console/self-healing/incidents', replace: true }),
+        element: React.createElement(Navigate, { to: '/observability/self-healing/incidents', replace: true }),
       },
       {
-        path: '/console/self-healing/incidents',
+        path: '/observability/self-healing/incidents',
         element: React.lazy(() => import('@/pages/SelfHealing/IncidentList')),
         protected: true,
-        requiredPermission: { resource: '*', action: 'manage' },
       },
       {
-        path: '/console/self-healing/incidents/:id',
+        path: '/observability/self-healing/incidents/:id',
         element: React.lazy(() => import('@/pages/SelfHealing/IncidentDetail')),
         protected: true,
-        requiredPermission: { resource: '*', action: 'manage' },
       },
       {
-        path: '/console/self-healing/history',
+        path: '/observability/self-healing/history',
         element: React.lazy(() => import('@/pages/SelfHealing/History')),
         protected: true,
-        requiredPermission: { resource: '*', action: 'manage' },
       },
       {
-        path: '/console/self-healing/strategies',
+        path: '/observability/self-healing/strategies',
         element: React.lazy(() => import('@/pages/SelfHealing/StrategyList')),
         protected: true,
-        requiredPermission: { resource: '*', action: 'manage' },
       },
       {
-        path: '/console/self-healing/approvals',
+        path: '/observability/self-healing/approvals',
         element: React.lazy(() => import('@/pages/SelfHealing/ApprovalQueue')),
         protected: true,
-        requiredPermission: { resource: '*', action: 'manage' },
       },
       {
-        path: '/console/self-healing/effectiveness',
+        path: '/observability/self-healing/effectiveness',
         element: React.lazy(() => import('@/pages/SelfHealing/EffectivenessDashboard')),
         protected: true,
-        requiredPermission: { resource: '*', action: 'manage' },
       },
     ],
   },
-  // Monitoring
+  // Monitoring (moved from /console to /observability)
   {
-    path: '/console/monitoring',
+    path: '/observability/monitoring',
     element: React.lazy(() => import('@/pages/monitor-svc/Monitoring')),
     protected: true,
-    requiredPermission: { resource: '*', action: 'manage' },
     children: [
       // 默认重定向到 dashboard
       {
         index: true,
-        element: React.createElement(Navigate, { to: '/console/monitoring/dashboard', replace: true }),
+        element: React.createElement(Navigate, { to: '/observability/monitoring/dashboard', replace: true }),
       },
       {
-        path: '/console/monitoring/dashboard',
+        path: '/observability/monitoring/dashboard',
         element: React.lazy(() => import('@/pages/monitor-svc/Monitoring/Dashboard')),
         protected: true,
-        requiredPermission: { resource: '*', action: 'manage' },
       },
       {
-        path: '/console/monitoring/metrics',
+        path: '/observability/monitoring/metrics',
         element: React.lazy(() => import('@/pages/monitor-svc/Monitoring/Metrics')),
         protected: true,
-        requiredPermission: { resource: '*', action: 'manage' },
       },
       {
-        path: '/console/monitoring/alerts',
+        path: '/observability/monitoring/alerts',
         element: React.lazy(() => import('@/pages/monitor-svc/Monitoring/Alerts')),
         protected: true,
-        requiredPermission: { resource: '*', action: 'manage' },
       },
       {
-        path: '/console/monitoring/rules',
+        path: '/observability/monitoring/rules',
         element: React.lazy(() => import('@/pages/monitor-svc/Monitoring/Rules')),
         protected: true,
-        requiredPermission: { resource: '*', action: 'manage' },
       },
       {
-        path: '/console/monitoring/channels',
+        path: '/observability/monitoring/channels',
         element: React.lazy(() => import('@/pages/monitor-svc/Monitoring/Channels')),
         protected: true,
-        requiredPermission: { resource: '*', action: 'manage' },
       },
     ],
   },
-  // Diagnostic
+  // Diagnostic (moved from /console to /observability)
   {
-    path: '/console/diagnostic',
+    path: '/observability/diagnostic',
     element: React.lazy(() => import('@/pages/security-svc/Diagnostic')),
     protected: true,
-    requiredPermission: { resource: '*', action: 'manage' },
     children: [
       // 默认重定向到 sessions
       {
         index: true,
-        element: React.createElement(Navigate, { to: '/console/diagnostic/sessions', replace: true }),
+        element: React.createElement(Navigate, { to: '/observability/diagnostic/sessions', replace: true }),
       },
       {
-        path: '/console/diagnostic/sessions',
+        path: '/observability/diagnostic/sessions',
         element: React.lazy(() => import('@/pages/security-svc/Diagnostic/Sessions')),
         protected: true,
-        requiredPermission: { resource: '*', action: 'manage' },
       },
       {
-        path: '/console/diagnostic/sessions/:id',
+        path: '/observability/diagnostic/sessions/:id',
         element: React.lazy(() => import('@/pages/security-svc/Diagnostic/SessionDetail')),
         protected: true,
-        requiredPermission: { resource: '*', action: 'manage' },
       },
       {
-        path: '/console/diagnostic/reports',
+        path: '/observability/diagnostic/reports',
         element: React.lazy(() => import('@/pages/security-svc/Diagnostic/Reports')),
         protected: true,
-        requiredPermission: { resource: '*', action: 'manage' },
       },
       {
-        path: '/console/diagnostic/knowledge',
+        path: '/observability/diagnostic/knowledge',
         element: React.lazy(() => import('@/pages/security-svc/Diagnostic/KnowledgeBase')),
         protected: true,
-        requiredPermission: { resource: '*', action: 'manage' },
       },
       {
-        path: '/console/diagnostic/trigger',
+        path: '/observability/diagnostic/trigger',
         element: React.lazy(() => import('@/pages/security-svc/Diagnostic/Trigger')),
         protected: true,
-        requiredPermission: { resource: '*', action: 'manage' },
       },
       {
         path: 'permission-audit',
@@ -875,6 +856,24 @@ export const routes: AppRoute[] = [
         requiredPermission: { resource: 'ueba', action: 'read' },
       },
     ],
+  },
+  // 旧路由兼容：/console/monitoring → /observability/monitoring
+  {
+    path: '/console/monitoring',
+    element: <RedirectTo to="/observability/monitoring" />,
+    protected: false,
+  },
+  // 旧路由兼容：/console/diagnostic → /observability/diagnostic
+  {
+    path: '/console/diagnostic',
+    element: <RedirectTo to="/observability/diagnostic" />,
+    protected: false,
+  },
+  // 旧路由兼容：/console/self-healing → /observability/self-healing
+  {
+    path: '/console/self-healing',
+    element: <RedirectTo to="/observability/self-healing" />,
+    protected: false,
   },
   // AI Agent Orchestration (redirect to /ai/agents)
   {
@@ -1431,6 +1430,18 @@ export const routes: AppRoute[] = [
     path: '/console/ai-cost',
     element: <RedirectTo to="/ai/cost" />,
     protected: false,
+  },
+
+  // 用户个人中心与设置
+  {
+    path: '/profile',
+    element: React.lazy(() => import('@/pages/UserProfile')),
+    protected: true,
+  },
+  {
+    path: '/settings',
+    element: React.lazy(() => import('@/pages/UserSettings')),
+    protected: true,
   },
 
   // 能力权限配置

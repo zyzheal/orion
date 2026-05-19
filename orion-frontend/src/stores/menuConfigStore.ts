@@ -60,6 +60,20 @@ const defaultModules: Record<string, MenuModuleConfig> = {
       { key: '/risk-dashboard', label: '风险看板', description: '风险识别预警', category: '分析视角', enabled: true },
     ],
   },
+  '/console': {
+    key: '/console',
+    label: '控制台',
+    description: '系统管理与配置',
+    systemTitle: '系统控制台',
+    systemDescription: '管理系统插件、配置、用户与功能开关',
+    enabled: true,
+    children: [
+      { key: '/console', label: '控制台首页', description: '系统概览与快速操作', category: '概览', enabled: true },
+      { key: '/console/plugins', label: '插件管理', description: '插件安装、配置与生命周期管理', category: '扩展管理', enabled: true },
+      { key: '/console/settings', label: '系统配置', description: '功能开关与特性管理', category: '配置', enabled: true },
+      { key: '/console/users', label: '用户管理', description: '用户、角色与权限管理', category: '权限', enabled: true },
+    ],
+  },
   '/delivery': {
     key: '/delivery',
     label: '交付',
@@ -90,12 +104,12 @@ const defaultModules: Record<string, MenuModuleConfig> = {
     enabled: true,
     children: [
       // 监控告警
-      { key: '/console/monitoring', label: '监控中心', description: '全栈监控', category: '监控告警', enabled: true },
+      { key: '/observability/monitoring', label: '监控中心', description: '全栈监控', category: '监控告警', enabled: true },
       { key: '/alerts', label: '告警', description: '智能告警管理', category: '监控告警', enabled: true },
       { key: '/metrics-dashboard', label: '指标看板', description: '自定义指标体系', category: '监控告警', enabled: true },
       // 智能诊断
-      { key: '/console/diagnostic', label: '诊断中心', description: '根因分析诊断', category: '智能诊断', enabled: true },
-      { key: '/console/self-healing', label: '自愈系统', description: '自动化故障恢复', category: '智能诊断', enabled: true },
+      { key: '/observability/diagnostic', label: '诊断中心', description: '根因分析诊断', category: '智能诊断', enabled: true },
+      { key: '/observability/self-healing', label: '自愈系统', description: '自动化故障恢复', category: '智能诊断', enabled: true },
     ],
   },
   '/ai': {
@@ -141,7 +155,12 @@ const defaultModules: Record<string, MenuModuleConfig> = {
       { key: '/vector-store', label: '向量存储', description: 'AI 向量数据库', category: '中间件', enabled: true },
       { key: '/eventbus', label: '事件总线', description: '事件驱动架构', category: '中间件', enabled: true },
       // CMDB
-      { key: '/cmdb', label: 'CMDB', description: '配置管理数据库', category: 'CMDB', enabled: true },
+      { key: '/cmdb', label: 'CMDB', description: '配置管理与运维终端', category: 'CMDB', enabled: true },
+      { key: '/cmdb/topology', label: '拓扑图', description: 'CI 关系可视化', category: 'CMDB', enabled: true },
+      { key: '/cmdb/integration', label: '集成资源', description: '主机 + K8s 资源', category: 'CMDB', enabled: true },
+      { key: '/cmdb/terminal', label: 'Web 终端', description: 'SSH 远程终端', category: 'CMDB', enabled: true },
+      { key: '/cmdb/batch-exec', label: '批量执行', description: '命令执行与脚本模板', category: 'CMDB', enabled: true },
+      { key: '/cmdb/audit', label: '审计日志', description: '终端操作审计', category: 'CMDB', enabled: true },
       // 运维流程
       { key: '/sessions', label: '会话管理', description: '终端会话管理', category: '运维流程', enabled: true },
       { key: '/backup', label: '备份恢复', description: '数据备份策略管理', category: '运维流程', enabled: true },
@@ -188,7 +207,7 @@ const defaultModules: Record<string, MenuModuleConfig> = {
       { key: '/documents', label: '文档中心', description: '项目设计文档与运维手册', category: '文档与知识', enabled: true },
       // 扩展能力
       { key: '/skills', label: 'Skill 市场', description: '能力插件市场', category: '扩展能力', enabled: true },
-      { key: '/plugin-spi', label: '插件框架', description: '插件扩展规范框架', category: '扩展能力', enabled: true },
+      { key: '/plugin-spi', label: 'SPI 扩展点', description: '插件扩展规范框架', category: '扩展能力', enabled: true },
     ],
   },
 };

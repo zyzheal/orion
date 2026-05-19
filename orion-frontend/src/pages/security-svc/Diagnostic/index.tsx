@@ -18,10 +18,10 @@ const { Sider, Content } = Layout;
 const { Title } = Typography;
 
 const menuItems = [
-  { key: '/console/diagnostic/sessions', icon: <PlayCircleOutlined />, label: 'Sessions' },
-  { key: '/console/diagnostic/reports', icon: <FileTextOutlined />, label: 'Reports' },
-  { key: '/console/diagnostic/knowledge', icon: <BookOutlined />, label: 'Knowledge Base' },
-  { key: '/console/diagnostic/trigger', icon: <RocketOutlined />, label: 'Trigger' },
+  { key: '/observability/diagnostic/sessions', icon: <PlayCircleOutlined />, label: 'Sessions' },
+  { key: '/observability/diagnostic/reports', icon: <FileTextOutlined />, label: 'Reports' },
+  { key: '/observability/diagnostic/knowledge', icon: <BookOutlined />, label: 'Knowledge Base' },
+  { key: '/observability/diagnostic/trigger', icon: <RocketOutlined />, label: 'Trigger' },
 ];
 
 // 统一的 Layout 配置

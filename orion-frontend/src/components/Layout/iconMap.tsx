@@ -30,6 +30,11 @@ import {
   ApiOutlined,
   BranchesOutlined,
   FileTextOutlined,
+  ControlOutlined,
+  UserOutlined,
+  LinkOutlined,
+  DesktopOutlined,
+  CodeOutlined,
 } from '@ant-design/icons';
 
 export const iconMap: Record<string, React.ReactNode> = {
@@ -59,11 +64,11 @@ export const iconMap: Record<string, React.ReactNode> = {
   '/test-selector': <ExperimentOutlined />,
 
   // 可观测性中心子菜单
-  '/console/monitoring': <EyeOutlined />,
+  '/observability/monitoring': <EyeOutlined />,
   '/alerts': <AlertOutlined />,
   '/metrics-dashboard': <BarChartOutlined />,
-  '/console/diagnostic': <EyeOutlined />,
-  '/console/self-healing': <RocketOutlined />,
+  '/observability/diagnostic': <EyeOutlined />,
+  '/observability/self-healing': <RocketOutlined />,
 
   // AI 平台子菜单
   '/ai/chatops': <RocketOutlined />,
@@ -85,6 +90,11 @@ export const iconMap: Record<string, React.ReactNode> = {
   '/vector-store': <DatabaseOutlined />,
   '/eventbus': <DeploymentUnitOutlined />,
   '/cmdb': <DatabaseOutlined />,
+  '/cmdb/topology': <DeploymentUnitOutlined />,
+  '/cmdb/integration': <LinkOutlined />,
+  '/cmdb/terminal': <DesktopOutlined />,
+  '/cmdb/batch-exec': <CodeOutlined />,
+  '/cmdb/audit': <EyeOutlined />,
   '/sessions': <UserSwitchOutlined />,
   '/backup': <CloudUploadOutlined />,
   '/oncall': <ClockCircleOutlined />,
@@ -126,6 +136,12 @@ export const iconMap: Record<string, React.ReactNode> = {
   '/monitoring': <EyeOutlined />,
   '/diagnostic': <EyeOutlined />,
   '/self-healing': <RocketOutlined />,
+
+  // 控制台模块子菜单
+  '/console': <ControlOutlined />,
+  '/console/plugins': <AppstoreOutlined />,
+  '/console/settings': <SettingOutlined />,
+  '/console/users': <UserOutlined />,
 
   // 扩展能力
   '/skills': <AppstoreOutlined />,
