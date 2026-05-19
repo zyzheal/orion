@@ -13,7 +13,6 @@ import { EventBusService } from '../services/event-bus-service';
 import { DatabasePool } from '../services/database';
 import { RedisCache } from '../services/redis-cache';
 import { CacheService } from '../services/cache/CacheService';
-import cmdbRoutes from '../routes-cmdb';
 import configRoutes from './config-routes';
 import { PluginManagerService } from '../services/plugin-manager-service';
 import auditRoutes from './audit-routes';
@@ -351,10 +350,8 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   moduleManager.loadFromConfig();
   (options as any).moduleManager = moduleManager;
 
-  // ==================== CMDB 路由 ====================
-
-  // 注册 CMDB API 路由
-  await registerWithRoleGuard(app, cmdbRoutes, '/cmdb', { database: options.database });
+  // ==================== CMDB 路由已迁移到 orion-cmdb-service (port 3030) ====================
+  // 前端通过 /api/v1/cmdb 直接调用 Go 微服务
 
   // 注册 Build Environment API 路由 (PostgreSQL backed for BuildCache)
   // Code Repository 路由已迁移到 orion-code-svc (port 3010)

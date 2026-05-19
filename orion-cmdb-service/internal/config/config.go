@@ -65,7 +65,7 @@ func Load(configPath string) (*Config, error) {
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 
 	// Set default values
-	viper.SetDefault("server.addr", ":8081")
+	viper.SetDefault("server.addr", ":3030")
 	viper.SetDefault("database.host", "localhost")
 	viper.SetDefault("database.port", 5432)
 	viper.SetDefault("database.user", "orion")

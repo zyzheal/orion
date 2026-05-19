@@ -1,6 +1,7 @@
 /**
  * CMDB Service API Client
  * CI (Configuration Item) management, relations, topology, and impact analysis
+ * Backend: Go microservice (orion-cmdb-service) on port 3030
  */
 import { api } from './client';
 
@@ -103,23 +104,23 @@ export interface CreateRelationInput {
 // ============================================================================
 
 export const getCIs = (params?: ListCIParams) => {
-  return api.get('/cmdb/cis', { params });
+  return api.get('/v1/cmdb/cis', { params });
 };
 
 export const getCI = (id: string) => {
-  return api.get(`/cmdb/cis/${id}`);
+  return api.get(`/v1/cmdb/cis/${id}`);
 };
 
 export const createCI = (data: CreateCIInput) => {
-  return api.post('/cmdb/cis', data);
+  return api.post('/v1/cmdb/cis', data);
 };
 
 export const updateCI = (id: string, data: UpdateCIInput) => {
-  return api.put(`/cmdb/cis/${id}`, data);
+  return api.put(`/v1/cmdb/cis/${id}`, data);
 };
 
 export const deleteCI = (id: string) => {
-  return api.delete(`/cmdb/cis/${id}`);
+  return api.delete(`/v1/cmdb/cis/${id}`);
 };
 
 // ============================================================================
@@ -127,15 +128,15 @@ export const deleteCI = (id: string) => {
 // ============================================================================
 
 export const getRelations = (ciId?: string) => {
-  return api.get('/cmdb/relations', { params: ciId ? { ci_id: ciId } : {} });
+  return api.get('/v1/cmdb/relations', { params: ciId ? { ci_id: ciId } : {} });
 };
 
 export const createRelation = (data: CreateRelationInput) => {
-  return api.post('/cmdb/relations', data);
+  return api.post('/v1/cmdb/relations', data);
 };
 
 export const deleteRelation = (id: string) => {
-  return api.delete(`/cmdb/relations/${id}`);
+  return api.delete(`/v1/cmdb/relations/${id}`);
 };
 
 // ============================================================================
@@ -143,7 +144,7 @@ export const deleteRelation = (id: string) => {
 // ============================================================================
 
 export const getTopology = (ciType?: string) => {
-  return api.get('/cmdb/topology', { params: ciType ? { ci_type: ciType } : {} });
+  return api.get('/v1/cmdb/topology', { params: ciType ? { ci_type: ciType } : {} });
 };
 
 // ============================================================================
@@ -151,5 +152,5 @@ export const getTopology = (ciType?: string) => {
 // ============================================================================
 
 export const analyzeImpact = (ciId: string) => {
-  return api.get(`/cmdb/impact/${ciId}`);
+  return api.get(`/v1/cmdb/impact/${ciId}`);
 };
