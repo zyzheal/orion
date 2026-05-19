@@ -874,6 +874,12 @@ export const routes: AppRoute[] = [
         protected: true,
         requiredPermission: { resource: 'project', action: 'read' },
       },
+      {
+        path: 'ueba',
+        element: React.lazy(() => import('@/pages/security-svc/UEBA')),
+        protected: true,
+        requiredPermission: { resource: 'ueba', action: 'read' },
+      },
     ],
   },
   // AI Agent Orchestration (redirect to /ai/agents)
