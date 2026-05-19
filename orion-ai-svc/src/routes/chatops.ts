@@ -120,19 +120,28 @@ const INTENT_TOOL_MAP: Record<string, string> = {
   get_status: 'prometheus_query',
 };
 
+// Singleton instances - created once per server lifetime
+let toolRegistry: ToolRegistry;
+let aiGateway: AIGateway;
+let intentClassifier: IntentClassifier;
+let toolExecutor: ToolExecutor;
+
 export async function chatopsRoutes(fastify: FastifyInstance, options: any): Promise<void> {
-  const toolRegistry = new ToolRegistry();
-  toolRegistry.registerBuiltinTools();
+  // Initialize singletons on first request
+  if (!toolRegistry) {
+    toolRegistry = new ToolRegistry();
+    toolRegistry.registerBuiltinTools();
 
-  const degradationRouter = new AIDegradationRouter();
-  const aiGateway = new AIGateway({}, degradationRouter);
-  const intentClassifier = new IntentClassifier(aiGateway);
-  const toolExecutor = new ToolExecutor(toolRegistry);
+    const degradationRouter = new AIDegradationRouter();
+    aiGateway = new AIGateway({}, degradationRouter);
+    intentClassifier = new IntentClassifier(aiGateway);
+    toolExecutor = new ToolExecutor(toolRegistry);
 
-  // Set up LLM caller
-  if (process.env.AI_LLM_API_KEY) {
-    const llmCaller = await createLLMCaller();
-    aiGateway.setLLMCaller(llmCaller);
+    // Set up LLM caller
+    if (process.env.AI_LLM_API_KEY) {
+      const llmCaller = await createLLMCaller();
+      aiGateway.setLLMCaller(llmCaller);
+    }
   }
 
   // POST /chat - 聊天接口
@@ -145,52 +154,76 @@ export async function chatopsRoutes(fastify: FastifyInstance, options: any): Pro
         return reply.status(400).send({ error: 'Message is required' });
       }
 
-      // 1. 意图识别
-      const intentResult = await intentClassifier.classify(message, context);
+      try {
+        // 1. 意图识别
+        const intentResult = await intentClassifier.classify(message, context);
 
-      // 2. 根据意图执行工具
-      const toolCalls = [];
-      const toolName = INTENT_TOOL_MAP[intentResult.intent];
-      if (toolName) {
-        const toolResult = await toolExecutor.execute({
-          tool: toolName,
-          params: { ...intentResult.entities, query: message },
-          userId: (request as any).user?.id,
-          traceId: crypto.randomUUID(),
-        });
+        // 2. 根据意图执行工具
+        const toolCalls = [];
+        const toolName = INTENT_TOOL_MAP[intentResult.intent];
+        if (toolName) {
+          try {
+            const toolResult = await toolExecutor.execute({
+              tool: toolName,
+              params: { ...intentResult.entities, query: message },
+              userId: (request as any).user?.id,
+              traceId: crypto.randomUUID(),
+            });
 
-        if (toolResult.success) {
-          toolCalls.push({
-            tool: toolName,
-            params: intentResult.entities,
-            status: 'completed',
-            result: toolResult.result,
-          });
+            if (toolResult.success) {
+              toolCalls.push({
+                tool: toolName,
+                params: intentResult.entities,
+                status: 'completed',
+                result: toolResult.result,
+              });
+            } else {
+              toolCalls.push({
+                tool: toolName,
+                params: intentResult.entities,
+                status: 'failed',
+                result: toolResult.error,
+              });
+            }
+          } catch (toolError) {
+            toolCalls.push({
+              tool: toolName,
+              params: intentResult.entities,
+              status: 'failed',
+              result: toolError instanceof Error ? toolError.message : 'Tool execution failed',
+            });
+          }
         }
+
+        // 3. 生成回复
+        let responseText = '';
+        if (toolCalls.length > 0) {
+          const lastResult = toolCalls[toolCalls.length - 1];
+          responseText = `已执行 ${lastResult.tool}：${JSON.stringify(lastResult.result, null, 2)}`;
+        } else if (intentResult.intent === 'general_chat') {
+          responseText = '你好！我是 Orion AI 助手，可以用自然语言帮你执行运维操作。试试："查询 CPU 使用率" 或 "部署应用到生产"。';
+        } else if (intentResult.suggestedActions.length > 0) {
+          responseText = `我理解你的意图是"${intentResult.intent}"。建议操作：${intentResult.suggestedActions.join(', ')}`;
+        } else {
+          responseText = '我明白你的需求了。请问具体需要我做什么？';
+        }
+
+        const response: ChatResponse = {
+          message: responseText,
+          intent: intentResult.intent,
+          confidence: intentResult.confidence,
+          toolCalls,
+          suggestions: intentResult.suggestedActions,
+        };
+
+        return reply.send(response);
+      } catch (error) {
+        request.log.error(error, 'ChatOps error');
+        return reply.status(500).send({
+          error: 'CHATOPS_ERROR',
+          message: error instanceof Error ? error.message : 'Unknown error',
+        });
       }
-
-      // 3. 生成回复
-      let responseText = '';
-      if (toolCalls.length > 0) {
-        const lastResult = toolCalls[toolCalls.length - 1];
-        responseText = `已执行 ${lastResult.tool}：${JSON.stringify(lastResult.result, null, 2)}`;
-      } else if (intentResult.intent === 'general_chat') {
-        responseText = '你好！我是 Orion AI 助手，可以用自然语言帮你执行运维操作。试试："查询 CPU 使用率" 或 "部署应用到生产"。';
-      } else if (intentResult.suggestedActions.length > 0) {
-        responseText = `我理解你的意图是"${intentResult.intent}"。建议操作：${intentResult.suggestedActions.join(', ')}`;
-      } else {
-        responseText = '我明白你的需求了。请问具体需要我做什么？';
-      }
-
-      const response: ChatResponse = {
-        message: responseText,
-        intent: intentResult.intent,
-        confidence: intentResult.confidence,
-        toolCalls,
-        suggestions: intentResult.suggestedActions,
-      };
-
-      return reply.send(response);
     }
   );
 

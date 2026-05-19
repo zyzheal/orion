@@ -63,12 +63,14 @@ export class KnowledgeService {
     values.push(now);
     values.push(id);
 
-    if (fields.length > 0) {
-      await pool.query(
-        `UPDATE knowledge_items SET ${fields.join(', ')} WHERE id = $${paramIndex}`,
-        values
-      );
+    if (fields.length <= 1) { // 只有 updated_at，没有其他字段
+      return this.getById(id);
     }
+
+    await pool.query(
+      `UPDATE knowledge_items SET ${fields.join(', ')} WHERE id = $${paramIndex}`,
+      values
+    );
 
     return this.getById(id);
   }
