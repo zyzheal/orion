@@ -108,7 +108,7 @@ export default function ChatDashboard() {
 
   if (apiError && !stats) {
     return (
-      <div style={{ padding: '0 0 16px' }}>
+      <div style={{ padding: '16px', overflow: 'auto', height: 'calc(100vh - 180px)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <div>
             <span style={{ fontSize: 16, fontWeight: 600, lineHeight: '24px' }}>总览看板</span>
@@ -194,7 +194,7 @@ export default function ChatDashboard() {
   );
 
   return (
-    <div style={{ padding: '0 0 16px' }}>
+    <div style={{ padding: '16px', overflow: 'auto', height: 'calc(100vh - 180px)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <div>
           <span style={{ fontSize: 16, fontWeight: 600, lineHeight: '24px' }}>总览看板</span>

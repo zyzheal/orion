@@ -161,7 +161,7 @@ const ExecutionDashboard: React.FC = () => {
 
   if (apiError && executions.length === 0) {
     return (
-      <div style={{ padding: '0 0 16px' }}>
+      <div style={{ padding: '16px', overflow: 'auto', height: 'calc(100vh - 180px)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <div>
             <span style={{ fontSize: 16, fontWeight: 600, lineHeight: '24px' }}>执行监控</span>
@@ -178,7 +178,7 @@ const ExecutionDashboard: React.FC = () => {
   }
 
   return (
-    <div style={{ padding: '0 0 16px' }}>
+    <div style={{ padding: '16px', overflow: 'auto', height: 'calc(100vh - 180px)' }}>
       <div
         style={{
           display: 'flex',

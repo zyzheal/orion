@@ -186,7 +186,7 @@ export default function ChatOpsChat() {
   };
 
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ height: 'calc(100vh - 180px)', display: 'flex', flexDirection: 'column' }}>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: `0 ${spacing[4]}px ${spacing[3]}px` }}>
         <div>

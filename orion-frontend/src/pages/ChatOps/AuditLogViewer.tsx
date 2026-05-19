@@ -206,7 +206,7 @@ const AuditLogViewer: React.FC = () => {
 
   if (apiError && logs.length === 0) {
     return (
-      <div style={{ padding: 0 }}>
+      <div style={{ padding: '16px', overflow: 'auto', height: 'calc(100vh - 180px)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
           <div>
             <Title level={3} style={{ margin: 0 }}>审计日志</Title>
@@ -225,7 +225,7 @@ const AuditLogViewer: React.FC = () => {
   }
 
   return (
-    <div style={{ padding: 0 }}>
+    <div style={{ padding: '16px', overflow: 'auto', height: 'calc(100vh - 180px)' }}>
       <div
         style={{
           display: 'flex',

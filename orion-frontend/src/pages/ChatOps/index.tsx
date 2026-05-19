@@ -13,11 +13,19 @@
  */
 import React, { useState } from 'react';
 import { Tabs, Alert } from 'antd';
-import { DashboardOutlined, MessageOutlined, PlayCircleOutlined, AuditOutlined, CloseOutlined } from '@ant-design/icons';
+import {
+  DashboardOutlined,
+  MessageOutlined,
+  PlayCircleOutlined,
+  AuditOutlined,
+  SettingOutlined,
+  CloseOutlined,
+} from '@ant-design/icons';
 import ChatDashboard from './ChatDashboard';
 import ChatOpsChat from './index.chat';
 import ExecutionDashboard from './ExecutionDashboard';
 import AuditLogViewer from './AuditLogViewer';
+import AdminSettings from './AdminSettings';
 
 export default function ChatOpsPage() {
   const [activeTab, setActiveTab] = useState('overview');
@@ -67,6 +75,16 @@ export default function ChatOpsPage() {
       ),
       children: <AuditLogViewer />,
     },
+    {
+      key: 'admin',
+      label: (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <SettingOutlined />
+          管理配置
+        </span>
+      ),
+      children: <AdminSettings />,
+    },
   ];
 
   return (
@@ -98,7 +116,8 @@ export default function ChatOpsPage() {
         onChange={setActiveTab}
         items={tabItems}
         style={{ flex: 1, overflow: 'hidden' }}
-        tabBarStyle={{ margin: 0, padding: showGuide ? '8px 16px 0' : '0 16px' }}
+        tabBarStyle={{ margin: 0, padding: showGuide ? '8px 16px 0' : '16px 16px 0' }}
+        size="large"
       />
     </div>
   );
