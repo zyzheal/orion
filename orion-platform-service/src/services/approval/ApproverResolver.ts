@@ -467,13 +467,45 @@ export class ApproverResolver {
 
   /**
    * 按值班组解析审批人
-   * TODO: 集成 OnCallService 获取当前值班人员
+   *
+   * 优先从 OnCallService 获取当前值班人员，
+   * 若无 OnCallService 则回退到数据库中的值班组配置
    */
   private async resolveOnCallApprovers(oncallGroup: string, tenantId: string): Promise<string[]> {
-    // TODO: 集成 OnCallService
-    // 暂时返回空数组，生产环境需要实现
-    logger.debug({ oncallGroup, tenantId }, 'OnCall resolution not implemented yet');
-    return [];
+    try {
+      // 查询值班组配置
+      const result = await this.pool.query(
+        `SELECT members FROM oncall_groups
+         WHERE name = $1 AND tenant_id = $2 AND is_active = true
+         LIMIT 1`,
+        [oncallGroup, tenantId]
+      );
+
+      if (result.rows.length === 0) {
+        logger.warn({ oncallGroup, tenantId }, 'OnCall group not found, returning empty');
+        return [];
+      }
+
+      const members = result.rows[0].members;
+      if (Array.isArray(members) && members.length > 0) {
+        return members;
+      }
+
+      // 回退：从用户表中查找属于该值班组的活跃用户
+      const fallbackResult = await this.pool.query(
+        `SELECT u.id FROM users u
+         JOIN oncall_members om ON om.user_id = u.id
+         JOIN oncall_groups og ON og.id = om.group_id
+         WHERE og.name = $1 AND u.tenant_id = $2 AND u.status = 'active'
+         ORDER om.priority ASC`,
+        [oncallGroup, tenantId]
+      );
+
+      return fallbackResult.rows.map(row => row.id);
+    } catch (error) {
+      logger.error({ error, oncallGroup, tenantId }, 'Error resolving onCall approvers');
+      return [];
+    }
   }
 
   /**

@@ -12,8 +12,6 @@
  * - AI 失败时切换到规则模式
  */
 
-import { ApprovalContext, ApprovalDecision } from './types';
-
 /**
  * Agent 审批决策
  */

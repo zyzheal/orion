@@ -36,6 +36,10 @@ export abstract class BaseAgent {
   private status: AgentStatus = 'idle';
   private lastError?: string;
 
+  /** 内存审计日志存储（带容量限制，防止内存泄漏） */
+  private static auditLogs: AgentAuditLog[] = [];
+  private static readonly maxAuditLogs = 10000;
+
   constructor(
     config: AgentConfig,
     aiGateway: AIGateway,
@@ -278,17 +282,19 @@ export abstract class BaseAgent {
    * @returns 审计日志列表
    */
   getAuditLog(limit: number = 100): AgentAuditLog[] {
-    // TODO: 实际从数据库或内存中获取审计日志
-    // 当前返回空列表，由子类或外部系统注入存储
-    return [];
+    return BaseAgent.auditLogs.slice(-limit);
   }
 
   /**
-   * 记录审计日志
-   * 子类可以重写此方法实现持久化
+   * 记录审计日志 — 持久化到内存存储
    */
   protected recordAuditLog(auditLog: AgentAuditLog): void {
-    // 默认实现只打印日志，子类可重写实现持久化
+    // 持久化到内存（带容量限制）
+    BaseAgent.auditLogs.push(auditLog);
+    if (BaseAgent.auditLogs.length > BaseAgent.maxAuditLogs) {
+      BaseAgent.auditLogs = BaseAgent.auditLogs.slice(-BaseAgent.maxAuditLogs);
+    }
+
     logger.info({
       msg: 'Agent audit log',
       agentId: auditLog.agentId,
@@ -297,6 +303,13 @@ export abstract class BaseAgent {
       userId: auditLog.context.userId,
       traceId: auditLog.context.traceId,
     });
+  }
+
+  /**
+   * 清除所有审计日志（仅用于测试）
+   */
+  static clearAuditLogs(): void {
+    BaseAgent.auditLogs = [];
   }
 
   /**

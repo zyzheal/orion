@@ -21,7 +21,6 @@ import UserCapabilityMapping from './UserCapabilityMapping';
 import { colors } from '@/tokens';
 
 const { Title, Paragraph } = Typography;
-const { TabPane } = Tabs;
 
 /**
  * Capability 管理主页面
@@ -29,6 +28,39 @@ const { TabPane } = Tabs;
  */
 const CapabilityManagement: React.FC = () => {
   const [activeTab, setActiveTab] = useState('list');
+
+  const tabItems = [
+    {
+      key: 'list',
+      label: (
+        <span>
+          <SafetyCertificateOutlined />
+          能力列表
+        </span>
+      ),
+      children: <CapabilityList />,
+    },
+    {
+      key: 'roles',
+      label: (
+        <span>
+          <TeamOutlined />
+          角色能力分配
+        </span>
+      ),
+      children: <RoleCapabilityMapping />,
+    },
+    {
+      key: 'users',
+      label: (
+        <span>
+          <UserOutlined />
+          用户能力覆盖
+        </span>
+      ),
+      children: <UserCapabilityMapping />,
+    },
+  ];
 
   return (
     <div style={{ padding: 0 }}>
@@ -43,43 +75,7 @@ const CapabilityManagement: React.FC = () => {
 
       {/* 功能标签页 */}
       <Card>
-        <Tabs activeKey={activeTab} onChange={setActiveTab} defaultActiveKey="list">
-          <TabPane
-            tab={
-              <span>
-                <SafetyCertificateOutlined />
-                能力列表
-              </span>
-            }
-            key="list"
-          >
-            <CapabilityList />
-          </TabPane>
-
-          <TabPane
-            tab={
-              <span>
-                <TeamOutlined />
-                角色能力分配
-              </span>
-            }
-            key="roles"
-          >
-            <RoleCapabilityMapping />
-          </TabPane>
-
-          <TabPane
-            tab={
-              <span>
-                <UserOutlined />
-                用户能力覆盖
-              </span>
-            }
-            key="users"
-          >
-            <UserCapabilityMapping />
-          </TabPane>
-        </Tabs>
+        <Tabs activeKey={activeTab} onChange={setActiveTab} defaultActiveKey="list" items={tabItems} />
       </Card>
     </div>
   );

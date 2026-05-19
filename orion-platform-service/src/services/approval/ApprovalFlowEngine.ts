@@ -565,8 +565,28 @@ export class ApprovalFlowEngine {
     environment: string,
     riskLevel: number,
   ): boolean {
-    // 简化匹配逻辑，实际应该解析 JSON 字段
-    return config.enabled;
+    if (!config.enabled) return false;
+
+    // 匹配 capability
+    const capabilityIds = config.capabilityIds || [];
+    if (capabilityIds.length > 0 && !capabilityIds.includes(capabilityId)) {
+      return false;
+    }
+
+    // 匹配环境
+    const environments = config.environments || [];
+    if (environments.length > 0 && !environments.includes(environment)) {
+      return false;
+    }
+
+    // 匹配风险等级
+    const minRisk = config.minRiskLevel ?? 1;
+    const maxRisk = config.maxRiskLevel ?? 4;
+    if (riskLevel < minRisk || riskLevel > maxRisk) {
+      return false;
+    }
+
+    return true;
   }
 
   /**
@@ -842,7 +862,9 @@ export class ApprovalFlowEngine {
 
       logger.info('Approval flow engine tables ensured');
     } catch (error: any) {
-      logger.warn({ error: error.message }, 'Could not ensure approval tables (may need migration)');
+      logger.error({ error: error.message }, 'Failed to ensure approval tables — this is a critical initialization failure');
+      // 不吞异常：表创建失败意味着后续所有操作都会失败
+      throw new Error(`ApprovalFlowEngine initialization failed: ${error.message}`);
     }
   }
 

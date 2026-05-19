@@ -71,6 +71,8 @@ import workbenchRoutes from './workbench-routes';
 import { PipelineBudgetService } from '../services/PipelineBudgetService';
 import { PipelineBudgetRepository } from '../repositories/PipelineBudgetRepository';
 import { registerBudgetRoutes } from './pipeline-budget-routes';
+import capabilityRoutes from './capability-routes';
+import { registerAIAgentRoutes } from './ai-agent-routes';
 
 // Previously orphan routes now being registered
 import authEnhancedRoutes from './auth-enhanced-routes';
@@ -760,4 +762,10 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // Test Selector - smart test selection
   await registerWithRoleGuard(app, testSelectorRoutes, '/test-selector');
+
+  // ==================== Capability Management ====================
+  await registerWithRoleGuard(app, capabilityRoutes, '/capabilities');
+
+  // ==================== AI Agent Framework ====================
+  registerAIAgentRoutes(app);
 }

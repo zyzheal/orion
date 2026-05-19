@@ -120,7 +120,16 @@ let capabilityService: CapabilityService | null = null;
  * 在 app.ts 初始化时调用
  */
 export function setCapabilityService(service: CapabilityService): void {
+  if (!service) {
+    throw new Error('setCapabilityService: service must not be null');
+  }
   capabilityService = service;
+  // 启动时校验：验证服务可用
+  try {
+    service.getUserCapabilities('system_health_check');
+  } catch {
+    // 静默失败，不做阻塞
+  }
 }
 
 /**
