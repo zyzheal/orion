@@ -5,13 +5,15 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/orion-platform/orion-ops/internal/executor"
+	"github.com/orion-platform/orion-ops/internal/middleware"
 	"github.com/orion-platform/orion-ops/internal/scheduler"
 	"github.com/orion-platform/orion-ops/internal/terminal"
 )
 
-// RegisterRoutes registers all Ops REST API routes
-func RegisterRoutes(r *gin.Engine, terminalMgr *terminal.Manager, batchExecutor *executor.BatchExecutor, cronScheduler *scheduler.CronScheduler) {
+// RegisterRoutes registers all Ops REST API routes with auth middleware
+func RegisterRoutes(r *gin.Engine, terminalMgr *terminal.Manager, batchExecutor *executor.BatchExecutor, cronScheduler *scheduler.CronScheduler, auth gin.HandlerFunc) {
 	v1 := r.Group("/api/v1/ops")
+	v1.Use(auth) // Apply JWT auth middleware to all API routes
 	{
 		// Session routes
 		sessions := v1.Group("/sessions")
@@ -44,7 +46,6 @@ func RegisterRoutes(r *gin.Engine, terminalMgr *terminal.Manager, batchExecutor 
 type CreateSessionRequest struct {
 	HostID      string `json:"host_id" binding:"required"`
 	SessionType string `json:"session_type"`
-	UserID      string `json:"user_id" binding:"required"`
 }
 
 // CreateSession creates a new terminal session
@@ -56,12 +57,17 @@ func CreateSession(mgr *terminal.Manager) gin.HandlerFunc {
 			return
 		}
 
+		userID, _ := middleware.GetUserID(c)
+		if userID == "" {
+			userID = "unknown"
+		}
+
 		sessionType := req.SessionType
 		if sessionType == "" {
 			sessionType = string(terminal.SessionTypeSSH)
 		}
 
-		session, err := mgr.CreateSession(c.Request.Context(), req.HostID, sessionType, req.UserID)
+		session, err := mgr.CreateSession(c.Request.Context(), req.HostID, sessionType, userID)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -146,7 +152,7 @@ func GetTaskResults(exec *executor.BatchExecutor) gin.HandlerFunc {
 		}
 
 		c.JSON(http.StatusOK, gin.H{
-			"items":      results,
+			"items":       results,
 			"total_count": len(results),
 		})
 	}
@@ -154,8 +160,6 @@ func GetTaskResults(exec *executor.BatchExecutor) gin.HandlerFunc {
 
 // CreateCronJobRequest represents the request for creating a cron job
 type CreateCronJobRequest struct {
-	TenantID    int64  `json:"tenant_id" binding:"required"`
-	UserID      string `json:"user_id" binding:"required"`
 	Name        string `json:"name" binding:"required"`
 	Description string `json:"description"`
 	Command     string `json:"command" binding:"required"`
@@ -173,14 +177,17 @@ func CreateCronJob(svc *scheduler.CronScheduler) gin.HandlerFunc {
 			return
 		}
 
+		tenantID, _ := middleware.GetTenantID(c)
+		userID, _ := middleware.GetUserID(c)
+
 		timeout := req.Timeout
 		if timeout <= 0 {
 			timeout = 300 // default 5 minutes
 		}
 
 		job := &scheduler.CronJob{
-			TenantID:    req.TenantID,
-			UserID:      req.UserID,
+			TenantID:    tenantID,
+			UserID:      userID,
 			Name:        req.Name,
 			Description: req.Description,
 			Command:     req.Command,
@@ -199,17 +206,23 @@ func CreateCronJob(svc *scheduler.CronScheduler) gin.HandlerFunc {
 	}
 }
 
-// ListCronJobs returns all cron jobs
+// ListCronJobs returns all cron jobs for the current tenant
 func ListCronJobs(svc *scheduler.CronScheduler) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		jobs, err := svc.ListCronJobs()
+		tenantID, ok := middleware.GetTenantID(c)
+		if !ok {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "tenant context required"})
+			return
+		}
+
+		jobs, err := svc.ListCronJobsByTenant(tenantID)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
 
 		c.JSON(http.StatusOK, gin.H{
-			"items":      jobs,
+			"items":       jobs,
 			"total_count": len(jobs),
 		})
 	}
@@ -229,6 +242,12 @@ type UpdateCronJobRequest struct {
 // UpdateCronJob updates an existing cron job
 func UpdateCronJob(svc *scheduler.CronScheduler) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		tenantID, ok := middleware.GetTenantID(c)
+		if !ok {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "tenant context required"})
+			return
+		}
+
 		id := c.Param("id")
 
 		var req UpdateCronJobRequest
@@ -238,6 +257,7 @@ func UpdateCronJob(svc *scheduler.CronScheduler) gin.HandlerFunc {
 		}
 
 		job := &scheduler.CronJob{
+			TenantID:    tenantID,
 			Name:        req.Name,
 			Description: req.Description,
 			Command:     req.Command,
@@ -262,9 +282,15 @@ func UpdateCronJob(svc *scheduler.CronScheduler) gin.HandlerFunc {
 // DeleteCronJob deletes a cron job
 func DeleteCronJob(svc *scheduler.CronScheduler) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		tenantID, ok := middleware.GetTenantID(c)
+		if !ok {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "tenant context required"})
+			return
+		}
+
 		id := c.Param("id")
 
-		if err := svc.DeleteCronJob(id); err != nil {
+		if err := svc.DeleteCronJob(id, tenantID); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}

@@ -21,6 +21,11 @@ export default defineConfig({
         target: 'http://localhost:3030',
         changeOrigin: true,
       },
+      // Ops Go 微服务代理
+      '/api/v1/ops': {
+        target: 'http://localhost:3040',
+        changeOrigin: true,
+      },
       '/api': {
         target: 'http://localhost:3001',
         changeOrigin: true,

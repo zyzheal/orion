@@ -13,18 +13,22 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 
+	"github.com/orion-platform/orion-ops/api/rest"
 	"github.com/orion-platform/orion-ops/internal/config"
 	"github.com/orion-platform/orion-ops/internal/database"
-)
-
-var (
-	logger *zap.Logger
-	server *http.Server
+	"github.com/orion-platform/orion-ops/internal/executor"
+	"github.com/orion-platform/orion-ops/internal/middleware"
+	"github.com/orion-platform/orion-ops/internal/scheduler"
+	"github.com/orion-platform/orion-ops/internal/terminal"
 )
 
 func main() {
 	// Initialize logger
-	initLogger()
+	logger, err := zap.NewProduction()
+	if err != nil {
+		log.Fatalf("Failed to initialize logger: %v", err)
+	}
+	defer logger.Sync()
 
 	// Load configuration
 	cfg, err := config.Load("")
@@ -42,11 +46,29 @@ func main() {
 		}
 	}()
 
-	// Setup Gin router
-	router := setupRouter()
+	// Auto-migrate database schema
+	if err := database.AutoMigrate(); err != nil {
+		logger.Fatal("Failed to migrate database schema", zap.Error(err))
+	}
+	logger.Info("Database schema migrated successfully")
+
+	// Initialize database
+	db := database.GetDB()
+
+	// Initialize terminal manager
+	terminalMgr := terminal.NewManager(db, nil)
+
+	// Initialize batch executor
+	batchExecutor := executor.NewBatchExecutor(db)
+
+	// Initialize cron scheduler
+	cronScheduler := scheduler.NewCronScheduler(db)
+
+	// Setup Gin router with auth middleware and registered routes
+	router := setupRouter(terminalMgr, batchExecutor, cronScheduler)
 
 	// Create HTTP server
-	server = &http.Server{
+	server := &http.Server{
 		Addr:           cfg.Server.Addr,
 		Handler:        router,
 		ReadTimeout:    30 * time.Second,
@@ -56,7 +78,7 @@ func main() {
 
 	// Start server in goroutine
 	go func() {
-		logger.Info("Starting OPS service", zap.String("addr", cfg.Server.Addr))
+		logger.Info("Starting Ops service", zap.String("addr", cfg.Server.Addr))
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			logger.Fatal("Failed to start server", zap.Error(err))
 		}
@@ -80,19 +102,11 @@ func main() {
 	logger.Info("Server exited")
 }
 
-func initLogger() {
-	var err error
-	logger, err = zap.NewProduction()
-	if err != nil {
-		log.Fatalf("Failed to initialize logger: %v", err)
-	}
-	defer logger.Sync()
-}
-
-func setupRouter() *gin.Engine {
+// setupRouter creates and configures the Gin router with auth middleware and all routes registered
+func setupRouter(terminalMgr *terminal.Manager, batchExecutor *executor.BatchExecutor, cronScheduler *scheduler.CronScheduler) *gin.Engine {
 	router := gin.Default()
 
-	// Health check endpoint
+	// Health check endpoints (no auth required)
 	router.GET("/healthz", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
 			"status":  "ok",
@@ -100,7 +114,6 @@ func setupRouter() *gin.Engine {
 		})
 	})
 
-	// API routes
 	router.GET("/api/v1/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
 			"status":    "healthy",
@@ -108,27 +121,13 @@ func setupRouter() *gin.Engine {
 		})
 	})
 
-	// Example API endpoint
-	router.GET("/api/v1/ops", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"message": "OPS API is running",
-			"endpoints": []string{
-				"GET /healthz",
-				"GET /api/v1/health",
-				"GET /api/v1/ops",
-			},
-		})
-	})
+	// Register all Ops API routes with JWT auth middleware
+	rest.RegisterRoutes(router, terminalMgr, batchExecutor, cronScheduler, middleware.AuthMiddleware())
 
 	return router
 }
 
-// GetLogger returns the logger instance
-func GetLogger() *zap.Logger {
-	return logger
-}
-
-// Custom error type for OPS errors
+// Custom error type for Ops errors
 type OPSError struct {
 	Code    int    `json:"code"`
 	Message string `json:"message"`

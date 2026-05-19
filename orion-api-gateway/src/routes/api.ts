@@ -633,6 +633,14 @@ const routeConfigs: RouteConfig[] = [
     stripPrefix: false,
   },
 
+  // ========== Ops Service (3040) ==========
+  {
+    prefix: '/api/v1/ops',
+    target: services().ops?.url || 'http://localhost:3040',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+
   // ========== Inception Service (3031) ==========
   {
     prefix: '/api/v1/inception',

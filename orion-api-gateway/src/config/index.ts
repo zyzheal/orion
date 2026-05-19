@@ -210,6 +210,11 @@ const defaultConfig: AppConfig = {
       url: process.env.CMDB_SERVICE_URL || 'http://localhost:3030',
       timeout: parseInt(process.env.CMDB_TIMEOUT || '30000', 10),
     },
+    // Ops service
+    ops: {
+      url: process.env.OPS_SERVICE_URL || 'http://localhost:3040',
+      timeout: parseInt(process.env.OPS_TIMEOUT || '30000', 10),
+    },
     // Inception service
     inception: {
       url: process.env.INCEPTION_SERVICE_URL || 'http://localhost:3031',

@@ -115,9 +115,9 @@ func (cs *CronScheduler) UpdateCronJob(id string, job *CronJob) error {
 }
 
 // DeleteCronJob deletes a cron job
-func (cs *CronScheduler) DeleteCronJob(id string) error {
+func (cs *CronScheduler) DeleteCronJob(id string, tenantID int64) error {
 	var job CronJob
-	if err := cs.db.Where("id = ?", id).First(&job).Error; err != nil {
+	if err := cs.db.Where("id = ? AND tenant_id = ?", id, tenantID).First(&job).Error; err != nil {
 		return fmt.Errorf("job not found: %w", err)
 	}
 
@@ -142,6 +142,15 @@ func (cs *CronScheduler) DeleteCronJob(id string) error {
 func (cs *CronScheduler) ListCronJobs() ([]CronJob, error) {
 	var jobs []CronJob
 	if err := cs.db.Find(&jobs).Error; err != nil {
+		return nil, fmt.Errorf("failed to list jobs: %w", err)
+	}
+	return jobs, nil
+}
+
+// ListCronJobsByTenant returns cron jobs for a specific tenant
+func (cs *CronScheduler) ListCronJobsByTenant(tenantID int64) ([]CronJob, error) {
+	var jobs []CronJob
+	if err := cs.db.Where("tenant_id = ?", tenantID).Find(&jobs).Error; err != nil {
 		return nil, fmt.Errorf("failed to list jobs: %w", err)
 	}
 	return jobs, nil
