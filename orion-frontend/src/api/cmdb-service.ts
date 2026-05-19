@@ -85,11 +85,10 @@ export interface UpdateCIInput {
 
 export interface ListCIParams {
   page?: number;
-  pageSize?: number;
+  page_size?: number; // M3/I5: Match backend snake_case param name
   ci_type?: string;
   status?: string;
-  environment?: string;
-  keyword?: string;
+  search?: string; // M3: Match backend 'search' param (was 'keyword')
 }
 
 export interface CreateRelationInput {

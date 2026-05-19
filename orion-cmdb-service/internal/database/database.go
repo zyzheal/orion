@@ -3,6 +3,7 @@ package database
 import (
 	"fmt"
 	"log"
+	"os"
 	"time"
 
 	"gorm.io/driver/postgres"
@@ -23,9 +24,15 @@ func Init(cfg *config.DatabaseConfig) error {
 
 	log.Printf("Connecting to database: %s:%d/%s", cfg.Host, cfg.Port, cfg.Name)
 
+	// M5: Configurable log level — silent in production, verbose in debug mode
+	logLevel := logger.Warn
+	if os.Getenv("GIN_MODE") == "debug" {
+		logLevel = logger.Info
+	}
+
 	var err error
 	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Info),
+		Logger: logger.Default.LogMode(logLevel),
 		NowFunc: func() time.Time {
 			return time.Now().UTC()
 		},

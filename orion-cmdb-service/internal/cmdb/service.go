@@ -105,6 +105,33 @@ func (s *Service) DeleteCI(id string) error {
 	return s.repo.Delete(id)
 }
 
+// DeleteCIWithTenant deletes a CI with tenant isolation
+func (s *Service) DeleteCIWithTenant(id string, tenantID int64) error {
+	if id == "" || tenantID == 0 {
+		return ErrInvalidInput
+	}
+
+	return s.repo.DeleteWithTenant(id, tenantID)
+}
+
+// UpdateCIWithTenant updates a CI with tenant isolation
+func (s *Service) UpdateCIWithTenant(id string, tenantID int64, input *UpdateCIInput) (*CI, error) {
+	if id == "" || tenantID == 0 {
+		return nil, ErrInvalidInput
+	}
+
+	if err := s.validator.ValidateUpdateInput(input); err != nil {
+		return nil, err
+	}
+
+	ci, err := s.repo.UpdateWithTenant(id, tenantID, input)
+	if err != nil {
+		return nil, err
+	}
+
+	return ci, nil
+}
+
 // ListCIs retrieves CIs with filtering and pagination
 func (s *Service) ListCIs(ciType, status, search string, page, pageSize int, tenantID int64) ([]CI, int64, error) {
 	// Validate pagination
@@ -119,6 +146,20 @@ func (s *Service) ListCIs(ciType, status, search string, page, pageSize int, ten
 	}
 
 	return s.repo.List(ciType, status, search, page, pageSize, tenantID)
+}
+
+// GetCIWithTenant retrieves a CI by ID with tenant isolation
+func (s *Service) GetCIWithTenant(id string, tenantID int64) (*CI, error) {
+	if id == "" || tenantID == 0 {
+		return nil, ErrInvalidInput
+	}
+
+	ci, err := s.repo.GetByIDWithTenant(id, tenantID)
+	if err != nil {
+		return nil, err
+	}
+
+	return ci, nil
 }
 
 // GetCIByCiID retrieves a CI by its ci_id

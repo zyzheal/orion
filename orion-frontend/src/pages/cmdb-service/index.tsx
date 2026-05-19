@@ -135,15 +135,16 @@ const CITablePage: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const params: Record<string, unknown> = { pageSize: 100 };
+      const params: Record<string, unknown> = { page_size: 100 };
       if (selectedType) {
         params.ci_type = selectedType;
       }
       if (searchKeyword) {
-        params.keyword = searchKeyword;
+        params.search = searchKeyword;
       }
       const res = await getCIs(params);
-      const data = (res.data as { data?: CI[] })?.data || [];
+      // M7: Backend returns { items: [...], total_count: N }
+      const data = (res.data as { items?: CI[] })?.items || [];
       setCIs(data);
     } catch (error: unknown) {
       const err = error as Error;
@@ -722,7 +723,8 @@ const RelationsPage: React.FC = () => {
     setLoading(true);
     try {
       const res = await getRelations(selectedCI || undefined);
-      setRelations((res.data as { data?: Relation[] })?.data || []);
+      // M7: Backend returns { items: [...], total_count: N }
+      setRelations((res.data as { items?: Relation[] })?.items || []);
     } catch (error: unknown) {
       const err = error as Error;
       message.error(`加载关系失败：${err.message}`);

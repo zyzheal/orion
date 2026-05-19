@@ -144,7 +144,7 @@ const DEFAULT_MODULE_CONFIG = {
     multiCloud: { enabled: true, autoStart: true },
     community: { enabled: true, autoStart: true },
     efficiency: { enabled: true, autoStart: true },
-    cmdb: { enabled: true, autoStart: true },
+    cmdb: { enabled: false, autoStart: true },
     iac: { enabled: true, autoStart: true },
   },
   services: {    consistency: { enabled: false },

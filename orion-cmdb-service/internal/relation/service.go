@@ -104,6 +104,14 @@ func (s *Service) DeleteRelationsByCiID(ciID string, tenantID int64) error {
 	return s.repo.DeleteByCiID(ciID, tenantID)
 }
 
+// ListRelations retrieves all relations for a tenant
+func (s *Service) ListRelations(tenantID int64) ([]Relation, error) {
+	if tenantID == 0 {
+		return nil, ErrInvalidRelationInput
+	}
+	return s.repo.ListAll(tenantID)
+}
+
 // validateInput validates the create relation input
 func (s *Service) validateInput(input *CreateRelationInput) error {
 	if input == nil {

@@ -34,6 +34,19 @@ func (r *Repository) GetByID(id string) (*CI, error) {
 	return &ci, nil
 }
 
+// GetByIDWithTenant retrieves a CI by ID with tenant isolation
+func (r *Repository) GetByIDWithTenant(id string, tenantID int64) (*CI, error) {
+	var ci CI
+	err := r.db.Where("id = ? AND tenant_id = ?", id, tenantID).First(&ci).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrCINotFound
+		}
+		return nil, err
+	}
+	return &ci, nil
+}
+
 // GetByCiID retrieves a CI by its ci_id and tenant_id
 func (r *Repository) GetByCiID(ciID string, tenantID int64) (*CI, error) {
 	var ci CI
@@ -53,7 +66,20 @@ func (r *Repository) Update(id string, input *UpdateCIInput) (*CI, error) {
 	if err != nil {
 		return nil, err
 	}
+	return r.updateCI(ci, input)
+}
 
+// UpdateWithTenant updates an existing CI with tenant isolation
+func (r *Repository) UpdateWithTenant(id string, tenantID int64, input *UpdateCIInput) (*CI, error) {
+	ci, err := r.GetByIDWithTenant(id, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	return r.updateCI(ci, input)
+}
+
+// updateCI performs the actual update logic
+func (r *Repository) updateCI(ci *CI, input *UpdateCIInput) (*CI, error) {
 	// Build updates using map for GORM
 	updates := make(map[string]interface{})
 
@@ -77,19 +103,31 @@ func (r *Repository) Update(id string, input *UpdateCIInput) (*CI, error) {
 	updates["version"] = gorm.Expr("version + 1")
 
 	if len(updates) > 0 {
-		err = r.db.Model(ci).Updates(updates).Error
+		err := r.db.Model(ci).Updates(updates).Error
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	// Reload the updated CI
-	return r.GetByID(id)
+	return r.GetByID(ci.ID)
 }
 
 // Delete soft deletes a CI
 func (r *Repository) Delete(id string) error {
 	result := r.db.Delete(&CI{}, "id = ?", id)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return ErrCINotFound
+	}
+	return nil
+}
+
+// DeleteWithTenant soft deletes a CI with tenant isolation
+func (r *Repository) DeleteWithTenant(id string, tenantID int64) error {
+	result := r.db.Where("id = ? AND tenant_id = ?", id, tenantID).Delete(&CI{})
 	if result.Error != nil {
 		return result.Error
 	}

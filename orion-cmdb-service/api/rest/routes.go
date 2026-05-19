@@ -2,16 +2,19 @@ package rest
 
 import (
 	"errors"
+	"log"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 	cmdbService "github.com/orion-platform/orion-cmdb/internal/cmdb"
+	"github.com/orion-platform/orion-cmdb/internal/middleware"
 	"github.com/orion-platform/orion-cmdb/internal/relation"
 	"github.com/orion-platform/orion-cmdb/internal/topology"
 )
 
-// errorResponse returns an appropriate HTTP status code based on the error type
+// errorResponse returns an appropriate HTTP status code based on the error type.
+// Internal errors are logged server-side but return a generic message to clients.
 func errorResponse(c *gin.Context, err error) {
 	switch {
 	case errors.Is(err, cmdbService.ErrCINotFound),
@@ -26,13 +29,16 @@ func errorResponse(c *gin.Context, err error) {
 		errors.Is(err, relation.ErrInvalidRelationInput):
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 	default:
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		// I4: Log full error server-side, return generic message to client
+		log.Printf("[cmdb-rest] internal error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 	}
 }
 
-// RegisterRoutes registers all CMDB REST API routes
-func RegisterRoutes(r *gin.Engine, cmdbSvc *cmdbService.Service, relationSvc *relation.Service, topologySvc *topology.Service) {
+// RegisterRoutes registers all CMDB REST API routes with the given auth middleware
+func RegisterRoutes(r *gin.Engine, cmdbSvc *cmdbService.Service, relationSvc *relation.Service, topologySvc *topology.Service, auth gin.HandlerFunc) {
 	v1 := r.Group("/api/v1/cmdb")
+	v1.Use(auth) // C1: Apply JWT auth middleware to all API routes
 	{
 		// CI routes
 		cis := v1.Group("/cis")
@@ -61,22 +67,23 @@ func RegisterRoutes(r *gin.Engine, cmdbSvc *cmdbService.Service, relationSvc *re
 // CreateCI creates a new CI
 func CreateCI(svc *cmdbService.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// C2: Fail-closed — RequireTenantID returns 401 if context missing
+		tenantID, ok := middleware.GetTenantID(c)
+		if !ok {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "tenant context required"})
+			return
+		}
+
 		var input cmdbService.CreateCIInput
 		if err := c.ShouldBindJSON(&input); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
-
-		// Get tenant ID from context (default to 1 for now)
-		tenantID := int64(1)
-		if t, ok := c.Get("tenant_id"); ok {
-			tenantID = t.(int64)
-		}
 		input.TenantID = tenantID
 
-		// Get user ID from context
-		if userID, ok := c.Get("user_id"); ok {
-			input.CreatedBy = userID.(string)
+		// C3: Safe type assertion for user ID
+		if userID, ok := middleware.GetUserID(c); ok {
+			input.CreatedBy = userID
 		}
 
 		ci, err := svc.CreateCI(&input)
@@ -92,6 +99,12 @@ func CreateCI(svc *cmdbService.Service) gin.HandlerFunc {
 // ListCIs lists CIs with filtering and pagination
 func ListCIs(svc *cmdbService.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		tenantID, ok := middleware.GetTenantID(c)
+		if !ok {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "tenant context required"})
+			return
+		}
+
 		// Get query parameters
 		ciType := c.Query("ci_type")
 		status := c.Query("status")
@@ -100,12 +113,6 @@ func ListCIs(svc *cmdbService.Service) gin.HandlerFunc {
 		page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 		pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
 
-		// Get tenant ID from context
-		tenantID := int64(1)
-		if t, ok := c.Get("tenant_id"); ok {
-			tenantID = t.(int64)
-		}
-
 		cis, total, err := svc.ListCIs(ciType, status, search, page, pageSize, tenantID)
 		if err != nil {
 			errorResponse(c, err)
@@ -113,20 +120,27 @@ func ListCIs(svc *cmdbService.Service) gin.HandlerFunc {
 		}
 
 		c.JSON(http.StatusOK, gin.H{
-			"items":      cis,
+			"items":       cis,
 			"total_count": total,
-			"page":       page,
-			"page_size":  pageSize,
+			"page":        page,
+			"page_size":   pageSize,
 		})
 	}
 }
 
-// GetCI retrieves a CI by ID
+// GetCI retrieves a CI by ID with tenant isolation
 func GetCI(svc *cmdbService.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		tenantID, ok := middleware.GetTenantID(c)
+		if !ok {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "tenant context required"})
+			return
+		}
+
 		id := c.Param("id")
 
-		ci, err := svc.GetCI(id)
+		// I3: Pass tenantID to enforce tenant isolation
+		ci, err := svc.GetCIWithTenant(id, tenantID)
 		if err != nil {
 			errorResponse(c, err)
 			return
@@ -136,9 +150,15 @@ func GetCI(svc *cmdbService.Service) gin.HandlerFunc {
 	}
 }
 
-// UpdateCI updates an existing CI
+// UpdateCI updates an existing CI with tenant isolation
 func UpdateCI(svc *cmdbService.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		tenantID, ok := middleware.GetTenantID(c)
+		if !ok {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "tenant context required"})
+			return
+		}
+
 		id := c.Param("id")
 
 		var input cmdbService.UpdateCIInput
@@ -147,7 +167,8 @@ func UpdateCI(svc *cmdbService.Service) gin.HandlerFunc {
 			return
 		}
 
-		ci, err := svc.UpdateCI(id, &input)
+		// I3: Pass tenantID to enforce tenant isolation
+		ci, err := svc.UpdateCIWithTenant(id, tenantID, &input)
 		if err != nil {
 			errorResponse(c, err)
 			return
@@ -157,12 +178,19 @@ func UpdateCI(svc *cmdbService.Service) gin.HandlerFunc {
 	}
 }
 
-// DeleteCI deletes a CI
+// DeleteCI deletes a CI with tenant isolation
 func DeleteCI(svc *cmdbService.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		tenantID, ok := middleware.GetTenantID(c)
+		if !ok {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "tenant context required"})
+			return
+		}
+
 		id := c.Param("id")
 
-		if err := svc.DeleteCI(id); err != nil {
+		// I3: Pass tenantID to enforce tenant isolation
+		if err := svc.DeleteCIWithTenant(id, tenantID); err != nil {
 			errorResponse(c, err)
 			return
 		}
@@ -174,22 +202,22 @@ func DeleteCI(svc *cmdbService.Service) gin.HandlerFunc {
 // CreateRelation creates a new CI relation
 func CreateRelation(svc *relation.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		tenantID, ok := middleware.GetTenantID(c)
+		if !ok {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "tenant context required"})
+			return
+		}
+
 		var input relation.CreateRelationInput
 		if err := c.ShouldBindJSON(&input); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
-
-		// Get tenant ID from context
-		tenantID := int64(1)
-		if t, ok := c.Get("tenant_id"); ok {
-			tenantID = t.(int64)
-		}
 		input.TenantID = tenantID
 
-		// Get user ID from context
-		if userID, ok := c.Get("user_id"); ok {
-			input.CreatedBy = userID.(string)
+		// C3: Safe type assertion for user ID
+		if userID, ok := middleware.GetUserID(c); ok {
+			input.CreatedBy = userID
 		}
 
 		rel, err := svc.CreateRelation(&input)
@@ -205,13 +233,13 @@ func CreateRelation(svc *relation.Service) gin.HandlerFunc {
 // GetRelations retrieves relations with optional filtering
 func GetRelations(svc *relation.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ciID := c.Query("ci_id")
-
-		// Get tenant ID from context
-		tenantID := int64(1)
-		if t, ok := c.Get("tenant_id"); ok {
-			tenantID = t.(int64)
+		tenantID, ok := middleware.GetTenantID(c)
+		if !ok {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "tenant context required"})
+			return
 		}
+
+		ciID := c.Query("ci_id")
 
 		var relations []relation.Relation
 		var err error
@@ -219,8 +247,8 @@ func GetRelations(svc *relation.Service) gin.HandlerFunc {
 		if ciID != "" {
 			relations, err = svc.GetRelationsByCiID(ciID, tenantID)
 		} else {
-			// For now, return empty list if no filter
-			relations = []relation.Relation{}
+			// I7: List all relations for tenant when no ci_id filter
+			relations, err = svc.ListRelations(tenantID)
 		}
 
 		if err != nil {
@@ -229,7 +257,7 @@ func GetRelations(svc *relation.Service) gin.HandlerFunc {
 		}
 
 		c.JSON(http.StatusOK, gin.H{
-			"items":      relations,
+			"items":       relations,
 			"total_count": len(relations),
 		})
 	}
@@ -238,6 +266,12 @@ func GetRelations(svc *relation.Service) gin.HandlerFunc {
 // DeleteRelation deletes a relation by ID
 func DeleteRelation(svc *relation.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// Auth middleware ensures tenant context is present
+		if _, ok := middleware.GetTenantID(c); !ok {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "tenant context required"})
+			return
+		}
+
 		id := c.Param("id")
 
 		if err := svc.DeleteRelation(id); err != nil {
@@ -252,13 +286,13 @@ func DeleteRelation(svc *relation.Service) gin.HandlerFunc {
 // GetTopology retrieves the topology graph
 func GetTopology(svc *topology.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ciType := c.Query("ci_type")
-
-		// Get tenant ID from context
-		tenantID := int64(1)
-		if t, ok := c.Get("tenant_id"); ok {
-			tenantID = t.(int64)
+		tenantID, ok := middleware.GetTenantID(c)
+		if !ok {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "tenant context required"})
+			return
 		}
+
+		ciType := c.Query("ci_type")
 
 		topology, err := svc.BuildTopology(tenantID, ciType)
 		if err != nil {
@@ -273,14 +307,13 @@ func GetTopology(svc *topology.Service) gin.HandlerFunc {
 // AnalyzeImpact analyzes the impact of a CI
 func AnalyzeImpact(svc *topology.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ciID := c.Param("ciId")
-
-		// Get tenant ID from context
-		tenantID := int64(1)
-		if t, ok := c.Get("tenant_id"); ok {
-			tenantID = t.(int64)
+		tenantID, ok := middleware.GetTenantID(c)
+		if !ok {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "tenant context required"})
+			return
 		}
 
+		ciID := c.Param("ciId")
 		maxDepth, _ := strconv.Atoi(c.DefaultQuery("max_depth", "3"))
 
 		impact, err := svc.AnalyzeImpact(ciID, tenantID, maxDepth)

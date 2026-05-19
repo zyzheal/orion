@@ -55,6 +55,13 @@ func (r *Repository) GetByCiID(ciID string, tenantID int64) ([]Relation, error) 
 	return relations, err
 }
 
+// ListAll retrieves all relations for a tenant
+func (r *Repository) ListAll(tenantID int64) ([]Relation, error) {
+	var relations []Relation
+	err := r.db.Where("tenant_id = ?", tenantID).Find(&relations).Error
+	return relations, err
+}
+
 // Exists checks if a relation with the same from_ci_id, to_ci_id, and relation_type already exists
 func (r *Repository) Exists(fromCiID, toCiID, relationType string, tenantID int64) bool {
 	var count int64

@@ -17,6 +17,7 @@ import (
 	"github.com/orion-platform/orion-cmdb/internal/cmdb"
 	"github.com/orion-platform/orion-cmdb/internal/config"
 	"github.com/orion-platform/orion-cmdb/internal/database"
+	"github.com/orion-platform/orion-cmdb/internal/middleware"
 	"github.com/orion-platform/orion-cmdb/internal/relation"
 	"github.com/orion-platform/orion-cmdb/internal/topology"
 )
@@ -61,7 +62,7 @@ func main() {
 	relationSvc := relation.NewService(relationRepo)
 	topologySvc := topology.NewService(cmdbSvc, relationSvc)
 
-	// Setup Gin router with registered routes
+	// Setup Gin router with auth middleware and registered routes
 	router := setupRouter(cmdbSvc, relationSvc, topologySvc)
 
 	// Create HTTP server
@@ -99,11 +100,11 @@ func main() {
 	logger.Info("Server exited")
 }
 
-// setupRouter creates and configures the Gin router with all routes registered
+// setupRouter creates and configures the Gin router with auth middleware and all routes registered
 func setupRouter(cmdbSvc *cmdb.Service, relationSvc *relation.Service, topologySvc *topology.Service) *gin.Engine {
 	router := gin.Default()
 
-	// Health check endpoints
+	// Health check endpoints (no auth required)
 	router.GET("/healthz", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
 			"status":  "ok",
@@ -118,17 +119,10 @@ func setupRouter(cmdbSvc *cmdb.Service, relationSvc *relation.Service, topologyS
 		})
 	})
 
-	// Register all CMDB API routes
-	rest.RegisterRoutes(router, cmdbSvc, relationSvc, topologySvc)
+	// Register all CMDB API routes with JWT auth middleware
+	rest.RegisterRoutes(router, cmdbSvc, relationSvc, topologySvc, middleware.AuthMiddleware())
 
 	return router
-}
-
-// GetLogger returns the logger instance (kept for compatibility)
-func GetLogger() *zap.Logger {
-	// In production, logger should be injected via dependency injection
-	// This is a temporary compatibility function
-	return nil
 }
 
 // Custom error type for CMDB errors
