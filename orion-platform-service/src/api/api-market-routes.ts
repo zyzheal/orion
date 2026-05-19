@@ -217,6 +217,20 @@ export default async function apiMarketRoutes(
 
   // ==================== Subscriptions ====================
 
+  // GET /market/subscriptions/check - Check if app has access to product
+  app.get('/market/subscriptions/check', {
+    onRequest: [authenticateUser],
+  }, async (request: AuthenticatedRequest, reply: FastifyReply) => {
+    const { appId, productId } = request.query as { appId: string; productId: string };
+
+    if (!appId || !productId) {
+      return reply.code(400).send({ error: 'appId and productId are required' });
+    }
+
+    const hasAccess = await service.checkSubscription(appId, productId);
+    return reply.send({ appId, productId, hasAccess });
+  });
+
   // POST /market/subscriptions - Subscribe to product
   app.post('/market/subscriptions', {
     onRequest: [authenticateUser, requirePermission({ resource: 'api-market', action: 'write' })],

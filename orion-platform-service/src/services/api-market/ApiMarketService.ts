@@ -159,6 +159,7 @@ export class ApiMarketService {
 
   /**
    * Generate a new API key for an app
+   * Uses retry logic to ensure client_id uniqueness (defense in depth)
    */
   async generateApiKey(appId: string, scopes: string[] = ['read']): Promise<GenerateApiKeyResult> {
     const app = await this.repository.findAppById(appId);
@@ -166,23 +167,39 @@ export class ApiMarketService {
       throw new ApiMarketError('App not found', 'APP_NOT_FOUND');
     }
 
-    // Generate client_id and client_secret
-    const clientId = crypto.randomBytes(16).toString('hex');
-    const clientSecret = crypto.randomBytes(32).toString('hex');
+    // Retry loop for extreme concurrency scenarios (defense in depth)
+    const maxRetries = 3;
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      // Generate client_id and client_secret
+      const clientId = crypto.randomBytes(16).toString('hex');
+      const clientSecret = crypto.randomBytes(32).toString('hex');
 
-    // Hash the client secret
-    const hash = crypto.createHash('sha256');
-    const clientSecretHash = hash.update(clientSecret).digest('hex');
+      // Hash the client secret
+      const hash = crypto.createHash('sha256');
+      const clientSecretHash = hash.update(clientSecret).digest('hex');
 
-    await this.repository.createCredential({
-      appId,
-      clientId,
-      clientSecretHash,
-      scopes,
-      rateLimitPerMin: 100,
-    });
+      try {
+        await this.repository.createCredential({
+          appId,
+          clientId,
+          clientSecretHash,
+          scopes,
+          rateLimitPerMin: 100,
+        });
 
-    return { clientId, clientSecret };
+        return { clientId, clientSecret };
+      } catch (error: any) {
+        // Check if it's a unique constraint violation
+        if (error.code === '23505' || error.message?.includes('unique')) {
+          if (attempt < maxRetries - 1) {
+            continue; // Retry with new clientId
+          }
+        }
+        throw error;
+      }
+    }
+
+    throw new ApiMarketError('Failed to generate unique API key', 'GENERATION_FAILED');
   }
 
   /**

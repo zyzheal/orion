@@ -149,6 +149,8 @@ export class GitLabConnector implements Connector {
     switch (action) {
       case 'listProjects':
         return this.listProjects(params);
+      case 'listAllProjects':
+        return this.listAllProjects(params);
       case 'getProject':
         return this.getProject(params);
       case 'listBranches':
@@ -199,6 +201,37 @@ export class GitLabConnector implements Connector {
 
     const response = await this.apiGet(`/projects?${queryParams}`);
     return response as GitLabProject[];
+  }
+
+  /**
+   * List all projects with automatic pagination
+   * Use this when you need all projects (not just one page)
+   */
+  private async listAllProjects(params: Record<string, unknown> = {}): Promise<GitLabProject[]> {
+    const { search, membership, maxPages = 10 } = params;
+    const allProjects: GitLabProject[] = [];
+    let currentPage = 1;
+    const perPage = 100; // Maximum allowed by GitLab API
+
+    while (currentPage <= maxPages) {
+      const queryParams = new URLSearchParams({
+        page: String(currentPage),
+        per_page: String(perPage),
+      });
+
+      if (search) queryParams.append('search', String(search));
+      if (membership !== undefined) queryParams.append('membership', String(membership));
+
+      const response = (await this.apiGet(`/projects?${queryParams}`)) as GitLabProject[];
+
+      if (response.length === 0) break; // No more results
+      allProjects.push(...response);
+
+      if (response.length < perPage) break; // Last page
+      currentPage++;
+    }
+
+    return allProjects;
   }
 
   private async getProject(params: Record<string, unknown>): Promise<GitLabProject> {
