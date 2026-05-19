@@ -8,21 +8,33 @@
 
 ## 一、背景与目标
 
-### 1.1 问题陈述
+### 1.1 现状分析
 
-Orion 平台当前存在两个独立的后端系统：
+**现有实现**：
 
-| 系统 | 技术栈 | 定位 | 状态 |
-|------|--------|------|------|
-| CMDB | TypeScript + Fastify | 配置管理数据库 | ✅ 完整实现 |
-| 运维操作平台 | Java + Spring Boot (orion-visor) | 远程终端/批量执行/监控 | ✅ 代码完整 |
+| 系统 | 技术栈 | 代码位置 | 状态 |
+|------|--------|---------|------|
+| CMDB 核心 (TS) | TypeScript + Fastify | `orion-platform-service/src/services/cmdb/` | ✅ 已完整实现 |
+| CMDB 核心 (Go) | Go + Gin + GORM | `.worktrees/cmdb-ops/orion-cmdb-service/` | ⚠️ Worktree，未部署 |
+| 运维操作 (Java) | Java + Spring Boot | `orion-visor/` | ✅ 代码完整，待提取 |
+| CMDB 集成服务 | TypeScript | `orion-platform-service/src/services/cmdb-integration-service.ts` | ✅ 已完整实现 |
 
-**问题**：
-1. 技术栈不统一（TS + Java）
-2. 两个系统独立运行，数据未串联
-3. 缺乏统一的插件化治理
+> **注意**：CMDB 核心已在 `orion-platform-service` 中完整实现，包括：
+> - `CmdbService.ts` (CI CRUD)
+> - `TopologyService.ts` (拓扑生成)
+> - `K8sReconciliationService.ts` (K8s 同步)
+> - `CmdbEventPublisher.ts` (事件发布)
+>
+> 本文档定位是 **CMDB 增强 + 运维操作接入**，而非重建。
 
-### 1.2 设计目标
+### 1.2 待解决问题
+
+1. CMDB 核心功能已实现，但**运维操作（终端/批量执行）缺失** TS 实现
+2. 两个系统独立运行，数据未串联（CMDB 主机列表 → Ops 远程访问）
+3. 高危 CMDB/Ops 操作缺乏统一的**审批流程接入**
+4. 缺乏统一的插件化治理
+
+### 1.3 设计目标
 
 1. **技术栈统一** — 复用 orion-platform-service TypeScript + Fastify 基础设施
 2. **统一插件架构** — 复用现有插件系统设计理念
@@ -32,14 +44,20 @@ Orion 平台当前存在两个独立的后端系统：
 
 ### 1.3 范围
 
-| 模块 | 功能 | 迁移策略 |
-|------|------|----------|
-| CMDB 核心 | CI 配置项、关系管理、拓扑、版本 | 复用现有 TS 实现 |
-| CMDB 增强 | 影响分析、变更审批 | TS 新增 |
-| 远程终端 | SSH/RDP/VNC 连接 | orion-visor Java 逻辑提取，TS 实现 |
-| 批量执行 | 命令分发、文件传输 | orion-visor Java 逻辑提取，TS 实现 |
-| 计划任务 | Cron 定时任务 | TS 新增（复用 platform cron 基础设施） |
-| 系统监控 | CPU/内存/磁盘监控 | orion-visor 逻辑提取，TS 实现 |
+> **技术决策**：CMDB 核心存在两套实现，需确认使用哪套：
+> - **TS 版** (`orion-platform-service/src/services/cmdb/`)：当前生产使用
+> - **Go 版** (`.worktrees/cmdb-ops/orion-cmdb-service/`)：功能完整，未部署
+>
+> 建议：保持 TS 版与平台统一，Go 版作为未来微服务拆分候选。
+
+| 模块 | 功能 | 现状 | 工作内容 |
+|------|------|------|---------|
+| CMDB 核心 | CI 配置项、关系管理、拓扑、版本 | ✅ TS 已实现，Go 已实现 | 保持 TS 版 |
+| CMDB 增强 | 影响分析、变更审批 + 审批接入 | 🔄 待增强 | 接入 ApprovalFlowEngine |
+| 远程终端 | SSH/RDP/VNC 连接 | ❌ 缺失 | 从 orion-visor (Java) 提取 TS 实现 |
+| 批量执行 | 命令分发、文件传输 | ❌ 缺失 | 从 orion-visor (Java) 提取 TS 实现 |
+| 计划任务 | Cron 定时任务 | ⚡ 部分 | 复用 platform cron 基础设施 |
+| 系统监控 | CPU/内存/磁盘监控 | ⚡ 部分 | 复用 orion-visor 逻辑，TS 实现 |
 
 ---
 

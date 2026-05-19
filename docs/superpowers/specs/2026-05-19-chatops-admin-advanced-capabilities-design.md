@@ -1658,7 +1658,9 @@ PUT    /api/v1/chatops/admin/approval-global-config        # 更新全局开关
 #### 2.8.4 低代码引擎核心代码
 
 ```typescript
-// src/services/chatops/ApprovalFlowEngine.ts
+// src/services/approval/ApprovalFlowEngine.ts
+// 注意：这是系统级通用审批流程引擎（V3），放在 approval/ 目录供所有模块复用
+// 不放在 chatops/ 下，因为 Pipeline、Deploy、CMDB 等模块都会调用
 
 import { TicketingService } from '../ticketing/TicketingService';
 import { TicketWorkflowService } from '../ticketing/TicketWorkflowService';
@@ -2081,7 +2083,7 @@ GET    /api/v1/chatops/admin/approval-flows/instances/:id # 查看实例详情
 ```typescript
 // 各模块通过统一接口接入审批流程
 
-import { ApprovalFlowEngine } from '../chatops/ApprovalFlowEngine';
+import { ApprovalFlowEngine } from '../approval/ApprovalFlowEngine';
 
 // 示例：Pipeline 模块接入审批
 class PipelineRunService {
@@ -2351,7 +2353,7 @@ INSERT INTO chatops_approval_flow_configs (tenant_id, flow_id, module, name, ena
 ```typescript
 // src/services/new-module/NewModuleService.ts
 
-import { ApprovalFlowEngine } from '../chatops/ApprovalFlowEngine';
+import { ApprovalFlowEngine } from '../approval/ApprovalFlowEngine';
 import { CapabilityEngine } from '../authz/CapabilityEngine';
 
 export class NewModuleService {
@@ -3055,7 +3057,7 @@ ChatOps Settings 页面布局:
 | `src/services/chatops/TenantService.ts` | 租户服务 |
 | `src/services/chatops/WebhookService.ts` | Webhook 服务 |
 | `src/services/chatops/ApprovalConfigService.ts` | 审批流程配置服务 |
-| `src/services/chatops/ApprovalFlowEngine.ts` | 系统级通用审批流程引擎（所有模块复用） |
+| `src/services/approval/ApprovalFlowEngine.ts` | 系统级通用审批流程引擎（所有模块复用） |
 | `src/services/authz/CapabilityEngine.ts` | 全局能力检查引擎（新增 Capability 检查层） |
 | `src/services/authz/CapabilityRegistry.ts` | 能力树注册中心（含新系统接入注册表） |
 | `src/services/ticketing/types.ts` | 扩展 `permission_request` 类型和 `chatops` 来源 |
