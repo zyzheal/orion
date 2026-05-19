@@ -15,3 +15,5 @@ export {
 } from './BaseBuildExecutor';
 
 export { BuildExecutorRegistry, buildExecutorRegistry } from './BuildExecutorRegistry';
+
+export { HostBuildExecutor } from './HostBuildExecutor';
