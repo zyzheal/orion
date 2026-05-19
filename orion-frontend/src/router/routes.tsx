@@ -74,6 +74,13 @@ export const routes: AppRoute[] = [
     protected: true,
     requiredPermission: { resource: '*', action: 'manage' },
   },
+  // Capability 管理
+  {
+    path: '/console/capabilities',
+    element: React.lazy(() => import('@/pages/Capability')),
+    protected: true,
+    requiredPermission: { resource: 'capability', action: 'view' },
+  },
   {
     path: '/projects',
     element: React.lazy(() => import('@/pages/Projects')),
