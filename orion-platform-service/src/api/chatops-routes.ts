@@ -463,4 +463,200 @@ export default async function chatopsRoutes(
   app.post('/audit/export', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'write' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.exportAuditLogs(request, reply);
   });
+
+  // ==================== Admin API (Capability Mappings & Approval Config) ====================
+
+  // GET /admin/capability-mappings - 获取所有命令-Capability 映射
+  app.get('/admin/capability-mappings', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'admin' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { environment } = request.query as { environment?: string };
+    try {
+      const mappings = await capabilityMappingService.getAllMappings(environment);
+      return reply.send({ success: true, data: mappings });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Failed to fetch capability mappings' });
+    }
+  });
+
+  // POST /admin/capability-mappings - 创建映射
+  app.post('/admin/capability-mappings', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'admin' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = request.body as {
+      command_id: string;
+      capability_id: string;
+      environment?: string;
+      risk_level: number;
+      requires_approval: boolean;
+    };
+    // 输入校验
+    if (!body.command_id || !body.capability_id) {
+      return reply.status(400).send({ success: false, error: 'command_id and capability_id are required' });
+    }
+    if (typeof body.risk_level !== 'number' || body.risk_level < 1 || body.risk_level > 4) {
+      return reply.status(400).send({ success: false, error: 'risk_level must be a number between 1 and 4' });
+    }
+    try {
+      const mapping = await capabilityMappingService.createMapping(body);
+      return reply.status(201).send({ success: true, data: mapping });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Failed to create capability mapping' });
+    }
+  });
+
+  // PUT /admin/capability-mappings/:id - 更新映射
+  app.put('/admin/capability-mappings/:id', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'admin' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.params as { id: string };
+    const body = request.body as Partial<{
+      command_id: string;
+      capability_id: string;
+      environment?: string;
+      risk_level: number;
+      requires_approval: boolean;
+    }>;
+    try {
+      const mapping = await capabilityMappingService.updateMapping(id, body);
+      if (!mapping) {
+        return reply.status(404).send({ success: false, error: 'Mapping not found' });
+      }
+      return reply.send({ success: true, data: mapping });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Failed to update capability mapping' });
+    }
+  });
+
+  // DELETE /admin/capability-mappings/:id - 删除映射
+  app.delete('/admin/capability-mappings/:id', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'admin' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.params as { id: string };
+    try {
+      const deleted = await capabilityMappingService.deleteMapping(id);
+      if (!deleted) {
+        return reply.status(404).send({ success: false, error: 'Mapping not found' });
+      }
+      return reply.send({ success: true });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Failed to delete capability mapping' });
+    }
+  });
+
+  // GET /admin/approval-configs - 获取所有审批配置
+  app.get('/admin/approval-configs', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'admin' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const configs = await capabilityMappingService.getAllApprovalConfigs();
+      return reply.send({ success: true, data: configs });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Failed to fetch approval configs' });
+    }
+  });
+
+  // PUT /admin/approval-configs - 批量更新审批配置
+  app.put('/admin/approval-configs', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'admin' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = request.body as {
+      capability: string;
+      enabled: boolean;
+      approvers: string[];
+      threshold: number;
+    }[];
+    try {
+      const configs = await capabilityMappingService.updateApprovalConfigs(body);
+      return reply.send({ success: true, data: configs });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Failed to update approval configs' });
+    }
+  });
+
+  // GET /admin/approval-configs/:capability - 获取单个能力域配置
+  app.get('/admin/approval-configs/:capability', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'admin' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { capability } = request.params as { capability: string };
+    try {
+      const config = await capabilityMappingService.getApprovalConfigByCapability(capability);
+      if (!config) {
+        return reply.status(404).send({ success: false, error: 'Approval config not found' });
+      }
+      return reply.send({ success: true, data: config });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Failed to fetch approval config' });
+    }
+  });
+
+  // PUT /admin/approval-configs/:capability - 更新单个能力域配置
+  app.put('/admin/approval-configs/:capability', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'admin' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { capability } = request.params as { capability: string };
+    const body = request.body as Partial<{
+      enabled: boolean;
+      approvers: string[];
+      threshold: number;
+    }>;
+    try {
+      const config = await capabilityMappingService.updateApprovalConfig(capability, body);
+      if (!config) {
+        return reply.status(404).send({ success: false, error: 'Approval config not found' });
+      }
+      return reply.send({ success: true, data: config });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Failed to update approval config' });
+    }
+  });
+
+  // GET /admin/approvers - 获取审批人列表
+  app.get('/admin/approvers', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'admin' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const approvers = await capabilityMappingService.getApprovers();
+      return reply.send({ success: true, data: approvers });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Failed to fetch approvers' });
+    }
+  });
+
+  // GET /admin/approvers/schedule - 获取审批人值班表
+  app.get('/admin/approvers/schedule', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'admin' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const schedule = await capabilityMappingService.getApproverSchedule();
+      return reply.send({ success: true, data: schedule });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Failed to fetch approver schedule' });
+    }
+  });
+
+  // PUT /admin/approvers/schedule - 更新审批人值班表
+  app.put('/admin/approvers/schedule', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'admin' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = request.body as { user_id: string; start_time: string; end_time: string }[];
+    try {
+      await capabilityMappingService.updateApproverSchedule(body);
+      return reply.send({ success: true });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Failed to update approver schedule' });
+    }
+  });
+
+  // GET /admin/approval-global-config - 获取全局审批配置
+  app.get('/admin/approval-global-config', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'admin' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const config = await capabilityMappingService.getGlobalApprovalConfig();
+      return reply.send({ success: true, data: config });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Failed to fetch global approval config' });
+    }
+  });
+
+  // PUT /admin/approval-global-config - 更新全局审批配置
+  app.put('/admin/approval-global-config', { onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'admin' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = request.body as { enabled: boolean; mode: string };
+    try {
+      await capabilityMappingService.updateGlobalApprovalConfig(body);
+      return reply.send({ success: true });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ success: false, error: 'Failed to update global approval config' });
+    }
+  });
 }
