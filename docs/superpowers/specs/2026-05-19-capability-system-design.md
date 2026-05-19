@@ -7,37 +7,98 @@
 1. **ChatOps 场景优先** — 控制高风险命令执行权限（如 `kubectl delete`、批量操作）
 2. **全平台通用** — 覆盖所有模块的敏感操作和高级功能
 
-设计原则：**分层级、可组合、后端校验优先、前端按需隐藏**。
+设计原则：**分层级、可组合、后端校验优先、前端按需隐藏、RBAC+ABAC 之上附加**。
 
 ---
 
-## 2. 架构分层
+## 2. 与现有 RBAC+ABAC 授权引擎的关系
+
+### 2.1 现有授权架构
+
+Orion 已有完整的 **统一 RBAC+ABAC 授权引擎**（`AuthorizationEngine`，文件 `orion-platform-service/src/services/authz/AuthorizationEngine.ts`），按严格 5 步流水线评估：
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│  UI 展示层                                                │
-│  PermissionGate 组件 / 条件渲染 / 按钮禁用                 │
-│  → 根据 capability 列表显示/隐藏功能                       │
-├─────────────────────────────────────────────────────────┤
-│  前端能力层                                                │
-│  CapabilityChecker (has('chatops_advanced.command.kubectl_delete')) │
-│  → 缓存自 /api/v1/authz/capabilities                       │
-├─────────────────────────────────────────────────────────┤
-│  后端授权层（统一决策）                                      │
-│  CapabilityEngine → RBAC + ABAC + 能力映射                │
-│  → deny 优先，任何一层拒绝即拒绝                           │
-├─────────────────────────────────────────────────────────┤
-│  数据层                                                   │
-│  role_capabilities (DB) + system_capabilities (DB seed)  │
-│  → 支持角色级能力继承 + 用户级能力覆盖                      │
-└─────────────────────────────────────────────────────────┘
+[0]  用户状态检查     → disabled/suspended → deny
+[1]  super_admin 通配 → 直接 bypass 所有后续检查
+[2]  RBAC 检查        → RoleService.checkPermissions(roles, resource, action)
+[2.5] Pipeline RBAC   → 仅 pipeline 资源的特例检查
+[3]  ABAC 检查        → deny-only 约束（租户隔离、工作时间、跨部门等 6 条预置策略）
+[4]  关系检查         → owner / project member
+[5]  全部通过         → allow
+```
+
+- **RBAC** 是门禁（能不能进入）
+- **ABAC** 是安全网（进入后有没有额外约束，deny-only 模式）
+- **Deny 优先**，任意一层拒绝即最终拒绝
+- `super_admin` 在第 [1] 步直接 bypass
+
+### 2.2 能力配置体系的定位
+
+**Capability 不是替代 RBAC，而是 RBAC 之上的操作级附加层。**
+
+| 维度 | RBAC 管什么 | Capability 管什么 | ABAC 管什么 |
+|------|-----------|-----------------|-----------|
+| 问题 | "能不能访问这个资源" | "能不能执行这个操作" | "在什么条件下可以操作" |
+| 粒度 | `resource:action`（如 `pipeline:execute`） | 操作级（如 `bulk_operations.restart`） | 属性约束（如时间、网络、租户） |
+| 层级 | 扁平 | 树状（父子继承） | 规则表达式 |
+| 风险 | 无 | 4 级风险分级 + 审批绑定 | deny 规则 |
+| 覆盖 | 角色级 | 角色级 + 用户级临时覆盖 | 策略级 |
+| 示例 | `developer` 有 `pipeline:execute` | 但未必能执行 `bulk_operations.rollback` | 且只能在 9-18 点执行 |
+
+**三者在 AuthorizationEngine 中的关系**：
+
+```
+请求到达
+  │
+  ├─ [0] 用户状态检查（现有）
+  ├─ [1] super_admin bypass（现有）
+  ├─ [2] RBAC 检查（现有）→ denied → 403
+  │
+  ├─ [2.1] Capability 检查（新增）→ denied → 403 "需要额外能力授权"
+  │
+  ├─ [2.5] Pipeline RBAC（现有）
+  ├─ [3]  ABAC 检查（现有）→ denied → 403
+  ├─ [4]  关系检查（现有）→ denied → 403
+  │
+  └─ [5] 全部通过 → allow
 ```
 
 **关键设计决策**：
 
-- **能力 ≠ 权限** — 权限（Permission）控制资源访问，能力（Capability）控制操作执行。权限是 `能不能看到`，能力是 `能不能执行`。
-- **deny 优先** — 任何一层拒绝即拒绝，即使上层有权限。
-- **用户级覆盖** — 管理员可以为特定用户临时授予/撤销能力，不改变角色本身。
+- **能力 ≠ 权限** — 权限（Permission）控制资源访问，能力（Capability）控制操作执行
+- **Capability 在 RBAC 之后、ABAC 之前** — 先确认你能访问资源，再确认你能执行操作，最后确认条件是否满足
+- **用户级覆盖** — 管理员可以为特定用户临时授予/撤销能力，不改变角色本身
+- **复用现有基础设施** — CapabilityEngine 复用现有的 `PermissionAuditRepository`、`PermissionCache`、`UEBAEngine`
+
+---
+
+## 3. 架构分层
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│  UI 展示层                                                        │
+│  PermissionGate / CapabilityGate 组件 / 条件渲染 / 按钮禁用         │
+│  → 根据 capability 列表显示/隐藏功能                               │
+├──────────────────────────────────────────────────────────────────┤
+│  前端能力层                                                        │
+│  CapabilityStore (has('chatops_advanced.command.kubectl_delete'))  │
+│  → 缓存自 GET /api/v1/authz/capabilities                           │
+├──────────────────────────────────────────────────────────────────┤
+│  后端授权层（统一 AuthorizationEngine）                              │
+│  [0]  用户状态                                                     │
+│  [1]  super_admin bypass                                          │
+│  [2]  RBAC（RoleService）                                         │
+│  [2.1] Capability（CapabilityEngine）← 新增步骤                    │
+│  [2.5] Pipeline RBAC（PipelineRBACService）                       │
+│  [3]  ABAC（AbacPolicyEngine, deny-only）                         │
+│  [4]  关系检查（RelationshipService）                              │
+│  → deny 优先，任何一层拒绝即拒绝                                     │
+├──────────────────────────────────────────────────────────────────┤
+│  数据层                                                           │
+│  capabilities (DB) + role_capabilities (DB) + user_overrides (DB) │
+│  → 复用现有的 roles/permissions/audit 基础设施                      │
+└──────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
@@ -229,29 +290,49 @@ class CapabilityEngine {
 }
 ```
 
-### 5.2 评估流程
+### 5.2 评估流程（嵌入 AuthorizationEngine）
+
+Capability 检查在 AuthorizationEngine 的步骤 [2.1] 执行：
 
 ```
-check(userId, capabilityId)
+AuthorizationEngine.evaluate()
   │
-  ├─ 1. 检查用户状态 (disabled/suspended → DENY)
+  ├─ [0] 用户状态检查
+  ├─ [1] super_admin bypass → 直接 allow（Capability 也被 bypass）
+  ├─ [2] RBAC 检查
+  │     └─ denied → 403（不进入 Capability 检查）
   │
-  ├─ 2. 检查用户级覆盖
-  │    ├─ 显式撤销 (且未过期) → DENY
-  │    └─ 显式授予 (且未过期) → ALLOW
+  ├─ [2.1] Capability 检查 ← 本系统
+  │     │
+  │     ├─ a. 检查用户状态
+  │     │
+  │     ├─ b. 检查用户级覆盖（user_capability_overrides）
+  │     │     ├─ 显式撤销 (expires_at 未过期) → DENY
+  │     │     └─ 显式授予 (expires_at 未过期) → ALLOW（跳过后续角色检查）
+  │     │
+  │     ├─ c. 检查角色能力（role_capabilities）
+  │     │     ├─ 角色显式授予 → ALLOW
+  │     │     └─ 角色显式拒绝 (granted=false) → DENY
+  │     │
+  │     ├─ d. 检查能力继承
+  │     │     └─ 父能力已授予且子能力未显式拒绝 → ALLOW
+  │     │
+  │     └─ e. 无匹配 → DENY（不阻断，继续走 ABAC）
   │
-  ├─ 3. 检查角色能力
-  │    ├─ 角色显式授予 → ALLOW
-  │    └─ 角色显式拒绝 → DENY
-  │
-  ├─ 4. 检查能力继承
-  │    ├─ 父能力已授予且子能力未显式拒绝 → ALLOW
-  │    └─ 无匹配 → DENY
-  │
-  └─ 5. 检查 ABAC 策略
-       ├─ deny 规则匹配 → DENY
-       └─ 无拒绝 → ALLOW
+  ├─ [2.5] Pipeline RBAC（现有，仅 pipeline 资源）
+  ├─ [3]  ABAC（现有，deny-only 约束）
+  ├─ [4]  关系检查（现有）
+  └─ [5]  全部通过 → allow
 ```
+
+**与现有系统的集成点**：
+
+| 现有组件 | 集成方式 |
+|---------|---------|
+| `PermissionCache` | Capability 决策结果也缓存（Redis，TTL 300s，仅缓存 allow） |
+| `PermissionAuditRepository` | Capability 检查写入同一审计表，增加 `check_type: 'capability'` 字段 |
+| `UEBAEngine` | 异常能力使用（如非常规时间执行高风险操作）触发告警 |
+| `requirePermission` 中间件 | 新增 `requireCapability` 中间件，用法类似 |
 
 ### 5.3 API 端点
 
@@ -357,9 +438,11 @@ App 启动
 ## 8. 实施计划
 
 ### Phase 1：基础能力（1-2周）
-- [ ] 数据库迁移（capabilities / role_capabilities 表）
-- [ ] CapabilityEngine 核心逻辑
+- [ ] 数据库迁移（capabilities / role_capabilities / user_capability_overrides 表）
+- [ ] CapabilityEngine 核心逻辑（嵌入 AuthorizationEngine [2.1] 步骤）
+- [ ] `requireCapability` 中间件（复用 requirePermission 模式）
 - [ ] `/api/v1/authz/capabilities` 接口
+- [ ] 复用 PermissionCache 和 PermissionAuditRepository
 - [ ] 前端 CapabilityStore + CapabilityGate
 
 ### Phase 2：ChatOps 集成（1周）
@@ -379,11 +462,52 @@ App 启动
 
 ---
 
-## 9. 风险与缓解
+## 9. 与现有系统的集成细节
+
+### 9.1 路由中间件
+
+```typescript
+// 新增 requireCapability 中间件，用法与 requirePermission 一致
+import { requireCapability } from './middleware/requireCapability';
+
+app.delete('/api/v1/resources/:id', {
+  onRequest: [
+    requirePermission({ resource: 'resource', action: 'delete' }),  // RBAC 先检查
+    requireCapability('sensitive_operations.resource_delete'),      // Capability 再检查
+  ],
+}, handler);
+```
+
+### 9.2 ChatOps 集成
+
+ChatOps 的 `ToolExecutor` 在执行前调用 Capability 检查：
+
+```typescript
+// orion-ai-svc/src/services/ToolExecutor.ts
+const capResult = await capabilityEngine.check({
+  userId: request.userId,
+  capabilityId: commandToCapabilityMap[command],
+  resource: { type: 'chatops_command', id: command },
+});
+
+if (!capResult.allowed) {
+  return { success: false, error: capResult.reason };
+}
+if (capResult.requiresApproval) {
+  return createApprovalRequest(capResult);
+}
+// 执行命令
+```
+
+---
+
+## 10. 风险与缓解
 
 | 风险 | 影响 | 缓解 |
 |------|------|------|
-| 能力树过深导致性能问题 | 检查延迟 | Redis 缓存 + 扁平化索引 |
+| Capability 与 RBAC/ABAC 评估顺序混乱 | 行为不一致 | 严格定义评估顺序：RBAC → Capability → ABAC，deny 优先 |
+| 能力树过深导致性能问题 | 检查延迟 | Redis 缓存 + 扁平化索引（capability_id → 直接 lookup） |
 | 前端能力列表泄露信息 | 安全风险 | 仅返回 granted 的能力，不返回完整树 |
-| 与现有权限系统冲突 | 行为不一致 | 能力层作为 RBAC 之上的附加层，deny 优先 |
+| 与现有权限系统冲突 | 行为不一致 | Capability 作为 RBAC 之上的附加层，不修改 RBAC 逻辑 |
 | 大量能力配置迁移 | 实施成本 | 分阶段迁移，先覆盖高风险操作 |
+| user_override 过期未清理 | 权限泄漏 | 定时任务扫描 expires_at，自动失效 + 审计记录 |
