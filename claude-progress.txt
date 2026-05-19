@@ -1,5 +1,63 @@
 # Orion Design - Progress Log
 
+## 2026-05-19: Webhook Platform Enhancement (Subscription + Dispatcher) — COMPLETED
+
+### Changes
+
+1. **Database Migration** (`orion-platform-service/src/db/migrations/061_webhook_enhanced.sql`)
+   - `webhook_endpoints`: enhanced webhook management with auth support
+   - `webhook_subscriptions`: event-to-endpoint mapping with filters
+   - `webhook_deliveries`: delivery tracking with retry support
+
+2. **Updated Repository** (`WebhookRepository.ts`)
+   - Added interfaces: `WebhookEndpoint`, `WebhookSubscription`, `WebhookDeliveryEnhanced`
+   - Added methods: createEndpoint, findEndpointById, listEndpoints, updateEndpoint, deleteEndpoint
+   - Added subscription methods: createSubscription, findSubscriptionsByEvent, findSubscriptionsByEndpoint, updateSubscription, deleteSubscription
+   - Added delivery methods: recordDelivery, findDeliveryById, updateDelivery, findPendingDeliveries, findDeliveriesBySubscription, getEndpointWithSubscriptions
+
+3. **Updated Service** (`WebhookService.ts`)
+   - Added `dispatch(eventType, eventId, payload)`: finds matching subscriptions, records deliveries, processes them
+   - Added `processDelivery()`: HTTP POST with HMAC signature, exponential backoff retry (max 1 hour)
+   - Added `sendWebhookRequest()`: supports bearer, basic, api_key auth types
+   - Added `getNestedValue()`: get nested object values using dot notation
+   - Added `matchesFilters()`: supports eq, ne, gt, gte, lt, lte, in, nin, exists, contains operators
+   - Added `reprocessDelivery()`: manual retry for failed deliveries
+
+4. **Unit Tests** (`WebhookEnhanced.test.ts`)
+   - 33 passing tests covering getNestedValue, matchesFilters, dispatch, endpoint management, subscription management, HMAC signatures
+
+### Verification
+- All 33 new tests pass
+- All 17 existing Webhook tests pass (no regression)
+
+## 2026-05-19: Phase 1.2 — CrossDomainOrchestrator 连接真实服务 — COMPLETED
+
+### Changes (`orion-platform-service/src/services/CrossDomainOrchestrator.ts`)
+
+1. **服务注入 (Constructor DI)**:
+   - 新增 `OrchestratorServices` 接口，支持可选注入: `pipelineEngine`, `deployService`, `monitoringService`, `notificationService`, `securityService`, `database`
+   - 新增 `IPipelineExecutor` 最小接口，避免拉入完整 PipelineEngine 依赖树
+   - 无服务注入时回退到模拟执行（开发模式），保持向后兼容
+
+2. **5 个领域真实服务连接**:
+   - `pipeline` → `PipelineEngine.execute()` — 触发 Pipeline 执行
+   - `deploy` → `DeployService.createDeployment()/rollback()/cancelDeployment()/getDeployment()` — 创建/回滚/取消/查询部署
+   - `monitor` → `MonitoringService.getHealthStatus()/getMetrics()/listAlerts()/getDashboardData()/evaluateRules()` — 查询监控指标、告警、仪表盘
+   - `security` → `AISecurityService.processRequest()/sanitizeInput()/validateOutput()/getAuditLogsAsync()` — 安全扫描、输入清洗、输出验证、审计日志
+   - `notify` → `NotificationService.send()/getNotifications()/markAsRead()/getUnreadCount()/broadcast()` — 发送/查询/标记已读/未读数/广播通知
+
+3. **Step 输出传递机制**:
+   - 新增 `StepContext` 接口，携带 `_stepOutputs` 追踪已完成步骤输出
+   - 新增 `resolveParameterReferences()` / `resolveStringReferences()` 方法，支持 `${stepId.field}` 语法引用前序步骤输出
+   - 每个步骤执行前自动解析参数中的引用
+
+4. **懒加载服务**:
+   - `getDeployService()`, `getMonitoringService()`, `getNotificationService()` 在未注入但 database 可用时自动创建服务实例
+
+### 验证
+- 全部 28 个现有单元测试通过 (无回归)
+- TypeScript 编译无新增错误
+
 ## 2026-05-18: 修复全局路由 404 问题（双重 /v1 前缀）— COMPLETED
 
 ### 根因
