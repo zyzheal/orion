@@ -11,6 +11,7 @@
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { resolve, isAbsolute } from 'path';
+import { realpathSync } from 'fs';
 import { v4 as uuidv4 } from 'uuid';
 import pino from 'pino';
 
@@ -36,18 +37,69 @@ const execFileAsync = promisify(execFile);
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
 /**
- * 验证 repoPath 是否安全，防止命令注入
+ * 允许的仓库根目录白名单
+ * 防止路径穿越和符号链接攻击
+ */
+const ALLOWED_REPO_ROOTS = [
+  '/tmp',
+  '/data/repos',
+  '/home',
+  process.cwd(),
+].filter(Boolean).map(p => resolve(p));
+
+/**
+ * 验证 repoPath 是否安全，防止命令注入和路径穿越
  */
 function validateRepoPath(repoPath: string): string {
+  if (!repoPath || repoPath.trim().length === 0) {
+    throw new Error('Invalid repository path: must not be empty');
+  }
+
+  // 路径长度限制
+  if (repoPath.length > 1024) {
+    throw new Error('Invalid repository path: too long');
+  }
+
   const resolved = resolve(repoPath);
-  const dangerousChars = /[;|&$`\\]/;
-  if (dangerousChars.test(repoPath)) {
-    throw new Error(`Invalid repository path: contains disallowed characters`);
+
+  // 解析符号链接，获取真实路径
+  let realPath: string;
+  try {
+    realPath = realpathSync(resolved);
+  } catch {
+    throw new Error(`Invalid repository path: path does not exist or is not accessible`);
   }
-  if (!isAbsolute(resolved)) {
-    throw new Error(`Invalid repository path: must resolve to an absolute path`);
+
+  // 白名单校验：真实路径必须在允许的根目录下
+  const isAllowed = ALLOWED_REPO_ROOTS.some(root => realPath.startsWith(root));
+  if (!isAllowed) {
+    logger.warn({ realPath, allowedRoots: ALLOWED_REPO_ROOTS }, 'Repository path not in allowed roots');
+    throw new Error(`Invalid repository path: not within allowed directories`);
   }
-  return resolved;
+
+  return realPath;
+}
+
+/**
+ * 验证 git ref 名称是否安全，防止参数注入
+ */
+function validateGitRef(ref: string): string {
+  if (!ref || ref.trim().length === 0) {
+    throw new Error('Invalid git ref: must not be empty');
+  }
+  if (ref.length > 256) {
+    throw new Error('Invalid git ref: too long (max 256 chars)');
+  }
+  // ref 不能以 - 开头，防止被解析为命令行参数
+  if (ref.startsWith('-')) {
+    throw new Error('Invalid git ref: must not start with "-"');
+  }
+  // 只允许安全的字符
+  const safeRefPattern = /^[a-zA-Z0-9_./-]+$/;
+  if (!safeRefPattern.test(ref)) {
+    throw new Error('Invalid git ref: contains disallowed characters');
+  }
+  return ref;
 }
 
 /**
@@ -225,7 +277,7 @@ export class ReleaseNotesAgent extends BaseAgent {
     // 4. 将文件变更信息添加到提交中
     for (const commit of commits) {
       const commitDiffs = diffs.filter(d =>
-        commit.files?.some(f => f.includes(d.file))
+        commit.files?.some(f => f === d.file)
       );
       commit.files = commitDiffs.map(d => d.file);
     }
@@ -248,16 +300,13 @@ export class ReleaseNotesAgent extends BaseAgent {
   ): Promise<GitCommit[]> {
     try {
       const safePath = validateRepoPath(repoPath);
-      // Validate from/to are safe ref names (alphanumeric, dots, slashes, hyphens only)
-      const safeRefPattern = /^[a-zA-Z0-9_./-]+$/;
-      if (!safeRefPattern.test(from) || !safeRefPattern.test(to)) {
-        throw new Error('Invalid git ref: contains disallowed characters');
-      }
+      const safeFrom = validateGitRef(from);
+      const safeTo = validateGitRef(to);
 
       const format = '%H|%an|%ae|%aI|%s';
       const { stdout } = await execFileAsync(
         'git',
-        ['-C', safePath, 'log', `${from}..${to}`, `--format=${format}`, '--no-merges'],
+        ['-C', safePath, 'log', `${safeFrom}..${safeTo}`, `--format=${format}`, '--no-merges', '--'],
         { maxBuffer: 10 * 1024 * 1024 }
       );
 
@@ -306,13 +355,10 @@ export class ReleaseNotesAgent extends BaseAgent {
   async getTags(repoPath: string, ref?: string): Promise<GitTag[]> {
     try {
       const safePath = validateRepoPath(repoPath);
-      const safeRefPattern = /^[a-zA-Z0-9_./-]+$/;
-      if (ref && !safeRefPattern.test(ref)) {
-        throw new Error('Invalid git ref: contains disallowed characters');
-      }
+      if (ref) validateGitRef(ref);
 
       const format = '%d|%s|%ci|%H';
-      const args = ['-C', safePath, 'log', '--oneline', '--decorate', '-1', `--format=${format}`];
+      const args = ['-C', safePath, 'log', '--oneline', '--decorate', '-1', `--format=${format}`, '--'];
       if (ref) args.push(ref);
       const { stdout } = await execFileAsync('git', args, { maxBuffer: 1024 * 1024 });
 
@@ -353,14 +399,12 @@ export class ReleaseNotesAgent extends BaseAgent {
   ): Promise<GitDiff[]> {
     try {
       const safePath = validateRepoPath(repoPath);
-      const safeRefPattern = /^[a-zA-Z0-9_./-]+$/;
-      if (!safeRefPattern.test(from) || !safeRefPattern.test(to)) {
-        throw new Error('Invalid git ref: contains disallowed characters');
-      }
+      const safeFrom = validateGitRef(from);
+      const safeTo = validateGitRef(to);
 
       const { stdout } = await execFileAsync(
         'git',
-        ['-C', safePath, 'diff', '--stat', `${from}..${to}`],
+        ['-C', safePath, 'diff', '--stat', `${safeFrom}..${safeTo}`, '--'],
         { maxBuffer: 10 * 1024 * 1024 }
       );
 

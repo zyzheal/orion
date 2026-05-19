@@ -39,7 +39,7 @@ import type { ApprovalFlowConfig, FlowStartContext, ApprovalResult as ApprovalFl
 import { NotificationService } from '../notification/NotificationService';
 import { WebhookService } from '../webhook/WebhookService';
 
-const logger = require('pino')({ name: 'WorkflowEngine' });
+const logger = pino({ name: 'WorkflowEngine' });
 
 /**
  * 工作流引擎依赖注入接口
@@ -64,7 +64,14 @@ interface ApprovalCacheEntry {
   ticketId: string;
   status: 'pending' | 'approved' | 'rejected';
   approvalResult: ApprovalFlowResult;
+  /** 缓存过期时间 */
+  expiresAt: number;
 }
+
+/** 审批缓存最大条目数 */
+const MAX_APPROVAL_CACHE_SIZE = 5000;
+/** 审批缓存默认 TTL（24 小时） */
+const APPROVAL_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
 /**
  * 工作流引擎
@@ -610,31 +617,48 @@ export class WorkflowEngine {
   }
 
   /**
-   * 安全求值：只支持简单比较运算，不执行任意 JS 代码
+   * 安全求值 — 白名单方案
    *
-   * 支持的运算符：>, <, >=, <=, ===, !==, ==, !=, &&, ||, !
-   * 支持的值类型：数字、字符串、布尔值
+   * 只允许简单比较运算，使用词法分析 + 白名单校验，
+   * 不执行任何 JS 代码。
+   *
+   * 支持的运算符：>, <, >=, <=, ===, !==, ==, !=
+   * 支持的值类型：数字、字符串（单/双引号包裹）、布尔值
    */
   private safeEval(expression: string): boolean {
     const trimmed = expression.trim();
 
-    // 黑名单检查：禁止某些危险的 JS 关键字
-    const dangerousPatterns = /\b(function|return|eval|Function|setTimeout|setInterval|require|import|export|window|document|global|process|exec|spawn|child_process)\b/i;
-    if (dangerousPatterns.test(trimmed)) {
-      logger.warn({ expression: trimmed }, 'Dangerous expression blocked by security guard');
+    // 输入长度限制 — 防止 ReDoS 和超大输入
+    const MAX_EXPR_LEN = 512;
+    if (trimmed.length > MAX_EXPR_LEN) {
+      logger.warn({ length: trimmed.length }, 'Condition expression exceeds max length');
       return false;
     }
 
-    // 只允许比较表达式：值 比较符 值
+    // 白名单：只允许安全的字符
+    // 数字、字母、空格、比较运算符、引号、小数点、下划线、连字符
+    const whitelistPattern = /^[0-9a-zA-Z_\s."'=<>\-!]+$/;
+    if (!whitelistPattern.test(trimmed)) {
+      logger.warn({ expression: trimmed }, 'Expression contains disallowed characters');
+      return false;
+    }
+
+    // 禁止任何类似函数调用或对象访问的模式
+    const dangerousPattern = /[()\[\]{};\\`$@#%&+*/|~?:]/;
+    if (dangerousPattern.test(trimmed)) {
+      logger.warn({ expression: trimmed }, 'Expression contains dangerous pattern');
+      return false;
+    }
+
+    // 解析比较表达式：值 运算符 值
     const comparisonPattern = /^\s*(.+?)\s*(===|!==|==|!=|>=|<=|>|<)\s*(.+?)\s*$/;
     const match = trimmed.match(comparisonPattern);
 
     if (!match) {
-      // 如果不是比较表达式，尝试作为布尔值解析
+      // 不是比较表达式，尝试作为布尔字面量
       if (trimmed === 'true') return true;
       if (trimmed === 'false') return false;
-      const num = Number(trimmed);
-      return !isNaN(num) ? Boolean(num) : false;
+      return false;
     }
 
     const [, leftStr, operator, rightStr] = match;
@@ -726,6 +750,30 @@ export class WorkflowEngine {
     // 这里需要 definition，但 instance 中没有，所以我们需要外部传入
     // 暂时返回 null，由调用方处理
     return null;
+  }
+
+  /**
+   * 清理审批缓存：移除过期条目，限制最大大小
+   */
+  private cleanupApprovalCache(): void {
+    const now = Date.now();
+
+    // 清理过期条目
+    for (const [key, entry] of this.approvalCache.entries()) {
+      if (entry.expiresAt < now) {
+        this.approvalCache.delete(key);
+      }
+    }
+
+    // 如果仍然超过限制，删除最早的条目（FIFO）
+    while (this.approvalCache.size > MAX_APPROVAL_CACHE_SIZE) {
+      const firstKey = this.approvalCache.keys().next().value;
+      if (firstKey !== undefined) {
+        this.approvalCache.delete(firstKey);
+      } else {
+        break;
+      }
+    }
   }
 
   /**
@@ -854,7 +902,11 @@ export class WorkflowEngine {
             ticketId: result.ticketId,
             status: result.status,
             approvalResult: result,
+            expiresAt: Date.now() + APPROVAL_CACHE_TTL_MS,
           });
+
+          // 清理过期条目 + 防止无限增长
+          self.cleanupApprovalCache();
 
           logger.info({ approvalId, ticketId: result.ticketId }, 'Approval flow started');
           return approvalId;
@@ -871,9 +923,9 @@ export class WorkflowEngine {
       async getApprovalStatus(
         approvalId: string
       ): Promise<'pending' | 'approved' | 'rejected'> {
-        // 先从缓存查找
+        // 先从缓存查找（检查是否过期）
         const cached = self.approvalCache.get(approvalId);
-        if (cached && cached.status !== 'pending') {
+        if (cached && cached.expiresAt > Date.now() && cached.status !== 'pending') {
           return cached.status;
         }
 
@@ -905,7 +957,7 @@ export class WorkflowEngine {
 
         while (Date.now() - startTime < timeoutMs) {
           const cached = self.approvalCache.get(approvalId);
-          if (cached && cached.status !== 'pending') {
+          if (cached && cached.expiresAt > Date.now() && cached.status !== 'pending') {
             return cached.status === 'approved';
           }
 

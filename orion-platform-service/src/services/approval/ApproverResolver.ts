@@ -356,8 +356,11 @@ export class ApproverResolver {
       // 检查最后登录时间（超过 24 小时视为离线）
       const lastLoginAt = user.last_login_at;
 
-      if (lastLoginAt && Date.now() - new Date(lastLoginAt).getTime() > OFFLINE_THRESHOLD_MS) {
-        return { userId, isAvailable: false, reason: 'User offline for more than 24 hours' };
+      if (lastLoginAt) {
+        const loginTime = new Date(lastLoginAt).getTime();
+        if (!isNaN(loginTime) && Date.now() - loginTime > OFFLINE_THRESHOLD_MS) {
+          return { userId, isAvailable: false, reason: 'User offline for more than 24 hours' };
+        }
       }
 
       return { userId, isAvailable: true };
@@ -497,7 +500,7 @@ export class ApproverResolver {
          JOIN oncall_members om ON om.user_id = u.id
          JOIN oncall_groups og ON og.id = om.group_id
          WHERE og.name = $1 AND u.tenant_id = $2 AND u.status = 'active'
-         ORDER om.priority ASC`,
+         ORDER BY om.priority ASC`,
         [oncallGroup, tenantId]
       );
 
