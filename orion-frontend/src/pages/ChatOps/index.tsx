@@ -38,7 +38,7 @@ export default function ChatOpsPage() {
     {
       key: 'overview',
       label: (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 500 }}>
           <DashboardOutlined />
           总览看板
         </span>
@@ -48,7 +48,7 @@ export default function ChatOpsPage() {
     {
       key: 'chat',
       label: (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 500 }}>
           <MessageOutlined />
           对话工作台
         </span>
@@ -58,7 +58,7 @@ export default function ChatOpsPage() {
     {
       key: 'executions',
       label: (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 500 }}>
           <PlayCircleOutlined />
           执行记录
         </span>
@@ -68,7 +68,7 @@ export default function ChatOpsPage() {
     {
       key: 'audit',
       label: (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 500 }}>
           <AuditOutlined />
           审计日志
         </span>
@@ -78,7 +78,7 @@ export default function ChatOpsPage() {
     {
       key: 'admin',
       label: (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 500 }}>
           <SettingOutlined />
           管理配置
         </span>
