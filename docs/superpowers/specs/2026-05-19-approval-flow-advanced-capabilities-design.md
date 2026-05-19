@@ -913,6 +913,20 @@ CREATE TABLE IF NOT EXISTS approval_fallback_logs (
 CREATE INDEX idx_approver_rules_flow ON approval_approver_rules(flow_id);
 CREATE INDEX ai_circuit_state_service ON ai_circuit_state(tenant_id, service_name);
 CREATE INDEX idx_fallback_logs_approval ON approval_fallback_logs(approval_id);
+
+-- 5. 配置变更审计表
+CREATE TABLE IF NOT EXISTS approval_config_audit (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id VARCHAR(64) NOT NULL,
+    config_id UUID REFERENCES approval_flow_configs(id) ON DELETE CASCADE,
+    action VARCHAR(20) NOT NULL,
+    old_version INT,
+    new_version INT,
+    diff JSONB,
+    changed_by VARCHAR(64),
+    changed_at TIMESTAMP DEFAULT NOW()
+);
+CREATE INDEX idx_config_audit_config ON approval_config_audit(config_id);
 ```
 
 ### 7.3 现有表扩展
@@ -1062,7 +1076,276 @@ AI 服务恢复
 
 ---
 
-## 11. 与现有设计的关系
+## 11. 配置版本化与变更管理
+
+> 评审问题：审批流程配置变更时，正在进行的审批实例是否受影响？
+
+### 11.1 版本策略
+
+- 每个 `approval_flow_configs` 行有 `version` 字段，每次修改时 +1
+- **正在进行的审批实例绑定创建时的配置版本号**，不受后续配置变更影响
+- 新创建的审批实例使用最新版本配置
+
+```typescript
+interface ApprovalInstance {
+  id: string;
+  flowConfigId: string;
+  flowConfigVersion: number;  // 快照版本号
+  // ...
+}
+```
+
+### 11.2 配置变更审计
+
+```sql
+-- 配置变更历史表
+CREATE TABLE IF NOT EXISTS approval_config_audit (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id VARCHAR(64) NOT NULL,
+    config_id UUID REFERENCES approval_flow_configs(id) ON DELETE CASCADE,
+    action VARCHAR(20) NOT NULL,       -- create/update/delete/rollback
+    old_version INT,
+    new_version INT,
+    diff JSONB,                        -- 变更前后差异
+    changed_by VARCHAR(64),
+    changed_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+---
+
+## 12. 前端权限控制
+
+> 评审问题：谁有权配置降级链、autoApprove 和 Agent 节点？
+
+### 12.1 权限矩阵
+
+| 操作 | 所需角色 | 说明 |
+|------|---------|------|
+| 查看审批流程配置 | admin, auditor | 只读查看 |
+| 创建/编辑审批流程 | admin, super_admin | 含节点配置 |
+| 配置 autoApprove=true | super_admin | 最高权限，需审计 |
+| 查看 AI 熔断状态 | admin, super_admin | 健康页访问 |
+| 手动重置熔断状态 | super_admin | 紧急干预 |
+
+### 12.2 前端守卫
+
+```tsx
+// 页面路由守卫
+<Route
+  path="/chatops/approval-config"
+  element={
+    <RequirePermission resource="approval" action="write">
+      <ApprovalConfigPage />
+    </RequirePermission>
+  }
+/>
+
+// 组件级守卫 — autoApprove 配置项
+<RequirePermission resource="approval" action="manage">
+  <Switch checked={autoApprove} onChange={setAutoApprove} />
+</RequirePermission>
+```
+
+---
+
+## 13. 测试策略
+
+> 评审问题：涉及自动批准和降级的系统，测试覆盖率要求应高于常规功能。
+
+### 13.1 覆盖率目标
+
+| 层级 | 覆盖率要求 | 说明 |
+|------|-----------|------|
+| ApproverResolver | ≥ 90% 行覆盖 | 降级链推导逻辑复杂 |
+| ApprovalAgentPlugin | ≥ 85% 行覆盖 | 含 LLM mock |
+| AIGuardCircuitBreaker | ≥ 95% 行覆盖 | 熔断状态机必须全覆盖 |
+| MultiLevelApprovalService | ≥ 80% 行覆盖 | 并发审批场景 |
+| ApprovalTimeoutScheduler | ≥ 85% 行覆盖 | 定时触发逻辑 |
+
+### 13.2 关键测试场景
+
+```typescript
+describe('ApproverResolver', () => {
+  it('should derive fallback chain when primary approver is offline', () => {
+    // Given: 主审批人 offline，备份审批人 offline
+    // When: deriveFallback 调用
+    // Then: 返回 manager 级别的审批人
+  });
+
+  it('should NOT auto-approve in production environment', () => {
+    // Given: fallback chain 最后一步 autoApprove=true
+    // When: context.environment === 'prod'
+    // Then: 返回 reject
+  });
+
+  it('should auto-approve only when riskLevel <= threshold', () => {
+    // Given: autoApproveMaxRiskLevel = 2
+    // When: riskLevel = 3
+    // Then: 返回 reject
+  });
+});
+
+describe('AIGuardCircuitBreaker', () => {
+  it('should open circuit after 5 consecutive failures', async () => {
+    // Given: 5 次连续失败
+    // When: 第 6 次 execute 调用
+    // Then: 不调用 fn，直接返回 fallback
+  });
+
+  it('should transition to half-open after recoveryTimeout', async () => {
+    // Given: circuit is open, lastFailureAt > 60s ago
+    // When: execute 调用
+    // Then: 允许调用 fn，state 变为 half-open
+  });
+
+  it('should close circuit after 3 successful half-open attempts', async () => {
+    // Given: circuit is half-open
+    // When: 3 次 execute 全部成功
+    // Then: state 变为 closed, failureCount = 0
+  });
+
+  it('should persist state to database (not memory)', async () => {
+    // Given: 两个 AIGuardCircuitBreaker 实例（模拟多实例部署）
+    // When: 实例 A 触发熔断
+    // Then: 实例 B 读取到 open 状态
+  });
+});
+
+describe('MultiLevelApprovalService concurrency', () => {
+  it('should prevent double-approval of same request', async () => {
+    // Given: 两个并发 review 调用，同一审批人
+    // When: 并行执行
+    // Then: 仅第一个成功，第二个返回 'Already acted'
+  });
+
+  it('should correctly count approvals in parallel mode', async () => {
+    // Given: 并行组 3 人，requiredApprovals = 2
+    // When: 2 人 approve
+    // Then: 整体状态变为 approved
+  });
+});
+```
+
+### 13.3 集成测试
+
+| 测试用例 | 覆盖模块 | 说明 |
+|---------|---------|------|
+| 完整降级链推导 | ApproverResolver + DB | 从主审批人到 super_admin 全链路 |
+| AI 故障自动降级 | AIGuardCircuit + AgentPlugin | LLM 宕机 → 规则模式 → 通知 |
+| 审批超时自动处理 | TimeoutScheduler + FallbackChain | 定时任务扫描 → 降级触发 |
+| 配置版本快照 | approval_config_audit | 配置变更不影响进行中的实例 |
+
+---
+
+## 14. 监控指标（Prometheus）
+
+> 评审问题：缺少可观测性指标定义。
+
+### 14.1 指标列表
+
+```typescript
+// src/metrics/approval.ts
+
+import { Counter, Histogram, Gauge } from 'prom-client';
+
+// 审批降级次数
+export const approvalFallbackTotal = new Counter({
+  name: 'approval_fallback_total',
+  help: 'Total number of approval fallbacks triggered',
+  labelNames: ['fallback_type', 'tenant_id'],  // backup/fallback-chain/auto-approve/agent-failure
+});
+
+// AI 熔断状态
+export const aiCircuitState = new Gauge({
+  name: 'ai_circuit_state',
+  help: 'Current circuit breaker state (0=closed, 1=open, 2=half-open)',
+  labelNames: ['service_name', 'tenant_id'],
+});
+
+// AI 调用耗时
+export const agentEvaluationDuration = new Histogram({
+  name: 'agent_evaluation_duration_seconds',
+  help: 'Time spent evaluating an approval decision via Agent',
+  labelNames: ['agent_name', 'outcome'],  // approve/reject/escalate/fallback
+  buckets: [0.1, 0.5, 1, 2, 5, 10],
+});
+
+// 降级链推导耗时
+export const fallbackChainDuration = new Histogram({
+  name: 'approval_fallback_chain_duration_seconds',
+  help: 'Time spent deriving fallback approver chain',
+  buckets: [0.01, 0.05, 0.1, 0.2, 0.5],
+});
+
+// 审批处理耗时
+export const approvalProcessingDuration = new Histogram({
+  name: 'approval_processing_duration_seconds',
+  help: 'End-to-end approval processing time',
+  labelNames: ['node_type', 'action'],
+  buckets: [0.1, 0.5, 1, 5, 30, 60, 300],
+});
+
+// 自动批准次数
+export const autoApproveTotal = new Counter({
+  name: 'approval_auto_approve_total',
+  help: 'Total number of auto-approvals (emergency + fallback)',
+  labelNames: ['reason', 'tenant_id'],  // timeout/fallback-chain/emergency
+});
+
+// Agent 决策置信度分布
+export const agentConfidenceScore = new Histogram({
+  name: 'agent_confidence_score',
+  help: 'Distribution of Agent decision confidence values',
+  labelNames: ['action'],
+  buckets: [0.1, 0.3, 0.5, 0.7, 0.85, 0.95, 1.0],
+});
+```
+
+### 14.2 告警规则
+
+```yaml
+# prometheus/rules/approval-alerts.yml
+
+groups:
+  - name: approval-alerts
+    rules:
+      - alert: AICircuitOpen
+        expr: ai_circuit_state{state="open"} == 1
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "AI 服务熔断 — 已自动降级到规则模式"
+
+      - alert: ApprovalFallbackRate
+        expr: rate(approval_fallback_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "审批降级率异常 — 可能存在审批人配置问题"
+
+      - alert: AutoApproveSpike
+        expr: rate(approval_auto_approve_total[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "自动批准频率异常 — 检查降级链配置"
+
+      - alert: AgentEvaluationTimeout
+        expr: histogram_quantile(0.95, rate(agent_evaluation_duration_seconds_bucket[5m])) > 10
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Agent 评估 P95 延迟超过 10s"
+```
+
+---
+
+## 15. 与现有设计的关系
 
 | 本文档 | ChatOps 设计文档 (2026-05-19-chatops-...) | 关系 |
 |--------|------------------------------------------|------|
