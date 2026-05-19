@@ -867,7 +867,7 @@ const AdminSettings: React.FC = () => {
     <div style={{ padding: '16px', overflow: 'auto', height: 'calc(100vh - 180px)' }}>
       {/* 页面标题 */}
       <div style={{ marginBottom: spacing.lg }}>
-        <Title level={2} style={{ marginBottom: 8 }}>
+        <Title level={2} style={{ marginBottom: 8, color: colors.light.text.primary }}>
           <SettingOutlined
             style={{ marginRight: 8, color: colors.primary[500] }}
           />

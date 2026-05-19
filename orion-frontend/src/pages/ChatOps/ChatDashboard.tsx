@@ -111,7 +111,7 @@ export default function ChatDashboard() {
       <div style={{ padding: '16px', overflow: 'auto', height: 'calc(100vh - 180px)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <div>
-            <span style={{ fontSize: 16, fontWeight: 600, lineHeight: '24px' }}>总览看板</span>
+            <span style={{ fontSize: 16, fontWeight: 600, lineHeight: '24px', color: colors.light.text.primary }}>总览看板</span>
             <br />
             <Text type="secondary" style={{ fontSize: 12 }}>执行统计与趋势分析 · 指标数据来自 ChatOpsExecutionRepository</Text>
           </div>

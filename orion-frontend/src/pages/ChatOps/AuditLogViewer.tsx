@@ -14,7 +14,7 @@ import {
   DatePicker,
   Empty,
 } from 'antd';
-import { spacing } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 import { ReloadOutlined, DownloadOutlined, BarChartOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
@@ -209,7 +209,7 @@ const AuditLogViewer: React.FC = () => {
       <div style={{ padding: '16px', overflow: 'auto', height: 'calc(100vh - 180px)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
           <div>
-            <Title level={3} style={{ margin: 0 }}>审计日志</Title>
+            <Title level={3} style={{ margin: 0, color: colors.light.text.primary }}>审计日志</Title>
             <Text type="secondary">ChatOps 命令执行审计与统计</Text>
           </div>
           <Space>
@@ -235,7 +235,7 @@ const AuditLogViewer: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={3} style={{ margin: 0, color: colors.light.text.primary }}>
             审计日志
           </Title>
           <Text type="secondary">ChatOps 命令执行审计与统计</Text>

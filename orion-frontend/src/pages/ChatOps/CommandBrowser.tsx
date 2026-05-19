@@ -153,7 +153,7 @@ const CommandBrowser: React.FC = () => {
         }}
       >
         <div>
-          <span style={{ fontSize: 16, fontWeight: 600, lineHeight: '24px' }}>命令浏览</span>
+          <span style={{ fontSize: 16, fontWeight: 600, lineHeight: '24px', color: colors.light.text.primary }}>命令浏览</span>
           <br />
           <Text type="secondary" style={{ fontSize: 12 }}>ChatOps 命令目录与使用文档</Text>
         </div>

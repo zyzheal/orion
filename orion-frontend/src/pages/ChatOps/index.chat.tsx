@@ -190,7 +190,7 @@ export default function ChatOpsChat() {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: `0 ${spacing[4]}px ${spacing[3]}px` }}>
         <div>
-          <span style={{ fontSize: 16, fontWeight: 600, lineHeight: '24px' }}>
+          <span style={{ fontSize: 16, fontWeight: 600, lineHeight: '24px', color: colors.light.text.primary }}>
             <RobotOutlined style={{ marginRight: spacing[2] }} />
             ChatOps 对话工作台
           </span>

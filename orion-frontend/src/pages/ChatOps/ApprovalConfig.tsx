@@ -27,6 +27,7 @@ import {
   Col,
   Descriptions,
 } from 'antd';
+import { colors } from '@/tokens';
 import {
   SettingOutlined,
   PlusOutlined,
@@ -793,7 +794,7 @@ const ApprovalConfig: React.FC = () => {
   return (
     <div style={{ padding: '0 0 16px' }}>
       <div style={{ marginBottom: 16 }}>
-        <span style={{ fontSize: 16, fontWeight: 600, lineHeight: '24px' }}>审批流程配置</span>
+        <span style={{ fontSize: 16, fontWeight: 600, lineHeight: '24px', color: colors.light.text.primary }}>审批流程配置</span>
         <br />
         <Text type="secondary" style={{ fontSize: 12 }}>
           ChatOps 审批规则配置 - 能力域审批、审批人管理、超时策略

@@ -40,6 +40,7 @@ import {
   type PlatformConfig,
 } from '@/api/chatops';
 import { useChatOpsConfigStore } from '@/stores/chatOpsConfigStore';
+import { colors } from '@/tokens';
 
 const { Text } = Typography;
 
@@ -548,7 +549,7 @@ const ChatOpsSettings: React.FC = () => {
   return (
     <div style={{ padding: '0 0 16px' }}>
       <div style={{ marginBottom: 16 }}>
-        <span style={{ fontSize: 16, fontWeight: 600, lineHeight: '24px' }}>设置</span>
+        <span style={{ fontSize: 16, fontWeight: 600, lineHeight: '24px', color: colors.light.text.primary }}>设置</span>
         <br />
         <Text type="secondary" style={{ fontSize: 12 }}>ChatOps 配置管理 - 问答卡片、命令、平台配置与通知偏好</Text>
       </div>

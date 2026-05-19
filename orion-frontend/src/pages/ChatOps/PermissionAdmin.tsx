@@ -34,6 +34,7 @@ import {
   ReloadOutlined,
   SaveOutlined,
 } from '@ant-design/icons';
+import { colors } from '@/tokens';
 import type { ColumnsType } from 'antd/es/table';
 
 const { Text } = Typography;
@@ -662,7 +663,7 @@ const PermissionAdmin: React.FC = () => {
   return (
     <div style={{ padding: '0 0 16px' }}>
       <div style={{ marginBottom: 16 }}>
-        <span style={{ fontSize: 16, fontWeight: 600, lineHeight: '24px' }}>权限管理</span>
+        <span style={{ fontSize: 16, fontWeight: 600, lineHeight: '24px', color: colors.light.text.primary }}>权限管理</span>
         <br />
         <Text type="secondary" style={{ fontSize: 12 }}>
           ChatOps 命令权限配置 - 角色管理、命令权限映射、环境级控制

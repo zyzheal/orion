@@ -164,7 +164,7 @@ const ExecutionDashboard: React.FC = () => {
       <div style={{ padding: '16px', overflow: 'auto', height: 'calc(100vh - 180px)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <div>
-            <span style={{ fontSize: 16, fontWeight: 600, lineHeight: '24px' }}>执行监控</span>
+            <span style={{ fontSize: 16, fontWeight: 600, lineHeight: '24px', color: colors.light.text.primary }}>执行监控</span>
             <br />
             <Text type="secondary" style={{ fontSize: 12 }}>最近命令执行记录与状态跟踪</Text>
           </div>
