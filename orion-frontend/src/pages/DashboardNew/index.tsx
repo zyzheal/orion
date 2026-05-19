@@ -267,7 +267,7 @@ const DashboardNew: React.FC = () => {
         ]);
       }
     } catch (err) {
-      console.error('Dashboard data load failed:', err);
+      // Backend endpoints may not all be available; use demo data
       setError('加载数据失败，使用演示数据展示');
     } finally {
       setLoading(false);
@@ -393,8 +393,9 @@ const DashboardNew: React.FC = () => {
 
   if (loading) {
     return (
-      <div style={{ padding: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
-        <Spin size="large" tip="加载数据中..." />
+      <div style={{ padding: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', minHeight: 400, gap: 12 }}>
+        <Spin size="large" />
+        <Typography.Text type="secondary">加载数据中...</Typography.Text>
       </div>
     );
   }

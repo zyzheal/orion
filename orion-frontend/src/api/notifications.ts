@@ -126,7 +126,6 @@ export const getNotifications = async (
     });
 
     const result = response.data;
-    console.log('[Notifications API] Response:', result);
 
     // Backend returns { data: [...], total: N } or just [...]
     const backendNotifications: BackendNotification[] = result?.data || result || [];
@@ -166,8 +165,7 @@ export const getNotifications = async (
     // Backend already handles pagination - just return the data with total
     return { data: notifications, total: total || notifications.length };
   } catch (error) {
-    console.warn('[Notifications API] Backend unavailable, using mock data:', error);
-    console.warn('Backend notification API unavailable, using mock data:', error);
+    console.warn('[Notifications] Backend unavailable, using mock data');
     // Fallback to mock data when backend is not available
     let filtered = [...mockNotifications];
 

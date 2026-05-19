@@ -184,7 +184,7 @@ export const NotificationBell: React.FC = () => {
       open={dropdownOpen}
       onOpenChange={setDropdownOpen}
       menu={{ items: [] }}
-      dropdownRender={() => dropdownContent}
+      popupRender={() => dropdownContent}
       trigger={['click']}
       placement="bottomRight"
       arrow

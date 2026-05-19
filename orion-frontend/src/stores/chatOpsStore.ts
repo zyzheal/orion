@@ -393,7 +393,7 @@ export async function initializeChatOpsStore(): Promise<void> {
     }
     useChatOpsStore.getState().fetchRecommendations();
   } catch (err) {
-    console.error('[ChatOps] Failed to initialize store:', err);
+    console.warn('[ChatOps] Commands unavailable (check permission):', err);
     _initialized = false; // 失败时允许重试
   }
 }
