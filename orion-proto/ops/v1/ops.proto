@@ -1,0 +1,174 @@
+syntax = "proto3";
+
+package ops.v1;
+
+option go_package = "github.com/orion-platform/orion-proto/ops/v1";
+
+import "common.proto";
+
+// ============ Messages ============
+
+message Session {
+    string id = 1;
+    string name = 2;
+    string user_id = 3;
+    string status = 4;
+    int64 created_at = 5;
+    int64 closed_at = 6;
+    map<string, string> metadata = 7;
+}
+
+message Task {
+    string id = 1;
+    string session_id = 2;
+    string command = 3;
+    string status = 4;
+    int64 created_at = 5;
+    int64 started_at = 6;
+    int64 finished_at = 7;
+    string error = 8;
+}
+
+message TaskResult {
+    string task_id = 1;
+    int32 exit_code = 2;
+    string stdout = 3;
+    string stderr = 4;
+    map<string, string> metadata = 5;
+}
+
+message CronJob {
+    string id = 1;
+    string name = 2;
+    string schedule = 3;
+    string command = 4;
+    string status = 5;
+    int64 created_at = 6;
+    int64 updated_at = 7;
+    int64 last_run_at = 8;
+    int64 next_run_at = 9;
+    bool enabled = 10;
+}
+
+message BatchCommand {
+    string command = 1;
+    int32 timeout_seconds = 2;
+    map<string, string> env = 3;
+}
+
+message ExecuteBatchRequest {
+    string session_id = 1;
+    repeated BatchCommand commands = 2;
+}
+
+message ExecuteBatchResponse {
+    repeated Task tasks = 1;
+}
+
+message GetSessionRequest {
+    string id = 1;
+}
+
+message CreateSessionRequest {
+    string name = 1;
+    map<string, string> metadata = 2;
+}
+
+message CreateSessionResponse {
+    Session session = 1;
+}
+
+message CloseSessionRequest {
+    string id = 1;
+}
+
+message CloseSessionResponse {
+    bool success = 1;
+}
+
+message GetTaskRequest {
+    string id = 1;
+}
+
+message GetTaskResultsRequest {
+    string session_id = 1;
+    common.Pagination pagination = 2;
+}
+
+message GetTaskResultsResponse {
+    repeated TaskResult results = 1;
+    common.Pagination pagination = 2;
+}
+
+message UploadFileRequest {
+    string session_id = 1;
+    string filename = 2;
+    string content = 3;
+    string remote_path = 4;
+}
+
+message UploadFileResponse {
+    bool success = 1;
+    string remote_path = 2;
+}
+
+message DownloadFileRequest {
+    string session_id = 1;
+    string remote_path = 2;
+}
+
+message DownloadFileResponse {
+    string filename = 1;
+    string content = 2;
+}
+
+message CreateCronJobRequest {
+    CronJob cron_job = 1;
+}
+
+message CreateCronJobResponse {
+    CronJob cron_job = 1;
+}
+
+message UpdateCronJobRequest {
+    CronJob cron_job = 1;
+}
+
+message UpdateCronJobResponse {
+    CronJob cron_job = 1;
+}
+
+message DeleteCronJobRequest {
+    string id = 1;
+}
+
+message DeleteCronJobResponse {
+    bool success = 1;
+}
+
+message ListCronJobsRequest {
+    common.Pagination pagination = 1;
+    string status = 2;
+}
+
+message ListCronJobsResponse {
+    repeated CronJob cron_jobs = 1;
+    common.Pagination pagination = 2;
+}
+
+// ============ Service ============
+
+service OpsService {
+    rpc CreateSession(CreateSessionRequest) returns (CreateSessionResponse);
+    rpc GetSession(GetSessionRequest) returns (Session);
+    rpc CloseSession(CloseSessionRequest) returns (CloseSessionResponse);
+    rpc ExecuteBatch(ExecuteBatchRequest) returns (ExecuteBatchResponse);
+    rpc GetTask(GetTaskRequest) returns (Task);
+    rpc GetTaskResults(GetTaskResultsRequest) returns (GetTaskResultsResponse);
+    rpc UploadFile(UploadFileRequest) returns (UploadFileResponse);
+    rpc DownloadFile(DownloadFileRequest) returns (DownloadFileResponse);
+    rpc CreateCronJob(CreateCronJobRequest) returns (CreateCronJobResponse);
+    rpc UpdateCronJob(UpdateCronJobRequest) returns (UpdateCronJobResponse);
+    rpc DeleteCronJob(DeleteCronJobRequest) returns (DeleteCronJobResponse);
+    rpc ListCronJobs(ListCronJobsRequest) returns (ListCronJobsResponse);
+}
