@@ -28,6 +28,8 @@ import {
   CheckCircleOutlined,
   ClockCircleOutlined,
   ApiOutlined,
+  BranchesOutlined,
+  FileTextOutlined,
 } from '@ant-design/icons';
 
 export const iconMap: Record<string, React.ReactNode> = {
@@ -95,12 +97,15 @@ export const iconMap: Record<string, React.ReactNode> = {
   '/roles': <UserSwitchOutlined />,
   '/config-management': <SettingOutlined />,
   '/approvals': <CheckCircleOutlined />,
+  '/console/approvals': <CheckCircleOutlined />,
+  '/workflows': <BranchesOutlined />,
   '/finops': <DollarCircleOutlined />,
 
   // 生态中心子菜单
   '/dba': <DatabaseOutlined />,
   '/knowledge': <BookOutlined />,
   '/visor': <EyeOutlined />,
+  '/documents': <FileTextOutlined />,
 
   // 效能看板子菜单
   '/dashboard/executive': <DashboardOutlined />,

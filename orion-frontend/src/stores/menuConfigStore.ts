@@ -166,6 +166,8 @@ const defaultModules: Record<string, MenuModuleConfig> = {
       // 配置与审批
       { key: '/config-management', label: '配置管理', description: '平台配置中心', category: '配置管理', enabled: true },
       { key: '/approvals', label: '审批流', description: '审批流程管理', category: '流程管理', enabled: true },
+      { key: '/console/approvals', label: '审批管理', description: '审批流程配置与记录', category: '流程管理', enabled: true },
+      { key: '/workflows', label: '工作流设计器', description: '低代码流程编排', category: '流程管理', enabled: true },
       // 成本治理
       { key: '/finops', label: '成本分析', description: '云成本优化与治理', category: '成本治理', enabled: true },
     ],
@@ -182,6 +184,8 @@ const defaultModules: Record<string, MenuModuleConfig> = {
       { key: '/dba', label: '数据库管理', description: 'DBA 运维平台', category: '子系统', enabled: true },
       { key: '/knowledge', label: '知识库', description: '企业知识沉淀平台', category: '子系统', enabled: true },
       { key: '/visor', label: '运维监控', description: '基础设施可视化监控', category: '子系统', enabled: true },
+      // 文档与知识
+      { key: '/documents', label: '文档中心', description: '项目设计文档与运维手册', category: '文档与知识', enabled: true },
       // 扩展能力
       { key: '/skills', label: 'Skill 市场', description: '能力插件市场', category: '扩展能力', enabled: true },
       { key: '/plugin-spi', label: '插件框架', description: '插件扩展规范框架', category: '扩展能力', enabled: true },
