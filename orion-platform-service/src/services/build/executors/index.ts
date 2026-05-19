@@ -17,3 +17,5 @@ export {
 export { BuildExecutorRegistry, buildExecutorRegistry } from './BuildExecutorRegistry';
 
 export { HostBuildExecutor } from './HostBuildExecutor';
+
+export { MacBuildExecutor } from './MacBuildExecutor';
