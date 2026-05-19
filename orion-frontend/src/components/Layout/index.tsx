@@ -8,38 +8,18 @@
 import React, { useEffect } from 'react';
 import { Layout as AntLayout, Avatar, Dropdown, Breadcrumb, Button } from 'antd';
 import {
-  DashboardOutlined,
-  ProjectOutlined,
   SettingOutlined,
   UserOutlined,
   LogoutOutlined,
   MoonOutlined,
   SunOutlined,
   HomeOutlined,
-  AppstoreOutlined,
   ControlOutlined,
-  RocketOutlined,
-  CloudServerOutlined,
-  ForkOutlined,
-  InboxOutlined,
   DollarCircleOutlined,
-  AlertOutlined,
-  BarChartOutlined,
-  TeamOutlined,
-  UserSwitchOutlined,
   UnorderedListOutlined,
-  BookOutlined,
-  DatabaseOutlined,
-  EyeOutlined,
-  DeploymentUnitOutlined,
-  CheckCircleOutlined,
-  ClockCircleOutlined,
-  CloudUploadOutlined,
-  ExperimentOutlined,
-  ApiOutlined,
-  SecurityScanOutlined,
-  DownOutlined,
   EditOutlined,
+  DownOutlined,
+  AppstoreOutlined,
 } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
 import type { GetProp } from 'antd';
@@ -53,6 +33,7 @@ import { initializeChatOpsStore } from '@/stores/chatOpsStore';
 import { useMenuConfigStore, type MenuModuleConfig } from '@/stores/menuConfigStore';
 import { MenuConfigPanel } from '@/components/MenuConfig';
 import { colors } from '@/tokens/colors';
+import { iconMap, getIcon } from './iconMap';
 
 type ItemType = GetProp<MenuProps, 'items'>[number];
 
@@ -76,79 +57,6 @@ interface NavItemDef {
   systemDescription?: string;
   hasPanel?: boolean;
 }
-
-// 图标映射：key -> icon component
-const iconMap: Record<string, React.ReactNode> = {
-  '/dashboard': <DashboardOutlined />,
-  '/ops': <CloudServerOutlined />,
-  '/tickets': <UnorderedListOutlined />,
-  '/bi': <BarChartOutlined />,
-  '/subapps': <AppstoreOutlined />,
-  '/product-lines': <ForkOutlined />,
-  '/artifacts': <InboxOutlined />,
-  '/internal-libraries': <DeploymentUnitOutlined />,
-  '/projects': <ProjectOutlined />,
-  '/ai': <RocketOutlined />,
-  '/governance': <SettingOutlined />,
-  '/dev-env': <CloudServerOutlined />,
-  // children
-  '/pipelines': <RocketOutlined />,
-  '/deployments': <CloudServerOutlined />,
-  '/monitoring': <EyeOutlined />,
-  '/console/monitoring': <EyeOutlined />,
-  '/alerts': <AlertOutlined />,
-  '/diagnostic': <EyeOutlined />,
-  '/console/diagnostic': <EyeOutlined />,
-  '/finops': <DollarCircleOutlined />,
-  '/self-healing': <RocketOutlined />,
-  '/console/self-healing': <RocketOutlined />,
-  '/canary-analysis': <BarChartOutlined />,
-  '/change-intelligence': <BarChartOutlined />,
-  '/eventbus': <DeploymentUnitOutlined />,
-  '/metrics-dashboard': <BarChartOutlined />,
-  '/test-selector': <ExperimentOutlined />,
-  '/workbench': <DashboardOutlined />,
-  '/dashboard/executive': <DashboardOutlined />,
-  '/dashboard/manager': <TeamOutlined />,
-  '/dashboard/engineer': <UserSwitchOutlined />,
-  '/efficiency-dashboard': <BarChartOutlined />,
-  '/risk-dashboard': <AlertOutlined />,
-  '/dba': <DatabaseOutlined />,
-  '/knowledge': <BookOutlined />,
-  '/visor': <EyeOutlined />,
-  '/ai-gateway': <RocketOutlined />,
-  '/agents': <AppstoreOutlined />,
-  '/console/ai-review': <EyeOutlined />,
-  '/console/ai-docs': <BookOutlined />,
-  '/console/chatops': <RocketOutlined />,
-  '/ai-security': <SecurityScanOutlined />,
-  '/policies': <SettingOutlined />,
-  '/audit-log': <UnorderedListOutlined />,
-  '/tenant-management': <TeamOutlined />,
-  '/roles': <UserSwitchOutlined />,
-  '/config-management': <SettingOutlined />,
-  '/cmdb': <DatabaseOutlined />,
-  '/skills': <AppstoreOutlined />,
-  '/sbom': <EyeOutlined />,
-  '/approvals': <CheckCircleOutlined />,
-  '/oncall': <ClockCircleOutlined />,
-  '/sessions': <UserSwitchOutlined />,
-  '/backup': <CloudUploadOutlined />,
-  '/plugin-spi': <ApiOutlined />,
-  '/environments': <CloudServerOutlined />,
-  '/ephemeral-envs': <CloudServerOutlined />,
-  '/console/build-env': <CloudServerOutlined />,
-  '/console/iac': <DatabaseOutlined />,
-  '/console/code-mgmt': <ForkOutlined />,
-  '/queue': <UnorderedListOutlined />,
-  '/vector-store': <DatabaseOutlined />,
-  // AI 子菜单
-  '/llm-trace': <EyeOutlined />,
-  '/ai-cost': <DollarCircleOutlined />,
-  '/ai/knowledge': <BookOutlined />,
-};
-
-const getIcon = (key: string): React.ReactNode => iconMap[key] || <SettingOutlined />;
 
 // 从 store 构建导航菜单项
 function buildNavMenuItems(modules: Record<string, MenuModuleConfig>): NavItemDef[] {
@@ -424,7 +332,37 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       if (item.key !== '/dashboard' && path.startsWith(item.key)) return item.key;
     }
     return '/dashboard';
-  }, [location.pathname]);
+  }, [location.pathname, navMenuItems]);
+
+  // 面包屑自动同步：根据路由变化自动更新面包屑
+  React.useEffect(() => {
+    const path = location.pathname;
+    // 跳过根路径
+    if (path === '/' || path === '/login') {
+      setBreadcrumbs([]);
+      return;
+    }
+
+    // 从菜单配置中查找匹配的项
+    for (const module of Object.values(modules)) {
+      if (!module.enabled) continue;
+      // 检查子菜单
+      for (const child of module.children) {
+        if (child.enabled && child.key === path) {
+          setBreadcrumbs([
+            { title: module.label, path: module.key },
+            { title: child.label, path: child.key },
+          ]);
+          return;
+        }
+      }
+      // 检查一级菜单
+      if (module.key === path) {
+        setBreadcrumbs([{ title: module.label, path: module.key }]);
+        return;
+      }
+    }
+  }, [location.pathname, modules]);
 
   const handleNavigate = (key: string, label: string) => {
     setMegaMenuKey(null);
