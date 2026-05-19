@@ -28,3 +28,12 @@ export {
   getRiskLevelLabel,
   getRiskLevelColor,
 } from './ApprovalFlowEngine';
+
+// Phase 4: Approval Timeout Scheduler
+export {
+  ApprovalTimeoutScheduler,
+  ApprovalTimeoutConfig,
+  TimeoutHandlingResult,
+  ApprovalTimeoutInfo,
+  DEFAULT_TIMEOUT_CONFIG,
+} from './ApprovalTimeoutScheduler';
