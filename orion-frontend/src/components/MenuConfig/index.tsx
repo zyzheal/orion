@@ -1,33 +1,213 @@
 /**
  * 菜单配置面板
  * 支持管理员自定义导航菜单模块名称、描述、子菜单项的启用/禁用
+ * 支持新增/删除菜单项、跨模块拖拽移动
  */
-import React from 'react';
-import { Drawer, Button, Input, Switch, Space, message, Tag, Typography } from 'antd';
+import React, { useState } from 'react';
+import { Drawer, Button, Input, Switch, Space, message, Tag, Typography, Modal, Select, Form } from 'antd';
 import {
   SettingOutlined,
   SaveOutlined,
   ReloadOutlined,
+  PlusOutlined,
+  DeleteOutlined,
+  DragOutlined,
 } from '@ant-design/icons';
 import { colors } from '@/tokens/colors';
-import { useMenuConfigStore, type MenuModuleConfig } from '@/stores/menuConfigStore';
+import { useMenuConfigStore, type MenuModuleConfig, type MenuChildConfig } from '@/stores/menuConfigStore';
 
 const { Text } = Typography;
 
-interface MenuConfigProps {
-  open: boolean;
-  onClose: () => void;
+// ==================== Drag & Drop Context ====================
+
+let dragSource: { moduleKey: string; childKey: string } | null = null;
+let dragOverTarget: string | null = null;
+
+function setDragSource(moduleKey: string, childKey: string) {
+  dragSource = { moduleKey, childKey };
 }
 
-// 模块编辑行
+function clearDragSource() {
+  dragSource = null;
+}
+
+function setDragOverTarget(targetKey: string) {
+  dragOverTarget = targetKey;
+}
+
+function clearDragOverTarget() {
+  dragOverTarget = null;
+}
+
+// ==================== Add Child Modal ====================
+
+interface AddChildModalProps {
+  open: boolean;
+  onClose: () => void;
+  onAdd: (child: Omit<MenuChildConfig, 'key'>) => void;
+  moduleKey: string;
+}
+
+const AddChildModal: React.FC<AddChildModalProps> = ({ open, onClose, onAdd, moduleKey }) => {
+  const [form] = Form.useForm();
+
+  const handleSubmit = () => {
+    form.validateFields().then((values) => {
+      onAdd({
+        label: values.label,
+        description: values.description,
+        category: values.category || '自定义',
+        enabled: true,
+      });
+      form.resetFields();
+      message.success(`已添加菜单项 "${values.label}"`);
+      onClose();
+    });
+  };
+
+  return (
+    <Modal
+      title="新增菜单项"
+      open={open}
+      onCancel={onClose}
+      onOk={handleSubmit}
+      okText="添加"
+      cancelText="取消"
+    >
+      <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
+        <Form.Item
+          name="label"
+          label="菜单名称"
+          rules={[{ required: true, message: '请输入菜单名称' }]}
+        >
+          <Input placeholder="如：自定义页面" />
+        </Form.Item>
+        <Form.Item name="description" label="描述">
+          <Input placeholder="可选，描述该菜单项的功能" />
+        </Form.Item>
+        <Form.Item name="category" label="分类">
+          <Input placeholder="可选，如：自定义、扩展" />
+        </Form.Item>
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          路径将自动生成：/{moduleKey.replace(/^\//, '')}/菜单名称小写
+        </Text>
+      </Form>
+    </Modal>
+  );
+};
+
+// ==================== Move Child Modal ====================
+
+interface MoveChildModalProps {
+  open: boolean;
+  onClose: () => void;
+  onMove: (from: string, to: string, childKey: string) => void;
+  child: MenuChildConfig;
+  fromModuleKey: string;
+  moduleOptions: Array<{ key: string; label: string }>;
+}
+
+const MoveChildModal: React.FC<MoveChildModalProps> = ({ open, onClose, onMove, child, fromModuleKey, moduleOptions }) => {
+  const [targetModule, setTargetModule] = useState('');
+
+  const handleMove = () => {
+    if (!targetModule) {
+      message.warning('请选择目标模块');
+      return;
+    }
+    if (targetModule === fromModuleKey) {
+      message.warning('不能移动到同一个模块');
+      return;
+    }
+    onMove(fromModuleKey, targetModule, child.key);
+    message.success(`已将 "${child.label}" 移动到目标模块`);
+    setTargetModule('');
+    onClose();
+  };
+
+  const options = moduleOptions.filter((m) => m.key !== fromModuleKey);
+
+  return (
+    <Modal
+      title={`移动菜单项: ${child.label}`}
+      open={open}
+      onCancel={onClose}
+      onOk={handleMove}
+      okText="移动"
+      cancelText="取消"
+    >
+      <div style={{ marginTop: 16 }}>
+        <Text style={{ marginBottom: 8, display: 'block' }}>
+          将 <Tag color="blue">{child.label}</Tag> 从 <Tag>{fromModuleKey}</Tag> 移动到：
+        </Text>
+        <Select
+          value={targetModule || undefined}
+          onChange={setTargetModule}
+          options={options}
+          style={{ width: '100%' }}
+          placeholder="选择目标模块"
+        />
+      </div>
+    </Modal>
+  );
+};
+
+// ==================== Module Editor ====================
+
 const ModuleEditor: React.FC<{
   module: MenuModuleConfig;
   moduleOrder: number;
   onUpdateModule: (updates: Partial<MenuModuleConfig>) => void;
   onUpdateChild: (childKey: string, updates: Partial<{ enabled: boolean }>) => void;
-}> = ({ module, moduleOrder, onUpdateModule, onUpdateChild }) => {
+  onDeleteChild: (childKey: string) => void;
+  moduleOptions: Array<{ key: string; label: string }>;
+}> = ({ module, moduleOrder, onUpdateModule, onUpdateChild, onDeleteChild, moduleOptions }) => {
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
   const hasChildren = module.children && module.children.length > 0;
+  const [addOpen, setAddOpen] = useState(false);
+  const [moveChild, setMoveChild] = useState<MenuChildConfig | null>(null);
+
+  const handleDragStart = (childKey: string) => {
+    setDragSource(module.key, childKey);
+  };
+
+  const handleDragOver = (e: React.DragEvent, childKey: string) => {
+    e.preventDefault();
+    setDragOverTarget(childKey);
+  };
+
+  const handleDrop = (e: React.DragEvent, targetChildKey: string) => {
+    e.preventDefault();
+    clearDragOverTarget();
+    const source = dragSource;
+    if (!source || source.childKey === targetChildKey) {
+      clearDragSource();
+      return;
+    }
+
+    // Same module: reorder; different module: move
+    if (source.moduleKey === module.key) {
+      // Find current index of target
+      const targetIndex = module.children.findIndex((c) => c.key === targetChildKey);
+      const child = module.children.find((c) => c.key === source.childKey);
+      if (child) {
+        const newChildren = module.children.filter((c) => c.key !== source.childKey);
+        newChildren.splice(targetIndex, 0, child);
+        onUpdateModule({ children: newChildren });
+        message.info(`已调整 "${child.label}" 位置`);
+      }
+    } else {
+      const { useMenuConfigStore: store } = require('@/stores/menuConfigStore');
+      store.getState().moveChild(source.moduleKey, module.key, source.childKey);
+      message.success(`已将 "${source.childKey}" 移动到 "${module.label}"`);
+    }
+    clearDragSource();
+  };
+
+  const handleDragEnd = () => {
+    clearDragSource();
+    clearDragOverTarget();
+  };
 
   return (
     <div
@@ -81,46 +261,119 @@ const ModuleEditor: React.FC<{
       {/* 子菜单项 */}
       {hasChildren && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-          {module.children.map((child) => (
-            <div
-              key={child.key}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                padding: '4px 10px',
-                borderRadius: 6,
-                background: child.enabled
-                  ? isDark ? 'rgba(51,112,230,0.1)' : 'rgba(51,112,230,0.06)'
-                  : isDark ? 'rgba(255,255,255,0.03)' : '#f5f5f5',
-                border: `1px solid ${child.enabled
-                  ? isDark ? 'rgba(51,112,230,0.2)' : 'rgba(51,112,230,0.15)'
-                  : isDark ? 'rgba(255,255,255,0.05)' : '#e8e8e8'}`,
-                transition: 'all 0.2s',
-                opacity: child.enabled ? 1 : 0.5,
-              }}
-            >
-              <Switch
-                checked={child.enabled}
-                onChange={(checked) => onUpdateChild(child.key, { enabled: checked })}
-                size="small"
-              />
-              <Text style={{ fontSize: 12, color: child.enabled ? undefined : colors.neutral[400] }}>
-                {child.label}
-              </Text>
-            </div>
-          ))}
+          {module.children.map((child) => {
+            const isDragOver = dragOverTarget === child.key;
+            return (
+              <div
+                key={child.key}
+                draggable
+                onDragStart={() => handleDragStart(child.key)}
+                onDragOver={(e) => handleDragOver(e, child.key)}
+                onDrop={(e) => handleDrop(e, child.key)}
+                onDragEnd={handleDragEnd}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  padding: '4px 10px',
+                  borderRadius: 6,
+                  background: child.enabled
+                    ? isDark ? 'rgba(51,112,230,0.1)' : 'rgba(51,112,230,0.06)'
+                    : isDark ? 'rgba(255,255,255,0.03)' : '#f5f5f5',
+                  border: `1px solid ${isDragOver
+                    ? colors.primary
+                    : child.enabled
+                      ? isDark ? 'rgba(51,112,230,0.2)' : 'rgba(51,112,230,0.15)'
+                      : isDark ? 'rgba(255,255,255,0.05)' : '#e8e8e8'}`,
+                  transition: 'all 0.2s',
+                  opacity: child.enabled ? 1 : 0.5,
+                  cursor: 'grab',
+                }}
+              >
+                <DragOutlined
+                  style={{ color: colors.neutral[400], fontSize: 10, cursor: 'grab' }}
+                />
+                <Switch
+                  checked={child.enabled}
+                  onChange={(checked) => onUpdateChild(child.key, { enabled: checked })}
+                  size="small"
+                />
+                <Text style={{ fontSize: 12, color: child.enabled ? undefined : colors.neutral[400] }}>
+                  {child.label}
+                </Text>
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<span style={{ fontSize: 10 }}>→</span>}
+                  onClick={(e) => { e.stopPropagation(); setMoveChild(child); }}
+                  title="移动到..."
+                  style={{ padding: '0 2px', height: 20, minWidth: 20 }}
+                />
+                <Button
+                  type="text"
+                  danger
+                  size="small"
+                  icon={<DeleteOutlined style={{ fontSize: 10 }} />}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    Modal.confirm({
+                      title: '确认删除',
+                      content: `确定要删除菜单项 "${child.label}" 吗？`,
+                      onOk: () => onDeleteChild(child.key),
+                    });
+                  }}
+                  style={{ padding: '0 2px', height: 20, minWidth: 20 }}
+                />
+              </div>
+            );
+          })}
+          {/* 新增按钮 */}
+          <Button
+            type="dashed"
+            size="small"
+            icon={<PlusOutlined />}
+            onClick={() => setAddOpen(true)}
+            style={{ borderRadius: 6, fontSize: 12, height: 28 }}
+          >
+            新增
+          </Button>
         </div>
+      )}
+
+      {/* Add Child Modal */}
+      <AddChildModal
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        onAdd={(child) => onUpdateModule({ children: [...(module.children || []), { key: `/${child.label.toLowerCase().replace(/\s+/g, '-')}`, ...child }] })}
+        moduleKey={module.key}
+      />
+
+      {/* Move Child Modal */}
+      {moveChild && (
+        <MoveChildModal
+          open={!!moveChild}
+          onClose={() => setMoveChild(null)}
+          onMove={(from, to, childKey) => {
+            const store = useMenuConfigStore.getState();
+            store.moveChild(from, to, childKey);
+          }}
+          child={moveChild}
+          fromModuleKey={module.key}
+          moduleOptions={moduleOptions}
+        />
       )}
     </div>
   );
 };
 
-export const MenuConfigPanel: React.FC<MenuConfigProps> = ({ open, onClose }) => {
-  const { modules, updateModule, updateChild, saveConfig, resetToDefault } = useMenuConfigStore();
+// ==================== Main Panel ====================
+
+export const MenuConfigPanel: React.FC<{ open: boolean; onClose: () => void }> = ({ open, onClose }) => {
+  const { modules, updateModule, updateChild, deleteChild, saveConfig, resetToDefault } = useMenuConfigStore();
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
 
   const moduleKeys = Object.keys(modules);
+  const moduleOptions = moduleKeys.map((key) => ({ key, label: modules[key].label }));
 
   const handleSave = () => {
     saveConfig();
@@ -129,8 +382,14 @@ export const MenuConfigPanel: React.FC<MenuConfigProps> = ({ open, onClose }) =>
   };
 
   const handleReset = () => {
-    resetToDefault();
-    message.info('已恢复默认配置');
+    Modal.confirm({
+      title: '确认恢复默认',
+      content: '这将清除所有自定义配置，恢复为默认的 7 域结构。是否继续？',
+      onOk: () => {
+        resetToDefault();
+        message.info('已恢复默认配置');
+      },
+    });
   };
 
   return (
@@ -143,7 +402,7 @@ export const MenuConfigPanel: React.FC<MenuConfigProps> = ({ open, onClose }) =>
       }
       open={open}
       onClose={onClose}
-      width={520}
+      width={560}
       placement="right"
       styles={{
         body: { padding: '20px 24px', background: isDark ? '#1f1f1f' : '#ffffff' },
@@ -166,8 +425,11 @@ export const MenuConfigPanel: React.FC<MenuConfigProps> = ({ open, onClose }) =>
         </div>
       }
     >
-      <Text type="secondary" style={{ fontSize: 13, display: 'block', marginBottom: 20 }}>
-        自定义导航菜单的模块名称、描述及子菜单项的显示/隐藏
+      <Text type="secondary" style={{ fontSize: 13, display: 'block', marginBottom: 8 }}>
+        自定义导航菜单的模块名称、描述及子菜单项
+      </Text>
+      <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 20 }}>
+        拖拽菜单项调整顺序或跨模块移动 · 点击 → 移动到指定模块 · 点击 🗑️ 删除
       </Text>
 
       <div style={{ maxHeight: 'calc(100vh - 240px)', overflowY: 'auto', paddingRight: 4 }}>
@@ -178,6 +440,8 @@ export const MenuConfigPanel: React.FC<MenuConfigProps> = ({ open, onClose }) =>
             moduleOrder={index + 1}
             onUpdateModule={(updates) => updateModule(key, updates)}
             onUpdateChild={(childKey, updates) => updateChild(key, childKey, updates)}
+            onDeleteChild={(childKey) => deleteChild(key, childKey)}
+            moduleOptions={moduleOptions}
           />
         ))}
       </div>

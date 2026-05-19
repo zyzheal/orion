@@ -29,73 +29,81 @@ interface MenuConfigState {
   saveConfig: () => void;
   updateModule: (key: string, updates: Partial<MenuModuleConfig>) => void;
   updateChild: (moduleKey: string, childKey: string, updates: Partial<MenuChildConfig>) => void;
+  addChild: (moduleKey: string, child: Omit<MenuChildConfig, 'key'>) => void;
+  deleteChild: (moduleKey: string, childKey: string) => void;
+  moveChild: (fromModuleKey: string, toModuleKey: string, childKey: string, index?: number) => void;
   resetToDefault: () => void;
 }
 
 const defaultModules: Record<string, MenuModuleConfig> = {
-  '/dashboard': { key: '/dashboard', label: '工作台', description: '', enabled: true, children: [] },
-  '/ops': {
-    key: '/ops',
-    label: '运维中心',
-    description: '全链路运维管理',
-    systemTitle: '运维中心',
-    systemDescription: '从代码到生产的全链路运维管理，包含流水线、部署、监控、告警等核心能力',
+  '/workbench': {
+    key: '/workbench',
+    label: '工作台',
+    description: '个人工作与效能度量',
+    systemTitle: '工作台',
+    systemDescription: '统一工作入口，涵盖工单管理、效能度量与项目概览',
     enabled: true,
     children: [
-      { key: '/pipelines', label: '流水线', description: 'CI/CD 流水线管理', category: '持续交付', enabled: true },
-      { key: '/deployments', label: '部署', description: '应用部署管理', category: '持续交付', enabled: true },
-      { key: '/console/monitoring', label: '监控中心', description: '全栈监控', category: '可观测性', enabled: true },
-      { key: '/alerts', label: '告警', description: '智能告警管理', category: '可观测性', enabled: true },
-      { key: '/console/diagnostic', label: '诊断中心', description: '根因分析诊断', category: '可观测性', enabled: true },
-      { key: '/finops', label: '成本分析', description: '云成本优化', category: '成本治理', enabled: true },
-      { key: '/console/self-healing', label: '自愈系统', description: '自动化故障恢复', category: '智能运维', enabled: true },
-      { key: '/canary-analysis', label: '灰度分析', description: '发布质量分析', category: '智能运维', enabled: true },
-      { key: '/change-intelligence', label: '变更智能', description: '变更影响分析', category: '智能运维', enabled: true },
-      { key: '/eventbus', label: '事件总线', description: '事件驱动架构', category: '基础能力', enabled: true },
-      { key: '/metrics-dashboard', label: '指标看板', description: '自定义指标', category: '可观测性', enabled: true },
-      { key: '/test-selector', label: '测试管理', description: '测试用例管理', category: '质量保障', enabled: true },
-    ],
-  },
-  '/tickets': { key: '/tickets', label: '工单', description: '', enabled: true, children: [] },
-  '/bi': {
-    key: '/bi',
-    label: '效能看板',
-    description: '研发效能度量',
-    systemTitle: '效能看板',
-    systemDescription: '多维度研发效能度量与分析，驱动持续改进',
-    enabled: true,
-    children: [
+      // 个人视角
+      { key: '/dashboard', label: '总览看板', description: '个人工作台', category: '个人视角', enabled: true },
       { key: '/workbench', label: '个人工作台', description: '个人工作概览', category: '个人视角', enabled: true },
+      { key: '/dashboard/engineer', label: '个人看板', description: '个人效能分析', category: '个人视角', enabled: true },
+      // 管理视角
       { key: '/dashboard/executive', label: '总览看板', description: '全局效能视图', category: '管理视角', enabled: true },
       { key: '/dashboard/manager', label: '经理看板', description: '团队效能分析', category: '管理视角', enabled: true },
-      { key: '/dashboard/engineer', label: '个人看板', description: '个人效能分析', category: '个人视角', enabled: true },
+      // 业务管理
+      { key: '/tickets', label: '工单', description: '工单管理', category: '业务管理', enabled: true },
+      { key: '/product-lines', label: '产品线', description: '产品线管理', category: '业务管理', enabled: true },
+      { key: '/projects', label: '项目', description: '项目管理', category: '业务管理', enabled: true },
+      // 分析视角
       { key: '/efficiency-dashboard', label: '效能分析', description: '深度效能洞察', category: '分析视角', enabled: true },
       { key: '/risk-dashboard', label: '风险看板', description: '风险识别预警', category: '分析视角', enabled: true },
     ],
   },
-  '/subapps': {
-    key: '/subapps',
-    label: '子系统',
-    description: '扩展能力平台',
-    systemTitle: '子系统',
-    systemDescription: '垂直领域专业工具，深度集成核心平台能力',
+  '/delivery': {
+    key: '/delivery',
+    label: '交付',
+    description: 'CI/CD 与制品管理',
+    systemTitle: '交付中心',
+    systemDescription: '从代码到制品的全链路交付，包含流水线、部署、灰度、测试等核心能力',
     enabled: true,
     children: [
-      { key: '/dba', label: '数据库管理', description: 'DBA 运维平台', enabled: true },
-      { key: '/knowledge', label: '知识库', description: '企业知识沉淀', enabled: true },
-      { key: '/visor', label: '运维监控', description: '基础设施监控', enabled: true },
+      // 持续交付
+      { key: '/pipelines', label: '流水线', description: 'CI/CD 流水线管理', category: '持续交付', enabled: true },
+      { key: '/deployments', label: '部署', description: '应用部署管理', category: '持续交付', enabled: true },
+      { key: '/canary-analysis', label: '灰度分析', description: '发布质量分析', category: '持续交付', enabled: true },
+      { key: '/change-intelligence', label: '变更智能', description: '变更影响分析', category: '持续交付', enabled: true },
+      // 代码与制品
+      { key: '/console/code-mgmt', label: '代码管理', description: '代码仓库管理', category: '代码与制品', enabled: true },
+      { key: '/artifacts', label: '制品管理', description: '构建产物管理', category: '代码与制品', enabled: true },
+      { key: '/internal-libraries', label: '二方库', description: '内部依赖管理', category: '代码与制品', enabled: true },
+      // 质量保障
+      { key: '/test-selector', label: '测试管理', description: '测试用例与执行', category: '质量保障', enabled: true },
     ],
   },
-  '/product-lines': { key: '/product-lines', label: '产品线', description: '', enabled: true, children: [] },
-  '/artifacts': { key: '/artifacts', label: '制品管理', description: '', enabled: true, children: [] },
-  '/internal-libraries': { key: '/internal-libraries', label: '二方库', description: '', enabled: true, children: [] },
-  '/projects': { key: '/projects', label: '项目', description: '', enabled: true, children: [] },
+  '/observability': {
+    key: '/observability',
+    label: '可观测性',
+    description: '监控、告警与诊断',
+    systemTitle: '可观测性中心',
+    systemDescription: '全面可观测性覆盖，从监控告警到根因分析再到自动化修复',
+    enabled: true,
+    children: [
+      // 监控告警
+      { key: '/console/monitoring', label: '监控中心', description: '全栈监控', category: '监控告警', enabled: true },
+      { key: '/alerts', label: '告警', description: '智能告警管理', category: '监控告警', enabled: true },
+      { key: '/metrics-dashboard', label: '指标看板', description: '自定义指标体系', category: '监控告警', enabled: true },
+      // 智能诊断
+      { key: '/console/diagnostic', label: '诊断中心', description: '根因分析诊断', category: '智能诊断', enabled: true },
+      { key: '/console/self-healing', label: '自愈系统', description: '自动化故障恢复', category: '智能诊断', enabled: true },
+    ],
+  },
   '/ai': {
     key: '/ai',
-    label: 'AI 能力',
-    description: '智能化平台',
-    systemTitle: 'AI 能力',
-    systemDescription: 'AI 驱动的研发效能提升，让工具链更智能',
+    label: 'AI 平台',
+    description: '智能化能力中心',
+    systemTitle: 'AI 平台',
+    systemDescription: 'AI 驱动的研发效能提升，包含智能助手、代码评审、知识管理、AI 网关等核心能力',
     enabled: true,
     children: [
       // 智能助手
@@ -108,51 +116,75 @@ const defaultModules: Record<string, MenuModuleConfig> = {
       { key: '/ai/agents', label: 'Agent 调度', description: '智能体编排', category: '平台配置', enabled: true },
       // 可观测性
       { key: '/ai/trace', label: 'LLM Trace', description: '模型调用追踪', category: '可观测性', enabled: true },
-      { key: '/ai/cost', label: '成本分析', description: 'AI 成本分析', category: '可观测性', enabled: true },
+      { key: '/ai/cost', label: 'AI 成本', description: 'AI 成本分析', category: '可观测性', enabled: true },
       // 知识管理
       { key: '/ai/knowledge', label: 'AI 知识库', description: '智能知识管理', category: '知识管理', enabled: true },
       // 安全合规
       { key: '/ai/security', label: 'AI 安全', description: 'AI 安全治理', category: '安全合规', enabled: true },
     ],
   },
+  '/infra': {
+    key: '/infra',
+    label: '基础设施',
+    description: '环境与基础设施管理',
+    systemTitle: '基础设施',
+    systemDescription: '全生命周期基础设施管理，涵盖环境、中间件、CMDB、运维流程等核心能力',
+    enabled: true,
+    children: [
+      // 环境管理
+      { key: '/environments', label: '环境管理', description: '环境生命周期管理', category: '环境管理', enabled: true },
+      { key: '/ephemeral-envs', label: '临时环境', description: '按需环境创建', category: '环境管理', enabled: true },
+      { key: '/console/build-env', label: '构建环境', description: '构建运行时管理', category: '环境管理', enabled: true },
+      { key: '/console/iac', label: 'IaC 管理', description: '基础设施即代码', category: '环境管理', enabled: true },
+      // 中间件
+      { key: '/queue', label: '队列管理', description: '消息队列管理', category: '中间件', enabled: true },
+      { key: '/vector-store', label: '向量存储', description: 'AI 向量数据库', category: '中间件', enabled: true },
+      { key: '/eventbus', label: '事件总线', description: '事件驱动架构', category: '中间件', enabled: true },
+      // CMDB
+      { key: '/cmdb', label: 'CMDB', description: '配置管理数据库', category: 'CMDB', enabled: true },
+      // 运维流程
+      { key: '/sessions', label: '会话管理', description: '终端会话管理', category: '运维流程', enabled: true },
+      { key: '/backup', label: '备份恢复', description: '数据备份策略管理', category: '运维流程', enabled: true },
+      { key: '/oncall', label: '值班管理', description: '排班与告警响应', category: '运维流程', enabled: true },
+    ],
+  },
   '/governance': {
     key: '/governance',
     label: '治理',
-    description: '平台治理中心',
+    description: '安全合规与配置治理',
     systemTitle: '治理中心',
-    systemDescription: '统一的平台治理，确保安全、合规与可控',
+    systemDescription: '统一的平台治理，确保安全、合规、可控与成本优化',
     enabled: true,
     children: [
-      { key: '/policies', label: '策略管理', description: '策略定义与执行', category: '策略引擎', enabled: true },
+      // 安全合规
+      { key: '/policies', label: '策略管理', description: '策略定义与执行', category: '安全合规', enabled: true },
       { key: '/audit-log', label: '审计日志', description: '操作审计追踪', category: '安全合规', enabled: true },
-      { key: '/tenant-management', label: '租户管理', description: '多租户隔离', category: '组织管理', enabled: true },
-      { key: '/roles', label: '角色管理', description: '权限角色定义', category: '组织管理', enabled: true },
-      { key: '/config-management', label: '配置管理', description: '配置中心', category: '基础能力', enabled: true },
-      { key: '/cmdb', label: 'CMDB', description: '配置管理数据库', category: '基础能力', enabled: true },
-      { key: '/skills', label: 'Skill 市场', description: '能力插件市场', category: '扩展能力', enabled: true },
       { key: '/sbom', label: 'SBOM', description: '软件物料清单', category: '安全合规', enabled: true },
+      // 组织管理
+      { key: '/tenant-management', label: '租户管理', description: '多租户隔离管理', category: '组织管理', enabled: true },
+      { key: '/roles', label: '角色管理', description: '权限角色定义', category: '组织管理', enabled: true },
+      // 配置与审批
+      { key: '/config-management', label: '配置管理', description: '平台配置中心', category: '配置管理', enabled: true },
       { key: '/approvals', label: '审批流', description: '审批流程管理', category: '流程管理', enabled: true },
-      { key: '/oncall', label: '值班管理', description: '排班与告警', category: '流程管理', enabled: true },
-      { key: '/sessions', label: '会话管理', description: '终端会话管理', category: '基础能力', enabled: true },
-      { key: '/backup', label: '备份恢复', description: '数据备份策略', category: '数据安全', enabled: true },
-      { key: '/plugin-spi', label: '插件框架', description: '插件扩展规范', category: '扩展能力', enabled: true },
+      // 成本治理
+      { key: '/finops', label: '成本分析', description: '云成本优化与治理', category: '成本治理', enabled: true },
     ],
   },
-  '/dev-env': {
-    key: '/dev-env',
-    label: '环境',
-    description: '开发运行环境',
-    systemTitle: '环境管理',
-    systemDescription: '全生命周期环境管理，从构建到运行的基础设施',
+  '/ecosystem': {
+    key: '/ecosystem',
+    label: '生态',
+    description: '扩展能力与子系统',
+    systemTitle: '生态中心',
+    systemDescription: '垂直领域专业工具与扩展能力市场',
     enabled: true,
     children: [
-      { key: '/environments', label: '环境管理', description: '环境生命周期', category: '环境管理', enabled: true },
-      { key: '/ephemeral-envs', label: '临时环境', description: '按需环境创建', category: '环境管理', enabled: true },
-      { key: '/console/build-env', label: '构建环境', description: '构建运行时', category: '构建系统', enabled: true },
-      { key: '/console/iac', label: 'IaC 管理', description: '基础设施即代码', category: '基础设施', enabled: true },
-      { key: '/console/code-mgmt', label: '代码管理', description: '代码仓库管理', category: '源代码', enabled: true },
-      { key: '/queue', label: '队列管理', description: '消息队列管理', category: '消息系统', enabled: true },
-      { key: '/vector-store', label: '向量存储', description: 'AI 向量数据库', category: 'AI 基础设施', enabled: true },
+      // 子系统
+      { key: '/dba', label: '数据库管理', description: 'DBA 运维平台', category: '子系统', enabled: true },
+      { key: '/knowledge', label: '知识库', description: '企业知识沉淀平台', category: '子系统', enabled: true },
+      { key: '/visor', label: '运维监控', description: '基础设施可视化监控', category: '子系统', enabled: true },
+      // 扩展能力
+      { key: '/skills', label: 'Skill 市场', description: '能力插件市场', category: '扩展能力', enabled: true },
+      { key: '/plugin-spi', label: '插件框架', description: '插件扩展规范框架', category: '扩展能力', enabled: true },
     ],
   },
 };
@@ -215,6 +247,67 @@ export const useMenuConfigStore = create<MenuConfigState>((set, get) => ({
               child.key === childKey ? { ...child, ...updates } : child
             ),
           },
+        },
+      };
+    });
+  },
+
+  addChild: (moduleKey, child) => {
+    set((state) => {
+      const module = state.modules[moduleKey];
+      if (!module) return state;
+      const key = child.label.toLowerCase().replace(/\s+/g, '-');
+      const newChild: MenuChildConfig = {
+        key: `/${key}`,
+        label: child.label,
+        description: child.description,
+        category: child.category,
+        enabled: child.enabled ?? true,
+      };
+      return {
+        modules: {
+          ...state.modules,
+          [moduleKey]: {
+            ...module,
+            children: [...module.children, newChild],
+          },
+        },
+      };
+    });
+  },
+
+  deleteChild: (moduleKey, childKey) => {
+    set((state) => {
+      const module = state.modules[moduleKey];
+      if (!module) return state;
+      return {
+        modules: {
+          ...state.modules,
+          [moduleKey]: {
+            ...module,
+            children: module.children.filter((c) => c.key !== childKey),
+          },
+        },
+      };
+    });
+  },
+
+  moveChild: (fromModuleKey, toModuleKey, childKey, index) => {
+    set((state) => {
+      const fromModule = state.modules[fromModuleKey];
+      const toModule = state.modules[toModuleKey];
+      if (!fromModule || !toModule || fromModuleKey === toModuleKey) return state;
+      const child = fromModule.children.find((c) => c.key === childKey);
+      if (!child) return state;
+      const newFromChildren = fromModule.children.filter((c) => c.key !== childKey);
+      const newToChildren = [...toModule.children];
+      const insertIndex = index !== undefined ? Math.min(index, newToChildren.length) : newToChildren.length;
+      newToChildren.splice(insertIndex, 0, child);
+      return {
+        modules: {
+          ...state.modules,
+          [fromModuleKey]: { ...fromModule, children: newFromChildren },
+          [toModuleKey]: { ...toModule, children: newToChildren },
         },
       };
     });
