@@ -11,6 +11,8 @@ import { TenantPrivacyPolicyService, TenantPrivacyPolicy } from '../services/pri
 import { SecretSanitizer } from '../services/privacy/SecretSanitizer';
 import { PIISanitizer } from '../services/privacy/PIISanitizer';
 import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
+import { requirePermission } from '../middleware/requirePermission';
 
 interface TenantParams {
   tenantId: string;
@@ -77,6 +79,9 @@ export default async function privacyRoutes(fastify: FastifyInstance) {
   // Get tenant privacy policy
   fastify.get<{ Params: TenantParams }>(
     '/:tenantId/policy',
+    {
+      onRequest: [requirePermission({ resource: 'privacy', action: 'read' })],
+    },
     async (request: FastifyRequest<{ Params: TenantParams }>, reply: FastifyReply) => {
       try {
         const tenantId = parseInt(request.params.tenantId, 10);
@@ -125,6 +130,9 @@ export default async function privacyRoutes(fastify: FastifyInstance) {
   // Create or update tenant privacy policy (admin only)
   fastify.put<{ Params: TenantParams; Body: PolicyBody }>(
     '/:tenantId/policy',
+    {
+      onRequest: [requirePermission({ resource: 'privacy', action: 'write' })],
+    },
     async (request: FastifyRequest<{ Params: TenantParams; Body: PolicyBody }>, reply: FastifyReply) => {
       try {
         const tenantId = parseInt(request.params.tenantId, 10);
@@ -164,6 +172,9 @@ export default async function privacyRoutes(fastify: FastifyInstance) {
   // Validate compliance for tenant
   fastify.get<{ Params: TenantParams }>(
     '/:tenantId/compliance',
+    {
+      onRequest: [requirePermission({ resource: 'privacy', action: 'read' })],
+    },
     async (request: FastifyRequest<{ Params: TenantParams }>, reply: FastifyReply) => {
       try {
         const tenantId = parseInt(request.params.tenantId, 10);
@@ -201,6 +212,9 @@ export default async function privacyRoutes(fastify: FastifyInstance) {
   // Sanitize content (secrets + PII)
   fastify.post<{ Body: SanitizeBody }>(
     '/sanitize',
+    {
+      onRequest: [requirePermission({ resource: 'privacy', action: 'write' })],
+    },
     async (request: FastifyRequest<{ Body: SanitizeBody }>, reply: FastifyReply) => {
       try {
         const { content, options } = request.body;
@@ -250,6 +264,9 @@ export default async function privacyRoutes(fastify: FastifyInstance) {
   // Detect secrets in content
   fastify.post<{ Body: { content: string } }>(
     '/detect-secrets',
+    {
+      onRequest: [requirePermission({ resource: 'privacy', action: 'write' })],
+    },
     async (request: FastifyRequest<{ Body: { content: string } }>, reply: FastifyReply) => {
       try {
         const { content } = request.body;
@@ -287,6 +304,9 @@ export default async function privacyRoutes(fastify: FastifyInstance) {
   // Detect PII in content (with NER)
   fastify.post<{ Body: { content: string } }>(
     '/detect-pii',
+    {
+      onRequest: [requirePermission({ resource: 'privacy', action: 'write' })],
+    },
     async (request: FastifyRequest<{ Body: { content: string } }>, reply: FastifyReply) => {
       try {
         const { content } = request.body;

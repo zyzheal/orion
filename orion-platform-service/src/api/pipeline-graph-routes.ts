@@ -17,6 +17,7 @@ import { YamlConverter } from '../services/pipeline/YamlConverter';
 import { PipelineValidator } from '../services/pipeline/PipelineValidator';
 import { PipelineService } from '../services/pipeline/PipelineService';
 import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
 
 export interface PipelineGraphRouteDeps {
   pipelineService: PipelineService;
@@ -37,6 +38,9 @@ export async function registerPipelineGraphRoutes(
     // Build graph from a saved pipeline's yamlDefinition
     instance.get(
       '/v1/pipelines/:id/graph',
+      {
+        onRequest: [requirePermission({ resource: 'pipeline', action: 'read' })],
+      },
       async (request: FastifyRequest, reply: FastifyReply) => {
         try {
           const params = request.params as { id: string };
@@ -79,6 +83,9 @@ export async function registerPipelineGraphRoutes(
     // Convert YAML to JSON graph format
     instance.post(
       '/v1/pipelines/parse-yaml',
+      {
+        onRequest: [requirePermission({ resource: 'pipeline', action: 'write' })],
+      },
       async (request: FastifyRequest, reply: FastifyReply) => {
         try {
           const body = request.body as any;
@@ -113,6 +120,9 @@ export async function registerPipelineGraphRoutes(
     // Convert JSON graph back to YAML pipeline spec
     instance.post(
       '/v1/pipelines/to-yaml',
+      {
+        onRequest: [requirePermission({ resource: 'pipeline', action: 'write' })],
+      },
       async (request: FastifyRequest, reply: FastifyReply) => {
         try {
           const body = request.body as any;
@@ -161,6 +171,9 @@ export async function registerPipelineGraphRoutes(
     // Validate a pipeline YAML spec (enhanced validation)
     instance.post(
       '/v1/pipelines/validate',
+      {
+        onRequest: [requirePermission({ resource: 'pipeline', action: 'write' })],
+      },
       async (request: FastifyRequest, reply: FastifyReply) => {
         try {
           const body = request.body as any;

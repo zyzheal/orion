@@ -14,6 +14,8 @@
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { PipelineBudgetService } from '../services/PipelineBudgetService';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
 
 export function registerBudgetRoutes(
   app: FastifyInstance,
@@ -27,7 +29,12 @@ export function registerBudgetRoutes(
   const prefix = '/pipelines/:id/budget';
 
   // POST /pipelines/:id/budget — Set/update budget
-  app.post(prefix, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post(
+    prefix,
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'pipeline', action: 'write' })],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = request.params as { id: string };
     const body = request.body as Record<string, unknown>;
 
@@ -54,7 +61,12 @@ export function registerBudgetRoutes(
   });
 
   // GET /pipelines/:id/budget — Query budget
-  app.get(prefix, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get(
+    prefix,
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'pipeline', action: 'read' })],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = request.params as { id: string };
 
     try {
@@ -70,7 +82,12 @@ export function registerBudgetRoutes(
   });
 
   // PUT /pipelines/:id/budget — Update budget (adjust limit)
-  app.put(prefix, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.put(
+    prefix,
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'pipeline', action: 'write' })],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = request.params as { id: string };
     const body = request.body as Record<string, unknown>;
 
@@ -102,7 +119,12 @@ export function registerBudgetRoutes(
   });
 
   // DELETE /pipelines/:id/budget — Delete budget
-  app.delete(prefix, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.delete(
+    prefix,
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'pipeline', action: 'write' })],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = request.params as { id: string };
 
     try {
@@ -118,7 +140,12 @@ export function registerBudgetRoutes(
   });
 
   // POST /pipelines/:id/budget/check — Check if run is allowed
-  app.post(`${prefix}/check`, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post(
+    `${prefix}/check`,
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'pipeline', action: 'write' })],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = request.params as { id: string };
 
     try {

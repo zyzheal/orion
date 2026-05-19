@@ -8,6 +8,10 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { PluginHotReloadService, HotReloadConfig, HotReloadEvent } from '../services/plugin-spi/PluginHotReloadService';
 import { PluginLifecycleManager } from '../services/plugin-spi/PluginLifecycleManager';
 import { PluginRegistry } from '../services/plugin-spi/PluginRegistry';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
 
 export interface HotReloadRoutesOptions {
   lifecycleManager: PluginLifecycleManager;
@@ -47,7 +51,12 @@ export default async function registerPluginHotReloadRoutes(
   // ==================== 热加载管理 ====================
 
   // POST /api/v1/plugins/hotreload/:pluginId - 触发插件热加载
-  app.post('/plugins/hotreload/:pluginId', async (request: FastifyRequest<{ Params: { pluginId: string }; Body?: { manifest?: any } }>, reply: FastifyReply) => {
+  app.post(
+    '/plugins/hotreload/:pluginId',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'plugin', action: 'write' })],
+    },
+    async (request: FastifyRequest<{ Params: { pluginId: string }; Body?: { manifest?: any } }>, reply: FastifyReply) => {
     const { pluginId } = request.params;
     const { manifest } = request.body || {};
 
@@ -67,7 +76,12 @@ export default async function registerPluginHotReloadRoutes(
   });
 
   // POST /api/v1/plugins/hotreload/:pluginId/rollback - 回滚插件版本
-  app.post('/plugins/hotreload/:pluginId/rollback', async (request: FastifyRequest<{ Params: { pluginId: string }; Body?: { targetVersion?: string } }>, reply: FastifyReply) => {
+  app.post(
+    '/plugins/hotreload/:pluginId/rollback',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'plugin', action: 'write' })],
+    },
+    async (request: FastifyRequest<{ Params: { pluginId: string }; Body?: { targetVersion?: string } }>, reply: FastifyReply) => {
     const { pluginId } = request.params;
     const { targetVersion } = request.body || {};
 
@@ -87,7 +101,12 @@ export default async function registerPluginHotReloadRoutes(
   });
 
   // GET /api/v1/plugins/hotreload/:pluginId/history - 获取版本历史
-  app.get('/plugins/hotreload/:pluginId/history', async (request: FastifyRequest<{ Params: { pluginId: string } }>, reply: FastifyReply) => {
+  app.get(
+    '/plugins/hotreload/:pluginId/history',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'plugin', action: 'read' })],
+    },
+    async (request: FastifyRequest<{ Params: { pluginId: string } }>, reply: FastifyReply) => {
     const { pluginId } = request.params;
 
     const history = hotReloadService.getVersionHistory(pluginId);
@@ -101,7 +120,12 @@ export default async function registerPluginHotReloadRoutes(
   // ==================== 监控管理 ====================
 
   // POST /api/v1/plugins/hotreload/watch/start - 启动插件目录监控
-  app.post('/plugins/hotreload/watch/start', async (request: FastifyRequest<{ Body?: { paths?: string[] } }>, reply: FastifyReply) => {
+  app.post(
+    '/plugins/hotreload/watch/start',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'plugin', action: 'write' })],
+    },
+    async (request: FastifyRequest<{ Body?: { paths?: string[] } }>, reply: FastifyReply) => {
     const { paths } = request.body || {};
 
     // 如果提供了新路径，更新配置
@@ -123,7 +147,12 @@ export default async function registerPluginHotReloadRoutes(
   });
 
   // POST /api/v1/plugins/hotreload/watch/stop - 停止插件目录监控
-  app.post('/plugins/hotreload/watch/stop', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post(
+    '/plugins/hotreload/watch/stop',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'plugin', action: 'write' })],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
     hotReloadService.stopWatching();
 
     return reply.send({
@@ -133,7 +162,12 @@ export default async function registerPluginHotReloadRoutes(
   });
 
   // GET /api/v1/plugins/hotreload/stats - 获取热加载统计
-  app.get('/plugins/hotreload/stats', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get(
+    '/plugins/hotreload/stats',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'plugin', action: 'read' })],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
     const stats = hotReloadService.getStats();
     return reply.send(stats);
   });
@@ -141,7 +175,12 @@ export default async function registerPluginHotReloadRoutes(
   // ==================== SSE 实时通知 ====================
 
   // GET /api/v1/plugins/hotreload/events - SSE 实时事件推送
-  app.get('/plugins/hotreload/events', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get(
+    '/plugins/hotreload/events',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'plugin', action: 'read' })],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
     reply.raw.setHeader('Content-Type', 'text/event-stream');
     reply.raw.setHeader('Cache-Control', 'no-cache');
     reply.raw.setHeader('Connection', 'keep-alive');

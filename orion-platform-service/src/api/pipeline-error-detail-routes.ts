@@ -11,6 +11,8 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { DatabasePool } from '../services/database';
 import { PipelineErrorDetailController } from './controllers/PipelineErrorDetailController';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
 
 interface PipelineErrorRoutesOptions {
   database?: DatabasePool;
@@ -29,6 +31,9 @@ export default async function registerPipelineErrorDetailRoutes(
   // GET /api/v1/pipelines/:runId/error-detail
   app.get(
     '/:runId/error-detail',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'pipeline', action: 'read' })],
+    },
     async (request: FastifyRequest<{ Params: { runId: string } }>, reply: FastifyReply) => {
       return controller.getErrorDetail(request, reply);
     }
