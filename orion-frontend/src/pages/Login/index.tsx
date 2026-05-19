@@ -2,7 +2,7 @@ import React from 'react';
 import { Form, Input, Button, message, Typography } from 'antd';
 import { colors } from '@/tokens/colors';
 import { UserOutlined, LockOutlined, RocketOutlined, CheckCircleOutlined, SafetyOutlined, ThunderboltOutlined } from '@ant-design/icons';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 
 const { Title, Text } = Typography;
@@ -40,6 +40,7 @@ const DecorativeCircles: React.FC = () => (
 
 const Login: React.FC = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { login, isLoading } = useAuth();
   const [form] = Form.useForm<LoginFormData>();
 
@@ -53,10 +54,8 @@ const Login: React.FC = () => {
     const result = await login(values);
     if (result.success) {
       message.success('登录成功');
-      const from = location.state?.from?.pathname || '/dashboard';
-      setTimeout(() => {
-        window.location.href = from;
-      }, 100);
+      const from = (location.state as any)?.from?.pathname || '/dashboard';
+      navigate(from, { replace: true });
     } else {
       if (result.error && typeof result.error === 'object' && 'message' in result.error) {
         message.error(`登录失败：${(result.error as Error).message}`);
