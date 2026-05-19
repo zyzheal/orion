@@ -873,9 +873,6 @@ const AdminSettings: React.FC = () => {
           />
           ChatOps 管理
         </Title>
-        <Paragraph type="secondary">
-          管理命令-Capability 映射、审批配置和审计日志
-        </Paragraph>
       </div>
 
       {/* 功能标签页 */}

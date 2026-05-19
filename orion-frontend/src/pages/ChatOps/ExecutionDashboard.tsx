@@ -165,8 +165,6 @@ const ExecutionDashboard: React.FC = () => {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <div>
             <span style={{ fontSize: 16, fontWeight: 600, lineHeight: '24px', color: colors.light.text.primary }}>执行监控</span>
-            <br />
-            <Text type="secondary" style={{ fontSize: 12 }}>最近命令执行记录与状态跟踪</Text>
           </div>
           <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>刷新</Button>
         </div>
@@ -188,9 +186,7 @@ const ExecutionDashboard: React.FC = () => {
         }}
       >
         <div>
-          <span style={{ fontSize: 16, fontWeight: 600, lineHeight: '24px' }}>执行监控</span>
-          <br />
-          <Text type="secondary" style={{ fontSize: 12 }}>最近命令执行记录与状态跟踪</Text>
+          <span style={{ fontSize: 16, fontWeight: 600, lineHeight: '24px', color: colors.light.text.primary }}>执行监控</span>
         </div>
         <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
           刷新

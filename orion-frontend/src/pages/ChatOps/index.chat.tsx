@@ -194,10 +194,11 @@ export default function ChatOpsChat() {
             <RobotOutlined style={{ marginRight: spacing[2] }} />
             ChatOps 对话工作台
           </span>
-          <Text type="secondary" style={{ fontSize: 12, marginLeft: 8 }}>
-            用自然语言与 AI 助手交流，执行运维操作
-            {tools.length > 0 && ` · ${tools.length} 个可用工具`}
-          </Text>
+          {tools.length > 0 && (
+            <Text type="secondary" style={{ fontSize: 12, marginLeft: 8 }}>
+              {tools.length} 个可用工具
+            </Text>
+          )}
         </div>
         <Button icon={<ClearOutlined />} size="small" onClick={handleClear}>
           清空对话
