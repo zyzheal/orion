@@ -12,6 +12,10 @@ import { ApiMarketService } from '../services/api-market/ApiMarketService';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 
+interface AuthenticatedRequest extends FastifyRequest {
+  user?: { id: string; [key: string]: unknown };
+}
+
 interface ApiMarketRoutesOptions {
   database?: DatabasePool;
 }
@@ -34,15 +38,14 @@ export default async function apiMarketRoutes(
   // POST /market/products - Create product
   app.post('/market/products', {
     onRequest: [authenticateUser, requirePermission({ resource: 'api-market', action: 'write' })],
-  }, async (request: FastifyRequest, reply: FastifyReply) => {
+  }, async (request: AuthenticatedRequest, reply: FastifyReply) => {
     try {
-      const user = (request as any).user;
-      const { name, description, version } = request.body as any;
+      const { name, description, version } = request.body as { name: string; description?: string; version?: string };
 
       const product = await service.createProduct({
         name,
         description,
-        ownerId: user?.id,
+        ownerId: request.user?.id,
         version,
       });
 
@@ -64,7 +67,7 @@ export default async function apiMarketRoutes(
   app.get('/market/products/:id', {
     onRequest: [authenticateUser],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const id = (request.params as any).id;
+    const { id } = request.params as { id: string };
     const product = await service.getProduct(id);
     if (!product) {
       return reply.code(404).send({ error: 'Product not found' });
@@ -77,7 +80,7 @@ export default async function apiMarketRoutes(
     onRequest: [authenticateUser, requirePermission({ resource: 'api-market', action: 'write' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const id = (request.params as any).id;
+      const { id } = request.params as { id: string };
       const product = await service.publishProduct(id);
       return reply.send(product);
     } catch (error: any) {
@@ -89,7 +92,7 @@ export default async function apiMarketRoutes(
   app.delete('/market/products/:id', {
     onRequest: [authenticateUser, requirePermission({ resource: 'api-market', action: 'delete' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const id = (request.params as any).id;
+    const { id } = request.params as { id: string };
     const deleted = await service.deleteProduct(id);
     if (!deleted) {
       return reply.code(404).send({ error: 'Product not found' });
@@ -102,13 +105,12 @@ export default async function apiMarketRoutes(
   // POST /market/apps - Create app
   app.post('/market/apps', {
     onRequest: [authenticateUser, requirePermission({ resource: 'api-market', action: 'write' })],
-  }, async (request: FastifyRequest, reply: FastifyReply) => {
+  }, async (request: AuthenticatedRequest, reply: FastifyReply) => {
     try {
-      const user = (request as any).user;
-      const { name, description, redirectUris } = request.body as any;
+      const { name, description, redirectUris } = request.body as { name: string; description?: string; redirectUris?: string[] };
 
       const app = await service.createDeveloperApp({
-        developerId: user?.id,
+        developerId: request.user?.id,
         name,
         description,
         redirectUris,
@@ -123,9 +125,8 @@ export default async function apiMarketRoutes(
   // GET /market/apps - List my apps
   app.get('/market/apps', {
     onRequest: [authenticateUser],
-  }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const user = (request as any).user;
-    const apps = await service.listAppsByDeveloper(user?.id);
+  }, async (request: AuthenticatedRequest, reply: FastifyReply) => {
+    const apps = await service.listAppsByDeveloper(request.user?.id);
     return reply.send(apps);
   });
 
@@ -133,7 +134,7 @@ export default async function apiMarketRoutes(
   app.get('/market/apps/:id', {
     onRequest: [authenticateUser],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const id = (request.params as any).id;
+    const { id } = request.params as { id: string };
     const app = await service.getApp(id);
     if (!app) {
       return reply.code(404).send({ error: 'App not found' });
@@ -148,8 +149,8 @@ export default async function apiMarketRoutes(
     onRequest: [authenticateUser, requirePermission({ resource: 'api-market', action: 'write' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const appId = (request.params as any).appId;
-      const { scopes } = request.body as any;
+      const { appId } = request.params as { appId: string };
+      const { scopes } = request.body as { scopes?: string[] };
       const result = await service.generateApiKey(appId, scopes);
       return reply.code(201).send(result);
     } catch (error: any) {
@@ -161,7 +162,7 @@ export default async function apiMarketRoutes(
   app.get('/market/apps/:appId/keys', {
     onRequest: [authenticateUser],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const appId = (request.params as any).appId;
+    const { appId } = request.params as { appId: string };
     const keys = await service.listApiKeys(appId);
     // Don't expose client secrets
     const safeKeys = keys.map(k => ({
@@ -181,7 +182,7 @@ export default async function apiMarketRoutes(
   // POST /market/auth/token - Validate API key (public endpoint)
   app.post('/market/auth/token', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const { clientId, clientSecret } = request.body as any;
+      const { clientId, clientSecret } = request.body as { clientId: string; clientSecret: string };
 
       if (!clientId || !clientSecret) {
         return reply.code(400).send({ error: 'clientId and clientSecret required' });
@@ -209,9 +210,9 @@ export default async function apiMarketRoutes(
   // POST /market/subscriptions - Subscribe to product
   app.post('/market/subscriptions', {
     onRequest: [authenticateUser, requirePermission({ resource: 'api-market', action: 'write' })],
-  }, async (request: FastifyRequest, reply: FastifyReply) => {
+  }, async (request: AuthenticatedRequest, reply: FastifyReply) => {
     try {
-      const { appId, productId, plan, quotaPerDay } = request.body as any;
+      const { appId, productId, plan, quotaPerDay } = request.body as { appId: string; productId: string; plan: string; quotaPerDay?: number };
       await service.subscribe(appId, productId, plan, quotaPerDay);
       return reply.code(201).send({ message: 'Subscribed successfully' });
     } catch (error: any) {
@@ -223,7 +224,8 @@ export default async function apiMarketRoutes(
   app.get('/market/subscriptions/:appId', {
     onRequest: [authenticateUser],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    // In a real implementation, we'd have a method to list subscriptions
-    return reply.send([]);
+    const { appId } = request.params as { appId: string };
+    const subscriptions = await service.listSubscriptions(appId);
+    return reply.send(subscriptions);
   });
 }

@@ -50,7 +50,7 @@ abstract class ApiBase {
     config?: AxiosRequestConfig
   ): Promise<T> {
     const response = await this.client.get<ApiResponse<T>>(
-      `${this.baseUrl}${path}`,
+      this.buildPath(path),
       config
     );
     return response.data.data;
@@ -65,7 +65,7 @@ abstract class ApiBase {
     config?: AxiosRequestConfig
   ): Promise<T> {
     const response = await this.client.post<ApiResponse<T>>(
-      `${this.baseUrl}${path}`,
+      this.buildPath(path),
       data,
       config
     );
@@ -81,7 +81,7 @@ abstract class ApiBase {
     config?: AxiosRequestConfig
   ): Promise<T> {
     const response = await this.client.put<ApiResponse<T>>(
-      `${this.baseUrl}${path}`,
+      this.buildPath(path),
       data,
       config
     );
@@ -97,7 +97,7 @@ abstract class ApiBase {
     config?: AxiosRequestConfig
   ): Promise<T> {
     const response = await this.client.patch<ApiResponse<T>>(
-      `${this.baseUrl}${path}`,
+      this.buildPath(path),
       data,
       config
     );
@@ -112,10 +112,20 @@ abstract class ApiBase {
     config?: AxiosRequestConfig
   ): Promise<T> {
     const response = await this.client.delete<ApiResponse<T>>(
-      `${this.baseUrl}${path}`,
+      this.buildPath(path),
       config
     );
     return response.data.data;
+  }
+
+  /**
+   * Build full URL path, avoiding duplicate prefixes
+   */
+  protected buildPath(path: string): string {
+    const base = this.baseUrl.replace(/\/$/, '');
+    if (path.startsWith('http')) return path; // already absolute
+    if (path.startsWith(base)) return path; // already includes base
+    return `${base}${path}`;
   }
 }
 
@@ -201,6 +211,15 @@ export class OrionClient {
    */
   public setToken(token: string): void {
     this.client.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+  }
+
+  /**
+   * Close the underlying HTTP client and clean up resources
+   */
+  public close(): void {
+    // Cancel any pending requests and clean up interceptors
+    this.client.interceptors.request.clear();
+    this.client.interceptors.response.clear();
   }
 }
 

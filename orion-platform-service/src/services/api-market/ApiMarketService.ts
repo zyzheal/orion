@@ -246,4 +246,11 @@ export class ApiMarketService {
     const subscription = await this.repository.findSubscription(appId, productId);
     return subscription?.status === 'active';
   }
+
+  /**
+   * List subscriptions for an app
+   */
+  async listSubscriptions(appId: string): Promise<any[]> {
+    return this.repository.listSubscriptionsByApp(appId);
+  }
 }

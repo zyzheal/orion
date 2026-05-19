@@ -1,6 +1,7 @@
 """Orion Platform SDK Client"""
 
 import httpx
+import time
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
@@ -12,7 +13,7 @@ class OrionConfig:
     base_url: str
     api_key: Optional[str] = None
     token: Optional[str] = None
-    timeout: int = 30000
+    timeout: float = 30.0  # seconds
     retries: int = 3
 
 
@@ -23,7 +24,7 @@ class OrionClient:
         self.config = config
         self.client = httpx.Client(
             base_url=config.base_url,
-            timeout=config.timeout / 1000.0,  # Convert ms to seconds
+            timeout=config.timeout,
             headers=self._build_headers(),
         )
         self.agents = None
@@ -43,9 +44,13 @@ class OrionClient:
         """Initialize sub-APIs"""
         from .agents import AgentAPI
         from .pipelines import PipelineAPI
+        from .diagnostics import DiagnosticAPI
+        from .integrations import IntegrationAPI
 
         self.agents = AgentAPI(self)
         self.pipelines = PipelineAPI(self)
+        self.diagnostics = DiagnosticAPI(self)
+        self.integrations = IntegrationAPI(self)
 
     def _request(
         self,
@@ -63,8 +68,6 @@ class OrionClient:
                 response = self.client.request(method, path, **kwargs)
                 # Retry on 5xx errors
                 if response.status_code >= 500 and retry_count < max_retries:
-                    import time
-
                     retry_count += 1
                     # Exponential backoff
                     time.sleep(pow(2, retry_count - 1))

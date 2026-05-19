@@ -120,7 +120,7 @@ export class WebhookService {
 // ============================================================
 
 /** Exponential backoff delays: 1s, 2s, 4s, 8s, 16s, 32s, 64s, 128s, 256s, 512s (max 1 hour = 3600000ms) */
-const BACKOFF_DELAYS = [1000, 2000, 4000, 8000, 16000, 32000, 64000, 128000, 256000, 512000, 3600000];
+export const BACKOFF_DELAYS = [1000, 2000, 4000, 8000, 16000, 32000, 64000, 128000, 256000, 512000, 3600000];
 
 export class WebhookServiceEnhanced {
   private enhancedRepo: WebhookRepositoryEnhanced;
@@ -254,9 +254,10 @@ export class WebhookServiceEnhanced {
         payload,
       });
 
-      // Process delivery asynchronously (fire and forget, but catch errors)
+      // Process delivery asynchronously (fire and forget, but log errors)
       this.processDelivery(delivery, endpoint, payload, eventType).catch((err) => {
-        console.error(`Failed to process delivery ${delivery.id}:`, err);
+        console.error(`[WebhookDispatcher] Failed to process delivery ${delivery.id}:`, err);
+        // In production, consider queuing failed deliveries for background retry workers
       });
 
       deliveredCount++;
@@ -442,10 +443,10 @@ export class WebhookServiceEnhanced {
         if (typeof value !== 'number' || value > condition.lte) return false;
       }
       if ('in' in condition) {
-        if (!condition.in.includes(value)) return false;
+        if (!Array.isArray(condition.in) || !condition.in.includes(value)) return false;
       }
       if ('nin' in condition) {
-        if (condition.nin.includes(value)) return false;
+        if (!Array.isArray(condition.nin) || condition.nin.includes(value)) return false;
       }
       if ('exists' in condition) {
         const exists = value !== undefined && value !== null;

@@ -3,6 +3,8 @@
 import pytest
 from unittest.mock import Mock, patch
 from orion.client import OrionClient, OrionConfig
+from orion.diagnostics import DiagnosticAPI
+from orion.integrations import IntegrationAPI
 
 
 class TestOrionConfig:
@@ -14,7 +16,7 @@ class TestOrionConfig:
         assert config.base_url == "http://localhost:3001"
         assert config.api_key is None
         assert config.token is None
-        assert config.timeout == 30000
+        assert config.timeout == 30.0
         assert config.retries == 3
 
     def test_config_with_api_key(self):
@@ -128,3 +130,35 @@ class TestPipelineAPI:
         assert hasattr(client.pipelines, 'list_pipelines')
         assert hasattr(client.pipelines, 'get_logs')
         assert hasattr(client.pipelines, 'cancel_run')
+
+
+class TestDiagnosticAPI:
+    """Tests for DiagnosticAPI"""
+
+    def test_diagnostic_api_initialization(self):
+        """Test DiagnosticAPI initialization"""
+        config = OrionConfig(base_url="http://localhost:3001")
+        client = OrionClient(config)
+
+        assert client.diagnostics is not None
+        assert hasattr(client.diagnostics, 'run')
+        assert hasattr(client.diagnostics, 'get_status')
+        assert hasattr(client.diagnostics, 'list_types')
+
+
+class TestIntegrationAPI:
+    """Tests for IntegrationAPI"""
+
+    def test_integration_api_initialization(self):
+        """Test IntegrationAPI initialization"""
+        config = OrionConfig(base_url="http://localhost:3001")
+        client = OrionClient(config)
+
+        assert client.integrations is not None
+        assert hasattr(client.integrations, 'create')
+        assert hasattr(client.integrations, 'list')
+        assert hasattr(client.integrations, 'get')
+        assert hasattr(client.integrations, 'update')
+        assert hasattr(client.integrations, 'delete')
+        assert hasattr(client.integrations, 'test_connection')
+        assert hasattr(client.integrations, 'sync')

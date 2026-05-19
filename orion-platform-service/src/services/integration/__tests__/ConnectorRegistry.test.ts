@@ -7,6 +7,7 @@ import {
   ConnectorCapability,
   Connector,
   ConnectorConfig,
+  globalConnectorRegistry,
 } from '../ConnectorRegistry';
 
 describe('ConnectorRegistry', () => {
@@ -31,6 +32,8 @@ describe('ConnectorRegistry', () => {
 
   beforeEach(() => {
     registry = new ConnectorRegistry();
+    // Clear global registry to prevent test pollution
+    globalConnectorRegistry.clear();
   });
 
   describe('register', () => {

@@ -275,7 +275,26 @@ export class JiraConnector implements Connector {
     }
 
     const response = await this.apiPost('/issue', { fields });
-    return this.getIssue({ issueKey: (response as { key: string }).key });
+    // Return the created issue data directly from the response
+    return {
+      id: (response as { id: string }).id,
+      key: (response as { key: string }).key,
+      fields: {
+        summary: String(summary),
+        description: description ? String(description) : null,
+        status: { name: 'To Do', statusCategory: { key: 'new', name: 'To Do' } },
+        priority: priority ? { name: String(priority) } : { name: 'Medium' },
+        issuetype: { id: '', name: String(issueType) },
+        reporter: null,
+        assignee: assigneeAccountId ? { accountId: String(assigneeAccountId), displayName: '', emailAddress: '' } : null,
+        created: new Date().toISOString(),
+        updated: new Date().toISOString(),
+        resolutiondate: null,
+        labels: (labels as string[]) || [],
+        components: [],
+        fixVersions: [],
+      },
+    } as JiraIssue;
   }
 
   private async updateIssue(params: Record<string, unknown>): Promise<unknown> {
