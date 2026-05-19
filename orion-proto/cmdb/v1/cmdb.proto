@@ -140,6 +140,15 @@ message AnalyzeImpactResponse {
     ImpactAnalysis analysis = 1;
 }
 
+message Host {
+    string ci_id = 1;
+    string ip_address = 2;
+    int32 ssh_port = 3;
+    string ssh_user = 4;
+    string os_type = 5;
+    string status = 6;
+}
+
 message SyncHostsRequest {
     string source = 1;
     map<string, string> options = 2;
