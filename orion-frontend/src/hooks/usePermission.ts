@@ -1,5 +1,6 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import { useAuthStore } from '@/stores/authStore';
+import { capabilityApi } from '@/api/capability';
 
 // 角色权限映射（与后端同步，来源于 docs/architecture/rbac-abac-unified-implementation.md §4）
 const ROLE_PERMISSIONS: Record<string, string[]> = {

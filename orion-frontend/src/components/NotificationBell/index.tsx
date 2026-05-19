@@ -94,12 +94,22 @@ export const NotificationBell: React.FC = () => {
 
   // Dropdown content
   const dropdownContent = (
-    <div style={{ width: 360, padding: 0 }}>
+    <div style={{
+      width: 360,
+      padding: 0,
+      background: 'rgba(255, 255, 255, 0.85)',
+      backdropFilter: 'blur(20px) saturate(180%)',
+      WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+      borderRadius: 12,
+      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06)',
+      border: '1px solid rgba(255, 255, 255, 0.3)',
+      overflow: 'hidden',
+    }}>
       {/* Header */}
       <div
         style={{
           padding: '12px 16px',
-          borderBottom: '1px solid #f0f0f0',
+          borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
@@ -158,7 +168,7 @@ export const NotificationBell: React.FC = () => {
       <div
         style={{
           padding: '8px 16px',
-          borderTop: '1px solid #f0f0f0',
+          borderTop: '1px solid rgba(0, 0, 0, 0.06)',
           textAlign: 'center',
         }}
       >
@@ -178,6 +188,7 @@ export const NotificationBell: React.FC = () => {
       trigger={['click']}
       placement="bottomRight"
       arrow
+      getPopupContainer={() => document.body}
     >
       <Badge count={unreadCount} offset={[-4, 4]} size="small">
         <Button

@@ -74,6 +74,7 @@ export default async function userRoutes(
 
   // GET /api/v1/users/:id — Get user detail
   app.get('/:id', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'user', action: 'read' })],
     schema: {
       tags: ['user'],
       summary: 'Get user by ID',
@@ -108,6 +109,7 @@ export default async function userRoutes(
 
   // POST /api/v1/users — Create user
   app.post('/', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'user', action: 'write' })],
     schema: {
       tags: ['user'],
       summary: 'Create a new user',
@@ -136,41 +138,53 @@ export default async function userRoutes(
   });
 
   // PUT /api/v1/users/:id — Update user
-  app.put('/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.put('/:id', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'user', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.update(request, reply);
   });
 
   // DELETE /api/v1/users/:id — Soft delete user
-  app.delete('/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.delete('/:id', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'user', action: 'delete' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.delete(request, reply);
   });
 
   // ==================== Authentication ====================
 
-  // POST /api/v1/users/authenticate — Authenticate user (internal use)
+  // POST /api/v1/users/authenticate — Authenticate user (internal use, no auth required)
   app.post('/authenticate', async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.authenticate(request, reply);
   });
 
   // POST /api/v1/users/:id/change-password — Change user password
-  app.post('/:id/change-password', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/:id/change-password', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'user', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.changePassword(request, reply);
   });
 
   // ==================== Tenant Management ====================
 
   // GET /api/v1/users/by-tenant/:tenantId — Get users by tenant
-  app.get('/by-tenant/:tenantId', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/by-tenant/:tenantId', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'user', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.getUsersByTenant(request, reply);
   });
 
   // POST /api/v1/users/:userId/tenants/:tenantId — Add user to tenant
-  app.post('/:userId/tenants/:tenantId', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/:userId/tenants/:tenantId', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'user', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.addUserToTenant(request, reply);
   });
 
   // DELETE /api/v1/users/:userId/tenants/:tenantId — Remove user from tenant
-  app.delete('/:userId/tenants/:tenantId', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.delete('/:userId/tenants/:tenantId', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'user', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.removeUserFromTenant(request, reply);
   });
 }

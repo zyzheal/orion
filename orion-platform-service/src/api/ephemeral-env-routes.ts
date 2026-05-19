@@ -10,6 +10,8 @@ import { EphemeralEnvService } from '../services/ephemeral-env-service';
 import { K8sProvisionerService } from '../services/k8s-provisioner-service';
 import { EventBusService } from '../services/event-bus-service';
 import { DatabasePool } from '../services/database';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Internal server error';
@@ -34,7 +36,9 @@ export default async function ephemeralEnvRoutes(
   // ==================== Environment Lifecycle ====================
 
   // GET / - List ephemeral environments
-  app.get('/', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ephemeral-env', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const query = request.query as {
       prId?: string;
       repoId?: string;
@@ -64,7 +68,9 @@ export default async function ephemeralEnvRoutes(
   });
 
   // GET /:id - Get environment details
-  app.get('/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/:id', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ephemeral-env', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const params = request.params as { id: string };
     try {
       const env = await service.getById(params.id);
@@ -79,7 +85,9 @@ export default async function ephemeralEnvRoutes(
   });
 
   // POST / - Create ephemeral environment
-  app.post('/', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ephemeral-env', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as {
       prId: string;
       repoId: string;
@@ -100,7 +108,9 @@ export default async function ephemeralEnvRoutes(
   });
 
   // POST /:id/wake - Wake an idle environment
-  app.post('/:id/wake', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/:id/wake', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ephemeral-env', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const params = request.params as { id: string };
     try {
       const env = await service.wake(params.id);
@@ -115,7 +125,9 @@ export default async function ephemeralEnvRoutes(
   });
 
   // POST /:id/teardown - Tear down an environment
-  app.post('/:id/teardown', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/:id/teardown', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ephemeral-env', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const params = request.params as { id: string };
     const body = request.body as { reason?: string } | undefined;
     try {
@@ -131,7 +143,9 @@ export default async function ephemeralEnvRoutes(
   });
 
   // GET /:id/cost - Get environment cost breakdown
-  app.get('/:id/cost', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/:id/cost', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ephemeral-env', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const params = request.params as { id: string };
     try {
       const cost = await service.getCost(params.id);
@@ -148,7 +162,9 @@ export default async function ephemeralEnvRoutes(
   // ==================== Templates ====================
 
   // GET /templates - List environment templates
-  app.get('/templates', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/templates', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ephemeral-env', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const templates = [
       {
         id: 'tpl-web-frontend',

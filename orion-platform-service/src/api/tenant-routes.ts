@@ -149,7 +149,9 @@ export default async function tenantRoutes(
   });
 
   // POST /tenant/quota/check - 检查租户配额
-  app.post('/quota/check', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/quota/check', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'tenant', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const tenantIdHeader = request.headers['x-tenant-id'] as string;
     const body = request.body as {
       resource: string;
@@ -179,13 +181,17 @@ export default async function tenantRoutes(
   // ==================== Namespace Pool ====================
 
   // GET /tenant/namespace/pool - 获取 Namespace 池状态
-  app.get('/namespace/pool', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/namespace/pool', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'tenant', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const status = namespacePool.getPoolStatus();
     return reply.send({ status });
   });
 
   // POST /tenant/namespace/allocate - 从 Namespace 池分配
-  app.post('/namespace/allocate', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/namespace/allocate', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'tenant', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as NamespaceAllocateRequest;
 
     try {
@@ -210,7 +216,9 @@ export default async function tenantRoutes(
   });
 
   // POST /tenant/namespace/release - 释放 Namespace 到池中
-  app.post('/namespace/release', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/namespace/release', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'tenant', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as NamespaceReleaseRequest;
 
     try {
@@ -228,7 +236,9 @@ export default async function tenantRoutes(
   });
 
   // GET /tenant/namespace/:tenantId - 获取租户的 Namespaces
-  app.get('/namespace/:tenantId', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/namespace/:tenantId', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'tenant', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { tenantId } = request.params as { tenantId: string };
 
     const namespaces = namespacePool.getTenantNamespaces(parseInt(tenantId, 10));
@@ -242,7 +252,9 @@ export default async function tenantRoutes(
   // ==================== Tenant Middleware Config ====================
 
   // GET /tenant/middleware/config - 获取中间件配置
-  app.get('/middleware/config', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/middleware/config', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'tenant', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return reply.send({
       config: {
         enabled: true,
@@ -253,7 +265,9 @@ export default async function tenantRoutes(
   });
 
   // PUT /tenant/middleware/config - 更新中间件配置
-  app.put('/middleware/config', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.put('/middleware/config', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'tenant', action: 'manage' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as {
       enabled?: boolean;
       headerName?: string;
@@ -272,7 +286,9 @@ export default async function tenantRoutes(
   // ==================== Tenant CRUD (Database-backed) ====================
 
   // GET /tenant - List all tenants
-  app.get('/', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'tenant', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { page = '1', limit = '20', status } = request.query as Record<string, string>;
     
     if (tenantService) {
@@ -302,7 +318,9 @@ export default async function tenantRoutes(
   });
 
   // GET /tenant/:id - Get tenant by ID
-  app.get('/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/:id', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'tenant', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = request.params as { id: string };
 
     if (tenantService) {
@@ -330,7 +348,9 @@ export default async function tenantRoutes(
   });
 
   // POST /tenant - Create new tenant
-  app.post('/', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'tenant', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as {
       name: string;
       display_name?: string;
@@ -362,7 +382,9 @@ export default async function tenantRoutes(
   });
 
   // PUT /tenant/:id - Update tenant
-  app.put('/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.put('/:id', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'tenant', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = request.params as { id: string };
     const body = request.body as {
       name?: string;
@@ -397,7 +419,9 @@ export default async function tenantRoutes(
   });
 
   // DELETE /tenant/:id - Delete tenant (soft delete)
-  app.delete('/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.delete('/:id', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'tenant', action: 'delete' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = request.params as { id: string };
 
     if (tenantService) {
@@ -426,7 +450,9 @@ export default async function tenantRoutes(
   });
 
   // GET /tenant/count - Get tenant count
-  app.get('/count', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/count', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'tenant', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { status } = request.query as Record<string, string>;
 
     if (tenantService) {

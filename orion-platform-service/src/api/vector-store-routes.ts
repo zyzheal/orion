@@ -6,6 +6,8 @@
  * Prefix: /api/v1/vector-store
  */
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
 import { DatabasePool } from '../services/database';
 import { VectorStore } from '../services/ai/VectorStore';
 import { VectorStoreConfig } from '../services/ai/types';
@@ -30,7 +32,9 @@ export default async function vectorStoreRoutes(app: FastifyInstance, options: V
     : new VectorStore(config, { query: async () => ({ rows: [], rowCount: 0 }) });
 
   // POST /vector-store/documents - Add document
-  app.post('/documents', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/documents', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'vector', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { content, metadata } = request.body as { content: string; metadata?: Record<string, any> };
     if (!content) return reply.status(400).send({ error: 'CONTENT_REQUIRED' });
 
@@ -39,7 +43,9 @@ export default async function vectorStoreRoutes(app: FastifyInstance, options: V
   });
 
   // POST /vector-store/search - Semantic search
-  app.post('/search', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/search', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'vector', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { query, topK, filter } = request.body as {
       query: string;
       topK?: number;
@@ -52,7 +58,9 @@ export default async function vectorStoreRoutes(app: FastifyInstance, options: V
   });
 
   // DELETE /vector-store/documents/:id - Delete document
-  app.delete('/documents/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.delete('/documents/:id', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'vector', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = request.params as { id: string };
     const deleted = await vectorStore.deleteDocument(id);
     if (!deleted) return reply.status(404).send({ error: 'NOT_FOUND' });
@@ -60,7 +68,9 @@ export default async function vectorStoreRoutes(app: FastifyInstance, options: V
   });
 
   // GET /vector-store/stats - Get stats
-  app.get('/stats', async (_request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/stats', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'vector', action: 'read' })],
+  }, async (_request: FastifyRequest, reply: FastifyReply) => {
     return reply.send({
       documentCount: vectorStore.documentCount,
       persistent: vectorStore.isPersistent,

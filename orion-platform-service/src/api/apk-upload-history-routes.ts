@@ -8,6 +8,8 @@
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
 import ApkUploadHistoryService from '../services/pipeline/ApkUploadHistoryService';
 
 // Global history service instance
@@ -75,7 +77,9 @@ export async function registerApkUploadHistoryRoutes(app: FastifyInstance): Prom
 
   await app.register(async (instance: FastifyInstance) => {
     // GET /api/v1/apk-upload-history - 列出上传历史
-    instance.get('/api/v1/apk-upload-history', async (request: FastifyRequest, reply: FastifyReply) => {
+    instance.get('/api/v1/apk-upload-history', {
+      onRequest: [authenticateUser, requirePermission({ resource: 'apk-upload', action: 'read' })],
+    }, async (request: FastifyRequest, reply: FastifyReply) => {
       try {
         const tenantId = getTenantId(request);
         const query = request.query as ListQuery;
@@ -114,7 +118,9 @@ export async function registerApkUploadHistoryRoutes(app: FastifyInstance): Prom
     });
 
     // GET /api/v1/apk-upload-history/recent-failures - 获取最近的失败记录
-    instance.get('/api/v1/apk-upload-history/recent-failures', async (request: FastifyRequest, reply: FastifyReply) => {
+    instance.get('/api/v1/apk-upload-history/recent-failures', {
+      onRequest: [authenticateUser, requirePermission({ resource: 'apk-upload', action: 'read' })],
+    }, async (request: FastifyRequest, reply: FastifyReply) => {
       try {
         const tenantId = getTenantId(request);
         const query = request.query as { limit?: number };
@@ -134,7 +140,9 @@ export async function registerApkUploadHistoryRoutes(app: FastifyInstance): Prom
     });
 
     // GET /api/v1/apk-upload-history/stats - 获取上传统计信息
-    instance.get('/api/v1/apk-upload-history/stats', async (request: FastifyRequest, reply: FastifyReply) => {
+    instance.get('/api/v1/apk-upload-history/stats', {
+      onRequest: [authenticateUser, requirePermission({ resource: 'apk-upload', action: 'read' })],
+    }, async (request: FastifyRequest, reply: FastifyReply) => {
       try {
         const tenantId = getTenantId(request);
         const stats = await historyService.getStats(tenantId);
@@ -151,7 +159,9 @@ export async function registerApkUploadHistoryRoutes(app: FastifyInstance): Prom
     });
 
     // GET /api/v1/apk-upload-history/:id - 获取单条记录（租户隔离）
-    instance.get('/api/v1/apk-upload-history/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+    instance.get('/api/v1/apk-upload-history/:id', {
+      onRequest: [authenticateUser, requirePermission({ resource: 'apk-upload', action: 'read' })],
+    }, async (request: FastifyRequest, reply: FastifyReply) => {
       try {
         const tenantId = getTenantId(request);
         const params = request.params as IdParams;

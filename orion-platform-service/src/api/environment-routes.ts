@@ -105,6 +105,9 @@ export default async function environmentRoutes(
   // POST /environments/:id/unlock - Unlock an environment
   app.post(
     '/environments/:id/unlock',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'environment', action: 'manage' })],
+    },
     async (request: FastifyRequest, reply: FastifyReply) => {
       return envController.unlockEnvironment(request, reply);
     }
@@ -113,6 +116,9 @@ export default async function environmentRoutes(
   // GET /environments/:id/lock-status - Check lock status
   app.get(
     '/environments/:id/lock-status',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'environment', action: 'read' })],
+    },
     async (request: FastifyRequest, reply: FastifyReply) => {
       return envController.getLockStatus(request, reply);
     }
@@ -121,6 +127,9 @@ export default async function environmentRoutes(
   // GET /environments/:id/deployment-allowed - Check if deployment is allowed
   app.get(
     '/environments/:id/deployment-allowed',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'environment', action: 'read' })],
+    },
     async (request: FastifyRequest, reply: FastifyReply) => {
       return envController.checkDeploymentAllowed(request, reply);
     }

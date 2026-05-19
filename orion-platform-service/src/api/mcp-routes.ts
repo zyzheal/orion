@@ -19,6 +19,8 @@ import { allResources } from '../mcp/resources';
 import { PipelineService } from '../services/pipeline/PipelineService';
 import { PipelineRepository } from '../services/pipeline/PipelineRepository';
 import { AuditRepository } from '../services/audit/AuditRepository';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
 import pino from 'pino';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
@@ -189,7 +191,9 @@ export default async function mcpRoutes(
    * POST /api/v1/mcp - JSON-RPC 2.0 endpoint
    * Handles all MCP protocol requests
    */
-  app.post('/mcp', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/mcp', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'mcp', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     // Validate authentication using middleware
     const auth = await requireAuth(request, reply, auditRepository);
     if (!auth) {
@@ -222,7 +226,9 @@ export default async function mcpRoutes(
   /**
    * GET /api/v1/mcp/sse - SSE connection for real-time updates
    */
-  app.get('/mcp/sse', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/mcp/sse', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'mcp', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     // Validate authentication using middleware
     const auth = await requireAuth(request, reply, auditRepository);
     if (!auth) {
@@ -268,7 +274,9 @@ export default async function mcpRoutes(
    * GET /api/v1/mcp/tools - List all available tools (debug)
    * Requires authentication
    */
-  app.get('/mcp/tools', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/mcp/tools', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'mcp', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     // Validate authentication
     const auth = await requireAuth(request, reply, auditRepository);
     if (!auth) {
@@ -292,7 +300,9 @@ export default async function mcpRoutes(
    * GET /api/v1/mcp/resources - List all available resources (debug)
    * Requires authentication
    */
-  app.get('/mcp/resources', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/mcp/resources', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'mcp', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     // Validate authentication
     const auth = await requireAuth(request, reply, auditRepository);
     if (!auth) {
@@ -327,7 +337,9 @@ export default async function mcpRoutes(
    * GET /api/v1/mcp/info - Server information
    * Public endpoint - no authentication required
    */
-  app.get('/mcp/info', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/mcp/info', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'mcp', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return reply.send({
       server: mcpConfig,
       protocolVersion: '2024-11-05',

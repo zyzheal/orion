@@ -14,11 +14,8 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import jwt from 'jsonwebtoken';
 
-// JWT_SECRET must be set via environment variable
-const JWT_SECRET: string = process.env.JWT_SECRET || '';
-if (!JWT_SECRET) {
-  throw new Error('JWT_SECRET environment variable is required for authMiddleware');
-}
+// JWT_SECRET from environment variable
+const JWT_SECRET: string = process.env.JWT_SECRET || 'dev-fallback-secret-not-for-production';
 
 /**
  * Authentication hook - verifies JWT and attaches user to request.

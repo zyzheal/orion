@@ -57,6 +57,7 @@ export function requirePermission(options: RequirePermissionOptions) {
         department: user?.department,
         level: user?.level,
         status: user?.status || 'active',
+        teams: user?.teams || [],
       },
       resource: {
         type: options.resource,

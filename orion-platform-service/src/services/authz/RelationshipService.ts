@@ -86,6 +86,7 @@ export class RelationshipService {
       }
     }
 
+
     return {
       allowed: false,
       reason: 'Not resource owner or project member',

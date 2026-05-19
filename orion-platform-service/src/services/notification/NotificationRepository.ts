@@ -43,6 +43,7 @@ export class NotificationRepository {
     if (conditions.length > 0) query += ' WHERE ' + conditions.join(' AND ');
     query += ' ORDER BY created_at DESC';
     if (options?.limit) { params.push(options.limit); query += ` LIMIT $${params.length}`; }
+    if (options?.offset) { params.push(options.offset); query += ` OFFSET $${params.length}`; }
     return (await this.pool.query(query, params)).rows;
   }
 
@@ -76,6 +77,14 @@ export class NotificationRepository {
       "SELECT COUNT(*) as count FROM notifications WHERE user_id = $1 AND status = 'sent'",
       [userId]
     );
+    return parseInt(result.rows[0].count, 10);
+  }
+
+  async count(options?: { userId?: string }): Promise<number> {
+    let query = 'SELECT COUNT(*) as count FROM notifications';
+    const params: any[] = [];
+    if (options?.userId) { params.push(options.userId); query += ' WHERE user_id = $1'; }
+    const result = await this.pool.query(query, params);
     return parseInt(result.rows[0].count, 10);
   }
 }

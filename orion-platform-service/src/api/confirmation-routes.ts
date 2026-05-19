@@ -16,6 +16,8 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { DatabasePool } from '../services/database';
 import { ConfirmationService } from '../services/confirmation/ConfirmationService';
 import { ConfirmationController } from './controllers/ConfirmationController';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
 
 interface ConfirmationRoutesOptions {
   database?: DatabasePool;
@@ -27,52 +29,72 @@ export default async function confirmationRoutes(app: FastifyInstance, options: 
   const controller = new ConfirmationController(service);
 
   // GET /confirmations - List confirmations
-  app.get('/', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'confirmation', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.list(request, reply);
   });
 
   // GET /confirmations/stats - Get statistics
-  app.get('/stats', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/stats', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'confirmation', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.getStats(request, reply);
   });
 
   // GET /confirmations/audit - Get audit logs
-  app.get('/audit', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/audit', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'confirmation', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.getAuditLogs(request, reply);
   });
 
   // GET /confirmations/settings - Get notification settings
-  app.get('/settings', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/settings', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'confirmation', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.getSettings(request, reply);
   });
 
   // PUT /confirmations/settings - Update notification settings
-  app.put('/settings', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.put('/settings', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'confirmation', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.updateSettings(request, reply);
   });
 
   // POST /confirmations - Create confirmation
-  app.post('/', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'confirmation', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.create(request, reply);
   });
 
   // POST /confirmations/batch-approve - Batch approve
-  app.post('/batch-approve', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/batch-approve', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'confirmation', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.batchApprove(request, reply);
   });
 
   // GET /confirmations/:id - Get confirmation detail
-  app.get('/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/:id', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'confirmation', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.getById(request, reply);
   });
 
   // POST /confirmations/:id/approve - Approve confirmation
-  app.post('/:id/approve', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/:id/approve', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'confirmation', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.approve(request, reply);
   });
 
   // POST /confirmations/:id/reject - Reject confirmation
-  app.post('/:id/reject', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/:id/reject', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'confirmation', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.reject(request, reply);
   });
 }

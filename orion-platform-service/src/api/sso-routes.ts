@@ -9,6 +9,8 @@
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
 import jwt from 'jsonwebtoken';
 import { randomUUID } from 'crypto';
 import { SsoService, SsoStateStore } from '../services/auth/SsoService';
@@ -94,7 +96,9 @@ export async function registerSsoRoutes(
    * GET /api/v1/auth/sso/login
    * Redirect the browser to the SSO provider's authorization page.
    */
-  fastify.get('/sso/login', async (request: FastifyRequest, reply: FastifyReply) => {
+  fastify.get('/sso/login', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'sso', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     if (!ssoService.isConfigured()) {
       return reply.status(400).send({
         success: false,
@@ -124,7 +128,9 @@ export async function registerSsoRoutes(
    * The `state` parameter from the OIDC provider doubles as our state key
    * for nonce/state validation.
    */
-  fastify.get('/sso/callback', async (request: FastifyRequest, reply: FastifyReply) => {
+  fastify.get('/sso/callback', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'sso', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
     const query = request.query as Record<string, string> | undefined;
     const stateKey = query?.state;
@@ -224,7 +230,9 @@ export async function registerSsoRoutes(
    * GET /api/v1/auth/sso/status
    * Returns whether SSO is configured (for the login page to show/hide the SSO button).
    */
-  fastify.get('/sso/status', async (request: FastifyRequest, reply: FastifyReply) => {
+  fastify.get('/sso/status', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'sso', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const configured = ssoService.isConfigured();
     const config = ssoService.getConfig();
 
@@ -242,7 +250,9 @@ export async function registerSsoRoutes(
    * GET /api/v1/auth/sso/config (admin-only placeholder)
    * Returns SSO configuration details for admin settings page.
    */
-  fastify.get('/sso/config', async (request: FastifyRequest, reply: FastifyReply) => {
+  fastify.get('/sso/config', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'sso', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const config = ssoService.getConfig();
 
     if (!config) {

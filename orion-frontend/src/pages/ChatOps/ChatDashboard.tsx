@@ -31,7 +31,7 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 
 dayjs.extend(relativeTime);
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 const { Option } = Select;
 
 interface MetricCardProps {
@@ -102,11 +102,12 @@ export default function ChatDashboard() {
 
   if (apiError && !stats) {
     return (
-      <div style={{ padding: 0 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+      <div style={{ padding: '0 0 16px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <div>
-            <Title level={3} style={{ margin: 0 }}>ChatOps 总览看板</Title>
-            <Text type="secondary">执行统计与趋势分析</Text>
+            <span style={{ fontSize: 16, fontWeight: 600, lineHeight: '24px' }}>ChatOps 总览看板</span>
+            <br />
+            <Text type="secondary" style={{ fontSize: 12 }}>执行统计与趋势分析</Text>
           </div>
           <Button icon={<ReloadOutlined />} onClick={handleRefresh} loading={loading}>刷新</Button>
         </div>
@@ -187,13 +188,12 @@ export default function ChatDashboard() {
   );
 
   return (
-    <div style={{ padding: 0 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+    <div style={{ padding: '0 0 16px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <div>
-          <Title level={3} style={{ margin: 0 }}>
-            ChatOps 总览看板
-          </Title>
-          <Text type="secondary">执行统计与趋势分析</Text>
+          <span style={{ fontSize: 16, fontWeight: 600, lineHeight: '24px' }}>ChatOps 总览看板</span>
+          <br />
+          <Text type="secondary" style={{ fontSize: 12 }}>执行统计与趋势分析</Text>
         </div>
         <Space>
           <Select

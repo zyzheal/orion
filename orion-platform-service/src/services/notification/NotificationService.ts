@@ -51,8 +51,11 @@ export class NotificationService {
     return notification;
   }
 
-  async getNotifications(userId: string, limit?: number): Promise<Notification[]> {
-    return this.repository.findAll({ userId, limit });
+  async getNotifications(userId: string, limit?: number, page?: number): Promise<{ data: Notification[]; total: number }> {
+    const total = await this.repository.count({ userId });
+    const offset = page && page > 1 ? (page - 1) * (limit || 20) : 0;
+    const data = await this.repository.findAll({ userId, limit, offset });
+    return { data, total };
   }
 
   async markAsRead(id: string): Promise<Notification> {

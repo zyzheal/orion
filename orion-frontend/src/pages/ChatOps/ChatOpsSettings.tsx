@@ -41,7 +41,7 @@ import {
 } from '@/api/chatops';
 import { useChatOpsConfigStore } from '@/stores/chatOpsConfigStore';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 const WEEKDAYS = [
   { label: '周一', value: 1 },
@@ -546,12 +546,11 @@ const NotificationDNDTab: React.FC = () => {
 // ============================================================================
 const ChatOpsSettings: React.FC = () => {
   return (
-    <div style={{ padding: 0 }}>
-      <div style={{ marginBottom: 24 }}>
-        <Title level={3} style={{ margin: 0 }}>
-          设置
-        </Title>
-        <Text type="secondary">ChatOps 配置管理 - 问答卡片、命令、平台配置与通知偏好</Text>
+    <div style={{ padding: '0 0 16px' }}>
+      <div style={{ marginBottom: 16 }}>
+        <span style={{ fontSize: 16, fontWeight: 600, lineHeight: '24px' }}>设置</span>
+        <br />
+        <Text type="secondary" style={{ fontSize: 12 }}>ChatOps 配置管理 - 问答卡片、命令、平台配置与通知偏好</Text>
       </div>
 
       <Tabs

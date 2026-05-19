@@ -13,6 +13,8 @@
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
 import { ArtifactVersionRepository } from '../repositories/ArtifactVersionRepository';
 import { ArtifactVersionService } from '../services/pipeline/ArtifactVersionService';
 
@@ -61,7 +63,9 @@ export default async function artifactVersionRoutes(
    *
    * 获取制品版本列表（支持分页、过滤）
    */
-  app.get('/', async (request: FastifyRequest<{ Querystring: ArtifactVersionQueryParams }>, reply: FastifyReply) => {
+  app.get('/', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'artifact-version', action: 'read' })],
+  }, async (request: FastifyRequest<{ Querystring: ArtifactVersionQueryParams }>, reply: FastifyReply) => {
     try {
       const { pipelineId, branch, commitSha, version, artifactName, startDate, endDate, limit, offset } = request.query;
 
@@ -99,7 +103,9 @@ export default async function artifactVersionRoutes(
    *
    * 获取单个版本详情
    */
-  app.get('/:id', async (request: FastifyRequest<{ Params: VersionParams }>, reply: FastifyReply) => {
+  app.get('/:id', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'artifact-version', action: 'read' })],
+  }, async (request: FastifyRequest<{ Params: VersionParams }>, reply: FastifyReply) => {
     try {
       const version = await repository.findById(request.params.id);
 
@@ -130,7 +136,9 @@ export default async function artifactVersionRoutes(
    *
    * 获取版本溯源链
    */
-  app.get('/:id/traceability', async (request: FastifyRequest<{ Params: TraceabilityParams }>, reply: FastifyReply) => {
+  app.get('/:id/traceability', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'artifact-version', action: 'read' })],
+  }, async (request: FastifyRequest<{ Params: TraceabilityParams }>, reply: FastifyReply) => {
     try {
       const chain = await repository.findTraceabilityChain(request.params.id);
 
@@ -161,7 +169,9 @@ export default async function artifactVersionRoutes(
    *
    * 版本对比
    */
-  app.get('/diff', async (request: FastifyRequest<{ Querystring: DiffQueryParams }>, reply: FastifyReply) => {
+  app.get('/diff', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'artifact-version', action: 'read' })],
+  }, async (request: FastifyRequest<{ Querystring: DiffQueryParams }>, reply: FastifyReply) => {
     try {
       const { pipelineId, versionA, versionB } = request.query;
 
@@ -194,7 +204,9 @@ export default async function artifactVersionRoutes(
    *
    * 获取部署历史
    */
-  app.get('/history/:pipelineId', async (request: FastifyRequest<{ Params: HistoryParams }>, reply: FastifyReply) => {
+  app.get('/history/:pipelineId', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'artifact-version', action: 'read' })],
+  }, async (request: FastifyRequest<{ Params: HistoryParams }>, reply: FastifyReply) => {
     try {
       const limit = request.query.limit ? parseInt(request.query.limit as string, 10) : 20;
       const history = await repository.getDeploymentHistory(request.params.pipelineId, limit);
@@ -218,7 +230,9 @@ export default async function artifactVersionRoutes(
    *
    * 通过 Commit SHA 查找版本（代码溯源）
    */
-  app.get('/commit/:commitSha', async (request: FastifyRequest<{ Params: { commitSha: string } }>, reply: FastifyReply) => {
+  app.get('/commit/:commitSha', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'artifact-version', action: 'read' })],
+  }, async (request: FastifyRequest<{ Params: { commitSha: string } }>, reply: FastifyReply) => {
     try {
       const versions = await repository.findByCommitSha(request.params.commitSha);
 
@@ -241,7 +255,9 @@ export default async function artifactVersionRoutes(
    *
    * 添加标签
    */
-  app.post('/:id/tags', async (request: FastifyRequest<{ Params: VersionParams; Body: { tag: string } }>, reply: FastifyReply) => {
+  app.post('/:id/tags', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'artifact-version', action: 'write' })],
+  }, async (request: FastifyRequest<{ Params: VersionParams; Body: { tag: string } }>, reply: FastifyReply) => {
     try {
       const { tag } = request.body;
 
@@ -274,7 +290,9 @@ export default async function artifactVersionRoutes(
    *
    * 删除标签
    */
-  app.delete('/:id/tags/:tag', async (request: FastifyRequest<{ Params: { id: string; tag: string } }>, reply: FastifyReply) => {
+  app.delete('/:id/tags/:tag', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'artifact-version', action: 'write' })],
+  }, async (request: FastifyRequest<{ Params: { id: string; tag: string } }>, reply: FastifyReply) => {
     try {
       await service.removeTag(request.params.id, request.params.tag);
 
@@ -297,7 +315,9 @@ export default async function artifactVersionRoutes(
    *
    * 晋升版本到目标环境
    */
-  app.post('/:id/promote', async (request: FastifyRequest<{ Params: VersionParams; Body: { targetEnvironment: string } }>, reply: FastifyReply) => {
+  app.post('/:id/promote', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'artifact-version', action: 'write' })],
+  }, async (request: FastifyRequest<{ Params: VersionParams; Body: { targetEnvironment: string } }>, reply: FastifyReply) => {
     try {
       const { targetEnvironment } = request.body;
 

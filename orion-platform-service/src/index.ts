@@ -4,6 +4,9 @@
  * 启动平台核心服务
  */
 
+// MUST be first: load .env before any other imports that depend on process.env
+import './env';
+
 import { createApp } from './app';
 import { config as platformConfig } from './config';
 import { RedisCache } from './services/redis-cache';
@@ -54,6 +57,8 @@ async function main() {
         await database.connect();
       } catch (error) {
         console.warn('Database connection failed, continuing without Database');
+        console.warn('Database error details:', error);
+        console.warn('Config used:', JSON.stringify(cfg.database).replace(/password.*/gi, 'password":"***"'));
         database = undefined; // Don't pass a disconnected pool
       }
     }

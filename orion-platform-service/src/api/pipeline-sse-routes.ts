@@ -41,7 +41,9 @@ export default async function registerPipelineSSERoutes(
 ): Promise<void> {
   const pipelineLogSSE = opts.pipelineLogSSE;
   // GET /api/v1/pipelines/sse/logs - SSE 实时日志推送
-  app.get('/pipelines/sse/logs', async (request: FastifyRequest<{ Querystring: SSEQuery }>, reply: FastifyReply) => {
+  app.get('/pipelines/sse/logs', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'pipeline', action: 'read' })],
+  }, async (request: FastifyRequest<{ Querystring: SSEQuery }>, reply: FastifyReply) => {
     const { pipelineId, runId, logLevel } = request.query;
     const userId = (request.user as any)?.id || 'anonymous';
 
@@ -79,7 +81,9 @@ export default async function registerPipelineSSERoutes(
   });
 
   // GET /api/v1/pipelines/sse/status - SSE 实时状态推送
-  app.get('/pipelines/sse/status', async (request: FastifyRequest<{ Querystring: SSEQuery }>, reply: FastifyReply) => {
+  app.get('/pipelines/sse/status', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'pipeline', action: 'read' })],
+  }, async (request: FastifyRequest<{ Querystring: SSEQuery }>, reply: FastifyReply) => {
     const { pipelineId, runId } = request.query;
     const userId = (request.user as any)?.id || 'anonymous';
 

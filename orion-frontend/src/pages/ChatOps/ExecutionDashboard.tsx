@@ -13,7 +13,7 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 
 dayjs.extend(relativeTime);
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 const platformColorMap: Record<string, string> = {
   dingtalk: colors.primary[500],
@@ -161,11 +161,12 @@ const ExecutionDashboard: React.FC = () => {
 
   if (apiError && executions.length === 0) {
     return (
-      <div style={{ padding: 0 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+      <div style={{ padding: '0 0 16px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <div>
-            <Title level={3} style={{ margin: 0 }}>执行监控</Title>
-            <Text type="secondary">最近命令执行记录与状态跟踪</Text>
+            <span style={{ fontSize: 16, fontWeight: 600, lineHeight: '24px' }}>执行监控</span>
+            <br />
+            <Text type="secondary" style={{ fontSize: 12 }}>最近命令执行记录与状态跟踪</Text>
           </div>
           <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>刷新</Button>
         </div>
@@ -177,20 +178,19 @@ const ExecutionDashboard: React.FC = () => {
   }
 
   return (
-    <div style={{ padding: 0 }}>
+    <div style={{ padding: '0 0 16px' }}>
       <div
         style={{
           display: 'flex',
           justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          marginBottom: 24,
+          alignItems: 'center',
+          marginBottom: 16,
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
-            执行监控
-          </Title>
-          <Text type="secondary">最近命令执行记录与状态跟踪</Text>
+          <span style={{ fontSize: 16, fontWeight: 600, lineHeight: '24px' }}>执行监控</span>
+          <br />
+          <Text type="secondary" style={{ fontSize: 12 }}>最近命令执行记录与状态跟踪</Text>
         </div>
         <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
           刷新

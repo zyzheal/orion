@@ -22,6 +22,12 @@ export class K8sSecretKeyStorage {
   private available: boolean = false;
 
   constructor(config: Partial<K8sSecretConfig> = {}) {
+    // Disable K8s storage in development (no K8s cluster)
+    if (process.env.NODE_ENV === 'development' && !process.env.K8S_ENABLED) {
+      logger.debug('[K8sSecretStorage] Disabled in development mode');
+      this.available = false;
+      return;
+    }
     this.config = { ...DEFAULT_CONFIG, ...config };
     this.initializeK8sClient();
   }

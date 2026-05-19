@@ -6,6 +6,8 @@
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
 import {
   TestGeneratorService,
   TestGenerationRequest,
@@ -54,6 +56,7 @@ export default async function testGenerationRoutes(
    * 生成测试用例
    */
   app.post('/generate', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'test', action: 'write' })],
     schema: {
       body: {
         type: 'object',
@@ -124,6 +127,7 @@ export default async function testGenerationRoutes(
    * 分析代码变更
    */
   app.post('/analyze-change', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'test', action: 'write' })],
     schema: {
       body: {
         type: 'object',
@@ -182,6 +186,7 @@ export default async function testGenerationRoutes(
    * 建议覆盖率改进
    */
   app.post('/suggest-coverage', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'test', action: 'write' })],
     schema: {
       body: {
         type: 'object',
@@ -240,7 +245,9 @@ export default async function testGenerationRoutes(
    *
    * 获取测试模板列表
    */
-  app.get('/templates', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/templates', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'test', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const templates = service.getTemplates();
 
@@ -263,7 +270,9 @@ export default async function testGenerationRoutes(
    *
    * 获取指定语言和框架的模板
    */
-  app.get('/templates/:language/:framework', async (
+  app.get('/templates/:language/:framework', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'test', action: 'read' })],
+  }, async (
     request: FastifyRequest<{
       Params: {
         language: ProgrammingLanguage;
@@ -307,7 +316,9 @@ export default async function testGenerationRoutes(
    *
    * 获取生成历史记录
    */
-  app.get('/history', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/history', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'test', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const history = service.getGenerationHistory();
 
@@ -331,7 +342,9 @@ export default async function testGenerationRoutes(
    *
    * 标记测试被采纳
    */
-  app.post('/history/:generationId/adopt', async (
+  app.post('/history/:generationId/adopt', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'test', action: 'write' })],
+  }, async (
     request: FastifyRequest<{ Params: { generationId: string } }>,
     reply: FastifyReply
   ) => {
@@ -359,7 +372,9 @@ export default async function testGenerationRoutes(
    *
    * 获取支持的编程语言列表
    */
-  app.get('/supported-languages', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/supported-languages', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'test', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const languages: Array<{
       language: ProgrammingLanguage;
       frameworks: TestFramework[];
@@ -383,7 +398,9 @@ export default async function testGenerationRoutes(
    *
    * 获取支持的测试框架列表
    */
-  app.get('/supported-frameworks', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/supported-frameworks', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'test', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const frameworks: Array<{
       framework: TestFramework;
       languages: ProgrammingLanguage[];

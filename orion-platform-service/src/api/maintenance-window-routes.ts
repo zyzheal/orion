@@ -12,6 +12,8 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { MaintenanceWindowService } from '../services/MaintenanceWindowService';
 import { MaintenanceWindowRepository } from '../repositories/MaintenanceWindowRepository';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
 
 export interface MaintenanceWindowRouteDeps {
   database?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> };
@@ -34,6 +36,7 @@ export async function registerMaintenanceWindowRoutes(
    * Body: { name, startTime, endTime, timezone?, description?, affectedServices? }
    */
   app.post('/maintenance-windows', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'maintenance', action: 'write' })],
     schema: {
       tags: ['maintenance'],
       summary: 'Create a maintenance window',
@@ -78,6 +81,7 @@ export async function registerMaintenanceWindowRoutes(
    * Query: tenantId (optional filter)
    */
   app.get('/maintenance-windows', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'maintenance', action: 'read' })],
     schema: {
       tags: ['maintenance'],
       summary: 'List maintenance windows',
@@ -115,7 +119,9 @@ export async function registerMaintenanceWindowRoutes(
   /**
    * GET /maintenance-windows/active - 获取当前活跃的窗口
    */
-  app.get('/maintenance-windows/active', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/maintenance-windows/active', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'maintenance', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const windows = await service.getActiveWindows();
     return reply.send({ success: true, data: windows });
   });
@@ -124,7 +130,9 @@ export async function registerMaintenanceWindowRoutes(
    * GET /maintenance-windows/upcoming - 获取即将到来的窗口
    * Query: limit (optional, default 10)
    */
-  app.get('/maintenance-windows/upcoming', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/maintenance-windows/upcoming', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'maintenance', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const query = request.query as Record<string, string | undefined>;
     const limit = query.limit ? parseInt(query.limit, 10) : undefined;
     const windows = await service.getUpcomingWindows(limit);
@@ -134,7 +142,9 @@ export async function registerMaintenanceWindowRoutes(
   /**
    * DELETE /maintenance-windows/:id - 删除窗口
    */
-  app.delete('/maintenance-windows/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.delete('/maintenance-windows/:id', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'maintenance', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const params = request.params as Record<string, string>;
     const deleted = await service.deleteWindow(params.id);
     if (!deleted) {
@@ -146,7 +156,9 @@ export async function registerMaintenanceWindowRoutes(
   /**
    * GET /maintenance-windows/check/:serviceName - 检查服务是否在维护窗口内
    */
-  app.get('/maintenance-windows/check/:serviceName', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/maintenance-windows/check/:serviceName', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'maintenance', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const params = request.params as Record<string, string>;
     const inMaintenance = await service.isServiceInMaintenanceWindow(params.serviceName);
     return reply.send({ success: true, data: { serviceName: params.serviceName, inMaintenance } });

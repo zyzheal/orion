@@ -15,6 +15,8 @@
 
 import pino from 'pino';
 import { RoleService } from '../role/RoleService';
+import { TeamService } from '../team/TeamService';
+import { CapabilityService } from '../capability/CapabilityService';
 import { AbacPolicyEngine, AbacContext } from './AbacPolicyEngine';
 import { RelationshipService } from './RelationshipService';
 import { PermissionAuditRepository, AuditLogEntry } from '../../repositories/PermissionAuditRepository';
@@ -70,10 +72,12 @@ export interface AuthZRequest {
   action: ActionAttributes;
 }
 
+export type AuthZSource = 'rbac' | 'abac' | 'relationship' | 'super_admin_bypass' | 'capability' | 'all';
+
 export interface AuthZDecision {
   allowed: boolean;
   reason: string;
-  source: 'rbac' | 'abac' | 'relationship' | 'super_admin_bypass' | 'all';
+  source: AuthZSource;
   evaluatedBy: string[];
   evaluationTime: number;
   fromCache?: boolean;
@@ -90,6 +94,8 @@ export class AuthorizationEngine {
     private relationshipService: RelationshipService,
     public auditRepo?: PermissionAuditRepository,
     private pipelineRbacService?: PipelineRBACService,
+    private teamService?: TeamService,
+    private capabilityService?: CapabilityService,
     cacheService?: CacheService | null,
     cacheTtlSeconds: number = 300,
   ) {
@@ -117,7 +123,7 @@ export class AuthorizationEngine {
         const decision: AuthZDecision = {
           allowed: true,
           reason: `${cached.reason} (cached)`,
-          source: cached.source as AuthZDecision['source'],
+          source: cached.source as AuthZSource,
           evaluatedBy: [cached.source],
           evaluationTime: Date.now() - startTime,
           fromCache: true,
@@ -162,6 +168,37 @@ export class AuthorizationEngine {
       }
     }
 
+    // [2.7] Team-based permission check
+    // User's team roles augment direct RBAC permissions
+    if (this.teamService) {
+      const teamPermissions = await this.teamService.getUserTeamPermissions(req.user.id, req.user.tenantId);
+      const hasPermission = teamPermissions.some(
+        p => (p.resource === req.resource.type || p.resource === '*') &&
+             (p.action === req.action.type || p.action === '*' || p.action === 'manage')
+      );
+      if (hasPermission) {
+        return this.allow('Team role grants permission', 'rbac', Date.now() - startTime, req, ['team_role']);
+      }
+    }
+
+    // [2.8] Capability 检查 - 基于能力的细粒度权限
+    // 如果配置了 capabilityService，检查用户是否有所需能力
+    if (this.capabilityService && req.resource.type) {
+      const capabilityId = `${req.resource.type}:${req.action.type}`;
+      const capResult = await this.capabilityService.checkPermission({
+        userId: req.user.id,
+        userRoles: req.user.roles,
+        capabilityId,
+      });
+      if (capResult.allowed) {
+        return this.allow(capResult.reason, 'capability', Date.now() - startTime, req, ['capability']);
+      }
+      // 如果能力检查失败且需要审批，记录原因
+      if (capResult.requiresApproval) {
+        logger.info({ userId: req.user.id, capabilityId }, 'Capability requires approval');
+      }
+    }
+
     // [3] ABAC 检查 — deny-only 约束
     const abacContext = this.toAbacContext(req);
     const abacResult = this.abacEngine.evaluate(abacContext);
@@ -186,7 +223,7 @@ export class AuthorizationEngine {
     }
 
     // [5] 全部通过
-    return this.allow('All checks passed', 'all', Date.now() - startTime, req, ['rbac', 'abac', 'relationship']);
+    return this.allow('All checks passed', 'all', Date.now() - startTime, req, ['rbac', 'team_role', 'abac', 'relationship']);
   }
 
   /**
@@ -258,7 +295,7 @@ export class AuthorizationEngine {
 
   private allow(
     reason: string,
-    source: AuthZDecision['source'],
+    source: AuthZSource,
     time: number,
     authzReq?: AuthZRequest,
     evaluatedBy?: string[],
@@ -310,7 +347,7 @@ export class AuthorizationEngine {
 
   private deny(
     reason: string,
-    source: AuthZDecision['source'],
+    source: AuthZSource,
     time: number,
     authzReq?: AuthZRequest,
   ): AuthZDecision {

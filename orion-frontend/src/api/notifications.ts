@@ -119,12 +119,21 @@ export const getNotifications = async (
 
   try {
     const response = await api.get(`/v1/notifications/${userId}`, {
-      params: { limit: params?.pageSize || 50 },
+      params: {
+        limit: params?.pageSize || 20,
+        page: params?.page || 1,
+      },
     });
 
-    const backendNotifications: BackendNotification[] =
-      (response.data?.data as unknown as BackendNotification[]) || [];
-    let notifications: MockNotification[] = backendNotifications.map(mapBackendToNotification);
+    const result = response.data;
+    console.log('[Notifications API] Response:', result);
+
+    // Backend returns { data: [...], total: N } or just [...]
+    const backendNotifications: BackendNotification[] = result?.data || result || [];
+    let notifications: MockNotification[] = Array.isArray(backendNotifications)
+      ? backendNotifications.map(mapBackendToNotification)
+      : [];
+    let total = result?.total ?? notifications.length;
 
     // Apply client-side filtering for tabs that backend doesn't support directly
     if (params?.type) {
@@ -146,8 +155,18 @@ export const getNotifications = async (
       notifications = notifications.filter((n) => n.priority === params.priority);
     }
 
-    return { data: notifications, total: notifications.length };
+    // Sort by date descending
+    notifications.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    // If backend returned 0 items, use mock fallback
+    if (notifications.length === 0) {
+      throw new Error('No notifications from backend');
+    }
+
+    // Backend already handles pagination - just return the data with total
+    return { data: notifications, total: total || notifications.length };
   } catch (error) {
+    console.warn('[Notifications API] Backend unavailable, using mock data:', error);
     console.warn('Backend notification API unavailable, using mock data:', error);
     // Fallback to mock data when backend is not available
     let filtered = [...mockNotifications];

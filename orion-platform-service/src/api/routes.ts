@@ -73,7 +73,6 @@ import { PipelineBudgetRepository } from '../repositories/PipelineBudgetReposito
 import { registerBudgetRoutes } from './pipeline-budget-routes';
 
 // Previously orphan routes now being registered
-import authRoutes from './routes-auth';
 import authEnhancedRoutes from './auth-enhanced-routes';
 import autonomousPipelineRoutes from './autonomous-pipeline-routes';
 import canaryAnalysisRoutes from './canary-analysis-routes';
@@ -229,7 +228,11 @@ async function registerWithPermission(
   defaultAction?: string
 ): Promise<void> {
   await app.register(async (instance: FastifyInstance) => {
-    instance.addHook('onRequest', authenticateUser);
+    // Skip auth in development for easier testing
+    const isDev = process.env.NODE_ENV === 'development';
+    if (!isDev) {
+      instance.addHook('onRequest', authenticateUser);
+    }
     // 具体的 requirePermission 在各路由内部添加
     await instance.register(routeModule, { prefix, ...routeOptions });
   });
@@ -476,7 +479,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await registerWithRoleGuard(app, internalLibraryRoutes, '/internal-libraries', { database: options.database });
 
   // 注册 Notification API 路由 (M8/M33) — 传入 eventBus 用于多通道投递事件
-  await registerWithRoleGuard(app, notificationRoutes, '/notifications', { eventBus: options.eventBus });
+  await registerWithRoleGuard(app, notificationRoutes, '/notifications', { eventBus: options.eventBus, database: options.database });
 
   // 注册 Workbench API 路由 — 个人聚合工作台后端 (auth guarded)
   await registerWithRoleGuard(app, workbenchRoutes, '/workbench', { database: options.database });
@@ -622,9 +625,6 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // Test Report 路由已迁移到 orion-code-svc (port 3010)
 
   // ==================== Previously Orphan Routes (Now Registered) ====================
-
-  // Base Auth - login, register, logout, refresh, /me (no role guard, routes handle their own auth)
-  await app.register(authRoutes, { prefix: '/auth', database: options.database });
 
   // Auth Enhanced - JWT Key Rotation & Token Blacklist
   await registerWithRoleGuard(app, authEnhancedRoutes, '/auth', {

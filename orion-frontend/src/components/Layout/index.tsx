@@ -15,7 +15,6 @@ import {
   SunOutlined,
   HomeOutlined,
   ControlOutlined,
-  DollarCircleOutlined,
   UnorderedListOutlined,
   EditOutlined,
   DownOutlined,
@@ -33,7 +32,7 @@ import { initializeChatOpsStore } from '@/stores/chatOpsStore';
 import { useMenuConfigStore, type MenuModuleConfig } from '@/stores/menuConfigStore';
 import { MenuConfigPanel } from '@/components/MenuConfig';
 import { colors } from '@/tokens/colors';
-import { iconMap, getIcon } from './iconMap';
+import { getIcon } from './iconMap';
 
 type ItemType = GetProp<MenuProps, 'items'>[number];
 
@@ -81,101 +80,6 @@ function buildNavMenuItems(modules: Record<string, MenuModuleConfig>): NavItemDe
         })),
     }));
 }
-
-// 左侧面板 - 系统概览信息
-interface SystemPanelProps {
-  title: string;
-  description: string;
-  categoryItems: { key: string; icon: React.ReactNode; label: string; category: string }[];
-  theme: 'light' | 'dark';
-  onNavigate: (key: string, label: string) => void;
-}
-
-const SystemPanel: React.FC<SystemPanelProps> = ({ title, description, categoryItems, theme, onNavigate }) => {
-  const isDark = theme === 'dark';
-  const grouped = categoryItems.reduce((acc, item) => {
-    if (!acc[item.category]) acc[item.category] = [];
-    acc[item.category].push(item);
-    return acc;
-  }, {} as Record<string, typeof categoryItems>);
-
-  return (
-    <div
-      style={{
-        width: 260,
-        padding: '24px 16px',
-        background: isDark
-          ? 'linear-gradient(135deg, rgba(59,130,246,0.1) 0%, rgba(139,92,246,0.1) 100%)'
-          : 'linear-gradient(135deg, rgba(59,130,246,0.06) 0%, rgba(139,92,246,0.06) 100%)',
-        borderRadius: '12px 0 0 12px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 20,
-      }}
-    >
-      {/* 系统名称和描述 */}
-      <div>
-        <div style={{
-          fontSize: 18,
-          fontWeight: 600,
-          color: isDark ? 'rgba(255,255,255,0.95)' : '#1f2329',
-          marginBottom: 8,
-        }}>
-          {title}
-        </div>
-        <div style={{
-          fontSize: 13,
-          color: isDark ? 'rgba(255,255,255,0.5)' : '#8f959e',
-          lineHeight: '20px',
-        }}>
-          {description}
-        </div>
-      </div>
-
-      {/* 分类导航 */}
-      {Object.entries(grouped).map(([category, items]) => (
-        <div key={category}>
-          <div style={{
-            fontSize: 12,
-            fontWeight: 500,
-            color: isDark ? 'rgba(255,255,255,0.35)' : '#c0c4cc',
-            marginBottom: 8,
-            textTransform: 'uppercase',
-            letterSpacing: '0.5px',
-          }}>
-            {category}
-          </div>
-          {items.map((item) => (
-            <div
-              key={item.key}
-              onClick={() => onNavigate(item.key, item.label)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '6px 12px',
-                borderRadius: 6,
-                cursor: 'pointer',
-                transition: 'background 0.15s',
-                color: isDark ? 'rgba(255,255,255,0.7)' : '#1f2329',
-                fontSize: 14,
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLElement).style.background = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)';
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLElement).style.background = 'transparent';
-              }}
-            >
-              <span style={{ fontSize: 16, flexShrink: 0 }}>{item.icon}</span>
-              <span>{item.label}</span>
-            </div>
-          ))}
-        </div>
-      ))}
-    </div>
-  );
-};
 
 // 飞书风格：hover 弹出全宽 mega menu 面板
 interface FeishuNavItemProps {
@@ -451,8 +355,10 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          position: 'sticky',
+          position: 'fixed',
           top: 0,
+          left: 0,
+          right: 0,
           zIndex: 1000,
           borderBottom: `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.06)' : '#e8e8e8'}`,
           height: 60,
@@ -460,55 +366,58 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           overflow: 'visible',
         }}
       >
-        {/* 左侧区域：启动器 + 系统名 + 导航菜单 */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          {/* 子系统启动器 + 系统名称 */}
-          <div
+        {/* 左侧：logo + 系统名称 */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            cursor: 'pointer',
+            padding: '8px 12px',
+            borderRadius: 8,
+            transition: 'all 0.3s',
+            flexShrink: 0,
+          }}
+          onClick={() => navigate('/dashboard')}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background =
+              theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.04)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'transparent';
+          }}
+        >
+          <SubAppLauncher />
+          <img src="/logo.svg" alt="Orion" style={{ width: 28, height: 28, flexShrink: 0 }} />
+          <span
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 12,
-              cursor: 'pointer',
-              padding: '8px 12px',
-              borderRadius: 8,
-              transition: 'all 0.3s',
-              flexShrink: 0,
-            }}
-            onClick={() => navigate('/dashboard')}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background =
-                theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.04)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'transparent';
+              fontSize: 16,
+              fontWeight: 600,
+              background: `linear-gradient(135deg, ${colors.primary[500]} 0%, ${colors.purple[500]} 100%)`,
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+              whiteSpace: 'nowrap',
             }}
           >
-            <SubAppLauncher />
-            <img src="/logo.svg" alt="Orion" style={{ width: 28, height: 28, flexShrink: 0 }} />
-            <span
-              style={{
-                fontSize: 16,
-                fontWeight: 600,
-                background: `linear-gradient(135deg, ${colors.primary[500]} 0%, ${colors.purple[500]} 100%)`,
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              Orion Platform
-            </span>
-          </div>
+            Orion Platform
+          </span>
+        </div>
 
-          {/* 顶部导航菜单 - 飞书风格 hover 下拉 */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              height: 60,
-              overflow: 'hidden',
-            }}
-          >
+        {/* 中间：导航菜单 - 居中 */}
+        <div
+          style={{
+            flex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: 60,
+          }}
+        >
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+          }}>
             {navMenuItems.map((item) => (
               <FeishuNavItem
                 key={item.key}
@@ -635,113 +544,117 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                 position: 'fixed',
                 top: 60,
                 left: 0,
-                right: 0,
+                width: '100vw',
                 zIndex: 999,
                 animation: 'megaMenuFadeIn 0.2s ease-out',
+                background: isDark ? colors.dark.bg.elevated : colors.light.bg.primary,
+                boxShadow: isDark
+                  ? '0 6px 20px rgba(0,0,0,0.4), 0 2px 6px rgba(0,0,0,0.3)'
+                  : '0 6px 20px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.06)',
+                borderBottom: `1px solid ${isDark ? colors.dark.border.default : colors.light.border.light}`,
+                display: 'flex',
+                justifyContent: 'center',
               }}
             >
-              <div
-                style={{
-                  background: isDark ? colors.dark.bg.elevated : colors.light.bg.primary,
-                  boxShadow: isDark
-                    ? '0 6px 20px rgba(0,0,0,0.4), 0 2px 6px rgba(0,0,0,0.3)'
-                    : '0 6px 20px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.06)',
-                  borderBottom: `1px solid ${isDark ? colors.dark.border.default : colors.light.border.light}`,
-                  transition: 'background 0.2s, border-color 0.2s',
-                }}
-              >
-                {/* 内容区域 - 居中 */}
-                <div style={{
-                  maxWidth: 1200,
-                  margin: '0 auto',
-                  padding: '16px 24px',
-                  display: 'flex',
-                  gap: 24,
-                  maxHeight: 'calc(100vh - 80px)',
-                  overflow: 'hidden',
-                }}>
-                  {activeItem.hasPanel && activeItem.systemTitle && (
-                    <SystemPanel
-                      title={activeItem.systemTitle}
-                      description={activeItem.systemDescription || ''}
-                      categoryItems={activeItem.children.map(c => ({ key: c.key, icon: c.icon, label: c.label, category: c.category || '其他' }))}
-                      theme={theme}
-                      onNavigate={handleNavigate}
-                    />
-                  )}
-
-                  <div style={{
-                    flex: 1,
-                    padding: '4px 0',
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-                    gap: '8px 24px',
-                    alignContent: 'start',
-                    overflowY: 'auto',
-                  }}>
-                    {activeItem.children.map((child) => (
-                      <div
-                        key={child.key}
-                        onClick={() => handleNavigate(child.key, child.label)}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'flex-start',
-                          gap: 12,
-                          padding: '12px',
-                          borderRadius: 8,
-                          cursor: 'pointer',
-                          transition: 'background 0.15s',
-                        }}
-                        onMouseEnter={(e) => {
-                          (e.currentTarget as HTMLElement).style.background = isDark ? 'rgba(255,255,255,0.08)' : colors.neutral[100];
-                        }}
-                        onMouseLeave={(e) => {
-                          (e.currentTarget as HTMLElement).style.background = 'transparent';
-                        }}
-                      >
-                        <div style={{
-                          width: 36,
-                          height: 36,
-                          borderRadius: 8,
-                          background: isDark ? 'rgba(255,255,255,0.08)' : '#f0f1f3',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          flexShrink: 0,
-                          color: colors.primary[500],
-                          fontSize: 16,
-                        }}>
-                          {child.icon}
-                        </div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{
+                width: '100%',
+                maxWidth: 1200,
+                padding: '16px 24px 24px',
+                maxHeight: 'calc(100vh - 80px)',
+                overflowY: 'auto',
+              }}>
+                {(() => {
+                      const grouped: Record<string, typeof activeItem.children> = {};
+                      for (const child of activeItem.children) {
+                        const cat = child.category || '其他';
+                        if (!grouped[cat]) grouped[cat] = [];
+                        grouped[cat].push(child);
+                      }
+                      return Object.entries(grouped).map(([category, items]) => (
+                        <div key={category}>
                           <div style={{
-                            fontSize: 14,
-                            fontWeight: 500,
-                            color: isDark ? 'rgba(255,255,255,0.9)' : '#1f2329',
-                            lineHeight: '22px',
-                            marginBottom: child.description ? 2 : 0,
+                            fontSize: 12,
+                            fontWeight: 600,
+                            color: isDark ? 'rgba(255,255,255,0.4)' : '#8f959e',
+                            marginBottom: 8,
+                            paddingLeft: 4,
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.5px',
                           }}>
-                            {child.label}
+                            {category}
                           </div>
-                          {child.description && (
-                            <div style={{
-                              fontSize: 12,
-                              color: isDark ? 'rgba(255,255,255,0.4)' : '#8f959e',
-                              lineHeight: '18px',
-                            }}>
-                              {child.description}
-                            </div>
-                          )}
+                          <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+                            gap: '4px 16px',
+                          }}>
+                            {items.map((child) => (
+                              <div
+                                key={child.key}
+                                onClick={() => handleNavigate(child.key, child.label)}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'flex-start',
+                                  gap: 12,
+                                  padding: '10px 12px',
+                                  borderRadius: 8,
+                                  cursor: 'pointer',
+                                  transition: 'background 0.15s',
+                                }}
+                                onMouseEnter={(e) => {
+                                  (e.currentTarget as HTMLElement).style.background = isDark ? 'rgba(255,255,255,0.08)' : colors.neutral[100];
+                                }}
+                                onMouseLeave={(e) => {
+                                  (e.currentTarget as HTMLElement).style.background = 'transparent';
+                                }}
+                              >
+                                <div style={{
+                                  width: 32,
+                                  height: 32,
+                                  borderRadius: 8,
+                                  background: isDark ? 'rgba(255,255,255,0.08)' : '#f0f1f3',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  flexShrink: 0,
+                                  color: colors.primary[500],
+                                  fontSize: 15,
+                                }}>
+                                  {child.icon}
+                                </div>
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                  <div style={{
+                                    fontSize: 14,
+                                    fontWeight: 500,
+                                    color: isDark ? 'rgba(255,255,255,0.9)' : '#1f2329',
+                                    lineHeight: '22px',
+                                  }}>
+                                    {child.label}
+                                  </div>
+                                  {child.description && (
+                                    <div style={{
+                                      fontSize: 12,
+                                      color: isDark ? 'rgba(255,255,255,0.4)' : '#8f959e',
+                                      lineHeight: '18px',
+                                    }}>
+                                      {child.description}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ));
+                    })()}
                   </div>
-                </div>
-              </div>
             </div>
-          </>
-        );
+            </>
+          );
       })()}
+
+      {/* 顶部占位 - 防止内容被 fixed Header 遮挡 */}
+      <div style={{ height: 60, flexShrink: 0 }} />
 
       {/* 面包屑导航 */}
       <div

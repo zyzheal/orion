@@ -15,6 +15,8 @@
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
 import { DatabasePool } from '../services/database';
 import { SupplyChainController } from './controllers/SupplyChainController';
 
@@ -34,37 +36,51 @@ export default async function supplyChainRoutes(
   const controller = new SupplyChainController(options.database);
 
   // POST /api/v1/supply-chain/sbom - Generate SBOM
-  app.post('/supply-chain/sbom', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/supply-chain/sbom', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'supply-chain', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.generateSBOM(request, reply);
   });
 
   // GET /api/v1/supply-chain/sbom/:sbomId - Get SBOM
-  app.get('/supply-chain/sbom/:sbomId', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/supply-chain/sbom/:sbomId', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'supply-chain', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.getSBOM(request, reply);
   });
 
   // GET /api/v1/supply-chain/dependencies/:package/:version/analyze - Analyze dependencies
-  app.get('/supply-chain/dependencies/:package/:version/analyze', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/supply-chain/dependencies/:package/:version/analyze', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'supply-chain', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.analyzeDependencies(request, reply);
   });
 
   // POST /api/v1/supply-chain/dependencies/graph - Get dependency graph
-  app.post('/supply-chain/dependencies/graph', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/supply-chain/dependencies/graph', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'supply-chain', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.getDependencyGraph(request, reply);
   });
 
   // POST /api/v1/supply-chain/artifacts/:id/sign - Sign artifact
-  app.post('/supply-chain/artifacts/:id/sign', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/supply-chain/artifacts/:id/sign', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'supply-chain', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.signArtifact(request, reply);
   });
 
   // POST /api/v1/supply-chain/artifacts/:id/verify - Verify signature
-  app.post('/supply-chain/artifacts/:id/verify', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/supply-chain/artifacts/:id/verify', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'supply-chain', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.verifySignature(request, reply);
   });
 
   // GET /api/v1/supply-chain/reports/:pipelineId - Get supply chain report
-  app.get('/supply-chain/reports/:pipelineId', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/supply-chain/reports/:pipelineId', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'supply-chain', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.getSupplyChainReport(request, reply);
   });
 }

@@ -31,6 +31,7 @@ import {
   Drawer,
   Divider,
   Spin,
+  Pagination,
 } from 'antd';
 import { colors, spacing } from '@/tokens';
 import {
@@ -158,6 +159,11 @@ const NotificationCenter: React.FC = () => {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [stats, setStats] = useState({ unread: 0, critical: 0, today: 0, thisWeek: 0 });
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [total, setTotal] = useState(0);
+
   // Broadcast modal state (admin only)
   const [broadcastModalVisible, setBroadcastModalVisible] = useState(false);
   const [broadcastForm] = Form.useForm();
@@ -206,13 +212,16 @@ const NotificationCenter: React.FC = () => {
           break;
       }
 
-      const { data } = await getNotifications({
-        page: 1,
-        pageSize: 50,
+      const { data, total: totalCount } = await getNotifications({
+        page: currentPage,
+        pageSize,
         type: typeParam,
         read: readParam,
       });
+      console.log('[NotificationCenter] Fetched:', { dataLength: data.length, totalCount, currentPage, pageSize });
       setNotifications(data);
+      setTotal(totalCount || data.length);
+      console.log('[NotificationCenter] State:', { total: totalCount || data.length, pageSize });
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`获取通知列表失败：${error.message}`);
@@ -239,7 +248,7 @@ const NotificationCenter: React.FC = () => {
   useEffect(() => {
     fetchNotifications();
     fetchStats();
-  }, [activeTab]);
+  }, [activeTab, currentPage, pageSize]);
 
   // Toggle expand/collapse
   const toggleExpand = (id: string) => {
@@ -421,6 +430,17 @@ const NotificationCenter: React.FC = () => {
   // Tab change handler
   const handleTabChange = (key: string) => {
     setActiveTab(key);
+    setExpandedIds(new Set());
+    setCurrentPage(1);
+  };
+
+  // Pagination change handlers
+  const handlePageChange = (page: number, size?: number) => {
+    setCurrentPage(page);
+    if (size && size !== pageSize) {
+      setPageSize(size);
+      setCurrentPage(1);
+    }
     setExpandedIds(new Set());
   };
 
@@ -707,6 +727,26 @@ const NotificationCenter: React.FC = () => {
         style={{ marginBottom: 16 }}
       />
 
+      {/* Pagination - Top */}
+      {total > 0 && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, padding: '8px 12px', background: '#fafafa', borderRadius: 8 }}>
+          <span style={{ fontSize: 13, color: '#666' }}>
+            共 {total} 条通知，每页 {pageSize} 条
+          </span>
+          <Pagination
+            current={currentPage}
+            total={total}
+            pageSize={pageSize}
+            showSizeChanger
+            showQuickJumper
+            pageSizeOptions={['10', '20', '50', '100']}
+            onChange={handlePageChange}
+            onShowSizeChange={handlePageChange}
+            size="small"
+          />
+        </div>
+      )}
+
       {/* Notification list */}
       <List
         dataSource={notifications}
@@ -714,6 +754,23 @@ const NotificationCenter: React.FC = () => {
         renderItem={renderNotificationItem}
         locale={{ emptyText: renderEmptyState() }}
       />
+
+      {/* Pagination - Bottom */}
+      {total > 0 && (
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: 24, marginBottom: 16, padding: '16px 0', borderTop: '1px solid #f0f0f0' }}>
+          <Pagination
+            current={currentPage}
+            total={total}
+            pageSize={pageSize}
+            showSizeChanger
+            showQuickJumper
+            pageSizeOptions={['10', '20', '50', '100']}
+            showTotal={(t) => `共 ${t} 条通知`}
+            onChange={handlePageChange}
+            onShowSizeChange={handlePageChange}
+          />
+        </div>
+      )}
 
       {/* Broadcast Modal (admin only) */}
       <Modal

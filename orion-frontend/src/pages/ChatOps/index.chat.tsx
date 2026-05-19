@@ -9,7 +9,7 @@ import { sendChatMessage, getAvailableTools, type ChatResponse, type ToolInfo } 
 import { colors, spacing } from '@/tokens';
 
 const { TextArea } = Input;
-const { Text, Title } = Typography;
+const { Text } = Typography;
 
 interface ChatMsg {
   id: string;
@@ -118,12 +118,12 @@ export default function ChatOpsChat() {
       >
         <Space align="start" style={{ maxWidth: '75%' }}>
           {!isUser && (
-            <Avatar icon={<RobotOutlined />} style={{ backgroundColor: colors.primary }} />
+            <Avatar icon={<RobotOutlined />} style={{ backgroundColor: colors.primary[500] }} />
           )}
           <Card
             size="small"
             style={{
-              backgroundColor: isUser ? colors.primary : colors.light.bg.secondary,
+              backgroundColor: isUser ? colors.primary[500] : colors.light.bg.secondary,
               color: isUser ? '#fff' : undefined,
               borderRadius: 12,
             }}
@@ -131,7 +131,7 @@ export default function ChatOpsChat() {
           >
             <Space direction="vertical" size={4} style={{ width: '100%' }}>
               <Space size={4}>
-                <Text strong style={{ fontSize: 12, color: isUser ? 'rgba(255,255,255,0.8)' : colors.text.secondary }}>
+                <Text strong style={{ fontSize: 12, color: isUser ? 'rgba(255,255,255,0.8)' : colors.light.text.secondary }}>
                   {isUser ? '你' : 'AI 助手'}
                 </Text>
                 {msg.intent && (
@@ -140,7 +140,7 @@ export default function ChatOpsChat() {
                   </Tag>
                 )}
                 {msg.confidence != null && (
-                  <Text style={{ fontSize: 10, color: isUser ? 'rgba(255,255,255,0.6)' : colors.text.tertiary }}>
+                  <Text style={{ fontSize: 10, color: isUser ? 'rgba(255,255,255,0.6)' : colors.light.text.tertiary }}>
                     {Math.round(msg.confidence * 100)}%
                   </Text>
                 )}
@@ -148,7 +148,7 @@ export default function ChatOpsChat() {
               <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{msg.content}</div>
               {msg.toolCalls && msg.toolCalls.length > 0 && (
                 <Space direction="vertical" size={2}>
-                  <Text style={{ fontSize: 11, color: isUser ? 'rgba(255,255,255,0.7)' : colors.text.secondary }}>
+                  <Text style={{ fontSize: 11, color: isUser ? 'rgba(255,255,255,0.7)' : colors.light.text.secondary }}>
                     <ToolOutlined /> 工具调用:
                   </Text>
                   <Space wrap>
@@ -186,32 +186,35 @@ export default function ChatOpsChat() {
   };
 
   return (
-    <div style={{ height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column', padding: spacing[4] }}>
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing[4] }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: `0 ${spacing[4]}px ${spacing[3]}px` }}>
         <div>
-          <Title level={4} style={{ margin: 0 }}>
+          <span style={{ fontSize: 16, fontWeight: 600, lineHeight: '24px' }}>
             <RobotOutlined style={{ marginRight: spacing[2] }} />
             ChatOps 对话工作台
-          </Title>
-          <Text type="secondary">用自然语言与 AI 助手交流，执行运维操作</Text>
-          {tools.length > 0 && (
-            <Text type="secondary" style={{ marginLeft: spacing[2] }}>
-              · {tools.length} 个可用工具
-            </Text>
-          )}
+          </span>
+          <Text type="secondary" style={{ fontSize: 12, marginLeft: 8 }}>
+            用自然语言与 AI 助手交流，执行运维操作
+            {tools.length > 0 && ` · ${tools.length} 个可用工具`}
+          </Text>
         </div>
-        <Button icon={<ClearOutlined />} onClick={handleClear}>
+        <Button icon={<ClearOutlined />} size="small" onClick={handleClear}>
           清空对话
         </Button>
       </div>
 
       {/* Messages */}
-      <Card
-        style={{ flex: 1, overflow: 'hidden' }}
-        bodyStyle={{ height: '100%', display: 'flex', flexDirection: 'column', padding: spacing[4] }}
-      >
-        <div style={{ flex: 1, overflow: 'auto' }}>
+      <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', margin: spacing[3] }}>
+        <div
+          style={{
+            flex: 1,
+            overflow: 'auto',
+            padding: spacing[4],
+            background: colors.light.bg.secondary,
+            borderRadius: 8,
+          }}
+        >
           {messages.length === 0 ? (
             <Empty description="开始对话吧" />
           ) : (
@@ -220,7 +223,7 @@ export default function ChatOpsChat() {
           {isLoading && (
             <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: spacing[4] }}>
               <Space>
-                <Avatar icon={<RobotOutlined />} style={{ backgroundColor: colors.primary }} />
+                <Avatar icon={<RobotOutlined />} style={{ backgroundColor: colors.primary[500] }} />
                 <Spin size="small" />
               </Space>
             </div>
@@ -230,7 +233,7 @@ export default function ChatOpsChat() {
 
         {/* Quick Actions */}
         {messages.length <= 1 && (
-          <Space wrap style={{ marginBottom: spacing[3] }}>
+          <Space wrap style={{ marginTop: spacing[3], marginBottom: spacing[2] }}>
             {QUICK_ACTIONS.map((action) => (
               <Button key={action} size="small" onClick={() => handleSend(action)}>
                 {action}
@@ -240,7 +243,7 @@ export default function ChatOpsChat() {
         )}
 
         {/* Input */}
-        <div style={{ borderTop: `1px solid ${colors.light.border.light}`, paddingTop: spacing[3] }}>
+        <div style={{ marginTop: spacing[2] }}>
           <Space.Compact style={{ width: '100%' }}>
             <TextArea
               value={input}
@@ -267,7 +270,7 @@ export default function ChatOpsChat() {
             </Button>
           </Space.Compact>
         </div>
-      </Card>
+      </div>
     </div>
   );
 }

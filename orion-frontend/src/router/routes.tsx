@@ -405,49 +405,36 @@ export const routes: AppRoute[] = [
       },
     ],
   },
-  // ChatOps (M35)
+  // ChatOps (M35) - redirect to new /ai/chatops location
   {
     path: '/console/chatops',
-    element: React.lazy(() => import('@/pages/ChatOps')),
-    protected: true,
-    requiredPermission: { resource: '*', action: 'manage' }, // 已恢复：原临时移除
-    children: [
-      // 默认重定向到 recommend
-      {
-        index: true,
-        element: React.createElement(Navigate, { to: '/console/chatops/recommend', replace: true }),
-      },
-      {
-        path: '/console/chatops/recommend',
-        element: React.lazy(() => import('@/pages/ChatOps/SmartRecommend')),
-        protected: true,
-        requiredPermission: { resource: '*', action: 'manage' },
-      },
-      {
-        path: '/console/chatops/commands',
-        element: React.lazy(() => import('@/pages/ChatOps/CommandBrowser')),
-        protected: true,
-        requiredPermission: { resource: '*', action: 'manage' },
-      },
-      {
-        path: '/console/chatops/executions',
-        element: React.lazy(() => import('@/pages/ChatOps/ExecutionDashboard')),
-        protected: true,
-        requiredPermission: { resource: '*', action: 'manage' },
-      },
-      {
-        path: '/console/chatops/audit',
-        element: React.lazy(() => import('@/pages/ChatOps/AuditLogViewer')),
-        protected: true,
-        requiredPermission: { resource: '*', action: 'manage' },
-      },
-      {
-        path: '/console/chatops/settings',
-        element: React.lazy(() => import('@/pages/ChatOps/ChatOpsSettings')),
-        protected: true,
-        requiredPermission: { resource: '*', action: 'manage' }, // 已恢复：原临时移除以便测试
-      },
-    ],
+    element: <RedirectTo to="/ai/chatops" />,
+    protected: false,
+  },
+  {
+    path: '/console/chatops/recommend',
+    element: <RedirectTo to="/ai/chatops" />,
+    protected: false,
+  },
+  {
+    path: '/console/chatops/commands',
+    element: <RedirectTo to="/ai/chatops" />,
+    protected: false,
+  },
+  {
+    path: '/console/chatops/executions',
+    element: <RedirectTo to="/ai/chatops" />,
+    protected: false,
+  },
+  {
+    path: '/console/chatops/audit',
+    element: <RedirectTo to="/ai/chatops" />,
+    protected: false,
+  },
+  {
+    path: '/console/chatops/settings',
+    element: <RedirectTo to="/ai/chatops" />,
+    protected: false,
   },
   // AI Cost Dashboard (M36)
   {
@@ -1393,11 +1380,6 @@ export const routes: AppRoute[] = [
     protected: false,
   },
   {
-    path: '/console/chatops',
-    element: <RedirectTo to="/ai/chatops" />,
-    protected: false,
-  },
-  {
     path: '/console/ai-review',
     element: <RedirectTo to="/ai/review" />,
     protected: false,
@@ -1416,6 +1398,14 @@ export const routes: AppRoute[] = [
     path: '/console/ai-cost',
     element: <RedirectTo to="/ai/cost" />,
     protected: false,
+  },
+
+  // 能力权限配置
+  {
+    path: '/capability-admin',
+    element: React.lazy(() => import('@/pages/CapabilityAdmin')),
+    protected: true,
+    roles: ['super_admin', 'platform_admin'],
   },
 
   // 404 页面

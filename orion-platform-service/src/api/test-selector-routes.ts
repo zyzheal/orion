@@ -6,6 +6,8 @@
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
 import { TestSelectorService, TestSelectorServiceConfig } from '../services/test-selector/TestSelectorService';
 import { DependencyAnalyzerConfig } from '../services/test-selector/TestDependencyAnalyzer';
 import {
@@ -50,6 +52,7 @@ export default async function testSelectorRoutes(
    * 为 PR 变更选择需要执行的测试
    */
   app.post('/select', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'test', action: 'write' })],
     schema: {
       body: {
         type: 'object',
@@ -101,7 +104,9 @@ export default async function testSelectorRoutes(
    *
    * 获取测试执行计划详情
    */
-  app.get('/plan/:planId', async (request: FastifyRequest<{ Params: { planId: string } }>, reply: FastifyReply) => {
+  app.get('/plan/:planId', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'test', action: 'read' })],
+  }, async (request: FastifyRequest<{ Params: { planId: string } }>, reply: FastifyReply) => {
     try {
       const plan = await service.getTestPlan(request.params.planId);
 
@@ -134,7 +139,9 @@ export default async function testSelectorRoutes(
    *
    * 获取 PR 的测试选择和执行结果
    */
-  app.get('/pr/:prId', async (request: FastifyRequest<{ Params: { prId: string } }>, reply: FastifyReply) => {
+  app.get('/pr/:prId', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'test', action: 'read' })],
+  }, async (request: FastifyRequest<{ Params: { prId: string } }>, reply: FastifyReply) => {
     try {
       const result = await service.getPRTestResult(request.params.prId);
 
@@ -167,7 +174,9 @@ export default async function testSelectorRoutes(
    *
    * 获取单个测试的历史统计
    */
-  app.get('/history/:testId', async (request: FastifyRequest<{ Params: { testId: string } }>, reply: FastifyReply) => {
+  app.get('/history/:testId', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'test', action: 'read' })],
+  }, async (request: FastifyRequest<{ Params: { testId: string } }>, reply: FastifyReply) => {
     try {
       const stats = service.getTestHistory(request.params.testId);
 
@@ -190,7 +199,9 @@ export default async function testSelectorRoutes(
    *
    * 获取所有测试的历史汇总
    */
-  app.get('/history', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/history', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'test', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const allStats = service.getAllTestHistory();
 
@@ -216,6 +227,7 @@ export default async function testSelectorRoutes(
    * 记录测试执行结果（用于更新历史数据和改进预测）
    */
   app.post('/record', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'test', action: 'write' })],
     schema: {
       body: {
         type: 'object',
@@ -259,7 +271,9 @@ export default async function testSelectorRoutes(
    *
    * 获取检测到的抖动测试列表
    */
-  app.get('/flaky', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/flaky', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'test', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const threshold = request.query && typeof (request.query as any).threshold === 'string'
         ? parseInt((request.query as any).threshold, 10)
@@ -288,7 +302,9 @@ export default async function testSelectorRoutes(
    *
    * 获取测试覆盖率统计
    */
-  app.get('/coverage', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/coverage', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'test', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const coverage = service.getTestCoverage();
 
@@ -318,7 +334,9 @@ export default async function testSelectorRoutes(
    *
    * 获取所有测试套件
    */
-  app.get('/suites', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/suites', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'test', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const suites = service.getSuites();
 
@@ -341,7 +359,9 @@ export default async function testSelectorRoutes(
    *
    * 获取所有测试用例
    */
-  app.get('/cases', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/cases', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'test', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const cases = service.getCases();
 
@@ -366,7 +386,9 @@ export default async function testSelectorRoutes(
    *
    * 重新分析测试依赖关系
    */
-  app.post('/reanalyze', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/reanalyze', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'test', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       await service.reanalyze();
 

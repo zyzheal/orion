@@ -3,13 +3,12 @@
  */
 import React, { useState, useMemo, useEffect } from 'react';
 import { Typography, Button, Space, Tag, Card, Modal, Empty } from 'antd';
+const { Text } = Typography;
 import { colors, spacing } from '@/tokens';
 import { ReloadOutlined, InfoCircleOutlined, CodeOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import { getCommands, type ChatOpsCommand } from '@/api/chatops';
-
-const { Title, Text } = Typography;
 
 const permissionLevelColorMap: Record<string, string> = {
   admin: 'red',
@@ -144,20 +143,19 @@ const CommandBrowser: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 0 }}>
+    <div style={{ padding: '0 0 16px' }}>
       <div
         style={{
           display: 'flex',
           justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          marginBottom: 24,
+          alignItems: 'center',
+          marginBottom: 16,
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
-            命令浏览
-          </Title>
-          <Text type="secondary">ChatOps 命令目录与使用文档</Text>
+          <span style={{ fontSize: 16, fontWeight: 600, lineHeight: '24px' }}>命令浏览</span>
+          <br />
+          <Text type="secondary" style={{ fontSize: 12 }}>ChatOps 命令目录与使用文档</Text>
         </div>
         <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
           刷新
@@ -217,7 +215,7 @@ const CommandBrowser: React.FC = () => {
 
             {selectedCommand.parameters && Object.keys(selectedCommand.parameters).length > 0 && (
               <>
-                <Title level={5}>参数</Title>
+                <span style={{ fontSize: 14, fontWeight: 600 }}>参数</span>
                 <Table
                   columns={[
                     {
@@ -256,9 +254,9 @@ const CommandBrowser: React.FC = () => {
               </>
             )}
 
-            <Title level={5} style={{ marginTop: 16 }}>
+            <span style={{ fontSize: 14, fontWeight: 600, marginTop: 16, display: 'block' }}>
               使用示例
-            </Title>
+            </span>
             {selectedCommand.examples.map((example, index) => (
               <Card
                 key={index}

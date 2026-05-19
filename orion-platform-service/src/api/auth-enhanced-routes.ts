@@ -9,6 +9,8 @@
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
 import { JwtKeyRotationService, JwtKeyRotationConfig } from '../services/auth/JwtKeyRotationService';
 import { TokenBlacklistService, TokenBlacklistConfig } from '../services/auth/TokenBlacklistService';
 import type { DatabasePool } from '../services/database';
@@ -72,7 +74,9 @@ export default async function enhancedAuthRoutes(
   /**
    * GET /api/v1/auth/keys - Get current JWT key status
    */
-  app.get('/keys', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/keys', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'auth', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const activeKey = jwtRotationService.getCurrentActiveKey();
       const verificationKeys = jwtRotationService.getVerificationKeys();
@@ -108,7 +112,9 @@ export default async function enhancedAuthRoutes(
   /**
    * POST /api/v1/auth/keys/rotate - Rotate JWT key
    */
-  app.post('/keys/rotate', async (request: FastifyRequest<{ Body: { rotationType?: 'scheduled' | 'manual' | 'emergency'; reason?: string } }>, reply: FastifyReply) => {
+  app.post('/keys/rotate', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'auth', action: 'manage' })],
+  }, async (request: FastifyRequest<{ Body: { rotationType?: 'scheduled' | 'manual' | 'emergency'; reason?: string } }>, reply: FastifyReply) => {
     try {
       const { rotationType, reason } = request.body || {};
 
@@ -145,7 +151,9 @@ export default async function enhancedAuthRoutes(
   /**
    * POST /api/v1/auth/keys/emergency-rotate - Emergency key rotation
    */
-  app.post('/keys/emergency-rotate', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/keys/emergency-rotate', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'auth', action: 'manage' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       // Emergency rotation - immediate activation, no overlap period
       const newKey = await jwtRotationService.generateNewKey();
@@ -179,7 +187,9 @@ export default async function enhancedAuthRoutes(
   /**
    * POST /api/v1/auth/tokens/revoke - Revoke a single token
    */
-  app.post('/tokens/revoke', async (request: FastifyRequest<{ Body: { token: string; userId: string; tenantId: number; reason: 'logout' | 'security_incident' | 'password_change' | 'admin_revocation' | 'key_rotation'; revokedBy?: string } }>, reply: FastifyReply) => {
+  app.post('/tokens/revoke', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'auth', action: 'write' })],
+  }, async (request: FastifyRequest<{ Body: { token: string; userId: string; tenantId: number; reason: 'logout' | 'security_incident' | 'password_change' | 'admin_revocation' | 'key_rotation'; revokedBy?: string } }>, reply: FastifyReply) => {
     try {
       const { token, userId, tenantId, reason, revokedBy } = request.body;
 
@@ -216,7 +226,9 @@ export default async function enhancedAuthRoutes(
   /**
    * GET /api/v1/auth/tokens/check/:tokenHash - Check if token is revoked
    */
-  app.get('/tokens/check/:tokenHash', async (request: FastifyRequest<{ Params: { tokenHash: string } }>, reply: FastifyReply) => {
+  app.get('/tokens/check/:tokenHash', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'auth', action: 'read' })],
+  }, async (request: FastifyRequest<{ Params: { tokenHash: string } }>, reply: FastifyReply) => {
     try {
       const { tokenHash } = request.params;
       // Note: In production, you'd pass the actual token, not just hash
@@ -245,7 +257,9 @@ export default async function enhancedAuthRoutes(
   /**
    * POST /api/v1/auth/tokens/revoke-batch - Batch revoke tokens for user or tenant
    */
-  app.post('/tokens/revoke-batch', async (request: FastifyRequest<{ Body: { targetType: 'user' | 'tenant'; targetId: string; reason: string } }>, reply: FastifyReply) => {
+  app.post('/tokens/revoke-batch', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'auth', action: 'write' })],
+  }, async (request: FastifyRequest<{ Body: { targetType: 'user' | 'tenant'; targetId: string; reason: string } }>, reply: FastifyReply) => {
     try {
       const { targetType, targetId, reason } = request.body;
 
@@ -294,7 +308,9 @@ export default async function enhancedAuthRoutes(
   /**
    * GET /api/v1/auth/tokens/stats - Get token blacklist statistics
    */
-  app.get('/tokens/stats', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/tokens/stats', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'auth', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const stats = await tokenBlacklistService.getStats();
 
@@ -322,7 +338,9 @@ export default async function enhancedAuthRoutes(
   /**
    * POST /api/v1/auth/tokens/cleanup - Cleanup expired tokens
    */
-  app.post('/tokens/cleanup', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/tokens/cleanup', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'auth', action: 'manage' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const cleanedCount = await tokenBlacklistService.cleanupExpired();
 
@@ -350,7 +368,9 @@ export default async function enhancedAuthRoutes(
   /**
    * GET /api/v1/auth/security/status - Get overall auth security status
    */
-  app.get('/security/status', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/security/status', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'auth', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const activeKey = jwtRotationService.getCurrentActiveKey();
       const stats = await tokenBlacklistService.getStats();
