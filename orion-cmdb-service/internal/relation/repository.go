@@ -78,7 +78,7 @@ func (r *Repository) Delete(id string) error {
 }
 
 // DeleteByCiID soft deletes all relations associated with a CI
-func (r *Repository) DeleteByCiID(ciID string) error {
-	result := r.db.Where("from_ci_id = ? OR to_ci_id = ?", ciID, ciID).Delete(&Relation{})
+func (r *Repository) DeleteByCiID(ciID string, tenantID int64) error {
+	result := r.db.Where("(from_ci_id = ? OR to_ci_id = ?) AND tenant_id = ?", ciID, ciID, tenantID).Delete(&Relation{})
 	return result.Error
 }

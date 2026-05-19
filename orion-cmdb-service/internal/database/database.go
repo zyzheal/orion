@@ -9,7 +9,9 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 
+	"github.com/orion-platform/orion-cmdb/internal/cmdb"
 	"github.com/orion-platform/orion-cmdb/internal/config"
+	"github.com/orion-platform/orion-cmdb/internal/relation"
 )
 
 // DB Database instance
@@ -61,6 +63,21 @@ func Close() error {
 		}
 		return sqlDB.Close()
 	}
+	return nil
+}
+
+// AutoMigrate runs database schema migration for all models
+func AutoMigrate() error {
+	if DB == nil {
+		return fmt.Errorf("database not initialized")
+	}
+
+	log.Println("Running database auto-migration...")
+	if err := DB.AutoMigrate(&cmdb.CI{}, &relation.Relation{}); err != nil {
+		return fmt.Errorf("failed to auto-migrate database: %w", err)
+	}
+
+	log.Println("Database migration completed successfully")
 	return nil
 }
 

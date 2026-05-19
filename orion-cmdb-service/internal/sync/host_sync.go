@@ -100,7 +100,7 @@ func (s *Service) SyncHostsToOps(ctx context.Context) error {
 	log.Println("[sync] Starting host synchronization to Ops")
 
 	// Get all server-type CIs from CMDB
-	cis, _, err := s.cmdbRepo.List("SERVER", "", "", 1, 1000, 0)
+	cis, _, err := s.cmdbRepo.List("SERVER", "", "", 1, 1000, 1)
 	if err != nil {
 		return fmt.Errorf("failed to list hosts from CMDB: %w", err)
 	}
@@ -136,7 +136,7 @@ func (s *Service) SyncHostToOps(ctx context.Context, hostID string) error {
 		return fmt.Errorf("sync is disabled or Ops client not initialized")
 	}
 
-	ci, err := s.cmdbRepo.GetByCiID(hostID, 0)
+	ci, err := s.cmdbRepo.GetByCiID(hostID, 1)
 	if err != nil {
 		return fmt.Errorf("failed to get host from CMDB: %w", err)
 	}

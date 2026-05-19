@@ -1,6 +1,7 @@
 package rest
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -9,6 +10,25 @@ import (
 	"github.com/orion-platform/orion-cmdb/internal/relation"
 	"github.com/orion-platform/orion-cmdb/internal/topology"
 )
+
+// errorResponse returns an appropriate HTTP status code based on the error type
+func errorResponse(c *gin.Context, err error) {
+	switch {
+	case errors.Is(err, cmdbService.ErrCINotFound),
+		errors.Is(err, relation.ErrRelationNotFound):
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+	case errors.Is(err, cmdbService.ErrCIExists),
+		errors.Is(err, relation.ErrRelationExists),
+		errors.Is(err, relation.ErrSelfRelation),
+		errors.Is(err, relation.ErrSameTypeExists):
+		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+	case errors.Is(err, cmdbService.ErrInvalidInput),
+		errors.Is(err, relation.ErrInvalidRelationInput):
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	default:
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	}
+}
 
 // RegisterRoutes registers all CMDB REST API routes
 func RegisterRoutes(r *gin.Engine, cmdbSvc *cmdbService.Service, relationSvc *relation.Service, topologySvc *topology.Service) {
@@ -61,7 +81,7 @@ func CreateCI(svc *cmdbService.Service) gin.HandlerFunc {
 
 		ci, err := svc.CreateCI(&input)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			errorResponse(c, err)
 			return
 		}
 
@@ -88,7 +108,7 @@ func ListCIs(svc *cmdbService.Service) gin.HandlerFunc {
 
 		cis, total, err := svc.ListCIs(ciType, status, search, page, pageSize, tenantID)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			errorResponse(c, err)
 			return
 		}
 
@@ -108,7 +128,7 @@ func GetCI(svc *cmdbService.Service) gin.HandlerFunc {
 
 		ci, err := svc.GetCI(id)
 		if err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "CI not found"})
+			errorResponse(c, err)
 			return
 		}
 
@@ -129,7 +149,7 @@ func UpdateCI(svc *cmdbService.Service) gin.HandlerFunc {
 
 		ci, err := svc.UpdateCI(id, &input)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			errorResponse(c, err)
 			return
 		}
 
@@ -143,7 +163,7 @@ func DeleteCI(svc *cmdbService.Service) gin.HandlerFunc {
 		id := c.Param("id")
 
 		if err := svc.DeleteCI(id); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			errorResponse(c, err)
 			return
 		}
 
@@ -174,7 +194,7 @@ func CreateRelation(svc *relation.Service) gin.HandlerFunc {
 
 		rel, err := svc.CreateRelation(&input)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			errorResponse(c, err)
 			return
 		}
 
@@ -204,7 +224,7 @@ func GetRelations(svc *relation.Service) gin.HandlerFunc {
 		}
 
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			errorResponse(c, err)
 			return
 		}
 
@@ -221,7 +241,7 @@ func DeleteRelation(svc *relation.Service) gin.HandlerFunc {
 		id := c.Param("id")
 
 		if err := svc.DeleteRelation(id); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			errorResponse(c, err)
 			return
 		}
 
@@ -242,7 +262,7 @@ func GetTopology(svc *topology.Service) gin.HandlerFunc {
 
 		topology, err := svc.BuildTopology(tenantID, ciType)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			errorResponse(c, err)
 			return
 		}
 
@@ -265,7 +285,7 @@ func AnalyzeImpact(svc *topology.Service) gin.HandlerFunc {
 
 		impact, err := svc.AnalyzeImpact(ciID, tenantID, maxDepth)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			errorResponse(c, err)
 			return
 		}
 

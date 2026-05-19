@@ -13,6 +13,8 @@ type Service struct {
 	relationSvc *relation.Service
 }
 
+const defaultPageSize = 1000
+
 // NewService creates a new topology service
 func NewService(cmdbSvc *cmdbService.Service, relationSvc *relation.Service) *Service {
 	return &Service{
@@ -32,10 +34,25 @@ func (s *Service) BuildTopology(tenantID int64, ciType string) (*Topology, error
 	var total int64
 	var err error
 
-	if ciType != "" {
-		cis, total, err = s.cmdbSvc.ListCIs(ciType, "", "", 1, 10000, tenantID)
-	} else {
-		cis, total, err = s.cmdbSvc.ListCIs("", "", "", 1, 10000, tenantID)
+	page := 1
+	for {
+		var pageCis []cmdbService.CI
+		if ciType != "" {
+			pageCis, _, err = s.cmdbSvc.ListCIs(ciType, "", "", page, defaultPageSize, tenantID)
+		} else {
+			pageCis, _, err = s.cmdbSvc.ListCIs("", "", "", page, defaultPageSize, tenantID)
+		}
+		if err != nil {
+			return nil, fmt.Errorf("failed to list CIs: %w", err)
+		}
+		if len(pageCis) == 0 {
+			break
+		}
+		cis = append(cis, pageCis...)
+		if len(pageCis) < defaultPageSize {
+			break
+		}
+		page++
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to list CIs: %w", err)
@@ -250,7 +267,7 @@ func (s *Service) FindDependents(ciID string, tenantID int64) ([]TopologyNode, e
 	}
 
 	// Get all CIs for this tenant to find incoming relations
-	cis, _, err := s.cmdbSvc.ListCIs("", "", "", 1, 10000, tenantID)
+	cis, _, err := s.cmdbSvc.ListCIs("", "", "", 1, defaultPageSize, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -270,7 +287,7 @@ func (s *Service) FindDependents(ciID string, tenantID int64) ([]TopologyNode, e
 		}
 
 		for _, rel := range relations {
-			if rel.FromCiID == ciID {
+			if rel.ToCiID == ciID {
 				// ci.CiID depends on ciID
 				dependentCiIDs[ci.CiID] = true
 			}

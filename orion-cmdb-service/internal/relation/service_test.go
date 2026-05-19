@@ -116,21 +116,21 @@ func TestGetRelationsByCiID(t *testing.T) {
 			ciID:      "",
 			tenantID:  1,
 			wantErr:   true,
-			expectErr: ErrInvalidInput,
+			expectErr: ErrInvalidRelationInput,
 		},
 		{
 			name:      "zero tenantID",
 			ciID:      "app-001",
 			tenantID:  0,
 			wantErr:   true,
-			expectErr: ErrInvalidInput,
+			expectErr: ErrInvalidRelationInput,
 		},
 		{
 			name:      "empty ciID and zero tenantID",
 			ciID:      "",
 			tenantID:  0,
 			wantErr:   true,
-			expectErr: ErrInvalidInput,
+			expectErr: ErrInvalidRelationInput,
 		},
 	}
 

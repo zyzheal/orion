@@ -13,18 +13,21 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 
+	"github.com/orion-platform/orion-cmdb/api/rest"
+	"github.com/orion-platform/orion-cmdb/internal/cmdb"
 	"github.com/orion-platform/orion-cmdb/internal/config"
 	"github.com/orion-platform/orion-cmdb/internal/database"
-)
-
-var (
-	logger *zap.Logger
-	server *http.Server
+	"github.com/orion-platform/orion-cmdb/internal/relation"
+	"github.com/orion-platform/orion-cmdb/internal/topology"
 )
 
 func main() {
 	// Initialize logger
-	initLogger()
+	logger, err := zap.NewProduction()
+	if err != nil {
+		log.Fatalf("Failed to initialize logger: %v", err)
+	}
+	defer logger.Sync()
 
 	// Load configuration
 	cfg, err := config.Load("")
@@ -42,11 +45,27 @@ func main() {
 		}
 	}()
 
-	// Setup Gin router
-	router := setupRouter()
+	// Auto-migrate database schema
+	if err := database.AutoMigrate(); err != nil {
+		logger.Fatal("Failed to migrate database schema", zap.Error(err))
+	}
+	logger.Info("Database schema migrated successfully")
+
+	// Initialize repositories
+	db := database.GetDB()
+	cmdbRepo := cmdb.NewRepository(db)
+	relationRepo := relation.NewRepository(db)
+
+	// Initialize services
+	cmdbSvc := cmdb.NewService(cmdbRepo)
+	relationSvc := relation.NewService(relationRepo)
+	topologySvc := topology.NewService(cmdbSvc, relationSvc)
+
+	// Setup Gin router with registered routes
+	router := setupRouter(cmdbSvc, relationSvc, topologySvc)
 
 	// Create HTTP server
-	server = &http.Server{
+	server := &http.Server{
 		Addr:           cfg.Server.Addr,
 		Handler:        router,
 		ReadTimeout:    30 * time.Second,
@@ -80,52 +99,36 @@ func main() {
 	logger.Info("Server exited")
 }
 
-func initLogger() {
-	var err error
-	logger, err = zap.NewProduction()
-	if err != nil {
-		log.Fatalf("Failed to initialize logger: %v", err)
-	}
-	defer logger.Sync()
-}
-
-func setupRouter() *gin.Engine {
+// setupRouter creates and configures the Gin router with all routes registered
+func setupRouter(cmdbSvc *cmdb.Service, relationSvc *relation.Service, topologySvc *topology.Service) *gin.Engine {
 	router := gin.Default()
 
-	// Health check endpoint
+	// Health check endpoints
 	router.GET("/healthz", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
-			"status": "ok",
+			"status":  "ok",
 			"service": "orion-cmdb",
 		})
 	})
 
-	// API routes
 	router.GET("/api/v1/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
-			"status": "healthy",
+			"status":    "healthy",
 			"timestamp": time.Now().Unix(),
 		})
 	})
 
-	// Example API endpoint
-	router.GET("/api/v1/ci", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"message": "CMDB API is running",
-			"endpoints": []string{
-				"GET /healthz",
-				"GET /api/v1/health",
-				"GET /api/v1/ci",
-			},
-		})
-	})
+	// Register all CMDB API routes
+	rest.RegisterRoutes(router, cmdbSvc, relationSvc, topologySvc)
 
 	return router
 }
 
-// GetLogger returns the logger instance
+// GetLogger returns the logger instance (kept for compatibility)
 func GetLogger() *zap.Logger {
-	return logger
+	// In production, logger should be injected via dependency injection
+	// This is a temporary compatibility function
+	return nil
 }
 
 // Custom error type for CMDB errors

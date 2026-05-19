@@ -66,7 +66,7 @@ func (s *Service) CreateRelation(input *CreateRelationInput) (*Relation, error) 
 // GetRelation retrieves a relation by ID
 func (s *Service) GetRelation(id string) (*Relation, error) {
 	if id == "" {
-		return nil, ErrInvalidInput
+		return nil, ErrInvalidRelationInput
 	}
 
 	relation, err := s.repo.GetByID(id)
@@ -80,7 +80,7 @@ func (s *Service) GetRelation(id string) (*Relation, error) {
 // GetRelationsByCiID retrieves all relations for a given CI
 func (s *Service) GetRelationsByCiID(ciID string, tenantID int64) ([]Relation, error) {
 	if ciID == "" || tenantID == 0 {
-		return nil, ErrInvalidInput
+		return nil, ErrInvalidRelationInput
 	}
 
 	return s.repo.GetByCiID(ciID, tenantID)
@@ -89,37 +89,37 @@ func (s *Service) GetRelationsByCiID(ciID string, tenantID int64) ([]Relation, e
 // DeleteRelation deletes a relation by ID
 func (s *Service) DeleteRelation(id string) error {
 	if id == "" {
-		return ErrInvalidInput
+		return ErrInvalidRelationInput
 	}
 
 	return s.repo.Delete(id)
 }
 
 // DeleteRelationsByCiID deletes all relations associated with a CI
-func (s *Service) DeleteRelationsByCiID(ciID string) error {
-	if ciID == "" {
-		return ErrInvalidInput
+func (s *Service) DeleteRelationsByCiID(ciID string, tenantID int64) error {
+	if ciID == "" || tenantID == 0 {
+		return ErrInvalidRelationInput
 	}
 
-	return s.repo.DeleteByCiID(ciID)
+	return s.repo.DeleteByCiID(ciID, tenantID)
 }
 
 // validateInput validates the create relation input
 func (s *Service) validateInput(input *CreateRelationInput) error {
 	if input == nil {
-		return ErrInvalidInput
+		return ErrInvalidRelationInput
 	}
 
 	if input.FromCiID == "" {
-		return ErrInvalidInput
+		return ErrInvalidRelationInput
 	}
 
 	if input.ToCiID == "" {
-		return ErrInvalidInput
+		return ErrInvalidRelationInput
 	}
 
 	if input.RelationType == "" {
-		return ErrInvalidInput
+		return ErrInvalidRelationInput
 	}
 
 	// Validate relation type
@@ -130,5 +130,5 @@ func (s *Service) validateInput(input *CreateRelationInput) error {
 	return nil
 }
 
-// ErrInvalidInput is returned when input is invalid
-var ErrInvalidInput = errors.New("invalid input")
+// ErrInvalidRelationInput is returned when relation input is invalid
+var ErrInvalidRelationInput = errors.New("invalid relation input")
