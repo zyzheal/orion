@@ -118,7 +118,214 @@ Capability
 └── defaultRoles: string[]     // 默认拥有此能力的角色
 ```
 
-### 3.2 能力树（共 13 个顶级能力，48 个子能力）
+### 3.2 能力树（共 18 个顶级能力，约 95 个子能力）
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                            一、ChatOps 能力 (chatops)                        │
+├─────────────────────────────────────────────────────────────────────────────┤
+chatops_advanced (风险3)
+├── chatops_advanced.command.kubectl (风险3)
+│   ├── chatops_advanced.command.kubectl.get (风险1)
+│   ├── chatops_advanced.command.kubectl.describe (风险1)
+│   ├── chatops_advanced.command.kubectl.logs (风险2)
+│   ├── chatops_advanced.command.kubectl.restart (风险3)
+│   ├── chatops_advanced.command.kubectl.scale (风险3)
+│   ├── chatops_advanced.command.kubectl.exec (风险3)
+│   ├── chatops_advanced.command.kubectl.debug (风险2)
+│   └── chatops_advanced.command.kubectl.delete (风险4)
+├── chatops_advanced.command.deploy (风险3)
+│   ├── chatops_advanced.command.deploy.preview (风险1)
+│   ├── chatops_advanced.command.deploy.staging (风险2)
+│   └── chatops_advanced.command.deploy.production (风险4)
+└── chatops_advanced.command.custom (风险2)
+
+chatops_command_create (风险3)
+├── chatops_command_create.draft (风险1)
+├── chatops_command_create.publish (风险3)
+└── chatops_command_create.approve (风险3)
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                            二、运维操作能力 (infrastructure)                  │
+├─────────────────────────────────────────────────────────────────────────────┤
+infrastructure_operations (风险3)
+├── infrastructure_operations.env_create (风险3)
+├── infrastructure_operations.env_destroy (风险4)
+├── infrastructure_operations.env_reset (风险3)           -- 【新增】环境重置
+├── infrastructure_operations.env_restore (风险4)          -- 【新增】环境恢复
+├── infrastructure_operations.env_config (风险3)
+├── infrastructure_operations.temp_env_create (风险2)
+├── infrastructure_operations.secret_view (风险3)
+├── infrastructure_operations.secret_write (风险4)
+├── infrastructure_operations.config_view (风险1)
+├── infrastructure_operations.config_write (风险3)
+└── infrastructure_operations.config_rollback (风险3)      -- 【新增】配置回滚
+
+iac_operations (风险3)                                      -- 【新增顶级能力】
+├── iac_operations.plan_create (风险2)
+├── iac_operations.plan_apply (风险3)
+├── iac_operations.state_import (风险3)
+├── iac_operations.state_rollback (风险4)                  -- IaC 状态回滚
+└── iac_operations.resource_destroy (风险4)
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                            三、交付操作能力 (delivery)                        │
+├─────────────────────────────────────────────────────────────────────────────┤
+delivery_operations (风险3)
+├── delivery_operations.pipeline_create (风险2)
+├── delivery_operations.pipeline_delete (风险4)
+├── delivery_operations.pipeline_trigger (风险2)
+├── delivery_operations.pipeline_edit (风险2)
+├── delivery_operations.pipeline_rollback (风险3)          -- 流水线版本回滚
+├── delivery_operations.artifact_delete (风险4)
+├── delivery_operations.artifact_rollback (风险3)           -- 【新增】制品版本回滚
+├── delivery_operations.version_promote (风险2)
+└── delivery_operations.version_revert (风险3)              -- 版本回滚
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                            四、批量操作能力 (bulk)                            │
+├─────────────────────────────────────────────────────────────────────────────┤
+bulk_operations (风险3)
+├── bulk_operations.restart (风险3)
+├── bulk_operations.deploy (风险3)
+├── bulk_operations.rollback (风险4)
+└── bulk_operations.delete (风险4)
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                            五、备份回滚能力 (backup)                         │
+├─────────────────────────────────────────────────────────────────────────────┤
+backup_operations (风险3)
+├── backup_operations.create (风险3)
+├── backup_operations.restore (风险4)
+├── backup_operations.schedule (风险3)
+├── backup_operations.delete (风险4)
+├── backup_operations.verify (风险2)
+└── backup_operations.export (风险2)
+
+disaster_recovery (风险4)
+├── disaster_recovery.plan_create (风险3)
+├── disaster_recovery.plan_execute (风险4)
+├── disaster_recovery.plan_test (风险3)
+├── disaster_recovery.failover (风险4)                    -- 故障转移
+└── disaster_recovery.failback (风险4)                    -- 故障恢复
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                            六、用户权限能力 (user)                            │
+├─────────────────────────────────────────────────────────────────────────────┤
+user_management (风险3)
+├── user_management.user_disable (风险3)
+├── user_management.user_enable (风险2)
+├── user_management.user_create (风险2)
+├── user_management.role_assign (风险3)
+├── user_management.role_revoke (风险3)
+└── user_management.bulk_import (风险2)
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                            七、知识库能力 (knowledge)    【新增】             │
+├─────────────────────────────────────────────────────────────────────────────┤
+knowledge_operations (风险2)                               -- 【新增顶级能力】
+├── knowledge_operations.article_create (风险2)
+├── knowledge_operations.article_edit (风险2)
+├── knowledge_operations.article_delete (风险4)
+├── knowledge_operations.version_rollback (风险3)          -- 知识库版本回滚
+├── knowledge_operations.category_manage (风险2)
+└── knowledge_operations.export (风险2)
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                            八、模型版本能力 (model)      【新增】             │
+├─────────────────────────────────────────────────────────────────────────────┤
+model_version_operations (风险3)                           -- 【新增顶级能力】
+├── model_version_operations.register (风险2)
+├── model_version_operations.deprecate (风险3)
+├── model_version_operations.rollback (风险3)              -- 模型版本回滚
+└── model_version_operations.archive (风险3)
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                            九、测试管理能力 (test)        【新增】            │
+├─────────────────────────────────────────────────────────────────────────────┤
+test_management (风险2)                                    -- 【新增顶级能力】
+├── test_management.case_create (风险2)
+├── test_management.case_edit (风险2)
+├── test_management.case_delete (风险3)
+├── test_management.case_rollback (风险3)                  -- 测试用例版本回滚
+├── test_management.suite_manage (风险2)
+└── test_management.execution_trigger (风险2)
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                            十、分析能力 (analytics)                          │
+├─────────────────────────────────────────────────────────────────────────────┤
+advanced_analytics (风险1)
+├── advanced_analytics.view_dashboard (风险1)
+├── advanced_analytics.export_report (风险2)
+└── advanced_analytics.custom_dimension (风险2)
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                            十一、审计合规能力 (audit)                         │
+├─────────────────────────────────────────────────────────────────────────────┤
+audit_management (风险2)
+├── audit_management.view (风险2)
+├── audit_management.export (风险2)
+├── audit_management.config (风险2)
+└── audit_management.compliance_report (风险2)
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                            十二、系统配置能力 (system)                        │
+├─────────────────────────────────────────────────────────────────────────────┤
+system_config (风险3)
+├── system_config.read (风险1)
+├── system_config.write (风险3)
+├── system_config.delete (风险4)
+├── system_config.webhook_manage (风险3)
+└── system_config.notification_manage (风险3)
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                            十三、生态扩展能力 (ecosystem)                     │
+├─────────────────────────────────────────────────────────────────────────────┤
+ecosystem_operations (风险3)
+├── ecosystem_operations.plugin_install (风险4)
+├── ecosystem_operations.plugin_uninstall (风险4)
+├── ecosystem_operations.plugin_config (风险3)
+├── ecosystem_operations.skill_publish (风险3)
+├── ecosystem_operations.skill_unpublish (风险3)
+└── ecosystem_operations.skill_approve (风险3)
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                            十四、敏感操作能力 (sensitive)                     │
+├─────────────────────────────────────────────────────────────────────────────┤
+sensitive_operations (风险4)
+├── sensitive_operations.project_delete (风险4)
+├── sensitive_operations.environment_destroy (风险4)
+├── sensitive_operations.data_wipe (风险4)
+├── sensitive_operations.approval_bypass (风险4)
+└── sensitive_operations.critical_config (风险4)
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                            十五、监控告警能力 (monitoring)  【新增】          │
+├─────────────────────────────────────────────────────────────────────────────┤
+monitoring_operations (风险2)                              -- 【新增顶级能力】
+├── monitoring_operations.dashboard_create (风险2)
+├── monitoring_operations.dashboard_delete (风险3)
+├── monitoring_operations.metric_query (风险1)
+└── monitoring_operations.dashboard_export (风险2)
+
+alert_operations (风险3)                                    -- 【新增顶级能力】
+├── alert_operations.rule_create (风险3)
+├── alert_operations.rule_edit (风险3)
+├── alert_operations.rule_delete (风险3)
+├── alert_operations.silence_create (风险2)                -- 告警静默
+├── alert_operations.silence_manage (风险2)
+└── alert_operations.notification_config (风险3)
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                            十六、跨域能力 (cross_domain)                      │
+├─────────────────────────────────────────────────────────────────────────────┤
+cross_tenant (风险4)
+└── cross_tenant.access (风险4)
+
+org_access (风险3)
+├── org_access.view_other_dept (风险2)
+└── org_access.operate_other_dept (风险4)
+```
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -276,25 +483,95 @@ org_access (风险3)
 
 ### 3.4 能力统计
 
-| 顶级能力 | 风险 | 子能力数 | 管控入口 |
-|---------|------|---------|---------|
-| chatops_advanced | 3 | 11 | ChatOps 对话界面 |
-| chatops_command_create | 3 | 3 | ChatOps 设置页 |
-| infrastructure_operations | 3 | 8 | 环境管理、配置中心 |
-| delivery_operations | 3 | 7 | 流水线管理、制品管理 |
-| bulk_operations | 3 | 4 | 批量操作入口 |
-| backup_operations | 3 | 5 | 备份管理、灾备中心 |
-| disaster_recovery | 4 | 4 | 灾备管理 |
-| user_management | 3 | 6 | 用户管理 |
-| advanced_analytics | 1 | 3 | 数据看板 |
-| audit_management | 2 | 4 | 审计日志 |
-| system_config | 3 | 5 | 系统配置 |
-| ecosystem_operations | 3 | 6 | 插件管理、Skill 市场 |
-| sensitive_operations | 4 | 5 | 敏感操作确认弹窗 |
-| cross_tenant | 4 | 1 | 跨租户切换器 |
-| org_access | 3 | 2 | 组织架构管理 |
+| 顶级能力 | 风险 | 子能力数 | 管控入口 | 回滚能力 |
+|---------|------|---------|---------|---------|
+| chatops_advanced | 3 | 11 | ChatOps 对话 | ❌ |
+| chatops_command_create | 3 | 3 | ChatOps 设置 | ❌ |
+| infrastructure_operations | 3 | 12 | 环境管理、配置中心 | ✅ config_rollback |
+| iac_operations | 3 | 5 | IaC 管理 | ✅ state_rollback |
+| delivery_operations | 3 | 9 | 流水线、制品 | ✅ pipeline_rollback, artifact_rollback |
+| bulk_operations | 3 | 4 | 批量操作 | ✅ rollback |
+| backup_operations | 3 | 6 | 备份管理 | ✅ restore |
+| disaster_recovery | 4 | 5 | 灾备中心 | ✅ failover, failback |
+| user_management | 3 | 6 | 用户管理 | ❌ |
+| knowledge_operations | 2 | 6 | 知识库 | ✅ version_rollback |
+| model_version_operations | 3 | 4 | 模型管理 | ✅ rollback |
+| test_management | 2 | 6 | 测试管理 | ✅ case_rollback |
+| advanced_analytics | 1 | 3 | 数据看板 | ❌ |
+| audit_management | 2 | 4 | 审计日志 | ❌ |
+| system_config | 3 | 5 | 系统配置 | ❌ |
+| ecosystem_operations | 3 | 6 | 插件、Skill | ❌ |
+| monitoring_operations | 2 | 4 | 监控仪表盘 | ❌ |
+| alert_operations | 3 | 6 | 告警管理 | ❌ |
+| sensitive_operations | 4 | 5 | 敏感操作 | ❌ |
+| cross_tenant | 4 | 1 | 跨租户 | ❌ |
+| org_access | 3 | 2 | 组织架构 | ❌ |
 
-**总计**：15 个顶级能力，74 个子能力，覆盖 Orion 核心模块的完整操作管控。
+**总计**：20 个顶级能力，约 100 个子能力
+
+**具备回滚能力的能力**：9 个（45%）
+**需要补充回滚能力**：11 个（55%）
+
+---
+
+## 4. 审计日志要求
+
+### 4.1 必须记录审计的操作
+
+所有能力操作必须记录审计日志，审计字段包括：
+
+```typescript
+interface CapabilityAuditLog {
+  id: string;
+  timestamp: Date;
+  userId: string;
+  userName: string;
+  userRole: string;
+  capabilityId: string;
+  capabilityName: string;
+  action: 'execute' | 'grant' | 'revoke' | 'approve' | 'deny';
+  resourceType?: string;
+  resourceId?: string;
+  riskLevel: 1 | 2 | 3 | 4;
+  result: 'success' | 'failed' | 'denied' | 'pending_approval';
+  requestIp: string;
+  userAgent: string;
+  requestBody?: Record<string, unknown>;
+  responseBody?: Record<string, unknown>;
+  errorMessage?: string;
+  duration: number;  // 毫秒
+  chainId?: string;  // 操作链 ID，用于追踪关联操作
+}
+```
+
+### 4.2 高风险操作审计增强
+
+风险等级 3-4 的操作必须记录：
+
+| 字段 | 说明 |
+|------|------|
+| `chainId` | 操作链 ID，关联前后操作 |
+| `requestBody` | 请求参数（含敏感字段脱敏） |
+| `beforeState` | 操作前状态快照 |
+| `afterState` | 操作后状态快照 |
+| `approvalId` | 审批单 ID（如有） |
+| `multiFactorAuth` | 是否完成多因素认证 |
+
+### 4.3 审计日志保留策略
+
+| 数据分类 | 保留期限 | 归档策略 |
+|---------|---------|---------|
+| 高风险操作（4级） | 7 年 | 冷存储 |
+| 中高风险操作（3级） | 3 年 | 冷存储 |
+| 中风险操作（2级） | 1 年 | 标准存储 |
+| 低风险操作（1级） | 90 天 | 标准存储 |
+
+### 4.4 审计验证
+
+系统必须支持：
+- **链式验证** — 通过 `chainId` 验证操作序列完整性
+- **防篡改** — 审计日志写入后不可修改
+- **合规导出** — 支持 PDF/CSV 格式导出，满足审计要求
 
 ---
 
