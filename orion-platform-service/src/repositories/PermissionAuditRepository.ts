@@ -13,7 +13,7 @@ export interface AuditLogEntry {
   resourceId?: string;
   action: string;
   decision: 'allow' | 'deny';
-  decisionSource: 'rbac' | 'abac' | 'relationship' | 'super_admin_bypass' | 'all';
+  decisionSource: 'rbac' | 'abac' | 'relationship' | 'super_admin_bypass' | 'all' | 'capability';
   reason: string;
 }
 
@@ -149,26 +149,23 @@ export class PermissionAuditRepository {
 
   /** 统计拒绝次数（按用户） */
   async countDeniedByUser(hours = 24, tenantId?: string): Promise<{ user_id: string; count: string }[]> {
+    const params: unknown[] = [hours];
+    let idx = 2;
+    const tenantCondition = tenantId ? `AND tenant_id = $${idx++}` : '';
+
     if (tenantId) {
-      const result = await this.pool.query(
-        `SELECT user_id, COUNT(*) as count
-         FROM permission_audit_logs
-         WHERE decision = 'deny'
-           AND tenant_id = $1
-           AND evaluated_at > NOW() - INTERVAL '${hours} hours'
-         GROUP BY user_id
-         ORDER BY count DESC`,
-        [tenantId]
-      );
-      return result.rows;
+      params.push(tenantId);
     }
+
     const result = await this.pool.query(
       `SELECT user_id, COUNT(*) as count
        FROM permission_audit_logs
        WHERE decision = 'deny'
-         AND evaluated_at > NOW() - INTERVAL '${hours} hours'
+         ${tenantCondition}
+         AND evaluated_at > NOW() - ($1 * INTERVAL '1 hour')
        GROUP BY user_id
        ORDER BY count DESC`,
+      params
     );
     return result.rows;
   }

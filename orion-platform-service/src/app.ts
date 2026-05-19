@@ -21,6 +21,7 @@ import apiRoutes from './api/routes';
 import authRoutes from './api/routes-auth';
 import { registerSsoRoutes } from './api/sso-routes';
 import { registerMaintenanceWindowRoutes } from './api/maintenance-window-routes';
+import teamRoutes from './api/team-routes';
 
 // AuthZ engine imports
 import { RoleService, ROLE_INHERITANCE, SYSTEM_ROLE_PERMISSIONS, BUSINESS_ROLE_PERMISSIONS, PROJECT_ROLE_PERMISSIONS } from './services/role/RoleService';
@@ -35,6 +36,9 @@ import { RelationshipService } from './services/authz/RelationshipService';
 import { PermissionAuditRepository } from './repositories/PermissionAuditRepository';
 import { setAuthzEngine } from './middleware/requirePermission';
 import { CacheService } from './services/cache/CacheService';
+import { TeamRepository, TeamService } from './services/team';
+import { CapabilityRepository, CapabilityService } from './services/capability';
+import capabilityRoutes from './api/capability-routes';
 
 export interface PlatformAppOptions {
   redis?: RedisCache;
@@ -222,12 +226,22 @@ export async function createApp(options: PlatformAppOptions = {}): Promise<{
     const cacheService = options.redis ? new CacheService(options.redis, 300) : null;
     const cacheTtl = parseInt(process.env.AUTHZ_CACHE_TTL || '300', 10);
 
+    // Initialize Team service
+    const teamRepo = new TeamRepository(options.database);
+    const teamService = new TeamService(teamRepo, roleRepo);
+
+    // Initialize Capability service (hoisted for cron job access)
+    const capRepo = new CapabilityRepository(options.database);
+    const capabilityService = new CapabilityService(capRepo, roleRepo);
+
     const authzEngine = new AuthorizationEngine(
       roleService,
       abacEngine,
       relationshipService,
       auditRepo,
       pipelineRbacService,
+      teamService,
+      capabilityService,
       cacheService,
       cacheTtl,
     );
@@ -326,6 +340,17 @@ export async function createApp(options: PlatformAppOptions = {}): Promise<{
   // Register Maintenance Window routes with database access
   await app.register(registerMaintenanceWindowRoutes, { database: options.database });
 
+  // Register Team routes with database access
+  if (options.database) {
+    await app.register(teamRoutes, { prefix: '/api/v1/teams', database: options.database });
+
+    // Register Capability routes
+    await app.register(capabilityRoutes, { database: options.database });
+
+    // Register permission cleanup cron job (creates its own lightweight service instance)
+    setupPermissionCleanupJob(options.database);
+  }
+
   // 基础 API 路由
   app.get('/api/v1/info', async (request: FastifyRequest, reply: FastifyReply) => {
     return reply.send({
@@ -417,4 +442,30 @@ export async function createApp(options: PlatformAppOptions = {}): Promise<{
     database: options.database,
     eventBus: options.eventBus,
   };
+}
+
+/**
+ * 设置权限过期清理定时任务
+ * 每 10 分钟执行一次，清理 chatops_temporary_permissions 和 capability_user_mappings 中的过期记录
+ */
+function setupPermissionCleanupJob(database: DatabasePool): void {
+  const capRepo = new CapabilityRepository(database);
+  const capabilityService = new CapabilityService(capRepo);
+
+  const cleanup = async () => {
+    try {
+      const result = await capabilityService.cleanupExpiredTemporaryPermissions();
+      console.log(`[PermissionCleanup] Cleaned ${result.cleaned} expired permissions, wrote ${result.auditLogs} audit logs`);
+    } catch (error) {
+      console.error('[PermissionCleanup] Failed:', error);
+    }
+  };
+
+  // 每 10 分钟执行一次
+  setInterval(cleanup, 10 * 60 * 1000);
+
+  // 立即执行一次
+  cleanup();
+
+  console.log('[PermissionCleanup] Cron job registered (every 10 minutes)');
 }
