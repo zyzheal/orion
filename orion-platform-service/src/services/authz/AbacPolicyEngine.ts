@@ -408,6 +408,13 @@ export class AbacPolicyEngine {
   }
 
   /**
+   * 获取所有系统策略 ID
+   */
+  getSystemPolicyIds(): string[] {
+    return SYSTEM_ABAC_POLICIES.map(p => p.id);
+  }
+
+  /**
    * 获取政策
    */
   getPolicy(policyId: string): AbacPolicy | undefined {

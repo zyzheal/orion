@@ -60,7 +60,7 @@ import { registerApprovalRoutes } from './approval-routes';
 import artifactRoutes from './artifact-routes';
 import artifactVersionRoutes from './artifact-version-routes';
 import permissionAuditRoutes from './permission-audit-routes';
-import abacPolicyRoutes from './abac-policy-routes';
+import abacPolicyRoutes, { registerSystemPolicyId } from './abac-policy-routes';
 import projectMemberRoutes from './project-member-routes';
 import uebaRoutes from './ueba-routes';
 import { escalationScheduler } from '../services/escalation/EscalationScheduler';
@@ -429,6 +429,10 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await registerWithRoleGuard(app, permissionAuditRoutes, '/permission-audit', { database: options.database });
 
   // ABAC Policy Routes (P2)
+  // 注册系统策略白名单（不可被删除/修改）
+  const { abacPolicyEngine } = require('../services/authz/AbacPolicyEngine');
+  abacPolicyEngine.getSystemPolicyIds().forEach(id => registerSystemPolicyId(id));
+
   await registerWithRoleGuard(app, abacPolicyRoutes, '/abac-policies');
 
   // Project Member Routes (P2)

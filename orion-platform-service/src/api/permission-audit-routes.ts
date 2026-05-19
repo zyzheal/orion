@@ -26,6 +26,7 @@ interface QueryByResourceParams {
 
 interface DeniedQuery {
   limit?: string;
+  offset?: string;
   hours?: string;
 }
 
@@ -40,7 +41,7 @@ export default async function permissionAuditRoutes(
   const auditRepo = options.database ? new PermissionAuditRepository(options.database) : null;
 
   if (!auditRepo) {
-    console.warn('[PermissionAuditRoutes] No database pool provided, audit routes will not be functional');
+    app.log.warn('[PermissionAuditRoutes] No database pool provided, audit routes will not be functional');
     return;
   }
 
@@ -58,8 +59,9 @@ export default async function permissionAuditRoutes(
   }, async (request, reply) => {
     try {
       const limit = parseInt(request.query.limit || '100', 10);
-      const data = await auditRepo.queryDenied(limit);
-      return reply.send({ data, total: data.length });
+      const offset = parseInt(request.query.offset || '0', 10);
+      const data = await auditRepo.queryDenied(limit, request.user!.tenantId);
+      return reply.send({ data, total: data.length, offset });
     } catch (err) {
       return handleError(err as Error, reply);
     }
@@ -72,7 +74,7 @@ export default async function permissionAuditRoutes(
     try {
       const { userId } = request.params;
       const limit = parseInt(request.query.limit || '100', 10);
-      const data = await auditRepo.queryByUser(userId, limit);
+      const data = await auditRepo.queryByUser(userId, limit, request.user!.tenantId);
       return reply.send({ data, total: data.length });
     } catch (err) {
       return handleError(err as Error, reply);
@@ -86,7 +88,7 @@ export default async function permissionAuditRoutes(
     try {
       const { resourceType } = request.params;
       const { resourceId, limit } = request.query;
-      const data = await auditRepo.queryByResource(resourceType, resourceId, parseInt(limit || '100', 10));
+      const data = await auditRepo.queryByResource(resourceType, resourceId, parseInt(limit || '100', 10), request.user!.tenantId);
       return reply.send({ data, total: data.length });
     } catch (err) {
       return handleError(err as Error, reply);
@@ -99,7 +101,7 @@ export default async function permissionAuditRoutes(
   }, async (request, reply) => {
     try {
       const hours = parseInt(request.query.hours || '24', 10);
-      const data = await auditRepo.countDeniedByUser(hours);
+      const data = await auditRepo.countDeniedByUser(hours, request.user!.tenantId);
       return reply.send({ data, hours });
     } catch (err) {
       return handleError(err as Error, reply);

@@ -36,7 +36,7 @@ export default async function projectMemberRoutes(
   const relService = options.database ? new RelationshipService(options.database) : null;
 
   if (!relService) {
-    console.warn('[ProjectMemberRoutes] No database pool provided');
+    app.log.warn('[ProjectMemberRoutes] No database pool provided');
     return;
   }
 
@@ -49,7 +49,7 @@ export default async function projectMemberRoutes(
     onRequest: [authenticateUser, requirePermission({ resource: 'project', action: 'read' })],
   }, async (request, reply) => {
     try {
-      const members = await relService.getProjectMembers(request.params.projectId);
+      const members = await relService.getProjectMembers(request.params.projectId, request.user!.tenantId);
       return reply.send({ data: members, total: members.length });
     } catch (err) {
       return handleError(err as Error, reply);
@@ -63,7 +63,7 @@ export default async function projectMemberRoutes(
     try {
       const { projectId } = request.params;
       const { userId, role } = request.body;
-      await relService.addProjectMember(projectId, userId, role);
+      await relService.addProjectMember(projectId, userId, role, request.user!.tenantId);
       return reply.status(201).send({ message: 'Member added', userId, role });
     } catch (err) {
       return handleError(err as Error, reply);
@@ -76,7 +76,7 @@ export default async function projectMemberRoutes(
   }, async (request, reply) => {
     try {
       const { projectId, userId } = request.params;
-      await relService.removeProjectMember(projectId, userId);
+      await relService.removeProjectMember(projectId, userId, request.user!.tenantId);
       return reply.send({ message: 'Member removed' });
     } catch (err) {
       return handleError(err as Error, reply);
@@ -89,7 +89,7 @@ export default async function projectMemberRoutes(
   }, async (request, reply) => {
     try {
       const { projectId, userId } = request.params;
-      const isMember = await relService.isProjectMember(projectId, userId);
+      const isMember = await relService.isProjectMember(projectId, userId, request.user!.tenantId);
       return reply.send({ isMember });
     } catch (err) {
       return handleError(err as Error, reply);

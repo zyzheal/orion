@@ -62,7 +62,17 @@ export class PermissionAuditRepository {
   }
 
   /** 查询用户的审计日志（按时间倒序） */
-  async queryByUser(userId: string, limit = 100): Promise<any[]> {
+  async queryByUser(userId: string, limit = 100, tenantId?: string): Promise<any[]> {
+    if (tenantId) {
+      const result = await this.pool.query(
+        `SELECT * FROM permission_audit_logs
+         WHERE user_id = $1 AND tenant_id = $2
+         ORDER BY evaluated_at DESC
+         LIMIT $3`,
+        [userId, tenantId, limit]
+      );
+      return result.rows;
+    }
     const result = await this.pool.query(
       `SELECT * FROM permission_audit_logs
        WHERE user_id = $1
@@ -74,7 +84,17 @@ export class PermissionAuditRepository {
   }
 
   /** 查询所有拒绝记录 */
-  async queryDenied(limit = 100): Promise<any[]> {
+  async queryDenied(limit = 100, tenantId?: string): Promise<any[]> {
+    if (tenantId) {
+      const result = await this.pool.query(
+        `SELECT * FROM permission_audit_logs
+         WHERE decision = 'deny' AND tenant_id = $1
+         ORDER BY evaluated_at DESC
+         LIMIT $2`,
+        [tenantId, limit]
+      );
+      return result.rows;
+    }
     const result = await this.pool.query(
       `SELECT * FROM permission_audit_logs
        WHERE decision = 'deny'
@@ -86,14 +106,34 @@ export class PermissionAuditRepository {
   }
 
   /** 按资源类型查询审计日志 */
-  async queryByResource(resourceType: string, resourceId?: string, limit = 100): Promise<any[]> {
+  async queryByResource(resourceType: string, resourceId?: string, limit = 100, tenantId?: string): Promise<any[]> {
     if (resourceId) {
+      if (tenantId) {
+        const result = await this.pool.query(
+          `SELECT * FROM permission_audit_logs
+           WHERE resource_type = $1 AND resource_id = $2 AND tenant_id = $3
+           ORDER BY evaluated_at DESC
+           LIMIT $4`,
+          [resourceType, resourceId, tenantId, limit]
+        );
+        return result.rows;
+      }
       const result = await this.pool.query(
         `SELECT * FROM permission_audit_logs
          WHERE resource_type = $1 AND resource_id = $2
          ORDER BY evaluated_at DESC
          LIMIT $3`,
         [resourceType, resourceId, limit]
+      );
+      return result.rows;
+    }
+    if (tenantId) {
+      const result = await this.pool.query(
+        `SELECT * FROM permission_audit_logs
+         WHERE resource_type = $1 AND tenant_id = $2
+         ORDER BY evaluated_at DESC
+         LIMIT $3`,
+        [resourceType, tenantId, limit]
       );
       return result.rows;
     }
@@ -108,7 +148,20 @@ export class PermissionAuditRepository {
   }
 
   /** 统计拒绝次数（按用户） */
-  async countDeniedByUser(hours = 24): Promise<{ user_id: string; count: string }[]> {
+  async countDeniedByUser(hours = 24, tenantId?: string): Promise<{ user_id: string; count: string }[]> {
+    if (tenantId) {
+      const result = await this.pool.query(
+        `SELECT user_id, COUNT(*) as count
+         FROM permission_audit_logs
+         WHERE decision = 'deny'
+           AND tenant_id = $1
+           AND evaluated_at > NOW() - INTERVAL '${hours} hours'
+         GROUP BY user_id
+         ORDER BY count DESC`,
+        [tenantId]
+      );
+      return result.rows;
+    }
     const result = await this.pool.query(
       `SELECT user_id, COUNT(*) as count
        FROM permission_audit_logs

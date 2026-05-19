@@ -8,7 +8,7 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
-import { abacPolicyEngine, AbacPolicy } from '../services/authz/AbacPolicyEngine';
+import { abacPolicyEngine, AbacPolicy, ConditionRule } from '../services/authz/AbacPolicyEngine';
 
 interface PolicyParams {
   id: string;
@@ -19,13 +19,94 @@ interface CreatePolicyBody {
   description?: string;
   resourceType: string | string[];
   actionType: string | string[];
-  conditions: any;
+  conditions: ConditionRule;
   effect: 'allow' | 'deny';
   priority?: number;
   enabled?: boolean;
 }
 
-interface UpdatePolicyBody extends Partial<CreatePolicyBody> {}
+interface UpdatePolicyBody {
+  name?: string;
+  description?: string;
+  resourceType?: string | string[];
+  actionType?: string | string[];
+  conditions?: ConditionRule;
+  effect?: 'allow' | 'deny';
+  priority?: number;
+  enabled?: boolean;
+}
+
+/**
+ * 系统策略白名单 — 不可被删除或修改
+ */
+const SYSTEM_POLICY_IDS = new Set<string>();
+
+/**
+ * 递归验证 ConditionRule 结构的合法性
+ */
+function validateConditionRule(rule: ConditionRule, path = 'root'): void {
+  // 如果是叶子节点，必须有 condition
+  if (!rule.and && !rule.or && !rule.not) {
+    if (!rule.condition) {
+      throw new Error(`Condition at ${path} must have a 'condition' property or be a combinator (and/or/not)`);
+    }
+    const cond = rule.condition;
+    if (!cond.attribute || typeof cond.attribute !== 'string') {
+      throw new Error(`Condition at ${path}: attribute must be a non-empty string`);
+    }
+    const validOperators = ['equals', 'not_equals', 'in', 'not_in', 'contains', 'gt', 'lt', 'gte', 'lte', 'regex', 'match'];
+    if (!cond.operator || !validOperators.includes(cond.operator)) {
+      throw new Error(`Condition at ${path}: operator must be one of ${validOperators.join(', ')}`);
+    }
+    if (cond.value === undefined) {
+      throw new Error(`Condition at ${path}: value is required`);
+    }
+  }
+
+  // 递归验证组合规则
+  if (rule.and) {
+    if (!Array.isArray(rule.and) || rule.and.length === 0) {
+      throw new Error(`'and' at ${path} must be a non-empty array`);
+    }
+    rule.and.forEach((sub, i) => validateConditionRule(sub, `${path}.and[${i}]`));
+  }
+  if (rule.or) {
+    if (!Array.isArray(rule.or) || rule.or.length === 0) {
+      throw new Error(`'or' at ${path} must be a non-empty array`);
+    }
+    rule.or.forEach((sub, i) => validateConditionRule(sub, `${path}.or[${i}]`));
+  }
+  if (rule.not) {
+    validateConditionRule(rule.not, `${path}.not`);
+  }
+}
+
+/**
+ * 验证策略字段的合法性
+ */
+function validatePolicyBody(body: CreatePolicyBody): void {
+  if (!body.name || typeof body.name !== 'string') {
+    throw new Error('Policy name is required');
+  }
+  if (!body.resourceType || (typeof body.resourceType !== 'string' && !Array.isArray(body.resourceType))) {
+    throw new Error('resourceType is required and must be a string or array');
+  }
+  if (!body.actionType || (typeof body.actionType !== 'string' && !Array.isArray(body.actionType))) {
+    throw new Error('actionType is required and must be a string or array');
+  }
+  if (!body.effect || !['allow', 'deny'].includes(body.effect)) {
+    throw new Error('effect must be "allow" or "deny"');
+  }
+  // 验证条件结构
+  validateConditionRule(body.conditions);
+}
+
+/**
+ * 注册系统策略（在 AbacPolicyEngine 初始化后调用）
+ */
+export function registerSystemPolicyId(id: string): void {
+  SYSTEM_POLICY_IDS.add(id);
+}
 
 export default async function abacPolicyRoutes(app: FastifyInstance): Promise<void> {
   // Error handler
@@ -80,13 +161,28 @@ export default async function abacPolicyRoutes(app: FastifyInstance): Promise<vo
     onRequest: [authenticateUser, requirePermission({ resource: 'abac', action: 'write' })],
   }, async (request, reply) => {
     try {
+      // 验证策略字段和条件结构
+      validatePolicyBody(request.body);
+
       const policy: AbacPolicy = {
         id: `custom-${Date.now()}`,
-        ...request.body,
+        name: request.body.name,
+        description: request.body.description,
+        resourceType: request.body.resourceType,
+        actionType: request.body.actionType,
+        conditions: request.body.conditions,
+        effect: request.body.effect,
+        priority: request.body.priority ?? 0,
+        enabled: request.body.enabled ?? true,
       };
       abacPolicyEngine.registerPolicy(policy);
       return reply.status(201).send({ data: policy, message: 'Policy created' });
     } catch (err) {
+      if ((err as Error).message.includes('Condition at') ||
+          (err as Error).message.includes('required') ||
+          (err as Error).message.includes('must be')) {
+        return reply.status(400).send({ error: 'VALIDATION_ERROR', message: (err as Error).message });
+      }
       return handleError(err as Error, reply);
     }
   });
@@ -100,10 +196,21 @@ export default async function abacPolicyRoutes(app: FastifyInstance): Promise<vo
       if (!existing) {
         return reply.status(404).send({ error: 'NOT_FOUND', message: 'Policy not found' });
       }
+      // 保护系统策略不被修改
+      if (SYSTEM_POLICY_IDS.has(request.params.id)) {
+        return reply.status(403).send({ error: 'FORBIDDEN', message: 'Cannot modify system policy' });
+      }
+      // 如果更新了 conditions，验证其合法性
+      if (request.body.conditions) {
+        validateConditionRule(request.body.conditions);
+      }
       abacPolicyEngine.updatePolicy(request.params.id, request.body);
       const updated = abacPolicyEngine.getPolicy(request.params.id);
       return reply.send({ data: updated, message: 'Policy updated' });
     } catch (err) {
+      if ((err as Error).message.includes('Condition at')) {
+        return reply.status(400).send({ error: 'VALIDATION_ERROR', message: (err as Error).message });
+      }
       return handleError(err as Error, reply);
     }
   });
@@ -118,11 +225,11 @@ export default async function abacPolicyRoutes(app: FastifyInstance): Promise<vo
         return reply.status(404).send({ error: 'NOT_FOUND', message: 'Policy not found' });
       }
       // 保护系统策略不被删除
-      if (request.params.id.startsWith('custom-')) {
-        abacPolicyEngine.unregisterPolicy(request.params.id);
-        return reply.send({ message: 'Policy deleted' });
+      if (SYSTEM_POLICY_IDS.has(request.params.id)) {
+        return reply.status(403).send({ error: 'FORBIDDEN', message: 'Cannot delete system policy' });
       }
-      return reply.status(403).send({ error: 'FORBIDDEN', message: 'Cannot delete system policy' });
+      abacPolicyEngine.unregisterPolicy(request.params.id);
+      return reply.send({ message: 'Policy deleted' });
     } catch (err) {
       return handleError(err as Error, reply);
     }

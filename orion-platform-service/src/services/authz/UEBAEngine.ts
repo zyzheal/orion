@@ -31,8 +31,8 @@ export class UEBAService {
   /**
    * 分析用户行为并返回统计信息
    */
-  async analyzeUserBehavior(userId: string, hours = 24): Promise<UEBAStats | null> {
-    const denies = await this.auditRepo.queryByUser(userId, 1000);
+  async analyzeUserBehavior(userId: string, hours = 24, tenantId?: string): Promise<UEBAStats | null> {
+    const denies = await this.auditRepo.queryByUser(userId, 1000, tenantId);
 
     const recentDenies = denies.filter((d: any) => {
       const denyTime = new Date(d.evaluated_at);
@@ -61,14 +61,14 @@ export class UEBAService {
   }
 
   /**
-   * 获取高风险用户列表
+   * 获取高风险用户列表（租户隔离）
    */
-  async getHighRiskUsers(hours = 24, limit = 10): Promise<UEBAStats[]> {
-    const stats = await this.auditRepo.countDeniedByUser(hours);
+  async getHighRiskUsers(hours = 24, limit = 10, tenantId?: string): Promise<UEBAStats[]> {
+    const stats = await this.auditRepo.countDeniedByUser(hours, tenantId);
     const results: UEBAStats[] = [];
 
     for (const stat of stats.slice(0, limit)) {
-      const userStats = await this.analyzeUserBehavior(stat.user_id, hours);
+      const userStats = await this.analyzeUserBehavior(stat.user_id, hours, tenantId);
       if (userStats && userStats.riskLevel !== 'low') {
         results.push(userStats);
       }
@@ -81,14 +81,14 @@ export class UEBAService {
   }
 
   /**
-   * 生成异常告警
+   * 生成异常告警（租户隔离）
    */
-  async detectAnomalies(hours = 24): Promise<AnomalyAlert[]> {
+  async detectAnomalies(hours = 24, tenantId?: string): Promise<AnomalyAlert[]> {
     const alerts: AnomalyAlert[] = [];
-    const stats = await this.auditRepo.countDeniedByUser(hours);
+    const stats = await this.auditRepo.countDeniedByUser(hours, tenantId);
 
     for (const stat of stats) {
-      const userStats = await this.analyzeUserBehavior(stat.user_id, hours);
+      const userStats = await this.analyzeUserBehavior(stat.user_id, hours, tenantId);
       if (!userStats) continue;
 
       // 频繁被拒告警
@@ -103,7 +103,7 @@ export class UEBAService {
       }
 
       // 非工作时间访问告警
-      const denies = await this.auditRepo.queryByUser(stat.user_id, 100);
+      const denies = await this.auditRepo.queryByUser(stat.user_id, 100, tenantId);
       const offHoursDenies = denies.filter((d: any) => {
         const hour = new Date(d.evaluated_at).getUTCHours();
         return hour < 9 || hour >= 18;

@@ -31,7 +31,7 @@ export default async function uebaRoutes(app: FastifyInstance, options: UEBARout
   const uebaService = auditRepo ? new UEBAService(auditRepo) : null;
 
   if (!uebaService) {
-    console.warn('[UEBARoutes] No database pool provided');
+    app.log.warn('[UEBARoutes] No database pool provided');
     return;
   }
 
@@ -45,7 +45,7 @@ export default async function uebaRoutes(app: FastifyInstance, options: UEBARout
   }, async (request, reply) => {
     try {
       const hours = parseInt(request.query.hours || '24', 10);
-      const stats = await uebaService.analyzeUserBehavior(request.params.userId, hours);
+      const stats = await uebaService.analyzeUserBehavior(request.params.userId, hours, request.user!.tenantId);
       if (!stats) {
         return reply.send({ data: null, message: 'No deny records found for this user' });
       }
@@ -62,7 +62,7 @@ export default async function uebaRoutes(app: FastifyInstance, options: UEBARout
     try {
       const hours = parseInt(request.query.hours || '24', 10);
       const limit = parseInt(request.query.limit || '10', 10);
-      const risks = await uebaService.getHighRiskUsers(hours, limit);
+      const risks = await uebaService.getHighRiskUsers(hours, limit, request.user!.tenantId);
       return reply.send({ data: risks, total: risks.length });
     } catch (err) {
       return handleError(err as Error, reply);
@@ -75,7 +75,7 @@ export default async function uebaRoutes(app: FastifyInstance, options: UEBARout
   }, async (request, reply) => {
     try {
       const hours = parseInt(request.query.hours || '24', 10);
-      const anomalies = await uebaService.detectAnomalies(hours);
+      const anomalies = await uebaService.detectAnomalies(hours, request.user!.tenantId);
       return reply.send({ data: anomalies, total: anomalies.length });
     } catch (err) {
       return handleError(err as Error, reply);

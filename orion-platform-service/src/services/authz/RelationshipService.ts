@@ -59,16 +59,30 @@ export class RelationshipService {
 
     // 2. 项目成员检查（通过 project_members 表）
     if (req.projectId) {
-      const result = await this.db.query(
-        'SELECT role FROM project_members WHERE project_id = $1 AND user_id = $2',
-        [req.projectId, req.userId]
-      );
-      if (result.rows.length > 0) {
-        return {
-          allowed: true,
-          reason: `Project member with role: ${result.rows[0].role}`,
-          relationshipType: 'project_member',
-        };
+      if (req.tenantId) {
+        const result = await this.db.query(
+          'SELECT role FROM project_members WHERE project_id = $1 AND user_id = $2 AND tenant_id = $3',
+          [req.projectId, req.userId, req.tenantId]
+        );
+        if (result.rows.length > 0) {
+          return {
+            allowed: true,
+            reason: `Project member with role: ${result.rows[0].role}`,
+            relationshipType: 'project_member',
+          };
+        }
+      } else {
+        const result = await this.db.query(
+          'SELECT role FROM project_members WHERE project_id = $1 AND user_id = $2',
+          [req.projectId, req.userId]
+        );
+        if (result.rows.length > 0) {
+          return {
+            allowed: true,
+            reason: `Project member with role: ${result.rows[0].role}`,
+            relationshipType: 'project_member',
+          };
+        }
       }
     }
 
@@ -81,29 +95,52 @@ export class RelationshipService {
   /**
    * 添加项目成员
    */
-  async addProjectMember(projectId: string, userId: string, role: string): Promise<void> {
-    await this.db.query(
-      `INSERT INTO project_members (project_id, user_id, role)
-       VALUES ($1, $2, $3)
-       ON CONFLICT (project_id, user_id) DO UPDATE SET role = $3`,
-      [projectId, userId, role]
-    );
+  async addProjectMember(projectId: string, userId: string, role: string, tenantId?: string): Promise<void> {
+    if (tenantId) {
+      await this.db.query(
+        `INSERT INTO project_members (project_id, user_id, role, tenant_id)
+         VALUES ($1, $2, $3, $4)
+         ON CONFLICT (project_id, user_id) DO UPDATE SET role = $3, tenant_id = $4`,
+        [projectId, userId, role, tenantId]
+      );
+    } else {
+      await this.db.query(
+        `INSERT INTO project_members (project_id, user_id, role)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (project_id, user_id) DO UPDATE SET role = $3`,
+        [projectId, userId, role]
+      );
+    }
   }
 
   /**
    * 移除项目成员
    */
-  async removeProjectMember(projectId: string, userId: string): Promise<void> {
-    await this.db.query(
-      'DELETE FROM project_members WHERE project_id = $1 AND user_id = $2',
-      [projectId, userId]
-    );
+  async removeProjectMember(projectId: string, userId: string, tenantId?: string): Promise<void> {
+    if (tenantId) {
+      await this.db.query(
+        'DELETE FROM project_members WHERE project_id = $1 AND user_id = $2 AND tenant_id = $3',
+        [projectId, userId, tenantId]
+      );
+    } else {
+      await this.db.query(
+        'DELETE FROM project_members WHERE project_id = $1 AND user_id = $2',
+        [projectId, userId]
+      );
+    }
   }
 
   /**
    * 获取项目成员列表
    */
-  async getProjectMembers(projectId: string): Promise<{ user_id: string; role: string }[]> {
+  async getProjectMembers(projectId: string, tenantId?: string): Promise<{ user_id: string; role: string }[]> {
+    if (tenantId) {
+      const result = await this.db.query(
+        'SELECT user_id, role FROM project_members WHERE project_id = $1 AND tenant_id = $2',
+        [projectId, tenantId]
+      );
+      return result.rows;
+    }
     const result = await this.db.query(
       'SELECT user_id, role FROM project_members WHERE project_id = $1',
       [projectId]
@@ -114,7 +151,14 @@ export class RelationshipService {
   /**
    * 检查用户是否为项目成员
    */
-  async isProjectMember(projectId: string, userId: string): Promise<boolean> {
+  async isProjectMember(projectId: string, userId: string, tenantId?: string): Promise<boolean> {
+    if (tenantId) {
+      const result = await this.db.query(
+        'SELECT 1 FROM project_members WHERE project_id = $1 AND user_id = $2 AND tenant_id = $3',
+        [projectId, userId, tenantId]
+      );
+      return result.rows.length > 0;
+    }
     const result = await this.db.query(
       'SELECT 1 FROM project_members WHERE project_id = $1 AND user_id = $2',
       [projectId, userId]
