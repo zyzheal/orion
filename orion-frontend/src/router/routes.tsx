@@ -868,6 +868,12 @@ export const routes: AppRoute[] = [
         protected: true,
         requiredPermission: { resource: 'abac', action: 'read' },
       },
+      {
+        path: 'project-member',
+        element: React.lazy(() => import('@/pages/security-svc/ProjectMember')),
+        protected: true,
+        requiredPermission: { resource: 'project', action: 'read' },
+      },
     ],
   },
   // AI Agent Orchestration (redirect to /ai/agents)
