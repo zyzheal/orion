@@ -949,9 +949,16 @@ export const routes: AppRoute[] = [
   },
   // Queue Management
   {
-    path: '/queue',
-    element: React.lazy(() => import('@/pages/Queue')),
+    path: '/console/queue',
+    element: React.lazy(() => import('@/pages/QueueTasks')),
     protected: true,
+  },
+  // Script Runner
+  {
+    path: '/console/scripts',
+    element: React.lazy(() => import('@/pages/ScriptRunner')),
+    protected: true,
+    requiredPermission: { resource: '*', action: 'manage' },
   },
   // Environment Management
   {
@@ -1009,7 +1016,7 @@ export const routes: AppRoute[] = [
   // Cron Management
   {
     path: '/console/cron',
-    element: React.lazy(() => import('@/pages/CronManagement')),
+    element: React.lazy(() => import('@/pages/CronJobs')),
     protected: true,
     requiredPermission: { resource: '*', action: 'manage' },
   },

@@ -13,6 +13,7 @@ export interface Role {
   description: string | null;
   permissions: string[];
   is_system?: boolean;
+  user_count?: number;
   created_at?: string;
   updated_at?: string;
 }
