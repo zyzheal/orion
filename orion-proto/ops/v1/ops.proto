@@ -4,7 +4,13 @@ package ops.v1;
 
 option go_package = "github.com/orion-platform/orion-proto/ops/v1";
 
-import "common.proto";
+// ============ Common Types (inlined) ============
+
+message Pagination {
+    int32 page = 1;
+    int32 page_size = 2;
+    int64 total = 3;
+}
 
 // ============ Messages ============
 
@@ -92,12 +98,12 @@ message GetTaskRequest {
 
 message GetTaskResultsRequest {
     string session_id = 1;
-    common.Pagination pagination = 2;
+    Pagination pagination = 2;
 }
 
 message GetTaskResultsResponse {
     repeated TaskResult results = 1;
-    common.Pagination pagination = 2;
+    Pagination pagination = 2;
 }
 
 message UploadFileRequest {
@@ -147,13 +153,13 @@ message DeleteCronJobResponse {
 }
 
 message ListCronJobsRequest {
-    common.Pagination pagination = 1;
+    Pagination pagination = 1;
     string status = 2;
 }
 
 message ListCronJobsResponse {
     repeated CronJob cron_jobs = 1;
-    common.Pagination pagination = 2;
+    Pagination pagination = 2;
 }
 
 // ============ Service ============
