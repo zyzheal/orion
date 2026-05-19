@@ -144,4 +144,90 @@ describe('DashboardService', () => {
       expect(result.metrics.successRate).toBe(0);
     });
   });
+
+  describe('getOverviewMetrics', () => {
+    it('should return metrics with comparison', async () => {
+      mockRepo.getStatsByTimeRange
+        .mockResolvedValueOnce({
+          total: 128,
+          completed: 120,
+          failed: 8,
+          avgResponseTime: 4.2,
+        })
+        .mockResolvedValueOnce({
+          total: 100,
+          completed: 90,
+          failed: 10,
+          avgResponseTime: 5.0,
+        });
+
+      const result = await service.getOverviewMetrics({ range: '7d' });
+
+      expect(result.metrics.totalExecutions).toBe(128);
+      expect(result.metrics.successRate).toBe(94);
+      expect(result.metrics.failedCount).toBe(8);
+      expect(result.comparison.totalExecutions).toBe(28);
+    });
+  });
+
+  describe('getExecutionTrend', () => {
+    it('should return daily trend data', async () => {
+      const mockTrends = [
+        { date: '2026-05-15', executions: 50, successRate: 90 },
+        { date: '2026-05-16', executions: 60, successRate: 92 },
+      ];
+      mockRepo.getDailyTrends.mockResolvedValue(mockTrends);
+
+      const result = await service.getExecutionTrend({ range: '7d' });
+
+      expect(result).toEqual(mockTrends);
+      expect(mockRepo.getDailyTrends).toHaveBeenCalled();
+    });
+  });
+
+  describe('getTopCommands', () => {
+    it('should return top commands with default limit', async () => {
+      const mockCommands = [
+        { command: '/deploy', count: 50, successRate: 95 },
+        { command: '/build', count: 30, successRate: 88 },
+      ];
+      mockRepo.getTopCommands.mockResolvedValue(mockCommands);
+
+      const result = await service.getTopCommands({ range: '7d' });
+
+      expect(result).toEqual(mockCommands);
+      expect(mockRepo.getTopCommands).toHaveBeenCalledWith(
+        expect.any(Date),
+        expect.any(Date),
+        5,
+      );
+    });
+
+    it('should return top commands with custom limit', async () => {
+      mockRepo.getTopCommands.mockResolvedValue([]);
+
+      await service.getTopCommands({ range: '30d' }, 10);
+
+      expect(mockRepo.getTopCommands).toHaveBeenCalledWith(
+        expect.any(Date),
+        expect.any(Date),
+        10,
+      );
+    });
+  });
+
+  describe('getPlatformDistribution', () => {
+    it('should return platform distribution', async () => {
+      const mockDist = [
+        { platform: 'dingtalk', count: 80 },
+        { platform: 'slack', count: 40 },
+        { platform: 'feishu', count: 8 },
+      ];
+      mockRepo.getPlatformDistribution.mockResolvedValue(mockDist);
+
+      const result = await service.getPlatformDistribution({ range: '7d' });
+
+      expect(result).toEqual(mockDist);
+    });
+  });
 });

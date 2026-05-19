@@ -185,4 +185,87 @@ export class DashboardService {
       comparison,
     };
   }
+
+  /**
+   * 获取概览指标卡片数据
+   * @param params 时间范围参数
+   * @returns 包含总执行数、成功率、失败数、平均响应时间的指标对象
+   */
+  async getOverviewMetrics(
+    params: TimeRangeParams,
+  ): Promise<{ metrics: DashboardMetrics; comparison: MetricsComparison }> {
+    const { start, end } = this.parseTimeRange(params);
+
+    const currentStats =
+      await this.executionRepo.getStatsByTimeRange(start, end);
+
+    const metrics: DashboardMetrics = {
+      totalExecutions: currentStats.total,
+      successRate:
+        currentStats.total === 0
+          ? 0
+          : Math.round((currentStats.completed / currentStats.total) * 100),
+      failedCount: currentStats.failed,
+      avgResponseTime: currentStats.avgResponseTime,
+    };
+
+    // 计算环比
+    const durationMs = end.getTime() - start.getTime();
+    const prevStart = new Date(start.getTime() - durationMs);
+    const prevEnd = new Date(start.getTime());
+    const previousStats =
+      await this.executionRepo.getStatsByTimeRange(prevStart, prevEnd);
+
+    const previousMetrics: DashboardMetrics = {
+      totalExecutions: previousStats.total,
+      successRate:
+        previousStats.total === 0
+          ? 0
+          : Math.round((previousStats.completed / previousStats.total) * 100),
+      failedCount: previousStats.failed,
+      avgResponseTime: previousStats.avgResponseTime,
+    };
+
+    const comparison = this.calcComparison(metrics, previousMetrics);
+
+    return { metrics, comparison };
+  }
+
+  /**
+   * 获取执行趋势图数据
+   * @param params 时间范围参数
+   * @returns 按日分组的执行数和成功率趋势
+   */
+  async getExecutionTrend(
+    params: TimeRangeParams,
+  ): Promise<DashboardTrend[]> {
+    const { start, end } = this.parseTimeRange(params);
+    return this.executionRepo.getDailyTrends(start, end);
+  }
+
+  /**
+   * 获取热门命令排行
+   * @param params 时间范围参数
+   * @param limit 返回条数，默认5
+   * @returns 命令使用次数和成功率排行
+   */
+  async getTopCommands(
+    params: TimeRangeParams,
+    limit = 5,
+  ): Promise<TopCommand[]> {
+    const { start, end } = this.parseTimeRange(params);
+    return this.executionRepo.getTopCommands(start, end, limit);
+  }
+
+  /**
+   * 获取平台分布统计
+   * @param params 时间范围参数
+   * @returns 各平台使用次数分布
+   */
+  async getPlatformDistribution(
+    params: TimeRangeParams,
+  ): Promise<PlatformDist[]> {
+    const { start, end } = this.parseTimeRange(params);
+    return this.executionRepo.getPlatformDistribution(start, end);
+  }
 }
