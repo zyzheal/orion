@@ -9,7 +9,17 @@
 
 ### 1.1 问题陈述
 
-当前 `ApprovalFlowEngine` 已具备基础的串行/并行审批能力，但存在以下不足：
+当前审批系统由以下服务组成（`orion-platform-service/src/services/approval/`）：
+
+| 服务 | 职责 | 文件 |
+|------|------|------|
+| `ApprovalService` | 基础审批 CRUD | `ApprovalService.ts` |
+| `MultiLevelApprovalService` | 多级串行/并行审批 | `MultiLevelApprovalService.ts` |
+| `ApprovalTemplateService` | 审批模板管理 | `ApprovalTemplateService.ts` |
+| `EmergencyApprovalService` | 紧急审批 + 超时自动批准 | `EmergencyApprovalService.ts` |
+| `ApprovalGateCoordinator` | 跨域编排审批门 | `ApprovalGateCoordinator.ts` |
+
+但存在以下不足：
 
 | 问题 | 影响 | 场景示例 |
 |------|------|---------|
@@ -33,7 +43,7 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    ApprovalFlowEngine (现有)                      │
+│              现有审批服务 (MultiLevelApprovalService 等)            │
 │  节点流转 → 工单分配 → 超时处理 → 模板渲染                         │
 └──────────────────────────┬──────────────────────────────────────┘
                            │ 扩展点
@@ -51,9 +61,9 @@
 
 | 扩组件 | 依赖 | 被依赖 |
 |----------|------|--------|
-| `ApproverResolver` | `UserService`（用户信息）、`RoleRepository`（角色） | `ApprovalFlowEngine.assignToApprover` |
-| `ApprovalAgentPlugin` | `orion-ai-service`（LLM）、`RiskAnalyzer`（风险分析） | `ApprovalFlowEngine.processNodeAction` |
-| `FallbackChain` | `ApproverResolver` | `ApprovalFlowEngine` 超时处理 |
+| `ApproverResolver` | `UserService`（用户信息）、`RoleRepository`（角色） | `MultiLevelApprovalService.review` + `assignToApprover` |
+| `ApprovalAgentPlugin` | `orion-ai-service`（LLM）、`RiskAnalyzer`（风险分析） | 新增 Agent 节点类型处理 |
+| `FallbackChain` | `ApproverResolver` | `MultiLevelApprovalService` 超时处理 + `EmergencyApprovalService` |
 | `AIGuardCircuit` | 健康检查端点、`notificationService` | 全系统 AI 依赖方 |
 
 ---
@@ -103,9 +113,18 @@ export interface FallbackStep {
     | 'fixed-user';       // 推导至固定用户
   /** 推导参数 */
   deriveParam?: string;
-  /** 是否允许自动批准（仅最高降级级别） */
+  /** 是否允许自动批准（仅最高降级级别 + 低风险操作） */
   autoApprove: boolean;
+  /** 自动批准限制：仅 riskLevel <= N 时生效 */
+  autoApproveMaxRiskLevel: number;  // 默认 2
 }
+
+/** autoApprove 安全约束
+ * 1. autoApprove 仅对 riskLevel <= autoApproveMaxRiskLevel 的操作生效
+ * 2. 生产环境 (env=prod) 的操作永不自动批准
+ * 3. autoApprove=true 的操作必须记录审计日志，包含降级原因
+ * 4. 只有 super_admin 可以配置 autoApprove=true 的降级步骤
+ */
 ```
 
 ### 3.3 降级推导算法
@@ -135,27 +154,42 @@ export class ApproverResolver {
   /**
    * 降级推导：当主审批人不可用时推导替代人
    */
+/** 降级推导结果 */
+export interface FallbackResult {
+  type: 'approvers_found' | 'auto_approve' | 'reject';
+  approverIds: string[];
+  reason: string;
+}
+
   async deriveFallback(
     unavailableApproverIds: string[],
     rule: ApproverRule,
     context: ApprovalContext,
-  ): Promise<string[]> {
+  ): Promise<FallbackResult> {
     for (const step of rule.fallbackChain) {
       const derived = await this.executeFallbackStep(step, context);
       // 过滤掉已经不可用的审批人
       const available = derived.filter(id => !unavailableApproverIds.includes(id));
       if (available.length > 0) {
-        return available;
+        return { type: 'approvers_found', approverIds: available, reason: `Fallback step ${step.id}` };
       }
     }
 
     // 所有降级步骤都用尽，检查是否允许自动批准
     const lastStep = rule.fallbackChain[rule.fallbackChain.length - 1];
     if (lastStep?.autoApprove) {
-      return ['system-auto-approve'];
+      // 安全检查：生产环境永不自动批准
+      if (context.environment === 'prod') {
+        return { type: 'reject', approverIds: [], reason: 'Production environment: auto-approve not allowed' };
+      }
+      // 安全检查：风险等级超过阈值则拒绝
+      if (context.riskLevel > (lastStep.autoApproveMaxRiskLevel ?? 2)) {
+        return { type: 'reject', approverIds: [], reason: `Risk level ${context.riskLevel} exceeds auto-approve threshold ${lastStep.autoApproveMaxRiskLevel}` };
+      }
+      return { type: 'auto_approve', approverIds: [], reason: `Fallback chain exhausted, auto-approved per step ${lastStep.id}` };
     }
 
-    return [];
+    return { type: 'reject', approverIds: [], reason: 'Fallback chain exhausted, no auto-approve configured' };
   }
 
   /**
@@ -174,7 +208,75 @@ export class ApproverResolver {
 }
 ```
 
-### 3.4 备份审批流程
+### 3.5 审批超时调度机制
+
+> 评审问题：`autoApproveIfEmergency` 是被动方法，需要外部调用才能触发。
+
+**推荐方案：CronJob 定时扫描**
+
+```typescript
+// src/services/approval/ApprovalTimeoutScheduler.ts
+
+/**
+ * 审批超时检查定时任务
+ * 每分钟执行一次，扫描所有 pending 状态的审批请求
+ */
+export class ApprovalTimeoutScheduler {
+  private intervalMs: number;
+  private timer: NodeJS.Timeout | null = null;
+
+  constructor(
+    private multiLevelService: MultiLevelApprovalService,
+    private emergencyService: EmergencyApprovalService,
+    private fallbackExecutor: FallbackChainExecutor,
+  ) {
+    this.intervalMs = 60_000; // 每分钟
+  }
+
+  start(): void {
+    this.timer = setInterval(async () => {
+      try {
+        await this.processTimeouts();
+      } catch (error) {
+        logger.error({ error }, 'Approval timeout processing failed');
+      }
+    }, this.intervalMs);
+    logger.info('Approval timeout scheduler started');
+  }
+
+  stop(): void {
+    if (this.timer) {
+      clearInterval(this.timer);
+      this.timer = null;
+    }
+  }
+
+  private async processTimeouts(): Promise<void> {
+    const pendingApprovals = await this.multiLevelService.getPendingApprovals();
+
+    for (const approval of pendingApprovals) {
+      // 1. 检查紧急审批超时
+      if (approval.result?.isEmergency) {
+        await this.emergencyService.autoApproveIfEmergency(approval.id);
+        continue;
+      }
+
+      // 2. 检查普通审批超时 → 触发降级链
+      await this.fallbackExecutor.checkAndTriggerFallback(approval);
+    }
+  }
+}
+```
+
+**为什么不选其他方案：**
+
+| 方案 | 优点 | 缺点 | 选择理由 |
+|------|------|------|---------|
+| `setInterval` 内存扫描 | 实现简单 | 多实例重复执行 | 可接受：使用分布式锁或仅选主实例执行 |
+| pg_cron 定时任务 | 不依赖应用 | 需要 PostgreSQL 扩展 | 增加运维复杂度 |
+| 消息队列延迟消息 | 精确到秒 | 引入 Redis/RabbitMQ 依赖 | 当前系统无 MQ，过重 |
+
+**多实例处理**：使用 PostgreSQL `SELECT ... FOR UPDATE SKIP LOCKED` 实现分布式锁，确保同一审批请求只被一个实例处理。
 
 ```
 时间线:
@@ -416,7 +518,7 @@ Agent 节点评估
 
 ---
 
-## 5. 扩展点三：扩展 ApprovalFlowEngine 节点类型
+## 5. 扩展点三：扩展审批服务节点类型
 
 ### 5.1 节点类型总览
 
@@ -557,71 +659,121 @@ export interface AgentThreshold {
 
 ### 6.2 熔断器设计
 
+> 评审问题：内存状态在多实例部署下不共享。
+> 解决方案：熔断状态持久化到 `ai_circuit_state` 表，所有实例读写数据库。
+
 ```typescript
 // src/services/ai/AIGuardCircuit.ts
 
 export type CircuitState = 'closed' | 'open' | 'half-open';
 
-export interface AIGuardCircuit {
+export interface AIGuardCircuitState {
   state: CircuitState;
   failureCount: number;
   lastFailureAt: Date | null;
   lastSuccessAt: Date | null;
+  halfOpenAttempts: number;
 }
 
+/**
+ * 基于数据库的熔断器 — 多实例安全
+ * 状态存储在 ai_circuit_state 表中，所有实例共享
+ */
 export class AIGuardCircuitBreaker {
-  private state: CircuitState = 'closed';
-  private failureCount = 0;
-  private failureThreshold = 5;    // 连续失败 5 次触发熔断
+  private failureThreshold = 5;
   private recoveryTimeout = 60_000; // 60 秒后尝试半开
   private halfOpenMaxAttempts = 3;
-  private halfOpenAttempts = 0;
+
+  constructor(
+    private pool: DatabasePool,
+    private tenantId: string,
+    private serviceName: string,
+    private notificationService: NotificationService,
+  ) {}
+
+  /** 读取当前熔断状态（从数据库） */
+  private async getState(): Promise<AIGuardCircuitState> {
+    const result = await this.pool.query(
+      `SELECT * FROM ai_circuit_state WHERE tenant_id = $1 AND service_name = $2`,
+      [this.tenantId, this.serviceName],
+    );
+    if (result.rows.length === 0) {
+      return { state: 'closed', failureCount: 0, lastFailureAt: null, lastSuccessAt: null, halfOpenAttempts: 0 };
+    }
+    const row = result.rows[0];
+    return {
+      state: row.circuit_state as CircuitState,
+      failureCount: row.failure_count,
+      lastFailureAt: row.last_failure_at ? new Date(row.last_failure_at) : null,
+      lastSuccessAt: row.last_success_at ? new Date(row.last_success_at) : null,
+      halfOpenAttempts: 0, // derived at runtime
+    };
+  }
+
+  /** 更新熔断状态（写入数据库） */
+  private async updateState(state: Partial<AIGuardCircuitState>): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO ai_circuit_state (tenant_id, service_name, circuit_state, failure_count, last_failure_at, last_success_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, NOW())
+       ON CONFLICT (tenant_id, service_name) DO UPDATE SET
+         circuit_state = EXCLUDED.circuit_state,
+         failure_count = EXCLUDED.failure_count,
+         last_failure_at = EXCLUDED.last_failure_at,
+         last_success_at = EXCLUDED.last_success_at,
+         updated_at = NOW()`,
+      [this.tenantId, this.serviceName, state.state, state.failureCount, state.lastFailureAt, state.lastSuccessAt],
+    );
+  }
 
   /**
    * 执行 AI 调用，含熔断保护
    */
   async execute<T>(fn: () => Promise<T>, fallback: () => T): Promise<T> {
-    if (this.state === 'open') {
-      if (Date.now() - (this.lastFailureAt?.getTime() ?? 0) > this.recoveryTimeout) {
-        this.state = 'half-open';
-        this.halfOpenAttempts = 0;
+    const currentState = await this.getState();
+
+    if (currentState.state === 'open') {
+      if (currentState.lastFailureAt && Date.now() - currentState.lastFailureAt.getTime() > this.recoveryTimeout) {
+        await this.updateState({ state: 'half-open', failureCount: 0 }); // 重置计数
       } else {
-        // 熔断中，直接走降级
         return fallback();
       }
     }
 
     try {
       const result = await fn();
-      this.onSuccess();
+      await this.onSuccess();
       return result;
     } catch (error) {
-      this.onFailure();
-      if (this.state === 'open') {
-        // 触发熔断，发送通知
-        await this.notifyAIFailure();
+      const newState = await this.onFailure();
+      if (newState.state === 'open') {
+        await this.notifyAIFailure(newState.failureCount);
       }
       return fallback();
     }
   }
 
-  private onSuccess(): void {
-    this.failureCount = 0;
-    this.lastSuccessAt = new Date();
-    if (this.state === 'half-open') {
-      this.halfOpenAttempts++;
-      if (this.halfOpenAttempts >= this.halfOpenMaxAttempts) {
-        this.state = 'closed';
-      }
-    }
+  private async onSuccess(): Promise<void> {
+    // 修复：half-open 状态下成功后重置 failureCount
+    await this.updateState({
+      state: 'closed',
+      failureCount: 0,
+      lastSuccessAt: new Date(),
+      lastFailureAt: null,
+    });
   }
 
-  private onFailure(): void {
-    this.failureCount++;
-    this.lastFailureAt = new Date();
-    if (this.failureCount >= this.failureThreshold) {
-      this.state = 'open';
-    }
+  private async onFailure(): Promise<AIGuardCircuitState> {
+    const current = await this.getState();
+    const newCount = current.failureCount + 1;
+    const newState: CircuitState = newCount >= this.failureThreshold ? 'open' : current.state;
+
+    await this.updateState({
+      state: newState,
+      failureCount: newCount,
+      lastFailureAt: new Date(),
+    });
+
+    return { ...current, state: newState, failureCount: newCount };
   }
 
   /** AI 故障通知 */
@@ -689,19 +841,36 @@ GET /api/v1/system/health
 
 ## 7. 数据模型变更
 
-### 7.1 现有表扩展
+### 7.1 基线迁移（新增表）
+
+> 以下表在当前系统中不存在，需在首次实施时创建。
 
 ```sql
--- 1. 审批流程配置表扩展（增加节点类型和 Agent 配置字段）
-ALTER TABLE chatops_approval_flow_configs
-  ALTER COLUMN config TYPE JSONB USING config::jsonb;
--- config JSONB 已支持新节点类型，无需额外字段
+-- 0. 审批流程配置基线表（供 ApprovalTemplateService 及扩展节点类型使用）
+CREATE TABLE IF NOT EXISTS approval_flow_configs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id VARCHAR(64) NOT NULL,
+    flow_id VARCHAR(100) NOT NULL UNIQUE,
+    name VARCHAR(200) NOT NULL,
+    description TEXT,
+    enabled BOOLEAN DEFAULT true,
+    config JSONB NOT NULL DEFAULT '{}',  -- 完整节点配置 JSON
+    version INT DEFAULT 1,
+    created_by VARCHAR(64),
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+CREATE INDEX idx_approval_flow_configs_tenant ON approval_flow_configs(tenant_id);
+```
 
--- 2. 新增审批人规则表（用于动态解析和降级链配置）
+### 7.2 新增表
+
+```sql
+-- 1. 审批人规则表（用于动态解析和降级链配置）
 CREATE TABLE IF NOT EXISTS approval_approver_rules (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id UUID NOT NULL,
-    flow_id UUID REFERENCES chatops_approval_flow_configs(id),
+    tenant_id VARCHAR(64) NOT NULL,
+    flow_id UUID REFERENCES approval_flow_configs(id) ON DELETE CASCADE,
     node_id VARCHAR(100) NOT NULL,
     rule_type VARCHAR(30) NOT NULL,       -- role/user/oncall/department/reporting-line
     rule_value VARCHAR(200) NOT NULL,
@@ -712,10 +881,10 @@ CREATE TABLE IF NOT EXISTS approval_approver_rules (
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
--- 3. 新增 AI 熔断状态表
+-- 2. AI 熔断状态表（多实例共享，替代内存状态）
 CREATE TABLE IF NOT EXISTS ai_circuit_state (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id UUID NOT NULL,
+    tenant_id VARCHAR(64) NOT NULL,
     service_name VARCHAR(100) NOT NULL,   -- ai-service/llm-proxy/embedding-service
     circuit_state VARCHAR(20) NOT NULL DEFAULT 'closed',  -- closed/open/half-open
     failure_count INT DEFAULT 0,
@@ -727,10 +896,10 @@ CREATE TABLE IF NOT EXISTS ai_circuit_state (
     UNIQUE (tenant_id, service_name)
 );
 
--- 4. 新增审批降级日志表（审计用）
+-- 3. 审批降级日志表（审计用）
 CREATE TABLE IF NOT EXISTS approval_fallback_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id UUID NOT NULL,
+    tenant_id VARCHAR(64) NOT NULL,
     approval_id VARCHAR(200) NOT NULL,
     node_id VARCHAR(100) NOT NULL,
     fallback_type VARCHAR(30) NOT NULL,   -- backup/fallback-chain/auto-approve/agent-failure
@@ -745,6 +914,63 @@ CREATE INDEX idx_approver_rules_flow ON approval_approver_rules(flow_id);
 CREATE INDEX ai_circuit_state_service ON ai_circuit_state(tenant_id, service_name);
 CREATE INDEX idx_fallback_logs_approval ON approval_fallback_logs(approval_id);
 ```
+
+### 7.3 现有表扩展
+
+```sql
+-- 审批步骤表增加并行组字段（用于 parallel-group 节点）
+ALTER TABLE approval_steps ADD COLUMN IF NOT EXISTS group_id VARCHAR(100);
+ALTER TABLE approval_steps ADD COLUMN IF NOT EXISTS level_index INT DEFAULT 0;
+-- level_index 替代现有 extractLevels() 的启发式推断，创建时直接写入
+
+-- users 表增加 manager_id 字段（用于汇报链推导）
+ALTER TABLE users ADD COLUMN IF NOT EXISTS manager_id VARCHAR(64);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS department VARCHAR(100);
+```
+
+### 7.4 并发安全设计
+
+> 评审问题：多人同时审批同一请求时的竞态条件。
+
+**方案：数据库行级锁（`SELECT ... FOR UPDATE`）**
+
+```typescript
+// MultiLevelApprovalService.review 中的并发保护
+async review(requestId: string, reviewerId: string, action: ApprovalAction): Promise<void> {
+  const client = await this.pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // 行级锁：防止并发审批同一请求
+    const entity = await client.query(
+      `SELECT * FROM approvals WHERE id = $1 FOR UPDATE`,
+      [requestId],
+    );
+
+    // 幂等检查：该审批人是否已操作过
+    const existingStep = await client.query(
+      `SELECT * FROM approval_steps WHERE approval_id = $1 AND approver_id = $2`,
+      [requestId, reviewerId],
+    );
+    if (existingStep.rows[0]?.status !== 'pending') {
+      throw new Error('Already acted on this approval');
+    }
+
+    // 执行审批操作...
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+```
+
+**现有 `MultiLevelApprovalService.extractLevels` 启发式缺陷修复**：
+- 当前 `getMaxApproversPerLevel()` 始终返回 1，导致每个 step 被视为独立 level
+- 修复方案：在创建审批请求时，将 `levelIndex` 持久化到 `approval_steps.level_index` 字段
+- `extractLevels()` 改为按 `level_index` 分组，不再使用 stepIndex 推算
 
 ---
 
@@ -765,9 +991,9 @@ CREATE INDEX idx_fallback_logs_approval ON approval_fallback_logs(approval_id);
 
 | 文件 | 修改内容 |
 |------|---------|
-| `src/services/chatops/ApprovalFlowEngine.ts` | 扩展节点类型处理逻辑，集成 ApproverResolver 和 ApprovalAgentPlugin |
-| `src/services/chatops/ApprovalFlowEngine.ts` | `assignToApprover` 改为调用 `ApproverResolver.resolveApprovers` |
-| `src/services/chatops/ApprovalFlowEngine.ts` | 超时处理增加 FallbackChainExecutor 调用 |
+| `orion-platform-service/src/services/approval/MultiLevelApprovalService.ts` | 扩展节点类型处理逻辑，集成 ApproverResolver 和 ApprovalAgentPlugin |
+| `orion-platform-service/src/services/approval/MultiLevelApprovalService.ts` | 审批人分配改为调用 `ApproverResolver.resolveApprovers` |
+| `orion-platform-service/src/services/approval/MultiLevelApprovalService.ts` | 超时处理增加 FallbackChainExecutor 调用 |
 | `src/api/approval-routes.ts` | 新增 `/approval/agent/status` 端点 |
 
 ### 8.3 前端新增文件
@@ -846,7 +1072,7 @@ AI 服务恢复
 | 降级审批链 | 补充 `fallbackChain` 配置，替代硬编码推导 | 增强 |
 | AI 熔断器 | 独立于审批流，但被 Agent 节点调用 | 基础设施 |
 
-**本文档不改变现有审批流的核心架构**，仅在 `ApprovalFlowEngine` 的基础上增加四个扩展层，保持向后兼容。
+**本文档不改变现有审批流的核心架构**，仅在 `MultiLevelApprovalService` + `ApprovalGateCoordinator` 的基础上增加四个扩展层，保持向后兼容。
 
 ---
 
