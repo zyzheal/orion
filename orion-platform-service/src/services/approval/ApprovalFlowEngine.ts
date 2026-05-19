@@ -171,6 +171,7 @@ export class ApprovalFlowEngine {
 
   // 流程配置缓存 (tenantId -> flowId -> config)
   private flowConfigCache: Map<string, Map<string, ApprovalFlowConfig>> = new Map();
+  private static readonly MAX_CACHE_PER_TENANT = 500;
   // 外部 gRPC 服务客户端
   private externalApprovalClients: Map<string, any> = new Map();
 
@@ -596,7 +597,18 @@ export class ApprovalFlowEngine {
     if (!this.flowConfigCache.has(tenantId)) {
       this.flowConfigCache.set(tenantId, new Map());
     }
-    this.flowConfigCache.get(tenantId)!.set(config.flowId, config);
+    const tenantCache = this.flowConfigCache.get(tenantId)!;
+    tenantCache.set(config.flowId, config);
+
+    // 限制每个租户的缓存大小，防止内存泄漏
+    while (tenantCache.size > ApprovalFlowEngine.MAX_CACHE_PER_TENANT) {
+      const firstKey = tenantCache.keys().next().value;
+      if (firstKey !== undefined) {
+        tenantCache.delete(firstKey);
+      } else {
+        break;
+      }
+    }
   }
 
   /**

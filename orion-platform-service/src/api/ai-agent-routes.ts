@@ -4,10 +4,11 @@
  * 提供 Agent 管理、执行、审计日志等 API
  */
 
-import { FastifyInstance } from 'fastify';
+import { FastifyInstance, FastifyRequest } from 'fastify';
 import { BaseAgent } from '../services/ai-agents/base/BaseAgent';
+import pino from 'pino';
 
-const logger = require('pino')({ name: 'ai-agent-routes' });
+const logger = pino({ name: 'ai-agent-routes' });
 
 /**
  * Agent 注册表（全局单例）

@@ -127,8 +127,13 @@ export function setCapabilityService(service: CapabilityService): void {
   // 启动时校验：验证服务可用
   try {
     service.getUserCapabilities('system_health_check');
-  } catch {
-    // 静默失败，不做阻塞
+  } catch (error) {
+    // 记录警告但不阻塞启动，服务可能在启动过程中尚未完全初始化
+    const pino = require('pino');
+    pino({ name: 'requireCapability' }).warn(
+      { error: error instanceof Error ? error.message : String(error) },
+      'CapabilityService health check failed during startup'
+    );
   }
 }
 
