@@ -160,8 +160,9 @@ const ModuleEditor: React.FC<{
   onUpdateModule: (updates: Partial<MenuModuleConfig>) => void;
   onUpdateChild: (childKey: string, updates: Partial<{ enabled: boolean }>) => void;
   onDeleteChild: (childKey: string) => void;
+  onAddChild: (child: Omit<MenuChildConfig, 'key'>) => void;
   moduleOptions: Array<{ key: string; label: string }>;
-}> = ({ module, moduleOrder, onUpdateModule, onUpdateChild, onDeleteChild, moduleOptions }) => {
+}> = ({ module, moduleOrder, onUpdateModule, onUpdateChild, onDeleteChild, onAddChild, moduleOptions }) => {
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
   const hasChildren = module.children && module.children.length > 0;
   const [addOpen, setAddOpen] = useState(false);
@@ -197,8 +198,8 @@ const ModuleEditor: React.FC<{
         message.info(`已调整 "${child.label}" 位置`);
       }
     } else {
-      const { useMenuConfigStore: store } = require('@/stores/menuConfigStore');
-      store.getState().moveChild(source.moduleKey, module.key, source.childKey);
+      const store = useMenuConfigStore.getState();
+      store.moveChild(source.moduleKey, module.key, source.childKey);
       message.success(`已将 "${source.childKey}" 移动到 "${module.label}"`);
     }
     clearDragSource();
@@ -344,7 +345,7 @@ const ModuleEditor: React.FC<{
       <AddChildModal
         open={addOpen}
         onClose={() => setAddOpen(false)}
-        onAdd={(child) => onUpdateModule({ children: [...(module.children || []), { key: `/${child.label.toLowerCase().replace(/\s+/g, '-')}`, ...child }] })}
+        onAdd={onAddChild}
         moduleKey={module.key}
       />
 
@@ -369,7 +370,7 @@ const ModuleEditor: React.FC<{
 // ==================== Main Panel ====================
 
 export const MenuConfigPanel: React.FC<{ open: boolean; onClose: () => void }> = ({ open, onClose }) => {
-  const { modules, updateModule, updateChild, deleteChild, saveConfig, resetToDefault } = useMenuConfigStore();
+  const { modules, updateModule, updateChild, deleteChild, addChild, saveConfig, resetToDefault } = useMenuConfigStore();
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
 
   const moduleKeys = Object.keys(modules);
@@ -441,6 +442,7 @@ export const MenuConfigPanel: React.FC<{ open: boolean; onClose: () => void }> =
             onUpdateModule={(updates) => updateModule(key, updates)}
             onUpdateChild={(childKey, updates) => updateChild(key, childKey, updates)}
             onDeleteChild={(childKey) => deleteChild(key, childKey)}
+            onAddChild={(child) => addChild(key, child)}
             moduleOptions={moduleOptions}
           />
         ))}

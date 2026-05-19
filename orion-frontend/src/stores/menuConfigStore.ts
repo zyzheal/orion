@@ -199,18 +199,26 @@ export const useMenuConfigStore = create<MenuConfigState>((set, get) => ({
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored) as Record<string, Partial<MenuModuleConfig>>;
-        // Merge with defaults to handle new items added in code
         const merged: Record<string, MenuModuleConfig> = { ...defaultModules };
         for (const [key, storedModule] of Object.entries(parsed)) {
           const defModule = merged[key];
           if (defModule && storedModule) {
+            // Merge children: defaults + user-added items not in defaults
+            const defaultKeys = new Set(defModule.children.map(c => c.key));
+            const mergedChildren = defModule.children.map(defChild => {
+              const storedChild = (storedModule.children as MenuChildConfig[] || []).find(c => c.key === defChild.key);
+              return storedChild ? { ...defChild, ...storedChild } : defChild;
+            });
+            // Append user-added children that aren't in defaults
+            const userAddedChildren = (storedModule.children as MenuChildConfig[] || []).filter(
+              c => !defaultKeys.has(c.key)
+            );
+            mergedChildren.push(...userAddedChildren);
+
             merged[key] = {
               ...defModule,
               ...storedModule,
-              children: (defModule.children || []).map((defChild) => {
-                const storedChild = (storedModule.children as MenuChildConfig[] || []).find((c) => c.key === defChild.key);
-                return storedChild ? { ...defChild, ...storedChild } : defChild;
-              }),
+              children: mergedChildren,
             };
           }
         }
