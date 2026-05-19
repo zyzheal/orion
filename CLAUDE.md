@@ -21,6 +21,16 @@ orion-dba/                  # DB management platform
 docs/                       # 260+ design docs organized by domain
 ```
 
+### orion-*-svc 独立微服务目录
+
+项目有 35 个 `orion-*-svc` 独立服务目录，**全部有真实实现代码**（非占位）。当前生产部署以 `orion-platform-service` 单体为主，这些目录是为未来微服务拆分准备的蓝图。
+
+**开发规则**：
+- **新功能开发**应优先在 `orion-platform-service` 中实现
+- **修改已有功能**时，应先确认哪个是"权威实现"——通常 `orion-platform-service` 是当前实际使用的版本
+- `orion-*-svc` 目录**不应随意删除或修改**，除非用户明确要求
+- 很多功能存在双份实现（如通知服务），前端通常只调用 `orion-platform-service`
+
 ### Backend Service Architecture (`orion-platform-service/src/`)
 
 - `api/` — Route definitions. `routes.ts` is the central registry (~48 route modules). Each `-routes.ts` file mounts under a prefix.
@@ -146,3 +156,109 @@ npx vitest run path/to/test.ts
 ### 最终统计
 - **完整实现**: 100+ 模块 (100%)
 - **分析报告**: `docs/frontend-gap-analysis/页面功能缺失分析报告.md`
+
+## Frontend Design Principles (2026-05-19)
+
+> 以下设计原则供智能体在编写前端代码时遵循。所有数值引用 `orion-frontend/src/tokens/` 下的 Design Token 体系。
+
+### 风格定位
+
+- **Apple / 飞书风格**：圆润圆角、轻微阴影、充足留白、`wireframe: false`
+- 非线框风格，使用组件的立体感和层次区分层级
+
+### 色彩系统 (`src/tokens/colors.ts`)
+
+| 用途 | 色值 | Token |
+|------|------|-------|
+| 主操作色 | `#3370E6` | `colors.primary[500]` |
+| 成功 | `#52c41a` | `colors.success[500]` |
+| 警告 | `#faad14` | `colors.warning[500]` |
+| 错误 | `#f5222d` | `colors.error[500]` |
+| 信息 | `#3a98f4` | `colors.info[500]` |
+| 审批中（紫色） | `#7C5CFC` | `colors.purple[500]` |
+| 中性灰文字 | `#8c8c8c` | `colors.neutral[500]` |
+| 浅色模式背景 | `#ffffff` | `colors.light.bg.primary` |
+| 浅色模式次要背景 | `#F5F5F7` | `colors.light.bg.secondary` |
+
+### 圆角系统 (`src/tokens/radius.ts`)
+
+| 组件 | 圆角值 | Token |
+|------|--------|-------|
+| Card 卡片 | `12px` | `componentRadius.card` |
+| Modal 弹窗 | `16px` | `componentRadius.modal` |
+| Button 按钮 | `6px` | `componentRadius.button.md` |
+| Input 输入框 | `6px` | `componentRadius.input` |
+| Tag 标签 | `6px` | `componentRadius.tag` |
+| Dropdown 下拉菜单 | `10px` | `componentRadius.dropdown` |
+| 基础小圆角 | `4px` | `radius.xs` |
+
+### 阴影系统 (`src/tokens/shadows.ts`)
+
+| 组件 | 阴影值 |
+|------|--------|
+| Card 卡片 | `0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)` |
+| Button 按钮 | `0 1px 2px rgba(0,0,0,0.04)` |
+| Dropdown/Popover | `0 8px 24px rgba(0,0,0,0.12), 0 4px 8px rgba(0,0,0,0.06)` |
+| Modal | `0 20px 60px rgba(0,0,0,0.15), 0 8px 20px rgba(0,0,0,0.08)` |
+
+### 间距系统 (`src/tokens/spacing.ts`)
+
+| 场景 | 间距值 | Token |
+|------|--------|-------|
+| Card 之间 | `16px` | `spacing.md` |
+| 表单元素间距 | `12px` | `componentSpacing.formItemGap.sm` |
+| 按钮组间距 | `8px` | `spacing.sm` |
+| Section 标题与内容 | `16px` | `spacing.md` |
+| Card 内边距 | `24px` | `componentSpacing.cardPadding.lg` |
+
+### 组件规范
+
+| 属性 | 值 | 说明 |
+|------|-----|------|
+| 组件默认高度 | `36px` | `componentSize`，区别于传统 32px |
+| 表单最大宽度 | `700px` | 表单内容居中 |
+| 表格行高 | `48px` | 标准行高 |
+| 表格悬停行背景 | `#EBF0FB` | `colors.primary[50]` |
+| 输入框聚焦外发光 | `0 0 0 2px rgba(51,112,230,0.1)` | 蓝色光晕 |
+| 卡片装饰线 | `3px solid #3370E6` | 左侧状态标识 |
+
+### 动画规范 (`src/tokens/animation.ts`)
+
+| 动画 | 时长 | 场景 |
+|------|------|------|
+| 淡入 | `200ms` | Tooltip、Modal 出现 |
+| 滑入/切换 | `300ms` | Tab 内容切换 |
+| 展开/折叠 | `300ms` | Collapse 面板 |
+| 加载 | `400ms` | 页面首次加载 |
+
+### 交互状态
+
+| 状态 | 按钮背景 | 文字色 |
+|------|---------|--------|
+| Primary 默认 | `#3370E6` | `#fff` |
+| Primary 悬停 | `#2B5DD6` | `#fff` |
+| Primary 按下 | `#1F4BB5` | `#fff` |
+| 禁用 | `#d9d9d9` | `#8c8c8c` |
+| 加载中 | `#3370E6` (80% 透明度) | `rgba(255,255,255,0.6)` |
+
+### 空状态
+
+- 使用 Ant Design `Empty` 组件
+- 配合引导文字或操作按钮
+- 不使用纯空白占位
+
+### 响应式断点
+
+| 宽度 | 行为 |
+|------|------|
+| `>= 1200px` | 完整布局，表格显示所有列 |
+| `>= 768px` | 隐藏次要列，表单宽度不变 |
+| `< 768px` | Tab 切换为下拉，表格改为卡片列表 |
+
+### 编写前端代码时
+
+1. **优先使用 Design Token**，而非硬编码色值/间距/圆角
+2. **使用语义化色彩**：状态用 `colors.success/warning/error/info`，不用自定义色
+3. **遵循 4px 网格**：所有间距为 4 的倍数
+4. **卡片用阴影而非边框**区分层次（除左侧装饰线外）
+5. **保持组件高度为 36px** 默认值
