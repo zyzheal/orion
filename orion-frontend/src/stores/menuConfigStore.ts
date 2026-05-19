@@ -223,17 +223,31 @@ export const useMenuConfigStore = create<MenuConfigState>((set, get) => ({
       if (stored) {
         const parsed = JSON.parse(stored) as Record<string, Partial<MenuModuleConfig>>;
         const merged: Record<string, MenuModuleConfig> = { ...defaultModules };
+
+        // 路径迁移：旧 /console/ 路径 → 新 /observability/ 路径
+        const pathMigration: Record<string, string> = {
+          '/console/monitoring': '/observability/monitoring',
+          '/console/diagnostic': '/observability/diagnostic',
+          '/console/self-healing': '/observability/self-healing',
+        };
+
         for (const [key, storedModule] of Object.entries(parsed)) {
           const defModule = merged[key];
           if (defModule && storedModule) {
+            // 迁移旧路径
+            const migratedChildren = (storedModule.children as MenuChildConfig[] || []).map(c => ({
+              ...c,
+              key: pathMigration[c.key] || c.key,
+            }));
+
             // Merge children: defaults + user-added items not in defaults
             const defaultKeys = new Set(defModule.children.map(c => c.key));
             const mergedChildren = defModule.children.map(defChild => {
-              const storedChild = (storedModule.children as MenuChildConfig[] || []).find(c => c.key === defChild.key);
+              const storedChild = migratedChildren.find(c => c.key === defChild.key);
               return storedChild ? { ...defChild, ...storedChild } : defChild;
             });
             // Append user-added children that aren't in defaults
-            const userAddedChildren = (storedModule.children as MenuChildConfig[] || []).filter(
+            const userAddedChildren = migratedChildren.filter(
               c => !defaultKeys.has(c.key)
             );
             mergedChildren.push(...userAddedChildren);
