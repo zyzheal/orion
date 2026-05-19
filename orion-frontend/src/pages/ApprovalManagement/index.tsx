@@ -3,7 +3,7 @@
  *
  * 三个 Tab：审批流程配置、审批记录、超时管理
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, Tabs, Typography } from 'antd';
 import {
   SettingOutlined,
@@ -13,12 +13,54 @@ import {
 import FlowConfigForm from './FlowConfigForm';
 import ApprovalRecordTable from './ApprovalRecordTable';
 import TimeoutConfig from './TimeoutConfig';
+import { getApprovalFlows, getApprovals, getTimeoutConfigs } from '@/api/approval';
+import type { ApprovalFlowConfig, ApprovalChainInfo, ApprovalTimeoutConfig } from '@/api/approval';
 import { colors } from '@/tokens';
 
 const { Title, Paragraph } = Typography;
 
 const ApprovalManagement: React.FC = () => {
   const [activeTab, setActiveTab] = useState('config');
+  const [flows, setFlows] = useState<ApprovalFlowConfig[]>([]);
+  const [records, setRecords] = useState<ApprovalChainInfo[]>([]);
+  const [timeoutConfigs, setTimeoutConfigs] = useState<ApprovalTimeoutConfig[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const fetchFlows = async () => {
+    try {
+      const res = await getApprovalFlows();
+      setFlows(res.data.data || []);
+    } catch {
+      // API may not be fully ready
+    }
+  };
+
+  const fetchRecords = async () => {
+    setLoading(true);
+    try {
+      const res = await getApprovals();
+      setRecords(Array.isArray(res.data?.data) ? res.data.data : []);
+    } catch {
+      // API may not be fully ready
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchTimeoutConfigs = async () => {
+    try {
+      const res = await getTimeoutConfigs();
+      setTimeoutConfigs(Array.isArray(res.data?.data) ? res.data.data : []);
+    } catch {
+      // API may not be fully ready
+    }
+  };
+
+  useEffect(() => {
+    fetchFlows();
+    fetchRecords();
+    fetchTimeoutConfigs();
+  }, []);
 
   const tabItems = [
     {
@@ -29,7 +71,7 @@ const ApprovalManagement: React.FC = () => {
           流程配置
         </span>
       ),
-      children: <FlowConfigForm />,
+      children: <FlowConfigForm flows={flows} onRefresh={fetchFlows} />,
     },
     {
       key: 'records',
@@ -39,7 +81,7 @@ const ApprovalManagement: React.FC = () => {
           审批记录
         </span>
       ),
-      children: <ApprovalRecordTable />,
+      children: <ApprovalRecordTable records={records} loading={loading} onRefresh={fetchRecords} />,
     },
     {
       key: 'timeout',
@@ -49,7 +91,7 @@ const ApprovalManagement: React.FC = () => {
           超时管理
         </span>
       ),
-      children: <TimeoutConfig />,
+      children: <TimeoutConfig configs={timeoutConfigs} loading={false} onRefresh={fetchTimeoutConfigs} />,
     },
   ];
 
