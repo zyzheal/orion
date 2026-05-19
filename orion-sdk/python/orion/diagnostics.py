@@ -27,7 +27,7 @@ class DiagnosticAPI:
             Diagnostic result
         """
         return self.client.post(
-            "/v1/diagnostics/run",
+            "/api/v1/diagnostics/run",
             json={
                 "type": diagnostic_type,
                 "target": target,
@@ -37,8 +37,8 @@ class DiagnosticAPI:
 
     def get_status(self, run_id: str) -> Dict[str, Any]:
         """Get status of a diagnostic run"""
-        return self.client.get(f"/v1/diagnostics/runs/{run_id}")
+        return self.client.get(f"/api/v1/diagnostics/runs/{run_id}")
 
     def list_types(self) -> List[Dict[str, Any]]:
         """List available diagnostic types"""
-        return self.client.get("/v1/diagnostics/types")
+        return self.client.get("/api/v1/diagnostics/types")

@@ -119,13 +119,17 @@ abstract class ApiBase {
   }
 
   /**
-   * Build full URL path, avoiding duplicate prefixes
+   * Build full URL path, avoiding duplicate prefixes.
+   * Note: axios already handles baseURL, so we only need to
+   * ensure the path doesn't already include the baseURL.
    */
   protected buildPath(path: string): string {
-    const base = this.baseUrl.replace(/\/$/, '');
     if (path.startsWith('http')) return path; // already absolute
-    if (path.startsWith(base)) return path; // already includes base
-    return `${base}${path}`;
+    // If path already starts with our baseURL, use as-is (axios will handle it)
+    if (path.startsWith(this.baseUrl)) {
+      return path.replace(this.baseUrl.replace(/\/$/, ''), '');
+    }
+    return path;
   }
 }
 

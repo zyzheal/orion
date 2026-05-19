@@ -66,12 +66,15 @@ class OrionClient:
         while True:
             try:
                 response = self.client.request(method, path, **kwargs)
-                # Retry on 5xx errors
+
+                # Retry on 5xx errors (before raise_for_status)
                 if response.status_code >= 500 and retry_count < max_retries:
                     retry_count += 1
                     # Exponential backoff
                     time.sleep(pow(2, retry_count - 1))
                     continue
+
+                # Raise exception for 4xx/5xx (after retry logic)
                 response.raise_for_status()
                 return response.json()
             except httpx.HTTPStatusError:

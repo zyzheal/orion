@@ -29,7 +29,7 @@ class AgentAPI:
             Agent run response
         """
         return self.client.post(
-            "/v1/agents/execute",
+            "/api/v1/agents/execute",
             json={
                 "agentId": agent_id,
                 "prompt": prompt,
@@ -48,7 +48,7 @@ class AgentAPI:
         Returns:
             Agent status response
         """
-        return self.client.get(f"/v1/agents/runs/{run_id}")
+        return self.client.get(f"/api/v1/agents/runs/{run_id}")
 
     def list_agents(self) -> List[Dict[str, Any]]:
         """
@@ -57,7 +57,7 @@ class AgentAPI:
         Returns:
             List of agent info
         """
-        return self.client.get("/v1/agents")
+        return self.client.get("/api/v1/agents")
 
     def cancel_run(self, run_id: str) -> None:
         """
@@ -66,7 +66,7 @@ class AgentAPI:
         Args:
             run_id: The ID of the run to cancel
         """
-        self.client.post(f"/v1/agents/runs/{run_id}/cancel")
+        self.client.post(f"/api/v1/agents/runs/{run_id}/cancel")
 
     def get_logs(self, run_id: str) -> List[str]:
         """
@@ -78,5 +78,5 @@ class AgentAPI:
         Returns:
             List of log lines
         """
-        response = self.client.get(f"/v1/agents/runs/{run_id}/logs")
+        response = self.client.get(f"/api/v1/agents/runs/{run_id}/logs")
         return response.get("logs", [])

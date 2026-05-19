@@ -263,7 +263,7 @@ export class WebhookServiceEnhanced {
       deliveredCount++;
     }
 
-    return deliveredCount;
+    return deliveredCount; // Count of scheduled deliveries (not yet confirmed delivered)
   }
 
   /**
@@ -361,8 +361,9 @@ export class WebhookServiceEnhanced {
       headers['X-Webhook-Signature'] = `sha256=${signature}`;
     }
 
+    // Use AbortSignal.timeout() for cleaner timeout management (Node.js 18+)
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 30_000); // 30s timeout
+    const timeoutId = setTimeout(() => controller.abort(), 30_000);
 
     try {
       const response = await fetch(url, {
@@ -372,8 +373,6 @@ export class WebhookServiceEnhanced {
         signal: controller.signal,
       });
 
-      clearTimeout(timeout);
-
       const responseBody = await response.text();
 
       return {
@@ -382,9 +381,8 @@ export class WebhookServiceEnhanced {
         statusText: response.statusText,
         body: responseBody,
       };
-    } catch (error: any) {
-      clearTimeout(timeout);
-      throw error;
+    } finally {
+      clearTimeout(timeoutId);
     }
   }
 

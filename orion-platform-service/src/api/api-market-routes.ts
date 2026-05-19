@@ -179,8 +179,18 @@ export default async function apiMarketRoutes(
 
   // ==================== Auth ====================
 
-  // POST /market/auth/token - Validate API key (public endpoint)
-  app.post('/market/auth/token', async (request: FastifyRequest, reply: FastifyReply) => {
+  // POST /market/auth/token - Validate API key (public endpoint, rate limited)
+  app.post('/market/auth/token', {
+    config: {
+      rateLimit: {
+        max: 20,
+        timeWindow: '1 minute',
+        keyGenerator: (request: FastifyRequest) => {
+          return (request.ip || '127.0.0.1');
+        },
+      },
+    },
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const { clientId, clientSecret } = request.body as { clientId: string; clientSecret: string };
 
@@ -220,11 +230,22 @@ export default async function apiMarketRoutes(
     }
   });
 
-  // GET /market/subscriptions/:appId - List subscriptions
+  // GET /market/subscriptions/:appId - List subscriptions (only for app owner)
   app.get('/market/subscriptions/:appId', {
     onRequest: [authenticateUser],
-  }, async (request: FastifyRequest, reply: FastifyReply) => {
+  }, async (request: AuthenticatedRequest, reply: FastifyReply) => {
     const { appId } = request.params as { appId: string };
+    const user = request.user;
+
+    // Verify user owns this app before showing subscriptions
+    const app = await service.getApp(appId);
+    if (!app) {
+      return reply.code(404).send({ error: 'App not found' });
+    }
+    if (app.developer_id && user?.id && app.developer_id !== user.id) {
+      return reply.code(403).send({ error: 'Not authorized to view subscriptions for this app' });
+    }
+
     const subscriptions = await service.listSubscriptions(appId);
     return reply.send(subscriptions);
   });

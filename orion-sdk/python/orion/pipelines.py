@@ -27,7 +27,7 @@ class PipelineAPI:
             Pipeline run response
         """
         return self.client.post(
-            "/v1/pipelines/execute",
+            "/api/v1/pipelines/execute",
             json={
                 "pipelineId": pipeline_id,
                 "params": params,
@@ -45,7 +45,7 @@ class PipelineAPI:
         Returns:
             Pipeline status response
         """
-        return self.client.get(f"/v1/pipelines/runs/{run_id}")
+        return self.client.get(f"/api/v1/pipelines/runs/{run_id}")
 
     def list_pipelines(self) -> List[Dict[str, Any]]:
         """
@@ -54,7 +54,7 @@ class PipelineAPI:
         Returns:
             List of pipeline info
         """
-        return self.client.get("/v1/pipelines")
+        return self.client.get("/api/v1/pipelines")
 
     def get_logs(self, run_id: str, offset: int = 0) -> Dict[str, Any]:
         """
@@ -67,7 +67,7 @@ class PipelineAPI:
         Returns:
             Pipeline log response
         """
-        return self.client.get(f"/v1/pipelines/runs/{run_id}/logs?offset={offset}")
+        return self.client.get(f"/api/v1/pipelines/runs/{run_id}/logs?offset={offset}")
 
     def cancel_run(self, run_id: str) -> None:
         """
@@ -76,4 +76,4 @@ class PipelineAPI:
         Args:
             run_id: The ID of the run to cancel
         """
-        self.client.post(f"/v1/pipelines/runs/{run_id}/cancel")
+        self.client.post(f"/api/v1/pipelines/runs/{run_id}/cancel")
