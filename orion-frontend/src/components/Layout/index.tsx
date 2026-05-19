@@ -271,10 +271,24 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const handleNavigate = (key: string, label: string) => {
     setMegaMenuKey(null);
     navigate(key);
-    setBreadcrumbs([
-      { title: '首页', path: '/' },
-      { title: label, path: key },
-    ]);
+    // 查找该子菜单所属的模块，构建完整面包屑
+    for (const module of Object.values(modules)) {
+      if (!module.enabled) continue;
+      const child = module.children?.find(c => c.enabled && c.key === key);
+      if (child) {
+        setBreadcrumbs([
+          { title: module.label, path: module.key },
+          { title: child.label, path: child.key },
+        ]);
+        return;
+      }
+      if (module.key === key) {
+        setBreadcrumbs([{ title: module.label, path: module.key }]);
+        return;
+      }
+    }
+    // 兜底
+    setBreadcrumbs([{ title: label, path: key }]);
   };
 
   // 用户菜单
@@ -283,11 +297,13 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       key: 'profile',
       icon: <UserOutlined />,
       label: '个人中心',
+      onClick: () => navigate('/profile'),
     },
     {
       key: 'settings',
       icon: <SettingOutlined />,
       label: '个人设置',
+      onClick: () => navigate('/settings'),
     },
     {
       type: 'divider',
@@ -326,19 +342,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const handleConsoleMenuClick: MenuProps['onClick'] = (e) => {
     navigate(e.key);
-    const labelMap: Record<string, string> = {
-      '/console/plugins': '插件管理',
-      '/console/settings': '系统配置',
-      '/console/users': '用户管理',
-      '/console/confirmations': '人工确认',
-    };
-    const label = labelMap[e.key];
-    if (label) {
-      setBreadcrumbs([
-        { title: '控制台', path: '/console' },
-        { title: label, path: e.key },
-      ]);
-    }
   };
 
   const toggleTheme = () => {
@@ -660,21 +663,35 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       <div
         style={{
           background: theme === 'dark' ? colors.dark.bg.primary : colors.light.bg.tertiary,
-          padding: '6px 32px',
+          padding: '8px 32px',
+          borderBottom: `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.04)' : '#f0f0f0'}`,
         }}
       >
         <Breadcrumb
-          separator=">"
+          separator={<span style={{ color: theme === 'dark' ? 'rgba(255,255,255,0.25)' : '#d9d9d9', margin: '0 8px' }}>/</span>}
           items={[
             {
               title: (
-                <span>
-                  <HomeOutlined /> 首页
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  <HomeOutlined style={{ fontSize: 13 }} />
+                  <span style={{ fontSize: 13 }}>首页</span>
                 </span>
               ),
-              href: '/',
+              onClick: () => navigate('/dashboard'),
+              style: { fontSize: 13 },
             },
-            ...(breadcrumbs || []),
+            ...((breadcrumbs || []).map(b => ({
+              title: (
+                <span style={{ fontSize: 13, color: theme === 'dark' ? 'rgba(255,255,255,0.65)' : '#646a73' }}>
+                  {b.title}
+                </span>
+              ),
+              onClick: b.path ? () => navigate(b.path) : undefined,
+              style: {
+                fontSize: 13,
+                cursor: b.path ? 'pointer' : 'default',
+              },
+            }))),
           ]}
         />
       </div>
