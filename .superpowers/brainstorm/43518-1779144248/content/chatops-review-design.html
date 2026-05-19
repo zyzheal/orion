@@ -1,0 +1,96 @@
+<h2>ChatOps 看板设计评审</h2>
+<p class="subtitle">UX视觉 + 产品领域专家评审稿</p>
+
+<div class="section">
+  <h3>🎨 UX视觉设计要点</h3>
+
+  <div class="pros-cons">
+    <div class="pros">
+      <h4>信息层次</h4>
+      <ul>
+        <li>指标卡片 → 趋势图 → 明细排行，F型阅读路径，符合视觉习惯</li>
+        <li>数据密度分三级：卡片(粗) → 图表(中) → 表格(细)，渐进式披露</li>
+        <li>环比箭头（↑↓）用色彩编码，一眼感知变化趋势</li>
+      </ul>
+    </div>
+    <div class="cons">
+      <h4>潜在风险</h4>
+      <ul>
+        <li>四个指标卡片并列可能显得信息碎片化，需统一卡片高度和间距</li>
+        <li>三栏布局中"热门命令"和"平台分布"内容密度差异大，可能导致视觉重心不均</li>
+        <li>时间选择器在移动端表现差，需考虑响应式降级方案</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>📐 布局与视觉规范</h3>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+    <div>
+      <h4>配色方案</h4>
+      <table style="width:100%;font-size:11px">
+        <tr><td style="padding:4px"><span style="display:inline-block;width:12px;height:12px;background:#1890ff;border-radius:2px;vertical-align:middle"></span> 主色</td><td>#1890ff（平台主色）</td></tr>
+        <tr><td style="padding:4px"><span style="display:inline-block;width:12px;height:12px;background:#52c41a;border-radius:2px;vertical-align:middle"></span> 成功</td><td>#52c41a（成功率、正向指标）</td></tr>
+        <tr><td style="padding:4px"><span style="display:inline-block;width:12px;height:12px;background:#ff4d4f;border-radius:2px;vertical-align:middle"></span> 失败</td><td>#ff4d4f（失败数、告警）</td></tr>
+        <tr><td style="padding:4px"><span style="display:inline-block;width:12px;height:12px;background:#faad14;border-radius:2px;vertical-align:middle"></span> 警告</td><td>#faad14（运行中、待处理）</td></tr>
+        <tr><td style="padding:4px"><span style="display:inline-block;width:12px;height:12px;background:#722ed1;border-radius:2px;vertical-align:middle"></span> 辅助</td><td>#722ed1（响应时间等次要指标）</td></tr>
+      </table>
+    </div>
+    <div>
+      <h4>间距系统</h4>
+      <ul style="font-size:11px">
+        <li>卡片间距：16px (spacing[4])</li>
+        <li>模块内间距：12px (spacing[3])</li>
+        <li>指标卡片高度：80px 固定</li>
+        <li>图表最小高度：200px</li>
+        <li>圆角：8px（卡片）、4px（表格）</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>📊 交互细节</h3>
+  <ul style="font-size:12px">
+    <li><strong>卡片 Hover</strong>：悬浮时显示 tooltip，展示计算口径（如"成功率 = 完成数 / 总执行数"）</li>
+    <li><strong>趋势图交互</strong>：鼠标悬停柱状图时显示具体数值和日期</li>
+    <li><strong>热门命令</strong>：点击命令名可快速跳转到执行记录并过滤该命令</li>
+    <li><strong>最近执行</strong>：点击行可展开查看执行详情</li>
+    <li><strong>时间切换</strong>：切换时显示 loading skeleton，避免数据跳变</li>
+    <li><strong>空状态</strong>：无数据时显示引导提示（"还没有执行记录，开始第一次对话吧"）</li>
+  </ul>
+</div>
+
+<div class="section">
+  <h3>💼 产品价值分析</h3>
+  <div class="pros-cons">
+    <div class="pros">
+      <h4>用户价值</h4>
+      <ul>
+        <li><strong>运维效率</strong>：一屏了解 ChatOps 使用情况和执行健康度，减少切页面</li>
+        <li><strong>问题定位</strong>：失败率 + 热门命令组合可快速发现高频失败命令</li>
+        <li><strong>趋势感知</strong>：环比数据帮助判断运维效率是改善还是退化</li>
+      </ul>
+    </div>
+    <div class="cons">
+      <h4>业务约束</h4>
+      <ul>
+        <li>需要后端新增聚合端点，增加开发工作量</li>
+        <li>首次上线时数据为空，需要良好的空状态设计</li>
+        <li>自定义时间范围查询可能涉及大数据量，需考虑分页和性能</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>🔧 技术可行性</h3>
+  <ul style="font-size:12px">
+    <li><strong>前端</strong>：复用现有 <code>ExecutionDashboard</code> 和 <code>AuditLogViewer</code> 组件作为 Tab 内容</li>
+    <li><strong>后端</strong>：需新增 <code>GET /v1/chatops/dashboard/stats</code> 聚合接口</li>
+    <li><strong>数据源</strong>：复用现有 <code>ChatOpsExecutionRepository</code> 和 <code>ChatOpsAuditLogRepository</code></li>
+    <li><strong>性能</strong>：预加载2个Tab数据，查询量可控（<50条记录），响应时间预期 <500ms</li>
+    <li><strong>依赖</strong>：使用 ECharts 或 Ant Design Charts 绘制图表</li>
+  </ul>
+</div>

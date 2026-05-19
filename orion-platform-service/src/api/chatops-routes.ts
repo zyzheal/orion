@@ -43,6 +43,7 @@ import { DiagnosticService } from '../services/diagnostic/DiagnosticService';
 import { DiagnosticRepository } from '../services/diagnostic/DiagnosticRepository';
 import { SelfHealingService } from '../services/self-healing/SelfHealingService';
 import { SelfHealingRepository } from '../services/self-healing/SelfHealingRepository';
+import { CapabilityMappingService } from '../services/chatops/CapabilityMappingService';
 
 interface ChatOpsRoutesOptions {
   eventBus?: EventBusService;
@@ -276,6 +277,10 @@ export default async function chatopsRoutes(
 
   // Platform Config
   const platformConfigService = new PlatformConfigService(db);
+
+  // ==================== Admin Services ====================
+  // Capability Mapping Service (管理命令-Capability 映射)
+  const capabilityMappingService = new CapabilityMappingService(db);
 
   // ==================== EventBus + SSE (Phase 1a) ====================
   // 先初始化 eventSubscriber，以便注入到 controller

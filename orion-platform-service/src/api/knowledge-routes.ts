@@ -208,6 +208,7 @@ export default async function knowledgeRoutes(
   /**
    * GET /api/v1/knowledge/v1/docs
    * List/search documents
+   * Supports type='docs' for document center filtering
    */
   app.get(
     '/v1/docs',
@@ -216,14 +217,29 @@ export default async function knowledgeRoutes(
     },
     async (
       request: FastifyRequest<{
-        Querystring: { spaceId?: string; page?: string; pageSize?: string; status?: string; tag?: string; search?: string; perPage?: string };
+        Querystring: { spaceId?: string; page?: string; pageSize?: string; status?: string; tag?: string; search?: string; perPage?: string; type?: string };
       }>,
       reply: FastifyReply
     ) => {
       const tenantId = getTenantId(request, reply);
-      const { spaceId, status, tag, search, page, pageSize, perPage } = request.query;
+      const { spaceId, status, tag, search, page, pageSize, perPage, type } = request.query;
       const p = page ? parseInt(page, 10) : 1;
       const pp = pageSize || perPage ? parseInt(pageSize || perPage || '50', 10) : 50;
+
+      // If type='docs', use document center specific listing
+      if (type === 'docs') {
+        const docs = await service.listDocsByType(tenantId, {
+          tag,
+          search,
+          limit: pp,
+          offset: (p - 1) * pp,
+        });
+
+        return reply.send({
+          data: docs,
+          meta: { total: docs.length, page: p, perPage: pp, type: 'docs' },
+        });
+      }
 
       const docs = await service.listDocs(tenantId, {
         spaceId,
@@ -238,6 +254,91 @@ export default async function knowledgeRoutes(
         data: docs,
         meta: { total: docs.length, page: p, perPage: pp },
       });
+    }
+  );
+
+  /**
+   * GET /api/v1/knowledge/v1/docs/tags
+   * Get document center tags (for type=docs)
+   */
+  app.get(
+    '/v1/docs/tags',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'knowledge', action: 'read' })],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const tenantId = getTenantId(request, reply);
+      const tags = await service.getDocTags(tenantId);
+      return reply.send({ data: tags });
+    }
+  );
+
+  /**
+   * GET /api/v1/knowledge/v1/docs/toc
+   * Get document center table of contents (for type=docs)
+   */
+  app.get(
+    '/v1/docs/toc',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'knowledge', action: 'read' })],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const tenantId = getTenantId(request, reply);
+      const toc = await service.getDocToc(tenantId);
+      return reply.send({ data: toc });
+    }
+  );
+
+  /**
+   * POST /api/v1/knowledge/v1/sync
+   * Trigger document center sync
+   */
+  app.post(
+    '/v1/sync',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'knowledge', action: 'write' })],
+    },
+    async (
+      request: FastifyRequest<{
+        Body: { source?: string };
+      }>,
+      reply: FastifyReply
+    ) => {
+      const tenantId = getTenantId(request, reply);
+      const { source } = request.body || {};
+
+      try {
+        const syncLog = await service.triggerSync(tenantId, source);
+        return reply.status(200).send({ data: syncLog });
+      } catch (err: any) {
+        if (err instanceof KnowledgeServiceError) {
+          return reply.status(400).send({ error: err.code, message: err.message });
+        }
+        throw err;
+      }
+    }
+  );
+
+  /**
+   * GET /api/v1/knowledge/v1/sync/logs
+   * Get document center sync logs
+   */
+  app.get(
+    '/v1/sync/logs',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'knowledge', action: 'read' })],
+    },
+    async (
+      request: FastifyRequest<{
+        Querystring: { limit?: string };
+      }>,
+      reply: FastifyReply
+    ) => {
+      const tenantId = getTenantId(request, reply);
+      const limit = request.query.limit ? parseInt(request.query.limit, 10) : 10;
+
+      const logs = await service.getSyncLogs(tenantId, limit);
+      return reply.send({ data: logs });
     }
   );
 

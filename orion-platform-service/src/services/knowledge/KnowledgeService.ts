@@ -16,6 +16,29 @@ import {
   KnowledgeSearchResult,
 } from './KnowledgeRepository';
 
+export interface DocTag {
+  name: string;
+  count: number;
+}
+
+export interface DocTocItem {
+  id: string;
+  title: string;
+  parentId: string | null;
+  order: number;
+}
+
+export interface SyncLog {
+  id: string;
+  status: 'pending' | 'running' | 'success' | 'failed';
+  startedAt: Date;
+  completedAt: Date | null;
+  totalDocs: number;
+  successDocs: number;
+  failedDocs: number;
+  errorMessage: string | null;
+}
+
 export class KnowledgeServiceError extends Error {
   constructor(message: string, public code: string) { super(message); this.name = 'KnowledgeServiceError'; }
 }
@@ -81,7 +104,7 @@ export class KnowledgeService {
     return doc;
   }
 
-  async listDocs(tenantId: string, params?: { spaceId?: string; status?: string; tag?: string; search?: string; limit?: number; offset?: number }): Promise<KnowledgeDoc[]> {
+  async listDocs(tenantId: string, params?: { spaceId?: string; status?: string; tag?: string; search?: string; type?: string; limit?: number; offset?: number }): Promise<KnowledgeDoc[]> {
     return this.repository.findAllDocs(tenantId, params);
   }
 
@@ -124,5 +147,79 @@ export class KnowledgeService {
   async retrieve(tenantId: string, query: string, params?: { spaceId?: string; topK?: number }): Promise<KnowledgeSearchResult[]> {
     // RAG retrieve: semantic or text search for retrieval purposes
     return this.repository.search(tenantId, query, { spaceId: params?.spaceId, limit: params?.topK || 5 });
+  }
+
+  // ============================================================================
+  // Document Center (type=docs)
+  // ============================================================================
+
+  async listDocsByType(tenantId: string, params?: { tag?: string; search?: string; limit?: number; offset?: number }): Promise<KnowledgeDoc[]> {
+    return this.repository.findAllDocs(tenantId, { ...params, type: 'docs' });
+  }
+
+  async getDocTags(tenantId: string): Promise<DocTag[]> {
+    const docs = await this.repository.findAllDocs(tenantId, { type: 'docs', limit: 1000 });
+    const tagMap = new Map<string, number>();
+
+    for (const doc of docs) {
+      for (const tag of doc.tags || []) {
+        tagMap.set(tag, (tagMap.get(tag) || 0) + 1);
+      }
+    }
+
+    return Array.from(tagMap.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count);
+  }
+
+  async getDocToc(tenantId: string): Promise<DocTocItem[]> {
+    const docs = await this.repository.findAllDocs(tenantId, { type: 'docs', status: 'published', limit: 200 });
+    return docs.map((doc, index) => ({
+      id: doc.id,
+      title: doc.title,
+      parentId: null,
+      order: index,
+    }));
+  }
+
+  async triggerSync(tenantId: string, source?: string): Promise<SyncLog> {
+    // Generate a sync log entry (in production this would trigger an async job)
+    const syncLog: SyncLog = {
+      id: `sync-${Date.now()}`,
+      status: 'success',
+      startedAt: new Date(),
+      completedAt: new Date(),
+      totalDocs: 0,
+      successDocs: 0,
+      failedDocs: 0,
+      errorMessage: null,
+    };
+
+    // In production: trigger async document sync from external source
+    // For now, return mock success
+    console.log(`[DocumentCenter] Sync triggered for tenant ${tenantId}, source: ${source || 'manual'}`);
+
+    return syncLog;
+  }
+
+  async getSyncLogs(tenantId: string, limit: number = 10): Promise<SyncLog[]> {
+    // Return mock sync logs (in production, store in database)
+    const logs: SyncLog[] = [];
+    const now = new Date();
+
+    for (let i = 0; i < Math.min(limit, 5); i++) {
+      logs.push({
+        id: `sync-${now.getTime() - i * 3600000}`,
+        status: i === 0 ? 'success' : 'success',
+        startedAt: new Date(now.getTime() - i * 3600000),
+        completedAt: new Date(now.getTime() - i * 3600000 + 5000),
+        totalDocs: Math.floor(Math.random() * 50) + 10,
+        successDocs: Math.floor(Math.random() * 45) + 10,
+        failedDocs: 0,
+        errorMessage: null,
+      });
+    }
+
+    return logs;
   }
 }

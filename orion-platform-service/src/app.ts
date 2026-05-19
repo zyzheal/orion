@@ -35,6 +35,7 @@ import { AbacPolicyEngine } from './services/authz/AbacPolicyEngine';
 import { RelationshipService } from './services/authz/RelationshipService';
 import { PermissionAuditRepository } from './repositories/PermissionAuditRepository';
 import { setAuthzEngine } from './middleware/requirePermission';
+import { setCapabilityService } from './middleware/requireCapability';
 import { CacheService } from './services/cache/CacheService';
 import { TeamRepository, TeamService } from './services/team';
 import { CapabilityRepository, CapabilityService } from './services/capability';
@@ -248,6 +249,9 @@ export async function createApp(options: PlatformAppOptions = {}): Promise<{
 
     // Register global AuthZ engine instance for middleware use
     setAuthzEngine(authzEngine);
+
+    // Register global CapabilityService instance for middleware use
+    setCapabilityService(capabilityService);
 
     // Seed permissions and roles asynchronously (non-blocking)
     const permService = new PermissionService(permRepo);

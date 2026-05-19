@@ -21,6 +21,45 @@
 2. **缩小面包屑导航区域上下内边距** — 从 `10px` 减小到 `6px`，使导航条更紧凑
 3. **点击面板菜单项后自动关闭面板** — 在 `handleNavigate` 中添加 `setMegaMenuKey(null)`，点击导航后面板立即消失并跳转路由
 
+## 2026-05-19: Capability 管理后台前端页面 — COMPLETED
+
+### 实现功能
+1. **能力列表页** (`CapabilityList.tsx`)
+   - 展示所有能力，支持按类别、风险等级、状态筛选
+   - 搜索功能：按能力ID、名称、描述搜索
+   - 分类统计展示，刷新功能
+
+2. **角色能力分配页** (`RoleCapabilityMapping.tsx`)
+   - 选择角色查看其能力
+   - 授权/撤销能力
+   - 权限矩阵视图（角色 x 能力）
+   - 导出矩阵功能
+
+3. **用户能力覆盖页** (`UserCapabilityMapping.tsx`)
+   - 搜索用户，查看用户角色、有效能力数
+   - 添加/撤销用户能力覆盖（带过期时间）
+   - 展开行查看覆盖详情
+
+### 创建文件
+- `/orion-frontend/src/pages/Capability/index.tsx`
+- `/orion-frontend/src/pages/Capability/CapabilityList.tsx`
+- `/orion-frontend/src/pages/Capability/RoleCapabilityMapping.tsx`
+- `/orion-frontend/src/pages/Capability/UserCapabilityMapping.tsx`
+
+### 路由
+- `/console/capabilities` - Capability 管理入口
+
+### 技术栈
+- React + TypeScript
+- Ant Design 组件
+- Design Token 体系
+- Mock 数据模拟
+
+### 提交记录
+- `f2ccf556` feat(capability): 实现 Capability 管理后台前端页面
+
+---
+
 ## 2026-05-17: Personal Workbench Page (个人工作台) — COMPLETED
 
 ### Implementation
@@ -2623,3 +2662,114 @@ After thorough review, all notification channel sending logic was already implem
 - Added proper `afterEach` cleanup to restore original fetch
 - All 29 tests now pass (was 25 passed, 4 failed)
 - TypeScript compilation: zero errors
+
+## 2026-05-19: 权限申请与临时授权功能 — COMPLETED
+
+### 实现内容
+
+#### CapabilityService.ts 新增方法
+
+1. **requestPermission(userId, capabilityId, reason, duration)** — 简化版权限申请
+   - 创建权限申请记录
+   - 检查自动审批规则（风险等级1-2、用户已有父能力、角色已有该能力）
+   - 满足自动审批规则时直接授予临时权限
+   - 不满足时返回 pending 状态等待手动审批
+
+2. **approveRequest(requestId, approverId)** — 审批权限申请
+   - 验证审批人权限（高风险能力需要特定审批角色）
+   - 授予临时权限
+   - 更新申请状态为 approved
+
+3. **grantTemporaryPermissionSimplified()** — 简化版授予临时权限
+   - 参数简化：userId, capabilityId, durationHours, grantorId, tenantId
+   - 返回 TemporaryPermission 对象
+
+4. **revokeTemporaryPermissionSimplified(mappingId)** — 简化版撤销临时权限
+   - 只需提供 mappingId 和撤销人
+   - 自动添加 "Manual revocation" 原因
+
+5. **getUserEffectiveCapabilities(userId, userRoles)** — 获取用户有效能力
+   - 合并用户直接映射 + 角色映射 + 继承能力
+   - 返回所有有效 capability_id 列表
+
+6. **rejectRequest(ticketId, rejecterId)** — 拒绝权限申请
+
+7. **getUserPermissionRequests(userId)** — 获取用户的权限申请记录
+
+#### CapabilityRepository.ts 新增方法
+
+1. **getUserEffectiveCapabilities()** — 获取用户有效能力（合并用户+角色+继承）
+
+2. **checkAutoApprovalRules()** — 自动审批规则检查
+   - 规则1: 风险等级 1-2 自动通过
+   - 规则2: 用户已有父能力自动通过
+   - 规则3: 用户角色已有该能力自动通过
+
+3. **updatePermissionRequestStatus()** — 更新权限申请状态
+
+4. **getPermissionRequestsByUser()** — 获取用户的权限申请记录
+
+#### capability-routes.ts 新增路由
+
+- `POST /api/v1/capabilities/request/permission` — 申请权限
+- `POST /api/v1/capabilities/request/:ticketId/approve` — 审批权限申请
+- `POST /api/v1/capabilities/request/:ticketId/reject` — 拒绝权限申请
+- `POST /api/v1/capabilities/grant` — 简化版授予临时权限
+- `DELETE /api/v1/capabilities/grant/:id` — 简化版撤销临时权限
+- `GET /api/v1/capabilities/user/effective` — 获取用户有效能力
+- `GET /api/v1/capabilities/request/user/:userId` — 获取用户权限申请记录
+
+#### 测试
+
+- 创建 `__tests__/capability/capability-service.test.ts`
+- 10 个测试用例全部通过
+
+### 影响文件
+- `/orion-platform-service/src/services/capability/CapabilityService.ts`
+- `/orion-platform-service/src/services/capability/CapabilityRepository.ts`
+- `/orion-platform-service/src/api/capability-routes.ts`
+
+### Next Steps
+1. 继续关闭剩余的前后端功能缺失
+
+---
+## 2026-05-19 ChatOps Tab 结构重构
+
+### 完成功能
+- ChatOps 主页面 Tab 结构按设计文档重构
+- 4 个 Tab: 总览看板、对话工作台、执行记录、审计日志
+- ChatDashboard 组件注释与标题更新
+
+### 修改文件
+- `/orion-frontend/src/pages/ChatOps/index.tsx`
+- `/orion-frontend/src/pages/ChatOps/ChatDashboard.tsx`
+
+### 验证
+- 前端编译通过（无新增错误）
+- 开发服务器运行正常 (http://localhost:3001/console/chatops)
+
+### Next Steps
+1. 继续关闭剩余的前后端功能缺失
+2. 对接 ChatOps dashboard API (GET /api/v1/chatops/dashboard/stats)
+
+---
+## 2026-05-19 ChatOps Dashboard 指标数据服务实现
+
+### 完成功能
+- 扩展 DashboardService 添加四个独立 API 方法
+- getOverviewMetrics(timeRange) - 指标卡片数据（含环比）
+- getExecutionTrend(timeRange) - 执行趋势图数据
+- getTopCommands(timeRange, limit) - 热门命令排行
+- getPlatformDistribution(timeRange) - 平台分布统计
+
+### 修改文件
+- `/orion-platform-service/src/services/chatops/DashboardService.ts`
+- `/orion-platform-service/src/services/chatops/__tests__/DashboardService.test.ts`
+
+### 验证
+- TypeScript 编译通过
+- 单元测试 262 个用例全部通过
+
+### Next Steps
+1. 在 ChatOpsController 中暴露新的 API 端点
+2. 前端对接 Dashboard 指标 API

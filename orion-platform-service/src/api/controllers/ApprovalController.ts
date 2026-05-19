@@ -438,4 +438,188 @@ export class ApprovalController {
       return reply.status(500).send({ error: 'REJECT_ERROR', message });
     }
   }
+
+  // ==================== New Approval Request APIs ====================
+
+  /**
+   * 审批通过 (dedicated endpoint)
+   * POST /api/v1/approvals/requests/:id/approve
+   */
+  async approveRequest(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const { id } = request.params as { id: string };
+      const body = request.body as { reviewerId: string; comment?: string };
+      const { reviewerId, comment } = body;
+
+      if (!reviewerId) {
+        return reply.status(400).send({
+          error: 'VALIDATION_ERROR',
+          message: 'reviewerId is required',
+        });
+      }
+
+      const result = await this.multiLevelService.review(id, reviewerId, ApprovalAction.APPROVE, comment);
+      return reply.status(200).send({ success: true, data: result });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'APPROVE_ERROR';
+      if (message.includes('not found') || message.includes('Not authorized') || message.includes('not pending')) {
+        return reply.status(400).send({ error: 'APPROVE_ERROR', message });
+      }
+      return reply.status(500).send({ error: 'APPROVE_ERROR', message });
+    }
+  }
+
+  /**
+   * 审批拒绝 (dedicated endpoint)
+   * POST /api/v1/approvals/requests/:id/reject
+   */
+  async rejectRequest(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const { id } = request.params as { id: string };
+      const body = request.body as { reviewerId: string; comment?: string };
+      const { reviewerId, comment } = body;
+
+      if (!reviewerId) {
+        return reply.status(400).send({
+          error: 'VALIDATION_ERROR',
+          message: 'reviewerId is required',
+        });
+      }
+
+      const result = await this.multiLevelService.review(id, reviewerId, ApprovalAction.REJECT, comment);
+      return reply.status(200).send({ success: true, data: result });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'REJECT_ERROR';
+      if (message.includes('not found') || message.includes('Not authorized') || message.includes('not pending')) {
+        return reply.status(400).send({ error: 'REJECT_ERROR', message });
+      }
+      return reply.status(500).send({ error: 'REJECT_ERROR', message });
+    }
+  }
+
+  /**
+   * 获取审批历史
+   * GET /api/v1/approvals/requests/:id/history
+   */
+  async getApprovalHistory(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const { id } = request.params as { id: string };
+
+      // Get approval chain with all step details
+      const chain = await this.multiLevelService.getApprovalChain(id);
+
+      // Transform to history format
+      const history = chain.steps
+        .filter(s => s.status !== 'pending' && s.status !== 'waiting')
+        .map(s => ({
+          stepIndex: s.stepIndex,
+          levelIndex: s.levelIndex,
+          approverId: s.approverId,
+          action: s.status,
+          comment: s.comment,
+          actedAt: s.actedAt,
+        }));
+
+      return reply.status(200).send({
+        success: true,
+        data: {
+          requestId: id,
+          title: chain.title,
+          status: chain.status,
+          totalLevels: chain.totalLevels,
+          history,
+        },
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'HISTORY_ERROR';
+      if (message.includes('not found')) {
+        return reply.status(404).send({ error: 'NOT_FOUND', message });
+      }
+      return reply.status(500).send({ error: 'HISTORY_ERROR', message });
+    }
+  }
+
+  /**
+   * Agent 自动分析 (AI 审批)
+   * POST /api/v1/approvals/agent/analyze
+   */
+  async agentAnalyze(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const body = request.body as {
+        requestId?: string;
+        resourceType?: string;
+        resourceId?: string;
+        context?: Record<string, unknown>;
+      };
+
+      const { requestId, resourceType, resourceId, context } = body;
+
+      // If requestId provided, analyze existing request
+      if (requestId) {
+        const chain = await this.multiLevelService.getApprovalChain(requestId);
+
+        // AI analysis simulation - in production this would call AI service
+        const analysis = {
+          requestId,
+          title: chain.title,
+          riskLevel: this.calculateRiskLevel(chain),
+          suggestions: this.generateSuggestions(chain),
+          autoApproved: chain.status === 'approved',
+          analyzedAt: new Date().toISOString(),
+        };
+
+        return reply.status(200).send({ success: true, data: analysis });
+      }
+
+      // If resourceType/resourceId provided, analyze for pre-approval
+      if (resourceType && resourceId) {
+        const analysis = {
+          resourceType,
+          resourceId,
+          riskLevel: 'low',
+          suggestions: ['Resource looks valid'],
+          recommendedApprovers: context?.approverIds || [],
+          analyzedAt: new Date().toISOString(),
+        };
+
+        return reply.status(200).send({ success: true, data: analysis });
+      }
+
+      return reply.status(400).send({
+        error: 'VALIDATION_ERROR',
+        message: 'Either requestId or resourceType+resourceId is required',
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'AGENT_ANALYZE_ERROR';
+      return reply.status(500).send({ error: 'AGENT_ANALYZE_ERROR', message });
+    }
+  }
+
+  // ==================== Private Helper Methods ====================
+
+  private calculateRiskLevel(chain: { status: string; totalLevels: number }): string {
+    // Simple risk calculation based on approval chain status
+    if (chain.status === 'approved') return 'low';
+    if (chain.status === 'rejected') return 'high';
+    if (chain.totalLevels > 3) return 'medium';
+    return 'low';
+  }
+
+  private generateSuggestions(chain: { status: string; totalLevels: number }): string[] {
+    const suggestions: string[] = [];
+
+    if (chain.status === 'pending') {
+      suggestions.push('Pending human review');
+      if (chain.totalLevels > 2) {
+        suggestions.push('Consider parallel approval mode for faster processing');
+      }
+    } else if (chain.status === 'approved') {
+      suggestions.push('All approvals completed');
+    } else if (chain.status === 'rejected') {
+      suggestions.push('Review rejection reasons');
+      suggestions.push('Consider resubmitting with corrections');
+    }
+
+    return suggestions;
+  }
 }

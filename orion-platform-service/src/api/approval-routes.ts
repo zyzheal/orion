@@ -97,6 +97,43 @@ export async function registerApprovalRoutes(
       }
     );
 
+    // POST /api/v1/approvals/requests/:id/approve - 审批通过
+    instance.post(
+      '/v1/approvals/requests/:id/approve',
+      { onRequest: [authenticateUser, requirePermission({ resource: 'approval', action: 'approve' })] },
+      async (request: FastifyRequest, reply: FastifyReply) => {
+        return controller.approveRequest(request, reply);
+      }
+    );
+
+    // POST /api/v1/approvals/requests/:id/reject - 审批拒绝
+    instance.post(
+      '/v1/approvals/requests/:id/reject',
+      { onRequest: [authenticateUser, requirePermission({ resource: 'approval', action: 'approve' })] },
+      async (request: FastifyRequest, reply: FastifyReply) => {
+        return controller.rejectRequest(request, reply);
+      }
+    );
+
+    // GET /api/v1/approvals/requests/:id/history - 审批历史
+    instance.get(
+      '/v1/approvals/requests/:id/history',
+      { onRequest: [authenticateUser, requirePermission({ resource: 'approval', action: 'read' })] },
+      async (request: FastifyRequest, reply: FastifyReply) => {
+        return controller.getApprovalHistory(request, reply);
+      }
+    );
+
+    // ==================== Agent AI Analysis ====================
+    // POST /api/v1/approvals/agent/analyze - Agent 自动分析
+    instance.post(
+      '/v1/approvals/agent/analyze',
+      { onRequest: [authenticateUser, requirePermission({ resource: 'approval', action: 'read' })] },
+      async (request: FastifyRequest, reply: FastifyReply) => {
+        return controller.agentAnalyze(request, reply);
+      }
+    );
+
     // GET /api/v1/approvals/pending - 待审批列表
     instance.get(
       '/v1/approvals/pending',
