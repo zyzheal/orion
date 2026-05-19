@@ -1,6 +1,12 @@
 /**
  * ChatDashboard - 总览看板
- * 展示 ChatOps 执行统计数据、趋势分析、热门命令
+ *
+ * 设计文档: chatops-dashboard-design.md
+ * 展示指标卡片: 总执行数、成功率、失败数、平均响应时间
+ * 展示趋势图表: 活跃度趋势（柱状图）、热门命令 TOP5、平台分布（饼图）
+ * 展示最近执行记录（最近 5 条）
+ *
+ * Mock 数据，待对接 API: GET /api/v1/chatops/dashboard/stats
  */
 import React, { useState, useEffect, useCallback } from 'react';
 import {
@@ -105,9 +111,9 @@ export default function ChatDashboard() {
       <div style={{ padding: '0 0 16px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <div>
-            <span style={{ fontSize: 16, fontWeight: 600, lineHeight: '24px' }}>ChatOps 总览看板</span>
+            <span style={{ fontSize: 16, fontWeight: 600, lineHeight: '24px' }}>总览看板</span>
             <br />
-            <Text type="secondary" style={{ fontSize: 12 }}>执行统计与趋势分析</Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>执行统计与趋势分析 · 指标数据来自 ChatOpsExecutionRepository</Text>
           </div>
           <Button icon={<ReloadOutlined />} onClick={handleRefresh} loading={loading}>刷新</Button>
         </div>
@@ -191,7 +197,7 @@ export default function ChatDashboard() {
     <div style={{ padding: '0 0 16px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <div>
-          <span style={{ fontSize: 16, fontWeight: 600, lineHeight: '24px' }}>ChatOps 总览看板</span>
+          <span style={{ fontSize: 16, fontWeight: 600, lineHeight: '24px' }}>总览看板</span>
           <br />
           <Text type="secondary" style={{ fontSize: 12 }}>执行统计与趋势分析</Text>
         </div>

@@ -2,19 +2,25 @@
  * ChatOps 主页面 - Tab 分页结构
  *
  * 定位说明：
- * - 本页：ChatOps 管理中心（分析、命令、历史、配置）
+ * - 本页：ChatOps 管理中心（分析、对话、历史、审计）
  * - 右下角悬浮助手：日常对话交互入口（点击右下角按钮打开）
+ *
+ * Tab 结构（设计文档: chatops-dashboard-design.md）:
+ * 1. 总览看板 - 执行统计、趋势分析、热门命令、平台分布
+ * 2. 对话工作台 - AI 助手对话界面
+ * 3. 执行记录 - 命令执行历史列表
+ * 4. 审计日志 - 审计日志查看与导出
  */
 import React, { useState } from 'react';
 import { Tabs, Alert } from 'antd';
-import { DashboardOutlined, BookOutlined, PlayCircleOutlined, SettingOutlined, CloseOutlined } from '@ant-design/icons';
+import { DashboardOutlined, MessageOutlined, PlayCircleOutlined, AuditOutlined, CloseOutlined } from '@ant-design/icons';
 import ChatDashboard from './ChatDashboard';
-import CommandBrowser from './CommandBrowser';
+import ChatOpsChat from './index.chat';
 import ExecutionDashboard from './ExecutionDashboard';
-import ChatOpsSettings from './ChatOpsSettings';
+import AuditLogViewer from './AuditLogViewer';
 
 export default function ChatOpsPage() {
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState('overview');
   const [showGuide, setShowGuide] = useState(() => {
     // 首次访问显示引导，关闭后不再显示
     return localStorage.getItem('chatops-guide-dismissed') !== 'true';
@@ -22,24 +28,24 @@ export default function ChatOpsPage() {
 
   const tabItems = [
     {
-      key: 'dashboard',
+      key: 'overview',
       label: (
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
           <DashboardOutlined />
-          数据看板
+          总览看板
         </span>
       ),
       children: <ChatDashboard />,
     },
     {
-      key: 'commands',
+      key: 'chat',
       label: (
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-          <BookOutlined />
-          命令中心
+          <MessageOutlined />
+          对话工作台
         </span>
       ),
-      children: <CommandBrowser />,
+      children: <ChatOpsChat />,
     },
     {
       key: 'executions',
@@ -52,14 +58,14 @@ export default function ChatOpsPage() {
       children: <ExecutionDashboard />,
     },
     {
-      key: 'settings',
+      key: 'audit',
       label: (
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-          <SettingOutlined />
-          配置管理
+          <AuditOutlined />
+          审计日志
         </span>
       ),
-      children: <ChatOpsSettings />,
+      children: <AuditLogViewer />,
     },
   ];
 
