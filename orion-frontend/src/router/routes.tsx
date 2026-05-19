@@ -1375,10 +1375,26 @@ export const routes: AppRoute[] = [
     element: <RedirectTo to="/dba" />,
     protected: true,
   },
+  // 运维操作平台 (Ops Service)
+  {
+    path: '/ops-service',
+    element: React.lazy(() => import('@/pages/ops-service')),
+    protected: true,
+  },
+  {
+    path: '/ops-service/terminal',
+    element: React.lazy(() => import('@/pages/ops-service/Terminal')),
+    protected: true,
+  },
+  {
+    path: '/ops-service/batch',
+    element: React.lazy(() => import('@/pages/ops-service/BatchExecute')),
+    protected: true,
+  },
   // 旧模块入口重定向（向后兼容）
   {
     path: '/ops',
-    element: <RedirectTo to="/delivery" />,
+    element: <RedirectTo to="/ops-service" />,
     protected: true,
   },
   {
