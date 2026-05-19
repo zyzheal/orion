@@ -448,4 +448,168 @@ export default async function capabilityRoutes(
       reply.status(500).send({ success: false, error: 'INTERNAL_ERROR', message: error instanceof Error ? error.message : 'Failed to cleanup expired permissions' });
     }
   });
+
+  // ==================== Simplified Permission Request API ====================
+
+  // POST /api/v1/capabilities/request/permission - 简化版：申请权限
+  app.post('/api/v1/capabilities/request/permission', {
+    onRequest: [authenticateUser],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const userId = getUserId(request);
+      const user = (request as any).user;
+      const body = request.body as {
+        user_id?: string;
+        capability_id: string;
+        reason: string;
+        duration_hours: number;
+        environment_suffix?: string;
+        tenant_id?: string;
+      };
+
+      const result = await capService.requestPermission({
+        userId: body.user_id || userId,
+        capabilityId: body.capability_id,
+        reason: body.reason,
+        durationHours: body.duration_hours,
+        environmentSuffix: body.environment_suffix,
+        tenantId: body.tenant_id || user?.tenantId || 'default',
+        userRoles: user?.roles || [],
+      });
+      reply.status(201).send({ data: result });
+    } catch (error) {
+      const code = (error as any).code;
+      const statusCode = code === 'NOT_FOUND' ? 400 : 500;
+      reply.status(statusCode).send({ success: false, error: code || 'INTERNAL_ERROR', message: error instanceof Error ? error.message : 'Failed to request permission' });
+    }
+  });
+
+  // POST /api/v1/capabilities/request/:ticketId/approve - 审批权限申请
+  app.post('/api/v1/capabilities/request/:ticketId/approve', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'capability', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const userId = getUserId(request);
+      const user = (request as any).user;
+      const params = request.params as { ticketId: string };
+      const body = request.body as { tenant_id?: string };
+
+      const result = await capService.approveRequest({
+        ticketId: parseInt(params.ticketId, 10),
+        approverId: userId,
+        tenantId: body.tenant_id || user?.tenantId || 'default',
+        approverRoles: user?.roles || [],
+      });
+      reply.send({ data: result });
+    } catch (error) {
+      const code = (error as any).code;
+      const statusCode = code === 'NOT_FOUND' || code === 'INSUFFICIENT_APPROVAL_ROLE' ? 400 : 500;
+      reply.status(statusCode).send({ success: false, error: code || 'INTERNAL_ERROR', message: error instanceof Error ? error.message : 'Failed to approve request' });
+    }
+  });
+
+  // POST /api/v1/capabilities/request/:ticketId/reject - 拒绝权限申请
+  app.post('/api/v1/capabilities/request/:ticketId/reject', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'capability', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const userId = getUserId(request);
+      const params = request.params as { ticketId: string };
+      const body = request.body as { reason?: string };
+
+      const success = await capService.rejectRequest({
+        ticketId: parseInt(params.ticketId, 10),
+        rejecterId: userId,
+        reason: body.reason,
+      });
+      reply.send({ data: { success } });
+    } catch (error) {
+      reply.status(500).send({ success: false, error: 'INTERNAL_ERROR', message: error instanceof Error ? error.message : 'Failed to reject request' });
+    }
+  });
+
+  // POST /api/v1/capabilities/grant - 简化版：授予临时权限
+  app.post('/api/v1/capabilities/grant', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'capability', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const userId = getUserId(request);
+      const user = (request as any).user;
+      const body = request.body as {
+        user_id: string;
+        capability_id: string;
+        duration_hours: number;
+        reason?: string;
+        environment_suffix?: string;
+        tenant_id?: string;
+      };
+
+      const tempPerm = await capService.grantTemporaryPermissionSimplified({
+        userId: body.user_id,
+        capabilityId: body.capability_id,
+        durationHours: body.duration_hours,
+        grantorId: userId,
+        tenantId: body.tenant_id || user?.tenantId || 'default',
+        reason: body.reason,
+        environmentSuffix: body.environment_suffix,
+      });
+      reply.status(201).send({ data: tempPerm });
+    } catch (error) {
+      const code = (error as any).code;
+      const statusCode = code === 'NOT_FOUND' ? 400 : 500;
+      reply.status(statusCode).send({ success: false, error: code || 'INTERNAL_ERROR', message: error instanceof Error ? error.message : 'Failed to grant permission' });
+    }
+  });
+
+  // DELETE /api/v1/capabilities/grant/:id - 简化版：撤销临时权限
+  app.delete('/api/v1/capabilities/grant/:id', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'capability', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const userId = getUserId(request);
+      const params = request.params as { id: string };
+
+      const revoked = await capService.revokeTemporaryPermissionSimplified(
+        parseInt(params.id, 10),
+        userId
+      );
+      if (!revoked) {
+        return reply.status(404).send({ success: false, error: 'NOT_FOUND', message: 'Temporary permission not found or already revoked' });
+      }
+      reply.send({ data: revoked });
+    } catch (error) {
+      reply.status(500).send({ success: false, error: 'INTERNAL_ERROR', message: error instanceof Error ? error.message : 'Failed to revoke permission' });
+    }
+  });
+
+  // GET /api/v1/capabilities/user/effective - 获取用户有效能力
+  app.get('/api/v1/capabilities/user/effective', {
+    onRequest: [authenticateUser],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const user = (request as any).user;
+      const query = request.query as { user_id?: string; roles?: string };
+
+      const targetUserId = query.user_id || user?.id;
+      const roles = query.roles ? query.roles.split(',') : (user?.roles || []);
+
+      const capabilities = await capService.getUserEffectiveCapabilities(targetUserId, roles);
+      reply.send({ data: { user_id: targetUserId, capabilities } });
+    } catch (error) {
+      reply.status(500).send({ success: false, error: 'INTERNAL_ERROR', message: error instanceof Error ? error.message : 'Failed to get effective capabilities' });
+    }
+  });
+
+  // GET /api/v1/capabilities/request/user/:userId - 获取用户的权限申请记录
+  app.get('/api/v1/capabilities/request/user/:userId', {
+    onRequest: [authenticateUser],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const params = request.params as { userId: string };
+      const requests = await capService.getUserPermissionRequests(params.userId);
+      reply.send({ data: requests });
+    } catch (error) {
+      reply.status(500).send({ success: false, error: 'INTERNAL_ERROR', message: error instanceof Error ? error.message : 'Failed to get user permission requests' });
+    }
+  });
 }

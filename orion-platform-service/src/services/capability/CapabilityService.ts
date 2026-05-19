@@ -379,4 +379,194 @@ export class CapabilityService {
 
     return { tempPerm, mappingId: tempPerm.id.toString() };
   }
+
+  // ==================== Simplified Permission Request API ====================
+
+  /**
+   * 简化版：申请权限
+   * 1. 创建权限申请记录
+   * 2. 自动检查是否满足自动审批规则
+   * 3. 如果满足自动审批规则，直接授予临时权限
+   */
+  async requestPermission(params: {
+    userId: string;
+    capabilityId: string;
+    reason: string;
+    durationHours: number;
+    environmentSuffix?: string;
+    tenantId: string;
+    userRoles?: string[];
+  }): Promise<{
+    requestId: number;
+    status: 'auto_approved' | 'pending';
+    message: string;
+    tempPermissionId?: number;
+  }> {
+    // 1. 验证能力存在
+    const cap = await this.capRepo.findById(params.capabilityId);
+    if (!cap) {
+      throw new CapabilityServiceError('Capability not found', 'NOT_FOUND');
+    }
+
+    // 2. 检查自动审批规则
+    const autoApprovalResult = await this.capRepo.checkAutoApprovalRules(
+      params.userId,
+      params.capabilityId,
+      params.userRoles || []
+    );
+
+    // 3. 创建权限申请记录（ticket_id 暂时为 0，后续与工单系统集成）
+    const permRequest = await this.capRepo.createPermissionRequest({
+      ticket_id: 0,
+      capability_id: params.capabilityId,
+      environment_suffix: params.environmentSuffix,
+      duration_hours: params.durationHours,
+      requested_for_user_id: params.userId,
+      capability_snapshot: { ...cap },
+    });
+
+    // 4. 如果满足自动审批规则，直接授予临时权限
+    if (autoApprovalResult.autoApprove) {
+      const tempPerm = await this.grantTemporaryPermission({
+        tenant_id: params.tenantId,
+        user_id: params.userId,
+        capability_id: params.capabilityId,
+        environment_suffix: params.environmentSuffix,
+        granted_by: 'system',
+        ticket_id: permRequest.ticket_id,
+        reason: `Auto-approved: ${autoApprovalResult.reason} - ${params.reason}`,
+        expires_in_hours: params.durationHours,
+      });
+
+      // 更新申请状态为已批准
+      await this.capRepo.updatePermissionRequestStatus(permRequest.ticket_id, 'approved', 'system');
+
+      return {
+        requestId: permRequest.ticket_id,
+        status: 'auto_approved',
+        message: autoApprovalResult.reason,
+        tempPermissionId: tempPerm.id,
+      };
+    }
+
+    // 5. 需要手动审批
+    return {
+      requestId: permRequest.ticket_id,
+      status: 'pending',
+      message: autoApprovalResult.reason,
+    };
+  }
+
+  /**
+   * 简化版：审批权限申请
+   */
+  async approveRequest(params: {
+    ticketId: number;
+    approverId: string;
+    tenantId: string;
+    approverRoles?: string[];
+  }): Promise<{ success: boolean; tempPermissionId?: number; message: string }> {
+    // 1. 获取权限申请记录
+    const request = await this.capRepo.getPermissionRequestByTicketId(params.ticketId);
+    if (!request) {
+      throw new CapabilityServiceError('Permission request not found', 'NOT_FOUND');
+    }
+
+    // 2. 验证审批人权限（检查审批人是否有该能力的审批权限）
+    if (params.approverRoles && params.approverRoles.length > 0) {
+      const hasApprovalCap = await this.capRepo.getCapabilitiesByRoles(params.approverRoles);
+      const cap = await this.capRepo.findById(request.capability_id);
+      if (cap?.approval_role && !hasApprovalCap.includes(request.capability_id)) {
+        // 检查审批人角色是否匹配能力的审批角色
+        const matchesRole = params.approverRoles.includes(cap.approval_role);
+        if (!matchesRole && cap.risk_level >= 3) {
+          // 高风险能力需要特定审批角色
+          throw new CapabilityServiceError(
+            `Approval requires role: ${cap.approval_role}`,
+            'INSUFFICIENT_APPROVAL_ROLE'
+          );
+        }
+      }
+    }
+
+    // 3. 授予临时权限
+    const tempPerm = await this.grantTemporaryPermission({
+      tenant_id: params.tenantId,
+      user_id: request.requested_for_user_id,
+      capability_id: request.capability_id,
+      environment_suffix: request.environment_suffix || undefined,
+      granted_by: params.approverId,
+      ticket_id: params.ticketId,
+      reason: `手动审批通过 - 工单 #${params.ticketId}`,
+      expires_in_hours: request.duration_hours,
+    });
+
+    // 4. 更新申请状态
+    await this.capRepo.updatePermissionRequestStatus(params.ticketId, 'approved', params.approverId);
+
+    return {
+      success: true,
+      tempPermissionId: tempPerm.id,
+      message: 'Permission request approved',
+    };
+  }
+
+  /**
+   * 简化版：授予临时权限（简化参数）
+   */
+  async grantTemporaryPermissionSimplified(params: {
+    userId: string;
+    capabilityId: string;
+    durationHours: number;
+    grantorId: string;
+    tenantId: string;
+    reason?: string;
+    environmentSuffix?: string;
+  }): Promise<TemporaryPermission> {
+    return this.grantTemporaryPermission({
+      tenant_id: params.tenantId,
+      user_id: params.userId,
+      capability_id: params.capabilityId,
+      environment_suffix: params.environmentSuffix,
+      granted_by: params.grantorId,
+      reason: params.reason || 'Manual grant',
+      expires_in_hours: params.durationHours,
+    });
+  }
+
+  /**
+   * 简化版：撤销临时权限（只需 mappingId）
+   */
+  async revokeTemporaryPermissionSimplified(mappingId: number, revokedBy: string): Promise<TemporaryPermission | null> {
+    return this.revokeTemporaryPermission(mappingId, revokedBy, 'Manual revocation');
+  }
+
+  /**
+   * 获取用户有效能力（直接映射 + 角色映射 + 继承）
+   */
+  async getUserEffectiveCapabilities(userId: string, userRoles: string[] = []): Promise<string[]> {
+    return this.capRepo.getUserEffectiveCapabilities(userId, userRoles);
+  }
+
+  /**
+   * 拒绝权限申请
+   */
+  async rejectRequest(params: {
+    ticketId: number;
+    rejecterId: string;
+    reason?: string;
+  }): Promise<boolean> {
+    return this.capRepo.updatePermissionRequestStatus(
+      params.ticketId,
+      'rejected',
+      params.rejecterId
+    );
+  }
+
+  /**
+   * 获取用户的权限申请记录
+   */
+  async getUserPermissionRequests(userId: string): Promise<PermissionRequestRecord[]> {
+    return this.capRepo.getPermissionRequestsByUser(userId);
+  }
 }
