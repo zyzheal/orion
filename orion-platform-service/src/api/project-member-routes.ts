@@ -7,7 +7,7 @@
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { authenticateUser } from '../middleware/authMiddleware';
-import { requirePermission } from '../middleware/requirePermission';
+import { requirePermission, getAuthzEngine } from '../middleware/requirePermission';
 import { RelationshipService } from '../services/authz/RelationshipService';
 import { DatabasePool } from '../services/database';
 
@@ -64,6 +64,11 @@ export default async function projectMemberRoutes(
       const { projectId } = request.params;
       const { userId, role } = request.body;
       await relService.addProjectMember(projectId, userId, role, request.user!.tenantId);
+      // 失效被添加用户的权限缓存
+      const authz = getAuthzEngine();
+      if (authz) {
+        authz.invalidateUserCache(userId, request.user!.tenantId).catch(() => {});
+      }
       return reply.status(201).send({ message: 'Member added', userId, role });
     } catch (err) {
       return handleError(err as Error, reply);
@@ -77,6 +82,11 @@ export default async function projectMemberRoutes(
     try {
       const { projectId, userId } = request.params;
       await relService.removeProjectMember(projectId, userId, request.user!.tenantId);
+      // 失效被移除用户的权限缓存
+      const authz = getAuthzEngine();
+      if (authz) {
+        authz.invalidateUserCache(userId, request.user!.tenantId).catch(() => {});
+      }
       return reply.send({ message: 'Member removed' });
     } catch (err) {
       return handleError(err as Error, reply);

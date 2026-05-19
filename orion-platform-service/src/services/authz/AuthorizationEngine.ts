@@ -7,6 +7,10 @@
  * - [2] RBAC 角色权限检查
  * - [3] ABAC 属性策略检查（deny-only 约束）
  * - [4] 资源关系检查（owner/project/collaborator）
+ *
+ * 性能优化：
+ * - Redis 缓存权限决策结果（PermissionCache）
+ * - 缓存命中时 < 1ms，目标命中率 > 80%
  */
 
 import pino from 'pino';
@@ -15,6 +19,8 @@ import { AbacPolicyEngine, AbacContext } from './AbacPolicyEngine';
 import { RelationshipService } from './RelationshipService';
 import { PermissionAuditRepository, AuditLogEntry } from '../../repositories/PermissionAuditRepository';
 import type { PipelineRBACService } from '../pipeline/PipelineRBACService';
+import { PermissionCache } from './PermissionCache';
+import type { CacheService } from '../cache/CacheService';
 
 // === 类型定义 ===
 
@@ -70,21 +76,55 @@ export interface AuthZDecision {
   source: 'rbac' | 'abac' | 'relationship' | 'super_admin_bypass' | 'all';
   evaluatedBy: string[];
   evaluationTime: number;
+  fromCache?: boolean;
 }
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
 export class AuthorizationEngine {
+  private permissionCache: PermissionCache | null = null;
+
   constructor(
     private rbacService: RoleService,
     private abacEngine: AbacPolicyEngine,
     private relationshipService: RelationshipService,
     public auditRepo?: PermissionAuditRepository,
     private pipelineRbacService?: PipelineRBACService,
-  ) {}
+    cacheService?: CacheService | null,
+    cacheTtlSeconds: number = 300,
+  ) {
+    // 初始化权限缓存
+    if (cacheService) {
+      this.permissionCache = new PermissionCache(cacheService, cacheTtlSeconds);
+      logger.info({ ttl: cacheTtlSeconds }, '[AuthZ] Permission cache enabled');
+    } else {
+      logger.info('[AuthZ] Permission cache disabled (no Redis available)');
+    }
+  }
 
   async evaluate(req: AuthZRequest): Promise<AuthZDecision> {
     const startTime = Date.now();
+
+    // 尝试从缓存获取（仅对 allow 路径有效，deny 不缓存）
+    if (this.permissionCache) {
+      const cached = await this.permissionCache.get({
+        userId: req.user.id,
+        resourceType: req.resource.type,
+        action: req.action.type,
+        tenantId: req.user.tenantId,
+      });
+      if (cached) {
+        const decision: AuthZDecision = {
+          allowed: true,
+          reason: `${cached.reason} (cached)`,
+          source: cached.source as AuthZDecision['source'],
+          evaluatedBy: [cached.source],
+          evaluationTime: Date.now() - startTime,
+          fromCache: true,
+        };
+        return decision;
+      }
+    }
 
     // [0] 用户状态检查
     if (req.user.status === 'disabled' || req.user.status === 'suspended') {
@@ -150,6 +190,36 @@ export class AuthorizationEngine {
   }
 
   /**
+   * 失效指定用户的权限缓存
+   * 应在角色变更、策略变更时调用
+   */
+  async invalidateUserCache(userId: string, tenantId?: string): Promise<void> {
+    if (this.permissionCache) {
+      await this.permissionCache.invalidateUser(userId, tenantId);
+    }
+  }
+
+  /**
+   * 失效整个租户的权限缓存
+   * 应在大规模策略变更时调用
+   */
+  async invalidateTenantCache(tenantId: string): Promise<void> {
+    if (this.permissionCache) {
+      await this.permissionCache.invalidateTenant(tenantId);
+    }
+  }
+
+  /**
+   * 获取缓存统计信息
+   */
+  getCacheStats() {
+    if (this.permissionCache) {
+      return this.permissionCache.getStats();
+    }
+    return { enabled: false };
+  }
+
+  /**
    * 将 AuthZRequest 转换为 AbacPolicyEngine 所需的 AbacContext 格式
    */
   private toAbacContext(req: AuthZRequest): AbacContext {
@@ -193,6 +263,26 @@ export class AuthorizationEngine {
     authzReq?: AuthZRequest,
     evaluatedBy?: string[],
   ): AuthZDecision {
+    // 异步缓存 allow 决策（不阻塞主流程）
+    if (this.permissionCache && authzReq) {
+      this.permissionCache.set(
+        {
+          userId: authzReq.user.id,
+          resourceType: authzReq.resource.type,
+          action: authzReq.action.type,
+          tenantId: authzReq.user.tenantId,
+        },
+        {
+          allowed: true,
+          reason,
+          source,
+          cachedAt: Date.now(),
+        }
+      ).catch(err => {
+        logger.debug({ err }, 'Failed to cache permission decision');
+      });
+    }
+
     // 异步记录 allow 审计日志（不阻塞主流程）
     if (this.auditRepo && authzReq) {
       this.auditRepo.logDecision({

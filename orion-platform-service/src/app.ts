@@ -34,6 +34,7 @@ import { AbacPolicyEngine } from './services/authz/AbacPolicyEngine';
 import { RelationshipService } from './services/authz/RelationshipService';
 import { PermissionAuditRepository } from './repositories/PermissionAuditRepository';
 import { setAuthzEngine } from './middleware/requirePermission';
+import { CacheService } from './services/cache/CacheService';
 
 export interface PlatformAppOptions {
   redis?: RedisCache;
@@ -217,12 +218,18 @@ export async function createApp(options: PlatformAppOptions = {}): Promise<{
     const rbacRuleRepo = new RBACRuleRepository(options.database);
     const pipelineRbacService = new PipelineRBACService(rbacRuleRepo);
 
+    // 初始化权限缓存（使用 Redis）
+    const cacheService = options.redis ? new CacheService(options.redis, 300) : null;
+    const cacheTtl = parseInt(process.env.AUTHZ_CACHE_TTL || '300', 10);
+
     const authzEngine = new AuthorizationEngine(
       roleService,
       abacEngine,
       relationshipService,
       auditRepo,
       pipelineRbacService,
+      cacheService,
+      cacheTtl,
     );
 
     // Register global AuthZ engine instance for middleware use

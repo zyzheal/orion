@@ -11,7 +11,7 @@ import { RoleRepository } from '../services/role/RoleRepository';
 import { RoleService } from '../services/role/RoleService';
 import { RoleController } from './controllers/RoleController';
 import { authenticateUser } from '../middleware/authMiddleware';
-import { requirePermission } from '../middleware/requirePermission';
+import { requirePermission, getAuthzEngine } from '../middleware/requirePermission';
 
 interface RoleRoutesOptions {
   database?: DatabasePool;
@@ -48,15 +48,42 @@ export default async function roleRoutes(
   const getHandler = controller
     ? (request: FastifyRequest, reply: FastifyReply) => controller!.getDetail(request, reply)
     : unavailableHandler;
+
+  // Wrapped handlers that invalidate cache after write operations
   const createHandler = controller
-    ? (request: FastifyRequest, reply: FastifyReply) => controller!.create(request, reply)
+    ? async (request: FastifyRequest, reply: FastifyReply) => {
+        const result = await controller!.create(request, reply);
+        // Invalidate tenant cache after role creation
+        const authz = getAuthzEngine();
+        if (authz && request.user?.tenantId) {
+          authz.invalidateTenantCache(request.user.tenantId).catch(() => {});
+        }
+        return result;
+      }
     : unavailableHandler;
+
   const deleteHandler = controller
-    ? (request: FastifyRequest, reply: FastifyReply) => controller!.delete(request, reply)
+    ? async (request: FastifyRequest, reply: FastifyReply) => {
+        const result = await controller!.delete(request, reply);
+        // Invalidate tenant cache after role deletion
+        const authz = getAuthzEngine();
+        if (authz && request.user?.tenantId) {
+          authz.invalidateTenantCache(request.user.tenantId).catch(() => {});
+        }
+        return result;
+      }
     : unavailableHandler;
 
   const updateHandler = controller
-    ? (request: FastifyRequest, reply: FastifyReply) => controller!.update(request, reply)
+    ? async (request: FastifyRequest, reply: FastifyReply) => {
+        const result = await controller!.update(request, reply);
+        // Invalidate tenant cache after role update
+        const authz = getAuthzEngine();
+        if (authz && request.user?.tenantId) {
+          authz.invalidateTenantCache(request.user.tenantId).catch(() => {});
+        }
+        return result;
+      }
     : unavailableHandler;
 
   // ==================== Role CRUD ====================
