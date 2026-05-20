@@ -119,3 +119,18 @@ export type {
   PrefetchConfig,
   PreloadStrategyOptions,
 } from "./PreloadStrategy";
+
+// SubAppCache exports
+export { SubAppCache } from "./SubAppCache";
+
+export {
+  getSubAppCache,
+  setSubAppCache,
+} from "./SubAppCache";
+
+export type {
+  CacheMode,
+  CacheConfig,
+  CacheEntry,
+  SubAppCacheOptions,
+} from "./SubAppCache";
