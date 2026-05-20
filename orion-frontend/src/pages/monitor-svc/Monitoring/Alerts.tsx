@@ -15,7 +15,7 @@ import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import { getAlerts, acknowledgeAlert, resolveAlert, escalateAlert } from '@/api/monitoring';
 import type { Alert } from '@/api/monitoring';
-import { spacing } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -250,8 +250,8 @@ const MonitoringAlerts: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
-            <BellOutlined style={{ marginRight: 8 }} />
+          <Title level={2} style={{ margin: 0, marginBottom: 8 }}>
+            <BellOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             告警列表
           </Title>
           <Text type="secondary">共 {filteredAlerts.length} 条告警</Text>

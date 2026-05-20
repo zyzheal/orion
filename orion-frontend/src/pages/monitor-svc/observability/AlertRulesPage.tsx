@@ -11,6 +11,7 @@ import {
   BellOutlined, PlusOutlined, DeleteOutlined, EditOutlined,
   ReloadOutlined, FileTextOutlined,
 } from '@ant-design/icons';
+import { colors } from '@/tokens/colors';
 import {
   getAlertRules, createAlertRule, updateAlertRule, deleteAlertRule,
   toggleAlertRule, getAlertRuleTemplates, createAlertRuleFromTemplate,
@@ -286,8 +287,8 @@ const AlertRulesPage: React.FC = () => {
   return (
     <div>
       <div style={{ marginBottom: 24 }}>
-        <Title level={3} style={{ margin: 0 }}>
-          <BellOutlined style={{ marginRight: 8 }} />
+        <Title level={2} style={{ margin: 0, marginBottom: 8 }}>
+          <BellOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
           告警规则管理
         </Title>
         <Text type="secondary">管理和配置自定义告警规则，支持从模板快速创建</Text>

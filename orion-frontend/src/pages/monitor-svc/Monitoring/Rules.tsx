@@ -27,6 +27,7 @@ import {
   toggleAlertRule,
 } from '@/api/monitoring';
 import type { AlertRule } from '@/api/monitoring';
+import { colors } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -247,8 +248,8 @@ const MonitoringRules: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
-            <AlertOutlined style={{ marginRight: 8 }} />
+          <Title level={2} style={{ margin: 0, marginBottom: 8 }}>
+            <AlertOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             告警规则
           </Title>
           <Text type="secondary">共 {rules.length} 条规则</Text>

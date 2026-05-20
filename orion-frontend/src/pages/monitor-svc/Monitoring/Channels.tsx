@@ -17,7 +17,7 @@ import {
   message,
 } from 'antd';
 import { PlusOutlined, ReloadOutlined, MailOutlined } from '@ant-design/icons';
-import { spacing } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 import Table, { type TableColumn } from '@/components/Table';
 import {
   getChannels,
@@ -258,8 +258,8 @@ const MonitoringChannels: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
-            <MailOutlined style={{ marginRight: 8 }} />
+          <Title level={2} style={{ margin: 0, marginBottom: 8 }}>
+            <MailOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             通知渠道
           </Title>
           <Text type="secondary">管理告警通知渠道与升级策略</Text>

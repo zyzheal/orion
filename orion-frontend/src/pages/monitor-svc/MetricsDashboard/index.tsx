@@ -351,8 +351,8 @@ const MetricsDashboard: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
-            <DashboardOutlined style={{ marginRight: spacing[2], color: colors.primary[500] }} />
+          <Title level={2} style={{ margin: 0, marginBottom: 8 }}>
+            <DashboardOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             Metrics Overview
           </Title>
           <Text type="secondary">全局指标概览</Text>

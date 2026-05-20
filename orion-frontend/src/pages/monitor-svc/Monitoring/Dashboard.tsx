@@ -113,8 +113,8 @@ const MonitoringDashboard: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
-            <DashboardOutlined style={{ marginRight: 8 }} />
+          <Title level={2} style={{ margin: 0, marginBottom: 8 }}>
+            <DashboardOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             监控总览
           </Title>
           <Text type="secondary">监控中心运行状态与关键指标</Text>
