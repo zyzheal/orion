@@ -4,6 +4,7 @@
  * List, claim, complete, view detail
  */
 import React, { useState, useMemo, useEffect } from 'react';
+import { useAuthStore } from '@/stores/authStore';
 import {
   Typography,
   Button,
@@ -100,8 +101,9 @@ const WorkflowTasksPage: React.FC = () => {
   const [completeForm] = Form.useForm();
   const [completeSubmitting, setCompleteSubmitting] = useState(false);
 
-  // Current user (mock)
-  const [currentUserId] = useState('current-user');
+  // Current user from auth store
+  const user = useAuthStore((state) => state.user);
+  const currentUserId = user?.id || '';
 
   const loadData = async () => {
     setLoading(true);

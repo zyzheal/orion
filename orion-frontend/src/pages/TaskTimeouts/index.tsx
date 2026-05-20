@@ -4,6 +4,7 @@
  * 超时任务管理页面 - 显示超时任务、手动触发检查、查看检查器状态
  */
 import React, { useEffect, useState } from 'react';
+import dayjs from 'dayjs';
 import {
   Table,
   Button,
@@ -213,12 +214,12 @@ const TaskTimeoutsPage: React.FC = () => {
       key: 'dueDate',
       width: 180,
       render: (date: string | undefined) =>
-        date ? new Date(date).toLocaleString('zh-CN') : '-',
+        date ? dayjs(date).format('YYYY-MM-DD HH:mm') : '-',
     },
   ];
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: 0 }}>
       {/* 页面标题 */}
       <div style={{ marginBottom: 24 }}>
         <Title level={4} style={{ margin: 0 }}>

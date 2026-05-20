@@ -84,19 +84,19 @@ export interface VisualizationData {
  * 获取完整的依赖图和循环检测结果
  */
 export function getDependencyGraph() {
-  return api.get<DependencyGraphResult>('/workflow-dependencies/graph');
+  return api.get<DependencyGraphResult>('/v1/workflow-dependencies/graph');
 }
 
 /**
  * 检查单个工作流定义的循环依赖
  */
 export function checkDefinition(definitionId: string) {
-  return api.get<DefinitionCheckResult>(`/workflow-dependencies/check/${definitionId}`);
+  return api.get<DefinitionCheckResult>(`/v1/workflow-dependencies/check/${definitionId}`);
 }
 
 /**
  * 获取依赖关系可视化数据
  */
 export function getVisualizationData() {
-  return api.get<VisualizationData>('/workflow-dependencies/visualization');
+  return api.get<VisualizationData>('/v1/workflow-dependencies/visualization');
 }
