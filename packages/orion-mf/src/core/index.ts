@@ -134,3 +134,7 @@ export type {
   CacheEntry,
   SubAppCacheOptions,
 } from "./SubAppCache";
+
+export { DevProxyManager } from "./DevProxyManager";
+export { getDevProxyManager, createDevProxyManager } from "./DevProxyManager";
+export type { ProxyList, ProxyChangeCallback } from "./DevProxyManager";
