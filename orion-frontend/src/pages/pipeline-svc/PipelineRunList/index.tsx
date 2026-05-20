@@ -263,7 +263,7 @@ const PipelineRunList: React.FC = () => {
     {
       key: 'actions',
       title: '操作',
-      width: 120,
+      width: 200,
       render: (_: unknown, record) => (
         <Space size="small">
           <Button

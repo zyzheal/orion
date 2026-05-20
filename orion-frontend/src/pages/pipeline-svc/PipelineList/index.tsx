@@ -9,7 +9,7 @@
  * - Pagination support
  */
 import React, { useState, useMemo, useEffect } from 'react';
-import { Typography, Button, Space, Tag, message } from 'antd';
+import { Typography, Button, Space, Tag, message, Empty } from 'antd';
 import { colors, spacing } from '@/tokens';
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
@@ -158,7 +158,7 @@ const PipelineList: React.FC = () => {
     {
       key: 'actions',
       title: '操作',
-      width: '16%',
+      width: 200,
       render: (_: unknown, record) => (
         <Space size="small">
           <Button type="link" size="small" onClick={() => navigate(`/pipelines/${record.id}`)}>
@@ -222,14 +222,24 @@ const PipelineList: React.FC = () => {
       </div>
 
       {/* Pipeline table */}
-      <Table
-        columns={columns}
-        dataSource={filteredPipelines}
-        loading={loading}
-        rowKey="id"
-        size="middle"
-        striped
-      />
+      {filteredPipelines.length === 0 && !loading ? (
+        <div style={{ textAlign: 'center', padding: spacing.xxl }}>
+          <Empty description="暂无匹配的 Pipeline">
+            <Button type="primary" onClick={() => navigate('/pipelines/new')}>
+              创建 Pipeline
+            </Button>
+          </Empty>
+        </div>
+      ) : (
+        <Table
+          columns={columns}
+          dataSource={filteredPipelines}
+          loading={loading}
+          rowKey="id"
+          size="middle"
+          striped
+        />
+      )}
     </div>
   );
 };

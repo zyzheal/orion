@@ -449,7 +449,7 @@ const PipelineEditor: React.FC = () => {
   );
 
   return (
-    <div style={{ padding: 0, maxWidth: 1200, margin: '0 auto' }}>
+    <div style={{ padding: 0 }}>
       {/* 页面头部 */}
       <div
         style={{

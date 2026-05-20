@@ -14,7 +14,7 @@
  * - Per-stage retry ("从该阶段重跑") for failed/completed runs
  */
 import React, { useState, useEffect } from 'react';
-import { Typography, Button, Space, Tag, Card, Descriptions, Tabs, Badge, message, Result, Table, Modal } from 'antd';
+import { Typography, Button, Space, Tag, Card, Descriptions, Tabs, Badge, message, Result, Table, Modal, Empty } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { colors, spacing } from '@/tokens';
 import {
@@ -733,10 +733,7 @@ const PipelineDetail: React.FC = () => {
         >
           {/* Task outputs / variable propagation table */}
           <CardPanel title="任务输出与变量传播">
-            <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
-              以下列出各阶段任务产生的输出变量及其传播目标。当前为演示数据，后续将接入真实 API。
-            </Text>
-            <TaskOutputsTable />
+            <Empty description="任务输出变量传播功能即将上线" />
           </CardPanel>
         </TabPane>
       </Tabs>
