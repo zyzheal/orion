@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import type { UserInfo } from '@/api/types';
 import { refreshAuthTokenApi } from '@/api/auth';
+import { injectAuthState } from '@/microfront/config';
 
 interface AuthState {
   user: UserInfo | null;
@@ -55,7 +56,11 @@ export const useAuthStore = create<AuthState>()(
     refreshToken: initRefreshToken,
     tokenExpiresAt: initExpiresAt,
 
-    setUser: (user) => set({ user }),
+    setUser: (user) => {
+      set({ user });
+      // 登录成功后注入认证状态到微前端
+      injectAuthState();
+    },
 
     setAuthenticated: (authenticated) => set({ isAuthenticated: authenticated }),
 
@@ -73,6 +78,8 @@ export const useAuthStore = create<AuthState>()(
       localStorage.setItem(TOKEN_KEY, accessToken);
       localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
       localStorage.setItem(TOKEN_EXPIRES_KEY, String(expires));
+      // 登录成功后注入认证状态到微前端
+      injectAuthState();
     },
 
     getToken: async (): Promise<string | null> => {

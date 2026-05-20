@@ -1,16 +1,27 @@
 /**
  * wujie 微前端主应用配置
  */
-import { setupApp, preloadApp } from 'wujie';
+import { setupApp, preloadApp, bus } from 'wujie';
 import { subAppConfigs, getSubAppConfig, getEnabledApps } from './apps';
 
 // Re-export for direct access
 export { subAppConfigs, getSubAppConfig, getEnabledApps };
 
+// Orion 认证状态类型
+export interface OrionAuthState {
+  token: string;
+  tenantId: string;
+  user: {
+    id: string;
+    username: string;
+    email?: string;
+  };
+}
+
 // 扩展 window 类型以包含 $orion
 declare global {
   interface Window {
-    $orion?: unknown;
+    $orion?: OrionAuthState;
   }
 }
 
@@ -75,15 +86,60 @@ export const unloadSubApp = (appKey: string): void => {
 };
 
 /**
- * 全局状态注入
- * 在应用启动时设置
+ * 注入认证状态到子应用
+ * 在主应用登录后调用
+ */
+export const injectAuthState = (): void => {
+  const token = localStorage.getItem('access_token');
+  const tenantId = localStorage.getItem('tenant_id');
+  const userStr = localStorage.getItem('user');
+
+  const authState: OrionAuthState = {
+    token: token || '',
+    tenantId: tenantId || 'default',
+    user: userStr ? JSON.parse(userStr) : { id: '', username: '' },
+  };
+
+  // 设置全局状态
+  window.$orion = authState;
+
+  // 通过 Wujie bus 事件通知子应用
+  bus.$emit('orionAuth', authState);
+
+  console.log('[Wujie] Auth state injected:', {
+    hasToken: !!token,
+    tenantId,
+    userId: authState.user.id,
+  });
+};
+
+/**
+ * 获取当前认证状态
+ */
+export const getAuthState = (): OrionAuthState | null => {
+  return window.$orion || null;
+};
+
+/**
+ * 监听认证状态变化
+ */
+export const subscribeAuthState = (callback: (state: OrionAuthState) => void): (() => void) => {
+  bus.$on('orionAuth', callback);
+  return () => bus.$off('orionAuth', callback);
+};
+
+/**
+ * 全局状态注入 (兼容旧接口)
  */
 export const injectGlobalState = (state: Record<string, unknown>): void => {
-  window.$orion = state;
+  window.$orion = state as OrionAuthState;
 };
 
 export default {
   initMicroFrontend,
   unloadSubApp,
   injectGlobalState,
+  injectAuthState,
+  getAuthState,
+  subscribeAuthState,
 };
