@@ -193,7 +193,7 @@ export class PipelineService {
       config: {},
       status: 'active',
       version: typeof input.version === 'string' ? parseInt(input.version, 10) : input.version || 1,
-      yamlDefinition: input.yamlDefinition || null,
+      yaml_definition: input.yamlDefinition || null,
       spec: spec || null,
       created_by: input.created_by || input.createdBy || null,
     };

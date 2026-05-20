@@ -185,11 +185,11 @@ export class PipelineRunService {
   async listRuns(filter?: PipelineRunFilter): Promise<PipelineRun[]> {
     if (this.repository) {
       const records = await this.repository.findAll({
-        pipelineId: filter?.pipelineId,
+        pipeline_id: filter?.pipelineId,
         status: filter?.status
           ? (Array.isArray(filter.status) ? filter.status : [filter.status])
           : undefined,
-        triggerType: filter?.triggerType,
+        trigger_type: filter?.triggerType,
         limit: filter?.limit,
         offset: filter?.offset,
       });
