@@ -277,8 +277,13 @@ export class WorkflowEngine {
 
   /**
    * 恢复工作流
+   * @param instanceId 实例 ID
+   * @param extraVariables 可选，合并到实例变量中的额外数据
    */
-  async resume(instanceId: string): Promise<void> {
+  async resume(instanceId: string, extraVariables?: Record<string, any>): Promise<void> {
+    if (extraVariables) {
+      await this.instanceManager.updateVariables(instanceId, extraVariables);
+    }
     await this.instanceManager.resume(instanceId);
     // 自动继续执行
     await this.execute(instanceId);
@@ -292,9 +297,10 @@ export class WorkflowEngine {
    *
    * @param instanceId 工作流实例 ID
    * @param taskResult 任务完成结果
+   * @param nextNodeId 可选，恢复后跳转的下一个节点 ID。如果不提供，从实例变量中读取
    */
-  async resumeFromEvent(instanceId: string, taskResult: Record<string, any>): Promise<void> {
-    logger.info({ instanceId, taskResult }, 'Resuming workflow instance from event');
+  async resumeFromEvent(instanceId: string, taskResult: Record<string, any>, nextNodeId?: string): Promise<void> {
+    logger.info({ instanceId, taskResult, nextNodeId }, 'Resuming workflow instance from event');
 
     // 更新实例变量，合并任务结果
     const instance = await this.instanceManager.getInstance(instanceId);
@@ -314,6 +320,13 @@ export class WorkflowEngine {
     };
 
     await this.instanceManager.updateVariables(instanceId, updatedVariables);
+
+    // 推进到下一个节点（避免重复执行 task 节点）
+    const targetNodeId = nextNodeId || taskResult.nextNodeId || instance.currentNodeId;
+    if (targetNodeId !== instance.currentNodeId) {
+      await this.instanceManager.moveToNode(instanceId, targetNodeId);
+      logger.info({ instanceId, from: instance.currentNodeId, to: targetNodeId }, 'Advanced to next node after task completion');
+    }
 
     // 恢复实例并继续执行
     await this.resume(instanceId);
@@ -731,8 +744,8 @@ export class WorkflowEngine {
    *
    * 处理子流程调用：
    * - 构建子流程输入变量（使用 inputMappings）
+   * - 检测循环依赖（在创建子实例之前，防止 A -> B -> A 的无限递归）
    * - 创建子流程实例
-   * - 检测循环依赖（防止 A -> B -> A 的无限递归）
    * - 如果 waitForCompletion 等待完成，否则异步执行
    * - 映射输出变量（使用 outputMappings）
    */
@@ -746,6 +759,27 @@ export class WorkflowEngine {
       config.inputMappings || [],
       instance.variables
     );
+
+    // ==================== 循环依赖检测（在创建子实例之前）====================
+    // 检查当前实例的祖先链中是否已经有相同工作流定义的实例
+    const ancestorIds = await this.timerRepository.getParentChain(instance.id);
+    const allInstanceIds = [instance.id, ...ancestorIds];
+
+    // 查询祖先实例的工作流定义 ID
+    const ancestorDefinitions = await this.getWorkflowDefinitionsForInstances(allInstanceIds);
+    const isCircular = ancestorDefinitions.some(defId => defId === config.subWorkflowId);
+
+    if (isCircular) {
+      logger.error(
+        { subWorkflowId: config.subWorkflowId, parentInstanceId: instance.id, ancestorIds },
+        'Circular dependency detected: ancestor already uses same workflow definition'
+      );
+      return {
+        outputVariables: instance.variables,
+        terminated: true,
+        error: `Circular dependency detected: ancestor instance already calls sub-workflow '${config.subWorkflowId}'`,
+      };
+    }
 
     logger.info(
       { subWorkflowId: config.subWorkflowId, input: subWorkflowInput, instanceId: instance.id },
@@ -764,29 +798,12 @@ export class WorkflowEngine {
       );
       subInstanceId = subInstance.id;
 
-      // 记录父子实例依赖关系，用于循环依赖检测
+      // 记录父子实例依赖关系，用于后续检测
       await this.timerRepository.addDependency({
         parent_instance_id: instance.id,
         child_instance_id: subInstanceId,
         node_id: this.findCurrentNodeId(instance) || 'unknown',
       } as any);
-
-      // 检测循环依赖
-      const hasCircular = await this.timerRepository.hasCircularDependency(subInstanceId);
-      if (hasCircular) {
-        logger.error(
-          { subInstanceId, parentInstanceId: instance.id },
-          'Circular dependency detected in sub-workflow'
-        );
-        // 取消已创建的子实例
-        await this.instanceManager.terminate(subInstanceId, 'Circular dependency detected');
-
-        return {
-          outputVariables: instance.variables,
-          terminated: true,
-          error: `Circular dependency detected: sub-workflow ${config.subWorkflowId} would create an infinite loop`,
-        };
-      }
     } catch (error) {
       // 如果子流程不存在，返回错误
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -989,6 +1006,25 @@ export class WorkflowEngine {
       },
       terminated: true, // 暂停执行，等待定时调度器
     };
+  }
+
+  /**
+   * 获取实例的工作流定义 ID 列表
+   * 用于循环依赖检测：检查祖先实例是否使用了相同的工作流定义
+   */
+  private async getWorkflowDefinitionsForInstances(instanceIds: string[]): Promise<string[]> {
+    const definitionIds: string[] = [];
+    for (const id of instanceIds) {
+      try {
+        const instance = await this.instanceManager.getInstance(id);
+        if (instance?.workflowDefinitionId) {
+          definitionIds.push(instance.workflowDefinitionId);
+        }
+      } catch {
+        // 忽略获取失败的实例
+      }
+    }
+    return definitionIds;
   }
 
   /**

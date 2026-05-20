@@ -90,25 +90,31 @@ export class WorkflowTaskRepository {
   }
 
   async updateStatus(id: string, status: string, completedBy?: string, comment?: string): Promise<void> {
-    const updates = ['status = $1', 'updated_at = now()'];
-    const params: any[] = [status];
-    params.push(id);
+    const setClauses: string[] = [];
+    const params: any[] = [];
+
+    // status 始终是 $1
+    params.push(status);
+    setClauses.push('status = $1');
+    setClauses.push('updated_at = now()');
 
     if (completedBy) {
-      updates.push('completed_by = $2');
       params.push(completedBy);
+      setClauses.push(`completed_by = $${params.length}`);
       if (status === 'completed') {
-        updates.push('completed_at = now()');
+        setClauses.push('completed_at = now()');
       }
     }
 
     if (comment) {
-      updates.push(`completion_comment = $${params.length}`);
       params.push(comment);
+      setClauses.push(`completion_comment = $${params.length}`);
     }
 
+    // id 始终是最后一个参数
+    params.push(id);
     await this.db.query(
-      `UPDATE workflow_tasks SET ${updates.join(', ')} WHERE id = $${params.length}`,
+      `UPDATE workflow_tasks SET ${setClauses.join(', ')} WHERE id = $${params.length}`,
       params
     );
   }
@@ -120,15 +126,31 @@ export class WorkflowTaskRepository {
     const task = await this.findById(id);
     if (!task) return null;
 
-    await this.updateStatus(id, 'completed', completedBy, comment);
+    // 合并更新：状态 + 表单数据在一次 SQL 中完成
+    const setClauses: string[] = ['status = $1', 'updated_at = now()'];
+    const params: any[] = ['completed', id];
 
-    // 如果有表单数据，更新 form_data
-    if (formData) {
-      await this.db.query(
-        'UPDATE workflow_tasks SET form_data = $1, updated_at = now() WHERE id = $2',
-        [JSON.stringify(formData), id]
-      );
+    if (completedBy) {
+      params.splice(1, 0, completedBy);
+      setClauses.push(`completed_by = $${params.length - 1}`);
     }
+
+    if (comment) {
+      params.splice(params.length - 1, 0, comment);
+      setClauses.push(`completion_comment = $${params.length - 1}`);
+    }
+
+    setClauses.push('completed_at = now()');
+
+    if (formData) {
+      params.splice(params.length - 1, 0, formData);
+      setClauses.push(`form_data = $${params.length - 1}::jsonb`);
+    }
+
+    await this.db.query(
+      `UPDATE workflow_tasks SET ${setClauses.join(', ')} WHERE id = $${params.length}`,
+      params
+    );
 
     return {
       instanceId: task.instance_id,

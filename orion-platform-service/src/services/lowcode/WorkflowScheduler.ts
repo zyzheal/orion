@@ -9,6 +9,7 @@
  */
 
 import type { WorkflowTrigger, WorkflowTriggerRepository } from '../../repositories/WorkflowTriggerRepository';
+import { WorkflowTimerRepository } from '../../repositories/WorkflowTimerRepository';
 import { WorkflowEngine } from './WorkflowEngine';
 import { WorkflowInstanceManager } from './WorkflowInstance';
 import { WorkflowDefinitionRepository } from './WorkflowRepository';
@@ -31,16 +32,21 @@ const DEFAULT_TIMEZONE = 'Asia/Shanghai';
  */
 export class WorkflowScheduler {
   private triggerRepo: WorkflowTriggerRepository;
+  private timerRepo: WorkflowTimerRepository;
   private instanceManager: WorkflowInstanceManager;
   private workflowEngine: WorkflowEngine;
   private cronJobs: Map<string, CronJobWrapper> = new Map();
   private isRunning: boolean = false;
+  private timerRecoveryInterval: NodeJS.Timeout | null = null;
 
   constructor(
     triggerRepo: WorkflowTriggerRepository,
     instanceManager?: WorkflowInstanceManager
   ) {
     this.triggerRepo = triggerRepo;
+    this.timerRepo = new WorkflowTimerRepository(
+      (globalThis as any).db || { query: async () => ({ rows: [], rowCount: 0 }) }
+    );
     this.instanceManager = instanceManager || new WorkflowInstanceManager();
 
     // 创建工作流引擎用于执行工作流
@@ -78,6 +84,9 @@ export class WorkflowScheduler {
 
     this.isRunning = true;
     logger.info({ triggerCount: this.cronJobs.size }, 'WorkflowScheduler started');
+
+    // 启动定时器恢复任务（每30秒扫描一次到期的定时器）
+    this.startTimerRecovery();
   }
 
   /**
@@ -104,6 +113,10 @@ export class WorkflowScheduler {
     }
 
     this.cronJobs.clear();
+    if (this.timerRecoveryInterval) {
+      clearInterval(this.timerRecoveryInterval);
+      this.timerRecoveryInterval = null;
+    }
     this.isRunning = false;
     logger.info('WorkflowScheduler stopped');
   }
@@ -347,6 +360,94 @@ export class WorkflowScheduler {
     } catch (error) {
       logger.error({ error, workflowId }, 'Failed to get active instance count');
       return 0;
+    }
+  }
+
+  // ==================== Timer Recovery ====================
+
+  /**
+   * 启动定时器恢复任务
+   * 定期扫描到期的 Delay/Timer 节点，恢复挂起的工作流实例
+   */
+  private startTimerRecovery(): void {
+    const RECOVERY_INTERVAL_MS = 30 * 1000; // 每30秒扫描一次
+
+    this.timerRecoveryInterval = setInterval(async () => {
+      try {
+        await this.recoverPendingTimers();
+      } catch (error) {
+        logger.error({ error }, 'Timer recovery task failed');
+      }
+    }, RECOVERY_INTERVAL_MS);
+
+    logger.info({ intervalMs: RECOVERY_INTERVAL_MS }, 'Timer recovery task started');
+  }
+
+  /**
+   * 扫描并恢复到期的定时器
+   */
+  private async recoverPendingTimers(): Promise<void> {
+    const pendingTimers = await this.timerRepo.findPendingTimers();
+    if (pendingTimers.length === 0) return;
+
+    logger.info({ count: pendingTimers.length }, 'Found pending timers to recover');
+
+    for (const timer of pendingTimers) {
+      try {
+        // 将定时器状态标记为 running，防止重复处理
+        await this.timerRepo.updateStatus(timer.id, 'running');
+
+        if (timer.timer_type === 'delay') {
+          // Delay 节点：恢复工作流实例继续执行
+          await this.workflowEngine.resume(timer.instance_id, {
+            _timerResult: {
+              timerId: timer.id,
+              delayDuration: timer.duration_ms,
+              completedAt: new Date().toISOString(),
+            },
+          });
+
+          await this.timerRepo.updateStatus(timer.id, 'completed', {
+            delayDuration: timer.duration_ms,
+            completedAt: new Date().toISOString(),
+          });
+
+          logger.info({ timerId: timer.id, instanceId: timer.instance_id }, 'Delay timer recovered');
+        } else if (timer.timer_type === 'timer') {
+          // Timer 节点：检查是否达到最大执行次数
+          if (timer.max_executions && timer.current_executions >= timer.max_executions) {
+            await this.timerRepo.updateStatus(timer.id, 'completed', {
+              note: 'Max executions reached',
+            });
+            logger.info({ timerId: timer.id }, 'Timer completed (max executions reached)');
+            continue;
+          }
+
+          // 触发 Timer 执行（恢复实例或创建新实例）
+          const executionCount = await this.timerRepo.incrementExecutions(timer.id);
+
+          await this.workflowEngine.resume(timer.instance_id, {
+            _timerResult: {
+              timerId: timer.id,
+              cronExpression: timer.cron_expression,
+              executionCount,
+              triggeredAt: new Date().toISOString(),
+            },
+          });
+
+          logger.info(
+            { timerId: timer.id, instanceId: timer.instance_id, executionCount },
+            'Timer node recovered'
+          );
+        }
+      } catch (error) {
+        logger.error(
+          { error, timerId: timer.id, instanceId: timer.instance_id },
+          'Failed to recover timer'
+        );
+        // 标记为 cancelled 防止重试
+        await this.timerRepo.updateStatus(timer.id, 'cancelled');
+      }
     }
   }
 }

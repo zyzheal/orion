@@ -97,26 +97,33 @@ export class WorkflowTimerRepository {
 
   async findPendingTimers(): Promise<WorkflowTimer[]> {
     const result = await this.db.query(
-      "SELECT * FROM workflow_timers WHERE status = 'pending' AND scheduled_at <= now() ORDER BY scheduled_at ASC"
+      "SELECT * FROM workflow_timers WHERE status = 'pending' AND scheduled_at <= now() ORDER BY scheduled_at ASC FOR UPDATE SKIP LOCKED"
     );
     return result.rows.map(row => this.mapRowToTimer(row));
   }
 
   async updateStatus(id: string, status: WorkflowTimer['status'], outputVariables?: Record<string, any>): Promise<void> {
-    const updates: string[] = ['status = $1', 'updated_at = now()'];
-    const params: any[] = [status, id];
+    const setClauses: string[] = [];
+    const params: any[] = [];
+
+    // status 始终是 $1
+    params.push(status);
+    setClauses.push('status = $1');
+    setClauses.push('updated_at = now()');
 
     if (status === 'completed') {
-      updates.push('fired_at = now()');
+      setClauses.push('fired_at = now()');
     }
 
     if (outputVariables) {
-      updates.push(`output_variables = $${params.length + 1}`);
       params.push(JSON.stringify(outputVariables));
+      setClauses.push(`output_variables = $${params.length}`);
     }
 
+    // id 始终是最后一个参数
+    params.push(id);
     await this.db.query(
-      `UPDATE workflow_timers SET ${updates.join(', ')} WHERE id = $${params.length}`,
+      `UPDATE workflow_timers SET ${setClauses.join(', ')} WHERE id = $${params.length}`,
       params
     );
   }
