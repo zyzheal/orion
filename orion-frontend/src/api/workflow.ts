@@ -117,7 +117,6 @@ export async function createWorkflow(data: {
 
 /**
  * 更新工作流
- * 注意：后端暂无 PUT 端点，使用创建后替换模式
  */
 export async function updateWorkflow(
   id: string,
@@ -129,16 +128,8 @@ export async function updateWorkflow(
     enabled: boolean;
   }>
 ): Promise<WorkflowDefinition> {
-  // 后端暂无 PUT /v1/workflows/:id 端点
-  // 前端暂存更新，等待后端补充
-  const response = await api.get<WorkflowDefinition>(`/v1/workflows/${id}`);
-  const existing = response.data.data;
-  // 返回现有数据，标注为待后端更新
-  return {
-    ...existing,
-    ...data,
-    updatedAt: new Date().toISOString(),
-  };
+  const response = await api.put<WorkflowDefinition>(`/v1/workflows/${id}`, data);
+  return response.data.data;
 }
 
 /**
