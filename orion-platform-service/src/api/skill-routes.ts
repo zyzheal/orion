@@ -87,7 +87,7 @@ export default async function skillRoutes(
 
   // DELETE /api/v1/skills/:id — delete skill
   app.delete('/:id', {
-    onRequest: [authenticateUser, requirePermission({ resource: 'skill', action: 'delete', extractResourceId: (req) => (req.params as { id: string }).id, requiredImpact: 'high' })],
+    onRequest: [authenticateUser, requirePermission(SkillPermissions.ADMIN)],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.delete(request, reply);
   });
@@ -228,5 +228,12 @@ export default async function skillRoutes(
     onRequest: [authenticateUser, requirePermission({ ...SkillPermissions.READ, extractResourceId: (req) => (req.params as { id: string }).id })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.getAuditLog(request, reply);
+  });
+
+  // GET /api/v1/skills/audit — global audit log (admin)
+  app.get('/audit', {
+    onRequest: [authenticateUser, requirePermission(SkillPermissions.ADMIN)],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.getAllAuditLogs(request, reply);
   });
 }

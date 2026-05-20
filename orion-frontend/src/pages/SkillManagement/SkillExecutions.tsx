@@ -25,7 +25,7 @@ import {
   Descriptions,
 } from 'antd';
 import { ReloadOutlined, ArrowLeftOutlined, PlayCircleOutlined } from '@ant-design/icons';
-import { spacing } from '@/tokens';
+import { spacing, colors } from '@/tokens';
 import Table, { type TableColumn } from '@/components/Table';
 import {
   getSkillExecutions,
@@ -76,7 +76,7 @@ const SkillExecutions: React.FC = () => {
         getSkill(skillId),
       ]);
       const execData = execRes.data.data;
-      const items = execData.items || [];
+      const items = execData.executions || [];
       setExecutions(Array.isArray(items) ? items : []);
       setTotal(execData.total || 0);
       const skillData = (skillRes as any).data?.data;
@@ -312,7 +312,7 @@ const SkillExecutions: React.FC = () => {
               title="成功"
               value={executions.filter((e) => e.status === 'success').length}
               suffix="次"
-              valueStyle={{ color: '#52c41a' }}
+              valueStyle={{ color: colors.success[500] }}
             />
           </Card>
         </Col>
@@ -322,7 +322,7 @@ const SkillExecutions: React.FC = () => {
               title="失败"
               value={executions.filter((e) => e.status === 'failed').length}
               suffix="次"
-              valueStyle={{ color: '#f5222d' }}
+              valueStyle={{ color: colors.error[500] }}
             />
           </Card>
         </Col>

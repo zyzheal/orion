@@ -219,7 +219,24 @@ export async function executeSkill(skillId: string, data: ExecuteSkillInput) {
 export async function getSkillExecutions(skillId: string, params?: { page?: number; limit?: number }) {
   const res = await api.get(`/v1/skills/${skillId}/executions`, { params });
   const body = res.data as any;
-  return { data: { data: body?.data || { items: [] as SkillExecution[], total: 0, page: 1 } } };
+  const rawExecutions = body?.data?.executions || [];
+  // Map snake_case backend fields to camelCase frontend types
+  const executions: SkillExecution[] = rawExecutions.map((e: any) => ({
+    id: e.id,
+    skillId: e.skill_id,
+    instanceId: e.instance_id,
+    tenantId: e.tenant_id,
+    userId: e.triggered_by,
+    capability: e.capability,
+    input: e.input || {},
+    output: e.output || {},
+    status: e.status,
+    duration: e.duration_ms,
+    errorMessage: e.error_message,
+    createdAt: e.started_at || e.created_at,
+    completedAt: e.completed_at,
+  }));
+  return { data: { data: { executions, total: body?.data?.total || 0, page: body?.data?.page || 1 } } };
 }
 
 // ---- Review Workflow ----
@@ -251,7 +268,8 @@ export async function archiveSkill(skillId: string, reason?: string) {
 export async function getPendingReviews(params?: { page?: number; limit?: number; category?: string }) {
   const res = await api.get('/v1/skills/pending-review', { params });
   const body = res.data as any;
-  return { data: { data: body?.data || { items: [] as SkillPackage[], total: 0, page: 1 } } };
+  const rawSkills = body?.data?.skills || [];
+  return { data: { data: { skills: rawSkills as SkillPackage[], total: body?.data?.total || 0, page: body?.data?.page || 1 } } };
 }
 
 // ---- Audit Log ----
@@ -259,9 +277,12 @@ export async function getPendingReviews(params?: { page?: number; limit?: number
 export interface SkillAuditEntry {
   id: string;
   skillId: string;
+  skillName?: string;
   action: string;
   actor: string;
   reason?: string;
+  oldStatus?: string;
+  newStatus?: string;
   createdAt: string;
 }
 
@@ -272,7 +293,20 @@ export async function getSkillAuditLog(skillId: string, params?: { page?: number
 }
 
 export async function getAllAuditHistory(params?: { page?: number; limit?: number; action?: string }) {
-  const res = await api.get('/v1/skills/executions', { params });
+  const res = await api.get('/v1/skills/audit', { params });
   const body = res.data as any;
-  return { data: { data: body?.data || { items: [], total: 0, page: 1 } } };
+  const rawLogs = body?.data?.logs || [];
+  // Map snake_case backend fields to camelCase
+  const logs: SkillAuditEntry[] = rawLogs.map((log: any) => ({
+    id: log.id,
+    skillId: log.skill_id,
+    skillName: log.skill_name,
+    action: log.action,
+    actor: log.actor_name || log.actor_id,
+    reason: log.reason,
+    oldStatus: log.old_status,
+    newStatus: log.new_status,
+    createdAt: log.created_at,
+  }));
+  return { data: { data: { logs, total: body?.data?.total || 0 } } };
 }

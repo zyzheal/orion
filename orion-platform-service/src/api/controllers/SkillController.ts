@@ -240,15 +240,22 @@ export class SkillController {
     try {
       const params = request.params as Record<string, string>;
       const body = request.body as Record<string, unknown>;
-      if (!body.userId || body.rating === undefined) {
+      const user = (request as any).user;
+      const userId = user?.id;
+
+      if (!userId) {
+        await reply.status(400).send({ success: false, error: 'User ID is required' });
+        return;
+      }
+      if (body.rating === undefined) {
         await reply.status(400).send({
           success: false,
-          error: 'userId and rating are required',
+          error: 'rating is required',
         });
         return;
       }
       const review = await this.service.addReview(params.id, {
-        user_id: body.userId as string,
+        user_id: userId,
         rating: body.rating as number,
         comment: body.comment as string | undefined,
       });
@@ -344,6 +351,11 @@ export class SkillController {
       const user = (request as any).user;
       const tenantId = user?.tenantId;
 
+      if (!tenantId) {
+        await reply.status(400).send({ success: false, error: 'Tenant ID is required' });
+        return;
+      }
+
       const instance = await this.service.updateInstance(params.instanceId, {
         name: body.name as string | undefined,
         description: body.description as string | undefined,
@@ -373,6 +385,11 @@ export class SkillController {
       const params = request.params as Record<string, string>;
       const user = (request as any).user;
       const tenantId = user?.tenantId;
+
+      if (!tenantId) {
+        await reply.status(400).send({ success: false, error: 'Tenant ID is required' });
+        return;
+      }
 
       await this.service.deleteInstance(params.instanceId, tenantId);
       await reply.send({ success: true, message: 'Instance deleted' });
@@ -664,6 +681,25 @@ export class SkillController {
       await reply.status(500).send({
         success: false,
         error: err instanceof Error ? err.message : 'Failed to get audit log',
+      });
+    }
+  }
+
+  async getAllAuditLogs(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    try {
+      const query = request.query as Record<string, string | undefined>;
+
+      const result = await this.service.getAllAuditLogs(
+        query.page ? parseInt(query.page, 10) : 1,
+        query.limit ? parseInt(query.limit, 10) : 50,
+        query.action
+      );
+
+      await reply.send({ success: true, data: result });
+    } catch (err) {
+      await reply.status(500).send({
+        success: false,
+        error: err instanceof Error ? err.message : 'Failed to get audit logs',
       });
     }
   }

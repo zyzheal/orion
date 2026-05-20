@@ -181,7 +181,12 @@ const MySkills: React.FC = () => {
           >
             执行
           </Button>
-          <Button type="link" size="small" icon={<ReloadIcon />}>
+          <Button
+            type="link"
+            size="small"
+            icon={<ReloadIcon />}
+            onClick={() => navigate(`/skills/${record.id}/versions`)}
+          >
             升级
           </Button>
           <Button

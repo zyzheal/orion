@@ -29,7 +29,7 @@ import {
   CloseOutlined,
   EyeOutlined,
 } from '@ant-design/icons';
-import { spacing } from '@/tokens';
+import { spacing, colors } from '@/tokens';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
 import {
@@ -85,7 +85,7 @@ const PendingReviews: React.FC = () => {
       }
       const res = await getPendingReviews(params);
       const data = res.data.data;
-      setReviews(Array.isArray(data.items) ? data.items : []);
+      setReviews(Array.isArray(data.skills) ? data.skills : []);
       setTotal(data.total || 0);
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -237,7 +237,7 @@ const PendingReviews: React.FC = () => {
           <Button
             type="link"
             size="small"
-            style={{ color: '#52c41a' }}
+            style={{ color: colors.success[500] }}
             icon={<CheckOutlined />}
             onClick={() => handleOpenReview(record, 'approve')}
             loading={actionLoading === `approve-${record.id}`}
@@ -297,7 +297,7 @@ const PendingReviews: React.FC = () => {
               title="待审核"
               value={total}
               suffix="个"
-              valueStyle={{ color: '#faad14' }}
+              valueStyle={{ color: colors.warning[500] }}
             />
           </Card>
         </Col>

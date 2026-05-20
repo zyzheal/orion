@@ -527,8 +527,8 @@ export class SkillRepository {
     const { skill_id, tenant_id, project_id, name, config, is_default, description, bindings, metadata, created_by, version } = input;
 
     const result = await this.pool.query(
-      `INSERT INTO skill_instances (skill_id, tenant_id, project_id, name, instance_name, description, config, bindings, metadata, is_default, status, created_by, version)
-       VALUES ($1, $2, $3, $4, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      `INSERT INTO skill_instances (skill_id, tenant_id, project_id, name, description, config, bindings, metadata, is_default, status, created_by, version)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
        RETURNING *`,
       [skill_id, tenant_id, project_id || null, name, description || null, config || {}, bindings || {}, metadata || {}, is_default || false, 'inactive', created_by || null, version || '1.0.0']
     );
@@ -889,6 +889,39 @@ export class SkillRepository {
        ORDER BY created_at DESC
        LIMIT $2 OFFSET $3`,
       [skillId, limit, offset]
+    );
+
+    return {
+      logs: result.rows,
+      total: parseInt(countResult.rows[0].count, 10),
+    };
+  }
+
+  /**
+   * Get all audit logs across all skills (admin)
+   */
+  async findAllAuditLogs(limit: number = 50, offset: number = 0, action?: string): Promise<{ logs: SkillAuditLog[]; total: number }> {
+    const conditions: string[] = [];
+    const params: any[] = [];
+
+    if (action) {
+      params.push(action);
+      conditions.push(`action = $${params.length}`);
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    const countResult = await this.pool.query(
+      `SELECT COUNT(*) FROM skill_audit_logs ${whereClause}`,
+      params
+    );
+
+    const result = await this.pool.query(
+      `SELECT * FROM skill_audit_logs
+       ${whereClause}
+       ORDER BY created_at DESC
+       LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+      [...params, limit, offset]
     );
 
     return {

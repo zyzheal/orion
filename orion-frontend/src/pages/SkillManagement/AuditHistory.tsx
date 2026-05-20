@@ -22,7 +22,7 @@ import {
   DatePicker,
 } from 'antd';
 import { ReloadOutlined, FileTextOutlined } from '@ant-design/icons';
-import { spacing } from '@/tokens';
+import { spacing, colors } from '@/tokens';
 import Table, { type TableColumn } from '@/components/Table';
 import { getAllAuditHistory } from '@/api/skills';
 import dayjs from 'dayjs';
@@ -85,7 +85,7 @@ const AuditHistory: React.FC = () => {
     try {
       const res = await getAllAuditHistory({ page, limit: 50 });
       const data = res.data.data;
-      const items = data.items || [];
+      const items = data.logs || [];
       setAuditLogs(Array.isArray(items) ? items : []);
       setTotal(data.total || 0);
     } catch (error: unknown) {
@@ -171,19 +171,17 @@ const AuditHistory: React.FC = () => {
         ),
     },
     {
-      key: 'status',
-      title: '结果',
-      dataIndex: 'status',
-      width: 100,
+      key: 'action_detail',
+      title: '操作详情',
+      dataIndex: 'action',
+      width: 160,
       render: (v: unknown) => {
-        const status = String(v || 'success');
-        return status === 'success' ? (
-          <Tag color="success">成功</Tag>
-        ) : status === 'failed' ? (
-          <Tag color="error">失败</Tag>
-        ) : (
-          <Tag>{status}</Tag>
-        );
+        const action = String(v);
+        const isPositive = ['approve', 'create', 'install', 'instance_create'].includes(action);
+        const isNegative = ['reject', 'delete', 'archive', 'uninstall', 'instance_delete'].includes(action);
+        const color = isPositive ? 'success' : isNegative ? 'error' : 'default';
+        const label = actionLabels[action] || action;
+        return <Tag color={color}>{label}</Tag>;
       },
     },
     {
@@ -261,7 +259,7 @@ const AuditHistory: React.FC = () => {
               title="通过"
               value={auditLogs.filter((l) => l.action === 'approve').length}
               suffix="条"
-              valueStyle={{ color: '#52c41a' }}
+              valueStyle={{ color: colors.success[500] }}
             />
           </Card>
         </Col>
@@ -271,7 +269,7 @@ const AuditHistory: React.FC = () => {
               title="拒绝"
               value={auditLogs.filter((l) => l.action === 'reject').length}
               suffix="条"
-              valueStyle={{ color: '#f5222d' }}
+              valueStyle={{ color: colors.error[500] }}
             />
           </Card>
         </Col>
@@ -362,17 +360,15 @@ const AuditHistory: React.FC = () => {
                 </div>
               )}
               <div>
-                <Text strong>结果：</Text>
-                <Tag color={selectedLog.status === 'success' ? 'success' : 'error'}>
-                  {selectedLog.status || 'success'}
-                </Tag>
+                <Text strong>状态变更：</Text>
+                <Text>
+                  {selectedLog.oldStatus || '-'} → {selectedLog.newStatus || '-'}
+                </Text>
               </div>
               <div>
                 <Text strong>时间：</Text>
                 <Text>
-                  {dayjs(selectedLog.createdAt || selectedLog.timestamp).format(
-                    'YYYY-MM-DD HH:mm:ss'
-                  )}
+                  {dayjs(selectedLog.createdAt).format('YYYY-MM-DD HH:mm:ss')}
                 </Text>
               </div>
               {selectedLog.details && (

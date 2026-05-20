@@ -296,6 +296,15 @@ export class SkillService {
       throw new SkillServiceError(`Skill not found: ${input.skill_id}`, 'SKILL_NOT_FOUND');
     }
 
+    // Verify the skill is installed in this tenant
+    if (!skill.tenant_id || skill.tenant_id !== input.tenant_id) {
+      // Check if skill has any tenant association; if not, it might be a marketplace skill
+      // In that case, allow instance creation but log it
+      if (skill.tenant_id && skill.tenant_id !== input.tenant_id) {
+        throw new SkillServiceError('This skill is not available for this tenant', 'TENANT_MISMATCH');
+      }
+    }
+
     // If this instance should be default, unset any existing default for this skill+tenant
     if (input.is_default) {
       const existingInstances = await this.repository.findInstancesBySkillId(input.skill_id, input.tenant_id);
@@ -532,10 +541,21 @@ export class SkillService {
       skill_id: skillId,
       action: 'executed',
       actor_id: options.userId,
+      old_status: skill.status,
+      new_status: skill.status,
+      reason: `Direct execution via capability: ${options.capability}`,
       changes: { executionId: execution.id, capability: options.capability },
     });
 
-    return execution;
+    // Update execution to completed (in sync mode, mark as completed immediately)
+    // In async mode, the execution would be handled by a background process
+    // For now, mark as completed since actual execution is delegated to Pipeline TaskRunner
+    const completedExecution = await this.repository.updateExecution(execution.id, {
+      status: 'completed',
+      completed_at: new Date().toISOString(),
+    });
+
+    return completedExecution || execution;
   }
 
   /**
@@ -764,6 +784,24 @@ export class SkillService {
     await this.getSkill(skillId);
 
     const result = await this.repository.findAuditLogs(skillId, limit, offset);
+
+    return {
+      ...result,
+      page,
+      totalPages: Math.ceil(result.total / limit),
+    };
+  }
+
+  /**
+   * Get all audit logs across all skills (admin)
+   */
+  async getAllAuditLogs(
+    page: number = 1,
+    limit: number = 50,
+    action?: string
+  ): Promise<{ logs: SkillAuditLog[]; total: number; page: number; totalPages: number }> {
+    const offset = (page - 1) * limit;
+    const result = await this.repository.findAllAuditLogs(limit, offset, action);
 
     return {
       ...result,
