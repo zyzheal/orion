@@ -89,6 +89,8 @@ func (s *CTRAG) QueryRecords(ctx context.Context, req *QueryRecordsRequest) (str
 			ID:      chunk.ChunkID,
 			Content: chunk.Content,
 			DocID:   chunk.DocumentID,
+			Title:   chunk.Title,
+			Score:   chunk.Score,
 		}
 	}
 	return res.Query, nodeChunks, nil

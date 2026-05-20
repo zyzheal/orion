@@ -392,8 +392,7 @@ export class WorkflowScheduler {
 
     for (const timer of pendingTimers) {
       try {
-        // 将定时器状态标记为 running，防止重复处理
-        await this.timerRepo.updateStatus(timer.id, 'running');
+        // findPendingTimers 已经原子性地将状态设为 'running'
 
         if (timer.timer_type === 'delay') {
           // Delay 节点：恢复工作流实例继续执行
@@ -412,24 +411,28 @@ export class WorkflowScheduler {
 
           logger.info({ timerId: timer.id, instanceId: timer.instance_id }, 'Delay timer recovered');
         } else if (timer.timer_type === 'timer') {
-          // Timer 节点：检查是否达到最大执行次数
-          if (timer.max_executions && timer.current_executions >= timer.max_executions) {
-            await this.timerRepo.updateStatus(timer.id, 'completed', {
-              note: 'Max executions reached',
-            });
-            logger.info({ timerId: timer.id }, 'Timer completed (max executions reached)');
-            continue;
-          }
-
-          // 触发 Timer 执行（恢复实例或创建新实例）
+          // Timer 节点：递增执行计数
           const executionCount = await this.timerRepo.incrementExecutions(timer.id);
 
+          // 检查是否达到最大执行次数
+          if (timer.max_executions && executionCount >= timer.max_executions) {
+            await this.timerRepo.updateStatus(timer.id, 'completed', {
+              note: `Max executions (${timer.max_executions}) reached after ${executionCount} executions`,
+            });
+            logger.info(
+              { timerId: timer.id, executionCount, maxExecutions: timer.max_executions },
+              'Timer completed (max executions reached)'
+            );
+          }
+
+          // 恢复工作流实例
           await this.workflowEngine.resume(timer.instance_id, {
             _timerResult: {
               timerId: timer.id,
               cronExpression: timer.cron_expression,
               executionCount,
               triggeredAt: new Date().toISOString(),
+              isLastExecution: timer.max_executions ? executionCount >= timer.max_executions : false,
             },
           });
 

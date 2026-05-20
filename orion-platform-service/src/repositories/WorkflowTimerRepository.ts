@@ -98,10 +98,20 @@ export class WorkflowTimerRepository {
   }
 
   async findPendingTimers(): Promise<WorkflowTimer[]> {
+    // 使用 UPDATE ... RETURNING 原子性地 claim 定时器，避免并发重复处理
+    // 比 SELECT FOR UPDATE + 单独 UPDATE 更安全（自动在事务内）
     const result = await this.pool.query(
-      "SELECT * FROM workflow_timers WHERE status = 'pending' AND scheduled_at <= now() ORDER BY scheduled_at ASC FOR UPDATE SKIP LOCKED"
+      `UPDATE workflow_timers
+       SET status = 'running', updated_at = now()
+       WHERE id IN (
+         SELECT id FROM workflow_timers
+         WHERE status = 'pending' AND scheduled_at <= now()
+         ORDER BY scheduled_at ASC
+         LIMIT 50
+       )
+       RETURNING *`
     );
-    return result.rows.map(row => this.mapRowToTimer(row));
+    return result.rows.map((row: any) => this.mapRowToTimer(row));
   }
 
   async updateStatus(id: string, status: WorkflowTimer['status'], outputVariables?: Record<string, any>): Promise<void> {

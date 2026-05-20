@@ -109,10 +109,10 @@ export const routes: AppRoute[] = [
     protected: true,
     hideLayout: true,
   },
-  // Knowledge Base (M28)
+  // Knowledge Base (M28) - 统一指向PandaWiki知识空间
   {
     path: '/knowledge',
-    element: React.lazy(() => import('@/pages/KnowledgeBase')),
+    element: <RedirectTo to="/knowledge/spaces" />,
     protected: true,
   },
   {
@@ -1000,10 +1000,10 @@ export const routes: AppRoute[] = [
     element: React.lazy(() => import('@/pages/WorkflowDesigner')),
     protected: true,
   },
-  // Document Center
+  // Document Center - 统一指向PandaWiki知识空间
   {
     path: '/documents',
-    element: React.lazy(() => import('@/pages/DocumentCenter')),
+    element: <RedirectTo to="/knowledge/spaces" />,
     protected: true,
   },
   // Queue Management
@@ -1364,13 +1364,13 @@ export const routes: AppRoute[] = [
   },
   {
     path: '/ai/docs',
-    element: React.lazy(() => import('@/pages/AIDocManagement')),
+    element: <RedirectTo to="/knowledge/spaces" />,
     protected: true,
-    requiredPermission: { resource: 'ai-doc', action: 'read' },
+    requiredPermission: { resource: 'knowledge', action: 'read' },
   },
   {
     path: '/ai/knowledge',
-    element: React.lazy(() => import('@/pages/KnowledgeBase')),
+    element: <RedirectTo to="/knowledge/spaces" />,
     protected: true,
     requiredPermission: { resource: 'knowledge', action: 'read' },
   },

@@ -204,6 +204,15 @@ func createApp() (*App, error) {
 		Logger:        logger,
 		Telemetry:     client,
 	}
+
+	// 注册 Orion 平台兼容路由 /api/v1/knowledge/*
+	compatHandler := v1.NewCompatRoutesHandler(
+		apiHandlers.KnowledgeBaseHandler,
+		apiHandlers.NodeHandler,
+		logger,
+		authMiddleware,
+	)
+	compatHandler.RegisterRoutes(echo)
 	return app, nil
 }
 

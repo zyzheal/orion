@@ -356,7 +356,7 @@ export class WorkflowEngine {
     try {
       switch (node.type) {
         case 'start':
-          return this.executeStartNode(node.config as StartNodeConfig, instance);
+          return this.executeStartNode(node.config as StartNodeConfig, instance, context.definition);
 
         case 'approval':
           return await this.executeApprovalNode(
@@ -430,11 +430,12 @@ export class WorkflowEngine {
    */
   private executeStartNode(
     config: StartNodeConfig,
-    instance: WorkflowInstance
+    instance: WorkflowInstance,
+    definition: WorkflowDefinition
   ): NodeExecutionResult {
     return {
       outputVariables: config.outputVariables,
-      nextNodeId: this.getNextNodeId(instance),
+      nextNodeId: this.getNextNodeId(instance, definition),
     };
   }
 
@@ -490,7 +491,7 @@ export class WorkflowEngine {
               timeout: true,
             },
           },
-          nextNodeId: this.getNextNodeId(instance),
+          nextNodeId: this.getNextNodeId(instance, context.definition),
         };
       }
     }
@@ -520,7 +521,7 @@ export class WorkflowEngine {
           status: 'approved',
         },
       },
-      nextNodeId: this.getNextNodeId(instance),
+      nextNodeId: this.getNextNodeId(instance, context.definition),
     };
   }
 
@@ -582,7 +583,7 @@ export class WorkflowEngine {
 
     return {
       outputVariables: instance.variables,
-      nextNodeId: this.getNextNodeId(instance),
+      nextNodeId: this.getNextNodeId(instance, context.definition),
     };
   }
 
@@ -635,7 +636,7 @@ export class WorkflowEngine {
         ...instance.variables,
         _webhookResult: result,
       },
-      nextNodeId: this.getNextNodeId(instance),
+      nextNodeId: this.getNextNodeId(instance, context.definition),
     };
   }
 
@@ -703,7 +704,7 @@ export class WorkflowEngine {
             completedAt: new Date().toISOString(),
           },
         },
-        nextNodeId: this.getNextNodeId(instance),
+        nextNodeId: this.getNextNodeId(instance, context.definition),
       };
     }
 
@@ -837,7 +838,7 @@ export class WorkflowEngine {
             },
             ...mappedOutput,
           },
-          nextNodeId: this.getNextNodeId(instance),
+          nextNodeId: this.getNextNodeId(instance, context.definition),
         };
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
@@ -863,7 +864,7 @@ export class WorkflowEngine {
             message: 'Sub-workflow started asynchronously',
           },
         },
-        nextNodeId: this.getNextNodeId(instance),
+        nextNodeId: this.getNextNodeId(instance, context.definition),
       };
     }
   }
@@ -925,7 +926,7 @@ export class WorkflowEngine {
             completedAt: new Date().toISOString(),
           },
         },
-        nextNodeId: this.getNextNodeId(instance),
+        nextNodeId: this.getNextNodeId(instance, context.definition),
       };
     }
 
@@ -955,6 +956,23 @@ export class WorkflowEngine {
     instance: WorkflowInstance,
     context: WorkflowExecutionContext
   ): Promise<NodeExecutionResult> {
+    // 检查是否是最后一次执行（由调度器设置）
+    const isLastExecution = instance.variables?._timerResult?.isLastExecution === true;
+
+    if (isLastExecution) {
+      logger.info({ instanceId: instance.id }, 'Timer node: last execution reached, continuing without creating new timer');
+      return {
+        outputVariables: {
+          ...instance.variables,
+          [config.resultVariable || '_timerResult']: {
+            status: 'completed',
+            note: 'Max executions reached, workflow continues',
+          },
+        },
+        nextNodeId: this.getNextNodeId(instance, context.definition),
+      };
+    }
+
     // 渲染输入变量
     const renderedInput = this.renderVariables(
       config.inputVariables || {},
@@ -1223,12 +1241,11 @@ export class WorkflowEngine {
 
   /**
    * 获取下一个节点 ID
+   * 从工作流定义的边（edges）中查找当前节点的后继节点
    */
-  private getNextNodeId(instance: WorkflowInstance): string | null {
-    // 从定义中查找当前节点的下一个节点
-    // 这里需要 definition，但 instance 中没有，所以我们需要外部传入
-    // 暂时返回 null，由调用方处理
-    return null;
+  private getNextNodeId(instance: WorkflowInstance, definition: WorkflowDefinition): string | null {
+    const edge = definition.edges.find(e => e.source === instance.currentNodeId);
+    return edge ? edge.target : null;
   }
 
   /**

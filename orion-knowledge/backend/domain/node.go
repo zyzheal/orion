@@ -181,13 +181,15 @@ type NodeListItemResp struct {
 }
 
 type NodeContentChunk struct {
-	ID    string `json:"id"`
-	KBID  string `json:"kb_id"`
-	DocID string `json:"doc_id"`
+	ID    string  `json:"id"`
+	KBID  string  `json:"kb_id"`
+	DocID string  `json:"doc_id"`
 
-	Seq     uint   `json:"seq"`
-	Name    string `json:"name"`
-	Content string `json:"content"`
+	Seq     uint    `json:"seq"`
+	Name    string  `json:"name"`
+	Content string  `json:"content"`
+	Title   string  `json:"title,omitempty"`
+	Score   float64 `json:"score,omitempty"`
 }
 
 type RankedNodeChunks struct {

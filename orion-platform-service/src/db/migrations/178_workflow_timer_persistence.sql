@@ -62,22 +62,22 @@ CREATE INDEX idx_wid_parent ON workflow_instance_dependencies(parent_instance_id
 -- ============================================================
 DO $$
 BEGIN
-    -- Add FK to workflow_instances if it exists
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'workflow_instances') THEN
+    -- Add FK to lowcode_workflow_instance if it exists
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'lowcode_workflow_instance') THEN
         ALTER TABLE workflow_timers
             ADD CONSTRAINT fk_wt_instance
-            FOREIGN KEY (instance_id) REFERENCES workflow_instances(id) ON DELETE CASCADE;
+            FOREIGN KEY (instance_id) REFERENCES lowcode_workflow_instance(id) ON DELETE CASCADE;
     END IF;
 
-    -- Add FKs to workflow_instance_dependencies if workflow_instances exists
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'workflow_instances') THEN
+    -- Add FKs to workflow_instance_dependencies if lowcode_workflow_instance exists
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'lowcode_workflow_instance') THEN
         ALTER TABLE workflow_instance_dependencies
             ADD CONSTRAINT fk_wid_parent
-            FOREIGN KEY (parent_instance_id) REFERENCES workflow_instances(id) ON DELETE CASCADE;
+            FOREIGN KEY (parent_instance_id) REFERENCES lowcode_workflow_instance(id) ON DELETE CASCADE;
 
         ALTER TABLE workflow_instance_dependencies
             ADD CONSTRAINT fk_wid_child
-            FOREIGN KEY (child_instance_id) REFERENCES workflow_instances(id) ON DELETE CASCADE;
+            FOREIGN KEY (child_instance_id) REFERENCES lowcode_workflow_instance(id) ON DELETE CASCADE;
     END IF;
 END $$;
 
