@@ -28,11 +28,21 @@ export {
   SandboxConfig,
   ScopedFunction,
   IStyleIsolator,
-  IErrorIsolator,
-  ErrorBoundary,
-  ErrorCallback,
 } from './interface';
 
 export { StyleIsolator } from './StyleIsolator';
 
 export { ErrorIsolator } from './ErrorIsolator';
+
+export { RouterManager } from './RouterManager';
+
+export type {
+  ErrorBoundary as ErrorBoundaryType,
+  ErrorCallback,
+} from './ErrorIsolator';
+
+export type {
+  RouteConfig,
+  RouteState,
+  RouteChangeCallback,
+} from './RouterManager';
