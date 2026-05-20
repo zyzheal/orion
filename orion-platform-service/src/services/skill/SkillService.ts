@@ -4,15 +4,18 @@
  * Handles skill package management, versioning, and reviews
  */
 
-import { 
-  SkillRepository, 
+import {
+  SkillRepository,
   SkillPackage,
   SkillVersion,
+  SkillInstance,
   SkillReview,
   CreateSkillInput,
   UpdateSkillInput,
   CreateSkillVersionInput,
-  CreateSkillReviewInput
+  CreateSkillReviewInput,
+  CreateInstanceInput,
+  UpdateInstanceInput,
 } from './SkillRepository';
 
 export interface ListSkillsOptions {
@@ -210,17 +213,26 @@ export class SkillService {
     version: string;
     changelog?: string;
     schema?: Record<string, any>;
+    schema_snapshot?: Record<string, any>;
+    is_locked?: boolean;
   }): Promise<SkillVersion> {
     const skill = await this.repository.findById(skillId);
     if (!skill) {
       throw new SkillServiceError(`Skill not found: ${skillId}`, 'SKILL_NOT_FOUND');
     }
 
+    // Prevent creating versions if the skill is version-locked
+    if (skill.is_version_locked) {
+      throw new SkillServiceError('Skill version is locked', 'VERSION_LOCKED');
+    }
+
     return this.repository.createVersion({
       skill_id: skillId,
       version: input.version,
       changelog: input.changelog,
-      schema: input.schema,
+      schema: input.schema || skill.schema,
+      schema_snapshot: input.schema_snapshot || skill.schema,
+      is_locked: input.is_locked || false,
     });
   }
 
@@ -260,6 +272,166 @@ export class SkillService {
       user_id: input.user_id,
       rating: input.rating,
       comment: input.comment,
+    });
+  }
+
+  // ==================== Instance Management ====================
+
+  /**
+   * Create a new skill instance
+   */
+  async createInstance(input: CreateInstanceInput): Promise<SkillInstance> {
+    if (!input.name || input.name.trim().length === 0) {
+      throw new SkillServiceError('Instance name is required', 'INVALID_INPUT');
+    }
+
+    // Verify the skill exists
+    const skill = await this.repository.findById(input.skill_id);
+    if (!skill) {
+      throw new SkillServiceError(`Skill not found: ${input.skill_id}`, 'SKILL_NOT_FOUND');
+    }
+
+    // If this instance should be default, unset any existing default for this skill+tenant
+    if (input.is_default) {
+      const existingInstances = await this.repository.findInstancesBySkillId(input.skill_id, input.tenant_id);
+      for (const instance of existingInstances) {
+        if (instance.is_default) {
+          await this.repository.updateInstance(instance.id, { is_default: false });
+        }
+      }
+    }
+
+    return this.repository.createInstance({
+      skill_id: input.skill_id,
+      tenant_id: input.tenant_id,
+      project_id: input.project_id,
+      name: input.name.trim(),
+      config: input.config || {},
+      is_default: input.is_default || false,
+    });
+  }
+
+  /**
+   * Get skill instance by ID
+   */
+  async getInstance(id: string, tenantId?: string): Promise<SkillInstance> {
+    const instance = tenantId
+      ? await this.repository.findInstanceByIdAndTenant(id, tenantId)
+      : await this.repository.findInstanceById(id);
+
+    if (!instance) {
+      throw new SkillServiceError(`Skill instance not found: ${id}`, 'INSTANCE_NOT_FOUND');
+    }
+
+    return instance;
+  }
+
+  /**
+   * List instances for a skill
+   */
+  async listInstances(skillId: string, tenantId: string): Promise<SkillInstance[]> {
+    const skill = await this.repository.findById(skillId);
+    if (!skill) {
+      throw new SkillServiceError(`Skill not found: ${skillId}`, 'SKILL_NOT_FOUND');
+    }
+
+    return this.repository.findInstancesBySkillId(skillId, tenantId);
+  }
+
+  /**
+   * List all instances for a tenant
+   */
+  async listInstancesByTenant(tenantId: string, limit: number = 50, offset: number = 0): Promise<{ instances: SkillInstance[]; total: number }> {
+    return this.repository.findInstancesByTenant(tenantId, limit, offset);
+  }
+
+  /**
+   * Update a skill instance
+   */
+  async updateInstance(id: string, input: UpdateInstanceInput, tenantId?: string): Promise<SkillInstance> {
+    const existing = tenantId
+      ? await this.repository.findInstanceByIdAndTenant(id, tenantId)
+      : await this.repository.findInstanceById(id);
+
+    if (!existing) {
+      throw new SkillServiceError(`Skill instance not found: ${id}`, 'INSTANCE_NOT_FOUND');
+    }
+
+    // If setting as default, unset other defaults for this skill+tenant
+    if (input.is_default === true) {
+      const instances = await this.repository.findInstancesBySkillId(existing.skill_id, existing.tenant_id);
+      for (const instance of instances) {
+        if (instance.id !== id && instance.is_default) {
+          await this.repository.updateInstance(instance.id, { is_default: false });
+        }
+      }
+    }
+
+    const updated = await this.repository.updateInstance(id, input);
+    if (!updated) {
+      throw new SkillServiceError(`Failed to update instance: ${id}`, 'UPDATE_FAILED');
+    }
+
+    return updated;
+  }
+
+  /**
+   * Delete a skill instance
+   */
+  async deleteInstance(id: string, tenantId?: string): Promise<void> {
+    const existing = tenantId
+      ? await this.repository.findInstanceByIdAndTenant(id, tenantId)
+      : await this.repository.findInstanceById(id);
+
+    if (!existing) {
+      throw new SkillServiceError(`Skill instance not found: ${id}`, 'INSTANCE_NOT_FOUND');
+    }
+
+    const deleted = await this.repository.deleteInstance(id);
+    if (!deleted) {
+      throw new SkillServiceError(`Failed to delete instance: ${id}`, 'DELETE_FAILED');
+    }
+  }
+
+  // ==================== Version Locking ====================
+
+  /**
+   * Lock a skill version to prevent further modifications
+   */
+  async lockVersion(versionId: string): Promise<SkillVersion> {
+    const locked = await this.repository.lockVersion(versionId);
+    if (!locked) {
+      throw new SkillServiceError(`Skill version not found: ${versionId}`, 'VERSION_NOT_FOUND');
+    }
+    return locked;
+  }
+
+  /**
+   * Unlock a skill version to allow modifications
+   */
+  async unlockVersion(versionId: string): Promise<SkillVersion> {
+    const unlocked = await this.repository.unlockVersion(versionId);
+    if (!unlocked) {
+      throw new SkillServiceError(`Skill version not found: ${versionId}`, 'VERSION_NOT_FOUND');
+    }
+    return unlocked;
+  }
+
+  /**
+   * Record a version snapshot for a skill (convenience method)
+   */
+  async recordVersion(skillId: string, version: string, changelog?: string): Promise<SkillVersion> {
+    const skill = await this.repository.findById(skillId);
+    if (!skill) {
+      throw new SkillServiceError(`Skill not found: ${skillId}`, 'SKILL_NOT_FOUND');
+    }
+
+    return this.repository.createVersion({
+      skill_id: skillId,
+      version,
+      changelog,
+      schema: skill.schema,
+      schema_snapshot: skill.schema,
     });
   }
 

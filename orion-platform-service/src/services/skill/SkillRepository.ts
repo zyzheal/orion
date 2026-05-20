@@ -1,10 +1,10 @@
-import { DatabasePool } from '../database';
 /**
  * SkillRepository - Database layer for Skill operations
- * 
- * Handles PostgreSQL operations for skill packages, versions, and reviews
+ *
+ * Handles PostgreSQL operations for skill packages, instances, versions, and reviews
  */
 
+import { DatabasePool } from '../database';
 
 export interface SkillPackage {
   id: string;
@@ -16,9 +16,31 @@ export interface SkillPackage {
   author: string;
   status: string;
   schema: Record<string, any>;
+  /** JSON array of capability identifiers (e.g. ["ai.code-gen", "ai.code-review"]) */
+  capabilities: string[] | null;
+  /** Extended schema definitions for validation */
+  schemas: Record<string, any> | null;
+  /** When true, prevents further version changes without explicit unlock */
+  is_version_locked: boolean;
   install_count: number;
   rating: number;
   rating_count: number;
+  created_at: Date;
+  updated_at: Date;
+}
+
+/**
+ * SkillInstance represents a tenant-specific instance of a skill package.
+ * Each instance can have its own configuration overrides.
+ */
+export interface SkillInstance {
+  id: string;
+  skill_id: string;
+  tenant_id: string;
+  project_id: string | null;
+  name: string;
+  config: Record<string, any>;
+  is_default: boolean;
   created_at: Date;
   updated_at: Date;
 }
@@ -29,7 +51,13 @@ export interface SkillVersion {
   version: string;
   changelog: string | null;
   schema: Record<string, any>;
+  /** Snapshot of schema at release time */
+  schema_snapshot: Record<string, any> | null;
   is_latest: boolean;
+  /** When true, this version cannot be modified */
+  is_locked: boolean;
+  /** Timestamp when version was released */
+  released_at: Date | null;
   created_at: Date;
 }
 
@@ -50,6 +78,8 @@ export interface CreateSkillInput {
   tags?: string[];
   author: string;
   schema?: Record<string, any>;
+  capabilities?: string[];
+  schemas?: Record<string, any>;
 }
 
 export interface UpdateSkillInput {
@@ -59,6 +89,9 @@ export interface UpdateSkillInput {
   tags?: string[];
   status?: string;
   schema?: Record<string, any>;
+  capabilities?: string[];
+  schemas?: Record<string, any>;
+  is_version_locked?: boolean;
 }
 
 export interface CreateSkillVersionInput {
@@ -66,6 +99,8 @@ export interface CreateSkillVersionInput {
   version: string;
   changelog?: string;
   schema?: Record<string, any>;
+  schema_snapshot?: Record<string, any>;
+  is_locked?: boolean;
 }
 
 export interface CreateSkillReviewInput {
@@ -73,6 +108,22 @@ export interface CreateSkillReviewInput {
   user_id: string;
   rating: number;
   comment?: string;
+}
+
+export interface CreateInstanceInput {
+  skill_id: string;
+  tenant_id: string;
+  project_id?: string;
+  name: string;
+  config?: Record<string, any>;
+  is_default?: boolean;
+}
+
+export interface UpdateInstanceInput {
+  name?: string;
+  config?: Record<string, any>;
+  is_default?: boolean;
+  project_id?: string;
 }
 
 interface FindAllOptions {
@@ -182,15 +233,15 @@ export class SkillRepository {
    * Create a new skill
    */
   async create(input: CreateSkillInput): Promise<SkillPackage> {
-    const { name, version, description, category, tags, author, schema } = input;
-    
+    const { name, version, description, category, tags, author, schema, capabilities, schemas } = input;
+
     const result = await this.pool.query(
-      `INSERT INTO skill_packages (name, version, description, category, tags, author, status, schema)
-       VALUES ($1, $2, $3, $4, $5, $6, 'draft', $7)
+      `INSERT INTO skill_packages (name, version, description, category, tags, author, status, schema, capabilities, schemas)
+       VALUES ($1, $2, $3, $4, $5, $6, 'draft', $7, $8, $9)
        RETURNING *`,
-      [name, version, description, category, tags || [], author, schema || {}]
+      [name, version, description, category, tags || [], author, schema || {}, capabilities || null, schemas || null]
     );
-    
+
     return result.rows[0];
   }
 
@@ -232,12 +283,27 @@ export class SkillRepository {
       updates.push(`schema = $${paramIndex++}`);
     }
 
+    if (input.capabilities !== undefined) {
+      params.push(input.capabilities);
+      updates.push(`capabilities = $${paramIndex++}`);
+    }
+
+    if (input.schemas !== undefined) {
+      params.push(JSON.stringify(input.schemas));
+      updates.push(`schemas = $${paramIndex++}`);
+    }
+
+    if (input.is_version_locked !== undefined) {
+      params.push(input.is_version_locked);
+      updates.push(`is_version_locked = $${paramIndex++}`);
+    }
+
     if (updates.length === 0) {
       return this.findById(id);
     }
 
     params.push(id);
-    
+
     const result = await this.pool.query(
       `UPDATE skill_packages SET ${updates.join(', ')}, updated_at = NOW()
        WHERE id = $${paramIndex}
@@ -297,8 +363,8 @@ export class SkillRepository {
    * Create skill version
    */
   async createVersion(input: CreateSkillVersionInput): Promise<SkillVersion> {
-    const { skill_id, version, changelog, schema } = input;
-    
+    const { skill_id, version, changelog, schema, schema_snapshot, is_locked } = input;
+
     // Clear previous latest flag
     await this.pool.query(
       'UPDATE skill_versions SET is_latest = false WHERE skill_id = $1',
@@ -306,18 +372,18 @@ export class SkillRepository {
     );
 
     const result = await this.pool.query(
-      `INSERT INTO skill_versions (skill_id, version, changelog, schema, is_latest)
-       VALUES ($1, $2, $3, $4, true)
+      `INSERT INTO skill_versions (skill_id, version, changelog, schema, schema_snapshot, is_latest, is_locked, released_at)
+       VALUES ($1, $2, $3, $4, $5, true, $6, NOW())
        RETURNING *`,
-      [skill_id, version, changelog || null, schema || {}]
+      [skill_id, version, changelog || null, schema || {}, schema_snapshot || null, is_locked || false]
     );
-    
+
     // Update skill package version
     await this.pool.query(
       'UPDATE skill_packages SET version = $1, updated_at = NOW() WHERE id = $2',
       [version, skill_id]
     );
-    
+
     return result.rows[0];
   }
 
@@ -366,6 +432,161 @@ export class SkillRepository {
        WHERE id = $1`,
       [skillId]
     );
+  }
+
+  // ==================== Skill Instances ====================
+
+  /**
+   * Create a new skill instance for a tenant
+   */
+  async createInstance(input: CreateInstanceInput): Promise<SkillInstance> {
+    const { skill_id, tenant_id, project_id, name, config, is_default } = input;
+
+    const result = await this.pool.query(
+      `INSERT INTO skill_instances (skill_id, tenant_id, project_id, name, config, is_default)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING *`,
+      [skill_id, tenant_id, project_id || null, name, config || {}, is_default || false]
+    );
+
+    return result.rows[0];
+  }
+
+  /**
+   * Get skill instance by ID
+   */
+  async findInstanceById(id: string): Promise<SkillInstance | null> {
+    const result = await this.pool.query(
+      'SELECT * FROM skill_instances WHERE id = $1',
+      [id]
+    );
+    return result.rows[0] || null;
+  }
+
+  /**
+   * Get skill instance by ID scoped to tenant
+   */
+  async findInstanceByIdAndTenant(id: string, tenantId: string): Promise<SkillInstance | null> {
+    const result = await this.pool.query(
+      'SELECT * FROM skill_instances WHERE id = $1 AND tenant_id = $2',
+      [id, tenantId]
+    );
+    return result.rows[0] || null;
+  }
+
+  /**
+   * Get all instances for a skill within a tenant
+   */
+  async findInstancesBySkillId(skillId: string, tenantId: string): Promise<SkillInstance[]> {
+    const result = await this.pool.query(
+      'SELECT * FROM skill_instances WHERE skill_id = $1 AND tenant_id = $2 ORDER BY is_default DESC, name',
+      [skillId, tenantId]
+    );
+    return result.rows;
+  }
+
+  /**
+   * Get all instances for a tenant (across all skills)
+   */
+  async findInstancesByTenant(tenantId: string, limit: number = 50, offset: number = 0): Promise<{ instances: SkillInstance[]; total: number }> {
+    const countResult = await this.pool.query(
+      'SELECT COUNT(*) FROM skill_instances WHERE tenant_id = $1',
+      [tenantId]
+    );
+
+    const result = await this.pool.query(
+      `SELECT * FROM skill_instances
+       WHERE tenant_id = $1
+       ORDER BY is_default DESC, updated_at DESC
+       LIMIT $2 OFFSET $3`,
+      [tenantId, limit, offset]
+    );
+
+    return {
+      instances: result.rows,
+      total: parseInt(countResult.rows[0].count, 10),
+    };
+  }
+
+  /**
+   * Update a skill instance
+   */
+  async updateInstance(id: string, input: UpdateInstanceInput): Promise<SkillInstance | null> {
+    const updates: string[] = [];
+    const params: any[] = [];
+    let paramIndex = 1;
+
+    if (input.name !== undefined) {
+      params.push(input.name);
+      updates.push(`name = $${paramIndex++}`);
+    }
+
+    if (input.config !== undefined) {
+      params.push(JSON.stringify(input.config));
+      updates.push(`config = $${paramIndex++}`);
+    }
+
+    if (input.is_default !== undefined) {
+      params.push(input.is_default);
+      updates.push(`is_default = $${paramIndex++}`);
+    }
+
+    if (input.project_id !== undefined) {
+      params.push(input.project_id);
+      updates.push(`project_id = $${paramIndex++}`);
+    }
+
+    if (updates.length === 0) {
+      return this.findInstanceById(id);
+    }
+
+    params.push(id);
+
+    const result = await this.pool.query(
+      `UPDATE skill_instances SET ${updates.join(', ')}, updated_at = NOW()
+       WHERE id = $${paramIndex}
+       RETURNING *`,
+      params
+    );
+
+    return result.rows[0] || null;
+  }
+
+  /**
+   * Delete a skill instance
+   */
+  async deleteInstance(id: string): Promise<boolean> {
+    const result = await this.pool.query(
+      'DELETE FROM skill_instances WHERE id = $1',
+      [id]
+    );
+    return result.rowCount > 0;
+  }
+
+  /**
+   * Lock a skill version (prevent modifications)
+   */
+  async lockVersion(versionId: string): Promise<SkillVersion | null> {
+    const result = await this.pool.query(
+      `UPDATE skill_versions SET is_locked = true, released_at = COALESCE(released_at, NOW())
+       WHERE id = $1
+       RETURNING *`,
+      [versionId]
+    );
+    return result.rows[0] || null;
+  }
+
+  /**
+   * Unlock a skill version (allow modifications again)
+   */
+  async unlockVersion(versionId: string): Promise<SkillVersion | null> {
+    const result = await this.pool.query(
+      `UPDATE skill_versions SET is_locked = false
+       WHERE id = $1
+       RETURNING *`,
+      [versionId]
+    );
+    return result.rows[0] || null;
   }
 
   // ==================== Search ====================

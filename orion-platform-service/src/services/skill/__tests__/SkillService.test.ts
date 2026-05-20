@@ -11,7 +11,17 @@
  */
 
 import { SkillService, SkillServiceError, ListSkillsOptions } from '../SkillService';
-import { SkillRepository, SkillPackage, SkillVersion, SkillReview, CreateSkillInput, UpdateSkillInput } from '../SkillRepository';
+import {
+  SkillRepository,
+  SkillPackage,
+  SkillVersion,
+  SkillInstance,
+  SkillReview,
+  CreateSkillInput,
+  UpdateSkillInput,
+  CreateInstanceInput,
+  UpdateInstanceInput,
+} from '../SkillRepository';
 
 // ==================== Mock Helpers ====================
 
@@ -19,6 +29,7 @@ function makeMockRepository() {
   const skills: Map<string, SkillPackage> = new Map();
   const versions: Map<string, SkillVersion[]> = new Map();
   const reviews: Map<string, SkillReview[]> = new Map();
+  const instances: Map<string, SkillInstance> = new Map();
 
   const repo: jest.Mocked<SkillRepository> = {
     findById: jest.fn(async (id: string) => skills.get(id) ?? null),
@@ -60,6 +71,9 @@ function makeMockRepository() {
         author: input.author,
         status: 'draft',
         schema: input.schema || {},
+        capabilities: input.capabilities || null,
+        schemas: input.schemas || null,
+        is_version_locked: false,
         install_count: 0,
         rating: 0,
         rating_count: 0,
@@ -106,7 +120,10 @@ function makeMockRepository() {
         version: input.version,
         changelog: input.changelog ?? null,
         schema: input.schema || {},
+        schema_snapshot: input.schema_snapshot ?? null,
         is_latest: true,
+        is_locked: input.is_locked ?? false,
+        released_at: new Date(),
         created_at: new Date(),
       };
       const skillVersions = versions.get(input.skill_id) || [];
@@ -131,6 +148,82 @@ function makeMockRepository() {
     findLatestVersion: jest.fn(async (skillId: string) => {
       const skillVersions = versions.get(skillId) || [];
       return skillVersions.find((v) => v.is_latest) || null;
+    }),
+
+    // Instance CRUD mocks
+    createInstance: jest.fn(async (input: CreateInstanceInput) => {
+      const instance: SkillInstance = {
+        id: `inst-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        skill_id: input.skill_id,
+        tenant_id: input.tenant_id,
+        project_id: input.project_id ?? null,
+        name: input.name,
+        config: input.config || {},
+        is_default: input.is_default || false,
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      instances.set(instance.id, instance);
+      return instance;
+    }),
+
+    findInstanceById: jest.fn(async (id: string) => instances.get(id) ?? null),
+
+    findInstanceByIdAndTenant: jest.fn(async (id: string, _tenantId: string) => instances.get(id) ?? null),
+
+    findInstancesBySkillId: jest.fn(async (skillId: string, tenantId: string) => {
+      return Array.from(instances.values()).filter(
+        (i) => i.skill_id === skillId && i.tenant_id === tenantId
+      ).sort((a, b) => (b.is_default ? 1 : 0) - (a.is_default ? 1 : 0) || a.name.localeCompare(b.name));
+    }),
+
+    findInstancesByTenant: jest.fn(async (tenantId: string, _limit = 50, _offset = 0) => {
+      const filtered = Array.from(instances.values()).filter(
+        (i) => i.tenant_id === tenantId
+      );
+      return { instances: filtered, total: filtered.length };
+    }),
+
+    updateInstance: jest.fn(async (id: string, input: UpdateInstanceInput) => {
+      const existing = instances.get(id);
+      if (!existing) return null;
+      const updated = {
+        ...existing,
+        ...input,
+        updated_at: new Date(),
+      };
+      instances.set(id, updated);
+      return updated;
+    }),
+
+    deleteInstance: jest.fn(async (id: string) => {
+      const existing = instances.get(id);
+      if (!existing) return false;
+      instances.delete(id);
+      return true;
+    }),
+
+    lockVersion: jest.fn(async (versionId: string) => {
+      for (const [skillId, skillVersions] of versions.entries()) {
+        const version = skillVersions.find((v) => v.id === versionId);
+        if (version) {
+          version.is_locked = true;
+          version.released_at = new Date();
+          return version;
+        }
+      }
+      return null;
+    }),
+
+    unlockVersion: jest.fn(async (versionId: string) => {
+      for (const skillVersions of versions.values()) {
+        const version = skillVersions.find((v) => v.id === versionId);
+        if (version) {
+          version.is_locked = false;
+          return version;
+        }
+      }
+      return null;
     }),
 
     createReview: jest.fn(async (input) => {
@@ -186,7 +279,7 @@ function makeMockRepository() {
     }),
   } as unknown as jest.Mocked<SkillRepository>;
 
-  return { repo, skills, versions, reviews };
+  return { repo, skills, versions, reviews, instances };
 }
 
 function makeSampleSkillInput(overrides: Partial<CreateSkillInput> = {}): CreateSkillInput {
@@ -858,6 +951,242 @@ describe('SkillService', () => {
 
         const result = await service.getFeaturedSkills(5);
         expect(result.length).toBe(5);
+      });
+    });
+  });
+
+  describe('Instance management', () => {
+    describe('createInstance', () => {
+      it('should create a skill instance', async () => {
+        const { repo } = makeMockRepository();
+        const service = new SkillService(repo);
+
+        const skill = await service.createSkill(makeSampleSkillInput({ name: 'instance-skill' }));
+        const instance = await service.createInstance({
+          skill_id: skill.id,
+          tenant_id: 'tenant-1',
+          name: 'My Instance',
+          config: { key: 'value' },
+          is_default: true,
+        });
+
+        expect(instance.name).toBe('My Instance');
+        expect(instance.skill_id).toBe(skill.id);
+        expect(instance.tenant_id).toBe('tenant-1');
+        expect(instance.config).toEqual({ key: 'value' });
+        expect(instance.is_default).toBe(true);
+      });
+
+      it('should throw when instance name is empty', async () => {
+        const { repo } = makeMockRepository();
+        const service = new SkillService(repo);
+
+        const skill = await service.createSkill(makeSampleSkillInput({ name: 'test-skill' }));
+        await expect(
+          service.createInstance({ skill_id: skill.id, tenant_id: 't1', name: '' })
+        ).rejects.toThrow('Instance name is required');
+      });
+
+      it('should throw when skill does not exist', async () => {
+        const { repo } = makeMockRepository();
+        const service = new SkillService(repo);
+
+        await expect(
+          service.createInstance({ skill_id: 'nonexistent', tenant_id: 't1', name: 'inst' })
+        ).rejects.toThrow('Skill not found');
+      });
+
+      it('should unset existing default when creating a new default instance', async () => {
+        const { repo } = makeMockRepository();
+        const service = new SkillService(repo);
+
+        const skill = await service.createSkill(makeSampleSkillInput({ name: 'default-skill' }));
+        const inst1 = await service.createInstance({
+          skill_id: skill.id,
+          tenant_id: 't1',
+          name: 'First',
+          is_default: true,
+        });
+        expect(inst1.is_default).toBe(true);
+
+        const inst2 = await service.createInstance({
+          skill_id: skill.id,
+          tenant_id: 't1',
+          name: 'Second',
+          is_default: true,
+        });
+
+        expect(inst2.is_default).toBe(true);
+        expect(repo.updateInstance).toHaveBeenCalledWith(inst1.id, { is_default: false });
+      });
+    });
+
+    describe('getInstance', () => {
+      it('should return instance by ID', async () => {
+        const { repo } = makeMockRepository();
+        const service = new SkillService(repo);
+
+        const skill = await service.createSkill(makeSampleSkillInput({ name: 'get-inst-skill' }));
+        const created = await service.createInstance({
+          skill_id: skill.id,
+          tenant_id: 't1',
+          name: 'Get Me',
+        });
+
+        const result = await service.getInstance(created.id);
+        expect(result.name).toBe('Get Me');
+      });
+
+      it('should throw when instance not found', async () => {
+        const { repo } = makeMockRepository();
+        const service = new SkillService(repo);
+
+        await expect(service.getInstance('nonexistent')).rejects.toThrow('Skill instance not found');
+      });
+    });
+
+    describe('updateInstance', () => {
+      it('should update instance fields', async () => {
+        const { repo } = makeMockRepository();
+        const service = new SkillService(repo);
+
+        const skill = await service.createSkill(makeSampleSkillInput({ name: 'update-inst-skill' }));
+        const created = await service.createInstance({
+          skill_id: skill.id,
+          tenant_id: 't1',
+          name: 'Update Me',
+          config: { old: 'config' },
+        });
+
+        const updated = await service.updateInstance(created.id, {
+          name: 'Updated Name',
+          config: { new: 'config' },
+        });
+
+        expect(updated.name).toBe('Updated Name');
+        expect(updated.config).toEqual({ new: 'config' });
+      });
+
+      it('should throw when instance not found', async () => {
+        const { repo } = makeMockRepository();
+        const service = new SkillService(repo);
+
+        await expect(service.updateInstance('nonexistent', { name: 'x' })).rejects.toThrow('Skill instance not found');
+      });
+    });
+
+    describe('deleteInstance', () => {
+      it('should delete an instance', async () => {
+        const { repo } = makeMockRepository();
+        const service = new SkillService(repo);
+
+        const skill = await service.createSkill(makeSampleSkillInput({ name: 'delete-inst-skill' }));
+        const created = await service.createInstance({
+          skill_id: skill.id,
+          tenant_id: 't1',
+          name: 'Delete Me',
+        });
+
+        await service.deleteInstance(created.id);
+        expect(repo.deleteInstance).toHaveBeenCalledWith(created.id);
+      });
+
+      it('should throw when instance not found', async () => {
+        const { repo } = makeMockRepository();
+        const service = new SkillService(repo);
+
+        await expect(service.deleteInstance('nonexistent')).rejects.toThrow('Skill instance not found');
+      });
+    });
+
+    describe('listInstances', () => {
+      it('should list instances for a skill', async () => {
+        const { repo } = makeMockRepository();
+        const service = new SkillService(repo);
+
+        const skill = await service.createSkill(makeSampleSkillInput({ name: 'list-inst-skill' }));
+        await service.createInstance({ skill_id: skill.id, tenant_id: 't1', name: 'Inst 1' });
+        await service.createInstance({ skill_id: skill.id, tenant_id: 't1', name: 'Inst 2' });
+
+        const result = await service.listInstances(skill.id, 't1');
+        expect(result.length).toBe(2);
+        expect(result.some((r) => r.name === 'Inst 1')).toBe(true);
+        expect(result.some((r) => r.name === 'Inst 2')).toBe(true);
+      });
+    });
+  });
+
+  describe('Version locking', () => {
+    describe('lockVersion', () => {
+      it('should lock a version', async () => {
+        const { repo } = makeMockRepository();
+        const service = new SkillService(repo);
+
+        const skill = await service.createSkill(makeSampleSkillInput({ name: 'lock-skill' }));
+        const ver = await service.createVersion(skill.id, { version: '1.1.0' });
+
+        const locked = await service.lockVersion(ver.id);
+        expect(locked.is_locked).toBe(true);
+      });
+
+      it('should throw when version not found', async () => {
+        const { repo } = makeMockRepository();
+        const service = new SkillService(repo);
+
+        await expect(service.lockVersion('nonexistent')).rejects.toThrow('Skill version not found');
+      });
+    });
+
+    describe('unlockVersion', () => {
+      it('should unlock a version', async () => {
+        const { repo } = makeMockRepository();
+        const service = new SkillService(repo);
+
+        const skill = await service.createSkill(makeSampleSkillInput({ name: 'unlock-skill' }));
+        const ver = await service.createVersion(skill.id, { version: '1.1.0' });
+        await service.lockVersion(ver.id);
+
+        const unlocked = await service.unlockVersion(ver.id);
+        expect(unlocked.is_locked).toBe(false);
+      });
+    });
+
+    describe('recordVersion', () => {
+      it('should record a version snapshot', async () => {
+        const { repo } = makeMockRepository();
+        const service = new SkillService(repo);
+
+        const skill = await service.createSkill(makeSampleSkillInput({ name: 'record-skill', schema: { v: 3 } }));
+        const ver = await service.recordVersion(skill.id, '2.0.0', 'Major update');
+
+        expect(ver.version).toBe('2.0.0');
+        expect(ver.changelog).toBe('Major update');
+        expect(ver.schema_snapshot).toEqual({ v: 3 });
+      });
+
+      it('should throw when skill not found', async () => {
+        const { repo } = makeMockRepository();
+        const service = new SkillService(repo);
+
+        await expect(service.recordVersion('nonexistent', '1.0.0')).rejects.toThrow('Skill not found');
+      });
+    });
+
+    describe('createVersion with version lock', () => {
+      it('should throw when skill is version-locked', async () => {
+        const { repo, skills } = makeMockRepository();
+        const service = new SkillService(repo);
+
+        const skill = await service.createSkill(makeSampleSkillInput({ name: 'locked-skill' }));
+        // Manually set version lock
+        skills.get(skill.id)!.is_version_locked = true;
+
+        try {
+          await service.createVersion(skill.id, { version: '1.1.0' });
+          fail('Should have thrown');
+        } catch (err) {
+          expect((err as SkillServiceError).code).toBe('VERSION_LOCKED');
+        }
       });
     });
   });
