@@ -64,3 +64,34 @@ export interface IStyleIsolator {
   /** Unmount a micro app and cleanup resources */
   unmount(key: string): void;
 }
+
+// ============================================================================
+// ErrorIsolator Types
+// ============================================================================
+
+/** Error callback type */
+export type ErrorCallback = (error: Error) => void;
+
+/** Error boundary interface */
+export interface ErrorBoundary {
+  /** Capture an error */
+  capture(error: Error): void;
+  /** Get the sub-app key */
+  getKey(): string;
+}
+
+/** ErrorIsolator interface */
+export interface IErrorIsolator {
+  /** Set up error boundary for a sub-app */
+  setup(key: string, onError: ErrorCallback): ErrorBoundary;
+  /** Get error boundary for a specific sub-app */
+  getBoundary(key: string): ErrorBoundary | undefined;
+  /** Check if a sub-app has an active error boundary */
+  hasBoundary(key: string): boolean;
+  /** Remove error boundary for a sub-app */
+  remove(key: string): void;
+  /** Get all registered sub-app keys */
+  getRegisteredKeys(): string[];
+  /** Destroy the ErrorIsolator */
+  destroy(): void;
+}

@@ -28,6 +28,11 @@ export {
   SandboxConfig,
   ScopedFunction,
   IStyleIsolator,
+  IErrorIsolator,
+  ErrorBoundary,
+  ErrorCallback,
 } from './interface';
 
 export { StyleIsolator } from './StyleIsolator';
+
+export { ErrorIsolator } from './ErrorIsolator';
