@@ -18,6 +18,8 @@ import { RunnerPoolService, RunnerExecutionResult } from '../services/pipeline/R
 import { DockerBuildService, DockerBuildOptions, DockerPushOptions, DockerScanOptions } from '../services/pipeline/DockerBuildService';
 import { BuildxBuilderService, BuildOptions } from '../services/build/BuildxBuilderService';
 import { ContainerSpec, DockerExecutor, LocalSpawnExecutor, ContainerExecutorStrategy } from './ContainerExecutor';
+import { SkillService } from '../services/skill/SkillService';
+import { SkillPackage, SkillVersion } from '../services/skill/SkillRepository';
 import pino from 'pino';
 
 const logger = pino({ name: 'task-runner' });
@@ -38,6 +40,57 @@ interface SpawnResult {
   exitCode: number;
   stdout: string;
   stderr: string;
+}
+
+/**
+ * Skill 运行时配置
+ *
+ * 定义 Skill 任务的执行方式，支持多种运行时后端：
+ * - Docker: 容器化执行（隔离性最强）
+ * - Script: 脚本执行（shell/python/node 等）
+ * - API: HTTP API 调用（外部服务集成）
+ * - Builtin: 内置服务调用（平台原生能力）
+ */
+interface SkillRuntimeConfig {
+  taskType: string;
+  docker?: {
+    image: string;
+    command?: string;
+    env?: Record<string, string>;
+    resources?: { cpu?: string; memory?: string };
+  };
+  script?: {
+    interpreter: string;
+    content?: string;
+  };
+  api?: {
+    endpoint: string;
+    method: string;
+  };
+  builtin?: {
+    service: string;
+    action: string;
+  };
+  timeout?: number;
+  retryPolicy?: { maxRetries: number; backoffMs: number };
+}
+
+/**
+ * Skill 任务定义
+ *
+ * 用于 Pipeline 中声明式调用 Skill 任务。
+ * 支持通过 skillId 查找 Skill，通过 instanceId 获取预配置实例，
+ * 最终由 Skill 的 schema 中定义的 runtime 配置决定实际执行方式。
+ */
+interface SkillTaskDefinition {
+  type: 'skill';
+  skillId: string;
+  skillVersion?: string;
+  instanceId?: string;
+  capability: string;  // SkillCapability type
+  input: Record<string, any>;
+  timeout?: number;
+  retryPolicy?: { maxRetries: number; backoffMs: number };
 }
 
 /**
@@ -246,6 +299,7 @@ export class TaskRunner {
   private workspaceIsolator: WorkspaceIsolator;
   private secretsService?: SecretsService;
   private runnerPoolService?: RunnerPoolService;
+  private skillService?: SkillService;
 
   constructor(options?: {
     pluginExecutor?: PluginExecutorService;
@@ -253,12 +307,14 @@ export class TaskRunner {
     workspaceIsolator?: WorkspaceIsolator;
     secretsService?: SecretsService;
     runnerPoolService?: RunnerPoolService;
+    skillService?: SkillService;
   }) {
     this.pluginExecutor = options?.pluginExecutor;
     this.inlineScriptService = options?.inlineScriptService;
     this.workspaceIsolator = options?.workspaceIsolator || getDefaultWorkspaceIsolator();
     this.secretsService = options?.secretsService;
     this.runnerPoolService = options?.runnerPoolService;
+    this.skillService = options?.skillService;
   }
 
   /**
@@ -429,6 +485,10 @@ export class TaskRunner {
 
     if (type.startsWith('inline-script/')) {
       return this.executeInlineScriptTask(task, signal);
+    }
+
+    if (type === 'skill' || type.startsWith('skill/')) {
+      return this.executeSkillTaskEntry(task, signal);
     }
 
     if (type.startsWith('git/')) {
@@ -1132,6 +1192,415 @@ export class TaskRunner {
       exitCode: 0,
       stdout: 'Inline script executed successfully',
       log: task.log,
+    };
+  }
+
+  /**
+   * Skill 任务执行入口
+   *
+   * 将 Skill 集成到 Pipeline 任务体系中，作为 TaskRunner 的一种任务类型。
+   * 支持通过 skillId 引用 Skill，通过 instanceId 使用预配置实例，
+   * 根据 Skill 的 schema 中配置的 runtime 配置决定实际执行方式。
+   *
+   * 执行流程：
+   * 1. 获取 Skill 信息并验证状态
+   * 2. 版本校验（如果指定了 skillVersion）
+   * 3. 获取实例配置（如果有 instanceId，合并实例配置与输入参数）
+   * 4. 获取 capability 对应的 runtime 配置
+   * 5. 通过 executeByRuntime 分发到具体执行器
+   */
+  private async executeSkillTaskEntry(task: Task, signal?: AbortSignal): Promise<Record<string, unknown>> {
+    const params = task.parameters;
+    const skillId = (params.skillId as string) || '';
+    const skillVersion = (params.skillVersion as string) || undefined;
+    const instanceId = (params.instanceId as string) || undefined;
+    const capability = (params.capability as string) || '';
+    const input = (params.input as Record<string, any>) || {};
+
+    if (!skillId) {
+      throw new Error('Skill task requires "skillId" parameter');
+    }
+    if (!capability) {
+      throw new Error('Skill task requires "capability" parameter');
+    }
+
+    task = appendTaskLog(task, `[SKILL] Executing skill: ${skillId}`);
+    if (skillVersion) {
+      task = appendTaskLog(task, `[SKILL] Requested version: ${skillVersion}`);
+    }
+    if (instanceId) {
+      task = appendTaskLog(task, `[SKILL] Using instance: ${instanceId}`);
+    }
+    task = appendTaskLog(task, `[SKILL] Capability: ${capability}`);
+
+    // Delegate to the main execution method
+    return this.executeSkillTask(
+      { skillId, skillVersion, instanceId, capability, input },
+      task
+    );
+  }
+
+  /**
+   * Skill 任务核心执行逻辑
+   *
+   * @param definition - Skill 任务定义
+   * @param task - 当前 Pipeline Task（用于日志记录）
+   * @returns 执行结果
+   */
+  private async executeSkillTask(
+    definition: {
+      skillId: string;
+      skillVersion?: string;
+      instanceId?: string;
+      capability: string;
+      input: Record<string, any>;
+    },
+    task: Task
+  ): Promise<Record<string, unknown>> {
+    const { skillId, skillVersion, instanceId, capability, input } = definition;
+
+    // 1. 检查 SkillService 是否可用
+    if (!this.skillService) {
+      task = appendTaskLog(task, `[SKILL] SkillService not available, falling back to mock`);
+      return this.executeMockTask(task);
+    }
+
+    // 2. 获取 Skill 信息
+    const skill = await this.skillService.getSkill(skillId);
+    task = appendTaskLog(task, `[SKILL] Found skill: ${skill.name} (v${skill.version})`);
+
+    // 3. 版本验证：如果指定了版本，校验是否匹配
+    // SkillPackage 使用 version 字段表示当前版本
+    if (skillVersion && skill.version !== skillVersion) {
+      // 尝试查找指定版本
+      const versions = await this.skillService.getVersions(skillId);
+      const versionExists = versions.some(v => v.version === skillVersion);
+      if (!versionExists) {
+        throw new Error(`Skill version ${skillVersion} not found for ${skill.name}`);
+      }
+      task = appendTaskLog(task, `[SKILL] Warning: Current skill version is ${skill.version}, requested ${skillVersion}`);
+      // Note: In a full implementation, we would load the specific version's schema
+    }
+
+    // 4. 获取实例配置（如果有 instanceId）
+    // 当前 SkillService 没有 instance 概念，此处预留扩展点
+    let config = input;
+    if (instanceId) {
+      task = appendTaskLog(task, `[SKILL] Warning: Instance ${instanceId} not yet supported, using input directly`);
+      // Future: const instance = await this.skillService.getInstance(instanceId);
+      // config = { ...instance.config, ...input };
+    }
+
+    // 5. 获取 capability 对应的 runtime 配置
+    // Skill 的 schema 中可能包含运行时配置，格式约定：
+    // schema.runtimes[capability] = SkillRuntimeConfig
+    // 或者 schema.runtime = SkillRuntimeConfig（单运行时）
+    const runtime = this.extractRuntimeConfig(skill, capability);
+    if (!runtime) {
+      throw new Error(`Skill "${skill.name}" not configured for capability "${capability}"`);
+    }
+
+    task = appendTaskLog(task, `[SKILL] Runtime type: ${runtime.taskType}`);
+
+    // 6. 通过运行时分发器执行
+    const startTime = Date.now();
+    const result = await this.executeByRuntime(runtime, config, task);
+    const durationMs = Date.now() - startTime;
+
+    return {
+      skillId,
+      skillName: skill.name,
+      skillVersion: skill.version,
+      capability,
+      runtimeType: runtime.taskType,
+      durationMs,
+      ...result,
+      log: task.log,
+    };
+  }
+
+  /**
+   * 从 Skill 的 schema 中提取运行时配置
+   *
+   * 支持两种格式：
+   * 1. schema.runtimes[capability] - 多运行时配置（按 capability 区分）
+   * 2. schema.runtime - 单运行时配置（适用于所有 capability）
+   */
+  private extractRuntimeConfig(skill: SkillPackage, capability: string): SkillRuntimeConfig | null {
+    const schema = skill.schema || {};
+
+    // 尝试从 runtimes 中获取指定 capability 的运行时配置
+    const runtimes = schema.runtimes as Record<string, SkillRuntimeConfig> | undefined;
+    if (runtimes && runtimes[capability]) {
+      return runtimes[capability];
+    }
+
+    // 尝试从 schema.capabilities[capability] 中获取
+    const capabilities = schema.capabilities as Record<string, { runtime?: SkillRuntimeConfig }> | undefined;
+    if (capabilities && capabilities[capability]?.runtime) {
+      return capabilities[capability].runtime!;
+    }
+
+    // 回退到单运行时配置
+    const singleRuntime = schema.runtime as SkillRuntimeConfig | undefined;
+    if (singleRuntime) {
+      return singleRuntime;
+    }
+
+    return null;
+  }
+
+  /**
+   * 运行时分发器 - 根据 SkillRuntimeConfig 分发到具体执行器
+   *
+   * 支持四种运行时模式：
+   * - Docker: 容器化执行，提供最强隔离
+   * - Script: 脚本执行，支持 shell/python/node 等解释器
+   * - API: HTTP API 调用，用于外部服务集成
+   * - Builtin: 内置服务调用，复用平台原生能力
+   */
+  private async executeByRuntime(
+    runtime: SkillRuntimeConfig,
+    input: Record<string, any>,
+    task: Task
+  ): Promise<Record<string, unknown>> {
+    // Docker 执行
+    if (runtime.docker) {
+      return this.executeSkillDockerTask(runtime.docker, input, task);
+    }
+
+    // Script 执行
+    if (runtime.script) {
+      return this.executeSkillScriptTask(runtime.script, input, runtime.timeout, task);
+    }
+
+    // HTTP API 调用
+    if (runtime.api) {
+      return this.executeSkillApiTask(runtime.api, input, task);
+    }
+
+    // 内置服务调用
+    if (runtime.builtin) {
+      return this.executeSkillBuiltinTask(runtime.builtin, input, task);
+    }
+
+    throw new Error('No runtime configured for skill task');
+  }
+
+  /**
+   * Docker 运行时执行
+   *
+   * 使用 DockerBuildService 构建/运行容器，适合需要完整隔离环境的 Skill。
+   */
+  private async executeSkillDockerTask(
+    dockerConfig: {
+      image: string;
+      command?: string;
+      env?: Record<string, string>;
+      resources?: { cpu?: string; memory?: string };
+    },
+    input: Record<string, any>,
+    task: Task
+  ): Promise<Record<string, unknown>> {
+    const { image, command, env, resources } = dockerConfig;
+
+    task = appendTaskLog(task, `[SKILL-DOCKER] Image: ${image}`);
+    if (command) {
+      task = appendTaskLog(task, `[SKILL-DOCKER] Command: ${command}`);
+    }
+
+    // 将 input 序列化为环境变量传递给容器
+    const containerEnv: Record<string, string> = { ...env };
+    // 将 input 中的简单值作为环境变量注入
+    for (const [key, value] of Object.entries(input)) {
+      if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+        containerEnv[`SKILL_INPUT_${key.toUpperCase()}`] = String(value);
+      }
+    }
+
+    // 复用现有的 ContainerTask 执行逻辑
+    const spec: ContainerSpec = {
+      image,
+      workdir: '/workspace',
+      env: containerEnv,
+      resources: resources ? {
+        cpu: resources.cpu,
+        memory: resources.memory,
+      } : undefined,
+    };
+
+    const cmd = command ? ['sh', '-c', command] : ['sh', '-c', 'echo "Skill executed"'];
+    const timeoutMs = (task.timeoutSeconds || 300) * 1000;
+
+    const executor: ContainerExecutorStrategy = new DockerExecutor();
+    if (!(await executor.isAvailable())) {
+      task = appendTaskLog(task, `[SKILL-DOCKER] Docker not available, falling back to local`);
+      throw new Error('Docker runtime not available');
+    }
+
+    const result = await executor.execute(spec, cmd[0], cmd.slice(1), timeoutMs);
+
+    if (result.exitCode !== 0) {
+      throw new Error(`Docker skill failed (exit code ${result.exitCode}): ${result.stderr}`);
+    }
+
+    return {
+      runtimeType: 'docker',
+      image,
+      exitCode: result.exitCode,
+      stdout: result.stdout,
+      stderr: result.stderr,
+      containerId: result.containerId,
+    };
+  }
+
+  /**
+   * Script 运行时执行
+   *
+   * 使用 spawn 执行脚本（shell/python/node 等），适合轻量级 Skill。
+   */
+  private async executeSkillScriptTask(
+    scriptConfig: {
+      interpreter: string;
+      content?: string;
+    },
+    input: Record<string, any>,
+    timeout: number | undefined,
+    task: Task
+  ): Promise<Record<string, unknown>> {
+    const { interpreter, content } = scriptConfig;
+
+    if (!content) {
+      throw new Error('Script runtime requires "content" field');
+    }
+
+    const timeoutMs = timeout ? timeout * 1000 : (task.timeoutSeconds || 60) * 1000;
+    const cwd = this.getTaskWorkspace(task, 'skill');
+
+    task = appendTaskLog(task, `[SKILL-SCRIPT] Interpreter: ${interpreter}`);
+
+    // 检查解释器是否可用
+    const interpreterAvailable = await isCommandAvailable(interpreter);
+    if (!interpreterAvailable) {
+      task = appendTaskLog(task, `[SKILL-SCRIPT] ${interpreter} not available`);
+      throw new Error(`Script interpreter "${interpreter}" not available`);
+    }
+
+    // 安全检查
+    if (!isScriptSafe(content)) {
+      throw new Error('Skill script contains potentially dangerous commands');
+    }
+
+    // 将 input 序列化为环境变量
+    const env: Record<string, string> = {};
+    for (const [key, value] of Object.entries(input)) {
+      if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+        env[`SKILL_INPUT_${key.toUpperCase()}`] = String(value);
+      }
+    }
+
+    const result = await spawnCommand(interpreter, ['-c', content], {
+      cwd,
+      timeoutMs,
+      env,
+    });
+
+    if (result.exitCode !== 0) {
+      throw new Error(`Script skill failed (exit code ${result.exitCode}): ${result.stderr}`);
+    }
+
+    return {
+      runtimeType: 'script',
+      interpreter,
+      exitCode: result.exitCode,
+      stdout: result.stdout,
+      stderr: result.stderr,
+    };
+  }
+
+  /**
+   * API 运行时执行
+   *
+   * 通过 HTTP 调用外部服务，适合与第三方系统集成的 Skill。
+   */
+  private async executeSkillApiTask(
+    apiConfig: {
+      endpoint: string;
+      method: string;
+    },
+    input: Record<string, any>,
+    task: Task
+  ): Promise<Record<string, unknown>> {
+    const { endpoint, method } = apiConfig;
+
+    task = appendTaskLog(task, `[SKILL-API] ${method.toUpperCase()} ${endpoint}`);
+
+    // 使用 Node.js 原生 fetch（Node 18+）或 http 模块
+    try {
+      const response = await fetch(endpoint, {
+        method: method.toUpperCase(),
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Skill-Task-Id': (task.id as string) || 'unknown',
+        },
+        body: JSON.stringify(input),
+      });
+
+      const statusCode = response.status;
+      let responseData: any;
+      const responseText = await response.text();
+
+      try {
+        responseData = JSON.parse(responseText);
+      } catch {
+        responseData = responseText;
+      }
+
+      if (!response.ok) {
+        throw new Error(`API skill returned ${statusCode}: ${responseText.substring(0, 200)}`);
+      }
+
+      return {
+        runtimeType: 'api',
+        endpoint,
+        statusCode,
+        response: responseData,
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      throw new Error(`API skill call failed: ${message}`);
+    }
+  }
+
+  /**
+   * Builtin 运行时执行
+   *
+   * 调用平台内置服务，复用现有 Service 层能力。
+   * 当前支持模拟执行，后续可根据 builtin.service 和 builtin.action
+   * 分发到具体的内部服务。
+   */
+  private async executeSkillBuiltinTask(
+    builtinConfig: {
+      service: string;
+      action: string;
+    },
+    input: Record<string, any>,
+    task: Task
+  ): Promise<Record<string, unknown>> {
+    const { service, action } = builtinConfig;
+
+    task = appendTaskLog(task, `[SKILL-BUILTIN] Service: ${service}, Action: ${action}`);
+
+    // 当前 builtin runtime 作为扩展点，模拟执行
+    // 未来可根据 service + action 路由到具体内部服务
+    // 例如：service='notification', action='send' -> NotificationService.send()
+    return {
+      runtimeType: 'builtin',
+      service,
+      action,
+      input,
+      simulated: true,
+      stdout: `Builtin skill [${service}.${action}] executed with input: ${JSON.stringify(input)}`,
     };
   }
 
