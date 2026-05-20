@@ -15,6 +15,7 @@ import { pipelineVersionsApi, PipelineVersion } from '@/api/pipeline-versions';
 import { useParams } from 'react-router-dom';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
+import YamlDiffViewer from './YamlDiffViewer';
 
 dayjs.extend(relativeTime);
 
@@ -25,6 +26,12 @@ const PipelineVersionHistory: React.FC = () => {
   const [versions, setVersions] = useState<PipelineVersion[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
+  const [diffModalVisible, setDiffModalVisible] = useState(false);
+  const [diffVersions, setDiffVersions] = useState<{
+    versionA: PipelineVersion | null;
+    versionB: PipelineVersion | null;
+  }>({ versionA: null, versionB: null });
+  const [diffLoading, setDiffLoading] = useState(false);
 
   const loadVersions = useCallback(async () => {
     if (!pipelineId) return;
@@ -79,16 +86,20 @@ const PipelineVersionHistory: React.FC = () => {
       message.warning('请选择两个版本进行对比');
       return;
     }
+    setDiffLoading(true);
     try {
-      const diff = await pipelineVersionsApi.diff(
-        pipelineId!,
-        selectedRowKeys[0] as string,
-        selectedRowKeys[1] as string
-      );
-      message.info(`版本对比: ${diff.summary}`);
+      // 获取两个版本的完整数据 (包含 yaml_definition)
+      const [vA, vB] = await Promise.all([
+        pipelineVersionsApi.get(pipelineId!, selectedRowKeys[0] as string),
+        pipelineVersionsApi.get(pipelineId!, selectedRowKeys[1] as string),
+      ]);
+      setDiffVersions({ versionA: vA, versionB: vB });
+      setDiffModalVisible(true);
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : '版本对比失败';
       message.error(msg);
+    } finally {
+      setDiffLoading(false);
     }
   };
 
@@ -191,7 +202,12 @@ const PipelineVersionHistory: React.FC = () => {
           </Text>
         </div>
         <Space>
-          <Button icon={<SwapOutlined />} onClick={handleDiff} disabled={selectedRowKeys.length !== 2}>
+          <Button
+            icon={<SwapOutlined />}
+            onClick={handleDiff}
+            disabled={selectedRowKeys.length !== 2}
+            loading={diffLoading}
+          >
             版本对比
           </Button>
           <Button icon={<ReloadOutlined />} onClick={loadVersions} loading={loading}>
@@ -221,6 +237,15 @@ const PipelineVersionHistory: React.FC = () => {
           />
         )}
       </CardPanel>
+
+      <YamlDiffViewer
+        yamlA={diffVersions.versionA?.yaml_definition || ''}
+        yamlB={diffVersions.versionB?.yaml_definition || ''}
+        versionA={diffVersions.versionA?.version?.toString() || ''}
+        versionB={diffVersions.versionB?.version?.toString() || ''}
+        visible={diffModalVisible}
+        onClose={() => setDiffModalVisible(false)}
+      />
     </div>
   );
 };
