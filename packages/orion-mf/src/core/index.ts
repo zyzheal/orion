@@ -98,6 +98,20 @@ export type {
   DegradationConfig,
 } from "./DegradationStrategy";
 
+// RuntimeCSSPrefixer exports
+export { RuntimeCSSPrefixer } from "./RuntimeCSSPrefixer";
+
+export {
+  getRuntimeCSSPrefixer,
+  createRuntimeCSSPrefixer,
+  cleanupRuntimeCSSPrefixer,
+} from "./RuntimeCSSPrefixer";
+
+export type {
+  CSSPrefixerConfig,
+  ReactPatchOptions,
+} from "./RuntimeCSSPrefixer";
+
 // EventBus exports
 export { EventBus, eventBus } from "./EventBus";
 export type {
@@ -138,3 +152,13 @@ export type {
 export { DevProxyManager } from "./DevProxyManager";
 export { getDevProxyManager, createDevProxyManager } from "./DevProxyManager";
 export type { ProxyList, ProxyChangeCallback } from "./DevProxyManager";
+
+// ObservabilityManager exports
+export { ObservabilityManager, getObservabilityManager, setObservabilityManager } from './ObservabilityManager';
+
+export type {
+  SubAppMetrics,
+  MetricsExporter,
+  ObservabilityOptions,
+} from './ObservabilityManager';
+
