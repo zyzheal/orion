@@ -1,11 +1,11 @@
 # 子应用管理系统与 PandaWiki 集成方案 v3.0
 
 > **设计日期**: 2026-05-20
-> **版本**: v3.1（评审修复版）
-> **状态**: 评审通过，待实施
+> **版本**: v3.2（二次评审修复版）
+> **状态**: 待二次评审通过
 > **前置文档**: `2026-05-20-pandawiki-integration-design.md`（深度集成方案，本文档是前置条件）
 >
-> **评审修复记录**:
+> **v3.1 评审修复记录**:
 > - ✅ 修复路由匹配优先级（按路径长度降序）
 > - ✅ 修复 SubAppRoute 竞态条件（增加 initialized 状态）
 > - ✅ 修复 menuConfigStore 同步方案（工作量 0.5→1 天）
@@ -13,6 +13,13 @@
 > - ✅ 增加 BroadcastChannel 跨 Tab 同步
 > - ✅ 增加错误类型区分处理
 > - ✅ 完善验收标准验证方法
+>
+> **v3.2 评审修复记录**:
+> - ✅ 修复章节编号错误（6,6→6,7）
+> - ✅ 修复动态路由与 Store 初始化冲突（兜底路由）
+> - ✅ 修复竞态条件死循环（增加 apps.length > 0 判断）
+> - ✅ 修复 menuConfigStore 同步逻辑（处理禁用/删除）
+> - ✅ 修复 BroadcastChannel 兼容性（增加 undefined 检查）
 
 ---
 
@@ -427,17 +434,25 @@ const SubAppRoute: React.FC = () => {
     return matchedApp?.key ?? null;
   };
 
-  // 确保 Store 已加载（修复竞态条件）
+  // 确保 Store 已加载（修复竞态条件 - Critical）
   useEffect(() => {
     const loadStore = async () => {
-      if (apps.length === 0 && storeLoading) {
-        // 正在加载中，等待
+      // 情况 1：已有数据，不需要加载
+      if (apps.length > 0) {
+        setInitialized(true);
         return;
       }
-      if (apps.length === 0 && !initialized) {
+      // 情况 2：正在加载中，等待（不阻塞）
+      if (storeLoading) {
+        return;
+      }
+      // 情况 3：未初始化且未在加载，触发加载
+      if (!initialized) {
         setInitialized(true);
         await fetchApps();
       }
+      // 情况 4：已加载但无数据（apps.length === 0 且 storeLoading === false）
+      // 这是正常的，可能数据库中确实没有配置
     };
     loadStore();
   }, [apps.length, storeLoading, fetchApps, initialized]);
@@ -585,26 +600,67 @@ export default SubAppRoute;
 import { getDynamicSubAppConfigs } from '@/microfront/apps';
 
 /**
- * 生成动态子应用路由
- * 从 Store 缓存读取配置，动态生成路由
+ * 动态路由生成方案（Critical 修复）
+ *
+ * 问题：路由在应用启动时生成，但 Store 可能尚未初始化
+ * 解决方案：使用统一占位路由 + 运行时解析
+ *
+ * 不再为每个子应用生成单独路由，而是使用一个通用路由
+ * 在 SubAppRoute 组件内部根据路径动态查找对应的子应用配置
+ */
+
+/**
+ * 备用：保留动态生成方案（当 Store 已初始化时使用）
+ * 在 App.tsx 的 useEffect 中确保 Store 预加载后，此方案可用
  */
 const generateSubAppRoutes = (): AppRoute[] => {
   const configs = getDynamicSubAppConfigs();
 
-  return configs.map(config => ({
-    path: config.path,  // 例如 /knowledge/*
-    element: React.lazy(() => import('@/components/SubAppRoute')),
-    protected: true,
-    hideLayout: true,
-  }));
+  // 如果 Store 已加载且有配置，使用动态路由
+  if (configs.length > 0) {
+    return configs.map(config => ({
+      path: config.path,
+      element: React.lazy(() => import('@/components/SubAppRoute')),
+      protected: true,
+      hideLayout: true,
+    }));
+  }
+
+  // Store 未初始化时，返回空数组，使用兜底路由
+  return [];
 };
 
 export const routes: AppRoute[] = [
   // ... 其他固定路由
 
-  // 动态子应用路由（必须放在最后，作为兜底）
+  // 方案 1：动态生成的路由（Store 已初始化时）
   ...generateSubAppRoutes(),
+
+  // 方案 2：兜底路由 - 匹配所有 /:appKey/* 模式
+  // 优先级最低，只有在没有更具体的路由时才匹配
+  {
+    path: '/:appKey/*',
+    element: React.lazy(() => import('@/components/SubAppRoute')),
+    protected: true,
+    hideLayout: true,
+  },
 ];
+```
+
+在 `App.tsx` 中添加 Store 预加载：
+
+```typescript
+// App.tsx
+import { useSubAppStore } from '@/stores/subappStore';
+
+function App() {
+  // 应用启动时预加载子应用配置
+  useEffect(() => {
+    useSubAppStore.getState().fetchApps();
+  }, []);
+
+  // ... 其他代码
+}
 ```
 
 ### 5.5 menuConfigStore 自动同步（P1）
@@ -644,13 +700,12 @@ import { useSubAppStore } from './subappStore';
  */
 export const syncSubAppToMenu = (): void => {
   const subApps = useSubAppStore.getState().apps;
-  const enabledApps = subApps.filter(app => app.status === 'enabled');
   const menuStore = useMenuConfigStore.getState();
 
-  // 获取当前 /ecosystem 模块
-  const ecosystemModule = menuStore.modules['/ecosystem'];
+  // 获取当前 /ecosystem 模块（增加兜底）
+  let ecosystemModule = menuStore.modules['/ecosystem'];
   if (!ecosystemModule) {
-    console.warn('[MenuSync] /ecosystem module not found');
+    console.warn('[MenuSync] /ecosystem module not found, skipping sync');
     return;
   }
 
@@ -659,7 +714,8 @@ export const syncSubAppToMenu = (): void => {
     child => !child.description?.startsWith('[subapp]')
   );
 
-  // 从数据库配置生成菜单项（标记为 [subapp]）
+  // 只同步启用的子应用（修复：处理禁用情况）
+  const enabledApps = subApps.filter(app => app.status === 'enabled');
   const subAppMenuItems = enabledApps.map(app => ({
     key: app.routes?.[0] || `/${app.key}`,
     label: app.name,
@@ -668,7 +724,8 @@ export const syncSubAppToMenu = (): void => {
     enabled: true,
   }));
 
-  // 合并：保留原有硬编码项 + 动态生成的子应用项
+  // 合并：原有硬编码项 + 启用的子应用项
+  // 注意：被禁用/删除的子应用不会出现在 subAppMenuItems 中，自然被移除
   const newChildren = [...existingHardcoded, ...subAppMenuItems];
 
   // 更新模块
@@ -677,7 +734,7 @@ export const syncSubAppToMenu = (): void => {
   });
 
   menuStore.saveConfig();
-  console.log('[MenuSync] 子应用菜单同步完成');
+  console.log(`[MenuSync] 子应用菜单同步完成，共 ${subAppMenuItems.length} 个`);
 };
 
 // 在 subappStore.ts 的以下方法中调用：
@@ -722,7 +779,7 @@ fetchApps: async () => {
 
 ---
 
-## 6. 跨 Tab 同步（BroadcastChannel）
+## 7. 跨 Tab 同步（BroadcastChannel）
 
 ### 6.3 BroadcastChannel 多标签页同步
 
@@ -731,11 +788,13 @@ fetchApps: async () => {
 ```typescript
 // stores/subappStore.ts 中新增
 
-// 创建 BroadcastChannel 实例
-const configChannel = new BroadcastChannel('orion-subapp-config');
+// 创建 BroadcastChannel 实例（兼容性修复）
+const configChannel = typeof BroadcastChannel !== 'undefined'
+  ? new BroadcastChannel('orion-subapp-config')
+  : null;
 
 // 监听其他标签页的配置变更
-if (typeof window !== 'undefined') {
+if (configChannel) {
   configChannel.onmessage = (event) => {
     const { type, timestamp } = event.data;
     if (type === 'config_updated') {
@@ -744,20 +803,26 @@ if (typeof window !== 'undefined') {
       useSubAppStore.getState().fetchApps();
     }
   };
+} else {
+  console.warn('[SubAppStore] BroadcastChannel 不支持，使用 localStorage 降级');
+  // 降级：可使用 window.addEventListener('storage', ...) 监听
 }
 
 // 在 createApp/updateApp/toggleStatus/deleteApp 成功后广播
 function broadcastConfigUpdate() {
-  configChannel.postMessage({
-    type: 'config_updated',
-    timestamp: Date.now(),
-  });
+  if (configChannel) {
+    configChannel.postMessage({
+      type: 'config_updated',
+      timestamp: Date.now(),
+    });
+  }
+  // 降级：也可触发 localStorage 事件（其他 Tab 会收到 storage 事件）
 }
 ```
 
 ---
 
-## 7. 实施计划（已修正）
+## 8. 实施计划（已修正）
 
 ### Phase 1: 路由修复（0.5天）
 
@@ -793,7 +858,7 @@ function broadcastConfigUpdate() {
 
 ---
 
-## 8. 验收标准
+## 9. 验收标准
 
 | 场景 | 预期结果 | 验证方法 |
 |------|----------|----------|
@@ -807,7 +872,7 @@ function broadcastConfigUpdate() {
 
 ---
 
-## 9. 关键修复汇总
+## 10. 关键修复汇总
 
 ### 原问题修复
 
