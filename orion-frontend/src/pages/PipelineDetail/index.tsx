@@ -306,7 +306,7 @@ const PipelineDetail: React.FC = () => {
           ...pipelineData,
           // Merge latest run data for display
           status: latestRun?.status || 'pending',
-          runNumber: latestRun?.runNumber || 0,
+          runNumber: runsData.length || 1, // 运行号从 1 开始，用运行总数作为当前运行号
           branch: latestRun?.branch || 'main',
           commit: latestRun?.commit,
           author: latestRun?.author || '-',
