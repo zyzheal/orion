@@ -188,3 +188,15 @@ export type {
   InstanceInfo,
   MultiInstanceManagerOptions,
 } from "./MultiInstanceManager";
+
+// PerformanceBenchmark exports
+export { PerformanceBenchmark } from "./PerformanceBenchmark";
+export {
+  createPerformanceBenchmark,
+} from "./PerformanceBenchmark";
+export type {
+  BenchmarkResult,
+  BenchmarkThresholds,
+  BenchmarkConfig,
+  ThresholdWarning,
+} from "./PerformanceBenchmark";
