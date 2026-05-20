@@ -17,7 +17,7 @@ import {
   Alert,
   Drawer,
 } from 'antd';
-import { spacing } from '@/tokens';
+import { colors, spacing, componentRadius, shadows, componentSpacing } from '@/tokens';
 import {
   PlusOutlined,
   SaveOutlined,
@@ -446,14 +446,22 @@ const PipelineEditor: React.FC = () => {
   );
 
   return (
-    <div style={{ padding: 0, maxWidth: 1200, margin: '0 auto' }}>
+    <div style={{
+      padding: 0,
+      maxWidth: 1200,
+      margin: '0 auto',
+      background: colors.light.bg.secondary,
+      minHeight: '100vh',
+    }}>
       {/* 页面头部 */}
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 16,
-          marginBottom: 24,
+          gap: spacing.md,
+          marginBottom: spacing.md,
+          padding: componentSpacing.cardPadding.lg,
+          background: colors.light.bg.primary,
         }}
       >
         <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/pipelines')}>
@@ -503,36 +511,52 @@ const PipelineEditor: React.FC = () => {
       </div>
 
       {/* Pipeline 基本信息 */}
-      <Card style={{ marginBottom: 24 }} title="基本信息">
-        <Form form={form} layout="inline" requiredMark initialValues={pipelineInfo}>
+      <Card
+        style={{
+          marginBottom: spacing.md,
+          borderRadius: componentRadius.card,
+          boxShadow: shadows.card,
+          border: 'none',
+        }}
+        title={<Text strong style={{ fontSize: 15 }}>基本信息</Text>}
+      >
+        <Form form={form} layout="horizontal" requiredMark initialValues={pipelineInfo}>
           <Form.Item
             label="名称"
+            name="name"
             rules={[{ required: true, message: '请输入 Pipeline 名称' }]}
+            style={{ marginBottom: componentSpacing.formItemGap.sm }}
           >
             <Input
               placeholder="例如：build-deploy-pipeline"
-              style={{ width: 250 }}
+              style={{ width: 300, borderRadius: componentRadius.input }}
               value={pipelineInfo.name}
               onChange={(e) => setPipelineInfo({ ...pipelineInfo, name: e.target.value })}
             />
           </Form.Item>
           <Form.Item
             label="版本"
+            name="version"
             rules={[{ required: true, message: '请输入版本号' }]}
+            style={{ marginBottom: componentSpacing.formItemGap.sm }}
           >
             <Input
               placeholder="例如：1.0.0"
-              style={{ width: 120 }}
+              style={{ width: 120, borderRadius: componentRadius.input }}
               value={pipelineInfo.version}
               onChange={(e) => setPipelineInfo({ ...pipelineInfo, version: e.target.value })}
             />
           </Form.Item>
-          <Form.Item label="描述" style={{ flex: 1 }}>
+          <Form.Item
+            label="描述"
+            name="description"
+            style={{ marginBottom: componentSpacing.formItemGap.sm }}
+          >
             <Input
               placeholder="可选描述..."
               value={pipelineInfo.description}
               onChange={(e) => setPipelineInfo({ ...pipelineInfo, description: e.target.value })}
-              style={{ width: 300 }}
+              style={{ width: 400, borderRadius: componentRadius.input }}
             />
           </Form.Item>
         </Form>
@@ -540,15 +564,26 @@ const PipelineEditor: React.FC = () => {
 
       {/* Stage 编排区域 */}
       <Card
+        style={{
+          marginBottom: spacing.md,
+          borderRadius: componentRadius.card,
+          boxShadow: shadows.card,
+          border: 'none',
+        }}
         title={
           <Space>
-            <DragOutlined />
-            阶段编排
+            <DragOutlined style={{ color: colors.primary[500] }} />
+            <Text strong style={{ fontSize: 15 }}>阶段编排</Text>
             <Tag color="blue">{stages.length} 个阶段</Tag>
           </Space>
         }
         extra={
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => openStageModal()}>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => openStageModal()}
+            style={{ borderRadius: componentRadius.button.md }}
+          >
             添加阶段
           </Button>
         }
@@ -583,7 +618,15 @@ const PipelineEditor: React.FC = () => {
 
       {/* DAG 依赖关系可视化 */}
       {dagPreviewVisible && stages.length > 0 && (
-        <Card style={{ marginTop: 24 }} title="DAG 依赖关系">
+        <Card
+          style={{
+            marginTop: spacing.md,
+            borderRadius: componentRadius.card,
+            boxShadow: shadows.card,
+            border: 'none',
+          }}
+          title={<Text strong style={{ fontSize: 15 }}>DAG 依赖关系</Text>}
+        >
           <Alert
             type={validateDAG(stages).valid ? 'success' : 'error'}
             message={validateDAG(stages).valid ? '依赖关系有效，无循环依赖' : '依赖关系存在问题'}
@@ -600,7 +643,15 @@ const PipelineEditor: React.FC = () => {
       )}
 
       {/* Stage 类型说明 */}
-      <Card style={{ marginTop: 24 }} title="阶段类型说明">
+      <Card
+        style={{
+          marginTop: spacing.md,
+          borderRadius: componentRadius.card,
+          boxShadow: shadows.card,
+          border: 'none',
+        }}
+        title={<Text strong style={{ fontSize: 15 }}>阶段类型说明</Text>}
+      >
         <Space wrap>
           {STAGE_TYPES.map((type) => (
             <Tag
