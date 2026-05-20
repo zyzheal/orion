@@ -584,7 +584,9 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   });
 
   // ==================== Workflow Routes (GAP Implementation) ====================
-  await registerWithRoleGuard(app, workflowRoutes, '/workflows', {});
+  await registerWithRoleGuard(app, workflowRoutes, '/workflows', {
+    database: options.database,
+  });
 
   // ==================== Workflow Trigger Routes ====================
   await registerWithRoleGuard(app, workflowTriggerRoutes, '/workflow-triggers', {

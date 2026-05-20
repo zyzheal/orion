@@ -1,33 +1,48 @@
 /**
- * Cross-Domain Workflow API Routes
+ * Lowcode Workflow API Routes
  *
- * Prefix: /api/v1/workflows
+ * Prefix: /v1/workflows (handled by register)
  *
  * Endpoints:
- * - POST /api/v1/workflows - Create workflow
- * - GET /api/v1/workflows - List workflows
- * - GET /api/v1/workflows/:id - Get workflow
- * - POST /api/v1/workflows/:id/execute - Execute workflow
- * - GET /api/v1/workflows/:id/executions - List executions
- * - GET /api/v1/workflows/executions/:executionId - Get execution
- * - POST /api/v1/workflows/:id/pause - Pause workflow
- * - POST /api/v1/workflows/:id/resume - Resume workflow
+ * - GET /v1/workflows - List workflows
+ * - GET /v1/workflows/:id - Get workflow
+ * - POST /v1/workflows - Create workflow
+ * - PUT /v1/workflows/:id - Update workflow
+ * - DELETE /v1/workflows/:id - Delete workflow
+ * - POST /v1/workflows/:id/execute - Execute workflow
+ * - GET /v1/workflows/:id/executions - List executions
+ * - GET /v1/workflows/executions/:executionId - Get execution detail
+ * - POST /v1/workflows/:id/pause - Pause workflow
+ * - POST /v1/workflows/:id/resume - Resume workflow
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { DatabasePool } from '../services/database';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
-import { CrossDomainOrchestrator, CreateWorkflowInput } from '../services/CrossDomainOrchestrator';
 
-// Route options interface
-interface WorkflowRoutesOptions {}
+interface WorkflowRoutesOptions {
+  database?: DatabasePool;
+}
 
-// Request body types
 interface CreateWorkflowBody {
   name: string;
-  description: string;
-  steps: CreateWorkflowInput['steps'];
-  triggers: CreateWorkflowInput['triggers'];
+  description?: string;
+  steps: Array<{
+    id: string;
+    type: string;
+    name: string;
+    config: Record<string, unknown>;
+  }>;
+  triggers?: string[];
+}
+
+interface UpdateWorkflowBody {
+  name?: string;
+  description?: string;
+  nodes?: unknown[];
+  edges?: unknown[];
+  enabled?: boolean;
 }
 
 interface ExecuteWorkflowBody {
@@ -35,225 +50,360 @@ interface ExecuteWorkflowBody {
   initialInput?: Record<string, unknown>;
 }
 
-// URL parameter types
-interface WorkflowParams {
-  id: string;
-}
-
-interface ExecutionParams {
-  executionId: string;
-}
-
-interface ListQuery {
-  status?: 'active' | 'paused' | 'completed' | 'failed';
-  domain?: string;
-  limit?: number;
-  offset?: number;
-}
-
 export default async function workflowRoutes(
   app: FastifyInstance,
   options: WorkflowRoutesOptions
 ): Promise<void> {
-  // Initialize orchestrator
-  const orchestrator = new CrossDomainOrchestrator();
+  const db = options.database;
 
-  // POST /api/v1/workflows - Create workflow
-  app.post<{ Body: CreateWorkflowBody }>(
-    '/v1/workflows',
-    {
-      onRequest: [authenticateUser, requirePermission({ resource: 'workflow', action: 'write' })],
-    },
-    async (request: FastifyRequest<{ Body: CreateWorkflowBody }>, reply: FastifyReply) => {
-      try {
-        const { name, description, steps, triggers } = request.body;
+  if (!db) {
+    app.log.warn('workflowRoutes: database not provided, workflow APIs will be disabled');
+    return;
+  }
 
-        if (!name || !steps || !Array.isArray(steps) || steps.length === 0) {
-          return reply.status(400).send({
-            error: 'Bad Request',
-            message: 'name and steps are required',
-          });
-        }
-
-        const input: CreateWorkflowInput = {
-          name,
-          description: description || '',
-          steps,
-          triggers: triggers || [],
-        };
-
-        const workflow = await orchestrator.createWorkflow(input);
-        return reply.status(201).send(workflow);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : 'Unknown error';
-        return reply.status(500).send({ error: 'Internal Server Error', message });
-      }
-    }
-  );
-
-  // GET /api/v1/workflows - List workflows
-  app.get<{ Querystring: ListQuery }>(
-    '/v1/workflows',
+  // ==================== GET /v1/workflows - List workflows ====================
+  app.get(
+    '/',
     {
       onRequest: [authenticateUser, requirePermission({ resource: 'workflow', action: 'read' })],
     },
-    async (request: FastifyRequest<{ Querystring: ListQuery }>, reply: FastifyReply) => {
+    async (request: FastifyRequest, reply: FastifyReply) => {
       try {
-        const { status, domain, limit, offset } = request.query;
-        const filter = { status, domain, limit, offset };
-        const workflows = await orchestrator.listWorkflows(filter);
-        return reply.send(workflows);
+        const { status, limit = 50, offset = 0 } = request.query as Record<string, any>;
+
+        let query = 'SELECT * FROM lowcode_workflow_definition WHERE 1=1';
+        const params: any[] = [];
+
+        if (status === 'active') {
+          query += ' AND enabled = $' + (params.length + 1);
+          params.push(true);
+        } else if (status === 'paused') {
+          query += ' AND enabled = $' + (params.length + 1);
+          params.push(false);
+        }
+
+        query += ' ORDER BY created_at DESC LIMIT $' + (params.length + 1);
+        params.push(limit);
+        query += ' OFFSET $' + (params.length + 1);
+        params.push(offset);
+
+        const workflows = await db.query(query, params);
+        return reply.send({ success: true, data: workflows.rows });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        return reply.status(500).send({ error: 'Internal Server Error', message });
+        return reply.status(500).send({ success: false, error: message });
       }
     }
   );
 
-  // GET /api/v1/workflows/:id - Get workflow
-  app.get<{ Params: WorkflowParams }>(
-    '/v1/workflows/:id',
+  // ==================== GET /v1/workflows/:id - Get workflow ====================
+  app.get(
+    '/:id',
     {
-      onRequest: [authenticateUser, requirePermission({ resource: 'workflow', action: 'read', extractResourceId: (req) => (req.params as { id: string }).id })],
+      onRequest: [authenticateUser, requirePermission({ resource: 'workflow', action: 'read' })],
     },
-    async (request: FastifyRequest<{ Params: WorkflowParams }>, reply: FastifyReply) => {
+    async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
       try {
         const { id } = request.params;
-        const workflow = await orchestrator.getWorkflow(id);
+        const result = await db.query(
+          'SELECT * FROM lowcode_workflow_definition WHERE id = $1',
+          [id]
+        );
 
-        if (!workflow) {
-          return reply.status(404).send({
-            error: 'Not Found',
-            message: `Workflow '${id}' not found`,
+        if (result.rows.length === 0) {
+          return reply.status(404).send({ success: false, error: 'Workflow not found' });
+        }
+
+        return reply.send({ success: true, data: result.rows[0] });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        return reply.status(500).send({ success: false, error: message });
+      }
+    }
+  );
+
+  // ==================== POST /v1/workflows - Create workflow ====================
+  app.post(
+    '/',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'workflow', action: 'write' })],
+    },
+    async (
+      request: FastifyRequest<{ Body: CreateWorkflowBody }>,
+      reply: FastifyReply
+    ) => {
+      try {
+        const { name, description, steps } = request.body;
+
+        if (!name) {
+          return reply.status(400).send({ success: false, error: 'name is required' });
+        }
+
+        // Build nodes and edges from steps
+        const nodes = (steps || []).map((step, idx) => ({
+          id: step.id || `node-${idx + 1}`,
+          type: step.type,
+          name: step.name,
+          position: { x: 20 + idx * 230, y: 100 },
+          config: step.config || {},
+        }));
+
+        const edges: Array<{ id: string; source: string; target: string }> = [];
+        for (let i = 0; i < nodes.length - 1; i++) {
+          edges.push({
+            id: `edge-${i + 1}`,
+            source: nodes[i].id,
+            target: nodes[i + 1].id,
           });
         }
 
-        return reply.send(workflow);
+        const result = await db.query(
+          `INSERT INTO lowcode_workflow_definition (name, description, nodes, edges, created_by)
+           VALUES ($1, $2, $3, $4, $5)
+           RETURNING *`,
+          [name, description || '', JSON.stringify(nodes), JSON.stringify(edges), 'system']
+        );
+
+        return reply.status(201).send({ success: true, data: result.rows[0] });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        return reply.status(500).send({ error: 'Internal Server Error', message });
+        return reply.status(500).send({ success: false, error: message });
       }
     }
   );
 
-  // POST /api/v1/workflows/:id/execute - Execute workflow
-  app.post<{ Params: WorkflowParams; Body: ExecuteWorkflowBody }>(
-    '/v1/workflows/:id/execute',
+  // ==================== PUT /v1/workflows/:id - Update workflow ====================
+  app.put(
+    '/:id',
     {
-      onRequest: [authenticateUser, requirePermission({ resource: 'workflow', action: 'execute', extractResourceId: (req) => (req.params as { id: string }).id })],
+      onRequest: [authenticateUser, requirePermission({ resource: 'workflow', action: 'write' })],
     },
     async (
-      request: FastifyRequest<{ Params: WorkflowParams; Body: ExecuteWorkflowBody }>,
+      request: FastifyRequest<{ Params: { id: string }; Body: UpdateWorkflowBody }>,
       reply: FastifyReply
     ) => {
       try {
         const { id } = request.params;
-        const { triggeredBy = 'system', initialInput } = request.body || {};
+        const { name, description, nodes, edges, enabled } = request.body;
 
-        const execution = await orchestrator.executeWorkflow(id, triggeredBy, initialInput);
-        return reply.status(201).send(execution);
+        const updates: string[] = [];
+        const params: any[] = [];
+        let paramIdx = 1;
+
+        if (name !== undefined) {
+          updates.push(`name = $${paramIdx++}`);
+          params.push(name);
+        }
+        if (description !== undefined) {
+          updates.push(`description = $${paramIdx++}`);
+          params.push(description);
+        }
+        if (nodes !== undefined) {
+          updates.push(`nodes = $${paramIdx++}`);
+          params.push(JSON.stringify(nodes));
+        }
+        if (edges !== undefined) {
+          updates.push(`edges = $${paramIdx++}`);
+          params.push(JSON.stringify(edges));
+        }
+        if (enabled !== undefined) {
+          updates.push(`enabled = $${paramIdx++}`);
+          params.push(enabled);
+        }
+
+        if (updates.length === 0) {
+          return reply.status(400).send({ success: false, error: 'No fields to update' });
+        }
+
+        updates.push(`updated_at = NOW()`);
+        params.push(id);
+
+        const result = await db.query(
+          `UPDATE lowcode_workflow_definition SET ${updates.join(', ')} WHERE id = $${paramIdx} RETURNING *`,
+          params
+        );
+
+        if (result.rows.length === 0) {
+          return reply.status(404).send({ success: false, error: 'Workflow not found' });
+        }
+
+        return reply.send({ success: true, data: result.rows[0] });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        const statusCode = message.includes('not found') ? 404 : 400;
-        return reply.status(statusCode).send({ error: 'Execution Error', message });
+        return reply.status(500).send({ success: false, error: message });
       }
     }
   );
 
-  // GET /api/v1/workflows/:id/executions - List executions
-  app.get<{ Params: WorkflowParams }>(
-    '/v1/workflows/:id/executions',
+  // ==================== DELETE /v1/workflows/:id - Delete workflow ====================
+  app.delete(
+    '/:id',
     {
-      onRequest: [authenticateUser, requirePermission({ resource: 'workflow', action: 'read', extractResourceId: (req) => (req.params as { id: string }).id })],
+      onRequest: [authenticateUser, requirePermission({ resource: 'workflow', action: 'write' })],
     },
-    async (request: FastifyRequest<{ Params: WorkflowParams }>, reply: FastifyReply) => {
+    async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
       try {
         const { id } = request.params;
-        const executions = await orchestrator.listExecutions(id);
-        return reply.send(executions);
+        const result = await db.query(
+          'DELETE FROM lowcode_workflow_definition WHERE id = $1 RETURNING id',
+          [id]
+        );
+
+        if (result.rows.length === 0) {
+          return reply.status(404).send({ success: false, error: 'Workflow not found' });
+        }
+
+        return reply.send({ success: true });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        return reply.status(500).send({ error: 'Internal Server Error', message });
+        return reply.status(500).send({ success: false, error: message });
       }
     }
   );
 
-  // GET /api/v1/workflows/executions/:executionId - Get execution
-  app.get<{ Params: ExecutionParams }>(
-    '/v1/workflows/executions/:executionId',
+  // ==================== POST /v1/workflows/:id/pause - Pause workflow ====================
+  app.post(
+    '/:id/pause',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'workflow', action: 'write' })],
+    },
+    async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+      try {
+        const { id } = request.params;
+        const result = await db.query(
+          'UPDATE lowcode_workflow_definition SET enabled = false, updated_at = NOW() WHERE id = $1 RETURNING *',
+          [id]
+        );
+
+        if (result.rows.length === 0) {
+          return reply.status(404).send({ success: false, error: 'Workflow not found' });
+        }
+
+        return reply.send({ success: true, data: result.rows[0] });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        return reply.status(500).send({ success: false, error: message });
+      }
+    }
+  );
+
+  // ==================== POST /v1/workflows/:id/resume - Resume workflow ====================
+  app.post(
+    '/:id/resume',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'workflow', action: 'write' })],
+    },
+    async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+      try {
+        const { id } = request.params;
+        const result = await db.query(
+          'UPDATE lowcode_workflow_definition SET enabled = true, updated_at = NOW() WHERE id = $1 RETURNING *',
+          [id]
+        );
+
+        if (result.rows.length === 0) {
+          return reply.status(404).send({ success: false, error: 'Workflow not found' });
+        }
+
+        return reply.send({ success: true, data: result.rows[0] });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        return reply.status(500).send({ success: false, error: message });
+      }
+    }
+  );
+
+  // ==================== POST /v1/workflows/:id/execute - Execute workflow ====================
+  app.post(
+    '/:id/execute',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'workflow', action: 'execute' })],
+    },
+    async (
+      request: FastifyRequest<{ Params: { id: string }; Body: ExecuteWorkflowBody }>,
+      reply: FastifyReply
+    ) => {
+      try {
+        const { id } = request.params;
+        const { triggeredBy = 'system', initialInput = {} } = request.body || {};
+
+        // Check workflow exists and enabled
+        const wf = await db.query(
+          'SELECT * FROM lowcode_workflow_definition WHERE id = $1',
+          [id]
+        );
+
+        if (wf.rows.length === 0) {
+          return reply.status(404).send({ success: false, error: 'Workflow not found' });
+        }
+
+        if (!wf.rows[0].enabled) {
+          return reply.status(400).send({ success: false, error: 'Workflow is not enabled' });
+        }
+
+        // Create execution instance
+        const instanceId = `exec-${Date.now()}`;
+        const result = await db.query(
+          `INSERT INTO lowcode_workflow_instance (id, workflow_id, workflow_definition_id, status, input, current_node_id)
+           VALUES ($1, $2, $3, 'running', $4, $5) RETURNING *`,
+          [instanceId, id, id, JSON.stringify(initialInput), null]
+        );
+
+        return reply.status(201).send({ success: true, data: result.rows[0] });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        return reply.status(500).send({ success: false, error: message });
+      }
+    }
+  );
+
+  // ==================== GET /v1/workflows/:id/executions - List executions ====================
+  app.get(
+    '/:id/executions',
     {
       onRequest: [authenticateUser, requirePermission({ resource: 'workflow', action: 'read' })],
     },
-    async (request: FastifyRequest<{ Params: ExecutionParams }>, reply: FastifyReply) => {
+    async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+      try {
+        const { id } = request.params;
+        const result = await db.query(
+          "SELECT * FROM lowcode_workflow_instance WHERE workflow_id = $1 ORDER BY created_at DESC LIMIT 50",
+          [id]
+        );
+
+        return reply.send({ success: true, data: result.rows });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        return reply.status(500).send({ success: false, error: message });
+      }
+    }
+  );
+
+  // ==================== GET /v1/workflows/executions/:executionId - Get execution detail ====================
+  app.get(
+    '/executions/:executionId',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'workflow', action: 'read' })],
+    },
+    async (
+      request: FastifyRequest<{ Params: { executionId: string } }>,
+      reply: FastifyReply
+    ) => {
       try {
         const { executionId } = request.params;
-        const execution = await orchestrator.getExecution(executionId);
+        const result = await db.query(
+          'SELECT * FROM lowcode_workflow_instance WHERE id = $1',
+          [executionId]
+        );
 
-        if (!execution) {
-          return reply.status(404).send({
-            error: 'Not Found',
-            message: `Execution '${executionId}' not found`,
-          });
+        if (result.rows.length === 0) {
+          return reply.status(404).send({ success: false, error: 'Execution not found' });
         }
 
-        return reply.send(execution);
+        return reply.send({ success: true, data: result.rows[0] });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        return reply.status(500).send({ error: 'Internal Server Error', message });
-      }
-    }
-  );
-
-  // POST /api/v1/workflows/:id/pause - Pause workflow
-  app.post<{ Params: WorkflowParams }>(
-    '/v1/workflows/:id/pause',
-    {
-      onRequest: [authenticateUser, requirePermission({ resource: 'workflow', action: 'write', extractResourceId: (req) => (req.params as { id: string }).id })],
-    },
-    async (request: FastifyRequest<{ Params: WorkflowParams }>, reply: FastifyReply) => {
-      try {
-        const { id } = request.params;
-        const result = await orchestrator.pauseWorkflow(id);
-
-        if (!result) {
-          return reply.status(404).send({
-            error: 'Not Found',
-            message: `Workflow '${id}' not found`,
-          });
-        }
-
-        const workflow = await orchestrator.getWorkflow(id);
-        return reply.send(workflow);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : 'Unknown error';
-        return reply.status(400).send({ error: 'Bad Request', message });
-      }
-    }
-  );
-
-  // POST /api/v1/workflows/:id/resume - Resume workflow
-  app.post<{ Params: WorkflowParams }>(
-    '/v1/workflows/:id/resume',
-    {
-      onRequest: [authenticateUser, requirePermission({ resource: 'workflow', action: 'write', extractResourceId: (req) => (req.params as { id: string }).id })],
-    },
-    async (request: FastifyRequest<{ Params: WorkflowParams }>, reply: FastifyReply) => {
-      try {
-        const { id } = request.params;
-        const result = await orchestrator.resumeWorkflow(id);
-
-        if (!result) {
-          return reply.status(404).send({
-            error: 'Not Found',
-            message: `Workflow '${id}' not found`,
-          });
-        }
-
-        const workflow = await orchestrator.getWorkflow(id);
-        return reply.send(workflow);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : 'Unknown error';
-        return reply.status(400).send({ error: 'Bad Request', message });
+        return reply.status(500).send({ success: false, error: message });
       }
     }
   );
