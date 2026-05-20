@@ -32,6 +32,7 @@ import {
   CloseCircleOutlined,
   SyncOutlined,
   InboxOutlined,
+  QueueOutlined,
 } from '@ant-design/icons';
 import {
   listJobs,
@@ -354,7 +355,8 @@ const QueueManagement: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ margin: 0, marginBottom: 8, display: 'flex', alignItems: 'center' }}>
+            <QueueOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             队列管理
           </Title>
           <Text type="secondary">管理异步任务队列，监控任务执行状态</Text>

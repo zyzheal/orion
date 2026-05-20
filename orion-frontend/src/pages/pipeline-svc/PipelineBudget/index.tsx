@@ -39,6 +39,7 @@ import {
   CheckCircleOutlined,
   BarChartOutlined,
 } from '@ant-design/icons';
+import { colors } from '@/tokens';
 import { pipelineBudgetApi, BudgetConfig, BudgetUsage } from '../../../api/pipeline-budget';
 
 const { Title, Text } = Typography;
@@ -137,8 +138,8 @@ const PipelineBudget: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
-            <DollarOutlined style={{ marginRight: 8 }} />
+          <Title level={2} style={{ margin: 0, marginBottom: 8, display: 'flex', alignItems: 'center' }}>
+            <DollarOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             流水线预算
           </Title>
           <Text type="secondary">配置和管理流水线的资源预算限制</Text>

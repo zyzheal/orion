@@ -28,6 +28,7 @@ import {
   DeleteOutlined,
   KeyOutlined,
 } from '@ant-design/icons';
+import { colors } from '@/tokens';
 import Table from '@/components/Table';
 import { useAuthStore } from '@/stores/authStore';
 import { getSecrets, createSecret, updateSecret, deleteSecret, type Secret, type SecretScope, type CreateSecretInput } from '@/api/secrets';
@@ -318,8 +319,9 @@ const ApkCredentialsManagement: React.FC = () => {
     <div style={{ padding: 24 }}>
       <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <Title level={3} style={{ margin: 0 }}>
-            <KeyOutlined /> APK 上传凭证管理
+          <Title level={2} style={{ margin: 0, marginBottom: 8, display: 'flex', alignItems: 'center' }}>
+            <KeyOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+            APK 上传凭证管理
           </Title>
           <Text type="secondary">
             配置各大应用市场的上传凭证，支持华为、小米、OPPO、VIVO、荣耀、腾讯应用宝、Google Play、三星、蒲公英、fir.im

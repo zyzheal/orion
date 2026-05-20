@@ -14,7 +14,7 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { Typography, Button, Space, Tag, DatePicker, message } from 'antd';
 import { colors, spacing } from '@/tokens';
-import { ReloadOutlined, PlayCircleOutlined } from '@ant-design/icons';
+import { ReloadOutlined, PlayCircleOutlined, RocketOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
@@ -324,7 +324,8 @@ const PipelineRunList: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ margin: 0, marginBottom: 8, display: 'flex', alignItems: 'center' }}>
+            <RocketOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             Pipeline 运行历史
           </Title>
           <Text type="secondary">共 {sortedRuns.length} 条运行记录</Text>

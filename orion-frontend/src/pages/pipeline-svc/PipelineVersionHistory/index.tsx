@@ -6,8 +6,8 @@
  */
 import React, { useState, useEffect, useCallback } from 'react';
 import { Typography, Button, Space, Tag, Modal, message, Empty } from 'antd';
-import { spacing } from '@/tokens';
-import { ReloadOutlined, SwapOutlined } from '@ant-design/icons';
+import { colors, spacing } from '@/tokens';
+import { ReloadOutlined, SwapOutlined, HistoryOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
 import CardPanel from '@/components/CardPanel';
@@ -193,7 +193,8 @@ const PipelineVersionHistory: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ margin: 0, marginBottom: 8, display: 'flex', alignItems: 'center' }}>
+            <HistoryOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             版本历史
           </Title>
           <Text type="secondary">

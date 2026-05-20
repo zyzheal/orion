@@ -24,6 +24,7 @@ import {
   ArrowLeftOutlined,
   ApartmentOutlined,
   SwapOutlined,
+  ApiOutlined,
 } from '@ant-design/icons';
 import StatusBadge from '@/components/StatusBadge';
 import CardPanel from '@/components/CardPanel';
@@ -209,7 +210,8 @@ const PipelineDetail: React.FC = () => {
           返回列表
         </Button>
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ margin: 0, marginBottom: 8, display: 'flex', alignItems: 'center' }}>
+            <ApiOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             {pipeline.name} #{pipeline.runNumber}
           </Title>
           <Text type="secondary">

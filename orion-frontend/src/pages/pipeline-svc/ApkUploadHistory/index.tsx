@@ -186,8 +186,9 @@ const ApkUploadHistoryPage: React.FC = () => {
   return (
     <div style={{ padding: 24 }}>
       <div style={{ marginBottom: 24 }}>
-        <Title level={3} style={{ margin: 0 }}>
-          <AppstoreOutlined /> APK 上传历史
+        <Title level={2} style={{ margin: 0, marginBottom: 8, display: 'flex', alignItems: 'center' }}>
+          <AppstoreOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          APK 上传历史
         </Title>
         <Text type="secondary">查看和管理 APK 上传到各应用市场的历史记录</Text>
       </div>
