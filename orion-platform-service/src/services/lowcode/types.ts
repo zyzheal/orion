@@ -29,7 +29,7 @@ export interface WorkflowDefinition {
 }
 
 /** 工作流节点类型 */
-export type WorkflowNodeType = 'start' | 'approval' | 'condition' | 'notification' | 'webhook' | 'end';
+export type WorkflowNodeType = 'start' | 'approval' | 'condition' | 'notification' | 'webhook' | 'end' | 'task' | 'sub-workflow' | 'delay' | 'timer';
 
 /** 工作流节点 */
 export interface WorkflowNode {
@@ -37,7 +37,7 @@ export interface WorkflowNode {
   type: WorkflowNodeType;
   name: string;
   position: { x: number; y: number };
-  config: StartNodeConfig | ApprovalNodeConfig | ConditionNodeConfig | NotificationNodeConfig | WebhookNodeConfig | EndNodeConfig;
+  config: StartNodeConfig | ApprovalNodeConfig | ConditionNodeConfig | NotificationNodeConfig | WebhookNodeConfig | EndNodeConfig | TaskNodeConfig | SubWorkflowNodeConfig | DelayNodeConfig | TimerNodeConfig;
 }
 
 /** 开始节点配置 */
@@ -101,6 +101,60 @@ export interface WebhookNodeConfig {
 export interface EndNodeConfig {
   type: 'end';
   outputVariables?: Record<string, any>;
+}
+
+// ==================== 新增节点类型配置 ====================
+
+/** 变量映射 */
+export interface VariableMapping {
+  source: string;
+  target: string;
+}
+
+/** Task节点配置 */
+export interface TaskNodeConfig {
+  type: 'task';
+  taskType: 'manual' | 'system';
+  assigneeType: 'user' | 'role' | 'variable';
+  assigneeIds?: string[];
+  assigneeVariable?: string;
+  title?: string;
+  description?: string;
+  timeout?: number;
+  timeoutAction?: 'auto_complete' | 'notify' | 'escalate';
+  formSchema?: Record<string, any>;
+  resultVariable?: string;
+}
+
+/** SubWorkflow节点配置 */
+export interface SubWorkflowNodeConfig {
+  type: 'sub-workflow';
+  subWorkflowId: string;
+  subWorkflowVersion?: number;
+  inputMappings?: VariableMapping[];
+  outputMappings?: VariableMapping[];
+  waitForCompletion: boolean;
+  resultVariable?: string;
+}
+
+/** Delay节点配置 */
+export interface DelayNodeConfig {
+  type: 'delay';
+  duration: number;
+  durationVariable?: string;
+  resumeEvent?: string;
+  timeoutAction?: 'continue' | 'terminate';
+  resultVariable?: string;
+}
+
+/** Timer节点配置 */
+export interface TimerNodeConfig {
+  type: 'timer';
+  cronExpression: string;
+  timezone?: string;
+  maxExecutions?: number;
+  inputVariables?: Record<string, any>;
+  resultVariable?: string;
 }
 
 /** 工作流边/连接 */
@@ -215,4 +269,8 @@ export type AnyWorkflowNodeConfig =
   | ConditionNodeConfig
   | NotificationNodeConfig
   | WebhookNodeConfig
-  | EndNodeConfig;
+  | EndNodeConfig
+  | TaskNodeConfig
+  | SubWorkflowNodeConfig
+  | DelayNodeConfig
+  | TimerNodeConfig;
