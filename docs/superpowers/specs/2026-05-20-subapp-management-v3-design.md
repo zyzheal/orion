@@ -1,7 +1,7 @@
 # 子应用管理系统与 PandaWiki 集成方案 v3.0
 
 > **设计日期**: 2026-05-20
-> **版本**: v3.3（三次评审修复版）
+> **版本**: v3.4（四次评审修复版）
 > **状态**: 评审通过，待实施
 > **前置文档**: `2026-05-20-pandawiki-integration-design.md`（深度集成方案，本文档是前置条件）
 >
@@ -25,6 +25,10 @@
 > - ✅ 修复类型定义不一致（DBConfig vs WujieConfig 明确区分）
 > - ✅ 修复 menuConfigStore 同步代码缺少导入
 > - ✅ 增加实施前置检查清单（明确每个文件的修改内容）
+>
+> **v3.4 评审修复记录**:
+> - ✅ 修复章节编号混乱（6.1/6.2/6.3 → 7.1/7.2/7.3）
+> - ✅ 修复导入路径（相对路径改为绝对路径 @/stores/...）
 
 ---
 
@@ -695,7 +699,7 @@ interface MenuChildConfig {
 ```typescript
 // stores/menuConfigStore.ts 中新增
 
-import { useSubAppStore } from './subappStore';
+import { useSubAppStore } from '@/stores/subappStore';
 
 /**
  * 同步子应用配置到菜单
@@ -756,7 +760,7 @@ export const syncSubAppToMenu = (): void => {
 
 ## 6. 降级策略
 
-### 6.1 Store 未初始化
+### 7.1 Store 未初始化
 
 ```typescript
 // SubAppRoute 中
@@ -765,7 +769,7 @@ if (apps.length === 0) {
 }
 ```
 
-### 6.2 API 请求失败
+### 7.2 API 请求失败
 
 ```typescript
 // subappStore.ts 中
@@ -790,7 +794,7 @@ fetchApps: async () => {
 
 ## 7. 跨 Tab 同步（BroadcastChannel）
 
-### 6.3 BroadcastChannel 多标签页同步
+### 7.3 BroadcastChannel 多标签页同步
 
 当用户在管理页面保存配置后，其他已打开的标签页需要自动刷新：
 
