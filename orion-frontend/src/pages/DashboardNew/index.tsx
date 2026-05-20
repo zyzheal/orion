@@ -49,6 +49,7 @@ const { Text, Paragraph } = Typography;
 interface PipelineRecord {
   key: string;
   name: string;
+  pipelineId: string;
   status: string;
   duration: string;
   trigger: string;
@@ -282,6 +283,7 @@ const DashboardNew: React.FC = () => {
   const recentPipelineRecords: PipelineRecord[] = recentRuns.map((run, idx) => ({
     key: String(idx + 1),
     name: run.pipelineName || run.pipelineId,
+    pipelineId: run.pipelineId,
     status: run.status,
     duration: formatDuration(run),
     trigger: run.author || formatTrigger(run.trigger),
@@ -350,7 +352,15 @@ const DashboardNew: React.FC = () => {
       title: 'Pipeline',
       dataIndex: 'name',
       key: 'name',
-      render: (name: string) => <Text code>{name}</Text>,
+      render: (name: string, record) => (
+        <Text
+          code
+          style={{ cursor: 'pointer', color: colors.primary[500] }}
+          onClick={() => navigate(`/pipelines/${record.pipelineId}`)}
+        >
+          {name}
+        </Text>
+      ),
     },
     {
       title: '状态',
@@ -384,9 +394,21 @@ const DashboardNew: React.FC = () => {
       title: '操作',
       key: 'action',
       render: (_: unknown, record: (typeof recentPipelineRecords)[0]) => (
-        <Button type="link" size="small" disabled={record.status === 'pending'}>
-          {record.status === 'running' ? '查看' : '重试'}
-        </Button>
+        <Space>
+          <Button
+            type="link"
+            size="small"
+            disabled={record.status === 'pending'}
+            onClick={() => navigate(`/pipelines/${record.pipelineId}`)}
+          >
+            查看
+          </Button>
+          {record.status === 'failed' && (
+            <Button type="link" size="small" onClick={() => navigate(`/pipeline-runs`)}>
+              重试
+            </Button>
+          )}
+        </Space>
       ),
     },
   ];
