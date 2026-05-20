@@ -20,6 +20,7 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { DatabasePool } from '../services/database';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
+import { randomUUID } from 'crypto';
 
 interface WorkflowRoutesOptions {
   database?: DatabasePool;
@@ -157,11 +158,12 @@ export default async function workflowRoutes(
           });
         }
 
+        const workflowId = randomUUID();
         const result = await db.query(
-          `INSERT INTO lowcode_workflow_definition (name, description, nodes, edges, created_by)
-           VALUES ($1, $2, $3, $4, $5)
+          `INSERT INTO lowcode_workflow_definition (id, name, description, nodes, edges, created_by)
+           VALUES ($1, $2, $3, $4, $5, $6)
            RETURNING *`,
-          [name, description || '', JSON.stringify(nodes), JSON.stringify(edges), 'system']
+          [workflowId, name, description || '', JSON.stringify(nodes), JSON.stringify(edges), 'system']
         );
 
         return reply.status(201).send({ success: true, data: result.rows[0] });
