@@ -12,7 +12,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Typography, Button, Space, Tag, Card, Descriptions, Tabs, Badge, message, Result, Table, Modal } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { colors, spacing } from '@/tokens';
+import { colors, spacing, componentSpacing, componentRadius, shadows } from '@/tokens';
 import {
   PlayCircleOutlined,
   ClockCircleOutlined,
@@ -487,67 +487,83 @@ const PipelineDetail: React.FC = () => {
   }
 
   return (
-    <div style={{ padding: 0 }}>
-      {/* Back button and page title */}
+    <div style={{ padding: 0, background: colors.light.bg.secondary, minHeight: '100vh' }}>
+      {/* 页面头部 - 符合设计系统规范 */}
       <div
         style={{
           display: 'flex',
-          alignItems: 'center',
-          gap: 16,
-          marginBottom: 24,
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
+          padding: componentSpacing.cardPadding.lg,
+          background: colors.light.bg.primary,
+          borderBottom: `1px solid ${colors.light.border.light || '#f0f0f0'}`,
         }}
       >
-        <Button
-          type="text"
-          icon={<ArrowLeftOutlined />}
-          onClick={() => navigate('/pipelines')}
-          disabled={loading}
-        >
-          返回列表
-        </Button>
-        <div>
-          <Title level={3} style={{ margin: 0 }}>
-            {pipeline.name} #{pipeline.runNumber}
-          </Title>
-          <Text type="secondary">
-            {pipeline.commit && (
-              <Tag color="default" style={{ marginRight: 8 }}>
-                {pipeline.commit}
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: spacing.md }}>
+          <Button
+            type="text"
+            icon={<ArrowLeftOutlined />}
+            onClick={() => navigate('/pipelines')}
+            disabled={loading}
+            style={{ marginTop: 4 }}
+          >
+            返回
+          </Button>
+          <div>
+            <Space align="center" style={{ marginBottom: 4 }}>
+              <Title level={3} style={{ margin: 0 }}>
+                {pipeline.name}
+              </Title>
+              <Tag color="default" style={{ fontSize: 12 }}>
+                #{pipeline.runNumber}
               </Tag>
-            )}
-            分支: {pipeline.branch}
-          </Text>
+            </Space>
+            <Space size="small" wrap>
+              <Text type="secondary" style={{ fontSize: 13 }}>
+                分支: <Text code style={{ fontSize: 12 }}>{pipeline.branch}</Text>
+              </Text>
+              <Text type="secondary" style={{ fontSize: 13 }}>
+                触发: {triggerLabel[pipeline.trigger] || pipeline.trigger}
+              </Text>
+              {pipeline.author && (
+                <Text type="secondary" style={{ fontSize: 13 }}>
+                  由 {pipeline.author} 触发
+                </Text>
+              )}
+              {pipeline.commit && (
+                <Text type="secondary" style={{ fontSize: 13 }}>
+                  Commit: <Text code style={{ fontSize: 12 }}>{pipeline.commit.slice(0, 7)}</Text>
+                </Text>
+              )}
+            </Space>
+          </div>
         </div>
-        <div style={{ marginLeft: 'auto' }}>
-          <Space>
-            {pipeline && <StatusBadge status={pipeline.status} size="medium" />}
-            <Button
-              type="primary"
-              icon={<ReloadOutlined />}
-              loading={isRerunning}
-              onClick={handleRerun}
-              disabled={!pipeline || pipeline.status === 'running' || loading}
-            >
-              {isRerunning ? '触发中...' : '重新运行'}
-            </Button>
-          </Space>
-        </div>
+        <Space>
+          {pipeline && <StatusBadge status={pipeline.status} size="medium" />}
+          <Button
+            type="primary"
+            icon={<ReloadOutlined />}
+            loading={isRerunning}
+            onClick={handleRerun}
+            disabled={!pipeline || pipeline.status === 'running' || loading}
+          >
+            {isRerunning ? '触发中...' : '重新运行'}
+          </Button>
+        </Space>
       </div>
 
       {/* Pipeline info card */}
-      <CardPanel>
-        <Descriptions column={4} size="small" bordered labelStyle={{ width: 120 }}>
+      <CardPanel
+        style={{
+          borderRadius: componentRadius.card,
+          boxShadow: shadows.card,
+          border: 'none',
+          marginBottom: spacing.md,
+        }}
+      >
+        <Descriptions column={3} size="small" bordered labelStyle={{ width: 100 }}>
           <Descriptions.Item label="状态">
             <StatusBadge status={pipeline.status} size="small" />
-          </Descriptions.Item>
-          <Descriptions.Item label="分支">
-            <Tag color="blue">{pipeline.branch}</Tag>
-          </Descriptions.Item>
-          <Descriptions.Item label="触发人">
-            <Text code>{pipeline.author}</Text>
-          </Descriptions.Item>
-          <Descriptions.Item label="触发方式">
-            <Tag>{triggerLabel[pipeline.trigger] || pipeline.trigger}</Tag>
           </Descriptions.Item>
           <Descriptions.Item label="开始时间">
             <Space>
