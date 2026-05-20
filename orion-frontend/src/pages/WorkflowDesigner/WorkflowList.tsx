@@ -62,10 +62,26 @@ const WorkflowList: React.FC<WorkflowListProps> = ({ onSelect }) => {
 
   const handleCreate = async (values: { name: string; description?: string }) => {
     try {
+      // 创建工作流时至少需要一个开始节点
+      const defaultSteps = [
+        {
+          id: 'start-1',
+          type: 'start',
+          name: '开始',
+          config: {},
+        },
+        {
+          id: 'end-1',
+          type: 'end',
+          name: '结束',
+          config: {},
+        },
+      ];
+
       await createWorkflow({
         name: values.name,
         description: values.description,
-        steps: [],
+        steps: defaultSteps,
       });
       message.success('工作流创建成功');
       setCreateModalOpen(false);
