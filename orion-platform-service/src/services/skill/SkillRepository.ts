@@ -39,8 +39,14 @@ export interface SkillInstance {
   tenant_id: string;
   project_id: string | null;
   name: string;
+  description: string | null;
+  status: string;
   config: Record<string, any>;
+  bindings: Record<string, any>;
+  metadata: Record<string, any>;
   is_default: boolean;
+  version: string;
+  created_by: string | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -115,8 +121,14 @@ export interface CreateInstanceInput {
   tenant_id: string;
   project_id?: string;
   name: string;
+  description?: string;
   config?: Record<string, any>;
+  bindings?: Record<string, any>;
+  metadata?: Record<string, any>;
   is_default?: boolean;
+  status?: string;
+  created_by?: string;
+  version?: string;
 }
 
 export interface UpdateInstanceInput {
@@ -124,6 +136,78 @@ export interface UpdateInstanceInput {
   config?: Record<string, any>;
   is_default?: boolean;
   project_id?: string;
+  status?: string;
+  description?: string;
+  bindings?: Record<string, any>;
+  metadata?: Record<string, any>;
+}
+
+/**
+ * SkillExecution represents a single execution of a skill.
+ */
+export interface SkillExecution {
+  id: string;
+  tenant_id: string;
+  skill_id: string;
+  instance_id: string | null;
+  capability: string | null;
+  status: string;
+  input: Record<string, any>;
+  output: Record<string, any> | null;
+  error_message: string | null;
+  duration_ms: number | null;
+  triggered_by: string | null;
+  trigger_mode: string;
+  metadata: Record<string, any>;
+  started_at: Date;
+  completed_at: Date | null;
+  created_at: Date;
+}
+
+export interface CreateExecutionInput {
+  tenant_id: string;
+  skill_id: string;
+  instance_id?: string;
+  capability?: string;
+  input?: Record<string, any>;
+  triggered_by?: string;
+  trigger_mode?: string;
+  metadata?: Record<string, any>;
+}
+
+export interface UpdateExecutionInput {
+  status?: string;
+  output?: Record<string, any>;
+  error_message?: string;
+  duration_ms?: number;
+  completed_at?: Date;
+}
+
+/**
+ * SkillAuditLog represents an audit trail entry for skill lifecycle changes.
+ */
+export interface SkillAuditLog {
+  id: string;
+  skill_id: string;
+  action: string;
+  actor_id: string | null;
+  actor_name: string | null;
+  old_status: string | null;
+  new_status: string | null;
+  reason: string | null;
+  changes: Record<string, any> | null;
+  created_at: Date;
+}
+
+export interface CreateAuditLogInput {
+  skill_id: string;
+  action: string;
+  actor_id?: string;
+  actor_name?: string;
+  old_status?: string;
+  new_status?: string;
+  reason?: string;
+  changes?: Record<string, any>;
 }
 
 interface FindAllOptions {
@@ -440,13 +524,13 @@ export class SkillRepository {
    * Create a new skill instance for a tenant
    */
   async createInstance(input: CreateInstanceInput): Promise<SkillInstance> {
-    const { skill_id, tenant_id, project_id, name, config, is_default } = input;
+    const { skill_id, tenant_id, project_id, name, config, is_default, description, bindings, metadata, created_by, version } = input;
 
     const result = await this.pool.query(
-      `INSERT INTO skill_instances (skill_id, tenant_id, project_id, name, config, is_default)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO skill_instances (skill_id, tenant_id, project_id, name, instance_name, description, config, bindings, metadata, is_default, status, created_by, version)
+       VALUES ($1, $2, $3, $4, $4, $5, $6, $7, $8, $9, $10, $11, $12)
        RETURNING *`,
-      [skill_id, tenant_id, project_id || null, name, config || {}, is_default || false]
+      [skill_id, tenant_id, project_id || null, name, description || null, config || {}, bindings || {}, metadata || {}, is_default || false, 'inactive', created_by || null, version || '1.0.0']
     );
 
     return result.rows[0];
@@ -521,14 +605,34 @@ export class SkillRepository {
       updates.push(`name = $${paramIndex++}`);
     }
 
+    if (input.description !== undefined) {
+      params.push(input.description);
+      updates.push(`description = $${paramIndex++}`);
+    }
+
     if (input.config !== undefined) {
       params.push(JSON.stringify(input.config));
       updates.push(`config = $${paramIndex++}`);
     }
 
+    if (input.bindings !== undefined) {
+      params.push(JSON.stringify(input.bindings));
+      updates.push(`bindings = $${paramIndex++}`);
+    }
+
+    if (input.metadata !== undefined) {
+      params.push(JSON.stringify(input.metadata));
+      updates.push(`metadata = $${paramIndex++}`);
+    }
+
     if (input.is_default !== undefined) {
       params.push(input.is_default);
       updates.push(`is_default = $${paramIndex++}`);
+    }
+
+    if (input.status !== undefined) {
+      params.push(input.status);
+      updates.push(`status = $${paramIndex++}`);
     }
 
     if (input.project_id !== undefined) {
@@ -611,12 +715,216 @@ export class SkillRepository {
    */
   async getCategories(): Promise<{ category: string; count: number }[]> {
     const result = await this.pool.query(
-      `SELECT category, COUNT(*) as count 
-       FROM skill_packages 
+      `SELECT category, COUNT(*) as count
+       FROM skill_packages
        WHERE status = 'published'
-       GROUP BY category 
+       GROUP BY category
        ORDER BY count DESC`
     );
     return result.rows;
+  }
+
+  // ==================== Skill Executions ====================
+
+  /**
+   * Create a skill execution record
+   */
+  async createExecution(input: CreateExecutionInput): Promise<SkillExecution> {
+    const { tenant_id, skill_id, instance_id, capability, input: exec_input, triggered_by, trigger_mode, metadata } = input;
+
+    const result = await this.pool.query(
+      `INSERT INTO skill_executions (tenant_id, skill_id, instance_id, capability, input, triggered_by, trigger_mode, metadata)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       RETURNING *`,
+      [tenant_id, skill_id, instance_id || null, capability || null, exec_input || {}, triggered_by || null, trigger_mode || 'manual', metadata || {}]
+    );
+
+    return result.rows[0];
+  }
+
+  /**
+   * Update a skill execution record
+   */
+  async updateExecution(id: string, input: UpdateExecutionInput): Promise<SkillExecution | null> {
+    const updates: string[] = [];
+    const params: any[] = [];
+    let paramIndex = 1;
+
+    if (input.status !== undefined) {
+      params.push(input.status);
+      updates.push(`status = $${paramIndex++}`);
+    }
+
+    if (input.output !== undefined) {
+      params.push(JSON.stringify(input.output));
+      updates.push(`output = $${paramIndex++}`);
+    }
+
+    if (input.error_message !== undefined) {
+      params.push(input.error_message);
+      updates.push(`error_message = $${paramIndex++}`);
+    }
+
+    if (input.duration_ms !== undefined) {
+      params.push(input.duration_ms);
+      updates.push(`duration_ms = $${paramIndex++}`);
+    }
+
+    if (input.completed_at !== undefined) {
+      params.push(input.completed_at);
+      updates.push(`completed_at = $${paramIndex++}`);
+    }
+
+    if (updates.length === 0) {
+      return this.findExecutionById(id);
+    }
+
+    params.push(id);
+
+    const result = await this.pool.query(
+      `UPDATE skill_executions SET ${updates.join(', ')}
+       WHERE id = $${paramIndex}
+       RETURNING *`,
+      params
+    );
+
+    return result.rows[0] || null;
+  }
+
+  /**
+   * Find execution by ID
+   */
+  async findExecutionById(id: string): Promise<SkillExecution | null> {
+    const result = await this.pool.query(
+      'SELECT * FROM skill_executions WHERE id = $1',
+      [id]
+    );
+    return result.rows[0] || null;
+  }
+
+  /**
+   * List executions for a skill
+   */
+  async findExecutionsBySkill(skillId: string, tenantId: string, limit: number = 20, offset: number = 0): Promise<{ executions: SkillExecution[]; total: number }> {
+    const countResult = await this.pool.query(
+      'SELECT COUNT(*) FROM skill_executions WHERE skill_id = $1 AND tenant_id = $2',
+      [skillId, tenantId]
+    );
+
+    const result = await this.pool.query(
+      `SELECT * FROM skill_executions
+       WHERE skill_id = $1 AND tenant_id = $2
+       ORDER BY started_at DESC
+       LIMIT $3 OFFSET $4`,
+      [skillId, tenantId, limit, offset]
+    );
+
+    return {
+      executions: result.rows,
+      total: parseInt(countResult.rows[0].count, 10),
+    };
+  }
+
+  /**
+   * List all executions for a tenant (admin)
+   */
+  async findExecutionsByTenant(tenantId: string, limit: number = 20, offset: number = 0, skillId?: string): Promise<{ executions: SkillExecution[]; total: number }> {
+    const conditions: string[] = ['tenant_id = $1'];
+    const params: any[] = [tenantId];
+
+    if (skillId) {
+      params.push(skillId);
+      conditions.push(`skill_id = $${params.length}`);
+    }
+
+    const countResult = await this.pool.query(
+      `SELECT COUNT(*) FROM skill_executions WHERE ${conditions.join(' AND ')}`,
+      params
+    );
+
+    const result = await this.pool.query(
+      `SELECT * FROM skill_executions
+       WHERE ${conditions.join(' AND ')}
+       ORDER BY started_at DESC
+       LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+      [...params, limit, offset]
+    );
+
+    return {
+      executions: result.rows,
+      total: parseInt(countResult.rows[0].count, 10),
+    };
+  }
+
+  // ==================== Audit Logs ====================
+
+  /**
+   * Create an audit log entry
+   */
+  async createAuditLog(input: CreateAuditLogInput): Promise<SkillAuditLog> {
+    const { skill_id, action, actor_id, actor_name, old_status, new_status, reason, changes } = input;
+
+    const result = await this.pool.query(
+      `INSERT INTO skill_audit_logs (skill_id, action, actor_id, actor_name, old_status, new_status, reason, changes)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       RETURNING *`,
+      [skill_id, action, actor_id || null, actor_name || null, old_status || null, new_status || null, reason || null, changes || null]
+    );
+
+    return result.rows[0];
+  }
+
+  /**
+   * Get audit logs for a skill
+   */
+  async findAuditLogs(skillId: string, limit: number = 50, offset: number = 0): Promise<{ logs: SkillAuditLog[]; total: number }> {
+    const countResult = await this.pool.query(
+      'SELECT COUNT(*) FROM skill_audit_logs WHERE skill_id = $1',
+      [skillId]
+    );
+
+    const result = await this.pool.query(
+      `SELECT * FROM skill_audit_logs
+       WHERE skill_id = $1
+       ORDER BY created_at DESC
+       LIMIT $2 OFFSET $3`,
+      [skillId, limit, offset]
+    );
+
+    return {
+      logs: result.rows,
+      total: parseInt(countResult.rows[0].count, 10),
+    };
+  }
+
+  /**
+   * List skills pending review
+   */
+  async findPendingReview(limit: number = 20, offset: number = 0, category?: string): Promise<{ skills: SkillPackage[]; total: number }> {
+    const conditions: string[] = ["status IN ('review', 'submitted')"];
+    const params: any[] = [];
+
+    if (category) {
+      params.push(category);
+      conditions.push(`category = $${params.length}`);
+    }
+
+    const countResult = await this.pool.query(
+      `SELECT COUNT(*) FROM skill_packages WHERE ${conditions.join(' AND ')}`,
+      params
+    );
+
+    const result = await this.pool.query(
+      `SELECT * FROM skill_packages
+       WHERE ${conditions.join(' AND ')}
+       ORDER BY submitted_at DESC
+       LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+      [...params, limit, offset]
+    );
+
+    return {
+      skills: result.rows,
+      total: parseInt(countResult.rows[0].count, 10),
+    };
   }
 }

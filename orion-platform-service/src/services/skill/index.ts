@@ -10,11 +10,19 @@ export {
   SkillRepository,
   SkillPackage,
   SkillVersion,
+  SkillInstance,
   SkillReview,
+  SkillExecution,
+  SkillAuditLog,
   CreateSkillInput,
   UpdateSkillInput,
   CreateSkillVersionInput,
   CreateSkillReviewInput,
+  CreateInstanceInput,
+  UpdateInstanceInput,
+  CreateExecutionInput,
+  UpdateExecutionInput,
+  CreateAuditLogInput,
 } from './SkillRepository';
 
 export {
