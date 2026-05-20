@@ -93,3 +93,18 @@ export type {
   SubAppState,
 } from "./SubAppStateMachine";
 
+// SecurityPolicyManager exports
+export { SecurityPolicyManager, securityPolicyManager, PRESETS } from "./SecurityPolicyManager";
+export {
+  applyPreset,
+  setPolicy,
+  getPolicy,
+  cleanupSecurityPolicy,
+} from "./SecurityPolicyManager";
+export type {
+  SecurityPolicy,
+  SandboxMode,
+  CSSIsolationMode,
+  PresetKey,
+} from "./SecurityPolicyManager";
+
