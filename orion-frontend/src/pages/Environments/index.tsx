@@ -26,6 +26,7 @@ import {
   DeleteOutlined,
   EyeOutlined,
   CloudServerOutlined,
+  EnvironmentOutlined,
 } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
@@ -431,7 +432,8 @@ const EnvironmentManagement: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <EnvironmentOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             环境管理
           </Title>
           <Text type="secondary">管理项目的部署环境（开发、测试、预发、生产）</Text>

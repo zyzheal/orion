@@ -222,8 +222,8 @@ const FinOpsDashboard: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
-            <DollarOutlined style={{ marginRight: 8 }} />
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <DollarOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             成本分析
           </Title>
           <Text type="secondary">数据更新时间：{dataTimestamp}</Text>

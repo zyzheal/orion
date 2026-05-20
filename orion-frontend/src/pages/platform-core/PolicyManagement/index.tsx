@@ -20,7 +20,7 @@ import {
   Tabs,
 } from 'antd';
 import { colors, spacing } from '@/tokens';
-import { PlusOutlined, ReloadOutlined, SyncOutlined, PlayCircleOutlined } from '@ant-design/icons';
+import { PlusOutlined, ReloadOutlined, SyncOutlined, PlayCircleOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
@@ -390,7 +390,8 @@ const PolicyManagement: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <SafetyCertificateOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             OPA 策略管理
           </Title>
           <Text type="secondary">策略即代码，统一治理全链路</Text>

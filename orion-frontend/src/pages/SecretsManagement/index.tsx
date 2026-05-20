@@ -7,7 +7,8 @@
  */
 import React, { useState, useMemo, useEffect } from 'react';
 import { Typography, Button, Space, Modal, Form, Input, Select, message, Tag, Popconfirm } from 'antd';
-import { PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined, KeyOutlined } from '@ant-design/icons';
+import { colors } from '@/tokens/colors';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import {
@@ -329,7 +330,8 @@ const SecretsManagement: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <KeyOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             Secrets 管理
           </Title>
           <Text type="secondary">

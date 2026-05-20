@@ -169,7 +169,10 @@ const AuditLogPage: React.FC = () => {
           {/* Header */}
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
             <div>
-              <Title level={2}>审计日志</Title>
+              <Title level={2} style={{ marginBottom: 8 }}>
+                <SafetyCertificateOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+                审计日志
+              </Title>
               <Text type="secondary">不可逆审计链、完整性验证</Text>
             </div>
             <Space>

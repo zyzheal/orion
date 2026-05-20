@@ -49,6 +49,7 @@ import {
   SyncOutlined,
   AppstoreOutlined,
   LinkOutlined,
+  DesktopOutlined,
 } from '@ant-design/icons';
 import {
   getCIs,
@@ -302,7 +303,10 @@ const CITablePage: React.FC = () => {
         <>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
             <div>
-              <Title level={4}>配置项管理</Title>
+              <Title level={2} style={{ marginBottom: 8 }}>
+                <DesktopOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+                配置项管理
+              </Title>
               <Text type="secondary">管理所有配置项 (CI) 及其生命周期</Text>
             </div>
             <Space>

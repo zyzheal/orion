@@ -24,6 +24,7 @@ import {
   DownloadOutlined,
   EyeOutlined,
   FileTextOutlined,
+  SafetyOutlined,
 } from '@ant-design/icons';
 import { PieChart, BarChart, StatCard, GaugeChart, TreeMap, type PieDataItem, type BarDataItem } from '@/components/charts';
 import Table, { type TableColumn } from '@/components/Table';
@@ -259,7 +260,8 @@ const SbomDashboard: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <SafetyOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             SBOM 供应链仪表盘
           </Title>
           <Text type="secondary">软件物料清单与漏洞管理</Text>
