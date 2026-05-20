@@ -304,4 +304,27 @@ export class WorkflowTriggerRepository extends BaseRepository<WorkflowTrigger> {
       updatedAt: row.updated_at,
     };
   }
+
+  /**
+   * 创建触发日志
+   */
+  async createLog(data: {
+    trigger_id: string;
+    workflow_instance_id?: string;
+    event_type?: string;
+    event_payload?: Record<string, any>;
+    status: 'pending' | 'success' | 'failed' | 'skipped';
+  }): Promise<void> {
+    await this.db.query(
+      `INSERT INTO workflow_trigger_logs (trigger_id, workflow_instance_id, event_type, event_payload, status)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [
+        data.trigger_id,
+        data.workflow_instance_id,
+        data.event_type,
+        JSON.stringify(data.event_payload || {}),
+        data.status,
+      ],
+    );
+  }
 }

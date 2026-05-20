@@ -30,8 +30,8 @@ export interface WorkflowTask {
 export class WorkflowTaskRepository {
   private pool: InstanceType<typeof DatabasePool>;
 
-  constructor() {
-    this.pool = DatabasePool as unknown as InstanceType<typeof DatabasePool>;
+  constructor(pool?: DatabasePool) {
+    this.pool = (pool ?? DatabasePool) as unknown as InstanceType<typeof DatabasePool>;
   }
 
   private mapRowToEntity(row: any): WorkflowTask {
@@ -80,18 +80,40 @@ export class WorkflowTaskRepository {
     return result.rows.map(row => this.mapRowToEntity(row));
   }
 
-  async findByAssignee(assigneeType: string, assigneeId: string, status?: string): Promise<WorkflowTask[]> {
-    let query = 'SELECT * FROM workflow_tasks WHERE assignee_type = $1 AND assignee_id = $2';
-    const params: any[] = [assigneeType, assigneeId];
+  async findByAssignee(assigneeId: string, status?: string): Promise<WorkflowTask[]> {
+    let query = `SELECT * FROM workflow_tasks
+      WHERE (assignee_id = $1 OR candidate_users @> ARRAY[$1]::varchar[])`;
+    const params: any[] = [assigneeId];
 
     if (status) {
-      query += ' AND status = $3';
+      query += ` AND status = $${params.length + 1}`;
       params.push(status);
     }
 
     query += ' ORDER BY created_at DESC';
 
     const result = await this.pool.query(query, params);
+    return result.rows.map(row => this.mapRowToEntity(row));
+  }
+
+  /**
+   * 获取所有任务
+   */
+  async findAll(): Promise<WorkflowTask[]> {
+    const result = await this.pool.query(
+      'SELECT * FROM workflow_tasks ORDER BY created_at DESC',
+    );
+    return result.rows.map(row => this.mapRowToEntity(row));
+  }
+
+  /**
+   * 根据状态获取任务
+   */
+  async findByStatus(status: string): Promise<WorkflowTask[]> {
+    const result = await this.pool.query(
+      'SELECT * FROM workflow_tasks WHERE status = $1 ORDER BY created_at DESC',
+      [status],
+    );
     return result.rows.map(row => this.mapRowToEntity(row));
   }
 

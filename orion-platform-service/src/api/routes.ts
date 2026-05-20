@@ -51,6 +51,8 @@ import degradationRoutes from './degradation-routes';
 import crossDomainRoutes from './cross-domain-routes';
 import workflowRoutes from './workflow-routes';
 import workflowTriggerRoutes from './workflow-trigger-routes';
+import workflowWebhookRoutes from './workflow-webhook-routes';
+import workflowTaskRoutes from './workflow-task-routes';
 import configMgmtEnhancedRoutes from './config-mgmt-enhanced-routes';
 import securityComplianceRoutes from './security-compliance-routes';
 import disasterRecoveryRoutes from './disaster-recovery-routes';
@@ -581,7 +583,15 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await registerWithRoleGuard(app, workflowRoutes, '/workflows', {});
 
   // ==================== Workflow Trigger Routes ====================
-  await registerWithRoleGuard(app, workflowTriggerRoutes, '/v1/workflow-triggers', {
+  await registerWithRoleGuard(app, workflowTriggerRoutes, '/workflow-triggers', {
+    database: options.database,
+  });
+
+  // ==================== Workflow Webhook Routes (no auth) ====================
+  await app.register(workflowWebhookRoutes, { prefix: '/api/v1/webhooks', database: options.database });
+
+  // ==================== Workflow Task Routes ====================
+  await registerWithRoleGuard(app, workflowTaskRoutes, '/workflow-tasks', {
     database: options.database,
   });
 

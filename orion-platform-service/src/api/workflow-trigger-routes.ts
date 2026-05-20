@@ -563,4 +563,121 @@ export default async function workflowTriggerRoutes(
       }
     }
   );
+
+  // ==================== POST /v1/workflow-triggers/:id/trigger - 手动触发触发器 ====================
+  app.post<{ Params: TriggerParams; Body: Record<string, any> }>(
+    '/:id/trigger',
+    {
+      onRequest: [
+        authenticateUser,
+        requirePermission({
+          resource: 'workflow',
+          action: 'write',
+          extractResourceId: (req) => (req.params as TriggerParams).id,
+        }),
+      ],
+    },
+    async (
+      request: FastifyRequest<{ Params: TriggerParams; Body: Record<string, any> }>,
+      reply: FastifyReply
+    ) => {
+      try {
+        if (!triggerRepo || !scheduler) {
+          return reply.status(503).send({
+            success: false,
+            error: 'Workflow engine not available',
+          });
+        }
+
+        const { id } = request.params;
+        const trigger = await triggerRepo.findById(id);
+
+        if (!trigger) {
+          return reply.status(404).send({
+            success: false,
+            error: `Trigger '${id}' not found`,
+          });
+        }
+
+        if (!trigger.enabled) {
+          return reply.status(400).send({
+            success: false,
+            error: `Trigger '${id}' is disabled`,
+          });
+        }
+
+        // 记录触发日志
+        await triggerRepo.createLog?.({
+          trigger_id: id,
+          event_type: 'manual',
+          event_payload: request.body || {},
+          status: 'pending',
+        });
+
+        // 创建工作流实例
+        const { WorkflowEngine } = await import('../services/lowcode/WorkflowEngine');
+        const engine = new WorkflowEngine();
+        const userId = (request as any).user?.id || 'system';
+        const instance = await engine.createInstance(trigger.workflowId, request.body || {}, userId);
+
+        // 异步执行
+        engine.execute(instance.id).catch(err => {
+          console.error(`[Manual Trigger] Workflow execution failed: ${err}`);
+        });
+
+        return reply.status(202).send({
+          success: true,
+          instanceId: instance.id,
+          message: `Workflow triggered manually via trigger '${id}'`,
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return reply.status(500).send({
+          success: false,
+          error: message,
+        });
+      }
+    }
+  );
+
+  // ==================== POST /v1/workflow-triggers/workflow/:definitionId/execute - 通用手动触发工作流 ====================
+  app.post<{ Params: { definitionId: string }; Body: Record<string, any> }>(
+    '/workflow/:definitionId/execute',
+    {
+      onRequest: [
+        authenticateUser,
+        requirePermission({ resource: 'workflow', action: 'write' }),
+      ],
+    },
+    async (
+      request: FastifyRequest<{ Params: { definitionId: string }; Body: Record<string, any> }>,
+      reply: FastifyReply
+    ) => {
+      try {
+        if (!triggerRepo) {
+          return reply.status(503).send({ success: false, error: 'Database not available' });
+        }
+
+        const { definitionId } = request.params;
+        const { WorkflowEngine } = await import('../services/lowcode/WorkflowEngine');
+        const engine = new WorkflowEngine();
+        const userId = (request as any).user?.id || 'system';
+
+        const instance = await engine.createInstance(definitionId, request.body || {}, userId);
+        const result = await engine.execute(instance.id);
+
+        return reply.status(201).send({
+          success: true,
+          instanceId: instance.id,
+          execution: result,
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return reply.status(500).send({
+          success: false,
+          error: message,
+        });
+      }
+    }
+  );
 }

@@ -39,6 +39,8 @@ import {
 import { WorkflowDefinitionRepository } from './WorkflowRepository';
 import { WorkflowInstanceManager } from './WorkflowInstance';
 import { WorkflowTimerRepository } from '../../repositories/WorkflowTimerRepository';
+import { WorkflowTaskRepository } from '../../repositories/WorkflowTaskRepository';
+import { DatabasePool } from '../../services/database';
 
 // 真实服务导入（用于依赖注入）
 import { ApprovalFlowEngine } from '../approval/ApprovalFlowEngine';
@@ -87,6 +89,7 @@ export class WorkflowEngine {
   private definitionRepository: WorkflowDefinitionRepository;
   private instanceManager: WorkflowInstanceManager;
   private timerRepository: WorkflowTimerRepository;
+  private taskRepository: WorkflowTaskRepository;
   private services: WorkflowServices;
   private dependencies: WorkflowEngineDependencies;
   /** 审批结果缓存，用于跨方法调用传递状态 */
@@ -95,10 +98,12 @@ export class WorkflowEngine {
   constructor(
     services?: WorkflowServices,
     dependencies?: WorkflowEngineDependencies,
+    databasePool?: DatabasePool,
   ) {
     this.definitionRepository = new WorkflowDefinitionRepository();
     this.instanceManager = new WorkflowInstanceManager();
     this.timerRepository = new WorkflowTimerRepository();
+    this.taskRepository = new WorkflowTaskRepository(databasePool);
     this.dependencies = dependencies || {};
     this.services = services || this.createDefaultServices();
   }
@@ -709,19 +714,30 @@ export class WorkflowEngine {
     }
 
     // 人工任务：创建任务记录并挂起实例
-    logger.info({ taskId, assigneeIds, instanceId: instance.id }, 'Manual task created, suspending instance');
+    const nodeId = this.findCurrentNodeId(instance) || 'unknown';
 
-    // 将任务持久化到数据库（通过外部服务或事件总线通知）
-    // 这里简化实现：将任务信息存储到实例变量中
-    // 实际生产中应该通过 TaskService 创建任务记录并发布事件
-
-    const taskPayload = {
-      ...taskResult,
-      instanceId: instance.id,
-      nodeId: this.findCurrentNodeId(instance),
-      dueDate: config.timeout ? new Date(Date.now() + config.timeout * 1000).toISOString() : undefined,
+    // 持久化任务记录到数据库
+    const task = await this.taskRepository.create({
+      instance_id: instance.id,
+      node_id: nodeId,
+      task_type: 'manual',
+      assignee_type: config.assigneeType === 'role' ? 'role' : 'user',
+      assignee_id: assigneeIds[0],
+      candidate_users: assigneeIds,
+      candidate_roles: config.assigneeType === 'role' ? config.assigneeIds : undefined,
+      title: this.renderString(config.title || 'Task', instance.variables),
+      description: this.renderString(config.description || '', instance.variables),
+      status: 'pending',
       priority: (config as any).priority || 'normal',
-    };
+      due_date: config.timeout ? new Date(Date.now() + config.timeout * 1000) : undefined,
+      form_data: {
+        taskId,
+        workflowInstanceId: instance.id,
+        nodeId,
+      },
+    });
+
+    logger.info({ taskId: task.id, assigneeIds, instanceId: instance.id }, 'Manual task created and persisted to DB, suspending instance');
 
     // 挂起实例，等待人工任务完成事件唤醒
     await this.instanceManager.suspend(instance.id);
@@ -729,9 +745,20 @@ export class WorkflowEngine {
     return {
       outputVariables: {
         ...instance.variables,
-        [config.resultVariable || '_taskResult']: taskPayload,
+        [config.resultVariable || '_taskResult']: {
+          taskId: task.id,
+          taskType: 'manual',
+          title: task.title,
+          assigneeIds,
+          status: 'pending',
+          createdAt: task.created_at.toISOString(),
+          instanceId: instance.id,
+          nodeId,
+          dueDate: task.due_date?.toISOString(),
+          priority: task.priority,
+        },
         // 存储唤醒事件类型，供外部系统参考
-        _pendingWakeUpEvent: `workflow.task.completed.${taskId}`,
+        _pendingWakeUpEvent: `workflow.task.completed.${task.id}`,
       },
       terminated: true, // 暂停执行，等待事件唤醒
     };
