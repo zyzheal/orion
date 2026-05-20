@@ -162,3 +162,29 @@ export type {
   ObservabilityOptions,
 } from './ObservabilityManager';
 
+
+// SubAppRegistry exports
+export { SubAppRegistry } from "./SubAppRegistry";
+export {
+  getSubAppRegistry,
+  setSubAppRegistry,
+  createSubAppRegistry,
+} from "./SubAppRegistry";
+export type {
+  SubAppRegistration,
+  SubAppRegistryOptions,
+  RegistryConfig,
+} from "./SubAppRegistry";
+
+// MultiInstanceManager exports
+export { MultiInstanceManager } from "./MultiInstanceManager";
+export {
+  getMultiInstanceManager,
+  setMultiInstanceManager,
+  createMultiInstanceManager,
+} from "./MultiInstanceManager";
+export type {
+  InstanceConfig,
+  InstanceInfo,
+  MultiInstanceManagerOptions,
+} from "./MultiInstanceManager";
