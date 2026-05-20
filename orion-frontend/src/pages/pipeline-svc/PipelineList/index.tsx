@@ -19,6 +19,7 @@ import { getPipelines, type Pipeline } from '@/api/pipelines';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
+import BatchActions from './BatchActions';
 
 dayjs.extend(relativeTime);
 
@@ -30,6 +31,7 @@ const PipelineList: React.FC = () => {
   const [filters, setFilters] = useState<Record<string, string | string[] | undefined>>({});
   const [loading, setLoading] = useState(false);
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
 
   // Load pipelines from API
   const loadPipelines = async () => {
@@ -221,6 +223,13 @@ const PipelineList: React.FC = () => {
         />
       </div>
 
+      {/* Batch actions toolbar */}
+      <BatchActions
+        selectedIds={selectedRowKeys.map(String)}
+        onRefresh={loadPipelines}
+        onClearSelection={() => setSelectedRowKeys([])}
+      />
+
       {/* Pipeline table */}
       {filteredPipelines.length === 0 && !loading ? (
         <div style={{ textAlign: 'center', padding: spacing.xxl }}>
@@ -238,6 +247,10 @@ const PipelineList: React.FC = () => {
           rowKey="id"
           size="middle"
           striped
+          rowSelection={{
+            selectedRowKeys,
+            onChange: setSelectedRowKeys,
+          }}
         />
       )}
     </div>

@@ -32,13 +32,14 @@ import {
 } from '@ant-design/icons';
 import { DndContext, closestCenter } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import StageItem from './StageItem';
 import StageModal from './StageModal';
 import { getPipeline, createPipeline, updatePipeline } from '@/api/pipelines';
 import { DAGGraph, validateDAG } from '@/components/DAGGraph';
 import { ApartmentOutlined } from '@ant-design/icons';
 import { PipelineCanvas } from './canvas';
+import { pipelineTemplates, templateToYaml } from '@/api/pipeline-templates';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -92,6 +93,8 @@ const STAGE_TYPES = [
 const PipelineEditor: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
+  const templateId = searchParams.get('template');
   const [form] = Form.useForm();
 
   // Pipeline 基本信息
@@ -168,6 +171,30 @@ const PipelineEditor: React.FC = () => {
         });
     }
   }, [id]);
+
+  // Load template stages (when creating from template)
+  React.useEffect(() => {
+    if (templateId && !id) {
+      const tpl = pipelineTemplates.find((t) => t.id === templateId);
+      if (tpl) {
+        setPipelineInfo({
+          name: tpl.name,
+          version: '1.0.0',
+          description: tpl.description,
+        });
+        const stages: StageConfig[] = tpl.stages.map((s, idx) => ({
+          id: `stage-${idx}-${Date.now()}`,
+          name: s.name,
+          type: s.type,
+          timeout: 300,
+          retryCount: 0,
+          dependsOn: [],
+          config: s.config || {},
+        }));
+        setStages(stages);
+      }
+    }
+  }, [templateId, id]);
 
   // 生成 YAML (FIXED P0-8: aligned with backend PipelineStage schema)
   const generateYaml = useCallback(() => {

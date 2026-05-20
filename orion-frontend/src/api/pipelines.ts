@@ -205,6 +205,16 @@ export function deleteArtifact(artifactId: string) {
 
 // ---- Pipeline Error Detail ----
 
+export function batchUpdatePipelines(
+  ids: string[],
+  action: 'activate' | 'deactivate' | 'delete'
+) {
+  return api.post('/v1/pipelines/batch', {
+    ids,
+    action,
+  });
+}
+
 export interface PipelineErrorDetailResponse {
   errorType:
     | 'compilation_error'

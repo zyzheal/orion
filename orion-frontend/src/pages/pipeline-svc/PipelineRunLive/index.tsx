@@ -9,8 +9,8 @@
  * - Pause/resume controls
  * - Run metadata (pipeline name, run ID, started time, duration)
  */
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Typography, Button, Space, Tag, Card, Descriptions, Badge, message, Spin, Divider } from 'antd';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { Typography, Button, Space, Tag, Card, Descriptions, Badge, message, Spin, Divider, Input, Switch } from 'antd';
 import {
   PlayCircleOutlined,
   PauseCircleOutlined,
@@ -22,6 +22,7 @@ import {
   CheckCircleOutlined,
   CloseCircleOutlined,
   LoadingOutlined,
+  SearchOutlined,
 } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
 import StatusBadge from '@/components/StatusBadge';
@@ -117,9 +118,33 @@ function makeLogId(): string {
 interface LiveLogViewerProps {
   logs: LogEntry[];
   autoScroll: boolean;
+  searchText: string;
 }
 
-const LiveLogViewer: React.FC<LiveLogViewerProps> = ({ logs, autoScroll }) => {
+// Escape special regex characters in search text
+function escapeRegExp(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Highlight search text within a string
+function highlightSearch(text: string, search: string): React.ReactNode {
+  if (!search) return text;
+  const escaped = escapeRegExp(search);
+  const regex = new RegExp(`(${escaped})`, 'gi');
+  const parts = text.split(regex);
+  const matchRegex = new RegExp(escaped, 'i');
+  return parts.map((part, i) =>
+    matchRegex.test(part) ? (
+      <span key={i} style={{ background: '#fff566', color: '#000', borderRadius: 2, padding: '0 2px' }}>
+        {part}
+      </span>
+    ) : (
+      part
+    )
+  );
+}
+
+const LiveLogViewer: React.FC<LiveLogViewerProps> = ({ logs, autoScroll, searchText }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const prevLogCountRef = useRef(0);
 
@@ -170,6 +195,10 @@ const LiveLogViewer: React.FC<LiveLogViewerProps> = ({ logs, autoScroll }) => {
     >
       {logs.map((log) => {
         const textColor = logLevelColors[log.level] || colors.neutral[300];
+        // Filter: if search text is provided, skip non-matching lines
+        if (searchText && !log.text.toLowerCase().includes(searchText.toLowerCase())) {
+          return null;
+        }
         return (
           <div key={log.id} style={{ display: 'flex', gap: 8 }}>
             <span style={{ color: colors.neutral[500], flexShrink: 0, userSelect: 'none' }}>
@@ -186,7 +215,9 @@ const LiveLogViewer: React.FC<LiveLogViewerProps> = ({ logs, autoScroll }) => {
                 {log.stepName}
               </Tag>
             )}
-            <span style={{ color: textColor, wordBreak: 'break-word' }}>{log.text}</span>
+            <span style={{ color: textColor, wordBreak: 'break-word' }}>
+              {highlightSearch(log.text, searchText)}
+            </span>
           </div>
         );
       })}
@@ -394,6 +425,7 @@ const PipelineRunLive: React.FC = () => {
   const [apiError, setApiError] = useState<string | null>(null);
   const [autoScroll, setAutoScroll] = useState(true);
   const [isPaused, setIsPaused] = useState(false);
+  const [searchText, setSearchText] = useState('');
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
   // Track stage states locally for real-time updates
@@ -686,6 +718,22 @@ const PipelineRunLive: React.FC = () => {
           borderRadius: 6,
         }}
       >
+        <Input
+          prefix={<SearchOutlined style={{ color: colors.neutral[400] }} />}
+          placeholder="搜索日志关键字..."
+          value={searchText}
+          onChange={(e) => setSearchText(e.target.value)}
+          style={{ width: 220 }}
+          allowClear
+          size="small"
+        />
+        <Switch
+          checked={autoScroll}
+          onChange={setAutoScroll}
+          checkedChildren="自动滚动"
+          unCheckedChildren="手动查看"
+          size="small"
+        />
         <Button
           size="small"
           icon={isPaused ? <PlayCircleOutlined /> : <PauseCircleOutlined />}
@@ -713,15 +761,6 @@ const PipelineRunLive: React.FC = () => {
         <Divider type="vertical" />
         <Button
           size="small"
-          type={autoScroll ? 'primary' : 'default'}
-          onClick={() => setAutoScroll(!autoScroll)}
-          title={autoScroll ? '关闭自动滚动' : '开启自动滚动'}
-        >
-          {autoScroll ? '自动滚动: 开' : '自动滚动: 关'}
-        </Button>
-        <Divider type="vertical" />
-        <Button
-          size="small"
           icon={<SyncOutlined />}
           onClick={() => {
             disconnect();
@@ -731,7 +770,12 @@ const PipelineRunLive: React.FC = () => {
         >
           重连
         </Button>
-        <div style={{ marginLeft: 'auto' }}>
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+          {searchText && (
+            <Text style={{ fontSize: 12, color: colors.primary[500] }}>
+              匹配: {displayLogs.filter((l) => l.text.toLowerCase().includes(searchText.toLowerCase())).length} 条
+            </Text>
+          )}
           <Text type="secondary" style={{ fontSize: 12 }}>
             日志数: {displayLogs.length}
           </Text>
@@ -764,7 +808,7 @@ const PipelineRunLive: React.FC = () => {
           }
           size="small"
         >
-          <LiveLogViewer logs={displayLogs} autoScroll={autoScroll} />
+          <LiveLogViewer logs={displayLogs} autoScroll={autoScroll} searchText={searchText} />
         </Card>
       </div>
     </div>
