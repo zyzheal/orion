@@ -78,8 +78,8 @@ const TaskTimeoutsPage: React.FC = () => {
   const fetchTimedOutTasks = async () => {
     setLoading(true);
     try {
-      const res = await getTimedOutTasks();
-      setTimedOutTasks(res.data?.data || []);
+      const data = await getTimedOutTasks();
+      setTimedOutTasks(data || []);
     } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '加载超时任务失败');
     } finally {
@@ -90,8 +90,8 @@ const TaskTimeoutsPage: React.FC = () => {
   // 获取检查器状态
   const fetchStatus = async () => {
     try {
-      const res = await getTimeoutStatus();
-      setStatus(res.data?.data || { isRunning: false, processedEventsCount: 0 });
+      const data = await getTimeoutStatus();
+      setStatus(data || { isRunning: false, processedEventsCount: 0 });
     } catch (error: unknown) {
       console.error('Failed to fetch status:', error);
     }
@@ -107,8 +107,7 @@ const TaskTimeoutsPage: React.FC = () => {
   const handleCheckNow = async () => {
     setChecking(true);
     try {
-      const res = await triggerCheckNow();
-      const result = res.data?.data;
+      const result = await triggerCheckNow();
       message.success(
         `检查完成，已处理 ${result?.checkedTasks || 0} 个超时任务`
       );

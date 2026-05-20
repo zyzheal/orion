@@ -52,14 +52,6 @@ import { colors } from '@/tokens/colors';
 
 const { Title, Text, Paragraph } = Typography;
 
-// ---- Color Helpers ----
-
-const nodeStatusColor = (inCycle: boolean) =>
-  inCycle ? colors.error[500] : colors.primary[500];
-
-const nodeStatusBg = (inCycle: boolean) =>
-  inCycle ? colors.error[50] : colors.primary[50];
-
 // ---- Main Component ----
 
 const WorkflowDependenciesPage: React.FC = () => {
@@ -84,8 +76,8 @@ const WorkflowDependenciesPage: React.FC = () => {
   const loadGraphData = useCallback(async () => {
     setGraphLoading(true);
     try {
-      const res = await getDependencyGraph();
-      setGraphData(res.data?.data ?? null);
+      const data = await getDependencyGraph();
+      setGraphData(data);
     } catch (error: unknown) {
       setGraphData(null);
       message.error(`加载依赖图失败: ${(error as Error).message}`);
@@ -97,8 +89,8 @@ const WorkflowDependenciesPage: React.FC = () => {
   const loadVizData = useCallback(async () => {
     setVizLoading(true);
     try {
-      const res = await getVisualizationData();
-      setVizData(res.data?.data ?? null);
+      const data = await getVisualizationData();
+      setVizData(data);
     } catch (error: unknown) {
       setVizData(null);
       message.error(`加载可视化数据失败: ${(error as Error).message}`);
@@ -114,8 +106,8 @@ const WorkflowDependenciesPage: React.FC = () => {
     }
     setCheckLoading(true);
     try {
-      const res = await checkDefinition(selectedDefinitionId);
-      setCheckResult(res.data?.data ?? null);
+      const data = await checkDefinition(selectedDefinitionId);
+      setCheckResult(data);
     } catch (error: unknown) {
       setCheckResult(null);
       message.error(`检查失败: ${(error as Error).message}`);

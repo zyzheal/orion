@@ -25,12 +25,12 @@ import {
   ThunderboltOutlined,
   CalendarOutlined,
   PlayCircleOutlined,
-  WebhookOutlined,
-  CodeOutlined,
-  CheckCircleOutlined,
-  CloseCircleOutlined,
   ExperimentOutlined,
   CopyOutlined,
+  CheckCircleOutlined,
+  CloseCircleOutlined,
+  LinkOutlined,
+  TagsOutlined,
 } from '@ant-design/icons';
 import MetricCard from '@/components/MetricCard';
 import { colors } from '@/tokens/colors';
@@ -73,7 +73,7 @@ const triggerTypeIconMap: Record<string, React.ReactNode> = {
   event: <ThunderboltOutlined />,
   cron: <CalendarOutlined />,
   manual: <PlayCircleOutlined />,
-  webhook: <WebhookOutlined />,
+  webhook: <LinkOutlined />,
 };
 
 // ============================================================================
@@ -103,11 +103,9 @@ const EventRegistryPage: React.FC = () => {
   const loadEventTypes = async () => {
     setLoadingEventTypes(true);
     try {
-      const res = await getEventTypes();
-      if (res.data?.success) {
-        setEventTypes(res.data.data.eventTypes || []);
-        setCategories(res.data.data.categories || []);
-      }
+      const data = await getEventTypes();
+      setEventTypes(data.eventTypes || []);
+      setCategories(data.categories || []);
     } catch (error: unknown) {
       message.error(`加载事件类型失败: ${(error as Error).message}`);
     } finally {
@@ -119,10 +117,8 @@ const EventRegistryPage: React.FC = () => {
   const loadSubscriptions = async () => {
     setLoadingSubscriptions(true);
     try {
-      const res = await getSubscriptions();
-      if (res.data?.success) {
-        setSubscriptions(res.data.data.subscriptions || []);
-      }
+      const data = await getSubscriptions();
+      setSubscriptions(data.subscriptions || []);
     } catch (error: unknown) {
       message.error(`加载订阅状态失败: ${(error as Error).message}`);
     } finally {
@@ -134,10 +130,8 @@ const EventRegistryPage: React.FC = () => {
   const loadStatistics = async () => {
     setLoadingStatistics(true);
     try {
-      const res = await getStatistics();
-      if (res.data?.success) {
-        setStatistics(res.data.data);
-      }
+      const data = await getStatistics();
+      setStatistics(data);
     } catch (error: unknown) {
       message.error(`加载统计信息失败: ${(error as Error).message}`);
     } finally {
@@ -181,13 +175,11 @@ const EventRegistryPage: React.FC = () => {
 
     setLoadingTestMatch(true);
     try {
-      const res = await testMatch({
+      const data = await testMatch({
         eventType: selectedEventType,
         eventPayload: parsedPayload,
       });
-      if (res.data?.success) {
-        setTestResults(res.data.data.results || []);
-      }
+      setTestResults(data.results || []);
     } catch (error: unknown) {
       message.error(`测试匹配失败: ${(error as Error).message}`);
     } finally {
@@ -250,7 +242,7 @@ const EventRegistryPage: React.FC = () => {
             key: 'event-types',
             label: (
               <span>
-                <CodeOutlined /> 事件类型
+                <TagsOutlined /> 事件类型
               </span>
             ),
             children: (
@@ -451,17 +443,27 @@ const EventRegistryPage: React.FC = () => {
                       color={colors.primary[500]}
                       size="medium"
                     />
-                    {Object.entries(statistics.byType).map(([type, count]) => (
-                      <MetricCard
-                        key={type}
-                        title={`${type} 触发器`}
-                        value={count.enabled}
-                        unit={`/ ${count.total}`}
-                        icon={triggerTypeIconMap[type]}
-                        color={colors[getTypeColor(type)][500]}
-                        size="medium"
-                      />
-                    ))}
+                    {Object.entries(statistics.byType).map(([type, count]) => {
+                      const colorKey = getTypeColor(type);
+                      const colorMap: Record<string, string> = {
+                        blue: colors.primary[500],
+                        purple: colors.purple[500],
+                        orange: colors.warning[500],
+                        green: colors.success[500],
+                        default: colors.neutral[500],
+                      };
+                      return (
+                        <MetricCard
+                          key={type}
+                          title={`${type} 触发器`}
+                          value={count.enabled}
+                          unit={`/ ${count.total}`}
+                          icon={triggerTypeIconMap[type]}
+                          color={colorMap[colorKey] || colors.neutral[500]}
+                          size="medium"
+                        />
+                      );
+                    })}
                   </div>
                 )}
 

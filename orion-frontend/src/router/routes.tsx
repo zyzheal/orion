@@ -1005,6 +1005,30 @@ export const routes: AppRoute[] = [
     element: React.lazy(() => import('@/pages/WorkflowDesigner')),
     protected: true,
   },
+  // Workflow Tasks
+  {
+    path: '/workflow-tasks',
+    element: React.lazy(() => import('@/pages/WorkflowTasks')),
+    protected: true,
+  },
+  // Event Registry
+  {
+    path: '/event-registry',
+    element: React.lazy(() => import('@/pages/EventRegistry')),
+    protected: true,
+  },
+  // Task Timeouts
+  {
+    path: '/task-timeouts',
+    element: React.lazy(() => import('@/pages/TaskTimeouts')),
+    protected: true,
+  },
+  // Workflow Dependencies
+  {
+    path: '/workflow-dependencies',
+    element: React.lazy(() => import('@/pages/WorkflowDependencies')),
+    protected: true,
+  },
   // Document Center - 统一指向PandaWiki知识空间
   {
     path: '/documents',
