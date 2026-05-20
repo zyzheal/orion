@@ -13,11 +13,28 @@ import { spacingCSSVariables } from './tokens/spacing';
 import { typographyCSSVariables } from './tokens/typography';
 import { radiusCSSVariables } from './tokens/radius';
 import { shadowsCSSVariables } from './tokens/shadows';
-import { initMicroFrontend } from './microfront/config';
+import { initMicroFrontend, cleanupMicroFrontend } from './microfront/config';
 import '@/assets/styles/global.css';
 
-// 初始化微前端
-initMicroFrontend();
+/**
+ * 初始化微前端（一次性副作用）
+ * 放在组件内而非模块顶层，避免 HMR 时重复执行导致 wujie 内部状态混乱
+ * 使用 useRef 防止 React.StrictMode 下双重初始化
+ */
+const MicroFrontendInitializer: React.FC = () => {
+  const initializedRef = React.useRef(false);
+
+  React.useEffect(() => {
+    if (initializedRef.current) return;
+    initializedRef.current = true;
+    initMicroFrontend();
+
+    return () => {
+      cleanupMicroFrontend();
+    };
+  }, []);
+  return null;
+};
 
 function injectDesignTokens(isDark: boolean) {
   const root = document.documentElement;
@@ -77,6 +94,7 @@ const AppContent: React.FC = () => {
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <ErrorBoundary>
+      <MicroFrontendInitializer />
       <AuthInitializer>
         <ChartProvider>
           <AppContent />

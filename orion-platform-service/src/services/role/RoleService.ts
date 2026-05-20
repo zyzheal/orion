@@ -85,9 +85,9 @@ export class RoleService {
   private repository: RoleRepository;
   constructor(repository: RoleRepository) { this.repository = repository; }
 
-  async createRole(tenantId: string, name: string, permissions: string[]): Promise<Role> {
+  async createRole(tenantId: string, name: string, _permissions?: string[]): Promise<Role> {
     if (!tenantId || !name) throw new RoleServiceError('Tenant ID and name required', 'INVALID_INPUT');
-    return this.repository.create(tenantId, name, permissions);
+    return this.repository.create(tenantId, name);
   }
 
   async listRoles(tenantId: string): Promise<Role[]> {
@@ -208,7 +208,7 @@ export class RoleService {
         skipped++;
         continue;
       }
-      await this.repository.create(tenantId, roleName, []);
+      await this.repository.create(tenantId, roleName);
       created++;
     }
 

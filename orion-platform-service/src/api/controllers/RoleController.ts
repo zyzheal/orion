@@ -66,8 +66,7 @@ export class RoleController {
       }
       const role = await this.service.createRole(
         body.tenantId as string,
-        body.name as string,
-        (body.permissions as string[]) ?? []
+        body.name as string
       );
       await reply.status(201).send({ success: true, data: role });
     } catch (err) {

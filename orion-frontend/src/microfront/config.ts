@@ -1,7 +1,7 @@
 /**
  * wujie 微前端主应用配置
  */
-import { setupApp, preloadApp, bus } from 'wujie';
+import { setupApp, preloadApp, bus, destroyApp } from 'wujie';
 import { subAppConfigs, getSubAppConfig, getEnabledApps } from './apps';
 
 // Re-export for direct access
@@ -74,6 +74,24 @@ export const initMicroFrontend = (): void => {
   if (enabledApps) {
     preloadApp({ name: 'dba' });
   }
+};
+
+/**
+ * 清理子应用资源（HMR 时调用，释放 wujie 内部状态）
+ */
+export const cleanupMicroFrontend = (): void => {
+  subAppConfigs.forEach((app) => {
+    try {
+      destroyApp(app.key);
+    } catch {
+      // 子应用未启动时 destroyApp 可能抛异常，安全忽略
+    }
+    // 兜底：清理容器 DOM
+    const container = document.querySelector(app.container);
+    if (container) {
+      (container as HTMLElement).innerHTML = '';
+    }
+  });
 };
 
 /**
@@ -164,6 +182,7 @@ export const injectGlobalState = (state: Record<string, unknown>): void => {
 export default {
   initMicroFrontend,
   unloadSubApp,
+  cleanupMicroFrontend,
   injectGlobalState,
   injectAuthState,
   getAuthState,

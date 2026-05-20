@@ -16,6 +16,7 @@ const SubAppRoute: React.FC = () => {
   const { user } = useAppStore();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const startedRef = useRef(false);
 
   // 根据路径确定子应用 key
   const getAppKeyFromPath = (): string | null => {
@@ -34,6 +35,11 @@ const SubAppRoute: React.FC = () => {
       console.warn(`[SubAppRoute] No app config for path: ${location.pathname}`);
       return;
     }
+
+    // React.StrictMode 下 effect 会执行两次（mount → unmount → remount）
+    // 使用 startedRef 防止重复启动
+    if (startedRef.current) return;
+    startedRef.current = true;
 
     let cancelled = false;
     setLoading(true);

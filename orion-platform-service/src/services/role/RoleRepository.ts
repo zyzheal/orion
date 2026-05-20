@@ -8,7 +8,6 @@ export interface Role {
   tenant_id: string;
   name: string;
   description: string | null;
-  permissions: string[];
 }
 
 export class RoleRepository {
@@ -22,10 +21,10 @@ export class RoleRepository {
     return (await this.pool.query('SELECT * FROM roles WHERE tenant_id = $1', [tenantId])).rows;
   }
 
-  async create(tenantId: string, name: string, permissions: string[]): Promise<Role> {
+  async create(tenantId: string, name: string, _description?: string): Promise<Role> {
     const result = await this.pool.query(
-      'INSERT INTO roles (tenant_id, name, permissions) VALUES ($1, $2, $3) RETURNING *',
-      [tenantId, name, permissions]
+      'INSERT INTO roles (tenant_id, name, description) VALUES ($1, $2, $3) RETURNING *',
+      [tenantId, name, _description || null]
     );
     return result.rows[0];
   }
@@ -39,13 +38,12 @@ export class RoleRepository {
     return (await this.pool.query('SELECT * FROM roles WHERE name = $1', [name])).rows[0] || null;
   }
 
-  async update(id: string, input: { name?: string; description?: string; permissions?: string[] }): Promise<Role | null> {
+  async update(id: string, input: { name?: string; description?: string }): Promise<Role | null> {
     const updates: string[] = [];
     const params: unknown[] = [];
     let idx = 1;
     if (input.name !== undefined) { updates.push(`name = $${idx++}`); params.push(input.name); }
     if (input.description !== undefined) { updates.push(`description = $${idx++}`); params.push(input.description); }
-    if (input.permissions !== undefined) { updates.push(`permissions = $${idx++}`); params.push(input.permissions); }
     if (updates.length === 0) return this.findById(id);
     updates.push(`updated_at = NOW()`);
     params.push(id);
