@@ -24,7 +24,7 @@ const WorkflowDesigner: React.FC = () => {
       key: 'designer',
       label: (
         <span>
-          <BranchesOutlined />
+          <BranchesOutlined style={{ marginRight: 8 }} />
           工作流设计
         </span>
       ),
@@ -43,7 +43,7 @@ const WorkflowDesigner: React.FC = () => {
       key: 'history',
       label: (
         <span>
-          <HistoryOutlined />
+          <HistoryOutlined style={{ marginRight: 8 }} />
           执行历史
         </span>
       ),
