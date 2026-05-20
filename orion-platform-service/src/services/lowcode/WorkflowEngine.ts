@@ -98,10 +98,7 @@ export class WorkflowEngine {
   ) {
     this.definitionRepository = new WorkflowDefinitionRepository();
     this.instanceManager = new WorkflowInstanceManager();
-    this.timerRepository = new WorkflowTimerRepository(
-      // 获取数据库连接池（如果可用）
-      (globalThis as any).db || { query: async () => ({ rows: [], rowCount: 0 }) }
-    );
+    this.timerRepository = new WorkflowTimerRepository();
     this.dependencies = dependencies || {};
     this.services = services || this.createDefaultServices();
   }
@@ -155,8 +152,8 @@ export class WorkflowEngine {
       throw new Error(`Workflow definition not found: ${instance.workflowDefinitionId}`);
     }
 
-    // 检查实例状态
-    if (instance.status !== 'pending' && instance.status !== 'suspended') {
+    // 检查实例状态（允许 pending/suspended/running，running 用于 resume 场景）
+    if (instance.status !== 'pending' && instance.status !== 'suspended' && instance.status !== 'running') {
       throw new Error(`Cannot execute workflow instance with status: ${instance.status}`);
     }
 
@@ -284,8 +281,8 @@ export class WorkflowEngine {
     if (extraVariables) {
       await this.instanceManager.updateVariables(instanceId, extraVariables);
     }
-    await this.instanceManager.resume(instanceId);
-    // 自动继续执行
+    // 注意：不调用 instanceManager.resume()，因为 execute() 会自动将 suspended 转为 running
+    // 直接执行，execute() 内部会处理状态转换
     await this.execute(instanceId);
   }
 

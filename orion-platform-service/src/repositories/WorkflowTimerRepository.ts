@@ -5,6 +5,8 @@
  * 用于 Delay/Timer 节点的持久化，支持服务重启后恢复定时器状态。
  */
 
+import { DatabasePool, QueryResult } from '../services/database';
+
 export interface WorkflowTimer {
   id: string;
   instance_id: string;
@@ -33,11 +35,11 @@ export interface WorkflowInstanceDependency {
 }
 
 export class WorkflowTimerRepository {
-  constructor(
-    private db: {
-      query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }>;
-    }
-  ) {}
+  private pool: InstanceType<typeof DatabasePool>;
+
+  constructor() {
+    this.pool = DatabasePool as unknown as InstanceType<typeof DatabasePool>;
+  }
 
   private mapRowToTimer(row: any): WorkflowTimer {
     return {
@@ -63,7 +65,7 @@ export class WorkflowTimerRepository {
   // ==================== Timer CRUD ====================
 
   async create(data: Partial<WorkflowTimer>): Promise<WorkflowTimer> {
-    const result = await this.db.query(
+    const result = await this.pool.query(
       `INSERT INTO workflow_timers (instance_id, node_id, timer_type, cron_expression, duration_ms, timezone, max_executions, scheduled_at, resume_event, output_variables)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
       [
@@ -83,12 +85,12 @@ export class WorkflowTimerRepository {
   }
 
   async findById(id: string): Promise<WorkflowTimer | null> {
-    const result = await this.db.query('SELECT * FROM workflow_timers WHERE id = $1', [id]);
+    const result = await this.pool.query('SELECT * FROM workflow_timers WHERE id = $1', [id]);
     return result.rows[0] ? this.mapRowToTimer(result.rows[0]) : null;
   }
 
   async findByInstanceId(instanceId: string): Promise<WorkflowTimer[]> {
-    const result = await this.db.query(
+    const result = await this.pool.query(
       'SELECT * FROM workflow_timers WHERE instance_id = $1 ORDER BY created_at',
       [instanceId]
     );
@@ -96,7 +98,7 @@ export class WorkflowTimerRepository {
   }
 
   async findPendingTimers(): Promise<WorkflowTimer[]> {
-    const result = await this.db.query(
+    const result = await this.pool.query(
       "SELECT * FROM workflow_timers WHERE status = 'pending' AND scheduled_at <= now() ORDER BY scheduled_at ASC FOR UPDATE SKIP LOCKED"
     );
     return result.rows.map(row => this.mapRowToTimer(row));
@@ -122,14 +124,14 @@ export class WorkflowTimerRepository {
 
     // id 始终是最后一个参数
     params.push(id);
-    await this.db.query(
+    await this.pool.query(
       `UPDATE workflow_timers SET ${setClauses.join(', ')} WHERE id = $${params.length}`,
       params
     );
   }
 
   async incrementExecutions(id: string): Promise<number> {
-    const result = await this.db.query(
+    const result = await this.pool.query(
       `UPDATE workflow_timers
        SET current_executions = current_executions + 1, updated_at = now()
        WHERE id = $1
@@ -140,7 +142,7 @@ export class WorkflowTimerRepository {
   }
 
   async cancelByInstanceId(instanceId: string): Promise<void> {
-    await this.db.query(
+    await this.pool.query(
       "UPDATE workflow_timers SET status = 'cancelled', updated_at = now() WHERE instance_id = $1 AND status IN ('pending', 'running')",
       [instanceId]
     );
@@ -149,7 +151,7 @@ export class WorkflowTimerRepository {
   // ==================== Instance Dependencies ====================
 
   async addDependency(data: WorkflowInstanceDependency): Promise<WorkflowInstanceDependency> {
-    const result = await this.db.query(
+    const result = await this.pool.query(
       `INSERT INTO workflow_instance_dependencies (parent_instance_id, child_instance_id, node_id)
        VALUES ($1, $2, $3) ON CONFLICT (parent_instance_id, child_instance_id) DO NOTHING RETURNING *`,
       [data.parent_instance_id, data.child_instance_id, data.node_id]
@@ -158,7 +160,7 @@ export class WorkflowTimerRepository {
   }
 
   async getChildInstances(parentInstanceId: string): Promise<string[]> {
-    const result = await this.db.query(
+    const result = await this.pool.query(
       'SELECT child_instance_id FROM workflow_instance_dependencies WHERE parent_instance_id = $1',
       [parentInstanceId]
     );
@@ -167,7 +169,7 @@ export class WorkflowTimerRepository {
 
   async getParentChain(instanceId: string): Promise<string[]> {
     // 递归查询父实例链（检测循环依赖）
-    const result = await this.db.query(
+    const result = await this.pool.query(
       `WITH RECURSIVE parent_chain AS (
         SELECT parent_instance_id, child_instance_id, 1 as depth
         FROM workflow_instance_dependencies

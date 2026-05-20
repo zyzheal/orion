@@ -3,6 +3,8 @@
  * 工作流人工任务数据访问层
  */
 
+import { DatabasePool } from '../services/database';
+
 export interface WorkflowTask {
   id: string;
   instance_id: string;
@@ -26,7 +28,11 @@ export interface WorkflowTask {
 }
 
 export class WorkflowTaskRepository {
-  constructor(private db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {}
+  private pool: InstanceType<typeof DatabasePool>;
+
+  constructor() {
+    this.pool = DatabasePool as unknown as InstanceType<typeof DatabasePool>;
+  }
 
   private mapRowToEntity(row: any): WorkflowTask {
     return {
@@ -53,7 +59,7 @@ export class WorkflowTaskRepository {
   }
 
   async create(data: Partial<WorkflowTask>): Promise<WorkflowTask> {
-    const result = await this.db.query(
+    const result = await this.pool.query(
       `INSERT INTO workflow_tasks (instance_id, node_id, task_type, assignee_type, assignee_id, candidate_users, candidate_roles, title, description, form_data, status, priority, due_date)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`,
       [data.instance_id, data.node_id, data.task_type, data.assignee_type, data.assignee_id, data.candidate_users, data.candidate_roles, data.title, data.description, JSON.stringify(data.form_data || {}), data.status || 'pending', data.priority || 'normal', data.due_date]
@@ -62,12 +68,12 @@ export class WorkflowTaskRepository {
   }
 
   async findById(id: string): Promise<WorkflowTask | null> {
-    const result = await this.db.query('SELECT * FROM workflow_tasks WHERE id = $1', [id]);
+    const result = await this.pool.query('SELECT * FROM workflow_tasks WHERE id = $1', [id]);
     return result.rows[0] ? this.mapRowToEntity(result.rows[0]) : null;
   }
 
   async findByInstanceId(instanceId: string): Promise<WorkflowTask[]> {
-    const result = await this.db.query(
+    const result = await this.pool.query(
       'SELECT * FROM workflow_tasks WHERE instance_id = $1 ORDER BY created_at',
       [instanceId]
     );
@@ -85,7 +91,7 @@ export class WorkflowTaskRepository {
 
     query += ' ORDER BY created_at DESC';
 
-    const result = await this.db.query(query, params);
+    const result = await this.pool.query(query, params);
     return result.rows.map(row => this.mapRowToEntity(row));
   }
 
@@ -113,7 +119,7 @@ export class WorkflowTaskRepository {
 
     // id 始终是最后一个参数
     params.push(id);
-    await this.db.query(
+    await this.pool.query(
       `UPDATE workflow_tasks SET ${setClauses.join(', ')} WHERE id = $${params.length}`,
       params
     );
@@ -126,28 +132,28 @@ export class WorkflowTaskRepository {
     const task = await this.findById(id);
     if (!task) return null;
 
-    // 合并更新：状态 + 表单数据在一次 SQL 中完成
-    const setClauses: string[] = ['status = $1', 'updated_at = now()'];
-    const params: any[] = ['completed', id];
+    // 构建 SET 子句和参数，id 始终放在最后
+    const setClauses: string[] = ['status = $1', 'completed_at = now()', 'updated_at = now()'];
+    const params: any[] = ['completed'];
 
     if (completedBy) {
-      params.splice(1, 0, completedBy);
-      setClauses.push(`completed_by = $${params.length - 1}`);
+      params.push(completedBy);
+      setClauses.push(`completed_by = $${params.length}`);
     }
 
     if (comment) {
-      params.splice(params.length - 1, 0, comment);
-      setClauses.push(`completion_comment = $${params.length - 1}`);
+      params.push(comment);
+      setClauses.push(`completion_comment = $${params.length}`);
     }
-
-    setClauses.push('completed_at = now()');
 
     if (formData) {
-      params.splice(params.length - 1, 0, formData);
-      setClauses.push(`form_data = $${params.length - 1}::jsonb`);
+      params.push(formData);
+      setClauses.push(`form_data = $${params.length}::jsonb`);
     }
 
-    await this.db.query(
+    // id 始终是最后一个参数
+    params.push(id);
+    await this.pool.query(
       `UPDATE workflow_tasks SET ${setClauses.join(', ')} WHERE id = $${params.length}`,
       params
     );

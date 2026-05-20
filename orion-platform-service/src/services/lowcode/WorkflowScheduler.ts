@@ -44,9 +44,7 @@ export class WorkflowScheduler {
     instanceManager?: WorkflowInstanceManager
   ) {
     this.triggerRepo = triggerRepo;
-    this.timerRepo = new WorkflowTimerRepository(
-      (globalThis as any).db || { query: async () => ({ rows: [], rowCount: 0 }) }
-    );
+    this.timerRepo = new WorkflowTimerRepository();
     this.instanceManager = instanceManager || new WorkflowInstanceManager();
 
     // 创建工作流引擎用于执行工作流
@@ -445,8 +443,19 @@ export class WorkflowScheduler {
           { error, timerId: timer.id, instanceId: timer.instance_id },
           'Failed to recover timer'
         );
-        // 标记为 cancelled 防止重试
-        await this.timerRepo.updateStatus(timer.id, 'cancelled');
+        // 回退到 pending 状态，允许下次扫描重试
+        // 如果是持久性错误（如实例不存在），标记为 cancelled
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const isPermanentFailure = errorMessage.includes('not found') || errorMessage.includes('does not exist');
+
+        if (isPermanentFailure) {
+          await this.timerRepo.updateStatus(timer.id, 'cancelled');
+          logger.warn({ timerId: timer.id }, 'Timer cancelled due to permanent failure');
+        } else {
+          // 恢复为 pending，等待下次重试
+          await this.timerRepo.updateStatus(timer.id, 'pending');
+          logger.info({ timerId: timer.id }, 'Timer reset to pending for retry');
+        }
       }
     }
   }
