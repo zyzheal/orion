@@ -15,6 +15,8 @@ export interface AppRoute {
   protected?: boolean;
   /** Required permission to access this route. Format: { resource: 'project', action: 'read' } */
   requiredPermission?: { resource: string; action: string };
+  /** Hide main layout (sidebar + header) for standalone pages like sub-apps */
+  hideLayout?: boolean;
   children?: AppRoute[];
 }
 
@@ -64,13 +66,27 @@ export const routes: AppRoute[] = [
   },
   {
     path: '/console/settings',
-    element: React.lazy(() => import('@/pages/Console')),
+    element: React.lazy(() => import('@/pages/feature-flags/FeatureFlagsPage')),
     protected: true,
     requiredPermission: { resource: '*', action: 'manage' },
   },
   {
     path: '/console/users',
     element: React.lazy(() => import('@/pages/UserManagement')),
+    protected: true,
+    requiredPermission: { resource: '*', action: 'manage' },
+  },
+  // Workflow Trigger 管理
+  {
+    path: '/console/triggers',
+    element: React.lazy(() => import('@/pages/WorkflowTriggers')),
+    protected: true,
+    requiredPermission: { resource: '*', action: 'manage' },
+  },
+  // SubApp 管理（子应用配置页面）
+  {
+    path: '/console/subapps',
+    element: React.lazy(() => import('@/pages/SubAppManagement')),
     protected: true,
     requiredPermission: { resource: '*', action: 'manage' },
   },
@@ -86,11 +102,12 @@ export const routes: AppRoute[] = [
     element: React.lazy(() => import('@/pages/Projects')),
     protected: true,
   },
-  // 微前端子应用路由
+  // 微前端子应用路由 - hideLayout 隐藏主布局，全屏展示
   {
     path: '/dba/*',
     element: React.lazy(() => import('@/components/SubAppRoute')),
     protected: true,
+    hideLayout: true,
   },
   // Knowledge Base (M28)
   {
@@ -102,11 +119,13 @@ export const routes: AppRoute[] = [
     path: '/knowledge/*',
     element: React.lazy(() => import('@/components/SubAppRoute')),
     protected: true,
+    hideLayout: true,
   },
   {
     path: '/visor/*',
     element: React.lazy(() => import('@/components/SubAppRoute')),
     protected: true,
+    hideLayout: true,
   },
   // Core Pages (TASK-905)
   {
@@ -339,20 +358,18 @@ export const routes: AppRoute[] = [
         element: React.lazy(() => import('@/pages/SkillManagement/SkillExecutions')),
         protected: true,
       },
+      // Skill Admin (review & audit)
+      {
+        path: '/skills/admin/pending',
+        element: React.lazy(() => import('@/pages/SkillManagement/PendingReviews')),
+        protected: true,
+      },
+      {
+        path: '/skills/admin/history',
+        element: React.lazy(() => import('@/pages/SkillManagement/AuditHistory')),
+        protected: true,
+      },
     ],
-  },
-  // Skill Admin (review & audit)
-  {
-    path: '/skills/admin/pending',
-    element: React.lazy(() => import('@/pages/SkillManagement/PendingReviews')),
-    protected: true,
-    requiredPermission: { resource: 'skill', action: 'read' },
-  },
-  {
-    path: '/skills/admin/history',
-    element: React.lazy(() => import('@/pages/SkillManagement/AuditHistory')),
-    protected: true,
-    requiredPermission: { resource: 'skill', action: 'read' },
   },
   // IaC Management (M20)
   {
