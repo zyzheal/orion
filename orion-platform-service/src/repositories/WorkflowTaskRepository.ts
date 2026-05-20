@@ -112,4 +112,27 @@ export class WorkflowTaskRepository {
       params
     );
   }
+
+  /**
+   * 完成任务并返回工作流实例 ID（用于事件唤醒）
+   */
+  async completeWithResult(id: string, completedBy: string, comment?: string, formData?: Record<string, any>): Promise<{ instanceId: string; nodeId: string } | null> {
+    const task = await this.findById(id);
+    if (!task) return null;
+
+    await this.updateStatus(id, 'completed', completedBy, comment);
+
+    // 如果有表单数据，更新 form_data
+    if (formData) {
+      await this.db.query(
+        'UPDATE workflow_tasks SET form_data = $1, updated_at = now() WHERE id = $2',
+        [JSON.stringify(formData), id]
+      );
+    }
+
+    return {
+      instanceId: task.instance_id,
+      nodeId: task.node_id,
+    };
+  }
 }

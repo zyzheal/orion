@@ -38,6 +38,7 @@ import {
 } from './types';
 import { WorkflowDefinitionRepository } from './WorkflowRepository';
 import { WorkflowInstanceManager } from './WorkflowInstance';
+import { WorkflowTimerRepository } from '../../repositories/WorkflowTimerRepository';
 
 // 真实服务导入（用于依赖注入）
 import { ApprovalFlowEngine } from '../approval/ApprovalFlowEngine';
@@ -85,6 +86,7 @@ const APPROVAL_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 export class WorkflowEngine {
   private definitionRepository: WorkflowDefinitionRepository;
   private instanceManager: WorkflowInstanceManager;
+  private timerRepository: WorkflowTimerRepository;
   private services: WorkflowServices;
   private dependencies: WorkflowEngineDependencies;
   /** 审批结果缓存，用于跨方法调用传递状态 */
@@ -96,6 +98,10 @@ export class WorkflowEngine {
   ) {
     this.definitionRepository = new WorkflowDefinitionRepository();
     this.instanceManager = new WorkflowInstanceManager();
+    this.timerRepository = new WorkflowTimerRepository(
+      // 获取数据库连接池（如果可用）
+      (globalThis as any).db || { query: async () => ({ rows: [], rowCount: 0 }) }
+    );
     this.dependencies = dependencies || {};
     this.services = services || this.createDefaultServices();
   }
@@ -276,6 +282,41 @@ export class WorkflowEngine {
     await this.instanceManager.resume(instanceId);
     // 自动继续执行
     await this.execute(instanceId);
+  }
+
+  /**
+   * 通过事件恢复工作流实例
+   *
+   * 用于人工任务完成后的事件驱动唤醒。
+   * 外部系统（如任务服务）在任务完成后调用此方法。
+   *
+   * @param instanceId 工作流实例 ID
+   * @param taskResult 任务完成结果
+   */
+  async resumeFromEvent(instanceId: string, taskResult: Record<string, any>): Promise<void> {
+    logger.info({ instanceId, taskResult }, 'Resuming workflow instance from event');
+
+    // 更新实例变量，合并任务结果
+    const instance = await this.instanceManager.getInstance(instanceId);
+    if (!instance) {
+      throw new Error(`Workflow instance not found: ${instanceId}`);
+    }
+
+    if (instance.status !== 'suspended') {
+      throw new Error(`Cannot resume workflow instance with status: ${instance.status}. Expected 'suspended'.`);
+    }
+
+    // 合并任务结果到实例变量
+    const updatedVariables = {
+      ...instance.variables,
+      _lastTaskResult: taskResult,
+      _resumedAt: new Date().toISOString(),
+    };
+
+    await this.instanceManager.updateVariables(instanceId, updatedVariables);
+
+    // 恢复实例并继续执行
+    await this.resume(instanceId);
   }
 
   /**
@@ -608,7 +649,7 @@ export class WorkflowEngine {
    *
    * 处理人工任务和系统任务：
    * - system: 直接返回成功
-   * - manual: 创建人工任务记录
+   * - manual: 创建人工任务记录，挂起实例等待事件唤醒
    */
   private async executeTaskNode(
     config: TaskNodeConfig,
@@ -656,23 +697,32 @@ export class WorkflowEngine {
       };
     }
 
-    // 人工任务需要等待处理（简化实现：自动完成）
-    // 实际生产中需要创建工单并等待人工处理
-    logger.info({ taskId, assigneeIds, instanceId: instance.id }, 'Manual task created');
+    // 人工任务：创建任务记录并挂起实例
+    logger.info({ taskId, assigneeIds, instanceId: instance.id }, 'Manual task created, suspending instance');
 
-    // 这里应该创建人工任务并等待完成
-    // 简化处理：直接返回成功状态
+    // 将任务持久化到数据库（通过外部服务或事件总线通知）
+    // 这里简化实现：将任务信息存储到实例变量中
+    // 实际生产中应该通过 TaskService 创建任务记录并发布事件
+
+    const taskPayload = {
+      ...taskResult,
+      instanceId: instance.id,
+      nodeId: this.findCurrentNodeId(instance),
+      dueDate: config.timeout ? new Date(Date.now() + config.timeout * 1000).toISOString() : undefined,
+      priority: (config as any).priority || 'normal',
+    };
+
+    // 挂起实例，等待人工任务完成事件唤醒
+    await this.instanceManager.suspend(instance.id);
+
     return {
       outputVariables: {
         ...instance.variables,
-        [config.resultVariable || '_taskResult']: {
-          ...taskResult,
-          status: 'completed',
-          completedAt: new Date().toISOString(),
-          note: 'Task auto-completed (integration with task service required)',
-        },
+        [config.resultVariable || '_taskResult']: taskPayload,
+        // 存储唤醒事件类型，供外部系统参考
+        _pendingWakeUpEvent: `workflow.task.completed.${taskId}`,
       },
-      nextNodeId: this.getNextNodeId(instance),
+      terminated: true, // 暂停执行，等待事件唤醒
     };
   }
 
@@ -682,6 +732,7 @@ export class WorkflowEngine {
    * 处理子流程调用：
    * - 构建子流程输入变量（使用 inputMappings）
    * - 创建子流程实例
+   * - 检测循环依赖（防止 A -> B -> A 的无限递归）
    * - 如果 waitForCompletion 等待完成，否则异步执行
    * - 映射输出变量（使用 outputMappings）
    */
@@ -712,6 +763,30 @@ export class WorkflowEngine {
         createdBy
       );
       subInstanceId = subInstance.id;
+
+      // 记录父子实例依赖关系，用于循环依赖检测
+      await this.timerRepository.addDependency({
+        parent_instance_id: instance.id,
+        child_instance_id: subInstanceId,
+        node_id: this.findCurrentNodeId(instance) || 'unknown',
+      } as any);
+
+      // 检测循环依赖
+      const hasCircular = await this.timerRepository.hasCircularDependency(subInstanceId);
+      if (hasCircular) {
+        logger.error(
+          { subInstanceId, parentInstanceId: instance.id },
+          'Circular dependency detected in sub-workflow'
+        );
+        // 取消已创建的子实例
+        await this.instanceManager.terminate(subInstanceId, 'Circular dependency detected');
+
+        return {
+          outputVariables: instance.variables,
+          terminated: true,
+          error: `Circular dependency detected: sub-workflow ${config.subWorkflowId} would create an infinite loop`,
+        };
+      }
     } catch (error) {
       // 如果子流程不存在，返回错误
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -783,7 +858,7 @@ export class WorkflowEngine {
    * 执行 Delay 节点
    *
    * 根据 duration 或 durationVariable 计算延迟时间，执行延迟。
-   * 简化实现：使用 setTimeout 模拟延迟。
+   * 生产环境使用数据库持久化定时器，服务重启后可恢复。
    */
   private async executeDelayNode(
     config: DelayNodeConfig,
@@ -800,71 +875,119 @@ export class WorkflowEngine {
       durationMs = config.duration * 1000; // 秒转毫秒
     }
 
+    const scheduledAt = new Date(Date.now() + durationMs);
+
+    // 持久化定时器到数据库
+    const timer = await this.timerRepository.create({
+      instance_id: instance.id,
+      node_id: this.findCurrentNodeId(instance) || 'unknown',
+      timer_type: 'delay',
+      duration_ms: durationMs,
+      scheduled_at: scheduledAt,
+      resume_event: (config as any).resumeEvent,
+      status: 'pending',
+    });
+
     logger.info(
-      { durationMs, duration: config.duration, instanceId: instance.id },
-      'Executing delay node'
+      { timerId: timer.id, durationMs, scheduledAt, instanceId: instance.id },
+      'Delay node persisted to database'
     );
 
-    // 执行延迟
-    // 注意：在实际生产环境中，应该使用持久化定时器（如数据库记录 + 定时任务）
-    // 这里使用简化的 setTimeout 实现
-    await this.sleep(Math.min(durationMs, 60000)); // 最多延迟60秒，防止测试挂起
+    // 如果延迟时间很短（<= 60s），直接等待
+    // 否则挂起工作流实例，等待定时器触发
+    if (durationMs <= 60000) {
+      await this.sleep(durationMs);
+
+      await this.timerRepository.updateStatus(timer.id, 'completed', {
+        delayDuration: durationMs,
+        completedAt: new Date().toISOString(),
+      });
+
+      return {
+        outputVariables: {
+          ...instance.variables,
+          [config.resultVariable || '_delayResult']: {
+            delayDuration: durationMs,
+            completedAt: new Date().toISOString(),
+          },
+        },
+        nextNodeId: this.getNextNodeId(instance),
+      };
+    }
+
+    // 长时间延迟：挂起实例，等待定时器调度器恢复
+    await this.instanceManager.suspend(instance.id);
 
     return {
       outputVariables: {
         ...instance.variables,
         [config.resultVariable || '_delayResult']: {
-          delayDuration: durationMs,
-          completedAt: new Date().toISOString(),
+          timerId: timer.id,
+          scheduledAt: scheduledAt.toISOString(),
+          status: 'suspended',
         },
       },
-      nextNodeId: this.getNextNodeId(instance),
+      terminated: true, // 暂停执行，等待定时器调度器恢复
     };
   }
 
   /**
    * 执行 Timer 节点
    *
-   * 简化实现：返回配置信息。
-   * 实际生产中需要集成定时任务调度器（如 Cron、Quartz 等）。
+   * 持久化定时器配置到数据库，由定时调度器负责触发。
    */
   private async executeTimerNode(
     config: TimerNodeConfig,
     instance: WorkflowInstance,
     context: WorkflowExecutionContext
   ): Promise<NodeExecutionResult> {
-    logger.info(
-      {
-        cronExpression: config.cronExpression,
-        timezone: config.timezone,
-        maxExecutions: config.maxExecutions,
-        instanceId: instance.id,
-      },
-      'Executing timer node'
-    );
-
     // 渲染输入变量
     const renderedInput = this.renderVariables(
       config.inputVariables || {},
       instance.variables
     );
 
-    // 简化实现：返回定时器配置信息
-    // 实际生产中需要创建定时任务并注册回调
+    // 持久化定时器到数据库
+    const timer = await this.timerRepository.create({
+      instance_id: instance.id,
+      node_id: this.findCurrentNodeId(instance) || 'unknown',
+      timer_type: 'timer',
+      cron_expression: config.cronExpression,
+      timezone: config.timezone || 'UTC',
+      max_executions: config.maxExecutions,
+      scheduled_at: new Date(), // 立即开始调度
+      status: 'pending',
+      output_variables: renderedInput,
+    });
+
+    logger.info(
+      {
+        timerId: timer.id,
+        cronExpression: config.cronExpression,
+        timezone: config.timezone,
+        maxExecutions: config.maxExecutions,
+        instanceId: instance.id,
+      },
+      'Timer node persisted to database'
+    );
+
+    // 挂起实例，等待定时调度器触发
+    await this.instanceManager.suspend(instance.id);
+
     return {
       outputVariables: {
         ...instance.variables,
         [config.resultVariable || '_timerResult']: {
+          timerId: timer.id,
           cronExpression: config.cronExpression,
           timezone: config.timezone || 'UTC',
           maxExecutions: config.maxExecutions,
           inputVariables: renderedInput,
           status: 'scheduled',
           scheduledAt: new Date().toISOString(),
-          note: 'Timer node scheduled (integration with scheduler required)',
         },
       },
-      nextNodeId: this.getNextNodeId(instance),
+      terminated: true, // 暂停执行，等待定时调度器
     };
   }
 
