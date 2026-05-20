@@ -33,6 +33,7 @@ import {
   RocketOutlined,
   FireOutlined,
   SearchOutlined,
+  AppstoreOutlined,
 } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
@@ -914,7 +915,8 @@ const ProductLineManagement: React.FC = () => {
             }}
           >
             <div>
-              <Title level={3} style={{ margin: 0 }}>
+              <Title level={2} style={{ marginBottom: 8 }}>
+                <AppstoreOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
                 多分支产品线
               </Title>
               <Text type="secondary">管理产品线的分支策略、环境映射、发布列车和紧急修复通道</Text>

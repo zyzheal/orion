@@ -29,6 +29,7 @@ import {
   WarningOutlined,
   FlagOutlined,
   UserOutlined,
+  ToolOutlined,
 } from '@ant-design/icons';
 import CardPanel from '@/components/CardPanel';
 import { StatCard, TrendLineChart, GaugeChart, BarChart } from '@/components/charts';
@@ -233,8 +234,8 @@ const EngineerDashboard: React.FC = () => {
       >
         {/* Page header */}
         <div style={{ marginBottom: 24 }}>
-          <Title level={3} style={{ margin: 0 }}>
-            <UserOutlined style={{ marginRight: 8, color: COLORS.purple }} />
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <ToolOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             个人看板
           </Title>
           <Text type="secondary">

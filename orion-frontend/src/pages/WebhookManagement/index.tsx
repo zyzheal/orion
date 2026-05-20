@@ -236,8 +236,8 @@ const WebhookManagement: React.FC = () => {
       {/* Header - always visible */}
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
         <div>
-          <Title level={3} style={{ margin: 0 }}>
-            <LinkOutlined style={{ marginRight: 8, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <LinkOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             Webhook 管理
           </Title>
           <Text type="secondary">平台 Webhook 配置与监控</Text>

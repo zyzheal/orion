@@ -219,8 +219,8 @@ const CronManagement: React.FC = () => {
       {/* Header - always visible */}
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
         <div>
-          <Title level={3} style={{ margin: 0 }}>
-            <ClockCircleOutlined style={{ marginRight: 8, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <ClockCircleOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             定时任务管理
           </Title>
           <Text type="secondary">Cron Job Management</Text>

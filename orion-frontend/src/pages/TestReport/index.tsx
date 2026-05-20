@@ -5,7 +5,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Typography, Button, Space, Tag, message, Tabs, Select, Input, Table, Statistic, Row, Col, Card, Descriptions } from 'antd';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeftOutlined, ReloadOutlined, FileTextOutlined, CheckCircleOutlined, CloseCircleOutlined, MinusCircleOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, ReloadOutlined, FileTextOutlined, FileSearchOutlined, CheckCircleOutlined, CloseCircleOutlined, MinusCircleOutlined } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
 import {
   getTestReports,
@@ -201,9 +201,11 @@ const TestReportPage: React.FC = () => {
           返回
         </Button>
         <div style={{ flex: 1 }}>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <FileSearchOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             测试报告
           </Title>
+          <Text type="secondary">Run: {runId}</Text>
           <Text type="secondary">Run: {runId}</Text>
         </div>
         <Button icon={<ReloadOutlined />} onClick={loadReports} loading={loading}>

@@ -16,6 +16,7 @@ import {
   MinusOutlined,
   TeamOutlined,
   SwapOutlined,
+  BarChartOutlined,
 } from '@ant-design/icons';
 import CardPanel from '@/components/CardPanel';
 import DataState from '@/components/DataState';
@@ -276,8 +277,8 @@ const ManagerDashboard: React.FC = () => {
       >
         {/* Page header */}
         <div style={{ marginBottom: 24 }}>
-          <Title level={3} style={{ margin: 0 }}>
-            <TeamOutlined style={{ marginRight: 8, color: COLORS.info }} />
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <BarChartOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             经理看板
           </Title>
           <Text type="secondary">团队管理与成员效能分析 — {dayjs().format('YYYY-MM-DD HH:mm')}</Text>

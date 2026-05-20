@@ -8,6 +8,7 @@ import { Card, Typography, Tabs } from 'antd';
 import {
   BranchesOutlined,
   HistoryOutlined,
+  DragOutlined,
 } from '@ant-design/icons';
 import WorkflowList from './WorkflowList';
 import WorkflowCanvas from './WorkflowCanvas';
@@ -58,8 +59,8 @@ const WorkflowDesigner: React.FC = () => {
   return (
     <div style={{ padding: 0 }}>
       <div style={{ marginBottom: 24 }}>
-        <Title level={3} style={{ margin: 0 }}>
-          <BranchesOutlined style={{ marginRight: 8, color: colors.purple[500] }} />
+        <Title level={2} style={{ marginBottom: 8 }}>
+          <DragOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
           工作流设计器
         </Title>
         <Paragraph type="secondary">可视化设计和管理工作流流程，支持审批、条件分支和自动化节点</Paragraph>

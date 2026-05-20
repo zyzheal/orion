@@ -38,6 +38,7 @@ import {
   DatabaseOutlined,
   FileProtectOutlined,
   SettingOutlined,
+  SaveOutlined,
 } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
@@ -468,8 +469,8 @@ const BackupManagement: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
-            <DatabaseOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <SaveOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             Backup Management
           </Title>
           <Text type="secondary">数据备份与恢复</Text>
