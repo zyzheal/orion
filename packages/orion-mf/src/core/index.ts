@@ -176,6 +176,16 @@ export type {
   RegistryConfig,
 } from "./SubAppRegistry";
 
+// A11ySupport exports
+export { A11ySupport } from "./A11ySupport";
+export {
+  getA11ySupport,
+  createA11ySupport,
+} from "./A11ySupport";
+export type {
+  A11yConfig,
+} from "./A11ySupport";
+
 // MultiInstanceManager exports
 export { MultiInstanceManager } from "./MultiInstanceManager";
 export {
