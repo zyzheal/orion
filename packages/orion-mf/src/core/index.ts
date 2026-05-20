@@ -108,3 +108,15 @@ export type {
   PresetKey,
 } from "./SecurityPolicyManager";
 
+
+// MFSandboxBridge exports
+export { MFSandboxBridge, getBridge, setBridge, loadSubApp, destroySubApp, getSubApp } from "./MFSandboxBridge";
+
+export type {
+  SubAppConfig,
+  SubAppLifecycle,
+  SubAppInstance,
+  RemoteModule,
+  MFLoader,
+  LifecycleModules,
+} from "./MFSandboxBridge";
