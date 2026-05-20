@@ -15,11 +15,11 @@ export {
   nativeGlobal,
   READONLY_WHITELIST,
   DENYLIST,
-} from './Sandbox';
+} from "./Sandbox";
 
 export {
   SandboxProxy,
-} from './Sandbox';
+} from "./Sandbox";
 
 export {
   SandBoxType,
@@ -28,44 +28,44 @@ export {
   SandboxConfig,
   ScopedFunction,
   IStyleIsolator,
-} from './interface';
+} from "./interface";
 
-export { StyleIsolator } from './StyleIsolator';
+export { StyleIsolator } from "./StyleIsolator";
 
-export { ErrorIsolator } from './ErrorIsolator';
+export { ErrorIsolator } from "./ErrorIsolator";
 
-export { RouterManager } from './RouterManager';
+export { RouterManager } from "./RouterManager";
 
 export type {
   ErrorBoundary as ErrorBoundaryType,
   ErrorCallback,
-} from './ErrorIsolator';
+} from "./ErrorIsolator";
 
 export type {
   RouteConfig,
   RouteState,
   RouteChangeCallback,
-} from './RouterManager';
+} from "./RouterManager";
 
 // GlobalStore exports
-export { GlobalStore, globalStore } from './GlobalStore';
+export { GlobalStore, globalStore } from "./GlobalStore";
 export {
   setGlobalState,
   getGlobalState,
   subscribeGlobalState,
   getGlobalStates,
   cleanupSubApp,
-} from './GlobalStore';
-export type { StoreValue, SubscriberCallback } from './GlobalStore';
+} from "./GlobalStore";
+export type { StoreValue, SubscriberCallback } from "./GlobalStore";
 
 // SubAppDataChannel exports
-export { SubAppDataChannel } from './SubAppDataChannel';
+export { SubAppDataChannel } from "./SubAppDataChannel";
 export {
   createDataChannel,
   createFullAccessChannel,
   createReadOnlyChannel,
-} from './SubAppDataChannel';
-export type { ChannelConfig, StateChangeCallback } from './SubAppDataChannel';
+} from "./SubAppDataChannel";
+export type { ChannelConfig, StateChangeCallback } from "./SubAppDataChannel";
 
 
 export { CrashRecovery } from "./CrashRecovery";
@@ -75,3 +75,10 @@ export type {
   CircuitBreakerConfig as CrashRecoveryConfig,
 } from "./CrashRecovery";
 
+// LeakPrevention exports
+export { LeakPrevention } from "./LeakPrevention";
+
+export type {
+  LeakContext,
+  MemoryStats,
+} from "./LeakPrevention";
