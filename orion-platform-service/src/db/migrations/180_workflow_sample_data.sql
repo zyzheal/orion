@@ -7,7 +7,7 @@
 -- 1. Create workflow definition table if not exists
 -- ============================================================
 CREATE TABLE IF NOT EXISTS lowcode_workflow_definition (
-    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id                  VARCHAR(100) PRIMARY KEY,
     tenant_id           VARCHAR(100) DEFAULT 'default',
     name                VARCHAR(100) NOT NULL,
     description         TEXT,
@@ -29,11 +29,11 @@ CREATE INDEX IF NOT EXISTS idx_lwd_created ON lowcode_workflow_definition(create
 -- 2. Create workflow instance table if not exists
 -- ============================================================
 CREATE TABLE IF NOT EXISTS lowcode_workflow_instance (
-    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    workflow_id         VARCHAR(255) NOT NULL,
-    workflow_definition_id UUID NOT NULL,
+    id                  VARCHAR(100) PRIMARY KEY,
+    workflow_id         VARCHAR(100) NOT NULL,
+    workflow_definition_id VARCHAR(100) NOT NULL,
     tenant_id           VARCHAR(100) DEFAULT 'default',
-    status              VARCHAR(20) NOT NULL DEFAULT 'pending',  -- 'pending' | 'running' | 'suspended' | 'completed' | 'failed' | 'cancelled'
+    status              VARCHAR(20) NOT NULL DEFAULT 'pending',
     current_node_id     VARCHAR(100),
     variables           JSONB DEFAULT '{}',
     history             JSONB DEFAULT '[]',
@@ -82,24 +82,24 @@ ON CONFLICT (id) DO NOTHING;
 -- ============================================================
 INSERT INTO workflow_triggers (id, workflow_id, name, type, enabled, event_type, event_filter, description, created_by)
 VALUES
-    ('trig-001', 'wf-001', 'Ticket Created Trigger', 'event', true, 'ticket.created', '{"priority":"high"}', 'Trigger when high priority ticket is created', 'system'),
-    ('trig-002', 'wf-001', 'Ticket Auto Assign', 'event', true, 'ticket.created', '{}', 'Trigger when any ticket is created', 'system'),
-    ('trig-003', 'wf-002', 'Daily Health Check', 'cron', true, NULL, NULL, 'Run daily at 2 AM', 'system'),
-    ('trig-004', 'wf-003', 'Code Push Trigger', 'event', true, 'code.push', '{"branch":"main"}', 'Trigger on main branch push', 'system'),
-    ('trig-005', 'wf-003', 'PR Created Trigger', 'event', true, 'code.pr.created', '{}', 'Trigger on pull request created', 'system'),
-    ('trig-006', 'wf-004', 'Manual Onboarding', 'manual', true, NULL, NULL, 'Manual trigger for employee onboarding', 'system')
+    ('550e8400-e29b-41d4-a716-446655440001', 'wf-001', 'Ticket Created Trigger', 'event', true, 'ticket.created', '{"priority":"high"}', 'Trigger when high priority ticket is created', 'system'),
+    ('550e8400-e29b-41d4-a716-446655440002', 'wf-001', 'Ticket Auto Assign', 'event', true, 'ticket.created', '{}', 'Trigger when any ticket is created', 'system'),
+    ('550e8400-e29b-41d4-a716-446655440003', 'wf-002', 'Daily Health Check', 'cron', true, NULL, NULL, 'Run daily at 2 AM', 'system'),
+    ('550e8400-e29b-41d4-a716-446655440004', 'wf-003', 'Code Push Trigger', 'event', true, 'code.push', '{"branch":"main"}', 'Trigger on main branch push', 'system'),
+    ('550e8400-e29b-41d4-a716-446655440005', 'wf-003', 'PR Created Trigger', 'event', true, 'code.pr.created', '{}', 'Trigger on pull request created', 'system'),
+    ('550e8400-e29b-41d4-a716-446655440006', 'wf-004', 'Manual Onboarding', 'manual', true, NULL, NULL, 'Manual trigger for employee onboarding', 'system')
 ON CONFLICT (id) DO NOTHING;
 
 -- ============================================================
 -- 5. Insert sample workflow tasks for demonstration
 -- ============================================================
-INSERT INTO workflow_tasks (id, instance_id, node_id, task_type, assignee_type, assignee_id, title, description, status, priority, due_date, created_by)
+INSERT INTO workflow_tasks (id, instance_id, node_id, task_type, assignee_type, assignee_id, title, description, status, priority, due_date)
 VALUES
-    ('task-001', 'inst-001', 'create-ticket', 'manual', 'user', 'admin', 'Review high priority ticket #1234', 'Please review and approve the new IT support ticket', 'pending', 'high', NOW() + INTERVAL '1 day', 'system'),
-    ('task-002', 'inst-002', 'approval', 'manual', 'role', 'manager', 'Approve expense report #5678', 'Expense report for conference travel - $2,500', 'assigned', 'normal', NOW() + INTERVAL '2 days', 'system'),
-    ('task-003', 'inst-003', 'hr-approval', 'manual', 'role', 'hr-manager', 'Onboarding approval for John Doe', 'New employee onboarding request', 'completed', 'high', NOW() - INTERVAL '1 day', 'system'),
-    ('task-004', 'inst-004', 'setup-equipment', 'manual', 'user', 'it-staff', 'Prepare laptop for new hire', 'MacBook Pro 14" with 16GB RAM', 'pending', 'urgent', NOW() + INTERVAL '3 hours', 'system'),
-    ('task-005', 'inst-005', 'check-services', 'manual', 'user', 'admin', 'Verify service health check results', 'Review the automated health check report', 'assigned', 'normal', NOW() + INTERVAL '4 hours', 'system')
+    ('660e8400-e29b-41d4-a716-446655440001', 'inst-wf001-1', 'create-ticket', 'manual', 'user', 'admin', 'Review high priority ticket #1234', 'Please review and approve the new IT support ticket', 'pending', 'high', NOW() + INTERVAL '1 day'),
+    ('660e8400-e29b-41d4-a716-446655440002', 'inst-wf001-2', 'approval', 'manual', 'role', 'manager', 'Approve expense report #5678', 'Expense report for conference travel - $2,500', 'assigned', 'normal', NOW() + INTERVAL '2 days'),
+    ('660e8400-e29b-41d4-a716-446655440003', 'inst-wf002-1', 'hr-approval', 'manual', 'role', 'hr-manager', 'Onboarding approval for John Doe', 'New employee onboarding request', 'completed', 'high', NOW() - INTERVAL '1 day'),
+    ('660e8400-e29b-41d4-a716-446655440004', 'inst-wf003-1', 'setup-equipment', 'manual', 'user', 'it-staff', 'Prepare laptop for new hire', 'MacBook Pro 14" with 16GB RAM', 'pending', 'urgent', NOW() + INTERVAL '3 hours'),
+    ('660e8400-e29b-41d4-a716-446655440005', 'inst-wf004-1', 'check-services', 'manual', 'user', 'admin', 'Verify service health check results', 'Review the automated health check report', 'assigned', 'normal', NOW() + INTERVAL '4 hours')
 ON CONFLICT (id) DO NOTHING;
 
 -- ============================================================
@@ -123,18 +123,18 @@ ON CONFLICT (id) DO NOTHING;
 -- ============================================================
 INSERT INTO workflow_trigger_logs (id, trigger_id, workflow_instance_id, event_type, status, execution_time_ms, triggered_at)
 VALUES
-    ('log-001', 'trig-001', 'inst-wf001-1', 'ticket.created', 'success', 1250, NOW() - INTERVAL '1 hour'),
-    ('log-002', 'trig-002', 'inst-wf001-2', 'ticket.created', 'success', 980, NOW() - INTERVAL '2 hours'),
-    ('log-003', 'trig-003', 'inst-wf002-1', NULL, 'success', 5420, NOW() - INTERVAL '12 hours'),
-    ('log-004', 'trig-004', 'inst-wf003-1', 'code.push', 'success', 3250, NOW() - INTERVAL '1 day'),
-    ('log-005', 'trig-005', 'inst-wf003-1', 'code.pr.created', 'failed', 8500, NOW() - INTERVAL '2 days')
+    ('770e8400-e29b-41d4-a716-446655440001', '550e8400-e29b-41d4-a716-446655440001', 'inst-wf001-1', 'ticket.created', 'success', 1250, NOW() - INTERVAL '1 hour'),
+    ('770e8400-e29b-41d4-a716-446655440002', '550e8400-e29b-41d4-a716-446655440002', 'inst-wf001-2', 'ticket.created', 'success', 980, NOW() - INTERVAL '2 hours'),
+    ('770e8400-e29b-41d4-a716-446655440003', '550e8400-e29b-41d4-a716-446655440003', 'inst-wf002-1', NULL, 'success', 5420, NOW() - INTERVAL '12 hours'),
+    ('770e8400-e29b-41d4-a716-446655440004', '550e8400-e29b-41d4-a716-446655440004', 'inst-wf003-1', 'code.push', 'success', 3250, NOW() - INTERVAL '1 day'),
+    ('770e8400-e29b-41d4-a716-446655440005', '550e8400-e29b-41d4-a716-446655440005', 'inst-wf003-1', 'code.pr.created', 'failed', 8500, NOW() - INTERVAL '2 days')
 ON CONFLICT (id) DO NOTHING;
 
 -- Rollback (if needed):
--- DELETE FROM workflow_trigger_logs;
--- DELETE FROM workflow_tasks;
--- DELETE FROM workflow_triggers WHERE id IN ('trig-001','trig-002','trig-003','trig-004','trig-005','trig-006');
--- DELETE FROM lowcode_workflow_instance;
+-- DELETE FROM workflow_trigger_logs WHERE id LIKE '770e8400-%';
+-- DELETE FROM workflow_tasks WHERE id LIKE '660e8400-%';
+-- DELETE FROM workflow_triggers WHERE id LIKE '550e8400-%';
+-- DELETE FROM lowcode_workflow_instance WHERE id LIKE 'inst-%';
 -- DELETE FROM lowcode_workflow_definition WHERE id IN ('wf-001','wf-002','wf-003','wf-004');
 -- DROP TABLE IF EXISTS lowcode_workflow_instance;
 -- DROP TABLE IF EXISTS lowcode_workflow_definition;
