@@ -97,3 +97,11 @@ export type {
   DegradationEvent,
   DegradationConfig,
 } from "./DegradationStrategy";
+
+// EventBus exports
+export { EventBus, eventBus } from "./EventBus";
+export type {
+  EventBusHandler,
+  EventBusPayload,
+  ChannelOptions,
+} from "./EventBus";
