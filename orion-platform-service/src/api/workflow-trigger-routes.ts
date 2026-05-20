@@ -85,15 +85,15 @@ export default async function workflowTriggerRoutes(
     if (!triggerManager) {
       const { EventBusService } = await import('../services/event-bus-service');
       const eventBus = app.decorateGet ? await app.diContainer?.resolve('eventBus') as EventBusService : undefined;
-      const { InstanceManager } = await import('../services/lowcode/InstanceManager');
-      const instanceManager = new InstanceManager(database);
+      const { WorkflowInstanceManager } = await import('../services/lowcode/WorkflowInstance');
+      const instanceManager = new WorkflowInstanceManager(database);
 
       triggerManager = new TriggerManager(triggerRepo, eventBus, instanceManager);
     }
 
     if (!scheduler) {
-      const { InstanceManager } = await import('../services/lowcode/InstanceManager');
-      const instanceManager = new InstanceManager(database);
+      const { WorkflowInstanceManager } = await import('../services/lowcode/WorkflowInstance');
+      const instanceManager = new WorkflowInstanceManager(database);
       scheduler = new WorkflowScheduler(triggerRepo, instanceManager);
     }
 
