@@ -46,3 +46,23 @@ export type {
   RouteState,
   RouteChangeCallback,
 } from './RouterManager';
+
+// GlobalStore exports
+export { GlobalStore, globalStore } from './GlobalStore';
+export {
+  setGlobalState,
+  getGlobalState,
+  subscribeGlobalState,
+  getGlobalStates,
+  cleanupSubApp,
+} from './GlobalStore';
+export type { StoreValue, SubscriberCallback } from './GlobalStore';
+
+// SubAppDataChannel exports
+export { SubAppDataChannel } from './SubAppDataChannel';
+export {
+  createDataChannel,
+  createFullAccessChannel,
+  createReadOnlyChannel,
+} from './SubAppDataChannel';
+export type { ChannelConfig, StateChangeCallback } from './SubAppDataChannel';
