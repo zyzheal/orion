@@ -57,6 +57,11 @@ export const initMicroFrontend = (): void => {
       // Keep-Alive 生命周期
       activated: () => {
         console.log(`[wujie] ${app.key} activated`);
+        // 子应用激活时重新注入最新的认证状态
+        // 使用 requestAnimationFrame 延迟注入，确保子应用沙箱已就绪
+        requestAnimationFrame(() => {
+          injectAuthState();
+        });
       },
       deactivated: () => {
         console.log(`[wujie] ${app.key} deactivated`);
@@ -94,11 +99,32 @@ export const injectAuthState = (): void => {
   const tenantId = localStorage.getItem('tenant_id');
   const userStr = localStorage.getItem('user');
 
+  // 安全解析JSON，避免解析失败导致异常
+  let user = { id: '', username: '' };
+  if (userStr) {
+    try {
+      user = JSON.parse(userStr);
+    } catch (e) {
+      console.warn('[Wujie] Failed to parse user data:', e);
+    }
+  }
+
   const authState: OrionAuthState = {
     token: token || '',
-    tenantId: tenantId || 'default',
-    user: userStr ? JSON.parse(userStr) : { id: '', username: '' },
+    tenantId: tenantId || '',
+    user,
   };
+
+  // 变更检测：无变化时跳过，避免重复通知
+  const current = window.$orion;
+  if (
+    current &&
+    current.token === authState.token &&
+    current.tenantId === authState.tenantId &&
+    current.user?.id === authState.user.id
+  ) {
+    return;
+  }
 
   // 设置全局状态
   window.$orion = authState;

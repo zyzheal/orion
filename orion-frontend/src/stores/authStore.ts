@@ -124,6 +124,9 @@ export const useAuthStore = create<AuthState>()(
         }
         localStorage.setItem(TOKEN_EXPIRES_KEY, String(expiresAt));
 
+        // Token刷新后同步到微前端
+        injectAuthState();
+
         return accessToken;
       } catch (error) {
         console.error('[Auth] Failed to refresh token:', error);

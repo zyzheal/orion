@@ -192,13 +192,14 @@ const MatrixConfigurator: React.FC<MatrixConfiguratorProps> = ({
   );
 
   // 同步到外部 value（仅在 dimensions/exclusions 变化时）
+  // 注意：enabled 状态由外部 Switch 控制，不应根据 dimensions.length 自动推断
   const config = useMemo<MatrixBuildConfig>(
     () => ({
-      enabled: dimensions.length > 0,
+      enabled: value?.enabled ?? dimensions.length > 0,
       dimensions,
       exclusions,
     }),
-    [dimensions, exclusions]
+    [dimensions, exclusions, value?.enabled]
   );
 
   // 计算组合

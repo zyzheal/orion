@@ -409,7 +409,8 @@ function createScopedStorage(key: string, storage: Storage): Storage {
       if (prop === 'clear') {
         return () => {
           // 只清除本命名空间的 key
-          for (let i = 0; i < storage.length; i++) {
+          // 使用倒序遍历，避免 removeItem 导致索引偏移而跳过元素
+          for (let i = storage.length - 1; i >= 0; i--) {
             const k = storage.key(i);
             if (k?.startsWith(prefix)) {
               storage.removeItem(k);
@@ -575,38 +576,79 @@ export class StyleIsolator {
 
 ```typescript
 // core/ErrorIsolator.ts
+
+// 全局监听器只注册一次，避免多次 setup 导致泄漏
+let globalErrorHandler: ((event: ErrorEvent) => void) | null = null;
+let globalRejectionHandler: ((event: PromiseRejectionEvent) => void) | null = null;
+
 export class ErrorIsolator {
   private errorBoundaries = new Map<string, ErrorBoundary>();
-  private globalHandler: (error: Error, key: string) => void;
+
+  constructor() {
+    // 构造函数中只注册一次全局监听器
+    if (!globalErrorHandler) {
+      globalErrorHandler = (event: ErrorEvent) => {
+        this.routeError(event);
+      };
+      globalRejectionHandler = (event: PromiseRejectionEvent) => {
+        this.routeRejection(event);
+      };
+
+      window.addEventListener('error', globalErrorHandler);
+      window.addEventListener('unhandledrejection', globalRejectionHandler);
+    }
+  }
+
+  private routeError(event: ErrorEvent): void {
+    // 遍历所有子应用，找到匹配的错误来源
+    for (const [key, boundary] of this.errorBoundaries) {
+      if (this.isFromSubApp(event, key)) {
+        event.stopImmediatePropagation();
+        boundary.capture(event.error);
+        return;
+      }
+    }
+  }
+
+  private routeRejection(event: PromiseRejectionEvent): void {
+    for (const [key, boundary] of this.errorBoundaries) {
+      // 通过 rejection reason 判断是否来自子应用
+      const reason = event.reason;
+      if (reason && reason.toString().includes(key)) {
+        event.preventDefault();
+        boundary.capture(reason instanceof Error ? reason : new Error(String(reason)));
+        return;
+      }
+    }
+  }
 
   setup(key: string, onError: (error: Error) => void): ErrorBoundary {
     const boundary = new ErrorBoundary(key, onError);
     this.errorBoundaries.set(key, boundary);
-
-    // 全局异常捕获
-    window.addEventListener('error', (e) => this.handleGlobalError(e, key));
-    window.addEventListener('unhandledrejection', (e) =>
-      this.handleUnhandledRejection(e, key)
-    );
-
     return boundary;
-  }
-
-  private handleGlobalError(event: ErrorEvent, key: string) {
-    const boundary = this.errorBoundaries.get(key);
-    if (boundary && this.isFromSubApp(event, key)) {
-      event.stopImmediatePropagation();
-      boundary.capture(event.error);
-    }
   }
 
   private isFromSubApp(event: ErrorEvent, key: string): boolean {
     // 检查错误堆栈是否来自子应用
-    return event.filename?.includes(key) ?? false;
+    if (event.filename?.includes(key)) return true;
+    if (event.error?.stack?.includes(key)) return true;
+    return false;
   }
 
   remove(key: string): void {
     this.errorBoundaries.delete(key);
+    // 不再需要移除全局监听器，因为它是单例
+  }
+
+  destroy(): void {
+    // 清理所有边界和全局监听器（框架卸载时调用）
+    this.errorBoundaries.clear();
+    if (globalErrorHandler) {
+      window.removeEventListener('error', globalErrorHandler);
+      window.removeEventListener('unhandledrejection', globalRejectionHandler!);
+      globalErrorHandler = null;
+      globalRejectionHandler = null;
+    }
   }
 }
 
@@ -622,85 +664,35 @@ class ErrorBoundary {
 }
 ```
 
+**ErrorIsolator 设计要点**：
+
+| 设计点 | 方案 | 说明 |
+|--------|------|------|
+| 全局监听器 | 单例模式，只注册一次 | 避免多次 setup 导致监听器累积 |
+| 错误路由 | 遍历 errorBoundaries Map | 通过 filename/stack 匹配子应用 |
+| unhandledrejection | 通过 reason 字符串判断来源 | 防止 Promise 错误泄漏 |
+| 清理机制 | `destroy()` 清理所有 | 框架卸载时移除全局监听器 |
+| 堆栈检测 | filename + error.stack | 提高子应用错误识别准确率 |
+
 ### 3.5 RuntimeIsolation — 运行时安全隔离
 
-```typescript
-// core/RuntimeIsolation.ts
-export class RuntimeIsolation {
-  private snapshots = new Map<string, GlobalSnapshot>();
-  private timers = new Map<string, Set<number>>();
-  private listeners = new Map<string, Set<EventListener>>();
+> **注意**：此模块的功能已由 `Sandbox` 模块（3.2 节）的 Proxy 白名单/黑名单机制完整覆盖。
+> 保留此文档作为设计参考，实际实现应使用 `Sandbox` 模块。
 
-  setup(key: string): IsolationContext {
-    const snapshot = this.snapshotGlobals();
-    this.snapshots.set(key, snapshot);
-    this.timers.set(key, new Set());
-    this.listeners.set(key, new Set());
+~~~typescript
+// core/RuntimeIsolation.ts — 已废弃，使用 Sandbox 替代
+// 以下代码保留用于参考
+~~~
 
-    this.interceptGlobals(key);
+**RuntimeIsolation 已被 Sandbox 覆盖的功能**：
 
-    return { key };
-  }
-
-  private snapshotGlobals(): GlobalSnapshot {
-    return {
-      setTimeout: window.setTimeout,
-      setInterval: window.setInterval,
-      addEventListener: window.addEventListener,
-      localStorage: window.localStorage,
-      sessionStorage: window.sessionStorage,
-      cookie: document.cookie,
-    };
-  }
-
-  private interceptGlobals(key: string) {
-    const originalSetTimeout = window.setTimeout;
-    const originalAddEventListener = window.addEventListener;
-
-    // 拦截定时器
-    window.setTimeout = ((handler, timeout, ...args) => {
-      const id = originalSetTimeout(handler, timeout, ...args);
-      this.timers.get(key)?.add(id);
-      return id;
-    }) as typeof setTimeout;
-
-    // 拦截事件监听
-    window.addEventListener = ((type, listener, options) => {
-      originalAddEventListener(type, listener, options);
-      this.listeners.get(key)?.add(listener);
-    }) as typeof addEventListener;
-  }
-
-  cleanup(key: string): void {
-    // 清除所有定时器
-    for (const id of this.timers.get(key) ?? []) {
-      clearTimeout(id);
-      clearInterval(id);
-    }
-
-    // 移除所有事件监听
-    for (const listener of this.listeners.get(key) ?? []) {
-      window.removeEventListener('message', listener);
-    }
-
-    // 恢复全局快照
-    this.restoreGlobals(key);
-
-    this.timers.delete(key);
-    this.listeners.delete(key);
-    this.snapshots.delete(key);
-  }
-
-  private restoreGlobals(key: string): void {
-    const snapshot = this.snapshots.get(key);
-    if (snapshot) {
-      window.setTimeout = snapshot.setTimeout;
-      window.setInterval = snapshot.setInterval;
-      window.addEventListener = snapshot.addEventListener;
-    }
-  }
-}
-```
+| 原功能 | Sandbox 对应实现 |
+|--------|-----------------|
+| setTimeout/setInterval 拦截 | Proxy wrapDangerous 方法 |
+| addEventListener 拦截 | Proxy wrapDangerous 方法 |
+| localStorage/sessionStorage 隔离 | ScopedStorage 命名空间 |
+| 定时器/监听器清理 | Sandbox.destroy() 方法 |
+| 全局快照/恢复 | Proxy 本地变量优先策略 |
 
 ### 3.6 CrashRecovery — 崩溃恢复
 
@@ -738,7 +730,9 @@ export class CrashRecovery {
 }
 
 class CircuitBreaker {
+  // 使用固定大小的循环缓冲区，避免无限增长
   private failures: number[] = [];
+  private maxFailures = 100; // 最多保留 100 条记录
   private lastSuccess = 0;
 
   constructor(
@@ -748,12 +742,12 @@ class CircuitBreaker {
 
   isTripped(): boolean {
     const now = Date.now();
-    const recentFailures = this.failures.filter(
-      (t) => now - t < this.config.window
-    );
 
-    if (recentFailures.length >= this.config.threshold) {
-      const lastFailure = recentFailures[recentFailures.length - 1];
+    // 清理过期条目
+    this.pruneOldFailures(now);
+
+    if (this.failures.length >= this.config.threshold) {
+      const lastFailure = this.failures[this.failures.length - 1];
       return now - lastFailure < this.config.cooldown;
     }
     return false;
@@ -761,11 +755,27 @@ class CircuitBreaker {
 
   recordFailure(): void {
     this.failures.push(Date.now());
+    // 防止无限增长
+    if (this.failures.length > this.maxFailures) {
+      this.failures = this.failures.slice(-this.maxFailures / 2);
+    }
   }
 
   recordSuccess(): void {
     this.lastSuccess = Date.now();
-    this.failures = []; // 成功后重置失败计数
+    this.failures = [];
+  }
+
+  private pruneOldFailures(now: number): void {
+    const cutoff = now - this.config.window;
+    // 线性扫描找到第一个在窗口内的位置（timestamps 已排序）
+    const index = this.failures.findIndex(t => t >= cutoff);
+    if (index >= 0) {
+      this.failures = this.failures.slice(index);
+    } else if (this.failures.length > 0) {
+      // findIndex 返回 -1 表示全部过期
+      this.failures = [];
+    }
   }
 }
 ```
@@ -777,7 +787,8 @@ class CircuitBreaker {
 export class LeakPrevention {
   private domNodes = new Map<string, Set<HTMLElement>>();
   private abortControllers = new Map<string, AbortController>();
-  private memoryThreshold = 100 * 1024 * 1024; // 100MB
+  private memoryMonitors = new Map<string, ReturnType<typeof setInterval>>();
+  private memoryThreshold = 50 * 1024 * 1024; // 50MB（更严格的阈值）
 
   setup(key: string): LeakContext {
     const controller = new AbortController();
@@ -809,33 +820,237 @@ export class LeakPrevention {
   }
 
   cleanup(key: string): void {
-    // 中断所有网络请求
+    // 1. 中断所有网络请求
     this.abortControllers.get(key)?.abort();
 
-    // 移除所有注册的 DOM 节点
+    // 2. 停止内存监控定时器
+    const monitorId = this.memoryMonitors.get(key);
+    if (monitorId) {
+      clearInterval(monitorId);
+      this.memoryMonitors.delete(key);
+    }
+
+    // 3. 移除所有注册的 DOM 节点
     for (const node of this.domNodes.get(key) ?? []) {
       node.remove();
     }
 
+    // 4. 清理引用
     this.abortControllers.delete(key);
     this.domNodes.delete(key);
   }
 
   private startMemoryMonitor(key: string): void {
+    // 仅 Chromium 支持 performance.memory
+    const hasMemoryAPI = 'memory' in performance;
+    if (!hasMemoryAPI) {
+      console.warn(`[LeakPrevention] ${key}: performance.memory not supported, using fallback`);
+      // 非 Chromium 浏览器使用性能标记替代方案
+      this.startFallbackMonitor(key);
+      return;
+    }
+
     const check = () => {
-      const mem = performance.memory?.usedJSHeapSize ?? 0;
+      const mem = (performance as any).memory?.usedJSHeapSize ?? 0;
       if (mem > this.memoryThreshold) {
-        console.warn(`[LeakPrevention] ${key} memory exceeds threshold`);
+        console.warn(`[LeakPrevention] ${key} memory exceeds 50MB threshold`);
       }
     };
 
     const id = setInterval(check, 5000);
-    this.domNodes.get(key)?.add({ remove: () => clearInterval(id) } as any);
+    this.memoryMonitors.set(key, id);
+  }
+
+  private startFallbackMonitor(key: string): void {
+    // 使用 performance.measure() 标记，外部工具可分析
+    const check = () => {
+      const markName = `orion-mf-memory-${key}`;
+      performance.mark(markName);
+      // 通过 PerformanceObserver 外部分析，此处只记录标记
+    };
+
+    const id = setInterval(check, 10000);
+    this.memoryMonitors.set(key, id);
   }
 }
 ```
 
-### 3.8 ReactShadowCompat — React + Shadow DOM 兼容
+**LeakPrevention 设计要点**：
+
+| 设计点 | 方案 | 说明 |
+|--------|------|------|
+| DOM 注册表 | Set 管理 | unmount 时自动清理未移除节点 |
+| 网络请求 | AbortController | unmount 时中断所有进行中的请求 |
+| 内存监控 | performance.memory (Chromium) | 50MB 阈值，更严格 |
+| 非 Chromium 降级 | performance.mark() | 外部工具分析，不依赖非标准 API |
+| 定时器管理 | memoryMonitors Map | 单独管理，cleanup 时 clearInterval |
+
+### 3.8 RouterManager — 路由管理
+
+**问题**：20+ 子应用的路由同步、浏览器前进/后退、URL 编码未定义。
+
+```typescript
+// core/RouterManager.ts
+
+interface RouteConfig {
+  key: string;
+  path: string;        // 子应用路由前缀，如 /pipeline
+  exact?: boolean;
+}
+
+interface RouteState {
+  currentApp: string;
+  appPath: string;     // 子应用内部路径
+  query: URLSearchParams;
+}
+
+export class RouterManager {
+  private routes: Map<string, RouteConfig> = new Map();
+  private current: RouteState | null = null;
+  private popStateHandler: ((e: PopStateEvent) => void) | null = null;
+  private onRouteChange?: (state: RouteState) => void;
+
+  // URL 格式: /app/{subAppKey}/*
+  private basePath = '/app';
+
+  register(config: RouteConfig): void {
+    this.routes.set(config.key, config);
+  }
+
+  unregister(key: string): void {
+    this.routes.delete(key);
+  }
+
+  // 初始化路由监听
+  init(onChange: (state: RouteState) => void): void {
+    this.onRouteChange = onChange;
+    this.popStateHandler = () => {
+      const state = this.parseURL();
+      if (state) {
+        this.current = state;
+        this.onRouteChange?.(state);
+      }
+    };
+
+    window.addEventListener('popstate', this.popStateHandler);
+
+    // 拦截 pushState/replaceState
+    this.patchHistoryAPI();
+
+    // 首次解析
+    const initialState = this.parseURL();
+    if (initialState) {
+      this.current = initialState;
+      this.onRouteChange?.(initialState);
+    }
+  }
+
+  // 导航到子应用
+  navigate(appKey: string, appPath: string, replace = false): void {
+    const route = this.routes.get(appKey);
+    if (!route) {
+      console.warn(`[Router] Unknown app: ${appKey}`);
+      return;
+    }
+
+    const url = `${this.basePath}/${appKey}${appPath}`;
+    if (replace) {
+      history.replaceState({ appKey, appPath }, '', url);
+    } else {
+      history.pushState({ appKey, appPath }, '', url);
+    }
+
+    this.current = {
+      currentApp: appKey,
+      appPath,
+      query: new URLSearchParams(window.location.search),
+    };
+  }
+
+  // 子应用内部路由变化时调用
+  notifyAppRouteChange(appKey: string, appPath: string): void {
+    // 更新 URL 但不触发 pushState（避免循环）
+    const url = `${this.basePath}/${appKey}${appPath}${window.location.search}`;
+    history.replaceState({ appKey, appPath }, '', url);
+
+    if (this.current) {
+      this.current.appPath = appPath;
+    }
+  }
+
+  private parseURL(): RouteState | null {
+    const pathname = window.location.pathname;
+    if (!pathname.startsWith(this.basePath)) {
+      return null;
+    }
+
+    const parts = pathname.slice(this.basePath.length + 1).split('/');
+    const appKey = parts[0];
+    const appPath = '/' + parts.slice(1).join('/');
+
+    const route = this.routes.get(appKey);
+    if (!route) {
+      console.warn(`[Router] No route for app: ${appKey}`);
+      return null;
+    }
+
+    return {
+      currentApp: appKey,
+      appPath: appPath || route.path,
+      query: new URLSearchParams(window.location.search),
+    };
+  }
+
+  private patchHistoryAPI(): void {
+    // 拦截 pushState
+    const originalPush = history.pushState;
+    history.pushState = ((state, title, url) => {
+      originalPush.call(history, state, title, url);
+      const parsed = this.parseURL();
+      if (parsed) {
+        this.current = parsed;
+        this.onRouteChange?.(parsed);
+      }
+    }) as typeof history.pushState;
+
+    // 拦截 replaceState
+    const originalReplace = history.replaceState;
+    history.replaceState = ((state, title, url) => {
+      originalReplace.call(history, state, title, url);
+      const parsed = this.parseURL();
+      if (parsed) {
+        this.current = parsed;
+        this.onRouteChange?.(parsed);
+      }
+    }) as typeof history.replaceState;
+  }
+
+  getCurrent(): RouteState | null {
+    return this.current;
+  }
+
+  destroy(): void {
+    if (this.popStateHandler) {
+      window.removeEventListener('popstate', this.popStateHandler);
+    }
+    // 恢复原始 history API
+    // 注意：实际实现中需要保存原始函数并恢复
+  }
+}
+```
+
+**RouterManager 设计要点**：
+
+| 设计点 | 方案 | 说明 |
+|--------|------|------|
+| URL 格式 | `/app/{subAppKey}/*` | 统一路由前缀，易于识别 |
+| 前进/后退 | popstate 事件监听 | 浏览器导航自动切换子应用 |
+| pushState 拦截 | patch history API | 子应用内部路由变化同步到 URL |
+| 子应用通知 | `notifyAppRouteChange()` | 子应用内部路由变化时更新 URL |
+| 首次加载 | `parseURL()` 解析 | 页面刷新时恢复正确子应用 |
+| query 参数 | URLSearchParams | 自动传递查询参数给子应用 |
+
+### 3.9 ReactShadowCompat — React + Shadow DOM 兼容
 
 ```typescript
 // core/ReactShadowCompat.ts
@@ -887,21 +1102,89 @@ class EventForwarder {
   private handlers: (() => void)[] = [];
 
   constructor(
-    private source: EventTarget,
+    private source: ShadowRoot,
     private target: Document
   ) {}
 
   start(): void {
-    const events = ['click', 'mousedown', 'mouseup', 'keydown', 'keyup', 'focus', 'blur'];
+    // 使用 composed: true 的 CustomEvent 穿越 Shadow DOM 边界
+    const events: Array<{
+      type: string;
+      forwarder: (e: Event) => void;
+    }> = [
+      { type: 'click', forwarder: (e) => this.forwardMouseEvent(e, 'click') },
+      { type: 'mousedown', forwarder: (e) => this.forwardMouseEvent(e, 'mousedown') },
+      { type: 'mouseup', forwarder: (e) => this.forwardMouseEvent(e, 'mouseup') },
+      { type: 'keydown', forwarder: (e) => this.forwardKeyboardEvent(e) },
+      { type: 'keyup', forwarder: (e) => this.forwardKeyboardEvent(e) },
+      { type: 'focus', forwarder: (e) => this.forwardFocusEvent(e) },
+      { type: 'blur', forwarder: (e) => this.forwardFocusEvent(e) },
+    ];
 
     for (const event of events) {
-      const handler = (e: Event) => {
-        const forwarded = new e.constructor(e.type, e);
-        this.target.dispatchEvent(forwarded);
-      };
-      this.source.addEventListener(event, handler);
-      this.handlers.push(() => this.source.removeEventListener(event, handler));
+      this.source.addEventListener(event.type, event.forwarder, true); // capture phase
+      this.handlers.push(() => this.source.removeEventListener(event.type, event.forwarder, true));
     }
+  }
+
+  private forwardMouseEvent(e: Event, type: string): void {
+    const me = e as MouseEvent;
+    // 使用 CustomEvent 保留关键属性
+    const forwarded = new MouseEvent(type, {
+      bubbles: true,
+      cancelable: true,
+      composed: true, // 穿越 Shadow DOM 边界
+      clientX: me.clientX,
+      clientY: me.clientY,
+      screenX: me.screenX,
+      screenY: me.screenY,
+      button: me.button,
+      buttons: me.buttons,
+      ctrlKey: me.ctrlKey,
+      shiftKey: me.shiftKey,
+      altKey: me.altKey,
+      metaKey: me.metaKey,
+      relatedTarget: me.relatedTarget,
+    });
+
+    // 在转发的事件上附加原始引用
+    (forwarded as any)._originalTarget = e.target;
+    this.target.dispatchEvent(forwarded);
+  }
+
+  private forwardKeyboardEvent(e: Event): void {
+    const ke = e as KeyboardEvent;
+    const forwarded = new KeyboardEvent(e.type, {
+      bubbles: true,
+      cancelable: true,
+      composed: true,
+      key: ke.key,
+      code: ke.code,
+      keyCode: ke.keyCode,
+      charCode: ke.charCode,
+      which: ke.which,
+      ctrlKey: ke.ctrlKey,
+      shiftKey: ke.shiftKey,
+      altKey: ke.altKey,
+      metaKey: ke.metaKey,
+      repeat: ke.repeat,
+      location: ke.location,
+    });
+
+    (forwarded as any)._originalTarget = e.target;
+    this.target.dispatchEvent(forwarded);
+  }
+
+  private forwardFocusEvent(e: Event): void {
+    const forwarded = new FocusEvent(e.type, {
+      bubbles: false,
+      cancelable: false,
+      composed: true,
+      relatedTarget: (e as FocusEvent).relatedTarget,
+    });
+
+    (forwarded as any)._originalTarget = e.target;
+    this.target.dispatchEvent(forwarded);
   }
 
   stop(): void {
@@ -913,11 +1196,219 @@ class EventForwarder {
 }
 ```
 
+**EventForwarder 改进要点**：
+
+| 原问题 | 修复方案 |
+|--------|----------|
+| `new e.constructor()` 丢失属性 | 使用具体的 MouseEvent/KeyboardEvent 构造器 |
+| relatedTarget 丢失 | 手动传递 relatedTarget |
+| buttons/key/code 丢失 | 手动复制所有关键属性 |
+| target 指向错误 | 附加 `_originalTarget` 引用 |
+| 不冒泡到外部 | 使用 `composed: true` 穿越 Shadow DOM |
+| 冒泡阶段错误 | 使用 capture phase 监听 |
+
 ---
 
 ## 4. 支持模块设计
 
-### 4.1 EventBus — 带版本控制的通信
+### 4.0 GlobalStore — 全局状态管理
+
+**问题**：用户信息、租户上下文、主题配置等如何在子应用间共享？
+
+```typescript
+// core/GlobalStore.ts
+
+interface StoreValue {
+  data: any;
+  version: number;
+  timestamp: number;
+  owner: string; // 写入者 key
+}
+
+export class GlobalStore {
+  private store = new Map<string, StoreValue>();
+  private subscribers = new Map<string, Set<(key: string, value: any) => void>>();
+  private version = 1;
+
+  // 设置全局状态
+  set(key: string, value: any, owner: string): void {
+    this.store.set(key, {
+      data: value,
+      version: this.version++,
+      timestamp: Date.now(),
+      owner,
+    });
+
+    // 通知订阅者
+    for (const cb of this.subscribers.get(key) ?? []) {
+      cb(key, value);
+    }
+  }
+
+  // 获取全局状态
+  get(key: string): any {
+    return this.store.get(key)?.data;
+  }
+
+  // 订阅状态变化
+  subscribe(key: string, callback: (key: string, value: any) => void): () => void {
+    if (!this.subscribers.has(key)) {
+      this.subscribers.set(key, new Set());
+    }
+    this.subscribers.get(key)!.add(callback);
+
+    // 返回取消订阅函数
+    return () => {
+      this.subscribers.get(key)?.delete(callback);
+    };
+  }
+
+  // 批量获取
+  getMany(keys: string[]): Record<string, any> {
+    const result: Record<string, any> = {};
+    for (const key of keys) {
+      result[key] = this.get(key);
+    }
+    return result;
+  }
+
+  // 清理指定子应用的状态
+  cleanup(owner: string): void {
+    for (const [key, value] of this.store) {
+      if (value.owner === owner) {
+        this.store.delete(key);
+      }
+    }
+  }
+
+  // 获取所有状态（调试用）
+  debug(): Record<string, StoreValue> {
+    return Object.fromEntries(this.store);
+  }
+}
+```
+
+**GlobalStore 设计要点**：
+
+| 设计点 | 方案 | 说明 |
+|--------|------|------|
+| 状态共享 | Map 存储 | 子应用间共享状态 |
+| 版本控制 | version 字段 | 避免过期数据 |
+| 订阅机制 | Set 回调 | 状态变化自动通知 |
+| 所有权 | owner 字段 | 子应用卸载时清理其状态 |
+| 与 EventBus 关系 | 解耦 | GlobalStore 管状态，EventBus 管事件 |
+
+### 4.1 SubAppStateMachine — 生命周期状态机
+
+**问题**：快速切换子应用时的并发冲突、异步 mount 过程中用户切换到另一个子应用如何处理？
+
+```typescript
+// core/SubAppStateMachine.ts
+
+type SubAppState =
+  | 'idle'
+  | 'loading'      // 加载远程模块
+  | 'bootstrapping' // 执行 bootstrap 钩子
+  | 'mounting'     // 执行 mount 钩子
+  | 'mounted'      // 已挂载
+  | 'unmounting'   // 执行 unmount 钩子
+  | 'unmounted'    // 已卸载
+  | 'error';       // 错误状态
+
+interface StateTransition {
+  from: SubAppState;
+  to: SubAppState;
+  action: string;
+}
+
+const VALID_TRANSITIONS: StateTransition[] = [
+  { from: 'idle', to: 'loading', action: 'load' },
+  { from: 'loading', to: 'bootstrapping', action: 'bootstrap' },
+  { from: 'bootstrapping', to: 'mounting', action: 'mount' },
+  { from: 'mounting', to: 'mounted', action: 'complete' },
+  { from: 'mounted', to: 'unmounting', action: 'unmount' },
+  { from: 'unmounting', to: 'unmounted', action: 'complete' },
+  { from: 'loading', to: 'error', action: 'fail' },
+  { from: 'bootstrapping', to: 'error', action: 'fail' },
+  { from: 'mounting', to: 'error', action: 'fail' },
+  { from: 'unmounting', to: 'error', action: 'fail' },
+  { from: 'error', to: 'loading', action: 'retry' },
+  { from: 'unmounted', to: 'loading', action: 'load' },
+];
+
+export class SubAppStateMachine {
+  private states = new Map<string, SubAppState>();
+  private abortControllers = new Map<string, AbortController>();
+  private onTransition?: (key: string, from: SubAppState, to: SubAppState) => void;
+
+  constructor(options?: { onTransition?: (key: string, from: SubAppState, to: SubAppState) => void }) {
+    this.onTransition = options?.onTransition;
+  }
+
+  init(key: string): void {
+    this.states.set(key, 'idle');
+  }
+
+  // 请求状态转换
+  transition(key: string, action: string): void {
+    const currentState = this.states.get(key) ?? 'idle';
+    const validTransition = VALID_TRANSITIONS.find(
+      t => t.from === currentState && t.action === action
+    );
+
+    if (!validTransition) {
+      throw new Error(
+        `Invalid transition: ${currentState} -> ${action} for ${key}`
+      );
+    }
+
+    const oldState = currentState;
+    this.states.set(key, validTransition.to);
+    this.onTransition?.(key, oldState, validTransition.to);
+
+    // 如果转换到 loading，创建 AbortController
+    if (validTransition.to === 'loading') {
+      this.abortControllers.set(key, new AbortController());
+    }
+  }
+
+  getState(key: string): SubAppState {
+    return this.states.get(key) ?? 'idle';
+  }
+
+  // 快速切换场景：取消正在进行的 mount
+  cancelPending(key: string): void {
+    const state = this.getState(key);
+    if (state === 'loading' || state === 'bootstrapping' || state === 'mounting') {
+      this.abortControllers.get(key)?.abort();
+      this.states.set(key, 'unmounted');
+    }
+  }
+
+  // 获取 AbortSignal（用于异步操作取消）
+  getAbortSignal(key: string): AbortSignal | undefined {
+    return this.abortControllers.get(key)?.signal;
+  }
+
+  // 检查是否可以加载
+  canLoad(key: string): boolean {
+    const state = this.getState(key);
+    return state === 'idle' || state === 'unmounted' || state === 'error';
+  }
+}
+```
+
+**生命周期状态机设计要点**：
+
+| 设计点 | 方案 | 说明 |
+|--------|------|------|
+| 状态定义 | 8 种状态 | idle → loading → bootstrapping → mounting → mounted → unmounting → unmounted |
+| 转换验证 | 白名单机制 | 只允许预定义的转换 |
+| 快速切换 | `cancelPending()` | 取消正在进行的异步操作 |
+| 取消机制 | AbortController | 传播到 MF 加载和 bootstrap/mount 钩子 |
+| 并发防护 | 状态检查 | 已 loading 时拒绝新的 load 请求 |
+
+### 4.2 EventBus — 带版本控制的通信
 
 ```typescript
 // core/EventBus.ts
@@ -976,6 +1467,12 @@ interface Handler {
 ```typescript
 // core/DegradationStrategy.ts
 export class DegradationStrategy {
+  private bridge: MFSandboxBridge;
+
+  constructor(bridge: MFSandboxBridge) {
+    this.bridge = bridge;
+  }
+
   async loadSubApp(config: SubAppConfig): Promise<SubAppInstance> {
     // Level 1: Full mode (MF + Proxy + Shadow DOM)
     try {
@@ -1004,12 +1501,13 @@ export class DegradationStrategy {
 
   private async loadFull(config: SubAppConfig): Promise<SubAppInstance> {
     // 完整模式：MF + Proxy 沙箱 + Shadow DOM
-    return MFSandboxBridge.loadSubApp(config);
+    // 注意：DegradationStrategy 需要持有 MFSandboxBridge 实例
+    return this.bridge.loadSubApp(config);
   }
 
   private async loadCompatible(config: SubAppConfig): Promise<SubAppInstance> {
     // 兼容模式：MF + Proxy，不用 Shadow DOM
-    return MFSandboxBridge.loadSubApp({ ...config, noShadowDOM: true });
+    return this.bridge.loadSubApp({ ...config, noShadowDOM: true });
   }
 
   private async loadIframe(config: SubAppConfig): Promise<SubAppInstance> {
@@ -1035,45 +1533,6 @@ export class DegradationStrategy {
 
 ```typescript
 // core/PerformanceBenchmark.ts
-export class PerformanceBenchmark {
-  private metrics = new Map<string, Metric[]>();
-
-  async runAll(config: SubAppConfig): Promise<BenchmarkResult> {
-    const results = {
-      firstPaint: await this.measureFirstPaint(config),
-      multiAppLoad: await this.measureMultiAppLoad(config),
-      switchLatency: await this.measureSwitchLatency(config),
-      memoryUsage: await this.measureMemoryUsage(config),
-      sandboxOverhead: await this.measureSandboxOverhead(config),
-      cssIsolationOverhead: await this.measureCSSIsolationOverhead(config),
-    };
-
-    this.checkThresholds(results);
-    return results;
-  }
-
-  private async measureFirstPaint(config: SubAppConfig): Promise<number> {
-    const start = performance.now();
-    await DegradationStrategy.loadSubApp(config);
-    return performance.now() - start;
-  }
-
-  private checkThresholds(results: BenchmarkResult): void {
-    const thresholds = {
-      firstPaint: 1500,      // 1.5s
-      switchLatency: 300,    // 300ms
-      memoryUsage: 100e6,    // 100MB
-      sandboxOverhead: 50,   // 50ms
-      cssIsolationOverhead: 20, // 20ms
-    };
-
-    for (const [key, value] of Object.entries(results)) {
-      if (value > thresholds[key as keyof typeof thresholds]) {
-        console.warn(`[Benchmark] ${key} exceeds threshold: ${value}ms`);
-      }
-    }
-  }
-}
 
 interface BenchmarkResult {
   firstPaint: number;
@@ -1083,6 +1542,102 @@ interface BenchmarkResult {
   sandboxOverhead: number;
   cssIsolationOverhead: number;
 }
+
+export class PerformanceBenchmark {
+  private degradation: DegradationStrategy;
+  private bridge: MFSandboxBridge;
+
+  constructor(degradation: DegradationStrategy, bridge: MFSandboxBridge) {
+    this.degradation = degradation;
+    this.bridge = bridge;
+  }
+
+  async runAll(config: SubAppConfig): Promise<BenchmarkResult> {
+    const results = {
+      firstPaint: await this.measureFirstPaint(config),
+      multiAppLoad: await this.measureMultiAppLoad([config, config, config, config, config]),
+      switchLatency: await this.measureSwitchLatency(config),
+      memoryUsage: await this.measureMemoryUsage(config),
+      sandboxOverhead: await this.measureSandboxOverhead(),
+      cssIsolationOverhead: await this.measureCSSIsolationOverhead(config),
+    };
+
+    this.checkThresholds(results);
+    return results;
+  }
+
+  private async measureFirstPaint(config: SubAppConfig): Promise<number> {
+    const start = performance.now();
+    await this.degradation.loadSubApp(config);
+    return performance.now() - start;
+  }
+
+  private async measureMultiAppLoad(configs: SubAppConfig[]): Promise<number> {
+    const start = performance.now();
+    await Promise.all(configs.map(c => this.degradation.loadSubApp(c)));
+    return performance.now() - start;
+  }
+
+  private async measureSwitchLatency(config: SubAppConfig): Promise<number> {
+    // 模拟快速切换 10 次
+    const times: number[] = [];
+    for (let i = 0; i < 10; i++) {
+      const start = performance.now();
+      await this.bridge.loadSubApp(config);
+      times.push(performance.now() - start);
+    }
+    // 取平均值
+    return times.reduce((a, b) => a + b, 0) / times.length;
+  }
+
+  private async measureMemoryUsage(config: SubAppConfig): Promise<number> {
+    if (!('memory' in performance)) return 0;
+
+    await this.degradation.loadSubApp(config);
+    return (performance as any).memory?.usedJSHeapSize ?? 0;
+  }
+
+  private async measureSandboxOverhead(): Promise<number> {
+    const sandbox = new Sandbox();
+    const iterations = 100;
+
+    const start = performance.now();
+    for (let i = 0; i < iterations; i++) {
+      const ctx = sandbox.create(`bench-${i}`);
+      sandbox.destroy(`bench-${i}`);
+    }
+    return (performance.now() - start) / iterations;
+  }
+
+  private async measureCSSIsolationOverhead(config: SubAppConfig): Promise<number> {
+    const isolator = new StyleIsolator();
+    const container = document.createElement('div');
+
+    const start = performance.now();
+    isolator.mount(config.key, container);
+    isolator.unmount(config.key);
+    return performance.now() - start;
+  }
+
+  private checkThresholds(results: BenchmarkResult): void {
+    const thresholds = {
+      firstPaint: 1500,      // 1.5s
+      multiAppLoad: 3000,    // 3s (5 应用)
+      switchLatency: 300,    // 300ms
+      memoryUsage: 50e6,     // 50MB
+      sandboxOverhead: 5,    // 5ms（更严格）
+      cssIsolationOverhead: 10, // 10ms
+    };
+
+    for (const [key, value] of Object.entries(results)) {
+      if (value > thresholds[key as keyof typeof thresholds]) {
+        const unit = key === 'memoryUsage' ? 'bytes' : 'ms';
+        console.warn(`[Benchmark] ${key} exceeds threshold: ${value}${unit}`);
+      }
+    }
+  }
+}
+
 ```
 
 ### 4.4 A11ySupport — 无障碍访问
@@ -1267,43 +1822,158 @@ export default {
 | 模块 | 文件 | 行数 | 优先级 |
 |------|------|------|--------|
 | MFSandboxBridge | core/MFSandboxBridge.ts | ~150 | P0 |
-| Sandbox | core/Sandbox.ts | ~120 | P0 |
-| StyleIsolator | core/StyleIsolator.ts | ~100 | P0 |
-| ErrorIsolator | core/ErrorIsolator.ts | ~80 | P0 |
-| RuntimeIsolation | core/RuntimeIsolation.ts | ~120 | P0 |
-| CrashRecovery | core/CrashRecovery.ts | ~80 | P0 |
-| LeakPrevention | core/LeakPrevention.ts | ~100 | P0 |
-| ReactShadowCompat | core/ReactShadowCompat.ts | ~100 | P1 |
+| Sandbox | core/Sandbox.ts | ~280 | P0 |
+| StyleIsolator | core/StyleIsolator.ts | ~150 | P0 |
+| ErrorIsolator | core/ErrorIsolator.ts | ~120 | P0 |
+| RouterManager | core/RouterManager.ts | ~150 | P0 |
+| CrashRecovery | core/CrashRecovery.ts | ~100 | P0 |
+| LeakPrevention | core/LeakPrevention.ts | ~120 | P0 |
+| ReactShadowCompat | core/ReactShadowCompat.ts | ~150 | P1 |
 | EventBus | core/EventBus.ts | ~80 | P1 |
 | DegradationStrategy | core/DegradationStrategy.ts | ~80 | P1 |
-| PerformanceBenchmark | core/PerformanceBenchmark.ts | ~80 | P2 |
+| GlobalStore | core/GlobalStore.ts | ~80 | P1 |
+| SubAppStateMachine | core/SubAppStateMachine.ts | ~120 | P1 |
+| PerformanceBenchmark | core/PerformanceBenchmark.ts | ~120 | P2 |
 | A11ySupport | core/A11ySupport.ts | ~60 | P2 |
 | FrameworkUpgrade | core/FrameworkUpgrade.ts | ~60 | P2 |
 | create-orion-subapp | packages/create-orion-subapp/ | ~300 | P1 |
-| **总计** | **15 个模块** | **~1510 行** | |
+| **总计** | **17 个模块** | **~2120 行** | |
 
 ---
 
-## 9. 实施计划
+## 9. 测试策略
+
+### 9.1 测试分层
+
+| 层级 | 工具 | 覆盖范围 | 目标覆盖率 |
+|------|------|---------|-----------|
+| 单元测试 | Vitest/Jest | 单个模块内部逻辑 | 80%+ |
+| 集成测试 | Playwright | 模块间协作、完整加载流程 | 关键路径 100% |
+| E2E 测试 | Playwright | 子应用加载/卸载/切换 | 核心场景 100% |
+| 性能测试 | Performance API | 6 项性能基准 | 阈值验证 |
+| 安全测试 | 自定义脚本 | 沙箱逃逸攻击 | 0 逃逸 |
+
+### 9.2 重点测试用例
+
+#### 安全测试（Sandbox, RuntimeIsolation）
+
+| 测试用例 | 预期结果 |
+|---------|---------|
+| `this.constructor.constructor('return this')()` | 返回 undefined，无法访问真实全局 |
+| `window.localStorage.setItem('test', '1')` | 只写入命名空间 key，不影响其他子应用 |
+| `setTimeout(() => {}, 1000)` 后 unmount | 定时器被清除，回调不执行 |
+| `addEventListener('click', fn)` 后 unmount | 监听器被移除 |
+| `__proto__` 访问 | 返回 undefined |
+| `eval('window.alert(1)')` | eval 在黑名单中，返回 undefined |
+| 多子应用并发 setup | 无竞态，各自隔离 |
+
+#### 单元测试（EventBus, CrashRecovery, CircuitBreaker）
+
+| 测试用例 | 预期结果 |
+|---------|---------|
+| EventBus emit/on/off | 消息正确路由，off 后不再接收 |
+| EventBus 版本不匹配 | 降级或拒绝 |
+| CircuitBreaker 3 次失败后熔断 | isTripped() 返回 true |
+| CircuitBreaker cooldown 后恢复 | isTripped() 返回 false |
+| CircuitBreaker 持续失败 | failures 数组不超过 maxFailures |
+| CircuitBreaker 成功后重置 | failures 数组清空 |
+
+#### 集成测试（MFSandboxBridge, DegradationStrategy）
+
+| 测试用例 | 预期结果 |
+|---------|---------|
+| 完整加载流程（MF → Sandbox → Mount） | 子应用正确渲染 |
+| MF 加载失败触发降级 | 降级到 compatible 模式 |
+| compatible 失败 | 降级到 iframe 模式 |
+| iframe 失败 | 降级到 fallback 占位 |
+| 子应用卸载后全局变量恢复 | 无全局污染 |
+| 快速切换子应用 | 前一个 mount 被取消，无内存泄漏 |
+
+#### 性能测试（PerformanceBenchmark）
+
+| 测试用例 | 阈值 |
+|---------|------|
+| 首屏加载 | < 1.5s |
+| 5 应用并发加载 | < 3s |
+| 子应用切换延迟 | < 300ms |
+| 内存占用（5 应用） | < 50MB |
+| Proxy 沙箱创建开销 | < 5ms |
+| Shadow DOM 创建开销 | < 10ms |
+
+#### E2E 测试（Playwright）
+
+| 测试用例 | 预期结果 |
+|---------|---------|
+| 加载子应用 → 交互 → 卸载 | 无错误，无泄漏 |
+| 浏览器前进/后退 | 正确切换子应用 |
+| 子应用崩溃 → 恢复 | 熔断器正确工作 |
+| 子应用间通信（EventBus） | 消息正确传递 |
+| 全局状态共享（GlobalStore） | 状态变更通知到订阅者 |
+| 路由同步（RouterManager） | URL 与子应用状态一致 |
+
+#### 兼容性测试（ReactShadowCompat, A11ySupport）
+
+| 测试用例 | 预期结果 |
+|---------|---------|
+| React Portal 渲染到 Shadow DOM | 正确显示，事件正确触发 |
+| Modal/Tooltip 在 Shadow DOM 内 | 不超出边界 |
+| 焦点陷阱（Focus Trap） | Tab 键循环在子应用内 |
+| 屏幕阅读器 | 正确朗读子应用内容 |
+
+### 9.3 测试基础设施
+
+```
+packages/orion-mf/
+├── src/
+│   └── core/          # 源代码
+├── tests/
+│   ├── unit/          # 单元测试
+│   │   ├── sandbox.test.ts
+│   │   ├── styleIsolator.test.ts
+│   │   ├── errorIsolator.test.ts
+│   │   ├── eventBus.test.ts
+│   │   ├── crashRecovery.test.ts
+│   │   └── circuitBreaker.test.ts
+│   ├── integration/   # 集成测试
+│   │   ├── bridge.test.ts
+│   │   ├── degradation.test.ts
+│   │   └── lifecycle.test.ts
+│   ├── e2e/           # E2E 测试
+│   │   ├── subapp-flow.spec.ts
+│   │   ├── routing.spec.ts
+│   │   └── communication.spec.ts
+│   ├── performance/   # 性能测试
+│   │   └── benchmark.test.ts
+│   └── security/      # 安全测试
+│       └── sandbox-escape.test.ts
+├── vitest.config.ts
+└── playwright.config.ts
+```
+
+---
+
+## 10. 实施计划
 
 ### Phase 1：核心隔离能力（2 周）
 
-- [ ] Sandbox — JS 沙箱
+- [ ] Sandbox — JS 沙箱（纯 Proxy 方案）
 - [ ] StyleIsolator — CSS 隔离
-- [ ] ErrorIsolator — 异常隔离
-- [ ] RuntimeIsolation — 运行时安全隔离
+- [ ] ErrorIsolator — 异常隔离（单例模式）
+- [ ] RouterManager — 路由管理
 
 ### Phase 2：崩溃恢复与资源防护（1 周）
 
 - [ ] CrashRecovery — 崩溃恢复
 - [ ] LeakPrevention — 资源泄漏防护
 - [ ] ReactShadowCompat — React + Shadow DOM 兼容
+- [ ] SubAppStateMachine — 生命周期状态机
 
 ### Phase 3：MF 桥梁与降级（1 周）
 
 - [ ] MFSandboxBridge — MF 与沙箱桥梁
 - [ ] DegradationStrategy — 四级降级策略
 - [ ] EventBus — 带版本控制通信
+- [ ] GlobalStore — 全局状态管理
 
 ### Phase 4：支持模块与脚手架（1 周）
 
@@ -1311,6 +1981,7 @@ export default {
 - [ ] A11ySupport — 无障碍访问
 - [ ] FrameworkUpgrade — 框架升级支持
 - [ ] create-orion-subapp — 子应用脚手架
+- [ ] 测试用例编写
 
 ### 总计：5 周完成核心框架
 

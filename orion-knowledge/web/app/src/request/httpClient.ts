@@ -239,6 +239,24 @@ export class HttpClient<SecurityDataType = unknown> {
     let customHeaders = {};
     if (typeof window === "undefined") {
       customHeaders = await getServerHeader();
+    } else {
+      // 从 localStorage 获取 Orion 主应用注入的认证信息
+      // 注意：安全性依赖子应用无 XSS 漏洞，生产环境建议迁移到 httpOnly cookies
+      const token = localStorage.getItem('access_token');
+      const tenantId = localStorage.getItem('tenant_id');
+
+      if (token) {
+        customHeaders = {
+          ...customHeaders,
+          'Authorization': `Bearer ${token}`,
+        };
+      }
+      if (tenantId) {
+        customHeaders = {
+          ...customHeaders,
+          'x-tenant-id': tenantId,
+        };
+      }
     }
 
     return this.customFetch(
@@ -277,9 +295,7 @@ export class HttpClient<SecurityDataType = unknown> {
 
         if (typeof window !== "undefined") {
           if (!pathnameWhiteList.includes(window.location.pathname)) {
-            if (response.status === 401) {
-              redirectToLogin();
-            }
+            redirectToLogin();
           }
           return;
         }
