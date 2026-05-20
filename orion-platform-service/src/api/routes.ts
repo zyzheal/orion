@@ -106,11 +106,13 @@ import { PipelineController } from './controllers/PipelineController';
 import { PipelineRunController } from './controllers/PipelineRunController';
 import { StageController } from './controllers/StageController';
 import { TaskController } from './controllers/TaskController';
-import { ApprovalController } from './controllers/ApprovalController';
 import { SCMWebhookService } from '../services/pipeline/SCMWebhookService';
 import { PipelineRunService } from '../services/pipeline/PipelineRunService';
+import { PipelineRunRepository } from '../services/pipeline/PipelineRunRepository';
 import { PipelineEngine } from '../engine/PipelineEngine';
 import { StageExecutor } from '../engine/StageExecutor';
+import { TaskRunner } from '../engine/TaskRunner';
+import { PipelineEventPublisher } from '../events/PipelineEventPublisher';
 import pluginHotReloadRoutes from './plugin-hotreload-routes';
 import pluginRoutes from './plugin-routes';
 import policyRoutes from './policy-routes';
@@ -781,9 +783,172 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
       });
     });
 
-    // TODO: Register PipelineRun, Stage, Task, Approval, SCMWebhook routes
-    // These require PipelineEngine, StageExecutor, TaskRunner, PipelineRunService
-    // with deep dependency chains. Deferred until execution engine is wired up.
+    // Register PipelineRun, Stage, Task routes (Pipeline routes already registered inline above)
+    const pipelineEventPublisher = new PipelineEventPublisher();
+    const pipelineRunRepo = new PipelineRunRepository(options.database);
+    const pipelineRunService = new PipelineRunService(pipelineEventPublisher, pipelineRunRepo);
+
+    const taskRunner = new TaskRunner();
+    const stageExecutor = new StageExecutor(taskRunner, pipelineEventPublisher);
+
+    const pipelineEngine = new PipelineEngine(
+      pipelineService,
+      pipelineRunService,
+      pipelineEventPublisher,
+      stageExecutor
+    );
+
+    const pipelineRunController = new PipelineRunController(pipelineRunService, pipelineEngine, pipelineService);
+    const stageController = new StageController(pipelineRunService, stageExecutor);
+    const taskController = new TaskController(pipelineRunService);
+    const scmWebhookService = new SCMWebhookService(pipelineEngine);
+
+    // ==================== PipelineRun routes ====================
+    await app.register(async (instance: FastifyInstance) => {
+      instance.addHook('onRequest', authenticateUser);
+
+      // POST /api/v1/pipelines/:id/runs - Trigger Pipeline execution
+      instance.post('/pipelines/:id/runs', async (request: FastifyRequest, reply: FastifyReply) => {
+        return pipelineRunController.trigger(request, reply);
+      });
+
+      // GET /api/v1/pipeline-runs - Get PipelineRun list
+      instance.get('/pipeline-runs', async (request: FastifyRequest, reply: FastifyReply) => {
+        return pipelineRunController.list(request, reply);
+      });
+
+      // GET /api/v1/pipeline-runs/:id - Get PipelineRun detail
+      instance.get('/pipeline-runs/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+        return pipelineRunController.getById(request, reply);
+      });
+
+      // POST /api/v1/pipeline-runs/:id/cancel - Cancel PipelineRun
+      instance.post('/pipeline-runs/:id/cancel', async (request: FastifyRequest, reply: FastifyReply) => {
+        return pipelineRunController.cancel(request, reply);
+      });
+
+      // POST /api/v1/pipeline-runs/:id/retry - Retry PipelineRun
+      instance.post('/pipeline-runs/:id/retry', async (request: FastifyRequest, reply: FastifyReply) => {
+        return pipelineRunController.retry(request, reply);
+      });
+
+      // GET /api/v1/pipeline-runs/:id/stages - Get stages for a run
+      instance.get('/pipeline-runs/:id/stages', async (request: FastifyRequest, reply: FastifyReply) => {
+        return pipelineRunController.getStages(request, reply);
+      });
+
+      // GET /api/v1/pipeline-runs/:id/tasks - Get tasks for a run
+      instance.get('/pipeline-runs/:id/tasks', async (request: FastifyRequest, reply: FastifyReply) => {
+        return pipelineRunController.getTasks(request, reply);
+      });
+    });
+
+    // ==================== Stage routes ====================
+    await app.register(async (instance: FastifyInstance) => {
+      instance.addHook('onRequest', authenticateUser);
+
+      // GET /api/v1/stages/:id - Get Stage detail
+      instance.get('/stages/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+        return stageController.getById(request, reply);
+      });
+
+      // GET /api/v1/stages/:id/tasks - Get Tasks for a Stage
+      instance.get('/stages/:id/tasks', async (request: FastifyRequest, reply: FastifyReply) => {
+        return stageController.getTasks(request, reply);
+      });
+
+      // POST /api/v1/stages/:id/retry - Retry Stage
+      instance.post('/stages/:id/retry', async (request: FastifyRequest, reply: FastifyReply) => {
+        return stageController.retry(request, reply);
+      });
+    });
+
+    // ==================== Task routes ====================
+    await app.register(async (instance: FastifyInstance) => {
+      instance.addHook('onRequest', authenticateUser);
+
+      // GET /api/v1/tasks/:id - Get Task detail
+      instance.get('/tasks/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+        return taskController.getById(request, reply);
+      });
+
+      // GET /api/v1/tasks/:id/log - Get Task log
+      instance.get('/tasks/:id/log', async (request: FastifyRequest, reply: FastifyReply) => {
+        return taskController.getLog(request, reply);
+      });
+
+      // POST /api/v1/tasks/:id/retry - Retry Task
+      instance.post('/tasks/:id/retry', async (request: FastifyRequest, reply: FastifyReply) => {
+        return taskController.retry(request, reply);
+      });
+    });
+
+    // ==================== SCM Webhook routes (public - signature validated) ====================
+    await app.register(async (instance: FastifyInstance) => {
+      // POST /api/v1/webhooks/scm - Receive SCM webhook events
+      instance.post('/webhooks/scm', async (request: FastifyRequest, reply: FastifyReply) => {
+        try {
+          const body = request.body as any;
+          const headers = request.headers as Record<string, string | undefined>;
+
+          const githubSignature = headers['x-hub-signature-256'];
+          const gitlabToken = headers['x-gitlab-token'];
+          const githubEvent = headers['x-github-event'];
+          const gitlabEvent = headers['x-gitlab-event'];
+
+          let event;
+
+          if (githubEvent === 'pull_request') {
+            event = await scmWebhookService.handleGitHubPullRequest(body, githubSignature);
+          } else if (githubSignature || githubEvent) {
+            event = await scmWebhookService.handleGitHubPush(body, githubSignature);
+          } else if (gitlabEvent === 'Merge Request Hook' || gitlabEvent === 'merge_request') {
+            event = await scmWebhookService.handleGitLabMergeRequest(body, gitlabToken);
+          } else if (gitlabToken) {
+            event = await scmWebhookService.handleGitLabPush(body, gitlabToken);
+          } else {
+            event = await scmWebhookService.handleGitHubPush(body);
+          }
+
+          await reply.status(200).send({
+            received: true,
+            eventId: event.id,
+            provider: event.provider,
+            eventType: event.eventType,
+            matchedPipelines: event.matchedPipelines,
+          });
+        } catch (error: any) {
+          await reply.status(401).send({
+            error: 'WEBHOOK_VALIDATION_FAILED',
+            message: error.message,
+          });
+        }
+      });
+
+      // GET /api/v1/webhooks/scm/events - Get webhook event history (auth protected)
+      instance.addHook('onRequest', authenticateUser);
+
+      instance.get('/webhooks/scm/events', async (request: FastifyRequest, reply: FastifyReply) => {
+        const query = request.query as any;
+        const limit = query.limit ? parseInt(query.limit, 10) : 20;
+        const events = scmWebhookService.getEvents(limit);
+
+        await reply.send({
+          data: events.map(e => ({
+            id: e.id,
+            provider: e.provider,
+            eventType: e.eventType,
+            repository: e.repository,
+            branch: e.branch,
+            commitSha: e.commitSha,
+            pusher: e.pusher,
+            timestamp: e.timestamp,
+            matchedPipelines: e.matchedPipelines,
+          })),
+          total: events.length,
+        });
+      });
+    });
   }
 
   // Pipeline Graph - YAML/JSON conversion and validation
