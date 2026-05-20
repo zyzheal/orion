@@ -488,68 +488,80 @@ const PipelineDetail: React.FC = () => {
 
   return (
     <div style={{ padding: 0, background: colors.light.bg.secondary, minHeight: '100vh' }}>
-      {/* 页面头部 - 符合设计系统规范 */}
+      {/* 页面头部 - 居中布局 */}
       <div
         style={{
           display: 'flex',
-          alignItems: 'flex-start',
-          justifyContent: 'space-between',
-          padding: componentSpacing.cardPadding.lg,
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: `${componentSpacing.cardPadding.lg} ${componentSpacing.cardPadding.lg} ${componentSpacing.cardPadding.md}`,
+          background: colors.light.bg.primary,
+          borderBottom: `1px solid ${colors.light.border.light || '#f0f0f0'}`,
+          textAlign: 'center',
+        }}
+      >
+        {/* 标题区域 */}
+        <div style={{ marginBottom: spacing.sm }}>
+          <Space align="center">
+            <Button
+              type="text"
+              icon={<ArrowLeftOutlined />}
+              onClick={() => navigate('/pipelines')}
+              disabled={loading}
+              size="small"
+              style={{ position: 'absolute', left: 0 }}
+            >
+              返回
+            </Button>
+            <Title level={3} style={{ margin: 0 }}>
+              {pipeline.name}
+            </Title>
+            <Tag color="default" style={{ fontSize: 12 }}>
+              #{pipeline.runNumber}
+            </Tag>
+            {pipeline && <StatusBadge status={pipeline.status} size="medium" />}
+          </Space>
+        </div>
+
+        {/* 元信息区域 */}
+        <Space size="middle" wrap style={{ justifyContent: 'center' }}>
+          <Text type="secondary" style={{ fontSize: 13 }}>
+            分支: <Text code style={{ fontSize: 12 }}>{pipeline.branch}</Text>
+          </Text>
+          <Text type="secondary" style={{ fontSize: 13 }}>
+            触发: {triggerLabel[pipeline.trigger] || pipeline.trigger}
+          </Text>
+          <Text type="secondary" style={{ fontSize: 13 }}>
+            由 {pipeline.author || '-'} 触发
+          </Text>
+          {pipeline.commit && (
+            <Text type="secondary" style={{ fontSize: 13 }}>
+              Commit: <Text code style={{ fontSize: 12 }}>{pipeline.commit.slice(0, 7)}</Text>
+            </Text>
+          )}
+        </Space>
+      </div>
+
+      {/* 操作按钮区域 */}
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'center',
+          padding: `${componentSpacing.cardPadding.sm} ${componentSpacing.cardPadding.lg}`,
           background: colors.light.bg.primary,
           borderBottom: `1px solid ${colors.light.border.light || '#f0f0f0'}`,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: spacing.md }}>
-          <Button
-            type="text"
-            icon={<ArrowLeftOutlined />}
-            onClick={() => navigate('/pipelines')}
-            disabled={loading}
-            style={{ marginTop: 4 }}
-          >
-            返回
-          </Button>
-          <div>
-            <Space align="center" style={{ marginBottom: 4 }}>
-              <Title level={3} style={{ margin: 0 }}>
-                {pipeline.name}
-              </Title>
-              <Tag color="default" style={{ fontSize: 12 }}>
-                #{pipeline.runNumber}
-              </Tag>
-            </Space>
-            <Space size="small" wrap>
-              <Text type="secondary" style={{ fontSize: 13 }}>
-                分支: <Text code style={{ fontSize: 12 }}>{pipeline.branch}</Text>
-              </Text>
-              <Text type="secondary" style={{ fontSize: 13 }}>
-                触发: {triggerLabel[pipeline.trigger] || pipeline.trigger}
-              </Text>
-              {pipeline.author && (
-                <Text type="secondary" style={{ fontSize: 13 }}>
-                  由 {pipeline.author} 触发
-                </Text>
-              )}
-              {pipeline.commit && (
-                <Text type="secondary" style={{ fontSize: 13 }}>
-                  Commit: <Text code style={{ fontSize: 12 }}>{pipeline.commit.slice(0, 7)}</Text>
-                </Text>
-              )}
-            </Space>
-          </div>
-        </div>
-        <Space>
-          {pipeline && <StatusBadge status={pipeline.status} size="medium" />}
-          <Button
-            type="primary"
-            icon={<ReloadOutlined />}
-            loading={isRerunning}
-            onClick={handleRerun}
-            disabled={!pipeline || pipeline.status === 'running' || loading}
-          >
-            {isRerunning ? '触发中...' : '重新运行'}
-          </Button>
-        </Space>
+        <Button
+          type="primary"
+          icon={<ReloadOutlined />}
+          loading={isRerunning}
+          onClick={handleRerun}
+          disabled={!pipeline || pipeline.status === 'running' || loading}
+        >
+          {isRerunning ? '触发中...' : '重新运行'}
+        </Button>
       </div>
 
       {/* Pipeline info card */}
