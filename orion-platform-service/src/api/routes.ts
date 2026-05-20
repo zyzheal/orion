@@ -53,6 +53,8 @@ import workflowRoutes from './workflow-routes';
 import workflowTriggerRoutes from './workflow-trigger-routes';
 import workflowWebhookRoutes from './workflow-webhook-routes';
 import workflowTaskRoutes from './workflow-task-routes';
+import eventRegistryRoutes from './event-trigger-registry-routes';
+import taskTimeoutRoutes from './task-timeout-routes';
 import configMgmtEnhancedRoutes from './config-mgmt-enhanced-routes';
 import securityComplianceRoutes from './security-compliance-routes';
 import disasterRecoveryRoutes from './disaster-recovery-routes';
@@ -592,6 +594,16 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // ==================== Workflow Task Routes ====================
   await registerWithRoleGuard(app, workflowTaskRoutes, '/workflow-tasks', {
+    database: options.database,
+  });
+
+  // ==================== Event Trigger Registry Routes ====================
+  await registerWithRoleGuard(app, eventRegistryRoutes, '/event-registry', {
+    database: options.database,
+  });
+
+  // ==================== Task Timeout Routes ====================
+  await registerWithRoleGuard(app, taskTimeoutRoutes, '/task-timeouts', {
     database: options.database,
   });
 

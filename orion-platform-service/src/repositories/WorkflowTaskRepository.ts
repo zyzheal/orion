@@ -148,6 +148,44 @@ export class WorkflowTaskRepository {
   }
 
   /**
+   * 通用更新方法
+   */
+  async update(id: string, data: Partial<WorkflowTask>): Promise<WorkflowTask | null> {
+    const setClauses: string[] = ['updated_at = now()'];
+    const params: any[] = [];
+
+    if (data.form_data !== undefined) {
+      params.push(data.form_data);
+      setClauses.push(`form_data = $${params.length}::jsonb`);
+    }
+
+    if (data.priority !== undefined) {
+      params.push(data.priority);
+      setClauses.push(`priority = $${params.length}`);
+    }
+
+    if (data.due_date !== undefined) {
+      params.push(data.due_date);
+      setClauses.push(`due_date = $${params.length}`);
+    }
+
+    if (data.description !== undefined) {
+      params.push(data.description);
+      setClauses.push(`description = $${params.length}`);
+    }
+
+    // id 始终是最后一个参数
+    params.push(id);
+
+    const result = await this.pool.query(
+      `UPDATE workflow_tasks SET ${setClauses.join(', ')} WHERE id = $${params.length} RETURNING *`,
+      params,
+    );
+
+    return result.rows[0] ? this.mapRowToEntity(result.rows[0]) : null;
+  }
+
+  /**
    * 完成任务并返回工作流实例 ID（用于事件唤醒）
    */
   async completeWithResult(id: string, completedBy: string, comment?: string, formData?: Record<string, any>): Promise<{ instanceId: string; nodeId: string } | null> {
