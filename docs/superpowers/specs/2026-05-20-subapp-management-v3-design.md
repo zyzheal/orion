@@ -1,8 +1,8 @@
 # 子应用管理系统与 PandaWiki 集成方案 v3.0
 
 > **设计日期**: 2026-05-20
-> **版本**: v3.2（二次评审修复版）
-> **状态**: 待二次评审通过
+> **版本**: v3.3（三次评审修复版）
+> **状态**: 评审通过，待实施
 > **前置文档**: `2026-05-20-pandawiki-integration-design.md`（深度集成方案，本文档是前置条件）
 >
 > **v3.1 评审修复记录**:
@@ -20,6 +20,11 @@
 > - ✅ 修复竞态条件死循环（增加 apps.length > 0 判断）
 > - ✅ 修复 menuConfigStore 同步逻辑（处理禁用/删除）
 > - ✅ 修复 BroadcastChannel 兼容性（增加 undefined 检查）
+>
+> **v3.3 评审修复记录**:
+> - ✅ 修复类型定义不一致（DBConfig vs WujieConfig 明确区分）
+> - ✅ 修复 menuConfigStore 同步代码缺少导入
+> - ✅ 增加实施前置检查清单（明确每个文件的修改内容）
 
 ---
 
@@ -293,20 +298,22 @@ INSERT INTO subapp_configs (name, key, version, entry_dev, entry_prod, routes, s
  * 
  * 修复：原硬编码端口 3000 与数据库配置 5173 不一致
  */
-import { useSubAppStore, type SubAppConfig as StoreConfig } from '@/stores/subappStore';
-import type { SubAppConfig } from './types';
+// 从 Store 获取数据库格式的配置
+import { useSubAppStore, type SubAppConfig as DBConfig } from '@/stores/subappStore';
+// Wujie 框架需要的配置类型
+import type { SubAppConfig as WujieConfig } from './types';
 
 const isDev = import.meta.env.DEV;
 
 /**
  * 将数据库配置转换为 Wujie 框架需要的格式
- * 关键：从数据库读取 entry_dev（包含正确端口）
- */
-/**
- * 将数据库配置转换为 Wujie 框架需要的格式
  * 支持多路由：一个子应用可以有多个入口路由
+ *
+ * 类型转换说明：
+ * - DBConfig 使用 snake_case（如 entry_dev, entry_prod）
+ * - WujieConfig 使用 camelCase（如 url, container）
  */
-function dbConfigToWujieConfigs(dbConfig: StoreConfig): SubAppConfig[] {
+function dbConfigToWujieConfigs(dbConfig: DBConfig): WujieConfig[] {
   const entryUrl = isDev ? dbConfig.entry_dev : dbConfig.entry_prod;
   const routes = dbConfig.routes && dbConfig.routes.length > 0
     ? dbConfig.routes
@@ -328,7 +335,7 @@ function dbConfigToWujieConfigs(dbConfig: StoreConfig): SubAppConfig[] {
 /**
  * @deprecated 使用 dbConfigToWujieConfigs 替代
  */
-function dbConfigToWujieConfig(dbConfig: StoreConfig): SubAppConfig {
+function dbConfigToWujieConfig(dbConfig: DBConfig): WujieConfig {
   return dbConfigToWujieConfigs(dbConfig)[0];
 }
 
@@ -698,6 +705,8 @@ import { useSubAppStore } from './subappStore';
  *
  * 注意：当前版本工作量评估为 1 天（原 0.5 天）
  */
+import { useMenuConfigStore } from '@/stores/menuConfigStore';
+
 export const syncSubAppToMenu = (): void => {
   const subApps = useSubAppStore.getState().apps;
   const menuStore = useMenuConfigStore.getState();
@@ -855,6 +864,19 @@ function broadcastConfigUpdate() {
 | 多 Tab 同步 | 管理页面保存后其他标签页自动刷新 |
 
 **总计：4.5 天**（原 4 天 + 0.5 天菜单同步修正 + 0.5 天跨 Tab 同步）
+
+### 实施前置检查清单
+
+开始实施前，请确认以下文件需修改：
+
+| 文件 | 修改内容 | 优先级 |
+|------|----------|--------|
+| `router/routes.tsx:107` | **删除** `{ path: '/knowledge', element: <KnowledgeBase /> }` | P0 |
+| `router/routes.tsx` | 增加兜底路由 `/:appKey/*` | P0 |
+| `microfront/apps.ts` | 完全重写，从 Store 动态读取 | P0 |
+| `components/SubAppRoute/index.tsx` | 动态路径检测，修复竞态条件 | P0 |
+| `stores/subappStore.ts` | 增加 BroadcastChannel 同步 | P1 |
+| `stores/menuConfigStore.ts` | 增加 syncSubAppToMenu 同步逻辑 | P1 |
 
 ---
 
