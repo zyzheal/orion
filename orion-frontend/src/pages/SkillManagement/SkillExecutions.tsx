@@ -24,7 +24,7 @@ import {
   Select,
   Descriptions,
 } from 'antd';
-import { ReloadOutlined, ArrowLeftOutlined, PlayCircleOutlined } from '@ant-design/icons';
+import { ReloadOutlined, ArrowLeftOutlined, PlayCircleOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { spacing, colors } from '@/tokens';
 import Table, { type TableColumn } from '@/components/Table';
 import {
@@ -284,7 +284,8 @@ const SkillExecutions: React.FC = () => {
               返回
             </Button>
           </Space>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <ThunderboltOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             执行历史 {skill && <Text type="secondary">- {skill.name}</Text>}
           </Title>
           <Text type="secondary">查看技能执行的详细记录和结果</Text>

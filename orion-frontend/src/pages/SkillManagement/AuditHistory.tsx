@@ -21,7 +21,7 @@ import {
   Select,
   DatePicker,
 } from 'antd';
-import { ReloadOutlined, FileTextOutlined } from '@ant-design/icons';
+import { ReloadOutlined, FileTextOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { spacing, colors } from '@/tokens';
 import Table, { type TableColumn } from '@/components/Table';
 import { getAllAuditHistory } from '@/api/skills';
@@ -236,7 +236,8 @@ const AuditHistory: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <ThunderboltOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             审核历史
           </Title>
           <Text type="secondary">所有技能相关的审核操作记录</Text>

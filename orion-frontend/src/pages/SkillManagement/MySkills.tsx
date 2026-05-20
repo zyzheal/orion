@@ -22,8 +22,9 @@ import {
   ReloadOutlined as ReloadIcon,
   AppstoreOutlined,
   PlayCircleOutlined,
+  ThunderboltOutlined,
 } from '@ant-design/icons';
-import { spacing } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
@@ -231,7 +232,8 @@ const MySkills: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <ThunderboltOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             我的技能
           </Title>
           <Text type="secondary">已安装的技能包管理</Text>

@@ -28,6 +28,7 @@ import {
   CheckOutlined,
   CloseOutlined,
   EyeOutlined,
+  ThunderboltOutlined,
 } from '@ant-design/icons';
 import { spacing, colors } from '@/tokens';
 import Table, { type TableColumn } from '@/components/Table';
@@ -279,7 +280,8 @@ const PendingReviews: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <ThunderboltOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             待审核技能
           </Title>
           <Text type="secondary">管理员审核提交的技能包，确保质量和合规性</Text>

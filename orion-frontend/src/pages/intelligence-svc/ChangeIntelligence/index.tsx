@@ -19,7 +19,7 @@ import {
   Descriptions,
 } from 'antd';
 import { colors, spacing } from '@/tokens';
-import { ReloadOutlined, ThunderboltOutlined } from '@ant-design/icons';
+import { ReloadOutlined, ThunderboltOutlined, BranchesOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge, { type StatusType } from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
@@ -263,7 +263,8 @@ const ChangeIntelligence: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <BranchesOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             AI 变更智能
           </Title>
           <Text type="secondary">语义影响面分析与风险评分</Text>

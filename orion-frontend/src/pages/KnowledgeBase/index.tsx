@@ -15,7 +15,7 @@ import Table, { type TableColumn } from '@/components/Table';
 import { colors, spacing } from '@/tokens';
 import dayjs from 'dayjs';
 
-const { Title, Text } = Typography;
+const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
 
 interface KnowledgeItem {
@@ -293,11 +293,11 @@ export default function KnowledgeBase() {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing[6] }}>
         <div>
-          <Title level={3} style={{ margin: 0 }}>
-            <BookOutlined style={{ marginRight: spacing[3], color: colors.primary }} />
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <BookOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             AI 知识库
           </Title>
-          <Text type="secondary">知识沉淀与智能检索</Text>
+          <Paragraph type="secondary" style={{ marginBottom: 0 }}>知识沉淀与智能检索</Paragraph>
         </div>
         <Space>
           <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>刷新</Button>

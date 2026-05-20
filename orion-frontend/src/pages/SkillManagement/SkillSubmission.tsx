@@ -3,7 +3,7 @@
  */
 import React, { useState } from 'react';
 import { Typography, Button, Space, Card, Form, Input, Select, message, Tag } from 'antd';
-import { PlusOutlined, SendOutlined } from '@ant-design/icons';
+import { PlusOutlined, SendOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { createSkill, type SkillPackageInput } from '@/api/skills';
 import { colors, spacing } from '@/tokens';
 import dayjs from 'dayjs';
@@ -69,7 +69,8 @@ const SkillSubmission: React.FC = () => {
   return (
     <div style={{ padding: 0 }}>
       <div style={{ marginBottom: spacing[6] }}>
-        <Title level={3} style={{ margin: 0 }}>
+        <Title level={2} style={{ marginBottom: 8 }}>
+          <ThunderboltOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
           技能提交
         </Title>
         <Text type="secondary">提交新的技能包到社区市场</Text>
