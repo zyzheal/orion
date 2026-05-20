@@ -16,7 +16,6 @@ import {
   Card,
   Form,
   Input,
-  Select,
   message,
   Tabs,
   Spin,
@@ -27,7 +26,6 @@ import {
   Alert,
   Empty,
   Tooltip,
-  Divider,
 } from 'antd';
 import {
   ReloadOutlined,
@@ -54,12 +52,7 @@ import { colors } from '@/tokens/colors';
 
 const { Title, Text, Paragraph } = Typography;
 
-// ---- Color Maps ----
-
-const cycleColorMap = {
-  safe: colors.success[500],
-  danger: colors.error[500],
-};
+// ---- Color Helpers ----
 
 const nodeStatusColor = (inCycle: boolean) =>
   inCycle ? colors.error[500] : colors.primary[500];

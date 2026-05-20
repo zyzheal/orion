@@ -83,20 +83,23 @@ export interface VisualizationData {
 /**
  * 获取完整的依赖图和循环检测结果
  */
-export function getDependencyGraph() {
-  return api.get<DependencyGraphResult>('/v1/workflow-dependencies/graph');
+export async function getDependencyGraph(): Promise<DependencyGraphResult> {
+  const res = await api.get('/v1/workflow-dependencies/graph');
+  return (res.data as unknown as { success: boolean; data: DependencyGraphResult }).data;
 }
 
 /**
  * 检查单个工作流定义的循环依赖
  */
-export function checkDefinition(definitionId: string) {
-  return api.get<DefinitionCheckResult>(`/v1/workflow-dependencies/check/${definitionId}`);
+export async function checkDefinition(definitionId: string): Promise<DefinitionCheckResult> {
+  const res = await api.get(`/v1/workflow-dependencies/check/${definitionId}`);
+  return (res.data as unknown as { success: boolean; data: DefinitionCheckResult }).data;
 }
 
 /**
  * 获取依赖关系可视化数据
  */
-export function getVisualizationData() {
-  return api.get<VisualizationData>('/v1/workflow-dependencies/visualization');
+export async function getVisualizationData(): Promise<VisualizationData> {
+  const res = await api.get('/v1/workflow-dependencies/visualization');
+  return (res.data as unknown as { success: boolean; data: VisualizationData }).data;
 }

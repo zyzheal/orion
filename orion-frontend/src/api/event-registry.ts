@@ -86,32 +86,31 @@ export interface StatisticsResponse {
 /**
  * 获取可用事件类型列表
  */
-export async function getEventTypes() {
-  return api.get<{ success: boolean; data: EventTypesResponse }>('/v1/event-registry/event-types');
+export async function getEventTypes(): Promise<EventTypesResponse> {
+  const res = await api.get('/v1/event-registry/event-types');
+  return (res.data as unknown as { success: boolean; data: EventTypesResponse }).data;
 }
 
 /**
  * 获取当前订阅状态
  */
-export async function getSubscriptions() {
-  return api.get<{ success: boolean; data: SubscriptionsResponse }>(
-    '/v1/event-registry/subscriptions'
-  );
+export async function getSubscriptions(): Promise<SubscriptionsResponse> {
+  const res = await api.get('/v1/event-registry/subscriptions');
+  return (res.data as unknown as { success: boolean; data: SubscriptionsResponse }).data;
 }
 
 /**
  * 测试事件与触发器的匹配
  */
-export async function testMatch(request: TestMatchRequest) {
-  return api.post<{ success: boolean; data: TestMatchResponse }>(
-    '/v1/event-registry/test-match',
-    request
-  );
+export async function testMatch(request: TestMatchRequest): Promise<TestMatchResponse> {
+  const res = await api.post('/v1/event-registry/test-match', request);
+  return (res.data as unknown as { success: boolean; data: TestMatchResponse }).data;
 }
 
 /**
  * 获取触发器统计
  */
-export async function getStatistics() {
-  return api.get<{ success: boolean; data: StatisticsResponse }>('/v1/event-registry/statistics');
+export async function getStatistics(): Promise<StatisticsResponse> {
+  const res = await api.get('/v1/event-registry/statistics');
+  return (res.data as unknown as { success: boolean; data: StatisticsResponse }).data;
 }
