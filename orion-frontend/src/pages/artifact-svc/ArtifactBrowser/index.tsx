@@ -11,7 +11,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import { Typography, Card, Drawer, message, Form } from 'antd';
-import { ReloadOutlined } from '@ant-design/icons';
+import { ReloadOutlined, FolderOpenOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 
@@ -310,7 +310,8 @@ const ArtifactBrowser: React.FC = () => {
             }}
           >
             <div>
-              <Title level={3} style={{ margin: 0 }}>
+              <Title level={2} style={{ marginBottom: 8 }}>
+                <FolderOpenOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
                 制品版本浏览器
               </Title>
               <Text type="secondary">

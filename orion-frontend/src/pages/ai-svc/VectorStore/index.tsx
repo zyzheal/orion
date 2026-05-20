@@ -234,8 +234,8 @@ const VectorStorePage: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
-            <DatabaseOutlined style={{ marginRight: 8 }} />
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <DatabaseOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             向量存储管理
           </Title>
           <Text type="secondary">管理向量集合、文档上传和语义相似度检索</Text>

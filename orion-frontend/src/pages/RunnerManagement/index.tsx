@@ -34,6 +34,7 @@ import {
   EyeOutlined,
   ClockCircleOutlined,
   CloudServerOutlined,
+  RocketOutlined,
 } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
@@ -598,7 +599,8 @@ const RunnerManagement: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <RocketOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             Runner 资源池
           </Title>
           <Text type="secondary">
