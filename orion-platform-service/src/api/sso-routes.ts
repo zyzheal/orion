@@ -17,8 +17,8 @@ import { SsoService, SsoStateStore } from '../services/auth/SsoService';
 import { DatabasePool } from '../services/database';
 import { RedisCache } from '../services/redis-cache';
 
-// JWT_SECRET from environment variable
-const JWT_SECRET: string = process.env.JWT_SECRET || '';
+// JWT_SECRET from environment variable, with dev fallback
+const JWT_SECRET: string = process.env.JWT_SECRET || 'orion-dev-secret-key-change-in-prod';
 
 /**
  * Redis-backed SSO state store — enables multi-instance SSO

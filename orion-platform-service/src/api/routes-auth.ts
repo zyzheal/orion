@@ -12,8 +12,8 @@ import { DatabasePool } from '../services/database';
 
 const scryptAsync = promisify(scrypt);
 
-// JWT_SECRET from environment variable (may be empty for health-check-only mode)
-const JWT_SECRET: string = process.env.JWT_SECRET || '';
+// JWT_SECRET from environment variable, with dev fallback
+const JWT_SECRET: string = process.env.JWT_SECRET || 'orion-dev-secret-key-change-in-prod';
 
 function getJwtSecret(): string | null {
   return JWT_SECRET || null;
