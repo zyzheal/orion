@@ -66,3 +66,12 @@ export {
   createReadOnlyChannel,
 } from './SubAppDataChannel';
 export type { ChannelConfig, StateChangeCallback } from './SubAppDataChannel';
+
+
+export { CrashRecovery } from "./CrashRecovery";
+
+export type {
+  RecoveryContext,
+  CircuitBreakerConfig as CrashRecoveryConfig,
+} from "./CrashRecovery";
+
