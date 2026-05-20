@@ -50,6 +50,7 @@ import privacyRoutes from './privacy-routes';
 import degradationRoutes from './degradation-routes';
 import crossDomainRoutes from './cross-domain-routes';
 import workflowRoutes from './workflow-routes';
+import workflowTriggerRoutes from './workflow-trigger-routes';
 import configMgmtEnhancedRoutes from './config-mgmt-enhanced-routes';
 import securityComplianceRoutes from './security-compliance-routes';
 import disasterRecoveryRoutes from './disaster-recovery-routes';
@@ -576,6 +577,11 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // ==================== Workflow Routes (GAP Implementation) ====================
   await registerWithRoleGuard(app, workflowRoutes, '/workflows', {});
+
+  // ==================== Workflow Trigger Routes ====================
+  await registerWithRoleGuard(app, workflowTriggerRoutes, '/workflow-triggers', {
+    database: options.database,
+  });
 
   // ==================== Phase 3: Config Management Enhancement ====================
   await registerWithRoleGuard(app, configMgmtEnhancedRoutes, '/config-mgmt', {
