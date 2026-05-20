@@ -94,6 +94,9 @@ export class WorkflowDependencyAnalyzer {
     return { nodes, edges, cycles };
   }
 
+  /** 最大递归深度，防止栈溢出 */
+  private static readonly MAX_RECURSION_DEPTH = 100;
+
   /**
    * 检测循环依赖
    * 使用 DFS + 颜色标记法检测所有循环
@@ -107,7 +110,12 @@ export class WorkflowDependencyAnalyzer {
     const inStack = new Set<string>();
     const stack: string[] = [];
 
-    const dfs = (nodeId: string) => {
+    const dfs = (nodeId: string, depth: number = 0) => {
+      // 深度保护，防止栈溢出
+      if (depth > WorkflowDependencyAnalyzer.MAX_RECURSION_DEPTH) {
+        return;
+      }
+
       if (inStack.has(nodeId)) {
         // 发现循环：从栈中找到循环起点
         const cycleStart = stack.indexOf(nodeId);
@@ -142,7 +150,7 @@ export class WorkflowDependencyAnalyzer {
 
       const children = edges.get(nodeId) || [];
       for (const child of children) {
-        dfs(child);
+        dfs(child, depth + 1);
       }
 
       stack.pop();
@@ -184,12 +192,14 @@ export class WorkflowDependencyAnalyzer {
    */
   async checkDefinition(definitionId: string): Promise<{
     isSafe: boolean;
+    isValid: boolean;
+    error?: string;
     cycles: CircularDependencyPath[];
     dependencies: string[];
   }> {
     const definition = await this.definitionRepo.findById(definitionId);
     if (!definition) {
-      return { isSafe: true, cycles: [], dependencies: [] };
+      return { isSafe: false, isValid: false, error: 'Definition not found', cycles: [], dependencies: [] };
     }
 
     // 获取此定义直接调用的子流程

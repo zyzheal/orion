@@ -144,7 +144,7 @@ export class WorkflowTaskRepository {
     if (completedBy) {
       params.push(completedBy);
       setClauses.push(`completed_by = $${params.length}`);
-      if (status === 'completed') {
+      if (status === 'completed' || status === 'cancelled') {
         setClauses.push('completed_at = now()');
       }
     }
