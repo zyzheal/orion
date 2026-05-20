@@ -82,3 +82,14 @@ export type {
   LeakContext,
   MemoryStats,
 } from "./LeakPrevention";
+
+// ReactShadowCompat exports
+export { ReactShadowCompat } from "./ReactShadowCompat";
+
+// SubAppStateMachine exports
+export { SubAppStateMachine, VALID_TRANSITIONS } from "./SubAppStateMachine";
+
+export type {
+  SubAppState,
+} from "./SubAppStateMachine";
+
