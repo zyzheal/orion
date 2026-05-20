@@ -229,17 +229,20 @@ const AgentRunDetail: React.FC = () => {
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
-            <Space style={{ marginBottom: 8 }}>
-              <Title level={4} style={{ margin: 0 }}>
-                运行 {run.id.slice(0, 8)}...
-              </Title>
-              <StatusBadge status={statusToBadge[run.status] || 'unknown'} />
+            <Space direction="vertical" size={4}>
+              <Space align="center">
+                <Title level={2} style={{ marginBottom: 8 }}>
+                  <ThunderboltOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+                  运行 {run.id.slice(0, 8)}...
+                </Title>
+                <StatusBadge status={statusToBadge[run.status] || 'unknown'} />
+              </Space>
+              <Text type="secondary">
+                触发事件: <Tag>{run.triggerEvent}</Tag>
+                {run.currentAgent && ` · 当前 Agent: ${run.currentAgent.slice(0, 8)}`}
+                &nbsp;· 耗时: {duration}s
+              </Text>
             </Space>
-            <Text type="secondary">
-              触发事件: <Tag>{run.triggerEvent}</Tag>
-              {run.currentAgent && ` · 当前 Agent: ${run.currentAgent.slice(0, 8)}`}
-              &nbsp;· 耗时: {duration}s
-            </Text>
           </div>
           <Space>
             {isRunning && (

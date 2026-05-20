@@ -207,7 +207,8 @@ export const UserProfilePage: React.FC = () => {
           <Col flex={1}>
             <Space direction="vertical" size={spacing.xs}>
               <Space align="center">
-                <Title level={4} style={{ margin: 0 }}>
+                <Title level={2} style={{ marginBottom: 8 }}>
+                  <UserOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
                   {profile?.username || user?.username || '未设置用户名'}
                 </Title>
                 <Tag color={getRoleColor(profile?.role || user?.role || '')}>

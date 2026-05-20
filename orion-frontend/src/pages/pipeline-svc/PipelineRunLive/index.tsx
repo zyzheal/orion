@@ -548,7 +548,8 @@ const PipelineRunLive: React.FC = () => {
               >
                 返回列表
               </Button>
-              <Title level={4} style={{ margin: 0 }}>
+              <Title level={2} style={{ margin: 0 }}>
+                <PlayCircleOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
                 实时执行面板
               </Title>
             </div>

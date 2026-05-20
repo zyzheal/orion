@@ -26,11 +26,12 @@ import {
   CheckCircleOutlined,
   SyncOutlined,
   StopOutlined,
+  UnorderedListOutlined,
 } from '@ant-design/icons';
 import { listJobs, enqueueJob, completeJob, failJob, getQueueStats, QueueJob, EnqueueInput, JobStatus, QueueStats } from '@/api/queue';
 import { colors } from '@/tokens/colors';
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
 
 const statusColorMap: Record<JobStatus, string> = {
   pending: 'default',
@@ -171,8 +172,14 @@ const QueueTasksPage: React.FC = () => {
 
   return (
     <div style={{ padding: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
-        <Title level={4} style={{ margin: 0 }}>任务队列</Title>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+        <div>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <UnorderedListOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+            任务队列
+          </Title>
+          <Text type="secondary">管理队列任务状态、手动入队和完成标记</Text>
+        </div>
         <Space>
           <Select
             style={{ width: 120 }}

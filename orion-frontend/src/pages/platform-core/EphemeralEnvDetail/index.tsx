@@ -354,18 +354,21 @@ const EphemeralEnvDetail: React.FC = () => {
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
-            <Space style={{ marginBottom: 8 }}>
-              <Title level={4} style={{ margin: 0 }}>
-                {env.namespace}
-              </Title>
-              <StatusBadge
-                status={statusToBadge[env.status] || 'unknown'}
-                label={statusLabel[env.status]}
-              />
+            <Space direction="vertical" size={4}>
+              <Space align="center">
+                <Title level={2} style={{ marginBottom: 8 }}>
+                  <CloudServerOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+                  {env.namespace}
+                </Title>
+                <StatusBadge
+                  status={statusToBadge[env.status] || 'unknown'}
+                  label={statusLabel[env.status]}
+                />
+              </Space>
+              <Text type="secondary">
+                PR #{env.prId} · {env.repoId} · <Tag>{env.branchName}</Tag>
+              </Text>
             </Space>
-            <Text type="secondary">
-              PR #{env.prId} · {env.repoId} · <Tag>{env.branchName}</Tag>
-            </Text>
           </div>
           <Space>
             {env.previewUrl && env.status === 'running' && (

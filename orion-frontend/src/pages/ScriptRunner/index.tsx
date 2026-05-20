@@ -16,11 +16,11 @@ import {
   Tag,
   Alert,
 } from 'antd';
-import { PlayCircleOutlined, SafetyOutlined } from '@ant-design/icons';
+import { PlayCircleOutlined, SafetyOutlined, CodeOutlined } from '@ant-design/icons';
 import { scanScript, executeScript, ScriptConfig, ScriptScanResult, ScriptExecutionResult, ScriptLanguage, ScriptLevel } from '@/api/scripts';
 import { colors } from '@/tokens/colors';
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
 const { TextArea } = Input;
 
 const ScriptRunnerPage: React.FC = () => {
@@ -89,7 +89,13 @@ const ScriptRunnerPage: React.FC = () => {
 
   return (
     <div style={{ padding: 24 }}>
-      <Title level={4} style={{ marginBottom: 24 }}>在线脚本执行</Title>
+      <div style={{ marginBottom: 24 }}>
+        <Title level={2} style={{ marginBottom: 8 }}>
+          <CodeOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+          在线脚本执行
+        </Title>
+        <Text type="secondary">在线编写、执行和安全扫描脚本代码</Text>
+      </div>
 
       <Card title="脚本配置" style={{ marginBottom: 16 }}>
         <Form form={form} layout="vertical" initialValues={{ language: 'javascript', level: 'safe' }}>

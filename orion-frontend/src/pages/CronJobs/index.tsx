@@ -27,11 +27,12 @@ import {
   ClockCircleOutlined,
   CheckCircleOutlined,
   ExclamationCircleOutlined,
+  ScheduleOutlined,
 } from '@ant-design/icons';
 import { getCronJobs, createCronJob, deleteCronJob, executeCronJob, CronJob, CronJobInput } from '@/api/cron';
 import { colors } from '@/tokens/colors';
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
 
 const CronJobsPage: React.FC = () => {
   const [jobs, setJobs] = useState<CronJob[]>([]);
@@ -167,8 +168,14 @@ const CronJobsPage: React.FC = () => {
 
   return (
     <div style={{ padding: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
-        <Title level={4} style={{ margin: 0 }}>定时任务</Title>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+        <div>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <ScheduleOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+            定时任务
+          </Title>
+          <Text type="secondary">管理和调度周期性执行的任务</Text>
+        </div>
         <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalVisible(true)}>
           新建任务
         </Button>

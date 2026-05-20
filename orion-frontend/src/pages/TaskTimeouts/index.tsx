@@ -25,6 +25,7 @@ import {
   SyncOutlined,
   ExclamationCircleOutlined,
   QuestionCircleOutlined,
+  FieldTimeOutlined,
 } from '@ant-design/icons';
 import {
   getTimedOutTasks,
@@ -221,7 +222,8 @@ const TaskTimeoutsPage: React.FC = () => {
     <div style={{ padding: 0 }}>
       {/* 页面标题 */}
       <div style={{ marginBottom: 24 }}>
-        <Title level={4} style={{ margin: 0 }}>
+        <Title level={2} style={{ marginBottom: 8 }}>
+          <FieldTimeOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
           任务超时管理
         </Title>
         <Text type="secondary">
