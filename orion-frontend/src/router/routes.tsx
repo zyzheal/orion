@@ -328,7 +328,31 @@ export const routes: AppRoute[] = [
         element: React.lazy(() => import('@/pages/SkillManagement/SkillSubmission')),
         protected: true,
       },
+      // Instance & Execution management
+      {
+        path: '/skills/:id/instances',
+        element: React.lazy(() => import('@/pages/SkillManagement/SkillInstances')),
+        protected: true,
+      },
+      {
+        path: '/skills/:id/executions',
+        element: React.lazy(() => import('@/pages/SkillManagement/SkillExecutions')),
+        protected: true,
+      },
     ],
+  },
+  // Skill Admin (review & audit)
+  {
+    path: '/skills/admin/pending',
+    element: React.lazy(() => import('@/pages/SkillManagement/PendingReviews')),
+    protected: true,
+    requiredPermission: { resource: 'skill', action: 'read' },
+  },
+  {
+    path: '/skills/admin/history',
+    element: React.lazy(() => import('@/pages/SkillManagement/AuditHistory')),
+    protected: true,
+    requiredPermission: { resource: 'skill', action: 'read' },
   },
   // IaC Management (M20)
   {
@@ -675,7 +699,7 @@ export const routes: AppRoute[] = [
     path: '/console/ai-review',
     element: lazyImport('@/pages/AIReview'),
     protected: true,
-    requiredPermission: { resource: '*', action: 'manage' },
+    requiredPermission: { resource: 'ai-review', action: 'read' },
     children: [
       // 默认重定向到 dashboard
       {
@@ -686,31 +710,31 @@ export const routes: AppRoute[] = [
         path: '/console/ai-review/dashboard',
         element: lazyImport('@/pages/AIReview/Dashboard'),
         protected: true,
-        requiredPermission: { resource: '*', action: 'manage' },
+        requiredPermission: { resource: 'ai-review', action: 'read' },
       },
       {
         path: '/console/ai-review/history',
         element: lazyImport('@/pages/AIReview/History'),
         protected: true,
-        requiredPermission: { resource: '*', action: 'manage' },
+        requiredPermission: { resource: 'ai-review', action: 'read' },
       },
       {
         path: '/console/ai-review/history/:id',
         element: lazyImport('@/pages/AIReview/ReviewDetail'),
         protected: true,
-        requiredPermission: { resource: '*', action: 'manage' },
+        requiredPermission: { resource: 'ai-review', action: 'read' },
       },
       {
         path: '/console/ai-review/rules',
         element: lazyImport('@/pages/AIReview/Rules'),
         protected: true,
-        requiredPermission: { resource: '*', action: 'manage' },
+        requiredPermission: { resource: 'ai-review', action: 'write' },
       },
       {
         path: '/console/ai-review/config',
         element: lazyImport('@/pages/AIReview/Config'),
         protected: true,
-        requiredPermission: { resource: '*', action: 'manage' },
+        requiredPermission: { resource: 'ai-review', action: 'write' },
       },
     ],
   },

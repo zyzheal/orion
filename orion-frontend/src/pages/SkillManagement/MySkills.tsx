@@ -2,6 +2,7 @@
  * My Skills - Installed skills list, upgrade available, uninstall
  */
 import React, { useState, useMemo, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Typography,
   Button,
@@ -15,7 +16,13 @@ import {
   Col,
   Statistic,
 } from 'antd';
-import { ReloadOutlined, DeleteOutlined, ReloadOutlined as ReloadIcon } from '@ant-design/icons';
+import {
+  ReloadOutlined,
+  DeleteOutlined,
+  ReloadOutlined as ReloadIcon,
+  AppstoreOutlined,
+  PlayCircleOutlined,
+} from '@ant-design/icons';
 import { spacing } from '@/tokens';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
@@ -29,6 +36,7 @@ dayjs.extend(relativeTime);
 const { Title, Text } = Typography;
 
 const MySkills: React.FC = () => {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [skills, setSkills] = useState<SkillPackage[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -154,9 +162,25 @@ const MySkills: React.FC = () => {
     {
       key: 'actions',
       title: '操作',
-      width: 160,
+      width: 220,
       render: (_: unknown, record: any) => (
         <Space size="small">
+          <Button
+            type="link"
+            size="small"
+            icon={<AppstoreOutlined />}
+            onClick={() => navigate(`/skills/${record.id}/instances`)}
+          >
+            实例
+          </Button>
+          <Button
+            type="link"
+            size="small"
+            icon={<PlayCircleOutlined />}
+            onClick={() => navigate(`/skills/${record.id}/executions`)}
+          >
+            执行
+          </Button>
           <Button type="link" size="small" icon={<ReloadIcon />}>
             升级
           </Button>

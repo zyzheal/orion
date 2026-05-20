@@ -1,7 +1,13 @@
 import React from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { Layout, Menu } from 'antd';
-import { ShopOutlined, HeartOutlined, CloudUploadOutlined } from '@ant-design/icons';
+import {
+  ShopOutlined,
+  HeartOutlined,
+  CloudUploadOutlined,
+  AuditOutlined,
+  HistoryOutlined,
+} from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
 
 const { Sider, Content } = Layout;
@@ -10,6 +16,9 @@ const menuItems = [
   { key: '/skills/marketplace', icon: <ShopOutlined />, label: '技能市场' },
   { key: '/skills/my', icon: <HeartOutlined />, label: '我的技能' },
   { key: '/skills/submit', icon: <CloudUploadOutlined />, label: '技能提交' },
+  { type: 'divider' as const },
+  { key: '/skills/admin/pending', icon: <AuditOutlined />, label: '待审核' },
+  { key: '/skills/admin/history', icon: <HistoryOutlined />, label: '审核历史' },
 ];
 
 const SkillManagementLayout: React.FC = () => {
