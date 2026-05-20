@@ -6,8 +6,8 @@
  */
 import React, { useState, useEffect, useCallback } from 'react';
 import { Typography, Button, Space, Tag, Modal, message, Empty } from 'antd';
-import { colors, spacing } from '@/tokens';
-import { ReloadOutlined, RollbackOutlined, SwapOutlined } from '@ant-design/icons';
+import { spacing } from '@/tokens';
+import { ReloadOutlined, SwapOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
 import CardPanel from '@/components/CardPanel';
@@ -31,7 +31,7 @@ const PipelineVersionHistory: React.FC = () => {
     setLoading(true);
     try {
       const response = await pipelineVersionsApi.list(pipelineId);
-      setVersions(response.data || []);
+      setVersions((response.data as PipelineVersion[]) || []);
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : '加载版本历史失败';
       message.error(msg);
@@ -100,7 +100,7 @@ const PipelineVersionHistory: React.FC = () => {
       width: 100,
       render: (v: unknown) => (
         <Tag color="blue" style={{ fontFamily: 'monospace' }}>
-          v{v}
+          v{String(v)}
         </Tag>
       ),
     },
