@@ -20,7 +20,7 @@ const logger = require('pino')({ name: 'WorkflowInstance' });
  * 工作流实例管理器
  */
 export class WorkflowInstanceManager {
-  private repository: WorkflowInstanceRepository;
+  public repository: WorkflowInstanceRepository;
 
   constructor(repository?: WorkflowInstanceRepository) {
     this.repository = repository || new WorkflowInstanceRepository();
@@ -300,5 +300,19 @@ export class WorkflowInstanceManager {
   private getNextNodeId(definition: WorkflowDefinition, nodeId: string): string | null {
     const edge = definition.edges.find(e => e.source === nodeId);
     return edge ? edge.target : null;
+  }
+
+  /**
+   * 清理过期的工作流实例
+   * 从内存中移除已完成/失败/已取消超过指定天数的实例
+   */
+  cleanupExpiredInstances(retentionDate: Date): { deletedCount: number } {
+    let deletedCount = 0;
+
+    // 清理实例管理器中的过期实例
+    // 注意：实例存储在 repository 中，这里清理内存缓存
+    this.repository.cleanupExpiredInstances(retentionDate);
+
+    return { deletedCount };
   }
 }

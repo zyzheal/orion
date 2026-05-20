@@ -81,6 +81,43 @@ export class WorkflowDefinitionRepository {
   }
 
   /**
+   * 获取所有工作流定义
+   */
+  async findAll(options?: { enabled?: boolean; limit?: number; offset?: number }): Promise<{ entities: WorkflowDefinition[]; total: number }> {
+    let query = 'SELECT * FROM lowcode_workflow_definition';
+    const values: any[] = [];
+
+    if (options?.enabled !== undefined) {
+      query += ' WHERE enabled = $1';
+      values.push(options.enabled);
+    }
+
+    query += ' ORDER BY created_at DESC';
+
+    if (options?.limit) {
+      query += ` LIMIT ${options.limit}`;
+    }
+    if (options?.offset) {
+      query += ` OFFSET ${options.offset}`;
+    }
+
+    try {
+      const result = await this.pool.query(query, values);
+      const entities = result.rows.map((row: any) => this.mapRowToDefinition(row));
+
+      // 获取总数
+      const countResult = await this.pool.query('SELECT COUNT(*) as count FROM lowcode_workflow_definition');
+      return {
+        entities,
+        total: parseInt(countResult.rows[0]?.count || '0', 10),
+      };
+    } catch (error) {
+      logger.error({ error }, 'Failed to fetch all workflow definitions');
+      return { entities: [], total: 0 };
+    }
+  }
+
+  /**
    * 根据租户获取工作流定义列表
    */
   async findByTenant(tenantId: string, options?: { enabled?: boolean; limit?: number; offset?: number }): Promise<WorkflowDefinition[]> {
@@ -395,5 +432,18 @@ export class WorkflowInstanceRepository {
       updatedAt: row.updated_at,
       completedAt: row.completed_at,
     };
+  }
+
+  /**
+   * 清理过期的工作流实例
+   */
+  async cleanupExpiredInstances(retentionDate: Date): Promise<number> {
+    const result = await this.pool.query(
+      `DELETE FROM lowcode_workflow_instance
+       WHERE status IN ('completed', 'failed', 'cancelled')
+       AND updated_at < $1`,
+      [retentionDate],
+    );
+    return result.rowCount || 0;
   }
 }

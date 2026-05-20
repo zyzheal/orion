@@ -55,6 +55,8 @@ import workflowWebhookRoutes from './workflow-webhook-routes';
 import workflowTaskRoutes from './workflow-task-routes';
 import eventRegistryRoutes from './event-trigger-registry-routes';
 import taskTimeoutRoutes from './task-timeout-routes';
+import workflowDependencyRoutes from './workflow-dependency-routes';
+import cacheCleanupRoutes from './cache-cleanup-routes';
 import configMgmtEnhancedRoutes from './config-mgmt-enhanced-routes';
 import securityComplianceRoutes from './security-compliance-routes';
 import disasterRecoveryRoutes from './disaster-recovery-routes';
@@ -606,6 +608,12 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await registerWithRoleGuard(app, taskTimeoutRoutes, '/task-timeouts', {
     database: options.database,
   });
+
+  // ==================== Workflow Dependency Analysis Routes ====================
+  await registerWithRoleGuard(app, workflowDependencyRoutes, '/workflow-dependencies', {});
+
+  // ==================== Cache Cleanup Routes ====================
+  await registerWithRoleGuard(app, cacheCleanupRoutes, '/cache-cleanup', {});
 
   // ==================== Phase 3: Config Management Enhancement ====================
   await registerWithRoleGuard(app, configMgmtEnhancedRoutes, '/config-mgmt', {
