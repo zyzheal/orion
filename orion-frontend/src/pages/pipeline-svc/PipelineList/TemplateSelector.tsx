@@ -7,7 +7,7 @@ import { Modal, Card, Typography, Space, Tag } from 'antd';
 import { spacing } from '@/tokens';
 import { pipelineTemplates, type FrontendPipelineTemplate } from '@/api/pipeline-templates';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 interface TemplateSelectorProps {
   visible: boolean;

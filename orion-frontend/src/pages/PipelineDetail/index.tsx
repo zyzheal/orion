@@ -12,7 +12,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Typography, Button, Space, Tag, Card, Descriptions, Tabs, Badge, message, Result, Table, Modal } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { colors, spacing, componentSpacing, componentRadius, shadows } from '@/tokens';
+import { colors, spacing, componentSpacing } from '@/tokens';
 import {
   PlayCircleOutlined,
   ClockCircleOutlined,
@@ -22,6 +22,7 @@ import {
   ApartmentOutlined,
   SwapOutlined,
   HistoryOutlined,
+  ApiOutlined,
 } from '@ant-design/icons';
 import StatusBadge from '@/components/StatusBadge';
 import CardPanel from '@/components/CardPanel';
@@ -265,9 +266,11 @@ const PipelineDetail: React.FC = () => {
         // Fetch latest runs for this pipeline
         let latestRun = null;
         let runStages = [];
+        let runsCount = 0;
         try {
           const runsRes = await getPipelineRuns(id!);
           const runsData = extractList(runsRes);
+          runsCount = runsData.length;
           if (runsData.length > 0) {
             latestRun = runsData[0];
             // Fetch full run detail including stages and tasks
@@ -306,7 +309,7 @@ const PipelineDetail: React.FC = () => {
           ...pipelineData,
           // Merge latest run data for display
           status: latestRun?.status || 'pending',
-          runNumber: runsData.length || 1, // 运行号从 1 开始，用运行总数作为当前运行号
+          runNumber: runsCount || 1, // 运行号从 1 开始，用运行总数作为当前运行号
           branch: latestRun?.branch || 'main',
           commit: latestRun?.commit,
           author: latestRun?.author || '-',
@@ -514,7 +517,8 @@ const PipelineDetail: React.FC = () => {
             >
               返回
             </Button>
-            <Title level={3} style={{ margin: 0 }}>
+            <Title level={2} style={{ marginBottom: 8 }}>
+              <ApiOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
               {pipeline.name}
             </Title>
             <Tag color="default" style={{ fontSize: 12 }}>
@@ -565,42 +569,37 @@ const PipelineDetail: React.FC = () => {
       </div>
 
       {/* Pipeline info card */}
-      <CardPanel
-        style={{
-          borderRadius: componentRadius.card,
-          boxShadow: shadows.card,
-          border: 'none',
-          marginBottom: spacing.md,
-        }}
-      >
-        <Descriptions column={3} size="small" bordered labelStyle={{ width: 100 }}>
-          <Descriptions.Item label="状态">
-            <StatusBadge status={pipeline.status} size="small" />
-          </Descriptions.Item>
-          <Descriptions.Item label="开始时间">
-            <Space>
-              <ClockCircleOutlined />
-              <Text type="secondary">
-                {dayjs(pipeline.startTime).format('YYYY-MM-DD HH:mm:ss')}
-              </Text>
-            </Space>
-          </Descriptions.Item>
-          <Descriptions.Item label="结束时间">
-            {pipeline.endTime ? (
-              <Text type="secondary">{dayjs(pipeline.endTime).format('YYYY-MM-DD HH:mm:ss')}</Text>
-            ) : (
-              <Text type="secondary">-</Text>
-            )}
-          </Descriptions.Item>
-          <Descriptions.Item label="耗时">{formatDuration(pipeline.duration)}</Descriptions.Item>
-          <Descriptions.Item label="进度">
-            <Space>
-              <Badge status="processing" text={`${completedStages}/${totalStages} 阶段完成`} />
-              <Text type="secondary">({progressPercent}%)</Text>
-            </Space>
-          </Descriptions.Item>
-        </Descriptions>
-      </CardPanel>
+      <div style={{ marginBottom: spacing.md }}>
+        <CardPanel>
+          <Descriptions column={3} size="small" bordered labelStyle={{ width: 100 }}>
+            <Descriptions.Item label="状态">
+              <StatusBadge status={pipeline.status} size="small" />
+            </Descriptions.Item>
+            <Descriptions.Item label="开始时间">
+              <Space>
+                <ClockCircleOutlined />
+                <Text type="secondary">
+                  {dayjs(pipeline.startTime).format('YYYY-MM-DD HH:mm:ss')}
+                </Text>
+              </Space>
+            </Descriptions.Item>
+            <Descriptions.Item label="结束时间">
+              {pipeline.endTime ? (
+                <Text type="secondary">{dayjs(pipeline.endTime).format('YYYY-MM-DD HH:mm:ss')}</Text>
+              ) : (
+                <Text type="secondary">-</Text>
+              )}
+            </Descriptions.Item>
+            <Descriptions.Item label="耗时">{formatDuration(pipeline.duration)}</Descriptions.Item>
+            <Descriptions.Item label="进度">
+              <Space>
+                <Badge status="processing" text={`${completedStages}/${totalStages} 阶段完成`} />
+                <Text type="secondary">({progressPercent}%)</Text>
+              </Space>
+            </Descriptions.Item>
+          </Descriptions>
+        </CardPanel>
+      </div>
 
       {/* Structured error detail for failed pipelines */}
       {pipeline && pipeline.status === 'failed' && id && (

@@ -39,7 +39,7 @@ import { getPipeline, createPipeline, updatePipeline } from '@/api/pipelines';
 import { DAGGraph, validateDAG } from '@/components/DAGGraph';
 import { ApartmentOutlined } from '@ant-design/icons';
 import { PipelineCanvas } from './canvas';
-import { pipelineTemplates, templateToYaml } from '@/api/pipeline-templates';
+import { pipelineTemplates } from '@/api/pipeline-templates';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;

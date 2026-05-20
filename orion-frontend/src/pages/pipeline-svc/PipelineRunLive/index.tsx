@@ -9,7 +9,7 @@
  * - Pause/resume controls
  * - Run metadata (pipeline name, run ID, started time, duration)
  */
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Typography, Button, Space, Tag, Card, Descriptions, Badge, message, Spin, Divider, Input, Switch } from 'antd';
 import {
   PlayCircleOutlined,
