@@ -14,6 +14,7 @@ export class RoleServiceError extends Error {
  * 子角色自动拥有父角色的所有权限
  */
 export const ROLE_INHERITANCE: Record<string, string[]> = {
+  'admin':              ['super_admin'],  // admin 继承 super_admin
   'platform_admin': ['super_admin'],
   'tenant_admin':   ['platform_admin'],
   'org_admin':      ['tenant_admin'],
@@ -27,6 +28,7 @@ export const ROLE_INHERITANCE: Record<string, string[]> = {
 /** 系统级角色权限映射 */
 export const SYSTEM_ROLE_PERMISSIONS: Record<string, string[]> = {
   'super_admin':         ['*:*'],
+  'admin':               ['*:*'],  // admin 等同于 super_admin（兼容历史数据）
   'platform_admin':      ['*:manage', '*:read', '*:write', '*:execute', '*:delete', '*:approve'],
   'tenant_admin':        ['*:read', '*:write', '*:manage', 'audit_log:read'],
   'org_admin':           ['*:read', '*:write', '*:execute', '*:manage', '*:approve'],
@@ -150,7 +152,7 @@ export class RoleService {
     }
 
     // 通配符检查
-    if (roleNames.includes('super_admin')) {
+    if (roleNames.includes('super_admin') || roleNames.includes('admin')) {
       return { allowed: true, reason: 'Super Admin' };
     }
 

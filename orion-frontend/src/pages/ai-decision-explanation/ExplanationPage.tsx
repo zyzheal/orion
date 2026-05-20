@@ -30,7 +30,6 @@ import {
   CloseCircleOutlined,
 } from '@ant-design/icons';
 import { colors } from '@/tokens';
-import { colors } from '@/tokens/colors';
 import PageSkeleton from '@/components/PageSkeleton';
 import {
   explainDecision,

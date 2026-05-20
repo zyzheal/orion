@@ -102,14 +102,24 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ icon, title, desc, onClick 
 );
 
 export const ChatPanel: React.FC = () => {
-  const { isOpen, toggle, unreadAlerts, messages, sendMessage } = useChatOpsStore();
+  const { isOpen, toggle, messages, sendMessage } = useChatOpsStore();
   const { questions, loadConfig } = useChatOpsConfigStore();
   const panelWidth = usePanelWidth();
 
   React.useEffect(() => {
     initializeChatOpsStore();
-    loadConfig();
+    loadConfig().catch(() => {});
   }, []);
+
+  // Prevent background scrolling when panel is open
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [isOpen]);
 
   const handleQuestionClick = async (question: string) => {
     await sendMessage(question);
@@ -167,21 +177,7 @@ export const ChatPanel: React.FC = () => {
           >
             <MessageOutlined style={{ fontSize: 15, color: '#fff' }} />
           </div>
-          <Text strong style={{ fontSize: 15 }}>ChatOps</Text>
-          {unreadAlerts > 0 && (
-            <span
-              style={{
-                background: `linear-gradient(135deg, ${colors.error[400]}, ${colors.error[500]})`,
-                color: '#fff',
-                fontSize: 11,
-                padding: '1px 7px',
-                borderRadius: 10,
-                fontWeight: 600,
-              }}
-            >
-              {unreadAlerts}
-            </span>
-          )}
+          <Text strong style={{ fontSize: 15 }}>ChatOps 助手</Text>
         </div>
         <div
           onClick={toggle}
@@ -208,12 +204,9 @@ export const ChatPanel: React.FC = () => {
         </div>
       </div>
 
-      {/* Smart Recommend */}
-      <SmartRecommend />
-
       {/* Content Area */}
       {isEmpty ? (
-        /* Welcome + Configurable Questions */
+        /* Welcome + SmartRecommend + Configurable Questions */
         <div
           style={{
             flex: 1,
@@ -223,7 +216,7 @@ export const ChatPanel: React.FC = () => {
           }}
         >
           {/* Welcome Section */}
-          <div style={{ textAlign: 'center', marginBottom: 20 }}>
+          <div style={{ textAlign: 'center', marginBottom: 16 }}>
             <div
               style={{
                 width: 48,
@@ -247,9 +240,11 @@ export const ChatPanel: React.FC = () => {
             </Text>
           </div>
 
+          {/* SmartRecommend — 轻量提示条，融入欢迎区域 */}
+          <SmartRecommend />
           {/* Quick Questions Grid */}
           {enabledQuestions.length > 0 && (
-            <div style={{ marginBottom: 12 }}>
+            <div style={{ marginTop: 16 }}>
               <Text type="secondary" style={{ fontSize: 12, marginBottom: 10, display: 'block' }}>
                 你可以问我：
               </Text>

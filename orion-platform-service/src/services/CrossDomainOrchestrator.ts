@@ -433,8 +433,8 @@ export class CrossDomainOrchestrator {
         break;
       }
 
-      // Execute ready steps
-      for (const step of readySteps) {
+      // Execute ready steps in parallel (they have no inter-dependencies)
+      const stepPromises = readySteps.map(async (step) => {
         const stepResult = execution.steps.find((s) => s.stepId === step.id)!;
         stepResult.status = 'running';
         stepResult.startedAt = new Date();
@@ -450,6 +450,7 @@ export class CrossDomainOrchestrator {
           );
           stepResult.status = 'completed';
           stepResult.result = result;
+          stepResult.completedAt = new Date();
 
           // Store output in context for downstream steps
           stepContext[step.id] = result;
@@ -471,15 +472,24 @@ export class CrossDomainOrchestrator {
               console.warn('[CrossDomainOrchestrator] Failed to persist step result:', err);
             }
           }
+
+          completed.add(step.id);
         } catch (e) {
           stepResult.status = 'failed';
           stepResult.error = e instanceof Error ? e.message : 'Unknown error';
+          stepResult.completedAt = new Date();
           execution.status = 'failed';
-          return;
+          // Mark as completed so the loop can exit cleanly
+          completed.add(step.id);
         }
+      });
 
-        stepResult.completedAt = new Date();
-        completed.add(step.id);
+      // Wait for all ready steps to finish
+      await Promise.allSettled(stepPromises);
+
+      // If any step failed, stop execution immediately
+      if (execution.status === 'failed') {
+        return;
       }
     }
   }

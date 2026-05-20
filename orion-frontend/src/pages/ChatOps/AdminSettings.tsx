@@ -32,7 +32,6 @@ import {
   Tooltip,
 } from 'antd';
 import {
-  SettingOutlined,
   SafetyOutlined,
   TeamOutlined,
   PlusOutlined,
@@ -41,8 +40,10 @@ import {
   SearchOutlined,
   ReloadOutlined,
   ClockCircleOutlined,
-  InfoCircleOutlined,
   AuditOutlined,
+  HistoryOutlined,
+  ThunderboltOutlined,
+  LinkOutlined,
 } from '@ant-design/icons';
 import {
   chatopsAdminApi,
@@ -55,8 +56,12 @@ import {
 import { getAuditLogs, type AuditLog, type AuditLogListParams } from '@/api/chatops';
 import { colors, spacing } from '@/tokens';
 import dayjs from 'dayjs';
+import PermissionAdmin from './PermissionAdmin';
+import CommandVersionPage from './CommandVersionPage';
+import RateLimitPage from './RateLimitPage';
+import WebhookPage from './WebhookPage';
 
-const { Text, Title, Paragraph } = Typography;
+const { Text } = Typography;
 const { Option } = Select;
 
 // ==================== 颜色映射 ====================
@@ -261,51 +266,39 @@ const CapabilityMappingTab: React.FC = () => {
 
   return (
     <div>
-      {/* 工具栏 */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: spacing.md,
-        }}
-      >
-        <Space>
-          <Input
-            prefix={<SearchOutlined />}
-            placeholder="搜索命令或 Capability"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            style={{ width: 260 }}
-            allowClear
-          />
-          <Select
-            value={environment}
-            onChange={setEnvironment}
-            style={{ width: 160 }}
-            options={environmentOptions}
-          />
-        </Space>
-        <Space>
-          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
-            刷新
-          </Button>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={handleCreate}
-            style={{
-              background: colors.primary[500],
-              borderColor: colors.primary[500],
-            }}
-          >
-            新建映射
-          </Button>
-        </Space>
-      </div>
-
-      {/* 表格 */}
-      <Card>
+      <Card bodyStyle={{ padding: '0 24px 24px' }}>
+        <div style={{ marginBottom: 16, paddingBottom: 12, borderBottom: `1px solid ${colors.light.border.light}`, display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
+          <Space>
+            <Input
+              prefix={<SearchOutlined />}
+              placeholder="搜索命令或 Capability"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{ width: 260 }}
+              allowClear
+            />
+            <Select
+              value={environment}
+              onChange={setEnvironment}
+              style={{ width: 160 }}
+              options={environmentOptions}
+            />
+            <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+              刷新
+            </Button>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={handleCreate}
+              style={{
+                background: colors.primary[500],
+                borderColor: colors.primary[500],
+              }}
+            >
+              新建映射
+            </Button>
+          </Space>
+        </div>
         {filteredMappings.length === 0 && !loading ? (
           <Empty
             description={
@@ -574,19 +567,17 @@ const ApprovalConfigTab: React.FC = () => {
     <div>
       {/* 审批配置 */}
       <Card
-        title={
-          <Space>
-            <SafetyOutlined style={{ color: colors.purple[500] }} />
-            审批配置
-          </Space>
-        }
-        style={{ marginBottom: spacing.md }}
-        extra={
-          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
-            刷新
-          </Button>
-        }
+        bodyStyle={{ padding: '0 24px 24px' }}
+        style={{ marginBottom: 16 }}
       >
+        <div style={{ paddingTop: 20, marginBottom: 16, paddingBottom: 12, borderBottom: `1px solid ${colors.light.border.light}` }}>
+          <Space>
+            <SafetyOutlined style={{ color: colors.purple[500], fontSize: 18 }} />
+            <span style={{ fontSize: 15, fontWeight: 600, color: colors.light.text.primary }}>
+              审批配置
+            </span>
+          </Space>
+        </div>
         {configs.length === 0 && !loading ? (
           <Empty
             description="暂无审批配置"
@@ -606,18 +597,16 @@ const ApprovalConfigTab: React.FC = () => {
 
       {/* 审批人列表 */}
       <Card
-        title={
-          <Space>
-            <TeamOutlined style={{ color: colors.primary[500] }} />
-            审批人列表
-          </Space>
-        }
-        extra={
-          <Tooltip title="审批人来自系统用户，暂不支持在此添加">
-            <InfoCircleOutlined style={{ color: colors.neutral[400] }} />
-          </Tooltip>
-        }
+        bodyStyle={{ padding: '0 24px 24px' }}
       >
+        <div style={{ paddingTop: 20, marginBottom: 16, paddingBottom: 12, borderBottom: `1px solid ${colors.light.border.light}` }}>
+          <Space>
+            <TeamOutlined style={{ color: colors.primary[500], fontSize: 18 }} />
+            <span style={{ fontSize: 15, fontWeight: 600, color: colors.light.text.primary }}>
+              审批人列表
+            </span>
+          </Space>
+        </div>
         {approvers.length === 0 && !loading ? (
           <Empty
             description="暂无审批人"
@@ -766,6 +755,7 @@ const AuditLogTab: React.FC = () => {
 
   return (
     <div>
+      {/* 标题 + 工具栏 */}
       <div
         style={{
           display: 'flex',
@@ -774,6 +764,12 @@ const AuditLogTab: React.FC = () => {
           marginBottom: spacing.md,
         }}
       >
+        <Space>
+          <AuditOutlined style={{ color: colors.info[500], fontSize: 18 }} />
+          <span style={{ fontSize: 16, fontWeight: 600, color: colors.light.text.primary }}>
+            审计日志
+          </span>
+        </Space>
         <Space>
           <Input
             prefix={<SearchOutlined />}
@@ -800,7 +796,7 @@ const AuditLogTab: React.FC = () => {
         </Button>
       </div>
 
-      <Card>
+      <Card bodyStyle={{ padding: '0 24px 24px' }}>
         {logs.length === 0 && !loading ? (
           <Empty
             description="暂无审计日志"
@@ -834,7 +830,7 @@ const AdminSettings: React.FC = () => {
     {
       key: 'mappings',
       label: (
-        <span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
           <SafetyOutlined />
           命令-Capability 映射
         </span>
@@ -844,7 +840,7 @@ const AdminSettings: React.FC = () => {
     {
       key: 'approval',
       label: (
-        <span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
           <ClockCircleOutlined />
           审批配置
         </span>
@@ -854,29 +850,59 @@ const AdminSettings: React.FC = () => {
     {
       key: 'audit',
       label: (
-        <span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
           <AuditOutlined />
           审计日志
         </span>
       ),
       children: <AuditLogTab />,
     },
+    {
+      key: 'permissions',
+      label: (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <SafetyOutlined />
+          权限管理
+        </span>
+      ),
+      children: <PermissionAdmin />,
+    },
+    {
+      key: 'versions',
+      label: (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <HistoryOutlined />
+          版本管理
+        </span>
+      ),
+      children: <CommandVersionPage />,
+    },
+    {
+      key: 'rate-limits',
+      label: (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <ThunderboltOutlined />
+          速率限制
+        </span>
+      ),
+      children: <RateLimitPage />,
+    },
+    {
+      key: 'webhooks',
+      label: (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <LinkOutlined />
+          Webhook 管理
+        </span>
+      ),
+      children: <WebhookPage />,
+    },
   ];
 
   return (
-    <div style={{ padding: '16px', overflow: 'auto', height: 'calc(100vh - 180px)' }}>
-      {/* 页面标题 */}
-      <div style={{ marginBottom: spacing.lg }}>
-        <Title level={2} style={{ marginBottom: 8, color: colors.light.text.primary }}>
-          <SettingOutlined
-            style={{ marginRight: 8, color: colors.primary[500] }}
-          />
-          ChatOps 管理
-        </Title>
-      </div>
-
+    <div style={{ padding: 16 }}>
       {/* 功能标签页 */}
-      <Card>
+      <Card bodyStyle={{ padding: '16px 24px' }}>
         <Tabs
           activeKey={activeTab}
           onChange={setActiveTab}

@@ -72,6 +72,7 @@ const defaultModules: Record<string, MenuModuleConfig> = {
       { key: '/console/plugins', label: '插件管理', description: '插件安装、配置与生命周期管理', category: '扩展管理', enabled: true },
       { key: '/console/settings', label: '系统配置', description: '功能开关与特性管理', category: '配置', enabled: true },
       { key: '/console/users', label: '用户管理', description: '用户、角色与权限管理', category: '权限', enabled: true },
+      { key: '/console/subapps', label: '子应用管理', description: '微前端子应用配置与管理', category: '扩展管理', enabled: true },
     ],
   },
   '/delivery': {

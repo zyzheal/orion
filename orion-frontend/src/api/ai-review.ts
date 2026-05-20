@@ -58,32 +58,44 @@ export interface ReviewDiffInput {
 
 // ==================== Review Execution ====================
 
-export function triggerReview(data: TriggerReviewInput) {
-  return api.post<AIReviewResult>('/v1/ai-review/review', data);
+export async function triggerReview(data: TriggerReviewInput) {
+  const res = await api.post('/v1/ai-review/review', data);
+  const body = res.data as { success: boolean; data: AIReviewResult };
+  return { data: { data: body.data } };
 }
 
-export function reviewDiff(data: ReviewDiffInput) {
-  return api.post<AIReviewResult>('/v1/ai-review/review-diff', data);
+export async function reviewDiff(data: ReviewDiffInput) {
+  const res = await api.post('/v1/ai-review/review-diff', data);
+  const body = res.data as { success: boolean; data: AIReviewResult };
+  return { data: { data: body.data } };
 }
 
 // ==================== Review History ====================
 
-export function getReviewHistory(params?: ReviewHistoryParams) {
-  return api.get<{ items: AIReviewResult[]; total: number }>('/v1/ai-review/history', { params });
+export async function getReviewHistory(params?: ReviewHistoryParams) {
+  const res = await api.get('/v1/ai-review/history', { params });
+  const body = res.data as { success: boolean; data: { items: AIReviewResult[]; total: number } };
+  return { data: { data: body.data } };
 }
 
-export function getReviewDetail(reviewId: string) {
-  return api.get<AIReviewResult>(`/v1/ai-review/history/${reviewId}`);
+export async function getReviewDetail(reviewId: string) {
+  const res = await api.get(`/v1/ai-review/history/${reviewId}`);
+  const body = res.data as { success: boolean; data: AIReviewResult };
+  return { data: { data: body.data } };
 }
 
 // ==================== Review Rules ====================
 
-export function getReviewRules() {
-  return api.get<{ items: AIReviewRule[] }>('/v1/ai-review/rules');
+export async function getReviewRules() {
+  const res = await api.get('/v1/ai-review/rules');
+  const body = res.data as { success: boolean; data: { items: AIReviewRule[] } };
+  return { data: { data: body.data } };
 }
 
-export function getEnabledRules() {
-  return api.get<{ items: AIReviewRule[] }>('/v1/ai-review/rules/enabled');
+export async function getEnabledRules() {
+  const res = await api.get('/v1/ai-review/rules/enabled');
+  const body = res.data as { success: boolean; data: { items: AIReviewRule[] } };
+  return { data: { data: body.data } };
 }
 
 export function getReviewRule(ruleId: string) {
@@ -108,10 +120,14 @@ export function toggleReviewRule(ruleId: string) {
 
 // ==================== Review Config ====================
 
-export function getReviewConfig() {
-  return api.get<AIReviewConfig>('/v1/ai-review/config');
+export async function getReviewConfig() {
+  const res = await api.get('/v1/ai-review/config');
+  const body = res.data as { success: boolean; data: AIReviewConfig };
+  return { data: { data: body.data } };
 }
 
-export function updateReviewConfig(data: AIReviewConfig) {
-  return api.put<AIReviewConfig>('/v1/ai-review/config', data);
+export async function updateReviewConfig(data: AIReviewConfig) {
+  const res = await api.put('/v1/ai-review/config', data);
+  const body = res.data as { success: boolean; data: AIReviewConfig };
+  return { data: { data: body.data } };
 }

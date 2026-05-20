@@ -41,51 +41,81 @@ interface KnowledgeSearchResponse {
   }>;
 }
 
-// API calls
+// API calls — 使用 /api/v1/knowledge/docs 端点
 async function fetchKnowledgeList(category?: string, limit = 50, offset = 0): Promise<KnowledgeListResponse> {
-  const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
-  if (category) params.set('category', category);
-  const res = await fetch(`/api/v1/knowledge?${params}`);
-  if (!res.ok) throw new Error('Failed to fetch knowledge list');
-  return res.json();
+  const params = new URLSearchParams({ pageSize: String(limit), offset: String(offset) });
+  if (category) params.set('tag', category);
+  const res = await fetch(`/api/v1/knowledge/docs?${params}`, {
+    headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}`, 'x-tenant-id': '00000000-0000-0000-0000-000000000001' },
+  });
+  if (!res.ok) throw new Error(`Failed to fetch knowledge list (${res.status})`);
+  const json = await res.json();
+  return { items: (json.data || []).map((d: any) => ({
+    id: d.id,
+    title: d.title,
+    content: d.content,
+    category: d.type || 'default',
+    tags: d.tags || [],
+    createdBy: d.author_id || 'system',
+    createdAt: d.created_at,
+    updatedAt: d.updated_at,
+  })), total: json.meta?.total || 0 };
 }
 
 async function fetchKnowledgeCategories(): Promise<string[]> {
-  const res = await fetch('/api/v1/knowledge/categories');
-  if (!res.ok) throw new Error('Failed to fetch categories');
-  const data = await res.json();
-  return data.categories || [];
+  const res = await fetch('/api/v1/knowledge/docs/tags', {
+    headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}`, 'x-tenant-id': '00000000-0000-0000-0000-000000000001' },
+  });
+  if (!res.ok) throw new Error(`Failed to fetch categories (${res.status})`);
+  const json = await res.json();
+  return json.data || [];
 }
 
 async function searchKnowledge(q: string, limit = 10): Promise<KnowledgeSearchResponse> {
-  const res = await fetch(`/api/v1/knowledge/search?q=${encodeURIComponent(q)}&limit=${limit}`);
-  if (!res.ok) throw new Error('Search failed');
-  return res.json();
+  const res = await fetch('/api/v1/knowledge/rag/retrieve', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('access_token')}`, 'x-tenant-id': '00000000-0000-0000-0000-000000000001' },
+    body: JSON.stringify({ query: q, topK: limit }),
+  });
+  if (!res.ok) throw new Error(`Search failed (${res.status})`);
+  const json = await res.json();
+  return { results: (json.data?.results || []).map((r: any) => ({
+    item: { id: r.docId, title: r.title, content: r.snippet, category: '', tags: [], createdBy: '', createdAt: '', updatedAt: '' },
+    similarity: r.score,
+  })) };
 }
 
 async function createKnowledge(data: { title: string; content: string; category: string; tags: string[] }): Promise<KnowledgeItem> {
-  const res = await fetch('/api/v1/knowledge', {
+  // Need a space_id — use the first available space or create one
+  const res = await fetch('/api/v1/knowledge/docs', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('access_token')}`, 'x-tenant-id': '00000000-0000-0000-0000-000000000001' },
+    body: JSON.stringify({ title: data.title, content: data.content, spaceId: 'default', tags: data.tags, status: 'draft' }),
   });
-  if (!res.ok) throw new Error('Failed to create');
-  return res.json();
+  if (!res.ok) throw new Error(`Failed to create (${res.status})`);
+  const json = await res.json();
+  const d = json.data;
+  return { id: d.id, title: d.title, content: d.content, category: d.type, tags: d.tags || [], createdBy: d.author_id, createdAt: d.created_at, updatedAt: d.updated_at };
 }
 
 async function updateKnowledge(id: string, data: Partial<KnowledgeItem>): Promise<KnowledgeItem> {
-  const res = await fetch(`/api/v1/knowledge/${id}`, {
+  const res = await fetch(`/api/v1/knowledge/docs/${id}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('access_token')}`, 'x-tenant-id': '00000000-0000-0000-0000-000000000001' },
+    body: JSON.stringify({ title: data.title, content: data.content, tags: data.tags }),
   });
-  if (!res.ok) throw new Error('Failed to update');
-  return res.json();
+  if (!res.ok) throw new Error(`Failed to update (${res.status})`);
+  const json = await res.json();
+  const d = json.data;
+  return { id: d.id, title: d.title, content: d.content, category: d.type, tags: d.tags || [], createdBy: d.author_id, createdAt: d.created_at, updatedAt: d.updated_at };
 }
 
 async function deleteKnowledge(id: string): Promise<void> {
-  const res = await fetch(`/api/v1/knowledge/${id}`, { method: 'DELETE' });
-  if (!res.ok) throw new Error('Failed to delete');
+  const res = await fetch(`/api/v1/knowledge/docs/${id}`, {
+    method: 'DELETE',
+    headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}`, 'x-tenant-id': '00000000-0000-0000-0000-000000000001' },
+  });
+  if (!res.ok) throw new Error(`Failed to delete (${res.status})`);
 }
 
 export default function KnowledgeBase() {

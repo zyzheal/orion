@@ -84,7 +84,7 @@ export class PipelineController {
     try {
       const query = request.query as any;
       const { name, status, limit, offset } = query;
-      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+      const tenantId = (request.headers['x-tenant-id'] as string) || undefined;
 
       const pipelines = await this.pipelineService.list(tenantId);
 

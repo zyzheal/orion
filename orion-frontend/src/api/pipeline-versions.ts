@@ -3,7 +3,7 @@
  * Phase 1 - Version management, diff, rollback
  */
 
-import apiClient from './client';
+import { api } from './client';
 
 export interface PipelineVersion {
   id: string;
@@ -35,49 +35,49 @@ export interface DiffItem {
 
 export const pipelineVersionsApi = {
   list: async (pipelineId: string, params?: { page?: number; limit?: number; tag?: string }) => {
-    const response = await apiClient.get(`/api/v1/pipelines/${pipelineId}/versions`, { params });
+    const response = await api.get(`/v1/pipelines/${pipelineId}/versions`, { params });
     return response.data;
   },
 
   get: async (pipelineId: string, versionId: string) => {
-    const response = await apiClient.get(`/api/v1/pipelines/${pipelineId}/versions/${versionId}`);
-    return response.data as PipelineVersion;
+    const response = await api.get(`/v1/pipelines/${pipelineId}/versions/${versionId}`);
+    return response.data as unknown as PipelineVersion;
   },
 
   diff: async (pipelineId: string, versionId: string, targetVersionId: string) => {
-    const response = await apiClient.get(
-      `/api/v1/pipelines/${pipelineId}/versions/${versionId}/diff`,
+    const response = await api.get(
+      `/v1/pipelines/${pipelineId}/versions/${versionId}/diff`,
       { params: { target: targetVersionId } }
     );
-    return response.data as VersionDiff;
+    return response.data as unknown as VersionDiff;
   },
 
   rollback: async (pipelineId: string, versionId: string, reason?: string) => {
-    const response = await apiClient.post(
-      `/api/v1/pipelines/${pipelineId}/versions/${versionId}/rollback`,
+    const response = await api.post(
+      `/v1/pipelines/${pipelineId}/versions/${versionId}/rollback`,
       { reason }
     );
-    return response.data as PipelineVersion;
+    return response.data as unknown as PipelineVersion;
   },
 
   addTag: async (pipelineId: string, versionId: string, tag: string) => {
-    const response = await apiClient.post(
-      `/api/v1/pipelines/${pipelineId}/versions/${versionId}/tag`,
+    const response = await api.post(
+      `/v1/pipelines/${pipelineId}/versions/${versionId}/tag`,
       { tag }
     );
     return response.data;
   },
 
   removeTag: async (pipelineId: string, versionId: string, tag: string) => {
-    const response = await apiClient.delete(
-      `/api/v1/pipelines/${pipelineId}/versions/${versionId}/tag/${tag}`
+    const response = await api.delete(
+      `/v1/pipelines/${pipelineId}/versions/${versionId}/tag/${tag}`
     );
     return response.data;
   },
 
   setBaseline: async (pipelineId: string, versionId: string, isBaseline: boolean) => {
-    const response = await apiClient.post(
-      `/api/v1/pipelines/${pipelineId}/versions/${versionId}/baseline`,
+    const response = await api.post(
+      `/v1/pipelines/${pipelineId}/versions/${versionId}/baseline`,
       { baseline: isBaseline }
     );
     return response.data;

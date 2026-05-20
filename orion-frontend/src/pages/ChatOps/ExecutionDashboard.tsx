@@ -161,11 +161,8 @@ const ExecutionDashboard: React.FC = () => {
 
   if (apiError && executions.length === 0) {
     return (
-      <div style={{ padding: '16px', overflow: 'auto', height: 'calc(100vh - 180px)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <div>
-            <span style={{ fontSize: 16, fontWeight: 600, lineHeight: '24px', color: colors.light.text.primary }}>执行监控</span>
-          </div>
+      <div style={{ padding: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 16 }}>
           <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>刷新</Button>
         </div>
         <Card>
@@ -176,18 +173,15 @@ const ExecutionDashboard: React.FC = () => {
   }
 
   return (
-    <div style={{ padding: '16px', overflow: 'auto', height: 'calc(100vh - 180px)' }}>
+    <div style={{ padding: 16 }}>
       <div
         style={{
           display: 'flex',
-          justifyContent: 'space-between',
+          justifyContent: 'flex-end',
           alignItems: 'center',
           marginBottom: 16,
         }}
       >
-        <div>
-          <span style={{ fontSize: 16, fontWeight: 600, lineHeight: '24px', color: colors.light.text.primary }}>执行监控</span>
-        </div>
         <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
           刷新
         </Button>

@@ -86,8 +86,12 @@ export interface WorkbenchData {
  */
 export async function getWorkbenchData(): Promise<WorkbenchData> {
   try {
-    const { data } = await api.get<WorkbenchData>('/v1/workbench');
-    return data as WorkbenchData;
+    const response = await api.get('/v1/workbench');
+    const body = response.data as { success: boolean; data: WorkbenchData };
+    if (body?.success && body?.data) {
+      return body.data;
+    }
+    throw new Error('Workbench API returned unexpected format');
   } catch {
     // Unified endpoint not available, use fallback
     return getWorkbenchFallback();

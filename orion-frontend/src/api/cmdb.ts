@@ -78,6 +78,14 @@ export interface K8sResource {
   created_at: string;
 }
 
+export interface CICDResource {
+  type: string;
+  name: string;
+  url?: string;
+  status: string;
+  created_at?: string;
+}
+
 export interface CreateCIInput {
   tenant_id: string;
   name: string;
@@ -200,4 +208,21 @@ export const executeScript = async (input: {
   timeout?: number;
 }) => {
   return api.post('/v1/cmdb/execute', input);
+};
+
+// ============================================================================
+// Impact Analysis
+// ============================================================================
+
+export interface ImpactData {
+  ci_id: string;
+  ci_name: string;
+  ci_type: string;
+  upstream: CIItem[];
+  downstream: CIItem[];
+  total_affected: number;
+}
+
+export const getImpactAnalysis = async (ciId: string) => {
+  return api.get(`/v1/cmdb/impact/${ciId}`);
 };

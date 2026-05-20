@@ -85,86 +85,6 @@ const statusLabelMap: Record<string, string> = {
   locked: '已锁定',
 };
 
-// ---- Mock data ----
-
-const MOCK_USERS: User[] = [
-  {
-    id: 'u-1',
-    username: 'admin',
-    email: 'admin@orion.dev',
-    name: '系统管理员',
-    avatar_url: null,
-    role: 'admin',
-    status: 'active',
-    last_login_at: '2024-03-20T10:00:00Z',
-    last_login_ip: '10.0.0.1',
-    settings: { language: 'zh-CN', theme: 'light' },
-    created_at: '2024-01-01T08:00:00Z',
-    updated_at: '2024-03-20T10:00:00Z',
-    created_by: null,
-  },
-  {
-    id: 'u-2',
-    username: 'zhangsan',
-    email: 'zhangsan@orion.dev',
-    name: '张三',
-    avatar_url: null,
-    role: 'developer',
-    status: 'active',
-    last_login_at: '2024-03-19T14:30:00Z',
-    last_login_ip: '10.0.0.2',
-    settings: { language: 'zh-CN', theme: 'dark' },
-    created_at: '2024-01-15T08:00:00Z',
-    updated_at: '2024-03-19T14:30:00Z',
-    created_by: 'admin',
-  },
-  {
-    id: 'u-3',
-    username: 'lisi',
-    email: 'lisi@orion.dev',
-    name: '李四',
-    avatar_url: null,
-    role: 'manager',
-    status: 'active',
-    last_login_at: '2024-03-18T09:00:00Z',
-    last_login_ip: '10.0.0.3',
-    settings: { language: 'zh-CN', theme: 'light' },
-    created_at: '2024-02-01T08:00:00Z',
-    updated_at: '2024-03-18T09:00:00Z',
-    created_by: 'admin',
-  },
-  {
-    id: 'u-4',
-    username: 'wangwu',
-    email: 'wangwu@orion.dev',
-    name: '王五',
-    avatar_url: null,
-    role: 'viewer',
-    status: 'inactive',
-    last_login_at: '2024-02-15T16:00:00Z',
-    last_login_ip: '10.0.0.4',
-    settings: { language: 'en-US', theme: 'light' },
-    created_at: '2024-02-10T08:00:00Z',
-    updated_at: '2024-02-28T10:00:00Z',
-    created_by: 'lisi',
-  },
-  {
-    id: 'u-5',
-    username: 'zhaoliu',
-    email: 'zhaoliu@orion.dev',
-    name: '赵六',
-    avatar_url: null,
-    role: 'developer',
-    status: 'active',
-    last_login_at: '2024-03-20T08:00:00Z',
-    last_login_ip: '10.0.0.5',
-    settings: { language: 'zh-CN', theme: 'light' },
-    created_at: '2024-03-01T08:00:00Z',
-    updated_at: '2024-03-20T08:00:00Z',
-    created_by: 'zhangsan',
-  },
-];
-
 // ---- Main Component ----
 
 const UserManagement: React.FC = () => {
@@ -194,8 +114,8 @@ const UserManagement: React.FC = () => {
       setUsers(Array.isArray(data) ? data : []);
       setTotal(res.data?.data?.total ?? 0);
     } catch (error: unknown) {
-      setUsers(MOCK_USERS);
-      setTotal(MOCK_USERS.length);
+      setUsers([]);
+      setTotal(0);
       if (error instanceof Error) {
         message.error(`加载用户数据失败：${error.message}`);
       } else {

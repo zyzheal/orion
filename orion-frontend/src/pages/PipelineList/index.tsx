@@ -13,7 +13,6 @@ import { Typography, Button, Space, Tag, message } from 'antd';
 import { colors, spacing } from '@/tokens';
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
-import StatusBadge from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import { getPipelines, type Pipeline } from '@/api/pipelines';
 import { useNavigate } from 'react-router-dom';
@@ -36,9 +35,16 @@ const PipelineList: React.FC = () => {
     setLoading(true);
     try {
       const response = await getPipelines();
-      const apiData = response.data.data;
-      setPipelines(Array.isArray(apiData) ? apiData : (apiData as any).items || []);
+      const rawBody = response.data as any;
+      // Backend returns { data: [...], total: N } directly (no code/message wrapper)
+      const items = Array.isArray(rawBody?.data)
+        ? rawBody.data
+        : Array.isArray(rawBody?.items)
+          ? rawBody.items
+          : [];
+      setPipelines(items);
     } catch (error: unknown) {
+      console.error('[PipelineList] Load error:', error);
       if (error instanceof Error) {
         message.error(`加载 Pipeline 列表失败：${error.message}`);
       } else {
@@ -55,7 +61,7 @@ const PipelineList: React.FC = () => {
 
   // Filter pipelines based on search and filters
   const filteredPipelines = useMemo(() => {
-    return pipelines.filter((pipeline) => {
+    const result = pipelines.filter((pipeline) => {
       // Search filter
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
@@ -73,7 +79,8 @@ const PipelineList: React.FC = () => {
 
       return true;
     });
-  }, [searchQuery, filters]);
+    return result;
+  }, [searchQuery, filters, pipelines]);
 
   // Filter definitions for SearchFilterBar
   const filterDefs: FilterDefinition[] = [
@@ -96,7 +103,6 @@ const PipelineList: React.FC = () => {
       title: 'Pipeline',
       dataIndex: 'name',
       width: '30%',
-      minWidth: 200,
       sortable: true,
       filterable: true,
       render: (_value: unknown, record) => (
@@ -120,16 +126,21 @@ const PipelineList: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       width: '12%',
-      minWidth: 100,
-      render: (value: unknown) => <StatusBadge status={value as any} size="small" />,
+      render: (value: unknown) => {
+        const statusMap: Record<string, { color: string; label: string }> = {
+          active: { color: 'green', label: '启用' },
+          inactive: { color: 'default', label: '停用' },
+          deleted: { color: 'error', label: '已删除' },
+        };
+        const config = statusMap[value as string] || { color: 'default', label: String(value) };
+        return <Tag color={config.color}>{config.label}</Tag>;
+      },
     },
     {
       key: 'stages',
       title: 'Stage 数量',
       dataIndex: 'spec',
       width: '12%',
-      minWidth: 100,
-      responsive: ['sm'],
       render: (spec: any) => {
         const count = spec?.stages?.length || 0;
         return <Tag color="blue">{count} 个 Stage</Tag>;
@@ -140,9 +151,7 @@ const PipelineList: React.FC = () => {
       title: '创建时间',
       dataIndex: 'createdAt',
       width: '15%',
-      minWidth: 120,
       sortable: true,
-      responsive: ['md'],
       render: (value: unknown) => (
         <Text type="secondary" style={{ fontSize: spacing[3] }}>
           {dayjs(String(value)).fromNow()}
@@ -154,9 +163,7 @@ const PipelineList: React.FC = () => {
       title: '更新时间',
       dataIndex: 'updatedAt',
       width: '15%',
-      minWidth: 120,
       sortable: true,
-      responsive: ['lg'],
       render: (value: unknown) => (
         <Text type="secondary" style={{ fontSize: spacing[3] }}>
           {dayjs(String(value)).fromNow()}
@@ -167,20 +174,19 @@ const PipelineList: React.FC = () => {
       key: 'actions',
       title: '操作',
       width: '16%',
-      minWidth: 140,
       render: (_: unknown, record) => (
         <Space size="small">
           <Button type="link" size="small" onClick={() => navigate(`/pipelines/${record.id}`)}>
             查看
           </Button>
-          <Button type="link" size="small" onClick={() => navigate(`/pipelines/${record.id}/edit`)}>
+          <Button type="link" size="small" onClick={() => navigate(`/pipelines/edit/${record.id}`)}>
             编辑
           </Button>
           <Button
             type="link"
             size="small"
             danger
-            onClick={() => navigate(`/pipelines/${record.id}/runs`)}
+            onClick={() => navigate(`/pipeline-runs`)}
           >
             运行
           </Button>

@@ -29,14 +29,14 @@ CREATE TABLE IF NOT EXISTS kb_docs (
   status        VARCHAR(20) NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'published', 'archived')),
   version       INT NOT NULL DEFAULT 1,
   author_id     UUID REFERENCES users(id),
-  embedding     vector(1536),  -- OpenAI ada-002 compatible
+  -- embedding   vector(1536),  -- Requires pgvector extension: CREATE EXTENSION vector;
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-CREATE INDEX idx_kb_docs_tenant ON kb_docs(tenant_id);
-CREATE INDEX idx_kb_docs_space ON kb_docs(space_id);
-CREATE INDEX idx_kb_docs_status ON kb_docs(status);
-CREATE INDEX idx_kb_docs_tags ON kb_docs USING GIN(tags);
+CREATE INDEX IF NOT EXISTS idx_kb_docs_tenant ON kb_docs(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_kb_docs_space ON kb_docs(space_id);
+CREATE INDEX IF NOT EXISTS idx_kb_docs_status ON kb_docs(status);
+CREATE INDEX IF NOT EXISTS idx_kb_docs_tags ON kb_docs USING GIN(tags);
 
 -- Document version history
 CREATE TABLE IF NOT EXISTS kb_doc_versions (
@@ -49,7 +49,7 @@ CREATE TABLE IF NOT EXISTS kb_doc_versions (
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE(doc_id, version)
 );
-CREATE INDEX idx_kb_doc_versions_doc ON kb_doc_versions(doc_id);
+CREATE INDEX IF NOT EXISTS idx_kb_doc_versions_doc ON kb_doc_versions(doc_id);
 
 -- Rollback:
 -- DROP TABLE IF EXISTS kb_doc_versions, kb_docs, kb_spaces;

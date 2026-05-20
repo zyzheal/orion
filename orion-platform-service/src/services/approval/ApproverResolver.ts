@@ -672,8 +672,8 @@ export class ApproverResolver {
 
       if (!user) return false;
 
-      // super_admin 永远可以自动审批
-      if (user.role === 'super_admin') return true;
+      // super_admin / admin 永远可以自动审批
+      if (user.role === 'super_admin' || user.role === 'admin') return true;
 
       // 检查用户是否具有 approval:approve 权限
       const result = await this.pool.query(

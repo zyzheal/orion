@@ -1,114 +1,125 @@
 /**
- * SmartRecommend — 智能推荐面板
+ * SmartRecommend — 智能推荐面板（轻量提示条版）
+ * - 仅展示关联当前当前用户且未被处理的推荐
+ * - 轻量单行提示条样式，融入欢迎区域，不切割面板
+ * - 点击 dismiss 后永久消失（不再推送）
  */
 
-import React, { useState, useEffect } from 'react';
-import { Card, Tag, Button, Empty, Space, Typography } from 'antd';
-import { BellFilled, WarningOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import React from 'react';
+import { Button, Typography } from 'antd';
+import { CloseOutlined } from '@ant-design/icons';
 import { useChatOpsStore } from '@/stores/chatOpsStore';
+import { useAuthStore } from '@/stores/authStore';
 import { colors } from '@/tokens/colors';
-import { useActionHandler } from './useActionHandler';
-import { getActionIcon } from './actionIcons';
 
 const { Text } = Typography;
 
-const severityConfig = {
-  critical: { color: colors.error[400], bg: colors.error[50], icon: <BellFilled /> },
-  warning: { color: colors.warning[500], bg: colors.warning[50], icon: <WarningOutlined /> },
-  info: { color: colors.info[500], bg: colors.info[50], icon: <CheckCircleOutlined /> },
+const severityDot: Record<string, string> = {
+  critical: colors.error[500],
+  warning: colors.warning[500],
+  info: colors.primary[500],
 };
 
-/** 动态计算推荐面板最大高度 */
-function usePanelHeight(): number {
-  const [maxHeight, setMaxHeight] = useState(240);
-
-  useEffect(() => {
-    const update = () => {
-      const vh = window.innerHeight;
-      const limit = Math.floor(vh * 0.3);
-      setMaxHeight(Math.min(limit, 320));
-    };
-    update();
-    window.addEventListener('resize', update);
-    return () => window.removeEventListener('resize', update);
-  }, []);
-
-  return maxHeight;
-}
-
 export const SmartRecommend: React.FC = () => {
-  const { recommendations, dismissRecommendation } = useChatOpsStore();
-  const handleAction = useActionHandler();
-  const maxPanelHeight = usePanelHeight();
+  const { recommendations, dismissRecommendation, executeAction } = useChatOpsStore();
+  const userId = useAuthStore((s) => s.user?.id);
 
-  if (recommendations.length === 0) {
+  // 过滤：只保留关联当前用户或无 assignee 的推荐
+  const visibleRecs = React.useMemo(() => {
+    return recommendations.filter((r) => {
+      // 已处理的不展示
+      if ((r as any).status === 'dismissed' || (r as any).status === 'resolved') return false;
+      // 有 assignee 但不是当前用户的不展示
+      const assignee = (r as any).assignee;
+      if (assignee && assignee !== userId) return false;
+      return true;
+    });
+  }, [recommendations, userId]);
+
+  if (visibleRecs.length === 0) {
     return null;
   }
 
   return (
     <div
       style={{
-        maxHeight: maxPanelHeight,
-        overflowY: 'auto',
-        padding: '12px 16px',
-        background: colors.light.bg.secondary,
-        flexShrink: 0,
+        marginBottom: 16,
       }}
     >
-      <div style={{ marginBottom: 8 }}>
-        <Text type="secondary" style={{ fontSize: 12 }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: 8,
+        }}
+      >
+        <Text type="secondary" style={{ fontSize: 11 }}>
           智能推荐
         </Text>
       </div>
-      {recommendations.map((rec) => {
-        const cfg = severityConfig[rec.severity] ?? severityConfig.info;
-        return (
-          <Card
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {visibleRecs.map((rec) => (
+          <div
             key={rec.id}
-            size="small"
             style={{
-              marginBottom: 8,
-              borderColor: cfg.color + '40',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '8px 10px',
+              background: colors.light.bg.primary,
               borderRadius: 8,
+              border: `1px solid ${colors.light.border.light}`,
+              transition: 'all 0.2s',
             }}
-            extra={
-              <Button
-                type="text"
-                size="small"
-                style={{ padding: '0 4px', color: colors.light.text.tertiary }}
-                onClick={() => dismissRecommendation(rec.id)}
-              >
-                ×
-              </Button>
-            }
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLElement).style.borderColor = colors.primary[300];
+              (e.currentTarget as HTMLElement).style.background = colors.primary[50];
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLElement).style.borderColor = colors.light.border.light;
+              (e.currentTarget as HTMLElement).style.background = colors.light.bg.primary;
+            }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-              <span style={{ color: cfg.color, fontSize: 14 }}>{cfg.icon}</span>
-              <Tag color={cfg.color} style={{ margin: 0, fontSize: 10, padding: '0 6px' }}>
-                {rec.severity.toUpperCase()}
-              </Tag>
-              <Text strong style={{ fontSize: 13 }}>{rec.title}</Text>
-            </div>
-            <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 8 }}>
-              {rec.description}
+            {/* Severity dot */}
+            <div
+              style={{
+                width: 6,
+                height: 6,
+                borderRadius: '50%',
+                background: severityDot[rec.severity] ?? colors.neutral[400],
+                flexShrink: 0,
+              }}
+            />
+            {/* Title (truncated) */}
+            <Text
+              ellipsis={{ tooltip: rec.title }}
+              style={{ flex: 1, fontSize: 12, fontWeight: 500 }}
+            >
+              {rec.title}
             </Text>
-            <Space size="small">
-              {rec.actions.map((action) => (
-                <Button
-                  key={action.label}
-                  size="small"
-                  type="primary"
-                  ghost
-                  onClick={() => handleAction(action)}
-                  style={{ fontSize: 12, height: 24, borderRadius: 4 }}
-                >
-                  {action.label}
-                </Button>
-              ))}
-            </Space>
-          </Card>
-        );
-      })}
+            {/* Quick action link */}
+            {rec.actions.length > 0 && (
+              <Button
+                type="link"
+                size="small"
+                style={{ padding: 0, fontSize: 11, height: 'auto', color: colors.primary[500] }}
+                onClick={() => executeAction(rec.actions[0].command || '', {})}
+              >
+                去处理
+              </Button>
+            )}
+            {/* Dismiss */}
+            <Button
+              type="text"
+              size="small"
+              icon={<CloseOutlined style={{ fontSize: 10 }} />}
+              style={{ padding: 0, color: colors.light.text.tertiary, height: 'auto' }}
+              onClick={() => dismissRecommendation(rec.id)}
+            />
+          </div>
+        ))}
+      </div>
     </div>
   );
 };

@@ -4,10 +4,13 @@ import { capabilityApi } from '@/api/capability';
 
 // 角色权限映射（与后端同步，来源于 docs/architecture/rbac-abac-unified-implementation.md §4）
 const ROLE_PERMISSIONS: Record<string, string[]> = {
+  'admin': ['*:*'],  // admin 等同于 super_admin
   'super_admin': ['*:*'],
   'platform_admin': ['*:manage', '*:read', '*:write', '*:execute', '*:delete', '*:approve',
                       // AI 通配
-                      'ai:*:manage', 'ai:*:read', 'ai:*:write', 'ai:*:execute'],
+                      'ai:*:manage', 'ai:*:read', 'ai:*:write', 'ai:*:execute',
+                      // AI Review
+                      'ai-review:read', 'ai-review:write', 'ai-review:manage'],
   'tenant_admin': ['*:manage', '*:read', '*:write', 'audit_log:read'],
   'org_admin': ['*:read', '*:write', '*:execute', '*:manage', '*:approve',
                  // AI 权限

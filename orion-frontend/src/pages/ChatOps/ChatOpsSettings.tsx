@@ -548,10 +548,6 @@ const NotificationDNDTab: React.FC = () => {
 const ChatOpsSettings: React.FC = () => {
   return (
     <div style={{ padding: '0 0 16px' }}>
-      <div style={{ marginBottom: 16 }}>
-        <span style={{ fontSize: 16, fontWeight: 600, lineHeight: '24px', color: colors.light.text.primary }}>设置</span>
-      </div>
-
       <Tabs
         defaultActiveKey="questions"
         items={[

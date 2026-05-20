@@ -148,7 +148,7 @@ export default async function authRoutes(app: FastifyInstance, options: AuthRout
     }
 
     const accessToken = jwt.sign(
-      { userId: user.id, username: user.username, role: user.role },
+      { userId: user.id, username: user.username, role: user.role, roles: [user.role] },
       jwtSecret,
       { expiresIn: ACCESS_TOKEN_EXPIRES_IN }
     );
@@ -237,7 +237,7 @@ export default async function authRoutes(app: FastifyInstance, options: AuthRout
     }
 
     const newAccessToken = jwt.sign(
-      { userId: row.user_id, username: row.username, role: row.role },
+      { userId: row.user_id, username: row.username, role: row.role, roles: [row.role] },
       jwtSecret,
       { expiresIn: ACCESS_TOKEN_EXPIRES_IN }
     );

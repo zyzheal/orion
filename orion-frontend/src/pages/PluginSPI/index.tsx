@@ -63,16 +63,16 @@ function mapApiExtensionPoint(p: APISPIExtensionPoint): SPIExtensionPoint {
 }
 
 /** Map API PluginRegistration to UI shape */
-function mapApiRegistration(r: APIPluginRegistration): PluginRegistration {
+function mapApiRegistration(r: APIPluginRegistration | any): PluginRegistration {
   return {
-    id: r.id,
-    pluginName: r.pluginName,
-    spiPoint: r.extensionPointName,
-    provider: '',
-    priority: 0,
-    status: r.enabled ? 'enabled' : 'disabled',
-    version: r.version,
-    registeredAt: r.createdAt,
+    id: r.id || r.pluginName || '',
+    pluginName: r.pluginName || r.name || '',
+    spiPoint: r.extensionPointName || r.spiPoint || r.capabilities?.[0] || 'Unknown',
+    provider: r.author || r.provider || '',
+    priority: r.priority || 0,
+    status: r.status || (r.enabled ? 'enabled' : 'disabled'),
+    version: r.version || r.manifest?.version || '1.0.0',
+    registeredAt: r.createdAt || r.enabledAt || new Date().toISOString(),
   };
 }
 
@@ -89,12 +89,12 @@ function mapApiSPIConfig(c: APISPIConfig): SPIConfigType {
 }
 
 /** Map API stats to UI stats */
-function mapApiStats(s: APISPIStats): SPIStats {
+function mapApiStats(s: APISPIStats | any): SPIStats {
   return {
-    totalExtensionPoints: s.totalExtensionPoints,
-    activePoints: s.activePoints,
-    totalRegistrations: s.totalRegistrations,
-    enabledPlugins: 0,
+    totalExtensionPoints: s.totalExtensionPoints || s.totalPlugins || 0,
+    activePoints: s.activePoints || s.enabledPlugins || 0,
+    totalRegistrations: s.totalRegistrations || s.totalPlugins || 0,
+    enabledPlugins: s.enabledPlugins || 0,
   };
 }
 
@@ -126,11 +126,14 @@ const PluginSPIPage: React.FC = () => {
         getPluginRegistrations(),
         getSPIConfigs(),
       ]);
-      setExtensionPoints(extRes.data.data.extensionPoints.map(mapApiExtensionPoint));
-      setPluginRegistrations(regRes.data.data.registrations.map(mapApiRegistration));
-      setSpiConfigs(cfgRes.data.data.configs.map(mapApiSPIConfig));
+      const extPoints = extRes.data.data?.extensionPoints || extRes.data.data?.data?.extensionPoints || [];
+      const regs = regRes.data.data?.registrations || regRes.data.data?.data?.registrations || [];
+      const cfgs = cfgRes.data.data?.configs || cfgRes.data.data?.data?.configs || [];
+      setExtensionPoints(extPoints.map(mapApiExtensionPoint));
+      setPluginRegistrations(regs.map(mapApiRegistration));
+      setSpiConfigs(cfgs.map(mapApiSPIConfig));
     } catch (error: unknown) {
-      message.error(`Failed to load SPI data: ${(error as Error).message}`);
+      message.error(`加载 SPI 数据失败: ${(error as Error).message}`);
     } finally {
       setLoading(false);
     }
@@ -139,9 +142,10 @@ const PluginSPIPage: React.FC = () => {
   const loadStats = async () => {
     try {
       const response = await getSPIStats();
-      setStats(mapApiStats(response.data.data.stats));
+      const statsData = response.data.data?.stats || response.data.data || {};
+      setStats(mapApiStats(statsData));
     } catch (error: unknown) {
-      message.error(`Failed to load SPI stats: ${(error as Error).message}`);
+      message.error(`加载统计信息失败: ${(error as Error).message}`);
     }
   };
 

@@ -2,27 +2,25 @@
  * ChatOps 主页面 - Tab 分页结构
  *
  * 定位说明：
- * - 本页：ChatOps 管理中心（分析、对话、历史、审计）
+ * - 本页：ChatOps 管理中心（分析、历史、审计、配置）
  * - 右下角悬浮助手：日常对话交互入口（点击右下角按钮打开）
  *
  * Tab 结构（设计文档: chatops-dashboard-design.md）:
  * 1. 总览看板 - 执行统计、趋势分析、热门命令、平台分布
- * 2. 对话工作台 - AI 助手对话界面
- * 3. 执行记录 - 命令执行历史列表
- * 4. 审计日志 - 审计日志查看与导出
+ * 2. 执行记录 - 命令执行历史列表
+ * 3. 审计日志 - 审计日志查看与导出
+ * 4. 管理配置 - 命令-Capability 映射、审批配置
  */
 import React, { useState } from 'react';
 import { Tabs, Alert } from 'antd';
 import {
   DashboardOutlined,
-  MessageOutlined,
   PlayCircleOutlined,
   AuditOutlined,
   SettingOutlined,
   CloseOutlined,
 } from '@ant-design/icons';
 import ChatDashboard from './ChatDashboard';
-import ChatOpsChat from './index.chat';
 import ExecutionDashboard from './ExecutionDashboard';
 import AuditLogViewer from './AuditLogViewer';
 import AdminSettings from './AdminSettings';
@@ -44,16 +42,6 @@ export default function ChatOpsPage() {
         </span>
       ),
       children: <ChatDashboard />,
-    },
-    {
-      key: 'chat',
-      label: (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 500 }}>
-          <MessageOutlined />
-          对话工作台
-        </span>
-      ),
-      children: <ChatOpsChat />,
     },
     {
       key: 'executions',

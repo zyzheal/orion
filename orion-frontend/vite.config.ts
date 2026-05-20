@@ -16,6 +16,12 @@ export default defineConfig({
   server: {
     port: 3000,
     proxy: {
+      // CMDB Service - Go 版本 (3030)
+      '/api/v1/cmdb': {
+        target: 'http://localhost:3030',
+        changeOrigin: true,
+      },
+      // 其他 API 请求到 platform-service (3001)
       '/api': {
         target: 'http://localhost:3001',
         changeOrigin: true,

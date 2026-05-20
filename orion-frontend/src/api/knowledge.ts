@@ -104,7 +104,7 @@ export async function getDocs(params?: {
   if (params?.pageSize) queryParams.append('pageSize', String(params.pageSize));
 
   const res = await api.get<{ data: KnowledgeDoc[]; meta: { total: number } }>(
-    `/v1/knowledge/v1/docs?${queryParams.toString()}`
+    `/v1/knowledge/docs?${queryParams.toString()}`
   );
   return {
     data: res.data?.data || [],
@@ -116,7 +116,7 @@ export async function getDocs(params?: {
  * 获取单个文档详情
  */
 export async function getDoc(id: string): Promise<KnowledgeDoc> {
-  const res = await api.get<{ data: KnowledgeDoc }>(`/v1/knowledge/v1/docs/${id}`);
+  const res = await api.get<{ data: KnowledgeDoc }>(`/v1/knowledge/docs/${id}`);
   return res.data?.data;
 }
 
@@ -124,7 +124,7 @@ export async function getDoc(id: string): Promise<KnowledgeDoc> {
  * 获取文档分类列表 (按 tag 聚合)
  */
 export async function getDocTags(): Promise<string[]> {
-  const res = await api.get<{ data: string[] }>('/v1/knowledge/v1/docs/tags?type=docs');
+  const res = await api.get<{ data: string[] }>('/v1/knowledge/docs/tags?type=docs');
   return res.data?.data || [];
 }
 
@@ -136,7 +136,7 @@ export async function getDocToc(): Promise<{
   tags: string[];
 }> {
   const res = await api.get<{ data: { spaces: KnowledgeSpace[]; tags: string[] } }>(
-    '/v1/knowledge/v1/docs/toc?type=docs'
+    '/v1/knowledge/docs/toc?type=docs'
   );
   return res.data?.data || { spaces: [], tags: [] };
 }
@@ -156,7 +156,7 @@ export async function getDocSpaces(params?: {
   if (params?.pageSize) queryParams.append('pageSize', String(params.pageSize));
 
   const res = await api.get<{ data: KnowledgeSpace[]; meta: { total: number } }>(
-    `/v1/knowledge/v1/spaces?${queryParams.toString()}`
+    `/v1/knowledge/spaces?${queryParams.toString()}`
   );
   return {
     data: res.data?.data || [],
@@ -171,7 +171,7 @@ export async function triggerDocSync(
   syncType: 'full' | 'incremental'
 ): Promise<SyncResult> {
   const res = await api.post<{ data: SyncResult }>(
-    `/v1/knowledge/v1/sync?type=${syncType}`
+    `/v1/knowledge/sync?type=${syncType}`
   );
   return res.data?.data;
 }
@@ -188,7 +188,7 @@ export async function getSyncLogs(params?: {
   if (params?.pageSize) queryParams.append('pageSize', String(params.pageSize));
 
   const res = await api.get<{ data: SyncLog[]; meta: { total: number } }>(
-    `/v1/knowledge/v1/sync/logs?${queryParams.toString()}`
+    `/v1/knowledge/sync/logs?${queryParams.toString()}`
   );
   return {
     data: res.data?.data || [],
@@ -212,7 +212,7 @@ export async function searchDocs(
   }>;
 }> {
   const res = await api.post<{ data: { results: any[]; total: number } }>(
-    '/v1/knowledge/v1/rag/retrieve',
+    '/v1/knowledge/rag/retrieve',
     {
       query,
       spaceId,

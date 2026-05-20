@@ -137,8 +137,8 @@ export class AuthorizationEngine {
       return this.deny('User account is disabled or suspended', 'rbac', Date.now() - startTime, req);
     }
 
-    // [1] super_admin 通配符跳过所有检查
-    if (req.user.roles.includes('super_admin')) {
+    // [1] super_admin / admin 通配符跳过所有检查
+    if (req.user.roles.includes('super_admin') || req.user.roles.includes('admin')) {
       return this.allow('Super Admin bypass', 'super_admin_bypass', Date.now() - startTime, req, ['super_admin']);
     }
 

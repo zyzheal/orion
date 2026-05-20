@@ -1,0 +1,251 @@
+/**
+ * Impact Analysis Page - Visualize CI impact on upstream/downstream dependencies
+ */
+import React, { useState, useEffect } from 'react';
+import {
+  Typography,
+  Card,
+  Table,
+  type TableColumnsType,
+  Tag,
+  Space,
+  Button,
+  Select,
+  message,
+  Empty,
+  Statistic,
+  Row,
+  Col,
+} from 'antd';
+import {
+  ReloadOutlined,
+  CloudServerOutlined,
+  ArrowUpOutlined,
+  ArrowDownOutlined,
+  DeploymentUnitOutlined,
+} from '@ant-design/icons';
+import { colors } from '@/tokens';
+import PageSkeleton from '@/components/PageSkeleton';
+import {
+  getCIs,
+  getImpactAnalysis,
+  type CIItem,
+  type ImpactData,
+} from '@/api/cmdb';
+
+const { Title, Text } = Typography;
+
+const ImpactAnalysisPage: React.FC = () => {
+  const [loading, setLoading] = useState(false);
+  const [cis, setCIs] = useState<CIItem[]>([]);
+  const [selectedCIId, setSelectedCIId] = useState<string | undefined>();
+  const [impact, setImpact] = useState<ImpactData | null>(null);
+
+  const loadCIs = async () => {
+    try {
+      const res = await getCIs({ pageSize: 200 });
+      setCIs((res.data as any).data || []);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`加载配置项失败：${error.message}`);
+      }
+    }
+  };
+
+  useEffect(() => {
+    loadCIs();
+  }, []);
+
+  const loadImpact = async (ciId: string) => {
+    setLoading(true);
+    try {
+      const res = await getImpactAnalysis(ciId);
+      setImpact((res.data as any).data || null);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`加载影响分析失败：${error.message}`);
+      } else {
+        message.error('加载影响分析失败');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCISelect = (ciId: string) => {
+    setSelectedCIId(ciId);
+    loadImpact(ciId);
+  };
+
+  const typeIconMap: Record<string, React.ReactNode> = {
+    host: <CloudServerOutlined />,
+    k8s: <DeploymentUnitOutlined />,
+    service: <DeploymentUnitOutlined />,
+    application: <DeploymentUnitOutlined />,
+  };
+
+  const statusColorMap: Record<string, string> = {
+    active: 'green',
+    inactive: 'default',
+    maintenance: 'orange',
+    deprecated: 'red',
+  };
+
+  const ciColumns: TableColumnsType<CIItem> = [
+    {
+      title: '名称',
+      dataIndex: 'name',
+      key: 'name',
+      render: (text: unknown, record: CIItem) => (
+        <Space>
+          {typeIconMap[record.type] || <CloudServerOutlined />}
+          <Text strong>{String(text)}</Text>
+        </Space>
+      ),
+    },
+    {
+      title: '类型',
+      dataIndex: 'type',
+      key: 'type',
+      render: (type: unknown) => <Tag color="blue">{String(type)}</Tag>,
+    },
+    {
+      title: '环境',
+      dataIndex: 'environment',
+      key: 'environment',
+      render: (env: unknown) =>
+        env ? (
+          <Tag color={String(env) === 'production' ? 'red' : 'geekblue'}>{String(env)}</Tag>
+        ) : (
+          '-'
+        ),
+    },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      key: 'status',
+      render: (status: unknown) => (
+        <Tag color={statusColorMap[String(status)] || 'default'}>{String(status)}</Tag>
+      ),
+    },
+    {
+      title: '负责人',
+      dataIndex: 'owner',
+      key: 'owner',
+      render: (owner: unknown) => (owner ? String(owner) : '-'),
+    },
+  ];
+
+  const isInitialLoading = loading && !impact;
+
+  return (
+    <div>
+      {isInitialLoading && <PageSkeleton cards={3} rows={6} />}
+      {isInitialLoading ? null : (
+        <>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+            <div>
+              <Title level={4}>影响分析</Title>
+              <Text type="secondary">分析配置项变更对上下游系统的影响</Text>
+            </div>
+            <Button icon={<ReloadOutlined />} onClick={loadCIs} loading={loading}>
+              刷新
+            </Button>
+          </div>
+
+          <Card style={{ marginBottom: 16 }}>
+            <Space>
+              <Text>选择配置项：</Text>
+              <Select
+                style={{ width: 300 }}
+                placeholder="搜索并选择配置项"
+                value={selectedCIId}
+                onChange={handleCISelect}
+                showSearch
+                optionFilterProp="label"
+                allowClear
+              >
+                {cis.map((ci) => (
+                  <Select.Option key={ci.id} value={ci.id} label={ci.name}>
+                    {ci.name} ({ci.type})
+                  </Select.Option>
+                ))}
+              </Select>
+            </Space>
+          </Card>
+
+          {impact && (
+            <>
+              <Row gutter={16} style={{ marginBottom: 16 }}>
+                <Col span={8}>
+                  <Card>
+                    <Statistic
+                      title="上游依赖"
+                      value={impact.upstream?.length || 0}
+                      prefix={<ArrowUpOutlined />}
+                      valueStyle={{ color: colors.info[500] }}
+                    />
+                  </Card>
+                </Col>
+                <Col span={8}>
+                  <Card>
+                    <Statistic
+                      title="下游影响"
+                      value={impact.downstream?.length || 0}
+                      prefix={<ArrowDownOutlined />}
+                      valueStyle={{ color: colors.warning[500] }}
+                    />
+                  </Card>
+                </Col>
+                <Col span={8}>
+                  <Card>
+                    <Statistic
+                      title="总影响范围"
+                      value={impact.total_affected || 0}
+                      prefix={<DeploymentUnitOutlined />}
+                      valueStyle={{ color: colors.purple[500] }}
+                    />
+                  </Card>
+                </Col>
+              </Row>
+
+              <Card title="上游依赖（依赖此配置项的其他系统）" style={{ marginBottom: 16 }}>
+                {impact.upstream && impact.upstream.length > 0 ? (
+                  <Table
+                    columns={ciColumns}
+                    dataSource={impact.upstream}
+                    rowKey="id"
+                    pagination={{ pageSize: 5 }}
+                    size="small"
+                  />
+                ) : (
+                  <Empty description="暂无上游依赖" />
+                )}
+              </Card>
+
+              <Card title="下游影响（此配置项依赖的系统）">
+                {impact.downstream && impact.downstream.length > 0 ? (
+                  <Table
+                    columns={ciColumns}
+                    dataSource={impact.downstream}
+                    rowKey="id"
+                    pagination={{ pageSize: 5 }}
+                    size="small"
+                  />
+                ) : (
+                  <Empty description="暂无下游影响" />
+                )}
+              </Card>
+            </>
+          )}
+
+          {!impact && !loading && (
+            <Empty description="请选择配置项进行影响分析" style={{ marginTop: 60 }} />
+          )}
+        </>
+      )}
+    </div>
+  );
+};
+
+export default ImpactAnalysisPage;

@@ -59,11 +59,12 @@ export const ChatInput: React.FC = () => {
       <div
         style={{
           display: 'flex',
+          flexWrap: 'wrap',
           gap: 6,
           marginBottom: 10,
-          overflowX: 'auto',
-          paddingBottom: 2,
-          scrollbarWidth: 'none',
+          maxHeight: 80,
+          overflowY: 'auto',
+          scrollbarWidth: 'thin',
         }}
       >
         {quickCommands.map((cmd) => (
@@ -78,27 +79,30 @@ export const ChatInput: React.FC = () => {
               alignItems: 'center',
               gap: 4,
               padding: '4px 10px',
-              fontSize: 12,
+              fontSize: 11.5,
               lineHeight: 1.4,
               color: colors.primary[600],
-              background: colors.primary[50],
-              border: `1px solid ${colors.primary[100]}`,
-              borderRadius: 12,
+              background: colors.light.bg.primary,
+              border: `1px solid ${colors.primary[200]}`,
+              borderRadius: 14,
               cursor: 'pointer',
               whiteSpace: 'nowrap',
               transition: 'all 0.15s',
               outline: 'none',
+              boxShadow: `0 1px 2px rgba(0,0,0,0.03)`,
             }}
             onMouseEnter={(e) => {
-              (e.target as HTMLElement).style.background = colors.primary[100];
-              (e.target as HTMLElement).style.borderColor = colors.primary[200];
+              (e.currentTarget as HTMLElement).style.background = colors.primary[50];
+              (e.currentTarget as HTMLElement).style.borderColor = colors.primary[400];
+              (e.currentTarget as HTMLElement).style.boxShadow = `0 1px 4px ${colors.primary[200]}`;
             }}
             onMouseLeave={(e) => {
-              (e.target as HTMLElement).style.background = colors.primary[50];
-              (e.target as HTMLElement).style.borderColor = colors.primary[100];
+              (e.currentTarget as HTMLElement).style.background = colors.light.bg.primary;
+              (e.currentTarget as HTMLElement).style.borderColor = colors.primary[200];
+              (e.currentTarget as HTMLElement).style.boxShadow = `0 1px 2px rgba(0,0,0,0.03)`;
             }}
           >
-            <span style={{ fontSize: 13 }}>{cmd.icon}</span>
+            <span style={{ fontSize: 12 }}>{cmd.icon}</span>
             {cmd.label}
           </button>
         ))}

@@ -147,14 +147,11 @@ const CommandBrowser: React.FC = () => {
       <div
         style={{
           display: 'flex',
-          justifyContent: 'space-between',
+          justifyContent: 'flex-end',
           alignItems: 'center',
           marginBottom: 16,
         }}
       >
-        <div>
-          <span style={{ fontSize: 16, fontWeight: 600, lineHeight: '24px', color: colors.light.text.primary }}>命令浏览</span>
-        </div>
         <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
           刷新
         </Button>

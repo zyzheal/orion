@@ -30,7 +30,7 @@ import {
   ExclamationCircleOutlined,
   FileTextOutlined,
 } from '@ant-design/icons';
-import DashboardLayout from '@/components/DashboardLayout';
+import CardPanel from '@/components/CardPanel';
 import { HeatmapChart, BarChart, HeatmapCell, StatCard } from '@/components/charts';
 import {
   assessDeploymentRisk,
@@ -288,55 +288,45 @@ const RiskDashboardPage: React.FC = () => {
   ).map(([label, value]) => ({ label, value }));
 
   return (
-    <DashboardLayout>
-      <div style={{ padding: 24 }}>
-        {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
-          <div>
-            <Title level={2}>风险管理</Title>
-            <Text type="secondary">风险评估、健康检查、风险事件监控</Text>
-          </div>
-          <Space>
-            <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
-              刷新
-            </Button>
-            <Button icon={<SafetyOutlined />} onClick={() => handleHealthCheck('basic')}>
-              快速检查
-            </Button>
-            <Button
-              icon={<ExclamationCircleOutlined />}
-              onClick={() => handleHealthCheck('comprehensive')}
-            >
-              全面检查
-            </Button>
-            <Button
-              icon={<WarningOutlined />}
-              type="primary"
-              onClick={() => setAssessModalOpen(true)}
-            >
-              风险评估
-            </Button>
-          </Space>
-        </div>
+    <div style={{ padding: 0 }}>
+      {/* Header */}
+      <div style={{ marginBottom: 24 }}>
+        <Title level={3} style={{ margin: 0 }}>
+          <WarningOutlined style={{ marginRight: 8, color: colors.warning[500] }} />
+          风险管理
+        </Title>
+        <Text type="secondary">风险评估、健康检查、风险事件监控</Text>
+      </div>
 
-        {/* Summary Cards */}
-        <Row gutter={16} style={{ marginBottom: 24 }}>
-          <Col span={6}>
-            <StatCard title="总评估数" value={status?.totalAssessments || 0} />
+      {/* Summary Cards */}
+      <div style={{ marginBottom: 24 }}>
+        <Row gutter={[16, 16]}>
+          <Col xs={24} sm={12} lg={8} xl={6}>
+            <CardPanel>
+              <StatCard title="总评估数" value={status?.totalAssessments || 0} />
+            </CardPanel>
           </Col>
-          <Col span={6}>
-            <StatCard title="评估中" value={status?.pendingAssessments || 0} />
+          <Col xs={24} sm={12} lg={8} xl={6}>
+            <CardPanel>
+              <StatCard title="评估中" value={status?.pendingAssessments || 0} />
+            </CardPanel>
           </Col>
-          <Col span={6}>
-            <StatCard title="高风险" value={status?.highRiskCount || 0} />
+          <Col xs={24} sm={12} lg={8} xl={6}>
+            <CardPanel>
+              <StatCard title="高风险" value={status?.highRiskCount || 0} />
+            </CardPanel>
           </Col>
-          <Col span={6}>
-            <StatCard title="未确认事件" value={events.length} />
+          <Col xs={24} sm={12} lg={8} xl={6}>
+            <CardPanel>
+              <StatCard title="未确认事件" value={events.length} />
+            </CardPanel>
           </Col>
         </Row>
+      </div>
 
-        {/* Risk Status */}
-        <Card title="系统风险状态" style={{ marginBottom: 24 }}>
+      {/* Risk Status */}
+      <div style={{ marginBottom: 24 }}>
+        <CardPanel title="系统风险状态">
           <Space size="large">
             <div>
               <Text type="secondary">系统状态:</Text>{' '}
@@ -345,12 +335,14 @@ const RiskDashboardPage: React.FC = () => {
               </Tag>
             </div>
           </Space>
-        </Card>
+        </CardPanel>
+      </div>
 
-        {/* Charts Row */}
-        <Row gutter={16} style={{ marginBottom: 24 }}>
-          <Col span={14}>
-            <Card>
+      {/* Charts Row */}
+      <div style={{ marginBottom: 24 }}>
+        <Row gutter={[16, 16]}>
+          <Col xs={24} lg={14}>
+            <CardPanel>
               <HeatmapChart
                 title="风险分布（时间 × 严重性）"
                 data={heatmapData}
@@ -359,21 +351,23 @@ const RiskDashboardPage: React.FC = () => {
                 colorScale="green-red"
                 height={280}
               />
-            </Card>
+            </CardPanel>
           </Col>
-          <Col span={10}>
-            <Card>
+          <Col xs={24} lg={10}>
+            <CardPanel>
               <BarChart
                 title="风险类型分布"
                 data={riskTypeData}
                 height={280}
               />
-            </Card>
+            </CardPanel>
           </Col>
         </Row>
+      </div>
 
-        {/* Assessment Table */}
-        <Card title="风险评估记录" style={{ marginBottom: 24 }}>
+      {/* Assessment Table */}
+      <div style={{ marginBottom: 24 }}>
+        <CardPanel title="风险评估记录">
           <Table<RiskAssessment>
             columns={columns}
             dataSource={assessments}
@@ -382,126 +376,151 @@ const RiskDashboardPage: React.FC = () => {
             pagination={{ pageSize: 10 }}
             size="small"
           />
-        </Card>
-
-        {/* Events Table */}
-        <Card title="风险事件">
-          <Table
-            columns={eventColumns}
-            dataSource={eventTableData}
-            loading={loading}
-            pagination={{ pageSize: 5 }}
-            size="small"
-          />
-        </Card>
-
-        {/* Assess Modal */}
-        <Modal
-          title="风险评估"
-          open={assessModalOpen}
-          onCancel={() => setAssessModalOpen(false)}
-          onOk={() => form.submit()}
-          width={600}
-        >
-          <Form form={form} layout="vertical" onFinish={handleAssess}>
-            <Form.Item label="目标类型" name="targetType" rules={[{ required: true }]}>
-              <Select>
-                <Select.Option value="deployment">部署</Select.Option>
-                <Select.Option value="change">变更</Select.Option>
-                <Select.Option value="pipeline">流水线</Select.Option>
-                <Select.Option value="infrastructure">基础设施</Select.Option>
-              </Select>
-            </Form.Item>
-            <Form.Item label="目标 ID" name="targetId" rules={[{ required: true }]}>
-              <Input placeholder="例如：deploy-123" />
-            </Form.Item>
-            <Form.Item label="元数据 (JSON)" name="metadata">
-              <TextArea rows={4} placeholder='{"key": "value"}' />
-            </Form.Item>
-          </Form>
-        </Modal>
-
-        {/* Detail Drawer */}
-        <Drawer
-          title="风险评估详情"
-          placement="right"
-          width={700}
-          open={drawerOpen}
-          onClose={() => setDrawerOpen(false)}
-        >
-          {selectedAssessment && (
-            <>
-              <Descriptions column={1} bordered>
-                <Descriptions.Item label="ID">{selectedAssessment.id}</Descriptions.Item>
-                <Descriptions.Item label="目标类型">
-                  {selectedAssessment.targetType}
-                </Descriptions.Item>
-                <Descriptions.Item label="目标 ID">{selectedAssessment.targetId}</Descriptions.Item>
-                <Descriptions.Item label="风险等级">
-                  <Tag color={riskLevelColor[selectedAssessment.riskLevel]}>
-                    {selectedAssessment.riskLevel.toUpperCase()}
-                  </Tag>
-                </Descriptions.Item>
-                <Descriptions.Item label="风险评分">
-                  {selectedAssessment.riskScore.toFixed(0)}
-                </Descriptions.Item>
-                <Descriptions.Item label="状态">{selectedAssessment.status}</Descriptions.Item>
-                <Descriptions.Item label="评估者">
-                  {selectedAssessment.assessedBy}
-                </Descriptions.Item>
-                <Descriptions.Item label="评估时间">
-                  {new Date(selectedAssessment.assessedAt).toLocaleString()}
-                </Descriptions.Item>
-              </Descriptions>
-
-              <Title level={5} style={{ marginTop: 24 }}>
-                风险因素
-              </Title>
-              <Timeline>
-                {selectedAssessment.factors.map((factor, index) => (
-                  <Timeline.Item
-                    key={index}
-                    color={
-                      factor.status === 'pass'
-                        ? 'green'
-                        : factor.status === 'warning'
-                          ? 'orange'
-                          : 'red'
-                    }
-                  >
-                    <div>
-                      <Text strong>{factor.name}</Text>
-                      <div style={{ fontSize: spacing[3], color: colors.neutral[400] }}>
-                        {factor.category}
-                      </div>
-                      <div style={{ marginTop: 4 }}>
-                        <Text type="secondary">{factor.description}</Text>
-                      </div>
-                      <div style={{ marginTop: 4 }}>
-                        <Text>
-                          评分：{factor.score} | 权重：{factor.weight}
-                        </Text>
-                      </div>
-                    </div>
-                  </Timeline.Item>
-                ))}
-              </Timeline>
-
-              {selectedAssessment.recommendations.length > 0 && (
-                <>
-                  <Title level={5}>改进建议</Title>
-                  <ul>
-                    {selectedAssessment.recommendations.map((rec, index) => (
-                      <li key={index}>{rec}</li>
-                    ))}
-                  </ul>
-                </>
-              )}
-            </>
-          )}
-        </Drawer>
+        </CardPanel>
       </div>
-    </DashboardLayout>
+
+      {/* Events Table */}
+      <CardPanel title="风险事件">
+        <Table
+          columns={eventColumns}
+          dataSource={eventTableData}
+          loading={loading}
+          pagination={{ pageSize: 5 }}
+          size="small"
+        />
+      </CardPanel>
+
+      {/* Assess Modal */}
+      <Modal
+        title="风险评估"
+        open={assessModalOpen}
+        onCancel={() => setAssessModalOpen(false)}
+        onOk={() => form.submit()}
+        width={600}
+      >
+        <Form form={form} layout="vertical" onFinish={handleAssess}>
+          <Form.Item label="目标类型" name="targetType" rules={[{ required: true }]}>
+            <Select>
+              <Select.Option value="deployment">部署</Select.Option>
+              <Select.Option value="change">变更</Select.Option>
+              <Select.Option value="pipeline">流水线</Select.Option>
+              <Select.Option value="infrastructure">基础设施</Select.Option>
+            </Select>
+          </Form.Item>
+          <Form.Item label="目标 ID" name="targetId" rules={[{ required: true }]}>
+            <Input placeholder="例如：deploy-123" />
+          </Form.Item>
+          <Form.Item label="元数据 (JSON)" name="metadata">
+            <TextArea rows={4} placeholder='{"key": "value"}' />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Detail Drawer */}
+      <Drawer
+        title="风险评估详情"
+        placement="right"
+        width={700}
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+      >
+        {selectedAssessment && (
+          <>
+            <Descriptions column={1} bordered>
+              <Descriptions.Item label="ID">{selectedAssessment.id}</Descriptions.Item>
+              <Descriptions.Item label="目标类型">
+                {selectedAssessment.targetType}
+              </Descriptions.Item>
+              <Descriptions.Item label="目标 ID">{selectedAssessment.targetId}</Descriptions.Item>
+              <Descriptions.Item label="风险等级">
+                <Tag color={riskLevelColor[selectedAssessment.riskLevel]}>
+                  {selectedAssessment.riskLevel.toUpperCase()}
+                </Tag>
+              </Descriptions.Item>
+              <Descriptions.Item label="风险评分">
+                {selectedAssessment.riskScore.toFixed(0)}
+              </Descriptions.Item>
+              <Descriptions.Item label="状态">{selectedAssessment.status}</Descriptions.Item>
+              <Descriptions.Item label="评估者">
+                {selectedAssessment.assessedBy}
+              </Descriptions.Item>
+              <Descriptions.Item label="评估时间">
+                {new Date(selectedAssessment.assessedAt).toLocaleString()}
+              </Descriptions.Item>
+            </Descriptions>
+
+            <Title level={5} style={{ marginTop: 24 }}>
+              风险因素
+            </Title>
+            <Timeline>
+              {selectedAssessment.factors.map((factor, index) => (
+                <Timeline.Item
+                  key={index}
+                  color={
+                    factor.status === 'pass'
+                      ? 'green'
+                      : factor.status === 'warning'
+                        ? 'orange'
+                        : 'red'
+                  }
+                >
+                  <div>
+                    <Text strong>{factor.name}</Text>
+                    <div style={{ fontSize: spacing[3], color: colors.neutral[400] }}>
+                      {factor.category}
+                    </div>
+                    <div style={{ marginTop: 4 }}>
+                      <Text type="secondary">{factor.description}</Text>
+                    </div>
+                    <div style={{ marginTop: 4 }}>
+                      <Text>
+                        评分：{factor.score} | 权重：{factor.weight}
+                      </Text>
+                    </div>
+                  </div>
+                </Timeline.Item>
+              ))}
+            </Timeline>
+
+            {selectedAssessment.recommendations.length > 0 && (
+              <>
+                <Title level={5}>改进建议</Title>
+                <ul>
+                  {selectedAssessment.recommendations.map((rec, index) => (
+                    <li key={index}>{rec}</li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </>
+        )}
+      </Drawer>
+
+      {/* Header Actions */}
+      <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 100 }}>
+        <Space>
+          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+            刷新
+          </Button>
+          <Button icon={<SafetyOutlined />} onClick={() => handleHealthCheck('basic')}>
+            快速检查
+          </Button>
+          <Button
+            icon={<ExclamationCircleOutlined />}
+            onClick={() => handleHealthCheck('comprehensive')}
+          >
+            全面检查
+          </Button>
+          <Button
+            icon={<WarningOutlined />}
+            type="primary"
+            onClick={() => setAssessModalOpen(true)}
+          >
+            风险评估
+          </Button>
+        </Space>
+      </div>
+    </div>
   );
 };
 

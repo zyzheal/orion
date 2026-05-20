@@ -2,25 +2,33 @@
  * 工作流列表
  */
 import React, { useEffect, useState } from 'react';
-import { Button, Empty, List, Tag, Space, message } from 'antd';
-import { PlusOutlined, PlayCircleOutlined, PauseCircleOutlined } from '@ant-design/icons';
-import { getWorkflowList, suspendWorkflow, resumeWorkflow, WorkflowDefinition } from '@/api/workflow';
+import { Button, Empty, List, Tag, Space, message, Input, Select, Modal, Form } from 'antd';
+import { PlusOutlined, PlayCircleOutlined, PauseCircleOutlined, SearchOutlined } from '@ant-design/icons';
+import {
+  getWorkflowList,
+  suspendWorkflow,
+  resumeWorkflow,
+  createWorkflow,
+  type WorkflowDefinition,
+} from '@/api/workflow';
 import { colors } from '@/tokens';
+
+const statusMap: Record<string, { color: string; text: string }> = {
+  active: { color: colors.success[500], text: '已启用' },
+  paused: { color: colors.warning[500], text: '已暂停' },
+};
 
 interface WorkflowListProps {
   onSelect: (id: string) => void;
 }
 
-const statusMap: Record<string, { color: string; text: string }> = {
-  active: { color: colors.success[500], text: '已启用' },
-  paused: { color: colors.warning[500], text: '已暂停' },
-  completed: { color: colors.neutral[500], text: '已完成' },
-  failed: { color: colors.error[500], text: '失败' },
-};
-
 const WorkflowList: React.FC<WorkflowListProps> = ({ onSelect }) => {
   const [workflows, setWorkflows] = useState<WorkflowDefinition[]>([]);
   const [loading, setLoading] = useState(false);
+  const [searchText, setSearchText] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [createForm] = Form.useForm();
 
   const fetchWorkflows = async () => {
     setLoading(true);
@@ -52,34 +60,75 @@ const WorkflowList: React.FC<WorkflowListProps> = ({ onSelect }) => {
     }
   };
 
-  if (workflows.length === 0 && !loading) {
+  const handleCreate = async (values: { name: string; description?: string }) => {
+    try {
+      await createWorkflow({
+        name: values.name,
+        description: values.description,
+        steps: [],
+      });
+      message.success('工作流创建成功');
+      setCreateModalOpen(false);
+      createForm.resetFields();
+      fetchWorkflows();
+    } catch (error: unknown) {
+      message.error(error instanceof Error ? error.message : '创建失败');
+    }
+  };
+
+  const filteredWorkflows = workflows.filter((w) => {
+    const matchesSearch = !searchText || w.name.toLowerCase().includes(searchText.toLowerCase());
+    const matchesStatus = statusFilter === 'all' || (statusFilter === 'active' ? w.enabled : !w.enabled);
+    return matchesSearch && matchesStatus;
+  });
+
+  if (filteredWorkflows.length === 0 && !loading) {
     return (
-      <Empty
-        description="暂无工作流"
-        image={Empty.PRESENTED_IMAGE_SIMPLE}
-      >
-        <Button type="primary" icon={<PlusOutlined />}>
+      <div>
+        <Button type="primary" icon={<PlusOutlined />} block onClick={() => setCreateModalOpen(true)}>
           新建工作流
         </Button>
-      </Empty>
+        <div style={{ marginTop: 16 }}>
+          <Empty description="暂无工作流" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+        </div>
+      </div>
     );
   }
 
   return (
     <div>
-      <div style={{ marginBottom: 16 }}>
-        <Button type="primary" icon={<PlusOutlined />} block>
-          新建工作流
-        </Button>
-      </div>
+      <Button type="primary" icon={<PlusOutlined />} block onClick={() => setCreateModalOpen(true)}>
+        新建工作流
+      </Button>
+
+      <Input
+        prefix={<SearchOutlined />}
+        placeholder="搜索工作流..."
+        style={{ marginTop: 12, marginBottom: 8 }}
+        value={searchText}
+        onChange={(e) => setSearchText(e.target.value)}
+      />
+
+      <Select
+        style={{ width: '100%', marginBottom: 12 }}
+        value={statusFilter}
+        onChange={setStatusFilter}
+        options={[
+          { label: '全部状态', value: 'all' },
+          { label: '已启用', value: 'active' },
+          { label: '已暂停', value: 'paused' },
+        ]}
+      />
+
       <List
         size="small"
         loading={loading}
-        dataSource={workflows}
+        dataSource={filteredWorkflows}
         renderItem={(item) => {
           const status = statusMap[item.enabled ? 'active' : 'paused'] || statusMap.active;
           return (
             <List.Item
+              key={item.id}
               style={{ cursor: 'pointer' }}
               onClick={() => onSelect(item.id)}
               actions={[
@@ -108,6 +157,23 @@ const WorkflowList: React.FC<WorkflowListProps> = ({ onSelect }) => {
           );
         }}
       />
+
+      <Modal
+        title="新建工作流"
+        open={createModalOpen}
+        onCancel={() => setCreateModalOpen(false)}
+        onOk={() => createForm.submit()}
+        destroyOnClose
+      >
+        <Form form={createForm} layout="vertical" onFinish={handleCreate}>
+          <Form.Item label="工作流名称" name="name" rules={[{ required: true, message: '请输入工作流名称' }]}>
+            <Input placeholder="例如：代码审核流程" />
+          </Form.Item>
+          <Form.Item label="描述" name="description">
+            <Input.TextArea rows={3} placeholder="工作流用途描述（可选）" />
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   );
 };

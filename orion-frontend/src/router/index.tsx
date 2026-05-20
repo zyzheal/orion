@@ -274,6 +274,21 @@ const AppRoutes: React.FC = () => {
           return <Route key={route.path} path={route.path} element={element} />;
         }
 
+        // hideLayout: true 的路由（如子应用）不使用主 Layout，直接渲染
+        if (route.hideLayout) {
+          return (
+            <Route
+              key={route.path}
+              path={route.path}
+              element={
+                <ProtectedRoute route={route}>
+                  {element}
+                </ProtectedRoute>
+              }
+            />
+          );
+        }
+
         return (
           <Route
             key={route.path}

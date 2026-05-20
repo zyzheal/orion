@@ -56,11 +56,11 @@ export default async function knowledgeRoutes(
   // ============================================================================
 
   /**
-   * GET /api/v1/knowledge/v1/spaces
+   * GET /api/v1/knowledge/spaces
    * List/search knowledge spaces
    */
   app.get(
-    '/v1/spaces',
+    '/spaces',
     {
       onRequest: [authenticateUser, requirePermission({ resource: 'knowledge', action: 'read' })],
     },
@@ -90,11 +90,11 @@ export default async function knowledgeRoutes(
   );
 
   /**
-   * POST /api/v1/knowledge/v1/spaces
+   * POST /api/v1/knowledge/spaces
    * Create a new knowledge space
    */
   app.post(
-    '/v1/spaces',
+    '/spaces',
     {
       onRequest: [authenticateUser, requirePermission({ resource: 'knowledge', action: 'write' })],
     },
@@ -130,11 +130,11 @@ export default async function knowledgeRoutes(
   );
 
   /**
-   * GET /api/v1/knowledge/v1/spaces/:id
+   * GET /api/v1/knowledge/spaces/:id
    * Get space detail
    */
   app.get(
-    '/v1/spaces/:id',
+    '/spaces/:id',
     {
       onRequest: [authenticateUser, requirePermission({ resource: 'knowledge', action: 'read' })],
     },
@@ -156,7 +156,7 @@ export default async function knowledgeRoutes(
    * Update a space
    */
   app.put(
-    '/v1/spaces/:id',
+    '/spaces/:id',
     {
       onRequest: [authenticateUser, requirePermission({ resource: 'knowledge', action: 'write' })],
     },
@@ -184,7 +184,7 @@ export default async function knowledgeRoutes(
    * Delete a space (cascades to docs)
    */
   app.delete(
-    '/v1/spaces/:id',
+    '/spaces/:id',
     {
       onRequest: [authenticateUser, requirePermission({ resource: 'knowledge', action: 'delete' })],
     },
@@ -211,7 +211,7 @@ export default async function knowledgeRoutes(
    * Supports type='docs' for document center filtering
    */
   app.get(
-    '/v1/docs',
+    '/docs',
     {
       onRequest: [authenticateUser, requirePermission({ resource: 'knowledge', action: 'read' })],
     },
@@ -262,7 +262,7 @@ export default async function knowledgeRoutes(
    * Get document center tags (for type=docs)
    */
   app.get(
-    '/v1/docs/tags',
+    '/docs/tags',
     {
       onRequest: [authenticateUser, requirePermission({ resource: 'knowledge', action: 'read' })],
     },
@@ -278,7 +278,7 @@ export default async function knowledgeRoutes(
    * Get document center table of contents (for type=docs)
    */
   app.get(
-    '/v1/docs/toc',
+    '/docs/toc',
     {
       onRequest: [authenticateUser, requirePermission({ resource: 'knowledge', action: 'read' })],
     },
@@ -294,7 +294,7 @@ export default async function knowledgeRoutes(
    * Trigger document center sync
    */
   app.post(
-    '/v1/sync',
+    '/sync',
     {
       onRequest: [authenticateUser, requirePermission({ resource: 'knowledge', action: 'write' })],
     },
@@ -324,7 +324,7 @@ export default async function knowledgeRoutes(
    * Get document center sync logs
    */
   app.get(
-    '/v1/sync/logs',
+    '/sync/logs',
     {
       onRequest: [authenticateUser, requirePermission({ resource: 'knowledge', action: 'read' })],
     },
@@ -347,7 +347,7 @@ export default async function knowledgeRoutes(
    * Create a document
    */
   app.post(
-    '/v1/docs',
+    '/docs',
     {
       onRequest: [authenticateUser, requirePermission({ resource: 'knowledge', action: 'write' })],
     },
@@ -388,7 +388,7 @@ export default async function knowledgeRoutes(
    * Get document detail
    */
   app.get(
-    '/v1/docs/:id',
+    '/docs/:id',
     {
       onRequest: [authenticateUser, requirePermission({ resource: 'knowledge', action: 'read' })],
     },
@@ -410,7 +410,7 @@ export default async function knowledgeRoutes(
    * Update a document
    */
   app.put(
-    '/v1/docs/:id',
+    '/docs/:id',
     {
       onRequest: [authenticateUser, requirePermission({ resource: 'knowledge', action: 'write' })],
     },
@@ -443,7 +443,7 @@ export default async function knowledgeRoutes(
    * Delete a document
    */
   app.delete(
-    '/v1/docs/:id',
+    '/docs/:id',
     {
       onRequest: [authenticateUser, requirePermission({ resource: 'knowledge', action: 'delete' })],
     },
@@ -465,7 +465,7 @@ export default async function knowledgeRoutes(
    * Get document version history
    */
   app.get(
-    '/v1/docs/:id/versions',
+    '/docs/:id/versions',
     {
       onRequest: [authenticateUser, requirePermission({ resource: 'knowledge', action: 'read' })],
     },
@@ -491,7 +491,7 @@ export default async function knowledgeRoutes(
    * Semantic/text retrieve for RAG
    */
   app.post(
-    '/v1/rag/retrieve',
+    '/rag/retrieve',
     {
       onRequest: [authenticateUser, requirePermission({ resource: 'knowledge', action: 'read' })],
     },
@@ -535,7 +535,7 @@ export default async function knowledgeRoutes(
    * RAG query with source attribution
    */
   app.post(
-    '/v1/rag/query',
+    '/rag/query',
     {
       onRequest: [authenticateUser, requirePermission({ resource: 'knowledge', action: 'read' })],
     },
@@ -599,7 +599,7 @@ export default async function knowledgeRoutes(
    * Get knowledge graph (space -> doc -> tag relationships)
    */
   app.get(
-    '/v1/graph',
+    '/graph',
     {
       onRequest: [authenticateUser, requirePermission({ resource: 'knowledge', action: 'read' })],
     },

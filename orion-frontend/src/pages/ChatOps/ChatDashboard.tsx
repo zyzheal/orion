@@ -108,19 +108,14 @@ export default function ChatDashboard() {
 
   if (apiError && !stats) {
     return (
-      <div style={{ padding: '16px', overflow: 'auto', height: 'calc(100vh - 180px)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <div>
-            <span style={{ fontSize: 16, fontWeight: 600, lineHeight: '24px', color: colors.light.text.primary }}>总览看板</span>
-            <br />
-            </div>
+      <div style={{ padding: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 16 }}>
           <Button icon={<ReloadOutlined />} onClick={handleRefresh} loading={loading}>刷新</Button>
         </div>
         <Card>
           <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={apiError} />
         </Card>
-      </div>
-    );
+      </div>    );
   }
 
   const timeRangeOptions = [
@@ -193,11 +188,8 @@ export default function ChatDashboard() {
   );
 
   return (
-    <div style={{ padding: '16px', overflow: 'auto', height: 'calc(100vh - 180px)' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <div>
-          <span style={{ fontSize: 16, fontWeight: 600, lineHeight: '24px', color: colors.light.text.primary }}>总览看板</span>
-        </div>
+    <div style={{ padding: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 16 }}>
         <Space>
           <Select
             value={timeRange}

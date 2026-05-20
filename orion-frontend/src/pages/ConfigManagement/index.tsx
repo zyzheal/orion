@@ -39,7 +39,6 @@ import {
   RocketOutlined,
   ArrowRightOutlined,
 } from '@ant-design/icons';
-import DashboardLayout from '@/components/DashboardLayout';
 import {
   getConfigs,
   createConfig,
@@ -959,128 +958,126 @@ const ConfigManagementPage: React.FC = () => {
   ];
 
   return (
-    <DashboardLayout>
-      <div style={{ padding: 24 }}>
-        {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
-          <div>
-            <Title level={2}>配置管理</Title>
-            <Text type="secondary">GitOps 工作流、变更审批、差异分析、漂移检测</Text>
-          </div>
-          <Space>
-            <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
-              刷新
-            </Button>
-            <Button icon={<CloudSyncOutlined />} onClick={handleSync} loading={loading}>
-              Git 同步
-            </Button>
-            <Button icon={<ScanOutlined />} onClick={handleDriftDetect} loading={driftLoading}>
-              漂移检测
-            </Button>
-            <Button icon={<PlusOutlined />} type="primary" onClick={() => setCreateModalOpen(true)}>
-              新建配置
-            </Button>
-          </Space>
+    <div style={{ padding: 24, background: '#fff', minHeight: '100vh' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+        <div>
+          <Title level={2}>配置管理</Title>
+          <Text type="secondary">GitOps 工作流、变更审批、差异分析、漂移检测</Text>
         </div>
-
-        {/* Tabbed Content */}
-        <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} size="large" />
-
-        {/* Create Modal */}
-        <Modal
-          title="新建配置"
-          open={createModalOpen}
-          onCancel={() => setCreateModalOpen(false)}
-          onOk={() => form.submit()}
-          width={600}
-        >
-          <Form form={form} layout="vertical" onFinish={handleCreate}>
-            <Form.Item label="配置键" name="key" rules={[{ required: true }]}>
-              <Input placeholder="例如：app.name" />
-            </Form.Item>
-            <Form.Item label="配置值" name="value" rules={[{ required: true }]}>
-              <TextArea placeholder='例如：{"key": "value"}' rows={3} />
-            </Form.Item>
-            <Row gutter={16}>
-              <Col span={12}>
-                <Form.Item label="环境" name="environment" rules={[{ required: true }]}>
-                  <Select>
-                    <Select.Option value="development">development</Select.Option>
-                    <Select.Option value="testing">testing</Select.Option>
-                    <Select.Option value="staging">staging</Select.Option>
-                    <Select.Option value="production">production</Select.Option>
-                  </Select>
-                </Form.Item>
-              </Col>
-              <Col span={12}>
-                <Form.Item label="分类" name="category" rules={[{ required: true }]}>
-                  <Select>
-                    <Select.Option value="application">application</Select.Option>
-                    <Select.Option value="database">database</Select.Option>
-                    <Select.Option value="cache">cache</Select.Option>
-                    <Select.Option value="feature">feature</Select.Option>
-                  </Select>
-                </Form.Item>
-              </Col>
-            </Row>
-            <Row gutter={16}>
-              <Col span={12}>
-                <Form.Item label="敏感的配置" name="sensitive" valuePropName="checked">
-                  <Switch />
-                </Form.Item>
-              </Col>
-              <Col span={12}>
-                <Form.Item label="加密存储" name="encrypted" valuePropName="checked">
-                  <Switch />
-                </Form.Item>
-              </Col>
-            </Row>
-            <Form.Item label="描述" name="description">
-              <TextArea rows={2} />
-            </Form.Item>
-          </Form>
-        </Modal>
-
-        {/* Detail Drawer */}
-        <Drawer
-          title="配置详情"
-          placement="right"
-          width={700}
-          open={detailDrawerOpen}
-          onClose={() => setDetailDrawerOpen(false)}
-        >
-          {selectedConfig && (
-            <Descriptions column={1} bordered>
-              <Descriptions.Item label="ID">{selectedConfig.id}</Descriptions.Item>
-              <Descriptions.Item label="配置键">{selectedConfig.key}</Descriptions.Item>
-              <Descriptions.Item label="配置值">
-                <pre>{JSON.stringify(selectedConfig.value, null, 2)}</pre>
-              </Descriptions.Item>
-              <Descriptions.Item label="版本">{selectedConfig.version}</Descriptions.Item>
-              <Descriptions.Item label="环境">{selectedConfig.environment}</Descriptions.Item>
-              <Descriptions.Item label="分类">{selectedConfig.category}</Descriptions.Item>
-              <Descriptions.Item label="状态">
-                <Tag color={statusColorMap[selectedConfig.status]}>{selectedConfig.status}</Tag>
-              </Descriptions.Item>
-              <Descriptions.Item label="敏感">
-                {selectedConfig.sensitive ? '是' : '否'}
-              </Descriptions.Item>
-              <Descriptions.Item label="加密">
-                {selectedConfig.encrypted ? '是' : '否'}
-              </Descriptions.Item>
-              <Descriptions.Item label="创建者">{selectedConfig.createdBy}</Descriptions.Item>
-              <Descriptions.Item label="创建时间">
-                {new Date(selectedConfig.createdAt).toLocaleString()}
-              </Descriptions.Item>
-              <Descriptions.Item label="更新者">{selectedConfig.updatedBy}</Descriptions.Item>
-              <Descriptions.Item label="更新时间">
-                {new Date(selectedConfig.updatedAt).toLocaleString()}
-              </Descriptions.Item>
-            </Descriptions>
-          )}
-        </Drawer>
+        <Space>
+          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+            刷新
+          </Button>
+          <Button icon={<CloudSyncOutlined />} onClick={handleSync} loading={loading}>
+            Git 同步
+          </Button>
+          <Button icon={<ScanOutlined />} onClick={handleDriftDetect} loading={driftLoading}>
+            漂移检测
+          </Button>
+          <Button icon={<PlusOutlined />} type="primary" onClick={() => setCreateModalOpen(true)}>
+            新建配置
+          </Button>
+        </Space>
       </div>
-    </DashboardLayout>
+
+      {/* Tabbed Content */}
+      <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} size="large" />
+
+      {/* Create Modal */}
+      <Modal
+        title="新建配置"
+        open={createModalOpen}
+        onCancel={() => setCreateModalOpen(false)}
+        onOk={() => form.submit()}
+        width={600}
+      >
+        <Form form={form} layout="vertical" onFinish={handleCreate}>
+          <Form.Item label="配置键" name="key" rules={[{ required: true }]}>
+            <Input placeholder="例如：app.name" />
+          </Form.Item>
+          <Form.Item label="配置值" name="value" rules={[{ required: true }]}>
+            <TextArea placeholder='例如：{"key": "value"}' rows={3} />
+          </Form.Item>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item label="环境" name="environment" rules={[{ required: true }]}>
+                <Select>
+                  <Select.Option value="development">development</Select.Option>
+                  <Select.Option value="testing">testing</Select.Option>
+                  <Select.Option value="staging">staging</Select.Option>
+                  <Select.Option value="production">production</Select.Option>
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item label="分类" name="category" rules={[{ required: true }]}>
+                <Select>
+                  <Select.Option value="application">application</Select.Option>
+                  <Select.Option value="database">database</Select.Option>
+                  <Select.Option value="cache">cache</Select.Option>
+                  <Select.Option value="feature">feature</Select.Option>
+                </Select>
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item label="敏感的配置" name="sensitive" valuePropName="checked">
+                <Switch />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item label="加密存储" name="encrypted" valuePropName="checked">
+                <Switch />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Form.Item label="描述" name="description">
+            <TextArea rows={2} />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Detail Drawer */}
+      <Drawer
+        title="配置详情"
+        placement="right"
+        width={700}
+        open={detailDrawerOpen}
+        onClose={() => setDetailDrawerOpen(false)}
+      >
+        {selectedConfig && (
+          <Descriptions column={1} bordered>
+            <Descriptions.Item label="ID">{selectedConfig.id}</Descriptions.Item>
+            <Descriptions.Item label="配置键">{selectedConfig.key}</Descriptions.Item>
+            <Descriptions.Item label="配置值">
+              <pre>{JSON.stringify(selectedConfig.value, null, 2)}</pre>
+            </Descriptions.Item>
+            <Descriptions.Item label="版本">{selectedConfig.version}</Descriptions.Item>
+            <Descriptions.Item label="环境">{selectedConfig.environment}</Descriptions.Item>
+            <Descriptions.Item label="分类">{selectedConfig.category}</Descriptions.Item>
+            <Descriptions.Item label="状态">
+              <Tag color={statusColorMap[selectedConfig.status]}>{selectedConfig.status}</Tag>
+            </Descriptions.Item>
+            <Descriptions.Item label="敏感">
+              {selectedConfig.sensitive ? '是' : '否'}
+            </Descriptions.Item>
+            <Descriptions.Item label="加密">
+              {selectedConfig.encrypted ? '是' : '否'}
+            </Descriptions.Item>
+            <Descriptions.Item label="创建者">{selectedConfig.createdBy}</Descriptions.Item>
+            <Descriptions.Item label="创建时间">
+              {new Date(selectedConfig.createdAt).toLocaleString()}
+            </Descriptions.Item>
+            <Descriptions.Item label="更新者">{selectedConfig.updatedBy}</Descriptions.Item>
+            <Descriptions.Item label="更新时间">
+              {new Date(selectedConfig.updatedAt).toLocaleString()}
+            </Descriptions.Item>
+          </Descriptions>
+        )}
+      </Drawer>
+    </div>
   );
 };
 

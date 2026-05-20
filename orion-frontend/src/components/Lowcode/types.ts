@@ -132,3 +132,155 @@ export const approverTypeLabels: Record<ApproverType, string> = {
   department: '部门',
   leader: '部门负责人',
 };
+
+// ==================== 工作流设计器类型 ====================
+
+/**
+ * 工作流节点类型
+ */
+export type WorkflowNodeType = 'start' | 'approval' | 'condition' | 'notification' | 'webhook' | 'end';
+
+/**
+ * 工作流节点（画布节点）
+ */
+export interface WorkflowCanvasNode {
+  id: string;
+  type: WorkflowNodeType;
+  name: string;
+  position: { x: number; y: number };
+  config: Record<string, unknown>;
+  selected?: boolean;
+}
+
+/**
+ * 工作流边（连线）
+ */
+export interface WorkflowCanvasEdge {
+  id: string;
+  source: string;
+  target: string;
+  sourceHandle?: string;
+  label?: string;
+}
+
+/**
+ * 工作流定义
+ */
+export interface WorkflowCanvasData {
+  id?: string;
+  name: string;
+  description?: string;
+  nodes: WorkflowCanvasNode[];
+  edges: WorkflowCanvasEdge[];
+  enabled?: boolean;
+}
+
+/**
+ * 节点类型显示信息
+ */
+export interface NodeTypeInfo {
+  type: WorkflowNodeType;
+  label: string;
+  color: string;
+  icon: string;
+  description: string;
+}
+
+/**
+ * 节点类型配置映射
+ */
+export const nodeTypeConfig: Record<WorkflowNodeType, NodeTypeInfo> = {
+  start: {
+    type: 'start',
+    label: '开始',
+    color: '#52c41a',
+    icon: 'Play',
+    description: '工作流入口节点',
+  },
+  approval: {
+    type: 'approval',
+    label: '审批',
+    color: '#7C5CFC',
+    icon: 'UserCheck',
+    description: '人工审批节点',
+  },
+  condition: {
+    type: 'condition',
+    label: '条件',
+    color: '#faad14',
+    icon: 'GitBranch',
+    description: '条件分支判断',
+  },
+  notification: {
+    type: 'notification',
+    label: '通知',
+    color: '#3a98f4',
+    icon: 'Bell',
+    description: '发送通知消息',
+  },
+  webhook: {
+    type: 'webhook',
+    label: 'Webhook',
+    color: '#8c8c8c',
+    icon: 'Link',
+    description: 'HTTP 回调调用',
+  },
+  end: {
+    type: 'end',
+    label: '结束',
+    color: '#f5222d',
+    icon: 'Stop',
+    description: '工作流终止节点',
+  },
+};
+
+/**
+ * 创建默认节点配置
+ */
+export function createDefaultNodeConfig(type: WorkflowNodeType): Record<string, unknown> {
+  switch (type) {
+    case 'start':
+      return { type: 'start', outputVariables: {} };
+    case 'approval':
+      return {
+        type: 'approval',
+        approverType: 'user',
+        approverIds: [],
+        approvalType: 'or',
+        timeout: 24,
+        timeoutAction: 'remind',
+        rejectAction: 'to_initiator',
+      };
+    case 'condition':
+      return {
+        type: 'condition',
+        expression: '${status} === "approved"',
+        branches: [
+          { name: '通过', condition: '${status} === "approved"' },
+          { name: '拒绝', condition: '${status} === "rejected"' },
+        ],
+      };
+    case 'notification':
+      return {
+        type: 'notification',
+        template: '工作流通知',
+        channels: ['email'],
+        receivers: [],
+        contentVariables: {},
+      };
+    case 'webhook':
+      return {
+        type: 'webhook',
+        url: '',
+        method: 'POST',
+        headers: {},
+        body: '',
+        timeout: 30000,
+        retry: { enabled: true, maxRetries: 3, retryDelay: 1000 },
+      };
+    case 'end':
+      return { type: 'end', outputVariables: {} };
+    default:
+      return { type };
+  }
+}

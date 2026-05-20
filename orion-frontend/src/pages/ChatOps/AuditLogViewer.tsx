@@ -206,11 +206,8 @@ const AuditLogViewer: React.FC = () => {
 
   if (apiError && logs.length === 0) {
     return (
-      <div style={{ padding: '16px', overflow: 'auto', height: 'calc(100vh - 180px)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
-          <div>
-            <Title level={3} style={{ margin: 0, color: colors.light.text.primary }}>审计日志</Title>
-          </div>
+      <div style={{ padding: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 24 }}>
           <Space>
             <Button icon={<DownloadOutlined />} onClick={handleExport} loading={exporting}>导出</Button>
             <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>刷新</Button>
@@ -224,21 +221,15 @@ const AuditLogViewer: React.FC = () => {
   }
 
   return (
-    <div style={{ padding: '16px', overflow: 'auto', height: 'calc(100vh - 180px)' }}>
+    <div style={{ padding: 16 }}>
       <div
         style={{
           display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
+          justifyContent: 'flex-end',
+          alignItems: 'center',
           marginBottom: 24,
         }}
       >
-        <div>
-          <Title level={3} style={{ margin: 0, color: colors.light.text.primary }}>
-            审计日志
-          </Title>
-          <Text type="secondary">ChatOps 命令执行审计与统计</Text>
-        </div>
         <Space>
           <Button icon={<DownloadOutlined />} onClick={handleExport} loading={exporting}>
             导出

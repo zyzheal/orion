@@ -186,34 +186,28 @@ export default function ChatOpsChat() {
   };
 
   return (
-    <div style={{ height: 'calc(100vh - 180px)', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ height: 'calc(100vh - 180px)', display: 'flex', flexDirection: 'column', padding: 16 }}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: `0 ${spacing[4]}px ${spacing[3]}px` }}>
-        <div>
-          <span style={{ fontSize: 16, fontWeight: 600, lineHeight: '24px', color: colors.light.text.primary }}>
-            <RobotOutlined style={{ marginRight: spacing[2] }} />
-            ChatOps 对话工作台
-          </span>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 16 }}>
+        <Space>
           {tools.length > 0 && (
-            <Text type="secondary" style={{ fontSize: 12, marginLeft: 8 }}>
-              {tools.length} 个可用工具
-            </Text>
+            <Tag color="blue">{tools.length} 个可用工具</Tag>
           )}
-        </div>
-        <Button icon={<ClearOutlined />} size="small" onClick={handleClear}>
-          清空对话
-        </Button>
+          <Button icon={<ClearOutlined />} size="small" onClick={handleClear}>
+            清空对话
+          </Button>
+        </Space>
       </div>
 
       {/* Messages */}
-      <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', margin: spacing[3] }}>
+      <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
         <div
           style={{
             flex: 1,
             overflow: 'auto',
             padding: spacing[4],
             background: colors.light.bg.secondary,
-            borderRadius: 8,
+            borderRadius: 12,
           }}
         >
           {messages.length === 0 ? (
@@ -234,7 +228,7 @@ export default function ChatOpsChat() {
 
         {/* Quick Actions */}
         {messages.length <= 1 && (
-          <Space wrap style={{ marginTop: spacing[3], marginBottom: spacing[2] }}>
+          <Space wrap style={{ marginTop: 12, marginBottom: 8 }}>
             {QUICK_ACTIONS.map((action) => (
               <Button key={action} size="small" onClick={() => handleSend(action)}>
                 {action}
@@ -244,7 +238,7 @@ export default function ChatOpsChat() {
         )}
 
         {/* Input */}
-        <div style={{ marginTop: spacing[2] }}>
+        <div style={{ marginTop: 8 }}>
           <Space.Compact style={{ width: '100%' }}>
             <TextArea
               value={input}

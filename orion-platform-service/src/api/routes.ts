@@ -581,7 +581,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await registerWithRoleGuard(app, workflowRoutes, '/workflows', {});
 
   // ==================== Workflow Trigger Routes ====================
-  await registerWithRoleGuard(app, workflowTriggerRoutes, '/workflow-triggers', {
+  await registerWithRoleGuard(app, workflowTriggerRoutes, '/v1/workflow-triggers', {
     database: options.database,
   });
 

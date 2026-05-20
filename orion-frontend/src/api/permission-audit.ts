@@ -59,3 +59,55 @@ export async function queryDeniedStats(hours = 24) {
   const res = await api.get<AuditStats[]>('/permission-audit/stats/denied-by-user', { params: { hours } });
   return { data: res.data.data, hours };
 }
+
+// ─── UEBA Types & APIs ──────────────────────────────────────────────────────
+
+/**
+ * 后端 UEBAStats 的实际返回格式
+ */
+export interface UEBAStats {
+  userId: string;
+  denyCount: number;
+  denyRate: number;
+  riskLevel: 'low' | 'medium' | 'high' | 'critical';
+  lastDenyAt?: string;
+}
+
+/**
+ * 后端 AnomalyAlert 的实际返回格式
+ */
+export interface AnomalyAlert {
+  userId: string;
+  alertType: 'frequent_denial' | 'unusual_resource_access' | 'off_hours_access' | 'cross_tenant_attempt';
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  message: string;
+  timestamp: string;
+}
+
+// 前端兼容别名
+export type UEBAAnomaly = AnomalyAlert;
+export type UEBARiskUser = UEBAStats;
+
+/**
+ * 分析单个用户行为 (UEBA)
+ */
+export async function analyzeUserBehavior(userId: string, hours = 24) {
+  const res = await api.get<UEBAStats>(`/ueba/user/${userId}`, { params: { hours } });
+  return res.data.data;
+}
+
+/**
+ * 获取高风险用户列表 (UEBA)
+ */
+export async function getHighRiskUsers(hours = 24, limit = 10) {
+  const res = await api.get<UEBARiskUser[]>('/ueba/risks', { params: { hours, limit } });
+  return res.data.data;
+}
+
+/**
+ * 获取异常告警 (UEBA)
+ */
+export async function getAnomalies(hours = 24) {
+  const res = await api.get<UEBAAnomaly[]>('/ueba/anomalies', { params: { hours } });
+  return res.data.data;
+}

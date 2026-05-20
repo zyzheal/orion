@@ -73,13 +73,38 @@ export default async function workflowTriggerRoutes(
 ): Promise<void> {
   // 从 options 中获取依赖
   const database = options.database;
-  const triggerManager = options.triggerManager;
-  const scheduler = options.scheduler;
+  let triggerManager = options.triggerManager;
+  let scheduler = options.scheduler;
 
   // 初始化 Repository（如果提供了 database）
   let triggerRepo: WorkflowTriggerRepository | null = null;
   if (database) {
     triggerRepo = new WorkflowTriggerRepository(database);
+
+    // 如果没有外部传入 Manager，则创建并初始化
+    if (!triggerManager) {
+      const { EventBusService } = await import('../services/event-bus-service');
+      const eventBus = app.decorateGet ? await app.diContainer?.resolve('eventBus') as EventBusService : undefined;
+      const { InstanceManager } = await import('../services/lowcode/InstanceManager');
+      const instanceManager = new InstanceManager(database);
+
+      triggerManager = new TriggerManager(triggerRepo, eventBus, instanceManager);
+    }
+
+    if (!scheduler) {
+      const { InstanceManager } = await import('../services/lowcode/InstanceManager');
+      const instanceManager = new InstanceManager(database);
+      scheduler = new WorkflowScheduler(triggerRepo, instanceManager);
+    }
+
+    // 初始化触发器系统
+    try {
+      await triggerManager.initialize();
+      await scheduler.start();
+      console.log('[WorkflowTriggerRoutes] TriggerManager and WorkflowScheduler initialized');
+    } catch (error) {
+      console.error('[WorkflowTriggerRoutes] Failed to initialize triggers:', error);
+    }
   }
 
   // ==================== GET /v1/workflow-triggers - 获取触发器列表 ====================

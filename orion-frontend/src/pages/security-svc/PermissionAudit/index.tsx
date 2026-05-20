@@ -4,10 +4,10 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Card, Table, Tag, Select, Button, Space, Statistic, Row, Col, message } from 'antd';
-import { ReloadOutlined, FilterOutlined, BarChartOutlined } from '@ant-design/icons';
+import { Card, Table, Tag, Select, Button, Space, Statistic, Row, Col, message, Alert, Badge } from 'antd';
+import { ReloadOutlined, FilterOutlined, BarChartOutlined, WarningOutlined, UserOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import { queryDeniedLogs, queryDeniedStats, type AuditLogEntry, type AuditStats } from '@/api/permission-audit';
+import { queryDeniedLogs, queryDeniedStats, getAnomalies, getHighRiskUsers, type AuditLogEntry, type AuditStats, type UEBAAnomaly, type UEBARiskUser } from '@/api/permission-audit';
 
 const { Option } = Select;
 
@@ -18,6 +18,10 @@ const PermissionAudit: React.FC = () => {
   const [total, setTotal] = useState(0);
   const [limit, setLimit] = useState(100);
   const [hours, setHours] = useState(24);
+
+  // UEBA state
+  const [anomalies, setAnomalies] = useState<UEBAAnomaly[]>([]);
+  const [riskUsers, setRiskUsers] = useState<UEBARiskUser[]>([]);
 
   const fetchLogs = async () => {
     setLoading(true);
@@ -41,9 +45,23 @@ const PermissionAudit: React.FC = () => {
     }
   };
 
+  const fetchAnomalies = async () => {
+    try {
+      const [anomalyRes, riskRes] = await Promise.all([
+        getAnomalies(hours),
+        getHighRiskUsers(hours, 10),
+      ]);
+      setAnomalies(anomalyRes || []);
+      setRiskUsers(riskRes || []);
+    } catch (err: any) {
+      message.error('获取 UEBA 数据失败: ' + (err.message || '未知错误'));
+    }
+  };
+
   useEffect(() => {
     fetchLogs();
     fetchStats();
+    fetchAnomalies();
   }, [limit, hours]);
 
   const columns: ColumnsType<AuditLogEntry> = [
@@ -190,7 +208,7 @@ const PermissionAudit: React.FC = () => {
               <Option value={72}>3天</Option>
               <Option value={168}>7天</Option>
             </Select>
-            <Button icon={<ReloadOutlined />} onClick={fetchStats}>
+            <Button icon={<ReloadOutlined />} onClick={() => { fetchStats(); fetchAnomalies(); }}>
               刷新
             </Button>
           </Space>
@@ -205,6 +223,98 @@ const PermissionAudit: React.FC = () => {
           size="small"
         />
       </Card>
+
+      {/* ─── UEBA 异常行为告警面板 ─── */}
+      {anomalies.length > 0 && (
+        <Card
+          title={
+            <Space>
+              <WarningOutlined style={{ color: '#faad14' }} />
+              异常行为告警 (UEBA)
+              <Badge count={anomalies.length} style={{ backgroundColor: '#f5222d' }} />
+            </Space>
+          }
+          style={{ marginBottom: 16 }}
+        >
+          {anomalies.map((anomaly, index) => {
+            const severityColor: Record<string, string> = {
+              low: 'blue',
+              medium: 'orange',
+              high: 'red',
+              critical: 'magenta',
+            };
+            return (
+              <Alert
+                key={index}
+                type={anomaly.severity === 'critical' || anomaly.severity === 'high' ? 'error' : 'warning'}
+                message={
+                  <Space>
+                    <Tag color={severityColor[anomaly.severity] || 'default'}>
+                      {anomaly.severity.toUpperCase()}
+                    </Tag>
+                    <span>{anomaly.message}</span>
+                  </Space>
+                }
+                description={`用户: ${anomaly.userId} | 类型: ${anomaly.alertType} | 检测时间: ${new Date(anomaly.timestamp).toLocaleString('zh-CN')}`}
+                showIcon
+                style={{ marginBottom: 8 }}
+              />
+            );
+          })}
+        </Card>
+      )}
+
+      {/* ─── UEBA 高风险用户列表 ─── */}
+      {riskUsers.length > 0 && (
+        <Card
+          title={
+            <Space>
+              <UserOutlined style={{ color: '#7C5CFC' }} />
+              高风险用户列表 (UEBA)
+            </Space>
+          }
+          extra={<Tag color="purple">{riskUsers.length} 位高风险用户</Tag>}
+          style={{ marginBottom: 16 }}
+        >
+          <Table
+            dataSource={riskUsers}
+            columns={[
+              {
+                title: '用户',
+                dataIndex: 'userId',
+                key: 'userId',
+                width: 160,
+              },
+              {
+                title: '风险等级',
+                dataIndex: 'riskLevel',
+                key: 'riskLevel',
+                width: 100,
+                render: (val: string) => {
+                  const colorMap: Record<string, string> = { low: 'green', medium: 'orange', high: 'red', critical: 'magenta' };
+                  return <Tag color={colorMap[val] || 'default'}>{val}</Tag>;
+                },
+              },
+              {
+                title: '拒绝次数',
+                dataIndex: 'denyCount',
+                key: 'denyCount',
+                width: 100,
+              },
+              {
+                title: '拒绝频率',
+                dataIndex: 'denyRate',
+                key: 'denyRate',
+                width: 100,
+                render: (val: number) => `${val.toFixed(1)} 次/小时`,
+              },
+            ]}
+            rowKey="userId"
+            pagination={false}
+            size="small"
+          />
+        </Card>
+      )}
 
       <Card
         title="权限拒绝日志"

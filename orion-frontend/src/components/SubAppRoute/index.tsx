@@ -111,12 +111,12 @@ const SubAppRoute: React.FC = () => {
   }
 
   return (
-    <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+    <div style={{ width: '100%', height: '100vh', position: 'relative', margin: 0, padding: 0, overflow: 'hidden' }}>
       <div
         ref={containerRef}
         id={appConfig.container.replace('#', '')}
         className="sub-app-container"
-        style={{ height: '100%', width: '100%' }}
+        style={{ height: '100vh', width: '100%', margin: 0, padding: 0 }}
       />
       {loading && (
         <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'white', zIndex: 10 }}>

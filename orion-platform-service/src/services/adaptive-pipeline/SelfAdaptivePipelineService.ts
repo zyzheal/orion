@@ -147,21 +147,21 @@ export class SelfAdaptivePipelineService {
     // Low risk optimizations can be applied directly; medium/high need review
     const autoApply = suggestion.riskLevel === 'low';
 
-    // Apply the optimization to the pipeline definition
+    // Apply the optimization to the pipeline's config JSONB field
     let updateResult: any;
 
     switch (suggestion.type) {
       case 'timeout_adjustment':
         updateResult = await this.pool.query(
-          `UPDATE pipelines SET timeout_ms = $1, updated_at = NOW()
+          `UPDATE pipelines SET config = jsonb_set(config, '{timeout_ms}', $1::jsonb, true), updated_at = NOW()
            WHERE id = $2 AND tenant_id = $3 RETURNING *`,
-          [suggestion.after.timeout_ms, pipelineId, tenantId]
+          [JSON.stringify(suggestion.after.timeout_ms), pipelineId, tenantId]
         );
         break;
 
       case 'retry_optimization':
         updateResult = await this.pool.query(
-          `UPDATE pipelines SET retry_config = $1, updated_at = NOW()
+          `UPDATE pipelines SET config = jsonb_set(config, '{retry_config}', $1::jsonb, true), updated_at = NOW()
            WHERE id = $2 AND tenant_id = $3 RETURNING *`,
           [JSON.stringify(suggestion.after), pipelineId, tenantId]
         );
@@ -169,7 +169,7 @@ export class SelfAdaptivePipelineService {
 
       case 'resource_scaling':
         updateResult = await this.pool.query(
-          `UPDATE pipelines SET resource_config = $1, updated_at = NOW()
+          `UPDATE pipelines SET config = jsonb_set(config, '{resource_config}', $1::jsonb, true), updated_at = NOW()
            WHERE id = $2 AND tenant_id = $3 RETURNING *`,
           [JSON.stringify(suggestion.after), pipelineId, tenantId]
         );
@@ -177,7 +177,7 @@ export class SelfAdaptivePipelineService {
 
       case 'parallelism_tuning':
         updateResult = await this.pool.query(
-          `UPDATE pipelines SET parallel_config = $1, updated_at = NOW()
+          `UPDATE pipelines SET config = jsonb_set(config, '{parallel_config}', $1::jsonb, true), updated_at = NOW()
            WHERE id = $2 AND tenant_id = $3 RETURNING *`,
           [JSON.stringify(suggestion.after), pipelineId, tenantId]
         );
@@ -222,7 +222,7 @@ export class SelfAdaptivePipelineService {
       riskLevel: 'low',
     };
 
-    return this.applyOptimization(pipelineId, suggestion);
+    return this.applyOptimization(pipelineId, suggestion, 'default');
   }
 
   private inferAdaptationType(action: string): PipelineAdaptation['adaptation_type'] {

@@ -29,8 +29,8 @@ const WorkflowDesigner: React.FC = () => {
         </span>
       ),
       children: (
-        <div style={{ display: 'flex', gap: 16 }}>
-          <Card style={{ width: 300, flexShrink: 0 }}>
+        <div style={{ display: 'flex', gap: 16, height: 600 }}>
+          <Card style={{ width: 300, flexShrink: 0, overflow: 'auto' }}>
             <WorkflowList onSelect={(id) => setSelectedWorkflowId(id)} />
           </Card>
           <Card style={{ flex: 1 }} styles={{ body: { padding: 0 } }}>
@@ -58,7 +58,7 @@ const WorkflowDesigner: React.FC = () => {
   return (
     <div style={{ padding: 0 }}>
       <div style={{ marginBottom: 24 }}>
-        <Title level={2} style={{ marginBottom: 8 }}>
+        <Title level={3} style={{ margin: 0 }}>
           <BranchesOutlined style={{ marginRight: 8, color: colors.purple[500] }} />
           工作流设计器
         </Title>
