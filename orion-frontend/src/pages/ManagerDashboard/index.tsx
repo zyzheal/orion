@@ -84,55 +84,43 @@ const ManagerDashboard: React.FC = () => {
   // Retry handler - reload page on error
   const handleRetry = () => window.location.reload();
 
-  // Show empty state when no data available
-  if (!loading && !error && !apiData) {
-    return (
-      <div style={{ padding: 0 }}>
-        <Result
-          status="info"
-          title="暂无数据"
-          subTitle="经理效能仪表盘 API 尚未返回数据，请确认后端服务已正确部署。"
-        />
-      </div>
-    );
-  }
-
   // Cast API data to expected type
   const data = apiData as ManagerDashboardData | undefined;
 
-  if (!data) {
-    return null; // Will show loading/error via DataState
-  }
-
-  // Week-over-week metrics
+  // Week-over-week metrics (must be before early returns)
   const wowMetrics = useMemo(
-    () => [
-      {
-        label: '工单创建',
-        value: data.weekOverWeek.ticketsCreatedChange,
-        suffix: '%',
-      },
-      {
-        label: '已解决',
-        value: data.weekOverWeek.resolvedChange,
-        suffix: '%',
-      },
-      {
-        label: '平均解决时间',
-        value: data.weekOverWeek.avgResolutionTimeChange,
-        suffix: '%',
-      },
-      {
-        label: 'SLA合规率',
-        value: data.weekOverWeek.slaComplianceChange,
-        suffix: '%',
-      },
-    ],
+    () => {
+      if (!data?.weekOverWeek) {
+        return [];
+      }
+      return [
+        {
+          label: '工单创建',
+          value: data.weekOverWeek.ticketsCreatedChange,
+          suffix: '%',
+        },
+        {
+          label: '已解决',
+          value: data.weekOverWeek.resolvedChange,
+          suffix: '%',
+        },
+        {
+          label: '平均解决时间',
+          value: data.weekOverWeek.avgResolutionTimeChange,
+          suffix: '%',
+        },
+        {
+          label: 'SLA合规率',
+          value: data.weekOverWeek.slaComplianceChange,
+          suffix: '%',
+        },
+      ];
+    },
     [data]
   );
 
   // Member metrics table columns
-  const memberColumns: ColumnsType<(typeof data.memberMetrics)[0]> = [
+  const memberColumns: ColumnsType<NonNullable<typeof data>['memberMetrics'][number]> = [
     {
       title: '工程师',
       dataIndex: 'engineerName',
@@ -241,7 +229,7 @@ const ManagerDashboard: React.FC = () => {
   ];
 
   // Transfer reasons table columns
-  const transferColumns: ColumnsType<(typeof data.transferAnalysis.topTransferReasons)[0]> = [
+  const transferColumns: ColumnsType<NonNullable<typeof data>['transferAnalysis']['topTransferReasons'][number]> = [
     {
       title: '转派原因',
       dataIndex: 'reason',
@@ -259,6 +247,23 @@ const ManagerDashboard: React.FC = () => {
       ),
     },
   ];
+
+  // Show empty state when no data available
+  if (!loading && !error && !apiData) {
+    return (
+      <div style={{ padding: 0 }}>
+        <Result
+          status="info"
+          title="暂无数据"
+          subTitle="经理效能仪表盘 API 尚未返回数据，请确认后端服务已正确部署。"
+        />
+      </div>
+    );
+  }
+
+  if (!data) {
+    return null; // Will show loading/error via DataState
+  }
 
   return (
     <div style={{ padding: 0 }}>

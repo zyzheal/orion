@@ -32,7 +32,7 @@ import {
   ReloadOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
-  ExpirationDateOutlined,
+  ClockCircleOutlined,
 } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
 import dayjs from 'dayjs';
@@ -509,7 +509,7 @@ const UserCapabilityMapping: React.FC = () => {
       render: (expiresAt: string | null) =>
         expiresAt ? (
           <Space>
-            <ExpirationDateOutlined />
+            <ClockCircleOutlined />
             <Text>{expiresAt}</Text>
           </Space>
         ) : (
