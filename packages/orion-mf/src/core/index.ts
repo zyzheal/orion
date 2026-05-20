@@ -83,40 +83,17 @@ export type {
   MemoryStats,
 } from "./LeakPrevention";
 
-// ReactShadowCompat exports
-export { ReactShadowCompat } from "./ReactShadowCompat";
+// DegradationStrategy exports
+export { DegradationStrategy } from "./DegradationStrategy";
 
-// SubAppStateMachine exports
-export { SubAppStateMachine, VALID_TRANSITIONS } from "./SubAppStateMachine";
-
-export type {
-  SubAppState,
-} from "./SubAppStateMachine";
-
-// SecurityPolicyManager exports
-export { SecurityPolicyManager, securityPolicyManager, PRESETS } from "./SecurityPolicyManager";
 export {
-  applyPreset,
-  setPolicy,
-  getPolicy,
-  cleanupSecurityPolicy,
-} from "./SecurityPolicyManager";
-export type {
-  SecurityPolicy,
-  SandboxMode,
-  CSSIsolationMode,
-  PresetKey,
-} from "./SecurityPolicyManager";
-
-
-// MFSandboxBridge exports
-export { MFSandboxBridge, getBridge, setBridge, loadSubApp, destroySubApp, getSubApp } from "./MFSandboxBridge";
+  createDegradationStrategy,
+  getDegradationStrategy,
+  setDegradationStrategy,
+} from "./DegradationStrategy";
 
 export type {
-  SubAppConfig,
-  SubAppLifecycle,
-  SubAppInstance,
-  RemoteModule,
-  MFLoader,
-  LifecycleModules,
-} from "./MFSandboxBridge";
+  DegradationLevel,
+  DegradationEvent,
+  DegradationConfig,
+} from "./DegradationStrategy";
