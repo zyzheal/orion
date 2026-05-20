@@ -27,4 +27,7 @@ export {
   RunningApp,
   SandboxConfig,
   ScopedFunction,
+  IStyleIsolator,
 } from './interface';
+
+export { StyleIsolator } from './StyleIsolator';

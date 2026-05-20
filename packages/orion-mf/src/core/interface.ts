@@ -52,3 +52,15 @@ export interface SandboxConfig {
 export interface ScopedFunction<T extends (...args: unknown[]) => unknown> {
   (...args: Parameters<T>): ReturnType<T>;
 }
+
+// ============================================================================
+// StyleIsolator Types
+// ============================================================================
+
+/** StyleIsolator interface */
+export interface IStyleIsolator {
+  /** Mount a micro app container with Shadow DOM */
+  mount(key: string, container: HTMLElement): ShadowRoot;
+  /** Unmount a micro app and cleanup resources */
+  unmount(key: string): void;
+}

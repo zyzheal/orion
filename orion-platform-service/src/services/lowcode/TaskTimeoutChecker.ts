@@ -68,6 +68,9 @@ interface TimeoutEvent {
   triggeredAt: Date;
 }
 
+/** 已处理事件保留时间（24 小时） */
+const PROCESSED_EVENT_TTL_MS = 24 * 60 * 60 * 1000;
+
 /**
  * 任务超时检查器
  */
@@ -152,21 +155,14 @@ export class TaskTimeoutChecker {
    */
   async getTimedOutTasks(): Promise<TimedOutTask[]> {
     const now = new Date();
-    const allTasks = await this.taskRepo.findAll();
+
+    // 使用数据库级查询，只获取待处理/已认领且已过期的任务
+    const overdueTasks = await this.taskRepo.findPendingAndAssignedWithOverdueDate(now);
 
     const timedOutTasks: TimedOutTask[] = [];
 
-    for (const task of allTasks) {
-      // 只检查有待处理或已认领状态且有截止日期的任务
-      if ((task.status !== 'pending' && task.status !== 'assigned') || !task.due_date) {
-        continue;
-      }
-
-      const dueDate = new Date(task.due_date);
-      if (dueDate >= now) {
-        continue;
-      }
-
+    for (const task of overdueTasks) {
+      const dueDate = new Date(task.due_date!);
       const overdueHours = (now.getTime() - dueDate.getTime()) / (1000 * 60 * 60);
       const timeoutAction = this.determineTimeoutAction(overdueHours);
 
@@ -373,12 +369,25 @@ export class TaskTimeoutChecker {
       triggeredAt: new Date(),
     });
 
-    // 清理旧的事件记录（保留最近 1000 条）
-    if (this.processedEvents.size > 1000) {
-      const firstKey = this.processedEvents.keys().next().value;
-      if (firstKey) {
-        this.processedEvents.delete(firstKey);
+    // 清理过期事件（TTL-based，而非 size-based）
+    this.cleanupExpiredEvents();
+  }
+
+  /**
+   * 清理过期的已处理事件
+   */
+  private cleanupExpiredEvents(): void {
+    const now = Date.now();
+    const expiredKeys: string[] = [];
+
+    for (const [key, event] of this.processedEvents.entries()) {
+      if (now - event.triggeredAt.getTime() > PROCESSED_EVENT_TTL_MS) {
+        expiredKeys.push(key);
       }
+    }
+
+    for (const key of expiredKeys) {
+      this.processedEvents.delete(key);
     }
   }
 

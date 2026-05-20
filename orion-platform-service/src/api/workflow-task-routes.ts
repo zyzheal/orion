@@ -275,6 +275,13 @@ export default async function workflowTaskRoutes(
           });
         }
 
+        if (task.status === 'cancelled') {
+          return reply.status(400).send({
+            success: false,
+            error: `Task has been cancelled`,
+          });
+        }
+
         // 完成任务并获取实例信息
         const result = await taskRepo.completeWithResult(id, userId, comment, formData);
         if (!result) {

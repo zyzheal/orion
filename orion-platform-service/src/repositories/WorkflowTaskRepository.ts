@@ -117,6 +117,21 @@ export class WorkflowTaskRepository {
     return result.rows.map(row => this.mapRowToEntity(row));
   }
 
+  /**
+   * 查找所有待处理或已认领且已过期的任务
+   */
+  async findPendingAndAssignedWithOverdueDate(now: Date): Promise<WorkflowTask[]> {
+    const result = await this.pool.query(
+      `SELECT * FROM workflow_tasks
+       WHERE status IN ('pending', 'assigned')
+       AND due_date IS NOT NULL
+       AND due_date < $1
+       ORDER BY due_date ASC`,
+      [now],
+    );
+    return result.rows.map(row => this.mapRowToEntity(row));
+  }
+
   async updateStatus(id: string, status: string, completedBy?: string, comment?: string): Promise<void> {
     const setClauses: string[] = [];
     const params: any[] = [];

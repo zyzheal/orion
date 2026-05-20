@@ -81,6 +81,25 @@ export class WorkflowDefinitionRepository {
   }
 
   /**
+   * 根据ID批量获取工作流定义
+   */
+  async findByIds(ids: string[]): Promise<Map<string, string>> {
+    if (ids.length === 0) return new Map();
+
+    const placeholders = ids.map((_, i) => `$${i + 1}`).join(', ');
+    const result = await this.pool.query(
+      `SELECT id, name FROM lowcode_workflow_definition WHERE id IN (${placeholders})`,
+      ids,
+    );
+
+    const nameMap = new Map<string, string>();
+    for (const row of result.rows) {
+      nameMap.set(row.id, row.name);
+    }
+    return nameMap;
+  }
+
+  /**
    * 获取所有工作流定义
    */
   async findAll(options?: { enabled?: boolean; limit?: number; offset?: number }): Promise<{ entities: WorkflowDefinition[]; total: number }> {

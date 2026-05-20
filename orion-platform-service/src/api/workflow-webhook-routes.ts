@@ -69,6 +69,14 @@ export default async function workflowWebhookRoutes(
             return reply.status(401).send({ error: 'Missing signature header' });
           }
 
+          // 时间戳防重放验证（5 分钟窗口）
+          if (timestamp) {
+            const requestTime = parseInt(timestamp, 10);
+            if (isNaN(requestTime) || Math.abs(Date.now() - requestTime) > 5 * 60 * 1000) {
+              return reply.status(401).send({ error: 'Expired timestamp' });
+            }
+          }
+
           const payload = timestamp
             ? `${timestamp}.${JSON.stringify(request.body)}`
             : JSON.stringify(request.body);
@@ -96,7 +104,7 @@ export default async function workflowWebhookRoutes(
         try {
           // 创建工作流实例
           const { WorkflowEngine } = await import('../services/lowcode/WorkflowEngine');
-          const engine = new WorkflowEngine();
+          const engine = new WorkflowEngine(undefined, undefined, database);
           const instance = await engine.createInstance(
             trigger.workflowId,
             request.body || {},

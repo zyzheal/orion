@@ -274,12 +274,10 @@ export class WorkflowDependencyAnalyzer {
    * 获取一组定义 ID 对应的名称
    */
   private async getDefinitionNames(ids: string[]): Promise<string[]> {
-    const names: string[] = [];
-    for (const id of ids) {
-      const def = await this.definitionRepo.findById(id);
-      names.push(def?.name || id);
-    }
-    return names;
+    if (ids.length === 0) return [];
+
+    const nameMap = await this.definitionRepo.findByIds(ids);
+    return ids.map((id) => nameMap.get(id) || id);
   }
 
   /**

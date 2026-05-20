@@ -43,4 +43,27 @@ export class WorkflowTriggerLogRepository {
     );
     return result.rows.map(row => this.mapRowToEntity(row));
   }
+
+  /**
+   * 更新触发日志状态
+   */
+  async updateStatus(id: string, status: string, errorMessage?: string, executionTimeMs?: number): Promise<void> {
+    const setClauses: string[] = ['status = $1'];
+    const params: any[] = [status];
+
+    if (errorMessage !== undefined) {
+      params.push(errorMessage);
+      setClauses.push(`error_message = $${params.length}`);
+    }
+    if (executionTimeMs !== undefined) {
+      params.push(executionTimeMs);
+      setClauses.push(`execution_time_ms = $${params.length}`);
+    }
+
+    params.push(id);
+    await this.db.query(
+      `UPDATE workflow_trigger_logs SET ${setClauses.join(', ')} WHERE id = $${params.length}`,
+      params
+    );
+  }
 }
