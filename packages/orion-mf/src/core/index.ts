@@ -105,3 +105,17 @@ export type {
   EventBusPayload,
   ChannelOptions,
 } from "./EventBus";
+
+// PreloadStrategy exports
+export { PreloadStrategy } from "./PreloadStrategy";
+
+export {
+  getPreloadStrategy,
+  setPreloadStrategy,
+} from "./PreloadStrategy";
+
+export type {
+  PrefetchMode,
+  PrefetchConfig,
+  PreloadStrategyOptions,
+} from "./PreloadStrategy";
