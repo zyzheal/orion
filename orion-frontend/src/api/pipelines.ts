@@ -7,9 +7,9 @@ import { api } from './client';
 export interface Pipeline {
   id: string;
   name: string;
-  version: string;
+  version: string | number;
   description?: string;
-  yamlDefinition: string;
+  yamlDefinition?: string;
   status: 'active' | 'inactive' | 'deleted';
   spec?: {
     stages: Array<{
@@ -22,7 +22,7 @@ export interface Pipeline {
     }>;
   };
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 export interface PipelineRun {
@@ -145,7 +145,7 @@ export function triggerPipeline(
 }
 
 export function getPipelineRuns(pipelineId: string, params?: PipelineRunListParams) {
-  return api.get(`/v1/pipelines/${pipelineId}/runs`, { params });
+  return api.get(`/v1/pipeline-runs`, { params: { pipelineId, ...params } });
 }
 
 export function getPipelineRun(runId: string) {

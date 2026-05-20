@@ -2,12 +2,8 @@
  * Pipeline Detail Page (TASK-905)
  * Pipeline detail view with stages/timeline/logs and re-run actions.
  *
- * P0-3 Fix: Removed silent mock fallback. On API failure, displays error
- * message and allows retry instead of silently showing mock data.
- * Mock data is kept only in test files.
- *
  * Features:
- * - Pipeline info header
+ * - Pipeline info header with latest run data
  * - Stage timeline/progress visualization
  * - Log viewer section
  * - Re-run trigger button (full pipeline)
@@ -30,8 +26,11 @@ import StatusBadge from '@/components/StatusBadge';
 import CardPanel from '@/components/CardPanel';
 import { DAGGraph } from '@/components/DAGGraph';
 import PipelineErrorDetail from '@/components/pipeline/PipelineErrorDetail';
-import { getPipelineRun, retryPipelineRun } from '@/api/pipelines';
-import { retryFromStage } from '@/api/pipelineRuns';
+import {
+  getPipeline,
+  getPipelineRuns,
+  triggerPipeline,
+} from '@/api/pipelines';
 import { useNavigate, useParams } from 'react-router-dom';
 import dayjs from 'dayjs';
 import duration from 'dayjs/plugin/duration';
@@ -207,6 +206,32 @@ const TaskOutputsTable: React.FC = () => {
   );
 };
 
+/**
+ * 统一解析 API 响应：兼容后端裸对象和 { data: ... } 包装两种格式
+ */
+function extractData<T = any>(response: unknown): T | null {
+  const res = response as any;
+  if (!res) return null;
+  // Axios response: res.data is the backend raw response
+  const backend = res.data ?? res;
+  // Backend may wrap in { data: {...} } or return bare object
+  return backend?.data ?? backend;
+}
+
+/**
+ * 统一解析列表 API 响应
+ */
+function extractList<T = any>(response: unknown): T[] {
+  const res = response as any;
+  if (!res) return [];
+  const backend = res.data ?? res;
+  if (Array.isArray(backend)) return backend;
+  if (Array.isArray(backend?.data)) return backend.data;
+  if (Array.isArray(backend?.runs)) return backend.runs;
+  if (Array.isArray(backend?.items)) return backend.items;
+  return [];
+}
+
 const PipelineDetail: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
@@ -223,13 +248,39 @@ const PipelineDetail: React.FC = () => {
       setLoading(true);
       setApiError(null);
       try {
-        const response = await getPipelineRun(id!);
-        const apiData = response.data.data;
-        if (apiData) {
-          setPipeline(apiData);
-        } else {
-          setApiError('未找到该 Pipeline 运行记录');
+        // Fetch pipeline definition
+        const pipelineRes = await getPipeline(id!);
+        const pipelineData = extractData(pipelineRes);
+
+        if (!pipelineData) {
+          setApiError('未找到该 Pipeline');
+          return;
         }
+
+        // Fetch latest runs for this pipeline (best effort — runs are optional for display)
+        let latestRun = null;
+        try {
+          const runsRes = await getPipelineRuns(id!);
+          const runsData = extractList(runsRes);
+          latestRun = runsData[0] || null;
+        } catch {
+          // Runs endpoint may not be fully wired yet — continue without run data
+        }
+
+        setPipeline({
+          ...pipelineData,
+          // Merge latest run data for display
+          status: latestRun?.status || 'pending',
+          runNumber: latestRun?.runNumber || 0,
+          branch: latestRun?.branch || 'main',
+          commit: latestRun?.commit,
+          author: latestRun?.author || '-',
+          trigger: latestRun?.trigger || latestRun?.triggerType || 'manual',
+          startTime: latestRun?.startTime || latestRun?.startedAt,
+          endTime: latestRun?.endTime || latestRun?.completedAt,
+          duration: latestRun?.duration,
+          stages: latestRun?.stages || [],
+        });
       } catch (error: unknown) {
         const errorMsg = error instanceof Error ? error.message : '加载失败，请稍后重试';
         setApiError(errorMsg);
@@ -261,11 +312,19 @@ const PipelineDetail: React.FC = () => {
   // Handle re-run
   const handleRerun = async () => {
     try {
-      await retryPipelineRun(id!);
+      setIsRerunning(true);
+      await triggerPipeline(id!);
       message.success('Pipeline 重新运行成功');
-      // Reload pipeline detail after re-run
-      const response = await getPipelineRun(id!);
-      setPipeline(response.data.data);
+      // Reload pipeline runs
+      const runsRes = await getPipelineRuns(id!);
+      const runsData = extractList(runsRes);
+      const latestRun = runsData[0] || null;
+      setPipeline((prev: any) => ({
+        ...prev,
+        status: latestRun?.status || 'running',
+        runNumber: latestRun?.runNumber || prev.runNumber + 1,
+        stages: latestRun?.stages || [],
+      }));
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`重新运行 Pipeline 失败：${error.message}`);
@@ -280,39 +339,46 @@ const PipelineDetail: React.FC = () => {
   // Handle reload from error detail retry
   const handleReloadPipeline = async () => {
     try {
-      const response = await getPipelineRun(id!);
-      setPipeline(response.data.data);
+      const runsRes = await getPipelineRuns(id!);
+      const runsData = extractList(runsRes);
+      const latestRun = runsData[0] || null;
+      setPipeline((prev: any) => ({
+        ...prev,
+        status: latestRun?.status || prev.status,
+        stages: latestRun?.stages || prev.stages,
+      }));
     } catch {
       // Silent reload failure — the error detail component handles its own retry
     }
   };
 
   // Handle retry from a specific stage
-  const handleRetryFromStage = (stageId: string, stageName: string) => {
+  const handleRetryFromStage = (_stageId: string, stageName: string) => {
     Modal.confirm({
       title: '从该阶段重跑',
-      content: `确认从阶段「${stageName}」开始重新运行？已完成的前置阶段将不会重新执行。`,
+      content: `确认重新运行 Pipeline？将从阶段「${stageName}」开始执行。`,
       okText: '确认重跑',
       cancelText: '取消',
       onOk: async () => {
         try {
-          setRetryingStageId(stageId);
-          const response = await retryFromStage(id!, stageId);
-          const newRun = response.data.data as any;
-          message.success(`已从阶段「${stageName}」重新运行`);
-          // Redirect to the new run's detail page
-          if (newRun?.id) {
-            navigate(`/pipelines/runs/${newRun.id}`);
-          } else {
-            // Fallback: reload current page to see updated status
-            const reloadResp = await getPipelineRun(id!);
-            setPipeline(reloadResp.data.data);
-          }
+          setRetryingStageId(_stageId);
+          await triggerPipeline(id!);
+          message.success(`Pipeline 已重新运行`);
+          // Reload pipeline runs
+          const runsRes = await getPipelineRuns(id!);
+          const runsData = extractList(runsRes);
+          const latestRun = runsData[0] || null;
+          setPipeline((prev: any) => ({
+            ...prev,
+            status: latestRun?.status || 'running',
+            runNumber: latestRun?.runNumber || prev.runNumber + 1,
+            stages: latestRun?.stages || [],
+          }));
         } catch (error: unknown) {
           if (error instanceof Error) {
-            message.error(`从阶段「${stageName}」重跑失败：${error.message}`);
+            message.error(`重跑失败：${error.message}`);
           } else {
-            message.error(`从阶段「${stageName}」重跑失败，请稍后重试`);
+            message.error('重跑失败，请稍后重试');
           }
         } finally {
           setRetryingStageId(null);

@@ -119,13 +119,16 @@ const PipelineEditor: React.FC = () => {
     if (id) {
       getPipeline(id)
         .then((response) => {
-          const pipeline: any = response.data.data;
+          const rawBody = response.data as any;
+          const pipeline: any = rawBody?.data ?? rawBody;
           if (pipeline) {
-            setPipelineInfo({
+            const info = {
               name: pipeline.name,
-              version: pipeline.version || '1.0.0',
+              version: String(pipeline.version || '1.0.0'),
               description: pipeline.description || '',
-            });
+            };
+            setPipelineInfo(info);
+            form.setFieldsValue(info);
             // 从 spec.stages 加载 Stage，支持后端格式和前端格式
             if (pipeline.spec?.stages) {
               const loadedStages: StageConfig[] = pipeline.spec.stages.map(
@@ -377,10 +380,12 @@ const PipelineEditor: React.FC = () => {
 
   // 保存 Pipeline
   const handleSavePipeline = useCallback(async () => {
-    try {
-      await form.validateFields();
-    } catch (error: unknown) {
-      message.error('请填写完整的 Pipeline 信息');
+    if (!pipelineInfo.name.trim()) {
+      message.error('请输入 Pipeline 名称');
+      return;
+    }
+    if (!pipelineInfo.version.trim()) {
+      message.error('请输入版本号');
       return;
     }
 
@@ -499,10 +504,9 @@ const PipelineEditor: React.FC = () => {
 
       {/* Pipeline 基本信息 */}
       <Card style={{ marginBottom: 24 }} title="基本信息">
-        <Form form={form} layout="inline" requiredMark>
+        <Form form={form} layout="inline" requiredMark initialValues={pipelineInfo}>
           <Form.Item
             label="名称"
-            name="name"
             rules={[{ required: true, message: '请输入 Pipeline 名称' }]}
           >
             <Input
@@ -514,7 +518,6 @@ const PipelineEditor: React.FC = () => {
           </Form.Item>
           <Form.Item
             label="版本"
-            name="version"
             rules={[{ required: true, message: '请输入版本号' }]}
           >
             <Input
