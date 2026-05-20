@@ -38,6 +38,7 @@ import {
   PERMISSION_GROUPS,
 } from '@/api/roles';
 import dayjs from 'dayjs';
+import { colors } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -283,7 +284,8 @@ const RoleManagement: React.FC = () => {
             }}
           >
             <div>
-              <Title level={3} style={{ margin: 0 }}>
+              <Title level={2} style={{ marginBottom: 8 }}>
+                <TeamOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
                 角色管理
               </Title>
               <Text type="secondary">管理系统角色及其权限分配 (RBAC)</Text>

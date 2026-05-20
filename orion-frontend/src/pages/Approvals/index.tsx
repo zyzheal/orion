@@ -588,7 +588,8 @@ const ApprovalManagement: React.FC = () => {
             }}
           >
             <div>
-              <Title level={3} style={{ margin: 0 }}>
+              <Title level={2} style={{ marginBottom: 8 }}>
+                <CheckCircleOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
                 审批管理
               </Title>
               <Text type="secondary">管理多级审批流程，包括创建、审批和跟踪</Text>

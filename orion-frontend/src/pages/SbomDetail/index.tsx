@@ -16,7 +16,7 @@ import {
   Spin,
 } from 'antd';
 import { colors, spacing } from '@/tokens';
-import { ArrowLeftOutlined, DownloadOutlined, ReloadOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, DownloadOutlined, ReloadOutlined, SafetyOutlined } from '@ant-design/icons';
 import StatusBadge from '@/components/StatusBadge';
 import type { TableColumn } from '@/components/Table';
 import {
@@ -339,9 +339,11 @@ const SbomDetail: React.FC = () => {
           >
             返回
           </Button>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <SafetyOutlined style={{ marginRight: spacing[2], color: colors.primary[500] }} />
             SBOM 详情
           </Title>
+          <Text type="secondary">软件物料清单详细信息</Text>
         </div>
 
         {doc && (

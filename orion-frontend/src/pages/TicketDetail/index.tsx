@@ -39,6 +39,7 @@ import {
   HistoryOutlined,
   TagOutlined,
   ExclamationCircleOutlined,
+  FileTextOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import dayjs from 'dayjs';
@@ -400,7 +401,8 @@ const TicketDetail: React.FC = () => {
           返回工单列表
         </Button>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <FileTextOutlined style={{ marginRight: spacing[2], color: colors.primary[500] }} />
             {ticket.id}
           </Title>
           <Badge status={sConfig.color as any} text={sConfig.label} />
@@ -408,12 +410,9 @@ const TicketDetail: React.FC = () => {
             {pConfig.label}
           </Tag>
         </div>
-        <Title
-          level={4}
-          style={{ margin: '8px 0 0', fontWeight: 'normal', color: colors.neutral[600] }}
-        >
+        <Text type="secondary" style={{ marginLeft: 36 }}>
           {ticket.title}
-        </Title>
+        </Text>
       </div>
 
       {/* Action bar */}

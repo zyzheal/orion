@@ -30,6 +30,7 @@ import {
   CheckCircleOutlined,
   ExclamationCircleOutlined,
   SendOutlined,
+  ProjectOutlined,
 } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import PageSkeleton from '@/components/PageSkeleton';
@@ -458,7 +459,8 @@ const WorkflowTasksPage: React.FC = () => {
             }}
           >
             <div>
-              <Title level={3} style={{ margin: 0 }}>
+              <Title level={2} style={{ marginBottom: 8 }}>
+                <ProjectOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
                 工作流任务
               </Title>
               <Text type="secondary">管理工作流中的人工任务，包括认领和完成</Text>

@@ -402,10 +402,13 @@ const ModuleManagerPage: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
-            <ClusterOutlined style={{ marginRight: spacing[2], color: colors.info[500] }} />
+          <Title level={2} style={{ marginBottom: 8 }}>
+            <ClusterOutlined style={{ marginRight: spacing[2], color: colors.primary[500] }} />
             模块管理
           </Title>
+          <Text type="secondary">
+            共 {stats.total} 个模块 · {stats.active} 个活跃 · {stats.failed > 0 && `${stats.failed} 个失败`}
+          </Text>
           <Text type="secondary">
             共 {stats.total} 个模块 · {stats.active} 个活跃 · {stats.failed > 0 && `${stats.failed} 个失败`}
           </Text>
