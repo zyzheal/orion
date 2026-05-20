@@ -10,6 +10,14 @@ import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { TestSelectorService, TestSelectorServiceConfig } from '../services/test-selector/TestSelectorService';
 import { DependencyAnalyzerConfig } from '../services/test-selector/TestDependencyAnalyzer';
+import { DatabasePool } from '../services/database';
+import {
+  TestCaseRepository,
+  TestSuiteRepository,
+  TestRunRepository,
+  TestTagRepository,
+  TestCoverageRepository,
+} from '../repositories/TestSelectorRepository';
 import {
   PRChange,
   TestSelectorConfig,
@@ -20,8 +28,31 @@ import {
  */
 export default async function testSelectorRoutes(
   app: FastifyInstance,
-  options: { testSelectorService?: TestSelectorService; analyzerConfig?: DependencyAnalyzerConfig; optimizerConfig?: TestSelectorConfig }
+  options: {
+    testSelectorService?: TestSelectorService;
+    analyzerConfig?: DependencyAnalyzerConfig;
+    optimizerConfig?: TestSelectorConfig;
+    database?: DatabasePool;
+  }
 ): Promise<void> {
+
+  // 初始化数据库 Repository（如果提供了 database）
+  let testCaseRepo: TestCaseRepository | null = null;
+  let testSuiteRepo: TestSuiteRepository | null = null;
+  let testRunRepo: TestRunRepository | null = null;
+  let testTagRepo: TestTagRepository | null = null;
+  let testCoverageRepo: TestCoverageRepository | null = null;
+
+  if (options.database) {
+    testCaseRepo = new TestCaseRepository(options.database);
+    testSuiteRepo = new TestSuiteRepository(options.database);
+    testRunRepo = new TestRunRepository(options.database);
+    testTagRepo = new TestTagRepository(options.database);
+    testCoverageRepo = new TestCoverageRepository(options.database);
+    console.log('[TestSelectorRoutes] Database repositories initialized');
+  } else {
+    console.warn('[TestSelectorRoutes] No database provided, using in-memory storage');
+  }
 
   // 获取或创建服务实例
   const getService = (): TestSelectorService => {
@@ -338,7 +369,12 @@ export default async function testSelectorRoutes(
     onRequest: [authenticateUser, requirePermission({ resource: 'test', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const suites = service.getSuites();
+      let suites;
+      if (testSuiteRepo) {
+        suites = await testSuiteRepo.findAllWithStats();
+      } else {
+        suites = service.getSuites();
+      }
 
       return reply.status(200).send({
         success: true,
@@ -363,7 +399,22 @@ export default async function testSelectorRoutes(
     onRequest: [authenticateUser, requirePermission({ resource: 'test', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const cases = service.getCases();
+      const query = request.query as any;
+      let cases;
+
+      if (testCaseRepo) {
+        // 从数据库获取，支持过滤
+        if (query.suite) {
+          cases = await testCaseRepo.findBySuite(query.suite);
+        } else if (query.status) {
+          cases = await testCaseRepo.findByStatus(query.status);
+        } else {
+          const result = await testCaseRepo.findAll();
+          cases = result.data;
+        }
+      } else {
+        cases = service.getCases();
+      }
 
       return reply.status(200).send({
         success: true,

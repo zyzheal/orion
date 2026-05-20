@@ -13,7 +13,6 @@ import { EventBusService } from '../services/event-bus-service';
 import { DatabasePool } from '../services/database';
 import { RedisCache } from '../services/redis-cache';
 import { CacheService } from '../services/cache/CacheService';
-import cmdbRoutes from '../routes-cmdb';
 import configRoutes from './config-routes';
 import { PluginManagerService } from '../services/plugin-manager-service';
 import auditRoutes from './audit-routes';
@@ -34,8 +33,12 @@ import notificationRoutes from './notification-routes';
 import webhookRoutes from './webhook-routes';
 import roleRoutes from './role-routes';
 import knowledgeRoutes from './knowledge-routes';
+import subappRoutes from './subapp-routes';
 import metricsRoutes from './metrics-routes';
 import userRoutes from './user-routes';
+import userProfileRoutes from './user-profile-routes';
+import userActivityRoutes from './user-activity-routes';
+import userTokenRoutes from './user-token-routes';
 import environmentRoutes from './environment-routes';
 import projectRoutes from './project-routes';
 import apiKeyRoutes from './api-key-routes';
@@ -68,6 +71,7 @@ import { registerSecretRoutes } from './secret-routes';
 import { registerApkUploadHistoryRoutes } from './apk-upload-history-routes';
 import branchPolicyRoutes from './branch-policy-routes';
 import workbenchRoutes from './workbench-routes';
+import biDashboardRoutes from './bi-dashboard-routes';
 import { PipelineBudgetService } from '../services/PipelineBudgetService';
 import { PipelineBudgetRepository } from '../repositories/PipelineBudgetRepository';
 import { registerBudgetRoutes } from './pipeline-budget-routes';
@@ -77,6 +81,7 @@ import apiMarketRoutes from './api-market-routes';
 
 // Previously orphan routes now being registered
 import authEnhancedRoutes from './auth-enhanced-routes';
+import authRoutes from './routes-auth';
 import autonomousPipelineRoutes from './autonomous-pipeline-routes';
 import canaryAnalysisRoutes from './canary-analysis-routes';
 import canaryTrafficRoutes from './canary-traffic-routes';
@@ -91,10 +96,20 @@ import escalationRoutes from './escalation-routes';
 import hookChainRoutes from './hook-chain-routes';
 import performanceRoutes from './performance-routes';
 import { registerPipelineGraphRoutes } from './pipeline-graph-routes';
+import { registerPipelineRoutes } from './pipeline-routes-registrar';
 import pipelineSSERoutes from './pipeline-sse-routes';
 import pipelineErrorDetailRoutes from './pipeline-error-detail-routes';
 import pipelineTemplateRoutes from './pipeline-template-routes';
 import pipelineVersionRoutes from './pipeline-version-routes';
+import { PipelineController } from './controllers/PipelineController';
+import { PipelineRunController } from './controllers/PipelineRunController';
+import { StageController } from './controllers/StageController';
+import { TaskController } from './controllers/TaskController';
+import { ApprovalController } from './controllers/ApprovalController';
+import { SCMWebhookService } from '../services/pipeline/SCMWebhookService';
+import { PipelineRunService } from '../services/pipeline/PipelineRunService';
+import { PipelineEngine } from '../engine/PipelineEngine';
+import { StageExecutor } from '../engine/StageExecutor';
 import pluginHotReloadRoutes from './plugin-hotreload-routes';
 import pluginRoutes from './plugin-routes';
 import policyRoutes from './policy-routes';
@@ -102,6 +117,8 @@ import queueRoutes from './queue-routes';
 import supplyChainRoutes from './supply-chain-routes';
 import testGenerationRoutes from './test-generation-routes';
 import testSelectorRoutes from './test-selector-routes';
+import deployRoutes from './deploy-routes';
+import changeIntelligenceRoutes from './change-intelligence-routes';
 
 // Services needed for route registration
 import { DependencyCoordinationService } from '../services/pipeline/DependencyCoordinationService';
@@ -357,10 +374,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   moduleManager.loadFromConfig();
   (options as any).moduleManager = moduleManager;
 
-  // ==================== CMDB 路由 ====================
-
-  // 注册 CMDB API 路由
-  await registerWithRoleGuard(app, cmdbRoutes, '/cmdb', { database: options.database });
+  // CMDB 路由已迁移到独立 Go 服务 (orion-cmdb-service)
 
   // 注册 Build Environment API 路由 (PostgreSQL backed for BuildCache)
   // Code Repository 路由已迁移到 orion-code-svc (port 3010)
@@ -487,6 +501,9 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // 注册 Workbench API 路由 — 个人聚合工作台后端 (auth guarded)
   await registerWithRoleGuard(app, workbenchRoutes, '/workbench', { database: options.database });
 
+  // 注册 BI Dashboard API 路由 — Executive/Manager/Engineer 仪表盘 (auth guarded)
+  await registerWithRoleGuard(app, biDashboardRoutes, '', { database: options.database });
+
   // 注册 Role Management API 路由 (RBAC) - PostgreSQL backed
   await registerWithRoleGuard(app, roleRoutes, '/roles', { database: options.database });
 
@@ -506,6 +523,9 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // 注册 Knowledge Base API 路由 (M28) - PostgreSQL backed
   await registerWithRoleGuard(app, knowledgeRoutes, '/knowledge', { database: options.database });
 
+  // 注册 SubApp Management API 路由 - Page-based sub-app configuration
+  await registerWithRoleGuard(app, subappRoutes, '/subapps', { database: options.database });
+
   // 注册 LLM Trace API 路由 - PostgreSQL backed with cost tracking
   await registerWithRoleGuard(app, llmTraceRoutes, '/llm', { database: options.database });
 
@@ -514,6 +534,15 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // 注册 User Management API 路由 - PostgreSQL backed
   await registerWithRoleGuard(app, userRoutes, '/users', { database: options.database, redis: options.redis });
+
+  // 注册 User Profile API 路由 - 用户档案管理（所有权验证）
+  await registerWithRoleGuard(app, userProfileRoutes, '/users', { database: options.database });
+
+  // 注册 User Activity API 路由 - 用户操作日志（所有权验证）
+  await registerWithRoleGuard(app, userActivityRoutes, '/users', { database: options.database });
+
+  // 注册 User Token API 路由 - API Token 管理（所有权验证）
+  await registerWithRoleGuard(app, userTokenRoutes, '/users', { database: options.database });
 
   // 注册 Agent Orchestration API 路由 - PostgreSQL backed
   // 注册 API Key Management API 路由 - PostgreSQL backed
@@ -630,6 +659,10 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // ==================== Previously Orphan Routes (Now Registered) ====================
 
   // Auth Enhanced - JWT Key Rotation & Token Blacklist
+  // Basic Auth Routes - login, logout, register, refresh, me
+  await app.register(authRoutes, { prefix: '/api/v1/auth', database: options.database });
+
+  // Enhanced Auth Routes - JWT key rotation & token blacklist
   await registerWithRoleGuard(app, authEnhancedRoutes, '/auth', {
     database: options.database,
   });
@@ -699,6 +732,54 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
     database: options.database,
   });
 
+  // ==================== Pipeline CRUD Routes ====================
+  // NOTE: Full pipeline execution routes require PipelineEngine + StageExecutor + TaskRunner
+  // which have deep dependency chains. Registering basic CRUD + placeholder for now.
+  if (options.database) {
+    const pipelineRepo = new PipelineRepository(options.database);
+    const pipelineCache = new CacheService(options.redis || null, 60);
+    const pipelineService = new PipelineService(pipelineRepo, pipelineCache);
+    const pipelineController = new PipelineController(pipelineService);
+
+    await app.register(async (instance) => {
+      instance.addHook('onRequest', authenticateUser);
+
+      // POST /api/v1/pipelines - Create Pipeline
+      instance.post('/pipelines', async (request: FastifyRequest, reply: FastifyReply) => {
+        return pipelineController.create(request, reply);
+      });
+
+      // GET /api/v1/pipelines - List Pipelines
+      instance.get('/pipelines', async (request: FastifyRequest, reply: FastifyReply) => {
+        return pipelineController.list(request, reply);
+      });
+
+      // GET /api/v1/pipelines/:id - Get Pipeline by ID
+      instance.get('/pipelines/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+        return pipelineController.getById(request, reply);
+      });
+
+      // GET /api/v1/pipelines/:id/versions - Get Pipeline versions
+      instance.get('/pipelines/:id/versions', async (request: FastifyRequest, reply: FastifyReply) => {
+        return pipelineController.getVersions(request, reply);
+      });
+
+      // PUT /api/v1/pipelines/:id - Update Pipeline
+      instance.put('/pipelines/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+        return pipelineController.update(request, reply);
+      });
+
+      // DELETE /api/v1/pipelines/:id - Delete Pipeline
+      instance.delete('/pipelines/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+        return pipelineController.delete(request, reply);
+      });
+    });
+
+    // TODO: Register PipelineRun, Stage, Task, Approval, SCMWebhook routes
+    // These require PipelineEngine, StageExecutor, TaskRunner, PipelineRunService
+    // with deep dependency chains. Deferred until execution engine is wired up.
+  }
+
   // Pipeline Graph - YAML/JSON conversion and validation
   if (options.database) {
     const pipelineRepository = new PipelineRepository(options.database);
@@ -762,7 +843,13 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await registerWithRoleGuard(app, testGenerationRoutes, '/test-generation');
 
   // Test Selector - smart test selection
-  await registerWithRoleGuard(app, testSelectorRoutes, '/test-selector');
+  await registerWithRoleGuard(app, testSelectorRoutes, '/v1/test-selector', { database: options.database });
+
+  // Smart Deploy - deployment execution, history, metrics
+  await registerWithRoleGuard(app, deployRoutes, '/v1/deploy', { database: options.database });
+
+  // Change Intelligence - AI-powered blast radius analysis
+  await registerWithRoleGuard(app, changeIntelligenceRoutes, '/v1/change-intelligence', { database: options.database });
 
   // ==================== Capability Management ====================
   await registerWithRoleGuard(app, capabilityRoutes, '/capabilities');
