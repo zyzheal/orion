@@ -210,3 +210,25 @@ export type {
   BenchmarkConfig,
   ThresholdWarning,
 } from "./PerformanceBenchmark";
+
+// FrameworkUpgrade exports
+export { FrameworkUpgrade } from "./FrameworkUpgrade";
+export {
+  getFrameworkUpgrade,
+  setFrameworkUpgrade,
+  createFrameworkUpgrade,
+  parseVersion,
+  compareVersions,
+  isVersionCompatible,
+  registerMigration,
+  getMigration,
+} from "./FrameworkUpgrade";
+export type {
+  Version,
+  CompatibilityResult,
+  CodemodChangeType,
+  CodemodFileChange,
+  Codemod,
+  CodemodResult,
+  UpgradeProgress,
+} from "./FrameworkUpgrade";
