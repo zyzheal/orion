@@ -164,6 +164,11 @@ export const routes: AppRoute[] = [
     protected: true,
   },
   {
+    path: '/pipelines/:pipelineId/runs',
+    element: React.lazy(() => import('@/pages/PipelineRunList')),
+    protected: true,
+  },
+  {
     path: '/pipelines/:id/runs/:runId',
     element: React.lazy(() => import('@/pages/PipelineRunLive')),
     protected: true,
@@ -1394,11 +1399,6 @@ export const routes: AppRoute[] = [
   },
 
   // ==================== 模块入口重定向（7 域结构） ====================
-  {
-    path: '/workbench',
-    element: <RedirectTo to="/dashboard" />,
-    protected: true,
-  },
   {
     path: '/delivery',
     element: <RedirectTo to="/pipelines" />,

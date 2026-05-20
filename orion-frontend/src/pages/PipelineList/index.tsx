@@ -185,10 +185,9 @@ const PipelineList: React.FC = () => {
           <Button
             type="link"
             size="small"
-            danger
-            onClick={() => navigate(`/pipeline-runs`)}
+            onClick={() => navigate(`/pipelines/${record.id}/runs`)}
           >
-            运行
+            运行历史
           </Button>
         </Space>
       ),
