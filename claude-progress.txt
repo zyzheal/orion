@@ -1,5 +1,34 @@
 # Orion Design - Progress Log
 
+## 2026-05-20: OrionMF Sandbox 模块实现 — COMPLETED
+
+### Changes
+
+1. **Sandbox 模块** (`packages/orion-mf/src/core/Sandbox.ts`)
+   - 基于 motor ProxySandbox 实现的纯 Proxy 方案 JS 沙箱
+   - 纯 Proxy 实现，兼容 ES Module/Strict Mode，不使用 eval/with
+   - 白名单 (READONLY_WHITELIST) / 黑名单 (DENYLIST) 机制
+   - 使用 WeakMap 缓存已绑定的函数 (functionBoundedValueMap)
+   - fakeWindow 机制处理 configurable:false 属性
+   - runningApp 追踪机制 (getCurrentRunningApp + nextTask)
+   - unscopables 快速路径优化 has trap
+   - nativeGlobal 使用 new Function("return this")() 获取原生全局
+
+2. **接口定义** (`packages/orion-mf/src/core/interface.ts`)
+   - SandBoxType 枚举 (Proxy/Snapshot)
+   - SandBox 接口定义
+
+3. **导出模块** (`packages/orion-mf/src/core/index.ts`)
+   - Sandbox 类、GlobalWrapper 单例、createScopedStorage
+   - getTargetValue、getCurrentRunningApp、setCurrentRunningApp、nextTask
+   - READONLY_WHITELIST、DENYLIST
+
+4. **测试** (`packages/orion-mf/tests/Sandbox.test.ts`)
+   - 46 个测试用例全部通过
+   - 覆盖 Sandbox 类、GlobalWrapper、ScopedStorage、RunningApp 追踪
+
+---
+
 ## 2026-05-20: Skill Instance, Execution & Review Workflow API — COMPLETED
 
 ### Changes
