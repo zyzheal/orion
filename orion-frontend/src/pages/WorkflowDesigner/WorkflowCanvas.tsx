@@ -14,6 +14,8 @@ import {
   CopyOutlined,
   PlusOutlined,
   MinusOutlined,
+  ArrowRightOutlined,
+  CloseOutlined,
 } from '@ant-design/icons';
 import {
   getWorkflow,
@@ -22,6 +24,7 @@ import {
   updateWorkflow,
   type WorkflowDefinition,
   type WorkflowNode,
+  type WorkflowEdge,
 } from '@/api/workflow';
 import { colors } from '@/tokens';
 
@@ -97,6 +100,22 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
   /** 新增输出变量的临时状态 */
   const [newOutputName, setNewOutputName] = useState<string>('');
   const [newOutputDesc, setNewOutputDesc] = useState<string>('');
+  /** 错误处理策略联动：响应式监听 onFailure 变化 */
+  const errorHandlingOnFailure = Form.useWatch(['errorHandling', 'onFailure'], editForm);
+
+  // ==================== 连线编辑状态 ====================
+  /** 当前选中的连线 */
+  const [selectedEdge, setSelectedEdge] = useState<WorkflowEdge | null>(null);
+  /** 连线编辑 Modal 开关 */
+  const [edgeModalOpen, setEdgeModalOpen] = useState(false);
+  /** 正在编辑的连线数据 */
+  const [editingEdge, setEditingEdge] = useState<WorkflowEdge | null>(null);
+  const [edgeForm] = Form.useForm();
+  /** 连线 Hover 状态 */
+  const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null);
+  /** 添加连线 Modal 开关 */
+  const [addEdgeModalOpen, setAddEdgeModalOpen] = useState(false);
+  const [addEdgeForm] = Form.useForm();
 
   useEffect(() => {
     if (!workflowId) {
@@ -300,6 +319,113 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
       setWorkflow({ ...workflow, nodes: updatedNodes });
     } catch {
       message.error('复制节点失败');
+    }
+  };
+
+  // ==================== 连线编辑 Handlers ====================
+
+  /**
+   * 点击连线，打开编辑 Modal
+   */
+  const handleEdgeClick = (edge: WorkflowEdge) => {
+    setSelectedEdge(edge);
+    setEditingEdge({ ...edge });
+    edgeForm.setFieldsValue({
+      condition: edge.condition || '',
+    });
+    setEdgeModalOpen(true);
+  };
+
+  /**
+   * 保存连线编辑
+   */
+  const handleSaveEdge = async () => {
+    if (!workflowId || !editingEdge || !workflow) return;
+    try {
+      const values = await edgeForm.validateFields();
+      const updatedEdges = workflow.edges.map((e) =>
+        e.id === editingEdge.id
+          ? { ...e, condition: values.condition || '' }
+          : e
+      );
+      await updateWorkflow(workflowId, { edges: updatedEdges });
+      message.success('连线已更新');
+      setWorkflow({ ...workflow, edges: updatedEdges });
+      setEdgeModalOpen(false);
+      setSelectedEdge(null);
+      setEditingEdge(null);
+    } catch (error) {
+      if ((error as any)?.errorFields) {
+        message.error('请检查表单填写');
+      } else {
+        message.error('保存连线失败');
+      }
+    }
+  };
+
+  /**
+   * 删除连线
+   */
+  const handleDeleteEdge = async () => {
+    if (!workflowId || !editingEdge || !workflow) return;
+    Modal.confirm({
+      title: '确认删除连线',
+      content: '确定删除此连线吗？',
+      okText: '删除',
+      okButtonProps: { danger: true },
+      cancelText: '取消',
+      onOk: async () => {
+        try {
+          const updatedEdges = workflow.edges.filter((e) => e.id !== editingEdge.id);
+          await updateWorkflow(workflowId, { edges: updatedEdges });
+          message.success('连线已删除');
+          setWorkflow({ ...workflow, edges: updatedEdges });
+          setEdgeModalOpen(false);
+          setSelectedEdge(null);
+          setEditingEdge(null);
+        } catch {
+          message.error('删除连线失败');
+        }
+      },
+    });
+  };
+
+  /**
+   * 打开添加连线 Modal
+   */
+  const handleOpenAddEdge = () => {
+    if (!workflow?.nodes?.length) {
+      message.warning('请先添加节点');
+      return;
+    }
+    addEdgeForm.resetFields();
+    setAddEdgeModalOpen(true);
+  };
+
+  /**
+   * 创建新连线
+   */
+  const handleAddEdge = async () => {
+    if (!workflowId || !workflow) return;
+    try {
+      const values = await addEdgeForm.validateFields();
+      const newEdge: WorkflowEdge = {
+        id: `edge_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        source: values.source,
+        target: values.target,
+        condition: values.condition || '',
+      };
+      const updatedEdges = [...(workflow.edges || []), newEdge];
+      await updateWorkflow(workflowId, { edges: updatedEdges });
+      message.success('连线已添加');
+      setWorkflow({ ...workflow, edges: updatedEdges });
+      setAddEdgeModalOpen(false);
+    } catch (error) {
+      if ((error as any)?.errorFields) {
+        message.error('请检查表单填写');
+      } else {
+        message.error('添加连线失败');
+      }
     }
   };
 
@@ -557,6 +683,103 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
           </Form.Item>
         ));
     }
+  };
+
+  /**
+   * 渲染错误处理策略配置表单
+   *
+   * 在所有节点类型配置之后调用，提供统一的错误处理配置。
+   * 根据 onFailure 选择动态显示/隐藏相关字段（通过 Form.useWatch 响应式联动）。
+   */
+  const renderErrorHandlingForm = (editable: boolean) => {
+    return (
+      <>
+        <Divider orientation="left" style={{ margin: '12px 0' }}>错误处理策略</Divider>
+        <Form.Item
+          label="失败后行为"
+          name={['errorHandling', 'onFailure']}
+          rules={[{ required: true, message: '请选择失败后行为' }]}
+        >
+          <Select placeholder="请选择失败后行为" disabled={!editable}>
+            <Select.Option value="retry">重试（最多 3 次）</Select.Option>
+            <Select.Option value="skip">跳过并继续</Select.Option>
+            <Select.Option value="terminate">终止工作流</Select.Option>
+            <Select.Option value="escalate">转人工处理</Select.Option>
+          </Select>
+        </Form.Item>
+
+        {/* 重试次数 - 仅当选择 retry 时显示 */}
+        {errorHandlingOnFailure === 'retry' && (
+          <Form.Item
+            label="重试次数"
+            name={['errorHandling', 'retryCount']}
+            rules={[
+              { required: true, message: '请输入重试次数' },
+              {
+                validator: (_rule: unknown, value: unknown) => {
+                  if (value === undefined || value === null || value === '') {
+                    return Promise.resolve();
+                  }
+                  const num = Number(value);
+                  if (!Number.isInteger(num) || num <= 0 || num > 3) {
+                    return Promise.reject(new Error('重试次数必须为 1-3 之间的整数'));
+                  }
+                  return Promise.resolve();
+                },
+              },
+            ]}
+          >
+            <Input
+              type="number"
+              placeholder="默认 3"
+              disabled={!editable}
+              addonAfter="次"
+            />
+          </Form.Item>
+        )}
+
+        {/* 重试间隔 - 仅当选择 retry 时显示 */}
+        {errorHandlingOnFailure === 'retry' && (
+          <Form.Item
+            label="重试间隔"
+            name={['errorHandling', 'retryInterval']}
+            rules={[
+              { required: true, message: '请输入重试间隔' },
+              {
+                validator: (_rule: unknown, value: unknown) => {
+                  if (value === undefined || value === null || value === '') {
+                    return Promise.resolve();
+                  }
+                  const num = Number(value);
+                  if (!Number.isInteger(num) || num <= 0) {
+                    return Promise.reject(new Error('重试间隔必须为正整数'));
+                  }
+                  return Promise.resolve();
+                },
+              },
+            ]}
+          >
+            <Input
+              type="number"
+              placeholder="默认 30"
+              disabled={!editable}
+              addonAfter="秒"
+            />
+          </Form.Item>
+        )}
+
+        {/* 升级目标 - 仅当选择 escalate 时显示 */}
+        {errorHandlingOnFailure === 'escalate' && (
+          <Form.Item
+            label="升级目标"
+            name={['errorHandling', 'escalateTarget']}
+            rules={[{ required: true, message: '请输入升级目标' }]}
+          >
+            <Input placeholder="请输入升级目标（人员或群组）" disabled={!editable} />
+          </Form.Item>
+        )}
+      </>
+    );
   };
 
   const calculateCanvasSize = () => {
@@ -924,6 +1147,9 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
                 {renderNodeForm(selectedNode, editMode)}
               </>
             )}
+
+            {/* 错误处理策略 - 所有节点通用 */}
+            {renderErrorHandlingForm(editMode)}
 
             {/* 变量配置 */}
             <Divider orientation="left" style={{ margin: '12px 0' }}>变量配置</Divider>
