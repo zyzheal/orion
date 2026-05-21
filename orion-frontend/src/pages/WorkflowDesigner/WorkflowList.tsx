@@ -3,12 +3,13 @@
  */
 import React, { useEffect, useState } from 'react';
 import { Button, Empty, List, Tag, Space, message, Input, Select, Modal, Form } from 'antd';
-import { PlusOutlined, PlayCircleOutlined, PauseCircleOutlined, SearchOutlined } from '@ant-design/icons';
+import { PlusOutlined, PlayCircleOutlined, PauseCircleOutlined, SearchOutlined, DeleteOutlined } from '@ant-design/icons';
 import {
   getWorkflowList,
   suspendWorkflow,
   resumeWorkflow,
   createWorkflow,
+  deleteWorkflow,
   type WorkflowDefinition,
 } from '@/api/workflow';
 import { colors } from '@/tokens';
@@ -29,6 +30,9 @@ const WorkflowList: React.FC<WorkflowListProps> = ({ onSelect }) => {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [createForm] = Form.useForm();
+  const [creating, setCreating] = useState(false);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const fetchWorkflows = async () => {
     setLoading(true);
@@ -47,6 +51,7 @@ const WorkflowList: React.FC<WorkflowListProps> = ({ onSelect }) => {
   }, []);
 
   const handleToggleStatus = async (id: string, enabled: boolean) => {
+    setTogglingId(id);
     try {
       if (enabled) {
         await resumeWorkflow(id);
@@ -57,10 +62,35 @@ const WorkflowList: React.FC<WorkflowListProps> = ({ onSelect }) => {
       fetchWorkflows();
     } catch {
       message.error('操作失败');
+    } finally {
+      setTogglingId(null);
     }
   };
 
+  const handleDelete = async (item: WorkflowDefinition) => {
+    Modal.confirm({
+      title: '确认删除',
+      content: `确定删除工作流 "${item.name}" 吗？此操作不可撤销。`,
+      okText: '删除',
+      okButtonProps: { danger: true },
+      cancelText: '取消',
+      onOk: async () => {
+        setDeletingId(item.id);
+        try {
+          await deleteWorkflow(item.id);
+          message.success(`工作流 "${item.name}" 已删除`);
+          fetchWorkflows();
+        } catch {
+          message.error('删除失败');
+        } finally {
+          setDeletingId(null);
+        }
+      },
+    });
+  };
+
   const handleCreate = async (values: { name: string; description?: string }) => {
+    setCreating(true);
     try {
       // 创建工作流时至少需要一个开始节点
       const defaultSteps = [
@@ -89,6 +119,8 @@ const WorkflowList: React.FC<WorkflowListProps> = ({ onSelect }) => {
       fetchWorkflows();
     } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '创建失败');
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -153,9 +185,24 @@ const WorkflowList: React.FC<WorkflowListProps> = ({ onSelect }) => {
                   type="text"
                   size="small"
                   icon={item.enabled ? <PauseCircleOutlined /> : <PlayCircleOutlined />}
+                  loading={togglingId === item.id}
+                  disabled={togglingId === item.id}
                   onClick={(e) => {
                     e.stopPropagation();
                     handleToggleStatus(item.id, !item.enabled);
+                  }}
+                />,
+                <Button
+                  key="delete"
+                  type="text"
+                  size="small"
+                  danger
+                  icon={<DeleteOutlined />}
+                  loading={deletingId === item.id}
+                  disabled={deletingId === item.id}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDelete(item);
                   }}
                 />,
               ]}
@@ -179,6 +226,7 @@ const WorkflowList: React.FC<WorkflowListProps> = ({ onSelect }) => {
         open={createModalOpen}
         onCancel={() => setCreateModalOpen(false)}
         onOk={() => createForm.submit()}
+        confirmLoading={creating}
         destroyOnClose
       >
         <Form form={createForm} layout="vertical" onFinish={handleCreate}>

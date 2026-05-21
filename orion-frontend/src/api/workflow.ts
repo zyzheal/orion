@@ -8,7 +8,7 @@ import { api } from './client';
 
 // ==================== 类型定义 ====================
 
-export type WorkflowNodeType = 'start' | 'approval' | 'condition' | 'notification' | 'webhook' | 'end';
+export type WorkflowNodeType = 'start' | 'approval' | 'condition' | 'notification' | 'webhook' | 'task' | 'sub-workflow' | 'delay' | 'timer' | 'end';
 
 export interface WorkflowNode {
   id: string;
@@ -192,7 +192,7 @@ export async function resumeWorkflow(id: string): Promise<WorkflowDefinition> {
  * 终止工作流
  * 注意：后端暂无 terminate 端点，预留接口
  */
-export async function terminateWorkflow(id: string): Promise<void> {
+export async function terminateWorkflow(_id: string): Promise<void> {
   // 后端暂未实现 terminate 端点
   console.warn('terminateWorkflow: backend endpoint not yet implemented');
 }

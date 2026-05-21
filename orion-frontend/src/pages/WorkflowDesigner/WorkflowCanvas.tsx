@@ -4,17 +4,20 @@
  * 可视化节点展示、SVG 连线、节点详情
  */
 import React, { useEffect, useState } from 'react';
-import { Button, Empty, Space, Tag, Typography, message, Drawer, Descriptions, Divider } from 'antd';
+import { Button, Empty, Space, Tag, Typography, message, Drawer, Descriptions, Divider, Input, Form, Modal, Select } from 'antd';
 import {
   PlayCircleOutlined,
   ZoomInOutlined,
   ZoomOutOutlined,
   DeleteOutlined,
+  EditOutlined,
+  CopyOutlined,
 } from '@ant-design/icons';
 import {
   getWorkflow,
   executeWorkflow,
   deleteWorkflow,
+  updateWorkflow,
   type WorkflowDefinition,
   type WorkflowNode,
 } from '@/api/workflow';
@@ -32,6 +35,10 @@ const nodeTypeColors: Record<string, string> = {
   condition: colors.warning[500],
   notification: colors.info[500],
   webhook: colors.primary[500],
+  task: colors.primary[600],
+  'sub-workflow': '#722ED1',
+  delay: '#13C2C2',
+  timer: '#EB2F96',
   end: colors.neutral[500],
 };
 
@@ -41,6 +48,10 @@ const nodeTypeLabels: Record<string, string> = {
   condition: '条件分支',
   notification: '通知节点',
   webhook: 'Webhook',
+  task: '人工任务',
+  'sub-workflow': '子流程',
+  delay: '延迟节点',
+  timer: '定时器',
   end: '结束节点',
 };
 
@@ -50,6 +61,12 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
   const [zoom, setZoom] = useState(1);
   const [selectedNode, setSelectedNode] = useState<WorkflowNode | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [executing, setExecuting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [editForm] = Form.useForm();
+  const [originalConfig, setOriginalConfig] = useState<Record<string, unknown> | null>(null);
+  const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!workflowId) {
@@ -69,28 +86,447 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
 
   const handleExecute = async () => {
     if (!workflowId) return;
+    setExecuting(true);
     try {
       await executeWorkflow(workflowId, { triggeredBy: 'user' });
       message.success('工作流已触发执行');
     } catch {
       message.error('执行失败');
+    } finally {
+      setExecuting(false);
     }
   };
 
   const handleDelete = async () => {
     if (!workflowId || !workflow) return;
-    try {
-      await deleteWorkflow(workflowId);
-      message.success(`工作流 "${workflow.name}" 已删除`);
-      setWorkflow(null);
-    } catch {
-      message.error('删除失败');
-    }
+    Modal.confirm({
+      title: '确认删除',
+      content: `确定删除工作流 "${workflow.name}" 吗？此操作不可撤销。`,
+      okText: '删除',
+      okButtonProps: { danger: true },
+      cancelText: '取消',
+      onOk: async () => {
+        setDeleting(true);
+        try {
+          await deleteWorkflow(workflowId);
+          message.success(`工作流 "${workflow.name}" 已删除`);
+          setWorkflow(null);
+        } catch {
+          message.error('删除失败');
+        } finally {
+          setDeleting(false);
+        }
+      },
+    });
   };
 
   const handleNodeClick = (node: WorkflowNode) => {
     setSelectedNode(node);
+    setOriginalConfig({ ...node.config });
+    editForm.setFieldsValue({
+      name: node.name,
+      ...node.config,
+    });
+    setEditMode(false);
     setDrawerOpen(true);
+  };
+
+  const handleEditToggle = () => {
+    if (editMode) {
+      // 切换回查看模式，恢复原始值
+      if (selectedNode && originalConfig) {
+        editForm.setFieldsValue({
+          name: selectedNode.name,
+          ...originalConfig,
+        });
+      }
+      setEditMode(false);
+    } else {
+      setEditMode(true);
+    }
+  };
+
+  const handleSaveNode = async () => {
+    if (!workflowId || !selectedNode || !workflow) return;
+    try {
+      const values = await editForm.validateFields();
+      const { name, ...config } = values;
+      const updatedNodes = workflow.nodes.map((node) =>
+        node.id === selectedNode.id ? { ...node, name, config } : node
+      );
+      await updateWorkflow(workflowId, { nodes: updatedNodes });
+      message.success('节点配置已保存');
+      // 更新本地状态
+      const updatedNode = { ...selectedNode, name, config };
+      setSelectedNode(updatedNode);
+      setWorkflow({ ...workflow, nodes: updatedNodes });
+      setEditMode(false);
+      setOriginalConfig({ ...config });
+    } catch (error) {
+      if ((error as any)?.errorFields) {
+        message.error('请检查表单填写');
+      } else {
+        message.error('保存失败');
+      }
+    }
+  };
+
+  const handleCancelEdit = () => {
+    if (selectedNode && originalConfig) {
+      editForm.setFieldsValue({
+        name: selectedNode.name,
+        ...originalConfig,
+      });
+    }
+    setEditMode(false);
+  };
+
+  /**
+   * 判断节点是否已配置（config 有至少一个非空字段）
+   */
+  const isNodeConfigured = (node: WorkflowNode): boolean => {
+    if (!node.config || Object.keys(node.config).length === 0) return false;
+    return Object.values(node.config).some((v) => v !== null && v !== undefined && v !== '');
+  };
+
+  /**
+   * 获取节点配置预览文本（前 2 行关键配置摘要）
+   */
+  const getNodeConfigPreview = (node: WorkflowNode): string => {
+    const c = node.config || {};
+    switch (node.type) {
+      case 'approval':
+        const approvers = c.approvers || c.assignee;
+        const mode = c.mode === 'or' ? '或签' : c.mode === 'and' ? '会签' : '';
+        return [approvers ? `审批人：${typeof approvers === 'string' ? approvers : String(approvers)}` : '', mode ? `模式：${mode}` : ''].filter(Boolean).join(' · ') || '未配置';
+      case 'notification':
+        const channel = c.channel ? { dingtalk: '钉钉', wecom: '企微', feishu: '飞书', email: '邮件', sms: '短信' }[c.channel as string] || c.channel : '';
+        return channel ? `渠道：${channel}` : '未配置';
+      case 'webhook':
+        const url = c.url || '';
+        const method = c.method || '';
+        return `${method} ${url}`.trim() || '未配置';
+      case 'condition':
+        return c.expression ? `表达式：${String(c.expression).slice(0, 30)}${String(c.expression).length > 30 ? '...' : ''}` : '未配置';
+      case 'task':
+        return c.title ? `${c.title} · ${c.assignee || '未分配'}` : '未配置';
+      case 'delay':
+        return c.duration ? `延迟 ${c.duration} 秒` : '未配置';
+      case 'timer':
+        return c.cron ? `Cron：${c.cron}` : '未配置';
+      case 'sub-workflow':
+        return c.subWorkflowId ? `子流程：${c.subWorkflowId}` : '未配置';
+      default:
+        return Object.keys(c).length > 0 ? '已配置' : '未配置';
+    }
+  };
+
+  /**
+   * 删除当前选中的节点（含关联边清理）
+   */
+  const handleDeleteNode = async () => {
+    if (!workflowId || !selectedNode || !workflow) return;
+    Modal.confirm({
+      title: '确认删除',
+      content: `确定删除节点 "${selectedNode.name}" 吗？关联的上下游连线将被清除。`,
+      okText: '删除',
+      okButtonProps: { danger: true },
+      cancelText: '取消',
+      onOk: async () => {
+        try {
+          const updatedNodes = workflow.nodes.filter((n) => n.id !== selectedNode.id);
+          const updatedEdges = workflow.edges.filter(
+            (e) => e.source !== selectedNode.id && e.target !== selectedNode.id
+          );
+          await updateWorkflow(workflowId, { nodes: updatedNodes, edges: updatedEdges });
+          message.success('节点已删除');
+          setWorkflow({ ...workflow, nodes: updatedNodes, edges: updatedEdges });
+          setDrawerOpen(false);
+          setEditMode(false);
+          setSelectedNode(null);
+        } catch {
+          message.error('删除节点失败');
+        }
+      },
+    });
+  };
+
+  /**
+   * 复制节点
+   */
+  const handleDuplicateNode = async (node: WorkflowNode) => {
+    if (!workflowId || !workflow) return;
+    try {
+      const newNode = {
+        ...node,
+        id: `node_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        name: `${node.name} (副本)`,
+        position: { x: node.position.x + 40, y: node.position.y + 40 },
+        config: { ...node.config },
+      };
+      const updatedNodes = [...workflow.nodes, newNode];
+      await updateWorkflow(workflowId, { nodes: updatedNodes });
+      message.success('节点已复制');
+      setWorkflow({ ...workflow, nodes: updatedNodes });
+    } catch {
+      message.error('复制节点失败');
+    }
+  };
+
+  /**
+   * JSON 输入实时校验：在 onBlur 时校验 JSON 格式
+   */
+  const validateJsonOnBlur = (fieldName: string) => {
+    return () => {
+      const value = editForm.getFieldValue(fieldName);
+      if (value && typeof value === 'string' && value.trim()) {
+        try {
+          JSON.parse(value);
+        } catch {
+          message.error(`${fieldName} JSON 格式不正确`);
+        }
+      }
+    };
+  };
+
+  /**
+   * 根据节点类型渲染对应的表单字段
+   */
+  const renderNodeForm = (node: WorkflowNode, editable: boolean) => {
+    const config = node.config;
+    switch (node.type) {
+      case 'start':
+        return (
+          <>
+            <Form.Item
+              label="触发方式"
+              name="triggerType"
+              rules={[{ required: true, message: '请选择触发方式' }]}
+            >
+              <Select placeholder="请选择触发方式" disabled={!editable}>
+                <Select.Option value="manual">手动触发</Select.Option>
+                <Select.Option value="event">事件触发</Select.Option>
+                <Select.Option value="schedule">定时触发</Select.Option>
+              </Select>
+            </Form.Item>
+            <Form.Item label="初始变量" name="initialVariables">
+              <Input.TextArea
+                rows={4}
+                placeholder='{"key": "value"}，JSON 格式'
+                disabled={!editable}
+                onBlur={validateJsonOnBlur('initialVariables')}
+              />
+            </Form.Item>
+          </>
+        );
+      case 'end':
+        return (
+          <>
+            <Form.Item label="输出变量" name="outputVariables">
+              <Input.TextArea
+                rows={4}
+                placeholder='{"key": "value"}，JSON 格式'
+                disabled={!editable}
+                onBlur={validateJsonOnBlur('outputVariables')}
+              />
+            </Form.Item>
+          </>
+        );
+      case 'approval':
+        return (
+          <>
+            <Form.Item
+              label="审批人"
+              name="approvers"
+              rules={[{ required: true, message: '请输入审批人列表' }]}
+            >
+              <Input placeholder="请输入审批人（逗号分隔）" disabled={!editable} />
+            </Form.Item>
+            <Form.Item label="审批模式" name="mode" rules={[{ required: true, message: '请选择审批模式' }]}>
+              <Select disabled={!editable}>
+                <Select.Option value="or">或签</Select.Option>
+                <Select.Option value="and">会签</Select.Option>
+              </Select>
+            </Form.Item>
+            <Form.Item label="超时策略" name="timeoutPolicy">
+              <Select placeholder="请选择超时策略" disabled={!editable} allowClear>
+                <Select.Option value="skip">跳过</Select.Option>
+                <Select.Option value="escalate">升级</Select.Option>
+                <Select.Option value="auto_approve">自动通过</Select.Option>
+              </Select>
+            </Form.Item>
+          </>
+        );
+      case 'notification':
+        return (
+          <>
+            <Form.Item
+              label="通知渠道"
+              name="channel"
+              rules={[{ required: true, message: '请选择通知渠道' }]}
+            >
+              <Select placeholder="请选择通知渠道" disabled={!editable}>
+                <Select.Option value="dingtalk">钉钉</Select.Option>
+                <Select.Option value="wecom">企业微信</Select.Option>
+                <Select.Option value="feishu">飞书</Select.Option>
+                <Select.Option value="email">邮件</Select.Option>
+                <Select.Option value="sms">短信</Select.Option>
+              </Select>
+            </Form.Item>
+            <Form.Item
+              label="收件人"
+              name="recipients"
+              rules={[{ required: true, message: '请输入收件人' }]}
+            >
+              <Input placeholder="请输入收件人（逗号分隔）" disabled={!editable} />
+            </Form.Item>
+            <Form.Item label="消息模板" name="template">
+              <Input.TextArea rows={3} placeholder="消息内容，支持 {variable} 变量" disabled={!editable} />
+            </Form.Item>
+          </>
+        );
+      case 'webhook':
+        return (
+          <>
+            <Form.Item
+              label="URL"
+              name="url"
+              rules={[{ required: true, message: '请输入 Webhook URL' }, { type: 'url', message: '请输入有效的URL' }]}
+            >
+              <Input placeholder="https://example.com/webhook" disabled={!editable} />
+            </Form.Item>
+            <Form.Item
+              label="HTTP Method"
+              name="method"
+              rules={[{ required: true, message: '请选择 HTTP Method' }]}
+            >
+              <Select disabled={!editable}>
+                <Select.Option value="GET">GET</Select.Option>
+                <Select.Option value="POST">POST</Select.Option>
+                <Select.Option value="PUT">PUT</Select.Option>
+                <Select.Option value="DELETE">DELETE</Select.Option>
+              </Select>
+            </Form.Item>
+            <Form.Item label="Headers" name="headers">
+              <Input.TextArea
+                rows={2}
+                placeholder='{"Content-Type": "application/json"}'
+                disabled={!editable}
+                onBlur={validateJsonOnBlur('headers')}
+              />
+            </Form.Item>
+            <Form.Item label="Request Body" name="body">
+              <Input.TextArea
+                rows={4}
+                placeholder="请求体，支持 JSON"
+                disabled={!editable}
+                onBlur={validateJsonOnBlur('body')}
+              />
+            </Form.Item>
+          </>
+        );
+      case 'condition':
+        return (
+          <>
+            <Form.Item
+              label="条件表达式"
+              name="expression"
+              rules={[{ required: true, message: '请输入条件表达式' }]}
+            >
+              <Input.TextArea rows={3} placeholder="例如：${amount} > 1000" disabled={!editable} />
+            </Form.Item>
+            <Form.Item label="True 分支" name="trueBranch">
+              <Input placeholder="条件为真时执行的节点" disabled={!editable} />
+            </Form.Item>
+            <Form.Item label="False 分支" name="falseBranch">
+              <Input placeholder="条件为假时执行的节点" disabled={!editable} />
+            </Form.Item>
+          </>
+        );
+      case 'task':
+        return (
+          <>
+            <Form.Item
+              label="任务标题"
+              name="title"
+              rules={[{ required: true, message: '请输入任务标题' }]}
+            >
+              <Input placeholder="请输入任务标题" disabled={!editable} />
+            </Form.Item>
+            <Form.Item
+              label="处理人"
+              name="assignee"
+              rules={[{ required: true, message: '请输入处理人' }]}
+            >
+              <Input placeholder="请输入处理人" disabled={!editable} />
+            </Form.Item>
+            <Form.Item label="优先级" name="priority">
+              <Select placeholder="请选择优先级" disabled={!editable}>
+                <Select.Option value="low">低</Select.Option>
+                <Select.Option value="normal">普通</Select.Option>
+                <Select.Option value="high">高</Select.Option>
+                <Select.Option value="urgent">紧急</Select.Option>
+              </Select>
+            </Form.Item>
+          </>
+        );
+      case 'delay':
+        return (
+          <>
+            <Form.Item
+              label="延迟时长"
+              name="duration"
+              rules={[
+                { required: true, message: '请输入延迟时长' },
+                {
+                  validator: (_rule: any, value: any) => {
+                    if (value === undefined || value === null || value === '') {
+                      return Promise.resolve();
+                    }
+                    const num = Number(value);
+                    if (!Number.isInteger(num) || num <= 0) {
+                      return Promise.reject(new Error('延迟时长必须为正整数'));
+                    }
+                    return Promise.resolve();
+                  },
+                },
+              ]}
+            >
+              <Input type="number" placeholder="例如：30" disabled={!editable} addonAfter="秒" />
+            </Form.Item>
+          </>
+        );
+      case 'timer':
+        return (
+          <>
+            <Form.Item
+              label="Cron 表达式"
+              name="cron"
+              rules={[{ required: true, message: '请输入 Cron 表达式' }]}
+            >
+              <Input placeholder="例如：0 */6 * * *" disabled={!editable} />
+            </Form.Item>
+          </>
+        );
+      case 'sub-workflow':
+        return (
+          <>
+            <Form.Item label="子流程 ID" name="subWorkflowId" rules={[{ required: true, message: '请输入子流程 ID' }]}>
+              <Input placeholder="请输入子流程 ID" disabled={!editable} />
+            </Form.Item>
+          </>
+        );
+      default:
+        // 通用配置展示
+        return Object.entries(config).map(([key, value]) => (
+          <Form.Item key={key} label={key} name={key}>
+            <Input
+              defaultValue={typeof value === 'object' ? JSON.stringify(value) : String(value)}
+              disabled={!editable}
+            />
+          </Form.Item>
+        ));
+    }
   };
 
   const calculateCanvasSize = () => {
@@ -161,10 +597,19 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
             size="small"
             icon={<DeleteOutlined />}
             onClick={handleDelete}
+            loading={deleting}
+            disabled={deleting}
           >
             删除
           </Button>
-          <Button type="primary" icon={<PlayCircleOutlined />} size="small" onClick={handleExecute}>
+          <Button
+            type="primary"
+            icon={<PlayCircleOutlined />}
+            size="small"
+            onClick={handleExecute}
+            loading={executing}
+            disabled={executing}
+          >
             执行
           </Button>
         </Space>
@@ -252,31 +697,123 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
           </svg>
 
           {/* Nodes */}
-          {workflow.nodes?.map((node) => (
-            <div
-              key={node.id}
-              onClick={() => handleNodeClick(node)}
-              style={{
-                position: 'absolute',
-                left: node.position.x,
-                top: node.position.y,
-                width: 180,
-                minHeight: 80,
-                background: selectedNode?.id === node.id ? colors.primary[50] : '#fff',
-                borderRadius: 12,
-                padding: '12px 16px',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
-                borderLeft: `3px solid ${nodeTypeColors[node.type] || colors.neutral[400]}`,
-                cursor: 'pointer',
-                transition: 'background 0.2s',
-              }}
-            >
-              <div style={{ fontWeight: 500, marginBottom: 4, fontSize: 13 }}>{node.name}</div>
-              <Tag color={nodeTypeColors[node.type]} style={{ fontSize: 10 }}>
-                {nodeTypeLabels[node.type] || node.type}
-              </Tag>
-            </div>
-          ))}
+          {workflow.nodes?.map((node) => {
+            const isHovered = hoveredNodeId === node.id;
+            const isSelected = selectedNode?.id === node.id;
+            const configured = isNodeConfigured(node);
+            const configPreview = getNodeConfigPreview(node);
+
+            return (
+              <div
+                key={node.id}
+                onClick={() => handleNodeClick(node)}
+                onMouseEnter={() => setHoveredNodeId(node.id)}
+                onMouseLeave={() => setHoveredNodeId(null)}
+                style={{
+                  position: 'absolute',
+                  left: node.position.x,
+                  top: node.position.y,
+                  minWidth: 200,
+                  maxWidth: 280,
+                  minHeight: configured ? 100 : 80,
+                  background: isSelected ? colors.primary[50] : isHovered ? colors.neutral[10] || '#f5f5f5' : '#fff',
+                  borderRadius: 12,
+                  padding: '12px 16px',
+                  boxShadow: isHovered
+                    ? '0 3px 8px rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.06)'
+                    : '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
+                  borderLeft: `3px solid ${nodeTypeColors[node.type] || colors.neutral[400]}`,
+                  border: isSelected ? `2px solid ${colors.primary[500]}` : undefined,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                }}
+              >
+                {/* Header: status dot + name */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {/* 配置状态圆点 */}
+                    <span
+                      style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: '50%',
+                        background: configured ? colors.success[500] : colors.warning[500],
+                        display: 'inline-block',
+                        flexShrink: 0,
+                      }}
+                    />
+                    <span
+                      style={{
+                        fontWeight: 600,
+                        fontSize: 13,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        maxWidth: 160,
+                      }}
+                    >
+                      {node.name}
+                    </span>
+                  </div>
+                  {/* Hover 操作按钮 */}
+                  {isHovered && (
+                    <Space size={2} onClick={(e) => e.stopPropagation()}>
+                      <Button
+                        type="text"
+                        size="small"
+                        icon={<EditOutlined style={{ fontSize: 12 }} />}
+                        onClick={() => handleNodeClick(node)}
+                        style={{ padding: '0 4px', height: 20 }}
+                        title="编辑"
+                      />
+                      <Button
+                        type="text"
+                        size="small"
+                        icon={<CopyOutlined style={{ fontSize: 12 }} />}
+                        onClick={() => handleDuplicateNode(node)}
+                        style={{ padding: '0 4px', height: 20 }}
+                        title="复制"
+                      />
+                      <Button
+                        type="text"
+                        size="small"
+                        danger
+                        icon={<DeleteOutlined style={{ fontSize: 12 }} />}
+                        onClick={() => {
+                          setSelectedNode(node);
+                          handleDeleteNode();
+                        }}
+                        style={{ padding: '0 4px', height: 20 }}
+                        title="删除"
+                      />
+                    </Space>
+                  )}
+                </div>
+                {/* Type tag */}
+                <Tag color={nodeTypeColors[node.type]} style={{ fontSize: 10, marginBottom: 6 }}>
+                  {nodeTypeLabels[node.type] || node.type}
+                </Tag>
+                {/* Config preview */}
+                {configured && (
+                  <div
+                    style={{
+                      fontSize: 12,
+                      color: colors.neutral[500],
+                      lineHeight: 1.4,
+                      maxHeight: 40,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      borderTop: `1px solid ${colors.neutral[200]}`,
+                      paddingTop: 6,
+                      marginTop: 2,
+                    }}
+                  >
+                    {configPreview}
+                  </div>
+                )}
+              </div>
+            );
+          })}
 
           {(!workflow.nodes || workflow.nodes.length === 0) && (
             <div style={{ padding: 48, textAlign: 'center' }}>
@@ -288,43 +825,103 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
 
       {/* Node Detail Drawer */}
       <Drawer
-        title="节点详情"
+        title={
+          <Space>
+            {selectedNode && (
+              <Tag color={nodeTypeColors[selectedNode.type]}>
+                {nodeTypeLabels[selectedNode.type] || selectedNode.type}
+              </Tag>
+            )}
+            {selectedNode?.name || '节点详情'}
+          </Space>
+        }
         placement="right"
-        width={400}
+        width={480}
         open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
+        onClose={() => {
+          setDrawerOpen(false);
+          setEditMode(false);
+        }}
+        extra={
+          selectedNode && (
+            <Space>
+              {!editMode && (
+                <Button type="link" icon={<EditOutlined />} onClick={handleEditToggle}>
+                  编辑
+                </Button>
+              )}
+              <Button danger type="link" icon={<DeleteOutlined />} onClick={handleDeleteNode} size="small">
+                删除
+              </Button>
+            </Space>
+          )
+        }
+        footer={
+          editMode && (
+            <Space style={{ justifyContent: 'flex-end', width: '100%' }}>
+              <Button onClick={handleCancelEdit}>取消</Button>
+              <Button type="primary" onClick={handleSaveNode}>
+                保存
+              </Button>
+            </Space>
+          )
+        }
       >
         {selectedNode && (
-          <>
+          <Form form={editForm} layout="vertical" disabled={!editMode}>
+            {/* 基本信息 */}
+            <Divider orientation="left" style={{ margin: '0 0 12px' }}>基本信息</Divider>
+            <Form.Item
+              label="节点名称"
+              name="name"
+              rules={[{ required: true, message: '请输入节点名称' }]}
+            >
+              <Input placeholder="请输入节点名称" />
+            </Form.Item>
             <Descriptions column={1} size="small">
               <Descriptions.Item label="节点 ID">
                 <Text code>{selectedNode.id}</Text>
-              </Descriptions.Item>
-              <Descriptions.Item label="节点名称">{selectedNode.name}</Descriptions.Item>
-              <Descriptions.Item label="节点类型">
-                <Tag color={nodeTypeColors[selectedNode.type]}>
-                  {nodeTypeLabels[selectedNode.type] || selectedNode.type}
-                </Tag>
               </Descriptions.Item>
               <Descriptions.Item label="位置">
                 X: {selectedNode.position.x}, Y: {selectedNode.position.y}
               </Descriptions.Item>
             </Descriptions>
 
-            {selectedNode.config && Object.keys(selectedNode.config).length > 0 && (
+            {/* 节点配置 - 根据类型渲染 */}
+            {selectedNode.config && (
               <>
-                <Divider>配置</Divider>
-                <Descriptions column={1} size="small">
-                  {Object.entries(selectedNode.config).map(([key, value]) => (
-                    <Descriptions.Item key={key} label={key}>
-                      {typeof value === 'object' ? JSON.stringify(value) : String(value)}
-                    </Descriptions.Item>
-                  ))}
-                </Descriptions>
+                <Divider orientation="left" style={{ margin: '12px 0' }}>节点配置</Divider>
+                {renderNodeForm(selectedNode, editMode)}
               </>
             )}
 
-            <Divider>关联</Divider>
+            {/* 变量配置 */}
+            <Divider orientation="left" style={{ margin: '12px 0' }}>变量配置</Divider>
+            <div style={{ fontSize: 12 }}>
+              <Text type="secondary">输入变量：</Text>
+              <div style={{ marginTop: 4 }}>
+                {workflow.edges
+                  ?.filter((e) => e.target === selectedNode.id)
+                  .map((e) => {
+                    const src = workflow.nodes?.find((n) => n.id === e.source);
+                    return src ? (
+                      <Tag key={e.id} style={{ marginBottom: 4 }}>{src.name}.output</Tag>
+                    ) : null;
+                  })}
+                {!workflow.edges?.some((e) => e.target === selectedNode.id) && (
+                  <Text type="secondary">无（开始节点）</Text>
+                )}
+              </div>
+            </div>
+            <div style={{ fontSize: 12, marginTop: 8 }}>
+              <Text type="secondary">输出变量：</Text>
+              <div style={{ marginTop: 4 }}>
+                <Tag>{selectedNode.name}.output</Tag>
+              </div>
+            </div>
+
+            {/* 关联信息 */}
+            <Divider orientation="left" style={{ margin: '12px 0' }}>关联信息</Divider>
             <div style={{ fontSize: 12 }}>
               <Text type="secondary">上游：</Text>
               <Text>
@@ -349,7 +946,7 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
                   .join('、') || '无'}
               </Text>
             </div>
-          </>
+          </Form>
         )}
       </Drawer>
     </div>
