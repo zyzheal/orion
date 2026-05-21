@@ -5,6 +5,9 @@ import { Navigate } from 'react-router-dom';
 // 使用 lazy 替代 React.lazy
 const lazyImport = (path: string) => lazy(() => import(/* @vite-ignore */ path));
 
+// Pipeline Monitor
+const PipelineMonitor = lazyImport('@/pages/pipeline-svc/PipelineMonitor');
+
 // 重定向组件（使用 react-router-dom Navigate）
 const RedirectTo: React.FC<{ to: string }> = ({ to }) => <Navigate to={to} replace />;
 
@@ -171,6 +174,11 @@ export const routes: AppRoute[] = [
   {
     path: '/pipelines/:id/runs/:runId',
     element: React.lazy(() => import('@/pages/PipelineRunLive')),
+    protected: true,
+  },
+  {
+    path: '/pipelines/monitor',
+    element: PipelineMonitor,
     protected: true,
   },
   {
