@@ -489,10 +489,22 @@ const PipelineEditor: React.FC = () => {
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8, display: 'flex', alignItems: 'center' }}>
-            <EditOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
-            {id ? '编辑 Pipeline' : '创建 Pipeline'}
-          </Title>
+          <div style={{ marginBottom: spacing.sm }}>
+            <Space align="center">
+              <Button
+                type="text"
+                icon={<ArrowLeftOutlined />}
+                onClick={() => navigate('/pipelines')}
+                size="small"
+              >
+                返回列表
+              </Button>
+              <Title level={2} style={{ marginBottom: 0, display: 'flex', alignItems: 'center' }}>
+                <EditOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+                {id ? '编辑 Pipeline' : '创建 Pipeline'}
+              </Title>
+            </Space>
+          </div>
           <Text type="secondary">可视化编排您的 CI/CD 流水线</Text>
         </div>
         <Space>
@@ -537,9 +549,6 @@ const PipelineEditor: React.FC = () => {
             disabled={stages.length === 0}
           >
             {saving ? '保存中...' : '保存'}
-          </Button>
-          <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/pipelines')}>
-            返回列表
           </Button>
         </Space>
       </div>

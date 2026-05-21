@@ -549,14 +549,26 @@ const PipelineDetail: React.FC = () => {
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: 8, display: 'flex', alignItems: 'center' }}>
-            <ApiOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
-            {pipeline.name}
-            <Tag color="default" style={{ marginLeft: 12, fontSize: 12 }}>
-              #{pipeline.runNumber}
-            </Tag>
-            {pipeline && <StatusBadge status={pipeline.status} size="medium" />}
-          </Title>
+          <div style={{ marginBottom: spacing.sm }}>
+            <Space align="center">
+              <Button
+                type="text"
+                icon={<ArrowLeftOutlined />}
+                onClick={() => navigate('/pipelines')}
+                size="small"
+              >
+                返回列表
+              </Button>
+              <Title level={2} style={{ marginBottom: 0 }}>
+                <ApiOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+                {pipeline.name}
+              </Title>
+              <Tag color="default" style={{ fontSize: 12 }}>
+                #{pipeline.runNumber}
+              </Tag>
+              {pipeline && <StatusBadge status={pipeline.status} size="medium" />}
+            </Space>
+          </div>
           <Space size="middle" wrap>
             <Text type="secondary" style={{ fontSize: 13 }}>
               分支: <Text code style={{ fontSize: 12 }}>{pipeline.branch}</Text>
@@ -583,9 +595,6 @@ const PipelineDetail: React.FC = () => {
             disabled={!pipeline || pipeline.status === 'running' || loading}
           >
             {isRerunning ? '触发中...' : '重新运行'}
-          </Button>
-          <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/pipelines')}>
-            返回列表
           </Button>
         </Space>
       </div>
