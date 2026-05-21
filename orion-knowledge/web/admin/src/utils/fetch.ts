@@ -49,18 +49,7 @@ class SSEClient<T> {
   public subscribe(body: BodyInit, onMessage: SSECallback<T>) {
     this.cleanup(false);
     this.controller = new AbortController();
-    let { url, headers, onOpen, onError } = this.options;
-
-    // Orion 微前端模式：重写 API 请求 URL
-    const isOrionChild = (window as any).__POWERED_BY_ORION__;
-    if (isOrionChild && url.startsWith('/api/v1/')) {
-      const apiBase = (window as any).__SUBAPP_API_BASE__ || (window as any).$orion?.apiBase;
-      if (apiBase) {
-        url = `${apiBase}${url}`;
-        console.log(`[orion-knowledge] Rewrote SSE URL: ${url}`);
-      }
-    }
-
+    const { url, headers, onOpen, onError } = this.options;
     this.buffer = '';
     this.completed = false;
 

@@ -35,15 +35,25 @@ export default defineConfig({
       },
       // Orion 认证 - 指向平台服务
       '/api/v1/auth': { target: 'http://localhost:3001', changeOrigin: true },
-      // PandaWiki Go 后端 API 代理 — 统一入口
-      // 知识子应用的所有 API 请求统一走 /api/v1/knowledge/*，转发到 PandaWiki
-      // 拦截器将 /api/v1/knowledge_base/* 等路径重写为 /api/v1/knowledge/api/v1/knowledge_base/*
-      // Vite 代理剥离 /api/v1/knowledge 前缀后转发
-      '/api/v1/knowledge': {
-        target: PANDAWIKI_API,
-        changeOrigin: true,
-        pathRewrite: { '^/api/v1/knowledge': '' },
-      },
+      // PandaWiki Go 后端 API 代理 — 网关层按路径前缀分发
+      // 子应用保持原 API 路径，不做 URL 重写
+      '/api/v1/knowledge_base': { target: PANDAWIKI_API, changeOrigin: true },
+      '/api/v1/knowledge': { target: PANDAWIKI_API, changeOrigin: true },
+      '/api/v1/nav': { target: PANDAWIKI_API, changeOrigin: true },
+      '/api/v1/node': { target: PANDAWIKI_API, changeOrigin: true },
+      '/api/v1/user': { target: PANDAWIKI_API, changeOrigin: true },
+      '/api/v1/model': { target: PANDAWIKI_API, changeOrigin: true },
+      '/api/v1/stat': { target: PANDAWIKI_API, changeOrigin: true },
+      '/api/v1/app': { target: PANDAWIKI_API, changeOrigin: true },
+      '/api/v1/file': { target: PANDAWIKI_API, changeOrigin: true },
+      '/api/v1/chat': { target: PANDAWIKI_API, changeOrigin: true },
+      '/api/v1/conversation': { target: PANDAWIKI_API, changeOrigin: true },
+      '/api/v1/comment': { target: PANDAWIKI_API, changeOrigin: true },
+      '/api/v1/crawler': { target: PANDAWIKI_API, changeOrigin: true },
+      '/api/v1/setting': { target: PANDAWIKI_API, changeOrigin: true },
+      '/api/v1/license': { target: PANDAWIKI_API, changeOrigin: true },
+      '/api/v1/share': { target: PANDAWIKI_API, changeOrigin: true },
+      '/api/v1/health': { target: PANDAWIKI_API, changeOrigin: true },
       '/share': { target: PANDAWIKI_API, changeOrigin: true },
       '/static-file': { target: PANDAWIKI_API, changeOrigin: true },
 

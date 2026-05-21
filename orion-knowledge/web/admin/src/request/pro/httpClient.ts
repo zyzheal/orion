@@ -87,19 +87,6 @@ export class HttpClient<SecurityDataType = unknown> {
       ...axiosConfig,
       baseURL: axiosConfig.baseURL || "/",
     });
-
-    // Orion 微前端模式：重写 API 请求 URL，统一走 /api/v1/{domain}/ 前缀
-    this.instance.interceptors.request.use((config) => {
-      const isOrionChild = (window as any).__POWERED_BY_ORION__;
-      if (isOrionChild) {
-        const apiBase = (window as any).__SUBAPP_API_BASE__ || (window as any).$orion?.apiBase;
-        if (apiBase && config.url && config.url.startsWith('/api/v1/')) {
-          config.url = `${apiBase}${config.url}`;
-          console.log(`[orion-knowledge] Rewrote API URL: ${config.url}`);
-        }
-      }
-      return config;
-    });
     this.secure = secure;
     this.format = format;
     this.securityWorker = securityWorker;

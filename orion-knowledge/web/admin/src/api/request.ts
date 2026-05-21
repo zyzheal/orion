@@ -25,18 +25,6 @@ const request = <T>(options: AxiosRequestConfig): Promise<T> => {
   const token = localStorage.getItem('orion_knowledge_token') ||
     (window as any)?.$orion?.token ||
     (window as any)?.__orionToken || '';
-
-  // Orion 微前端模式：重写 API 请求 URL
-  let url = options.url || '';
-  const isOrionChild = (window as any).__POWERED_BY_ORION__;
-  if (isOrionChild && url.startsWith('/api/v1/')) {
-    const apiBase = (window as any).__SUBAPP_API_BASE__ || (window as any).$orion?.apiBase;
-    if (apiBase) {
-      url = `${apiBase}${url}`;
-      console.log(`[orion-knowledge] Rewrote API URL: ${url}`);
-    }
-  }
-
   const config = {
     baseURL: '/',
     timeout: 0,
@@ -45,7 +33,6 @@ const request = <T>(options: AxiosRequestConfig): Promise<T> => {
       Authorization: `Bearer ${token}`,
     },
     ...options,
-    url,
   };
   const service: AxiosInstance = axios.create(config);
   service.interceptors.response.use(
