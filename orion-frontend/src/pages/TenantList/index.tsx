@@ -16,6 +16,7 @@ import {
   Input,
   InputNumber,
   Switch,
+  Select,
   message,
   Tooltip,
   Popconfirm,
@@ -38,6 +39,7 @@ import {
   SubnodeOutlined,
   SettingOutlined,
   DownloadOutlined,
+  DatabaseOutlined,
 } from '@ant-design/icons';
 import {
   listTenants,
@@ -47,7 +49,7 @@ import {
   type TenantEntity,
   type CreateTenantRequest,
 } from '@/api/tenant';
-import { getUsersByTenant, type User } from '@/api/users';
+import { getUsersByTenant, type TenantUser } from '@/api/tenant';
 
 const { Title, Text } = Typography;
 
@@ -139,7 +141,7 @@ const TenantListPage: React.FC<TenantListPageProps> = ({ onTenantSelect }) => {
   // P1-3 修复：用户管理相关状态
   const [userModalOpen, setUserModalOpen] = useState(false);
   const [userModalTenant, setUserModalTenant] = useState<TenantEntity | null>(null);
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<TenantUser[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
   // P2-5 修复: 模板选择状态
   const [selectedTemplate, setSelectedTemplate] = useState<string>('enterprise');
@@ -935,7 +937,7 @@ const TenantListPage: React.FC<TenantListPageProps> = ({ onTenantSelect }) => {
                 title: '用户名',
                 dataIndex: 'username',
                 key: 'username',
-                render: (val: string, record: User) => (
+                render: (val: string, record: TenantUser) => (
                   <Space>
                     <Text strong>{record.name || val}</Text>
                     {record.name && <Text type="secondary" code>{val}</Text>}

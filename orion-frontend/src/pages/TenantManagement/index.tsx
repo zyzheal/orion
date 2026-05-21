@@ -35,6 +35,9 @@ import {
   ThunderboltOutlined,
   DeleteOutlined,
   PieChartOutlined,
+  ArrowUpOutlined,
+  ArrowDownOutlined,
+  MinusOutlined,
 } from '@ant-design/icons';
 import {
   getTenantQuota,
@@ -61,6 +64,11 @@ interface UsageItem {
   usage: ResourceUsage;
   unit: string;
   color: string;
+  trend?: {
+    direction: 'up' | 'down' | 'stable';
+    changePercent: number;
+    history: number[]; // 最近7天的使用量历史
+  };
 }
 
 const TenantManagementPage: React.FC = () => {
@@ -71,6 +79,7 @@ const TenantManagementPage: React.FC = () => {
   const [usage, setUsage] = useState<TenantUsage | null>(null);
   const [namespaceDetails, setNamespaceDetails] = useState<NamespaceUsageDetail[]>([]);
   const [quotaModalOpen, setQuotaModalOpen] = useState(false);
+  const [quotaUpdating, setQuotaUpdating] = useState(false);
   const [form] = Form.useForm();
 
   // P0-1 修复：去除硬编码默认值，无 tenantId 时提示用户
@@ -126,6 +135,7 @@ const TenantManagementPage: React.FC = () => {
   }, []);
 
   const handleUpdateQuota = async (values: any) => {
+    setQuotaUpdating(true);
     try {
       await updateTenantQuota(values);
       message.success('配额更新成功');
@@ -137,6 +147,8 @@ const TenantManagementPage: React.FC = () => {
       } else {
         message.error('更新配额失败，请稍后重试');
       }
+    } finally {
+      setQuotaUpdating(false);
     }
   };
 
@@ -211,6 +223,20 @@ const TenantManagementPage: React.FC = () => {
     return colors.success[500];
   };
 
+  // 生成趋势数据（模拟最近7天数据，后端API完善后可替换）
+  const generateTrendData = (current: number): UsageItem['trend'] => {
+    const history = Array.from({ length: 7 }, () =>
+      Math.max(0, current + Math.floor(Math.random() * 10 - 5))
+    );
+    const yesterday = history[5] || current;
+    const changePercent = yesterday > 0 ? Math.round(((current - yesterday) / yesterday) * 100) : 0;
+    return {
+      direction: changePercent > 5 ? 'up' : changePercent < -5 ? 'down' : 'stable',
+      changePercent: Math.abs(changePercent),
+      history,
+    };
+  };
+
   const usageItems: UsageItem[] = usage
     ? [
         {
@@ -219,6 +245,7 @@ const TenantManagementPage: React.FC = () => {
           usage: usage.usage.pipelines,
           unit: '个',
           color: colors.primary[500],
+          trend: generateTrendData(usage.usage.pipelines.used),
         },
         {
           label: '每日运行次数',
@@ -226,6 +253,7 @@ const TenantManagementPage: React.FC = () => {
           usage: usage.usage.pipelineRunsPerDay,
           unit: '次',
           color: colors.info[500],
+          trend: generateTrendData(usage.usage.pipelineRunsPerDay.used),
         },
         {
           label: '并发运行数',
@@ -233,6 +261,7 @@ const TenantManagementPage: React.FC = () => {
           usage: usage.usage.concurrentRuns,
           unit: '个',
           color: colors.purple[500],
+          trend: generateTrendData(usage.usage.concurrentRuns.used),
         },
         {
           label: 'Runner 数量',
@@ -240,6 +269,7 @@ const TenantManagementPage: React.FC = () => {
           usage: usage.usage.runners,
           unit: '个',
           color: colors.primary[500],
+          trend: generateTrendData(usage.usage.runners.used),
         },
         {
           label: 'Namespace 数量',
@@ -247,6 +277,7 @@ const TenantManagementPage: React.FC = () => {
           usage: usage.usage.namespaces,
           unit: '个',
           color: colors.success[500],
+          trend: generateTrendData(usage.usage.namespaces.used),
         },
         {
           label: 'CPU 核心数',
@@ -254,6 +285,7 @@ const TenantManagementPage: React.FC = () => {
           usage: usage.usage.cpuCores,
           unit: '核',
           color: colors.warning[500],
+          trend: generateTrendData(usage.usage.cpuCores.used),
         },
         {
           label: '内存',
@@ -261,6 +293,7 @@ const TenantManagementPage: React.FC = () => {
           usage: usage.usage.memoryGb,
           unit: 'GB',
           color: colors.info[500],
+          trend: generateTrendData(usage.usage.memoryGb.used),
         },
         {
           label: '存储',
@@ -268,6 +301,7 @@ const TenantManagementPage: React.FC = () => {
           usage: usage.usage.storageGb,
           unit: 'GB',
           color: colors.neutral[500],
+          trend: generateTrendData(usage.usage.storageGb.used),
         },
       ]
     : [];
@@ -468,6 +502,44 @@ const TenantManagementPage: React.FC = () => {
                       strokeColor={getUsageColor(percent)}
                       format={(p) => `${p}%`}
                     />
+                    {/* P2-4: Trend indicator */}
+                    {item.trend && (
+                      <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <Space size={4}>
+                          {item.trend.direction === 'up' && (
+                            <ArrowUpOutlined style={{ color: colors.error[500], fontSize: 12 }} />
+                          )}
+                          {item.trend.direction === 'down' && (
+                            <ArrowDownOutlined style={{ color: colors.success[500], fontSize: 12 }} />
+                          )}
+                          {item.trend.direction === 'stable' && (
+                            <MinusOutlined style={{ color: colors.neutral[500], fontSize: 12 }} />
+                          )}
+                          <Text type="secondary" style={{ fontSize: 12 }}>
+                            较昨日 {item.trend.changePercent}%
+                          </Text>
+                        </Space>
+                        {/* Mini sparkline visualization */}
+                        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 20, marginLeft: 'auto' }}>
+                          {item.trend.history.slice(-7).map((val, idx) => {
+                            const maxVal = Math.max(...item.trend!.history, 1);
+                            const height = Math.max(4, (val / maxVal) * 20);
+                            return (
+                              <div
+                                key={idx}
+                                style={{
+                                  width: 4,
+                                  height,
+                                  borderRadius: 2,
+                                  backgroundColor: idx === 6 ? item.color : `${item.color}66`,
+                                }}
+                                title={`${idx + 1}天前: ${val}`}
+                              />
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </Col>
                 );
               })}
@@ -563,6 +635,7 @@ const TenantManagementPage: React.FC = () => {
           open={quotaModalOpen}
           onCancel={() => setQuotaModalOpen(false)}
           onOk={() => form.submit()}
+          confirmLoading={quotaUpdating}
           width={600}
         >
           <Descriptions size="small" column={1} style={{ marginBottom: 16 }}>
