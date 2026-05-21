@@ -67,9 +67,8 @@ export class AuthMiddleware {
     }
     // 2. 检查动态子应用路由白名单（从平台服务获取）
     const subAppPrefixes = getSubAppRoutePrefixes();
-    if (subAppPrefixes.size > 0) {
-      const urlPrefix = '/' + url.split('/').slice(1, 4).join('/');
-      if (subAppPrefixes.has(urlPrefix) || subAppPrefixes.has('/' + url.split('/')[1])) {
+    for (const prefix of subAppPrefixes) {
+      if (url.startsWith(prefix)) {
         return true;
       }
     }

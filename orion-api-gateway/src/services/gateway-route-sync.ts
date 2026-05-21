@@ -100,9 +100,10 @@ export const subAppRoutePrefixes = new Set<string>();
 
 /**
  * 获取所有已注册的子应用路由前缀（用于中间件白名单）
+ * 返回副本以防止外部修改
  */
 export function getSubAppRoutePrefixes(): Set<string> {
-  return subAppRoutePrefixes;
+  return new Set(subAppRoutePrefixes);
 }
 
 // ==================== 核心功能 ====================
