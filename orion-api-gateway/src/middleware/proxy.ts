@@ -51,6 +51,31 @@ export class ProxyMiddleware {
 
     // 监听服务客户端事件
     this.setupEventListeners();
+
+    // 为所有代理响应注入 CORS 头
+    // 确保目标服务返回的响应包含 CORS 头，支持跨域访问
+    this.setupCorsInjection();
+  }
+
+  /**
+   * 设置 CORS 注入
+   * 为所有通过代理的响应添加 CORS 头，支持前端跨域访问后端服务
+   */
+  private setupCorsInjection(): void {
+    this.proxyServer.on('proxyRes', (proxyRes, req, res) => {
+      const headers = {
+        'Access-Control-Allow-Origin': (req as any).headers?.origin || '*',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-API-Key, X-Request-ID, X-Tenant-ID',
+        'Access-Control-Allow-Credentials': 'true',
+        'Access-Control-Max-Age': '86400',
+        'Access-Control-Expose-Headers': 'X-Request-ID',
+      };
+
+      Object.entries(headers).forEach(([key, value]) => {
+        res.setHeader(key, value);
+      });
+    });
   }
 
   /**
