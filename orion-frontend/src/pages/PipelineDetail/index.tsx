@@ -31,10 +31,13 @@ import PipelineErrorDetail from '@/components/pipeline/PipelineErrorDetail';
 import {
   getPipeline,
   getPipelineRuns,
-  getPipelineRun,
   triggerPipeline,
 } from '@/api/pipelines';
-import type { PipelineRunSummary } from '@/api/pipelineRuns';
+import {
+  getPipelineRunDetail,
+  retryFromStage,
+  type PipelineRunSummary,
+} from '@/api/pipelineRuns';
 import { useNavigate, useParams } from 'react-router-dom';
 import dayjs from 'dayjs';
 import duration from 'dayjs/plugin/duration';
@@ -275,7 +278,7 @@ const PipelineDetail: React.FC = () => {
             latestRun = runsData[0];
             // Fetch full run detail including stages and tasks
             try {
-              const runDetailRes = await getPipelineRun(latestRun.id);
+              const runDetailRes = await getPipelineRunDetail(latestRun.id);
               const runDetail = extractData(runDetailRes);
               if (runDetail) {
                 const rawStages = runDetail.stages || [];
@@ -424,29 +427,37 @@ const PipelineDetail: React.FC = () => {
   const handleRetryFromStage = (_stageId: string, stageName: string) => {
     Modal.confirm({
       title: '从该阶段重跑',
-      content: `确认重新运行 Pipeline？将从阶段「${stageName}」开始执行。`,
+      content: `确认从阶段「${stageName}」开始重新运行？已完成的前置阶段将不会重新执行。`,
       okText: '确认重跑',
       cancelText: '取消',
       onOk: async () => {
         try {
           setRetryingStageId(_stageId);
-          await triggerPipeline(id!);
-          message.success(`Pipeline 已重新运行`);
-          // Reload pipeline runs
-          const runsRes = await getPipelineRuns(id!);
-          const runsData = extractList(runsRes);
-          const latestRun = runsData[0] || null;
-          setPipeline((prev: any) => ({
-            ...prev,
-            status: latestRun?.status || 'running',
-            runNumber: latestRun?.runNumber || prev.runNumber + 1,
-            stages: latestRun?.stages || [],
-          }));
+          // 使用 retryFromStage 从指定阶段重试
+          const res = await retryFromStage(id!, _stageId);
+          const newRun = res.data?.data as { id?: string } | undefined;
+          message.success(`已从阶段「${stageName}」重新运行`);
+          // 跳转到新运行的详情页
+          if (newRun?.id) {
+            navigate(`/pipelines/${newRun.id}`);
+          } else {
+            // 回退：刷新当前页面
+            const runsRes = await getPipelineRuns(id!);
+            const runsData = extractList(runsRes);
+            const latestRun = runsData[0] || null;
+            if (latestRun) {
+              const detailRes = await getPipelineRunDetail(latestRun.id);
+              const runDetail = extractData(detailRes);
+              if (runDetail) {
+                setPipeline(runDetail);
+              }
+            }
+          }
         } catch (error: unknown) {
           if (error instanceof Error) {
-            message.error(`重跑失败：${error.message}`);
+            message.error(`从阶段重跑失败：${error.message}`);
           } else {
-            message.error('重跑失败，请稍后重试');
+            message.error('从阶段重跑失败，请稍后重试');
           }
         } finally {
           setRetryingStageId(null);
