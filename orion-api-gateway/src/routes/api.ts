@@ -16,7 +16,7 @@ export interface RouteConfig {
   stripPrefix?: boolean;
 }
 
-// 获取配置中的服务 URL 辅助函数
+const services = () => getConfig().services;
 const services = () => getConfig().services;
 
 // 预定义路由配置 - 全部 34 个服务
@@ -773,9 +773,6 @@ function registerProxyRoute(app: FastifyInstance, config: RouteConfig): void {
       // 修改原始请求 URL，确保 http-proxy 使用重写后的路径
       request.raw.url = strippedPath;
     }
-
-    // 构建目标 URL
-    const targetUrl = new URL(url, target).toString();
 
     // 代理请求
     proxyMiddleware.forward(request, reply, target, {
