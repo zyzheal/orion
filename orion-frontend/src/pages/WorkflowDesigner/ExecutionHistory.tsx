@@ -3,7 +3,7 @@
  */
 import React, { useEffect, useState } from 'react';
 import { Table, Tag, Empty, Space, Typography, Drawer, Descriptions, Timeline, Divider, Button, message } from 'antd';
-import { ClockCircleOutlined, FileTextOutlined } from '@ant-design/icons';
+import { ClockCircleOutlined, FileTextOutlined, ReloadOutlined } from '@ant-design/icons';
 import {
   getExecutionHistory,
   getExecutionDetail,
@@ -88,6 +88,16 @@ const ExecutionHistory: React.FC<ExecutionHistoryProps> = ({ workflowId }) => {
     }
   };
 
+  const handleRefresh = () => {
+    if (workflowId) {
+      setLoading(true);
+      getExecutionHistory(workflowId)
+        .then(setExecutions)
+        .catch(() => message.error('刷新执行历史失败'))
+        .finally(() => setLoading(false));
+    }
+  };
+
   const columns = [
     {
       title: '执行 ID',
@@ -149,7 +159,13 @@ const ExecutionHistory: React.FC<ExecutionHistoryProps> = ({ workflowId }) => {
   ];
 
   if (!workflowId) {
-    return <Empty description="请选择一个工作流查看执行历史" />;
+    return (
+      <Empty description="请选择一个工作流查看执行历史">
+        <Button type="primary" onClick={() => window.location.reload()}>
+          刷新页面
+        </Button>
+      </Empty>
+    );
   }
 
   return (
@@ -159,7 +175,15 @@ const ExecutionHistory: React.FC<ExecutionHistoryProps> = ({ workflowId }) => {
         dataSource={executions}
         loading={loading}
         rowKey="id"
-        locale={{ emptyText: '暂无执行记录' }}
+        locale={{
+          emptyText: (
+            <Empty description="暂无执行记录">
+              <Button type="primary" icon={<ReloadOutlined />} onClick={handleRefresh}>
+                刷新数据
+              </Button>
+            </Empty>
+          ),
+        }}
         pagination={{ pageSize: 10 }}
       />
 

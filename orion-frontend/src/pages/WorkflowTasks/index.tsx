@@ -224,6 +224,20 @@ const WorkflowTasksPage: React.FC = () => {
     }
   };
 
+  /**
+   * formData JSON 实时校验：onBlur 时验证格式
+   */
+  const validateFormDataJson = () => {
+    const value = completeForm.getFieldValue('formData');
+    if (value && typeof value === 'string' && value.trim()) {
+      try {
+        JSON.parse(value);
+      } catch {
+        message.error('表单数据 JSON 格式不正确，请检查格式');
+      }
+    }
+  };
+
   // ---- Table columns ----
 
   const columns: TableColumn<WorkflowTask>[] = [
@@ -593,6 +607,7 @@ const WorkflowTasksPage: React.FC = () => {
                 <Input.TextArea
                   rows={4}
                   placeholder='{"key": "value"}'
+                  onBlur={validateFormDataJson}
                 />
               </Form.Item>
               <Form.Item name="comment" label="完成备注 (可选)">
