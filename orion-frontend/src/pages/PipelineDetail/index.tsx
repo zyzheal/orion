@@ -35,6 +35,7 @@ import {
 } from '@/api/pipelines';
 import {
   getPipelineRunDetail,
+  getPipelineRunStages,
   retryFromStage,
   type PipelineRunSummary,
 } from '@/api/pipelineRuns';
@@ -291,13 +292,26 @@ const PipelineDetail: React.FC = () => {
               console.log('[PipelineDetail] Axios response data:', axiosData);
 
               // Backend sends { run, stages, tasks } directly
-              const rawStages = axiosData?.stages ?? [];
-              const rawTasks = axiosData?.tasks ?? [];
+              let rawStages = axiosData?.stages ?? [];
+              let rawTasks = axiosData?.tasks ?? [];
               const runInfo = axiosData?.run ?? {};
 
               console.log('[PipelineDetail] Raw stages count:', rawStages.length);
               console.log('[PipelineDetail] Raw stages:', rawStages);
               console.log('[PipelineDetail] Raw tasks count:', rawTasks.length);
+
+              // Fallback: if stages are empty, try the dedicated stages endpoint
+              if (rawStages.length === 0) {
+                console.log('[PipelineDetail] Stages empty in run detail, trying dedicated endpoint...');
+                try {
+                  const stagesRes = await getPipelineRunStages(latestRun.id);
+                  const stagesData = (stagesRes as any)?.data;
+                  rawStages = stagesData?.data ?? stagesData ?? [];
+                  console.log('[PipelineDetail] Stages from dedicated endpoint:', rawStages.length, rawStages);
+                } catch (stagesErr) {
+                  console.error('[PipelineDetail] Failed to get stages from dedicated endpoint:', stagesErr);
+                }
+              }
 
               // Merge tasks into stages as steps
               runStages = rawStages.map((stage: any) => {
