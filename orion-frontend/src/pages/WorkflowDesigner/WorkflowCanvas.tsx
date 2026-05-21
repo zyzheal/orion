@@ -230,6 +230,130 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
     setEditMode(false);
   };
 
+  // ==================== 变量输入/输出配置 ====================
+
+  /**
+   * 当选中节点变化时，从 config 中加载变量映射数据
+   */
+  useEffect(() => {
+    if (selectedNode) {
+      const config = selectedNode.config || {};
+      const mappings = (config.inputVariableMapping as InputVariableMapping[]) || [];
+      const outputs = (config.outputVariables as OutputVariable[]) || [];
+      setInputMappings(Array.isArray(mappings) ? mappings : []);
+      setOutputVariables(Array.isArray(outputs) ? outputs : []);
+      setNewMappingSourceNode('');
+      setNewMappingSourceVar('');
+      setNewMappingLocalVar('');
+      setNewOutputName('');
+      setNewOutputDesc('');
+    }
+  }, [selectedNode]);
+
+  /**
+   * 获取当前节点的上游节点列表（用于输入映射的选择器）
+   */
+  const getUpstreamNodes = (): { id: string; name: string }[] => {
+    if (!workflow || !selectedNode) return [];
+    return workflow.edges
+      .filter((e) => e.target === selectedNode.id)
+      .map((e) => {
+        const src = workflow.nodes?.find((n) => n.id === e.source);
+        return src ? { id: src.id, name: src.name } : { id: e.source, name: e.source };
+      });
+  };
+
+  /**
+   * 添加输入变量映射
+   */
+  const handleAddInputMapping = () => {
+    if (!newMappingSourceNode || !newMappingSourceVar || !newMappingLocalVar) {
+      message.warning('请填写完整的映射信息');
+      return;
+    }
+    if (
+      inputMappings.some(
+        (m) => m.sourceNode === newMappingSourceNode && m.sourceVar === newMappingSourceVar
+      )
+    ) {
+      message.warning('该上游变量映射已存在');
+      return;
+    }
+    setInputMappings([
+      ...inputMappings,
+      {
+        sourceNode: newMappingSourceNode,
+        sourceVar: newMappingSourceVar,
+        localVar: newMappingLocalVar,
+      },
+    ]);
+    setNewMappingSourceNode('');
+    setNewMappingSourceVar('');
+    setNewMappingLocalVar('');
+  };
+
+  /**
+   * 删除输入变量映射
+   */
+  const handleRemoveInputMapping = (index: number) => {
+    setInputMappings(inputMappings.filter((_, i) => i !== index));
+  };
+
+  /**
+   * 添加输出变量
+   */
+  const handleAddOutputVariable = () => {
+    if (!newOutputName) {
+      message.warning('请输入变量名');
+      return;
+    }
+    if (outputVariables.some((v) => v.name === newOutputName)) {
+      message.warning('该输出变量名已存在');
+      return;
+    }
+    setOutputVariables([...outputVariables, { name: newOutputName, description: newOutputDesc }]);
+    setNewOutputName('');
+    setNewOutputDesc('');
+  };
+
+  /**
+   * 删除输出变量
+   */
+  const handleRemoveOutputVariable = (index: number) => {
+    setOutputVariables(outputVariables.filter((_, i) => i !== index));
+  };
+
+  /**
+   * 保存节点配置（含变量映射数据）
+   * 包装原有的 handleSaveNode，在保存前将变量映射数据写入 config
+   */
+  const handleSaveNodeWithVariables = async () => {
+    if (!workflowId || !selectedNode || !workflow) return;
+    try {
+      const values = await editForm.validateFields();
+      const { name, ...config } = values;
+      // 注入变量映射数据
+      (config as Record<string, unknown>).inputVariableMapping = inputMappings;
+      (config as Record<string, unknown>).outputVariables = outputVariables;
+      const updatedNodes = workflow.nodes.map((node) =>
+        node.id === selectedNode.id ? { ...node, name, config } : node
+      );
+      await updateWorkflow(workflowId, { nodes: updatedNodes });
+      message.success('节点配置已保存');
+      const updatedNode = { ...selectedNode, name, config };
+      setSelectedNode(updatedNode);
+      setWorkflow({ ...workflow, nodes: updatedNodes });
+      setEditMode(false);
+      setOriginalConfig({ ...config });
+    } catch (error) {
+      if ((error as any)?.errorFields) {
+        message.error('请检查表单填写');
+      } else {
+        message.error('保存失败');
+      }
+    }
+  };
+
   /**
    * 判断节点是否已配置（config 有至少一个非空字段）
    */
@@ -782,6 +906,262 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
     );
   };
 
+  /**
+   * 渲染输入变量映射表格
+   */
+  const renderInputVariableMapping = () => {
+    const upstreamNodes = getUpstreamNodes();
+    const inputColumns = [
+      {
+        title: '上游节点',
+        dataIndex: 'sourceNode',
+        key: 'sourceNode',
+        width: '30%',
+        render: (nodeId: string) => {
+          const node = workflow?.nodes?.find((n) => n.id === nodeId);
+          return node ? node.name : nodeId;
+        },
+      },
+      {
+        title: '上游变量',
+        dataIndex: 'sourceVar',
+        key: 'sourceVar',
+        width: '25%',
+        render: (text: string) => <Text code style={{ fontSize: 12 }}>{text}</Text>,
+      },
+      {
+        title: '本地变量',
+        dataIndex: 'localVar',
+        key: 'localVar',
+        width: '25%',
+        render: (text: string) => <Text code style={{ fontSize: 12 }}>{text}</Text>,
+      },
+      {
+        title: '操作',
+        key: 'action',
+        width: '20%',
+        render: (_: unknown, __: InputVariableMapping, index: number) => (
+          <Button
+            type="link"
+            danger
+            size="small"
+            icon={<MinusOutlined />}
+            disabled={!editMode}
+            onClick={() => handleRemoveInputMapping(index)}
+            style={{ padding: 0 }}
+          />
+        ),
+      },
+    ];
+
+    return (
+      <div>
+        <div style={{ marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Text strong style={{ fontSize: 13 }}>输入变量映射</Text>
+          <Button
+            type="link"
+            size="small"
+            icon={<PlusOutlined />}
+            disabled={!editMode}
+            onClick={() => {
+              if (upstreamNodes.length > 0 && !newMappingSourceNode) {
+                setNewMappingSourceNode(upstreamNodes[0].id);
+              }
+            }}
+            style={{ padding: 0 }}
+          >
+            添加映射
+          </Button>
+        </div>
+
+        {/* 新增映射表单 - 仅编辑模式且点击添加时显示 */}
+        {editMode && newMappingSourceNode && (
+          <div style={{ marginBottom: 8, padding: 8, background: colors.light.bg.secondary, borderRadius: 6 }}>
+            <Space size={8} style={{ width: '100%' }}>
+              <Select
+                value={newMappingSourceNode}
+                onChange={(v) => {
+                  setNewMappingSourceNode(v);
+                  setNewMappingSourceVar('');
+                }}
+                placeholder="上游节点"
+                size="small"
+                style={{ width: 120 }}
+                options={upstreamNodes.map((n) => ({ label: n.name, value: n.id }))}
+              />
+              <Input
+                value={newMappingSourceVar}
+                onChange={(e) => setNewMappingSourceVar(e.target.value)}
+                placeholder="上游变量名"
+                size="small"
+                style={{ width: 100 }}
+              />
+              <ArrowRightOutlined style={{ color: colors.neutral[400], fontSize: 12 }} />
+              <Input
+                value={newMappingLocalVar}
+                onChange={(e) => setNewMappingLocalVar(e.target.value)}
+                placeholder="本地变量名"
+                size="small"
+                style={{ width: 100 }}
+              />
+              <Button type="primary" size="small" onClick={handleAddInputMapping}>
+                确认
+              </Button>
+              <Button
+                size="small"
+                onClick={() => {
+                  setNewMappingSourceNode('');
+                  setNewMappingSourceVar('');
+                  setNewMappingLocalVar('');
+                }}
+              >
+                取消
+              </Button>
+            </Space>
+          </div>
+        )}
+
+        <Table
+          columns={inputColumns}
+          dataSource={inputMappings}
+          size="small"
+          pagination={false}
+          rowKey={(_, index) => `input-${index}`}
+          locale={{ emptyText: editMode ? '点击「添加映射」开始配置' : '暂无输入变量映射' }}
+          style={{ fontSize: 12 }}
+        />
+
+        {/* 查看模式下显示自动继承的上游变量 */}
+        {!editMode && inputMappings.length === 0 && (
+          <div style={{ marginTop: 8, fontSize: 12 }}>
+            <Text type="secondary">自动继承的上游变量：</Text>
+            <div style={{ marginTop: 4 }}>
+              {workflow.edges
+                ?.filter((e) => e.target === selectedNode.id)
+                .map((e) => {
+                  const src = workflow.nodes?.find((n) => n.id === e.source);
+                  return src ? (
+                    <Tag key={e.id} style={{ marginBottom: 4 }}>{src.name}.output</Tag>
+                  ) : null;
+                })}
+              {!workflow.edges?.some((e) => e.target === selectedNode.id) && (
+                <Text type="secondary">无（开始节点）</Text>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  /**
+   * 渲染输出变量表格
+   */
+  const renderOutputVariables = () => {
+    const outputColumns = [
+      {
+        title: '变量名',
+        dataIndex: 'name',
+        key: 'name',
+        width: '35%',
+        render: (text: string) => <Text code style={{ fontSize: 12 }}>{text}</Text>,
+      },
+      {
+        title: '描述',
+        dataIndex: 'description',
+        key: 'description',
+        width: '45%',
+        ellipsis: true,
+      },
+      {
+        title: '操作',
+        key: 'action',
+        width: '20%',
+        render: (_: unknown, __: OutputVariable, index: number) => (
+          <Button
+            type="link"
+            danger
+            size="small"
+            icon={<MinusOutlined />}
+            disabled={!editMode}
+            onClick={() => handleRemoveOutputVariable(index)}
+            style={{ padding: 0 }}
+          />
+        ),
+      },
+    ];
+
+    return (
+      <div style={{ marginTop: 12 }}>
+        <div style={{ marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Text strong style={{ fontSize: 13 }}>输出变量定义</Text>
+          <Button
+            type="link"
+            size="small"
+            icon={<PlusOutlined />}
+            disabled={!editMode}
+            style={{ padding: 0 }}
+            onClick={() => {}}
+          >
+            添加变量
+          </Button>
+        </div>
+
+        {/* 新增输出变量表单 - 仅编辑模式且点击添加时显示 */}
+        {editMode && newOutputName !== undefined && (
+          <div style={{ marginBottom: 8, padding: 8, background: colors.light.bg.secondary, borderRadius: 6 }}>
+            <Space size={8} style={{ width: '100%' }}>
+              <Input
+                value={newOutputName}
+                onChange={(e) => setNewOutputName(e.target.value)}
+                placeholder="变量名"
+                size="small"
+                style={{ width: 120 }}
+              />
+              <Input
+                value={newOutputDesc}
+                onChange={(e) => setNewOutputDesc(e.target.value)}
+                placeholder="描述（可选）"
+                size="small"
+                style={{ width: 150 }}
+              />
+              <Button type="primary" size="small" onClick={handleAddOutputVariable}>
+                确认
+              </Button>
+              <Button
+                size="small"
+                onClick={() => {
+                  setNewOutputName('');
+                  setNewOutputDesc('');
+                }}
+              >
+                取消
+              </Button>
+            </Space>
+          </div>
+        )}
+
+        <Table
+          columns={outputColumns}
+          dataSource={outputVariables}
+          size="small"
+          pagination={false}
+          rowKey={(_, index) => `output-${index}`}
+          locale={{ emptyText: editMode ? '点击「添加变量」开始配置' : '暂无输出变量' }}
+          style={{ fontSize: 12 }}
+        />
+
+        {/* 查看模式下显示默认输出 */}
+        {!editMode && outputVariables.length === 0 && (
+          <div style={{ marginTop: 8, fontSize: 12 }}>
+            <Text type="secondary">默认输出：</Text>
+            <Tag>{selectedNode.name}.output</Tag>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const calculateCanvasSize = () => {
     if (!workflow?.nodes?.length) return { width: 600, height: 400 };
     const nodes = workflow.nodes;
@@ -1171,7 +1551,7 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
           editMode && (
             <Space style={{ justifyContent: 'flex-end', width: '100%' }}>
               <Button onClick={handleCancelEdit}>取消</Button>
-              <Button type="primary" onClick={handleSaveNode}>
+              <Button type="primary" onClick={handleSaveNodeWithVariables}>
                 保存
               </Button>
             </Space>
