@@ -63,14 +63,27 @@ export class ProxyMiddleware {
    */
   private setupCorsInjection(): void {
     this.proxyServer.on('proxyRes', (proxyRes, req, res) => {
-      const headers = {
-        'Access-Control-Allow-Origin': (req as any).headers?.origin || '*',
+      const requestOrigin = (req as any).headers?.origin;
+
+      // 不覆盖后端已设置的 CORS 头
+      if (res.getHeader('Access-Control-Allow-Origin')) return;
+
+      // 规范要求：credentials: true 时不能使用 origin: *
+      // 有 origin 则回显，否则不设置 allow-credentials（降级为 *）
+      const allowOrigin = requestOrigin || '*';
+      const allowCredentials = requestOrigin ? 'true' : undefined;
+
+      const headers: Record<string, string> = {
+        'Access-Control-Allow-Origin': allowOrigin,
         'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-API-Key, X-Request-ID, X-Tenant-ID',
-        'Access-Control-Allow-Credentials': 'true',
         'Access-Control-Max-Age': '86400',
         'Access-Control-Expose-Headers': 'X-Request-ID',
       };
+
+      if (allowCredentials) {
+        headers['Access-Control-Allow-Credentials'] = allowCredentials;
+      }
 
       Object.entries(headers).forEach(([key, value]) => {
         res.setHeader(key, value);
@@ -137,13 +150,33 @@ export class ProxyMiddleware {
   /**
    * 代理请求到目标服务（直接代理模式，用于流式响应）
    */
+  /**
+   * 代理请求到目标服务（直接代理模式，用于流式响应）
+   *
+   * OPTIONS 预检请求直接响应，不代理到后端
+   */
   forward(
     request: FastifyRequest,
     reply: FastifyReply,
     target: string,
     options?: ProxyOptions
   ): void {
-    const config = getConfig();
+    // 处理 CORS 预检请求（OPTIONS），直接响应不代理
+    if (request.method === 'OPTIONS') {
+      const requestOrigin = request.headers.origin;
+      const allowOrigin = requestOrigin || '*';
+
+      reply.header('Access-Control-Allow-Origin', allowOrigin);
+      reply.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+      reply.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key, X-Request-ID, X-Tenant-ID');
+      reply.header('Access-Control-Max-Age', '86400');
+      if (requestOrigin) {
+        reply.header('Access-Control-Allow-Credentials', 'true');
+      }
+      reply.code(204).send();
+      return;
+    }
+
     const timeout = options?.timeout || 30000;
 
     // 设置超时
@@ -166,16 +199,16 @@ export class ProxyMiddleware {
       headers: proxyHeaders,
     };
 
-    this.proxyServer.web(request.raw, reply.raw, proxyOptions);
-
-    // 处理代理错误
-    this.proxyServer.on('error', (err, req, res) => {
+    // 使用 once 注册 error 处理，避免监听器累积
+    this.proxyServer.once('error', (err, req, res) => {
       const errorResponse = ErrorFactory.create(
         ErrorCodes.HTTP_REQUEST_FAILED,
         { target, error: err.message }
       );
       reply.code(errorResponse.statusCode).send(errorResponse.toJSON(request.requestId));
     });
+
+    this.proxyServer.web(request.raw, reply.raw, proxyOptions);
   }
 
   /**
