@@ -359,9 +359,9 @@ export function reloadConfig(): AppConfig {
         url: process.env.NOTIFY_SERVICE_URL || 'http://localhost:3019',
         timeout: parseInt(process.env.NOTIFY_TIMEOUT || '30000', 10),
       },
-      // Knowledge service
+      // Knowledge service — PandaWiki Go 后端
       knowledge: {
-        url: process.env.KNOWLEDGE_SERVICE_URL || 'http://localhost:3020',
+        url: process.env.KNOWLEDGE_SERVICE_URL || 'http://localhost:8090',
         timeout: parseInt(process.env.KNOWLEDGE_TIMEOUT || '30000', 10),
       },
       // Graph service

@@ -18,6 +18,7 @@ import { errorMiddleware } from './middleware/error';
 import { registerRoutes } from './routes';
 import { serviceRegistry } from './services/service-registry';
 import { TokenService } from './services/token.service';
+import { gatewayRouteSync } from './services/gateway-route-sync';
 import { redisClient } from './utils/redis';
 import { AuthRoutes } from './routes/auth.routes';
 import { TenantRoutes } from './routes/tenant.routes';
@@ -200,6 +201,16 @@ export async function createApp(options: AppOptions = {}): Promise<{
   // ==================== 注册路由 ====================
 
   registerRoutes(app);
+
+  // ==================== 动态路由同步 ====================
+
+  // 从平台服务获取子应用配置，自动注册网关路由
+  // 不需要在 api.ts 中硬编码子应用的 API 路径
+  gatewayRouteSync(app).then((count) => {
+    app.log.info(`Gateway route sync complete: ${count} routes registered from sub-app configs`);
+  }).catch((err) => {
+    app.log.warn({ err: err instanceof Error ? err.message : String(err) }, 'Gateway route sync failed, using static routes only');
+  });
 
   // ==================== 注册服务到注册表 ====================
 

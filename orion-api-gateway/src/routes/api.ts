@@ -463,25 +463,8 @@ const routeConfigs: RouteConfig[] = [
 
   // ========== Knowledge Service (PandaWiki Go 后端 8090) ==========
   // 网关层按路径前缀分发，子应用零改动，保持原 API 路径
-  { prefix: '/api/v1/knowledge_base', target: services().knowledge?.url || 'http://localhost:8090', timeout: 30000, stripPrefix: false },
-  { prefix: '/api/v1/knowledge',      target: services().knowledge?.url || 'http://localhost:8090', timeout: 30000, stripPrefix: false },
-  { prefix: '/api/v1/nav',            target: services().knowledge?.url || 'http://localhost:8090', timeout: 30000, stripPrefix: false },
-  { prefix: '/api/v1/node',           target: services().knowledge?.url || 'http://localhost:8090', timeout: 30000, stripPrefix: false },
-  { prefix: '/api/v1/user',           target: services().knowledge?.url || 'http://localhost:8090', timeout: 30000, stripPrefix: false },
-  { prefix: '/api/v1/model',          target: services().knowledge?.url || 'http://localhost:8090', timeout: 30000, stripPrefix: false },
-  { prefix: '/api/v1/stat',           target: services().knowledge?.url || 'http://localhost:8090', timeout: 30000, stripPrefix: false },
-  { prefix: '/api/v1/app',            target: services().knowledge?.url || 'http://localhost:8090', timeout: 30000, stripPrefix: false },
-  { prefix: '/api/v1/file',           target: services().knowledge?.url || 'http://localhost:8090', timeout: 30000, stripPrefix: false },
-  { prefix: '/api/v1/chat',           target: services().knowledge?.url || 'http://localhost:8090', timeout: 30000, stripPrefix: false },
-  { prefix: '/api/v1/conversation',   target: services().knowledge?.url || 'http://localhost:8090', timeout: 30000, stripPrefix: false },
-  { prefix: '/api/v1/comment',        target: services().knowledge?.url || 'http://localhost:8090', timeout: 30000, stripPrefix: false },
-  { prefix: '/api/v1/crawler',        target: services().knowledge?.url || 'http://localhost:8090', timeout: 30000, stripPrefix: false },
-  { prefix: '/api/v1/setting',        target: services().knowledge?.url || 'http://localhost:8090', timeout: 30000, stripPrefix: false },
-  { prefix: '/api/v1/license',        target: services().knowledge?.url || 'http://localhost:8090', timeout: 30000, stripPrefix: false },
-  { prefix: '/api/v1/share',          target: services().knowledge?.url || 'http://localhost:8090', timeout: 30000, stripPrefix: false },
-  { prefix: '/api/v1/health',         target: services().knowledge?.url || 'http://localhost:8090', timeout: 30000, stripPrefix: false },
-  { prefix: '/share',                 target: services().knowledge?.url || 'http://localhost:8090', timeout: 30000, stripPrefix: false },
-  { prefix: '/static-file',           target: services().knowledge?.url || 'http://localhost:8090', timeout: 30000, stripPrefix: false },
+  // 路由由 gatewayRouteSync() 从平台服务动态获取并注册
+  // 保留 /api/v1/wiki 作为 fallback 路由
   {
     prefix: '/api/v1/wiki',
     target: services().knowledge?.url || 'http://localhost:8090',
