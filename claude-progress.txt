@@ -3113,3 +3113,28 @@ After thorough review, all notification channel sending logic was already implem
 
 ### Next Steps
 1. 继续实现 OrionMF v2.0 设计文档中的其他模块 (ReactShadowCompat, SubAppStateMachine, SecurityPolicyManager)
+
+## 2026-05-21: PipelineRunList 取消/重试功能 — COMPLETED
+
+### 实现内容
+- 修改 `/orion-frontend/src/pages/pipeline-svc/PipelineRunList/index.tsx`
+  - 新增 cancel 按钮（针对 running 状态）
+  - 将重跑按钮改为 Dropdown 菜单（针对 failed/cancelled 状态）
+  - 新增 cancellingIds state 管理取消中状态
+  - 新增 stageRetryModal state 管理阶段选择弹窗
+
+- 创建 `/orion-frontend/src/pages/pipeline-svc/PipelineRunList/StageSelectorModal.tsx`
+  - 支持三种重试模式：完整重试 / 仅失败阶段 / 从指定阶段重试
+  - 加载 Pipeline Run 的阶段信息
+  - 调用 retryPipelineRun API 带 fromStage/onlyFailed 参数
+
+### 使用 API（已存在）
+- cancelPipelineRun(runId: string) → POST /v1/pipeline-runs/:id/cancel
+- retryPipelineRun(runId, options) → POST /v1/pipeline-runs/:id/retry
+- getPipelineRunStages(runId) → GET /v1/pipeline-runs/:id/stages
+
+### 验证
+- TypeScript 编译通过（无新增错误）
+
+### Next Steps
+- 继续实现 pipeline module upgrade phase 1 的其他任务
