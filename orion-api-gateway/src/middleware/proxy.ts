@@ -13,7 +13,6 @@
 
 import { FastifyRequest, FastifyReply } from 'fastify';
 import httpProxy, { ServerOptions } from 'http-proxy';
-import { getConfig } from '../config';
 import {
   ServiceClient,
   ServiceClientError,
