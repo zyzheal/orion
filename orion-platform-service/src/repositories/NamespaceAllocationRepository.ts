@@ -48,10 +48,13 @@ export class NamespaceAllocationRepository extends BaseRepository<NamespaceAlloc
     return result.rows.map(row => this.mapRowToEntity(row));
   }
 
-  async allocate(id: string, tenantId: number, purpose: string, labels: Record<string, string>): Promise<NamespaceAllocationEntity> {
+  async allocate(id: string, tenantId: string | number, purpose: string, labels: Record<string, string>): Promise<NamespaceAllocationEntity> {
+    // UUID strings are stored as-is; numeric IDs are stored as numbers
+    const isNumeric = typeof tenantId === 'number' || (typeof tenantId === 'string' && /^\d+$/.test(tenantId));
+    const tenantIdValue = isNumeric ? Number(tenantId) : null;
     const result = await this.db.query(
       `UPDATE namespace_allocations SET tenant_id = $1, status = 'allocated', purpose = $2, labels = $3, allocated_at = NOW(), updated_at = NOW() WHERE id = $4 RETURNING *`,
-      [tenantId, purpose, JSON.stringify(labels), id],
+      [tenantIdValue, purpose, JSON.stringify(labels), id],
     );
     if (result.rows.length === 0) {
       throw new Error(`Failed to allocate namespace: ${id}`);

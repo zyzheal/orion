@@ -152,15 +152,16 @@ export class NamespacePoolService extends EventEmitter {
    * 分配 Namespace 给租户
    */
   async allocateNamespace(
-    tenantId: number,
+    tenantId: string | number,
     options: { purpose?: string; labels?: Record<string, string> } = {}
   ): Promise<NamespaceAllocationResult> {
+    const tenantKey = typeof tenantId === 'string' ? tenantId : Number(tenantId);
     // Check tenant quota first
-    const tenantNamespaces = this.tenantAllocations.get(tenantId) || new Set();
+    const tenantNamespaces = this.tenantAllocations.get(tenantKey) || new Set();
     if (tenantNamespaces.size >= this.getMaxNamespacesPerTenant()) {
       return {
         success: false,
-        error: `Tenant ${tenantId} has reached maximum namespace allocation (${tenantNamespaces.size}/${this.getMaxNamespacesPerTenant()})`,
+        error: `Tenant ${tenantKey} has reached maximum namespace allocation (${tenantNamespaces.size}/${this.getMaxNamespacesPerTenant()})`,
       };
     }
 
@@ -183,17 +184,17 @@ export class NamespacePoolService extends EventEmitter {
         };
         const entity = await this.repository.allocate(
           availableEntry.id,
-          tenantId,
+          tenantKey,
           options.purpose || 'tenant-workspace',
           labels,
         );
         const allocatedEntry = this.entityToPoolEntry(entity);
         this.pool.set(allocatedEntry.namespaceName, allocatedEntry);
-        if (!this.tenantAllocations.has(tenantId)) {
-          this.tenantAllocations.set(tenantId, new Set());
+        if (!this.tenantAllocations.has(tenantKey)) {
+          this.tenantAllocations.set(tenantKey, new Set());
         }
-        this.tenantAllocations.get(tenantId)!.add(allocatedEntry.namespaceName);
-        this.emit('namespace:allocated', { tenantId, namespace: allocatedEntry });
+        this.tenantAllocations.get(tenantKey)!.add(allocatedEntry.namespaceName);
+        this.emit('namespace:allocated', { tenantId: tenantKey, namespace: allocatedEntry });
         return { success: true, namespace: allocatedEntry };
       } catch (err) {
         return { success: false, error: `Failed to allocate namespace: ${err}` };
@@ -203,24 +204,24 @@ export class NamespacePoolService extends EventEmitter {
     // in-memory fallback
     const allocatedEntry: NamespacePoolEntry = {
       ...availableEntry,
-      tenantId,
+      tenantId: tenantKey,
       status: 'allocated',
       purpose: options.purpose || 'tenant-workspace',
       labels: {
         ...availableEntry.labels,
         ...options.labels,
-        'orion.io/tenant': tenantId.toString(),
+        'orion.io/tenant': String(tenantKey),
       },
       allocatedAt: new Date(),
       updatedAt: new Date(),
     };
 
     this.pool.set(allocatedEntry.namespaceName, allocatedEntry);
-    if (!this.tenantAllocations.has(tenantId)) {
-      this.tenantAllocations.set(tenantId, new Set());
+    if (!this.tenantAllocations.has(tenantKey)) {
+      this.tenantAllocations.set(tenantKey, new Set());
     }
-    this.tenantAllocations.get(tenantId)!.add(allocatedEntry.namespaceName);
-    this.emit('namespace:allocated', { tenantId, namespace: allocatedEntry });
+    this.tenantAllocations.get(tenantKey)!.add(allocatedEntry.namespaceName);
+    this.emit('namespace:allocated', { tenantId: tenantKey, namespace: allocatedEntry });
 
     return {
       success: true,

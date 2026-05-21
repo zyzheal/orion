@@ -760,24 +760,89 @@ export default async function tenantRoutes(
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { tenantId } = request.params as { tenantId: string };
 
-    const namespaces = namespacePool.getTenantNamespaces(parseInt(tenantId, 10) || 0);
+    if (!options.database) {
+      // Fallback to namespace pool service if no database
+      const namespaces = namespacePool.getTenantNamespaces(parseInt(tenantId, 10) || 0);
+      const namespaceDetails = namespaces.map(ns => ({
+        id: ns.id,
+        namespaceName: ns.namespaceName,
+        status: ns.status,
+        allocatedAt: ns.allocatedAt,
+        runnerCount: 0,
+        pipelineCount: 0,
+        activeRuns: 0,
+        cpuUsed: 0,
+        memoryUsed: 0,
+      }));
+      return reply.send({
+        namespaces: namespaceDetails,
+        total: namespaceDetails.length,
+      });
+    }
 
-    const namespaceDetails = namespaces.map(ns => ({
-      id: ns.id,
-      namespaceName: ns.namespaceName,
-      status: ns.status,
-      allocatedAt: ns.allocatedAt,
-      runnerCount: 0,
-      pipelineCount: 0,
-      activeRuns: 0,
-      cpuUsed: 0,
-      memoryUsed: 0,
-    }));
+    try {
+      // Get namespace allocations from database
+      const nsResult = await options.database.query(
+        `SELECT id, namespace_name, status, tenant_id, allocated_at, purpose, runner_count
+         FROM namespace_allocations
+         WHERE tenant_id = $1
+         ORDER BY allocated_at DESC`,
+        [tenantId]
+      );
 
-    return reply.send({
-      namespaces: namespaceDetails,
-      total: namespaceDetails.length,
-    });
+      // Get usage stats for each namespace
+      const namespaceDetails = await Promise.all(
+        nsResult.rows.map(async (row: any) => {
+          // Get pipeline count for this namespace
+          const pipelineResult = await options.database?.query(
+            `SELECT COUNT(*) as count FROM pipelines WHERE namespace = $1`,
+            [row.namespace_name]
+          );
+          const pipelineCount = parseInt(pipelineResult?.rows[0]?.count || '0', 10);
+
+          // Get active runs count
+          const runsResult = await options.database?.query(
+            `SELECT COUNT(*) as count FROM pipeline_runs
+             WHERE namespace = $1 AND status IN ('pending', 'running')`,
+            [row.namespace_name]
+          );
+          const activeRuns = parseInt(runsResult?.rows[0]?.count || '0', 10);
+
+          return {
+            id: row.id,
+            namespaceName: row.namespace_name,
+            status: row.status,
+            allocatedAt: row.allocated_at,
+            purpose: row.purpose,
+            runnerCount: row.runner_count || 0,
+            pipelineCount,
+            activeRuns,
+            cpuUsed: 0,  // Would require integration with K8s metrics API
+            memoryUsed: 0,  // Would require integration with K8s metrics API
+          };
+        })
+      );
+
+      // Calculate totals
+      const totals = {
+        totalNamespaces: namespaceDetails.length,
+        totalPipelines: namespaceDetails.reduce((sum, ns) => sum + ns.pipelineCount, 0),
+        totalActiveRuns: namespaceDetails.reduce((sum, ns) => sum + ns.activeRuns, 0),
+        totalRunners: namespaceDetails.reduce((sum, ns) => sum + ns.runnerCount, 0),
+      };
+
+      return reply.send({
+        namespaces: namespaceDetails,
+        total: namespaceDetails.length,
+        totals,
+      });
+    } catch (error: any) {
+      console.error('[tenant/namespace/usage] Error:', error);
+      return reply.status(500).send({
+        error: 'NAMESPACE_USAGE_ERROR',
+        message: error.message,
+      });
+    }
   });
 
   // ==================== Tenant User Management ====================
@@ -1216,6 +1281,266 @@ export default async function tenantRoutes(
       console.error('[tenant/invite/get] Error:', error);
       return reply.status(500).send({
         error: 'GET_INVITE_ERROR',
+        message: error.message,
+      });
+    }
+  });
+
+  // ==================== Tenant Alerts (Quota Alerts) ====================
+
+  // GET /tenant/alerts - 获取租户告警历史
+  app.get('/alerts', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'tenant', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const tenantIdHeader = request.headers['x-tenant-id'] as string;
+    const { page = '1', limit = '20', resourceType, status } = request.query as Record<string, string>;
+
+    if (!tenantIdHeader) {
+      return reply.status(400).send({
+        error: 'MISSING_TENANT_ID',
+        message: 'X-Tenant-ID header is required',
+      });
+    }
+
+    if (!options.database) {
+      return reply.status(503).send({
+        error: 'SERVICE_UNAVAILABLE',
+        message: 'Database not available',
+      });
+    }
+
+    try {
+      const pageNum = parseInt(page, 10);
+      const limitNum = parseInt(limit, 10);
+      const offset = (pageNum - 1) * limitNum;
+
+      // Build query with filters
+      let whereClause = 'WHERE tenant_id = $1';
+      const queryParams: any[] = [tenantIdHeader];
+      let paramIndex = 2;
+
+      if (resourceType) {
+        whereClause += ` AND resource_type = $${paramIndex}`;
+        queryParams.push(resourceType);
+        paramIndex++;
+      }
+
+      if (status) {
+        whereClause += ` AND notify_status = $${paramIndex}`;
+        queryParams.push(status);
+        paramIndex++;
+      }
+
+      // Get total count
+      const countResult = await options.database.query(
+        `SELECT COUNT(*) as total FROM tenant_quota_alerts ${whereClause}`,
+        queryParams
+      );
+      const total = parseInt(countResult.rows[0]?.total || '0', 10);
+
+      // Get paginated alerts
+      const result = await options.database.query(
+        `SELECT id, tenant_id, resource_type, threshold_percent, current_usage,
+                quota_limit, notify_status, cooldown_until, created_at
+         FROM tenant_quota_alerts ${whereClause}
+         ORDER BY created_at DESC
+         LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
+        [...queryParams, limitNum, offset]
+      );
+
+      const alerts = result.rows.map((row: any) => ({
+        id: row.id,
+        tenantId: row.tenant_id,
+        resourceType: row.resource_type,
+        thresholdPercent: row.threshold_percent,
+        currentUsage: row.current_usage,
+        quotaLimit: row.quota_limit,
+        usagePercent: row.quota_limit > 0 ? Math.round((row.current_usage / row.quota_limit) * 100) : 0,
+        notifyStatus: row.notify_status,
+        cooldownUntil: row.cooldown_until,
+        createdAt: row.created_at,
+      }));
+
+      return reply.send({
+        alerts,
+        total,
+        page: pageNum,
+        limit: limitNum,
+        totalPages: Math.ceil(total / limitNum),
+      });
+    } catch (error: any) {
+      console.error('[tenant/alerts] Error:', error);
+      return reply.status(500).send({
+        error: 'ALERTS_QUERY_ERROR',
+        message: error.message,
+      });
+    }
+  });
+
+  // GET /tenant/current - 获取当前租户信息
+  app.get('/current', {
+    onRequest: [authenticateUser],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const tenantIdHeader = request.headers['x-tenant-id'] as string;
+
+    if (!tenantIdHeader) {
+      return reply.status(400).send({
+        error: 'MISSING_TENANT_ID',
+        message: 'X-Tenant-ID header is required',
+      });
+    }
+
+    if (!options.database) {
+      return reply.status(503).send({
+        error: 'SERVICE_UNAVAILABLE',
+        message: 'Database not available',
+      });
+    }
+
+    try {
+      // Get tenant info
+      const tenantResult = await options.database.query(
+        `SELECT id, name, display_name, status, settings, created_at, updated_at
+         FROM tenants WHERE id = $1`,
+        [tenantIdHeader]
+      );
+
+      if (tenantResult.rows.length === 0) {
+        return reply.status(404).send({
+          error: 'TENANT_NOT_FOUND',
+          message: 'Tenant not found',
+        });
+      }
+
+      const tenant = tenantResult.rows[0];
+
+      // Get quota info
+      const quota = await quotaService.getQuota(0, tenantIdHeader);
+
+      // Get namespace count
+      const nsResult = await options.database.query(
+        `SELECT COUNT(*) as count FROM namespace_allocations WHERE tenant_id = $1`,
+        [tenantIdHeader]
+      );
+      const namespaceCount = parseInt(nsResult.rows[0]?.count || '0', 10);
+
+      // Get active alert count
+      const alertResult = await options.database.query(
+        `SELECT COUNT(*) as count FROM tenant_quota_alerts
+         WHERE tenant_id = $1 AND notify_status = 'sent'
+         AND (cooldown_until IS NULL OR cooldown_until < NOW())`,
+        [tenantIdHeader]
+      );
+      const activeAlertCount = parseInt(alertResult.rows[0]?.count || '0', 10);
+
+      return reply.send({
+        tenant: {
+          id: tenant.id,
+          name: tenant.name,
+          displayName: tenant.display_name,
+          status: tenant.status,
+          settings: tenant.settings,
+          createdAt: tenant.created_at,
+          updatedAt: tenant.updated_at,
+        },
+        quota,
+        namespaces: {
+          count: namespaceCount,
+          limit: quota.maxNamespaces,
+        },
+        alerts: {
+          activeCount: activeAlertCount,
+        },
+      });
+    } catch (error: any) {
+      console.error('[tenant/current] Error:', error);
+      return reply.status(500).send({
+        error: 'CURRENT_TENANT_ERROR',
+        message: error.message,
+      });
+    }
+  });
+
+  // GET /tenant/alerts/stats - 获取租户告警统计
+  app.get('/alerts/stats', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'tenant', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const tenantIdHeader = request.headers['x-tenant-id'] as string;
+
+    if (!tenantIdHeader) {
+      return reply.status(400).send({
+        error: 'MISSING_TENANT_ID',
+        message: 'X-Tenant-ID header is required',
+      });
+    }
+
+    if (!options.database) {
+      return reply.status(503).send({
+        error: 'SERVICE_UNAVAILABLE',
+        message: 'Database not available',
+      });
+    }
+
+    try {
+      // Get alert counts by status
+      const statusResult = await options.database.query(
+        `SELECT notify_status, COUNT(*) as count
+         FROM tenant_quota_alerts
+         WHERE tenant_id = $1
+         GROUP BY notify_status`,
+        [tenantIdHeader]
+      );
+
+      // Get alert counts by resource type (last 7 days)
+      const resourceResult = await options.database.query(
+        `SELECT resource_type, COUNT(*) as count
+         FROM tenant_quota_alerts
+         WHERE tenant_id = $1 AND created_at > NOW() - INTERVAL '7 days'
+         GROUP BY resource_type`,
+        [tenantIdHeader]
+      );
+
+      // Get active alerts (not in cooldown)
+      const activeResult = await options.database.query(
+        `SELECT id, resource_type, threshold_percent, current_usage, quota_limit, created_at
+         FROM tenant_quota_alerts
+         WHERE tenant_id = $1 AND notify_status = 'sent'
+         AND (cooldown_until IS NULL OR cooldown_until < NOW())
+         ORDER BY created_at DESC
+         LIMIT 10`,
+        [tenantIdHeader]
+      );
+
+      const statusCounts: Record<string, number> = {};
+      statusResult.rows.forEach((row: any) => {
+        statusCounts[row.notify_status] = parseInt(row.count, 10);
+      });
+
+      const resourceCounts: Record<string, number> = {};
+      resourceResult.rows.forEach((row: any) => {
+        resourceCounts[row.resource_type] = parseInt(row.count, 10);
+      });
+
+      const activeAlerts = activeResult.rows.map((row: any) => ({
+        id: row.id,
+        resourceType: row.resource_type,
+        thresholdPercent: row.threshold_percent,
+        currentUsage: row.current_usage,
+        quotaLimit: row.quota_limit,
+        usagePercent: row.quota_limit > 0 ? Math.round((row.current_usage / row.quota_limit) * 100) : 0,
+        createdAt: row.created_at,
+      }));
+
+      return reply.send({
+        byStatus: statusCounts,
+        byResourceType: resourceCounts,
+        activeAlerts,
+        totalActive: activeAlerts.length,
+      });
+    } catch (error: any) {
+      console.error('[tenant/alerts/stats] Error:', error);
+      return reply.status(500).send({
+        error: 'ALERTS_STATS_ERROR',
         message: error.message,
       });
     }

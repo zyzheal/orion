@@ -89,11 +89,21 @@ export class TenantQuotaService extends EventEmitter {
   /**
    * 获取租户配额配置
    */
-  async getQuota(tenantId: number): Promise<TenantQuota> {
+  async getQuota(tenantId: number, tenantUuid?: string): Promise<TenantQuota> {
     if (this.repository) {
-      const entity = await this.repository.findByTenantId(String(tenantId));
-      if (entity) {
-        return this.mapEntityToQuota(entity);
+      // Try UUID first (primary key)
+      if (tenantUuid && this.isUuid(tenantUuid)) {
+        const uuidEntity = await this.repository.findByTenantId(tenantUuid);
+        if (uuidEntity) {
+          return this.mapEntityToQuota(uuidEntity);
+        }
+      }
+      // Fallback to numeric ID only if it looks like a valid UUID or short ID
+      if (tenantId > 0) {
+        const entity = await this.repository.findByTenantId(String(tenantId));
+        if (entity) {
+          return this.mapEntityToQuota(entity);
+        }
       }
     }
     // in-memory fallback (tests / no-DB environments)
@@ -102,6 +112,10 @@ export class TenantQuotaService extends EventEmitter {
       return cached;
     }
     return { ...DEFAULT_QUOTA, tenantId };
+  }
+
+  private isUuid(value: string): boolean {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
   }
 
   private mapEntityToQuota(entity: TenantQuotaEntity): TenantQuota {
