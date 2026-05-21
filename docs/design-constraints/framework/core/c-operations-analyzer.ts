@@ -11,6 +11,22 @@
  * C7: 部署发布 (6项) - 部署策略、回滚机制
  * C8: 运维自动化 (5项) - 自动化巡检、自愈机制
  *
+ * 已实现: C2 扩展性完整 14 项检测
+ *   - C2-01: SPI/Plugin (P0) - 插件/扩展机制
+ *   - C2-02: 插件热插拔 (P1) - 动态加载/卸载插件
+ *   - C2-03: 插件隔离 (P1) - Sandbox/VM 隔离
+ *   - C2-04: 动态配置 (P0) - 配置热加载
+ *   - C2-05: 配置回滚 (P1) - 变更可回滚
+ *   - C2-06: 配置版本 (P1) - 版本管理
+ *   - C2-07: 事件总线 (P1) - 事件驱动架构
+ *   - C2-08: 事件溯源 (P1) - EventSourcing 模式
+ *   - C2-09: 事件版本兼容 (P1) - Schema 演化
+ *   - C2-10: 无状态设计 (P0) - 分布式缓存
+ *   - C2-11: 会话外置 (P0) - Redis session
+ *   - C2-12: 负载均衡 (P0) - K8s/Inginx 策略
+ *   - C2-13: 依赖注入 (P1) - IoC 容器
+ *   - C2-14: 接口抽象 (P1) - interface/抽象类
+ *
  * 已实现: C4 可观测性完整 6 项检测
  *   - C4-01: 监控指标 (P0) - prometheus metrics 暴露
  *   - C4-02: 告警规则 (P0) - 阈值/级别/渠道/抑制
@@ -55,12 +71,17 @@ export type OperationsIssueType =
   | 'missing-degradation-hint'
   // C2 扩展性
   | 'missing-plugin-mechanism'
+  | 'missing-plugin-hot-swap'
+  | 'missing-plugin-isolation'
   | 'missing-config-hot-reload'
   | 'missing-event-bus'
+  | 'missing-event-sourcing'
+  | 'missing-event-version'
   | 'missing-stateless-design'
   | 'missing-session-external'
   | 'missing-load-balancing'
   | 'missing-di'
+  | 'missing-interface-abstract'
   | 'missing-config-versioning'
   | 'missing-config-rollback'
   // C3 生态集成
@@ -154,12 +175,19 @@ export class COperationsAnalyzerBackend {
 
     // C2 扩展性检测
     this.detectMissingEventBus();
-    this.detectMissingPluginMechanism();
-    this.detectMissingConfigHotReload();
-    this.detectMissingStatelessDesign();
-    this.detectMissingSessionExternal();
-    this.detectMissingConfigVersioning();
-    this.detectMissingConfigRollback();
+    this.detectMissingEventSourcing();      // C2-08: 事件溯源 (P1)
+    this.detectMissingEventVersion();       // C2-09: 事件版本兼容 (P1)
+    this.detectMissingPluginMechanism();    // C2-01: SPI/Plugin (P0) - 已实现
+    this.detectMissingPluginHotSwap();      // C2-02: 插件热插拔 (P1)
+    this.detectMissingPluginIsolation();    // C2-03: 插件隔离 (P1)
+    this.detectMissingConfigHotReload();    // C2-04: 动态配置 (P0) - 已实现
+    this.detectMissingConfigRollback();     // C2-05: 配置回滚 (P1) - 已实现
+    this.detectMissingConfigVersioning();   // C2-06: 配置版本 (P1) - 已实现
+    this.detectMissingLoadBalancing();      // C2-12: 负载均衡 (P0)
+    this.detectMissingDependencyInjection(); // C2-13: 依赖注入 (P1)
+    this.detectMissingInterfaceAbstract();  // C2-14: 接口抽象 (P1)
+    this.detectMissingStatelessDesign();    // C2-10: 无状态设计 (P0) - 已实现
+    this.detectMissingSessionExternal();    // C2-11: 会话外置 (P0) - 已实现
 
     // C3 生态集成检测
     this.detectMissingTimeoutRetry();
@@ -881,6 +909,223 @@ export class COperationsAnalyzerBackend {
         message: '配置变更缺少回滚机制',
         suggestion: '建议实现配置变更回滚功能',
         checkId: 'C2-05',
+      });
+    }
+  }
+
+  // ============ C2-02: 插件热插拔 (P1) ============
+
+  /**
+   * 检测是否支持插件热插拔
+   * 要求: 动态加载/卸载插件，无需重启服务
+   */
+  private detectMissingPluginHotSwap(): void {
+    const isMainFile = /index\.ts$|server\.ts$|app\.ts$/i.test(this.filePath);
+    if (!isMainFile) return;
+
+    // 检测是否有热插拔相关实现
+    const hasHotReload = /unload.*plugin|loadPlugin|dynamic.*import\(|plugin.*register|registerPlugin/i.test(this.content);
+    const hasWatchMode = /watch.*plugin|plugin.*watch|fs\.watch/i.test(this.content);
+
+    if (!hasHotReload && !hasWatchMode) {
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-plugin-hot-swap',
+        severity: 'P1',
+        message: '插件系统缺少热插拔支持',
+        suggestion: '建议实现插件热插拔，支持动态加载/卸载插件，无需重启服务',
+        checkId: 'C2-02',
+      });
+    }
+  }
+
+  // ============ C2-03: 插件隔离 (P1) ============
+
+  /**
+   * 检测是否有插件隔离机制
+   * 要求: 使用 Sandbox/iframe/WebWorker 等隔离技术
+   */
+  private detectMissingPluginIsolation(): void {
+    const isMainFile = /index\.ts$|server\.ts$|app\.ts$/i.test(this.filePath);
+    if (!isMainFile) return;
+
+    // 检测是否有隔离机制
+    const hasSandbox = /sandbox|vm2|isolatedModules|webWorker|iframe|worker_threads|child_process/i.test(this.content);
+    const hasNamespace = /namespace.*plugin|plugin.*namespace|module.*isolation/i.test(this.content);
+
+    if (!hasSandbox && !hasNamespace) {
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-plugin-isolation',
+        severity: 'P1',
+        message: '插件系统缺少隔离机制',
+        suggestion: '建议使用 Sandbox/VM2/worker_threads 等技术隔离插件运行环境',
+        checkId: 'C2-03',
+      });
+    }
+  }
+
+  // ============ C2-08: 事件溯源 (P1) ============
+
+  /**
+   * 检测是否实现事件溯源
+   * 要求: EventStore/EventSourcing 模式，聚合根ID，状态变更历史
+   */
+  private detectMissingEventSourcing(): void {
+    const isMainFile = /index\.ts$|server\.ts$|app\.ts$/i.test(this.filePath);
+    const isServiceFile = /service|domain/i.test(this.filePath);
+    if (!isMainFile && !isServiceFile) return;
+
+    // 检测事件溯源相关模式
+    const hasEventStore = /eventStore|EventStore|eventRepository|eventLog/i.test(this.content);
+    const hasAggregateId = /aggregateId|aggregate.*id|entity.*id/i.test(this.content);
+    const hasStateHistory = /stateHistory|history|snapshot|event.*stream/i.test(this.content);
+
+    if (!hasEventStore && !hasAggregateId && !hasStateHistory) {
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-event-sourcing',
+        severity: 'P1',
+        message: '服务缺少事件溯源机制',
+        suggestion: '建议使用 EventSourcing 模式，记录完整的状态变更历史',
+        checkId: 'C2-08',
+      });
+    }
+  }
+
+  // ============ C2-09: 事件版本兼容 (P1) ============
+
+  /**
+   * 检测是否有事件版本兼容性处理
+   * 要求: 事件版本号，Schema 演化，向后兼容
+   */
+  private detectMissingEventVersion(): void {
+    const isMainFile = /index\.ts$|server\.ts$|app\.ts$/i.test(this.filePath);
+    const isEventFile = /event|message|queue/i.test(this.filePath);
+    if (!isMainFile && !isEventFile) return;
+
+    // 检测事件版本相关实现
+    const hasEventVersion = /eventVersion|event.*version|messageVersion|protocolVersion/i.test(this.content);
+    const hasSchemaVersion = /schema.*version|schemaVersion|version.*schema/i.test(this.content);
+    const hasBackwardCompat = /backward.*compat|forward.*compat|compatible|transform.*event/i.test(this.content);
+
+    if (!hasEventVersion && !hasSchemaVersion && !hasBackwardCompat) {
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-event-version',
+        severity: 'P1',
+        message: '事件/消息缺少版本兼容机制',
+        suggestion: '建议为事件添加版本号，实现 Schema 演化和向后兼容处理',
+        checkId: 'C2-09',
+      });
+    }
+  }
+
+  // ============ C2-12: 负载均衡支持 (P0) ============
+
+  /**
+   * 检测是否支持负载均衡
+   * 要求: 支持 K8s Service/Ingress/Nginx 负载均衡
+   */
+  private detectMissingLoadBalancing(): void {
+    const isMainFile = /index\.ts$|server\.ts$|app\.ts$/i.test(this.filePath);
+    if (!isMainFile) return;
+
+    // 检测负载均衡相关配置
+    const hasLoadBalancer = /loadBalancer|kubernetes|service.*type.*LoadBalancer/i.test(this.content);
+    const hasIngress = /ingress|nginx|reverseProxy|proxy.*pass/i.test(this.content);
+    const hasRoundRobin = /roundRobin|leastConnection|sourceHash/i.test(this.content);
+    const hasHealthCheck = /health.*check|heartbeat|keepalive/i.test(this.content);
+
+    if (!hasLoadBalancer && !hasIngress && !hasRoundRobin) {
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-load-balancing',
+        severity: 'P0',
+        message: '服务缺少负载均衡支持配置',
+        suggestion: '建议配置 K8s Service/Ingress 或 Nginx 负载均衡策略',
+        checkId: 'C2-12',
+      });
+    } else if ((hasLoadBalancer || hasIngress) && !hasHealthCheck) {
+      // 有负载均衡但缺少健康检查
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-load-balancing',
+        severity: 'P1',
+        message: '负载均衡缺少健康检查配置',
+        suggestion: '建议配置健康检查，确保流量只分发到健康实例',
+        checkId: 'C2-12',
+      });
+    }
+  }
+
+  // ============ C2-13: 依赖注入 (P1) ============
+
+  /**
+   * 检测是否使用依赖注入
+   * 要求: 使用 IoC 容器，@Inject 装饰器，Reflect metadata
+   */
+  private detectMissingDependencyInjection(): void {
+    const isMainFile = /index\.ts$|server\.ts$|app\.ts$/i.test(this.filePath);
+    const isServiceFile = /service|controller|module/i.test(this.filePath);
+    if (!isMainFile && !isServiceFile) return;
+
+    // 检测依赖注入相关实现
+    const hasInject = /@Inject|inject\(|Container\.get|Reflect\.metadata|decorate.*injectable/i.test(this.content);
+    const hasDIFramework = /tsyringe|inversify|typedi|nestjs.*di|ioc.*container/i.test(this.content);
+    const hasProvider = /provider|provides|register.*singleton/i.test(this.content);
+
+    if (!hasInject && !hasDIFramework && !hasProvider) {
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-di',
+        severity: 'P1',
+        message: '服务缺少依赖注入机制',
+        suggestion: '建议使用 tsyringe/inversify/NestJS 等实现依赖注入',
+        checkId: 'C2-13',
+      });
+    }
+  }
+
+  // ============ C2-14: 接口抽象 (P1) ============
+
+  /**
+   * 检测是否有接口抽象
+   * 要求: 使用 interface 或抽象类定义抽象层
+   */
+  private detectMissingInterfaceAbstract(): void {
+    const isServiceFile = /service|repository|adapter/i.test(this.filePath);
+    if (!isServiceFile) return;
+
+    // 检测是否有接口或抽象类定义
+    const hasInterface = /interface\s+\w+|type\s+\w+\s*=/i.test(this.content);
+    const hasAbstractClass = /abstract\s+class/i.test(this.content);
+    const hasIMethod = /\s+I\w+|implements\s+\w+Interface/i.test(this.content);
+
+    if (!hasInterface && !hasAbstractClass && !hasIMethod) {
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-interface-abstract',
+        severity: 'P1',
+        message: '服务层缺少接口抽象',
+        suggestion: '建议使用 interface 或抽象类定义抽象层，便于实现替换',
+        checkId: 'C2-14',
       });
     }
   }
