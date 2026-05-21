@@ -277,9 +277,7 @@ export class MFSandboxBridge {
     key: string
   ): SubAppLifecycle {
     // Extract lifecycle from the first module (main entry)
-    // In real implementation, this would look for exports like:
-    // - bootstrap, mount, unmount
-    // - __esModule with default export
+    // Supports: ESM (__esModule), UMD, CJS (module.exports), nested default
 
     const module = remoteModules[0]?.chunk;
     let lifecycle: SubAppLifecycle = {
@@ -289,8 +287,23 @@ export class MFSandboxBridge {
     };
 
     if (module) {
-      // Try to get lifecycle from module exports
-      const exports = module.__esModule ? module.default : module;
+      // Multi-layer module format detection
+      let exports = module;
+
+      // ESM with __esModule flag
+      if (exports?.__esModule) {
+        exports = exports.default ?? exports;
+      }
+
+      // UMD compat: { default: { default: actual } }
+      if (
+        typeof exports === 'object' &&
+        exports !== null &&
+        'default' in exports &&
+        typeof exports.default !== 'function'
+      ) {
+        exports = exports.default;
+      }
 
       if (typeof exports === 'object' && exports !== null) {
         // Extract lifecycle methods
@@ -465,11 +478,13 @@ export class MFSandboxBridge {
         // Activate sandbox for unmount
         GlobalWrapper.activateSandbox(key);
         await instance.lifecycle.unmount();
-        GlobalWrapper.deactivateSandbox(key);
       }
     } catch (error) {
       console.error(`[orion-mf] Error during unmount for "${key}":`, error);
     }
+
+    // Always deactivate sandbox regardless of whether unmount lifecycle exists
+    GlobalWrapper.deactivateSandbox(key);
 
     // Unmount from DOM/Shadow DOM
     try {

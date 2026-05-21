@@ -203,14 +203,24 @@ export class PreloadStrategy {
   /**
    * 可见时预加载
    * 使用 IntersectionObserver 监听元素可见性
+   * 如果容器不存在，返回 Promise.resolve() 表示跳过
    *
    * @param appKey - 子应用标识
    * @param loader - 加载函数
    */
   prefetchOnVisible(appKey: string, loader: () => Promise<void>): Promise<void> {
+    // 先检查 DOM 中是否存在容器元素
+    // 注意：首次加载时容器可能尚未创建，此时应该跳过
+    if (typeof document === 'undefined') {
+      return this.prefetchNow(appKey, loader);
+    }
+
     const container = document.querySelector(`[data-orion-scope="orion-${appKey}"]`);
     if (!container) {
-      return this.prefetchNow(appKey, loader);
+      // 容器不存在说明子应用尚未渲染，跳过预加载
+      // 这符合"可见时预加载"的语义
+      console.debug(`[Preload] ${appKey}: container not found, skipping visible prefetch`);
+      return Promise.resolve();
     }
 
     return new Promise((resolve) => {

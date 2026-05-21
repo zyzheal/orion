@@ -233,13 +233,20 @@ export class DegradationStrategy {
   private async loadIframe(config: SubAppConfig): Promise<SubAppInstance> {
     const container = this.config.container ?? document.body;
 
-    // Determine entry URL
-    const entryUrl = config.entry_prod || config.remoteEntry;
+    // Determine entry URL - prefer HTML entry, fall back to remoteEntry
+    // remoteEntry is a JS bundle, not suitable for direct iframe loading
+    const entryUrl = config.entry_prod || config.entry_dev;
+    if (!entryUrl) {
+      throw new Error(
+        `[Degradation] iframe mode requires an HTML entry (entry_dev or entry_prod). ` +
+        `remoteEntry (${config.remoteEntry}) is a JS bundle and cannot be loaded directly in iframe.`
+      );
+    }
 
     // Create iframe element
     const iframe = document.createElement('iframe');
     iframe.src = entryUrl;
-    iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms');
+    iframe.setAttribute('sandbox', 'allow-scripts allow-forms allow-same-origin');
     iframe.style.width = '100%';
     iframe.style.height = '100%';
     iframe.style.border = 'none';

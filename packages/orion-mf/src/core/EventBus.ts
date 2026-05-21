@@ -34,11 +34,31 @@ export interface ChannelOptions {
 type ListenerMap = Map<string, Set<EventBusHandler>>;
 
 /**
- * Channel 类 - 负责管理特定通道内的事件订阅和发布
- * 私有类，不对外暴露
+ * Public API exposed by createChannel.
+ * Only exposes subscribe (on) and version inspection.
+ * emit/clear are intentionally hidden to prevent bypassing EventBus management.
  */
-class Channel {
+export interface ChannelPublicAPI {
+  /** Subscribe to events on this channel (with optional owner tracking) */
+  on(event: string, handler: EventBusHandler, owner?: string): () => void;
+  /** Unsubscribe from events */
+  off(event: string, handler: EventBusHandler): void;
+  /** Get channel version */
+  getVersion(): string;
+  /** Get listener count for an event */
+  getListenerCount(event: string): number;
+  /** Get subscribed event names */
+  getSubscribedEvents(): string[];
+}
+
+/**
+ * Channel 类 - 负责管理特定通道内的事件订阅和发布
+ * 内部类，通过 ChannelPublicAPI 对外暴露受限接口
+ */
+class Channel implements ChannelPublicAPI {
   private listeners: ListenerMap = new Map();
+  /** Track handlers by owner for batch cleanup */
+  private ownerHandlers = new Map<string, Set<EventBusHandler>>();
   private version: string;
 
   constructor(version: string) {
@@ -56,12 +76,47 @@ class Channel {
    * 订阅事件
    * @param event 事件名称
    * @param handler 事件处理函数
+   * @param owner 可选的所有者标识，用于批量清理
+   * @returns 取消订阅函数
    */
-  on(event: string, handler: EventBusHandler): void {
+  on(event: string, handler: EventBusHandler, owner?: string): () => void {
     if (!this.listeners.has(event)) {
       this.listeners.set(event, new Set());
     }
     this.listeners.get(event)!.add(handler);
+
+    // Track by owner for batch cleanup
+    if (owner) {
+      if (!this.ownerHandlers.has(owner)) {
+        this.ownerHandlers.set(owner, new Set());
+      }
+      this.ownerHandlers.get(owner)!.add(handler);
+    }
+
+    // Return unsubscribe function
+    return () => {
+      this.off(event, handler);
+      if (owner) {
+        this.ownerHandlers.get(owner)?.delete(handler);
+      }
+    };
+  }
+
+  /**
+   * 按所有者批量清理订阅
+   * @param owner 所有者标识
+   */
+  clearByOwner(owner: string): void {
+    const handlers = this.ownerHandlers.get(owner);
+    if (!handlers) return;
+
+    // Remove from all event listener sets
+    for (const handler of handlers) {
+      for (const listenerSet of this.listeners.values()) {
+        listenerSet.delete(handler);
+      }
+    }
+    this.ownerHandlers.delete(owner);
   }
 
   /**
@@ -77,6 +132,10 @@ class Channel {
    * 发布事件
    * @param event 事件名称
    * @param data 事件数据
+   *
+   * Note: Handlers receive an EventBusPayload envelope:
+   *   handler({ event, data, version })
+   * To access your data: `payload.data` contains the value passed here.
    */
   emit(event: string, data: any): void {
     const handlers = this.listeners.get(event);
@@ -115,6 +174,7 @@ class Channel {
    */
   clear(): void {
     this.listeners.clear();
+    this.ownerHandlers.clear();
   }
 }
 
@@ -160,8 +220,9 @@ export class EventBus {
    * 创建或获取 Channel
    * @param key Channel 标识符
    * @param version 可选的版本号，默认使用全局版本
+   * @returns ChannelPublicAPI — 仅暴露 on/off 和版本查询方法
    */
-  createChannel(key: string, version?: string): Channel {
+  createChannel(key: string, version?: string): ChannelPublicAPI {
     if (this.channels.has(key)) {
       return this.channels.get(key)!;
     }
@@ -180,6 +241,16 @@ export class EventBus {
     if (channel) {
       channel.clear();
       this.channels.delete(key);
+    }
+  }
+
+  /**
+   * 按所有者清理所有 Channel 中的订阅
+   * @param owner 所有者标识
+   */
+  cleanupByOwner(owner: string): void {
+    for (const channel of this.channels.values()) {
+      channel.clearByOwner(owner);
     }
   }
 
@@ -214,6 +285,15 @@ export class EventBus {
       channel.clear();
     }
     this.channels.clear();
+  }
+
+  /**
+   * Reset the singleton instance (TEST ONLY).
+   * Creates a fresh EventBus instance for isolated test execution.
+   * @internal
+   */
+  static resetForTest(): void {
+    EventBus.instance = new EventBus();
   }
 }
 

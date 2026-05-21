@@ -47,11 +47,19 @@ class CircuitBreaker {
   private maxFailures = 100; // Maximum records to keep
   private lastSuccess = 0;
   private lastFailure = 0;
+  private readonly key: string;
 
   constructor(
-    private key: string,
+    key: string,
     private config: CircuitBreakerConfig = DEFAULT_CONFIG
-  ) {}
+  ) {
+    this.key = key;
+  }
+
+  /** Get circuit breaker key */
+  getKey(): string {
+    return this.key;
+  }
 
   /**
    * Check if the circuit breaker is currently tripped
@@ -154,11 +162,8 @@ export class CrashRecovery {
    * @returns RecoveryContext with wrapped load function
    */
   setup(key: string, onLoad: () => Promise<void>): RecoveryContext {
-    const breaker = new CircuitBreaker(key, {
-      threshold: 3, // 3 failures
-      window: 5 * 60 * 1000, // 5 minute window
-      cooldown: 30 * 60 * 1000, // 30 minute cooldown
-    });
+    // Use DEFAULT_CONFIG for consistent settings
+    const breaker = new CircuitBreaker(key, DEFAULT_CONFIG);
 
     this.circuitBreakers.set(key, breaker);
 

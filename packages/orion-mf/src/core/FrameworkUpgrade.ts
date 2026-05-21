@@ -150,15 +150,22 @@ export function isVersionCompatible(
 }
 
 // ============================================================================
-// Built-in Codemod Definitions
+// Built-in Codemod Definitions (Experimental)
 // ============================================================================
 
-/** 已知的版本迁移规则 */
+/**
+ * 已知的版本迁移规则
+ *
+ * @experimental Codemod framework is in place but no built-in migration rules
+ * are registered yet. Use `registerMigration()` to add custom rules, or
+ * implement Codemod interfaces for your project-specific migrations.
+ */
 const VERSION_MIGRATIONS: Record<string, Codemod[]> = {};
 
 /**
  * 注册版本迁移规则
  *
+ * @experimental See VERSION_MIGRATIONS
  * @param fromVersion - 起始版本
  * @param toVersion - 目标版本
  * @param codemods - Codemod 列表

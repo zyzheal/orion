@@ -82,6 +82,15 @@ export const DENYLIST = new Set<PropertyKey>([
 ]);
 
 /**
+ * Properties blocked in getOwnPropertyDescriptor trap
+ * Subset of DENYLIST that could be used to bypass sandbox via reflection
+ */
+const REFLECTION_DENYLIST = new Set<PropertyKey>([
+  '__proto__', 'constructor', 'prototype',
+  'hasOwnProperty', 'isPrototypeOf',
+]);
+
+/**
  * Unscopables: Fast path for basic types in 'in' operator
  * These are handled in the has trap for performance
  */
@@ -385,6 +394,9 @@ export class Sandbox implements SandBox {
   /** Set of properties that have been modified */
   private updatedValueSet = new Set<PropertyKey>();
 
+  /** Pending writes queued while sandbox was inactive */
+  pendingWrites: Map<PropertyKey, unknown> | null = null;
+
   /** Properties that have getters */
   private propertiesWithGetter: Map<PropertyKey, boolean>;
 
@@ -422,6 +434,18 @@ export class Sandbox implements SandBox {
       activeSandboxCount++;
     }
     this.sandboxRunning = true;
+
+    // Apply pending writes that were queued while inactive
+    if (this.pendingWrites && this.pendingWrites.size > 0) {
+      for (const [key, value] of this.pendingWrites) {
+        try {
+          (this as any).proxy[key] = value;
+        } catch (e) {
+          console.warn(`[orion-mf] Failed to apply pending write for "${String(key)}":`, e);
+        }
+      }
+      this.pendingWrites.clear();
+    }
   }
 
   /**
@@ -504,14 +528,18 @@ export class Sandbox implements SandBox {
           return true;
         }
 
+        // Sandbox is inactive - queue the write for next activation
+        if (!sandbox.pendingWrites) {
+          sandbox.pendingWrites = new Map();
+        }
+        sandbox.pendingWrites.set(p, value);
+
         if (process.env.NODE_ENV === 'development') {
           console.warn(
-            `[orion-mf] Set window.${String(p)} while sandbox destroyed or inactive in ${name}!`
+            `[orion-mf] Set window.${String(p)} while sandbox inactive in ${name}, queued for next activation`
           );
         }
 
-        // In strict mode, returning false throws TypeError
-        // We should ignore errors when sandbox is inactive
         return true;
       },
 
@@ -601,6 +629,11 @@ export class Sandbox implements SandBox {
         target: Record<PropertyKey, unknown>,
         p: PropertyKey
       ): PropertyDescriptor | undefined {
+        // Block reflection-based sandbox escape for prototype pollution keys
+        if (REFLECTION_DENYLIST.has(p)) {
+          return undefined;
+        }
+
         if (target.hasOwnProperty(p)) {
           return Object.getOwnPropertyDescriptor(target, p);
         }
@@ -747,7 +780,10 @@ export const GlobalWrapper = {
   removeSandbox(name: string): boolean {
     const sandbox = sandboxRegistry.get(name);
     if (sandbox) {
-      sandbox.inactive();
+      // Only deactivate if still running to avoid double-decrementing activeSandboxCount
+      if (sandbox.sandboxRunning) {
+        sandbox.inactive();
+      }
       sandboxRegistry.delete(name);
       return true;
     }
@@ -758,7 +794,11 @@ export const GlobalWrapper = {
    * Clear all sandboxes
    */
   clearAll(): void {
-    sandboxRegistry.forEach((sandbox) => sandbox.inactive());
+    sandboxRegistry.forEach((sandbox) => {
+      if (sandbox.sandboxRunning) {
+        sandbox.inactive();
+      }
+    });
     sandboxRegistry.clear();
   },
 };

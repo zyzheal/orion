@@ -38,6 +38,7 @@ export const VALID_TRANSITIONS: StateTransition[] = [
   { from: 'loading', to: 'error', action: 'fail' },
   { from: 'bootstrapping', to: 'error', action: 'fail' },
   { from: 'mounting', to: 'error', action: 'fail' },
+  { from: 'mounted', to: 'error', action: 'fail' },
   { from: 'unmounting', to: 'error', action: 'fail' },
   { from: 'error', to: 'loading', action: 'retry' },
   { from: 'unmounted', to: 'loading', action: 'load' },

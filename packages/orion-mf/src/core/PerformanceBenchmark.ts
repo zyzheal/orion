@@ -1,11 +1,18 @@
 /**
  * OrionMF PerformanceBenchmark Module - Performance Benchmark Testing
  *
+ * ⚠️  DEV-ONLY MODULE: This module should NOT be used in production builds.
+ *  It directly imports core modules (DegradationStrategy, MFSandboxBridge, etc.)
+ *  which can trigger unintended sub-app loading during benchmarking.
+ *
+ *  Tree-shake this module in production via bundler configuration or
+ *  guard usage with `process.env.NODE_ENV !== 'production'`.
+ *
  * Provides 6 performance benchmarks:
  * - firstPaint: First paint time for single app load
  * - multiAppLoad: Load time for multiple apps in parallel
  * - switchLatency: App switching latency
- * - memoryUsage: JS heap memory usage
+ * - memoryUsage: JS heap memory usage (Chrome only, unavailable in Firefox/Safari)
  * - sandboxOverhead: Sandbox creation/destruction overhead
  * - cssIsolationOverhead: CSS isolation mounting overhead
  *
@@ -15,7 +22,7 @@
 import { DegradationStrategy } from './DegradationStrategy';
 import { MFSandboxBridge } from './MFSandboxBridge';
 import type { SubAppConfig } from './MFSandboxBridge';
-import { Sandbox, GlobalWrapper } from './Sandbox';
+import { GlobalWrapper } from './Sandbox';
 import { StyleIsolator } from './StyleIsolator';
 
 // ============================================================================
@@ -30,7 +37,7 @@ export interface BenchmarkResult {
   multiAppLoad: number;
   /** App switching latency in milliseconds */
   switchLatency: number;
-  /** Memory usage in bytes */
+  /** Memory usage in bytes (NaN if unavailable - Chrome only) */
   memoryUsage: number;
   /** Sandbox overhead in milliseconds */
   sandboxOverhead: number;
@@ -136,6 +143,11 @@ export class PerformanceBenchmark {
     bridge: MFSandboxBridge,
     config: BenchmarkConfig = {}
   ) {
+    if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'production') {
+      console.warn(
+        '[Benchmark] PerformanceBenchmark is a DEV-ONLY module and should not be used in production builds.'
+      );
+    }
     this.degradation = degradation;
     this.bridge = bridge;
     this.config = {
@@ -248,13 +260,13 @@ export class PerformanceBenchmark {
    * @returns Memory usage in bytes (0 if not available)
    */
   async measureMemoryUsage(config: SubAppConfig): Promise<number> {
-    // Check if Performance.memory API is available
+    // Check if Performance.memory API is available (Chrome only)
     if (!('memory' in performance)) {
-      console.warn('[Benchmark] Performance.memory API not available');
-      return 0;
+      // Return NaN to indicate "unavailable" rather than 0 which looks like a valid measurement
+      return NaN;
     }
 
-    // Force garbage collection if available
+    // Force garbage collection if available (requires --expose-gc flag)
     if ('gc' in window) {
       (window as any).gc();
     }
@@ -264,7 +276,7 @@ export class PerformanceBenchmark {
 
     // Get memory info
     const memory = (performance as any).memory;
-    return memory?.usedJSHeapSize ?? 0;
+    return memory?.usedJSHeapSize ?? NaN;
   }
 
   /**
@@ -321,6 +333,9 @@ export class PerformanceBenchmark {
     const metricEntries = Object.entries(results) as [keyof BenchmarkResult, number][];
 
     for (const [key, value] of metricEntries) {
+      // Skip NaN values (unavailable measurements)
+      if (Number.isNaN(value)) continue;
+
       const threshold = thresholds[key];
       if (threshold !== undefined && value > threshold) {
         const warning: ThresholdWarning = {

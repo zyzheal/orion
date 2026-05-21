@@ -12,13 +12,32 @@
 /** Store value with metadata */
 export interface StoreValue {
   data: unknown;
+  /** Per-key version number for CAS (Compare-And-Swap) support */
   version: number;
   timestamp: number;
   owner: string;
 }
 
 /** Subscriber callback type */
-export type SubscriberCallback = (key: string, value: unknown) => void;
+export type SubscriberCallback = (
+  key: string,
+  value: unknown,
+  meta: Pick<StoreValue, 'version' | 'timestamp' | 'owner'>
+) => void;
+
+/** Options for set operation */
+export interface SetOptions {
+  /** Expected version for CAS - write only if current version matches */
+  expectedVersion?: number;
+}
+
+/** Result of a CAS set operation */
+export interface CasResult {
+  /** Whether the write succeeded */
+  success: boolean;
+  /** Current version (may be newer if CAS failed) */
+  currentVersion: number;
+}
 
 // ============================================================================
 // GlobalStore Class
@@ -29,35 +48,55 @@ export type SubscriberCallback = (key: string, value: unknown) => void;
  *
  * Features:
  * - State sharing between micro-apps
- * - Version control to avoid stale data
+ * - Per-key version control with CAS (Compare-And-Swap) support
  * - Subscription mechanism for state changes
  * - Ownership tracking for cleanup
  */
 export class GlobalStore {
   private store = new Map<string, StoreValue>();
   private subscribers = new Map<string, Set<SubscriberCallback>>();
-  private version = 1;
 
   /**
    * Set global state
    * @param key - State key
    * @param value - State value
    * @param owner - Owner app key (sub-app identifier)
+   * @returns CasResult for CAS operations, void for simple set
    */
-  set(key: string, value: unknown, owner: string): void {
-    this.store.set(key, {
+  set(key: string, value: unknown, owner: string): void;
+  set(key: string, value: unknown, owner: string, options: SetOptions): CasResult;
+  set(key: string, value: unknown, owner: string, options?: SetOptions): void | CasResult {
+    const existing = this.store.get(key);
+    const currentVersion = existing?.version ?? 0;
+
+    // CAS check if expectedVersion is provided
+    if (options?.expectedVersion !== undefined) {
+      if (currentVersion !== options.expectedVersion) {
+        return { success: false, currentVersion };
+      }
+    }
+
+    const newVersion = currentVersion + 1;
+    const meta: StoreValue = {
       data: value,
-      version: this.version++,
+      version: newVersion,
       timestamp: Date.now(),
       owner,
-    });
+    };
+    this.store.set(key, meta);
 
-    // Notify subscribers
+    // Notify subscribers with metadata
     const keySubscribers = this.subscribers.get(key);
     if (keySubscribers) {
+      const { version, timestamp, owner: ownerName } = meta;
       for (const cb of keySubscribers) {
-        cb(key, value);
+        cb(key, value, { version, timestamp, owner: ownerName });
       }
+    }
+
+    // Return CAS result if options were provided
+    if (options?.expectedVersion !== undefined) {
+      return { success: true, currentVersion: newVersion };
     }
   }
 
@@ -73,7 +112,7 @@ export class GlobalStore {
   /**
    * Subscribe to state changes
    * @param key - State key to subscribe
-   * @param callback - Callback function
+   * @param callback - Callback function (receives key, value, and metadata)
    * @returns Unsubscribe function
    */
   subscribe(key: string, callback: SubscriberCallback): () => void {
@@ -102,13 +141,38 @@ export class GlobalStore {
   }
 
   /**
-   * Batch set multiple states
+   * Batch set multiple states with single notification batch
    * @param states - Record of key-value pairs
    * @param owner - Owner app key
    */
   setMany(states: Record<string, unknown>, owner: string): void {
+    const updatedKeys: string[] = [];
+
+    // First pass: update all values without notifying
     for (const [key, value] of Object.entries(states)) {
-      this.set(key, value, owner);
+      const existing = this.store.get(key);
+      const newVersion = (existing?.version ?? 0) + 1;
+      this.store.set(key, {
+        data: value,
+        version: newVersion,
+        timestamp: Date.now(),
+        owner,
+      });
+      updatedKeys.push(key);
+    }
+
+    // Second pass: batch notify subscribers
+    for (const key of updatedKeys) {
+      const entry = this.store.get(key);
+      if (entry) {
+        const keySubscribers = this.subscribers.get(key);
+        if (keySubscribers) {
+          const { version, timestamp, owner: ownerName } = entry;
+          for (const cb of keySubscribers) {
+            cb(key, entry.data, { version, timestamp, owner: ownerName });
+          }
+        }
+      }
     }
   }
 
@@ -164,7 +228,19 @@ export class GlobalStore {
   clear(): void {
     this.store.clear();
     this.subscribers.clear();
-    this.version = 1;
+  }
+
+  /**
+   * Reset the globalStore singleton (TEST ONLY).
+   * Replaces the exported reference with a fresh instance.
+   * @internal
+   */
+  static resetForTest(): void {
+    // The module-level export holds a reference to the old instance,
+    // so we just clear — tests should call globalStore.clear() in beforeEach.
+    // This method exists as a documented escape hatch if full re-instantiation is needed.
+    globalStore.store.clear();
+    globalStore.subscribers.clear();
   }
 
   /**
@@ -197,6 +273,18 @@ export const setGlobalState = (key: string, value: unknown, owner: string): void
 };
 
 /**
+ * Set global state with CAS (convenience function)
+ */
+export const setGlobalStateCas = (
+  key: string,
+  value: unknown,
+  owner: string,
+  expectedVersion: number
+): import('./GlobalStore').CasResult => {
+  return globalStore.set(key, value, owner, { expectedVersion });
+};
+
+/**
  * Get global state (convenience function)
  */
 export const getGlobalState = (key: string): unknown => {
@@ -218,6 +306,16 @@ export const subscribeGlobalState = (
  */
 export const getGlobalStates = (keys: string[]): Record<string, unknown> => {
   return globalStore.getMany(keys);
+};
+
+/**
+ * Batch set multiple global states (convenience function)
+ */
+export const setGlobalStates = (
+  states: Record<string, unknown>,
+  owner: string
+): void => {
+  globalStore.setMany(states, owner);
 };
 
 /**

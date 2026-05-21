@@ -232,3 +232,40 @@ export type {
   CodemodResult,
   UpgradeProgress,
 } from "./FrameworkUpgrade";
+
+// VueShadowCompat exports
+export { VueShadowCompat, createVueSubApp, destroyVueSubApp } from './VueShadowCompat';
+export type {
+  VueAppConfig,
+  VueAppInstance,
+  VueShadowCompatConfig,
+} from './VueShadowCompat';
+
+// Vue2ShadowCompat exports
+export { Vue2ShadowCompat, createVue2SubApp, destroyVue2SubApp } from './Vue2ShadowCompat';
+export type {
+  Vue2AppConfig,
+  Vue2AppInstance,
+  Vue2ShadowCompatConfig,
+} from './Vue2ShadowCompat';
+
+// MicroModuleManager exports
+export { MicroModuleManager } from './MicroModuleManager';
+export type {
+  MicroModuleConfig,
+  MicroModuleInstance,
+  MicroModuleLoadOptions,
+} from './MicroModuleManager';
+
+// DOMAPIPatcher exports
+export { DOMAPIPatcher } from './DOMAPIPatcher';
+
+// GlobalStyleCache exports
+export { GlobalStyleCache } from './GlobalStyleCache';
+
+// ReactRefreshDetector exports
+export {
+  ReactRefreshDetector,
+  detectReactRefresh,
+  isReactRefreshInjected,
+} from './ReactRefreshDetector';

@@ -140,8 +140,10 @@ export class StyleIsolator implements IStyleIsolator {
    * @param scopeId - Scope ID to use as prefix
    */
   scopeCSS(styleEl: HTMLStyleElement, scopeId: string): void {
-    // Avoid duplicate processing
-    if (styleEl.hasAttribute('data-orion-scoped')) {
+    const existingScopeId = styleEl.getAttribute('data-orion-scoped');
+
+    // Already scoped for this exact scope - skip
+    if (existingScopeId === scopeId) {
       return;
     }
 
@@ -150,9 +152,26 @@ export class StyleIsolator implements IStyleIsolator {
       return;
     }
 
-    const scopedCss = this.addScopePrefix(css, scopeId);
+    // If previously scoped for a different scope, un-scope first
+    // by removing the existing scope prefixes before re-scoping
+    const baseCss = existingScopeId
+      ? this.removeScopePrefix(css, existingScopeId)
+      : css;
+
+    const scopedCss = this.addScopePrefix(baseCss, scopeId);
     styleEl.textContent = scopedCss;
     styleEl.setAttribute('data-orion-scoped', scopeId);
+  }
+
+  /**
+   * Remove scope prefix from CSS (for re-scoping scenarios)
+   * @param css - Scoped CSS content
+   * @param scopeId - Scope ID to remove
+   * @returns Unscoped CSS content
+   */
+  private removeScopePrefix(css: string, scopeId: string): string {
+    const scopePattern = `\\[data-orion-scope="${scopeId}"\\]\\s*`;
+    return css.replace(new RegExp(scopePattern, 'g'), '');
   }
 
   /**
@@ -334,6 +353,11 @@ export class StyleIsolator implements IStyleIsolator {
           return s;
         }
 
+        // Handle CSS Nesting (&) — replace & with the scope selector
+        if (s.includes('&')) {
+          return s.replace(/&/g, `[data-orion-scope="${scopeId}"]`);
+        }
+
         // Regular selector - add scope prefix
         return `[data-orion-scope="${scopeId}"] ${s}`;
       })
@@ -351,11 +375,15 @@ export class StyleIsolator implements IStyleIsolator {
     const patchStyle = document.createElement('style');
     patchStyle.textContent = `
       /* OrionMF Style Isolation Patch */
-      /* Prevent external styles from affecting shadow DOM content */
+      /* Reset layout and box-model properties while preserving inherited typography */
 
-      /* Ensure scoped elements don't inherit unexpected styles */
       [data-orion-scope] {
-        all: initial;
+        all: revert;
+        box-sizing: border-box;
+      }
+
+      [data-orion-scope] * {
+        box-sizing: border-box;
       }
     `;
     patchStyle.setAttribute('data-orion-patch', 'true');

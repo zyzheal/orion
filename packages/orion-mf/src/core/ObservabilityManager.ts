@@ -131,7 +131,7 @@ export class ObservabilityManager {
   recordLoadStart(key: string): void {
     const m = this.getOrCreate(key);
     m.loadCount++;
-    this.loadStartTimes.set(key, Date.now());
+    this.loadStartTimes.set(key, performance.now());
   }
 
   /**
@@ -153,10 +153,11 @@ export class ObservabilityManager {
 
     this.loadTimes.set(key, times);
 
-    // 计算统计指标
-    m.avgLoadTime = this.average(times);
-    m.p95LoadTime = this.percentile(times, 95);
-    m.p99LoadTime = this.percentile(times, 99);
+    // 计算统计指标（优化：一次性排序，避免重复排序）
+    const sorted = [...times].sort((a, b) => a - b);
+    m.avgLoadTime = this.averageFromSorted(sorted);
+    m.p95LoadTime = this.percentileFromSorted(sorted, 95);
+    m.p99LoadTime = this.percentileFromSorted(sorted, 99);
 
     // 清除加载开始记录
     this.loadStartTimes.delete(key);
@@ -386,7 +387,30 @@ export class ObservabilityManager {
   }
 
   /**
-   * 计算平均值
+   * 计算平均值（从已排序数组）
+   * @param sorted 数值数组（已排序）
+   * @returns 平均值
+   */
+  private averageFromSorted(sorted: number[]): number {
+    if (sorted.length === 0) return 0;
+    const sum = sorted.reduce((a, b) => a + b, 0);
+    return sum / sorted.length;
+  }
+
+  /**
+   * 计算百分位数（从已排序数组）
+   * @param sorted 数值数组（已排序）
+   * @param p 百分位 (0-100)
+   * @returns 百分位数值
+   */
+  private percentileFromSorted(sorted: number[], p: number): number {
+    if (sorted.length === 0) return 0;
+    const idx = Math.ceil((p / 100) * sorted.length) - 1;
+    return sorted[Math.max(0, idx)];
+  }
+
+  /**
+   * 计算平均值（原始方法，保留兼容性）
    * @param values 数值数组
    * @returns 平均值
    */
@@ -394,21 +418,6 @@ export class ObservabilityManager {
     if (values.length === 0) return 0;
     const sum = values.reduce((a, b) => a + b, 0);
     return sum / values.length;
-  }
-
-  /**
-   * 计算百分位数
-   * @param values 数值数组
-   * @param p 百分位 (0-100)
-   * @returns 百分位数值
-   */
-  private percentile(values: number[], p: number): number {
-    if (values.length === 0) return 0;
-
-    // 排序副本
-    const sorted = [...values].sort((a, b) => a - b);
-    const idx = Math.ceil((p / 100) * sorted.length) - 1;
-    return sorted[Math.max(0, idx)];
   }
 }
 

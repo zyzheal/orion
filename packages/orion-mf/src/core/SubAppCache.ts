@@ -132,9 +132,12 @@ export class SubAppCache {
     }
 
     // 完全卸载模式：需要重新 mount
-    if (remount) {
-      await remount();
+    if (!remount) {
+      // 没有 remount 函数无法恢复，清除缓存条目
+      this.cache.delete(key);
+      return false;
     }
+    await remount();
     entry.timestamp = Date.now();
     // 更新缓存顺序（LRU）
     this.cache.delete(key);

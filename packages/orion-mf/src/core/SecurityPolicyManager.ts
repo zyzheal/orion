@@ -88,11 +88,12 @@ export const PRESETS: Record<PresetKey, SecurityPolicy> = {
 
   /**
    * None mode - for fully trusted micro-apps (e.g., main app built-in modules)
+   * Still preserves basic prototype pollution protection
    */
   none: {
     mode: 'none',
     whitelist: [],
-    blacklist: [],
+    blacklist: ['__proto__', 'constructor'],
     cssIsolation: 'none',
     isolateStorage: false,
     blockDynamicScripts: false,
