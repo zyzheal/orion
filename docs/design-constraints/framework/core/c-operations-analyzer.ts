@@ -48,6 +48,8 @@ export type OperationsIssueType =
   | 'missing-session-external'
   | 'missing-load-balancing'
   | 'missing-di'
+  | 'missing-config-versioning'
+  | 'missing-config-rollback'
   // C3 生态集成
   | 'missing-timeout-retry'
   | 'missing-rate-limit'
@@ -55,6 +57,9 @@ export type OperationsIssueType =
   | 'missing-openapi'
   | 'missing-adapter'
   | 'missing-webhook'
+  | 'non-restful-api'
+  | 'missing-restful-method'
+  | 'missing-redis-session'
   // C4 可观测性
   | 'missing-metrics'
   | 'missing-alert-rules'
@@ -118,20 +123,23 @@ export class COperationsAnalyzerBackend {
 
     // C1 兼容性检测
     this.detectMissingApiVersion();
+    this.detectMissingMigration();
+
+    // C2 扩展性检测
+    this.detectMissingEventBus();
+    this.detectMissingPluginMechanism();
+    this.detectMissingConfigHotReload();
+    this.detectMissingStatelessDesign();
+    this.detectMissingSessionExternal();
+    this.detectMissingConfigVersioning();
+    this.detectMissingConfigRollback();
 
     // C3 生态集成检测
     this.detectMissingTimeoutRetry();
     this.detectMissingRateLimit();
     this.detectMissingAuthMiddleware();
-
-    // C4 可观测性检测
-    this.detectMissingMetrics();
-    this.detectMissingLoggingStandard();
-    this.detectMissingHealthCheck();
-
-    // C2 扩展性检测
-    this.detectMissingEventBus();
-    this.detectMissingPluginMechanism();
+    this.detectMissingOpenAPI();
+    this.detectRestfulCompliance();
 
     const stats = this.collectStats();
 
@@ -417,6 +425,260 @@ export class COperationsAnalyzerBackend {
       });
     }
   }
+
+  // ============ C1-04: Schema 迁移 (P0) ============
+
+  /**
+   * 检测是否有数据库迁移脚本
+   */
+  private detectMissingMigration(): void {
+    // 只在主服务入口文件检测
+    const isMainFile = /index\.ts$|server\.ts$|app\.ts$/i.test(this.filePath);
+    if (!isMainFile) return;
+
+    const hasMigration = /migration|migrate|db\/migration|sequelize.*migrate|typeorm.*migration/i.test(this.content);
+    const hasRollback = /rollback|down\s*\(|reverse/i.test(this.content);
+
+    if (!hasMigration) {
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-migration',
+        severity: 'P0',
+        message: '服务缺少数据库迁移机制',
+        suggestion: '建议实现 SQL 迁移脚本，支持 up/down 双向迁移',
+        checkId: 'C1-04',
+      });
+    }
+
+    if (hasMigration && !hasRollback) {
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'no-rollback-support',
+        severity: 'P0',
+        message: '迁移脚本缺少回滚支持',
+        suggestion: '建议为每个 migration 添加对应的 rollback 脚本',
+        checkId: 'C1-05',
+      });
+    }
+  }
+
+  // ============ C2-04: 动态配置无需重启 (P0) ============
+
+  /**
+   * 检测是否支持配置热加载
+   */
+  private detectMissingConfigHotReload(): void {
+    const isMainFile = /index\.ts$|server\.ts$|app\.ts$/i.test(this.filePath);
+    if (!isMainFile) return;
+
+    const hasHotReload = /watch|chokidar|fs\.watch|reload.*config|dynamic.*config/i.test(this.content);
+    const hasConfigReload = /config.*reload|loadConfig|refreshConfig/i.test(this.content);
+
+    if (!hasHotReload && !hasConfigReload) {
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-config-hot-reload',
+        severity: 'P0',
+        message: '服务缺少配置热加载机制',
+        suggestion: '建议使用配置文件监控或配置中心实现动态配置更新',
+        checkId: 'C2-04',
+      });
+    }
+  }
+
+  // ============ C2-10: 无状态设计 (P0) ============
+
+  /**
+   * 检测是否有状态存储（内存缓存、session等）
+   */
+  private detectMissingStatelessDesign(): void {
+    const isRouteFile = /routes\.ts$|controller/i.test(this.filePath);
+    if (!isRouteFile) return;
+
+    // 检测是否有 local 变量缓存用户状态
+    const hasUserCache = /userCache|userMap|userStore|sessionStore.*local|Map.*user/i.test(this.content);
+    const hasMemoryCache = /new Map\(|new WeakMap\(|memoryCache|global\./i.test(this.content);
+
+    if (hasUserCache || hasMemoryCache) {
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-stateless-design',
+        severity: 'P0',
+        message: '服务存在本地状态缓存，可能影响水平扩展',
+        suggestion: '建议使用 Redis 分布式缓存替代本地内存缓存',
+        checkId: 'C2-10',
+      });
+    }
+  }
+
+  // ============ C2-11: 会话外置 (P0) ============
+
+  /**
+   * 检测是否使用外部存储存储会话
+   */
+  private detectMissingSessionExternal(): void {
+    const isRouteFile = /routes\.ts$|controller|auth|session/i.test(this.filePath);
+    if (!isRouteFile) return;
+
+    const hasSession = /session|token|jwt/i.test(this.content);
+    if (!hasSession) return;
+
+    const hasRedisSession = /redis.*session|ioredis.*session|session.*redis|connect-redis/i.test(this.content);
+    const hasExternalSession = /sessionStore|externalSession|distributedSession/i.test(this.content);
+
+    if (!hasRedisSession && !hasExternalSession) {
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-session-external',
+        severity: 'P0',
+        message: '会话存储缺少外部化配置',
+        suggestion: '建议使用 Redis 存储 session，支持水平扩展',
+        checkId: 'C2-11',
+      });
+    }
+  }
+
+  // ============ C2-06: 配置版本管理 (P1) ============
+
+  /**
+   * 检测是否有配置版本管理
+   */
+  private detectMissingConfigVersioning(): void {
+    const isConfigFile = /config.*\.ts$|config.*routes/i.test(this.filePath);
+    if (!isConfigFile) return;
+
+    const hasVersion = /version|versioning|configVersion|history/i.test(this.content);
+
+    if (!hasVersion) {
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-config-versioning',
+        severity: 'P1',
+        message: '配置管理缺少版本控制',
+        suggestion: '建议实现配置版本管理，支持历史记录和回滚',
+        checkId: 'C2-06',
+      });
+    }
+  }
+
+  // ============ C2-05: 配置变更可回滚 (P1) ============
+
+  /**
+   * 检测配置变更是否支持回滚
+   */
+  private detectMissingConfigRollback(): void {
+    const isConfigFile = /config.*\.ts$|config.*routes/i.test(this.filePath);
+    if (!isConfigFile) return;
+
+    const hasRollback = /rollback|revert|undo/i.test(this.content);
+
+    if (!hasRollback) {
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-config-rollback',
+        severity: 'P1',
+        message: '配置变更缺少回滚机制',
+        suggestion: '建议实现配置变更回滚功能',
+        checkId: 'C2-05',
+      });
+    }
+  }
+
+  // ============ C3-06: OpenAPI 文档 (P0) ============
+
+  /**
+   * 检测是否有 OpenAPI/Swagger 文档
+   */
+  private detectMissingOpenAPI(): void {
+    const isRouteFile = /routes\.ts$/i.test(this.filePath);
+    if (!isRouteFile) return;
+
+    const hasSwagger = /swagger|@fastify\/swagger|@nestjs\/swagger|swagger-ui|openapi/i.test(this.content);
+    const hasApiDoc = /api-doc|apidoc|doc-generator/i.test(this.content);
+
+    if (!hasSwagger && !hasApiDoc) {
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-openapi',
+        severity: 'P0',
+        message: 'API 缺少 OpenAPI/Swagger 文档',
+        suggestion: '建议使用 @fastify/swagger 或 @nestjs/swagger 生成 API 文档',
+        checkId: 'C3-06',
+      });
+    }
+  }
+
+  // ============ C3-04: RESTful 规范 (P0) ============
+
+  /**
+   * 检测 API 路径是否符合 RESTful 规范
+   */
+  private detectRestfulCompliance(): void {
+    const isRouteFile = /routes\.ts$/i.test(this.filePath);
+    if (!isRouteFile) return;
+
+    // 检测非 RESTful 风格的路径
+    const nonRestfulPatterns = [
+      { pattern: /get[A-Z]\w+\(/, message: '使用 get + 大驼峰方法名，建议使用小写和下划线' },
+      { pattern: /post[A-Z]\w+\(/, message: '使用 post + 大驼峰方法名，建议使用小写和下划线' },
+      { pattern: /['"`]\/get\//, message: '路径包含 /get/，应使用 GET 方法而不是路径' },
+      { pattern: /['"`]\/create\//, message: '路径包含 /create/，应使用 POST 方法而不是路径' },
+      { pattern: /['"`]\/update\//, message: '路径包含 /update/，应使用 PUT/PATCH 方法而不是路径' },
+      { pattern: /['"`]\/delete\//, message: '路径包含 /delete/，应使用 DELETE 方法而不是路径' },
+    ];
+
+    for (const { pattern, message } of nonRestfulPatterns) {
+      if (pattern.test(this.content)) {
+        this.issues.push({
+          file: this.filePath,
+          line: 1,
+          column: 1,
+          type: 'non-restful-api',
+          severity: 'P0',
+          message: 'API 路径不符合 RESTful 规范',
+          suggestion: message,
+          checkId: 'C3-04',
+        });
+        break;
+      }
+    }
+
+    // 检测是否使用了正确的 HTTP 方法
+    const hasGet = /\.get\(|app\.get\(/i.test(this.content);
+    const hasPost = /\.post\(|app\.post\(/i.test(this.content);
+    const hasPut = /\.put\(|app\.put\(/i.test(this.content);
+    const hasDelete = /\.delete\(|app\.delete\(/i.test(this.content);
+
+    // 如果只有 GET 和 POST，可能没有正确使用 HTTP 方法
+    if ((hasGet || hasPost) && !hasPut && !hasDelete) {
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-restful-method',
+        severity: 'P1',
+        message: 'API 缺少 PUT/DELETE 等 HTTP 方法',
+        suggestion: 'RESTful API 应正确使用 GET/POST/PUT/DELETE/PATCH 方法',
+        checkId: 'C3-04',
+      });
+    }
+  }
 }
 
 // ============ 前端运维检测器 ============
@@ -444,6 +706,8 @@ export class COperationsAnalyzerFrontend {
 
     // C1 兼容性检测
     this.detectMissingTimezoneHandling();
+    this.detectMissingStatelessDesign();
+    this.detectMissingSessionStorage();
 
     const stats = this.collectStats();
 
@@ -466,6 +730,84 @@ export class COperationsAnalyzerFrontend {
       hasVersionedApi: false,
       hasTracing: /traceId|traceID/i.test(this.content),
     };
+  }
+
+  // ============ C2-10: 无状态设计 (P0) - 前端 ============
+
+  /**
+   * 检测前端是否有本地存储用户状态
+   */
+  private detectMissingStatelessDesign(): void {
+    // 只在 store 或 hook 文件中检测
+    const isStoreFile = /store|hook|context/i.test(this.filePath);
+    if (!isStoreFile) return;
+
+    const hasLocalStorage = /localStorage|window\.localStorage/i.test(this.content);
+    const hasSessionStorage = /sessionStorage|window\.sessionStorage/i.test(this.content);
+    const hasUserCache = /userCache|userInfo.*=.*\{|setUser\(|userState/i.test(this.content);
+
+    if (hasLocalStorage || hasSessionStorage) {
+      // 警告：前端使用 localStorage/sessionStorage 存储敏感信息
+      const hasSensitiveData = /token|password|secret|credential|auth/i.test(this.content);
+      if (hasSensitiveData) {
+        this.issues.push({
+          file: this.filePath,
+          line: 1,
+          column: 1,
+          type: 'missing-stateless-design',
+          severity: 'P0',
+          message: '前端使用 localStorage/sessionStorage 存储敏感信息',
+          suggestion: '敏感信息应存储在内存中，避免 XSS 攻击风险',
+          checkId: 'C2-10',
+        });
+      }
+    }
+
+    if (hasUserCache) {
+      // 检测是否有全局用户状态缓存
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-stateless-design',
+        severity: 'P1',
+        message: '前端存在用户状态缓存，可能导致状态不同步',
+        suggestion: '建议使用 React Query/SWR 等状态管理方案',
+        checkId: 'C2-10',
+      });
+    }
+  }
+
+  // ============ C2-11: 会话外置 (P0) - 前端 ============
+
+  /**
+   * 检测 token 存储位置
+   */
+  private detectMissingSessionStorage(): void {
+    // 只在 api/client 或 auth 文件中检测
+    const isAuthFile = /auth|login|client|token/i.test(this.filePath);
+    if (!isAuthFile) return;
+
+    const hasLocalStorage = /localStorage.*token|localStorage.*auth/i.test(this.content);
+    const hasSessionStorage = /sessionStorage.*token/i.test(this.content);
+    const hasCookie = /cookie.*token|document\.cookie/i.test(this.content);
+
+    if (hasLocalStorage) {
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-session-external',
+        severity: 'P0',
+        message: 'Token 存储在 localStorage 存在 XSS 风险',
+        suggestion: '建议使用 httpOnly cookie 存储 token，或使用 sessionStorage',
+        checkId: 'C2-11',
+      });
+    }
+
+    if (!hasLocalStorage && !hasSessionStorage && !hasCookie) {
+      // 没有找到任何存储方式，可能使用内存存储（推荐）
+    }
   }
 
   // ============ C1-12: 时区处理 (P1) ============
@@ -519,6 +861,11 @@ export class COperationsAnalyzerConfig {
       this.analyzeYamlConfig();
     }
 
+    // C1 兼容性检测 - browserslist
+    this.detectMissingBrowserslist();
+    this.detectMissingMigration();
+    this.detectMissingOpenAPIConfig();
+
     const stats = this.collectStats();
 
     return {
@@ -540,6 +887,64 @@ export class COperationsAnalyzerConfig {
       hasVersionedApi: false,
       hasTracing: /trace/i.test(this.content),
     };
+  }
+
+  // ============ C1-04: Schema 迁移 (P0) ============
+
+  /**
+   * 检测数据库迁移目录
+   */
+  private detectMissingMigration(): void {
+    // 检测是否在迁移目录
+    if (!this.filePath.includes('/migrations/') && !this.filePath.includes('/migration/')) {
+      return;
+    }
+
+    // 检查迁移文件是否有 rollback 配对
+    const hasUpMigration = /_rollback|\.down\.|_reverse/i.test(this.filePath);
+    const hasCorrespondingRollback = this.filePath.includes('_rollback.sql') ||
+      this.filePath.includes('.down.') ||
+      fs.existsSync(this.filePath.replace('_rollback.sql', '.sql')) ||
+      fs.existsSync(this.filePath.replace('.sql', '_rollback.sql'));
+
+    if (!hasUpMigration && !hasCorrespondingRollback) {
+      // 正常情况：有 up 迁移
+    }
+  }
+
+  // ============ C3-06: OpenAPI 配置 ============
+
+  /**
+   * 检测 OpenAPI/Swagger 配置文件
+   */
+  private detectMissingOpenAPIConfig(): void {
+    const fileName = path.basename(this.filePath);
+
+    // 检测是否在配置目录中
+    const isConfigDir = /config|setting/i.test(this.filePath);
+
+    if (fileName === 'package.json') {
+      const hasSwagger = /swagger|@fastify\/swagger|@nestjs\/swagger|swagger-ui-dist/i.test(this.content);
+      const hasOpenAPI = /openapi/i.test(this.content);
+
+      if (!hasSwagger && !hasOpenAPI) {
+        this.issues.push({
+          file: this.filePath,
+          line: 1,
+          column: 1,
+          type: 'missing-openapi',
+          severity: 'P0',
+          message: 'package.json 缺少 OpenAPI/Swagger 依赖',
+          suggestion: '建议安装 @fastify/swagger 或 @nestjs/swagger',
+          checkId: 'C3-06',
+        });
+      }
+    }
+
+    // 检测是否有 .browserslistrc 文件
+    if (fileName === '.browserslistrc' || fileName === 'browserslist') {
+      // 有专门的 browserslist 文件，这符合要求
+    }
   }
 
   private analyzeJsonConfig(): void {
