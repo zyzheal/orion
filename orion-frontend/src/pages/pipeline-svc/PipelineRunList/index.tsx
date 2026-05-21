@@ -12,7 +12,7 @@
  * - Real-time status refresh (polling every 5s for running runs)
  */
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { Typography, Button, Space, Tag, DatePicker, message, Dropdown, type MenuProps } from 'antd';
+import { Typography, Button, Space, Tag, DatePicker, message, Dropdown } from 'antd';
 import { colors, spacing } from '@/tokens';
 import { ReloadOutlined, PlayCircleOutlined, RocketOutlined, StopOutlined, DownOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
