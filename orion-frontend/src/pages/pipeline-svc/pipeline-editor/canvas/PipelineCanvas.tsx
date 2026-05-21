@@ -60,6 +60,9 @@ export interface StageNodeData {
   status?: string;
   config?: Record<string, unknown>;
   index: number;
+  hasApproval?: boolean;
+  timeout?: number;
+  hasQualityGate?: boolean;
 }
 
 // ==================== Props ====================
