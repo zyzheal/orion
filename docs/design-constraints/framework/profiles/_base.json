@@ -1,0 +1,48 @@
+{
+  "version": "3.0",
+  "name": "base",
+  "priority": 0,
+  "description": "所有项目通用的基础检查项",
+  "checks": [
+    {
+      "id": "BASE-001",
+      "category": "crud",
+      "level": "P0",
+      "rule": "CRUD 完整性",
+      "description": "每个数据实体必须支持完整的增删改查操作",
+      "detection": "code-review"
+    },
+    {
+      "id": "BASE-002",
+      "category": "security",
+      "level": "P0",
+      "rule": "权限控制",
+      "description": "必须实现访问控制（RBAC/ABAC）",
+      "detection": "code-review"
+    },
+    {
+      "id": "BASE-003",
+      "category": "audit",
+      "level": "P0",
+      "rule": "审计日志",
+      "description": "敏感操作必须记录审计日志（谁、何时、做了什么）",
+      "detection": "code-review"
+    },
+    {
+      "id": "BASE-004",
+      "category": "error",
+      "level": "P0",
+      "rule": "异常处理",
+      "description": "必须有 try-catch、降级策略、错误码",
+      "detection": "code-review"
+    },
+    {
+      "id": "BASE-005",
+      "category": "validation",
+      "level": "P0",
+      "rule": "输入校验",
+      "description": "必须校验必填、格式、范围、业务规则",
+      "detection": "code-review"
+    }
+  ]
+}
