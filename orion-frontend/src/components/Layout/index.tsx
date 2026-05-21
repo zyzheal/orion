@@ -28,6 +28,7 @@ import SubAppLauncher from '@/components/SubAppLauncher';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { NotificationBell } from '@/components/NotificationBell';
 import { ChatTrigger, ChatPanel } from '@/components/ChatOps';
+import { TenantSelector } from '@/components/TenantSelector';
 import { initializeChatOpsStore } from '@/stores/chatOpsStore';
 import { useMenuConfigStore, type MenuModuleConfig } from '@/stores/menuConfigStore';
 import { MenuConfigPanel } from '@/components/MenuConfig';
@@ -489,6 +490,9 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
           {/* ChatOps 触发器 */}
           <ChatTrigger />
+
+          {/* 租户选择器 - 多租户时显示下拉，单租户时显示标签 */}
+          <TenantSelector />
 
           {/* 用户菜单 */}
           <Dropdown menu={{ items: userMenuItems }} placement="bottomRight" trigger={['click']}>

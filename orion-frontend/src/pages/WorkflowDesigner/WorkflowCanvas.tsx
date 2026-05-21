@@ -4,7 +4,7 @@
  * 可视化节点展示、SVG 连线、节点详情
  */
 import React, { useEffect, useState } from 'react';
-import { Button, Empty, Space, Tag, Typography, message, Drawer, Descriptions, Divider, Input, Form, Modal, Select } from 'antd';
+import { Button, Empty, Space, Tag, Typography, message, Drawer, Descriptions, Divider, Input, Form, Modal, Select, Table } from 'antd';
 import {
   PlayCircleOutlined,
   ZoomInOutlined,
@@ -12,6 +12,8 @@ import {
   DeleteOutlined,
   EditOutlined,
   CopyOutlined,
+  PlusOutlined,
+  MinusOutlined,
 } from '@ant-design/icons';
 import {
   getWorkflow,
@@ -24,6 +26,23 @@ import {
 import { colors } from '@/tokens';
 
 const { Text } = Typography;
+
+/**
+ * 输入变量映射：上游节点变量 -> 当前节点本地变量
+ */
+interface InputVariableMapping {
+  sourceNode: string;
+  sourceVar: string;
+  localVar: string;
+}
+
+/**
+ * 输出变量定义
+ */
+interface OutputVariable {
+  name: string;
+  description: string;
+}
 
 interface WorkflowCanvasProps {
   workflowId: string | null;
@@ -67,6 +86,17 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
   const [editForm] = Form.useForm();
   const [originalConfig, setOriginalConfig] = useState<Record<string, unknown> | null>(null);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
+  /** 输入变量映射列表（存储在 node.config.inputVariableMapping） */
+  const [inputMappings, setInputMappings] = useState<InputVariableMapping[]>([]);
+  /** 输出变量列表（存储在 node.config.outputVariables） */
+  const [outputVariables, setOutputVariables] = useState<OutputVariable[]>([]);
+  /** 新增输入映射的临时状态 */
+  const [newMappingSourceNode, setNewMappingSourceNode] = useState<string>('');
+  const [newMappingSourceVar, setNewMappingSourceVar] = useState<string>('');
+  const [newMappingLocalVar, setNewMappingLocalVar] = useState<string>('');
+  /** 新增输出变量的临时状态 */
+  const [newOutputName, setNewOutputName] = useState<string>('');
+  const [newOutputDesc, setNewOutputDesc] = useState<string>('');
 
   useEffect(() => {
     if (!workflowId) {

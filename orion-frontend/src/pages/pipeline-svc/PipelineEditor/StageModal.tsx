@@ -14,7 +14,9 @@ import {
   Button,
   Card,
   message,
-  Tabs,
+  Tag,
+  Collapse,
+  Radio,
 } from 'antd';
 import {
   PlusOutlined,
@@ -23,11 +25,16 @@ import {
   BranchesOutlined,
   UserOutlined,
   SafetyOutlined,
-  SettingOutlined,
-  RocketOutlined,
   ClockCircleOutlined,
 } from '@ant-design/icons';
-import type { StageConfig, MatrixBuildConfig } from './types';
+import type {
+  StageConfig,
+  MatrixBuildConfig,
+  TimeoutConfig,
+  ApprovalConfig,
+  QualityGateConfig,
+  QualityGateRule,
+} from './types';
 import MatrixConfigurator from '@/components/MatrixConfigurator';
 import PRTriggerConfigComponent, { type PRTriggerConfig as PRTriggerConfigType } from '@/components/PRTriggerConfig';
 import { getPipelines } from '@/api/pipelines';
@@ -75,6 +82,27 @@ const StageModal: React.FC<StageModalProps> = ({
     provider: 'github',
     prActions: ['opened', 'synchronize'],
   });
+  // 超时配置
+  const [timeoutConfig, setTimeoutConfig] = useState<TimeoutConfig>({
+    enabled: false,
+    duration: 300,
+    action: 'fail',
+    retryCount: 1,
+  });
+  // 审批配置
+  const [approvalConfig, setApprovalConfig] = useState<ApprovalConfig>({
+    enabled: false,
+    approvers: [],
+    mode: 'any',
+    timeout: 24,
+    timeoutAction: 'reject',
+  });
+  // 质量门禁配置
+  const [qualityGateConfig, setQualityGateConfig] = useState<QualityGateConfig>({
+    enabled: false,
+    rules: [],
+    failureAction: 'block',
+  });
   // 子流水线相关状态
   const [pipelineOptions, setPipelineOptions] = useState<{ label: string; value: string }[]>([]);
   const [subPipelineParams, setSubPipelineParams] = useState<{ key: string; value: string }[]>([
@@ -100,9 +128,6 @@ const StageModal: React.FC<StageModalProps> = ({
         cacheRestoreKeys: stage.cache?.restoreKeys?.join('\n') || '',
         artifactUpload: stage.artifacts?.upload?.join('\n') || '',
         artifactExpiry: stage.artifacts?.expiry || 7,
-        timeoutConfig: stage?.timeoutConfig || { enabled: false, duration: 300, action: 'fail' as const },
-        approvalConfig: stage?.approvalConfig || { enabled: false, approvers: [], mode: 'unanimous' as const, timeout: 0, timeoutAction: 'reject' as const },
-        qualityGateConfig: stage?.qualityGateConfig || { enabled: false, rules: [], failureAction: 'block' as const },
       });
       setCachePaths(stage.cache?.paths?.length ? stage.cache.paths : ['']);
       setArtifactPaths(stage.artifacts?.upload?.length ? stage.artifacts.upload : ['']);
@@ -133,6 +158,39 @@ const StageModal: React.FC<StageModalProps> = ({
           prActions: ['opened', 'synchronize'],
         });
       }
+      // 加载超时配置
+      if (stage.timeoutConfig) {
+        setTimeoutConfig(stage.timeoutConfig);
+      } else {
+        setTimeoutConfig({
+          enabled: false,
+          duration: 300,
+          action: 'fail',
+          retryCount: 1,
+        });
+      }
+      // 加载审批配置
+      if (stage.approvalConfig) {
+        setApprovalConfig(stage.approvalConfig);
+      } else {
+        setApprovalConfig({
+          enabled: false,
+          approvers: [],
+          mode: 'any',
+          timeout: 24,
+          timeoutAction: 'reject',
+        });
+      }
+      // 加载质量门禁配置
+      if (stage.qualityGateConfig) {
+        setQualityGateConfig(stage.qualityGateConfig);
+      } else {
+        setQualityGateConfig({
+          enabled: false,
+          rules: [],
+          failureAction: 'block',
+        });
+      }
     } else {
       form.resetFields();
       setCachePaths(['']);
@@ -142,6 +200,24 @@ const StageModal: React.FC<StageModalProps> = ({
         enabled: false,
         dimensions: [],
         exclusions: [],
+      });
+      setTimeoutConfig({
+        enabled: false,
+        duration: 300,
+        action: 'fail',
+        retryCount: 1,
+      });
+      setApprovalConfig({
+        enabled: false,
+        approvers: [],
+        mode: 'any',
+        timeout: 24,
+        timeoutAction: 'reject',
+      });
+      setQualityGateConfig({
+        enabled: false,
+        rules: [],
+        failureAction: 'block',
       });
     }
   }, [stage, form, visible]);
@@ -251,7 +327,7 @@ const StageModal: React.FC<StageModalProps> = ({
               exclusions: matrixConfig.exclusions,
             }
           : undefined,
-        // PR/MR 触发配置
+        // PR/MR 触发配置 - 显式构建完整对象，确保必填字段
         prTrigger: prTriggerConfig?.enabled
           ? {
               ...prTriggerConfig,
@@ -274,20 +350,15 @@ const StageModal: React.FC<StageModalProps> = ({
             } as PRTriggerConfigType
           : undefined,
         // 超时配置
-        timeoutConfig: values.timeoutConfig?.enabled
-          ? values.timeoutConfig
-          : undefined,
-        // 审批卡点配置
-        approvalConfig: values.approvalConfig?.enabled
-          ? values.approvalConfig
-          : undefined,
+        timeoutConfig: timeoutConfig.enabled ? timeoutConfig : undefined,
+        // 审批配置
+        approvalConfig: approvalConfig.enabled ? approvalConfig : undefined,
         // 质量门禁配置
-        qualityGateConfig: values.qualityGateConfig?.enabled
-          ? values.qualityGateConfig
-          : undefined,
+        qualityGateConfig: qualityGateConfig.enabled ? qualityGateConfig : undefined,
       };
       onSave(stageConfig);
     } catch (error: unknown) {
+      // Ant Design 表单验证失败会自动显示错误
       if (error && typeof error === 'object' && 'errorFields' in error) {
         return;
       }
@@ -319,6 +390,67 @@ const StageModal: React.FC<StageModalProps> = ({
     setArtifactPaths(newPaths);
   };
 
+  // 质量门禁规则管理
+  const handleAddQualityRule = () => {
+    const newRule: QualityGateRule = {
+      id: `rule-${Date.now()}`,
+      metric: 'test_pass_rate',
+      operator: '>=',
+      threshold: 80,
+    };
+    setQualityGateConfig((prev) => ({
+      ...prev,
+      rules: [...prev.rules, newRule],
+    }));
+  };
+  const handleRemoveQualityRule = (id: string) => {
+    setQualityGateConfig((prev) => ({
+      ...prev,
+      rules: prev.rules.filter((r) => r.id !== id),
+    }));
+  };
+  const handleUpdateQualityRule = (id: string, field: keyof QualityGateRule, value: any) => {
+    setQualityGateConfig((prev) => ({
+      ...prev,
+      rules: prev.rules.map((r) => (r.id === id ? { ...r, [field]: value } : r)),
+    }));
+  };
+
+  // 审批人管理
+  const handleAddApprover = () => {
+    setApprovalConfig((prev) => ({
+      ...prev,
+      approvers: [...prev.approvers, ''],
+    }));
+  };
+  const handleRemoveApprover = (index: number) => {
+    setApprovalConfig((prev) => ({
+      ...prev,
+      approvers: prev.approvers.filter((_, i) => i !== index),
+    }));
+  };
+  const handleUpdateApprover = (index: number, value: string) => {
+    setApprovalConfig((prev) => ({
+      ...prev,
+      approvers: prev.approvers.map((a, i) => (i === index ? value : a)),
+    }));
+  };
+
+  const METRIC_OPTIONS = [
+    { label: '测试通过率', value: 'test_pass_rate' },
+    { label: '代码覆盖率', value: 'coverage' },
+    { label: '漏洞数量', value: 'vulnerability_count' },
+    { label: '自定义指标', value: 'custom' },
+  ];
+
+  const OPERATOR_OPTIONS = [
+    { label: '>', value: '>' },
+    { label: '<', value: '<' },
+    { label: '>=', value: '>=' },
+    { label: '<=', value: '<=' },
+    { label: '==', value: '==' },
+  ];
+
   return (
     <Modal
       title={stage ? '编辑阶段' : '添加阶段'}
@@ -346,693 +478,955 @@ const StageModal: React.FC<StageModalProps> = ({
           retryCount: 0,
           cacheEnabled: false,
           artifactExpiry: 7,
-          timeoutConfig: { enabled: false, duration: 300, action: 'fail' },
-          approvalConfig: { enabled: false, approvers: [], mode: 'unanimous', timeout: 0, timeoutAction: 'reject' },
-          qualityGateConfig: { enabled: false, rules: [], failureAction: 'block' },
         }}
       >
-        <Tabs
-          defaultActiveKey="basic"
-          items={[
+        <Form.Item
+          label="阶段名称"
+          name="name"
+          rules={[
+            { required: true, message: '请输入阶段名称' },
+            { pattern: /^[a-zA-Z0-9_-]+$/, message: '只能包含字母、数字、下划线和连字符' },
+          ]}
+        >
+          <Input placeholder="例如：build-app" maxLength={50} showCount />
+        </Form.Item>
+
+        <Form.Item
+          label="阶段类型"
+          name="type"
+          rules={[{ required: true, message: '请选择阶段类型' }]}
+        >
+          <Select placeholder="选择类型" options={STAGE_TYPES} />
+        </Form.Item>
+
+        <Divider orientation="left" orientationMargin={0}>
+          高级设置
+        </Divider>
+
+        <Form.Item label="超时时间 (秒)" name="timeout" tooltip="超过此时间后阶段将被终止">
+          <InputNumber
+            min={0}
+            max={7200}
+            step={60}
+            style={{ width: '100%' }}
+            placeholder="默认 300 秒"
+            formatter={(value) => `${value}s`}
+            parser={(value) => Number(value?.replace('s', '')) as any}
+          />
+        </Form.Item>
+
+        <Form.Item label="重试次数" name="retryCount" tooltip="失败后自动重试的次数">
+          <InputNumber min={0} max={5} style={{ width: '100%' }} placeholder="默认 0 次" />
+        </Form.Item>
+
+        <Form.Item label="依赖阶段" name="dependsOn" tooltip="当前阶段执行前需要完成的阶段">
+          <Select
+            mode="multiple"
+            placeholder="选择依赖的阶段"
+            options={availableDependencies}
+            maxTagCount="responsive"
+            allowClear
+          />
+        </Form.Item>
+
+        <Divider orientation="left" orientationMargin={0}>
+          执行配置
+        </Divider>
+
+        <Form.Item label="脚本内容" name="script" tooltip="Shell 脚本内容">
+          <TextArea
+            rows={4}
+            placeholder="#!/bin/bash&#10;echo 'Hello, World!'"
+            style={{ fontFamily: 'monospace' }}
+          />
+        </Form.Item>
+
+        <Form.Item
+          label="执行命令"
+          name="command"
+          tooltip="直接执行的命令"
+          dependencies={['script']}
+          rules={[
             {
-              key: 'basic',
-              label: <span><SettingOutlined /> 基础配置</span>,
-              children: (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                  <Form.Item
-                    label="阶段名称"
-                    name="name"
-                    rules={[
-                      { required: true, message: '请输入阶段名称' },
-                      { pattern: /^[a-zA-Z0-9_-]+$/, message: '只能包含字母、数字、下划线和连字符' },
-                    ]}
-                  >
-                    <Input placeholder="例如：build-app" maxLength={50} showCount />
-                  </Form.Item>
-
-                  <Form.Item
-                    label="阶段类型"
-                    name="type"
-                    rules={[{ required: true, message: '请选择阶段类型' }]}
-                  >
-                    <Select placeholder="选择类型" options={STAGE_TYPES} />
-                  </Form.Item>
-
-                  <Divider orientation="left" orientationMargin={0}>执行配置</Divider>
-
-                  <Form.Item label="脚本内容" name="script" tooltip="Shell 脚本内容">
-                    <TextArea
-                      rows={4}
-                      placeholder="#!/bin/bash&#10;echo 'Hello, World!'"
-                      style={{ fontFamily: 'monospace' }}
-                    />
-                  </Form.Item>
-
-                  <Form.Item label="执行命令" name="command" tooltip="直接执行的命令" dependencies={['script']}>
-                    <Input placeholder="例如：npm run build" />
-                  </Form.Item>
-
-                  <Form.Item label="Docker 镜像" name="image" tooltip="执行此阶段的 Docker 镜像">
-                    <Input placeholder="例如：node:18-alpine" />
-                  </Form.Item>
-
-                  <Form.Item label="环境变量" name="env" tooltip="格式：KEY=VALUE，每行一个">
-                    <TextArea
-                      rows={3}
-                      placeholder="NODE_ENV=production&#10;API_URL=https://api.example.com"
-                      style={{ fontFamily: 'monospace' }}
-                    />
-                  </Form.Item>
-                </div>
-              ),
+              validator: (_, value) => {
+                const script = form.getFieldValue('script');
+                if (!value && !script) {
+                  return Promise.resolve(); // 两者都为空也可以
+                }
+                return Promise.resolve();
+              },
             },
-            {
-              key: 'dependencies',
-              label: <span><BranchesOutlined /> 依赖配置</span>,
-              children: (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                  <Form.Item label="依赖阶段" name="dependsOn" tooltip="当前阶段执行前需要完成的阶段">
-                    <Select
-                      mode="multiple"
-                      placeholder="选择依赖的阶段"
-                      options={availableDependencies}
-                      maxTagCount="responsive"
-                      allowClear
-                    />
-                  </Form.Item>
-                </div>
-              ),
-            },
-            {
-              key: 'retry',
-              label: <span><ClockCircleOutlined /> 重试策略</span>,
-              children: (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                  <Form.Item label="超时时间 (秒)" name="timeout" tooltip="超过此时间后阶段将被终止">
-                    <InputNumber
-                      min={0}
-                      max={7200}
-                      step={60}
-                      style={{ width: '100%' }}
-                      placeholder="默认 300 秒"
-                      formatter={(value) => `${value}s`}
-                      parser={(value) => Number(value?.replace('s', '')) as any}
-                    />
-                  </Form.Item>
+          ]}
+        >
+          <Input placeholder="例如：npm run build" />
+        </Form.Item>
 
-                  <Form.Item label="重试次数" name="retryCount" tooltip="失败后自动重试的次数">
-                    <InputNumber min={0} max={5} style={{ width: '100%' }} placeholder="默认 0 次" />
-                  </Form.Item>
-                </div>
-              ),
-            },
-            {
-              key: 'cache',
-              label: <span><ThunderboltOutlined /> 缓存配置</span>,
-              children: (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                  <Space>
-                    <Form.Item noStyle name="cacheEnabled" valuePropName="checked">
-                      <Switch />
-                    </Form.Item>
-                    <span>启用构建缓存</span>
-                  </Space>
+        <Form.Item label="Docker 镜像" name="image" tooltip="执行此阶段的 Docker 镜像">
+          <Input placeholder="例如：node:18-alpine" />
+        </Form.Item>
 
-                  <Form.Item noStyle shouldUpdate>
-                    {(formInstance) =>
-                      formInstance.getFieldValue('cacheEnabled') && (
-                        <Card size="small">
-                          <Form.Item
-                            label="缓存 Key"
-                            name="cacheKey"
-                            tooltip="缓存的唯一标识，可使用表达式"
-                            rules={[{ required: true, message: '请输入缓存 Key' }]}
-                          >
-                            <Input placeholder="例如：npm-cache-key" />
-                          </Form.Item>
+        <Form.Item label="环境变量" name="env" tooltip="格式：KEY=VALUE，每行一个">
+          <TextArea
+            rows={3}
+            placeholder="NODE_ENV=production&#10;API_URL=https://api.example.com"
+            style={{ fontFamily: 'monospace' }}
+          />
+        </Form.Item>
 
-                          <Form.Item label="缓存路径" required>
-                            <Space direction="vertical" style={{ width: '100%' }} size={8}>
-                              {cachePaths.map((path, index) => (
-                                <Space key={index} style={{ width: '100%' }}>
-                                  <Input
-                                    value={path}
-                                    onChange={(e) => handleUpdateCachePath(index, e.target.value)}
-                                    placeholder="例如：node_modules, .npm/cache"
-                                    style={{ flex: 1 }}
-                                  />
-                                  <Button icon={<PlusOutlined />} onClick={handleAddCachePath} />
-                                  <Button
-                                    danger
-                                    icon={<DeleteOutlined />}
-                                    onClick={() => handleRemoveCachePath(index)}
-                                    disabled={cachePaths.length === 1}
-                                  />
-                                </Space>
-                              ))}
-                            </Space>
-                          </Form.Item>
-
-                          <Form.Item
-                            label="恢复 Key 前缀"
-                            name="cacheRestoreKeys"
-                            tooltip="用于匹配缓存的前缀列表，每行一个"
-                          >
-                            <TextArea
-                              rows={2}
-                              placeholder="npm-&#10;build-"
-                              style={{ fontFamily: 'monospace' }}
-                            />
-                          </Form.Item>
-                        </Card>
-                      )
+        {/* 子流水线配置（仅当类型是 sub-pipeline 时显示） */}
+        <Form.Item noStyle shouldUpdate={(prev, curr) => prev.type !== curr.type}>
+          {(formInstance) =>
+            formInstance.getFieldValue('type') === 'sub-pipeline' && (
+              <Card size="small" style={{ marginBottom: 16 }} title={<Space><BranchesOutlined /> 子流水线配置</Space>}>
+                <Form.Item
+                  label="选择流水线"
+                  name="subPipelineId"
+                  rules={[{ required: true, message: '请选择要调用的子流水线' }]}
+                >
+                  <Select
+                    placeholder="选择目标流水线"
+                    options={pipelineOptions}
+                    showSearch
+                    filterOption={(input, option) =>
+                      (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
                     }
-                  </Form.Item>
-                </div>
-              ),
-            },
-            {
-              key: 'artifacts',
-              label: <span><RocketOutlined /> 制品配置</span>,
-              children: (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                  <Card size="small">
-                    <Form.Item label="上传路径" required>
-                      <Space direction="vertical" style={{ width: '100%' }} size={8}>
-                        {artifactPaths.map((path, index) => (
-                          <Space key={index} style={{ width: '100%' }}>
-                            <Input
-                              value={path}
-                              onChange={(e) => handleUpdateArtifactPath(index, e.target.value)}
-                              placeholder="例如：dist/, build/*.jar"
-                              style={{ flex: 1 }}
-                            />
-                            <Button icon={<PlusOutlined />} onClick={handleAddArtifactPath} />
-                            <Button
-                              danger
-                              icon={<DeleteOutlined />}
-                              onClick={() => handleRemoveArtifactPath(index)}
-                              disabled={artifactPaths.length === 1}
-                            />
-                          </Space>
-                        ))}
+                  />
+                </Form.Item>
+
+                <Form.Item
+                  label="分支"
+                  name="subPipelineBranch"
+                  tooltip="指定子流水线使用的分支，留空则使用默认分支"
+                >
+                  <Input placeholder="例如：main, develop" />
+                </Form.Item>
+
+                <Form.Item label="传递参数">
+                  <Space direction="vertical" style={{ width: '100%' }} size={8}>
+                    {subPipelineParams.map((param, index) => (
+                      <Space key={index} style={{ width: '100%' }}>
+                        <Input
+                          value={param.key}
+                          onChange={(e) => {
+                            const newParams = [...subPipelineParams];
+                            newParams[index] = { ...newParams[index], key: e.target.value };
+                            setSubPipelineParams(newParams);
+                          }}
+                          placeholder="参数名"
+                          style={{ flex: 1 }}
+                        />
+                        <Input
+                          value={param.value}
+                          onChange={(e) => {
+                            const newParams = [...subPipelineParams];
+                            newParams[index] = { ...newParams[index], value: e.target.value };
+                            setSubPipelineParams(newParams);
+                          }}
+                          placeholder="参数值"
+                          style={{ flex: 1.5 }}
+                        />
+                        <Button
+                          icon={<PlusOutlined />}
+                          onClick={() => {
+                            setSubPipelineParams([...subPipelineParams, { key: '', value: '' }]);
+                          }}
+                        />
+                        <Button
+                          danger
+                          icon={<DeleteOutlined />}
+                          onClick={() => {
+                            if (subPipelineParams.length === 1) {
+                              setSubPipelineParams([{ key: '', value: '' }]);
+                            } else {
+                              setSubPipelineParams(subPipelineParams.filter((_, i) => i !== index));
+                            }
+                          }}
+                          disabled={subPipelineParams.length === 1}
+                        />
                       </Space>
+                    ))}
+                  </Space>
+                </Form.Item>
+              </Card>
+            )
+          }
+        </Form.Item>
+
+        {/* Buildx 多架构构建配置 */}
+        <Form.Item noStyle shouldUpdate={(prev, curr) => prev.type !== curr.type}>
+          {(formInstance) =>
+            formInstance.getFieldValue('type') === 'buildx' && (
+              <Card size="small" style={{ marginBottom: 16 }} title={<Space>🏷️ 多架构构建配置</Space>}>
+                <Form.Item
+                  label="镜像名称"
+                  name="buildxImageName"
+                  rules={[{ required: true, message: '请输入镜像名称' }]}
+                  tooltip="例如：registry.example.com/my-app"
+                >
+                  <Input placeholder="registry.example.com/my-app" />
+                </Form.Item>
+
+                <Form.Item label="标签 (Tag)" name="buildxTag" tooltip="镜像标签">
+                  <Input placeholder="latest" />
+                </Form.Item>
+
+                <Form.Item
+                  label="目标平台"
+                  name="buildxPlatforms"
+                  rules={[{ required: true, message: '请选择至少一个平台' }]}
+                  tooltip="支持的平台架构"
+                >
+                  <Select
+                    mode="multiple"
+                    placeholder="选择目标平台"
+                    options={[
+                      { label: 'linux/amd64', value: 'linux/amd64' },
+                      { label: 'linux/arm64', value: 'linux/arm64' },
+                      { label: 'linux/arm/v7', value: 'linux/arm/v7' },
+                      { label: 'linux/s390x', value: 'linux/s390x' },
+                      { label: 'linux/ppc64le', value: 'linux/ppc64le' },
+                    ]}
+                  />
+                </Form.Item>
+
+                <Form.Item label="Dockerfile 路径" name="buildxDockerfile" tooltip="Dockerfile 的相对路径">
+                  <Input placeholder="Dockerfile" />
+                </Form.Item>
+
+                <Form.Item label="构建上下文" name="buildxContext" tooltip="构建上下文目录">
+                  <Input placeholder="." />
+                </Form.Item>
+
+                <Form.Item label="推送镜像" name="buildxPush" valuePropName="checked" tooltip="构建完成后推送到镜像仓库">
+                  <Switch />
+                </Form.Item>
+              </Card>
+            )
+          }
+        </Form.Item>
+
+        {/* Container 容器运行配置 */}
+        <Form.Item noStyle shouldUpdate={(prev, curr) => prev.type !== curr.type}>
+          {(formInstance) =>
+            (formInstance.getFieldValue('type') === 'container' || formInstance.getFieldValue('type') === 'apk-upload') && (
+              <>
+                {formInstance.getFieldValue('type') === 'container' && (
+                  <Card size="small" style={{ marginBottom: 16 }} title={<Space>📦 容器运行配置</Space>}>
+                    <Form.Item
+                      label="容器镜像"
+                      name="containerImage"
+                      rules={[{ required: true, message: '请输入容器镜像' }]}
+                      tooltip="例如：node:18-alpine"
+                    >
+                      <Input placeholder="node:18-alpine" />
+                    </Form.Item>
+
+                <Form.Item label="启动命令" name="containerCommand" tooltip="容器启动时执行的命令">
+                  <Input placeholder="npm run test" />
+                </Form.Item>
+
+                <Form.Item label="启动参数" name="containerArgs" tooltip="每行一个参数">
+                  <TextArea rows={2} placeholder="--env=production&#10;--port=3000" style={{ fontFamily: 'monospace' }} />
+                </Form.Item>
+
+                <Form.Item label="环境变量" name="containerEnv" tooltip="格式：KEY=VALUE，每行一个">
+                  <TextArea rows={2} placeholder="NODE_ENV=production&#10;API_URL=https://api.example.com" style={{ fontFamily: 'monospace' }} />
+                </Form.Item>
+
+                <Form.Item label="资源限制" name="containerResources" valuePropName="checked">
+                  <Switch checkedChildren="启用" unCheckedChildren="禁用" />
+                </Form.Item>
+
+                <Form.Item noStyle shouldUpdate={(prev, curr) => prev.containerResources !== curr.containerResources}>
+                  {(fi) =>
+                    fi.getFieldValue('containerResources') && (
+                      <>
+                        <Form.Item label="CPU 限制" name="containerCpu" tooltip="例如：2.0 表示 2 个 CPU">
+                          <InputNumber min={0.1} max={16} step={0.1} style={{ width: '100%' }} placeholder="2.0" />
+                        </Form.Item>
+                        <Form.Item label="内存限制" name="containerMemory" tooltip="例如：4g, 512m">
+                          <Input placeholder="4g" />
+                        </Form.Item>
+                        <Form.Item label="启用 GPU" name="containerGpu" valuePropName="checked">
+                          <Switch />
+                        </Form.Item>
+                        <Form.Item noStyle shouldUpdate={(prev, curr) => prev.containerGpu !== curr.containerGpu}>
+                          {(fi2) =>
+                            fi2.getFieldValue('containerGpu') && (
+                              <>
+                                <Form.Item label="GPU 设备" name="containerGpuDevices" tooltip="例如：all, 0, device=GPU-uuid">
+                                  <Input placeholder="all" />
+                                </Form.Item>
+                                <Form.Item label="GPU 能力" name="containerGpuCapabilities" tooltip="逗号分隔">
+                                  <Input placeholder="compute,utility" />
+                                </Form.Item>
+                              </>
+                            )
+                          }
+                        </Form.Item>
+                      </>
+                    )
+                  }
+                </Form.Item>
+
+                <Form.Item label="网络模式" name="containerNetwork" tooltip="容器网络模式">
+                  <Select
+                    placeholder="选择网络模式"
+                    options={[
+                      { label: 'host', value: 'host' },
+                      { label: 'bridge', value: 'bridge' },
+                      { label: 'none', value: 'none' },
+                    ]}
+                  />
+                </Form.Item>
+              </Card>
+                )}
+                {/* APK Upload 配置 */}
+                {formInstance.getFieldValue('type') === 'apk-upload' && (
+                  <Card size="small" style={{ marginBottom: 16 }} title={<Space>📱 APK 上传配置</Space>}>
+                    <Form.Item
+                      label="上传类型"
+                      name="apkUploadType"
+                      initialValue="single"
+                      tooltip="单市场上传或并行多市场上传"
+                    >
+                      <Select
+                        placeholder="选择上传类型"
+                        options={[
+                          { label: '单市场 (Single)', value: 'single' },
+                          { label: '多市场并行 (Parallel)', value: 'parallel' },
+                        ]}
+                      />
                     </Form.Item>
 
                     <Form.Item
-                      label="过期时间 (天)"
-                      name="artifactExpiry"
-                      tooltip="构建产物保留天数，0 表示永久保存"
+                      label="应用市场"
+                      name="apkMarket"
+                      tooltip="选择要上传的应用市场（单市场模式）"
+                      rules={[{ required: true, message: '请选择应用市场' }]}
                     >
-                      <InputNumber min={0} max={365} style={{ width: '100%' }} placeholder="默认 7 天" />
+                      <Select
+                        placeholder="选择目标市场"
+                        options={[
+                          { label: '华为 AppGallery', value: 'huawei' },
+                          { label: '小米应用商店', value: 'xiaomi' },
+                          { label: 'OPPO 软件商店', value: 'oppo' },
+                          { label: 'VIVO 应用商店', value: 'vivo' },
+                          { label: '荣耀应用市场', value: 'honor' },
+                          { label: '腾讯应用宝', value: 'tencent' },
+                          { label: 'Google Play', value: 'googleplay' },
+                          { label: '三星 Galaxy Store', value: 'samsung' },
+                          { label: '蒲公英', value: 'pgyer' },
+                          { label: 'fir.im', value: 'fir' },
+                        ]}
+                      />
                     </Form.Item>
-                  </Card>
-                </div>
-              ),
-            },
-            {
-              key: 'advanced',
-              label: <span><ThunderboltOutlined /> 高级配置</span>,
-              children: (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                  {/* 子流水线配置 */}
-                  <Form.Item noStyle shouldUpdate={(prev, curr) => prev.type !== curr.type}>
-                    {(formInstance) =>
-                      formInstance.getFieldValue('type') === 'sub-pipeline' && (
-                        <Card size="small" title={<Space><BranchesOutlined /> 子流水线配置</Space>}>
+
+                    {/* 多市场并行配置 */}
+                    <Form.Item
+                      noStyle
+                      shouldUpdate={(prev, curr) => prev.apkUploadType !== curr.apkUploadType}
+                    >
+                      {({ getFieldValue }) =>
+                        getFieldValue('apkUploadType') === 'parallel' && (
                           <Form.Item
-                            label="选择流水线"
-                            name="subPipelineId"
-                            rules={[{ required: true, message: '请选择要调用的子流水线' }]}
-                          >
-                            <Select
-                              placeholder="选择目标流水线"
-                              options={pipelineOptions}
-                              showSearch
-                              filterOption={(input, option) =>
-                                (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
-                              }
-                            />
-                          </Form.Item>
-
-                          <Form.Item label="分支" name="subPipelineBranch" tooltip="指定子流水线使用的分支">
-                            <Input placeholder="例如：main, develop" />
-                          </Form.Item>
-
-                          <Form.Item label="传递参数">
-                            <Space direction="vertical" style={{ width: '100%' }} size={8}>
-                              {subPipelineParams.map((param, index) => (
-                                <Space key={index} style={{ width: '100%' }}>
-                                  <Input
-                                    value={param.key}
-                                    onChange={(e) => {
-                                      const newParams = [...subPipelineParams];
-                                      newParams[index] = { ...newParams[index], key: e.target.value };
-                                      setSubPipelineParams(newParams);
-                                    }}
-                                    placeholder="参数名"
-                                    style={{ flex: 1 }}
-                                  />
-                                  <Input
-                                    value={param.value}
-                                    onChange={(e) => {
-                                      const newParams = [...subPipelineParams];
-                                      newParams[index] = { ...newParams[index], value: e.target.value };
-                                      setSubPipelineParams(newParams);
-                                    }}
-                                    placeholder="参数值"
-                                    style={{ flex: 1.5 }}
-                                  />
-                                  <Button
-                                    icon={<PlusOutlined />}
-                                    onClick={() => {
-                                      setSubPipelineParams([...subPipelineParams, { key: '', value: '' }]);
-                                    }}
-                                  />
-                                  <Button
-                                    danger
-                                    icon={<DeleteOutlined />}
-                                    onClick={() => {
-                                      if (subPipelineParams.length === 1) {
-                                        setSubPipelineParams([{ key: '', value: '' }]);
-                                      } else {
-                                        setSubPipelineParams(subPipelineParams.filter((_, i) => i !== index));
-                                      }
-                                    }}
-                                    disabled={subPipelineParams.length === 1}
-                                  />
-                                </Space>
-                              ))}
-                            </Space>
-                          </Form.Item>
-                        </Card>
-                      )
-                    }
-                  </Form.Item>
-
-                  {/* Buildx 多架构构建配置 */}
-                  <Form.Item noStyle shouldUpdate={(prev, curr) => prev.type !== curr.type}>
-                    {(formInstance) =>
-                      formInstance.getFieldValue('type') === 'buildx' && (
-                        <Card size="small" title="多架构构建配置">
-                          <Form.Item
-                            label="镜像名称"
-                            name="buildxImageName"
-                            rules={[{ required: true, message: '请输入镜像名称' }]}
-                          >
-                            <Input placeholder="registry.example.com/my-app" />
-                          </Form.Item>
-
-                          <Form.Item label="标签 (Tag)" name="buildxTag">
-                            <Input placeholder="latest" />
-                          </Form.Item>
-
-                          <Form.Item
-                            label="目标平台"
-                            name="buildxPlatforms"
-                            rules={[{ required: true, message: '请选择至少一个平台' }]}
+                            label="目标市场列表"
+                            name="apkMarkets"
+                            tooltip="选择要并行上传的多个应用市场"
+                            rules={[{ required: true, message: '请至少选择一个市场' }]}
                           >
                             <Select
                               mode="multiple"
-                              placeholder="选择目标平台"
+                              placeholder="选择多个目标市场"
                               options={[
-                                { label: 'linux/amd64', value: 'linux/amd64' },
-                                { label: 'linux/arm64', value: 'linux/arm64' },
-                                { label: 'linux/arm/v7', value: 'linux/arm/v7' },
-                                { label: 'linux/s390x', value: 'linux/s390x' },
-                                { label: 'linux/ppc64le', value: 'linux/ppc64le' },
+                                { label: '华为 AppGallery', value: 'huawei' },
+                                { label: '小米应用商店', value: 'xiaomi' },
+                                { label: 'OPPO 软件商店', value: 'oppo' },
+                                { label: 'VIVO 应用商店', value: 'vivo' },
+                                { label: '荣耀应用市场', value: 'honor' },
+                                { label: '腾讯应用宝', value: 'tencent' },
+                                { label: 'Google Play', value: 'googleplay' },
+                                { label: '三星 Galaxy Store', value: 'samsung' },
+                                { label: '蒲公英', value: 'pgyer' },
+                                { label: 'fir.im', value: 'fir' },
                               ]}
                             />
                           </Form.Item>
+                        )
+                      }
+                    </Form.Item>
 
-                          <Form.Item label="Dockerfile 路径" name="buildxDockerfile">
-                            <Input placeholder="Dockerfile" />
+                    <Form.Item
+                      noStyle
+                      shouldUpdate={(prev, curr) => prev.apkUploadType !== curr.apkUploadType}
+                    >
+                      {({ getFieldValue }) =>
+                        getFieldValue('apkUploadType') !== 'parallel' && (
+                          <Form.Item
+                            label="应用市场"
+                            name="apkMarket"
+                            tooltip="选择要上传的应用市场（单市场模式）"
+                            rules={[{ required: true, message: '请选择应用市场' }]}
+                          >
+                            <Select
+                              placeholder="选择目标市场"
+                              options={[
+                                { label: '华为 AppGallery', value: 'huawei' },
+                                { label: '小米应用商店', value: 'xiaomi' },
+                                { label: 'OPPO 软件商店', value: 'oppo' },
+                                { label: 'VIVO 应用商店', value: 'vivo' },
+                                { label: '荣耀应用市场', value: 'honor' },
+                                { label: '腾讯应用宝', value: 'tencent' },
+                                { label: 'Google Play', value: 'googleplay' },
+                                { label: '三星 Galaxy Store', value: 'samsung' },
+                                { label: '蒲公英', value: 'pgyer' },
+                                { label: 'fir.im', value: 'fir' },
+                              ]}
+                            />
                           </Form.Item>
+                        )
+                      }
+                    </Form.Item>
 
-                          <Form.Item label="构建上下文" name="buildxContext">
-                            <Input placeholder="." />
-                          </Form.Item>
+                    <Form.Item
+                      label="APK 文件路径"
+                      name="apkPath"
+                      rules={[{ required: true, message: '请输入 APK 文件路径' }]}
+                      tooltip="APK 文件在构建产物中的路径"
+                    >
+                      <Input placeholder="例如：./build/app-release.apk" />
+                    </Form.Item>
 
-                          <Form.Item label="推送镜像" name="buildxPush" valuePropName="checked">
-                            <Switch />
-                          </Form.Item>
-                        </Card>
-                      )
-                    }
-                  </Form.Item>
+                    <Form.Item
+                      label="应用包名"
+                      name="packageName"
+                      rules={[{ required: true, message: '请输入应用包名' }]}
+                      tooltip="Android 应用的包名，如：com.example.app"
+                    >
+                      <Input placeholder="例如：com.example.app" />
+                    </Form.Item>
 
-                  {/* Container / APK Upload 配置 */}
-                  <Form.Item noStyle shouldUpdate={(prev, curr) => prev.type !== curr.type}>
-                    {(formInstance) =>
-                      (formInstance.getFieldValue('type') === 'container' || formInstance.getFieldValue('type') === 'apk-upload') && (
-                        <>
-                          {formInstance.getFieldValue('type') === 'container' && (
-                            <Card size="small" title="容器运行配置">
-                              <Form.Item
-                                label="容器镜像"
-                                name="containerImage"
-                                rules={[{ required: true, message: '请输入容器镜像' }]}
-                              >
-                                <Input placeholder="node:18-alpine" />
-                              </Form.Item>
+                    <Form.Item
+                      label="版本名称"
+                      name="versionName"
+                      tooltip="应用的版本名称（可选）"
+                    >
+                      <Input placeholder="例如：1.0.0" />
+                    </Form.Item>
 
-                              <Form.Item label="启动命令" name="containerCommand">
-                                <Input placeholder="npm run test" />
-                              </Form.Item>
+                    <Form.Item
+                      label="更新日志"
+                      name="changelog"
+                      tooltip="版本更新说明"
+                    >
+                      <TextArea
+                        rows={3}
+                        placeholder="描述此次更新的内容..."
+                      />
+                    </Form.Item>
 
-                              <Form.Item label="启动参数" name="containerArgs">
-                                <TextArea rows={2} placeholder="--env=production&#10;--port=3000" style={{ fontFamily: 'monospace' }} />
-                              </Form.Item>
+                    <Form.Item
+                      label="市场凭证"
+                      name="apkCredentials"
+                      tooltip="选择已配置的市场凭证（支持 Secret 引用），格式: ${secrets.apk-{market}-credentials}"
+                    >
+                      <Input placeholder="例如：${secrets.apk-huawei-credentials}（支持：huawei/xiaomi/oppo/vivo/honor/pgyer/fir/googleplay/samsung/tencent）" />
+                    </Form.Item>
 
-                              <Form.Item label="环境变量" name="containerEnv">
-                                <TextArea rows={2} placeholder="NODE_ENV=production" style={{ fontFamily: 'monospace' }} />
-                              </Form.Item>
+                    <Form.Item
+                      label="发布渠道"
+                      name="apkChannel"
+                      tooltip="发布渠道：production/beta/alpha/internal"
+                    >
+                      <Select
+                        placeholder="选择发布渠道"
+                        options={[
+                          { label: '正式 (Production)', value: 'production' },
+                          { label: '测试版 (Beta)', value: 'beta' },
+                          { label: '内测版 (Alpha)', value: 'alpha' },
+                          { label: '内部 (Internal)', value: 'internal' },
+                        ]}
+                      />
+                    </Form.Item>
+                  </Card>
+                )}
+              </>
+            )
+          }
+        </Form.Item>
 
-                              <Form.Item label="资源限制" name="containerResources" valuePropName="checked">
-                                <Switch checkedChildren="启用" unCheckedChildren="禁用" />
-                              </Form.Item>
+        {/* 缓存配置 */}
+        <Divider orientation="left" orientationMargin={0}>
+          <Space>
+            <Form.Item noStyle name="cacheEnabled" valuePropName="checked">
+              <Switch size="small" />
+            </Form.Item>
+            <span>启用构建缓存</span>
+          </Space>
+        </Divider>
 
-                              <Form.Item noStyle shouldUpdate={(prev, curr) => prev.containerResources !== curr.containerResources}>
-                                {(fi) =>
-                                  fi.getFieldValue('containerResources') && (
-                                    <>
-                                      <Form.Item label="CPU 限制" name="containerCpu">
-                                        <InputNumber min={0.1} max={16} step={0.1} style={{ width: '100%' }} placeholder="2.0" />
-                                      </Form.Item>
-                                      <Form.Item label="内存限制" name="containerMemory">
-                                        <Input placeholder="4g" />
-                                      </Form.Item>
-                                      <Form.Item label="启用 GPU" name="containerGpu" valuePropName="checked">
-                                        <Switch />
-                                      </Form.Item>
-                                      <Form.Item noStyle shouldUpdate={(prev, curr) => prev.containerGpu !== curr.containerGpu}>
-                                        {(fi2) =>
-                                          fi2.getFieldValue('containerGpu') && (
-                                            <>
-                                              <Form.Item label="GPU 设备" name="containerGpuDevices">
-                                                <Input placeholder="all" />
-                                              </Form.Item>
-                                              <Form.Item label="GPU 能力" name="containerGpuCapabilities">
-                                                <Input placeholder="compute,utility" />
-                                              </Form.Item>
-                                            </>
-                                          )
-                                        }
-                                      </Form.Item>
-                                    </>
-                                  )
-                                }
-                              </Form.Item>
+        <Form.Item noStyle shouldUpdate>
+          {(formInstance) =>
+            formInstance.getFieldValue('cacheEnabled') && (
+              <Card size="small" style={{ marginBottom: 16 }}>
+                <Form.Item
+                  label="缓存 Key"
+                  name="cacheKey"
+                  tooltip="缓存的唯一标识，可使用表达式如 ${{ hashFiles('package-lock.json') }}"
+                  rules={[{ required: true, message: '请输入缓存 Key' }]}
+                >
+                  <Input placeholder="例如：npm-${{ hashFiles('package-lock.json') }}" />
+                </Form.Item>
 
-                              <Form.Item label="网络模式" name="containerNetwork">
-                                <Select
-                                  placeholder="选择网络模式"
-                                  options={[
-                                    { label: 'host', value: 'host' },
-                                    { label: 'bridge', value: 'bridge' },
-                                    { label: 'none', value: 'none' },
-                                  ]}
-                                />
-                              </Form.Item>
-                            </Card>
-                          )}
-                          {formInstance.getFieldValue('type') === 'apk-upload' && (
-                            <Card size="small" title="APK 上传配置">
-                              <Form.Item label="上传类型" name="apkUploadType" initialValue="single">
-                                <Select
-                                  placeholder="选择上传类型"
-                                  options={[
-                                    { label: '单市场 (Single)', value: 'single' },
-                                    { label: '多市场并行 (Parallel)', value: 'parallel' },
-                                  ]}
-                                />
-                              </Form.Item>
-
-                              <Form.Item noStyle shouldUpdate={(prev, curr) => prev.apkUploadType !== curr.apkUploadType}>
-                                {({ getFieldValue }) =>
-                                  getFieldValue('apkUploadType') === 'parallel' && (
-                                    <Form.Item
-                                      label="目标市场列表"
-                                      name="apkMarkets"
-                                      rules={[{ required: true, message: '请至少选择一个市场' }]}
-                                    >
-                                      <Select
-                                        mode="multiple"
-                                        placeholder="选择多个目标市场"
-                                        options={[
-                                          { label: '华为 AppGallery', value: 'huawei' },
-                                          { label: '小米应用商店', value: 'xiaomi' },
-                                          { label: 'OPPO 软件商店', value: 'oppo' },
-                                          { label: 'VIVO 应用商店', value: 'vivo' },
-                                          { label: '荣耀应用市场', value: 'honor' },
-                                          { label: '腾讯应用宝', value: 'tencent' },
-                                          { label: 'Google Play', value: 'googleplay' },
-                                          { label: '三星 Galaxy Store', value: 'samsung' },
-                                          { label: '蒲公英', value: 'pgyer' },
-                                          { label: 'fir.im', value: 'fir' },
-                                        ]}
-                                      />
-                                    </Form.Item>
-                                  )
-                                }
-                              </Form.Item>
-
-                              <Form.Item noStyle shouldUpdate={(prev, curr) => prev.apkUploadType !== curr.apkUploadType}>
-                                {({ getFieldValue }) =>
-                                  getFieldValue('apkUploadType') !== 'parallel' && (
-                                    <Form.Item
-                                      label="应用市场"
-                                      name="apkMarket"
-                                      rules={[{ required: true, message: '请选择应用市场' }]}
-                                    >
-                                      <Select
-                                        placeholder="选择目标市场"
-                                        options={[
-                                          { label: '华为 AppGallery', value: 'huawei' },
-                                          { label: '小米应用商店', value: 'xiaomi' },
-                                          { label: 'OPPO 软件商店', value: 'oppo' },
-                                          { label: 'VIVO 应用商店', value: 'vivo' },
-                                          { label: '荣耀应用市场', value: 'honor' },
-                                          { label: '腾讯应用宝', value: 'tencent' },
-                                          { label: 'Google Play', value: 'googleplay' },
-                                          { label: '三星 Galaxy Store', value: 'samsung' },
-                                          { label: '蒲公英', value: 'pgyer' },
-                                          { label: 'fir.im', value: 'fir' },
-                                        ]}
-                                      />
-                                    </Form.Item>
-                                  )
-                                }
-                              </Form.Item>
-
-                              <Form.Item
-                                label="APK 文件路径"
-                                name="apkPath"
-                                rules={[{ required: true, message: '请输入 APK 文件路径' }]}
-                              >
-                                <Input placeholder="例如：./build/app-release.apk" />
-                              </Form.Item>
-
-                              <Form.Item
-                                label="应用包名"
-                                name="packageName"
-                                rules={[{ required: true, message: '请输入应用包名' }]}
-                              >
-                                <Input placeholder="例如：com.example.app" />
-                              </Form.Item>
-
-                              <Form.Item label="版本名称" name="versionName">
-                                <Input placeholder="例如：1.0.0" />
-                              </Form.Item>
-
-                              <Form.Item label="更新日志" name="changelog">
-                                <TextArea rows={3} placeholder="描述此次更新的内容..." />
-                              </Form.Item>
-
-                              <Form.Item label="市场凭证" name="apkCredentials">
-                                <Input placeholder="例如：${secrets.apk-huawei-credentials}" />
-                              </Form.Item>
-
-                              <Form.Item label="发布渠道" name="apkChannel">
-                                <Select
-                                  placeholder="选择发布渠道"
-                                  options={[
-                                    { label: '正式 (Production)', value: 'production' },
-                                    { label: '测试版 (Beta)', value: 'beta' },
-                                    { label: '内测版 (Alpha)', value: 'alpha' },
-                                    { label: '内部 (Internal)', value: 'internal' },
-                                  ]}
-                                />
-                              </Form.Item>
-                            </Card>
-                          )}
-                        </>
-                      )
-                    }
-                  </Form.Item>
-
-                  {/* 矩阵构建配置 */}
-                  <Card
-                    size="small"
-                    extra={
-                      <Space>
-                        <span>启用矩阵构建</span>
-                        <Switch
-                          checked={matrixConfig.enabled}
-                          onChange={(checked) =>
-                            setMatrixConfig((prev) => ({
-                              ...prev,
-                              enabled: checked,
-                              dimensions: checked ? prev.dimensions : [],
-                              exclusions: checked ? prev.exclusions : [],
-                            }))
-                          }
+                <Form.Item label="缓存路径" required>
+                  <Space direction="vertical" style={{ width: '100%' }} size={8}>
+                    {cachePaths.map((path, index) => (
+                      <Space key={index} style={{ width: '100%' }}>
+                        <Input
+                          value={path}
+                          onChange={(e) => handleUpdateCachePath(index, e.target.value)}
+                          placeholder="例如：node_modules, .npm/cache"
+                          style={{ flex: 1 }}
+                        />
+                        <Button icon={<PlusOutlined />} onClick={handleAddCachePath} />
+                        <Button
+                          danger
+                          icon={<DeleteOutlined />}
+                          onClick={() => handleRemoveCachePath(index)}
+                          disabled={cachePaths.length === 1}
                         />
                       </Space>
-                    }
-                  >
-                    {matrixConfig.enabled ? (
-                      <MatrixConfigurator value={matrixConfig} onChange={setMatrixConfig} />
-                    ) : (
-                      <div style={{ padding: '8px 0', color: '#999' }}>
-                        启用后可在多个维度上并行构建
-                      </div>
-                    )}
-                  </Card>
+                    ))}
+                  </Space>
+                </Form.Item>
 
-                  {/* PR/MR 触发配置 */}
-                  <PRTriggerConfigComponent
-                    value={prTriggerConfig}
-                    onChange={(config) => setPrTriggerConfig(config as Partial<PRTriggerConfigType>)}
+                <Form.Item
+                  label="恢复 Key 前缀"
+                  name="cacheRestoreKeys"
+                  tooltip="用于匹配缓存的前缀列表，每行一个"
+                >
+                  <TextArea
+                    rows={2}
+                    placeholder="npm-&#10;build-"
+                    style={{ fontFamily: 'monospace' }}
                   />
-                </div>
-              ),
-            },
-            {
-              key: 'timeout',
-              label: <span><ThunderboltOutlined /> 超时配置</span>,
-              children: (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                  <Form.Item label="启用阶段超时" name={['timeoutConfig', 'enabled']} valuePropName="checked">
-                    <Switch />
-                  </Form.Item>
-                  <Form.Item label="超时时间（秒）" name={['timeoutConfig', 'duration']}>
-                    <InputNumber min={1} max={86400} style={{ width: '100%' }} placeholder="300" />
-                  </Form.Item>
-                  <Form.Item label="超时动作" name={['timeoutConfig', 'action']}>
-                    <Select>
-                      <Select.Option value="fail">标记为失败</Select.Option>
-                      <Select.Option value="skip">跳过并继续</Select.Option>
-                      <Select.Option value="retry">自动重试</Select.Option>
-                    </Select>
-                  </Form.Item>
-                  <Form.Item noStyle shouldUpdate={(prev: any, curr: any) => prev.timeoutConfig?.action !== curr.timeoutConfig?.action}>
-                    {({ getFieldValue }: any) =>
-                      getFieldValue(['timeoutConfig', 'action']) === 'retry' && (
-                        <Form.Item label="重试次数" name={['timeoutConfig', 'retryCount']}>
-                          <InputNumber min={1} max={10} style={{ width: '100%' }} placeholder="3" />
-                        </Form.Item>
-                      )
+                </Form.Item>
+              </Card>
+            )
+          }
+        </Form.Item>
+
+        {/* Artifact 配置 */}
+        <Divider orientation="left" orientationMargin={0}>
+          构建产物 (Artifact)
+        </Divider>
+
+        <Card size="small" style={{ marginBottom: 16 }}>
+          <Form.Item label="上传路径" required>
+            <Space direction="vertical" style={{ width: '100%' }} size={8}>
+              {artifactPaths.map((path, index) => (
+                <Space key={index} style={{ width: '100%' }}>
+                  <Input
+                    value={path}
+                    onChange={(e) => handleUpdateArtifactPath(index, e.target.value)}
+                    placeholder="例如：dist/, build/*.jar"
+                    style={{ flex: 1 }}
+                  />
+                  <Button icon={<PlusOutlined />} onClick={handleAddArtifactPath} />
+                  <Button
+                    danger
+                    icon={<DeleteOutlined />}
+                    onClick={() => handleRemoveArtifactPath(index)}
+                    disabled={artifactPaths.length === 1}
+                  />
+                </Space>
+              ))}
+            </Space>
+          </Form.Item>
+
+          <Form.Item
+            label="过期时间 (天)"
+            name="artifactExpiry"
+            tooltip="构建产物保留天数，0 表示永久保存"
+          >
+            <InputNumber min={0} max={365} style={{ width: '100%' }} placeholder="默认 7 天" />
+          </Form.Item>
+        </Card>
+
+        {/* 矩阵构建配置 */}
+        <Divider orientation="left" orientationMargin={0}>
+          <Space>
+            <ThunderboltOutlined style={{ color: '#faad14' }} />
+            <span>矩阵构建 (Matrix Build)</span>
+          </Space>
+        </Divider>
+
+        <Form.Item noStyle shouldUpdate>
+          <Card
+            size="small"
+            style={{ marginBottom: 16 }}
+            extra={
+              <Space>
+                <span>启用矩阵构建</span>
+                <Switch
+                  checked={matrixConfig.enabled}
+                  onChange={(checked) =>
+                    setMatrixConfig((prev) => ({
+                      ...prev,
+                      enabled: checked,
+                      dimensions: checked ? prev.dimensions : [],
+                      exclusions: checked ? prev.exclusions : [],
+                    }))
+                  }
+                />
+              </Space>
+            }
+          >
+            {matrixConfig.enabled ? (
+              <MatrixConfigurator
+                value={matrixConfig}
+                onChange={setMatrixConfig}
+              />
+            ) : (
+              <div style={{ padding: '8px 0', color: '#999' }}>
+                启用后可在多个维度上并行构建，例如同时测试多个 Node.js 版本和操作系统
+              </div>
+            )}
+          </Card>
+        </Form.Item>
+
+        {/* PR/MR 触发配置 */}
+        <Divider orientation="left" orientationMargin={0}>
+          <Space>
+            <BranchesOutlined />
+            <span>PR/MR 触发配置</span>
+          </Space>
+        </Divider>
+
+        <Form.Item noStyle shouldUpdate>
+          <PRTriggerConfigComponent
+            value={prTriggerConfig}
+            onChange={(config) => setPrTriggerConfig(config as Partial<PRTriggerConfigType>)}
+          />
+        </Form.Item>
+
+        {/* 超时配置 */}
+        <Divider orientation="left" orientationMargin={0}>
+          <Space>
+            <ClockCircleOutlined />
+            <span>超时策略配置</span>
+          </Space>
+        </Divider>
+
+        <Card size="small" style={{ marginBottom: 16 }}>
+          <Form.Item label="启用超时策略" valuePropName="checked">
+            <Switch
+              checked={timeoutConfig.enabled}
+              onChange={(checked) =>
+                setTimeoutConfig((prev) => ({ ...prev, enabled: checked }))
+              }
+              checkedChildren="启用"
+              unCheckedChildren="禁用"
+            />
+          </Form.Item>
+
+          {timeoutConfig.enabled && (
+            <>
+              <Form.Item label="超时时长 (秒)" tooltip="阶段执行超过此时间将触发超时策略">
+                <InputNumber
+                  min={1}
+                  max={7200}
+                  step={60}
+                  value={timeoutConfig.duration}
+                  onChange={(value) =>
+                    setTimeoutConfig((prev) => ({ ...prev, duration: value || 300 }))
+                  }
+                  style={{ width: '100%' }}
+                  placeholder="默认 300 秒"
+                />
+              </Form.Item>
+
+              <Form.Item label="超时后动作">
+                <Radio.Group
+                  value={timeoutConfig.action}
+                  onChange={(e) =>
+                    setTimeoutConfig((prev) => ({ ...prev, action: e.target.value }))
+                  }
+                >
+                  <Space direction="vertical">
+                    <Radio value="fail">
+                      <Space>
+                        <Tag color="error">失败</Tag>
+                        <span>标记阶段为失败</span>
+                      </Space>
+                    </Radio>
+                    <Radio value="skip">
+                      <Space>
+                        <Tag color="warning">跳过</Tag>
+                        <span>跳过当前阶段继续后续阶段</span>
+                      </Space>
+                    </Radio>
+                    <Radio value="retry">
+                      <Space>
+                        <Tag color="processing">重试</Tag>
+                        <span>自动重试指定次数</span>
+                      </Space>
+                    </Radio>
+                  </Space>
+                </Radio.Group>
+              </Form.Item>
+
+              {timeoutConfig.action === 'retry' && (
+                <Form.Item label="重试次数">
+                  <InputNumber
+                    min={1}
+                    max={5}
+                    value={timeoutConfig.retryCount}
+                    onChange={(value) =>
+                      setTimeoutConfig((prev) => ({ ...prev, retryCount: value || 1 }))
                     }
-                  </Form.Item>
-                </div>
-              ),
-            },
-            {
-              key: 'approval',
-              label: <span><UserOutlined /> 审批卡点</span>,
-              children: (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                  <Form.Item label="启用审批卡点" name={['approvalConfig', 'enabled']} valuePropName="checked">
-                    <Switch />
-                  </Form.Item>
-                  <Form.Item label="审批人" name={['approvalConfig', 'approvers']}>
-                    <Select mode="multiple" placeholder="选择审批人（用户或角色）" allowClear>
-                      <Select.Option value="admin">Admin</Select.Option>
-                      <Select.Option value="tech-lead">Tech Lead</Select.Option>
-                      <Select.Option value="team-lead">Team Lead</Select.Option>
-                    </Select>
-                  </Form.Item>
-                  <Form.Item label="审批模式" name={['approvalConfig', 'mode']}>
-                    <Select>
-                      <Select.Option value="unanimous">会签（全部通过）</Select.Option>
-                      <Select.Option value="any">或签（任一通过）</Select.Option>
-                    </Select>
-                  </Form.Item>
-                  <Form.Item label="审批超时（秒）" name={['approvalConfig', 'timeout']}>
-                    <InputNumber min={0} max={604800} style={{ width: '100%' }} placeholder="0 表示不超时" />
-                  </Form.Item>
-                  <Form.Item label="超时自动处理" name={['approvalConfig', 'timeoutAction']}>
-                    <Select>
-                      <Select.Option value="approve">自动通过</Select.Option>
-                      <Select.Option value="reject">自动拒绝</Select.Option>
-                    </Select>
-                  </Form.Item>
-                </div>
-              ),
-            },
-            {
-              key: 'qualityGate',
-              label: <span><SafetyOutlined /> 质量门禁</span>,
-              children: (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                  <Form.Item label="启用质量门禁" name={['qualityGateConfig', 'enabled']} valuePropName="checked">
-                    <Switch />
-                  </Form.Item>
-                  <Form.Item label="不通过时" name={['qualityGateConfig', 'failureAction']}>
-                    <Select>
-                      <Select.Option value="block">阻止部署</Select.Option>
-                      <Select.Option value="warn">仅告警，继续执行</Select.Option>
-                      <Select.Option value="continue">忽略</Select.Option>
-                    </Select>
-                  </Form.Item>
-                  <div>
-                    <div style={{ marginBottom: 12, fontWeight: 500 }}>门禁规则</div>
-                    <Form.List name={['qualityGateConfig', 'rules']}>
-                      {(fields, { add, remove }) => (
-                        <>
-                          {fields.map(({ key, name, ...restField }) => (
-                            <Space key={key} style={{ display: 'flex', marginBottom: 8 }} align="baseline">
-                              <Form.Item {...restField} name={[name, 'metric']} style={{ width: 160 }}>
-                                <Select placeholder="指标">
-                                  <Select.Option value="test_pass_rate">测试通过率</Select.Option>
-                                  <Select.Option value="coverage">代码覆盖率</Select.Option>
-                                  <Select.Option value="vulnerability_count">漏洞数量</Select.Option>
-                                  <Select.Option value="custom">自定义</Select.Option>
-                                </Select>
-                              </Form.Item>
-                              <Form.Item {...restField} name={[name, 'operator']} style={{ width: 80 }}>
-                                <Select>
-                                  <Select.Option value=">=">&gt;=</Select.Option>
-                                  <Select.Option value="<=">&lt;=</Select.Option>
-                                  <Select.Option value=">">&gt;</Select.Option>
-                                  <Select.Option value="<">&lt;</Select.Option>
-                                  <Select.Option value="==">==</Select.Option>
-                                </Select>
-                              </Form.Item>
-                              <Form.Item {...restField} name={[name, 'threshold']} style={{ width: 100 }}>
-                                <InputNumber placeholder="阈值" />
-                              </Form.Item>
-                              <DeleteOutlined onClick={() => remove(name)} style={{ color: '#f5222d', cursor: 'pointer' }} />
-                            </Space>
-                          ))}
-                          <Button
-                            type="dashed"
-                            onClick={() => add({ id: `rule-${Date.now()}`, metric: 'test_pass_rate', operator: '>=', threshold: 95 })}
-                            block
-                            icon={<PlusOutlined />}
-                          >
-                            添加规则
-                          </Button>
-                        </>
-                      )}
-                    </Form.List>
-                  </div>
-                </div>
-              ),
-            },
-          ]}
-        />
+                    style={{ width: '100%' }}
+                  />
+                </Form.Item>
+              )}
+            </>
+          )}
+
+          {!timeoutConfig.enabled && (
+            <div style={{ padding: '8px 0', color: '#999' }}>
+              启用后可配置超时时长和超时后的动作（失败/跳过/重试）
+            </div>
+          )}
+        </Card>
+
+        {/* 审批配置 */}
+        <Divider orientation="left" orientationMargin={0}>
+          <Space>
+            <UserOutlined />
+            <span>审批配置</span>
+          </Space>
+        </Divider>
+
+        <Card size="small" style={{ marginBottom: 16 }}>
+          <Form.Item label="启用审批" valuePropName="checked">
+            <Switch
+              checked={approvalConfig.enabled}
+              onChange={(checked) =>
+                setApprovalConfig((prev) => ({ ...prev, enabled: checked }))
+              }
+              checkedChildren="启用"
+              unCheckedChildren="禁用"
+            />
+          </Form.Item>
+
+          {approvalConfig.enabled && (
+            <>
+              <Form.Item label="审批人" required tooltip="输入审批人的用户名或邮箱">
+                <Space direction="vertical" style={{ width: '100%' }} size={8}>
+                  {approvalConfig.approvers.map((approver, index) => (
+                    <Space key={index} style={{ width: '100%' }}>
+                      <Input
+                        value={approver}
+                        onChange={(e) => handleUpdateApprover(index, e.target.value)}
+                        placeholder="输入审批人用户名或邮箱"
+                        prefix={<UserOutlined />}
+                        style={{ flex: 1 }}
+                      />
+                      <Button
+                        danger
+                        icon={<DeleteOutlined />}
+                        onClick={() => handleRemoveApprover(index)}
+                        disabled={approvalConfig.approvers.length === 0}
+                      />
+                    </Space>
+                  ))}
+                  <Button
+                    type="dashed"
+                    icon={<PlusOutlined />}
+                    onClick={handleAddApprover}
+                    block
+                  >
+                    添加审批人
+                  </Button>
+                </Space>
+              </Form.Item>
+
+              <Form.Item label="审批模式">
+                <Radio.Group
+                  value={approvalConfig.mode}
+                  onChange={(e) =>
+                    setApprovalConfig((prev) => ({ ...prev, mode: e.target.value }))
+                  }
+                >
+                  <Radio value="any">
+                    <Space>
+                      <Tag color="success">任一审批</Tag>
+                      <span>任意一个审批人通过即可</span>
+                    </Space>
+                  </Radio>
+                  <Radio value="unanimous">
+                    <Space>
+                      <Tag color="processing">全部审批</Tag>
+                      <span>所有审批人都必须通过</span>
+                    </Space>
+                  </Radio>
+                </Radio.Group>
+              </Form.Item>
+
+              <Form.Item label="审批超时 (小时)" tooltip="审批人超过此时间未处理将触发超时动作">
+                <InputNumber
+                  min={1}
+                  max={168}
+                  value={approvalConfig.timeout}
+                  onChange={(value) =>
+                    setApprovalConfig((prev) => ({ ...prev, timeout: value || 24 }))
+                  }
+                  style={{ width: '100%' }}
+                />
+              </Form.Item>
+
+              <Form.Item label="超时动作">
+                <Radio.Group
+                  value={approvalConfig.timeoutAction}
+                  onChange={(e) =>
+                    setApprovalConfig((prev) => ({
+                      ...prev,
+                      timeoutAction: e.target.value,
+                    }))
+                  }
+                >
+                  <Radio value="reject">
+                    <Tag color="error">自动拒绝</Tag>
+                  </Radio>
+                  <Radio value="approve">
+                    <Tag color="success">自动通过</Tag>
+                  </Radio>
+                </Radio.Group>
+              </Form.Item>
+            </>
+          )}
+
+          {!approvalConfig.enabled && (
+            <div style={{ padding: '8px 0', color: '#999' }}>
+              启用后可配置审批人、审批模式和超时处理策略
+            </div>
+          )}
+        </Card>
+
+        {/* 质量门禁配置 */}
+        <Divider orientation="left" orientationMargin={0}>
+          <Space>
+            <SafetyOutlined />
+            <span>质量门禁配置</span>
+          </Space>
+        </Divider>
+
+        <Card size="small" style={{ marginBottom: 16 }}>
+          <Form.Item label="启用质量门禁" valuePropName="checked">
+            <Switch
+              checked={qualityGateConfig.enabled}
+              onChange={(checked) =>
+                setQualityGateConfig((prev) => ({ ...prev, enabled: checked }))
+              }
+              checkedChildren="启用"
+              unCheckedChildren="禁用"
+            />
+          </Form.Item>
+
+          {qualityGateConfig.enabled && (
+            <>
+              <Form.Item label="不通过时的动作">
+                <Radio.Group
+                  value={qualityGateConfig.failureAction}
+                  onChange={(e) =>
+                    setQualityGateConfig((prev) => ({
+                      ...prev,
+                      failureAction: e.target.value,
+                    }))
+                  }
+                >
+                  <Space direction="vertical">
+                    <Radio value="block">
+                      <Space>
+                        <Tag color="error">阻断</Tag>
+                        <span>阻断流水线执行</span>
+                      </Space>
+                    </Radio>
+                    <Radio value="warn">
+                      <Space>
+                        <Tag color="warning">警告</Tag>
+                        <span>记录警告但继续执行</span>
+                      </Space>
+                    </Radio>
+                    <Radio value="continue">
+                      <Space>
+                        <Tag color="default">继续</Tag>
+                        <span>不处理，直接继续</span>
+                      </Space>
+                    </Radio>
+                  </Space>
+                </Radio.Group>
+              </Form.Item>
+
+              <Form.Item label="规则列表">
+                <Space direction="vertical" style={{ width: '100%' }} size={12}>
+                  {qualityGateConfig.rules.map((rule) => (
+                    <Card
+                      key={rule.id}
+                      size="small"
+                      extra={
+                        <Button
+                          danger
+                          size="small"
+                          icon={<DeleteOutlined />}
+                          onClick={() => handleRemoveQualityRule(rule.id)}
+                        />
+                      }
+                    >
+                      <Space style={{ width: '100%' }} size={8}>
+                        <Select
+                          value={rule.metric}
+                          onChange={(value) => handleUpdateQualityRule(rule.id, 'metric', value)}
+                          options={METRIC_OPTIONS}
+                          style={{ width: 160 }}
+                          placeholder="选择指标"
+                        />
+                        <Select
+                          value={rule.operator}
+                          onChange={(value) => handleUpdateQualityRule(rule.id, 'operator', value)}
+                          options={OPERATOR_OPTIONS}
+                          style={{ width: 80 }}
+                        />
+                        <InputNumber
+                          value={rule.threshold}
+                          onChange={(value) =>
+                            handleUpdateQualityRule(rule.id, 'threshold', value || 0)
+                          }
+                          style={{ width: 120 }}
+                          placeholder="阈值"
+                        />
+                      </Space>
+                    </Card>
+                  ))}
+                  <Button
+                    type="dashed"
+                    icon={<PlusOutlined />}
+                    onClick={handleAddQualityRule}
+                    block
+                  >
+                    添加质量规则
+                  </Button>
+                </Space>
+              </Form.Item>
+            </>
+          )}
+
+          {!qualityGateConfig.enabled && (
+            <div style={{ padding: '8px 0', color: '#999' }}>
+              启用后可配置质量检查规则，如测试通过率、代码覆盖率、漏洞数量等
+            </div>
+          )}
+        </Card>
       </Form>
     </Modal>
   );

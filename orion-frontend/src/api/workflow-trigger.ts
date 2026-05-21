@@ -86,32 +86,32 @@ export async function getTriggers(params?: {
   if (params?.limit) query.set('limit', String(params.limit));
   if (params?.offset) query.set('offset', String(params.offset));
 
-  const response = await api.get<TriggerListResponse>(`/v1/workflow-triggers${query.toString() ? `?${query}` : ''}`);
-  return response.data;
+  const response = await api.get(`/v1/workflow-triggers${query.toString() ? `?${query}` : ''}`);
+  return response.data as unknown as TriggerListResponse;
 }
 
 /**
  * 获取单个触发器
  */
 export async function getTrigger(id: string): Promise<WorkflowTrigger> {
-  const response = await api.get<TriggerResponse>(`/v1/workflow-triggers/${id}`);
-  return response.data.data;
+  const response = await api.get(`/v1/workflow-triggers/${id}`);
+  return (response.data as unknown as TriggerResponse).data;
 }
 
 /**
  * 创建触发器
  */
 export async function createTrigger(data: CreateWorkflowTriggerInput): Promise<WorkflowTrigger> {
-  const response = await api.post<TriggerResponse>('/v1/workflow-triggers', data);
-  return response.data.data;
+  const response = await api.post(`/v1/workflow-triggers`, data);
+  return (response.data as unknown as TriggerResponse).data;
 }
 
 /**
  * 更新触发器
  */
 export async function updateTrigger(id: string, data: UpdateWorkflowTriggerInput): Promise<WorkflowTrigger> {
-  const response = await api.put<TriggerResponse>(`/v1/workflow-triggers/${id}`, data);
-  return response.data.data;
+  const response = await api.put(`/v1/workflow-triggers/${id}`, data);
+  return (response.data as unknown as TriggerResponse).data;
 }
 
 /**
@@ -125,14 +125,14 @@ export async function deleteTrigger(id: string): Promise<void> {
  * 启用触发器
  */
 export async function enableTrigger(id: string): Promise<WorkflowTrigger> {
-  const response = await api.post<TriggerResponse>(`/v1/workflow-triggers/${id}/enable`);
-  return response.data.data;
+  const response = await api.post(`/v1/workflow-triggers/${id}/enable`);
+  return (response.data as unknown as TriggerResponse).data;
 }
 
 /**
  * 禁用触发器
  */
 export async function disableTrigger(id: string): Promise<WorkflowTrigger> {
-  const response = await api.post<TriggerResponse>(`/v1/workflow-triggers/${id}/disable`);
-  return response.data.data;
+  const response = await api.post(`/v1/workflow-triggers/${id}/disable`);
+  return (response.data as unknown as TriggerResponse).data;
 }

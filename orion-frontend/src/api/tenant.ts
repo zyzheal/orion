@@ -97,7 +97,7 @@ export function getNamespacePoolStatus() {
   return api.get<PoolStatus>('/v1/tenant/namespace/pool');
 }
 
-export function allocateNamespace(tenantId: number, namespaceType?: 'build' | 'deploy' | 'test') {
+export function allocateNamespace(tenantId: string, namespaceType?: 'build' | 'deploy' | 'test') {
   return api.post<NamespaceAllocationResult>('/v1/tenant/namespace/allocate', {
     tenantId,
     namespaceType,
@@ -108,7 +108,7 @@ export function releaseNamespace(namespaceName: string) {
   return api.post<{ released: boolean }>('/v1/tenant/namespace/release', { namespaceName });
 }
 
-export function getTenantNamespaces(tenantId: number) {
+export function getTenantNamespaces(tenantId: string) {
   return api.get<{ namespaces: NamespacePoolEntry[]; count: number }>(
     `/v1/tenant/namespace/${tenantId}`
   );
@@ -130,6 +130,111 @@ export function updateMiddlewareConfig(config: {
   return api.put('/v1/tenant/middleware/config', config);
 }
 
+// ==================== Tenant CRUD ====================
+
+export interface TenantEntity {
+  id: string;
+  name: string;
+  display_name: string | null;
+  status: string;
+  settings: Record<string, any>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateTenantRequest {
+  name: string;
+  display_name?: string;
+  settings?: Record<string, any>;
+  autoAllocateNamespace?: boolean;
+  initialNamespaceCount?: number;
+  customQuota?: {
+    maxPipelines?: number;
+    maxPipelineRunsPerDay?: number;
+    maxConcurrentRuns?: number;
+    maxRunners?: number;
+    maxCpuCores?: number;
+    maxMemoryGb?: number;
+    maxStorageGb?: number;
+    maxNamespaces?: number;
+  };
+}
+
+export interface PaginatedTenants {
+  data: TenantEntity[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export function listTenants(page = 1, limit = 20, status?: string) {
+  const params: Record<string, string> = { page: String(page), limit: String(limit) };
+  if (status) params.status = status;
+  return api.get<PaginatedTenants>('/v1/tenant', { params });
+}
+
+export function getTenant(id: string) {
+  return api.get<TenantEntity>(`/v1/tenant/${id}`);
+}
+
+export function createTenant(input: CreateTenantRequest) {
+  return api.post<TenantEntity & { allocatedNamespaces?: any[]; message?: string }>('/v1/tenant', input);
+}
+
+export function updateTenant(id: string, input: Partial<CreateTenantRequest>) {
+  return api.put<TenantEntity>(`/v1/tenant/${id}`, input);
+}
+
+export function deleteTenant(id: string) {
+  return api.delete(`/v1/tenant/${id}`);
+}
+
+// ==================== Usage Statistics ====================
+
+export interface ResourceUsage {
+  used: number;
+  limit: number;
+}
+
+export interface TenantUsage {
+  usage: {
+    pipelines: ResourceUsage;
+    runners: ResourceUsage;
+    namespaces: ResourceUsage;
+    concurrentRuns: ResourceUsage;
+    cpuCores: ResourceUsage;
+    memoryGb: ResourceUsage;
+    storageGb: ResourceUsage;
+    pipelineRunsPerDay: ResourceUsage;
+  };
+  quota: TenantQuota;
+}
+
+export interface NamespaceUsageDetail {
+  id: string;
+  namespaceName: string;
+  status: 'available' | 'allocated' | 'reserved';
+  allocatedAt?: string;
+  runnerCount: number;
+  pipelineCount: number;
+  activeRuns: number;
+  cpuUsed: number;
+  memoryUsed: number;
+}
+
+export function getTenantUsage(tenantId?: number) {
+  return api.get<TenantUsage>('/v1/tenant/usage', {
+    headers: tenantId ? { 'x-tenant-id': tenantId.toString() } : {},
+  });
+}
+
+export function getNamespaceUsageDetail(tenantId: string) {
+  return api.get<{ namespaces: NamespaceUsageDetail[]; total: number }>(
+    `/v1/tenant/namespace/${tenantId}/usage`
+  );
+}
+
 // ==================== Statistics ====================
 
 export function getTenantStats(tenantId?: number) {
@@ -143,4 +248,103 @@ export function getTenantStats(tenantId?: number) {
     params: tenantId ? { status: undefined } : {},
     headers: tenantId ? { 'x-tenant-id': tenantId.toString() } : {},
   });
+}
+
+// ==================== Tenant Invites ====================
+
+export interface TenantInvite {
+  id: string;
+  tenant_id: string;
+  email: string;
+  role: string;
+  invite_code: string;
+  status: 'pending' | 'accepted' | 'expired' | 'cancelled';
+  invited_by: string;
+  accepted_by?: string;
+  expires_at: string;
+  created_at: string;
+  accepted_at?: string;
+}
+
+export interface CreateInviteRequest {
+  email: string;
+  role: string;
+  message?: string;
+}
+
+export function inviteUser(tenantId: string, data: CreateInviteRequest) {
+  return api.post<TenantInvite>(`/v1/tenant/${tenantId}/invite`, data);
+}
+
+export function acceptInvite(code: string) {
+  return api.post<{ success: boolean; tenant: TenantEntity; role: string; message: string }>(
+    `/v1/tenant/invite/${code}/accept`
+  );
+}
+
+// ==================== Tenant Users ====================
+
+export interface TenantUser {
+  id: string;
+  user_id: string;
+  username: string;
+  email: string;
+  name?: string;
+  role: string;
+  status: string;
+  last_login_at?: string;
+  created_at: string;
+}
+
+export function getUsersByTenant(tenantId: string) {
+  return api.get<{ users: TenantUser[]; total: number }>(`/v1/tenant/${tenantId}/users`);
+}
+
+export function removeUserFromTenant(tenantId: string, userId: string) {
+  return api.delete(`/v1/tenant/${tenantId}/users/${userId}`);
+}
+
+// ==================== Tenant Alerts ====================
+
+export interface TenantAlert {
+  id: string;
+  tenant_id: string;
+  resource_type: string;
+  threshold_percent: number;
+  current_usage: number;
+  quota_limit: number;
+  notify_status: string;
+  cooldown_until?: string;
+  created_at: string;
+}
+
+export function getTenantAlerts(tenantId?: string, params?: { page?: number; limit?: number; resourceType?: string; status?: string }) {
+  return api.get<{ alerts: TenantAlert[]; total: number; page: number; limit: number }>('/v1/tenant/alerts', {
+    params,
+    headers: tenantId ? { 'x-tenant-id': tenantId } : {},
+  });
+}
+
+export function getAlertStats(tenantId?: string) {
+  return api.get<{
+    stats: {
+      byStatus: Record<string, number>;
+      byResourceType: Record<string, number>;
+      activeAlerts: TenantAlert[];
+    };
+  }>('/v1/tenant/alerts/stats', {
+    headers: tenantId ? { 'x-tenant-id': tenantId } : {},
+  });
+}
+
+// ==================== Current Tenant ====================
+
+export function getCurrentTenant() {
+  return api.get<{
+    tenant: TenantEntity;
+    quota: TenantQuota;
+    namespaceCount: number;
+    namespaceLimit: number;
+    activeAlertCount: number;
+  }>('/v1/tenant/current');
 }

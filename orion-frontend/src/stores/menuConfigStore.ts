@@ -181,7 +181,8 @@ const defaultModules: Record<string, MenuModuleConfig> = {
       { key: '/audit-log', label: '审计日志', description: '操作审计追踪', category: '安全合规', enabled: true },
       { key: '/sbom', label: 'SBOM', description: '软件物料清单', category: '安全合规', enabled: true },
       // 组织管理
-      { key: '/tenant-management', label: '租户管理', description: '多租户隔离管理', category: '组织管理', enabled: true },
+      { key: '/tenant-list', label: '租户列表', description: '租户创建与管理', category: '组织管理', enabled: true },
+      { key: '/tenant-management', label: '租户配额', description: '配额与Namespace管理', category: '组织管理', enabled: true },
       { key: '/roles', label: '角色管理', description: '权限角色定义', category: '组织管理', enabled: true },
       // 配置与审批
       { key: '/config-management', label: '配置管理', description: '平台配置中心', category: '配置管理', enabled: true },

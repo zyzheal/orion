@@ -69,10 +69,12 @@ export const initMicroFrontend = (): void => {
     });
   });
 
-  // 预加载常用子应用
-  const enabledApps = getSubAppConfig('dba');
-  if (enabledApps) {
-    preloadApp({ name: 'dba' });
+  // 预加载常用子应用（开发环境禁用，避免 iframe 加载阻塞导致页面卡死）
+  if (import.meta.env.PROD) {
+    const enabledApps = getSubAppConfig('dba');
+    if (enabledApps) {
+      preloadApp({ name: 'dba' });
+    }
   }
 };
 
