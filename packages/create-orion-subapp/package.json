@@ -1,0 +1,28 @@
+{
+  "name": "create-orion-subapp",
+  "version": "1.0.0",
+  "description": "OrionMF 子应用脚手架 - 快速创建符合框架规范的子应用",
+  "type": "module",
+  "bin": {
+    "create-orion-subapp": "./bin/create.js"
+  },
+  "scripts": {
+    "dev": "node bin/create.js",
+    "build": "tsc"
+  },
+  "keywords": [
+    "orionmf",
+    "micro-frontend",
+    "scaffold"
+  ],
+  "author": "Orion Team",
+  "license": "MIT",
+  "dependencies": {
+    "ora": "^5.4.1",
+    "inquirer": "^8.2.5"
+  },
+  "devDependencies": {
+    "@types/inquirer": "^8.2.10",
+    "typescript": "^5.3.0"
+  }
+}
