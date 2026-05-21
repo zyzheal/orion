@@ -1,0 +1,45 @@
+name: Design Constraint Check
+
+on:
+  push:
+    branches: [main, feat/*]
+  pull_request:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run Design Constraint Check
+        run: |
+          echo "========================================"
+          echo "Design Constraint Check - ${{ github.event_name }}"
+          echo "========================================"
+          echo "Scan mode: ${{ github.event_name }}"
+          echo "Branch: ${{ github.ref }}"
+          echo ""
+          echo "Module detection: auto"
+          echo ""
+          echo "Note: This is a placeholder workflow."
+          echo "Full implementation would run checker.ts"
+
+      - name: Run Frontend Scan
+        run: |
+          echo "Frontend scan would run here"
+          echo "Path: orion-frontend/src/pages/"
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        run: |
+          echo "Design constraint check completed"
+          echo "Results would be posted as PR comment"
