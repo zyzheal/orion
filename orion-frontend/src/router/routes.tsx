@@ -105,28 +105,18 @@ export const routes: AppRoute[] = [
     element: React.lazy(() => import('@/pages/Projects')),
     protected: true,
   },
-  // 微前端子应用路由 - hideLayout 隐藏主布局，全屏展示
-  {
-    path: '/dba/*',
-    element: React.lazy(() => import('@/components/SubAppRoute')),
-    protected: true,
-    hideLayout: true,
-  },
-  // Knowledge Base (M28) - 统一指向PandaWiki知识空间
+  // 微前端子应用路由 - Phase 3: 统一为动态通配符路由
+  // 注意：保留 /knowledge 精确路由用于重定向到知识空间
   {
     path: '/knowledge',
     element: <RedirectTo to="/knowledge/spaces" />,
     protected: true,
   },
+  // 动态子应用路由：通过 :subAppKey 通配符加载任意已配置的子应用
+  // 白名单验证在组件内部完成（SubAppRouteDynamic）
   {
-    path: '/knowledge/*',
-    element: React.lazy(() => import('@/components/SubAppRoute')),
-    protected: true,
-    hideLayout: true,
-  },
-  {
-    path: '/visor/*',
-    element: React.lazy(() => import('@/components/SubAppRoute')),
+    path: ':subAppKey(/*)',
+    element: React.lazy(() => import('@/components/SubAppRouteDynamic')),
     protected: true,
     hideLayout: true,
   },
@@ -142,18 +132,18 @@ export const routes: AppRoute[] = [
     protected: true,
   },
   {
-    path: '/pipelines/:id',
-    element: React.lazy(() => import('@/pages/PipelineDetail')),
-    protected: true,
-  },
-  {
     path: '/pipelines/new',
     element: React.lazy(() => import('@/pages/PipelineEditor')),
     protected: true,
   },
   {
-    path: '/pipelines/:id/edit',
+    path: '/pipelines/edit/:id',
     element: React.lazy(() => import('@/pages/PipelineEditor')),
+    protected: true,
+  },
+  {
+    path: '/pipelines/:id',
+    element: React.lazy(() => import('@/pages/PipelineDetail')),
     protected: true,
   },
   {
@@ -1097,6 +1087,12 @@ export const routes: AppRoute[] = [
   {
     path: '/test-selector',
     element: React.lazy(() => import('@/pages/TestSelector')),
+    protected: true,
+  },
+  // Orion-MF 测试页面 (Phase 0 - 并行运行验证)
+  {
+    path: '/test-mf',
+    element: React.lazy(() => import('@/pages/test-mf/TestMFLoader')),
     protected: true,
   },
   // Test Report Viewer (CI Enhancement)

@@ -216,14 +216,32 @@ const TaskOutputsTable: React.FC = () => {
 
 /**
  * 统一解析 API 响应：兼容后端裸对象和 { data: ... } 包装两种格式
+ *
+ * Axios 响应结构：
+ *   response (AxiosResponse)
+ *     └── data = 后端实际响应（Fastify 不包 { code, message }）
+ *
+ * 后端返回格式：
+ *   - 列表接口: { data: [...], total: N }
+ *   - 详情接口: { id, name, ... } 或 { run, stages, tasks }
+ *   - 创建/更新: { id, name, ... }
  */
 function extractData<T = any>(response: unknown): T | null {
   const res = response as any;
   if (!res) return null;
-  // Axios response: res.data is the backend raw response
-  const backend = res.data ?? res;
-  // Backend may wrap in { data: {...} } or return bare object
-  return backend?.data ?? backend;
+
+  // 第一层：AxiosResponse.data → 后端实际响应
+  const backendResponse = res.data ?? res;
+
+  if (!backendResponse) return null;
+
+  // 如果后端返回的是 { data: X } 格式（X 可能是对象或数组），返回 X
+  if (backendResponse.data !== undefined) {
+    return backendResponse.data;
+  }
+
+  // 否则直接返回后端响应（详情接口直接返回对象，无 data 包装）
+  return backendResponse;
 }
 
 /**
@@ -232,11 +250,15 @@ function extractData<T = any>(response: unknown): T | null {
 function extractList<T = any>(response: unknown): T[] {
   const res = response as any;
   if (!res) return [];
-  const backend = res.data ?? res;
-  if (Array.isArray(backend)) return backend;
-  if (Array.isArray(backend?.data)) return backend.data;
-  if (Array.isArray(backend?.runs)) return backend.runs;
-  if (Array.isArray(backend?.items)) return backend.items;
+
+  // 第一层：AxiosResponse.data → 后端实际响应
+  const backendResponse = res.data ?? res;
+
+  // 后端列表格式: { data: [...], total: N }
+  if (Array.isArray(backendResponse?.data)) return backendResponse.data;
+  if (Array.isArray(backendResponse)) return backendResponse;
+  if (Array.isArray(backendResponse?.runs)) return backendResponse.runs;
+  if (Array.isArray(backendResponse?.items)) return backendResponse.items;
   return [];
 }
 
@@ -253,128 +275,111 @@ const PipelineDetail: React.FC = () => {
   const [runsLoading, setRunsLoading] = useState(false);
 
   // Load pipeline detail from API
-  useEffect(() => {
-    const loadPipeline = async () => {
-      setLoading(true);
-      setApiError(null);
-      try {
-        // Fetch pipeline definition
-        const pipelineRes = await getPipeline(id!);
-        const pipelineData = extractData(pipelineRes);
-        console.log('[PipelineDetail] Pipeline data:', pipelineData);
+  const loadPipeline = useCallback(async (pipelineId?: string) => {
+    const pid = pipelineId || id;
+    if (!pid) return;
+    setLoading(true);
+    setApiError(null);
+    try {
+      // Fetch pipeline definition
+      const pipelineRes = await getPipeline(pid);
+      const pipelineData = extractData(pipelineRes);
 
-        if (!pipelineData) {
-          setApiError('未找到该 Pipeline');
-          return;
-        }
-
-        // Fetch latest runs for this pipeline
-        let latestRun = null;
-        let runStages = [];
-        let runsCount = 0;
-        try {
-          const runsRes = await getPipelineRuns(id!);
-          const runsData = extractList(runsRes);
-          runsCount = runsData.length;
-
-          console.log('[PipelineDetail] Runs count:', runsCount);
-          console.log('[PipelineDetail] First run:', runsData[0]);
-
-          if (runsData.length > 0) {
-            latestRun = runsData[0];
-            // Fetch full run detail including stages and tasks
-            // Backend returns: { run: {...}, stages: [...], tasks: [...] }
-            try {
-              const runDetailRes = await getPipelineRunDetail(latestRun.id);
-
-              // Axios response: res.data = backend response
-              const axiosData = (runDetailRes as any)?.data;
-              console.log('[PipelineDetail] Axios response data:', axiosData);
-
-              // Backend sends { run, stages, tasks } directly
-              let rawStages = axiosData?.stages ?? [];
-              let rawTasks = axiosData?.tasks ?? [];
-              const runInfo = axiosData?.run ?? {};
-
-              console.log('[PipelineDetail] Raw stages count:', rawStages.length);
-              console.log('[PipelineDetail] Raw stages:', rawStages);
-              console.log('[PipelineDetail] Raw tasks count:', rawTasks.length);
-
-              // Fallback: if stages are empty, try the dedicated stages endpoint
-              if (rawStages.length === 0) {
-                console.log('[PipelineDetail] Stages empty in run detail, trying dedicated endpoint...');
-                try {
-                  const stagesRes = await getPipelineRunStages(latestRun.id);
-                  const stagesData = (stagesRes as any)?.data;
-                  rawStages = stagesData?.data ?? stagesData ?? [];
-                  console.log('[PipelineDetail] Stages from dedicated endpoint:', rawStages.length, rawStages);
-                } catch (stagesErr) {
-                  console.error('[PipelineDetail] Failed to get stages from dedicated endpoint:', stagesErr);
-                }
-              }
-
-              // Merge tasks into stages as steps
-              runStages = rawStages.map((stage: any) => {
-                const stageTasks = rawTasks.filter((t: any) => t.stageId === stage.id);
-                const durationSec = stage.durationMs ? parseInt(stage.durationMs) / 1000 : undefined;
-                return {
-                  ...stage,
-                  duration: durationSec,
-                  steps: stageTasks.map((t: any) => ({
-                    ...t,
-                    duration: t.durationMs ? parseInt(t.durationMs) / 1000 : undefined,
-                  })),
-                  logs: stageTasks.flatMap((t: any) => t.logs || []),
-                };
-              });
-
-              console.log('[PipelineDetail] Processed stages:', runStages.length, runStages);
-
-              // Merge run detail into latestRun
-              latestRun = { ...latestRun, ...runInfo, stages: runStages };
-            } catch (err) {
-              console.error('[PipelineDetail] Failed to get run detail:', err);
-            }
-          } else {
-            console.warn('[PipelineDetail] No runs found for pipeline');
-          }
-        } catch (err) {
-          console.error('[PipelineDetail] Failed to get runs:', err);
-        }
-
-        console.log('[PipelineDetail] Final pipeline state:', {
-          stages: runStages.length,
-          status: latestRun?.status,
-          runNumber: runsCount,
-        });
-
-        setPipeline({
-          ...pipelineData,
-          // Merge latest run data for display
-          status: latestRun?.status || 'pending',
-          runNumber: runsCount || 1,
-          branch: latestRun?.branch || 'main',
-          commit: latestRun?.commit,
-          author: latestRun?.author || '-',
-          trigger: latestRun?.trigger || latestRun?.triggerType || 'manual',
-          startTime: latestRun?.startTime || latestRun?.startedAt,
-          endTime: latestRun?.endTime || latestRun?.completedAt,
-          duration: latestRun?.duration,
-          stages: runStages,
-        });
-      } catch (error: unknown) {
-        const errorMsg = error instanceof Error ? error.message : '加载失败，请稍后重试';
-        setApiError(errorMsg);
-        message.error(`加载 Pipeline 详情失败：${errorMsg}`);
-      } finally {
-        setLoading(false);
+      if (!pipelineData) {
+        setApiError('未找到该 Pipeline');
+        return;
       }
-    };
 
+      // Fetch latest runs for this pipeline
+      let latestRun = null;
+      let runStages = [];
+      let runsCount = 0;
+      try {
+        const runsRes = await getPipelineRuns(pid);
+        const runsData = extractList(runsRes);
+        runsCount = runsData.length;
+
+        if (runsData.length > 0) {
+          latestRun = runsData[0];
+
+          // Fetch full run detail including stages and tasks
+          // Backend returns: { run: {...}, stages: [...], tasks: [...] }
+          // Axios wraps: response.data = { code, message, data: { run, stages, tasks } }
+          try {
+            const runDetailRes = await getPipelineRunDetail(latestRun.id);
+            const runDetail = extractData(runDetailRes);
+
+            const rawStagesArr = runDetail?.stages || [];
+            const rawTasks = runDetail?.tasks || [];
+            const runInfo = runDetail?.run || {};
+
+            // Fallback: if stages are empty, try the dedicated stages endpoint
+            let stagesToProcess = rawStagesArr;
+            if (stagesToProcess.length === 0) {
+              try {
+                const stagesRes = await getPipelineRunStages(latestRun.id);
+                const stagesData = extractData(stagesRes);
+                const fallbackStages = stagesData?.data ?? stagesData?.stages ?? stagesData ?? [];
+                stagesToProcess = Array.isArray(fallbackStages) ? fallbackStages : [];
+              } catch (stagesErr) {
+                console.error('[PipelineDetail] Dedicated stages endpoint failed:', stagesErr);
+              }
+            }
+
+            // Merge tasks into stages as steps
+            runStages = stagesToProcess.map((stage: any) => {
+              const stageTasks = rawTasks.filter((t: any) => t.stageId === stage.id || t.stageName === stage.name);
+              const durationSec = stage.durationMs ? parseInt(stage.durationMs) / 1000 : undefined;
+              return {
+                ...stage,
+                duration: durationSec,
+                steps: stageTasks.map((t: any) => ({
+                  ...t,
+                  duration: t.durationMs ? parseInt(t.durationMs) / 1000 : undefined,
+                })),
+                logs: stageTasks.flatMap((t: any) => t.logs || []),
+              };
+            });
+
+            // Merge run detail into latestRun
+            latestRun = { ...latestRun, ...runInfo, stages: runStages };
+          } catch (err) {
+            console.error('[PipelineDetail] Failed to get run detail:', err);
+          }
+        }
+      } catch (err) {
+        console.error('[PipelineDetail] Failed to get runs:', err);
+      }
+
+      setPipeline({
+        ...pipelineData,
+        // Merge latest run data for display
+        status: latestRun?.status || 'pending',
+        runNumber: runsCount || 1,
+        branch: latestRun?.branch || 'main',
+        commit: latestRun?.commit,
+        author: latestRun?.author || '-',
+        trigger: latestRun?.trigger || latestRun?.triggerType || 'manual',
+        startTime: latestRun?.startTime || latestRun?.startedAt,
+        endTime: latestRun?.endTime || latestRun?.completedAt,
+        duration: latestRun?.duration,
+        stages: runStages,
+      });
+    } catch (error: unknown) {
+      const errorMsg = error instanceof Error ? error.message : '加载失败，请稍后重试';
+      setApiError(errorMsg);
+      message.error(`加载 Pipeline 详情失败：${errorMsg}`);
+    } finally {
+      setLoading(false);
+    }
+  }, [id, navigate]);
+
+  // Load pipeline on mount
+  useEffect(() => {
     if (id) {
       loadPipeline();
     }
-  }, [id]);
+  }, [id, loadPipeline]);
 
   // Calculate progress percentage
   const totalStages = pipeline?.stages?.length || 0;
@@ -475,23 +480,15 @@ const PipelineDetail: React.FC = () => {
           setRetryingStageId(_stageId);
           // 使用 retryFromStage 从指定阶段重试
           const res = await retryFromStage(id!, _stageId);
-          const newRun = res.data?.data as { id?: string } | undefined;
+          const newRun = extractData(res) as { id?: string; pipelineId?: string } | undefined;
           message.success(`已从阶段「${stageName}」重新运行`);
-          // 跳转到新运行的详情页
-          if (newRun?.id) {
-            navigate(`/pipelines/${newRun.id}`);
+          // 跳转到该 Pipeline 详情页（查看新运行的结果）
+          // 注意：navigate 到 pipelineId 而非 runId，因为详情页会自动加载最新运行
+          if (newRun?.pipelineId) {
+            navigate(`/pipelines/${newRun.pipelineId}`);
           } else {
             // 回退：刷新当前页面
-            const runsRes = await getPipelineRuns(id!);
-            const runsData = extractList(runsRes);
-            const latestRun = runsData[0] || null;
-            if (latestRun) {
-              const detailRes = await getPipelineRunDetail(latestRun.id);
-              const runDetail = extractData(detailRes);
-              if (runDetail) {
-                setPipeline(runDetail);
-              }
-            }
+            await loadPipeline();
           }
         } catch (error: unknown) {
           if (error instanceof Error) {

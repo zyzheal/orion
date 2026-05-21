@@ -441,7 +441,8 @@ const PipelineRunLive: React.FC = () => {
       setApiError(null);
       try {
         const response = await getPipelineRun(id!);
-        const apiData = response.data.data as any;
+        // Backend returns { run, stages, tasks } directly, not wrapped in data
+        const apiData = response.data as any;
         if (apiData) {
           setPipeline(apiData);
           // Initialize stages from API data

@@ -131,7 +131,8 @@ const PipelineEditor: React.FC = () => {
     if (id) {
       getPipeline(id)
         .then((response) => {
-          const pipeline: any = response.data.data;
+          // Backend returns pipeline object directly: { id, name, version, ... }
+          const pipeline: any = response.data;
           if (pipeline) {
             setPipelineInfo({
               name: pipeline.name,

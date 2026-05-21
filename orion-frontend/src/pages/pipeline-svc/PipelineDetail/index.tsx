@@ -69,7 +69,8 @@ const PipelineDetail: React.FC = () => {
       setApiError(null);
       try {
         const response = await getPipelineRun(id!);
-        const apiData = response.data.data;
+        // Backend returns { run, stages, tasks } directly
+        const apiData = response.data;
         if (apiData) {
           setPipeline(apiData);
         } else {
@@ -110,7 +111,7 @@ const PipelineDetail: React.FC = () => {
       message.success('Pipeline 重新运行成功');
       // Reload pipeline detail after re-run
       const response = await getPipelineRun(id!);
-      setPipeline(response.data.data);
+        setPipeline(response.data);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`重新运行 Pipeline 失败：${error.message}`);
@@ -133,7 +134,8 @@ const PipelineDetail: React.FC = () => {
         try {
           setRetryingStageId(stageId);
           const response = await retryFromStage(id!, stageId);
-          const newRun = response.data.data as any;
+          // Backend retry response: { id, pipelineId, status, ... } — not wrapped in data
+          const newRun = response.data as any;
           message.success(`已从阶段「${stageName}」重新运行`);
           // Redirect to the new run's detail page
           if (newRun?.id) {
@@ -141,7 +143,7 @@ const PipelineDetail: React.FC = () => {
           } else {
             // Fallback: reload current page to see updated status
             const reloadResp = await getPipelineRun(id!);
-            setPipeline(reloadResp.data.data);
+            setPipeline(reloadResp.data);
           }
         } catch (error: unknown) {
           if (error instanceof Error) {

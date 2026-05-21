@@ -107,7 +107,7 @@ const PipelineList: React.FC = () => {
     setRunning(true);
     try {
       const response = await triggerPipeline(selectedPipeline.id, { branch: runBranch });
-      const runId = response.data.data?.id;
+      const runId = response.data?.id;
       message.success(`Pipeline "${selectedPipeline.name}" 已触发运行`);
       setRunModalVisible(false);
       if (runId) {
@@ -203,7 +203,7 @@ const PipelineList: React.FC = () => {
           <Button type="link" size="small" onClick={() => navigate(`/pipelines/${record.id}`)}>
             查看
           </Button>
-          <Button type="link" size="small" onClick={() => navigate(`/pipelines/${record.id}/edit`)}>
+          <Button type="link" size="small" onClick={() => navigate(`/pipelines/edit/${record.id}`)}>
             编辑
           </Button>
           <Button
