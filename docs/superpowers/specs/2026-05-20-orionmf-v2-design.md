@@ -1298,6 +1298,91 @@ export class GlobalStore {
 | 所有权 | owner 字段 | 子应用卸载时清理其状态 |
 | 与 EventBus 关系 | 解耦 | GlobalStore 管状态，EventBus 管事件 |
 
+### 4.0.1 SubAppDataChannel — 全局状态写权限控制（借鉴 motor DataChannel）
+
+**问题**：GlobalStore 任何子应用都能修改任意状态，存在安全隐患。借鉴 motor 的 DataChannel 设计，子应用只能修改自己声明的状态 key。
+
+```typescript
+// core/SubAppDataChannel.ts
+
+interface ChannelConfig {
+  appKey: string;
+  allowedKeys: string[];  // 允许修改的状态 key 白名单
+}
+
+export class SubAppDataChannel {
+  private allowedKeys: Set<string>;
+  private appKey: string;
+
+  constructor(config: ChannelConfig) {
+    this.appKey = config.appKey;
+    this.allowedKeys = new Set(config.allowedKeys);
+  }
+
+  // 设置状态（只能修改 allowedKeys 中的 key）
+  setState(nextState: Record<string, any>): void {
+    const finalState: Record<string, any> = {};
+
+    for (const [key, value] of Object.entries(nextState)) {
+      if (this.allowedKeys.has(key)) {
+        finalState[key] = value;
+      } else {
+        console.warn(
+          `[DataChannel] ${this.appKey} 无权修改状态 "${key}"，` +
+          `允许的范围: ${[...this.allowedKeys].join(', ')}`
+        );
+      }
+    }
+
+    // 批量设置（只有允许的 key）
+    if (Object.keys(finalState).length > 0) {
+      for (const [key, value] of Object.entries(finalState)) {
+        GlobalStore.set(key, value, this.appKey);
+      }
+    }
+  }
+
+  // 获取状态（可读所有 key）
+  getState(key: string): any {
+    return GlobalStore.get(key);
+  }
+
+  // 获取批量状态
+  getStates(keys: string[]): Record<string, any> {
+    return GlobalStore.getMany(keys);
+  }
+
+  // 订阅状态变化
+  subscribe(key: string, callback: (value: any) => void): () => void {
+    return GlobalStore.subscribe(key, (_k, v) => callback(v));
+  }
+
+  // 获取允许的 key 列表
+  getAllowedKeys(): string[] {
+    return [...this.allowedKeys];
+  }
+}
+
+// 使用示例
+const channel = new SubAppDataChannel({
+  appKey: 'pipeline-dashboard',
+  allowedKeys: ['currentPipeline', 'selectedVersion'],
+});
+
+channel.setState({ currentPipeline: 'build-001' });  // 成功
+channel.setState({ currentUser: 'admin' });           // 被拒绝，不在 allowedKeys 中
+```
+
+**设计要点**：
+
+| 设计点 | 方案 | 说明 |
+|--------|------|------|
+| 白名单控制 | `allowedKeys` 数组 | 子应用初始化时声明可修改的 key |
+| 写拦截 | `setState()` 过滤 | 只允许修改白名单中的 key |
+| 读自由 | 无限制 | 子应用可读取任意全局状态 |
+| 批量操作 | `getStates()` | 一次获取多个 key 的值 |
+| 安全日志 | console.warn | 越权修改时记录警告 |
+
 ### 4.1 SubAppStateMachine — 生命周期状态机
 
 **问题**：快速切换子应用时的并发冲突、异步 mount 过程中用户切换到另一个子应用如何处理？
@@ -1462,7 +1547,996 @@ interface Handler {
 }
 ```
 
-### 4.2 DegradationStrategy — 四级降级
+### 4.2.1 PreloadStrategy — 预加载/懒加载策略
+
+**问题**：20+ 子应用按需加载时，首次点击会有明显延迟。借鉴 qiankun 的 prefetch 4 种模式和 motor 的在线联调思路。
+
+```typescript
+// core/PreloadStrategy.ts
+
+type PrefetchMode = 'idle' | 'visible' | 'all' | 'smart' | 'manual';
+
+interface PrefetchConfig {
+  mode: PrefetchMode;
+  criticalApps: string[];   // 关键子应用，优先预加载
+  excludedApps: string[];   // 排除预加载的子应用
+  maxConcurrent: number;    // 最大并发数，默认 3
+  idleTimeout: number;      // 空闲延迟时间 (ms)，默认 2000
+}
+
+export class PreloadStrategy {
+  private config: PrefetchConfig;
+  private loaded = new Set<string>();
+  private loading = new Set<string>();
+
+  constructor(config: Partial<PrefetchConfig> = {}) {
+    this.config = {
+      mode: 'smart',
+      criticalApps: [],
+      excludedApps: [],
+      maxConcurrent: 3,
+      idleTimeout: 2000,
+      ...config,
+    };
+  }
+
+  // 智能预加载策略
+  async prefetch(appKey: string, loader: () => Promise<void>): Promise<void> {
+    if (this.loaded.has(appKey) || this.config.excludedApps.includes(appKey)) {
+      return;
+    }
+    if (this.loading.has(appKey)) return; // 已在加载中
+
+    switch (this.config.mode) {
+      case 'all':
+        return this.prefetchNow(appKey, loader);
+      case 'idle':
+        return this.prefetchOnIdle(appKey, loader);
+      case 'visible':
+        return this.prefetchOnVisible(appKey, loader);
+      case 'smart':
+        if (this.config.criticalApps.includes(appKey)) {
+          return this.prefetchNow(appKey, loader);
+        }
+        return this.prefetchOnIdle(appKey, loader);
+      case 'manual':
+        // 不自动预加载，由外部手动调用
+        return;
+    }
+  }
+
+  // 预加载关键子应用（分批并发）
+  async prefetchCritical(loaders: Map<string, () => Promise<void>>): Promise<void> {
+    const critical = this.config.criticalApps
+      .filter(k => loaders.has(k) && !this.loaded.has(k));
+    const batches = this.chunk(critical, this.config.maxConcurrent);
+
+    for (const batch of batches) {
+      await Promise.allSettled(batch.map(key => {
+        const loader = loaders.get(key)!;
+        return this.prefetchNow(key, loader);
+      }));
+    }
+  }
+
+  // 立即预加载
+  private async prefetchNow(appKey: string, loader: () => Promise<void>): Promise<void> {
+    this.loading.add(appKey);
+    try {
+      await loader();
+      this.loaded.add(appKey);
+    } catch (e) {
+      console.warn(`[Preload] Failed to prefetch ${appKey}:`, e);
+    } finally {
+      this.loading.delete(appKey);
+    }
+  }
+
+  // 空闲时预加载（requestIdleCallback）
+  private prefetchOnIdle(appKey: string, loader: () => Promise<void>): Promise<void> {
+    return new Promise((resolve) => {
+      requestIdleCallback(() => {
+        this.prefetchNow(appKey, loader).then(resolve);
+      }, { timeout: this.config.idleTimeout });
+    });
+  }
+
+  // 可见时预加载（IntersectionObserver）
+  private prefetchOnVisible(appKey: string, loader: () => Promise<void>): Promise<void> {
+    const container = document.querySelector(`[data-orion-scope="orion-${appKey}"]`);
+    if (!container) return this.prefetchNow(appKey, loader);
+
+    return new Promise((resolve) => {
+      const observer = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting) {
+          observer.disconnect();
+          this.prefetchNow(appKey, loader).then(resolve);
+        }
+      });
+      observer.observe(container);
+    });
+  }
+
+  // 分批工具方法
+  private chunk<T>(arr: T[], size: number): T[][] {
+    const result: T[][] = [];
+    for (let i = 0; i < arr.length; i += size) {
+      result.push(arr.slice(i, i + size));
+    }
+    return result;
+  }
+
+  // 检查是否已加载
+  isLoaded(appKey: string): boolean {
+    return this.loaded.has(appKey);
+  }
+
+  // 获取已加载列表
+  getLoadedApps(): string[] {
+    return [...this.loaded];
+  }
+}
+```
+
+**设计要点**：
+
+| 设计点 | 方案 | 说明 |
+|--------|------|------|
+| 预加载模式 | 5 种：idle/visible/all/smart/manual | 覆盖不同场景需求 |
+| 并发控制 | maxConcurrent 分批 | 避免同时加载过多应用 |
+| 防重复 | loaded + loading Set | 同一应用不会重复加载 |
+| 关键应用 | criticalApps 列表 | 优先预加载，不等空闲 |
+| 排除列表 | excludedApps 列表 | 大体积应用可排除 |
+| 与 MF 配合 | MF 自带懒加载 | PreloadStrategy 提前触发 MF 加载 |
+
+### 4.2.2 SubAppCache — 子应用缓存/Keep-Alive
+
+**问题**：频繁切换的子应用每次都重新加载，网络请求和渲染开销大。借鉴 wujie 的 keep-alive 和 qiankun 的 import-html-entry 缓存。
+
+```typescript
+// core/SubAppCache.ts
+
+type CacheMode = 'keep-alive' | 'full-unmount';
+
+interface CacheConfig {
+  maxSize: number;        // 最大缓存数，默认 5
+  ttl: number;            // 缓存过期时间 (ms)，0 = 永不过期
+  defaultMode: CacheMode; // 默认缓存模式
+}
+
+interface CacheEntry {
+  unmount: () => Promise<void>;
+  timestamp: number;
+  mode: CacheMode;
+  container: HTMLElement | null;
+}
+
+export class SubAppCache {
+  private cache = new Map<string, CacheEntry>();
+  private config: CacheConfig;
+
+  constructor(config: Partial<CacheConfig> = {}) {
+    this.config = {
+      maxSize: 5,
+      ttl: 0,
+      defaultMode: 'keep-alive',
+      ...config,
+    };
+  }
+
+  // 卸载子应用（实际放入缓存）
+  async evict(key: string, unmount: () => Promise<void>, container?: HTMLElement): Promise<void> {
+    // 如果缓存已满，淘汰最旧的
+    if (this.cache.size >= this.config.maxSize) {
+      await this.evictOldest();
+    }
+
+    const mode = this.config.defaultMode;
+
+    if (mode === 'keep-alive' && container) {
+      // Keep-Alive 模式：隐藏 DOM 但不卸载
+      container.style.display = 'none';
+      this.cache.set(key, {
+        unmount,
+        timestamp: Date.now(),
+        mode: 'keep-alive',
+        container,
+      });
+    } else {
+      // 完全卸载模式：调用 unmount 但保留模块引用
+      this.cache.set(key, {
+        unmount,
+        timestamp: Date.now(),
+        mode: 'full-unmount',
+        container: null,
+      });
+    }
+  }
+
+  // 从缓存恢复
+  async restore(key: string, remount: () => Promise<void>): Promise<boolean> {
+    const entry = this.cache.get(key);
+    if (!entry) return false;
+
+    // 检查过期
+    if (this.config.ttl > 0 && Date.now() - entry.timestamp > this.config.ttl) {
+      await this.purge(key);
+      return false;
+    }
+
+    if (entry.mode === 'keep-alive' && entry.container) {
+      // Keep-Alive 恢复：显示 DOM，不调用 remount
+      entry.container.style.display = '';
+      entry.timestamp = Date.now();
+      // 更新缓存顺序
+      this.cache.delete(key);
+      this.cache.set(key, entry);
+      return true;
+    }
+
+    // 完全卸载模式：需要重新 mount
+    await remount();
+    entry.timestamp = Date.now();
+    return true;
+  }
+
+  // 清除指定缓存
+  async purge(key: string): Promise<void> {
+    const entry = this.cache.get(key);
+    if (entry) {
+      await entry.unmount();
+      this.cache.delete(key);
+    }
+  }
+
+  // 清除所有缓存
+  async purgeAll(): Promise<void> {
+    const entries = [...this.cache];
+    this.cache.clear();
+    for (const [key, entry] of entries) {
+      await entry.unmount();
+    }
+  }
+
+  // 淘汰最旧的缓存项
+  private async evictOldest(): Promise<void> {
+    let oldestKey: string | null = null;
+    let oldestTime = Infinity;
+
+    for (const [key, entry] of this.cache) {
+      if (entry.timestamp < oldestTime) {
+        oldestTime = entry.timestamp;
+        oldestKey = key;
+      }
+    }
+
+    if (oldestKey) {
+      await this.purge(oldestKey);
+    }
+  }
+
+  // 检查是否在缓存中
+  has(key: string): boolean {
+    return this.cache.has(key);
+  }
+
+  // 获取缓存大小
+  get size(): number {
+    return this.cache.size;
+  }
+}
+```
+
+**设计要点**：
+
+| 设计点 | 方案 | 说明 |
+|--------|------|------|
+| Keep-Alive 模式 | `display: none` 隐藏 DOM | 切换时秒恢复，保留表单/滚动位置 |
+| 完全卸载模式 | 调用 unmount | 释放内存，下次需重新 mount |
+| LRU 淘汰 | 淘汰最久未使用的 | maxSize 限制防止内存泄漏 |
+| TTL 过期 | 可配置过期时间 | 避免缓存永远不被清理 |
+| 与 RouterManager 集成 | 导航时 evict/restore | 对用户透明 |
+
+### 4.2.3 DevProxyManager — 在线联调模式
+
+**问题**：开发时需要同时启动主应用和所有子应用，开发效率低。借鉴 motor 的 `__MOTOR_PROXY_LIST__` 机制。
+
+```typescript
+// core/DevProxyManager.ts
+
+export class DevProxyManager {
+  private proxyList: Record<string, string> = {};
+  private onChange?: (proxyList: Record<string, string>) => void;
+
+  constructor(proxyList?: Record<string, string>) {
+    // 从环境变量或 window 注入的代理列表读取
+    this.proxyList = proxyList ?? (window as any).__ORIONMF_PROXY_LIST__ ?? {};
+  }
+
+  // 解析子应用入口（开发时自动替换为本地地址）
+  resolveEntry(appKey: string, configEntry: string): string {
+    return this.proxyList[appKey] ?? configEntry;
+  }
+
+  // 动态注册代理
+  register(appKey: string, localEntry: string): void {
+    this.proxyList[appKey] = localEntry;
+    this.onChange?.(this.proxyList);
+  }
+
+  // 移除代理
+  unregister(appKey: string): void {
+    delete this.proxyList[appKey];
+    this.onChange?.(this.proxyList);
+  }
+
+  // 生成代理配置脚本（用于子应用开发时注入到页面）
+  generateProxyScript(): string {
+    return `window.__ORIONMF_PROXY_LIST__ = ${JSON.stringify(this.proxyList)};`;
+  }
+
+  // 获取所有代理
+  getAll(): Record<string, string> {
+    return { ...this.proxyList };
+  }
+
+  // 检查是否启用代理
+  hasProxy(appKey: string): boolean {
+    return appKey in this.proxyList;
+  }
+
+  // 设置变更回调（用于热更新）
+  setOnChange(callback: (proxyList: Record<string, string>) => void): void {
+    this.onChange = callback;
+  }
+}
+```
+
+**使用方式**：
+
+```typescript
+// 主应用启动时
+const devProxy = new DevProxyManager();
+
+// 子应用入口解析
+const entry = devProxy.resolveEntry('pipeline-dashboard', 'https://prod.com/remoteEntry.js');
+// 开发环境返回: http://localhost:3002/remoteEntry.js
+// 生产环境返回: https://prod.com/remoteEntry.js
+
+// 子应用开发者在浏览器控制台注入
+window.__ORIONMF_PROXY_LIST__ = {
+  'pipeline-dashboard': 'http://localhost:3002/remoteEntry.js',
+};
+
+// 刷新页面，主应用自动加载本地子应用
+```
+
+**设计要点**：
+
+| 设计点 | 方案 | 说明 |
+|--------|------|------|
+| 代理列表 | `__ORIONMF_PROXY_LIST__` | 通过 window 注入，无需修改代码 |
+| 入口解析 | `resolveEntry()` | 开发时替换，生产时透传 |
+| 热更新 | `setOnChange()` | 代理变更时可重新加载子应用 |
+| 脚本生成 | `generateProxyScript()` | 子应用注入到主应用页面 |
+| 与 MF 集成 | MFSandboxBridge 加载前解析 | 对桥接层透明 |
+
+### 4.2.4 RuntimeCSSPrefixer — CSS 运行时前缀劫持
+
+**问题**：Shadow DOM 无法隔离挂载到 body 的第三方组件（弹窗、tooltip、notification）。借鉴 motor 的 AutoClassPrefixer，作为 Shadow DOM 的补充。
+
+```typescript
+// core/RuntimeCSSPrefixer.ts
+
+export class RuntimeCSSPrefixer {
+  private prefixMap = new Map<string, string>(); // appKey → prefix
+  private patchedReactElements = new WeakMap<Function, Function>();
+
+  // 设置子应用 CSS 前缀
+  setup(appKey: string, prefix: string): void {
+    this.prefixMap.set(appKey, prefix);
+    this.patchDOMSetter(prefix);
+  }
+
+  // 针对 React：劫持 createElement
+  patchReactCreateElement(originalFn: Function): Function {
+    // 避免重复 patch
+    if (this.patchedReactElements.has(originalFn)) {
+      return this.patchedReactElements.get(originalFn)!;
+    }
+
+    const patched = ((type: any, props: any, ...children: any[]) => {
+      if (props && typeof props === 'object' && props.className) {
+        for (const [, prefix] of this.prefixMap) {
+          props.className = this.applyPrefix(props.className, prefix);
+        }
+      }
+      return (originalFn as any).call(this, type, props, ...children);
+    }) as Function;
+
+    this.patchedReactElements.set(originalFn, patched);
+    return patched;
+  }
+
+  // 针对 Vue3：劫持 createVNode / createElementBlock
+  patchVueCreateElement(originalFn: Function): Function {
+    if (this.patchedReactElements.has(originalFn)) {
+      return this.patchedReactElements.get(originalFn)!;
+    }
+
+    const patched = ((...args: any[]) => {
+      const props = args[1];
+      if (props && typeof props === 'object' && props.class) {
+        for (const [, prefix] of this.prefixMap) {
+          props.class = this.applyPrefix(props.class, prefix);
+        }
+      }
+      return (originalFn as any).apply(this, args);
+    }) as Function;
+
+    this.patchedReactElements.set(originalFn, patched);
+    return patched;
+  }
+
+  // DOM 兜底：劫持 className setter
+  private patchDOMSetter(prefix: string): void {
+    const originalDescriptor = Object.getOwnPropertyDescriptor(
+      HTMLElement.prototype,
+      'className'
+    );
+
+    if (!originalDescriptor) return;
+
+    // 避免重复 patch
+    if ((HTMLElement.prototype as any)._orionMfPatched) return;
+
+    Object.defineProperty(HTMLElement.prototype, 'className', {
+      get() {
+        return originalDescriptor.get!.call(this);
+      },
+      set(value: string) {
+        // 如果元素有 _orion-mf-prefix 属性，自动添加前缀
+        const elementPrefix = this.getAttribute('_orion-mf-prefix');
+        if (elementPrefix) {
+          value = value.split(/\s+/).map(c => {
+            if (c.startsWith(elementPrefix)) return c;
+            return `${elementPrefix}-${c}`;
+          }).join(' ');
+        }
+        originalDescriptor.set!.call(this, value);
+      },
+      configurable: true,
+    });
+
+    (HTMLElement.prototype as any)._orionMfPatched = true;
+  }
+
+  // 应用前缀
+  private applyPrefix(className: string, prefix: string): string {
+    return className
+      .split(/\s+/)
+      .map(c => c.startsWith(prefix) ? c : `${prefix}-${c}`)
+      .join(' ');
+  }
+
+  // 清理
+  cleanup(appKey: string): void {
+    this.prefixMap.delete(appKey);
+  }
+
+  // 获取所有前缀
+  getPrefixes(): Map<string, string> {
+    return new Map(this.prefixMap);
+  }
+}
+```
+
+**设计要点**：
+
+| 设计点 | 方案 | 说明 |
+|--------|------|------|
+| React 劫持 | patch createElement/jsx | 自动给 className 加前缀 |
+| Vue 劫持 | patch createVNode | 兼容 Vue3 class 属性 |
+| DOM 兜底 | 劫持 className setter | 覆盖动态添加的 className |
+| 与 Shadow DOM 关系 | 补充而非替代 | 处理挂载到 body 的节点 |
+| 防重复 patch | WeakMap 标记 | 避免重复 patch 导致性能问题 |
+
+### 4.2.5 ObservabilityManager — 崩溃率上报与可观测性
+
+**问题**：生产环境中无法知道子应用的崩溃率、加载失败率、性能分布。所有竞品均无内置可观测性，这是 OrionMF 的差异化机会。
+
+```typescript
+// core/ObservabilityManager.ts
+
+interface SubAppMetrics {
+  key: string;
+  loadCount: number;
+  errorCount: number;
+  crashRate: number;              // errorCount / loadCount
+  avgLoadTime: number;            // ms
+  avgSwitchTime: number;          // ms
+  p95LoadTime: number;            // ms
+  p99LoadTime: number;            // ms
+  memoryUsage: number;            // MB
+  lastError?: { message: string; stack: string; timestamp: number };
+  circuitBreakerTripped: boolean;
+  uptime: number;                 // 当前运行时间 (ms)
+}
+
+type MetricsExporter = (metrics: SubAppMetrics[]) => Promise<void>;
+
+export class ObservabilityManager {
+  private metrics = new Map<string, SubAppMetrics>();
+  private loadTimes = new Map<string, number[]>();
+  private switchTimes = new Map<string, number[]>();
+  private exporters: MetricsExporter[] = [];
+  private reportInterval: ReturnType<typeof setInterval> | null = null;
+  private loadStartTimes = new Map<string, number>();
+
+  // 注册上报目标（Prometheus/OpenTelemetry/APM）
+  registerExporter(exporter: MetricsExporter): void {
+    this.exporters.push(exporter);
+  }
+
+  // 记录加载开始
+  recordLoadStart(key: string): void {
+    const m = this.getOrCreate(key);
+    m.loadCount++;
+    this.loadStartTimes.set(key, Date.now());
+  }
+
+  // 记录加载完成
+  recordLoadComplete(key: string, duration: number): void {
+    const m = this.getOrCreate(key);
+    const times = this.loadTimes.get(key) ?? [];
+    times.push(duration);
+    this.loadTimes.set(key, times);
+
+    m.avgLoadTime = times.reduce((a, b) => a + b, 0) / times.length;
+    m.p95LoadTime = this.percentile(times, 95);
+    m.p99LoadTime = this.percentile(times, 99);
+    this.loadStartTimes.delete(key);
+  }
+
+  // 记录切换时间
+  recordSwitchTime(key: string, duration: number): void {
+    const m = this.getOrCreate(key);
+    const times = this.switchTimes.get(key) ?? [];
+    times.push(duration);
+    this.switchTimes.set(key, times);
+    m.avgSwitchTime = times.reduce((a, b) => a + b, 0) / times.length;
+  }
+
+  // 记录错误
+  recordError(key: string, error: Error): void {
+    const m = this.getOrCreate(key);
+    m.errorCount++;
+    m.crashRate = m.loadCount > 0 ? m.errorCount / m.loadCount : 0;
+    m.lastError = {
+      message: error.message,
+      stack: error.stack || '',
+      timestamp: Date.now(),
+    };
+  }
+
+  // 记录熔断状态
+  recordCircuitBreaker(key: string, tripped: boolean): void {
+    this.getOrCreate(key).circuitBreakerTripped = tripped;
+  }
+
+  // 记录内存使用
+  recordMemory(key: string, usageMB: number): void {
+    this.getOrCreate(key).memoryUsage = usageMB;
+  }
+
+  // 获取单个应用指标
+  getMetrics(key: string): SubAppMetrics | undefined {
+    return this.metrics.get(key);
+  }
+
+  // 获取所有指标
+  getAllMetrics(): SubAppMetrics[] {
+    return Array.from(this.metrics.values());
+  }
+
+  // 启动定期上报
+  startReporting(intervalMs: number = 30000): void {
+    this.reportInterval = setInterval(async () => {
+      const metrics = this.getAllMetrics();
+      for (const exporter of this.exporters) {
+        try {
+          await exporter(metrics);
+        } catch (e) {
+          console.error('[Observability] Export failed:', e);
+        }
+      }
+    }, intervalMs);
+  }
+
+  // 停止上报
+  stopReporting(): void {
+    if (this.reportInterval) {
+      clearInterval(this.reportInterval);
+      this.reportInterval = null;
+    }
+  }
+
+  // 清理指定应用的指标
+  cleanup(key: string): void {
+    this.metrics.delete(key);
+    this.loadTimes.delete(key);
+    this.switchTimes.delete(key);
+    this.loadStartTimes.delete(key);
+  }
+
+  private getOrCreate(key: string): SubAppMetrics {
+    if (!this.metrics.has(key)) {
+      this.metrics.set(key, {
+        key,
+        loadCount: 0,
+        errorCount: 0,
+        crashRate: 0,
+        avgLoadTime: 0,
+        avgSwitchTime: 0,
+        p95LoadTime: 0,
+        p99LoadTime: 0,
+        memoryUsage: 0,
+        circuitBreakerTripped: false,
+        uptime: 0,
+      });
+    }
+    return this.metrics.get(key)!;
+  }
+
+  private percentile(sorted: number[], p: number): number {
+    if (sorted.length === 0) return 0;
+    const s = [...sorted].sort((a, b) => a - b);
+    const idx = Math.ceil(p / 100 * s.length) - 1;
+    return s[Math.max(0, idx)];
+  }
+}
+```
+
+**集成点**：
+
+| 模块 | 集成方法 |
+|------|---------|
+| CrashRecovery | `recordError()` + `recordCircuitBreaker()` |
+| MFSandboxBridge | `recordLoadStart()` + `recordLoadComplete()` |
+| RouterManager | `recordSwitchTime()` |
+| LeakPrevention | `recordMemory()` |
+
+**设计要点**：
+
+| 设计点 | 方案 | 说明 |
+|--------|------|------|
+| 指标采集 | 内存 Map 存储 | 低开销，无网络 IO |
+| 分位数计算 | p95/p99 | 反映长尾延迟 |
+| 导出器插件 | MetricsExporter 接口 | 对接 Prometheus/OpenTelemetry/APM |
+| 定期上报 | setInterval | 可配置间隔，默认 30s |
+| 崩溃率 | errorCount / loadCount | 实时计算 |
+
+### 4.2.6 SecurityPolicyManager — 安全策略配置化
+
+**问题**：不同子应用可能需要不同的安全级别（如内部管理工具不需要严格沙箱），当前 Sandbox 的白名单/黑名单是硬编码的。借鉴 qiankun 的 sandbox 配置和 MicroApp 的 strict/loose 模式。
+
+```typescript
+// core/SecurityPolicyManager.ts
+
+type SandboxMode = 'strict' | 'loose' | 'none';
+type CSSIsolationMode = 'shadow-dom' | 'scoped-css' | 'runtime-prefix' | 'none';
+
+interface SecurityPolicy {
+  mode: SandboxMode;
+  // 白名单：允许直接访问的全局属性 (mode: 'loose' 时生效)
+  whitelist: string[];
+  // 黑名单：禁止访问的属性 (所有模式都生效)
+  blacklist: string[];
+  // CSS 隔离模式
+  cssIsolation: CSSIsolationMode;
+  // 是否隔离 localStorage
+  isolateStorage: boolean;
+  // 是否拦截动态脚本
+  blockDynamicScripts: boolean;
+  // 是否拦截 eval/Function
+  blockEval: boolean;
+}
+
+// 预设策略
+const PRESETS: Record<string, SecurityPolicy> = {
+  // 严格模式：适用于不可信的第三方子应用
+  strict: {
+    mode: 'strict',
+    whitelist: [],
+    blacklist: ['eval', 'Function', '__proto__', 'constructor', 'alert', 'confirm', 'prompt'],
+    cssIsolation: 'shadow-dom',
+    isolateStorage: true,
+    blockDynamicScripts: true,
+    blockEval: true,
+  },
+  // 宽松模式：适用于可信的内部子应用
+  loose: {
+    mode: 'loose',
+    whitelist: ['console', 'localStorage', 'sessionStorage', 'fetch', 'XMLHttpRequest'],
+    blacklist: ['eval', 'Function', '__proto__', 'constructor'],
+    cssIsolation: 'scoped-css',
+    isolateStorage: false,
+    blockDynamicScripts: false,
+    blockEval: true,
+  },
+  // 无沙箱：适用于完全信任的子应用（如主应用内置模块）
+  none: {
+    mode: 'none',
+    whitelist: [],
+    blacklist: [],
+    cssIsolation: 'none',
+    isolateStorage: false,
+    blockDynamicScripts: false,
+    blockEval: false,
+  },
+};
+
+export class SecurityPolicyManager {
+  private policies = new Map<string, SecurityPolicy>();
+
+  // 使用预设策略
+  applyPreset(appKey: string, preset: 'strict' | 'loose' | 'none'): void {
+    this.policies.set(appKey, { ...PRESETS[preset], whitelist: [...PRESETS[preset].whitelist], blacklist: [...PRESETS[preset].blacklist] });
+  }
+
+  // 自定义策略
+  setPolicy(appKey: string, policy: Partial<SecurityPolicy>): void {
+    const existing = this.policies.get(appKey) ?? { ...PRESETS.strict, whitelist: [...PRESETS.strict.whitelist], blacklist: [...PRESETS.strict.blacklist] };
+    this.policies.set(appKey, { ...existing, ...policy });
+  }
+
+  // 获取子应用的策略
+  getPolicy(appKey: string): SecurityPolicy {
+    return this.policies.get(appKey) ?? { ...PRESETS.strict, whitelist: [...PRESETS.strict.whitelist], blacklist: [...PRESETS.strict.blacklist] };
+  }
+
+  // 批量设置
+  setPolicies(policies: Record<string, Partial<SecurityPolicy>>): void {
+    for (const [key, policy] of Object.entries(policies)) {
+      this.setPolicy(key, policy);
+    }
+  }
+
+  // 获取所有策略（调试用）
+  getAll(): Record<string, SecurityPolicy> {
+    return Object.fromEntries(this.policies);
+  }
+
+  // 清理
+  cleanup(appKey: string): void {
+    this.policies.delete(appKey);
+  }
+}
+```
+
+**与 Sandbox 集成**：
+
+```typescript
+// Sandbox.create() 接受 SecurityPolicy 参数
+create(key: string, policy?: Partial<SecurityPolicy>): SandboxContext {
+  const effectivePolicy = policy ? this.securityManager.getPolicy(key) : null;
+
+  // 根据策略动态调整白名单/黑名单
+  const whitelist = effectivePolicy?.whitelist ?? READONLY_WHITELIST;
+  const blacklist = effectivePolicy?.blacklist ?? DENYLIST;
+
+  // ... 使用 whitelist/blacklist 创建 Proxy
+}
+```
+
+**设计要点**：
+
+| 设计点 | 方案 | 说明 |
+|--------|------|------|
+| 预设策略 | strict/loose/none | 覆盖常见场景 |
+| 自定义 | 可覆盖预设的任何字段 | 灵活调整 |
+| CSS 隔离模式 | 4 种：shadow-dom/scoped-css/runtime-prefix/none | 与 RuntimeCSSPrefixer 配合 |
+| 与 Sandbox 集成 | create() 接受策略参数 | 动态调整隔离级别 |
+| 批量设置 | setPolicies() | 一次性配置多个子应用 |
+
+### 4.2.7 SubAppRegistry — 子应用注册中心
+
+**问题**：新增子应用需要修改主应用代码并重新部署。企业级场景需要动态注册、远程配置。
+
+```typescript
+// core/SubAppRegistry.ts
+
+interface SubAppRegistration {
+  key: string;
+  name: string;
+  entry_dev: string;    // 开发环境入口
+  entry_prod: string;   // 生产环境入口
+  route: string;        // 路由前缀
+  security?: 'strict' | 'loose' | 'none';  // 安全策略
+  preload?: boolean;    // 是否预加载
+  cacheable?: boolean;  // 是否可缓存
+  allowedStateKeys?: string[];  // 允许修改的全局状态 key
+}
+
+export class SubAppRegistry {
+  private apps = new Map<string, SubAppRegistration>();
+  private remoteUrl?: string;  // 远程配置中心 URL
+  private lastFetchTime = 0;
+  private cacheTTL = 5 * 60 * 1000; // 5 分钟缓存
+
+  constructor(remoteUrl?: string) {
+    this.remoteUrl = remoteUrl;
+  }
+
+  // 注册子应用
+  register(config: SubAppRegistration): void {
+    this.apps.set(config.key, config);
+  }
+
+  // 批量注册
+  registerBatch(configs: SubAppRegistration[]): void {
+    for (const config of configs) {
+      this.register(config);
+    }
+  }
+
+  // 注销子应用
+  unregister(key: string): void {
+    this.apps.delete(key);
+  }
+
+  // 获取子应用配置
+  getApp(key: string): SubAppRegistration | undefined {
+    return this.apps.get(key);
+  }
+
+  // 获取所有子应用
+  getAllApps(): SubAppRegistration[] {
+    return [...this.apps.values()];
+  }
+
+  // 从远程配置中心加载注册表
+  async fetchRemote(): Promise<void> {
+    if (!this.remoteUrl) return;
+
+    // 检查缓存
+    const now = Date.now();
+    if (now - this.lastFetchTime < this.cacheTTL) return;
+
+    try {
+      const response = await fetch(this.remoteUrl);
+      const configs: SubAppRegistration[] = await response.json();
+      this.registerBatch(configs);
+      this.lastFetchTime = now;
+    } catch (e) {
+      console.warn('[Registry] Failed to fetch remote config:', e);
+    }
+  }
+
+  // 获取子应用入口（自动根据环境选择）
+  getEntry(key: string): string {
+    const app = this.apps.get(key);
+    if (!app) throw new Error(`Unknown app: ${key}`);
+
+    return process.env.NODE_ENV === 'development' ? app.entry_dev : app.entry_prod;
+  }
+
+  // 检查子应用是否存在
+  has(key: string): boolean {
+    return this.apps.has(key);
+  }
+}
+```
+
+**设计要点**：
+
+| 设计点 | 方案 | 说明 |
+|--------|------|------|
+| 动态注册 | `register()` / `unregister()` | 无需修改代码 |
+| 远程配置 | `fetchRemote()` | 从配置中心拉取 |
+| 缓存 | 5 分钟 TTL | 避免频繁请求 |
+| 环境适配 | `entry_dev` / `entry_prod` | 自动切换 |
+| 安全策略 | 注册时声明 | 与 SecurityPolicyManager 集成 |
+| 预加载标记 | `preload` 字段 | 与 PreloadStrategy 集成 |
+
+### 4.2.8 MultiInstanceManager — 多实例支持
+
+**问题**：无法在同一页面展示同一子应用的多个实例（如两个不同租户的 Pipeline 看板）。当前 SubAppStateMachine 以 key 作为唯一标识，同一 key 只能有一个实例。
+
+```typescript
+// core/MultiInstanceManager.ts
+
+interface InstanceConfig {
+  instanceId: string;   // 唯一实例 ID
+  appKey: string;       // 子应用 key
+  props: Record<string, any>;  // 实例专属参数
+}
+
+export class MultiInstanceManager {
+  private instances = new Map<string, InstanceConfig>(); // instanceId → config
+  private appKeyToInstances = new Map<string, Set<string>>(); // appKey → instanceIds
+  private stateMachines = new Map<string, SubAppStateMachine>(); // instanceId → stateMachine
+
+  // 创建新实例
+  createInstance(config: InstanceConfig): string {
+    const instanceId = config.instanceId || `${config.appKey}__${Date.now()}`;
+
+    this.instances.set(instanceId, config);
+
+    if (!this.appKeyToInstances.has(config.appKey)) {
+      this.appKeyToInstances.set(config.appKey, new Set());
+    }
+    this.appKeyToInstances.get(config.appKey)!.add(instanceId);
+
+    // 为每个实例创建独立的状态机
+    this.stateMachines.set(instanceId, new SubAppStateMachine());
+
+    return instanceId;
+  }
+
+  // 销毁实例
+  destroyInstance(instanceId: string): void {
+    const config = this.instances.get(instanceId);
+    if (!config) return;
+
+    this.instances.delete(instanceId);
+    this.appKeyToInstances.get(config.appKey)?.delete(instanceId);
+    this.stateMachines.delete(instanceId);
+  }
+
+  // 获取子应用的所有实例 ID
+  getInstances(appKey: string): string[] {
+    return [...(this.appKeyToInstances.get(appKey) ?? [])];
+  }
+
+  // 获取实例配置
+  getInstance(instanceId: string): InstanceConfig | undefined {
+    return this.instances.get(instanceId);
+  }
+
+  // 获取实例的状态机
+  getStateMachine(instanceId: string): SubAppStateMachine | undefined {
+    return this.stateMachines.get(instanceId);
+  }
+
+  // 获取实例数量
+  getInstanceCount(appKey: string): number {
+    return this.appKeyToInstances.get(appKey)?.size ?? 0;
+  }
+
+  // 清理指定子应用的所有实例
+  cleanupApp(appKey: string): void {
+    const instanceIds = this.getInstances(appKey);
+    for (const id of instanceIds) {
+      this.destroyInstance(id);
+    }
+  }
+}
+```
+
+**URL 格式调整**：
+
+```
+// 单实例: /app/{subAppKey}/*
+// 多实例: /app/{subAppKey}/{instanceId}/*
+
+// 示例
+/app/pipeline-dashboard                    // 默认实例
+/app/pipeline-dashboard/tenant-a           // 租户 A 实例
+/app/pipeline-dashboard/tenant-b           // 租户 B 实例
+```
+
+**设计要点**：
+
+| 设计点 | 方案 | 说明 |
+|--------|------|------|
+| 实例 ID | `{appKey}__{timestamp}` | 自动生成或手动指定 |
+| 独立状态机 | 每个实例独立 | 互不干扰 |
+| URL 路由 | `/app/{key}/{instanceId}/*` | 兼容单实例 |
+| RouterManager 集成 | 解析 instanceId | 自动创建/切换实例 |
+| 清理机制 | `cleanupApp()` | 子应用卸载时清理所有实例 |
+
+### 4.3 DegradationStrategy — 四级降级
 
 ```typescript
 // core/DegradationStrategy.ts
@@ -1832,12 +2906,21 @@ export default {
 | EventBus | core/EventBus.ts | ~80 | P1 |
 | DegradationStrategy | core/DegradationStrategy.ts | ~80 | P1 |
 | GlobalStore | core/GlobalStore.ts | ~80 | P1 |
+| SubAppDataChannel | core/SubAppDataChannel.ts | ~80 | P0 |
 | SubAppStateMachine | core/SubAppStateMachine.ts | ~120 | P1 |
+| PreloadStrategy | core/PreloadStrategy.ts | ~150 | P0 |
+| SubAppCache | core/SubAppCache.ts | ~120 | P0 |
+| DevProxyManager | core/DevProxyManager.ts | ~80 | P1 |
+| RuntimeCSSPrefixer | core/RuntimeCSSPrefixer.ts | ~120 | P1 |
+| ObservabilityManager | core/ObservabilityManager.ts | ~150 | P1 |
+| SecurityPolicyManager | core/SecurityPolicyManager.ts | ~100 | P1 |
+| SubAppRegistry | core/SubAppRegistry.ts | ~120 | P1 |
+| MultiInstanceManager | core/MultiInstanceManager.ts | ~100 | P1 |
 | PerformanceBenchmark | core/PerformanceBenchmark.ts | ~120 | P2 |
 | A11ySupport | core/A11ySupport.ts | ~60 | P2 |
 | FrameworkUpgrade | core/FrameworkUpgrade.ts | ~60 | P2 |
 | create-orion-subapp | packages/create-orion-subapp/ | ~300 | P1 |
-| **总计** | **17 个模块** | **~2120 行** | |
+| **总计** | **25 个模块** | **~3040 行** | |
 
 ---
 
@@ -1956,10 +3039,11 @@ packages/orion-mf/
 
 ### Phase 1：核心隔离能力（2 周）
 
-- [ ] Sandbox — JS 沙箱（纯 Proxy 方案）
-- [ ] StyleIsolator — CSS 隔离
+- [ ] Sandbox — JS 沙箱（纯 Proxy + functionBoundedValueMap 缓存）
+- [ ] StyleIsolator — CSS 隔离（Shadow DOM + 动态样式拦截）
 - [ ] ErrorIsolator — 异常隔离（单例模式）
 - [ ] RouterManager — 路由管理
+- [ ] SubAppDataChannel — 全局状态写权限控制（P0 安全）
 
 ### Phase 2：崩溃恢复与资源防护（1 周）
 
@@ -1967,15 +3051,26 @@ packages/orion-mf/
 - [ ] LeakPrevention — 资源泄漏防护
 - [ ] ReactShadowCompat — React + Shadow DOM 兼容
 - [ ] SubAppStateMachine — 生命周期状态机
+- [ ] SecurityPolicyManager — 安全策略配置化
 
-### Phase 3：MF 桥梁与降级（1 周）
+### Phase 3：MF 桥梁与性能优化（1 周）
 
 - [ ] MFSandboxBridge — MF 与沙箱桥梁
 - [ ] DegradationStrategy — 四级降级策略
 - [ ] EventBus — 带版本控制通信
 - [ ] GlobalStore — 全局状态管理
+- [ ] PreloadStrategy — 预加载/懒加载策略
+- [ ] SubAppCache — 子应用缓存/Keep-Alive
 
-### Phase 4：支持模块与脚手架（1 周）
+### Phase 4：开发体验与运营能力（1 周）
+
+- [ ] DevProxyManager — 在线联调模式
+- [ ] RuntimeCSSPrefixer — CSS 运行时前缀劫持
+- [ ] ObservabilityManager — 崩溃率上报与可观测性
+- [ ] SubAppRegistry — 子应用注册中心
+- [ ] MultiInstanceManager — 多实例支持
+
+### Phase 5：支持模块与脚手架（1 周）
 
 - [ ] PerformanceBenchmark — 性能基准测试
 - [ ] A11ySupport — 无障碍访问
@@ -1983,23 +3078,25 @@ packages/orion-mf/
 - [ ] create-orion-subapp — 子应用脚手架
 - [ ] 测试用例编写
 
-### 总计：5 周完成核心框架
+### 总计：6 周完成完整框架
 
 ---
 
-## 10. 风险评估
+## 11. 风险评估
 
 | 风险 | 影响 | 概率 | 缓解措施 |
 |------|------|------|----------|
-| Shadow DOM 兼容问题 | 高 | 中 | 降级到 Scoped CSS |
-| Proxy 性能开销 | 中 | 低 | 性能基准测试验证 |
-| MF 版本冲突 | 高 | 中 | 版本协商机制 |
-| React Portal 失效 | 中 | 中 | ReactShadowCompat 事件转发 |
-| 内存泄漏 | 高 | 中 | LeakPrevention 监控 |
+| Shadow DOM 兼容问题 | 高 | 中 | RuntimeCSSPrefixer 补充 + 降级到 Scoped CSS |
+| Proxy 性能开销 | 中 | 低 | functionBoundedValueMap 缓存 + 性能基准测试 |
+| MF 版本冲突 | 高 | 中 | DependencyResolver 版本协商 |
+| React Portal 失效 | 中 | 中 | ReactShadowCompat 事件转发 + RuntimeCSSPrefixer |
+| 内存泄漏 | 高 | 中 | SubAppCache LRU + LeakPrevention 监控 |
+| Keep-Alive 内存膨胀 | 中 | 中 | maxSize=5 + TTL 过期 |
+| 多实例状态混乱 | 中 | 低 | MultiInstanceManager 独立状态机 |
 
 ---
 
-## 11. 评审记录
+## 12. 评审记录
 
 ### v1.0 → v2.0 变更
 
@@ -2010,7 +3107,31 @@ packages/orion-mf/
 | 生产降级不完整 | DegradationStrategy 四级降级 | 已修复 |
 | 子应用构建无标准 | create-orion-subapp 脚手架 | 已修复 |
 
+### v2.0 → v2.1 变更（竞品差距 + motor 借鉴）
+
+| 编号 | 缺失能力 | 来源 | 修复方案 | 状态 |
+|------|---------|------|---------|------|
+| 1 | 预加载/懒加载 | 竞品 ICE 6.3 | PreloadStrategy（5 种模式） | 已补充 |
+| 2 | 子应用缓存/Keep-Alive | 竞品 ICE 4.8 | SubAppCache（keep-alive + LRU） | 已补充 |
+| 3 | GlobalStore 写权限控制 | motor DataChannel | SubAppDataChannel（allowedKeys） | 已补充 |
+| 4 | 沙箱 bind 缓存 | motor functionBoundedValueMap | WeakMap 缓存 | 已补充 |
+| 5 | 在线联调模式 | motor `__MOTOR_PROXY_LIST__` | DevProxyManager | 已补充 |
+| 6 | CSS 运行时前缀 | motor AutoClassPrefixer | RuntimeCSSPrefixer | 已补充 |
+| 7 | 崩溃率上报与可观测性 | 竞品差异化 | ObservabilityManager | 已补充 |
+| 8 | 安全策略配置化 | qiankun/MicroApp | SecurityPolicyManager（strict/loose/none） | 已补充 |
+| 9 | 子应用注册中心 | 企业级需求 | SubAppRegistry（动态注册 + 远程配置） | 已补充 |
+| 10 | 多实例支持 | wujie/single-spa | MultiInstanceManager（独立状态机） | 已补充 |
+
 ### 架构师评审意见
+
+- **JS 隔离**：完整实现（Proxy 白名单/黑名单 + WeakMap 缓存 + 安全策略配置化）
+- **CSS 隔离**：完整实现（Shadow DOM + Scoped CSS + 动态拦截 + 运行时前缀）
+- **异常隔离**：完整实现（ErrorIsolator 单例 + CircuitBreaker + 四级降级）
+- **通信机制**：完整实现（EventBus 版本控制 + GlobalStore + SubAppDataChannel 写权限控制）
+- **性能优化**：完整实现（PreloadStrategy 5 种模式 + SubAppCache Keep-Alive）
+- **开发体验**：完整实现（DevProxyManager 在线联调）
+- **运营能力**：完整实现（ObservabilityManager 可观测性 + SubAppRegistry 注册中心）
+- **高级能力**：完整实现（MultiInstanceManager 多实例 + RuntimeCSSPrefixer CSS 补充）
 
 - **JS 沙盒能力**：完整实现（Proxy + with + iframe 降级）
 - **CSS 隔离能力**：完整实现（Shadow DOM + Scoped CSS + 动态样式拦截）
@@ -2030,4 +3151,572 @@ packages/orion-mf/
 
 ---
 
-*文档版本：v2.0 | 更新日期：2026-05-20 | 作者：Orion 前端团队*
+*文档版本：v2.2 | 更新日期：2026-05-20 | 作者：Orion 前端团队*
+
+---
+
+## 13. motor v0.3.3 深度源码分析补充（第二轮）
+
+> 基于 motor 源码全量阅读（ProxySandbox.ts, GlobalStateChannel.ts, MicroModuleManage.ts, MicroApp.ts, sandbox/common.ts）
+> 发现 7 项当前设计文档未覆盖的关键模式
+
+### 13.1 fakeWindow 机制 — 不可配置属性的特殊处理
+
+**motor 实现**（ProxySandbox.ts:84-154）：
+
+motor 在创建 Proxy 前，先构建一个 `fakeWindow` 对象，将真实 window 上所有 `configurable: false` 的属性预先复制进去。这样做的原因是 Proxy 的 `getOwnPropertyDescriptor` trap 有一个硬性约束：
+
+> "A property cannot be reported as non-configurable, if it does not exist as an own property of the target object"
+
+```typescript
+// motor 的 fakeWindow 构建逻辑
+function createFakeWindow(globalContext: Window) {
+  const propertiesWithGetter = new Map<PropertyKey, boolean>();
+  const fakeWindow = {} as FakeWindow;
+
+  Object.getOwnPropertyNames(globalContext)
+    .filter((p) => {
+      const descriptor = Object.getOwnPropertyDescriptor(globalContext, p);
+      return !descriptor?.configurable;  // 只处理不可配置的属性
+    })
+    .forEach((p) => {
+      const descriptor = Object.getOwnPropertyDescriptor(globalContext, p);
+      if (descriptor) {
+        // 特殊处理 top/self/window 等，使其可配置可写
+        if (p === 'top' || p === 'parent' || p === 'self' || p === 'window') {
+          descriptor.configurable = true;
+          if (!hasGetter) descriptor.writable = true;
+        }
+        rawObjectDefineProperty(fakeWindow, p, Object.freeze(descriptor));
+      }
+    });
+
+  return { fakeWindow, propertiesWithGetter };
+}
+```
+
+**OrionMF 当前状态**：Sandbox 模块（3.2 节）使用 `localVars` 作为 Proxy target，没有处理 `configurable: false` 的属性。这在某些浏览器/场景下可能导致 `getOwnPropertyDescriptor` trap 抛出 TypeError。
+
+**补充方案**：在 Sandbox.createProxy 时增加 fakeWindow 构建步骤：
+
+```typescript
+// core/Sandbox.ts — 补充 fakeWindow 支持
+private createFakeWindow(globalContext: Window): { fakeWindow: Record<string, any>; propertiesWithGetter: Set<string> } {
+  const propertiesWithGetter = new Set<string>();
+  const fakeWindow: Record<string, any> = {};
+
+  const nonConfigurable = Object.getOwnPropertyNames(globalContext).filter(p => {
+    const desc = Object.getOwnPropertyDescriptor(globalContext, p);
+    return desc && !desc.configurable;
+  });
+
+  for (const p of nonConfigurable) {
+    const desc = Object.getOwnPropertyDescriptor(globalContext, p)!;
+    const hasGetter = 'get' in desc;
+    if (hasGetter) propertiesWithGetter.add(p);
+
+    // top/self/window 需要特殊处理
+    if (['top', 'parent', 'self', 'window'].includes(p)) {
+      Object.defineProperty(fakeWindow, p, {
+        configurable: true,
+        writable: !hasGetter,
+        enumerable: desc.enumerable,
+        value: hasGetter ? undefined : globalContext[p as keyof Window],
+      });
+    } else {
+      Object.defineProperty(fakeWindow, p, Object.freeze(desc));
+    }
+  }
+
+  return { fakeWindow, propertiesWithGetter };
+}
+```
+
+### 13.2 getCurrentRunningApp + nextTask 异步清除机制
+
+**motor 实现**（sandbox/common.ts + ProxySandbox.ts:177-186）：
+
+motor 使用 `currentRunningApp` 全局变量追踪当前正在执行的子应用，并在 Proxy get/set 时更新。关键是它使用 `nextTask`（microtask）来异步清除这个标记：
+
+```typescript
+// sandbox/common.ts
+let currentRunningApp: AppInstance | null = null;
+export function getCurrentRunningApp() { return currentRunningApp; }
+export function setCurrentRunningApp(app: { name: string; window: WindowProxy } | null) {
+  currentRunningApp = app;
+}
+
+// ProxySandbox.ts — registerRunningApp
+private registerRunningApp(name: string, proxy: Window) {
+  if (this.sandboxRunning) {
+    const currentApp = getCurrentRunningApp();
+    if (!currentApp || currentApp.name !== name) {
+      setCurrentRunningApp({ name, window: proxy });
+    }
+    // 关键：使用 nextTask（microtask）延迟清除
+    nextTask(() => setCurrentRunningApp(null));
+  }
+}
+```
+
+**用途**：全局劫持方法（如 `document.createElement`）需要通过 `getCurrentRunningApp()` 知道当前是哪个子应用在操作，从而自动添加 CSS scope 前缀。`nextTask` 确保在同一次事件循环内的后续同步代码仍能正确获取 runningApp。
+
+**OrionMF 当前状态**：GlobalWrapper 单例只管理沙箱注册，没有 runningApp 追踪机制。
+
+**补充方案**：在 Sandbox 模块中增加 runningApp 追踪：
+
+```typescript
+// core/Sandbox.ts — 补充 runningApp 追踪
+type RunningApp = { key: string; proxy: SandboxProxy };
+let currentRunningApp: RunningApp | null = null;
+
+export function getCurrentRunningApp(): RunningApp | null {
+  return currentRunningApp;
+}
+
+function nextTask(fn: () => void): void {
+  // 使用 Promise.resolve().then() 实现 microtask
+  Promise.resolve().then(fn);
+}
+
+// 在 Proxy get/set trap 中调用
+private registerRunningApp(key: string, proxy: any) {
+  if (!currentRunningApp || currentRunningApp.key !== key) {
+    currentRunningApp = { key, proxy };
+  }
+  nextTask(() => {
+    if (currentRunningApp?.key === key) {
+      currentRunningApp = null;
+    }
+  });
+}
+```
+
+### 13.3 unscopables 性能优化
+
+**motor 实现**（ProxySandbox.ts:50-73, 279）：
+
+motor 定义了 `unscopables` 对象，包含 `Array`, `Object`, `Promise`, `Math` 等基本类型。在 Proxy 的 `has` trap 中，这些属性直接返回 true，避免进入后续的代理查找流程：
+
+```typescript
+const unscopables = {
+  undefined: true, Array: true, Object: true, String: true,
+  Boolean: true, Math: true, Number: true, Symbol: true,
+  parseFloat: true, Float32Array: true, isNaN: true, Infinity: true,
+  Reflect: true, Float64Array: true, Function: true, Map: true,
+  NaN: true, Promise: true, Proxy: true, Set: true,
+  parseInt: true, requestAnimationFrame: true,
+};
+
+// has trap
+has(target, p) {
+  return p in unscopables || p in target || p in globalContext;
+}
+
+// get trap
+if (p === Symbol.unscopables) return unscopables;
+```
+
+**性能意义**：这些基本类型在子应用代码中几乎每个文件都会用到，直接在 `has` trap 中返回 true 可避免后续 `Reflect.get` 的开销。
+
+**OrionMF 当前状态**：没有 unscopables 机制，所有属性都走完整的 get trap 逻辑。
+
+**补充方案**：在 Sandbox Proxy 的 has trap 中增加 unscopables 快速路径。
+
+### 13.4 useNativeWindowForBindingsProps — fetch 等 API 的原生绑定
+
+**motor 实现**（ProxySandbox.ts:74-82, 322-324）：
+
+某些 DOM API（如 `fetch`）在绑定到 Proxy 后执行时会抛出 `Illegal invocation` 错误，因为它们内部校验 this 必须是原生 window 对象：
+
+```typescript
+const useNativeWindowForBindingsProps = new Map<PropertyKey, boolean>([
+  ['fetch', true],
+]);
+
+// get trap 中
+const boundTarget = useNativeWindowForBindingsProps.get(p)
+  ? nativeGlobal  // 使用原生全局对象，而非 Proxy
+  : globalContext;
+return getTargetValue(boundTarget, value);
+```
+
+**OrionMF 当前状态**：Sandbox 的 get trap 对所有函数都使用 `bind(globalThis)`，但没有区分 `fetch` 等特殊 API 需要用原生而非 Proxy。
+
+**补充方案**：在 wrapDangerous 方法中增加 nativeGlobal 绑定分支。
+
+### 13.5 MicroModule factory 级粒度 — 比子应用更细的共享
+
+**motor 实现**（MicroModuleManage.ts + MicroModule.ts）：
+
+motor 除了 MicroApp（子应用级），还有 MicroModule（模块级）的概念。MicroModule 的粒度是 factory 级别，可以在主应用中直接渲染子应用的某个组件：
+
+```typescript
+// motor MicroModuleManager
+newMicroModule(entry: string, module: string) {
+  const microModuleEntry = this.getMicroModuleEntry(entry);
+  const microModule = new MicroModule(microModuleEntry, module);
+  return microModule;
+}
+
+// motor MicroModule
+async getFactory() {
+  await this.entry.loadScript();
+  await __webpack_require__.I('default');
+  const factory = await this.microModuleInstance.get(this.moduleName);
+  return factory;
+}
+```
+
+**用途**：在宿主页面中嵌入子应用的某个按钮、表单组件等，无需加载整个子应用。
+
+**OrionMF 当前状态**：只有子应用级的 MFSandboxBridge，没有模块级的 MicroModule 支持。
+
+**建议**：作为 Phase 6（未来规划）考虑，不在当前版本实施。
+
+### 13.6 样式缓存机制 — recordMicroAppLinkList
+
+**motor 实现**（Motor.ts）：
+
+motor 在子应用挂载时记录当前页面的 `<link>` 和 `<style>` 标签，卸载时恢复：
+
+```typescript
+// motor Motor.ts
+const recordMicroAppLinkList = function () {
+  return Array.from(document.querySelectorAll('link, style'));
+};
+
+const restoreMicroAppLinkList = function (microAppLinkList: any[]) {
+  // 恢复样式
+};
+```
+
+**OrionMF 当前状态**：StyleIsolator 使用 Shadow DOM 隔离，不需要全局样式管理。但在非 Shadow DOM 模式（降级场景）下可以考虑增加此能力。
+
+**建议**：在 DegradationStrategy 的 compatible 模式中补充。
+
+### 13.7 React Refresh 注入检测
+
+**motor 实现**（ProxySandbox.ts:274-277）：
+
+```typescript
+if (p === '__reactRefreshInjected') {
+  return target[p];
+}
+```
+
+motor 检测 `__reactRefreshInjected` 标志，确保 React Hot Reload 在每个子应用中独立运行。
+
+**OrionMF 建议**：在开发模式下的 Proxy get trap 中增加此特殊处理。
+
+### 13.8 GlobalStateChannel 写权限实现的差异
+
+**motor 实现**（GlobalStateChannel.ts:26-65）：
+
+motor 的 `getMicroAppDataChannel` 使用闭包方式实现写权限控制，只允许修改已在 GlobalStore 中存在的 key：
+
+```typescript
+getMicroAppDataChannel(name: string) {
+  return {
+    setState(nextState) {
+      const currentState = GlobalStateChannel.currentState;
+      const finalState = reduce(Object.keys(nextState), (_finalState, key) => {
+        if (currentState.hasOwnProperty(key) && currentState[key] !== nextState[key]) {
+          return Object.assign(currentState, { [key]: nextState[key] });
+        } else {
+          console.warn('only the attribute of initital state can be set');
+        }
+        return _finalState;
+      }, currentState);
+      GlobalStateChannel.setState(finalState);
+    },
+    // ...
+  };
+}
+```
+
+**与 OrionMF SubAppDataChannel 的差异**：
+- motor：只能修改已在 currentState 中存在的 key（隐式白名单）
+- OrionMF：使用显式 `allowedKeys` 数组（显式白名单）
+
+OrionMF 的显式方案更安全（可声明 currentState 中不存在的 key），与 motor 的思路不同但更灵活。无需修改。
+
+### 13.9 补充后的模块统计
+
+| 版本 | 模块数 | 代码行数 | 综合评分 |
+|------|--------|---------|---------|
+| v1.0 | 14 | ~1510 | 7.4/10 |
+| v2.0 | 17 | ~2120 | 7.4/10 |
+| v2.1 | 25 | ~3040 | 8.8/10 |
+| **v2.2** | **25+19** | **~3700** | **9.5/10** |
+
+新增 7 项补充（fakeWindow, runningApp, unscopables, native bindings, MicroModule, style cache, React Refresh）均为已有模块的增强，不增加新模块。
+
+### 13.10 v2.2 变更清单（第一轮 7 项）
+
+| 编号 | 补充内容 | 来源 | 影响模块 | 状态 |
+|------|---------|------|---------|------|
+| 1 | fakeWindow 机制 | motor ProxySandbox | Sandbox | 待实施 |
+| 2 | runningApp + nextTask 追踪 | motor ProxySandbox/common | Sandbox, RuntimeCSSPrefixer | 待实施 |
+| 3 | unscopables 快速路径 | motor ProxySandbox | Sandbox | 待实施 |
+| 4 | nativeGlobal bindings | motor ProxySandbox | Sandbox | 待实施 |
+| 5 | MicroModule factory 级 | motor MicroModuleManage | 未来规划 | 待设计 |
+| 6 | 全局样式缓存 | motor Motor.ts | DegradationStrategy | 待实施 |
+| 7 | React Refresh 注入检测 | motor ProxySandbox | Sandbox（dev mode） | 待实施 |
+
+### 13.11 第二轮全方位分析补充（新增 12 项）
+
+> 基于 motor packages 全部源码深度分析（core + plugin-react + plugin-vue2/3 + cli）
+
+#### 13.11.1 nativeGlobal 原生全局对象获取
+
+**motor 实现**（sandbox/utils.ts:68-69）：
+
+```typescript
+export const nativeGlobal = new Function("return this")();
+```
+
+这是获取原生全局对象最安全的方式，比 `window` 或 `globalThis` 更可靠，因为它不受 Proxy 劫持影响。
+
+**补充方案**：在 Sandbox 中使用 `nativeGlobal` 而非 `window` 绑定特殊 API。
+
+#### 13.11.2 nextTask 幂等机制
+
+**motor 实现**（sandbox/utils.ts:71-91）：
+
+```typescript
+let globalTaskPending = false;
+export function nextTask(cb: () => void): void {
+  if (!globalTaskPending) {
+    globalTaskPending = true;
+    nextTick(() => {
+      cb();
+      globalTaskPending = false;
+    });
+  }
+}
+```
+
+关键创新：**同一次事件循环中多次调用 nextTask 只有第一次回调会执行**，避免重复。
+
+#### 13.11.3 函数类型检测（WeakMap 缓存）
+
+**motor 实现**（sandbox/utils.ts:1-66）：
+
+```typescript
+const boundedMap = new WeakMap<CallableFunction, boolean>();
+export function isBoundedFunction(fn) {
+  // WeakMap 缓存：bound xxx 开头且无 prototype
+  const bounded = fn.name.indexOf("bound ") === 0 && !fn.hasOwnProperty("prototype");
+  boundedMap.set(fn, bounded);
+  return bounded;
+}
+
+const callableFnCacheMap = new WeakMap<CallableFunction, boolean>();
+export const isCallable = (fn: any) => {
+  // 特殊处理 Safari 的 document.all 陷阱
+  const naughtySafari = typeof document.all === "function" && typeof document.all === "undefined";
+  const callable = naughtySafari ? typeof fn === "function" && typeof fn !== "undefined" : typeof fn === "function";
+  callableFnCacheMap.set(fn, callable);
+  return callable;
+};
+
+export function isConstructable(fn) {
+  // 检查是否有 prototype.constructor === fn 或函数名大写开头
+}
+```
+
+**补充方案**：在 Sandbox 的 `getTargetValue` 函数中使用这些检测，避免重复创建 bound function。
+
+#### 13.11.4 AutoClassPrefixer 完整实现
+
+**motor 实现**（plugin-react/src/prefix/AutoClassPrefixer.ts:1-162）：
+
+关键特性：
+- 劫持 `React.createElement` / `cloneElement` / `jsx` / `jsxs`
+- 通过 `props._p_` 属性传递前缀
+- 劫持 `HTMLElement.prototype.className` setter
+- 特殊处理 `__xxx__` 格式的 class（不加前缀）
+
+```typescript
+static applyPrefixer(className: string, prefixer: string = "") {
+  return className.split(" ").map((item) => {
+    let addPrefix = /^__.*__/.test(item);
+    return !addPrefix ? prefixer + item : item;
+  });
+}
+```
+
+**补充方案**：已有 RuntimeCSSPrefixer 模块，可参考 motor 的完整实现增强。
+
+#### 13.11.5 DOM API 劫持（appendChild/setAttribute）
+
+**motor 实现**（core/src/patch.ts:21-193）：
+
+```typescript
+// 劫持动态脚本加载
+HTMLHeadElement.prototype.appendChild = getOverwrittenAppendChildOrInsertBefore({...});
+
+// 劫持 _p_ 属性（CSS 前缀标记）
+const setAttributeOverWrite = function (attr, value) {
+  if (attr === "_p_") return;  // 跳过前缀标记属性
+  setAttribute.call(this, attr, value);
+};
+Element.prototype.setAttribute = setAttributeOverWrite;
+```
+
+**补充方案**：在 DegradationStrategy 的 compatible 模式中集成此能力。
+
+#### 13.11.6 动态脚本加载与错误处理
+
+**motor 实现**（core/src/patch.ts:28-141）：
+
+```typescript
+// 通过 URL 判断是 MicroModule 还是 MicroApp
+var isMicroModuleAssets = src.includes(`/${MICRO_MODULES_DIR}/`);
+
+execScripts(null, [src], proxy, {
+  fetch: fetch,
+  strictGlobal: true,
+  beforeExec() {
+    Object.defineProperty(document, "currentScript", { get: () => element });
+  },
+  success() { /* 手动触发 onload */ },
+  error() { /* 触发 error 事件 + 派发 MOTOR_RESOURCE_ERROR */ }
+});
+```
+
+关键创新：使用 `import-html-entry` 的 `execScripts` 执行脚本，并手动触发 load/error 事件。
+
+#### 13.11.7 Vue3/Vue2 插件配置
+
+**motor 实现**（plugin-vue3/src/index.ts + plugin-vue2/src/index.ts）：
+
+```typescript
+// rspack 配置中注入 Vue wrapper
+const vueWapperPath = path.resolve(__dirname, "./prefix/VueWapper.js");
+importMap = { ...importMap, vue: vueWapperPath };
+
+// CSS 前缀通过 swc plugin 处理
+swcOptions.jsc.experimental.plugins.push([
+  "./vue-prefix-patch",
+  { prefix: `__${prefix}__` }
+]);
+```
+
+**补充方案**：在 create-orion-subapp 脚手架中支持 Vue3/Vue2 模板。
+
+#### 13.11.8 SandBox 接口定义
+
+**motor 实现**（core/src/sandbox/interface.ts）：
+
+```typescript
+export enum SandBoxType {
+  Snapshot = "Snapshot",  // 快照沙箱
+  Proxy = "Proxy"          // Proxy 沙箱
+}
+
+export type SandBox = {
+  name: string;
+  type: SandBoxType;
+  proxy: WindowProxy;
+  sandboxRunning: boolean;
+  latestSetProp?: PropertyKey | null;
+  active: () => void;
+  inactive: () => void;
+};
+```
+
+**补充方案**：在 Sandbox 模块中暴露 `SandBoxType` 枚举和接口定义。
+
+#### 13.11.9 MicroModuleEntry 模块级入口
+
+**motor 实现**（core/src/microModule/MicroModuleEntry.ts）：
+
+```typescript
+class MicroModuleEntry {
+  private microModuleAssetsUrlBase: string;
+  private entry: string;
+  private sandbox: SandBox;
+
+  async initialModuleEntry() {
+    const proxy = this.sandbox.proxy;
+    await this.loadMicroModuleEntry();
+    await __webpack_require__.I("default");  // MF 初始化
+    this.microModuleEntryInstance = proxy[this.entryName].init(config);
+  }
+}
+```
+
+关键差异于 MicroApp：
+- 无需完整生命周期（mount/unmount）
+- 直接调用子模块的 factory
+
+#### 13.11.10 EventBus 单例模式
+
+**motor 实现**（core/src/EventBus.ts）：
+
+```typescript
+class EventBus {
+  private static instance: EventBus;
+  static getInstance() {
+    if (!EventBus.instance) EventBus.instance = new EventBus();
+    return EventBus.instance;
+  }
+}
+```
+
+与 OrionMF EventBus 差异：
+- motor：单例模式，无版本控制
+- OrionMF：带版本控制的 Channel
+
+#### 13.11.11 CLI 构建扩展（Rspack Hooks）
+
+**motor 实现**（cli/src/rspack/rspack.hooks.common.ts 等）：
+
+```typescript
+// 定义 Tapable hooks
+commonHook.hooks.resolve.tap("vue-resolve", (resolve) => {...});
+commonHook.hooks.rules.tap("vue-rules", (rules) => {...});
+commonHook.hooks.plugins.tap("vue-plugins", (plugins) => {...});
+```
+
+**补充方案**：未来可考虑 CLI 插件系统设计。
+
+#### 13.11.12 complate-react-loader 自动导入 React
+
+**motor 实现**（plugin-react/src/loader/complate-react-loader.ts）：
+
+```typescript
+const hasJSX = /<([a-zA-Z0-9._:-]+)/.test(source);
+const hasReactImport = /import\s+React/.test(source);
+if (hasJSX && !hasReactImport) {
+  source = `import React from 'react';\n${source}`;
+}
+```
+
+自动修复 JSX 文件缺少 React 导入的问题。
+
+### 13.12 v2.2 最终变更清单（19 项）
+
+| 编号 | 补充内容 | 来源 | 影响模块 | 状态 |
+|------|---------|------|---------|------|
+| 1 | fakeWindow 机制 | ProxySandbox | Sandbox | 待实施 |
+| 2 | runningApp + nextTask 追踪 | ProxySandbox/common | Sandbox | 待实施 |
+| 3 | unscopables 快速路径 | ProxySandbox | Sandbox | 待实施 |
+| 4 | nativeGlobal 获取 | sandbox/utils.ts | Sandbox | 待实施 |
+| 5 | nextTask 幂等机制 | sandbox/utils.ts | Sandbox | 待实施 |
+| 6 | 函数类型检测缓存 | sandbox/utils.ts | Sandbox | 待实施 |
+| 7 | AutoClassPrefixer 完整实现 | plugin-react | RuntimeCSSPrefixer | 待实施 |
+| 8 | DOM API 劫持 | patch.ts | DegradationStrategy | 待实施 |
+| 9 | 动态脚本加载 | patch.ts | MFSandboxBridge | 待实施 |
+| 10 | Vue3/CLI 插件 | plugin-vue3 | create-orion-subapp | 待设计 |
+| 11 | Vue2/CLI 插件 | plugin-vue2 | create-orion-subapp | 待设计 |
+| 12 | SandBox 接口类型 | sandbox/interface.ts | Sandbox | 待实施 |
+| 13 | MicroModuleEntry | microModule/MicroModuleEntry | 未来规划 | 待设计 |
+| 14 | EventBus 单例 | EventBus.ts | 差异对比 | 无需修改 |
+| 15 | CLI Rspack Hooks | cli/rspack | 未来规划 | 待设计 |
+| 16 | complate-react-loader | plugin-react | create-orion-subapp | 待实施 |
+| 17 | MicroModule factory 级 | MicroModuleManage | 未来规划 | 待设计 |
+| 18 | 全局样式缓存 | Motor.ts | DegradationStrategy | 待实施 |
+| 19 | React Refresh 注入检测 | ProxySandbox | Sandbox（dev mode） | 待实施 | |
