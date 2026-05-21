@@ -1,5 +1,47 @@
 # Orion Design - Progress Log
 
+## 2026-05-20: OrionMF MFSandboxBridge 模块实现 — COMPLETED
+
+### Changes
+
+1. **MFSandboxBridge 模块** (`packages/orion-mf/src/core/MFSandboxBridge.ts`)
+   - MF 与沙箱桥梁，协调 Module Federation 加载与 JS 沙箱隔离
+   - 分层架构：MF Loader → Sandbox create → Lifecycle init → Mount
+   - 支持 Shadow DOM (StyleIsolator) 和普通 DOM (noShadowDOM) 两种模式
+   - 通过 Proxy 绑定执行上下文，lifecycle 函数在沙箱中执行
+   - 错误边界集成 (ErrorIsolator)
+   - 子应用实例缓存，避免重复加载
+
+2. **接口定义** (MFSandboxBridge.ts)
+   - SubAppConfig: 子应用配置
+   - SubAppLifecycle: 生命周期钩子 (bootstrap/mount/unmount)
+   - SubAppInstance: 加载的子应用实例
+   - RemoteModule: MF 加载的远程模块
+   - MFLoader: Module Federation 加载器接口
+   - LifecycleModules: 生命周期模块
+
+3. **DefaultMFLoader** (MFSandboxBridge.ts 内部类)
+   - 使用动态 import() 模拟 MF 加载
+   - 模块缓存避免重复请求
+
+4. **便捷函数**
+   - getBridge(): 获取默认 MFSandboxBridge 实例
+   - setBridge(): 设置默认实例
+   - loadSubApp(): 使用默认 bridge 加载子应用
+   - destroySubApp(): 使用默认 bridge 销毁子应用
+   - getSubApp(): 获取子应用实例
+
+5. **导出** (`packages/orion-mf/src/core/index.ts`)
+   - MFSandboxBridge 类及相关函数
+   - 所有类型导出
+
+6. **测试** (`packages/orion-mf/tests/MFSandboxBridge.test.ts`)
+   - 20 个测试用例全部通过
+   - 覆盖构造函数、loadSubApp、getSubApp、hasSubApp、getLoadedKeys、destroy、destroyAll
+   - 错误边界集成测试
+
+---
+
 ## 2026-05-20: OrionMF Sandbox 模块实现 — COMPLETED
 
 ### Changes
@@ -3023,3 +3065,26 @@ After thorough review, all notification channel sending logic was already implem
 ### Next Steps
 1. 在 ChatOpsController 中暴露新的 API 端点
 2. 前端对接 Dashboard 指标 API
+
+---
+## 2026-05-20 LeakPrevention 资源泄漏防护模块实现 — COMPLETED
+
+### 完成功能
+- 实现 LeakPrevention 类 (`packages/orion-mf/src/core/LeakPrevention.ts`)
+- DOM 注册表：Set 管理注册的 DOM 节点，unmount 时自动清理
+- 网络请求：使用 AbortController 中断进行中的 fetch 请求
+- 内存监控：Chromium 使用 performance.memory (50MB 阈值)，非 Chromium 使用 performance.mark() 降级
+- 定时器管理：memoryMonitors Map 单独管理，cleanup 时 clearInterval
+- 支持自定义内存阈值、检查间隔、内存超限回调
+
+### 修改文件
+- `/packages/orion-mf/src/core/LeakPrevention.ts` - 新增
+- `/packages/orion-mf/src/core/index.ts` - 添加导出
+- `/packages/orion-mf/tests/LeakPrevention.test.ts` - 30 个测试用例
+
+### 验证
+- TypeScript 编译通过 (无新增类型错误)
+- 测试用例全部通过 (30/30)
+
+### Next Steps
+1. 继续实现 OrionMF v2.0 设计文档中的其他模块 (ReactShadowCompat, SubAppStateMachine, SecurityPolicyManager)
