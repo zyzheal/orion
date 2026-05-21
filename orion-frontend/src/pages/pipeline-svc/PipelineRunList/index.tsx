@@ -12,8 +12,8 @@
  * - Real-time status refresh (polling every 5s for running runs)
  */
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { Typography, Button, Space, Tag, DatePicker, message, Dropdown } from 'antd';
-import { colors, spacing } from '@/tokens';
+import { Typography, Button, Space, Tag, DatePicker, message, Dropdown, Modal } from 'antd';
+import { colors, spacing, componentRadius } from '@/tokens';
 import { ReloadOutlined, PlayCircleOutlined, RocketOutlined, StopOutlined, DownOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
@@ -288,9 +288,10 @@ const PipelineRunList: React.FC = () => {
               icon={<StopOutlined />}
               danger
               loading={cancellingIds.has(record.id)}
+              disabled={cancellingIds.has(record.id)}
               onClick={(e) => {
                 e.stopPropagation();
-                handleCancel(record.id);
+                handleCancelConfirm(record.id);
               }}
             >
               取消
@@ -305,7 +306,13 @@ const PipelineRunList: React.FC = () => {
                     key: 'retryAll',
                     label: '完整重试',
                     icon: <PlayCircleOutlined />,
-                    onClick: () => handleRetry(record.id),
+                    onClick: () => handleRetryConfirm(record.id),
+                  },
+                  {
+                    key: 'retryFailedOnly',
+                    label: '仅失败阶段',
+                    icon: <ReloadOutlined />,
+                    onClick: () => handleRetry(record.id, { onlyFailed: true }),
                   },
                   {
                     key: 'retryFromStage',
@@ -338,17 +345,41 @@ const PipelineRunList: React.FC = () => {
   // Handle re-run for a failed/cancelled run
   const handleRetry = async (runId: string, options?: { fromStage?: string; onlyFailed?: boolean }) => {
     try {
-      await retryPipelineRun(runId, options);
+      const response = await retryPipelineRun(runId, options);
       message.success('Pipeline 重新运行已触发');
       // Refresh list after retry
       await loadRuns();
+      // If API returns a new run ID, navigate to the new run's detail page
+      const newRunId = (response as any)?.data?.id || (response as any)?.data?.newRunId;
+      if (newRunId) {
+        navigate(`/pipelines/${newRunId}`);
+      }
     } catch (error: unknown) {
       if (error instanceof Error) {
-        message.error(`重新运行失败：${error.message}`);
+        const errMsg = error.message;
+        // Handle edge case: run no longer exists
+        if (errMsg.includes('not found') || errMsg.includes('不存在') || errMsg.includes('已删除')) {
+          message.error('该 Pipeline 运行已不存在，可能已被删除');
+        } else {
+          message.error(`重新运行失败：${errMsg}`);
+        }
       } else {
         message.error('重新运行失败，请稍后重试');
       }
     }
+  };
+
+  // Handle cancel confirmation dialog
+  const handleCancelConfirm = (runId: string) => {
+    Modal.confirm({
+      title: '确认取消此 Pipeline 运行？',
+      content: '取消后，正在运行的阶段将被停止，此操作不可恢复。',
+      okText: '确认取消',
+      cancelText: '取消',
+      okButtonProps: { danger: true },
+      style: { borderRadius: componentRadius.modal },
+      onOk: () => handleCancel(runId),
+    });
   };
 
   // Handle cancel for a running run
@@ -361,7 +392,13 @@ const PipelineRunList: React.FC = () => {
       await loadRuns();
     } catch (error: unknown) {
       if (error instanceof Error) {
-        message.error(`取消失败：${error.message}`);
+        const errMsg = error.message;
+        // Handle edge case: run no longer running
+        if (errMsg.includes('not running') || errMsg.includes('已结束') || errMsg.includes('已取消')) {
+          message.warning('该 Pipeline 运行已结束，无需取消');
+        } else {
+          message.error(`取消失败：${errMsg}`);
+        }
       } else {
         message.error('取消失败，请稍后重试');
       }
@@ -374,15 +411,37 @@ const PipelineRunList: React.FC = () => {
     }
   };
 
+  // Handle retry confirmation dialog for "完整重试"
+  const handleRetryConfirm = (runId: string) => {
+    Modal.confirm({
+      title: '确认重新运行此 Pipeline？',
+      content: '将从头开始重新运行整个 Pipeline，所有阶段都将被重新执行。',
+      okText: '确认重跑',
+      cancelText: '取消',
+      style: { borderRadius: componentRadius.modal },
+      onOk: () => handleRetry(runId),
+    });
+  };
+
   // Handle retry from stage
   const handleRetryFromStage = async (runId: string, stageId?: string, onlyFailed?: boolean) => {
     try {
-      await retryPipelineRun(runId, { fromStage: stageId, onlyFailed });
+      const response = await retryPipelineRun(runId, { fromStage: stageId, onlyFailed });
       message.success('Pipeline 重新运行已触发');
       await loadRuns();
+      // If API returns a new run ID, navigate to the new run's detail page
+      const newRunId = (response as any)?.data?.id || (response as any)?.data?.newRunId;
+      if (newRunId) {
+        navigate(`/pipelines/${newRunId}`);
+      }
     } catch (error: unknown) {
       if (error instanceof Error) {
-        message.error(`重新运行失败：${error.message}`);
+        const errMsg = error.message;
+        if (errMsg.includes('not found') || errMsg.includes('不存在') || errMsg.includes('已删除')) {
+          message.error('该 Pipeline 运行已不存在，可能已被删除');
+        } else {
+          message.error(`重新运行失败：${errMsg}`);
+        }
       } else {
         message.error('重新运行失败，请稍后重试');
       }
