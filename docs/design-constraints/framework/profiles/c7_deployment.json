@@ -1,0 +1,16 @@
+{
+  "version": "3.0",
+  "name": "c7_deployment",
+  "extends": "base",
+  "priority": 1,
+  "layer": "operations",
+  "description": "部署发布检查项",
+  "checks": [
+    { "id": "C7-01", "category": "deploy", "level": "P0", "rule": "部署策略", "description": "服务应支持滚动部署/蓝绿部署/金丝雀发布", "detection": "code-review" },
+    { "id": "C7-02", "category": "deploy", "level": "P1", "rule": "发布窗口", "description": "变更应定义发布窗口和审批流程", "detection": "code-review" },
+    { "id": "C7-03", "category": "canary", "level": "P1", "rule": "灰度发布", "description": "新功能应支持灰度发布（规则/流量比例/指标）", "detection": "code-review" },
+    { "id": "C7-04", "category": "rollback", "level": "P0", "rule": "回滚机制", "description": "部署失败应有自动回滚机制", "detection": "code-review" },
+    { "id": "C7-05", "category": "health", "level": "P0", "rule": "部署检查", "description": "部署后必须有健康检查和冒烟测试", "detection": "code-review" },
+    { "id": "C7-06", "category": "config", "level": "P0", "rule": "配置变更", "description": "配置变更必须有流程和审计", "detection": "code-review" }
+  ]
+}
