@@ -3,6 +3,7 @@ import path from 'path';
 import { visualizer } from 'rollup-plugin-visualizer';
 import { defineConfig, loadEnv, Plugin } from 'vite';
 import { execSync } from 'child_process';
+import federation from '@originjs/vite-plugin-federation';
 
 // 创建路由生成插件
 function generateRoutesPlugin(): Plugin {
@@ -54,42 +55,16 @@ export default defineConfig(({ command, mode }) => {
 
     build: {
       assetsDir: 'orion-knowledge-admin-assets',
+      target: 'esnext',
 
-      // 微前端模式：输出为 UMD 格式
+      // Module Federation 模式不需要 lib 模式配置
       ...(isMicroFrontend && {
-        lib: {
-          entry: path.resolve(__dirname, 'src/main.tsx'),
-          name: 'orion-knowledge-app',
-          fileName: () => 'orion-knowledge-app.js',
-          formats: ['umd'],
-        },
         cssCodeSplit: false,
         sourcemap: true,
       }),
 
       rollupOptions: {
-        // 微前端模式：配置外部依赖
-        ...(isMicroFrontend && {
-          external: [
-            'react',
-            'react-dom',
-            'react-router-dom',
-            'react-redux',
-            '@reduxjs/toolkit',
-            '@mui/material',
-          ],
-          output: {
-            globals: {
-              react: 'React',
-              'react-dom': 'ReactDOM',
-              'react-router-dom': 'ReactRouterDOM',
-              'react-redux': 'ReactRedux',
-              '@reduxjs/toolkit': 'ReduxToolkit',
-              '@mui/material': 'MaterialUI',
-            },
-          },
-        }),
-
+        // Module Federation 模式：外部依赖由插件自动处理
         // 通用配置：代码分割
         output: {
           manualChunks: {
@@ -151,6 +126,19 @@ export default defineConfig(({ command, mode }) => {
       keepNames: true,
     },
     plugins: [
+      // Module Federation 插件（仅在微前端模式下启用）
+      ...(isMicroFrontend
+        ? [
+            federation({
+              name: 'orion_knowledge',
+              filename: 'remoteEntry.js',
+              exposes: {
+                './index': './src/main.tsx',
+              },
+              shared: ['react', 'react-dom', 'react-router-dom', 'react-redux', '@reduxjs/toolkit'],
+            }),
+          ]
+        : []),
       react(),
       generateRoutesPlugin(),
       ...(command === 'build' && shouldAnalyze

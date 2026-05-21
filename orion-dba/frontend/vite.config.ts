@@ -1,10 +1,12 @@
 import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import * as path from 'path';
+import federation from '@originjs/vite-plugin-federation';
 
 export default defineConfig(({ mode }) => {
   const isMicroFrontend = mode === 'micro-frontend';
   const isDev = mode === 'development';
+  const isMfBuild = process.env.VITE_MF_BUILD === 'true';
 
   return {
     // 微前端模式使用独立端口
@@ -42,7 +44,10 @@ export default defineConfig(({ mode }) => {
       },
 
       // 输出目录
-      outDir: isMicroFrontend ? 'dist-mf' : 'dist',
+      outDir: isMfBuild ? 'dist-mf' : isMicroFrontend ? 'dist-mf' : 'dist',
+
+      // MF 模式必须使用 esnext
+      target: isMfBuild ? 'esnext' : undefined,
     },
 
     server: {
@@ -80,7 +85,34 @@ export default defineConfig(({ mode }) => {
       },
     },
 
-    plugins: [vue()],
+    plugins: [
+      vue(),
+      // Module Federation 配置（用于 Orion-MF 远程加载）
+      ...(isMfBuild
+        ? [
+            federation({
+              name: 'orion_dba',
+              filename: 'remoteEntry.js',
+              exposes: {
+                './index': './src/main.ts',
+              },
+              shared: [
+                'vue',
+                'vue-router',
+                'vuex',
+                'ant-design-vue',
+                'dayjs',
+                'axios',
+                'lodash-es',
+                '@ant-design/icons-vue',
+                '@vueuse/core',
+                'vuedraggable',
+                'vue-i18n',
+              ],
+            }),
+          ]
+        : []),
+    ],
 
     resolve: {
       alias: {

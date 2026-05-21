@@ -54,6 +54,7 @@
   "devDependencies": {
     "@c-x/cx-swagger-api": "^1.0.1",
     "@eslint/js": "^9.15.0",
+    "@originjs/vite-plugin-federation": "^1.4.1",
     "@types/lodash-es": "^4.17.12",
     "@types/react-syntax-highlighter": "^15.5.13",
     "@vitejs/plugin-react": "^4.3.4",

@@ -116,18 +116,32 @@ function getWujieProps(): any {
   return (window as any).$wujie?.props || {};
 }
 
-export async function mount(_props: any) {
-  const props = getWujieProps();
-  console.log('[orion-dba-frontend] mount, wujie props:', props);
+export async function mount(container?: HTMLElement | string, props?: any) {
+  const wujieProps = getWujieProps();
+  const finalProps = props || wujieProps;
+  console.log('[orion-dba-frontend] mount, props:', finalProps);
 
   window.__POWERED_BY_WUJIE__ = true;
 
-  if (props?.$orion) {
-    (window as any).$orion = props.$orion;
+  if (finalProps?.$orion) {
+    (window as any).$orion = finalProps.$orion;
   }
 
-  instance = createOrionApp(props);
-  instance.mount('#orion-dba-app');
+  instance = createOrionApp(finalProps);
+
+  // 支持容器参数（Module Federation 模式）或默认选择器（Wujie 模式）
+  let el: HTMLElement | null = null;
+  if (container) {
+    el = typeof container === 'string' ? document.querySelector(container) : container;
+  } else {
+    el = document.querySelector('#orion-dba-app');
+  }
+
+  if (el) {
+    instance.mount(el);
+  } else {
+    console.error('[orion-dba-frontend] mount: container not found');
+  }
 }
 
 export async function unmount() {
@@ -142,7 +156,7 @@ export async function unmount() {
 
 // wujie 期望的 window 钩子
 (function registerWujieLifecycle() {
-  (window as any).__WUJIE_MOUNT = () => mount({});
+  (window as any).__WUJIE_MOUNT = () => mount(undefined, {});
   (window as any).__WUJIE_UNMOUNT = () => unmount();
 })();
 

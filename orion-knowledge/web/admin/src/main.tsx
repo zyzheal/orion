@@ -1,17 +1,19 @@
 import '@/assets/fonts/font.css';
 import '@/assets/styles/index.css';
 import '@/assets/styles/markdown.css';
+import React, { createContext } from 'react';
+import { createRoot, Root } from 'react-dom/client';
+import { Provider } from 'react-redux';
+import { BrowserRouter } from 'react-router-dom';
 import { wrapWindowOpen } from './utils/getBasename';
 import dayjs from 'dayjs';
 import 'dayjs/locale/zh-cn';
 import duration from 'dayjs/plugin/duration';
 import relativeTime from 'dayjs/plugin/relativeTime';
-import { createRoot, Root } from 'react-dom/client';
-import { Provider } from 'react-redux';
-import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import store from './store';
-import { createContext } from 'react';
+
+// Window 类型已在 getBasename.ts 中统一声明
 
 // ============================================
 // Orion 全局状态接口
