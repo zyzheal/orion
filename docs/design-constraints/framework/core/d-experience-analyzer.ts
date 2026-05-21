@@ -65,6 +65,9 @@ export type ExperienceIssueType =
   | 'missing-onboarding'
   | 'unobvious-entry'
   | 'too-many-steps'
+  | 'missing-example-template'
+  | 'unhelpful-error'
+  | 'missing-help-entry'
   // D2 可访问性
   | 'missing-alt'
   | 'missing-focus-style'
@@ -73,19 +76,31 @@ export type ExperienceIssueType =
   | 'low-contrast'
   | 'missing-semantic-html'
   | 'wrong-tab-order'
+  | 'missing-status-icon'
+  | 'non-adjustable-font'
+  | 'improper-line-height'
   // D3 一致性
   | 'hardcoded-color'
   | 'hardcoded-radius'
   | 'inconsistent-style'
   | 'inconsistent-icon-style'
+  | 'inconsistent-interaction'
+  | 'inconsistent-button-position'
+  | 'inconsistent-feedback'
   // D4 性能感知
   | 'missing-skeleton'
   | 'missing-debounce'
   | 'no-loading-feedback'
   | 'no-progressive-loading'
   | 'missing-cache-hint'
+  | 'no-instant-feedback'
+  | 'no-optimistic-update'
   // D5 情感化
-  | 'cold-empty-state';
+  | 'cold-empty-state'
+  | 'no-positive-feedback'
+  | 'missing-security-sense'
+  | 'missing-privacy-notice'
+  | 'missing-data-security-mark';
 
 export interface ExperienceScanResult {
   file: string;
@@ -203,13 +218,67 @@ export class DExperienceAnalyzer {
     // D1-05: 工具提示完善 (P1)
     this.detectMissingTooltip();
 
+    // D1-06: 示例/模板 (P1)
+    this.detectMissingExampleTemplate();
+
     // D1-07: 误操作可撤销 (P0)
     this.detectMissingUndo();
 
+    // D1-09: 错误信息指导性 (P0)
+    this.detectUnhelpfulError();
+
+    // D1-10: 帮助文档入口 (P1)
+    this.detectMissingHelpEntry();
+
+    // ============ D2 可访问性检测 - 扩展 ============
+
+    // D2-08: 对比度 (P0)
+    this.detectLowContrast();
+
+    // D2-09: 状态图标辅助 (P1)
+    this.detectMissingStatusIcon();
+
+    // D2-10: 字体大小可调 (P1)
+    this.detectNonAdjustableFont();
+
+    // D2-11: 行高合理 (P1)
+    this.detectImproperLineHeight();
+
+    // ============ D3 一致性检测 - 扩展 ============
+
+    // D3-04: 交互相似 (P0)
+    this.detectInconsistentInteraction();
+
+    // D3-05: 按钮位置 (P1)
+    this.detectInconsistentButtonPosition();
+
+    // D3-06: 反馈统一 (P0)
+    this.detectInconsistentFeedback();
+
+    // ============ D4 性能感知检测 - 扩展 ============
+
+    // D4-04: 即时反馈 (P0)
+    this.detectNoInstantFeedback();
+
+    // D4-05: 乐观更新 (P1)
+    this.detectNoOptimisticUpdate();
+
     // ============ D5 情感化检测 ============
+
+    // D5-01: 积极反馈 (P1)
+    this.detectNoPositiveFeedback();
 
     // D5-02: 空状态有温度 (P1)
     this.detectColdEmptyState();
+
+    // D5-04: 安全感提示 (P1)
+    this.detectMissingSecuritySense();
+
+    // D5-05: 隐私告知 (P0)
+    this.detectMissingPrivacyNotice();
+
+    // D5-06: 数据安全标识 (P0)
+    this.detectMissingDataSecurityMark();
 
     return {
       file: this.filePath,
@@ -1073,6 +1142,752 @@ export class DExperienceAnalyzer {
           suggestion: '使用 build 工具添加 hash 版本号，启用缓存',
           checkId: 'D4-03',
         });
+      }
+    }
+  }
+
+  // ============ D1-06: 检测示例/模板 (P1) ============
+
+  /**
+   * 检测表单/配置是否提供示例或模板
+   */
+  private detectMissingExampleTemplate(): void {
+    // 检测表单场景
+    const hasFormFields = /Form\.Item|formItem|<Input|<Select|<DatePicker/.test(this.content);
+    const hasTemplate = /template|example|sample|demo|模板|示例|案例/i.test(this.content);
+
+    if (hasFormFields && !hasTemplate) {
+      // 检查是否有复杂配置场景
+      const hasComplexConfig = /config|setting|json|yaml|configuration/i.test(this.content);
+      if (hasComplexConfig) {
+        this.issues.push({
+          file: this.filePath,
+          line: 1,
+          column: 1,
+          type: 'missing-example-template',
+          severity: 'P1',
+          message: '复杂配置/表单缺少示例或模板',
+          suggestion: '提供配置模板或示例值，降低用户学习成本',
+          checkId: 'D1-06',
+        });
+      }
+    }
+
+    // 检测代码编辑器场景
+    const hasCodeEditor = /CodeEditor| MonacoEditor|codeMirror|prism/i.test(this.content);
+    if (hasCodeEditor && !hasTemplate) {
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-example-template',
+        severity: 'P1',
+        message: '代码编辑器缺少默认模板',
+        suggestion: '提供默认代码模板或语法高亮示例',
+        checkId: 'D1-06',
+      });
+    }
+  }
+
+  // ============ D1-09: 检测错误信息指导性 (P0) ============
+
+  /**
+   * 检测错误信息是否有指导性
+   */
+  private detectUnhelpfulError(): void {
+    const lines = this.content.split('\n');
+
+    lines.forEach((line, i) => {
+      // 检测 catch 块中的错误处理
+      const hasCatchBlock = /catch\s*\(|catch\s*\{/.test(line);
+      if (!hasCatchBlock) return;
+
+      // 检查错误处理附近是否有详细的错误信息
+      const contextStart = Math.max(0, i - 2);
+      const contextEnd = Math.min(lines.length, i + 10);
+      const context = lines.slice(contextStart, contextEnd).join('\n');
+
+      // 检测是否有无用的错误处理
+      const hasGenericError = /catch\s*\(\s*\)\s*\{|catch\s*\(\s*e\s*\)\s*\{\s*\}/.test(context);
+      const hasConsoleOnly = /catch.*\{[\s\n]*console\.(log|error)[\s\n]*\}/.test(context);
+      const hasEmptyCatch = /catch[^}]*\{\s*\}/.test(context);
+      const hasHelpfulError = /error.*message|error.*tip|suggestion|解决方案|请尝试|how.*fix/i.test(context);
+
+      if ((hasGenericError || hasConsoleOnly || hasEmptyCatch) && !hasHelpfulError) {
+        this.issues.push({
+          file: this.filePath,
+          line: i + 1,
+          column: 1,
+          type: 'unhelpful-error',
+          severity: 'P0',
+          message: 'catch 块错误处理缺少指导性信息',
+          suggestion: '提供具体错误信息和解决建议，而非只记录日志',
+          checkId: 'D1-09',
+          code: line.trim().substring(0, 60),
+        });
+      }
+    });
+  }
+
+  // ============ D1-10: 检测帮助文档入口 (P1) ============
+
+  /**
+   * 检测是否提供帮助文档入口
+   */
+  private detectMissingHelpEntry(): void {
+    // 检测设置/配置页面
+    const hasSettingsPage = /Settings?|Preferences?|Config|设置|偏好/i.test(this.content);
+    const hasHelpEntry = /help|doc|文档|manual|guide|疑问|support/i.test(this.content);
+
+    if (hasSettingsPage && !hasHelpEntry) {
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-help-entry',
+        severity: 'P1',
+        message: '设置页面缺少帮助文档入口',
+        suggestion: '添加 "? icon" 或 "帮助" 链接到文档页面',
+        checkId: 'D1-10',
+      });
+    }
+
+    // 检测表单页面
+    const hasFormPage = /Form|form|表单|填写/i.test(this.content);
+    if (hasFormPage && !hasHelpEntry) {
+      // 检查是否有必填字段说明
+      const hasRequiredNote = /required|必填|required.*field/i.test(this.content);
+      if (!hasRequiredNote) {
+        this.issues.push({
+          file: this.filePath,
+          line: 1,
+          column: 1,
+          type: 'missing-help-entry',
+          severity: 'P2',
+          message: '表单页面缺少字段说明或帮助入口',
+          suggestion: '添加 ? tooltip 或链接到文档说明',
+          checkId: 'D1-10',
+        });
+      }
+    }
+  }
+
+  // ============ D2-08: 检测对比度 (P0) ============
+
+  /**
+   * 检测低对比度颜色组合
+   */
+  private detectLowContrast(): void {
+    const lines = this.content.split('\n');
+
+    // 低对比度颜色组合 (浅色配浅色)
+    const lowContrastPatterns = [
+      { color: '#ffffff', bg: '#f0f0f0', name: '白色文字/浅灰背景' },
+      { color: '#f0f0f0', bg: '#ffffff', name: '浅灰文字/白色背景' },
+      { color: '#d9d9d9', bg: '#f5f5f7', name: '浅灰文字/更浅背景' },
+      { color: '#8c8c8c', bg: '#fafafa', name: '灰色文字/近白背景' },
+      { color: '#bfbfbf', bg: '#f0f0f0', name: '浅灰文字/灰色背景' },
+    ];
+
+    lines.forEach((line, i) => {
+      if (!line.includes('style')) return;
+
+      for (const { color, bg, name } of lowContrastPatterns) {
+        const hasColor = line.toLowerCase().includes(color.toLowerCase());
+        const hasBg = /background|backgroundColor|bg/i.test(line);
+
+        if (hasColor && hasBg) {
+          // 检查附近是否有其他状态信息辅助
+          const contextStart = Math.max(0, i - 2);
+          const contextEnd = Math.min(lines.length, i + 3);
+          const context = lines.slice(contextStart, contextEnd).join(' ');
+
+          const hasIcon = /Icon|icon/.test(context);
+          const hasText = /text|label|span/i.test(context);
+
+          if (!hasIcon && !hasText) {
+            this.issues.push({
+              file: this.filePath,
+              line: i + 1,
+              column: line.indexOf(color) + 1 || 1,
+              type: 'low-contrast',
+              severity: 'P0',
+              message: `可能存在低对比度: ${name}`,
+              suggestion: '确保文字与背景对比度 WCAG AA (4.5:1) 以上',
+              checkId: 'D2-08',
+              code: line.trim().substring(0, 60),
+            });
+          }
+        }
+      }
+    });
+  }
+
+  // ============ D2-09: 检测状态图标辅助 (P1) ============
+
+  /**
+   * 检测状态是否只有颜色而缺少图标
+   */
+  private detectMissingStatusIcon(): void {
+    // 检测状态组件使用
+    const hasStatusComponent = /status|Status|Tag|Badge/.test(this.content);
+
+    if (hasStatusComponent) {
+      const lines = this.content.split('\n');
+
+      lines.forEach((line, i) => {
+        // 检测纯颜色状态
+        const hasStatusColor = /color\s*:\s*['"]?#(52c41a|faad14|f5222d|3370E6)/i.test(line);
+        if (!hasStatusColor) return;
+
+        // 检查附近是否有图标
+        const contextStart = Math.max(0, i - 3);
+        const contextEnd = Math.min(lines.length, i + 3);
+        const context = lines.slice(contextStart, contextEnd).join(' ');
+
+        const hasIcon = /Icon|icon|statusIcon|renderIcon/i.test(context);
+
+        if (!hasIcon) {
+          this.issues.push({
+            file: this.filePath,
+            line: i + 1,
+            column: 1,
+            type: 'missing-status-icon',
+            severity: 'P1',
+            message: '状态使用颜色但缺少图标辅助',
+            suggestion: '添加状态图标，确保色盲用户也能理解状态含义',
+            checkId: 'D2-09',
+            code: line.trim().substring(0, 60),
+          });
+        }
+      });
+    }
+  }
+
+  // ============ D2-10: 检测字体大小可调 (P1) ============
+
+  /**
+   * 检测字体大小是否支持调整
+   */
+  private detectNonAdjustableFont(): void {
+    // 检测是否有内容展示区域
+    const hasContentDisplay = /Text|Paragraph|Description|Content|文章|内容/i.test(this.content);
+    const hasFontSizeControl = /fontSize.*state|setFontSize|zoom|resize.*font/i.test(this.content);
+
+    // 检测长文本阅读场景
+    const hasLongText = /description|content|article|readme|doc|文档/i.test(this.content);
+    const hasRichText = /RichText|Editor|Markdown|mavonEditor/i.test(this.content);
+
+    if ((hasContentDisplay || hasRichText) && !hasFontSizeControl) {
+      // 检查根组件或 Layout 是否有字体设置
+      const isRootComponent = /export\s+default|App\.|Layout/.test(this.content);
+      if (isRootComponent) {
+        this.issues.push({
+          file: this.filePath,
+          line: 1,
+          column: 1,
+          type: 'non-adjustable-font',
+          severity: 'P1',
+          message: '内容展示区域缺少字体大小调整功能',
+          suggestion: '提供字体大小调整选项 (如 A- / A / A+)',
+          checkId: 'D2-10',
+        });
+      }
+    }
+  }
+
+  // ============ D2-11: 检测行高合理 (P1) ============
+
+  /**
+   * 检测行高设置是否合理
+   */
+  private detectImproperLineHeight(): void {
+    const lines = this.content.split('\n');
+
+    lines.forEach((line, i) => {
+      // 检测行高设置
+      const lineHeightMatch = line.match(/lineHeight\s*:\s*['"]?(\d+\.?\d*)/);
+      if (!lineHeightMatch) return;
+
+      const lineHeight = parseFloat(lineHeightMatch[1]);
+
+      // 行高小于 1.4 或大于 2.0 可能不合理
+      if (lineHeight < 1.4 || lineHeight > 2.2) {
+        // 检查是否是文本内容区域
+        const contextStart = Math.max(0, i - 5);
+        const contextEnd = Math.min(lines.length, i + 5);
+        const context = lines.slice(contextStart, contextEnd).join(' ');
+
+        const isTextContent = /Text|Paragraph|description|content/i.test(context);
+
+        if (isTextContent) {
+          this.issues.push({
+            file: this.filePath,
+            line: i + 1,
+            column: line.indexOf('lineHeight') + 1,
+            type: 'improper-line-height',
+            severity: 'P1',
+            message: `行高设置 ${lineHeight} 可能不合理`,
+            suggestion: '推荐行高 1.5-1.8，确保阅读舒适',
+            checkId: 'D2-11',
+            code: line.trim().substring(0, 60),
+          });
+        }
+      }
+
+      // 检测硬编码的行高值 (px)
+      const lineHeightPxMatch = line.match(/lineHeight\s*:\s*['"]?(\d+)px/i);
+      if (lineHeightPxMatch) {
+        const pxValue = parseInt(lineHeightPxMatch[1]);
+        // 假设字体 14px，行高应该在 20-28px 之间
+        if (pxValue < 18 || pxValue > 32) {
+          this.issues.push({
+            file: this.filePath,
+            line: i + 1,
+            column: line.indexOf('lineHeight') + 1,
+            type: 'improper-line-height',
+            severity: 'P1',
+            message: `行高 ${pxValue}px 可能不合理`,
+            suggestion: '使用倍数而非像素值，推荐 lineHeight: 1.6',
+            checkId: 'D2-11',
+            code: line.trim().substring(0, 60),
+          });
+        }
+      }
+    });
+  }
+
+  // ============ D3-04: 检测交互相似 (P0) ============
+
+  /**
+   * 检测相似场景的交互是否一致
+   */
+  private detectInconsistentInteraction(): void {
+    // 检测按钮样式不一致
+    const buttonStyles: { style: string; line: number }[] = [];
+    const lines = this.content.split('\n');
+
+    lines.forEach((line, i) => {
+      const buttonMatch = line.match(/<Button[^>]*>/);
+      if (buttonMatch) {
+        const styleMatch = line.match(/style\s*=\s*\{([^}]+)\}/);
+        if (styleMatch) {
+          buttonStyles.push({ style: styleMatch[1], line: i + 1 });
+        }
+      }
+    });
+
+    if (buttonStyles.length >= 3) {
+      // 简化检测: 检查是否有不同的 borderRadius 值
+      const radiusValues = buttonStyles.map(b => {
+        const match = b.style.match(/borderRadius\s*:\s*(\d+)/);
+        return match ? match[1] : null;
+      }).filter(Boolean) as string[];
+
+      const uniqueRadius = [...new Set(radiusValues)];
+      if (uniqueRadius.length >= 2) {
+        this.issues.push({
+          file: this.filePath,
+          line: buttonStyles[0].line,
+          column: 1,
+          type: 'inconsistent-interaction',
+          severity: 'P0',
+          message: `按钮 border-radius 不一致: ${uniqueRadius.join(', ')}`,
+          suggestion: '统一使用 Design Token: componentRadius.button',
+          checkId: 'D3-04',
+        });
+      }
+    }
+
+    // 检测 Modal/Drawer 交互不一致
+    const hasModal = /<Modal|<Drawer/.test(this.content);
+    const hasInconsistentFooter = /footer\s*=\s*\{/.test(this.content);
+
+    if (hasModal && hasInconsistentFooter) {
+      // 检查是否有部分 Modal 有 footer，部分没有
+      const modalMatches = this.content.match(/<Modal[^>]*>/g) || [];
+      const footerMatches = this.content.match(/footer\s*=/g) || [];
+
+      if (modalMatches.length > footerMatches.length && footerMatches.length > 0) {
+        this.issues.push({
+          file: this.filePath,
+          line: 1,
+          column: 1,
+          type: 'inconsistent-interaction',
+          severity: 'P0',
+          message: 'Modal 组件交互不一致: 部分有 footer，部分没有',
+          suggestion: '统一 Modal 交互，或使用 footer={null} 明确禁用',
+          checkId: 'D3-04',
+        });
+      }
+    }
+  }
+
+  // ============ D3-05: 检测按钮位置 (P1) ============
+
+  /**
+   * 检测按钮位置是否一致
+   */
+  private detectInconsistentButtonPosition(): void {
+    const lines = this.content.split('\n');
+
+    // 检测确认按钮位置
+    const confirmButtonLines: number[] = [];
+    const cancelButtonLines: number[] = [];
+
+    lines.forEach((line, i) => {
+      if (/确认|confirm|OK|确定/i.test(line) && /Button|button/.test(line)) {
+        confirmButtonLines.push(i);
+      }
+      if (/取消|cancel|关闭|close/i.test(line) && /Button|button/.test(line)) {
+        cancelButtonLines.push(i);
+      }
+    });
+
+    if (confirmButtonLines.length > 1 && cancelButtonLines.length > 1) {
+      // 检查所有确认按钮是否在同一位置 (相对行位置)
+      const confirmPositions = confirmButtonLines.map(l => l % 10); // 简化为相对位置
+      const uniquePositions = [...new Set(confirmPositions)];
+
+      if (uniquePositions.length > 1) {
+        this.issues.push({
+          file: this.filePath,
+          line: confirmButtonLines[0] + 1,
+          column: 1,
+          type: 'inconsistent-button-position',
+          severity: 'P1',
+          message: '确认按钮位置不一致',
+          suggestion: '统一按钮顺序: 取消在左，确认在右 (或反之，保持一致)',
+          checkId: 'D3-05',
+        });
+      }
+    }
+
+    // 检测 List 操作按钮位置
+    const hasListActions = /actions|operation.*column|render.*action/i.test(this.content);
+    const listActionsLines: number[] = [];
+
+    lines.forEach((line, i) => {
+      if (/操作|actions|operation/i.test(line)) {
+        listActionsLines.push(i);
+      }
+    });
+
+    if (listActionsLines.length > 2) {
+      this.issues.push({
+        file: this.filePath,
+        line: listActionsLines[0] + 1,
+        column: 1,
+        type: 'inconsistent-button-position',
+        severity: 'P1',
+        message: '列表操作按钮位置可能不一致',
+        suggestion: '统一操作列按钮位置和顺序',
+        checkId: 'D3-05',
+      });
+    }
+  }
+
+  // ============ D3-06: 检测反馈统一 (P0) ============
+
+  /**
+   * 检测反馈方式是否统一
+   */
+  private detectInconsistentFeedback(): void {
+    // 检测成功提示方式
+    const hasMessageSuccess = /message\.success|notification\.success/i.test(this.content);
+    const hasMessageError = /message\.error|notification\.error/i.test(this.content);
+    const hasMessageWarning = /message\.warning|notification\.warning/i.test(this.content);
+
+    // 统计各种反馈方式的使用
+    const hasAntMessage = /message\.(success|error|warning|info)/.test(this.content);
+    const hasAntNotification = /notification\.(success|error|warning|info)/.test(this.content);
+    const hasCustomToast = /Toast\.|toast\.|Snackbar/i.test(this.content);
+
+    const feedbackMethods = [hasAntMessage, hasAntNotification, hasCustomToast].filter(Boolean).length;
+
+    if (feedbackMethods > 1) {
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'inconsistent-feedback',
+        severity: 'P0',
+        message: '混用多种反馈组件 (message/notification/toast)',
+        suggestion: '统一使用一种反馈组件，建议使用 Ant Design Message',
+        checkId: 'D3-06',
+      });
+    }
+
+    // 检测 loading 反馈方式
+    const hasSpinLoading = /<Spin|<Loader/.test(this.content);
+    const hasButtonLoading = /loading\s*=|isLoading/.test(this.content);
+    const hasSkeletonLoading = /Skeleton/.test(this.content);
+
+    if (hasSpinLoading && hasSkeletonLoading) {
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'inconsistent-feedback',
+        severity: 'P1',
+        message: '混用 Spin 和 Skeleton 两种加载反馈',
+        suggestion: '统一使用一种加载反馈方式',
+        checkId: 'D3-06',
+      });
+    }
+  }
+
+  // ============ D4-04: 检测即时反馈 (P0) ============
+
+  /**
+   * 检测是否有即时反馈
+   */
+  private detectNoInstantFeedback(): void {
+    // 检测异步操作但没有 loading 反馈
+    const hasAsyncOperation = /fetch\(|axios\.|request\(|await\s+/.test(this.content);
+    const hasLoadingState = /loading|isLoading|fetching|pending/i.test(this.content);
+
+    if (hasAsyncOperation && !hasLoadingState) {
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'no-instant-feedback',
+        severity: 'P0',
+        message: '异步操作缺少即时反馈',
+        suggestion: '添加 loading 状态或 spinner，让用户知道操作正在进行',
+        checkId: 'D4-04',
+      });
+    }
+
+    // 检测表单提交
+    const hasFormSubmit = /onSubmit|handleSubmit|submit/i.test(this.content);
+    if (hasFormSubmit && !hasLoadingState) {
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'no-instant-feedback',
+        severity: 'P0',
+        message: '表单提交缺少提交中状态',
+        suggestion: '提交时显示 loading，防止重复提交',
+        checkId: 'D4-04',
+      });
+    }
+  }
+
+  // ============ D4-05: 检测乐观更新 (P1) ============
+
+  /**
+   * 检测是否使用乐观更新
+   */
+  private detectNoOptimisticUpdate(): void {
+    // 检测增删改操作
+    const hasCRUD = /create|update|delete|remove|add|edit/i.test(this.content);
+    const hasOptimistic = /optimistic|setData.*immediate|update.*cache|refetch|onMutate/i.test(this.content);
+
+    if (hasCRUD && !hasOptimistic) {
+      // 检查是否使用了状态管理
+      const hasStateManagement = /useState|useReducer|Zustand|Redux|Recoil/i.test(this.content);
+
+      if (hasStateManagement) {
+        this.issues.push({
+          file: this.filePath,
+          line: 1,
+          column: 1,
+          type: 'no-optimistic-update',
+          severity: 'P1',
+          message: 'CRUD 操作缺少乐观更新',
+          suggestion: '考虑使用乐观更新: 先更新本地状态，再请求后端',
+          checkId: 'D4-05',
+        });
+      }
+    }
+
+    // 检测切换操作 (收藏、点赞等)
+    const hasToggle = /toggle|like|favorite|star|follow/i.test(this.content);
+    if (hasToggle && !hasOptimistic) {
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'no-optimistic-update',
+        severity: 'P1',
+        message: '切换操作缺少乐观更新',
+        suggestion: '切换状态时先更新 UI，再请求后端，提升响应感',
+        checkId: 'D4-05',
+      });
+    }
+  }
+
+  // ============ D5-01: 检测积极反馈 (P1) ============
+
+  /**
+   * 检测是否有积极反馈动画
+   */
+  private detectNoPositiveFeedback(): void {
+    // 检测成功操作
+    const hasSuccessOperation = /success|completed|finished|done/i.test(this.content);
+    const hasCelebration = /celebrate|confetti|success.*animation|🎉|✨|success.*effect/i.test(this.content);
+
+    if (hasSuccessOperation && !hasCelebration) {
+      // 检查是否只是简单的 message.success
+      const hasSimpleSuccess = /message\.success\(/.test(this.content);
+      if (hasSimpleSuccess) {
+        // 检查是否在关键成功场景
+        const isKeySuccess = /create|submit|publish|deploy|完成|提交|发布/i.test(this.content);
+        if (isKeySuccess) {
+          this.issues.push({
+            file: this.filePath,
+            line: 1,
+            column: 1,
+            type: 'no-positive-feedback',
+            severity: 'P1',
+            message: '关键成功操作缺少积极反馈动画',
+            suggestion: '添加成功动画 (confetti 或动效)，增强用户成就感',
+            checkId: 'D5-01',
+          });
+        }
+      }
+    }
+  }
+
+  // ============ D5-04: 检测安全感提示 (P1) ============
+
+  /**
+   * 检测是否有安全提示
+   */
+  private detectMissingSecuritySense(): void {
+    // 检测危险操作
+    const hasDangerousOp = /delete|remove|destroy|reset.*data|clear.*data/i.test(this.content);
+
+    if (hasDangerousOp) {
+      // 检查是否有确认提示
+      const hasConfirm = /confirm|确认|二次确认|warning|danger/i.test(this.content);
+      const hasSecurityHint = /安全|不可恢复|谨慎|irreversible|confirmDelete/i.test(this.content);
+
+      if (!hasConfirm && !hasSecurityHint) {
+        this.issues.push({
+          file: this.filePath,
+          line: 1,
+          column: 1,
+          type: 'missing-security-sense',
+          severity: 'P1',
+          message: '危险操作缺少安全提示',
+          suggestion: '添加 "此操作不可恢复" 等安全提示',
+          checkId: 'D5-04',
+        });
+      }
+    }
+
+    // 检测敏感操作 (修改密码、支付等)
+    const hasSensitiveOp = /password|pay|payment|money|credential|密钥/i.test(this.content);
+    if (hasSensitiveOp) {
+      const hasSecurityUI = /lock|shield|security|安全|保护/i.test(this.content);
+      if (!hasSecurityUI) {
+        this.issues.push({
+          file: this.filePath,
+          line: 1,
+          column: 1,
+          type: 'missing-security-sense',
+          severity: 'P1',
+          message: '敏感操作缺少安全感提示',
+          suggestion: '添加安全图标或提示，增强用户信任',
+          checkId: 'D5-04',
+        });
+      }
+    }
+  }
+
+  // ============ D5-05: 检测隐私告知 (P0) ============
+
+  /**
+   * 检测是否有隐私告知
+   */
+  private detectMissingPrivacyNotice(): void {
+    // 检测涉及用户数据的场景
+    const hasUserData = /user.*info|profile|avatar|email|phone|实名|手机号|身份证/i.test(this.content);
+    const hasPrivacyNotice = /privacy|privacyPolicy|privacy.*policy|consent|用户协议|隐私政策|privacy.*notice/i.test(this.content);
+
+    if (hasUserData && !hasPrivacyNotice) {
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-privacy-notice',
+        severity: 'P0',
+        message: '涉及用户数据但缺少隐私告知',
+        suggestion: '添加隐私政策链接或数据使用说明',
+        checkId: 'D5-05',
+      });
+    }
+
+    // 检测表单收集场景
+    const hasFormCollection = /Form\.Item|formItem|collect.*data/i.test(this.content);
+    if (hasFormCollection && !hasPrivacyNotice) {
+      // 检查是否有隐私相关的必填提示
+      const hasDataConsent = /同意|consent|授权|agreement/i.test(this.content);
+      if (!hasDataConsent) {
+        this.issues.push({
+          file: this.filePath,
+          line: 1,
+          column: 1,
+          type: 'missing-privacy-notice',
+          severity: 'P0',
+          message: '表单收集数据缺少用户同意/隐私告知',
+          suggestion: '添加 "我同意隐私政策" 勾选框',
+          checkId: 'D5-05',
+        });
+      }
+    }
+  }
+
+  // ============ D5-06: 检测数据安全标识 (P0) ============
+
+  /**
+   * 检测是否有数据安全标识
+   */
+  private detectMissingDataSecurityMark(): void {
+    // 检测敏感数据处理
+    const hasSensitiveData = /password|token|secret|key|密钥|token|credential/i.test(this.content);
+    const hasSecurityMark = /encrypted|encrypt|secure|ssl|tls|https|安全|加密|保护/i.test(this.content);
+
+    if (hasSensitiveData && !hasSecurityMark) {
+      // 检查是否是密码输入框
+      const hasPasswordInput = /type\s*=\s*["']password|password.*Input/i.test(this.content);
+      if (hasPasswordInput) {
+        this.issues.push({
+          file: this.filePath,
+          line: 1,
+          column: 1,
+          type: 'missing-data-security-mark',
+          severity: 'P0',
+          message: '密码输入缺少安全标识',
+          suggestion: '确保使用安全传输 (HTTPS) 和加密存储',
+          checkId: 'D5-06',
+        });
+      }
+    }
+
+    // 检测文件上传
+    const hasFileUpload = /upload|Upload|文件上传/i.test(this.content);
+    if (hasFileUpload) {
+      const hasSecurityCheck = /virus|scan|security.*check|安全检查|病毒/i.test(this.content);
+      if (!hasSecurityCheck) {
+        // 检查是否上传敏感文件类型
+        const hasSensitiveFileType = /\.exe|\.sh|\.bat|\.dll|可执行/i.test(this.content);
+        if (hasSensitiveFileType) {
+          this.issues.push({
+            file: this.filePath,
+            line: 1,
+            column: 1,
+            type: 'missing-data-security-mark',
+            severity: 'P0',
+            message: '上传敏感文件类型缺少安全检查提示',
+            suggestion: '添加文件安全检查提示',
+            checkId: 'D5-06',
+          });
+        }
       }
     }
   }
