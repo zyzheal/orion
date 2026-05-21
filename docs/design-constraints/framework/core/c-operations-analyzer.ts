@@ -40,6 +40,13 @@ export type OperationsIssueType =
   | 'no-rollback-support'
   | 'missing-browserslist'
   | 'missing-timezone-handling'
+  | 'missing-optional-fields'
+  | 'missing-deprecated-fields'
+  | 'missing-data-safety'
+  | 'missing-mobile-adaptation'
+  | 'missing-dark-mode'
+  | 'missing-old-client-support'
+  | 'missing-degradation-hint'
   // C2 扩展性
   | 'missing-plugin-mechanism'
   | 'missing-config-hot-reload'
@@ -136,6 +143,8 @@ export class COperationsAnalyzerBackend {
     // C1 兼容性检测
     this.detectMissingApiVersion();
     this.detectMissingMigration();
+    this.detectMissingDataSafety();
+    this.detectMissingDegradationHint();
 
     // C2 扩展性检测
     this.detectMissingEventBus();
@@ -478,6 +487,91 @@ export class COperationsAnalyzerBackend {
     }
   }
 
+  // ============ C1-06: 迁移不影响现有数据 (P0) ============
+
+  /**
+   * 检测迁移脚本是否有数据保护措施
+   */
+  private detectMissingDataSafety(): void {
+    // 只在 migration 相关文件中检测
+    const isMigrationFile = /migration|migrate/i.test(this.filePath);
+    if (!isMigrationFile) return;
+
+    // 检测是否有数据备份/保护逻辑
+    const hasDataProtection = [
+      /backup/i,
+      /copy.*before/i,
+      /CREATE.*TABLE.*AS.*SELECT/i,
+      /INSERT INTO.*SELECT/i,
+      /NOT NULL/i,
+      /DEFAULT/i,
+      /preserve/i,
+      /cascade.*false/i,
+    ];
+
+    const hasProtection = hasDataProtection.some(p => p.test(this.content));
+
+    // 检测是否有不安全的操作
+    const hasDangerousOps = [
+      /DROP.*TABLE/i,
+      /TRUNCATE/i,
+      /DELETE FROM.*WHERE/i,
+      /ALTER.*DROP/i,
+    ];
+
+    const hasDangerous = hasDangerousOps.some(p => p.test(this.content));
+
+    if (hasDangerous && !hasProtection) {
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-data-safety',
+        severity: 'P0',
+        message: '迁移脚本缺少数据安全保护措施',
+        suggestion: '迁移前应备份数据，使用 ALTER 而非 DROP，使用 DEFAULT 值保护必填字段',
+        checkId: 'C1-06',
+      });
+    }
+  }
+
+  // ============ C1-11: 降级提示清晰 (P0) ============
+
+  /**
+   * 检测是否有清晰的降级提示
+   */
+  private detectMissingDegradationHint(): void {
+    // 只在服务入口或中间件文件中检测
+    const isMainFile = /index\.ts$|server\.ts$|app\.ts$/i.test(this.filePath);
+    const isMiddlewareFile = /middleware|intercepto|error/i.test(this.filePath);
+    if (!isMainFile && !isMiddlewareFile) return;
+
+    // 检测错误处理是否有用户友好的提示
+    const hasErrorHandler = /error.*handler|catch|try.*catch/i.test(this.content);
+    const hasUserMessage = [
+      /message\./i,
+      /notify.*user/i,
+      /user.*notify/i,
+      /fallback.*message/i,
+      /degradation.*message/i,
+    ];
+
+    const hasMessage = hasUserMessage.some(p => p.test(this.content));
+
+    if (hasErrorHandler && !hasMessage) {
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-degradation-hint',
+        severity: 'P0',
+        message: '错误处理缺少用户友好的降级提示',
+        suggestion: '建议在 catch 块中向用户提供清晰的错误提示和降级方案',
+        checkId: 'C1-11',
+      });
+    }
+  }
+
   // ============ C2-04: 动态配置无需重启 (P0) ============
 
   /**
@@ -717,7 +811,12 @@ export class COperationsAnalyzerFrontend {
     this.issues = [];
 
     // C1 兼容性检测
+    this.detectMissingOptionalFields();
+    this.detectMissingDeprecatedFields();
     this.detectMissingTimezoneHandling();
+    this.detectMissingMobileAdaptation();
+    this.detectMissingDarkMode();
+    this.detectMissingOldClientSupport();
     this.detectMissingStatelessDesign();
     this.detectMissingSessionStorage();
 
@@ -845,6 +944,208 @@ export class COperationsAnalyzerFrontend {
         message: '日期处理缺少时区支持',
         suggestion: '建议使用 dayjs 或 moment-timezone 处理时区',
         checkId: 'C1-12',
+      });
+    }
+  }
+
+  // ============ C1-01: 新增字段不破坏旧版 (P0) ============
+
+  /**
+   * 检测 API response 类型是否使用可选字段
+   * 新增字段必须为可选，否则会破坏旧版客户端
+   */
+  private detectMissingOptionalFields(): void {
+    // 只在 API 类型定义文件中检测
+    const isApiFile = /api|type|interface|dto|response/i.test(this.filePath);
+    if (!isApiFile) return;
+
+    // 检测是否有必填字段定义（没有 ? 的字段）
+    // 使用正则检测 interface 或 type 定义中的必填字段
+    const hasInterface = /interface\s+\w+/.test(this.content);
+    const hasRequiredFields = /:\s*\w+\s*[,;=](?!\s*\?)/.test(this.content);
+
+    // 如果有 interface 但没有检测到可选字段模式，可能有问题
+    if (hasInterface && !/\?\s*[:=]/.test(this.content) && hasRequiredFields) {
+      // 检查是否所有新字段都是可选的
+      const fieldMatches = this.content.match(/(\w+)\s*:\s*[\w\[\]<>|]+/g) || [];
+      const requiredFields = fieldMatches.filter(f => !f.includes('?'));
+
+      if (requiredFields.length > 5) {
+        // 大部分字段都是必填的，可能有问题
+        this.issues.push({
+          file: this.filePath,
+          line: 1,
+          column: 1,
+          type: 'missing-optional-fields',
+          severity: 'P0',
+          message: 'API 响应类型缺少可选字段标记',
+          suggestion: '新增字段应使用可选 (?) 类型，避免破坏旧版客户端',
+          checkId: 'C1-01',
+        });
+      }
+    }
+  }
+
+  // ============ C1-02: 废弃字段标记 deprecated (P0) ============
+
+  /**
+   * 检测是否使用 @deprecated 注解标记废弃字段
+   */
+  private detectMissingDeprecatedFields(): void {
+    // 只在类型定义或路由文件中检测
+    const isApiFile = /api|type|interface|routes|controller/i.test(this.filePath);
+    if (!isApiFile) return;
+
+    // 检测废弃字段模式
+    const deprecatedPatterns = [
+      /@deprecated/,
+      /@Deprecate/,
+      /deprecated:\s*true/i,
+      /\/\*\*[\s\S]*?@deprecated/,
+      /\/\/\s*@deprecated/,
+    ];
+
+    // 查找可能的废弃字段（包含 old, deprecated, obsolete, removed 等关键词的字段）
+    const deprecatedFieldPatterns = [
+      /(\w*(?:old|deprecated|obsolete|removed)\w*)\s*:/gi,
+      /(\w+)\s*:\s*[\w\[\]<>]+\s*,\s*\/\/\s*(?:deprecated|obsolete|removed)/gi,
+    ];
+
+    let foundDeprecated = false;
+    for (const pattern of deprecatedPatterns) {
+      if (pattern.test(this.content)) {
+        foundDeprecated = true;
+        break;
+      }
+    }
+
+    // 检测可能的废弃字段但没有标记
+    for (const pattern of deprecatedFieldPatterns) {
+      const matches = this.content.match(pattern);
+      if (matches && matches.length > 0 && !foundDeprecated) {
+        this.issues.push({
+          file: this.filePath,
+          line: 1,
+          column: 1,
+          type: 'missing-deprecated-fields',
+          severity: 'P0',
+          message: '存在可能的废弃字段但缺少 @deprecated 标记',
+          suggestion: '建议使用 @deprecated 注解标记废弃字段，说明迁移方案',
+          checkId: 'C1-02',
+        });
+        break;
+      }
+    }
+  }
+
+  // ============ C1-08: 移动端适配 (P1) ============
+
+  /**
+   * 检测是否有响应式/移动端适配
+   */
+  private detectMissingMobileAdaptation(): void {
+    // 只在页面组件中检测
+    const isPageFile = /pages|page|index|view/i.test(this.filePath);
+    if (!isPageFile) return;
+
+    const hasResponsivePatterns = [
+      /@media/,
+      /responsive/,
+      /isMobile/,
+      /useMediaQuery/,
+      /mobile/,
+      /screen.*width/,
+      /antd.*responsive/i,
+      /Row.*Col|Col.*Row/,
+    ];
+
+    const hasResponsive = hasResponsivePatterns.some(p => p.test(this.content));
+
+    if (!hasResponsive) {
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-mobile-adaptation',
+        severity: 'P1',
+        message: '页面缺少移动端适配',
+        suggestion: '建议添加响应式布局或移动端专用样式',
+        checkId: 'C1-08',
+      });
+    }
+  }
+
+  // ============ C1-09: 暗色模式支持 (P1) ============
+
+  /**
+   * 检测是否使用暗色模式
+   */
+  private detectMissingDarkMode(): void {
+    // 只在样式相关文件中检测
+    const isStyleFile = /styles?|css|theme|token/i.test(this.filePath);
+    const isPageFile = /pages|components/i.test(this.filePath);
+    if (!isStyleFile && !isPageFile) return;
+
+    const hasDarkModePatterns = [
+      /darkTheme/,
+      /theme\.dark/,
+      /ConfigProvider.*dark/,
+      /dark.*mode/,
+      /darkMode/,
+      /dark:/,
+      /\[\s*className.*dark\s*\]/,
+      /token.*dark/i,
+    ];
+
+    const hasDarkMode = hasDarkModePatterns.some(p => p.test(this.content));
+
+    if (!hasDarkMode) {
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-dark-mode',
+        severity: 'P1',
+        message: '缺少暗色模式支持',
+        suggestion: '建议使用 antd ConfigProvider 的 darkTheme 或自定义暗色主题',
+        checkId: 'C1-09',
+      });
+    }
+  }
+
+  // ============ C1-10: 旧版本客户端可用 (P0) ============
+
+  /**
+   * 检测是否有旧版本客户端兼容策略
+   */
+  private detectMissingOldClientSupport(): void {
+    // 只在 API 入口文件中检测
+    const isApiEntry = /index\.ts|server\.ts|app\.ts|routes\.ts/i.test(this.filePath);
+    if (!isApiEntry) return;
+
+    // 检测版本兼容策略
+    const hasVersionStrategy = [
+      /\/\/.*version.*compatible/i,
+      /version.*check/i,
+      /legacy.*support/i,
+      /backward.*compat/i,
+      /graceful.*degradation/i,
+      /feature.*flag/i,
+      /compatibility/i,
+    ];
+
+    const hasStrategy = hasVersionStrategy.some(p => p.test(this.content));
+
+    if (!hasStrategy) {
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-old-client-support',
+        severity: 'P0',
+        message: '缺少旧版本客户端兼容策略',
+        suggestion: '建议实现版本检测和降级逻辑，确保旧客户端可用',
+        checkId: 'C1-10',
       });
     }
   }
@@ -1656,20 +1957,22 @@ export class COperationsScanner {
   constructor(backendDir?: string, frontendDir?: string, docsDir?: string) {
     // 使用 process.cwd() 作为项目根目录，优先查找 orion-design
     const cwd = process.cwd();
-    let projectRoot: string;
+    let projectRoot: string = cwd;
 
     // 尝试从 cwd 向上查找包含 docs 目录的父目录
     let checkDir = cwd;
+    let foundProjectRoot = false;
     for (let i = 0; i < 5; i++) {
       if (fs.existsSync(path.join(checkDir, 'docs')) && fs.existsSync(path.join(checkDir, 'orion-platform-service'))) {
         projectRoot = checkDir;
+        foundProjectRoot = true;
         break;
       }
       checkDir = path.join(checkDir, '..');
     }
 
     // 如果没找到，尝试常见模式
-    if (!projectRoot) {
+    if (!foundProjectRoot) {
       if (cwd.includes('orion-platform-service')) {
         projectRoot = path.join(cwd, '../..');
       } else if (cwd.includes('orion-frontend')) {
@@ -1953,20 +2256,22 @@ export class COperationsScanner {
 if (require.main === module) {
   // 修正项目根目录路径计算 - 优先查找 orion-design
   const cwd = process.cwd();
-  let projectRoot: string;
+  let projectRoot: string = cwd;
 
   // 尝试从 cwd 向上查找包含 docs 目录的父目录
   let checkDir = cwd;
+  let foundProjectRoot = false;
   for (let i = 0; i < 5; i++) {
     if (fs.existsSync(path.join(checkDir, 'docs')) && fs.existsSync(path.join(checkDir, 'orion-platform-service'))) {
       projectRoot = checkDir;
+      foundProjectRoot = true;
       break;
     }
     checkDir = path.join(checkDir, '..');
   }
 
   // 如果没找到，尝试常见模式
-  if (!projectRoot) {
+  if (!foundProjectRoot) {
     if (cwd.includes('orion-platform-service')) {
       projectRoot = path.join(cwd, '../..');
     } else if (cwd.includes('orion-frontend')) {

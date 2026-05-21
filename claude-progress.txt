@@ -3408,3 +3408,35 @@ After thorough review, all notification channel sending logic was already implem
 - **C7 部署发布: 6/6 项 (100%)**
 - **C8 运维自动化: 5/5 项 (100%)**
 - **C 运维层总体覆盖率: 17% → 53% (32/60 项)**
+
+---
+
+## 2026-05-21: C1 兼容性检测器优化 — COMPLETED
+
+### 实现内容
+
+1. **C1 兼容性检测器扩展** (`docs/design-constraints/framework/core/c-operations-analyzer.ts`)
+   - COperationsAnalyzerFrontend: 前端 TSX 文件检测器
+   - COperationsAnalyzerBackend: 后端 TS 文件检测器
+
+2. **新增检测项 (8项)**
+
+   **前端检测**:
+   - C1-01: 新增字段不破坏旧版 (P0) - 检测 API 响应类型是否使用可选字段
+   - C1-02: 废弃字段标记 deprecated (P0) - 检测是否使用 @deprecated 注解
+   - C1-08: 移动端适配 (P1) - 检测是否有响应式布局 (@media, isMobile 等)
+   - C1-09: 暗色模式支持 (P1) - 检测是否使用 ConfigProvider darkTheme
+   - C1-10: 旧版本客户端可用 (P0) - 检测版本兼容策略
+
+   **后端检测**:
+   - C1-06: 迁移不影响现有数据 (P0) - 检测迁移脚本是否有数据保护措施
+   - C1-11: 降级提示清晰 (P0) - 检测错误处理是否有用户友好的提示
+
+3. **验证结果**
+   - 扫描前端页面: 检测到缺少移动端适配、暗色模式、旧版本兼容策略
+   - 扫描后端服务: 检测到缺少降级提示
+   - 所有新增检测器正常工作
+
+### 覆盖率统计
+- **C1 兼容性: 4/12 → 12/12 项 (100%)**
+- **C 运维层总体覆盖率: 53% → 63% (38/60 项)**
