@@ -2,7 +2,8 @@
  * Tenant List Page
  * Admin view: create, manage, and switch between tenants
  */
-import React, { useState, useEffect } from 'react';
+// P2 修复: 添加批量操作和搜索筛选功能
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Typography,
   Card,
@@ -53,6 +54,7 @@ interface TenantListPageProps {
   onTenantSelect?: (tenantId: string) => void;
 }
 
+// P2 修复: 搜索筛选和批量操作状态
 const TenantListPage: React.FC<TenantListPageProps> = ({ onTenantSelect }) => {
   const [loading, setLoading] = useState(false);
   const [tenants, setTenants] = useState<TenantEntity[]>([]);
@@ -65,6 +67,12 @@ const TenantListPage: React.FC<TenantListPageProps> = ({ onTenantSelect }) => {
   const [submitting, setSubmitting] = useState(false); // P1 修复：防重复提交
   const [createForm] = Form.useForm();
   const [editForm] = Form.useForm();
+  // P2 修复: 搜索和筛选状态
+  const [searchText, setSearchText] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  // P2 修复: 批量选择状态
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
+  const [batchDeleting, setBatchDeleting] = useState(false);
 
   // P1-3 修复：用户管理相关状态
   const [userModalOpen, setUserModalOpen] = useState(false);
@@ -202,6 +210,49 @@ const TenantListPage: React.FC<TenantListPageProps> = ({ onTenantSelect }) => {
     onTenantSelect?.(tenantId);
     // Reload page to apply tenant context
     window.location.reload();
+  };
+
+  // P2 修复: 过滤后的数据 (本地搜索和状态筛选)
+  const filteredTenants = useMemo(() => {
+    let data = [...tenants];
+    // 按名称/显示名称搜索
+    if (searchText) {
+      const search = searchText.toLowerCase();
+      data = data.filter(
+        (t) =>
+          t.name.toLowerCase().includes(search) ||
+          (t.display_name && t.display_name.toLowerCase().includes(search))
+      );
+    }
+    // 按状态筛选
+    if (statusFilter) {
+      data = data.filter((t) => t.status === statusFilter);
+    }
+    return data;
+  }, [tenants, searchText, statusFilter]);
+
+  // P2 修复: 批量删除处理
+  const handleBatchDelete = async () => {
+    if (selectedRowKeys.length === 0) return;
+    setBatchDeleting(true);
+    try {
+      let successCount = 0;
+      for (const id of selectedRowKeys) {
+        await deleteTenant(id as string);
+        successCount++;
+      }
+      message.success(`成功删除 ${successCount} 个租户`);
+      setSelectedRowKeys([]);
+      loadTenants();
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`批量删除失败：${error.message}`);
+      } else {
+        message.error('批量删除失败，请稍后重试');
+      }
+    } finally {
+      setBatchDeleting(false);
+    }
   };
 
   // P1-3 修复：加载租户用户列表
@@ -348,6 +399,20 @@ const TenantListPage: React.FC<TenantListPageProps> = ({ onTenantSelect }) => {
           </Text>
         </div>
         <Space>
+          {/* P2 修复: 批量删除按钮 - 有选中项时显示 */}
+          {selectedRowKeys.length > 0 && (
+            <Popconfirm
+              title="确认批量删除"
+              description={`确定要删除选中的 ${selectedRowKeys.length} 个租户吗？此操作将软删除这些租户。`}
+              onConfirm={handleBatchDelete}
+              okText="确认删除"
+              cancelText="取消"
+            >
+              <Button danger icon={<DeleteOutlined />} loading={batchDeleting}>
+                批量删除 ({selectedRowKeys.length})
+              </Button>
+            </Popconfirm>
+          )}
           <Button icon={<ReloadOutlined />} onClick={loadTenants} loading={loading}>
             刷新
           </Button>
@@ -357,17 +422,59 @@ const TenantListPage: React.FC<TenantListPageProps> = ({ onTenantSelect }) => {
         </Space>
       </div>
 
+      {/* P2 修复: 搜索和筛选区域 */}
+      <Card style={{ marginBottom: 16 }}>
+        <Row gutter={16} align="middle">
+          <Col>
+            <Input.Search
+              placeholder="搜索租户名称/显示名称"
+              allowClear
+              style={{ width: 250 }}
+              onSearch={(value) => setSearchText(value)}
+              onChange={(e) => setSearchText(e.target.value)}
+            />
+          </Col>
+          <Col>
+            <Select
+              placeholder="筛选状态"
+              allowClear
+              style={{ width: 150 }}
+              value={statusFilter}
+              onChange={setStatusFilter}
+              options={[
+                { label: 'active', value: 'active' },
+                { label: 'inactive', value: 'inactive' },
+                { label: 'deleted', value: 'deleted' },
+              ]}
+            />
+          </Col>
+          <Col>
+            <Text type="secondary">
+              {filteredTenants.length !== tenants.length
+                ? `筛选结果: ${filteredTenants.length} / ${tenants.length} 个租户`
+                : `共 ${tenants.length} 个租户`}
+            </Text>
+          </Col>
+        </Row>
+      </Card>
+
       {/* Tenant List */}
       <Card>
         <Table
-          columns={columns}
-          dataSource={tenants}
+          // P2 修复: 使用过滤后的数据
+          dataSource={searchText || statusFilter ? filteredTenants : tenants}
           loading={loading}
           rowKey="id"
+          // P2 修复: 批量选择功能
+          rowSelection={{
+            selectedRowKeys,
+            onChange: (keys: React.Key[]) => setSelectedRowKeys(keys),
+            preserveSelectedRowKeys: true,
+          }}
           pagination={{
             current: page,
             pageSize,
-            total,
+            total: searchText || statusFilter ? filteredTenants.length : total,
             showSizeChanger: true,
             showTotal: (total) => `共 ${total} 个租户`,
             onChange: (p, ps) => {
@@ -375,6 +482,7 @@ const TenantListPage: React.FC<TenantListPageProps> = ({ onTenantSelect }) => {
               setPageSize(ps);
             },
           }}
+          columns={columns}
           locale={{
             emptyText: (
               <Empty
