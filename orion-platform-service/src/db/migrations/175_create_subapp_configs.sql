@@ -64,13 +64,16 @@ CREATE INDEX idx_subapp_config_history_created ON subapp_config_history(created_
 COMMENT ON TABLE subapp_config_history IS 'Audit log for sub-app configuration changes';
 
 -- ============================================================
--- 3. Insert Default SubApp Configurations
+-- 3. Insert Default SubApp Configurations (Module Federation 格式)
 -- ============================================================
 
 INSERT INTO subapp_configs (name, key, version, entry_dev, entry_prod, routes, status, sort_order, description) VALUES
-('数据库管理', 'dba', '1.0.0', 'http://localhost:3030/orion-dba/', '/orion-dba/index.html', '["/dba"]', 'enabled', 1, 'SQL审核、数据源管理'),
-('知识库', 'knowledge', '1.0.0', 'http://localhost:5173/orion-knowledge/', '/orion-knowledge/index.html', '["/knowledge"]', 'enabled', 2, '文档管理、知识分享'),
-('监控中心', 'visor', '1.0.0', 'http://localhost:3003/orion-visor/', '/orion-visor/index.html', '["/visor"]', 'enabled', 3, '系统监控、告警管理');
+-- orion-dba: Vue 3 + Vite + MF
+('数据库管理', 'dba', '1.0.0', 'http://localhost:3030/assets/remoteEntry.js', '/orion-dba/assets/remoteEntry.js', '["/dba"]', 'enabled', 1, 'SQL审核、数据源管理'),
+-- orion-knowledge: React + Vite + MF
+('知识库', 'knowledge', '1.0.0', 'http://localhost:5173/assets/remoteEntry.js', '/orion-knowledge/assets/remoteEntry.js', '["/knowledge"]', 'enabled', 2, '文档管理、知识分享'),
+-- orion-visor: Vue 2 + Vite + MF
+('监控中心', 'visor', '1.0.0', 'http://localhost:3003/assets/remoteEntry.js', '/orion-visor/assets/remoteEntry.js', '["/visor"]', 'enabled', 3, '系统监控、告警管理');
 
 -- ============================================================
 -- 4. Migration Info
