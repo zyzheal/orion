@@ -16,6 +16,8 @@ import { TenantRepository } from '../services/tenant/TenantRepository';
 import { DatabasePool } from '../services/database';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
+import { success, created, noContent, badRequest, notFound, internalError, conflict, serviceUnavailable, unauthorized, forbidden } from '../utils/replyHelper';
+import { ErrorCodes } from '../types/error-codes';
 
 interface TenantQuotaUpdate {
   maxPipelines?: number;
@@ -73,10 +75,7 @@ export default async function tenantRoutes(
     const userId = user?.userId || user?.userID;
 
     if (!userId) {
-      return reply.status(401).send({
-        error: 'UNAUTHORIZED',
-        message: 'User not authenticated',
-      });
+      return unauthorized(reply, request, 'User not authenticated');
     }
 
     // Query tenant_users table to get user's tenants
@@ -99,17 +98,15 @@ export default async function tenantRoutes(
         isCurrent: t.id === currentTenantId,
       }));
 
-      return reply.send({
-        tenants: tenantsWithCurrent,
+      const currentTenant = tenantsWithCurrent.find((t: any) => t.isCurrent) || tenantsWithCurrent[0] || null;
+
+      return success(reply, request, tenantsWithCurrent, {
         total: tenantsWithCurrent.length,
-        currentTenant: tenantsWithCurrent.find((t: any) => t.isCurrent) || tenantsWithCurrent[0] || null,
+        currentTenant,
       });
     } catch (error: any) {
       console.error('[tenant/my-tenants] Error:', error);
-      return reply.status(500).send({
-        error: 'MY_TENANTS_ERROR',
-        message: error.message,
-      });
+      return internalError(reply, request, error.message);
     }
   });
 
@@ -120,10 +117,7 @@ export default async function tenantRoutes(
     const tenantIdHeader = request.headers['x-tenant-id'] as string;
 
     if (!tenantIdHeader) {
-      return reply.status(400).send({
-        error: 'MISSING_TENANT_ID',
-        message: 'X-Tenant-ID header is required',
-      });
+      return badRequest(reply, request, ErrorCodes.CLIENT_PARAM_MISSING, 'X-Tenant-ID header is required');
     }
 
     const tenantId = parseInt(tenantIdHeader, 10);
@@ -132,9 +126,7 @@ export default async function tenantRoutes(
       user: { tenant_id: tenantId },
     });
 
-    return reply.send({
-      context: tenantInfo,
-    });
+    return success(reply, request, { context: tenantInfo });
   });
 
   // ==================== Tenant Quota ====================
@@ -146,10 +138,7 @@ export default async function tenantRoutes(
     const tenantIdHeader = request.headers['x-tenant-id'] as string;
 
     if (!tenantIdHeader) {
-      return reply.status(400).send({
-        error: 'MISSING_TENANT_ID',
-        message: 'X-Tenant-ID header is required',
-      });
+      return badRequest(reply, request, ErrorCodes.CLIENT_PARAM_MISSING, 'X-Tenant-ID header is required');
     }
 
     const tenantIdStr = tenantIdHeader;
@@ -157,9 +146,7 @@ export default async function tenantRoutes(
     const tenantIdNum = parseInt(tenantIdHeader, 10);
     const quota = await quotaService.getQuota(isNaN(tenantIdNum) ? 0 : tenantIdNum, tenantIdStr);
 
-    return reply.send({
-      quota,
-    });
+    return success(reply, request, { quota });
   });
 
   // PUT /tenant/quota - 更新租户配额
@@ -170,10 +157,7 @@ export default async function tenantRoutes(
     const body = request.body as TenantQuotaUpdate;
 
     if (!tenantIdHeader) {
-      return reply.status(400).send({
-        error: 'MISSING_TENANT_ID',
-        message: 'X-Tenant-ID header is required',
-      });
+      return badRequest(reply, request, ErrorCodes.CLIENT_PARAM_MISSING, 'X-Tenant-ID header is required');
     }
 
     const tenantIdStr = tenantIdHeader;
@@ -190,14 +174,9 @@ export default async function tenantRoutes(
 
       await quotaService.setQuota(updatedQuota);
 
-      return reply.send({
-        quota: updatedQuota,
-      });
+      return success(reply, request, { quota: updatedQuota });
     } catch (error: any) {
-      return reply.status(400).send({
-        error: 'QUOTA_UPDATE_ERROR',
-        message: error.message,
-      });
+      return badRequest(reply, request, ErrorCodes.BIZ_TENANT_QUOTA_EXCEEDED, error.message);
     }
   });
 
@@ -212,10 +191,7 @@ export default async function tenantRoutes(
     };
 
     if (!tenantIdHeader) {
-      return reply.status(400).send({
-        error: 'MISSING_TENANT_ID',
-        message: 'X-Tenant-ID header is required',
-      });
+      return badRequest(reply, request, ErrorCodes.CLIENT_PARAM_MISSING, 'X-Tenant-ID header is required');
     }
 
     const tenantIdStr = tenantIdHeader;
@@ -228,9 +204,7 @@ export default async function tenantRoutes(
       body.amount
     );
 
-    return reply.send({
-      result,
-    });
+    return success(reply, request, { result });
   });
 
   // ==================== Namespace Pool ====================
@@ -240,7 +214,7 @@ export default async function tenantRoutes(
     onRequest: [authenticateUser, requirePermission({ resource: 'tenant', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const status = namespacePool.getPoolStatus();
-    return reply.send({ status });
+    return success(reply, request, { status });
   });
 
   // POST /tenant/namespace/allocate - 从 Namespace 池分配
@@ -253,20 +227,12 @@ export default async function tenantRoutes(
       const result = await namespacePool.allocateNamespace(body.tenantId);
 
       if (result.success) {
-        return reply.status(201).send({
-          allocation: result.namespace,
-        });
+        return created(reply, request, { allocation: result.namespace });
       } else {
-        return reply.status(400).send({
-          error: 'ALLOCATION_ERROR',
-          message: result.error || 'Failed to allocate namespace',
-        });
+        return badRequest(reply, request, ErrorCodes.BIZ_OPERATION_FAILED, result.error || 'Failed to allocate namespace');
       }
     } catch (error: any) {
-      return reply.status(400).send({
-        error: 'ALLOCATION_ERROR',
-        message: error.message,
-      });
+      return badRequest(reply, request, ErrorCodes.BIZ_OPERATION_FAILED, error.message);
     }
   });
 
@@ -279,14 +245,9 @@ export default async function tenantRoutes(
     try {
       const released = await namespacePool.releaseNamespace(body.namespaceName);
 
-      return reply.send({
-        released,
-      });
+      return success(reply, request, { released });
     } catch (error: any) {
-      return reply.status(400).send({
-        error: 'RELEASE_ERROR',
-        message: error.message,
-      });
+      return badRequest(reply, request, ErrorCodes.BIZ_OPERATION_FAILED, error.message);
     }
   });
 
@@ -298,10 +259,7 @@ export default async function tenantRoutes(
 
     const namespaces = namespacePool.getTenantNamespaces(parseInt(tenantId, 10));
 
-    return reply.send({
-      namespaces,
-      count: namespaces.length,
-    });
+    return success(reply, request, namespaces, { count: namespaces.length });
   });
 
   // ==================== Tenant Middleware Config ====================
@@ -310,7 +268,7 @@ export default async function tenantRoutes(
   app.get('/middleware/config', {
     onRequest: [authenticateUser, requirePermission({ resource: 'tenant', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    return reply.send({
+    return success(reply, request, {
       config: {
         enabled: true,
         headerName: 'x-tenant-id',
@@ -329,7 +287,7 @@ export default async function tenantRoutes(
       jwtTenantClaim?: string;
     };
 
-    return reply.send({
+    return success(reply, request, {
       config: {
         enabled: body.enabled ?? true,
         headerName: body.headerName || 'x-tenant-id',
@@ -344,27 +302,29 @@ export default async function tenantRoutes(
   app.get('/', {
     onRequest: [authenticateUser, requirePermission({ resource: 'tenant', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const { page = '1', limit = '20', status } = request.query as Record<string, string>;
-    
+    const { page = '1', limit = '20', status, search } = request.query as Record<string, string>;
+
     if (tenantService) {
       try {
         const result = await tenantService.listTenants({
           page: parseInt(page, 10),
           limit: parseInt(limit, 10),
           status,
+          search,
         });
-        return reply.send(result);
+        return success(reply, request, result.data, {
+          total: result.total,
+          page: result.page,
+          limit: result.limit,
+          totalPages: result.totalPages,
+        });
       } catch (error: any) {
-        return reply.status(500).send({
-          error: 'LIST_ERROR',
-          message: error.message,
-        });
+        return internalError(reply, request, error.message);
       }
     }
 
     // Fallback: return empty list if no database
-    return reply.send({
-      data: [],
+    return success(reply, request, [], {
       total: 0,
       page: parseInt(page, 10),
       limit: parseInt(limit, 10),
@@ -381,25 +341,16 @@ export default async function tenantRoutes(
     if (tenantService) {
       try {
         const tenant = await tenantService.getTenant(id);
-        return reply.send(tenant);
+        return success(reply, request, tenant);
       } catch (error: any) {
         if (error instanceof TenantServiceError && error.code === 'TENANT_NOT_FOUND') {
-          return reply.status(404).send({
-            error: 'TENANT_NOT_FOUND',
-            message: error.message,
-          });
+          return notFound(reply, request, ErrorCodes.BIZ_TENANT_NOT_FOUND, error.message);
         }
-        return reply.status(500).send({
-          error: 'GET_ERROR',
-          message: error.message,
-        });
+        return internalError(reply, request, error.message);
       }
     }
 
-    return reply.status(503).send({
-      error: 'SERVICE_UNAVAILABLE',
-      message: 'Database not available',
-    });
+    return serviceUnavailable(reply, request, 'Database not available');
   });
 
   // POST /tenant - Create new tenant (with auto quota + namespace allocation)
@@ -468,31 +419,24 @@ export default async function tenantRoutes(
           }
         }
 
-        return reply.status(201).send({
+        const message = body.autoAllocateNamespace
+          ? `Tenant created with ${allocatedNamespaces.length} namespace(s) allocated`
+          : 'Tenant created successfully';
+
+        return created(reply, request, {
           ...tenant,
           allocatedNamespaces: allocatedNamespaces.length > 0 ? allocatedNamespaces : undefined,
-          message: body.autoAllocateNamespace
-            ? `Tenant created with ${allocatedNamespaces.length} namespace(s) allocated`
-            : 'Tenant created successfully',
+          message,
         });
       } catch (error: any) {
         if (error instanceof TenantServiceError) {
-          return reply.status(400).send({
-            error: error.code,
-            message: error.message,
-          });
+          return badRequest(reply, request, ErrorCodes.BIZ_TENANT_NAME_EXISTS, error.message);
         }
-        return reply.status(500).send({
-          error: 'CREATE_ERROR',
-          message: error.message,
-        });
+        return internalError(reply, request, error.message);
       }
     }
 
-    return reply.status(503).send({
-      error: 'SERVICE_UNAVAILABLE',
-      message: 'Database not available',
-    });
+    return serviceUnavailable(reply, request, 'Database not available');
   });
 
   // PUT /tenant/:id - Update tenant
@@ -510,26 +454,19 @@ export default async function tenantRoutes(
     if (tenantService) {
       try {
         const tenant = await tenantService.updateTenant(id, body);
-        return reply.send(tenant);
+        return success(reply, request, tenant);
       } catch (error: any) {
         if (error instanceof TenantServiceError) {
-          const statusCode = error.code === 'TENANT_NOT_FOUND' ? 404 : 400;
-          return reply.status(statusCode).send({
-            error: error.code,
-            message: error.message,
-          });
+          const code = error.code === 'TENANT_NOT_FOUND'
+            ? ErrorCodes.BIZ_TENANT_NOT_FOUND
+            : ErrorCodes.BIZ_TENANT_STATUS_INVALID;
+          return notFound(reply, request, code, error.message);
         }
-        return reply.status(500).send({
-          error: 'UPDATE_ERROR',
-          message: error.message,
-        });
+        return internalError(reply, request, error.message);
       }
     }
 
-    return reply.status(503).send({
-      error: 'SERVICE_UNAVAILABLE',
-      message: 'Database not available',
-    });
+    return serviceUnavailable(reply, request, 'Database not available');
   });
 
   // DELETE /tenant/:id - Delete tenant (soft delete)
@@ -541,26 +478,19 @@ export default async function tenantRoutes(
     if (tenantService) {
       try {
         await tenantService.deleteTenant(id);
-        return reply.status(204).send();
+        return noContent(reply, request);
       } catch (error: any) {
         if (error instanceof TenantServiceError) {
-          const statusCode = error.code === 'TENANT_NOT_FOUND' ? 404 : 400;
-          return reply.status(statusCode).send({
-            error: error.code,
-            message: error.message,
-          });
+          const code = error.code === 'TENANT_NOT_FOUND'
+            ? ErrorCodes.BIZ_TENANT_NOT_FOUND
+            : ErrorCodes.BIZ_TENANT_STATUS_INVALID;
+          return notFound(reply, request, code, error.message);
         }
-        return reply.status(500).send({
-          error: 'DELETE_ERROR',
-          message: error.message,
-        });
+        return internalError(reply, request, error.message);
       }
     }
 
-    return reply.status(503).send({
-      error: 'SERVICE_UNAVAILABLE',
-      message: 'Database not available',
-    });
+    return serviceUnavailable(reply, request, 'Database not available');
   });
 
   // POST /tenant/:id/split - 拆分租户
@@ -580,10 +510,7 @@ export default async function tenantRoutes(
     };
 
     if (!options.database || !tenantService) {
-      return reply.status(503).send({
-        error: 'SERVICE_UNAVAILABLE',
-        message: 'Database not available',
-      });
+      return serviceUnavailable(reply, request, 'Database not available');
     }
 
     try {
@@ -659,8 +586,9 @@ export default async function tenantRoutes(
         });
       }
 
-      return reply.status(201).send({
-        success: true,
+      const message = `租户拆分完成：迁移 ${migratedUsers.length} 用户、${migratedNamespaces.length} Namespace、${migratedPipelines.length} Pipeline`;
+
+      return created(reply, request, {
         originalTenant: {
           id: originalTenant.id,
           name: originalTenant.name,
@@ -676,14 +604,11 @@ export default async function tenantRoutes(
           namespaces: migratedNamespaces,
           pipelines: migratedPipelines,
         },
-        message: `租户拆分完成：迁移 ${migratedUsers.length} 用户、${migratedNamespaces.length} Namespace、${migratedPipelines.length} Pipeline`,
+        message,
       });
     } catch (error: any) {
       console.error('[tenant/split] Error:', error);
-      return reply.status(400).send({
-        error: 'SPLIT_ERROR',
-        message: error.message || '租户拆分失败',
-      });
+      return badRequest(reply, request, ErrorCodes.BIZ_OPERATION_FAILED, error.message || '租户拆分失败');
     }
   });
 
@@ -696,16 +621,13 @@ export default async function tenantRoutes(
     if (tenantService) {
       try {
         const result = await tenantService.listTenants({ limit: 1, status });
-        return reply.send({ total: result.total });
+        return success(reply, request, { total: result.total });
       } catch (error: any) {
-        return reply.status(500).send({
-          error: 'COUNT_ERROR',
-          message: error.message,
-        });
+        return internalError(reply, request, error.message);
       }
     }
 
-    return reply.send({ total: 0 });
+    return success(reply, request, { total: 0 });
   });
 
   // ==================== Tenant Usage Statistics ====================
@@ -717,10 +639,7 @@ export default async function tenantRoutes(
     const tenantIdHeader = request.headers['x-tenant-id'] as string;
 
     if (!tenantIdHeader) {
-      return reply.status(400).send({
-        error: 'MISSING_TENANT_ID',
-        message: 'X-Tenant-ID header is required',
-      });
+      return badRequest(reply, request, ErrorCodes.CLIENT_PARAM_MISSING, 'X-Tenant-ID header is required');
     }
 
     const tenantIdStr = tenantIdHeader;
@@ -745,12 +664,9 @@ export default async function tenantRoutes(
         pipelineRunsPerDay: { used: 0, limit: quota.maxPipelineRunsPerDay },
       };
 
-      return reply.send({ usage, quota });
+      return success(reply, request, { usage, quota });
     } catch (error: any) {
-      return reply.status(500).send({
-        error: 'USAGE_STATS_ERROR',
-        message: error.message,
-      });
+      return internalError(reply, request, error.message);
     }
   });
 
@@ -774,7 +690,7 @@ export default async function tenantRoutes(
         cpuUsed: 0,
         memoryUsed: 0,
       }));
-      return reply.send({
+      return success(reply, request, {
         namespaces: namespaceDetails,
         total: namespaceDetails.length,
       });
@@ -831,17 +747,14 @@ export default async function tenantRoutes(
         totalRunners: namespaceDetails.reduce((sum, ns) => sum + ns.runnerCount, 0),
       };
 
-      return reply.send({
+      return success(reply, request, {
         namespaces: namespaceDetails,
         total: namespaceDetails.length,
         totals,
       });
     } catch (error: any) {
       console.error('[tenant/namespace/usage] Error:', error);
-      return reply.status(500).send({
-        error: 'NAMESPACE_USAGE_ERROR',
-        message: error.message,
-      });
+      return internalError(reply, request, error.message);
     }
   });
 
@@ -854,10 +767,7 @@ export default async function tenantRoutes(
     const { id } = request.params as { id: string };
 
     if (!options.database) {
-      return reply.status(503).send({
-        error: 'SERVICE_UNAVAILABLE',
-        message: 'Database not available',
-      });
+      return serviceUnavailable(reply, request, 'Database not available');
     }
 
     try {
@@ -871,16 +781,10 @@ export default async function tenantRoutes(
         [id]
       );
 
-      return reply.send({
-        users: result.rows,
-        total: result.rows.length,
-      });
+      return success(reply, request, result.rows, { total: result.rows.length });
     } catch (error: any) {
       console.error('[tenant/users] Error:', error);
-      return reply.status(500).send({
-        error: 'GET_USERS_ERROR',
-        message: error.message,
-      });
+      return internalError(reply, request, error.message);
     }
   });
 
@@ -891,10 +795,7 @@ export default async function tenantRoutes(
     const { id, userId } = request.params as { id: string; userId: string };
 
     if (!options.database) {
-      return reply.status(503).send({
-        error: 'SERVICE_UNAVAILABLE',
-        message: 'Database not available',
-      });
+      return serviceUnavailable(reply, request, 'Database not available');
     }
 
     // 获取当前用户信息
@@ -903,10 +804,7 @@ export default async function tenantRoutes(
 
     // 防止自己移除自己（至少保留一个管理员）
     if (userId === currentUserId) {
-      return reply.status(400).send({
-        error: 'CANNOT_REMOVE_SELF',
-        message: 'Cannot remove yourself from the tenant',
-      });
+      return badRequest(reply, request, ErrorCodes.BIZ_OPERATION_FAILED, 'Cannot remove yourself from the tenant');
     }
 
     try {
@@ -917,10 +815,7 @@ export default async function tenantRoutes(
       );
 
       if (adminCheck.rows.length === 0) {
-        return reply.status(404).send({
-          error: 'USER_NOT_FOUND',
-          message: 'User is not a member of this tenant',
-        });
+        return notFound(reply, request, ErrorCodes.BIZ_USER_NOT_FOUND, 'User is not a member of this tenant');
       }
 
       const userRole = adminCheck.rows[0].role;
@@ -934,10 +829,7 @@ export default async function tenantRoutes(
         );
 
         if (parseInt(adminCount.rows[0].count, 10) <= 1) {
-          return reply.status(400).send({
-            error: 'CANNOT_REMOVE_LAST_ADMIN',
-            message: 'Cannot remove the last administrator from the tenant',
-          });
+          return badRequest(reply, request, ErrorCodes.BIZ_OPERATION_FAILED, 'Cannot remove the last administrator from the tenant');
         }
       }
 
@@ -947,16 +839,12 @@ export default async function tenantRoutes(
         [id, userId]
       );
 
-      return reply.status(200).send({
-        success: true,
+      return success(reply, request, {
         message: 'User removed from tenant successfully',
       });
     } catch (error: any) {
       console.error('[tenant/users/delete] Error:', error);
-      return reply.status(500).send({
-        error: 'REMOVE_USER_ERROR',
-        message: error.message,
-      });
+      return internalError(reply, request, error.message);
     }
   });
 
@@ -975,17 +863,11 @@ export default async function tenantRoutes(
     };
 
     if (!body.email) {
-      return reply.status(400).send({
-        error: 'MISSING_EMAIL',
-        message: 'Email is required',
-      });
+      return badRequest(reply, request, ErrorCodes.CLIENT_PARAM_MISSING, 'Email is required');
     }
 
     if (!options.database) {
-      return reply.status(503).send({
-        error: 'SERVICE_UNAVAILABLE',
-        message: 'Database not available',
-      });
+      return serviceUnavailable(reply, request, 'Database not available');
     }
 
     // 获取当前用户信息
@@ -993,10 +875,7 @@ export default async function tenantRoutes(
     const currentUserId = currentUser?.userId || currentUser?.userID;
 
     if (!currentUserId) {
-      return reply.status(401).send({
-        error: 'UNAUTHORIZED',
-        message: 'User not authenticated',
-      });
+      return unauthorized(reply, request, 'User not authenticated');
     }
 
     try {
@@ -1007,10 +886,7 @@ export default async function tenantRoutes(
       );
 
       if (tenantCheck.rows.length === 0) {
-        return reply.status(404).send({
-          error: 'TENANT_NOT_FOUND',
-          message: 'Tenant not found',
-        });
+        return notFound(reply, request, ErrorCodes.BIZ_TENANT_NOT_FOUND, 'Tenant not found');
       }
 
       const tenant = tenantCheck.rows[0];
@@ -1024,11 +900,7 @@ export default async function tenantRoutes(
       );
 
       if (existingInvite.rows.length > 0) {
-        return reply.status(400).send({
-          error: 'INVITE_EXISTS',
-          message: 'A pending invitation already exists for this email',
-          invite: existingInvite.rows[0],
-        });
+        return conflict(reply, request, ErrorCodes.BIZ_RESOURCE_CONFLICT, 'A pending invitation already exists for this email');
       }
 
       // 检查用户是否已经是租户成员
@@ -1040,10 +912,7 @@ export default async function tenantRoutes(
       );
 
       if (existingMember.rows.length > 0) {
-        return reply.status(400).send({
-          error: 'USER_ALREADY_MEMBER',
-          message: 'User is already a member of this tenant',
-        });
+        return badRequest(reply, request, ErrorCodes.BIZ_OPERATION_FAILED, 'User is already a member of this tenant');
       }
 
       // 生成邀请码 (32字符的随机字符串)
@@ -1066,7 +935,7 @@ export default async function tenantRoutes(
       // TODO: 发送邀请邮件（集成邮件服务）
       console.log(`[tenant/invite] Invitation created: ${invite.invite_code} for ${body.email} to tenant ${tenant.name}`);
 
-      return reply.status(201).send({
+      return created(reply, request, {
         invite: {
           id: invite.id,
           inviteCode: invite.invite_code,
@@ -1084,10 +953,7 @@ export default async function tenantRoutes(
       });
     } catch (error: any) {
       console.error('[tenant/invite] Error:', error);
-      return reply.status(500).send({
-        error: 'INVITE_ERROR',
-        message: error.message,
-      });
+      return internalError(reply, request, error.message);
     }
   });
 
@@ -1098,10 +964,7 @@ export default async function tenantRoutes(
     const { code } = request.params as { code: string };
 
     if (!options.database) {
-      return reply.status(503).send({
-        error: 'SERVICE_UNAVAILABLE',
-        message: 'Database not available',
-      });
+      return serviceUnavailable(reply, request, 'Database not available');
     }
 
     // 获取当前用户信息
@@ -1114,10 +977,7 @@ export default async function tenantRoutes(
     const currentUserEmail = currentUser?.email;
 
     if (!currentUserId) {
-      return reply.status(401).send({
-        error: 'UNAUTHORIZED',
-        message: 'User not authenticated',
-      });
+      return unauthorized(reply, request, 'User not authenticated');
     }
 
     try {
@@ -1132,20 +992,14 @@ export default async function tenantRoutes(
       );
 
       if (inviteResult.rows.length === 0) {
-        return reply.status(404).send({
-          error: 'INVITE_NOT_FOUND',
-          message: 'Invalid invitation code',
-        });
+        return notFound(reply, request, ErrorCodes.CLIENT_RESOURCE_NOT_FOUND, 'Invalid invitation code');
       }
 
       const invite = inviteResult.rows[0];
 
       // 检查邀请状态
       if (invite.status !== 'pending') {
-        return reply.status(400).send({
-          error: 'INVITE_NOT_PENDING',
-          message: `This invitation has already been ${invite.status}`,
-        });
+        return badRequest(reply, request, ErrorCodes.BIZ_OPERATION_FAILED, `This invitation has already been ${invite.status}`);
       }
 
       // 检查邀请是否过期
@@ -1155,18 +1009,12 @@ export default async function tenantRoutes(
           'UPDATE tenant_invites SET status = $1 WHERE id = $2',
           ['expired', invite.id]
         );
-        return reply.status(400).send({
-          error: 'INVITE_EXPIRED',
-          message: 'This invitation has expired',
-        });
+        return badRequest(reply, request, ErrorCodes.BIZ_OPERATION_FAILED, 'This invitation has expired');
       }
 
       // 验证邮箱匹配（如果提供了邮箱）
       if (currentUserEmail && currentUserEmail.toLowerCase() !== invite.email.toLowerCase()) {
-        return reply.status(403).send({
-          error: 'EMAIL_MISMATCH',
-          message: 'The current user email does not match the invitation email',
-        });
+        return forbidden(reply, request, 'The current user email does not match the invitation email');
       }
 
       // 检查用户是否已经是租户成员
@@ -1181,8 +1029,7 @@ export default async function tenantRoutes(
           'UPDATE tenant_invites SET status = $1, accepted_by = $2, accepted_at = NOW() WHERE id = $3',
           ['accepted', currentUserId, invite.id]
         );
-        return reply.status(200).send({
-          success: true,
+        return success(reply, request, {
           message: 'You are already a member of this tenant',
           tenant: {
             id: invite.tenant_id,
@@ -1206,8 +1053,7 @@ export default async function tenantRoutes(
 
       console.log(`[tenant/invite/accept] User ${currentUserId} accepted invitation to tenant ${invite.tenant_name}`);
 
-      return reply.status(200).send({
-        success: true,
+      return success(reply, request, {
         message: 'Invitation accepted successfully',
         tenant: {
           id: invite.tenant_id,
@@ -1218,10 +1064,7 @@ export default async function tenantRoutes(
       });
     } catch (error: any) {
       console.error('[tenant/invite/accept] Error:', error);
-      return reply.status(500).send({
-        error: 'ACCEPT_INVITE_ERROR',
-        message: error.message,
-      });
+      return internalError(reply, request, error.message);
     }
   });
 
@@ -1232,10 +1075,7 @@ export default async function tenantRoutes(
     const { code } = request.params as { code: string };
 
     if (!options.database) {
-      return reply.status(503).send({
-        error: 'SERVICE_UNAVAILABLE',
-        message: 'Database not available',
-      });
+      return serviceUnavailable(reply, request, 'Database not available');
     }
 
     try {
@@ -1249,10 +1089,7 @@ export default async function tenantRoutes(
       );
 
       if (inviteResult.rows.length === 0) {
-        return reply.status(404).send({
-          error: 'INVITE_NOT_FOUND',
-          message: 'Invalid invitation code',
-        });
+        return notFound(reply, request, ErrorCodes.CLIENT_RESOURCE_NOT_FOUND, 'Invalid invitation code');
       }
 
       const invite = inviteResult.rows[0];
@@ -1261,7 +1098,7 @@ export default async function tenantRoutes(
       const isExpired = new Date(invite.expires_at) < new Date();
       const isValid = invite.status === 'pending' && !isExpired;
 
-      return reply.send({
+      return success(reply, request, {
         invite: {
           id: invite.id,
           email: invite.email,
@@ -1279,10 +1116,7 @@ export default async function tenantRoutes(
       });
     } catch (error: any) {
       console.error('[tenant/invite/get] Error:', error);
-      return reply.status(500).send({
-        error: 'GET_INVITE_ERROR',
-        message: error.message,
-      });
+      return internalError(reply, request, error.message);
     }
   });
 
@@ -1296,17 +1130,11 @@ export default async function tenantRoutes(
     const { page = '1', limit = '20', resourceType, status } = request.query as Record<string, string>;
 
     if (!tenantIdHeader) {
-      return reply.status(400).send({
-        error: 'MISSING_TENANT_ID',
-        message: 'X-Tenant-ID header is required',
-      });
+      return badRequest(reply, request, ErrorCodes.CLIENT_PARAM_MISSING, 'X-Tenant-ID header is required');
     }
 
     if (!options.database) {
-      return reply.status(503).send({
-        error: 'SERVICE_UNAVAILABLE',
-        message: 'Database not available',
-      });
+      return serviceUnavailable(reply, request, 'Database not available');
     }
 
     try {
@@ -1361,8 +1189,7 @@ export default async function tenantRoutes(
         createdAt: row.created_at,
       }));
 
-      return reply.send({
-        alerts,
+      return success(reply, request, alerts, {
         total,
         page: pageNum,
         limit: limitNum,
@@ -1370,10 +1197,7 @@ export default async function tenantRoutes(
       });
     } catch (error: any) {
       console.error('[tenant/alerts] Error:', error);
-      return reply.status(500).send({
-        error: 'ALERTS_QUERY_ERROR',
-        message: error.message,
-      });
+      return internalError(reply, request, error.message);
     }
   });
 
@@ -1384,17 +1208,11 @@ export default async function tenantRoutes(
     const tenantIdHeader = request.headers['x-tenant-id'] as string;
 
     if (!tenantIdHeader) {
-      return reply.status(400).send({
-        error: 'MISSING_TENANT_ID',
-        message: 'X-Tenant-ID header is required',
-      });
+      return badRequest(reply, request, ErrorCodes.CLIENT_PARAM_MISSING, 'X-Tenant-ID header is required');
     }
 
     if (!options.database) {
-      return reply.status(503).send({
-        error: 'SERVICE_UNAVAILABLE',
-        message: 'Database not available',
-      });
+      return serviceUnavailable(reply, request, 'Database not available');
     }
 
     try {
@@ -1406,10 +1224,7 @@ export default async function tenantRoutes(
       );
 
       if (tenantResult.rows.length === 0) {
-        return reply.status(404).send({
-          error: 'TENANT_NOT_FOUND',
-          message: 'Tenant not found',
-        });
+        return notFound(reply, request, ErrorCodes.BIZ_TENANT_NOT_FOUND, 'Tenant not found');
       }
 
       const tenant = tenantResult.rows[0];
@@ -1433,7 +1248,7 @@ export default async function tenantRoutes(
       );
       const activeAlertCount = parseInt(alertResult.rows[0]?.count || '0', 10);
 
-      return reply.send({
+      return success(reply, request, {
         tenant: {
           id: tenant.id,
           name: tenant.name,
@@ -1454,10 +1269,7 @@ export default async function tenantRoutes(
       });
     } catch (error: any) {
       console.error('[tenant/current] Error:', error);
-      return reply.status(500).send({
-        error: 'CURRENT_TENANT_ERROR',
-        message: error.message,
-      });
+      return internalError(reply, request, error.message);
     }
   });
 
@@ -1468,17 +1280,11 @@ export default async function tenantRoutes(
     const tenantIdHeader = request.headers['x-tenant-id'] as string;
 
     if (!tenantIdHeader) {
-      return reply.status(400).send({
-        error: 'MISSING_TENANT_ID',
-        message: 'X-Tenant-ID header is required',
-      });
+      return badRequest(reply, request, ErrorCodes.CLIENT_PARAM_MISSING, 'X-Tenant-ID header is required');
     }
 
     if (!options.database) {
-      return reply.status(503).send({
-        error: 'SERVICE_UNAVAILABLE',
-        message: 'Database not available',
-      });
+      return serviceUnavailable(reply, request, 'Database not available');
     }
 
     try {
@@ -1531,7 +1337,7 @@ export default async function tenantRoutes(
         createdAt: row.created_at,
       }));
 
-      return reply.send({
+      return success(reply, request, {
         byStatus: statusCounts,
         byResourceType: resourceCounts,
         activeAlerts,
@@ -1539,10 +1345,7 @@ export default async function tenantRoutes(
       });
     } catch (error: any) {
       console.error('[tenant/alerts/stats] Error:', error);
-      return reply.status(500).send({
-        error: 'ALERTS_STATS_ERROR',
-        message: error.message,
-      });
+      return internalError(reply, request, error.message);
     }
   });
 }
