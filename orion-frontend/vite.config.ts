@@ -5,6 +5,9 @@ import path from 'path';
 // Force UTC timezone for consistent test results
 process.env.TZ = 'UTC';
 
+// PandaWiki Go 后端地址（Docker 默认 8090，开发模式可设为 3020）
+const PANDAWIKI_API = process.env.PANDAWIKI_API_TARGET || 'http://localhost:8090';
+
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
@@ -21,6 +24,37 @@ export default defineConfig({
         target: 'http://localhost:3030',
         changeOrigin: true,
       },
+      // Pipeline Runs - 平台服务
+      '/api/v1/pipeline-runs': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
+      '/api/v1/pipelines': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
+      // Orion 认证 - 指向平台服务
+      '/api/v1/auth': { target: 'http://localhost:3001', changeOrigin: true },
+      // PandaWiki Go 后端 API 代理（必须在 '/api' 通配之前，优先匹配）
+      // 子应用模式下，这些 PandaWiki 专属 API 需转发到 Go 后端
+      '/api/v1/knowledge_base': { target: PANDAWIKI_API, changeOrigin: true },
+      '/api/v1/nav': { target: PANDAWIKI_API, changeOrigin: true },
+      '/api/v1/node': { target: PANDAWIKI_API, changeOrigin: true },
+      '/api/v1/user': { target: PANDAWIKI_API, changeOrigin: true },
+      '/api/v1/model': { target: PANDAWIKI_API, changeOrigin: true },
+      '/api/v1/stat': { target: PANDAWIKI_API, changeOrigin: true },
+      '/api/v1/app': { target: PANDAWIKI_API, changeOrigin: true },
+      '/api/v1/file': { target: PANDAWIKI_API, changeOrigin: true },
+      '/api/v1/chat': { target: PANDAWIKI_API, changeOrigin: true },
+      '/api/v1/conversation': { target: PANDAWIKI_API, changeOrigin: true },
+      '/api/v1/comment': { target: PANDAWIKI_API, changeOrigin: true },
+      '/api/v1/crawler': { target: PANDAWIKI_API, changeOrigin: true },
+      '/api/v1/setting': { target: PANDAWIKI_API, changeOrigin: true },
+      '/api/v1/license': { target: PANDAWIKI_API, changeOrigin: true },
+      '/api/v1/share': { target: PANDAWIKI_API, changeOrigin: true },
+      '/api/v1/health': { target: PANDAWIKI_API, changeOrigin: true },
+      '/share': { target: PANDAWIKI_API, changeOrigin: true },
+      '/static-file': { target: PANDAWIKI_API, changeOrigin: true },
       // 其他 API 请求到 platform-service (3001)
       '/api': {
         target: 'http://localhost:3001',

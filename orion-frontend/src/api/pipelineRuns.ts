@@ -14,7 +14,7 @@ export interface PipelineRunSummary {
   triggerBy?: string;
   startedAt?: string;
   completedAt?: string;
-  durationMs?: number;
+  durationMs?: number | string; // 后端返回字符串，前端需兼容
   createdAt: string;
 }
 

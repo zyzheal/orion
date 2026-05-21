@@ -51,9 +51,10 @@ const triggerTagColors: Record<string, string> = {
 };
 
 /** Format duration in ms to human-readable string */
-function formatDuration(ms?: number): string {
-  if (!ms || ms <= 0) return '-';
-  const dur = dayjs.duration(ms, 'milliseconds');
+function formatDuration(ms?: number | string): string {
+  const numMs = typeof ms === 'string' ? parseInt(ms, 10) : ms;
+  if (!numMs || numMs <= 0) return '-';
+  const dur = dayjs.duration(numMs, 'milliseconds');
   const minutes = Math.floor(dur.asMinutes());
   const secs = dur.seconds();
   if (minutes > 0) return `${minutes}m ${secs}s`;
@@ -73,27 +74,60 @@ const PipelineRunList: React.FC = () => {
 
   // Load pipeline runs from API
   const loadRuns = useCallback(async () => {
+    console.log('[PipelineRunList] loadRuns called, pipelineId:', pipelineId);
     setLoading(true);
     try {
       const response = await getAllPipelineRuns({
-        limit: 200, // Fetch enough for client-side filtering and pagination
+        limit: 200,
+        ...(pipelineId ? { pipelineId } : {}),  // 如果有 pipelineId，传给后端过滤
       });
-      const apiData = response.data;
-      const items = Array.isArray(apiData.data) ? apiData.data : [];
-      let filteredItems = items as PipelineRunSummary[];
 
-      // 如果 URL 中有 pipelineId，则过滤
-      if (pipelineId) {
-        filteredItems = filteredItems.filter((r) => r.pipelineId === pipelineId);
-        // 获取 Pipeline 名称
-        const firstRun = filteredItems[0];
+      console.log('[PipelineRunList] Response object:', response);
+      console.log('[PipelineRunList] response.data:', response.data);
+      console.log('[PipelineRunList] response.data type:', typeof response.data);
+      console.log('[PipelineRunList] response.data.data:', response.data?.data);
+
+      // 后端返回格式：{ data: [...], total }
+      // Axios 响应拦截器保持原样，不解包
+      // 所以 response.data 就是 { data: [...], total }
+      const raw = response.data;
+      let items: PipelineRunSummary[] = [];
+
+      if (raw && typeof raw === 'object') {
+        // 情况1：{ data: [...], total } - 标准格式
+        if (Array.isArray(raw.data)) {
+          console.log('[PipelineRunList] Found data array with', raw.data.length, 'items');
+          items = raw.data;
+        }
+        // 情况2：直接被当作数组（不应该发生，但作为后备）
+        else if (Array.isArray(raw)) {
+          console.log('[PipelineRunList] Raw is array with', raw.length, 'items');
+          items = raw;
+        } else {
+          console.log('[PipelineRunList] raw.data is not array, raw keys:', Object.keys(raw));
+        }
+      } else {
+        console.log('[PipelineRunList] raw is not object:', typeof raw);
+      }
+
+      console.log('[PipelineRunList] Final items count:', items.length);
+      if (items.length > 0) {
+        console.log('[PipelineRunList] First item:', items[0]);
+      }
+
+      // 注意：不再在前端过滤，因为已经通过 API 参数传给后端过滤了
+      // 获取 Pipeline 名称
+      if (pipelineId && items.length > 0) {
+        const firstRun = items[0];
         if (firstRun && (firstRun as any).pipelineName) {
           setPipelineName((firstRun as any).pipelineName);
         }
       }
 
-      setRuns(filteredItems);
+      console.log('[PipelineRunList] About to setRuns with', items.length, 'items');
+      setRuns(items);
     } catch (error: unknown) {
+      console.error('[PipelineRunList] Error:', error);
       if (error instanceof Error) {
         message.error(`加载 Pipeline 运行列表失败：${error.message}`);
       } else {
