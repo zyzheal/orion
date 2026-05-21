@@ -1,0 +1,130 @@
+{
+  "version": "3.0",
+  "name": "c3_ecology",
+  "extends": "base",
+  "priority": 1,
+  "layer": "operations",
+  "description": "生态集成检查项",
+  "checks": [
+    {
+      "id": "C3-01",
+      "category": "adapter",
+      "level": "P0",
+      "rule": "标准化 Adapter",
+      "description": "第三方集成应使用标准化 Adapter 模式",
+      "detection": "code-review"
+    },
+    {
+      "id": "C3-02",
+      "category": "adapter",
+      "level": "P1",
+      "rule": "错误转换统一",
+      "description": "第三方错误应转换为统一格式",
+      "detection": "code-review"
+    },
+    {
+      "id": "C3-03",
+      "category": "adapter",
+      "level": "P0",
+      "rule": "超时/重试策略",
+      "description": "第三方调用必须有超时和重试策略",
+      "detection": "code-review"
+    },
+    {
+      "id": "C3-04",
+      "category": "api",
+      "level": "P0",
+      "rule": "RESTful 规范",
+      "description": "开放 API 应遵循 RESTful 规范",
+      "detection": "code-review"
+    },
+    {
+      "id": "C3-05",
+      "category": "api",
+      "level": "P1",
+      "rule": "GraphQL 支持",
+      "description": "查询类 API 可考虑 GraphQL 支持",
+      "detection": "code-review"
+    },
+    {
+      "id": "C3-06",
+      "category": "api",
+      "level": "P0",
+      "rule": "OpenAPI 文档",
+      "description": "开放 API 必须有 OpenAPI 文档",
+      "detection": "code-review"
+    },
+    {
+      "id": "C3-07",
+      "category": "api",
+      "level": "P0",
+      "rule": "API 限流",
+      "description": "开放 API 必须有速率限制",
+      "detection": "code-review"
+    },
+    {
+      "id": "C3-08",
+      "category": "api",
+      "level": "P0",
+      "rule": "API 认证",
+      "description": "开放 API 必须有认证机制",
+      "detection": "code-review"
+    },
+    {
+      "id": "C3-09",
+      "category": "plugin",
+      "level": "P1",
+      "rule": "插件发现机制",
+      "description": "插件市场应有插件发现机制",
+      "detection": "code-review"
+    },
+    {
+      "id": "C3-10",
+      "category": "plugin",
+      "level": "P1",
+      "rule": "插件安装/卸载",
+      "description": "插件应支持安装和卸载",
+      "detection": "code-review"
+    },
+    {
+      "id": "C3-11",
+      "category": "plugin",
+      "level": "P1",
+      "rule": "插件版本管理",
+      "description": "插件应有版本管理",
+      "detection": "code-review"
+    },
+    {
+      "id": "C3-12",
+      "category": "event",
+      "level": "P1",
+      "rule": "跨服务事件通信",
+      "description": "跨服务应使用事件通信",
+      "detection": "code-review"
+    },
+    {
+      "id": "C3-13",
+      "category": "event",
+      "level": "P1",
+      "rule": "事件订阅管理",
+      "description": "事件订阅应有管理机制",
+      "detection": "code-review"
+    },
+    {
+      "id": "C3-14",
+      "category": "webhook",
+      "level": "P1",
+      "rule": "Webhook 定义",
+      "description": "集成点应支持 Webhook",
+      "detection": "code-review"
+    },
+    {
+      "id": "C3-15",
+      "category": "webhook",
+      "level": "P1",
+      "rule": "Webhook 重试",
+      "description": "Webhook 失败应有重试机制",
+      "detection": "code-review"
+    }
+  ]
+}
