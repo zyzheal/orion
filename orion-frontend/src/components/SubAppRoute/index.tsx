@@ -56,10 +56,17 @@ const SubAppRoute: React.FC = () => {
 
     // 注入全局状态并传递给子应用
     const token = localStorage.getItem('access_token');
+    // 注入子应用 API 路由域
     const apiDomain = appConfig?.api_domain || appKey;
     const apiBase = `/api/v1/${apiDomain}`;
     (window as any).__SUBAPP_API_BASE__ = apiBase;
-    console.log(`[SubAppRoute] Set __SUBAPP_API_BASE__ = ${apiBase}`);
+
+    // 同时注入 window.$orion.apiBase
+    (window as any).$orion = {
+      ...(window as any).$orion,
+      apiBase,
+    };
+    console.log(`[SubAppRoute] Set __SUBAPP_API_BASE__ = $orion.apiBase = ${apiBase}`);
 
     injectGlobalState({
       token,

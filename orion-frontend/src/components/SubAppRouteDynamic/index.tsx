@@ -121,8 +121,15 @@ const SubAppRouteDynamic: React.FC = () => {
 
     // 注入子应用 API 路由域，子应用前端使用此值作为 API base URL
     const apiDomain = appConfig?.api_domain || subAppKey;
-    (window as any).__SUBAPP_API_BASE__ = `/api/v1/${apiDomain}`;
-    console.log(`[SubAppRouteDynamic] Set __SUBAPP_API_BASE__ = /api/v1/${apiDomain}`);
+    const apiBase = `/api/v1/${apiDomain}`;
+    (window as any).__SUBAPP_API_BASE__ = apiBase;
+
+    // 同时注入 window.$orion.apiBase（兼容 knowledge 子应用的 orion-adapter）
+    (window as any).$orion = {
+      ...(window as any).$orion,
+      apiBase,
+    };
+    console.log(`[SubAppRouteDynamic] Set __SUBAPP_API_BASE__ = $orion.apiBase = ${apiBase}`);
 
     // 确保容器 ID 正确
     const containerId = `mf-${subAppKey}`;

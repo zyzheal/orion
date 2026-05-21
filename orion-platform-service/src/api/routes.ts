@@ -33,6 +33,7 @@ import notificationRoutes from './notification-routes';
 import webhookRoutes from './webhook-routes';
 import roleRoutes from './role-routes';
 import knowledgeRoutes from './knowledge-routes';
+import knowledgeProxyRoutes from './knowledge-proxy-routes';
 import subappRoutes from './subapp-routes';
 import metricsRoutes from './metrics-routes';
 import userRoutes from './user-routes';
@@ -531,6 +532,10 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // 注册 Queue Management API 路由 (M24) - PostgreSQL backed
   // 注册 Knowledge Base API 路由 (M28) - PostgreSQL backed
   await registerWithRoleGuard(app, knowledgeRoutes, '/knowledge', { database: options.database });
+
+  // 注册 Knowledge Proxy 路由 — 转发到 PandaWiki Go 后端
+  // 必须在其他 /api/v1/* 路由之前注册，确保 /api/v1/knowledge/* 被正确代理
+  await app.register(knowledgeProxyRoutes, { prefix: '/api/v1/knowledge' });
 
   // 注册 SubApp Management API 路由 - Page-based sub-app configuration
   await registerWithRoleGuard(app, subappRoutes, '/subapps', { database: options.database });

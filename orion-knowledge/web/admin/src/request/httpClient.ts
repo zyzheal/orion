@@ -85,7 +85,22 @@ export class HttpClient<SecurityDataType = unknown> {
     this.instance = axios.create({
       withCredentials: true,
       ...axiosConfig,
-      baseURL: axiosConfig.baseURL || window.__BASENAME__ || "",
+      baseURL: axiosConfig.baseURL || "/",
+    });
+
+    // Orion 微前端模式：重写 API 请求 URL，统一走 /api/v1/{domain}/ 前缀
+    // 例如：/api/v1/knowledge_base/list → /api/v1/knowledge/api/v1/knowledge_base/list
+    // 后端代理剥离 /api/v1/knowledge 前缀后转发到 PandaWiki
+    this.instance.interceptors.request.use((config) => {
+      const isOrionChild = (window as any).__POWERED_BY_ORION__;
+      if (isOrionChild) {
+        const apiBase = (window as any).__SUBAPP_API_BASE__ || (window as any).$orion?.apiBase;
+        if (apiBase && config.url && config.url.startsWith('/api/v1/')) {
+          config.url = `${apiBase}${config.url}`;
+          console.log(`[orion-knowledge] Rewrote API URL: ${config.url}`);
+        }
+      }
+      return config;
     });
     this.secure = secure;
     this.format = format;
@@ -104,7 +119,7 @@ export class HttpClient<SecurityDataType = unknown> {
         return Promise.reject(response);
       },
       (error) => {
-        if (error.response?.status === 401) {
+        if (error.response?.status === 401 && !window.__POWERED_BY_ORION__) {
           window.location.href = window.__BASENAME__ + "/login";
           localStorage.removeItem("orion_knowledge_token");
         }
@@ -202,7 +217,9 @@ export class HttpClient<SecurityDataType = unknown> {
     ) {
       body = JSON.stringify(body);
     }
-    const token = localStorage.getItem("orion_knowledge_token") || "";
+    const token = localStorage.getItem("orion_knowledge_token") ||
+      (window as any)?.$orion?.token ||
+      (window as any)?.__orionToken || "";
 
     return this.instance.request({
       ...requestParams,
