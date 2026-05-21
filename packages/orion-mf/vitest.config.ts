@@ -10,4 +10,7 @@ export default defineConfig({
       reporter: ['text', 'json', 'html'],
     },
   },
+  ssr: {
+    noExternal: [],
+  },
 });

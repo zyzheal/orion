@@ -53,7 +53,8 @@ describe('SecurityPolicyManager', () => {
       expect(PRESETS.none).toBeDefined();
       expect(PRESETS.none.mode).toBe('none');
       expect(PRESETS.none.whitelist).toEqual([]);
-      expect(PRESETS.none.blacklist).toEqual([]);
+      // none 模式仍保留基础原型链保护
+      expect(PRESETS.none.blacklist).toEqual(['__proto__', 'constructor']);
       expect(PRESETS.none.cssIsolation).toBe('none');
       expect(PRESETS.none.isolateStorage).toBe(false);
       expect(PRESETS.none.blockDynamicScripts).toBe(false);

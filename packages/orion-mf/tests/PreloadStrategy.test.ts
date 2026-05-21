@@ -431,12 +431,13 @@ describe('PreloadStrategy Module', () => {
     });
 
     describe('prefetchOnVisible', () => {
-      it('should prefetch immediately when container not found', async () => {
+      it('should skip prefetch when container not found (container must exist for visible mode)', async () => {
         const loader = createMockLoader();
 
         await strategy.prefetchOnVisible('app1', loader);
 
-        expect(loader).toHaveBeenCalled();
+        // 容器不存在时，visible 模式应该跳过预加载
+        expect(loader).not.toHaveBeenCalled();
       });
 
       it('should observe container when found', async () => {

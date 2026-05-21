@@ -395,7 +395,7 @@ describe('SubAppStateMachine', () => {
 
   describe('VALID_TRANSITIONS', () => {
     it('should have correct number of transitions', () => {
-      expect(VALID_TRANSITIONS.length).toBe(12);
+      expect(VALID_TRANSITIONS.length).toBe(13);
     });
 
     it('should include idle to loading', () => {
@@ -407,7 +407,7 @@ describe('SubAppStateMachine', () => {
 
     it('should include complete error paths', () => {
       const errorTransitions = VALID_TRANSITIONS.filter(t => t.to === 'error');
-      expect(errorTransitions.length).toBe(4);
+      expect(errorTransitions.length).toBe(5);
     });
   });
 

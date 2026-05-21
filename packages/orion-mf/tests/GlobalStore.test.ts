@@ -90,7 +90,11 @@ describe('GlobalStore', () => {
 
       globalStore.set('testKey', 'newValue', 'app');
 
-      expect(callback).toHaveBeenCalledWith('testKey', 'newValue');
+      expect(callback).toHaveBeenCalledWith(
+        'testKey',
+        'newValue',
+        expect.objectContaining({ version: expect.any(Number), owner: 'app' })
+      );
     });
 
     it('should return unsubscribe function', () => {
@@ -192,7 +196,11 @@ describe('GlobalStore', () => {
       const unsubscribe = subscribeGlobalState('testKey', callback);
 
       setGlobalState('testKey', 'newValue', 'app');
-      expect(callback).toHaveBeenCalledWith('testKey', 'newValue');
+      expect(callback).toHaveBeenCalledWith(
+        'testKey',
+        'newValue',
+        expect.objectContaining({ version: expect.any(Number), owner: 'app' })
+      );
 
       unsubscribe();
     });

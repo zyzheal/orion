@@ -228,7 +228,7 @@ describe('PerformanceBenchmark Module', () => {
   });
 
   describe('measureMemoryUsage', () => {
-    it('should return 0 when memory API is not available', async () => {
+    it('should return NaN when memory API is not available', async () => {
       // Mock performance without memory
       const originalPerformance = performance;
       Object.defineProperty(window, 'performance', {
@@ -238,7 +238,7 @@ describe('PerformanceBenchmark Module', () => {
 
       const config = createMockConfig({ key: 'memory-app' });
       const result = await benchmark.measureMemoryUsage(config);
-      expect(result).toBe(0);
+      expect(Number.isNaN(result)).toBe(true);
 
       // Restore
       Object.defineProperty(window, 'performance', {
