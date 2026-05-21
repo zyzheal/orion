@@ -88,14 +88,15 @@ export class HttpClient<SecurityDataType = unknown> {
       baseURL: axiosConfig.baseURL || "/",
     });
 
-    // Orion 微前端模式：重写 API 请求 URL，统一走 /api/v1/{domain}/ 前缀
+    // Orion 微前端模式：重写 API 请求 URL，替换 PandaWiki 前缀为统一的 /api/v1/knowledge 前缀
     // 例如：/api/v1/knowledge_base/list → /api/v1/knowledge/api/v1/knowledge_base/list
-    // 后端代理剥离 /api/v1/knowledge 前缀后转发到 PandaWiki
+    // 后端代理匹配 /api/v1/knowledge/*，剥离前缀后转发到 PandaWiki 的 /api/v1/knowledge_base/list
     this.instance.interceptors.request.use((config) => {
       const isOrionChild = (window as any).__POWERED_BY_ORION__;
       if (isOrionChild) {
         const apiBase = (window as any).__SUBAPP_API_BASE__ || (window as any).$orion?.apiBase;
         if (apiBase && config.url && config.url.startsWith('/api/v1/')) {
+          // 保留原始路径，在前方加上 apiBase 前缀
           config.url = `${apiBase}${config.url}`;
           console.log(`[orion-knowledge] Rewrote API URL: ${config.url}`);
         }

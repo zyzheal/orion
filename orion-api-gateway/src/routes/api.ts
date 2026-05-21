@@ -461,12 +461,15 @@ const routeConfigs: RouteConfig[] = [
     stripPrefix: false,
   },
 
-  // ========== Knowledge Service (3020) ==========
+  // ========== Knowledge Service (PandaWiki Go 后端 8090) ==========
+  // 所有 /api/v1/knowledge/* 请求转发到 PandaWiki
+  // 子应用拦截器会将 /api/v1/knowledge_base/* 等路径重写为 /api/v1/knowledge/api/v1/knowledge_base/*
+  // API Gateway 需要剥离 /api/v1/knowledge 前缀后再转发
   {
     prefix: '/api/v1/knowledge',
-    target: services().knowledge?.url || 'http://localhost:3020',
+    target: services().knowledge?.url || 'http://localhost:8090',
     timeout: 30000,
-    stripPrefix: false,
+    stripPrefix: true,
   },
   {
     prefix: '/api/v1/wiki',
@@ -767,16 +770,18 @@ export function registerRoutes(app: FastifyInstance): void {
 function registerProxyRoute(app: FastifyInstance, config: RouteConfig): void {
   app.all(`${config.prefix}/*`, async (request: FastifyRequest, reply: FastifyReply) => {
     const target = config.target;
-    const url = request.raw.url || '';
+    let url = request.raw.url || '';
 
     // 如果需要去除前缀
-    let targetPath = url;
     if (config.stripPrefix && config.prefix !== '/') {
-      targetPath = url.replace(config.prefix, '') || '/';
+      const strippedPath = url.replace(config.prefix, '') || '/';
+      url = strippedPath;
+      // 修改原始请求 URL，确保 http-proxy 使用重写后的路径
+      request.raw.url = strippedPath;
     }
 
     // 构建目标 URL
-    const targetUrl = new URL(targetPath, target).toString();
+    const targetUrl = new URL(url, target).toString();
 
     // 代理请求
     proxyMiddleware.forward(request, reply, target, {

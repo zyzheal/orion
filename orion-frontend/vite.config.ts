@@ -37,8 +37,13 @@ export default defineConfig({
       '/api/v1/auth': { target: 'http://localhost:3001', changeOrigin: true },
       // PandaWiki Go 后端 API 代理 — 统一入口
       // 知识子应用的所有 API 请求统一走 /api/v1/knowledge/*，转发到 PandaWiki
-      // 子应用 HTTP 客户端会将 /api/v1/knowledge_base/* 等路径重写为 /api/v1/knowledge/api/v1/knowledge_base/*
-      '/api/v1/knowledge': { target: PANDAWIKI_API, changeOrigin: true },
+      // 拦截器将 /api/v1/knowledge_base/* 等路径重写为 /api/v1/knowledge/api/v1/knowledge_base/*
+      // Vite 代理剥离 /api/v1/knowledge 前缀后转发
+      '/api/v1/knowledge': {
+        target: PANDAWIKI_API,
+        changeOrigin: true,
+        pathRewrite: { '^/api/v1/knowledge': '' },
+      },
       '/share': { target: PANDAWIKI_API, changeOrigin: true },
       '/static-file': { target: PANDAWIKI_API, changeOrigin: true },
 
