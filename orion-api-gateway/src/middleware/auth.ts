@@ -5,10 +5,15 @@
  * - Authorization: Bearer <token>
  * - X-API-Key 头部
  * - Query 参数 ?token=
+ *
+ * 公开路径包含两类：
+ * 1. 静态白名单（系统路径）
+ * 2. 动态白名单（子应用路由，从平台服务动态获取）
  */
 
 import { FastifyRequest, FastifyReply, FastifyInstance } from 'fastify';
 import { getConfig } from '../config';
+import { getSubAppRoutePrefixes } from '../services/gateway-route-sync';
 
 export interface JwtPayload {
   sub: string;
@@ -33,32 +38,13 @@ declare module 'fastify' {
 }
 
 export class AuthMiddleware {
-  private publicPaths: string[] = [
+  private staticPaths: string[] = [
     '/healthz',
     '/readyz',
     '/api/v1/auth/login',
     '/api/v1/auth/register',
     '/swagger',
     '/favicon.ico',
-    // Knowledge 子应用公开路径（子应用自身有认证逻辑）
-    '/api/v1/knowledge_base',
-    '/api/v1/knowledge',
-    '/api/v1/nav',
-    '/api/v1/node',
-    '/api/v1/user',
-    '/api/v1/model',
-    '/api/v1/stat',
-    '/api/v1/app',
-    '/api/v1/file',
-    '/api/v1/conversation',
-    '/api/v1/comment',
-    '/api/v1/crawler',
-    '/api/v1/setting',
-    '/api/v1/license',
-    '/api/v1/share',
-    '/api/v1/health',
-    '/share',
-    '/static-file',
   ];
 
   constructor(private app: FastifyInstance) {}
@@ -67,14 +53,27 @@ export class AuthMiddleware {
    * 添加公开路径（不需要认证）
    */
   addPublicPath(path: string): void {
-    this.publicPaths.push(path);
+    this.staticPaths.push(path);
   }
 
   /**
    * 检查路径是否需要认证
+   * 同时检查静态路径和动态注册的子应用路由
    */
   private isPublicPath(url: string): boolean {
-    return this.publicPaths.some((path) => url.startsWith(path));
+    // 1. 检查静态白名单
+    if (this.staticPaths.some((path) => url.startsWith(path))) {
+      return true;
+    }
+    // 2. 检查动态子应用路由白名单（从平台服务获取）
+    const subAppPrefixes = getSubAppRoutePrefixes();
+    if (subAppPrefixes.size > 0) {
+      const urlPrefix = '/' + url.split('/').slice(1, 4).join('/');
+      if (subAppPrefixes.has(urlPrefix) || subAppPrefixes.has('/' + url.split('/')[1])) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /**
@@ -123,7 +122,7 @@ export class AuthMiddleware {
   async handler(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const url = request.raw.url || '';
 
-    // 公开路径跳过认证
+    // 公开路径（静态+动态子应用路由）跳过认证
     if (this.isPublicPath(url)) {
       request.authContext = { authenticated: false };
       return;

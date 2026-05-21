@@ -11,12 +11,17 @@
  * 2. 租户合法性校验
  * 3. 租户配额检查
  * 4. 数据库 session 变量设置
+ *
+ * 公开路径包含两类：
+ * 1. 静态白名单（系统路径）
+ * 2. 动态白名单（子应用路由，从平台服务动态获取）
  */
 
 import { FastifyRequest, FastifyReply, FastifyInstance } from 'fastify';
 import { getConfig } from '../config';
 import { redisClient } from '../utils/redis';
 import { ErrorCodes, AppError } from '../errors/error-codes';
+import { getSubAppRoutePrefixes } from '../services/gateway-route-sync';
 
 /**
  * 租户上下文接口
@@ -101,9 +106,9 @@ export const DEFAULT_QUOTAS: Record<TenantTier, TenantQuota> = {
 };
 
 /**
- * 公开路径（不需要租户上下文）
+ * 静态公开路径（不需要租户上下文）
  */
-const PUBLIC_PATHS = [
+const STATIC_PUBLIC_PATHS = [
   '/healthz',
   '/readyz',
   '/api/v1/auth/login',
@@ -112,26 +117,28 @@ const PUBLIC_PATHS = [
   '/favicon.ico',
   '/api/v1/tenants/register', // 租户注册接口不需要租户上下文
   '/api/v1/tenants',          // 租户管理 API（需要认证，不需要租户上下文）
-  // Knowledge 子应用路径（子应用自身处理租户逻辑）
-  '/api/v1/knowledge_base',
-  '/api/v1/knowledge',
-  '/api/v1/nav',
-  '/api/v1/node',
-  '/api/v1/user',
-  '/api/v1/model',
-  '/api/v1/stat',
-  '/api/v1/app',
-  '/api/v1/file',
-  '/api/v1/conversation',
-  '/api/v1/comment',
-  '/api/v1/crawler',
-  '/api/v1/setting',
-  '/api/v1/license',
-  '/api/v1/share',
-  '/api/v1/health',
-  '/share',
-  '/static-file',
 ];
+
+/**
+ * 检查路径是否在公开路径白名单中
+ * 同时检查静态白名单和动态子应用路由
+ */
+function isPublicPath(url: string): boolean {
+  // 1. 检查静态白名单
+  if (STATIC_PUBLIC_PATHS.some((path) => url.startsWith(path))) {
+    return true;
+  }
+  // 2. 检查动态子应用路由白名单（从平台服务获取）
+  const subAppPrefixes = getSubAppRoutePrefixes();
+  if (subAppPrefixes.size > 0) {
+    for (const prefix of subAppPrefixes) {
+      if (url.startsWith(prefix)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
 
 /**
  * 租户解析中间件类
@@ -352,8 +359,8 @@ export class TenantMiddleware {
   async handler(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const url = request.raw.url || '';
 
-    // 公开路径跳过租户解析
-    if (PUBLIC_PATHS.some((path) => url.startsWith(path))) {
+    // 公开路径（静态+动态子应用路由）跳过租户解析
+    if (isPublicPath(url)) {
       return;
     }
 

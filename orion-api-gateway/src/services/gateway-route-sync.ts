@@ -93,9 +93,17 @@ const DOMAIN_TO_SERVICE_KEY: Record<string, string> = {
 // ==================== 状态追踪 ====================
 
 /**
- * 已注册的路由前缀集合，防止重复注册
+ * 已注册的子应用路由前缀集合
+ * 供认证/租户中间件动态判断是否跳过检查
  */
-const registeredPrefixes = new Set<string>();
+export const subAppRoutePrefixes = new Set<string>();
+
+/**
+ * 获取所有已注册的子应用路由前缀（用于中间件白名单）
+ */
+export function getSubAppRoutePrefixes(): Set<string> {
+  return subAppRoutePrefixes;
+}
 
 // ==================== 核心功能 ====================
 
@@ -163,9 +171,10 @@ function getApiPathsForSubApp(subApp: SubAppConfig): string[] {
  * 注册单个代理路由
  *
  * 如果路由前缀已注册则跳过，防止重复注册导致 Fastify 冲突
+ * 同时将前缀添加到 subAppRoutePrefixes 集合，供中间件使用
  */
 function registerProxyRoute(app: FastifyInstance, config: RouteConfig): boolean {
-  if (registeredPrefixes.has(config.prefix)) {
+  if (subAppRoutePrefixes.has(config.prefix)) {
     return false;
   }
 
@@ -185,7 +194,8 @@ function registerProxyRoute(app: FastifyInstance, config: RouteConfig): boolean 
     });
   });
 
-  registeredPrefixes.add(config.prefix);
+  // 同时添加到导出集合，供中间件白名单使用
+  subAppRoutePrefixes.add(config.prefix);
   return true;
 }
 
