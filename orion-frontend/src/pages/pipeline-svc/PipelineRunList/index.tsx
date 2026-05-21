@@ -12,17 +12,19 @@
  * - Real-time status refresh (polling every 5s for running runs)
  */
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { Typography, Button, Space, Tag, DatePicker, message } from 'antd';
+import { Typography, Button, Space, Tag, DatePicker, message, Dropdown, type MenuProps } from 'antd';
 import { colors, spacing } from '@/tokens';
-import { ReloadOutlined, PlayCircleOutlined, RocketOutlined } from '@ant-design/icons';
+import { ReloadOutlined, PlayCircleOutlined, RocketOutlined, StopOutlined, DownOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import {
   getAllPipelineRuns,
   retryPipelineRun,
+  cancelPipelineRun,
   type PipelineRunSummary,
 } from '@/api/pipelineRuns';
+import StageSelectorModal from './StageSelectorModal';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -67,6 +69,11 @@ const PipelineRunList: React.FC = () => {
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null] | null>(null);
   const [loading, setLoading] = useState(false);
   const [runs, setRuns] = useState<PipelineRunSummary[]>([]);
+  const [cancellingIds, setCancellingIds] = useState<Set<string>>(new Set());
+  const [stageRetryModal, setStageRetryModal] = useState<{ visible: boolean; runId: string | null }>({
+    visible: false,
+    runId: null,
+  });
   const pollingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Load pipeline runs from API

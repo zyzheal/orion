@@ -5,7 +5,15 @@
  * 自动修复 JSX 文件缺少 React 导入的问题
  */
 
-import type { loader } from 'webpack';
+// Webpack loader types (peer dependency - not installed at build time)
+interface LoaderContext {
+  getOptions: () => Record<string, any> | undefined;
+  cache: (flag: boolean) => void;
+  async: () => (err: Error | null, result?: string) => void;
+  resource: string;
+}
+
+type LoaderFunction = (this: LoaderContext, source: string) => string | void;
 
 /**
  * Loader 配置选项
@@ -41,7 +49,7 @@ export interface CompleteReactLoaderOptions {
  * }
  * ```
  */
-const completeReactLoader: loader.LoaderFunction = function (this: loader.LoaderContext, source: string) {
+const completeReactLoader: LoaderFunction = function (this: LoaderContext, source: string) {
   const options = this.getOptions() as CompleteReactLoaderOptions | undefined;
   const enabled = options?.enabled ?? true;
 

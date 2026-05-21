@@ -1589,30 +1589,10 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
             {/* 错误处理策略 - 所有节点通用 */}
             {renderErrorHandlingForm(editMode)}
 
-            {/* 变量配置 */}
+            {/* 变量配置 - 增强版（支持自定义映射） */}
             <Divider orientation="left" style={{ margin: '12px 0' }}>变量配置</Divider>
-            <div style={{ fontSize: 12 }}>
-              <Text type="secondary">输入变量：</Text>
-              <div style={{ marginTop: 4 }}>
-                {workflow.edges
-                  ?.filter((e) => e.target === selectedNode.id)
-                  .map((e) => {
-                    const src = workflow.nodes?.find((n) => n.id === e.source);
-                    return src ? (
-                      <Tag key={e.id} style={{ marginBottom: 4 }}>{src.name}.output</Tag>
-                    ) : null;
-                  })}
-                {!workflow.edges?.some((e) => e.target === selectedNode.id) && (
-                  <Text type="secondary">无（开始节点）</Text>
-                )}
-              </div>
-            </div>
-            <div style={{ fontSize: 12, marginTop: 8 }}>
-              <Text type="secondary">输出变量：</Text>
-              <div style={{ marginTop: 4 }}>
-                <Tag>{selectedNode.name}.output</Tag>
-              </div>
-            </div>
+            {renderInputVariableMapping()}
+            {renderOutputVariables()}
 
             {/* 关联信息 */}
             <Divider orientation="left" style={{ margin: '12px 0' }}>关联信息</Divider>

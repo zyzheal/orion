@@ -8,6 +8,7 @@
 import { Sandbox, GlobalWrapper, SandboxProxy } from './Sandbox';
 import { StyleIsolator } from './StyleIsolator';
 import { ErrorIsolator } from './ErrorIsolator';
+import { GlobalStyleCache } from './GlobalStyleCache';
 import type { IStyleIsolator } from './interface';
 
 // ============================================================================
@@ -164,6 +165,9 @@ export class MFSandboxBridge {
 
   /** Error isolator */
   private errorIsolator: ErrorIsolator;
+
+  /** Global style cache */
+  private styleCache = new GlobalStyleCache();
 
   /** Loaded sub-app instances */
   private instances = new Map<string, SubAppInstance>();
@@ -367,6 +371,9 @@ export class MFSandboxBridge {
     lifecycle: SubAppLifecycle,
     cssIsolation?: 'shadow' | 'scoped' | 'none'
   ): ShadowRoot {
+    // Record global style snapshot before mounting
+    this.styleCache.recordStyles(key);
+
     // Create container in main DOM
     const container = document.createElement('div');
     container.id = `orion-mf-container-${key}`;
@@ -390,6 +397,9 @@ export class MFSandboxBridge {
     // Run mount
     lifecycle.mount(shadowRoot as unknown as HTMLElement);
 
+    // Track styles added during mount
+    this.styleCache.trackAddedStyles(key);
+
     return shadowRoot;
   }
 
@@ -397,6 +407,9 @@ export class MFSandboxBridge {
    * Mount to regular DOM (compatible mode)
    */
   private mountToDOM(key: string, lifecycle: SubAppLifecycle): HTMLElement {
+    // Record global style snapshot before mounting
+    this.styleCache.recordStyles(key);
+
     // Create container in main DOM
     const container = document.createElement('div');
     container.id = `orion-mf-container-${key}`;
@@ -409,6 +422,9 @@ export class MFSandboxBridge {
 
     // Run mount
     lifecycle.mount(container);
+
+    // Track styles added during mount
+    this.styleCache.trackAddedStyles(key);
 
     return container;
   }
@@ -456,6 +472,9 @@ export class MFSandboxBridge {
     } catch {
       // Ignore cleanup errors
     }
+
+    // Restore global styles (remove styles added by this sub-app)
+    this.styleCache.restoreStyles(key);
   }
 
   /**
