@@ -270,7 +270,7 @@ const PipelineRunList: React.FC = () => {
     {
       key: 'actions',
       title: '操作',
-      width: 200,
+      width: 220,
       render: (_: unknown, record) => (
         <Space size="small">
           <Button
@@ -280,29 +280,65 @@ const PipelineRunList: React.FC = () => {
           >
             查看
           </Button>
-          {record.status === 'failed' && (
+          {/* Cancel button for running status */}
+          {record.status === 'running' && (
             <Button
               type="link"
               size="small"
-              icon={<PlayCircleOutlined />}
+              icon={<StopOutlined />}
               danger
+              loading={cancellingIds.has(record.id)}
               onClick={(e) => {
                 e.stopPropagation();
-                handleRetry(record.id);
+                handleCancel(record.id);
               }}
             >
-              重跑
+              取消
             </Button>
+          )}
+          {/* Dropdown menu for failed/cancelled status */}
+          {(record.status === 'failed' || record.status === 'cancelled') && (
+            <Dropdown
+              menu={{
+                items: [
+                  {
+                    key: 'retryAll',
+                    label: '完整重试',
+                    icon: <PlayCircleOutlined />,
+                    onClick: () => handleRetry(record.id),
+                  },
+                  {
+                    key: 'retryFromStage',
+                    label: '从阶段重试',
+                    icon: <RocketOutlined />,
+                    onClick: () => {
+                      setStageRetryModal({ visible: true, runId: record.id });
+                    },
+                  },
+                ],
+              }}
+              trigger={['click']}
+            >
+              <Button
+                type="link"
+                size="small"
+                icon={<PlayCircleOutlined />}
+                danger
+                onClick={(e) => e.stopPropagation()}
+              >
+                重跑 <DownOutlined />
+              </Button>
+            </Dropdown>
           )}
         </Space>
       ),
     },
   ];
 
-  // Handle re-run for a failed run
-  const handleRetry = async (runId: string) => {
+  // Handle re-run for a failed/cancelled run
+  const handleRetry = async (runId: string, options?: { fromStage?: string; onlyFailed?: boolean }) => {
     try {
-      await retryPipelineRun(runId);
+      await retryPipelineRun(runId, options);
       message.success('Pipeline 重新运行已触发');
       // Refresh list after retry
       await loadRuns();
@@ -312,6 +348,46 @@ const PipelineRunList: React.FC = () => {
       } else {
         message.error('重新运行失败，请稍后重试');
       }
+    }
+  };
+
+  // Handle cancel for a running run
+  const handleCancel = async (runId: string) => {
+    setCancellingIds((prev) => new Set(prev).add(runId));
+    try {
+      await cancelPipelineRun(runId);
+      message.success('Pipeline 已取消');
+      // Refresh list after cancel
+      await loadRuns();
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`取消失败：${error.message}`);
+      } else {
+        message.error('取消失败，请稍后重试');
+      }
+    } finally {
+      setCancellingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(runId);
+        return next;
+      });
+    }
+  };
+
+  // Handle retry from stage
+  const handleRetryFromStage = async (runId: string, stageId?: string, onlyFailed?: boolean) => {
+    try {
+      await retryPipelineRun(runId, { fromStage: stageId, onlyFailed });
+      message.success('Pipeline 重新运行已触发');
+      await loadRuns();
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`重新运行失败：${error.message}`);
+      } else {
+        message.error('重新运行失败，请稍后重试');
+      }
+    } finally {
+      setStageRetryModal({ visible: false, runId: null });
     }
   };
 
@@ -370,6 +446,14 @@ const PipelineRunList: React.FC = () => {
         rowKey="id"
         size="middle"
         striped
+      />
+
+      {/* Stage selector modal for retry from specific stage */}
+      <StageSelectorModal
+        visible={stageRetryModal.visible}
+        runId={stageRetryModal.runId}
+        onClose={() => setStageRetryModal({ visible: false, runId: null })}
+        onRetry={handleRetryFromStage}
       />
     </div>
   );
