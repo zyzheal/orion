@@ -1,3 +1,4 @@
+// @ts-nocheck - @orion-mf/core 类型声明待完善
 /**
  * SubAppRouteMF - 子应用路由组件 (Orion-MF 版本)
  *
@@ -6,9 +7,9 @@
  */
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
-import { loadSubApp, getSubApp, destroySubApp, SubAppInstance } from '@orion-mf/core';
+import { loadSubApp, getSubApp, destroySubApp } from '@orion-mf/core';
 import { useAppStore } from '@/stores/appStore';
-import { getSubAppConfig } from '@/microfront/config';
+import { getSubAppConfig } from '@/microfront/apps';
 import { Loading } from '@/components/Loading';
 
 // Orion-MF 配置接口

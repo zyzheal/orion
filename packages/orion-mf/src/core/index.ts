@@ -269,3 +269,22 @@ export {
   detectReactRefresh,
   isReactRefreshInjected,
 } from './ReactRefreshDetector';
+
+// MFSandboxBridge exports (用于子应用加载)
+export {
+  MFSandboxBridge,
+  loadSubApp,
+  destroySubApp,
+  getSubApp,
+  getBridge,
+  setBridge,
+} from './MFSandboxBridge';
+
+export type {
+  SubAppConfig as MFSubAppConfig,
+  SubAppInstance,
+  SubAppLifecycle,
+  RemoteModule,
+  MFLoader,
+  LifecycleModules,
+} from './MFSandboxBridge';
