@@ -846,6 +846,14 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
             onClick={() => setZoom((z) => Math.min(3, z + 0.1))}
           />
           <Button
+            size="small"
+            icon={<ArrowRightOutlined />}
+            onClick={handleOpenAddEdge}
+            title="添加连线"
+          >
+            添加连线
+          </Button>
+          <Button
             danger
             size="small"
             icon={<DeleteOutlined />}
@@ -912,25 +920,75 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
               const cp2x = endX - 50;
               const cp2y = endY;
 
+              const isEdgeHovered = hoveredEdgeId === edge.id;
+              const isEdgeSelected = selectedEdge?.id === edge.id;
+              const edgePath = `M ${startX} ${startY} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${endX} ${endY}`;
+
               return (
-                <g key={edge.id}>
+                <g
+                  key={edge.id}
+                  style={{ cursor: 'pointer' }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleEdgeClick(edge);
+                  }}
+                  onMouseEnter={() => setHoveredEdgeId(edge.id)}
+                  onMouseLeave={() => setHoveredEdgeId(null)}
+                >
+                  {/* 隐形加宽路径用于扩大点击区域 */}
                   <path
-                    d={`M ${startX} ${startY} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${endX} ${endY}`}
+                    d={edgePath}
                     fill="none"
-                    stroke={colors.neutral[400]}
-                    strokeWidth={2}
+                    stroke="transparent"
+                    strokeWidth={16}
+                  />
+                  {/* 可见连线 */}
+                  <path
+                    d={edgePath}
+                    fill="none"
+                    stroke={isEdgeSelected ? colors.primary[500] : isEdgeHovered ? colors.primary[400] : colors.neutral[400]}
+                    strokeWidth={isEdgeHovered || isEdgeSelected ? 3 : 2}
                     markerEnd="url(#arrowhead)"
                   />
+                  {/* 连线条件标签 */}
                   {edge.condition && (
                     <text
                       x={(startX + endX) / 2}
                       y={(startY + endY) / 2 - 8}
                       textAnchor="middle"
                       fontSize={11}
-                      fill={colors.neutral[500]}
+                      fill={isEdgeHovered || isEdgeSelected ? colors.primary[500] : colors.neutral[500]}
+                      fontWeight={isEdgeHovered || isEdgeSelected ? 600 : undefined}
                     >
                       {edge.condition}
                     </text>
+                  )}
+                  {/* Hover 时显示删除图标 */}
+                  {isEdgeHovered && (
+                    <g
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEdgeClick(edge);
+                      }}
+                    >
+                      <circle
+                        cx={(startX + endX) / 2}
+                        cy={(startY + endY) / 2 + 10}
+                        r={10}
+                        fill="#fff"
+                        stroke={colors.neutral[300]}
+                        strokeWidth={1}
+                      />
+                      <text
+                        x={(startX + endX) / 2}
+                        y={(startY + endY) / 2 + 14}
+                        textAnchor="middle"
+                        fontSize={12}
+                        fill={colors.error[500]}
+                      >
+                        x
+                      </text>
+                    </g>
                   )}
                 </g>
               );
@@ -1205,6 +1263,118 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
           </Form>
         )}
       </Drawer>
+
+      {/* ==================== 连线编辑 Modal ==================== */}
+      <Modal
+        title="编辑连线"
+        open={edgeModalOpen}
+        onOk={handleSaveEdge}
+        onCancel={() => {
+          setEdgeModalOpen(false);
+          setSelectedEdge(null);
+          setEditingEdge(null);
+        }}
+        okText="保存"
+        cancelText="取消"
+        width={480}
+      >
+        {editingEdge && (
+          <>
+            <Descriptions column={1} size="small" style={{ marginBottom: 16 }}>
+              <Descriptions.Item label="源节点">
+                {(() => {
+                  const src = workflow?.nodes?.find((n) => n.id === editingEdge.source);
+                  return src ? src.name : editingEdge.source;
+                })()}
+              </Descriptions.Item>
+              <Descriptions.Item label="目标节点">
+                {(() => {
+                  const tgt = workflow?.nodes?.find((n) => n.id === editingEdge.target);
+                  return tgt ? tgt.name : editingEdge.target;
+                })()}
+              </Descriptions.Item>
+              <Descriptions.Item label="连线 ID">
+                <Text code style={{ fontSize: 11 }}>{editingEdge.id}</Text>
+              </Descriptions.Item>
+            </Descriptions>
+            <Divider style={{ margin: '12px 0' }} />
+            <Form form={edgeForm} layout="vertical">
+              <Form.Item
+                label="条件表达式"
+                name="condition"
+                tooltip="用于条件分支，例如：${amount} > 1000"
+              >
+                <Input.TextArea
+                  rows={3}
+                  placeholder="条件表达式（可选），例如：${amount} > 1000"
+                  allowClear
+                />
+              </Form.Item>
+            </Form>
+            <Divider style={{ margin: '12px 0' }} />
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <Button
+                danger
+                icon={<DeleteOutlined />}
+                onClick={handleDeleteEdge}
+              >
+                删除连线
+              </Button>
+            </div>
+          </>
+        )}
+      </Modal>
+
+      {/* ==================== 添加连线 Modal ==================== */}
+      <Modal
+        title="添加连线"
+        open={addEdgeModalOpen}
+        onOk={handleAddEdge}
+        onCancel={() => setAddEdgeModalOpen(false)}
+        okText="创建"
+        cancelText="取消"
+        width={480}
+      >
+        <Form form={addEdgeForm} layout="vertical">
+          <Form.Item
+            label="源节点"
+            name="source"
+            rules={[{ required: true, message: '请选择源节点' }]}
+          >
+            <Select placeholder="请选择源节点" showSearch>
+              {workflow?.nodes?.map((node) => (
+                <Select.Option key={node.id} value={node.id}>
+                  {node.name} ({nodeTypeLabels[node.type] || node.type})
+                </Select.Option>
+              ))}
+            </Select>
+          </Form.Item>
+          <Form.Item
+            label="目标节点"
+            name="target"
+            rules={[{ required: true, message: '请选择目标节点' }]}
+          >
+            <Select placeholder="请选择目标节点" showSearch>
+              {workflow?.nodes?.map((node) => (
+                <Select.Option key={node.id} value={node.id}>
+                  {node.name} ({nodeTypeLabels[node.type] || node.type})
+                </Select.Option>
+              ))}
+            </Select>
+          </Form.Item>
+          <Form.Item
+            label="条件表达式（可选）"
+            name="condition"
+            tooltip="用于条件分支，例如：${amount} > 1000"
+          >
+            <Input.TextArea
+              rows={3}
+              placeholder="条件表达式（可选），例如：${amount} > 1000"
+              allowClear
+            />
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   );
 };
