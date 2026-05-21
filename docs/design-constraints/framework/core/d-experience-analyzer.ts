@@ -61,20 +61,29 @@ export type ExperienceIssueType =
   | 'missing-empty-state'
   | 'missing-confirmation'
   | 'missing-undo'
+  | 'missing-hotkey'
+  | 'missing-onboarding'
+  | 'unobvious-entry'
+  | 'too-many-steps'
   // D2 可访问性
   | 'missing-alt'
   | 'missing-focus-style'
   | 'missing-keyboard-nav'
   | 'color-only-status'
   | 'low-contrast'
+  | 'missing-semantic-html'
+  | 'wrong-tab-order'
   // D3 一致性
   | 'hardcoded-color'
   | 'hardcoded-radius'
   | 'inconsistent-style'
+  | 'inconsistent-icon-style'
   // D4 性能感知
   | 'missing-skeleton'
   | 'missing-debounce'
   | 'no-loading-feedback'
+  | 'no-progressive-loading'
+  | 'missing-cache-hint'
   // D5 情感化
   | 'cold-empty-state';
 
@@ -86,6 +95,11 @@ export interface ExperienceScanResult {
     hasSkeleton: boolean;
     hasAlt: boolean;
     hasFocus: boolean;
+    hasHotkey: boolean;
+    hasOnboarding: boolean;
+    hasKeyboardNav: boolean;
+    hasSemanticHTML: boolean;
+    hasProgressiveLoading: boolean;
   };
 }
 
@@ -135,13 +149,25 @@ export class DExperienceAnalyzer {
     // D3-02: 检测组件样式是否统一 (P0)
     this.detectInconsistentStyles();
 
+    // D3-03: 检测图标风格一致性 (P1) - 新增
+    this.detectInconsistentIconStyle();
+
     // ============ D2 可访问性检测 (P0 优先) ============
+
+    // D2-01: 键盘操作支持 (P0) - 新增
+    this.detectMissingKeyboardNav();
+
+    // D2-02: Tab 顺序 (P1) - 新增
+    this.detectWrongTabOrder();
 
     // D2-03: 检测焦点样式 (P0)
     this.detectMissingFocusStyle();
 
     // D2-04: 检测 img alt 属性 (P0)
     this.detectMissingAlt();
+
+    // D2-06: 语义化 HTML (P1) - 新增
+    this.detectMissingSemanticHTML();
 
     // D2-07: 检测颜色作为唯一状态信息 (P0)
     this.detectColorOnlyStatus();
@@ -151,10 +177,28 @@ export class DExperienceAnalyzer {
     // D4-01: 骨架屏/占位符 (P0)
     this.detectMissingSkeleton();
 
+    // D4-02: 渐进式加载 (P1) - 新增
+    this.detectMissingProgressiveLoading();
+
+    // D4-03: 缓存提示 (P1) - 新增
+    this.detectMissingCacheHint();
+
     // D4-06: 防抖检测 (P1)
     this.detectMissingDebounce();
 
     // ============ D1 可用性检测 ============
+
+    // D1-01: 操作步骤少 (P1) - 新增
+    this.detectTooManySteps();
+
+    // D1-02: 常用操作入口明显 (P1) - 新增
+    this.detectUnobviousEntry();
+
+    // D1-03: 快捷键支持 (P1) - 新增
+    this.detectMissingHotkey();
+
+    // D1-04: 新用户引导 (P1) - 新增
+    this.detectMissingOnboarding();
 
     // D1-05: 工具提示完善 (P1)
     this.detectMissingTooltip();
@@ -183,6 +227,11 @@ export class DExperienceAnalyzer {
       hasSkeleton: /Skeleton|skeleton/.test(this.content),
       hasAlt: /alt=/.test(this.content),
       hasFocus: /:focus|focus-visible|outline/.test(this.content),
+      hasHotkey: /useHotkey|useKeyboard|onKeyDown|shortcut/i.test(this.content),
+      hasOnboarding: /onboarding|tour|guide|welcome|newUser/i.test(this.content),
+      hasKeyboardNav: /tabIndex|onKeyDown|keyboard.*nav|focusable/i.test(this.content),
+      hasSemanticHTML: /<header|<main|<footer|<article|<aside|<section/i.test(this.content),
+      hasProgressiveLoading: /skeleton.*loading|lazy.*load|progressive.*image/i.test(this.content),
     };
   }
 
@@ -609,6 +658,420 @@ export class DExperienceAnalyzer {
           message: 'Empty 空状态缺少引导性内容',
           suggestion: '添加 description 描述和 action 引导按钮',
           checkId: 'D5-02',
+        });
+      }
+    }
+  }
+
+  // ============ D1-01: 检测操作步骤 (P1) ============
+
+  /**
+   * 检测表单/流程是否步骤过多
+   */
+  private detectTooManySteps(): void {
+    // 检测多步表单或步骤组件
+    const hasStepComponent = /<Steps|<Step|activeStep|currentStep/.test(this.content);
+    const hasMultiStepForm = /Step\d|step\d|phase\d/i.test(this.content);
+
+    if (hasStepComponent) {
+      // 检测步骤数量
+      const stepMatches = this.content.match(/<Step|<steps/gi);
+      const stepCount = stepMatches ? stepMatches.length : 0;
+
+      if (stepCount > 5) {
+        this.issues.push({
+          file: this.filePath,
+          line: 1,
+          column: 1,
+          type: 'too-many-steps',
+          severity: 'P1',
+          message: `流程步骤过多 (${stepCount} 步)，建议拆分或合并`,
+          suggestion: '考虑将步骤控制在 5 步以内，或使用可折叠的步骤分组',
+          checkId: 'D1-01',
+        });
+      }
+    }
+  }
+
+  // ============ D1-02: 检测操作入口 (P1) ============
+
+  /**
+   * 检测常用操作是否在显眼位置
+   */
+  private detectUnobviousEntry(): void {
+    // 检测是否有常用操作但不在主按钮位置
+    const lines = this.content.split('\n');
+    const importantActions = ['save', 'submit', 'create', 'delete', 'confirm'];
+
+    for (const action of importantActions) {
+      const actionLineIndex = lines.findIndex(line =>
+        new RegExp(`onClick.*${action}|handle${action.charAt(0).toUpperCase() + action.slice(1)}`, 'i').test(line)
+      );
+
+      if (actionLineIndex !== -1) {
+        const line = lines[actionLineIndex];
+        // 检查是否在 drawer/modal 深层嵌套中
+        const contextStart = Math.max(0, actionLineIndex - 10);
+        const contextEnd = Math.min(lines.length, actionLineIndex + 5);
+        const context = lines.slice(contextStart, contextEnd).join('\n');
+
+        const deepNesting = (context.match(/{/g) || []).length > 5;
+        const isInDropdown = /Dropdown|dropDown|menu/.test(context);
+        const isInMore = /More|更多/.test(context);
+
+        if (deepNesting || (isInDropdown && !isInMore)) {
+          this.issues.push({
+            file: this.filePath,
+            line: actionLineIndex + 1,
+            column: 1,
+            type: 'unobvious-entry',
+            severity: 'P1',
+            message: `常用操作 "${action}" 入口不明显，可能隐藏在深层或下拉菜单中`,
+            suggestion: '将常用操作放在主按钮位置或显眼入口处',
+            checkId: 'D1-02',
+            code: line.trim().substring(0, 60),
+          });
+        }
+      }
+    }
+  }
+
+  // ============ D1-03: 检测快捷键支持 (P1) ============
+
+  /**
+   * 检测是否支持键盘快捷键
+   */
+  private detectMissingHotkey(): void {
+    // 检测是否有需要快捷键的场景
+    const hasFrequentActions = /onClick|handleClick|onSubmit/.test(this.content);
+    const hasHotkey = /useHotkey|useKeyboard|onKeyDown|onKeyPress|shortcut|hotKey/i.test(this.content);
+
+    // 检测高频操作: 保存、提交、搜索、删除
+    const frequentOps = ['save', 'submit', 'search', 'delete', 'refresh'];
+    const hasFrequentOp = frequentOps.some(op =>
+      new RegExp(`handle${op.charAt(0).toUpperCase() + op.slice(1)}|onClick.*{.*${op}`, 'i').test(this.content)
+    );
+
+    if (hasFrequentActions && hasFrequentOp && !hasHotkey) {
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-hotkey',
+        severity: 'P1',
+        message: '高频操作缺少键盘快捷键支持',
+        suggestion: '使用 useHotkey 或 onKeyDown 添加快捷键 (如 Ctrl+S 保存)',
+        checkId: 'D1-03',
+      });
+    }
+  }
+
+  // ============ D1-04: 检测新用户引导 (P1) ============
+
+  /**
+   * 检测是否缺少新用户引导
+   */
+  private detectMissingOnboarding(): void {
+    // 检测页面是否有引导需求 (首次使用场景)
+    const hasFirstUseScenario = /first|newUser|new.*user|onboarding|tour|guide/i.test(this.content);
+    const hasOnboarding = /onboarding|tour|guide|welcome|step.*1|newUser|IntroJs|react-joyride/i.test(this.content);
+
+    // 检测是否有欢迎/引导相关的页面入口
+    const hasWelcomePage = /Welcome|gettingStarted|getting-started|起步|引导/i.test(this.content);
+
+    if (hasWelcomePage && !hasOnboarding) {
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-onboarding',
+        severity: 'P1',
+        message: '欢迎/引导页面缺少引导功能',
+        suggestion: '使用引导组件 (如 react-joyride) 提供渐进式引导',
+        checkId: 'D1-04',
+      });
+    }
+
+    // 如果页面有首次使用提示但没有引导
+    if (!hasFirstUseScenario && !hasOnboarding) {
+      const hasComplexFeature = /config|setting|advance|advanced/i.test(this.content);
+      if (hasComplexFeature) {
+        this.issues.push({
+          file: this.filePath,
+          line: 1,
+          column: 1,
+          type: 'missing-onboarding',
+          severity: 'P2',
+          message: '复杂功能页面缺少新用户引导',
+          suggestion: '考虑添加 onboarding tour 或 tooltip 引导',
+          checkId: 'D1-04',
+        });
+      }
+    }
+  }
+
+  // ============ D2-01: 检测键盘操作支持 (P0) ============
+
+  /**
+   * 检测是否支持键盘导航
+   */
+  private detectMissingKeyboardNav(): void {
+    // 检测交互组件
+    const hasInteractive = /Button|Input|Select|Checkbox|Radio|Tree|Table/.test(this.content);
+    const hasKeyboardSupport = /tabIndex|onKeyDown|keyboard.*nav|focusable|aria-/i.test(this.content);
+
+    if (hasInteractive && !hasKeyboardSupport) {
+      // 检查是否有自定义键盘处理
+      const hasCustomKeyboard = /useKeyboardEvent|useKey|onKeyDown|onKeyUp/.test(this.content);
+
+      if (!hasCustomKeyboard) {
+        this.issues.push({
+          file: this.filePath,
+          line: 1,
+          column: 1,
+          type: 'missing-keyboard-nav',
+          severity: 'P0',
+          message: '交互组件缺少键盘导航支持',
+          suggestion: '确保所有可交互元素支持键盘操作 (tab 切换、回车确认)',
+          checkId: 'D2-01',
+        });
+      }
+    }
+  }
+
+  // ============ D2-02: 检测 Tab 顺序 (P1) ============
+
+  /**
+   * 检测 Tab 键顺序是否合理
+   */
+  private detectWrongTabOrder(): void {
+    // 检测是否有 tabIndex 设置为负数的情况 (可访问性问题)
+    const hasNegativeTabIndex = /tabIndex\s*=\s*['"]?-[1-9]/.test(this.content);
+
+    if (hasNegativeTabIndex) {
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'wrong-tab-order',
+        severity: 'P1',
+        message: '存在 tabIndex=-1 的元素，可能影响键盘导航顺序',
+        suggestion: '检查是否有意为之，确保 modal/ drawer 中焦点正确管理',
+        checkId: 'D2-02',
+      });
+    }
+
+    // 检测 form 中字段顺序
+    const formFields = this.content.match(/name\s*=\s*['"](\w+)['"]/g);
+    if (formFields && formFields.length > 3) {
+      // 检查字段名是否按逻辑顺序排列 (简单检查)
+      const fields = formFields.map(f => f.match(/['"](\w+)['"]/)?.[1]).filter(Boolean) as string[];
+      const hasReversedOrder = fields.some((field, i) => {
+        if (i === 0) return false;
+        // 简单启发式: 检查下一个字段名是否在逻辑上应该在前面
+        return field < fields[i - 1] && Math.abs(field.charCodeAt(0) - fields[i - 1].charCodeAt(0)) < 5;
+      });
+
+      if (hasReversedOrder) {
+        this.issues.push({
+          file: this.filePath,
+          line: 1,
+          column: 1,
+          type: 'wrong-tab-order',
+          severity: 'P1',
+          message: '表单字段可能 Tab 顺序不合理',
+          suggestion: '确保字段按逻辑顺序排列: 重要 → 次要, 上 → 下',
+          checkId: 'D2-02',
+        });
+      }
+    }
+  }
+
+  // ============ D2-06: 检测语义化 HTML (P1) ============
+
+  /**
+   * 检测是否使用语义化 HTML 标签
+   */
+  private detectMissingSemanticHTML(): void {
+    // 检测页面布局是否使用语义化标签
+    const hasLayoutStructure = /<div[^>]*class\s*=\s*["']layout|container|wrapper|content|main/i.test(this.content);
+    const hasSemanticHTML = /<header|<main|<footer|<article|<aside|<section|<nav/i.test(this.content);
+
+    // 对于有布局结构但没有语义化标签的组件
+    if (hasLayoutStructure && !hasSemanticHTML) {
+      // 检查是否是页面级组件
+      const isPageComponent = /export\s+default|export\s+const.*Page|export\s+function.*Page/i.test(this.content);
+
+      if (isPageComponent) {
+        this.issues.push({
+          file: this.filePath,
+          line: 1,
+          column: 1,
+          type: 'missing-semantic-html',
+          severity: 'P1',
+          message: '页面组件缺少语义化 HTML 标签',
+          suggestion: '使用 <main> 包裹主体内容，<header> 页眉，<footer> 页脚',
+          checkId: 'D2-06',
+        });
+      }
+    }
+
+    // 检测列表是否使用语义化标签
+    const hasListRendering = /\.map\(.*=>|for.*of/.test(this.content);
+    const hasUlOl = /<ul|<ol/.test(this.content);
+    const hasDivList = /<div[^>]*class\s*=\s*["']list|item/i.test(this.content);
+
+    if (hasListRendering && hasDivList && !hasUlOl) {
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-semantic-html',
+        severity: 'P2',
+        message: '列表渲染使用 <div> 而非语义化列表标签',
+        suggestion: '使用 <ul>/<ol> + <li> 替代 div 列表',
+        checkId: 'D2-06',
+      });
+    }
+  }
+
+  // ============ D3-03: 检测图标风格一致性 (P1) ============
+
+  /**
+   * 检测是否混用多种图标库
+   */
+  private detectInconsistentIconStyle(): void {
+    // 检测使用的图标库
+    const iconLibraries = [
+      { pattern: /@ant-design\/icons/, name: 'Ant Design Icons' },
+      { pattern: /react-icons/, name: 'React Icons' },
+      { pattern: /@antv\/icon/, name: 'AntV Icon' },
+      { pattern: /iconfont/, name: 'Iconfont' },
+    ];
+
+    const usedLibraries = iconLibraries.filter(lib => lib.pattern.test(this.content));
+
+    if (usedLibraries.length > 1) {
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'inconsistent-icon-style',
+        severity: 'P1',
+        message: `混用多种图标库: ${usedLibraries.map(l => l.name).join(', ')}`,
+        suggestion: '统一使用 @ant-design/icons，保持视觉风格一致',
+        checkId: 'D3-03',
+      });
+    }
+
+    // 检测直接使用 SVG 而非图标组件
+    const inlineSvgCount = (this.content.match(/<svg[^>]*>/g) || []).length;
+    if (inlineSvgCount > 3) {
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'inconsistent-icon-style',
+        severity: 'P2',
+        message: `存在 ${inlineSvgCount} 个内联 SVG，建议封装为图标组件`,
+        suggestion: '抽取为 Icon 组件，统一管理图标样式',
+        checkId: 'D3-03',
+      });
+    }
+  }
+
+  // ============ D4-02: 检测渐进式加载 (P1) ============
+
+  /**
+   * 检测是否使用渐进式加载
+   */
+  private detectMissingProgressiveLoading(): void {
+    // 检测大列表渲染
+    const hasListRender = /\.map\(|\.forEach\(/.test(this.content);
+    const hasLargeList = /\(.{50,}\)/.test(this.content); // 复杂渲染函数
+
+    if (hasListRender && hasLargeList) {
+      // 检测是否有分页或虚拟滚动
+      const hasPagination = /pagination|pageSize|currentPage/.test(this.content);
+      const hasVirtualScroll = /virtual|react-window|react-virtualized|useVirtual/.test(this.content);
+      const hasProgressiveLoad = /loadMore|initialLoadCount|lazy.*load/i.test(this.content);
+
+      if (!hasPagination && !hasVirtualScroll && !hasProgressiveLoad) {
+        this.issues.push({
+          file: this.filePath,
+          line: 1,
+          column: 1,
+          type: 'no-progressive-loading',
+          severity: 'P1',
+          message: '大列表渲染缺少渐进式加载策略',
+          suggestion: '使用分页、虚拟滚动或懒加载，避免一次性渲染大量数据',
+          checkId: 'D4-02',
+        });
+      }
+    }
+
+    // 检测图片加载
+    const hasImages = /<img|<Image/.test(this.content);
+    if (hasImages) {
+      const hasLazyLoad = /lazyLoad|lazy.*load|loading=["']lazy|placeholder/.test(this.content);
+
+      if (!hasLazyLoad) {
+        this.issues.push({
+          file: this.filePath,
+          line: 1,
+          column: 1,
+          type: 'no-progressive-loading',
+          severity: 'P2',
+          message: '图片缺少懒加载设置',
+          suggestion: '使用 loading="lazy" 或图片占位符优化加载体验',
+          checkId: 'D4-02',
+        });
+      }
+    }
+  }
+
+  // ============ D4-03: 检测缓存提示 (P1) ============
+
+  /**
+   * 检测是否显示缓存状态
+   */
+  private detectMissingCacheHint(): void {
+    // 检测缓存相关 API 使用
+    const hasCacheOperation = /cache|localStorage|sessionStorage|indexedDB/i.test(this.content);
+
+    if (hasCacheOperation) {
+      // 检测是否有缓存状态提示
+      const hasCacheHint = /cached|from.*cache|cache.*hit|缓存/.test(this.content);
+
+      if (!hasCacheHint) {
+        this.issues.push({
+          file: this.filePath,
+          line: 1,
+          column: 1,
+          type: 'missing-cache-hint',
+          severity: 'P1',
+          message: '缓存操作缺少状态提示',
+          suggestion: '显示 "来自缓存" 或加载时间提示，让用户感知性能优化',
+          checkId: 'D4-03',
+        });
+      }
+    }
+
+    // 检测静态资源缓存
+    const hasStaticAsset = /\.css|\.js|\.svg|\.png|assets\/|static\//.test(this.content);
+    if (hasStaticAsset) {
+      const hasVersionHash = /\?v=|\?version=|hash=/.test(this.content);
+
+      if (!hasVersionHash) {
+        this.issues.push({
+          file: this.filePath,
+          line: 1,
+          column: 1,
+          type: 'missing-cache-hint',
+          severity: 'P2',
+          message: '静态资源缺少版本哈希，无法利用缓存',
+          suggestion: '使用 build 工具添加 hash 版本号，启用缓存',
+          checkId: 'D4-03',
         });
       }
     }
