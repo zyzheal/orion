@@ -27,7 +27,7 @@ export interface FixIssue {
 }
 
 export type FixIssueType =
-  // B1-01: 测试覆盖
+  // B1-01~B1-02: 测试覆盖
   | 'missing-test'
   | 'insufficient-test-coverage'
   // B1-03~B1-04: 热更新
@@ -83,6 +83,18 @@ export class B1FixAnalyzer {
   analyze(): FixScanResult {
     this.issues = [];
 
+    // B1-01: Bug 修复必须有测试用例 (P0)
+    this.detectMissingTest();
+
+    // B1-02: 关键路径测试覆盖 (P1)
+    this.detectInsufficientTestCoverage();
+
+    // B1-03: 支持配置热更新 (P1)
+    this.detectMissingConfigHotReload();
+
+    // B1-04: 支持 UI 热更新 (P1)
+    this.detectMissingUIHotReload();
+
     // B1-05: 足够上下文信息 (P0)
     this.detectInsufficientLogging();
 
@@ -100,6 +112,12 @@ export class B1FixAnalyzer {
 
     // B1-10: 降级后用户提示 (P0)
     this.detectMissingDegradationMessage();
+
+    // B1-11: 数据库回滚脚本 (P0)
+    this.detectMissingDBRollback();
+
+    // B1-12: 配置回滚方案 (P1)
+    this.detectMissingConfigRollback();
 
     const stats = this.collectStats();
 
@@ -132,6 +150,218 @@ export class B1FixAnalyzer {
     const possibleTestFiles = testExtensions.map(ext => baseName + ext);
 
     return possibleTestFiles.some(f => fs.existsSync(f));
+  }
+
+  // ============ B1-01: Bug 修复必须有测试用例 (P0) ============
+
+  /**
+   * 检测 Bug 修复是否包含测试用例
+   * 检查是否存在对应的测试文件
+   */
+  private detectMissingTest(): void {
+    // 跳过测试文件本身
+    if (/\.(test|spec)\.(ts|tsx)$/.test(this.filePath)) return;
+
+    // 跳过非修复类文件（只检查可能包含 bug 修复的文件）
+    const isLikelyFixFile = /fix|bug|patch|repair|resolve|hotfix/i.test(this.filePath)
+      || this.content.includes('fix:')
+      || this.content.includes('fix ')
+      || this.content.includes('bug:');
+
+    if (!isLikelyFixFile) return;
+
+    // 检测是否有对应的测试文件
+    const hasTestFile = this.detectHasTests();
+
+    if (!hasTestFile) {
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-test',
+        severity: 'P0',
+        message: 'Bug 修复缺少测试用例',
+        suggestion: '添加对应的测试文件(.test.ts/.spec.ts)覆盖修复逻辑',
+        checkId: 'B1-01',
+      });
+    }
+  }
+
+  // ============ B1-02: 关键路径测试覆盖 (P1) ============
+
+  /**
+   * 检测关键路径（核心业务逻辑）是否有测试覆盖
+   * 检查关键函数是否在测试文件中被调用
+   */
+  private detectInsufficientTestCoverage(): void {
+    // 跳过测试文件本身
+    if (/\.(test|spec)\.(ts|tsx)$/.test(this.filePath)) return;
+
+    // 关键函数列表（常见的核心业务函数）
+    const criticalFunctions = [
+      'handleSubmit', 'handleDelete', 'handleUpdate', 'handleCreate',
+      'handleSave', 'handleRemove', 'handleEdit', 'handleAdd',
+      'processPayment', 'executeOrder', 'transfer', 'withdraw', 'deposit',
+      'authenticate', 'authorize', 'validate', 'verify',
+      'create', 'update', 'delete', 'remove',
+      'getData', 'fetchData', 'loadData', 'query',
+      'saveData', 'storeData', 'persist',
+    ];
+
+    // 查找文件中是否存在这些关键函数
+    const foundCriticalFunctions: string[] = [];
+    for (const fn of criticalFunctions) {
+      const regex = new RegExp(`(function\\s+${fn}|const\\s+${fn}|${fn}\\s*[=:\\(])`);
+      if (regex.test(this.content)) {
+        foundCriticalFunctions.push(fn);
+      }
+    }
+
+    // 如果没有关键函数，跳过检测
+    if (foundCriticalFunctions.length === 0) return;
+
+    // 检查是否有测试文件
+    const hasTestFile = this.detectHasTests();
+
+    if (!hasTestFile) {
+      // 如果有关键函数但没有测试文件，报告问题
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'insufficient-test-coverage',
+        severity: 'P1',
+        message: `关键路径缺少测试覆盖: ${foundCriticalFunctions.slice(0, 3).join(', ')}${foundCriticalFunctions.length > 3 ? '...' : ''}`,
+        suggestion: '为核心业务函数添加测试用例',
+        checkId: 'B1-02',
+      });
+      return;
+    }
+
+    // 有测试文件，进一步检查测试是否覆盖关键函数
+    const baseName = this.filePath.replace(/\.(ts|tsx)$/, '');
+    const testExtensions = ['.test.ts', '.test.tsx', '.spec.ts', '.spec.tsx'];
+
+    for (const ext of testExtensions) {
+      const testFile = baseName + ext;
+      if (fs.existsSync(testFile)) {
+        try {
+          const testContent = fs.readFileSync(testFile, 'utf-8');
+          const uncoveredFunctions = foundCriticalFunctions.filter(fn => {
+            const fnTestPattern = new RegExp(`(it\\(|test\\(|describe\\()['"\`].*${fn}`, 'i');
+            return !fnTestPattern.test(testContent) && !testContent.includes(fn);
+          });
+
+          if (uncoveredFunctions.length > 0) {
+            this.issues.push({
+              file: this.filePath,
+              line: 1,
+              column: 1,
+              type: 'insufficient-test-coverage',
+              severity: 'P1',
+              message: `关键函数缺少测试覆盖: ${uncoveredFunctions.slice(0, 3).join(', ')}`,
+              suggestion: '为这些函数添加测试用例',
+              checkId: 'B1-02',
+            });
+          }
+          break; // 只检查第一个找到的测试文件
+        } catch (e) {
+          // 跳过读取错误的测试文件
+        }
+      }
+    }
+  }
+
+  // ============ B1-03: 支持配置热更新 (P1) ============
+
+  /**
+   * 检测是否支持配置热更新
+   * 检查是否使用配置中心或有配置监听机制
+   */
+  private detectMissingConfigHotReload(): void {
+    // 跳过前端文件（前端配置热更新检测在 B1-04）
+    if (this.filePath.includes('orion-frontend/')) return;
+
+    // 检测是否使用配置中心
+    const hasConfigCenter = /consul|etcd|zookeeper|nacos|apollo/i.test(this.content);
+
+    // 检测是否有配置监听/热更新机制
+    const hasWatchConfig = /watch.*config|onConfigChange|configChanged|reloadConfig|loadConfig/i.test(this.content);
+
+    // 检测是否有配置相关的定时刷新
+    const hasConfigRefresh = /setInterval.*config|config.*poll|cron.*config/i.test(this.content);
+
+    // 检测是否使用配置模块
+    const usesConfigModule = /import.*config|from.*config|ConfigService|ConfigManager/i.test(this.content);
+
+    if (usesConfigModule && !hasConfigCenter && !hasWatchConfig && !hasConfigRefresh) {
+      // 使用了配置模块但没有热更新机制
+      const lines = this.content.split('\n');
+      let configImportLine = -1;
+
+      for (let i = 0; i < lines.length; i++) {
+        if (/import.*config/i.test(lines[i]) && !lines[i].includes('test')) {
+          configImportLine = i + 1;
+          break;
+        }
+      }
+
+      this.issues.push({
+        file: this.filePath,
+        line: configImportLine > 0 ? configImportLine : 1,
+        column: 1,
+        type: 'missing-config-hot-reload',
+        severity: 'P1',
+        message: '缺少配置热更新机制',
+        suggestion: '使用配置中心的 watch 机制或定时刷新配置，实现配置变更热更新',
+        checkId: 'B1-03',
+      });
+    }
+  }
+
+  // ============ B1-04: 支持 UI 热更新 (P1) ============
+
+  /**
+   * 检测前端是否支持 UI 热更新
+   * 检查是否有 HMR、动态导入等机制
+   */
+  private detectMissingUIHotReload(): void {
+    // 只检测前端文件
+    if (!this.filePath.includes('orion-frontend/')) return;
+
+    // 跳过配置文件和测试文件
+    if (/\.(config|test|spec)\.(ts|js|json)$/.test(this.filePath)) return;
+    if (this.filePath.includes('.config.') || this.filePath.includes('vite.config') || this.filePath.includes('webpack')) return;
+
+    // 检测是否有 HMR 相关代码
+    const hasHMR = /module\.hot|import\.meta\.hot|hot\.accept|HMR/i.test(this.content);
+
+    // 检测是否有动态导入（代码分割）
+    const hasDynamicImport = /import\s*\([^)]*\)/.test(this.content);
+
+    // 检测是否有条件加载组件
+    const hasConditionalRender = /lazy\s*\(|Suspense/i.test(this.content);
+
+    // 检测是否有热更新相关插件配置
+    const hasHotReloadPlugin = /hot.*reload|live.*reload|refresh.*plugin/i.test(this.content);
+
+    // 对于前端组件文件，检测是否有状态管理热更新
+    const isComponent = /\.tsx$/.test(this.filePath);
+    const isPageComponent = isComponent && (this.content.includes('useState') || this.content.includes('useEffect'));
+
+    if (isPageComponent && !hasHMR && !hasDynamicImport && !hasConditionalRender) {
+      // 页面组件但没有动态加载机制
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-ui-hot-reload',
+        severity: 'P1',
+        message: '前端组件缺少热更新优化',
+        suggestion: '使用 React.lazy + Suspense 实现代码分割，支持热更新',
+        checkId: 'B1-04',
+      });
+    }
   }
 
   // ============ B1-05: 足够上下文信息 (P0) ============
@@ -437,6 +667,110 @@ export class B1FixAnalyzer {
       }
     }
   }
+
+  // ============ B1-11: 数据库回滚脚本 (P0) ============
+
+  /**
+   * 检测是否有数据库回滚脚本
+   * 检查 migrations 目录下是否有 down/rollback 脚本
+   */
+  private detectMissingDBRollback(): void {
+    // 只检测后端文件
+    if (!this.filePath.includes('orion-platform-service/')) return;
+
+    // 检测是否是 migration 文件
+    const isMigrationFile = /migration|create.*table|alter.*table|drop.*table/i.test(this.filePath)
+      || this.filePath.includes('/migrations/')
+      || this.filePath.includes('/migration/');
+
+    if (!isMigrationFile) return;
+
+    // 查找 migrations 目录
+    const fileDir = path.dirname(this.filePath);
+    const possibleMigrationDirs = [
+      path.join(process.cwd(), 'orion-platform-service/src/db/migrations'),
+      path.join(process.cwd(), 'orion-platform-service/migrations'),
+      path.join(process.cwd(), 'migrations'),
+    ];
+
+    let migrationDir = '';
+    for (const dir of possibleMigrationDirs) {
+      if (fs.existsSync(dir)) {
+        migrationDir = dir;
+        break;
+      }
+    }
+
+    if (!migrationDir) return;
+
+    // 检查迁移文件是否包含回滚逻辑
+    const hasDownMethod = /down\s*\(|rollback|revert|undo/i.test(this.content);
+    const hasDownMigration = this.content.includes('DOWN') || this.content.includes('down');
+
+    // 检查是否有单独的 down 文件
+    const baseName = path.basename(this.filePath, path.extname(this.filePath));
+    const possibleDownFiles = [
+      path.join(migrationDir, baseName + '.down.sql'),
+      path.join(migrationDir, baseName + '.rollback.sql'),
+      path.join(migrationDir, baseName + '.revert.sql'),
+    ];
+
+    const hasDownFile = possibleDownFiles.some(f => fs.existsSync(f));
+
+    if (!hasDownMethod && !hasDownMigration && !hasDownFile) {
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-db-rollback',
+        severity: 'P0',
+        message: '数据库迁移缺少回滚脚本',
+        suggestion: '添加 down() 方法或创建 .down.sql 回滚脚本',
+        checkId: 'B1-11',
+      });
+    }
+  }
+
+  // ============ B1-12: 配置回滚方案 (P1) ============
+
+  /**
+   * 检测是否有配置回滚方案
+   * 检查配置变更是否有版本管理或回滚机制
+   */
+  private detectMissingConfigRollback(): void {
+    // 跳过前端文件
+    if (this.filePath.includes('orion-frontend/')) return;
+
+    // 检测是否涉及配置管理
+    const isConfigFile = /config|setting|option|param/i.test(this.filePath)
+      || /config\.(ts|js|json)|settings\.(ts|js|json)/i.test(this.filePath);
+
+    if (!isConfigFile) return;
+
+    // 检测配置文件中是否有回滚相关代码
+    const hasVersionControl = /version|configVersion|config.*history|rollback/i.test(this.content);
+    const hasBackup = /backup|restore|snapshot/i.test(this.content);
+    const hasConfigChangeLog = /changeLog|audit|config.*log/i.test(this.content);
+
+    // 检测是否使用配置中心
+    const usesConfigCenter = /consul|etcd|zookeeper|nacos|apollo/i.test(this.content);
+
+    // 检测是否有回滚 API
+    const hasRollbackAPI = /rollback|revert|undo.*config/i.test(this.content);
+
+    if (!hasVersionControl && !hasBackup && !hasConfigChangeLog && !hasRollbackAPI && !usesConfigCenter) {
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-config-rollback',
+        severity: 'P1',
+        message: '缺少配置回滚方案',
+        suggestion: '实现配置版本管理或使用配置中心的回滚功能',
+        checkId: 'B1-12',
+      });
+    }
+  }
 }
 
 // ============ 批量扫描器 ============
@@ -558,12 +892,18 @@ export class B1FixScanner {
     report += `## 按检查项统计\n\n`;
 
     const checkNames: Record<string, string> = {
+      'B1-01': 'Bug 修复必须有测试用例',
+      'B1-02': '关键路径测试覆盖',
+      'B1-03': '支持配置热更新',
+      'B1-04': '支持 UI 热更新',
       'B1-05': '足够上下文信息',
       'B1-06': '日志级别正确',
       'B1-07': '敏感信息不记录',
       'B1-08': '服务降级方案',
       'B1-09': '熔断器实现',
       'B1-10': '降级后用户提示',
+      'B1-11': '数据库回滚脚本',
+      'B1-12': '配置回滚方案',
     };
 
     for (const [checkId, checkIssues] of Object.entries(byCheckId)) {
