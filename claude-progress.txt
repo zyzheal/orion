@@ -3296,10 +3296,13 @@ After thorough review, all notification channel sending logic was already implem
    - C3-07: API 限流检测 (P0) - 检测是否有 rate limit 中间件
    - C3-08: 认证中间件检测 (P0) - 检测是否有 auth/jwt 中间件
 
-   **C4 可观测性 (3项)**:
+   **C4 可观测性 (6项)** - 完整实现:
    - C4-01: 监控指标检测 (P0) - 检测是否有 prometheus metrics
+   - C4-02: 告警规则检测 (P0) - 检测阈值/级别/渠道/抑制
    - C4-03: 日志规范检测 (P0) - 检测日志是否有结构化格式
+   - C4-04: 链路追踪检测 (P1) - 检测 TraceID/Span/拓扑
    - C4-05: 健康检查检测 (P0) - 检测是否有 /health 端点
+   - C4-06: 指标采集检测 (P1) - 检测 Prometheus 格式/间隔
 
 3. **验证结果**
    - 扫描后端代码: 1708 个问题 (P0: 1355, P1: 353)
@@ -3308,8 +3311,9 @@ After thorough review, all notification channel sending logic was already implem
    - 检测器正常工作
 
 4. **覆盖率统计**
-   - 60 项检查项中已实现 10 项核心 P0/P1 检测
-   - 覆盖率: 17% (10/60)
+   - 60 项检查项中已实现 13 项核心 P0/P1 检测
+   - 覆盖率: 22% (13/60)
+   - C4 可观测性: 100% (6/6) - 完整实现
    - 最大缺失: C5 灾难恢复、C6 容量规划（需要 K8s 配置分析）
 
 ---
