@@ -68,19 +68,31 @@ export type OperationsIssueType =
   | 'missing-health-check'
   | 'missing-metrics-collection'
   // C5 灾难恢复
+  | 'missing-rto-rpo'
   | 'missing-backup-strategy'
   | 'missing-recovery-plan'
   | 'missing-failover'
+  | 'missing-multi-region'
+  | 'missing-drill'
   // C6 容量规划
   | 'missing-resource-quota'
   | 'missing-autoscaling'
+  | 'missing-resource-budget'
+  | 'missing-resource-monitoring'
+  | 'missing-capacity-alert'
   // C7 部署发布
   | 'missing-rollback-config'
   | 'missing-readiness-probe'
   | 'missing-deployment-strategy'
+  | 'missing-release-window'
+  | 'missing-canary'
+  | 'missing-config-change'
   // C8 运维自动化
   | 'missing-auto-inspection'
-  | 'missing-self-healing';
+  | 'missing-self-healing'
+  | 'missing-ops-scripts'
+  | 'missing-change-automation'
+  | 'missing-fault-detection';
 
 export interface OperationsScanResult {
   file: string;
@@ -963,6 +975,11 @@ export class COperationsAnalyzerConfig {
       this.detectMissingReadinessProbe();
     }
 
+    // C7-01: 部署策略
+    if (this.filePath.includes('deployment')) {
+      this.detectMissingDeploymentStrategy();
+    }
+
     // C6-01: 资源配额
     if (this.filePath.includes('deployment') || this.filePath.includes('resource')) {
       this.detectMissingResourceQuota();
@@ -971,6 +988,51 @@ export class COperationsAnalyzerConfig {
     // C6-02: 扩缩容策略
     if (this.filePath.includes('deployment') || this.filePath.includes('hpa')) {
       this.detectMissingAutoscaling();
+    }
+
+    // C6-04: 资源监控
+    if (this.filePath.includes('deployment') || this.filePath.includes('monitoring')) {
+      this.detectMissingResourceMonitoring();
+    }
+
+    // C6-05: 容量预警
+    if (this.filePath.includes('deployment') || this.filePath.includes('alert')) {
+      this.detectMissingCapacityAlert();
+    }
+
+    // C7-03: 灰度发布
+    if (this.filePath.includes('deployment')) {
+      this.detectMissingCanary();
+    }
+
+    // C7-06: 配置变更
+    if (this.filePath.includes('configmap') || this.filePath.includes('config')) {
+      this.detectMissingConfigChange();
+    }
+
+    // C8-01: 自动化巡检
+    if (this.filePath.includes('cronjob') || this.filePath.includes('cron')) {
+      this.detectMissingAutoInspection();
+    }
+
+    // C8-02: 自愈机制
+    if (this.filePath.includes('deployment')) {
+      this.detectMissingSelfHealing();
+    }
+
+    // C8-03: 运维脚本
+    if (this.filePath.includes('package.json')) {
+      this.detectMissingOpsScripts();
+    }
+
+    // C8-04: 变更自动化
+    if (this.filePath.includes('deployment') || this.filePath.includes('ci') || this.filePath.includes('pipeline')) {
+      this.detectMissingChangeAutomation();
+    }
+
+    // C8-05: 故障自检
+    if (this.filePath.includes('deployment')) {
+      this.detectMissingFaultDetection();
     }
   }
 
@@ -985,6 +1047,11 @@ export class COperationsAnalyzerConfig {
       this.detectMissingReadinessProbe();
     }
 
+    // C7-01: 部署策略
+    if (this.filePath.includes('deployment')) {
+      this.detectMissingDeploymentStrategy();
+    }
+
     // C6-01: 资源配额
     if (this.filePath.includes('deployment')) {
       this.detectMissingResourceQuota();
@@ -993,6 +1060,46 @@ export class COperationsAnalyzerConfig {
     // C6-02: 扩缩容策略
     if (this.filePath.includes('hpa')) {
       this.detectMissingAutoscaling();
+    }
+
+    // C6-04: 资源监控
+    if (this.filePath.includes('deployment') || this.filePath.includes('monitoring')) {
+      this.detectMissingResourceMonitoring();
+    }
+
+    // C6-05: 容量预警
+    if (this.filePath.includes('deployment') || this.filePath.includes('alert')) {
+      this.detectMissingCapacityAlert();
+    }
+
+    // C7-03: 灰度发布
+    if (this.filePath.includes('deployment')) {
+      this.detectMissingCanary();
+    }
+
+    // C7-06: 配置变更
+    if (this.filePath.includes('configmap') || this.filePath.includes('config')) {
+      this.detectMissingConfigChange();
+    }
+
+    // C8-01: 自动化巡检
+    if (this.filePath.includes('cronjob') || this.filePath.includes('cron')) {
+      this.detectMissingAutoInspection();
+    }
+
+    // C8-02: 自愈机制
+    if (this.filePath.includes('deployment')) {
+      this.detectMissingSelfHealing();
+    }
+
+    // C8-04: 变更自动化
+    if (this.filePath.includes('deployment') || this.filePath.includes('ci') || this.filePath.includes('pipeline')) {
+      this.detectMissingChangeAutomation();
+    }
+
+    // C8-05: 故障自检
+    if (this.filePath.includes('deployment')) {
+      this.detectMissingFaultDetection();
     }
   }
 
@@ -1100,6 +1207,442 @@ export class COperationsAnalyzerConfig {
       });
     }
   }
+
+  // ============ C7-01: 部署策略 (P0) ============
+
+  private detectMissingDeploymentStrategy(): void {
+    const hasStrategy = /strategy:|type:\s*(RollingUpdate|Recreate|BlueGreen)/i.test(this.content);
+    const hasMaxSurge = /maxSurge|maxUnavailable/i.test(this.content);
+
+    if (!hasStrategy) {
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-deployment-strategy',
+        severity: 'P0',
+        message: 'Deployment 缺少部署策略配置',
+        suggestion: '设置 strategy.type (RollingUpdate/Recreate) 和 maxSurge/maxUnavailable',
+        checkId: 'C7-01',
+      });
+    } else if (!hasMaxSurge) {
+      // 有策略但没有配置滚动更新参数
+    }
+  }
+
+  // ============ C6-03: 资源预算 (P1) ============
+
+  private detectMissingResourceBudget(): void {
+    // 检测是否有成本/预算相关配置
+    const hasBudget = /budget|cost|quota.*limit/i.test(this.content);
+    const hasResourceQuota = /ResourceQuota/i.test(this.content);
+
+    if (!hasBudget && !hasResourceQuota && this.filePath.includes('quota')) {
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-resource-budget',
+        severity: 'P1',
+        message: '缺少资源预算配置',
+        suggestion: '创建 ResourceQuota 限制命名空间资源使用',
+        checkId: 'C6-03',
+      });
+    }
+  }
+
+  // ============ C6-04: 资源监控 (P1) ============
+
+  private detectMissingResourceMonitoring(): void {
+    const hasMonitoring = /monitoring|prometheus|metrics|monitor/i.test(this.content);
+    const hasServiceMonitor = /ServiceMonitor|PodMonitor/i.test(this.content);
+
+    if (!hasMonitoring && !hasServiceMonitor && (this.filePath.includes('deployment') || this.filePath.includes('monitoring'))) {
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-resource-monitoring',
+        severity: 'P1',
+        message: '缺少资源监控配置',
+        suggestion: '添加 ServiceMonitor 或 PodMonitor 配置 Prometheus 监控',
+        checkId: 'C6-04',
+      });
+    }
+  }
+
+  // ============ C6-05: 容量预警 (P1) ============
+
+  private detectMissingCapacityAlert(): void {
+    const hasAlert = /alert|alertRule|alertmanager|threshold/i.test(this.content);
+    const hasCpuAlert = /cpu.*(alert|threshold)|memory.*(alert|threshold)/i.test(this.content);
+
+    if (!hasAlert && !hasCpuAlert && this.filePath.includes('alert')) {
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-capacity-alert',
+        severity: 'P1',
+        message: '缺少容量预警告警规则',
+        suggestion: '配置 CPU/内存使用率告警阈值 (如 >80%)',
+        checkId: 'C6-05',
+      });
+    }
+  }
+
+  // ============ C7-02: 发布窗口 (P1) ============
+
+  private detectMissingReleaseWindow(): void {
+    const hasApproval = /approval|approve|manual|gate/i.test(this.content);
+    const hasWindow = /window|schedule|cron|maintenance/i.test(this.content);
+
+    if (!hasApproval && !hasWindow && (this.filePath.includes('ci') || this.filePath.includes('pipeline'))) {
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-release-window',
+        severity: 'P1',
+        message: 'CI/CD 缺少发布窗口/审批机制',
+        suggestion: '配置发布审批流程或维护时间窗口',
+        checkId: 'C7-02',
+      });
+    }
+  }
+
+  // ============ C7-03: 灰度发布 (P1) ============
+
+  private detectMissingCanary(): void {
+    const hasCanary = /canary|istio|flagger|traffic.*split|weight/i.test(this.content);
+    const hasIngress = /ingress|gateway|virtualService/i.test(this.content);
+
+    if (!hasCanary && !hasIngress && this.filePath.includes('deployment')) {
+      // 只提示，不强制要求
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-canary',
+        severity: 'P1',
+        message: 'Deployment 缺少灰度发布配置',
+        suggestion: '考虑使用 Istio/Flagger 实现金丝雀发布',
+        checkId: 'C7-03',
+      });
+    }
+  }
+
+  // ============ C7-06: 配置变更 (P0) ============
+
+  private detectMissingConfigChange(): void {
+    const hasVersioning = /version|history|annotations.*version/i.test(this.content);
+    const hasRollback = /rollback|revert/i.test(this.content);
+
+    if (!hasVersioning && !hasRollback && this.filePath.includes('configmap')) {
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-config-change',
+        severity: 'P0',
+        message: 'ConfigMap 缺少版本管理和变更回滚支持',
+        suggestion: '使用 ConfigMap 版本注解或配置中心实现配置变更管理',
+        checkId: 'C7-06',
+      });
+    }
+  }
+
+  // ============ C8-01: 自动化巡检 (P1) ============
+
+  private detectMissingAutoInspection(): void {
+    const hasCronJob = /kind:\s*CronJob/i.test(this.content);
+    const hasSchedule = /schedule:/i.test(this.content);
+
+    if (!hasCronJob && !hasSchedule && this.filePath.includes('cron')) {
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-auto-inspection',
+        severity: 'P1',
+        message: '缺少自动化巡检任务',
+        suggestion: '创建 CronJob 定期执行健康检查和日志收集',
+        checkId: 'C8-01',
+      });
+    }
+  }
+
+  // ============ C8-02: 自愈机制 (P1) ============
+
+  private detectMissingSelfHealing(): void {
+    const hasRestartPolicy = /restartPolicy/i.test(this.content);
+    const hasLiveness = /livenessProbe/i.test(this.content);
+    const hasPDB = /PodDisruptionBudget/i.test(this.content);
+
+    // 检查是否有自愈配置
+    if (!hasRestartPolicy && !hasLiveness && this.filePath.includes('deployment')) {
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-self-healing',
+        severity: 'P1',
+        message: 'Deployment 缺少自愈机制配置',
+        suggestion: '配置 restartPolicy: Always 和 livenessProbe',
+        checkId: 'C8-02',
+      });
+    }
+  }
+
+  // ============ C8-03: 运维脚本 (P1) ============
+
+  private detectMissingOpsScripts(): void {
+    // package.json 检测 - 是否有运维脚本
+    try {
+      const pkg = JSON.parse(this.content);
+      const scripts = pkg.scripts || {};
+      const hasOpsScripts = /backup|restore|migrate|health|check|monitor/i.test(Object.keys(scripts).join(' '));
+
+      if (!hasOpsScripts) {
+        this.issues.push({
+          file: this.filePath,
+          line: 1,
+          column: 1,
+          type: 'missing-ops-scripts',
+          severity: 'P1',
+          message: 'package.json 缺少运维脚本',
+          suggestion: '添加 backup, restore, health-check 等运维脚本',
+          checkId: 'C8-03',
+        });
+      }
+    } catch (e) {
+      // ignore parse error
+    }
+  }
+
+  // ============ C8-04: 变更自动化 (P1) ============
+
+  private detectMissingChangeAutomation(): void {
+    const hasCicd = /ci|cd|pipeline|github.*action|gitlab-ci|jenkins/i.test(this.content);
+    const hasArgo = /argo|argocd/i.test(this.content);
+
+    if (!hasCicd && !hasArgo && (this.filePath.includes('deployment') || this.filePath.includes('ci'))) {
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-change-automation',
+        severity: 'P1',
+        message: '缺少变更自动化配置',
+        suggestion: '配置 GitOps 流程或 CI/CD 流水线自动化部署',
+        checkId: 'C8-04',
+      });
+    }
+  }
+
+  // ============ C8-05: 故障自检 (P1) ============
+
+  private detectMissingFaultDetection(): void {
+    const hasLiveness = /livenessProbe/i.test(this.content);
+    const hasReadiness = /readinessProbe/i.test(this.content);
+    const hasStartupProbe = /startupProbe/i.test(this.content);
+
+    // 至少应该有 liveness probe 用于故障检测
+    if (!hasLiveness && !hasStartupProbe && this.filePath.includes('deployment')) {
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-fault-detection',
+        severity: 'P1',
+        message: 'Deployment 缺少故障自检探针',
+        suggestion: '配置 livenessProbe 用于故障检测和自动恢复',
+        checkId: 'C8-05',
+      });
+    }
+  }
+}
+
+// ============ 文档检测器 - 用于 C5 灾难恢复 ============
+
+export class COperationsAnalyzerDocs {
+  private filePath: string;
+  private content: string;
+  private issues: OperationsIssue[] = [];
+  private projectRoot: string;
+
+  constructor(filePath: string, projectRoot?: string) {
+    this.filePath = filePath;
+    this.projectRoot = projectRoot || path.join(__dirname, '../../../../');
+    this.content = fs.existsSync(filePath) ? fs.readFileSync(filePath, 'utf-8') : '';
+  }
+
+  analyze(): OperationsScanResult {
+    this.issues = [];
+
+    // 检测灾备文档
+    this.detectMissingRTORPO();
+    this.detectMissingBackupStrategy();
+    this.detectMissingRecoveryPlan();
+    this.detectMissingFailover();
+    this.detectMissingMultiRegion();
+    this.detectMissingDrill();
+
+    const stats = this.collectStats();
+
+    return {
+      file: this.filePath,
+      issues: this.issues,
+      language: 'config',
+      stats,
+    };
+  }
+
+  private collectStats() {
+    return {
+      hasMetrics: false,
+      hasHealthCheck: false,
+      hasRateLimit: false,
+      hasAuth: false,
+      hasPlugin: false,
+      hasEventBus: false,
+      hasVersionedApi: false,
+      hasTracing: false,
+    };
+  }
+
+  // ============ C5-01: RTO/RPO 定义 (P0) ============
+
+  private detectMissingRTORPO(): void {
+    // 检测 docs 目录下是否有灾备相关文档
+    const isDrDoc = /disaster|dr|backup|recovery|rto|rpo|failover/i.test(this.filePath);
+    const hasRTO = /RTO|recovery.*time.*objective/i.test(this.content);
+    const hasRPO = /RPO|recovery.*point.*objective/i.test(this.content);
+
+    if (isDrDoc && !hasRTO && !hasRPO) {
+      this.issues.push({
+        file: this.filePath,
+        line: 1,
+        column: 1,
+        type: 'missing-rto-rpo',
+        severity: 'P0',
+        message: '灾备文档缺少 RTO/RPO 定义',
+        suggestion: '定义 RTO (恢复时间目标) 和 RPO (恢复点目标)',
+        checkId: 'C5-01',
+      });
+    }
+  }
+
+  // ============ C5-02: 备份策略 (P0) ============
+
+  private detectMissingBackupStrategy(): void {
+    // 检测是否有 backup 脚本或配置
+    const hasBackup = /backup|dump|snapshot/i.test(this.content);
+    const hasScript = /script|script.*backup|backup.*script/i.test(this.filePath);
+
+    if (this.filePath.includes('backup') || this.filePath.includes('scripts')) {
+      if (!hasBackup && this.content.length > 0) {
+        this.issues.push({
+          file: this.filePath,
+          line: 1,
+          column: 1,
+          type: 'missing-backup-strategy',
+          severity: 'P0',
+          message: '缺少备份策略定义',
+          suggestion: '定义数据备份策略（频率、保留周期、存储位置）',
+          checkId: 'C5-02',
+        });
+      }
+    }
+  }
+
+  // ============ C5-03: 恢复方案 (P0) ============
+
+  private detectMissingRecoveryPlan(): void {
+    const hasRecovery = /recovery|restore|fallback/i.test(this.content);
+    const hasProcedure = /procedure|step|流程|步骤/i.test(this.content);
+
+    if (this.filePath.includes('recovery') || this.filePath.includes('disaster')) {
+      if (!hasRecovery || !hasProcedure) {
+        this.issues.push({
+          file: this.filePath,
+          line: 1,
+          column: 1,
+          type: 'missing-recovery-plan',
+          severity: 'P0',
+          message: '缺少恢复方案详细步骤',
+          suggestion: '编写完整的恢复流程文档，包含验证步骤',
+          checkId: 'C5-03',
+        });
+      }
+    }
+  }
+
+  // ============ C5-04: 故障切换 (P1) ============
+
+  private detectMissingFailover(): void {
+    const hasFailover = /failover|ha|high.*availability|主备/i.test(this.content);
+    const hasSwitch = /switch|切换/i.test(this.content);
+
+    if (this.filePath.includes('ha') || this.filePath.includes('failover')) {
+      if (!hasFailover && this.content.length > 0) {
+        this.issues.push({
+          file: this.filePath,
+          line: 1,
+          column: 1,
+          type: 'missing-failover',
+          severity: 'P1',
+          message: '缺少故障切换机制说明',
+          suggestion: '描述自动/手动故障切换流程和判定条件',
+          checkId: 'C5-04',
+        });
+      }
+    }
+  }
+
+  // ============ C5-05: 多区域部署 (P1) ============
+
+  private detectMissingMultiRegion(): void {
+    const hasRegion = /region|zone|availability.*zone|多区域/i.test(this.content);
+    const hasMulti = /multi|mirror|replica|副本/i.test(this.content);
+
+    if (this.filePath.includes('disaster') || this.filePath.includes('dr')) {
+      if (!hasRegion && !hasMulti && this.content.length > 0) {
+        this.issues.push({
+          file: this.filePath,
+          line: 1,
+          column: 1,
+          type: 'missing-multi-region',
+          severity: 'P1',
+          message: '缺少多区域/多可用区部署规划',
+          suggestion: '描述跨区域部署架构和数据同步方案',
+          checkId: 'C5-05',
+        });
+      }
+    }
+  }
+
+  // ============ C5-06: 演练机制 (P1) ============
+
+  private detectMissingDrill(): void {
+    const hasDrill = /drill|演练|test.*recovery|chaos/i.test(this.content);
+    const hasSchedule = /schedule|定期|周期/i.test(this.content);
+
+    if (this.filePath.includes('disaster') || this.filePath.includes('dr')) {
+      if (!hasDrill && !hasSchedule && this.content.length > 0) {
+        this.issues.push({
+          file: this.filePath,
+          line: 1,
+          column: 1,
+          type: 'missing-drill',
+          severity: 'P1',
+          message: '缺少灾备演练计划',
+          suggestion: '制定定期灾备演练计划，验证恢复流程',
+          checkId: 'C5-06',
+        });
+      }
+    }
+  }
 }
 
 // ============ 批量扫描器 ============
@@ -1107,11 +1650,40 @@ export class COperationsAnalyzerConfig {
 export class COperationsScanner {
   private backendDir: string;
   private frontendDir: string;
+  private docsDir: string;
   private results: OperationsScanResult[] = [];
 
-  constructor(backendDir?: string, frontendDir?: string) {
-    this.backendDir = backendDir || path.join(__dirname, '../../../../orion-platform-service/src');
-    this.frontendDir = frontendDir || path.join(__dirname, '../../../../orion-frontend/src');
+  constructor(backendDir?: string, frontendDir?: string, docsDir?: string) {
+    // 使用 process.cwd() 作为项目根目录，优先查找 orion-design
+    const cwd = process.cwd();
+    let projectRoot: string;
+
+    // 尝试从 cwd 向上查找包含 docs 目录的父目录
+    let checkDir = cwd;
+    for (let i = 0; i < 5; i++) {
+      if (fs.existsSync(path.join(checkDir, 'docs')) && fs.existsSync(path.join(checkDir, 'orion-platform-service'))) {
+        projectRoot = checkDir;
+        break;
+      }
+      checkDir = path.join(checkDir, '..');
+    }
+
+    // 如果没找到，尝试常见模式
+    if (!projectRoot) {
+      if (cwd.includes('orion-platform-service')) {
+        projectRoot = path.join(cwd, '../..');
+      } else if (cwd.includes('orion-frontend')) {
+        projectRoot = path.join(cwd, '../..');
+      } else if (cwd.includes('orion-design')) {
+        projectRoot = cwd;
+      } else {
+        projectRoot = cwd;
+      }
+    }
+
+    this.backendDir = backendDir || path.join(projectRoot, 'orion-platform-service/src');
+    this.frontendDir = frontendDir || path.join(projectRoot, 'orion-frontend/src');
+    this.docsDir = docsDir || path.join(projectRoot, 'docs');
   }
 
   /**
@@ -1170,6 +1742,60 @@ export class COperationsScanner {
           if (result.issues.length > 0) {
             this.results.push(result);
           }
+        }
+      } catch (e) {
+        // skip files that can't be parsed
+      }
+    }
+
+    return this.results;
+  }
+
+  /**
+   * 扫描文档目录 - 用于 C5 灾难恢复检测
+   */
+  scanDocs(patterns?: string[]): OperationsScanResult[] {
+    const searchPatterns = patterns || ['disaster', 'backup', 'recovery', 'dr', 'ha', 'failover'];
+    const files: string[] = [];
+
+    if (!fs.existsSync(this.docsDir)) {
+      console.log(`[C Operations] Docs directory does not exist: ${this.docsDir}`);
+      return this.results;
+    }
+
+    // 搜索灾备相关文档
+    const searchInDir = (dir: string) => {
+      try {
+        const entries = fs.readdirSync(dir, { withFileTypes: true });
+        for (const entry of entries) {
+          const fullPath = path.join(dir, entry.name);
+          if (entry.isDirectory()) {
+            if (!entry.name.startsWith('.') && entry.name !== 'node_modules') {
+              searchInDir(fullPath);
+            }
+          } else if (entry.isFile()) {
+            for (const pattern of searchPatterns) {
+              if (entry.name.toLowerCase().includes(pattern.toLowerCase())) {
+                files.push(fullPath);
+                break;
+              }
+            }
+          }
+        }
+      } catch (e) {
+        // ignore permission errors
+      }
+    };
+
+    searchInDir(this.docsDir);
+    console.log(`[C Operations] Found ${files.length} disaster recovery docs to scan`);
+
+    for (const file of files) {
+      try {
+        const analyzer = new COperationsAnalyzerDocs(file, this.docsDir);
+        const result = analyzer.analyze();
+        if (result.issues.length > 0) {
+          this.results.push(result);
         }
       } catch (e) {
         // skip files that can't be parsed
@@ -1325,12 +1951,45 @@ export class COperationsScanner {
 // ============ CLI 入口 ============
 
 if (require.main === module) {
-  const backendDir = path.join(__dirname, '../../../../orion-platform-service/src');
-  const frontendDir = path.join(__dirname, '../../../../orion-frontend/src');
+  // 修正项目根目录路径计算 - 优先查找 orion-design
+  const cwd = process.cwd();
+  let projectRoot: string;
 
-  console.log('=== C 运维层检测器 ===\n');
+  // 尝试从 cwd 向上查找包含 docs 目录的父目录
+  let checkDir = cwd;
+  for (let i = 0; i < 5; i++) {
+    if (fs.existsSync(path.join(checkDir, 'docs')) && fs.existsSync(path.join(checkDir, 'orion-platform-service'))) {
+      projectRoot = checkDir;
+      break;
+    }
+    checkDir = path.join(checkDir, '..');
+  }
 
-  const scanner = new COperationsScanner(backendDir, frontendDir);
+  // 如果没找到，尝试常见模式
+  if (!projectRoot) {
+    if (cwd.includes('orion-platform-service')) {
+      projectRoot = path.join(cwd, '../..');
+    } else if (cwd.includes('orion-frontend')) {
+      projectRoot = path.join(cwd, '../..');
+    } else if (cwd.includes('orion-design')) {
+      projectRoot = cwd;
+    } else {
+      projectRoot = cwd;
+    }
+  }
+
+  const backendDir = path.join(projectRoot, 'orion-platform-service/src');
+  const frontendDir = path.join(projectRoot, 'orion-frontend/src');
+  const docsDir = path.join(projectRoot, 'docs');
+
+  console.log('Project root:', projectRoot);
+  console.log('Backend dir:', backendDir);
+  console.log('Frontend dir:', frontendDir);
+  console.log('Docs dir:', docsDir);
+
+  console.log('=== C 运维层检测器 (扩展 C5-C8) ===\n');
+
+  const scanner = new COperationsScanner(backendDir, frontendDir, docsDir);
 
   // 扫描后端关键文件
   console.log('Scanning backend...');
@@ -1346,6 +2005,10 @@ if (require.main === module) {
     exclude: ['node_modules', 'dist', '.git'],
   });
 
+  // 扫描灾备文档 (C5)
+  console.log('Scanning disaster recovery docs...');
+  scanner.scanDocs(['disaster', 'backup', 'recovery', 'dr', 'ha', 'failover']);
+
   const summary = scanner.getSummary();
   const results = scanner.getResults();
 
@@ -1360,7 +2023,7 @@ if (require.main === module) {
   }
 
   console.log(`\n=== 问题详情 ===`);
-  for (const result of results.slice(0, 20)) {
+  for (const result of results.slice(0, 30)) {
     for (const issue of result.issues) {
       console.log(`[${issue.checkId}] ${issue.severity} ${issue.file}:${issue.line}`);
       console.log(`  ${issue.message}`);
@@ -1368,5 +2031,3 @@ if (require.main === module) {
     }
   }
 }
-
-export { OperationsIssue, OperationsScanResult };
