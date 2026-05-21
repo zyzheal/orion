@@ -6,6 +6,7 @@
 import * as ts from 'typescript';
 import * as fs from 'fs';
 import * as path from 'path';
+import { getTsxFiles } from './file-utils';
 
 export type InteractionIssueType =
   // 基础检测（原有5项）
@@ -126,27 +127,27 @@ export class FrontendInteractionAnalyzer {
 
   /**
    * 检测缺少 message 反馈的问题
-   * 查找所有异步操作（onClick, useEffect, 自定义方法）
+   * 优化版：避免重复报告，只在函数级别报告一次
    */
   private detectMissingFeedback(): InteractionIssue[] {
     const issues: InteractionIssue[] = [];
-    const visited = new Set<number>(); // 避免重复报告
+    const visited = new Set<number>();
+    const reportedFunctions = new Set<string>();
 
     // 1. 检测 onClick 异步处理器
     const findOnClickHandlers = (node: ts.Node) => {
-      if (ts.isPropertyAssignment(node) && node.name.text === 'onClick') {
+      if (ts.isPropertyAssignment(node) && ts.isIdentifier(node.name) && node.name.text === 'onClick') {
         const handler = node.initializer;
         if (ts.isArrowFunction(handler) || ts.isFunctionExpression(handler)) {
           const isAsync = this.isAsyncFunction(handler);
           const hasMessageCall = this.hasMessageCall(handler);
           const hasTryCatch = this.hasTryCatch(handler);
 
-          // 如果是异步操作且没有 message 调用，或者有 tryCatch 但没有在 finally 中处理
-          if (isAsync && !hasMessageCall) {
+          if (isAsync && !hasMessageCall && !hasTryCatch) {
             const { line, column } = this.getLineColumn(handler);
-            const key = `${line}-${column}`;
-            if (!visited.has(line)) {
-              visited.add(line);
+            const key = `onClick-${line}-${column}`;
+            if (!reportedFunctions.has(key)) {
+              reportedFunctions.add(key);
               issues.push({
                 file: this.filePath,
                 line,
@@ -163,9 +164,8 @@ export class FrontendInteractionAnalyzer {
       ts.forEachChild(node, findOnClickHandlers);
     };
 
-    // 2. 检测 async 方法定义（包括箭头函数赋值）
+    // 2. 检测 async 方法定义
     const findAsyncMethods = (node: ts.Node) => {
-      // 检测方法声明
       if (ts.isMethodDeclaration(node) || ts.isFunctionDeclaration(node)) {
         if (node.name && ts.isIdentifier(node.name)) {
           const isAsync = node.modifiers?.some(m => m.kind === ts.SyntaxKind.AsyncKeyword);
@@ -173,12 +173,14 @@ export class FrontendInteractionAnalyzer {
 
           if (isAsync && hasBody) {
             const hasMessageCall = this.hasMessageCall(node.body!);
+            const hasTryCatch = this.hasTryCatch(node.body!);
             const { line, column } = this.getLineColumn(node);
 
-            if (!hasMessageCall && !visited.has(line)) {
-              visited.add(line);
+            if (!hasMessageCall && !hasTryCatch) {
               const methodName = node.name.text;
-              if (/^(handle|on|submit|save|delete|create|update|remove)/i.test(methodName)) {
+              const key = `method-${methodName}`;
+              if (/^(handle|on|submit|save|delete|create|update|remove)/i.test(methodName) && !reportedFunctions.has(key)) {
+                reportedFunctions.add(key);
                 issues.push({
                   file: this.filePath,
                   line,
@@ -194,7 +196,7 @@ export class FrontendInteractionAnalyzer {
         }
       }
 
-      // 检测箭头函数赋值（如 const loadData = async () => {}）
+      // 检测箭头函数赋值
       if (ts.isVariableStatement(node)) {
         for (const decl of node.declarationList.declarations) {
           if (ts.isVariableDeclaration(decl) && decl.initializer) {
@@ -203,13 +205,14 @@ export class FrontendInteractionAnalyzer {
               const isAsync = init.modifiers?.some(m => m.kind === ts.SyntaxKind.AsyncKeyword);
               if (isAsync && init.body) {
                 const hasMessageCall = this.hasMessageCall(init.body);
+                const hasTryCatch = this.hasTryCatch(init.body);
                 const { line, column } = this.getLineColumn(decl);
 
-                if (!hasMessageCall && !visited.has(line)) {
-                  visited.add(line);
+                if (!hasMessageCall && !hasTryCatch) {
                   const varName = decl.name.getText(this.sourceFile);
-                  // 只报告可能是操作类型的方法
-                  if (/^(load|fetch|get|save|submit|create|update|delete|remove|handle|exec|runs)/i.test(varName)) {
+                  const key = `func-${varName}`;
+                  if (/^(load|fetch|get|save|submit|create|update|delete|remove|handle|exec|runs)/i.test(varName) && !reportedFunctions.has(key)) {
+                    reportedFunctions.add(key);
                     issues.push({
                       file: this.filePath,
                       line,
@@ -234,30 +237,31 @@ export class FrontendInteractionAnalyzer {
       if (ts.isCallExpression(node)) {
         const expr = node.expression;
         if (ts.isIdentifier(expr)) {
-          // 检测 useRequest 或类似 hooks
           if (/^use(Request|Mutation|Async)$/.test(expr.text)) {
             const options = node.arguments[1];
             if (options && ts.isObjectLiteralExpression(options)) {
-              // 检查是否有 onSuccess 或 onError 回调
               const hasSuccessHandler = options.properties.some(
-                p => ts.isPropertyAssignment(p) && p.name.text === 'onSuccess'
+                p => ts.isPropertyAssignment(p) && ts.isIdentifier(p.name) && p.name.text === 'onSuccess'
               );
               const hasErrorHandler = options.properties.some(
-                p => ts.isPropertyAssignment(p) && p.name.text === 'onError'
+                p => ts.isPropertyAssignment(p) && ts.isIdentifier(p.name) && p.name.text === 'onError'
               );
               const { line, column } = this.getLineColumn(node);
 
-              if (!hasSuccessHandler && !visited.has(line)) {
-                visited.add(line);
-                issues.push({
-                  file: this.filePath,
-                  line,
-                  column,
-                  type: 'missing-feedback',
-                  severity: 'P0',
-                  message: 'useRequest 缺少 onSuccess 回调处理',
-                  suggestion: '添加 onSuccess: () => message.success("成功")',
-                });
+              if (!hasSuccessHandler && !hasErrorHandler) {
+                const key = `useRequest-${line}-${column}`;
+                if (!reportedFunctions.has(key)) {
+                  reportedFunctions.add(key);
+                  issues.push({
+                    file: this.filePath,
+                    line,
+                    column,
+                    type: 'missing-feedback',
+                    severity: 'P0',
+                    message: 'useRequest 缺少 onSuccess/onError 回调处理',
+                    suggestion: '添加 onSuccess: () => message.success("成功") 或 onError 回调',
+                  });
+                }
               }
             }
           }
@@ -274,24 +278,30 @@ export class FrontendInteractionAnalyzer {
   }
 
   /**
-   * 检测缺少 loading 状态的问题
-   * 增强版：检测每个异步处理器是否有独立的 loading 状态
-   */
+ * 检测缺少 loading 状态的问题
+ * 优化版：扫描整个组件的 loading 状态定义，而非仅检查函数体内
+ * 支持 submitting/saving/fetching 等变量名，支持 props 传入
+ */
   private detectMissingLoading(): InteractionIssue[] {
     const issues: InteractionIssue[] = [];
     const visited = new Set<number>();
 
-    // 1. 检测 onClick 异步处理器
+    // 1. 先扫描组件级别的 loading 状态定义
+    const componentLoadingStates = this.findAllLoadingStates();
+
+    // 2. 检测 onClick 异步处理器
     const findOnClickHandlers = (node: ts.Node) => {
-      if (ts.isPropertyAssignment(node) && node.name.text === 'onClick') {
+      if (ts.isPropertyAssignment(node) && ts.isIdentifier(node.name) && node.name.text === 'onClick') {
         const handler = node.initializer;
 
         if (ts.isArrowFunction(handler) || ts.isFunctionExpression(handler)) {
           const isAsync = this.isAsyncFunction(handler);
           const hasIndividualLoading = this.hasIndividualLoadingState(handler);
+          const usesComponentLoading = this.functionUsesLoadingState(handler, componentLoadingStates);
           const { line, column } = this.getLineColumn(handler);
 
-          if (isAsync && !hasIndividualLoading && !visited.has(line)) {
+          // 只有函数体内既没有独立 loading 也没有引用组件级 loading 时才报告
+          if (isAsync && !hasIndividualLoading && !usesComponentLoading && !visited.has(line)) {
             visited.add(line);
             issues.push({
               file: this.filePath,
@@ -308,20 +318,21 @@ export class FrontendInteractionAnalyzer {
       ts.forEachChild(node, findOnClickHandlers);
     };
 
-    // 2. 检测 async 方法（包括箭头函数赋值）
+    // 3. 检测 async 方法（包括箭头函数赋值）
     const findAsyncMethods = (node: ts.Node) => {
-      // 检测方法声明
       if (ts.isMethodDeclaration(node) || ts.isFunctionDeclaration(node)) {
         if (node.name && ts.isIdentifier(node.name)) {
           const isAsync = node.modifiers?.some(m => m.kind === ts.SyntaxKind.AsyncKeyword);
           const hasBody = node.body;
 
           if (isAsync && hasBody) {
-            const hasLoadingRef = this.hasLoadingRefInMethod(node.name.text);
-            const { line, column } = this.getLineColumn(node);
             const methodName = node.name.text;
+            const hasLoadingRef = this.hasLoadingRefInMethod(methodName);
+            const usesComponentLoading = this.functionUsesLoadingState(node, componentLoadingStates);
+            const { line, column } = this.getLineColumn(node);
 
-            if (!hasLoadingRef && !visited.has(line) &&
+            // 检查函数是否引用了组件级 loading 变量
+            if (!hasLoadingRef && !usesComponentLoading && !visited.has(line) &&
                 /^(handle|on|submit|save|delete|create|update|remove|fetch|load)/i.test(methodName)) {
               visited.add(line);
               issues.push({
@@ -338,7 +349,6 @@ export class FrontendInteractionAnalyzer {
         }
       }
 
-      // 检测箭头函数赋值
       if (ts.isVariableStatement(node)) {
         for (const decl of node.declarationList.declarations) {
           if (ts.isVariableDeclaration(decl) && decl.initializer) {
@@ -347,12 +357,12 @@ export class FrontendInteractionAnalyzer {
               const isAsync = init.modifiers?.some(m => m.kind === ts.SyntaxKind.AsyncKeyword);
               if (isAsync && init.body) {
                 const varName = decl.name.getText(this.sourceFile);
-                // 检查函数体是否使用了 loading 状态
-                const bodyText = init.body.getText(this.sourceFile);
-                const hasLoading = /setLoading|loading\s*=|disabled.*loading/.test(bodyText);
+                const hasLoading = this.hasLoadingInBody(init.body);
+                const usesComponentLoading = this.functionUsesLoadingState(init, componentLoadingStates);
                 const { line, column } = this.getLineColumn(decl);
 
-                if (!hasLoading && !visited.has(line)) {
+                // 检查函数体内是否有 loading 使用或引用了组件级 loading 变量
+                if (!hasLoading && !usesComponentLoading && !visited.has(line)) {
                   visited.add(line);
                   if (/^(load|fetch|get|save|submit|create|update|delete|remove|handle|exec|runs)/i.test(varName)) {
                     issues.push({
@@ -374,7 +384,7 @@ export class FrontendInteractionAnalyzer {
       ts.forEachChild(node, findAsyncMethods);
     };
 
-    // 3. 检测 useRequest 没有 loading 配置
+    // 4. 检测 useRequest 没有 loading 配置
     const findUseRequestLoading = (node: ts.Node) => {
       if (ts.isCallExpression(node)) {
         const expr = node.expression;
@@ -382,7 +392,7 @@ export class FrontendInteractionAnalyzer {
           const options = node.arguments[0] || node.arguments[1];
           if (options && ts.isObjectLiteralExpression(options)) {
             const hasLoadingProp = options.properties.some(
-              p => ts.isPropertyAssignment(p) && p.name.text === 'loading'
+              p => ts.isPropertyAssignment(p) && ts.isIdentifier(p.name) && p.name.text === 'loading'
             );
             const { line, column } = this.getLineColumn(node);
 
@@ -409,6 +419,103 @@ export class FrontendInteractionAnalyzer {
     ts.forEachChild(this.sourceFile, findUseRequestLoading);
 
     return issues;
+  }
+
+  /**
+   * 查找组件中所有 loading 状态定义
+   * 支持: loading, submitting, saving, fetching, actionLoading 等
+   */
+  private findAllLoadingStates(): string[] {
+    const loadingVars: string[] = [];
+
+    // 使用 matchAll 匹配所有 useState loading 定义（扩展模式覆盖更多命名约定）
+    // 包括 exporting/generating/uploading 等操作状态
+    const useStatePattern = /const\s+\[(\w*(?:loading|submitting|saving|fetching|executing|processing|running|working|actioning|deleting|creating|updating|exporting|generating|uploading|downloading|importing|applying|refreshing|searching|validating|checking|sending|building)\w*)\s*,\s*\w+\]\s*=\s*useState/gi;
+    for (const match of this.content.matchAll(useStatePattern)) {
+      const varName = match[1];
+      if (varName && !loadingVars.includes(varName)) {
+        loadingVars.push(varName);
+      }
+    }
+
+    // 匹配更多模式（使用 matchAll）
+    const patterns = [
+      /const\s+\[(loading|submitting|saving|fetching|executing|processing|exporting|generating|actionLoading|detailLoading|modalLoading|tableLoading|listLoading|isProcessing|isSubmitting|isSaving|isLoading|isExecuting|isFetching|isExporting|isGenerating)\s*,/gi,
+      /const\s+\[(\w+Loading)\s*,/gi,
+      /const\s+\[(\w+(?:ing|tion))\s*,\s*set\w+\]\s*=\s*useState\((?:true|false)\)/gi,  // 匹配 const [xxxIng, setXxx] = useState(false)
+      /const\s+\[(is\w+)\s*,\s*set\1\]\s*=\s*useState\((?:true|false)\)/gi,  // 匹配 const [isXxx, setIsXxx] = useState(false)
+    ];
+
+    for (const pattern of patterns) {
+      for (const match of this.content.matchAll(pattern)) {
+        const varName = match[1];
+        if (varName && !loadingVars.includes(varName)) {
+          loadingVars.push(varName);
+        }
+      }
+    }
+
+    // 通用模式：任何 const [xxx, setXxx] = useState(false) 其中 xxx 以 ing/is 开头
+    const genericPattern = /const\s+\[(\w+)\s*,\s*set\w+\]\s*=\s*useState\((?:true|false)\)/gi;
+    for (const match of this.content.matchAll(genericPattern)) {
+      const varName = match[1];
+      // 匹配操作状态类变量名
+      if (/(?:ing|loading|submitting|saving|fetching|executing|processing|exporting|generating|is[A-Z]|has[A-Z]|should[A-Z])/i.test(varName) && !loadingVars.includes(varName)) {
+        loadingVars.push(varName);
+      }
+    }
+
+    // 检查是否有 props 传入的 loading
+    const hasPropLoading = /loading\s*:\s*boolean|loading\?\s*:\s*boolean/i.test(this.content);
+    if (hasPropLoading) {
+      loadingVars.push('props.loading');
+    }
+
+    return loadingVars;
+  }
+
+  /**
+   * 检查函数体内是否有 loading 状态的使用（setLoading 等）
+   */
+  private hasLoadingInBody(body: ts.Node): boolean {
+    const bodyText = body.getText(this.sourceFile);
+    // 扩展正则，支持更多变量名
+    return /setLoading|setSubmitting|setSaving|setLoadingState|loading\s*=\s*(true|false)|disabled.*loading/i.test(bodyText);
+  }
+
+  /**
+   * 检查函数体是否引用了组件级 loading 变量
+   * 避免"只要定义了 loading 就豁免所有函数"的误报
+   */
+  private functionUsesLoadingState(func: ts.FunctionLikeDeclaration | ts.MethodDeclaration | ts.FunctionDeclaration, loadingVars: string[]): boolean {
+    if (loadingVars.length === 0) return false;
+
+    const funcText = func.getText(this.sourceFile);
+
+    // 检查是否引用了 loading 变量（读取、设置、作为 prop 传递）
+    for (const varName of loadingVars) {
+      // 匹配变量名作为标识符使用（排除定义行本身）
+      // 同时匹配 setter 形式：setXxxLoading, setExecuting 等
+      const setterName = 'set' + varName.charAt(0).toUpperCase() + varName.slice(1);
+      const directPattern = `\\b${varName}\\b`;
+      const setterPattern = `\\b${setterName}\\b`;
+      const combinedPattern = new RegExp(`(${directPattern}|${setterPattern})(?!\\s*,\\s*\\w+\\]\\s*=\\s*useState)`, 'i');
+      if (combinedPattern.test(funcText)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * 检测特定处理器是否有独立的 loading 状态
+   * 优化版：支持 submitting/saving 等变量名
+   */
+  private hasIndividualLoadingState(handler: ts.FunctionLikeDeclaration): boolean {
+    const handlerText = handler.getText(this.sourceFile);
+    // 扩展匹配更多 loading 状态模式（包括 exporting/generating/refreshing 等）
+    return /(?:loading|submitting|saving|fetching|executing|processing|exporting|generating|uploading|refreshing|searching)\s*[?=]|set(?:Loading|Submitting|Saving|Fetching|Executing|Processing|Exporting|Generating|Uploading|Refreshing|Searching|AuditLogLoading|DetailLoading|ModalLoading|TableLoading)|disabled\s*=\s*\{[^}]*loading/i.test(handlerText);
   }
 
   /**
@@ -611,75 +718,72 @@ export class FrontendInteractionAnalyzer {
 
   /**
    * A2-05: 网络错误处理
-   * 检测是否有 try-catch 和错误边界
+   * 优化版：在每个异步函数级别检测 try-catch，而非全文正则
    */
   private detectMissingNetworkError(): InteractionIssue[] {
     const issues: InteractionIssue[] = [];
+    const reportedLines = new Set<number>();
 
-    // 查找所有异步操作
-    const asyncOperations: { name: string; line: number; column: number }[] = [];
+    const checkNode = (node: ts.Node) => {
+      let asyncFunc: ts.FunctionDeclaration | ts.MethodDeclaration | ts.ArrowFunction | null = null;
+      let funcName = '';
 
-    const findAsyncOps = (node: ts.Node) => {
-      // 异步方法
-      if (ts.isMethodDeclaration(node) || ts.isFunctionDeclaration(node)) {
-        if (node.name && ts.isIdentifier(node.name)) {
-          const isAsync = node.modifiers?.some(m => m.kind === ts.SyntaxKind.AsyncKeyword);
-          if (isAsync && node.body) {
-            const { line, column } = this.getLineColumn(node);
-            asyncOperations.push({ name: node.name.text, line, column });
-          }
+      if ((ts.isFunctionDeclaration(node) || ts.isMethodDeclaration(node)) && node.name) {
+        const isAsync = node.modifiers?.some(m => m.kind === ts.SyntaxKind.AsyncKeyword);
+        if (isAsync && node.body) {
+          asyncFunc = node;
+          funcName = ts.isIdentifier(node.name) ? node.name.text : 'anonymous';
         }
       }
 
-      // 箭头函数赋值
       if (ts.isVariableStatement(node)) {
         for (const decl of node.declarationList.declarations) {
           if (ts.isVariableDeclaration(decl) && decl.initializer) {
             const init = decl.initializer;
-            if (ts.isArrowFunction(init) || ts.isFunctionExpression(init)) {
+            if ((ts.isArrowFunction(init) || ts.isFunctionExpression(init)) && init.body) {
               const isAsync = init.modifiers?.some(m => m.kind === ts.SyntaxKind.AsyncKeyword);
               if (isAsync) {
-                const varName = decl.name.getText(this.sourceFile);
-                const { line, column } = this.getLineColumn(decl);
-                if (/^(handle|on|load|fetch|save|submit|create|update|delete)/i.test(varName)) {
-                  asyncOperations.push({ name: varName, line, column });
-                }
+                asyncFunc = init;
+                funcName = decl.name.getText(this.sourceFile);
               }
             }
           }
         }
       }
-      ts.forEachChild(node, findAsyncOps);
+
+      if (asyncFunc && /^(handle|load|fetch|save|submit|create|update|delete|remove)/i.test(funcName)) {
+        const hasTryCatch = this.hasTryCatch(asyncFunc);
+        const hasCatchWithMessage = this.hasCatchWithErrorMessage(asyncFunc);
+        const { line, column } = this.getLineColumn(asyncFunc);
+
+        // 如果既没有 try-catch 也没有 catch 中的错误提示，且未报告过该行
+        if (!hasTryCatch && !reportedLines.has(line)) {
+          reportedLines.add(line);
+          issues.push({
+            file: this.filePath,
+            line,
+            column,
+            type: 'missing-network-error',
+            severity: 'P0',
+            message: `方法 ${funcName} 缺少网络错误处理`,
+            suggestion: '添加 try-catch 块处理网络错误',
+          });
+        }
+      }
+
+      ts.forEachChild(node, checkNode);
     };
 
-    ts.forEachChild(this.sourceFile, findAsyncOps);
-
-    // 检查每个异步操作是否有错误处理
-    for (const op of asyncOperations) {
-      // 检查是否有 catch 块
-      const hasErrorHandling = /catch\s*\(|try\s*\{/i.test(this.content) ||
-                              /onError|errorHandler|handleError/i.test(this.content);
-
-      if (!hasErrorHandling) {
-        issues.push({
-          file: this.filePath,
-          line: op.line,
-          column: op.column,
-          type: 'missing-network-error',
-          severity: 'P0',
-          message: `方法 ${op.name} 缺少网络错误处理`,
-          suggestion: '添加 try-catch 块处理网络错误',
-        });
-        break; // 只报告一次，因为通常是全局问题
-      }
-    }
+    ts.forEachChild(this.sourceFile, checkNode);
 
     // 检查是否有 Error Boundary
     const hasErrorBoundary = /ErrorBoundary|componentDidCatch|getDerivedStateFromError/i.test(this.content);
-    if (asyncOperations.length > 0 && !hasErrorBoundary) {
-      // 检查是否已有错误处理的 issues，如果没有则添加一个
-      const hasExistingErrorIssue = issues.some(i => i.type === 'missing-network-error');
-      if (!hasExistingErrorIssue) {
+    if (!hasErrorBoundary && issues.length === 0) {
+      // 检查是否有 await 调用但没有任何错误处理
+      const hasApiCalls = /await\s+\w+Api\.|await\s+request\(|await\s+axios/i.test(this.content);
+      const hasAnyTryCatch = /try\s*\{[\s\S]*catch/i.test(this.content);
+
+      if (hasApiCalls && !hasAnyTryCatch) {
         issues.push({
           file: this.filePath,
           line: 1,
@@ -696,6 +800,45 @@ export class FrontendInteractionAnalyzer {
   }
 
   /**
+   * 检查节点及其子节点是否有 catch 块
+   */
+  private hasTryCatchInNode(node: ts.Node): boolean {
+    let found = false;
+    const check = (n: ts.Node) => {
+      if (ts.isTryStatement(n)) {
+        found = true;
+        return;
+      }
+      // 遇到嵌套函数边界时停止，避免将内部回调的 try-catch 误归为外层函数
+      if (n !== node && ts.isFunctionLike(n)) {
+        return;
+      }
+      if (!found) ts.forEachChild(n, check);
+    };
+    check(node);
+    return found;
+  }
+
+  /**
+   * 检查异步函数是否有 try-catch 且 catch 中有错误提示
+   */
+  private hasCatchWithErrorMessage(func: ts.FunctionLikeDeclaration): boolean {
+    let found = false;
+    const check = (n: ts.Node) => {
+      if (ts.isTryStatement(n) && n.catchClause) {
+        const catchBody = n.catchClause.block.getText(this.sourceFile);
+        if (/message\.(error|warning)|notification\.error/i.test(catchBody)) {
+          found = true;
+          return;
+        }
+      }
+      if (!found) ts.forEachChild(n, check);
+    };
+    check(func);
+    return found;
+  }
+
+  /**
    * A2-06: 业务错误提示
    * 检测 catch 块中是否有 message.error 显示
    */
@@ -703,50 +846,57 @@ export class FrontendInteractionAnalyzer {
     const issues: InteractionIssue[] = [];
 
     // 查找所有 catch 块
-    const catchBlocks: { line: number; column: number; hasMessage: boolean }[] = [];
+    const catchBlocks: {
+      line: number;
+      column: number;
+      hasMessage: boolean;
+      hasErrorHandling: boolean;
+      isEmpty: boolean;
+    }[] = [];
 
     const findCatchBlocks = (node: ts.Node) => {
       if (ts.isCatchClause(node)) {
         const { line, column } = this.getLineColumn(node);
         const catchBody = node.block.getText(this.sourceFile);
-        const hasMessage = /message\.error|notification\.error/i.test(catchBody);
 
-        catchBlocks.push({ line, column, hasMessage });
+        // 检查是否有用户可见的错误提示
+        const hasMessage = /message\.error|notification\.error|Modal\.error|Modal\.warning/i.test(catchBody);
+
+        // 检查是否有其他有效的错误处理模式
+        const hasErrorHandling = hasMessage ||
+          /setError|setApiError|setErrorMessage/i.test(catchBody) ||  // 状态设置
+          /throw\s+new\s+Error|throw\s+error/i.test(catchBody) ||     // 重新抛出
+          /return\s+\{.*error|return\s+Promise\.reject/i.test(catchBody) || // 返回错误对象
+          /logger\.error|console\.error.*用户|reportError/i.test(catchBody) || // 日志记录+用户提示
+          /handleError|showError|displayError/i.test(catchBody);      // 自定义错误处理函数
+
+        // 检查是否为空 catch 块（只有注释或空白）
+        const bodyWithoutWhitespace = catchBody.replace(/\s+/g, '').replace(/\/\/.*/g, '').replace(/\/\*.*?\*\//g, '');
+        const isEmpty = bodyWithoutWhitespace === '{}' || bodyWithoutWhitespace.length < 10;
+
+        catchBlocks.push({ line, column, hasMessage, hasErrorHandling, isEmpty });
       }
       ts.forEachChild(node, findCatchBlocks);
     };
 
     ts.forEachChild(this.sourceFile, findCatchBlocks);
 
-    // 检查是否有 catch 块但没有 message.error
+    // 只报告真正有问题的 catch 块
     for (const catchBlock of catchBlocks) {
-      if (!catchBlock.hasMessage) {
+      // 如果没有任何错误处理，或者 catch 块是空的，报告问题
+      if (!catchBlock.hasErrorHandling || catchBlock.isEmpty) {
         issues.push({
           file: this.filePath,
           line: catchBlock.line,
           column: catchBlock.column,
           type: 'missing-business-error',
           severity: 'P0',
-          message: 'catch 块缺少业务错误提示',
-          suggestion: '在 catch 块中使用 message.error 显示错误信息',
+          message: catchBlock.isEmpty
+            ? 'catch 块为空，缺少错误处理'
+            : 'catch 块缺少用户可见的错误提示',
+          suggestion: '在 catch 块中使用 message.error 显示错误信息，或设置错误状态',
         });
       }
-    }
-
-    // 检查 API 调用后是否有错误处理
-    const hasApiCalls = /await\s+\w+Api\.|await\s+request\(|await\s+axios/i.test(this.content);
-    const hasErrorCheck = /\.catch\(|try\s*\{|if\s*\(\s*error|if\s*\(\s*!.*\.success/i.test(this.content);
-
-    if (hasApiCalls && !hasErrorCheck && catchBlocks.length === 0) {
-      issues.push({
-        file: this.filePath,
-        line: 1,
-        column: 1,
-        type: 'missing-business-error',
-        severity: 'P0',
-        message: 'API 调用后缺少业务错误处理',
-        suggestion: '添加错误处理逻辑，显示后端返回的错误信息',
-      });
     }
 
     return issues;
@@ -759,18 +909,21 @@ export class FrontendInteractionAnalyzer {
   private detectMissingPermissionError(): InteractionIssue[] {
     const issues: InteractionIssue[] = [];
 
+    // 检测是否有写操作 API 调用（GET 不需要权限检查）
+    const hasWriteApiCalls = /await\s+\w+Api\.(post|put|delete|patch|mutate)|await\s+request\.(post|put|delete|patch)/i.test(this.content);
+
+    if (!hasWriteApiCalls) return issues;
+
     // 检测是否有 403 或权限相关错误处理
     const hasPermissionCheck = /403|forbidden|unauthorized|permission denied|no permission|无权限|权限不足/i.test(this.content) ||
                                /response\.status\s*===?\s*403/i.test(this.content) ||
-                               /err\.response\.status\s*===?\s*403/i.test(this.content);
+                               /err\.response\.status\s*===?\s*403/i.test(this.content) ||
+                               /error\..*status\s*===?\s*403/i.test(this.content);
 
     // 检测是否有无权限提示
     const hasPermissionMessage = /message\.error.*权限|notification\.error.*权限/i.test(this.content);
 
-    // 检查是否有 API 调用
-    const hasApiCalls = /await\s+\w+Api\.|await\s+request\(|await\s+axios/i.test(this.content);
-
-    if (hasApiCalls && !hasPermissionCheck) {
+    if (!hasPermissionCheck && !hasPermissionMessage) {
       issues.push({
         file: this.filePath,
         line: 1,
@@ -780,7 +933,7 @@ export class FrontendInteractionAnalyzer {
         message: '缺少 403 权限不足错误处理',
         suggestion: '添加 403 状态码检测，显示"无权限"提示并引导用户',
       });
-    } else if (hasApiCalls && hasPermissionCheck && !hasPermissionMessage) {
+    } else if (hasPermissionCheck && !hasPermissionMessage) {
       issues.push({
         file: this.filePath,
         line: 1,
@@ -1013,36 +1166,121 @@ export class FrontendInteractionAnalyzer {
 
   /**
    * A2-15: 空搜索结果提示
-   * 检测空搜索反馈
+   * 修复：使用 AST 识别真正的搜索功能，排除 JSDoc 注释中的关键词匹配
+   * 要求页面中同时存在搜索输入 + 搜索渲染结果 + 无 Empty 组件才报
    */
   private detectMissingEmptySearch(): InteractionIssue[] {
     const issues: InteractionIssue[] = [];
 
-    // 检查是否有搜索功能
-    const hasSearch = /onSearch|handleSearch|searchValue|searchText|keyword/i.test(this.content);
+    // 1. 使用 AST 检测真正的搜索功能（排除 JSDoc 注释）
+    const searchDetection = this.detectSearchWithAST();
+    if (!searchDetection.hasSearchInput) return issues;
 
-    if (!hasSearch) return issues;
+    // 2. 检查是否已有空搜索结果处理
+    const hasEmptySearch =
+      /no result|无结果|未找到|empty.*search|search.*empty/i.test(this.content.toLowerCase()) ||
+      /data(Source)?\.length\s*===?\s*0|dataSource\s*=\s*\{\s*\}/i.test(this.content) ||
+      /<Empty|emptyText|locale\s*=\s*\{\s*empty/i.test(this.content) ||
+      /searchResults\.length\s*===?\s*0|filteredData\.length\s*===?\s*0/i.test(this.content);
 
-    // 检查是否有空结果处理
-    const hasEmptySearch = /no result|无结果|未找到|empty.*search/i.test(this.content.toLowerCase()) ||
-                          /data(Source)?\.length\s*===?\s*0.*search/i.test(this.content);
+    if (hasEmptySearch) return issues;
 
-    // 检查是否有搜索结果为空的提示
-    const hasSearchEmptyHint = /Empty.*description.*搜索|Empty.*search/i.test(this.content);
-
-    if (hasSearch && !hasEmptySearch && !hasSearchEmptyHint) {
-      issues.push({
-        file: this.filePath,
-        line: 1,
-        column: 1,
-        type: 'missing-empty-search',
-        severity: 'P1',
-        message: '搜索功能缺少空结果提示',
-        suggestion: '在搜索结果为空时显示友好提示，如"未找到相关结果"',
-      });
-    }
+    // 3. 有搜索输入但没有空结果处理，报告
+    issues.push({
+      file: this.filePath,
+      line: searchDetection.line,
+      column: searchDetection.column,
+      type: 'missing-empty-search',
+      severity: 'P1',
+      message: '搜索功能缺少空结果提示',
+      suggestion: '在搜索结果为空时显示友好提示，如"未找到相关结果"',
+    });
 
     return issues;
+  }
+
+  /**
+   * 使用 AST 检测页面是否有真正的搜索功能
+   * 排除 JSDoc 注释中的关键词匹配，只识别实际的搜索组件/回调
+   */
+  private detectSearchWithAST(): { hasSearchInput: boolean; line: number; column: number } {
+    let foundSearch = false;
+    let searchLine = 1;
+    let searchColumn = 1;
+
+    const checkNode = (node: ts.Node) => {
+      if (foundSearch) return;
+
+      // 检测 <Input.Search /> 或 <Search /> 组件
+      if (ts.isJsxSelfClosingElement(node)) {
+        const tagName = node.tagName.getText(this.sourceFile);
+        if (tagName === 'Input.Search' || tagName === 'Search') {
+          foundSearch = true;
+          const pos = node.getStart(this.sourceFile);
+          const lineInfo = this.sourceFile.getLineAndCharacterOfPosition(pos);
+          searchLine = lineInfo.line + 1;
+          searchColumn = lineInfo.character + 1;
+          return;
+        }
+      }
+
+      // 检测 onSearch prop
+      if (ts.isJsxAttribute(node) && ts.isIdentifier(node.name) && node.name.text === 'onSearch') {
+        foundSearch = true;
+        const pos = node.getStart(this.sourceFile);
+        const lineInfo = this.sourceFile.getLineAndCharacterOfPosition(pos);
+        searchLine = lineInfo.line + 1;
+        searchColumn = lineInfo.character + 1;
+        return;
+      }
+
+      // 检测 handleSearch / onSearch 函数定义
+      if (ts.isFunctionDeclaration(node) || ts.isMethodDeclaration(node)) {
+        if (node.name && ts.isIdentifier(node.name)) {
+          if (/^(handleSearch|onSearch|doSearch|performSearch)$/i.test(node.name.text)) {
+            foundSearch = true;
+            const pos = node.getStart(this.sourceFile);
+            const lineInfo = this.sourceFile.getLineAndCharacterOfPosition(pos);
+            searchLine = lineInfo.line + 1;
+            searchColumn = lineInfo.character + 1;
+            return;
+          }
+        }
+      }
+
+      // 检测 searchValue / searchText 的 useState 定义（代码中的真实变量声明，非注释）
+      if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name)) {
+        if (/^(searchValue|searchText|keyword|searchQuery)$/i.test(node.name.text)) {
+          foundSearch = true;
+          const pos = node.getStart(this.sourceFile);
+          const lineInfo = this.sourceFile.getLineAndCharacterOfPosition(pos);
+          searchLine = lineInfo.line + 1;
+          searchColumn = lineInfo.character + 1;
+          return;
+        }
+      }
+
+      ts.forEachChild(node, checkNode);
+    };
+
+    ts.forEachChild(this.sourceFile, checkNode);
+
+    // AST 没找到，降级为去除 JSDoc 注释后的正则匹配
+    if (!foundSearch) {
+      const codeWithoutComments = this.content
+        .replace(/\/\*\*[\s\S]*?\*\//g, '')  // 去除 JSDoc
+        .replace(/\/\*[\s\S]*?\*\//g, '')     // 去除块注释
+        .replace(/\/\/.*$/gm, '');             // 去除行注释
+
+      if (/onSearch|handleSearch|searchValue|searchText|keyword/i.test(codeWithoutComments)) {
+        foundSearch = true;
+        // 行号标记为 1（正则降级无法精确定位）
+        searchLine = 1;
+        searchColumn = 1;
+      }
+    }
+
+    return { hasSearchInput: foundSearch, line: searchLine, column: searchColumn };
   }
 
   // ============ 辅助方法 ============
@@ -1099,21 +1337,9 @@ export class FrontendInteractionAnalyzer {
   }
 
   /**
-   * 检测特定处理器是否有独立的 loading 状态
-   * 增强版：检查处理器内部是否使用 loading 变量
-   */
-  private hasIndividualLoadingState(handler: ts.FunctionLikeDeclaration): boolean {
-    const handlerText = handler.getText(this.sourceFile);
-    return /loading\s*[?=]/.test(handlerText) ||
-           /setLoading/.test(handlerText) ||
-           /disabled\s*=\s*\{[^}]*loading/.test(handlerText);
-  }
-
-  /**
    * 检测是否有针对特定方法的 loading ref
    */
   private hasLoadingRefInMethod(methodName: string): boolean {
-    // 查找类似 const handleXxxLoading 或 const loading = ref
     const loadingPattern = new RegExp(`(const|let)\\s+${methodName.replace(/^on/i, '')}Loading\\s*=`, 'i');
     return loadingPattern.test(this.content);
   }
@@ -1122,15 +1348,7 @@ export class FrontendInteractionAnalyzer {
    * 检测 try-catch 结构
    */
   private hasTryCatch(node: ts.Node): boolean {
-    let found = false;
-    const check = (n: ts.Node) => {
-      if (ts.isTryStatement(n)) {
-        found = true;
-      }
-      ts.forEachChild(n, check);
-    };
-    check(node);
-    return found;
+    return this.hasTryCatchInNode(node);
   }
 
   private isListComponent(): boolean {
@@ -1173,7 +1391,7 @@ export class InteractionScanner {
    */
   async scan(maxFiles: number = 100): Promise<InteractionIssue[]> {
     const allIssues: InteractionIssue[] = [];
-    const files = this.getTsxFiles(this.rootPath).slice(0, maxFiles);
+    const files = getTsxFiles(this.rootPath).slice(0, maxFiles);
 
     console.log(`📊 开始扫描 ${files.length} 个文件...`);
 
@@ -1222,29 +1440,6 @@ export class InteractionScanner {
     }
 
     return groups;
-  }
-
-  private getTsxFiles(dir: string): string[] {
-    const files: string[] = [];
-
-    const traverse = (currentDir: string) => {
-      try {
-        const entries = fs.readdirSync(currentDir, { withFileTypes: true });
-        for (const entry of entries) {
-          const fullPath = path.join(currentDir, entry.name);
-          if (entry.isDirectory() && !entry.name.startsWith('.') && entry.name !== 'node_modules') {
-            traverse(fullPath);
-          } else if (entry.isFile() && entry.name.endsWith('.tsx')) {
-            files.push(fullPath);
-          }
-        }
-      } catch {
-        // 忽略访问错误
-      }
-    };
-
-    traverse(dir);
-    return files;
   }
 }
 
