@@ -286,39 +286,38 @@ const PipelineDetail: React.FC = () => {
               const runDetailRes = await getPipelineRunDetail(latestRun.id);
               console.log('[PipelineDetail] Raw run detail response:', runDetailRes);
 
-              const runDetail = extractData(runDetailRes);
-              console.log('[PipelineDetail] Extracted run detail:', runDetail);
+              // Backend returns: { run: {...}, stages: [...], tasks: [...] }
+              // Axios wraps it in res.data, so we need to extract properly
+              const rawResponse = (runDetailRes as any)?.data ?? runDetailRes;
+              console.log('[PipelineDetail] Extracted response:', rawResponse);
 
-              if (runDetail) {
-                // Backend returns { run: {...}, stages: [...], tasks: [...] }
-                const rawStages = runDetail.stages || runDetail.runStages || [];
-                const rawTasks = runDetail.tasks || runDetail.runTasks || [];
+              // Stages are directly in the response, not nested under .data
+              const rawStages = rawResponse?.stages ?? [];
+              const rawTasks = rawResponse?.tasks ?? [];
 
-                console.log('[PipelineDetail] Raw stages count:', rawStages.length);
-                console.log('[PipelineDetail] Raw tasks count:', rawTasks.length);
+              console.log('[PipelineDetail] Raw stages count:', rawStages.length);
+              console.log('[PipelineDetail] Raw stages:', rawStages);
+              console.log('[PipelineDetail] Raw tasks count:', rawTasks.length);
 
-                // Merge tasks into stages as steps
-                runStages = rawStages.map((stage: any) => {
-                  const stageTasks = rawTasks.filter((t: any) => t.stageId === stage.id || t.stageName === stage.name);
-                  const durationSec = stage.durationMs ? parseInt(stage.durationMs) / 1000 : undefined;
-                  return {
-                    ...stage,
-                    duration: durationSec,
-                    steps: stageTasks.map((t: any) => ({
-                      ...t,
-                      duration: t.durationMs ? parseInt(t.durationMs) / 1000 : undefined,
-                    })),
-                    logs: stageTasks.flatMap((t: any) => t.logs || []),
-                  };
-                });
+              // Merge tasks into stages as steps
+              runStages = rawStages.map((stage: any) => {
+                const stageTasks = rawTasks.filter((t: any) => t.stageId === stage.id || t.stageName === stage.name);
+                const durationSec = stage.durationMs ? parseInt(stage.durationMs) / 1000 : undefined;
+                return {
+                  ...stage,
+                  duration: durationSec,
+                  steps: stageTasks.map((t: any) => ({
+                    ...t,
+                    duration: t.durationMs ? parseInt(t.durationMs) / 1000 : undefined,
+                  })),
+                  logs: stageTasks.flatMap((t: any) => t.logs || []),
+                };
+              });
 
-                console.log('[PipelineDetail] Processed stages:', runStages);
+              console.log('[PipelineDetail] Processed stages:', runStages.length, runStages);
 
-                // Merge run detail into latestRun
-                latestRun = { ...latestRun, ...runDetail, stages: runStages };
-              } else {
-                console.warn('[PipelineDetail] No run detail extracted');
-              }
+              // Merge run detail into latestRun
+              latestRun = { ...latestRun, ...rawResponse, stages: runStages };
             } catch (err) {
               console.error('[PipelineDetail] Failed to get run detail:', err);
             }
@@ -329,7 +328,11 @@ const PipelineDetail: React.FC = () => {
           console.error('[PipelineDetail] Failed to get runs:', err);
         }
 
-        console.log('[PipelineDetail] Final pipeline state stages:', runStages.length, runStages);
+        console.log('[PipelineDetail] Final pipeline state:', {
+          stages: runStages.length,
+          status: latestRun?.status,
+          runNumber: runsCount,
+        });
 
         setPipeline({
           ...pipelineData,
