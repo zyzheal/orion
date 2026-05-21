@@ -160,7 +160,7 @@ const PipelineList: React.FC = () => {
     {
       key: 'actions',
       title: '操作',
-      width: 200,
+      width: 280,
       render: (_: unknown, record) => (
         <Space size="small">
           <Button type="link" size="small" onClick={() => navigate(`/pipelines/${record.id}`)}>
