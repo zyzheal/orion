@@ -12,7 +12,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Typography, Button, Space, Tag, Card, Descriptions, Tabs, Badge, message, Result, Table, Modal } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { colors, spacing, componentSpacing } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 import {
   PlayCircleOutlined,
   ClockCircleOutlined,
@@ -539,81 +539,55 @@ const PipelineDetail: React.FC = () => {
 
   return (
     <div style={{ padding: 0, background: colors.light.bg.secondary, minHeight: '100vh' }}>
-      {/* 页面头部 - 居中布局 */}
+      {/* 页面头部 - 与列表页风格一致 */}
       <div
         style={{
           display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: `${componentSpacing.cardPadding.lg} ${componentSpacing.cardPadding.lg} ${componentSpacing.cardPadding.md}`,
-          background: colors.light.bg.primary,
-          borderBottom: `1px solid ${colors.light.border.light || '#f0f0f0'}`,
-          textAlign: 'center',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          marginBottom: 24,
         }}
       >
-        {/* 标题区域 */}
-        <div style={{ marginBottom: spacing.sm }}>
-          <Space align="center">
-            <Button
-              type="text"
-              icon={<ArrowLeftOutlined />}
-              onClick={() => navigate('/pipelines')}
-              disabled={loading}
-              size="small"
-              style={{ position: 'absolute', left: 0 }}
-            >
-              返回
-            </Button>
-            <Title level={2} style={{ marginBottom: 8 }}>
-              <ApiOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
-              {pipeline.name}
-            </Title>
-            <Tag color="default" style={{ fontSize: 12 }}>
+        <div>
+          <Title level={2} style={{ marginBottom: 8, display: 'flex', alignItems: 'center' }}>
+            <ApiOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
+            {pipeline.name}
+            <Tag color="default" style={{ marginLeft: 12, fontSize: 12 }}>
               #{pipeline.runNumber}
             </Tag>
             {pipeline && <StatusBadge status={pipeline.status} size="medium" />}
+          </Title>
+          <Space size="middle" wrap>
+            <Text type="secondary" style={{ fontSize: 13 }}>
+              分支: <Text code style={{ fontSize: 12 }}>{pipeline.branch}</Text>
+            </Text>
+            <Text type="secondary" style={{ fontSize: 13 }}>
+              触发: {triggerLabel[pipeline.trigger] || pipeline.trigger}
+            </Text>
+            <Text type="secondary" style={{ fontSize: 13 }}>
+              由 {pipeline.author || '-'} 触发
+            </Text>
+            {pipeline.commit && (
+              <Text type="secondary" style={{ fontSize: 13 }}>
+                Commit: <Text code style={{ fontSize: 12 }}>{pipeline.commit.slice(0, 7)}</Text>
+              </Text>
+            )}
           </Space>
         </div>
-
-        {/* 元信息区域 */}
-        <Space size="middle" wrap style={{ justifyContent: 'center' }}>
-          <Text type="secondary" style={{ fontSize: 13 }}>
-            分支: <Text code style={{ fontSize: 12 }}>{pipeline.branch}</Text>
-          </Text>
-          <Text type="secondary" style={{ fontSize: 13 }}>
-            触发: {triggerLabel[pipeline.trigger] || pipeline.trigger}
-          </Text>
-          <Text type="secondary" style={{ fontSize: 13 }}>
-            由 {pipeline.author || '-'} 触发
-          </Text>
-          {pipeline.commit && (
-            <Text type="secondary" style={{ fontSize: 13 }}>
-              Commit: <Text code style={{ fontSize: 12 }}>{pipeline.commit.slice(0, 7)}</Text>
-            </Text>
-          )}
+        <Space>
+          <Button
+            type="primary"
+            icon={<ReloadOutlined />}
+            loading={isRerunning}
+            onClick={handleRerun}
+            disabled={!pipeline || pipeline.status === 'running' || loading}
+          >
+            {isRerunning ? '触发中...' : '重新运行'}
+          </Button>
+          <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/pipelines')}>
+            返回列表
+          </Button>
         </Space>
-      </div>
-
-      {/* 操作按钮区域 */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'center',
-          padding: `${componentSpacing.cardPadding.sm} ${componentSpacing.cardPadding.lg}`,
-          background: colors.light.bg.primary,
-          borderBottom: `1px solid ${colors.light.border.light || '#f0f0f0'}`,
-        }}
-      >
-        <Button
-          type="primary"
-          icon={<ReloadOutlined />}
-          loading={isRerunning}
-          onClick={handleRerun}
-          disabled={!pipeline || pipeline.status === 'running' || loading}
-        >
-          {isRerunning ? '触发中...' : '重新运行'}
-        </Button>
       </div>
 
       {/* Pipeline info card */}

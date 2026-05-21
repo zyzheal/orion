@@ -479,20 +479,17 @@ const PipelineEditor: React.FC = () => {
 
   return (
     <div style={{ padding: 0 }}>
-      {/* 页面头部 */}
+      {/* 页面头部 - 与列表页风格一致 */}
       <div
         style={{
           display: 'flex',
-          alignItems: 'center',
-          gap: 16,
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
           marginBottom: 24,
         }}
       >
-        <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/pipelines')}>
-          返回列表
-        </Button>
-        <div style={{ flex: 1 }}>
-          <Title level={2} style={{ marginBottom: 8 }}>
+        <div>
+          <Title level={2} style={{ marginBottom: 8, display: 'flex', alignItems: 'center' }}>
             <EditOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             {id ? '编辑 Pipeline' : '创建 Pipeline'}
           </Title>
@@ -540,6 +537,9 @@ const PipelineEditor: React.FC = () => {
             disabled={stages.length === 0}
           >
             {saving ? '保存中...' : '保存'}
+          </Button>
+          <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/pipelines')}>
+            返回列表
           </Button>
         </Space>
       </div>
