@@ -260,6 +260,7 @@ const PipelineDetail: React.FC = () => {
         // Fetch pipeline definition
         const pipelineRes = await getPipeline(id!);
         const pipelineData = extractData(pipelineRes);
+        console.log('[PipelineDetail] Pipeline data:', pipelineData);
 
         if (!pipelineData) {
           setApiError('未找到该 Pipeline');
@@ -274,18 +275,31 @@ const PipelineDetail: React.FC = () => {
           const runsRes = await getPipelineRuns(id!);
           const runsData = extractList(runsRes);
           runsCount = runsData.length;
+
+          console.log('[PipelineDetail] Runs count:', runsCount);
+          console.log('[PipelineDetail] First run:', runsData[0]);
+
           if (runsData.length > 0) {
             latestRun = runsData[0];
             // Fetch full run detail including stages and tasks
             try {
               const runDetailRes = await getPipelineRunDetail(latestRun.id);
+              console.log('[PipelineDetail] Raw run detail response:', runDetailRes);
+
               const runDetail = extractData(runDetailRes);
+              console.log('[PipelineDetail] Extracted run detail:', runDetail);
+
               if (runDetail) {
-                const rawStages = runDetail.stages || [];
-                const rawTasks = runDetail.tasks || [];
+                // Backend returns { run: {...}, stages: [...], tasks: [...] }
+                const rawStages = runDetail.stages || runDetail.runStages || [];
+                const rawTasks = runDetail.tasks || runDetail.runTasks || [];
+
+                console.log('[PipelineDetail] Raw stages count:', rawStages.length);
+                console.log('[PipelineDetail] Raw tasks count:', rawTasks.length);
+
                 // Merge tasks into stages as steps
                 runStages = rawStages.map((stage: any) => {
-                  const stageTasks = rawTasks.filter((t: any) => t.stageId === stage.id);
+                  const stageTasks = rawTasks.filter((t: any) => t.stageId === stage.id || t.stageName === stage.name);
                   const durationSec = stage.durationMs ? parseInt(stage.durationMs) / 1000 : undefined;
                   return {
                     ...stage,
@@ -297,16 +311,25 @@ const PipelineDetail: React.FC = () => {
                     logs: stageTasks.flatMap((t: any) => t.logs || []),
                   };
                 });
+
+                console.log('[PipelineDetail] Processed stages:', runStages);
+
                 // Merge run detail into latestRun
-                latestRun = { ...latestRun, ...runDetail };
+                latestRun = { ...latestRun, ...runDetail, stages: runStages };
+              } else {
+                console.warn('[PipelineDetail] No run detail extracted');
               }
-            } catch {
-              // Run detail endpoint may not be available
+            } catch (err) {
+              console.error('[PipelineDetail] Failed to get run detail:', err);
             }
+          } else {
+            console.warn('[PipelineDetail] No runs found for pipeline');
           }
-        } catch {
-          // Runs endpoint may not be fully wired yet
+        } catch (err) {
+          console.error('[PipelineDetail] Failed to get runs:', err);
         }
+
+        console.log('[PipelineDetail] Final pipeline state stages:', runStages.length, runStages);
 
         setPipeline({
           ...pipelineData,
