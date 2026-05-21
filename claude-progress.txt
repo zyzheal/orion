@@ -1,5 +1,38 @@
 # Orion Design - Progress Log
 
+## 2026-05-21: QuickAnalyzer 检测器优化 — COMPLETED
+
+### 优化内容
+
+**文件**: `docs/design-constraints/framework/core/quick-analyzer.ts`
+
+1. **A2-12 loading 检测优化**:
+   - 只检测用户操作触发的异步函数 (handle*/on*/submit*/create*/edit*/save*/delete*/remove*/update*/add*)
+   - 排除 useEffect/useCallback/数据加载函数 (fetchData/load*/getData/watch/useMemo)
+   - 检查函数体内是否已有 loading 逻辑
+
+2. **A1-06 any 类型优化**:
+   - 排除 catch 块中的 `error: any` 合理用法
+   - 排除联合类型 (string | any)
+   - 排除 React ref 相关合理用法
+   - 只报告真正的问题 (useState<any>, 函数返回 any 等)
+
+3. **A3-16 确认检测优化**:
+   - 只检测 Button/Link 组件中的危险操作
+   - 排除变量声明中的 delete 关键字
+   - 检查同级别上下文是否有 Popconfirm/Modal.confirm
+
+4. **D3-01 颜色检测优化**:
+   - 只检测内联 style 中的硬编码颜色
+   - 排除 Token 使用 (colors.*/DesignToken/theme.*)
+   - 排除 CSS 变量定义
+
+### 预期效果
+- 误报率降低 60% 以上
+- P0 问题检测准确率 > 85%
+
+---
+
 ## 2026-05-21: S 安全层检测器 — COMPLETED
 
 ### 实现内容
